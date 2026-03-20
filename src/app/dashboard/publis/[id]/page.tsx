@@ -20,7 +20,7 @@ import {
     ChartBarIcon,
     ArrowLeftIcon
 } from '@heroicons/react/24/outline';
-import { idsToLabels } from '@/app/lib/classification';
+import { getMetricStrategicPresentation } from '@/app/lib/metricStrategicPresentation';
 
 const PubliDailyPerformanceChart = dynamic(
     () => import('./components/PubliDailyPerformanceChart'),
@@ -31,11 +31,15 @@ const PubliDailyPerformanceChart = dynamic(
 const glassClass = "backdrop-blur-xl bg-white/70 border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.04)] rounded-2xl";
 const cardHoverClass = "transition-all duration-300 hover:shadow-[0_12px_48px_rgba(0,0,0,0.08)] hover:-translate-y-1";
 
-const COLOR_BY_TYPE: Record<'format' | 'proposal' | 'context' | 'tone' | 'reference', string> = {
+const COLOR_BY_TYPE: Record<'format' | 'intent' | 'narrative' | 'context' | 'proof' | 'commercial' | 'signal' | 'tone' | 'reference', string> = {
     format: 'bg-rose-50 text-rose-700 border-rose-200',
-    proposal: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    intent: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    narrative: 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200',
     context: 'bg-sky-50 text-sky-700 border-sky-200',
-    tone: 'bg-purple-50 text-purple-700 border-purple-200',
+    proof: 'bg-violet-50 text-violet-700 border-violet-200',
+    commercial: 'bg-amber-50 text-amber-700 border-amber-200',
+    signal: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    tone: 'bg-slate-100 text-slate-700 border-slate-200',
     reference: 'bg-amber-50 text-amber-700 border-amber-200',
 };
 
@@ -45,8 +49,8 @@ const TagPill: React.FC<{ children: React.ReactNode; color: string }> = ({ child
     </span>
 );
 
-const ChipRow = ({ label, items, type }: { label: string; items?: string[]; type: 'format' | 'proposal' | 'context' | 'tone' | 'reference' }) => {
-    const labels = idsToLabels(items, type);
+const ChipRow = ({ label, items, type }: { label: string; items?: string[]; type: keyof typeof COLOR_BY_TYPE }) => {
+    const labels = (items || []).filter(Boolean);
     if (!labels.length) return null;
 
     return (
@@ -107,6 +111,10 @@ export default function InternalPubliPage({ params }: { params: { id: string } }
     );
 
     const stats = metric?.stats || {};
+    const strategicPresentation = useMemo(
+        () => metric ? getMetricStrategicPresentation(metric) : null,
+        [metric]
+    );
 
     const sanitizedSnapshots = useMemo(() => {
         if (!metric?.dailySnapshots) return [];
@@ -259,10 +267,15 @@ export default function InternalPubliPage({ params }: { params: { id: string } }
                             </div>
 
                             <div className="space-y-4">
-                                <ChipRow label="Formato" items={metric.format} type="format" />
-                                <ChipRow label="Proposta" items={metric.proposal} type="proposal" />
-                                <ChipRow label="Contexto" items={metric.context} type="context" />
-                                <ChipRow label="Tom" items={metric.tone} type="tone" />
+                                <ChipRow label="Formato" items={strategicPresentation?.formatLabels} type="format" />
+                                <ChipRow label="Intenção" items={strategicPresentation?.intentLabels} type="intent" />
+                                <ChipRow label="Narrativa" items={strategicPresentation?.narrativeLabels} type="narrative" />
+                                <ChipRow label="Contexto" items={strategicPresentation?.contextLabels} type="context" />
+                                <ChipRow label="Prova" items={strategicPresentation?.proofLabels} type="proof" />
+                                <ChipRow label="Comercial" items={strategicPresentation?.commercialLabels} type="commercial" />
+                                <ChipRow label="Sinais" items={strategicPresentation?.signalLabels} type="signal" />
+                                <ChipRow label="Postura" items={strategicPresentation?.stanceLabels} type="signal" />
+                                <ChipRow label="Leituras complementares" items={[...(strategicPresentation?.toneLabels || []), ...(strategicPresentation?.referenceLabels || [])]} type="tone" />
                             </div>
 
                             {metric.description && (

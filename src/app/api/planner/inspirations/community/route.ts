@@ -21,6 +21,12 @@ export async function POST(request: Request) {
       proposal?: string[];
       reference?: string[];
       tone?: string | string[];
+      contentIntent?: string[];
+      narrativeForm?: string[];
+      contentSignals?: string[];
+      stance?: string[];
+      proofStyle?: string[];
+      commercialMode?: string[];
     };
     const script: string = String(body?.script || '');
     const themeKeyword: string | undefined = body?.themeKeyword || undefined;
@@ -30,6 +36,12 @@ export async function POST(request: Request) {
     const normalizedCategories = {
       ...rawCategories,
       tone: Array.isArray(rawCategories.tone) ? rawCategories.tone[0] : rawCategories.tone,
+      contentIntent: Array.isArray(body?.contentIntent) ? body.contentIntent : rawCategories.contentIntent,
+      narrativeForm: Array.isArray(body?.narrativeForm) ? body.narrativeForm : rawCategories.narrativeForm,
+      contentSignals: Array.isArray(body?.contentSignals) ? body.contentSignals : rawCategories.contentSignals,
+      stance: Array.isArray(body?.stance) ? body.stance : rawCategories.stance,
+      proofStyle: Array.isArray(body?.proofStyle) ? body.proofStyle : rawCategories.proofStyle,
+      commercialMode: Array.isArray(body?.commercialMode) ? body.commercialMode : rawCategories.commercialMode,
     };
     const tone: string | undefined = body?.tone || normalizedCategories.tone || undefined;
     const styleHints: string[] = Array.isArray(body?.styleHints)

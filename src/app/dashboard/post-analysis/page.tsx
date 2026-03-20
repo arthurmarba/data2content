@@ -7,7 +7,7 @@ import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import useSWR from 'swr';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { idsToLabels } from '@/app/lib/classification';
+import { getMetricStrategicPresentation } from '@/app/lib/metricStrategicPresentation';
 
 // Dynamic import for the modal to reduce initial bundle size
 const DiscoverVideoModal = dynamic(() => import('@/app/discover/components/DiscoverVideoModal'), {
@@ -33,10 +33,21 @@ interface PostReviewItem {
         mediaUrl?: string;
         media_url?: string;
         type?: string;
+        format?: string[] | string;
         postLink?: string;
         instagramMediaId?: string;
         context?: string[] | string;
         postContext?: string[] | string;
+        description?: string;
+        proposal?: string[] | string;
+        tone?: string[] | string;
+        references?: string[] | string;
+        contentIntent?: string[] | string;
+        narrativeForm?: string[] | string;
+        contentSignals?: string[] | string;
+        stance?: string[] | string;
+        proofStyle?: string[] | string;
+        commercialMode?: string[] | string;
         stats?: {
             likes?: number;
             comments?: number;
@@ -102,10 +113,21 @@ export default function PostAnalysisPage() {
             : reviews.filter(r => r.status === statusFilter);
 
         filteredReviews.forEach(review => {
-            // Get context - usually an array, we take the primary one or use fallback
-            const contexts = review.post.postContext || review.post.context || [];
-            const primaryContextId = (Array.isArray(contexts) ? contexts[0] : (contexts as string)) || 'Geral';
-            const label = idsToLabels([primaryContextId], 'context')[0] || 'Sem Categoria';
+            const strategicPresentation = getMetricStrategicPresentation({
+                description: review.post.description,
+                format: review.post.format,
+                proposal: review.post.proposal,
+                context: review.post.postContext || review.post.context,
+                tone: review.post.tone,
+                references: review.post.references,
+                contentIntent: review.post.contentIntent,
+                narrativeForm: review.post.narrativeForm,
+                contentSignals: review.post.contentSignals,
+                stance: review.post.stance,
+                proofStyle: review.post.proofStyle,
+                commercialMode: review.post.commercialMode,
+            });
+            const label = strategicPresentation.primaryGroupingLabel;
 
             if (!groups[label]) groups[label] = [];
             groups[label].push(review);
@@ -305,6 +327,23 @@ const ReviewCard = memo(({ review, index, onPlay }: {
     const Icon = config.icon;
     const coverUrl = review.post.thumbnail_url || review.post.thumbnailUrl || review.post.coverUrl || review.post.media_url || review.post.mediaUrl;
     const stats = review.post.stats || {};
+    const strategicPresentation = useMemo(
+        () => getMetricStrategicPresentation({
+            description: review.post.description,
+            format: review.post.format,
+            proposal: review.post.proposal,
+            context: review.post.postContext || review.post.context,
+            tone: review.post.tone,
+            references: review.post.references,
+            contentIntent: review.post.contentIntent,
+            narrativeForm: review.post.narrativeForm,
+            contentSignals: review.post.contentSignals,
+            stance: review.post.stance,
+            proofStyle: review.post.proofStyle,
+            commercialMode: review.post.commercialMode,
+        }),
+        [review.post]
+    );
 
     const handlePlay = useCallback(() => {
         const videoUrl = review.post.media_url || review.post.mediaUrl;
@@ -365,6 +404,23 @@ const ReviewCard = memo(({ review, index, onPlay }: {
                         <BarChart2 className="h-3.5 w-3.5 text-slate-400" />
                         <span className="text-[10px] font-bold text-slate-600">{formatNum(stats.reach)}</span>
                     </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2">
+                    {[
+                        strategicPresentation.intentLabels[0],
+                        strategicPresentation.narrativeLabels[0],
+                        strategicPresentation.contextLabels[0],
+                    ]
+                        .filter(Boolean)
+                        .map((label) => (
+                            <span
+                                key={`${review._id}-${label}`}
+                                className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600"
+                            >
+                                {label}
+                            </span>
+                        ))}
                 </div>
             </div>
 

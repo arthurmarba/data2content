@@ -25,8 +25,8 @@ const ALLOWED_METRICS = [
 
 // Schema para validar os parâmetros da URL da requisição
 const querySchema = z.object({
-  category: z.enum(['proposal', 'format', 'context', 'tone', 'references'], {
-    errorMap: () => ({ message: "A categoria deve ser 'proposal', 'format', 'context', 'tone' ou 'references'." })
+  category: z.enum(['proposal', 'format', 'context', 'tone', 'references', 'contentIntent', 'narrativeForm', 'contentSignals', 'stance', 'proofStyle', 'commercialMode'], {
+    errorMap: () => ({ message: "A categoria deve ser 'proposal', 'format', 'context', 'tone', 'references', 'contentIntent', 'narrativeForm', 'contentSignals', 'stance', 'proofStyle' ou 'commercialMode'." })
   }),
   // O z.enum agora usa a constante local, o que resolve o problema de tipo.
   metric: z.enum(ALLOWED_METRICS, {

@@ -1701,7 +1701,7 @@ export async function askLLMWithEnrichedContext(
                 content:
                     'SCRIPT CONTEXT PACK (USO OBRIGATÓRIO): use estes sinais para orientar o roteiro, gancho e CTA. ' +
                     'As categorias abaixo são do histórico do criador (taxonomia interna). ' +
-                    'Se for chamar `fetchCommunityInspirations`, traduza para a taxonomia da comunidade (Proposal/Context/Format/Tone do tool). ' +
+                    'Se for chamar `fetchCommunityInspirations`, priorize intenção, narrativa, tema, prova e camada comercial; use Proposal/Context apenas como fallback legado quando fizer sentido. ' +
                     'Quando o pedido do usuário for genérico (ex.: "o que postar amanhã"), priorize `executionPlan.primaryIdea` e `plannerSignals.themes[0]` como pauta. ' +
                     'NUNCA repita literalmente frases genéricas do usuário como título ou roteiro. ' +
                     'Se narrativePreference=prefer_similar, mantenha estrutura próxima das últimas inspirações aprovadas. ' +

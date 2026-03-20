@@ -8,7 +8,18 @@ import { Types } from 'mongoose';
 import { z } from 'zod';
 
 // --- (NOVO) Tipos para Ranking de Categoria Genérico ---
-export type RankableCategory = 'proposal' | 'format' | 'context' | 'tone' | 'references';
+export type RankableCategory =
+  | 'proposal'
+  | 'format'
+  | 'context'
+  | 'tone'
+  | 'references'
+  | 'contentIntent'
+  | 'narrativeForm'
+  | 'contentSignals'
+  | 'stance'
+  | 'proofStyle'
+  | 'commercialMode';
 
 export interface ICategoryMetricRankItem {
   category: string;
@@ -87,6 +98,12 @@ export interface FindGlobalPostsArgs {
   format?: string | string[];
   tone?: string | string[];
   references?: string | string[];
+  contentIntent?: string | string[];
+  narrativeForm?: string | string[];
+  contentSignals?: string | string[];
+  stance?: string | string[];
+  proofStyle?: string | string[];
+  commercialMode?: string | string[];
   mediaType?: string | string[];
   creatorContext?: string;
   /** Quando true, só retorna posts de criadores com opt-in da comunidade */

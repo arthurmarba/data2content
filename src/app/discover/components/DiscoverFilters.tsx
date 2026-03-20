@@ -3,27 +3,31 @@
 
 import React, { useMemo } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { formatCategories, proposalCategories, contextCategories, toneCategories, referenceCategories } from '@/app/lib/classification';
+import { getFlatFilterableCategories } from '@/app/lib/classification';
+import {
+  contentIntentCategories,
+  contentSignalCategories,
+  narrativeFormCategories,
+} from '@/app/lib/classificationV2';
+import {
+  commercialModeCategories,
+  proofStyleCategories,
+  stanceCategories,
+} from '@/app/lib/classificationV2_5';
 import {
   buildDiscoverSelectedFromParams,
   canonicalizeDiscoverFilterValues,
   type DiscoverFilterCategoryId,
 } from './discoverFilterState';
 
-type Cat = { id: string; label: string; subcategories?: Cat[] };
-
-function flatten(cats: Cat[]): { id: string; label: string }[] {
-  const out: { id: string; label: string }[] = [];
-  const walk = (arr: Cat[], prefix = '') => {
-    for (const c of arr) {
-      const label = prefix ? `${prefix} › ${c.label}` : c.label;
-      out.push({ id: c.id, label });
-      if (c.subcategories && c.subcategories.length) walk(c.subcategories, label);
-    }
-  };
-  walk(cats);
-  return out;
-}
+const toOptions = (type: "format" | "context" | "reference") =>
+  getFlatFilterableCategories(type).map((category) => ({
+    id: category.id,
+    label:
+      category.parentLabels.length > 0
+        ? `${category.parentLabels.join(" › ")} › ${category.label}`
+        : category.label,
+  }));
 
 export default function DiscoverFilters() {
   const router = useRouter();
@@ -32,17 +36,37 @@ export default function DiscoverFilters() {
 
   const formats = useMemo(
     () =>
-      flatten(
-        (formatCategories as any).filter((cat: Cat) =>
-          ['reel', 'photo', 'carousel', 'long_video'].includes(cat.id)
-        )
+      toOptions("format").filter((cat) =>
+        ['reel', 'photo', 'carousel', 'long_video'].includes(cat.id)
       ),
     []
   );
-  const proposals = useMemo(() => flatten(proposalCategories as any), []);
-  const contexts = useMemo(() => flatten(contextCategories as any), []);
-  const tones = useMemo(() => flatten(toneCategories as any), []);
-  const references = useMemo(() => flatten(referenceCategories as any), []);
+  const contentIntents = useMemo(
+    () => contentIntentCategories.map((category) => ({ id: category.id, label: category.label })),
+    []
+  );
+  const contexts = useMemo(() => toOptions("context"), []);
+  const narrativeForms = useMemo(
+    () => narrativeFormCategories.map((category) => ({ id: category.id, label: category.label })),
+    []
+  );
+  const contentSignals = useMemo(
+    () => contentSignalCategories.map((category) => ({ id: category.id, label: category.label })),
+    []
+  );
+  const stances = useMemo(
+    () => stanceCategories.map((category) => ({ id: category.id, label: category.label })),
+    []
+  );
+  const proofStyles = useMemo(
+    () => proofStyleCategories.map((category) => ({ id: category.id, label: category.label })),
+    []
+  );
+  const commercialModes = useMemo(
+    () => commercialModeCategories.map((category) => ({ id: category.id, label: category.label })),
+    []
+  );
+  const references = useMemo(() => toOptions("reference"), []);
   const currentState = useMemo(() => buildDiscoverSelectedFromParams(params), [params]);
 
   const current = (k: DiscoverFilterCategoryId) => currentState[k]?.[0] || '';
@@ -75,11 +99,15 @@ export default function DiscoverFilters() {
   return (
     <div className="mt-4 flex flex-wrap gap-3 items-center">
       <Select label="Formato" name="format" options={formats} />
-      <Select label="Proposta" name="proposal" options={proposals} />
+      <Select label="Intenção" name="contentIntent" options={contentIntents} />
       <Select label="Contexto" name="context" options={contexts} />
-      <Select label="Tom" name="tone" options={tones} />
+      <Select label="Narrativa" name="narrativeForm" options={narrativeForms} />
+      <Select label="Sinais" name="contentSignals" options={contentSignals} />
+      <Select label="Postura" name="stance" options={stances} />
+      <Select label="Prova" name="proofStyle" options={proofStyles} />
+      <Select label="Comercial" name="commercialMode" options={commercialModes} />
       <Select label="Referências" name="references" options={references} />
-      {(current('format') || current('proposal') || current('context') || current('tone') || current('references')) && (
+      {(current('format') || current('contentIntent') || current('context') || current('narrativeForm') || current('contentSignals') || current('stance') || current('proofStyle') || current('commercialMode') || current('references')) && (
         <button
           type="button"
           className="text-sm text-gray-600 underline"

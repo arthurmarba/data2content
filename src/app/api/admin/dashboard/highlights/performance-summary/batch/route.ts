@@ -36,6 +36,12 @@ interface PlatformPerformanceSummaryResponse {
   topPerformingProposal: PerformanceHighlight | null;
   topPerformingTone: PerformanceHighlight | null;
   topPerformingReference: PerformanceHighlight | null;
+  topPerformingContentIntent: PerformanceHighlight | null;
+  topPerformingNarrativeForm: PerformanceHighlight | null;
+  topPerformingContentSignal: PerformanceHighlight | null;
+  topPerformingStance: PerformanceHighlight | null;
+  topPerformingProofStyle: PerformanceHighlight | null;
+  topPerformingCommercialMode: PerformanceHighlight | null;
   bestDay: { dayOfWeek: number; average: number } | null;
   insightSummary: string;
 }
@@ -70,6 +76,22 @@ function formatPerformanceValue(value: number, metricFieldId: string): string {
 function getPortugueseWeekdayNameForSummary(day: number): string {
   const days = ['Domingo', 'Segunda-feira', 'Terca-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sabado'];
   return days[day - 1] || '';
+}
+
+function toPerformanceHighlight(
+  source: { name: string | null; average: number; count: number } | null,
+  performanceMetricLabel: string,
+  performanceMetricField: string
+): PerformanceHighlight | null {
+  if (!source) return null;
+
+  return {
+    name: source.name as string,
+    metricName: performanceMetricLabel,
+    value: source.average,
+    valueFormatted: formatPerformanceValue(source.average, performanceMetricField),
+    postsCount: source.count,
+  };
 }
 
 async function fetchFormatRanking(timePeriod: TimePeriod) {
@@ -194,60 +216,18 @@ export async function GET(request: NextRequest) {
 
         const bestDay = dayAgg.bestDays[0] || null;
         const summary: PlatformPerformanceSummaryResponse = {
-          topPerformingFormat: aggResult.topFormat
-            ? {
-                name: aggResult.topFormat.name as string,
-                metricName: PERFORMANCE_METRIC_LABEL,
-                value: aggResult.topFormat.average,
-                valueFormatted: formatPerformanceValue(aggResult.topFormat.average, PERFORMANCE_METRIC_FIELD),
-                postsCount: aggResult.topFormat.count,
-              }
-            : null,
-          lowPerformingFormat: aggResult.lowFormat
-            ? {
-                name: aggResult.lowFormat.name as string,
-                metricName: PERFORMANCE_METRIC_LABEL,
-                value: aggResult.lowFormat.average,
-                valueFormatted: formatPerformanceValue(aggResult.lowFormat.average, PERFORMANCE_METRIC_FIELD),
-                postsCount: aggResult.lowFormat.count,
-              }
-            : null,
-          topPerformingContext: aggResult.topContext
-            ? {
-                name: aggResult.topContext.name as string,
-                metricName: PERFORMANCE_METRIC_LABEL,
-                value: aggResult.topContext.average,
-                valueFormatted: formatPerformanceValue(aggResult.topContext.average, PERFORMANCE_METRIC_FIELD),
-                postsCount: aggResult.topContext.count,
-              }
-            : null,
-          topPerformingProposal: aggResult.topProposal
-            ? {
-                name: aggResult.topProposal.name as string,
-                metricName: PERFORMANCE_METRIC_LABEL,
-                value: aggResult.topProposal.average,
-                valueFormatted: formatPerformanceValue(aggResult.topProposal.average, PERFORMANCE_METRIC_FIELD),
-                postsCount: aggResult.topProposal.count,
-              }
-            : null,
-          topPerformingTone: aggResult.topTone
-            ? {
-                name: aggResult.topTone.name as string,
-                metricName: PERFORMANCE_METRIC_LABEL,
-                value: aggResult.topTone.average,
-                valueFormatted: formatPerformanceValue(aggResult.topTone.average, PERFORMANCE_METRIC_FIELD),
-                postsCount: aggResult.topTone.count,
-              }
-            : null,
-          topPerformingReference: aggResult.topReference
-            ? {
-                name: aggResult.topReference.name as string,
-                metricName: PERFORMANCE_METRIC_LABEL,
-                value: aggResult.topReference.average,
-                valueFormatted: formatPerformanceValue(aggResult.topReference.average, PERFORMANCE_METRIC_FIELD),
-                postsCount: aggResult.topReference.count,
-              }
-            : null,
+          topPerformingFormat: toPerformanceHighlight(aggResult.topFormat, PERFORMANCE_METRIC_LABEL, PERFORMANCE_METRIC_FIELD),
+          lowPerformingFormat: toPerformanceHighlight(aggResult.lowFormat, PERFORMANCE_METRIC_LABEL, PERFORMANCE_METRIC_FIELD),
+          topPerformingContext: toPerformanceHighlight(aggResult.topContext, PERFORMANCE_METRIC_LABEL, PERFORMANCE_METRIC_FIELD),
+          topPerformingProposal: toPerformanceHighlight(aggResult.topProposal, PERFORMANCE_METRIC_LABEL, PERFORMANCE_METRIC_FIELD),
+          topPerformingTone: toPerformanceHighlight(aggResult.topTone, PERFORMANCE_METRIC_LABEL, PERFORMANCE_METRIC_FIELD),
+          topPerformingReference: toPerformanceHighlight(aggResult.topReference, PERFORMANCE_METRIC_LABEL, PERFORMANCE_METRIC_FIELD),
+          topPerformingContentIntent: toPerformanceHighlight(aggResult.topContentIntent, PERFORMANCE_METRIC_LABEL, PERFORMANCE_METRIC_FIELD),
+          topPerformingNarrativeForm: toPerformanceHighlight(aggResult.topNarrativeForm, PERFORMANCE_METRIC_LABEL, PERFORMANCE_METRIC_FIELD),
+          topPerformingContentSignal: toPerformanceHighlight(aggResult.topContentSignal, PERFORMANCE_METRIC_LABEL, PERFORMANCE_METRIC_FIELD),
+          topPerformingStance: toPerformanceHighlight(aggResult.topStance, PERFORMANCE_METRIC_LABEL, PERFORMANCE_METRIC_FIELD),
+          topPerformingProofStyle: toPerformanceHighlight(aggResult.topProofStyle, PERFORMANCE_METRIC_LABEL, PERFORMANCE_METRIC_FIELD),
+          topPerformingCommercialMode: toPerformanceHighlight(aggResult.topCommercialMode, PERFORMANCE_METRIC_LABEL, PERFORMANCE_METRIC_FIELD),
           bestDay: bestDay ? { dayOfWeek: bestDay.dayOfWeek, average: bestDay.average } : null,
           insightSummary: '',
         };
@@ -261,6 +241,15 @@ export async function GET(request: NextRequest) {
         }
         if (summary.topPerformingProposal) {
           insights.push(`${summary.topPerformingProposal.name} e a proposta de melhor desempenho (${summary.topPerformingProposal.valueFormatted} de media).`);
+        }
+        if (summary.topPerformingContentIntent) {
+          insights.push(`${summary.topPerformingContentIntent.name} e a intencao de conteudo de melhor desempenho (${summary.topPerformingContentIntent.valueFormatted} de media).`);
+        }
+        if (summary.topPerformingNarrativeForm) {
+          insights.push(`${summary.topPerformingNarrativeForm.name} e a forma narrativa de melhor desempenho (${summary.topPerformingNarrativeForm.valueFormatted} de media).`);
+        }
+        if (summary.topPerformingStance) {
+          insights.push(`${summary.topPerformingStance.name} e a postura de melhor desempenho (${summary.topPerformingStance.valueFormatted} de media).`);
         }
         if (summary.bestDay) {
           const dayName = getPortugueseWeekdayNameForSummary(summary.bestDay.dayOfWeek);

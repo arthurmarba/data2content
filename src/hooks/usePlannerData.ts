@@ -8,6 +8,12 @@ export interface PlannerUISlot {
   blockStartHour: number; // 0,3,6,9,12,15,18,21 (UI só exibe 9,12,15,18)
   format: string;
   categories: { context?: string[]; tone?: string; proposal?: string[]; reference?: string[] };
+  contentIntent?: string[];
+  narrativeForm?: string[];
+  contentSignals?: string[];
+  stance?: string[];
+  proofStyle?: string[];
+  commercialMode?: string[];
   status: 'planned' | 'drafted' | 'test' | 'posted';
   isExperiment?: boolean;
   expectedMetrics?: { viewsP50?: number; viewsP90?: number; sharesP50?: number };
@@ -190,6 +196,12 @@ function mapApiSlot(raw: any, isSaved: boolean): PlannerUISlot {
     blockStartHour: raw?.blockStartHour,
     format: (typeof raw?.format === 'string' && raw.format) ? raw.format : 'reel',
     categories: raw?.categories || {},
+    contentIntent: Array.isArray(raw?.contentIntent) ? raw.contentIntent : [],
+    narrativeForm: Array.isArray(raw?.narrativeForm) ? raw.narrativeForm : [],
+    contentSignals: Array.isArray(raw?.contentSignals) ? raw.contentSignals : [],
+    stance: Array.isArray(raw?.stance) ? raw.stance : [],
+    proofStyle: Array.isArray(raw?.proofStyle) ? raw.proofStyle : [],
+    commercialMode: Array.isArray(raw?.commercialMode) ? raw.commercialMode : [],
     status: raw?.status,
     isExperiment: !!raw?.isExperiment,
     expectedMetrics: raw?.expectedMetrics || {},

@@ -1,6 +1,10 @@
 import React from "react";
 import { headers } from "next/headers";
 import NextDynamic from "next/dynamic";
+import {
+  buildDiscoverSearchParams,
+  buildDiscoverSelectedFromParams,
+} from "@/app/discover/components/discoverFilterState";
 
 const DiscoverViewTracker = NextDynamic(
   () => import("../../discover/components/DiscoverViewTracker"),
@@ -45,6 +49,12 @@ type PostCard = {
     context?: string[];
     tone?: string[];
     references?: string[];
+    contentIntent?: string[];
+    narrativeForm?: string[];
+    contentSignals?: string[];
+    stance?: string[];
+    proofStyle?: string[];
+    commercialMode?: string[];
   };
 };
 
@@ -95,14 +105,30 @@ export default async function DiscoverContentPage({
 }: {
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
-  const params = new URLSearchParams();
-  const keys = ["format", "proposal", "context", "tone", "references"] as const;
+  const rawParams = new URLSearchParams();
+  const keys = [
+    "format",
+    "contentIntent",
+    "context",
+    "narrativeForm",
+    "contentSignals",
+    "stance",
+    "proofStyle",
+    "commercialMode",
+    "references",
+    "proposal",
+    "tone",
+  ] as const;
   for (const k of keys) {
     const v = searchParams?.[k];
     if (!v) continue;
-    if (Array.isArray(v)) params.set(k, v.join(","));
-    else params.set(k, String(v));
+    if (Array.isArray(v)) rawParams.set(k, v.join(","));
+    else rawParams.set(k, String(v));
   }
+  const params = buildDiscoverSearchParams(
+    rawParams,
+    buildDiscoverSelectedFromParams(rawParams)
+  );
   const videoOnlyParam = searchParams?.videoOnly;
   if (videoOnlyParam && (Array.isArray(videoOnlyParam) ? videoOnlyParam[0] : videoOnlyParam)) {
     params.set("videoOnly", "1");

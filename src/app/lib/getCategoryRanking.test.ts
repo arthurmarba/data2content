@@ -1,6 +1,7 @@
 import { functionExecutors } from './aiFunctions';
 import { fetchTopCategories } from './dataService';
 import { Types } from 'mongoose';
+import { GetCategoryRankingArgsSchema } from './aiFunctionSchemas.zod';
 
 jest.mock('./logger', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() }
@@ -38,5 +39,16 @@ describe('getCategoryRanking', () => {
     const result = await functionExecutors.getCategoryRanking(args, user) as any;
     expect(result.error).toBeDefined();
     expect(mockedFetch).not.toHaveBeenCalled();
+  });
+
+  it('accepts V2.5 categories in the ranking contract', () => {
+    const result = GetCategoryRankingArgsSchema.safeParse({
+      category: 'proofStyle',
+      metric: 'posts',
+      periodDays: 30,
+      limit: 5,
+    });
+
+    expect(result.success).toBe(true);
   });
 });

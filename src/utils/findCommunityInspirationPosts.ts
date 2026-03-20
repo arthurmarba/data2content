@@ -4,6 +4,9 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import MetricModel from '@/app/models/Metric';
 import { createBasePipeline } from '@/app/lib/dataService/marketAnalysis/helpers';
 import { getCategoryById } from '@/app/lib/classification';
+import { getV2CategoryByValue, type ClassificationV2Type } from '@/app/lib/classificationV2';
+import { getV25CategoryByValue, type ClassificationV25Type } from '@/app/lib/classificationV2_5';
+import { getMetricCategoryValuesForAnalytics } from '@/app/lib/classificationV2Bridge';
 import { getStartDateFromTimePeriod } from './dateHelpers';
 import { logger } from '@/app/lib/logger';
 
@@ -72,6 +75,21 @@ function labelsFor(id: string | undefined, type: 'context'|'proposal'|'reference
   return out;
 }
 
+function strategicLabelsFor(
+  id: string | undefined,
+  type: ClassificationV2Type | ClassificationV25Type
+): string[] {
+  if (!id) return [];
+  const resolver =
+    type === 'contentIntent' || type === 'narrativeForm' || type === 'contentSignal'
+      ? getV2CategoryByValue(id, type)
+      : getV25CategoryByValue(id, type);
+  const out: string[] = [];
+  if (resolver?.label) out.push(resolver.label);
+  out.push(id);
+  return out;
+}
+
 function uniq(values: string[]): string[] {
   return Array.from(new Set(values.filter(Boolean)));
 }
@@ -79,6 +97,14 @@ function uniq(values: string[]): string[] {
 function listLabels(ids: string[] | undefined, type: 'context'|'proposal'|'reference'|'format'|'tone'): string[] {
   if (!ids || !ids.length) return [];
   return uniq(ids.flatMap((id) => labelsFor(id, type)));
+}
+
+function listStrategicLabels(
+  ids: string[] | undefined,
+  type: ClassificationV2Type | ClassificationV25Type
+): string[] {
+  if (!ids || !ids.length) return [];
+  return uniq(ids.flatMap((id) => strategicLabelsFor(id, type)));
 }
 
 function normalizeFormat(raw?: string | null): string | null {
@@ -180,11 +206,38 @@ export interface CommunityInspirationPost {
   creatorName?: string | null;
   creatorAvatarUrl?: string | null;
   reason?: string[];
+  matchAxes?: string[];
+  semanticScore?: number;
+  qualityScore?: number;
+  categories?: {
+    format?: string[];
+    proposal?: string[];
+    context?: string[];
+    tone?: string[];
+    references?: string[];
+    contentIntent?: string[];
+    narrativeForm?: string[];
+    contentSignals?: string[];
+    stance?: string[];
+    proofStyle?: string[];
+    commercialMode?: string[];
+  };
 }
 
 export async function findCommunityInspirationPosts(params: {
   excludeUserId: string | Types.ObjectId;
-  categories?: { context?: string[]; proposal?: string[]; reference?: string[]; tone?: string | string[] };
+  categories?: {
+    context?: string[];
+    proposal?: string[];
+    reference?: string[];
+    tone?: string | string[];
+    contentIntent?: string[];
+    narrativeForm?: string[];
+    contentSignals?: string[];
+    stance?: string[];
+    proofStyle?: string[];
+    commercialMode?: string[];
+  };
   format?: string;
   tone?: string;
   script?: string;
@@ -205,6 +258,12 @@ export async function findCommunityInspirationPosts(params: {
   const ctxValues = listLabels(params.categories?.context, 'context');
   const prpValues = listLabels(params.categories?.proposal, 'proposal');
   const refValues = listLabels(params.categories?.reference, 'reference');
+  const intentValues = listStrategicLabels(params.categories?.contentIntent, 'contentIntent');
+  const narrativeValues = listStrategicLabels(params.categories?.narrativeForm, 'narrativeForm');
+  const signalValues = listStrategicLabels(params.categories?.contentSignals, 'contentSignal');
+  const stanceValues = listStrategicLabels(params.categories?.stance, 'stance');
+  const proofValues = listStrategicLabels(params.categories?.proofStyle, 'proofStyle');
+  const commercialValues = listStrategicLabels(params.categories?.commercialMode, 'commercialMode');
   const toneList = [
     ...(params.tone ? [params.tone] : []),
     ...(Array.isArray(params.categories?.tone) ? params.categories.tone : (params.categories?.tone ? [params.categories.tone] : [])),
@@ -218,6 +277,12 @@ export async function findCommunityInspirationPosts(params: {
     ctxValues.length ||
     prpValues.length ||
     refValues.length ||
+    intentValues.length ||
+    narrativeValues.length ||
+    signalValues.length ||
+    stanceValues.length ||
+    proofValues.length ||
+    commercialValues.length ||
     toneValues.length ||
     requestedFormat ||
     qTokens.length ||
@@ -237,6 +302,12 @@ export async function findCommunityInspirationPosts(params: {
   if (ctxValues.length) categoryOr.push({ context: { $in: ctxValues } });
   if (prpValues.length) categoryOr.push({ proposal: { $in: prpValues } });
   if (refValues.length) categoryOr.push({ references: { $in: refValues } });
+  if (intentValues.length) categoryOr.push({ contentIntent: { $in: intentValues } });
+  if (narrativeValues.length) categoryOr.push({ narrativeForm: { $in: narrativeValues } });
+  if (signalValues.length) categoryOr.push({ contentSignals: { $in: signalValues } });
+  if (stanceValues.length) categoryOr.push({ stance: { $in: stanceValues } });
+  if (proofValues.length) categoryOr.push({ proofStyle: { $in: proofValues } });
+  if (commercialValues.length) categoryOr.push({ commercialMode: { $in: commercialValues } });
   if (categoryOr.length) {
     baseMatch.$and = [...(baseMatch.$and || []), { $or: categoryOr }];
   }
@@ -262,6 +333,12 @@ export async function findCommunityInspirationPosts(params: {
         context: 1,
         proposal: 1,
         references: 1,
+        contentIntent: 1,
+        narrativeForm: 1,
+        contentSignals: 1,
+        stance: 1,
+        proofStyle: 1,
+        commercialMode: 1,
         'stats.views': 1,
         'stats.total_interactions': 1,
         'stats.comments': 1,
@@ -313,28 +390,76 @@ export async function findCommunityInspirationPosts(params: {
     for (const tk of qTokens) if (tokenSet.has(tk)) kwOverlap++;
     const kwScore = qTokens.length ? kwOverlap / qTokens.length : 0;
 
-    const ctxSet = toNormSet(Array.isArray(row?.context) ? row.context : []);
-    const prpSet = toNormSet(Array.isArray(row?.proposal) ? row.proposal : []);
-    const refSet = toNormSet(Array.isArray(row?.references) ? row.references : []);
-    const toneSet = toNormSet(Array.isArray(row?.tone) ? row.tone : []);
-    const rowFormats = uniq([...(Array.isArray(row?.format) ? row.format : []), row?.type].map((v: unknown) => normalizeFormat(String(v || '')) || '').filter(Boolean));
+    const rowContexts = getMetricCategoryValuesForAnalytics(row, 'context');
+    const rowProposals = getMetricCategoryValuesForAnalytics(row, 'proposal');
+    const rowReferences = getMetricCategoryValuesForAnalytics(row, 'references');
+    const rowTones = getMetricCategoryValuesForAnalytics(row, 'tone');
+    const rowContentIntent = getMetricCategoryValuesForAnalytics(row, 'contentIntent');
+    const rowNarrativeForm = getMetricCategoryValuesForAnalytics(row, 'narrativeForm');
+    const rowContentSignals = getMetricCategoryValuesForAnalytics(row, 'contentSignals');
+    const rowStance = getMetricCategoryValuesForAnalytics(row, 'stance');
+    const rowProofStyle = getMetricCategoryValuesForAnalytics(row, 'proofStyle');
+    const rowCommercialMode = getMetricCategoryValuesForAnalytics(row, 'commercialMode');
+    const rowFormats = getMetricCategoryValuesForAnalytics(row, 'format');
+    const ctxSet = toNormSet(rowContexts);
+    const prpSet = toNormSet(rowProposals);
+    const refSet = toNormSet(rowReferences);
+    const toneSet = toNormSet(rowTones);
+    const intentSet = toNormSet(rowContentIntent);
+    const narrativeSet = toNormSet(rowNarrativeForm);
+    const signalSet = toNormSet(rowContentSignals);
+    const stanceSet = toNormSet(rowStance);
+    const proofSet = toNormSet(rowProofStyle);
+    const commercialSet = toNormSet(rowCommercialMode);
     const fmtSet = new Set<string>(rowFormats.map((value) => value.toLowerCase()));
 
     const ctxMatch = ctxValues.length ? ctxValues.some((v) => ctxSet.has(v.toLowerCase())) : false;
     const prpMatch = prpValues.length ? prpValues.some((v) => prpSet.has(v.toLowerCase())) : false;
     const refMatch = refValues.length ? refValues.some((v) => refSet.has(v.toLowerCase())) : false;
     const toneMatch = toneValues.length ? toneValues.some((v) => toneSet.has(v.toLowerCase())) : false;
+    const intentMatch = intentValues.length ? intentValues.some((v) => intentSet.has(v.toLowerCase())) : false;
+    const narrativeMatch = narrativeValues.length ? narrativeValues.some((v) => narrativeSet.has(v.toLowerCase())) : false;
+    const signalMatch = signalValues.length ? signalValues.some((v) => signalSet.has(v.toLowerCase())) : false;
+    const stanceMatch = stanceValues.length ? stanceValues.some((v) => stanceSet.has(v.toLowerCase())) : false;
+    const proofMatch = proofValues.length ? proofValues.some((v) => proofSet.has(v.toLowerCase())) : false;
+    const commercialMatch = commercialValues.length
+      ? commercialValues.some((v) => commercialSet.has(v.toLowerCase()))
+      : false;
     const formatMatch = requestedFormat ? fmtSet.has(requestedFormat) : false;
 
-    const catWeightTotal =
-      (ctxValues.length ? 0.4 : 0) +
-      (prpValues.length ? 0.4 : 0) +
-      (refValues.length ? 0.2 : 0);
+    const weightedMatches = [
+      { enabled: ctxValues.length > 0, matched: ctxMatch, weight: 0.2 },
+      { enabled: intentValues.length > 0, matched: intentMatch, weight: 0.22 },
+      { enabled: narrativeValues.length > 0, matched: narrativeMatch, weight: 0.22 },
+      { enabled: proofValues.length > 0, matched: proofMatch, weight: 0.12 },
+      { enabled: commercialValues.length > 0, matched: commercialMatch, weight: 0.1 },
+      { enabled: stanceValues.length > 0, matched: stanceMatch, weight: 0.08 },
+      { enabled: signalValues.length > 0, matched: signalMatch, weight: 0.06 },
+      { enabled: prpValues.length > 0, matched: prpMatch, weight: 0.12 },
+      { enabled: refValues.length > 0, matched: refMatch, weight: 0.08 },
+    ];
+    const catWeightTotal = weightedMatches.reduce(
+      (sum, item) => sum + (item.enabled ? item.weight : 0),
+      0
+    );
     const catScore = catWeightTotal > 0
-      ? ((ctxMatch ? 0.4 : 0) + (prpMatch ? 0.4 : 0) + (refMatch ? 0.2 : 0)) / catWeightTotal
+      ? weightedMatches.reduce(
+          (sum, item) => sum + (item.enabled && item.matched ? item.weight : 0),
+          0
+        ) / catWeightTotal
       : 0;
 
-    const catUnion = new Set<string>([...ctxSet, ...prpSet, ...refSet]);
+    const catUnion = new Set<string>([
+      ...ctxSet,
+      ...prpSet,
+      ...refSet,
+      ...intentSet,
+      ...narrativeSet,
+      ...signalSet,
+      ...stanceSet,
+      ...proofSet,
+      ...commercialSet,
+    ]);
     const styleMatches = new Set<string>();
     const hasCategory = (id: string) => catUnion.has(id);
     const hasToken = (value: string) => tokenSet.has(normalizeToken(value));
@@ -391,11 +516,11 @@ export async function findCommunityInspirationPosts(params: {
     const recencyScore = Math.exp(-ageDays / 35);
 
     const semanticScore =
-      0.42 * catScore +
-      0.26 * kwScore +
-      0.12 * (formatMatch ? 1 : 0) +
-      0.08 * (toneMatch ? 1 : 0) +
-      0.12 * styleScore;
+      0.48 * catScore +
+      0.22 * kwScore +
+      0.14 * (formatMatch ? 1 : 0) +
+      0.06 * (toneMatch ? 1 : 0) +
+      0.1 * styleScore;
 
     const qualityScore =
       0.5 * perfVolumeScore +
@@ -426,7 +551,27 @@ export async function findCommunityInspirationPosts(params: {
       catScore,
       formatMatch,
       toneMatch,
+      ctxMatch,
+      prpMatch,
+      refMatch,
+      intentMatch,
+      narrativeMatch,
+      signalMatch,
+      stanceMatch,
+      proofMatch,
+      commercialMatch,
       styleMatch: styleMatches.size > 0,
+      rowContexts,
+      rowProposals,
+      rowReferences,
+      rowTones,
+      rowContentIntent,
+      rowNarrativeForm,
+      rowContentSignals,
+      rowStance,
+      rowProofStyle,
+      rowCommercialMode,
+      rowFormats,
       row,
     };
   };
@@ -458,7 +603,15 @@ export async function findCommunityInspirationPosts(params: {
 
   const reasonFor = (item: ReturnType<typeof score>): string[] => {
     const rs: string[] = [];
-    if (item.catScore > 0) rs.push('match: categorias');
+    if (item.intentMatch) rs.push('match: intenção');
+    if (item.narrativeMatch) rs.push('match: narrativa');
+    if (item.proofMatch) rs.push('match: prova');
+    if (item.commercialMatch) rs.push('match: comercial');
+    if (item.stanceMatch) rs.push('match: postura');
+    if (item.signalMatch) rs.push('match: sinal');
+    if (item.ctxMatch) rs.push('match: contexto');
+    if (item.prpMatch) rs.push('match: linha');
+    if (item.refMatch) rs.push('match: referência');
     if (item.kwOverlap > 0) rs.push('match: narrativa');
     if (item.formatMatch) rs.push('match: formato');
     if (item.toneMatch) rs.push('match: tom');
@@ -482,6 +635,34 @@ export async function findCommunityInspirationPosts(params: {
       creatorName: row?.creatorInfo?.username || null,
       creatorAvatarUrl: row?.creatorInfo?.profile_picture_url || null,
       reason: reasonFor(item),
+      matchAxes: [
+        item.intentMatch ? 'contentIntent' : null,
+        item.narrativeMatch ? 'narrativeForm' : null,
+        item.proofMatch ? 'proofStyle' : null,
+        item.commercialMatch ? 'commercialMode' : null,
+        item.stanceMatch ? 'stance' : null,
+        item.signalMatch ? 'contentSignals' : null,
+        item.ctxMatch ? 'context' : null,
+        item.prpMatch ? 'proposal' : null,
+        item.refMatch ? 'references' : null,
+        item.formatMatch ? 'format' : null,
+        item.toneMatch ? 'tone' : null,
+      ].filter(Boolean) as string[],
+      semanticScore: Number(item.semanticScore.toFixed(3)),
+      qualityScore: Number(item.qualityScore.toFixed(3)),
+      categories: {
+        format: item.rowFormats,
+        proposal: item.rowProposals,
+        context: item.rowContexts,
+        tone: item.rowTones,
+        references: item.rowReferences,
+        contentIntent: item.rowContentIntent,
+        narrativeForm: item.rowNarrativeForm,
+        contentSignals: item.rowContentSignals,
+        stance: item.rowStance,
+        proofStyle: item.rowProofStyle,
+        commercialMode: item.rowCommercialMode,
+      },
     };
   });
 

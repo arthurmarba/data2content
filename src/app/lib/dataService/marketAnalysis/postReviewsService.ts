@@ -243,6 +243,12 @@ export async function fetchPostReviews(args: IFetchPostReviewsArgs): Promise<{
                 context: '$post.context',
                 tone: '$post.tone',
                 references: '$post.references',
+                contentIntent: '$post.contentIntent',
+                narrativeForm: '$post.narrativeForm',
+                contentSignals: '$post.contentSignals',
+                stance: '$post.stance',
+                proofStyle: '$post.proofStyle',
+                commercialMode: '$post.commercialMode',
                 stats: {
                   total_interactions: '$computedTotalInteractions',
                   likes: '$post.stats.likes',

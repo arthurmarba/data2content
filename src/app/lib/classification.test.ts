@@ -2,6 +2,7 @@ import {
   canonicalizeCategoryValues,
   contextCategories,
   findCategoryMatchesAcrossTypes,
+  getFlatFilterableCategories,
   getCategoryByValue,
   getStoredCategoryFilterValues,
   getCategoryWithSubcategoryIds,
@@ -40,6 +41,15 @@ describe('classification canonicalization', () => {
     expect(relationshipOptions).toEqual([
       { id: 'relationships_family', label: 'Relacionamentos/Família' },
     ]);
+  });
+
+  it('exposes only leaf context/reference categories as filterable options', () => {
+    expect(getFlatFilterableCategories('context').some((category) => category.id === 'lifestyle_and_wellbeing')).toBe(false);
+    expect(getFlatFilterableCategories('context').some((category) => category.id === 'general')).toBe(false);
+    expect(getFlatFilterableCategories('context').some((category) => category.id === 'fashion_style')).toBe(true);
+
+    expect(getFlatFilterableCategories('reference').some((category) => category.id === 'geography')).toBe(false);
+    expect(getFlatFilterableCategories('reference').some((category) => category.id === 'city')).toBe(true);
   });
 
   it('resolves reference and tone aliases to canonical ids', () => {

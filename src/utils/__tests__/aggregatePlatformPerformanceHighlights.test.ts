@@ -1,91 +1,92 @@
-import aggregatePlatformPerformanceHighlights from '../aggregatePlatformPerformanceHighlights';
-import MetricModel from '@/app/models/Metric';
-import { connectToDatabase } from '@/app/lib/mongoose';
+import aggregatePlatformPerformanceHighlights from "../aggregatePlatformPerformanceHighlights";
+import MetricModel from "@/app/models/Metric";
+import { connectToDatabase } from "@/app/lib/mongoose";
 
-jest.mock('@/app/models/Metric', () => ({
-  aggregate: jest.fn(),
+jest.mock("@/app/models/Metric", () => ({
+  find: jest.fn(),
 }));
 
-jest.mock('@/app/lib/mongoose', () => ({
+jest.mock("@/app/lib/mongoose", () => ({
   connectToDatabase: jest.fn(),
 }));
 
-const mockAgg = MetricModel.aggregate as jest.Mock;
+const mockFind = MetricModel.find as jest.Mock;
 const mockConnect = connectToDatabase as jest.Mock;
 
-describe('aggregatePlatformPerformanceHighlights', () => {
+describe("aggregatePlatformPerformanceHighlights", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockConnect.mockResolvedValue(undefined);
   });
 
-  it('aggregates and formats highlights', async () => {
-    mockAgg.mockResolvedValueOnce([
-      {
-        byFormat: [
-          { _id: 'VIDEO', avg: 10, count: 2 },
-          { _id: 'IMAGE', avg: 2, count: 1 },
-        ],
-        byContext: [
-          { _id: 'FEED', avg: 5, count: 3 },
-        ],
-        byProposal: [
-          { _id: 'educational', avg: 12, count: 4 }
-        ],
-        byTone: [
-          { _id: 'humor', avg: 9, count: 2 }
-        ],
-        byReference: [
-          { _id: 'pop_culture', avg: 11, count: 5 }
-        ]
-      },
-    ]);
+  it("aggregates normalized legacy and V2.5 highlights", async () => {
+    mockFind.mockReturnValueOnce({
+      lean: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([
+          {
+            source: "manual",
+            type: "REEL",
+            description: "Comenta aqui e salva esse post. #publi Eu recomendo.",
+            format: ["Reel"],
+            proposal: ["tips", "publi_divulgation", "call_to_action"],
+            context: ["Moda/Estilo"],
+            tone: ["promotional"],
+            references: ["geography", "geography.city"],
+            stats: { total_interactions: 100 },
+          },
+          {
+            source: "manual",
+            type: "REEL",
+            description: "Passo a passo completo.",
+            format: ["Reel"],
+            proposal: ["tips"],
+            tone: ["educational"],
+            stats: { total_interactions: 40 },
+          },
+        ]),
+      }),
+    });
 
-    const res = await aggregatePlatformPerformanceHighlights(30, 'stats.total_interactions');
+    const res = await aggregatePlatformPerformanceHighlights(30, "stats.total_interactions");
+
     expect(mockConnect).toHaveBeenCalled();
-    expect(mockAgg).toHaveBeenCalled();
-    expect(res.topFormat).toEqual({ name: 'VIDEO', average: 10, count: 2 });
-    expect(res.lowFormat).toEqual({ name: 'IMAGE', average: 2, count: 1 });
-    expect(res.topContext).toEqual({ name: 'FEED', average: 5, count: 3 });
-    expect(res.topProposal).toEqual({ name: 'educational', average: 12, count: 4 });
-    expect(res.topTone).toEqual({ name: 'humor', average: 9, count: 2 });
-    expect(res.topReference).toEqual({ name: 'pop_culture', average: 11, count: 5 });
+    expect(mockFind).toHaveBeenCalled();
+    expect(res.topFormat).toEqual({ name: "reel", average: 70, count: 2 });
+    expect(res.lowFormat).toEqual({ name: "reel", average: 70, count: 2 });
+    expect(res.topContext).toEqual({ name: "fashion_style", average: 100, count: 1 });
+    expect(res.topProposal).toEqual({ name: "publi_divulgation", average: 100, count: 1 });
+    expect(res.topTone).toEqual({ name: "promotional", average: 100, count: 1 });
+    expect(res.topReference).toEqual({ name: "city", average: 100, count: 1 });
+    expect(res.topContentIntent).toEqual({ name: "convert", average: 100, count: 1 });
+    expect(res.topNarrativeForm).toEqual({ name: "tutorial", average: 70, count: 2 });
+    expect(res.topContentSignal).toEqual({ name: "sponsored", average: 100, count: 1 });
+    expect(res.topStance).toEqual({ name: "endorsing", average: 100, count: 1 });
+    expect(res.topProofStyle).toEqual({ name: "demonstration", average: 40, count: 1 });
+    expect(res.topCommercialMode).toEqual({ name: "paid_partnership", average: 100, count: 1 });
   });
 
-  it('joins array ids into comma separated strings', async () => {
-    mockAgg.mockResolvedValueOnce([
-      {
-        byFormat: [
-          { _id: ['VIDEO', 'LIVE'], avg: 8, count: 4 },
-          { _id: ['IMAGE'], avg: 2, count: 1 },
-        ],
-        byContext: [
-          { _id: ['FEED', 'STORIES'], avg: 7, count: 5 },
-        ],
-        byProposal: [
-          { _id: ['educational', 'news'], avg: 6, count: 3 },
-        ],
-        byTone: [
-          { _id: ['humor'], avg: 9, count: 2 },
-        ],
-        byReference: [
-          { _id: ['pop_culture', 'city'], avg: 4, count: 2 },
-        ],
-      },
-    ]);
+  it("handles empty result sets", async () => {
+    mockFind.mockReturnValueOnce({
+      lean: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([]),
+      }),
+    });
 
-    const res = await aggregatePlatformPerformanceHighlights(30, 'stats.total_interactions');
-    expect(res.topFormat?.name).toBe('VIDEO,LIVE');
-    expect(res.lowFormat?.name).toBe('IMAGE');
-    expect(res.topContext?.name).toBe('FEED,STORIES');
-    expect(res.topProposal?.name).toBe('educational,news');
-    expect(res.topTone?.name).toBe('humor');
-    expect(res.topReference?.name).toBe('pop_culture,city');
-  });
+    const res = await aggregatePlatformPerformanceHighlights(30, "stats.total_interactions");
 
-  it('handles empty aggregation', async () => {
-    mockAgg.mockResolvedValueOnce([{}]);
-    const res = await aggregatePlatformPerformanceHighlights(30, 'stats.total_interactions');
-    expect(res).toEqual({ topFormat: null, lowFormat: null, topContext: null, topProposal: null, topTone: null, topReference: null });
+    expect(res).toEqual({
+      topFormat: null,
+      lowFormat: null,
+      topContext: null,
+      topProposal: null,
+      topTone: null,
+      topReference: null,
+      topContentIntent: null,
+      topNarrativeForm: null,
+      topContentSignal: null,
+      topStance: null,
+      topProofStyle: null,
+      topCommercialMode: null,
+    });
   });
 });

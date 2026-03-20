@@ -25,6 +25,12 @@ interface PlatformPerformanceSummaryResponse {
   topPerformingProposal: PerformanceHighlight | null;
   topPerformingTone: PerformanceHighlight | null;
   topPerformingReference: PerformanceHighlight | null;
+  topPerformingContentIntent: PerformanceHighlight | null;
+  topPerformingNarrativeForm: PerformanceHighlight | null;
+  topPerformingContentSignal: PerformanceHighlight | null;
+  topPerformingStance: PerformanceHighlight | null;
+  topPerformingProofStyle: PerformanceHighlight | null;
+  topPerformingCommercialMode: PerformanceHighlight | null;
   bestDay: { dayOfWeek: number; average: number } | null;
   insightSummary: string;
 }
@@ -44,6 +50,22 @@ function isAllowedTimePeriod(period: any): period is TimePeriod {
 function getPortugueseWeekdayNameForSummary(day: number): string {
   const days = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
   return days[day - 1] || '';
+}
+
+function toPerformanceHighlight(
+  source: { name: string | null; average: number; count: number } | null,
+  performanceMetricLabel: string,
+  performanceMetricField: string
+): PerformanceHighlight | null {
+  if (!source) return null;
+
+  return {
+    name: source.name as string,
+    metricName: performanceMetricLabel,
+    value: source.average,
+    valueFormatted: formatPerformanceValue(source.average, performanceMetricField),
+    postsCount: source.count,
+  };
 }
 
 export async function GET(request: NextRequest) {
@@ -97,12 +119,18 @@ export async function GET(request: NextRequest) {
   );
   const bestDay = dayAgg.bestDays[0] || null;
   const response: PlatformPerformanceSummaryResponse = {
-    topPerformingFormat: aggResult.topFormat ? { name: aggResult.topFormat.name as string, metricName: performanceMetricLabel, value: aggResult.topFormat.average, valueFormatted: formatPerformanceValue(aggResult.topFormat.average, performanceMetricField), postsCount: aggResult.topFormat.count } : null,
-    lowPerformingFormat: aggResult.lowFormat ? { name: aggResult.lowFormat.name as string, metricName: performanceMetricLabel, value: aggResult.lowFormat.average, valueFormatted: formatPerformanceValue(aggResult.lowFormat.average, performanceMetricField), postsCount: aggResult.lowFormat.count } : null,
-    topPerformingContext: aggResult.topContext ? { name: aggResult.topContext.name as string, metricName: performanceMetricLabel, value: aggResult.topContext.average, valueFormatted: formatPerformanceValue(aggResult.topContext.average, performanceMetricField), postsCount: aggResult.topContext.count } : null,
-    topPerformingProposal: aggResult.topProposal ? { name: aggResult.topProposal.name as string, metricName: performanceMetricLabel, value: aggResult.topProposal.average, valueFormatted: formatPerformanceValue(aggResult.topProposal.average, performanceMetricField), postsCount: aggResult.topProposal.count } : null,
-    topPerformingTone: aggResult.topTone ? { name: aggResult.topTone.name as string, metricName: performanceMetricLabel, value: aggResult.topTone.average, valueFormatted: formatPerformanceValue(aggResult.topTone.average, performanceMetricField), postsCount: aggResult.topTone.count } : null,
-    topPerformingReference: aggResult.topReference ? { name: aggResult.topReference.name as string, metricName: performanceMetricLabel, value: aggResult.topReference.average, valueFormatted: formatPerformanceValue(aggResult.topReference.average, performanceMetricField), postsCount: aggResult.topReference.count } : null,
+    topPerformingFormat: toPerformanceHighlight(aggResult.topFormat, performanceMetricLabel, performanceMetricField),
+    lowPerformingFormat: toPerformanceHighlight(aggResult.lowFormat, performanceMetricLabel, performanceMetricField),
+    topPerformingContext: toPerformanceHighlight(aggResult.topContext, performanceMetricLabel, performanceMetricField),
+    topPerformingProposal: toPerformanceHighlight(aggResult.topProposal, performanceMetricLabel, performanceMetricField),
+    topPerformingTone: toPerformanceHighlight(aggResult.topTone, performanceMetricLabel, performanceMetricField),
+    topPerformingReference: toPerformanceHighlight(aggResult.topReference, performanceMetricLabel, performanceMetricField),
+    topPerformingContentIntent: toPerformanceHighlight(aggResult.topContentIntent, performanceMetricLabel, performanceMetricField),
+    topPerformingNarrativeForm: toPerformanceHighlight(aggResult.topNarrativeForm, performanceMetricLabel, performanceMetricField),
+    topPerformingContentSignal: toPerformanceHighlight(aggResult.topContentSignal, performanceMetricLabel, performanceMetricField),
+    topPerformingStance: toPerformanceHighlight(aggResult.topStance, performanceMetricLabel, performanceMetricField),
+    topPerformingProofStyle: toPerformanceHighlight(aggResult.topProofStyle, performanceMetricLabel, performanceMetricField),
+    topPerformingCommercialMode: toPerformanceHighlight(aggResult.topCommercialMode, performanceMetricLabel, performanceMetricField),
     bestDay: bestDay ? { dayOfWeek: bestDay.dayOfWeek, average: bestDay.average } : null,
     insightSummary: ''
   };
@@ -110,6 +138,9 @@ export async function GET(request: NextRequest) {
   if (response.topPerformingFormat) insights.push(`O formato de melhor performance é ${response.topPerformingFormat.name} (${response.topPerformingFormat.valueFormatted} de média).`);
   if (response.topPerformingContext) insights.push(`${response.topPerformingContext.name} é o contexto de melhor performance (${response.topPerformingContext.valueFormatted} de média).`);
   if (response.topPerformingProposal) insights.push(`${response.topPerformingProposal.name} é a proposta de melhor desempenho (${response.topPerformingProposal.valueFormatted} de média).`);
+  if (response.topPerformingContentIntent) insights.push(`${response.topPerformingContentIntent.name} é a intenção de conteúdo de melhor desempenho (${response.topPerformingContentIntent.valueFormatted} de média).`);
+  if (response.topPerformingNarrativeForm) insights.push(`${response.topPerformingNarrativeForm.name} é a forma narrativa de melhor desempenho (${response.topPerformingNarrativeForm.valueFormatted} de média).`);
+  if (response.topPerformingStance) insights.push(`${response.topPerformingStance.name} é a postura de melhor desempenho (${response.topPerformingStance.valueFormatted} de média).`);
   if (response.bestDay) {
     const dayName = getPortugueseWeekdayNameForSummary(response.bestDay.dayOfWeek);
     insights.push(`O melhor dia para postar é ${dayName}, com média de ${response.bestDay.average.toFixed(1)} interações por post.`);

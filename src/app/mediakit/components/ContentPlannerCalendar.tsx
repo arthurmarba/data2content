@@ -1,10 +1,11 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Target, LayoutTemplate, Compass, MessageCircle, Link as LinkIcon, TrendingUp, Bookmark, X, CalendarClock } from 'lucide-react';
+import { Target, LayoutTemplate, Compass, Link as LinkIcon, TrendingUp, Bookmark, X, CalendarClock } from 'lucide-react';
 import { PlannerUISlot } from '@/hooks/usePlannerData';
 import { idsToLabels } from '@/app/lib/classification';
 import { fetchSlotInspirations, getCachedInspirations } from '../utils/inspirationCache';
+import { getPlannerSlotPresentation, type PlannerSlotMetaChip } from './plannerSlotPresentation';
 
 const DAYS_FULL_PT = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 type StatusCategory = 'champion' | 'test' | 'watch' | 'planned';
@@ -21,10 +22,12 @@ type SlotCardBaseFields = {
   title: string;
   formatLabel: string;
   viewsP50: string;
-  proposalLabel: string;
+  intentLabel: string;
+  narrativeLabel: string;
   contextLabel: string;
-  toneLabel: string;
-  referenceLabel: string;
+  focusDetailLabel: string;
+  focusDetailValue: string;
+  metaChips: PlannerSlotMetaChip[];
 };
 
 export interface CalendarHeatPoint {
@@ -378,24 +381,23 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
         const formatLabel = formatSlotFormat(slot.format);
         const expectedMetrics = slot.expectedMetrics ?? {};
         const viewsP50 = formatViews(expectedMetrics.viewsP50) ?? '—';
-        const proposalLabels = getCachedLabels(labelsCache, slot.categories?.proposal, 'proposal');
-        const contextLabels = getCachedLabels(labelsCache, slot.categories?.context, 'context');
-        const toneLabels = getCachedLabels(
-          labelsCache,
-          slot.categories?.tone ? [slot.categories.tone] : undefined,
-          'tone'
-        );
-        const referenceLabels = getCachedLabels(labelsCache, slot.categories?.reference, 'reference');
+        void getCachedLabels(labelsCache, slot.categories?.proposal, 'proposal');
+        void getCachedLabels(labelsCache, slot.categories?.context, 'context');
+        void getCachedLabels(labelsCache, slot.categories?.tone ? [slot.categories.tone] : undefined, 'tone');
+        void getCachedLabels(labelsCache, slot.categories?.reference, 'reference');
+        const presentation = getPlannerSlotPresentation(slot);
 
         baseFields = {
           cardId,
           title,
-          formatLabel,
+          formatLabel: presentation.formatLabel !== '—' ? presentation.formatLabel : formatLabel,
           viewsP50,
-          proposalLabel: proposalLabels.length ? proposalLabels.join(', ') : '-',
-          contextLabel: contextLabels.length ? contextLabels.join(', ') : '-',
-          toneLabel: toneLabels[0] ?? '-',
-          referenceLabel: referenceLabels.length ? referenceLabels.join(', ') : '-',
+          intentLabel: presentation.intentLabel,
+          narrativeLabel: presentation.narrativeLabel,
+          contextLabel: presentation.contextLabel,
+          focusDetailLabel: presentation.focusDetailLabel,
+          focusDetailValue: presentation.focusDetailValue,
+          metaChips: presentation.metaChips,
         };
 
         baseCache.set(slot, baseFields);
@@ -415,10 +417,12 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
         statusClass: statusInfo.metaClass,
         slot,
         // New fields
-        proposalLabel: baseFields.proposalLabel,
+        intentLabel: baseFields.intentLabel,
+        narrativeLabel: baseFields.narrativeLabel,
         contextLabel: baseFields.contextLabel,
-        toneLabel: baseFields.toneLabel,
-        referenceLabel: baseFields.referenceLabel,
+        focusDetailLabel: baseFields.focusDetailLabel,
+        focusDetailValue: baseFields.focusDetailValue,
+        metaChips: baseFields.metaChips,
       } as PlannerSlotCard;
 
       nextCache.set(baseFields.cardId, { slotRef: slot, heatScore, card });
@@ -529,10 +533,12 @@ export interface PlannerSlotCard {
   statusClass: string;
   slot: PlannerUISlot;
   // New fields for rich grid
-  proposalLabel: string;
+  intentLabel: string;
+  narrativeLabel: string;
   contextLabel: string;
-  toneLabel: string;
-  referenceLabel: string;
+  focusDetailLabel: string;
+  focusDetailValue: string;
+  metaChips: PlannerSlotMetaChip[];
 }
 
 type SelfInspirationCard = {
@@ -827,9 +833,9 @@ const SlotCardDetailsPanelBase = ({
       <div className="min-h-[68px] rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-2 sm:px-3 sm:py-2.5">
         <div className="mb-1 flex items-center gap-1.5 text-slate-600">
           <Target className="h-3.5 w-3.5" />
-          <span className="text-[9px] font-bold uppercase tracking-[0.08em] sm:text-[10px]">Proposta</span>
+          <span className="text-[9px] font-bold uppercase tracking-[0.08em] sm:text-[10px]">Intenção</span>
         </div>
-        <span className="line-clamp-2 text-[12px] font-semibold leading-snug text-slate-800 sm:text-[13px]" title={card.proposalLabel}>{card.proposalLabel}</span>
+        <span className="line-clamp-2 text-[12px] font-semibold leading-snug text-slate-800 sm:text-[13px]" title={card.intentLabel}>{card.intentLabel}</span>
       </div>
       <div className="min-h-[68px] rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-2 sm:px-3 sm:py-2.5">
         <div className="mb-1 flex items-center gap-1.5 text-slate-600">
@@ -840,17 +846,17 @@ const SlotCardDetailsPanelBase = ({
       </div>
       <div className="min-h-[68px] rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-2 sm:px-3 sm:py-2.5">
         <div className="mb-1 flex items-center gap-1.5 text-slate-600">
-          <MessageCircle className="h-3.5 w-3.5" />
-          <span className="text-[9px] font-bold uppercase tracking-[0.08em] sm:text-[10px]">Tom</span>
+          <CalendarClock className="h-3.5 w-3.5" />
+          <span className="text-[9px] font-bold uppercase tracking-[0.08em] sm:text-[10px]">Narrativa</span>
         </div>
-        <span className="block truncate text-[12px] font-semibold leading-snug text-slate-800 sm:text-[13px]" title={card.toneLabel}>{card.toneLabel}</span>
+        <span className="line-clamp-2 text-[12px] font-semibold leading-snug text-slate-800 sm:text-[13px]" title={card.narrativeLabel}>{card.narrativeLabel}</span>
       </div>
       <div className="min-h-[68px] rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-2 sm:px-3 sm:py-2.5">
         <div className="mb-1 flex items-center gap-1.5 text-slate-600">
           <LinkIcon className="h-3.5 w-3.5" />
-          <span className="text-[9px] font-bold uppercase tracking-[0.08em] sm:text-[10px]">Referência</span>
+          <span className="text-[9px] font-bold uppercase tracking-[0.08em] sm:text-[10px]">{card.focusDetailLabel}</span>
         </div>
-        <span className="line-clamp-2 text-[12px] font-semibold leading-snug text-slate-800 sm:text-[13px]" title={card.referenceLabel}>{card.referenceLabel}</span>
+        <span className="line-clamp-2 text-[12px] font-semibold leading-snug text-slate-800 sm:text-[13px]" title={card.focusDetailValue}>{card.focusDetailValue}</span>
       </div>
       <div className="min-h-[68px] rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-2 sm:px-3 sm:py-2.5">
         <div className="mb-1 flex items-center gap-1.5 text-emerald-700">
@@ -860,6 +866,20 @@ const SlotCardDetailsPanelBase = ({
         <span className="text-[17px] font-bold leading-none text-emerald-700 sm:text-[19px]">{card.viewsP50}</span>
       </div>
     </div>
+
+    {card.metaChips.length ? (
+      <div className="mt-3 flex flex-wrap gap-2">
+        {card.metaChips.map((chip) => (
+          <span
+            key={`${card.id}-${chip.key}`}
+            className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600"
+          >
+            <span className="mr-1 text-slate-400">{chip.label}</span>
+            <span className="text-slate-800">{chip.value}</span>
+          </span>
+        ))}
+      </div>
+    ) : null}
 
     <SlotInspirationsPanel
       canShowInspirations={canShowInspirations}

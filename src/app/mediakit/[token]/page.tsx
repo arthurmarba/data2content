@@ -31,6 +31,8 @@ import {
 } from '@/types/mediakit';
 import { isPlanActiveLike } from '@/utils/planStatus';
 import { canonicalizeCategoryValues, type CategoryType } from '@/app/lib/classification';
+import { canonicalizeV2CategoryValues } from '@/app/lib/classificationV2';
+import { canonicalizeV25CategoryValues } from '@/app/lib/classificationV2_5';
 
 async function loadAuthOptions() {
   if (process.env.NODE_ENV === 'test') {
@@ -302,8 +304,37 @@ export default async function MediaKitPage(
     MediaKitPackage.find({ userId: (user as any)._id }).sort({ order: 1, createdAt: 1 }).lean().exec(),
   ]);
 
-  const normalizeCategoryField = (value: unknown, type: CategoryType): string[] =>
-    canonicalizeCategoryValues(value, type, { includeUnknown: true });
+  const normalizeCategoryField = (
+    value: unknown,
+    type:
+      | CategoryType
+      | 'contentIntent'
+      | 'narrativeForm'
+      | 'contentSignals'
+      | 'stance'
+      | 'proofStyle'
+      | 'commercialMode'
+  ): string[] => {
+    if (type === 'contentIntent') {
+      return canonicalizeV2CategoryValues(value, 'contentIntent', { includeUnknown: true });
+    }
+    if (type === 'narrativeForm') {
+      return canonicalizeV2CategoryValues(value, 'narrativeForm', { includeUnknown: true });
+    }
+    if (type === 'contentSignals') {
+      return canonicalizeV2CategoryValues(value, 'contentSignal', { includeUnknown: true });
+    }
+    if (type === 'stance') {
+      return canonicalizeV25CategoryValues(value, 'stance', { includeUnknown: true });
+    }
+    if (type === 'proofStyle') {
+      return canonicalizeV25CategoryValues(value, 'proofStyle', { includeUnknown: true });
+    }
+    if (type === 'commercialMode') {
+      return canonicalizeV25CategoryValues(value, 'commercialMode', { includeUnknown: true });
+    }
+    return canonicalizeCategoryValues(value, type, { includeUnknown: true });
+  };
 
   let compatibleVideos = (videos || []).map((video: any) => ({
     ...video,
@@ -312,6 +343,12 @@ export default async function MediaKitPage(
     context: normalizeCategoryField(video.context, 'context'),
     tone: normalizeCategoryField(video.tone, 'tone'),
     references: normalizeCategoryField(video.references, 'reference'),
+    contentIntent: normalizeCategoryField(video.contentIntent, 'contentIntent'),
+    narrativeForm: normalizeCategoryField(video.narrativeForm, 'narrativeForm'),
+    contentSignals: normalizeCategoryField(video.contentSignals, 'contentSignals'),
+    stance: normalizeCategoryField(video.stance, 'stance'),
+    proofStyle: normalizeCategoryField(video.proofStyle, 'proofStyle'),
+    commercialMode: normalizeCategoryField(video.commercialMode, 'commercialMode'),
   }));
 
   const plainUser = JSON.parse(JSON.stringify(user));
@@ -355,6 +392,12 @@ export default async function MediaKitPage(
       context: [],
       tone: [],
       references: [],
+      contentIntent: [],
+      narrativeForm: [],
+      contentSignals: [],
+      stance: [],
+      proofStyle: [],
+      commercialMode: [],
     }));
     premiumAccessConfig = {
       canViewCategories: false,

@@ -12,6 +12,10 @@ import Drawer from '@/components/ui/Drawer';
 import Heatmap from '@/components/ui/Heatmap';
 import EvidenceBadge from '@/components/ui/EvidenceBadge';
 import { openPaywallModal } from '@/utils/paywallModal';
+import {
+  formatCommunityInspirationSubtitle,
+  getStrategicQuickStats,
+} from '@/app/lib/strategicReportPresentation';
 
 type ApiResponse = {
   status: 'ready' | 'building' | 'error';
@@ -158,6 +162,27 @@ export default function StrategicReportClient({ userId }: Props) {
                 </div>
               </Card>
 
+              {(() => {
+                const quickStats = getStrategicQuickStats(report);
+                if (!quickStats.length) return null;
+
+                return (
+                  <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+                    {quickStats.map((stat) => (
+                      <Card key={stat.key} variant="brand" density="compact" title={stat.title}>
+                        <div className="text-base font-semibold text-gray-900">{stat.value}</div>
+                        {stat.hint ? <div className="mt-1 text-xs text-gray-500">{stat.hint}</div> : null}
+                        {typeof stat.deltaPct === 'number' ? (
+                          <div className="mt-2">
+                            <DeltaBadge value={stat.deltaPct} />
+                          </div>
+                        ) : null}
+                      </Card>
+                    ))}
+                  </div>
+                );
+              })()}
+
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-lg font-semibold">Insights Principais</h3>
@@ -214,7 +239,7 @@ export default function StrategicReportClient({ userId }: Props) {
                       </div>
                       <div className="mt-3 grid grid-cols-1 gap-2 text-sm">
                         <div className="border rounded p-2 bg-white">
-                          <div className="text-xs font-semibold text-gray-700 mb-1">Contexto</div>
+                          <div className="text-xs font-semibold text-gray-700 mb-1">Leitura</div>
                           <p className="text-gray-700">{o.rationale}</p>
                         </div>
                         <div className="border rounded p-2 bg-white">
@@ -240,8 +265,8 @@ export default function StrategicReportClient({ userId }: Props) {
                           <div className="text-xs font-semibold text-gray-700 mb-1">Riscos/Observações</div>
                           <ul className="list-disc pl-5 space-y-1 text-gray-700">
                             <li>Amostra limitada pode reduzir confiança do impacto.</li>
-                            <li>Evite saturação do tema; varie formatos/ângulos.</li>
-                            <li>Ajuste a proposta conforme feedback nos comentários.</li>
+                            <li>Evite saturação; varie narrativas, provas e ângulos.</li>
+                            <li>Ajuste a abordagem conforme o retorno nos comentários.</li>
                           </ul>
                         </div>
                       </div>
@@ -311,7 +336,7 @@ export default function StrategicReportClient({ userId }: Props) {
               {report.communityInspirations.length === 0 ? (
                 <p className="text-sm text-gray-600">Sem inspirações no momento.</p>
               ) : report.communityInspirations.map((ci) => (
-                <Card key={ci.id} variant="brand" density="compact" title={ci.handleOrAnon} subtitle={`${ci.format} · ${ci.proposal} · ${ci.context}`}>
+                <Card key={ci.id} variant="brand" density="compact" title={ci.handleOrAnon} subtitle={formatCommunityInspirationSubtitle(ci)}>
                   <div className="text-sm">{ci.whyItWorks}</div>
                   {ci.link && <a className="text-blue-600 text-xs" href={ci.link} target="_blank" rel="noreferrer">Ver post</a>}
                 </Card>
@@ -332,7 +357,7 @@ export default function StrategicReportClient({ userId }: Props) {
             <li>Reforce nos Stories entre 2–6h após publicar (enquete ou CTA).</li>
             <li>Após 48h, registre o desempenho e repita a variação promissora.</li>
           </ol>
-          <p className="text-xs text-gray-500">Dica: gancho claro nos primeiros 3s, proposta explícita e CTA específico.</p>
+          <p className="text-xs text-gray-500">Dica: gancho claro nos primeiros 3s, promessa explícita e CTA específico.</p>
         </div>
       </Drawer>
     </div>

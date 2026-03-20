@@ -13,6 +13,7 @@ import { logger } from "@/app/lib/logger";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import Metric from "@/app/models/Metric";
 import { isRetryableAiFailureMessage } from "@/app/lib/classificationAiErrors";
+import { createEmptyMetricClassificationUpdate } from "@/app/lib/classificationRuntime";
 
 const SCRIPT_TAG = "[SCRIPT_REQUEUE_RETRYABLE_CLASSIFICATION_FAILURES]";
 
@@ -66,11 +67,7 @@ async function run() {
           $set: {
             classificationStatus: "pending",
             classificationError: null,
-            format: [],
-            proposal: [],
-            context: [],
-            tone: [],
-            references: [],
+            ...createEmptyMetricClassificationUpdate(),
           },
         }
       );

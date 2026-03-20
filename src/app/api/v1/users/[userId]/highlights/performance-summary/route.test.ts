@@ -29,6 +29,12 @@ describe('GET /api/v1/users/[userId]/highlights/performance-summary', () => {
       topProposal: { name: 'educational', average: 8, count: 4 },
       topTone: { name: 'humor', average: 7, count: 2 },
       topReference: { name: 'pop_culture', average: 6, count: 3 },
+      topContentIntent: { name: 'teach', average: 9, count: 5 },
+      topNarrativeForm: { name: 'tutorial', average: 8, count: 4 },
+      topContentSignal: { name: 'sponsored', average: 11, count: 2 },
+      topStance: { name: 'endorsing', average: 10, count: 3 },
+      topProofStyle: { name: 'demonstration', average: 7, count: 2 },
+      topCommercialMode: { name: 'paid_partnership', average: 11, count: 2 },
     }).mockResolvedValueOnce({
       topFormat: { name: 'VIDEO', average: 8, count: 2 },
       lowFormat: { name: 'IMAGE', average: 1, count: 1 },
@@ -36,6 +42,12 @@ describe('GET /api/v1/users/[userId]/highlights/performance-summary', () => {
       topProposal: { name: 'educational', average: 6, count: 4 },
       topTone: { name: 'humor', average: 5, count: 2 },
       topReference: { name: 'pop_culture', average: 5, count: 3 },
+      topContentIntent: { name: 'teach', average: 7, count: 5 },
+      topNarrativeForm: { name: 'tutorial', average: 6, count: 4 },
+      topContentSignal: { name: 'sponsored', average: 9, count: 2 },
+      topStance: { name: 'endorsing', average: 7, count: 3 },
+      topProofStyle: { name: 'demonstration', average: 5, count: 2 },
+      topCommercialMode: { name: 'paid_partnership', average: 9, count: 2 },
     });
     mockDayAgg.mockResolvedValueOnce({
       buckets: [],
@@ -51,6 +63,9 @@ describe('GET /api/v1/users/[userId]/highlights/performance-summary', () => {
     expect(mockAgg).toHaveBeenCalled();
     expect(mockDayAgg).toHaveBeenCalled();
     expect(body.topPerformingFormat.name).toBe('VIDEO');
+    expect(body.topPerformingContentIntent.name).toBe('teach');
+    expect(body.topPerformingStance.name).toBe('endorsing');
+    expect(body.topPerformingCommercialMode.name).toBe('paid_partnership');
     expect(body.bestDay.dayOfWeek).toBe(5);
   });
 

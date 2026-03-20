@@ -2,14 +2,20 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { Category } from "@/app/lib/classification";
 import {
-  formatCategories,
-  proposalCategories,
-  contextCategories,
-  toneCategories,
-  referenceCategories,
+  getFlatFilterableCategories,
+  type FlatCategory,
 } from "@/app/lib/classification";
+import {
+  contentSignalCategories,
+  contentIntentCategories,
+  narrativeFormCategories,
+} from "@/app/lib/classificationV2";
+import {
+  commercialModeCategories,
+  proofStyleCategories,
+  stanceCategories,
+} from "@/app/lib/classificationV2_5";
 import {
   CheckIcon,
   ChevronLeftIcon,
@@ -36,6 +42,12 @@ type Option = {
 type FilterCategory = { id: CategoryId; label: string; options: Option[] };
 type SelectedFilters = DiscoverSelectedFilters;
 type ViewState = "master" | CategoryId;
+type GroupedOptionSet = {
+  key: string;
+  label: string;
+  root: Option | null;
+  children: Option[];
+};
 
 type DiscoverChipsProps = {
   defaultView?: ViewState;
@@ -44,47 +56,83 @@ type DiscoverChipsProps = {
 
 const MASTER_ORDER: CategoryId[] = [
   "format",
-  "proposal",
+  "contentIntent",
   "context",
-  "tone",
+  "narrativeForm",
+  "proofStyle",
+  "stance",
+  "commercialMode",
+  "contentSignals",
   "references",
 ];
 
 const MASTER_LABELS: Record<CategoryId, string> = {
   format: "Formato",
-  proposal: "Proposta",
+  contentIntent: "Intenção",
   context: "Contexto",
-  tone: "Tom",
+  narrativeForm: "Narrativa",
+  contentSignals: "Sinais",
+  stance: "Postura",
+  proofStyle: "Prova",
+  commercialMode: "Comercial",
   references: "Referências",
 };
 
-const flattenCategories = (input: Category[]): Option[] => {
-  const result: Option[] = [];
-  const visit = (
-    items: Category[],
-    root?: { id: string; label: string },
-    depth = 0,
-  ) => {
-    items.forEach((item) => {
-      const nextRoot = root ?? { id: item.id, label: item.label };
-      result.push({
-        id: item.id,
-        label: item.label,
-        depth,
-        groupId: nextRoot.id,
-        groupLabel: nextRoot.label,
-        hasChildren: Boolean(item.subcategories?.length),
-      });
-      if (item.subcategories && item.subcategories.length) {
-        visit(item.subcategories, nextRoot, depth + 1);
-      }
-    });
-  };
-  visit(input);
-  return result;
-};
+const buildOptionsFromFlatCategories = (categories: FlatCategory[]): Option[] =>
+  categories.map((category) => {
+    const rootIndex = category.parentIds.length > 0 ? 0 : -1;
+    return {
+      id: category.id,
+      label: category.label,
+      depth: category.parentIds.length,
+      groupId: rootIndex >= 0 ? category.parentIds[rootIndex]! : category.id,
+      groupLabel: rootIndex >= 0 ? category.parentLabels[rootIndex]! : category.label,
+      hasChildren: false,
+    };
+  });
 
-const DISCOVER_FORMATS = formatCategories.filter((cat) =>
+const buildOptionsFromStrategicCategories = (
+  categories: Array<{ id: string; label: string }>
+): Option[] =>
+  categories.map((category) => ({
+    id: category.id,
+    label: category.label,
+    depth: 0,
+    groupId: category.id,
+    groupLabel: category.label,
+    hasChildren: false,
+  }));
+
+export function groupOptionsByDisplay(options: Option[]): GroupedOptionSet[] {
+  const roots = options.filter((option) => option.depth === 0);
+
+  if (roots.length > 0) {
+    return roots.map((root) => ({
+      key: root.id,
+      label: root.label,
+      root,
+      children: options.filter(
+        (option) => option.groupId === root.id && option.depth > 0
+      ),
+    }));
+  }
+
+  const groups = new Map<string, GroupedOptionSet>();
+  for (const option of options) {
+    const group = groups.get(option.groupId) ?? {
+      key: option.groupId,
+      label: option.groupLabel,
+      root: null,
+      children: [],
+    };
+    group.children.push(option);
+    groups.set(option.groupId, group);
+  }
+
+  return Array.from(groups.values());
+}
+
+const DISCOVER_FORMATS = getFlatFilterableCategories("format").filter((cat) =>
   ['reel', 'photo', 'carousel', 'long_video'].includes(cat.id)
 );
 
@@ -92,27 +140,47 @@ const FILTER_DATA: FilterCategory[] = [
   {
     id: "format",
     label: MASTER_LABELS.format,
-    options: flattenCategories(DISCOVER_FORMATS),
+    options: buildOptionsFromFlatCategories(DISCOVER_FORMATS),
   },
   {
-    id: "proposal",
-    label: MASTER_LABELS.proposal,
-    options: flattenCategories(proposalCategories),
+    id: "contentIntent",
+    label: MASTER_LABELS.contentIntent,
+    options: buildOptionsFromStrategicCategories(contentIntentCategories),
   },
   {
     id: "context",
     label: MASTER_LABELS.context,
-    options: flattenCategories(contextCategories),
+    options: buildOptionsFromFlatCategories(getFlatFilterableCategories("context")),
   },
   {
-    id: "tone",
-    label: MASTER_LABELS.tone,
-    options: flattenCategories(toneCategories),
+    id: "narrativeForm",
+    label: MASTER_LABELS.narrativeForm,
+    options: buildOptionsFromStrategicCategories(narrativeFormCategories),
+  },
+  {
+    id: "proofStyle",
+    label: MASTER_LABELS.proofStyle,
+    options: buildOptionsFromStrategicCategories(proofStyleCategories),
+  },
+  {
+    id: "stance",
+    label: MASTER_LABELS.stance,
+    options: buildOptionsFromStrategicCategories(stanceCategories),
+  },
+  {
+    id: "commercialMode",
+    label: MASTER_LABELS.commercialMode,
+    options: buildOptionsFromStrategicCategories(commercialModeCategories),
+  },
+  {
+    id: "contentSignals",
+    label: MASTER_LABELS.contentSignals,
+    options: buildOptionsFromStrategicCategories(contentSignalCategories),
   },
   {
     id: "references",
     label: MASTER_LABELS.references,
-    options: flattenCategories(referenceCategories),
+    options: buildOptionsFromFlatCategories(getFlatFilterableCategories("reference")),
   },
 ];
 
@@ -247,14 +315,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
 
   const groupedCurrentOptions = useMemo(() => {
     if (!currentCategory) return [];
-
-    const roots = currentCategory.options.filter((option) => option.depth === 0);
-    return roots.map((root) => ({
-      root,
-      children: currentCategory.options.filter(
-        (option) => option.groupId === root.id && option.depth > 0
-      ),
-    }));
+    return groupOptionsByDisplay(currentCategory.options);
   }, [currentCategory]);
 
   const activeFilterChips = useMemo(
@@ -379,31 +440,39 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
         <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
           {isHierarchicalCurrentCategory ? (
             groupedCurrentOptions.map(({ root, children }) => {
-              const isRootSelected = selectedFilters[currentCategory.id].includes(root.id);
+              const isRootSelected = root
+                ? selectedFilters[currentCategory.id].includes(root.id)
+                : false;
               return (
-                <section key={root.id} className="space-y-2">
+                <section key={root?.id ?? children[0]?.groupId ?? currentCategory.id} className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => toggleFilter(currentCategory.id, root.id)}
-                      className={`inline-flex min-w-0 max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${
-                        isRootSelected
-                          ? "border-slate-300 bg-slate-900 text-white shadow-sm"
-                          : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100"
-                      }`}
-                      aria-pressed={isRootSelected}
-                    >
-                      <span className="truncate">{root.label}</span>
-                      {children.length > 0 && (
-                        <span
-                          className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                            isRootSelected ? "bg-white/15 text-white/90" : "bg-white text-slate-400"
-                          }`}
-                        >
-                          {children.length}
-                        </span>
-                      )}
-                    </button>
+                    {root ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleFilter(currentCategory.id, root.id)}
+                        className={`inline-flex min-w-0 max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${
+                          isRootSelected
+                            ? "border-slate-300 bg-slate-900 text-white shadow-sm"
+                            : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100"
+                        }`}
+                        aria-pressed={isRootSelected}
+                      >
+                        <span className="truncate">{root.label}</span>
+                        {children.length > 0 && (
+                          <span
+                            className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                              isRootSelected ? "bg-white/15 text-white/90" : "bg-white text-slate-400"
+                            }`}
+                          >
+                            {children.length}
+                          </span>
+                        )}
+                      </button>
+                    ) : (
+                      <p className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                        {children[0]?.groupLabel}
+                      </p>
+                    )}
                     {children.length > 0 && (
                       <span className="text-xs text-slate-400">
                         {children.length} subtópico{children.length === 1 ? "" : "s"}

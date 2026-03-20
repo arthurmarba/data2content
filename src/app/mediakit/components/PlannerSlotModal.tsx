@@ -2,9 +2,9 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { idsToLabels } from '@/app/lib/classification';
 import { prefillInspirationCache } from '../utils/inspirationCache';
 import { setCachedThemes } from '../utils/plannerThemesCache';
+import { getPlannerSlotPresentation } from './plannerSlotPresentation';
 
 const DiscoverVideoModal = dynamic(() => import('@/app/discover/components/DiscoverVideoModal'), {
   ssr: false,
@@ -162,6 +162,12 @@ export interface PlannerSlotData {
   blockStartHour: number;
   format: string;
   categories?: { context?: string[]; tone?: string; proposal?: string[]; reference?: string[] };
+  contentIntent?: string[];
+  narrativeForm?: string[];
+  contentSignals?: string[];
+  stance?: string[];
+  proofStyle?: string[];
+  commercialMode?: string[];
   status?: 'planned' | 'drafted' | 'test' | 'posted';
   isExperiment?: boolean;
   expectedMetrics?: { viewsP50?: number; viewsP90?: number; sharesP50?: number };
@@ -412,26 +418,19 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
     return { icon: '👀', label: 'Sugestão' };
   }, [slot]);
 
-  const contextLabels = useMemo(() => idsToLabels(slot?.categories?.context, 'context'), [slot?.categories?.context]);
-  const proposalLabels = useMemo(() => idsToLabels(slot?.categories?.proposal, 'proposal'), [slot?.categories?.proposal]);
-  const toneLabels = useMemo(() => idsToLabels(slot?.categories?.tone ? [slot.categories.tone] : [], 'tone'), [slot?.categories?.tone]);
-  const referenceLabels = useMemo(() => idsToLabels(slot?.categories?.reference, 'reference'), [slot?.categories?.reference]);
-
-  const contextSummary = useMemo(
-    () => (contextLabels.length ? contextLabels.slice(0, 2).join(' • ') : ''),
-    [contextLabels]
-  );
-  const proposalSummary = useMemo(
-    () => (proposalLabels.length ? proposalLabels.slice(0, 2).join(' • ') : ''),
-    [proposalLabels]
-  );
-  const toneSummary = useMemo(
-    () => (toneLabels.length ? toneLabels[0] : ''),
-    [toneLabels]
-  );
-  const referenceSummary = useMemo(
-    () => (referenceLabels.length ? referenceLabels.slice(0, 2).join(' • ') : ''),
-    [referenceLabels]
+  const slotPresentation = useMemo(
+    () =>
+      slot
+        ? getPlannerSlotPresentation({
+            ...slot,
+            format,
+            title,
+            scriptShort: description,
+            themeKeyword: effectiveTheme,
+            themes: themesLocal,
+          })
+        : null,
+    [slot, format, title, description, effectiveTheme, themesLocal]
   );
 
   const formatLabel = useMemo(() => {
@@ -628,6 +627,12 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
         body: JSON.stringify({
           userId,
           categories: slot.categories || {},
+          contentIntent: slot.contentIntent || [],
+          narrativeForm: slot.narrativeForm || [],
+          contentSignals: slot.contentSignals || [],
+          stance: slot.stance || [],
+          proofStyle: slot.proofStyle || [],
+          commercialMode: slot.commercialMode || [],
           format,
           tone: slot.categories?.tone,
           script: description || slot.scriptShort || '',
@@ -820,22 +825,36 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
                   <p className="mt-1 text-[13px] font-bold text-emerald-700 sm:text-sm">{p50Compact || '—'}</p>
                 </div>
                 <div className="min-h-[76px] rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5 sm:min-h-[84px]">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 sm:text-[11px]">Proposta</p>
-                  <p className="mt-1 line-clamp-2 text-[13px] text-slate-800 sm:text-sm">{proposalSummary || '—'}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 sm:text-[11px]">Intenção</p>
+                  <p className="mt-1 line-clamp-2 text-[13px] text-slate-800 sm:text-sm">{slotPresentation?.intentLabel || '—'}</p>
                 </div>
                 <div className="min-h-[76px] rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5 sm:min-h-[84px]">
                   <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 sm:text-[11px]">Contexto</p>
-                  <p className="mt-1 line-clamp-2 text-[13px] text-slate-800 sm:text-sm">{contextSummary || '—'}</p>
+                  <p className="mt-1 line-clamp-2 text-[13px] text-slate-800 sm:text-sm">{slotPresentation?.contextLabel || '—'}</p>
                 </div>
                 <div className="min-h-[76px] rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5 sm:min-h-[84px]">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 sm:text-[11px]">Tom</p>
-                  <p className="mt-1 line-clamp-2 text-[13px] capitalize text-slate-800 sm:text-sm">{toneSummary || '—'}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 sm:text-[11px]">Narrativa</p>
+                  <p className="mt-1 line-clamp-2 text-[13px] text-slate-800 sm:text-sm">{slotPresentation?.narrativeLabel || '—'}</p>
                 </div>
                 <div className="min-h-[76px] rounded-xl border border-slate-100 bg-slate-50/70 px-3 py-2.5 sm:col-span-3 sm:min-h-[84px]">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 sm:text-[11px]">Referência</p>
-                  <p className="mt-1 line-clamp-2 text-[13px] text-slate-800 sm:text-sm">{referenceSummary || '—'}</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 sm:text-[11px]">{slotPresentation?.focusDetailLabel || 'Camada extra'}</p>
+                  <p className="mt-1 line-clamp-2 text-[13px] text-slate-800 sm:text-sm">{slotPresentation?.focusDetailValue || '—'}</p>
                 </div>
               </div>
+
+              {slotPresentation?.metaChips.length ? (
+                <div className="flex flex-wrap gap-2">
+                  {slotPresentation.metaChips.map((chip) => (
+                    <span
+                      key={`slot-meta-${chip.key}`}
+                      className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-600"
+                    >
+                      <span className="mr-1 text-slate-400">{chip.label}</span>
+                      <span className="text-slate-800">{chip.value}</span>
+                    </span>
+                  ))}
+                </div>
+              ) : null}
 
               <div className="flex flex-wrap gap-2">
                 <button

@@ -15,12 +15,21 @@ import {
   Trophy,
   Search,
 } from 'lucide-react';
-import { idsToLabels, getCategoryById } from '@/app/lib/classification';
+import { idsToLabels } from '@/app/lib/classification';
+import { v2IdsToLabels } from '@/app/lib/classificationV2';
+import { v25IdsToLabels } from '@/app/lib/classificationV2_5';
+import { getPlannerSlotPresentation } from '@/app/mediakit/components/plannerSlotPresentation';
 
 export interface PlannerSlotCardProps {
   title?: string;
   themeKeyword?: string;
   categories?: { context?: string[]; tone?: string; proposal?: string[]; reference?: string[] };
+  contentIntent?: string[];
+  narrativeForm?: string[];
+  contentSignals?: string[];
+  stance?: string[];
+  proofStyle?: string[];
+  commercialMode?: string[];
   expectedMetrics?: { viewsP50?: number; viewsP90?: number; sharesP50?: number };
   isExperiment?: boolean;
   status?: 'planned' | 'drafted' | 'test' | 'posted';
@@ -33,15 +42,15 @@ export interface PlannerSlotCardProps {
   onOpen?: () => void;
 }
 
-type TagGroup = 'format' | 'context' | 'proposal' | 'tone' | 'reference';
+type TagGroup = 'format' | 'intent' | 'narrative' | 'context' | 'strategy';
 type AccentKey = 'interaction' | 'success' | 'innovation' | 'experience' | 'neutral';
 
 const TAG_GROUPS: Array<{ key: TagGroup; label: string }> = [
   { key: 'format', label: 'Formato' },
-  { key: 'proposal', label: 'Proposta' },
+  { key: 'intent', label: 'Intenção' },
+  { key: 'narrative', label: 'Narrativa' },
   { key: 'context', label: 'Contexto' },
-  { key: 'tone', label: 'Tom' },
-  { key: 'reference', label: 'Referências' },
+  { key: 'strategy', label: 'Camadas estratégicas' },
 ];
 
 const ACCENT_DEFINITIONS: Record<AccentKey, { gradient: string; accent: string; label: string }> = {
@@ -138,6 +147,7 @@ function detectAccentKey(params: {
   proposalIds?: string[];
   contextLabels?: string[];
   proposalLabels?: string[];
+  strategicLabels?: string[];
   title?: string;
 }): AccentKey {
   if (params.status === 'test' || params.isExperiment) {
@@ -157,6 +167,7 @@ function detectAccentKey(params: {
     ...(params.themes ?? []),
     ...(params.contextLabels ?? []),
     ...(params.proposalLabels ?? []),
+    ...(params.strategicLabels ?? []),
     params.title,
   ]
     .join(' ')
@@ -186,6 +197,12 @@ const PlannerSlotCardComponent: React.FC<PlannerSlotCardProps> = ({
   isExperiment,
   status,
   formatId,
+  contentIntent,
+  narrativeForm,
+  contentSignals,
+  stance,
+  proofStyle,
+  commercialMode,
   dayOfWeek,
   blockStartHour,
   heatScore,
@@ -198,11 +215,32 @@ const PlannerSlotCardComponent: React.FC<PlannerSlotCardProps> = ({
   const p50 = expectedMetrics?.viewsP50;
   const p90 = expectedMetrics?.viewsP90;
 
-  const format = formatLabel(formatId);
   const contextLabels = idsToLabels(categories?.context, 'context');
   const proposalLabels = idsToLabels(categories?.proposal, 'proposal');
   const referenceLabels = idsToLabels(categories?.reference, 'reference');
-  const toneLabel = categories?.tone ? getCategoryById(categories.tone, 'tone')?.label || categories.tone : undefined;
+  const toneLabel = idsToLabels(categories?.tone ? [categories.tone] : [], 'tone')[0];
+  const intentLabels = v2IdsToLabels(contentIntent, 'contentIntent');
+  const narrativeLabels = v2IdsToLabels(narrativeForm, 'narrativeForm');
+  const signalLabels = v2IdsToLabels(contentSignals, 'contentSignal');
+  const stanceLabels = v25IdsToLabels(stance, 'stance');
+  const proofLabels = v25IdsToLabels(proofStyle, 'proofStyle');
+  const commercialLabels = v25IdsToLabels(commercialMode, 'commercialMode');
+  const presentation = getPlannerSlotPresentation({
+    format: formatId,
+    title,
+    scriptShort,
+    themeKeyword,
+    themes,
+    categories,
+    contentIntent,
+    narrativeForm,
+    contentSignals,
+    stance,
+    proofStyle,
+    commercialMode,
+  });
+  const format = presentation.formatLabel !== '—' ? presentation.formatLabel : formatLabel(formatId);
+  const strategicLabels = [...proofLabels, ...commercialLabels, ...stanceLabels, ...signalLabels, ...referenceLabels, ...(toneLabel ? [toneLabel] : [])];
 
   const accentKey = detectAccentKey({
     themeKeyword,
@@ -212,6 +250,7 @@ const PlannerSlotCardComponent: React.FC<PlannerSlotCardProps> = ({
     proposalIds: categories?.proposal,
     contextLabels,
     proposalLabels,
+    strategicLabels,
     title,
   });
   const accent = ACCENT_DEFINITIONS[accentKey];
@@ -220,32 +259,41 @@ const PlannerSlotCardComponent: React.FC<PlannerSlotCardProps> = ({
   const blockRange = blockLabel(blockStartHour);
   const headerTimeLabel = dayShort && blockRange ? `${dayShort} • ${blockRange}` : dayShort || blockRange || 'Slot sugerido';
 
-  const headline = themeKeyword || themes?.[0] || proposalLabels[0] || contextLabels[0] || 'Tema sugerido';
+  const headline = themeKeyword || themes?.[0] || intentLabels[0] || narrativeLabels[0] || contextLabels[0] || 'Tema sugerido';
   const fallbackTitleText = (() => {
     if (title && title.trim().length > 0) return title;
     if (themeKeyword && themeKeyword.trim().length > 0) return themeKeyword;
-    const parts = [format, proposalLabels[0], contextLabels[0]].filter(Boolean);
+    const parts = [format, intentLabels[0] || proposalLabels[0], contextLabels[0]].filter(Boolean);
     return parts.length ? `Sugestão: ${parts.join(' • ')}` : 'Ideia da IA pronta para postar';
   })();
 
   const groupedTags: Record<TagGroup, string[]> = {
     format: [],
+    intent: [],
+    narrative: [],
     context: [],
-    proposal: [],
-    tone: [],
-    reference: [],
+    strategy: [],
   };
   if (format) groupedTags.format.push(format);
+  intentLabels.forEach((label) => groupedTags.intent.push(label));
+  if (!intentLabels.length) proposalLabels.forEach((label) => groupedTags.intent.push(label));
+  narrativeLabels.forEach((label) => groupedTags.narrative.push(label));
   contextLabels.forEach((label) => groupedTags.context.push(label));
-  proposalLabels.forEach((label) => groupedTags.proposal.push(label));
-  if (toneLabel) groupedTags.tone.push(toneLabel);
-  referenceLabels.forEach((label) => groupedTags.reference.push(label));
+  strategicLabels.forEach((label) => groupedTags.strategy.push(label));
 
   const detailItems: DetailItem[] = [];
   if (groupedTags.format[0]) detailItems.push({ key: 'format', icon: '🎬', label: 'Formato', value: groupedTags.format[0]! });
-  if (groupedTags.proposal[0]) detailItems.push({ key: 'proposal', icon: '💡', label: 'Proposta', value: groupedTags.proposal[0]! });
+  if (groupedTags.intent[0]) detailItems.push({ key: 'intent', icon: '🎯', label: 'Intenção', value: groupedTags.intent[0]! });
+  if (groupedTags.narrative[0]) detailItems.push({ key: 'narrative', icon: '🧩', label: 'Narrativa', value: groupedTags.narrative[0]! });
   if (groupedTags.context[0]) detailItems.push({ key: 'context', icon: '🎭', label: 'Contexto', value: groupedTags.context[0]! });
-  if (groupedTags.tone[0]) detailItems.push({ key: 'tone', icon: '🎯', label: 'Tom', value: groupedTags.tone[0]! });
+  if (presentation.focusDetailValue !== '—') {
+    detailItems.push({
+      key: 'focus-detail',
+      icon: '✨',
+      label: presentation.focusDetailLabel,
+      value: presentation.focusDetailValue,
+    });
+  }
 
   const heatBadge = (() => {
     if (typeof heatScore !== 'number') return null;
@@ -278,10 +326,10 @@ const PlannerSlotCardComponent: React.FC<PlannerSlotCardProps> = ({
   const hasExpandableContent =
     Boolean(scriptShort && scriptShort.trim()) ||
     additionalThemes.length > 0 ||
-    groupedTags.reference.length > 0 ||
+    groupedTags.strategy.length > 1 ||
     groupedTags.context.length > 1 ||
-    groupedTags.proposal.length > 1 ||
-    groupedTags.tone.length > 1;
+    groupedTags.intent.length > 1 ||
+    groupedTags.narrative.length > 1;
 
   const aria = [
     fallbackTitleText,

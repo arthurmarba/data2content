@@ -35,6 +35,12 @@ interface PerformanceSummaryResponse {
   topPerformingProposal: PerformanceHighlight | null;
   topPerformingTone: PerformanceHighlight | null;
   topPerformingReference: PerformanceHighlight | null;
+  topPerformingContentIntent: PerformanceHighlight | null;
+  topPerformingNarrativeForm: PerformanceHighlight | null;
+  topPerformingContentSignal: PerformanceHighlight | null;
+  topPerformingStance: PerformanceHighlight | null;
+  topPerformingProofStyle: PerformanceHighlight | null;
+  topPerformingCommercialMode: PerformanceHighlight | null;
   bestDay: { dayOfWeek: number; average: number } | null;
   insightSummary: string;
 }
@@ -60,6 +66,35 @@ function getPortugueseWeekdayNameForSummary(day: number): string {
       'Sábado',
     ];
     return days[day - 1] || '';
+}
+
+function toPerformanceHighlight(
+  source: { name: string | null; average: number; count: number } | null,
+  performanceMetricLabel: string,
+  performanceMetricField: string,
+  platformAverage?: number,
+  previousAverage?: number
+): PerformanceHighlight | null {
+  if (!source) return null;
+
+  return {
+    name: source.name as string,
+    metricName: performanceMetricLabel,
+    value: source.average,
+    valueFormatted: formatPerformanceValue(source.average, performanceMetricField),
+    postsCount: source.count,
+    ...(typeof platformAverage === "number"
+      ? {
+          platformAverage,
+          platformAverageFormatted: formatPerformanceValue(platformAverage, performanceMetricField),
+        }
+      : {}),
+    ...(typeof previousAverage === "number" && previousAverage !== 0
+      ? {
+          changePercentage: ((source.average - previousAverage) / previousAverage) * 100,
+        }
+      : {}),
+  };
 }
 
 export async function GET(
@@ -126,123 +161,81 @@ export async function GET(
     const bestDay = dayAgg.bestDays[0] || null;
 
     const response: PerformanceSummaryResponse = {
-      topPerformingFormat: aggResult.topFormat
-        ? {
-            name: aggResult.topFormat.name as string,
-            metricName: performanceMetricLabel,
-            value: aggResult.topFormat.average,
-            valueFormatted: formatPerformanceValue(
-              aggResult.topFormat.average,
-              performanceMetricField
-            ),
-            postsCount: aggResult.topFormat.count,
-            platformAverage: platformAverage,
-            platformAverageFormatted: formatPerformanceValue(
-              platformAverage,
-              performanceMetricField
-            ),
-            changePercentage:
-              prevAgg.topFormat && prevAgg.topFormat.average !== 0
-                ? ((aggResult.topFormat.average - prevAgg.topFormat.average) /
-                    prevAgg.topFormat.average) * 100
-                : undefined,
-          }
-        : null,
-      lowPerformingFormat: aggResult.lowFormat
-        ? {
-            name: aggResult.lowFormat.name as string,
-            metricName: performanceMetricLabel,
-            value: aggResult.lowFormat.average,
-            valueFormatted: formatPerformanceValue(
-              aggResult.lowFormat.average,
-              performanceMetricField
-            ),
-            postsCount: aggResult.lowFormat.count,
-            platformAverage: platformAverage,
-            platformAverageFormatted: formatPerformanceValue(
-              platformAverage,
-              performanceMetricField
-            ),
-            changePercentage:
-              prevAgg.lowFormat && prevAgg.lowFormat.average !== 0
-                ? ((aggResult.lowFormat.average - prevAgg.lowFormat.average) /
-                    prevAgg.lowFormat.average) * 100
-                : undefined,
-          }
-        : null,
-      topPerformingContext: aggResult.topContext
-        ? {
-            name: aggResult.topContext.name as string,
-            metricName: performanceMetricLabel,
-            value: aggResult.topContext.average,
-            valueFormatted: formatPerformanceValue(
-              aggResult.topContext.average,
-              performanceMetricField
-            ),
-            postsCount: aggResult.topContext.count,
-            platformAverage: platformAverage,
-            platformAverageFormatted: formatPerformanceValue(
-              platformAverage,
-              performanceMetricField
-            ),
-            changePercentage:
-              prevAgg.topContext && prevAgg.topContext.average !== 0
-                ? ((aggResult.topContext.average - prevAgg.topContext.average) /
-                    prevAgg.topContext.average) * 100
-                : undefined,
-          }
-        : null,
-      topPerformingProposal: aggResult.topProposal
-        ? {
-            name: aggResult.topProposal.name as string,
-            metricName: performanceMetricLabel,
-            value: aggResult.topProposal.average,
-            valueFormatted: formatPerformanceValue(
-              aggResult.topProposal.average,
-              performanceMetricField
-            ),
-            postsCount: aggResult.topProposal.count,
-            platformAverage: platformAverage,
-            platformAverageFormatted: formatPerformanceValue(
-              platformAverage,
-              performanceMetricField
-            ),
-          }
-        : null,
-      topPerformingTone: aggResult.topTone
-        ? {
-            name: aggResult.topTone.name as string,
-            metricName: performanceMetricLabel,
-            value: aggResult.topTone.average,
-            valueFormatted: formatPerformanceValue(
-              aggResult.topTone.average,
-              performanceMetricField
-            ),
-            postsCount: aggResult.topTone.count,
-            platformAverage: platformAverage,
-            platformAverageFormatted: formatPerformanceValue(
-              platformAverage,
-              performanceMetricField
-            ),
-          }
-        : null,
-      topPerformingReference: aggResult.topReference
-        ? {
-            name: aggResult.topReference.name as string,
-            metricName: performanceMetricLabel,
-            value: aggResult.topReference.average,
-            valueFormatted: formatPerformanceValue(
-              aggResult.topReference.average,
-              performanceMetricField
-            ),
-            postsCount: aggResult.topReference.count,
-            platformAverage: platformAverage,
-            platformAverageFormatted: formatPerformanceValue(
-              platformAverage,
-              performanceMetricField
-            ),
-          }
-        : null,
+      topPerformingFormat: toPerformanceHighlight(
+        aggResult.topFormat,
+        performanceMetricLabel,
+        performanceMetricField,
+        platformAverage,
+        prevAgg.topFormat?.average
+      ),
+      lowPerformingFormat: toPerformanceHighlight(
+        aggResult.lowFormat,
+        performanceMetricLabel,
+        performanceMetricField,
+        platformAverage,
+        prevAgg.lowFormat?.average
+      ),
+      topPerformingContext: toPerformanceHighlight(
+        aggResult.topContext,
+        performanceMetricLabel,
+        performanceMetricField,
+        platformAverage,
+        prevAgg.topContext?.average
+      ),
+      topPerformingProposal: toPerformanceHighlight(
+        aggResult.topProposal,
+        performanceMetricLabel,
+        performanceMetricField,
+        platformAverage
+      ),
+      topPerformingTone: toPerformanceHighlight(
+        aggResult.topTone,
+        performanceMetricLabel,
+        performanceMetricField,
+        platformAverage
+      ),
+      topPerformingReference: toPerformanceHighlight(
+        aggResult.topReference,
+        performanceMetricLabel,
+        performanceMetricField,
+        platformAverage
+      ),
+      topPerformingContentIntent: toPerformanceHighlight(
+        aggResult.topContentIntent,
+        performanceMetricLabel,
+        performanceMetricField,
+        platformAverage
+      ),
+      topPerformingNarrativeForm: toPerformanceHighlight(
+        aggResult.topNarrativeForm,
+        performanceMetricLabel,
+        performanceMetricField,
+        platformAverage
+      ),
+      topPerformingContentSignal: toPerformanceHighlight(
+        aggResult.topContentSignal,
+        performanceMetricLabel,
+        performanceMetricField,
+        platformAverage
+      ),
+      topPerformingStance: toPerformanceHighlight(
+        aggResult.topStance,
+        performanceMetricLabel,
+        performanceMetricField,
+        platformAverage
+      ),
+      topPerformingProofStyle: toPerformanceHighlight(
+        aggResult.topProofStyle,
+        performanceMetricLabel,
+        performanceMetricField,
+        platformAverage
+      ),
+      topPerformingCommercialMode: toPerformanceHighlight(
+        aggResult.topCommercialMode,
+        performanceMetricLabel,
+        performanceMetricField,
+        platformAverage
+      ),
       bestDay: bestDay
         ? {
             dayOfWeek: bestDay.dayOfWeek,
@@ -270,6 +263,15 @@ export async function GET(
     }
     if (response.topPerformingReference) {
       insights.push(`${response.topPerformingReference.name} é a referência de melhor desempenho (${response.topPerformingReference.valueFormatted} de média).`);
+    }
+    if (response.topPerformingContentIntent) {
+      insights.push(`${response.topPerformingContentIntent.name} é a intenção de conteúdo de melhor desempenho (${response.topPerformingContentIntent.valueFormatted} de média).`);
+    }
+    if (response.topPerformingNarrativeForm) {
+      insights.push(`${response.topPerformingNarrativeForm.name} é a forma narrativa de melhor desempenho (${response.topPerformingNarrativeForm.valueFormatted} de média).`);
+    }
+    if (response.topPerformingStance) {
+      insights.push(`${response.topPerformingStance.name} é a postura de melhor desempenho (${response.topPerformingStance.valueFormatted} de média).`);
     }
     if (response.bestDay) {
       const dayName = getPortugueseWeekdayNameForSummary(response.bestDay.dayOfWeek);

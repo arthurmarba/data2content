@@ -5,7 +5,7 @@ import { useGlobalTimePeriod } from "@/app/admin/creator-dashboard/components/fi
 import HighlightCard, { PerformanceHighlightItem } from "@/app/admin/creator-dashboard/components/HighlightCard";
 import { LightBulbIcon } from "@heroicons/react/24/outline";
 import { TrendingUp, Sparkles, CalendarDays } from "lucide-react";
-import { commaSeparatedIdsToLabels } from "@/app/lib/classification";
+import { formatStrategicGroupingValue } from "@/app/lib/strategicReportPresentation";
 
 interface PerformanceSummaryResponse {
   topPerformingFormat: PerformanceHighlightItem | null;
@@ -14,8 +14,36 @@ interface PerformanceSummaryResponse {
   topPerformingProposal: PerformanceHighlightItem | null;
   topPerformingTone: PerformanceHighlightItem | null;
   topPerformingReference: PerformanceHighlightItem | null;
+  topPerformingContentIntent: PerformanceHighlightItem | null;
+  topPerformingNarrativeForm: PerformanceHighlightItem | null;
+  topPerformingContentSignal: PerformanceHighlightItem | null;
+  topPerformingStance: PerformanceHighlightItem | null;
+  topPerformingProofStyle: PerformanceHighlightItem | null;
+  topPerformingCommercialMode: PerformanceHighlightItem | null;
   bestDay: { dayOfWeek: number; average: number } | null;
   insightSummary: string;
+}
+
+function translateHighlight(
+  highlight: PerformanceHighlightItem | null,
+  dimension:
+    | "format"
+    | "proposal"
+    | "context"
+    | "tone"
+    | "references"
+    | "contentIntent"
+    | "narrativeForm"
+    | "contentSignals"
+    | "stance"
+    | "proofStyle"
+    | "commercialMode"
+): PerformanceHighlightItem | null {
+  if (!highlight?.name) return highlight;
+  return {
+    ...highlight,
+    name: formatStrategicGroupingValue(dimension, highlight.name),
+  };
 }
 
 function formatBestDay(slot: PerformanceSummaryResponse["bestDay"]): PerformanceHighlightItem | null {
@@ -53,20 +81,20 @@ const UserPerformanceHighlights: React.FC<Props> = ({ userId, stacked = false, s
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Erro ao carregar: ${res.status}`);
       const result: PerformanceSummaryResponse = await res.json();
-      // traduz nomes (ids -> rótulos) quando aplicável
-      if (result.topPerformingContext) {
-        result.topPerformingContext.name = commaSeparatedIdsToLabels(result.topPerformingContext.name, 'context') || result.topPerformingContext.name;
-      }
-      if (result.topPerformingProposal) {
-        result.topPerformingProposal.name = commaSeparatedIdsToLabels(result.topPerformingProposal.name, 'proposal') || result.topPerformingProposal.name;
-      }
-      if (result.topPerformingTone) {
-        result.topPerformingTone.name = commaSeparatedIdsToLabels(result.topPerformingTone.name, 'tone') || result.topPerformingTone.name;
-      }
-      if (result.topPerformingReference) {
-        result.topPerformingReference.name = commaSeparatedIdsToLabels(result.topPerformingReference.name, 'reference') || result.topPerformingReference.name;
-      }
-      setSummary(result);
+      setSummary({
+        ...result,
+        topPerformingFormat: translateHighlight(result.topPerformingFormat, 'format'),
+        topPerformingContext: translateHighlight(result.topPerformingContext, 'context'),
+        topPerformingProposal: translateHighlight(result.topPerformingProposal, 'proposal'),
+        topPerformingTone: translateHighlight(result.topPerformingTone, 'tone'),
+        topPerformingReference: translateHighlight(result.topPerformingReference, 'references'),
+        topPerformingContentIntent: translateHighlight(result.topPerformingContentIntent, 'contentIntent'),
+        topPerformingNarrativeForm: translateHighlight(result.topPerformingNarrativeForm, 'narrativeForm'),
+        topPerformingContentSignal: translateHighlight(result.topPerformingContentSignal, 'contentSignals'),
+        topPerformingStance: translateHighlight(result.topPerformingStance, 'stance'),
+        topPerformingProofStyle: translateHighlight(result.topPerformingProofStyle, 'proofStyle'),
+        topPerformingCommercialMode: translateHighlight(result.topPerformingCommercialMode, 'commercialMode'),
+      });
     } catch (e: any) {
       setError(e.message || 'Falha ao buscar destaques.');
       setSummary(null);
@@ -108,6 +136,20 @@ const UserPerformanceHighlights: React.FC<Props> = ({ userId, stacked = false, s
               textColorClass="text-green-600"
             />
             <HighlightCard
+              title="Melhor Intenção"
+              highlight={summary.topPerformingContentIntent || summary.topPerformingProposal}
+              icon={<Sparkles size={18} className="mr-2 text-purple-500"/>}
+              bgColorClass="bg-purple-50"
+              textColorClass="text-purple-600"
+            />
+            <HighlightCard
+              title="Melhor Narrativa"
+              highlight={summary.topPerformingNarrativeForm}
+              icon={<Sparkles size={18} className="mr-2 text-violet-500"/>}
+              bgColorClass="bg-violet-50"
+              textColorClass="text-violet-600"
+            />
+            <HighlightCard
               title="Contexto com Melhor Desempenho"
               highlight={summary.topPerformingContext}
               icon={<Sparkles size={18} className="mr-2 text-blue-500"/>}
@@ -115,22 +157,15 @@ const UserPerformanceHighlights: React.FC<Props> = ({ userId, stacked = false, s
               textColorClass="text-blue-600"
             />
             <HighlightCard
-              title="Melhor Proposta"
-              highlight={summary.topPerformingProposal}
-              icon={<Sparkles size={18} className="mr-2 text-purple-500"/>}
-              bgColorClass="bg-purple-50"
-              textColorClass="text-purple-600"
-            />
-            <HighlightCard
-              title="Melhor Tom"
-              highlight={summary.topPerformingTone}
+              title="Melhor Prova"
+              highlight={summary.topPerformingProofStyle || summary.topPerformingContentSignal}
               icon={<Sparkles size={18} className="mr-2 text-amber-500"/>}
               bgColorClass="bg-amber-50"
               textColorClass="text-amber-600"
             />
             <HighlightCard
-              title="Melhor Referência"
-              highlight={summary.topPerformingReference}
+              title="Melhor Comercial"
+              highlight={summary.topPerformingCommercialMode || summary.topPerformingReference}
               icon={<Sparkles size={18} className="mr-2 text-teal-500"/>}
               bgColorClass="bg-teal-50"
               textColorClass="text-teal-600"

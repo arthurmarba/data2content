@@ -5,6 +5,7 @@ import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import React, { useEffect, useState } from 'react';
 import { track } from '@/lib/track';
+import { getDiscoverPrimaryBadge } from './discoverPresentation';
 
 const DiscoverVideoModal = dynamic(() => import('./DiscoverVideoModal'), {
   ssr: false,
@@ -34,6 +35,12 @@ type PostCard = {
     context?: string[];
     tone?: string[];
     references?: string[];
+    contentIntent?: string[];
+    narrativeForm?: string[];
+    contentSignals?: string[];
+    stance?: string[];
+    proofStyle?: string[];
+    commercialMode?: string[];
   };
 };
 
@@ -84,6 +91,7 @@ export default function DiscoverCard({
   const isReel = formats.some(f => f.includes('reel'));
   const aspectClass = isReel ? 'aspect-[9/16]' : 'aspect-[4/5]';
   const canPlayInline = Boolean(item.videoUrl || item.isVideo);
+  const strategicBadge = getDiscoverPrimaryBadge(item.categories);
   const imageSizes = isGrid
     ? "(min-width: 1280px) 240px, (min-width: 768px) 200px, 160px"
     : "(min-width: 1280px) 220px, (min-width: 768px) 200px, 160px";
@@ -152,6 +160,14 @@ export default function DiscoverCard({
             )}
           </div>
 
+          {strategicBadge && (
+            <div className="absolute left-2 top-2 max-w-[70%]">
+              <span className="inline-flex truncate rounded-full border border-white/15 bg-white/12 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+                {strategicBadge}
+              </span>
+            </div>
+          )}
+
           <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
             <p className="text-[10px] font-medium opacity-90 mb-0.5">{item.creatorName}</p>
             {short && (
@@ -202,6 +218,14 @@ export default function DiscoverCard({
               </div>
             )}
           </div>
+
+          {strategicBadge && (
+            <div className="absolute left-2 top-2 max-w-[70%]">
+              <span className="inline-flex truncate rounded-full border border-white/15 bg-white/12 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
+                {strategicBadge}
+              </span>
+            </div>
+          )}
 
           <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
             <p className="text-[10px] font-medium opacity-90 mb-0.5">{item.creatorName}</p>

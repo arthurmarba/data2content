@@ -12,6 +12,7 @@ import mongoose from "mongoose";
 import { logger } from '@/app/lib/logger';
 import { Client } from "@upstash/qstash";
 import { canonicalizeCategoryValues } from "@/app/lib/classification";
+import { buildMetricClassificationUpdate } from "@/app/lib/classificationRuntime";
 
 export const runtime = "nodejs"; 
 
@@ -98,6 +99,26 @@ export async function POST(request: NextRequest) {
     
     const formatIds = canonicalizeCategoryValues(consolidatedTopLevel.format, 'format');
     const mediaType = mapFormatToMediaType(formatIds.length > 0 ? formatIds : ensureStringArray(consolidatedTopLevel.format));
+    const derivedClassification = buildMetricClassificationUpdate(
+      {
+        source: 'document_ai',
+        type: mediaType,
+        description: descriptionToUse,
+      },
+      {
+        format: formatIds.length > 0 ? formatIds : ensureStringArray(consolidatedTopLevel.format),
+        proposal: ensureStringArray(consolidatedTopLevel.proposal),
+        context: ensureStringArray(consolidatedTopLevel.context),
+        tone: ensureStringArray(consolidatedTopLevel.tone),
+        references: ensureStringArray(consolidatedTopLevel.references),
+        contentIntent: ensureStringArray((consolidatedTopLevel as { contentIntent?: unknown }).contentIntent),
+        narrativeForm: ensureStringArray((consolidatedTopLevel as { narrativeForm?: unknown }).narrativeForm),
+        contentSignals: ensureStringArray((consolidatedTopLevel as { contentSignals?: unknown }).contentSignals),
+        stance: ensureStringArray((consolidatedTopLevel as { stance?: unknown }).stance),
+        proofStyle: ensureStringArray((consolidatedTopLevel as { proofStyle?: unknown }).proofStyle),
+        commercialMode: ensureStringArray((consolidatedTopLevel as { commercialMode?: unknown }).commercialMode),
+      }
+    );
 
     logger.info(`${TAG} Criando documento Metric com source 'document_ai'...`);
     const newMetric = new Metric({
@@ -108,11 +129,7 @@ export async function POST(request: NextRequest) {
       
       // ATUALIZADO: Campos de classificação salvos como arrays de strings
       type: mediaType, 
-      format: formatIds,
-      proposal: canonicalizeCategoryValues(consolidatedTopLevel.proposal, 'proposal'),
-      context: canonicalizeCategoryValues(consolidatedTopLevel.context, 'context'),
-      tone: canonicalizeCategoryValues(consolidatedTopLevel.tone, 'tone'),
-      references: canonicalizeCategoryValues(consolidatedTopLevel.references, 'reference'),
+      ...derivedClassification,
       
       theme: consolidatedTopLevel.theme,
       collab: consolidatedTopLevel.collab, 

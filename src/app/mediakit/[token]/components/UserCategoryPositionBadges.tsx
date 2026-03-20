@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { getCategoryById } from '@/app/lib/classification';
+import { formatStrategicGroupingValue } from '@/app/lib/strategicReportPresentation';
 
-type CategoryKey = 'format' | 'proposal' | 'context';
+type CategoryKey = 'format' | 'contentIntent' | 'narrativeForm' | 'context';
 
 interface RankResponse {
   category: CategoryKey;
@@ -45,9 +45,9 @@ const UserCategoryPositionBadges: React.FC<Props> = ({ userId, timePeriod = 'las
   const [ranks, setRanks] = useState<Record<string, RankResponse | null>>({});
 
   // Determina as categorias principais do usuário por USO (posts)
-  const [topIds, setTopIds] = useState<{ format?: string; proposal?: string; context?: string }>({});
+  const [topIds, setTopIds] = useState<{ format?: string; contentIntent?: string; narrativeForm?: string; context?: string }>({});
 
-  const { format: topFormat, proposal: topProposal, context: topContext } = topIds;
+  const { format: topFormat, contentIntent: topContentIntent, narrativeForm: topNarrativeForm, context: topContext } = topIds;
 
   useEffect(() => {
     let cancelled = false;
@@ -65,15 +65,17 @@ const UserCategoryPositionBadges: React.FC<Props> = ({ userId, timePeriod = 'las
           limit: '1',
           userId,
         }).toString();
-        const [f, p, c] = await Promise.all([
+        const [f, i, n, c] = await Promise.all([
           fetch(`${base}?${params('format')}`).then(r => r.ok ? r.json() : []),
-          fetch(`${base}?${params('proposal')}`).then(r => r.ok ? r.json() : []),
+          fetch(`${base}?${params('contentIntent')}`).then(r => r.ok ? r.json() : []),
+          fetch(`${base}?${params('narrativeForm')}`).then(r => r.ok ? r.json() : []),
           fetch(`${base}?${params('context')}`).then(r => r.ok ? r.json() : []),
         ]);
         if (cancelled) return;
         setTopIds({
           format: f?.[0]?.category,
-          proposal: p?.[0]?.category,
+          contentIntent: i?.[0]?.category,
+          narrativeForm: n?.[0]?.category,
           context: c?.[0]?.category,
         });
       } catch (e: any) {
@@ -87,14 +89,22 @@ const UserCategoryPositionBadges: React.FC<Props> = ({ userId, timePeriod = 'las
   useEffect(() => {
     let cancelled = false;
     const fetchRanks = async () => {
-      if (!topFormat && !topProposal && !topContext) return;
+      if (!topFormat && !topContentIntent && !topNarrativeForm && !topContext) return;
       try {
         setLoading(true); setError(null);
         const base = `/api/v1/users/${userId}/rankings/by-category`;
         const qs = (cat: CategoryKey, value: string) => new URLSearchParams({ category: cat, value, metric: 'avg_total_interactions', timePeriod }).toString();
         const requests: Array<Promise<[CategoryKey, RankResponse | null]>> = [];
-        (['format','proposal','context'] as CategoryKey[]).forEach((cat) => {
-          const val = (cat === 'format' ? topFormat : cat === 'proposal' ? topProposal : topContext) as string | undefined;
+        (['format','contentIntent','narrativeForm','context'] as CategoryKey[]).forEach((cat) => {
+          const val = (
+            cat === 'format'
+              ? topFormat
+              : cat === 'contentIntent'
+                ? topContentIntent
+                : cat === 'narrativeForm'
+                  ? topNarrativeForm
+                  : topContext
+          ) as string | undefined;
           if (val) {
             requests.push(
               fetch(`${base}?${qs(cat, val)}`).then(async (r) => [cat, r.ok ? await r.json() : null])
@@ -112,15 +122,16 @@ const UserCategoryPositionBadges: React.FC<Props> = ({ userId, timePeriod = 'las
     };
     fetchRanks();
     return () => { cancelled = true; };
-  }, [userId, timePeriod, topFormat, topProposal, topContext]);
+  }, [userId, timePeriod, topFormat, topContentIntent, topNarrativeForm, topContext]);
 
   const labels = useMemo(() => ({
-    format: topFormat ? (getCategoryById(topFormat, 'format')?.label || topFormat) : null,
-    proposal: topProposal ? (getCategoryById(topProposal, 'proposal')?.label || topProposal) : null,
-    context: topContext ? (getCategoryById(topContext, 'context')?.label || topContext) : null,
-  }), [topFormat, topProposal, topContext]);
+    format: topFormat ? formatStrategicGroupingValue('format', topFormat) : null,
+    contentIntent: topContentIntent ? formatStrategicGroupingValue('contentIntent', topContentIntent) : null,
+    narrativeForm: topNarrativeForm ? formatStrategicGroupingValue('narrativeForm', topNarrativeForm) : null,
+    context: topContext ? formatStrategicGroupingValue('context', topContext) : null,
+  }), [topFormat, topContentIntent, topNarrativeForm, topContext]);
 
-  if (loading && !labels.format && !labels.proposal && !labels.context) {
+  if (loading && !labels.format && !labels.contentIntent && !labels.narrativeForm && !labels.context) {
     return <div className="text-xs text-gray-500">Calculando posições…</div>;
   }
   if (error) {
@@ -132,8 +143,11 @@ const UserCategoryPositionBadges: React.FC<Props> = ({ userId, timePeriod = 'las
       {labels.format && (
         <RankBadge label={`Formato: ${labels.format}`} rank={ranks.format?.rank ?? null} total={ranks.format?.totalCreators ?? 0} />
       )}
-      {labels.proposal && (
-        <RankBadge label={`Proposta: ${labels.proposal}`} rank={ranks.proposal?.rank ?? null} total={ranks.proposal?.totalCreators ?? 0} />
+      {labels.contentIntent && (
+        <RankBadge label={`Intenção: ${labels.contentIntent}`} rank={ranks.contentIntent?.rank ?? null} total={ranks.contentIntent?.totalCreators ?? 0} />
+      )}
+      {labels.narrativeForm && (
+        <RankBadge label={`Narrativa: ${labels.narrativeForm}`} rank={ranks.narrativeForm?.rank ?? null} total={ranks.narrativeForm?.totalCreators ?? 0} />
       )}
       {labels.context && (
         <RankBadge label={`Contexto: ${labels.context}`} rank={ranks.context?.rank ?? null} total={ranks.context?.totalCreators ?? 0} />

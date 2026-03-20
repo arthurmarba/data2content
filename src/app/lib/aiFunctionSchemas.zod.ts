@@ -18,6 +18,8 @@ import {
   ReferenceType,
   QualitativeObjectiveType
 } from '@/app/lib/constants/communityInspirations.constants';
+import { contentIntentCategories, narrativeFormCategories, contentSignalCategories } from '@/app/lib/classificationV2';
+import { stanceCategories, proofStyleCategories, commercialModeCategories } from '@/app/lib/classificationV2_5';
 
 // --- CORREÇÃO: DEFINIR A CONSTANTE FALTANTE ---
 const ALLOWED_TIME_PERIODS = [
@@ -28,6 +30,13 @@ const ALLOWED_TIME_PERIODS = [
   "last_6_months",
   "last_12_months"
 ] as const;
+
+const CONTENT_INTENT_IDS = contentIntentCategories.map((category) => category.id) as [string, ...string[]];
+const NARRATIVE_FORM_IDS = narrativeFormCategories.map((category) => category.id) as [string, ...string[]];
+const CONTENT_SIGNAL_IDS = contentSignalCategories.map((category) => category.id) as [string, ...string[]];
+const STANCE_IDS = stanceCategories.map((category) => category.id) as [string, ...string[]];
+const PROOF_STYLE_IDS = proofStyleCategories.map((category) => category.id) as [string, ...string[]];
+const COMMERCIAL_MODE_IDS = commercialModeCategories.map((category) => category.id) as [string, ...string[]];
 // ---------------------------------------------
 
 // Schema para getAggregatedReport
@@ -55,12 +64,12 @@ export const GetTopPostsArgsSchema = z.object({
 }).strict();
 
 // --- (NOVO) Schema para a função getCategoryRanking ---
-const RawCategoryEnum = z.enum(['proposal', 'format', 'context', 'tone', 'references', 'reference'], {
-  required_error: "A categoria (proposal, format, context, tone ou references) é obrigatória.",
-  invalid_type_error: "Categoria inválida. Use 'proposal', 'format', 'context', 'tone' ou 'references'."
+const RawCategoryEnum = z.enum(['proposal', 'format', 'context', 'tone', 'references', 'reference', 'contentIntent', 'narrativeForm', 'contentSignals', 'stance', 'proofStyle', 'commercialMode'], {
+  required_error: "A categoria (proposal, format, context, tone, references, contentIntent, narrativeForm, contentSignals, stance, proofStyle ou commercialMode) é obrigatória.",
+  invalid_type_error: "Categoria inválida. Use 'proposal', 'format', 'context', 'tone', 'references', 'contentIntent', 'narrativeForm', 'contentSignals', 'stance', 'proofStyle' ou 'commercialMode'."
 });
 
-const NormalizedCategoryEnum = z.enum(['proposal', 'format', 'context', 'tone', 'references']);
+const NormalizedCategoryEnum = z.enum(['proposal', 'format', 'context', 'tone', 'references', 'contentIntent', 'narrativeForm', 'contentSignals', 'stance', 'proofStyle', 'commercialMode']);
 
 const CategorySchema = RawCategoryEnum.transform((value) => (value === 'reference' ? 'references' : value))
   .pipe(NormalizedCategoryEnum)
@@ -186,6 +195,12 @@ export const GetStrategicThemesArgsSchema = z.object({
     proposal: z.array(z.string()).optional().describe("Lista de IDs de proposta (opcional)."),
     reference: z.array(z.string()).optional().describe("Lista de IDs de referência (opcional)."),
     tone: z.string().optional().describe("ID do tom (opcional)."),
+    contentIntent: z.array(z.string()).optional().describe("Lista de IDs de intenção de conteúdo (opcional)."),
+    narrativeForm: z.array(z.string()).optional().describe("Lista de IDs de forma narrativa (opcional)."),
+    contentSignals: z.array(z.string()).optional().describe("Lista de IDs de sinais acessórios (opcional)."),
+    stance: z.array(z.string()).optional().describe("Lista de IDs de postura (opcional)."),
+    proofStyle: z.array(z.string()).optional().describe("Lista de IDs de estilo de prova (opcional)."),
+    commercialMode: z.array(z.string()).optional().describe("Lista de IDs de modo comercial (opcional)."),
   }).optional().default({}).describe("Categorias para filtrar/direcionar a geração de temas."),
 }).strict().describe("Gera sugestões de temas/pautas estratégicas baseadas no 'Planejador de Conteúdo' para um dia e hora específicos.");
 
@@ -194,13 +209,13 @@ export const GetStrategicThemesArgsSchema = z.object({
 export const FetchCommunityInspirationsArgsSchema = z.object({
   proposal: z.enum(VALID_PROPOSALS, {
     invalid_type_error: "Proposta inválida. Por favor, use um dos valores de proposta conhecidos.",
-    required_error: "O campo 'proposal' é obrigatório para buscar inspirações."
   })
+    .optional()
     .describe(`A proposta/tema do conteúdo para o qual se busca inspiração. Valores válidos: ${VALID_PROPOSALS.join(', ')}`),
   context: z.enum(VALID_CONTEXTS, {
     invalid_type_error: "Contexto inválido. Por favor, use um dos valores de contexto conhecidos.",
-    required_error: "O campo 'context' é obrigatório para buscar inspirações."
   })
+    .optional()
     .describe(`O contexto específico dentro da proposta. Valores válidos: ${VALID_CONTEXTS.join(', ')}`),
   format: z.enum(VALID_FORMATS, {
     invalid_type_error: "Formato inválido. Por favor, use um dos valores de formato conhecidos."
@@ -217,6 +232,24 @@ export const FetchCommunityInspirationsArgsSchema = z.object({
   })
     .optional()
     .describe(`Opcional. Referência ou elemento utilizado. Valores válidos: ${VALID_REFERENCES.join(', ')}`),
+  contentIntent: z.enum(CONTENT_INTENT_IDS)
+    .optional()
+    .describe(`Opcional. Intenção principal do conteúdo. Valores válidos: ${CONTENT_INTENT_IDS.join(', ')}`),
+  narrativeForm: z.enum(NARRATIVE_FORM_IDS)
+    .optional()
+    .describe(`Opcional. Forma narrativa desejada. Valores válidos: ${NARRATIVE_FORM_IDS.join(', ')}`),
+  contentSignals: z.enum(CONTENT_SIGNAL_IDS)
+    .optional()
+    .describe(`Opcional. Sinal acessório/comercial. Valores válidos: ${CONTENT_SIGNAL_IDS.join(', ')}`),
+  stance: z.enum(STANCE_IDS)
+    .optional()
+    .describe(`Opcional. Postura central do conteúdo. Valores válidos: ${STANCE_IDS.join(', ')}`),
+  proofStyle: z.enum(PROOF_STYLE_IDS)
+    .optional()
+    .describe(`Opcional. Estilo de prova principal. Valores válidos: ${PROOF_STYLE_IDS.join(', ')}`),
+  commercialMode: z.enum(COMMERCIAL_MODE_IDS)
+    .optional()
+    .describe(`Opcional. Modo comercial predominante. Valores válidos: ${COMMERCIAL_MODE_IDS.join(', ')}`),
   narrativeQuery: z.string()
     .trim()
     .min(8, "A narrativa precisa ter pelo menos 8 caracteres.")
@@ -230,7 +263,27 @@ export const FetchCommunityInspirationsArgsSchema = z.object({
     .describe(`Opcional. O objetivo qualitativo principal que a inspiração deve ter demonstrado. Valores válidos: ${VALID_QUALITATIVE_OBJECTIVES.join(', ')}`),
   count: z.number().int().min(1).max(3).optional().default(3)
     .describe("Número de exemplos de inspiração a retornar (padrão 3, mínimo 1, máximo 3).")
-}).strict().describe("Argumentos para buscar inspirações na comunidade de criadores IA Mobi.");
+}).strict()
+  .refine(
+    (args) =>
+      Boolean(
+        args.proposal ||
+        args.context ||
+        args.format ||
+        args.reference ||
+        args.contentIntent ||
+        args.narrativeForm ||
+        args.contentSignals ||
+        args.stance ||
+        args.proofStyle ||
+        args.commercialMode ||
+        args.narrativeQuery
+      ),
+    {
+      message: "Informe ao menos um eixo de busca, como contexto, intenção, narrativa, prova, comercial ou narrativaQuery.",
+    }
+  )
+  .describe("Argumentos para buscar inspirações na comunidade de criadores IA Mobi.");
 
 
 // --- Mapa de Validadores ---

@@ -13,6 +13,7 @@ import { recommendWeeklySlots } from '@/app/lib/planner/recommender';
 import findCommunityInspirationPosts from '@/utils/findCommunityInspirationPosts';
 import { getExperienceFilters } from '@/app/lib/discover/experiences';
 import { getRecipe, type ShelfSpec } from '@/app/lib/discover/recipes';
+import { getMetricCategoryValuesForAnalytics } from '@/app/lib/classificationV2Bridge';
 
 import MetricModel from '@/app/models/Metric';
 import { aggregatePlatformTimePerformance } from '@/utils/aggregatePlatformTimePerformance';
@@ -52,6 +53,12 @@ type PostCard = {
     context?: string[];
     tone?: string[];
     references?: string[];
+    contentIntent?: string[];
+    narrativeForm?: string[];
+    contentSignals?: string[];
+    stance?: string[];
+    proofStyle?: string[];
+    commercialMode?: string[];
   };
 };
 
@@ -67,7 +74,7 @@ type ScoreWeights = {
 
 type ScoreBoosts = {
   contexts?: string[];
-  proposals?: string[];
+  contentIntents?: string[];
 };
 
 function clamp(n: number, lo: number, hi: number) {
@@ -102,6 +109,51 @@ function resolveVideoMeta(rawType?: string | null, rawUrl?: string | null) {
     mediaType,
     isVideo,
     videoUrl: proxyUrl || undefined,
+  };
+}
+
+function extractDiscoverCategories(source: Record<string, any>): NonNullable<PostCard["categories"]> {
+  return {
+    format: getMetricCategoryValuesForAnalytics(source, 'format'),
+    proposal: getMetricCategoryValuesForAnalytics(source, 'proposal'),
+    context: getMetricCategoryValuesForAnalytics(source, 'context'),
+    tone: getMetricCategoryValuesForAnalytics(source, 'tone'),
+    references: getMetricCategoryValuesForAnalytics(source, 'references'),
+    contentIntent: getMetricCategoryValuesForAnalytics(source, 'contentIntent'),
+    narrativeForm: getMetricCategoryValuesForAnalytics(source, 'narrativeForm'),
+    contentSignals: getMetricCategoryValuesForAnalytics(source, 'contentSignals'),
+    stance: getMetricCategoryValuesForAnalytics(source, 'stance'),
+    proofStyle: getMetricCategoryValuesForAnalytics(source, 'proofStyle'),
+    commercialMode: getMetricCategoryValuesForAnalytics(source, 'commercialMode'),
+  };
+}
+
+function toDiscoverPostCard(source: Record<string, any>): PostCard {
+  return {
+    id: String(source._id),
+    coverUrl: toProxyUrl(source.coverUrl || null),
+    ...resolveVideoMeta(source?.type, source?.mediaUrl || source?.media_url || null),
+    caption: source.description || source.text_content || '',
+    postDate: source.postDate ? new Date(source.postDate).toISOString() : undefined,
+    creatorName: source.creatorName || source?.creatorInfo?.username,
+    creatorAvatarUrl:
+      toProxyUrl(
+        source.creatorAvatarUrl ||
+          source.creator_avatar_url ||
+          source?.creatorInfo?.profile_picture_url ||
+          null
+      ) || null,
+    postLink: source.postLink || undefined,
+    stats: {
+      total_interactions: source?.stats?.total_interactions,
+      likes: source?.stats?.likes,
+      comments: source?.stats?.comments,
+      shares: source?.stats?.shares,
+      views: source?.stats?.views,
+      video_duration_seconds: source?.stats?.video_duration_seconds,
+      saved: source?.stats?.saved,
+    },
+    categories: extractDiscoverCategories(source),
   };
 }
 
@@ -174,14 +226,14 @@ function applyDiversityCaps(
 ): PostCard[] {
   const picked: PostCard[] = [];
   const contextCounts = new Map<string, number>();
-  const proposalCounts = new Map<string, number>();
+  const contentIntentCounts = new Map<string, number>();
   const creatorCounts = new Map<string, number>();
   const getKey = (value?: string | null) => (value || '').trim().toLowerCase();
 
   for (const it of items) {
     const creatorKey = getKey(it.creatorName);
     const contextKey = getKey((it.categories?.context || [])[0]);
-    const proposalKey = getKey((it.categories?.proposal || [])[0]);
+    const contentIntentKey = getKey((it.categories?.contentIntent || [])[0]);
     if (opts.maxPerCreator && creatorKey) {
       const count = creatorCounts.get(creatorKey) || 0;
       if (count >= opts.maxPerCreator) continue;
@@ -190,14 +242,14 @@ function applyDiversityCaps(
       const count = contextCounts.get(contextKey) || 0;
       if (count >= opts.maxPerContext) continue;
     }
-    if (opts.maxPerProposal && proposalKey) {
-      const count = proposalCounts.get(proposalKey) || 0;
+    if (opts.maxPerProposal && contentIntentKey) {
+      const count = contentIntentCounts.get(contentIntentKey) || 0;
       if (count >= opts.maxPerProposal) continue;
     }
     picked.push(it);
     if (creatorKey) creatorCounts.set(creatorKey, (creatorCounts.get(creatorKey) || 0) + 1);
     if (contextKey) contextCounts.set(contextKey, (contextCounts.get(contextKey) || 0) + 1);
-    if (proposalKey) proposalCounts.set(proposalKey, (proposalCounts.get(proposalKey) || 0) + 1);
+    if (contentIntentKey) contentIntentCounts.set(contentIntentKey, (contentIntentCounts.get(contentIntentKey) || 0) + 1);
     if (picked.length >= opts.maxItems) break;
   }
   return picked;
@@ -288,7 +340,7 @@ function rankByScore(items: PostCard[], weights: ScoreWeights, boosts?: ScoreBoo
 
   const normBoosts = {
     contexts: (boosts?.contexts || []).map((c) => c.toLowerCase()),
-    proposals: (boosts?.proposals || []).map((p) => p.toLowerCase()),
+    contentIntents: (boosts?.contentIntents || []).map((p) => p.toLowerCase()),
   };
 
   return metrics
@@ -303,12 +355,12 @@ function rankByScore(items: PostCard[], weights: ScoreWeights, boosts?: ScoreBoo
           (w.interactionRate || 0) * (m.interactionRate / mInteractionRate) +
           (w.recency || 0) * (m.recency / mRecency);
 
-      if (normBoosts.contexts.length || normBoosts.proposals.length) {
+      if (normBoosts.contexts.length || normBoosts.contentIntents.length) {
         const ctx = (m.it.categories?.context || []).map((x) => String(x).toLowerCase());
-        const prop = (m.it.categories?.proposal || []).map((x) => String(x).toLowerCase());
+        const intents = (m.it.categories?.contentIntent || []).map((x) => String(x).toLowerCase());
         const ctxHit = normBoosts.contexts.some((c) => ctx.includes(c));
-        const propHit = normBoosts.proposals.some((p) => prop.includes(p));
-        const boostFactor = 1 + (ctxHit ? 0.15 : 0) + (propHit ? 0.1 : 0);
+        const intentHit = normBoosts.contentIntents.some((p) => intents.includes(p));
+        const boostFactor = 1 + (ctxHit ? 0.15 : 0) + (intentHit ? 0.1 : 0);
         score *= boostFactor;
       }
 
@@ -399,8 +451,14 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
   const shelfKey = searchParams.get('shelfKey') || undefined;
   // Optional category filters (comma-separated)
   const formatFilter = searchParams.get('format') || undefined;
+  const contentIntentFilter = searchParams.get('contentIntent') || undefined;
   const proposalFilter = searchParams.get('proposal') || undefined;
   const contextFilter = searchParams.get('context') || undefined;
+  const narrativeFormFilter = searchParams.get('narrativeForm') || undefined;
+  const contentSignalsFilter = searchParams.get('contentSignals') || undefined;
+  const stanceFilter = searchParams.get('stance') || undefined;
+  const proofStyleFilter = searchParams.get('proofStyle') || undefined;
+  const commercialModeFilter = searchParams.get('commercialMode') || undefined;
   const toneFilter = searchParams.get('tone') || undefined;
   const referencesFilter = searchParams.get('references') || undefined;
   const videoOnly = ['1', 'true', 'yes'].includes((searchParams.get('videoOnly') || '').toLowerCase());
@@ -460,7 +518,19 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
 
   // --- leve cache (somente quando sem filtros) para seções globais ---
   type CacheBucket = { expires: number; items: PostCard[] };
-  const noFilter = !formatFilter && !proposalFilter && !contextFilter && !toneFilter && !referencesFilter && !videoOnly;
+  const noFilter =
+    !formatFilter &&
+    !contentIntentFilter &&
+    !proposalFilter &&
+    !contextFilter &&
+    !narrativeFormFilter &&
+    !contentSignalsFilter &&
+    !stanceFilter &&
+    !proofStyleFilter &&
+    !commercialModeFilter &&
+    !toneFilter &&
+    !referencesFilter &&
+    !videoOnly;
   const TTL_MS = clamp(parseInt(process.env.DISCOVER_TTL_MS || '' + (7 * 60 * 1000)) || (7 * 60 * 1000), 60_000, 30 * 60_000);
   if (!(global as any).__discoverCaches) (global as any).__discoverCaches = {} as Record<string, CacheBucket>; // module-level caches (persistem no escopo do módulo enquanto o processo vive)
   const caches = (global as any).__discoverCaches as Record<string, CacheBucket>;
@@ -475,8 +545,14 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
         days: limitByDays ? days : 'all',
         limitPerRow,
         formatFilter,
+        contentIntentFilter,
         proposalFilter,
         contextFilter,
+        narrativeFormFilter,
+        contentSignalsFilter,
+        stanceFilter,
+        proofStyleFilter,
+        commercialModeFilter,
         toneFilter,
         referencesFilter,
         videoOnly,
@@ -485,23 +561,23 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
       },
     });
     let userTopContextIds: string[] = [];
-    let userTopProposalIds: string[] = [];
+    let userTopContentIntentIds: string[] = [];
     if (userId) {
       try {
-        const [topCtx, topProp] = await Promise.all([
+        const [topCtx, topIntent] = await Promise.all([
           fetchTopCategories({ userId, category: 'context', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 }),
-          fetchTopCategories({ userId, category: 'proposal', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 1 }),
+          fetchTopCategories({ userId, category: 'contentIntent', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 1 }),
         ]);
         userTopContextIds = (topCtx || []).map((x: any) => String(x.category)).filter(Boolean);
-        userTopProposalIds = (topProp || []).map((x: any) => String(x.category)).filter(Boolean);
+        userTopContentIntentIds = (topIntent || []).map((x: any) => String(x.category)).filter(Boolean);
       } catch {
         userTopContextIds = [];
-        userTopProposalIds = [];
+        userTopContentIntentIds = [];
       }
     }
     const userBoosts: ScoreBoosts | undefined =
-      allowedPersonalized && (userTopContextIds.length || userTopProposalIds.length)
-        ? { contexts: userTopContextIds, proposals: userTopProposalIds }
+      allowedPersonalized && (userTopContextIds.length || userTopContentIntentIds.length)
+        ? { contexts: userTopContextIds, contentIntents: userTopContentIntentIds }
         : undefined;
     // Prepara filtros de experiência (Netflix-like)
     let topContextIdsForExp: string[] | undefined;
@@ -522,6 +598,19 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
         .filter(Boolean)
         .flatMap((s) => (s as string).split(',').map((x) => x.trim()).filter(Boolean));
       return parts.length ? Array.from(new Set(parts)).join(',') : undefined;
+    };
+    const mergedDiscoverFilters = {
+      format: mergeCsv(formatFilter, expFilters.format),
+      proposal: proposalFilter,
+      context: mergeCsv(contextFilter, expFilters.context),
+      tone: toneFilter,
+      references: mergeCsv(referencesFilter, expFilters.references),
+      contentIntent: mergeCsv(contentIntentFilter, expFilters.contentIntent),
+      narrativeForm: mergeCsv(narrativeFormFilter, expFilters.narrativeForm),
+      contentSignals: mergeCsv(contentSignalsFilter, expFilters.contentSignals),
+      stance: stanceFilter,
+      proofStyle: mergeCsv(proofStyleFilter, expFilters.proofStyle),
+      commercialMode: mergeCsv(commercialModeFilter, expFilters.commercialMode),
     };
 
     // Se houver receita (por exp/view), usamos prateleiras específicas e retornamos somente elas
@@ -548,10 +637,13 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
       const runShelf = async (spec: ShelfSpec) => {
         try {
           const fmtCsv = mergeCsv(toCsv(spec.include?.format), formatFilter);
-          const propCsv = mergeCsv(toCsv(spec.include?.proposal), proposalFilter);
           const ctxCsv = mergeCsv(toCsv(spec.include?.context), contextFilter);
-          const toneCsv = mergeCsv(toCsv(spec.include?.tone), toneFilter);
           const refCsv = mergeCsv(toCsv(spec.include?.references), referencesFilter);
+          const contentIntentCsv = mergeCsv(toCsv(spec.include?.contentIntent), contentIntentFilter);
+          const narrativeFormCsv = mergeCsv(toCsv(spec.include?.narrativeForm), narrativeFormFilter);
+          const contentSignalsCsv = mergeCsv(toCsv(spec.include?.contentSignals), contentSignalsFilter);
+          const proofStyleCsv = mergeCsv(toCsv(spec.include?.proofStyle), proofStyleFilter);
+          const commercialModeCsv = mergeCsv(toCsv(spec.include?.commercialMode), commercialModeFilter);
           const res = await findGlobalPostsByCriteria({
             dateRange: { startDate, endDate },
             sortBy: spec.sortBy || 'stats.total_interactions',
@@ -562,38 +654,19 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             minInteractions: spec.minInteractions ?? 0,
             onlyOptIn: spec.onlyOptIn ?? true,
             format: fmtCsv,
-            proposal: propCsv,
+            proposal: proposalFilter,
             context: ctxCsv,
-            tone: toneCsv,
+            tone: toneFilter,
             references: refCsv,
+            contentIntent: contentIntentCsv,
+            narrativeForm: narrativeFormCsv,
+            contentSignals: contentSignalsCsv,
+            stance: stanceFilter,
+            proofStyle: proofStyleCsv,
+            commercialMode: commercialModeCsv,
             mediaType: mediaTypeFilter,
           });
-          let items: PostCard[] = (res.posts || []).map((p: any) => ({
-            id: String(p._id),
-            coverUrl: toProxyUrl(p.coverUrl || null),
-            ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
-            caption: p.description || p.text_content || '',
-            postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
-            creatorName: (p as any).creatorName,
-            creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
-            postLink: (p as any).postLink,
-            stats: {
-              total_interactions: p?.stats?.total_interactions,
-              likes: p?.stats?.likes,
-              comments: p?.stats?.comments,
-              shares: p?.stats?.shares,
-              views: p?.stats?.views,
-              video_duration_seconds: p?.stats?.video_duration_seconds,
-              saved: p?.stats?.saved,
-            },
-            categories: {
-              format: Array.isArray(p?.format) ? p.format : undefined,
-              proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
-              context: Array.isArray(p?.context) ? p.context : undefined,
-              tone: Array.isArray(p?.tone) ? p.tone : undefined,
-              references: Array.isArray(p?.references) ? p.references : undefined,
-            },
-          }));
+          let items: PostCard[] = (res.posts || []).map((p: any) => toDiscoverPostCard(p));
           // Pós-filtros do shelf (weekend/duration/hourRanges)
           if (spec.weekendOnly) {
             items = items.filter((it) => {
@@ -729,39 +802,20 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
               skipCount: true,
               minInteractions: 10,
               onlyOptIn: true,
-              format: formatFilter || expFilters.format,
-              proposal: proposalFilter || expFilters.proposal,
-              context: contextFilter || expFilters.context,
-              tone: toneFilter || expFilters.tone,
-              references: referencesFilter || expFilters.references,
+              format: mergedDiscoverFilters.format,
+              proposal: mergedDiscoverFilters.proposal,
+              context: mergedDiscoverFilters.context,
+              tone: mergedDiscoverFilters.tone,
+              references: mergedDiscoverFilters.references,
+              contentIntent: mergedDiscoverFilters.contentIntent,
+              narrativeForm: mergedDiscoverFilters.narrativeForm,
+              contentSignals: mergedDiscoverFilters.contentSignals,
+              stance: mergedDiscoverFilters.stance,
+              proofStyle: mergedDiscoverFilters.proofStyle,
+              commercialMode: mergedDiscoverFilters.commercialMode,
               mediaType: mediaTypeFilter,
             });
-            items = (trending.posts || []).map((p: any) => ({
-              id: String(p._id),
-              coverUrl: toProxyUrl(p.coverUrl || null),
-              ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
-              caption: p.description || p.text_content || '',
-              postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
-              creatorName: p.creatorName,
-              creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
-              postLink: (p as any).postLink,
-              stats: {
-                total_interactions: p?.stats?.total_interactions,
-                likes: p?.stats?.likes,
-                comments: p?.stats?.comments,
-                shares: p?.stats?.shares,
-                views: p?.stats?.views,
-                video_duration_seconds: p?.stats?.video_duration_seconds,
-                saved: p?.stats?.saved,
-              },
-              categories: {
-                format: Array.isArray(p?.format) ? p.format : undefined,
-                proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
-                context: Array.isArray(p?.context) ? p.context : undefined,
-                tone: Array.isArray(p?.tone) ? p.tone : undefined,
-                references: Array.isArray(p?.references) ? p.references : undefined,
-              },
-            }));
+            items = (trending.posts || []).map((p: any) => toDiscoverPostCard(p));
           if (noFilter) caches[cacheKey] = { expires: Date.now() + TTL_MS, items };
           }
           const processed = postProcessItems(items || [], {
@@ -801,39 +855,20 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
               skipCount: true,
               minInteractions: 5,
               onlyOptIn: true,
-              format: formatFilter || expFilters.format,
-              proposal: proposalFilter || expFilters.proposal,
-              context: contextFilter || expFilters.context,
-              tone: toneFilter || expFilters.tone,
-              references: referencesFilter || expFilters.references,
+              format: mergedDiscoverFilters.format,
+              proposal: mergedDiscoverFilters.proposal,
+              context: mergedDiscoverFilters.context,
+              tone: mergedDiscoverFilters.tone,
+              references: mergedDiscoverFilters.references,
+              contentIntent: mergedDiscoverFilters.contentIntent,
+              narrativeForm: mergedDiscoverFilters.narrativeForm,
+              contentSignals: mergedDiscoverFilters.contentSignals,
+              stance: mergedDiscoverFilters.stance,
+              proofStyle: mergedDiscoverFilters.proofStyle,
+              commercialMode: mergedDiscoverFilters.commercialMode,
               mediaType: mediaTypeFilter,
             });
-            items = (rising.posts || []).map((p: any) => ({
-              id: String(p._id),
-              coverUrl: toProxyUrl(p.coverUrl || null),
-              ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
-              caption: p.description || p.text_content || '',
-              postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
-              creatorName: p.creatorName,
-              creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
-              postLink: (p as any).postLink,
-              stats: {
-                total_interactions: p?.stats?.total_interactions,
-                likes: p?.stats?.likes,
-                comments: p?.stats?.comments,
-                shares: p?.stats?.shares,
-                views: p?.stats?.views,
-                video_duration_seconds: p?.stats?.video_duration_seconds,
-                saved: p?.stats?.saved,
-              },
-              categories: {
-                format: Array.isArray(p?.format) ? p.format : undefined,
-                proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
-                context: Array.isArray(p?.context) ? p.context : undefined,
-                tone: Array.isArray(p?.tone) ? p.tone : undefined,
-                references: Array.isArray(p?.references) ? p.references : undefined,
-              },
-            }));
+            items = (rising.posts || []).map((p: any) => toDiscoverPostCard(p));
             if (noFilter) caches[cacheKey] = { expires: Date.now() + TTL_MS, items };
           }
           const processed = postProcessItems(items || [], {
@@ -866,39 +901,20 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
           limit: limitPerRow * 2,
           skipCount: true,
           onlyOptIn: true,
-          format: formatFilter || expFilters.format,
-          proposal: proposalFilter || expFilters.proposal,
-          context: contextFilter || expFilters.context,
-          tone: toneFilter || expFilters.tone,
-          references: referencesFilter || expFilters.references,
+          format: mergedDiscoverFilters.format,
+          proposal: mergedDiscoverFilters.proposal,
+          context: mergedDiscoverFilters.context,
+          tone: mergedDiscoverFilters.tone,
+          references: mergedDiscoverFilters.references,
+          contentIntent: mergedDiscoverFilters.contentIntent,
+          narrativeForm: mergedDiscoverFilters.narrativeForm,
+          contentSignals: mergedDiscoverFilters.contentSignals,
+          stance: mergedDiscoverFilters.stance,
+          proofStyle: mergedDiscoverFilters.proofStyle,
+          commercialMode: mergedDiscoverFilters.commercialMode,
           mediaType: mediaTypeFilter,
         });
-        let items: PostCard[] = (res.posts || []).map((p: any) => ({
-          id: String(p._id),
-          coverUrl: toProxyUrl(p.coverUrl || null),
-          ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
-          caption: p.description || p.text_content || '',
-            postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
-            creatorName: (p as any).creatorName,
-            creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
-            postLink: (p as any).postLink,
-            stats: {
-              total_interactions: p?.stats?.total_interactions,
-              likes: p?.stats?.likes,
-              comments: p?.stats?.comments,
-              shares: p?.stats?.shares,
-              views: p?.stats?.views,
-              video_duration_seconds: p?.stats?.video_duration_seconds,
-              saved: p?.stats?.saved,
-            },
-            categories: {
-              format: Array.isArray(p?.format) ? p.format : undefined,
-              proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
-              context: Array.isArray(p?.context) ? p.context : undefined,
-              tone: Array.isArray(p?.tone) ? p.tone : undefined,
-              references: Array.isArray(p?.references) ? p.references : undefined,
-            },
-          }));
+        let items: PostCard[] = (res.posts || []).map((p: any) => toDiscoverPostCard(p));
           items = postProcessItems(items, {
             weights: adjustWeightsForFormat(SCORE_PROFILES.topSaved, formatFilter),
             balanceFormats: !formatFilter && !videoOnly,
@@ -929,39 +945,20 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             limit: limitPerRow * 2,
             skipCount: true,
             onlyOptIn: true,
-            format: formatFilter || expFilters.format,
-            proposal: proposalFilter || expFilters.proposal,
-            context: contextFilter || expFilters.context,
-            tone: toneFilter || expFilters.tone,
-            references: referencesFilter || expFilters.references,
+            format: mergedDiscoverFilters.format,
+            proposal: mergedDiscoverFilters.proposal,
+            context: mergedDiscoverFilters.context,
+            tone: mergedDiscoverFilters.tone,
+            references: mergedDiscoverFilters.references,
+            contentIntent: mergedDiscoverFilters.contentIntent,
+            narrativeForm: mergedDiscoverFilters.narrativeForm,
+            contentSignals: mergedDiscoverFilters.contentSignals,
+            stance: mergedDiscoverFilters.stance,
+            proofStyle: mergedDiscoverFilters.proofStyle,
+            commercialMode: mergedDiscoverFilters.commercialMode,
             mediaType: mediaTypeFilter,
           });
-          let items: PostCard[] = (res.posts || []).map((p: any) => ({
-            id: String(p._id),
-            coverUrl: toProxyUrl(p.coverUrl || null),
-            ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
-            caption: p.description || p.text_content || '',
-            postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
-            creatorName: (p as any).creatorName,
-            creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
-            postLink: (p as any).postLink,
-            stats: {
-              total_interactions: p?.stats?.total_interactions,
-              likes: p?.stats?.likes,
-              comments: p?.stats?.comments,
-              shares: p?.stats?.shares,
-              views: p?.stats?.views,
-              video_duration_seconds: p?.stats?.video_duration_seconds,
-              saved: p?.stats?.saved,
-            },
-            categories: {
-              format: Array.isArray(p?.format) ? p.format : undefined,
-              proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
-              context: Array.isArray(p?.context) ? p.context : undefined,
-              tone: Array.isArray(p?.tone) ? p.tone : undefined,
-              references: Array.isArray(p?.references) ? p.references : undefined,
-            },
-          }));
+          let items: PostCard[] = (res.posts || []).map((p: any) => toDiscoverPostCard(p));
           items = postProcessItems(items, {
             weights: adjustWeightsForFormat(SCORE_PROFILES.topComments, formatFilter),
             balanceFormats: !formatFilter && !videoOnly,
@@ -992,39 +989,20 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             limit: limitPerRow * 2,
             skipCount: true,
             onlyOptIn: true,
-            format: formatFilter || expFilters.format,
-            proposal: proposalFilter || expFilters.proposal,
-            context: contextFilter || expFilters.context,
-            tone: toneFilter || expFilters.tone,
-            references: referencesFilter || expFilters.references,
+            format: mergedDiscoverFilters.format,
+            proposal: mergedDiscoverFilters.proposal,
+            context: mergedDiscoverFilters.context,
+            tone: mergedDiscoverFilters.tone,
+            references: mergedDiscoverFilters.references,
+            contentIntent: mergedDiscoverFilters.contentIntent,
+            narrativeForm: mergedDiscoverFilters.narrativeForm,
+            contentSignals: mergedDiscoverFilters.contentSignals,
+            stance: mergedDiscoverFilters.stance,
+            proofStyle: mergedDiscoverFilters.proofStyle,
+            commercialMode: mergedDiscoverFilters.commercialMode,
             mediaType: mediaTypeFilter,
           });
-          let items: PostCard[] = (res.posts || []).map((p: any) => ({
-            id: String(p._id),
-            coverUrl: toProxyUrl(p.coverUrl || null),
-            ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
-            caption: p.description || p.text_content || '',
-            postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
-            creatorName: (p as any).creatorName,
-            creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
-            postLink: (p as any).postLink,
-            stats: {
-              total_interactions: p?.stats?.total_interactions,
-              likes: p?.stats?.likes,
-              comments: p?.stats?.comments,
-              shares: p?.stats?.shares,
-              views: p?.stats?.views,
-              video_duration_seconds: p?.stats?.video_duration_seconds,
-              saved: p?.stats?.saved,
-            },
-            categories: {
-              format: Array.isArray(p?.format) ? p.format : undefined,
-              proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
-              context: Array.isArray(p?.context) ? p.context : undefined,
-              tone: Array.isArray(p?.tone) ? p.tone : undefined,
-              references: Array.isArray(p?.references) ? p.references : undefined,
-            },
-          }));
+          let items: PostCard[] = (res.posts || []).map((p: any) => toDiscoverPostCard(p));
           items = postProcessItems(items, {
             weights: adjustWeightsForFormat(SCORE_PROFILES.topShares, formatFilter),
             balanceFormats: !formatFilter && !videoOnly,
@@ -1054,40 +1032,21 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             limit: limitPerRow * 4, // margem para filtragem por duração
             skipCount: true,
             onlyOptIn: true,
-            format: formatFilter || expFilters.format,
-            proposal: proposalFilter || expFilters.proposal,
-            context: contextFilter || expFilters.context,
-            tone: toneFilter || expFilters.tone,
-            references: referencesFilter || expFilters.references,
+            format: mergedDiscoverFilters.format,
+            proposal: mergedDiscoverFilters.proposal,
+            context: mergedDiscoverFilters.context,
+            tone: mergedDiscoverFilters.tone,
+            references: mergedDiscoverFilters.references,
+            contentIntent: mergedDiscoverFilters.contentIntent,
+            narrativeForm: mergedDiscoverFilters.narrativeForm,
+            contentSignals: mergedDiscoverFilters.contentSignals,
+            stance: mergedDiscoverFilters.stance,
+            proofStyle: mergedDiscoverFilters.proofStyle,
+            commercialMode: mergedDiscoverFilters.commercialMode,
             minInteractions: 0,
             mediaType: mediaTypeFilter,
           });
-          let items: PostCard[] = (res.posts || []).map((p: any) => ({
-            id: String(p._id),
-            coverUrl: toProxyUrl(p.coverUrl || null),
-            ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
-            caption: p.description || p.text_content || '',
-            postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
-            creatorName: (p as any).creatorName,
-            creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
-            postLink: (p as any).postLink,
-            stats: {
-              total_interactions: p?.stats?.total_interactions,
-              likes: p?.stats?.likes,
-              comments: p?.stats?.comments,
-              shares: p?.stats?.shares,
-              views: p?.stats?.views,
-              video_duration_seconds: p?.stats?.video_duration_seconds,
-              saved: p?.stats?.saved,
-            },
-            categories: {
-              format: Array.isArray(p?.format) ? p.format : undefined,
-              proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
-              context: Array.isArray(p?.context) ? p.context : undefined,
-              tone: Array.isArray(p?.tone) ? p.tone : undefined,
-              references: Array.isArray(p?.references) ? p.references : undefined,
-            },
-          }));
+          let items: PostCard[] = (res.posts || []).map((p: any) => toDiscoverPostCard(p));
           const secs = (it: PostCard) => Number(it?.stats?.video_duration_seconds || 0);
           // Como o chip já filtra o formato, só filtramos por duração e ignoramos outros formatos
           items = items.filter((it) => {
@@ -1142,11 +1101,17 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
           skipCount: true,
           minInteractions: 5,
           onlyOptIn: true,
-          format: formatFilter || expFilters.format,
-          proposal: proposalFilter || expFilters.proposal,
-          context: contextFilter || expFilters.context,
-          tone: toneFilter || expFilters.tone,
-          references: referencesFilter || expFilters.references,
+          format: mergedDiscoverFilters.format,
+          proposal: mergedDiscoverFilters.proposal,
+          context: mergedDiscoverFilters.context,
+          tone: mergedDiscoverFilters.tone,
+          references: mergedDiscoverFilters.references,
+          contentIntent: mergedDiscoverFilters.contentIntent,
+          narrativeForm: mergedDiscoverFilters.narrativeForm,
+          contentSignals: mergedDiscoverFilters.contentSignals,
+          stance: mergedDiscoverFilters.stance,
+          proofStyle: mergedDiscoverFilters.proofStyle,
+          commercialMode: mergedDiscoverFilters.commercialMode,
           mediaType: mediaTypeFilter,
         });
         let weekendItems: PostCard[] = (raw.posts || [])
@@ -1156,32 +1121,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             const dow = d.getDay(); // 0=Dom,6=Sab
             return dow === 0 || dow === 6;
           })
-          .map((p: any) => ({
-            id: String(p._id),
-            coverUrl: toProxyUrl(p.coverUrl || null),
-            ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
-            caption: p.description || p.text_content || '',
-              postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
-              creatorName: p.creatorName,
-              creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
-              postLink: (p as any).postLink,
-              stats: {
-                total_interactions: p?.stats?.total_interactions,
-                likes: p?.stats?.likes,
-                comments: p?.stats?.comments,
-                shares: p?.stats?.shares,
-                views: p?.stats?.views,
-                video_duration_seconds: p?.stats?.video_duration_seconds,
-                saved: p?.stats?.saved,
-              },
-              categories: {
-                format: Array.isArray(p?.format) ? p.format : undefined,
-                proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
-                context: Array.isArray(p?.context) ? p.context : undefined,
-                tone: Array.isArray(p?.tone) ? p.tone : undefined,
-              references: Array.isArray(p?.references) ? p.references : undefined,
-            },
-          }));
+          .map((p: any) => toDiscoverPostCard(p));
           weekendItems = postProcessItems(weekendItems, {
             weights: adjustWeightsForFormat(SCORE_PROFILES.weekend, formatFilter),
             balanceFormats: !formatFilter && !videoOnly,
@@ -1208,28 +1148,28 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
         try {
           const t0 = Date.now();
           let topCtx = userTopContextIds.map((category) => ({ category }));
-          let topProp = userTopProposalIds.map((category) => ({ category }));
+          let topIntent = userTopContentIntentIds.map((category) => ({ category }));
           if (topCtx.length === 0) {
             topCtx = await fetchTopCategories({ userId, category: 'context', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 }) as any;
           }
-          if (topProp.length === 0) {
-            topProp = await fetchTopCategories({ userId, category: 'proposal', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 1 }) as any;
+          if (topIntent.length === 0) {
+            topIntent = await fetchTopCategories({ userId, category: 'contentIntent', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 1 }) as any;
           }
-          logger.info('[discover/user_suggested] cats', { ctx: (topCtx || []).length, prop: (topProp || []).length });
-          if ((!topCtx || topCtx.length === 0) && (!topProp || topProp.length === 0)) {
+          logger.info('[discover/user_suggested] cats', { ctx: (topCtx || []).length, intent: (topIntent || []).length });
+          if ((!topCtx || topCtx.length === 0) && (!topIntent || topIntent.length === 0)) {
             // Fallback para ranking global
             topCtx = await fetchTopCategories({ category: 'context', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 }) as any;
-            topProp = await fetchTopCategories({ category: 'proposal', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 1 }) as any;
-            logger.info('[discover/user_suggested] cats_fallback', { ctx: (topCtx || []).length, prop: (topProp || []).length });
+            topIntent = await fetchTopCategories({ category: 'contentIntent', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 1 }) as any;
+            logger.info('[discover/user_suggested] cats_fallback', { ctx: (topCtx || []).length, intent: (topIntent || []).length });
           }
           const cats = [
             ...(contextFilter ? [] : (topCtx || [])),
-            ...(proposalFilter ? [] : (topProp || []))
+            ...(contentIntentFilter ? [] : (topIntent || []))
           ].slice(0, 3);
           const pool: PostCard[] = [];
           for (const c of cats) {
             try {
-              const isProposal = topProp?.some((p: any) => String(p.category) === String((c as any).category));
+              const isIntent = topIntent?.some((p: any) => String(p.category) === String((c as any).category));
               const res = await findGlobalPostsByCriteria({
                 dateRange: { startDate, endDate },
                 sortBy: 'stats.total_interactions',
@@ -1239,41 +1179,26 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
                 skipCount: true,
                 onlyOptIn: true,
                 // Merge filtros atuais com a categoria destacada do usuário
-                format: mergeCsv(formatFilter, expFilters.format),
-                context: mergeCsv(isProposal ? contextFilter : [String((c as any).category)].join(','), expFilters.context),
-                proposal: mergeCsv(isProposal ? [String((c as any).category)].join(',') : proposalFilter, expFilters.proposal),
-                tone: mergeCsv(toneFilter, expFilters.tone),
-                references: mergeCsv(referencesFilter, expFilters.references),
+                format: mergedDiscoverFilters.format,
+                context: isIntent
+                  ? mergedDiscoverFilters.context
+                  : mergeCsv(String((c as any).category), mergedDiscoverFilters.context),
+                proposal: mergedDiscoverFilters.proposal,
+                tone: mergedDiscoverFilters.tone,
+                references: mergedDiscoverFilters.references,
+                contentIntent: isIntent
+                  ? mergeCsv(String((c as any).category), mergedDiscoverFilters.contentIntent)
+                  : mergedDiscoverFilters.contentIntent,
+                narrativeForm: mergedDiscoverFilters.narrativeForm,
+                contentSignals: mergedDiscoverFilters.contentSignals,
+                stance: mergedDiscoverFilters.stance,
+                proofStyle: mergedDiscoverFilters.proofStyle,
+                commercialMode: mergedDiscoverFilters.commercialMode,
                 minInteractions: 5,
                 mediaType: mediaTypeFilter,
               });
               for (const p of res.posts || []) {
-                pool.push({
-                  id: String(p._id),
-                  coverUrl: toProxyUrl(p.coverUrl || null),
-                  ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
-                  caption: p.description || p.text_content || '',
-                  postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
-                  creatorName: (p as any).creatorName,
-                  creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
-                  postLink: (p as any).postLink,
-                  stats: {
-                    total_interactions: p?.stats?.total_interactions,
-                    likes: p?.stats?.likes,
-                    comments: p?.stats?.comments,
-                    shares: p?.stats?.shares,
-                    views: p?.stats?.views,
-                    video_duration_seconds: p?.stats?.video_duration_seconds,
-                    saved: p?.stats?.saved,
-                  },
-                  categories: {
-                    format: Array.isArray(p?.format) ? p.format : undefined,
-                    proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
-                    context: Array.isArray(p?.context) ? p.context : undefined,
-                    tone: Array.isArray(p?.tone) ? p.tone : undefined,
-                    references: Array.isArray(p?.references) ? p.references : undefined,
-                  },
-                });
+                pool.push(toDiscoverPostCard(p));
               }
             } catch (subErr) {
               logger.debug('[discover/user_suggested] category load fail', { err: subErr });
@@ -1328,41 +1253,22 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
                 limit: limitPerRow,
                 skipCount: true,
                 onlyOptIn: true,
-                format: mergeCsv([fmt, formatFilter].filter(Boolean).join(',') || fmt, expFilters.format),
-                proposal: mergeCsv(proposalFilter, expFilters.proposal),
-                context: mergeCsv(contextFilter, expFilters.context),
-                tone: mergeCsv(toneFilter, expFilters.tone),
-                references: mergeCsv(referencesFilter, expFilters.references),
+                format: mergeCsv([fmt, mergedDiscoverFilters.format].filter(Boolean).join(',') || fmt, undefined),
+                proposal: mergedDiscoverFilters.proposal,
+                context: mergedDiscoverFilters.context,
+                tone: mergedDiscoverFilters.tone,
+                references: mergedDiscoverFilters.references,
+                contentIntent: mergedDiscoverFilters.contentIntent,
+                narrativeForm: mergedDiscoverFilters.narrativeForm,
+                contentSignals: mergedDiscoverFilters.contentSignals,
+                stance: mergedDiscoverFilters.stance,
+                proofStyle: mergedDiscoverFilters.proofStyle,
+                commercialMode: mergedDiscoverFilters.commercialMode,
                 minInteractions: 5,
                 mediaType: mediaTypeFilter,
               });
               for (const p of byFmt.posts || []) {
-                pool.push({
-                  id: String(p._id),
-                  coverUrl: toProxyUrl(p.coverUrl || null),
-                  ...resolveVideoMeta(p?.type, p?.mediaUrl || p?.media_url || null),
-                  caption: p.description || p.text_content || '',
-                  postDate: p.postDate ? new Date(p.postDate).toISOString() : undefined,
-                  creatorName: (p as any).creatorName,
-                  creatorAvatarUrl: toProxyUrl((p as any).creatorAvatarUrl || (p as any).creator_avatar_url || null) || null,
-                  postLink: (p as any).postLink,
-                  stats: {
-                    total_interactions: p?.stats?.total_interactions,
-                    likes: p?.stats?.likes,
-                    comments: p?.stats?.comments,
-                    shares: p?.stats?.shares,
-                    views: p?.stats?.views,
-                    video_duration_seconds: p?.stats?.video_duration_seconds,
-                    saved: p?.stats?.saved,
-                  },
-                  categories: {
-                    format: Array.isArray(p?.format) ? p.format : undefined,
-                    proposal: Array.isArray(p?.proposal) ? p.proposal : undefined,
-                    context: Array.isArray(p?.context) ? p.context : undefined,
-                    tone: Array.isArray(p?.tone) ? p.tone : undefined,
-                    references: Array.isArray(p?.references) ? p.references : undefined,
-                  },
-                });
+                pool.push(toDiscoverPostCard(p));
               }
             } catch (sub) {
               logger.debug('[discover/top_format] fmt load fail', { fmt, err: sub });
@@ -1397,16 +1303,28 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             items = caches[cacheKey].items;
           } else {
             const match: any = { postDate: { $gte: startDate, $lte: endDate }, collab: true };
-            const fCsvC = mergeCsv(formatFilter, expFilters.format);
-            const pCsvC = mergeCsv(proposalFilter, expFilters.proposal);
-            const cCsvC = mergeCsv(contextFilter, expFilters.context);
-            const tCsvC = mergeCsv(toneFilter, expFilters.tone);
-            const rCsvC = mergeCsv(referencesFilter, expFilters.references);
+            const fCsvC = mergedDiscoverFilters.format;
+            const pCsvC = mergedDiscoverFilters.proposal;
+            const cCsvC = mergedDiscoverFilters.context;
+            const tCsvC = mergedDiscoverFilters.tone;
+            const rCsvC = mergedDiscoverFilters.references;
+            const intentCsvC = mergedDiscoverFilters.contentIntent;
+            const narrativeCsvC = mergedDiscoverFilters.narrativeForm;
+            const signalCsvC = mergedDiscoverFilters.contentSignals;
+            const stanceCsvC = mergedDiscoverFilters.stance;
+            const proofCsvC = mergedDiscoverFilters.proofStyle;
+            const commercialCsvC = mergedDiscoverFilters.commercialMode;
             if (fCsvC) match.format = { $in: fCsvC.split(',').map(s => s.trim()).filter(Boolean) };
             if (pCsvC) match.proposal = { $in: pCsvC.split(',').map(s => s.trim()).filter(Boolean) };
             if (cCsvC) match.context = { $in: cCsvC.split(',').map(s => s.trim()).filter(Boolean) };
             if (tCsvC) match.tone = { $in: tCsvC.split(',').map(s => s.trim()).filter(Boolean) };
             if (rCsvC) match.references = { $in: rCsvC.split(',').map(s => s.trim()).filter(Boolean) };
+            if (intentCsvC) match.contentIntent = { $in: intentCsvC.split(',').map(s => s.trim()).filter(Boolean) };
+            if (narrativeCsvC) match.narrativeForm = { $in: narrativeCsvC.split(',').map(s => s.trim()).filter(Boolean) };
+            if (signalCsvC) match.contentSignals = { $in: signalCsvC.split(',').map(s => s.trim()).filter(Boolean) };
+            if (stanceCsvC) match.stance = { $in: stanceCsvC.split(',').map(s => s.trim()).filter(Boolean) };
+            if (proofCsvC) match.proofStyle = { $in: proofCsvC.split(',').map(s => s.trim()).filter(Boolean) };
+            if (commercialCsvC) match.commercialMode = { $in: commercialCsvC.split(',').map(s => s.trim()).filter(Boolean) };
             if (mediaTypeFilter) match.type = { $in: mediaTypeFilter };
             const rows = await MetricModel.aggregate([
               { $match: match },
@@ -1445,35 +1363,16 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
                   context: 1,
                   tone: 1,
                   references: 1,
+                  contentIntent: 1,
+                  narrativeForm: 1,
+                  contentSignals: 1,
+                  proofStyle: 1,
+                  commercialMode: 1,
+                  stance: 1,
                 }
               },
             ]).exec();
-            items = rows.map((r: any) => ({
-              id: String(r._id),
-              coverUrl: toProxyUrl(r.coverUrl || null),
-              ...resolveVideoMeta(r?.type, r?.mediaUrl || r?.media_url || null),
-              caption: r.description || '',
-              postDate: r.postDate ? new Date(r.postDate).toISOString() : undefined,
-              creatorName: r?.creatorInfo?.username,
-              creatorAvatarUrl: toProxyUrl(r?.creatorInfo?.profile_picture_url || null) || null,
-              postLink: r.postLink || undefined,
-              stats: {
-                total_interactions: r?.stats?.total_interactions,
-                likes: r?.stats?.likes,
-                comments: r?.stats?.comments,
-                shares: r?.stats?.shares,
-                views: r?.stats?.views,
-                video_duration_seconds: r?.stats?.video_duration_seconds,
-                saved: r?.stats?.saved,
-              },
-              categories: {
-                format: Array.isArray(r?.format) ? r.format : undefined,
-                proposal: Array.isArray(r?.proposal) ? r.proposal : undefined,
-                context: Array.isArray(r?.context) ? r.context : undefined,
-                tone: Array.isArray(r?.tone) ? r.tone : undefined,
-                references: Array.isArray(r?.references) ? r.references : undefined,
-              },
-            }));
+            items = rows.map((r: any) => toDiscoverPostCard(r));
             if (noFilter) caches[cacheKey] = { expires: Date.now() + TTL_MS, items };
           }
           const processed = postProcessItems(items || [], {
@@ -1499,11 +1398,17 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
         try {
           const t0 = Date.now();
           const match: any = { postDate: { $gte: startDate, $lte: endDate } };
-          if (formatFilter) match.format = { $in: formatFilter.split(',').map(s => s.trim()).filter(Boolean) };
-          if (proposalFilter) match.proposal = { $in: proposalFilter.split(',').map(s => s.trim()).filter(Boolean) };
-          if (contextFilter) match.context = { $in: contextFilter.split(',').map(s => s.trim()).filter(Boolean) };
-          if (toneFilter) match.tone = { $in: toneFilter.split(',').map(s => s.trim()).filter(Boolean) };
-          if (referencesFilter) match.references = { $in: referencesFilter.split(',').map(s => s.trim()).filter(Boolean) };
+          if (mergedDiscoverFilters.format) match.format = { $in: mergedDiscoverFilters.format.split(',').map(s => s.trim()).filter(Boolean) };
+          if (mergedDiscoverFilters.proposal) match.proposal = { $in: mergedDiscoverFilters.proposal.split(',').map(s => s.trim()).filter(Boolean) };
+          if (mergedDiscoverFilters.context) match.context = { $in: mergedDiscoverFilters.context.split(',').map(s => s.trim()).filter(Boolean) };
+          if (mergedDiscoverFilters.tone) match.tone = { $in: mergedDiscoverFilters.tone.split(',').map(s => s.trim()).filter(Boolean) };
+          if (mergedDiscoverFilters.references) match.references = { $in: mergedDiscoverFilters.references.split(',').map(s => s.trim()).filter(Boolean) };
+          if (mergedDiscoverFilters.contentIntent) match.contentIntent = { $in: mergedDiscoverFilters.contentIntent.split(',').map(s => s.trim()).filter(Boolean) };
+          if (mergedDiscoverFilters.narrativeForm) match.narrativeForm = { $in: mergedDiscoverFilters.narrativeForm.split(',').map(s => s.trim()).filter(Boolean) };
+          if (mergedDiscoverFilters.contentSignals) match.contentSignals = { $in: mergedDiscoverFilters.contentSignals.split(',').map(s => s.trim()).filter(Boolean) };
+          if (mergedDiscoverFilters.stance) match.stance = { $in: mergedDiscoverFilters.stance.split(',').map(s => s.trim()).filter(Boolean) };
+          if (mergedDiscoverFilters.proofStyle) match.proofStyle = { $in: mergedDiscoverFilters.proofStyle.split(',').map(s => s.trim()).filter(Boolean) };
+          if (mergedDiscoverFilters.commercialMode) match.commercialMode = { $in: mergedDiscoverFilters.commercialMode.split(',').map(s => s.trim()).filter(Boolean) };
           if (mediaTypeFilter) match.type = { $in: mediaTypeFilter };
 
           const rows = await MetricModel.aggregate([
@@ -1543,36 +1448,17 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
                 context: 1,
                 tone: 1,
                 references: 1,
+                contentIntent: 1,
+                narrativeForm: 1,
+                contentSignals: 1,
+                proofStyle: 1,
+                commercialMode: 1,
+                stance: 1,
               }
             },
           ]).exec();
 
-          let items: PostCard[] = rows.map((r: any) => ({
-            id: String(r._id),
-            coverUrl: toProxyUrl(r.coverUrl || null),
-            ...resolveVideoMeta(r?.type, r?.mediaUrl || r?.media_url || null),
-            caption: r.description || '',
-            postDate: r.postDate ? new Date(r.postDate).toISOString() : undefined,
-            creatorName: r?.creatorInfo?.username,
-            creatorAvatarUrl: toProxyUrl(r?.creatorInfo?.profile_picture_url || null) || null,
-            postLink: r.postLink || undefined,
-            stats: {
-              total_interactions: r?.stats?.total_interactions,
-              likes: r?.stats?.likes,
-              comments: r?.stats?.comments,
-              shares: r?.stats?.shares,
-              views: r?.stats?.views,
-              video_duration_seconds: r?.stats?.video_duration_seconds,
-              saved: r?.stats?.saved,
-            },
-            categories: {
-              format: Array.isArray(r?.format) ? r.format : undefined,
-              proposal: Array.isArray(r?.proposal) ? r.proposal : undefined,
-              context: Array.isArray(r?.context) ? r.context : undefined,
-              tone: Array.isArray(r?.tone) ? r.tone : undefined,
-              references: Array.isArray(r?.references) ? r.references : undefined,
-            },
-          }));
+          let items: PostCard[] = rows.map((r: any) => toDiscoverPostCard(r));
           items = postProcessItems(items, {
             weights: adjustWeightsForFormat(SCORE_PROFILES.communityNew, formatFilter),
             balanceFormats: !formatFilter && !videoOnly,

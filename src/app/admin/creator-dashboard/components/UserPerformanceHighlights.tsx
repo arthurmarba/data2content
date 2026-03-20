@@ -7,6 +7,8 @@ import { TrendingUp, TrendingDown, Sparkles, CalendarDays } from "lucide-react";
 import HighlightCard from "./HighlightCard";
 import UserFormatPerformanceRankingTable from "./UserFormatPerformanceRankingTable";
 import { commaSeparatedIdsToLabels } from '../../../lib/classification';
+import { v2IdsToLabels } from "@/app/lib/classificationV2";
+import { v25IdsToLabels } from "@/app/lib/classificationV2_5";
 
 interface PerformanceHighlightItem {
   name: string;
@@ -26,6 +28,12 @@ interface PerformanceSummaryResponse {
   topPerformingProposal: PerformanceHighlightItem | null;
   topPerformingTone: PerformanceHighlightItem | null;
   topPerformingReference: PerformanceHighlightItem | null;
+  topPerformingContentIntent?: PerformanceHighlightItem | null;
+  topPerformingNarrativeForm?: PerformanceHighlightItem | null;
+  topPerformingContentSignal?: PerformanceHighlightItem | null;
+  topPerformingStance?: PerformanceHighlightItem | null;
+  topPerformingProofStyle?: PerformanceHighlightItem | null;
+  topPerformingCommercialMode?: PerformanceHighlightItem | null;
   bestDay?: { dayOfWeek: number; average: number } | null;
   insightSummary: string;
 }
@@ -63,6 +71,49 @@ const getPortugueseWeekdayName = (day: number): string => {
   const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
   return days[day - 1] || '';
 };
+
+type HighlightKind =
+  | 'format'
+  | 'context'
+  | 'proposal'
+  | 'tone'
+  | 'reference'
+  | 'contentIntent'
+  | 'narrativeForm'
+  | 'contentSignal'
+  | 'stance'
+  | 'proofStyle'
+  | 'commercialMode';
+
+function splitCategoryIds(value: string): string[] {
+  return value.split(',').map((part) => part.trim()).filter(Boolean);
+}
+
+function resolveHighlightName(name: string, kind: HighlightKind): string {
+  if (!name) return name;
+
+  if (kind === 'format' || kind === 'context' || kind === 'proposal' || kind === 'tone' || kind === 'reference') {
+    return commaSeparatedIdsToLabels(name, kind) || name;
+  }
+
+  const ids = splitCategoryIds(name);
+  switch (kind) {
+    case 'contentIntent':
+      return v2IdsToLabels(ids, 'contentIntent').join(', ') || name;
+    case 'narrativeForm':
+      return v2IdsToLabels(ids, 'narrativeForm').join(', ') || name;
+    case 'contentSignal':
+      return v2IdsToLabels(ids, 'contentSignal').join(', ') || name;
+    case 'stance':
+      return v25IdsToLabels(ids, 'stance').join(', ') || name;
+    case 'proofStyle':
+      return v25IdsToLabels(ids, 'proofStyle').join(', ') || name;
+    case 'commercialMode':
+      return v25IdsToLabels(ids, 'commercialMode').join(', ') || name;
+    default:
+      return name;
+  }
+}
 
 const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
   userId,
@@ -103,38 +154,7 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
           `Erro HTTP: ${response.status} - ${errorData.error || response.statusText}`,
         );
       }
-      const result: PerformanceSummaryResponse = await response.json();
-      if (result.topPerformingFormat) {
-        result.topPerformingFormat.name =
-          commaSeparatedIdsToLabels(result.topPerformingFormat.name, 'format') ||
-          result.topPerformingFormat.name;
-      }
-      if (result.lowPerformingFormat) {
-        result.lowPerformingFormat.name =
-          commaSeparatedIdsToLabels(result.lowPerformingFormat.name, 'format') ||
-          result.lowPerformingFormat.name;
-      }
-      if (result.topPerformingContext) {
-        result.topPerformingContext.name =
-          commaSeparatedIdsToLabels(result.topPerformingContext.name, 'context') ||
-          result.topPerformingContext.name;
-      }
-      if (result.topPerformingProposal) {
-        result.topPerformingProposal.name =
-          commaSeparatedIdsToLabels(result.topPerformingProposal.name, 'proposal') ||
-          result.topPerformingProposal.name;
-      }
-      if (result.topPerformingTone) {
-        result.topPerformingTone.name =
-          commaSeparatedIdsToLabels(result.topPerformingTone.name, 'tone') ||
-          result.topPerformingTone.name;
-      }
-      if (result.topPerformingReference) {
-        result.topPerformingReference.name =
-          commaSeparatedIdsToLabels(result.topPerformingReference.name, 'reference') ||
-          result.topPerformingReference.name;
-      }
-      setSummary(result);
+      setSummary(await response.json());
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Ocorreu um erro desconhecido.",
@@ -163,13 +183,13 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
   const normalizedSummary = useMemo(() => {
     if (!resolvedSummary) return null;
     const normalize = (
-      item: PerformanceHighlightItem | null,
-      kind: 'format' | 'context' | 'proposal' | 'tone' | 'reference',
+      item: PerformanceHighlightItem | null | undefined,
+      kind: HighlightKind,
     ) => {
       if (!item) return null;
       return {
         ...item,
-        name: commaSeparatedIdsToLabels(item.name, kind) || item.name,
+        name: resolveHighlightName(item.name, kind),
       };
     };
     return {
@@ -180,6 +200,12 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
       topPerformingProposal: normalize(resolvedSummary.topPerformingProposal, 'proposal'),
       topPerformingTone: normalize(resolvedSummary.topPerformingTone, 'tone'),
       topPerformingReference: normalize(resolvedSummary.topPerformingReference, 'reference'),
+      topPerformingContentIntent: normalize(resolvedSummary.topPerformingContentIntent, 'contentIntent'),
+      topPerformingNarrativeForm: normalize(resolvedSummary.topPerformingNarrativeForm, 'narrativeForm'),
+      topPerformingContentSignal: normalize(resolvedSummary.topPerformingContentSignal, 'contentSignal'),
+      topPerformingStance: normalize(resolvedSummary.topPerformingStance, 'stance'),
+      topPerformingProofStyle: normalize(resolvedSummary.topPerformingProofStyle, 'proofStyle'),
+      topPerformingCommercialMode: normalize(resolvedSummary.topPerformingCommercialMode, 'commercialMode'),
     };
   }, [resolvedSummary]);
   const displaySummary = resolvedError ? null : normalizedSummary;
@@ -261,6 +287,63 @@ const UserPerformanceHighlights: React.FC<UserPerformanceHighlightsProps> = ({
               textColorClass="text-indigo-600"
             />
           </div>
+          {(displaySummary.topPerformingContentIntent ||
+            displaySummary.topPerformingNarrativeForm ||
+            displaySummary.topPerformingContentSignal ||
+            displaySummary.topPerformingStance ||
+            displaySummary.topPerformingProofStyle ||
+            displaySummary.topPerformingCommercialMode) && (
+            <div className="mt-5 border-t border-slate-200 pt-4">
+              <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-700">
+                <Sparkles size={16} className="text-slate-500" />
+                Leitura Estratégica
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <HighlightCard
+                  title="Intenção Principal"
+                  highlight={displaySummary.topPerformingContentIntent}
+                  icon={<Sparkles size={18} className="mr-2 text-cyan-500" />}
+                  bgColorClass="bg-cyan-50"
+                  textColorClass="text-cyan-700"
+                />
+                <HighlightCard
+                  title="Forma Narrativa"
+                  highlight={displaySummary.topPerformingNarrativeForm}
+                  icon={<Sparkles size={18} className="mr-2 text-sky-500" />}
+                  bgColorClass="bg-sky-50"
+                  textColorClass="text-sky-700"
+                />
+                <HighlightCard
+                  title="Sinal de Conteúdo"
+                  highlight={displaySummary.topPerformingContentSignal}
+                  icon={<Sparkles size={18} className="mr-2 text-emerald-500" />}
+                  bgColorClass="bg-emerald-50"
+                  textColorClass="text-emerald-700"
+                />
+                <HighlightCard
+                  title="Postura"
+                  highlight={displaySummary.topPerformingStance}
+                  icon={<Sparkles size={18} className="mr-2 text-rose-500" />}
+                  bgColorClass="bg-rose-50"
+                  textColorClass="text-rose-700"
+                />
+                <HighlightCard
+                  title="Estilo de Prova"
+                  highlight={displaySummary.topPerformingProofStyle}
+                  icon={<Sparkles size={18} className="mr-2 text-orange-500" />}
+                  bgColorClass="bg-orange-50"
+                  textColorClass="text-orange-700"
+                />
+                <HighlightCard
+                  title="Modo Comercial"
+                  highlight={displaySummary.topPerformingCommercialMode}
+                  icon={<Sparkles size={18} className="mr-2 text-fuchsia-500" />}
+                  bgColorClass="bg-fuchsia-50"
+                  textColorClass="text-fuchsia-700"
+                />
+              </div>
+            </div>
+          )}
           {displaySummary.insightSummary && (
             <p className="text-xs text-gray-600 mt-4 pt-3 border-t border-gray-200 flex items-start">
               <LightBulbIcon className="w-4 h-4 text-yellow-500 mr-1 flex-shrink-0" />

@@ -10,6 +10,7 @@ import mongoose from 'mongoose';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import Metric from '@/app/models/Metric';
 import { logger } from '@/app/lib/logger';
+import { createEmptyMetricClassificationUpdate } from '@/app/lib/classificationRuntime';
 
 const SCRIPT_TAG = '[SCRIPT_RESET_FAILED_STATUS]';
 
@@ -41,11 +42,7 @@ async function resetFailedClassificationStatus() {
         $set: {
           classificationStatus: 'pending',
           classificationError: null,
-          format: [],
-          proposal: [],
-          context: [],
-          tone: [],
-          references: [],
+          ...createEmptyMetricClassificationUpdate(),
         },
       }
     );

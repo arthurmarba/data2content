@@ -31,6 +31,7 @@ import {
   type PlanningRecommendationExecutionState,
   type PlanningRecommendationQueueStage,
 } from "@/utils/buildPlanningRecommendations";
+import { normalizePlanningPost } from "@/app/lib/planning/normalizePlanningPost";
 
 const PostsBySliceModal = dynamic(() => import("./components/PostsBySliceModal"), {
   ssr: false,
@@ -255,13 +256,13 @@ const feedbackStatusLabel: Record<RecommendationFeedbackStatus, string> = {
   not_applied: "Não agora",
 };
 const feedbackStatusCompactLabel: Record<RecommendationFeedbackStatus, string> = {
-  applied: "Marcada como feita",
-  not_applied: "Marcada como adiada",
+  applied: "Feito",
+  not_applied: "Adiado",
 };
 const queueStageLabel: Record<PlanningRecommendationQueueStage, string> = {
   now: "Agora",
   later: "Depois",
-  monitor: "Observar",
+  monitor: "Esperar",
 };
 const queueStageClassName: Record<PlanningRecommendationQueueStage, string> = {
   now: "border-slate-900 bg-slate-900 text-white",
@@ -269,30 +270,30 @@ const queueStageClassName: Record<PlanningRecommendationQueueStage, string> = {
   monitor: "border-slate-200 bg-white text-slate-500",
 };
 const executionStateLabel: Record<PlanningRecommendationExecutionState, string> = {
-  planned: "Ainda não feito",
-  executed: "Já foi feito",
+  planned: "Pendente",
+  executed: "Feito",
   waiting_impact: "Esperando resultado",
   discarded: "Descartado",
 };
 const recommendationTypeLabel: Record<NonNullable<PlanningRecommendationAction["recommendationType"]>, string> = {
-  maintain: "Repetir",
+  maintain: "Repita",
   scale: "Aumentar",
-  correct: "Corrigir",
-  test: "Testar",
+  correct: "Ajuste",
+  test: "Teste",
 };
 const RECOMMENDATION_TITLE_OVERRIDES: Record<string, string> = {
   duration: "Duração ideal",
   time_slot: "Melhor horário",
   tone_engagement: "Tom que mais funciona",
-  proposal_engagement: "Ideia que mais funciona",
+  proposal_engagement: "Proposta que mais funciona",
   format_reach: "Formato que mais funciona",
-  context_reach: "Contexto que mais funciona",
-  proposal_leads: "Ideia com mais intenção",
-  context_leads: "Contexto com mais intenção",
+  context_reach: "Tema que mais funciona",
+  proposal_leads: "Proposta com mais intenção",
+  context_leads: "Tema com mais intenção",
   trend_recovery: "Voltar a crescer",
   trend_scale: "Aumentar o que funciona",
   trend_stability: "Manter o ritmo",
-  baseline: "Criar referência",
+  baseline: "Montar base inicial",
 };
 const compactImpactEstimate = (impactEstimate: string) => {
   const normalized = String(impactEstimate || "").trim();
@@ -466,21 +467,21 @@ const formatStrategicDeltaSummary = (
   if (!metric) return null;
   if (!metric.hasMinimumSample) {
     return {
-      text: `Base pequena: ${formatPostsCount(metric.currentPosts)} agora vs ${formatPostsCount(metric.previousPosts)} antes.`,
+      text: `Base pequena: ${formatPostsCount(metric.currentPosts)} agora e ${formatPostsCount(metric.previousPosts)} antes.`,
       tone: "warning",
     };
   }
   if (typeof metric.deltaRatio !== "number" || !Number.isFinite(metric.deltaRatio)) {
-    return { text: "Sem base suficiente no período anterior equivalente.", tone: "warning" };
+    return { text: "Ainda falta base para comparar com o período anterior.", tone: "warning" };
   }
   const pct = Math.round(metric.deltaRatio * 100);
   if (Math.abs(pct) < 3) {
-    return { text: `Estável: ${metricLabel} sem variação relevante vs período anterior.`, tone: "neutral" };
+    return { text: `${metricLabel}: ficou no mesmo nível.`, tone: "neutral" };
   }
   if (pct > 0) {
-    return { text: `Em alta: +${pct}% em ${metricLabel} vs período anterior.`, tone: "positive" };
+    return { text: `${metricLabel}: ${pct}% acima do período anterior.`, tone: "positive" };
   }
-  return { text: `Atenção: ${pct}% em ${metricLabel} vs período anterior.`, tone: "negative" };
+  return { text: `${metricLabel}: ${Math.abs(pct)}% abaixo do período anterior.`, tone: "negative" };
 };
 const buildCategoryExecutiveSummary = (
   rows: Array<{ name: string; value: number; postsCount?: number }>,
@@ -733,6 +734,98 @@ const getStrongestLeader = (
     .sort((a, b) => (b.top?.value || 0) - (a.top?.value || 0));
   return ranked[0] || null;
 };
+const getContentDimensionLabel = (dimension?: string | null): string => {
+  switch (dimension) {
+    case "contexto":
+      return "contexto";
+    case "proposta":
+      return "proposta";
+    case "tom":
+      return "tom";
+    case "intenção":
+      return "intenção";
+    case "narrativa":
+      return "narrativa";
+    case "postura":
+      return "postura";
+    case "prova":
+      return "prova";
+    case "sinal":
+      return "sinal";
+    case "modo comercial":
+      return "modo comercial";
+    default:
+      return "leitura";
+  }
+};
+const getContentLeaderMeaning = (dimension: string | undefined, leaderName: string): string => {
+  switch (dimension) {
+    case "contexto":
+      return `${leaderName} é o tema que mais puxa resposta.`;
+    case "proposta":
+      return `${leaderName} é a proposta que mais funciona.`;
+    case "tom":
+      return `${leaderName} é o tom que mais funciona.`;
+    case "intenção":
+      return `${leaderName} é o objetivo que mais funciona.`;
+    case "narrativa":
+      return `${leaderName} é o jeito de contar que mais funciona.`;
+    case "postura":
+      return `${leaderName} é a postura que mais sustenta o post.`;
+    case "prova":
+      return `${leaderName} é a prova que mais convence.`;
+    case "sinal":
+      return `${leaderName} aparece bastante, mas não deve guiar a ideia sozinho.`;
+    case "modo comercial":
+      return `${leaderName} é a forma de venda que mais aparece nos melhores posts.`;
+    default:
+      return `${leaderName} é o sinal mais forte agora.`;
+  }
+};
+const getContentLeaderAction = (dimension: string | undefined, leaderName: string): string => {
+  switch (dimension) {
+    case "contexto":
+      return `Repita ${leaderName} por 2 ou 3 posts.`;
+    case "proposta":
+      return `Repita ${leaderName} por 2 ou 3 posts.`;
+    case "tom":
+      return `Use ${leaderName} em sequência e compare com uma opção só.`;
+    case "intenção":
+      return `Segure ${leaderName} por alguns posts.`;
+    case "narrativa":
+      return `Repita ${leaderName} por 2 ou 3 posts.`;
+    case "postura":
+      return `Use ${leaderName} em sequência por alguns posts.`;
+    case "prova":
+      return `Repita ${leaderName} antes de trocar a prova.`;
+    default:
+      return `Repita ${leaderName} por alguns posts.`;
+  }
+};
+const getContentLeaderStatusChip = (dimension?: string | null): string => {
+  switch (dimension) {
+    case "contexto":
+      return "Tema";
+    case "proposta":
+      return "Proposta";
+    case "tom":
+      return "Tom";
+    case "intenção":
+      return "Intenção";
+    case "narrativa":
+      return "Narrativa";
+    case "postura":
+      return "Postura";
+    case "prova":
+      return "Prova";
+    case "sinal":
+      return "Sinal";
+    case "modo comercial":
+      return "Comercial";
+    default:
+      return "Conteúdo";
+  }
+};
 const formatActionSample = (postsCount?: number) => {
   if (typeof postsCount !== "number" || !Number.isFinite(postsCount) || postsCount <= 0) return null;
   return `${formatPostsCount(postsCount)} na base`;
@@ -913,7 +1006,7 @@ const buildExperimentImpactSummary = ({
   if (Math.abs(pct) < 5) {
     return {
       status: "stable",
-      text: `Depois de ${formatPostsCount(comparisonCount)}, ${metricLabel.toLowerCase()} ficou estável contra os posts imediatamente anteriores.`,
+      text: `Nos últimos ${formatPostsCount(comparisonCount)}, ${metricLabel.toLowerCase()} ficou no mesmo nível.`,
       beforeAvg,
       afterAvg,
       deltaRatio,
@@ -924,7 +1017,7 @@ const buildExperimentImpactSummary = ({
   if (pct > 0) {
     return {
       status: "improved",
-      text: `Depois de ${formatPostsCount(comparisonCount)}, ${metricLabel.toLowerCase()} subiu ${pct}% contra os posts imediatamente anteriores.`,
+      text: `Nos últimos ${formatPostsCount(comparisonCount)}, ${metricLabel.toLowerCase()} ficou ${pct}% acima dos posts anteriores.`,
       beforeAvg,
       afterAvg,
       deltaRatio,
@@ -934,7 +1027,7 @@ const buildExperimentImpactSummary = ({
   }
   return {
     status: "declined",
-    text: `Depois de ${formatPostsCount(comparisonCount)}, ${metricLabel.toLowerCase()} caiu ${Math.abs(pct)}% contra os posts imediatamente anteriores.`,
+    text: `Nos últimos ${formatPostsCount(comparisonCount)}, ${metricLabel.toLowerCase()} ficou ${Math.abs(pct)}% abaixo dos posts anteriores.`,
     beforeAvg,
     afterAvg,
     deltaRatio,
@@ -952,8 +1045,29 @@ const chartHeaderTextClassName = "min-h-[40px] space-y-1 sm:min-h-[52px]";
 const chartHeightClassName = "mt-3 h-56 sm:h-56";
 const chartTallHeightClassName = "mt-3 h-64 sm:h-64";
 const chartCompactHeightClassName = "mt-3 h-44 sm:h-44";
-type CategoryField = "format" | "proposal" | "context" | "tone" | "references";
+type CategoryField =
+  | "format"
+  | "proposal"
+  | "context"
+  | "tone"
+  | "references"
+  | "contentIntent"
+  | "narrativeForm"
+  | "contentSignals"
+  | "stance"
+  | "proofStyle"
+  | "commercialMode";
 type CategoryBarDatum = { name: string; value: number; postsCount?: number };
+type CategoryDataResponse = { chartData?: Array<{ name: string; value: number; postsCount?: number }> };
+type CategoryCardConfig = {
+  field: CategoryField;
+  title: string;
+  emptyText: string;
+  color: string;
+  accentClassName: string;
+  subtitle: string;
+  loadingText: string;
+};
 type TabBrief = {
   eyebrow: string;
   headline: string;
@@ -1169,6 +1283,63 @@ function MobileBarList({
   );
 }
 
+const STRATEGIC_CATEGORY_CARDS: CategoryCardConfig[] = [
+  {
+    field: "contentIntent",
+    title: "Intenção",
+    emptyText: "Sem intenções no período.",
+    color: "#2563eb",
+    accentClassName: "bg-blue-600",
+    subtitle: "Intenção",
+    loadingText: "Carregando intenções...",
+  },
+  {
+    field: "narrativeForm",
+    title: "Narrativa",
+    emptyText: "Sem narrativas no período.",
+    color: "#7c3aed",
+    accentClassName: "bg-violet-600",
+    subtitle: "Forma narrativa",
+    loadingText: "Carregando narrativas...",
+  },
+  {
+    field: "contentSignals",
+    title: "Sinais",
+    emptyText: "Sem sinais no período.",
+    color: "#0f766e",
+    accentClassName: "bg-teal-600",
+    subtitle: "Sinais de conteúdo",
+    loadingText: "Carregando sinais...",
+  },
+  {
+    field: "stance",
+    title: "Postura",
+    emptyText: "Sem posturas registradas no período.",
+    color: "#dc2626",
+    accentClassName: "bg-rose-600",
+    subtitle: "Postura",
+    loadingText: "Carregando posturas...",
+  },
+  {
+    field: "proofStyle",
+    title: "Prova",
+    emptyText: "Sem provas no período.",
+    color: "#a16207",
+    accentClassName: "bg-amber-700",
+    subtitle: "Estilo de prova",
+    loadingText: "Carregando provas...",
+  },
+  {
+    field: "commercialMode",
+    title: "Modo comercial",
+    emptyText: "Sem sinais de venda no período.",
+    color: "#db2777",
+    accentClassName: "bg-pink-600",
+    subtitle: "Modo comercial",
+    loadingText: "Carregando modos comerciais...",
+  },
+];
+
 const buildDurationFallbackFromPosts = (posts: any[]): DurationFallbackData => {
   const bucketTotals = new Map<DurationBucketKey, { postsCount: number; totalInteractions: number }>(
     DURATION_BUCKETS.map((bucket) => [bucket.key, { postsCount: 0, totalInteractions: 0 }])
@@ -1325,35 +1496,7 @@ const toVideoProxyUrl = (raw?: string | null) => {
   return raw;
 };
 
-const normalizePost = (post: any) => {
-  const formatRaw = toArray(post?.format).length ? toArray(post?.format) : toArray(post?.mediaType);
-  const format = formatRaw.map((f) => f.trim());
-  const proposal = toArray(post?.proposal);
-  const context = toArray(post?.context);
-  const tone = toArray(post?.tone);
-  const references = toArray(post?.references ?? post?.reference);
-  const metaLabel = [
-    format.length ? `Formato: ${format.join(", ")}` : null,
-    proposal.length ? `Proposta: ${proposal.join(", ")}` : null,
-    context.length ? `Contexto: ${context.join(", ")}` : null,
-    tone.length ? `Tom: ${tone.join(", ")}` : null,
-    references.length ? `Ref: ${references.join(", ")}` : null,
-  ]
-    .filter(Boolean)
-    .join(" • ");
-
-  return {
-    ...post,
-    format,
-    proposal,
-    context,
-    tone,
-    references,
-    metaLabel,
-    postDate: post?.postDate,
-    stats: post?.stats ?? {},
-  };
-};
+const normalizePost = normalizePlanningPost;
 
 const filterPostsByWeek = (posts: any[], weekKey: string | null) => {
   const target = normalizeWeekKey(weekKey);
@@ -1617,6 +1760,97 @@ const StrategicHeroCard = ({
     </article>
   );
 };
+
+function CategoryPerformanceCard({
+  config,
+  rows,
+  isLoading,
+  isMobileViewport,
+  primaryMetricShortLabel,
+  primaryMetricUnitLabel,
+  onCategoryClick,
+}: {
+  config: CategoryCardConfig;
+  rows: CategoryBarDatum[];
+  isLoading: boolean;
+  isMobileViewport: boolean;
+  primaryMetricShortLabel: string;
+  primaryMetricUnitLabel: string;
+  onCategoryClick: (field: CategoryField, value: string, subtitle: string) => void;
+}) {
+  return (
+    <article className={cardBase}>
+      <header className="flex items-center justify-between gap-3">
+        <div className={chartHeaderTextClassName}>
+          <h2 className="text-base font-semibold text-slate-900">{config.title}</h2>
+        </div>
+        <Sparkles className="h-5 w-5 text-slate-500" />
+      </header>
+      <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
+        {isLoading ? (
+          <p className="text-sm text-slate-500">{config.loadingText}</p>
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-slate-500">{config.emptyText}</p>
+        ) : isMobileViewport ? (
+          <MobileBarList
+            items={rows.map((item) => ({
+              id: item.name,
+              label: item.name,
+              value: item.value,
+              postsCount: item.postsCount,
+            }))}
+            emptyText={config.emptyText}
+            accentClassName={config.accentClassName}
+            valueFormatter={(value) => numberFormatter.format(Math.round(value))}
+            onSelect={(item) =>
+              onCategoryClick(config.field, item.label, `${primaryMetricShortLabel} por ${config.subtitle.toLowerCase()}`)
+            }
+          />
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={rows}
+              layout="vertical"
+              margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
+              style={{ cursor: "pointer" }}
+            >
+              <XAxis type="number" hide />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tickLine={false}
+                axisLine={false}
+                tick={{ fill: "#475569", fontSize: 12 }}
+                width={140}
+              />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar
+                dataKey="value"
+                name={primaryMetricUnitLabel}
+                fill={config.color}
+                radius={[0, 6, 6, 0]}
+                onClick={(state: any) => {
+                  const value = state?.payload?.name ? String(state.payload.name) : null;
+                  if (value) {
+                    onCategoryClick(config.field, value, `${primaryMetricShortLabel} por ${config.subtitle.toLowerCase()}`);
+                  }
+                }}
+              >
+                <LabelList
+                  dataKey="value"
+                  position="right"
+                  formatter={(value: number) => numberFormatter.format(Math.round(value))}
+                  fill="#64748b"
+                  fontSize={11}
+                />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    </article>
+  );
+}
 
 const sortPostsByDateDesc = (posts: any[]) =>
   posts.slice().sort((a, b) => {
@@ -1883,6 +2117,12 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   const toneData = chartsBatchData?.toneData;
   const referenceData = chartsBatchData?.referenceData;
   const contextData = chartsBatchData?.contextData;
+  const contentIntentData = chartsBatchData?.contentIntentData as CategoryDataResponse | undefined;
+  const narrativeFormData = chartsBatchData?.narrativeFormData as CategoryDataResponse | undefined;
+  const contentSignalsData = chartsBatchData?.contentSignalsData as CategoryDataResponse | undefined;
+  const stanceData = chartsBatchData?.stanceData as CategoryDataResponse | undefined;
+  const proofStyleData = chartsBatchData?.proofStyleData as CategoryDataResponse | undefined;
+  const commercialModeData = chartsBatchData?.commercialModeData as CategoryDataResponse | undefined;
   const metricMeta = chartsBatchData?.metricMeta as
     | {
         field?: string;
@@ -2057,7 +2297,13 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     !hasCategoryDataWithCounts(proposalData?.chartData) ||
     !hasCategoryDataWithCounts(toneData?.chartData) ||
     !hasCategoryDataWithCounts(referenceData?.chartData) ||
-    !hasCategoryDataWithCounts(contextData?.chartData);
+    !hasCategoryDataWithCounts(contextData?.chartData) ||
+    !hasCategoryDataWithCounts(contentIntentData?.chartData) ||
+    !hasCategoryDataWithCounts(narrativeFormData?.chartData) ||
+    !hasCategoryDataWithCounts(contentSignalsData?.chartData) ||
+    !hasCategoryDataWithCounts(stanceData?.chartData) ||
+    !hasCategoryDataWithCounts(proofStyleData?.chartData) ||
+    !hasCategoryDataWithCounts(commercialModeData?.chartData);
 
   const { data: pagedPostsData } = useSWR(
     activeUserId && page > 1 && requiresExtendedPosts && !fetchedPagesRef.current.has(page)
@@ -2327,7 +2573,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   );
 
   const handleCategoryClick = React.useCallback(
-    (field: "format" | "proposal" | "context" | "tone" | "references", value: string, subtitle: string) => {
+    (field: CategoryField, value: string, subtitle: string) => {
       const posts = sortPostsByDateDesc(filterPostsByCategory(normalizedPosts, field, value));
       openSliceModal({
         title: `Posts com ${field}: ${value}`,
@@ -2759,10 +3005,75 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     () => (contextData?.chartData || []).slice(0, 6) as Array<{ name: string; value: number; postsCount?: number }>,
     [contextData]
   );
+  const contentIntentBarsFromApi = useMemo(
+    () =>
+      (contentIntentData?.chartData || []).slice(0, 6) as Array<{
+        name: string;
+        value: number;
+        postsCount?: number;
+      }>,
+    [contentIntentData]
+  );
+  const narrativeFormBarsFromApi = useMemo(
+    () =>
+      (narrativeFormData?.chartData || []).slice(0, 6) as Array<{
+        name: string;
+        value: number;
+        postsCount?: number;
+      }>,
+    [narrativeFormData]
+  );
+  const contentSignalsBarsFromApi = useMemo(
+    () =>
+      (contentSignalsData?.chartData || []).slice(0, 6) as Array<{
+        name: string;
+        value: number;
+        postsCount?: number;
+      }>,
+    [contentSignalsData]
+  );
+  const stanceBarsFromApi = useMemo(
+    () =>
+      (stanceData?.chartData || []).slice(0, 6) as Array<{
+        name: string;
+        value: number;
+        postsCount?: number;
+      }>,
+    [stanceData]
+  );
+  const proofStyleBarsFromApi = useMemo(
+    () =>
+      (proofStyleData?.chartData || []).slice(0, 6) as Array<{
+        name: string;
+        value: number;
+        postsCount?: number;
+      }>,
+    [proofStyleData]
+  );
+  const commercialModeBarsFromApi = useMemo(
+    () =>
+      (commercialModeData?.chartData || []).slice(0, 6) as Array<{
+        name: string;
+        value: number;
+        postsCount?: number;
+      }>,
+    [commercialModeData]
+  );
 
   const needsCategoryFallback = useMemo(() => {
     if (!showAdvancedSections) return false;
-    if (!proposalBarsFromApi.length || !toneBarsFromApi.length || !referenceBarsFromApi.length || !contextBarsFromApi.length) {
+    if (
+      !proposalBarsFromApi.length ||
+      !toneBarsFromApi.length ||
+      !referenceBarsFromApi.length ||
+      !contextBarsFromApi.length ||
+      !contentIntentBarsFromApi.length ||
+      !narrativeFormBarsFromApi.length ||
+      !contentSignalsBarsFromApi.length ||
+      !stanceBarsFromApi.length ||
+      !proofStyleBarsFromApi.length ||
+      !commercialModeBarsFromApi.length
+    ) {
       return true;
     }
     const hasMissingCount = (bars: Array<{ postsCount?: number }>) =>
@@ -2771,9 +3082,27 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
       hasMissingCount(proposalBarsFromApi) ||
       hasMissingCount(toneBarsFromApi) ||
       hasMissingCount(referenceBarsFromApi) ||
-      hasMissingCount(contextBarsFromApi)
+      hasMissingCount(contextBarsFromApi) ||
+      hasMissingCount(contentIntentBarsFromApi) ||
+      hasMissingCount(narrativeFormBarsFromApi) ||
+      hasMissingCount(contentSignalsBarsFromApi) ||
+      hasMissingCount(stanceBarsFromApi) ||
+      hasMissingCount(proofStyleBarsFromApi) ||
+      hasMissingCount(commercialModeBarsFromApi)
     );
-  }, [proposalBarsFromApi, toneBarsFromApi, referenceBarsFromApi, contextBarsFromApi, showAdvancedSections]);
+  }, [
+    commercialModeBarsFromApi,
+    contentIntentBarsFromApi,
+    contentSignalsBarsFromApi,
+    contextBarsFromApi,
+    narrativeFormBarsFromApi,
+    proofStyleBarsFromApi,
+    proposalBarsFromApi,
+    referenceBarsFromApi,
+    showAdvancedSections,
+    stanceBarsFromApi,
+    toneBarsFromApi,
+  ]);
 
   const categoryFallback = useMemo(() => {
     if (!needsCategoryFallback) return null;
@@ -2782,6 +3111,12 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
       tone: aggregateAverageInteractionsByCategory(normalizedPosts, "tone"),
       references: aggregateAverageInteractionsByCategory(normalizedPosts, "references"),
       context: aggregateAverageInteractionsByCategory(normalizedPosts, "context"),
+      contentIntent: aggregateAverageInteractionsByCategory(normalizedPosts, "contentIntent"),
+      narrativeForm: aggregateAverageInteractionsByCategory(normalizedPosts, "narrativeForm"),
+      contentSignals: aggregateAverageInteractionsByCategory(normalizedPosts, "contentSignals"),
+      stance: aggregateAverageInteractionsByCategory(normalizedPosts, "stance"),
+      proofStyle: aggregateAverageInteractionsByCategory(normalizedPosts, "proofStyle"),
+      commercialMode: aggregateAverageInteractionsByCategory(normalizedPosts, "commercialMode"),
     };
   }, [needsCategoryFallback, normalizedPosts]);
 
@@ -2812,6 +3147,42 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     }
     return (categoryFallback?.context || []).slice(0, 6);
   }, [contextBarsFromApi, categoryFallback]);
+  const contentIntentBars = useMemo(() => {
+    if (contentIntentBarsFromApi.length) {
+      return hydrateBarsWithCounts(contentIntentBarsFromApi, categoryFallback?.contentIntent);
+    }
+    return (categoryFallback?.contentIntent || []).slice(0, 6);
+  }, [contentIntentBarsFromApi, categoryFallback]);
+  const narrativeFormBars = useMemo(() => {
+    if (narrativeFormBarsFromApi.length) {
+      return hydrateBarsWithCounts(narrativeFormBarsFromApi, categoryFallback?.narrativeForm);
+    }
+    return (categoryFallback?.narrativeForm || []).slice(0, 6);
+  }, [narrativeFormBarsFromApi, categoryFallback]);
+  const contentSignalsBars = useMemo(() => {
+    if (contentSignalsBarsFromApi.length) {
+      return hydrateBarsWithCounts(contentSignalsBarsFromApi, categoryFallback?.contentSignals);
+    }
+    return (categoryFallback?.contentSignals || []).slice(0, 6);
+  }, [contentSignalsBarsFromApi, categoryFallback]);
+  const stanceBars = useMemo(() => {
+    if (stanceBarsFromApi.length) {
+      return hydrateBarsWithCounts(stanceBarsFromApi, categoryFallback?.stance);
+    }
+    return (categoryFallback?.stance || []).slice(0, 6);
+  }, [stanceBarsFromApi, categoryFallback]);
+  const proofStyleBars = useMemo(() => {
+    if (proofStyleBarsFromApi.length) {
+      return hydrateBarsWithCounts(proofStyleBarsFromApi, categoryFallback?.proofStyle);
+    }
+    return (categoryFallback?.proofStyle || []).slice(0, 6);
+  }, [proofStyleBarsFromApi, categoryFallback]);
+  const commercialModeBars = useMemo(() => {
+    if (commercialModeBarsFromApi.length) {
+      return hydrateBarsWithCounts(commercialModeBarsFromApi, categoryFallback?.commercialMode);
+    }
+    return (categoryFallback?.commercialMode || []).slice(0, 6);
+  }, [commercialModeBarsFromApi, categoryFallback]);
   const contextExecutiveSummary = useMemo(
     () => buildCategoryExecutiveSummary(contextBars, "contexto"),
     [contextBars]
@@ -2881,25 +3252,13 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
 
   const topDiscovery = useMemo(() => {
     if (!showAdvancedSections) return [];
-    const posts = Array.isArray(postsSource) ? postsSource : [];
+    const posts = normalizedPosts;
     const normalizeCategories = (value: any): string[] =>
       Array.isArray(value)
         ? value.filter(Boolean).map((v) => String(v))
         : value
           ? [String(value)]
           : [];
-    const buildMetaLabel = (p: any) => {
-      const pieces = [
-        { label: "Proposta", values: normalizeCategories(p?.proposal) },
-        { label: "Contexto", values: normalizeCategories(p?.context) },
-        { label: "Tom", values: normalizeCategories(p?.tone) },
-        { label: "Referência", values: normalizeCategories(p?.references) },
-        { label: "Formato", values: normalizeCategories(p?.format) },
-      ]
-        .map(({ label, values }) => (values.length ? `${label}: ${values.join(", ")}` : null))
-        .filter(Boolean);
-      return pieces.join(" • ");
-    };
     return posts
       .map((p: any) => {
         const nf = (() => {
@@ -2914,12 +3273,18 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
         const pv = toNumber(p?.stats?.profile_visits);
         const reach = toNumber(p?.stats?.reach);
         if (nf === null && pv === null) return null;
-        const metaLabel = buildMetaLabel(p);
+        const metaLabel = p?.metaLabel || "";
         const proposal = normalizeCategories(p?.proposal);
         const context = normalizeCategories(p?.context);
         const tone = normalizeCategories(p?.tone);
         const reference = normalizeCategories(p?.references);
         const format = normalizeCategories(p?.format);
+        const contentIntent = normalizeCategories(p?.contentIntent);
+        const narrativeForm = normalizeCategories(p?.narrativeForm);
+        const contentSignals = normalizeCategories(p?.contentSignals);
+        const stance = normalizeCategories(p?.stance);
+        const proofStyle = normalizeCategories(p?.proofStyle);
+        const commercialMode = normalizeCategories(p?.commercialMode);
         const mediaType = String(p?.type || "").toUpperCase();
         const isVideo =
           mediaType === "VIDEO" ||
@@ -2938,6 +3303,12 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
           tone,
           reference,
           format,
+          contentIntent,
+          narrativeForm,
+          contentSignals,
+          stance,
+          proofStyle,
+          commercialMode,
           postLink,
           videoUrl,
           nf,
@@ -2962,6 +3333,12 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
         tone: string[];
         reference: string[];
         format: string[];
+        contentIntent: string[];
+        narrativeForm: string[];
+        contentSignals: string[];
+        stance: string[];
+        proofStyle: string[];
+        commercialMode: string[];
         postLink?: string | null;
         videoUrl?: string | null;
         nf: number | null;
@@ -2973,7 +3350,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
         saves: number;
         thumbnail?: string | null;
       }>;
-  }, [postsSource, showAdvancedSections]);
+  }, [normalizedPosts, showAdvancedSections]);
 
   const heatmap = useMemo(() => {
     if (!showAdvancedSections) return [];
@@ -3480,19 +3857,19 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   const strategicDecisionLine = useMemo(() => {
     if (waitingImpactRecommendation && topStrategicAction && waitingImpactRecommendation.id !== topStrategicAction.id) {
       return waitingImpactSummary
-        ? `${waitingImpactSummary.text} Enquanto isso, siga com ${RECOMMENDATION_TITLE_OVERRIDES[topStrategicAction.id] || topStrategicAction.title}.`
-        : `Você já fez ${RECOMMENDATION_TITLE_OVERRIDES[waitingImpactRecommendation.id] || waitingImpactRecommendation.title}. Enquanto espera o resultado, siga com ${RECOMMENDATION_TITLE_OVERRIDES[topStrategicAction.id] || topStrategicAction.title}.`;
+        ? `${waitingImpactSummary.text} Enquanto isso, faça ${RECOMMENDATION_TITLE_OVERRIDES[topStrategicAction.id] || topStrategicAction.title}.`
+        : `Você já fez ${RECOMMENDATION_TITLE_OVERRIDES[waitingImpactRecommendation.id] || waitingImpactRecommendation.title}. Agora faça ${RECOMMENDATION_TITLE_OVERRIDES[topStrategicAction.id] || topStrategicAction.title}.`;
     }
     if (waitingImpactRecommendation) {
-      return waitingImpactSummary?.text || `Você já fez ${RECOMMENDATION_TITLE_OVERRIDES[waitingImpactRecommendation.id] || waitingImpactRecommendation.title}. Agora espere o resultado antes de abrir uma nova frente.`;
+      return waitingImpactSummary?.text || `Você já fez ${RECOMMENDATION_TITLE_OVERRIDES[waitingImpactRecommendation.id] || waitingImpactRecommendation.title}. Agora espere o resultado.`;
     }
     if (recentlyExecutedRecommendation && topStrategicAction && recentlyExecutedRecommendation.id !== topStrategicAction.id) {
-      return `A última ação já foi feita. Agora siga com ${RECOMMENDATION_TITLE_OVERRIDES[topStrategicAction.id] || topStrategicAction.title}.`;
+      return `A última ação já foi feita. Agora faça ${RECOMMENDATION_TITLE_OVERRIDES[topStrategicAction.id] || topStrategicAction.title}.`;
     }
     if (directioningSummary?.headline) return directioningSummary.headline;
-    if (!topStrategicAction) return "Ainda não há uma prioridade clara nesta semana.";
+    if (!topStrategicAction) return "Ainda sem prioridade clara.";
     if (recommendationActions.length > 0 && appliedRecommendationCount >= recommendationActions.length) {
-      return "Tudo desta lista já foi feito. Agora espere os próximos dados.";
+      return "Tudo desta lista já foi feito. Espere os próximos dados.";
     }
     if ((topStrategicAction as any).strategicSynopsis) {
       return (topStrategicAction as any).strategicSynopsis;
@@ -3500,9 +3877,9 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
 
     const focusTitle = RECOMMENDATION_TITLE_OVERRIDES[topStrategicAction.id] || topStrategicAction.title;
     if (topStrategicAction.hasLowSampleGuardrail) {
-      return `Comece testando ${focusTitle}.`;
+      return `Teste ${focusTitle}.`;
     }
-    return `Agora, foque em ${focusTitle}.`;
+    return `Faça ${focusTitle}.`;
   }, [
     appliedRecommendationCount,
     directioningSummary?.headline,
@@ -3515,19 +3892,19 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   const directioningDiagnosisCards = useMemo(() => {
     const cards = [
       {
-        title: "O que vimos",
+        title: "Por quê",
         body: directioningSummary?.comparison?.narrative || directioningSummary?.primarySignal?.text || interactionsDeltaSummary.text,
       },
       {
-        title: "Quão confiável é",
+        title: "Base",
         body: directioningSummary?.compositeConfidence?.summary || directioningSummary?.confidence?.description || (topStrategicAction
           ? `${formatSampleBaseText(topStrategicAction.sampleSize)} • ${confidenceLabel[topStrategicAction.confidenceAdjusted].toLowerCase()}`
-          : "Ainda faltam dados para confiar nessa leitura."),
+          : "Ainda falta base para confiar nisso."),
       },
     ];
     if (metricMeta?.isProxy && metricMeta?.description) {
       cards.push({
-        title: "Como ler isso",
+        title: "Cuidado",
         body: metricMeta.description,
       });
     }
@@ -3547,79 +3924,93 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     if (topStrategicAction?.whatNotToDo) return topStrategicAction.whatNotToDo;
     return "Não teste muitas coisas ao mesmo tempo.";
   }, [directioningSummary?.noGoLine, topStrategicAction]);
-  const directioningPriorityLabel = useMemo(() => {
-    if (directioningSummary?.priorityLabel) return directioningSummary.priorityLabel;
-    if (!topStrategicAction) return "Sem prioridade";
-    return RECOMMENDATION_TITLE_OVERRIDES[topStrategicAction.id] || topStrategicAction.title;
-  }, [directioningSummary?.priorityLabel, topStrategicAction]);
   const contentTabBrief = useMemo<TabBrief>(() => {
-    const strongestLeader = getStrongestLeader([
+    const editorialLeader = getStrongestLeader([
       { dimension: "contexto", rows: contextBars, tone: contextExecutiveSummary.tone },
       { dimension: "proposta", rows: proposalBars, tone: proposalExecutiveSummary.tone },
       { dimension: "tom", rows: toneBars, tone: toneExecutiveSummary.tone },
     ]);
-    if (!strongestLeader?.top?.name) {
+    const strategicLeader = getStrongestLeader([
+      { dimension: "intenção", rows: contentIntentBars, tone: "neutral" },
+      { dimension: "narrativa", rows: narrativeFormBars, tone: "neutral" },
+      { dimension: "postura", rows: stanceBars, tone: "neutral" },
+      { dimension: "prova", rows: proofStyleBars, tone: "neutral" },
+    ]);
+    const supportLeader = getStrongestLeader([
+      { dimension: "sinal", rows: contentSignalsBars, tone: "neutral" },
+      { dimension: "modo comercial", rows: commercialModeBars, tone: "neutral" },
+    ]);
+
+    if (!editorialLeader?.top?.name && !strategicLeader?.top?.name) {
       return {
         eyebrow: "O que postar",
         headline: "Ainda não repita uma linha só.",
         bulletPoints: [
-          "Os sinais ainda se dividem entre proposta, contexto e tom.",
-          "Seu ganho agora vem de manter o teste estável, não de abrir novas variações.",
+          "Ainda não existe um caminho claro.",
+          "Agora vale testar menos coisas ao mesmo tempo.",
         ],
-        action: "Fixe uma proposta, um contexto e um tom por alguns posts.",
-        supportingNote: "Trocar muitas variáveis agora só aumenta ruído.",
+        action: "Fixe uma ideia por alguns posts.",
+        supportingNote: "Trocar muita coisa agora só confunde a leitura.",
         statusChip: "Exploração",
       };
     }
-    const leaderName = strongestLeader.top.name;
-    const sampleLabel = formatActionSample(strongestLeader.top.postsCount);
-    const statusChipByDimension: Record<string, string> = {
-      contexto: "Contexto",
-      proposta: "Proposta",
-      tom: "Tom",
-    };
-    const meaningByDimension: Record<string, string> = {
-      contexto: `${leaderName} está ajudando o tema a entrar pelo ângulo que mais prende atenção.`,
-      proposta: `${leaderName} está deixando mais claro o valor da postagem.`,
-      tom: `${leaderName} está tornando a mensagem mais convincente do que as alternativas.`,
-    };
-    const actionByDimension: Record<string, string> = {
-      contexto: `Repita ${leaderName} por 2 ou 3 posts antes de abrir outro contexto.`,
-      proposta: `Repita ${leaderName} antes de trocar proposta e tom ao mesmo tempo.`,
-      tom: `Use ${leaderName} em sequência e compare só com um tom alternativo.`,
-    };
+    const primaryLeader = strategicLeader || editorialLeader;
+    const secondaryLeader = primaryLeader === editorialLeader ? strategicLeader : editorialLeader;
+    const hasDistinctSecondary = Boolean(
+      secondaryLeader?.top?.name &&
+        (secondaryLeader.top.name !== primaryLeader?.top?.name || secondaryLeader.dimension !== primaryLeader?.dimension)
+    );
+    const leaderName = primaryLeader?.top?.name || "linha líder";
+    const primaryMeaning = getContentLeaderMeaning(primaryLeader?.dimension, leaderName);
+    const primarySampleLabel = formatActionSample(primaryLeader?.top?.postsCount);
+    const secondaryMeaning =
+      hasDistinctSecondary && secondaryLeader?.top?.name
+        ? getContentLeaderMeaning(secondaryLeader.dimension, secondaryLeader.top.name)
+        : null;
+    const secondarySampleLabel =
+      hasDistinctSecondary && secondaryLeader?.top?.name
+        ? formatActionSample(secondaryLeader.top.postsCount)
+        : null;
+    const supportNoteLeader =
+      supportLeader?.top?.name && supportLeader.top.name !== leaderName
+        ? `${getContentDimensionLabel(supportLeader.dimension)} em destaque: ${supportLeader.top.name}${
+            formatActionSample(supportLeader.top.postsCount) ? ` (${formatActionSample(supportLeader.top.postsCount)})` : ""
+          }.`
+        : null;
     const supportingNote =
-      typeof strongestLeader.top.postsCount === "number" && strongestLeader.top.postsCount < 5
-        ? `${sampleLabel || "Base curta"}. Confirme antes de expandir essa linha.`
-        : sampleLabel
-          ? `${sampleLabel}. Use isso para decidir a próxima sequência.`
-          : "Use isso para decidir a próxima sequência, não para congelar a linha editorial.";
+      typeof primaryLeader?.top?.postsCount === "number" && primaryLeader.top.postsCount < 5
+        ? `${primarySampleLabel || "Base curta"}. Confirme antes de expandir essa linha.${supportNoteLeader ? ` ${supportNoteLeader}` : ""}`
+        : primarySampleLabel
+          ? `${primarySampleLabel}. Use isso para decidir a próxima sequência.${supportNoteLeader ? ` ${supportNoteLeader}` : ""}`
+          : `Use isso para decidir a próxima sequência, não para congelar a linha editorial.${supportNoteLeader ? ` ${supportNoteLeader}` : ""}`;
     return {
-      eyebrow: "O que postar",
+      eyebrow: "O que repetir",
       headline: `Repita ${leaderName}.`,
       bulletPoints: [
-        meaningByDimension[strongestLeader.dimension] ||
-          `${leaderName} é o sinal mais útil para orientar a próxima sequência.`,
-        typeof strongestLeader.top.postsCount === "number" && strongestLeader.top.postsCount < 5
-          ? "Vale confirmar primeiro antes de transformar isso em padrão."
-          : "Esse é hoje o caminho mais seguro para repetir sem embaralhar a leitura.",
+        primaryMeaning,
+        hasDistinctSecondary && secondaryMeaning
+          ? `${secondaryMeaning}${secondarySampleLabel ? ` ${secondarySampleLabel}.` : ""}`
+          : typeof primaryLeader?.top?.postsCount === "number" && primaryLeader.top.postsCount < 5
+          ? "Confirme isso antes de virar padrão."
+          : "Hoje, esse é o caminho mais seguro.",
       ],
-      action:
-        strongestLeader.dimension === "contexto"
-          ? `Use por 2 ou 3 posts antes de trocar o contexto.`
-          : strongestLeader.dimension === "proposta"
-            ? `Repita antes de trocar proposta e tom juntos.`
-            : strongestLeader.dimension === "tom"
-              ? `Use em sequência e compare com só um tom alternativo.`
-              : `Repita ${leaderName} por alguns posts antes de abrir novas hipóteses.`,
+      action: hasDistinctSecondary && secondaryLeader?.top?.name
+        ? `Junte ${leaderName} com ${secondaryLeader.top.name} nos próximos 2 ou 3 posts.`
+        : getContentLeaderAction(primaryLeader?.dimension, leaderName),
       supportingNote,
-      statusChip: statusChipByDimension[strongestLeader.dimension] || "Conteúdo",
+      statusChip: getContentLeaderStatusChip(primaryLeader?.dimension),
     };
   }, [
+    commercialModeBars,
+    contentIntentBars,
     contextBars,
     contextExecutiveSummary.tone,
+    contentSignalsBars,
+    narrativeFormBars,
+    proofStyleBars,
     proposalBars,
     proposalExecutiveSummary.tone,
+    stanceBars,
     toneBars,
     toneExecutiveSummary.tone,
   ]);
@@ -3651,32 +4042,32 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                     ? "Ainda não feche um padrão de execução."
                     : "Ainda não repita um padrão só.";
     return {
-      eyebrow: "Formato & timing",
+      eyebrow: "Como postar",
       headline: strategicSetup,
       bulletPoints: [
-        "Quando formato, horário e duração apontam juntos, o teste fica mais limpo e comparável.",
+        "Quando formato, horário e duração andam juntos, fica mais fácil repetir.",
         durationSummary.durationCoverageRate < 0.7
-          ? `A leitura de duração ainda cobre só ${(durationSummary.durationCoverageRate * 100).toFixed(0)}% dos vídeos.`
+          ? `A leitura de duração cobre só ${(durationSummary.durationCoverageRate * 100).toFixed(0)}% dos vídeos.`
           : lowSampleDurationBuckets > 0
-            ? `${lowSampleDurationBuckets} faixa(s) ainda têm pouca base para fechar uma regra de execução.`
-            : "Esse padrão reduz dispersão e ajuda a saber se o ganho veio mesmo da execução.",
+            ? `${lowSampleDurationBuckets} faixa(s) ainda têm pouca base.`
+            : "Esse padrão ajuda a repetir o que funciona.",
       ],
       action:
         bestHour !== null && bestDurationBucket?.label && bestFormat?.name
           ? "Publique 2 ou 3 posts nesse padrão."
           : bestHour !== null && bestDurationBucket?.label
-            ? "Publique 2 ou 3 posts nesse padrão."
-            : "Fixe esse padrão por alguns posts.",
+          ? "Publique 2 ou 3 posts nesse padrão."
+          : "Fixe esse padrão por alguns posts.",
       supportingNote:
         benchmarkNote
           ? benchmarkNote
           : durationSample
             ? `${durationSample}.`
           : durationSummary.durationCoverageRate < 0.7
-            ? `A leitura de duração cobre ${(durationSummary.durationCoverageRate * 100).toFixed(0)}% dos vídeos. Ainda falta base para fechar regra.`
+            ? `A leitura de duração cobre ${(durationSummary.durationCoverageRate * 100).toFixed(0)}% dos vídeos.`
             : lowSampleDurationBuckets > 0
-              ? `${lowSampleDurationBuckets} faixa(s) ainda têm poucos posts comparáveis.`
-              : "Timing melhora a entrega, mas não compensa uma mensagem fraca.",
+              ? `${lowSampleDurationBuckets} faixa(s) ainda têm pouca base.`
+              : "Horário ajuda, mas não salva uma ideia fraca.",
       statusChip:
         bestFormat?.name || (bestDurationBucket?.label ? `Faixa ${bestDurationBucket.label}` : bestHour !== null ? `${bestHour}h` : "Execução"),
     };
@@ -3783,7 +4174,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
         : strategyMatrix.attractsCount > strategyMatrix.nurturesCount
           ? "Mantenha o que atrai e ajuste a mensagem."
           : strategyMatrix.nurturesCount > 0
-            ? "Pegue o que responde bem e melhore a distribuição."
+            ? "Pegue o que responde bem e aumente a entrega."
             : "Ainda não abra novas frentes.";
     const discoveryMeaning =
       objectiveMode === "leads"
@@ -3793,25 +4184,25 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
       strategyMatrix.attractsCount > strategyMatrix.nurturesCount
         ? "Ajuste a mensagem antes de trocar o tema."
         : strategyMatrix.nurturesCount > strategyMatrix.attractsCount
-          ? "Teste uma embalagem mais distribuível nesse tipo de post."
+          ? "Mude a abertura desse tipo de post antes de trocar a ideia."
           : "Repita esse padrão antes de testar novas variações.";
     return {
-      eyebrow: "Sua audiência",
+      eyebrow: "Resposta do público",
       headline: balanceFact,
       bulletPoints: [
         discoveryMeaning,
         strategyMatrix.winnerCount > 0
-          ? "Eles já mostraram que conseguem distribuir e gerar reação ao mesmo tempo."
+          ? "Esses posts já mostraram alcance e resposta juntos."
           : strategyMatrix.attractsCount > strategyMatrix.nurturesCount
-            ? "O gargalo agora está mais na mensagem do que na distribuição."
+            ? "O problema está mais na mensagem."
             : strategyMatrix.nurturesCount > 0
-              ? "O gargalo agora está mais na distribuição do que na qualidade da resposta."
-              : "Ainda falta padrão para separar o que só atrai do que realmente responde.",
+              ? "O problema está mais na entrega."
+              : "Ainda falta padrão claro.",
       ],
       action,
       supportingNote: metricMeta?.isProxy
-        ? `Parte desta leitura usa um sinal indireto: ${metricMeta.description}`
-        : "Alcance alto sozinho não prova interesse forte.",
+        ? `Parte desta leitura é estimada: ${metricMeta.description}`
+        : "Alcance alto sozinho não prova interesse.",
       statusChip:
         strategyMatrix.winnerCount > 0
           ? "Equilíbrio"
@@ -3837,7 +4228,17 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   }, [activeTab, audienceTabBrief, contentTabBrief, formatTabBrief]);
   const currentTabGuardrails = useMemo<string[]>(() => {
     if (activeTab === "content") {
-      const lowSampleLeader = [contextBars[0], proposalBars[0], toneBars[0]].find(
+      const lowSampleLeader = [
+        contextBars[0],
+        proposalBars[0],
+        toneBars[0],
+        contentIntentBars[0],
+        narrativeFormBars[0],
+        stanceBars[0],
+        proofStyleBars[0],
+        contentSignalsBars[0],
+        commercialModeBars[0],
+      ].find(
         (item) => typeof item?.postsCount === "number" && item.postsCount > 0 && item.postsCount < 5
       );
         const notes = [
@@ -3864,7 +4265,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     if (activeTab === "audience") {
       const notes = [
         metricMeta?.isProxy
-          ? `Parte desta leitura usa proxy: ${metricMeta.description}`
+          ? `Parte desta leitura é estimada: ${metricMeta.description}`
           : "Alcance alto não prova resposta forte.",
         "Post de descoberta pode não ser o mesmo post de conversão.",
       ];
@@ -3874,19 +4275,25 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     const notes = [
       directioningNoGoLine,
       metricMeta?.isProxy && metricMeta?.description
-        ? `Parte dessa leitura usa um sinal indireto: ${metricMeta.description}`
+        ? `Parte dessa leitura é estimada: ${metricMeta.description}`
         : "Faça a ação principal antes de abrir novas interpretações.",
     ];
     return notes.filter(Boolean) as string[];
   }, [
     activeTab,
+    commercialModeBars,
+    contentIntentBars,
+    contentSignalsBars,
     contextBars,
     directioningNoGoLine,
     durationSummary.durationCoverageRate,
     lowSampleDurationBuckets,
     metricMeta?.description,
     metricMeta?.isProxy,
+    narrativeFormBars,
+    proofStyleBars,
     proposalBars,
+    stanceBars,
     toneBars,
   ]);
   const objectiveLabel = OBJECTIVE_OPTIONS.find((option) => option.value === objectiveMode)?.label || "Engajamento";
@@ -4085,7 +4492,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 </span>
                 {metricMeta?.isProxy && (
                   <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
-                    Métrica proxy
+                    Métrica estimada
                   </span>
                 )}
               </div>
@@ -4157,7 +4564,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
             <div className="space-y-4 sm:hidden">
               {recommendationsFeatureEnabled ? (
                 <section className="space-y-2">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Objetivo estratégico</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Meta</p>
                   <div className="grid grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5">
                     {OBJECTIVE_OPTIONS.map((opt) => (
                       <button
@@ -4227,7 +4634,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
             >
-              Direcionamento
+              Próximo passo
             </button>
             <button
               onClick={() => handleTabChange("content")}
@@ -4268,7 +4675,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                     {recommendationsFeatureEnabled ? (
                       <section className="space-y-3">
                         <StrategicHeroCard
-                          eyebrow="Foco agora"
+                          eyebrow="Próximo passo"
                           headline={strategicDecisionLine}
                           footer={
                             topStrategicAction ? (
@@ -4278,9 +4685,6 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 >
                                   {queueStageLabel[topStrategicAction.queueStage]}
                                 </span>
-                                <span className="font-semibold uppercase tracking-[0.12em] text-indigo-100">
-                                  {directioningPriorityLabel}
-                                </span>
                               </div>
                             ) : null
                           }
@@ -4288,7 +4692,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           <div className="space-y-0.5 text-sm leading-relaxed text-white/80">
                             {directioningDiagnosisCards.map((card) => (
                               <p key={card.title}>
-                                <span className="font-semibold text-white">{card.title}:</span> {card.body}
+                                <span className="font-semibold text-white">{card.title}:</span> {simplifyEvidenceText(card.body)}
                               </p>
                             ))}
                           </div>
@@ -4298,12 +4702,16 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           <div className="space-y-1 pb-2.5">
                             <div className="flex items-center gap-2">
                               <Target className="h-4 w-4 text-slate-400" />
-                              <h3 className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">O que fazer</h3>
+                              <h3 className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Antes de agir</h3>
                             </div>
+                            <p className="max-w-2xl text-[11px] leading-relaxed text-slate-500">
+                              Faça uma coisa por vez.
+                            </p>
                             <p className="max-w-2xl text-[11px] leading-relaxed text-slate-400">
-                              Evite {directioningNoGoLine.toLowerCase()}{" "}
-                              <span className="text-slate-300">•</span>{" "}
-                              {currentTabGuardrails[1] || "Faça a ação principal antes de abrir novos testes."}
+                              {directioningNoGoLine}
+                            </p>
+                            <p className="max-w-2xl text-[11px] leading-relaxed text-slate-400">
+                              {currentTabGuardrails[1] || "Feche essa ação antes de abrir outra."}
                             </p>
                           </div>
 
@@ -4311,7 +4719,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                             {loadingBatch ? (
                               <p className="text-sm text-slate-500">Carregando plano de ação...</p>
                             ) : recommendationActions.length === 0 ? (
-                              <p className="text-sm text-slate-500">Sem tarefas pendentes no momento. Volte após novos posts.</p>
+                              <p className="text-sm text-slate-500">Sem ação aberta agora. Volte quando entrar post novo.</p>
                             ) : (
                               recommendationActions.map((item, index) => {
                                 const actionFeedbackKey = String(item.feedbackKey || item.id || "").trim().toLowerCase();
@@ -4371,7 +4779,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                               onClick={() => openRecommendationEvidence(item)}
                                               className="inline-flex min-h-[28px] items-center justify-center gap-1 rounded-md px-1.5 text-[11px] font-semibold text-indigo-700 transition hover:bg-slate-100 hover:text-indigo-800"
                                             >
-                                              Ler análise
+                                              Ver motivo
                                               <ArrowUpRight className="h-3.5 w-3.5" />
                                             </button>
                                           </div>
@@ -4410,7 +4818,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                           onClick={() => openRecommendationEvidence(item)}
                                           className="inline-flex min-h-[28px] items-center justify-center gap-1 rounded-md px-1.5 text-[11px] font-semibold text-indigo-700 transition hover:bg-slate-100 hover:text-indigo-800"
                                         >
-                                          Ler análise
+                                          Ver motivo
                                           <ArrowUpRight className="h-3.5 w-3.5" />
                                         </button>
                                       </div>
@@ -4424,7 +4832,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                       </section>
                     ) : (
                       <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center">
-                        <p className="text-sm text-slate-500">O Direcionamento Estratégico não está disponível no momento.</p>
+                        <p className="text-sm text-slate-500">Sem próximo passo claro por enquanto.</p>
                       </div>
                     )}
                   </div>
@@ -4445,189 +4853,237 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 ) : null}
 	                {activeTab === "content" && (
 	                  <div className="space-y-4">
-	                    <section>
-	                    <div className="grid gap-4 md:grid-cols-2">
-                      <article className={cardBase}>
-                        <header className="flex items-center justify-between gap-3">
-                          <div className={chartHeaderTextClassName}>
-                            <h2 className="text-base font-semibold text-slate-900">Proposta</h2>
+                    <section className="space-y-3">
+                      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Também olhe</p>
+                        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                          Proposta, tema, tom e referência ajudam a lapidar a ideia.
+                        </p>
+                      </div>
+                      <div className="space-y-3">
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <article className={cardBase}>
+                          <header className="flex items-center justify-between gap-3">
+                            <div className={chartHeaderTextClassName}>
+                              <h2 className="text-base font-semibold text-slate-900">Proposta</h2>
+                              <p className="text-xs text-slate-500">Apoio</p>
+                            </div>
+                            <Sparkles className="h-5 w-5 text-indigo-500" />
+                          </header>
+                          <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
+                            {loadingProposal ? (
+                              <p className="text-sm text-slate-500">Carregando propostas...</p>
+                            ) : proposalBars.length === 0 ? (
+                              <p className="text-sm text-slate-500">Sem propostas registradas no período.</p>
+                            ) : isMobileViewport ? (
+                              <MobileBarList
+                                items={proposalBars.map((item) => ({
+                                  id: item.name,
+                                  label: item.name,
+                                  value: item.value,
+                                  postsCount: item.postsCount,
+                                }))}
+                                emptyText="Sem propostas registradas no período."
+                                accentClassName="bg-indigo-500"
+                                valueFormatter={(value) => numberFormatter.format(Math.round(value))}
+                                onSelect={(item) => handleCategoryClick("proposal", item.label, `${primaryMetricShortLabel} por proposta`)}
+                              />
+                            ) : (
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart
+                                  data={proposalBars}
+                                  layout="vertical"
+                                  margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
+                                  style={{ cursor: "pointer" }}
+                                >
+                                  <XAxis type="number" hide />
+                                  <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
+                                  <Tooltip contentStyle={tooltipStyle} />
+                                  <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#6366f1" radius={[0, 6, 6, 0]} onClick={(state: any) => { const val = state?.payload?.name ? String(state.payload.name) : null; if (val) handleCategoryClick("proposal", val, `${primaryMetricShortLabel} por proposta`); }}>
+                                    <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
+                                  </Bar>
+                                </BarChart>
+                              </ResponsiveContainer>
+                            )}
                           </div>
-                          <Sparkles className="h-5 w-5 text-indigo-500" />
-                        </header>
-                        <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
-                          {loadingProposal ? (
-                            <p className="text-sm text-slate-500">Carregando propostas...</p>
-                          ) : proposalBars.length === 0 ? (
-                            <p className="text-sm text-slate-500">Sem propostas registradas no período.</p>
-                          ) : isMobileViewport ? (
-                            <MobileBarList
-                              items={proposalBars.map((item) => ({
-                                id: item.name,
-                                label: item.name,
-                                value: item.value,
-                                postsCount: item.postsCount,
-                              }))}
-                              emptyText="Sem propostas registradas no período."
-                              accentClassName="bg-indigo-500"
-                              valueFormatter={(value) => numberFormatter.format(Math.round(value))}
-                              onSelect={(item) => handleCategoryClick("proposal", item.label, `${primaryMetricShortLabel} por proposta`)}
-                            />
-                          ) : (
-                            <ResponsiveContainer width="100%" height="100%">
-                              <BarChart
-                                data={proposalBars}
-                                layout="vertical"
-                                margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
-                                style={{ cursor: "pointer" }}
-                              >
-                                <XAxis type="number" hide />
-                                <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
-                                <Tooltip contentStyle={tooltipStyle} />
-                                <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#6366f1" radius={[0, 6, 6, 0]} onClick={(state: any) => { const val = state?.payload?.name ? String(state.payload.name) : null; if (val) handleCategoryClick("proposal", val, `${primaryMetricShortLabel} por proposta`); }}>
-                                  <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
-                                </Bar>
-                              </BarChart>
-                            </ResponsiveContainer>
-                          )}
-                        </div>
-                      </article>
-                      <article className={cardBase}>
-                        <header className="flex items-center justify-between gap-3">
-                          <div className={chartHeaderTextClassName}>
-                            <h2 className="text-base font-semibold text-slate-900">Contexto</h2>
+                        </article>
+                        <article className={cardBase}>
+                          <header className="flex items-center justify-between gap-3">
+                            <div className={chartHeaderTextClassName}>
+                              <h2 className="text-base font-semibold text-slate-900">Tema</h2>
+                              <p className="text-xs text-slate-500">Apoio</p>
+                            </div>
+                            <Target className="h-5 w-5 text-slate-600" />
+                          </header>
+                          <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
+                            {loadingPosts ? (
+                              <p className="text-sm text-slate-500">Carregando temas...</p>
+                            ) : contextBars.length === 0 ? (
+                              <p className="text-sm text-slate-500">Sem temas registrados no período.</p>
+                            ) : isMobileViewport ? (
+                              <MobileBarList
+                                items={contextBars.map((item) => ({
+                                  id: item.name,
+                                  label: item.name,
+                                  value: item.value,
+                                  postsCount: item.postsCount,
+                                }))}
+                                emptyText="Sem temas registrados no período."
+                                accentClassName="bg-sky-500"
+                                valueFormatter={(value) => numberFormatter.format(Math.round(value))}
+                                onSelect={(item) => handleCategoryClick("context", item.label, `${primaryMetricShortLabel} por tema`)}
+                              />
+                            ) : (
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart
+                                  data={contextBars}
+                                  layout="vertical"
+                                  margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
+                                  style={{ cursor: "pointer" }}
+                                >
+                                  <XAxis type="number" hide />
+                                  <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
+                                  <Tooltip contentStyle={tooltipStyle} />
+                                  <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#0ea5e9" radius={[0, 6, 6, 0]} onClick={(state: any) => { const val = state?.payload?.name ? String(state.payload.name) : null; if (val) handleCategoryClick("context", val, `${primaryMetricShortLabel} por tema`); }}>
+                                    <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
+                                  </Bar>
+                                </BarChart>
+                              </ResponsiveContainer>
+                            )}
                           </div>
-                          <Target className="h-5 w-5 text-slate-600" />
-                        </header>
-                        <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
-                          {loadingPosts ? (
-                            <p className="text-sm text-slate-500">Carregando contextos...</p>
-                          ) : contextBars.length === 0 ? (
-                            <p className="text-sm text-slate-500">Sem contextos registrados no período.</p>
-                          ) : isMobileViewport ? (
-                            <MobileBarList
-                              items={contextBars.map((item) => ({
-                                id: item.name,
-                                label: item.name,
-                                value: item.value,
-                                postsCount: item.postsCount,
-                              }))}
-                              emptyText="Sem contextos registrados no período."
-                              accentClassName="bg-sky-500"
-                              valueFormatter={(value) => numberFormatter.format(Math.round(value))}
-                              onSelect={(item) => handleCategoryClick("context", item.label, `${primaryMetricShortLabel} por contexto`)}
-                            />
-                          ) : (
-                            <ResponsiveContainer width="100%" height="100%">
-                              <BarChart
-                                data={contextBars}
-                                layout="vertical"
-                                margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
-                                style={{ cursor: "pointer" }}
-                              >
-                                <XAxis type="number" hide />
-                                <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
-                                <Tooltip contentStyle={tooltipStyle} />
-                                <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#0ea5e9" radius={[0, 6, 6, 0]} onClick={(state: any) => { const val = state?.payload?.name ? String(state.payload.name) : null; if (val) handleCategoryClick("context", val, `${primaryMetricShortLabel} por contexto`); }}>
-                                  <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
-                                </Bar>
-                              </BarChart>
-                            </ResponsiveContainer>
-                          )}
-                        </div>
-                      </article>
-                    </div>
+                        </article>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <article className={cardBase}>
+                          <header className="flex items-center justify-between gap-3">
+                            <div className={chartHeaderTextClassName}>
+                              <h2 className="text-base font-semibold text-slate-900">Tom</h2>
+                              <p className="text-xs text-slate-500">Apoio</p>
+                            </div>
+                            <Sparkles className="h-5 w-5 text-emerald-500" />
+                          </header>
+                          <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
+                            {loadingTone ? (
+                              <p className="text-sm text-slate-500">Carregando tons...</p>
+                            ) : toneBars.length === 0 ? (
+                              <p className="text-sm text-slate-500">Sem tons registrados no período.</p>
+                            ) : isMobileViewport ? (
+                              <MobileBarList
+                                items={toneBars.map((item) => ({
+                                  id: item.name,
+                                  label: item.name,
+                                  value: item.value,
+                                  postsCount: item.postsCount,
+                                }))}
+                                emptyText="Sem tons registrados no período."
+                                accentClassName="bg-emerald-500"
+                                valueFormatter={(value) => numberFormatter.format(Math.round(value))}
+                                onSelect={(item) => handleCategoryClick("tone", item.label, `${primaryMetricShortLabel} por tom`)}
+                              />
+                            ) : (
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart
+                                  data={toneBars}
+                                  layout="vertical"
+                                  margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
+                                  style={{ cursor: "pointer" }}
+                                >
+                                  <XAxis type="number" hide />
+                                  <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
+                                  <Tooltip contentStyle={tooltipStyle} />
+                                  <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#10b981" radius={[0, 6, 6, 0]} onClick={(state: any) => { const val = state?.payload?.name ? String(state.payload.name) : null; if (val) handleCategoryClick("tone", val, `${primaryMetricShortLabel} por tom`); }}>
+                                    <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
+                                  </Bar>
+                                </BarChart>
+                              </ResponsiveContainer>
+                            )}
+                          </div>
+                        </article>
+                        <article className={cardBase}>
+                          <header className="flex items-center justify-between gap-3">
+                            <div className={chartHeaderTextClassName}>
+                              <h2 className="text-base font-semibold text-slate-900">Referência</h2>
+                              <p className="text-xs text-slate-500">Apoio</p>
+                            </div>
+                            <Sparkles className="h-5 w-5 text-amber-500" />
+                          </header>
+                          <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
+                            {loadingReference ? (
+                              <p className="text-sm text-slate-500">Carregando referências...</p>
+                            ) : referenceBars.length === 0 ? (
+                              <p className="text-sm text-slate-500">Sem referências registradas.</p>
+                            ) : isMobileViewport ? (
+                              <MobileBarList
+                                items={referenceBars.map((item) => ({
+                                  id: item.name,
+                                  label: item.name,
+                                  value: item.value,
+                                  postsCount: item.postsCount,
+                                }))}
+                                emptyText="Sem referências registradas."
+                                accentClassName="bg-amber-500"
+                                valueFormatter={(value) => numberFormatter.format(Math.round(value))}
+                                onSelect={(item) => handleCategoryClick("references", item.label, `${primaryMetricShortLabel} por referência`)}
+                              />
+                            ) : (
+                              <ResponsiveContainer width="100%" height="100%">
+                                <BarChart
+                                  data={referenceBars}
+                                  layout="vertical"
+                                  margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
+                                  style={{ cursor: "pointer" }}
+                                >
+                                  <XAxis type="number" hide />
+                                  <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
+                                  <Tooltip contentStyle={tooltipStyle} />
+                                  <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#f59e0b" radius={[0, 6, 6, 0]} onClick={(state: any) => { const val = state?.payload?.name ? String(state.payload.name) : null; if (val) handleCategoryClick("references", val, `${primaryMetricShortLabel} por referência legada`); }}>
+                                    <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
+                                  </Bar>
+                                </BarChart>
+                              </ResponsiveContainer>
+                            )}
+                          </div>
+                        </article>
+                      </div>
+                      </div>
                     </section>
-                    <section>
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <article className={cardBase}>
-                        <header className="flex items-center justify-between gap-3">
-                          <div className={chartHeaderTextClassName}>
-                            <h2 className="text-base font-semibold text-slate-900">Tom</h2>
-                          </div>
-                          <Sparkles className="h-5 w-5 text-emerald-500" />
-                        </header>
-                        <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
-                          {loadingTone ? (
-                            <p className="text-sm text-slate-500">Carregando tons...</p>
-                          ) : toneBars.length === 0 ? (
-                            <p className="text-sm text-slate-500">Sem tons registrados no período.</p>
-                          ) : isMobileViewport ? (
-                            <MobileBarList
-                              items={toneBars.map((item) => ({
-                                id: item.name,
-                                label: item.name,
-                                value: item.value,
-                                postsCount: item.postsCount,
-                              }))}
-                              emptyText="Sem tons registrados no período."
-                              accentClassName="bg-emerald-500"
-                              valueFormatter={(value) => numberFormatter.format(Math.round(value))}
-                              onSelect={(item) => handleCategoryClick("tone", item.label, `${primaryMetricShortLabel} por tom`)}
+                    <section className="space-y-3">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">O que mais pesa</p>
+                        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+                          Aqui vale olhar objetivo, jeito de contar, prova e venda.
+                        </p>
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {STRATEGIC_CATEGORY_CARDS.map((config) => {
+                          const rowsByField: Record<CategoryCardConfig["field"], CategoryBarDatum[]> = {
+                            format: [],
+                            proposal: [],
+                            context: [],
+                            tone: [],
+                            references: [],
+                            contentIntent: contentIntentBars,
+                            narrativeForm: narrativeFormBars,
+                            contentSignals: contentSignalsBars,
+                            stance: stanceBars,
+                            proofStyle: proofStyleBars,
+                            commercialMode: commercialModeBars,
+                          };
+
+                          return (
+                            <CategoryPerformanceCard
+                              key={config.field}
+                              config={config}
+                              rows={rowsByField[config.field] || []}
+                              isLoading={loadingPosts}
+                              isMobileViewport={isMobileViewport}
+                              primaryMetricShortLabel={primaryMetricShortLabel}
+                              primaryMetricUnitLabel={primaryMetricUnitLabel}
+                              onCategoryClick={handleCategoryClick}
                             />
-                          ) : (
-                            <ResponsiveContainer width="100%" height="100%">
-                              <BarChart
-                                data={toneBars}
-                                layout="vertical"
-                                margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
-                                style={{ cursor: "pointer" }}
-                              >
-                                <XAxis type="number" hide />
-                                <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
-                                <Tooltip contentStyle={tooltipStyle} />
-                                <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#10b981" radius={[0, 6, 6, 0]} onClick={(state: any) => { const val = state?.payload?.name ? String(state.payload.name) : null; if (val) handleCategoryClick("tone", val, `${primaryMetricShortLabel} por tom`); }}>
-                                  <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
-                                </Bar>
-                              </BarChart>
-                            </ResponsiveContainer>
-                          )}
-                        </div>
-                      </article>
-                      <article className={cardBase}>
-                        <header className="flex items-center justify-between gap-3">
-                          <div className={chartHeaderTextClassName}>
-                            <h2 className="text-base font-semibold text-slate-900">Referência</h2>
-                          </div>
-                          <Sparkles className="h-5 w-5 text-amber-500" />
-                        </header>
-                        <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
-                          {loadingReference ? (
-                            <p className="text-sm text-slate-500">Carregando referências...</p>
-                          ) : referenceBars.length === 0 ? (
-                            <p className="text-sm text-slate-500">Sem referências registradas.</p>
-                          ) : isMobileViewport ? (
-                            <MobileBarList
-                              items={referenceBars.map((item) => ({
-                                id: item.name,
-                                label: item.name,
-                                value: item.value,
-                                postsCount: item.postsCount,
-                              }))}
-                              emptyText="Sem referências registradas."
-                              accentClassName="bg-amber-500"
-                              valueFormatter={(value) => numberFormatter.format(Math.round(value))}
-                              onSelect={(item) => handleCategoryClick("references", item.label, `${primaryMetricShortLabel} por referência`)}
-                            />
-                          ) : (
-                            <ResponsiveContainer width="100%" height="100%">
-                              <BarChart
-                                data={referenceBars}
-                                layout="vertical"
-                                margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
-                                style={{ cursor: "pointer" }}
-                              >
-                                <XAxis type="number" hide />
-                                <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
-                                <Tooltip contentStyle={tooltipStyle} />
-                                <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#f59e0b" radius={[0, 6, 6, 0]} onClick={(state: any) => { const val = state?.payload?.name ? String(state.payload.name) : null; if (val) handleCategoryClick("references", val, `${primaryMetricShortLabel} por referência`); }}>
-                                  <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
-                                </Bar>
-                              </BarChart>
-                            </ResponsiveContainer>
-                          )}
-                        </div>
-                      </article>
-                    </div>
+                          );
+                        })}
+                      </div>
                     </section>
                   </div>
                 )}
@@ -5463,7 +5919,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
 		                        <div className="mt-3 grid gap-2 text-sm text-slate-700">
 		                          <div className="rounded-xl bg-slate-50 px-3 py-2"><strong className="text-slate-900">Azul escuro:</strong> repetir.</div>
 		                          <div className="rounded-xl bg-slate-50 px-3 py-2"><strong className="text-slate-900">Azul claro:</strong> atrai, mas pede ajuste de mensagem.</div>
-		                          <div className="rounded-xl bg-slate-50 px-3 py-2"><strong className="text-slate-900">Verde:</strong> responde bem, mas precisa mais distribuição.</div>
+		                          <div className="rounded-xl bg-slate-50 px-3 py-2"><strong className="text-slate-900">Verde:</strong> responde bem, mas precisa de mais alcance.</div>
 		                        </div>
 		                      </article>
                         </div>
@@ -5884,7 +6340,11 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                     {selectedRecommendation.nextStep || selectedRecommendation.action}
                   </h3>
                   <p className="text-sm leading-relaxed text-indigo-100/90">
-                    {selectedRecommendation.meaning || selectedRecommendation.strategicSynopsis || "Resumo direto para orientar a próxima ação."}
+                    {simplifyEvidenceText(
+                      selectedRecommendation.meaning ||
+                        selectedRecommendation.strategicSynopsis ||
+                        "Resumo direto para orientar a próxima ação."
+                    )}
                   </p>
                   <p className="text-xs font-medium text-indigo-100/70">
                     {buildRecommendationMetaLine({
@@ -5900,11 +6360,11 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-4">
                 <div className="mb-2 flex items-center gap-2">
                   <Database className="h-4 w-4 text-indigo-500" />
-                  <h4 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Por que isso apareceu</h4>
+                  <h4 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Por que fazer isso</h4>
                 </div>
                 <p className="text-sm font-semibold text-slate-900">{formatSampleBaseText(selectedRecommendationView?.sampleSize)}</p>
                 <p className="mt-1 text-[11px] font-medium text-slate-500">
-                  Leitura {confidenceLabel[selectedRecommendationView?.confidenceAdjusted || selectedRecommendation.confidence]?.toLowerCase()}
+                  Sinal {confidenceLabel[selectedRecommendationView?.confidenceAdjusted || selectedRecommendation.confidence]?.toLowerCase()}
                 </p>
                 {directioningSummary?.compositeConfidence?.label ? (
                   <p className="mt-1 text-[11px] font-medium text-slate-500">
@@ -5916,7 +6376,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 ) : null}
                 <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
                   <div className="rounded-xl bg-slate-50 px-3 py-2">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">O que olhamos</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Métrica</p>
                     <p className="mt-1 text-sm font-medium text-slate-900">{selectedRecommendation.metricLabel || primaryMetricLabel}</p>
                   </div>
                   <div className="rounded-xl bg-slate-50 px-3 py-2">
@@ -5938,7 +6398,10 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                         Você marcou isso em {formatShortDateTime(selectedRecommendationView.feedbackUpdatedAt)}.
                       </p>
                       <p className="text-sm leading-relaxed text-slate-700">
-                        {selectedRecommendationImpactSummary?.text || `Desde então: ${directioningSummary?.primarySignal?.text || strategicDecisionLine}`}
+                        {simplifyEvidenceText(
+                          selectedRecommendationImpactSummary?.text ||
+                            `Desde então: ${directioningSummary?.primarySignal?.text || strategicDecisionLine}`
+                        )}
                       </p>
                       {selectedRecommendationImpactSummary &&
                       typeof selectedRecommendationImpactSummary.beforeAvg === "number" &&
@@ -5955,7 +6418,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-4">
                 <div className="mb-3 flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-indigo-400" />
-                  <h4 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">O que chamou atenção</h4>
+                  <h4 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Por que isso faz sentido</h4>
                 </div>
                 <div className="space-y-3">
                   {selectedRecommendation.evidence.length ? (
@@ -5975,7 +6438,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                   ) : null}
                   {directioningSummary?.compositeConfidence?.factors?.length ? (
                     <div className="border-t border-slate-100 pt-3">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Também olhamos</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Também entrou</p>
                       <p className="mt-1.5 text-sm leading-relaxed text-slate-700">
                         {directioningSummary.compositeConfidence.factors
                           .slice(0, 2)
@@ -6002,15 +6465,15 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-4">
                   <div className="mb-3 flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-indigo-500" />
-                    <h4 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Se quiser confirmar</h4>
+                    <h4 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Como validar</h4>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2">
                     <div className="rounded-xl bg-slate-50 px-3 py-2.5">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Como saber se funcionou</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Sinal de que deu certo</p>
                       <p className="mt-1 text-sm leading-relaxed text-slate-700">{selectedRecommendation.experimentPlan.successSignal}</p>
                     </div>
                     <div className="rounded-xl bg-slate-50 px-3 py-2.5">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Quantos posts usar</p>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Quantos posts</p>
                       <p className="mt-1 text-sm leading-relaxed text-slate-700">{selectedRecommendation.experimentPlan.sampleGoal}</p>
                     </div>
                   </div>
@@ -6020,7 +6483,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
 
             <div className="sticky bottom-0 z-10 -mx-1 border-t border-slate-200 bg-white/95 px-1 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] pt-3 backdrop-blur">
               <div className="mx-auto max-w-lg space-y-2">
-                <p className="text-center text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">O que você quer fazer</p>
+                <p className="text-center text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Marcar</p>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"

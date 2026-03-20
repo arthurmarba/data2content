@@ -6,10 +6,10 @@ import heroAnswers from "@/data/heroAnswers";
 
 // Complementa com perguntas/pedidos específicos citados pelo usuário
 const extraQuestions = [
-  "Quais Propostas performam melhor por hora do dia?",
-  "Crie um calendário com Formato, Contexto, Tom e Referência por dia.",
+  "Quais intenções performam melhor por hora do dia?",
+  "Crie um calendário com Formato, Intenção, Narrativa e Contexto por dia.",
   "Qual janela otimiza retenção de Reels no meu nicho?",
-  "Quais combinações Proposta+Tom+Formato geram mais salvamentos?",
+  "Quais combinações de Intenção+Narrativa+Formato geram mais salvamentos?",
 ];
 
 const questionsForLogin = Array.from(new Set([...extraQuestions, ...heroQuestions]));

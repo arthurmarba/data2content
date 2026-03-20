@@ -3,6 +3,8 @@ import OpenAI from 'openai';
 import { getBlockSampleCaptions } from '@/utils/getBlockSampleCaptions';
 import { PlannerCategories } from '@/types/planner';
 import { getCategoryById } from '@/app/lib/classification';
+import { getV2CategoryById } from '@/app/lib/classificationV2';
+import { getV25CategoryById } from '@/app/lib/classificationV2_5';
 import { generateThemes as generateThemesAI } from '@/app/lib/planner/ai';
 
 type SlotThemesResult = { keyword: string; themes: string[] };
@@ -41,8 +43,14 @@ function categoriesCacheSignature(categories: PlannerCategories): string {
   const context = stableIdList(categories.context);
   const proposal = stableIdList(categories.proposal);
   const reference = stableIdList(categories.reference);
+  const contentIntent = stableIdList(categories.contentIntent);
+  const narrativeForm = stableIdList(categories.narrativeForm);
+  const contentSignals = stableIdList(categories.contentSignals);
+  const stance = stableIdList(categories.stance);
+  const proofStyle = stableIdList(categories.proofStyle);
+  const commercialMode = stableIdList(categories.commercialMode);
   const tone = String(categories.tone || '').trim();
-  return `ctx=${context}|prop=${proposal}|ref=${reference}|tone=${tone}`;
+  return `ctx=${context}|prop=${proposal}|ref=${reference}|tone=${tone}|intent=${contentIntent}|narr=${narrativeForm}|signal=${contentSignals}|stance=${stance}|proof=${proofStyle}|commercial=${commercialMode}`;
 }
 
 function buildSlotThemesCacheKey(params: {
@@ -192,16 +200,47 @@ export function buildThemeStyleHints(cats: PlannerCategories): string[] {
   const hints: string[] = [];
   const proposals = (cats.proposal || []).map(p => p.toLowerCase());
   const contexts = (cats.context || []).map(c => c.toLowerCase());
+  const intents = (cats.contentIntent || []).map((value) => value.toLowerCase());
+  const narratives = (cats.narrativeForm || []).map((value) => value.toLowerCase());
+  const signals = (cats.contentSignals || []).map((value) => value.toLowerCase());
+  const stance = (cats.stance || []).map((value) => value.toLowerCase());
+  const proof = (cats.proofStyle || []).map((value) => value.toLowerCase());
+  const commercial = (cats.commercialMode || []).map((value) => value.toLowerCase());
   const tone = (cats.tone || '').toLowerCase();
 
   const hasP = (id: string) => proposals.includes(id);
   const hasC = (id: string) => contexts.includes(id);
+  const hasIntent = (id: string) => intents.includes(id);
+  const hasNarrative = (id: string) => narratives.includes(id);
+  const hasSignal = (id: string) => signals.includes(id);
+  const hasStance = (id: string) => stance.includes(id);
+  const hasProof = (id: string) => proof.includes(id);
+  const hasCommercial = (id: string) => commercial.includes(id);
 
-  if (hasP('comparison')) hints.push('comparison', 'use VS quando fizer sentido');
+  if (hasP('comparison') || hasNarrative('comparison') || hasStance('comparative')) {
+    hints.push('comparison', 'use VS quando fizer sentido');
+  }
   if (hasC('regional_stereotypes')) hints.push('regional_vs', 'use carioca vs paulista se adequado');
-  if (hasC('relationships_family')) hints.push('couple', 'situações de casal (namorado/namorada)');
-  if (hasP('tutorial') || hasP('how_to') || hasP('tips') || hasP('guide') || hasP('educational')) hints.push('how_to', '3 passos práticos no dia a dia');
-  if (hasP('humor_scene')) hints.push('humor_scene', 'cotidiano com humor');
+  if (hasC('relationships_family') || hasIntent('connect')) hints.push('couple', 'situações de casal (namorado/namorada)');
+  if (
+    hasP('tutorial') ||
+    hasP('how_to') ||
+    hasP('tips') ||
+    hasP('guide') ||
+    hasP('educational') ||
+    hasIntent('teach') ||
+    hasIntent('build_authority') ||
+    hasNarrative('tutorial')
+  ) {
+    hints.push('how_to', '3 passos práticos no dia a dia');
+  }
+  if (hasP('humor_scene') || hasNarrative('sketch_scene') || hasIntent('entertain')) {
+    hints.push('humor_scene', 'cotidiano com humor');
+  }
+  if (hasProof('before_after')) hints.push('before_after', 'mostre contraste claro entre antes e depois');
+  if (hasProof('myth_busting') || hasStance('questioning')) hints.push('myth_busting', 'quebre mito com contraste simples');
+  if (hasCommercial('product_launch') || hasIntent('announce')) hints.push('launch', 'abertura, estreia ou novidade concreta');
+  if (hasSignal('trend_participation')) hints.push('trend_participation', 'aproveite trend sem perder clareza');
   if (/humor|sarcas|ironia|comedia/.test(tone)) hints.push('humor');
 
   return Array.from(new Set(hints)).slice(0, 8);
@@ -222,17 +261,39 @@ function composeThemes(keyword: string, cats: PlannerCategories): string[] {
   push(`aprenda ${baseKw} do zero (simples)`);
 
   const props = (cats.proposal || []).map(p => p.toLowerCase());
+  const intents = (cats.contentIntent || []).map((value) => value.toLowerCase());
+  const narratives = (cats.narrativeForm || []).map((value) => value.toLowerCase());
+  const proof = (cats.proofStyle || []).map((value) => value.toLowerCase());
+  const commercial = (cats.commercialMode || []).map((value) => value.toLowerCase());
   const has = (id: string) => props.includes(id);
+  const hasIntent = (id: string) => intents.includes(id);
+  const hasNarrative = (id: string) => narratives.includes(id);
+  const hasProof = (id: string) => proof.includes(id);
+  const hasCommercial = (id: string) => commercial.includes(id);
 
-  if (has('announcement') || has('news')) {
+  if (has('announcement') || has('news') || hasIntent('announce') || hasCommercial('product_launch')) {
     push(`${baseKw} hoje: o que mudou agora`);
     push(`novidades de ${baseKw} que você precisa saber`);
   }
-  if (has('comparison')) {
+  if (has('comparison') || hasNarrative('comparison')) {
     push(`${baseKw} prós e contras (rápido)`);
   }
-  if (has('tutorial') || has('how_to') || has('tips') || has('guide') || has('educational')) {
+  if (
+    has('tutorial') ||
+    has('how_to') ||
+    has('tips') ||
+    has('guide') ||
+    has('educational') ||
+    hasIntent('teach') ||
+    hasNarrative('tutorial')
+  ) {
     push(`${baseKw} no dia a dia (aplique hoje)`);
+  }
+  if (hasProof('before_after')) {
+    push(`${baseKw}: antes e depois que muda o resultado`);
+  }
+  if (hasProof('myth_busting')) {
+    push(`o mito sobre ${baseKw} que ainda trava muita gente`);
   }
 
   const toneId = (cats.tone || '').toLowerCase();
@@ -247,7 +308,7 @@ function composeThemes(keyword: string, cats: PlannerCategories): string[] {
 
 // ---------- Fallback de keyword a partir das categorias ----------
 function fallbackKeywordFromCategories(categories: PlannerCategories): string {
-  const pickFromLabel = (id: string|undefined, dim: 'context'|'proposal') => {
+  const pickFromLegacyLabel = (id: string|undefined, dim: 'context'|'proposal') => {
     if (!id) return '';
     const lbl = getCategoryById(id, dim)?.label || id;
     const toks = String(lbl).split(/[^\p{L}\p{N}]+/u)
@@ -256,9 +317,25 @@ function fallbackKeywordFromCategories(categories: PlannerCategories): string {
     // prioriza a mais longa; empate por ordem
     return toks.sort((a,b)=> b.norm.length - a.norm.length || a.disp.localeCompare(b.disp))[0]?.disp || '';
   };
+  const pickFromStrategicLabel = (id: string | undefined, dim: 'contentIntent' | 'narrativeForm' | 'proofStyle' | 'commercialMode') => {
+    if (!id) return '';
+    const category =
+      dim === 'contentIntent' || dim === 'narrativeForm'
+        ? getV2CategoryById(id, dim)
+        : getV25CategoryById(id, dim);
+    const lbl = category?.label || id;
+    const toks = String(lbl).split(/[^\p{L}\p{N}]+/u)
+      .map(t => ({ norm: normalizeToken(t), disp: t.toLowerCase() }))
+      .filter(t => t.norm.length >= 4 && !PT_STOPWORDS.has(t.norm) && !isAllDigits(t.norm));
+    return toks.sort((a,b)=> b.norm.length - a.norm.length || a.disp.localeCompare(b.disp))[0]?.disp || '';
+  };
 
-  return pickFromLabel(categories.proposal?.[0], 'proposal')
-      || pickFromLabel(categories.context?.[0], 'context')
+  return pickFromLegacyLabel(categories.context?.[0], 'context')
+      || pickFromStrategicLabel(categories.proofStyle?.[0], 'proofStyle')
+      || pickFromStrategicLabel(categories.narrativeForm?.[0], 'narrativeForm')
+      || pickFromStrategicLabel(categories.contentIntent?.[0], 'contentIntent')
+      || pickFromStrategicLabel(categories.commercialMode?.[0], 'commercialMode')
+      || pickFromLegacyLabel(categories.proposal?.[0], 'proposal')
       || 'tema';
 }
 
@@ -349,9 +426,17 @@ async function computeThemesForSlot(
 
   // Tokens a evitar a partir dos rótulos de categorias
   const excludeTokens = new Set<string>();
-  const collectFromLabel = (id?: string, dim?: 'context'|'proposal'|'reference'|'tone') => {
+  const collectFromLabel = (
+    id?: string,
+    dim?: 'context'|'proposal'|'reference'|'tone'|'contentIntent'|'narrativeForm'|'proofStyle'|'commercialMode'
+  ) => {
     if (!id) return;
-    const lbl = getCategoryById(id, dim as any)?.label || id;
+    const lbl =
+      dim === 'contentIntent' || dim === 'narrativeForm'
+        ? getV2CategoryById(id, dim)?.label || id
+        : dim === 'proofStyle' || dim === 'commercialMode'
+          ? getV25CategoryById(id, dim)?.label || id
+          : getCategoryById(id, dim as any)?.label || id;
     const parts = String(lbl).split(/[^\p{L}\p{N}]+/u).map(normalizeToken).filter(Boolean);
     parts.forEach(p => excludeTokens.add(p));
     excludeTokens.add(normalizeToken(String(lbl)));
@@ -360,6 +445,10 @@ async function computeThemesForSlot(
   (categories.proposal || []).forEach(id => collectFromLabel(id, 'proposal'));
   (categories.reference || []).forEach(id => collectFromLabel(id, 'reference'));
   if (categories.tone) collectFromLabel(categories.tone, 'tone');
+  (categories.contentIntent || []).forEach(id => collectFromLabel(id, 'contentIntent'));
+  (categories.narrativeForm || []).forEach(id => collectFromLabel(id, 'narrativeForm'));
+  (categories.proofStyle || []).forEach(id => collectFromLabel(id, 'proofStyle'));
+  (categories.commercialMode || []).forEach(id => collectFromLabel(id, 'commercialMode'));
 
   // 2) Palavra tema (doc frequency + superfície com acento), ignorando termos das categorias
   const { keyword: kwByFreq, count: topCount } = extractTopKeyword(caps, excludeTokens);

@@ -146,12 +146,24 @@ export interface CommunityInspirationFilters {
   format?: FormatType;
   tone?: ToneType;
   reference?: ReferenceType;
+  contentIntent?: string;
+  narrativeForm?: string;
+  contentSignals?: string;
+  stance?: string;
+  proofStyle?: string;
+  commercialMode?: string;
   narrativeQuery?: string;
   userTopCategories?: {
     proposal?: ProposalType[];
     context?: ContextType[];
     format?: FormatType[];
     tone?: ToneType[];
+    contentIntent?: string[];
+    narrativeForm?: string[];
+    contentSignals?: string[];
+    stance?: string[];
+    proofStyle?: string[];
+    commercialMode?: string[];
   };
   primaryObjectiveAchieved_Qualitative?: QualitativeObjectiveType;
   performanceHighlights_Qualitative_INCLUDES_ANY?: PerformanceHighlightType[];

@@ -1,13 +1,21 @@
 import {
   contextCategories,
   formatCategories,
-  proposalCategories,
   referenceCategories,
   toCanonicalCategoryId,
-  toneCategories,
   type Category,
   type CategoryType,
 } from "@/app/lib/classification";
+import {
+  contentIntentCategories,
+  contentSignalCategories,
+  narrativeFormCategories,
+} from "@/app/lib/classificationV2";
+import {
+  commercialModeCategories,
+  proofStyleCategories,
+  stanceCategories,
+} from "@/app/lib/classificationV2_5";
 
 type VisibleOption = {
   id: string;
@@ -37,19 +45,44 @@ const normalizeLabel = (value: string) =>
 
 describe("discover filter catalog", () => {
   const discoverTrees: Array<{
-    type: CategoryType;
-    categories: Category[];
+    type:
+      | CategoryType
+      | "contentIntent"
+      | "narrativeForm"
+      | "contentSignals"
+      | "stance"
+      | "proofStyle"
+      | "commercialMode";
+    categories: Array<Category | { id: string; label: string }>;
   }> = [
     { type: "format", categories: formatCategories },
-    { type: "proposal", categories: proposalCategories },
+    { type: "contentIntent", categories: contentIntentCategories },
     { type: "context", categories: contextCategories },
-    { type: "tone", categories: toneCategories },
+    { type: "narrativeForm", categories: narrativeFormCategories },
+    { type: "proofStyle", categories: proofStyleCategories },
+    { type: "stance", categories: stanceCategories },
+    { type: "commercialMode", categories: commercialModeCategories },
+    { type: "contentSignals", categories: contentSignalCategories },
     { type: "reference", categories: referenceCategories },
   ];
 
+  const isStrategicFlatType = (type: (typeof discoverTrees)[number]["type"]) =>
+    type === "contentIntent" ||
+    type === "narrativeForm" ||
+    type === "contentSignals" ||
+    type === "stance" ||
+    type === "proofStyle" ||
+    type === "commercialMode";
+
   it("exposes only canonical ids across all visible discover filter options", () => {
     for (const { type, categories } of discoverTrees) {
-      const nonCanonical = flattenVisibleOptions(categories).filter(
+      if (isStrategicFlatType(type)) {
+        const duplicates = categories.filter((option) => !option.id);
+        expect(duplicates).toEqual([]);
+        continue;
+      }
+
+      const nonCanonical = flattenVisibleOptions(categories as Category[]).filter(
         (option) => toCanonicalCategoryId(option.id, type) !== option.id
       );
 
@@ -61,8 +94,19 @@ describe("discover filter catalog", () => {
     for (const { type, categories } of discoverTrees) {
       const byCanonicalId = new Map<string, VisibleOption[]>();
 
-      for (const option of flattenVisibleOptions(categories)) {
-        const canonicalId = toCanonicalCategoryId(option.id, type);
+      const options =
+        isStrategicFlatType(type)
+          ? (categories as Array<{ id: string; label: string }>).map((option) => ({
+              id: option.id,
+              label: option.label,
+              parentId: null,
+            }))
+          : flattenVisibleOptions(categories as Category[]);
+
+      for (const option of options) {
+        const canonicalId = isStrategicFlatType(type)
+          ? option.id
+          : toCanonicalCategoryId(option.id, type);
         if (!canonicalId) continue;
         const group = byCanonicalId.get(canonicalId) ?? [];
         group.push(option);
@@ -78,7 +122,15 @@ describe("discover filter catalog", () => {
     for (const { categories } of discoverTrees) {
       const byNormalizedLabel = new Map<string, VisibleOption[]>();
 
-      for (const option of flattenVisibleOptions(categories)) {
+      const options = Array.isArray(categories) && "subcategories" in (categories[0] || {})
+        ? flattenVisibleOptions(categories as Category[])
+        : (categories as Array<{ id: string; label: string }>).map((option) => ({
+            id: option.id,
+            label: option.label,
+            parentId: null,
+          }));
+
+      for (const option of options) {
         const key = normalizeLabel(option.label);
         const group = byNormalizedLabel.get(key) ?? [];
         group.push(option);

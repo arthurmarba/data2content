@@ -1549,6 +1549,12 @@ const extractCommunityInspirations = (history: ChatCompletionMessageParam[]) => 
       format?: string;
       tone?: string;
       reference?: string;
+      contentIntent?: string;
+      narrativeForm?: string;
+      contentSignals?: string;
+      stance?: string;
+      proofStyle?: string;
+      commercialMode?: string;
       primaryObjective?: string;
       narrativeQuery?: string;
     };
@@ -1560,6 +1566,12 @@ const extractCommunityInspirations = (history: ChatCompletionMessageParam[]) => 
         context?: string[];
         format?: string[];
         tone?: string[];
+        contentIntent?: string[];
+        narrativeForm?: string[];
+        contentSignals?: string[];
+        stance?: string[];
+        proofStyle?: string[];
+        commercialMode?: string[];
       };
     };
   } | null = null;
@@ -1586,6 +1598,12 @@ const extractCommunityInspirations = (history: ChatCompletionMessageParam[]) => 
             format: typeof rawFilters.format === 'string' ? rawFilters.format : undefined,
             tone: typeof rawFilters.tone === 'string' ? rawFilters.tone : undefined,
             reference: typeof rawFilters.reference === 'string' ? rawFilters.reference : undefined,
+            contentIntent: typeof rawFilters.contentIntent === 'string' ? rawFilters.contentIntent : undefined,
+            narrativeForm: typeof rawFilters.narrativeForm === 'string' ? rawFilters.narrativeForm : undefined,
+            contentSignals: typeof rawFilters.contentSignals === 'string' ? rawFilters.contentSignals : undefined,
+            stance: typeof rawFilters.stance === 'string' ? rawFilters.stance : undefined,
+            proofStyle: typeof rawFilters.proofStyle === 'string' ? rawFilters.proofStyle : undefined,
+            commercialMode: typeof rawFilters.commercialMode === 'string' ? rawFilters.commercialMode : undefined,
             narrativeQuery: typeof rawFilters.narrativeQuery === 'string' ? rawFilters.narrativeQuery : undefined,
             primaryObjective: typeof rawFilters.primaryObjectiveAchieved_Qualitative === 'string'
               ? rawFilters.primaryObjectiveAchieved_Qualitative
@@ -1607,6 +1625,24 @@ const extractCommunityInspirations = (history: ChatCompletionMessageParam[]) => 
               tone: Array.isArray(rawTopCategories.tone)
                 ? rawTopCategories.tone.map((value: any) => String(value).trim()).filter(Boolean)
                 : undefined,
+              contentIntent: Array.isArray(rawTopCategories.contentIntent)
+                ? rawTopCategories.contentIntent.map((value: any) => String(value).trim()).filter(Boolean)
+                : undefined,
+              narrativeForm: Array.isArray(rawTopCategories.narrativeForm)
+                ? rawTopCategories.narrativeForm.map((value: any) => String(value).trim()).filter(Boolean)
+                : undefined,
+              contentSignals: Array.isArray(rawTopCategories.contentSignals)
+                ? rawTopCategories.contentSignals.map((value: any) => String(value).trim()).filter(Boolean)
+                : undefined,
+              stance: Array.isArray(rawTopCategories.stance)
+                ? rawTopCategories.stance.map((value: any) => String(value).trim()).filter(Boolean)
+                : undefined,
+              proofStyle: Array.isArray(rawTopCategories.proofStyle)
+                ? rawTopCategories.proofStyle.map((value: any) => String(value).trim()).filter(Boolean)
+                : undefined,
+              commercialMode: Array.isArray(rawTopCategories.commercialMode)
+                ? rawTopCategories.commercialMode.map((value: any) => String(value).trim()).filter(Boolean)
+                : undefined,
             },
           },
         };
@@ -1620,9 +1656,12 @@ const extractCommunityInspirations = (history: ChatCompletionMessageParam[]) => 
 
 const describeScriptMatchType = (matchType?: string | null) => {
   const normalized = (matchType || '').toLowerCase();
-  if (normalized === 'exact') return 'match exato de proposta e contexto';
-  if (normalized === 'proposal_only') return 'mesma proposta do pedido';
-  if (normalized === 'context_only' || normalized === 'broad_context') return 'contexto semelhante ao pedido';
+  if (normalized === 'exact') return 'match editorial exato';
+  if (normalized === 'strategic_context') return 'tema semelhante com leitura editorial próxima';
+  if (normalized === 'intent_only') return 'mesma intenção principal do pedido';
+  if (normalized === 'narrative_only') return 'narrativa semelhante ao pedido';
+  if (normalized === 'context_only') return 'tema semelhante ao pedido';
+  if (normalized === 'line_only') return 'linha criativa semelhante';
   return 'referência próxima ao objetivo do roteiro';
 };
 
@@ -1680,6 +1719,12 @@ const buildScriptInspirationHint = (
     proposal?: string;
     context?: string;
     tone?: string;
+    contentIntent?: string;
+    narrativeForm?: string;
+    contentSignals?: string[];
+    stance?: string;
+    proofStyle?: string;
+    commercialMode?: string;
     matchReasons?: string[];
     narrativeScore?: number;
     performanceScore?: number;
@@ -1693,6 +1738,12 @@ const buildScriptInspirationHint = (
       context?: string;
       format?: string;
       tone?: string;
+      contentIntent?: string;
+      narrativeForm?: string;
+      contentSignals?: string;
+      stance?: string;
+      proofStyle?: string;
+      commercialMode?: string;
     };
     rankingSignals?: {
       personalizedByUserPerformance?: boolean;
@@ -1701,6 +1752,12 @@ const buildScriptInspirationHint = (
         context?: string[];
         format?: string[];
         tone?: string[];
+        contentIntent?: string[];
+        narrativeForm?: string[];
+        contentSignals?: string[];
+        stance?: string[];
+        proofStyle?: string[];
+        commercialMode?: string[];
       };
     };
   } | null,
@@ -1741,17 +1798,27 @@ const buildScriptInspirationHint = (
   const preferredPrimary = withRoles.find((item) => item.role === 'gancho') || withRoles[0];
   if (!preferredPrimary) return null;
   const first = preferredPrimary.inspiration;
-  const proposal = meta?.usedFilters?.proposal || first?.proposal;
   const context = meta?.usedFilters?.context || first?.context;
   const format = meta?.usedFilters?.format || first?.format;
   const tone = meta?.usedFilters?.tone || first?.tone;
+  const contentIntent = meta?.usedFilters?.contentIntent || first?.contentIntent;
+  const narrativeForm = meta?.usedFilters?.narrativeForm || first?.narrativeForm;
+  const proofStyle = meta?.usedFilters?.proofStyle || first?.proofStyle;
+  const stance = meta?.usedFilters?.stance || first?.stance;
+  const commercialMode = meta?.usedFilters?.commercialMode || first?.commercialMode;
+  const proposal = meta?.usedFilters?.proposal || first?.proposal;
   const personalized = Boolean(meta?.rankingSignals?.personalizedByUserPerformance);
   const parts = [
     describeScriptMatchType(meta?.matchType),
-    proposal ? `proposta ${proposal}` : null,
+    contentIntent ? `objetivo ${humanizeCategoryToken(contentIntent)}` : null,
+    narrativeForm ? `narrativa ${humanizeCategoryToken(narrativeForm)}` : null,
     context ? `contexto ${context}` : null,
+    proofStyle ? `prova ${humanizeCategoryToken(proofStyle)}` : null,
+    stance ? `postura ${humanizeCategoryToken(stance)}` : null,
+    commercialMode ? `camada comercial ${humanizeCategoryToken(commercialMode)}` : null,
     format ? `formato ${format}` : null,
     tone ? `tom ${tone}` : null,
+    proposal && !contentIntent && !narrativeForm ? `linha ${proposal}` : null,
     personalized ? 'alinhamento com seu histórico de performance' : null,
   ].filter(Boolean);
   const reason = parts.length >= 3
@@ -2898,6 +2965,12 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       format?: string;
       tone?: string;
       reference?: string;
+      contentIntent?: string;
+      narrativeForm?: string;
+      contentSignals?: string[];
+      stance?: string;
+      proofStyle?: string;
+      commercialMode?: string;
       primaryObjective?: string;
       source: 'community';
       linkVerified?: boolean;
@@ -2907,6 +2980,7 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
       postDate?: string;
       narrativeRole?: 'gancho' | 'desenvolvimento' | 'cta';
       matchReasons?: string[];
+      matchAxes?: string[];
     }> = [];
     let communityMeta: {
       matchType?: string;
@@ -2916,6 +2990,12 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
         format?: string;
         tone?: string;
         reference?: string;
+        contentIntent?: string;
+        narrativeForm?: string;
+        contentSignals?: string;
+        stance?: string;
+        proofStyle?: string;
+        commercialMode?: string;
         narrativeQuery?: string;
         primaryObjective?: string;
       };
@@ -2927,6 +3007,12 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
           context?: string[];
           format?: string[];
           tone?: string[];
+          contentIntent?: string[];
+          narrativeForm?: string[];
+          contentSignals?: string[];
+          stance?: string[];
+          proofStyle?: string[];
+          commercialMode?: string[];
         };
       };
     } | null = null;
@@ -2952,6 +3038,16 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
           const format = typeof insp?.format === 'string' ? insp.format.trim() : '';
           const tone = typeof insp?.tone === 'string' ? insp.tone.trim() : '';
           const reference = typeof insp?.reference === 'string' ? insp.reference.trim() : '';
+          const contentIntent = typeof insp?.contentIntent === 'string' ? insp.contentIntent.trim() : '';
+          const narrativeForm = typeof insp?.narrativeForm === 'string' ? insp.narrativeForm.trim() : '';
+          const contentSignals = Array.isArray(insp?.contentSignals)
+            ? insp.contentSignals.map((value: any) => String(value).trim()).filter(Boolean)
+            : typeof insp?.contentSignals === 'string'
+              ? [insp.contentSignals.trim()].filter(Boolean)
+              : [];
+          const stance = typeof insp?.stance === 'string' ? insp.stance.trim() : '';
+          const proofStyle = typeof insp?.proofStyle === 'string' ? insp.proofStyle.trim() : '';
+          const commercialMode = typeof insp?.commercialMode === 'string' ? insp.commercialMode.trim() : '';
           const primaryObjective = typeof insp?.primaryObjectiveAchieved_Qualitative === 'string'
             ? insp.primaryObjectiveAchieved_Qualitative.trim()
             : '';
@@ -2975,7 +3071,13 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
             idx
           );
           const summary = typeof insp?.contentSummary === 'string' ? insp.contentSummary.trim() : '';
-          const title = proposal || [format, context].filter(Boolean).join(' • ') || reference || `Inspiração ${idx + 1}`;
+          const title =
+            narrativeForm ||
+            contentIntent ||
+            proposal ||
+            [format, context].filter(Boolean).join(' • ') ||
+            reference ||
+            `Inspiração ${idx + 1}`;
           acc.push({
             id,
             title,
@@ -2987,6 +3089,12 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
             format: format || undefined,
             tone: tone || undefined,
             reference: reference || undefined,
+            contentIntent: contentIntent || undefined,
+            narrativeForm: narrativeForm || undefined,
+            contentSignals: contentSignals.length ? contentSignals : undefined,
+            stance: stance || undefined,
+            proofStyle: proofStyle || undefined,
+            commercialMode: commercialMode || undefined,
             primaryObjective: primaryObjective || undefined,
             source: 'community',
             linkVerified: Boolean(permalink),
@@ -2996,6 +3104,9 @@ Pergunta: "${truncatedQuery}"${personaSnippets.length ? `\nPerfil conhecido do c
             postDate,
             narrativeRole,
             matchReasons: matchReasons.length ? matchReasons : undefined,
+            matchAxes: Array.isArray(insp?.matchAxes)
+              ? insp.matchAxes.map((reason: any) => String(reason).trim()).filter(Boolean)
+              : undefined,
           });
           return acc;
         }, []);

@@ -13,6 +13,16 @@ import { DatabaseError } from '@/app/lib/errors';
 import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from '@/app/lib/mongoTransient';
 import { FindGlobalPostsArgs, IGlobalPostsPaginatedResult, IGlobalPostResult } from './types';
 import { getCategoryWithSubcategoryIds, getCategoryById } from '@/app/lib/classification';
+import {
+  canonicalizeV2CategoryValues,
+  getV2CategoryById,
+  type ClassificationV2Type,
+} from '@/app/lib/classificationV2';
+import {
+  canonicalizeV25CategoryValues,
+  getV25CategoryById,
+  type ClassificationV25Type,
+} from '@/app/lib/classificationV2_5';
 import { createBasePipeline } from './helpers';
 import { getStartDateFromTimePeriod } from '@/utils/dateHelpers';
 import { TimePeriod } from '@/app/lib/constants/timePeriods';
@@ -67,7 +77,9 @@ export function toProxyUrl(raw: string): string {
 export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Promise<IGlobalPostsPaginatedResult> {
   const TAG = `${SERVICE_TAG}[findGlobalPostsByCriteria]`;
   const {
-    context, proposal, format, tone, references, searchText, minInteractions = 0,
+    context, proposal, format, tone, references,
+    contentIntent, narrativeForm, contentSignals, stance, proofStyle, commercialMode,
+    searchText, minInteractions = 0,
     page = 1, limit = 10,
     sortBy = 'stats.total_interactions', sortOrder = 'desc', dateRange, creatorContext,
   } = args;
@@ -77,16 +89,51 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
     await connectToDatabase();
     const matchStage: PipelineStage.Match['$match'] = {};
 
-    // Filtros de classificação mais assertivos (ID exato + inclusão de subcategorias; aceita labels como fallback)
-    const buildClassFilter = (value: string, type: 'format' | 'proposal' | 'context' | 'tone' | 'reference') => {
-      const ids = getCategoryWithSubcategoryIds(value, type);
-      const labels = ids
-        .map((id) => getCategoryById(id, type)?.label)
-        .filter((l): l is string => Boolean(l));
-      // Nome do campo no banco
-      const field = type === 'reference' ? 'references' : type;
-      // Match se QUALQUER um dos IDs OU labels existir no array armazenado
-      return { $or: [{ [field]: { $in: ids } }, { [field]: { $in: labels } }] } as any;
+    type GlobalCategoryFilterType =
+      | 'format'
+      | 'proposal'
+      | 'context'
+      | 'tone'
+      | 'reference'
+      | 'contentIntent'
+      | 'narrativeForm'
+      | 'contentSignal'
+      | 'stance'
+      | 'proofStyle'
+      | 'commercialMode';
+
+    const uniqueCandidates = (values: Array<string | null | undefined>) =>
+      Array.from(new Set(values.map((value) => (value || '').trim()).filter(Boolean)));
+
+    // Filtros de classificação assertivos (IDs canônicos + labels + aliases mais prováveis).
+    const buildClassFilter = (value: string, type: GlobalCategoryFilterType) => {
+      const trimmedValue = value.trim();
+
+      if (type === 'format' || type === 'proposal' || type === 'context' || type === 'tone' || type === 'reference') {
+        const ids = getCategoryWithSubcategoryIds(trimmedValue, type);
+        const labels = ids
+          .map((id) => getCategoryById(id, type)?.label)
+          .filter((label): label is string => Boolean(label));
+        const field = type === 'reference' ? 'references' : type;
+        return { [field]: { $in: uniqueCandidates([trimmedValue, ...ids, ...labels]) } } as any;
+      }
+
+      if (type === 'contentIntent' || type === 'narrativeForm' || type === 'contentSignal') {
+        const v2Type: ClassificationV2Type = type === 'contentSignal' ? 'contentSignal' : type;
+        const canonicalIds = canonicalizeV2CategoryValues([trimmedValue], v2Type, { includeUnknown: true });
+        const labels = canonicalIds
+          .map((id) => getV2CategoryById(id, v2Type)?.label)
+          .filter((label): label is string => Boolean(label));
+        const field = type === 'contentSignal' ? 'contentSignals' : type;
+        return { [field]: { $in: uniqueCandidates([trimmedValue, ...canonicalIds, ...labels]) } } as any;
+      }
+
+      const v25Type: ClassificationV25Type = type;
+      const canonicalIds = canonicalizeV25CategoryValues([trimmedValue], v25Type, { includeUnknown: true });
+      const labels = canonicalIds
+        .map((id) => getV25CategoryById(id, v25Type)?.label)
+        .filter((label): label is string => Boolean(label));
+      return { [type]: { $in: uniqueCandidates([trimmedValue, ...canonicalIds, ...labels]) } } as any;
     };
 
     const normalizeValues = (v?: string | string[]): string[] => {
@@ -108,6 +155,18 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
     if (toneVals.length) andClauses.push({ $or: toneVals.map(v => buildClassFilter(v, 'tone')) });
     const refVals = normalizeValues(references);
     if (refVals.length) andClauses.push({ $or: refVals.map(v => buildClassFilter(v, 'reference')) });
+    const contentIntentVals = normalizeValues(contentIntent);
+    if (contentIntentVals.length) andClauses.push({ $or: contentIntentVals.map(v => buildClassFilter(v, 'contentIntent')) });
+    const narrativeFormVals = normalizeValues(narrativeForm);
+    if (narrativeFormVals.length) andClauses.push({ $or: narrativeFormVals.map(v => buildClassFilter(v, 'narrativeForm')) });
+    const contentSignalVals = normalizeValues(contentSignals);
+    if (contentSignalVals.length) andClauses.push({ $or: contentSignalVals.map(v => buildClassFilter(v, 'contentSignal')) });
+    const stanceVals = normalizeValues(stance);
+    if (stanceVals.length) andClauses.push({ $or: stanceVals.map(v => buildClassFilter(v, 'stance')) });
+    const proofStyleVals = normalizeValues(proofStyle);
+    if (proofStyleVals.length) andClauses.push({ $or: proofStyleVals.map(v => buildClassFilter(v, 'proofStyle')) });
+    const commercialModeVals = normalizeValues(commercialMode);
+    if (commercialModeVals.length) andClauses.push({ $or: commercialModeVals.map(v => buildClassFilter(v, 'commercialMode')) });
     if (searchText) {
       andClauses.push({
         $or: [
@@ -200,6 +259,8 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
         _id: 1, text_content: 1, description: 1, creatorName: 1, postDate: 1,
         creatorAvatarUrl: 1,
         format: 1, proposal: 1, context: 1, tone: 1, references: 1,
+        contentIntent: 1, narrativeForm: 1, contentSignals: 1,
+        stance: 1, proofStyle: 1, commercialMode: 1,
         'stats.total_interactions': '$computedTotalInteractions',
         'stats.likes': '$stats.likes',
         'stats.comments': '$stats.comments',
@@ -567,6 +628,12 @@ export async function findUserPosts({ // ALTERADO
           context: 1,
           tone: 1,
           references: 1,
+          contentIntent: 1,
+          narrativeForm: 1,
+          contentSignals: 1,
+          stance: 1,
+          proofStyle: 1,
+          commercialMode: 1,
           type: 1, // Adicionado para referência, se necessário no futuro
           coverUrl: 1,
           mediaUrl: { $ifNull: ['$mediaUrl', '$media_url'] },

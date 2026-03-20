@@ -5,10 +5,13 @@ export type ShelfSpec = {
   title: string;
   include?: {
     format?: string[];
-    proposal?: string[];
     context?: string[];
-    tone?: string[];
     references?: string[];
+    contentIntent?: string[];
+    narrativeForm?: string[];
+    contentSignals?: string[];
+    proofStyle?: string[];
+    commercialMode?: string[];
   };
   sortBy?: 'postDate' | 'stats.likes' | 'stats.shares' | 'stats.comments' | 'stats.reach' | 'stats.saved' | 'stats.views' | 'stats.video_views' | 'stats.impressions' | 'stats.engagement' | 'stats.total_interactions';
   sortOrder?: 'asc' | 'desc';
@@ -87,27 +90,27 @@ export function getRecipe(params: { exp?: string | null; view?: string | null; a
   switch (exp) {
     case 'learn':
       return { key: 'exp_learn', shelves: [
-        { key: 'learn_guides', title: 'Guias e passo a passo', include: { proposal: ['tips'], tone: ['educational'], format: ['reel','carousel'] }, minInteractions: 3, onlyOptIn: true, limitMultiplier: 2, weights: { interactions: 0.4, savedRate: 0.3, comments: 0.2, recency: 0.1 }, maxPerCreatorTop: 2 },
-        { key: 'learn_tips', title: 'Dicas rápidas', include: { proposal: ['tips'], tone: ['educational'], format: ['reel','carousel'] }, minInteractions: 1, onlyOptIn: true, limitMultiplier: 2, weights: { savedRate: 0.5, interactions: 0.2, comments: 0.2, recency: 0.1 }, maxPerCreatorTop: 2 },
+        { key: 'learn_guides', title: 'Guias e passo a passo', include: { contentIntent: ['teach'], narrativeForm: ['tutorial'], proofStyle: ['demonstration', 'list_based'], format: ['reel','carousel'] }, minInteractions: 3, onlyOptIn: true, limitMultiplier: 2, weights: { interactions: 0.4, savedRate: 0.3, comments: 0.2, recency: 0.1 }, maxPerCreatorTop: 2 },
+        { key: 'learn_tips', title: 'Dicas rápidas', include: { contentIntent: ['teach'], narrativeForm: ['tutorial'], proofStyle: ['list_based'], format: ['reel','carousel'] }, minInteractions: 1, onlyOptIn: true, limitMultiplier: 2, weights: { savedRate: 0.5, interactions: 0.2, comments: 0.2, recency: 0.1 }, maxPerCreatorTop: 2 },
       ]};
     case 'learn_fun':
       return { key: 'exp_learn_fun', shelves: [
-        { key: 'learn_fun_combo', title: 'Aprenda rindo', include: { proposal: ['humor_scene','tips'], tone: ['educational'], references: ['pop_culture'], format: ['reel'] }, minInteractions: 1, onlyOptIn: true, limitMultiplier: 2, weights: { shares: 0.45, interactions: 0.35, recency: 0.2 }, maxPerCreatorTop: 2 },
+        { key: 'learn_fun_combo', title: 'Aprenda rindo', include: { contentIntent: ['teach','entertain'], narrativeForm: ['tutorial','sketch_scene'], proofStyle: ['demonstration', 'list_based'], references: ['pop_culture'], format: ['reel'] }, minInteractions: 1, onlyOptIn: true, limitMultiplier: 2, weights: { shares: 0.45, interactions: 0.35, recency: 0.2 }, maxPerCreatorTop: 2 },
       ]};
     case 'inspire':
       return { key: 'exp_inspire', shelves: [
-        { key: 'motivational', title: 'Mensagens motivacionais', include: { proposal: ['message_motivational'] }, minInteractions: 1, onlyOptIn: true, limitMultiplier: 2, weights: { savedRate: 0.5, shares: 0.2, interactions: 0.2, recency: 0.1 }, maxPerCreatorTop: 2 },
-        { key: 'bts', title: 'Bastidores que inspiram', include: { proposal: ['behind_the_scenes','lifestyle'] }, minInteractions: 1, onlyOptIn: true, limitMultiplier: 2, weights: { interactions: 0.5, savedRate: 0.2, shares: 0.2, recency: 0.1 }, maxPerCreatorTop: 2 },
+        { key: 'motivational', title: 'Mensagens motivacionais', include: { contentIntent: ['inspire'], proofStyle: ['personal_story'] }, minInteractions: 1, onlyOptIn: true, limitMultiplier: 2, weights: { savedRate: 0.5, shares: 0.2, interactions: 0.2, recency: 0.1 }, maxPerCreatorTop: 2 },
+        { key: 'bts', title: 'Bastidores que inspiram', include: { contentIntent: ['inspire', 'connect'], narrativeForm: ['behind_the_scenes', 'day_in_the_life'], proofStyle: ['personal_story'] }, minInteractions: 1, onlyOptIn: true, limitMultiplier: 2, weights: { interactions: 0.5, savedRate: 0.2, shares: 0.2, recency: 0.1 }, maxPerCreatorTop: 2 },
       ]};
     case 'sell':
       return { key: 'exp_sell', shelves: [
-        { key: 'social_proof', title: 'Provas sociais e reviews', include: { proposal: ['review','publi_divulgation'], tone: ['promotional'] }, minInteractions: 1, onlyOptIn: true, limitMultiplier: 2, weights: { savedRate: 0.5, interactions: 0.3, recency: 0.2 }, maxPerCreatorTop: 2 },
-        { key: 'cta_reviews', title: 'Reviews que convertem', include: { proposal: ['review','call_to_action','announcement','publi_divulgation'], tone: ['promotional'] }, minInteractions: 1, onlyOptIn: true, limitMultiplier: 2, weights: { interactions: 0.5, savedRate: 0.3, recency: 0.2 }, maxPerCreatorTop: 2 },
+        { key: 'social_proof', title: 'Provas sociais e reviews', include: { contentIntent: ['convert'], narrativeForm: ['review'], proofStyle: ['social_proof', 'demonstration'], commercialMode: ['paid_partnership'] }, minInteractions: 1, onlyOptIn: true, limitMultiplier: 2, weights: { savedRate: 0.5, interactions: 0.3, recency: 0.2 }, maxPerCreatorTop: 2 },
+        { key: 'cta_reviews', title: 'Reviews que convertem', include: { contentIntent: ['convert'], narrativeForm: ['review', 'comparison'], contentSignals: ['link_in_bio_cta', 'promo_offer'], proofStyle: ['social_proof', 'demonstration'], commercialMode: ['paid_partnership', 'discount_offer', 'product_launch'] }, minInteractions: 1, onlyOptIn: true, limitMultiplier: 2, weights: { interactions: 0.5, savedRate: 0.3, recency: 0.2 }, maxPerCreatorTop: 2 },
       ]};
     case 'niche_humor': {
       const ctx = (allowedPersonalized && topContextIds && topContextIds.length) ? topContextIds : undefined;
       return { key: 'exp_niche_humor', shelves: [
-        { key: 'humor_niche', title: 'Humor do seu nicho', include: { proposal: ['humor_scene'], context: ctx }, minInteractions: 1, onlyOptIn: true, limitMultiplier: 2, weights: { shares: 0.5, interactions: 0.3, recency: 0.2 }, maxPerCreatorTop: 2 },
+        { key: 'humor_niche', title: 'Humor do seu nicho', include: { contentIntent: ['entertain'], narrativeForm: ['sketch_scene'], context: ctx }, minInteractions: 1, onlyOptIn: true, limitMultiplier: 2, weights: { shares: 0.5, interactions: 0.3, recency: 0.2 }, maxPerCreatorTop: 2 },
       ]};
     }
   }

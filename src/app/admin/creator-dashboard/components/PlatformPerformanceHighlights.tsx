@@ -7,8 +7,9 @@ import { useGlobalTimePeriod } from './filters/GlobalTimePeriodContext';
 import { TrendingUp, Sparkles, CalendarDays } from 'lucide-react';
 import { getPortugueseWeekdayName } from '@/utils/weekdays';
 import HighlightCard from './HighlightCard';
-// CORREÇÃO: Importa a função para traduzir os IDs de contexto.
 import { commaSeparatedIdsToLabels } from '../../../lib/classification';
+import { v2IdsToLabels } from '@/app/lib/classificationV2';
+import { v25IdsToLabels } from '@/app/lib/classificationV2_5';
 import FormatPerformanceRankingTable from './FormatPerformanceRankingTable';
 
 interface PerformanceHighlightItem {
@@ -28,6 +29,12 @@ interface PerformanceSummaryResponse {
   topPerformingProposal: PerformanceHighlightItem | null;
   topPerformingTone: PerformanceHighlightItem | null;
   topPerformingReference: PerformanceHighlightItem | null;
+  topPerformingContentIntent?: PerformanceHighlightItem | null;
+  topPerformingNarrativeForm?: PerformanceHighlightItem | null;
+  topPerformingContentSignal?: PerformanceHighlightItem | null;
+  topPerformingStance?: PerformanceHighlightItem | null;
+  topPerformingProofStyle?: PerformanceHighlightItem | null;
+  topPerformingCommercialMode?: PerformanceHighlightItem | null;
   bestDay: { dayOfWeek: number; average: number } | null;
   insightSummary: string;
 }
@@ -72,6 +79,49 @@ function formatBestDay(slot: PerformanceSummaryResponse["bestDay"]): Performance
     value: slot.average,
     valueFormatted: slot.average.toFixed(1),
   };
+}
+
+type HighlightKind =
+  | 'format'
+  | 'context'
+  | 'proposal'
+  | 'tone'
+  | 'reference'
+  | 'contentIntent'
+  | 'narrativeForm'
+  | 'contentSignal'
+  | 'stance'
+  | 'proofStyle'
+  | 'commercialMode';
+
+function splitCategoryIds(value: string): string[] {
+  return value.split(',').map((part) => part.trim()).filter(Boolean);
+}
+
+function resolveHighlightName(name: string, kind: HighlightKind): string {
+  if (!name) return name;
+
+  if (kind === 'format' || kind === 'context' || kind === 'proposal' || kind === 'tone' || kind === 'reference') {
+    return commaSeparatedIdsToLabels(name, kind) || name;
+  }
+
+  const ids = splitCategoryIds(name);
+  switch (kind) {
+    case 'contentIntent':
+      return v2IdsToLabels(ids, 'contentIntent').join(', ') || name;
+    case 'narrativeForm':
+      return v2IdsToLabels(ids, 'narrativeForm').join(', ') || name;
+    case 'contentSignal':
+      return v2IdsToLabels(ids, 'contentSignal').join(', ') || name;
+    case 'stance':
+      return v25IdsToLabels(ids, 'stance').join(', ') || name;
+    case 'proofStyle':
+      return v25IdsToLabels(ids, 'proofStyle').join(', ') || name;
+    case 'commercialMode':
+      return v25IdsToLabels(ids, 'commercialMode').join(', ') || name;
+    default:
+      return name;
+  }
 }
 
 const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps> = ({
@@ -129,19 +179,26 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
   const formatRanking = resolvedError ? null : rawFormatRanking;
   const normalizeSummary = useCallback((value: PerformanceSummaryResponse | null) => {
     if (!value) return null;
-    const normalize = (item: PerformanceHighlightItem | null, kind: 'context' | 'proposal' | 'tone' | 'reference') => {
+    const normalize = (item: PerformanceHighlightItem | null | undefined, kind: HighlightKind) => {
       if (!item) return null;
       return {
         ...item,
-        name: commaSeparatedIdsToLabels(item.name, kind) || item.name,
+        name: resolveHighlightName(item.name, kind),
       };
     };
     return {
       ...value,
+      topPerformingFormat: normalize(value.topPerformingFormat, 'format'),
       topPerformingContext: normalize(value.topPerformingContext, 'context'),
       topPerformingProposal: normalize(value.topPerformingProposal, 'proposal'),
       topPerformingTone: normalize(value.topPerformingTone, 'tone'),
       topPerformingReference: normalize(value.topPerformingReference, 'reference'),
+      topPerformingContentIntent: normalize(value.topPerformingContentIntent, 'contentIntent'),
+      topPerformingNarrativeForm: normalize(value.topPerformingNarrativeForm, 'narrativeForm'),
+      topPerformingContentSignal: normalize(value.topPerformingContentSignal, 'contentSignal'),
+      topPerformingStance: normalize(value.topPerformingStance, 'stance'),
+      topPerformingProofStyle: normalize(value.topPerformingProofStyle, 'proofStyle'),
+      topPerformingCommercialMode: normalize(value.topPerformingCommercialMode, 'commercialMode'),
     };
   }, []);
   const normalizedSummary = useMemo(() => normalizeSummary(summary), [normalizeSummary, summary]);
@@ -200,7 +257,64 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
               bgColorClass="bg-indigo-50"
               textColorClass="text-indigo-600"
             />
-        </div>
+          </div>
+          {(normalizedSummary.topPerformingContentIntent ||
+            normalizedSummary.topPerformingNarrativeForm ||
+            normalizedSummary.topPerformingContentSignal ||
+            normalizedSummary.topPerformingStance ||
+            normalizedSummary.topPerformingProofStyle ||
+            normalizedSummary.topPerformingCommercialMode) && (
+            <div className="mt-5 border-t border-slate-200 pt-4">
+              <div className="mb-3 flex items-center gap-2 text-sm font-medium text-slate-700">
+                <Sparkles size={16} className="text-slate-500" />
+                Leitura Estratégica
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <HighlightCard
+                  title="Intenção Principal"
+                  highlight={normalizedSummary.topPerformingContentIntent}
+                  icon={<Sparkles size={18} className="mr-2 text-cyan-500" />}
+                  bgColorClass="bg-cyan-50"
+                  textColorClass="text-cyan-700"
+                />
+                <HighlightCard
+                  title="Forma Narrativa"
+                  highlight={normalizedSummary.topPerformingNarrativeForm}
+                  icon={<Sparkles size={18} className="mr-2 text-sky-500" />}
+                  bgColorClass="bg-sky-50"
+                  textColorClass="text-sky-700"
+                />
+                <HighlightCard
+                  title="Sinal de Conteúdo"
+                  highlight={normalizedSummary.topPerformingContentSignal}
+                  icon={<Sparkles size={18} className="mr-2 text-emerald-500" />}
+                  bgColorClass="bg-emerald-50"
+                  textColorClass="text-emerald-700"
+                />
+                <HighlightCard
+                  title="Postura"
+                  highlight={normalizedSummary.topPerformingStance}
+                  icon={<Sparkles size={18} className="mr-2 text-rose-500" />}
+                  bgColorClass="bg-rose-50"
+                  textColorClass="text-rose-700"
+                />
+                <HighlightCard
+                  title="Estilo de Prova"
+                  highlight={normalizedSummary.topPerformingProofStyle}
+                  icon={<Sparkles size={18} className="mr-2 text-orange-500" />}
+                  bgColorClass="bg-orange-50"
+                  textColorClass="text-orange-700"
+                />
+                <HighlightCard
+                  title="Modo Comercial"
+                  highlight={normalizedSummary.topPerformingCommercialMode}
+                  icon={<Sparkles size={18} className="mr-2 text-fuchsia-500" />}
+                  bgColorClass="bg-fuchsia-50"
+                  textColorClass="text-fuchsia-700"
+                />
+              </div>
+            </div>
+          )}
         {normalizedSummary.insightSummary && (
           <p className="text-xs text-gray-600 mt-4 pt-3 border-t border-gray-200 flex items-start">
             <LightBulbIcon className="w-4 h-4 text-yellow-500 mr-1 flex-shrink-0" />
@@ -216,7 +330,7 @@ const PlatformPerformanceHighlights: React.FC<PlatformPerformanceHighlightsProps
             disableFetch={true}
           />
         </div>
-      </>
+        </>
     )}
        {!resolvedLoading && !resolvedError && !normalizedSummary && (
          <div className="text-center py-5"><p className="text-gray-500">Nenhum destaque de performance encontrado para a plataforma.</p></div>

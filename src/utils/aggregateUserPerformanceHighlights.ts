@@ -3,7 +3,7 @@ import { Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { logger } from "@/app/lib/logger";
 import { getStartDateFromTimePeriod } from "./dateHelpers";
-import { canonicalizeCategoryValues, type CategoryType } from "@/app/lib/classification";
+import { getMetricCategoryValuesForAnalytics, type StrategicRankableCategory } from "@/app/lib/classificationV2Bridge";
 
 export interface AggregatedHighlight {
   name: string | null;
@@ -18,6 +18,12 @@ export interface UserPerformanceHighlightsAggregation {
   topProposal: AggregatedHighlight | null;
   topTone: AggregatedHighlight | null;
   topReference: AggregatedHighlight | null;
+  topContentIntent: AggregatedHighlight | null;
+  topNarrativeForm: AggregatedHighlight | null;
+  topContentSignal: AggregatedHighlight | null;
+  topStance: AggregatedHighlight | null;
+  topProofStyle: AggregatedHighlight | null;
+  topCommercialMode: AggregatedHighlight | null;
 }
 
 async function aggregateUserPerformanceHighlights(
@@ -50,16 +56,31 @@ async function aggregateUserPerformanceHighlights(
     topProposal: null,
     topTone: null,
     topReference: null,
+    topContentIntent: null,
+    topNarrativeForm: null,
+    topContentSignal: null,
+    topStance: null,
+    topProofStyle: null,
+    topCommercialMode: null,
   };
 
   try {
     await connectToDatabase();
     const projection: Record<string, 1> = {
+      source: 1,
+      type: 1,
+      description: 1,
       format: 1,
       context: 1,
       proposal: 1,
       tone: 1,
       references: 1,
+      contentIntent: 1,
+      narrativeForm: 1,
+      contentSignals: 1,
+      stance: 1,
+      proofStyle: 1,
+      commercialMode: 1,
     };
     projection[metricField] = 1;
 
@@ -71,14 +92,18 @@ async function aggregateUserPerformanceHighlights(
       projection
     ).lean().exec();
 
-    type CategoryField = "format" | "context" | "proposal" | "tone" | "references";
-    const fieldToType: Record<CategoryField, CategoryType> = {
-      format: "format",
-      context: "context",
-      proposal: "proposal",
-      tone: "tone",
-      references: "reference",
-    };
+    type CategoryField =
+      | "format"
+      | "context"
+      | "proposal"
+      | "tone"
+      | "references"
+      | "contentIntent"
+      | "narrativeForm"
+      | "contentSignals"
+      | "stance"
+      | "proofStyle"
+      | "commercialMode";
 
     const aggregates: Record<CategoryField, Map<string, { sum: number; count: number }>> = {
       format: new Map(),
@@ -86,6 +111,12 @@ async function aggregateUserPerformanceHighlights(
       proposal: new Map(),
       tone: new Map(),
       references: new Map(),
+      contentIntent: new Map(),
+      narrativeForm: new Map(),
+      contentSignals: new Map(),
+      stance: new Map(),
+      proofStyle: new Map(),
+      commercialMode: new Map(),
     };
 
     const resolveMetricValue = (source: Record<string, any>, path: string): number | null => {
@@ -112,7 +143,10 @@ async function aggregateUserPerformanceHighlights(
       if (metricValue === null) continue;
 
       (Object.keys(aggregates) as CategoryField[]).forEach((field) => {
-        const values = canonicalizeCategoryValues(post[field], fieldToType[field], { includeUnknown: true });
+        const values = getMetricCategoryValuesForAnalytics(
+          post,
+          field as StrategicRankableCategory
+        );
         values.forEach((value) => {
           const bucket = aggregates[field].get(value) ?? { sum: 0, count: 0 };
           bucket.sum += metricValue;
@@ -139,6 +173,12 @@ async function aggregateUserPerformanceHighlights(
     initial.topProposal = toHighlight(sortEntries(aggregates.proposal), 0);
     initial.topTone = toHighlight(sortEntries(aggregates.tone), 0);
     initial.topReference = toHighlight(sortEntries(aggregates.references), 0);
+    initial.topContentIntent = toHighlight(sortEntries(aggregates.contentIntent), 0);
+    initial.topNarrativeForm = toHighlight(sortEntries(aggregates.narrativeForm), 0);
+    initial.topContentSignal = toHighlight(sortEntries(aggregates.contentSignals), 0);
+    initial.topStance = toHighlight(sortEntries(aggregates.stance), 0);
+    initial.topProofStyle = toHighlight(sortEntries(aggregates.proofStyle), 0);
+    initial.topCommercialMode = toHighlight(sortEntries(aggregates.commercialMode), 0);
 
     return initial;
   } catch (error) {

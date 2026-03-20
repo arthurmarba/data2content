@@ -51,6 +51,14 @@ export const proposalCategories: Category[] = [
   { id: 'unboxing', label: 'Unboxing', description: 'Mostra a experiência de abrir um produto novo pela primeira vez.', keywords: ['unboxing', 'abrindo', 'recebidos'], examples: ["Unboxing do meu novo computador!", "Abrindo os recebidos da semana."] },
 ];
 
+export const SIGNAL_ONLY_LEGACY_PROPOSAL_IDS = new Set([
+  'call_to_action',
+  'giveaway',
+  'participation',
+  'publi_divulgation',
+  'trend',
+]);
+
 // --- Dimensão 3: Context ---
 export const contextCategories: Category[] = [
   {
@@ -162,7 +170,7 @@ export const referenceCategories: Category[] = [
 
 // --- Funções Auxiliares (Existentes) ---
 
-type FlatCategory = Category & {
+export type FlatCategory = Category & {
   parentIds: string[];
   parentLabels: string[];
 };
@@ -317,6 +325,20 @@ const getFlatCategoriesByType = (
   }
 };
 
+export const getFlatFilterableCategories = (type: CategoryType): FlatCategory[] => {
+  const categories = getFlatCategoriesByType(type);
+
+  if (type === 'context') {
+    return categories.filter((category) => category.parentIds.length > 0);
+  }
+
+  if (type === 'reference') {
+    return categories.filter((category) => category.parentIds.length > 0);
+  }
+
+  return categories;
+};
+
 const buildCategoryAliasEntries = (type: CategoryType): CategoryAliasEntry[] => {
   const categories = getFlatCategoriesByType(type);
   const entries: CategoryAliasEntry[] = [];
@@ -436,6 +458,12 @@ export function canonicalizeCategoryValues(
   }
 
   return collapseHierarchicalCategoryValues(normalized, type);
+}
+
+export function sanitizeLegacyProposalValues(values: unknown): string[] {
+  return canonicalizeCategoryValues(values, 'proposal').filter(
+    (value) => !SIGNAL_ONLY_LEGACY_PROPOSAL_IDS.has(value)
+  );
 }
 
 export function idsToLabels(ids: string[] | undefined, type: CategoryType): string[] {

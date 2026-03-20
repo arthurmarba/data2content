@@ -21,6 +21,8 @@ import { openPaywallModal } from '@/utils/paywallModal';
 import { INSTAGRAM_READ_ONLY_COPY, PRO_PLAN_FLEXIBILITY_COPY } from '@/app/constants/trustCopy';
 import { startInstagramReconnect } from '@/app/lib/instagram/client/startInstagramReconnect';
 import { canonicalizeCategoryValues } from '@/app/lib/classification';
+import { canonicalizeV2CategoryValues } from '@/app/lib/classificationV2';
+import { canonicalizeV25CategoryValues } from '@/app/lib/classificationV2_5';
 
 type Summary = any;
 type VideoListItem = any;
@@ -280,8 +282,41 @@ function SelfMediaKitContent({
       if (cancelled) return;
 
       const videosList = Array.isArray(videosPayload?.posts) ? videosPayload.posts : [];
-      const normalizeVideoCategories = (value: unknown, type: 'format' | 'proposal' | 'context' | 'tone' | 'reference') =>
-        canonicalizeCategoryValues(value, type, { includeUnknown: true });
+      const normalizeVideoCategories = (
+        value: unknown,
+        type:
+          | 'format'
+          | 'proposal'
+          | 'context'
+          | 'tone'
+          | 'reference'
+          | 'contentIntent'
+          | 'narrativeForm'
+          | 'contentSignals'
+          | 'stance'
+          | 'proofStyle'
+          | 'commercialMode'
+      ) => {
+        if (type === 'contentIntent') {
+          return canonicalizeV2CategoryValues(value, 'contentIntent', { includeUnknown: true });
+        }
+        if (type === 'narrativeForm') {
+          return canonicalizeV2CategoryValues(value, 'narrativeForm', { includeUnknown: true });
+        }
+        if (type === 'contentSignals') {
+          return canonicalizeV2CategoryValues(value, 'contentSignal', { includeUnknown: true });
+        }
+        if (type === 'stance') {
+          return canonicalizeV25CategoryValues(value, 'stance', { includeUnknown: true });
+        }
+        if (type === 'proofStyle') {
+          return canonicalizeV25CategoryValues(value, 'proofStyle', { includeUnknown: true });
+        }
+        if (type === 'commercialMode') {
+          return canonicalizeV25CategoryValues(value, 'commercialMode', { includeUnknown: true });
+        }
+        return canonicalizeCategoryValues(value, type, { includeUnknown: true });
+      };
 
       setSummary(summaryData);
       setVideos(
@@ -292,6 +327,12 @@ function SelfMediaKitContent({
           context: normalizeVideoCategories(video.context, 'context'),
           tone: normalizeVideoCategories(video.tone, 'tone'),
           references: normalizeVideoCategories(video.references, 'reference'),
+          contentIntent: normalizeVideoCategories(video.contentIntent, 'contentIntent'),
+          narrativeForm: normalizeVideoCategories(video.narrativeForm, 'narrativeForm'),
+          contentSignals: normalizeVideoCategories(video.contentSignals, 'contentSignals'),
+          stance: normalizeVideoCategories(video.stance, 'stance'),
+          proofStyle: normalizeVideoCategories(video.proofStyle, 'proofStyle'),
+          commercialMode: normalizeVideoCategories(video.commercialMode, 'commercialMode'),
         }))
       );
       setKpis(kpisData);

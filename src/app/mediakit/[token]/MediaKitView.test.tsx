@@ -113,6 +113,86 @@ describe('MediaKitView ownership visibility', () => {
         showOwnerCtas={true}
       />
     );
-    expect(screen.getByText(/Ative o modo Pro para ver os formatos, propostas e contextos que mais puxam crescimento/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ative o modo Pro para ver formato, contexto, intenção, narrativa, prova e modo comercial que mais puxam crescimento/i)).toBeInTheDocument();
+  });
+
+  it('renders V2 and V2.5 performance signals in the media kit view', () => {
+    (useSession as jest.Mock).mockReturnValue({ data: { user: { _id: 'user1' } } });
+    render(
+      <MediaKitView
+        {...baseProps}
+        showOwnerCtas={true}
+        summary={{
+          topPerformingFormat: {
+            name: 'reel',
+            metricName: 'Interações (média por post)',
+            value: 1200,
+            valueFormatted: '1.2K',
+          },
+          topPerformingContext: {
+            name: 'fashion_style',
+            metricName: 'Interações (média por post)',
+            value: 980,
+            valueFormatted: '980',
+          },
+          topPerformingContentIntent: {
+            name: 'convert',
+            metricName: 'Interações (média por post)',
+            value: 1100,
+            valueFormatted: '1.1K',
+          },
+          topPerformingNarrativeForm: {
+            name: 'review',
+            metricName: 'Interações (média por post)',
+            value: 930,
+            valueFormatted: '930',
+          },
+          topPerformingStance: {
+            name: 'endorsing',
+            metricName: 'Interações (média por post)',
+            value: 880,
+            valueFormatted: '880',
+          },
+          topPerformingProofStyle: {
+            name: 'demonstration',
+            metricName: 'Interações (média por post)',
+            value: 840,
+            valueFormatted: '840',
+          },
+          topPerformingCommercialMode: {
+            name: 'paid_partnership',
+            metricName: 'Interações (média por post)',
+            value: 790,
+            valueFormatted: '790',
+          },
+          bestDay: { dayOfWeek: 3, average: 721.4 },
+        }}
+        videos={[
+          {
+            _id: 'video-1',
+            format: ['reel'],
+            context: ['fashion_style'],
+            contentIntent: ['convert'],
+            narrativeForm: ['review'],
+            stance: ['endorsing'],
+            proofStyle: ['demonstration'],
+            commercialMode: ['paid_partnership'],
+            contentSignals: ['promo_offer'],
+            stats: { views: 1000, likes: 120, comments: 14, shares: 8, saves: 12 },
+          },
+        ]}
+      />
+    );
+
+    expect(screen.queryByText('Destaques de Performance')).not.toBeInTheDocument();
+    expect(screen.getByText('Destaques Estratégicos')).toBeInTheDocument();
+    expect(screen.getAllByText('Intenção dominante').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Converter').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Postura forte').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Endossando').length).toBeGreaterThan(0);
+    expect(screen.getByText('Leitura estratégica')).toBeInTheDocument();
+    expect(screen.getByText('Narrativa')).toBeInTheDocument();
+    expect(screen.getAllByText('Review').length).toBeGreaterThan(0);
+    expect(screen.getByText('Melhor dia')).toBeInTheDocument();
   });
 });

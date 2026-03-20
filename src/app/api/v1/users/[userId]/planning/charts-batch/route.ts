@@ -45,7 +45,7 @@ const DEFAULT_MAX_SLICES = 7;
 const MAX_PAGE_LIMIT = 200;
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_LIMIT = 200;
-const CACHE_SCHEMA_VERSION = "v6";
+const CACHE_SCHEMA_VERSION = "v7";
 const MIN_BENCHMARK_CREATORS = 5;
 const MIN_BENCHMARK_POSTS = 18;
 const MAX_BENCHMARK_CREATORS = 60;
@@ -922,26 +922,26 @@ function getPrimaryStrategicMetricDelta(
 
 function formatStrategicSignal(metric: StrategicMetricDelta | null, metricLabel: string) {
   if (!metric) {
-    return { text: "Ainda faltam dados para comparar o período atual com o anterior.", tone: "warning" as DirectioningSummaryTone };
+    return { text: "Ainda faltam dados para comparar agora com antes.", tone: "warning" as DirectioningSummaryTone };
   }
   if (!metric.hasMinimumSample) {
     return {
-      text: `Base pequena: ${numberFormatter.format(metric.currentPosts)} posts agora vs ${numberFormatter.format(metric.previousPosts)} antes.`,
+      text: `Base pequena: ${numberFormatter.format(metric.currentPosts)} posts agora e ${numberFormatter.format(metric.previousPosts)} antes.`,
       tone: "warning" as DirectioningSummaryTone,
     };
   }
   if (typeof metric.deltaRatio !== "number" || !Number.isFinite(metric.deltaRatio)) {
-    return { text: "Ainda não existe base comparável suficiente no período anterior equivalente.", tone: "warning" as DirectioningSummaryTone };
+    return { text: "Ainda falta base para comparar com o período anterior.", tone: "warning" as DirectioningSummaryTone };
   }
 
   const pct = Math.round(metric.deltaRatio * 100);
   if (Math.abs(pct) < 3) {
-    return { text: `${metricLabel}: sem mudança forte contra o período anterior.`, tone: "neutral" as DirectioningSummaryTone };
+    return { text: `${metricLabel}: ficou no mesmo nível.`, tone: "neutral" as DirectioningSummaryTone };
   }
   if (pct > 0) {
-    return { text: `${metricLabel}: +${pct}% contra o período anterior.`, tone: "positive" as DirectioningSummaryTone };
+    return { text: `${metricLabel}: ${pct}% acima do período anterior.`, tone: "positive" as DirectioningSummaryTone };
   }
-  return { text: `${metricLabel}: ${pct}% contra o período anterior.`, tone: "negative" as DirectioningSummaryTone };
+  return { text: `${metricLabel}: ${Math.abs(pct)}% abaixo do período anterior.`, tone: "negative" as DirectioningSummaryTone };
 }
 
 function formatDateLabel(dateIso?: string | null): string {
@@ -969,7 +969,7 @@ function buildComparisonSummary(
       currentLabel,
       previousLabel,
       tone: "warning",
-      narrative: "Ainda faltam dados para comparar o período atual com o anterior equivalente.",
+      narrative: "Ainda faltam dados para comparar agora com antes.",
     };
   }
   if (!metric.hasMinimumSample) {
@@ -977,7 +977,7 @@ function buildComparisonSummary(
       currentLabel,
       previousLabel,
       tone: "warning",
-      narrative: `Comparação ainda frágil: ${numberFormatter.format(metric.currentPosts)} posts agora vs ${numberFormatter.format(metric.previousPosts)} antes.`,
+      narrative: `Comparação ainda frágil: ${numberFormatter.format(metric.currentPosts)} posts agora e ${numberFormatter.format(metric.previousPosts)} antes.`,
     };
   }
   if (typeof metric.deltaRatio !== "number" || !Number.isFinite(metric.deltaRatio)) {
@@ -985,7 +985,7 @@ function buildComparisonSummary(
       currentLabel,
       previousLabel,
       tone: "warning",
-      narrative: "Ainda não existe base comparável suficiente no período anterior equivalente.",
+      narrative: "Ainda falta base para comparar com o período anterior.",
     };
   }
 
@@ -995,7 +995,7 @@ function buildComparisonSummary(
       currentLabel,
       previousLabel,
       tone: "neutral",
-      narrative: `${metricLabel} ficou estável ao comparar ${currentLabel} com ${previousLabel}.`,
+      narrative: `${metricLabel} ficou no mesmo nível agora.`,
     };
   }
   if (pct > 0) {
@@ -1003,14 +1003,14 @@ function buildComparisonSummary(
       currentLabel,
       previousLabel,
       tone: "positive",
-      narrative: `${metricLabel} subiu ${pct}% em ${currentLabel} contra ${previousLabel}.`,
+      narrative: `${metricLabel} está ${pct}% acima do período anterior.`,
     };
   }
   return {
     currentLabel,
     previousLabel,
     tone: "negative",
-    narrative: `${metricLabel} caiu ${Math.abs(pct)}% em ${currentLabel} contra ${previousLabel}.`,
+    narrative: `${metricLabel} está ${Math.abs(pct)}% abaixo do período anterior.`,
   };
 }
 
@@ -1912,7 +1912,7 @@ function buildExperimentImpactSummary(params: {
   if (pct > 0) {
     return {
       status: "improved",
-      text: `Depois de ${formatPostsCount(comparisonCount)}, ${metricLabel.toLowerCase()} subiu ${pct}% contra os posts imediatamente anteriores.`,
+      text: `Nos últimos ${formatPostsCount(comparisonCount)}, ${metricLabel.toLowerCase()} ficou ${pct}% acima dos posts anteriores.`,
       beforeAvg,
       afterAvg,
       deltaRatio,
@@ -1923,7 +1923,7 @@ function buildExperimentImpactSummary(params: {
 
   return {
     status: "declined",
-    text: `Depois de ${formatPostsCount(comparisonCount)}, ${metricLabel.toLowerCase()} caiu ${Math.abs(pct)}% contra os posts imediatamente anteriores.`,
+    text: `Nos últimos ${formatPostsCount(comparisonCount)}, ${metricLabel.toLowerCase()} ficou ${Math.abs(pct)}% abaixo dos posts anteriores.`,
     beforeAvg,
     afterAvg,
     deltaRatio,
@@ -2094,7 +2094,18 @@ export async function GET(
               userId,
               timePeriod,
               engagementMetricField,
-              ["proposal", "tone", "references", "context"],
+              [
+                "proposal",
+                "tone",
+                "references",
+                "context",
+                "contentIntent",
+                "narrativeForm",
+                "contentSignals",
+                "stance",
+                "proofStyle",
+                "commercialMode",
+              ],
               undefined,
               { creditMode: "fractional" }
             )
@@ -2152,6 +2163,36 @@ export async function GET(
               chartData: groupedCharts?.context || [],
               metricUsed: engagementMetricField,
               groupBy: "context",
+            },
+            contentIntentData: {
+              chartData: groupedCharts?.contentIntent || [],
+              metricUsed: engagementMetricField,
+              groupBy: "contentIntent",
+            },
+            narrativeFormData: {
+              chartData: groupedCharts?.narrativeForm || [],
+              metricUsed: engagementMetricField,
+              groupBy: "narrativeForm",
+            },
+            contentSignalsData: {
+              chartData: groupedCharts?.contentSignals || [],
+              metricUsed: engagementMetricField,
+              groupBy: "contentSignals",
+            },
+            stanceData: {
+              chartData: groupedCharts?.stance || [],
+              metricUsed: engagementMetricField,
+              groupBy: "stance",
+            },
+            proofStyleData: {
+              chartData: groupedCharts?.proofStyle || [],
+              metricUsed: engagementMetricField,
+              groupBy: "proofStyle",
+            },
+            commercialModeData: {
+              chartData: groupedCharts?.commercialMode || [],
+              metricUsed: engagementMetricField,
+              groupBy: "commercialMode",
             },
             postsData: {
               posts: normalizedPosts,

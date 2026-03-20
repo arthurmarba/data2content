@@ -1,19 +1,27 @@
 import { isValidCategoryId } from "@/app/lib/classification";
+import { getV2CategoryById } from "@/app/lib/classificationV2";
+import { getV25CategoryById } from "@/app/lib/classificationV2_5";
 import { getRecipe } from "@/app/lib/discover/recipes";
 
 function expectIncludeToBeCanonical(include?: {
   format?: string[];
-  proposal?: string[];
   context?: string[];
-  tone?: string[];
   references?: string[];
+  contentIntent?: string[];
+  narrativeForm?: string[];
+  contentSignals?: string[];
+  proofStyle?: string[];
+  commercialMode?: string[];
 }) {
   if (!include) return;
   include.format?.forEach((id) => expect(isValidCategoryId(id, "format")).toBe(true));
-  include.proposal?.forEach((id) => expect(isValidCategoryId(id, "proposal")).toBe(true));
   include.context?.forEach((id) => expect(isValidCategoryId(id, "context")).toBe(true));
-  include.tone?.forEach((id) => expect(isValidCategoryId(id, "tone")).toBe(true));
   include.references?.forEach((id) => expect(isValidCategoryId(id, "reference")).toBe(true));
+  include.contentIntent?.forEach((id) => expect(getV2CategoryById(id, "contentIntent")).toBeDefined());
+  include.narrativeForm?.forEach((id) => expect(getV2CategoryById(id, "narrativeForm")).toBeDefined());
+  include.contentSignals?.forEach((id) => expect(getV2CategoryById(id, "contentSignal")).toBeDefined());
+  include.proofStyle?.forEach((id) => expect(getV25CategoryById(id, "proofStyle")).toBeDefined());
+  include.commercialMode?.forEach((id) => expect(getV25CategoryById(id, "commercialMode")).toBeDefined());
 }
 
 describe("discover recipes", () => {
@@ -41,18 +49,21 @@ describe("discover recipes", () => {
     });
   });
 
-  it("keeps learning and selling recipes on canonical ids only", () => {
+  it("keeps learning and selling recipes on canonical strategic ids only", () => {
     const learnRecipe = getRecipe({ exp: "learn" });
     expect(learnRecipe?.shelves[0]?.include).toEqual({
-      proposal: ["tips"],
-      tone: ["educational"],
+      contentIntent: ["teach"],
+      narrativeForm: ["tutorial"],
+      proofStyle: ["demonstration", "list_based"],
       format: ["reel", "carousel"],
     });
 
     const sellRecipe = getRecipe({ exp: "sell" });
     expect(sellRecipe?.shelves[0]?.include).toEqual({
-      proposal: ["review", "publi_divulgation"],
-      tone: ["promotional"],
+      contentIntent: ["convert"],
+      narrativeForm: ["review"],
+      proofStyle: ["social_proof", "demonstration"],
+      commercialMode: ["paid_partnership"],
     });
   });
 });

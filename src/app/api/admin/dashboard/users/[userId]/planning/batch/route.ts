@@ -7,7 +7,7 @@ import { getUserReachInteractionTrendChartData } from '@/charts/getReachInteract
 import getEngagementDistributionByFormatChartData from '@/charts/getEngagementDistributionByFormatChartData';
 import { aggregateUserTimePerformance } from '@/utils/aggregateUserTimePerformance';
 import { timePeriodToDays } from '@/utils/timePeriodHelpers';
-import getAverageEngagementByGrouping from '@/utils/getAverageEngagementByGrouping';
+import { getAverageEngagementByGroupings } from '@/utils/getAverageEngagementByGrouping';
 import { ALLOWED_TIME_PERIODS, ALLOWED_ENGAGEMENT_METRICS, EngagementMetricField, TimePeriod } from '@/app/lib/constants/timePeriods';
 
 export const dynamic = 'force-dynamic';
@@ -17,6 +17,7 @@ const DEFAULT_TIME_PERIOD: TimePeriod = 'last_90_days';
 const DEFAULT_GRANULARITY: 'daily' | 'weekly' = 'weekly';
 const DEFAULT_METRIC_FIELD = 'stats.total_interactions';
 const DEFAULT_MAX_SLICES = 7;
+const CACHE_SCHEMA_VERSION = 'v2';
 
 const DEFAULT_FORMAT_MAPPING: Record<string, string> = {
   IMAGE: 'Imagem',
@@ -89,6 +90,7 @@ export async function GET(req: NextRequest, { params }: { params: { userId: stri
 
   try {
     const cacheKey = `${SERVICE_TAG}:${JSON.stringify({
+      v: CACHE_SCHEMA_VERSION,
       userId,
       timePeriod,
       granularity,
@@ -104,25 +106,44 @@ export async function GET(req: NextRequest, { params }: { params: { userId: stri
           trendData,
           timeData,
           formatData,
-          proposalChartData,
-          toneChartData,
-          referenceChartData,
+          groupingChartData,
         ] = await Promise.all([
           getUserReachInteractionTrendChartData(userId, timePeriod, granularity, {}),
           aggregateUserTimePerformance(userId, periodInDaysValue, metricField, {}),
           getEngagementDistributionByFormatChartData(userId, timePeriod, engagementMetricField, DEFAULT_FORMAT_MAPPING, maxSlices),
-          getAverageEngagementByGrouping(userId, timePeriod, engagementMetricField, 'proposal'),
-          getAverageEngagementByGrouping(userId, timePeriod, engagementMetricField, 'tone'),
-          getAverageEngagementByGrouping(userId, timePeriod, engagementMetricField, 'references'),
+          getAverageEngagementByGroupings(
+            userId,
+            timePeriod,
+            engagementMetricField,
+            [
+              'context',
+              'proposal',
+              'tone',
+              'references',
+              'contentIntent',
+              'narrativeForm',
+              'contentSignals',
+              'stance',
+              'proofStyle',
+              'commercialMode',
+            ]
+          ),
         ]);
 
         return {
           trendData,
           timeData,
           formatData,
-          proposalData: { chartData: proposalChartData, metricUsed: engagementMetricField, groupBy: 'proposal' },
-          toneData: { chartData: toneChartData, metricUsed: engagementMetricField, groupBy: 'tone' },
-          referenceData: { chartData: referenceChartData, metricUsed: engagementMetricField, groupBy: 'references' },
+          contextData: { chartData: groupingChartData.context || [], metricUsed: engagementMetricField, groupBy: 'context' },
+          proposalData: { chartData: groupingChartData.proposal || [], metricUsed: engagementMetricField, groupBy: 'proposal' },
+          toneData: { chartData: groupingChartData.tone || [], metricUsed: engagementMetricField, groupBy: 'tone' },
+          referenceData: { chartData: groupingChartData.references || [], metricUsed: engagementMetricField, groupBy: 'references' },
+          contentIntentData: { chartData: groupingChartData.contentIntent || [], metricUsed: engagementMetricField, groupBy: 'contentIntent' },
+          narrativeFormData: { chartData: groupingChartData.narrativeForm || [], metricUsed: engagementMetricField, groupBy: 'narrativeForm' },
+          contentSignalsData: { chartData: groupingChartData.contentSignals || [], metricUsed: engagementMetricField, groupBy: 'contentSignals' },
+          stanceData: { chartData: groupingChartData.stance || [], metricUsed: engagementMetricField, groupBy: 'stance' },
+          proofStyleData: { chartData: groupingChartData.proofStyle || [], metricUsed: engagementMetricField, groupBy: 'proofStyle' },
+          commercialModeData: { chartData: groupingChartData.commercialMode || [], metricUsed: engagementMetricField, groupBy: 'commercialMode' },
         };
       },
       DEFAULT_DASHBOARD_TTL_MS

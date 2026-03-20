@@ -12,7 +12,19 @@ type PostCard = {
   postDate?: string;
   creatorName?: string;
   stats?: { total_interactions?: number; likes?: number; comments?: number; shares?: number; views?: number };
-  categories?: { format?: string[]; proposal?: string[]; context?: string[]; tone?: string[]; references?: string[] };
+  categories?: {
+    format?: string[];
+    proposal?: string[];
+    context?: string[];
+    tone?: string[];
+    references?: string[];
+    contentIntent?: string[];
+    narrativeForm?: string[];
+    contentSignals?: string[];
+    stance?: string[];
+    proofStyle?: string[];
+    commercialMode?: string[];
+  };
 };
 
 const DAYS = [
@@ -50,6 +62,12 @@ export default function SaveToPlannerButton({ item }: Props) {
   const context = item.categories?.context?.slice(0, 2) || [];
   const reference = item.categories?.references?.slice(0, 2) || [];
   const tone = item.categories?.tone?.[0];
+  const contentIntent = item.categories?.contentIntent?.slice(0, 2) || [];
+  const narrativeForm = item.categories?.narrativeForm?.slice(0, 2) || [];
+  const contentSignals = item.categories?.contentSignals?.slice(0, 3) || [];
+  const stance = item.categories?.stance?.slice(0, 2) || [];
+  const proofStyle = item.categories?.proofStyle?.slice(0, 2) || [];
+  const commercialMode = item.categories?.commercialMode?.slice(0, 2) || [];
 
   async function onSave() {
     setSaving(true);
@@ -63,6 +81,12 @@ export default function SaveToPlannerButton({ item }: Props) {
           format,
           status: 'drafted',
           categories: { context, proposal, reference, ...(tone ? { tone } : {}) },
+          ...(contentIntent.length ? { contentIntent } : {}),
+          ...(narrativeForm.length ? { narrativeForm } : {}),
+          ...(contentSignals.length ? { contentSignals } : {}),
+          ...(stance.length ? { stance } : {}),
+          ...(proofStyle.length ? { proofStyle } : {}),
+          ...(commercialMode.length ? { commercialMode } : {}),
           title: (item.caption || '').slice(0, 120),
         }],
       };
@@ -139,7 +163,12 @@ export default function SaveToPlannerButton({ item }: Props) {
                   >{String(h).padStart(2,'0')}:00</button>
                 ))}
               </div>
-              <div className="text-[12px] text-gray-500">Formato: {format}</div>
+              <div className="space-y-1 text-[12px] text-gray-500">
+                <div>Formato: {format}</div>
+                {contentIntent[0] ? <div>Intenção: {contentIntent[0]}</div> : null}
+                {narrativeForm[0] ? <div>Narrativa: {narrativeForm[0]}</div> : null}
+                {context[0] ? <div>Contexto: {context[0]}</div> : null}
+              </div>
               <button
                 type="button"
                 className="w-full inline-flex items-center justify-center bg-pink-600 text-white rounded-md py-2 text-sm disabled:opacity-60"

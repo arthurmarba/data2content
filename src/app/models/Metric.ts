@@ -5,6 +5,19 @@
 
 import mongoose, { Schema, model, Document, Model, Types } from "mongoose";
 import { analyzeLegacyCategoryValues, CLASSIFICATION_DIMENSIONS, type MetricCategoryField } from "@/app/lib/classificationLegacy";
+import { sanitizeLegacyProposalValues } from "@/app/lib/classification";
+import {
+  canonicalizeV2CategoryValues,
+  toCanonicalV2CategoryId,
+  V2_CLASSIFICATION_FIELDS,
+  type ClassificationV2Type,
+} from "@/app/lib/classificationV2";
+import {
+  canonicalizeV25CategoryValues,
+  toCanonicalV25CategoryId,
+  V25_CLASSIFICATION_FIELDS,
+  type ClassificationV25Type,
+} from "@/app/lib/classificationV2_5";
 
 const DEFAULT_MEDIA_TYPE = 'UNKNOWN';
 
@@ -61,6 +74,42 @@ export interface IMetricClassificationQuarantine {
   references?: string[];
 }
 
+export interface IMetricEntityTarget {
+  type:
+    | "brand"
+    | "product"
+    | "service"
+    | "person"
+    | "city"
+    | "country"
+    | "franchise"
+    | "platform";
+  label: string;
+  canonicalId?: string | null;
+}
+
+export interface IMetricClassificationMeta {
+  confidence?: Record<string, number>;
+  evidence?: Record<string, string[]>;
+  primary?: string | null;
+  secondary?: string | null;
+}
+
+const ENTITY_TARGET_TYPES = [
+  "brand",
+  "product",
+  "service",
+  "person",
+  "city",
+  "country",
+  "franchise",
+  "platform",
+] as const;
+
+function isEntityTargetType(value: string): value is IMetricEntityTarget["type"] {
+  return (ENTITY_TARGET_TYPES as readonly string[]).includes(value);
+}
+
 export interface IMetric extends Document {
   user: Types.ObjectId;
   postLink: string;
@@ -72,6 +121,14 @@ export interface IMetric extends Document {
   context: string[];
   tone: string[];
   references: string[];
+  contentIntent: string[];
+  narrativeForm: string[];
+  contentSignals: string[];
+  stance: string[];
+  proofStyle: string[];
+  commercialMode: string[];
+  entityTargets?: IMetricEntityTarget[];
+  classificationMeta?: IMetricClassificationMeta;
   classificationQuarantine?: IMetricClassificationQuarantine;
   theme?: string;
   collab?: boolean;
@@ -118,7 +175,7 @@ function uniqueStrings(values: string[]): string[] {
   return result;
 }
 
-function buildClassificationValidationError(field: MetricCategoryField, values: string[]) {
+function buildClassificationValidationError(field: string, values: string[]) {
   const error = new mongoose.Error.ValidationError();
   error.addError(
     field,
@@ -131,13 +188,108 @@ function buildClassificationValidationError(field: MetricCategoryField, values: 
   return error;
 }
 
+function analyzeV2CategoryValues(values: unknown, type: ClassificationV2Type) {
+  const rawValues = toStringArray(values);
+  const canonicalValues = canonicalizeV2CategoryValues(rawValues, type);
+  const unknownValues = rawValues.filter((value) => !toCanonicalV2CategoryId(value, type));
+
+  return {
+    rawValues,
+    canonicalValues,
+    unknownValues,
+  };
+}
+
+function analyzeV25CategoryValues(values: unknown, type: ClassificationV25Type) {
+  const rawValues = toStringArray(values);
+  const canonicalValues = canonicalizeV25CategoryValues(rawValues, type);
+  const unknownValues = rawValues.filter((value) => !toCanonicalV25CategoryId(value, type));
+
+  return {
+    rawValues,
+    canonicalValues,
+    unknownValues,
+  };
+}
+
+function normalizeEntityTargets(values: unknown): IMetricEntityTarget[] {
+  if (!Array.isArray(values)) return [];
+
+  const normalized: IMetricEntityTarget[] = [];
+
+  for (const value of values) {
+    if (typeof value !== "object" || value === null) continue;
+
+    const type = typeof value.type === "string" ? value.type.trim() : "";
+    const label = typeof value.label === "string" ? value.label.trim() : "";
+
+    if (!isEntityTargetType(type) || !label) continue;
+
+    const canonicalId =
+      typeof value.canonicalId === "string" && value.canonicalId.trim()
+        ? value.canonicalId.trim()
+        : null;
+
+    normalized.push({
+      type,
+      label,
+      canonicalId,
+    });
+  }
+
+  return normalized;
+}
+
+function normalizeClassificationMeta(values: unknown): IMetricClassificationMeta | undefined {
+  if (!values || typeof values !== "object" || Array.isArray(values)) return undefined;
+
+  const raw = values as Record<string, unknown>;
+  const confidence =
+    raw.confidence && typeof raw.confidence === "object" && !Array.isArray(raw.confidence)
+      ? Object.entries(raw.confidence as Record<string, unknown>).reduce<Record<string, number>>(
+          (acc, [key, value]) => {
+            if (typeof value === "number" && Number.isFinite(value)) {
+              acc[key] = value;
+            }
+            return acc;
+          },
+          {}
+        )
+      : undefined;
+  const evidence =
+    raw.evidence && typeof raw.evidence === "object" && !Array.isArray(raw.evidence)
+      ? Object.entries(raw.evidence as Record<string, unknown>).reduce<Record<string, string[]>>(
+          (acc, [key, value]) => {
+            acc[key] = toStringArray(value);
+            return acc;
+          },
+          {}
+        )
+      : undefined;
+  const primary = typeof raw.primary === "string" && raw.primary.trim() ? raw.primary.trim() : null;
+  const secondary =
+    typeof raw.secondary === "string" && raw.secondary.trim() ? raw.secondary.trim() : null;
+
+  return {
+    ...(confidence && Object.keys(confidence).length > 0 ? { confidence } : {}),
+    ...(evidence && Object.keys(evidence).length > 0 ? { evidence } : {}),
+    ...(primary ? { primary } : {}),
+    ...(secondary ? { secondary } : {}),
+  };
+}
+
 function normalizeClassificationDocument(doc: mongoose.Document & { invalidate: (path: string, message: string, value?: unknown, kind?: string) => void }) {
   const currentQuarantine = (doc.get("classificationQuarantine") ?? {}) as Partial<Record<MetricCategoryField, unknown>>;
   const nextQuarantine: IMetricClassificationQuarantine = {};
 
   for (const dimension of CLASSIFICATION_DIMENSIONS) {
     const analysis = analyzeLegacyCategoryValues(doc.get(dimension.field), dimension.type);
-    doc.set(dimension.field, analysis.canonicalValues);
+    doc.set(
+      dimension.field,
+      dimension.field === "proposal"
+        ? sanitizeLegacyProposalValues(analysis.canonicalValues)
+        : analysis.canonicalValues
+    );
 
     if (analysis.unknownValues.length > 0) {
       doc.invalidate(
@@ -152,6 +304,35 @@ function normalizeClassificationDocument(doc: mongoose.Document & { invalidate: 
       nextQuarantine[dimension.field] = quarantineValues;
     }
   }
+
+  for (const field of V2_CLASSIFICATION_FIELDS) {
+    const analysis = analyzeV2CategoryValues(doc.get(field.field), field.type);
+    doc.set(field.field, analysis.canonicalValues);
+
+    if (analysis.unknownValues.length > 0) {
+      doc.invalidate(
+        field.field,
+        `Unknown classification values for ${field.field}: ${analysis.unknownValues.join(", ")}`,
+        analysis.unknownValues
+      );
+    }
+  }
+
+  for (const field of V25_CLASSIFICATION_FIELDS) {
+    const analysis = analyzeV25CategoryValues(doc.get(field.field), field.type);
+    doc.set(field.field, analysis.canonicalValues);
+
+    if (analysis.unknownValues.length > 0) {
+      doc.invalidate(
+        field.field,
+        `Unknown classification values for ${field.field}: ${analysis.unknownValues.join(", ")}`,
+        analysis.unknownValues
+      );
+    }
+  }
+
+  doc.set("entityTargets", normalizeEntityTargets(doc.get("entityTargets")));
+  doc.set("classificationMeta", normalizeClassificationMeta(doc.get("classificationMeta")));
 
   doc.set("classificationQuarantine", nextQuarantine);
 }
@@ -173,11 +354,44 @@ function normalizeClassificationUpdatePayload(update: Record<string, unknown>) {
       if (!Object.prototype.hasOwnProperty.call(target, dimension.field)) continue;
 
       const analysis = analyzeLegacyCategoryValues(target[dimension.field], dimension.type);
-      target[dimension.field] = analysis.canonicalValues;
+      target[dimension.field] =
+        dimension.field === "proposal"
+          ? sanitizeLegacyProposalValues(analysis.canonicalValues)
+          : analysis.canonicalValues;
 
       if (analysis.unknownValues.length > 0) {
         throw buildClassificationValidationError(dimension.field, analysis.unknownValues);
       }
+    }
+
+    for (const field of V2_CLASSIFICATION_FIELDS) {
+      if (!Object.prototype.hasOwnProperty.call(target, field.field)) continue;
+
+      const analysis = analyzeV2CategoryValues(target[field.field], field.type);
+      target[field.field] = analysis.canonicalValues;
+
+      if (analysis.unknownValues.length > 0) {
+        throw buildClassificationValidationError(field.field, analysis.unknownValues);
+      }
+    }
+
+    for (const field of V25_CLASSIFICATION_FIELDS) {
+      if (!Object.prototype.hasOwnProperty.call(target, field.field)) continue;
+
+      const analysis = analyzeV25CategoryValues(target[field.field], field.type);
+      target[field.field] = analysis.canonicalValues;
+
+      if (analysis.unknownValues.length > 0) {
+        throw buildClassificationValidationError(field.field, analysis.unknownValues);
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(target, "entityTargets")) {
+      target.entityTargets = normalizeEntityTargets(target.entityTargets);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(target, "classificationMeta")) {
+      target.classificationMeta = normalizeClassificationMeta(target.classificationMeta);
     }
   }
 }
@@ -189,6 +403,15 @@ const classificationQuarantineSchema = new Schema<IMetricClassificationQuarantin
     context: { type: [String], default: [] },
     tone: { type: [String], default: [] },
     references: { type: [String], default: [] },
+  },
+  { _id: false }
+);
+
+const entityTargetSchema = new Schema<IMetricEntityTarget>(
+  {
+    type: { type: String, required: true },
+    label: { type: String, required: true, trim: true },
+    canonicalId: { type: String, default: null, trim: true },
   },
   { _id: false }
 );
@@ -205,6 +428,14 @@ const metricSchema = new Schema<IMetric>(
     context: { type: [String], default: [], index: true },
     tone: { type: [String], default: [], index: true },
     references: { type: [String], default: [], index: true },
+    contentIntent: { type: [String], default: [], index: true },
+    narrativeForm: { type: [String], default: [], index: true },
+    contentSignals: { type: [String], default: [], index: true },
+    stance: { type: [String], default: [], index: true },
+    proofStyle: { type: [String], default: [], index: true },
+    commercialMode: { type: [String], default: [], index: true },
+    entityTargets: { type: [entityTargetSchema], default: [] },
+    classificationMeta: { type: Schema.Types.Mixed, default: undefined },
     classificationQuarantine: { type: classificationQuarantineSchema, default: undefined },
     theme: { type: String, trim: true, default: null },
     collab: { type: Boolean, default: false },

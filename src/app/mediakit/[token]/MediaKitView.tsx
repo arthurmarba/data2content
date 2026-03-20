@@ -41,9 +41,17 @@ import { motion } from 'framer-motion';
 import { UserAvatar } from '@/app/components/UserAvatar';
 import AverageMetricRow from '@/app/dashboard/components/AverageMetricRow';
 import PostDetailModal from '@/app/admin/creator-dashboard/PostDetailModal';
-import { MediaKitViewProps, VideoListItem, MediaKitPricing, MediaKitPackage } from '@/types/mediakit';
+import {
+  MediaKitViewProps,
+  VideoListItem,
+  MediaKitPricing,
+  MediaKitPackage,
+  PerformanceSummaryItem,
+} from '@/types/mediakit';
 import { useGlobalTimePeriod, GlobalTimePeriodProvider } from '@/app/admin/creator-dashboard/components/filters/GlobalTimePeriodContext';
 import { getCategoryById, commaSeparatedIdsToLabels, type CategoryType } from '@/app/lib/classification';
+import { v2IdsToLabels } from '@/app/lib/classificationV2';
+import { v25IdsToLabels } from '@/app/lib/classificationV2_5';
 import SubscribeCtaBanner from '@/app/mediakit/components/SubscribeCtaBanner';
 import ButtonPrimary from '@/app/landing/components/ButtonPrimary';
 import DemographicBarList from '@/app/components/DemographicBarList';
@@ -55,6 +63,7 @@ import { track } from '@/lib/track';
 import { PRO_PLAN_FLEXIBILITY_COPY } from '@/app/constants/trustCopy';
 import { useUtmAttribution } from '@/hooks/useUtmAttribution';
 import type { UtmContext } from '@/lib/analytics/utm';
+import { getMetricStrategicPresentation } from '@/app/lib/metricStrategicPresentation';
 
 /**
  * UTILS & CONSTANTS
@@ -856,13 +865,60 @@ interface RankItem {
   category: string;
   value: number;
 }
-type CategoryKey = 'format' | 'proposal' | 'context' | 'tone' | 'references';
-const toClassificationCategoryType = (type: CategoryKey): CategoryType => (type === 'references' ? 'reference' : type);
+type LegacyCategoryKey = 'format' | 'proposal' | 'context' | 'tone' | 'references';
+type CategoryKey =
+  | LegacyCategoryKey
+  | 'contentIntent'
+  | 'narrativeForm'
+  | 'contentSignals'
+  | 'stance'
+  | 'proofStyle'
+  | 'commercialMode';
+type RankingMetricKey = 'posts' | 'avg_total_interactions';
+const toClassificationCategoryType = (type: LegacyCategoryKey): CategoryType => (type === 'references' ? 'reference' : type);
+const categoryKeys: CategoryKey[] = [
+  'format',
+  'proposal',
+  'context',
+  'tone',
+  'references',
+  'contentIntent',
+  'narrativeForm',
+  'contentSignals',
+  'stance',
+  'proofStyle',
+  'commercialMode',
+];
+
+const splitCategoryIds = (value: string) =>
+  value
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
 
 // Fallback robusto: tenta classification -> commaSeparatedIdsToLabels -> Title Case do id
 const idToLabel = (id: string | number, type: CategoryKey) => {
   const rawId = String(id ?? '').trim();
   if (!rawId) return '—';
+  if (type === 'contentIntent') {
+    return v2IdsToLabels(splitCategoryIds(rawId), 'contentIntent').join(', ') || rawId;
+  }
+  if (type === 'narrativeForm') {
+    return v2IdsToLabels(splitCategoryIds(rawId), 'narrativeForm').join(', ') || rawId;
+  }
+  if (type === 'contentSignals') {
+    return v2IdsToLabels(splitCategoryIds(rawId), 'contentSignal').join(', ') || rawId;
+  }
+  if (type === 'stance') {
+    return v25IdsToLabels(splitCategoryIds(rawId), 'stance').join(', ') || rawId;
+  }
+  if (type === 'proofStyle') {
+    return v25IdsToLabels(splitCategoryIds(rawId), 'proofStyle').join(', ') || rawId;
+  }
+  if (type === 'commercialMode') {
+    return v25IdsToLabels(splitCategoryIds(rawId), 'commercialMode').join(', ') || rawId;
+  }
+
   const classificationType = toClassificationCategoryType(type);
 
   // Tenta encontrar pelo ID exato
@@ -895,38 +951,14 @@ const idToLabel = (id: string | number, type: CategoryKey) => {
     .join(' ');
 };
 
-type CategoryRankingsMap = {
-  fp?: RankItem[];
-  fa?: RankItem[];
-  pp?: RankItem[];
-  pa?: RankItem[];
-  cp?: RankItem[];
-  ca?: RankItem[];
-  tp?: RankItem[];
-  ta?: RankItem[];
-  rp?: RankItem[];
-  ra?: RankItem[];
-} | null;
-const categoryKeys: CategoryKey[] = ['format', 'proposal', 'context', 'tone', 'references'];
-const categoryToAvgKey: Record<CategoryKey, keyof NonNullable<CategoryRankingsMap>> = {
-  format: 'fa',
-  proposal: 'pa',
-  context: 'ca',
-  tone: 'ta',
-  references: 'ra',
-};
-const categoryToPostsKey: Record<CategoryKey, keyof NonNullable<CategoryRankingsMap>> = {
-  format: 'fp',
-  proposal: 'pp',
-  context: 'cp',
-  tone: 'tp',
-  references: 'rp',
-};
+type CategoryRankingsMap = Partial<Record<CategoryKey, Partial<Record<RankingMetricKey, RankItem[]>>>> | null;
 const hasCategoryRankingData = (data?: CategoryRankingsMap | null) =>
   Boolean(
     data &&
-    ['fa', 'pa', 'ca', 'ta', 'ra'].some(
-      (key) => Array.isArray((data as any)[key]) && (data as any)[key]?.length > 0
+    categoryKeys.some((key) =>
+      ['posts', 'avg_total_interactions'].some((metric) =>
+        Array.isArray(data[key]?.[metric as RankingMetricKey]) && (data[key]?.[metric as RankingMetricKey]?.length ?? 0) > 0
+      )
     )
   );
 
@@ -949,28 +981,15 @@ const useCategoryRankings = (userId?: string | null, enabled = true) => {
       const endDate = new Date().toISOString();
       const startDate = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
 
-      const fetchCategoryRanking = async (category: CategoryKey, metric: string) => {
-        const qs = new URLSearchParams({ category, metric, startDate, endDate, limit: '5', userId });
-        const res = await fetch(`/api/admin/dashboard/rankings/categories?${qs.toString()}`);
-        if (!res.ok) return [];
-        return res.json();
-      };
-
       try {
-        const [fp, fa, pp, pa, cp, ca, tp, ta, rp, ra] = await Promise.all([
-          fetchCategoryRanking('format', 'posts'),
-          fetchCategoryRanking('format', 'avg_total_interactions'),
-          fetchCategoryRanking('proposal', 'posts'),
-          fetchCategoryRanking('proposal', 'avg_total_interactions'),
-          fetchCategoryRanking('context', 'posts'),
-          fetchCategoryRanking('context', 'avg_total_interactions'),
-          fetchCategoryRanking('tone', 'posts'),
-          fetchCategoryRanking('tone', 'avg_total_interactions'),
-          fetchCategoryRanking('references', 'posts'),
-          fetchCategoryRanking('references', 'avg_total_interactions'),
-        ]);
+        const qs = new URLSearchParams({ startDate, endDate, limit: '5', userId });
+        const res = await fetch(`/api/admin/dashboard/rankings/categories/batch?${qs.toString()}`);
+        if (!res.ok) {
+          throw new Error('Failed to fetch rankings');
+        }
+        const data = (await res.json()) as CategoryRankingsMap;
         if (!cancelled) {
-          setState({ data: { fp, fa, pp, pa, cp, ca, tp, ta, rp, ra }, loading: false, error: null });
+          setState({ data, loading: false, error: null });
         }
       } catch (error) {
         console.error('Failed to fetch rankings', error);
@@ -1111,6 +1130,7 @@ type InsightMetricCard = {
 
 type CategoryRankingsSummaryProps = {
   rankings: CategoryRankingsMap;
+  summary?: MediaKitViewProps['summary'];
   loading: boolean;
   locked: boolean;
   lockedDescription: string;
@@ -1120,8 +1140,161 @@ type CategoryRankingsSummaryProps = {
   isPublicView?: boolean;
 };
 
+const PerformanceHighlightsSummary = ({
+  summary,
+  isPublicView,
+}: {
+  summary: MediaKitViewProps['summary'];
+  isPublicView?: boolean;
+}) => {
+  if (!summary) return null;
+
+  const toHighlightCopy = (item?: PerformanceSummaryItem | null, type?: CategoryKey) => {
+    if (!item) return null;
+    return {
+      primary: type ? idToLabel(item.name, type) : item.name,
+      secondary: `${item.valueFormatted} de ${item.metricName}`,
+    };
+  };
+  const buildHighlightCard = (
+    key: string,
+    title: string,
+    icon: React.ReactNode,
+    accent: string,
+    item?: PerformanceSummaryItem | null,
+    type?: CategoryKey
+  ) => {
+    const copy = toHighlightCopy(item, type);
+    if (!copy) return null;
+    return {
+      key,
+      title,
+      icon,
+      accent,
+      ...copy,
+    };
+  };
+
+  const weekdayLabels = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  const bestDayCard = summary.bestDay
+    ? {
+        key: 'best-day',
+        title: 'Melhor dia',
+        icon: <CalendarDays className="h-4 w-4" />,
+        accent: '#4F46E5',
+        primary: weekdayLabels[Math.max(1, Math.min(7, summary.bestDay.dayOfWeek)) - 1] || 'Dia',
+        secondary: `${summary.bestDay.average.toFixed(1)} interações por post`,
+      }
+    : null;
+
+  const cards = [
+    buildHighlightCard(
+      'top-format',
+      'Melhor formato',
+      <TrendingUp className="h-4 w-4" />,
+      '#6E1F93',
+      summary.topPerformingFormat,
+      'format'
+    ),
+    buildHighlightCard(
+      'top-context',
+      'Contexto forte',
+      <MessageSquare className="h-4 w-4" />,
+      '#9446B0',
+      summary.topPerformingContext,
+      'context'
+    ),
+    buildHighlightCard(
+      'top-content-intent',
+      'Intenção dominante',
+      <Send className="h-4 w-4" />,
+      '#0891B2',
+      summary.topPerformingContentIntent,
+      'contentIntent'
+    ),
+    buildHighlightCard(
+      'top-narrative',
+      'Narrativa forte',
+      <Sparkles className="h-4 w-4" />,
+      '#0284C7',
+      summary.topPerformingNarrativeForm,
+      'narrativeForm'
+    ),
+    buildHighlightCard(
+      'top-stance',
+      'Postura forte',
+      <Volume2 className="h-4 w-4" />,
+      '#E11D48',
+      summary.topPerformingStance,
+      'stance'
+    ),
+    buildHighlightCard(
+      'top-proof',
+      'Prova forte',
+      <Eye className="h-4 w-4" />,
+      '#EA580C',
+      summary.topPerformingProofStyle,
+      'proofStyle'
+    ),
+    buildHighlightCard(
+      'top-commercial-mode',
+      'Modo comercial',
+      <Bookmark className="h-4 w-4" />,
+      '#C026D3',
+      summary.topPerformingCommercialMode,
+      'commercialMode'
+    ),
+    bestDayCard,
+  ].filter(
+    (card): card is {
+      key: string;
+      title: string;
+      icon: React.ReactNode;
+      accent: string;
+      primary: string;
+      secondary: string;
+    } => Boolean(card && card.primary && card.secondary)
+  );
+
+  if (!cards.length) return null;
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h3 className="text-lg font-semibold text-slate-900">Destaques de Performance</h3>
+        <p className="mt-1 text-sm text-slate-500">
+          Leitura rápida do que mais puxa resposta no seu conteúdo agora.
+        </p>
+      </div>
+      <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${isPublicView ? '' : 'lg:grid-cols-4'}`}>
+        {cards.map((card) => (
+          <div key={card.key} className={`${highlightCardClass} flex flex-col justify-between p-5`}>
+            <div>
+              <div className="flex items-center gap-3">
+                <span
+                  className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm"
+                  style={{ color: card.accent }}
+                >
+                  {card.icon}
+                </span>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{card.title}</p>
+              </div>
+              <p className="mt-4 text-xl font-bold text-slate-900">{card.primary}</p>
+            </div>
+            <p className="mt-1 text-xs text-slate-500">{card.secondary}</p>
+          </div>
+        ))}
+      </div>
+      {summary.insightSummary ? (
+        <p className="text-xs text-slate-500">{summary.insightSummary}</p>
+      ) : null}
+    </div>
+  );
+};
+
 const CategoryRankingsSummary = ({
   rankings,
+  summary,
   loading,
   locked,
   lockedDescription,
@@ -1130,23 +1303,15 @@ const CategoryRankingsSummary = ({
   onLockedAction,
   isPublicView,
 }: CategoryRankingsSummaryProps) => {
-  const summaryCards = [
+  const weekdayLabels = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  const cards = [
     {
       key: 'format',
       title: 'Formato destaque',
       icon: <TrendingUp className="h-4 w-4" />,
       accent: '#6E1F93',
-      item: rankings?.fa?.[0],
+      item: rankings?.format?.avg_total_interactions?.[0],
       type: 'format' as const,
-      helper: 'Maior média de interações',
-    },
-    {
-      key: 'proposal',
-      title: 'Proposta forte',
-      icon: <Sparkles className="h-4 w-4" />,
-      accent: '#D62E5E',
-      item: rankings?.pa?.[0],
-      type: 'proposal' as const,
       helper: 'Maior média de interações',
     },
     {
@@ -1154,7 +1319,7 @@ const CategoryRankingsSummary = ({
       title: 'Contexto que engaja',
       icon: <MessageSquare className="h-4 w-4" />,
       accent: '#9446B0',
-      item: rankings?.ca?.[0],
+      item: rankings?.context?.avg_total_interactions?.[0],
       type: 'context' as const,
       helper: 'Maior média de interações',
     },
@@ -1163,17 +1328,72 @@ const CategoryRankingsSummary = ({
       title: 'Tom em destaque',
       icon: <Volume2 className="h-4 w-4" />,
       accent: '#1C4FD7',
-      item: rankings?.ta?.[0],
+      item: rankings?.tone?.avg_total_interactions?.[0],
       type: 'tone' as const,
       helper: 'Maior média de interações',
     },
+    summary?.bestDay
+      ? {
+          key: 'best-day',
+          title: 'Melhor dia',
+          icon: <CalendarDays className="h-4 w-4" />,
+          accent: '#4F46E5',
+          primary: weekdayLabels[Math.max(1, Math.min(7, summary.bestDay.dayOfWeek)) - 1] || 'Dia',
+          secondary: `${summary.bestDay.average.toFixed(1)} interações por post`,
+        }
+      : null,
     {
-      key: 'reference',
-      title: 'Referência em alta',
+      key: 'content-intent',
+      title: 'Intenção dominante',
+      icon: <Send className="h-4 w-4" />,
+      accent: '#0891B2',
+      item: rankings?.contentIntent?.avg_total_interactions?.[0],
+      type: 'contentIntent' as const,
+      helper: 'Maior média de interações',
+    },
+    {
+      key: 'narrative-form',
+      title: 'Narrativa forte',
+      icon: <Sparkles className="h-4 w-4" />,
+      accent: '#0284C7',
+      item: rankings?.narrativeForm?.avg_total_interactions?.[0],
+      type: 'narrativeForm' as const,
+      helper: 'Maior média de interações',
+    },
+    {
+      key: 'content-signals',
+      title: 'Sinal recorrente',
       icon: <Bookmark className="h-4 w-4" />,
-      accent: '#F97316',
-      item: rankings?.ra?.[0],
-      type: 'references' as const,
+      accent: '#059669',
+      item: rankings?.contentSignals?.avg_total_interactions?.[0],
+      type: 'contentSignals' as const,
+      helper: 'Maior média de interações',
+    },
+    {
+      key: 'stance',
+      title: 'Postura forte',
+      icon: <Volume2 className="h-4 w-4" />,
+      accent: '#E11D48',
+      item: rankings?.stance?.avg_total_interactions?.[0],
+      type: 'stance' as const,
+      helper: 'Maior média de interações',
+    },
+    {
+      key: 'proof-style',
+      title: 'Prova que funciona',
+      icon: <Eye className="h-4 w-4" />,
+      accent: '#EA580C',
+      item: rankings?.proofStyle?.avg_total_interactions?.[0],
+      type: 'proofStyle' as const,
+      helper: 'Maior média de interações',
+    },
+    {
+      key: 'commercial-mode',
+      title: 'Modo comercial',
+      icon: <ArrowUpRight className="h-4 w-4" />,
+      accent: '#C026D3',
+      item: rankings?.commercialMode?.avg_total_interactions?.[0],
+      type: 'commercialMode' as const,
       helper: 'Maior média de interações',
     },
   ] as const;
@@ -1201,11 +1421,12 @@ const CategoryRankingsSummary = ({
     );
   }
 
-  const renderableCategoryCards = summaryCards
+  const renderableCards = cards
     .map((card) => {
+      if (!card) return null;
+      if ('primary' in card && 'secondary' in card) return card;
       if (!card.item) return null;
       return {
-        kind: 'category' as const,
         key: card.key,
         title: card.title,
         icon: card.icon,
@@ -1216,15 +1437,15 @@ const CategoryRankingsSummary = ({
     })
     .filter((card): card is NonNullable<typeof card> => Boolean(card));
 
-  const hasData = renderableCategoryCards.length > 0;
-  const skeletonCount = 3;
+  const hasData = renderableCards.length > 0;
+  const skeletonCount = 6;
   const cardShellClass = `${highlightCardClass} flex flex-col justify-between p-5`;
   const titleClass = 'text-xs font-bold uppercase tracking-wider text-slate-500';
   const valueClass = 'mt-4 text-xl font-bold text-slate-900';
   const helperClass = 'mt-1 text-xs text-slate-500';
 
   return (
-    <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${isPublicView ? '' : 'lg:grid-cols-3'}`}>
+    <div className="space-y-6">
       {loading
         ? Array.from({ length: skeletonCount }).map((_, index) => (
           <div
@@ -1233,23 +1454,27 @@ const CategoryRankingsSummary = ({
           />
         ))
         : hasData
-          ? renderableCategoryCards.map((card) => (
-            <div key={card.key} className={cardShellClass}>
-              <div>
-                <div className="flex items-center gap-3">
-                  <span
-                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm"
-                    style={{ color: card.accent }}
-                  >
-                    {card.icon}
-                  </span>
-                  <p className={titleClass}>{card.title}</p>
+          ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {renderableCards.map((card) => (
+                <div key={card.key} className={cardShellClass}>
+                  <div>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm"
+                        style={{ color: card.accent }}
+                      >
+                        {card.icon}
+                      </span>
+                      <p className={titleClass}>{card.title}</p>
+                    </div>
+                    <p className={valueClass}>{card.primary}</p>
+                  </div>
+                  <p className={helperClass}>{card.secondary}</p>
                 </div>
-                <p className={valueClass}>{card.primary}</p>
-              </div>
-              <p className={helperClass}>{card.secondary}</p>
+              ))}
             </div>
-          ))
+          )
           : (
             <div className="col-span-full rounded-3xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">
               Não encontramos dados suficientes para destacar categorias neste período.
@@ -1770,12 +1995,11 @@ export default function MediaKitView({
   const lockedCtaLabel = premiumAccess?.ctaLabel ?? "Ver categorias do meu perfil (Assinar Plano Pro)";
   const lockedSubtitle = premiumAccess?.subtitle ?? PRO_PLAN_FLEXIBILITY_COPY;
   const categoryCtaLabel = premiumAccess?.categoryCtaLabel ?? lockedCtaLabel;
-  const categorySubtitle = premiumAccess?.categorySubtitle ?? lockedSubtitle;
   const premiumTrialState = premiumAccess?.trialState ?? null;
   const lockedCategoriesDescription =
     premiumTrialState === "expired"
       ? "Seus dados ficaram congelados. Assine para continuar recebendo atualizações semanais."
-      : "Ative o modo Pro para ver os formatos, propostas e contextos que mais puxam crescimento.";
+      : "Ative o modo Pro para ver formato, contexto, intenção, narrativa, prova e modo comercial que mais puxam crescimento.";
   const lockedViewTrackedRef = useRef(false);
   const topPostsLockedViewTrackedRef = useRef(false);
   const topPostsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -1965,6 +2189,12 @@ export default function MediaKitView({
       context: new Map(),
       tone: new Map(),
       references: new Map(),
+      contentIntent: new Map(),
+      narrativeForm: new Map(),
+      contentSignals: new Map(),
+      stance: new Map(),
+      proofStyle: new Map(),
+      commercialMode: new Map(),
     };
 
     const toArray = (value: unknown): string[] => {
@@ -2014,7 +2244,7 @@ export default function MediaKitView({
       });
     });
 
-    const result: Record<string, RankItem[]> = {};
+    const result: Partial<Record<CategoryKey, Partial<Record<RankingMetricKey, RankItem[]>>>> = {};
     categoryKeys.forEach((type) => {
       const map = aggregates[type];
       if (!map.size) return;
@@ -2026,14 +2256,16 @@ export default function MediaKitView({
         }))
         .sort((a, b) => b.value - a.value || b.posts - a.posts);
       if (!sorted.length) return;
-      result[categoryToAvgKey[type]] = sorted.map(({ category, value }) => ({
-        category,
-        value,
-      }));
-      result[categoryToPostsKey[type]] = sorted.map(({ category, posts }) => ({
-        category,
-        value: posts,
-      }));
+      result[type] = {
+        avg_total_interactions: sorted.map(({ category, value }) => ({
+          category,
+          value,
+        })),
+        posts: sorted.map(({ category, posts }) => ({
+          category,
+          value: posts,
+        })),
+      };
     });
 
     return Object.keys(result).length ? (result as CategoryRankingsMap) : null;
@@ -3078,12 +3310,12 @@ export default function MediaKitView({
                   <div className="flex items-end justify-between">
                     <div>
                       <h2 className="text-2xl font-bold text-slate-900">Destaques Estratégicos</h2>
-                      <p className="mt-1 text-slate-500">{categorySubtitle}</p>
                     </div>
                   </div>
 
                   <CategoryRankingsSummary
                     rankings={effectiveCategoryRankings}
+                    summary={summary}
                     loading={categoryRankingsLoadingState}
                     locked={shouldLockPremiumSections}
                     lockedDescription={lockedCategoriesDescription}
@@ -3428,51 +3660,34 @@ export default function MediaKitView({
                                 typeof derivedStats.engagementRate === 'number' && Number.isFinite(derivedStats.engagementRate)
                                   ? `${derivedStats.engagementRate >= 10 ? derivedStats.engagementRate.toFixed(1) : derivedStats.engagementRate.toFixed(2)}%`
                                   : null;
-                              const normalizeTagValues = (input: unknown): string[] => {
-                                const result: string[] = [];
-                                const pushValue = (value: unknown) => {
-                                  if (value == null) return;
-                                  if (Array.isArray(value)) {
-                                    value.forEach(pushValue);
-                                    return;
-                                  }
-                                  if (typeof value === 'string') {
-                                    const trimmed = value.trim();
-                                    if (trimmed) result.push(trimmed);
-                                    return;
-                                  }
-                                  if (typeof value === 'number' || typeof value === 'boolean') {
-                                    result.push(String(value));
-                                  }
-                                };
-                                pushValue(input);
-                                return result;
-                              };
+                              const strategicPresentation = getMetricStrategicPresentation({
+                                description: video.caption ?? video.description,
+                                format: video.format,
+                                proposal: video.proposal,
+                                context: video.context,
+                                tone: video.tone,
+                                references: video.references,
+                                contentIntent: video.contentIntent,
+                                narrativeForm: video.narrativeForm,
+                                contentSignals: video.contentSignals,
+                                stance: video.stance,
+                                proofStyle: video.proofStyle,
+                                commercialMode: video.commercialMode,
+                              });
 
-                              const buildTagEntries = <T extends 'format' | 'context' | 'proposal' | 'tone' | 'references'>(
-                                value: unknown,
-                                type: T
-                              ) => normalizeTagValues(value).map((v) => ({ type, value: v }));
-
-                              const tagMetaRaw = [
-                                ...buildTagEntries(video.format, 'format'),
-                                ...buildTagEntries(video.context, 'context'),
-                                ...buildTagEntries(video.proposal, 'proposal'),
-                                ...buildTagEntries(video.tone, 'tone'),
-                                ...buildTagEntries(video.references, 'references'),
-                              ];
-
-                              const tagMeta = tagMetaRaw.reduce(
-                                (acc, entry) => {
-                                  const key = `${entry.type}-${entry.value}`;
-                                  if (!acc.seen.has(key)) {
-                                    acc.seen.add(key);
-                                    acc.list.push(entry);
-                                  }
-                                  return acc;
-                                },
-                                { seen: new Set<string>(), list: [] as { type: 'format' | 'context' | 'proposal' | 'tone' | 'references'; value: string }[] }
-                              ).list;
+                              const pickFirstLabel = (labels: string[]) => labels.find(Boolean) || null;
+                              const tagMeta = [
+                                { key: 'format', label: 'Formato', value: pickFirstLabel(strategicPresentation.formatLabels) },
+                                { key: 'intent', label: 'Intenção', value: pickFirstLabel(strategicPresentation.intentLabels) },
+                                { key: 'narrative', label: 'Narrativa', value: pickFirstLabel(strategicPresentation.narrativeLabels) },
+                                { key: 'context', label: 'Contexto', value: pickFirstLabel(strategicPresentation.contextLabels) },
+                                { key: 'proof', label: 'Prova', value: pickFirstLabel(strategicPresentation.proofLabels) },
+                                { key: 'commercial', label: 'Comercial', value: pickFirstLabel(strategicPresentation.commercialLabels) },
+                                { key: 'stance', label: 'Postura', value: pickFirstLabel(strategicPresentation.stanceLabels) },
+                                { key: 'signal', label: 'Sinal', value: pickFirstLabel(strategicPresentation.signalLabels) },
+                                { key: 'reference', label: 'Referência', value: pickFirstLabel(strategicPresentation.referenceLabels) },
+                                { key: 'tone', label: 'Tom', value: pickFirstLabel(strategicPresentation.toneLabels) },
+                              ].filter((entry): entry is { key: string; label: string; value: string } => Boolean(entry.value));
                               type MetricItem = {
                                 key: string;
                                 main: string;
@@ -3659,15 +3874,16 @@ export default function MediaKitView({
                                   {tagMeta.length > 0 ? (
                                     <div className="rounded-2xl border border-white/55 bg-white/95 p-3 space-y-2">
                                       <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
-                                        Categorias mapeadas
+                                        Leitura estratégica
                                       </p>
                                       <div className="space-y-1.5">
-                                        {tagMeta.map(({ type, value }) => (
+                                        {tagMeta.map(({ key, label, value }) => (
                                           <p
-                                            key={`${video._id}-${type}-${value}`}
-                                            className={`text-[10px] uppercase tracking-[0.08em] ${textMutedClass}`}
+                                            key={`${video._id}-${key}-${value}`}
+                                            className="flex items-baseline justify-between gap-3 text-[10px] uppercase tracking-[0.08em]"
                                           >
-                                            {idToLabel(value, type)}
+                                            <span className={textMutedClass}>{label}</span>
+                                            <span className="text-right font-semibold text-[#475569]">{value}</span>
                                           </p>
                                         ))}
                                       </div>

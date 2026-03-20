@@ -199,6 +199,12 @@ export interface AnswerEvidence {
         format?: string;
         tone?: string;
         reference?: string;
+        contentIntent?: string;
+        narrativeForm?: string;
+        contentSignals?: string[];
+        stance?: string;
+        proofStyle?: string;
+        commercialMode?: string;
         primaryObjective?: string;
         source: 'community';
         linkVerified?: boolean;
@@ -207,6 +213,7 @@ export interface AnswerEvidence {
         personalizationScore?: number;
         narrativeRole?: 'gancho' | 'desenvolvimento' | 'cta';
         matchReasons?: string[];
+        matchAxes?: string[];
     }>;
     communityMeta?: {
       matchType?: string;
@@ -216,6 +223,12 @@ export interface AnswerEvidence {
         format?: string;
         tone?: string;
         reference?: string;
+        contentIntent?: string;
+        narrativeForm?: string;
+        contentSignals?: string;
+        stance?: string;
+        proofStyle?: string;
+        commercialMode?: string;
         narrativeQuery?: string;
         primaryObjective?: string;
       };
@@ -227,6 +240,12 @@ export interface AnswerEvidence {
           context?: string[];
           format?: string[];
           tone?: string[];
+          contentIntent?: string[];
+          narrativeForm?: string[];
+          contentSignals?: string[];
+          stance?: string[];
+          proofStyle?: string[];
+          commercialMode?: string[];
         };
       };
     };

@@ -7,10 +7,13 @@ type Spec = {
   label: string;
   include: {
     format?: string[];
-    proposal?: string[];
     context?: string[];
-    tone?: string[];
     references?: string[];
+    contentIntent?: string[];
+    narrativeForm?: string[];
+    contentSignals?: string[];
+    proofStyle?: string[];
+    commercialMode?: string[];
   };
 };
 
@@ -24,8 +27,9 @@ export const EXPERIENCE_SPECS: Record<ExperienceKey, Spec> = {
     key: 'learn',
     label: 'Aprender',
     include: {
-      proposal: ['tips'],
-      tone: ['educational'],
+      contentIntent: ['teach'],
+      narrativeForm: ['tutorial'],
+      proofStyle: ['demonstration', 'list_based'],
       format: ['reel', 'carousel'],
     },
   },
@@ -33,8 +37,9 @@ export const EXPERIENCE_SPECS: Record<ExperienceKey, Spec> = {
     key: 'learn_fun',
     label: 'Aprender + diversão',
     include: {
-      proposal: ['tips', 'humor_scene'],
-      tone: ['educational'],
+      contentIntent: ['teach', 'entertain'],
+      narrativeForm: ['tutorial', 'sketch_scene'],
+      proofStyle: ['demonstration', 'list_based'],
       references: ['pop_culture'],
       format: ['reel', 'carousel'],
     },
@@ -43,22 +48,28 @@ export const EXPERIENCE_SPECS: Record<ExperienceKey, Spec> = {
     key: 'inspire',
     label: 'Inspirar-se',
     include: {
-      proposal: ['message_motivational', 'behind_the_scenes', 'lifestyle'],
+      contentIntent: ['inspire', 'connect'],
+      narrativeForm: ['behind_the_scenes', 'day_in_the_life'],
+      proofStyle: ['personal_story'],
     },
   },
   sell: {
     key: 'sell',
     label: 'Vender mais',
     include: {
-      proposal: ['call_to_action', 'announcement', 'review', 'publi_divulgation'],
-      tone: ['promotional'],
+      contentIntent: ['convert'],
+      narrativeForm: ['review', 'comparison'],
+      contentSignals: ['sponsored', 'promo_offer', 'link_in_bio_cta'],
+      proofStyle: ['demonstration', 'social_proof'],
+      commercialMode: ['paid_partnership', 'discount_offer', 'product_launch'],
     },
   },
   niche_humor: {
     key: 'niche_humor',
     label: 'Humor do seu nicho',
     include: {
-      proposal: ['humor_scene'],
+      contentIntent: ['entertain'],
+      narrativeForm: ['sketch_scene'],
       // context será complementado dinamicamente com top contexts do usuário quando disponível
     },
   },
@@ -67,7 +78,16 @@ export const EXPERIENCE_SPECS: Record<ExperienceKey, Spec> = {
 export function getExperienceFilters(
   exp: string | null,
   opts: { allowedPersonalized?: boolean; topContextIds?: string[] }
-): { format?: string; proposal?: string; context?: string; tone?: string; references?: string } {
+): {
+  format?: string;
+  context?: string;
+  references?: string;
+  contentIntent?: string;
+  narrativeForm?: string;
+  contentSignals?: string;
+  proofStyle?: string;
+  commercialMode?: string;
+} {
   if (!exp) return {};
   const key = exp as ExperienceKey;
   const spec = EXPERIENCE_SPECS[key];
@@ -83,10 +103,13 @@ export function getExperienceFilters(
   const toCsv = (arr?: string[]) => (arr && arr.length ? arr.join(',') : undefined);
   return {
     format: toCsv(include.format),
-    proposal: toCsv(include.proposal),
     context: toCsv(include.context),
-    tone: toCsv(include.tone),
     references: toCsv(include.references),
+    contentIntent: toCsv(include.contentIntent),
+    narrativeForm: toCsv(include.narrativeForm),
+    contentSignals: toCsv(include.contentSignals),
+    proofStyle: toCsv(include.proofStyle),
+    commercialMode: toCsv(include.commercialMode),
   };
 }
 

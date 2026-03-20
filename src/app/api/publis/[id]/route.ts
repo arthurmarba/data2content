@@ -58,7 +58,7 @@ export async function GET(
     const [metric, snapshots] = await Promise.all([
         Metric.findOne({ _id: metricId, user: session.user.id })
             .select(
-                '_id description postDate coverUrl theme classificationStatus format proposal context tone references stats postLink updatedAt'
+                '_id description postDate coverUrl theme classificationStatus format proposal context tone references contentIntent narrativeForm contentSignals stance proofStyle commercialMode stats postLink updatedAt'
             )
             .lean(),
         DailyMetricSnapshotModel.find({ metric: metricId })

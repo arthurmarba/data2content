@@ -4,7 +4,19 @@ import MetricModel from '@/app/models/Metric';
 import { ALLOWED_TIME_PERIODS, TimePeriod } from '@/app/lib/constants/timePeriods';
 import { timePeriodToDays } from '@/utils/timePeriodHelpers';
 
-const ALLOWED_CATEGORIES = ['format', 'proposal', 'context', 'tone', 'references'] as const;
+const ALLOWED_CATEGORIES = [
+  'format',
+  'proposal',
+  'context',
+  'tone',
+  'references',
+  'contentIntent',
+  'narrativeForm',
+  'contentSignals',
+  'stance',
+  'proofStyle',
+  'commercialMode',
+] as const;
 type CategoryKey = typeof ALLOWED_CATEGORIES[number];
 
 const ALLOWED_METRICS = [
@@ -118,4 +130,3 @@ export async function GET(request: Request, { params }: { params: { userId: stri
     return NextResponse.json({ error: 'Erro interno ao calcular ranking.' }, { status: 500 });
   }
 }
-

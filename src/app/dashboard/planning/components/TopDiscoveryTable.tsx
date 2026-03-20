@@ -4,6 +4,7 @@ import React, { useState, useMemo } from "react";
 import Image from "next/image";
 import { ChevronDownIcon, ChevronUpIcon, Play } from "lucide-react";
 import DiscoverVideoModal from "@/app/discover/components/DiscoverVideoModal";
+import { getMetricStrategicPresentation } from "@/app/lib/metricStrategicPresentation";
 
 interface TopDiscoveryPost {
     id?: string;
@@ -15,6 +16,12 @@ interface TopDiscoveryPost {
     tone: string[];
     reference: string[];
     format: string[];
+    contentIntent?: string[];
+    narrativeForm?: string[];
+    contentSignals?: string[];
+    stance?: string[];
+    proofStyle?: string[];
+    commercialMode?: string[];
     nf: number | null; // Non-followers ratio (0-1)
     pv: number | null; // Profile visits
     reach: number | null;
@@ -65,6 +72,26 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
             return sortOrder === "asc" ? valA - valB : valB - valA;
         });
     }, [posts, sortField, sortOrder]);
+    const presentedPosts = useMemo(
+        () =>
+            sortedPosts.map((post) => ({
+                post,
+                presentation: getMetricStrategicPresentation({
+                    format: post.format,
+                    proposal: post.proposal,
+                    context: post.context,
+                    tone: post.tone,
+                    references: post.reference,
+                    contentIntent: post.contentIntent,
+                    narrativeForm: post.narrativeForm,
+                    contentSignals: post.contentSignals,
+                    stance: post.stance,
+                    proofStyle: post.proofStyle,
+                    commercialMode: post.commercialMode,
+                }),
+            })),
+        [sortedPosts]
+    );
 
     const SortIcon = ({ field }: { field: Exclude<SortField, "nf"> }) => {
         if (sortField !== field) return <div className="w-4 h-4" />; // Placeholder
@@ -129,16 +156,28 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
             </div>
 
             <div className="space-y-3 sm:hidden">
-                {sortedPosts.map((post, idx) => {
+                {presentedPosts.map(({ post, presentation }, idx) => {
+                    const strategicSupportLabels = [
+                        ...presentation.proofLabels,
+                        ...presentation.commercialLabels,
+                        ...presentation.signalLabels,
+                        ...presentation.stanceLabels,
+                    ];
                     const tagGroups = [
-                        ...(post.format || []).slice(0, 1).map((value) => ({ value, tone: "slate" })),
-                        ...(post.proposal || []).slice(0, 1).map((value) => ({ value, tone: "indigo" })),
-                        ...(post.context || []).slice(0, 1).map((value) => ({ value, tone: "sky" })),
+                        ...presentation.formatLabels.slice(0, 1).map((value) => ({ value, tone: "slate" })),
+                        ...(presentation.intentLabels[0] ? [{ value: presentation.intentLabels[0], tone: "indigo" as const }] : []),
+                        ...(
+                            presentation.narrativeLabels[0]
+                                ? [{ value: presentation.narrativeLabels[0], tone: "violet" as const }]
+                                : presentation.contextLabels.slice(0, 1).map((value) => ({ value, tone: "sky" as const }))
+                        ),
                     ];
                     const hiddenTagCount =
-                        Math.max(0, (post.format || []).length - 1) +
-                        Math.max(0, (post.proposal || []).length - 1) +
-                        Math.max(0, (post.context || []).length - 1);
+                        Math.max(0, presentation.formatLabels.length - 1) +
+                        Math.max(0, presentation.intentLabels.length - (presentation.intentLabels[0] ? 1 : 0)) +
+                        Math.max(0, presentation.narrativeLabels.length - (presentation.narrativeLabels[0] ? 1 : 0)) +
+                        Math.max(0, presentation.contextLabels.length - (presentation.narrativeLabels[0] ? 0 : 1)) +
+                        strategicSupportLabels.length;
                     const canOpenVideo = Boolean(post.videoUrl || post.postLink);
 
                     return (
@@ -188,6 +227,8 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
                                                 className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold ${
                                                     tag.tone === "indigo"
                                                         ? "bg-indigo-50 text-indigo-700"
+                                                        : tag.tone === "violet"
+                                                            ? "bg-violet-50 text-violet-700"
                                                         : tag.tone === "sky"
                                                             ? "bg-sky-50 text-sky-700"
                                                             : "bg-slate-100 text-slate-700"
@@ -238,9 +279,9 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
                         </div>
                         <div>Formato</div>
                         <div>Intenção</div>
+                        <div>Narrativa</div>
                         <div>Contexto</div>
-                        <div>Tom</div>
-                        <div>Ref</div>
+                        <div>Estratégia</div>
                         <HeaderCell field="reach" label="Alcance" />
                         <HeaderCell field="likes" label="Likes" />
                         <HeaderCell field="comments" label="Com." />
@@ -249,7 +290,15 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
                     </div>
 
                     <div className="divide-y divide-slate-200">
-                        {sortedPosts.map((post, idx) => (
+                        {presentedPosts.map(({ post, presentation }, idx) => {
+                            const strategyLabels = [
+                                ...presentation.proofLabels,
+                                ...presentation.commercialLabels,
+                                ...presentation.signalLabels,
+                                ...presentation.stanceLabels,
+                            ];
+
+                            return (
                             <div
                                 key={post.id || idx}
                                 className="grid grid-cols-[90px,80px,110px,140px,140px,110px,110px,75px,75px,75px,75px,75px] items-center gap-3 px-4 py-2.5 transition-colors odd:bg-slate-50/30 hover:bg-slate-50/70"
@@ -287,10 +336,10 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
                                     </div>
                                 )}
 
-                                <div className="truncate text-xs font-medium text-slate-700" title={post.format.join(", ")}>
-                                    {post.format.length > 0 ? (
+                                <div className="truncate text-xs font-medium text-slate-700" title={presentation.formatLabels.join(", ")}>
+                                    {presentation.formatLabels.length > 0 ? (
                                         <div className="flex flex-wrap gap-1">
-                                            {post.format.map((f) => (
+                                            {presentation.formatLabels.map((f) => (
                                                 <span key={f} className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-600 ring-1 ring-inset ring-slate-500/10">
                                                     {f}
                                                 </span>
@@ -301,10 +350,10 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
                                     )}
                                 </div>
 
-                                <div className="line-clamp-2 text-xs font-medium text-slate-700" title={post.proposal.join(", ")}>
-                                    {post.proposal.length > 0 ? (
+                                <div className="line-clamp-2 text-xs font-medium text-slate-700" title={presentation.intentLabels.join(", ")}>
+                                    {presentation.intentLabels.length > 0 ? (
                                         <div className="flex flex-wrap gap-1">
-                                            {post.proposal.map((p) => (
+                                            {presentation.intentLabels.map((p) => (
                                                 <span key={p} className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-[10px] font-medium text-indigo-700 ring-1 ring-inset ring-indigo-700/10">
                                                     {p}
                                                 </span>
@@ -315,24 +364,24 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
                                     )}
                                 </div>
 
-                                <div className="line-clamp-2 text-xs text-slate-600" title={post.context.join(", ")}>
-                                    {post.context.length > 0 ? (
+                                <div className="line-clamp-2 text-xs text-slate-600" title={presentation.narrativeLabels.join(", ")}>
+                                    {presentation.narrativeLabels.length > 0 ? (
                                         <div className="flex flex-wrap gap-1">
-                                            {post.context.map((c) => (
-                                                <span key={c} className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-600 ring-1 ring-inset ring-slate-500/10">
+                                            {presentation.narrativeLabels.map((c) => (
+                                                <span key={c} className="inline-flex items-center rounded-md bg-violet-50 px-2 py-1 text-[10px] font-medium text-violet-700 ring-1 ring-inset ring-violet-700/10">
                                                     {c}
                                                 </span>
                                             ))}
                                         </div>
                                     ) : (
-                                        <span className="text-[10px] italic text-slate-400">Sem contexto</span>
+                                        <span className="text-[10px] italic text-slate-400">Sem narrativa</span>
                                     )}
                                 </div>
 
-                                <div className="truncate text-[11px] text-slate-600" title={post.tone.join(", ")}>
-                                    {post.tone.length > 0 ? (
+                                <div className="truncate text-[11px] text-slate-600" title={presentation.contextLabels.join(", ")}>
+                                    {presentation.contextLabels.length > 0 ? (
                                         <div className="flex flex-wrap gap-1">
-                                            {post.tone.map((t) => (
+                                            {presentation.contextLabels.map((t) => (
                                                 <span key={t} className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-600 ring-1 ring-inset ring-slate-500/10">
                                                     {t}
                                                 </span>
@@ -343,11 +392,11 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
                                     )}
                                 </div>
 
-                                <div className="truncate text-[11px] text-slate-600" title={post.reference.join(", ")}>
-                                    {post.reference.length > 0 ? (
+                                <div className="truncate text-[11px] text-slate-600" title={strategyLabels.join(", ")}>
+                                    {strategyLabels.length > 0 ? (
                                         <div className="flex flex-wrap gap-1">
-                                            {post.reference.map((r) => (
-                                                <span key={r} className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-[10px] font-medium text-slate-600 ring-1 ring-inset ring-slate-500/10">
+                                            {strategyLabels.map((r) => (
+                                                <span key={r} className="inline-flex items-center rounded-md bg-amber-50 px-2 py-1 text-[10px] font-medium text-amber-700 ring-1 ring-inset ring-amber-700/10">
                                                     {r}
                                                 </span>
                                             ))}
@@ -373,7 +422,8 @@ export function TopDiscoveryTable({ posts, isLoading }: TopDiscoveryTableProps) 
                                     {numberFormatter.format(post.saves)}
                                 </div>
                             </div>
-                        ))}
+                        );
+                        })}
                     </div>
                 </div>
             </div>

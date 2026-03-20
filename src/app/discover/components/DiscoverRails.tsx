@@ -26,7 +26,19 @@ type PostCard = {
     video_duration_seconds?: number;
     saved?: number;
   };
-  categories?: { format?: string[]; proposal?: string[]; context?: string[]; tone?: string[]; references?: string[] };
+  categories?: {
+    format?: string[];
+    proposal?: string[];
+    context?: string[];
+    tone?: string[];
+    references?: string[];
+    contentIntent?: string[];
+    narrativeForm?: string[];
+    contentSignals?: string[];
+    stance?: string[];
+    proofStyle?: string[];
+    commercialMode?: string[];
+  };
 };
 
 type Section = { key: string; title: string; items: PostCard[] };

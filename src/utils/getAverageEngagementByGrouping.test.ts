@@ -139,6 +139,70 @@ describe('getAverageEngagementByGrouping', () => {
       result.sort((a, b) => a.name.localeCompare(b.name));
       expect(result[0]!.postsCount).toBeGreaterThan(0);
     });
+
+    test('ignora propostas legadas vagas como Chamada no agrupamento', async () => {
+      const posts = [
+        {
+          ...mockMetric('p1', FormatType.REEL, 'Educational', 100),
+          source: 'manual',
+          type: 'REEL',
+          description: 'Comenta aqui e salva esse post.',
+          proposal: ['Chamada', 'Dicas'],
+          tone: ['Promocional/Comercial'],
+        },
+        {
+          ...mockMetric('p2', FormatType.REEL, 'Educational', 40),
+          source: 'manual',
+          type: 'REEL',
+          description: 'Review direto e sem CTA.',
+          proposal: ['Review'],
+          tone: ['Neutro'],
+        },
+      ];
+
+      (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
+
+      const result = await getAverageEngagementByGrouping(userId, timePeriod, performanceMetricField, groupBy);
+
+      expect(result.find((row) => row.name === 'Chamada')).toBeUndefined();
+      expect(result.find((row) => row.name === 'Dicas')?.value).toBe(100);
+      expect(result.find((row) => row.name === 'Review')?.value).toBe(40);
+    });
+  });
+
+  describe('groupBy="contentIntent"', () => {
+    const groupBy: GroupingType = 'contentIntent';
+
+    test('derives strategic groupings from legacy proposal/tone when V2 fields are absent', async () => {
+      const posts = [
+        {
+          ...mockMetric('p1', FormatType.REEL, 'Educational', 100),
+          source: 'manual',
+          type: 'REEL',
+          description: 'Comenta aqui e salva esse post. #publi',
+          proposal: ['Dicas', 'Publi/Divulgação'],
+          tone: ['Promocional/Comercial'],
+          contentIntent: [],
+        },
+        {
+          ...mockMetric('p2', FormatType.REEL, 'Educational', 40),
+          source: 'manual',
+          type: 'REEL',
+          description: 'Review direto e sem CTA.',
+          proposal: ['Review'],
+          tone: ['Neutro'],
+          contentIntent: [],
+        },
+      ];
+
+      (MetricModel.find as jest.Mock).mockReturnValue({ lean: () => Promise.resolve(posts) });
+
+      const result = await getAverageEngagementByGrouping(userId, timePeriod, performanceMetricField, groupBy);
+
+      expect(result.find((row) => row.name === 'Converter')?.value).toBe(100);
+      expect(result.find((row) => row.name === 'Ensinar')?.value).toBe(100);
+      expect(result.find((row) => row.name === 'Informar/Atualizar')?.value).toBe(40);
+    });
   });
 
   test('Retorna array vazio se não houver posts', async () => {

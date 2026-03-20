@@ -10,6 +10,7 @@ import { startOfDay } from 'date-fns';
 
 import { logger } from '@/app/lib/logger';
 import { UserNotFoundError, DatabaseError } from '@/app/lib/errors';
+import { buildMetricClassificationSnapshot } from '@/app/lib/classificationV2Bridge';
 
 import User, { IUser } from '@/app/models/User';
 import CommunityInspirationModel, { ICommunityInspiration } from '@/app/models/CommunityInspiration';
@@ -303,6 +304,7 @@ export async function getInspirationsWeighted(
     performanceScore: number;
     personalizationScore: number;
     matchReasons: string[];
+    classificationSnapshot: ReturnType<typeof buildMetricClassificationSnapshot>;
 }[]> {
     const TAG = `${SERVICE_TAG}[getInspirationsWeighted]`;
     logger.info(`${TAG} Buscando inspirações ponderadas. Filtros: ${JSON.stringify(filters)}, limite: ${limit}`);
@@ -312,7 +314,6 @@ export async function getInspirationsWeighted(
 
         const matchStage: any = { status: 'active' };
 
-        // Exclusões
         if (excludeIds && excludeIds.length > 0) {
             const validObjectIds = excludeIds
                 .filter(id => mongoose.isValidObjectId(id))
@@ -325,17 +326,16 @@ export async function getInspirationsWeighted(
             matchStage.originalCreatorId = { $ne: new Types.ObjectId(excludeCreatorId) };
         }
 
-        // Filtro Base: Deve ter pelo menos a Proposta OU o Contexto (se fornecidos)
-        // Isso garante que não retornamos coisas totalmente aleatórias.
         const orConditions = [];
         if (filters.proposal) orConditions.push({ proposal: filters.proposal });
         if (filters.context) orConditions.push({ context: filters.context });
+        if (filters.format) orConditions.push({ format: filters.format });
+        if (filters.reference) orConditions.push({ reference: filters.reference });
 
         if (orConditions.length > 0) {
             matchStage.$or = orConditions;
         }
 
-        // Filtros adicionais que não entram na pontuação ponderada
         if (filters.reference) {
             matchStage.reference = filters.reference;
         }
@@ -354,78 +354,11 @@ export async function getInspirationsWeighted(
             matchStage.tags_IA = { $in: filters.tags_IA };
         }
 
-        const hasProposal = Boolean(filters.proposal);
-        const hasContext = Boolean(filters.context);
-        const hasFormat = Boolean(filters.format);
-        const hasTone = Boolean(filters.tone);
-
-        const exactConditions: any[] = [];
-        if (hasProposal) exactConditions.push('$proposalMatch');
-        if (hasContext) exactConditions.push('$contextMatch');
-        if (hasFormat) exactConditions.push('$formatMatch');
-        if (hasTone) exactConditions.push('$toneMatch');
-
-        const matchTypeBranches: any[] = [];
-        if (exactConditions.length > 0) {
-            matchTypeBranches.push({ case: { $and: exactConditions }, then: "exact" });
-        }
-        if (hasProposal && hasContext) {
-            matchTypeBranches.push({ case: { $and: ['$proposalMatch', '$contextMatch'] }, then: "broad_context" });
-        }
-        if (hasProposal) {
-            matchTypeBranches.push({
-                case: hasContext ? { $and: ['$proposalMatch', { $not: ['$contextMatch'] }] } : '$proposalMatch',
-                then: "proposal_only"
-            });
-        }
-        if (hasContext) {
-            matchTypeBranches.push({
-                case: hasProposal ? { $and: ['$contextMatch', { $not: ['$proposalMatch'] }] } : '$contextMatch',
-                then: "context_only"
-            });
-        }
-
-        const pipelineLimit = Math.max(limit, limit * 5);
-
-        const pipeline: PipelineStage[] = [
-            { $match: matchStage },
-            {
-                $addFields: {
-                    proposalMatch: hasProposal ? { $eq: ["$proposal", filters.proposal] } : false,
-                    contextMatch: hasContext ? { $eq: ["$context", filters.context] } : false,
-                    formatMatch: hasFormat ? { $eq: ["$format", filters.format] } : false,
-                    toneMatch: hasTone ? { $eq: ["$tone", filters.tone] } : false
-                }
-            },
-            {
-                $addFields: {
-                    matchScore: {
-                        $add: [
-                            hasProposal ? { $cond: ["$proposalMatch", 10, 0] } : 0,
-                            hasContext ? { $cond: ["$contextMatch", 8, 0] } : 0,
-                            hasFormat ? { $cond: ["$formatMatch", 3, 0] } : 0,
-                            hasTone ? { $cond: ["$toneMatch", 2, 0] } : 0
-                        ]
-                    }
-                }
-            },
-            { $sort: { matchScore: -1, 'internalMetricsSnapshot.saveRate': -1 } },
-            { $limit: pipelineLimit },
-            {
-                $project: {
-                    inspiration: "$$ROOT",
-                    matchScore: 1,
-                    matchType: {
-                        $switch: {
-                            branches: matchTypeBranches,
-                            default: "partial"
-                        }
-                    }
-                }
-            }
-        ];
-
-        const results = await CommunityInspirationModel.aggregate(pipeline).exec();
+        const pipelineLimit = Math.max(limit * 20, 60);
+        const results = await CommunityInspirationModel.find(matchStage)
+            .sort({ addedToCommunityAt: -1, 'internalMetricsSnapshot.saveRate': -1 })
+            .limit(pipelineLimit)
+            .lean();
 
         const tokenize = (value: string) =>
             (value || '')
@@ -448,9 +381,43 @@ export async function getInspirationsWeighted(
         const topContext = new Set((userTop.context || []).map((v) => String(v).trim()).filter(Boolean));
         const topFormat = new Set((userTop.format || []).map((v) => String(v).trim()).filter(Boolean));
         const topTone = new Set((userTop.tone || []).map((v) => String(v).trim()).filter(Boolean));
+        const topContentIntent = new Set((userTop.contentIntent || []).map((v) => String(v).trim()).filter(Boolean));
+        const topNarrativeForm = new Set((userTop.narrativeForm || []).map((v) => String(v).trim()).filter(Boolean));
+        const topContentSignals = new Set((userTop.contentSignals || []).map((v) => String(v).trim()).filter(Boolean));
+        const topStance = new Set((userTop.stance || []).map((v) => String(v).trim()).filter(Boolean));
+        const topProofStyle = new Set((userTop.proofStyle || []).map((v) => String(v).trim()).filter(Boolean));
+        const topCommercialMode = new Set((userTop.commercialMode || []).map((v) => String(v).trim()).filter(Boolean));
 
-        const enriched = results.map((row: any) => {
-            const inspiration = row.inspiration as ICommunityInspiration;
+        const toSet = (values?: string[]) => new Set((values || []).map((value) => String(value).trim()).filter(Boolean));
+
+        const enriched = results.map((inspiration) => {
+            const classificationSnapshot = buildMetricClassificationSnapshot({
+                source: 'instagram',
+                type: inspiration.format,
+                description: inspiration.contentSummary,
+                format: inspiration.format ? [inspiration.format] : [],
+                proposal: inspiration.proposal ? [inspiration.proposal] : [],
+                context: inspiration.context ? [inspiration.context] : [],
+                tone: inspiration.tone ? [inspiration.tone] : [],
+                references: inspiration.reference ? [inspiration.reference] : [],
+                contentIntent: (inspiration as any).contentIntent,
+                narrativeForm: (inspiration as any).narrativeForm,
+                contentSignals: (inspiration as any).contentSignals,
+                stance: (inspiration as any).stance,
+                proofStyle: (inspiration as any).proofStyle,
+                commercialMode: (inspiration as any).commercialMode,
+            });
+            const proposalSet = toSet(classificationSnapshot.proposal);
+            const contextSet = toSet(classificationSnapshot.context);
+            const formatSet = toSet(classificationSnapshot.format);
+            const toneSet = toSet(classificationSnapshot.tone);
+            const referenceSet = toSet(classificationSnapshot.references);
+            const intentSet = toSet(classificationSnapshot.contentIntent);
+            const narrativeSet = toSet(classificationSnapshot.narrativeForm);
+            const signalSet = toSet(classificationSnapshot.contentSignals);
+            const stanceSet = toSet(classificationSnapshot.stance);
+            const proofSet = toSet(classificationSnapshot.proofStyle);
+            const commercialSet = toSet(classificationSnapshot.commercialMode);
             const summaryTokens = uniqueTokens(tokenize(inspiration.contentSummary || ''));
             const highlightsTokens = uniqueTokens(
                 tokenize(
@@ -464,18 +431,33 @@ export async function getInspirationsWeighted(
                 ? queryTokens.filter((token) => sourceSet.has(token)).length
                 : 0;
             const narrativeScore = queryTokens.length ? overlap / queryTokens.length : 0;
+            const matches = {
+                proposal: Boolean(filters.proposal) && proposalSet.has(String(filters.proposal)),
+                context: Boolean(filters.context) && contextSet.has(String(filters.context)),
+                format: Boolean(filters.format) && formatSet.has(String(filters.format)),
+                tone: Boolean(filters.tone) && toneSet.has(String(filters.tone)),
+                reference: Boolean(filters.reference) && referenceSet.has(String(filters.reference)),
+                contentIntent: Boolean(filters.contentIntent) && intentSet.has(String(filters.contentIntent)),
+                narrativeForm: Boolean(filters.narrativeForm) && narrativeSet.has(String(filters.narrativeForm)),
+                contentSignals: Boolean(filters.contentSignals) && signalSet.has(String(filters.contentSignals)),
+                stance: Boolean(filters.stance) && stanceSet.has(String(filters.stance)),
+                proofStyle: Boolean(filters.proofStyle) && proofSet.has(String(filters.proofStyle)),
+                commercialMode: Boolean(filters.commercialMode) && commercialSet.has(String(filters.commercialMode)),
+            };
             const reasonPieces: string[] = [];
-            if (row.matchType === 'exact') {
-                reasonPieces.push('match exato de proposta/contexto');
-            } else if (row.matchType === 'proposal_only') {
-                reasonPieces.push('mesma proposta');
-            } else if (row.matchType === 'context_only' || row.matchType === 'broad_context') {
-                reasonPieces.push('contexto semelhante');
-            }
-            if (hasFormat && row?.inspiration?.format === filters.format) {
+            if (matches.contentIntent) reasonPieces.push('intenção alinhada');
+            if (matches.narrativeForm) reasonPieces.push('narrativa alinhada');
+            if (matches.proofStyle) reasonPieces.push('prova alinhada');
+            if (matches.commercialMode) reasonPieces.push('modo comercial alinhado');
+            if (matches.stance) reasonPieces.push('postura alinhada');
+            if (matches.contentSignals) reasonPieces.push('sinal alinhado');
+            if (matches.context) reasonPieces.push('contexto alinhado');
+            if (matches.proposal) reasonPieces.push('linha semelhante');
+            if (matches.reference) reasonPieces.push('referência alinhada');
+            if (matches.format) {
                 reasonPieces.push('formato alinhado');
             }
-            if (hasTone && row?.inspiration?.tone === filters.tone) {
+            if (matches.tone) {
                 reasonPieces.push('tom alinhado');
             }
             if (narrativeScore >= 0.2) {
@@ -491,25 +473,30 @@ export async function getInspirationsWeighted(
             const metrics = (inspiration?.internalMetricsSnapshot || {}) as Record<string, number | undefined>;
             const saveRate = Number(metrics.saveRate ?? 0);
             const shareRate = Number(metrics.shareRate ?? 0);
-            const comments = Number(metrics.comments ?? 0);
-            const likes = Number(metrics.likes ?? 0);
-            const interactions = Number(metrics.totalInteractions ?? 0);
+            const reachToFollowersRatio = Number(metrics.reachToFollowersRatio ?? 0);
+            const watchTime = Number(metrics.reelAvgWatchTimeSec ?? 0);
 
-            const normalizedSaveRate = Math.max(0, Math.min(saveRate, 0.2)) / 0.2;
-            const normalizedShareRate = Math.max(0, Math.min(shareRate, 0.12)) / 0.12;
-            const normalizedCommentLike = Math.max(0, Math.min(comments / Math.max(likes, 1), 0.2)) / 0.2;
-            const normalizedInteractions = Math.max(0, Math.min(interactions, 10000)) / 10000;
+            const normalizedSaveRate = Math.max(0, Math.min(saveRate, 0.18)) / 0.18;
+            const normalizedShareRate = Math.max(0, Math.min(shareRate, 0.1)) / 0.1;
+            const normalizedReachRatio = Math.max(0, Math.min(reachToFollowersRatio, 4)) / 4;
+            const normalizedWatchTime = Math.max(0, Math.min(watchTime, 25)) / 25;
             const performanceScore =
-                normalizedSaveRate * 0.45 +
-                normalizedShareRate * 0.35 +
-                normalizedCommentLike * 0.1 +
-                normalizedInteractions * 0.1;
+                normalizedSaveRate * 0.35 +
+                normalizedShareRate * 0.3 +
+                normalizedReachRatio * 0.15 +
+                normalizedWatchTime * 0.2;
 
             let personalizationScore = 0;
             if (inspiration?.proposal && topProposal.has(String(inspiration.proposal))) personalizationScore += 0.45;
-            if (inspiration?.context && topContext.has(String(inspiration.context))) personalizationScore += 0.35;
-            if (inspiration?.format && topFormat.has(String(inspiration.format))) personalizationScore += 0.15;
-            if (inspiration?.tone && topTone.has(String(inspiration.tone))) personalizationScore += 0.05;
+            if (classificationSnapshot.context.some((value) => topContext.has(value))) personalizationScore += 0.16;
+            if (classificationSnapshot.contentIntent.some((value) => topContentIntent.has(value))) personalizationScore += 0.2;
+            if (classificationSnapshot.narrativeForm.some((value) => topNarrativeForm.has(value))) personalizationScore += 0.18;
+            if (classificationSnapshot.proofStyle.some((value) => topProofStyle.has(value))) personalizationScore += 0.12;
+            if (classificationSnapshot.commercialMode.some((value) => topCommercialMode.has(value))) personalizationScore += 0.1;
+            if (classificationSnapshot.stance.some((value) => topStance.has(value))) personalizationScore += 0.06;
+            if (classificationSnapshot.contentSignals.some((value) => topContentSignals.has(value))) personalizationScore += 0.04;
+            if (classificationSnapshot.format.some((value) => topFormat.has(value))) personalizationScore += 0.1;
+            if (classificationSnapshot.tone.some((value) => topTone.has(value))) personalizationScore += 0.04;
 
             if (personalizationScore >= 0.4) {
                 reasonPieces.push('alinhado com o que mais performa no seu perfil');
@@ -518,19 +505,56 @@ export async function getInspirationsWeighted(
                 reasonPieces.push('desempenho forte na comunidade (salvamentos/compartilhamentos)');
             }
 
+            const matchScore =
+                (matches.contentIntent ? 4 : 0) +
+                (matches.narrativeForm ? 4 : 0) +
+                (matches.proofStyle ? 2.5 : 0) +
+                (matches.commercialMode ? 2 : 0) +
+                (matches.stance ? 1.5 : 0) +
+                (matches.contentSignals ? 1 : 0) +
+                (matches.context ? 3 : 0) +
+                (matches.proposal ? 1.5 : 0) +
+                (matches.format ? 1.25 : 0) +
+                (matches.tone ? 0.75 : 0) +
+                (matches.reference ? 0.5 : 0);
+            const exactPrimaryAxes = [
+                filters.contentIntent ? matches.contentIntent : true,
+                filters.narrativeForm ? matches.narrativeForm : true,
+                filters.context ? matches.context : true,
+                filters.format ? matches.format : true,
+            ];
+            const matchType = exactPrimaryAxes.every(Boolean)
+                && (
+                    Boolean(filters.contentIntent) ||
+                    Boolean(filters.narrativeForm) ||
+                    Boolean(filters.context)
+                )
+                ? 'exact'
+                : matches.context && (matches.contentIntent || matches.narrativeForm || matches.proposal)
+                    ? 'strategic_context'
+                    : matches.contentIntent
+                        ? 'intent_only'
+                        : matches.narrativeForm
+                            ? 'narrative_only'
+                            : matches.context
+                                ? 'context_only'
+                                : matches.proposal
+                                    ? 'line_only'
+                                    : 'partial';
             const finalScore =
-                Number(row.matchScore || 0) +
+                matchScore +
                 narrativeScore * 4 +
                 performanceScore * 3 +
                 personalizationScore * 3;
             return {
                 inspiration,
-                matchType: row.matchType as string,
+                matchType,
                 score: finalScore,
                 narrativeScore,
                 performanceScore,
                 personalizationScore,
                 matchReasons: reasonPieces,
+                classificationSnapshot,
             };
         });
 

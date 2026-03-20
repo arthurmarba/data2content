@@ -1,4 +1,10 @@
-import { canonicalizeCategoryValues, getCategoryById, getCategoryByValue, type CategoryType } from "@/app/lib/classification";
+import {
+  canonicalizeCategoryValues,
+  getCategoryById,
+  getCategoryByValue,
+  sanitizeLegacyProposalValues,
+  type CategoryType,
+} from "@/app/lib/classification";
 
 export type MetricCategoryField = "format" | "proposal" | "context" | "tone" | "references";
 
@@ -129,7 +135,10 @@ export function analyzeLegacyCategoryValues(values: unknown, type: CategoryType)
   const unknownValues = recognizedValues
     .filter((item) => item.bucket === "unknown")
     .map((item) => item.raw);
-  const canonicalValues = canonicalizeCategoryValues(rawValues, type);
+  const canonicalValues =
+    type === "proposal"
+      ? sanitizeLegacyProposalValues(rawValues)
+      : canonicalizeCategoryValues(rawValues, type);
   const canMigrateDeterministically = unknownValues.length === 0;
   const isAlreadyCanonical = canMigrateDeterministically && arraysEqual(rawValues, canonicalValues);
   const hasChanges = !arraysEqual(rawValues, canonicalValues);

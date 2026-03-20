@@ -11,6 +11,7 @@ import mongoose from 'mongoose';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import Metric from '@/app/models/Metric';
 import { logger } from '@/app/lib/logger';
+import { createEmptyMetricClassificationUpdate } from '@/app/lib/classificationRuntime';
 
 const SCRIPT_TAG = '[SCRIPT_RESET_STATUS]';
 
@@ -44,8 +45,7 @@ async function resetAllClassificationStatus() {
         $set: {
           classificationStatus: 'pending',
           classificationError: null,
-          tone: [],
-          references: []
+          ...createEmptyMetricClassificationUpdate(),
         }
       }
     );

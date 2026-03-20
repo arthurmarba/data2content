@@ -54,7 +54,7 @@ describe("classification legacy migration", () => {
     });
 
     expect(plan.update).toEqual({
-      proposal: ["call_to_action"],
+      proposal: [],
       context: ["fashion_style"],
       tone: ["promotional"],
       references: ["city"],
@@ -74,7 +74,7 @@ describe("classification legacy migration", () => {
 
     expect(plan.update).toEqual({
       format: ["reel"],
-      proposal: ["call_to_action"],
+      proposal: [],
     });
     expect(plan.quarantineUpdate).toEqual({
       format: ["legacy_value", "announcement"],

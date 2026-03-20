@@ -1,11 +1,15 @@
 import MetricModel from "@/app/models/Metric";
 import UserModel from "@/app/models/User";
-import { PipelineStage, Types } from "mongoose";
+import { Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { logger } from "@/app/lib/logger";
 import { getStartDateFromTimePeriod } from "./dateHelpers";
 import { getCategoryWithSubcategoryIds, getCategoryById } from "@/app/lib/classification";
 import { resolveCreatorIdsByContext } from "@/app/lib/creatorContextHelper";
+import {
+  getMetricCategoryValuesForAnalytics,
+  type StrategicRankableCategory,
+} from "@/app/lib/classificationV2Bridge";
 
 export interface AggregatedHighlight {
   name: string | null;
@@ -20,7 +24,26 @@ export interface PlatformPerformanceHighlightsAggregation {
   topProposal: AggregatedHighlight | null;
   topTone: AggregatedHighlight | null;
   topReference: AggregatedHighlight | null;
+  topContentIntent: AggregatedHighlight | null;
+  topNarrativeForm: AggregatedHighlight | null;
+  topContentSignal: AggregatedHighlight | null;
+  topStance: AggregatedHighlight | null;
+  topProofStyle: AggregatedHighlight | null;
+  topCommercialMode: AggregatedHighlight | null;
 }
+
+type CategoryField =
+  | "format"
+  | "context"
+  | "proposal"
+  | "tone"
+  | "references"
+  | "contentIntent"
+  | "narrativeForm"
+  | "contentSignals"
+  | "stance"
+  | "proofStyle"
+  | "commercialMode";
 
 async function aggregatePlatformPerformanceHighlights(
   periodInDays: number,
@@ -41,10 +64,7 @@ async function aggregatePlatformPerformanceHighlights(
     59,
     999
   );
-  const startDate = getStartDateFromTimePeriod(
-    today,
-    `last_${periodInDays}_days`
-  );
+  const startDate = getStartDateFromTimePeriod(today, `last_${periodInDays}_days`);
 
   const initial: PlatformPerformanceHighlightsAggregation = {
     topFormat: null,
@@ -53,17 +73,23 @@ async function aggregatePlatformPerformanceHighlights(
     topProposal: null,
     topTone: null,
     topReference: null,
+    topContentIntent: null,
+    topNarrativeForm: null,
+    topContentSignal: null,
+    topStance: null,
+    topProofStyle: null,
+    topCommercialMode: null,
   };
 
   try {
     await connectToDatabase();
 
-    let userFilter: any = {};
+    let userFilter: Record<string, unknown> = {};
     if (agencyId || onlyActiveSubscribers) {
-      const query: any = {};
+      const query: Record<string, unknown> = {};
       if (agencyId) query.agency = new Types.ObjectId(agencyId);
-      if (onlyActiveSubscribers) query.planStatus = 'active';
-      const filteredUserIds = await UserModel.find(query).distinct('_id');
+      if (onlyActiveSubscribers) query.planStatus = "active";
+      const filteredUserIds = await UserModel.find(query).distinct("_id");
       if (!filteredUserIds.length) {
         return initial;
       }
@@ -77,165 +103,125 @@ async function aggregatePlatformPerformanceHighlights(
         return initial;
       }
 
-      if (userFilter.user && userFilter.user.$in) {
-        const existingIds = userFilter.user.$in as Types.ObjectId[];
-        userFilter.user = { $in: existingIds.filter((id) => contextObjectIds.some((cid) => cid.equals(id))) };
+      if ("user" in userFilter && (userFilter.user as { $in?: Types.ObjectId[] }).$in) {
+        const existingIds = (userFilter.user as { $in: Types.ObjectId[] }).$in;
+        userFilter.user = {
+          $in: existingIds.filter((id) => contextObjectIds.some((cid) => cid.equals(id))),
+        };
       } else {
         userFilter.user = { $in: contextObjectIds };
       }
     }
 
-    const matchStage: PipelineStage.Match = {
-      $match: {
-        postDate: { $gte: startDate, $lte: endDate },
-        ...userFilter,
-      },
+    const matchFilter: Record<string, unknown> = {
+      postDate: { $gte: startDate, $lte: endDate },
+      ...userFilter,
     };
 
     if (contextFilter) {
-      const ids = getCategoryWithSubcategoryIds(contextFilter, 'context');
-      const labels = ids.map(id => getCategoryById(id, 'context')?.label || id);
-      (matchStage.$match as any).context = { $in: [...ids, ...labels] };
+      const ids = getCategoryWithSubcategoryIds(contextFilter, "context");
+      const labels = ids.map((id) => getCategoryById(id, "context")?.label || id);
+      matchFilter.context = { $in: [...ids, ...labels] };
     }
 
-    const projectStage: PipelineStage.Project = {
-      $project: {
-        format: { $ifNull: ["$format", null] },
-        context: { $ifNull: ["$context", null] },
-        proposal: { $ifNull: ["$proposal", null] },
-        tone: { $ifNull: ["$tone", null] },
-        references: { $ifNull: ["$references", null] },
-        metricValue: `$${metricField}`,
-      },
+    const projection: Record<string, 1> = {
+      source: 1,
+      type: 1,
+      description: 1,
+      format: 1,
+      proposal: 1,
+      context: 1,
+      tone: 1,
+      references: 1,
+      contentIntent: 1,
+      narrativeForm: 1,
+      contentSignals: 1,
+      stance: 1,
+      proofStyle: 1,
+      commercialMode: 1,
+      stats: 1,
+    };
+    projection[metricField] = 1;
+
+    const posts = await MetricModel.find(matchFilter, projection).lean().exec();
+
+    const aggregates: Record<CategoryField, Map<string, { sum: number; count: number }>> = {
+      format: new Map(),
+      context: new Map(),
+      proposal: new Map(),
+      tone: new Map(),
+      references: new Map(),
+      contentIntent: new Map(),
+      narrativeForm: new Map(),
+      contentSignals: new Map(),
+      stance: new Map(),
+      proofStyle: new Map(),
+      commercialMode: new Map(),
     };
 
-    const metricFilterStage: PipelineStage.Match = {
-      $match: { metricValue: { $ne: null } },
+    const resolveMetricValue = (source: Record<string, unknown>, path: string): number | null => {
+      const value = path.split(".").reduce<unknown>(
+        (current, part) => (current && typeof current === "object" ? (current as Record<string, unknown>)[part] : undefined),
+        source
+      );
+      return typeof value === "number" && Number.isFinite(value) ? value : null;
     };
 
-    const pipeline: PipelineStage[] = [
-      matchStage,
-      projectStage,
-      metricFilterStage,
-      {
-        $facet: {
-          byFormat: [
-            { $unwind: "$format" },
-            {
-              $group: {
-                _id: "$format",
-                avg: { $avg: "$metricValue" },
-                count: { $sum: 1 },
-              },
-            },
-            { $sort: { avg: -1 } },
-          ],
-          byContext: [
-            { $unwind: "$context" },
-            {
-              $group: {
-                _id: "$context",
-                avg: { $avg: "$metricValue" },
-                count: { $sum: 1 },
-              },
-            },
-            { $sort: { avg: -1 } },
-          ],
-          byProposal: [
-            { $unwind: "$proposal" },
-            {
-              $group: {
-                _id: "$proposal",
-                avg: { $avg: "$metricValue" },
-                count: { $sum: 1 },
-              },
-            },
-            { $sort: { avg: -1 } },
-          ],
-          byTone: [
-            { $unwind: "$tone" },
-            {
-              $group: {
-                _id: "$tone",
-                avg: { $avg: "$metricValue" },
-                count: { $sum: 1 },
-              },
-            },
-            { $sort: { avg: -1 } },
-          ],
-          byReference: [
-            { $unwind: "$references" },
-            {
-              $group: {
-                _id: "$references",
-                avg: { $avg: "$metricValue" },
-                count: { $sum: 1 },
-              },
-            },
-            { $sort: { avg: -1 } },
-          ],
-        },
-      },
-    ];
-
-    const [agg] = await MetricModel.aggregate(pipeline);
-
-    if (agg?.byFormat?.length) {
-      const topF = agg.byFormat[0];
-      const lowF = agg.byFormat[agg.byFormat.length - 1];
-      const topFormatName = Array.isArray(topF._id) ? topF._id.join(',') : topF._id;
-      const lowFormatName = Array.isArray(lowF._id) ? lowF._id.join(',') : lowF._id;
-      initial.topFormat = {
-        name: topFormatName ?? null,
-        average: topF.avg ?? 0,
-        count: topF.count ?? 0,
+    const toHighlight = (
+      entries: Array<[string, { sum: number; count: number }]>,
+      index: number
+    ): AggregatedHighlight | null => {
+      const entry = entries[index];
+      if (!entry) return null;
+      const [name, data] = entry;
+      return {
+        name,
+        average: data.count > 0 ? data.sum / data.count : 0,
+        count: data.count,
       };
-      initial.lowFormat = {
-        name: lowFormatName ?? null,
-        average: lowF.avg ?? 0,
-        count: lowF.count ?? 0,
-      };
+    };
+
+    const sortEntries = (
+      map: Map<string, { sum: number; count: number }>,
+      direction: "desc" | "asc" = "desc"
+    ) =>
+      Array.from(map.entries()).sort((left, right) => {
+        const leftAverage = left[1].count > 0 ? left[1].sum / left[1].count : 0;
+        const rightAverage = right[1].count > 0 ? right[1].sum / right[1].count : 0;
+        if (leftAverage === rightAverage) return right[1].count - left[1].count;
+        return direction === "desc" ? rightAverage - leftAverage : leftAverage - rightAverage;
+      });
+
+    for (const post of posts as Array<Record<string, unknown>>) {
+      const metricValue = resolveMetricValue(post, metricField);
+      if (metricValue === null) continue;
+
+      (Object.keys(aggregates) as CategoryField[]).forEach((field) => {
+        const values = getMetricCategoryValuesForAnalytics(
+          post,
+          field as StrategicRankableCategory
+        );
+        values.forEach((value) => {
+          const bucket = aggregates[field].get(value) ?? { sum: 0, count: 0 };
+          bucket.sum += metricValue;
+          bucket.count += 1;
+          aggregates[field].set(value, bucket);
+        });
+      });
     }
 
-    if (agg?.byContext?.length) {
-      const topC = agg.byContext[0];
-      const topContextName = Array.isArray(topC._id) ? topC._id.join(',') : topC._id;
-      initial.topContext = {
-        name: topContextName ?? null,
-        average: topC.avg ?? 0,
-        count: topC.count ?? 0,
-      };
-    }
-
-    if (agg?.byProposal?.length) {
-      const topP = agg.byProposal[0];
-      const topProposalName = Array.isArray(topP._id) ? topP._id.join(',') : topP._id;
-      initial.topProposal = {
-        name: topProposalName ?? null,
-        average: topP.avg ?? 0,
-        count: topP.count ?? 0,
-      };
-    }
-
-    if (agg?.byTone?.length) {
-      const topT = agg.byTone[0];
-      const topToneName = Array.isArray(topT._id) ? topT._id.join(',') : topT._id;
-      initial.topTone = {
-        name: topToneName ?? null,
-        average: topT.avg ?? 0,
-        count: topT.count ?? 0,
-      };
-    }
-
-    if (agg?.byReference?.length) {
-      const topR = agg.byReference[0];
-      const topReferenceName = Array.isArray(topR._id) ? topR._id.join(',') : topR._id;
-      initial.topReference = {
-        name: topReferenceName ?? null,
-        average: topR.avg ?? 0,
-        count: topR.count ?? 0,
-      };
-    }
+    initial.topFormat = toHighlight(sortEntries(aggregates.format), 0);
+    initial.lowFormat = toHighlight(sortEntries(aggregates.format, "asc"), 0);
+    initial.topContext = toHighlight(sortEntries(aggregates.context), 0);
+    initial.topProposal = toHighlight(sortEntries(aggregates.proposal), 0);
+    initial.topTone = toHighlight(sortEntries(aggregates.tone), 0);
+    initial.topReference = toHighlight(sortEntries(aggregates.references), 0);
+    initial.topContentIntent = toHighlight(sortEntries(aggregates.contentIntent), 0);
+    initial.topNarrativeForm = toHighlight(sortEntries(aggregates.narrativeForm), 0);
+    initial.topContentSignal = toHighlight(sortEntries(aggregates.contentSignals), 0);
+    initial.topStance = toHighlight(sortEntries(aggregates.stance), 0);
+    initial.topProofStyle = toHighlight(sortEntries(aggregates.proofStyle), 0);
+    initial.topCommercialMode = toHighlight(sortEntries(aggregates.commercialMode), 0);
 
     return initial;
   } catch (error) {

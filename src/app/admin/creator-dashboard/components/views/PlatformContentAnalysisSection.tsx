@@ -25,6 +25,12 @@ interface PerformanceSummaryBatchResponse {
     topPerformingProposal: { name: string; metricName: string; value: number; valueFormatted: string; postsCount?: number } | null;
     topPerformingTone: { name: string; metricName: string; value: number; valueFormatted: string; postsCount?: number } | null;
     topPerformingReference: { name: string; metricName: string; value: number; valueFormatted: string; postsCount?: number } | null;
+    topPerformingContentIntent?: { name: string; metricName: string; value: number; valueFormatted: string; postsCount?: number } | null;
+    topPerformingNarrativeForm?: { name: string; metricName: string; value: number; valueFormatted: string; postsCount?: number } | null;
+    topPerformingContentSignal?: { name: string; metricName: string; value: number; valueFormatted: string; postsCount?: number } | null;
+    topPerformingStance?: { name: string; metricName: string; value: number; valueFormatted: string; postsCount?: number } | null;
+    topPerformingProofStyle?: { name: string; metricName: string; value: number; valueFormatted: string; postsCount?: number } | null;
+    topPerformingCommercialMode?: { name: string; metricName: string; value: number; valueFormatted: string; postsCount?: number } | null;
     bestDay: { dayOfWeek: number; average: number } | null;
     insightSummary: string;
   };

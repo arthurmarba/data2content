@@ -31,7 +31,7 @@ export default function DiscoverExplorerSection({ sections, primaryKey }: Discov
             Filtre e veja só o que importa
           </h2>
           <p className="text-xs text-slate-500">
-            Combine formato, proposta, contexto, tom e referências para carregar um feed mais enxuto.
+            Combine formato, intenção, narrativa, contexto e camadas estratégicas para carregar um feed mais preciso.
           </p>
         </header>
         <div className="sticky top-[var(--header-h,3.5rem)] z-20 mt-4 -mx-4 px-4 py-2 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-slate-100/50 transition-all">

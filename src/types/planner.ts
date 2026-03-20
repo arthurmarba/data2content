@@ -15,6 +15,12 @@ export interface PlannerCategories {
   tone?: string; // tom principal
   proposal?: string[]; // múltiplas propostas (quando aplicável)
   reference?: string[]; // múltiplas referências
+  contentIntent?: string[];
+  narrativeForm?: string[];
+  contentSignals?: string[];
+  stance?: string[];
+  proofStyle?: string[];
+  commercialMode?: string[];
 }
 
 // Métricas esperadas (faixas)
@@ -23,4 +29,3 @@ export interface ExpectedMetrics {
   viewsP90?: number; // alta prob.
   sharesP50?: number; // opcional, quando objetivo é teste de compartilhamentos
 }
-

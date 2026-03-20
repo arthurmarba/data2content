@@ -1,6 +1,6 @@
 // Strategic Report shared constants (Phase 0)
 
-export const STRATEGIC_REPORT_VERSION = '1.0.0';
+export const STRATEGIC_REPORT_VERSION = '1.1.0';
 
 // Default analysis window for MVP
 export const STRATEGIC_REPORT_DEFAULT_PERIOD_DAYS = 30;
@@ -30,4 +30,3 @@ export const OPPORTUNITY_EASE_PRESETS: Record<string, number> = {
   'story_reforco_enquete': 0.95,
   'live_colaborativa': 0.5,
 };
-

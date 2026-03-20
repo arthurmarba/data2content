@@ -5,9 +5,10 @@ import UserModel from '@/app/models/User';
 import MetricModel from '@/app/models/Metric';
 import { buildAggregatedReport } from '@/app/lib/reportHelpers';
 import { aggregateUserTimePerformance } from '@/utils/aggregateUserTimePerformance';
-import getAverageEngagementByGrouping from '@/utils/getAverageEngagementByGrouping';
-import { getInspirations, calculateInspirationSimilarity } from '@/app/lib/dataService/communityService';
+import getAverageEngagementByGrouping, { getAverageEngagementByGroupings } from '@/utils/getAverageEngagementByGrouping';
+import { findCommunityInspirationPosts } from '@/utils/findCommunityInspirationPosts';
 import { generateStrategicNarrative } from '@/app/lib/strategicNarrative';
+import { getMetricCategoryValuesForAnalytics } from '@/app/lib/classificationV2Bridge';
 
 import {
   STRATEGIC_REPORT_VERSION,
@@ -89,11 +90,23 @@ export async function buildStrategicReport(userId: string, opts: BuildOptions = 
   const bestSlotComments = timePerfComments.bestSlots?.[0];
   const bestDeltaComments = bestSlotComments ? pctDelta(bestSlotComments.average, commentsMedian) : 0;
 
-  // Grouping averages for format, proposal, context
+  // Grouping averages for editorial and strategic dimensions
   const timePeriodKey = `last_${periodDays}_days`;
   const byFormatSaved = await getAverageEngagementByGrouping(userId, timePeriodKey, 'stats.saved', 'format');
-  const byProposalShares = await getAverageEngagementByGrouping(userId, timePeriodKey, 'stats.shares', 'proposal');
-  const byContextInteractions = await getAverageEngagementByGrouping(userId, timePeriodKey, 'stats.total_interactions', 'context');
+  const groupedInteractions = await getAverageEngagementByGroupings(
+    userId,
+    timePeriodKey,
+    'stats.total_interactions',
+    ['context', 'contentIntent', 'narrativeForm', 'stance', 'proofStyle', 'commercialMode'],
+    undefined,
+    { creditMode: 'fractional' }
+  );
+  const byContextInteractions = groupedInteractions.context || [];
+  const byContentIntentInteractions = groupedInteractions.contentIntent || [];
+  const byNarrativeFormInteractions = groupedInteractions.narrativeForm || [];
+  const byStanceInteractions = groupedInteractions.stance || [];
+  const byProofStyleInteractions = groupedInteractions.proofStyle || [];
+  const byCommercialModeInteractions = groupedInteractions.commercialMode || [];
 
   // Helper to compute uplift vs rest median
   function computeUpliftTop(list: { name: string; value: number; postsCount: number }[]): { top?: { name: string; value: number; postsCount: number; upliftPct: number } } {
@@ -107,8 +120,11 @@ export async function buildStrategicReport(userId: string, opts: BuildOptions = 
   }
 
   const topFormatSaved = computeUpliftTop(byFormatSaved);
-  const topProposalShares = computeUpliftTop(byProposalShares);
   const topContextInteractions = computeUpliftTop(byContextInteractions);
+  const topContentIntentInteractions = computeUpliftTop(byContentIntentInteractions);
+  const topNarrativeFormInteractions = computeUpliftTop(byNarrativeFormInteractions);
+  const topProofStyleInteractions = computeUpliftTop(byProofStyleInteractions);
+  const topCommercialModeInteractions = computeUpliftTop(byCommercialModeInteractions);
 
   // Assemble key insights
   const keyInsights: KeyInsight[] = [];
@@ -151,26 +167,51 @@ export async function buildStrategicReport(userId: string, opts: BuildOptions = 
       ]
     });
   }
-  if (topProposalShares.top && Math.abs(topProposalShares.top.upliftPct) >= MIN_UPLIFT_TO_HIGHLIGHT_PCT && topProposalShares.top.postsCount >= MIN_SAMPLE_PER_GROUP) {
+  if (topContentIntentInteractions.top && Math.abs(topContentIntentInteractions.top.upliftPct) >= MIN_UPLIFT_TO_HIGHLIGHT_PCT && topContentIntentInteractions.top.postsCount >= MIN_SAMPLE_PER_GROUP) {
     keyInsights.push({
-      id: 'top_proposal_shares',
-      statement: `${topProposalShares.top.name} teve ${topProposalShares.top.upliftPct.toFixed(0)}% mais compartilhamentos que outras propostas.`,
-      metric: 'shares',
-      upliftPct: Number(topProposalShares.top.upliftPct.toFixed(1)),
-      sampleSize: topProposalShares.top.postsCount,
-      confidence: confidenceFromSample(topProposalShares.top.postsCount),
-      evidenceRefs: [ { key: 'group_proposal_shares', description: 'Médias por proposta (compartilhamentos)' } ]
+      id: 'top_content_intent_interactions',
+      statement: `${topContentIntentInteractions.top.name} teve ${topContentIntentInteractions.top.upliftPct.toFixed(0)}% mais interações que outras intenções de conteúdo.`,
+      metric: 'total_interactions',
+      upliftPct: Number(topContentIntentInteractions.top.upliftPct.toFixed(1)),
+      sampleSize: topContentIntentInteractions.top.postsCount,
+      confidence: confidenceFromSample(topContentIntentInteractions.top.postsCount),
+      evidenceRefs: [ { key: 'group_content_intent_interactions', description: 'Médias por intenção de conteúdo' } ]
+    });
+  }
+  if (topNarrativeFormInteractions.top && Math.abs(topNarrativeFormInteractions.top.upliftPct) >= MIN_UPLIFT_TO_HIGHLIGHT_PCT && topNarrativeFormInteractions.top.postsCount >= MIN_SAMPLE_PER_GROUP) {
+    keyInsights.push({
+      id: 'top_narrative_form_interactions',
+      statement: `${topNarrativeFormInteractions.top.name} concentrou ${topNarrativeFormInteractions.top.upliftPct.toFixed(0)}% mais interações que outras narrativas.`,
+      metric: 'total_interactions',
+      upliftPct: Number(topNarrativeFormInteractions.top.upliftPct.toFixed(1)),
+      sampleSize: topNarrativeFormInteractions.top.postsCount,
+      confidence: confidenceFromSample(topNarrativeFormInteractions.top.postsCount),
+      evidenceRefs: [ { key: 'group_narrative_form_interactions', description: 'Médias por forma narrativa' } ]
+    });
+  }
+  if (topProofStyleInteractions.top && Math.abs(topProofStyleInteractions.top.upliftPct) >= MIN_UPLIFT_TO_HIGHLIGHT_PCT && topProofStyleInteractions.top.postsCount >= MIN_SAMPLE_PER_GROUP) {
+    keyInsights.push({
+      id: 'top_proof_style_interactions',
+      statement: `${topProofStyleInteractions.top.name} gerou ${topProofStyleInteractions.top.upliftPct.toFixed(0)}% mais interações que outros estilos de prova.`,
+      metric: 'total_interactions',
+      upliftPct: Number(topProofStyleInteractions.top.upliftPct.toFixed(1)),
+      sampleSize: topProofStyleInteractions.top.postsCount,
+      confidence: confidenceFromSample(topProofStyleInteractions.top.postsCount),
+      evidenceRefs: [ { key: 'group_proof_style_interactions', description: 'Médias por estilo de prova' } ]
     });
   }
 
-  // Minimal script suggestions (derived from top format/context)
+  // Minimal script suggestions (derived from top format and narrative)
   const scriptSuggestions: ScriptSuggestion[] = [];
   if (topFormatSaved.top) {
+    const narrativeLabel = topNarrativeFormInteractions.top?.name;
     scriptSuggestions.push({
       id: 'script_1',
       format: topFormatSaved.top.name,
-      theme: `Destaque rápido em ${topFormatSaved.top.name}`,
-      why: `Formato com melhor desempenho em salvamentos (+${topFormatSaved.top.upliftPct.toFixed(0)}%).`,
+      theme: narrativeLabel ? `${narrativeLabel} em ${topFormatSaved.top.name}` : `Destaque rápido em ${topFormatSaved.top.name}`,
+      why: narrativeLabel
+        ? `${topFormatSaved.top.name} com ${narrativeLabel} concentrou sinais fortes de resposta neste período.`
+        : `Formato com melhor desempenho em salvamentos (+${topFormatSaved.top.upliftPct.toFixed(0)}%).`,
       cta: 'Salve para testar depois / compartilhe com alguém',
       bestSlots: bestSlot ? [{ day: mapDayOfWeekName(bestSlot.dayOfWeek), hour: bestSlot.hour, deltaPct: Number(bestDelta.toFixed(1)) }] : undefined,
       steps: [
@@ -353,41 +394,35 @@ export async function buildStrategicReport(userId: string, opts: BuildOptions = 
     logger.warn(`${TAG} reel+story correlation failed`, e);
   }
 
-  // Emerging F/P/C combos (shareDiffPercentage > 0)
-  try {
-    const dcs = (aggregated as any)?.detailedContentStats || [];
-    const emergents = dcs
-      .filter((g: any) => typeof g.shareDiffPercentage === 'number' && g.shareDiffPercentage > 0 && (g.totalPosts ?? 0) >= MIN_SAMPLE_PER_GROUP)
-      .sort((a: any, b: any) => (b.shareDiffPercentage ?? 0) - (a.shareDiffPercentage ?? 0))
-      .slice(0, 3);
-    for (const g of emergents) {
-      const idStr = `${g._id?.format}/${g._id?.proposal}/${g._id?.context}`;
-      const delta = Number((g.shareDiffPercentage ?? 0).toFixed(1));
-      correlations.push({
-        id: `corr_fpc_${idStr}`,
-        dimension: 'fpc_combo',
-        metric: 'shares',
-        method: 'delta_vs_median',
-        coeffOrDelta: delta,
-        significance: confidenceFromSample(g.totalPosts ?? 0),
-        sampleSize: g.totalPosts ?? undefined,
-        insightText: `Combo ${idStr} acima da mediana em compartilhamentos (+${delta}%)`,
-        evidenceRefs: [ { key: `fpc_combo_${idStr}_shares_delta`, description: 'Δ de compartilhamentos vs baseline (grupo F/P/C)', deltaPct: delta } ],
-      });
-      if (keyInsights.length < 8) {
-        keyInsights.push({
-          id: `insight_fpc_${idStr}`,
-          statement: `${idStr} está em alta (+${delta}%). Priorize variações desse combo.`,
-          metric: 'shares',
-          upliftPct: delta,
-          sampleSize: g.totalPosts ?? undefined,
-          confidence: confidenceFromSample(g.totalPosts ?? 0),
-          evidenceRefs: [ { key: `fpc_combo_${idStr}_shares_delta` } ],
-        });
-      }
-    }
-  } catch (e) {
-    logger.warn(`${TAG} fpc emerging combos failed`, e);
+  if (
+    keyInsights.length < 8 &&
+    topFormatSaved.top &&
+    topContentIntentInteractions.top &&
+    topContextInteractions.top
+  ) {
+    keyInsights.push({
+      id: 'insight_editorial_stack',
+      statement: `A combinação entre ${topFormatSaved.top.name}, ${topContentIntentInteractions.top.name} e ${topContextInteractions.top.name} concentrou seus sinais mais fortes neste período.`,
+      metric: 'total_interactions',
+      upliftPct: Number(topContentIntentInteractions.top.upliftPct.toFixed(1)),
+      sampleSize: Math.min(
+        topFormatSaved.top.postsCount,
+        topContentIntentInteractions.top.postsCount,
+        topContextInteractions.top.postsCount
+      ),
+      confidence: confidenceFromSample(
+        Math.min(
+          topFormatSaved.top.postsCount,
+          topContentIntentInteractions.top.postsCount,
+          topContextInteractions.top.postsCount
+        )
+      ),
+      evidenceRefs: [
+        { key: 'group_format_saved', description: 'Médias por formato' },
+        { key: 'group_content_intent_interactions', description: 'Médias por intenção' },
+        { key: 'group_context_interactions', description: 'Médias por contexto' },
+      ],
+    });
   }
 
   // Weekly plan based on best slot and top format
@@ -407,8 +442,12 @@ export async function buildStrategicReport(userId: string, opts: BuildOptions = 
     timeBuckets: timePerf.buckets.map(b => ({ dayOfWeek: b.dayOfWeek, hour: b.hour, avg: b.average, count: b.count })),
     groupingAverages: [
       ...(byFormatSaved || []).map(x => ({ dimension: 'format', name: x.name, value: x.value, postsCount: x.postsCount })),
-      ...(byProposalShares || []).map(x => ({ dimension: 'proposal', name: x.name, value: x.value, postsCount: x.postsCount })),
       ...(byContextInteractions || []).map(x => ({ dimension: 'context', name: x.name, value: x.value, postsCount: x.postsCount })),
+      ...(byContentIntentInteractions || []).map(x => ({ dimension: 'contentIntent', name: x.name, value: x.value, postsCount: x.postsCount })),
+      ...(byNarrativeFormInteractions || []).map(x => ({ dimension: 'narrativeForm', name: x.name, value: x.value, postsCount: x.postsCount })),
+      ...(byStanceInteractions || []).map(x => ({ dimension: 'stance', name: x.name, value: x.value, postsCount: x.postsCount })),
+      ...(byProofStyleInteractions || []).map(x => ({ dimension: 'proofStyle', name: x.name, value: x.value, postsCount: x.postsCount })),
+      ...(byCommercialModeInteractions || []).map(x => ({ dimension: 'commercialMode', name: x.name, value: x.value, postsCount: x.postsCount })),
     ],
     notes: [
       'caption_question: Δ calculado entre grupos com/sem "?" no texto da legenda',
@@ -426,29 +465,51 @@ export async function buildStrategicReport(userId: string, opts: BuildOptions = 
     dataSufficiency,
   };
 
-  // Community inspirations — pick based on top performing context/proposal when available
+  // Community inspirations — pick based on top performing context/format when available
   let communityInspirations: StrategicReport['communityInspirations'] = [];
   try {
     const preferredContext = topContextInteractions.top?.name;
-    const preferredProposal = topProposalShares.top?.name;
-    const insp = await getInspirations(
-      {
-        context: preferredContext as any,
-        proposal: preferredProposal as any,
+    const preferredFormat = topFormatSaved.top?.name;
+    const insp = await findCommunityInspirationPosts({
+      excludeUserId: userId,
+      categories: {
+        ...(preferredContext ? { context: [preferredContext] } : {}),
+        ...(topContentIntentInteractions.top?.name
+          ? { contentIntent: [topContentIntentInteractions.top.name] }
+          : {}),
+        ...(topNarrativeFormInteractions.top?.name
+          ? { narrativeForm: [topNarrativeFormInteractions.top.name] }
+          : {}),
+        ...(topProofStyleInteractions.top?.name
+          ? { proofStyle: [topProofStyleInteractions.top.name] }
+          : {}),
+        ...(topCommercialModeInteractions.top?.name
+          ? { commercialMode: [topCommercialModeInteractions.top.name] }
+          : {}),
       },
-      2,
-      undefined,
-      undefined,
-      userId
-    );
-    communityInspirations = (insp || []).map(i => ({
-      id: (i as any)._id?.toString?.() || '',
-      handleOrAnon: 'criador da comunidade',
-      format: i.format as any,
-      proposal: i.proposal as any,
-      context: i.context as any,
-      whyItWorks: i.performanceHighlights_Qualitative?.[0] || 'Desempenho consistente no objetivo principal',
-      link: i.originalInstagramPostUrl,
+      format: preferredFormat,
+      script: reportHintFromTopSignals(
+        preferredContext,
+        topContentIntentInteractions.top?.name,
+        topNarrativeFormInteractions.top?.name
+      ),
+      limit: 2,
+      periodInDays: periodDays,
+    });
+    communityInspirations = (insp || []).map((item) => ({
+      id: item.id,
+      handleOrAnon: item.creatorName ? `@${item.creatorName}` : 'criador da comunidade',
+      format: item.categories?.format?.[0] || preferredFormat || 'reel',
+      context: item.categories?.context?.[0],
+      contentIntent: item.categories?.contentIntent?.[0],
+      narrativeForm: item.categories?.narrativeForm?.[0],
+      stance: item.categories?.stance?.[0],
+      proofStyle: item.categories?.proofStyle?.[0],
+      commercialMode: item.categories?.commercialMode?.[0],
+      whyItWorks: item.reason?.length
+        ? `Sinais que puxaram essa inspiração: ${item.reason.slice(0, 3).join(' · ')}.`
+        : 'Desempenho consistente no objetivo principal',
+      link: item.postLink || undefined,
       caution: undefined,
     }));
   } catch (e) {
@@ -480,10 +541,18 @@ export async function buildStrategicReport(userId: string, opts: BuildOptions = 
     const sinceDate = new Date();
     sinceDate.setDate(sinceDate.getDate() - periodDays);
     const posts = await MetricModel.find({ user: userObjId, postDate: { $gte: sinceDate } })
-      .select('tone proposal stats.shares')
-      .lean<{ tone?: string[]; proposal?: string[]; stats?: any }[]>();
-    const isHumor = (p: any) => (Array.isArray(p.tone) && p.tone.includes('humorous')) || (Array.isArray(p.proposal) && p.proposal.includes('humor_scene'));
-    const isInformative = (p: any) => (Array.isArray(p.tone) && p.tone.includes('educational')) || (Array.isArray(p.proposal) && (p.proposal.includes('tips') || p.proposal.includes('positioning_authority')));
+      .select('tone proposal contentIntent narrativeForm stats.shares')
+      .lean<{ tone?: string[]; proposal?: string[]; contentIntent?: string[]; narrativeForm?: string[]; stats?: any }[]>();
+    const isHumor = (p: any) => {
+      const intents = getMetricCategoryValuesForAnalytics(p, 'contentIntent');
+      const narratives = getMetricCategoryValuesForAnalytics(p, 'narrativeForm');
+      const tones = getMetricCategoryValuesForAnalytics(p, 'tone');
+      return tones.includes('humorous') || intents.includes('entertain') || narratives.includes('sketch_scene');
+    };
+    const isInformative = (p: any) => {
+      const intents = getMetricCategoryValuesForAnalytics(p, 'contentIntent');
+      return intents.some((value) => ['teach', 'inform', 'build_authority'].includes(value));
+    };
     const humor = posts.filter(isHumor);
     const informative = posts.filter(isInformative);
     const avgHumorShares = humor.length ? humor.reduce((s, p) => s + (Number(p.stats?.shares) || 0), 0) / humor.length : 0;
@@ -590,4 +659,12 @@ export async function buildStrategicReport(userId: string, opts: BuildOptions = 
   }
 
   return report;
+}
+
+function reportHintFromTopSignals(
+  context?: string,
+  contentIntent?: string,
+  narrativeForm?: string
+) {
+  return [contentIntent, narrativeForm, context].filter(Boolean).join(' · ');
 }

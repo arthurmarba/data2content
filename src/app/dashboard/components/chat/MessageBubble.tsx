@@ -3,6 +3,11 @@ import { useRouter } from 'next/navigation';
 import { Message } from './types';
 import { normalizePlanningMarkdown, normalizePlanningMarkdownWithStats, renderFormatted, type RenderOptions, normalizeLooseBoldLabels } from './chatUtils';
 import { CommunityInspirationMessage, parseCommunityInspirationText } from './CommunityInspirationMessage';
+import {
+    buildCommunityHeaderMeta,
+    buildCommunityInspirationMetaTags,
+    buildCommunityQuickActions,
+} from './communityInspirationPresentation';
 import { FEEDBACK_REASONS, FeedbackReasonCode } from './feedbackReasons';
 import { track } from '@/lib/track';
 import { chatNormalizationAppliedSchema } from '@/lib/analytics/chatSchemas';
@@ -68,28 +73,17 @@ const humanizeToken = (value?: string | null) => {
     return cleaned.replace(/\b\w/g, (match) => match.toUpperCase());
 };
 
-const toneLabel = (value?: string | null) => {
-    const tone = value?.toLowerCase();
-    if (!tone) return '';
-    const map: Record<string, string> = {
-        humorous: 'Humor',
-        inspirational: 'Inspiracional',
-        educational: 'Educativo',
-        critical: 'Crítico',
-        promotional: 'Promocional',
-        neutral: 'Neutro',
-    };
-    return map[tone] || humanizeToken(value);
-};
-
 const matchTypeLabel = (value?: string | null) => {
     const match = value?.toLowerCase();
     if (!match) return '';
     const map: Record<string, string> = {
         exact: 'Exato',
-        broad_context: 'Contexto semelhante',
-        proposal_only: 'Proposta semelhante',
+        strategic_context: 'Tema + leitura próximos',
+        intent_only: 'Objetivo semelhante',
+        narrative_only: 'Narrativa semelhante',
         context_only: 'Contexto semelhante',
+        line_only: 'Linha semelhante',
+        partial: 'Relacionado',
         unknown: 'Semelhante',
     };
     return map[match] || humanizeToken(value);
@@ -305,24 +299,7 @@ export const MessageBubble = React.memo(function MessageBubble({
         if (!inspirations.length) return [];
         return inspirations.map((insp, idx) => {
             const hasLink = isInstagramPostUrl(insp.permalink) && (insp.linkVerified ?? true);
-            const narrativeRoleLabel = insp.narrativeRole === 'gancho'
-                ? 'Gancho'
-                : insp.narrativeRole === 'cta'
-                    ? 'CTA'
-                    : insp.narrativeRole === 'desenvolvimento'
-                        ? 'Desenvolvimento'
-                        : null;
-            const metaTags = [
-                insp.proposal,
-                insp.context,
-                narrativeRoleLabel ? `Papel: ${narrativeRoleLabel}` : null,
-                insp.tone ? `Tom: ${toneLabel(insp.tone)}` : null,
-                insp.reference ? `Ref: ${humanizeToken(insp.reference)}` : null,
-                insp.primaryObjective ? `Objetivo: ${humanizeToken(insp.primaryObjective)}` : null,
-                typeof insp.narrativeScore === 'number' ? `Narrativa: ${(insp.narrativeScore * 100).toFixed(0)}%` : null,
-                typeof insp.personalizationScore === 'number' ? `Fit perfil: ${(insp.personalizationScore * 100).toFixed(0)}%` : null,
-                typeof insp.performanceScore === 'number' ? `Força comunidade: ${(insp.performanceScore * 100).toFixed(0)}%` : null,
-            ].filter(Boolean) as string[];
+            const metaTags = buildCommunityInspirationMetaTags(insp);
             const reasonHighlights = Array.isArray(insp.matchReasons)
                 ? insp.matchReasons.map((reason) => reason.trim()).filter(Boolean)
                 : [];
@@ -345,24 +322,12 @@ export const MessageBubble = React.memo(function MessageBubble({
         if (!evidence?.communityInspirations?.length) return null;
         const filters = evidence.communityMeta?.usedFilters || {};
         const fallback = evidence.communityInspirations?.[0] || null;
-        const proposal = filters.proposal || fallback?.proposal;
-        const context = filters.context || fallback?.context;
-        const format = filters.format || fallback?.format;
-        const tone = filters.tone || fallback?.tone;
-        const reference = filters.reference || fallback?.reference;
-        const narrativeQuery = filters.narrativeQuery;
-        const primaryObjective = filters.primaryObjective || fallback?.primaryObjective;
         const personalizedByUserPerformance = Boolean(evidence.communityMeta?.rankingSignals?.personalizedByUserPerformance);
-        const metaChips = [
-            proposal ? `Proposta: ${proposal}` : null,
-            context ? `Contexto: ${context}` : null,
-            format ? `Formato: ${format}` : null,
-            tone ? `Tom: ${toneLabel(tone)}` : null,
-            reference ? `Referência: ${humanizeToken(reference)}` : null,
-            narrativeQuery ? `Narrativa: ${String(narrativeQuery).slice(0, 40)}` : null,
-            primaryObjective ? `Objetivo: ${humanizeToken(primaryObjective)}` : null,
-            personalizedByUserPerformance ? 'Ranking: personalizado pelo seu histórico' : null,
-        ].filter(Boolean) as string[];
+        const metaChips = buildCommunityHeaderMeta({
+            filters,
+            fallback,
+            personalizedByUserPerformance,
+        });
         const matchLabel = matchTypeLabel(evidence.communityMeta?.matchType || '');
         const count = evidence.communityInspirations.length;
         const introOverride = (() => {
@@ -371,25 +336,29 @@ export const MessageBubble = React.memo(function MessageBubble({
             if (matchType === 'exact') {
                 return `Separei ${count} inspirações reais da comunidade alinhadas ao seu pedido.`;
             }
-            if (matchType === 'proposal_only') {
-                return `Não encontrei match exato; trouxe ${count} inspirações com a mesma proposta.`;
+            if (matchType === 'strategic_context') {
+                return `Não encontrei um match completo; trouxe ${count} inspirações com tema e leitura editorial próximos.`;
             }
-            if (matchType === 'context_only' || matchType === 'broad_context') {
-                return `Não encontrei match exato; trouxe ${count} inspirações com contexto semelhante.`;
+            if (matchType === 'intent_only') {
+                return `Não encontrei um match completo; trouxe ${count} inspirações com o mesmo objetivo principal.`;
+            }
+            if (matchType === 'narrative_only') {
+                return `Não encontrei um match completo; trouxe ${count} inspirações com narrativa semelhante.`;
+            }
+            if (matchType === 'context_only') {
+                return `Não encontrei um match completo; trouxe ${count} inspirações com tema semelhante.`;
+            }
+            if (matchType === 'line_only') {
+                return `Não encontrei um match completo; trouxe ${count} inspirações dentro da mesma linha criativa.`;
             }
             return `Separei ${count} inspirações reais da comunidade para você.`;
         })();
-        const quickActions = [
-            format ? { label: `Mais ${format}`, prompt: `Me traga mais inspirações em formato ${format}.` } : null,
-            context ? { label: `Mais ${context}`, prompt: `Me traga mais inspirações no contexto ${context}.` } : null,
-            proposal ? { label: `Mais ${proposal}`, prompt: `Me traga mais inspirações com proposta ${proposal}.` } : null,
-        ].filter(Boolean) as Array<{ label: string; prompt: string }>;
         return {
             header: 'Inspirações da comunidade',
             subheader: matchLabel ? `Match: ${matchLabel}` : undefined,
             metaChips: metaChips.slice(0, 4),
             introOverride,
-            quickActions: quickActions.slice(0, 3),
+            quickActions: buildCommunityQuickActions({ filters, fallback }).slice(0, 3),
         };
     }, [message.answerEvidence]);
 

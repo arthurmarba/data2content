@@ -45,4 +45,66 @@ describe("aggregateUserPerformanceHighlights", () => {
       count: 2,
     });
   });
+
+  it("exposes strategic V2 highlights from legacy fallback when the new fields are absent", async () => {
+    mockFind.mockReturnValueOnce({
+      lean: jest.fn().mockReturnValue({
+        exec: jest.fn().mockResolvedValue([
+          {
+            source: "manual",
+            type: "REEL",
+            description: "Comenta aqui e salva esse post. #publi Eu recomendo.",
+            proposal: ["tips", "publi_divulgation", "call_to_action"],
+            tone: ["promotional"],
+            stats: { total_interactions: 100 },
+          },
+          {
+            source: "manual",
+            type: "REEL",
+            description: "Passo a passo completo.",
+            proposal: ["tips"],
+            tone: ["educational"],
+            stats: { total_interactions: 40 },
+          },
+        ]),
+      }),
+    });
+
+    const result = await aggregateUserPerformanceHighlights(
+      new Types.ObjectId().toString(),
+      30,
+      "stats.total_interactions"
+    );
+
+    expect(result.topContentIntent).toEqual({
+      name: "convert",
+      average: 100,
+      count: 1,
+    });
+    expect(result.topNarrativeForm).toEqual({
+      name: "tutorial",
+      average: 70,
+      count: 2,
+    });
+    expect(result.topContentSignal).toEqual({
+      name: "sponsored",
+      average: 100,
+      count: 1,
+    });
+    expect(result.topStance).toEqual({
+      name: "endorsing",
+      average: 100,
+      count: 1,
+    });
+    expect(result.topProofStyle).toEqual({
+      name: "demonstration",
+      average: 40,
+      count: 1,
+    });
+    expect(result.topCommercialMode).toEqual({
+      name: "paid_partnership",
+      average: 100,
+      count: 1,
+    });
+  });
 });

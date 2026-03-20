@@ -1,10 +1,10 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { getCategoryById } from "@/app/lib/classification";
 import { BarChart3 } from "lucide-react";
+import { formatStrategicGroupingValue } from "@/app/lib/strategicReportPresentation";
 
-type CategoryKey = 'format' | 'proposal' | 'context';
+type CategoryKey = 'format' | 'contentIntent' | 'narrativeForm' | 'context';
 type MetricKey = 'posts' | 'avg_total_interactions';
 
 interface RankItem { category: string; value: number; }
@@ -35,7 +35,7 @@ const SectionCard: React.FC<{ title: string; children: React.ReactNode }> = ({ t
 const MetricList: React.FC<{ items: RankItem[]; type: CategoryKey }>= ({ items, type }) => (
   <ul className="space-y-1 text-sm">
     {items.map((it, idx) => {
-      const label = getCategoryById(it.category, type === 'context' ? 'context' : (type as any))?.label || it.category;
+      const label = formatStrategicGroupingValue(type, it.category);
       return (
         <li key={`${it.category}-${idx}`} className="flex justify-between">
           <span className="truncate pr-2" title={label}>{label}</span>
@@ -59,8 +59,10 @@ const UserCategoryRankingsCompact: React.FC<Props> = ({ userId }) => {
   const [error, setError] = useState<string | null>(null);
   const [formatPosts, setFormatPosts] = useState<RankItem[]>([]);
   const [formatAvg, setFormatAvg] = useState<RankItem[]>([]);
-  const [proposalPosts, setProposalPosts] = useState<RankItem[]>([]);
-  const [proposalAvg, setProposalAvg] = useState<RankItem[]>([]);
+  const [contentIntentPosts, setContentIntentPosts] = useState<RankItem[]>([]);
+  const [contentIntentAvg, setContentIntentAvg] = useState<RankItem[]>([]);
+  const [narrativePosts, setNarrativePosts] = useState<RankItem[]>([]);
+  const [narrativeAvg, setNarrativeAvg] = useState<RankItem[]>([]);
   const [contextPosts, setContextPosts] = useState<RankItem[]>([]);
   const [contextAvg, setContextAvg] = useState<RankItem[]>([]);
 
@@ -69,17 +71,20 @@ const UserCategoryRankingsCompact: React.FC<Props> = ({ userId }) => {
     const run = async () => {
       try {
         setLoading(true); setError(null);
-        const [fp, fa, pp, pa, cp, ca] = await Promise.all([
+        const [fp, fa, ip, ia, np, na, cp, ca] = await Promise.all([
           fetchCategoryRanking({ userId, category: 'format', metric: 'posts', startDate, endDate }),
           fetchCategoryRanking({ userId, category: 'format', metric: 'avg_total_interactions', startDate, endDate }),
-          fetchCategoryRanking({ userId, category: 'proposal', metric: 'posts', startDate, endDate }),
-          fetchCategoryRanking({ userId, category: 'proposal', metric: 'avg_total_interactions', startDate, endDate }),
+          fetchCategoryRanking({ userId, category: 'contentIntent', metric: 'posts', startDate, endDate }),
+          fetchCategoryRanking({ userId, category: 'contentIntent', metric: 'avg_total_interactions', startDate, endDate }),
+          fetchCategoryRanking({ userId, category: 'narrativeForm', metric: 'posts', startDate, endDate }),
+          fetchCategoryRanking({ userId, category: 'narrativeForm', metric: 'avg_total_interactions', startDate, endDate }),
           fetchCategoryRanking({ userId, category: 'context', metric: 'posts', startDate, endDate }),
           fetchCategoryRanking({ userId, category: 'context', metric: 'avg_total_interactions', startDate, endDate }),
         ]);
         if (cancelled) return;
         setFormatPosts(fp); setFormatAvg(fa);
-        setProposalPosts(pp); setProposalAvg(pa);
+        setContentIntentPosts(ip); setContentIntentAvg(ia);
+        setNarrativePosts(np); setNarrativeAvg(na);
         setContextPosts(cp); setContextAvg(ca);
       } catch (e: any) {
         if (!cancelled) setError(e?.message || 'Falha ao carregar rankings.');
@@ -111,15 +116,27 @@ const UserCategoryRankingsCompact: React.FC<Props> = ({ userId }) => {
               </SectionCard>
             </div>
           </div>
-          {/* Proposta */}
+          {/* Intenção */}
           <div className="space-y-2">
-            <h4 className="text-sm font-semibold text-gray-600">Proposta</h4>
+            <h4 className="text-sm font-semibold text-gray-600">Intenção</h4>
             <div className="grid grid-cols-1 gap-3">
               <SectionCard title="Mais Publicados">
-                <MetricList items={proposalPosts} type="proposal" />
+                <MetricList items={contentIntentPosts} type="contentIntent" />
               </SectionCard>
               <SectionCard title="Maior Média de Interações">
-                <MetricList items={proposalAvg} type="proposal" />
+                <MetricList items={contentIntentAvg} type="contentIntent" />
+              </SectionCard>
+            </div>
+          </div>
+          {/* Narrativa */}
+          <div className="space-y-2">
+            <h4 className="text-sm font-semibold text-gray-600">Narrativa</h4>
+            <div className="grid grid-cols-1 gap-3">
+              <SectionCard title="Mais Publicados">
+                <MetricList items={narrativePosts} type="narrativeForm" />
+              </SectionCard>
+              <SectionCard title="Maior Média de Interações">
+                <MetricList items={narrativeAvg} type="narrativeForm" />
               </SectionCard>
             </div>
           </div>
@@ -142,4 +159,3 @@ const UserCategoryRankingsCompact: React.FC<Props> = ({ userId }) => {
 };
 
 export default UserCategoryRankingsCompact;
-

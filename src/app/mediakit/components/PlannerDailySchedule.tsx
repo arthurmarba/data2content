@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { ALLOWED_BLOCKS } from '@/app/lib/planner/constants';
 import { fetchSlotInspirations, getCachedInspirations } from '../utils/inspirationCache';
-import { idsToLabels } from '@/app/lib/classification';
+import { getPlannerSlotPresentation } from './plannerSlotPresentation';
 
 interface PlannerDailyScheduleProps {
     dayIndex: number;
@@ -63,12 +63,26 @@ const ScheduleSlotCard = ({
     const [inspLoading, setInspLoading] = useState(false);
     const [inspError, setInspError] = useState<string | null>(null);
 
-    // Labels
-    const formatLabel = idsToLabels([slot.format], 'format')[0] || slot.format;
-    const proposalLabel = idsToLabels(slot.categories?.proposal, 'proposal').join(', ') || '-';
-    const contextLabel = idsToLabels(slot.categories?.context, 'context').join(', ') || '-';
-    const toneLabel = idsToLabels(slot.categories?.tone ? [slot.categories.tone] : [], 'tone')[0] || '-';
-    const referenceLabel = idsToLabels(slot.categories?.reference, 'reference').join(', ') || '-';
+    const presentation = getPlannerSlotPresentation({
+        format: slot.format,
+        title: slot.title,
+        scriptShort: slot.scriptShort,
+        themeKeyword: slot.themeKeyword,
+        themes: slot.themes,
+        categories: slot.categories,
+        contentIntent: slot.contentIntent,
+        narrativeForm: slot.narrativeForm,
+        contentSignals: slot.contentSignals,
+        stance: slot.stance,
+        proofStyle: slot.proofStyle,
+        commercialMode: slot.commercialMode,
+    });
+    const formatLabel = presentation.formatLabel !== '—' ? presentation.formatLabel : slot.format;
+    const intentLabel = presentation.intentLabel;
+    const narrativeLabel = presentation.narrativeLabel;
+    const contextLabel = presentation.contextLabel;
+    const focusDetailLabel = presentation.focusDetailLabel;
+    const focusDetailValue = presentation.focusDetailValue;
     const viewsLabel = slot.expectedMetrics?.viewsP50 ? slot.expectedMetrics.viewsP50.toLocaleString('pt-BR') : '-';
 
     useEffect(() => {
@@ -198,14 +212,24 @@ const ScheduleSlotCard = ({
                 </div>
 
                 <div className="flex flex-wrap gap-2">
-                    {contextLabel && contextLabel !== '-' && (
+                    {intentLabel && intentLabel !== '—' && (
+                        <span className="inline-flex items-center rounded-md bg-indigo-50 px-2 py-1 text-xs font-medium text-indigo-700">
+                            {intentLabel}
+                        </span>
+                    )}
+                    {narrativeLabel && narrativeLabel !== '—' && (
+                        <span className="inline-flex items-center rounded-md bg-violet-50 px-2 py-1 text-xs font-medium text-violet-700">
+                            {narrativeLabel}
+                        </span>
+                    )}
+                    {contextLabel && contextLabel !== '—' && (
                         <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
                             {contextLabel}
                         </span>
                     )}
-                    {toneLabel && toneLabel !== '-' && (
-                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
-                            {toneLabel}
+                    {focusDetailValue && focusDetailValue !== '—' && (
+                        <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700">
+                            {focusDetailLabel}: {focusDetailValue}
                         </span>
                     )}
                 </div>
@@ -223,30 +247,30 @@ const ScheduleSlotCard = ({
                 <div className="flex flex-col gap-1.5 px-1 lg:px-3">
                     <div className="flex items-center gap-1.5 text-slate-500">
                         <Target className="h-4 w-4" />
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">Proposta</span>
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">Intenção</span>
                     </div>
-                    <span className="line-clamp-2 text-sm font-semibold text-slate-800" title={proposalLabel}>{proposalLabel}</span>
+                    <span className="line-clamp-2 text-sm font-semibold text-slate-800" title={intentLabel}>{intentLabel}</span>
                 </div>
                 <div className="flex flex-col gap-1.5 px-1 lg:px-3">
                     <div className="flex items-center gap-1.5 text-slate-500">
                         <Compass className="h-4 w-4" />
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">Contexto</span>
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">Narrativa</span>
                     </div>
-                    <span className="line-clamp-2 text-sm font-semibold text-slate-800" title={contextLabel}>{contextLabel}</span>
+                    <span className="line-clamp-2 text-sm font-semibold text-slate-800" title={narrativeLabel}>{narrativeLabel}</span>
                 </div>
                 <div className="flex flex-col gap-1.5 px-1 lg:px-3">
                     <div className="flex items-center gap-1.5 text-slate-500">
                         <MessageCircle className="h-4 w-4" />
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">Tom</span>
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">Contexto</span>
                     </div>
-                    <span className="truncate text-sm font-semibold text-slate-800" title={toneLabel}>{toneLabel}</span>
+                    <span className="truncate text-sm font-semibold text-slate-800" title={contextLabel}>{contextLabel}</span>
                 </div>
                 <div className="flex flex-col gap-1.5 px-1 lg:px-3">
                     <div className="flex items-center gap-1.5 text-slate-500">
                         <LinkIcon className="h-4 w-4" />
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">Referência</span>
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em]">{focusDetailLabel}</span>
                     </div>
-                    <span className="line-clamp-2 text-sm font-semibold text-slate-800" title={referenceLabel}>{referenceLabel}</span>
+                    <span className="line-clamp-2 text-sm font-semibold text-slate-800" title={focusDetailValue}>{focusDetailValue}</span>
                 </div>
                 <div className="flex flex-col gap-1.5 px-1 lg:px-3">
                     <div className="flex items-center gap-1.5 text-slate-500">

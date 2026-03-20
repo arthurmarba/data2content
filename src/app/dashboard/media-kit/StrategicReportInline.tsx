@@ -16,6 +16,10 @@ import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { isPlanActiveLike } from '@/utils/planStatus';
 import { PRO_PLAN_FLEXIBILITY_COPY } from '@/app/constants/trustCopy';
 import { openPaywallModal } from '@/utils/paywallModal';
+import {
+  formatCommunityInspirationSubtitle,
+  getStrategicQuickStats,
+} from '@/app/lib/strategicReportPresentation';
 
 type ApiResponse = {
   status: 'ready' | 'building' | 'error';
@@ -95,7 +99,7 @@ export default function StrategicReportInline() {
           <Card
             variant="brand"
             title="Desbloqueie o Relatório Estratégico"
-            subtitle="Transforme seu Mídia Kit em um relatório completo, com horários, categorias e benchmarks prontos para enviar às marcas."
+            subtitle="Transforme seu Mídia Kit em um relatório completo, com horários, leituras editoriais e benchmarks prontos para enviar às marcas."
           >
             <div className="space-y-5">
               <div className="grid gap-4 md:grid-cols-3">
@@ -124,10 +128,10 @@ export default function StrategicReportInline() {
                   <span aria-hidden="true">👀</span> Peek do Modo Pro
                 </div>
                 <p className="mt-3 text-sm font-semibold text-slate-900">
-                  Categorias que mais puxam crescimento nas últimas semanas
+                  Camadas que mais puxam crescimento nas últimas semanas
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2" aria-hidden="true">
-                  {["Lifestyle", "Tutoriais", "Bastidores"].map((chip) => (
+                  {["Converter", "Review", "Quebra de Mito"].map((chip) => (
                     <span
                       key={chip}
                       className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-800 shadow-sm blur-[2px]"
@@ -141,8 +145,8 @@ export default function StrategicReportInline() {
                   Pro.
                 </p>
                 <p className="mt-3 text-xs text-slate-600">
-                  Reels ↑ +22% com essas categorias. Ative o Plano Pro para ver por que, os dias
-                  ideais e os formatos que destravam alcance.
+                  Reels ↑ +22% com essas leituras. Ative o Plano Pro para ver por que, os dias
+                  ideais e as combinações que destravam alcance.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-500">
                   <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600">
@@ -218,65 +222,20 @@ export default function StrategicReportInline() {
               <>
                 {/* Destaques rápidos */}
                 {(() => {
-                  const buckets = (report as any)?.evidence?.timeBuckets as Array<{ dayOfWeek: number; hour: number; avg: number; count?: number }> | undefined;
-                  const bestSlot = Array.isArray(buckets) && buckets.length ? [...buckets].sort((a, b) => (b?.avg ?? 0) - (a?.avg ?? 0))[0] : undefined;
-                  const mapDay = (d?: number) => {
-                    const names = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-                    if (!d || !Number.isFinite(d)) return '—';
-                    const idx = Math.max(1, Math.min(7, d)) - 1;
-                    return names[idx] ?? '—';
-                  };
-                  const ga = ((report as any)?.evidence?.groupingAverages as Array<{ dimension: string; name: string; value: number; postsCount: number }>) || [];
-                  const topBy = (dim: string) => {
-                    const list = ga.filter(g => g.dimension === dim);
-                    if (!list.length) return undefined;
-                    return [...list].sort((a, b) => (b.value ?? 0) - (a.value ?? 0))[0];
-                  };
-                  const topFormatSaved = topBy('format'); // valor ~ saved médio
-                  const topProposalShares = topBy('proposal'); // valor ~ shares médio
-                  const topContextInteractions = topBy('context'); // valor ~ interações médias
-                  const corrComments = report.correlations?.find((c: any) => c.id === 'corr_time_comments');
-
-                  if (!bestSlot && !topFormatSaved && !topProposalShares && !topContextInteractions && !corrComments) return null;
+                  const quickStats = getStrategicQuickStats(report);
+                  if (!quickStats.length) return null;
 
                   return (
-                    <div className="grid md:grid-cols-2 lg:grid-cols-5 gap-3">
-                      {bestSlot && (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-6 gap-3">
+                      {quickStats.map((stat) => (
                         <QuickStatCard
-                          title="Melhor horário (interações)"
-                          value={`${mapDay(bestSlot.dayOfWeek)} · ${bestSlot.hour}h`}
-                          hint={`média ${Math.round(bestSlot.avg).toLocaleString('pt-BR')} · n=${bestSlot.count}`}
+                          key={stat.key}
+                          title={stat.title}
+                          value={stat.value}
+                          hint={stat.hint}
+                          deltaPct={stat.deltaPct}
                         />
-                      )}
-                      {corrComments && (
-                        <QuickStatCard
-                          title="Melhor horário (comentários)"
-                          value={corrComments.insightText}
-                          hint="Δ vs mediana"
-                          deltaPct={corrComments.coeffOrDelta}
-                        />
-                      )}
-                      {topFormatSaved && (
-                        <QuickStatCard
-                          title="Top formato (salvos)"
-                          value={topFormatSaved.name}
-                          hint={`média ${Math.round(topFormatSaved.value)}`}
-                        />
-                      )}
-                      {topProposalShares && (
-                        <QuickStatCard
-                          title="Top proposta (compartilhamentos)"
-                          value={topProposalShares.name}
-                          hint={`média ${Math.round(topProposalShares.value)}`}
-                        />
-                      )}
-                      {topContextInteractions && (
-                        <QuickStatCard
-                          title="Top contexto (interações)"
-                          value={topContextInteractions.name}
-                          hint={`média ${Math.round(topContextInteractions.value)}`}
-                        />
-                      )}
+                      ))}
                     </div>
                   );
                 })()}
@@ -418,7 +377,7 @@ export default function StrategicReportInline() {
                           </div>
                           <div className="mt-3 grid grid-cols-1 gap-2 text-sm">
                             <div className="border rounded p-2 bg-white">
-                              <div className="text-xs font-semibold text-gray-700 mb-1">Contexto</div>
+                              <div className="text-xs font-semibold text-gray-700 mb-1">Leitura</div>
                               <p className="text-gray-700">{o.rationale}</p>
                             </div>
                             <div className="border rounded p-2 bg-white">
@@ -444,8 +403,8 @@ export default function StrategicReportInline() {
                               <div className="text-xs font-semibold text-gray-700 mb-1">Riscos/Observações</div>
                               <ul className="list-disc pl-5 space-y-1 text-gray-700">
                                 <li>Amostra limitada pode reduzir confiança do impacto.</li>
-                                <li>Evite saturação do tema; varie formatos/ângulos.</li>
-                                <li>Ajuste a proposta conforme feedback nos comentários.</li>
+                                <li>Evite saturação; varie narrativas, provas e ângulos.</li>
+                                <li>Ajuste a abordagem conforme o retorno nos comentários.</li>
                               </ul>
                             </div>
                           </div>
@@ -481,7 +440,7 @@ export default function StrategicReportInline() {
                       {report.communityInspirations.map((ci) => (
                         <div key={ci.id} className="border border-gray-200 rounded p-2">
                           <div className="text-sm font-medium">{ci.handleOrAnon}</div>
-                          <div className="text-xs text-gray-500">{ci.format} · {ci.proposal} · {ci.context}</div>
+                          <div className="text-xs text-gray-500">{formatCommunityInspirationSubtitle(ci)}</div>
                           <div className="text-sm mt-1">{ci.whyItWorks}</div>
                           {ci.link && <a className="text-blue-600 text-xs" href={ci.link} target="_blank" rel="noreferrer">Ver post</a>}
                         </div>
@@ -561,7 +520,7 @@ export default function StrategicReportInline() {
             <li>Reforce nos Stories entre 2–6h após publicar (enquete ou CTA).</li>
             <li>Após 48h, registre o desempenho e repita a variação promissora.</li>
           </ol>
-          <p className="text-xs text-gray-500">Dica: gancho claro nos primeiros 3s, proposta explícita e CTA específico.</p>
+          <p className="text-xs text-gray-500">Dica: gancho claro nos primeiros 3s, promessa explícita e CTA específico.</p>
         </div>
       </Drawer>
     </section>

@@ -38,6 +38,12 @@ export interface VideoListItem {
   context?: string | string[] | null;
   tone?: string | string[] | null;
   references?: string | string[] | null;
+  contentIntent?: string | string[] | null;
+  narrativeForm?: string | string[] | null;
+  contentSignals?: string | string[] | null;
+  stance?: string | string[] | null;
+  proofStyle?: string | string[] | null;
+  commercialMode?: string | string[] | null;
 
   // Stats
   stats?: VideoStats;
@@ -69,9 +75,32 @@ export interface MediaKitPricing {
 }
 
 // --- Resumo de performance (cards de destaque) ---
+export interface PerformanceSummaryItem {
+  name: string;
+  metricName: string;
+  value: number;
+  valueFormatted: string;
+  postsCount?: number;
+  platformAverage?: number;
+  platformAverageFormatted?: string;
+  changePercentage?: number;
+}
+
 export interface PerformanceSummary {
-  topPerformingFormat?: { name: string; metricName: string; valueFormatted: string } | null;
-  topPerformingContext?: { name: string; metricName: string; valueFormatted: string } | null;
+  topPerformingFormat?: PerformanceSummaryItem | null;
+  lowPerformingFormat?: PerformanceSummaryItem | null;
+  topPerformingContext?: PerformanceSummaryItem | null;
+  topPerformingProposal?: PerformanceSummaryItem | null;
+  topPerformingTone?: PerformanceSummaryItem | null;
+  topPerformingReference?: PerformanceSummaryItem | null;
+  topPerformingContentIntent?: PerformanceSummaryItem | null;
+  topPerformingNarrativeForm?: PerformanceSummaryItem | null;
+  topPerformingContentSignal?: PerformanceSummaryItem | null;
+  topPerformingStance?: PerformanceSummaryItem | null;
+  topPerformingProofStyle?: PerformanceSummaryItem | null;
+  topPerformingCommercialMode?: PerformanceSummaryItem | null;
+  bestDay?: { dayOfWeek: number; average: number } | null;
+  insightSummary?: string;
 }
 
 // --- KPIs individuais ---

@@ -3,11 +3,10 @@
 import Image from 'next/image';
 import React, { useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import dynamic from 'next/dynamic';
 import { track } from '@/lib/track';
-import { idsToLabels } from '@/app/lib/classification';
 import CardActionsMenu from './CardActionsMenu';
 import { UserAvatar } from '@/app/components/UserAvatar';
+import { getDiscoverGridChips } from './discoverPresentation';
 
 type PostCard = {
   id: string;
@@ -25,7 +24,19 @@ type PostCard = {
     views?: number;
     video_duration_seconds?: number;
   };
-  categories?: { format?: string[]; proposal?: string[]; context?: string[]; tone?: string[]; references?: string[] };
+  categories?: {
+    format?: string[];
+    proposal?: string[];
+    context?: string[];
+    tone?: string[];
+    references?: string[];
+    contentIntent?: string[];
+    narrativeForm?: string[];
+    contentSignals?: string[];
+    stance?: string[];
+    proofStyle?: string[];
+    commercialMode?: string[];
+  };
 };
 
 function formatCompact(n?: number) {
@@ -47,6 +58,7 @@ function GridCard({ item }: { item: PostCard }) {
 
   const secs = Number(item?.stats?.video_duration_seconds || 0);
   const dur = secs > 0 ? new Date(secs * 1000).toISOString().substring(secs >= 3600 ? 11 : 14, 19) : '';
+  const categoryChips = getDiscoverGridChips(item.categories);
   const cardImage = (
     <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-gray-100 shadow">
       {item.coverUrl && !imgFailed ? (
@@ -110,24 +122,24 @@ function GridCard({ item }: { item: PostCard }) {
           {metrics && <div className="text-[11px] text-gray-600">{metrics}</div>}
           {short && <div className="text-[13px] leading-snug text-gray-900 line-clamp-2">{short}</div>}
           {/* Category chips */}
-          {item.categories && (
+          {categoryChips.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1.5">
-              {(() => {
-                const fmt = idsToLabels(item.categories?.format, 'format');
-                const prop = idsToLabels(item.categories?.proposal, 'proposal');
-                const ctx = idsToLabels(item.categories?.context, 'context');
-                const tone = idsToLabels(item.categories?.tone, 'tone');
-                const chips: Array<{ text: string; cls: string }> = [];
-                if (fmt[0]) chips.push({ text: fmt[0], cls: 'bg-blue-50 text-blue-700 border-blue-200' });
-                if (prop[0]) chips.push({ text: prop[0], cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' });
-                if (ctx[0]) chips.push({ text: ctx[0], cls: 'bg-indigo-50 text-indigo-700 border-indigo-200' });
-                if (tone[0]) chips.push({ text: tone[0], cls: 'bg-amber-50 text-amber-700 border-amber-200' });
-                return chips.slice(0, 3).map((c, i) => (
-                  <span key={`${c.text}-${i}`} className={`px-2 py-0.5 rounded-full border text-[11px] ${c.cls}`}>
-                    {c.text}
+              {categoryChips.map((chip, index) => {
+                const cls =
+                  chip.tone === 'format'
+                    ? 'bg-blue-50 text-blue-700 border-blue-200'
+                    : chip.tone === 'intent'
+                      ? 'bg-rose-50 text-rose-700 border-rose-200'
+                      : chip.tone === 'proof'
+                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                        : 'bg-indigo-50 text-indigo-700 border-indigo-200';
+
+                return (
+                  <span key={`${chip.text}-${index}`} className={`px-2 py-0.5 rounded-full border text-[11px] ${cls}`}>
+                    {chip.text}
                   </span>
-                ));
-              })()}
+                );
+              })}
             </div>
           )}
         </div>

@@ -17,8 +17,9 @@ import {
   RankableCategory,
   CategoryRankingMetric
 } from './types';
-import { canonicalizeCategoryValues, getCategoryWithSubcategoryIds, getCategoryById, type CategoryType } from '@/app/lib/classification';
+import { getCategoryWithSubcategoryIds, getCategoryById } from '@/app/lib/classification';
 import { resolveCreatorIdsByContext } from '@/app/lib/creatorContextHelper';
+import { getMetricCategoryValuesForAnalytics, type StrategicRankableCategory } from '@/app/lib/classificationV2Bridge';
 
 const SERVICE_TAG = '[dataService][rankingsService]';
 
@@ -879,32 +880,18 @@ export async function fetchTopCategories(params: {
   limit?: number;
   onlyActiveSubscribers?: boolean;
   context?: string | string[];
+  creatorContext?: string;
 }): Promise<ICategoryMetricRankItem[]> {
   const TAG = `${SERVICE_TAG}[fetchTopCategories]`;
-  const { userId, dateRange, category, metric, limit = 5, onlyActiveSubscribers, context } = params;
+  const { userId, dateRange, category, metric, limit = 5, onlyActiveSubscribers, context, creatorContext } = params;
   logger.info(`${TAG} Fetching top ${limit} for category '${category}' by metric '${metric}'. User filter: ${userId || 'Global'}`);
 
   try {
     await connectToDatabase();
 
-    // Suporte a soma e média: 'avg_<campo>' => $avg($stats.<campo>)
-    let agg: '$sum' | '$avg' = '$sum';
-    let metricField: string | null = null;
-    if (metric === 'posts') {
-      metricField = null;
-    } else if (metric.startsWith('avg_')) {
-      agg = '$avg';
-      const base = metric.replace(/^avg_/, '');
-      metricField = `$stats.${base}`;
-    } else {
-      metricField = `$stats.${metric}`;
-    }
-    const categoryField = `$${category}`;
-
     // (ALTERADO) Construção do filtro de forma dinâmica
     const matchFilter: any = {
       postDate: { $gte: dateRange.startDate, $lte: dateRange.endDate },
-      [category]: { $exists: true, $ne: [] },
     };
 
     // Adiciona o filtro de usuário apenas se um userId for fornecido
@@ -932,9 +919,8 @@ export async function fetchTopCategories(params: {
         : { $in: contextUsers };
     }
 
-    if (!userId && (params as any).creatorContext) {
-      const cContext = (params as any).creatorContext;
-      const contextIds = await resolveCreatorIdsByContext(cContext, { onlyActiveSubscribers });
+    if (!userId && creatorContext) {
+      const contextIds = await resolveCreatorIdsByContext(creatorContext, { onlyActiveSubscribers });
       const contextObjectIds = contextIds.map(id => new Types.ObjectId(id));
 
       if (matchFilter.user) {
@@ -946,95 +932,68 @@ export async function fetchTopCategories(params: {
       }
     }
 
-    // Define o acumulador de forma tipada para evitar erro de TS ao usar chave dinâmica
-    const metricAccumulator = metricField
-      ? (agg === '$avg' ? { $avg: metricField } : { $sum: metricField })
-      : { $sum: 1 };
+    const projection: Record<string, 1> = {
+      source: 1,
+      type: 1,
+      description: 1,
+      format: 1,
+      proposal: 1,
+      context: 1,
+      tone: 1,
+      references: 1,
+      contentIntent: 1,
+      narrativeForm: 1,
+      contentSignals: 1,
+      stance: 1,
+      proofStyle: 1,
+      commercialMode: 1,
+      stats: 1,
+    };
 
-    if (userId) {
-      const projection: Record<string, 1> = {
-        format: 1,
-        proposal: 1,
-        context: 1,
-        tone: 1,
-        references: 1,
-        stats: 1,
-      };
+    const posts = await MetricModel.find(matchFilter, projection).lean().exec();
+    const buckets = new Map<string, { sum: number; count: number }>();
 
-      const posts = await MetricModel.find(matchFilter, projection).lean().exec();
-      const categoryType: CategoryType = category === 'references' ? 'reference' : category;
-      const buckets = new Map<string, { sum: number; count: number }>();
-
-      const resolveMetricValueFromPost = (post: Record<string, any>): number | null => {
-        if (metric === 'posts') return 1;
-        const stats = post?.stats ?? {};
-        if (metric.startsWith('avg_')) {
-          const metricKey = metric.replace(/^avg_/, '');
-          const value = stats?.[metricKey];
-          return typeof value === 'number' && Number.isFinite(value) ? value : null;
-        }
-        const value = stats?.[metric];
+    const resolveMetricValueFromPost = (post: Record<string, any>): number | null => {
+      if (metric === 'posts') return 1;
+      const stats = post?.stats ?? {};
+      if (metric.startsWith('avg_')) {
+        const metricKey = metric.replace(/^avg_/, '');
+        const value = stats?.[metricKey];
         return typeof value === 'number' && Number.isFinite(value) ? value : null;
-      };
-
-      for (const post of posts as Array<Record<string, any>>) {
-        const metricValue = resolveMetricValueFromPost(post);
-        if (metricValue === null) continue;
-
-        const values = canonicalizeCategoryValues(post[category], categoryType, { includeUnknown: true });
-        values.forEach((value) => {
-          const bucket = buckets.get(value) ?? { sum: 0, count: 0 };
-          bucket.sum += metricValue;
-          bucket.count += 1;
-          buckets.set(value, bucket);
-        });
       }
+      const value = stats?.[metric];
+      return typeof value === 'number' && Number.isFinite(value) ? value : null;
+    };
 
-      return Array.from(buckets.entries())
-        .map(([categoryValue, data]) => ({
-          category: categoryValue,
-          value: metric.startsWith('avg_')
-            ? Math.round((data.sum / Math.max(1, data.count)) * 10) / 10
-            : Math.round(data.sum),
-        }))
-        .sort((left, right) => right.value - left.value)
-        .slice(0, limit);
+    for (const post of posts as Array<Record<string, any>>) {
+      const metricValue = resolveMetricValueFromPost(post);
+      if (metricValue === null) continue;
+
+      const values = getMetricCategoryValuesForAnalytics(
+        post,
+        category as StrategicRankableCategory
+      );
+
+      values.forEach((value) => {
+        const bucket = buckets.get(value) ?? { sum: 0, count: 0 };
+        bucket.sum += metricValue;
+        bucket.count += 1;
+        buckets.set(value, bucket);
+      });
     }
 
-    const pipeline: PipelineStage[] = [
-      {
-        $match: matchFilter
-      },
-      {
-        $unwind: categoryField
-      },
-      {
-        $group: {
-          _id: categoryField,
-          metricValue: metricAccumulator
-        }
-      },
-      {
-        $sort: {
-          metricValue: -1
-        }
-      },
-      {
-        $limit: limit
-      },
-      {
-        $project: {
-          _id: 0,
-          category: '$_id',
-          // arredonda para inteiro em soma, 1 casa na média
-          value: agg === '$avg' ? { $round: ['$metricValue', 1] } : { $round: ['$metricValue', 0] }
-        }
-      }
-    ];
+    const results = Array.from(buckets.entries())
+      .map(([categoryValue, data]) => ({
+        category: categoryValue,
+        value: metric.startsWith('avg_')
+          ? Math.round((data.sum / Math.max(1, data.count)) * 10) / 10
+          : Math.round(data.sum),
+      }))
+      .sort((left, right) => right.value - left.value)
+      .slice(0, limit);
 
-    const results = await MetricModel.aggregate(pipeline);
     logger.info(`${TAG} Found ${results.length} results. User filter: ${userId || 'Global'}`);
-    return results as ICategoryMetricRankItem[];
+    return results;
   } catch (error: any) {
     logger.error(`${TAG} Error:`, error);
     throw new DatabaseError(`Failed to fetch top categories: ${error.message}`);

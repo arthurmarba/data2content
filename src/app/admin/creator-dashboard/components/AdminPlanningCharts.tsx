@@ -51,8 +51,29 @@ const formatPostsCount = (count: number) => {
   return `${numberFormatter.format(rounded)} post${rounded === 1 ? "" : "s"}`;
 };
 
-type CategoryField = "format" | "proposal" | "context" | "tone" | "references";
+type CategoryField =
+  | "format"
+  | "proposal"
+  | "context"
+  | "tone"
+  | "references"
+  | "contentIntent"
+  | "narrativeForm"
+  | "contentSignals"
+  | "stance"
+  | "proofStyle"
+  | "commercialMode";
 type CategoryBarDatum = { name: string; value: number; postsCount: number };
+type CategoryDataResponse = { chartData?: CategoryBarDatum[] };
+
+interface CategoryChartSection {
+  field: CategoryField;
+  kicker: string;
+  title: string;
+  emptyText: string;
+  color: string;
+  subtitle: string;
+}
 const getWeekStart = (d: string | Date) => {
   const date = new Date(d);
   if (Number.isNaN(date.getTime())) return null;
@@ -233,9 +254,178 @@ interface PlanningBatchResponse {
   trendData: { chartData?: Array<{ date: string; reach: number; totalInteractions: number }> };
   timeData: { buckets?: Array<{ dayOfWeek: number; hour: number; average: number; count: number }> };
   formatData: { chartData?: Array<{ name: string; value: number; percentage: number }> };
-  proposalData: { chartData?: Array<{ name: string; value: number; postsCount: number }> };
-  toneData: { chartData?: Array<{ name: string; value: number; postsCount: number }> };
-  referenceData: { chartData?: Array<{ name: string; value: number; postsCount: number }> };
+  contextData: CategoryDataResponse;
+  proposalData: CategoryDataResponse;
+  toneData: CategoryDataResponse;
+  referenceData: CategoryDataResponse;
+  contentIntentData: CategoryDataResponse;
+  narrativeFormData: CategoryDataResponse;
+  contentSignalsData: CategoryDataResponse;
+  stanceData: CategoryDataResponse;
+  proofStyleData: CategoryDataResponse;
+  commercialModeData: CategoryDataResponse;
+}
+
+const EDITORIAL_CATEGORY_SECTIONS: CategoryChartSection[] = [
+  {
+    field: "context",
+    kicker: "Tema",
+    title: "Tema que mais puxa resposta",
+    emptyText: "Sem temas no período.",
+    color: "#0ea5e9",
+    subtitle: "Resposta por tema",
+  },
+  {
+    field: "proposal",
+    kicker: "Proposta",
+    title: "Proposta que mais puxa resposta",
+    emptyText: "Sem propostas no período.",
+    color: "#6366f1",
+    subtitle: "Resposta por proposta",
+  },
+  {
+    field: "tone",
+    kicker: "Tom",
+    title: "Tom que mais puxa resposta",
+    emptyText: "Sem tons no período.",
+    color: "#10b981",
+    subtitle: "Resposta por tom",
+  },
+  {
+    field: "references",
+    kicker: "Referência",
+    title: "Referência que mais puxa resposta",
+    emptyText: "Sem referências no período.",
+    color: "#f59e0b",
+    subtitle: "Resposta por referência",
+  },
+];
+
+const STRATEGIC_CATEGORY_SECTIONS: CategoryChartSection[] = [
+  {
+    field: "contentIntent",
+    kicker: "Objetivo",
+    title: "Objetivo que mais puxa resposta",
+    emptyText: "Sem objetivos no período.",
+    color: "#2563eb",
+    subtitle: "Resposta por objetivo",
+  },
+  {
+    field: "narrativeForm",
+    kicker: "Narrativa",
+    title: "Jeito de contar que mais funciona",
+    emptyText: "Sem narrativas no período.",
+    color: "#7c3aed",
+    subtitle: "Resposta por narrativa",
+  },
+  {
+    field: "contentSignals",
+    kicker: "Ação",
+    title: "Ação que mais ajuda",
+    emptyText: "Sem ações no período.",
+    color: "#0f766e",
+    subtitle: "Resposta por ação",
+  },
+  {
+    field: "stance",
+    kicker: "Postura",
+    title: "Postura que mais sustenta resposta",
+    emptyText: "Sem posturas no período.",
+    color: "#dc2626",
+    subtitle: "Resposta por postura",
+  },
+  {
+    field: "proofStyle",
+    kicker: "Prova",
+    title: "Prova que mais convence",
+    emptyText: "Sem provas no período.",
+    color: "#a16207",
+    subtitle: "Resposta por prova",
+  },
+  {
+    field: "commercialMode",
+    kicker: "Venda",
+    title: "Forma de venda que mais funciona",
+    emptyText: "Sem sinais de venda no período.",
+    color: "#db2777",
+    subtitle: "Resposta por venda",
+  },
+];
+
+function CategoryAverageBarCard({
+  section,
+  data,
+  loading,
+  onCategoryClick,
+}: {
+  section: CategoryChartSection;
+  data: CategoryBarDatum[];
+  loading: boolean;
+  onCategoryClick: (field: CategoryField, value: string, subtitle: string) => void;
+}) {
+  return (
+    <article className={cardBase}>
+      <header className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">{section.kicker}</p>
+          <h2 className="text-base font-semibold text-slate-900">{section.title}</h2>
+        </div>
+        <Sparkles className="h-5 w-5 text-slate-600" />
+      </header>
+      <div className="mt-4 h-64">
+        {loading ? (
+          <p className="text-sm text-slate-500">Carregando {section.kicker.toLowerCase()}...</p>
+        ) : data.length === 0 ? (
+          <p className="text-sm text-slate-500">{section.emptyText}</p>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={data}
+              layout="vertical"
+              margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
+              onClick={(chartData) => {
+                if (chartData && chartData.activePayload && chartData.activePayload[0]) {
+                  const value = chartData.activePayload[0].payload.name;
+                  onCategoryClick(section.field, value, section.subtitle);
+                }
+              }}
+              style={{ cursor: "pointer" }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
+              <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tickLine={false}
+                axisLine={false}
+                tick={{ fill: "#475569", fontSize: 12 }}
+                width={140}
+              />
+              <Tooltip
+                contentStyle={tooltipStyle}
+                labelFormatter={(label: string, payload: any[]) => {
+                  const postsCount = payload?.[0]?.payload?.postsCount;
+                  return typeof postsCount === "number"
+                    ? `${label} • ${formatPostsCount(postsCount)}`
+                    : label;
+                }}
+                formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações médias"]}
+              />
+              <Bar dataKey="value" name="Interações médias" fill={section.color} radius={[0, 6, 6, 0]}>
+                <LabelList
+                  dataKey="postsCount"
+                  position="right"
+                  formatter={(value: number) => formatPostsCount(value)}
+                  fill="#64748b"
+                  fontSize={11}
+                />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    </article>
+  );
 }
 
 export default function AdminPlanningCharts({
@@ -310,16 +500,19 @@ export default function AdminPlanningCharts({
   const trendData = planningBatch?.trendData;
   const timeData = planningBatch?.timeData;
   const formatData = planningBatch?.formatData;
+  const contextData = planningBatch?.contextData;
   const proposalData = planningBatch?.proposalData;
   const toneData = planningBatch?.toneData;
   const referenceData = planningBatch?.referenceData;
+  const contentIntentData = planningBatch?.contentIntentData;
+  const narrativeFormData = planningBatch?.narrativeFormData;
+  const contentSignalsData = planningBatch?.contentSignalsData;
+  const stanceData = planningBatch?.stanceData;
+  const proofStyleData = planningBatch?.proofStyleData;
+  const commercialModeData = planningBatch?.commercialModeData;
 
   const loadingTrend = loadingMetrics;
   const loadingTime = loadingMetrics;
-  const loadingFormat = loadingMetrics;
-  const loadingProposal = loadingMetrics;
-  const loadingTone = loadingMetrics;
-  const loadingReference = loadingMetrics;
   const { data: postsData, isLoading: loadingPosts } = useSWR(
     userId
       ? `/api/v1/users/${userId}/videos/list?timePeriod=${TIME_PERIOD}&limit=${PAGE_LIMIT}&page=${page}&sortBy=postDate&sortOrder=desc`
@@ -327,6 +520,7 @@ export default function AdminPlanningCharts({
     fetcher,
     swrOptions
   );
+  const loadingCategoryCharts = loadingMetrics && loadingPosts;
 
   const trendSeries = useMemo(() => {
     const rows = (trendData?.chartData || []).map((point: any) => ({
@@ -387,7 +581,7 @@ export default function AdminPlanningCharts({
   );
 
   const handleCategoryClick = React.useCallback(
-    (field: "format" | "proposal" | "context" | "tone" | "references", value: string, subtitle: string) => {
+    (field: CategoryField, value: string, subtitle: string) => {
       const posts = sortPostsByDateDesc(filterPostsByCategory(normalizedPosts, field, value));
       openSliceModal({
         title: `Posts com ${field}: ${value}`,
@@ -482,45 +676,80 @@ export default function AdminPlanningCharts({
   const bestHour = useMemo(() => hourBars?.slice().sort((a, b) => b.average - a.average)?.[0]?.hour ?? null, [hourBars]);
 
   const formatBars = useMemo(() => formatData?.chartData || [], [formatData]);
-  const proposalBars = useMemo(() => {
-    const fromApi = (proposalData?.chartData || []).slice(0, 6) as Array<{ name: string; value: number; postsCount?: number }>;
-    const fallbackCounts = aggregateAverageInteractionsByCategory(normalizedPosts, "proposal");
-    return fromApi.map((bar) => {
-      const fallback = fallbackCounts.find((row) => matchesValue([row.name], bar.name));
-      return {
-        ...bar,
-        postsCount: bar.postsCount ?? fallback?.postsCount ?? 0,
-      };
-    });
-  }, [proposalData, normalizedPosts]);
+  const buildCategoryBars = useCallback(
+    (field: CategoryField, apiData?: CategoryDataResponse) => {
+      const fromApi = (apiData?.chartData || []).slice(0, 6) as Array<{
+        name: string;
+        value: number;
+        postsCount?: number;
+      }>;
+      const fallbackCounts = aggregateAverageInteractionsByCategory(normalizedPosts, field);
 
-  const toneBars = useMemo(() => {
-    const fromApi = (toneData?.chartData || []).slice(0, 6) as Array<{ name: string; value: number; postsCount?: number }>;
-    const fallbackCounts = aggregateAverageInteractionsByCategory(normalizedPosts, "tone");
-    return fromApi.map((bar) => {
-      const fallback = fallbackCounts.find((row) => matchesValue([row.name], bar.name));
-      return {
-        ...bar,
-        postsCount: bar.postsCount ?? fallback?.postsCount ?? 0,
-      };
-    });
-  }, [toneData, normalizedPosts]);
+      if (fromApi.length === 0) return fallbackCounts.slice(0, 6);
 
-  const referenceBars = useMemo(() => {
-    const fromApi = (referenceData?.chartData || []).slice(0, 6) as Array<{ name: string; value: number; postsCount?: number }>;
-    const fallbackCounts = aggregateAverageInteractionsByCategory(normalizedPosts, "references");
-    return fromApi.map((bar) => {
-      const fallback = fallbackCounts.find((row) => matchesValue([row.name], bar.name));
-      return {
-        ...bar,
-        postsCount: bar.postsCount ?? fallback?.postsCount ?? 0,
-      };
-    });
-  }, [referenceData, normalizedPosts]);
+      return fromApi.map((bar) => {
+        const fallback = fallbackCounts.find((row) => matchesValue([row.name], bar.name));
+        return {
+          ...bar,
+          postsCount: bar.postsCount ?? fallback?.postsCount ?? 0,
+        };
+      });
+    },
+    [normalizedPosts]
+  );
 
-  const contextBars = useMemo(() => {
-    return aggregateAverageInteractionsByCategory(normalizedPosts, "context").slice(0, 6);
-  }, [normalizedPosts]);
+  const contextBars = useMemo(() => buildCategoryBars("context", contextData), [buildCategoryBars, contextData]);
+  const proposalBars = useMemo(() => buildCategoryBars("proposal", proposalData), [buildCategoryBars, proposalData]);
+  const toneBars = useMemo(() => buildCategoryBars("tone", toneData), [buildCategoryBars, toneData]);
+  const referenceBars = useMemo(() => buildCategoryBars("references", referenceData), [buildCategoryBars, referenceData]);
+  const contentIntentBars = useMemo(
+    () => buildCategoryBars("contentIntent", contentIntentData),
+    [buildCategoryBars, contentIntentData]
+  );
+  const narrativeFormBars = useMemo(
+    () => buildCategoryBars("narrativeForm", narrativeFormData),
+    [buildCategoryBars, narrativeFormData]
+  );
+  const contentSignalsBars = useMemo(
+    () => buildCategoryBars("contentSignals", contentSignalsData),
+    [buildCategoryBars, contentSignalsData]
+  );
+  const stanceBars = useMemo(() => buildCategoryBars("stance", stanceData), [buildCategoryBars, stanceData]);
+  const proofStyleBars = useMemo(
+    () => buildCategoryBars("proofStyle", proofStyleData),
+    [buildCategoryBars, proofStyleData]
+  );
+  const commercialModeBars = useMemo(
+    () => buildCategoryBars("commercialMode", commercialModeData),
+    [buildCategoryBars, commercialModeData]
+  );
+
+  const categoryBarsByField = useMemo<Partial<Record<CategoryField, CategoryBarDatum[]>>>(
+    () => ({
+      context: contextBars,
+      proposal: proposalBars,
+      tone: toneBars,
+      references: referenceBars,
+      contentIntent: contentIntentBars,
+      narrativeForm: narrativeFormBars,
+      contentSignals: contentSignalsBars,
+      stance: stanceBars,
+      proofStyle: proofStyleBars,
+      commercialMode: commercialModeBars,
+    }),
+    [
+      commercialModeBars,
+      contentIntentBars,
+      contentSignalsBars,
+      contextBars,
+      narrativeFormBars,
+      proofStyleBars,
+      proposalBars,
+      referenceBars,
+      stanceBars,
+      toneBars,
+    ]
+  );
 
   const followerMix = useMemo(() => {
     const posts = Array.isArray(postsSource) ? postsSource : [];
@@ -568,25 +797,13 @@ export default function AdminPlanningCharts({
   }, [postsSource]);
 
   const topDiscovery = useMemo(() => {
-    const posts = Array.isArray(postsSource) ? postsSource : [];
+    const posts = normalizedPosts;
     const normalizeCategories = (value: any): string[] =>
       Array.isArray(value)
         ? value.filter(Boolean).map((v) => String(v))
         : value
           ? [String(value)]
           : [];
-    const buildMetaLabel = (p: any) => {
-      const pieces = [
-        { label: "Proposta", values: normalizeCategories(p?.proposal) },
-        { label: "Contexto", values: normalizeCategories(p?.context) },
-        { label: "Tom", values: normalizeCategories(p?.tone) },
-        { label: "Referência", values: normalizeCategories(p?.references) },
-        { label: "Formato", values: normalizeCategories(p?.format) },
-      ]
-        .map(({ label, values }) => (values.length ? `${label}: ${values.join(", ")}` : null))
-        .filter(Boolean);
-      return pieces.join(" • ");
-    };
     return posts
       .map((p: any) => {
         const nf = (() => {
@@ -601,7 +818,7 @@ export default function AdminPlanningCharts({
         const pv = toNumber(p?.stats?.profile_visits);
         const reach = toNumber(p?.stats?.reach);
         if (nf === null && pv === null) return null;
-        const metaLabel = buildMetaLabel(p);
+        const metaLabel = p?.metaLabel || "";
         const proposal = normalizeCategories(p?.proposal);
         const context = normalizeCategories(p?.context);
         const tone = normalizeCategories(p?.tone);
@@ -660,7 +877,7 @@ export default function AdminPlanningCharts({
         saves: number;
         thumbnail?: string | null;
       }>;
-  }, [postsSource]);
+  }, [normalizedPosts]);
 
   const heatmap = useMemo(() => {
     const buckets: Array<{ dayOfWeek: number; hour: number; average: number }> = timeData?.buckets || [];
@@ -853,11 +1070,11 @@ export default function AdminPlanningCharts({
       <header className="flex flex-col gap-2">
         <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
           <LineChartIcon className="h-4 w-4" />
-          Gráficos do planejamento
+          Análise do perfil
         </div>
-        <h1 className="text-2xl font-semibold text-slate-900">Leituras com dados reais</h1>
+        <h1 className="text-2xl font-semibold text-slate-900">O que mais funciona</h1>
         <p className="text-sm text-slate-600">
-          Atualizado para os últimos 90 dias. Use alcance, interações e horários reais para planejar sem canibalizar posts.
+          Últimos 90 dias. Veja o que repetir e o que ajustar.
         </p>
       </header>
 
@@ -1017,256 +1234,43 @@ export default function AdminPlanningCharts({
         </article>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2">
-        <article className={cardBase}>
-          <header className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Contexto</p>
-              <h2 className="text-base font-semibold text-slate-900">Interação média por contexto</h2>
-            </div>
-            <Target className="h-5 w-5 text-slate-600" />
-          </header>
-          <div className="mt-4 h-64">
-            {loadingPosts ? (
-              <p className="text-sm text-slate-500">Carregando contextos...</p>
-            ) : contextBars.length === 0 ? (
-              <p className="text-sm text-slate-500">Sem contextos registrados no período.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={contextBars}
-                  layout="vertical"
-                  margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
-                  onClick={(data) => {
-                    if (data && data.activePayload && data.activePayload[0]) {
-                      const context = data.activePayload[0].payload.name;
-                      handleCategoryClick("context", context, "Interação por Contexto");
-                    }
-                  }}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
-                  <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: "#475569", fontSize: 12 }}
-                    width={140}
-                  />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    labelFormatter={(label: string, payload: any[]) => {
-                      const postsCount = payload?.[0]?.payload?.postsCount;
-                      return typeof postsCount === "number"
-                        ? `${label} • ${formatPostsCount(postsCount)}`
-                        : label;
-                    }}
-                    formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações médias"]}
-                  />
-                  <Bar dataKey="value" name="Interações médias" fill="#0ea5e9" radius={[0, 6, 6, 0]}>
-                    <LabelList
-                      dataKey="postsCount"
-                      position="right"
-                      formatter={(value: number) => formatPostsCount(value)}
-                      fill="#64748b"
-                      fontSize={11}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </article>
-
-        <article className={cardBase}>
-          <header className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Proposta</p>
-              <h2 className="text-base font-semibold text-slate-900">Interação média por proposta</h2>
-            </div>
-            <Sparkles className="h-5 w-5 text-indigo-500" />
-          </header>
-          <div className="mt-4 h-64">
-            {loadingProposal ? (
-              <p className="text-sm text-slate-500">Carregando propostas...</p>
-            ) : proposalBars.length === 0 ? (
-              <p className="text-sm text-slate-500">Sem propostas registradas no período.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={proposalBars}
-                  layout="vertical"
-                  margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
-                  onClick={(data) => {
-                    if (data && data.activePayload && data.activePayload[0]) {
-                      const proposal = data.activePayload[0].payload.name;
-                      handleCategoryClick("proposal", proposal, "Interação por Proposta");
-                    }
-                  }}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
-                  <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: "#475569", fontSize: 12 }}
-                    width={140}
-                  />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    labelFormatter={(label: string, payload: any[]) => {
-                      const postsCount = payload?.[0]?.payload?.postsCount;
-                      return typeof postsCount === "number"
-                        ? `${label} • ${formatPostsCount(postsCount)}`
-                        : label;
-                    }}
-                    formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações médias"]}
-                  />
-                  <Bar dataKey="value" name="Interações médias" fill="#6366f1" radius={[0, 6, 6, 0]}>
-                    <LabelList
-                      dataKey="postsCount"
-                      position="right"
-                      formatter={(value: number) => formatPostsCount(value)}
-                      fill="#64748b"
-                      fontSize={11}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </article>
+      <section className="space-y-4">
+        <header className="flex flex-col gap-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Base do conteúdo</p>
+          <h2 className="text-base font-semibold text-slate-900">Tema, proposta, tom e referência</h2>
+        </header>
+        <div className="grid gap-4 md:grid-cols-2">
+          {EDITORIAL_CATEGORY_SECTIONS.map((section) => (
+            <CategoryAverageBarCard
+              key={section.field}
+              section={section}
+              data={categoryBarsByField[section.field] || []}
+              loading={loadingCategoryCharts}
+              onCategoryClick={handleCategoryClick}
+            />
+          ))}
+        </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2">
-        <article className={cardBase}>
-          <header className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Tom</p>
-              <h2 className="text-base font-semibold text-slate-900">Interação média por tom</h2>
-            </div>
-            <Sparkles className="h-5 w-5 text-emerald-500" />
-          </header>
-          <div className="mt-4 h-64">
-            {loadingTone ? (
-              <p className="text-sm text-slate-500">Carregando tons...</p>
-            ) : toneBars.length === 0 ? (
-              <p className="text-sm text-slate-500">Sem tons registrados no período.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={toneBars}
-                  layout="vertical"
-                  margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
-                  onClick={(data) => {
-                    if (data && data.activePayload && data.activePayload[0]) {
-                      const tone = data.activePayload[0].payload.name;
-                      handleCategoryClick("tone", tone, "Interação por Tom");
-                    }
-                  }}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
-                  <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: "#475569", fontSize: 12 }}
-                    width={140}
-                  />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    labelFormatter={(label: string, payload: any[]) => {
-                      const postsCount = payload?.[0]?.payload?.postsCount;
-                      return typeof postsCount === "number"
-                        ? `${label} • ${formatPostsCount(postsCount)}`
-                        : label;
-                    }}
-                    formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações médias"]}
-                  />
-                  <Bar dataKey="value" name="Interações médias" fill="#10b981" radius={[0, 6, 6, 0]}>
-                    <LabelList
-                      dataKey="postsCount"
-                      position="right"
-                      formatter={(value: number) => formatPostsCount(value)}
-                      fill="#64748b"
-                      fontSize={11}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </article>
-
-        <article className={cardBase}>
-          <header className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Referência</p>
-              <h2 className="text-base font-semibold text-slate-900">Interação média por referência</h2>
-            </div>
-            <Sparkles className="h-5 w-5 text-amber-500" />
-          </header>
-          <div className="mt-4 h-64">
-            {loadingReference ? (
-              <p className="text-sm text-slate-500">Carregando referências...</p>
-            ) : referenceBars.length === 0 ? (
-              <p className="text-sm text-slate-500">Sem referências registradas no período.</p>
-            ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={referenceBars}
-                  layout="vertical"
-                  margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
-                  onClick={(data) => {
-                    if (data && data.activePayload && data.activePayload[0]) {
-                      const references = data.activePayload[0].payload.name;
-                      handleCategoryClick("references", references, "Interação por Referência");
-                    }
-                  }}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal />
-                  <XAxis type="number" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    tickLine={false}
-                    axisLine={false}
-                    tick={{ fill: "#475569", fontSize: 12 }}
-                    width={140}
-                  />
-                  <Tooltip
-                    contentStyle={tooltipStyle}
-                    labelFormatter={(label: string, payload: any[]) => {
-                      const postsCount = payload?.[0]?.payload?.postsCount;
-                      return typeof postsCount === "number"
-                        ? `${label} • ${formatPostsCount(postsCount)}`
-                        : label;
-                    }}
-                    formatter={(value: number) => [numberFormatter.format(Math.round(value)), "Interações médias"]}
-                  />
-                  <Bar dataKey="value" name="Interações médias" fill="#f59e0b" radius={[0, 6, 6, 0]}>
-                    <LabelList
-                      dataKey="postsCount"
-                      position="right"
-                      formatter={(value: number) => formatPostsCount(value)}
-                      fill="#64748b"
-                      fontSize={11}
-                    />
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </div>
-        </article>
+      <section className="space-y-4">
+        <header className="flex flex-col gap-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Camada extra</p>
+          <h2 className="text-base font-semibold text-slate-900">Objetivo, narrativa, prova e venda</h2>
+          <p className="text-sm text-slate-600">
+            Aqui você vê como o post funciona, e não só sobre o que ele fala.
+          </p>
+        </header>
+        <div className="grid gap-4 md:grid-cols-2">
+          {STRATEGIC_CATEGORY_SECTIONS.map((section) => (
+            <CategoryAverageBarCard
+              key={section.field}
+              section={section}
+              data={categoryBarsByField[section.field] || []}
+              loading={loadingCategoryCharts}
+              onCategoryClick={handleCategoryClick}
+            />
+          ))}
+        </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2">

@@ -4,9 +4,26 @@ import { logger } from '@/app/lib/logger';
 import { Types } from 'mongoose';
 import { getStartDateFromTimePeriod } from './dateHelpers';
 import { getCategoryById, getCategoryByValue } from '@/app/lib/classification';
+import { getV2CategoryByValue } from '@/app/lib/classificationV2';
+import { getV25CategoryByValue } from '@/app/lib/classificationV2_5';
+import {
+  getMetricCategoryValuesForAnalytics,
+  type StrategicRankableCategory,
+} from '@/app/lib/classificationV2Bridge';
 import { resolvePerformanceMetricValue } from './performanceMetricResolver';
 
-export type GroupingType = 'format' | 'context' | 'proposal' | 'tone' | 'references';
+export type GroupingType =
+  | 'format'
+  | 'context'
+  | 'proposal'
+  | 'tone'
+  | 'references'
+  | 'contentIntent'
+  | 'narrativeForm'
+  | 'contentSignals'
+  | 'stance'
+  | 'proofStyle'
+  | 'commercialMode';
 
 export interface AverageResult {
   name: string;
@@ -39,17 +56,49 @@ function normalize(value: string) {
     .trim();
 }
 
-function getCategoryType(groupBy: GroupingType): 'format' | 'proposal' | 'context' | 'tone' | 'reference' {
+function getCategoryType(groupBy: Extract<GroupingType, 'format' | 'proposal' | 'context' | 'tone' | 'references'>): 'format' | 'proposal' | 'context' | 'tone' | 'reference' {
   if (groupBy === 'references') return 'reference';
   return groupBy;
 }
 
 function resolveCanonicalLabel(rawKey: string, groupBy: GroupingType): string {
-  const categoryType = getCategoryType(groupBy);
-  const category = getCategoryById(rawKey, categoryType) || getCategoryByValue(rawKey, categoryType);
   const normalizedRaw = normalize(rawKey);
 
-  if (category?.label) return category.label;
+  if (
+    groupBy === 'format' ||
+    groupBy === 'proposal' ||
+    groupBy === 'context' ||
+    groupBy === 'tone' ||
+    groupBy === 'references'
+  ) {
+    const categoryType = getCategoryType(groupBy);
+    const category = getCategoryById(rawKey, categoryType) || getCategoryByValue(rawKey, categoryType);
+    if (category?.label) return category.label;
+  }
+
+  if (groupBy === 'contentIntent') {
+    return getV2CategoryByValue(rawKey, 'contentIntent')?.label ?? rawKey;
+  }
+
+  if (groupBy === 'narrativeForm') {
+    return getV2CategoryByValue(rawKey, 'narrativeForm')?.label ?? rawKey;
+  }
+
+  if (groupBy === 'contentSignals') {
+    return getV2CategoryByValue(rawKey, 'contentSignal')?.label ?? rawKey;
+  }
+
+  if (groupBy === 'stance') {
+    return getV25CategoryByValue(rawKey, 'stance')?.label ?? rawKey;
+  }
+
+  if (groupBy === 'proofStyle') {
+    return getV25CategoryByValue(rawKey, 'proofStyle')?.label ?? rawKey;
+  }
+
+  if (groupBy === 'commercialMode') {
+    return getV25CategoryByValue(rawKey, 'commercialMode')?.label ?? rawKey;
+  }
 
   if (groupBy === 'references' && (normalizedRaw === 'city' || normalizedRaw === 'country')) {
     return 'Geografia';
@@ -65,6 +114,36 @@ function resolveCanonicalLabel(rawKey: string, groupBy: GroupingType): string {
   }
 
   return rawKey.charAt(0).toUpperCase() + rawKey.slice(1);
+}
+
+function getRawGroupingValues(post: IMetric, groupBy: GroupingType): string[] {
+  const rawValues = (post as any)?.[groupBy] as unknown;
+  if (Array.isArray(rawValues)) {
+    return rawValues
+      .map((value) => String(value).trim())
+      .filter(Boolean);
+  }
+
+  if (typeof rawValues === 'string') {
+    const trimmed = rawValues.trim();
+    return trimmed ? [trimmed] : [];
+  }
+
+  return [];
+}
+
+function getGroupingValues(post: IMetric, groupBy: GroupingType): string[] {
+  const derivedValues = getMetricCategoryValuesForAnalytics(
+    post as unknown as Parameters<typeof getMetricCategoryValuesForAnalytics>[0],
+    groupBy as StrategicRankableCategory
+  );
+
+  if (derivedValues.length > 0) return derivedValues;
+  if (groupBy === 'proposal' || groupBy === 'tone') {
+    const rawValues = getRawGroupingValues(post, groupBy);
+    if (rawValues.length > 0) return [];
+  }
+  return getRawGroupingValues(post, groupBy);
 }
 
 function aggregatePostsByGrouping(
@@ -96,20 +175,12 @@ function aggregatePostsByGrouping(
     const metricValue = resolvePerformanceMetricValue(post, performanceMetricField);
     if (typeof metricValue !== 'number') continue;
 
-    const keys = (post as any)?.[groupBy] as unknown;
-    if (Array.isArray(keys)) {
-      const normalizedKeys = keys
-        .map((key) => String(key).trim())
-        .filter(Boolean);
-      if (!normalizedKeys.length) continue;
+    const keys = getGroupingValues(post, groupBy);
+    if (!keys.length) continue;
 
-      const weight = creditMode === 'fractional' ? 1 / normalizedKeys.length : 1;
-      for (const key of normalizedKeys) {
-        pushKey(key, metricValue, weight);
-      }
-    } else if (typeof keys === 'string') {
-      const safeKey = keys.trim();
-      if (safeKey) pushKey(safeKey, metricValue, 1);
+    const weight = creditMode === 'fractional' ? 1 / keys.length : 1;
+    for (const key of keys) {
+      pushKey(key, metricValue, weight);
     }
   }
 

@@ -13,18 +13,15 @@ import {
   classifyAiFailureMessage,
   type ClassificationAiFailureKind,
 } from "@/app/lib/classificationAiErrors";
-import { canonicalizeCategoryValues } from "@/app/lib/classification";
-import mongoose from "mongoose";
-
-// Importando as categorias definitivas para construir o prompt da IA
 import {
-  formatCategories,
-  proposalCategories,
-  contextCategories,
-  toneCategories,
-  referenceCategories,
-  Category
-} from "@/app/lib/classification";
+  buildClassificationOpenAiPayload,
+  buildMetricClassificationUpdate,
+  createEmptyMetricClassificationUpdate,
+  getEmptyClassificationResult,
+  normalizeClassificationResponse,
+  type ClassificationResult,
+} from "@/app/lib/classificationRuntime";
+import mongoose from "mongoose";
 
 const OPENAI_CLASSIFICATION_MODEL =
   process.env.OPENAI_CLASSIFIER_MODEL?.trim() || "gpt-4o-mini";
@@ -35,37 +32,6 @@ const receiver = new Receiver({
     currentSigningKey: process.env.QSTASH_CURRENT_SIGNING_KEY!,
     nextSigningKey: process.env.QSTASH_NEXT_SIGNING_KEY!,
 });
-
-/**
- * Interface para o resultado da classificação.
- */
-interface ClassificationResult {
-  format: string[];
-  proposal: string[];
-  context: string[];
-  tone: string[];
-  references: string[];
-}
-
-const resolveFormatForMetric = (
-  metric: Pick<IMetric, 'source' | 'format' | 'type'>,
-  classification: ClassificationResult
-): string[] => {
-  if (metric.source === 'api') {
-    switch (metric.type) {
-      case 'REEL':
-      case 'VIDEO':
-        return ['reel'];
-      case 'IMAGE':
-        return ['photo'];
-      case 'CAROUSEL_ALBUM':
-        return ['carousel'];
-      default:
-        return [];
-    }
-  }
-  return canonicalizeCategoryValues(classification.format, 'format');
-};
 
 // --- Função de Classificação Otimizada com OpenAI ---
 
@@ -124,92 +90,12 @@ async function extractOpenAiError(response: Response): Promise<{
   };
 }
 
-const buildCategoryDescriptions = (categories: Category[]): string => {
-  return categories.map(cat => {
-    let desc = `- **${cat.id} (${cat.label}):** ${cat.description}`;
-    if (cat.examples && cat.examples.length > 0) {
-      desc += ` (Ex: "${cat.examples.join('", "')}")`;
-    }
-    if (cat.subcategories && cat.subcategories.length > 0) {
-      desc += `\n  Subcategorias:\n` + cat.subcategories.map(sub => `    - **${sub.id} (${sub.label}):** ${sub.description}`).join('\n');
-    }
-    return desc;
-  }).join('\n');
-};
-
-function normalizeClassification(rawResult: any): ClassificationResult {
-    const normalized: ClassificationResult = {
-        format: [], proposal: [], context: [], tone: [], references: [],
-    };
-    const keyMapping: { [K in keyof ClassificationResult]: string[] } = {
-        format: ['format', 'formato do conteúdo', 'formato'],
-        proposal: ['proposal', 'proposta'],
-        context: ['context', 'contexto'],
-        tone: ['tone', 'tom'],
-        references: ['references', 'referências', 'referencias'],
-    };
-
-    const flattenValue = (value: any): string[] => {
-        if (Array.isArray(value)) {
-            return value.flatMap(flattenValue);
-        }
-        if (typeof value === 'object' && value !== null) {
-            return flattenValue(Object.values(value));
-        }
-        if (typeof value === 'string') {
-            return [value];
-        }
-        return [];
-    };
-
-    for (const rawKey in rawResult) {
-        const cleanedKey = rawKey.toLowerCase().replace(/[\d.]/g, '').trim();
-        const standardKey = Object.keys(keyMapping).find(k => 
-            keyMapping[k as keyof ClassificationResult].includes(cleanedKey)
-        ) as keyof ClassificationResult | undefined;
-
-        if (standardKey) {
-            const value = rawResult[rawKey];
-            const flatValues = flattenValue(value);
-            normalized[standardKey].push(...flatValues);
-        }
-    }
-    
-    for (const key in normalized) {
-        const typedKey = key as keyof ClassificationResult;
-        normalized[typedKey] = [...new Set(normalized[typedKey])].filter(v => typeof v === 'string' && v.length > 0);
-    }
-    return normalized;
-}
-
 async function classifyContent(description: string): Promise<ClassificationResult> {
     const TAG = '[classifyContent_Final_Optimized]';
     if (!description || description.trim() === '') {
-        return { format: [], proposal: [], context: [], tone: [], references: [] };
+        return getEmptyClassificationResult();
     }
-
-    const systemPrompt = `
-      Você é um especialista em análise de conteúdo de mídias sociais. Sua tarefa é analisar a descrição de um post, incluindo as hashtags, e classificá-lo em CINCO dimensões.
-
-      **REGRAS CRÍTICAS PARA SEGUIR:**
-      1.  **USE APENAS IDs:** Sua resposta DEVE conter apenas os IDs das categorias fornecidas. NUNCA use os rótulos em texto (ex: use 'humor_scene', não 'Humor/Cena').
-      2.  **NÃO INVENTE CATEGORIAS:** Use EXCLUSIVAMENTE os IDs da lista. Se uma categoria não se encaixar perfeitamente, escolha a mais próxima ou retorne um array vazio.
-      3.  **HASHTAGS SÃO A CHAVE:** Analise as hashtags (#) com muita atenção. Elas são a pista principal para definir o 'Contexto' e também podem indicar a 'Proposta' (ex: #humor indica a proposta 'humor_scene').
-      4.  **PREFIRA A ESPECIFICIDADE:** Ao classificar 'Contexto' e 'Referências', se uma subcategoria se aplicar, prefira sempre o ID da subcategoria em vez do ID da categoria principal.
-      5.  **DETECTE O TOM:** Preste atenção em palavras e emojis. Risadas (haha, kkk) indicam o tom 'humorous'. Emojis de coração (💖) ou palavras de encorajamento indicam 'inspirational'.
-      6.  **SAÍDA JSON:** Sua resposta final deve ser APENAS o objeto JSON, sem nenhum texto adicional antes ou depois.
-    `;
-
-    const userPrompt = `**Descrição:**\n"${description}"\n\n**Categorias:**\nFormato: ${buildCategoryDescriptions(formatCategories)}\nProposta: ${buildCategoryDescriptions(proposalCategories)}\nContexto: ${buildCategoryDescriptions(contextCategories)}\nTom: ${buildCategoryDescriptions(toneCategories)}\nReferências: ${buildCategoryDescriptions(referenceCategories)}`;
-
-    const payload = {
-      model: OPENAI_CLASSIFICATION_MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ],
-      response_format: { type: "json_object" }
-    };
+    const payload = buildClassificationOpenAiPayload(description, OPENAI_CLASSIFICATION_MODEL);
     
     const apiKey = process.env.OPENAI_API_KEY; 
     if (!apiKey) throw new Error("A variável de ambiente OPENAI_API_KEY não está definida.");
@@ -239,7 +125,7 @@ async function classifyContent(description: string): Promise<ClassificationResul
     if (result.choices?.[0]?.message?.content) {
         const content = result.choices[0].message.content;
         const parsedJson = JSON.parse(content);
-        const normalizedResult = normalizeClassification(parsedJson);
+        const normalizedResult = normalizeClassificationResponse(parsedJson);
         logger.info(`${TAG} Classificação recebida e normalizada: ${JSON.stringify(normalizedResult)}`);
         return normalizedResult;
     } else {
@@ -282,7 +168,13 @@ async function handlerLogic(request: NextRequest): Promise<NextResponse> { // Ad
             logger.warn(`${TAG} Métrica ${metricId} não possui descrição. Impossível classificar.`);
             await Metric.updateOne(
                 { _id: metricDoc._id },
-                { $set: { classificationStatus: 'failed', classificationError: 'Descrição ausente ou vazia.' } }
+                {
+                  $set: {
+                    classificationStatus: 'failed',
+                    classificationError: 'Descrição ausente ou vazia.',
+                    ...createEmptyMetricClassificationUpdate(),
+                  },
+                }
             );
             return NextResponse.json({ message: "Métrica sem descrição para classificar." }, { status: 200 });
         }
@@ -296,11 +188,7 @@ async function handlerLogic(request: NextRequest): Promise<NextResponse> { // Ad
                 logger.info(`${TAG} Classificação completa recebida para Metric ${metricId}: ${JSON.stringify(classification)}`);
 
                 const updateData: Partial<IMetric> = {
-                    format: resolveFormatForMetric(metricDoc, classification),
-                    proposal: canonicalizeCategoryValues(classification.proposal, 'proposal'),
-                    context: canonicalizeCategoryValues(classification.context, 'context'),
-                    tone: canonicalizeCategoryValues(classification.tone, 'tone'),
-                    references: canonicalizeCategoryValues(classification.references, 'reference'),
+                    ...buildMetricClassificationUpdate(metricDoc, classification),
                     classificationStatus: 'completed',
                     classificationError: null,
                 };
@@ -351,11 +239,7 @@ async function handlerLogic(request: NextRequest): Promise<NextResponse> { // Ad
                         $set: {
                             classificationStatus: 'pending',
                             classificationError: deferredMessage,
-                            format: [],
-                            proposal: [],
-                            context: [],
-                            tone: [],
-                            references: [],
+                            ...createEmptyMetricClassificationUpdate(),
                         },
                     }
                 );
@@ -368,7 +252,13 @@ async function handlerLogic(request: NextRequest): Promise<NextResponse> { // Ad
 
             await Metric.updateOne(
                 { _id: finalMetricId },
-                { $set: { classificationStatus: 'failed', classificationError: `Erro na IA: ${errorMessage}` } }
+                {
+                  $set: {
+                    classificationStatus: 'failed',
+                    classificationError: `Erro na IA: ${errorMessage}`,
+                    ...createEmptyMetricClassificationUpdate(),
+                  },
+                }
             );
         }
         

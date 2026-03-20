@@ -13,6 +13,8 @@ import { syncLinkedScriptsFromPlannerPlan } from '@/app/lib/scripts/scriptSync';
 
 import { Types } from 'mongoose';
 import { getCategoryByValue } from '@/app/lib/classification';
+import { canonicalizeV2CategoryValues } from '@/app/lib/classificationV2';
+import { canonicalizeV25CategoryValues } from '@/app/lib/classificationV2_5';
 import { ALLOWED_BLOCKS, P90_MULT, PLANNER_TIMEZONE } from '@/app/lib/planner/constants';
 
 export const runtime = 'nodejs';
@@ -158,6 +160,22 @@ function normalizeTone(v: unknown): string | undefined {
   return (c?.id || v).toString();
 }
 
+function normalizeV2Array(
+  v: unknown,
+  dim: 'contentIntent' | 'narrativeForm' | 'contentSignal',
+  maxLen: number
+): string[] {
+  return canonicalizeV2CategoryValues(v, dim).slice(0, maxLen);
+}
+
+function normalizeV25Array(
+  v: unknown,
+  dim: 'stance' | 'proofStyle' | 'commercialMode',
+  maxLen: number
+): string[] {
+  return canonicalizeV25CategoryValues(v, dim).slice(0, maxLen);
+}
+
 function toIntNonNeg(n: unknown): number | undefined {
   const x = Math.floor(Number(n));
   if (!Number.isFinite(x) || x < 0) return undefined;
@@ -182,6 +200,12 @@ type IncomingSlot = {
   blockStartHour: number;
   format?: string;
   categories?: { context?: string[]; proposal?: string[]; reference?: string[]; tone?: string };
+  contentIntent?: string[];
+  narrativeForm?: string[];
+  contentSignals?: string[];
+  stance?: string[];
+  proofStyle?: string[];
+  commercialMode?: string[];
   status?: string;
   isExperiment?: boolean;
   expectedMetrics?: { viewsP50?: number; viewsP90?: number; sharesP50?: number };
@@ -206,6 +230,12 @@ function sanitizeSlot(s: any): IncomingSlot | null {
   const prop = normalizeStringIdArray(categories?.proposal, 'proposal', 4);
   const ref = normalizeStringIdArray(categories?.reference, 'reference', 3);
   const tone = normalizeTone(categories?.tone);
+  const contentIntent = normalizeV2Array(s?.contentIntent, 'contentIntent', 3);
+  const narrativeForm = normalizeV2Array(s?.narrativeForm, 'narrativeForm', 3);
+  const contentSignals = normalizeV2Array(s?.contentSignals, 'contentSignal', 4);
+  const stance = normalizeV25Array(s?.stance, 'stance', 3);
+  const proofStyle = normalizeV25Array(s?.proofStyle, 'proofStyle', 3);
+  const commercialMode = normalizeV25Array(s?.commercialMode, 'commercialMode', 3);
 
   const viewsP50 = toIntNonNeg(s?.expectedMetrics?.viewsP50) ?? 0;
   const viewsP90 = toIntNonNeg(s?.expectedMetrics?.viewsP90) ?? Math.round(viewsP50 * P90_MULT);
@@ -217,6 +247,12 @@ function sanitizeSlot(s: any): IncomingSlot | null {
     blockStartHour: block,
     format: normalizeFormat(s?.format),
     categories: { context: ctx, proposal: prop, reference: ref, ...(tone ? { tone } : {}) },
+    contentIntent,
+    narrativeForm,
+    contentSignals,
+    stance,
+    proofStyle,
+    commercialMode,
     status,
     isExperiment: status === 'test' ? true : !!s?.isExperiment,
     expectedMetrics: { viewsP50, viewsP90, ...(sharesP50 !== undefined ? { sharesP50 } : {}) },
@@ -356,6 +392,12 @@ export async function POST(request: Request) {
       blockStartHour: s.blockStartHour,
       format: s.format,
       categories: s.categories || {},
+      contentIntent: s.contentIntent || [],
+      narrativeForm: s.narrativeForm || [],
+      contentSignals: s.contentSignals || [],
+      stance: s.stance || [],
+      proofStyle: s.proofStyle || [],
+      commercialMode: s.commercialMode || [],
       status: s.status || 'planned',
       isExperiment: s.status === 'test' ? true : !!s.isExperiment,
       expectedMetrics: s.expectedMetrics,

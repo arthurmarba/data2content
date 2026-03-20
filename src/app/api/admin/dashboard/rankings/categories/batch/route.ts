@@ -13,7 +13,19 @@ export const dynamic = 'force-dynamic';
 
 const SERVICE_TAG = '[api/admin/dashboard/rankings/categories/batch]';
 
-const CATEGORY_KEYS = ['format', 'proposal', 'context', 'tone', 'references'] as const;
+const CATEGORY_KEYS = [
+  'format',
+  'proposal',
+  'context',
+  'tone',
+  'references',
+  'contentIntent',
+  'narrativeForm',
+  'contentSignals',
+  'stance',
+  'proofStyle',
+  'commercialMode',
+] as const;
 const METRICS = ['posts', 'avg_total_interactions'] as const;
 
 type CategoryKey = (typeof CATEGORY_KEYS)[number];

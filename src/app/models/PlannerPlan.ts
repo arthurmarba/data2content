@@ -23,6 +23,12 @@ export interface PlannerSlot {
   blockStartHour: number;  // ex: 9 | 12 | 15 | 18
   format: PlannerFormat;
   categories?: PlannerCategories;
+  contentIntent?: string[];
+  narrativeForm?: string[];
+  contentSignals?: string[];
+  stance?: string[];
+  proofStyle?: string[];
+  commercialMode?: string[];
   status: PlannerStatus;
   isExperiment?: boolean;
   expectedMetrics?: PlannerExpectedMetrics;
@@ -75,6 +81,12 @@ const SlotSchema = new Schema<PlannerSlot>(
       required: true,
     },
     categories: { type: CategoriesSchema, default: undefined },
+    contentIntent: [{ type: String }],
+    narrativeForm: [{ type: String }],
+    contentSignals: [{ type: String }],
+    stance: [{ type: String }],
+    proofStyle: [{ type: String }],
+    commercialMode: [{ type: String }],
     status: {
       type: String,
       enum: ['planned', 'drafted', 'test', 'posted'],

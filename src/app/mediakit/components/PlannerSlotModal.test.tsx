@@ -66,6 +66,37 @@ describe('PlannerSlotModal', () => {
     expect(screen.queryByText('Saves / Compart.')).not.toBeInTheDocument();
   });
 
+  it('mostra a leitura estratégica no resumo do slot', () => {
+    render(
+      <PlannerSlotModal
+        {...makeProps({
+          slot: {
+            ...baseSlot,
+            categories: {
+              context: ['technology_digital'],
+              proposal: ['tips'],
+              tone: 'educational',
+              reference: ['city'],
+            },
+            contentIntent: ['teach'],
+            narrativeForm: ['tutorial'],
+            proofStyle: ['demonstration'],
+            commercialMode: ['lead_capture'],
+            contentSignals: ['save_cta'],
+          },
+        })}
+      />
+    );
+
+    expect(screen.getByText('Intenção')).toBeInTheDocument();
+    expect(screen.getByText('Narrativa')).toBeInTheDocument();
+    expect(screen.getByText('Prova')).toBeInTheDocument();
+    expect(screen.getByText('Ensinar')).toBeInTheDocument();
+    expect(screen.getByText('Tutorial/Passo a Passo')).toBeInTheDocument();
+    expect(screen.getByText('Demonstracao')).toBeInTheDocument();
+    expect(screen.getByText('Captura de Lead')).toBeInTheDocument();
+  });
+
   it('mantém toggles independentes entre blocos', () => {
     render(<PlannerSlotModal {...makeProps()} />);
 

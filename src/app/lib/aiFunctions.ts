@@ -19,6 +19,8 @@ import {
   VALID_TONES,
   VALID_REFERENCES
 } from '@/app/lib/constants/communityInspirations.constants';
+import { contentIntentCategories, narrativeFormCategories, contentSignalCategories } from '@/app/lib/classificationV2';
+import { stanceCategories, proofStyleCategories, commercialModeCategories } from '@/app/lib/classificationV2_5';
 
 import { IUser } from '@/app/models/User';
 import { IMetric, IMetricStats } from '@/app/models/Metric';
@@ -100,17 +102,17 @@ export const functionSchemas = [
   },
   {
     name: 'fetchCommunityInspirations',
-    description: "Busca exemplos de posts da Comunidade de Inspiração IA Mobi. Use PROATIVAMENTE para ilustrar sugestões, planos de conteúdo ou dicas que você der ao usuário (ex: 'Aqui está um exemplo real disso...'). Também use quando o usuário pedir explicitamente por inspiração. Priorize a intenção do usuário (ex: se ele pedir humor, busque humor) sobre o histórico de performance.",
+    description: "Busca exemplos de posts da Comunidade de Inspiração IA Mobi. Use PROATIVAMENTE para ilustrar sugestões, planos de conteúdo ou dicas que você der ao usuário (ex: 'Aqui está um exemplo real disso...'). Também use quando o usuário pedir explicitamente por inspiração. Priorize a intenção, narrativa, tema e prova do pedido sobre o histórico de performance.",
     parameters: {
       type: 'object',
       properties: {
         proposal: {
           type: 'string',
-          description: `A proposta/tema do conteúdo para o qual se busca inspiração (obrigatório). Valores válidos: ${VALID_PROPOSALS.join(', ')}.`
+          description: `Opcional. Linha legada do conteúdo. Valores válidos: ${VALID_PROPOSALS.join(', ')}.`
         },
         context: {
           type: 'string',
-          description: `O contexto específico dentro da proposta (obrigatório). Valores válidos: ${VALID_CONTEXTS.join(', ')}.`
+          description: `Opcional. Tema/contexto do conteúdo. Valores válidos: ${VALID_CONTEXTS.join(', ')}.`
         },
         format: {
           type: 'string',
@@ -123,6 +125,30 @@ export const functionSchemas = [
         reference: {
           type: 'string',
           description: `Opcional. Referência ou elemento utilizado. Valores válidos: ${VALID_REFERENCES.join(', ')}.`
+        },
+        contentIntent: {
+          type: 'string',
+          description: `Opcional. Intenção principal do conteúdo. Valores válidos: ${contentIntentCategories.map((item) => item.id).join(', ')}.`
+        },
+        narrativeForm: {
+          type: 'string',
+          description: `Opcional. Forma narrativa principal. Valores válidos: ${narrativeFormCategories.map((item) => item.id).join(', ')}.`
+        },
+        contentSignals: {
+          type: 'string',
+          description: `Opcional. Sinal acessório/comercial. Valores válidos: ${contentSignalCategories.map((item) => item.id).join(', ')}.`
+        },
+        stance: {
+          type: 'string',
+          description: `Opcional. Postura principal. Valores válidos: ${stanceCategories.map((item) => item.id).join(', ')}.`
+        },
+        proofStyle: {
+          type: 'string',
+          description: `Opcional. Estilo de prova. Valores válidos: ${proofStyleCategories.map((item) => item.id).join(', ')}.`
+        },
+        commercialMode: {
+          type: 'string',
+          description: `Opcional. Modo comercial. Valores válidos: ${commercialModeCategories.map((item) => item.id).join(', ')}.`
         },
         narrativeQuery: {
           type: 'string',
@@ -140,7 +166,7 @@ export const functionSchemas = [
           description: "Número de exemplos a retornar (padrão 3, mínimo 1, máximo 3). Para roteirista, priorize 3."
         }
       },
-      required: ['proposal', 'context']
+      required: []
     }
   },
   {
@@ -163,7 +189,13 @@ export const functionSchemas = [
             context: { type: 'array', items: { type: 'string' }, description: 'IDs de contexto (ex: educational, lifestyle)' },
             proposal: { type: 'array', items: { type: 'string' }, description: 'IDs de proposta (ex: tutorial, vlog)' },
             reference: { type: 'array', items: { type: 'string' } },
-            tone: { type: 'string' }
+            tone: { type: 'string' },
+            contentIntent: { type: 'array', items: { type: 'string' } },
+            narrativeForm: { type: 'array', items: { type: 'string' } },
+            contentSignals: { type: 'array', items: { type: 'string' } },
+            stance: { type: 'array', items: { type: 'string' } },
+            proofStyle: { type: 'array', items: { type: 'string' } },
+            commercialMode: { type: 'array', items: { type: 'string' } }
           },
           description: "Categorias opcionais para direcionar a geração."
         }
@@ -197,14 +229,14 @@ export const functionSchemas = [
   },
   {
     name: 'getCategoryRanking',
-    description: 'Cria um ranking das SUAS categorias de conteúdo (formato, proposta ou contexto) com base em uma métrica de performance específica. Use para responder perguntas como "qual o ranking das minhas propostas com mais compartilhamentos?" ou "quais os formatos que eu mais uso?".',
+    description: 'Cria um ranking das SUAS categorias de conteúdo com base em uma métrica de performance específica. Suporta dimensões legadas e estratégicas, como formato, contexto, proposta, tone, references, contentIntent, narrativeForm, contentSignals, stance, proofStyle e commercialMode.',
     parameters: {
       type: 'object',
       properties: {
         category: {
           type: 'string',
-          enum: ['proposal', 'format', 'context'],
-          description: "A dimensão do conteúdo a ser ranqueada: 'proposal', 'format' ou 'context'."
+          enum: ['proposal', 'format', 'context', 'tone', 'references', 'contentIntent', 'narrativeForm', 'contentSignals', 'stance', 'proofStyle', 'commercialMode'],
+          description: "A dimensão do conteúdo a ser ranqueada."
         },
         metric: {
           type: 'string',
@@ -533,7 +565,7 @@ const getLatestAudienceDemographics: ExecutorFn = async (_args: z.infer<typeof Z
 
 /* 2.X fetchCommunityInspirations */
 const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSchemas.FetchCommunityInspirationsArgsSchema>, loggedUser) => {
-  const fnTag = '[fn:fetchCommunityInspirations v1.1.0]'; // Versão atualizada com fallback
+  const fnTag = '[fn:fetchCommunityInspirations v1.2.0]';
   logger.info(`${fnTag} Executando para User ${loggedUser._id} com args: ${JSON.stringify(args)}`);
   try {
     if (!loggedUser.communityInspirationOptIn) {
@@ -547,11 +579,28 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
     const userId = loggedUser._id.toString();
     const endDate = new Date();
     const startDate = subDays(endDate, 180);
-    const [proposalRanking, contextRanking, formatRanking, toneRanking] = await Promise.allSettled([
+    const [
+      proposalRanking,
+      contextRanking,
+      formatRanking,
+      toneRanking,
+      contentIntentRanking,
+      narrativeFormRanking,
+      contentSignalsRanking,
+      stanceRanking,
+      proofStyleRanking,
+      commercialModeRanking,
+    ] = await Promise.allSettled([
       fetchTopCategories({ userId, dateRange: { startDate, endDate }, category: 'proposal', metric: 'shares', limit: 4 }),
       fetchTopCategories({ userId, dateRange: { startDate, endDate }, category: 'context', metric: 'shares', limit: 4 }),
       fetchTopCategories({ userId, dateRange: { startDate, endDate }, category: 'format', metric: 'shares', limit: 3 }),
       fetchTopCategories({ userId, dateRange: { startDate, endDate }, category: 'tone', metric: 'shares', limit: 3 }),
+      fetchTopCategories({ userId, dateRange: { startDate, endDate }, category: 'contentIntent', metric: 'shares', limit: 4 }),
+      fetchTopCategories({ userId, dateRange: { startDate, endDate }, category: 'narrativeForm', metric: 'shares', limit: 4 }),
+      fetchTopCategories({ userId, dateRange: { startDate, endDate }, category: 'contentSignals', metric: 'shares', limit: 4 }),
+      fetchTopCategories({ userId, dateRange: { startDate, endDate }, category: 'stance', metric: 'shares', limit: 4 }),
+      fetchTopCategories({ userId, dateRange: { startDate, endDate }, category: 'proofStyle', metric: 'shares', limit: 4 }),
+      fetchTopCategories({ userId, dateRange: { startDate, endDate }, category: 'commercialMode', metric: 'shares', limit: 4 }),
     ]);
     const asList = (settled: PromiseSettledResult<any>) =>
       settled.status === 'fulfilled'
@@ -562,12 +611,24 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
       context: asList(contextRanking) as any,
       format: asList(formatRanking) as any,
       tone: asList(toneRanking) as any,
+      contentIntent: asList(contentIntentRanking),
+      narrativeForm: asList(narrativeFormRanking),
+      contentSignals: asList(contentSignalsRanking),
+      stance: asList(stanceRanking),
+      proofStyle: asList(proofStyleRanking),
+      commercialMode: asList(commercialModeRanking),
     };
     const hasPersonalSignals = Boolean(
       (userTopCategories.proposal?.length || 0) ||
       (userTopCategories.context?.length || 0) ||
       (userTopCategories.format?.length || 0) ||
-      (userTopCategories.tone?.length || 0)
+      (userTopCategories.tone?.length || 0) ||
+      (userTopCategories.contentIntent?.length || 0) ||
+      (userTopCategories.narrativeForm?.length || 0) ||
+      (userTopCategories.contentSignals?.length || 0) ||
+      (userTopCategories.stance?.length || 0) ||
+      (userTopCategories.proofStyle?.length || 0) ||
+      (userTopCategories.commercialMode?.length || 0)
     );
 
     const initialFilters: CommunityInspirationFilters = {
@@ -576,6 +637,12 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
       format: args.format,
       tone: args.tone,
       reference: args.reference,
+      contentIntent: args.contentIntent,
+      narrativeForm: args.narrativeForm,
+      contentSignals: args.contentSignals,
+      stance: args.stance,
+      proofStyle: args.proofStyle,
+      commercialMode: args.commercialMode,
       narrativeQuery: args.narrativeQuery,
       userTopCategories: hasPersonalSignals ? userTopCategories : undefined,
       primaryObjectiveAchieved_Qualitative: args.primaryObjectiveAchieved_Qualitative,
@@ -597,7 +664,7 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
     // Substitui as múltiplas chamadas sequenciais por uma única query ponderada.
     const weightedResults = await getInspirationsWeighted(
       initialFilters,
-      args.count ?? 2,
+      args.count ?? 3,
       excludeIds,
       loggedUser._id.toString()
     );
@@ -634,14 +701,21 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
 
     const formattedInspirations = inspirations.map(insp => {
       const weight = weightedById.get(insp._id.toString());
+      const snapshot = weight?.classificationSnapshot;
       return {
       id: insp._id.toString(),
       originalInstagramPostUrl: insp.originalInstagramPostUrl,
-      proposal: insp.proposal,
-      context: insp.context,
-      format: insp.format,
-      tone: insp.tone,
-      reference: insp.reference,
+      proposal: snapshot?.proposal?.[0] || insp.proposal,
+      context: snapshot?.context?.[0] || insp.context,
+      format: snapshot?.format?.[0] || insp.format,
+      tone: snapshot?.tone?.[0] || insp.tone,
+      reference: snapshot?.references?.[0] || insp.reference,
+      contentIntent: snapshot?.contentIntent?.[0],
+      narrativeForm: snapshot?.narrativeForm?.[0],
+      contentSignals: snapshot?.contentSignals,
+      stance: snapshot?.stance?.[0],
+      proofStyle: snapshot?.proofStyle?.[0],
+      commercialMode: snapshot?.commercialMode?.[0],
       contentSummary: insp.contentSummary,
       performanceHighlights_Qualitative: insp.performanceHighlights_Qualitative,
       primaryObjectiveAchieved_Qualitative: insp.primaryObjectiveAchieved_Qualitative,
@@ -649,14 +723,19 @@ const fetchCommunityInspirations: ExecutorFn = async (args: z.infer<typeof ZodSc
       performanceScore: typeof weight?.performanceScore === 'number' ? weight.performanceScore : undefined,
       personalizationScore: typeof weight?.personalizationScore === 'number' ? weight.personalizationScore : undefined,
       matchReasons: Array.isArray(weight?.matchReasons) ? weight.matchReasons : undefined,
+      matchAxes: Array.isArray(weight?.matchReasons)
+        ? weight.matchReasons
+        : undefined,
     };
     });
 
     let fallbackMessage = "";
     if (matchType !== 'exact') {
-      if (matchType === 'broad_context') fallbackMessage = `Não encontrei exemplos exatos com todos os detalhes (tom/formato), mas aqui estão alguns com a mesma Proposta e Contexto:`;
-      else if (matchType === 'proposal_only') fallbackMessage = `Não encontrei exemplos exatos para esse contexto específico, mas aqui estão ótimos exemplos dentro da mesma Proposta (${args.proposal}):`;
-      else if (matchType === 'context_only') fallbackMessage = `Não encontrei exemplos para essa proposta, mas aqui estão inspirações com o mesmo Contexto (${args.context}):`;
+      if (matchType === 'strategic_context') fallbackMessage = `Não encontrei um match completo, mas trouxe exemplos com o mesmo tema e sinais editoriais próximos.`;
+      else if (matchType === 'intent_only') fallbackMessage = `Não encontrei um match completo, mas trouxe exemplos com a mesma intenção principal (${args.contentIntent || 'objetivo semelhante'}).`;
+      else if (matchType === 'narrative_only') fallbackMessage = `Não encontrei um match completo, mas trouxe exemplos com narrativa semelhante (${args.narrativeForm || 'estrutura parecida'}).`;
+      else if (matchType === 'context_only') fallbackMessage = `Não encontrei um match completo, mas trouxe inspirações com o mesmo tema (${args.context || 'tema semelhante'}).`;
+      else if (matchType === 'line_only') fallbackMessage = `Não encontrei um match completo, mas trouxe inspirações dentro da mesma linha criativa (${args.proposal || 'linha semelhante'}).`;
       else fallbackMessage = `Encontrei algumas inspirações relacionadas que podem ajudar:`;
     }
 
@@ -778,7 +857,7 @@ const getCategoryRanking: ExecutorFn = async (args, loggedUser) => {
 
   // Validação interna dos argumentos com Zod
   const validationSchema = z.object({
-    category: z.enum(['proposal', 'format', 'context', 'tone', 'references']),
+    category: z.enum(['proposal', 'format', 'context', 'tone', 'references', 'contentIntent', 'narrativeForm', 'contentSignals', 'stance', 'proofStyle', 'commercialMode']),
     metric: CategoryRankingMetricEnum.default('shares'),
     periodDays: z.number().min(0).default(90),
     limit: z.number().min(1).max(10).default(5)
