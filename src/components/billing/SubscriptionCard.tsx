@@ -144,7 +144,7 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
 
   // Rótulo amigável do status
   const statusLabel: string = isTrialing
-    ? 'Período de teste'
+    ? 'Plano Pro ativo'
     : isNonRenewing
       ? 'Cancelamento agendado'
       : isActive
@@ -200,7 +200,7 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
         : isNonRenewing
           ? 'Cancelamento agendado — reative se quiser continuar no próximo ciclo.'
           : isTrialing
-            ? 'Teste ativo — troca de plano disponível após o fim do período.'
+            ? 'Assinatura ativa — gerencie cobrança e renovação normalmente.'
             : isCanceled
               ? 'Assinatura cancelada — você pode assinar novamente quando quiser.'
               : isInactive
@@ -209,7 +209,7 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
                   ? 'Assinatura ativa — você pode gerenciar cobrança ou cancelar a renovação.'
                   : 'Acompanhe detalhes da sua assinatura e mantenha seus dados de cobrança atualizados.';
 
-  // Cancelar (agendar no fim do ciclo; no trial vira "não renovar ao final do teste")
+  // Cancelar (agendar no fim do ciclo)
   async function cancel({
     reasons,
     comment,
@@ -231,7 +231,7 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
       }
       toast.success(
         isTrialing
-          ? 'Teste não será renovado. Atualizando...'
+          ? 'Renovação cancelada. Atualizando...'
           : 'Renovação cancelada. Atualizando...'
       );
       await refresh();
@@ -396,11 +396,11 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
       <div className="mt-4 grid gap-3 text-[14px] leading-relaxed text-[#555]">
         {isTrialing ? (
           <p>
-            Teste gratuito — cobrança em{' '}
+            Próxima cobrança de{' '}
             <span className="font-medium text-[#1E1E1E]">
-              {nextInvoiceDateLabel || trialEndLabel || '—'}
+              {amount || '—'}
             </span>{' '}
-            <span className="text-[#888]">(nenhuma cobrança até lá)</span>
+            <span className="text-[#888]">em {nextInvoiceDateLabel || trialEndLabel || '—'}</span>
           </p>
         ) : (
           isActive &&
@@ -473,7 +473,7 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
               className="w-full min-h-[44px] rounded-[8px] border border-[#E6E6EB] px-4 py-2.5 text-[14px] font-semibold text-[#D62E5E] transition hover:border-[#D62E5E] hover:bg-[#FFF1F5] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D62E5E] disabled:cursor-not-allowed disabled:opacity-50"
               disabled={canceling}
             >
-              {canceling ? 'Cancelando...' : isTrialing ? 'Não renovar após o teste' : 'Cancelar renovação'}
+              {canceling ? 'Cancelando...' : 'Cancelar renovação'}
             </button>
           )}
 

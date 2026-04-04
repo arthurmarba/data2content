@@ -229,7 +229,7 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
     >
       <div
         ref={dialogRef}
-        className="relative w-screen h-full max-h-screen sm:w-full sm:h-auto sm:max-w-xl sm:max-h-[90vh] sm:rounded-2xl rounded-none bg-white shadow-2xl flex flex-col overflow-y-auto"
+        className="dashboard-scrollbar relative w-screen h-full max-h-screen sm:w-full sm:h-auto sm:max-w-xl sm:max-h-[90vh] sm:rounded-2xl rounded-none bg-white shadow-2xl flex flex-col overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Botão fechar (mobile) */}
@@ -253,7 +253,7 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
             </p>
         </div>
         
-        <div className="bg-gray-50/70 px-6 py-5 border-y border-gray-200 overflow-y-auto flex-1 min-h-0"> {/* Área rolável principal no mobile */}
+        <div className="dashboard-scrollbar bg-gray-50/70 px-6 py-5 border-y border-gray-200 overflow-y-auto flex-1 min-h-0"> {/* Área rolável principal no mobile */}
             <div className="grid grid-cols-1 gap-5">
                 <div className="space-y-5 text-left text-gray-700 text-sm">
                   {PRO_FEATURE_SECTIONS.map((section) => (

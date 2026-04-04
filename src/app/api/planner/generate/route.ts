@@ -17,6 +17,7 @@ import { WINDOW_DAYS, PLANNER_TIMEZONE } from '@/app/lib/planner/constants';
 import { resolveTargetPlannerUser } from '@/app/lib/planner/access';
 import { invalidatePlannerRecommendationMemory } from '@/app/lib/planner/recommendationMemoryCache';
 import { upsertLinkedScriptFromPlanner } from '@/app/lib/scripts/scriptSync';
+import { invalidateScriptsListCacheForUser } from '@/app/lib/scripts/scriptsListCache';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -405,6 +406,7 @@ export async function POST(request: Request) {
       },
       source: 'planner',
     });
+    invalidateScriptsListCacheForUser(effectiveUserId);
 
     return NextResponse.json({
       ok: true,

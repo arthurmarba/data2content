@@ -15,7 +15,7 @@ export function isBlockedHost(url?: string | null): boolean {
     }
 }
 
-export function getProxiedImageUrl(url: string | null | undefined, strict = true): string | null {
+export function getProxiedImageUrl(url: string | null | undefined, strict = false): string | null {
     if (!url) return null;
 
     let finalUrl = url;
@@ -28,9 +28,8 @@ export function getProxiedImageUrl(url: string | null | undefined, strict = true
         }
     }
 
-    // Se estamos usando o proxy, adiciona o parametro strict se solicitado
-    // O parametro strict=1 força o proxy a falhar (422/500) se a imagem for 1x1, 
-    // permitindo que o frontend detecte o erro e tente fallback ou mostre placeholder.
+    // Para a UI, o padrao e usar modo nao estrito para evitar 502 ruidoso em expiracao
+    // de URL assinada ou falhas transientes do CDN. Fluxos server-side podem optar por strict=1.
     if (finalUrl.startsWith('/api/proxy/thumbnail/')) {
         const separator = finalUrl.includes('?') ? '&' : '?';
         if (!finalUrl.includes('strict=')) {

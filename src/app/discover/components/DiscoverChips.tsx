@@ -52,6 +52,7 @@ type GroupedOptionSet = {
 type DiscoverChipsProps = {
   defaultView?: ViewState;
   onViewChange?: (view: ViewState) => void;
+  compactView?: boolean;
 };
 
 const MASTER_ORDER: CategoryId[] = [
@@ -191,7 +192,7 @@ const FILTER_LABEL_LOOKUP: Record<CategoryId, Map<string, string>> = Object.from
   ])
 ) as Record<CategoryId, Map<string, string>>;
 
-export default function DiscoverChips({ defaultView = "master", onViewChange }: DiscoverChipsProps = {}) {
+export default function DiscoverChips({ defaultView = "master", onViewChange, compactView = false }: DiscoverChipsProps = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -337,73 +338,83 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
     }
   }, [currentCategory, currentView]);
 
+  const focusRingClassName =
+    "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-200";
+  const secondaryPillClassName =
+    `dashboard-secondary-button inline-flex items-center rounded-full ${compactView ? "px-2.5 py-1 text-[11px]" : "px-3 py-1.5 text-xs"} font-semibold text-zinc-600 ${focusRingClassName}`;
+
   return (
-    <div className="filter-container w-full rounded-[1.25rem] border border-slate-200/80 bg-white/90 p-3 shadow-[0_8px_30px_rgba(15,23,42,0.04)] backdrop-blur-sm sm:p-4">
+    <div className="filter-container w-full bg-transparent">
       <style jsx global>{`
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
-            Refinar feed
-          </p>
-          <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
-            {currentView !== "master" && (
-              <button
-                type="button"
-                onClick={handleBack}
-                aria-label="Voltar para categorias"
-                className="filter-button-back inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
-              >
-                <ChevronLeftIcon className="h-5 w-5" aria-hidden="true" />
-              </button>
-            )}
-            <span className="font-medium text-slate-800">
-              {currentView === "master"
-                ? "Escolha a dimensão para refinar"
-                : currentCategory?.label}
+
+      {currentView !== "master" && (
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-500">
+            <button
+              type="button"
+              onClick={handleBack}
+              aria-label="Voltar para categorias"
+              className={`filter-button-back dashboard-secondary-button inline-flex h-8 w-8 items-center justify-center rounded-full p-0 text-zinc-600 ${focusRingClassName}`}
+            >
+              <ChevronLeftIcon className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <span className="font-semibold text-zinc-900">
+              {currentCategory?.label}
             </span>
-            <span className="text-slate-400">
-              {currentView === "master"
-                ? `${selectedCount} selecionado${selectedCount === 1 ? "" : "s"}`
-                : `${currentCategory?.options.length ?? 0} opç${(currentCategory?.options.length ?? 0) === 1 ? "ão" : "ões"}${currentCategorySelectionCount > 0 ? ` • ${currentCategorySelectionCount} marcada${currentCategorySelectionCount === 1 ? "" : "s"}` : ""}`}
+            <span className="text-xs text-zinc-400">
+              {`${currentCategory?.options.length ?? 0} opç${(currentCategory?.options.length ?? 0) === 1 ? "ão" : "ões"}${currentCategorySelectionCount > 0 ? ` • ${currentCategorySelectionCount} marcada${currentCategorySelectionCount === 1 ? "" : "s"}` : ""}`}
             </span>
           </div>
+          {hasSelections && (
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className={secondaryPillClassName}
+            >
+              Limpar tudo
+            </button>
+          )}
         </div>
+      )}
 
-        {hasSelections && (
+      {currentView === "master" && hasSelections && (
+        <div className="flex items-center justify-between mb-3">
+          <span className="text-xs font-medium text-zinc-500">{selectedCount} selecionado{selectedCount === 1 ? "" : "s"}</span>
           <button
             type="button"
             onClick={handleClearAll}
-            className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
+            className={secondaryPillClassName}
           >
             Limpar tudo
           </button>
-        )}
-      </div>
+        </div>
+      )}
+
 
       {activeFilterChips.length > 0 && (
-        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
+        <div className={`${compactView ? "mt-3 gap-1.5 pt-3" : "mt-4 gap-2 pt-4"} flex flex-wrap items-center border-t border-zinc-200/70`}>
           {activeFilterChips.map((chip) => (
             <button
               key={`${chip.categoryId}:${chip.value}`}
               type="button"
               onClick={() => toggleFilter(chip.categoryId, chip.value)}
-              className="inline-flex min-w-0 max-w-full items-center gap-2 rounded-full border border-brand-magenta/20 bg-brand-magenta/5 px-3 py-1.5 text-sm text-slate-700 transition hover:border-brand-magenta/30 hover:bg-brand-magenta/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
+              className={`inline-flex min-w-0 max-w-full items-center gap-2 rounded-full border border-pink-200/70 bg-pink-50/68 ${compactView ? "px-2.5 py-1 text-[11px]" : "px-3 py-1.5 text-sm"} text-zinc-700 transition hover:border-pink-300 hover:bg-pink-50/78 ${focusRingClassName}`}
             >
               <span className="truncate">
-                <span className="text-slate-400">{chip.categoryLabel} · </span>
-                <span className="font-medium text-brand-magenta">{chip.label}</span>
+                <span className="text-zinc-400">{chip.categoryLabel} · </span>
+                <span className="font-medium text-pink-600">{chip.label}</span>
               </span>
-              <XMarkIcon className="h-4 w-4 text-slate-400" aria-hidden="true" />
+              <XMarkIcon className="h-4 w-4 text-zinc-400" aria-hidden="true" />
             </button>
           ))}
         </div>
       )}
 
       {currentView === "master" && (
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className={`flex flex-wrap items-center ${compactView ? "gap-1.5 pb-1.5" : "gap-2 pb-2"}`}>
           {FILTER_DATA.map((category) => {
             const selectionCount = selectedFilters[category.id].length;
             const hasSelection = selectionCount > 0;
@@ -412,21 +423,21 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
                 key={category.id}
                 type="button"
                 onClick={() => handleMasterClick(category.id)}
-                className={`filter-button-master inline-flex min-w-0 max-w-full items-center justify-start gap-2 rounded-full border px-3.5 py-2 text-sm font-semibold text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${
+                className={`filter-button-master inline-flex min-w-0 max-w-full items-center justify-start gap-2 rounded-full border ${compactView ? "px-3 py-1.5 text-[12px]" : "px-4 py-2 text-[13px]"} font-semibold text-left transition ${focusRingClassName} ${
                   hasSelection
-                    ? "has-selection border-brand-magenta/30 bg-brand-magenta/10 text-brand-magenta shadow-sm"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-brand-magenta"
+                    ? "has-selection border-zinc-900 bg-zinc-900 text-white"
+                    : "border-zinc-200/90 bg-white/82 text-zinc-700 hover:border-zinc-300 hover:bg-white hover:text-zinc-950"
                 }`}
               >
                 <span>{category.label}</span>
                 {hasSelection && (
-                  <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-white/90 px-1.5 text-[11px] font-bold text-brand-magenta">
+                  <span className={`inline-flex ${compactView ? "h-4.5 min-w-4.5 text-[10px]" : "h-5 min-w-5 text-[11px]"} items-center justify-center rounded-full bg-white/92 px-1.5 font-bold text-zinc-700 ring-1 ring-zinc-100/90`}>
                     {selectionCount}
                   </span>
                 )}
                 <ChevronRightIcon
-                  className={`h-4 w-4 transition ${
-                    hasSelection ? "text-brand-magenta/80" : "text-brand-magenta/60"
+                  className={`${compactView ? "h-3 w-3" : "h-3 w-3 sm:h-4 sm:w-4"} transition shrink-0 ${
+                    hasSelection ? "text-white/80" : "text-zinc-400"
                   }`}
                   aria-hidden="true"
                 />
@@ -437,7 +448,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
       )}
 
       {currentView !== "master" && currentCategory && (
-        <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
+        <div className="mt-4 space-y-4 border-t border-zinc-200/70 pt-4">
           {isHierarchicalCurrentCategory ? (
             groupedCurrentOptions.map(({ root, children }) => {
               const isRootSelected = root
@@ -450,10 +461,10 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
                       <button
                         type="button"
                         onClick={() => toggleFilter(currentCategory.id, root.id)}
-                        className={`inline-flex min-w-0 max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta ${
+                        className={`inline-flex min-w-0 max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold transition ${focusRingClassName} ${
                           isRootSelected
-                            ? "border-slate-300 bg-slate-900 text-white shadow-sm"
-                            : "border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100"
+                            ? "border-zinc-200/90 bg-zinc-50/82 text-zinc-950"
+                            : "border-zinc-200/80 bg-zinc-50/72 text-zinc-700 hover:border-zinc-300 hover:bg-white"
                         }`}
                         aria-pressed={isRootSelected}
                       >
@@ -461,7 +472,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
                         {children.length > 0 && (
                           <span
                             className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
-                              isRootSelected ? "bg-white/15 text-white/90" : "bg-white text-slate-400"
+                              isRootSelected ? "bg-white/88 text-zinc-700 ring-1 ring-zinc-100/90" : "bg-white text-zinc-400"
                             }`}
                           >
                             {children.length}
@@ -469,12 +480,12 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
                         )}
                       </button>
                     ) : (
-                      <p className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                      <p className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-400">
                         {children[0]?.groupLabel}
                       </p>
                     )}
                     {children.length > 0 && (
-                      <span className="text-xs text-slate-400">
+                      <span className="text-xs text-zinc-400">
                         {children.length} subtópico{children.length === 1 ? "" : "s"}
                       </span>
                     )}
@@ -489,16 +500,16 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
                             key={option.id}
                             type="button"
                             onClick={() => toggleFilter(currentCategory.id, option.id)}
-                            className={`filter-button-child inline-flex min-w-0 max-w-[14rem] items-center justify-start rounded-full border px-3 py-1.5 text-sm font-medium text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta sm:max-w-[20rem] lg:max-w-[24rem] ${
+                            className={`filter-button-child inline-flex min-w-0 max-w-[14rem] items-center justify-start rounded-full border px-3 py-1.5 text-sm font-medium text-left transition sm:max-w-[20rem] lg:max-w-[24rem] ${
                               isSelected
-                                ? "is-selected border-brand-magenta/30 bg-brand-magenta/10 text-brand-magenta shadow-sm"
-                                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-brand-magenta"
-                            }`}
+                                ? "is-selected border-pink-200/80 bg-pink-50/72 text-pink-600"
+                                : "border-zinc-200/90 bg-white/82 text-zinc-700 hover:border-zinc-300 hover:text-zinc-950"
+                            } ${focusRingClassName}`}
                             aria-pressed={isSelected}
                           >
                             {isSelected && (
                               <CheckIcon
-                                className="mr-2 h-4 w-4 shrink-0 text-brand-magenta"
+                                className="mr-2 h-4 w-4 shrink-0 text-pink-500"
                                 aria-hidden="true"
                               />
                             )}
@@ -525,16 +536,16 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
                     key={option.id}
                     type="button"
                     onClick={() => toggleFilter(currentCategory.id, option.id)}
-                    className={`filter-button-child inline-flex min-w-0 max-w-[14rem] items-center justify-start rounded-full border px-3 py-1.5 text-sm font-medium text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta sm:max-w-[20rem] lg:max-w-[24rem] ${
+                    className={`filter-button-child inline-flex min-w-0 max-w-[14rem] items-center justify-start rounded-full border px-3 py-1.5 text-sm font-medium text-left transition sm:max-w-[20rem] lg:max-w-[24rem] ${
                       isSelected
-                        ? "is-selected border-brand-magenta/30 bg-brand-magenta/10 text-brand-magenta shadow-sm"
-                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-brand-magenta"
-                    }`}
+                        ? "is-selected border-pink-200/80 bg-pink-50/72 text-pink-600"
+                        : "border-zinc-200/90 bg-white/82 text-zinc-700 hover:border-zinc-300 hover:text-zinc-950"
+                    } ${focusRingClassName}`}
                     aria-pressed={isSelected}
                   >
                     {isSelected && (
                       <CheckIcon
-                        className="mr-2 h-4 w-4 shrink-0 text-brand-magenta"
+                        className="mr-2 h-4 w-4 shrink-0 text-pink-500"
                         aria-hidden="true"
                       />
                     )}
@@ -553,8 +564,8 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
       )}
 
       {(hasPendingChanges || hasSelections) && (
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4">
-          <p className="text-sm text-slate-500">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-200/70 pt-4">
+          <p className="text-sm text-zinc-500">
             {hasPendingChanges
               ? "Existem ajustes prontos para aplicar no feed."
               : `${selectedCount} filtro${selectedCount === 1 ? "" : "s"} ativo${selectedCount === 1 ? "" : "s"}.`}
@@ -563,7 +574,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange }: 
             <button
               type="button"
               onClick={handleApplyFilters}
-              className="inline-flex items-center rounded-full border border-brand-magenta/30 bg-brand-magenta px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-brand-red focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
+              className={`dashboard-primary-button inline-flex items-center rounded-2xl px-3.5 py-2 text-sm font-semibold text-white ${focusRingClassName}`}
             >
               Aplicar {selectedCount > 0 ? `${selectedCount} filtro${selectedCount === 1 ? "" : "s"}` : "filtros"}
             </button>

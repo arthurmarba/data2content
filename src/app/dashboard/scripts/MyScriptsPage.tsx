@@ -3,10 +3,14 @@
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Save, Trash2, Sparkles, Plus, Undo2, Redo2, Check, Link2 } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { ArrowLeft, Save, Trash2, Sparkles, Plus, Undo2, Redo2, Check, Link2, Lock } from "lucide-react";
 import { useToast } from "@/app/components/ui/ToastA11yProvider";
+import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { redirectToGoogleConsentLogin } from "@/lib/auth/googleLogin";
 import { track } from "@/lib/track";
+import { PAYWALL_RETURN_STORAGE_KEY } from "@/types/paywall";
 import {
   LAST_VIEWED_SCRIPTS_ADMIN_FEEDBACK_AT_KEY,
   LAST_VIEWED_SCRIPTS_RECOMMENDATIONS_AT_KEY,
@@ -16,6 +20,7 @@ const CreatorQuickSearch = dynamic(
   () => import("@/app/admin/creator-dashboard/components/CreatorQuickSearch"),
   { ssr: false, loading: () => null }
 );
+import { usePaywallOpener } from "@/app/dashboard/components/sidebar/hooks";
 import { InlineScriptEditor, type InlineAnnotation } from "./InlineScriptEditor";
 
 type ScriptOrigin = "manual" | "ai" | "planner";
@@ -38,6 +43,7 @@ type ScriptPublication = {
     postDate?: string | null;
     postLink?: string | null;
     type?: string | null;
+    coverUrl?: string | null;
     engagement?: number | null;
     totalInteractions?: number | null;
   } | null;
@@ -284,22 +290,40 @@ function getSourceLabel(source: ScriptOrigin) {
 function getSourceCardTone(source: ScriptOrigin) {
   if (source === "ai") {
     return {
-      header: "bg-violet-50 border-violet-100",
-      text: "text-violet-700",
-      ring: "hover:ring-violet-200",
+      header: "bg-indigo-50/90 border-indigo-100",
+      text: "text-indigo-700",
+      ring: "hover:ring-indigo-200",
+      compactCard: "hover:border-indigo-200/80 hover:bg-white hover:ring-indigo-100/60",
+      compactChip: "border-indigo-200 bg-indigo-50/90 text-indigo-700",
+      compactPlaceholder: "border-indigo-100/90 bg-indigo-50 text-indigo-700",
+      compactPlaceholderIcon: "bg-white text-indigo-700 ring-indigo-200",
+      compactAction: "border-indigo-200 bg-indigo-50/90 text-indigo-700",
+      compactLinkButton: "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100",
     };
   }
   if (source === "planner") {
     return {
-      header: "bg-emerald-50 border-emerald-100",
+      header: "bg-emerald-50/90 border-emerald-100",
       text: "text-emerald-700",
       ring: "hover:ring-emerald-200",
+      compactCard: "hover:border-emerald-200/80 hover:bg-white hover:ring-emerald-100/60",
+      compactChip: "border-emerald-200 bg-emerald-50/90 text-emerald-700",
+      compactPlaceholder: "border-emerald-100/90 bg-emerald-50 text-emerald-700",
+      compactPlaceholderIcon: "bg-white text-emerald-700 ring-emerald-200",
+      compactAction: "border-emerald-200 bg-emerald-50/90 text-emerald-700",
+      compactLinkButton: "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100",
     };
   }
   return {
-    header: "bg-slate-50 border-slate-100",
-    text: "text-slate-700",
-    ring: "hover:ring-slate-200",
+    header: "bg-amber-50/95 border-amber-100",
+    text: "text-amber-700",
+    ring: "hover:ring-amber-200",
+    compactCard: "hover:border-amber-200/80 hover:bg-white hover:ring-amber-100/60",
+    compactChip: "border-amber-200 bg-amber-50/90 text-amber-700",
+    compactPlaceholder: "border-amber-100/90 bg-amber-50 text-amber-700",
+    compactPlaceholderIcon: "bg-white text-amber-700 ring-amber-200",
+    compactAction: "border-amber-200 bg-amber-50/90 text-amber-700",
+    compactLinkButton: "border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100",
   };
 }
 
@@ -330,6 +354,34 @@ function getPostedContentLabel(publication?: ScriptPublication | null) {
   const caption = publication?.content?.caption?.trim();
   if (caption) return caption;
   return "Conteúdo publicado";
+}
+
+function getPublicationCoverUrl(publication?: ScriptPublication | null) {
+  const coverUrl = publication?.content?.coverUrl?.trim();
+  return coverUrl ? coverUrl : null;
+}
+
+function getCompactPublicationSummary(publication?: ScriptPublication | null) {
+  if (!publication?.isPosted) return "Sem conteúdo vinculado";
+  return null;
+}
+
+function getCompactCardActionHint(publication?: ScriptPublication | null) {
+  return publication?.isPosted ? "Abrir" : "Completar";
+}
+
+function getCompactStatusClasses(publication?: ScriptPublication | null) {
+  if (publication?.isPosted) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+  return "border-amber-200 bg-amber-50 text-amber-700";
+}
+
+function getCompactActionClasses(source: ScriptOrigin, publication?: ScriptPublication | null) {
+  if (publication?.isPosted) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  }
+  return getSourceCardTone(source).compactAction;
 }
 
 function buildContentOptionLabel(option: ContentOption) {
@@ -449,9 +501,126 @@ function createInitialEditorState(): EditorState {
   };
 }
 
-export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
+const PREVIEW_SCRIPTS: ScriptItem[] = [
+  {
+    id: "preview-script-1",
+    title: "Roteiro para abrir a semana com posicionamento forte",
+    content:
+      "Hook: 'Se você começa a semana decidindo post na hora, o problema não é falta de ideia. É falta de sistema.'\n\nCena 1: mostra seu bloco de notas ou calendário aberto.\nCena 2: explica que você separa a semana em conteúdo de autoridade, relacionamento e comercial.\nCena 3: dá um exemplo real de pauta que já virou roteiro.\nCTA: 'Se quiser, comenta CALENDÁRIO que eu trago a estrutura completa.'",
+    source: "planner",
+    linkType: "planner_slot",
+    plannerRef: {
+      slotId: "preview-slot-seg-9",
+      weekStart: "2026-03-30",
+      dayOfWeek: 1,
+      blockStartHour: 9,
+    },
+    aiVersionId: null,
+    recommendation: {
+      isRecommended: true,
+      recommendedByAdminName: "Time D2C",
+      recommendedAt: "2026-03-31T10:00:00.000Z",
+    },
+    adminAnnotation: null,
+    inlineAnnotations: [],
+    publication: null,
+    linkingSummary: {
+      isLinked: false,
+      totalLinks: 0,
+      campaigns: [],
+    },
+    createdAt: "2026-03-31T09:00:00.000Z",
+    updatedAt: "2026-04-01T12:20:00.000Z",
+  },
+  {
+    id: "preview-script-2",
+    title: "Roteiro comercial com cara de caso real, não de publi engessada",
+    content:
+      "Hook: 'Esse foi o briefing que parecia simples, mas quase derrubou a negociação.'\n\nDesenvolvimento: contextualize a entrega, mostre a objeção principal e como você reposicionou o valor usando dados do perfil.\nProva: entra com um frame de resultado ou bastidor da aprovação.\nCTA: 'Se você quer cobrar melhor sem travar na negociação, salva esse roteiro.'",
+    source: "ai",
+    linkType: "standalone",
+    plannerRef: null,
+    aiVersionId: "preview-ai-version",
+    recommendation: null,
+    adminAnnotation: {
+      notes: "Bom exemplo de roteiro comercial que educa antes de vender.",
+      updatedByName: "Time D2C",
+      updatedAt: "2026-04-01T14:15:00.000Z",
+    },
+    inlineAnnotations: [],
+    publication: {
+      isPosted: false,
+      postedAt: null,
+      content: null,
+    },
+    linkingSummary: {
+      isLinked: true,
+      totalLinks: 1,
+      campaigns: [
+        {
+          proposalId: "preview-campaign-1",
+          linkId: "preview-link-1",
+          campaignTitle: "Campanha de creator commerce para rotina saudável",
+          brandName: "VivaLeve",
+          linkedAt: "2026-04-01T14:20:00.000Z",
+        },
+      ],
+    },
+    createdAt: "2026-03-29T11:00:00.000Z",
+    updatedAt: "2026-04-01T14:20:00.000Z",
+  },
+  {
+    id: "preview-script-3",
+    title: "Checklist de sexta para não entrar perdido na próxima semana",
+    content:
+      "Abertura: 'Antes de fechar o notebook hoje, eu faço essas 3 checagens.'\n\n1. Qual conteúdo puxou mais resposta ou compartilhamento.\n2. Qual insight precisa virar pauta na semana que vem.\n3. O que já merece virar roteiro pronto.\n\nFecho: 'Se você é creator e vive começando a semana no improviso, salva isso.'",
+    source: "manual",
+    linkType: "standalone",
+    plannerRef: null,
+    aiVersionId: null,
+    recommendation: null,
+    adminAnnotation: null,
+    inlineAnnotations: [],
+    publication: {
+      isPosted: true,
+      postedAt: "2026-03-30T18:00:00.000Z",
+      content: {
+        id: "preview-content-1",
+        caption: "3 checagens simples que eu faço toda sexta para não começar a semana perdida",
+        postDate: "2026-03-30T18:00:00.000Z",
+        postLink: "https://instagram.com/p/preview",
+        type: "reel",
+        coverUrl: null,
+        engagement: 4.7,
+        totalInteractions: 1820,
+      },
+    },
+    linkingSummary: {
+      isLinked: false,
+      totalLinks: 0,
+      campaigns: [],
+    },
+    createdAt: "2026-03-28T13:00:00.000Z",
+    updatedAt: "2026-03-30T18:00:00.000Z",
+  },
+];
+
+export default function MyScriptsPage({
+  viewer,
+  compactView = false,
+  canInteract = true,
+  showPreviewBanner = true,
+}: {
+  viewer?: ViewerInfo;
+  compactView?: boolean;
+  canInteract?: boolean;
+  showPreviewBanner?: boolean;
+}) {
+  const openPaywall = usePaywallOpener();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { data: session, status: sessionStatus } = useSession();
+  const billingStatus = useBillingStatus();
   const [scripts, setScripts] = useState<ScriptItem[]>([]);
   const [loadingList, setLoadingList] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -464,6 +633,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editor, setEditor] = useState<EditorState>(createInitialEditorState());
+  const [activeInlineAnnotationId, setActiveInlineAnnotationId] = useState<string | null>(null);
   const [adminTargetUser, setAdminTargetUser] = useState<AdminTargetUser | null>(null);
   const [campaignOptions, setCampaignOptions] = useState<CampaignOption[]>([]);
   const [campaignsLoading, setCampaignsLoading] = useState(false);
@@ -497,6 +667,65 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     return normalized.length > 0 ? normalized : null;
   }, [searchParams]);
   const { toast } = useToast();
+  const isAdminViewer = viewer?.role === "admin";
+  const billingInstagramConnected = Boolean(billingStatus.instagram?.connected);
+  const instagramConnected = isAdminViewer
+    ? true
+    : billingStatus.hasResolvedOnce
+      ? billingInstagramConnected
+      : billingInstagramConnected || Boolean(session?.user?.instagramConnected);
+  const isAuthenticated = Boolean((session?.user as any)?.id || viewer?.id);
+  const isPreviewMode = !isAdminViewer && !isAuthenticated && sessionStatus === "unauthenticated";
+  const isSessionPending = !isAdminViewer && !isAuthenticated && sessionStatus === "loading";
+  const requestGoogleLogin = useCallback(() => {
+    const callbackUrl =
+      typeof window !== "undefined"
+        ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+        : "/calendar";
+    redirectToGoogleConsentLogin(callbackUrl);
+  }, []);
+  const openPremiumLinkingPaywall = useCallback(
+    (source: string) => {
+      openPaywall("planning", { source });
+    },
+    [openPaywall]
+  );
+  const openInstagramConnectForLinking = useCallback(
+    (source: string) => {
+      if (typeof window !== "undefined") {
+        const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+        try {
+          window.sessionStorage.setItem(
+            PAYWALL_RETURN_STORAGE_KEY,
+            JSON.stringify({
+              context: "planning",
+              source,
+              returnTo,
+              ts: Date.now(),
+            })
+          );
+        } catch {
+          /* storage failures are non-fatal */
+        }
+      }
+
+      router.push("/dashboard/instagram/connect?next=planner");
+    },
+    [router]
+  );
+  const ensureLoggedIn = useCallback(async () => {
+    if (isAuthenticated) return true;
+    await requestGoogleLogin();
+    return false;
+  }, [isAuthenticated, requestGoogleLogin]);
+  const ensureInstagramConnectedForLinking = useCallback(
+    (source: string) => {
+      if (instagramConnected) return true;
+      openInstagramConnectForLinking(source);
+      return false;
+    },
+    [instagramConnected, openInstagramConnectForLinking]
+  );
   const [, setLastViewedScriptsRecommendationsAt] = useLocalStorage<string>(
     LAST_VIEWED_SCRIPTS_RECOMMENDATIONS_AT_KEY,
     ""
@@ -541,7 +770,6 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     >
   >(new Map());
 
-  const isAdminViewer = viewer?.role === "admin";
   const isActingOnBehalf = Boolean(
     isAdminViewer &&
     adminTargetUser?.id &&
@@ -550,7 +778,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   );
   const targetUserId = isActingOnBehalf ? adminTargetUser?.id ?? null : null;
   const handleGoToCalendar = useCallback(() => {
-    router.push("/planning");
+    router.push("/calendar");
   }, [router]);
   const handleReturnToCampaign = useCallback(() => {
     if (!requestedProposalId) return;
@@ -925,8 +1153,18 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   }, []);
 
   useEffect(() => {
-    fetchScripts({ reset: true });
-  }, [fetchScripts]);
+    if (isSessionPending) return;
+    if (isPreviewMode) {
+      setScripts(PREVIEW_SCRIPTS);
+      setLoadingList(false);
+      setLoadingMore(false);
+      setGlobalError(null);
+      setNextCursor(null);
+      setHasMore(false);
+      return;
+    }
+    void fetchScripts({ reset: true });
+  }, [fetchScripts, isPreviewMode, isSessionPending]);
 
   useEffect(() => {
     if (loadingList) return;
@@ -1264,15 +1502,32 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   }, []);
 
   const openCreateEditor = useCallback(() => {
+    if (isPreviewMode) {
+      void requestGoogleLogin();
+      return;
+    }
     if (!isActingOnBehalf && !plannerWeekStart && plannerSlots.length === 0) {
       void fetchPlannerSlots();
     }
     setEditor(createInitialEditorState());
+    setActiveInlineAnnotationId(null);
     resetDraftHistory({ title: "", content: "" });
     setEditorOpen(true);
-  }, [fetchPlannerSlots, isActingOnBehalf, plannerSlots.length, plannerWeekStart, resetDraftHistory]);
+  }, [
+    fetchPlannerSlots,
+    isActingOnBehalf,
+    isPreviewMode,
+    plannerSlots.length,
+    plannerWeekStart,
+    requestGoogleLogin,
+    resetDraftHistory,
+  ]);
 
   const openExistingEditor = useCallback((script: ScriptItem) => {
+    if (isPreviewMode) {
+      void requestGoogleLogin();
+      return;
+    }
     if (!isActingOnBehalf && !plannerWeekStart && plannerSlots.length === 0) {
       void fetchPlannerSlots();
     }
@@ -1298,11 +1553,21 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       adjusting: false,
       error: null,
     });
+    setActiveInlineAnnotationId(null);
     resetDraftHistory({ title: initialTitle, content: initialContent });
     setEditorOpen(true);
-  }, [fetchPlannerSlots, isActingOnBehalf, plannerSlots.length, plannerWeekStart, resetDraftHistory]);
+  }, [
+    fetchPlannerSlots,
+    isActingOnBehalf,
+    isPreviewMode,
+    plannerSlots.length,
+    plannerWeekStart,
+    requestGoogleLogin,
+    resetDraftHistory,
+  ]);
 
   useEffect(() => {
+    if (isPreviewMode) return;
     if (!requestedScriptId) return;
     if (loadingList || editorOpen) return;
     if (hasAutoOpenedQueryScriptRef.current === requestedScriptId) return;
@@ -1353,6 +1618,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     };
   }, [
     editorOpen,
+    isPreviewMode,
     loadingList,
     openExistingEditor,
     requestedScriptId,
@@ -1417,6 +1683,16 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       event.preventDefault();
       event.stopPropagation();
       if (publicationSavingScriptId || quickPublishSaving) return;
+      if (!(await ensureLoggedIn())) {
+        return;
+      }
+      if (!canInteract) {
+        openPremiumLinkingPaywall("scripts_card_link_post_btn");
+        return;
+      }
+      if (!ensureInstagramConnectedForLinking("scripts_card_link_post_btn")) {
+        return;
+      }
 
       if (script.publication?.isPosted) {
         try {
@@ -1484,7 +1760,11 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       });
     },
     [
+      canInteract,
+      ensureLoggedIn,
+      ensureInstagramConnectedForLinking,
       ensureContentOptionsLoaded,
+      openPremiumLinkingPaywall,
       patchScriptPublication,
       publicationSavingScriptId,
       quickPublishSaving,
@@ -1498,6 +1778,16 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       ? scripts.find((script) => script.id === quickPublishAnchorScriptId) || null
       : null;
     if (!targetScript) return;
+    if (!(await ensureLoggedIn())) {
+      return;
+    }
+    if (!canInteract) {
+      openPremiumLinkingPaywall("scripts_card_link_post_confirm");
+      return;
+    }
+    if (!ensureInstagramConnectedForLinking("scripts_card_link_post_confirm")) {
+      return;
+    }
     if (!quickPublishContentId) {
       toast({
         variant: "warning",
@@ -1536,9 +1826,23 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     } finally {
       setQuickPublishSaving(false);
     }
-  }, [patchScriptPublication, quickPublishAnchorScriptId, quickPublishContentId, scripts, setCardActionFeedback, toast]);
+  }, [
+    canInteract,
+    ensureLoggedIn,
+    ensureInstagramConnectedForLinking,
+    openPremiumLinkingPaywall,
+    patchScriptPublication,
+    quickPublishAnchorScriptId,
+    quickPublishContentId,
+    scripts,
+    setCardActionFeedback,
+    toast,
+  ]);
 
   const handleSave = useCallback(async () => {
+    if (!(await ensureLoggedIn())) {
+      return;
+    }
     flushPendingDraftSnapshot();
     const title = editor.title.trim();
     const content = editor.content.trim();
@@ -1680,7 +1984,18 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
         title,
       });
     }
-  }, [editor, flushPendingDraftSnapshot, isAdminViewer, patchEditor, patchScriptList, plannerWeekStart, slotOptions, targetUserId, toast]);
+  }, [
+    editor,
+    ensureLoggedIn,
+    flushPendingDraftSnapshot,
+    isAdminViewer,
+    patchEditor,
+    patchScriptList,
+    plannerWeekStart,
+    slotOptions,
+    targetUserId,
+    toast,
+  ]);
 
   const handleDelete = useCallback(async () => {
     if (!editor.id) {
@@ -1712,6 +2027,13 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   }, [editor.id, fetchPlannerSlots, patchEditor, resetDraftHistory, targetUserId]);
 
   const handleAiAdjust = useCallback(async () => {
+    if (!(await ensureLoggedIn())) {
+      return;
+    }
+    if (!canInteract) {
+      openPaywall("planning", { source: "scripts_ai_assistant_click" });
+      return;
+    }
     const prompt = editor.aiPrompt.trim();
     if (!prompt) {
       patchEditor({ error: "Digite um pedido para a IA." });
@@ -1793,13 +2115,16 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       });
     }
   }, [
+    canInteract,
     commitDraftSnapshot,
     editor.adminAnnotationDraft,
     editor.aiPrompt,
     editor.clientRequestId,
     editor.id,
     editor.title,
+    ensureLoggedIn,
     flushPendingDraftSnapshot,
+    openPaywall,
     patchEditor,
     patchScriptList,
     targetUserId,
@@ -1885,6 +2210,22 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   const linkScriptToCampaign = useCallback(
     async (params: { scriptId: string; campaignId: string; source: "editor" | "card" }) => {
       const { scriptId, campaignId, source } = params;
+      if (!(await ensureLoggedIn())) {
+        return;
+      }
+      if (!canInteract) {
+        openPremiumLinkingPaywall(
+          source === "editor" ? "scripts_editor_link_btn" : "scripts_card_link_btn"
+        );
+        return;
+      }
+      if (
+        !ensureInstagramConnectedForLinking(
+          source === "editor" ? "scripts_editor_link_btn" : "scripts_card_link_btn"
+        )
+      ) {
+        return;
+      }
       if (!scriptId) {
         toast({
           variant: "warning",
@@ -1998,7 +2339,17 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
         }
       }
     },
-    [campaignOptions, patchScriptLinkingSummary, scripts, setCardActionFeedback, toast]
+    [
+      canInteract,
+      campaignOptions,
+      ensureLoggedIn,
+      ensureInstagramConnectedForLinking,
+      openPremiumLinkingPaywall,
+      patchScriptLinkingSummary,
+      scripts,
+      setCardActionFeedback,
+      toast,
+    ]
   );
 
   const handleLinkToCampaign = useCallback(async () => {
@@ -2014,6 +2365,9 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
       event.preventDefault();
       event.stopPropagation();
       if (cardLinkingScriptId || linkingToCampaign) return;
+      if (!(await ensureLoggedIn())) {
+        return;
+      }
 
       const options = await ensureCampaignOptionsLoaded();
       if (!options.length) {
@@ -2057,6 +2411,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
     [
       cardCampaignByScriptId,
       cardLinkingScriptId,
+      ensureLoggedIn,
       ensureCampaignOptionsLoaded,
       linkingToCampaign,
       setCardActionFeedback,
@@ -2077,6 +2432,9 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
 
   const handleCardUnlinkConfirm = useCallback(
     async (script: ScriptItem) => {
+      if (!(await ensureLoggedIn())) {
+        return;
+      }
       const campaignId = cardCampaignByScriptId[script.id] || "";
       if (!campaignId) return;
       const linkedCampaign = normalizeScriptLinkingSummary(script.linkingSummary).campaigns.find(
@@ -2134,7 +2492,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
         setCardLinkingScriptId((current) => (current === script.id ? null : current));
       }
     },
-    [cardCampaignByScriptId, removeScriptLinkingSummaryCampaign, setCardActionFeedback, toast]
+    [cardCampaignByScriptId, ensureLoggedIn, removeScriptLinkingSummaryCampaign, setCardActionFeedback, toast]
   );
 
   const canUndo = history.past.length > 0;
@@ -2153,14 +2511,57 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
   }, [contentOptions, quickPublishQueryNormalized]);
   const selectedQuickPublishOption =
     contentOptions.find((option) => option.id === quickPublishContentId) || null;
+  const quickPublishTargetScript = quickPublishAnchorScriptId
+    ? scripts.find((script) => script.id === quickPublishAnchorScriptId) || null
+    : null;
+  type CompactEditorSummaryItem = {
+    key: "recommendation" | "admin-feedback" | "revisions";
+    tone: "amber" | "rose" | "sky";
+    title: string;
+    description: string;
+  };
+
+  const compactEditorSummaryItems: CompactEditorSummaryItem[] = compactView
+    ? [
+        editor.recommendation?.isRecommended
+          ? {
+              key: "recommendation",
+              tone: "amber" as const,
+              title: "Recomendação",
+              description: editor.recommendation.recommendedByAdminName
+                ? `Sinalizada por ${editor.recommendation.recommendedByAdminName}`
+                : "Sinalizada pelo time",
+            }
+          : null,
+        editor.adminAnnotation?.notes?.trim()
+          ? {
+              key: "admin-feedback",
+              tone: "rose" as const,
+              title: "Feedback do admin",
+              description: editor.adminAnnotation.notes.trim(),
+            }
+          : null,
+        editor.inlineAnnotations.length > 0
+          ? {
+              key: "revisions",
+              tone: "sky" as const,
+              title: "Revisões",
+              description:
+                editor.inlineAnnotations.length === 1
+                  ? "1 comentário no texto"
+                  : `${editor.inlineAnnotations.length} comentários no texto`,
+            }
+          : null,
+      ].filter((item): item is CompactEditorSummaryItem => item !== null)
+    : [];
 
   if (editorOpen) {
     return (
-      <div className="flex min-h-[calc(100dvh-var(--header-h,56px))] flex-col overflow-hidden bg-white [-webkit-tap-highlight-color:transparent]">
-        <header className="shrink-0 border-b border-slate-100 bg-white">
-          <div className="dashboard-page-shell py-3 sm:py-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex w-full min-w-0 items-center gap-2 sm:flex-1 sm:gap-3">
+      <div className={`flex min-h-0 flex-col bg-transparent [-webkit-tap-highlight-color:transparent] ${compactView ? "h-full overflow-hidden" : "h-full overflow-hidden"}`}>
+        <header className="shrink-0 border-b border-zinc-100/90 bg-transparent">
+          <div className={`mx-auto w-full ${compactView ? "px-3.5 py-2.5" : "max-w-[860px] px-4 py-3 sm:px-6 sm:py-4"}`}>
+            <div className={`flex flex-col ${compactView ? "gap-2.5" : "gap-3"}`}>
+              <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                 <button
                   type="button"
                   onClick={() => {
@@ -2169,27 +2570,32 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                     setEditor(createInitialEditorState());
                     resetDraftHistory({ title: "", content: "" });
                   }}
-                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-slate-600 hover:bg-slate-100"
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-zinc-600 transition hover:bg-zinc-100/80"
                   aria-label="Voltar para Meus Roteiros"
                 >
                   <ArrowLeft size={18} />
                 </button>
-                <input
-                  type="text"
-                  value={editor.title}
-                  onChange={(e) => handleTitleChange(e.target.value)}
-                  onKeyDown={handleDraftKeyDown}
-                  placeholder="Roteiro sem título"
-                  className="min-w-0 w-full flex-1 border-0 bg-transparent p-0 text-base font-medium text-slate-900 outline-none ring-0 ring-transparent placeholder:text-slate-300 focus:border-transparent focus:outline-none focus:ring-0 focus:ring-transparent focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-0 sm:max-w-[520px] sm:min-w-[220px] sm:text-lg"
-                />
+                <div className="min-w-0 flex-1">
+                  <p className="mb-1 text-[11px] font-medium uppercase tracking-[0.08em] text-slate-400">
+                    Meu roteiro
+                  </p>
+                  <input
+                    type="text"
+                    value={editor.title}
+                    onChange={(e) => handleTitleChange(e.target.value)}
+                    onKeyDown={handleDraftKeyDown}
+                    placeholder="Roteiro sem título"
+                    className={`min-w-0 w-full border-0 bg-transparent p-0 font-semibold leading-tight text-slate-900 outline-none ring-0 ring-transparent placeholder:text-slate-300 focus:border-transparent focus:outline-none focus:ring-0 focus:ring-transparent focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-0 ${compactView ? "text-[17px]" : "text-lg sm:text-[1.65rem]"}`}
+                  />
+                </div>
               </div>
 
-              <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap">
+              <div className={`flex w-full flex-wrap gap-2 border-t border-zinc-100/90 ${compactView ? "items-stretch pt-2.5" : "items-center pt-3"}`}>
                 {requestedProposalId ? (
                   <button
                     type="button"
                     onClick={handleReturnToCampaign}
-                    className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    className={`inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50/84 px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:border-zinc-300 hover:bg-white ${compactView ? "w-full justify-center" : ""}`}
                   >
                     Voltar para campanha
                   </button>
@@ -2200,7 +2606,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                       value={selectedCampaignId}
                       onChange={(e) => setSelectedCampaignId(e.target.value)}
                       disabled={campaignsLoading || linkingToCampaign || campaignOptions.length === 0}
-                      className="min-w-[190px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      className={`rounded-xl border border-zinc-200 bg-zinc-50/84 px-3 py-2 text-sm text-zinc-700 outline-none transition focus:border-zinc-300 focus:ring-2 focus:ring-zinc-100 disabled:cursor-not-allowed disabled:bg-zinc-100 ${compactView ? "w-full" : "min-w-[190px] flex-1 sm:flex-none"}`}
                     >
                       {campaignsLoading ? (
                         <option value="">Carregando campanhas...</option>
@@ -2216,133 +2622,376 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                     </select>
                     <button
                       type="button"
-                      onClick={handleLinkToCampaign}
+                      onClick={() => {
+                        if (!isAuthenticated) {
+                          void requestGoogleLogin();
+                          return;
+                        }
+                        if (!canInteract) {
+                          openPremiumLinkingPaywall("scripts_editor_link_btn");
+                          return;
+                        }
+                        void handleLinkToCampaign();
+                      }}
                       disabled={
                         linkingToCampaign ||
                         campaignsLoading ||
                         !selectedCampaignId ||
                         !editor.id
                       }
-                      className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+                      className={`inline-flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50/84 px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:border-zinc-300 hover:bg-white disabled:opacity-60 ${compactView ? "w-full justify-center" : ""}`}
                     >
                       {linkingToCampaign ? "Vinculando..." : "Vincular à campanha"}
                     </button>
                   </>
                 ) : null}
-                <button
-                  type="button"
-                  onClick={applyUndo}
-                  disabled={!canUndo}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 disabled:opacity-40"
-                  aria-label="Desfazer edição"
-                >
-                  <Undo2 size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={applyRedo}
-                  disabled={!canRedo}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 transition hover:bg-slate-50 disabled:opacity-40"
-                  aria-label="Refazer edição"
-                >
-                  <Redo2 size={16} />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={editor.saving}
-                  className={`inline-flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-semibold transition disabled:opacity-60 ${editor.saved
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                    : "border-slate-200 bg-white text-slate-800 hover:bg-slate-50"
-                    }`}
-                >
-                  <Save size={15} />
-                  {editor.saving ? "Salvando..." : editor.saved ? "Salvo" : "Salvar"}
-                </button>
-                {editor.id ? (
+                <div className={`flex gap-2 ${compactView ? "w-full" : ""}`}>
                   <button
                     type="button"
-                    onClick={handleDelete}
-                    disabled={editor.deleting}
-                    className="inline-flex items-center gap-2 rounded-lg border border-rose-200 bg-white px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-60"
+                    onClick={applyUndo}
+                    disabled={!canUndo}
+                    className={`inline-flex h-9 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50/84 text-zinc-700 transition hover:border-zinc-300 hover:bg-white disabled:opacity-40 ${compactView ? "flex-1" : "w-9"}`}
+                    aria-label="Desfazer edição"
                   >
-                    <Trash2 size={15} />
-                    {editor.deleting ? "Excluindo..." : "Excluir"}
+                    <Undo2 size={16} />
                   </button>
-                ) : null}
+                  <button
+                    type="button"
+                    onClick={applyRedo}
+                    disabled={!canRedo}
+                    className={`inline-flex h-9 items-center justify-center rounded-xl border border-zinc-200 bg-zinc-50/84 text-zinc-700 transition hover:border-zinc-300 hover:bg-white disabled:opacity-40 ${compactView ? "flex-1" : "w-9"}`}
+                    aria-label="Refazer edição"
+                  >
+                    <Redo2 size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={editor.saving}
+                    className={`inline-flex items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-semibold transition disabled:opacity-60 ${compactView ? "flex-[1.7]" : ""} ${editor.saved
+                      ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                      : "border-zinc-200 bg-zinc-50/84 text-zinc-800 hover:border-zinc-300 hover:bg-white"
+                      }`}
+                  >
+                    <Save size={15} />
+                    {editor.saving ? "Salvando..." : editor.saved ? "Salvo" : "Salvar"}
+                  </button>
+                  {editor.id ? (
+                    <button
+                      type="button"
+                      onClick={handleDelete}
+                      disabled={editor.deleting}
+                      className={`inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-white/88 px-3 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:opacity-60 ${compactView ? "flex-[1.4]" : ""}`}
+                    >
+                      <Trash2 size={15} />
+                      {editor.deleting ? "Excluindo..." : "Excluir"}
+                    </button>
+                  ) : null}
+                </div>
               </div>
             </div>
           </div>
         </header>
 
-        <main className="dashboard-page-shell flex-1 min-h-0 py-2 flex gap-4 h-full relative">
-          <div className="mx-auto flex h-full w-full max-w-[860px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white px-4 sm:px-6">
-            {editor.recommendation?.isRecommended ? (
-              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 sm:text-sm">
-                Recomendação especial
-                {editor.recommendation.recommendedByAdminName
-                  ? ` de ${editor.recommendation.recommendedByAdminName}`
-                  : " do time"}{" "}
-                {editor.recommendation.recommendedAt
-                  ? `(${formatDate(editor.recommendation.recommendedAt)})`
-                  : ""}.
+        <main className={`${compactView ? "flex min-h-0 flex-1 px-3.5 pb-3 pt-2" : "relative flex h-full min-h-0 flex-1 gap-4 py-2"}`}>
+          <div className={`mx-auto flex w-full flex-col rounded-[1.4rem] border border-zinc-100/90 ${compactView ? "h-full min-h-0 overflow-hidden bg-white px-3.5 pt-2.5" : "h-full overflow-hidden max-w-[860px] rounded-[1.7rem] bg-white/72 px-4 backdrop-blur-xl sm:px-6"}`}>
+            {compactView && compactEditorSummaryItems.length > 0 ? (
+              <div className="shrink-0 space-y-2 border-b border-zinc-100/90 pb-2.5">
+                {compactEditorSummaryItems.map((item) => {
+                  const toneClasses =
+                    item.tone === "amber"
+                      ? "bg-amber-50 text-amber-700 ring-amber-100/90"
+                      : item.tone === "rose"
+                        ? "bg-rose-50 text-rose-600 ring-rose-100/90"
+                        : "bg-sky-50 text-sky-600 ring-sky-100/90";
+                  return (
+                    <div key={item.key} className="flex items-start gap-2.5 rounded-[0.95rem] border border-zinc-100/90 bg-zinc-50/42 px-3 py-2.5">
+                      <span className={`inline-flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-[0.75rem] ring-1 ${toneClasses}`}>
+                        {item.key === "revisions" ? (
+                          <span className="text-[10px] font-semibold">{editor.inlineAnnotations.length}</span>
+                        ) : (
+                          <Sparkles size={12} />
+                        )}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="dashboard-type-control text-zinc-700">{item.title}</p>
+                        <p className="dashboard-type-meta mt-0.5 line-clamp-1 text-zinc-500">{item.description}</p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : null}
-            {editor.adminAnnotation?.notes?.trim() ? (
-              <div className="mt-3 rounded-xl border border-[#FFDEE9] bg-[#FFF6F9] px-3 py-2 text-xs text-slate-700 sm:text-sm">
-                <p className="font-semibold text-slate-800">Feedback do admin</p>
-                <p className="mt-1 whitespace-pre-wrap text-slate-700">{editor.adminAnnotation.notes}</p>
-                {editor.adminAnnotation.updatedAt ? (
-                  <p className="mt-1 text-[11px] text-slate-500">
-                    {editor.adminAnnotation.updatedByName || "Admin"} · {formatDate(editor.adminAnnotation.updatedAt)}
+            {!compactView && editor.recommendation?.isRecommended ? (
+              <div
+                className={`${
+                  compactView
+                    ? "mt-3 rounded-[1.05rem] border border-zinc-100/70 bg-zinc-50/52 px-3 py-3"
+                    : "mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 sm:text-sm"
+                }`}
+              >
+                {compactView ? (
+                  <div className="flex items-start gap-2.5">
+                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] bg-amber-50 text-amber-600 ring-1 ring-amber-100/90">
+                      <Sparkles size={14} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="dashboard-type-section-title text-zinc-950">Recomendação</p>
+                      <p className="dashboard-type-meta mt-1 leading-relaxed text-zinc-500">
+                        {editor.recommendation.recommendedByAdminName
+                          ? `Sinalizada por ${editor.recommendation.recommendedByAdminName}`
+                          : "Sinalizada pelo time"}
+                        {editor.recommendation.recommendedAt
+                          ? ` em ${formatDate(editor.recommendation.recommendedAt)}`
+                          : ""}
+                        .
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    Recomendação especial
+                    {editor.recommendation.recommendedByAdminName
+                      ? ` de ${editor.recommendation.recommendedByAdminName}`
+                      : " do time"}{" "}
+                    {editor.recommendation.recommendedAt
+                      ? `(${formatDate(editor.recommendation.recommendedAt)})`
+                      : ""}.
+                  </>
+                )}
+              </div>
+            ) : null}
+            {!compactView && editor.adminAnnotation?.notes?.trim() ? (
+              <div
+                className={`mt-3 ${
+                  compactView
+                    ? "rounded-[1.05rem] border border-zinc-100/70 bg-zinc-50/52 px-3 py-3"
+                    : "rounded-xl border border-[#FFDEE9] bg-[#FFF6F9] px-3 py-2 text-xs text-slate-700 sm:text-sm"
+                }`}
+              >
+                {compactView ? (
+                  <>
+                    <div className="flex items-center gap-2.5">
+                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] bg-rose-50 text-rose-500 ring-1 ring-rose-100/90">
+                        <Check size={14} />
+                      </span>
+                      <p className="dashboard-type-section-title text-zinc-950">Feedback do admin</p>
+                    </div>
+                    <p className="dashboard-type-body mt-3 whitespace-pre-wrap leading-relaxed text-zinc-700">
+                      {editor.adminAnnotation.notes}
+                    </p>
+                    {editor.adminAnnotation.updatedAt ? (
+                      <p className="dashboard-type-meta mt-2 text-zinc-400">
+                        {editor.adminAnnotation.updatedByName || "Admin"} · {formatDate(editor.adminAnnotation.updatedAt)}
+                      </p>
+                    ) : null}
+                  </>
+                ) : (
+                  <>
+                    <p className="font-semibold text-slate-800">Feedback do admin</p>
+                    <p className="mt-1 whitespace-pre-wrap text-slate-700">{editor.adminAnnotation.notes}</p>
+                    {editor.adminAnnotation.updatedAt ? (
+                      <p className="mt-1 text-[11px] text-slate-500">
+                        {editor.adminAnnotation.updatedByName || "Admin"} · {formatDate(editor.adminAnnotation.updatedAt)}
+                      </p>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            ) : null}
+            {!compactView && editor.inlineAnnotations.length > 0 ? (
+              <div
+                className={`mt-3 rounded-xl border border-zinc-100/90 px-3 ${
+                  compactView ? "rounded-[1.05rem] bg-zinc-50/52 py-3" : "bg-zinc-50/76 py-3"
+                }`}
+              >
+                <div className={`mb-2 flex items-center justify-between gap-2 ${compactView ? "mb-3" : ""}`}>
+                  {compactView ? (
+                    <div className="flex items-center gap-2.5">
+                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] bg-sky-50 text-sky-600 ring-1 ring-sky-100/90">
+                        <span className="text-[11px] font-semibold">{editor.inlineAnnotations.length}</span>
+                      </span>
+                      <div>
+                        <p className="dashboard-type-section-title text-zinc-950">Revisões no texto</p>
+                        <p className="dashboard-type-meta mt-1 text-zinc-500">
+                          Comentários e observações para ajustar o roteiro.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">
+                      Revisões no texto ({editor.inlineAnnotations.length})
+                    </p>
+                  )}
+                  {activeInlineAnnotationId ? (
+                    <button
+                      type="button"
+                      onClick={() => setActiveInlineAnnotationId(null)}
+                      className="text-[11px] font-medium text-slate-500 hover:text-slate-700"
+                    >
+                      Limpar foco
+                    </button>
+                  ) : null}
+                </div>
+                <div className="space-y-2">
+                  {(compactView ? editor.inlineAnnotations.slice(0, 1) : editor.inlineAnnotations).map((ann) => {
+                    const isActive = ann.id === activeInlineAnnotationId;
+                    return (
+                      <div
+                        key={ann.id}
+                        className={`rounded-xl border px-3 py-2.5 transition ${
+                          ann.isOrphaned
+                            ? "border-slate-200 bg-white opacity-70"
+                          : isActive
+                              ? "border-amber-300 bg-amber-50"
+                              : compactView
+                                ? "border-zinc-100/90 bg-white"
+                                : "border-slate-200 bg-white"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className={`text-[11px] font-semibold ${compactView ? "text-zinc-700" : "text-slate-700"}`}>
+                              {ann.authorName}
+                              {ann.resolved ? " · Resolvida" : ann.isOrphaned ? " · Trecho não encontrado" : ""}
+                            </p>
+                            <p className={`mt-1 line-clamp-2 border-l-2 pl-2 text-[11px] italic ${compactView ? "border-zinc-200 text-zinc-400" : "border-slate-200 text-slate-500"}`}>
+                              &quot;{ann.quote}&quot;
+                            </p>
+                            <p className={`${compactView ? "dashboard-type-body mt-1.5 line-clamp-2 text-zinc-700" : "mt-1 text-sm text-slate-800"}`}>{ann.comment}</p>
+                          </div>
+                          {!ann.isOrphaned ? (
+                            <div className="flex shrink-0 flex-col items-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setActiveInlineAnnotationId(ann.id)}
+                                className="rounded-lg border border-slate-200 px-2 py-1 text-[11px] font-medium text-slate-600 hover:bg-slate-50"
+                              >
+                                Ver no texto
+                              </button>
+                              {isAdminViewer && !ann.resolved ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const nextAnnotations = editor.inlineAnnotations.map((a) =>
+                                      a.id === ann.id ? { ...a, resolved: true } : a
+                                    );
+                                    patchEditor({ inlineAnnotations: nextAnnotations, saved: false });
+                                  }}
+                                  className="rounded-lg bg-slate-200 px-2 py-1 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-300"
+                                >
+                                  Resolver
+                                </button>
+                              ) : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {compactView && editor.inlineAnnotations.length > 1 ? (
+                  <p className="mt-2 text-[11px] font-medium text-slate-500">
+                    +{editor.inlineAnnotations.length - 1} revisão(ões) adicionais
                   </p>
                 ) : null}
               </div>
             ) : null}
-            <div className="flex-1 min-h-[62vh] relative">
+            <div
+              className={`relative ${
+                compactView
+                  ? "mt-2.5 min-h-0 flex-1 overflow-hidden rounded-[1.15rem] border border-zinc-100/90 bg-zinc-50/36 px-3"
+                  : "min-h-0 flex-1"
+              }`}
+            >
               <InlineScriptEditor
                 content={editor.content}
                 onChangeContent={handleContentChange}
                 annotations={editor.inlineAnnotations}
                 onAnnotationsChange={(newAnnotations) => patchEditor({ inlineAnnotations: newAnnotations, saved: false })}
+                activeAnnotationId={activeInlineAnnotationId}
+                onAnnotationFocus={setActiveInlineAnnotationId}
                 onKeyDown={handleDraftKeyDown}
                 isAdminViewer={isAdminViewer}
                 viewerName={viewer?.name || "Admin"}
                 placeholder="Escreva seu roteiro aqui..."
+                compactView={compactView}
               />
             </div>
 
             {isAdminViewer ? (
-              <div className="shrink-0 border-t border-slate-100 py-4">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-xs font-medium text-slate-500">Feedback para creator (admin)</p>
-                  {editor.adminAnnotation?.updatedAt ? (
-                    <p className="text-[11px] text-slate-400">
-                      {editor.adminAnnotation.updatedByName || "Admin"} · {formatDate(editor.adminAnnotation.updatedAt)}
-                    </p>
-                  ) : null}
-                </div>
-                <textarea
-                  value={editor.adminAnnotationDraft}
-                  onChange={(e) =>
-                    patchEditor({
-                      adminAnnotationDraft: e.target.value,
-                      saved: false,
-                    })
-                  }
-                  placeholder="Esse feedback aparece para o dono do roteiro."
-                  className="h-24 w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-slate-300 focus:bg-white"
-                />
+              <div className={`shrink-0 border-t border-slate-100 ${compactView ? "py-2" : "py-4"}`}>
+                {compactView ? (
+                  <div className="rounded-[1.05rem] border border-zinc-100/70 bg-zinc-50/52 px-3 py-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] bg-zinc-50 text-zinc-500 ring-1 ring-zinc-100/90">
+                        <Check size={14} />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="dashboard-type-section-title text-zinc-950">Feedback para creator</p>
+                        {editor.adminAnnotation?.updatedAt ? (
+                          <p className="dashboard-type-meta mt-1 text-zinc-400">
+                            {editor.adminAnnotation.updatedByName || "Admin"} · {formatDate(editor.adminAnnotation.updatedAt)}
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                    <textarea
+                      value={editor.adminAnnotationDraft}
+                      onChange={(e) =>
+                        patchEditor({
+                          adminAnnotationDraft: e.target.value,
+                          saved: false,
+                        })
+                      }
+                      placeholder="Esse feedback aparece para o dono do roteiro."
+                      className="mt-2.5 h-14 w-full resize-none rounded-[0.95rem] border border-zinc-100/90 bg-white px-3 py-2 text-sm text-zinc-700 outline-none placeholder:text-zinc-400 focus:border-zinc-200 focus:bg-white"
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-xs font-medium text-slate-500">Feedback para creator (admin)</p>
+                      {editor.adminAnnotation?.updatedAt ? (
+                        <p className="text-[11px] text-slate-400">
+                          {editor.adminAnnotation.updatedByName || "Admin"} · {formatDate(editor.adminAnnotation.updatedAt)}
+                        </p>
+                      ) : null}
+                    </div>
+                    <textarea
+                      value={editor.adminAnnotationDraft}
+                      onChange={(e) =>
+                        patchEditor({
+                          adminAnnotationDraft: e.target.value,
+                          saved: false,
+                        })
+                      }
+                      placeholder="Esse feedback aparece para o dono do roteiro."
+                      className="h-24 w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 outline-none placeholder:text-slate-400 focus:border-slate-300 focus:bg-white"
+                    />
+                  </>
+                )}
               </div>
             ) : null}
 
-            <div className="shrink-0 border-t border-slate-100 py-4">
-              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
-                <label className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-slate-800">
+            <div className={`shrink-0 border-t border-slate-100 ${compactView ? "py-2" : "py-4"}`}>
+              <div className={compactView ? "rounded-[1.05rem] border border-zinc-100/70 bg-zinc-50/52 px-3 py-2.5" : "rounded-xl border border-slate-200 bg-slate-50/70 p-3"}>
+                <label className={`flex cursor-pointer items-center gap-2 font-semibold ${compactView ? "text-[13px] text-zinc-800" : "text-sm text-slate-800"}`}>
                   <input
                     type="checkbox"
                     checked={editor.isPosted}
                     onChange={(event) => {
+                      if (!isAuthenticated) {
+                        void requestGoogleLogin();
+                        return;
+                      }
+                      if (!canInteract) {
+                        openPaywall("planning", { source: "scripts_link_posted_checkbox" });
+                        return;
+                      }
+                      if (!ensureInstagramConnectedForLinking("scripts_link_posted_checkbox")) {
+                        return;
+                      }
                       const checked = event.target.checked;
                       patchEditor({
                         isPosted: checked,
@@ -2355,8 +3004,9 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                     className="h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-400"
                   />
                   Marcar como roteiro postado
+                  {!canInteract ? <Lock className="ml-1.5 h-3 w-3 text-amber-500" /> : null}
                 </label>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className={`mt-1 ${compactView ? "text-[11px] leading-5 text-zinc-500" : "text-xs text-slate-500"}`}>
                   Ao marcar, selecione o conteúdo publicado para correlacionar o engajamento.
                 </p>
 
@@ -2372,7 +3022,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                         })
                       }
                       disabled={contentOptionsLoading || contentOptions.length === 0}
-                      className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 outline-none transition focus:border-slate-300 focus:ring-2 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100"
+                      className={`w-full border bg-white px-3 py-2 text-sm outline-none transition disabled:cursor-not-allowed ${compactView ? "rounded-[0.95rem] border-zinc-200 text-zinc-700 focus:border-zinc-300 focus:ring-2 focus:ring-zinc-100 disabled:bg-zinc-100" : "rounded-lg border-slate-200 text-slate-700 focus:border-slate-300 focus:ring-2 focus:ring-slate-100 disabled:bg-slate-100"}`}
                     >
                       {contentOptionsLoading ? (
                         <option value="">Carregando conteúdos...</option>
@@ -2396,7 +3046,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                     </select>
 
                     {selectedPostedContentOption || selectedPostedContentMissing ? (
-                      <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+                      <div className={`px-3 py-2 ${compactView ? "rounded-[0.95rem] border border-emerald-200 bg-emerald-50 text-[11px] leading-5 text-emerald-900" : "rounded-lg border border-emerald-200 bg-emerald-50 text-xs text-emerald-900"}`}>
                         <p className="font-semibold">
                           {selectedPostedContentOption?.caption || getPostedContentLabel(editor.publication)}
                         </p>
@@ -2428,81 +3078,98 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
               </div>
             </div>
 
-            <div className="shrink-0 border-t border-slate-100 py-4">
-              <p className="mb-2 text-xs font-medium text-slate-500">Assistente IA</p>
-              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-2">
-                <input
-                  type="text"
-                  value={editor.aiPrompt}
-                  onChange={(e) => patchEditor({ aiPrompt: e.target.value })}
-                  onKeyDown={handleAiPromptKeyDown}
-                  placeholder="Peça um roteiro novo ou ajuste no roteiro atual..."
-                  className="flex-1 border-0 bg-transparent px-2 py-2 text-sm text-slate-800 outline-none ring-0 ring-transparent placeholder:text-slate-400 focus:border-transparent focus:outline-none focus:ring-0 focus:ring-transparent focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-0"
-                />
-                <button
-                  type="button"
-                  onClick={handleAiAdjust}
-                  disabled={editor.adjusting}
-                  className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
-                >
-                  <Sparkles size={14} />
-                  {editor.adjusting ? "Processando..." : "Enviar"}
-                </button>
+            <div className={`shrink-0 border-t border-zinc-100/90 ${compactView ? "py-2" : "py-4"}`}>
+              <div 
+                className={!canInteract ? "cursor-pointer group relative" : ""}
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    void requestGoogleLogin();
+                    return;
+                  }
+                  if (!canInteract) {
+                    openPaywall("planning", { source: "scripts_ai_assistant_click" });
+                  }
+                }}
+              >
+                {!canInteract && (
+                  <div className="absolute inset-0 z-10 flex items-center justify-end pr-4 pointer-events-none">
+                    <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-600 ring-1 ring-amber-200/50">
+                      <Lock size={10} />
+                      PRO
+                    </div>
+                  </div>
+                )}
+                <div className={!canInteract ? "opacity-60 grayscale-[0.5] pointer-events-none" : ""}>
+                  {compactView ? (
+                    <div className="rounded-[1.05rem] border border-zinc-100/70 bg-zinc-50/52 px-3 py-2.5">
+                      <div className="flex items-center gap-2.5">
+                        <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100/90">
+                          <Sparkles size={14} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="dashboard-type-section-title text-zinc-950">Assistente IA</p>
+                        </div>
+                      </div>
+                      <div className="mt-2.5 flex items-center gap-2 rounded-[0.95rem] border border-zinc-100/90 bg-white p-2">
+                        <input
+                          type="text"
+                          value={editor.aiPrompt}
+                          onChange={(e) => patchEditor({ aiPrompt: e.target.value })}
+                          onKeyDown={handleAiPromptKeyDown}
+                          placeholder="Peça um ajuste no roteiro..."
+                          className="min-w-0 flex-1 border-0 bg-transparent px-2 py-2 text-sm text-zinc-800 outline-none ring-0 ring-transparent placeholder:text-zinc-400 focus:border-transparent focus:outline-none focus:ring-0 focus:ring-transparent focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-0"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAiAdjust}
+                          disabled={editor.adjusting}
+                          className="inline-flex shrink-0 items-center justify-center gap-1 rounded-xl bg-zinc-900 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-60"
+                        >
+                          <Sparkles size={14} />
+                          {editor.adjusting ? "Processando..." : "Enviar"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <p className="mb-2 text-xs font-medium text-slate-500">Assistente IA</p>
+                      <div className="flex items-center gap-2 rounded-xl border border-zinc-100/90 bg-zinc-50/76 p-2">
+                        <input
+                          type="text"
+                          value={editor.aiPrompt}
+                          onChange={(e) => patchEditor({ aiPrompt: e.target.value })}
+                          onKeyDown={handleAiPromptKeyDown}
+                          placeholder="Peça um roteiro novo ou ajuste no roteiro atual..."
+                          className="flex-1 border-0 bg-transparent px-2 py-2 text-sm text-zinc-800 outline-none ring-0 ring-transparent placeholder:text-zinc-400 focus:border-transparent focus:outline-none focus:ring-0 focus:ring-transparent focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-0"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAiAdjust}
+                          disabled={editor.adjusting}
+                          className="inline-flex items-center justify-center gap-1 rounded-xl bg-zinc-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-black disabled:opacity-60"
+                        >
+                          <Sparkles size={14} />
+                          {editor.adjusting ? "Processando..." : "Enviar"}
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
             {editor.error ? <p className="shrink-0 pb-4 text-sm text-rose-600">{editor.error}</p> : null}
           </div>
-
-          {/* Annotations Sidebar */}
-          {editor.inlineAnnotations.length > 0 && (
-            <div className="hidden xl:flex w-80 shrink-0 flex-col gap-3 overflow-y-auto pl-4 pb-4">
-              <h3 className="text-sm font-bold text-slate-700 uppercase tracking-wider mb-2">Comentários</h3>
-              {editor.inlineAnnotations.map((ann) => (
-                <div
-                  key={ann.id}
-                  className={`relative flex flex-col gap-2 rounded-xl border p-4 shadow-sm transition-opacity ${ann.isOrphaned ? "border-slate-200 bg-slate-50 opacity-60" : "border-amber-200 bg-amber-50/50 hover:bg-amber-100/50"
-                    }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-700">{ann.authorName}</span>
-                    <span className="text-[10px] uppercase font-bold text-slate-400">
-                      {ann.isOrphaned ? "Órfão" : formatDate(ann.createdAt)}
-                    </span>
-                  </div>
-                  <p className="border-l-2 border-slate-300 pl-2 text-xs italic text-slate-500 break-words line-clamp-3">
-                    &quot;{ann.quote}&quot;
-                  </p>
-                  <p className="text-sm font-medium text-slate-800 break-words">
-                    {ann.comment}
-                  </p>
-                  {isAdminViewer && !ann.resolved && (
-                    <button
-                      onClick={() => {
-                        const nextAnnotations = editor.inlineAnnotations.map((a) =>
-                          a.id === ann.id ? { ...a, resolved: true } : a
-                        );
-                        patchEditor({ inlineAnnotations: nextAnnotations, saved: false });
-                      }}
-                      className="mt-2 self-start rounded bg-slate-200 px-2 py-1 text-[10px] font-bold uppercase text-slate-600 hover:bg-slate-300"
-                    >
-                      Resolver
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
         </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-white pb-20">
-      <div className="dashboard-page-shell py-8">
+    <div className={`min-h-0 bg-transparent ${compactView ? "relative" : ""}`}>
+      <div className={compactView ? "px-3.5 pb-3 pt-1.5" : "px-4 py-2"}>
         {isAdminViewer ? (
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-            <div className="w-full sm:max-w-md">
+          <div className={`mb-4 flex flex-col gap-2 ${compactView ? "" : "sm:flex-row sm:items-center sm:gap-3"}`}>
+            <div className={`w-full ${compactView ? "" : "sm:max-w-md"}`}>
               <CreatorQuickSearch
                 onSelect={(creator) =>
                   setAdminTargetUser({
@@ -2520,63 +3187,58 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           </div>
         ) : null}
 
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Meus Roteiros</h1>
-            {!isActingOnBehalf ? (
-              <>
-                <p className="mt-1 text-xs font-medium text-emerald-700">
-                  Pautas salvas no Calendário aparecem aqui automaticamente com origem destacada.
+        {isPreviewMode && showPreviewBanner ? (
+          <div className="mb-4 rounded-[1.3rem] border border-zinc-200/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(244,244,245,0.95))] px-4 py-4 shadow-[0_16px_36px_rgba(24,24,27,0.05)]">
+            <div className={`flex flex-col gap-3 ${compactView ? "" : "sm:flex-row sm:items-center sm:justify-between"}`}>
+              <div className="min-w-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500">
+                  Preview de Exemplo
                 </p>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  <span className="text-xs text-slate-500">
-                    Quer trazer novas pautas para cá?
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleGoToCalendar}
-                    className="text-xs font-semibold text-emerald-700 underline underline-offset-2 hover:text-emerald-800"
-                  >
-                    Ir para Calendário
-                  </button>
-                </div>
-              </>
-            ) : null}
+                <p className="mt-1 text-sm font-semibold text-zinc-900">
+                  Estes roteiros são demonstrativos para você explorar o board.
+                </p>
+                <p className="mt-1 text-xs leading-5 text-zinc-600">
+                  Entre com Google para salvar seus roteiros, usar IA e ativar vínculos reais com campanhas e Instagram.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  void requestGoogleLogin();
+                }}
+                className="inline-flex min-h-[42px] shrink-0 items-center justify-center rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+              >
+                Entrar com Google
+              </button>
+            </div>
           </div>
-          {requestedProposalId ? (
-            <button
-              type="button"
-              onClick={handleReturnToCampaign}
-              className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-            >
-              Voltar para campanha
-            </button>
-          ) : null}
-        </div>
+        ) : null}
 
-        <div className="mb-4 inline-flex rounded-lg border border-slate-200 bg-white p-1">
-          {([
-            { id: "all", label: "Todos" },
-            { id: "posted", label: "Postados" },
-            { id: "unposted", label: "Não postados" },
-          ] as Array<{ id: ScriptPostedFilter; label: string }>).map((option) => (
-            <button
-              key={option.id}
-              type="button"
-              onClick={() => setPostedFilter(option.id)}
-              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition sm:text-sm ${
-                postedFilter === option.id
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
+        {compactView ? null : (
+          <div className="dashboard-segmented mb-4 inline-flex">
+            {([
+              { id: "all", label: "Todos" },
+              { id: "posted", label: "Postados" },
+              { id: "unposted", label: "Não postados" },
+            ] as Array<{ id: ScriptPostedFilter; label: string }>).map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setPostedFilter(option.id)}
+                className={`rounded-full px-3 py-2 text-xs font-semibold transition sm:text-sm ${
+                  postedFilter === option.id
+                    ? "bg-white text-zinc-900 shadow-sm"
+                    : "text-zinc-500 hover:text-zinc-800"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {globalError ? (
-          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3">
+          <div className={`mb-4 flex flex-wrap items-center gap-3 rounded-[1.4rem] border px-4 py-3 ${compactView ? "border-zinc-100/90 bg-zinc-50/62" : "border-rose-200/80 bg-rose-50/90 shadow-[0_18px_32px_rgba(244,63,94,0.08)]"}`}>
             <p className="text-sm text-rose-700">{globalError}</p>
             <button
               type="button"
@@ -2591,26 +3253,30 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
         ) : null}
 
         {loadingList ? (
-          <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+          <div className={`grid ${compactView ? "grid-cols-1 gap-3" : "grid-cols-2 gap-3 sm:gap-5"}`}>
             {Array.from({ length: 10 }).map((_, idx) => (
               <div
                 key={`loading-${idx}`}
-                className="h-72 animate-pulse rounded-[1.5rem] border border-slate-200 bg-white shadow-sm sm:h-80 sm:rounded-[2rem]"
+                className={`dashboard-panel animate-pulse ${compactView ? "h-52 rounded-[1.5rem]" : "h-72 rounded-[1.5rem] sm:h-80 sm:rounded-[2rem]"}`}
               >
-                <div className="h-11 border-b border-slate-100 bg-slate-50" />
+                <div className="h-11 border-b border-zinc-100 bg-zinc-50/70" />
                 <div className="p-5">
-                  <div className="h-4 w-2/3 rounded bg-slate-100" />
-                  <div className="mt-3 h-3 w-full rounded bg-slate-100/80" />
-                  <div className="mt-2 h-3 w-4/5 rounded bg-slate-100/70" />
-                  <div className="mt-2 h-3 w-3/4 rounded bg-slate-100/60" />
+                  <div className="h-4 w-2/3 rounded bg-zinc-100" />
+                  <div className="mt-3 h-3 w-full rounded bg-zinc-100/80" />
+                  <div className="mt-2 h-3 w-4/5 rounded bg-zinc-100/70" />
+                  <div className="mt-2 h-3 w-3/4 rounded bg-zinc-100/60" />
                 </div>
-                <div className="mx-5 mt-6 h-10 rounded-xl bg-slate-50" />
+                <div className="mx-5 mt-6 h-10 rounded-xl bg-zinc-50" />
               </div>
             ))}
           </div>
         ) : scripts.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-            <p className="mb-4 text-slate-700">
+          <div className={`dashboard-empty-state border border-zinc-100/90 text-center ${compactView ? "rounded-[1.2rem] bg-white p-5" : "p-8"}`}>
+            <p className="dashboard-muted-label mx-auto mb-3 flex w-fit items-center gap-2 text-zinc-400">
+              <Sparkles size={12} />
+              Meus Roteiros
+            </p>
+            <p className="mb-4 text-zinc-700">
               {isActingOnBehalf
                 ? `${adminTargetUser?.name} ainda não tem roteiros salvos.`
                 : "Você ainda não tem roteiros salvos."}
@@ -2618,16 +3284,16 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
             <button
               type="button"
               onClick={openCreateEditor}
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white"
+              className="dashboard-primary-button inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold"
             >
               <Plus size={16} />
-              Criar meu primeiro roteiro
+              {isPreviewMode ? "Entrar para criar roteiro" : "Criar meu primeiro roteiro"}
             </button>
             {!isActingOnBehalf ? (
               <button
                 type="button"
                 onClick={handleGoToCalendar}
-                className="ml-2 inline-flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-100"
+                className="dashboard-secondary-button ml-2 inline-flex items-center gap-2 px-4 py-3 text-sm font-semibold text-emerald-800"
               >
                 Ir para Calendário
               </button>
@@ -2635,22 +3301,35 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+            <div className={compactView ? "flex flex-col gap-1.5" : "grid grid-cols-2 gap-3 sm:gap-5"}>
               <button
                 type="button"
                 onClick={openCreateEditor}
-                className="group flex h-72 flex-col overflow-hidden rounded-[1.5rem] border border-slate-300 bg-white text-left shadow-sm ring-1 ring-transparent transition hover:-translate-y-1 hover:border-slate-400 hover:shadow-xl hover:ring-slate-200 sm:h-80 sm:rounded-[2rem]"
+                className={`${compactView ? "group flex min-h-[96px] items-center justify-center overflow-hidden rounded-[1.05rem] border border-indigo-100/90 bg-indigo-50/90 px-4 py-5 text-left transition hover:border-indigo-200 hover:bg-indigo-100/75 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-200" : "dashboard-panel group flex overflow-hidden text-left ring-1 ring-transparent transition flex-col h-72 rounded-[1.5rem] sm:h-80 sm:rounded-[2rem] hover:ring-pink-200/70"}`}
               >
-                <div className="border-b border-slate-100 bg-slate-50 px-5 py-3">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-600">Novo</span>
-                </div>
-                <div className="flex flex-1 flex-col items-center justify-center gap-3 p-5">
-                  <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-100 text-slate-700 transition group-hover:bg-slate-900 group-hover:text-white">
-                    <Plus size={18} />
+                {compactView ? (
+                  <span className="inline-flex items-center justify-center gap-2 text-base font-semibold tracking-[-0.01em] text-indigo-700">
+                    <Plus size={18} className="text-indigo-600" />
+                    {isPreviewMode ? "Entrar para criar" : "Criar roteiro"}
                   </span>
-                  <span className="text-sm font-semibold text-slate-800">Novo Roteiro</span>
-                  <span className="text-xs text-slate-500">Começar em branco</span>
-                </div>
+                ) : (
+                  <>
+                    <div className="border-b border-zinc-100 bg-zinc-50/70 px-5 py-3">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-pink-500">Novo</span>
+                    </div>
+                    <div className="flex flex-1 flex-col items-center justify-center gap-3 p-5">
+                      <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-pink-50 text-pink-500 transition group-hover:bg-zinc-900 group-hover:text-white">
+                        <Plus size={18} />
+                      </span>
+                      <span className="text-sm font-semibold text-zinc-900">
+                        {isPreviewMode ? "Ativar com Google" : "Novo Roteiro"}
+                      </span>
+                      <span className="text-xs text-zinc-500">
+                        {isPreviewMode ? "Salvar, usar IA e continuar do seu board" : "Começar em branco"}
+                      </span>
+                    </div>
+                  </>
+                )}
               </button>
 
               {scripts.map((script) => {
@@ -2674,6 +3353,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                 const cardLinkError = cardLinkErrorByScriptId[script.id];
                 const cardActionFeedback = cardActionFeedbackByScriptId[script.id] || null;
                 const canLinkFromCard = !isAdminViewer;
+                const compactStatusClasses = getCompactStatusClasses(script.publication);
                 const headerChips = [
                   hasAdminAnnotation
                     ? {
@@ -2692,87 +3372,210 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                     }
                     : null,
                 ].filter(Boolean) as Array<{ id: string; label: string; className: string }>;
-                const visibleHeaderChips = headerChips.slice(0, 2);
-                const hiddenHeaderChipCount = Math.max(0, headerChips.length - visibleHeaderChips.length);
+                const visibleHeaderChips = compactView ? [] : headerChips.slice(0, 2);
+                const hiddenHeaderChipCount = compactView ? 0 : Math.max(0, headerChips.length - visibleHeaderChips.length);
                 return (
                   <div
                     key={script.id}
-                    className={`group relative flex h-72 flex-col overflow-visible rounded-[1.5rem] border border-slate-200 bg-white text-left shadow-sm ring-1 ring-transparent transition hover:-translate-y-1 hover:shadow-xl ${tone.ring} sm:h-80 sm:rounded-[2rem]`}
+                    className={`${compactView ? `group relative flex flex-col overflow-visible rounded-[1.05rem] border border-zinc-100/80 bg-zinc-50/58 transition ${tone.compactCard}` : `dashboard-panel group relative flex flex-col overflow-visible text-left ring-1 ring-transparent transition ${tone.ring} h-72 rounded-[1.5rem] sm:h-80 sm:rounded-[2rem] hover:ring-pink-200/60`}`}
                   >
-                    <button
-                      type="button"
-                      onClick={() => openExistingEditor(script)}
-                      className="flex min-h-0 w-full flex-1 flex-col text-left"
-                    >
-                      <div className={`rounded-t-[1.5rem] border-b px-4 py-2.5 sm:rounded-t-[2rem] sm:px-5 sm:py-3 ${tone.header}`}>
-                        <div className="flex items-start justify-between gap-2">
-                          <span className={`text-[10px] font-extrabold uppercase tracking-[0.09em] sm:text-[11px] ${tone.text}`}>
-                            {getSourceLabel(script.source)}
-                          </span>
-                          <div className="flex max-w-[74%] flex-wrap justify-end gap-1.5">
-                            {visibleHeaderChips.map((chip) => (
-                              <span key={chip.id} className={chip.className}>
-                                {chip.label}
+                      {compactView ? (
+                        <div className="grid min-h-0 w-full flex-1 grid-cols-[60px_minmax(0,1fr)] items-start gap-x-3.5 px-2.5 py-2.5 text-left">
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              if (!isAuthenticated) {
+                                void requestGoogleLogin();
+                                return;
+                              }
+                              if (!canInteract) {
+                                openPremiumLinkingPaywall("scripts_card_link_post_btn");
+                                return;
+                              }
+                              void handleCardPublicationAction(event, script);
+                            }}
+                            disabled={isPublicationSaving}
+                            className={`relative mt-0.5 h-[78px] w-[60px] shrink-0 overflow-hidden rounded-[0.95rem] border bg-white transition hover:brightness-[0.99] disabled:opacity-60 ${
+                              isPosted ? "border-emerald-200/90" : tone.compactPlaceholder
+                            }`}
+                            title={isPosted ? "Desvincular do post" : "Vincular ao post"}
+                            aria-label={isPosted ? "Desvincular do post" : "Vincular ao post"}
+                          >
+                            {getPublicationCoverUrl(script.publication) ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={getPublicationCoverUrl(script.publication)!}
+                                alt={getCardTitle(script)}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div
+                                className={`flex h-full w-full flex-col items-center justify-center gap-1 ${
+                                  isPosted ? "bg-emerald-50/80 text-emerald-700" : tone.compactPlaceholder
+                                }`}
+                              >
+                                <span
+                                  className={`inline-flex h-7 w-7 items-center justify-center rounded-full ring-1 ${
+                                    isPosted
+                                      ? "bg-white text-emerald-700 ring-emerald-200"
+                                      : tone.compactPlaceholderIcon
+                                  }`}
+                                >
+                                  {isPosted ? <Check size={14} strokeWidth={3} /> : <Plus size={14} />}
+                                </span>
+                              </div>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => openExistingEditor(script)}
+                            className="min-w-0 self-stretch text-left"
+                          >
+                            <div className="flex min-h-[79px] flex-col justify-between gap-2">
+                              <div className="space-y-1.5">
+                                <div className="flex items-start justify-between gap-3">
+                                  {hasAdminAnnotation || !script.publication?.isPosted ? (
+                                    <span className={`inline-flex rounded-full border px-2 py-0.5 text-[9px] font-semibold tracking-[0.01em] ${hasAdminAnnotation
+                                      ? hasUnreadFeedback
+                                        ? "border-rose-200 bg-rose-50 text-rose-700"
+                                        : "border-rose-100 bg-rose-50/70 text-rose-600"
+                                      : compactStatusClasses}`}>
+                                      {hasAdminAnnotation
+                                        ? hasUnreadFeedback
+                                          ? "Feedback novo"
+                                          : "Feedback disponível"
+                                        : getCompactPublicationSummary(script.publication)}
+                                    </span>
+                                  ) : null}
+                                  {script.recommendation?.isRecommended ? (
+                                    <span className="dashboard-type-control mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-amber-700 ring-0">
+                                      Recomendado
+                                    </span>
+                                  ) : null}
+                                </div>
+
+                                <p className="dashboard-type-item-title line-clamp-2 pr-1 leading-[1.2] text-zinc-900">
+                                  {getCardTitle(script)}
+                                </p>
+                              </div>
+
+                              <div className="space-y-1">
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                  {calendarOriginSummary ? (
+                                    <span className="dashboard-type-meta text-zinc-400">{calendarOriginSummary}</span>
+                                  ) : null}
+                                  {calendarOriginSummary ? <span className="dashboard-type-meta text-zinc-300">•</span> : null}
+                                  <span className="dashboard-type-meta text-zinc-400">
+                                    Atualizado em {formatDate(script.updatedAt)}
+                                  </span>
+                                </div>
+
+                                {hasAdminAnnotation ? (
+                                  <p className="line-clamp-1 text-[10px] font-medium leading-[1.3] text-zinc-500">
+                                    {`Feedback: ${script.adminAnnotation?.notes}`}
+                                  </p>
+                                ) : null}
+                              </div>
+                            </div>
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openExistingEditor(script)}
+                          className="flex min-h-0 w-full flex-1 flex-col text-left"
+                        >
+                          <div className={`border-b px-4 py-2.5 sm:rounded-t-[2rem] ${tone.header} rounded-t-[1.5rem]`}>
+                            <div className="flex items-start justify-between gap-2">
+                              <span
+                                className={`rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] sm:text-[10px] border border-white/80 bg-white/72 ${tone.text}`}
+                              >
+                                {getSourceLabel(script.source)}
                               </span>
-                            ))}
-                            {hiddenHeaderChipCount > 0 ? (
-                              <span className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-700 sm:text-[10px]">
-                                +{hiddenHeaderChipCount}
-                              </span>
-                            ) : null}
+                              <div className="flex max-w-[74%] flex-wrap justify-end gap-1.5">
+                                {visibleHeaderChips.map((chip) => (
+                                  <span key={chip.id} className={chip.className}>
+                                    {chip.label}
+                                  </span>
+                                ))}
+                                {hiddenHeaderChipCount > 0 ? (
+                                  <span className="rounded-full border border-zinc-200 bg-white/85 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-zinc-700 sm:text-[10px]">
+                                    +{hiddenHeaderChipCount}
+                                  </span>
+                                ) : null}
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
 
-                      <div className="flex min-h-0 flex-1 flex-col px-4 pb-3 pt-4 sm:px-5 sm:pt-5">
-                        <p className="line-clamp-2 text-[20px] font-semibold leading-[1.12] tracking-[-0.01em] text-slate-900 sm:text-base sm:leading-tight sm:tracking-normal">
-                          {getCardTitle(script)}
-                        </p>
+                          <div className="flex min-h-0 flex-1 flex-col px-4 pb-3 pt-4 sm:px-5 sm:pt-5">
+                            <p className="line-clamp-2 text-[20px] font-semibold leading-[1.12] tracking-[-0.01em] text-zinc-900 sm:text-base sm:leading-tight sm:tracking-normal">
+                              {getCardTitle(script)}
+                            </p>
 
-                        <div className="mt-3 flex-1 overflow-hidden">
-                          <p className="line-clamp-7 overflow-hidden break-words text-[13px] leading-[1.45] text-slate-600 sm:text-sm sm:leading-relaxed sm:text-slate-500">
-                            {getCardPreview(script)}
+                            <div className="mt-3 flex-1 overflow-hidden">
+                              <p className="line-clamp-7 overflow-hidden break-words text-[13px] leading-[1.45] text-zinc-600 sm:text-sm sm:leading-relaxed sm:text-zinc-500">
+                                {getCardPreview(script)}
+                              </p>
+                            </div>
+
+                            <div className="mt-3 space-y-1">
+                              {hasAdminAnnotation ? (
+                                <p
+                                  className={`line-clamp-1 text-[10px] leading-[1.35] sm:text-[11px] ${
+                                    hasUnreadFeedback ? "font-semibold text-rose-800" : "font-medium text-rose-700"
+                                  }`}
+                                >
+                                  Feedback {hasUnreadFeedback ? "novo: " : ": "}
+                                  {script.adminAnnotation?.notes}
+                                </p>
+                              ) : null}
+                              {script.recommendation?.isRecommended ? (
+                                <p className="line-clamp-1 text-[10px] font-semibold leading-[1.35] text-amber-800 sm:text-[11px]">
+                                  Recomendação: {script.recommendation.recommendedByAdminName || "Admin"}
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+                        </button>
+                      )}
+
+                    <div className={`px-4 ${compactView ? "px-2.5 pb-2.5 pt-0" : "pb-4 pt-2 sm:px-5 sm:pt-2.5"}`}>
+                      {compactView ? null : (
+                        <>
+                          {calendarOriginSummary ? (
+                            <p className="mb-1 text-[10px] font-semibold text-emerald-700 sm:text-[11px]">
+                              {calendarOriginSummary}
+                            </p>
+                          ) : null}
+                          <p className="mb-2 text-[10px] font-medium text-zinc-400 sm:text-[11px]">
+                            Atualizado em {formatDate(script.updatedAt)}
                           </p>
-                        </div>
-
-                        <div className="mt-3 space-y-1">
-                          {hasAdminAnnotation ? (
-                            <p
-                              className={`line-clamp-1 text-[10px] leading-[1.3] sm:text-[11px] ${
-                                hasUnreadFeedback ? "font-semibold text-rose-800" : "font-medium text-rose-700"
-                              }`}
-                            >
-                              Feedback: {hasUnreadFeedback ? "Novo - " : ""}{script.adminAnnotation?.notes}
-                            </p>
-                          ) : null}
-                          {script.recommendation?.isRecommended ? (
-                            <p className="line-clamp-1 text-[10px] font-semibold leading-[1.3] text-amber-800 sm:text-[11px]">
-                              Recomendação: {script.recommendation.recommendedByAdminName || "Admin"}
-                            </p>
-                          ) : null}
-                        </div>
-
-                      </div>
-                    </button>
-
-                    <div className="px-4 pb-4 pt-2 sm:px-5 sm:pt-2.5">
-                      {calendarOriginSummary ? (
-                        <p className="mb-1 text-[10px] font-semibold text-emerald-700 sm:text-[11px]">
-                          {calendarOriginSummary}
-                        </p>
-                      ) : null}
-                      <p className="mb-2 text-[10px] font-medium text-slate-400 sm:text-[11px]">
-                        Atualizado em {formatDate(script.updatedAt)}
-                      </p>
-                      <div className="flex items-center gap-2">
+                        </>
+                      )}
+                      <div className={`flex items-center gap-2 ${compactView ? "flex-col" : ""}`}>
                         {canLinkFromCard ? (
                           <button
                             type="button"
                             onClick={(event) => {
+                              if (!isAuthenticated) {
+                                void requestGoogleLogin();
+                                return;
+                              }
+                              if (!canInteract) {
+                                openPaywall("planning", { source: "scripts_card_link_btn" });
+                                return;
+                              }
                               void handleOpenCardLinkPanel(event, script);
                             }}
                             disabled={isCardLinking || campaignsLoading}
-                            className={`inline-flex min-h-[36px] flex-1 items-center justify-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                            className={`inline-flex min-h-[36px] items-center justify-center gap-1.5 rounded-[1rem] border px-2.5 py-2 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${compactView ? "w-full" : "flex-1"} ${
+                              compactView
+                                ? linkingSummary.isLinked
+                                  ? "border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                                  : tone.compactLinkButton
+                                :
                               linkingSummary.isLinked
                                 ? "border-emerald-300 bg-emerald-100 text-emerald-900 hover:bg-emerald-200"
                                 : "border-slate-900 bg-slate-900 text-white hover:bg-slate-800"
@@ -2792,25 +3595,35 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                             {isCardLinking ? "Processando..." : linkingSummary.isLinked ? "Vínculo ativo" : "Vincular roteiro"}
                           </button>
                         ) : null}
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            void handleCardPublicationAction(event, script);
-                          }}
-                          disabled={isPublicationSaving}
-                          className={`inline-flex min-h-[36px] items-center justify-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold shadow-sm transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                            canLinkFromCard ? "flex-1" : "w-full"
-                          } ${
-                            isPosted
-                              ? "border-emerald-200 bg-emerald-600 text-white hover:bg-emerald-700"
-                              : "border-slate-300 bg-white text-slate-700 hover:border-slate-400"
-                          }`}
-                          title={isPosted ? "Desvincular do post" : "Vincular ao post"}
-                          aria-label={isPosted ? "Desvincular do post" : "Vincular ao post"}
-                        >
-                          {isPosted ? <Check size={13} strokeWidth={3} /> : <span className="h-2 w-2 rounded-full bg-current" />}
-                          {isPublicationSaving ? "Salvando..." : isPosted ? "Desvincular do post" : "Vincular ao post"}
-                        </button>
+                        {compactView ? null : (
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              if (!isAuthenticated) {
+                                void requestGoogleLogin();
+                                return;
+                              }
+                              if (!canInteract) {
+                                openPremiumLinkingPaywall("scripts_card_link_post_btn");
+                                return;
+                              }
+                              void handleCardPublicationAction(event, script);
+                            }}
+                            disabled={isPublicationSaving}
+                              className={`inline-flex min-h-[36px] items-center justify-center gap-1.5 rounded-[1rem] border px-2.5 py-2 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                              canLinkFromCard ? "flex-1" : "w-full"
+                            } ${
+                              isPosted
+                                ? "border-emerald-200 bg-emerald-600 text-white hover:bg-emerald-700"
+                                : "border-zinc-200 bg-white/85 text-zinc-700 hover:border-zinc-300 hover:bg-white"
+                            }`}
+                            title={isPosted ? "Desvincular do post" : "Vincular ao post"}
+                            aria-label={isPosted ? "Desvincular do post" : "Vincular ao post"}
+                          >
+                            {isPosted ? <Check size={13} strokeWidth={3} /> : <span className="h-2 w-2 rounded-full bg-current" />}
+                            {isPublicationSaving ? "Salvando..." : isPosted ? "Desvincular do post" : "Vincular ao post"}
+                          </button>
+                        )}
                       </div>
                       {cardActionFeedback ? (
                         <p
@@ -2836,7 +3649,7 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                     {isCardLinkPopoverOpen && canLinkFromCard ? (
                       <div
                         ref={cardLinkPopoverRef}
-                        className="absolute inset-x-2 bottom-[4.9rem] z-20 rounded-xl border border-slate-200 bg-white p-3 shadow-xl"
+                        className="absolute inset-x-2 bottom-[4.9rem] z-20 rounded-[1.2rem] border border-zinc-100/90 bg-white/90 p-3 shadow-[0_16px_34px_rgba(15,23,42,0.08)] backdrop-blur-xl"
                       >
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                           {linkingSummary.isLinked ? "Gerenciar vínculo" : "Vincular roteiro"}
@@ -2928,10 +3741,10 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
                       </div>
                     ) : null}
 
-                    {quickPublishAnchorScriptId === script.id && !isPosted ? (
+                    {!compactView && quickPublishAnchorScriptId === script.id && !isPosted ? (
                       <div
                         ref={quickPublishPopoverRef}
-                        className="absolute inset-x-2 bottom-[4.9rem] z-20 rounded-xl border border-slate-200 bg-white p-3 shadow-xl"
+                        className="absolute inset-x-2 bottom-[4.9rem] z-20 rounded-[1.2rem] border border-white/90 bg-white/92 p-3 shadow-[0_26px_54px_rgba(15,23,42,0.16)] backdrop-blur-xl"
                       >
                         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Conteúdo publicado</p>
                         <input
@@ -3011,13 +3824,126 @@ export default function MyScriptsPage({ viewer }: { viewer?: ViewerInfo }) {
               })}
             </div>
 
+            {compactView && quickPublishTargetScript ? (
+              <div className="absolute inset-0 z-40 flex items-center justify-center bg-[rgba(244,244,245,0.68)] px-3 py-3 backdrop-blur-[2px]">
+                <div
+                  ref={quickPublishPopoverRef}
+                  className="flex max-h-[min(620px,calc(100vh-4rem))] w-full max-w-[390px] min-h-0 flex-col overflow-hidden rounded-[1.35rem] border border-zinc-100/90 bg-white shadow-[0_28px_64px_rgba(15,23,42,0.16)]"
+                >
+                  <div className="shrink-0 border-b border-zinc-100/90 px-3.5 py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="dashboard-type-section-title text-zinc-950">Conteúdo publicado</p>
+                        <p className="dashboard-type-meta mt-1 text-zinc-500">
+                          Escolha o post para vincular ao roteiro.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (quickPublishSaving) return;
+                          setQuickPublishAnchorScriptId(null);
+                          setQuickPublishContentId("");
+                          setQuickPublishQuery("");
+                        }}
+                        className="dashboard-type-control inline-flex shrink-0 items-center rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-zinc-600 hover:bg-zinc-50"
+                        disabled={quickPublishSaving}
+                      >
+                        Fechar
+                      </button>
+                    </div>
+
+                    <input
+                      type="text"
+                      value={quickPublishQuery}
+                      onChange={(event) => setQuickPublishQuery(event.target.value)}
+                      placeholder="Buscar legenda ou tipo..."
+                      disabled={quickPublishSaving}
+                      className="mt-3 w-full rounded-[0.95rem] border border-zinc-200 bg-white px-3 py-2.5 text-xs text-zinc-700 outline-none focus:border-zinc-300 focus:ring-2 focus:ring-zinc-100 disabled:bg-zinc-100"
+                    />
+                  </div>
+
+                  <div className="min-h-0 flex-1 overflow-y-auto px-3.5 py-3">
+                    <div className="space-y-1.5 rounded-[1rem] border border-zinc-100/90 bg-zinc-50/56 p-1.5">
+                      {contentOptionsLoading ? (
+                        <p className="px-2 py-2 text-xs text-zinc-500">Carregando conteúdos...</p>
+                      ) : filteredQuickPublishOptions.length === 0 ? (
+                        <p className="px-2 py-2 text-xs text-zinc-500">Nenhum conteúdo encontrado.</p>
+                      ) : (
+                        filteredQuickPublishOptions.slice(0, 20).map((option) => {
+                          const selected = quickPublishContentId === option.id;
+                          return (
+                            <button
+                              type="button"
+                              key={option.id}
+                              onClick={() => setQuickPublishContentId(option.id)}
+                              disabled={quickPublishSaving}
+                              className={`w-full rounded-[0.9rem] border bg-white px-2.5 py-2.5 text-left text-xs transition ${
+                                selected
+                                  ? "border-emerald-200 ring-2 ring-emerald-100"
+                                  : "border-zinc-100 hover:border-zinc-200"
+                              }`}
+                            >
+                              <p className="line-clamp-2 font-semibold leading-snug text-zinc-800">{option.caption}</p>
+                              <p className="mt-1 text-[11px] text-zinc-500">
+                                {option.postDate ? formatDateCompact(option.postDate) : "Sem data"} · Eng{" "}
+                                {typeof option.engagement === "number" ? option.engagement.toFixed(2) : "-"} · Interações{" "}
+                                {formatNumber(option.totalInteractions)}
+                              </p>
+                            </button>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="shrink-0 border-t border-zinc-100/90 bg-white px-3.5 py-3">
+                    <p className="dashboard-type-meta line-clamp-1 text-zinc-400">
+                      Atualizado em {formatDate(quickPublishTargetScript.updatedAt)}
+                    </p>
+                    {selectedQuickPublishOption ? (
+                      <p className="dashboard-type-meta mt-1 line-clamp-1 text-emerald-700">
+                        Selecionado: {selectedQuickPublishOption.caption}
+                      </p>
+                    ) : null}
+                    <div className="mt-3 flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (quickPublishSaving) return;
+                          setQuickPublishAnchorScriptId(null);
+                          setQuickPublishContentId("");
+                          setQuickPublishQuery("");
+                        }}
+                        className="rounded-[0.9rem] border border-zinc-200 px-3 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50"
+                        disabled={quickPublishSaving}
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void handleConfirmQuickPublish();
+                        }}
+                        disabled={quickPublishSaving || !quickPublishContentId}
+                        className="inline-flex items-center gap-1 rounded-[0.9rem] bg-emerald-500 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
+                      >
+                        <Check size={12} />
+                        {quickPublishSaving ? "Salvando..." : "Marcar"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
             {hasMore ? (
               <div className="mt-6 flex justify-center">
                 <button
                   type="button"
                   disabled={loadingMore}
                   onClick={() => fetchScripts({ cursor: nextCursor })}
-                  className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                  className="dashboard-secondary-button px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
                 >
                   {loadingMore ? "Carregando..." : "Carregar mais"}
                 </button>

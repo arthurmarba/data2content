@@ -1,13 +1,6 @@
 // src/app/dashboard/page.tsx
-import React from "react";
-import HomeClientPage from "./home/HomeClientPage";
-
-export const dynamic = "force-dynamic";
+import { redirect } from "next/navigation";
 
 export default function DashboardHomePage() {
-  return (
-    <main className="w-full">
-      <HomeClientPage />
-    </main>
-  );
+  redirect("/");
 }

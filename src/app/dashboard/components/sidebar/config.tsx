@@ -94,8 +94,8 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
       {
         type: "item",
         key: "dashboard",
-        label: "Início",
-        href: "/dashboard",
+        label: "Painel",
+        href: "/",
         icon: ICONS.dashboard,
         exact: true,
       },
@@ -132,29 +132,19 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
     items: [
       {
         type: "item",
+        key: "calendar.hub",
+        label: "Criação de Post",
+        tooltip: "Seu planejamento e roteiros em um só lugar",
+        href: "/calendar",
+        icon: ICONS.planningCalendar,
+      },
+      {
+        type: "item",
         key: "planning.charts",
-        label: navigationLabels.planningCharts.menu,
+        label: "Análise de Perfil",
         tooltip: navigationLabels.planningCharts.tooltip,
         href: "/planning/graficos",
         icon: ICONS.planningCharts,
-        paywallResolver: ({ planningLocked }) => (planningLocked ? "planning" : undefined),
-      },
-      {
-        type: "item",
-        key: "planning.calendar",
-        label: navigationLabels.planningPlanner.menu,
-        tooltip: navigationLabels.planningPlanner.tooltip,
-        href: "/planning/planner",
-        icon: ICONS.planningCalendar,
-        paywallResolver: ({ planningLocked }) => (planningLocked ? "planning" : undefined),
-      },
-      {
-        type: "item",
-        key: "planning.scripts",
-        label: navigationLabels.planningScripts.menu,
-        tooltip: navigationLabels.planningScripts.tooltip,
-        href: "/planning/roteiros",
-        icon: ICONS.planningScripts,
         paywallResolver: ({ planningLocked }) => (planningLocked ? "planning" : undefined),
       },
       {
@@ -176,8 +166,8 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
       {
         type: "item",
         key: "campaigns.overview",
-        label: navigationLabels.campaigns.menu,
-        tooltip: navigationLabels.campaigns.tooltip,
+        label: "Campanhas",
+        tooltip: "Sua central comercial: CRM, Publis e Calculadora",
         href: "/campaigns",
         icon: ICONS.campaigns,
       },
@@ -240,7 +230,7 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
 
 const shouldHideInMinimal = (hideInMinimal: boolean | undefined, dashboardMinimal: boolean) =>
   Boolean(hideInMinimal && dashboardMinimal);
-const HIDDEN_SIDEBAR_ITEM_KEYS = new Set<string>(["pro", "instagram-connection", "settings"]);
+const HIDDEN_SIDEBAR_ITEM_KEYS = new Set<string>(["pro", "instagram-connection", "settings", "publis", "campaigns.calculator"]);
 
 const resolveChild = (
   definition: SidebarChildDefinition,
@@ -256,8 +246,13 @@ const resolveChild = (
 
   const paywallContext = definition.paywallResolver?.(options);
 
+  if (options.isMobile && definition.key === "planning.discover") {
+    return null;
+  }
+
   return {
     ...definition,
+    label: options.isMobile && definition.key === "dashboard" ? "Comunidade" : definition.label,
     paywallContext,
   };
 };

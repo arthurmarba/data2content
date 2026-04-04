@@ -32,8 +32,20 @@ import {
   EngagementMetricField,
   TimePeriod,
 } from "@/app/lib/constants/timePeriods";
-import { getMetricMeta, LEAD_INTENT_PROXY_FIELD } from "@/utils/performanceMetricResolver";
+import {
+  getMetricMeta,
+  LEAD_INTENT_PROXY_FIELD,
+  resolvePerformanceMetricValue,
+} from "@/utils/performanceMetricResolver";
 import { getCategoryById } from "@/app/lib/classification";
+import {
+  CATEGORY_RANKING_LIMIT,
+  limitCategoryBars,
+  mergeCategoryBars,
+  shouldSupplementCategoryBars,
+  type CategoryRankingBar,
+} from "@/app/lib/planning/categoryRankingUtils";
+import { normalizePlanningPost } from "@/app/lib/planning/normalizePlanningPost";
 
 export const dynamic = "force-dynamic";
 
@@ -45,13 +57,14 @@ const DEFAULT_MAX_SLICES = 7;
 const MAX_PAGE_LIMIT = 200;
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_LIMIT = 200;
-const CACHE_SCHEMA_VERSION = "v7";
+const CACHE_SCHEMA_VERSION = "v8";
 const MIN_BENCHMARK_CREATORS = 5;
 const MIN_BENCHMARK_POSTS = 18;
 const MAX_BENCHMARK_CREATORS = 60;
 const MAX_SIMILAR_CREATORS_VISIBLE = 6;
 const WINDOW_BLOCK_HOURS = 4;
 const CHARTS_BATCH_FALLBACK_TTL_MS = 10 * 60_000;
+const BOARD_SURFACE_PLACEHOLDER_REASON = "Os comparativos avançados entram quando você aprofunda a análise.";
 
 const DEFAULT_FORMAT_MAPPING: Record<string, string> = {
   IMAGE: "Imagem",
@@ -180,6 +193,201 @@ function matchesValue(list: string[], target: string): boolean {
 function formatPostsCount(count: number): string {
   const rounded = Math.max(0, Math.round(count));
   return `${numberFormatter.format(rounded)} post${rounded === 1 ? "" : "s"}`;
+}
+
+type RankableCategoryField =
+  | "proposal"
+  | "context"
+  | "tone"
+  | "references"
+  | "contentIntent"
+  | "narrativeForm"
+  | "contentSignals"
+  | "stance"
+  | "proofStyle"
+  | "commercialMode";
+
+function aggregateAverageMetricByCategory(
+  posts: Array<ReturnType<typeof normalizePlanningPost>>,
+  field: RankableCategoryField,
+  performanceMetricField: string
+): CategoryRankingBar[] {
+  if (!Array.isArray(posts) || posts.length === 0) return [];
+
+  const acc = new Map<string, { metricSum: number; postsCount: number }>();
+
+  posts.forEach((post) => {
+    const metricValue = resolvePerformanceMetricValue(post as any, performanceMetricField);
+    if (typeof metricValue !== "number" || !Number.isFinite(metricValue)) return;
+
+    const categories = Array.from(
+      new Set(
+        toStringArray((post as any)?.[field])
+          .map((value) => String(value).trim())
+          .filter(Boolean)
+      )
+    );
+
+    if (!categories.length) return;
+
+    categories.forEach((category) => {
+      const current = acc.get(category) || { metricSum: 0, postsCount: 0 };
+      current.metricSum += metricValue;
+      current.postsCount += 1;
+      acc.set(category, current);
+    });
+  });
+
+  return Array.from(acc.entries())
+    .map(([name, data]) => ({
+      name,
+      value: data.postsCount > 0 ? data.metricSum / data.postsCount : 0,
+      postsCount: data.postsCount,
+    }))
+    .sort((left, right) => right.value - left.value);
+}
+
+function normalizeCategoryRankingRows(
+  rows: CategoryRankingBar[] | undefined,
+  posts: Array<ReturnType<typeof normalizePlanningPost>>,
+  field: RankableCategoryField,
+  performanceMetricField: string
+) {
+  const safeRows = Array.isArray(rows) ? rows : [];
+
+  if (shouldSupplementCategoryBars(safeRows, CATEGORY_RANKING_LIMIT)) {
+    return limitCategoryBars(
+      mergeCategoryBars(
+        safeRows,
+        aggregateAverageMetricByCategory(posts, field, performanceMetricField)
+      ),
+      CATEGORY_RANKING_LIMIT
+    );
+  }
+
+  return limitCategoryBars(safeRows, CATEGORY_RANKING_LIMIT);
+}
+
+function normalizeCategoryRankingPayload(payload: any, performanceMetricField: EngagementMetricField) {
+  if (!payload || typeof payload !== "object") return payload;
+
+  const normalizedPosts = Array.isArray(payload?.postsData?.posts)
+    ? payload.postsData.posts.map((post: any) => normalizePlanningPost(post))
+    : [];
+
+  return {
+    ...payload,
+    proposalData: payload?.proposalData
+      ? {
+          ...payload.proposalData,
+          chartData: normalizeCategoryRankingRows(
+            payload.proposalData.chartData,
+            normalizedPosts,
+            "proposal",
+            performanceMetricField
+          ),
+        }
+      : payload?.proposalData,
+    toneData: payload?.toneData
+      ? {
+          ...payload.toneData,
+          chartData: normalizeCategoryRankingRows(
+            payload.toneData.chartData,
+            normalizedPosts,
+            "tone",
+            performanceMetricField
+          ),
+        }
+      : payload?.toneData,
+    referenceData: payload?.referenceData
+      ? {
+          ...payload.referenceData,
+          chartData: normalizeCategoryRankingRows(
+            payload.referenceData.chartData,
+            normalizedPosts,
+            "references",
+            performanceMetricField
+          ),
+        }
+      : payload?.referenceData,
+    contextData: payload?.contextData
+      ? {
+          ...payload.contextData,
+          chartData: normalizeCategoryRankingRows(
+            payload.contextData.chartData,
+            normalizedPosts,
+            "context",
+            performanceMetricField
+          ),
+        }
+      : payload?.contextData,
+    contentIntentData: payload?.contentIntentData
+      ? {
+          ...payload.contentIntentData,
+          chartData: normalizeCategoryRankingRows(
+            payload.contentIntentData.chartData,
+            normalizedPosts,
+            "contentIntent",
+            performanceMetricField
+          ),
+        }
+      : payload?.contentIntentData,
+    narrativeFormData: payload?.narrativeFormData
+      ? {
+          ...payload.narrativeFormData,
+          chartData: normalizeCategoryRankingRows(
+            payload.narrativeFormData.chartData,
+            normalizedPosts,
+            "narrativeForm",
+            performanceMetricField
+          ),
+        }
+      : payload?.narrativeFormData,
+    contentSignalsData: payload?.contentSignalsData
+      ? {
+          ...payload.contentSignalsData,
+          chartData: normalizeCategoryRankingRows(
+            payload.contentSignalsData.chartData,
+            normalizedPosts,
+            "contentSignals",
+            performanceMetricField
+          ),
+        }
+      : payload?.contentSignalsData,
+    stanceData: payload?.stanceData
+      ? {
+          ...payload.stanceData,
+          chartData: normalizeCategoryRankingRows(
+            payload.stanceData.chartData,
+            normalizedPosts,
+            "stance",
+            performanceMetricField
+          ),
+        }
+      : payload?.stanceData,
+    proofStyleData: payload?.proofStyleData
+      ? {
+          ...payload.proofStyleData,
+          chartData: normalizeCategoryRankingRows(
+            payload.proofStyleData.chartData,
+            normalizedPosts,
+            "proofStyle",
+            performanceMetricField
+          ),
+        }
+      : payload?.proofStyleData,
+    commercialModeData: payload?.commercialModeData
+      ? {
+          ...payload.commercialModeData,
+          chartData: normalizeCategoryRankingRows(
+            payload.commercialModeData.chartData,
+            normalizedPosts,
+            "commercialMode",
+            performanceMetricField
+          ),
+        }
+      : payload?.commercialModeData,
+  };
 }
 
 function parseFeedbackVariant(feedbackKey?: string | null): string {
@@ -332,6 +540,7 @@ function buildChartsBatchCacheKey(params: {
   maxSlices: number;
   page: number;
   limit: number;
+  surface: "board" | "full";
 }) {
   return `${SERVICE_TAG}:${JSON.stringify({
     v: CACHE_SCHEMA_VERSION,
@@ -1990,6 +2199,7 @@ export async function GET(
   const pageParam = searchParams.get("page");
   const limitParam = searchParams.get("limit");
   const objectiveModeParam = searchParams.get("objectiveMode");
+  const surfaceParam = String(searchParams.get("surface") || "").trim().toLowerCase();
 
   const timePeriod: TimePeriod = isAllowedTimePeriod(timePeriodParam) ? timePeriodParam : DEFAULT_TIME_PERIOD;
   if (timePeriodParam && !isAllowedTimePeriod(timePeriodParam)) {
@@ -2027,6 +2237,7 @@ export async function GET(
   const objectiveMode: PlanningObjectiveMode = isAllowedPlanningObjective(objectiveModeParam)
     ? objectiveModeParam
     : "engagement";
+  const surface: "board" | "full" = surfaceParam === "board" ? "board" : "full";
   if (objectiveModeParam && !isAllowedPlanningObjective(objectiveModeParam)) {
     return NextResponse.json(
       {
@@ -2049,6 +2260,7 @@ export async function GET(
       maxSlices,
       page,
       limit,
+      surface,
     });
     const fallbackCacheKey = `${cacheKey}:fallback`;
 
@@ -2078,7 +2290,14 @@ export async function GET(
           timed("trendMs", () => getUserReachInteractionTrendChartData(userId, timePeriod, granularity, {})),
           timed("timeMs", () => aggregateUserTimePerformance(userId, periodInDaysValue, metricField, {})),
           timed("durationMs", () => aggregateUserDurationPerformance(userId, periodInDaysValue)),
-          timed("benchmarkMs", () => buildSimilarCreatorsBenchmarkBundle(userId, timePeriod, objectiveMode)),
+          timed("benchmarkMs", () =>
+            surface === "board"
+              ? Promise.resolve({
+                  timingBenchmark: buildBenchmarkPlaceholder(BOARD_SURFACE_PLACEHOLDER_REASON),
+                  similarCreators: buildSimilarCreatorsPlaceholder(BOARD_SURFACE_PLACEHOLDER_REASON),
+                })
+              : buildSimilarCreatorsBenchmarkBundle(userId, timePeriod, objectiveMode)
+          ),
           timed("formatMs", () =>
             getEngagementDistributionByFormatChartData(
               userId,
@@ -2118,6 +2337,7 @@ export async function GET(
               sortOrder: "desc",
               page,
               limit,
+              surface,
             })
           ),
           timed("strategicDeltasMs", () => computeStrategicDeltas(userId, timePeriod)),
@@ -2135,7 +2355,10 @@ export async function GET(
           };
         });
         computeTimings.normalizeMs = nowMs() - normalizeStartedAt;
-        const totalPages = Math.max(1, Math.ceil(postsResult.totalPosts / postsResult.limit));
+        const totalPagesFromTotal = Math.ceil(postsResult.totalPosts / postsResult.limit);
+        const totalPages = postsResult.hasMore
+          ? Math.max(postsResult.page + 1, totalPagesFromTotal || 0)
+          : Math.max(1, totalPagesFromTotal || postsResult.page || 1);
         return {
           payload: {
             trendData,
@@ -2200,6 +2423,8 @@ export async function GET(
                 currentPage: postsResult.page,
                 totalPages,
                 totalPosts: postsResult.totalPosts,
+                hasMore: Boolean(postsResult.hasMore),
+                countMode: postsResult.countMode ?? "exact",
               },
             },
             strategicDeltas,
@@ -2229,7 +2454,27 @@ export async function GET(
       if (typeof perfData.strategicDeltasMs === "number") timings.push({ name: "strategicDeltas", durationMs: perfData.strategicDeltasMs });
     }
 
-    const responsePayload = (value as any)?.payload ?? value;
+    const responsePayload = normalizeCategoryRankingPayload(
+      (value as any)?.payload ?? value,
+      engagementMetricField
+    );
+    if (surface === "board") {
+      const boardPayload = {
+        ...responsePayload,
+        objectiveMode,
+        recommendations: { actions: [] },
+        directioningSummary: null,
+        topActions: [],
+      };
+      const durationMs = nowMs() - startedAt;
+      timings.push({ name: "total", durationMs });
+      logger.info(`${SERVICE_TAG} Responded in ${durationMs}ms (cacheHit=${hit}, surface=${surface})`);
+      const response = NextResponse.json(boardPayload, { status: 200 });
+      return withServerTiming(response, timings, {
+        "X-D2C-Cache": hit ? "hit" : "miss",
+        "X-D2C-Surface": surface,
+      });
+    }
     const feedbackStartedAt = nowMs();
     const { feedbackByActionId, feedbackMetaByActionId } = await getRecommendationFeedbackByAction(userId, objectiveMode, timePeriod);
     timings.push({ name: "feedback", durationMs: nowMs() - feedbackStartedAt });
@@ -2272,9 +2517,12 @@ export async function GET(
 
     const durationMs = nowMs() - startedAt;
     timings.push({ name: "total", durationMs });
-    logger.info(`${SERVICE_TAG} Responded in ${durationMs}ms (cacheHit=${hit})`);
+    logger.info(`${SERVICE_TAG} Responded in ${durationMs}ms (cacheHit=${hit}, surface=${surface})`);
     const response = NextResponse.json(responsePayloadWithRecommendations, { status: 200 });
-    return withServerTiming(response, timings, { "X-D2C-Cache": hit ? "hit" : "miss" });
+    return withServerTiming(response, timings, {
+      "X-D2C-Cache": hit ? "hit" : "miss",
+      "X-D2C-Surface": surface,
+    });
   } catch (error: any) {
     const cacheKey = buildChartsBatchCacheKey({
       userId,
@@ -2286,6 +2534,7 @@ export async function GET(
       maxSlices,
       page,
       limit,
+      surface,
     });
     const fallbackCacheKey = `${cacheKey}:fallback`;
     const cachedFallback = dashboardCache.get<any>(fallbackCacheKey)?.value;
@@ -2296,13 +2545,16 @@ export async function GET(
       });
       timings.push({ name: "total", durationMs: nowMs() - startedAt });
       const response = NextResponse.json(
-        cachedFallback ??
-          buildChartsBatchFallbackPayload({
-            objectiveMode,
-            engagementMetricField,
-            page,
-            reason: "Estamos reprocessando os dados agora. Tente novamente em alguns instantes.",
-          }),
+        normalizeCategoryRankingPayload(
+          cachedFallback ??
+            buildChartsBatchFallbackPayload({
+              objectiveMode,
+              engagementMetricField,
+              page,
+              reason: "Estamos reprocessando os dados agora. Tente novamente em alguns instantes.",
+            }),
+          engagementMetricField
+        ),
         { status: 200 }
       );
       return withServerTiming(response, timings, {

@@ -16,11 +16,11 @@ export const DemographicBarList: React.FC<DemographicBarListProps> = ({
         <div className="space-y-4">
             {data.slice(0, maxItems).map((item) => (
                 <div key={`${item.label}-${item.percentage}`}>
-                    <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium text-slate-700">{item.label}</span>
-                        <span className="font-bold text-slate-900">{Math.round(item.percentage)}%</span>
+                    <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="font-medium text-zinc-700">{item.label}</span>
+                        <span className="font-bold text-zinc-900">{Math.round(item.percentage)}%</span>
                     </div>
-                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                    <div className="dashboard-progress-track mt-2 h-1.5 w-full">
                         <div
                             className={`h-full rounded-full bg-gradient-to-r ${accentClass}`}
                             style={{ width: `${Math.min(item.percentage, 100)}%` }}

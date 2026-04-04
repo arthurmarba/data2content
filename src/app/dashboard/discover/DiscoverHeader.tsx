@@ -14,22 +14,12 @@ type DiscoverHeaderProps = {
 const PROOF_TEXT = "Use como referência para seus próximos conteúdos. Isso valoriza seu Mídia Kit.";
 
 export default function DiscoverHeader({ allowedPersonalized, featuredCount }: DiscoverHeaderProps) {
-  const { instagram, hasPremiumAccess, isTrialActive, trialRemainingMs, trial } = useBillingStatus();
+  const { instagram, hasPremiumAccess } = useBillingStatus();
   const [infoOpen, setInfoOpen] = useState(false);
   const ctaConfig = useDiscoverCtaConfig(allowedPersonalized);
 
   const instagramConnected = Boolean(allowedPersonalized || instagram?.connected);
   const needsReconnect = Boolean(instagram?.needsReconnect);
-  const trialCountdown = useMemo(() => {
-    if (!trialRemainingMs || trialRemainingMs <= 0) return null;
-    const totalMinutes = Math.floor(trialRemainingMs / 60000);
-    if (totalMinutes <= 0) return null;
-    if (totalMinutes < 60) return `${totalMinutes} min`;
-    const totalHours = Math.floor(totalMinutes / 60);
-    if (totalHours < 48) return `${totalHours} h`;
-    const totalDays = Math.floor(totalHours / 24);
-    return `${totalDays} d`;
-  }, [trialRemainingMs]);
 
   const headline = instagramConnected
     ? "Discover personalizado com IA"
@@ -74,17 +64,7 @@ export default function DiscoverHeader({ allowedPersonalized, featuredCount }: D
       );
     }
 
-    if (isTrialActive) {
-      items.push(
-        <span
-          key="trial-active"
-          className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700"
-        >
-          <Sparkles className="h-4 w-4" aria-hidden />
-          Trial ativo{trialCountdown ? ` • ${trialCountdown}` : ""}
-        </span>
-      );
-    } else if (hasPremiumAccess) {
+    if (hasPremiumAccess) {
       items.push(
         <span
           key="pro-active"
@@ -97,7 +77,7 @@ export default function DiscoverHeader({ allowedPersonalized, featuredCount }: D
     }
 
     return items;
-  }, [instagramConnected, instagram?.username, needsReconnect, isTrialActive, trialCountdown, hasPremiumAccess]);
+  }, [instagramConnected, instagram?.username, needsReconnect, hasPremiumAccess]);
 
   const toggleInfo = () => setInfoOpen((prev) => !prev);
   const handleInfoBlur = () => {

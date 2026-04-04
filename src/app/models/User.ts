@@ -296,6 +296,7 @@ export interface IUser extends Document {
   email: string;
   password?: string;
   image?: string;
+  providerImage?: string;
   googleId?: string;
   provider?: string;
   providerAccountId?: string;
@@ -412,6 +413,10 @@ export interface IUser extends Document {
     statusDetail: string;
   };
   lastProcessedPaymentId?: string;
+  serviceTermsAcceptedAt?: Date | null;
+  serviceTermsVersion?: string | null;
+  privacyPolicyAcceptedAt?: Date | null;
+  privacyPolicyVersion?: string | null;
   communityInspirationOptIn?: boolean;
   communityInspirationOptInDate?: Date | null;
   communityInspirationTermsVersion?: string | null;
@@ -574,6 +579,7 @@ const userSchema = new Schema<IUser>(
     },
 
     image: { type: String },
+    providerImage: { type: String },
     googleId: { type: String },
     provider: { type: String, index: true },
     providerAccountId: { type: String, index: true },
@@ -687,6 +693,10 @@ const userSchema = new Schema<IUser>(
       statusDetail: { type: String },
     },
     lastProcessedPaymentId: { type: String, default: null, index: true },
+    serviceTermsAcceptedAt: { type: Date, default: null },
+    serviceTermsVersion: { type: String, default: null },
+    privacyPolicyAcceptedAt: { type: Date, default: null },
+    privacyPolicyVersion: { type: String, default: null },
     communityInspirationOptIn: { type: Boolean, default: false },
     communityInspirationOptInDate: { type: Date, default: null },
     communityInspirationTermsVersion: { type: String, default: null },

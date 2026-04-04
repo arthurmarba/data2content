@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { MessageSquarePlus, X } from "lucide-react";
 
 export type InlineAnnotation = {
@@ -21,9 +21,12 @@ interface InlineScriptEditorProps {
     annotations: InlineAnnotation[];
     onAnnotationsChange: (annotations: InlineAnnotation[]) => void;
     isAdminViewer: boolean;
+    activeAnnotationId?: string | null;
+    onAnnotationFocus?: (annotationId: string) => void;
     viewerName?: string;
     placeholder?: string;
     onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
+    compactView?: boolean;
 }
 
 export function InlineScriptEditor({
@@ -32,9 +35,12 @@ export function InlineScriptEditor({
     annotations,
     onAnnotationsChange,
     isAdminViewer,
+    activeAnnotationId = null,
+    onAnnotationFocus,
     viewerName = "Admin",
     placeholder = "Escreva seu roteiro aqui...",
     onKeyDown,
+    compactView = false,
 }: InlineScriptEditorProps) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const backdropRef = useRef<HTMLDivElement>(null);
@@ -119,9 +125,14 @@ export function InlineScriptEditor({
 
         sorted.forEach((ann, i) => {
             if (ann.startIndex >= lastIndex) {
+                const isActive = ann.id === activeAnnotationId;
                 result.push(content.slice(lastIndex, ann.startIndex));
                 result.push(
-                    <mark key={ann.id} className="bg-amber-200/60 rounded-sm text-transparent" title={ann.comment}>
+                    <mark
+                        key={ann.id}
+                        className={`rounded-sm text-transparent ${isActive ? "bg-amber-300/90" : "bg-amber-200/60"}`}
+                        title={ann.comment}
+                    >
                         {content.slice(ann.startIndex, ann.endIndex)}
                     </mark>
                 );
@@ -136,7 +147,26 @@ export function InlineScriptEditor({
         }
 
         return result;
-    }, [annotations, content]);
+    }, [annotations, content, activeAnnotationId]);
+
+    useEffect(() => {
+        if (!activeAnnotationId) return;
+        const el = textareaRef.current;
+        if (!el) return;
+        const target = annotations.find((annotation) => annotation.id === activeAnnotationId);
+        if (!target || target.isOrphaned) return;
+
+        const beforeText = content.slice(0, target.startIndex);
+        const lineCount = beforeText.split("\n").length - 1;
+        const computedLineHeight = Number.parseFloat(window.getComputedStyle(el).lineHeight || "36");
+        const lineHeight = Number.isFinite(computedLineHeight) ? computedLineHeight : 36;
+        const nextScrollTop = Math.max(lineCount * lineHeight - lineHeight * 2, 0);
+
+        el.focus({ preventScroll: true });
+        el.scrollTop = nextScrollTop;
+        el.setSelectionRange(target.startIndex, target.endIndex);
+        handleScroll();
+    }, [activeAnnotationId, annotations, content]);
 
     const handleCreateComment = () => {
         if (!selection) return;
@@ -167,10 +197,12 @@ export function InlineScriptEditor({
     };
 
     return (
-        <div className="relative h-full w-full min-h-[62vh] font-sans">
+        <div className={`relative w-full font-sans ${compactView ? "h-full min-h-0" : "h-full min-h-[62vh]"}`}>
             <div
                 ref={backdropRef}
-                className="pointer-events-none absolute inset-0 z-0 overflow-y-auto whitespace-pre-wrap break-words py-7 text-[17px] leading-9 text-transparent"
+                className={`pointer-events-none absolute inset-0 z-0 overflow-y-auto whitespace-pre-wrap break-words text-transparent ${
+                    compactView ? "px-1 py-3 text-[14px] leading-7" : "py-7 text-[17px] leading-9"
+                }`}
                 aria-hidden="true"
             >
                 {highlightedContent}
@@ -182,6 +214,10 @@ export function InlineScriptEditor({
                 onChange={handleChange}
                 onScroll={handleScroll}
                 onMouseUp={handleMouseUp}
+                onClick={() => {
+                    if (!activeAnnotationId) return;
+                    onAnnotationFocus?.(activeAnnotationId);
+                }}
                 onKeyDown={onKeyDown}
                 onKeyUp={(e) => {
                     if (e.key.startsWith('Arrow') || e.key === 'Shift') {
@@ -189,7 +225,11 @@ export function InlineScriptEditor({
                     }
                 }}
                 placeholder={placeholder}
-                className="relative z-10 h-full min-h-[62vh] w-full resize-none overflow-y-auto border-0 bg-transparent py-7 text-[17px] leading-9 text-slate-800 outline-none ring-0 ring-transparent placeholder:text-slate-300 focus:border-transparent focus:outline-none focus:ring-0 focus:ring-transparent focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-0"
+                className={`relative z-10 w-full resize-none overflow-y-auto border-0 bg-transparent text-slate-800 outline-none ring-0 ring-transparent placeholder:text-slate-300 focus:border-transparent focus:outline-none focus:ring-0 focus:ring-transparent focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-0 ${
+                    compactView
+                        ? "h-full min-h-0 px-1 py-3 text-[14px] leading-7"
+                        : "h-full min-h-[62vh] py-7 text-[17px] leading-9"
+                }`}
             />
 
             {selection && !isCommenting && (

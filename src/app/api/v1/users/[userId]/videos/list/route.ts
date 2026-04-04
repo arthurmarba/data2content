@@ -13,7 +13,9 @@ export const dynamic = 'force-dynamic';
 
 const DEFAULT_SORT_BY = 'postDate';
 const ALLOWED_DURATION_BUCKETS = ['0_15', '15_30', '30_60', '60_plus'] as const;
+const ALLOWED_SURFACES = ['board', 'full'] as const;
 type DurationBucket = (typeof ALLOWED_DURATION_BUCKETS)[number];
+type VideosListSurface = (typeof ALLOWED_SURFACES)[number];
 
 function extractThumbnail(v: any): string | undefined {
   const fromChildren =
@@ -65,6 +67,13 @@ const toDurationBucket = (value: string | null): DurationBucket | null => {
     : null;
 };
 
+const toSurface = (value: string | null): VideosListSurface => {
+  const normalized = String(value ?? '').trim().toLowerCase();
+  return (ALLOWED_SURFACES as readonly string[]).includes(normalized)
+    ? (normalized as VideosListSurface)
+    : 'full';
+};
+
 export async function GET(
   request: Request,
   { params }: { params: { userId: string } }
@@ -84,6 +93,7 @@ export async function GET(
     const sortOrder: 'asc' | 'desc' = searchParams.get('sortOrder') === 'asc' ? 'asc' : 'desc';
     const page = toInt(searchParams.get('page'), 1);
     const limit = Math.min(toInt(searchParams.get('limit'), 10), 200);
+    const surface = toSurface(searchParams.get('surface'));
     const hourFilter = toHour(searchParams.get('hour'));
     const durationBucketRaw = searchParams.get('durationBucket');
     const durationBucket = toDurationBucket(durationBucketRaw);
@@ -149,6 +159,7 @@ export async function GET(
       sortOrder,
       page,
       limit,
+      surface,
       filters,
       startDate,
       endDate,
@@ -167,7 +178,10 @@ export async function GET(
     });
 
     // ALTERADO: Usa result.totalPosts para calcular o total de páginas
-    const totalPages = Math.max(1, Math.ceil(result.totalPosts / result.limit));
+    const totalPagesFromTotal = Math.ceil(result.totalPosts / result.limit);
+    const totalPages = result.hasMore
+      ? Math.max(result.page + 1, totalPagesFromTotal || 0)
+      : Math.max(1, totalPagesFromTotal || result.page || 1);
 
     // ALTERADO: Retorna um objeto consistente com a mudança (posts, totalPosts)
     return NextResponse.json({
@@ -176,6 +190,8 @@ export async function GET(
         currentPage: result.page,
         totalPages,
         totalPosts: result.totalPosts,
+        hasMore: Boolean(result.hasMore),
+        countMode: result.countMode ?? 'exact',
       },
     });
   } catch (error) {

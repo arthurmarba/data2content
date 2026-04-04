@@ -73,7 +73,18 @@ export const HowItWorksSection: React.FC = () => (
       <div className="mt-12 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">
         <button
           onClick={() => {
-            if (typeof window !== "undefined") window.dispatchEvent(new Event("open-subscribe-modal"));
+            if (typeof window !== "undefined") {
+              const returnTo = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+              window.dispatchEvent(
+                new CustomEvent("open-subscribe-modal", {
+                  detail: {
+                    context: "mentoria",
+                    source: "landing_how_it_works",
+                    returnTo,
+                  },
+                })
+              );
+            }
           }}
           className="inline-flex items-center justify-center rounded-lg bg-[#F6007B] px-8 py-4 text-sm font-semibold text-white shadow-[0_16px_40px_rgba(246,0,123,0.22)] transition hover:-translate-y-0.5 hover:bg-[#d40068] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/30 md:text-base"
         >

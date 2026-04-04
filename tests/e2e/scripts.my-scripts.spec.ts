@@ -1,8 +1,87 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+
+const PRIMARY_CONTENT_FRAGMENT = "conteudo publicado principal para vinculo.";
+const ALTERNATE_CONTENT_FRAGMENT = "conteudo publicado alternativo para troca de vinculo.";
 
 async function ensurePlannerAccess(page: Page) {
   const ensureAccessRes = await page.request.post("/api/dev/e2e/ensure-planner-access");
   expect(ensureAccessRes.ok(), `ensure-planner-access failed with status ${ensureAccessRes.status()}`).toBeTruthy();
+}
+
+async function installScriptsAccessMocks(page: Page) {
+  await page.route("**/api/plan/status**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ok: true,
+        status: "active",
+        interval: "month",
+        priceId: null,
+        planExpiresAt: null,
+        cancelAtPeriodEnd: false,
+        instagram: {
+          connected: true,
+          needsReconnect: false,
+          lastSuccessfulSyncAt: null,
+          accountId: "e2e-instagram-account",
+          username: "e2e_creator",
+        },
+        perks: {
+          hasBasicStrategicReport: false,
+          hasFullStrategicReport: true,
+          microInsightAvailable: false,
+          weeklyRaffleEligible: false,
+        },
+        extras: {
+          normalizedStatus: "active",
+          hasPremiumAccess: true,
+          isGracePeriod: false,
+          needsBilling: false,
+        },
+      }),
+    })
+  );
+}
+
+async function openScriptsBoard(page: Page) {
+  const planStatusResponse = page
+    .waitForResponse(
+      (response) => response.url().includes("/api/plan/status") && response.ok(),
+      { timeout: 15_000 }
+    )
+    .catch(() => null);
+  await page.goto("/calendar?tab=scripts");
+  await expect(page.getByRole("heading", { name: "Criação de Post" })).toBeVisible();
+  const scriptsTab = page.getByRole("button", { name: "Meus Roteiros" });
+  await expect(scriptsTab).toBeVisible();
+  await scriptsTab.click();
+  await planStatusResponse;
+  await page.waitForTimeout(300);
+}
+
+async function resolveContentOptionValueByCaption(
+  page: Page,
+  selectLocator: Locator,
+  caption: string
+) {
+  const normalizedCaption = caption.toLowerCase();
+  let value: string | null = null;
+  await expect
+    .poll(
+      async () => {
+        value = await selectLocator.evaluate((select, needle) => {
+          const options = Array.from((select as HTMLSelectElement).options);
+          const match = options.find((option) => option.text.toLowerCase().includes(needle));
+          return match?.value ?? null;
+        }, normalizedCaption);
+        return value;
+      },
+      { timeout: 30_000, intervals: [500, 1000, 2000] }
+    )
+    .not.toBeNull();
+  expect(value, `option value missing for caption: ${caption}`).toBeTruthy();
+  return value as string;
 }
 
 async function seedScriptsFixture(page: Page) {
@@ -30,6 +109,14 @@ async function seedScriptsFixture(page: Page) {
 }
 
 test.describe("Meus Roteiros", () => {
+  test.beforeEach(async ({ page }) => {
+    await installScriptsAccessMocks(page);
+  });
+
+  test.afterEach(async ({ page }) => {
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+  });
+
   test("cria roteiro, vincula conteudo publicado e preserva apos reload", async ({ page }) => {
     test.setTimeout(90_000);
 
@@ -42,8 +129,7 @@ test.describe("Meus Roteiros", () => {
 
     mark("seed content fixture");
     const { primaryContent } = await seedScriptsFixture(page);
-    const seededContentId = primaryContent.id;
-    const seededCaption = primaryContent.caption;
+    const seededCaption = PRIMARY_CONTENT_FRAGMENT;
     const seededContentSummary = page.locator("p").filter({ hasText: seededCaption }).first();
 
     const uniqueSuffix = Date.now();
@@ -51,14 +137,13 @@ test.describe("Meus Roteiros", () => {
     const scriptContent = `Roteiro automatizado ${uniqueSuffix} com CTA final para validar persistencia.`;
 
     mark("open my scripts page");
-    await page.goto("/planning/roteiros");
-    await expect(page.getByRole("heading", { name: "Meus Roteiros" })).toBeVisible();
+    await openScriptsBoard(page);
     const acceptCookiesButton = page.getByRole("button", { name: "Aceitar" });
     if (await acceptCookiesButton.isVisible().catch(() => false)) {
       await acceptCookiesButton.click();
     }
-    const createCardButton = page.getByRole("button", { name: /Novo Roteiro/i }).first();
-    const createEmptyStateButton = page.getByRole("button", { name: /Criar meu primeiro roteiro/i }).first();
+    const createCardButton = page.getByRole("button", { name: /Criar roteiro|Novo Roteiro/i }).first();
+    const createEmptyStateButton = page.getByRole("button", { name: /Criar meu primeiro roteiro|Criar roteiro/i }).first();
     const existingScriptCard = page
       .locator("button")
       .filter({ has: page.locator("p") })
@@ -94,21 +179,10 @@ test.describe("Meus Roteiros", () => {
 
     mark("enable posted and wait content select");
     await page.getByLabel("Marcar como roteiro postado").check();
-    const contentSelect = page.locator("select.w-full").first();
+    const contentSelect = page.locator("select.w-full").last();
     await expect(contentSelect).toBeVisible();
     mark("wait seeded content option");
-    await expect
-      .poll(
-        async () => {
-          const optionCount = await contentSelect.locator(`option[value="${seededContentId}"]`).count();
-          if (optionCount > 0) return "ready";
-          const loadingCount = await contentSelect.locator("option", { hasText: "Carregando conteúdos..." }).count();
-          if (loadingCount > 0) return "loading";
-          return "empty";
-        },
-        { timeout: 30_000, intervals: [500, 1000, 2000] }
-      )
-      .toBe("ready");
+    const seededContentId = await resolveContentOptionValueByCaption(page, contentSelect, seededCaption);
     mark("select seeded content");
     await contentSelect.selectOption(seededContentId);
 
@@ -134,7 +208,8 @@ test.describe("Meus Roteiros", () => {
 
     mark("reload list");
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Meus Roteiros" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Criação de Post" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Meus Roteiros" })).toBeVisible();
     await expect(loadingSkeletons.first()).toBeHidden({ timeout: 30_000 }).catch(() => undefined);
     await expect(createdCardTitle).toBeVisible({ timeout: 15_000 });
 
@@ -155,7 +230,7 @@ test.describe("Meus Roteiros", () => {
     );
     await page.getByRole("button", { name: "Excluir" }).click();
     await deleteScriptResponse;
-    await expect(page.getByRole("heading", { name: "Meus Roteiros" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Criação de Post" })).toBeVisible({ timeout: 15_000 });
     await expect(page.locator("p").filter({ hasText: scriptTitle })).toHaveCount(0);
     mark("done");
   });
@@ -178,15 +253,14 @@ test.describe("Meus Roteiros", () => {
     const scriptContent = `Roteiro ${uniqueSuffix} criado para validar vinculo, troca e desvinculo.`;
 
     mark("open my scripts page");
-    await page.goto("/planning/roteiros");
-    await expect(page.getByRole("heading", { name: "Meus Roteiros" })).toBeVisible();
+    await openScriptsBoard(page);
     const acceptCookiesButton = page.getByRole("button", { name: "Aceitar" });
     if (await acceptCookiesButton.isVisible().catch(() => false)) {
       await acceptCookiesButton.click();
     }
 
-    const createCardButton = page.getByRole("button", { name: /Novo Roteiro/i }).first();
-    const createEmptyStateButton = page.getByRole("button", { name: /Criar meu primeiro roteiro/i }).first();
+    const createCardButton = page.getByRole("button", { name: /Criar roteiro|Novo Roteiro/i }).first();
+    const createEmptyStateButton = page.getByRole("button", { name: /Criar meu primeiro roteiro|Criar roteiro/i }).first();
     const loadingSkeletons = page.locator(".animate-pulse");
     await expect(loadingSkeletons.first()).toBeHidden({ timeout: 30_000 }).catch(() => undefined);
 
@@ -214,7 +288,8 @@ test.describe("Meus Roteiros", () => {
 
     const createdCardTitle = page.locator("p").filter({ hasText: scriptTitle }).first();
     await expect(createdCardTitle).toBeVisible({ timeout: 15_000 });
-    const createdCard = createdCardTitle.locator("xpath=ancestor::div[contains(@class,'group relative flex h-72')][1]");
+    const createdCardTitleButton = page.getByRole("button", { name: new RegExp(scriptTitle) }).first();
+    const createdCard = createdCardTitleButton.locator("xpath=ancestor::div[1]");
 
     mark("link via quick publish card");
     const quickPublishResponse = page.waitForResponse(
@@ -225,20 +300,23 @@ test.describe("Meus Roteiros", () => {
       { timeout: 30_000 }
     );
     await createdCard.getByRole("button", { name: "Vincular ao post" }).click();
-    await createdCard.locator("button").filter({ hasText: primaryContent.caption }).first().click();
-    await createdCard.getByRole("button", { name: "Marcar" }).click();
+    await expect(page.getByText("Conteúdo publicado", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: new RegExp(PRIMARY_CONTENT_FRAGMENT, "i") }).first().click();
+    await page.getByRole("button", { name: "Marcar" }).click();
     await quickPublishResponse;
     await expect(createdCard.getByRole("button", { name: "Desvincular do post" })).toBeVisible();
 
     mark("reload and verify linked content in editor");
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Meus Roteiros" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Criação de Post" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Meus Roteiros" })).toBeVisible();
     await expect(page.locator(".animate-pulse").first()).toBeHidden({ timeout: 30_000 }).catch(() => undefined);
     const reloadedCardTitle = page.locator("p").filter({ hasText: scriptTitle }).first();
     await reloadedCardTitle.click();
-    const contentSelect = page.locator("select.w-full").first();
+    const contentSelect = page.locator("select.w-full").last();
+    const primarySelectedValue = await resolveContentOptionValueByCaption(page, contentSelect, PRIMARY_CONTENT_FRAGMENT);
     await expect(page.getByLabel("Marcar como roteiro postado")).toBeChecked();
-    await expect(contentSelect).toHaveValue(primaryContent.id);
+    await expect(contentSelect).toHaveValue(primarySelectedValue);
 
     mark("switch linked content in editor");
     const updateScriptResponse = page.waitForResponse(
@@ -248,25 +326,27 @@ test.describe("Meus Roteiros", () => {
         response.ok(),
       { timeout: 30_000 }
     );
-    await contentSelect.selectOption(alternateContent.id);
+    const alternateSelectedValue = await resolveContentOptionValueByCaption(page, contentSelect, ALTERNATE_CONTENT_FRAGMENT);
+    await contentSelect.selectOption(alternateSelectedValue);
     await page.getByRole("button", { name: /^Salvar$/ }).click();
     await updateScriptResponse;
-    await expect(contentSelect).toHaveValue(alternateContent.id);
+    await expect(contentSelect).toHaveValue(alternateSelectedValue);
     await expect(page.locator("p").filter({ hasText: alternateContent.caption }).first()).toBeVisible();
     await page.getByRole("button", { name: "Voltar para Meus Roteiros" }).click();
 
     mark("reload and confirm switched content persisted");
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Meus Roteiros" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Criação de Post" })).toBeVisible();
     await page.locator("p").filter({ hasText: scriptTitle }).first().click();
     await expect(page.getByLabel("Marcar como roteiro postado")).toBeChecked();
-    await expect(contentSelect).toHaveValue(alternateContent.id);
+    await expect(contentSelect).toHaveValue(alternateSelectedValue);
     await expect(page.locator("p").filter({ hasText: alternateContent.caption }).first()).toBeVisible();
     await page.getByRole("button", { name: "Voltar para Meus Roteiros" }).click();
 
     mark("unlink via card");
     const unlinkCardTitle = page.locator("p").filter({ hasText: scriptTitle }).first();
-    const unlinkCard = unlinkCardTitle.locator("xpath=ancestor::div[contains(@class,'group relative flex h-72')][1]");
+    const unlinkCardButton = page.getByRole("button", { name: new RegExp(scriptTitle) }).first();
+    const unlinkCard = unlinkCardButton.locator("xpath=ancestor::div[1]");
     const unlinkResponse = page.waitForResponse(
       (response) =>
         response.url().includes("/api/scripts/") &&
@@ -280,7 +360,7 @@ test.describe("Meus Roteiros", () => {
 
     mark("reload and verify unlinked state");
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Meus Roteiros" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Criação de Post" })).toBeVisible();
     await page.locator("p").filter({ hasText: scriptTitle }).first().click();
     await expect(page.getByLabel("Marcar como roteiro postado")).not.toBeChecked();
 
@@ -294,7 +374,7 @@ test.describe("Meus Roteiros", () => {
     );
     await page.getByRole("button", { name: "Excluir" }).click();
     await deleteScriptResponse;
-    await expect(page.getByRole("heading", { name: "Meus Roteiros" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "Criação de Post" })).toBeVisible({ timeout: 15_000 });
     await expect(page.locator("p").filter({ hasText: scriptTitle })).toHaveCount(0);
     mark("done");
   });

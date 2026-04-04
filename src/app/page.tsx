@@ -1,7 +1,4 @@
-// src/app/page.tsx (Corrigido)
-// Este arquivo agora é um Server Component. Ele lida com metadados e renderiza o componente de cliente.
-
-import LandingPageClient from "./LandingPageClient";
+import DashboardRootClient from "./DashboardRootClient";
 import {
   landingJsonLd,
   landingProductJsonLd,
@@ -28,7 +25,7 @@ export default function HomePage() {
           ]),
         }}
       />
-      <LandingPageClient />
+      <DashboardRootClient />
     </>
   );
 }

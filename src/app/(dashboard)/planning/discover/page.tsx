@@ -14,11 +14,8 @@ export default async function PlanningDiscoverPage({
   searchParams?: Record<string, string | string[] | undefined>;
 }) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
 
-  if (!hasPlannerAccess(session.user)) {
+  if (!hasPlannerAccess(session?.user)) {
     return <PlanningLockedView variant="discover" returnTo="/planning/discover" />;
   }
 

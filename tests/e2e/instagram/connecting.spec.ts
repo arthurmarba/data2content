@@ -48,6 +48,25 @@ async function mockNextAuthSession(page: import('@playwright/test').Page, sessio
   });
 }
 
+async function gotoInstagramConnecting(page: import('@playwright/test').Page, url: string) {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await page.goto(url);
+
+    const isNotFound = await page
+      .getByRole('heading', { name: '404' })
+      .isVisible()
+      .catch(() => false);
+
+    if (!isNotFound) {
+      return;
+    }
+
+    await page.waitForTimeout(1_000);
+  }
+
+  await expect(page.getByRole('heading', { name: '404' })).toHaveCount(0);
+}
+
 test.describe('Instagram connecting flow', () => {
   test.beforeEach(async ({ page }) => {
     await page.route('**/analytics/**', (route) =>
@@ -85,7 +104,10 @@ test.describe('Instagram connecting flow', () => {
       });
     });
 
-    await page.goto('/dashboard/instagram/connecting?instagramLinked=true&next=instagram-connection&flowId=igrc_e2e_single');
+    await gotoInstagramConnecting(
+      page,
+      '/dashboard/instagram/connecting?instagramLinked=true&next=instagram-connection&flowId=igrc_e2e_single'
+    );
 
     await page.waitForURL('**/dashboard/instagram-connection?instagramLinked=true');
 
@@ -119,7 +141,10 @@ test.describe('Instagram connecting flow', () => {
       });
     });
 
-    await page.goto('/dashboard/instagram/connecting?instagramLinked=true&next=chat&flowId=igrc_e2e_multi');
+    await gotoInstagramConnecting(
+      page,
+      '/dashboard/instagram/connecting?instagramLinked=true&next=chat&flowId=igrc_e2e_multi'
+    );
 
     await expect(page.getByText('Carregando...')).toHaveCount(0, { timeout: 60_000 });
     await expect(page.getByText('Selecione qual conta do Instagram você quer conectar.')).toBeVisible({ timeout: 30_000 });
@@ -145,7 +170,10 @@ test.describe('Instagram connecting flow', () => {
       })
     );
 
-    await page.goto('/dashboard/instagram/connecting?instagramLinked=true&next=chat&flowId=igrc_e2e_error');
+    await gotoInstagramConnecting(
+      page,
+      '/dashboard/instagram/connecting?instagramLinked=true&next=chat&flowId=igrc_e2e_error'
+    );
 
     await expect(page.getByText('Não foi possível concluir:')).toBeVisible();
     await expect(page.getByText('Código: NO_IG_ACCOUNT')).toBeVisible();

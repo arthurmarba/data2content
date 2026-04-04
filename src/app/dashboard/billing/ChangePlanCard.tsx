@@ -165,7 +165,7 @@ export default function ChangePlanCard() {
       text = "Agendado p/ encerrar";
       cls = "bg-[#FFF5E9] text-[#9A5B0D]";
     } else if (s === "active" || s === "trialing") {
-      text = s === "trialing" ? "Período de teste" : "Ativo";
+      text = "Ativo";
       cls = "bg-[#E8F8F1] text-[#0E7B50]";
     } else if (s === "past_due" || s === "incomplete" || s === "unpaid") {
       text = "Pagamento pendente";
@@ -185,10 +185,10 @@ export default function ChangePlanCard() {
   function showTrialLockedToast() {
     toast({
       variant: "warning",
-      title: "Indisponível durante o teste",
+      title: "Mudança temporariamente indisponível",
       description: trialEndsLabel
         ? `Você poderá trocar de plano após ${trialEndsLabel}.`
-        : "Você poderá trocar de plano após o fim do período de teste.",
+        : "Você poderá trocar de plano quando a assinatura estiver totalmente disponível para alteração.",
     });
   }
 
@@ -350,10 +350,10 @@ export default function ChangePlanCard() {
 
       {trialLock && (
         <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-          <strong>Troca indisponível durante o período de teste.</strong>{" "}
+          <strong>Troca temporariamente indisponível.</strong>{" "}
           {trialEndsLabel
             ? <>Você poderá trocar de plano após <span className="font-medium">{trialEndsLabel}</span>.</>
-            : "Você poderá trocar de plano após o fim do período de teste."}
+            : "Você poderá trocar de plano quando a assinatura estiver totalmente disponível para alteração."}
         </div>
       )}
 

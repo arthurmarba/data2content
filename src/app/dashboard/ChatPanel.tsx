@@ -1137,7 +1137,7 @@ export default function ChatPanel({
       {/* timeline (único scroll) */}
       <div
         ref={scrollRef}
-        className="flex-1 min-h-0 overflow-y-auto scrollbar-hide overscroll-contain px-3 py-5 sm:px-4 sm:py-6"
+        className="dashboard-scrollbar flex-1 min-h-0 overflow-y-auto overscroll-contain px-3 py-5 sm:px-4 sm:py-6"
         style={{
           paddingBottom: '2.5rem',
           scrollPaddingBottom: '2.5rem',

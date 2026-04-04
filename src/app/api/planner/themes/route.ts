@@ -32,6 +32,10 @@ export async function POST(request: Request) {
     const dayOfWeek: number = Number(body?.dayOfWeek);
     const blockStartHour: number = Number(body?.blockStartHour);
     const categories = (body?.categories || {}) as { context?: string[]; tone?: string; proposal?: string[]; reference?: string[] };
+    const preferredKeyword =
+      (typeof body?.themeKeyword === 'string' && body.themeKeyword.trim()) ||
+      (typeof body?.title === 'string' && body.title.trim()) ||
+      undefined;
     const periodDays: number = Number(body?.periodDays) > 0 ? Number(body?.periodDays) : WINDOW_DAYS;
     const includeCaptions: boolean = Boolean(body?.includeCaptions);
 
@@ -40,7 +44,7 @@ export async function POST(request: Request) {
     }
 
     await connectToDatabase();
-    const res = await getThemesForSlot(session.user.id, periodDays, dayOfWeek, blockStartHour, categories);
+    const res = await getThemesForSlot(session.user.id, periodDays, dayOfWeek, blockStartHour, categories, preferredKeyword);
     let captions: string[] = [];
     if (includeCaptions) {
       try {

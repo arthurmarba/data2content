@@ -194,21 +194,29 @@ const formatCurrencyLabel = (value?: number | null) => {
 const TOP_POSTS_MAX_ITEMS = 10;
 const LOCKED_TOP_POSTS_PREVIEW_COUNT = 3;
 const HERO_METRIC_ACCENTS: Record<string, string> = {
-  followers: '#6E1F93',
-  reach: '#1C4FD7',
-  engagement: '#D62E5E',
-  frequency: '#9446B0',
+  followers: '#18181B',
+  reach: '#EC4899',
+  engagement: '#111827',
+  frequency: '#F59E0B',
 };
-const landingSunriseBackground = '#FFFFFF';
-const glassCardBaseClass = 'backdrop-blur-xl bg-white/70 border border-white/50 shadow-[0_8px_32px_rgba(0,0,0,0.04)]';
-const highlightCardClass = 'rounded-[28px] border border-white/60 bg-white/95 shadow-[0_2px_10px_rgba(15,23,42,0.12)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_4px_16px_rgba(15,23,42,0.16)]';
-const chipHighlightClass = 'landing-chip text-brand-primary border-brand-primary/20 bg-white/80';
-const textSecondaryClass = 'text-[#475569]';
-const textMutedClass = 'text-slate-500';
-const formLabelClass = 'text-[11px] font-semibold uppercase tracking-[0.16em] text-[#94A3B8]';
-const formHelperTextClass = 'text-[11px] leading-4 text-[#94A3B8]';
+const landingSunriseBackground =
+  'radial-gradient(120% 120% at 0% 0%, rgba(244,114,182,0.12) 0%, rgba(244,114,182,0) 36%), radial-gradient(120% 120% at 100% 0%, rgba(251,191,36,0.08) 0%, rgba(251,191,36,0) 28%), linear-gradient(180deg, #f8f8f8 0%, #f4f4f5 36%, #efeff1 100%)';
+const glassCardBaseClass =
+  'rounded-[30px] border border-white/84 bg-white/78 shadow-[0_18px_40px_rgba(24,24,27,0.08)] backdrop-blur-xl';
+const highlightCardClass =
+  'rounded-[30px] border border-white/84 bg-white/92 shadow-[0_18px_40px_rgba(24,24,27,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[0_24px_52px_rgba(24,24,27,0.12)]';
+const chipHighlightClass =
+  'inline-flex items-center gap-1.5 rounded-full border border-pink-200 bg-pink-50/85 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-pink-500';
+const textSecondaryClass = 'text-zinc-600';
+const textMutedClass = 'text-zinc-500';
+const formLabelClass = 'text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400';
+const formHelperTextClass = 'text-[11px] leading-4 text-zinc-400';
 const formInputClass =
-  'mt-1 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm text-[#0F172A] focus:border-[#6E1F93] focus:outline-none focus:ring-1 focus:ring-[#6E1F93]/30';
+  'mt-1 w-full rounded-2xl border border-zinc-200 bg-white/92 px-4 py-2.5 text-sm text-zinc-900 shadow-[0_8px_20px_rgba(24,24,27,0.03)] focus:border-pink-200 focus:outline-none focus:ring-2 focus:ring-pink-100';
+const compactBoardNumberFormatter = new Intl.NumberFormat('pt-BR', {
+  notation: 'compact',
+  maximumFractionDigits: 1,
+});
 
 interface ProposalFormState {
   brandName: string;
@@ -436,9 +444,9 @@ const PublicProposalForm = ({
   return (
     <form onSubmit={handleSubmit} className="flex h-full min-h-0 flex-col">
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-      <section className="rounded-2xl border border-slate-200/70 bg-white/80 p-3 sm:p-4">
+      <section className="dashboard-panel p-3 sm:p-4">
         <div className="mb-3 flex items-center gap-2">
-          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#6E1F93]/10 text-[11px] font-bold text-[#6E1F93]">
+          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-pink-50 text-[11px] font-bold text-pink-500">
             01
           </span>
           <p className="text-sm font-semibold text-slate-800">Contato da marca</p>
@@ -508,7 +516,7 @@ const PublicProposalForm = ({
         </div>
 
         {packages.length > 0 ? (
-          <div className="mb-3 rounded-xl border border-slate-200/70 bg-slate-50/70">
+          <div className="mb-3 rounded-[1.15rem] border border-zinc-200/70 bg-zinc-50/70">
             <button
               type="button"
               onClick={() => setIsPackagesExpanded((prev) => !prev)}
@@ -645,9 +653,9 @@ const PublicProposalForm = ({
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-200/70 bg-white/80 p-3 sm:p-4">
+      <section className="dashboard-panel p-3 sm:p-4">
         <div className="mb-3 flex items-center gap-2">
-          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#6E1F93]/10 text-[11px] font-bold text-[#6E1F93]">
+          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-pink-50 text-[11px] font-bold text-pink-500">
             03
           </span>
           <p className="text-sm font-semibold text-slate-800">Detalhes da campanha</p>
@@ -767,7 +775,7 @@ const LockedPremiumSection = ({
           type="button"
           onClick={disabled ? undefined : () => onAction?.()}
           disabled={disabled}
-          className="inline-flex w-full justify-center rounded-full bg-gradient-to-r from-[#6E1F93] to-[#FF2C7E] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="inline-flex w-full justify-center rounded-full bg-zinc-900 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_16px_32px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:bg-black disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {ctaLabel}
           <ArrowUpRight className="ml-2 h-4 w-4" aria-hidden="true" />
@@ -798,9 +806,9 @@ const StickyCtaBar = ({
   const baseButtonClasses =
     'group flex w-full flex-col items-center justify-center rounded-2xl px-5 py-3 text-sm font-semibold shadow-[0_16px_36px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2';
   const primaryButtonClasses =
-    'bg-gradient-to-r from-[#6E1F93] to-[#FF2C7E] text-white focus-visible:outline-[#6E1F93]';
+    'bg-zinc-900 text-white focus-visible:outline-zinc-900 hover:bg-black';
   const secondaryButtonClasses =
-    'border border-white/50 bg-white/90 text-[#6E1F93] focus-visible:outline-[#6E1F93]';
+    'border border-white/70 bg-white/92 text-zinc-800 focus-visible:outline-pink-300';
 
   return (
     <div
@@ -1021,7 +1029,7 @@ interface TrendIndicatorProps {
 const TrendIndicator = ({ value, showValue = true }: TrendIndicatorProps & { showValue?: boolean }) => {
   if (value === null || value === undefined) return null;
   const isPositive = value >= 0;
-  const colorClass = isPositive ? 'text-green-600' : 'text-red-600';
+  const colorClass = isPositive ? 'text-emerald-600' : 'text-rose-600';
   const Icon = isPositive ? ArrowUpRight : ArrowDownRight;
   const titleText = Number.isFinite(value)
     ? `Variação de ${value.toFixed(1)}% em relação ao período anterior`
@@ -1047,7 +1055,7 @@ const DeltaPill = ({
 }) => {
   if (value === null || value === undefined) {
     return (
-      <span className="inline-flex items-center rounded-full border border-white/50 bg-white/80 px-2.5 py-0.5 text-[11px] font-semibold text-[#475569]">
+      <span className="inline-flex items-center rounded-full border border-zinc-200 bg-white/90 px-2.5 py-0.5 text-[11px] font-semibold text-zinc-500">
         Estável
         {label ? <span className={`ml-1 font-normal ${textMutedClass}`}>{label}</span> : null}
       </span>
@@ -1059,7 +1067,7 @@ const DeltaPill = ({
   const formatted = Number.isFinite(magnitude)
     ? `${sign}${magnitude >= 10 ? magnitude.toFixed(0) : magnitude.toFixed(1)}%`
     : `${sign}∞`;
-  const pillClass = isPositive ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700';
+  const pillClass = isPositive ? 'bg-emerald-50 text-emerald-700' : 'bg-pink-50 text-pink-600';
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${pillClass}`}>
       {isPositive ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
@@ -1070,7 +1078,7 @@ const DeltaPill = ({
 };
 
 
-const SparklineChart = ({ values, color = '#6E1F93' }: { values: number[]; color?: string }) => {
+const SparklineChart = ({ values, color = '#18181B' }: { values: number[]; color?: string }) => {
   const gradientId = useId();
   if (!values || values.length === 0) {
     return (
@@ -1138,6 +1146,11 @@ type CategoryRankingsSummaryProps = {
   lockedSubtitle?: string;
   onLockedAction?: () => void;
   isPublicView?: boolean;
+  compactView?: boolean;
+  cardClassName?: string;
+  iconSurfaceClassName?: string;
+  maxItems?: number;
+  showInsightSummary?: boolean;
 };
 
 const PerformanceHighlightsSummary = ({
@@ -1245,15 +1258,15 @@ const PerformanceHighlightsSummary = ({
       'commercialMode'
     ),
     bestDayCard,
-  ].filter(
-    (card): card is {
-      key: string;
-      title: string;
-      icon: React.ReactNode;
-      accent: string;
-      primary: string;
-      secondary: string;
-    } => Boolean(card && card.primary && card.secondary)
+	  ].filter(
+	    (card): card is {
+	      key: string;
+	      title: string;
+	      icon: React.JSX.Element;
+	      accent: string;
+	      primary: string;
+	      secondary: string;
+	    } => Boolean(card && card.primary && card.secondary)
   );
 
   if (!cards.length) return null;
@@ -1302,6 +1315,11 @@ const CategoryRankingsSummary = ({
   lockedSubtitle,
   onLockedAction,
   isPublicView,
+  compactView,
+  cardClassName,
+  iconSurfaceClassName,
+  maxItems,
+  showInsightSummary,
 }: CategoryRankingsSummaryProps) => {
   const weekdayLabels = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
   const cards = [
@@ -1424,7 +1442,13 @@ const CategoryRankingsSummary = ({
   const renderableCards = cards
     .map((card) => {
       if (!card) return null;
-      if ('primary' in card && 'secondary' in card) return card;
+      if ('primary' in card && 'secondary' in card) {
+        return {
+          ...card,
+          secondary: 'Interações por post',
+          metricValue: summary?.bestDay?.average ?? null,
+        };
+      }
       if (!card.item) return null;
       return {
         key: card.key,
@@ -1432,54 +1456,99 @@ const CategoryRankingsSummary = ({
         icon: card.icon,
         accent: card.accent,
         primary: idToLabel(card.item.category, card.type),
-        secondary: `${card.helper}: ${new Intl.NumberFormat('pt-BR').format(card.item.value)}`,
+        secondary: card.helper,
+        metricValue: card.item.value,
       };
     })
     .filter((card): card is NonNullable<typeof card> => Boolean(card));
 
-  const hasData = renderableCards.length > 0;
+  const visibleCards =
+    typeof maxItems === 'number' && maxItems > 0 ? renderableCards.slice(0, maxItems) : renderableCards;
+  const hasData = visibleCards.length > 0;
   const skeletonCount = 6;
-  const cardShellClass = `${highlightCardClass} flex flex-col justify-between p-5`;
-  const titleClass = 'text-xs font-bold uppercase tracking-wider text-slate-500';
-  const valueClass = 'mt-4 text-xl font-bold text-slate-900';
-  const helperClass = 'mt-1 text-xs text-slate-500';
+  const cardShellClass = `${cardClassName ?? highlightCardClass} flex flex-col justify-between p-5`;
+  const titleClass = 'text-xs font-bold uppercase tracking-[0.16em] text-zinc-400';
+  const valueClass = 'mt-4 text-xl font-bold tracking-tight text-zinc-900';
+  const helperClass = 'mt-1 text-xs text-zinc-500';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3.5">
       {loading
         ? Array.from({ length: skeletonCount }).map((_, index) => (
           <div
             key={`insight-skeleton-${index}`}
-            className="h-40 animate-pulse rounded-3xl bg-slate-100"
+            className="h-40 animate-pulse rounded-3xl bg-zinc-100"
           />
         ))
         : hasData
           ? (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              {renderableCards.map((card) => (
-                <div key={card.key} className={cardShellClass}>
-                  <div>
-                    <div className="flex items-center gap-3">
+            compactView ? (
+              <div className={`${cardClassName ?? ''}`}>
+                {visibleCards.map((card, index) => (
+                  <div
+                    key={card.key}
+                    className={`min-w-0 ${index > 0 ? 'border-t border-zinc-100/80' : ''}`}
+                  >
+                    <div className="py-2.5">
+                      <div className="flex items-start gap-3.5">
                       <span
-                        className="flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm"
+                        className={iconSurfaceClassName ?? "inline-flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-[0.8rem] bg-zinc-50/82 ring-1 ring-zinc-100/90"}
                         style={{ color: card.accent }}
                       >
                         {card.icon}
                       </span>
-                      <p className={titleClass}>{card.title}</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="dashboard-type-item-title min-w-0 pr-2 break-words leading-tight text-zinc-900">
+                              {card.primary}
+                            </p>
+                            <p className={`${helperClass} mt-1 break-words`}>{card.secondary}</p>
+                          </div>
+                          <span className="dashboard-type-kpi-sm shrink-0 tabular-nums font-semibold text-zinc-900">
+                            {typeof card.metricValue === 'number' && Number.isFinite(card.metricValue)
+                              ? new Intl.NumberFormat('pt-BR', {
+                                  maximumFractionDigits: card.metricValue % 1 === 0 ? 0 : 1,
+                                }).format(card.metricValue)
+                              : '—'}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <p className={valueClass}>{card.primary}</p>
+                    </div>
                   </div>
-                  <p className={helperClass}>{card.secondary}</p>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {visibleCards.map((card) => (
+                  <div key={card.key} className={`${cardShellClass} min-w-0`}>
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={iconSurfaceClassName ?? "flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm"}
+                          style={{ color: card.accent }}
+                        >
+                          {card.icon}
+                        </span>
+                        <p className={titleClass}>{card.title}</p>
+                      </div>
+                      <p className={`${valueClass} break-words leading-tight`}>{card.primary}</p>
+                    </div>
+                    <p className={`${helperClass} break-words`}>{card.secondary}</p>
+                  </div>
+                ))}
+              </div>
+            )
           )
           : (
-            <div className="col-span-full rounded-3xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">
+            <div className="dashboard-empty-state col-span-full rounded-3xl border border-dashed border-zinc-200 p-8 text-center text-sm text-zinc-500">
               Não encontramos dados suficientes para destacar categorias neste período.
             </div>
           )}
+      {showInsightSummary && summary?.insightSummary ? (
+        <p className="dashboard-type-meta leading-relaxed text-zinc-500">{summary.insightSummary}</p>
+      ) : null}
     </div>
   );
 };
@@ -1576,6 +1645,7 @@ export default function MediaKitView({
   showOwnerCtas = false,
   belowAffiliateSlot,
   compactPadding = false,
+  compactBoardPreview = false,
   publicUrlForCopy,
   mediaKitSlug,
   premiumAccess,
@@ -1670,10 +1740,29 @@ export default function MediaKitView({
 
   const cardStyle = 'space-y-6';
   const innerCardStyle = 'space-y-6';
+  const isCompactLayout = compactPadding && !isPrintMode;
+  const isBoardEmbedded = isCompactLayout && !compactBoardPreview;
+  const resolvedRootClassName = isBoardEmbedded && !isPublicView
+    ? 'min-h-full font-sans text-[#0F172A]'
+    : 'dashboard-skin min-h-screen font-sans text-[#0F172A]';
+  const resolvedRootBackground = isBoardEmbedded && !isPublicView ? 'transparent' : landingSunriseBackground;
+const resolvedGlassCardBaseClass = isBoardEmbedded
+    ? 'dashboard-section-panel rounded-[28px] backdrop-blur-sm'
+    : glassCardBaseClass;
+  const resolvedHighlightCardClass = isBoardEmbedded
+    ? 'dashboard-section-panel rounded-[26px] transition-colors duration-200 hover:bg-white/88'
+    : highlightCardClass;
+  const resolvedIconSurfaceClassName = isBoardEmbedded
+    ? 'flex h-8 w-8 items-center justify-center rounded-full bg-zinc-50/82 ring-1 ring-zinc-100/90'
+    : 'flex h-8 w-8 items-center justify-center rounded-full bg-white shadow-sm';
   const containerClass = isPublicView
-    ? 'mx-auto w-full max-w-3xl px-4 py-8'
-    : `dashboard-page-shell ${compactPadding ? 'py-6' : 'py-8'}`;
-  const sectionsWrapperClass = 'flex flex-col space-y-10';
+    ? isBoardEmbedded
+      ? 'mx-auto w-full max-w-[640px] px-4 py-4 sm:px-6 sm:py-5'
+      : 'mx-auto w-full max-w-3xl px-4 py-8'
+    : `dashboard-page-shell ${compactPadding ? 'py-3' : 'py-5'}`;
+  const sectionsWrapperClass = isBoardEmbedded
+    ? 'flex flex-col gap-4 sm:gap-3 lg:gap-2'
+    : 'flex flex-col space-y-10';
   const compactNumberFormat = (num: number | null | undefined) =>
     num?.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }) ?? '...';
   const formatQuickStatValue = (value: number | null | undefined, type: 'number' | 'percent') => {
@@ -1703,16 +1792,16 @@ export default function MediaKitView({
         label: 'Estratégico (Mínimo)',
         value: formatCurrencyLabel(pricing.estrategico),
         cpm: formatCurrencyLabel(calculateCpm(pricing.estrategico)),
-        badgeClass: 'bg-blue-50 text-blue-700',
-        accentDot: 'bg-blue-500',
+        badgeClass: 'bg-zinc-100 text-zinc-700',
+        accentDot: 'bg-zinc-800',
       },
       {
         key: 'justo',
         label: 'Valor Justo (Sugerido)',
         value: formatCurrencyLabel(pricing.justo),
         cpm: formatCurrencyLabel(calculateCpm(pricing.justo)),
-        badgeClass: 'bg-emerald-50 text-emerald-700',
-        accentDot: 'bg-emerald-500',
+        badgeClass: 'bg-pink-50 text-pink-600',
+        accentDot: 'bg-pink-500',
       },
       {
         key: 'premium',
@@ -1869,9 +1958,9 @@ export default function MediaKitView({
         ? `${followerGain > 0 ? '+' : ''}${followerGain.toLocaleString('pt-BR')} no período`
         : null;
     const postingFrequencyValue = displayKpis?.postingFrequency?.currentValue ?? null;
-    const postingFrequencyLabel =
+    const postingFrequencyDisplay =
       typeof postingFrequencyValue === 'number' && Number.isFinite(postingFrequencyValue)
-        ? `${postingFrequencyValue.toFixed(postingFrequencyValue % 1 === 0 ? 0 : 1)} posts/semana`
+        ? postingFrequencyValue.toFixed(postingFrequencyValue % 1 === 0 ? 0 : 1)
         : null;
     const totalFollowersValue = followersDisplay ?? followerCountDisplay ?? '—';
     return [
@@ -1903,14 +1992,14 @@ export default function MediaKitView({
           helper: `Média dos ${heroPeriodLabel}`,
         }
         : null,
-      postingFrequencyLabel
+      postingFrequencyDisplay
         ? {
           key: 'frequency',
           icon: <CalendarDays className="h-5 w-5" />,
           label: 'Ritmo de publicação',
-          value: postingFrequencyLabel,
+          value: postingFrequencyDisplay,
           change: displayKpis?.postingFrequency?.percentageChange ?? null,
-          helper: `vs ${heroPeriodLabel}`,
+          helper: 'posts/semana',
         }
         : null,
     ].filter(Boolean) as Array<{
@@ -1995,11 +2084,8 @@ export default function MediaKitView({
   const lockedCtaLabel = premiumAccess?.ctaLabel ?? "Ver categorias do meu perfil (Assinar Plano Pro)";
   const lockedSubtitle = premiumAccess?.subtitle ?? PRO_PLAN_FLEXIBILITY_COPY;
   const categoryCtaLabel = premiumAccess?.categoryCtaLabel ?? lockedCtaLabel;
-  const premiumTrialState = premiumAccess?.trialState ?? null;
   const lockedCategoriesDescription =
-    premiumTrialState === "expired"
-      ? "Seus dados ficaram congelados. Assine para continuar recebendo atualizações semanais."
-      : "Ative o modo Pro para ver formato, contexto, intenção, narrativa, prova e modo comercial que mais puxam crescimento.";
+    "Ative o Plano Pro para ver formato, contexto, intenção, narrativa, prova e modo comercial que mais puxam crescimento.";
   const lockedViewTrackedRef = useRef(false);
   const topPostsLockedViewTrackedRef = useRef(false);
   const topPostsScrollRef = useRef<HTMLDivElement | null>(null);
@@ -2047,17 +2133,26 @@ export default function MediaKitView({
     if (!mediaKitSlug) return null;
     return `/api/mediakit/${mediaKitSlug}/avatar`;
   }, [mediaKitSlug]);
+  const prefersProviderFallback = !((user as any)?.isInstagramConnected || (user as any)?.instagramAccountId);
   const heroAvatarUrl = useMemo(() => {
     return (
       avatarApiUrl ||
-      preferredIgAvatar ||
-      normalizeAvatarCandidate((user as any)?.profile_picture_url) ||
-      normalizeAvatarCandidate((user as any)?.image) ||
-      normalizeAvatarCandidate((user as any)?.instagram?.profile_picture_url) ||
-      normalizeAvatarCandidate((user as any)?.instagram?.profilePictureUrl) ||
+      (prefersProviderFallback
+        ? normalizeAvatarCandidate((user as any)?.providerImage) ||
+          normalizeAvatarCandidate((user as any)?.image) ||
+          normalizeAvatarCandidate((user as any)?.profile_picture_url) ||
+          normalizeAvatarCandidate((user as any)?.instagram?.profile_picture_url) ||
+          normalizeAvatarCandidate((user as any)?.instagram?.profilePictureUrl) ||
+          preferredIgAvatar
+        : preferredIgAvatar ||
+          normalizeAvatarCandidate((user as any)?.profile_picture_url) ||
+          normalizeAvatarCandidate((user as any)?.image) ||
+          normalizeAvatarCandidate((user as any)?.providerImage) ||
+          normalizeAvatarCandidate((user as any)?.instagram?.profile_picture_url) ||
+          normalizeAvatarCandidate((user as any)?.instagram?.profilePictureUrl)) ||
       null
     );
-  }, [avatarApiUrl, preferredIgAvatar, user]);
+  }, [avatarApiUrl, preferredIgAvatar, prefersProviderFallback, user]);
   const avatarFallbackSrc = null;
 
   const demographicBreakdowns = useMemo<DemographicBreakdowns | null>(() => {
@@ -2748,6 +2843,178 @@ export default function MediaKitView({
     if (!affiliateHandle) return '@criador';
     return affiliateHandle.startsWith('@') ? affiliateHandle : `@${affiliateHandle}`;
   }, [affiliateHandle]);
+  const compactBoardSummary = useMemo(() => {
+    const descriptorCandidate =
+      (typeof (user as any)?.headline === 'string' && (user as any).headline.trim()) ||
+      (typeof (user as any)?.occupation === 'string' && (user as any).occupation.trim()) ||
+      (typeof (user as any)?.title === 'string' && (user as any).title.trim()) ||
+      '';
+    const source = heroBio || heroTagline || descriptorCandidate;
+    const normalized = source.replace(/\s+/g, ' ').trim();
+    if (!normalized) {
+      return 'Marketing de influência, comunidade e publis reunidos em um kit pronto para marcas.';
+    }
+    return normalized.length > 150 ? `${normalized.slice(0, 147).trim()}...` : normalized;
+  }, [heroBio, heroTagline, user]);
+  const compactFollowersValue =
+    heroKpiCards.find((metric) => metric.key === 'followers')?.value || followerCountDisplay || '—';
+  const compactBoardIntro = useMemo(() => {
+    const source = heroDescriptor || compactBoardSummary;
+    const normalized = source.replace(/\s+/g, ' ').trim();
+    return normalized.length > 120 ? `${normalized.slice(0, 117).trim()}…` : normalized;
+  }, [compactBoardSummary, heroDescriptor]);
+  const compactOverviewItems = useMemo(
+    () => [
+      {
+        key: 'followers',
+        icon: <Users className="h-4 w-4" />,
+        accentClass: 'bg-sky-50 text-sky-500 ring-sky-100/90',
+        title: 'Seguidores',
+        value: compactFollowersValue,
+        helper: null,
+      },
+      {
+        key: 'reach',
+        icon: <Eye className="h-4 w-4" />,
+        accentClass: 'bg-sky-50 text-sky-500 ring-sky-100/90',
+        title: 'Alcance médio por post',
+        value: avgReachDisplay || '—',
+        helper: heroPeriodLabel,
+      },
+      {
+        key: 'engagement',
+        icon: <Heart className="h-4 w-4" />,
+        accentClass: 'bg-sky-50 text-sky-500 ring-sky-100/90',
+        title: 'Taxa de engajamento',
+        value: engagementRateHeroDisplay || '—',
+        helper: heroPeriodLabel,
+      },
+    ],
+    [avgReachDisplay, compactFollowersValue, engagementRateHeroDisplay, heroPeriodLabel]
+  );
+  const compactAudienceBreakdowns = useMemo(
+    () =>
+      [
+        genderBarData.length > 0
+          ? {
+              key: 'gender',
+              title: 'Gênero',
+              icon: <Users className="h-4.5 w-4.5 text-emerald-600" />,
+              data: genderBarData,
+              accentClass: 'from-emerald-500 to-teal-400',
+            }
+          : null,
+        topLocationBreakdown.length > 0
+          ? {
+              key: 'location',
+              title: 'Localização',
+              icon: <MapPin className="h-4.5 w-4.5 text-emerald-600" />,
+              data: topLocationBreakdown,
+              accentClass: 'from-emerald-500 to-sky-400',
+            }
+          : null,
+      ].filter(
+	        (
+	          item,
+	        ): item is {
+	          key: string;
+	          title: string;
+	          icon: React.JSX.Element;
+	          data: DemographicBreakdownEntry[];
+	          accentClass: string;
+	        } => Boolean(item),
+      ),
+    [genderBarData, topLocationBreakdown]
+  );
+  const compactInvestmentMeta = useMemo(() => {
+    if (pricingUpdatedLabel) return `Atualizado ${pricingUpdatedLabel}`;
+    if (pricingReachLabel) return pricingReachLabel;
+    if (pricingCards.length > 0 && pricingPublished) return 'Publicado no kit público';
+    return null;
+  }, [pricingCards.length, pricingPublished, pricingReachLabel, pricingUpdatedLabel]);
+  const compactStrategicHighlights = useMemo(() => {
+    const weekdayLabels = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    const rankingCards = [
+      {
+        key: 'format',
+        title: 'Formato destaque',
+        icon: <TrendingUp className="h-4 w-4" />,
+        accent: '#6E1F93',
+        item: effectiveCategoryRankings?.format?.avg_total_interactions?.[0],
+        type: 'format' as const,
+      },
+      {
+        key: 'context',
+        title: 'Contexto que engaja',
+        icon: <MessageSquare className="h-4 w-4" />,
+        accent: '#9446B0',
+        item: effectiveCategoryRankings?.context?.avg_total_interactions?.[0],
+        type: 'context' as const,
+      },
+      {
+        key: 'tone',
+        title: 'Tom em destaque',
+        icon: <Volume2 className="h-4 w-4" />,
+        accent: '#1C4FD7',
+        item: effectiveCategoryRankings?.tone?.avg_total_interactions?.[0],
+        type: 'tone' as const,
+      },
+      summary?.bestDay
+        ? {
+            key: 'best-day',
+            title: 'Melhor dia',
+            icon: <CalendarDays className="h-4 w-4" />,
+            accent: '#4F46E5',
+            primary: weekdayLabels[Math.max(1, Math.min(7, summary.bestDay.dayOfWeek)) - 1] || 'Dia',
+            secondary: `${summary.bestDay.average.toFixed(1)} interações por post`,
+          }
+        : null,
+      {
+        key: 'content-intent',
+        title: 'Intenção dominante',
+        icon: <Send className="h-4 w-4" />,
+        accent: '#0891B2',
+        item: effectiveCategoryRankings?.contentIntent?.avg_total_interactions?.[0],
+        type: 'contentIntent' as const,
+      },
+      {
+        key: 'narrative-form',
+        title: 'Narrativa forte',
+        icon: <Sparkles className="h-4 w-4" />,
+        accent: '#0284C7',
+        item: effectiveCategoryRankings?.narrativeForm?.avg_total_interactions?.[0],
+        type: 'narrativeForm' as const,
+      },
+    ] as const;
+
+    return rankingCards
+      .map((card) => {
+        if (!card) return null;
+        if ('primary' in card && 'secondary' in card) return card;
+        if (!card.item) return null;
+        return {
+          key: card.key,
+          title: card.title,
+          icon: card.icon,
+          accent: card.accent,
+          primary: idToLabel(card.item.category, card.type),
+          secondary: `Média de ${compactBoardNumberFormatter.format(card.item.value)} interações`,
+        };
+      })
+	      .filter(
+	        (
+	          card,
+	        ): card is {
+	          key: string;
+	          title: string;
+	          icon: React.JSX.Element;
+	          accent: string;
+	          primary: string;
+	          secondary: string;
+	        } => Boolean(card),
+      )
+      .slice(0, 6);
+  }, [effectiveCategoryRankings, summary]);
   const affiliateLink = useMemo(() => {
     if (!affiliateCode) return null;
     return buildAffiliateSignupLink({
@@ -2947,21 +3214,21 @@ export default function MediaKitView({
   if (isProposalOnlyMode && isPublicView && mediaKitSlug) {
     return (
       <GlobalTimePeriodProvider>
-        <div className="min-h-screen bg-white font-sans text-[#0F172A]">
+        <div className="dashboard-skin min-h-screen font-sans text-[#0F172A]">
           <div className="mx-auto w-full max-w-2xl px-4 py-8 sm:px-6 sm:py-12">
-            <div className="mb-5 rounded-2xl border border-slate-200 bg-white px-4 py-4 sm:px-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#6E1F93]">
+            <div className="dashboard-panel mb-5 px-4 py-4 sm:px-5">
+              <p className="dashboard-muted-label text-pink-500">
                 Proposta Comercial
               </p>
-              <h1 className="mt-1 text-xl font-bold text-slate-900 sm:text-2xl">
+              <h1 className="dashboard-type-section-title mt-1 text-xl sm:text-2xl">
                 Enviar proposta para {affiliateHandleLabel}
               </h1>
-              <p className="mt-2 text-sm text-slate-600">
+              <p className="dashboard-type-body mt-2">
                 Preencha o formulário abaixo para iniciar a negociação de publicidade.
               </p>
             </div>
 
-            <div className="min-h-[70vh] rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm sm:px-5 sm:py-5">
+            <div className="dashboard-panel min-h-[70vh] px-4 py-4 sm:px-5 sm:py-5">
               <PublicProposalForm
                 mediaKitSlug={mediaKitSlug}
                 onSubmitSuccess={handleProposalSuccess}
@@ -2977,11 +3244,431 @@ export default function MediaKitView({
     );
   }
 
+  if (compactBoardPreview && !isPrintMode) {
+    return (
+      <GlobalTimePeriodProvider>
+        <div className="px-4 pb-6 pt-3">
+          <section className="space-y-[1.125rem]">
+            <div className="rounded-[1.3rem] border border-zinc-100/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,248,249,0.95))] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+              <div className="flex items-start gap-6">
+                <div className="w-fit shrink-0 rounded-full bg-white/92 p-1.5 ring-1 ring-zinc-100/90">
+                  <UserAvatar
+                    name={user.name || 'Criador'}
+                    src={heroAvatarUrl}
+                    fallbackSrc={avatarFallbackSrc}
+                    size={78}
+                  />
+                </div>
+                <div className="min-w-0 flex-1 pl-1 pt-1">
+                  <h2 className="dashboard-type-board-title truncate text-[1.28rem] leading-tight text-zinc-950">
+                    {user.name || 'Criador'}
+                  </h2>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-zinc-400">
+                    {affiliateHandleLabel ? (
+                      <p className="text-[13px] font-medium leading-none text-zinc-500">{affiliateHandleLabel}</p>
+                    ) : null}
+                    {heroLocationLabel ? (
+                      <>
+                        {affiliateHandleLabel ? <span className="text-[11px] text-zinc-300">•</span> : null}
+                        <p className="dashboard-type-meta flex items-center gap-1 text-zinc-400">
+                          <MapPin className="h-3.5 w-3.5" />
+                          {heroLocationLabel}
+                        </p>
+                      </>
+                    ) : null}
+                  </div>
+
+                  <p className="dashboard-type-body mt-3.5 line-clamp-2 pr-2 leading-[1.55] text-zinc-600">
+                    {compactBoardIntro}
+                  </p>
+
+                  <div className="mt-3.5 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleShareClick}
+                      disabled={showOwnerCtas ? shareDisabledForOwner : false}
+                      className="dashboard-primary-button dashboard-type-control inline-flex min-h-[2.375rem] items-center justify-center gap-2 rounded-full px-4 py-2.5 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <Share2 className="h-4 w-4" />
+                      Copiar link
+                    </button>
+                    {showOwnerCtas ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (typeof window !== 'undefined') {
+                            window.location.assign('/dashboard/media-kit');
+                          }
+                        }}
+                        className="dashboard-type-control inline-flex min-h-[2.25rem] items-center justify-center gap-1.5 rounded-full px-2.5 py-1.5 text-zinc-500 transition hover:text-zinc-700"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                        Editar kit
+                      </button>
+                    ) : null}
+                  </div>
+
+                  {hasCopiedLink ? (
+                    <p className="dashboard-type-meta mt-2 text-zinc-400">Link copiado.</p>
+                  ) : showOwnerCtas && !resolvedMediaKitSlug ? (
+                    <p className="dashboard-type-meta mt-2 text-zinc-400">
+                      {isResolvingOwnerSlug
+                        ? 'Gerando link público...'
+                        : 'Link público ainda não disponível. Aguarde alguns segundos.'}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+
+            {visibleTopPosts.length > 0 ? (
+              <div className="border-t border-zinc-100/80 pt-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] bg-indigo-50 text-indigo-500 ring-1 ring-indigo-100/90">
+                    <ArrowUpRight className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="dashboard-type-section-title text-zinc-950">Conteúdo em destaque</p>
+                    <p className="dashboard-type-meta mt-1 leading-relaxed text-zinc-500">
+                      {topPostsIntro || `Top posts dos ${selectedPeriodLabel.toLocaleLowerCase('pt-BR')} por ${topPostSortLabelMap[topPostsSort]}`}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-3.5 space-y-1.5">
+                  {visibleTopPosts.slice(0, 2).map((video, index) => {
+                    const captionPreview = truncateCaption(video.caption, 84) ?? 'Conteúdo em destaque';
+                    const dateLabel = formatDateLabel(video.postDate);
+                    const derivedStats = (video as any).derivedStats ?? {};
+                    const isClickable = !isPrintMode && Boolean(video._id);
+                    const primaryMetric = (() => {
+                      if (topPostsSort === 'engagementRate') {
+                        if (typeof derivedStats.engagementRate === 'number' && Number.isFinite(derivedStats.engagementRate)) {
+                          return {
+                            label: 'ER',
+                            value: `${derivedStats.engagementRate >= 10 ? derivedStats.engagementRate.toFixed(1) : derivedStats.engagementRate.toFixed(2)}%`,
+                          };
+                        }
+                        return null;
+                      }
+                      if (topPostsSort === 'saves') {
+                        if (typeof derivedStats.saves === 'number' && derivedStats.saves > 0) {
+                          return { label: 'salvos', value: formatMetricValue(derivedStats.saves) };
+                        }
+                        return null;
+                      }
+                      if (typeof derivedStats.views === 'number' && derivedStats.views > 0) {
+                        return { label: 'views', value: formatMetricValue(derivedStats.views) };
+                      }
+                      return null;
+                    })();
+                    const secondaryMetric =
+                      topPostsSort === 'engagementRate'
+                        ? typeof derivedStats.views === 'number' && derivedStats.views > 0
+                          ? { label: 'views', value: formatMetricValue(derivedStats.views) }
+                          : null
+                        : typeof derivedStats.engagementRate === 'number' && Number.isFinite(derivedStats.engagementRate)
+                          ? {
+                              label: 'ER',
+                              value: `${derivedStats.engagementRate >= 10 ? derivedStats.engagementRate.toFixed(1) : derivedStats.engagementRate.toFixed(2)}%`,
+                            }
+                          : null;
+                    const hasThumbnail = Boolean(video.thumbnailUrl);
+
+                    return (
+                      <article
+                        key={video._id || `${video.postDate}-${index}`}
+                        className={`rounded-[1.05rem] border border-zinc-100/80 bg-zinc-50/58 px-2.5 py-2.5 transition ${
+                          isClickable ? 'cursor-pointer hover:border-zinc-200 hover:bg-white/82 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-200' : ''
+                        }`}
+                        role={isClickable ? 'button' : undefined}
+                        tabIndex={isClickable ? 0 : undefined}
+                        onClick={isClickable ? () => setSelectedPostId(video._id!) : undefined}
+                        onKeyDown={isClickable ? (event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            setSelectedPostId(video._id!);
+                          }
+                        } : undefined}
+                      >
+                        <div className="flex items-start gap-3.5">
+                          <div className="relative h-[78px] w-[60px] shrink-0 overflow-hidden rounded-[0.95rem] border border-zinc-100/90 bg-white">
+                            {hasThumbnail ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={video.thumbnailUrl!}
+                                alt={captionPreview}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-[10px] font-semibold text-zinc-400">
+                                Sem capa
+                              </div>
+                            )}
+                            <span className="dashboard-type-control absolute left-2 top-2 inline-flex h-5.5 w-5.5 items-center justify-center rounded-full bg-white/92 text-indigo-600 shadow-sm">
+                              {index + 1}
+                            </span>
+                          </div>
+
+                          <div className="min-w-0 flex-1 pt-0.5">
+                            <div className="flex items-start justify-between gap-3">
+                              <p className="dashboard-type-item-title line-clamp-2 leading-snug text-zinc-900">
+                                {captionPreview}
+                              </p>
+                              {isClickable ? (
+                                <span className="dashboard-type-control inline-flex shrink-0 items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-zinc-600 ring-1 ring-zinc-100/90">
+                                  Ver
+                                  <ArrowUpRight className="h-3 w-3" />
+                                </span>
+                              ) : null}
+                            </div>
+
+                            <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                              {dateLabel ? (
+                                <span className="dashboard-type-meta text-zinc-400">{dateLabel}</span>
+                              ) : null}
+                              {primaryMetric ? (
+                                <span className="dashboard-type-control inline-flex items-center rounded-full bg-zinc-100/90 px-2 py-0.5 text-zinc-700">
+                                  {primaryMetric.value} {primaryMetric.label}
+                                </span>
+                              ) : null}
+                              {secondaryMetric ? (
+                                <span className="dashboard-type-meta text-zinc-500">
+                                  {secondaryMetric.value} {secondaryMetric.label}
+                                </span>
+                              ) : null}
+                              {isClickable ? (
+                                <span className="dashboard-type-meta text-zinc-400">Clique para ver o conteúdo</span>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            {compactAudienceBreakdowns.length > 0
+              ? compactAudienceBreakdowns.map((item) => (
+                  <div key={item.key} className="border-t border-zinc-100/80 pt-4">
+                    <div className="flex items-center gap-2.5">
+                      <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100/90">
+                        {item.icon}
+                      </span>
+                      <p className="dashboard-type-section-title text-zinc-950">{item.title}</p>
+                    </div>
+
+                    <div className="mt-3.5 rounded-[1.05rem] border border-zinc-100/70 bg-zinc-50/52 px-2.5 py-2.5">
+                      <DemographicBarList data={item.data} maxItems={3} accentClass={item.accentClass} />
+                    </div>
+                  </div>
+                ))
+              : null}
+
+            {!shouldHidePremiumSections ? (
+              <div className="border-t border-zinc-100/80 pt-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] bg-rose-50 text-rose-500 ring-1 ring-rose-100/90">
+                    <Sparkles className="h-4 w-4" />
+                  </span>
+                  <p className="dashboard-type-section-title text-zinc-950">Leitura estratégica</p>
+                </div>
+
+                <div className="mt-3.5 rounded-[1.05rem] border border-zinc-100/70 bg-zinc-50/52 px-2.5 py-2.5">
+                  {hasCategorySummaryData || categoryRankingsLoadingState || shouldLockPremiumSections ? (
+                    <CategoryRankingsSummary
+                      rankings={effectiveCategoryRankings}
+                      summary={summary}
+                      loading={categoryRankingsLoadingState}
+                      locked={shouldLockPremiumSections}
+                      lockedDescription={lockedCategoriesDescription}
+                      lockedCtaLabel={isPrintMode ? undefined : categoryCtaLabel}
+                      lockedSubtitle={lockedSubtitle}
+                      onLockedAction={isPrintMode ? undefined : () => handleLockedCtaClick('media_kit_categories_summary')}
+                      isPublicView={isPublicView}
+                      compactView
+                      cardClassName="rounded-[1.05rem]"
+                      iconSurfaceClassName="inline-flex h-7 w-7 items-center justify-center rounded-[0.85rem] bg-zinc-50/82 ring-1 ring-zinc-100/90"
+                      maxItems={4}
+                    />
+                  ) : compactStrategicHighlights.length ? (
+                    <div className="space-y-0">
+                      {compactStrategicHighlights.slice(0, 4).map((item, index) => (
+                        <div key={item.key} className={`${index > 0 ? 'border-t border-zinc-100/80' : ''} px-1 py-3`}>
+                          <div className="flex items-start gap-3.5">
+                            <span className="dashboard-type-control inline-flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-zinc-50 text-zinc-500">
+                              {index + 1}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start gap-3">
+                                <span
+                                  className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] ring-1"
+                                  style={{
+                                    color: item.accent,
+                                    backgroundColor: `${item.accent}12`,
+                                    borderColor: `${item.accent}24`,
+                                  }}
+                                >
+                                  {item.icon}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <p className="dashboard-muted-label text-zinc-400">{item.title}</p>
+                                  <p className="dashboard-type-item-title mt-1 line-clamp-2 leading-snug text-zinc-900">
+                                    {item.primary}
+                                  </p>
+                                  <p className="dashboard-type-meta mt-1.5 leading-relaxed text-zinc-500">
+                                    {item.secondary}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="dashboard-empty-state rounded-[1.05rem] border border-dashed border-zinc-200 px-4 py-5 text-center text-sm text-zinc-500">
+                      Ainda estamos consolidando leituras estratégicas para este período.
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="border-t border-zinc-100/80 pt-4">
+              <div className="flex items-center gap-2.5">
+                <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] bg-sky-50 text-sky-500 ring-1 ring-sky-100/90">
+                  <Eye className="h-4 w-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="dashboard-type-section-title text-zinc-950">Visão geral</p>
+                  <p className="dashboard-type-meta mt-1 text-zinc-500">Leitura dos {heroPeriodLabel}</p>
+                </div>
+              </div>
+
+              <div className="mt-3.5 rounded-[1.05rem] border border-zinc-100/70 bg-zinc-50/52 px-2.5 py-2.5">
+                <div className="space-y-0">
+                  {compactOverviewItems.map((item, index) => (
+                    <div key={item.key} className={`${index > 0 ? 'border-t border-zinc-100/70' : ''} py-2.5`}>
+                      <div className="flex items-start gap-3.5">
+                        <span className={`inline-flex h-6.5 w-6.5 shrink-0 items-center justify-center rounded-[0.8rem] ring-1 ${item.accentClass}`}>
+                          {item.icon}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                              <p className="dashboard-type-item-title line-clamp-2 pr-2 leading-snug text-zinc-900">
+                                {item.title}
+                              </p>
+                              {item.helper ? (
+                                <p className="dashboard-type-meta mt-1 leading-relaxed text-zinc-400">
+                                  {item.helper}
+                                </p>
+                              ) : null}
+                            </div>
+                            <span className="dashboard-type-kpi-sm shrink-0 tabular-nums font-semibold text-zinc-900">
+                              {item.value}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {(packages.length > 0 || pricingCards.length > 0) ? (
+              <div className="border-t border-zinc-100/80 pt-4">
+                <div className="flex items-center gap-2.5">
+                  <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] bg-amber-50 text-amber-600 ring-1 ring-amber-100/90">
+                    <Bookmark className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="dashboard-type-section-title text-zinc-950">Investimento sugerido</p>
+                    {compactInvestmentMeta ? (
+                      <p className="dashboard-type-meta mt-1 text-zinc-500">{compactInvestmentMeta}</p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <div className="mt-3.5 rounded-[1.05rem] border border-zinc-100/70 bg-zinc-50/52 px-2.5 py-2.5">
+                  <div className="space-y-0">
+                    {packages.length > 0
+                      ? packages.slice(0, 2).map((pkg, index) => (
+                          <div key={pkg._id || pkg.name} className={`${index > 0 ? 'border-t border-zinc-100/70' : ''} py-2.5`}>
+                            <div className="flex items-start gap-3.5">
+                              <span className="dashboard-type-control inline-flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-700">
+                                {index + 1}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="min-w-0">
+                                    <p className="dashboard-type-item-title line-clamp-2 pr-2 leading-snug text-zinc-900">
+                                      {pkg.name}
+                                    </p>
+                                    <p className="dashboard-type-meta mt-1.5 leading-relaxed text-zinc-500">
+                                      {pkg.deliverables.length > 0
+                                        ? `${pkg.deliverables.length} entregável${pkg.deliverables.length === 1 ? '' : 'eis'}${pkg.deliverables[0] ? ` • ${pkg.deliverables[0]}` : ''}`
+                                        : pkg.description || 'Pacote pronto para apresentar a marcas.'}
+                                    </p>
+                                  </div>
+                                  <span className="dashboard-type-body shrink-0 tabular-nums font-medium text-zinc-700">
+                                    {formatCurrencyLabel(pkg.price)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      : pricingCards.slice(0, 2).map((card, index) => (
+                          <div key={card.key} className={`${index > 0 ? 'border-t border-zinc-100/70' : ''} py-2.5`}>
+                            <div className="flex items-start gap-3.5">
+                              <span className={`dashboard-type-control inline-flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full ${card.badgeClass}`}>
+                                {index + 1}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-start justify-between gap-4">
+                                  <div className="min-w-0">
+                                    <p className="dashboard-type-item-title line-clamp-2 pr-2 leading-snug text-zinc-900">
+                                      {card.label}
+                                    </p>
+                                    <p className="dashboard-type-meta mt-1.5 leading-relaxed text-zinc-500">
+                                      CPM de {card.cpm}
+                                    </p>
+                                  </div>
+                                  <span className="dashboard-type-body shrink-0 tabular-nums font-medium text-zinc-700">
+                                    {card.value}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            <PostDetailModal
+              isOpen={selectedPostId !== null}
+              onClose={() => setSelectedPostId(null)}
+              postId={selectedPostId}
+              publicMode
+            />
+          </section>
+        </div>
+      </GlobalTimePeriodProvider>
+    );
+  }
+
   return (
     <GlobalTimePeriodProvider>
       <div
-        className="min-h-screen font-sans text-[#0F172A]"
-        style={{ background: landingSunriseBackground }}
+        className={resolvedRootClassName}
+        style={{ background: resolvedRootBackground }}
       >
         <div id="media-kit-content" className={mainContainerClass}>
           <div className={sectionsWrapperClass}>
@@ -2990,32 +3677,33 @@ export default function MediaKitView({
               initial={motionInitial}
               animate="visible"
               custom={0}
-              className="flex flex-col items-center text-center sm:items-start sm:text-left"
+              className={`flex flex-col items-center text-center ${isBoardEmbedded ? 'pt-0' : ''}`}
             >
-              <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-10">
+              <div className={`flex flex-col items-center ${isBoardEmbedded ? 'gap-3.5' : 'gap-5'}`}>
                 <div className="relative">
-                  <div className="rounded-full bg-white p-1.5 shadow-xl ring-1 ring-slate-900/5">
+                  <div className={isBoardEmbedded ? 'w-fit rounded-full bg-zinc-50/86 p-1.5 ring-1 ring-zinc-100/90' : 'w-fit rounded-full bg-white p-1.5 shadow-lg ring-1 ring-slate-900/5'}>
                     <UserAvatar
                       name={user.name || 'Criador'}
                       src={heroAvatarUrl}
                       fallbackSrc={avatarFallbackSrc}
-                      size={160}
+                      size={isBoardEmbedded ? 92 : 112}
                     />
                   </div>
                 </div>
 
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <h1 className="text-4xl font-black tracking-tight text-slate-900 drop-shadow-[0_6px_20px_rgba(12,12,16,0.12)] sm:text-5xl">
+                <div className={`max-w-[34rem] ${isBoardEmbedded ? 'space-y-2.5' : 'space-y-3.5'}`}>
+                  <div className={isBoardEmbedded ? 'space-y-1' : 'space-y-1.5'}>
+                    <p className="dashboard-muted-label text-pink-500">Mídia Kit</p>
+                    <h1 className={`dashboard-type-board-title ${isBoardEmbedded ? 'text-[2.12rem] sm:text-[2.35rem]' : 'text-3xl sm:text-4xl'}`}>
                       {user.name || 'Criador'}
                     </h1>
-                    <div className="flex flex-wrap items-center justify-center gap-3 sm:justify-start">
+                    <div className={`flex flex-wrap items-center justify-center ${isBoardEmbedded ? 'gap-2.5' : 'gap-3'}`}>
                       {affiliateHandleLabel && (
                         <a
                           href={instagramProfileUrl || '#'}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-lg font-medium text-slate-600 transition hover:text-[#6E1F93]"
+                          className={`dashboard-type-body text-zinc-500 transition hover:text-pink-500 ${isBoardEmbedded ? 'text-[0.95rem]' : 'text-base'}`}
                         >
                           {affiliateHandleLabel}
                         </a>
@@ -3023,8 +3711,8 @@ export default function MediaKitView({
 
                       {heroLocationLabel && (
                         <>
-                          <span className="hidden h-1 w-1 rounded-full bg-slate-300 sm:block" />
-                          <span className="text-sm font-medium text-slate-500">
+                          <span className="hidden h-1 w-1 rounded-full bg-zinc-300 sm:block" />
+                          <span className="dashboard-type-body text-zinc-500">
                             {heroLocationLabel}
                           </span>
                         </>
@@ -3033,30 +3721,30 @@ export default function MediaKitView({
                   </div>
 
                   {heroBio && (
-                    <p className="max-w-2xl text-lg leading-relaxed text-slate-700">
+                    <p className={`dashboard-type-body mx-auto max-w-[31rem] ${isBoardEmbedded ? 'text-[0.92rem] leading-6' : 'text-base'}`}>
                       {heroBio}
                     </p>
                   )}
 
-                  <div className="flex flex-wrap items-center justify-center gap-3 pt-2 sm:justify-start">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-                      <Sparkles className="h-3.5 w-3.5 text-[#6E1F93]" />
+                  <div className={`flex flex-wrap items-center justify-center gap-2.5 ${isBoardEmbedded ? 'pt-0' : 'pt-0.5'}`}>
+                    <span className={`dashboard-type-control inline-flex items-center gap-1.5 rounded-full px-3 py-1 ${isBoardEmbedded ? 'bg-pink-50/82 text-pink-500 ring-1 ring-pink-100/70' : 'bg-pink-50 text-pink-500'}`}>
+                      <Sparkles className="h-3.5 w-3.5 text-pink-500" />
                       Parceiro Data2Content
                     </span>
                     {heroDescriptor && (
-                      <span className="inline-flex items-center rounded-full border border-slate-200 px-3 py-1 text-xs font-medium text-slate-600">
+                      <span className={`dashboard-type-control inline-flex items-center rounded-full border px-3 py-1 text-zinc-600 ${isBoardEmbedded ? 'border-zinc-100/90 bg-zinc-50/78' : 'border-zinc-200 bg-white/86'}`}>
                         {heroDescriptor}
                       </span>
                     )}
                   </div>
                   {!isPrintMode && (
-                    <div className="mt-6 flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-                      <ButtonPrimary
+                    <div className={`flex w-full flex-wrap items-center justify-center gap-2 ${isBoardEmbedded ? 'mt-2.5' : 'mt-3.5'}`}>
+                  <ButtonPrimary
                         onClick={handleShareClick}
                         disabled={shareDisabledForOwner}
                         variant="outline"
                         size="sm"
-                        className="w-full justify-center rounded-full border-slate-200 px-4 py-2 shadow-sm hover:bg-slate-50 sm:w-auto"
+                        className={`dashboard-primary-button dashboard-type-control ${isBoardEmbedded ? 'shadow-none ring-1 ring-zinc-900/5' : 'shadow-[0_16px_30px_rgba(24,24,27,0.12)]'} min-h-[2.375rem] min-w-[132px] justify-center rounded-full border-zinc-200 px-4 text-white hover:bg-black`}
                       >
                         <Share2 className="mr-2 h-4 w-4" />
                         Compartilhar
@@ -3065,7 +3753,7 @@ export default function MediaKitView({
                         onClick={handlePdfExport}
                         variant="outline"
                         size="sm"
-                        className={`w-full justify-center rounded-full border-slate-200 px-4 py-2 shadow-sm hover:bg-slate-50 sm:w-auto ${isPdfGenerating ? 'pointer-events-none opacity-60' : ''}`}
+                        className={`dashboard-secondary-button dashboard-type-control min-h-[2.375rem] min-w-[132px] justify-center rounded-full border-zinc-200 px-4 text-zinc-800 ${isBoardEmbedded ? 'ring-1 ring-zinc-100/90' : 'shadow-sm'} hover:bg-white ${isPdfGenerating ? 'pointer-events-none opacity-60' : ''}`}
                       >
                         <Download className="mr-2 h-4 w-4" />
                         {isPdfGenerating ? 'Gerando PDF...' : 'Salvar PDF'}
@@ -3075,21 +3763,21 @@ export default function MediaKitView({
                           onClick={onEditName}
                           variant="outline"
                           size="sm"
-                          className="w-full justify-center rounded-full border-slate-200 px-4 py-2 shadow-sm hover:bg-slate-50 sm:w-auto"
+                          className={`dashboard-secondary-button dashboard-type-control min-h-[2.375rem] min-w-[132px] justify-center rounded-full border-zinc-200 px-4 text-zinc-800 ${isBoardEmbedded ? 'ring-1 ring-zinc-100/90' : 'shadow-sm'} hover:bg-white`}
                         >
                           <Pencil className="mr-2 h-4 w-4" />
                           Editar nome
                         </ButtonPrimary>
                       )}
-                      {hasCopiedLink && (
-                        <span className="animate-fade-in ml-3 flex items-center text-xs font-medium text-emerald-600">
-                          Link copiado!
-                        </span>
-                      )}
                     </div>
                   )}
+                  {!isPrintMode && hasCopiedLink && (
+                    <span className="animate-fade-in flex items-center text-xs font-medium text-emerald-600">
+                      Link copiado!
+                    </span>
+                  )}
                   {!isPrintMode && (pdfError || isMobile || isPdfGenerating) && (
-                    <div className="mt-2 text-xs text-slate-500">
+                    <div className="text-xs text-zinc-500">
                       {pdfError ? (
                         <span className="text-red-600">{pdfError}</span>
                       ) : isPdfGenerating ? (
@@ -3100,7 +3788,7 @@ export default function MediaKitView({
                     </div>
                   )}
                   {!isPrintMode && showOwnerCtas && !resolvedMediaKitSlug && (
-                    <div className="mt-2 text-xs text-slate-500">
+                    <div className="text-xs text-zinc-500">
                       {isResolvingOwnerSlug
                         ? 'Gerando link público...'
                         : 'Link público ainda não disponível. Aguarde alguns segundos.'}
@@ -3117,29 +3805,35 @@ export default function MediaKitView({
                 initial={motionInitial}
                 animate="visible"
                 custom={0.1}
-                className="mt-12 grid grid-cols-2 gap-4"
+                className={isBoardEmbedded ? 'mt-6 grid grid-cols-2 gap-0 overflow-hidden rounded-[26px] border border-zinc-100/90 bg-white/72' : 'mt-10 grid grid-cols-2 gap-3.5'}
               >
-                {heroMetricCardsData.map((metric) => (
+                {heroMetricCardsData.map((metric, index) => (
                   <div
                     key={metric.key}
-                    className={`${highlightCardClass} flex flex-col p-5`}
-                    style={{ borderLeftColor: `${metric.accent}40`, borderLeftWidth: '1px' }}
+                    className={`${isBoardEmbedded ? 'flex min-h-[128px] flex-col p-[1.125rem]' : `${resolvedHighlightCardClass} flex flex-col p-5`} ${isBoardEmbedded && index % 2 === 1 ? 'border-l border-zinc-100/90' : ''} ${isBoardEmbedded && index > 1 ? 'border-t border-zinc-100/90' : ''}`}
+                    style={{
+                      borderLeftColor: `${metric.accent}40`,
+                      borderLeftWidth: '1px',
+                      backgroundImage: `radial-gradient(circle at top right, ${metric.accent}12, transparent 32%)`,
+                    }}
                   >
-                    <div className="mb-4 flex items-center gap-3 text-slate-500">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-50 text-[#6E1F93]">
+                    <div className={`text-slate-500 ${isBoardEmbedded ? 'mb-3 flex items-center gap-2.5' : 'mb-4 flex items-center gap-3'}`}>
+                      <div className={`${resolvedIconSurfaceClassName} text-[#6E1F93]`}>
                         {metric.icon}
                       </div>
-                      <span className="text-xs font-bold uppercase tracking-wider">{metric.title}</span>
+                      <span className="dashboard-muted-label text-zinc-500">{metric.title}</span>
                     </div>
                     <div className="mt-auto">
-                      <span className="block text-2xl font-bold leading-tight text-slate-900 break-words">{metric.value}</span>
+                      <span className={`dashboard-type-kpi-md block leading-[1.04] tracking-[-0.045em] ${String(metric.value).includes('/') ? 'text-[1.8rem]' : isBoardEmbedded ? 'text-[1.75rem]' : 'text-2xl'} ${String(metric.value).length > 10 ? 'max-w-[9ch]' : ''}`}>
+                        {metric.value}
+                      </span>
                       {!isPublicView && metric.change !== undefined && metric.change !== null && (
                         <div className="mt-2">
                           <DeltaPill value={metric.change} />
                         </div>
                       )}
                       {metric.helper && (
-                        <p className="mt-2 text-xs text-slate-400">{metric.helper}</p>
+                        <p className="dashboard-type-meta mt-2 text-slate-400">{metric.helper}</p>
                       )}
                     </div>
                   </div>
@@ -3156,10 +3850,10 @@ export default function MediaKitView({
                 custom={0.15}
                 className="mt-10 space-y-4"
               >
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className={isCompactLayout ? 'flex flex-col gap-3' : 'flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'}>
                   <div>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                      <h2 className="text-2xl font-bold text-slate-900">Investimento sugerido</h2>
+                  <div className={isCompactLayout ? 'flex flex-col gap-3' : 'flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4'}>
+                    <h2 className={`dashboard-type-section-title break-words ${isBoardEmbedded ? '' : 'text-2xl'}`}>Investimento sugerido</h2>
                       {showOwnerCtas && !isPrintMode && onClearPricing && (
                         <button
                           type="button"
@@ -3178,44 +3872,82 @@ export default function MediaKitView({
                   </div>
                 </div>
 
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {packages.map((pkg) => (
-                    <div key={pkg._id || pkg.name} className={`${highlightCardClass} flex flex-col p-6`}>
-                      <div className="mb-4">
-                        <div className="flex items-start justify-between">
-                          <h3 className="text-xl font-bold text-slate-900">{pkg.name}</h3>
-                          {pkg.type === 'ai_generated' && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase text-blue-600">
-                              <Sparkles className="h-3 w-3" />
-                              IA
-                            </span>
+                {isBoardEmbedded ? (
+                  <div className={`${resolvedHighlightCardClass} overflow-hidden`}>
+                    {packages.map((pkg, index) => (
+                      <div key={pkg._id || pkg.name} className="min-w-0 px-5 py-5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="dashboard-type-item-title min-w-0 break-words leading-tight text-zinc-900">{pkg.name}</h3>
+                              {pkg.type === 'ai_generated' && (
+                                <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase text-blue-600">
+                                  <Sparkles className="h-3 w-3" />
+                                  IA
+                                </span>
+                              )}
+                            </div>
+                            {pkg.deliverables.length > 0 && (
+                              <ul className="mt-3 space-y-1.5">
+                                {pkg.deliverables.slice(0, 4).map((item, i) => (
+                                  <li key={i} className="flex items-start gap-2 text-sm text-zinc-600">
+                                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#6E1F93]/40" />
+                                    <span className="min-w-0 break-words">{item}</span>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            {pkg.description && (
+                              <p className="dashboard-type-meta mt-3 break-words border-t border-zinc-100/90 pt-3">{pkg.description}</p>
+                            )}
+                          </div>
+                          <p className="dashboard-type-kpi-md min-w-[7rem] text-right leading-tight text-[#6E1F93]">
+                            {formatCurrencyLabel(pkg.price)}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className={isCompactLayout ? 'grid grid-cols-1 gap-4' : 'grid gap-6 sm:grid-cols-2 lg:grid-cols-3'}>
+                    {packages.map((pkg) => (
+                      <div key={pkg._id || pkg.name} className={`${resolvedHighlightCardClass} min-w-0 flex flex-col p-6`}>
+                        <div className="mb-4">
+                          <div className="flex items-start justify-between">
+                            <h3 className="min-w-0 break-words text-xl font-bold leading-tight text-slate-900">{pkg.name}</h3>
+                            {pkg.type === 'ai_generated' && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-bold uppercase text-blue-600">
+                                <Sparkles className="h-3 w-3" />
+                                IA
+                              </span>
+                            )}
+                          </div>
+                          <p className="mt-2 break-words text-3xl font-bold leading-tight text-[#6E1F93]">
+                            {formatCurrencyLabel(pkg.price)}
+                          </p>
+                        </div>
+
+                        <div className="flex-1 space-y-4">
+                          {pkg.deliverables.length > 0 && (
+                            <ul className="space-y-2">
+                              {pkg.deliverables.map((item, i) => (
+                                <li key={i} className="flex items-start gap-2 text-sm text-slate-600">
+                                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#6E1F93]/40" />
+                                  <span className="min-w-0 break-words">{item}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                          {pkg.description && (
+                            <p className="break-words border-t border-slate-100 pt-3 text-sm text-slate-500">
+                              {pkg.description}
+                            </p>
                           )}
                         </div>
-                        <p className="mt-2 text-3xl font-bold text-[#6E1F93]">
-                          {formatCurrencyLabel(pkg.price)}
-                        </p>
                       </div>
-
-                      <div className="flex-1 space-y-4">
-                        {pkg.deliverables.length > 0 && (
-                          <ul className="space-y-2">
-                            {pkg.deliverables.map((item, i) => (
-                              <li key={i} className="flex items-start gap-2 text-sm text-slate-600">
-                                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#6E1F93]/40" />
-                                {item}
-                              </li>
-                            ))}
-                          </ul>
-                        )}
-                        {pkg.description && (
-                          <p className="border-t border-slate-100 pt-3 text-sm text-slate-500">
-                            {pkg.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </motion.section>
             ) : pricingCards.length > 0 && (
               <motion.section
@@ -3225,10 +3957,10 @@ export default function MediaKitView({
                 custom={0.15}
                 className="mt-10 space-y-4"
               >
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className={isCompactLayout ? 'flex flex-col gap-3' : 'flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'}>
                   <div>
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-                      <h2 className="text-2xl font-bold text-slate-900">Investimento sugerido</h2>
+                    <div className={isCompactLayout ? 'flex flex-col gap-3' : 'flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4'}>
+                    <h2 className={`dashboard-type-section-title break-words ${isBoardEmbedded ? '' : 'text-2xl'}`}>Investimento sugerido</h2>
                       {showOwnerCtas && !isPrintMode && onClearPricing && (
                         <button
                           type="button"
@@ -3250,15 +3982,15 @@ export default function MediaKitView({
                     {showOwnerCtas && !isPrintMode ? (
                       <div className="mt-2 flex flex-col gap-2">
                         <span
-                          className={`inline-flex w-fit items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide ${pricingPublished ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+                          className={`inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] ${pricingPublished ? 'bg-pink-50 text-pink-600' : 'bg-zinc-100 text-zinc-500'
                             }`}
                         >
                           {pricingPublished ? 'Publicado no Mídia Kit público' : 'Oculto no Mídia Kit público'}
                         </span>
-                        <label className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600">
+                        <label className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-600">
                           <input
                             type="checkbox"
-                            className="h-4 w-4 rounded border-slate-300 text-[#6E1F93] focus:ring-[#6E1F93]"
+                            className="h-4 w-4 rounded border-zinc-300 text-pink-500 focus:ring-pink-200"
                             checked={pricingPublished}
                             onChange={(event) => handlePricingPublishChange(event.target.checked)}
                             disabled={!onTogglePricingPublish}
@@ -3269,32 +4001,52 @@ export default function MediaKitView({
                     ) : null}
                   </div>
                   {pricingUpdatedLabel ? (
-                    <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm ring-1 ring-white/60">
+                    <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold text-zinc-500 ring-1 ${isBoardEmbedded ? 'bg-zinc-50/82 ring-zinc-100/90' : 'bg-white ring-white/60 shadow-sm'}`}>
                       Atualizado {pricingUpdatedLabel}
                     </span>
                   ) : null}
                 </div>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  {pricingCards.map((card) => (
-                    <div key={card.key} className={`${highlightCardClass} flex flex-col justify-between p-5`}>
-                      <div className="flex items-start justify-between gap-3">
-                        <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${card.badgeClass}`}>
-                          <span className={`h-2 w-2 rounded-full ${card.accentDot}`} aria-hidden />
-                          {card.label}
-                        </span>
-                        {card.cpm ? (
-                          <span className="text-xs font-semibold text-slate-500">
-                            CPM aprox. {card.cpm}
+                {isBoardEmbedded ? (
+                  <div className={`${resolvedHighlightCardClass} overflow-hidden`}>
+                    {pricingCards.map((card, index) => (
+                      <div key={card.key} className="min-w-0 px-5 py-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0 flex-1">
+                            <span className={`inline-flex min-w-0 items-center gap-2 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${card.badgeClass}`}>
+                              <span className={`h-2 w-2 rounded-full ${card.accentDot}`} aria-hidden />
+                              <span className="break-words">{card.label}</span>
+                            </span>
+                            {card.cpm ? (
+                              <p className="dashboard-type-meta mt-2 break-words">CPM aprox. {card.cpm}</p>
+                            ) : null}
+                          </div>
+                          <p className="dashboard-type-kpi-md min-w-[7rem] text-right leading-tight text-zinc-900">{card.value}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className={isCompactLayout ? 'grid grid-cols-1 gap-3' : 'grid gap-3 sm:grid-cols-3'}>
+                    {pricingCards.map((card) => (
+                      <div key={card.key} className={`${resolvedHighlightCardClass} min-w-0 flex flex-col justify-between p-5`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <span className={`inline-flex min-w-0 items-center gap-2 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${card.badgeClass}`}>
+                            <span className={`h-2 w-2 rounded-full ${card.accentDot}`} aria-hidden />
+                            <span className="break-words">{card.label}</span>
                           </span>
-                        ) : null}
+                          {card.cpm ? (
+                            <span className="max-w-[8rem] break-words text-right text-xs font-semibold text-zinc-500">
+                              CPM aprox. {card.cpm}
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="mt-4 space-y-1">
+                          <p className="break-words text-3xl font-bold leading-tight tracking-tight text-zinc-900">{card.value}</p>
+                        </div>
                       </div>
-                      <div className="mt-4 space-y-1">
-                        <p className="text-3xl font-bold text-slate-900 leading-tight">{card.value}</p>
-                      </div>
-                      {/* ... legacy cards ... */}
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </motion.section>
             )}
 
@@ -3309,7 +4061,7 @@ export default function MediaKitView({
                 >
                   <div className="flex items-end justify-between">
                     <div>
-                      <h2 className="text-2xl font-bold text-slate-900">Destaques Estratégicos</h2>
+                      <h2 className={`dashboard-type-section-title ${isBoardEmbedded ? '' : 'text-2xl'}`}>Destaques Estratégicos</h2>
                     </div>
                   </div>
 
@@ -3323,6 +4075,9 @@ export default function MediaKitView({
                     lockedSubtitle={lockedSubtitle}
                     onLockedAction={isPrintMode ? undefined : () => handleLockedCtaClick('media_kit_categories_summary')}
                     isPublicView={isPublicView}
+                    compactView={isCompactLayout}
+                    cardClassName={resolvedHighlightCardClass}
+                    iconSurfaceClassName={resolvedIconSurfaceClassName}
                   />
                 </motion.section>
               </div>
@@ -3336,7 +4091,7 @@ export default function MediaKitView({
               <motion.div variants={resolvedCardVariants} initial={motionInitial} animate="visible" custom={0.1}>
                 <SubscribeCtaBanner
                   isSubscribed={isSubscribed}
-                  className={`${glassCardBaseClass} p-6`}
+                  className={`${resolvedGlassCardBaseClass} p-6`}
                 />
               </motion.div>
             )}
@@ -3351,76 +4106,129 @@ export default function MediaKitView({
                   className="space-y-8"
                 >
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-900">Audiência & Demografia</h2>
-                    <p className="mt-1 text-slate-500">{demographicSummary}</p>
+                    <h2 className={`dashboard-type-section-title ${isBoardEmbedded ? '' : 'text-2xl'}`}>Audiência & Demografia</h2>
+                    <p className="mt-1 text-zinc-500">{demographicSummary}</p>
                   </div>
 
-                  <div className={`grid gap-6 sm:grid-cols-2 ${isPublicView ? '' : 'lg:grid-cols-3'}`}>
-                    {genderBarData.length ? (
-                      <div className={`${highlightCardClass} p-6`}>
-                        <div className="mb-6 flex items-center justify-between">
-                          <div className="flex items-center gap-2 font-semibold text-slate-900">
-                            <Users className="h-5 w-5 text-[#D62E5E]" />
-                            Gênero
+                  {isBoardEmbedded ? (
+                    <div className={`${resolvedHighlightCardClass} overflow-hidden`}>
+                      {genderBarData.length ? (
+                        <div className="px-5 py-5">
+                          <div className="mb-4 flex items-center justify-between">
+                            <div className="dashboard-type-item-title flex items-center gap-2 text-zinc-900">
+                              <Users className="h-5 w-5 text-[#D62E5E]" />
+                              Gênero
+                            </div>
                           </div>
+                          <DemographicBarList data={genderBarData} maxItems={3} accentClass="from-[#D62E5E] to-[#F97316]" />
+                          {hasMoreGender && !isPrintMode && (
+                            <button type="button" className="mt-5 text-sm font-medium text-pink-500 hover:underline" onClick={() => setGenderModalOpen(true)}>
+                              Ver todos
+                            </button>
+                          )}
                         </div>
-                        <DemographicBarList data={genderBarData} maxItems={3} accentClass="from-[#D62E5E] to-[#F97316]" />
-                        {hasMoreGender && !isPrintMode && (
-                          <button
-                            type="button"
-                            className="mt-6 text-sm font-medium text-[#D62E5E] hover:underline"
-                            onClick={() => setGenderModalOpen(true)}
-                          >
-                            Ver todos
-                          </button>
-                        )}
-                      </div>
-                    ) : null}
-
-                    {ageBarData.length ? (
-                      <div className={`${highlightCardClass} p-6`}>
-                        <div className="mb-6 flex items-center justify-between">
-                          <div className="flex items-center gap-2 font-semibold text-slate-900">
-                            <CalendarDays className="h-5 w-5 text-[#6E1F93]" />
-                            Idade
+                      ) : null}
+                      {ageBarData.length ? (
+                        <div className="px-5 py-5">
+                          <div className="mb-4 flex items-center justify-between">
+                            <div className="dashboard-type-item-title flex items-center gap-2 text-zinc-900">
+                              <CalendarDays className="h-5 w-5 text-[#6E1F93]" />
+                              Idade
+                            </div>
                           </div>
+                          <DemographicBarList data={ageBarData} maxItems={4} accentClass="from-[#6E1F93] to-[#D62E5E]" />
+                          {hasMoreAgeGroups && !isPrintMode && (
+                            <button type="button" className="mt-5 text-sm font-medium text-zinc-700 hover:underline" onClick={() => setAgeModalOpen(true)}>
+                              Ver todas
+                            </button>
+                          )}
                         </div>
-                        <DemographicBarList data={ageBarData} maxItems={4} accentClass="from-[#6E1F93] to-[#D62E5E]" />
-                        {hasMoreAgeGroups && !isPrintMode && (
-                          <button
-                            type="button"
-                            className="mt-6 text-sm font-medium text-[#6E1F93] hover:underline"
-                            onClick={() => setAgeModalOpen(true)}
-                          >
-                            Ver todas
-                          </button>
-                        )}
-                      </div>
-                    ) : null}
-
-                    {topLocationBreakdown.length ? (
-                      <div className={`${highlightCardClass} p-6`}>
-                        <div className="mb-6 flex items-center justify-between">
-                          <div className="flex items-center gap-2 font-semibold text-slate-900">
-                            <MapPin className="h-5 w-5 text-[#D62E5E]" />
-                            Localização
+                      ) : null}
+                      {topLocationBreakdown.length ? (
+                        <div className="px-5 py-5">
+                          <div className="mb-4 flex items-center justify-between">
+                            <div className="dashboard-type-item-title flex items-center gap-2 text-zinc-900">
+                              <MapPin className="h-5 w-5 text-[#D62E5E]" />
+                              Localização
+                            </div>
                           </div>
+                          <DemographicBarList data={topLocationBreakdown} maxItems={3} accentClass="from-[#D62E5E] to-[#6E1F93]" />
+                          {hasMoreCities && !isPrintMode && (
+                            <button type="button" className="mt-5 text-sm font-medium text-pink-500 hover:underline" onClick={() => setCitiesModalOpen(true)}>
+                              Ver todas
+                            </button>
+                          )}
                         </div>
-                        <DemographicBarList data={topLocationBreakdown} maxItems={3} accentClass="from-[#D62E5E] to-[#6E1F93]" />
-                        {hasMoreCities && !isPrintMode && (
-                          <button
-                            type="button"
-                            className="mt-6 text-sm font-medium text-[#D62E5E] hover:underline"
-                            onClick={() => setCitiesModalOpen(true)}
-                          >
-                            Ver todas
-                          </button>
-                        )}
-                      </div>
-                    ) : null}
-                  </div>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-5">
+                      {genderBarData.length ? (
+                        <div className={`${resolvedHighlightCardClass} p-6`}>
+                          <div className="mb-6 flex items-center justify-between">
+                            <div className="flex items-center gap-2 font-semibold text-zinc-900">
+                              <Users className="h-5 w-5 text-[#D62E5E]" />
+                              Gênero
+                            </div>
+                          </div>
+                          <DemographicBarList data={genderBarData} maxItems={3} accentClass="from-[#D62E5E] to-[#F97316]" />
+                          {hasMoreGender && !isPrintMode && (
+                            <button
+                              type="button"
+                              className="mt-6 text-sm font-medium text-pink-500 hover:underline"
+                              onClick={() => setGenderModalOpen(true)}
+                            >
+                              Ver todos
+                            </button>
+                          )}
+                        </div>
+                      ) : null}
 
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
+                      {ageBarData.length ? (
+                        <div className={`${resolvedHighlightCardClass} p-6`}>
+                          <div className="mb-6 flex items-center justify-between">
+                            <div className="flex items-center gap-2 font-semibold text-zinc-900">
+                              <CalendarDays className="h-5 w-5 text-[#6E1F93]" />
+                              Idade
+                            </div>
+                          </div>
+                          <DemographicBarList data={ageBarData} maxItems={4} accentClass="from-[#6E1F93] to-[#D62E5E]" />
+                          {hasMoreAgeGroups && !isPrintMode && (
+                            <button
+                              type="button"
+                              className="mt-6 text-sm font-medium text-zinc-700 hover:underline"
+                              onClick={() => setAgeModalOpen(true)}
+                            >
+                              Ver todas
+                            </button>
+                          )}
+                        </div>
+                      ) : null}
+
+                      {topLocationBreakdown.length ? (
+                        <div className={`${resolvedHighlightCardClass} p-6`}>
+                          <div className="mb-6 flex items-center justify-between">
+                            <div className="flex items-center gap-2 font-semibold text-zinc-900">
+                              <MapPin className="h-5 w-5 text-[#D62E5E]" />
+                              Localização
+                            </div>
+                          </div>
+                          <DemographicBarList data={topLocationBreakdown} maxItems={3} accentClass="from-[#D62E5E] to-[#6E1F93]" />
+                          {hasMoreCities && !isPrintMode && (
+                            <button
+                              type="button"
+                              className="mt-6 text-sm font-medium text-pink-500 hover:underline"
+                              onClick={() => setCitiesModalOpen(true)}
+                            >
+                              Ver todas
+                            </button>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 text-xs text-zinc-400">
                     <Globe className="h-3.5 w-3.5" />
                     {demographySourceCopy}
                   </div>
@@ -3436,15 +4244,15 @@ export default function MediaKitView({
                 custom={0.3}
                 className="space-y-8"
               >
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div className={isCompactLayout ? 'flex flex-col gap-4' : 'flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between'}>
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-900">Performance Geral</h2>
-                    <p className="mt-1 text-slate-500">Resumo dos {selectedPeriodLabel.toLocaleLowerCase('pt-BR')}</p>
+                    <h2 className="dashboard-type-section-title break-words text-2xl">Performance Geral</h2>
+                    <p className="mt-1 text-zinc-500">Resumo dos {selectedPeriodLabel.toLocaleLowerCase('pt-BR')}</p>
                   </div>
 
                   <div className="flex items-center gap-2">
                     {isPrintMode ? (
-                      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
                         Período: {selectedPeriodLabel}
                       </span>
                     ) : (
@@ -3452,7 +4260,7 @@ export default function MediaKitView({
                         id="comparisonPeriod"
                         value={comparisonPeriod}
                         onChange={(event) => setComparisonPeriod(normalizeComparisonPeriod(event.target.value))}
-                        className="cursor-pointer rounded-full border-0 bg-slate-100 py-2 pl-4 pr-10 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-[#6E1F93]"
+                        className="dashboard-select cursor-pointer py-2 pl-4 pr-10 text-sm font-semibold text-zinc-700"
                       >
                         {PERIOD_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
@@ -3465,53 +4273,53 @@ export default function MediaKitView({
                 </div>
 
                 {kpiError && (
-                  <div className="rounded-2xl bg-red-50 p-4 text-sm text-red-600">
+                  <div className="rounded-[1.25rem] border border-red-200/70 bg-red-50/64 p-4 text-sm text-red-600">
                     {kpiError}
                   </div>
                 )}
 
                 {isLoading ? (
-                  <div className="grid gap-6 sm:grid-cols-2">
+                  <div className={isCompactLayout ? 'grid grid-cols-1 gap-6' : 'grid gap-6 sm:grid-cols-2'}>
                     <Skeleton className="h-64 w-full rounded-3xl" />
                     <Skeleton className="h-64 w-full rounded-3xl" />
                   </div>
                 ) : (
-                  <div className="grid gap-6 sm:grid-cols-2">
-                    <div className={`${highlightCardClass} p-8`}>
-                      <h3 className="mb-6 text-lg font-bold text-slate-900">Médias por post</h3>
+                  <div className={isCompactLayout ? 'grid grid-cols-1 gap-6' : 'grid gap-6 sm:grid-cols-2'}>
+                    <div className={`${resolvedHighlightCardClass} min-w-0 p-8`}>
+                      <h3 className="mb-6 text-lg font-bold tracking-tight text-zinc-900">Médias por post</h3>
                       <div className="space-y-4">
                         <AverageMetricRow
-                          icon={<Eye className="h-5 w-5 text-slate-400" />}
+                          icon={<Eye className="h-5 w-5 text-zinc-400" />}
                           label="Visualizações"
                           value={displayKpis?.avgViewsPerPost?.currentValue}
                         />
                         <AverageMetricRow
-                          icon={<Heart className="h-5 w-5 text-slate-400" />}
+                          icon={<Heart className="h-5 w-5 text-zinc-400" />}
                           label="Curtidas"
                           value={displayKpis?.avgLikesPerPost?.currentValue}
                         />
                         <AverageMetricRow
-                          icon={<MessageSquare className="h-5 w-5 text-slate-400" />}
+                          icon={<MessageSquare className="h-5 w-5 text-zinc-400" />}
                           label="Comentários"
                           value={displayKpis?.avgCommentsPerPost?.currentValue}
                         />
                         <AverageMetricRow
-                          icon={<Share2 className="h-5 w-5 text-slate-400" />}
+                          icon={<Share2 className="h-5 w-5 text-zinc-400" />}
                           label="Compartilhamentos"
                           value={displayKpis?.avgSharesPerPost?.currentValue}
                         />
                         <AverageMetricRow
-                          icon={<Bookmark className="h-5 w-5 text-slate-400" />}
+                          icon={<Bookmark className="h-5 w-5 text-zinc-400" />}
                           label="Salvos"
                           value={displayKpis?.avgSavesPerPost?.currentValue}
                         />
                       </div>
                     </div>
 
-                    <div className={`${highlightCardClass} p-8`}>
+                    <div className={`${resolvedHighlightCardClass} min-w-0 p-8`}>
                       <div className="mb-6 flex items-start justify-between">
-                        <div>
-                          <h3 className="text-lg font-bold text-slate-900">Taxa de engajamento</h3>
+                        <div className="min-w-0">
+                          <h3 className="break-words text-lg font-bold tracking-tight text-zinc-900">Taxa de engajamento</h3>
                           <div className="mt-2 flex items-baseline gap-3">
                             <span className={`text-4xl font-bold ${engagementRateColor}`}>
                               {engagementRateDisplay}
@@ -3523,13 +4331,13 @@ export default function MediaKitView({
                         </div>
                       </div>
 
-                      <div className="h-64 w-full overflow-hidden rounded-2xl bg-white pt-4 pr-1">
+                      <div className={`w-full overflow-hidden rounded-[1.45rem] border border-zinc-100/90 ${isBoardEmbedded ? 'bg-zinc-50/72' : 'bg-zinc-50/72'} pt-4 pr-1 ${isCompactLayout ? 'h-56' : 'h-64'}`}>
                         <ResponsiveContainer width="100%" height="100%">
                           <AreaChart data={engagementSparklineData} margin={{ top: 5, right: 0, left: -24, bottom: 0 }}>
                             <defs>
                               <linearGradient id="engagementGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#6E1F93" stopOpacity={0.3} />
-                                <stop offset="95%" stopColor="#6E1F93" stopOpacity={0} />
+                                <stop offset="5%" stopColor="#EC4899" stopOpacity={0.24} />
+                                <stop offset="95%" stopColor="#EC4899" stopOpacity={0} />
                               </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
@@ -3554,7 +4362,7 @@ export default function MediaKitView({
                             <Area
                               type="monotone"
                               dataKey="rate"
-                              stroke="#6E1F93"
+                              stroke="#18181B"
                               strokeWidth={3}
                               fillOpacity={1}
                               fill="url(#engagementGradient)"
@@ -3563,7 +4371,7 @@ export default function MediaKitView({
                         </ResponsiveContainer>
                       </div>
 
-                      <p className="mt-4 text-sm text-slate-500">
+                      <p className="mt-4 text-sm text-zinc-500">
                         {engagementTrendNarrative}
                       </p>
                     </div>
@@ -3580,16 +4388,16 @@ export default function MediaKitView({
                 custom={0.4}
                 className="space-y-8"
               >
-                <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+                <div className={isCompactLayout ? 'flex flex-col gap-4' : 'flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between'}>
                   <div>
-                    <h2 className="text-2xl font-bold text-slate-900">Conteúdo em Destaque</h2>
-                    <p className="mt-1 text-slate-500">
+                    <h2 className={`dashboard-type-section-title break-words ${isBoardEmbedded ? '' : 'text-2xl'}`}>Conteúdo em Destaque</h2>
+                    <p className="mt-1 text-zinc-500">
                       {topPostsIntro || `Top posts dos ${selectedPeriodLabel.toLocaleLowerCase('pt-BR')}`}
                     </p>
                   </div>
 
                   {!isPrintMode && (
-                    <div className="flex items-center gap-2 rounded-full bg-slate-100 p-1">
+                    <div className={`dashboard-segmented flex items-center gap-2 p-1 ${isCompactLayout ? 'w-full flex-wrap rounded-[1.4rem]' : 'rounded-full'} ${isBoardEmbedded ? 'bg-zinc-50/84' : 'bg-zinc-50/68'}`}>
                       {topPostSortOptions.map((option) => {
                         const isActive = topPostsSort === option.value;
                         return (
@@ -3597,9 +4405,9 @@ export default function MediaKitView({
                             key={option.value}
                             type="button"
                             onClick={() => handleTopPostSortChange(option.value)}
-                            className={`rounded-full px-4 py-2 text-sm font-medium transition ${isActive
-                              ? 'bg-white text-slate-900 shadow-sm'
-                              : 'text-slate-500 hover:text-slate-700'
+                            className={`dashboard-type-control ${isCompactLayout ? 'min-h-[2.375rem] min-w-[calc(50%-0.25rem)] flex-1 rounded-full px-3 text-center' : 'min-h-[2.5rem] rounded-full px-4'} py-2 transition ${isActive
+                              ? 'bg-white text-zinc-900 ring-1 ring-zinc-100/90'
+                              : 'text-zinc-500 hover:text-zinc-700'
                               }`}
                           >
                             {option.label}
@@ -3611,28 +4419,28 @@ export default function MediaKitView({
                 </div>
 
                 {videosWithCorrectStats.length === 0 ? (
-                  <div className={`grid gap-6 sm:grid-cols-2 ${isPublicView ? '' : 'lg:grid-cols-4'}`}>
+                  <div className={isCompactLayout ? 'grid grid-cols-1 gap-6' : `grid gap-6 sm:grid-cols-2 ${isPublicView ? '' : 'lg:grid-cols-4'}`}>
                     <Skeleton className="aspect-[4/5] w-full rounded-3xl" />
                     <Skeleton className="aspect-[4/5] w-full rounded-3xl" />
                     <Skeleton className="aspect-[4/5] w-full rounded-3xl" />
                     <Skeleton className="aspect-[4/5] w-full rounded-3xl" />
                   </div>
                 ) : (
-                  <div className="relative">
+                  <div className="relative min-w-0">
                     <div className="overflow-hidden p-0">
                       <div
                         ref={isPrintMode ? undefined : topPostsScrollRef}
                         onWheel={isPrintMode ? undefined : handleTopPostsWheel}
-                        className={isPrintMode
-                          ? `flex flex-wrap gap-4 overflow-visible ${isTopPostsLocked ? 'opacity-60 blur-[1px]' : ''}`
+                        className={isPrintMode || isCompactLayout
+                          ? `flex flex-col gap-4 overflow-visible ${isTopPostsLocked ? 'opacity-60 blur-[1px]' : ''}`
                           : `flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3 pr-6 sm:pr-8 lg:pr-12 transition ${isTopPostsLocked ? 'opacity-60 blur-[1px]' : ''}`
                         }
                       >
                         {groupedTopPosts.map((group, groupIndex) => (
                           <div
                             key={`top-post-group-${groupIndex}`}
-                            className={isPrintMode
-                              ? 'flex w-full flex-wrap gap-4'
+                            className={isPrintMode || isCompactLayout
+                              ? 'flex w-full flex-col gap-4'
                               : `flex min-w-[65%] flex-none snap-start gap-2 sm:min-w-[45%] ${isPublicView ? '' : 'lg:min-w-[35%]'}`
                             }
                           >
@@ -3823,7 +4631,7 @@ export default function MediaKitView({
                               return (
                                 <article
                                   key={video._id}
-                                  className={`relative flex min-w-[220px] max-w-[260px] flex-1 basis-1/2 flex-col gap-2 rounded-[28px] border border-white/60 bg-white/95 px-3 pt-3 pb-2 text-xs shadow-[0_2px_10px_rgba(15,23,42,0.12)] transition hover:-translate-y-0.5 hover:shadow-[0_4px_16px_rgba(15,23,42,0.16)] ${isClickable ? 'cursor-pointer' : ''
+                                  className={`relative flex ${isCompactLayout ? 'w-full min-w-0 max-w-none basis-auto' : 'min-w-[220px] max-w-[260px] flex-1 basis-1/2'} flex-col gap-2 rounded-[28px] px-3 pt-3 pb-2 text-xs transition ${isBoardEmbedded ? 'border border-zinc-100/90 bg-zinc-50/68 hover:bg-white/82' : 'border border-white/60 bg-white/95 shadow-[0_2px_10px_rgba(15,23,42,0.12)] hover:-translate-y-0.5 hover:shadow-[0_4px_16px_rgba(15,23,42,0.16)]'} ${isClickable ? 'cursor-pointer' : ''
                                     } ${isTopHighlight ? '!border-[#FF2C7E]/40' : ''}`}
                                   role={isClickable ? 'button' : undefined}
                                   tabIndex={isClickable ? 0 : undefined}
@@ -3845,14 +4653,14 @@ export default function MediaKitView({
                                         Top 1 do período
                                       </span>
                                     ) : (
-                                      <span className="inline-flex items-center rounded-full border border-white/50 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-[#475569]">
+                                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${isBoardEmbedded ? 'border border-zinc-100/90 bg-zinc-50/88 text-[#475569]' : 'border border-white/50 bg-white/80 text-[#475569]'}`}>
                                         #{index + 1}
                                       </span>
                                     )}
                                     {dateLabel ? (
                                       <div className="text-right text-xs text-slate-500">
                                         <p className="text-[10px] font-semibold uppercase tracking-wide">Publicado</p>
-                                        <p className="font-semibold text-[#475569]">{dateLabel}</p>
+                                        <p className="break-words font-semibold text-[#475569]">{dateLabel}</p>
                                       </div>
                                     ) : null}
                                   </div>
@@ -3871,8 +4679,92 @@ export default function MediaKitView({
                                       Sem prévia disponível
                                     </div>
                                   )}
-                                  {tagMeta.length > 0 ? (
-                                    <div className="rounded-2xl border border-white/55 bg-white/95 p-3 space-y-2">
+                                  {isBoardEmbedded && (tagMeta.length > 0 || hasDetailMetrics) ? (
+                                    <div className="mt-1 border-t border-zinc-100/90 px-1 pt-3">
+                                      {tagMeta.length > 0 ? (
+                                        <div className="space-y-1.5">
+                                          <p className="dashboard-muted-label text-zinc-400">Leitura estratégica</p>
+                                          {tagMeta.slice(0, 4).map(({ key, label, value }) => (
+                                            <p
+                                              key={`${video._id}-${key}-${value}`}
+                                              className="flex items-baseline justify-between gap-3 text-[10px] uppercase tracking-[0.08em]"
+                                            >
+                                              <span className={`min-w-0 ${textMutedClass}`}>{label}</span>
+                                              <span className="min-w-0 break-words text-right font-semibold text-[#475569]">{value}</span>
+                                            </p>
+                                          ))}
+                                        </div>
+                                      ) : null}
+                                      {tagMeta.length > 0 && hasDetailMetrics ? <div className="mt-3 h-px bg-[#EFEDF6]" /> : null}
+                                      {hasDetailMetrics ? (
+                                        <div className="mt-3 space-y-4">
+                                          {hasSummaryMetrics ? (
+                                            <div>
+                                              <p className="dashboard-muted-label text-zinc-400">Indicadores principais</p>
+                                              <div className="mt-1.5 space-y-1.5">
+                                                {summaryMetrics.map((metric) => (
+                                                  <div
+                                                    key={`${video._id}-${metric.key}-summary`}
+                                                    className="flex items-baseline justify-between text-sm"
+                                                  >
+                                                    <p className="min-w-0 text-[10px] uppercase tracking-[0.08em] text-slate-500">{metric.secondary}</p>
+                                                    <p className="min-w-0 break-words text-right text-sm font-semibold text-[#0F172A]">{metric.main}</p>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          ) : null}
+
+                                          {interactionsSummaryMetric || hasInteractionBreakdown ? (
+                                            <div className="space-y-2">
+                                              {hasSummaryMetrics ? <div className="h-px bg-[#EFEDF6]" /> : null}
+                                              <div className="flex items-center justify-between">
+                                                <p className="dashboard-muted-label text-zinc-400">Interações</p>
+                                                {interactionsSummaryMetric ? (
+                                                  <p className="min-w-0 break-words text-right text-sm font-semibold text-[#0F172A]">{interactionsSummaryMetric.main}</p>
+                                                ) : null}
+                                              </div>
+                                              {hasInteractionBreakdown ? (
+                                                <div className="space-y-1.5">
+                                                  {interactionBreakdownMetrics.map((metric) => (
+                                                    <div
+                                                      key={`${video._id}-${metric.key}-breakdown`}
+                                                      className="flex items-baseline justify-between text-sm"
+                                                    >
+                                                      <p className="min-w-0 text-[10px] uppercase tracking-[0.08em] text-slate-500">{metric.secondary}</p>
+                                                      <p className="min-w-0 break-words text-right text-sm font-semibold text-[#0F172A]">{metric.main}</p>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              ) : null}
+                                            </div>
+                                          ) : null}
+
+                                          {hasAdditionalDetailMetrics ? (
+                                            <div className="space-y-2">
+                                              {(hasSummaryMetrics || interactionsSummaryMetric || hasInteractionBreakdown) ? (
+                                                <div className="h-px bg-[#EFEDF6]" />
+                                              ) : null}
+                                              <p className="dashboard-muted-label text-zinc-400">Outros sinais</p>
+                                              <div className="space-y-1.5">
+                                                {additionalDetailMetrics.map((metric) => (
+                                                  <div
+                                                    key={`${video._id}-${metric.key}-additional`}
+                                                    className="flex items-baseline justify-between text-sm"
+                                                  >
+                                                    <p className="min-w-0 text-[10px] uppercase tracking-[0.08em] text-slate-500">{metric.secondary}</p>
+                                                    <p className="min-w-0 break-words text-right text-sm font-semibold text-[#0F172A]">{metric.main}</p>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          ) : null}
+                                        </div>
+                                      ) : null}
+                                    </div>
+                                  ) : null}
+                                  {!isBoardEmbedded && tagMeta.length > 0 ? (
+                                    <div className={`space-y-2 rounded-2xl p-3 ${isBoardEmbedded ? 'border border-zinc-100/90 bg-zinc-50/82' : 'border border-white/55 bg-white/95'}`}>
                                       <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">
                                         Leitura estratégica
                                       </p>
@@ -3882,18 +4774,18 @@ export default function MediaKitView({
                                             key={`${video._id}-${key}-${value}`}
                                             className="flex items-baseline justify-between gap-3 text-[10px] uppercase tracking-[0.08em]"
                                           >
-                                            <span className={textMutedClass}>{label}</span>
-                                            <span className="text-right font-semibold text-[#475569]">{value}</span>
+                                            <span className={`min-w-0 ${textMutedClass}`}>{label}</span>
+                                            <span className="min-w-0 break-words text-right font-semibold text-[#475569]">{value}</span>
                                           </p>
                                         ))}
                                       </div>
                                     </div>
                                   ) : null}
-                                  {tagMeta.length > 0 && hasDetailMetrics ? (
+                                  {!isBoardEmbedded && tagMeta.length > 0 && hasDetailMetrics ? (
                                     <div className="h-px bg-[#EFEDF6]" />
                                   ) : null}
-                                  {hasDetailMetrics ? (
-                                    <div className="rounded-2xl border border-white/55 bg-white/95 p-3">
+                                  {!isBoardEmbedded && hasDetailMetrics ? (
+                                    <div className={`rounded-2xl p-3 ${isBoardEmbedded ? 'border border-zinc-100/90 bg-zinc-50/82' : 'border border-white/55 bg-white/95'}`}>
                                       <div className="space-y-4">
                                         {hasSummaryMetrics ? (
                                           <div>
@@ -3906,8 +4798,8 @@ export default function MediaKitView({
                                                   key={`${video._id}-${metric.key}-summary`}
                                                   className="flex items-baseline justify-between text-sm"
                                                 >
-                                                  <p className="text-[10px] uppercase tracking-[0.08em] text-slate-500">{metric.secondary}</p>
-                                                  <p className="text-sm font-semibold text-[#0F172A]">{metric.main}</p>
+                                                  <p className="min-w-0 text-[10px] uppercase tracking-[0.08em] text-slate-500">{metric.secondary}</p>
+                                                  <p className="min-w-0 break-words text-right text-sm font-semibold text-[#0F172A]">{metric.main}</p>
                                                 </div>
                                               ))}
                                             </div>
@@ -3920,7 +4812,7 @@ export default function MediaKitView({
                                             <div className="flex items-center justify-between">
                                               <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-500">Interações</p>
                                               {interactionsSummaryMetric ? (
-                                                <p className="text-sm font-semibold text-[#0F172A]">{interactionsSummaryMetric.main}</p>
+                                                <p className="min-w-0 break-words text-right text-sm font-semibold text-[#0F172A]">{interactionsSummaryMetric.main}</p>
                                               ) : null}
                                             </div>
                                             {hasInteractionBreakdown ? (
@@ -3930,8 +4822,8 @@ export default function MediaKitView({
                                                     key={`${video._id}-${metric.key}-breakdown`}
                                                     className="flex items-baseline justify-between text-sm"
                                                   >
-                                                    <p className="text-[10px] uppercase tracking-[0.08em] text-slate-500">{metric.secondary}</p>
-                                                    <p className="text-sm font-semibold text-[#0F172A]">{metric.main}</p>
+                                                    <p className="min-w-0 text-[10px] uppercase tracking-[0.08em] text-slate-500">{metric.secondary}</p>
+                                                    <p className="min-w-0 break-words text-right text-sm font-semibold text-[#0F172A]">{metric.main}</p>
                                                   </div>
                                                 ))}
                                               </div>
@@ -3951,8 +4843,8 @@ export default function MediaKitView({
                                                   key={`${video._id}-${metric.key}-additional`}
                                                   className="flex items-baseline justify-between text-sm"
                                                 >
-                                                  <p className="text-[10px] uppercase tracking-[0.08em] text-slate-500">{metric.secondary}</p>
-                                                  <p className="text-sm font-semibold text-[#0F172A]">{metric.main}</p>
+                                                  <p className="min-w-0 text-[10px] uppercase tracking-[0.08em] text-slate-500">{metric.secondary}</p>
+                                                  <p className="min-w-0 break-words text-right text-sm font-semibold text-[#0F172A]">{metric.main}</p>
                                                 </div>
                                               ))}
                                             </div>

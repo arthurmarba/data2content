@@ -28,6 +28,7 @@ export interface ScriptPostedContentRef {
   postDate?: Date | null;
   postLink?: string | null;
   type?: string | null;
+  coverUrl?: string | null;
   engagement?: number | null;
   totalInteractions?: number | null;
 }
@@ -88,6 +89,7 @@ const ScriptPostedContentRefSchema = new Schema<ScriptPostedContentRef>(
     postDate: { type: Date, default: null },
     postLink: { type: String, trim: true, maxlength: 1000, default: null },
     type: { type: String, trim: true, maxlength: 60, default: null },
+    coverUrl: { type: String, trim: true, maxlength: 2000, default: null },
     engagement: { type: Number, default: null },
     totalInteractions: { type: Number, default: null },
   },

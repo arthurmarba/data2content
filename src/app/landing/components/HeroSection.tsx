@@ -1,8 +1,8 @@
 'use client';
 import { motion } from 'framer-motion';
 // import { FaGoogle } from 'react-icons/fa'; // Ícone removido, então a importação não é mais necessária
-import { signIn } from 'next-auth/react';
 import { MAIN_DASHBOARD_ROUTE } from '@/constants/routes';
+import { redirectToGoogleConsentLogin } from '@/lib/auth/googleLogin';
 import ButtonPrimary from './ButtonPrimary';
 import TypingEffect from './TypingEffect';
 import Marquee from './Marquee';
@@ -13,7 +13,7 @@ const YOUTUBE_VIDEO_ID = 'NN0_0zxwx0E';
 
 export default function HeroSection() {
   const handleSignIn = () => {
-    signIn('google', { callbackUrl: MAIN_DASHBOARD_ROUTE });
+    redirectToGoogleConsentLogin(MAIN_DASHBOARD_ROUTE);
   };
 
   const heroVariants = {

@@ -129,6 +129,19 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
   const [postData, setPostData] = useState<IPostDetailsData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const surfaceClassName = publicMode
+    ? 'rounded-[1.65rem] border border-zinc-100/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,248,249,0.95))] shadow-[0_24px_60px_rgba(24,24,27,0.16)]'
+    : 'rounded-xl bg-white shadow-2xl';
+  const sectionShellClassName = publicMode
+    ? 'rounded-[1.2rem] border border-zinc-100/80 bg-zinc-50/52 p-4'
+    : '';
+  const sectionTitleClassName = publicMode
+    ? 'text-base font-semibold text-zinc-900 mb-3 flex items-center'
+    : 'text-md font-semibold text-gray-700 mb-3 flex items-center';
+  const metricItemClassName = publicMode
+    ? 'rounded-[1rem] border border-zinc-100/80 bg-white/84 p-3'
+    : 'bg-gray-50 p-3 rounded-md';
+  const isPublicMinimalTable = publicMode;
 
   useEffect(() => {
     const fetchPostData = async () => {
@@ -207,8 +220,8 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
     const dateStr = postData?.postDate ? new Date(postData.postDate).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
 
     return (
-      <section>
-        <h4 className="text-md font-semibold text-gray-700 mb-3 flex items-center"><InformationCircleIcon className="w-5 h-5 mr-2 text-indigo-500" />Informações Gerais</h4>
+      <section className={sectionShellClassName}>
+        <h4 className={sectionTitleClassName}><InformationCircleIcon className={`w-5 h-5 mr-2 ${publicMode ? 'text-zinc-500' : 'text-indigo-500'}`} />Informações Gerais</h4>
         {isLoading ? (
           <div className="space-y-2">
             <SkeletonBlock width="w-full" height="h-4" />
@@ -217,7 +230,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
             <SkeletonBlock width="w-1/2" height="h-4" />
           </div>
         ) : postData && (
-          <div className="text-sm text-gray-600 space-y-4">
+          <div className={`text-sm space-y-4 ${publicMode ? 'text-zinc-600' : 'text-gray-600'}`}>
             {/* Capa + Ações */}
             {postData.coverUrl && (
               <div className="flex items-start gap-3"> 
@@ -225,28 +238,28 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
                   src={postData.coverUrl} 
                   alt="Capa do post" 
                   width={96} height={96} 
-                  className="w-24 h-24 object-cover rounded-md border" 
+                  className={`w-24 h-24 object-cover ${publicMode ? 'rounded-[1rem] border border-zinc-100/90' : 'rounded-md border'}`} 
                 />
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <a href={postData.coverUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-indigo-600 hover:underline">
+                    <a href={postData.coverUrl} target="_blank" rel="noopener noreferrer" className={`inline-flex items-center gap-1 ${publicMode ? 'text-zinc-700 hover:text-zinc-900' : 'text-indigo-600 hover:underline'}`}>
                       <LinkIcon className="w-4 h-4" /> Abrir capa
                     </a>
                     <button
-                      className="text-xs px-2 py-0.5 rounded border text-gray-700 hover:bg-gray-50"
+                      className={`text-xs px-2 py-0.5 rounded ${publicMode ? 'border border-zinc-100/90 bg-white/80 text-zinc-600 hover:bg-zinc-50' : 'border text-gray-700 hover:bg-gray-50'}`}
                       onClick={() => navigator.clipboard.writeText(postData.coverUrl || '')}
                     >Copiar link</button>
                   </div>
-                  <div className="text-xs text-gray-500 mt-1 break-all">{shortCover.display}</div>
+                  <div className={`text-xs mt-1 break-all ${publicMode ? 'text-zinc-400' : 'text-gray-500'}`}>{shortCover.display}</div>
                 </div>
               </div>
             )}
 
             {/* Link do post */}
             <div className="flex items-center gap-2">
-              <span className="font-medium text-gray-700">Link:</span>
+              <span className={`font-medium ${publicMode ? 'text-zinc-700' : 'text-gray-700'}`}>Link:</span>
               {postData.postLink ? (
-                <a href={postData.postLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-indigo-600 hover:underline">
+                <a href={postData.postLink} target="_blank" rel="noopener noreferrer" className={`inline-flex items-center gap-1 ${publicMode ? 'text-zinc-700 hover:text-zinc-900' : 'text-indigo-600 hover:underline'}`}>
                   <LinkIcon className="w-4 h-4" /> {shortPost.display}
                 </a>
               ) : (
@@ -254,15 +267,15 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
               )}
               {postData.postLink && (
                 <button
-                  className="ml-1 text-xs px-2 py-0.5 rounded border text-gray-700 hover:bg-gray-50"
+                  className={`ml-1 text-xs px-2 py-0.5 rounded ${publicMode ? 'border border-zinc-100/90 bg-white/80 text-zinc-600 hover:bg-zinc-50' : 'border text-gray-700 hover:bg-gray-50'}`}
                   onClick={() => navigator.clipboard.writeText(postData.postLink || '')}
                 >Copiar</button>
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-1 text-gray-700"><CalendarDaysIcon className="w-4 h-4" /> {dateStr}</div>
-              <div className="flex items-center gap-1 text-gray-700"><TagIcon className="w-4 h-4" /> {postData.type || '—'}</div>
+            <div className={`flex flex-wrap items-center gap-4 ${publicMode ? 'text-zinc-600' : 'text-gray-700'}`}>
+              <div className="flex items-center gap-1"><CalendarDaysIcon className="w-4 h-4" /> {dateStr}</div>
+              <div className="flex items-center gap-1"><TagIcon className="w-4 h-4" /> {postData.type || '—'}</div>
             </div>
 
             {/* Tags das categorias */}
@@ -274,7 +287,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
               <ChipRow label="Referências" items={postData.references} type="reference" />
               {postData.theme && (
                 <div>
-                  <div className="text-xs font-semibold text-gray-600 mb-1">Tema</div>
+              <div className={`text-xs font-semibold mb-1 ${publicMode ? 'text-zinc-500' : 'text-gray-600'}`}>Tema</div>
                   <TagPill color="bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200">{postData.theme}</TagPill>
                 </div>
               )}
@@ -282,8 +295,8 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
 
             {/* Descrição */}
             <div>
-              <div className="font-medium text-gray-700 mb-1">Descrição</div>
-              <p className="text-gray-700 whitespace-pre-line leading-relaxed">{postData.description || '—'}</p>
+              <div className={`font-medium mb-1 ${publicMode ? 'text-zinc-700' : 'text-gray-700'}`}>Descrição</div>
+              <p className={`${publicMode ? 'text-zinc-700' : 'text-gray-700'} whitespace-pre-line leading-relaxed`}>{postData.description || '—'}</p>
             </div>
           </div>
         )}
@@ -292,18 +305,18 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
   };
 
   const MetricItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label: string, value: string | number }) => (
-    <div className="bg-gray-50 p-3 rounded-md">
-      <div className="flex items-center text-gray-500 mb-1">
+    <div className={metricItemClassName}>
+      <div className={`flex items-center mb-1 ${publicMode ? 'text-zinc-500' : 'text-gray-500'}`}>
         <Icon className="w-4 h-4 mr-1.5" />
         <span className="text-xs font-medium">{label}</span>
       </div>
-      <p className="text-gray-800 font-semibold text-base">{value}</p>
+      <p className={`${publicMode ? 'text-zinc-900' : 'text-gray-800'} font-semibold text-base`}>{value}</p>
     </div>
   );
 
   const renderMainMetrics = () => (
-    <section>
-      <h4 className="text-md font-semibold text-gray-700 mb-3 flex items-center"><ArrowTrendingUpIcon className="w-5 h-5 mr-2 text-indigo-500" />Métricas Principais</h4>
+    <section className={sectionShellClassName}>
+      <h4 className={sectionTitleClassName}><ArrowTrendingUpIcon className={`w-5 h-5 mr-2 ${publicMode ? 'text-zinc-500' : 'text-indigo-500'}`} />Métricas Principais</h4>
       {isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {Array.from({ length: 6 }).map((_, i) => <SkeletonBlock key={i} width="w-full" height="h-12" />)}
@@ -327,14 +340,14 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
   );
 
   const renderDailyPerformance = () => (
-    <section>
-      <h4 className="text-md font-semibold text-gray-700 mb-2 flex items-center"><ChartBarIcon className="w-5 h-5 mr-2 text-indigo-500" />Desempenho Diário</h4>
+    <section className={sectionShellClassName}>
+      <h4 className={sectionTitleClassName}><ChartBarIcon className={`w-5 h-5 mr-2 ${publicMode ? 'text-zinc-500' : 'text-indigo-500'}`} />Desempenho Diário</h4>
       {isLoading ? (
         <SkeletonBlock width="w-full" height="h-24" />
       ) : postData && postData.dailySnapshots && (
         <>
           {postData.dailySnapshots.length >= 2 ? (
-            <div style={{ width: '100%', height: 300 }} className="my-3">
+            <div style={{ width: '100%', height: publicMode ? 240 : 300 }} className="my-3">
               <ResponsiveContainer>
                 <LineChart data={postData.dailySnapshots} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
@@ -351,17 +364,17 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
                     contentStyle={{ backgroundColor: 'rgba(255, 255, 255, 0.9)', borderRadius: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}
                   />
                   <Legend wrapperStyle={{ fontSize: '14px' }} />
-                  <Line type="monotone" dataKey="dailyViews" name="Visualizações Diárias" stroke="#8884d8" strokeWidth={2} activeDot={{ r: 6 }} dot={{ r: 3 }} />
-                  <Line type="monotone" dataKey="dailyLikes" name="Curtidas Diárias" stroke="#82ca9d" strokeWidth={2} activeDot={{ r: 6 }} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="dailyViews" name="Visualizações Diárias" stroke={publicMode ? "#18181B" : "#8884d8"} strokeWidth={2} activeDot={{ r: 6 }} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="dailyLikes" name="Curtidas Diárias" stroke={publicMode ? "#14B8A6" : "#82ca9d"} strokeWidth={2} activeDot={{ r: 6 }} dot={{ r: 3 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
           ) : (
-            <div className="text-center py-6 px-4 bg-gray-50 rounded-md my-3">
-              <p className="text-gray-500">Dados diários insuficientes para exibir o gráfico.</p>
+            <div className={`text-center py-6 px-4 my-3 ${publicMode ? 'bg-zinc-50/80 rounded-[1rem]' : 'bg-gray-50 rounded-md'}`}>
+              <p className={publicMode ? 'text-zinc-500' : 'text-gray-500'}>Dados diários insuficientes para exibir o gráfico.</p>
             </div>
           )}
-          {postData.dailySnapshots.length > 0 && (
+          {postData.dailySnapshots.length > 0 && !isPublicMinimalTable && (
             <div className="max-h-48 overflow-y-auto text-sm border border-gray-200 rounded-md mt-4">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50 sticky top-0">
@@ -390,30 +403,30 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
 
   return (
     <div
-      className={`fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-opacity duration-300 ${publicMode ? 'bg-black/45 backdrop-blur-[2px]' : 'bg-black/50 backdrop-blur-sm'} ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="post-detail-title"
     >
       <div
-        className={`bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col transform transition-all duration-300 ${isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}
+        className={`${surfaceClassName} w-full ${publicMode ? 'max-w-xl' : 'max-w-2xl'} max-h-[90vh] flex flex-col transform transition-all duration-300 ${isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* HEADER */}
-        <header className="sticky top-0 bg-white/90 backdrop-blur border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h3 id="post-detail-title" className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <TagIcon className="w-5 h-5 text-indigo-600" /> Detalhes do Post
+        <header className={`sticky top-0 backdrop-blur px-5 py-4 flex items-center justify-between ${publicMode ? 'bg-white/88 border-b border-zinc-100/90' : 'bg-white/90 border-b border-gray-200 px-6'}`}>
+          <h3 id="post-detail-title" className={`text-lg font-semibold flex items-center gap-2 ${publicMode ? 'text-zinc-900' : 'text-gray-800'}`}>
+            <TagIcon className={`w-5 h-5 ${publicMode ? 'text-zinc-500' : 'text-indigo-600'}`} /> {publicMode ? 'Ver conteúdo' : 'Detalhes do Post'}
           </h3>
-          <button onClick={onClose} className="p-1.5 rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors" aria-label="Fechar">
+          <button onClick={onClose} className={`p-1.5 rounded-full transition-colors ${publicMode ? 'text-zinc-500 hover:bg-zinc-100/80 hover:text-zinc-700' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`} aria-label="Fechar">
             <XMarkIcon className="w-6 h-6" />
           </button>
         </header>
 
         {/* CONTENT */}
-        <main className="flex-grow overflow-y-auto px-6 py-6 space-y-6">
+        <main className={`flex-grow overflow-y-auto ${publicMode ? 'px-5 py-5 space-y-4' : 'px-6 py-6 space-y-6'}`}>
           {error && (
-            <div className="text-center py-10 text-red-600 bg-red-50 p-4 rounded-md">
+            <div className={`text-center py-10 text-red-600 bg-red-50 p-4 ${publicMode ? 'rounded-[1rem]' : 'rounded-md'}`}>
               <ExclamationCircleIcon className="w-8 h-8 mx-auto mb-2" />
               <p>{error}</p>
             </div>
@@ -428,8 +441,8 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
         </main>
 
         {/* FOOTER */}
-        <footer className="sticky bottom-0 bg-white/90 backdrop-blur border-t border-gray-200 px-6 py-4 text-right">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors">
+        <footer className={`sticky bottom-0 backdrop-blur text-right ${publicMode ? 'bg-white/88 border-t border-zinc-100/90 px-5 py-3.5' : 'bg-white/90 border-t border-gray-200 px-6 py-4'}`}>
+          <button onClick={onClose} className={`px-4 py-2 text-sm font-medium transition-colors ${publicMode ? 'text-zinc-700 bg-zinc-100 hover:bg-zinc-200 rounded-full' : 'text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md'}`}>
             Fechar
           </button>
         </footer>

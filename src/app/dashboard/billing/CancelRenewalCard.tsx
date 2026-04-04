@@ -76,7 +76,7 @@ export default function CancelRenewalCard() {
       case "past_due":
         return "Pagamento pendente";
       case "trial":
-        return "Período de teste";
+        return "Sem plano ativo";
       default:
         return "Inativo";
     }

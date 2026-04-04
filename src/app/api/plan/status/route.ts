@@ -58,12 +58,10 @@ function mapStripeToUiStatus(
   cancelAtPeriodEnd: boolean | null | undefined
 ): UiPlanStatus | null {
   const v = (raw || "").toString().toLowerCase();
-  const activeLike = v === "active" || v === "trial" || v === "trialing" || v === "non_renewing";
+  const activeLike = v === "active" || v === "non_renewing";
   if (cancelAtPeriodEnd && activeLike) return "non_renewing";
   switch (v) {
     case "active":
-    case "trial": // normaliza legado de DB
-    case "trialing":
       return "active";
     case "non_renewing":
       return "non_renewing";
@@ -76,6 +74,8 @@ function mapStripeToUiStatus(
     case "unpaid":
     case "incomplete_expired":
     case "canceled":
+    case "trial":
+    case "trialing":
       return "inactive";
     default:
       return v ? "inactive" : null;
@@ -101,7 +101,7 @@ function coerceInterval(v: any): "month" | "year" | undefined {
 function normalizeFromSubscription(sub: Stripe.Subscription) {
   const cancelAtPeriodEnd = !!(sub as any).cancel_at_period_end;
   const baseStatus = ((sub as any).status ?? "inactive") as NormalizedPlanStatus;
-  const activeLike = baseStatus === "active" || baseStatus === "trialing";
+  const activeLike = baseStatus === "active";
   const planStatus: NormalizedPlanStatus = cancelAtPeriodEnd && activeLike ? "non_renewing" : baseStatus;
 
   const item = sub.items?.data?.[0];
@@ -337,7 +337,7 @@ function buildPlanStatusPayload(user: any, options: BuildOptions = {}): {
   }
 
   const planMeta = getPlanAccessMeta(normalizedStatus, cancelAtPeriodEnd);
-  const hasPremiumAccess = planMeta.hasPremiumAccess || trialInfo.state === "active";
+  const hasPremiumAccess = planMeta.hasPremiumAccess;
   const isGracePeriod = planMeta.isGracePeriod || false;
 
   let uiStatus: UiPlanStatus | null =

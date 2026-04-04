@@ -55,7 +55,7 @@ export async function DELETE(req: Request) {
 
       if (sub) {
         // Estados “ativos-like” bloqueiam somente se NÃO estiver agendado para encerrar
-        const activeLike = new Set(["active", "trialing", "past_due", "unpaid"]);
+        const activeLike = new Set(["active", "past_due", "unpaid"]);
         const mustBlock = activeLike.has(sub.status) && !sub.cancel_at_period_end;
 
         if (mustBlock) {

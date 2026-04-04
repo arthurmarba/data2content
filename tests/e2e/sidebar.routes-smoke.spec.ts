@@ -8,14 +8,6 @@ async function dismissCookieBanner(page: Page) {
   }
 }
 
-async function preparePlannerFixture(page: Page) {
-  const ensureAccessRes = await page.request.post("/api/dev/e2e/ensure-planner-access");
-  expect(ensureAccessRes.ok(), `ensure-planner-access failed with status ${ensureAccessRes.status()}`).toBeTruthy();
-
-  const fixtureRes = await page.request.post("/api/dev/e2e/scripts-fixture");
-  expect(fixtureRes.ok(), `scripts-fixture failed with status ${fixtureRes.status()}`).toBeTruthy();
-}
-
 async function expectNoRuntimeIssues(
   issuesCollector: ReturnType<typeof attachRuntimeIssueCollector>,
   label: string,
@@ -46,23 +38,20 @@ async function expectPageHealthy(
 }
 
 test.describe("Sidebar visible routes smoke", () => {
-  test.beforeEach(async ({ page }) => {
-    await preparePlannerFixture(page);
-  });
-
   test("Campanhas abre sem erros de runtime", async ({ page }) => {
     test.setTimeout(90_000);
     await expectPageHealthy(page, "Campanhas", "/campaigns", async (currentPage) => {
-      await expect(currentPage.getByRole("heading", { name: /Radar Destaque/ })).toBeVisible({ timeout: 30_000 });
+      await expect(currentPage.getByRole("heading", { name: /Campanhas/ })).toBeVisible({ timeout: 30_000 });
+      await expect(currentPage.getByRole("button", { name: /Copiar formulário/i })).toBeVisible({ timeout: 30_000 });
     });
   });
 
   test("Calculadora abre sem erros de runtime", async ({ page }) => {
     test.setTimeout(90_000);
     await expectPageHealthy(page, "Calculadora", "/dashboard/calculator", async (currentPage) => {
-      await expect(currentPage.getByRole("heading", { name: /Quanto cobrar pela sua publi/ })).toBeVisible({
-        timeout: 30_000,
-      });
+      await expect(
+        currentPage.getByRole("button", { name: /Calcular Valor da Publi|Calcular valor/i })
+      ).toBeVisible({ timeout: 30_000 });
     });
   });
 
@@ -95,9 +84,8 @@ test.describe("Sidebar visible routes smoke", () => {
   test("Discover abre sem erros de runtime", async ({ page }) => {
     test.setTimeout(90_000);
     await expectPageHealthy(page, "Discover", "/planning/discover", async (currentPage) => {
-      await expect(
-        currentPage.getByRole("heading", { name: /Filtre e veja só o que importa/ })
-      ).toBeVisible({ timeout: 30_000 });
+      await expect(currentPage.getByRole("heading", { name: /Comunidade/ })).toBeVisible({ timeout: 30_000 });
+      await expect(currentPage.getByRole("button", { name: /Mentoria/i })).toBeVisible({ timeout: 30_000 });
     });
   });
 
@@ -105,14 +93,16 @@ test.describe("Sidebar visible routes smoke", () => {
     test.setTimeout(90_000);
     await expectPageHealthy(page, "Mídia Kit", "/media-kit", async (currentPage) => {
       const mediaKitGate = currentPage.getByText("Conecte seu Instagram para ativar o Mídia Kit");
-      const mediaKitSection = currentPage.locator('section[aria-label="Mídia Kit"]');
+      const mediaKitPreview = currentPage.getByRole("heading", { name: /Seu Mídia Kit Profissional/i });
+      const mediaKitSection = currentPage.getByRole("heading", { name: /Mídia Kit/i });
       await expect
         .poll(async () => {
           if (await mediaKitGate.isVisible().catch(() => false)) return "gate";
+          if (await mediaKitPreview.isVisible().catch(() => false)) return "preview";
           if (await mediaKitSection.isVisible().catch(() => false)) return "content";
           return "pending";
         }, { timeout: 30_000, intervals: [500, 1000, 2000] })
-        .toMatch(/gate|content/);
+        .toMatch(/gate|preview|content/);
     });
   });
 

@@ -31,13 +31,11 @@ export function getPlanGuardMetrics(): PlanGuardMetrics {
 }
 
 /** Status que consideramos como com acesso ativo aos recursos premium (forma canônica). */
-export type ActiveLikeStatus = 'active' | 'non_renewing' | 'trial' | 'trialing';
+export type ActiveLikeStatus = 'active' | 'non_renewing';
 
 const ACTIVE_LIKE_CANONICAL: ReadonlySet<ActiveLikeStatus> = new Set<ActiveLikeStatus>([
   'active',
   'non_renewing',
-  'trial',
-  'trialing',
 ]);
 
 /**
@@ -80,13 +78,6 @@ function toDate(value: unknown): Date | null {
   return Number.isNaN(asDate.getTime()) ? null : asDate;
 }
 
-function isProTrialActive(status: unknown, expiresAt: unknown): boolean {
-  if (typeof status !== 'string') return false;
-  if (status.trim().toLowerCase() !== 'active') return false;
-  const expires = toDate(expiresAt);
-  return Boolean(expires && expires.getTime() > Date.now());
-}
-
 function registerBlock(routePath?: string) {
   planGuardMetrics.blocked += 1;
   if (!routePath) return;
@@ -95,9 +86,7 @@ function registerBlock(routePath?: string) {
 
 function resolveActiveLikeFromSession(params: {
   normalizedStatus: string;
-  sessionTrialActive: boolean;
 }): ActiveLikeStatus | null {
-  if (params.sessionTrialActive) return 'trial';
   return isActiveLike(params.normalizedStatus)
     ? (params.normalizedStatus as ActiveLikeStatus)
     : null;
@@ -206,26 +195,22 @@ export async function ensurePlannerAccess(
 
   const sessionUser = session?.user as (Session['user'] & { role?: string; planStatus?: unknown }) | undefined;
   const sessionRole = typeof sessionUser?.role === 'string' ? sessionUser.role.toLowerCase() : undefined;
-  const sessionTrialActive = isProTrialActive(
-    (sessionUser as any)?.proTrialStatus,
-    (sessionUser as any)?.proTrialExpiresAt
-  );
 
   if (allowAdmin && sessionRole === 'admin') {
     const statusCandidate = planStatus ?? sessionUser?.planStatus;
     const normalizedStatus = normalizePlanStatus(statusCandidate);
-    const activeLike = resolveActiveLikeFromSession({ normalizedStatus, sessionTrialActive });
+    const activeLike = resolveActiveLikeFromSession({ normalizedStatus });
     return { ok: true, normalizedStatus: activeLike, source: 'session' };
   }
 
   const statusCandidate = planStatus ?? sessionUser?.planStatus;
   const normalizedStatus = normalizePlanStatus(statusCandidate);
   if (!forceReload) {
-    const activeLike = resolveActiveLikeFromSession({ normalizedStatus, sessionTrialActive });
+    const activeLike = resolveActiveLikeFromSession({ normalizedStatus });
     return { ok: true, normalizedStatus: activeLike, source: 'session' };
   }
 
-  const sessionFallbackStatus = resolveActiveLikeFromSession({ normalizedStatus, sessionTrialActive });
+  const sessionFallbackStatus = resolveActiveLikeFromSession({ normalizedStatus });
 
   const resolvedUserId = safe(userId) ?? safe((sessionUser as any)?.id) ?? safe((session as any)?.id);
   const resolvedEmail = safe(email) ?? safe(sessionUser?.email);
@@ -260,13 +245,13 @@ export async function ensurePlannerAccess(
 
         if (resolvedUserId && mongoose.isValidObjectId(resolvedUserId)) {
           return DbUser.findById(resolvedUserId)
-            .select('planStatus role proTrialStatus proTrialExpiresAt')
+            .select('planStatus role')
             .lean();
         }
 
         if (resolvedEmail) {
           return DbUser.findOne({ email: resolvedEmail })
-            .select('planStatus role proTrialStatus proTrialExpiresAt')
+            .select('planStatus role')
             .lean();
         }
 
@@ -280,13 +265,6 @@ export async function ensurePlannerAccess(
       const adminResult: EnsurePlannerAccessResult = { ok: true, normalizedStatus: 'active', source: 'database' };
       if (accessCacheKey) writePlannerAccessMemory(accessCacheKey, adminResult);
       return adminResult;
-    }
-
-    const dbTrialActive = isProTrialActive(dbUser?.proTrialStatus, dbUser?.proTrialExpiresAt);
-    if (dbTrialActive) {
-      const trialResult: EnsurePlannerAccessResult = { ok: true, normalizedStatus: 'trial', source: 'database' };
-      if (accessCacheKey) writePlannerAccessMemory(accessCacheKey, trialResult);
-      return trialResult;
     }
 
     const dbStatusNorm = normalizePlanStatus(dbUser?.planStatus);
@@ -373,7 +351,7 @@ async function getAuthTokenFromRequest(req: NextRequest): Promise<Record<string,
 
 /**
  * Garante que o usuário tenha plano ativo antes de APIs premium.
- * - Confia no token para liberar rápido se já estiver ativo-like (active | non_renewing | trial | trialing).
+ * - Confia no token para liberar rápido se já estiver ativo-like (active | non_renewing).
  * - Se o token vier inativo/indefinido, revalida no DB (fonte da verdade).
  * - Se não conseguir ler token, retorna 401 (não autenticado).
  */
@@ -388,12 +366,8 @@ export async function guardPremiumRequest(req: NextRequest): Promise<NextRespons
   const tokenId = (token as any)?.id ?? (token as any)?.sub;
   const tokenEmail = (token as any)?.email as string | undefined;
   const tokenPlanStatus = normalizePlanStatus((token as any)?.planStatus);
-  const tokenTrialActive = isProTrialActive(
-    (token as any)?.proTrialStatus,
-    (token as any)?.proTrialExpiresAt
-  );
 
-  if (tokenTrialActive || isActiveLike(tokenPlanStatus)) {
+  if (isActiveLike(tokenPlanStatus)) {
     return null;
   }
 
@@ -403,8 +377,6 @@ export async function guardPremiumRequest(req: NextRequest): Promise<NextRespons
       email: tokenEmail,
       role: (token as any)?.role,
       planStatus: (token as any)?.planStatus,
-      proTrialStatus: (token as any)?.proTrialStatus,
-      proTrialExpiresAt: (token as any)?.proTrialExpiresAt,
     },
   } as Session;
 

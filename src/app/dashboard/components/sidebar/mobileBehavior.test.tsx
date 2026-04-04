@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { SidebarSectionList, type SidebarInteractionState, type SidebarPresentationTokens } from "./components";
 import type { SidebarIconSet, SidebarSection } from "./types";
 import { useBodyScrollLock } from "./hooks";
@@ -25,8 +25,8 @@ const baseTokens: SidebarPresentationTokens = {
 const baseInteraction: SidebarInteractionState = {
   isMobile: true,
   isOpen: true,
-  onItemNavigate: jest.fn(),
   openPaywall: jest.fn(),
+  navigateTo: jest.fn(),
 };
 
 const sections: SidebarSection[] = [
@@ -37,7 +37,7 @@ const sections: SidebarSection[] = [
       {
         type: "item",
         key: "home",
-        label: "Início",
+        label: "Painel",
         href: "/dashboard/home",
         icon: iconSet,
       },
@@ -69,9 +69,9 @@ describe("sidebar mobile behavior", () => {
       />
     );
 
-    expect(screen.getByRole("link", { name: "Início" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Painel" })).toBeInTheDocument();
     const list = container.querySelector("ul");
-    expect(list).toHaveClass("flex", "flex-col", "gap-2", "pb-2");
+    expect(list).toHaveClass("flex", "flex-col", "gap-1.5", "pb-3", "pt-1");
     expect(list?.className).not.toContain("-translate-y-12");
     expect(list?.className).not.toContain("justify-center");
   });
@@ -88,7 +88,8 @@ describe("sidebar mobile behavior", () => {
     );
 
     const list = container.querySelector("ul");
-    expect(list).toHaveClass("flex", "flex-1", "-translate-y-12", "justify-center", "gap-3");
+    expect(list).toHaveClass("flex", "flex-1", "flex-col", "justify-start", "gap-2", "pb-3", "pt-2");
+    expect(list?.className).not.toContain("-translate-y-12");
   });
 
   it("bloqueia scroll por overflow sem desabilitar touchAction", () => {
@@ -102,5 +103,39 @@ describe("sidebar mobile behavior", () => {
 
     unmount();
     expect(document.body.style.overflow).toBe("");
+  });
+
+  it("navega programaticamente ao clicar em um link do sidebar", () => {
+    const interaction = { ...baseInteraction, navigateTo: jest.fn() };
+
+    render(
+      <SidebarSectionList
+        sections={sections}
+        tokens={baseTokens}
+        pathname="/dashboard/home"
+        userId={null}
+        interaction={interaction}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: "Chat" }));
+    expect(interaction.navigateTo).toHaveBeenCalledWith("/dashboard/chat");
+  });
+
+  it("preserva comportamento nativo com modificadores", () => {
+    const interaction = { ...baseInteraction, navigateTo: jest.fn() };
+
+    render(
+      <SidebarSectionList
+        sections={sections}
+        tokens={baseTokens}
+        pathname="/dashboard/home"
+        userId={null}
+        interaction={interaction}
+      />
+    );
+
+    fireEvent.click(screen.getByRole("link", { name: "Chat" }), { ctrlKey: true });
+    expect(interaction.navigateTo).not.toHaveBeenCalled();
   });
 });

@@ -2,14 +2,15 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import React, { useCallback, useMemo, useRef, useState, useEffect } from "react";
+import React, { useCallback, useMemo, useEffect, useTransition } from "react";
 import { useFeatureFlag } from "@/app/context/FeatureFlagsContext";
 import { normalizePlanStatus, isPlanActiveLike } from "@/utils/planStatus";
 import { buildSidebarSections } from "./sidebar/config";
 import { SidebarSectionList, type SidebarPresentationTokens } from "./sidebar/components";
 import type { SidebarSection, SidebarChildNode } from "./sidebar/types";
+import DashboardUserMenu from "./DashboardUserMenu";
 import {
   useSidebarViewport,
   useBodyScrollLock,
@@ -25,6 +26,12 @@ const startsWithSegment = (pathname: string, href: string) => {
   const target = normalizePath(href);
   return path === target || path.startsWith(`${target}/`);
 };
+
+const DESKTOP_HIDDEN_PANEL_ITEM_KEYS = new Set([
+  "media-kit",
+  "campaigns.overview",
+  "planning.discover",
+]);
 
 const collectPrefetchTargets = (
   sections: SidebarSection[],
@@ -83,15 +90,17 @@ interface SidebarNavProps {
 }
 
 export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
+  const asideRef = React.useRef<HTMLElement | null>(null);
+  const router = useRouter();
   const pathname = usePathname();
+  const normalizedPathname = useMemo(() => normalizePath(pathname), [pathname]);
+  const [, startRouteTransition] = useTransition();
   const { data: session } = useSession();
   const sessionUser = session?.user as any;
   const userId = sessionUser?.id ?? null;
   const normalizedStatus = normalizePlanStatus(sessionUser?.planStatus);
   const userRole = typeof sessionUser?.role === "string" ? sessionUser.role.trim().toLowerCase() : null;
-  const proTrialStatus = typeof sessionUser?.proTrialStatus === "string" ? sessionUser.proTrialStatus.trim().toLowerCase() : null;
-  const hasPremiumAccess =
-    isPlanActiveLike(normalizedStatus) || proTrialStatus === "active" || userRole === "admin";
+  const hasPremiumAccess = isPlanActiveLike(normalizedStatus) || userRole === "admin";
 
   const { enabled: dashboardMinimal } = useFeatureFlag("nav.dashboard_minimal");
   const { enabled: planningGroupLocked } = useFeatureFlag("planning.group_locked");
@@ -125,49 +134,68 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
         hasPremiumAccess,
         planningLocked,
         dashboardMinimal,
+        isMobile,
       }),
-    [dashboardMinimal, hasPremiumAccess, planningLocked]
+    [dashboardMinimal, hasPremiumAccess, isMobile, planningLocked]
   );
-  const idlePrefetchTargets = useMemo(
-    () => collectPrefetchTargets(sections, pathname, sidebarBadges, isMobile ? 2 : 4),
-    [isMobile, pathname, sections, sidebarBadges]
-  );
+  const visibleSections = useMemo(() => {
+    if (isMobile) return sections;
 
-  const [isHovering, setIsHovering] = useState(false);
-  const collapseTimer = useRef<number | null>(null);
-  const isDesktop = !isMobile;
-  const effectiveCollapsed = isMobile ? isCollapsed : !isHovering;
-  const showLabels = isMobile ? true : !effectiveCollapsed;
+    return sections
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => !DESKTOP_HIDDEN_PANEL_ITEM_KEYS.has(item.key)),
+      }))
+      .filter((section) => section.items.length > 0);
+  }, [isMobile, sections]);
+  const idlePrefetchTargets = useMemo(
+    () => collectPrefetchTargets(visibleSections, pathname, sidebarBadges, isMobile ? 2 : 4),
+    [isMobile, pathname, sidebarBadges, visibleSections]
+  );
+  const disableIdlePrefetch =
+    !isMobile &&
+    (normalizedPathname === "/" ||
+      normalizedPathname === "/dashboard" ||
+      normalizedPathname === "/dashboard/home");
+
+  const effectiveCollapsed = true;
+  const showLabels = isMobile;
   const openPaywall = usePaywallOpener();
   const prefetchSidebarLink = useSidebarIntentPrefetch();
 
   const layoutTokens = useMemo<SidebarPresentationTokens>(
     () => ({
       showLabels,
-      alignClass: "justify-start",
-      itemPadding: "px-3 py-2.5",
+      alignClass: showLabels ? "justify-start" : "justify-center",
+      itemPadding: showLabels ? "px-3.5 py-3" : "px-0 py-3",
       itemGap: showLabels ? "gap-3" : "gap-0",
-      itemTextSize: showLabels ? "text-[15px]" : "text-sm",
+      itemTextSize: showLabels ? "text-[14px]" : "text-[13px]",
       iconSize: "h-7 w-7",
 
       collapsedIconShift: "",
-      focusOffsetClass: "focus-visible:ring-offset-white",
+      focusOffsetClass: "focus-visible:ring-offset-transparent",
     }),
     [showLabels]
   );
 
-  const handleItemNavigate = useCallback(() => {
-    if (isMobile && isOpen) onToggle();
-  }, [isMobile, isOpen, onToggle]);
+  const handleNavigateTo = useCallback(
+    (href: string) => {
+      if (normalizePath(href) === normalizedPathname) return;
+      startRouteTransition(() => {
+        router.push(href);
+      });
+    },
+    [normalizedPathname, router, startRouteTransition]
+  );
 
   const interaction = useMemo(
     () => ({
       isMobile,
       isOpen,
-      onItemNavigate: handleItemNavigate,
       openPaywall,
+      navigateTo: handleNavigateTo,
     }),
-    [handleItemNavigate, isMobile, isOpen, openPaywall]
+    [handleNavigateTo, isMobile, isOpen, openPaywall]
   );
 
   const handleSidebarWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
@@ -187,56 +215,10 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     event.stopPropagation();
   }, []);
 
-  const clearCollapseTimer = useCallback(() => {
-    if (collapseTimer.current) {
-      window.clearTimeout(collapseTimer.current);
-      collapseTimer.current = null;
-    }
-  }, []);
-
-  const handleMouseEnter = useCallback(() => {
-    if (!isDesktop) return;
-    clearCollapseTimer();
-    setIsHovering(true);
-  }, [clearCollapseTimer, isDesktop]);
-
-  const handleMouseLeave = useCallback(() => {
-    if (!isDesktop) return;
-    clearCollapseTimer();
-    collapseTimer.current = window.setTimeout(() => {
-      setIsHovering(false);
-      collapseTimer.current = null;
-    }, 120);
-  }, [clearCollapseTimer, isDesktop]);
-
-  const handleFocusCapture = useCallback(() => {
-    if (!isDesktop) return;
-    clearCollapseTimer();
-    setIsHovering(true);
-  }, [clearCollapseTimer, isDesktop]);
-
-  const handleBlurCapture = useCallback(
-    (event: React.FocusEvent<HTMLElement>) => {
-      if (!isDesktop) return;
-      const nextTarget = event.relatedTarget as HTMLElement | null;
-      if (nextTarget && event.currentTarget.contains(nextTarget)) {
-        return;
-      }
-      clearCollapseTimer();
-      setIsHovering(false);
-    },
-    [clearCollapseTimer, isDesktop]
-  );
-
-  useEffect(() => {
-    return () => {
-      clearCollapseTimer();
-    };
-  }, [clearCollapseTimer]);
-
   useEffect(() => {
     if (!mounted || typeof window === "undefined") return;
     if (isMobile) return;
+    if (disableIdlePrefetch) return;
     if (!idlePrefetchTargets.length) return;
     const navConnection = (navigator as any)?.connection as
       | { saveData?: boolean; effectiveType?: string }
@@ -268,10 +250,30 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     return () => {
       if (timeoutId !== null) window.clearTimeout(timeoutId);
     };
-  }, [idlePrefetchTargets, isMobile, mounted, prefetchSidebarLink]);
+  }, [disableIdlePrefetch, idlePrefetchTargets, isMobile, mounted, prefetchSidebarLink]);
+
+  useEffect(() => {
+    const node = asideRef.current;
+    if (!node) return;
+
+    if (isMobile && !isOpen) {
+      node.setAttribute("inert", "");
+      const activeElement = document.activeElement;
+      if (activeElement instanceof HTMLElement && node.contains(activeElement)) {
+        document
+          .querySelector<HTMLElement>('[data-dashboard-sidebar-toggle="true"]')
+          ?.focus();
+      }
+      return;
+    }
+
+    node.removeAttribute("inert");
+  }, [isMobile, isOpen]);
 
   const asideBase =
-    "fixed left-0 top-0 z-40 flex h-[100dvh] min-h-svh flex-col bg-white text-slate-900 border-r border-gray-200/50 transition-[width] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)]";
+    "fixed left-0 top-0 z-[200] flex h-[100dvh] min-h-svh flex-col bg-[#f3f4f6] text-zinc-900 transition-[width,background-color,border-color,transform,opacity] duration-200 ease-[cubic-bezier(0.25,0.1,0.25,1)]";
+
+  const desktopSurfaceTone = !isMobile ? "lg:bg-[#f3f4f6] lg:border-transparent lg:shadow-none" : "";
 
   const mobileVisibility = isMobile
     ? isOpen
@@ -280,11 +282,11 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     : "";
 
   const mobileClasses = isMobile
-    ? `fixed left-0 top-0 bottom-0 z-[60] w-72 transform transition-opacity ${mobileVisibility} shadow-xl`
+    ? `fixed left-0 top-0 bottom-0 z-[220] w-[296px] transform border-r border-black/5 bg-[linear-gradient(180deg,rgba(251,251,252,0.98),rgba(244,244,246,0.96))] backdrop-blur-xl transition-opacity ${mobileVisibility} shadow-[0_24px_80px_rgba(24,24,27,0.18)]`
     : "";
 
   const desktopClasses = !isMobile
-    ? `hidden lg:flex lg:flex-col lg:transform-none ${effectiveCollapsed ? "lg:w-[72px]" : "lg:w-64"}`
+    ? "hidden lg:flex lg:w-[92px] lg:flex-col lg:transform-none"
     : "";
 
 
@@ -295,29 +297,28 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
       paddingBottom: "calc(var(--sab, 0px) + 1rem)",
     }
     : undefined;
-  const labelTransition = showLabels ? "max-w-full opacity-100 translate-x-0" : "max-w-0 opacity-0 -translate-x-1";
-  const labelBase = "overflow-hidden whitespace-nowrap leading-tight transition-[max-width,opacity,transform] duration-200";
-
   return (
     <>
       <aside
-        className={`${asideBase} ${mobileClasses} ${desktopClasses} ${!mounted ? "opacity-0 pointer-events-none" : "opacity-100"
+        ref={asideRef}
+        className={`${asideBase} ${desktopSurfaceTone} ${mobileClasses} ${desktopClasses} ${!mounted ? "opacity-0 pointer-events-none" : "opacity-100"
           } overflow-visible`}
         aria-label="Navegação do dashboard"
-        aria-hidden={isMobile ? !isOpen : false}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-        onFocusCapture={handleFocusCapture}
-        onBlurCapture={handleBlurCapture}
       >
-        <nav className={`flex h-full min-h-0 flex-col ${navPaddingX} ${isMobile ? "" : "pb-6 pt-6"}`} style={navStyle}>
+        <nav className={`flex h-full min-h-0 flex-col ${navPaddingX} ${isMobile ? "relative overflow-hidden" : "pb-5 pt-5"}`} style={navStyle}>
+          {isMobile ? (
+            <>
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-[radial-gradient(circle_at_top_left,rgba(246,0,123,0.08),transparent_62%)]" />
+              <div className="pointer-events-none absolute -right-10 top-24 h-36 w-36 rounded-full bg-white/50 blur-3xl" />
+            </>
+          ) : null}
           <Link
-            href="/dashboard"
-            className={`${isMobile ? "mb-3 mt-0" : "mb-4 -mt-6"} flex items-center rounded-lg px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-300 focus-visible:ring-offset-2 focus-visible:ring-offset-white`}
+            href="/"
+            className={`${isMobile ? "mb-3 mt-0 px-1.5 py-1" : "mb-5 -mt-1 justify-center px-2 py-2.5"} relative flex items-center rounded-[24px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300/80 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent`}
             aria-label="Data2Content"
           >
             <div
-              className={`${isMobile ? "h-12 w-12 translate-x-0" : "h-[72px] w-[72px] -translate-x-5"} relative shrink-0 flex items-center justify-center`}
+              className={`${isMobile ? "h-16 w-16 translate-x-0" : "h-20 w-20"} relative shrink-0 flex items-center justify-center`}
             >
               <Image
                 src="/images/Colorido-Simbolo.png"
@@ -331,16 +332,23 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
           </Link>
           <div
             onWheel={handleSidebarWheel}
-            className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1 sm:pr-1.5 scrollbar-hide"
+            className={`dashboard-scrollbar relative z-[1] flex-1 min-h-0 overflow-y-auto overscroll-contain ${showLabels ? "pr-0.5" : "pr-0"}`}
           >
             <SidebarSectionList
-              sections={sections}
+              sections={visibleSections}
               tokens={layoutTokens}
               pathname={pathname}
               userId={userId}
               interaction={interaction}
               onLinkIntent={prefetchSidebarLink}
               badges={sidebarBadges}
+            />
+          </div>
+          <div className={`relative z-[1] mt-4 ${showLabels ? "border-t border-zinc-200/80 pt-3.5" : "pb-1.5 pt-2"}`}>
+            <DashboardUserMenu
+              user={sessionUser}
+              showLabel={showLabels}
+              align="left"
             />
           </div>
         </nav>

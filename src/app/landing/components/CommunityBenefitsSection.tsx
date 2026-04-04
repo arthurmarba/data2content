@@ -80,7 +80,7 @@ export const CommunityBenefitsSection: React.FC = () => (
             </div>
           ))}
           <div className="mt-2 text-sm text-brand-purple/70 md:text-base">
-            *Disponível para assinantes do Plano Pro ou durante o trial. Inclui acesso prioritário às mentorias semanais e materiais de apoio exclusivos.
+            *Disponível para assinantes do Plano Pro. Inclui acesso prioritário às mentorias semanais e materiais de apoio exclusivos.
           </div>
         </div>
       </div>

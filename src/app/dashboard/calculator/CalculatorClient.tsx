@@ -282,6 +282,150 @@ const percentFormatter = new Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 2,
 });
 
+type CalculatorTone = "neutral" | "sky" | "amber" | "rose" | "emerald";
+
+const OPTION_TONE_CLASSES: Record<
+  CalculatorTone,
+  {
+    selectedCard: string;
+    selectedIcon: string;
+    selectedIndicatorRing: string;
+    selectedDot: string;
+    selectedToggle: string;
+    stepperShell: string;
+    stepperButton: string;
+    legendText: string;
+    summaryText: string;
+    selectedRow: string;
+    selectedText: string;
+    subsectionText: string;
+    divider: string;
+    accentBar: string;
+  }
+> = {
+  neutral: {
+    selectedCard: "border-zinc-900 bg-white ring-1 ring-zinc-900/10",
+    selectedIcon: "bg-zinc-900 text-white",
+    selectedIndicatorRing: "border-zinc-300 bg-zinc-50",
+    selectedDot: "bg-zinc-900",
+    selectedToggle: "bg-zinc-100 text-zinc-700",
+    stepperShell: "border-zinc-200 bg-white",
+    stepperButton: "text-zinc-700",
+    legendText: "text-zinc-500",
+    summaryText: "text-zinc-500",
+    selectedRow: "bg-zinc-50/65",
+    selectedText: "text-zinc-950",
+    subsectionText: "text-zinc-500",
+    divider: "border-zinc-100/70",
+    accentBar: "bg-zinc-300",
+  },
+  sky: {
+    selectedCard: "border-sky-200 bg-sky-50/70 ring-1 ring-sky-100",
+    selectedIcon: "bg-sky-600 text-white",
+    selectedIndicatorRing: "border-sky-200 bg-sky-50/70",
+    selectedDot: "bg-sky-500",
+    selectedToggle: "bg-sky-100 text-sky-700",
+    stepperShell: "border-sky-200 bg-sky-50/55",
+    stepperButton: "text-sky-700",
+    legendText: "text-sky-600",
+    summaryText: "text-sky-500",
+    selectedRow: "bg-sky-50/38",
+    selectedText: "text-zinc-950",
+    subsectionText: "text-sky-500",
+    divider: "border-zinc-100/70",
+    accentBar: "bg-sky-500",
+  },
+  amber: {
+    selectedCard: "border-amber-200 bg-amber-50/75 ring-1 ring-amber-100",
+    selectedIcon: "bg-amber-600 text-white",
+    selectedIndicatorRing: "border-amber-200 bg-amber-50/75",
+    selectedDot: "bg-amber-500",
+    selectedToggle: "bg-amber-100 text-amber-700",
+    stepperShell: "border-amber-200 bg-amber-50/55",
+    stepperButton: "text-amber-700",
+    legendText: "text-amber-600",
+    summaryText: "text-amber-500",
+    selectedRow: "bg-amber-50/38",
+    selectedText: "text-zinc-950",
+    subsectionText: "text-amber-500",
+    divider: "border-zinc-100/70",
+    accentBar: "bg-amber-500",
+  },
+  rose: {
+    selectedCard: "border-rose-200 bg-rose-50/75 ring-1 ring-rose-100",
+    selectedIcon: "bg-rose-600 text-white",
+    selectedIndicatorRing: "border-rose-200 bg-rose-50/75",
+    selectedDot: "bg-rose-500",
+    selectedToggle: "bg-rose-100 text-rose-700",
+    stepperShell: "border-rose-200 bg-rose-50/55",
+    stepperButton: "text-rose-700",
+    legendText: "text-rose-600",
+    summaryText: "text-rose-500",
+    selectedRow: "bg-rose-50/38",
+    selectedText: "text-zinc-950",
+    subsectionText: "text-rose-500",
+    divider: "border-zinc-100/70",
+    accentBar: "bg-rose-500",
+  },
+  emerald: {
+    selectedCard: "border-emerald-200 bg-emerald-50/75 ring-1 ring-emerald-100",
+    selectedIcon: "bg-emerald-600 text-white",
+    selectedIndicatorRing: "border-emerald-200 bg-emerald-50/75",
+    selectedDot: "bg-emerald-500",
+    selectedToggle: "bg-emerald-100 text-emerald-700",
+    stepperShell: "border-emerald-200 bg-emerald-50/55",
+    stepperButton: "text-emerald-700",
+    legendText: "text-emerald-600",
+    summaryText: "text-emerald-500",
+    selectedRow: "bg-emerald-50/38",
+    selectedText: "text-zinc-950",
+    subsectionText: "text-emerald-500",
+    divider: "border-zinc-100/70",
+    accentBar: "bg-emerald-500",
+  },
+};
+
+const RESULT_CARD_TONE_CLASSES: Record<
+  Exclude<CalculatorTone, "neutral" | "rose">,
+  {
+    panel: string;
+    header: string;
+    accent: string;
+    labelBadge: string;
+    cpm: string;
+    value: string;
+    button: string;
+  }
+> = {
+  emerald: {
+    panel: "border-zinc-100/90 bg-zinc-50/68",
+    header: "bg-white/86",
+    accent: "bg-emerald-500",
+    labelBadge: "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100/90",
+    cpm: "text-zinc-400",
+    value: "text-zinc-900",
+    button: "border-emerald-100 bg-emerald-50/82 text-emerald-700 hover:border-emerald-200 hover:bg-emerald-50",
+  },
+  amber: {
+    panel: "border-zinc-100/90 bg-zinc-50/68",
+    header: "bg-white/86",
+    accent: "bg-amber-500",
+    labelBadge: "bg-amber-50 text-amber-700 ring-1 ring-amber-100/90",
+    cpm: "text-zinc-400",
+    value: "text-zinc-900",
+    button: "border-amber-100 bg-amber-50/82 text-amber-700 hover:border-amber-200 hover:bg-amber-50",
+  },
+  sky: {
+    panel: "border-zinc-100/90 bg-zinc-50/68",
+    header: "bg-white/86",
+    accent: "bg-sky-500",
+    labelBadge: "bg-sky-50 text-sky-700 ring-1 ring-sky-100/90",
+    cpm: "text-zinc-400",
+    value: "text-zinc-900",
+    button: "border-sky-100 bg-sky-50/82 text-sky-700 hover:border-sky-200 hover:bg-sky-50",
+  },
+};
+
 function buildLocalPackageId(): string {
   localPackageIdCounter += 1;
   return `local-package-${Date.now()}-${localPackageIdCounter}`;
@@ -302,10 +446,20 @@ function sanitizePackagePrice(value: unknown): number {
   return 0;
 }
 
-export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
+function formatPostsCount(count: number): string {
+  return `${count} ${count === 1 ? "item" : "itens"}`;
+}
+
+export default function CalculatorClient({
+  viewer,
+  compactView = false,
+}: {
+  viewer?: ViewerInfo;
+  compactView?: boolean;
+}) {
   const router = useRouter();
   const { toast } = useToast();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const viewerRoleFromProp = typeof viewer?.role === "string" ? viewer.role.trim().toLowerCase() : null;
   const billingStatus = useBillingStatus({ auto: viewerRoleFromProp !== "admin" });
   const brandRiskV1Enabled = true;
@@ -329,14 +483,29 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
   );
 
   const planStatusSession = viewer?.planStatus ?? sessionUser?.planStatus;
+  const billingInstagramConnected = Boolean(billingStatus.instagram?.connected);
+  const instagramConnected = isAdminViewer
+    ? true
+    : billingStatus.hasResolvedOnce
+      ? billingInstagramConnected
+      : billingInstagramConnected || Boolean(sessionUser?.instagramConnected);
   const resolvedPlanAccess = Boolean(
     billingStatus.hasPremiumAccess ||
-    billingStatus.isTrialActive ||
     isPlanActiveLike(planStatusSession)
   );
-  const canAccessFeatures = isAdminViewer || (!billingStatus.isLoading && resolvedPlanAccess);
-  const showLockedMessage = !isAdminViewer && !billingStatus.isLoading && !resolvedPlanAccess;
-  const showBillingLoading = !isAdminViewer && billingStatus.isLoading;
+  const canAccessFeatures =
+    isAdminViewer ||
+    (sessionStatus === "authenticated" &&
+      !billingStatus.isLoading &&
+      resolvedPlanAccess &&
+      instagramConnected);
+  const showLockedMessage =
+    sessionStatus === "authenticated" &&
+    !isAdminViewer &&
+    !billingStatus.isLoading &&
+    !resolvedPlanAccess;
+  const showBillingLoading =
+    sessionStatus === "authenticated" && !isAdminViewer && billingStatus.isLoading;
   const lockTrackedRef = useRef(false);
   const resumeHandledRef = useRef(false);
   const submitButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -366,13 +535,13 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
   const [calculation, setCalculation] = useState<CalculationResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const resultsSectionRef = useRef<HTMLDivElement | null>(null);
-  const [collapsedSections, setCollapsedSections] = useState<Record<CollapsibleSectionKey, boolean>>({
-    delivery: false,
-    rights: false,
-    brand: false,
-    packages: false,
-    insights: false,
-  });
+  const [collapsedSections, setCollapsedSections] = useState<Record<CollapsibleSectionKey, boolean>>(() => ({
+    delivery: compactView ? false : true,
+    rights: true,
+    brand: true,
+    packages: true,
+    insights: true,
+  }));
 
   // Package Management State
   const [packages, setPackages] = useState<MediaKitPackage[]>([]);
@@ -484,6 +653,51 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
   }, [calculation]);
 
   const handleLockedAccess = (source: string = "cta") => {
+    if (sessionStatus === "unauthenticated" || !resolvedPlanAccess) {
+      toast({
+        variant: "info",
+        title: "Recurso exclusivo do Plano Pro",
+        description: upgradeMessage,
+      });
+      track("pro_feature_upgrade_clicked", {
+        feature: "calculator",
+        source,
+      });
+      if (typeof window !== "undefined") {
+        track("paywall_viewed", {
+          creator_id: null,
+          context: "calculator",
+          plan: billingStatus.normalizedStatus ?? (billingStatus.planStatus as string | null),
+        });
+        window.dispatchEvent(
+          new CustomEvent("open-subscribe-modal", {
+            detail: { context: "calculator", source, returnTo: "/dashboard/calculator" },
+          })
+        );
+      }
+      return;
+    }
+
+    if (!instagramConnected) {
+      if (typeof window !== "undefined") {
+        try {
+          window.sessionStorage.setItem(
+            PAYWALL_RETURN_STORAGE_KEY,
+            JSON.stringify({
+              context: "calculator",
+              source,
+              returnTo: `${window.location.pathname}${window.location.search}${window.location.hash}`,
+              ts: Date.now(),
+            })
+          );
+        } catch {
+          /* ignore */
+        }
+      }
+      router.push("/dashboard/instagram/connect?next=calculator");
+      return;
+    }
+
     toast({
       variant: "info",
       title: "Recurso exclusivo do Plano Pro",
@@ -1003,6 +1217,14 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
   };
 
   const handleAddToMediaKit = async () => {
+    if (sessionStatus === "unauthenticated") {
+      handleLockedAccess("save_media_kit");
+      return;
+    }
+    if (!resolvedPlanAccess || !instagramConnected) {
+      handleLockedAccess("save_media_kit");
+      return;
+    }
     if (isActingOnBehalf) {
       toast({
         variant: "info",
@@ -1067,7 +1289,11 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
     }
   };
 
-  const disableInputs = isCalculating || !canAccessFeatures;
+  const disableInputs = isCalculating;
+  const submitDisabled =
+    isCalculating ||
+    sessionStatus === "loading" ||
+    (sessionStatus === "authenticated" && !isAdminViewer && billingStatus.isLoading);
 
   const calculateEffectiveCpm = (totalValue: number, reach: number) => {
     if (reach <= 0) return 0;
@@ -1075,32 +1301,59 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
   };
 
   const statsCards = calculation
-    ? [
-      {
-        label: "Estratégico (Mínimo)",
-        amount: calculation.estrategico,
-        value: formatCurrency(calculation.estrategico),
-        cpm: formatCurrency(calculateEffectiveCpm(calculation.estrategico, calculation.metrics.reach)),
-        description: "Para abrir portas e fechar pacotes.",
-        headerClass: "bg-slate-50 text-slate-700",
-      },
-      {
-        label: "Valor Justo (Sugerido)",
-        amount: calculation.justo,
-        value: formatCurrency(calculation.justo),
-        cpm: formatCurrency(calculateEffectiveCpm(calculation.justo, calculation.metrics.reach)),
-        description: "Equilíbrio ideal entre esforço e retorno.",
-        headerClass: "bg-slate-50 text-slate-700",
-      },
-      {
-        label: "Premium (Alto Valor)",
-        amount: calculation.premium,
-        value: formatCurrency(calculation.premium),
-        cpm: formatCurrency(calculateEffectiveCpm(calculation.premium, calculation.metrics.reach)),
-        description: "Para alta demanda e entregas complexas.",
-        headerClass: "bg-slate-50 text-slate-700",
-      },
-    ]
+    ? (compactView
+      ? [
+        {
+          label: "Valor Justo",
+          amount: calculation.justo,
+          value: formatCurrency(calculation.justo),
+          cpm: formatCurrency(calculateEffectiveCpm(calculation.justo, calculation.metrics.reach)),
+          description: "Referência principal para negociar.",
+          tone: "emerald" as const,
+        },
+        {
+          label: "Estratégico",
+          amount: calculation.estrategico,
+          value: formatCurrency(calculation.estrategico),
+          cpm: formatCurrency(calculateEffectiveCpm(calculation.estrategico, calculation.metrics.reach)),
+          description: "Piso para abrir a conversa.",
+          tone: "amber" as const,
+        },
+        {
+          label: "Premium",
+          amount: calculation.premium,
+          value: formatCurrency(calculation.premium),
+          cpm: formatCurrency(calculateEffectiveCpm(calculation.premium, calculation.metrics.reach)),
+          description: "Faixa alta para demanda maior.",
+          tone: "sky" as const,
+        },
+      ]
+      : [
+        {
+          label: "Estratégico (Mínimo)",
+          amount: calculation.estrategico,
+          value: formatCurrency(calculation.estrategico),
+          cpm: formatCurrency(calculateEffectiveCpm(calculation.estrategico, calculation.metrics.reach)),
+          description: "Para abrir portas e fechar pacotes.",
+          tone: "amber" as const,
+        },
+        {
+          label: "Valor Justo (Sugerido)",
+          amount: calculation.justo,
+          value: formatCurrency(calculation.justo),
+          cpm: formatCurrency(calculateEffectiveCpm(calculation.justo, calculation.metrics.reach)),
+          description: "Equilíbrio ideal entre esforço e retorno.",
+          tone: "emerald" as const,
+        },
+        {
+          label: "Premium (Alto Valor)",
+          amount: calculation.premium,
+          value: formatCurrency(calculation.premium),
+          cpm: formatCurrency(calculateEffectiveCpm(calculation.premium, calculation.metrics.reach)),
+          description: "Para alta demanda e entregas complexas.",
+          tone: "sky" as const,
+        },
+      ])
     : null;
   const strategicWaiverApplied = Boolean(
     calculation?.params.allowStrategicWaiver &&
@@ -1139,115 +1392,303 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
     : [];
   const visibleMultiplierTags = activeMultiplierTags.slice(0, 6);
   const hiddenMultiplierCount = Math.max(0, activeMultiplierTags.length - visibleMultiplierTags.length);
+  const compactFormatOptions = compactView
+    ? FORMAT_OPTIONS.map((option) => ({
+        ...option,
+        label: option.value === "post" ? "Feed" : option.label,
+      }))
+    : FORMAT_OPTIONS;
+  const compactBoardShell = "rounded-[1.2rem] border border-zinc-100/90 bg-zinc-50/68";
+  const compactPanelShell = `${compactBoardShell} overflow-hidden`;
+  const compactSubtleShell = "rounded-[1rem] border border-zinc-100/90 bg-white/80";
+  const compactDetailsShell = compactView ? "border-t border-zinc-100/75 pt-3.5" : "border-t border-zinc-100/90 pt-3";
+  const calculatorHeaderTextClassName = compactView ? "space-y-1" : "space-y-1";
+  const calculatorTitleClassName = compactView ? "dashboard-type-section-title text-zinc-950" : "text-[15px] font-semibold tracking-[-0.01em] text-zinc-950";
+  const calculatorSupportClassName = compactView ? "dashboard-type-meta text-zinc-400" : "text-[11px] text-zinc-400";
+  const calculatorFieldLabelClassName = compactView ? "dashboard-type-meta text-zinc-400" : "text-[11px] font-medium text-zinc-400";
+  const calculatorControlButtonClassName = "inline-flex items-center gap-1 rounded-full border border-zinc-200/80 bg-white/84 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 transition hover:border-zinc-300 hover:bg-zinc-50/82";
+  const calculatorInlineActionClassName = compactView
+    ? "inline-flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100/80 hover:text-zinc-600"
+    : "inline-flex items-center gap-1 text-[10px] font-semibold text-zinc-400 transition hover:text-zinc-600";
+  const calculatorPrimaryCtaClassName = compactView
+    ? "inline-flex w-full items-center justify-center gap-2 rounded-full bg-zinc-900 px-4 py-2.5 text-[12px] font-semibold tracking-[-0.01em] text-white transition hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-white"
+    : "inline-flex w-full items-center justify-center gap-2 rounded-[1rem] bg-zinc-900 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-zinc-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-white";
+  const calculatorSecondaryCtaClassName = compactView
+    ? "inline-flex w-full items-center justify-center gap-2 rounded-full border border-zinc-200/80 bg-white/84 px-4 py-2.5 text-[12px] font-semibold tracking-[-0.01em] text-zinc-700 transition hover:border-zinc-300 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-200 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+    : "inline-flex w-full items-center justify-center gap-2 rounded-[1rem] border border-zinc-200/80 bg-white px-4 py-2 text-[13px] font-semibold text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50";
+  const calculatorInputClassName = "w-full rounded-[1rem] border border-zinc-100/90 bg-zinc-50/72 px-3 py-2.5 text-[13px] text-slate-700 placeholder:text-slate-400 focus:border-zinc-200 focus:bg-white focus:ring-0";
+  const calculatorInputStrongClassName = `${calculatorInputClassName} font-semibold text-slate-900`;
+  const calculatorInlineFieldClassName = "space-y-1.5";
+  const compactCanvasSectionClassName = "border-t border-zinc-100/75";
+  const compactSectionBlockClassName = "border-t border-zinc-100/70 pt-3.5 first:border-t-0 first:pt-0";
+  const compactSubsectionTitleClassName = "dashboard-type-meta uppercase tracking-[0.18em]";
+  const compactToggleLineClassName = "flex items-center justify-between gap-3 py-2";
+  const compactSelectionIndicatorRailClassName = "flex w-[60px] shrink-0 justify-center";
+  const compactSelectionIndicatorBaseClassName = "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-zinc-200/90 bg-white";
+  const compactSectionTheme = {
+    delivery: {
+      shell: "border-zinc-100/90",
+      header: "bg-white/82",
+      badge: "bg-sky-50 text-sky-700 ring-1 ring-sky-100/90",
+      icon: Video,
+      iconContainer: "bg-sky-50 text-sky-600 ring-1 ring-sky-100/90",
+      eyebrow: "text-sky-600",
+      toggle: "border-sky-200 bg-white/82 text-sky-700 hover:bg-sky-50",
+      tone: "sky" as const,
+    },
+    rights: {
+      shell: "border-zinc-100/90",
+      header: "bg-white/82",
+      badge: "bg-amber-50 text-amber-700 ring-1 ring-amber-100/90",
+      icon: Globe,
+      iconContainer: "bg-amber-50 text-amber-700 ring-1 ring-amber-100/90",
+      eyebrow: "text-amber-600",
+      toggle: "border-amber-200 bg-white/82 text-amber-700 hover:bg-amber-50",
+      tone: "amber" as const,
+    },
+    brand: {
+      shell: "border-zinc-100/90",
+      header: "bg-white/82",
+      badge: "bg-rose-50 text-rose-700 ring-1 ring-rose-100/90",
+      icon: Star,
+      iconContainer: "bg-rose-50 text-rose-600 ring-1 ring-rose-100/90",
+      eyebrow: "text-rose-600",
+      toggle: "border-rose-200 bg-white/82 text-rose-700 hover:bg-rose-50",
+      tone: "rose" as const,
+    },
+  };
+  const deliveryItemsSelected = Object.values(calcParams.formatQuantities).reduce((total, qty) => total + qty, 0);
+  const deliverySummary = [
+    deliveryItemsSelected > 0 ? `${formatPostsCount(deliveryItemsSelected)} no calculo` : "Selecione entregas",
+    calcParams.deliveryType === "evento" ? "Evento" : null,
+  ].filter(Boolean).join(" • ");
+  const rightsSummary = [
+    USAGE_LABELS[calcParams.usageRights],
+    EXCLUSIVITY_LABELS[calcParams.exclusivity],
+  ].filter(Boolean).join(" • ");
+  const brandSummary = [
+    BRAND_SIZE_LABELS[calcParams.brandSize],
+    IMAGE_RISK_LABELS[calcParams.imageRisk],
+    STRATEGIC_GAIN_LABELS[calcParams.strategicGain],
+  ].filter(Boolean).join(" • ");
+  const deliveryToneClasses = OPTION_TONE_CLASSES[compactSectionTheme.delivery.tone];
+  const rightsToneClasses = OPTION_TONE_CLASSES[compactSectionTheme.rights.tone];
+  const brandToneClasses = OPTION_TONE_CLASSES[compactSectionTheme.brand.tone];
 
-  const SelectionGroup = ({ label, options, value, onChange, disabled }: any) => (
-    <fieldset className="space-y-2.5">
-      <legend className="text-sm font-semibold text-slate-800">{label}</legend>
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-        {options.map((option: any) => {
-          const Icon = option.icon;
-          const isSelected = value === option.value;
-          return (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => onChange(option.value)}
-              disabled={disabled}
-              aria-pressed={isSelected}
-              className={`flex w-full items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left transition ${isSelected
-                ? "border-slate-800 bg-slate-50 shadow-sm ring-1 ring-slate-800"
-                : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
-                } ${disabled ? "cursor-not-allowed opacity-60" : "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-1"}`}
-            >
-              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm transition-colors ${isSelected ? "bg-slate-800 text-white" : "border border-slate-200 bg-white text-slate-500"}`}>
-                <Icon className="h-3.5 w-3.5" aria-hidden />
-              </span>
-              <div className="space-y-0.5">
-                <p className="text-sm font-semibold text-slate-900">{option.label}</p>
-                {option.helper && <p className="text-xs leading-snug text-slate-500">{option.helper}</p>}
-              </div>
-            </button>
-          );
-        })}
-      </div>
-    </fieldset>
-  );
+  const SelectionGroup = ({ label, options, value, onChange, disabled, tone = "neutral" }: any) => {
+    const toneClasses = OPTION_TONE_CLASSES[tone as CalculatorTone] ?? OPTION_TONE_CLASSES.neutral;
+    const selectedOption = options.find((option: any) => option.value === value);
+    const selectedLabel = selectedOption?.label ?? "Selecione";
+
+    return (
+      <fieldset className={compactView ? "space-y-2.5" : "space-y-2.5"}>
+        {compactView ? (
+          <div className="flex items-center justify-between gap-3">
+            <legend className={`dashboard-type-meta ${toneClasses.legendText}`}>{label}</legend>
+            <span className={`dashboard-type-meta ${toneClasses.summaryText}`}>{selectedLabel}</span>
+          </div>
+        ) : (
+          <legend className="text-sm font-medium text-zinc-400">{label}</legend>
+        )}
+        {compactView ? (
+          <div className="space-y-1.5">
+            {options.map((option: any) => {
+              const isSelected = value === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => onChange(option.value)}
+                  disabled={disabled}
+                  aria-pressed={isSelected}
+                  className={`w-full rounded-[0.95rem] px-2.5 py-3 text-left transition ${isSelected ? toneClasses.selectedRow : ""} ${disabled ? "cursor-not-allowed opacity-60" : "hover:bg-zinc-50/55"}`}
+                >
+                  <div className="flex items-center gap-3.5">
+                    <span className={`h-6.5 w-1.5 shrink-0 rounded-full ${isSelected ? toneClasses.accentBar : "bg-transparent"}`} />
+                    <span className={`min-w-0 flex-1 truncate text-[0.94rem] leading-[1.4] tracking-[-0.015em] ${isSelected ? `font-semibold ${toneClasses.selectedText}` : "font-medium text-zinc-700"}`}>{option.label}</span>
+                    <span className={compactSelectionIndicatorRailClassName}>
+                      <span className={`${compactSelectionIndicatorBaseClassName} ${isSelected ? toneClasses.selectedIndicatorRing : ""}`} aria-hidden>
+                        <span className={`h-3 w-3 rounded-full ${isSelected ? toneClasses.selectedDot : "bg-zinc-300"}`} />
+                      </span>
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {options.map((option: any) => {
+              const Icon = option.icon;
+              const isSelected = value === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => onChange(option.value)}
+                  disabled={disabled}
+                  aria-pressed={isSelected}
+                  className={`flex w-full items-start gap-2.5 rounded-[1.05rem] border px-3.5 py-3 text-left transition ${isSelected
+                    ? toneClasses.selectedCard
+                    : "border-zinc-200/80 bg-zinc-50/70 hover:border-zinc-300 hover:bg-white"
+                  } ${disabled ? "cursor-not-allowed opacity-60" : "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-200 focus-visible:ring-offset-1"}`}
+                >
+                  <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-sm transition-colors ${isSelected ? toneClasses.selectedIcon : "border border-zinc-200 bg-white text-zinc-500"}`}>
+                    <Icon className="h-3.5 w-3.5" aria-hidden />
+                  </span>
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="text-sm font-semibold text-slate-900">{option.label}</p>
+                    {option.helper ? <p className="text-xs leading-snug text-slate-500">{option.helper}</p> : null}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </fieldset>
+    );
+  };
+
+  const compactStepperButtonBaseClassName =
+    "inline-flex h-6 w-6 items-center justify-center rounded-full border border-zinc-200/80 bg-white text-[12px] font-semibold text-zinc-500 transition hover:border-zinc-300 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-35";
+  const compactStepperRailClassName = "flex w-[88px] shrink-0 items-center justify-end gap-2";
 
   const QuantitySelectionGroup = ({
     label,
     quantities,
     onChange,
     disabled,
+    tone = "neutral",
   }: {
     label: string;
     quantities: FormatQuantities;
     onChange: (key: keyof FormatQuantities, nextValue: number) => void;
     disabled?: boolean;
-  }) => (
-    <fieldset className="space-y-2.5">
-      <legend className="text-sm font-semibold text-slate-800">{label}</legend>
-      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-        {FORMAT_OPTIONS.map((option) => {
-          const Icon = option.icon;
-          const currentValue = quantities[option.value as keyof FormatQuantities] ?? 0;
-          const isSelected = currentValue > 0;
-          const optionKey = option.value as keyof FormatQuantities;
-          return (
-            <div
-              key={option.value}
-              className={`rounded-xl border p-2.5 transition ${isSelected
-                ? "border-slate-800 bg-slate-50 shadow-sm ring-1 ring-slate-800"
-                : "border-slate-200 bg-white"
-                } ${disabled ? "opacity-70" : ""}`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-sm transition-colors ${isSelected ? "bg-slate-800 text-white" : "border border-slate-200 bg-white text-slate-500"}`}>
-                  <Icon className="h-3.5 w-3.5" aria-hidden />
-                </span>
-                <button
-                  type="button"
-                  disabled={disabled}
-                  aria-pressed={isSelected}
-                  aria-label={`${isSelected ? "Desativar" : "Ativar"} ${option.label}`}
-                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide transition ${isSelected ? "bg-slate-100 text-slate-700" : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"}`}
-                  onClick={() => onChange(optionKey, isSelected ? 0 : 1)}
+    tone?: CalculatorTone;
+  }) => {
+    const toneClasses = OPTION_TONE_CLASSES[tone] ?? OPTION_TONE_CLASSES.neutral;
+    const selectedTotal = quantityTotal(quantities);
+    return (
+      <fieldset className={compactView ? "space-y-2" : "space-y-2.5"}>
+        {compactView ? (
+          <div className="flex items-center justify-between gap-3">
+            <legend className={`dashboard-type-meta ${toneClasses.legendText}`}>{label}</legend>
+            <span className={`dashboard-type-meta ${toneClasses.summaryText}`}>
+              {selectedTotal > 0 ? formatPostsCount(selectedTotal) : "Nenhum"}
+            </span>
+          </div>
+        ) : (
+          <legend className="text-sm font-medium text-zinc-400">{label}</legend>
+        )}
+        {compactView ? (
+          <div className="space-y-1.5">
+            {compactFormatOptions.map((option) => {
+              const currentValue = quantities[option.value as keyof FormatQuantities] ?? 0;
+              const isSelected = currentValue > 0;
+              const optionKey = option.value as keyof FormatQuantities;
+              return (
+                <div
+                  key={option.value}
+                  className={`rounded-[0.95rem] px-2.5 py-3 transition ${isSelected ? toneClasses.selectedRow : ""} ${disabled ? "opacity-70" : ""}`}
                 >
-                  {isSelected ? "Ativo" : "Ativar"}
-                </button>
-              </div>
-              <div className="mt-2 space-y-0.5">
-                <p className="text-sm font-semibold text-slate-900">{option.label}</p>
-                {option.helper && <p className="text-xs text-slate-500">{option.helper}</p>}
-              </div>
-              <div className="mt-2 flex items-center justify-between rounded-lg border border-slate-200 bg-white px-2 py-1.5">
-                <button
-                  type="button"
-                  onClick={() => onChange(optionKey, clampQuantity(currentValue - 1))}
-                  disabled={disabled || currentValue <= 0}
-                  className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  aria-label={`Diminuir ${option.label}`}
+                  <div className="flex items-center justify-between gap-3.5">
+                    <span className="flex min-w-0 items-center gap-3.5">
+                      <span className={`h-6.5 w-1.5 shrink-0 rounded-full ${isSelected ? toneClasses.accentBar : "bg-transparent"}`} />
+                      <span className={`truncate text-[0.94rem] leading-[1.4] tracking-[-0.015em] ${isSelected ? `font-semibold ${toneClasses.selectedText}` : "font-medium text-zinc-700"}`}>{option.label}</span>
+                    </span>
+                    <div className={compactStepperRailClassName}>
+                      <button
+                        type="button"
+                        onClick={() => onChange(optionKey, clampQuantity(currentValue - 1))}
+                        disabled={disabled || currentValue <= 0}
+                        className={`${compactStepperButtonBaseClassName} ${isSelected ? `${toneClasses.stepperShell} ${toneClasses.stepperButton}` : ""}`}
+                        aria-label={`Diminuir ${option.label}`}
+                      >
+                        -
+                      </button>
+                      <span className={`min-w-[1.75rem] text-center text-[13px] font-semibold tabular-nums ${isSelected ? "text-zinc-950" : "text-zinc-400"}`} aria-live="polite">
+                        {currentValue}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onChange(optionKey, clampQuantity(currentValue + 1))}
+                        disabled={disabled || currentValue >= 20}
+                        className={`${compactStepperButtonBaseClassName} ${isSelected ? `${toneClasses.stepperShell} ${toneClasses.stepperButton}` : ""}`}
+                        aria-label={`Aumentar ${option.label}`}
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            {compactFormatOptions.map((option) => {
+              const Icon = option.icon;
+              const currentValue = quantities[option.value as keyof FormatQuantities] ?? 0;
+              const isSelected = currentValue > 0;
+              const optionKey = option.value as keyof FormatQuantities;
+              return (
+                <div
+                  key={option.value}
+                  className={`rounded-[1.05rem] border p-3 transition ${isSelected
+                    ? toneClasses.selectedCard
+                    : "border-zinc-200/80 bg-zinc-50/70"
+                  } ${disabled ? "opacity-70" : ""}`}
                 >
-                  -
-                </button>
-                <span className="text-sm font-semibold text-slate-900" aria-live="polite">
-                  {currentValue}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => onChange(optionKey, clampQuantity(currentValue + 1))}
-                  disabled={disabled || currentValue >= 20}
-                  className="rounded-md border border-slate-200 bg-white px-2 py-0.5 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-                  aria-label={`Aumentar ${option.label}`}
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </fieldset>
-  );
+                  <div className="flex items-start justify-between gap-3">
+                    <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-sm transition-colors ${isSelected ? toneClasses.selectedIcon : "border border-zinc-200 bg-white text-zinc-500"}`}>
+                      <Icon className="h-3.5 w-3.5" aria-hidden />
+                    </span>
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      aria-pressed={isSelected}
+                      aria-label={`${isSelected ? "Desativar" : "Ativar"} ${option.label}`}
+                      className={`rounded-full px-2 py-0.5 text-[8px] font-semibold uppercase tracking-wide transition ${isSelected ? toneClasses.selectedToggle : "border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50"}`}
+                      onClick={() => onChange(optionKey, isSelected ? 0 : 1)}
+                    >
+                      {isSelected ? "On" : "Add"}
+                    </button>
+                  </div>
+                  <div className="mt-2 space-y-0.5">
+                    <p className="text-sm font-semibold text-slate-900">{option.label}</p>
+                    {option.helper ? <p className="text-xs text-slate-500">{option.helper}</p> : null}
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between rounded-[0.9rem] border border-zinc-200 bg-white px-2.5 py-1.5">
+                    <button
+                      type="button"
+                      onClick={() => onChange(optionKey, clampQuantity(currentValue - 1))}
+                      disabled={disabled || currentValue <= 0}
+                      className="rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-sm font-semibold text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label={`Diminuir ${option.label}`}
+                    >
+                      -
+                    </button>
+                    <span className="text-sm font-semibold text-slate-900" aria-live="polite">
+                      {currentValue}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onChange(optionKey, clampQuantity(currentValue + 1))}
+                      disabled={disabled || currentValue >= 20}
+                      className="rounded-md border border-zinc-200 bg-white px-2 py-0.5 text-sm font-semibold text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      aria-label={`Aumentar ${option.label}`}
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </fieldset>
+    );
+  };
 
   const updateFormatQuantity = (key: keyof FormatQuantities, nextValue: number) => {
     setCalcParams((prev) => {
@@ -1316,67 +1757,63 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
   };
 
   return (
-    <div className="dashboard-page-shell py-4 sm:py-6">
-      <div className="mx-auto w-full max-w-[900px] space-y-4 sm:space-y-5">
-        <header className="space-y-1.5">
-          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl">
-            Quanto cobrar pela sua publi?
-          </h1>
-          <p className="text-sm text-slate-500 sm:text-base">
-            Defina as premissas da entrega e gere uma faixa de preço prática para negociação.
-          </p>
-        </header>
+    <div className={`${compactView ? "px-0 py-0.5" : "px-4 py-2"} shadow-none`}>
+      <div className={`mx-auto w-full pt-1.5 ${compactView ? "space-y-2" : "space-y-4 sm:space-y-6"}`}>
 
         {isAdminViewer ? (
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="w-full sm:max-w-md">
-              <CreatorQuickSearch
-                onSelect={(creator) =>
-                  setAdminTargetUser({
-                    id: creator.id,
-                    name: creator.name,
-                    profilePictureUrl: creator.profilePictureUrl,
-                  })
-                }
-                selectedCreatorName={adminTargetUser?.name || null}
-                selectedCreatorPhotoUrl={adminTargetUser?.profilePictureUrl || null}
-                onClear={() => setAdminTargetUser(null)}
-                apiPrefix="/api/admin"
-              />
-            </div>
-            <p className="text-xs text-slate-500">
-              {isActingOnBehalf
-                ? `Calculando para ${adminTargetUser?.name}.`
-                : "Calculando para sua própria conta."}
-            </p>
+            {(!compactView || isActingOnBehalf || adminTargetUser) ? (
+              <div className="w-full sm:max-w-md">
+                <CreatorQuickSearch
+                  onSelect={(creator) =>
+                    setAdminTargetUser({
+                      id: creator.id,
+                      name: creator.name,
+                      profilePictureUrl: creator.profilePictureUrl,
+                    })
+                  }
+                  selectedCreatorName={adminTargetUser?.name || null}
+                  selectedCreatorPhotoUrl={adminTargetUser?.profilePictureUrl || null}
+                  onClear={() => setAdminTargetUser(null)}
+                  apiPrefix="/api/admin"
+                />
+              </div>
+            ) : null}
+            {(!compactView || isActingOnBehalf || adminTargetUser) ? (
+              <p className="text-xs text-slate-500">
+                {isActingOnBehalf
+                  ? `Calculando para ${adminTargetUser?.name}.`
+                  : "Calculando para sua própria conta."}
+              </p>
+            ) : null}
           </div>
         ) : null}
 
         {showBillingLoading && (
-          <div className="flex items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-6 text-slate-600 sm:p-8">
+          <div className={`${compactView ? `${compactBoardShell} flex items-center justify-center gap-3 p-5 text-zinc-600` : "dashboard-panel flex items-center justify-center gap-3 p-6 text-zinc-600 sm:p-8"}`}>
             <Loader2 className="h-5 w-5 animate-spin text-slate-700" />
             <span className="font-medium">Carregando seus dados...</span>
           </div>
         )}
 
         {showLockedMessage && (
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 sm:p-8">
+          <div className={compactView ? `${compactBoardShell} p-4` : "dashboard-dark-spotlight rounded-[2rem] border border-white/10 p-6 shadow-[0_26px_70px_rgba(17,24,39,0.22)] sm:p-8"}>
             <div className="flex flex-col items-center gap-5 text-center md:flex-row md:text-left">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+              <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${compactView ? "bg-zinc-100 text-zinc-700" : "bg-white/10 text-pink-200 backdrop-blur-sm"}`}>
                 <Lock className="h-4 w-4" />
               </div>
               <div className="flex-1 space-y-1.5">
-                <h2 className="text-xl font-semibold text-slate-900 sm:text-2xl">
+                <h2 className={`${compactView ? "text-lg text-zinc-900" : "text-xl text-white sm:text-2xl"} font-semibold`}>
                   Desbloqueie o poder da precificação inteligente
                 </h2>
-                <p className="text-slate-600">
+                <p className={compactView ? "text-sm text-zinc-500" : "text-zinc-300"}>
                   Assinantes Pro têm acesso completo à calculadora com sugestões baseadas em dados reais.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => handleLockedAccess("banner")}
-                className="inline-flex items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400 focus-visible:ring-offset-2"
+                className={`dashboard-primary-button inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold ${compactView ? "" : "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"}`}
               >
                 Quero acesso agora
                 <ArrowRight className="h-3.5 w-3.5" />
@@ -1385,59 +1822,186 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="flex items-center justify-between gap-3 px-4 py-3">
+        <form onSubmit={handleSubmit} className={compactView ? "space-y-0" : "space-y-4"}>
+          <div className={compactView ? "" : "dashboard-panel overflow-hidden"}>
+            <div className={`flex items-center justify-between gap-3 ${compactView ? "px-0 py-3.5" : "px-4 py-3"}`}>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-800">Detalhes da Entrega</p>
-                <p className="mt-0.5 text-[11px] text-slate-500">Escolha entregas e marque evento só quando necessário.</p>
+                {compactView ? (
+                  <div className="flex items-start gap-2.5">
+                    <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] ${compactSectionTheme.delivery.iconContainer}`}>
+                      <Video className="h-3.5 w-3.5" />
+                    </div>
+                    <div className={calculatorHeaderTextClassName}>
+                      <h2 className={calculatorTitleClassName}>Entregas e contexto</h2>
+                      {collapsedSections.delivery ? <p className={`${calculatorSupportClassName} ${deliveryToneClasses.summaryText}`}>{deliverySummary}</p> : null}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={calculatorHeaderTextClassName}>
+                    <h2 className={calculatorTitleClassName}>Detalhes da Entrega</h2>
+                    <p className={calculatorSupportClassName}>Escolha entregas e marque evento só quando necessário.</p>
+                  </div>
+                )}
               </div>
               <button
                 type="button"
                 onClick={() => toggleSectionCollapse("delivery")}
                 aria-expanded={!collapsedSections.delivery}
                 aria-controls="calculator-section-delivery"
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                aria-label={!collapsedSections.delivery ? "Ocultar entrega" : "Ver entrega"}
+                className={compactView ? calculatorInlineActionClassName : `${calculatorControlButtonClassName} ${compactSectionTheme.delivery.toggle}`}
               >
-                {!collapsedSections.delivery ? "Fechar detalhes" : "Ver detalhes"}
+                {!compactView ? (!collapsedSections.delivery ? "Ocultar" : "Ver") : null}
                 {!collapsedSections.delivery ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
               </button>
             </div>
 
             {!collapsedSections.delivery && (
-              <div id="calculator-section-delivery" className="space-y-4 border-t border-slate-100 px-4 py-4">
-                <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Presença em Evento</p>
-                    <p className="text-xs text-slate-500">Ative apenas quando houver presença física.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setDeliveryType(calcParams.deliveryType === "evento" ? "conteudo" : "evento")}
-                    disabled={disableInputs}
-                    aria-pressed={calcParams.deliveryType === "evento"}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${calcParams.deliveryType === "evento"
-                      ? "border-slate-800 bg-slate-800 text-white"
-                      : "border-slate-200 bg-white text-slate-700"
-                      }`}
-                    aria-label="Presença em Evento"
-                  >
-                    {calcParams.deliveryType === "evento" ? "Incluída" : "Não incluída"}
-                  </button>
+              <div id="calculator-section-delivery" className={compactView ? "space-y-3 pt-3.5" : "border-t border-zinc-100/80 space-y-4 px-4 py-4"}>
+                <div className={`${compactView ? `${compactSectionBlockClassName} ${deliveryToneClasses.divider}` : ""} ${compactView ? "space-y-2" : "dashboard-panel-subtle flex items-center justify-between px-3.5 py-2.5"}`}>
+                  {compactView ? (
+                    <>
+                      <div className="flex items-center justify-between gap-3">
+                        <p className={`dashboard-type-meta ${deliveryToneClasses.legendText}`}>Evento</p>
+                        <span className={`dashboard-type-meta ${calcParams.deliveryType === "evento" ? deliveryToneClasses.summaryText : "text-zinc-400"}`}>
+                          {calcParams.deliveryType === "evento" ? "Incluído" : "Sem evento"}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setDeliveryType(calcParams.deliveryType === "evento" ? "conteudo" : "evento")}
+                        disabled={disableInputs}
+                        aria-pressed={calcParams.deliveryType === "evento"}
+                        className={`w-full rounded-[0.9rem] py-3 text-left transition ${disableInputs ? "cursor-not-allowed opacity-60" : "hover:bg-zinc-50/55"}`}
+                        aria-label="Presença em Evento"
+                      >
+                        <div className="flex items-center gap-3.5">
+                          <span className={`h-6.5 w-1.5 shrink-0 rounded-full ${calcParams.deliveryType === "evento" ? deliveryToneClasses.accentBar : "bg-transparent"}`} />
+                          <span className={`min-w-0 flex-1 truncate text-[0.94rem] leading-[1.4] tracking-[-0.015em] ${calcParams.deliveryType === "evento" ? `font-semibold ${deliveryToneClasses.selectedText}` : "font-medium text-zinc-700"}`}>
+                            Presença física
+                          </span>
+                          <span className={compactSelectionIndicatorRailClassName}>
+                            <span className={`${compactSelectionIndicatorBaseClassName} ${calcParams.deliveryType === "evento" ? deliveryToneClasses.selectedIndicatorRing : ""}`} aria-hidden>
+                              <span className={`h-3 w-3 rounded-full ${calcParams.deliveryType === "evento" ? deliveryToneClasses.selectedDot : "bg-zinc-300"}`} />
+                            </span>
+                          </span>
+                        </div>
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <p className="text-sm font-semibold text-zinc-900">Presença em Evento</p>
+                        <p className="text-xs text-zinc-500">Ative apenas quando houver presença física.</p>
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setDeliveryType(calcParams.deliveryType === "evento" ? "conteudo" : "evento")}
+                          disabled={disableInputs}
+                          aria-pressed={calcParams.deliveryType === "evento"}
+                          className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                            calcParams.deliveryType === "evento"
+                              ? "border-sky-200 bg-sky-50 text-sky-700"
+                              : "border-zinc-200/80 bg-white/84 text-slate-600 hover:border-zinc-300 hover:bg-zinc-50/82"
+                          }`}
+                          aria-label="Presença em Evento"
+                        >
+                          {calcParams.deliveryType === "evento" ? "Incluída" : "Não incluída"}
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
 
-                <QuantitySelectionGroup
-                  label="Quais entregas de conteúdo entram no cálculo?"
-                  quantities={calcParams.formatQuantities}
-                  onChange={updateFormatQuantity}
-                  disabled={disableInputs}
-                />
+                <div className={compactView ? `${compactSectionBlockClassName} ${deliveryToneClasses.divider}` : ""}>
+                  <QuantitySelectionGroup
+                    label={compactView ? "Entregas no cálculo" : "Quais entregas de conteúdo entram no cálculo?"}
+                    quantities={calcParams.formatQuantities}
+                    onChange={updateFormatQuantity}
+                    disabled={disableInputs}
+                    tone={compactSectionTheme.delivery.tone}
+                  />
+                </div>
 
                 {calcParams.deliveryType === "evento" ? (
-                  <div className="space-y-4 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5 sm:p-4">
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <label className="space-y-1 text-sm">
-                        <span className="font-semibold text-slate-800">Duração do evento</span>
+                  compactView ? (
+                    <div className={`${compactDetailsShell} ${deliveryToneClasses.divider}`}>
+                      <p className={`${compactSubsectionTitleClassName} ${deliveryToneClasses.subsectionText}`}>Ajustes de evento</p>
+                    <div className="mt-3 space-y-3">
+                        <div className="grid grid-cols-1 gap-2.5">
+                          <label className={calculatorInlineFieldClassName}>
+                            <span className={calculatorFieldLabelClassName}>Duração do evento</span>
+                            <select
+                              value={calcParams.eventDetails.durationHours}
+                              disabled={disableInputs}
+                              onChange={(e) =>
+                                setCalcParams((prev) => ({
+                                  ...prev,
+                                  eventDetails: { ...prev.eventDetails, durationHours: Number(e.target.value) as EventDetails["durationHours"] },
+                                  format: "evento",
+                                }))
+                              }
+                              className={calculatorInputClassName}
+                            >
+                              <option value={2}>2 horas</option>
+                              <option value={4}>4 horas</option>
+                              <option value={8}>8 horas</option>
+                            </select>
+                          </label>
+                          <label className={calculatorInlineFieldClassName}>
+                            <span className={calculatorFieldLabelClassName}>Deslocamento</span>
+                            <select
+                              value={calcParams.eventDetails.travelTier}
+                              disabled={disableInputs}
+                              onChange={(e) =>
+                                setCalcParams((prev) => ({
+                                  ...prev,
+                                  eventDetails: { ...prev.eventDetails, travelTier: e.target.value as EventDetails["travelTier"] },
+                                  format: "evento",
+                                }))
+                              }
+                              className={calculatorInputClassName}
+                            >
+                              <option value="local">Local</option>
+                              <option value="nacional">Nacional</option>
+                              <option value="internacional">Internacional</option>
+                            </select>
+                          </label>
+                          <label className={calculatorInlineFieldClassName}>
+                            <span className={calculatorFieldLabelClassName}>Noites de hotel</span>
+                            <input
+                              type="number"
+                              min={0}
+                              max={20}
+                              value={calcParams.eventDetails.hotelNights}
+                              disabled={disableInputs}
+                              onChange={(e) =>
+                                setCalcParams((prev) => ({
+                                  ...prev,
+                                  eventDetails: { ...prev.eventDetails, hotelNights: clampQuantity(Number(e.target.value)) },
+                                  format: "evento",
+                                }))
+                              }
+                              className={calculatorInputClassName}
+                            />
+                          </label>
+                        </div>
+
+                        <QuantitySelectionGroup
+                          label="Cobertura no evento"
+                          quantities={calcParams.eventCoverageQuantities}
+                          onChange={updateCoverageQuantity}
+                          disabled={disableInputs}
+                          tone={compactSectionTheme.delivery.tone}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                  <div className={`space-y-3 rounded-[1.25rem] ${compactView ? "border border-zinc-100/90 bg-white/78 p-3" : "border border-zinc-200/80 bg-zinc-50/70 p-3.5 sm:p-4"}`}>
+                    <div className={`grid gap-3 ${compactView ? "grid-cols-1" : "sm:grid-cols-3"}`}>
+                      <label className={calculatorInlineFieldClassName}>
+                        <span className={calculatorFieldLabelClassName}>Duração do evento</span>
                         <select
                           value={calcParams.eventDetails.durationHours}
                           disabled={disableInputs}
@@ -1448,15 +2012,15 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
                               format: "evento",
                             }))
                           }
-                          className="w-full rounded-lg border-slate-200 text-sm text-slate-700 focus:border-slate-400 focus:ring-slate-300"
+                          className={calculatorInputClassName}
                         >
                           <option value={2}>2 horas</option>
                           <option value={4}>4 horas</option>
                           <option value={8}>8 horas</option>
                         </select>
                       </label>
-                      <label className="space-y-1 text-sm">
-                        <span className="font-semibold text-slate-800">Deslocamento</span>
+                      <label className={calculatorInlineFieldClassName}>
+                        <span className={calculatorFieldLabelClassName}>Deslocamento</span>
                         <select
                           value={calcParams.eventDetails.travelTier}
                           disabled={disableInputs}
@@ -1467,15 +2031,15 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
                               format: "evento",
                             }))
                           }
-                          className="w-full rounded-lg border-slate-200 text-sm text-slate-700 focus:border-slate-400 focus:ring-slate-300"
+                          className={calculatorInputClassName}
                         >
                           <option value="local">Local</option>
                           <option value="nacional">Nacional</option>
                           <option value="internacional">Internacional</option>
                         </select>
                       </label>
-                      <label className="space-y-1 text-sm">
-                        <span className="font-semibold text-slate-800">Noites de hotel</span>
+                      <label className={calculatorInlineFieldClassName}>
+                        <span className={calculatorFieldLabelClassName}>Noites de hotel</span>
                         <input
                           type="number"
                           min={0}
@@ -1489,254 +2053,385 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
                               format: "evento",
                             }))
                           }
-                          className="w-full rounded-lg border-slate-200 text-sm text-slate-700 focus:border-slate-400 focus:ring-slate-300"
+                          className={calculatorInputClassName}
                         />
                       </label>
                     </div>
 
                     <QuantitySelectionGroup
-                      label="Cobertura opcional no evento (não obrigatória)"
+                      label={compactView ? "Cobertura no evento" : "Cobertura opcional no evento (não obrigatória)"}
                       quantities={calcParams.eventCoverageQuantities}
                       onChange={updateCoverageQuantity}
                       disabled={disableInputs}
+                      tone={compactSectionTheme.delivery.tone}
                     />
                   </div>
+                  )
                 ) : null}
-                <SelectionGroup
-                  label="Qual a complexidade da produção?"
-                  options={COMPLEXITY_OPTIONS}
-                  value={calcParams.complexity}
-                  onChange={(v: any) => handleChange("complexity", v)}
-                  disabled={disableInputs}
-                />
-                {calcParams.contentModel === "ugc_whitelabel" ? (
-                  <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-3.5 py-2.5 text-xs text-amber-800">
-                    <p>
-                      UGC é um modelo de entrega separado da complexidade. Recomendação prática: usar{" "}
-                      <span className="font-semibold">Simples</span> como padrão.
-                    </p>
-                    {calcParams.complexity !== "simples" ? (
-                      <button
-                        type="button"
-                        onClick={() => handleChange("complexity", "simples")}
-                        disabled={disableInputs}
-                        className="mt-2 inline-flex rounded-md bg-amber-100 px-2.5 py-1 font-semibold text-amber-900 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-70"
-                      >
-                        Aplicar recomendado
-                      </button>
-                    ) : null}
-                  </div>
-                ) : null}
-                <SelectionGroup
-                  label="Qual o momento (Sazonalidade)?"
-                  options={SEASONALITY_OPTIONS}
-                  value={calcParams.seasonality}
-                  onChange={(v: any) => handleChange("seasonality", v)}
-                  disabled={disableInputs}
-                />
+                <div className={compactView ? `${compactSectionBlockClassName} ${deliveryToneClasses.divider}` : ""}>
+                  <SelectionGroup
+                    label={compactView ? "Complexidade" : "Qual a complexidade da produção?"}
+                    options={COMPLEXITY_OPTIONS}
+                    value={calcParams.complexity}
+                    onChange={(v: any) => handleChange("complexity", v)}
+                    disabled={disableInputs}
+                    tone={compactSectionTheme.delivery.tone}
+                  />
+                  {calcParams.contentModel === "ugc_whitelabel" ? (
+                    <div className="mt-3 rounded-[1.15rem] border border-amber-200 bg-amber-50/80 px-3.5 py-2.5 text-xs text-amber-800">
+                      <p>
+                        UGC é um modelo de entrega separado da complexidade. Recomendação prática: usar{" "}
+                        <span className="font-semibold">Simples</span> como padrão.
+                      </p>
+                      {calcParams.complexity !== "simples" ? (
+                        <button
+                          type="button"
+                          onClick={() => handleChange("complexity", "simples")}
+                          disabled={disableInputs}
+                          className="mt-2 inline-flex rounded-md bg-amber-100 px-2.5 py-1 font-semibold text-amber-900 transition hover:bg-amber-200 disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          Aplicar recomendado
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+                <div className={compactView ? `${compactSectionBlockClassName} ${deliveryToneClasses.divider}` : ""}>
+                  <SelectionGroup
+                    label={compactView ? "Sazonalidade" : "Qual o momento (Sazonalidade)?"}
+                    options={SEASONALITY_OPTIONS}
+                    value={calcParams.seasonality}
+                    onChange={(v: any) => handleChange("seasonality", v)}
+                    disabled={disableInputs}
+                    tone={compactSectionTheme.delivery.tone}
+                  />
+                </div>
               </div>
             )}
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className={compactView ? compactCanvasSectionClassName : "dashboard-panel overflow-hidden"}>
+            <div className={`flex items-center justify-between gap-3 ${compactView ? "px-0 py-3.5" : "px-4 py-3"}`}>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-800">Direitos e Prazos</p>
-                <p className="mt-0.5 text-[11px] text-slate-500">Defina uso de imagem, prazos e adicionais.</p>
+                {compactView ? (
+                  <div className="flex items-start gap-2.5">
+                    <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] ${compactSectionTheme.rights.iconContainer}`}>
+                      <Globe className="h-3.5 w-3.5" />
+                    </div>
+                    <div className={calculatorHeaderTextClassName}>
+                      <h2 className={calculatorTitleClassName}>Uso, prazo e adicionais</h2>
+                      {collapsedSections.rights ? <p className={`${calculatorSupportClassName} ${rightsToneClasses.summaryText}`}>{rightsSummary}</p> : null}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={calculatorHeaderTextClassName}>
+                    <h2 className={calculatorTitleClassName}>Direitos e Prazos</h2>
+                    <p className={calculatorSupportClassName}>Defina uso de imagem, prazos e adicionais.</p>
+                  </div>
+                )}
               </div>
               <button
                 type="button"
                 onClick={() => toggleSectionCollapse("rights")}
                 aria-expanded={!collapsedSections.rights}
                 aria-controls="calculator-section-rights"
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                aria-label={!collapsedSections.rights ? "Ocultar direitos" : "Ver direitos"}
+                className={compactView ? calculatorInlineActionClassName : `${calculatorControlButtonClassName} ${compactSectionTheme.rights.toggle}`}
               >
-                {!collapsedSections.rights ? "Fechar detalhes" : "Ver detalhes"}
+                {!compactView ? (!collapsedSections.rights ? "Ocultar" : "Ver") : null}
                 {!collapsedSections.rights ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
               </button>
             </div>
 
             {!collapsedSections.rights && (
-              <div id="calculator-section-rights" className="space-y-4 border-t border-slate-100 px-4 py-4">
-                <SelectionGroup
-                  label="Exclusividade exigida"
-                  options={EXCLUSIVITY_OPTIONS}
-                  value={calcParams.exclusivity}
-                  onChange={(v: any) => handleChange("exclusivity", v)}
-                  disabled={disableInputs}
-                />
-                <SelectionGroup
-                  label="Direitos de uso de imagem"
-                  options={USAGE_OPTIONS}
-                  value={calcParams.usageRights}
-                  onChange={(v: any) => setUsageRights(v)}
-                  disabled={disableInputs}
-                />
-                <p className="text-xs text-slate-500">
-                  Quando houver mídia paga (ou global), o direito de impulsionamento vale para todas as plataformas envolvidas durante o prazo contratado.
-                </p>
-                {calcParams.usageRights !== "organico" ? (
+              <div id="calculator-section-rights" className={compactView ? "space-y-3 pt-3.5" : "border-t border-zinc-100/80 space-y-4 px-4 py-4"}>
+                <div className={compactView ? `${compactSectionBlockClassName} ${rightsToneClasses.divider}` : ""}>
                   <SelectionGroup
-                    label="Prazo de uso de imagem em mídia paga"
-                    options={PAID_MEDIA_DURATION_OPTIONS}
-                    value={calcParams.paidMediaDuration}
-                    onChange={(v: any) => setPaidMediaDuration(v)}
+                    label={compactView ? "Exclusividade" : "Exclusividade exigida"}
+                    options={EXCLUSIVITY_OPTIONS}
+                    value={calcParams.exclusivity}
+                    onChange={(v: any) => handleChange("exclusivity", v)}
                     disabled={disableInputs}
+                    tone={compactSectionTheme.rights.tone}
                   />
-                ) : null}
-                <div className="space-y-2.5">
-                  <p id="commercial-addons-label" className="text-sm font-semibold text-slate-800">Condições comerciais adicionais</p>
-                  <div className="grid gap-2 sm:grid-cols-2" role="group" aria-labelledby="commercial-addons-label">
-                    <button
-                      type="button"
-                      onClick={() => toggleFlag("repostTikTok")}
-                      disabled={disableInputs}
-                      aria-pressed={calcParams.repostTikTok}
-                      className={`rounded-xl border p-3 text-left transition ${calcParams.repostTikTok
-                        ? "border-slate-800 bg-slate-50 shadow-sm ring-1 ring-slate-800"
-                        : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
-                        } ${disableInputs ? "opacity-70" : ""}`}
-                    >
-                      <p className="text-sm font-semibold text-slate-900">Repost no TikTok</p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {calcParams.repostTikTok
-                          ? "Sim. Inclui direito de repost e impulsionamento no TikTok."
-                          : "Não. Sem repost adicional no TikTok."}
-                      </p>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => toggleFlag("instagramCollab")}
-                      disabled={disableInputs}
-                      aria-pressed={calcParams.instagramCollab}
-                      className={`rounded-xl border p-3 text-left transition ${calcParams.instagramCollab
-                        ? "border-slate-800 bg-slate-50 shadow-sm ring-1 ring-slate-800"
-                        : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
-                        } ${disableInputs ? "opacity-70" : ""}`}
-                    >
-                      <p className="text-sm font-semibold text-slate-900">Collab com marca no Instagram</p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {calcParams.instagramCollab
-                          ? "Sim. Registro contratual sem impacto no cálculo."
-                          : "Não. Sem collab com marca no Instagram."}
-                      </p>
-                    </button>
-                  </div>
                 </div>
-                <SelectionGroup
-                  label="Seu nível de autoridade atual"
-                  options={AUTHORITY_OPTIONS}
-                  value={calcParams.authority}
-                  onChange={(v: any) => handleChange("authority", v)}
-                  disabled={disableInputs}
-                />
+                <div className={compactView ? `${compactSectionBlockClassName} ${rightsToneClasses.divider}` : ""}>
+                  <SelectionGroup
+                    label={compactView ? "Uso de imagem" : "Direitos de uso de imagem"}
+                    options={USAGE_OPTIONS}
+                    value={calcParams.usageRights}
+                    onChange={(v: any) => setUsageRights(v)}
+                    disabled={disableInputs}
+                    tone={compactSectionTheme.rights.tone}
+                  />
+                </div>
+                {!compactView ? <p className="text-xs text-zinc-500">
+                  Quando houver mídia paga (ou global), o direito de impulsionamento vale para todas as plataformas envolvidas durante o prazo contratado.
+                </p> : null}
+                {calcParams.usageRights !== "organico" ? (
+                  <div className={compactView ? `${compactSectionBlockClassName} ${rightsToneClasses.divider}` : ""}>
+                    <SelectionGroup
+                      label={compactView ? "Prazo da mídia paga" : "Prazo de uso de imagem em mídia paga"}
+                      options={PAID_MEDIA_DURATION_OPTIONS}
+                      value={calcParams.paidMediaDuration}
+                      onChange={(v: any) => setPaidMediaDuration(v)}
+                      disabled={disableInputs}
+                      tone={compactSectionTheme.rights.tone}
+                    />
+                  </div>
+                ) : null}
+                {compactView ? (
+                  <div className={`${compactDetailsShell} ${rightsToneClasses.divider}`}>
+                    <p className={`${compactSubsectionTitleClassName} ${rightsToneClasses.subsectionText}`}>Adicionais e autoridade</p>
+                    <div className="mt-3 space-y-3">
+                      <div className="divide-y divide-zinc-100" role="group" aria-label="Adicionais comerciais">
+                        <button
+                          type="button"
+                          onClick={() => toggleFlag("repostTikTok")}
+                          disabled={disableInputs}
+                          aria-pressed={calcParams.repostTikTok}
+                          className={`w-full text-left transition ${disableInputs ? "opacity-70" : ""}`}
+                        >
+                          <div className={compactToggleLineClassName}>
+                            <span className="text-[0.94rem] font-medium leading-[1.4] tracking-[-0.015em] text-zinc-700">Repost no TikTok</span>
+                            <span className={`inline-flex items-center gap-2 text-[11px] font-medium ${calcParams.repostTikTok ? rightsToneClasses.summaryText : "text-zinc-400"}`}>
+                              <span>{calcParams.repostTikTok ? "Incluído" : "Não"}</span>
+                              <span className={`h-1.5 w-1.5 rounded-full ${calcParams.repostTikTok ? "bg-amber-500" : "bg-zinc-300"}`} />
+                            </span>
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleFlag("instagramCollab")}
+                          disabled={disableInputs}
+                          aria-pressed={calcParams.instagramCollab}
+                          className={`w-full text-left transition ${disableInputs ? "opacity-70" : ""}`}
+                        >
+                          <div className={compactToggleLineClassName}>
+                            <span className="text-[0.94rem] font-medium leading-[1.4] tracking-[-0.015em] text-zinc-700">Collab no Instagram</span>
+                            <span className={`inline-flex items-center gap-2 text-[11px] font-medium ${calcParams.instagramCollab ? rightsToneClasses.summaryText : "text-zinc-400"}`}>
+                              <span>{calcParams.instagramCollab ? "Incluído" : "Não"}</span>
+                              <span className={`h-1.5 w-1.5 rounded-full ${calcParams.instagramCollab ? "bg-amber-500" : "bg-zinc-300"}`} />
+                            </span>
+                          </div>
+                        </button>
+                      </div>
+                      <SelectionGroup
+                        label="Autoridade"
+                        options={AUTHORITY_OPTIONS}
+                        value={calcParams.authority}
+                        onChange={(v: any) => handleChange("authority", v)}
+                        disabled={disableInputs}
+                        tone={compactSectionTheme.rights.tone}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2.5">
+                      <p id="commercial-addons-label" className="text-sm font-semibold text-zinc-900">Condições comerciais adicionais</p>
+                      <div className="grid gap-2 sm:grid-cols-2" role="group" aria-labelledby="commercial-addons-label">
+                        <button
+                          type="button"
+                          onClick={() => toggleFlag("repostTikTok")}
+                          disabled={disableInputs}
+                          aria-pressed={calcParams.repostTikTok}
+                          className={`rounded-[1.15rem] border p-3 text-left transition ${calcParams.repostTikTok
+                            ? "border-zinc-900 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)] ring-1 ring-zinc-900"
+                            : "border-zinc-200/80 bg-zinc-50/70 hover:border-zinc-300 hover:bg-white"
+                            } ${disableInputs ? "opacity-70" : ""}`}
+                        >
+                          <p className="text-sm font-semibold text-zinc-900">Repost no TikTok</p>
+                          <p className="mt-1 text-xs text-zinc-500">
+                            {calcParams.repostTikTok
+                              ? "Sim. Inclui direito de repost e impulsionamento no TikTok."
+                              : "Não. Sem repost adicional no TikTok."}
+                          </p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleFlag("instagramCollab")}
+                          disabled={disableInputs}
+                          aria-pressed={calcParams.instagramCollab}
+                          className={`rounded-[1.15rem] border p-3 text-left transition ${calcParams.instagramCollab
+                            ? "border-zinc-900 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.08)] ring-1 ring-zinc-900"
+                            : "border-zinc-200/80 bg-zinc-50/70 hover:border-zinc-300 hover:bg-white"
+                            } ${disableInputs ? "opacity-70" : ""}`}
+                        >
+                          <p className="text-sm font-semibold text-zinc-900">Collab com marca no Instagram</p>
+                          <p className="mt-1 text-xs text-zinc-500">
+                            {calcParams.instagramCollab
+                              ? "Sim. Registro contratual sem impacto no cálculo."
+                              : "Não. Sem collab com marca no Instagram."}
+                          </p>
+                        </button>
+                      </div>
+                    </div>
+                    <SelectionGroup
+                      label="Seu nível de autoridade atual"
+                      options={AUTHORITY_OPTIONS}
+                      value={calcParams.authority}
+                      onChange={(v: any) => handleChange("authority", v)}
+                      disabled={disableInputs}
+                      tone={compactSectionTheme.rights.tone}
+                    />
+                  </>
+                )}
               </div>
             )}
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="flex items-center justify-between gap-3 px-4 py-3">
+          <div className={compactView ? compactCanvasSectionClassName : "dashboard-panel overflow-hidden"}>
+            <div className={`flex items-center justify-between gap-3 ${compactView ? "px-0 py-3.5" : "px-4 py-3"}`}>
               <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-800">Marca e Estratégia</p>
-                <p className="mt-0.5 text-[11px] text-slate-500">Classifique risco, porte e potencial estratégico.</p>
+                {compactView ? (
+                  <div className="flex items-start gap-2.5">
+                    <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] ${compactSectionTheme.brand.iconContainer}`}>
+                      <Star className="h-3.5 w-3.5" />
+                    </div>
+                    <div className={calculatorHeaderTextClassName}>
+                      <h2 className={calculatorTitleClassName}>Marca, risco e ganho</h2>
+                      {collapsedSections.brand ? <p className={`${calculatorSupportClassName} ${brandToneClasses.summaryText}`}>{brandSummary}</p> : null}
+                    </div>
+                  </div>
+                ) : (
+                  <div className={calculatorHeaderTextClassName}>
+                    <h2 className={calculatorTitleClassName}>Marca e Estratégia</h2>
+                    <p className={calculatorSupportClassName}>Classifique risco, porte e potencial estratégico.</p>
+                  </div>
+                )}
               </div>
               <button
                 type="button"
                 onClick={() => toggleSectionCollapse("brand")}
                 aria-expanded={!collapsedSections.brand}
                 aria-controls="calculator-section-brand"
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-50"
+                aria-label={!collapsedSections.brand ? "Ocultar estrategia" : "Ver estrategia"}
+                className={compactView ? calculatorInlineActionClassName : `${calculatorControlButtonClassName} ${compactSectionTheme.brand.toggle}`}
               >
-                {!collapsedSections.brand ? "Fechar detalhes" : "Ver detalhes"}
+                {!compactView ? (!collapsedSections.brand ? "Ocultar" : "Ver") : null}
                 {!collapsedSections.brand ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
               </button>
             </div>
 
             {!collapsedSections.brand && (
-              <div id="calculator-section-brand" className="space-y-4 border-t border-slate-100 px-4 py-4">
-                <SelectionGroup
-                  label="Porte da marca"
-                  options={BRAND_SIZE_OPTIONS}
-                  value={calcParams.brandSize}
-                  onChange={(v: CalculatorParams["brandSize"]) => handleChange("brandSize", v)}
-                  disabled={disableInputs}
-                />
-                <SelectionGroup
-                  label="Risco de imagem da parceria"
-                  options={IMAGE_RISK_OPTIONS}
-                  value={calcParams.imageRisk}
-                  onChange={(v: CalculatorParams["imageRisk"]) => handleChange("imageRisk", v)}
-                  disabled={disableInputs}
-                />
-                <SelectionGroup
-                  label="Ganho estratégico para posicionamento"
-                  options={STRATEGIC_GAIN_OPTIONS}
-                  value={calcParams.strategicGain}
-                  onChange={(v: CalculatorParams["strategicGain"]) => handleChange("strategicGain", v)}
-                  disabled={disableInputs}
-                />
-                <SelectionGroup
-                  label="Modelo de conteúdo"
-                  options={CONTENT_MODEL_OPTIONS}
-                  value={calcParams.contentModel}
-                  onChange={(v: CalculatorParams["contentModel"]) => setContentModel(v)}
-                  disabled={disableInputs}
-                />
-                <div className="space-y-2.5">
-                  <label className="text-sm font-semibold text-slate-800">Exceção estratégica</label>
-                  <div className="rounded-xl border border-slate-200 bg-white p-2.5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-semibold text-slate-900">Permitir R$ 0 no preço estratégico</p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          Use somente em parcerias de alto ganho estratégico e baixo risco.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleFlag("allowStrategicWaiver")}
-                        disabled={disableInputs}
-                        aria-pressed={calcParams.allowStrategicWaiver}
-                        className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition ${calcParams.allowStrategicWaiver
-                          ? "border-slate-800 bg-slate-800 text-white"
-                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                          } ${disableInputs ? "cursor-not-allowed opacity-70" : ""}`}
-                      >
-                        {calcParams.allowStrategicWaiver ? "Ligada" : "Desligada"}
-                      </button>
-                    </div>
-                    <p className="mt-2.5 text-xs text-slate-600">
-                      {calcParams.allowStrategicWaiver
-                        ? "Com a opção ligada, o estratégico pode ir para R$ 0 quando todos os critérios forem atendidos."
-                        : "Com a opção desligada, o estratégico sempre segue o cálculo normal."}
-                    </p>
-                  </div>
+              <div id="calculator-section-brand" className={compactView ? "space-y-3 pt-3.5" : "border-t border-zinc-100/80 space-y-4 px-4 py-4"}>
+                <div className={compactView ? `${compactSectionBlockClassName} ${brandToneClasses.divider}` : ""}>
+                  <SelectionGroup
+                    label={compactView ? "Porte" : "Porte da marca"}
+                    options={BRAND_SIZE_OPTIONS}
+                    value={calcParams.brandSize}
+                    onChange={(v: CalculatorParams["brandSize"]) => handleChange("brandSize", v)}
+                    disabled={disableInputs}
+                    tone={compactSectionTheme.brand.tone}
+                  />
                 </div>
+                <div className={compactView ? `${compactSectionBlockClassName} ${brandToneClasses.divider}` : ""}>
+                  <SelectionGroup
+                    label={compactView ? "Risco de imagem" : "Risco de imagem da parceria"}
+                    options={IMAGE_RISK_OPTIONS}
+                    value={calcParams.imageRisk}
+                    onChange={(v: CalculatorParams["imageRisk"]) => handleChange("imageRisk", v)}
+                    disabled={disableInputs}
+                    tone={compactSectionTheme.brand.tone}
+                  />
+                </div>
+                <div className={compactView ? `${compactSectionBlockClassName} ${brandToneClasses.divider}` : ""}>
+                  <SelectionGroup
+                    label={compactView ? "Ganho estratégico" : "Ganho estratégico para posicionamento"}
+                    options={STRATEGIC_GAIN_OPTIONS}
+                    value={calcParams.strategicGain}
+                    onChange={(v: CalculatorParams["strategicGain"]) => handleChange("strategicGain", v)}
+                    disabled={disableInputs}
+                    tone={compactSectionTheme.brand.tone}
+                  />
+                </div>
+                <div className={compactView ? `${compactSectionBlockClassName} ${brandToneClasses.divider}` : ""}>
+                  <SelectionGroup
+                    label={compactView ? "Modelo" : "Modelo de conteúdo"}
+                    options={CONTENT_MODEL_OPTIONS}
+                    value={calcParams.contentModel}
+                    onChange={(v: CalculatorParams["contentModel"]) => setContentModel(v)}
+                    disabled={disableInputs}
+                    tone={compactSectionTheme.brand.tone}
+                  />
+                </div>
+                {compactView ? (
+                  <div className={`${compactDetailsShell} ${brandToneClasses.divider}`}>
+                    <p className={`${compactSubsectionTitleClassName} ${brandToneClasses.subsectionText}`}>Exceção</p>
+                    <button
+                      type="button"
+                      onClick={() => toggleFlag("allowStrategicWaiver")}
+                      disabled={disableInputs}
+                      aria-pressed={calcParams.allowStrategicWaiver}
+                      className={`mt-2 w-full text-left transition ${disableInputs ? "opacity-70" : ""}`}
+                    >
+                      <div className={compactToggleLineClassName}>
+                        <span className="text-[0.94rem] font-medium leading-[1.4] tracking-[-0.015em] text-zinc-700">Permitir R$ 0 no estratégico</span>
+                        <span className={`inline-flex items-center gap-2 text-[11px] font-medium ${calcParams.allowStrategicWaiver ? "text-rose-700" : "text-zinc-400"}`}>
+                          <span>{calcParams.allowStrategicWaiver ? "Ligada" : "Desligada"}</span>
+                          <span className={`h-1.5 w-1.5 rounded-full ${calcParams.allowStrategicWaiver ? "bg-rose-500" : "bg-zinc-300"}`} />
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    <label className="text-sm font-semibold text-zinc-900">Exceção estratégica</label>
+                    <div className="rounded-[1.15rem] border border-zinc-200 bg-white p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-zinc-900">Permitir R$ 0 no preço estratégico</p>
+                          <p className="mt-1 text-xs text-zinc-500">
+                            Use somente em parcerias de alto ganho estratégico e baixo risco.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleFlag("allowStrategicWaiver")}
+                          disabled={disableInputs}
+                          aria-pressed={calcParams.allowStrategicWaiver}
+                          className={`shrink-0 rounded-full border px-3 py-1 text-xs font-semibold transition ${calcParams.allowStrategicWaiver
+                            ? "border-zinc-900 bg-zinc-900 text-white"
+                            : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                            } ${disableInputs ? "cursor-not-allowed opacity-70" : ""}`}
+                        >
+                          {calcParams.allowStrategicWaiver ? "Ligada" : "Desligada"}
+                        </button>
+                      </div>
+                      <p className="mt-2.5 text-xs text-slate-600">
+                        {calcParams.allowStrategicWaiver
+                          ? "Com a opção ligada, o estratégico pode ir para R$ 0 quando todos os critérios forem atendidos."
+                          : "Com a opção desligada, o estratégico sempre segue o cálculo normal."}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
           {error && (
-            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="rounded-[1.2rem] border border-red-200/80 bg-red-50/90 px-4 py-3 text-sm text-red-700 shadow-[0_16px_30px_rgba(239,68,68,0.08)]">
               {error}
             </div>
           )}
 
-          <div className="sticky bottom-3 z-20 rounded-xl border border-slate-200 bg-white/95 p-1.5 backdrop-blur sm:static sm:border-0 sm:bg-transparent sm:p-0">
+          <div className={compactView ? "border-t border-zinc-100/75 pt-5 mt-2" : "sticky bottom-3 z-20 rounded-[1.25rem] border border-white/90 bg-white/88 p-1.5 shadow-[0_20px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none"}>
             <button
               type="submit"
-              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-white sm:ml-auto sm:w-auto sm:px-7 sm:py-3.5 sm:text-base"
-              disabled={disableInputs}
+              className={compactView ? calculatorPrimaryCtaClassName : "dashboard-primary-button inline-flex w-full items-center justify-center gap-2 px-5 py-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-white sm:ml-auto sm:w-auto sm:px-7 sm:py-3.5 sm:text-base"}
+              disabled={submitDisabled}
               ref={submitButtonRef}
             >
               {isCalculating ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  Calculando Melhor Preço...
+                  {compactView ? "Calculando..." : "Calculando Melhor Preço..."}
                 </>
               ) : (
                 <>
-                  Calcular Valor da Publi
+                  {compactView ? "Calcular valor" : "Calcular Valor da Publi"}
                   <ArrowRight className="h-4 w-4" />
                 </>
               )}
@@ -1748,67 +2443,132 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
           calculation && statsCards && (
             <section
               ref={resultsSectionRef}
-              className="animate-in fade-in slide-in-from-bottom-4 space-y-4 duration-700"
+              className={`animate-in fade-in slide-in-from-bottom-4 ${compactView ? "space-y-2" : "space-y-4"} duration-700`}
             >
-              <div className="grid gap-4 md:grid-cols-3">
-                {statsCards.map((card) => (
-                  <div
-                    key={card.label}
-                    className="group flex flex-col overflow-hidden rounded-2xl border border-slate-100 bg-slate-50/70 text-left transition-all"
-                  >
-                    <div className={`flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5 ${card.headerClass}`}>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                        {card.label}
-                      </span>
-                      <span className="text-[10px] font-semibold text-slate-400">
-                        CPM {card.cpm}
-                      </span>
-                    </div>
-                    <div className="flex flex-1 flex-col p-4 bg-white/40">
-                      <div className="space-y-1">
-                        <p className="text-2xl font-bold text-slate-900">{card.value}</p>
+              {compactView ? (
+                <div className="border-t border-zinc-100/75 pt-4">
+                  {(() => {
+                    const maxAmount = Math.max(...statsCards.map((card) => card.amount), 0);
+                    return (
+                  <div className="space-y-0">
+                    {statsCards.map((card, index) => (
+                      <div key={card.label} className={`${index === 0 ? "" : "border-t border-zinc-100/75 pt-4"} ${index < statsCards.length - 1 ? "pb-4" : ""}`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${RESULT_CARD_TONE_CLASSES[card.tone].labelBadge}`}>
+                              {card.label}
+                            </span>
+                            <p className="mt-2.5 text-[0.94rem] font-semibold leading-[1.4] tracking-[-0.015em] text-slate-900">{card.description}</p>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <p className={`text-[20px] font-bold tracking-[-0.03em] ${RESULT_CARD_TONE_CLASSES[card.tone].value}`}>{card.value}</p>
+                            <p className="mt-1 dashboard-type-meta text-zinc-400">CPM {card.cpm}</p>
+                          </div>
+                        </div>
+                        <div className="mt-3 h-1.5 rounded-full bg-zinc-100">
+                          <div className={`h-full rounded-full ${RESULT_CARD_TONE_CLASSES[card.tone].accent}`} style={{ width: `${maxAmount > 0 ? Math.max(18, (card.amount / maxAmount) * 100) : 18}%` }} />
+                        </div>
+                        <button
+                          onClick={() => {
+                            const labelText = typeof card?.label === "string" ? card.label : "";
+                            const baseLabel = (labelText.split("(")[0] ?? "").trim() || "Pacote";
+                            handleAddPackage({
+                              name: baseLabel || "Pacote",
+                              price: card.amount,
+                              description: card?.description ?? "",
+                            }, "suggested_card");
+                          }}
+                          disabled={isActingOnBehalf}
+                          className={`mt-3 inline-flex items-center gap-1 text-[12px] font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${RESULT_CARD_TONE_CLASSES[card.tone].cpm}`}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Criar pacote
+                        </button>
                       </div>
-                      <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-slate-500">{card.description}</p>
-                      <button
-                        onClick={() => {
-                          const labelText = typeof card?.label === 'string' ? card.label : '';
-                          const baseLabel = (labelText.split('(')[0] ?? '').trim() || 'Pacote';
-                          handleAddPackage({
-                            name: baseLabel || 'Pacote',
-                            price: card.amount,
-                            description: card?.description ?? '',
-                          }, "suggested_card");
-                        }}
-                        disabled={isActingOnBehalf}
-                        className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        Usar como pacote
-                      </button>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-3">
+                  {statsCards.map((card) => (
+                    <div
+                      key={card.label}
+                      className="dashboard-panel group flex flex-col overflow-hidden text-left transition-all"
+                    >
+                      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 bg-slate-50 px-4 py-2.5">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                          {card.label}
+                        </span>
+                        <span className="text-[10px] font-semibold text-zinc-400">
+                          CPM {card.cpm}
+                        </span>
+                      </div>
+                      <div className="flex flex-1 flex-col bg-white/40 p-4">
+                        <div className="space-y-1">
+                          <p className="text-2xl font-bold text-zinc-900">{card.value}</p>
+                        </div>
+                        <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-zinc-500">{card.description}</p>
+                        <button
+                          onClick={() => {
+                            const labelText = typeof card?.label === "string" ? card.label : "";
+                            const baseLabel = (labelText.split("(")[0] ?? "").trim() || "Pacote";
+                            handleAddPackage({
+                              name: baseLabel || "Pacote",
+                              price: card.amount,
+                              description: card?.description ?? "",
+                            }, "suggested_card");
+                          }}
+                          disabled={isActingOnBehalf}
+                          className="dashboard-secondary-button mt-4 flex w-full items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Criar pacote
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className={compactView ? compactCanvasSectionClassName : "dashboard-panel overflow-hidden"}>
+                <div className={`flex items-center justify-between gap-3 ${compactView ? "px-0 py-3.5" : "px-4 py-3"}`}>
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                    {!compactView ? (
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600">
                       <Layers size={16} />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-slate-800">Seus Pacotes</p>
-                      <p className="mt-0.5 text-[11px] text-slate-500">Estes pacotes aparecerão no seu Mídia Kit.</p>
-                    </div>
+                      </div>
+                    ) : null}
+                    {compactView ? (
+                      <div className="flex items-start gap-2.5">
+                        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] bg-violet-50 text-violet-600 ring-1 ring-violet-100/90">
+                          <Layers className="h-3.5 w-3.5" />
+                        </div>
+                        <div className={calculatorHeaderTextClassName}>
+                          <h3 className={calculatorTitleClassName}>Pacotes</h3>
+                          {collapsedSections.packages ? (
+                            <p className={calculatorSupportClassName}>
+                              {packages.length > 0 ? `${formatPostsCount(packages.length)} criados` : "Monte pacotes a partir dos valores."}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={calculatorHeaderTextClassName}>
+                        <h3 className={calculatorTitleClassName}>Seus Pacotes</h3>
+                        <p className={calculatorSupportClassName}>Estes pacotes aparecerão no seu Mídia Kit.</p>
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => handleAddPackage()}
                       disabled={isActingOnBehalf}
-                      className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                      className={`${compactView ? "dashboard-type-control inline-flex h-7 items-center gap-1.5 rounded-full border border-zinc-200/80 bg-white/84 px-2.5 text-zinc-500 transition hover:border-zinc-300 hover:text-zinc-700" : `${calculatorControlButtonClassName} inline-flex h-8 px-3`} disabled:cursor-not-allowed disabled:opacity-60`}
                     >
-                      <Plus size={14} />
+                      <Plus size={13} />
                       Novo
                     </button>
                     <button
@@ -1816,7 +2576,8 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
                       onClick={() => toggleSectionCollapse("packages")}
                       aria-expanded={!collapsedSections.packages}
                       aria-controls="calculator-section-packages"
-                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-2 text-slate-600 transition hover:bg-slate-50"
+                      aria-label={!collapsedSections.packages ? "Ocultar pacotes" : "Ver pacotes"}
+                      className={compactView ? calculatorInlineActionClassName : calculatorControlButtonClassName}
                     >
                       {!collapsedSections.packages ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                     </button>
@@ -1830,54 +2591,54 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
                 )}
 
                 {!collapsedSections.packages && (
-                  <div id="calculator-section-packages" className="border-t border-slate-100 px-4 py-4">
+                  <div id="calculator-section-packages" className={compactView ? "pt-3.5" : "border-t border-zinc-100 px-4 py-4"}>
                     {packages.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center">
-                        <p className="text-slate-500">Nenhum pacote definido.</p>
-                        <p className="text-sm text-slate-400">Adicione manualmente ou use as sugestões acima.</p>
+                      <div className={`dashboard-empty-state text-center ${compactView ? "p-3.5" : "p-6"}`}>
+                        <p className="text-zinc-500">{compactView ? "Nenhum pacote." : "Nenhum pacote definido."}</p>
+                        {!compactView ? <p className="text-sm text-zinc-400">Adicione manualmente ou use as sugestões acima.</p> : null}
                       </div>
                     ) : (
-                      <div className="space-y-3">
+                      <div className={compactView ? "space-y-0" : "space-y-3"}>
                         {packages.map((pkg) => (
-                          <div key={pkg.id} className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/50 p-3.5">
+                          <div key={pkg.id} className={`flex flex-col gap-3 ${compactView ? "border-t border-zinc-100/75 pt-4 first:border-t-0 first:pt-0" : "rounded-[1.2rem] border border-zinc-200/80 bg-zinc-50/70 p-3.5"}`}>
                             <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
-                              <div className="space-y-3">
-                                <div className="grid gap-3 sm:grid-cols-2">
+                              <div className={compactView ? "space-y-2.5" : "space-y-3"}>
+                                <div className={`grid gap-3 ${compactView ? "grid-cols-1" : "sm:grid-cols-2"}`}>
                                   <div>
-                                    <label className="mb-1 block text-xs font-medium text-slate-500">Nome do Pacote</label>
+                                    <label className={`${calculatorFieldLabelClassName} mb-1 block`}>Nome</label>
                                     <input
                                       type="text"
                                       value={pkg.name}
                                       onChange={(e) => handleUpdatePackage(pkg.id!, { name: e.target.value })}
-                                      className="w-full rounded-lg border-slate-200 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:ring-slate-300"
+                                      className={`${calculatorInputStrongClassName} ${compactView ? "" : "text-sm"}`}
                                       placeholder="Ex: Combo Reels"
                                     />
                                   </div>
                                   <div>
-                                    <label className="mb-1 block text-xs font-medium text-slate-500">Valor (R$)</label>
+                                    <label className={`${calculatorFieldLabelClassName} mb-1 block`}>Valor</label>
                                     <input
                                       type="number"
                                       value={pkg.price}
                                       onChange={(e) => handleUpdatePackage(pkg.id!, { price: sanitizePackagePrice(e.target.value) })}
-                                      className="w-full rounded-lg border-slate-200 text-sm font-semibold text-slate-900 placeholder:text-slate-400 focus:border-slate-400 focus:ring-slate-300"
+                                      className={`${calculatorInputStrongClassName} ${compactView ? "" : "text-sm"}`}
                                       placeholder="0,00"
                                     />
                                   </div>
                                 </div>
                                 <div>
-                                  <label className="mb-1 block text-xs font-medium text-slate-500">Entregáveis (separados por vírgula)</label>
+                                  <label className={`${calculatorFieldLabelClassName} mb-1 block`}>Entregáveis</label>
                                   <input
                                     type="text"
                                     value={pkg.deliverables.join(",")}
                                     onChange={(e) => handleUpdatePackage(pkg.id!, { deliverables: e.target.value.split(",") })}
-                                    className="w-full rounded-lg border-slate-200 text-sm text-slate-600 placeholder:text-slate-400 focus:border-slate-400 focus:ring-slate-300"
+                                    className={`${calculatorInputClassName} ${compactView ? "" : "text-sm"}`}
                                     placeholder="Ex: 1 Reels, 3 Stories"
                                   />
                                 </div>
                               </div>
                               <button
                                 onClick={() => handleDeletePackage(pkg.id!)}
-                                className="inline-flex min-h-10 min-w-10 items-center justify-center self-start rounded-lg border border-slate-200 bg-white p-2.5 text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                                className={`dashboard-secondary-button inline-flex items-center justify-center self-start text-zinc-500 hover:border-red-200 hover:bg-red-50 hover:text-red-600 ${compactView ? "min-h-8 min-w-8 p-2" : "min-h-10 min-w-10 p-2.5"}`}
                                 title="Remover pacote"
                                 aria-label={`Remover pacote ${pkg.name || ""}`.trim()}
                               >
@@ -1888,12 +2649,12 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
                         ))}
                       </div>
                     )}
-                    <div className="mt-4 border-t border-slate-200 pt-3.5">
+                    <div className={`border-t border-zinc-100/75 ${compactView ? "mt-4 pt-4" : "mt-4 pt-3.5"}`}>
                       <button
                         type="button"
                         onClick={handleAddToMediaKit}
                         disabled={isSavingPackages || isActingOnBehalf}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        className={`${compactView ? calculatorSecondaryCtaClassName : "dashboard-primary-button inline-flex w-full items-center justify-center gap-2 px-5 py-3 text-sm font-semibold"} disabled:cursor-not-allowed disabled:opacity-60`}
                       >
                         {isSavingPackages ? (
                           <>
@@ -1903,7 +2664,7 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
                         ) : (
                           <>
                             <Megaphone className="h-4 w-4" />
-                            Salvar pacotes no Media Kit
+                            {compactView ? "Salvar no Mídia Kit" : "Salvar pacotes no Media Kit"}
                           </>
                         )}
                       </button>
@@ -1912,54 +2673,81 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
                 )}
               </div>
 
-              <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-                <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <div className={compactView ? compactCanvasSectionClassName : "dashboard-panel overflow-hidden"}>
+                <div className={`flex items-center justify-between gap-3 ${compactView ? "px-0 py-3.5" : "px-4 py-3"}`}>
                   <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                    {!compactView ? (
+                      <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600">
                       <PieChart size={16} />
-                    </div>
-                    <h3 className="text-sm font-semibold text-slate-800">Entenda o cálculo</h3>
+                      </div>
+                    ) : null}
+                    {compactView ? (
+                      <div className="flex items-start gap-2.5">
+                        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100/90">
+                          <PieChart className="h-3.5 w-3.5" />
+                        </div>
+                        <div className={calculatorHeaderTextClassName}>
+                          <h3 className={calculatorTitleClassName}>Cálculo</h3>
+                          {collapsedSections.insights ? <p className={calculatorSupportClassName}>Alcance, CPM e fatores ativos.</p> : null}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={calculatorHeaderTextClassName}>
+                        <h3 className={calculatorTitleClassName}>Entenda o cálculo</h3>
+                        <p className={calculatorSupportClassName}>Resumo do alcance, CPM e fatores que puxam o valor.</p>
+                      </div>
+                    )}
                   </div>
                   <button
                     type="button"
                     onClick={() => toggleSectionCollapse("insights")}
                     aria-expanded={!collapsedSections.insights}
                     aria-controls="calculator-section-insights"
-                    className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-2 text-slate-600 transition hover:bg-slate-50"
+                    aria-label={!collapsedSections.insights ? "Ocultar calculo" : "Ver calculo"}
+                    className={compactView ? calculatorInlineActionClassName : calculatorControlButtonClassName}
                   >
                     {!collapsedSections.insights ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                   </button>
                 </div>
                 {!collapsedSections.insights && (
-                  <div id="calculator-section-insights" className="space-y-4 border-t border-slate-100 px-4 py-4">
-                    <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3.5 text-sm text-slate-700">
-                      <h4 className="mb-2 font-semibold text-slate-900">Resumo do que entra no preço</h4>
-                      <p>Alcance considerado: <span className="font-medium text-slate-900">{calculation.metrics.reach.toLocaleString("pt-BR")}</span></p>
-                      <p>CPM aplicado: <span className="font-medium text-slate-900">{formatCurrency(calculation.cpm)}</span></p>
-                      <div className="mt-1.5 space-y-1">
-                        <p>Multiplicadores ativos:</p>
+                  <div id="calculator-section-insights" className={compactView ? "space-y-4 pt-4" : "border-t border-zinc-100 space-y-4 px-4 py-4"}>
+                    <div className={`${compactView ? "" : "rounded-[1.2rem] border border-zinc-200/80 bg-zinc-50/80 p-3.5"} text-sm text-zinc-700`}>
+                      {compactView ? (
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[0.94rem] leading-[1.4] tracking-[-0.015em] text-zinc-700">
+                          <span>Alcance: <span className="font-semibold text-zinc-900">{calculation.metrics.reach.toLocaleString("pt-BR")}</span></span>
+                          <span>CPM: <span className="font-semibold text-zinc-900">{formatCurrency(calculation.cpm)}</span></span>
+                        </div>
+                      ) : (
+                        <>
+                          <h4 className="mb-2 font-semibold text-zinc-900">Resumo do que entra no preço</h4>
+                          <p>Alcance considerado: <span className="font-medium text-zinc-900">{calculation.metrics.reach.toLocaleString("pt-BR")}</span></p>
+                          <p>CPM aplicado: <span className="font-medium text-zinc-900">{formatCurrency(calculation.cpm)}</span></p>
+                        </>
+                      )}
+                      <div className={`${compactView ? "mt-2 space-y-1" : "mt-1.5 space-y-1"}`}>
+                        {!compactView ? <p>Multiplicadores ativos:</p> : null}
                         <ul className="flex flex-wrap gap-1">
                           {visibleMultiplierTags.map((tag) => (
-                            <li key={tag} className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-medium text-slate-700">
+                            <li key={tag} className="dashboard-chip border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-700">
                               {tag}
                             </li>
                           ))}
                           {hiddenMultiplierCount > 0 ? (
-                            <li className="rounded-full border border-slate-200 bg-white px-2.5 py-0.5 text-xs font-medium text-slate-500">
+                            <li className="dashboard-chip border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-medium text-zinc-500">
                               +{hiddenMultiplierCount} fatores
                             </li>
                           ) : null}
                         </ul>
                       </div>
-                      <p className="mt-2 text-xs text-slate-500">
+                      <p className={`${compactView ? "mt-2 dashboard-type-meta" : "mt-2 text-xs"} text-zinc-500`}>
                         {calculation.params.usageRights === "organico"
                           ? "Sem mídia paga, o uso fica restrito ao orgânico."
                           : "Impulsionamento cobre todas as plataformas envolvidas durante o prazo contratado."}
                       </p>
                       {calculation.calibration.enabled ? (
-                        <div className="mt-3 space-y-2 rounded-lg border border-slate-200 bg-white p-2.5">
+                        <div className={`space-y-2 ${compactView ? "border-t border-zinc-100 pt-3" : "mt-3 rounded-[1rem] border border-zinc-200 bg-white p-2.5"}`}>
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Confiança</span>
+                            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-600">Confiança</span>
                             <span
                               className={`rounded-full px-2.5 py-1 text-xs font-semibold ${calculation.calibration.confidenceBand === "alta"
                                 ? "bg-emerald-100 text-emerald-700"
@@ -1971,9 +2759,9 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
                               {calibrationBandLabel}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-600">
+                          <p className="text-xs text-zinc-600">
                             Ajuste de calibração aplicado:{" "}
-                            <span className="font-semibold text-slate-900">
+                            <span className="font-semibold text-zinc-900">
                               {calibrationAdjustmentPercent >= 0 ? "+" : ""}
                               {formatPercent(calibrationAdjustmentPercent)}
                             </span>
@@ -1997,12 +2785,12 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
                         </p>
                       ) : null}
                     </div>
-                    <details className="rounded-xl border border-slate-200 bg-white p-3.5">
-                      <summary className="cursor-pointer text-sm font-semibold text-slate-900">Fatores de impacto</summary>
-                      <ul className="mt-2.5 space-y-1.5 text-sm text-slate-600">
+                    <details className={`rounded-[1.2rem] border ${compactView ? "border-zinc-100/90 bg-white/84 p-2.5" : "border-zinc-200 bg-white p-3.5"}`}>
+                      <summary className="cursor-pointer text-sm font-semibold text-zinc-900">{compactView ? "Detalhes" : "Fatores de impacto"}</summary>
+                      <ul className="mt-2.5 space-y-1.5 text-sm text-zinc-600">
                         <li className="flex justify-between">
                           <span>Modo</span>
-                          <span className="font-medium text-slate-900">
+                          <span className="font-medium text-zinc-900">
                             {calculation.params.deliveryType === "evento"
                               ? hasContentInResult
                                 ? "Conteúdo + Evento"
@@ -2012,7 +2800,7 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
                         </li>
                         <li className="flex justify-between">
                           <span>Alcance Base</span>
-                          <span className="font-medium text-slate-900">{calculation.metrics.reach.toLocaleString("pt-BR")}</span>
+                          <span className="font-medium text-zinc-900">{calculation.metrics.reach.toLocaleString("pt-BR")}</span>
                         </li>
                         <li className="flex justify-between">
                           <span>Engajamento</span>
@@ -2020,61 +2808,61 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
                         </li>
                         <li className="flex justify-between">
                           <span>Sazonalidade</span>
-                          <span className="font-medium text-slate-900 capitalize">{calculation.params.seasonality || "Normal"}</span>
+                          <span className="font-medium text-zinc-900 capitalize">{calculation.params.seasonality || "Normal"}</span>
                         </li>
                         <li className="flex justify-between">
                           <span>Prazo de mídia paga</span>
-                          <span className="font-medium text-slate-900">
+                          <span className="font-medium text-zinc-900">
                             {calculation.params.paidMediaDuration ? PAID_MEDIA_DURATION_LABELS[calculation.params.paidMediaDuration] : "Não se aplica"}
                           </span>
                         </li>
                         <li className="flex justify-between">
                           <span>Repost no TikTok</span>
-                          <span className="font-medium text-slate-900">{calculation.params.repostTikTok ? "Sim" : "Não"}</span>
+                          <span className="font-medium text-zinc-900">{calculation.params.repostTikTok ? "Sim" : "Não"}</span>
                         </li>
                         <li className="flex justify-between">
                           <span>Confiança da calibração</span>
-                          <span className="font-medium text-slate-900">{calibrationBandLabel}</span>
+                          <span className="font-medium text-zinc-900">{calibrationBandLabel}</span>
                         </li>
                         <li className="flex justify-between">
                           <span>Ajuste da calibração</span>
-                          <span className="font-medium text-slate-900">
+                          <span className="font-medium text-zinc-900">
                             {calibrationAdjustmentPercent >= 0 ? "+" : ""}
                             {formatPercent(calibrationAdjustmentPercent)}
                           </span>
                         </li>
                         <li className="flex justify-between">
                           <span>Collab no Instagram</span>
-                          <span className="font-medium text-slate-900">{calculation.params.instagramCollab ? "Sim" : "Não"}</span>
+                          <span className="font-medium text-zinc-900">{calculation.params.instagramCollab ? "Sim" : "Não"}</span>
                         </li>
                         {brandRiskV1Enabled ? (
                           <>
                             <li className="flex justify-between">
                               <span>Porte da marca</span>
-                              <span className="font-medium text-slate-900">{BRAND_SIZE_LABELS[calculation.params.brandSize]}</span>
+                              <span className="font-medium text-zinc-900">{BRAND_SIZE_LABELS[calculation.params.brandSize]}</span>
                             </li>
                             <li className="flex justify-between">
                               <span>Risco de imagem</span>
-                              <span className="font-medium text-slate-900">{IMAGE_RISK_LABELS[calculation.params.imageRisk]}</span>
+                              <span className="font-medium text-zinc-900">{IMAGE_RISK_LABELS[calculation.params.imageRisk]}</span>
                             </li>
                             <li className="flex justify-between">
                               <span>Ganho estratégico</span>
-                              <span className="font-medium text-slate-900">{STRATEGIC_GAIN_LABELS[calculation.params.strategicGain]}</span>
+                              <span className="font-medium text-zinc-900">{STRATEGIC_GAIN_LABELS[calculation.params.strategicGain]}</span>
                             </li>
                             <li className="flex justify-between">
                               <span>Modelo de conteúdo</span>
-                              <span className="font-medium text-slate-900">{CONTENT_MODEL_LABELS[calculation.params.contentModel]}</span>
+                              <span className="font-medium text-zinc-900">{CONTENT_MODEL_LABELS[calculation.params.contentModel]}</span>
                             </li>
                             <li className="flex justify-between">
                               <span>Exceção estratégica</span>
-                              <span className="font-medium text-slate-900">{calculation.params.allowStrategicWaiver ? "Permitida" : "Desligada"}</span>
+                              <span className="font-medium text-zinc-900">{calculation.params.allowStrategicWaiver ? "Permitida" : "Desligada"}</span>
                             </li>
                           </>
                         ) : null}
                         {hasContentInResult ? (
                           <li className="flex justify-between">
                             <span>Unidades de conteúdo</span>
-                            <span className="font-medium text-slate-900">
+                            <span className="font-medium text-zinc-900">
                               {calculation.breakdown.contentUnits.toFixed(2)}
                             </span>
                           </li>
@@ -2083,21 +2871,21 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
                           <>
                             <li className="flex justify-between">
                               <span>Presença no evento</span>
-                              <span className="font-medium text-slate-900">
+                              <span className="font-medium text-zinc-900">
                                 {formatCurrency(calculation.breakdown.eventPresenceJusto)}
                               </span>
                             </li>
                             {calculation.breakdown.coverageJusto > 0 ? (
                               <li className="flex justify-between">
                                 <span>Cobertura opcional</span>
-                                <span className="font-medium text-slate-900">
+                                <span className="font-medium text-zinc-900">
                                   {formatCurrency(calculation.breakdown.coverageJusto)}
                                 </span>
                               </li>
                             ) : null}
                             <li className="flex justify-between">
                               <span>Logística sugerida (extra)</span>
-                              <span className="font-medium text-slate-900">
+                              <span className="font-medium text-zinc-900">
                                 {formatCurrency(calculation.breakdown.logisticsSuggested)}
                               </span>
                             </li>
@@ -2105,10 +2893,10 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
                         ) : null}
                         <li className="flex justify-between">
                           <span>CPM do Nicho</span>
-                          <span className="font-medium text-slate-900">{formatCurrency(calculation.cpm)}</span>
+                          <span className="font-medium text-zinc-900">{formatCurrency(calculation.cpm)}</span>
                         </li>
                       </ul>
-                      <div className="mt-2.5 border-t border-gray-200 pt-2.5 text-xs text-slate-500">
+                      <div className={`border-t border-zinc-200 text-xs text-zinc-500 ${compactView ? "mt-2 pt-2" : "mt-2.5 pt-2.5"}`}>
                         {calculation.params.deliveryType === "conteudo" ? (
                           <p>Fórmula: (Alcance / 1.000) x CPM x multiplicadores (direitos, risco/estratégia, complexidade etc.) x unidades de conteúdo.</p>
                         ) : hasContentInResult ? (
@@ -2120,9 +2908,9 @@ export default function CalculatorClient({ viewer }: { viewer?: ViewerInfo }) {
                       </div>
                     </details>
                     {calculation.explanation ? (
-                      <details className="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-600">
-                        <summary className="cursor-pointer font-medium text-slate-700">Ver explicação detalhada</summary>
-                        <p className="mt-2 leading-relaxed text-slate-500">{calculation.explanation}</p>
+                      <details className={`rounded-[1.2rem] border ${compactView ? "border-zinc-100/90 bg-white/84 p-2.5" : "border-zinc-200 bg-white p-3"} text-sm text-zinc-600`}>
+                        <summary className="cursor-pointer font-medium text-zinc-700">Ver explicação detalhada</summary>
+                        <p className="mt-2 leading-relaxed text-zinc-500">{calculation.explanation}</p>
                       </details>
                     ) : null}
                   </div>

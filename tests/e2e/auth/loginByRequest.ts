@@ -12,6 +12,40 @@ function formEncode(data: Record<string, string>) {
   return new URLSearchParams(data).toString();
 }
 
+async function wait(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function getWithRetry(
+  request: APIRequestContext,
+  url: string,
+  timeoutMs: number,
+  attempts = 30,
+) {
+  let lastResponse: Awaited<ReturnType<APIRequestContext['get']>> | null = null;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const response = await request.get(url, { timeout: timeoutMs });
+    lastResponse = response;
+
+    if (response.ok()) {
+      return response;
+    }
+
+    if (response.status() !== 404 || attempt === attempts) {
+      return response;
+    }
+
+    await wait(2_000);
+  }
+
+  if (!lastResponse) {
+    throw new Error(`Request to ${url} did not produce a response.`);
+  }
+
+  return lastResponse;
+}
+
 export async function loginByRequestCredentials(
   request: APIRequestContext,
   opts: LoginOptions,
@@ -19,7 +53,7 @@ export async function loginByRequestCredentials(
   const callbackUrl = new URL(opts.callbackPath ?? '/dashboard/chat', opts.baseURL).toString();
   const timeoutMs = typeof opts.timeoutMs === 'number' && opts.timeoutMs > 0 ? opts.timeoutMs : 90_000;
 
-  const csrfRes = await request.get('/api/auth/csrf', { timeout: timeoutMs });
+  const csrfRes = await getWithRetry(request, '/api/auth/csrf', timeoutMs);
   if (!csrfRes.ok()) {
     throw new Error(`CSRF failed: ${csrfRes.status()} ${await csrfRes.text()}`);
   }
@@ -43,7 +77,7 @@ export async function loginByRequestCredentials(
     throw new Error(`Login failed: ${loginRes.status()} ${await loginRes.text()}`);
   }
 
-  const sessionRes = await request.get('/api/auth/session', { timeout: timeoutMs });
+  const sessionRes = await getWithRetry(request, '/api/auth/session', timeoutMs);
   if (!sessionRes.ok()) {
     throw new Error(`Session check failed: ${sessionRes.status()} ${await sessionRes.text()}`);
   }

@@ -45,22 +45,24 @@ interface MediaKitSnapshotProps {
   onViewAsBrand: () => void;
   onEdit: () => void;
   creatorId?: string | null;
+  compactView?: boolean;
 }
 
 function SnapshotSkeleton() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="h-6 w-48 animate-pulse rounded bg-slate-200" />
-      <div className="mt-2 h-4 w-56 animate-pulse rounded bg-slate-200" />
+    <div className="dashboard-panel rounded-[2rem] p-5">
+      <div className="h-3 w-24 animate-pulse rounded-full bg-zinc-200" />
+      <div className="mt-3 h-6 w-48 animate-pulse rounded bg-zinc-200" />
+      <div className="mt-2 h-4 w-56 animate-pulse rounded bg-zinc-200" />
       <div className="mt-6 space-y-3">
         {Array.from({ length: 3 }).map((_, index) => (
           <div key={index} className="flex items-center justify-between">
-            <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
-            <div className="h-4 w-16 animate-pulse rounded bg-slate-200" />
+            <div className="h-4 w-32 animate-pulse rounded bg-zinc-200" />
+            <div className="h-4 w-16 animate-pulse rounded bg-zinc-200" />
           </div>
         ))}
       </div>
-      <div className="mt-6 h-9 w-44 animate-pulse rounded bg-slate-200" />
+      <div className="mt-6 h-10 w-44 animate-pulse rounded-2xl bg-zinc-200" />
     </div>
   );
 }
@@ -72,6 +74,7 @@ export default function MediaKitSnapshot({
   onViewAsBrand,
   onEdit,
   creatorId,
+  compactView = false,
 }: MediaKitSnapshotProps) {
   const handleCopy = React.useCallback(async () => {
     if (!mediaKit?.shareUrl) {
@@ -111,102 +114,131 @@ export default function MediaKitSnapshot({
 
   const hasMediaKit = Boolean(mediaKit?.hasMediaKit);
   const highlights = mediaKit?.highlights ?? [];
+  const visibleHighlights = compactView ? highlights.slice(0, 3) : highlights;
+  const wrapperClassName = compactView
+    ? "dashboard-panel rounded-[1.7rem] p-4"
+    : "dashboard-panel rounded-[2rem] p-5";
+  const titleClassName = compactView ? "text-base font-semibold tracking-tight text-zinc-900" : "text-lg font-semibold tracking-tight text-zinc-900";
+  const descriptionClassName = compactView ? "mt-2 text-[13px] leading-snug text-zinc-500" : "mt-2 text-sm leading-relaxed text-zinc-500";
+  const metricValueClassName = compactView ? "text-[13px] font-semibold text-zinc-900" : "font-semibold text-zinc-900";
+  const actionContainerClassName = compactView
+    ? "mt-5 flex flex-col gap-2"
+    : "mt-6 flex flex-wrap items-center gap-3";
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-slate-900">Seu Mídia Kit</h2>
-      <p className="mt-1 text-sm text-slate-500">
+    <div className={wrapperClassName}>
+      <p className="dashboard-muted-label">Mídia Kit</p>
+      <h2 className={titleClassName}>Seu Mídia Kit</h2>
+      <p className={descriptionClassName}>
         {hasMediaKit
-          ? "Use o link abaixo na bio e destaque suas métricas para marcas."
-          : "Crie seu Mídia Kit em 2 minutos e transforme visitas em propostas."}
+          ? compactView
+            ? "Deixe seu kit pronto para bio e propostas."
+            : "Use o link abaixo na bio e destaque suas métricas para marcas."
+          : compactView
+            ? "Crie seu kit e transforme visitas em propostas."
+            : "Crie seu Mídia Kit em 2 minutos e transforme visitas em propostas."}
       </p>
 
       {hasMediaKit ? (
-        <div className="mt-5 space-y-4">
-          <dl className="space-y-2">
+        <div className={compactView ? "mt-4 space-y-3.5" : "mt-5 space-y-4"}>
+          <dl className="overflow-hidden rounded-[1.4rem] border border-zinc-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.84),rgba(250,250,250,0.76))]">
             <div className="flex items-center justify-between text-sm">
-              <dt className="text-slate-500">Views (7 dias)</dt>
-              <dd className="font-semibold text-slate-900">{mediaKit?.viewsLast7Days ?? 0}</dd>
+              <dt className="px-4 py-3 text-zinc-500">Views (7 dias)</dt>
+              <dd className={`px-4 py-3 ${metricValueClassName}`}>{mediaKit?.viewsLast7Days ?? 0}</dd>
             </div>
-            <div className="flex items-center justify-between text-sm">
-              <dt className="text-slate-500">Propostas via kit</dt>
-              <dd className="font-semibold text-slate-900">
+            <div className="flex items-center justify-between border-t border-zinc-100/90 text-sm">
+              <dt className="px-4 py-3 text-zinc-500">Propostas via kit</dt>
+              <dd className={`px-4 py-3 ${metricValueClassName}`}>
                 {mediaKit?.proposalsViaMediaKit ?? 0}
               </dd>
             </div>
             {mediaKit?.lastUpdatedLabel ? (
-              <div className="flex items-center justify-between text-sm">
-                <dt className="text-slate-500">Última atualização</dt>
-                <dd className="font-medium text-slate-900">{mediaKit.lastUpdatedLabel}</dd>
+              <div className="flex items-center justify-between border-t border-zinc-100/90 text-sm">
+                <dt className="px-4 py-3 text-zinc-500">Última atualização</dt>
+                <dd className={`px-4 py-3 ${compactView ? "text-[13px] font-medium text-zinc-900" : "font-medium text-zinc-900"}`}>
+                  {mediaKit.lastUpdatedLabel}
+                </dd>
               </div>
             ) : null}
           </dl>
 
-          {highlights.length ? (
-            <ul className="divide-y divide-slate-100 rounded-lg border border-slate-100">
-              {highlights.map((item) => (
-                <li key={item.label} className="flex items-center justify-between px-4 py-3 text-sm">
-                  <span className="text-slate-500">{item.label}</span>
-                  <span className="font-semibold text-slate-900">{item.value}</span>
+          {visibleHighlights.length ? (
+            <div>
+              <p className="dashboard-muted-label mb-2">Destaques estratégicos</p>
+              <ul className="overflow-hidden rounded-[1.35rem] border border-zinc-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(250,250,250,0.74))]">
+              {visibleHighlights.map((item) => (
+                <li
+                  key={item.label}
+                  className={`flex items-center justify-between border-b border-zinc-100/90 last:border-b-0 ${compactView ? "gap-3 px-3 py-2.5 text-[13px]" : "px-4 py-3 text-sm"}`}
+                >
+                  <span className="text-zinc-500">{item.label}</span>
+                  <span className="font-semibold text-zinc-900">{item.value}</span>
                 </li>
               ))}
-            </ul>
+              </ul>
+            </div>
           ) : null}
 
-          <div className="space-y-2 text-xs text-slate-500">
-            <p>Copie o link e adicione na bio. Fixe “Parcerias” nos stories para aumentar o fluxo.</p>
+          <div className={`space-y-2 text-zinc-500 ${compactView ? "text-[11px]" : "text-xs"}`}>
+            <p>
+              {compactView
+                ? "Copie o link para bio e stories."
+                : "Copie o link e adicione na bio. Fixe “Parcerias” nos stories para aumentar o fluxo."}
+            </p>
           </div>
         </div>
       ) : (
-        <div className="mt-6 rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">
+        <div className={`dashboard-empty-state border border-dashed border-zinc-200 text-zinc-500 ${compactView ? "mt-5 rounded-[1.35rem] p-3.5 text-[13px]" : "mt-6 rounded-[1.5rem] p-4 text-sm"}`}>
           <p>
             Crie seu Mídia Kit em 2 minutos e comece a atrair marcas com uma vitrine profissional.
           </p>
         </div>
       )}
 
-      <div className="mt-6 flex flex-wrap items-center gap-3">
+      <div className={actionContainerClassName}>
         {hasMediaKit ? (
           <>
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-1"
+              className={`dashboard-primary-button inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-1 ${compactView ? "w-full" : ""}`}
               onClick={handleCopy}
               aria-label="Copiar link do Mídia Kit"
             >
               <LinkIcon className="h-4 w-4" />
-              Copiar link da bio
+              {compactView ? "Copiar link" : "Copiar link da bio"}
             </button>
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1"
-              onClick={() => {
-                onViewAsBrand();
-                if (mediaKit?.shareUrl) {
-                  window.open(mediaKit.shareUrl, "_blank", "noopener,noreferrer");
-                }
-              }}
-            >
-              <ExternalLink className="h-4 w-4" />
-              Ver como marca
-            </button>
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1"
+              className={`dashboard-secondary-button inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold text-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 focus-visible:ring-offset-1 ${compactView ? "w-full" : ""}`}
               onClick={onEdit}
             >
               <Pencil className="h-4 w-4" />
-              Editar kit
+              {compactView ? "Editar kit" : "Editar kit"}
             </button>
+            {!compactView ? (
+              <button
+                type="button"
+                className="dashboard-secondary-button inline-flex items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold text-zinc-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 focus-visible:ring-offset-1"
+                onClick={() => {
+                  onViewAsBrand();
+                  if (mediaKit?.shareUrl) {
+                    window.open(mediaKit.shareUrl, "_blank", "noopener,noreferrer");
+                  }
+                }}
+              >
+                <ExternalLink className="h-4 w-4" />
+                Ver como marca
+              </button>
+            ) : null}
           </>
         ) : (
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1"
+            className={`dashboard-primary-button inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-semibold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-1 ${compactView ? "w-full" : ""}`}
             onClick={onEdit}
           >
             <Pencil className="h-4 w-4" />
-            Criar Mídia Kit
+            {compactView ? "Criar kit" : "Criar Mídia Kit"}
           </button>
         )}
       </div>

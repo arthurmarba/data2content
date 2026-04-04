@@ -6,8 +6,6 @@ import useBillingStatus from "@/app/hooks/useBillingStatus";
 export type DiscoverCtaState =
   | "instagram_connect"
   | "instagram_reconnect"
-  | "trial_activate"
-  | "trial_active"
   | "plan_active"
   | "reactivate_plan"
   | "checkout_pending"
@@ -31,21 +29,22 @@ export type DiscoverCtaConfig = {
 
 function openSubscribeModal() {
   try {
-    window.dispatchEvent(new Event("open-subscribe-modal"));
+    const returnTo =
+      typeof window !== "undefined"
+        ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+        : "/dashboard/discover";
+    window.dispatchEvent(
+      new CustomEvent("open-subscribe-modal", {
+        detail: {
+          context: "planning",
+          source: "discover_cta",
+          returnTo,
+        },
+      })
+    );
   } catch {
     /* ignore SSR */
   }
-}
-
-function formatCountdown(trialRemainingMs?: number | null) {
-  if (!trialRemainingMs || trialRemainingMs <= 0) return null;
-  const totalMinutes = Math.floor(trialRemainingMs / 60000);
-  if (totalMinutes <= 0) return null;
-  if (totalMinutes < 60) return `${totalMinutes} min restantes`;
-  const totalHours = Math.floor(totalMinutes / 60);
-  if (totalHours < 48) return `${totalHours} h restantes`;
-  const totalDays = Math.floor(totalHours / 24);
-  return `${totalDays} d restantes`;
 }
 
 export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCtaConfig {
@@ -53,47 +52,36 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
     hasPremiumAccess,
     instagram,
     isLoading,
-    isTrialActive,
     needsCheckout,
     needsAbort,
     needsPaymentUpdate,
     nextAction,
-    trial,
-    trialRemainingMs,
   } = useBillingStatus();
 
   const instagramConnected = Boolean(allowedPersonalized || instagram?.connected);
   const needsReconnect = Boolean(instagram?.needsReconnect);
-  const trialState = trial?.state;
 
   const state: DiscoverCtaState = useMemo(() => {
-    if (!instagramConnected) return needsReconnect ? "instagram_reconnect" : "instagram_connect";
-    if (needsReconnect) return "instagram_reconnect";
-    if (isTrialActive) return "trial_active";
-    if (hasPremiumAccess) return "plan_active";
     if (nextAction === "reactivate") return "reactivate_plan";
     if (nextAction === "resubscribe") return "subscribe";
     if (needsPaymentUpdate) return "payment_issue";
     if (needsCheckout) return "checkout_pending";
     if (needsAbort) return "checkout_expired";
-    if (trialState === "eligible") return "subscribe";
-    if (trialState === "expired" || trialState === "converted" || trialState === "unavailable") {
-      return "subscribe";
+    if (hasPremiumAccess) {
+      if (!instagramConnected) return needsReconnect ? "instagram_reconnect" : "instagram_connect";
+      if (needsReconnect) return "instagram_reconnect";
+      return "plan_active";
     }
     return "subscribe";
   }, [
     hasPremiumAccess,
     instagramConnected,
-    isTrialActive,
     needsReconnect,
     needsCheckout,
     needsAbort,
     needsPaymentUpdate,
     nextAction,
-    trialState,
   ]);
-
-  const countdownLabel = useMemo(() => formatCountdown(trialRemainingMs), [trialRemainingMs]);
 
   return useMemo<DiscoverCtaConfig>(() => {
     const totalSteps = 4;
@@ -107,7 +95,7 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
           stageLabel: "Etapa 2/4 — Conectar Instagram",
           step: 2,
           totalSteps,
-          href: "/dashboard/instagram/connect",
+          href: "/dashboard/instagram/connect?next=planner",
           disabled: isLoading,
         };
       case "instagram_reconnect":
@@ -119,7 +107,7 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
           stageLabel: "Conexão do Instagram pendente",
           step: 2,
           totalSteps,
-          href: "/dashboard/instagram/connect",
+          href: "/dashboard/instagram/connect?next=planner",
           disabled: isLoading,
         };
       case "reactivate_plan":
@@ -182,17 +170,6 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
           onPress: openSubscribeModal,
           disabled: isLoading,
         };
-      case "trial_active":
-        return {
-          state,
-          kind: "status",
-          label: "Trial ativo",
-          statusLabel: countdownLabel || "Trial ativo",
-          description: "Aproveite as recomendações enquanto o período grátis está disponível.",
-          stageLabel: "IA liberada — explore ideias avançadas",
-          step: 3,
-          totalSteps,
-        };
       case "plan_active":
       default:
       return {
@@ -206,5 +183,5 @@ export function useDiscoverCtaConfig(allowedPersonalized?: boolean): DiscoverCta
         totalSteps,
       };
     }
-  }, [state, countdownLabel, isLoading]);
+  }, [state, isLoading]);
 }

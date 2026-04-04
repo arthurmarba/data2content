@@ -5,7 +5,6 @@ import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import React, { useEffect, useState } from 'react';
 import { track } from '@/lib/track';
-import { getDiscoverPrimaryBadge } from './discoverPresentation';
 
 const DiscoverVideoModal = dynamic(() => import('./DiscoverVideoModal'), {
   ssr: false,
@@ -70,13 +69,17 @@ export default function DiscoverCard({
   nextItem,
   trackContext,
   variant = 'rail',
+  compactView = false,
   onUnavailable,
+  priority = false,
 }: {
   item: PostCard;
   nextItem?: NextItem | null;
   trackContext?: Record<string, any>;
   variant?: 'rail' | 'grid';
+  compactView?: boolean;
   onUnavailable?: (postId: string) => void;
+  priority?: boolean;
 }) {
   const views = item?.stats?.views ?? item?.stats?.total_interactions;
   const isViews = item?.stats?.views !== undefined;
@@ -91,10 +94,11 @@ export default function DiscoverCard({
   const isReel = formats.some(f => f.includes('reel'));
   const aspectClass = isReel ? 'aspect-[9/16]' : 'aspect-[4/5]';
   const canPlayInline = Boolean(item.videoUrl || item.isVideo);
-  const strategicBadge = getDiscoverPrimaryBadge(item.categories);
   const imageSizes = isGrid
     ? "(min-width: 1280px) 240px, (min-width: 768px) 200px, 160px"
-    : "(min-width: 1280px) 220px, (min-width: 768px) 200px, 160px";
+    : compactView
+      ? "(min-width: 1280px) 160px, (min-width: 768px) 150px, 128px"
+      : "(min-width: 1280px) 220px, (min-width: 768px) 200px, 160px";
 
   const openVideo = () => {
     setVideoOpen(true);
@@ -121,7 +125,7 @@ export default function DiscoverCard({
 
   return (
     <article
-      className={`${isGrid ? 'w-full' : 'flex-shrink-0 h-[250px] w-auto snap-start'} relative select-none transition-all duration-300 ease-out hover:z-20 hover:scale-110 hover:ring-4 hover:ring-white rounded-lg`}
+      className={`${isGrid ? 'w-full' : compactView ? 'flex-shrink-0 h-[182px] w-auto snap-start' : 'flex-shrink-0 h-[250px] w-auto snap-start'} relative select-none rounded-[1.5rem] transition-all duration-300 ease-out ${compactView ? 'hover:z-10 hover:-translate-y-0.5' : 'hover:z-20 hover:-translate-y-1 hover:scale-[1.03]'}`}
       aria-label={short || 'Post'}
     >
       {item.postLink && !canPlayInline ? (
@@ -132,7 +136,7 @@ export default function DiscoverCard({
           onClick={canPlayInline ? handleOpenVideo : () => {
             try { track('discover_card_click', { id: item.id, action: 'open_instagram', ...(trackContext || {}) }); } catch { }
           }}
-          className={`relative block h-full ${aspectClass} overflow-hidden rounded-lg bg-gray-100 shadow-sm`}
+          className={`relative block h-full ${aspectClass} overflow-hidden rounded-[1.5rem] bg-zinc-100 ring-1 ring-black/5`}
           aria-label={canPlayInline ? "Assistir vídeo" : "Abrir no Instagram"}
         >
           {item.coverUrl ? (
@@ -141,7 +145,8 @@ export default function DiscoverCard({
               alt={short || 'Capa do post'}
               fill
               className="w-full h-full object-cover"
-              loading="lazy"
+              loading={priority ? 'eager' : 'lazy'}
+              priority={priority}
               sizes={imageSizes}
               referrerPolicy="no-referrer"
               draggable={false}
@@ -149,37 +154,23 @@ export default function DiscoverCard({
             />
           ) : null}
 
-          {/* Overlay: Gradiente mais suave e informações internas */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/82 via-black/12 to-transparent opacity-95" />
 
-          <div className="absolute top-2 right-2">
+          <div className={compactView ? "absolute right-1.5 top-1.5" : "absolute top-2 right-2"}>
             {metrics && (
-              <div className="rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
+              <div className={`rounded-full border border-white/12 bg-black/42 font-semibold text-white/92 backdrop-blur-sm ${compactView ? "px-2 py-0.5 text-[8px]" : "px-2 py-1 text-[10px]"}`}>
                 {metrics}
               </div>
             )}
           </div>
 
-          {strategicBadge && (
-            <div className="absolute left-2 top-2 max-w-[70%]">
-              <span className="inline-flex truncate rounded-full border border-white/15 bg-white/12 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
-                {strategicBadge}
-              </span>
-            </div>
-          )}
-
-          <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
-            <p className="text-[10px] font-medium opacity-90 mb-0.5">{item.creatorName}</p>
-            {short && (
-              <p className="text-[11px] leading-tight line-clamp-2 font-semibold text-shadow-sm">
-                {short}
-              </p>
-            )}
+          <div className={`absolute bottom-0 left-0 right-0 text-white ${compactView ? "p-2" : "p-3"}`}>
+            <p className={`truncate font-semibold text-white/94 ${compactView ? "text-[9.5px] leading-none" : "text-[10px]"}`}>{item.creatorName}</p>
           </div>
         </a>
       ) : (
         <div
-          className={`relative h-full ${aspectClass} overflow-hidden rounded-lg bg-gray-100 shadow-sm`}
+          className={`relative h-full ${aspectClass} overflow-hidden rounded-[1.5rem] bg-zinc-100 ring-1 ring-black/5`}
           onClick={canPlayInline ? handleOpenVideo : undefined}
           onKeyDown={
             canPlayInline
@@ -201,39 +192,26 @@ export default function DiscoverCard({
               alt={short || 'Capa do post'}
               fill
               className="w-full h-full object-cover"
-              loading="lazy"
+              loading={priority ? 'eager' : 'lazy'}
+              priority={priority}
               sizes={imageSizes}
               referrerPolicy="no-referrer"
               draggable={false}
               onError={() => setImgFailed(true)}
             />
           ) : null}
-          {/* Overlay: Gradiente mais suave e informações internas */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-90" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/82 via-black/12 to-transparent opacity-95" />
 
-          <div className="absolute top-2 right-2">
+          <div className={compactView ? "absolute right-1.5 top-1.5" : "absolute top-2 right-2"}>
             {metrics && (
-              <div className="rounded-md bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white backdrop-blur-sm">
+              <div className={`rounded-full border border-white/12 bg-black/42 font-semibold text-white/92 backdrop-blur-sm ${compactView ? "px-2 py-0.5 text-[8px]" : "px-2 py-1 text-[10px]"}`}>
                 {metrics}
               </div>
             )}
           </div>
 
-          {strategicBadge && (
-            <div className="absolute left-2 top-2 max-w-[70%]">
-              <span className="inline-flex truncate rounded-full border border-white/15 bg-white/12 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm">
-                {strategicBadge}
-              </span>
-            </div>
-          )}
-
-          <div className="absolute bottom-0 left-0 right-0 p-3 text-white">
-            <p className="text-[10px] font-medium opacity-90 mb-0.5">{item.creatorName}</p>
-            {short && (
-              <p className="text-[11px] leading-tight line-clamp-2 font-semibold text-shadow-sm">
-                {short}
-              </p>
-            )}
+          <div className={`absolute bottom-0 left-0 right-0 text-white ${compactView ? "p-2" : "p-3"}`}>
+            <p className={`truncate font-semibold text-white/94 ${compactView ? "text-[9.5px] leading-none" : "text-[10px]"}`}>{item.creatorName}</p>
           </div>
         </div>
       )}

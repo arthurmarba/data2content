@@ -19,10 +19,10 @@ function SkeletonBlock({ lines = 3, className = "" }: { lines?: number; classNam
 
 export default function MinimalSkeleton() {
   return (
-    <div className="grid w-full grid-cols-1 gap-6 pb-8 lg:grid-cols-2 xl:grid-cols-3">
-      <SkeletonBlock className="xl:col-span-3" lines={6} />
-      <SkeletonBlock className="lg:col-span-2 xl:col-span-2" lines={5} />
-      <SkeletonBlock className="lg:col-span-2 xl:col-span-1" lines={4} />
+    <div className="flex w-full flex-col gap-5 pb-6">
+      <SkeletonBlock lines={6} />
+      <SkeletonBlock lines={5} />
+      <SkeletonBlock lines={4} />
       <SkeletonBlock lines={3} />
     </div>
   );

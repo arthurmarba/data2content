@@ -32,7 +32,6 @@ type ProPageClientProps = {
   initialPlanStatus: {
     normalizedStatus: string | null;
     hasProAccess: boolean;
-    isTrialActive: boolean;
   };
 };
 
@@ -185,7 +184,6 @@ export default function ProPageClient({
 
   const normalizedStatus = billingStatus.normalizedStatus ?? initialPlanStatus.normalizedStatus ?? null;
   const hasProAccess = Boolean(billingStatus.hasPremiumAccess ?? initialPlanStatus.hasProAccess);
-  const isTrialActive = Boolean(billingStatus.isTrialActive ?? initialPlanStatus.isTrialActive);
   const needsPaymentAction = Boolean(billingStatus.needsPaymentAction);
   const needsCheckout = Boolean(billingStatus.needsCheckout);
   const needsAbort = Boolean(billingStatus.needsAbort);

@@ -39,12 +39,21 @@ function pickAvailableIgAvatar(doc: any) {
 
 function resolveAvatarFromDoc(doc: any) {
   const instagram = doc?.instagram || {};
+  const prefersProviderFallback = !doc?.isInstagramConnected || !doc?.instagramAccountId;
   return (
-    normalizeAvatarCandidate(doc?.profile_picture_url ?? null) ||
-    normalizeAvatarCandidate(doc?.image ?? null) ||
-    normalizeAvatarCandidate(instagram.profile_picture_url ?? null) ||
-    normalizeAvatarCandidate(instagram.profilePictureUrl ?? null) ||
-    pickAvailableIgAvatar(doc)
+    (prefersProviderFallback
+      ? normalizeAvatarCandidate(doc?.providerImage ?? null) ||
+        normalizeAvatarCandidate(doc?.image ?? null) ||
+        normalizeAvatarCandidate(doc?.profile_picture_url ?? null) ||
+        normalizeAvatarCandidate(instagram.profile_picture_url ?? null) ||
+        normalizeAvatarCandidate(instagram.profilePictureUrl ?? null) ||
+        pickAvailableIgAvatar(doc)
+      : normalizeAvatarCandidate(doc?.profile_picture_url ?? null) ||
+        normalizeAvatarCandidate(doc?.image ?? null) ||
+        normalizeAvatarCandidate(doc?.providerImage ?? null) ||
+        normalizeAvatarCandidate(instagram.profile_picture_url ?? null) ||
+        normalizeAvatarCandidate(instagram.profilePictureUrl ?? null) ||
+        pickAvailableIgAvatar(doc))
   );
 }
 
@@ -131,7 +140,7 @@ export async function GET() {
   await connectToDatabase();
   const user = await User.findById(userId)
     .select(
-      'name mediaKitDisplayName username handle email profile_picture_url image mediaKitSlug biography headline mission valueProp title occupation city state country instagram instagramUsername followers_count mediaKitPricingPublished instagramAccountId availableIgAccounts.profile_picture_url'
+      'name mediaKitDisplayName username handle email profile_picture_url image providerImage mediaKitSlug biography headline mission valueProp title occupation city state country instagram instagramUsername followers_count mediaKitPricingPublished isInstagramConnected instagramAccountId availableIgAccounts.profile_picture_url'
     )
     .lean()
     .exec();
@@ -183,7 +192,7 @@ export async function PATCH(req: Request) {
 
   await connectToDatabase();
   const user = await User.findById(userId)
-    .select('mediaKitDisplayName name username handle email profile_picture_url image mediaKitSlug instagram instagramUsername followers_count instagramAccountId availableIgAccounts.profile_picture_url')
+    .select('mediaKitDisplayName name username handle email profile_picture_url image providerImage mediaKitSlug instagram instagramUsername followers_count isInstagramConnected instagramAccountId availableIgAccounts.profile_picture_url')
     .exec();
 
   if (!user) {

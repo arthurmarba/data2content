@@ -41,7 +41,7 @@ export default function HistoryDrawer({ item, onClose }: Props) {
         aria-modal="true"
         aria-labelledby="history-title"
         tabIndex={-1}
-        className="fixed inset-0 sm:inset-y-0 sm:right-0 sm:w-[380px] w-full bg-white dark:bg-gray-800 h-full p-4 overflow-y-auto focus:outline-none"
+        className="dashboard-scrollbar fixed inset-0 sm:inset-y-0 sm:right-0 sm:w-[380px] w-full bg-white dark:bg-gray-800 h-full p-4 overflow-y-auto focus:outline-none"
       >
         <button
           className="mb-4 inline-flex items-center justify-center h-11 min-w-[44px] px-3"

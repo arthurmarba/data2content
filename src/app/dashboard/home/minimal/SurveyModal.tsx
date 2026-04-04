@@ -46,7 +46,7 @@ export default function SurveyModal({ open, onClose, onSaved }: SurveyModalProps
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 pb-6 sm:px-8 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div className="dashboard-scrollbar flex-1 overflow-y-auto px-6 pb-6 sm:px-8">
           <OnboardingSurveyStepper
             metrics={null}
             onSaved={() => {

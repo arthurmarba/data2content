@@ -120,22 +120,34 @@ async function installVipAccessMocks(page: Page, planStatus: PlanStatusFixture) 
   return {};
 }
 
+async function openCommunityMentoria(page: Page) {
+  const mentoriaTab = page.getByRole("button", { name: "Mentoria" }).first();
+  await expect(mentoriaTab).toBeVisible({ timeout: 15_000 });
+  await mentoriaTab.click();
+}
+
 test.describe("Home VIP access revalidation", () => {
+  test.afterEach(async ({ page }) => {
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+  });
+
   test("abre o grupo VIP sem paywall quando /api/plan/status retorna active", async ({
     page,
   }) => {
     await installVipAccessMocks(page, "active");
 
-    await page.goto("/dashboard");
+    await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1200);
     const acceptCookiesButton = page.getByRole("button", { name: "Aceitar" });
     if (await acceptCookiesButton.isVisible().catch(() => false)) {
       await acceptCookiesButton.click();
     }
 
+    await openCommunityMentoria(page);
+
     const vipCta = page
       .getByRole("button", {
-        name: /Ativar Pro para entrar|Entrar no grupo VIP|Abrir comunidade VIP|Assinar para VIP/,
+        name: /Entrar na comunidade|Assinar para participar|Ativar Pro para entrar|Abrir grupo de revisão/,
       })
       .first();
     await expect(vipCta).toBeVisible();
@@ -156,22 +168,24 @@ test.describe("Home VIP access revalidation", () => {
   test("abre paywall quando /api/plan/status retorna inactive", async ({ page }) => {
     await installVipAccessMocks(page, "inactive");
 
-    await page.goto("/dashboard");
+    await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
     await page.waitForTimeout(1200);
     const acceptCookiesButton = page.getByRole("button", { name: "Aceitar" });
     if (await acceptCookiesButton.isVisible().catch(() => false)) {
       await acceptCookiesButton.click();
     }
 
+    await openCommunityMentoria(page);
+
     const vipCta = page
       .getByRole("button", {
-        name: /Ativar Pro para entrar|Entrar no grupo VIP|Abrir comunidade VIP|Assinar para VIP/,
+        name: /Entrar na comunidade|Assinar para participar|Ativar Pro para entrar|Abrir grupo de revisão/,
       })
       .first();
     await expect(vipCta).toBeVisible();
     await vipCta.click();
 
     await expect(page.getByRole("dialog")).toBeVisible();
-    await expect(page).toHaveURL(/\/dashboard(?:\/home)?$/);
+    await expect(page).toHaveURL(/(?:\/|\/dashboard(?:\/home)?)$/);
   });
 });

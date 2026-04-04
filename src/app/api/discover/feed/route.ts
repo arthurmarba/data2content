@@ -22,6 +22,11 @@ import { aggregateUserTimePerformance } from '@/utils/aggregateUserTimePerforman
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const DISCOVER_DEBUG_LOGS = ['1', 'true', 'yes'].includes(
+  String(process.env.DISCOVER_DEBUG_LOGS || '').toLowerCase()
+);
+const BOARD_SURFACE_SHELF_KEYS = new Set<string>(['trending', 'top_saved', 'community_new']);
+
 type Section = { key: string; title: string; items: PostCard[] };
 type SectionsResponse =
   | { ok: true; generatedAt: string; sections: Section[]; allowedPersonalized: boolean; capabilities?: { hasReels: boolean; hasDuration: boolean; hasSaved: boolean } }
@@ -76,6 +81,15 @@ type ScoreBoosts = {
   contexts?: string[];
   contentIntents?: string[];
 };
+
+function discoverDebugLog(level: 'info' | 'debug', message: string, meta?: Record<string, unknown>) {
+  if (!DISCOVER_DEBUG_LOGS) return;
+  if (level === 'debug') {
+    logger.debug(message, meta);
+    return;
+  }
+  logger.info(message, meta);
+}
 
 function clamp(n: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, n));
@@ -449,6 +463,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
   const exp = expParam || undefined;
   const viewParam = searchParams.get('view');
   const shelfKey = searchParams.get('shelfKey') || undefined;
+  const surfaceParam = String(searchParams.get('surface') || '').trim().toLowerCase();
+  const surface = surfaceParam === 'board' ? 'board' : 'full';
+  const compactBoardSurface = surface === 'board' && !shelfKey && !exp && !viewParam;
   // Optional category filters (comma-separated)
   const formatFilter = searchParams.get('format') || undefined;
   const contentIntentFilter = searchParams.get('contentIntent') || undefined;
@@ -485,7 +502,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
     'reels_15_45',
     'reels_gt_45',
   ]);
-  const shouldBuildShelf = (key: string) => !shelfKey || shelfKey === key;
+  const shouldBuildShelf = (key: string) =>
+    (!shelfKey || shelfKey === key) && (!compactBoardSurface || BOARD_SURFACE_SHELF_KEYS.has(key));
 
   const pushSection = (s: Section) => {
     const dedup: PostCard[] = [];
@@ -538,7 +556,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
   const maxItems = limitPerRow * 2;
 
   try {
-    logger.info('[discover/debug] start', {
+    discoverDebugLog('info', '[discover/debug] start', {
       userId: userId || null,
       allowedPersonalized,
       params: {
@@ -558,11 +576,12 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
         videoOnly,
         exp: exp || null,
         view: viewParam || null,
+        surface,
       },
     });
     let userTopContextIds: string[] = [];
     let userTopContentIntentIds: string[] = [];
-    if (userId) {
+    if (userId && !compactBoardSurface) {
       try {
         const [topCtx, topIntent] = await Promise.all([
           fetchTopCategories({ userId, category: 'context', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 }),
@@ -760,14 +779,14 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
           }
           pushSection({ key: spec.key, title: spec.title, items });
         } catch (err) {
-          logger.debug('[discover/recipe_shelf] failed', { shelf: spec.key, err });
+          discoverDebugLog('debug', '[discover/recipe_shelf] failed', { shelf: spec.key, err: String(err) });
         }
       };
       for (const shelf of shelvesToRun) tasksRecipe.push(runShelf(shelf));
       await Promise.allSettled(tasksRecipe);
       // Compute capabilities for chip gating
       const caps = computeCapabilities(sections);
-      logger.info('[discover/debug] recipe_return', { keys: sections.map(s => s.key) });
+      discoverDebugLog('info', '[discover/debug] recipe_return', { keys: sections.map(s => s.key) });
       return NextResponse.json({ ok: true, generatedAt: new Date().toISOString(), sections, allowedPersonalized, capabilities: caps });
     }
 
@@ -781,7 +800,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
         .filter(Boolean);
       return vals.some(v => v === 'reel' || v === 'reels' || v.includes('reel'));
     })();
-    logger.info('[discover/debug] reels_flag', { isReelsSelected, formatFilter });
+    discoverDebugLog('info', '[discover/debug] reels_flag', { isReelsSelected, formatFilter });
 
     // Em alta agora (Trending)
     if (shouldBuildShelf('trending')) {
@@ -828,7 +847,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             maxItems,
           });
           pushSection({ key: 'trending', title: 'Em alta agora', items: processed });
-          logger.info('[discover/trending] ok', { ms: Date.now() - t0, count: items?.length || 0 });
+          discoverDebugLog('info', '[discover/trending] ok', { ms: Date.now() - t0, count: items?.length || 0 });
         } catch (e) {
           logger.warn('[discover/trending] failed', e);
         }
@@ -881,7 +900,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             maxItems,
           });
           pushSection({ key: 'rising_72h', title: 'Em ascensão (últimas 72h)', items: processed });
-          logger.info('[discover/rising_72h] ok', { ms: Date.now() - t0, count: items?.length || 0 });
+          discoverDebugLog('info', '[discover/rising_72h] ok', { ms: Date.now() - t0, count: items?.length || 0 });
         } catch (e) {
           logger.warn('[discover/rising_72h] failed', e);
         }
@@ -925,7 +944,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             maxItems,
           });
           pushSection({ key: 'top_saved', title: 'Campeões em salvamentos', items });
-          logger.info('[discover/top_saved] ok', { ms: Date.now() - t0, count: items.length });
+          discoverDebugLog('info', '[discover/top_saved] ok', { ms: Date.now() - t0, count: items.length });
         } catch (e) {
           logger.warn('[discover/top_saved] failed', e);
         }
@@ -969,7 +988,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             maxItems,
           });
           pushSection({ key: 'top_comments', title: 'Campeões em comentários', items });
-          logger.info('[discover/top_comments] ok', { ms: Date.now() - t0, count: items.length });
+          discoverDebugLog('info', '[discover/top_comments] ok', { ms: Date.now() - t0, count: items.length });
         } catch (e) {
           logger.warn('[discover/top_comments] failed', e);
         }
@@ -1013,7 +1032,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             maxItems,
           });
           pushSection({ key: 'top_shares', title: 'Campeões em compartilhamentos', items });
-          logger.info('[discover/top_shares] ok', { ms: Date.now() - t0, count: items.length });
+          discoverDebugLog('info', '[discover/top_shares] ok', { ms: Date.now() - t0, count: items.length });
         } catch (e) {
           logger.warn('[discover/top_shares] failed', e);
         }
@@ -1062,7 +1081,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             explorationRatio: 0.1,
             maxItems,
           });
-          logger.info('[discover/reels_duration] ok', { key, title, count: items.length });
+          discoverDebugLog('info', '[discover/reels_duration] ok', { key, title, count: items.length });
           pushSection({ key, title, items });
         } catch (e) {
           logger.warn('[discover/duration] failed', e);
@@ -1132,7 +1151,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             maxItems,
           });
           pushSection({ key: 'weekend_ideas', title: 'Ideias para o fim de semana', items: weekendItems });
-          logger.info('[discover/weekend] ok', { ms: Date.now() - t0, count: weekendItems.length });
+          discoverDebugLog('info', '[discover/weekend] ok', { ms: Date.now() - t0, count: weekendItems.length });
         } catch (e) {
           logger.warn('[discover/weekend] failed', e);
         }
@@ -1155,12 +1174,12 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
           if (topIntent.length === 0) {
             topIntent = await fetchTopCategories({ userId, category: 'contentIntent', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 1 }) as any;
           }
-          logger.info('[discover/user_suggested] cats', { ctx: (topCtx || []).length, intent: (topIntent || []).length });
+          discoverDebugLog('info', '[discover/user_suggested] cats', { ctx: (topCtx || []).length, intent: (topIntent || []).length });
           if ((!topCtx || topCtx.length === 0) && (!topIntent || topIntent.length === 0)) {
             // Fallback para ranking global
             topCtx = await fetchTopCategories({ category: 'context', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 2 }) as any;
             topIntent = await fetchTopCategories({ category: 'contentIntent', metric: 'total_interactions', dateRange: { startDate, endDate }, limit: 1 }) as any;
-            logger.info('[discover/user_suggested] cats_fallback', { ctx: (topCtx || []).length, intent: (topIntent || []).length });
+            discoverDebugLog('info', '[discover/user_suggested] cats_fallback', { ctx: (topCtx || []).length, intent: (topIntent || []).length });
           }
           const cats = [
             ...(contextFilter ? [] : (topCtx || [])),
@@ -1201,7 +1220,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
                 pool.push(toDiscoverPostCard(p));
               }
             } catch (subErr) {
-              logger.debug('[discover/user_suggested] category load fail', { err: subErr });
+              discoverDebugLog('debug', '[discover/user_suggested] category load fail', { err: String(subErr) });
             }
           }
           const processed = postProcessItems(pool, {
@@ -1215,7 +1234,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             maxItems,
           });
           pushSection({ key: 'user_suggested', title: 'Sugeridos ao usuário', items: processed });
-          logger.info('[discover/user_suggested] ok', { ms: Date.now() - t0, count: processed.length });
+          discoverDebugLog('info', '[discover/user_suggested] ok', { ms: Date.now() - t0, count: processed.length });
         } catch (e) {
           logger.warn('[discover/user_suggested] failed', e);
         }
@@ -1271,7 +1290,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
                 pool.push(toDiscoverPostCard(p));
               }
             } catch (sub) {
-              logger.debug('[discover/top_format] fmt load fail', { fmt, err: sub });
+              discoverDebugLog('debug', '[discover/top_format] fmt load fail', { fmt, err: String(sub) });
             }
           }
           const processed = postProcessItems(pool, {
@@ -1285,7 +1304,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             maxItems,
           });
           pushSection({ key: 'top_in_your_format', title: 'Top no seu formato', items: processed });
-          logger.info('[discover/top_format] ok', { ms: Date.now() - t0, count: processed.length });
+          discoverDebugLog('info', '[discover/top_format] ok', { ms: Date.now() - t0, count: processed.length });
         } catch (e) {
           logger.warn('[discover/top_format] failed', e);
         }
@@ -1385,7 +1404,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             maxItems,
           });
           pushSection({ key: 'collabs', title: 'Colaborações em destaque', items: processed });
-          logger.info('[discover/collabs] ok', { ms: Date.now() - t0, count: items?.length || 0 });
+          discoverDebugLog('info', '[discover/collabs] ok', { ms: Date.now() - t0, count: items?.length || 0 });
         } catch (e) {
           logger.warn('[discover/collabs] failed', e);
         }
@@ -1469,7 +1488,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
             maxItems,
           });
           pushSection({ key: 'community_new', title: 'Novidades da comunidade', items });
-          logger.info('[discover/community_new] ok', { ms: Date.now() - t0, count: items.length });
+          discoverDebugLog('info', '[discover/community_new] ok', { ms: Date.now() - t0, count: items.length });
         } catch (e) {
           logger.warn('[discover/community_new] failed', e);
         }
@@ -1477,7 +1496,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
     }
 
     await Promise.allSettled(tasks);
-    logger.info('[discover/debug] final_sections', { keys: sections.map(s => s.key) });
+    discoverDebugLog('info', '[discover/debug] final_sections', { keys: sections.map(s => s.key) });
     const caps = computeCapabilities(sections);
     return NextResponse.json({ ok: true, generatedAt: new Date().toISOString(), sections, allowedPersonalized, capabilities: caps });
   } catch (err: any) {

@@ -15,12 +15,12 @@ interface ProUpsellCardProps {
 
 function UpsellSkeleton() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="h-6 w-48 animate-pulse rounded bg-slate-200" />
-      <div className="mt-2 h-4 w-56 animate-pulse rounded bg-slate-200" />
+    <div className="dashboard-panel rounded-[2rem] p-5">
+      <div className="h-6 w-48 animate-pulse rounded bg-zinc-200" />
+      <div className="mt-2 h-4 w-56 animate-pulse rounded bg-zinc-200" />
       <div className="mt-6 space-y-2">
         {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="h-9 w-full animate-pulse rounded bg-slate-200" />
+          <div key={index} className="h-9 w-full animate-pulse rounded bg-zinc-200" />
         ))}
       </div>
     </div>
@@ -36,21 +36,21 @@ export default function ProUpsellCard({ plan, loading, onActivate, onNavigate }:
 
   if (hasPro) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="dashboard-panel rounded-[2rem] p-5">
         <div className="flex items-center gap-2 text-sm font-semibold text-emerald-600">
           <Sparkles className="h-4 w-4" />
           Plano Pro ativo ✅
         </div>
-        <h3 className="mt-2 text-lg font-semibold text-slate-900">
+        <h3 className="mt-2 text-lg font-semibold tracking-[-0.02em] text-zinc-950">
           Aproveite seus atalhos de planejamento
         </h3>
-        <p className="mt-2 text-sm text-slate-500">
+        <p className="mt-2 text-sm text-zinc-500">
           Descubra tendências, planeje com IA e responda propostas direto do WhatsApp.
         </p>
-        <div className="mt-5 grid gap-2">
+        <div className="mt-5 overflow-hidden rounded-[1.35rem] border border-zinc-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(250,250,250,0.74))]">
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1"
+            className="dashboard-type-control inline-flex w-full items-center gap-2 px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-white/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-1"
             onClick={() => onNavigate("/planning/planner")}
           >
             <Calendar className="h-4 w-4" />
@@ -58,7 +58,7 @@ export default function ProUpsellCard({ plan, loading, onActivate, onNavigate }:
           </button>
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1"
+            className="dashboard-type-control inline-flex w-full items-center gap-2 border-t border-zinc-100/90 px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-white/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-1"
             onClick={() => onNavigate("/planning/discover")}
           >
             <Compass className="h-4 w-4" />
@@ -66,7 +66,7 @@ export default function ProUpsellCard({ plan, loading, onActivate, onNavigate }:
           </button>
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1"
+            className="dashboard-type-control inline-flex w-full items-center gap-2 border-t border-zinc-100/90 px-4 py-3 text-sm font-semibold text-zinc-700 transition hover:bg-white/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-1"
             onClick={() => onNavigate("/planning/whatsapp")}
           >
             <MessageCircle className="h-4 w-4" />
@@ -78,23 +78,39 @@ export default function ProUpsellCard({ plan, loading, onActivate, onNavigate }:
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
-        <Sparkles className="h-4 w-4 text-sky-500" />
-        Desbloqueie o Planejamento (Plano Pro)
+    <div className="dashboard-panel rounded-[2rem] p-5">
+      <div className="dashboard-soft-accent-card rounded-[1.6rem] p-5">
+        <div className="flex items-center gap-2 text-sm font-semibold text-pink-600">
+          <Sparkles className="h-4 w-4" />
+          Plano Pro
+        </div>
+        <h3 className="mt-2 text-lg font-semibold tracking-[-0.02em] text-zinc-950">
+          Descobertas, planner com IA e alertas no WhatsApp.
+        </h3>
+        <p className="mt-2 text-sm text-zinc-600">
+          Ganhe acompanhamento contínuo sem poluir sua operação diária.
+        </p>
+        <p className="mt-1 text-[11px] uppercase tracking-[0.18em] text-zinc-400">
+          Assinatura fixa • sem exclusividade
+        </p>
       </div>
-      <h3 className="mt-2 text-lg font-semibold text-slate-900">
-        Descobertas, planner com IA e alertas pelo WhatsApp (dúvidas no Chat AI).
-      </h3>
-      <p className="mt-2 text-sm text-slate-500">
-        Conecte insights em tempo real e feche campanhas com ajuda do Mobi.
-      </p>
-      <p className="mt-1 text-xs uppercase tracking-[0.18em] text-slate-400">
-        0% de comissão — só a assinatura fixa e sem exclusividade.
-      </p>
+      <div className="mt-4 overflow-hidden rounded-[1.35rem] border border-zinc-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(250,250,250,0.74))]">
+        <div className="flex items-center gap-3 border-b border-zinc-100/90 px-4 py-3 text-sm text-zinc-700">
+          <Calendar className="h-4 w-4 text-zinc-400" />
+          Planner com IA
+        </div>
+        <div className="flex items-center gap-3 border-b border-zinc-100/90 px-4 py-3 text-sm text-zinc-700">
+          <Compass className="h-4 w-4 text-zinc-400" />
+          Descoberta de tendências
+        </div>
+        <div className="flex items-center gap-3 px-4 py-3 text-sm text-zinc-700">
+          <MessageCircle className="h-4 w-4 text-zinc-400" />
+          Alertas no WhatsApp
+        </div>
+      </div>
       <button
         type="button"
-        className="mt-5 inline-flex items-center justify-center rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1"
+        className="dashboard-primary-button mt-5 inline-flex items-center justify-center rounded-[1rem] px-4 py-2 text-sm font-semibold text-white transition focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-1"
         onClick={onActivate}
       >
         Ativar Plano Pro

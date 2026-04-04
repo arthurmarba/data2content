@@ -45,8 +45,18 @@ const THUMBNAIL_FETCH_CACHE_MAX_ENTRIES = (() => {
   const parsed = Number(process.env.POSTS_THUMBNAIL_FETCH_CACHE_MAX_ENTRIES ?? 5000);
   return Number.isFinite(parsed) && parsed >= 500 ? Math.floor(parsed) : 5000;
 })();
+const POSTS_DEBUG_LOGS = process.env.POSTS_DEBUG_LOGS === '1';
 
 const instagramThumbnailCache = new Map<string, { url: string; expiresAt: number }>();
+
+function postsDebugLog(message: string, payload?: Record<string, unknown>) {
+  if (!POSTS_DEBUG_LOGS) return;
+  if (payload) {
+    logger.info(message, payload);
+    return;
+  }
+  logger.info(message);
+}
 
 function pruneInstagramThumbnailCache(nowTs: number) {
   for (const [key, value] of instagramThumbnailCache.entries()) {
@@ -374,6 +384,9 @@ export interface IFindUserPostsArgs { // ALTERADO
   limit?: number;
   startDate?: Date;
   endDate?: Date;
+  surface?: 'full' | 'board';
+  skipCount?: boolean;
+  skipThumbnailFetch?: boolean;
   filters?: {
     proposal?: string;
     context?: string;
@@ -415,6 +428,8 @@ export interface IUserPostsPaginatedResult { // ALTERADO
   totalPosts: number; // ALTERADO
   page: number;
   limit: number;
+  hasMore?: boolean;
+  countMode?: 'exact' | 'estimated';
 }
 
 // ----------------------------------------------
@@ -462,10 +477,13 @@ export async function findUserPosts({ // ALTERADO
   limit = 10,
   startDate: customStartDate,
   endDate: customEndDate,
+  surface = 'full',
+  skipCount = surface === 'board',
+  skipThumbnailFetch = surface === 'board',
   filters = {},
 }: IFindUserPostsArgs): Promise<IUserPostsPaginatedResult> { // ALTERADO
   const TAG = `${SERVICE_TAG}[findUserPosts]`; // ALTERADO
-  logger.info(`${TAG} Fetching posts for user ${userId} with filters: ${JSON.stringify(filters)}`); // ALTERADO
+  postsDebugLog(`${TAG} Fetching posts for user ${userId} with filters: ${JSON.stringify(filters)}`); // ALTERADO
   const runDb = <T>(operation: () => Promise<T>, operationName: string) =>
     withMongoTransientRetry(
       async () => {
@@ -582,13 +600,18 @@ export async function findUserPosts({ // ALTERADO
       };
     }
 
-    const totalPosts = await runDb(() => MetricModel.countDocuments(matchStage), 'countDocuments'); // ALTERADO
-    if (totalPosts === 0) return { posts: [], totalPosts, page, limit }; // ALTERADO
-
     const sortDirection = sortOrder === 'asc' ? 1 : -1;
     const skip = (page - 1) * limit;
+    const shouldSkipCount = Boolean(skipCount);
+    let totalPosts = 0;
+
+    if (!shouldSkipCount) {
+      totalPosts = await runDb(() => MetricModel.countDocuments(matchStage), 'countDocuments'); // ALTERADO
+      if (totalPosts === 0) return { posts: [], totalPosts, page, limit, hasMore: false, countMode: 'exact' }; // ALTERADO
+    }
 
     const sortField = sortBy === 'stats.views' ? 'viewsSortable' : sortBy;
+    const aggregateLimit = shouldSkipCount ? limit + 1 : limit;
 
     const postsPipeline: PipelineStage[] = [ // ALTERADO
       { $match: matchStage },
@@ -615,7 +638,7 @@ export async function findUserPosts({ // ALTERADO
       },
       { $sort: { [sortField]: sortDirection } },
       { $skip: skip },
-      { $limit: limit },
+      { $limit: aggregateLimit },
       {
         $project: {
           _id: 1,
@@ -660,11 +683,25 @@ export async function findUserPosts({ // ALTERADO
       'aggregatePosts'
     ); // ALTERADO
 
-    const connectionDetails = await runDb(
-      () => getInstagramConnectionDetails(userObjectId),
-      'getInstagramConnectionDetails'
-    );
-    const accessToken = connectionDetails?.accessToken;
+    let hasMore = false;
+    if (shouldSkipCount) {
+      hasMore = posts.length > limit;
+      if (hasMore) {
+        posts = posts.slice(0, limit);
+      }
+      totalPosts = skip + posts.length + (hasMore ? 1 : 0);
+    } else {
+      hasMore = skip + posts.length < totalPosts;
+    }
+
+    let accessToken: string | null = null;
+    if (!skipThumbnailFetch) {
+      const connectionDetails = await runDb(
+        () => getInstagramConnectionDetails(userObjectId),
+        'getInstagramConnectionDetails'
+      );
+      accessToken = connectionDetails?.accessToken ?? null;
+    }
 
     if (accessToken && page === 1 && THUMBNAIL_FETCH_PER_REQUEST > 0) {
       const nowTs = Date.now();
@@ -688,7 +725,7 @@ export async function findUserPosts({ // ALTERADO
       });
 
       if (fetchPromises.length > 0) {
-        logger.info(
+        postsDebugLog(
           `${TAG} Fetching thumbnails from IG for ${fetchPromises.length} posts (cap ${THUMBNAIL_FETCH_PER_REQUEST})...`
         ); // ALTERADO
         const results = await Promise.allSettled(fetchPromises);
@@ -716,6 +753,8 @@ export async function findUserPosts({ // ALTERADO
       totalPosts, // ALTERADO
       page,
       limit,
+      hasMore,
+      countMode: shouldSkipCount ? 'estimated' : 'exact',
     };
   } catch (error: any) {
     if (isTransientMongoError(error) || isTransientMongoError(error?.cause)) {

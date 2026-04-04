@@ -9,6 +9,21 @@ import { generateThemes as generateThemesAI } from '@/app/lib/planner/ai';
 
 type SlotThemesResult = { keyword: string; themes: string[] };
 
+function normalizePreferredKeyword(value?: string): string | undefined {
+  const raw = String(value || '').trim();
+  if (!raw) return undefined;
+  const tokens = raw
+    .split(/[^\p{L}\p{N}]+/u)
+    .map((token) => ({ raw: token.trim(), norm: normalizeToken(token) }))
+    .filter((token) => token.raw && token.norm.length >= 3 && !PT_STOPWORDS.has(token.norm) && !GENERIC_WEAK.has(token.norm) && !isAllDigits(token.norm));
+
+  if (!tokens.length) return undefined;
+
+  return tokens
+    .sort((a, b) => b.norm.length - a.norm.length || a.raw.localeCompare(b.raw))[0]
+    ?.raw;
+}
+
 type SlotThemesCacheEntry = {
   value: SlotThemesResult;
   expiresAt: number;
@@ -59,6 +74,7 @@ function buildSlotThemesCacheKey(params: {
   dayOfWeek: number;
   blockStartHour: number;
   categories: PlannerCategories;
+  preferredKeyword?: string;
 }) {
   const user = typeof params.userId === 'string' ? params.userId : params.userId.toString();
   const mode = String(process.env.PLANNER_THEMES_MODE || 'flex').toLowerCase();
@@ -75,6 +91,7 @@ function buildSlotThemesCacheKey(params: {
     model,
     temp,
     categories,
+    normalizePreferredKeyword(params.preferredKeyword) || '',
   ].join('|');
 }
 
@@ -410,6 +427,7 @@ async function computeThemesForSlot(
   dayOfWeek: number,
   blockStartHour: number,
   categories: PlannerCategories,
+  preferredKeyword?: string,
 ): Promise<SlotThemesResult> {
   const selected = {
     formatId: undefined,
@@ -455,10 +473,10 @@ async function computeThemesForSlot(
   const weak = kwByFreq ? (GENERIC_WEAK.has(normalizeToken(kwByFreq)) || normalizeToken(kwByFreq).length < 3) : true;
 
   // 2b) Se não repetiu pelo menos 2 legendas OU ficou fraco/genérico → tenta IA (1 palavra)
-  let keyword = kwByFreq || '';
+  let keyword = normalizePreferredKeyword(preferredKeyword) || kwByFreq || '';
   if (!kwByFreq || topCount < 2 || weak) {
     const aiKw = await aiSummarizeKeyword({ captions: caps, categories, forbidden: Array.from(excludeTokens) });
-    if (aiKw) keyword = aiKw;
+    if (aiKw && !normalizePreferredKeyword(preferredKeyword)) keyword = aiKw;
   }
 
   // 2c) Fallback final: categorias
@@ -486,9 +504,10 @@ export async function getThemesForSlot(
   dayOfWeek: number,
   blockStartHour: number,
   categories: PlannerCategories,
+  preferredKeyword?: string,
 ): Promise<SlotThemesResult> {
   if (THEMES_CACHE_TTL_MS <= 0) {
-    return computeThemesForSlot(userId, periodDays, dayOfWeek, blockStartHour, categories);
+    return computeThemesForSlot(userId, periodDays, dayOfWeek, blockStartHour, categories, preferredKeyword);
   }
 
   const nowTs = Date.now();
@@ -498,6 +517,7 @@ export async function getThemesForSlot(
     dayOfWeek,
     blockStartHour,
     categories,
+    preferredKeyword,
   });
 
   const cached = slotThemesCache.get(cacheKey);
@@ -515,7 +535,7 @@ export async function getThemesForSlot(
     return cloneSlotThemesResult(value);
   }
 
-  const promise = computeThemesForSlot(userId, periodDays, dayOfWeek, blockStartHour, categories)
+  const promise = computeThemesForSlot(userId, periodDays, dayOfWeek, blockStartHour, categories, preferredKeyword)
     .then((value) => {
       const stored = cloneSlotThemesResult(value);
       slotThemesCache.set(cacheKey, {

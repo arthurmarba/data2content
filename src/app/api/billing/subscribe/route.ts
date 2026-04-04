@@ -43,6 +43,27 @@ function getPriceId(plan: Plan, currency: Currency) {
   throw new Error("PriceId não configurado para este plano/moeda");
 }
 
+function resolveCheckoutRedirectUrl(
+  rawValue: unknown,
+  options: { appBaseUrl: string; fallbackPath: string }
+) {
+  const fallbackUrl = new URL(options.fallbackPath, options.appBaseUrl).toString();
+  if (typeof rawValue !== "string" || rawValue.trim().length === 0) {
+    return fallbackUrl;
+  }
+
+  try {
+    const requestedUrl = new URL(rawValue, options.appBaseUrl);
+    const allowedOrigin = new URL(options.appBaseUrl).origin;
+    if (requestedUrl.origin !== allowedOrigin) {
+      return fallbackUrl;
+    }
+    return requestedUrl.toString();
+  } catch {
+    return fallbackUrl;
+  }
+}
+
 function buildIdempotencyKey(params: {
   scope: "sub_create" | "checkout_session";
   userId: string;
@@ -623,8 +644,15 @@ export async function POST(req: NextRequest) {
         await stripe.subscriptions.cancel(sub.id);
       } catch { /* noop */ }
 
-      const successUrl = `${process.env.NEXTAUTH_URL}/dashboard/billing/thanks?session_id={CHECKOUT_SESSION_ID}`;
-      const cancelUrl = `${process.env.NEXTAUTH_URL}/dashboard/billing`;
+      const appBaseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin;
+      const successUrl = resolveCheckoutRedirectUrl(body.successUrl, {
+        appBaseUrl,
+        fallbackPath: "/billing/success?session_id={CHECKOUT_SESSION_ID}",
+      });
+      const cancelUrl = resolveCheckoutRedirectUrl(body.cancelUrl, {
+        appBaseUrl,
+        fallbackPath: "/dashboard/billing",
+      });
 
       const sessionCheckout = await stripe.checkout.sessions.create({
         mode: "subscription",

@@ -37,6 +37,7 @@ describe('GET /api/v1/users/[userId]/videos/list', () => {
     expect(res.status).toBe(200);
     expect(body.posts).toEqual([expect.objectContaining({ id: 1 })]);
     expect(body.pagination.totalPosts).toBe(3);
+    expect(body.pagination.hasMore).toBe(false);
     expect(mockFindUserPosts).toHaveBeenCalledWith(expect.objectContaining({
       userId,
       timePeriod: 'last_90_days',
@@ -44,6 +45,7 @@ describe('GET /api/v1/users/[userId]/videos/list', () => {
       sortOrder: 'desc',
       page: 1,
       limit: 10,
+      surface: 'full',
       filters: expect.objectContaining({
         source: undefined,
       }),
@@ -68,6 +70,7 @@ describe('GET /api/v1/users/[userId]/videos/list', () => {
       sortOrder: 'desc',
       page: 1,
       limit: 10,
+      surface: 'full',
       filters: expect.objectContaining({
         source: undefined,
       }),
@@ -86,6 +89,7 @@ describe('GET /api/v1/users/[userId]/videos/list', () => {
     await GET(req, { params: { userId } });
 
     expect(mockFindUserPosts).toHaveBeenCalledWith(expect.objectContaining({
+      surface: 'full',
       filters: expect.objectContaining({
         source: 'api',
         types: ['REEL', 'VIDEO'],
@@ -105,6 +109,7 @@ describe('GET /api/v1/users/[userId]/videos/list', () => {
     await GET(req, { params: { userId } });
 
     expect(mockFindUserPosts).toHaveBeenCalledWith(expect.objectContaining({
+      surface: 'full',
       filters: expect.objectContaining({
         references: 'city',
       }),
@@ -123,9 +128,37 @@ describe('GET /api/v1/users/[userId]/videos/list', () => {
     await GET(req, { params: { userId } });
 
     expect(mockFindUserPosts).toHaveBeenCalledWith(expect.objectContaining({
+      surface: 'full',
       filters: expect.objectContaining({
         durationBucket: '30_60',
       }),
+    }));
+  });
+
+  it('uses board surface to skip heavy pagination work when requested by board consumers', async () => {
+    mockFindUserPosts.mockResolvedValueOnce({
+      posts: [{ id: 1 }],
+      totalPosts: 11,
+      page: 1,
+      limit: 10,
+      hasMore: true,
+      countMode: 'estimated',
+    });
+
+    const req = createRequest(userId, '?surface=board');
+    const res = await GET(req, { params: { userId } });
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.pagination).toEqual(expect.objectContaining({
+      currentPage: 1,
+      totalPages: 2,
+      totalPosts: 11,
+      hasMore: true,
+      countMode: 'estimated',
+    }));
+    expect(mockFindUserPosts).toHaveBeenCalledWith(expect.objectContaining({
+      surface: 'board',
     }));
   });
 

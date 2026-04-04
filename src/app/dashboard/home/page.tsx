@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default function DashboardHomeEntryPoint() {
   return (
-    <main className="w-full">
+    <main className="flex h-full min-h-0 w-full flex-col overflow-hidden">
       <HomeClientPage />
     </main>
   );

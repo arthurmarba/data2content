@@ -1,7 +1,13 @@
 import { signIn } from "next-auth/react";
 import { track } from "@/lib/track";
 
-export type InstagramReconnectNextTarget = "chat" | "media-kit" | "instagram-connection";
+export type InstagramReconnectNextTarget =
+  | "calculator"
+  | "chat"
+  | "media-kit"
+  | "instagram-connection"
+  | "planner"
+  | "campaigns";
 
 type StartInstagramReconnectOptions = {
   nextTarget: InstagramReconnectNextTarget;

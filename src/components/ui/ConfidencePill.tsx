@@ -8,11 +8,15 @@ export interface ConfidencePillProps {
 
 export default function ConfidencePill({ confidence = 0, n, className = '' }: ConfidencePillProps) {
   const level = confidence >= 0.75 ? 'alta' : confidence >= 0.45 ? 'média' : 'baixa';
-  const color = level === 'alta' ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : level === 'média' ? 'text-amber-700 bg-amber-50 border-amber-200' : 'text-gray-700 bg-gray-50 border-gray-200';
+  const color =
+    level === 'alta'
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      : level === 'média'
+        ? 'border-amber-200 bg-amber-50 text-amber-700'
+        : 'border-zinc-200 bg-zinc-100 text-zinc-600';
   return (
-    <span className={`inline-flex items-center gap-1 border rounded-full px-2 py-0.5 text-xs ${color} ${className}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${color} ${className}`}>
       Confiança: {level}{typeof n === 'number' ? ` · n=${n}` : ''}
     </span>
   );
 }
-

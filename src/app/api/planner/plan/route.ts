@@ -10,6 +10,7 @@ import { resolveTargetPlannerUser } from '@/app/lib/planner/access';
 import { invalidatePlannerRecommendationMemory } from '@/app/lib/planner/recommendationMemoryCache';
 import { PLANNER_PLAN_READ_PROJECTION } from '@/app/lib/planner/planProjection';
 import { syncLinkedScriptsFromPlannerPlan } from '@/app/lib/scripts/scriptSync';
+import { invalidateScriptsListCacheForUser } from '@/app/lib/scripts/scriptsListCache';
 
 import { Types } from 'mongoose';
 import { getCategoryByValue } from '@/app/lib/classification';
@@ -437,6 +438,7 @@ export async function POST(request: Request) {
       weekStart,
       slots: Array.isArray(upserted?.slots) ? upserted.slots : [],
     });
+    invalidateScriptsListCacheForUser(effectiveUserId);
 
     return NextResponse.json({ ok: true, plan: upserted, weekStart });
   } catch (err) {

@@ -1,17 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import BillingSubscribeModal from "@/app/dashboard/billing/BillingSubscribeModal";
 import { useFeatureFlag } from "@/app/context/FeatureFlagsContext";
+import { startGoogleSignInForPaywall } from "@/app/lib/paywall/startGoogleSignInForPaywall";
 import type { PaywallContext, PaywallEventDetail } from "@/types/paywall";
-import { PAYWALL_RETURN_STORAGE_KEY } from "@/types/paywall";
+import {
+  ACTIVATION_JOURNEY_STORAGE_KEY,
+  PAYWALL_AUTOSTART_PARAM,
+  PAYWALL_CONTEXT_PARAM,
+  PAYWALL_RETURN_STORAGE_KEY,
+  PAYWALL_URL_PARAM,
+} from "@/types/paywall";
 
 const ALLOWED_CONTEXTS: PaywallContext[] = [
   "default",
   "reply_email",
   "ai_analysis",
   "calculator",
+  "mentoria",
+  "media_kit",
+  "publis",
   "planning",
   "whatsapp",
 ];
@@ -19,9 +30,16 @@ const ALLOWED_CONTEXTS: PaywallContext[] = [
 export default function PaywallModalProvider() {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const { status: sessionStatus } = useSession();
   const { enabled: paywallModalEnabled } = useFeatureFlag("paywall.modal_enabled", true);
   const [isOpen, setIsOpen] = useState(false);
   const [context, setContext] = useState<PaywallContext>("default");
+  const shouldResumeCheckoutDirect =
+    Boolean(paywallModalEnabled) &&
+    sessionStatus === "authenticated" &&
+    searchParams?.get(PAYWALL_URL_PARAM) === "1" &&
+    searchParams?.get(PAYWALL_AUTOSTART_PARAM) === "1";
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -30,35 +48,60 @@ export default function PaywallModalProvider() {
       const normalizedContext = ALLOWED_CONTEXTS.includes(ctxCandidate)
         ? ctxCandidate
         : "default";
+      const rawReturn = typeof detail?.returnTo === "string" ? detail.returnTo : null;
+      const sanitizedReturn =
+        rawReturn && rawReturn.startsWith("/") && !rawReturn.startsWith("//")
+          ? rawReturn
+          : null;
+      const proposalId =
+        typeof detail?.proposalId === "string" && detail.proposalId.trim().length > 0
+          ? detail.proposalId.trim()
+          : null;
 
       setContext(normalizedContext);
 
       if (typeof window !== "undefined") {
-        const rawReturn = typeof detail?.returnTo === "string" ? detail.returnTo : null;
-        const sanitizedReturn =
-          rawReturn && rawReturn.startsWith("/") && !rawReturn.startsWith("//")
-            ? rawReturn
-            : null;
-        const proposalId =
-          typeof detail?.proposalId === "string" && detail.proposalId.trim().length > 0
-            ? detail.proposalId.trim()
-            : null;
-
-        if (sanitizedReturn || proposalId) {
-          try {
-            window.sessionStorage.setItem(
-              PAYWALL_RETURN_STORAGE_KEY,
-              JSON.stringify({
-                context: normalizedContext,
-                returnTo: sanitizedReturn,
-                proposalId,
-                ts: Date.now(),
-              })
-            );
-          } catch {
-            /* storage failures are non-fatal */
-          }
+        try {
+          window.sessionStorage.setItem(
+            PAYWALL_RETURN_STORAGE_KEY,
+            JSON.stringify({
+              context: normalizedContext,
+              source: typeof detail?.source === "string" ? detail.source : null,
+              returnTo: sanitizedReturn,
+              proposalId,
+              ts: Date.now(),
+            })
+          );
+        } catch {
+          /* storage failures are non-fatal */
         }
+
+        try {
+          window.localStorage.setItem(
+            ACTIVATION_JOURNEY_STORAGE_KEY,
+            JSON.stringify({
+              context: normalizedContext,
+              source: typeof detail?.source === "string" ? detail.source : null,
+              returnTo: sanitizedReturn,
+              ts: Date.now(),
+            })
+          );
+        } catch {
+          /* storage failures are non-fatal */
+        }
+      }
+
+      if (sessionStatus === "unauthenticated") {
+        void startGoogleSignInForPaywall({
+          context: normalizedContext,
+          source: typeof detail?.source === "string" ? detail.source : "paywall_modal",
+          returnTo:
+            sanitizedReturn ??
+            (typeof window !== "undefined"
+              ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+              : "/"),
+        });
+        return;
       }
 
       if (paywallModalEnabled) {
@@ -70,13 +113,30 @@ export default function PaywallModalProvider() {
 
     window.addEventListener("open-subscribe-modal" as any, handler);
     return () => window.removeEventListener("open-subscribe-modal" as any, handler);
-  }, [paywallModalEnabled, router]);
+  }, [paywallModalEnabled, router, sessionStatus]);
 
   useEffect(() => {
     if (!paywallModalEnabled && isOpen) {
       setIsOpen(false);
     }
   }, [paywallModalEnabled, isOpen]);
+
+  useEffect(() => {
+    if (!paywallModalEnabled) return;
+    if (!searchParams || searchParams.get(PAYWALL_URL_PARAM) !== "1") return;
+
+    const ctxCandidate = (searchParams.get(PAYWALL_CONTEXT_PARAM) ?? "default") as PaywallContext;
+    const normalizedContext = ALLOWED_CONTEXTS.includes(ctxCandidate)
+      ? ctxCandidate
+      : "default";
+
+    setContext(normalizedContext);
+    if (searchParams.get(PAYWALL_AUTOSTART_PARAM) === "1" && sessionStatus === "authenticated") {
+      setIsOpen(false);
+      return;
+    }
+    setIsOpen(true);
+  }, [paywallModalEnabled, searchParams, sessionStatus]);
 
   // Fecha o modal ao mudar de rota (ex: redirecionamento para checkout)
   useEffect(() => {
@@ -88,6 +148,11 @@ export default function PaywallModalProvider() {
   }
 
   return (
-    <BillingSubscribeModal open={isOpen} onClose={() => setIsOpen(false)} context={context} />
+    <BillingSubscribeModal
+      open={isOpen}
+      onClose={() => setIsOpen(false)}
+      context={context}
+      resumeCheckoutDirect={shouldResumeCheckoutDirect}
+    />
   );
 }

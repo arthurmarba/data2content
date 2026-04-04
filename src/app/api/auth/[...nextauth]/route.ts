@@ -48,6 +48,13 @@ import {
   INSTAGRAM_RECONNECT_FLOW_COOKIE_NAME,
   normalizeInstagramReconnectFlowId,
 } from "@/app/lib/instagram/reconnectFlow";
+import {
+  COMMUNITY_INSPIRATION_TERMS_VERSION,
+  hasCurrentLegalAcceptance,
+  LEGAL_CONSENT_COOKIE_NAME,
+  PRIVACY_POLICY_VERSION,
+  SERVICE_TERMS_VERSION,
+} from "@/lib/auth/legalConsent";
 
 // --- AUGMENT NEXT-AUTH TYPES ---
 declare module "next-auth" {
@@ -242,7 +249,6 @@ type SessionRevalidationCacheEntry = {
 console.log("--- SERVER START --- NEXTAUTH_URL:", process.env.NEXTAUTH_URL);
 export const runtime = "nodejs";
 
-const DEFAULT_TERMS_VERSION = "1.0_community_included";
 const FACEBOOK_LINK_COOKIE_NAME = "auth-link-token";
 const MAX_TOKEN_AGE_BEFORE_REFRESH_MINUTES = 60; // 1 hour
 const DEV_E2E_USER_ID = "00000000000000000000e2e1";
@@ -281,6 +287,39 @@ function pruneSessionRevalidationCache(nowTs: number) {
       cache.delete(key);
     }
   }
+}
+
+function buildTermsConsentRequiredRedirect(cookieStore: ReturnType<typeof cookies>) {
+  const callbackUrl = cookieStore.get(buildAuthCookieName("callback-url", "__Secure-"))?.value;
+
+  if (!callbackUrl) {
+    return "/login?error=TermsConsentRequired";
+  }
+
+  return `/login?error=TermsConsentRequired&callbackUrl=${encodeURIComponent(callbackUrl)}`;
+}
+
+function applyRecordedLegalAcceptance(userRecord: IUser, acceptedAt: Date) {
+  let changed = false;
+
+  if (
+    !userRecord.serviceTermsAcceptedAt ||
+    userRecord.serviceTermsVersion !== SERVICE_TERMS_VERSION
+  ) {
+    userRecord.serviceTermsAcceptedAt = acceptedAt;
+    userRecord.serviceTermsVersion = SERVICE_TERMS_VERSION;
+    changed = true;
+  }
+  if (
+    !userRecord.privacyPolicyAcceptedAt ||
+    userRecord.privacyPolicyVersion !== PRIVACY_POLICY_VERSION
+  ) {
+    userRecord.privacyPolicyAcceptedAt = acceptedAt;
+    userRecord.privacyPolicyVersion = PRIVACY_POLICY_VERSION;
+    changed = true;
+  }
+
+  return changed;
 }
 
 function applySessionRevalidationSnapshot(
@@ -324,14 +363,36 @@ function applySessionRevalidationSnapshot(
   if (snapshot.image) session.user.image = snapshot.image;
 }
 
-function getDevE2EIdentity() {
-  if (process.env.NODE_ENV === "production" && !ALLOW_LOCAL_E2E_CREDENTIALS) return null;
-  const email = process.env.E2E_EMAIL?.trim();
-  if (!email) return null;
-  return {
-    id: process.env.E2E_USER_ID?.trim() || DEV_E2E_USER_ID,
-    email,
-  };
+type DevE2EIdentity = {
+  id: string;
+  email: string;
+  planStatus: "active" | "inactive";
+  proTrialStatus: ProTrialState | null;
+};
+
+function getDevE2EIdentities(): DevE2EIdentity[] {
+  if (process.env.NODE_ENV === "production" && !ALLOW_LOCAL_E2E_CREDENTIALS) return [];
+  const identities: DevE2EIdentity[] = [];
+  const proEmail = process.env.E2E_EMAIL?.trim();
+  if (proEmail) {
+    identities.push({
+      id: process.env.E2E_USER_ID?.trim() || DEV_E2E_USER_ID,
+      email: proEmail,
+      planStatus: "active",
+      proTrialStatus: "active",
+    });
+  }
+
+  const freeEmail =
+    process.env.E2E_FREE_EMAIL?.trim() || "e2e.free.user@data2content.test";
+  identities.push({
+    id: process.env.E2E_FREE_USER_ID?.trim() || "00000000000000000000e2e2",
+    email: freeEmail,
+    planStatus: "inactive",
+    proTrialStatus: null,
+  });
+
+  return identities;
 }
 
 function isDevE2EIdentity(params: {
@@ -339,32 +400,35 @@ function isDevE2EIdentity(params: {
   email?: string | null;
   provider?: string | null;
 }) {
-  const identity = getDevE2EIdentity();
-  if (!identity) return false;
+  const identities = getDevE2EIdentities();
+  if (!identities || identities.length === 0) return false;
   if (params.provider && params.provider !== "credentials") return false;
-  return params.id === identity.id || params.email === identity.email;
+  return identities.some((identity) => params.id === identity.id || params.email === identity.email);
 }
 
 function resolveDevE2ECredentialsUser(credentials: { email?: string | null; password?: string | null }) {
-  const identity = getDevE2EIdentity();
-  if (!identity) return null;
+  const identities = getDevE2EIdentities();
+  if (!identities || identities.length === 0) return null;
   const expectedPassword = process.env.E2E_PASSWORD?.trim();
   const providedEmail = credentials.email?.trim();
   const providedPassword = credentials.password?.trim();
 
   if (!expectedPassword) return null;
-  if (providedEmail !== identity.email || providedPassword !== expectedPassword) return null;
+  if (providedPassword !== expectedPassword) return null;
+
+  const identity = identities.find((candidate) => candidate.email === providedEmail);
+  if (!identity) return null;
 
   return {
     id: identity.id,
-    name: "E2E Test User",
+    name: identity.planStatus === "inactive" ? "E2E Free User" : "E2E Test User",
     email: identity.email,
     image: null,
     role: "user",
     agency: null,
     provider: "credentials",
-    planStatus: "active",
-    proTrialStatus: "active",
+    planStatus: identity.planStatus,
+    proTrialStatus: identity.proTrialStatus,
   } as NextAuthUserArg;
 }
 
@@ -703,9 +767,11 @@ const authOptionsConfig = {
         await connectToDatabase();
         let dbUserRecord: IUser | null = null;
         let isNewUser = false;
+        const cookieStore = cookies();
+        const hasLegalConsentCookie =
+          cookieStore.get(LEGAL_CONSENT_COOKIE_NAME)?.value === "1";
 
         if (provider === "facebook") {
-          const cookieStore = cookies();
           const linkTokenFromCookie = cookieStore.get(FACEBOOK_LINK_COOKIE_NAME)?.value;
           const reconnectFlowIdFromCookie = normalizeInstagramReconnectFlowId(
             cookieStore.get(INSTAGRAM_RECONNECT_FLOW_COOKIE_NAME)?.value
@@ -944,12 +1010,19 @@ const authOptionsConfig = {
           if (!dbUserRecord && currentEmailFromProvider) {
             const userByEmail = await DbUser.findOne({ email: currentEmailFromProvider }).exec();
             if (userByEmail) {
+              if (!hasCurrentLegalAcceptance(userByEmail) && !hasLegalConsentCookie) {
+                logger.warn(`${TAG_SIGNIN} [Google] Vinculação bloqueada por ausência de aceite legal explícito para email=${currentEmailFromProvider}.`);
+                return buildTermsConsentRequiredRedirect(cookieStore);
+              }
               logger.info(`${TAG_SIGNIN} [Google] Usuário existente ${userByEmail._id} por email. Vinculando Google ID ${providerAccountId}.`);
               dbUserRecord = userByEmail;
               dbUserRecord.provider = provider;
               dbUserRecord.providerAccountId = providerAccountId;
               if (nameFromProvider && nameFromProvider !== dbUserRecord.name) dbUserRecord.name = nameFromProvider;
-              if (imageFromProvider && imageFromProvider !== dbUserRecord.image) dbUserRecord.image = imageFromProvider;
+              if (imageFromProvider) {
+                if (imageFromProvider !== dbUserRecord.providerImage) dbUserRecord.providerImage = imageFromProvider;
+                if (imageFromProvider !== dbUserRecord.image) dbUserRecord.image = imageFromProvider;
+              }
               if (dbUserRecord.name && dbUserRecord.name.trim() === "") {
                 dbUserRecord.name = currentEmailFromProvider.split("@")[0];
               }
@@ -962,22 +1035,32 @@ const authOptionsConfig = {
               logger.error(`${TAG_SIGNIN} [Google] Email ausente ao CRIAR novo utilizador Google.`);
               return false;
             }
+            if (!hasLegalConsentCookie) {
+              logger.warn(`${TAG_SIGNIN} [Google] Tentativa de criar usuário sem aceite explícito dos termos.`);
+              return buildTermsConsentRequiredRedirect(cookieStore);
+            }
             logger.info(`${TAG_SIGNIN} [Google] Criando NOVO utilizador para ${currentEmailFromProvider}…`);
 
             const finalNameForNewUser = nameFromProvider?.trim() || currentEmailFromProvider.split("@")[0];
+            const acceptedAt = new Date();
 
             const newUserInDb = new DbUser({
               name: finalNameForNewUser,
               email: currentEmailFromProvider,
               image: imageFromProvider,
+              providerImage: imageFromProvider,
               provider,
               providerAccountId,
               role: "user",
               isNewUserForOnboarding: true,
               onboardingCompletedAt: null,
-              communityInspirationOptIn: true,
-              communityInspirationOptInDate: new Date(),
-              communityInspirationTermsVersion: DEFAULT_TERMS_VERSION,
+              serviceTermsAcceptedAt: acceptedAt,
+              serviceTermsVersion: SERVICE_TERMS_VERSION,
+              privacyPolicyAcceptedAt: acceptedAt,
+              privacyPolicyVersion: PRIVACY_POLICY_VERSION,
+              communityInspirationOptIn: false,
+              communityInspirationOptInDate: null,
+              communityInspirationTermsVersion: COMMUNITY_INSPIRATION_TERMS_VERSION,
               isInstagramConnected: false,
               planStatus: "inactive",
             });
@@ -985,11 +1068,27 @@ const authOptionsConfig = {
             isNewUser = true;
             logger.info(`${TAG_SIGNIN} [Google] Novo utilizador _id='${dbUserRecord._id}'. AffiliateCode: ${dbUserRecord.affiliateCode}`);
           }
+
+          if (
+            dbUserRecord &&
+            !hasCurrentLegalAcceptance(dbUserRecord) &&
+            !hasLegalConsentCookie
+          ) {
+            logger.warn(`${TAG_SIGNIN} [Google] Login bloqueado por ausência de aceite legal explícito para userId=${dbUserRecord._id}.`);
+            return buildTermsConsentRequiredRedirect(cookieStore);
+          }
+
+          if (dbUserRecord && hasLegalConsentCookie) {
+            const acceptedAt = new Date();
+            if (applyRecordedLegalAcceptance(dbUserRecord, acceptedAt)) {
+              await dbUserRecord.save();
+            }
+            cookieStore.delete(LEGAL_CONSENT_COOKIE_NAME);
+          }
         }
 
         if (dbUserRecord) {
           try {
-            const cookieStore = cookies();
             const ref = cookieStore.get("d2c_ref")?.value;
             if (ref && !dbUserRecord.affiliateUsed) {
               if (!dbUserRecord.affiliateCode || dbUserRecord.affiliateCode !== ref) {

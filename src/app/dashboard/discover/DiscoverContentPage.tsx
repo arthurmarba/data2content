@@ -5,6 +5,11 @@ import {
   buildDiscoverSearchParams,
   buildDiscoverSelectedFromParams,
 } from "@/app/discover/components/discoverFilterState";
+import Board from "@/app/dashboard/components/Board";
+import DiscoverBoard from "./DiscoverBoard";
+import CommunityConversionSection from "./CommunityConversionSection";
+import type { DiscoverSection } from "./discoverFeedUtils";
+import { DISCOVER_MAX_POST_AGE_DAYS } from "./discoverFeedUtils";
 
 const DiscoverViewTracker = NextDynamic(
   () => import("../../discover/components/DiscoverViewTracker"),
@@ -14,54 +19,12 @@ const DiscoverHeaderConfigurator = NextDynamic(
   () => import("./DiscoverHeaderConfigurator"),
   { ssr: false }
 );
-const DiscoverActionBar = NextDynamic(() => import("./DiscoverActionBar"), { ssr: false });
-const DiscoverExplorerSection = NextDynamic(
-  () => import("./DiscoverExplorerSection"),
-  { ssr: false }
-);
-
 export const dynamic = "force-dynamic";
-
-const MAX_POST_AGE_DAYS = 80;
-const MAX_POST_AGE_MS = MAX_POST_AGE_DAYS * 24 * 60 * 60 * 1000;
 const LIST_SAMPLE_SIZE = 24;
 
-type PostCard = {
-  id: string;
-  coverUrl?: string | null;
-  videoUrl?: string;
-  mediaType?: string;
-  isVideo?: boolean;
-  caption?: string;
-  postDate?: string;
-  creatorName?: string;
-  postLink?: string;
-  stats?: {
-    total_interactions?: number;
-    likes?: number;
-    comments?: number;
-    shares?: number;
-    views?: number;
-  };
-  categories?: {
-    format?: string[];
-    proposal?: string[];
-    context?: string[];
-    tone?: string[];
-    references?: string[];
-    contentIntent?: string[];
-    narrativeForm?: string[];
-    contentSignals?: string[];
-    stance?: string[];
-    proofStyle?: string[];
-    commercialMode?: string[];
-  };
-};
-
-type Section = { key: string; title: string; items: PostCard[] };
 type FeedOk = {
   ok: true;
-  sections: Section[];
+  sections: DiscoverSection[];
   allowedPersonalized: boolean;
   capabilities?: { hasReels?: boolean; hasDuration?: boolean; hasSaved?: boolean };
 };
@@ -92,7 +55,7 @@ async function fetchFeed(qs?: string): Promise<FeedOk | FeedErr> {
     if (!data?.ok) return { ok: false as const, status: 500 } as FeedErr;
     return {
       ok: true as const,
-      sections: (data.sections || []) as Section[],
+      sections: (data.sections || []) as DiscoverSection[],
       allowedPersonalized: Boolean(data.allowedPersonalized),
     } as FeedOk;
   } catch {
@@ -134,7 +97,7 @@ export default async function DiscoverContentPage({
     params.set("videoOnly", "1");
   }
   params.set("limitPerRow", String(LIST_SAMPLE_SIZE));
-  params.set("days", String(MAX_POST_AGE_DAYS));
+  params.set("days", String(DISCOVER_MAX_POST_AGE_DAYS));
   const qs = params.toString();
 
   const result = await fetchFeed(qs).catch(
@@ -153,15 +116,34 @@ export default async function DiscoverContentPage({
         </a>
       );
     } else if (status === 403) {
-      title = "Ative seu plano para acessar a Comunidade.";
-      hint = (
-        <a href="/settings/billing" className="text-brand-pink underline">
-          Gerir Assinatura
-        </a>
+      return (
+        <main className="mx-auto flex h-full min-h-0 w-full flex-col bg-[radial-gradient(120%_36%_at_50%_0%,rgba(255,255,255,0.95),rgba(243,244,246,0.98)_52%,rgba(243,244,246,1)_100%)] px-0 sm:px-6 lg:bg-none lg:px-8 lg:pb-5 lg:pt-[2.75rem]">
+          <DiscoverHeaderConfigurator />
+          <div className="relative mx-auto flex h-full min-h-0 w-full max-w-[1640px] flex-col overflow-hidden">
+            <Board
+              title="Comunidade"
+              promoteHeaderOnMobile
+              mobilePresentation="flat"
+              variant="card"
+              desktopWidthClassName="lg:max-w-[1640px]"
+              showChevron={false}
+              showOptions={false}
+              className="h-full"
+              contentClassName="bg-transparent lg:bg-[linear-gradient(180deg,rgba(255,255,255,0.26),rgba(248,248,249,0.72))]"
+            >
+              <div className="space-y-4 p-4 sm:p-5">
+                <CommunityConversionSection teaserMode />
+                <div className="dashboard-empty-state rounded-[1.35rem] border border-dashed border-zinc-200/80 px-4 py-5 text-sm text-zinc-500">
+                  Ative seu plano para liberar as coleções completas da Comunidade e usar as referências em tempo real no board.
+                </div>
+              </div>
+            </Board>
+          </div>
+        </main>
       );
     }
     return (
-      <main className="dashboard-page-shell py-8">
+      <main className="dashboard-page-shell py-4 lg:h-full lg:min-h-0">
         <h1 className="text-2xl font-semibold text-gray-900">Comunidade</h1>
         <p className="mt-2 text-gray-600">
           {title} {hint}
@@ -170,54 +152,13 @@ export default async function DiscoverContentPage({
     );
   }
 
-  const { sections, allowedPersonalized } = result as FeedOk;
-
-  const blockedTitles = new Set<string>([
-    "Tendências: Humor e Cena",
-    "Tendências: Dicas e Tutoriais",
-    "Tendências: Moda e Beleza",
-    "Horários quentes",
-    "Recomendados para você",
-  ]);
-  const visibleSections = (sections || []).filter(
-    (s) => !blockedTitles.has((s.title || "").trim())
-  );
-
-  const cutoffTimestamp = Date.now() - MAX_POST_AGE_MS;
-  const recencyFilteredSections = visibleSections.map((section) => {
-    const filteredItems = (section.items || []).filter((item) => {
-      if (!item.postDate) return false;
-      const timestamp = new Date(item.postDate).getTime();
-      if (Number.isNaN(timestamp)) return false;
-      return timestamp >= cutoffTimestamp;
-    });
-    return { ...section, items: filteredItems };
-  });
-
-  const primaryCandidateKeys = ["user_suggested", "personalized", "recommended"];
-  const featuredSection =
-    recencyFilteredSections.find((section) => primaryCandidateKeys.includes(section.key)) ||
-    recencyFilteredSections[0] ||
-    null;
-  const secondarySections = featuredSection
-    ? recencyFilteredSections.filter((section) => section.key !== featuredSection.key)
-    : recencyFilteredSections;
-  const totalIdeas = recencyFilteredSections.reduce(
-    (acc, section) => acc + (section.items?.length ?? 0),
-    0
-  );
-  const exploredLabel = totalIdeas > 0 ? Math.min(totalIdeas, 48) : 0;
-
   return (
-    <main className="w-full pb-24">
+    <main className="mx-auto flex h-full min-h-0 w-full flex-col bg-[radial-gradient(120%_36%_at_50%_0%,rgba(255,255,255,0.95),rgba(243,244,246,0.98)_52%,rgba(243,244,246,1)_100%)] px-0 sm:px-6 lg:bg-none lg:px-8 lg:pb-5 lg:pt-[2.75rem]">
       <DiscoverHeaderConfigurator />
       <DiscoverViewTracker />
 
-      <div className="dashboard-page-shell space-y-8 py-6 sm:py-8">
-        <DiscoverActionBar allowedPersonalized={allowedPersonalized} />
-
-        <DiscoverExplorerSection sections={secondarySections} primaryKey={featuredSection?.key} />
-
+      <div className="relative mx-auto flex h-full min-h-0 w-full max-w-[1640px] flex-col overflow-hidden">
+        <DiscoverBoard mobileAppView showTitleMarker={false} />
       </div>
     </main>
   );

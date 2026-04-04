@@ -3,11 +3,13 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Lock } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { ArrowUpRight, ChevronDown, Copy } from 'lucide-react';
 
 import { useToast } from '@/app/components/ui/ToastA11yProvider';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { redirectToGoogleConsentLogin } from '@/lib/auth/googleLogin';
 import { track } from '@/lib/track';
 import { openPaywallModal } from '@/utils/paywallModal';
 import type { PaywallContext } from '@/types/paywall';
@@ -20,7 +22,6 @@ import type {
   ProposalSuggestionType,
 } from '@/types/proposals';
 
-import CampaignCard from './components/CampaignCard';
 import CampaignDetailView from './components/CampaignDetailView';
 import type {
   AnalysisViewMode,
@@ -193,11 +194,60 @@ function formatMoneyValue(value: number | null, currency: string): string {
   return currencyFormatter(currency || 'BRL').format(value);
 }
 
-function formatGapLabel(value: number | null): string {
-  if (typeof value !== 'number' || Number.isNaN(value)) return '—';
-  if (value === 0) return 'igual ao recomendado';
-  const abs = Math.abs(value).toFixed(1).replace('.', ',');
-  return `${abs}% ${value > 0 ? 'acima' : 'abaixo'} do recomendado`;
+function getDaysSince(value: string | null): number | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return Math.max(0, Math.floor((Date.now() - parsed.getTime()) / (1000 * 60 * 60 * 24)));
+}
+
+function getProposalMomentLabel(proposal: ProposalListItem): string {
+  if (proposal.status === 'respondido') {
+    return `Últ. resposta · ${formatDate(proposal.lastResponseAt)}`;
+  }
+  if (proposal.status === 'aceito') {
+    return `Fechada · ${formatDate(proposal.lastResponseAt || proposal.createdAt)}`;
+  }
+  if (proposal.status === 'rejeitado') {
+    return `Encerrada · ${formatDate(proposal.lastResponseAt || proposal.createdAt)}`;
+  }
+  return `Recebida · ${formatDate(proposal.createdAt)}`;
+}
+
+function getProposalUrgencyMeta(proposal: ProposalListItem): { label: string; textClassName: string; dotClassName: string } {
+  if (proposal.status === 'aceito') {
+    return { label: 'Fechada', textClassName: 'text-zinc-500', dotClassName: 'bg-zinc-400' };
+  }
+
+  if (proposal.status === 'rejeitado') {
+    return { label: 'Encerrada', textClassName: 'text-zinc-500', dotClassName: 'bg-zinc-400' };
+  }
+
+  if (proposal.budgetIntent === 'requested' && proposal.budget === null) {
+    return { label: 'Sem valor', textClassName: 'text-zinc-500', dotClassName: 'bg-zinc-400' };
+  }
+
+  const referenceDate = proposal.status === 'respondido' ? proposal.lastResponseAt || proposal.createdAt : proposal.createdAt;
+  const elapsedDays = getDaysSince(referenceDate);
+
+  if (proposal.status === 'respondido') {
+    if (elapsedDays !== null && elapsedDays >= 5) {
+      return { label: 'Retomar', textClassName: 'text-amber-700', dotClassName: 'bg-amber-500' };
+    }
+    if (elapsedDays !== null && elapsedDays >= 2) {
+      return { label: 'Acompanhar', textClassName: 'text-zinc-500', dotClassName: 'bg-zinc-400' };
+    }
+    return { label: 'Em dia', textClassName: 'text-zinc-500', dotClassName: 'bg-zinc-400' };
+  }
+
+  if (elapsedDays !== null && elapsedDays >= 3) {
+    return { label: 'Alta', textClassName: 'text-rose-600', dotClassName: 'bg-rose-500' };
+  }
+  if (elapsedDays !== null && elapsedDays >= 1) {
+    return { label: 'Média', textClassName: 'text-zinc-500', dotClassName: 'bg-zinc-400' };
+  }
+
+  return { label: 'Nova', textClassName: 'text-zinc-500', dotClassName: 'bg-zinc-400' };
 }
 
 function parseBudgetInput(value: string): number | null | undefined {
@@ -366,9 +416,124 @@ function summaryFromSnapshot(snapshot: ProposalAnalysisStoredSnapshot | null | u
   };
 }
 
-export default function ProposalsClient() {
+const PIPELINE_GROUPS: Array<{
+  key: InboxTab;
+  label: string;
+  emptyLabel: string;
+  statuses: ProposalStatus[];
+  dotClassName: string;
+  panelClassName: string;
+  contentClassName: string;
+  itemClassName: string;
+  pillClassName: string;
+  totalClassName: string;
+}> = [
+  {
+    key: 'incoming',
+    label: 'Novas Propostas',
+    emptyLabel: 'Nenhuma proposta recebida no momento.',
+    statuses: ['novo', 'visto'],
+    dotClassName: 'bg-rose-500',
+    panelClassName: 'border-slate-200',
+    contentClassName: 'bg-blue-50/20',
+    itemClassName: 'border-blue-200/80',
+    pillClassName: 'bg-zinc-100 text-zinc-500',
+    totalClassName: 'text-zinc-900',
+  },
+  {
+    key: 'negotiation',
+    label: 'Em Negociação',
+    emptyLabel: 'Nenhuma negociação aberta agora.',
+    statuses: ['respondido'],
+    dotClassName: 'bg-amber-400',
+    panelClassName: 'border-slate-200',
+    contentClassName: 'bg-amber-50/18',
+    itemClassName: 'border-amber-200/80',
+    pillClassName: 'bg-zinc-100 text-zinc-500',
+    totalClassName: 'text-zinc-900',
+  },
+  {
+    key: 'won',
+    label: 'Fechadas (Mês)',
+    emptyLabel: 'Nenhuma campanha fechada ainda.',
+    statuses: ['aceito'],
+    dotClassName: 'bg-emerald-500',
+    panelClassName: 'border-slate-200',
+    contentClassName: 'bg-emerald-50/18',
+    itemClassName: 'border-emerald-200/80',
+    pillClassName: 'bg-zinc-100 text-zinc-500',
+    totalClassName: 'text-zinc-900',
+  },
+  {
+    key: 'lost',
+    label: 'Perdidas',
+    emptyLabel: 'Nenhuma campanha perdida registrada.',
+    statuses: ['rejeitado'],
+    dotClassName: 'bg-zinc-300',
+    panelClassName: 'border-slate-200',
+    contentClassName: 'bg-zinc-50/22',
+    itemClassName: 'border-zinc-200/80',
+    pillClassName: 'bg-zinc-100 text-zinc-500',
+    totalClassName: 'text-zinc-900',
+  },
+];
+
+const COMPACT_PIPELINE_LIST_VISUALS: Record<
+  InboxTab,
+  {
+    headerChipClassName: string;
+    headerDotClassName: string;
+    rankBadgeClassName: string;
+    labelHoverClassName: string;
+    summaryClassName: string;
+    arrowClassName: string;
+  }
+> = {
+  incoming: {
+    headerChipClassName: 'bg-rose-50 text-rose-500 ring-1 ring-rose-100/90',
+    headerDotClassName: 'bg-rose-400',
+    rankBadgeClassName: 'bg-rose-50 text-rose-500',
+    labelHoverClassName: 'group-hover:text-rose-500 group-focus-visible:text-rose-500',
+    summaryClassName: 'text-rose-500',
+    arrowClassName: 'text-zinc-300 group-hover:text-rose-500 group-focus-visible:text-rose-500',
+  },
+  negotiation: {
+    headerChipClassName: 'bg-amber-50 text-amber-500 ring-1 ring-amber-100/90',
+    headerDotClassName: 'bg-amber-400',
+    rankBadgeClassName: 'bg-amber-50 text-amber-600',
+    labelHoverClassName: 'group-hover:text-amber-600 group-focus-visible:text-amber-600',
+    summaryClassName: 'text-amber-600',
+    arrowClassName: 'text-zinc-300 group-hover:text-amber-500 group-focus-visible:text-amber-500',
+  },
+  won: {
+    headerChipClassName: 'bg-emerald-50 text-emerald-500 ring-1 ring-emerald-100/90',
+    headerDotClassName: 'bg-emerald-400',
+    rankBadgeClassName: 'bg-emerald-50 text-emerald-600',
+    labelHoverClassName: 'group-hover:text-emerald-600 group-focus-visible:text-emerald-600',
+    summaryClassName: 'text-emerald-600',
+    arrowClassName: 'text-zinc-300 group-hover:text-emerald-500 group-focus-visible:text-emerald-500',
+  },
+  lost: {
+    headerChipClassName: 'bg-zinc-50 text-zinc-500 ring-1 ring-zinc-100/90',
+    headerDotClassName: 'bg-zinc-400',
+    rankBadgeClassName: 'bg-zinc-50 text-zinc-500',
+    labelHoverClassName: 'group-hover:text-zinc-600 group-focus-visible:text-zinc-600',
+    summaryClassName: 'text-zinc-400',
+    arrowClassName: 'text-zinc-300 group-hover:text-zinc-500 group-focus-visible:text-zinc-500',
+  },
+};
+
+const COMPACT_EMPTY_PREVIEW_HELPER_TEXT: Record<InboxTab, string> = {
+  incoming: 'As próximas propostas vão aparecer aqui.',
+  negotiation: 'Negociações ativas ficam organizadas nesta etapa.',
+  won: 'Campanhas fechadas entram aqui ao final do funil.',
+  lost: 'Campanhas perdidas ficam registradas aqui.',
+};
+
+export default function ProposalsClient({ compactView = false }: { compactView?: boolean }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { status: sessionStatus } = useSession();
   const { toast } = useToast();
   const billingStatus = useBillingStatus();
   const [, setLastViewedCampaignsAt] = useLocalStorage<string>(LAST_VIEWED_CAMPAIGNS_AT_KEY, '');
@@ -387,6 +552,12 @@ export default function ProposalsClient() {
 
   const [currentStep, setCurrentStep] = useState<CampaignsStep>('inbox');
   const [activeTab, setActiveTab] = useState<InboxTab>('incoming');
+  const [expandedSections, setExpandedSections] = useState<Record<InboxTab, boolean>>({
+    incoming: true,
+    negotiation: false,
+    won: false,
+    lost: false,
+  });
   const [analysisViewMode, setAnalysisViewMode] = useState<AnalysisViewMode>('summary');
   const [replyIntent, setReplyIntent] = useState<ReplyIntent>('accept');
 
@@ -414,16 +585,13 @@ export default function ProposalsClient() {
   const [activeLinkMutationId, setActiveLinkMutationId] = useState<string | null>(null);
 
   const [mediaKitUrl, setMediaKitUrl] = useState<string | null>(null);
-  const [isMediaKitLoading, setIsMediaKitLoading] = useState(true);
   const [isCopyingMediaKitLink, setIsCopyingMediaKitLink] = useState(false);
   const [isCopyingProposalFormLink, setIsCopyingProposalFormLink] = useState(false);
   const [proposalCopyFeedbackVisible, setProposalCopyFeedbackVisible] = useState(false);
-
   const [isMobile, setIsMobile] = useState(false);
 
   const notifiedProposalsRef = useRef<Set<string>>(new Set());
   const lockViewedRef = useRef(false);
-  const pendingScrollToDetailRef = useRef(false);
   const campaignLinksCacheRef = useRef<Map<string, CampaignLinkItem[]>>(new Map());
   const linkableAssetsCacheRef = useRef<{
     isLoaded: boolean;
@@ -435,10 +603,7 @@ export default function ProposalsClient() {
     publis: [],
   });
 
-  const analyzeButtonRef = useRef<HTMLButtonElement | null>(null);
   const replyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const sendReplyButtonRef = useRef<HTMLButtonElement | null>(null);
-  const detailSectionRef = useRef<HTMLDivElement | null>(null);
   const proposalCopyFeedbackTimerRef = useRef<number | null>(null);
 
   const hasProAccess = Boolean(billingStatus.hasPremiumAccess);
@@ -464,7 +629,7 @@ export default function ProposalsClient() {
     toast({
       variant: 'info',
       title: 'Recurso exclusivo do Plano Pro',
-      description: 'Responder pela plataforma faz parte do Plano Pro.',
+      description: 'A IA de negociação faz parte do Plano Pro. A resposta manual continua liberada.',
     });
   }, [toast]);
 
@@ -561,7 +726,7 @@ export default function ProposalsClient() {
       return payload?.url ?? payload?.publicUrl ?? null;
     };
 
-    let link = mediaKitUrl;
+    let link = resolvePublicMediaKitUrl();
     if (!link) {
       link = await getLink('GET');
     }
@@ -572,7 +737,7 @@ export default function ProposalsClient() {
       setMediaKitUrl(link);
     }
     return link;
-  }, [mediaKitUrl]);
+  }, [resolvePublicMediaKitUrl]);
 
   const buildProposalFormUrl = useCallback((mediaKitLink: string) => {
     try {
@@ -600,6 +765,23 @@ export default function ProposalsClient() {
   }, []);
 
   const loadProposals = useCallback(async () => {
+    if (sessionStatus === 'unauthenticated') {
+      setProposals([]);
+      setSelectedId(null);
+      setSelectedProposal(null);
+      setAnalysisMessage(null);
+      setAnalysisV2(null);
+      setAnalysisPricingMeta({ pricingConsistency: null, pricingSource: null, limitations: [] });
+      setReplyDraft('');
+      setCreatorProposedBudgetInput('');
+      setCampaignLinks([]);
+      setLinksError(null);
+      setLinkableScripts([]);
+      setLinkablePublis([]);
+      setLinkableError(null);
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
       const response = await fetch('/api/proposals', { cache: 'no-store' });
@@ -641,11 +823,12 @@ export default function ProposalsClient() {
     } finally {
       setIsLoading(false);
     }
-  }, [requestedProposalId, toast]);
+  }, [requestedProposalId, sessionStatus, toast]);
 
   useEffect(() => {
+    if (sessionStatus === 'loading') return;
     loadProposals();
-  }, [loadProposals]);
+  }, [loadProposals, sessionStatus]);
 
   useEffect(() => {
     if (isLoading) return;
@@ -655,41 +838,18 @@ export default function ProposalsClient() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    const mediaQuery = window.matchMedia('(max-width: 767px)');
-    const handleChange = () => setIsMobile(mediaQuery.matches);
-    handleChange();
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+    const mediaQuery = window.matchMedia('(max-width: 1023px)');
+    const updateIsMobile = () => setIsMobile(mediaQuery.matches);
+    updateIsMobile();
+    mediaQuery.addEventListener('change', updateIsMobile);
+    return () => mediaQuery.removeEventListener('change', updateIsMobile);
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function fetchMediaKit() {
-      try {
-        setIsMediaKitLoading(true);
-        const response = await fetch('/api/users/media-kit-token', { cache: 'no-store' });
-        if (!response.ok) {
-          if (!cancelled) setMediaKitUrl(null);
-          return;
-        }
-
-        const payload = await response.json().catch(() => null);
-        if (!cancelled) {
-          setMediaKitUrl(payload?.url ?? payload?.publicUrl ?? null);
-        }
-      } catch {
-        if (!cancelled) setMediaKitUrl(null);
-      } finally {
-        if (!cancelled) setIsMediaKitLoading(false);
-      }
+    if (sessionStatus === 'unauthenticated') {
+      setMediaKitUrl(null);
     }
-
-    fetchMediaKit();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  }, [sessionStatus]);
 
   useEffect(() => {
     if (!selectedId) {
@@ -790,17 +950,6 @@ export default function ProposalsClient() {
   }, [selectedProposal, hasProAccess, isBillingLoading]);
 
   useEffect(() => {
-    if (!pendingScrollToDetailRef.current) return;
-    if (!selectedProposal) return;
-    if (typeof window === 'undefined') return;
-
-    pendingScrollToDetailRef.current = false;
-    window.requestAnimationFrame(() => {
-      detailSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  }, [selectedProposal]);
-
-  useEffect(() => {
     if (!requestedProposalId) return;
     if (selectedProposal?.id !== requestedProposalId) return;
     setCurrentStep('detail');
@@ -881,11 +1030,11 @@ export default function ProposalsClient() {
   }, []);
 
   useEffect(() => {
-    if (currentStep === 'inbox') return;
+    if ((compactView || isMobile) && currentStep === 'inbox') return;
     if (!selectedProposal?.id) return;
 
     void loadCampaignWorkspace(selectedProposal.id);
-  }, [currentStep, loadCampaignWorkspace, selectedProposal?.id]);
+  }, [compactView, currentStep, isMobile, loadCampaignWorkspace, selectedProposal?.id]);
 
   const handleLinkEntity = useCallback(
     async (entityType: CampaignLinkEntityType, entityId: string) => {
@@ -1032,6 +1181,7 @@ export default function ProposalsClient() {
         setSelectedProposal((prev) =>
           prev && prev.id === id ? { ...prev, status: updated.status } : prev
         );
+        setActiveTab(statusToTab(updated.status));
         if (notify) {
           toast({ variant: 'success', title: 'Status atualizado com sucesso.' });
         }
@@ -1280,12 +1430,6 @@ export default function ProposalsClient() {
   const handleSendReply = useCallback(async () => {
     if (!selectedProposal) return;
 
-    if (!canInteract) {
-      showUpgradeToast();
-      openPaywall('send_reply', 'reply_email');
-      return;
-    }
-
     const mediaKitPublicUrl = resolvePublicMediaKitUrl();
     const normalizedDraft = ensureMediaKitParagraph(normalizeEmailParagraphs(replyDraft.trim()), mediaKitPublicUrl);
 
@@ -1387,10 +1531,6 @@ export default function ProposalsClient() {
         setActiveTab(statusToTab(target.status));
       }
       setCurrentStep('detail');
-
-      if (typeof window !== 'undefined' && window.innerWidth < 768) {
-        pendingScrollToDetailRef.current = true;
-      }
     },
     [proposals]
   );
@@ -1422,9 +1562,12 @@ export default function ProposalsClient() {
   }, [copyTextWithFallback, getOrCreateMediaKitUrl, toast]);
 
   const handleCopyProposalFormLink = useCallback(async (context: 'campaigns_header' | 'campaigns_empty_state') => {
-    if (!hasProAccess) {
-      showUpgradeToast();
-      openPaywall(context, 'reply_email');
+    if (sessionStatus === 'unauthenticated') {
+      const callbackUrl =
+        typeof window !== 'undefined'
+          ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+          : '/campaigns';
+      redirectToGoogleConsentLogin(callbackUrl);
       return;
     }
 
@@ -1454,26 +1597,24 @@ export default function ProposalsClient() {
       setIsCopyingProposalFormLink(false);
     }
   }, [
-    hasProAccess,
-    showUpgradeToast,
-    openPaywall,
     getOrCreateMediaKitUrl,
     buildProposalFormUrl,
     copyTextWithFallback,
     showProposalCopyFeedback,
     markProposalFormLinkCopied,
+    sessionStatus,
     toast,
   ]);
-
-
-
-  const shouldShowUpgradeBanner = !canInteract && !isBillingLoading;
   const handleBackToInbox = useCallback(() => {
     setCurrentStep('inbox');
+    if (!compactView && !isMobile) {
+      setSelectedId(null);
+      setSelectedProposal(null);
+    }
     if (requestedProposalId) {
       router.replace('/campaigns');
     }
-  }, [requestedProposalId, router]);
+  }, [compactView, isMobile, requestedProposalId, router]);
   const linkedScriptIds = useMemo(
     () =>
       new Set(
@@ -1496,262 +1637,523 @@ export default function ProposalsClient() {
     () => linkablePublis.filter((item) => !linkedPubliIds.has(item.id)),
     [linkablePublis, linkedPubliIds]
   );
+  const detailView = selectedProposal ? (
+    <CampaignDetailView
+      proposal={selectedProposal}
+      compactView={compactView}
+      onBack={handleBackToInbox}
+      onStatusChange={updateProposalStatus}
+      formatDate={formatDate}
+      formatMoney={formatMoneyValue}
+      canInteract={canInteract}
+      isBillingLoading={isBillingLoading}
+      onUpgradeClick={() => {
+        showUpgradeToast();
+        openPaywall('detail_view', 'reply_email');
+      }}
+      analysisLoading={analysisLoading}
+      analysisMessage={analysisMessage}
+      analysisV2={analysisV2}
+      analysisPricingMeta={analysisPricingMeta}
+      viewMode={analysisViewMode}
+      onToggleViewMode={() =>
+        setAnalysisViewMode((prev) => (prev === 'summary' ? 'expanded' : 'summary'))
+      }
+      onAnalyze={handleAnalyze}
+      replyDraft={replyDraft}
+      onReplyDraftChange={(value) => setReplyDraft(normalizeEmailParagraphs(value))}
+      replyIntent={replyIntent}
+      onReplyIntentChange={applyReplyIntent}
+      replyRegenerating={replyRegenerating}
+      onRefreshReply={handleRefreshReply}
+      budgetInput={creatorProposedBudgetInput}
+      onBudgetInputChange={setCreatorProposedBudgetInput}
+      onSaveBudget={handleSaveCreatorProposedBudget}
+      budgetSaving={proposedBudgetSaving}
+      replySending={replySending}
+      onSendReply={handleSendReply}
+      replyTextareaRef={replyTextareaRef}
+      campaignLinks={campaignLinks}
+      campaignLinksLoading={linksLoading}
+      campaignLinksError={linksError}
+      availableScripts={availableScripts}
+      availablePublis={availablePublis}
+      linkableLoading={linkableLoading}
+      linkableError={linkableError}
+      linkMutating={linkMutating}
+      activeLinkMutationId={activeLinkMutationId}
+      onLinkScript={handleLinkScript}
+      onLinkPubli={handleLinkPubli}
+      onUnlinkEntity={handleUnlinkEntity}
+      onUpdateLinkStatus={handleUpdateLinkStatus}
+    />
+  ) : null;
 
-  if (currentStep !== 'inbox' && selectedProposal) {
-    return (
-      <CampaignDetailView
-        proposal={selectedProposal}
-        onBack={handleBackToInbox}
-        onStatusChange={updateProposalStatus}
-        formatDate={formatDate}
-        formatMoney={formatMoneyValue}
-        formatGapLabel={formatGapLabel}
-        canInteract={canInteract}
-        isBillingLoading={isBillingLoading}
-        onUpgradeClick={() => {
-          showUpgradeToast();
-          openPaywall('detail_view', 'reply_email');
-        }}
-        analysisLoading={analysisLoading}
-        analysisMessage={analysisMessage}
-        analysisV2={analysisV2}
-        analysisPricingMeta={analysisPricingMeta}
-        viewMode={analysisViewMode}
-        onToggleViewMode={() =>
-          setAnalysisViewMode((prev) => (prev === 'summary' ? 'expanded' : 'summary'))
-        }
-        onAnalyze={handleAnalyze}
-        replyDraft={replyDraft}
-        onReplyDraftChange={(value) => setReplyDraft(normalizeEmailParagraphs(value))}
-        replyIntent={replyIntent}
-        onReplyIntentChange={applyReplyIntent}
-        replyRegenerating={replyRegenerating}
-        onRefreshReply={handleRefreshReply}
-        budgetInput={creatorProposedBudgetInput}
-        onBudgetInputChange={setCreatorProposedBudgetInput}
-        onSaveBudget={handleSaveCreatorProposedBudget}
-        budgetSaving={proposedBudgetSaving}
-        replySending={replySending}
-        onSendReply={handleSendReply}
-        replyTextareaRef={replyTextareaRef}
-        campaignLinks={campaignLinks}
-        campaignLinksLoading={linksLoading}
-        campaignLinksError={linksError}
-        availableScripts={availableScripts}
-        availablePublis={availablePublis}
-        linkableLoading={linkableLoading}
-        linkableError={linkableError}
-        linkMutating={linkMutating}
-        activeLinkMutationId={activeLinkMutationId}
-        onLinkScript={handleLinkScript}
-        onLinkPubli={handleLinkPubli}
-        onUnlinkEntity={handleUnlinkEntity}
-        onUpdateLinkStatus={handleUpdateLinkStatus}
-      />
-    );
+  const sortedProposals = useMemo(
+    () =>
+      [...proposals].sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      }),
+    [proposals]
+  );
+  const pipelineGroups = useMemo(
+    () =>
+      PIPELINE_GROUPS.map((group) => {
+        const items = sortedProposals.filter((proposal) => group.statuses.includes(proposal.status));
+        return {
+          ...group,
+          items,
+          count: items.length,
+          totalBudget: items.reduce((acc, proposal) => acc + (proposal.budget || 0), 0),
+          currency: items[0]?.currency || 'BRL',
+        };
+      }),
+    [sortedProposals]
+  );
+  const visiblePipelineGroups = useMemo(
+    () => pipelineGroups.filter((group) => group.key !== 'lost' || group.count > 0),
+    [pipelineGroups]
+  );
+  const proposalHeaderCtaDisabled =
+    sessionStatus === 'loading' || isBillingLoading || isCopyingProposalFormLink;
+  const shouldUseSplitLayout = !compactView && !isMobile && sortedProposals.length > 0;
+
+  if ((compactView || isMobile) && currentStep !== 'inbox' && detailView) {
+    return detailView;
   }
 
-  const tabs: Array<{ key: InboxTab; label: string; statuses: ProposalStatus[] }> = [
-    { key: 'incoming', label: 'Recebidas', statuses: ['novo', 'visto'] },
-    { key: 'negotiation', label: 'Em negociação', statuses: ['respondido'] },
-    { key: 'won', label: 'Fechadas', statuses: ['aceito'] },
-    { key: 'lost', label: 'Perdidas', statuses: ['rejeitado'] },
-  ];
-  const TAB_THEME: Record<InboxTab, { active: string; inactive: string; activeMuted: string; inactiveMuted: string }> = {
-    incoming: {
-      active: 'bg-sky-50 text-sky-800 border border-sky-200 shadow-sm',
-      inactive: 'bg-white text-sky-700 border border-sky-200 hover:bg-sky-50/50',
-      activeMuted: 'text-sky-600',
-      inactiveMuted: 'text-sky-500',
-    },
-    negotiation: {
-      active: 'bg-amber-50 text-amber-800 border border-amber-200 shadow-sm',
-      inactive: 'bg-white text-amber-700 border border-amber-200 hover:bg-amber-50/50',
-      activeMuted: 'text-amber-600',
-      inactiveMuted: 'text-amber-500',
-    },
-    won: {
-      active: 'bg-emerald-50 text-emerald-800 border border-emerald-200 shadow-sm',
-      inactive: 'bg-white text-emerald-700 border border-emerald-200 hover:bg-emerald-50/50',
-      activeMuted: 'text-emerald-600',
-      inactiveMuted: 'text-emerald-500',
-    },
-    lost: {
-      active: 'bg-rose-50 text-rose-800 border border-rose-200 shadow-sm',
-      inactive: 'bg-white text-rose-700 border border-rose-200 hover:bg-rose-50/50',
-      activeMuted: 'text-rose-600',
-      inactiveMuted: 'text-rose-500',
-    },
-  };
+  const hasProposals = sortedProposals.length > 0;
 
-  const currentTab = tabs.find((t) => t.key === activeTab) || tabs[0]!;
-  const filteredProposals = proposals
-    .filter((p) => currentTab.statuses.includes(p.status))
-    .sort((a, b) => {
-      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      return dateB - dateA;
-    });
-  const proposalHeaderCtaLabel = !hasProAccess
-    ? 'Ativar assinatura'
-    : isCopyingProposalFormLink
-      ? 'Copiando...'
-      : proposalCopyFeedbackVisible
-        ? 'Copiado. Cole na bio'
-        : 'Copiar link de proposta';
-  const proposalHeaderCtaDisabled = isBillingLoading || isCopyingProposalFormLink;
-
-  return (
-    <div className="min-h-screen bg-white pb-20">
-      <div className="dashboard-page-shell py-8">
-        <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-              Radar Destaque
-              <span className="bg-[#141C2F]/10 text-[#141C2F] text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full">
-                Faturamento
-              </span>
-            </h1>
-            <p className="mt-1 text-slate-500">Gerencie suas publis com IA. O seu faturamento aqui atrai o convite para representação comercial na Destaque.</p>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              void handleCopyProposalFormLink('campaigns_header');
-            }}
-            disabled={proposalHeaderCtaDisabled}
-            className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold transition ${hasProAccess
-                ? 'border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100'
-                : 'bg-pink-600 text-white hover:bg-pink-700'
-              } disabled:cursor-not-allowed disabled:opacity-60`}
-          >
-            {proposalHeaderCtaLabel}
-          </button>
-        </div>
-
-        {/* Tabs */}
-        <div className="mb-6 flex overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
-          <div className="flex gap-2">
-            {tabs.map((tab) => {
-              const isActive = activeTab === tab.key;
-              const tabProposals = proposals.filter((p) => tab.statuses.includes(p.status));
-              const count = tabProposals.length;
-              const tabTone = TAB_THEME[tab.key];
-
-              const totalValue = tabProposals.reduce((acc, curr) => acc + (curr.budget || 0), 0);
-              // Use currency from first item or default to BRL. 
-              // In mixed currency scenarios this is an approximation, but acceptable for this iteration.
-              const currency = tabProposals[0]?.currency || 'BRL';
-              const formattedTotal = count > 0 ? formatMoneyValue(totalValue, currency) : null;
-
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`flex flex-col items-start gap-0.5 rounded-2xl px-5 py-2.5 text-sm font-semibold transition whitespace-nowrap min-w-[120px]
-                                ${isActive
-                      ? `${tabTone.active} transform scale-[1.02]`
-                      : tabTone.inactive
-                    }`}
-                >
-                  <span className={`text-[11px] font-bold uppercase tracking-wider ${isActive ? tabTone.activeMuted : tabTone.inactiveMuted}`}>
-                    {tab.label}
-                  </span>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-lg font-bold leading-none">
-                      {formattedTotal || "—"}
-                    </span>
-                    <span className={`text-xs font-medium ${isActive ? tabTone.activeMuted : tabTone.inactiveMuted}`}>
-                      ({count})
-                    </span>
-                  </div>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        {shouldShowUpgradeBanner ? (
-          <div className="mb-6 rounded-2xl border border-pink-100 bg-gradient-to-r from-white to-pink-50/30 p-4 sm:p-5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm font-bold text-slate-900">Desbloqueie a IA de negociação</p>
-                <p className="text-xs text-slate-600">
-                  Análise inteligente + resposta com 1 clique.
+  const listContent = (
+    <>
+        <div className={compactView ? "mb-8" : "mb-5"}>
+          <div className={`overflow-hidden ${compactView ? "rounded-[1.24rem] border border-zinc-100/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(246,246,247,0.94))] px-3.5 py-3" : "rounded-[1.55rem] bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.12),transparent_28%),linear-gradient(180deg,rgba(253,242,248,0.36),rgba(255,255,255,0.94))] px-4 py-4 ring-1 ring-pink-100/70"}`}>
+            <div className={`flex gap-3 ${compactView ? "flex-col items-stretch gap-3" : "flex-col items-stretch sm:flex-row sm:items-end sm:justify-between"}`}>
+              <div className="min-w-0">
+                <div className={`dashboard-muted-label flex items-center gap-1.5 ${compactView ? "text-zinc-400" : "text-pink-500"}`}>
+                  <Copy className={`h-3 w-3 shrink-0 ${compactView ? "text-zinc-400" : "text-pink-500"}`} />
+                  <p>Entrada de campanhas</p>
+                </div>
+                <p className={`dashboard-type-section-title mt-2 ${compactView ? "pr-2 text-[0.97rem] leading-snug" : "max-w-[18rem]"}`}>
+                  {compactView
+                    ? 'Coloque este formulário na bio.'
+                    : 'Deixe o link na bio e centralize novas propostas aqui.'}
+                </p>
+                <p className={`dashboard-type-meta mt-1 ${compactView ? "pr-2 text-[11px] leading-relaxed" : "max-w-[20rem]"}`}>
+                  {compactView
+                    ? 'Receba propostas por ele.'
+                    : 'Copie o formulário para receber oportunidades de marcas sem perder contexto da negociação.'}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  showUpgradeToast();
-                  openPaywall('banner', 'reply_email');
-                }}
-                className="inline-flex items-center justify-center gap-2 rounded-full bg-pink-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-pink-700 shadow-sm shadow-pink-200"
-              >
-                <Lock className="h-3.5 w-3.5" />
-                Desbloquear IA
-              </button>
+            <button
+              type="button"
+              onClick={() => {
+                void handleCopyProposalFormLink('campaigns_header');
+              }}
+              disabled={proposalHeaderCtaDisabled}
+              className={`dashboard-primary-button dashboard-type-control inline-flex shrink-0 items-center justify-center px-4 py-3 disabled:cursor-not-allowed disabled:opacity-60 ${
+                compactView ? "min-h-[2.55rem] w-full rounded-[0.95rem] shadow-[0_4px_10px_rgba(24,24,27,0.08)]" : "w-full shadow-[0_10px_20px_rgba(24,24,27,0.12)] sm:w-auto"
+              }`}
+            >
+              {isCopyingProposalFormLink
+                ? 'Copiando link'
+                : proposalCopyFeedbackVisible
+                  ? 'Link copiado'
+                  : 'Copiar formulário'}
+            </button>
             </div>
           </div>
-        ) : null}
+        </div>
 
         {isLoading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-60 rounded-[2rem] bg-slate-50 animate-pulse border border-slate-100" />
-            ))}
-          </div>
-        ) : filteredProposals.length === 0 ? (
-          <div className="rounded-[2rem] border border-dashed border-slate-200 bg-slate-50/50 p-12 text-center">
-            <p className="text-slate-900 font-semibold">Seu radar está sem faturamento nesta etapa.</p>
-            <p className="text-slate-500 text-sm mt-1">
-              Copie o link da sua proposta e coloque na bio. As campanhas fechadas viram faturamento para a agência ficar de olho.
-            </p>
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          compactView ? (
+            <div className="space-y-3.5">
+              <div className="space-y-0">
+                {["Novas propostas", "Em negociação", "Fechadas (mês)"].map((label, index) => (
+                  <div
+                    key={label}
+                    className="border-t border-zinc-100/75 py-4 first:border-t-0 first:pt-0"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <div className="h-2 w-2 animate-pulse rounded-full bg-zinc-300" />
+                        <div className="h-3 w-28 animate-pulse rounded-full bg-zinc-200" />
+                        <div className="h-5 w-5 animate-pulse rounded-full bg-zinc-100" />
+                      </div>
+                      <div className="h-4 w-20 animate-pulse rounded-full bg-zinc-200" />
+                    </div>
+                    {index <= 1 ? (
+                      <div className="mt-3 rounded-[1.25rem] bg-zinc-50/62 px-3.5 py-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <div className="h-3 w-16 animate-pulse rounded-full bg-zinc-200" />
+                            <div className="mt-3 h-4 w-full animate-pulse rounded-full bg-zinc-200" />
+                            <div className="mt-2 h-3 w-3/4 animate-pulse rounded-full bg-zinc-100" />
+                          </div>
+                          <div className="h-4 w-14 animate-pulse rounded-full bg-zinc-200" />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="dashboard-panel h-40 animate-pulse" />
+              ))}
+            </div>
+          )
+        ) : !hasProposals ? (
+          compactView ? (
+            <div className="space-y-0">
+              <div className="rounded-[1.18rem] bg-zinc-50/55 px-3.5 py-3.5">
+                <p className="dashboard-muted-label text-zinc-400">Pipeline</p>
+                <p className="dashboard-type-body mt-1.5 max-w-[18rem] pr-4">
+                  Quando a primeira campanha entrar pelo formulário, ela aparece assim.
+                </p>
+              </div>
+
+              {visiblePipelineGroups.map((group) => {
+                const stageVisual = COMPACT_PIPELINE_LIST_VISUALS[group.key];
+
+                return (
+                  <section
+                    key={group.key}
+                    className="border-t border-zinc-100/75 py-4 first:border-t-0"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2.5">
+                          <span
+                            className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] ${stageVisual.headerChipClassName}`}
+                          >
+                            <span className={`h-2 w-2 rounded-full ${stageVisual.headerDotClassName}`} />
+                          </span>
+                          <h3 className="dashboard-type-section-title text-[0.98rem] text-zinc-950">
+                            {group.label}
+                          </h3>
+                          <span className="inline-flex h-4 w-5 rounded-full bg-zinc-100/90" aria-hidden="true" />
+                        </div>
+                      </div>
+                      <span className="mt-1 inline-flex h-4 w-20 shrink-0 rounded-full bg-zinc-100/90" aria-hidden="true" />
+                    </div>
+
+                    <div className="mt-1.5">
+                      <div className="group w-full rounded-[1.15rem] px-3 py-3 text-left">
+                        <div className="flex items-start gap-3.5">
+                          <span
+                            className={`inline-flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full ${stageVisual.rankBadgeClassName}`}
+                          >
+                            <span className="h-1.5 w-1.5 rounded-full bg-current opacity-70" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start justify-between gap-3">
+                              <span className="mt-0.5 inline-flex h-3 w-20 rounded-full bg-zinc-100/95" aria-hidden="true" />
+                            </div>
+                            <div className="mt-2.5 space-y-2">
+                              <span className="block h-4 w-[88%] rounded-full bg-zinc-200/95" aria-hidden="true" />
+                              <span className="block h-4 w-[62%] rounded-full bg-zinc-100/95" aria-hidden="true" />
+                            </div>
+                            <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
+                              <span className="inline-flex h-3 w-14 rounded-full bg-zinc-100/95" aria-hidden="true" />
+                              <span className="h-1 w-1 rounded-full bg-zinc-300" />
+                              <span className="inline-flex h-3 w-24 rounded-full bg-zinc-100/95" aria-hidden="true" />
+                              <span className="inline-flex h-5 w-16 rounded-full border border-zinc-100/90 bg-zinc-50/88" aria-hidden="true" />
+                            </div>
+                          </div>
+                          <span className={`mt-0.5 inline-flex shrink-0 items-center justify-center rounded-full p-1 transition ${stageVisual.arrowClassName}`}>
+                            <ArrowUpRight className="h-3.5 w-3.5" />
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="dashboard-type-body mt-0.5 px-3 pr-4 text-zinc-500">
+                      {COMPACT_EMPTY_PREVIEW_HELPER_TEXT[group.key]}
+                    </p>
+                  </section>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="dashboard-empty-state p-9 text-center">
+              <p className="dashboard-muted-label mx-auto flex w-fit items-center gap-2 text-zinc-400">
+                <Copy className="h-3 w-3 text-zinc-400" />
+                Entrada de campanhas
+              </p>
+              <p className="dashboard-type-section-title mx-auto mt-4 max-w-[18rem] text-center leading-8">
+                Nenhuma campanha recebida ainda.
+              </p>
+              <p className="dashboard-type-body mx-auto mt-2 max-w-[20rem] text-center">
+                Copie o formulario e coloque na bio para começar a receber propostas.
+              </p>
               <button
                 type="button"
                 onClick={() => {
                   void handleCopyProposalFormLink('campaigns_empty_state');
                 }}
                 disabled={proposalHeaderCtaDisabled}
-                className={`inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-bold transition ${hasProAccess
-                    ? 'bg-slate-900 text-white hover:bg-slate-800'
-                    : 'bg-pink-600 text-white hover:bg-pink-700'
-                  } disabled:cursor-not-allowed disabled:opacity-60`}
+                className="dashboard-primary-button dashboard-type-control mt-5 inline-flex min-w-[180px] items-center justify-center px-4 py-3 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {!hasProAccess
-                  ? 'Ativar assinatura'
-                  : isCopyingProposalFormLink
-                    ? 'Copiando...'
-                    : proposalCopyFeedbackVisible
-                      ? 'Copiado. Cole na bio'
-                      : 'Copiar link de proposta'}
+                {isCopyingProposalFormLink
+                  ? 'Copiando link'
+                  : proposalCopyFeedbackVisible
+                    ? 'Link copiado'
+                    : 'Copiar formulário'}
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  void handleCopyMediaKitLink('campaigns_empty_state');
-                }}
-                disabled={isCopyingMediaKitLink || isMediaKitLoading}
-                className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {isCopyingMediaKitLink ? 'Copiando kit...' : 'Copiar link do mídia kit'}
-              </button>
+            </div>
+          )
+        ) : (
+          compactView ? (
+            <div className="space-y-0">
+              {visiblePipelineGroups.map((group) => {
+                const compactVisibleItems = group.items.slice(0, group.key === 'incoming' ? 2 : 1);
+                const stageVisual = COMPACT_PIPELINE_LIST_VISUALS[group.key];
+
+                return (
+                  <section
+                    key={group.key}
+                    className="border-t border-zinc-100/75 py-4 first:border-t-0 first:pt-0"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2.5">
+                          <span
+                            className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] ${stageVisual.headerChipClassName}`}
+                          >
+                            <span className={`h-2 w-2 rounded-full ${stageVisual.headerDotClassName}`} />
+                          </span>
+                          <h3 className="dashboard-type-section-title text-[0.98rem] text-zinc-950">
+                            {group.label}
+                          </h3>
+                          <span className="dashboard-type-control inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-zinc-50 px-1.5 py-0.5 text-zinc-400">
+                            {group.count}
+                          </span>
+                        </div>
+                      </div>
+                      <span className="dashboard-type-kpi-sm shrink-0 tabular-nums text-zinc-900">
+                        {group.count > 0 ? formatMoneyValue(group.totalBudget, group.currency) : 'R$ 0'}
+                      </span>
+                    </div>
+
+                    {group.items.length === 0 ? (
+                      <p className="dashboard-type-body mt-2.5 pr-4">{group.emptyLabel}</p>
+                    ) : (
+                      <div className="mt-1 space-y-1.5">
+                        {compactVisibleItems.map((proposal, index) => {
+                          const urgency = getProposalUrgencyMeta(proposal);
+                          const budgetLabel =
+                            proposal.budget !== null
+                              ? formatMoneyValue(proposal.budget, proposal.currency)
+                              : proposal.budgetIntent === 'requested'
+                                ? 'A combinar'
+                                : '—';
+
+                          return (
+                            <button
+                              key={proposal.id}
+                              type="button"
+                              onClick={() => handleSelectProposal(proposal.id)}
+                              className="group w-full rounded-[1.15rem] px-3 py-3 text-left transition hover:bg-zinc-50/42 focus-visible:bg-zinc-50/56 focus-visible:outline-none"
+                            >
+                              <div className="flex items-start gap-3.5">
+                                <span
+                                  className={`dashboard-type-control inline-flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full ${stageVisual.rankBadgeClassName}`}
+                                >
+                                  {index + 1}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <p
+                                      className={`dashboard-muted-label truncate text-zinc-400 transition ${stageVisual.labelHoverClassName}`}
+                                    >
+                                      {proposal.brandName || 'Marca'}
+                                    </p>
+                                  </div>
+                                  <h4 className="dashboard-type-item-title mt-1.5 line-clamp-2 pr-2 text-zinc-900">
+                                    {proposal.campaignTitle || 'Campanha sem título'}
+                                  </h4>
+                                  <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    <span className="dashboard-type-meta tabular-nums font-medium text-zinc-700">
+                                      {budgetLabel}
+                                    </span>
+                                    <span className="h-1 w-1 rounded-full bg-zinc-300" />
+                                    <p className="dashboard-type-meta min-w-0 flex-1 truncate text-zinc-500">
+                                      {getProposalMomentLabel(proposal)}
+                                    </p>
+                                    <span className={`dashboard-type-control inline-flex items-center gap-1 rounded-full border border-zinc-100/90 bg-zinc-50/88 px-2 py-0.5 text-[9px] ${urgency.textClassName}`}>
+                                      <span className={`h-1 w-1 rounded-full ${urgency.dotClassName}`} />
+                                      {urgency.label}
+                                    </span>
+                                  </div>
+                                </div>
+                                <span className={`mt-0.5 inline-flex shrink-0 items-center justify-center rounded-full p-1 transition ${stageVisual.arrowClassName}`}>
+                                  <ArrowUpRight className="h-3.5 w-3.5" />
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+
+                        {group.items.length > compactVisibleItems.length ? (
+                          <p className={`dashboard-muted-label px-3 ${stageVisual.summaryClassName}`}>
+                            +{group.items.length - compactVisibleItems.length} {group.items.length - compactVisibleItems.length === 1 ? 'campanha' : 'campanhas'} nesta etapa
+                          </p>
+                        ) : null}
+                      </div>
+                    )}
+                  </section>
+                );
+              })}
+            </div>
+          ) : (
+          <div className="divide-y divide-zinc-100/65">
+            {visiblePipelineGroups.map((group) => {
+              const isExpanded = expandedSections[group.key];
+              const compactVisibleItems = compactView ? group.items.slice(0, 1) : group.items;
+              const stageVisual = COMPACT_PIPELINE_LIST_VISUALS[group.key];
+
+              return (
+                <section
+                  key={group.key}
+                  className="py-1"
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextExpanded = !isExpanded;
+                      setActiveTab(group.key);
+                      setExpandedSections({
+                        incoming: false,
+                        negotiation: false,
+                        won: false,
+                        lost: false,
+                        [group.key]: nextExpanded,
+                      });
+                    }}
+                    className="flex w-full items-center justify-between gap-3 rounded-[1.2rem] px-0 py-2.5 text-left transition hover:bg-zinc-50/28"
+                  >
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`h-1 w-1 rounded-full ${group.dotClassName}`} />
+                        <h3 className="dashboard-muted-label truncate text-zinc-500">
+                          {group.label}
+                        </h3>
+                        <span className={`dashboard-type-control inline-flex min-w-[1.35rem] items-center justify-center rounded-full px-1.5 py-0.5 opacity-90 ${group.pillClassName}`}>
+                          {group.count}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`dashboard-type-kpi-sm tabular-nums ${group.totalClassName} text-zinc-700`}>
+                        {group.count > 0 ? formatMoneyValue(group.totalBudget, group.currency) : "R$ 0"}
+                      </span>
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-full text-zinc-400">
+                        <ChevronDown
+                          className={`h-4 w-4 transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                        />
+                      </span>
+                    </div>
+                  </button>
+
+                  {isExpanded ? (
+                    <div className="bg-transparent pb-2 pt-0.5">
+                      {group.items.length === 0 ? (
+                        <div className="mt-2 rounded-[1.15rem] bg-zinc-50/34 px-4 py-4 text-center text-sm text-zinc-500">
+                          {group.emptyLabel}
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5">
+                          {compactVisibleItems.map((proposal, index) => {
+                            const urgency = getProposalUrgencyMeta(proposal);
+                            const budgetLabel =
+                              proposal.budget !== null
+                                ? formatMoneyValue(proposal.budget, proposal.currency)
+                                : proposal.budgetIntent === "requested"
+                                  ? "A combinar"
+                                  : "—";
+
+                            return (
+                              <button
+                                key={proposal.id}
+                                type="button"
+                                onClick={() => handleSelectProposal(proposal.id)}
+                                className="group flex w-full items-start gap-4 rounded-[1.35rem] px-3 py-2.5 text-left transition hover:bg-zinc-50/22 focus-visible:bg-zinc-50/34 focus-visible:outline-none"
+                              >
+                                <span
+                                  className={`dashboard-type-control inline-flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full ${stageVisual.rankBadgeClassName}`}
+                                >
+                                  {index + 1}
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-start justify-between gap-3">
+                                    <p
+                                      className={`dashboard-muted-label truncate text-zinc-400 transition ${stageVisual.labelHoverClassName}`}
+                                    >
+                                      {proposal.brandName || "Marca"}
+                                    </p>
+                                    <div className="shrink-0 text-right">
+                                      <span className="dashboard-type-kpi-sm tabular-nums">{budgetLabel}</span>
+                                    </div>
+                                  </div>
+                                  <h4 className="dashboard-type-item-title mt-1.5 line-clamp-2">
+                                    {proposal.campaignTitle || "Campanha sem título"}
+                                  </h4>
+                                  <div className="dashboard-type-meta mt-3 flex items-center gap-2">
+                                    <p className="min-w-0 flex-1 truncate">{getProposalMomentLabel(proposal)}</p>
+                                    <span className={`dashboard-type-control inline-flex items-center gap-1 rounded-full border border-zinc-100/90 bg-zinc-100/60 px-2 py-0.5 text-[9px] ${urgency.textClassName}`}>
+                                      <span className={`h-1 w-1 rounded-full ${urgency.dotClassName}`} />
+                                      {urgency.label}
+                                    </span>
+                                  </div>
+                                </div>
+                              </button>
+                            );
+                          })}
+                          {compactView && group.items.length > compactVisibleItems.length ? (
+                            <p className="dashboard-muted-label px-3 text-zinc-400">
+                              +{group.items.length - compactVisibleItems.length} {group.items.length - compactVisibleItems.length === 1 ? "campanha" : "campanhas"} nesta etapa
+                            </p>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
+                  ) : null}
+                </section>
+              );
+            })}
+          </div>
+          )
+        )}
+    </>
+  );
+
+  return (
+    <div className={`bg-transparent ${compactView ? "pb-6" : "pb-10"}`}>
+      <div className={compactView ? "px-1 py-1" : "px-2 py-1"}>
+        {shouldUseSplitLayout ? (
+          <div className="grid min-h-[calc(100vh-17rem)] gap-5 xl:grid-cols-[minmax(0,540px)_minmax(0,1fr)]">
+            <div className="min-w-0">{listContent}</div>
+            <div className="dashboard-panel min-h-0 overflow-hidden">
+              {detailView ? (
+                detailView
+              ) : (
+                <div className="flex h-full min-h-[560px] flex-col items-center justify-center px-8 text-center">
+                  <p className="dashboard-muted-label text-zinc-400">Detalhe da campanha</p>
+                  <p className="dashboard-type-section-title mt-3">Selecione uma campanha para abrir o contexto.</p>
+                  <p className="dashboard-type-body mt-2 max-w-md">
+                    Use a coluna da esquerda para acompanhar briefing, ativos e resposta sem trocar de tela.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {filteredProposals.map((proposal) => (
-              <CampaignCard
-                key={proposal.id}
-                proposal={proposal}
-                onClick={() => handleSelectProposal(proposal.id)}
-                onStatusChange={updateProposalStatus}
-                formatMoney={formatMoneyValue}
-                formatDate={formatDate}
-              />
-            ))}
-          </div>
+          listContent
         )}
       </div>
     </div>

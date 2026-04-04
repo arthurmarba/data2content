@@ -146,7 +146,7 @@ export default function CreatorQuickSearch({
   const showResults = showDropdown && searchTerm.length >= 2;
 
   return (
-    <div className={`relative w-80 sm:w-96 ${showResults ? "z-[80]" : "z-10"}`} ref={containerRef}>
+    <div className={`relative w-full ${showResults ? "z-[80]" : "z-10"}`} ref={containerRef}>
       <SearchBar
         value={searchTerm}
         onSearchChange={(val) => {
@@ -163,15 +163,15 @@ export default function CreatorQuickSearch({
         // Desabilita o campo de busca apenas se houver um criador selecionado
         disabled={!!selectedCreatorName}
       >
-        <AnimatePresence>
-          {selectedCreatorName && (
+        {selectedCreatorName ? (
+          <AnimatePresence>
             <CreatorBadge
               name={selectedCreatorName}
               photoUrl={selectedCreatorPhotoUrl}
               onClear={onClear}
             />
-          )}
-        </AnimatePresence>
+          </AnimatePresence>
+        ) : undefined}
       </SearchBar>
 
       <AnimatePresence>

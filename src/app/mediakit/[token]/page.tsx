@@ -18,6 +18,7 @@ import {
   normalizePreviewUsername,
 } from '@/app/lib/mediakit/socialPreview';
 import { logger } from '@/app/lib/logger';
+import Board from '@/app/dashboard/components/Board';
 
 import MediaKitView from './MediaKitView';
 
@@ -352,11 +353,20 @@ export default async function MediaKitPage(
   }));
 
   const plainUser = JSON.parse(JSON.stringify(user));
+  const prefersProviderFallback =
+    !((plainUser as any)?.isInstagramConnected || (plainUser as any)?.instagramAccountId);
   const hasAvatarCandidate =
-    normalizeProfileCandidate((plainUser as any)?.profile_picture_url) ||
-    normalizeProfileCandidate((plainUser as any)?.image) ||
-    normalizeProfileCandidate((plainUser as any)?.instagram?.profile_picture_url) ||
-    normalizeProfileCandidate((plainUser as any)?.instagram?.profilePictureUrl);
+    (prefersProviderFallback
+      ? normalizeProfileCandidate((plainUser as any)?.providerImage) ||
+        normalizeProfileCandidate((plainUser as any)?.image) ||
+        normalizeProfileCandidate((plainUser as any)?.profile_picture_url) ||
+        normalizeProfileCandidate((plainUser as any)?.instagram?.profile_picture_url) ||
+        normalizeProfileCandidate((plainUser as any)?.instagram?.profilePictureUrl)
+      : normalizeProfileCandidate((plainUser as any)?.profile_picture_url) ||
+        normalizeProfileCandidate((plainUser as any)?.image) ||
+        normalizeProfileCandidate((plainUser as any)?.providerImage) ||
+        normalizeProfileCandidate((plainUser as any)?.instagram?.profile_picture_url) ||
+        normalizeProfileCandidate((plainUser as any)?.instagram?.profilePictureUrl));
   if (!hasAvatarCandidate && insightAvatar) {
     (plainUser as any).profile_picture_url = insightAvatar;
   }
@@ -374,12 +384,8 @@ export default async function MediaKitPage(
   ) {
     plainUser.followersCount = plainUser.followers_count;
   }
-  const now = Date.now();
   const planStatus = (plainUser?.planStatus ?? null) as any;
-  const trialStatus = (plainUser?.proTrialStatus ?? null) as string | null;
-  const trialExpiresAtValue = plainUser?.proTrialExpiresAt ? new Date(plainUser.proTrialExpiresAt).getTime() : null;
-  const trialActive = trialStatus === 'active' && trialExpiresAtValue !== null && trialExpiresAtValue > now;
-  const ownerHasPremiumAccess = isPlanActiveLike(planStatus) || trialActive;
+  const ownerHasPremiumAccess = isPlanActiveLike(planStatus);
 
   let premiumAccessConfig: MediaKitPremiumAccessConfig | undefined;
 
@@ -433,19 +439,35 @@ export default async function MediaKitPage(
     : [];
 
   return (
-        <MediaKitView
-          user={plainUser}
-          summary={summary}
-          videos={compatibleVideos}
-          kpis={kpis}
-          demographics={demographics}
-          engagementTrend={engagementTrend}
-          showOwnerCtas={false}
-          mediaKitSlug={resolvedToken.canonicalSlug}
-          premiumAccess={premiumAccessConfig}
-          pricing={pricingPublished ? pricing : null}
-          pricingPublished={pricingPublished}
-          packages={normalizedPackages}
-        />
+    <main className="mx-auto flex min-h-screen w-full flex-col px-0 sm:px-6 lg:px-8">
+      <div className="relative mx-auto flex w-full max-w-[640px] flex-col overflow-hidden">
+        <Board
+          title="Mídia Kit"
+          titleMarkerVariant="chip"
+          variant="card"
+          showChevron={false}
+          showOptions={false}
+          contentClassName="bg-white"
+          titleClassName="text-zinc-950"
+        >
+          <MediaKitView
+            user={plainUser}
+            summary={summary}
+            videos={compatibleVideos}
+            kpis={kpis}
+            demographics={demographics}
+            engagementTrend={engagementTrend}
+            showOwnerCtas={false}
+            compactPadding
+            compactBoardPreview
+            mediaKitSlug={resolvedToken.canonicalSlug}
+            premiumAccess={premiumAccessConfig}
+            pricing={pricingPublished ? pricing : null}
+            pricingPublished={pricingPublished}
+            packages={normalizedPackages}
+          />
+        </Board>
+      </div>
+    </main>
   );
 }

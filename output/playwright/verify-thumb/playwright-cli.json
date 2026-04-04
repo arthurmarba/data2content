@@ -1,0 +1,11 @@
+{
+  "browser": {
+    "launchOptions": {
+      "headless": true
+    },
+    "contextOptions": {
+      "viewport": { "width": 430, "height": 980 },
+      "storageState": "/Users/arthurmarba/d2c-frontend/output/playwright/verify-thumb/storage.json"
+    }
+  }
+}

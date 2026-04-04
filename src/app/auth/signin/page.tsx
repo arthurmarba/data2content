@@ -5,6 +5,7 @@
 
 import { signIn } from "next-auth/react";
 import { MAIN_DASHBOARD_ROUTE } from '@/constants/routes';
+import { redirectToGoogleConsentLogin } from "@/lib/auth/googleLogin";
 
 export default function SignInPage() {
   return (
@@ -13,11 +14,7 @@ export default function SignInPage() {
 
       {/* Botão para Login via Google */}
       <button
-        onClick={() =>
-          signIn("google", {
-            callbackUrl: MAIN_DASHBOARD_ROUTE,
-          })
-        }
+        onClick={() => redirectToGoogleConsentLogin(MAIN_DASHBOARD_ROUTE)}
         style={{ marginBottom: 10 }}
       >
         Entrar com Google

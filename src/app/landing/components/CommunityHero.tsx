@@ -296,12 +296,6 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
     return "Ao vivo Segunda, 19h (BRT)";
   }, [nextMentorship]);
 
-  const handleOpenProUpgrade = React.useCallback(() => {
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("open-subscribe-modal"));
-    }
-  }, []);
-
   const quickStats: QuickStat[] = React.useMemo(
     () => [
       {
@@ -640,7 +634,7 @@ export const CommunityHero: React.FC<HeroProps> = ({ onPrimaryCta, metrics, next
             </div>
             <div className="mt-8 space-y-3 pb-12">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#777777]">
-                <strong className="font-semibold text-[#1A1A1A]">Incluído</strong> no trial gratuito ao entrar na comunidade.
+                <strong className="font-semibold text-[#1A1A1A]">Incluído</strong> para assinantes do Plano Pro dentro da comunidade.
               </p>
             </div>
           </div>

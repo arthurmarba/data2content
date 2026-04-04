@@ -1,37 +1,37 @@
 import { buildSidebarSections } from "./config";
 
-describe("sidebar planning scripts item", () => {
-  it("inclui item Meus Roteiros na ordem esperada", () => {
+describe("sidebar planning hub item", () => {
+  it("inclui o hub de Criação de Post na ordem esperada", () => {
     const sections = buildSidebarSections({
       hasPremiumAccess: true,
       planningLocked: false,
       dashboardMinimal: false,
+      isMobile: false,
     });
     const planningSection = sections.find((section) => section.key === "planning");
     expect(planningSection).toBeDefined();
 
     const itemKeys = planningSection?.items.map((item) => item.key) ?? [];
-    expect(itemKeys).toContain("planning.scripts");
+    expect(itemKeys).toContain("calendar.hub");
 
-    const idxCalendar = itemKeys.indexOf("planning.calendar");
-    const idxScripts = itemKeys.indexOf("planning.scripts");
+    const idxHub = itemKeys.indexOf("calendar.hub");
     const idxDiscover = itemKeys.indexOf("planning.discover");
 
-    expect(idxCalendar).toBeGreaterThanOrEqual(0);
-    expect(idxScripts).toBeGreaterThan(idxCalendar);
-    expect(idxDiscover).toBeGreaterThan(idxScripts);
+    expect(idxHub).toBeGreaterThanOrEqual(0);
+    expect(idxDiscover).toBeGreaterThan(idxHub);
   });
 
-  it("marca item Meus Roteiros como bloqueado quando planningLocked=true", () => {
+  it("mantém o hub principal acessível quando planningLocked=true", () => {
     const sections = buildSidebarSections({
       hasPremiumAccess: false,
       planningLocked: true,
       dashboardMinimal: false,
+      isMobile: false,
     });
     const planningSection = sections.find((section) => section.key === "planning");
-    const scriptsItem = planningSection?.items.find((item) => item.type === "item" && item.key === "planning.scripts");
+    const hubItem = planningSection?.items.find((item) => item.type === "item" && item.key === "calendar.hub");
 
-    expect(scriptsItem && scriptsItem.type === "item" ? scriptsItem.href : null).toBe("/planning/roteiros");
-    expect(scriptsItem && scriptsItem.type === "item" ? scriptsItem.paywallContext : null).toBe("planning");
+    expect(hubItem && hubItem.type === "item" ? hubItem.href : null).toBe("/calendar");
+    expect(hubItem && hubItem.type === "item" ? hubItem.paywallContext : undefined).toBeUndefined();
   });
 });

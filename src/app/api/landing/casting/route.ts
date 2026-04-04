@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
   try {
     const forceRefresh = req.nextUrl.searchParams.get("refresh") === "true";
     const mode = parseMode(req.nextUrl.searchParams.get("mode"));
+    const surface = parseSurface(req.nextUrl.searchParams.get("surface"));
     const search = req.nextUrl.searchParams.get("search") ?? null;
     const minFollowers = parseNumber(req.nextUrl.searchParams.get("minFollowers"));
     const minAvgInteractions = parseNumber(req.nextUrl.searchParams.get("minAvgInteractions"));
@@ -29,6 +30,7 @@ export async function GET(req: NextRequest) {
     const requestOptions = {
       forceRefresh,
       mode,
+      surface,
       search,
       minFollowers,
       minAvgInteractions,
@@ -47,6 +49,7 @@ export async function GET(req: NextRequest) {
         logger.warn("[api/landing/casting] Falling back after internal timeout.", {
           timeoutMs,
           mode,
+          surface,
           forceRefresh,
           hasWarmFallbackData: fallbackPayload.creators.length > 0,
         });
@@ -66,6 +69,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(
       getCastingCreatorsFallback({
         mode: parseMode(req.nextUrl.searchParams.get("mode")),
+        surface: parseSurface(req.nextUrl.searchParams.get("surface")),
         search: req.nextUrl.searchParams.get("search") ?? null,
         minFollowers: parseNumber(req.nextUrl.searchParams.get("minFollowers")),
         minAvgInteractions: parseNumber(req.nextUrl.searchParams.get("minAvgInteractions")),
@@ -98,6 +102,10 @@ function parseSort(value: string | null): "interactions" | "followers" | "rank" 
 
 function parseMode(value: string | null): "featured" | "full" {
   return value === "featured" ? "featured" : "full";
+}
+
+function parseSurface(value: string | null): "board" | "full" {
+  return value === "board" ? "board" : "full";
 }
 
 function parseLimit(value: string | null, mode: "featured" | "full"): number | null {

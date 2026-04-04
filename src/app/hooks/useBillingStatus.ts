@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSession } from "next-auth/react";
 import { getPlanAccessMeta } from "@/utils/planStatus";
 import type {
   AccessPerksInfo,
@@ -183,6 +184,7 @@ function parseInstagramInfo(info?: InstagramAccessInfo | null): InstagramSnapsho
 }
 
 export function useBillingStatus(opts: Options = {}) {
+  const { data: session, status: sessionStatus } = useSession();
   const auto = opts.auto ?? true;
   const intervalMs = opts.intervalMs ?? 7000;
   const pollOn = useMemo(
@@ -350,30 +352,27 @@ export function useBillingStatus(opts: Options = {}) {
   }, [data.planStatus, pollOn, fetchOnce, startPolling, stopPolling]);
 
   const flags = useMemo(() => {
+    const sessionUser = session?.user as { role?: string | null } | undefined;
+    const sessionRole =
+      typeof sessionUser?.role === "string" ? sessionUser.role.trim().toLowerCase() : null;
+    const isAdminViewer = sessionRole === "admin";
     const baseMeta = getPlanAccessMeta(data.planStatus, data.cancelAtPeriodEnd);
     const normalizedStatus = data.extras?.normalizedStatus ?? baseMeta.normalizedStatus;
     const planHasPremiumAccess = data.extras?.hasPremiumAccess ?? baseMeta.hasPremiumAccess;
     const isGracePeriod = data.extras?.isGracePeriod ?? baseMeta.isGracePeriod ?? false;
     const needsBilling = data.extras?.needsBilling ?? baseMeta.needsBilling ?? false;
 
-    const trialExpiresAt = data.trial?.expiresAt ?? null;
-    const trialActive =
-      Boolean(data.trial?.state === "active" && trialExpiresAt && trialExpiresAt.getTime() > Date.now());
-    const trialRemainingMs = trialExpiresAt
-      ? Math.max(trialExpiresAt.getTime() - Date.now(), 0)
-      : null;
+    // Trial segue disponível apenas como payload legado; não concede acesso nem altera CTA.
+    const trialActive = false;
+    const trialRemainingMs = null;
 
-    const hasPremiumAccess = planHasPremiumAccess || trialActive;
+    const hasPremiumAccess = isAdminViewer || planHasPremiumAccess;
 
     const isActive =
-      trialActive ||
+      isAdminViewer ||
       normalizedStatus === "active" ||
-      normalizedStatus === "trialing" ||
-      normalizedStatus === "trial";
-    const isActiveLikeStatus =
-      normalizedStatus === "active" ||
-      normalizedStatus === "trialing" ||
-      normalizedStatus === "trial";
+      normalizedStatus === "non_renewing";
+    const isActiveLikeStatus = normalizedStatus === "active";
     const isNonRenewing =
       normalizedStatus === "non_renewing" ||
       (isActiveLikeStatus && data.cancelAtPeriodEnd === true);
@@ -381,12 +380,11 @@ export function useBillingStatus(opts: Options = {}) {
     const isMonthly = data.interval === "month";
 
     const shouldResubscribe =
-      !trialActive &&
-      (normalizedStatus === "inactive" ||
-        normalizedStatus === "expired" ||
-        normalizedStatus === "canceled" ||
-        normalizedStatus === "unpaid" ||
-        normalizedStatus === "incomplete_expired");
+      normalizedStatus === "inactive" ||
+      normalizedStatus === "expired" ||
+      normalizedStatus === "canceled" ||
+      normalizedStatus === "unpaid" ||
+      normalizedStatus === "incomplete_expired";
 
     const needsPaymentUpdate =
       normalizedStatus === "past_due" || normalizedStatus === "unpaid";
@@ -395,9 +393,7 @@ export function useBillingStatus(opts: Options = {}) {
     const needsAbort = normalizedStatus === "incomplete_expired";
     const needsPaymentAction = needsPaymentUpdate || needsCheckout;
 
-    const nextAction: "cancel" | "reactivate" | "resubscribe" = trialActive
-      ? "cancel"
-      : shouldResubscribe
+    const nextAction: "cancel" | "reactivate" | "resubscribe" = shouldResubscribe
       ? "resubscribe"
       : isNonRenewing
       ? "reactivate"
@@ -405,9 +401,10 @@ export function useBillingStatus(opts: Options = {}) {
 
     const hasBasicReport = data.perks?.hasBasicStrategicReport ?? false;
     const hasFullReportAccess =
-      data.perks?.hasFullStrategicReport ?? hasPremiumAccess;
+      isAdminViewer || (data.perks?.hasFullStrategicReport ?? hasPremiumAccess);
 
     return {
+      isAdminViewer,
       isActive,
       isNonRenewing,
       isAnnual,
@@ -426,18 +423,19 @@ export function useBillingStatus(opts: Options = {}) {
       hasBasicReport,
       hasFullReportAccess,
     };
-  }, [data.planStatus, data.cancelAtPeriodEnd, data.interval, data.trial, data.perks, data.extras]);
+  }, [data.planStatus, data.cancelAtPeriodEnd, data.interval, data.perks, data.extras, session?.user]);
 
   return useMemo(
     () => ({
       ...data,
-      isLoading: loading,
+      isLoading: flags.isAdminViewer && sessionStatus !== "loading" ? false : loading,
       error,
       refetch,
       startPolling,
       stopPolling,
-      hasLoadedOnce,
-      hasResolvedOnce,
+      hasLoadedOnce: flags.isAdminViewer && sessionStatus !== "loading" ? true : hasLoadedOnce,
+      hasResolvedOnce: flags.isAdminViewer && sessionStatus !== "loading" ? true : hasResolvedOnce,
+      sessionResolved: sessionStatus !== "loading",
       ...flags,
       nextAction: flags.nextAction,
       hasPremiumAccess: flags.hasPremiumAccess,
@@ -453,7 +451,7 @@ export function useBillingStatus(opts: Options = {}) {
       hasBasicReport: flags.hasBasicReport,
       hasFullReportAccess: flags.hasFullReportAccess,
     }),
-    [data, loading, error, refetch, startPolling, stopPolling, flags, hasLoadedOnce, hasResolvedOnce]
+    [data, loading, error, refetch, startPolling, stopPolling, flags, hasLoadedOnce, hasResolvedOnce, sessionStatus]
   );
 }
 

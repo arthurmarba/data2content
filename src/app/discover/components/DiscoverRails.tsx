@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowUpRight, Bookmark, Flame, MessageCircleMore, Share2, Sparkles, TrendingUp, type LucideIcon } from "lucide-react";
 import DiscoverCard from './DiscoverCard';
 import { track } from '@/lib/track';
 import { getExperienceShelfOrder } from '@/app/lib/discover/experiences';
@@ -51,6 +52,19 @@ const CTA_LABEL_OVERRIDES: Record<string, string> = {
   top_shares: "Ver ideias muito compartilhadas",
 };
 
+const TITLE_ICONS: Record<string, LucideIcon> = {
+  user_suggested: Sparkles,
+  personalized: Sparkles,
+  trending: Flame,
+  rising_72h: TrendingUp,
+  top_saved: Bookmark,
+  top_comments: MessageCircleMore,
+  top_shares: Share2,
+  reels_lt_15: Sparkles,
+  reels_15_45: Sparkles,
+  reels_gt_45: Sparkles,
+};
+
 function findNextPlayable(items: PostCard[], startIndex: number) {
   for (let i = startIndex + 1; i < items.length; i += 1) {
     const item = items[i];
@@ -59,7 +73,19 @@ function findNextPlayable(items: PostCard[], startIndex: number) {
   return null;
 }
 
-export default function DiscoverRails({ sections, exp, primaryKey }: { sections: Section[]; exp?: string; primaryKey?: string | null }) {
+export default function DiscoverRails({
+  sections,
+  exp,
+  primaryKey,
+  compactView = false,
+  desktopCompactPreview = false,
+}: {
+  sections: Section[];
+  exp?: string;
+  primaryKey?: string | null;
+  compactView?: boolean;
+  desktopCompactPreview?: boolean;
+}) {
   const searchParams = useSearchParams();
   const EXPANDED_LIMIT = 120;
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
@@ -90,6 +116,11 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
     reels_lt_15: 'Ganchos rápidos. Priorize uma ideia forte.',
     reels_15_45: 'Uma ideia + exemplo/benefício. Feche com CTA.',
     reels_gt_45: 'Mini‑tutoriais ou bastidores com narrativa.',
+  };
+  const COMPACT_DESCRIPTIONS: Record<string, string> = {
+    user_suggested: 'Posts com maior aderência ao seu nicho.',
+    rising_72h: 'Conteúdos recentes acelerando agora.',
+    trending: 'O que mais performou neste recorte.',
   };
   useEffect(() => {
     try {
@@ -206,6 +237,26 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
     setExpandedLoading(false);
   }, []);
 
+  const renderTitleWithIcon = useCallback(
+    (key: string, title: string, compact = false) => {
+      const Icon = TITLE_ICONS[key] || Sparkles;
+
+      return (
+        <span className={`inline-flex items-center ${compact ? "gap-2" : "gap-2.5"}`}>
+          <span
+            className={`inline-flex shrink-0 items-center justify-center rounded-full border border-zinc-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(245,245,245,0.96))] text-zinc-700 shadow-[0_2px_8px_rgba(24,24,27,0.05)] ${
+              compact ? "h-7 w-7" : "h-8 w-8"
+            }`}
+          >
+            <Icon className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
+          </span>
+          <span>{title}</span>
+        </span>
+      );
+    },
+    []
+  );
+
   const expandedSectionMeta = expandedKey
     ? sectionsWithCover.find((s) => s.key === expandedKey) || null
     : null;
@@ -219,30 +270,33 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
           <button
             type="button"
             onClick={handleCollapse}
-            className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-gray-400 hover:text-gray-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
+            className="dashboard-secondary-button inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-zinc-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-200"
           >
             ← Voltar para as listas
           </button>
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-zinc-500">
             {expandedItems.length} {expandedItems.length === 1 ? 'conteúdo' : 'conteúdos'}
           </span>
         </div>
-        <section aria-label={title} className="w-full">
-          <div className="mb-2.5">
-            <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-            {description && <p className="text-sm text-gray-500 mt-0.5">{description}</p>}
+        <section aria-label={title} className="w-full border-t border-zinc-100/90 px-0 py-1 sm:py-2">
+          <div className="mb-3 space-y-1 px-1">
+            <p className="dashboard-muted-label">Coleção expandida</p>
+            <h2 className="text-xl font-semibold text-zinc-900">
+              {renderTitleWithIcon(expandedSectionMeta.key, title)}
+            </h2>
+            {description ? <p className="text-sm text-zinc-500">{description}</p> : null}
           </div>
           {expandedError && (
-            <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <div className="mb-3 rounded-[1.15rem] border border-red-200/70 bg-red-50/72 px-4 py-3 text-sm text-red-700">
               {expandedError}
             </div>
           )}
           {expandedLoading && (
-            <div className="mb-3 rounded-xl border border-brand-magenta/30 bg-brand-magenta/5 px-4 py-3 text-sm text-brand-magenta">
+            <div className="mb-3 rounded-[1.15rem] border border-pink-200/70 bg-pink-50/68 px-4 py-3 text-sm text-pink-600">
               Carregando mais conteúdos…
             </div>
           )}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {expandedItems.map((item, idx) => (
               <DiscoverCard
                 key={`${item.id}-${idx}`}
@@ -254,7 +308,7 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
               />
             ))}
             {expandedItems.length === 0 && !expandedLoading && !expandedError && (
-              <div className="rounded-xl border border-dashed border-gray-200 bg-white px-4 py-6 text-sm text-gray-500">
+              <div className="dashboard-empty-state rounded-[1.3rem] border border-dashed border-zinc-200/80 px-4 py-6 text-sm text-zinc-500">
                 Nenhum conteúdo encontrado para exibir aqui.
               </div>
             )}
@@ -265,9 +319,9 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
   }
 
   return (
-    <div className="space-y-3 sm:space-y-4">
+    <div className={compactView ? "space-y-3.5" : "space-y-3 sm:space-y-4"}>
       {(missingThumbs > 0 || hiddenIds.size > 0) && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 px-4 py-2.5 text-sm text-amber-900 shadow-sm">
+        <div className="rounded-[1.35rem] border border-amber-200/70 bg-amber-50/70 px-4 py-3 text-sm text-amber-900">
           <p className="font-medium">
             Removemos {missingThumbs} conteúdo(s) sem capa recente
             {hiddenIds.size ? ` e ocultamos ${hiddenIds.size} indisponível(eis)` : ""}.
@@ -277,39 +331,68 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
           </p>
         </div>
       )}
-      {sectionsWithCover.map((s, index) => {
+      {sectionsWithCover.map((s, sectionIndex) => {
         const title = TITLE_OVERRIDES[s.key] || s.title;
         const description = DESCRIPTIONS[s.key];
         const isPrimary = s.key === primaryKey;
-        const useAltBackground = index % 2 === 1;
         const visibilityStyle = isPrimary
           ? undefined
           : ({ contentVisibility: 'auto', containIntrinsicSize: '360px' } as React.CSSProperties);
-        const containerClass = isPrimary
-          ? "border border-transparent bg-transparent"
-          : "border border-transparent bg-transparent";
-        const gradientClass = useAltBackground ? "from-slate-50/80" : "from-white";
         const ctaLabel = CTA_LABEL_OVERRIDES[s.key] || "Ver coleção completa";
         return (
-          <section key={s.key} aria-label={title} className="w-full" style={visibilityStyle}>
-            <div
-              className={`py-1 sm:py-2 ${containerClass}`}
-            >
-              <div className="flex flex-row items-center justify-between gap-2 sm:gap-3">
-                <h2 className="text-lg font-semibold text-gray-900 leading-tight">{title}</h2>
+          <section
+            key={s.key}
+            aria-label={title}
+            className={`w-full ${sectionIndex > 0 ? "border-t border-zinc-100/90 pt-3.5 sm:pt-5" : ""}`}
+            style={visibilityStyle}
+          >
+            <div className={compactView ? "py-0.5" : "py-1 sm:py-2"}>
+              <div className={`flex flex-row items-start justify-between ${compactView ? "gap-2" : "gap-2 sm:gap-3"}`}>
+                <div className="min-w-0">
+                  {(description || COMPACT_DESCRIPTIONS[s.key]) && !compactView ? (
+                    <p className="dashboard-muted-label mb-1">
+                      Curadoria
+                    </p>
+                  ) : null}
+                  <h2 className={compactView ? "text-[1.02rem] font-semibold leading-tight tracking-[-0.02em] text-zinc-950" : "dashboard-type-section-title"}>
+                    {renderTitleWithIcon(s.key, title, compactView)}
+                  </h2>
+                  {compactView && COMPACT_DESCRIPTIONS[s.key] ? (
+                    <p className="mt-1 text-[12px] leading-5 text-zinc-500">
+                      {COMPACT_DESCRIPTIONS[s.key]}
+                    </p>
+                  ) : null}
+                  {description && !compactView ? (
+                    <p className={`dashboard-type-body mt-1 max-w-xl ${compactView ? "text-[12px]" : ""}`}>
+                      {description}
+                    </p>
+                  ) : null}
+                </div>
                 <button
                   type="button"
                   onClick={() => handleExpand(s.key)}
-                  className="shrink-0 inline-flex items-center gap-2 rounded-full border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-brand-magenta/40 hover:text-brand-magenta focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-magenta"
-                >
-                  <span className="hidden sm:inline">{ctaLabel}</span>
-                  <span className="sm:hidden">Ver tudo</span>
-                  <span aria-hidden>→</span>
+                className={`shrink-0 inline-flex items-center rounded-full border border-zinc-200/80 bg-white/78 text-zinc-600 transition hover:border-zinc-300 hover:bg-white hover:text-zinc-900 ${compactView ? "px-2 py-1 text-[11px] font-medium" : "dashboard-secondary-button dashboard-type-control px-3 py-1.5"}`}
+              >
+                  <span className="hidden sm:inline">{compactView ? "Ver coleção" : ctaLabel}</span>
+                  <span className="sm:hidden">{compactView ? "Ver mais" : "Ver tudo"}</span>
                 </button>
               </div>
-              {description && <p className="mt-0.5 sm:mt-1 text-xs text-gray-500 sm:text-sm line-clamp-2">{description}</p>}
-              <div className="group relative mt-0 -mx-4 sm:-mx-1 overflow-x-auto hide-scrollbar">
-                <div className="rail-scroll px-4 sm:px-1 py-3 sm:py-5 flex flex-nowrap gap-4 snap-x snap-mandatory scroll-px-4 sm:scroll-px-2">
+              <div
+                className={`group relative overflow-x-auto hide-scrollbar ${
+                  desktopCompactPreview
+                    ? "mt-1.5 -mx-5"
+                    : compactView
+                      ? "mt-1.5 -mx-2"
+                      : "mt-2 -mx-2"
+                }`}
+              >
+                <div className={`rail-scroll flex flex-nowrap snap-x snap-mandatory ${
+                  desktopCompactPreview
+                    ? "gap-1.5 pl-5 pr-5 py-1.5 scroll-pl-5 scroll-pr-5"
+                    : compactView
+                      ? "gap-1.5 pl-2 pr-0.5 py-1.5 scroll-pl-2 scroll-pr-0"
+                      : "gap-3 px-2 py-2.5 sm:gap-4 sm:px-2 sm:py-3 sm:scroll-px-2"
+                }`}>
                   {(s.items || []).map((it, idx) => (
                     <DiscoverCard
                       key={it.id}
@@ -317,11 +400,13 @@ export default function DiscoverRails({ sections, exp, primaryKey }: { sections:
                       nextItem={findNextPlayable(s.items || [], idx)}
                       trackContext={{ shelf_key: s.key, rank: idx + 1, exp }}
                       variant="rail"
+                      compactView={compactView}
                       onUnavailable={handleCardUnavailable}
+                      priority={compactView && sectionIndex < 2 && idx < 2}
                     />
                   ))}
                   {(s.items || []).length === 0 && (
-                    <div className="px-2 py-3 text-sm text-gray-500">
+                    <div className="dashboard-empty-state px-4 py-5 text-sm text-zinc-500">
                       Nenhum resultado para esta seção. Dica: remova 1 filtro ou experimente outra guia.
                     </div>
                   )}

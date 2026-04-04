@@ -15,6 +15,12 @@ jest.mock('@/app/hooks/useBillingStatus', () => ({
   default: () => mockUseBillingStatus(),
 }));
 
+const signInMock = jest.fn();
+jest.mock('next-auth/react', () => ({
+  useSession: () => ({ status: 'authenticated', data: null }),
+  signIn: (...args: any[]) => signInMock(...args),
+}));
+
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn() }),
   useSearchParams: () => new URLSearchParams(),
@@ -30,6 +36,7 @@ beforeEach(() => {
   toastMock.mockClear();
   (track as jest.Mock).mockClear();
   mockUseBillingStatus.mockReset();
+  signInMock.mockReset();
 });
 
 afterEach(() => {
@@ -277,7 +284,9 @@ test('free user sees upgrade banner, tracking, and notify-upgrade flow', async (
   );
 
   await waitFor(() =>
-    expect(screen.getByText('Desbloqueie a IA de negociação')).toBeInTheDocument()
+    expect(
+      screen.getByText('Desbloqueie agora a IA de Negociação e Sugestão de Preços')
+    ).toBeInTheDocument()
   );
 
   expect(track).toHaveBeenCalledWith('pro_feature_locked_viewed', {
@@ -314,13 +323,14 @@ test('pro user can generate analysis in summary mode and update reply draft', as
   );
 
   fireEvent.click(await screen.findByText('Campanha Plano Pro'));
-  fireEvent.click(await screen.findByRole('button', { name: /Opções/i }));
 
   const analyzeButton = await screen.findByRole('button', {
-    name: /Gerar análise/i,
+    name: /Gerar/i,
   });
 
-  expect(screen.queryByText('Desbloqueie a IA de negociação')).toBeNull();
+  expect(
+    screen.queryByText('Desbloqueie agora a IA de Negociação e Sugestão de Preços')
+  ).toBeNull();
   expect(track).not.toHaveBeenCalledWith('pro_feature_locked_viewed', expect.anything());
 
   fireEvent.click(analyzeButton);
@@ -333,9 +343,8 @@ test('pro user can generate analysis in summary mode and update reply draft', as
   );
 
   expect(await screen.findByText(/Recomendação/i)).toBeInTheDocument();
-  expect(await screen.findByText(/Diagnóstico/i)).toBeInTheDocument();
 
-  const textarea = await screen.findByPlaceholderText(/Escreva a resposta/i);
+  const textarea = await screen.findByRole('textbox');
   expect((textarea as HTMLTextAreaElement).value).toContain('Olá, marca!');
   expect((textarea as HTMLTextAreaElement).value).toContain('métricas em tempo real');
 });

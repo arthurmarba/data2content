@@ -2,21 +2,31 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { X, Crown, Check, ArrowRight, ArrowUpRight, Loader2, Lock } from "lucide-react";
-import { FaLock } from "react-icons/fa";
+import { X, Crown, Check, ArrowRight, Loader2 } from "lucide-react";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import type { PaywallContext } from "@/types/paywall";
 import { track } from "@/lib/track";
+import { redirectToGoogleConsentLogin } from "@/lib/auth/googleLogin";
 import { buildCheckoutUrl } from "@/app/lib/checkoutRedirect";
 import { mapSubscribeError } from "@/app/lib/billing/errors";
 import { useBodyScrollLock } from "@/lib/a11y";
+import {
+  PAYWALL_AUTOSTART_PARAM,
+  PAYWALL_CONTEXT_PARAM,
+  PAYWALL_CURRENCY_PARAM,
+  PAYWALL_PERIOD_PARAM,
+  PAYWALL_RETURN_STORAGE_KEY,
+  PAYWALL_URL_PARAM,
+} from "@/types/paywall";
 
 interface BillingSubscribeModalProps {
   open: boolean;
   onClose: () => void;
   context?: PaywallContext;
+  resumeCheckoutDirect?: boolean;
 }
 
 type PricesShape = {
@@ -35,12 +45,12 @@ let pricesCache: PricesShape | null = null;
 
 // 🎯 Narrativa focada: ferramentas de execução (roteiros/review) + alertas no WhatsApp
 const FEATURES: string[] = [
-  "Mídia kit auditado + vitrine no marketplace",
-  "Review de posts com vereditos antes de publicar",
-  "Meus Roteiros com IA para planejar e publicar",
-  "Negociação assistida por IA + precificação inteligente",
-  "Mentorias semanais e alertas no WhatsApp",
-  "Assinatura fixa: 0% de comissão nas publis",
+  "Análise de Perfil avançada (Audiência, Timing e Formatos Ideais)",
+  "Roteiros gerados por IA e vinculados aos seus conteúdos publicados",
+  "Negociação assistida por IA e CRM para gerenciar suas campanhas",
+  "Mídia Kit auditado com vitrine exclusiva no Marketplace Destaque",
+  "Mentorias semanais ao vivo e suporte diagnóstico pelo WhatsApp",
+  "Modelo transparente: Você paga apenas a assinatura, com 0% de comissão",
 ];
 
 type PaywallCopy = {
@@ -48,6 +58,7 @@ type PaywallCopy = {
   subtitle: string;
   bullets: string[];
   ctaLabel: string;
+  steps?: string[];
 };
 
 const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
@@ -59,24 +70,34 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
     ctaLabel: "Ativar Acesso VIP",
   },
   reply_email: {
-    title: "Negociação Assistida (IA)",
-    subtitle:
-      "Use a inteligência da agência para responder marcas com o tom de voz e precificação certa.",
+    title: "IA de Negociação (CRM)",
+    subtitle: "Analise propostas em segundos e receba recomendações estratégicas para fechar mais contratos.",
     bullets: [
-      "Inbox estratégico (foco em conversão)",
-      "Resposta assistida por IA (Narrativa D2C)",
-      "Faixa justa auditada pela agência",
+      "Playbook de resposta baseada em métricas reais",
+      "Rascunhos automáticos de email otimizados para conversão",
+      "Identificação de riscos e oportunidades no briefing",
     ],
-    ctaLabel: "Ativar Acesso VIP",
+    ctaLabel: "Ativar IA de Negociação",
+    steps: [
+      "Ative sua assinatura",
+      "Conecte seu Instagram",
+      "Volte para liberar sua IA",
+    ],
   },
   ai_analysis: {
-    title: "Mapeamento IA + Agência",
-    subtitle: "Descubra seu valor real de mercado e como atrair marcas de alto ticket.",
+    title: "IA de Negociação (CRM)",
+    subtitle: "Analise propostas em segundos e receba recomendações estratégicas para fechar mais contratos.",
     bullets: [
-      "Faixa justa baseada em performance real",
-      "Recomendação tática (Narrativa vs Mercado)",
+      "Playbook de resposta baseada em métricas reais",
+      "Rascunhos automáticos de email otimizados para conversão",
+      "Identificação de riscos e oportunidades no briefing",
     ],
-    ctaLabel: "Ativar Acesso VIP",
+    ctaLabel: "Ativar IA de Negociação",
+    steps: [
+      "Ative sua assinatura",
+      "Conecte seu Instagram",
+      "Volte para liberar sua IA",
+    ],
   },
   calculator: {
     title: "Precificação Inteligente (Radar Destaque)",
@@ -86,17 +107,73 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
       "Multiplicadores auditados pelo time D2C",
     ],
     ctaLabel: "Ativar Acesso VIP",
+    steps: [
+      "Ative sua assinatura",
+      "Conecte seu Instagram",
+      "Volte para liberar sua precificação",
+    ],
   },
-  planning: {
-    title: "Planejamento Estratégico & Narrative",
-    subtitle:
-      "Mantenha a pauta alinhada com as revisões semanais e atraia marcas organicamente.",
+  media_kit: {
+    title: "Mídia Kit Profissional (IA)",
+    subtitle: "Gere seu link único com métricas auditadas e sincronizadas automaticamente.",
     bullets: [
-      "Planner com horários e pautas estratégicas",
-      "Alertas de timing no WhatsApp",
-      "Sincronização com revisões de Terça/Quinta",
+      "Dados reais do Instagram (Alcance, Engajamento, etc)",
+      "Sugestões de faixas de preço baseadas em performance",
+      "Vitrine exclusiva no Marketplace Destaque",
     ],
     ctaLabel: "Ativar Acesso VIP",
+    steps: [
+      "Ative sua assinatura",
+      "Conecte seu Instagram",
+      "Volte para liberar seu Mídia Kit",
+    ],
+  },
+  publis: {
+    title: "Biblioteca de Publis (IA)",
+    subtitle: "Organize suas parcerias e compartilhe métricas ao vivo com marcas.",
+    bullets: [
+      "Histórico completo de conteúdos publicitários",
+      "Compartilhamento de resultados via link",
+      "Filtros inteligentes por desempenho e data",
+    ],
+    ctaLabel: "Ativar Acesso VIP",
+    steps: [
+      "Ative sua assinatura",
+      "Conecte seu Instagram",
+      "Volte para liberar suas publis",
+    ],
+  },
+  mentoria: {
+    title: "Mentoria D2C",
+    subtitle:
+      "Participe das reuniões com Arthur Marba, Ronaldo Fonseca e convidados para revisar conteúdo, repertório e posicionamento.",
+    bullets: [
+      "Agenda semanal com encontros ao vivo",
+      "Acesso ao grupo da comunidade no WhatsApp",
+      "Revisões de conteúdo e roteiros com olhar comercial",
+    ],
+    ctaLabel: "Ativar Acesso VIP",
+    steps: [
+      "Ative sua assinatura",
+      "Entre no grupo VIP",
+      "Acesse a agenda de mentorias",
+    ],
+  },
+  planning: {
+    title: "Criação Inteligente & Análise de Perfil",
+    subtitle:
+      "Desbloqueie o poder da Inteligência Artificial para gerar roteiros avançados e acesse dados reais da sua audiência conectando seu Instagram.",
+    bullets: [
+      "Roteiros criados por IA com base em tendências do seu nicho",
+      "Sincronização imediata com os conteúdos já publicados",
+      "Análise do seu timing ideal e audiência exclusiva",
+    ],
+    ctaLabel: "Ativar Acesso VIP",
+    steps: [
+      "Ative sua assinatura",
+      "Conecte seu Instagram",
+      "Volte para acessar Planner Inteligente",
+    ],
   },
   whatsapp: {
     title: "Execução Assistida (WhatsApp)",
@@ -107,34 +184,46 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
       "Acesso rápido às notas de revisão",
     ],
     ctaLabel: "Ativar Acesso VIP",
+    steps: [
+      "Ative sua assinatura",
+      "Conecte seu Instagram",
+      "Volte para liberar seus Alertas",
+    ],
   },
 };
 
 const FREE_VS_PRO_ROWS = [
   {
-    feature: "Slots inteligentes + alertas personalizados",
+    feature: "Dados Reais e Análise Profunda via Instagram",
     free: false,
     pro: true,
   },
   {
-    feature: "Biblioteca de referências (Descoberta)",
+    feature: "Criação Flexível e Roteiros Inteligentes (Com IA)",
     free: false,
     pro: true,
   },
   {
-    feature: "Mentorias semanais e alertas no WhatsApp",
+    feature: "Mídia Kit Auditado e Calculadora de Preços Justa",
     free: false,
     pro: true,
   },
   {
-    feature: "Responder propostas com IA + faixa justa",
+    feature: "Mentorias Semanais e Acesso VIP à Comunidade",
     free: false,
     pro: true,
   },
 ];
 
-export default function BillingSubscribeModal({ open, onClose, context }: BillingSubscribeModalProps) {
+export default function BillingSubscribeModal({
+  open,
+  onClose,
+  context,
+  resumeCheckoutDirect = false,
+}: BillingSubscribeModalProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { status: sessionStatus } = useSession();
   const [prices, setPrices] = useState<PricesShape | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorAction, setErrorAction] = useState<{ label: string; href: string } | null>(null);
@@ -148,11 +237,11 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const trackedOpenRef = useRef(false);
+  const autoStartHandledRef = useRef(false);
   const billingStatus = useBillingStatus();
   const billingStatusLoading = Boolean(billingStatus.isLoading);
   const billingStatusError = billingStatus.error;
   const hasPremiumAccess = Boolean(billingStatus.hasPremiumAccess);
-  const isTrialActive = Boolean(billingStatus.isTrialActive);
   const needsPaymentAction = Boolean(billingStatus.needsPaymentAction);
   const needsCheckout = Boolean(billingStatus.needsCheckout);
   const needsAbort = Boolean(billingStatus.needsAbort);
@@ -160,27 +249,105 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
   const billingNormalizedStatus = billingStatus.normalizedStatus ?? null;
   const refetchBillingStatus = billingStatus.refetch;
   const effectiveContext = context ?? "default";
-  const paywallCopy = PAYWALL_COPY[effectiveContext] ?? PAYWALL_COPY.default;
-  const bulletItems = paywallCopy.bullets && paywallCopy.bullets.length > 0 ? paywallCopy.bullets : FEATURES;
-  const primaryCtaLabel = paywallCopy.ctaLabel || "Ativar Plano Pro";
+  
+  // O modal deve ser uniforme mostrando todo o valor do plano Pro (D2C)
+  // mas mantendo os "steps" específicos para guiar o usuário no funil atual.
+  const paywallCopy = PAYWALL_COPY.default;
+  const contextCopy = PAYWALL_COPY[effectiveContext] ?? PAYWALL_COPY.default;
+  const bulletItems = FEATURES; 
+  const stepItems = useMemo(() => {
+    let items = Array.isArray(contextCopy.steps) ? [...contextCopy.steps] : [];
+    if (sessionStatus === "unauthenticated" && items.length > 0) {
+      items = ["Faça Login com Google", ...items];
+    }
+    return items;
+  }, [contextCopy.steps, sessionStatus]);
+  const primaryCtaLabel = "Assinar e continuar";
   const isDefaultContext = effectiveContext === "default";
   const shouldBlockSubscribe =
-    !billingStatusError && (hasPremiumAccess || isTrialActive || needsPaymentAction);
+    !billingStatusError && (hasPremiumAccess || needsPaymentAction);
   const didRefetchRef = useRef(false);
+  const [resumeFallbackVisible, setResumeFallbackVisible] = useState(false);
+  const modalVisible = open || resumeFallbackVisible;
 
-  useBodyScrollLock(open);
+  useBodyScrollLock(modalVisible);
+
+  const closeModal = useCallback(() => {
+    setResumeFallbackVisible(false);
+    onClose();
+  }, [onClose]);
+
+  const clearPaywallUrlParams = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const next = new URL(window.location.href);
+    next.searchParams.delete(PAYWALL_URL_PARAM);
+    next.searchParams.delete(PAYWALL_CONTEXT_PARAM);
+    next.searchParams.delete(PAYWALL_AUTOSTART_PARAM);
+    next.searchParams.delete(PAYWALL_PERIOD_PARAM);
+    next.searchParams.delete(PAYWALL_CURRENCY_PARAM);
+    const target =
+      next.pathname +
+      (next.search ? next.search : "") +
+      (next.hash ? next.hash : "");
+    router.replace(target, { scroll: false });
+  }, [router]);
+
+  const startGoogleCheckoutFlow = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const callbackUrl = new URL(window.location.href);
+    callbackUrl.searchParams.set(PAYWALL_URL_PARAM, "1");
+    callbackUrl.searchParams.set(PAYWALL_CONTEXT_PARAM, effectiveContext);
+    callbackUrl.searchParams.set(PAYWALL_AUTOSTART_PARAM, "1");
+    callbackUrl.searchParams.set(PAYWALL_PERIOD_PARAM, period);
+    callbackUrl.searchParams.set(PAYWALL_CURRENCY_PARAM, currency);
+    redirectToGoogleConsentLogin(callbackUrl.toString());
+  }, [currency, effectiveContext, period]);
+
+  const resolveCheckoutCancelUrl = useCallback(() => {
+    if (typeof window === "undefined") return "/dashboard/billing";
+
+    let returnToPath: string | null = null;
+    try {
+      const stored = window.sessionStorage.getItem(PAYWALL_RETURN_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as { returnTo?: string | null } | null;
+        if (
+          typeof parsed?.returnTo === "string" &&
+          parsed.returnTo.startsWith("/") &&
+          !parsed.returnTo.startsWith("//")
+        ) {
+          returnToPath = parsed.returnTo;
+        }
+      }
+    } catch {
+      /* ignore storage errors */
+    }
+
+    const fallback = new URL(window.location.href);
+    fallback.searchParams.delete(PAYWALL_URL_PARAM);
+    fallback.searchParams.delete(PAYWALL_CONTEXT_PARAM);
+    fallback.searchParams.delete(PAYWALL_AUTOSTART_PARAM);
+    fallback.searchParams.delete(PAYWALL_PERIOD_PARAM);
+    fallback.searchParams.delete(PAYWALL_CURRENCY_PARAM);
+    const fallbackPath =
+      fallback.pathname +
+      (fallback.search ? fallback.search : "") +
+      (fallback.hash ? fallback.hash : "");
+
+    return `${window.location.origin}${returnToPath ?? fallbackPath}`;
+  }, []);
 
   // Fecha com ESC
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    if (!modalVisible) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && closeModal();
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [closeModal, modalVisible]);
 
   // Ajusta moeda padrão pelo locale do usuário
   useEffect(() => {
-    if (!open) return;
+    if (!modalVisible) return;
     try {
       const lang = (typeof navigator !== "undefined" && navigator.language) || "";
       if (/^pt(-|$)/i.test(lang)) setCurrency("brl");
@@ -188,10 +355,10 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
     } catch {
       /* no-op */
     }
-  }, [open]);
+  }, [modalVisible]);
 
   useEffect(() => {
-    if (!open) {
+    if (!modalVisible) {
       trackedOpenRef.current = false;
       return;
     }
@@ -205,6 +372,8 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
             return "planning";
           case "calculator":
             return "calculator";
+          case "mentoria":
+            return "discover";
           case "whatsapp":
             return "whatsapp_ai";
           case "reply_email":
@@ -221,20 +390,22 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
         plan: normalizedPlan,
       });
     }
-  }, [open, effectiveContext, billingNormalizedStatus]);
+  }, [modalVisible, effectiveContext, billingNormalizedStatus]);
 
   useEffect(() => {
-    if (!open) {
+    if (!modalVisible && !resumeCheckoutDirect) {
       didRefetchRef.current = false;
+      autoStartHandledRef.current = false;
+      setResumeFallbackVisible(false);
       return;
     }
     if (didRefetchRef.current) return;
     didRefetchRef.current = true;
     refetchBillingStatus?.();
-  }, [open, refetchBillingStatus]);
+  }, [modalVisible, refetchBillingStatus, resumeCheckoutDirect]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!modalVisible) return;
 
     const dialog = dialogRef.current;
     if (!dialog) return;
@@ -303,7 +474,20 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
       }
       previousFocusRef.current = null;
     };
-  }, [open]);
+  }, [modalVisible]);
+
+  useEffect(() => {
+    if ((!modalVisible && !resumeCheckoutDirect) || !searchParams) return;
+    const periodParam = searchParams.get(PAYWALL_PERIOD_PARAM);
+    const currencyParam = searchParams.get(PAYWALL_CURRENCY_PARAM);
+
+    if (periodParam === "monthly" || periodParam === "annual") {
+      setPeriod(periodParam);
+    }
+    if (currencyParam === "brl" || currencyParam === "usd") {
+      setCurrency(currencyParam);
+    }
+  }, [modalVisible, resumeCheckoutDirect, searchParams]);
 
   const parsePrices = (items: APIRawPrice[] | undefined | null): PricesShape => {
     const byKey: PricesShape = {
@@ -361,7 +545,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
 
   // carrega quando abrir; usa cache se disponível
   useEffect(() => {
-    if (!open) return;
+    if (!modalVisible) return;
 
     if (pricesCache) {
       setPrices(pricesCache);
@@ -374,11 +558,11 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
     return () => {
       controllerRef.current?.abort();
     };
-  }, [open, loadPrices]);
+  }, [loadPrices, modalVisible]);
 
   // Fecha ao clicar no overlay
   const handleOverlay = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget) onClose();
+    if (e.target === e.currentTarget) closeModal();
   };
 
   // ✅ 2 casas decimais sempre
@@ -410,9 +594,12 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
     const pct = 1 - monthlyEq / m;
     return Math.max(0, Math.round(pct * 100));
   }, [prices, currency]);
+  const resolvedPrimaryCtaLabel =
+    sessionStatus === "authenticated" ? primaryCtaLabel : "Continuar com Google";
 
   /** Dispara o fluxo de assinatura (Checkout hospedado ou Payment Element). */
-  const handleSubscribe = async () => {
+  const handleSubscribe = useCallback(async (options?: { hiddenResume?: boolean }) => {
+    const hiddenResume = Boolean(options?.hiddenResume);
     track("dashboard_cta_clicked", {
       creator_id: null,
       target: "activate_pro",
@@ -423,6 +610,10 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
     setErrorAction(null);
     setLoadingRedirect(true);
     try {
+      if (sessionStatus === "unauthenticated") {
+        await startGoogleCheckoutFlow();
+        return;
+      }
       if (hasPremiumAccess) {
         setErrorAction({ label: "Trocar plano", href: "/dashboard/billing" });
         throw new Error("Você já possui um plano ativo ou em teste.");
@@ -439,8 +630,8 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
         plan: period,              // "monthly" | "annual"
         currency,                  // "brl" | "usd"
         mode: "subscription",
-        successUrl: `${window.location.origin}/dashboard/billing/success`,
-        cancelUrl: `${window.location.origin}/dashboard/billing`,
+        successUrl: `${window.location.origin}/billing/success`,
+        cancelUrl: resolveCheckoutCancelUrl(),
         source: "modal",
       };
 
@@ -452,9 +643,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
       const body = await response.json().catch(() => ({}));
 
       if (response.status === 401) {
-        // Redireciona para login se não estiver autenticado
-        const callbackUrl = encodeURIComponent(window.location.href);
-        window.location.href = `/login?callbackUrl=${callbackUrl}`;
+        await startGoogleCheckoutFlow();
         return;
       }
 
@@ -472,7 +661,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
       }
 
       // Fecha o modal antes de redirecionar para garantir que não bloqueie a tela
-      onClose();
+      closeModal();
 
       if (body?.clientSecret) {
         router.push(buildCheckoutUrl(body.clientSecret, body.subscriptionId));
@@ -488,13 +677,48 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
       throw new Error("Não foi possível iniciar o checkout. Tente novamente em instantes.");
     } catch (e: any) {
       setError(e?.message || "Erro ao redirecionar para o checkout.");
+      if (hiddenResume) {
+        setResumeFallbackVisible(true);
+      }
       setLoadingRedirect(false); // Só para o loading se der erro, se der sucesso vai navegar
     }
-  };
+  }, [
+    closeModal,
+    currency,
+    effectiveContext,
+    hasPremiumAccess,
+    needsCheckout,
+    needsPaymentUpdate,
+    period,
+    resolveCheckoutCancelUrl,
+    router,
+    sessionStatus,
+    startGoogleCheckoutFlow,
+  ]);
+
+  useEffect(() => {
+    if ((!modalVisible && !resumeCheckoutDirect) || !searchParams) return;
+    if (sessionStatus !== "authenticated") return;
+    if (billingStatusLoading) return;
+    if (searchParams.get(PAYWALL_AUTOSTART_PARAM) !== "1") return;
+    if (autoStartHandledRef.current) return;
+
+    autoStartHandledRef.current = true;
+    clearPaywallUrlParams();
+    void handleSubscribe({ hiddenResume: !modalVisible && resumeCheckoutDirect });
+  }, [
+    billingStatusLoading,
+    clearPaywallUrlParams,
+    handleSubscribe,
+    modalVisible,
+    resumeCheckoutDirect,
+    searchParams,
+    sessionStatus,
+  ]);
 
   // -------------------- RENDER --------------------
 
-  if (!open) return null;
+  if (!modalVisible) return null;
 
   // Loading (skeleton)
   if (loading && !prices && !error) {
@@ -522,7 +746,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
               </div>
               <button
                 className="rounded-full p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-                onClick={onClose}
+                onClick={closeModal}
                 aria-label="Fechar"
                 data-autofocus="true"
               >
@@ -531,7 +755,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-4">
+          <div className="dashboard-scrollbar flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-4">
             <div className="h-8 w-40 rounded-lg bg-gray-100 relative overflow-hidden">
               <span className="absolute inset-0 animate-[shimmer_1.2s_infinite] bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
             </div>
@@ -574,7 +798,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
               </h2>
               <button
                 className="rounded-full p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-                onClick={onClose}
+                onClick={closeModal}
                 aria-label="Fechar"
                 data-autofocus="true"
               >
@@ -583,7 +807,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-5 sm:px-6 py-5">
+          <div className="dashboard-scrollbar flex-1 overflow-y-auto px-5 sm:px-6 py-5">
             <p className="text-sm text-red-600 mb-4">{error}</p>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button
@@ -593,7 +817,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
                 Tentar novamente
               </button>
               <button
-                onClick={onClose}
+                onClick={closeModal}
                 className="inline-flex items-center justify-center rounded-md border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50"
               >
                 Cancelar
@@ -613,7 +837,7 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
   if (prices) {
     return (
       <div
-        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md px-3 sm:px-4 py-4 overflow-y-auto"
+        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm px-3 sm:px-4 py-4 overflow-y-auto"
         role="dialog"
         aria-modal="true"
         aria-labelledby="subscribe-modal-title"
@@ -621,77 +845,73 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
       >
         <div
           ref={dialogRef}
-          className="w-full max-w-lg rounded-[2.5rem] bg-[#0A0F1A] text-white shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-white/5 overflow-hidden animate-[fadeIn_160ms_ease-out] flex flex-col max-h-[92vh] sm:max-h-[90vh]"
+          className="w-full max-w-lg overflow-hidden rounded-[2rem] border border-zinc-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.98))] text-zinc-950 shadow-[0_24px_70px_rgba(15,23,42,0.16)] animate-[fadeIn_160ms_ease-out] flex flex-col max-h-[92vh] sm:max-h-[90vh]"
           tabIndex={-1}
         >
           {/* Header sticky */}
-          <div className="sticky top-0 z-10 bg-[#0A0F1A]/95 backdrop-blur-xl">
-            <div className="relative border-b border-white/5">
-              <div className="absolute inset-0 opacity-20 bg-gradient-to-r from-[#6E1F93] via-[#F6007B] to-[#6E1F93] blur-3xl -z-10" />
-              <div className="relative flex items-start gap-4 p-6 sm:p-8">
-                <div className="shrink-0 rounded-2xl bg-brand-primary/10 p-3 border border-brand-primary/20">
-                  <Crown className="w-6 h-6 text-brand-primary" />
+          <div className="sticky top-0 z-10 bg-white/92 backdrop-blur-xl">
+            <div className="border-b border-zinc-200/80">
+              <div className="flex items-start gap-4 p-6 sm:p-7">
+                <div className="shrink-0 rounded-[1.1rem] bg-brand-primary/8 p-3 ring-1 ring-inset ring-brand-primary/12">
+                  <Crown className="w-5 h-5 text-brand-primary" />
                 </div>
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="inline-flex items-center rounded-full bg-brand-primary/20 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-widest text-brand-primary">
-                      Acesso Consultivo
-                    </span>
-                    <span className="bg-emerald-500/10 text-emerald-500 text-[9px] font-bold px-1.5 py-0.5 rounded border border-emerald-500/20">
-                      ÚLTIMAS VAGAS
+                  <div className="mb-2 flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-full bg-brand-primary/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-brand-primary ring-1 ring-inset ring-brand-primary/10">
+                      Plano Pro
                     </span>
                   </div>
-                  <h2 id="subscribe-modal-title" className="text-xl sm:text-2xl font-black text-white tracking-tight leading-tight">
+                  <h2 id="subscribe-modal-title" className="text-[1.55rem] sm:text-[1.75rem] font-black tracking-tight leading-[1.02] text-zinc-950">
                     {paywallCopy.title}
                   </h2>
-                  <p className="mt-2 text-sm text-slate-400 leading-relaxed font-medium">
+                  <p className="mt-2 max-w-[25rem] text-sm leading-6 text-zinc-500">
                     {paywallCopy.subtitle}
                   </p>
                 </div>
                 <button
-                  onClick={onClose}
+                  onClick={closeModal}
                   aria-label="Fechar"
-                  className="rounded-full p-2 text-slate-500 hover:text-white hover:bg-white/5 transition-all"
+                  className="rounded-full p-2 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-900"
                   data-autofocus="true"
                 >
-                  <X className="w-6 h-6" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div className="dashboard-scrollbar flex-1 overflow-y-auto">
             {/* Seletores */}
             <div className="px-6 sm:px-8 pt-6">
               <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <div className="inline-flex rounded-2xl p-1 bg-white/5 border border-white/5">
+                <div className="inline-flex rounded-[1.1rem] border border-zinc-200 bg-zinc-50 p-1">
                   <button
                     onClick={() => setPeriod("monthly")}
-                    className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all ${period === "monthly" ? "bg-white text-slate-900 shadow-xl" : "text-slate-500 hover:text-slate-300"}`}
+                    className={`rounded-[0.9rem] px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] transition-all ${period === "monthly" ? "bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-200/80" : "text-zinc-500 hover:text-zinc-900"}`}
                     disabled={loadingRedirect}
                   >
                     Mensal
                   </button>
                   <button
                     onClick={() => setPeriod("annual")}
-                    className={`px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl transition-all ${period === "annual" ? "bg-white text-slate-900 shadow-xl" : "text-slate-500 hover:text-slate-300"}`}
+                    className={`rounded-[0.9rem] px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] transition-all ${period === "annual" ? "bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-200/80" : "text-zinc-500 hover:text-zinc-900"}`}
                     disabled={loadingRedirect}
                   >
-                    Anual {savingsPct > 0 && <span className="ml-1 text-emerald-400">-{savingsPct}%</span>}
+                    Anual {savingsPct > 0 && <span className="ml-1 text-brand-primary">-{savingsPct}%</span>}
                   </button>
                 </div>
 
-                <div className="inline-flex rounded-2xl p-1 bg-white/5 border border-white/5">
+                <div className="inline-flex rounded-[1.1rem] border border-zinc-200 bg-zinc-50 p-1">
                   <button
                     onClick={() => setCurrency("brl")}
-                    className={`px-3 py-2 text-[10px] font-black rounded-xl transition-all ${currency === "brl" ? "bg-white/10 text-white" : "text-slate-500"}`}
+                    className={`rounded-[0.9rem] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] transition-all ${currency === "brl" ? "bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-200/80" : "text-zinc-500 hover:text-zinc-900"}`}
                     disabled={loadingRedirect}
                   >
                     BRL
                   </button>
                   <button
                     onClick={() => setCurrency("usd")}
-                    className={`px-3 py-2 text-[10px] font-black rounded-xl transition-all ${currency === "usd" ? "bg-white/10 text-white" : "text-slate-500"}`}
+                    className={`rounded-[0.9rem] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] transition-all ${currency === "usd" ? "bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-200/80" : "text-zinc-500 hover:text-zinc-900"}`}
                     disabled={loadingRedirect}
                   >
                     USD
@@ -702,36 +922,69 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
 
             {/* Preço */}
             <div className="px-6 sm:px-8 pt-5 text-center sm:text-left">
-              <div className="rounded-[2rem] border border-white/5 p-6 bg-gradient-to-br from-white/[0.03] to-transparent shadow-2xl relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                  <FaLock className="w-12 h-12 text-white" />
-                </div>
+              <div className="border-t border-zinc-100 pt-5">
                 <div className="flex items-end gap-2 justify-center sm:justify-start">
-                  <div className="text-4xl font-black text-white leading-none tracking-tighter">
+                  <div className="text-4xl font-black leading-none tracking-tighter text-zinc-950">
                     {formatMoney(activePrice)}
                   </div>
-                  <span className="text-sm text-slate-500 mb-1 font-bold">
+                  <span className="mb-1 text-sm font-semibold text-zinc-500">
                     /{period === "monthly" ? "mês" : "ano"}
                   </span>
                 </div>
 
                 {period === "annual" && (
-                  <div className="mt-2 text-xs text-slate-400 font-medium">
-                    Investimento de <span className="text-white font-bold">{formatMoney(monthlyEquivalent)}</span>/mês para sua imagem.
+                  <div className="mt-2 text-xs font-medium text-zinc-500">
+                    Equivale a <span className="font-semibold text-zinc-900">{formatMoney(monthlyEquivalent)}</span>/mês no plano anual.
                   </div>
                 )}
 
-                <div className="mt-2 text-[10px] text-slate-500 uppercase font-black tracking-widest flex items-center justify-center sm:justify-start gap-2">
-                  <Check className="w-3 h-3 text-emerald-500" />
-                  Cancelamento instantâneo via Stripe
+                <div className="mt-3 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400 sm:justify-start">
+                  <Check className="h-3 w-3 text-brand-primary" />
+                  Cancele quando quiser
                 </div>
               </div>
             </div>
 
+            {stepItems.length ? (
+              <div className="px-6 sm:px-8 pt-5">
+                <div className="border-t border-zinc-100 pt-5">
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-brand-primary/8">
+                      <ArrowRight className="h-3.5 w-3.5 text-brand-primary" aria-hidden />
+                    </span>
+                    <div>
+                      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-primary">
+                        Como funciona
+                      </p>
+                      <p className="mt-0.5 text-xs text-zinc-500">
+                        Você continua do ponto em que parou.
+                      </p>
+                    </div>
+                  </div>
+
+                  <ol className={`mt-4 grid gap-2.5 ${stepItems.length === 4 ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
+                    {stepItems.map((step, index) => (
+                      <li
+                        key={step}
+                        className="rounded-[1rem] bg-zinc-50 px-3.5 py-3"
+                      >
+                        <div className="flex items-start gap-3">
+                          <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-[11px] font-bold text-white">
+                            {index + 1}
+                          </span>
+                          <p className="text-sm font-medium leading-5 text-zinc-700">{step}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </div>
+            ) : null}
+
             {/* Benefícios */}
             <div className="px-6 sm:px-8 py-6">
               {!!error && (
-                <div className="mb-4 rounded-2xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-xs font-bold text-red-400">
+                <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-600">
                   <p>{error}</p>
                   {errorAction && (
                     <Link href={errorAction.href} className="mt-2 inline-flex border-b border-red-400">
@@ -741,13 +994,13 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
                 </div>
               )}
 
-              <ul className="grid grid-cols-1 gap-3">
+              <ul className="grid grid-cols-1 gap-0 border-t border-zinc-100">
                 {bulletItems.map((feat) => (
-                  <li key={feat} className="flex items-start gap-3 rounded-2xl border border-white/5 bg-white/[0.02] px-4 py-3 text-sm group hover:border-brand-primary/20 transition-all">
-                    <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-lg bg-brand-primary/10 border border-brand-primary/20 group-hover:scale-110 transition-transform">
+                  <li key={feat} className="flex items-start gap-3 border-b border-zinc-100 px-0 py-3 text-sm transition-all">
+                    <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-lg bg-brand-primary/8">
                       <Check className="h-4 w-4 text-brand-primary" />
                     </span>
-                    <span className="text-slate-300 font-medium">{feat}</span>
+                    <span className="font-medium text-zinc-700">{feat}</span>
                   </li>
                 ))}
               </ul>
@@ -755,60 +1008,29 @@ export default function BillingSubscribeModal({ open, onClose, context }: Billin
           </div>
 
           {/* Rodapé sticky */}
-          <div className="sticky bottom-0 z-10 bg-[#0A0F1A]/95 backdrop-blur-xl border-t border-white/5">
-            <div className="px-6 sm:px-8 pb-8 pt-5">
+          <div className="sticky bottom-0 z-10 border-t border-zinc-200/80 bg-white/92 backdrop-blur-xl">
+            <div className="px-6 sm:px-8 pb-6 pt-5">
               <button
                 type="button"
-                onClick={handleSubscribe}
-                disabled={loadingRedirect || billingStatusLoading || shouldBlockSubscribe}
-                className="w-full relative overflow-hidden group/btn inline-flex items-center justify-center rounded-2xl bg-white text-[#0A0F1A] px-6 py-4 text-sm font-black uppercase tracking-widest shadow-[0_0_30px_rgba(255,255,255,0.1)] hover:scale-[1.02] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={() => handleSubscribe()}
+                disabled={loadingRedirect || billingStatusLoading || sessionStatus === "loading" || shouldBlockSubscribe}
+                className="group/btn inline-flex w-full items-center justify-center rounded-[1.15rem] bg-zinc-950 px-6 py-4 text-sm font-bold uppercase tracking-[0.18em] text-white transition-all hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-black/5 to-transparent -translate-x-full group-hover/btn:animate-shimmer" />
                 {loadingRedirect ? (
                   <>
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                    Estabelecendo Conexão...
+                    {sessionStatus === "authenticated" ? "Estabelecendo Conexão..." : "Abrindo Google..."}
                   </>
                 ) : (
                   <>
-                    {primaryCtaLabel}
+                    {resolvedPrimaryCtaLabel}
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </>
                 )}
               </button>
 
-              <div className="mt-4 flex flex-col items-center gap-2">
-                <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest flex items-center gap-2">
-                  <Lock className="w-3 h-3" />
-                  Ambiente Seguro SSL-Criptografado
-                </p>
-                <div className="flex items-center gap-3 opacity-30 grayscale contrast-125">
-                  {/* Simplified representation of payment logos */}
-                  <div className="w-8 h-5 bg-slate-500 rounded-sm" />
-                  <div className="w-8 h-5 bg-slate-500 rounded-sm" />
-                  <div className="w-8 h-5 bg-slate-500 rounded-sm" />
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => {
-                  track("dashboard_cta_clicked", {
-                    creator_id: null,
-                    target: "activate_pro",
-                    surface: "upsell_block",
-                    context: "learn_more",
-                  });
-                  window.open("/pro", "_blank", "noopener,noreferrer");
-                }}
-                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/5 bg-white/5 px-4 py-3 text-xs font-black uppercase tracking-widest text-slate-400 transition hover:text-white"
-              >
-                Conhecer a Narrativa D2C
-                <ArrowUpRight className="h-4 w-4" />
-              </button>
-
-              <p className="mt-4 text-center text-[10px] text-slate-600 font-medium">
-                © 2024 Data2Content & Destaque Imagem. Todos os direitos reservados.
+              <p className="mt-3 text-center text-[11px] text-zinc-400">
+                Pagamento seguro. Cancele quando quiser.
               </p>
             </div>
           </div>

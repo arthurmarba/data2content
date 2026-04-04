@@ -51,9 +51,10 @@ test.describe("Dashboard runtime smoke", () => {
     const collector = attachRuntimeIssueCollector(page);
     collector.clear();
 
-    await page.goto("/planning/roteiros");
+    await page.goto("/calendar?tab=scripts");
     await dismissCookieBanner(page);
-    await expect(page.getByRole("heading", { name: "Meus Roteiros" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Criação de Post" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Meus Roteiros" })).toBeVisible();
     await expect(page.locator(".animate-pulse").first()).toBeHidden({ timeout: 30_000 }).catch(() => undefined);
     await page.waitForTimeout(1200);
     await expectNoRuntimeIssues(collector, "Meus Roteiros");
@@ -64,9 +65,10 @@ test.describe("Dashboard runtime smoke", () => {
     const collector = attachRuntimeIssueCollector(page);
     collector.clear();
 
-    await page.goto("/planning/planner");
+    await page.goto("/calendar?tab=planner");
     await dismissCookieBanner(page);
-    await expect(page.getByRole("heading", { name: "Planejador de Conteúdo" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("heading", { name: "Criação de Post" })).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("button", { name: "Pautas de conteúdo" })).toBeVisible();
     await page.waitForTimeout(1200);
     await expectNoRuntimeIssues(collector, "Planejador");
   });

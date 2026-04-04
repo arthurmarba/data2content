@@ -1,16 +1,16 @@
 'use client';
 
-import { signIn } from 'next-auth/react';
 import { MAIN_DASHBOARD_ROUTE } from '@/constants/routes';
 import { FaGoogle } from 'react-icons/fa';
 import ButtonPrimary from './ButtonPrimary';
 import Container from '../../components/Container';
 import { track } from '@/lib/track';
+import { redirectToGoogleConsentLogin } from '@/lib/auth/googleLogin';
 
 export default function CallToAction() {
   const handleSignIn = () => {
     track('sign_in_click');
-    signIn('google', { callbackUrl: MAIN_DASHBOARD_ROUTE });
+    redirectToGoogleConsentLogin(MAIN_DASHBOARD_ROUTE);
   };
 
   return (

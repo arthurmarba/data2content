@@ -9,7 +9,6 @@ import CancelSubscriptionModal from '@/components/billing/CancelSubscriptionModa
 
 type PlanStatus =
   | 'active'
-  | 'trialing'
   | 'past_due'
   | 'incomplete'
   | 'incomplete_expired'
@@ -254,10 +253,10 @@ export default function BillingPanel() {
   const fmt = (d?: string | null) => (d ? format(new Date(d), 'dd/MM/yyyy') : '-');
   const status: PlanStatus = s.planStatus ?? 'inactive';
   const intervalLabel = s.planInterval === 'year' ? 'Anual' : s.planInterval === 'month' ? 'Mensal' : null;
-  const cancelable = (status === 'active' || status === 'trialing') && !s.cancelAtPeriodEnd;
+  const cancelable = status === 'active' && !s.cancelAtPeriodEnd;
   const canReactivate = status === 'non_renewing' && s.cancelAtPeriodEnd === true;
   const portalBlockedStatuses: PlanStatus[] = ['pending', 'expired', 'incomplete', 'incomplete_expired'];
-  const showPortal = (status === 'active' || status === 'non_renewing' || status === 'trialing' || status === 'past_due' || status === 'unpaid') && !portalBlockedStatuses.includes(status);
+  const showPortal = (status === 'active' || status === 'non_renewing' || status === 'past_due' || status === 'unpaid') && !portalBlockedStatuses.includes(status);
   const canResumeCheckout = status === 'pending' || status === 'incomplete';
   const needsCheckout = ['pending', 'incomplete'].includes(status);
   const showSubscribeCta =
@@ -267,9 +266,6 @@ export default function BillingPanel() {
   switch (status) {
     case 'active':
       statusDescription = <>Ativo {intervalLabel ? `(${intervalLabel}) ` : ''}• renova em {fmt(s.planExpiresAt)}</>;
-      break;
-    case 'trialing':
-      statusDescription = <>Período de teste {intervalLabel ? `(${intervalLabel}) ` : ''}• expira em {fmt(s.planExpiresAt)}</>;
       break;
     case 'non_renewing':
       statusDescription = <>Cancelado ao fim do período • acesso até {fmt(s.cancelAt ?? s.planExpiresAt)}</>;

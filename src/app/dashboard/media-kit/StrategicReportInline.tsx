@@ -91,9 +91,9 @@ export default function StrategicReportInline() {
   }
 
   return (
-    <section className="bg-slate-50">
+    <section className="bg-transparent">
       <div className="dashboard-page-shell space-y-4 py-6">
-        <h2 className="text-2xl font-bold text-gray-900">Relatório Estratégico</h2>
+        <h2 className="text-2xl font-bold tracking-[-0.03em] text-zinc-950">Relatório Estratégico</h2>
 
         {!isActiveLike && (
           <Card
@@ -103,38 +103,38 @@ export default function StrategicReportInline() {
           >
             <div className="space-y-5">
               <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-lg border border-white/40 bg-white px-4 py-3 shadow-sm">
-                  <p className="text-sm font-semibold text-slate-900">Insights Prioritários</p>
-                  <p className="mt-1 text-xs text-slate-600">
+                <div className="dashboard-panel-subtle rounded-[1.35rem] px-4 py-3">
+                  <p className="text-sm font-semibold text-zinc-900">Insights Prioritários</p>
+                  <p className="mt-1 text-xs text-zinc-600">
                     Impacto estimado, confiança e próximos passos guiados pela IA.
                   </p>
                 </div>
-                <div className="rounded-lg border border-white/40 bg-white px-4 py-3 shadow-sm">
-                  <p className="text-sm font-semibold text-slate-900">Roteiros & Calendário</p>
-                  <p className="mt-1 text-xs text-slate-600">
+                <div className="dashboard-panel-subtle rounded-[1.35rem] px-4 py-3">
+                  <p className="text-sm font-semibold text-zinc-900">Roteiros & Calendário</p>
+                  <p className="mt-1 text-xs text-zinc-600">
                     Formatos, ganchos e melhores horários para manter o plano no ritmo.
                   </p>
                 </div>
-                <div className="rounded-lg border border-white/40 bg-white px-4 py-3 shadow-sm">
-                  <p className="text-sm font-semibold text-slate-900">Provas & Oportunidades</p>
-                  <p className="mt-1 text-xs text-slate-600">
+                <div className="dashboard-panel-subtle rounded-[1.35rem] px-4 py-3">
+                  <p className="text-sm font-semibold text-zinc-900">Provas & Oportunidades</p>
+                  <p className="mt-1 text-xs text-zinc-600">
                     Benchmarks do seu nicho, peças de mídia kit e próximos pitches.
                   </p>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-white/60 bg-white/95 px-5 py-4 shadow-[0_18px_48px_rgba(15,23,42,0.1)]">
-                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-brand-purple">
+              <div className="dashboard-dark-spotlight rounded-[1.75rem] px-5 py-4">
+                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-pink-200">
                   <span aria-hidden="true">👀</span> Peek do Modo Pro
                 </div>
-                <p className="mt-3 text-sm font-semibold text-slate-900">
+                <p className="mt-3 text-sm font-semibold text-white">
                   Camadas que mais puxam crescimento nas últimas semanas
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2" aria-hidden="true">
                   {["Converter", "Review", "Quebra de Mito"].map((chip) => (
                     <span
                       key={chip}
-                      className="rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-800 shadow-sm blur-[2px]"
+                      className="dashboard-glass-pill rounded-full px-3 py-1 text-sm font-semibold text-zinc-100 shadow-sm blur-[2px]"
                     >
                       {chip}
                     </span>
@@ -144,18 +144,18 @@ export default function StrategicReportInline() {
                   Prévia borrada das categorias de maior crescimento — disponível ao ativar o Modo
                   Pro.
                 </p>
-                <p className="mt-3 text-xs text-slate-600">
+                <p className="mt-3 text-xs text-zinc-300">
                   Reels ↑ +22% com essas leituras. Ative o Plano Pro para ver por que, os dias
                   ideais e as combinações que destravam alcance.
                 </p>
-                <div className="mt-4 flex flex-wrap gap-2 text-xs text-slate-500">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600">
+                <div className="mt-4 flex flex-wrap gap-2 text-xs text-zinc-300">
+                  <span className="dashboard-glass-pill inline-flex items-center gap-1 rounded-full px-3 py-1 font-medium">
                     Benchmarks por categoria
                   </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600">
+                  <span className="dashboard-glass-pill inline-flex items-center gap-1 rounded-full px-3 py-1 font-medium">
                     Heatmap de horários
                   </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 font-medium text-slate-600">
+                  <span className="dashboard-glass-pill inline-flex items-center gap-1 rounded-full px-3 py-1 font-medium">
                     Insights semanais
                   </span>
                 </div>
@@ -167,19 +167,19 @@ export default function StrategicReportInline() {
                   onClick={() =>
                     openPaywallModal({ context: 'planning', source: 'strategic_report_inline_primary' })
                   }
-                  className="inline-flex w-full items-center justify-center rounded-lg bg-black px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black sm:w-auto"
+                  className="dashboard-primary-button inline-flex w-full items-center justify-center rounded-[1rem] px-4 py-2.5 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black sm:w-auto"
                 >
                   Ativar Plano Pro
                 </button>
                 <button
                   type="button"
                   onClick={() => openPaywallModal({ context: 'planning', source: 'strategic_report_inline' })}
-                  className="inline-flex w-full items-center justify-center rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-400 sm:w-auto"
+                  className="dashboard-secondary-button inline-flex w-full items-center justify-center rounded-[1rem] px-4 py-2.5 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-400 sm:w-auto"
                 >
                   Ver planos completos
                 </button>
               </div>
-              <p className="text-[11px] text-slate-600">{PRO_PLAN_FLEXIBILITY_COPY}</p>
+              <p className="text-[11px] text-zinc-500">{PRO_PLAN_FLEXIBILITY_COPY}</p>
             </div>
           </Card>
         )}
@@ -187,14 +187,14 @@ export default function StrategicReportInline() {
         {isActiveLike && (
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <button onClick={() => refresh()} className="border px-3 py-2 rounded text-xs">Atualizar</button>
-              <button onClick={handleRegenerate} disabled={regenLoading} className="border px-3 py-2 rounded text-xs disabled:opacity-60">
+              <button onClick={() => refresh()} className="dashboard-secondary-button rounded-full px-3 py-2 text-xs font-semibold">Atualizar</button>
+              <button onClick={handleRegenerate} disabled={regenLoading} className="dashboard-secondary-button rounded-full px-3 py-2 text-xs font-semibold disabled:opacity-60">
                 {regenLoading ? 'Gerando…' : 'Regenerar'}
               </button>
-              <label className="text-xs text-gray-600 inline-flex items-center gap-2">
+              <label className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
                 Período:
                 <select
-                  className="border rounded px-2 py-1 text-xs"
+                  className="dashboard-select rounded-full px-3 py-1.5 text-xs font-semibold normal-case tracking-normal"
                   value={periodDays}
                   onChange={(e) => setPeriodDays(parseInt(e.target.value, 10))}
                 >
@@ -204,15 +204,15 @@ export default function StrategicReportInline() {
               </label>
             </div>
 
-            {regenError && <div className="text-xs text-red-600">{regenError}</div>}
+            {regenError && <div className="text-xs text-rose-600">{regenError}</div>}
 
             {loading && (
               <div className="grid md:grid-cols-3 gap-4">
                 {[...Array(3)].map((_, i) => (
-                  <div key={i} className="p-4 border border-gray-200 rounded-xl bg-white">
-                    <div className="h-4 w-1/2 bg-gray-200 rounded animate-pulse" />
-                    <div className="mt-3 h-20 bg-gray-100 rounded animate-pulse" />
-                    <div className="mt-3 h-3 w-2/3 bg-gray-200 rounded animate-pulse" />
+                  <div key={i} className="dashboard-panel-subtle rounded-[1.35rem] p-4">
+                    <div className="h-4 w-1/2 rounded bg-zinc-200 animate-pulse" />
+                    <div className="mt-3 h-20 rounded bg-zinc-100 animate-pulse" />
+                    <div className="mt-3 h-3 w-2/3 rounded bg-zinc-200 animate-pulse" />
                   </div>
                 ))}
               </div>
@@ -254,8 +254,8 @@ export default function StrategicReportInline() {
                 </Card>
 
                 {report.narrative && (
-                  <Card variant="brand" title="Resumo narrativo" actions={<button className="text-xs border px-2 py-1 rounded" onClick={() => setExpandNarrative(v => !v)}>{expandNarrative ? 'Recolher' : 'Ver completo'}</button>}>
-                    <div className="text-sm text-gray-800 space-y-1">
+                  <Card variant="brand" title="Resumo narrativo" actions={<button className="dashboard-secondary-button rounded-full px-2.5 py-1 text-xs font-semibold" onClick={() => setExpandNarrative(v => !v)}>{expandNarrative ? 'Recolher' : 'Ver completo'}</button>}>
+                    <div className="space-y-1 text-sm text-zinc-800">
                       <p>{report.narrative.intro}</p>
                       {(expandNarrative ? report.narrative.body : report.narrative.body?.slice(0,1))?.map((p, idx) => (
                         <p key={idx}>{p}</p>
@@ -268,7 +268,7 @@ export default function StrategicReportInline() {
                 <div className="grid md:grid-cols-2 gap-4">
                   <Card variant="brand" title="Principais Insights" actions={
                     report.keyInsights?.length > 6 ? (
-                      <button className="text-xs border px-2 py-1 rounded" onClick={() => setShowAllInsights(v => !v)}>
+                      <button className="dashboard-secondary-button rounded-full px-2.5 py-1 text-xs font-semibold" onClick={() => setShowAllInsights(v => !v)}>
                         {showAllInsights ? 'Ver menos' : 'Ver todos'}
                       </button>
                     ) : undefined
@@ -291,7 +291,7 @@ export default function StrategicReportInline() {
                       <>
                         {report.correlations?.length ? (
                           <div>
-                            <p className="text-xs text-gray-500 mb-2">Sinais emergentes (amostra/confiança limitada):</p>
+                            <p className="mb-2 text-xs text-zinc-500">Sinais emergentes (amostra/confiança limitada):</p>
                             <div className="grid md:grid-cols-2 gap-3">
                               {([...report.correlations]
                                   .sort((a, b) => Math.abs((b.coeffOrDelta ?? 0)) - Math.abs((a.coeffOrDelta ?? 0)))
@@ -307,7 +307,7 @@ export default function StrategicReportInline() {
                             </div>
                           </div>
                         ) : (
-                          <p className="text-sm text-gray-600">Sem insights prioritários no período.</p>
+                          <p className="text-sm text-zinc-600">Sem insights prioritários no período.</p>
                         )}
                       </>
                     )}
@@ -324,17 +324,17 @@ export default function StrategicReportInline() {
                                 {s.steps.map((st) => (<li key={st.order}>{st.text}</li>))}
                               </ol>
                               {best && (
-                                <div className="text-xs text-gray-500 mt-2">Melhor horário: {best.day} {best.hour}h</div>
+                                <div className="mt-2 text-xs text-zinc-500">Melhor horário: {best.day} {best.hour}h</div>
                               )}
                               {s.cta && (
-                                <div className="text-xs text-gray-700 mt-2 font-medium">CTA: {s.cta}</div>
+                                <div className="mt-2 text-xs font-medium text-zinc-700">CTA: {s.cta}</div>
                               )}
                             </Card>
                           );
                         })}
                       </div>
                     ) : (
-                      <p className="text-sm text-gray-600">Sem roteiros destacados.</p>
+                      <p className="text-sm text-zinc-600">Sem roteiros destacados.</p>
                     )}
                   </Card>
                 </div>
@@ -360,7 +360,7 @@ export default function StrategicReportInline() {
                   return (
                     <Card variant="brand" title="Melhor horário (comentários)">
                       <p className="text-sm">{corr.insightText}</p>
-                      <p className="text-xs text-gray-500 mt-1">Estimado a partir da variação vs. mediana. Confiança: {typeof corr.significance === 'number' ? `${Math.round((corr.significance as number) * 100)}%` : '—'}</p>
+                      <p className="mt-1 text-xs text-zinc-500">Estimado a partir da variação vs. mediana. Confiança: {typeof corr.significance === 'number' ? `${Math.round((corr.significance as number) * 100)}%` : '—'}</p>
                     </Card>
                   );
                 })()}
@@ -372,16 +372,16 @@ export default function StrategicReportInline() {
                       {report.commercialOpportunities.map((o) => (
                         <Card key={o.id} density="compact" variant="brand" title={o.category} subtitle={o.rationale}>
                           <div className="mt-1 flex items-center gap-2 flex-wrap text-sm">
-                            <span className="inline-flex items-center gap-1 border rounded-full px-2 py-0.5 text-xs text-blue-700 bg-blue-50 border-blue-200">Score {(o.score * 100).toFixed(0)}%</span>
-                            {typeof o.upliftPct === 'number' && <span className="text-xs text-gray-500">(+{o.upliftPct.toFixed(0)}%)</span>}
+                            <span className="inline-flex items-center gap-1 rounded-full border border-pink-200 bg-pink-50 px-2.5 py-1 text-xs font-semibold text-pink-700">Score {(o.score * 100).toFixed(0)}%</span>
+                            {typeof o.upliftPct === 'number' && <span className="text-xs text-zinc-500">(+{o.upliftPct.toFixed(0)}%)</span>}
                           </div>
                           <div className="mt-3 grid grid-cols-1 gap-2 text-sm">
-                            <div className="border rounded p-2 bg-white">
-                              <div className="text-xs font-semibold text-gray-700 mb-1">Leitura</div>
-                              <p className="text-gray-700">{o.rationale}</p>
+                            <div className="dashboard-panel-subtle rounded-[1rem] p-2">
+                              <div className="mb-1 text-xs font-semibold text-zinc-700">Leitura</div>
+                              <p className="text-zinc-700">{o.rationale}</p>
                             </div>
-                            <div className="border rounded p-2 bg-white">
-                              <div className="text-xs font-semibold text-gray-700 mb-1">Passos práticos</div>
+                            <div className="dashboard-panel-subtle rounded-[1rem] p-2">
+                              <div className="mb-1 text-xs font-semibold text-zinc-700">Passos práticos</div>
                               <ol className="list-decimal pl-5 space-y-1">
                                 <li>Defina o objetivo (salvos, compartilhamentos ou visitas ao perfil).</li>
                                 <li>Adapte um roteiro compatível em “Roteiros prontos”.</li>
@@ -390,18 +390,18 @@ export default function StrategicReportInline() {
                                 <li>Após 48h, registre o desempenho e repita a variação promissora.</li>
                               </ol>
                             </div>
-                            <div className="border rounded p-2 bg-white">
-                              <div className="text-xs font-semibold text-gray-700 mb-1">KPIs</div>
+                            <div className="dashboard-panel-subtle rounded-[1rem] p-2">
+                              <div className="mb-1 text-xs font-semibold text-zinc-700">KPIs</div>
                               <div className="flex flex-wrap gap-2">
-                                <span className="text-[11px] border rounded-full px-2 py-0.5 text-gray-700 bg-gray-50 border-gray-200">Interações</span>
-                                <span className="text-[11px] border rounded-full px-2 py-0.5 text-gray-700 bg-gray-50 border-gray-200">Salvos</span>
-                                <span className="text-[11px] border rounded-full px-2 py-0.5 text-gray-700 bg-gray-50 border-gray-200">Compartilhamentos</span>
-                                <span className="text-[11px] border rounded-full px-2 py-0.5 text-gray-700 bg-gray-50 border-gray-200">Alcance</span>
+                                <span className="inline-flex rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700">Interações</span>
+                                <span className="inline-flex rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700">Salvos</span>
+                                <span className="inline-flex rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700">Compartilhamentos</span>
+                                <span className="inline-flex rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700">Alcance</span>
                               </div>
                             </div>
-                            <div className="border rounded p-2 bg-white">
-                              <div className="text-xs font-semibold text-gray-700 mb-1">Riscos/Observações</div>
-                              <ul className="list-disc pl-5 space-y-1 text-gray-700">
+                            <div className="dashboard-panel-subtle rounded-[1rem] p-2">
+                              <div className="mb-1 text-xs font-semibold text-zinc-700">Riscos/Observações</div>
+                              <ul className="list-disc pl-5 space-y-1 text-zinc-700">
                                 <li>Amostra limitada pode reduzir confiança do impacto.</li>
                                 <li>Evite saturação; varie narrativas, provas e ângulos.</li>
                                 <li>Ajuste a abordagem conforme o retorno nos comentários.</li>
@@ -418,7 +418,7 @@ export default function StrategicReportInline() {
                 {report.weeklyPlan ? (
                   <Card variant="brand" title="Plano da semana" subtitle={report.weeklyPlan.cadence}>
                     {report.weeklyPlan.bestSlots?.[0] && (
-                      <p className="text-xs text-gray-600 mb-2">Melhor horário sugerido: {report.weeklyPlan.bestSlots[0].day} {report.weeklyPlan.bestSlots[0].hour}h</p>
+                      <p className="mb-2 text-xs text-zinc-600">Melhor horário sugerido: {report.weeklyPlan.bestSlots[0].day} {report.weeklyPlan.bestSlots[0].hour}h</p>
                     )}
                     <ol className="list-decimal pl-5 text-sm space-y-1">
                       {report.weeklyPlan.actions?.map((a) => (
@@ -426,7 +426,7 @@ export default function StrategicReportInline() {
                       ))}
                     </ol>
                     {report.weeklyPlan.reminders?.length ? (
-                      <ul className="mt-2 list-disc pl-5 text-xs text-gray-600 space-y-1">
+                      <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-zinc-600">
                         {report.weeklyPlan.reminders.map((r, i) => (<li key={i}>{r}</li>))}
                       </ul>
                     ) : null}
@@ -438,11 +438,11 @@ export default function StrategicReportInline() {
                   <Card variant="brand" title="Inspirações">
                     <div className="grid md:grid-cols-2 gap-3">
                       {report.communityInspirations.map((ci) => (
-                        <div key={ci.id} className="border border-gray-200 rounded p-2">
+                        <div key={ci.id} className="dashboard-panel-subtle rounded-[1rem] p-2">
                           <div className="text-sm font-medium">{ci.handleOrAnon}</div>
-                          <div className="text-xs text-gray-500">{formatCommunityInspirationSubtitle(ci)}</div>
+                          <div className="text-xs text-zinc-500">{formatCommunityInspirationSubtitle(ci)}</div>
                           <div className="text-sm mt-1">{ci.whyItWorks}</div>
-                          {ci.link && <a className="text-blue-600 text-xs" href={ci.link} target="_blank" rel="noreferrer">Ver post</a>}
+                          {ci.link && <a className="text-xs font-semibold text-pink-600" href={ci.link} target="_blank" rel="noreferrer">Ver post</a>}
                         </div>
                       ))}
                     </div>
@@ -453,7 +453,7 @@ export default function StrategicReportInline() {
                 {report.correlations?.length ? (
                   <Card variant="brand" title="Correlações" actions={
                     report.correlations.length > 6 ? (
-                      <button className="text-xs border px-2 py-1 rounded" onClick={() => setShowAllCorrelations(v => !v)}>
+                      <button className="dashboard-secondary-button rounded-full px-2.5 py-1 text-xs font-semibold" onClick={() => setShowAllCorrelations(v => !v)}>
                         {showAllCorrelations ? 'Ver menos' : 'Ver todas'}
                       </button>
                     ) : undefined
@@ -465,8 +465,8 @@ export default function StrategicReportInline() {
                       ).map((c) => (
                         <Card key={c.id} density="compact" variant="brand" title={c.insightText} actions={<EvidenceBadge title="Evidências" refs={(c.evidenceRefs as any) || []} />}>
                           <div className="mt-1 flex items-center gap-2 flex-wrap">
-                            <span className="text-[10px] border rounded-full px-2 py-0.5 text-gray-700 bg-gray-50 border-gray-200">{c.dimension}</span>
-                            <span className="text-[10px] border rounded-full px-2 py-0.5 text-gray-700 bg-gray-50 border-gray-200">{String(c.metric)}</span>
+                            <span className="inline-flex rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-700">{c.dimension}</span>
+                            <span className="inline-flex rounded-full border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-700">{String(c.metric)}</span>
                             {typeof c.coeffOrDelta === 'number' && <DeltaBadge value={c.coeffOrDelta} />}
                             <ConfidencePill confidence={c.significance} n={c.sampleSize} />
                           </div>
@@ -479,22 +479,22 @@ export default function StrategicReportInline() {
             )}
 
             {!loading && !report && !error && (
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 text-blue-900">
-                <h3 className="text-base font-semibold">Estamos coletando seus dados recentes 📊</h3>
-                <p className="mt-1 text-sm text-blue-800">
+              <div className="dashboard-empty-state rounded-[1.75rem] p-5 text-zinc-900">
+                <h3 className="text-base font-semibold tracking-[-0.02em]">Estamos coletando seus dados recentes 📊</h3>
+                <p className="mt-1 text-sm text-zinc-700">
                   Em até 24h seu Relatório Estratégico estará pronto com métricas completas e oportunidades por
                   categoria.
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Link
                     href="/planning/whatsapp"
-                    className="inline-flex items-center justify-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-blue-700"
+                    className="dashboard-primary-button inline-flex items-center justify-center rounded-[1rem] px-4 py-2 text-sm font-semibold"
                   >
                     Avisar quando estiver pronto
                   </Link>
                   <Link
                     href="/dashboard/instagram/faq"
-                    className="inline-flex items-center justify-center rounded-lg border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-white"
+                    className="dashboard-secondary-button inline-flex items-center justify-center rounded-[1rem] px-4 py-2 text-sm font-semibold"
                   >
                     Entenda como os dados são coletados
                   </Link>
@@ -503,7 +503,7 @@ export default function StrategicReportInline() {
             )}
 
             {error && (
-              <p className="text-sm text-red-600">Falha ao carregar o relatório.</p>
+              <p className="text-sm text-rose-600">Falha ao carregar o relatório.</p>
             )}
           </div>
         )}
@@ -511,7 +511,7 @@ export default function StrategicReportInline() {
       <Drawer open={openHowTo} onClose={() => setOpenHowTo(false)} title={`Como executar — ${howToContext?.title ?? ''}`}>
         <div className="text-sm space-y-3">
           {howToContext?.rationale && (
-            <p className="text-gray-700">Por que fazer: {howToContext.rationale}</p>
+            <p className="text-zinc-700">Por que fazer: {howToContext.rationale}</p>
           )}
           <ol className="list-decimal pl-5 space-y-1">
             <li>Defina o objetivo do post (salvamentos, compartilhamentos ou visitas ao perfil).</li>
@@ -520,7 +520,7 @@ export default function StrategicReportInline() {
             <li>Reforce nos Stories entre 2–6h após publicar (enquete ou CTA).</li>
             <li>Após 48h, registre o desempenho e repita a variação promissora.</li>
           </ol>
-          <p className="text-xs text-gray-500">Dica: gancho claro nos primeiros 3s, promessa explícita e CTA específico.</p>
+          <p className="text-xs text-zinc-500">Dica: gancho claro nos primeiros 3s, promessa explícita e CTA específico.</p>
         </div>
       </Drawer>
     </section>

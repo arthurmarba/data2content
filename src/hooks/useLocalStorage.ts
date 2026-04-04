@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useState } from "react";
 
 export function useLocalStorage<T>(key: string, initialValue: T) {
     // State to store our value
@@ -18,23 +18,29 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
 
     // Return a wrapped version of useState's setter function that ...
     // ... persists the new value to localStorage.
-    const setValue = (value: T | ((val: T) => T)) => {
+    const setValue = useCallback((value: T | ((val: T) => T)) => {
         try {
-            // Allow value to be a function so we have same API as useState
-            const valueToStore =
-                value instanceof Function ? value(storedValue) : value;
-            // Save state
-            setStoredValue(valueToStore);
-            // Save to local storage
-            if (typeof window !== "undefined") {
-                window.localStorage.setItem(key, JSON.stringify(valueToStore));
-                // Dispatch event for cross-component sync in same window
-                window.dispatchEvent(new CustomEvent('local-storage-update', { detail: { key, value: valueToStore } }));
-            }
+            setStoredValue((currentValue) => {
+                const valueToStore =
+                    value instanceof Function ? value(currentValue) : value;
+
+                if (typeof window !== "undefined") {
+                    const serializedValue = JSON.stringify(valueToStore);
+                    const previousSerializedValue = JSON.stringify(currentValue);
+
+                    if (serializedValue !== previousSerializedValue) {
+                        window.localStorage.setItem(key, serializedValue);
+                        // Dispatch event for cross-component sync in same window
+                        window.dispatchEvent(new CustomEvent('local-storage-update', { detail: { key, value: valueToStore } }));
+                    }
+                }
+
+                return valueToStore;
+            });
         } catch (error) {
             console.log(error);
         }
-    };
+    }, [key]);
 
 
     return [storedValue, setValue] as const;

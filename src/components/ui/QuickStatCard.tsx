@@ -10,17 +10,24 @@ interface QuickStatCardProps {
 export default function QuickStatCard({ title, value, hint, deltaPct }: QuickStatCardProps) {
   const hasDelta = typeof deltaPct === 'number' && Number.isFinite(deltaPct);
   const pct = hasDelta ? Number((deltaPct as number).toFixed(1)) : null;
-  const deltaColor = pct !== null ? (pct > 0 ? 'text-emerald-700 bg-emerald-50 border-emerald-200' : pct < 0 ? 'text-rose-700 bg-rose-50 border-rose-200' : 'text-gray-700 bg-gray-50 border-gray-200') : '';
+  const deltaColor =
+    pct !== null
+      ? pct > 0
+        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+        : pct < 0
+          ? 'border-rose-200 bg-rose-50 text-rose-700'
+          : 'border-zinc-200 bg-zinc-100 text-zinc-600'
+      : '';
 
   return (
-    <section className="border border-gray-200 border-t-4 border-pink-500 rounded-xl bg-white shadow-md p-4">
-      <div className="text-xs text-gray-500">{title}</div>
-      <div className="mt-1 text-lg font-semibold text-gray-900">
+    <section className="dashboard-panel-subtle relative overflow-hidden rounded-[1.35rem] p-4">
+      <div className="dashboard-muted-label">{title}</div>
+      <div className="mt-2 text-lg font-semibold tracking-[-0.03em] text-zinc-950">
         {typeof value === 'number' ? value.toLocaleString('pt-BR') : value}
       </div>
-      {hint && <div className="text-xs text-gray-500 mt-0.5">{hint}</div>}
+      {hint && <div className="mt-1 text-xs leading-5 text-zinc-500">{hint}</div>}
       {pct !== null && (
-        <div className={`inline-flex items-center gap-1 border rounded-full px-2 py-0.5 text-[11px] mt-2 ${deltaColor}`}>
+        <div className={`mt-3 inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${deltaColor}`}>
           {pct > 0 ? '▲' : pct < 0 ? '▼' : '•'} {pct > 0 ? '+' : ''}{pct}%
         </div>
       )}

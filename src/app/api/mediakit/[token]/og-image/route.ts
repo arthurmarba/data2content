@@ -50,12 +50,21 @@ function pickAvailableIgAvatar(user: any) {
 }
 
 async function resolveAvatar(user: any) {
+  const prefersProviderFallback = !user?.isInstagramConnected || !user?.instagramAccountId;
   const direct =
-    normalizeMetaValue(user?.profile_picture_url) ||
-    normalizeMetaValue(user?.image) ||
-    normalizeMetaValue(user?.instagram?.profile_picture_url) ||
-    normalizeMetaValue(user?.instagram?.profilePictureUrl) ||
-    normalizeMetaValue(pickAvailableIgAvatar(user));
+    (prefersProviderFallback
+      ? normalizeMetaValue(user?.providerImage) ||
+        normalizeMetaValue(user?.image) ||
+        normalizeMetaValue(user?.profile_picture_url) ||
+        normalizeMetaValue(user?.instagram?.profile_picture_url) ||
+        normalizeMetaValue(user?.instagram?.profilePictureUrl) ||
+        normalizeMetaValue(pickAvailableIgAvatar(user))
+      : normalizeMetaValue(user?.profile_picture_url) ||
+        normalizeMetaValue(user?.image) ||
+        normalizeMetaValue(user?.providerImage) ||
+        normalizeMetaValue(user?.instagram?.profile_picture_url) ||
+        normalizeMetaValue(user?.instagram?.profilePictureUrl) ||
+        normalizeMetaValue(pickAvailableIgAvatar(user)));
 
   if (direct) return direct;
   if (!user?._id) return null;
@@ -390,7 +399,7 @@ export async function GET(
 
   const user = await UserModel.findById(resolvedToken.userId)
     .select(
-      'name mediaKitDisplayName username biography followers_count media_count profile_picture_url image instagram availableIgAccounts.profile_picture_url',
+      'name mediaKitDisplayName username biography followers_count media_count profile_picture_url image providerImage instagram isInstagramConnected instagramAccountId availableIgAccounts.profile_picture_url',
     )
     .lean();
 

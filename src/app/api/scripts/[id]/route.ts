@@ -147,7 +147,7 @@ async function resolvePostedContentForPatch(params: {
         _id: new Types.ObjectId(normalizedPostedContentId),
         user: new Types.ObjectId(userId),
       })
-        .select("_id description postDate postLink type stats.engagement stats.total_interactions")
+        .select("_id description postDate postLink type coverUrl stats.engagement stats.total_interactions")
         .lean()
         .exec(),
     {
@@ -182,6 +182,7 @@ async function resolvePostedContentForPatch(params: {
       postDate: metricDoc.postDate ?? null,
       postLink: typeof metricDoc.postLink === "string" ? metricDoc.postLink : null,
       type: typeof metricDoc.type === "string" ? metricDoc.type : null,
+      coverUrl: typeof (metricDoc as any).coverUrl === "string" ? (metricDoc as any).coverUrl : null,
       engagement:
         typeof metricDoc.stats?.engagement === "number" && Number.isFinite(metricDoc.stats.engagement)
           ? metricDoc.stats.engagement
@@ -245,6 +246,7 @@ function serializeScriptItem(item: any, options?: { includeAdminAnnotation?: boo
           postDate: item.postedContent.postDate || null,
           postLink: item.postedContent.postLink || null,
           type: item.postedContent.type || null,
+          coverUrl: item.postedContent.coverUrl || null,
           engagement:
             typeof item.postedContent.engagement === "number" ? item.postedContent.engagement : null,
           totalInteractions:
@@ -257,6 +259,33 @@ function serializeScriptItem(item: any, options?: { includeAdminAnnotation?: boo
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
+}
+
+async function hydratePostedContentCover<T extends { postedContent?: { metricId?: unknown; coverUrl?: string | null } | null }>(
+  doc: T | null
+): Promise<T | null> {
+  if (!doc?.postedContent) return doc;
+
+  const metricId = doc?.postedContent?.metricId ? String(doc.postedContent.metricId) : "";
+  if (!metricId || !Types.ObjectId.isValid(metricId) || doc?.postedContent?.coverUrl) {
+    return doc;
+  }
+
+  const metricDoc = await Metric.findById(metricId).select("_id coverUrl").lean().exec();
+  const coverUrl =
+    typeof (metricDoc as any)?.coverUrl === "string" && (metricDoc as any).coverUrl.trim()
+      ? (metricDoc as any).coverUrl.trim()
+      : null;
+
+  if (!coverUrl) return doc;
+
+  return {
+    ...doc,
+    postedContent: {
+      ...doc.postedContent,
+      coverUrl,
+    },
+  } as T;
 }
 
 export async function GET(request: Request, { params }: Params) {
@@ -289,7 +318,7 @@ export async function GET(request: Request, { params }: Params) {
     const effectiveUserId = targetResolution.userId;
     const includeAdminAnnotation = true;
 
-    const doc = await withMongoTransientRetry(
+    const docRaw = await withMongoTransientRetry(
       async () => {
         await connectToDatabase();
         return ScriptEntry.findOne({
@@ -302,6 +331,8 @@ export async function GET(request: Request, { params }: Params) {
         onRetry: (error, retryCount) => logScriptByIdMongoRetry("GET /api/scripts/[id]", error, retryCount),
       }
     );
+
+    const doc = await hydratePostedContentCover(docRaw);
 
     if (!doc) {
       return NextResponse.json({ ok: false, error: "Roteiro não encontrado." }, { status: 404 });

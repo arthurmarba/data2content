@@ -15,6 +15,10 @@ const FEATURED_BASE_CACHE_TTL_MS = Math.max(
   60_000,
   Math.min(15 * 60_000, Number(process.env.LANDING_CASTING_FEATURED_TTL_MS ?? 600_000)),
 );
+const FEATURED_BOARD_BASE_CACHE_TTL_MS = Math.max(
+  60_000,
+  Math.min(15 * 60_000, Number(process.env.LANDING_CASTING_FEATURED_BOARD_TTL_MS ?? 600_000)),
+);
 const QUERY_CACHE_TTL_MS = Math.max(
   60_000,
   Math.min(15 * 60_000, Number(process.env.LANDING_CASTING_QUERY_TTL_MS ?? 600_000)),
@@ -30,6 +34,10 @@ const DEFAULT_FEATURED_LIMIT = 12;
 const FEATURED_SOURCE_LIMIT = Math.max(
   DEFAULT_FEATURED_LIMIT,
   Math.min(MAX_LIMIT, Number(process.env.LANDING_CASTING_FEATURED_SOURCE_LIMIT ?? 240)),
+);
+const FEATURED_BOARD_SOURCE_LIMIT = Math.max(
+  DEFAULT_FEATURED_LIMIT * 2,
+  Math.min(MAX_LIMIT, Number(process.env.LANDING_CASTING_FEATURED_BOARD_SOURCE_LIMIT ?? 72)),
 );
 const FORMAT_DISALLOWED = ["story", "stories"];
 const TOP_CONTEXT_METRIC = "$stats.total_interactions";
@@ -51,6 +59,9 @@ type SubscriberUser = {
   followers_count?: number | null;
   profile_picture_url?: string | null;
   image?: string | null;
+  providerImage?: string | null;
+  isInstagramConnected?: boolean | null;
+  instagramAccountId?: string | null;
   mediaKitSlug?: string | null;
   availableIgAccounts?: Array<{ profile_picture_url?: string | null }> | null;
    creatorProfileExtended?: {
@@ -71,6 +82,7 @@ type SubscriberUser = {
 export type CastingFilters = {
   forceRefresh?: boolean;
   mode?: "featured" | "full";
+  surface?: "board" | "full";
   search?: string | null;
   minFollowers?: number | null;
   minAvgInteractions?: number | null;
@@ -90,6 +102,7 @@ export type CastingPayload = {
 
 let cacheEntry: CacheEntry | null = null;
 let featuredCacheEntry: CacheEntry | null = null;
+let featuredBoardCacheEntry: CacheEntry | null = null;
 const queryCache = new Map<string, QueryCacheEntry>();
 
 function pruneQueryCache(now: number) {
@@ -128,7 +141,7 @@ export async function fetchCastingCreators(options: CastingFilters = {}): Promis
   }
 
   const base = filters.mode === "featured"
-    ? await loadFeaturedList(forceRefresh)
+    ? await loadFeaturedList(forceRefresh, filters.surface)
     : await loadBaseList(forceRefresh);
 
   let filtered = [...base];
@@ -175,7 +188,11 @@ export function getCastingCreatorsFallback(options: CastingFilters = {}): Castin
     return clonePayload(exactCached.payload);
   }
 
-  const baseCached = filters.mode === "featured" ? featuredCacheEntry : cacheEntry;
+  const baseCached = filters.mode === "featured"
+    ? filters.surface === "board"
+      ? featuredBoardCacheEntry
+      : featuredCacheEntry
+    : cacheEntry;
   if (baseCached && baseCached.expires > now) {
     let filtered = [...baseCached.creators];
     const searchTerms = tokenizeSearch(filters.search);
@@ -199,6 +216,7 @@ export function getCastingCreatorsFallback(options: CastingFilters = {}): Castin
 export function resetCastingServiceCacheForTests() {
   cacheEntry = null;
   featuredCacheEntry = null;
+  featuredBoardCacheEntry = null;
   queryCache.clear();
 }
 
@@ -214,20 +232,31 @@ async function loadBaseList(forceRefresh: boolean): Promise<LandingCreatorHighli
   return creators;
 }
 
-async function loadFeaturedList(forceRefresh: boolean): Promise<LandingCreatorHighlight[]> {
+async function loadFeaturedList(
+  forceRefresh: boolean,
+  surface: "board" | "full",
+): Promise<LandingCreatorHighlight[]> {
   const now = Date.now();
-  if (!forceRefresh && featuredCacheEntry && featuredCacheEntry.expires > now) {
-    return featuredCacheEntry.creators;
+  const targetCacheEntry = surface === "board" ? featuredBoardCacheEntry : featuredCacheEntry;
+  if (!forceRefresh && targetCacheEntry && targetCacheEntry.expires > now) {
+    return targetCacheEntry.creators;
   }
 
-  const creators = await buildFeaturedCastingCreators();
-  featuredCacheEntry = { creators, expires: now + FEATURED_BASE_CACHE_TTL_MS };
+  const creators = surface === "board"
+    ? await buildFeaturedBoardCastingCreators()
+    : await buildFeaturedCastingCreators();
+  if (surface === "board") {
+    featuredBoardCacheEntry = { creators, expires: now + FEATURED_BOARD_BASE_CACHE_TTL_MS };
+  } else {
+    featuredCacheEntry = { creators, expires: now + FEATURED_BASE_CACHE_TTL_MS };
+  }
   if (forceRefresh) queryCache.clear();
   return creators;
 }
 
 function normalizeFilters(options: CastingFilters) {
   const mode: "featured" | "full" = options.mode === "featured" ? "featured" : "full";
+  const surface: "board" | "full" = options.surface === "board" ? "board" : "full";
   const forceRefresh = options.forceRefresh === true;
   const searchRaw = options.search?.trim() || null;
   const search = searchRaw?.startsWith("@") ? searchRaw.slice(1) : searchRaw;
@@ -254,12 +283,13 @@ function normalizeFilters(options: CastingFilters) {
         ? DEFAULT_FEATURED_LIMIT
         : null;
 
-  return { forceRefresh, mode, search, minFollowers, minAvgInteractions, sort, offset, limit };
+  return { forceRefresh, mode, surface, search, minFollowers, minAvgInteractions, sort, offset, limit };
 }
 
 function buildQueryKey(filters: ReturnType<typeof normalizeFilters>) {
   return JSON.stringify({
     mode: filters.mode,
+    surface: filters.surface,
     search: filters.search ?? null,
     minFollowers: filters.minFollowers ?? null,
     minAvgInteractions: filters.minAvgInteractions ?? null,
@@ -381,10 +411,17 @@ function pickAvailableIgAvatar(creator: SubscriberUser): string | null {
 }
 
 function pickUserAvatar(creator: SubscriberUser): string | null {
+  const prefersProviderFallback = !creator.isInstagramConnected || !creator.instagramAccountId;
   return (
-    normalizeAvatarCandidate(creator.profile_picture_url ?? null) ||
-    normalizeAvatarCandidate(creator.image ?? null) ||
-    pickAvailableIgAvatar(creator)
+    (prefersProviderFallback
+      ? normalizeAvatarCandidate(creator.providerImage ?? null) ||
+        normalizeAvatarCandidate(creator.image ?? null) ||
+        normalizeAvatarCandidate(creator.profile_picture_url ?? null) ||
+        pickAvailableIgAvatar(creator)
+      : normalizeAvatarCandidate(creator.profile_picture_url ?? null) ||
+        normalizeAvatarCandidate(creator.image ?? null) ||
+        normalizeAvatarCandidate(creator.providerImage ?? null) ||
+        pickAvailableIgAvatar(creator))
   );
 }
 
@@ -407,6 +444,9 @@ async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
       followers_count: 1,
       profile_picture_url: 1,
       image: 1,
+      providerImage: 1,
+      isInstagramConnected: 1,
+      instagramAccountId: 1,
       mediaKitSlug: 1,
       "availableIgAccounts.profile_picture_url": 1,
       "creatorProfileExtended.niches": 1,
@@ -712,6 +752,9 @@ async function buildFeaturedCastingCreators(): Promise<LandingCreatorHighlight[]
       followers_count: 1,
       profile_picture_url: 1,
       image: 1,
+      providerImage: 1,
+      isInstagramConnected: 1,
+      instagramAccountId: 1,
       mediaKitSlug: 1,
       "availableIgAccounts.profile_picture_url": 1,
       "creatorProfileExtended.niches": 1,
@@ -793,6 +836,196 @@ async function buildFeaturedCastingCreators(): Promise<LandingCreatorHighlight[]
       const creator = subscriberById.get(id.toString());
       return Boolean(creator && !pickUserAvatar(creator));
     });
+
+  let avatarByUserId: Record<string, string> = {};
+  if (missingAvatarIds.length) {
+    const insightAvatars = await AccountInsightModel.aggregate<{
+      _id: Types.ObjectId;
+      profilePicture?: string | null;
+    }>([
+      {
+        $match: {
+          user: { $in: missingAvatarIds },
+          "accountDetails.profile_picture_url": { $exists: true, $nin: [null, ""] },
+        },
+      },
+      { $sort: { recordedAt: -1 } },
+      {
+        $group: {
+          _id: "$user",
+          profilePicture: { $first: "$accountDetails.profile_picture_url" },
+        },
+      },
+    ]).exec();
+
+    avatarByUserId = Object.fromEntries(
+      insightAvatars
+        .map((doc) => [doc._id.toString(), normalizeAvatarCandidate(doc.profilePicture ?? null)] as const)
+        .filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
+    );
+  }
+
+  const featured: LandingCreatorHighlight[] = [];
+
+  metricsResults.forEach((entry, index) => {
+    const userId = entry.userId.toString();
+    const creator = subscriberById.get(userId);
+    if (!creator) return;
+
+    const avatar = pickUserAvatar(creator) ?? normalizeAvatarCandidate(avatarByUserId[userId] ?? null);
+    const niches = sanitizeTags(creator.creatorProfileExtended?.niches);
+    const brandTerritories = sanitizeTags(creator.creatorProfileExtended?.brandTerritories);
+    const contextId = creator.creatorContext?.id ?? null;
+    const contexts = mapContextsToLabels(buildContexts(brandTerritories, contextId));
+    const stage = (creator.creatorProfileExtended?.stage ?? [])[0] ?? null;
+    const totalReach = Number(entry.totalReach ?? 0);
+    const totalInteractions = Number(entry.totalInteractions ?? 0);
+
+    featured.push({
+      id: userId,
+      name: creator.name || creator.username || "Criador",
+      username: creator.username ?? null,
+      followers: creator.followers_count ?? null,
+      avatarUrl: toProxyAvatar(avatar),
+      niches: niches.length ? niches : null,
+      brandTerritories: brandTerritories.length ? brandTerritories : null,
+      contexts: contexts.length ? contexts : null,
+      formatsStrong: null,
+      topPerformingContext: null,
+      topPerformingContextAvgInteractions: null,
+      country: creator.location?.country ?? null,
+      city: creator.location?.city ?? null,
+      stage: (stage as CreatorStage | null) ?? null,
+      surveyCompleted: Boolean(creator.creatorProfileExtended?.updatedAt),
+      totalInteractions,
+      totalReach,
+      postCount: Number(entry.postCount ?? 0),
+      avgInteractionsPerPost: Number(entry.avgInteractionsPerPost ?? 0),
+      avgReachPerPost: Number(entry.avgReachPerPost ?? 0),
+      engagementRate: totalReach > 0 ? (totalInteractions / totalReach) * 100 : null,
+      rank: index + 1,
+      consistencyScore: null,
+      mediaKitSlug: creator.mediaKitSlug ?? null,
+    });
+  });
+
+  return featured;
+}
+
+async function buildFeaturedBoardCastingCreators(): Promise<LandingCreatorHighlight[]> {
+  const TAG = `${SERVICE_TAG}[buildFeaturedBoardCastingCreators]`;
+  logger.info(`${TAG} Building featured board casting creators list.`);
+
+  await connectToDatabase();
+
+  const eligibleSubscribers = (await UserModel.find(
+    {
+      planStatus: { $in: ACTIVE_PLAN_STATUSES },
+      mediaKitSlug: { $exists: true, $nin: [null, ""] },
+    },
+    { _id: 1 },
+  )
+    .lean<Array<{ _id: Types.ObjectId }>>()
+    .exec()) as Array<{ _id: Types.ObjectId }>;
+
+  if (!eligibleSubscribers.length) {
+    logger.warn(`${TAG} No active subscribers found for featured board payload.`);
+    return [];
+  }
+
+  const eligibleSubscriberIds = eligibleSubscribers
+    .map((creator) => creator._id)
+    .filter((id): id is Types.ObjectId => Boolean(id));
+  const since = subDays(new Date(), RANK_WINDOW_DAYS);
+
+  const metricsResults = (await MetricModel.aggregate<{
+    userId: Types.ObjectId;
+    postCount: number;
+    totalInteractions: number;
+    totalReach: number;
+    avgInteractionsPerPost: number;
+    avgReachPerPost: number;
+  }>([
+    {
+      $match: {
+        user: { $in: eligibleSubscriberIds },
+        postDate: { $gte: since },
+      },
+    },
+    {
+      $group: {
+        _id: "$user",
+        postCount: { $sum: 1 },
+        totalInteractions: { $sum: { $ifNull: ["$stats.total_interactions", 0] } },
+        totalReach: { $sum: { $ifNull: ["$stats.reach", 0] } },
+      },
+    },
+    { $match: { postCount: { $gt: 0 } } },
+    { $sort: { totalInteractions: -1, postCount: -1, totalReach: -1 } },
+    { $limit: FEATURED_BOARD_SOURCE_LIMIT },
+    {
+      $project: {
+        _id: 0,
+        userId: "$_id",
+        postCount: 1,
+        totalInteractions: 1,
+        totalReach: 1,
+        avgInteractionsPerPost: {
+          $cond: [{ $gt: ["$postCount", 0] }, { $divide: ["$totalInteractions", "$postCount"] }, 0],
+        },
+        avgReachPerPost: {
+          $cond: [{ $gt: ["$postCount", 0] }, { $divide: ["$totalReach", "$postCount"] }, 0],
+        },
+      },
+    },
+  ]).exec()) as Array<{
+    userId: Types.ObjectId;
+    postCount: number;
+    totalInteractions: number;
+    totalReach: number;
+    avgInteractionsPerPost: number;
+    avgReachPerPost: number;
+  }>;
+
+  if (!metricsResults.length) return [];
+
+  const candidateIds = metricsResults
+    .map((entry) => entry.userId)
+    .filter((id): id is Types.ObjectId => Boolean(id));
+
+  const subscribers = (await UserModel.find(
+    { _id: { $in: candidateIds } },
+    {
+      _id: 1,
+      name: 1,
+      username: 1,
+      followers_count: 1,
+      profile_picture_url: 1,
+      image: 1,
+      providerImage: 1,
+      isInstagramConnected: 1,
+      instagramAccountId: 1,
+      mediaKitSlug: 1,
+      "availableIgAccounts.profile_picture_url": 1,
+      "creatorProfileExtended.niches": 1,
+      "creatorProfileExtended.brandTerritories": 1,
+      "creatorProfileExtended.stage": 1,
+      "creatorProfileExtended.updatedAt": 1,
+      "creatorContext.id": 1,
+      "location.country": 1,
+      "location.city": 1,
+    },
+  )
+    .lean<SubscriberUser[]>()
+    .exec()) as SubscriberUser[];
+
+  if (!subscribers.length) return [];
+
+  const subscriberById = new Map(subscribers.map((creator) => [creator._id.toString(), creator]));
+  const missingAvatarIds = candidateIds.filter((id): id is Types.ObjectId => {
+    const creator = subscriberById.get(id.toString());
+    return Boolean(creator && !pickUserAvatar(creator));
+  });
 
   let avatarByUserId: Record<string, string> = {};
   if (missingAvatarIds.length) {

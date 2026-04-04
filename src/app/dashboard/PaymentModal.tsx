@@ -60,7 +60,7 @@ export default function PaymentModal({
             </div>
 
             {/* Conteúdo do Modal com Scroll */}
-            <div className="p-4 sm:p-6 overflow-y-auto max-h-[75vh]"> {/* Altura máxima e scroll */}
+            <div className="dashboard-scrollbar p-4 sm:p-6 overflow-y-auto max-h-[75vh]"> {/* Altura máxima e scroll */}
               {/* Componente que gerencia dados bancários e exibe o histórico de saques */}
               <PaymentSettings />
             </div>

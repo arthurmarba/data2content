@@ -15,7 +15,6 @@ type SessionUser = {
 
 type PlanStatus =
   | "active"
-  | "trialing"
   | "past_due"
   | "incomplete"
   | "incomplete_expired"
@@ -78,10 +77,10 @@ export default function DeleteAccountSection() {
   const isScheduledForCancellation: boolean =
     billing?.cancelAtPeriodEnd ?? (user.cancelAtPeriodEnd === true);
 
-  const ACTIVE_LIKE = new Set(["active", "trialing", "past_due", "unpaid"]);
+  const ACTIVE_LIKE = new Set(["active", "past_due", "unpaid"]);
   const isPlanActiveLike = ACTIVE_LIKE.has(planStatus as any);
 
-  // Bloqueia exclusão quando está ativa (ou trial/past_due/unpaid) e NÃO há cancelamento agendado
+  // Bloqueia exclusão quando está ativa (ou com cobrança pendente) e NÃO há cancelamento agendado
   const isDeletionBlocked = isPlanActiveLike && !isScheduledForCancellation;
 
   // Fonte única pra “até quando”: preferimos cancelAt do backend; fallback p/ planExpiresAt

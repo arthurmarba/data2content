@@ -399,8 +399,7 @@ async function computeDashboardProposalsSummary(
   };
 }
 
-const FREE_COMMUNITY_URL =
-  process.env.NEXT_PUBLIC_COMMUNITY_FREE_URL || "/planning/discover";
+const FREE_COMMUNITY_JOIN_URL = "/api/dashboard/community/free-join";
 const VIP_COMMUNITY_URL =
   process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ||
   "https://chat.whatsapp.com/CKTT84ZHEouKyXoDxIJI4c";
@@ -432,8 +431,13 @@ type UserSnapshot = Pick<
   | "stripePriceId"
   | "role"
   | "creatorProfileExtended"
+  | "creatorContext"
   | "vipCommunityJoinedAt"
 >;
+
+function hasCompletedCreatorSurvey(userSnapshot: UserSnapshot | null | undefined) {
+  return userSnapshot?.creatorContext?.id === "survey_v1";
+}
 
 const WEEKDAY_LABELS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 const WEEKDAY_NAMES_FULL = [
@@ -489,7 +493,7 @@ function buildPlanAndCommunityState(userSnapshot: UserSnapshot | null) {
       ? trialExpiresFromRecord
       : null;
 
-  const trialActiveFromPlan = normalizedStatus === "trial" || normalizedStatus === "trialing";
+  const trialActiveFromPlan = false;
   const trialActiveFromWhatsapp =
     WHATSAPP_TRIAL_ENABLED &&
     Boolean(userSnapshot?.whatsappTrialActive) &&
@@ -497,7 +501,7 @@ function buildPlanAndCommunityState(userSnapshot: UserSnapshot | null) {
   const trialActive = trialActiveFromPlan || trialActiveFromWhatsapp;
 
   const hasPaidProPlan = PAID_PRO_STATUSES.has(normalizedStatus as "active" | "non_renewing");
-  const hasPremiumAccess = hasPaidProPlan || trialActive;
+  const hasPremiumAccess = hasPaidProPlan;
 
   const trialEligibleRecord = userSnapshot?.whatsappTrialEligible;
   const trialStartedRecord = Boolean(userSnapshot?.whatsappTrialStartedAt);
@@ -515,13 +519,11 @@ function buildPlanAndCommunityState(userSnapshot: UserSnapshot | null) {
 
   trialEligible = Boolean(trialEligible);
 
-  const trialStarted = trialStartedRecord || trialActive;
+  const trialStarted = trialStartedRecord || trialActiveFromWhatsapp;
   const trialExpiresIso = trialActiveFromWhatsapp
     ? validTrialExpires
       ? validTrialExpires.toISOString()
       : null
-    : trialActiveFromPlan && validPlanExpiresAt
-    ? validPlanExpiresAt.toISOString()
     : null;
 
   const whatsappLinked = Boolean(userSnapshot?.whatsappVerified || userSnapshot?.whatsappPhone);
@@ -551,10 +553,10 @@ function buildPlanAndCommunityState(userSnapshot: UserSnapshot | null) {
       hasPremiumAccess,
       isPro: hasPaidProPlan,
       trial: {
-        active: trialActive,
-        eligible: trialEligible,
-        started: trialStarted,
-        expiresAt: trialExpiresIso,
+        active: false,
+        eligible: false,
+        started: false,
+        expiresAt: null,
       },
     },
     whatsapp: {
@@ -571,7 +573,7 @@ function buildPlanAndCommunityState(userSnapshot: UserSnapshot | null) {
     community: {
       free: {
         isMember: Boolean(userSnapshot?.communityInspirationOptIn),
-        inviteUrl: FREE_COMMUNITY_URL,
+        inviteUrl: FREE_COMMUNITY_JOIN_URL,
       },
       vip: {
         hasAccess: vipHasAccess,
@@ -1434,6 +1436,7 @@ export async function GET(request: Request) {
           stripePriceId: 1,
           role: 1,
           creatorProfileExtended: 1,
+          creatorContext: 1,
           vipCommunityJoinedAt: 1,
         })
         .lean()
@@ -1530,7 +1533,7 @@ export async function GET(request: Request) {
 
       const joinCommunityUrl = coreState.hasPaidProPlan
         ? mentorshipEvent?.joinUrl ?? VIP_COMMUNITY_URL
-        : FREE_COMMUNITY_URL;
+        : FREE_COMMUNITY_JOIN_URL;
       const reminderUrl = coreState.hasPaidProPlan
         ? mentorshipEvent?.reminderUrl ?? VIP_COMMUNITY_URL
         : null;
@@ -1619,7 +1622,7 @@ export async function GET(request: Request) {
         ? trialExpiresFromRecord
         : null;
 
-    const trialActiveFromPlan = normalizedStatus === "trial" || normalizedStatus === "trialing";
+    const trialActiveFromPlan = false;
     const trialActiveFromWhatsapp =
       WHATSAPP_TRIAL_ENABLED &&
       Boolean(userSnapshot?.whatsappTrialActive) &&
@@ -1627,7 +1630,7 @@ export async function GET(request: Request) {
     const trialActive = trialActiveFromPlan || trialActiveFromWhatsapp;
 
     const hasPaidProPlan = PAID_PRO_STATUSES.has(normalizedStatus as "active" | "non_renewing");
-    const hasPremiumAccess = hasPaidProPlan || trialActive;
+    const hasPremiumAccess = hasPaidProPlan;
 
     const trialEligibleRecord = userSnapshot?.whatsappTrialEligible;
     const trialStartedRecord = Boolean(userSnapshot?.whatsappTrialStartedAt);
@@ -1645,13 +1648,11 @@ export async function GET(request: Request) {
 
     trialEligible = Boolean(trialEligible);
 
-    const trialStarted = trialStartedRecord || trialActive;
+    const trialStarted = trialStartedRecord || trialActiveFromWhatsapp;
     const trialExpiresIso = trialActiveFromWhatsapp
       ? validTrialExpires
         ? validTrialExpires.toISOString()
         : null
-      : trialActiveFromPlan && validPlanExpiresAt
-      ? validPlanExpiresAt.toISOString()
       : null;
 
     responsePayload.plan = {
@@ -1664,10 +1665,10 @@ export async function GET(request: Request) {
       hasPremiumAccess,
       isPro: hasPaidProPlan,
       trial: {
-        active: trialActive,
-        eligible: trialEligible,
-        started: trialStarted,
-        expiresAt: trialExpiresIso,
+        active: false,
+        eligible: false,
+        started: false,
+        expiresAt: null,
       },
     };
 
@@ -1732,11 +1733,7 @@ export async function GET(request: Request) {
           proposalsViaMediaKit: mediaKitCard?.proposalsViaMediaKit ?? 0,
         },
         hasProAccess: hasPaidProPlan,
-        surveyCompleted: Boolean(
-          userSnapshot?.creatorProfileExtended?.updatedAt ||
-            userSnapshot?.creatorProfileExtended?.stage ||
-            userSnapshot?.creatorProfileExtended?.mainGoal3m,
-        ),
+        surveyCompleted: hasCompletedCreatorSurvey(userSnapshot),
       });
     } catch (error) {
       logger.error("[home.summary] Failed to compose journey progress", error);
@@ -1772,7 +1769,7 @@ export async function GET(request: Request) {
     responsePayload.community = {
       free: {
         isMember: freeCommunityMember,
-        inviteUrl: FREE_COMMUNITY_URL,
+        inviteUrl: FREE_COMMUNITY_JOIN_URL,
       },
       vip: {
         hasAccess: vipHasAccess,
@@ -1811,7 +1808,7 @@ export async function GET(request: Request) {
 
       const joinCommunityUrl = vipHasAccess
         ? mentorshipEvent?.joinUrl ?? VIP_COMMUNITY_URL
-        : FREE_COMMUNITY_URL;
+        : FREE_COMMUNITY_JOIN_URL;
       const reminderUrl = vipHasAccess ? mentorshipEvent?.reminderUrl ?? VIP_COMMUNITY_URL : null;
 
       responsePayload.mentorship = {
@@ -1869,11 +1866,7 @@ export async function GET(request: Request) {
     const accessMeta = getPlanAccessMeta(planStatus, cancelAtPeriodEnd);
     const hasPremiumAccess = accessMeta.hasPremiumAccess;
     const hasPaidProPlan = PAID_PRO_STATUSES.has(accessMeta.normalizedStatus as "active" | "non_renewing");
-    const surveyCompleted = Boolean(
-      userSnapshot?.creatorProfileExtended?.updatedAt ||
-        userSnapshot?.creatorProfileExtended?.stage ||
-        userSnapshot?.creatorProfileExtended?.mainGoal3m,
-    );
+    const surveyCompleted = hasCompletedCreatorSurvey(userSnapshot);
     try {
       responsePayload.flowChecklist = buildFlowChecklist({
         instagramConnected,

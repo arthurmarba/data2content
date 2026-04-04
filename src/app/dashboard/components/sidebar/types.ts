@@ -53,4 +53,5 @@ export type SidebarBuildOptions = {
   hasPremiumAccess: boolean;
   planningLocked: boolean;
   dashboardMinimal: boolean;
+  isMobile: boolean;
 };

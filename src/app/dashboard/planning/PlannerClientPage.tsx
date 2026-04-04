@@ -4,6 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { CalendarClock } from 'lucide-react';
 import {
   ContentPlannerCalendar,
 } from '@/app/mediakit/components/ContentPlannerCalendar';
@@ -12,7 +13,9 @@ import { usePlannerData, PlannerUISlot } from '@/hooks/usePlannerData';
 import { useBillingStatus } from '@/app/hooks/useBillingStatus';
 import { useToast } from '@/app/components/ui/ToastA11yProvider';
 import { track } from '@/lib/track';
+import { redirectToGoogleConsentLogin } from '@/lib/auth/googleLogin';
 import { openPaywallModal } from '@/utils/paywallModal';
+import { PREVIEW_PLANNER_HEATMAP, PREVIEW_PLANNER_SLOTS } from './mockPlannerData';
 
 const CreatorQuickSearch = dynamic(
   () => import('@/app/admin/creator-dashboard/components/CreatorQuickSearch'),
@@ -87,7 +90,15 @@ type AdminTargetUser = {
 
 const ADMIN_PLANNER_TARGET_STORAGE_KEY = 'planner_admin_target_user';
 
-export default function PlannerClientPage({ viewer }: { viewer?: ViewerInfo }) {
+export default function PlannerClientPage({
+  viewer,
+  compactView = false,
+  onNavigateToScripts,
+}: {
+  viewer?: ViewerInfo;
+  compactView?: boolean;
+  onNavigateToScripts?: () => void;
+}) {
   const { data: session, status } = useSession();
   const sessionUser = (session?.user as any) ?? null;
   const viewerRoleFromProp = typeof viewer?.role === 'string' ? viewer.role.trim().toLowerCase() : null;
@@ -108,6 +119,8 @@ export default function PlannerClientPage({ viewer }: { viewer?: ViewerInfo }) {
     targetUserId !== sessionUserId
   );
   const activeUserId = targetUserId ?? sessionUserId;
+  const isAuthenticated = activeUserId.length > 0;
+  const isPreviewMode = !isAdminViewer && !isAuthenticated && status === 'unauthenticated';
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -121,6 +134,7 @@ export default function PlannerClientPage({ viewer }: { viewer?: ViewerInfo }) {
     loading,
     error,
     saveSlots,
+    reload,
     locked,
     lockedReason,
   } = usePlannerData({
@@ -139,13 +153,57 @@ export default function PlannerClientPage({ viewer }: { viewer?: ViewerInfo }) {
   // Check access
   // Note: canAccessPlanner and getPlanStatus might need to be imported or implemented if not available
   // Assuming they are available as per previous code, but if not, we use billing flags
-  const hasAccess =
-    isAdminViewer || billing.hasPremiumAccess || billing.isTrialActive || billing.normalizedStatus === 'active';
+  const hasAccess = isAdminViewer || billing.hasPremiumAccess;
   const effectiveLocked = locked || !hasAccess;
   const effectiveLockedReason = effectiveLocked
     ? lockedReason ?? 'Atualize seu plano para acessar o planejador completo.'
     : undefined;
   const canEdit = hasAccess;
+  const visibleSlots = isPreviewMode ? PREVIEW_PLANNER_SLOTS : slots;
+  const visibleHeatmap = isPreviewMode ? PREVIEW_PLANNER_HEATMAP : heatmap;
+  const visibleLoading = isPreviewMode ? false : loading;
+  const visibleError = isPreviewMode ? null : savingError ?? error;
+  const visibleLocked = isPreviewMode ? false : effectiveLocked;
+  const visibleLockedReason = isPreviewMode ? null : effectiveLockedReason;
+
+  const requestGoogleLogin = useCallback(() => {
+    const callbackUrl =
+      typeof window !== 'undefined'
+        ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+        : '/calendar';
+    redirectToGoogleConsentLogin(callbackUrl);
+  }, []);
+
+  const ensurePlannerAccess = useCallback(
+    async (source: string) => {
+      if (!isAuthenticated) {
+        openPaywallModal({
+          context: 'planning',
+          source,
+          returnTo:
+            typeof window !== 'undefined'
+              ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+              : '/calendar',
+        });
+        return false;
+      }
+
+      if (!hasAccess) {
+        openPaywallModal({
+          context: 'planning',
+          source,
+          returnTo:
+            typeof window !== 'undefined'
+              ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+              : '/calendar',
+        });
+        return false;
+      }
+
+      return true;
+    },
+    [hasAccess, isAuthenticated]
+  );
 
   // Handle slot selection from URL
   useEffect(() => {
@@ -221,11 +279,15 @@ export default function PlannerClientPage({ viewer }: { viewer?: ViewerInfo }) {
   }, []);
 
   const handleOpenSlot = useCallback((slot: PlannerUISlot) => {
+    if (isPreviewMode) {
+      void requestGoogleLogin();
+      return;
+    }
     setSelectedSlot(slot);
     setIsModalOpen(true);
     setSavingError(null);
     track('planner_slot_opened', { slotId: slot.slotId });
-  }, []);
+  }, [isPreviewMode, requestGoogleLogin]);
 
   const handleCloseSlot = useCallback(() => {
     setSelectedSlot(null);
@@ -239,8 +301,7 @@ export default function PlannerClientPage({ viewer }: { viewer?: ViewerInfo }) {
 
   const handleSave = useCallback(
     async (updated: PlannerSlotDataModal) => {
-      if (!canEdit) {
-        openPaywallModal({ context: 'planning', source: 'planner_save_blocked' });
+      if (!(await ensurePlannerAccess('planner_save_blocked'))) {
         throw new Error('Edição bloqueada.');
       }
 
@@ -289,7 +350,7 @@ export default function PlannerClientPage({ viewer }: { viewer?: ViewerInfo }) {
           action: {
             label: 'Ver roteiro',
             closeOnAction: true,
-            onClick: () => router.push('/planning/roteiros?origin=planner'),
+            onClick: () => router.push("/calendar"),
           },
         });
         handleCloseSlot();
@@ -299,13 +360,12 @@ export default function PlannerClientPage({ viewer }: { viewer?: ViewerInfo }) {
         throw err;
       }
     },
-    [canEdit, slots, saveSlots, toast, router, handleCloseSlot]
+    [ensurePlannerAccess, slots, saveSlots, toast, router, handleCloseSlot]
   );
 
   const handleDelete = useCallback(
     async (target: PlannerSlotDataModal) => {
-      if (!canEdit) {
-        openPaywallModal({ context: 'planning', source: 'planner_delete_blocked' });
+      if (!(await ensurePlannerAccess('planner_delete_blocked'))) {
         return;
       }
       if (!slots || !slots.length) return;
@@ -332,13 +392,12 @@ export default function PlannerClientPage({ viewer }: { viewer?: ViewerInfo }) {
         throw err;
       }
     },
-    [canEdit, slots, saveSlots, handleCloseSlot]
+    [ensurePlannerAccess, slots, saveSlots, handleCloseSlot]
   );
 
   const handleDuplicate = useCallback(
     async (target: PlannerSlotDataModal) => {
-      if (!canEdit) {
-        openPaywallModal({ context: 'planning', source: 'planner_duplicate_blocked' });
+      if (!(await ensurePlannerAccess('planner_duplicate_blocked'))) {
         return;
       }
       const list: PlannerUISlot[] = Array.isArray(slots) ? [...slots] : [];
@@ -357,11 +416,18 @@ export default function PlannerClientPage({ viewer }: { viewer?: ViewerInfo }) {
         throw err;
       }
     },
-    [canEdit, slots, saveSlots]
+    [ensurePlannerAccess, slots, saveSlots]
   );
 
   const handleRequestSubscribe = useCallback(() => {
-    openPaywallModal();
+    openPaywallModal({
+      context: 'planning',
+      source: 'planner_subscribe_cta',
+      returnTo:
+        typeof window !== 'undefined'
+          ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+          : '/calendar',
+    });
     track('planner_subscribe_clicked');
   }, []);
 
@@ -370,20 +436,107 @@ export default function PlannerClientPage({ viewer }: { viewer?: ViewerInfo }) {
     if (data) void handleDelete(data);
   }, [handleDelete]);
 
-  if (status === 'loading' && !viewer) {
+  const handleGenerateThemes = useCallback(
+    async (slot: PlannerUISlot) => {
+      const response = await fetch('/api/planner/themes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dayOfWeek: slot.dayOfWeek,
+          blockStartHour: slot.blockStartHour,
+          categories: slot.categories || {},
+          themeKeyword: slot.themeKeyword || undefined,
+          title: slot.title || undefined,
+          includeCaptions: true,
+        }),
+      });
+
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || 'Não foi possível gerar pautas para este horário.');
+      }
+
+      return {
+        keyword: typeof payload?.keyword === 'string' ? payload.keyword : undefined,
+        themes: Array.isArray(payload?.themes) ? (payload.themes as string[]) : [],
+      };
+    },
+    []
+  );
+
+  const handleSelectTheme = useCallback(
+    async (slot: PlannerUISlot, theme: string, themes: string[], keyword?: string) => {
+      if (!(await ensurePlannerAccess('planner_theme_select_blocked'))) {
+        throw new Error('Salvamento bloqueado.');
+      }
+
+      const list: PlannerUISlot[] = Array.isArray(slots) ? [...slots] : [];
+      const idx = list.findIndex((item) => {
+        if (slot.slotId && item.slotId) return item.slotId === slot.slotId;
+        return item.dayOfWeek === slot.dayOfWeek && item.blockStartHour === slot.blockStartHour;
+      });
+
+      const base = idx >= 0 ? list[idx]! : slot;
+      const merged: PlannerUISlot = {
+        ...base,
+        ...slot,
+        title: theme,
+        scriptShort: theme,
+        themes,
+        themeKeyword: keyword ?? slot.themeKeyword ?? base.themeKeyword,
+        isSaved: true,
+      };
+
+      if (idx >= 0) {
+        list[idx] = merged;
+      } else {
+        list.push(merged);
+      }
+
+      const persistedSlots = await saveSlots(list);
+      await reload();
+
+      const persisted = Array.isArray(persistedSlots)
+        ? persistedSlots.find((item) => {
+            if (merged.slotId && item.slotId) return item.slotId === merged.slotId;
+            return item.dayOfWeek === merged.dayOfWeek && item.blockStartHour === merged.blockStartHour;
+          })
+        : null;
+
+      toast({
+        variant: 'success',
+        title: 'Pauta salva no calendário e em Meus Roteiros.',
+        description: theme,
+        action: {
+          label: 'Ver roteiro',
+          closeOnAction: true,
+          onClick: () => router.push('/calendar'),
+        },
+      });
+
+      return {
+        ...(persisted ?? merged),
+        isSaved: true,
+      } as PlannerUISlot;
+    },
+    [ensurePlannerAccess, slots, saveSlots, reload, toast, router]
+  );
+
+  if (status === 'loading' && !isAuthenticated) {
     return (
-      <div className="min-h-screen bg-white pb-20">
-        <div className="dashboard-page-shell py-4 sm:py-6">
+      <div className="min-h-0 bg-transparent">
+        <div className="py-3 sm:py-4">
           <div className="mb-3 sm:mb-5">
-            <h1 className="text-2xl font-bold leading-tight text-slate-900 sm:text-[30px]">Planejador de Conteúdo</h1>
-            <p className="mt-1.5 text-[15px] leading-6 text-slate-500">Carregando calendário...</p>
+            <p className="dashboard-muted-label mb-2">Planejamento</p>
+            <h1 className="text-2xl font-semibold leading-tight tracking-[-0.03em] text-zinc-950 sm:text-[30px]">Planejador de Conteúdo</h1>
+            <p className="mt-1.5 text-[15px] leading-6 text-zinc-500">Carregando calendário...</p>
           </div>
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
             {[1, 2, 3, 4].map((row) => (
               <div
                 key={`planner-shell-loading-${row}`}
                 className={[
-                  'animate-pulse rounded-2xl border border-slate-100 bg-white p-4',
+                  'animate-pulse rounded-[24px] border border-zinc-100/80 bg-zinc-50/80 p-4 shadow-[0_12px_28px_rgba(24,24,27,0.03)] backdrop-blur-xl',
                   row > 2 ? 'hidden xl:block' : '',
                 ].join(' ')}
               >
@@ -403,67 +556,85 @@ export default function PlannerClientPage({ viewer }: { viewer?: ViewerInfo }) {
   }
 
   return (
-    <div className="min-h-screen bg-white pb-20">
-      <div className="dashboard-page-shell py-4 sm:py-6">
+    <div className="min-h-0 bg-transparent">
+      <div className={compactView ? "py-1.5" : "py-2"}>
         {isAdminViewer ? (
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="w-full sm:max-w-md">
-              <CreatorQuickSearch
-                onSelect={handleAdminSelect}
-                selectedCreatorName={adminTargetUser?.name || null}
-                selectedCreatorPhotoUrl={adminTargetUser?.profilePictureUrl || null}
-                onClear={handleAdminClear}
-                apiPrefix="/api/admin"
-              />
-            </div>
-            <p className="text-xs text-slate-500">
-              {isActingOnBehalf
-                ? `Visualizando calendário de ${adminTargetUser?.name}.`
-                : 'Visualizando seu próprio calendário.'}
-            </p>
+          <div
+            className={`mb-4 border ${compactView ? "rounded-[1.05rem] border-zinc-100/80 bg-zinc-50/52 px-2.5 py-2.5" : "rounded-[24px] border-zinc-100/80 bg-zinc-50/76 p-3 shadow-[0_10px_24px_rgba(24,24,27,0.03)] backdrop-blur-xl"}`}
+          >
+            {compactView ? (
+              <div className="space-y-2.5">
+                <div className="flex items-center gap-2.5">
+                  <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] bg-sky-50 text-sky-500 ring-1 ring-sky-100/90">
+                    <CalendarClock className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="dashboard-type-section-title text-zinc-950">Pautas da semana</p>
+                    <p className="dashboard-type-meta mt-1 text-zinc-500">
+                      {isActingOnBehalf
+                        ? `Visualizando o calendário de ${adminTargetUser?.name}.`
+                        : 'Visualizando seu próprio calendário.'}
+                    </p>
+                  </div>
+                </div>
+                <div className="w-full">
+                  <CreatorQuickSearch
+                    onSelect={handleAdminSelect}
+                    selectedCreatorName={adminTargetUser?.name || null}
+                    selectedCreatorPhotoUrl={adminTargetUser?.profilePictureUrl || null}
+                    onClear={handleAdminClear}
+                    apiPrefix="/api/admin"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div className="w-full sm:max-w-md">
+                  <CreatorQuickSearch
+                    onSelect={handleAdminSelect}
+                    selectedCreatorName={adminTargetUser?.name || null}
+                    selectedCreatorPhotoUrl={adminTargetUser?.profilePictureUrl || null}
+                    onClear={handleAdminClear}
+                    apiPrefix="/api/admin"
+                  />
+                </div>
+                <p className="text-xs font-medium text-zinc-500">
+                  {isActingOnBehalf
+                    ? `Visualizando calendário de ${adminTargetUser?.name}.`
+                    : 'Visualizando seu próprio calendário.'}
+                </p>
+              </div>
+            )}
           </div>
         ) : null}
 
-        <div className="mb-3 sm:mb-5">
-          <h1 className="text-2xl font-bold leading-tight text-slate-900 sm:text-[30px]">Planejador de Conteúdo</h1>
-          <p className="mt-1.5 max-w-2xl text-[15px] leading-6 text-slate-500">
-            Organize sua semana e descubra os melhores horários para postar.
-          </p>
-          <div className="mt-2.5 flex flex-col items-start gap-2 rounded-xl border border-slate-200 bg-slate-50/85 px-3.5 py-2.5 text-[13px] leading-5 text-slate-700 sm:mt-3 sm:flex-row sm:flex-wrap sm:items-center">
-            <span>Salvar pauta no Calendário cria automaticamente em Meus Roteiros.</span>
-            <button
-              type="button"
-              onClick={() => router.push('/planning/roteiros?origin=planner')}
-              className="inline-flex w-full items-center justify-center rounded-md bg-white px-2 py-1 font-semibold text-slate-900 underline underline-offset-2 transition hover:text-slate-700 sm:w-auto sm:justify-start"
-            >
-              Ir para Meus Roteiros
-            </button>
-          </div>
-        </div>
 
-        <div className="grid gap-6 sm:gap-8 lg:grid-cols-12">
-          <div className="space-y-6 sm:space-y-8 lg:col-span-12">
+        <div className="space-y-4">
             {/* Insights Simplificados */}
 
 
             {/* Calendário */}
             <ContentPlannerCalendar
               userId={activeUserId}
-              slots={slots}
-              heatmap={heatmap}
-              loading={loading}
-              error={savingError ?? error}
+              slots={visibleSlots}
+              heatmap={visibleHeatmap}
+              loading={visibleLoading}
+              error={visibleError}
+              compactView={compactView}
               canEdit={canEdit}
-              locked={effectiveLocked}
-              lockedReason={effectiveLockedReason}
+              publicMode={isPreviewMode}
+              locked={visibleLocked}
+              lockedReason={visibleLockedReason}
               isBillingLoading={isBillingLoading}
               onRequestSubscribe={handleRequestSubscribe}
               onOpenSlot={handleOpenSlot}
               onDeleteSlot={handleDeleteFromCalendar}
+              onGenerateThemes={handleGenerateThemes}
+              onSelectTheme={handleSelectTheme}
+              onOpenSavedScript={onNavigateToScripts}
             />
           </div>
         </div>
-      </div>
 
       {isModalOpen ? (
         <PlannerSlotModal

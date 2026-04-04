@@ -18,10 +18,7 @@ export default async function ProPage() {
 
   const normalizedStatus = normalizePlanStatus(user?.planStatus);
   const role = typeof user?.role === "string" ? user.role.trim().toLowerCase() : null;
-  const proTrialStatus =
-    typeof user?.proTrialStatus === "string" ? user.proTrialStatus.trim().toLowerCase() : null;
-  const hasProAccess =
-    isPlanActiveLike(normalizedStatus) || proTrialStatus === "active" || role === "admin";
+  const hasProAccess = isPlanActiveLike(normalizedStatus) || role === "admin";
 
   return (
     <ProPageClient
@@ -29,7 +26,6 @@ export default async function ProPage() {
       initialPlanStatus={{
         normalizedStatus,
         hasProAccess,
-        isTrialActive: proTrialStatus === "active",
       }}
     />
   );

@@ -137,6 +137,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category');
     const status = searchParams.get('status');
     const search = searchParams.get('search');
+    const targetUserId = searchParams.get('targetUserId');
     const sort = searchParams.get('sort') ?? 'date_desc';
     const range = searchParams.get('range');
 
@@ -145,9 +146,15 @@ export async function GET(request: NextRequest) {
     const parsedEnd = parseDateParam(rangeEnd ?? searchParams.get('endDate'));
     const trimmedSearch = search?.trim();
 
-    const userId = new Types.ObjectId(session.user.id);
+    const sessionRole = typeof session.user.role === 'string' ? session.user.role.trim().toLowerCase() : null;
+    const effectiveUserIdRaw =
+        sessionRole === 'admin' && targetUserId && Types.ObjectId.isValid(targetUserId)
+            ? targetUserId
+            : session.user.id;
+    const userId = new Types.ObjectId(effectiveUserIdRaw);
     const cacheKey = [
         session.user.id,
+        effectiveUserIdRaw,
         page,
         limit,
         category ?? '',

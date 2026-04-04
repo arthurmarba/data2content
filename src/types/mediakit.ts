@@ -167,6 +167,7 @@ export interface MediaKitViewProps {
   belowAffiliateSlot?: React.ReactNode;
   // Reduz padding superior quando usado no dashboard
   compactPadding?: boolean;
+  compactBoardPreview?: boolean;
   // URL público do mídia kit para uso no botão "Copiar link" quando renderizado no dashboard
   publicUrlForCopy?: string;
   mediaKitSlug?: string;

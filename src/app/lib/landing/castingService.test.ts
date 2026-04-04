@@ -140,5 +140,12 @@ describe("castingService (featured mode)", () => {
     expect(mockMetricAggregate).toHaveBeenCalledTimes(1);
     expect(mockAccountAggregate).toHaveBeenCalledTimes(0);
   });
-});
 
+  it("uses an isolated board surface cache for featured board queries", async () => {
+    await fetchCastingCreators({ mode: "featured", surface: "board", offset: 0, limit: 2 });
+    await fetchCastingCreators({ mode: "featured", surface: "board", offset: 0, limit: 2 });
+
+    expect(mockMetricAggregate).toHaveBeenCalledTimes(1);
+    expect(mockUserFind).toHaveBeenCalledTimes(2);
+  });
+});

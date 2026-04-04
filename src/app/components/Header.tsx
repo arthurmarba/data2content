@@ -1,23 +1,11 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useSession, signOut } from "next-auth/react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import { useSession } from "next-auth/react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
-import {
-  FaBars,
-  FaCreditCard,
-  FaEnvelope,
-  FaFileContract,
-  FaHandshake,
-  FaLink,
-  FaShieldAlt,
-  FaSignOutAlt,
-  FaTrashAlt,
-  FaUserCircle,
-} from "react-icons/fa";
+import { motion } from "framer-motion";
+import { FaBars, FaCreditCard } from "react-icons/fa";
 import { useSidebar } from "../dashboard/context/SidebarContext";
 import {
   useHeaderConfig,
@@ -26,8 +14,6 @@ import {
 } from "../dashboard/context/HeaderContext";
 import { useHeaderVisibility } from "@/hooks/useHeaderVisibility";
 import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
-import { UserAvatar } from "./UserAvatar";
-
 import { normalizePlanStatus, isPlanActiveLike } from "@/utils/planStatus";
 
 const TAP_DEBUG =
@@ -118,9 +104,13 @@ interface SessionUser {
   image?: string | null;
 }
 
-function buildLayoutClasses(variant: HeaderVariant, condensed: boolean) {
+function buildLayoutClasses(
+  variant: HeaderVariant,
+  condensed: boolean,
+  hasMobileTitle: boolean
+) {
   const base = [
-    "px-4",
+    "px-3",
     "sm:px-6",
     "flex",
     "flex-wrap",
@@ -130,16 +120,19 @@ function buildLayoutClasses(variant: HeaderVariant, condensed: boolean) {
     "justify-between",
     "gap-x-3",
     "w-full",
-    "min-h-[72px]",
   ];
   if (variant === "immersive") {
+    base.push(hasMobileTitle ? "min-h-[58px] sm:min-h-[72px]" : "min-h-[68px] sm:min-h-[72px]");
     base.push(condensed ? "py-2 sm:py-2.5" : "py-2.5 sm:py-3.5");
   } else if (variant === "compact") {
-    base.push(condensed ? "py-1.5 sm:py-2" : "py-2 sm:py-2.5");
+    base.push(hasMobileTitle ? "min-h-[50px] sm:min-h-[72px]" : "min-h-[64px] sm:min-h-[72px]");
+    base.push(condensed ? "py-0.5 sm:py-2" : hasMobileTitle ? "py-0.5 sm:py-2.5" : "py-2 sm:py-2.5");
   } else if (condensed) {
+    base.push(hasMobileTitle ? "min-h-[60px] sm:min-h-[64px]" : "min-h-[64px]");
     base.push("py-1.5", "sm:py-2", "h-16");
   } else {
-    base.push("py-2", "h-[72px]");
+    base.push(hasMobileTitle ? "min-h-[62px] sm:min-h-[72px]" : "min-h-[72px]");
+    base.push(hasMobileTitle ? "py-1.5 sm:py-2" : "py-2", "h-[72px]");
   }
 
   return base.join(" ");
@@ -170,130 +163,23 @@ function buildShellClasses(
 
   if (variant === "immersive") {
     base.push(
-      "backdrop-blur supports-[backdrop-filter]:bg-white/80",
-      condensed ? "bg-white/90 shadow" : "bg-white/80 shadow-sm"
+      "backdrop-blur-xl supports-[backdrop-filter]:bg-white/68",
+      condensed ? "bg-white/72 shadow-[0_12px_32px_rgba(24,24,27,0.08)]" : "bg-transparent shadow-none"
     );
   } else if (variant === "minimal") {
-    base.push("bg-white");
+    base.push("bg-transparent");
   } else {
     const shadowClass = condensed
-      ? "shadow-[0_3px_10px_rgba(15,23,42,0.08)]"
+      ? "shadow-[0_12px_30px_rgba(24,24,27,0.06)]"
       : "shadow-none";
-    base.push("bg-white", shadowClass, "border-none");
+    base.push(
+      "border-none",
+      condensed ? "bg-white/76 backdrop-blur-xl" : "bg-transparent",
+      shadowClass
+    );
   }
 
   return base.join(" ");
-}
-
-function UserMenu({ user, onClose }: { user?: SessionUser; onClose: () => void }) {
-  const itemBaseClass =
-    "mx-2 my-0.5 flex w-[calc(100%-1rem)] items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100/90 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F6007B]/25";
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95, y: -10 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95, y: -10 }}
-      transition={{ duration: 0.15, ease: "easeOut" }}
-      className="origin-top-right absolute right-2 mt-2 z-50 w-72 max-w-[calc(100vw-1rem)] overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 py-2 shadow-[0_24px_50px_rgba(15,23,42,0.18)] ring-1 ring-slate-900/5 backdrop-blur-xl focus:outline-none"
-      onMouseLeave={onClose}
-      role="menu"
-    >
-      <div className="border-b border-slate-100 px-4 pb-3 pt-2">
-        <div className="flex items-center gap-2.5">
-          <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-slate-500">
-            <FaUserCircle className="h-4 w-4" />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-semibold text-slate-900">
-              {user?.name ?? "Usuário"}
-            </p>
-            <p className="truncate text-xs text-slate-500">{user?.email || "Sem email"}</p>
-          </div>
-        </div>
-      </div>
-      <div className="border-t border-slate-100 py-1">
-        <Link
-          href="/dashboard/instagram-connection"
-          className={itemBaseClass}
-          onClick={onClose}
-          role="menuitem"
-        >
-          <FaLink className="h-4 w-4 text-slate-400" /> Conexão
-        </Link>
-        <Link
-          href="/settings"
-          className={itemBaseClass}
-          onClick={onClose}
-          role="menuitem"
-        >
-          <FaCreditCard className="h-4 w-4 text-slate-400" /> Gerir assinatura
-        </Link>
-      </div>
-      <div className="border-t border-slate-100 py-1">
-        <Link
-          href="/termos-e-condicoes"
-          className={itemBaseClass}
-          onClick={onClose}
-          target="_blank"
-          rel="noopener noreferrer"
-          role="menuitem"
-        >
-          <FaFileContract className="h-4 w-4 text-slate-400" /> Termos e Condições
-        </Link>
-        <Link
-          href="/politica-de-privacidade"
-          className={itemBaseClass}
-          onClick={onClose}
-          target="_blank"
-          rel="noopener noreferrer"
-          role="menuitem"
-        >
-          <FaShieldAlt className="h-4 w-4 text-slate-400" /> Política de Privacidade
-        </Link>
-      </div>
-      <div className="border-t border-slate-100 py-1">
-        <a
-          href="mailto:arthur@data2content.ai"
-          className={itemBaseClass}
-          onClick={onClose}
-          role="menuitem"
-        >
-          <FaEnvelope className="h-4 w-4 text-slate-400" /> Suporte por Email
-        </a>
-        <Link
-          href="/afiliados"
-          className={itemBaseClass}
-          onClick={onClose}
-          role="menuitem"
-        >
-          <FaHandshake className="h-4 w-4 text-slate-400" /> Programa de Afiliados
-        </Link>
-      </div>
-      <div className="border-t border-slate-100 py-1">
-        <Link
-          href="/dashboard/settings#delete-account"
-          className={`${itemBaseClass} text-red-600 hover:bg-red-50 hover:text-red-700`}
-          onClick={onClose}
-          role="menuitem"
-        >
-          <FaTrashAlt className="w-4 h-4" /> Excluir Conta
-        </Link>
-      </div>
-      <div className="border-t border-slate-100 py-1">
-        <button
-          onClick={() => {
-            onClose();
-            signOut({ callbackUrl: "/" });
-          }}
-          className={itemBaseClass}
-          role="menuitem"
-        >
-          <FaSignOutAlt className="w-4 h-4" /> Sair
-        </button>
-      </div>
-    </motion.div>
-  );
 }
 
 function HeaderCtaButton({ cta }: { cta: HeaderCta }) {
@@ -329,14 +215,11 @@ function HeaderCtaButton({ cta }: { cta: HeaderCta }) {
 
 export default function Header() {
   const { data: session } = useSession();
-  const user = session?.user as SessionUser | undefined;
   const rawSessionUser = session?.user as (SessionUser & { planStatus?: string | null }) | undefined;
   const normalizedPlanStatus = normalizePlanStatus(rawSessionUser?.planStatus);
   const planActive = isPlanActiveLike(normalizedPlanStatus);
   const { config } = useHeaderConfig();
   const { toggleSidebar } = useSidebar();
-  const pathname = usePathname();
-  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const lastHeightRef = useRef<number>(64);
@@ -496,33 +379,19 @@ export default function Header() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!config.showUserMenu) {
-      setUserMenuOpen(false);
-    }
-  }, [config.showUserMenu]);
-
   const isDockedToBottom = Boolean(config.sticky && config.mobileDocked);
+  const effectiveTitleValue = config.title ?? null;
+  const effectiveSubtitleValue = config.subtitle ?? null;
+  const effectiveMobileTitleValue = config.mobileTitle ?? effectiveTitleValue;
+  const effectiveMobileSubtitleValue = config.mobileSubtitle ?? effectiveSubtitleValue;
+  const effectiveMobileAccessory = config.mobileAccessory ?? null;
+  const hasMobileTitle = Boolean(effectiveMobileTitleValue || effectiveMobileSubtitleValue);
   const shellClasses = buildShellClasses(config.variant, config.sticky, condensed, config.mobileDocked);
-  const innerClasses = buildLayoutClasses(config.variant, condensed);
-
-  const handleOpenSubscribeModal = useCallback(() => {
-    if (typeof window === "undefined") return;
-    window.dispatchEvent(new Event("open-subscribe-modal"));
-  }, []);
-
-  const toggleUserMenu = useCallback(() => {
-    setUserMenuOpen((prev) => !prev);
-  }, []);
-
-
+  const innerClasses = buildLayoutClasses(config.variant, condensed, hasMobileTitle);
 
   const effectiveCta = useMemo<HeaderCta | null>(() => {
     return null;
   }, []);
-
-  const effectiveTitleValue = config.title ?? null;
-  const effectiveSubtitleValue = config.subtitle ?? null;
 
   const defaultProBadge = useMemo(() => {
     if (!planActive) return null;
@@ -539,17 +408,17 @@ export default function Header() {
 
   const effectiveExtraContent = config.extraContent ?? defaultProBadge;
 
-  const titleBlock = useMemo(() => {
+  const desktopTitleBlock = useMemo(() => {
     if (!effectiveTitleValue && !effectiveSubtitleValue) return null;
     return (
-      <div className="flex flex-col min-w-0 text-center">
+      <div className="flex min-w-0 flex-col text-center">
         {effectiveTitleValue && (
-          <span className="text-sm font-medium text-gray-500 truncate">
+          <span className="truncate text-sm font-semibold tracking-[-0.01em] text-zinc-900">
             {effectiveTitleValue}
           </span>
         )}
         {effectiveSubtitleValue && (
-          <span className="text-xs text-gray-400 truncate">
+          <span className="truncate text-[11px] text-zinc-500">
             {effectiveSubtitleValue}
           </span>
         )}
@@ -557,18 +426,36 @@ export default function Header() {
     );
   }, [effectiveSubtitleValue, effectiveTitleValue]);
 
+  const mobileTitleBlock = useMemo(() => {
+    if (!effectiveMobileTitleValue && !effectiveMobileSubtitleValue) return null;
+    return (
+      <div className="flex min-w-0 max-w-full flex-col items-center text-center">
+        {effectiveMobileTitleValue ? (
+          <span className="truncate text-[0.95rem] font-semibold tracking-[-0.02em] text-zinc-900">
+            {effectiveMobileTitleValue}
+          </span>
+        ) : null}
+        {effectiveMobileSubtitleValue ? (
+          <span className="truncate text-[11px] text-zinc-500">
+            {effectiveMobileSubtitleValue}
+          </span>
+        ) : null}
+      </div>
+    );
+  }, [effectiveMobileSubtitleValue, effectiveMobileTitleValue]);
+
   const renderLogo = (
     <Link
       href={MAIN_DASHBOARD_ROUTE}
       aria-label="Início"
-      className="font-bold text-2xl text-brand-dark flex items-center gap-2 group"
+      className={`group items-center gap-2 text-brand-dark ${config.hideBrandLogoOnMobile ? "hidden lg:flex" : "flex"}`}
     >
-      <div className="relative h-8 w-8 overflow-hidden">
+      <div className="relative h-9 w-9 overflow-hidden rounded-[16px] bg-[linear-gradient(135deg,#ec4899,#fb7185)] shadow-[0_16px_34px_rgba(236,72,153,0.24)] ring-1 ring-white/60">
         <Image
           src="/images/Colorido-Simbolo.png"
           alt="Data2Content"
           fill
-          className="object-contain object-center group-hover:opacity-90 transition-opacity scale-[2.2]"
+          className="object-contain object-center transition-opacity group-hover:opacity-90 scale-[0.72]"
           priority
         />
       </div>
@@ -590,16 +477,19 @@ export default function Header() {
       aria-label="Barra superior do dashboard"
     >
       {/* -> CORREÇÃO: A classe pointer-events-auto foi removida deste container principal */}
-      <div ref={innerRef} className={innerClasses}>
+      <div ref={innerRef} className={`relative ${innerClasses}`}>
         {/* -> CORREÇÃO: E aplicada diretamente nos containers filhos que precisam ser clicáveis */}
-        <div className="order-1 flex items-center gap-3 min-w-0 pointer-events-auto sm:order-1 sm:flex-none">
+        <div className={`order-1 flex min-w-0 items-center pointer-events-auto sm:order-1 sm:flex-none ${hasMobileTitle ? "gap-1.5" : "gap-3"}`}>
           {config.showSidebarToggle && (
             <motion.button
+              data-dashboard-sidebar-toggle="true"
               onPointerDown={(event) => handlePointerActivation(() => toggleSidebar(), event)}
               onClick={(event) => runWithClickSuppression(() => toggleSidebar(), event)}
               whileTap={{ scale: 0.92 }}
               transition={{ duration: 0.12, ease: "easeOut" }}
-              className="flex h-10 w-10 items-center justify-center rounded-full text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900 touch-manipulation lg:hidden"
+              className={`flex items-center justify-center rounded-full border border-white/70 bg-white/55 text-zinc-600 shadow-[0_10px_20px_rgba(24,24,27,0.04)] transition-colors hover:bg-white hover:text-zinc-900 touch-manipulation lg:hidden ${
+                hasMobileTitle ? "h-8.5 w-8.5" : "h-10 w-10"
+              }`}
               aria-label="Alternar menu lateral"
               title="Menu"
             >
@@ -609,13 +499,22 @@ export default function Header() {
           {renderLogo}
         </div>
 
-        {titleBlock ? (
-          <div className="order-3 hidden w-full items-center justify-center px-3 pointer-events-auto sm:order-2 sm:flex sm:flex-1">
-            {titleBlock}
+        {mobileTitleBlock ? (
+          <div className="pointer-events-none absolute inset-x-11 top-1/2 z-[1] flex -translate-y-1/2 justify-center px-2 sm:hidden">
+            {mobileTitleBlock}
           </div>
         ) : null}
 
-        <div className="header-actions order-2 ml-auto flex min-w-0 flex-1 items-center justify-end gap-1.5 pointer-events-auto sm:order-3 sm:w-auto sm:flex-none sm:flex-nowrap sm:gap-2">
+        {desktopTitleBlock ? (
+          <div className="order-3 hidden w-full items-center justify-center px-3 pointer-events-auto sm:order-2 sm:flex sm:flex-1">
+            {desktopTitleBlock}
+          </div>
+        ) : null}
+
+        <div className="header-actions order-2 ml-auto flex min-w-[2.5rem] items-center justify-end gap-1.5 pointer-events-auto sm:order-3 sm:w-auto sm:flex-none sm:flex-nowrap sm:gap-2">
+          {effectiveMobileAccessory ? (
+            <div className="inline-flex items-center sm:hidden">{effectiveMobileAccessory}</div>
+          ) : null}
           {effectiveExtraContent ? (
             <div className="hidden sm:inline-flex sm:items-center">{effectiveExtraContent}</div>
           ) : null}
@@ -624,28 +523,6 @@ export default function Header() {
               <HeaderCtaButton cta={effectiveCta} />
             </div>
           ) : null}
-          {config.showUserMenu && (
-            <div className="relative">
-              <button
-                onPointerDown={(event) => handlePointerActivation(toggleUserMenu, event)}
-                onClick={(event) => runWithClickSuppression(toggleUserMenu, event)}
-                className="h-10 w-10 rounded-full overflow-hidden bg-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 touch-manipulation"
-                aria-haspopup="menu"
-                aria-expanded={userMenuOpen}
-                aria-label="Abrir menu do usuário"
-              >
-                <UserAvatar
-                  name={user?.name || "Usuário"}
-                  src={user?.image}
-                  size={40}
-                  className="w-full h-full"
-                />
-              </button>
-              <AnimatePresence>
-                {userMenuOpen && <UserMenu user={user} onClose={() => setUserMenuOpen(false)} />}
-              </AnimatePresence>
-            </div>
-          )}
         </div>
       </div>
     </header>

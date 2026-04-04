@@ -1,20 +1,139 @@
 "use client";
 
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import ButtonPrimary from "@/app/landing/components/ButtonPrimary";
+import {
+  LEGAL_CONSENT_COOKIE_MAX_AGE_SECONDS,
+  LEGAL_CONSENT_COOKIE_NAME,
+} from "@/lib/auth/legalConsent";
+
+type LoginIntentCopy = {
+  badge: string;
+  title: string;
+  description: string;
+  buttonLabel: string;
+  footer: string;
+};
+
+function resolveIntentCopy(rawCallbackUrl: string | null): LoginIntentCopy {
+  const defaultCopy: LoginIntentCopy = {
+    badge: "Entrar com Google",
+    title: "Continue na plataforma",
+    description:
+      "Entre com sua conta Google para acessar seus boards, salvar progresso e continuar sua jornada na Data2Content.",
+    buttonLabel: "Continuar com Google",
+    footer: "Sua conta conecta ferramentas, histórico e próximos passos em um só lugar.",
+  };
+
+  if (!rawCallbackUrl) {
+    return defaultCopy;
+  }
+
+  let normalizedPath = rawCallbackUrl.trim();
+  try {
+    if (/^https?:\/\//i.test(normalizedPath)) {
+      normalizedPath = new URL(normalizedPath).pathname;
+    }
+  } catch {
+    return defaultCopy;
+  }
+
+  const path = normalizedPath.toLowerCase();
+
+  if (path.includes("/calculator")) {
+    return {
+      badge: "Calculadora Pro",
+      title: "Entre para continuar na calculadora",
+      description:
+        "Use sua conta Google para retomar a precificação e seguir para a assinatura do Plano Pro quando necessário.",
+      buttonLabel: "Entrar e continuar",
+      footer: "Depois do login, você volta para a calculadora sem perder a intenção original.",
+    };
+  }
+
+  if (path.includes("/media-kit") || path.includes("/mediakit")) {
+    return {
+      badge: "Mídia Kit",
+      title: "Entre para continuar no Mídia Kit",
+      description:
+        "A conta Google guarda seu progresso e permite seguir para a assinatura e conexão do Instagram no momento certo.",
+      buttonLabel: "Entrar e continuar",
+      footer: "Seu retorno continua do ponto em que você parou.",
+    };
+  }
+
+  if (path.includes("/planning") || path.includes("/calendar")) {
+    return {
+      badge: "Planejamento",
+      title: "Entre para continuar no board",
+      description:
+        "Faça login com Google para acessar seu board, salvar progresso e continuar o fluxo de assinatura quando a funcionalidade for premium.",
+      buttonLabel: "Entrar e continuar",
+      footer: "Depois do login, a plataforma retoma a etapa correta para liberar o recurso.",
+    };
+  }
+
+  if (path.includes("/campaigns") || path.includes("/publis") || path.includes("/proposals")) {
+    return {
+      badge: "Campanhas e CRM",
+      title: "Entre para continuar nas campanhas",
+      description:
+        "Sua conta Google é necessária para gerenciar CRM, publis e negociações, com assinatura ativada quando o recurso exigir acesso Pro.",
+      buttonLabel: "Entrar e continuar",
+      footer: "Login primeiro, assinatura quando necessário, sempre no mesmo fluxo.",
+    };
+  }
+
+  if (path.includes("/discover") || path.includes("/community")) {
+    return {
+      badge: "Comunidade",
+      title: "Entre para continuar na comunidade",
+      description:
+        "Faça login com Google para acessar a comunidade e seguir para a mentoria ou para os próximos passos de ativação quando necessário.",
+      buttonLabel: "Entrar e continuar",
+      footer: "Sessões gratuitas e premium seguem a partir desta mesma conta.",
+    };
+  }
+
+  return defaultCopy;
+}
 
 function LoginComponent() {
   const searchParams = useSearchParams();
   const callbackUrlFromParams = searchParams.get("callbackUrl");
+  const loginError = searchParams.get("error");
   const [isLoading, setIsLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [showConsentError, setShowConsentError] = useState(false);
+  const copy = useMemo(
+    () => resolveIntentCopy(callbackUrlFromParams),
+    [callbackUrlFromParams]
+  );
+  const consentRequired = loginError === "TermsConsentRequired";
 
   const handleGoogleSignIn = () => {
+    if (consentRequired && !termsAccepted) {
+      setShowConsentError(true);
+      return;
+    }
+
     setIsLoading(true);
-    signIn("google", {
+    if (consentRequired) {
+      const secureFlag =
+        typeof window !== "undefined" && window.location.protocol === "https:"
+          ? "; Secure"
+          : "";
+      document.cookie = `${LEGAL_CONSENT_COOKIE_NAME}=1; Max-Age=${LEGAL_CONSENT_COOKIE_MAX_AGE_SECONDS}; Path=/; SameSite=Lax${secureFlag}`;
+    }
+
+    void signIn("google", {
       callbackUrl: callbackUrlFromParams || MAIN_DASHBOARD_ROUTE,
+    }).catch(() => {
+      setIsLoading(false);
     });
   };
 
@@ -33,15 +152,83 @@ function LoginComponent() {
 
         <div className="mb-10 text-center">
           <div className="inline-flex mb-6 rounded-full border border-brand-primary/20 bg-brand-primary/5 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-brand-primary">
-            Acesso Restrito
+            {copy.badge}
           </div>
           <h1 className="text-3xl font-black tracking-tight text-white">
-            Destaque <span className="text-brand-primary">+</span> D2C
+            {copy.title}
           </h1>
           <p className="mt-4 text-[13px] font-medium leading-relaxed text-slate-400">
-            Aceleradora de criadores vinculada ao celeiro oficial de talentos da agência Destaque.
+            {copy.description}
           </p>
         </div>
+
+        {consentRequired ? (
+          <div className="mb-5 rounded-2xl border border-amber-400/25 bg-amber-300/10 px-4 py-3 text-[12px] leading-relaxed text-amber-100">
+            Para continuar com Google, aceite os Termos e a Política de Privacidade antes do login.
+          </div>
+        ) : null}
+
+        {consentRequired ? (
+          <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-[12px] leading-relaxed text-slate-300">
+            <label className="flex cursor-pointer items-start gap-3">
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={(event) => {
+                  setTermsAccepted(event.target.checked);
+                  if (event.target.checked) {
+                    setShowConsentError(false);
+                  }
+                }}
+                className="mt-0.5 h-4 w-4 rounded border-white/20 bg-transparent text-brand-primary focus:ring-brand-primary"
+              />
+              <span>
+                Li e concordo com os{" "}
+                <Link
+                  href="/termos-e-condicoes"
+                  target="_blank"
+                  className="font-semibold text-white underline decoration-white/30 underline-offset-4 transition hover:text-brand-primary"
+                >
+                  Termos e Condições
+                </Link>{" "}
+                e com a{" "}
+                <Link
+                  href="/politica-de-privacidade"
+                  target="_blank"
+                  className="font-semibold text-white underline decoration-white/30 underline-offset-4 transition hover:text-brand-primary"
+                >
+                  Política de Privacidade
+                </Link>
+                .
+              </span>
+            </label>
+            {showConsentError ? (
+              <p className="mt-3 text-[11px] font-semibold text-rose-300">
+                Você precisa aceitar os termos para continuar com Google.
+              </p>
+            ) : null}
+          </div>
+        ) : (
+          <p className="mb-6 text-center text-[12px] leading-relaxed text-slate-400">
+            Ao continuar, você poderá revisar os{" "}
+            <Link
+              href="/termos-e-condicoes"
+              target="_blank"
+              className="font-semibold text-white underline decoration-white/30 underline-offset-4 transition hover:text-brand-primary"
+            >
+              Termos e Condições
+            </Link>{" "}
+            e a{" "}
+            <Link
+              href="/politica-de-privacidade"
+              target="_blank"
+              className="font-semibold text-white underline decoration-white/30 underline-offset-4 transition hover:text-brand-primary"
+            >
+              Política de Privacidade
+            </Link>
+            .
+          </p>
+        )}
 
         <div className="relative group">
           <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-brand-primary/50 to-brand-accent/50 opacity-30 blur-sm group-hover:opacity-75 transition duration-500"></div>
@@ -87,15 +274,20 @@ function LoginComponent() {
                   />
                 </svg>
               )}
-              {isLoading ? "Validando Acesso..." : "Verificar Disponibilidade (Google)"}
+              {isLoading ? "Entrando..." : copy.buttonLabel}
             </span>
           </ButtonPrimary>
         </div>
 
         <div className="mt-8 flex flex-col gap-2">
           <p className="text-center text-[10px] font-bold uppercase tracking-widest text-slate-500">
-            Requer convite prévio de consultoria.
+            {copy.footer}
           </p>
+          {consentRequired ? (
+            <p className="text-center text-[11px] leading-relaxed text-slate-500">
+              O aceite é registrado quando você continua com Google.
+            </p>
+          ) : null}
           <div className="h-px w-full bg-gradient-to-r from-transparent via-white/5 to-transparent" />
         </div>
       </div>

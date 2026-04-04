@@ -72,6 +72,7 @@ describe("GET /api/landing/casting", () => {
     expect(mockFetchCastingCreators).toHaveBeenCalledWith(
       expect.objectContaining({
         mode: "featured",
+        surface: "full",
         offset: 0,
         limit: 12,
       }),
@@ -106,8 +107,33 @@ describe("GET /api/landing/casting", () => {
     expect(mockFetchCastingCreators).toHaveBeenCalledWith(
       expect.objectContaining({
         mode: "full",
+        surface: "full",
         offset: 0,
         limit: null,
+      }),
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it("forwards board surface for board consumers", async () => {
+    mockFetchCastingCreators.mockResolvedValue({
+      creators: [makeCreator("1")],
+      total: 1,
+      offset: 0,
+      limit: 12,
+      hasMore: false,
+      mode: "featured",
+    });
+
+    const req = new NextRequest("http://localhost/api/landing/casting?mode=featured&surface=board");
+    const res = await GET(req);
+
+    expect(mockFetchCastingCreators).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "featured",
+        surface: "board",
+        offset: 0,
+        limit: 12,
       }),
     );
     expect(res.status).toBe(200);

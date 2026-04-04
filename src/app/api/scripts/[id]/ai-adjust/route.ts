@@ -91,6 +91,7 @@ function serializeScriptItem(item: any, options?: { includeAdminAnnotation?: boo
             postDate: item.postedContent.postDate || null,
             postLink: item.postedContent.postLink || null,
             type: item.postedContent.type || null,
+            coverUrl: item.postedContent.coverUrl || null,
             engagement:
               typeof item.postedContent.engagement === "number" ? item.postedContent.engagement : null,
             totalInteractions:

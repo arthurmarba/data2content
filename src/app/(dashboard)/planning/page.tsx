@@ -9,16 +9,11 @@ export const dynamic = "force-dynamic";
 
 export default async function PlanningIndexPage() {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
 
-  const user = session.user as any;
+  const user = session?.user as any;
   const normalizedStatus = normalizePlanStatus(user?.planStatus);
   const role = typeof user?.role === "string" ? user.role.trim().toLowerCase() : null;
-  const proTrialStatus = typeof user?.proTrialStatus === "string" ? user.proTrialStatus.trim().toLowerCase() : null;
-  const hasProAccess =
-    isPlanActiveLike(normalizedStatus) || proTrialStatus === "active" || role === "admin";
+  const hasProAccess = isPlanActiveLike(normalizedStatus) || role === "admin";
 
   if (!hasProAccess) {
     return <PlanningLockedView variant="planner" returnTo="/planning" />;

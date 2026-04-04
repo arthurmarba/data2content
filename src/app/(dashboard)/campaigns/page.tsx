@@ -1,16 +1,11 @@
-import { getServerSession } from "next-auth";
-import { redirect } from "next/navigation";
-
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import ProposalsClient from "@/app/dashboard/proposals/ProposalsClient";
+import CampaignsHub from "./CampaignsHub";
 
 export const dynamic = "force-dynamic";
 
 export default async function CampaignsPage() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    redirect("/login");
-  }
-
-  return <ProposalsClient />;
+  return (
+    <main className="flex h-full min-h-0 w-full flex-col overflow-hidden">
+      <CampaignsHub />
+    </main>
+  );
 }

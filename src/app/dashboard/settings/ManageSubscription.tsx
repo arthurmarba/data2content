@@ -42,7 +42,7 @@ export default function ManageSubscription() {
       {/* Modal de Mudança de Plano */}
       {isChangePlanOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="dashboard-scrollbar relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setIsChangePlanOpen(false)}
               className="absolute right-4 top-4 z-10 rounded-full bg-gray-100 p-2 text-gray-500 hover:bg-gray-200"

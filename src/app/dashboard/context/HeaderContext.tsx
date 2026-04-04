@@ -24,10 +24,14 @@ export interface HeaderConfig {
   mobileDocked: boolean;
   showSidebarToggle: boolean;
   showUserMenu: boolean;
+  hideBrandLogoOnMobile: boolean;
   condensedOnScroll: boolean;
   contentTopPadding?: string | number;
   title?: string;
   subtitle?: string;
+  mobileTitle?: string | null;
+  mobileSubtitle?: string | null;
+  mobileAccessory?: ReactNode;
   cta?: HeaderCta | null;
   extraContent?: ReactNode;
 }
@@ -38,7 +42,11 @@ const defaultConfig: HeaderConfig = {
   mobileDocked: false,
   showSidebarToggle: true,
   showUserMenu: true,
+  hideBrandLogoOnMobile: false,
   condensedOnScroll: false,
+  mobileTitle: null,
+  mobileSubtitle: null,
+  mobileAccessory: null,
   cta: null,
   extraContent: null,
   contentTopPadding: undefined,
@@ -101,6 +109,10 @@ export function useHeaderConfig() {
   return ctx;
 }
 
+export function useOptionalHeaderConfig() {
+  return useContext(HeaderContext);
+}
+
 export function useHeaderSetup(config?: Partial<HeaderConfig>, deps: unknown[] = []) {
   const { setConfig, resetConfig, defaultConfig } = useHeaderConfig();
 
@@ -116,6 +128,15 @@ export function useHeaderSetup(config?: Partial<HeaderConfig>, deps: unknown[] =
         extraContent: Object.prototype.hasOwnProperty.call(config, "extraContent")
           ? config.extraContent ?? null
           : defaultConfig.extraContent,
+        mobileTitle: Object.prototype.hasOwnProperty.call(config, "mobileTitle")
+          ? config.mobileTitle ?? null
+          : defaultConfig.mobileTitle,
+        mobileSubtitle: Object.prototype.hasOwnProperty.call(config, "mobileSubtitle")
+          ? config.mobileSubtitle ?? null
+          : defaultConfig.mobileSubtitle,
+        mobileAccessory: Object.prototype.hasOwnProperty.call(config, "mobileAccessory")
+          ? config.mobileAccessory ?? null
+          : defaultConfig.mobileAccessory,
       };
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps

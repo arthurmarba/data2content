@@ -184,6 +184,52 @@ function createEmptyLinkingSummary(): ScriptLinkingSummary {
   };
 }
 
+async function hydratePostedContentCovers<T extends { postedContent?: { metricId?: unknown; coverUrl?: string | null } | null }>(
+  docs: T[]
+): Promise<T[]> {
+  const metricIds = Array.from(
+    new Set(
+      docs
+        .map((doc) => {
+          const metricId = doc?.postedContent?.metricId;
+          if (!metricId) return null;
+          if (doc.postedContent?.coverUrl) return null;
+          const normalized = String(metricId);
+          return Types.ObjectId.isValid(normalized) ? normalized : null;
+        })
+        .filter((value): value is string => Boolean(value))
+    )
+  );
+
+  if (metricIds.length === 0) return docs;
+
+  const metricDocs = await Metric.find({
+    _id: { $in: metricIds.map((id) => new Types.ObjectId(id)) },
+  })
+    .select("_id coverUrl")
+    .lean()
+    .exec();
+
+  const coverUrlByMetricId = new Map<string, string>();
+  metricDocs.forEach((metricDoc: any) => {
+    if (typeof metricDoc?.coverUrl !== "string" || !metricDoc.coverUrl.trim()) return;
+    coverUrlByMetricId.set(String(metricDoc._id), metricDoc.coverUrl.trim());
+  });
+
+  return docs.map((doc) => {
+    const metricId = doc?.postedContent?.metricId ? String(doc.postedContent.metricId) : "";
+    const coverUrl = coverUrlByMetricId.get(metricId);
+    if (!coverUrl) return doc;
+    return {
+      ...doc,
+      postedContent: {
+        ...doc.postedContent,
+        coverUrl,
+      },
+    };
+  });
+}
+
 function buildScriptsListCacheKey(params: {
   effectiveUserId: string;
   limit: number;
@@ -323,7 +369,7 @@ async function resolvePostedContentForCreate(params: {
         _id: new Types.ObjectId(normalizedPostedContentId),
         user: new Types.ObjectId(userId),
       })
-        .select("_id description postDate postLink type stats.engagement stats.total_interactions")
+        .select("_id description postDate postLink type coverUrl stats.engagement stats.total_interactions")
         .lean()
         .exec(),
     {
@@ -349,6 +395,7 @@ async function resolvePostedContentForCreate(params: {
       postDate: metricDoc.postDate ?? null,
       postLink: typeof metricDoc.postLink === "string" ? metricDoc.postLink : null,
       type: typeof metricDoc.type === "string" ? metricDoc.type : null,
+      coverUrl: typeof (metricDoc as any).coverUrl === "string" ? (metricDoc as any).coverUrl : null,
       engagement:
         typeof metricDoc.stats?.engagement === "number" && Number.isFinite(metricDoc.stats.engagement)
           ? metricDoc.stats.engagement
@@ -421,6 +468,7 @@ function serializeScriptItem(
           postDate: item.postedContent.postDate || null,
           postLink: item.postedContent.postLink || null,
           type: item.postedContent.type || null,
+          coverUrl: item.postedContent.coverUrl || null,
           engagement:
             typeof item.postedContent.engagement === "number" ? item.postedContent.engagement : null,
           totalInteractions:
@@ -659,16 +707,20 @@ export async function GET(request: Request) {
           }
           const docs = await docsQuery.sort({ updatedAt: -1, _id: -1 }).limit(limit + 1).lean().exec();
 
-          const pageItems = docs.length > limit ? docs.slice(0, limit) : docs;
+          const pageItemsRaw = docs.length > limit ? docs.slice(0, limit) : docs;
+          const pageItems = notificationsView ? pageItemsRaw : await hydratePostedContentCovers(pageItemsRaw);
           const linkingSummaryByScriptId =
             notificationsView || pageItems.length === 0
               ? new Map<string, ScriptLinkingSummary>()
-              : await buildLinkingSummaryByScriptId({
+                  : await buildLinkingSummaryByScriptId({
                   userId: effectiveUserId,
                   scriptDocs: pageItems,
                 });
 
-          return { docs, linkingSummaryByScriptId };
+          const docsWithHydratedPage =
+            docs.length > limit ? [...pageItems, docs[docs.length - 1]] : pageItems;
+
+          return { docs: docsWithHydratedPage, linkingSummaryByScriptId };
         },
         {
           retries: 1,

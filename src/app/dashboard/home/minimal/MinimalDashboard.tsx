@@ -77,6 +77,7 @@ export default function MinimalDashboard({
   }, [autoRefreshEnabled, onRefresh]);
 
   const flowChecklist = summary?.flowChecklist ?? null;
+  const journeyProgress = summary?.journeyProgress ?? null;
   const proposalsSummary = summary?.proposalsSummary ?? null;
   const mediaKitCard = summary?.mediaKit ?? null;
   const plan = summary?.plan ?? null;
@@ -220,18 +221,19 @@ export default function MinimalDashboard({
 
   return (
     <>
-      <div className="grid w-full grid-cols-1 gap-6 pb-8 lg:grid-cols-2 xl:grid-cols-3">
-        <section className="xl:col-span-3">
+      <div className="flex w-full flex-col gap-5 pb-6">
+        <section>
           <FlowChecklist
             loading={loading && !flowChecklist}
             checklist={flowChecklist}
             plan={plan}
+            journeyProgress={journeyProgress}
             onStepAction={handleStepAction}
             onStepShortcut={handleStepShortcut}
           />
         </section>
 
-        <section className="lg:col-span-2 xl:col-span-2">
+        <section>
           <ProposalsPanel
             loading={loading && !proposalsSummary}
             summary={proposalsSummary}
@@ -262,7 +264,7 @@ export default function MinimalDashboard({
           />
         </section>
 
-        <section className="lg:col-span-2 xl:col-span-1">
+        <section>
           <MediaKitSnapshot
             loading={loading && !mediaKitCard}
             mediaKit={mediaKitCard}
@@ -278,7 +280,7 @@ export default function MinimalDashboard({
           />
         </section>
 
-        <section className="xl:col-span-1">
+        <section>
           <ProUpsellCard
             plan={plan}
             onActivate={() => {

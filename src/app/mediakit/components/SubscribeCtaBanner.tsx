@@ -35,7 +35,19 @@ const SubscribeCtaBanner: React.FC<SubscribeCtaBannerProps> = ({
 
   const openSubscribe = () => {
     try {
-      window.dispatchEvent(new Event("open-subscribe-modal"));
+      const returnTo =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}${window.location.hash}`
+          : "/media-kit";
+      window.dispatchEvent(
+        new CustomEvent("open-subscribe-modal", {
+          detail: {
+            context: "media_kit",
+            source: "public_mediakit_subscribe_banner",
+            returnTo,
+          },
+        })
+      );
     } catch (_) {
       // no-op SSR/edge
     }

@@ -1,4 +1,4 @@
-const ACTIVE_LIKE_STATUSES = new Set(["active", "trial", "trialing", "non_renewing"]);
+const ACTIVE_LIKE_STATUSES = new Set(["active", "non_renewing"]);
 const INACTIVE_STATUSES = new Set([
   "inactive",
   "expired",

@@ -12,8 +12,15 @@ import {
   type InstagramReconnectErrorCode,
 } from "@/app/lib/instagram/reconnectErrors";
 import { track } from "@/lib/track";
+import { PAYWALL_RETURN_STORAGE_KEY } from "@/types/paywall";
 
-type NextTarget = "chat" | "media-kit" | "instagram-connection";
+type NextTarget =
+  | "calculator"
+  | "chat"
+  | "media-kit"
+  | "instagram-connection"
+  | "planner"
+  | "campaigns";
 type AvailableIgAccount = {
   igAccountId: string;
   username?: string;
@@ -194,11 +201,45 @@ function unknownReconnectActionPlan(phase: ConnectingPhase): ActionPlan {
   };
 }
 
+function consumeStoredReturnTo(): string | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.sessionStorage.getItem(PAYWALL_RETURN_STORAGE_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw) as { returnTo?: string | null } | null;
+    const returnTo =
+      typeof parsed?.returnTo === "string" &&
+      parsed.returnTo.startsWith("/") &&
+      !parsed.returnTo.startsWith("//")
+        ? parsed.returnTo
+        : null;
+
+    window.sessionStorage.removeItem(PAYWALL_RETURN_STORAGE_KEY);
+    return returnTo;
+  } catch {
+    window.sessionStorage.removeItem(PAYWALL_RETURN_STORAGE_KEY);
+    return null;
+  }
+}
+
 function buildNextUrl(nextTargetRaw: string | null): string {
+  const storedReturnTo = consumeStoredReturnTo();
+  if (storedReturnTo) {
+    return storedReturnTo;
+  }
+
   const nextTarget = (nextTargetRaw || "").toLowerCase() as NextTarget;
   switch (nextTarget) {
+    case "calculator":
+      return "/dashboard/calculator?instagramLinked=true";
     case "media-kit":
       return "/media-kit?instagramLinked=true";
+    case "planner":
+      return "/planning/planner?instagramLinked=true";
+    case "campaigns":
+      return "/campaigns?instagramLinked=true";
     case "instagram-connection":
       return "/dashboard/instagram-connection?instagramLinked=true";
     case "chat":

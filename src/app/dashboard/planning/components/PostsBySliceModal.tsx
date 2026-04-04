@@ -234,7 +234,7 @@ export default function PostsBySliceModal({
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
+        <div className="dashboard-scrollbar min-h-0 flex-1 overflow-y-auto pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
           {posts.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 px-6 py-12 text-center text-slate-500">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">–</div>

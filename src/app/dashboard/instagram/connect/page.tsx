@@ -7,7 +7,10 @@ import {
   mapNextAuthErrorToReconnectCode,
   reconnectErrorMessageForCode,
 } from "@/app/lib/instagram/reconnectErrors";
-import { startInstagramReconnect } from "@/app/lib/instagram/client/startInstagramReconnect";
+import {
+  startInstagramReconnect,
+  type InstagramReconnectNextTarget,
+} from "@/app/lib/instagram/client/startInstagramReconnect";
 
 type StepStatus = "complete" | "active" | "pending";
 
@@ -61,6 +64,15 @@ export default function InstagramPreConnectPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { status } = useSession();
+  const requestedNextTarget = searchParams.get("next");
+  const nextTarget: InstagramReconnectNextTarget =
+    requestedNextTarget === "calculator" ||
+    requestedNextTarget === "chat" ||
+    requestedNextTarget === "instagram-connection" ||
+    requestedNextTarget === "planner" ||
+    requestedNextTarget === "campaigns"
+      ? requestedNextTarget
+      : "media-kit";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const quickChecklist: QuickItem[] = [
@@ -116,7 +128,7 @@ export default function InstagramPreConnectPage() {
     setError(null);
     try {
       await startInstagramReconnect({
-        nextTarget: "media-kit",
+        nextTarget,
         source: "instagram_connect_page",
       });
     } catch (e: any) {

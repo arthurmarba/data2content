@@ -7,6 +7,40 @@ import { useSession } from "next-auth/react";
 import { track } from "@/lib/track";
 import { PAYWALL_RETURN_STORAGE_KEY } from "@/types/paywall";
 
+async function fetchInstagramConnected(force = false): Promise<boolean | null> {
+  try {
+    const suffix = force ? "?force=true" : "";
+    const res = await fetch(`/api/plan/status${suffix}`, {
+      cache: "no-store",
+      credentials: "include",
+    });
+    const payload = await res.json().catch(() => null);
+    if (!res.ok || !payload?.ok) return null;
+    return Boolean(payload?.instagram?.connected);
+  } catch {
+    return null;
+  }
+}
+
+function resolveInstagramNextTarget(
+  context: string | null,
+  source: string | null,
+): "calculator" | "media-kit" | "campaigns" | "planner" | null {
+  if (context === "calculator") return "calculator";
+  if (context === "media_kit") return "media-kit";
+  if (context === "reply_email" || context === "ai_analysis") return "campaigns";
+  if (context === "publis") return "campaigns";
+  if (context === "planning") return "planner";
+
+  if (!source) return null;
+  if (source.includes("calculator")) return "calculator";
+  if (source.includes("media_kit") || source.includes("media-kit")) return "media-kit";
+  if (source.includes("publis") || source.includes("campaign") || source.includes("proposal")) return "campaigns";
+  if (source.includes("planning") || source.includes("planner")) return "planner";
+
+  return null;
+}
+
 export default function BillingSuccessPage() {
   const sp = useSearchParams();
   const sid = sp.get("session_id");
@@ -27,8 +61,17 @@ export default function BillingSuccessPage() {
         // if (sid) await fetch(`/api/stripe/confirm?session_id=${sid}`, { method: "POST" });
 
         const updatedSession = await update(); // atualiza planStatus/stripe* no token uma única vez
-        const user = updatedSession?.user as { id?: string | null; planInterval?: string | null } | null | undefined;
+        const user = updatedSession?.user as {
+          id?: string | null;
+          planInterval?: string | null;
+          instagramConnected?: boolean;
+        } | null | undefined;
+        const billingInstagramConnected = await fetchInstagramConnected(true);
+        const instagramConnected =
+          billingInstagramConnected ?? Boolean(user?.instagramConnected);
         let resolvedContext: string | null = null;
+        let redirectHref: string | null = null;
+        let keepPaywallReturnState = false;
         const stored = sessionStorage.getItem(PAYWALL_RETURN_STORAGE_KEY);
         if (stored) {
           try {
@@ -40,11 +83,20 @@ export default function BillingSuccessPage() {
               typeof data?.returnTo === "string" && data.returnTo.startsWith("/")
                 ? data.returnTo
                 : null;
-            sessionStorage.removeItem(PAYWALL_RETURN_STORAGE_KEY);
-            if (returnTo) {
+            const source =
+              typeof data?.source === "string" && data.source.trim().length > 0
+                ? data.source.trim().toLowerCase()
+                : null;
+            const instagramNextTarget = !instagramConnected
+              ? resolveInstagramNextTarget(resolvedContext, source)
+              : null;
+            if (instagramNextTarget) {
+              redirectHref = `/dashboard/instagram/connect?next=${encodeURIComponent(instagramNextTarget)}`;
+              keepPaywallReturnState = true;
+            } else if (returnTo) {
               const current = `${window.location.pathname}${window.location.search || ""}`;
               if (current !== returnTo) {
-                router.push(returnTo);
+                redirectHref = returnTo;
               }
             }
           } catch {
@@ -65,6 +117,15 @@ export default function BillingSuccessPage() {
             currency: null,
             value: null,
           });
+        }
+
+        if (!keepPaywallReturnState) {
+          sessionStorage.removeItem(PAYWALL_RETURN_STORAGE_KEY);
+        }
+
+        if (redirectHref) {
+          router.push(redirectHref);
+          return;
         }
         // Não precisa chamar router.refresh() aqui. Ao navegar, o server já refaz o fetch.
       } catch {
@@ -93,8 +154,8 @@ export default function BillingSuccessPage() {
       )}
 
       <div className="mt-5 flex flex-wrap gap-2">
-        <a className="inline-block rounded-xl bg-black px-4 py-2 text-white" href="/planning/roteiros">
-          Abrir Meus Roteiros
+        <a className="inline-block rounded-xl bg-black px-4 py-2 text-white" href="/calendar">
+          Abrir Criação de Post
         </a>
         <a className="inline-block rounded-xl border border-gray-300 px-4 py-2 text-gray-800" href="/dashboard/post-analysis">
           Abrir Review de Post

@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { signIn, useSession } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { useEffect, useRef, useState } from 'react';
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
 import { motion, useScroll, useTransform, useMotionTemplate } from 'framer-motion';
@@ -11,6 +11,7 @@ import Container from '../../components/Container';
 import { track } from '@/lib/track';
 import { MAIN_DASHBOARD_ROUTE } from '@/constants/routes';
 import { getLandingPrimaryCtaLabel } from '@/app/landing/copy';
+import { redirectToGoogleConsentLogin } from '@/lib/auth/googleLogin';
 
 interface LandingHeaderProps {
   showLoginButton?: boolean;
@@ -54,15 +55,7 @@ export default function LandingHeader({
       return;
     }
 
-    const fallbackToLogin = () => window.location.assign('/login');
-
-    signIn('google', { callbackUrl: MAIN_DASHBOARD_ROUTE })
-      .then((result) => {
-        if (result?.error) {
-          fallbackToLogin();
-        }
-      })
-      .catch(fallbackToLogin);
+    redirectToGoogleConsentLogin(MAIN_DASHBOARD_ROUTE);
   };
 
   const handleOpenLogin = () => {

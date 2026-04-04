@@ -37,18 +37,18 @@ function formatCurrency(value: number, currency?: string | null) {
 
 function ProposalsSkeleton() {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="dashboard-panel rounded-[2rem] p-5">
       <div className="flex items-center justify-between">
-        <div className="h-6 w-52 animate-pulse rounded bg-slate-200" />
-        <div className="h-9 w-24 animate-pulse rounded bg-slate-200" />
+        <div className="h-6 w-52 animate-pulse rounded bg-zinc-200" />
+        <div className="h-9 w-24 animate-pulse rounded bg-zinc-200" />
       </div>
-      <div className="mt-4 h-4 w-96 max-w-full animate-pulse rounded bg-slate-200" />
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="mt-4 h-4 w-96 max-w-full animate-pulse rounded bg-zinc-200" />
+      <div className="mt-6 space-y-3">
         {Array.from({ length: 3 }).map((_, index) => (
-          <div key={index} className="rounded-xl border border-slate-100 p-4">
-            <div className="h-4 w-36 animate-pulse rounded bg-slate-200" />
-            <div className="mt-4 h-8 w-16 animate-pulse rounded bg-slate-200" />
-            <div className="mt-6 h-9 w-28 animate-pulse rounded bg-slate-200" />
+          <div key={index} className="dashboard-panel-subtle rounded-[1.4rem] p-4">
+            <div className="h-4 w-36 animate-pulse rounded bg-zinc-200" />
+            <div className="mt-4 h-8 w-16 animate-pulse rounded bg-zinc-200" />
+            <div className="mt-6 h-9 w-28 animate-pulse rounded bg-zinc-200" />
           </div>
         ))}
       </div>
@@ -85,17 +85,17 @@ export default function ProposalsPanel({
   const respondCtaLabel = plan?.hasPremiumAccess ? "Analisar com IA" : "Responder agora";
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="dashboard-panel rounded-[2rem] p-5">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-slate-900">Propostas &amp; Pendências</h2>
-          <p className="text-sm text-slate-500">
+          <h2 className="dashboard-type-section-title">Propostas &amp; Pendências</h2>
+          <p className="dashboard-type-body">
             Acompanhe as oportunidades e não deixe respostas para depois.
           </p>
         </div>
         <button
           type="button"
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1"
+          className="dashboard-secondary-button dashboard-type-control inline-flex items-center gap-2 rounded-full px-3 py-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-1"
           onClick={onRefresh}
           aria-label="Atualizar propostas"
         >
@@ -105,13 +105,13 @@ export default function ProposalsPanel({
       </div>
 
       {bannerMessage ? (
-        <div className="mt-4 rounded-lg bg-amber-50 px-4 py-3 text-sm text-amber-900" role="status" aria-live="polite">
+        <div className="mt-3.5 rounded-[1.2rem] border border-pink-100 bg-pink-50/60 px-4 py-3 text-sm text-zinc-800" role="status" aria-live="polite">
           {bannerMessage}
         </div>
       ) : null}
 
       {!hasAnyProposal ? (
-        <div className="mt-6 rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">
+        <div className="dashboard-empty-state mt-5 rounded-[1.5rem] px-4 py-5 text-sm text-zinc-600">
           <EmptyStateMessage
             checklistSummary={checklistSummary}
             onConnectInstagram={onConnectInstagram}
@@ -121,32 +121,44 @@ export default function ProposalsPanel({
         </div>
       ) : null}
 
-      <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3" aria-live="polite">
-        <article className="rounded-xl border border-slate-100 p-4">
-          <header className="text-sm font-medium text-slate-500">Propostas novas</header>
+      <div className="mt-5 overflow-hidden rounded-[1.5rem] border border-zinc-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.84),rgba(250,250,250,0.78))]" aria-live="polite">
+        <article className="p-4">
+          <header className="dashboard-muted-label">Propostas novas</header>
           <div className="mt-3 flex items-end gap-2">
-            <span className="text-3xl font-semibold text-slate-900">
+            <span className="dashboard-type-kpi-md text-3xl">
               {numberFormatter.format(newCount)}
             </span>
           </div>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="dashboard-type-meta mt-2">
             Veja os detalhes e responda primeiro as propostas mais recentes.
           </p>
-          <button
-            type="button"
-            className="mt-5 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-1"
-            onClick={onOpenProposals}
-            aria-label="Abrir propostas recebidas"
-          >
-            Abrir Propostas
-            <ArrowRight className="h-4 w-4" />
-          </button>
+          {newCount > 0 ? (
+            <button
+              type="button"
+              className="dashboard-primary-button dashboard-type-control mt-5 inline-flex items-center gap-2 rounded-[1rem] px-4 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-1"
+              onClick={onOpenProposals}
+              aria-label="Abrir propostas recebidas"
+            >
+              Abrir Propostas
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="dashboard-secondary-button dashboard-type-control mt-5 inline-flex items-center gap-2 rounded-[1rem] px-4 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-1"
+              onClick={onOpenProposals}
+              aria-label="Abrir propostas recebidas"
+            >
+              Ver histórico
+              <ArrowRight className="h-4 w-4" />
+            </button>
+          )}
         </article>
 
-        <article className="rounded-xl border border-slate-100 p-4">
-          <header className="text-sm font-medium text-slate-500">Respostas pendentes</header>
+        <article className="border-t border-zinc-100/90 p-4">
+          <header className="dashboard-muted-label">Respostas pendentes</header>
           <div className="mt-3 flex items-end gap-2">
-            <span className="text-3xl font-semibold text-slate-900">
+            <span className="dashboard-type-kpi-md text-3xl">
               {numberFormatter.format(pendingCount)}
             </span>
             {pendingCount > 0 ? (
@@ -155,12 +167,12 @@ export default function ProposalsPanel({
               </span>
             ) : null}
           </div>
-          <p className="mt-2 text-xs text-slate-500">
+          <p className="dashboard-type-meta mt-2">
             Use a IA para gerar respostas personalizadas e reduzir seu tempo de negociação.
           </p>
           <button
             type="button"
-            className="mt-5 inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:bg-slate-300"
+            className={`dashboard-type-control mt-5 inline-flex items-center gap-2 rounded-[1rem] px-4 py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-1 ${pendingCount > 0 ? 'dashboard-primary-button text-white' : 'dashboard-secondary-button text-zinc-700'} disabled:cursor-not-allowed disabled:bg-zinc-300`}
             onClick={onRespondNow}
             aria-label={respondCtaLabel}
             disabled={!hasAnyProposal}
@@ -170,16 +182,16 @@ export default function ProposalsPanel({
           </button>
         </article>
 
-        <article className="rounded-xl border border-slate-100 p-4">
-          <header className="text-sm font-medium text-slate-500">
+        <article className="border-t border-zinc-100/90 p-4">
+          <header className="dashboard-muted-label">
             Ganhos estimados / último fechamento
           </header>
           {acceptedEstimate ? (
             <>
-              <div className="mt-3 text-3xl font-semibold text-slate-900">
+              <div className="dashboard-type-kpi-md mt-3 text-3xl">
                 {formatCurrency(acceptedEstimate.totalBudget, acceptedEstimate.currency)}
               </div>
-              <p className="mt-2 text-xs text-slate-500">
+              <p className="dashboard-type-meta mt-2">
                 Último fechamento:{" "}
                 {acceptedEstimate.lastClosedAt
                   ? new Date(acceptedEstimate.lastClosedAt).toLocaleDateString("pt-BR", {
@@ -191,8 +203,8 @@ export default function ProposalsPanel({
             </>
           ) : (
             <>
-              <div className="mt-3 text-3xl font-semibold text-slate-300">—</div>
-              <p className="mt-2 text-xs text-slate-500">
+              <div className="dashboard-type-kpi-md mt-3 text-zinc-300">—</div>
+              <p className="dashboard-type-meta mt-2">
                 Assim que você responder e fechar propostas por aqui, mostraremos um resumo do faturamento.
               </p>
             </>
@@ -221,13 +233,13 @@ function EmptyStateMessage({
     return (
       <div className="flex flex-col gap-3">
         <div>
-          <p className="text-sm font-semibold text-slate-900">{emptyStates.campaigns.title}</p>
-          <p className="text-sm text-slate-600">{emptyStates.campaigns.description}</p>
+          <p className="text-sm font-semibold text-zinc-900">{emptyStates.campaigns.title}</p>
+          <p className="text-sm text-zinc-600">{emptyStates.campaigns.description}</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1"
+            className="dashboard-primary-button inline-flex items-center gap-2 rounded-[1rem] px-4 py-2 text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-1"
             onClick={() => onConnectInstagram?.()}
           >
             <LinkIcon className="h-4 w-4" />
@@ -235,7 +247,7 @@ function EmptyStateMessage({
           </button>
           <button
             type="button"
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-1"
+            className="dashboard-secondary-button inline-flex items-center gap-2 rounded-[1rem] px-4 py-2 text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-1"
             onClick={() => onCreateMediaKit?.()}
           >
             <Sparkles className="h-4 w-4" />
@@ -250,12 +262,12 @@ function EmptyStateMessage({
     return (
       <div className="flex flex-col gap-3">
         <div>
-          <p className="text-sm font-semibold text-slate-900">{emptyStates.mediaKit.title}</p>
-          <p className="text-sm text-slate-600">{emptyStates.mediaKit.description}</p>
+          <p className="text-sm font-semibold text-zinc-900">{emptyStates.mediaKit.title}</p>
+          <p className="text-sm text-zinc-600">{emptyStates.mediaKit.description}</p>
         </div>
         <button
           type="button"
-          className="inline-flex items-center gap-2 self-start rounded-lg bg-sky-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-1"
+          className="dashboard-primary-button inline-flex items-center gap-2 self-start rounded-[1rem] px-4 py-2 text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-1"
           onClick={() => onCreateMediaKit?.()}
         >
           <Sparkles className="h-4 w-4" />
@@ -268,14 +280,14 @@ function EmptyStateMessage({
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <p className="text-sm font-semibold text-slate-900">Receba propostas sem sair da bio</p>
-        <p className="text-sm text-slate-600">
+        <p className="text-sm font-semibold text-zinc-900">Receba propostas sem sair da bio</p>
+        <p className="text-sm text-zinc-600">
           Copie o link do seu Mídia Kit e adicione na bio do Instagram. Também vale fixar “Parcerias” nos stories.
         </p>
       </div>
       <button
         type="button"
-        className="inline-flex items-center gap-2 self-start rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-1"
+        className="dashboard-secondary-button inline-flex items-center gap-2 self-start rounded-[1rem] px-4 py-2 text-sm font-semibold focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 focus-visible:ring-offset-1"
         onClick={() => {
           void onCopyMediaKitLink?.();
         }}

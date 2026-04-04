@@ -12,7 +12,6 @@ const cacheHeader = { "Cache-Control": "no-store, max-age=0" } as const;
 
 type PlanStatus =
   | "active"
-  | "trialing"
   | "past_due"
   | "incomplete"
   | "incomplete_expired"
@@ -26,7 +25,8 @@ type PlanStatus =
 function normalizePlanStatusValue(v: unknown): PlanStatus | null {
   if (!v) return null;
   const s = String(v).toLowerCase();
-  return (s === "trial" ? "trialing" : s) as PlanStatus;
+  if (s === "trial" || s === "trialing") return "inactive";
+  return s as PlanStatus;
 }
 
 export async function GET() {
@@ -55,13 +55,9 @@ export async function GET() {
     const expiresAt = (user as any).planExpiresAt ?? null;
     const expiresAtDate =
       typeof expiresAt === "string" || expiresAt instanceof Date ? new Date(expiresAt) : null;
-    const trialExpired =
-      (rawDb === "trialing") &&
-      expiresAtDate instanceof Date &&
-      !Number.isNaN(expiresAtDate.getTime()) &&
-      expiresAtDate.getTime() <= Date.now();
+    const trialExpired = false;
 
-    const isActiveLike = rawDb === "active" || rawDb === "trialing";
+    const isActiveLike = rawDb === "active";
     const nonRenewingEnded =
       !trialExpired &&
       cancelAtPeriodEnd &&
@@ -85,7 +81,6 @@ export async function GET() {
     // Só mostrar intervalo quando a assinatura "existe" (evita exibir Mensal pra inativo)
     const showIntervalStatuses: ReadonlySet<PlanStatus> = new Set([
       "active",
-      "trialing",
       "non_renewing",
       "past_due",
       "unpaid",
@@ -99,7 +94,7 @@ export async function GET() {
 
     // Acesso ainda ativo?
     const hasActiveAccess =
-      uiStatus === "active" || uiStatus === "trialing" || uiStatus === "non_renewing";
+      uiStatus === "active" || uiStatus === "non_renewing";
 
     // Pode excluir? Só se não tem sub ou já está definitivamente encerrada/expirada
     const canDeleteAccount =

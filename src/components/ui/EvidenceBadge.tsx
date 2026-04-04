@@ -24,7 +24,7 @@ export default function EvidenceBadge({ title = 'Evidências', refs, className =
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1 border rounded-full px-2 py-0.5 text-xs text-gray-700 bg-gray-50 border-gray-200"
+        className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white/80 px-2.5 py-1 text-[11px] font-semibold text-zinc-600 transition hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
         aria-haspopup="dialog"
         aria-expanded={open}
         title={title}
@@ -33,13 +33,13 @@ export default function EvidenceBadge({ title = 'Evidências', refs, className =
         {title}
       </button>
       {open && (
-        <div className="absolute z-50 mt-2 w-72 right-0 bg-white border border-gray-200 rounded-xl shadow-lg p-3 text-xs text-gray-800">
+        <div className="dashboard-panel absolute right-0 z-50 mt-2 w-72 rounded-[1.35rem] p-3 text-xs text-zinc-800">
           {refs && refs.length > 0 ? (
             <ul className="space-y-2">
               {refs.map((r) => (
                 <li key={r.key} className="leading-snug">
-                  <div className="font-medium text-gray-900">{r.description || r.key}</div>
-                  <div className="text-[11px] text-gray-600">
+                  <div className="font-medium text-zinc-900">{r.description || r.key}</div>
+                  <div className="text-[11px] text-zinc-500">
                     {r.metric ? `métrica: ${r.metric}` : ''}
                     {typeof r.value === 'number' ? ` · valor: ${r.value}` : ''}
                     {typeof r.deltaPct === 'number' ? ` · Δ: ${r.deltaPct}%` : ''}
@@ -49,15 +49,14 @@ export default function EvidenceBadge({ title = 'Evidências', refs, className =
               ))}
             </ul>
           ) : (
-            <div className="text-gray-600">Sem referências registradas.</div>
+            <div className="text-zinc-500">Sem referências registradas.</div>
           )}
-          <div className="mt-2 text-[11px] text-gray-500">Baseado em dados do período selecionado.</div>
+          <div className="mt-2 text-[11px] text-zinc-500">Baseado em dados do período selecionado.</div>
           <div className="mt-2 text-right">
-            <button className="text-[11px] text-gray-700 border rounded px-2 py-0.5" onClick={() => setOpen(false)}>Fechar</button>
+            <button className="rounded-full border border-zinc-200 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50" onClick={() => setOpen(false)}>Fechar</button>
           </div>
         </div>
       )}
     </div>
   );
 }
-

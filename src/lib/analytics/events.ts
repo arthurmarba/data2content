@@ -177,6 +177,9 @@ export const analyticsEventCatalog = {
         | 'reply_email'
         | 'ai_analysis'
         | 'calculator'
+        | 'mentoria'
+        | 'media_kit'
+        | 'publis'
         | 'other'
         | null
         | undefined

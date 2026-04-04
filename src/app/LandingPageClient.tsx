@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { signIn, useSession } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { track } from "@/lib/track";
 import { useUtmAttribution } from "@/hooks/useUtmAttribution";
 import type { UtmContext } from "@/lib/analytics/utm";
@@ -13,6 +13,7 @@ import type {
   LandingCoverageSegment,
 } from "@/types/landing";
 import { CASTING_ROUTE, MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
+import { redirectToGoogleConsentLogin } from "@/lib/auth/googleLogin";
 
 import LandingHeader from "./landing/components/LandingHeader";
 import HeroModern from "./landing/components/HeroModern";
@@ -433,17 +434,7 @@ export default function LandingPageClient() {
       return;
     }
 
-    const fallbackToLogin = () => window.location.assign("/login");
-
-    signIn("google", {
-      callbackUrl: MAIN_DASHBOARD_ROUTE,
-    })
-      .then((result) => {
-        if (result?.error) {
-          fallbackToLogin();
-        }
-      })
-      .catch(fallbackToLogin);
+    redirectToGoogleConsentLogin(MAIN_DASHBOARD_ROUTE);
   }, [session?.user]);
 
   React.useEffect(() => {

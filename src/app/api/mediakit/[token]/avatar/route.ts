@@ -35,12 +35,21 @@ function pickAvailableIgAvatar(user: any) {
 }
 
 async function resolveAvatarCandidate(user: any) {
+  const prefersProviderFallback = !user?.isInstagramConnected || !user?.instagramAccountId;
   const direct =
-    normalizeAvatarCandidate(pickAvailableIgAvatar(user)) ||
-    normalizeAvatarCandidate(user?.profile_picture_url ?? null) ||
-    normalizeAvatarCandidate(user?.image ?? null) ||
-    normalizeAvatarCandidate(user?.instagram?.profile_picture_url ?? null) ||
-    normalizeAvatarCandidate(user?.instagram?.profilePictureUrl ?? null);
+    (prefersProviderFallback
+      ? normalizeAvatarCandidate(user?.providerImage ?? null) ||
+        normalizeAvatarCandidate(user?.image ?? null) ||
+        normalizeAvatarCandidate(user?.profile_picture_url ?? null) ||
+        normalizeAvatarCandidate(user?.instagram?.profile_picture_url ?? null) ||
+        normalizeAvatarCandidate(user?.instagram?.profilePictureUrl ?? null) ||
+        normalizeAvatarCandidate(pickAvailableIgAvatar(user))
+      : normalizeAvatarCandidate(pickAvailableIgAvatar(user)) ||
+        normalizeAvatarCandidate(user?.profile_picture_url ?? null) ||
+        normalizeAvatarCandidate(user?.image ?? null) ||
+        normalizeAvatarCandidate(user?.providerImage ?? null) ||
+        normalizeAvatarCandidate(user?.instagram?.profile_picture_url ?? null) ||
+        normalizeAvatarCandidate(user?.instagram?.profilePictureUrl ?? null));
 
   if (direct) return direct;
 
@@ -174,7 +183,7 @@ export async function GET(
 
   const user = await UserModel.findById(resolvedToken.userId)
     .select(
-      'profile_picture_url image instagram availableIgAccounts.profile_picture_url instagramAccountId instagramAccessToken'
+      'profile_picture_url image providerImage instagram isInstagramConnected availableIgAccounts.profile_picture_url instagramAccountId instagramAccessToken'
     )
     .lean();
 

@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
-import { AlertCircle, ArrowUpRight, Calendar as CalendarIcon, CheckCircle2, ChevronDown as ChevronDownIcon, Clock3, Copy, Database, ExternalLink, Filter as FilterIcon, Gift, LineChart as LineChartIcon, Sparkles, Target, Users, Zap as ZapIcon } from "lucide-react";
+import { AlertCircle, ArrowUpRight, Calendar as CalendarIcon, CheckCircle2, ChevronDown as ChevronDownIcon, Clock3, Copy, Database, ExternalLink, Filter as FilterIcon, Gift, LineChart as LineChartIcon, Search, Sparkles, Target, Users, Zap as ZapIcon } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -15,7 +15,7 @@ import {
   Line,
   LineChart,
   ReferenceLine,
-  ResponsiveContainer,
+  ResponsiveContainer as RechartsResponsiveContainer,
   Scatter,
   ScatterChart,
   Tooltip,
@@ -23,8 +23,19 @@ import {
   YAxis,
 } from "recharts";
 import Drawer from "@/components/ui/Drawer";
+import Board from "@/app/dashboard/components/Board";
+import BoardPinButton from "@/app/dashboard/boards/BoardPinButton";
+import ThreadsTabs from "@/app/dashboard/components/ThreadsTabs";
+import CreatorQuickSearch from "@/app/admin/creator-dashboard/components/CreatorQuickSearch";
 import { useFeatureFlag } from "@/app/context/FeatureFlagsContext";
+import useBoardMobileViewport from "@/app/dashboard/hooks/useBoardMobileViewport";
 import { track } from "@/lib/track";
+import {
+  CATEGORY_RANKING_LIMIT,
+  limitCategoryBars,
+  mergeCategoryBars,
+  shouldSupplementCategoryBars,
+} from "@/app/lib/planning/categoryRankingUtils";
 import {
   resolveRecommendationExecutionState,
   resolveRecommendationQueueStage,
@@ -32,6 +43,9 @@ import {
   type PlanningRecommendationQueueStage,
 } from "@/utils/buildPlanningRecommendations";
 import { normalizePlanningPost } from "@/app/lib/planning/normalizePlanningPost";
+import useBillingStatus from "@/app/hooks/useBillingStatus";
+import { PROFILE_ANALYSIS_DEMO_DATA } from "./profileAnalysisDemoData";
+import ProfileAnalysisFunnelOverlay from "./components/ProfileAnalysisFunnelOverlay";
 
 const PostsBySliceModal = dynamic(() => import("./components/PostsBySliceModal"), {
   ssr: false,
@@ -49,13 +63,11 @@ const TopDiscoveryTable = dynamic(() => import("./components/TopDiscoveryTable")
   ssr: false,
   loading: () => null,
 });
-const CreatorQuickSearch = dynamic(
-  () => import("@/app/admin/creator-dashboard/components/CreatorQuickSearch"),
-  { ssr: false, loading: () => null }
-);
 
-const cardBase = "min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white px-3.5 py-3.5 shadow-sm sm:px-4 sm:py-4";
-const tooltipStyle = { borderRadius: 12, border: "1px solid #e2e8f0", boxShadow: "0 8px 24px rgba(15,23,42,0.12)" };
+const cardBase = "dashboard-panel min-w-0 overflow-hidden rounded-[1.75rem] px-3.5 py-3.5 sm:px-4 sm:py-4";
+const formatCardBase = "min-w-0 overflow-hidden rounded-[1.75rem] border border-zinc-100/90 bg-zinc-50/68 px-3.5 py-3.5 sm:px-4 sm:py-4";
+const audienceCardBase = "min-w-0 overflow-hidden rounded-[1.75rem] border border-zinc-100/90 bg-zinc-50/68 px-3.5 py-3.5 sm:px-4 sm:py-4";
+const tooltipStyle = { borderRadius: 18, border: "1px solid rgba(228,228,231,0.88)", boxShadow: "0 18px 44px rgba(15,23,42,0.12)", backdropFilter: "blur(14px)" };
 const DEFAULT_TIME_PERIOD = "last_90_days";
 const PERIOD_OPTIONS: Array<{ label: string; value: string }> = [
   { label: "Últimos 7 dias", value: "last_7_days" },
@@ -71,15 +83,15 @@ const PERIOD_OPTIONS: Array<{ label: string; value: string }> = [
 const AUTO_PREFETCH_PAGE_CAP_BY_PERIOD: Record<string, number> = {
   last_7_days: 1,
   last_14_days: 1,
-  last_30_days: 2,
+  last_30_days: 1,
   last_60_days: 2,
-  last_90_days: 3,
-  last_120_days: 4,
-  last_180_days: 5,
-  last_12_months: 6,
-  all_time: 6,
+  last_90_days: 2,
+  last_120_days: 3,
+  last_180_days: 4,
+  last_12_months: 4,
+  all_time: 4,
 };
-const metricCellClass = "text-right tabular-nums text-slate-800 font-semibold";
+const metricCellClass = "text-right tabular-nums font-semibold text-zinc-900";
 const fetcher = async (url: string) => {
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) {
@@ -265,9 +277,9 @@ const queueStageLabel: Record<PlanningRecommendationQueueStage, string> = {
   monitor: "Esperar",
 };
 const queueStageClassName: Record<PlanningRecommendationQueueStage, string> = {
-  now: "border-slate-900 bg-slate-900 text-white",
-  later: "border-slate-200 bg-slate-50 text-slate-700",
-  monitor: "border-slate-200 bg-white text-slate-500",
+  now: "border-zinc-900 bg-zinc-900 text-white",
+  later: "border-pink-200 bg-pink-50 text-pink-600",
+  monitor: "border-zinc-200 bg-zinc-50 text-zinc-500",
 };
 const executionStateLabel: Record<PlanningRecommendationExecutionState, string> = {
   planned: "Pendente",
@@ -446,6 +458,13 @@ const deltaToneClassMap: Record<ExecutiveDeltaTone, string> = {
 };
 
 type ActiveChartTab = "content" | "format" | "audience" | "directioning";
+
+const CHART_TABS = [
+  { id: "content", label: "O que postar" },
+  { id: "format", label: "Formato & Timing" },
+  { id: "audience", label: "Sua Audiência" },
+  { id: "directioning", label: "Próximo passo" },
+];
 
 const formatDeltaSummary = (delta: DeltaInsight | null, metricLabel: string): ExecutiveDeltaSummary => {
   if (!delta) {
@@ -1045,6 +1064,69 @@ const chartHeaderTextClassName = "min-h-[40px] space-y-1 sm:min-h-[52px]";
 const chartHeightClassName = "mt-3 h-56 sm:h-56";
 const chartTallHeightClassName = "mt-3 h-64 sm:h-64";
 const chartCompactHeightClassName = "mt-3 h-44 sm:h-44";
+
+function ResponsiveContainer({
+  children,
+  width = "100%",
+  height = "100%",
+  ...rest
+}: React.ComponentProps<typeof RechartsResponsiveContainer>) {
+  const frameRef = React.useRef<HTMLDivElement | null>(null);
+  const [isMeasured, setIsMeasured] = React.useState(false);
+
+  React.useEffect(() => {
+    const node = frameRef.current;
+    if (!node || typeof window === "undefined") return;
+
+    let frameId: number | null = null;
+
+    const updateMeasuredState = () => {
+      frameId = null;
+      const rect = node.getBoundingClientRect();
+      const nextMeasured = rect.width > 0 && rect.height > 0;
+      setIsMeasured((current) => (current === nextMeasured ? current : nextMeasured));
+    };
+
+    updateMeasuredState();
+
+    if (typeof ResizeObserver === "function") {
+      const observer = new ResizeObserver(() => {
+        if (frameId !== null) {
+          window.cancelAnimationFrame(frameId);
+        }
+        frameId = window.requestAnimationFrame(updateMeasuredState);
+      });
+
+      observer.observe(node);
+
+      return () => {
+        observer.disconnect();
+        if (frameId !== null) {
+          window.cancelAnimationFrame(frameId);
+        }
+      };
+    }
+
+    const timeoutId = window.setTimeout(updateMeasuredState, 0);
+    return () => {
+      window.clearTimeout(timeoutId);
+      if (frameId !== null) {
+        window.cancelAnimationFrame(frameId);
+      }
+    };
+  }, []);
+
+  return (
+    <div ref={frameRef} className="h-full w-full min-h-[176px] min-w-0">
+      {isMeasured ? (
+        <RechartsResponsiveContainer width={width} height={height} {...rest}>
+          {children}
+        </RechartsResponsiveContainer>
+      ) : null}
+    </div>
+  );
+}
+
 type CategoryField =
   | "format"
   | "proposal"
@@ -1067,6 +1149,16 @@ type CategoryCardConfig = {
   accentClassName: string;
   subtitle: string;
   loadingText: string;
+};
+type CompactCategoryVisual = {
+  accentClassName: string;
+  iconClassName: string;
+  iconContainerClassName: string;
+  rankBadgeClassName: string;
+  trackClassName: string;
+  buttonClassName: string;
+  arrowClassName: string;
+  summaryHintClassName: string;
 };
 type TabBrief = {
   eyebrow: string;
@@ -1217,52 +1309,176 @@ type MobileBarListItem = {
   helper?: string | null;
 };
 
+const COMPACT_CATEGORY_VISUALS = {
+  proposal: {
+    accentClassName: "bg-indigo-500",
+    iconClassName: "text-indigo-600",
+    iconContainerClassName: "bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100/90",
+    rankBadgeClassName: "bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100/90",
+    trackClassName: "bg-indigo-100/80",
+    buttonClassName: "rounded-[1.15rem] border border-transparent px-2 py-2 transition hover:border-indigo-100 hover:bg-indigo-50/45 focus:outline-none focus-visible:border-indigo-200 focus-visible:bg-indigo-50/60",
+    arrowClassName: "text-indigo-300 group-hover:text-indigo-500 group-focus-visible:text-indigo-500",
+    summaryHintClassName: "text-indigo-500",
+  },
+  context: {
+    accentClassName: "bg-sky-500",
+    iconClassName: "text-sky-600",
+    iconContainerClassName: "bg-sky-50 text-sky-600 ring-1 ring-sky-100/90",
+    rankBadgeClassName: "bg-sky-50 text-sky-600 ring-1 ring-sky-100/90",
+    trackClassName: "bg-sky-100/80",
+    buttonClassName: "rounded-[1.15rem] border border-transparent px-2 py-2 transition hover:border-sky-100 hover:bg-sky-50/45 focus:outline-none focus-visible:border-sky-200 focus-visible:bg-sky-50/60",
+    arrowClassName: "text-sky-300 group-hover:text-sky-500 group-focus-visible:text-sky-500",
+    summaryHintClassName: "text-sky-500",
+  },
+  tone: {
+    accentClassName: "bg-emerald-500",
+    iconClassName: "text-emerald-600",
+    iconContainerClassName: "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100/90",
+    rankBadgeClassName: "bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100/90",
+    trackClassName: "bg-emerald-100/80",
+    buttonClassName: "rounded-[1.15rem] border border-transparent px-2 py-2 transition hover:border-emerald-100 hover:bg-emerald-50/45 focus:outline-none focus-visible:border-emerald-200 focus-visible:bg-emerald-50/60",
+    arrowClassName: "text-emerald-300 group-hover:text-emerald-500 group-focus-visible:text-emerald-500",
+    summaryHintClassName: "text-emerald-500",
+  },
+  references: {
+    accentClassName: "bg-amber-500",
+    iconClassName: "text-amber-600",
+    iconContainerClassName: "bg-amber-50 text-amber-700 ring-1 ring-amber-100/90",
+    rankBadgeClassName: "bg-amber-50 text-amber-700 ring-1 ring-amber-100/90",
+    trackClassName: "bg-amber-100/80",
+    buttonClassName: "rounded-[1.15rem] border border-transparent px-2 py-2 transition hover:border-amber-100 hover:bg-amber-50/45 focus:outline-none focus-visible:border-amber-200 focus-visible:bg-amber-50/60",
+    arrowClassName: "text-amber-300 group-hover:text-amber-500 group-focus-visible:text-amber-500",
+    summaryHintClassName: "text-amber-600",
+  },
+  "content-intent": {
+    accentClassName: "bg-blue-600",
+    iconClassName: "text-blue-600",
+    iconContainerClassName: "bg-blue-50 text-blue-600 ring-1 ring-blue-100/90",
+    rankBadgeClassName: "bg-blue-50 text-blue-600 ring-1 ring-blue-100/90",
+    trackClassName: "bg-blue-100/80",
+    buttonClassName: "rounded-[1.15rem] border border-transparent px-2 py-2 transition hover:border-blue-100 hover:bg-blue-50/45 focus:outline-none focus-visible:border-blue-200 focus-visible:bg-blue-50/60",
+    arrowClassName: "text-blue-300 group-hover:text-blue-500 group-focus-visible:text-blue-500",
+    summaryHintClassName: "text-blue-500",
+  },
+  "narrative-form": {
+    accentClassName: "bg-violet-600",
+    iconClassName: "text-violet-600",
+    iconContainerClassName: "bg-violet-50 text-violet-600 ring-1 ring-violet-100/90",
+    rankBadgeClassName: "bg-violet-50 text-violet-600 ring-1 ring-violet-100/90",
+    trackClassName: "bg-violet-100/80",
+    buttonClassName: "rounded-[1.15rem] border border-transparent px-2 py-2 transition hover:border-violet-100 hover:bg-violet-50/45 focus:outline-none focus-visible:border-violet-200 focus-visible:bg-violet-50/60",
+    arrowClassName: "text-violet-300 group-hover:text-violet-500 group-focus-visible:text-violet-500",
+    summaryHintClassName: "text-violet-500",
+  },
+  "content-signals": {
+    accentClassName: "bg-teal-600",
+    iconClassName: "text-teal-600",
+    iconContainerClassName: "bg-teal-50 text-teal-600 ring-1 ring-teal-100/90",
+    rankBadgeClassName: "bg-teal-50 text-teal-600 ring-1 ring-teal-100/90",
+    trackClassName: "bg-teal-100/80",
+    buttonClassName: "rounded-[1.15rem] border border-transparent px-2 py-2 transition hover:border-teal-100 hover:bg-teal-50/45 focus:outline-none focus-visible:border-teal-200 focus-visible:bg-teal-50/60",
+    arrowClassName: "text-teal-300 group-hover:text-teal-500 group-focus-visible:text-teal-500",
+    summaryHintClassName: "text-teal-500",
+  },
+  stance: {
+    accentClassName: "bg-rose-500",
+    iconClassName: "text-rose-600",
+    iconContainerClassName: "bg-rose-50 text-rose-600 ring-1 ring-rose-100/90",
+    rankBadgeClassName: "bg-rose-50 text-rose-600 ring-1 ring-rose-100/90",
+    trackClassName: "bg-rose-100/80",
+    buttonClassName: "rounded-[1.15rem] border border-transparent px-2 py-2 transition hover:border-rose-100 hover:bg-rose-50/45 focus:outline-none focus-visible:border-rose-200 focus-visible:bg-rose-50/60",
+    arrowClassName: "text-rose-300 group-hover:text-rose-500 group-focus-visible:text-rose-500",
+    summaryHintClassName: "text-rose-500",
+  },
+  "proof-style": {
+    accentClassName: "bg-amber-700",
+    iconClassName: "text-amber-700",
+    iconContainerClassName: "bg-amber-50 text-amber-700 ring-1 ring-amber-100/90",
+    rankBadgeClassName: "bg-amber-50 text-amber-700 ring-1 ring-amber-100/90",
+    trackClassName: "bg-amber-100/80",
+    buttonClassName: "rounded-[1.15rem] border border-transparent px-2 py-2 transition hover:border-amber-100 hover:bg-amber-50/45 focus:outline-none focus-visible:border-amber-200 focus-visible:bg-amber-50/60",
+    arrowClassName: "text-amber-300 group-hover:text-amber-600 group-focus-visible:text-amber-600",
+    summaryHintClassName: "text-amber-700",
+  },
+  "commercial-mode": {
+    accentClassName: "bg-pink-600",
+    iconClassName: "text-pink-600",
+    iconContainerClassName: "bg-pink-50 text-pink-600 ring-1 ring-pink-100/90",
+    rankBadgeClassName: "bg-pink-50 text-pink-600 ring-1 ring-pink-100/90",
+    trackClassName: "bg-pink-100/80",
+    buttonClassName: "rounded-[1.15rem] border border-transparent px-2 py-2 transition hover:border-pink-100 hover:bg-pink-50/45 focus:outline-none focus-visible:border-pink-200 focus-visible:bg-pink-50/60",
+    arrowClassName: "text-pink-300 group-hover:text-pink-500 group-focus-visible:text-pink-500",
+    summaryHintClassName: "text-pink-500",
+  },
+} satisfies Record<string, CompactCategoryVisual>;
+
 function MobileBarList({
   items,
   emptyText,
   accentClassName,
   valueFormatter,
   onSelect,
+  dense = false,
+  maxItems,
 }: {
   items: MobileBarListItem[];
   emptyText: string;
   accentClassName: string;
   valueFormatter: (value: number) => string;
   onSelect?: (item: MobileBarListItem) => void;
+  dense?: boolean;
+  maxItems?: number;
 }) {
-  if (!items.length) {
-    return <p className="text-sm text-slate-500">{emptyText}</p>;
+  const visibleItems = typeof maxItems === "number" ? items.slice(0, maxItems) : items;
+
+  if (!visibleItems.length) {
+    return <p className="text-sm text-zinc-500">{emptyText}</p>;
   }
 
-  const maxValue = items.reduce((currentMax, item) => Math.max(currentMax, item.value), 0);
+  const maxValue = visibleItems.reduce((currentMax, item) => Math.max(currentMax, item.value), 0);
 
   return (
-    <div className="space-y-2.5">
-      {items.map((item, index) => {
+    <div className={dense ? "space-y-2" : "space-y-2.5"}>
+      {visibleItems.map((item) => {
         const width = maxValue > 0 ? Math.max(12, (item.value / maxValue) * 100) : 12;
         const content = (
           <>
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                  {index + 1}. {item.label}
+                <p className={`dashboard-muted-label ${dense ? "text-[10px]" : "text-[11px]"} text-zinc-400`}>
+                  {item.label}
                 </p>
-                {item.helper ? <p className="mt-1 text-xs leading-relaxed text-slate-500">{item.helper}</p> : null}
+                {item.helper ? (
+                  <p className={`dashboard-type-meta ${dense ? "mt-0.5 text-[11px]" : "mt-1"} leading-relaxed text-zinc-500`}>
+                    {item.helper}
+                  </p>
+                ) : null}
               </div>
-              <p className="shrink-0 text-sm font-semibold tabular-nums text-slate-900">{valueFormatter(item.value)}</p>
+              <p className={`dashboard-type-kpi-sm ${dense ? "text-[13px]" : "text-sm"} shrink-0 tabular-nums`}>
+                {valueFormatter(item.value)}
+              </p>
             </div>
-            <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-slate-100">
+            <div className={`${dense ? "mt-1.5 h-3" : "mt-2 h-2.5"} dashboard-progress-track`}>
               <div className={`h-full rounded-full ${accentClassName}`} style={{ width: `${width}%` }} />
             </div>
             {typeof item.postsCount === "number" && item.postsCount > 0 ? (
-              <p className="mt-1 text-[11px] text-slate-500">{formatPostsCount(item.postsCount)}</p>
+              <p className={`dashboard-type-meta ${dense ? "mt-1 text-[10px]" : "mt-1 text-[11px]"} text-zinc-400`}>
+                {formatPostsCount(item.postsCount)}
+              </p>
             ) : null}
           </>
         );
 
         if (!onSelect) {
           return (
-            <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
+            <div
+              key={item.id}
+              className={
+                dense
+                  ? "rounded-[1.05rem] border border-zinc-100/90 bg-zinc-50/62 p-2.5"
+                  : "rounded-[1.35rem] border border-zinc-100/90 bg-zinc-50/68 p-3"
+              }
+            >
               {content}
             </div>
           );
@@ -1273,12 +1489,132 @@ function MobileBarList({
             key={item.id}
             type="button"
             onClick={() => onSelect(item)}
-            className="w-full rounded-2xl border border-slate-200 bg-white p-3 text-left shadow-sm transition hover:border-slate-300 hover:bg-slate-50"
+            className={`w-full text-left transition ${
+              dense
+                ? "rounded-[1.05rem] border border-zinc-100/90 bg-zinc-50/62 p-2.5 hover:border-zinc-200 hover:bg-white/86"
+                : "rounded-[1.35rem] border border-zinc-100/90 bg-zinc-50/68 p-3 hover:border-zinc-200 hover:bg-white/86"
+            }`}
           >
             {content}
           </button>
         );
       })}
+    </div>
+  );
+}
+
+function CompactCategoryRankingSummary({
+  title,
+  rows,
+  loading,
+  visual,
+  icon,
+  emptyText,
+  onSelect,
+  valueFormatter,
+}: {
+  title: string;
+  rows: CategoryBarDatum[];
+  loading: boolean;
+  visual: CompactCategoryVisual;
+  icon: React.ReactNode;
+  emptyText: string;
+  onSelect?: (row: CategoryBarDatum) => void;
+  valueFormatter?: (value: number) => string;
+}) {
+  if (loading) {
+    return (
+      <div className="py-3.5">
+        <p className="dashboard-type-section-title">{title}</p>
+        <p className="dashboard-type-body mt-2">{emptyText}</p>
+      </div>
+    );
+  }
+
+  if (!rows.length) {
+    return (
+      <div className="py-3.5">
+        <p className="dashboard-type-section-title">{title}</p>
+        <p className="dashboard-type-body mt-2">{emptyText}</p>
+      </div>
+    );
+  }
+
+  const visibleRows = limitCategoryBars(rows);
+  const maxValue = Math.max(...visibleRows.map((row) => row.value), 0);
+
+  return (
+    <div className="border-t border-zinc-100/75 pt-4 first:border-t-0 first:pt-0">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+        <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] ${visual.iconContainerClassName}`}>
+          <span className={visual.iconClassName}>{icon}</span>
+        </div>
+        <div className="min-w-0">
+          <p className="dashboard-type-section-title text-zinc-950">{title}</p>
+        </div>
+      </div>
+      </div>
+
+      <div className="mt-3.5 space-y-3">
+        {visibleRows.map((row, index) => {
+          const width = maxValue > 0 ? Math.max(12, Math.min(100, (row.value / maxValue) * 100)) : 0;
+          const content = (
+            <>
+              <div className="flex items-start gap-3.5">
+                <span className={`dashboard-type-control inline-flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full ${visual.rankBadgeClassName}`}>
+                  {index + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <p className="dashboard-type-item-title line-clamp-2 pr-2 leading-snug text-zinc-900">{row.name}</p>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                        <span className="dashboard-type-meta text-zinc-400">
+                          {typeof row.postsCount === "number" && row.postsCount > 0 ? formatPostsCount(row.postsCount) : "Sem posts suficientes"}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <span className="dashboard-type-kpi-sm block tabular-nums text-zinc-900">
+                        {valueFormatter ? valueFormatter(row.value) : numberFormatter.format(Math.round(row.value))}
+                      </span>
+                    </div>
+                  </div>
+                  <div className={`dashboard-progress-track mt-3 h-1.5 rounded-full ${visual.trackClassName}`}>
+                    <div className={`h-full rounded-full ${visual.accentClassName}`} style={{ width: `${width}%` }} />
+                  </div>
+                </div>
+              </div>
+            </>
+          );
+
+          if (!onSelect) {
+            return (
+              <div key={`${title}-${row.name}-${index}`} className="rounded-[1.15rem] px-2 py-2">
+                {content}
+              </div>
+            );
+          }
+
+          return (
+            <button
+              key={`${title}-${row.name}-${index}`}
+              type="button"
+              onClick={() => onSelect(row)}
+              className={`group w-full cursor-pointer text-left ${visual.buttonClassName}`}
+            >
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">{content}</div>
+                <span className={`mt-0.5 inline-flex shrink-0 items-center justify-center rounded-full p-1 transition ${visual.arrowClassName}`}>
+                  <ArrowUpRight className="h-3.5 w-3.5" />
+                </span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
     </div>
   );
 }
@@ -1643,7 +1979,7 @@ const STRATEGY_QUADRANT_LABEL: Record<string, string> = {
 };
 
 type StrategicHeroCardProps = {
-  variant?: "default" | "compact";
+  variant?: "default" | "compact" | "inline";
   eyebrow: string;
   headline: string;
   reading?: string | null;
@@ -1668,20 +2004,43 @@ const StrategicHeroCard = ({
   footer,
 }: StrategicHeroCardProps) => {
   const isCompact = variant === "compact";
+  const isInline = variant === "inline";
+
+  if (isInline) {
+    return (
+      <article className="dashboard-dark-spotlight relative overflow-hidden rounded-[1.2rem] border border-white/5 px-3 py-2 shadow-[0_18px_30px_rgba(15,23,42,0.18)]">
+        <div className="relative flex items-start justify-between gap-3">
+          <div className="flex items-start gap-2 min-w-0 py-0.5">
+            <div className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-pink-500/10">
+              <Sparkles className="h-2.5 w-2.5 text-pink-300" />
+            </div>
+            <h2 className="text-[11px] font-semibold text-white/95 leading-tight">
+              {headline}
+            </h2>
+          </div>
+          {statusChip && (
+            <span className="dashboard-glass-pill shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold text-white/70">
+              {statusChip}
+            </span>
+          )}
+        </div>
+      </article>
+    );
+  }
 
   return (
     <article
-      className={`relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 ${
+      className={`dashboard-dark-spotlight relative overflow-hidden rounded-[1.75rem] ${
         isCompact ? "px-3.5 py-3 shadow-lg sm:px-4 sm:py-3.5" : "px-4 py-3.5 shadow-xl"
       }`}
     >
       <div
-        className={`absolute rounded-full bg-indigo-500/20 ${
+        className={`absolute rounded-full bg-pink-500/20 ${
           isCompact ? "-right-6 -top-6 h-28 w-28 blur-2xl" : "-right-10 -top-10 h-40 w-40 blur-3xl"
         }`}
       />
       <div
-        className={`absolute rounded-full bg-cyan-500/10 ${
+        className={`absolute rounded-full bg-amber-400/10 ${
           isCompact ? "-bottom-8 -left-8 h-28 w-28 blur-2xl" : "-bottom-10 -left-10 h-40 w-40 blur-3xl"
         }`}
       />
@@ -1690,12 +2049,12 @@ const StrategicHeroCard = ({
         <div>
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <div className="inline-flex items-center gap-2">
-              <Sparkles className={`text-indigo-300 ${isCompact ? "h-3.5 w-3.5" : "h-4 w-4"}`} />
-              <span className="text-[11px] font-bold uppercase tracking-widest text-indigo-200">{eyebrow}</span>
+              <Sparkles className={`text-pink-300 ${isCompact ? "h-3.5 w-3.5" : "h-4 w-4"}`} />
+              <span className="text-[11px] font-bold uppercase tracking-widest text-pink-200">{eyebrow}</span>
             </div>
             {statusChip ? (
               <span
-                className={`inline-flex items-center rounded-full border border-white/10 bg-white/10 font-semibold text-white/80 ${
+                className={`dashboard-glass-pill inline-flex items-center rounded-full font-semibold text-white/80 ${
                   isCompact ? "px-1.5 py-0.5 text-[9px]" : "px-2 py-0.5 text-[10px]"
                 }`}
               >
@@ -1716,7 +2075,7 @@ const StrategicHeroCard = ({
           <ul className="space-y-1.5">
             {bulletPoints.slice(0, 2).map((item) => (
               <li key={item} className="flex items-start gap-2 text-[13px] leading-relaxed text-white sm:text-sm">
-                <span className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full bg-indigo-300" />
+                <span className="mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full bg-pink-300" />
                 <span>{item}</span>
               </li>
             ))}
@@ -1732,7 +2091,7 @@ const StrategicHeroCard = ({
             <div className="border-t border-white/10 pt-2">
               {action ? (
                 <p className="text-sm font-medium leading-relaxed text-white">
-                  <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.14em] text-indigo-100">Faça agora</span>
+                  <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.14em] text-pink-100">Faça agora</span>
                   {action}
                 </p>
               ) : null}
@@ -1744,7 +2103,7 @@ const StrategicHeroCard = ({
             <div className="pt-1">
               {action ? (
                 <>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-indigo-100">Faça agora</p>
+                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-pink-100">Faça agora</p>
                   <p className="mt-1 text-sm font-medium leading-relaxed text-white">{action}</p>
                 </>
               ) : null}
@@ -1778,6 +2137,8 @@ function CategoryPerformanceCard({
   primaryMetricUnitLabel: string;
   onCategoryClick: (field: CategoryField, value: string, subtitle: string) => void;
 }) {
+  const visibleRows = limitCategoryBars(rows);
+
   return (
     <article className={cardBase}>
       <header className="flex items-center justify-between gap-3">
@@ -1789,11 +2150,11 @@ function CategoryPerformanceCard({
       <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
         {isLoading ? (
           <p className="text-sm text-slate-500">{config.loadingText}</p>
-        ) : rows.length === 0 ? (
+        ) : visibleRows.length === 0 ? (
           <p className="text-sm text-slate-500">{config.emptyText}</p>
         ) : isMobileViewport ? (
           <MobileBarList
-            items={rows.map((item) => ({
+            items={visibleRows.map((item) => ({
               id: item.name,
               label: item.name,
               value: item.value,
@@ -1809,9 +2170,9 @@ function CategoryPerformanceCard({
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              data={rows}
+              data={visibleRows}
               layout="vertical"
-              margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
+              margin={{ top: 6, right: 80, left: 30, bottom: 0 }}
               style={{ cursor: "pointer" }}
             >
               <XAxis type="number" hide />
@@ -1821,7 +2182,7 @@ function CategoryPerformanceCard({
                 tickLine={false}
                 axisLine={false}
                 tick={{ fill: "#475569", fontSize: 12 }}
-                width={140}
+                width={150}
               />
               <Tooltip contentStyle={tooltipStyle} />
               <Bar
@@ -1891,19 +2252,6 @@ const aggregateAverageInteractionsByCategory = (posts: any[], field: CategoryFie
     .sort((a, b) => b.value - a.value);
 };
 
-const hydrateBarsWithCounts = (
-  bars: Array<{ name: string; value: number; postsCount?: number }>,
-  fallback: CategoryBarDatum[] | undefined
-) =>
-  bars.map((bar) => {
-    if (typeof bar.postsCount === "number") return bar;
-    const fallbackBar = fallback?.find((row) => matchesValue([row.name], bar.name));
-    return {
-      ...bar,
-      postsCount: fallbackBar?.postsCount ?? 0,
-    };
-  });
-
 const hasCategoryDataWithCounts = (rows: any): boolean =>
   Array.isArray(rows) &&
   rows.length > 0 &&
@@ -1922,7 +2270,22 @@ type AdminTargetUser = {
   profilePictureUrl?: string | null;
 };
 
-export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
+export default function PlanningChartsPage({
+  viewer,
+  showPinButton = false,
+  pinButtonRedirectOnPin = true,
+  compactView = false,
+  mobileAppView = false,
+  showTitleMarker = true,
+}: {
+  viewer?: ViewerInfo;
+  showPinButton?: boolean;
+  pinButtonRedirectOnPin?: boolean;
+  compactView?: boolean;
+  mobileAppView?: boolean;
+  showTitleMarker?: boolean;
+}) {
+  const dedicatedDesktopWidthClassName = "lg:max-w-[1640px]";
   const router = useRouter();
   const sessionUserId = viewer?.id;
   const viewerRole = viewer?.role ?? null;
@@ -1955,17 +2318,27 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   const [page, setPage] = useState(1);
   const [postsCache, setPostsCache] = useState<any[]>([]);
   const [autoPaginating, setAutoPaginating] = useState(false);
+  const [extendedPostsHydrated, setExtendedPostsHydrated] = useState(false);
   const [showAdvancedSections, setShowAdvancedSections] = useState(false);
   const [showMobileControls, setShowMobileControls] = useState(false);
   const [activeTab, setActiveTab] = useState<ActiveChartTab>("content");
   const [isMobileViewport, setIsMobileViewport] = useState(false);
+  const isBoardMobileViewport = useBoardMobileViewport();
   const [mobileAudienceTrendMetric, setMobileAudienceTrendMetric] = useState<"reach" | "interactions" | "response">("reach");
   const [mobileDepthMetric, setMobileDepthMetric] = useState<"saves" | "comments">("saves");
+  const billing = useBillingStatus();
+  
+  const isDemoMode = useMemo(() => {
+    // Se não há usuário logado ou não tem Instagram conectado ou não é Pro, entra em modo Demo
+    return !activeUserId || !billing.hasPremiumAccess || !billing.instagram?.connected;
+  }, [activeUserId, billing.hasPremiumAccess, billing.instagram?.connected]);
+
   const durationBucketPostsCacheRef = useRef<Map<string, any[]>>(new Map());
   const fetchedPagesRef = useRef<Set<number>>(new Set());
   const paginationScopeRef = useRef<string>("");
   const advancedSectionsSentinelRef = useRef<HTMLDivElement | null>(null);
-  const PAGE_LIMIT = 200;
+  const compactControlsRef = useRef<HTMLDivElement | null>(null);
+  const PAGE_LIMIT = 120;
   const MAX_PAGES = 6; // hard cap de segurança
   const paginationScopeKey = `${activeUserId || "none"}:${timePeriod}`;
   const recommendationsFeatureEnabled = useMemo(() => {
@@ -1974,6 +2347,13 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     return recommendationsFlagEnabled;
   }, [isAdminViewer, recommendationsFlagEnabled, recommendationsFlagLoading]);
   const canShowAffiliateInvite = !isActingOnBehalf && Boolean(viewer?.affiliateCode);
+  const useMobileAppView = mobileAppView && isBoardMobileViewport;
+  const isCompactBoard = compactView || useMobileAppView;
+  const advancedSectionsReady = showAdvancedSections;
+  const chartsBatchSurface = isCompactBoard && !advancedSectionsReady ? "board" : "full";
+  const listSurface = isCompactBoard ? "board" : "full";
+  const useCompactContentCharts = isCompactBoard || isMobileViewport;
+  const useCompactFormatCharts = isCompactBoard || isMobileViewport;
   const autoPrefetchPagesCap = Math.min(
     MAX_PAGES,
     AUTO_PREFETCH_PAGE_CAP_BY_PERIOD[timePeriod] ?? 2
@@ -1983,6 +2363,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     setPage(1);
     setPostsCache([]);
     setAutoPaginating(false);
+    setExtendedPostsHydrated(false);
   }, []);
 
   const handleTimePeriodChange = (value: string) => {
@@ -2057,6 +2438,30 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   }, [isMobileViewport]);
 
   useEffect(() => {
+    if (!showMobileControls || !isCompactBoard || isMobileViewport) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (compactControlsRef.current?.contains(target)) return;
+      setShowMobileControls(false);
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowMobileControls(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [showMobileControls, isCompactBoard, isMobileViewport]);
+
+  useEffect(() => {
     if (!recommendationsFeatureEnabled) {
       setSelectedRecommendation(null);
     }
@@ -2073,7 +2478,33 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   }, [affiliateCopyStatus]);
 
   useEffect(() => {
-    if (showAdvancedSections) return;
+    if (!isCompactBoard || showAdvancedSections) return;
+    if (typeof window === "undefined") {
+      setShowAdvancedSections(true);
+      return;
+    }
+
+    let timeoutId: number | null = null;
+    let idleId: number | null = null;
+    const revealAdvancedSections = () => setShowAdvancedSections(true);
+
+    if (typeof window.requestIdleCallback === "function") {
+      idleId = window.requestIdleCallback(revealAdvancedSections, { timeout: 1800 });
+      return () => {
+        if (idleId !== null && typeof window.cancelIdleCallback === "function") {
+          window.cancelIdleCallback(idleId);
+        }
+      };
+    }
+
+    timeoutId = window.setTimeout(revealAdvancedSections, 1200);
+    return () => {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+    };
+  }, [isCompactBoard, showAdvancedSections]);
+
+  useEffect(() => {
+    if (advancedSectionsReady) return;
     const target = advancedSectionsSentinelRef.current;
     if (!target || typeof window === "undefined" || typeof IntersectionObserver === "undefined") {
       setShowAdvancedSections(true);
@@ -2090,40 +2521,44 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     );
     observer.observe(target);
     return () => observer.disconnect();
-  }, [showAdvancedSections]);
+  }, [advancedSectionsReady]);
 
   const { data: chartsBatchData, isLoading: loadingBatch, mutate: mutateChartsBatch } = useSWR(
     activeUserId
-      ? `/api/v1/users/${activeUserId}/planning/charts-batch?timePeriod=${timePeriod}&granularity=weekly&objectiveMode=${objectiveMode}&limit=${PAGE_LIMIT}`
+      ? `/api/v1/users/${activeUserId}/planning/charts-batch?timePeriod=${timePeriod}&granularity=weekly&objectiveMode=${objectiveMode}&limit=${PAGE_LIMIT}&surface=${chartsBatchSurface}`
       : null,
     fetcher,
     swrOptions
   );
+
+  // Dados reais ou de demonstração
+  const effectiveBatchData = isDemoMode ? PROFILE_ANALYSIS_DEMO_DATA : chartsBatchData;
+
   const { data: recommendationFeedbackData, mutate: mutateRecommendationFeedback } = useSWR(
-    activeUserId && recommendationsFeatureEnabled
+    activeUserId && recommendationsFeatureEnabled && advancedSectionsReady
       ? `/api/v1/users/${activeUserId}/planning/recommendation-feedback?objectiveMode=${objectiveMode}&timePeriod=${timePeriod}`
       : null,
     fetcher,
     swrOptions
   );
 
-  const trendData = chartsBatchData?.trendData;
-  const timeData = chartsBatchData?.timeData;
-  const durationData = chartsBatchData?.durationData;
-  const timingBenchmark = chartsBatchData?.timingBenchmark as TimingBenchmarkData | undefined;
-  const similarCreators = chartsBatchData?.similarCreators as SimilarCreatorsData | undefined;
-  const formatData = chartsBatchData?.formatData;
-  const proposalData = chartsBatchData?.proposalData;
-  const toneData = chartsBatchData?.toneData;
-  const referenceData = chartsBatchData?.referenceData;
-  const contextData = chartsBatchData?.contextData;
-  const contentIntentData = chartsBatchData?.contentIntentData as CategoryDataResponse | undefined;
-  const narrativeFormData = chartsBatchData?.narrativeFormData as CategoryDataResponse | undefined;
-  const contentSignalsData = chartsBatchData?.contentSignalsData as CategoryDataResponse | undefined;
-  const stanceData = chartsBatchData?.stanceData as CategoryDataResponse | undefined;
-  const proofStyleData = chartsBatchData?.proofStyleData as CategoryDataResponse | undefined;
-  const commercialModeData = chartsBatchData?.commercialModeData as CategoryDataResponse | undefined;
-  const metricMeta = chartsBatchData?.metricMeta as
+  const trendData = effectiveBatchData?.trendData;
+  const timeData = effectiveBatchData?.timeData;
+  const durationData = effectiveBatchData?.durationData;
+  const timingBenchmark = effectiveBatchData?.timingBenchmark as TimingBenchmarkData | undefined;
+  const similarCreators = effectiveBatchData?.similarCreators as SimilarCreatorsData | undefined;
+  const formatData = effectiveBatchData?.formatData;
+  const proposalData = effectiveBatchData?.proposalData;
+  const toneData = effectiveBatchData?.toneData;
+  const referenceData = effectiveBatchData?.referenceData;
+  const contextData = effectiveBatchData?.contextData;
+  const contentIntentData = effectiveBatchData?.contentIntentData as CategoryDataResponse | undefined;
+  const narrativeFormData = effectiveBatchData?.narrativeFormData as CategoryDataResponse | undefined;
+  const contentSignalsData = effectiveBatchData?.contentSignalsData as CategoryDataResponse | undefined;
+  const stanceData = effectiveBatchData?.stanceData as CategoryDataResponse | undefined;
+  const proofStyleData = effectiveBatchData?.proofStyleData as CategoryDataResponse | undefined;
+  const commercialModeData = effectiveBatchData?.commercialModeData as CategoryDataResponse | undefined;
+  const metricMeta = effectiveBatchData?.metricMeta as
     | {
         field?: string;
         label?: string;
@@ -2134,7 +2569,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
         description?: string | null;
       }
     | undefined;
-  const directioningSummary = chartsBatchData?.directioningSummary as DirectioningSummary | undefined;
+  const directioningSummary = effectiveBatchData?.directioningSummary as DirectioningSummary | undefined;
   const similarCreatorItems = useMemo(
     () => ((similarCreators?.items || []) as SimilarCreatorItem[]).filter((item) => Boolean(item?.id)),
     [similarCreators?.items]
@@ -2182,9 +2617,9 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   const rawRecommendationActions = useMemo(
     () =>
       recommendationsFeatureEnabled
-        ? ((chartsBatchData?.recommendations?.actions || []) as PlanningRecommendationAction[])
+        ? ((effectiveBatchData?.recommendations?.actions || []) as PlanningRecommendationAction[])
         : [],
-    [chartsBatchData?.recommendations?.actions, recommendationsFeatureEnabled]
+    [effectiveBatchData?.recommendations?.actions, recommendationsFeatureEnabled]
   );
   const feedbackByActionId = useMemo(
     () =>
@@ -2291,23 +2726,67 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   const hasDurationDataFromApi =
     Array.isArray(durationData?.buckets) && typeof durationData?.totalVideoPosts === "number";
   const hasTimeBucketsFromApi = Array.isArray(timeData?.buckets) && timeData.buckets.length > 0;
+  const needsMoreCategoryRowsFromPosts =
+    shouldSupplementCategoryBars(proposalData?.chartData || [], CATEGORY_RANKING_LIMIT) ||
+    shouldSupplementCategoryBars(toneData?.chartData || [], CATEGORY_RANKING_LIMIT) ||
+    shouldSupplementCategoryBars(referenceData?.chartData || [], CATEGORY_RANKING_LIMIT) ||
+    shouldSupplementCategoryBars(contextData?.chartData || [], CATEGORY_RANKING_LIMIT) ||
+    shouldSupplementCategoryBars(contentIntentData?.chartData || [], CATEGORY_RANKING_LIMIT) ||
+    shouldSupplementCategoryBars(narrativeFormData?.chartData || [], CATEGORY_RANKING_LIMIT) ||
+    shouldSupplementCategoryBars(contentSignalsData?.chartData || [], CATEGORY_RANKING_LIMIT) ||
+    shouldSupplementCategoryBars(stanceData?.chartData || [], CATEGORY_RANKING_LIMIT) ||
+    shouldSupplementCategoryBars(proofStyleData?.chartData || [], CATEGORY_RANKING_LIMIT) ||
+    shouldSupplementCategoryBars(commercialModeData?.chartData || [], CATEGORY_RANKING_LIMIT);
   const requiresExtendedPosts =
     !hasDurationDataFromApi ||
     !hasTimeBucketsFromApi ||
-    !hasCategoryDataWithCounts(proposalData?.chartData) ||
-    !hasCategoryDataWithCounts(toneData?.chartData) ||
-    !hasCategoryDataWithCounts(referenceData?.chartData) ||
-    !hasCategoryDataWithCounts(contextData?.chartData) ||
-    !hasCategoryDataWithCounts(contentIntentData?.chartData) ||
-    !hasCategoryDataWithCounts(narrativeFormData?.chartData) ||
-    !hasCategoryDataWithCounts(contentSignalsData?.chartData) ||
-    !hasCategoryDataWithCounts(stanceData?.chartData) ||
-    !hasCategoryDataWithCounts(proofStyleData?.chartData) ||
-    !hasCategoryDataWithCounts(commercialModeData?.chartData);
+    (advancedSectionsReady &&
+      (!hasCategoryDataWithCounts(proposalData?.chartData) ||
+        !hasCategoryDataWithCounts(toneData?.chartData) ||
+        !hasCategoryDataWithCounts(referenceData?.chartData) ||
+        !hasCategoryDataWithCounts(contextData?.chartData) ||
+        !hasCategoryDataWithCounts(contentIntentData?.chartData) ||
+        !hasCategoryDataWithCounts(narrativeFormData?.chartData) ||
+        !hasCategoryDataWithCounts(contentSignalsData?.chartData) ||
+        !hasCategoryDataWithCounts(stanceData?.chartData) ||
+        !hasCategoryDataWithCounts(proofStyleData?.chartData) ||
+        !hasCategoryDataWithCounts(commercialModeData?.chartData) ||
+        needsMoreCategoryRowsFromPosts));
+
+  useEffect(() => {
+    setExtendedPostsHydrated(false);
+    if (!requiresExtendedPosts) return;
+    if (typeof window === "undefined") {
+      setExtendedPostsHydrated(true);
+      return;
+    }
+
+    let timeoutId: number | null = null;
+    let idleId: number | null = null;
+    const enableExtendedPosts = () => setExtendedPostsHydrated(true);
+
+    if (typeof window.requestIdleCallback === "function") {
+      idleId = window.requestIdleCallback(enableExtendedPosts, { timeout: 900 });
+      return () => {
+        if (idleId !== null && typeof window.cancelIdleCallback === "function") {
+          window.cancelIdleCallback(idleId);
+        }
+      };
+    }
+
+    timeoutId = window.setTimeout(enableExtendedPosts, 420);
+    return () => {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
+    };
+  }, [paginationScopeKey, requiresExtendedPosts]);
 
   const { data: pagedPostsData } = useSWR(
-    activeUserId && page > 1 && requiresExtendedPosts && !fetchedPagesRef.current.has(page)
-      ? `/api/v1/users/${activeUserId}/videos/list?timePeriod=${timePeriod}&limit=${PAGE_LIMIT}&page=${page}&sortBy=postDate&sortOrder=desc`
+    activeUserId &&
+      extendedPostsHydrated &&
+      page > 1 &&
+      requiresExtendedPosts &&
+      !fetchedPagesRef.current.has(page)
+      ? `/api/v1/users/${activeUserId}/videos/list?timePeriod=${timePeriod}&limit=${PAGE_LIMIT}&page=${page}&sortBy=postDate&sortOrder=desc${listSurface === "board" ? "&surface=board" : ""}`
       : null,
     fetcher,
     swrOptions
@@ -2627,18 +3106,13 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
 
   // carrega a primeira página junto do batch para reduzir round-trips no primeiro paint
   useEffect(() => {
-    const list = Array.isArray(chartsBatchData?.postsData?.posts) ? chartsBatchData.postsData.posts : [];
-    const totalPagesFromBatch = Number(chartsBatchData?.postsData?.pagination?.totalPages || 1);
-    const maxPrefetchPages = Math.min(
-      autoPrefetchPagesCap,
-      Number.isFinite(totalPagesFromBatch) && totalPagesFromBatch > 0 ? totalPagesFromBatch : 1
-    );
+    const list = Array.isArray(effectiveBatchData?.postsData?.posts) ? effectiveBatchData.postsData.posts : [];
     const scopeChanged = paginationScopeRef.current !== paginationScopeKey;
     if (scopeChanged) {
       paginationScopeRef.current = paginationScopeKey;
       fetchedPagesRef.current = new Set();
     }
-    if (!chartsBatchData) return;
+    if (!effectiveBatchData) return;
 
     if (!list.length) {
       if (scopeChanged) {
@@ -2656,10 +3130,32 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
 
     fetchedPagesRef.current = new Set([1]);
     setPostsCache(list);
-    const shouldPrefetch = requiresExtendedPosts && list.length === PAGE_LIMIT && maxPrefetchPages > 1;
-    setPage(shouldPrefetch ? 2 : 1);
+    setPage(1);
     setAutoPaginating(false);
-  }, [chartsBatchData, requiresExtendedPosts, autoPrefetchPagesCap, paginationScopeKey, postsCache]);
+  }, [effectiveBatchData, paginationScopeKey, postsCache]);
+
+  useEffect(() => {
+    const list = Array.isArray(effectiveBatchData?.postsData?.posts) ? effectiveBatchData.postsData.posts : [];
+    if (!extendedPostsHydrated || !requiresExtendedPosts || page > 1 || list.length !== PAGE_LIMIT) return;
+
+    const totalPagesFromBatch = Number(effectiveBatchData?.postsData?.pagination?.totalPages || 1);
+    const hasMoreFromBatch =
+      Boolean(effectiveBatchData?.postsData?.pagination?.hasMore) ||
+      (Number.isFinite(totalPagesFromBatch) && totalPagesFromBatch > 1);
+    const maxPrefetchPages = Math.min(
+      autoPrefetchPagesCap,
+      Number.isFinite(totalPagesFromBatch) && totalPagesFromBatch > 0 ? totalPagesFromBatch : 1
+    );
+    if (!hasMoreFromBatch || maxPrefetchPages <= 1 || fetchedPagesRef.current.has(2)) return;
+
+    setPage(2);
+  }, [
+    autoPrefetchPagesCap,
+    effectiveBatchData,
+    extendedPostsHydrated,
+    page,
+    requiresExtendedPosts,
+  ]);
 
   // acumula páginas adicionais em baixa prioridade para não competir com interação inicial
   useEffect(() => {
@@ -2679,15 +3175,19 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     }
 
     const totalPagesFromResponse = Number(pagedPostsData?.pagination?.totalPages || 0);
+    const hasMoreFromResponse =
+      Boolean(pagedPostsData?.pagination?.hasMore) ||
+      (Number.isFinite(totalPagesFromResponse) && totalPagesFromResponse > page);
     const maxPrefetchPages = Math.min(
       autoPrefetchPagesCap,
       Number.isFinite(totalPagesFromResponse) && totalPagesFromResponse > 0 ? totalPagesFromResponse : autoPrefetchPagesCap
     );
 
     const shouldLoadMore =
+      extendedPostsHydrated &&
       requiresExtendedPosts &&
       uniqueAdded > 0 &&
-      list.length === PAGE_LIMIT &&
+      hasMoreFromResponse &&
       page < maxPrefetchPages;
     if (shouldLoadMore && !autoPaginating) {
       setAutoPaginating(true);
@@ -2701,7 +3201,16 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
         window.setTimeout(queueNextPage, 180);
       }
     }
-  }, [pagedPostsData, page, autoPaginating, requiresExtendedPosts, autoPrefetchPagesCap, postsCache]);
+  }, [
+    pagedPostsData,
+    page,
+    autoPaginating,
+    extendedPostsHydrated,
+    requiresExtendedPosts,
+    autoPrefetchPagesCap,
+    listSurface,
+    postsCache,
+  ]);
 
   const hourBars = useMemo(() => {
     const buckets: Array<{ hour: number; average: number; count?: number }> = timeData?.buckets || [];
@@ -2990,24 +3499,24 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     [bestFormatBenchmarkDelta]
   );
   const proposalBarsFromApi = useMemo(
-    () => (proposalData?.chartData || []).slice(0, 6) as Array<{ name: string; value: number; postsCount?: number }>,
+    () => (proposalData?.chartData || []) as Array<{ name: string; value: number; postsCount?: number }>,
     [proposalData]
   );
   const toneBarsFromApi = useMemo(
-    () => (toneData?.chartData || []).slice(0, 6) as Array<{ name: string; value: number; postsCount?: number }>,
+    () => (toneData?.chartData || []) as Array<{ name: string; value: number; postsCount?: number }>,
     [toneData]
   );
   const referenceBarsFromApi = useMemo(
-    () => (referenceData?.chartData || []).slice(0, 6) as Array<{ name: string; value: number; postsCount?: number }>,
+    () => (referenceData?.chartData || []) as Array<{ name: string; value: number; postsCount?: number }>,
     [referenceData]
   );
   const contextBarsFromApi = useMemo(
-    () => (contextData?.chartData || []).slice(0, 6) as Array<{ name: string; value: number; postsCount?: number }>,
+    () => (contextData?.chartData || []) as Array<{ name: string; value: number; postsCount?: number }>,
     [contextData]
   );
   const contentIntentBarsFromApi = useMemo(
     () =>
-      (contentIntentData?.chartData || []).slice(0, 6) as Array<{
+      (contentIntentData?.chartData || []) as Array<{
         name: string;
         value: number;
         postsCount?: number;
@@ -3016,7 +3525,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   );
   const narrativeFormBarsFromApi = useMemo(
     () =>
-      (narrativeFormData?.chartData || []).slice(0, 6) as Array<{
+      (narrativeFormData?.chartData || []) as Array<{
         name: string;
         value: number;
         postsCount?: number;
@@ -3025,7 +3534,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   );
   const contentSignalsBarsFromApi = useMemo(
     () =>
-      (contentSignalsData?.chartData || []).slice(0, 6) as Array<{
+      (contentSignalsData?.chartData || []) as Array<{
         name: string;
         value: number;
         postsCount?: number;
@@ -3034,7 +3543,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   );
   const stanceBarsFromApi = useMemo(
     () =>
-      (stanceData?.chartData || []).slice(0, 6) as Array<{
+      (stanceData?.chartData || []) as Array<{
         name: string;
         value: number;
         postsCount?: number;
@@ -3043,7 +3552,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   );
   const proofStyleBarsFromApi = useMemo(
     () =>
-      (proofStyleData?.chartData || []).slice(0, 6) as Array<{
+      (proofStyleData?.chartData || []) as Array<{
         name: string;
         value: number;
         postsCount?: number;
@@ -3052,7 +3561,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   );
   const commercialModeBarsFromApi = useMemo(
     () =>
-      (commercialModeData?.chartData || []).slice(0, 6) as Array<{
+      (commercialModeData?.chartData || []) as Array<{
         name: string;
         value: number;
         postsCount?: number;
@@ -3061,34 +3570,18 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   );
 
   const needsCategoryFallback = useMemo(() => {
-    if (!showAdvancedSections) return false;
-    if (
-      !proposalBarsFromApi.length ||
-      !toneBarsFromApi.length ||
-      !referenceBarsFromApi.length ||
-      !contextBarsFromApi.length ||
-      !contentIntentBarsFromApi.length ||
-      !narrativeFormBarsFromApi.length ||
-      !contentSignalsBarsFromApi.length ||
-      !stanceBarsFromApi.length ||
-      !proofStyleBarsFromApi.length ||
-      !commercialModeBarsFromApi.length
-    ) {
-      return true;
-    }
-    const hasMissingCount = (bars: Array<{ postsCount?: number }>) =>
-      bars.some((bar) => typeof bar.postsCount !== "number");
+    if (!advancedSectionsReady || normalizedPosts.length === 0) return false;
     return (
-      hasMissingCount(proposalBarsFromApi) ||
-      hasMissingCount(toneBarsFromApi) ||
-      hasMissingCount(referenceBarsFromApi) ||
-      hasMissingCount(contextBarsFromApi) ||
-      hasMissingCount(contentIntentBarsFromApi) ||
-      hasMissingCount(narrativeFormBarsFromApi) ||
-      hasMissingCount(contentSignalsBarsFromApi) ||
-      hasMissingCount(stanceBarsFromApi) ||
-      hasMissingCount(proofStyleBarsFromApi) ||
-      hasMissingCount(commercialModeBarsFromApi)
+      shouldSupplementCategoryBars(proposalBarsFromApi, CATEGORY_RANKING_LIMIT) ||
+      shouldSupplementCategoryBars(toneBarsFromApi, CATEGORY_RANKING_LIMIT) ||
+      shouldSupplementCategoryBars(referenceBarsFromApi, CATEGORY_RANKING_LIMIT) ||
+      shouldSupplementCategoryBars(contextBarsFromApi, CATEGORY_RANKING_LIMIT) ||
+      shouldSupplementCategoryBars(contentIntentBarsFromApi, CATEGORY_RANKING_LIMIT) ||
+      shouldSupplementCategoryBars(narrativeFormBarsFromApi, CATEGORY_RANKING_LIMIT) ||
+      shouldSupplementCategoryBars(contentSignalsBarsFromApi, CATEGORY_RANKING_LIMIT) ||
+      shouldSupplementCategoryBars(stanceBarsFromApi, CATEGORY_RANKING_LIMIT) ||
+      shouldSupplementCategoryBars(proofStyleBarsFromApi, CATEGORY_RANKING_LIMIT) ||
+      shouldSupplementCategoryBars(commercialModeBarsFromApi, CATEGORY_RANKING_LIMIT)
     );
   }, [
     commercialModeBarsFromApi,
@@ -3099,7 +3592,8 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     proofStyleBarsFromApi,
     proposalBarsFromApi,
     referenceBarsFromApi,
-    showAdvancedSections,
+    advancedSectionsReady,
+    normalizedPosts,
     stanceBarsFromApi,
     toneBarsFromApi,
   ]);
@@ -3121,68 +3615,72 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
   }, [needsCategoryFallback, normalizedPosts]);
 
   const proposalBars = useMemo(() => {
-    if (proposalBarsFromApi.length) {
-      return hydrateBarsWithCounts(proposalBarsFromApi, categoryFallback?.proposal);
+    if (shouldSupplementCategoryBars(proposalBarsFromApi, CATEGORY_RANKING_LIMIT)) {
+      return mergeCategoryBars(proposalBarsFromApi, categoryFallback?.proposal);
     }
-    return (categoryFallback?.proposal || []).slice(0, 6);
+    return proposalBarsFromApi;
   }, [proposalBarsFromApi, categoryFallback]);
 
   const toneBars = useMemo(() => {
-    if (toneBarsFromApi.length) {
-      return hydrateBarsWithCounts(toneBarsFromApi, categoryFallback?.tone);
+    if (shouldSupplementCategoryBars(toneBarsFromApi, CATEGORY_RANKING_LIMIT)) {
+      return mergeCategoryBars(toneBarsFromApi, categoryFallback?.tone);
     }
-    return (categoryFallback?.tone || []).slice(0, 6);
+    return toneBarsFromApi;
   }, [toneBarsFromApi, categoryFallback]);
 
   const referenceBars = useMemo(() => {
-    if (referenceBarsFromApi.length) {
-      return hydrateBarsWithCounts(referenceBarsFromApi, categoryFallback?.references);
+    if (shouldSupplementCategoryBars(referenceBarsFromApi, CATEGORY_RANKING_LIMIT)) {
+      return mergeCategoryBars(referenceBarsFromApi, categoryFallback?.references);
     }
-    return (categoryFallback?.references || []).slice(0, 6);
+    return referenceBarsFromApi;
   }, [referenceBarsFromApi, categoryFallback]);
 
   const contextBars = useMemo(() => {
-    if (contextBarsFromApi.length) {
-      return hydrateBarsWithCounts(contextBarsFromApi, categoryFallback?.context);
+    if (shouldSupplementCategoryBars(contextBarsFromApi, CATEGORY_RANKING_LIMIT)) {
+      return mergeCategoryBars(contextBarsFromApi, categoryFallback?.context);
     }
-    return (categoryFallback?.context || []).slice(0, 6);
+    return contextBarsFromApi;
   }, [contextBarsFromApi, categoryFallback]);
   const contentIntentBars = useMemo(() => {
-    if (contentIntentBarsFromApi.length) {
-      return hydrateBarsWithCounts(contentIntentBarsFromApi, categoryFallback?.contentIntent);
+    if (shouldSupplementCategoryBars(contentIntentBarsFromApi, CATEGORY_RANKING_LIMIT)) {
+      return mergeCategoryBars(contentIntentBarsFromApi, categoryFallback?.contentIntent);
     }
-    return (categoryFallback?.contentIntent || []).slice(0, 6);
+    return contentIntentBarsFromApi;
   }, [contentIntentBarsFromApi, categoryFallback]);
   const narrativeFormBars = useMemo(() => {
-    if (narrativeFormBarsFromApi.length) {
-      return hydrateBarsWithCounts(narrativeFormBarsFromApi, categoryFallback?.narrativeForm);
+    if (shouldSupplementCategoryBars(narrativeFormBarsFromApi, CATEGORY_RANKING_LIMIT)) {
+      return mergeCategoryBars(narrativeFormBarsFromApi, categoryFallback?.narrativeForm);
     }
-    return (categoryFallback?.narrativeForm || []).slice(0, 6);
+    return narrativeFormBarsFromApi;
   }, [narrativeFormBarsFromApi, categoryFallback]);
   const contentSignalsBars = useMemo(() => {
-    if (contentSignalsBarsFromApi.length) {
-      return hydrateBarsWithCounts(contentSignalsBarsFromApi, categoryFallback?.contentSignals);
+    if (shouldSupplementCategoryBars(contentSignalsBarsFromApi, CATEGORY_RANKING_LIMIT)) {
+      return mergeCategoryBars(contentSignalsBarsFromApi, categoryFallback?.contentSignals);
     }
-    return (categoryFallback?.contentSignals || []).slice(0, 6);
+    return contentSignalsBarsFromApi;
   }, [contentSignalsBarsFromApi, categoryFallback]);
   const stanceBars = useMemo(() => {
-    if (stanceBarsFromApi.length) {
-      return hydrateBarsWithCounts(stanceBarsFromApi, categoryFallback?.stance);
+    if (shouldSupplementCategoryBars(stanceBarsFromApi, CATEGORY_RANKING_LIMIT)) {
+      return mergeCategoryBars(stanceBarsFromApi, categoryFallback?.stance);
     }
-    return (categoryFallback?.stance || []).slice(0, 6);
+    return stanceBarsFromApi;
   }, [stanceBarsFromApi, categoryFallback]);
   const proofStyleBars = useMemo(() => {
-    if (proofStyleBarsFromApi.length) {
-      return hydrateBarsWithCounts(proofStyleBarsFromApi, categoryFallback?.proofStyle);
+    if (shouldSupplementCategoryBars(proofStyleBarsFromApi, CATEGORY_RANKING_LIMIT)) {
+      return mergeCategoryBars(proofStyleBarsFromApi, categoryFallback?.proofStyle);
     }
-    return (categoryFallback?.proofStyle || []).slice(0, 6);
+    return proofStyleBarsFromApi;
   }, [proofStyleBarsFromApi, categoryFallback]);
   const commercialModeBars = useMemo(() => {
-    if (commercialModeBarsFromApi.length) {
-      return hydrateBarsWithCounts(commercialModeBarsFromApi, categoryFallback?.commercialMode);
+    if (shouldSupplementCategoryBars(commercialModeBarsFromApi, CATEGORY_RANKING_LIMIT)) {
+      return mergeCategoryBars(commercialModeBarsFromApi, categoryFallback?.commercialMode);
     }
-    return (categoryFallback?.commercialMode || []).slice(0, 6);
+    return commercialModeBarsFromApi;
   }, [commercialModeBarsFromApi, categoryFallback]);
+  const displayProposalBars = useMemo(() => limitCategoryBars(proposalBars), [proposalBars]);
+  const displayContextBars = useMemo(() => limitCategoryBars(contextBars), [contextBars]);
+  const displayToneBars = useMemo(() => limitCategoryBars(toneBars), [toneBars]);
+  const displayReferenceBars = useMemo(() => limitCategoryBars(referenceBars), [referenceBars]);
   const contextExecutiveSummary = useMemo(
     () => buildCategoryExecutiveSummary(contextBars, "contexto"),
     [contextBars]
@@ -4014,11 +4512,37 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
     toneBars,
     toneExecutiveSummary.tone,
   ]);
-  const formatTabBrief = useMemo<TabBrief>(() => {
-    const bestFormat = formatBars[0];
-    const durationSample = formatActionSample(bestDurationBucket?.postsCount);
-    const benchmarkNote = timingBenchmarkEnabled
-      ? [
+
+  const combinedStrategicInsight = useMemo(() => {
+    const topProposal = proposalBars[0]?.name;
+    const topContext = contextBars[0]?.name;
+    const topTone = toneBars[0]?.name;
+    const topReference = referenceBars[0]?.name;
+
+    if (!topProposal && !topContext) return strategicDecisionLine;
+
+    let sentence = "Fazer conteúdo de ";
+    sentence += topProposal || "sua linha principal";
+
+    if (topContext) {
+      sentence += ` em um tema ${topContext.toLowerCase()}`;
+    }
+
+    if (topTone) {
+      sentence += `, utilizando um tom de voz ${topTone.toLowerCase()}`;
+    }
+
+    if (topReference) {
+      sentence += ` e referência de ${topReference.toLowerCase()}`;
+    }
+
+    return sentence + ".";
+  }, [proposalBars, contextBars, toneBars, referenceBars, strategicDecisionLine]);
+
+	  const formatTabBrief = useMemo<TabBrief>(() => {
+	    const bestFormat = formatBars[0];
+	    const benchmarkNote = timingBenchmarkEnabled
+	      ? [
           benchmarkPostingHoursLabel ? `Teste mais posts em ${benchmarkPostingHoursLabel}.` : null,
           benchmarkDurationPostingBucket ? `A duração mais comum nesse grupo é ${benchmarkDurationPostingBucket.label}.` : null,
         ]
@@ -4041,33 +4565,23 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                   : durationSummary.totalVideoPosts === 0
                     ? "Ainda não feche um padrão de execução."
                     : "Ainda não repita um padrão só.";
+    const formatCaveat =
+      durationSummary.durationCoverageRate < 0.7
+        ? `Duração lida em ${(durationSummary.durationCoverageRate * 100).toFixed(0)}% dos vídeos.`
+        : lowSampleDurationBuckets > 0
+          ? `${lowSampleDurationBuckets} faixa(s) com pouca base.`
+          : null;
     return {
-      eyebrow: "Como postar",
+      eyebrow: "Como repetir",
       headline: strategicSetup,
-      bulletPoints: [
-        "Quando formato, horário e duração andam juntos, fica mais fácil repetir.",
-        durationSummary.durationCoverageRate < 0.7
-          ? `A leitura de duração cobre só ${(durationSummary.durationCoverageRate * 100).toFixed(0)}% dos vídeos.`
-          : lowSampleDurationBuckets > 0
-            ? `${lowSampleDurationBuckets} faixa(s) ainda têm pouca base.`
-            : "Esse padrão ajuda a repetir o que funciona.",
-      ],
+      bulletPoints: formatCaveat ? [formatCaveat] : undefined,
       action:
         bestHour !== null && bestDurationBucket?.label && bestFormat?.name
-          ? "Publique 2 ou 3 posts nesse padrão."
+          ? "Repita esse padrão por 3 posts."
           : bestHour !== null && bestDurationBucket?.label
-          ? "Publique 2 ou 3 posts nesse padrão."
-          : "Fixe esse padrão por alguns posts.",
-      supportingNote:
-        benchmarkNote
-          ? benchmarkNote
-          : durationSample
-            ? `${durationSample}.`
-          : durationSummary.durationCoverageRate < 0.7
-            ? `A leitura de duração cobre ${(durationSummary.durationCoverageRate * 100).toFixed(0)}% dos vídeos.`
-            : lowSampleDurationBuckets > 0
-              ? `${lowSampleDurationBuckets} faixa(s) ainda têm pouca base.`
-              : "Horário ajuda, mas não salva uma ideia fraca.",
+          ? "Repita esse padrão por 3 posts."
+          : "Teste um padrão por alguns posts.",
+      supportingNote: benchmarkNote ?? null,
       statusChip:
         bestFormat?.name || (bestDurationBucket?.label ? `Faixa ${bestDurationBucket.label}` : bestHour !== null ? `${bestHour}h` : "Execução"),
     };
@@ -4360,11 +4874,11 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
           value: item.average,
           postsCount: item.postsCount,
           helper:
-            timingBenchmarkEnabled && typeof item.benchmarkAverage === "number"
+            !useCompactFormatCharts && timingBenchmarkEnabled && typeof item.benchmarkAverage === "number"
               ? `Grupo parecido: ${numberFormatter.format(Math.round(item.benchmarkAverage))}`
               : null,
         })),
-    [hourBenchmarkSeries, timingBenchmarkEnabled]
+    [hourBenchmarkSeries, timingBenchmarkEnabled, useCompactFormatCharts]
   );
   const mobileDurationItems = useMemo<MobileBarListItem[]>(
     () =>
@@ -4378,11 +4892,11 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
           value: item.averageInteractions,
           postsCount: item.postsCount,
           helper:
-            timingBenchmarkEnabled && typeof item.benchmarkAverage === "number"
+            !useCompactFormatCharts && timingBenchmarkEnabled && typeof item.benchmarkAverage === "number"
               ? `Grupo parecido: ${numberFormatter.format(Math.round(item.benchmarkAverage))}`
               : null,
         })),
-    [durationBenchmarkSeries, timingBenchmarkEnabled]
+    [durationBenchmarkSeries, timingBenchmarkEnabled, useCompactFormatCharts]
   );
   const mobileDurationCoverageItems = useMemo<MobileBarListItem[]>(
     () =>
@@ -4396,11 +4910,11 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
           value: item.usageSharePct,
           postsCount: item.postsCount,
           helper:
-            timingBenchmarkEnabled && typeof item.benchmarkUsageSharePct === "number"
+            !useCompactFormatCharts && timingBenchmarkEnabled && typeof item.benchmarkUsageSharePct === "number"
               ? `Grupo parecido: ${formatPercentLabel(item.benchmarkUsageSharePct)}`
               : null,
         })),
-    [durationCoverageBenchmarkSeries, timingBenchmarkEnabled]
+    [durationCoverageBenchmarkSeries, timingBenchmarkEnabled, useCompactFormatCharts]
   );
   const mobileWeekWindowItems = useMemo<MobileBarListItem[]>(() => {
     if (!heatmap.length) return [];
@@ -4422,158 +4936,501 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
           id: `week-${window.day}-${window.startHour}`,
           label: `${WEEKDAY_SHORT_SUN_FIRST[window.day - 1] || `Dia ${window.day}`} ${window.startHour}h-${window.endHour}h`,
           value: avgScore * 100,
-          helper: benchmarkHit ? "Janela também forte no grupo parecido" : null,
+          helper: !useCompactFormatCharts && benchmarkHit ? "Janela também forte no grupo parecido" : null,
         };
       })
       .sort((a, b) => b.value - a.value)
       .slice(0, 6);
-  }, [benchmarkTopWindowKeys, heatmap]);
+  }, [benchmarkTopWindowKeys, heatmap, useCompactFormatCharts]);
+  const compactChartTabs = useMemo(
+    () =>
+      CHART_TABS
+        .filter((tab) => tab.id !== "directioning")
+        .map((tab) => (tab.id === "format" ? { ...tab, label: "Formato" } : tab)),
+    []
+  );
+  const compactObjectiveOptions = useMemo(
+    () => OBJECTIVE_OPTIONS.filter((option) => option.value !== "leads"),
+    []
+  );
+  const compactPeriodOptions = useMemo(
+    () =>
+      PERIOD_OPTIONS.map((option) => ({
+        ...option,
+        label:
+          option.value === "all_time"
+            ? "Todo período"
+            : option.label.replace(/^Últimos\s+/i, "").replace(/^Todo histórico$/i, "Todo período"),
+      })),
+    []
+  );
+  const compactContentMetricRows = useMemo(
+    () => [
+      {
+        key: "proposal",
+        title: "Proposta",
+        rows: proposalBars,
+        loading: loadingProposal,
+        visual: COMPACT_CATEGORY_VISUALS.proposal,
+        icon: <Sparkles className="h-4 w-4" />,
+        emptyText: loadingProposal ? "Carregando propostas..." : "Sem propostas registradas no período.",
+        onSelect: (row: CategoryBarDatum) =>
+          handleCategoryClick("proposal", row.name, `${primaryMetricShortLabel} por proposta`),
+      },
+      {
+        key: "context",
+        title: "Tema",
+        rows: contextBars,
+        loading: loadingPosts,
+        visual: COMPACT_CATEGORY_VISUALS.context,
+        icon: <Target className="h-4 w-4" />,
+        emptyText: loadingPosts ? "Carregando temas..." : "Sem temas registrados no período.",
+        onSelect: (row: CategoryBarDatum) =>
+          handleCategoryClick("context", row.name, `${primaryMetricShortLabel} por tema`),
+      },
+      {
+        key: "tone",
+        title: "Tom",
+        rows: toneBars,
+        loading: loadingTone,
+        visual: COMPACT_CATEGORY_VISUALS.tone,
+        icon: <ZapIcon className="h-4 w-4" />,
+        emptyText: loadingTone ? "Carregando tons..." : "Sem tons registrados no período.",
+        onSelect: (row: CategoryBarDatum) =>
+          handleCategoryClick("tone", row.name, `${primaryMetricShortLabel} por tom`),
+      },
+      {
+        key: "references",
+        title: "Referência",
+        rows: referenceBars,
+        loading: loadingReference,
+        visual: COMPACT_CATEGORY_VISUALS.references,
+        icon: <Copy className="h-4 w-4" />,
+        emptyText: loadingReference ? "Carregando referências..." : "Sem referências registradas.",
+        onSelect: (row: CategoryBarDatum) =>
+          handleCategoryClick("references", row.name, `${primaryMetricShortLabel} por referência`),
+      },
+      {
+        key: "content-intent",
+        title: "Intenção",
+        rows: contentIntentBars,
+        loading: loadingPosts,
+        visual: COMPACT_CATEGORY_VISUALS["content-intent"],
+        icon: <Sparkles className="h-4 w-4" />,
+        emptyText: loadingPosts ? "Carregando intenções..." : "Sem intenções registradas no período.",
+        onSelect: (row: CategoryBarDatum) =>
+          handleCategoryClick("contentIntent", row.name, `${primaryMetricShortLabel} por intenção`),
+      },
+      {
+        key: "narrative-form",
+        title: "Narrativa",
+        rows: narrativeFormBars,
+        loading: loadingPosts,
+        visual: COMPACT_CATEGORY_VISUALS["narrative-form"],
+        icon: <LineChartIcon className="h-4 w-4" />,
+        emptyText: loadingPosts ? "Carregando narrativas..." : "Sem narrativas registradas no período.",
+        onSelect: (row: CategoryBarDatum) =>
+          handleCategoryClick("narrativeForm", row.name, `${primaryMetricShortLabel} por narrativa`),
+      },
+      {
+        key: "content-signals",
+        title: "Sinais",
+        rows: contentSignalsBars,
+        loading: loadingPosts,
+        visual: COMPACT_CATEGORY_VISUALS["content-signals"],
+        icon: <FilterIcon className="h-4 w-4" />,
+        emptyText: loadingPosts ? "Carregando sinais..." : "Sem sinais registrados no período.",
+        onSelect: (row: CategoryBarDatum) =>
+          handleCategoryClick("contentSignals", row.name, `${primaryMetricShortLabel} por sinal`),
+      },
+      {
+        key: "stance",
+        title: "Postura",
+        rows: stanceBars,
+        loading: loadingPosts,
+        visual: COMPACT_CATEGORY_VISUALS.stance,
+        icon: <Users className="h-4 w-4" />,
+        emptyText: loadingPosts ? "Carregando posturas..." : "Sem posturas registradas no período.",
+        onSelect: (row: CategoryBarDatum) =>
+          handleCategoryClick("stance", row.name, `${primaryMetricShortLabel} por postura`),
+      },
+      {
+        key: "proof-style",
+        title: "Prova",
+        rows: proofStyleBars,
+        loading: loadingPosts,
+        visual: COMPACT_CATEGORY_VISUALS["proof-style"],
+        icon: <CheckCircle2 className="h-4 w-4" />,
+        emptyText: loadingPosts ? "Carregando provas..." : "Sem provas registradas no período.",
+        onSelect: (row: CategoryBarDatum) =>
+          handleCategoryClick("proofStyle", row.name, `${primaryMetricShortLabel} por prova`),
+      },
+      {
+        key: "commercial-mode",
+        title: "Modo comercial",
+        rows: commercialModeBars,
+        loading: loadingPosts,
+        visual: COMPACT_CATEGORY_VISUALS["commercial-mode"],
+        icon: <LineChartIcon className="h-4 w-4" />,
+        emptyText: loadingPosts ? "Carregando sinais comerciais..." : "Sem sinais comerciais registrados no período.",
+        onSelect: (row: CategoryBarDatum) =>
+          handleCategoryClick("commercialMode", row.name, `${primaryMetricShortLabel} por modo comercial`),
+      },
+    ],
+    [
+      commercialModeBars,
+      contentIntentBars,
+      contentSignalsBars,
+      contextBars,
+      handleCategoryClick,
+      loadingPosts,
+      loadingProposal,
+      loadingReference,
+      loadingTone,
+      narrativeFormBars,
+      primaryMetricShortLabel,
+      proofStyleBars,
+      proposalBars,
+      referenceBars,
+      stanceBars,
+      toneBars,
+    ]
+  );
+  const compactFormatMetricRows = useMemo(
+    () => [
+      {
+        key: "hour",
+        title: "Horário",
+        rows: mobileHourItems.map((item) => ({ name: item.label, value: item.value, postsCount: item.postsCount ?? undefined })),
+        loading: loadingTime,
+        visual: COMPACT_CATEGORY_VISUALS.context,
+        icon: <Clock3 className="h-4 w-4" />,
+        emptyText: "Sem dados no período.",
+        onSelect: (row: CategoryBarDatum) => {
+          const hour = Number(row.name.replace("h", ""));
+          if (Number.isFinite(hour)) {
+            handleHourClick(hour, `Melhor horário para ${primaryMetricShortLabel.toLowerCase()}`);
+          }
+        },
+      },
+      {
+        key: "duration",
+        title: "Duração",
+        rows: mobileDurationItems.map((item: any) => ({ name: item.label, value: item.value, postsCount: item.postsCount ?? undefined })),
+        loading: loadingDuration,
+        visual: COMPACT_CATEGORY_VISUALS["narrative-form"],
+        icon: <LineChartIcon className="h-4 w-4" />,
+        emptyText: durationSummary.totalVideoPosts === 0 ? "Sem vídeos no período." : "Sem base para comparar.",
+        onSelect: (row: CategoryBarDatum) => {
+          const bucket = DURATION_BUCKETS.find((entry) => entry.label === row.name);
+          if (bucket) {
+            handleDurationBucketClick(bucket.key, `${primaryMetricShortLabel} por faixa de duração`);
+          }
+        },
+      },
+      {
+        key: "format",
+        title: "Formato",
+        rows: formatBars.map((item: any) => ({ name: item.name, value: item.value, postsCount: item.postsCount })),
+        loading: loadingFormat,
+        visual: COMPACT_CATEGORY_VISUALS.references,
+        icon: <LineChartIcon className="h-4 w-4" />,
+        emptyText: "Sem formato no período.",
+        onSelect: (row: CategoryBarDatum) => handleCategoryClick("format", row.name, `${primaryMetricShortLabel} por formato`),
+      },
+      {
+        key: "week",
+        title: "Semana",
+        rows: mobileWeekWindowItems.map((item: any) => ({ name: item.label, value: item.value, postsCount: item.postsCount ?? undefined })),
+        loading: loadingTime,
+        visual: COMPACT_CATEGORY_VISUALS.proposal,
+        icon: <CalendarIcon className="h-4 w-4" />,
+        emptyText: "Sem base para o mapa.",
+        valueFormatter: (value: number) => `${Math.round(value)} pts`,
+        onSelect: (row: CategoryBarDatum) => {
+          const source = mobileWeekWindowItems.find((item) => item.label === row.name);
+          if (!source) return;
+          const sourceMatch = source.id.match(/^week-(\d+)-(\d+)$/);
+          if (!sourceMatch) return;
+          const dow = Number(sourceMatch[1]);
+          const startHour = Number(sourceMatch[2]);
+          handleDayHourClick(dow, startHour, Math.min(startHour + 3, 23), "Mapa de horários");
+        },
+      },
+      {
+        key: "coverage",
+        title: "Cobertura",
+        rows: mobileDurationCoverageItems.map((item: any) => ({ name: item.label, value: item.value, postsCount: item.postsCount ?? undefined })),
+        loading: loadingDuration,
+        visual: COMPACT_CATEGORY_VISUALS["content-signals"],
+        icon: <Clock3 className="h-4 w-4" />,
+        emptyText:
+          durationSummary.totalVideoPosts === 0 ? "Sem vídeos no período." : durationSummary.totalPostsWithDuration === 0 ? "Leitura indisponível." : "Leitura indisponível.",
+        valueFormatter: (value: number) => formatPercentLabel(value),
+        onSelect: (row: CategoryBarDatum) => {
+          const bucket = DURATION_BUCKETS.find((entry) => entry.label === row.name);
+          if (bucket) {
+            handleDurationBucketClick(bucket.key, "Vídeos por faixa de duração");
+          }
+        },
+      },
+    ],
+    [
+      durationSummary.totalPostsWithDuration,
+      durationSummary.totalVideoPosts,
+      formatBars,
+      handleCategoryClick,
+      handleDayHourClick,
+      handleDurationBucketClick,
+      handleHourClick,
+      loadingDuration,
+      loadingFormat,
+      loadingTime,
+      mobileDurationCoverageItems,
+      mobileDurationItems,
+      mobileHourItems,
+      mobileWeekWindowItems,
+      primaryMetricShortLabel,
+    ]
+  );
+
+  React.useEffect(() => {
+    if (!isCompactBoard) return;
+    if (activeTab === "directioning") {
+      setActiveTab("content");
+    }
+  }, [activeTab, isCompactBoard]);
 
   return (
     <>
-      <main className="w-full pb-12 pt-4 sm:pt-8">
-        <div className="dashboard-page-shell space-y-5">
-          <header className="flex flex-col gap-4">
-            <div className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-              <LineChartIcon className="h-4 w-4" />
-              Análise de Perfil
-            </div>
-            <h1 className="text-2xl font-semibold leading-tight text-slate-900">O que seu perfil está mostrando agora</h1>
-            {isAdminViewer ? (
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <div className="w-full sm:max-w-md">
-                  <CreatorQuickSearch
-                    onSelect={(creator) => {
-                      resetPaginationState();
-                      setAdminTargetUser({
-                        id: creator.id,
-                        name: creator.name,
-                        profilePictureUrl: creator.profilePictureUrl,
-                      });
-                    }}
+		      <Board 
+		          title="Análise de Perfil" 
+            promoteHeaderOnMobile
+            mobilePresentation={useMobileAppView ? "flat" : "surface"}
+	          titleInlineAction={showPinButton ? (
+                <BoardPinButton
+                  boardId="profile-analysis"
+                  boardTitle="Análise de Perfil"
+                  redirectOnPin={pinButtonRedirectOnPin}
+                />
+              ) : null}
+		          titleMarkerVariant="chip"
+          showTitleMarker={showTitleMarker}
+		          variant="card"
+          desktopWidthClassName={!isCompactBoard ? dedicatedDesktopWidthClassName : ""}
+	          showChevron={false}
+          showOptions={false}
+          className="mx-auto h-full"
+          contentClassName={useMobileAppView ? "bg-transparent" : ""}
+          titleClassName={useMobileAppView ? "text-lg leading-tight" : ""}
+          headerActions={
+            <div className="flex items-center gap-2">
+              {isAdminViewer && !isCompactBoard && (
+                <div className="w-64 sm:w-72 relative z-[100]">
+                  <CreatorQuickSearch 
+                    onSelect={(user) => setAdminTargetUser({ id: user.id, name: user.name, profilePictureUrl: user.profilePictureUrl || "" })}
                     selectedCreatorName={adminTargetUser?.name || null}
                     selectedCreatorPhotoUrl={adminTargetUser?.profilePictureUrl || null}
-                    onClear={() => {
-                      resetPaginationState();
-                      setAdminTargetUser(null);
-                    }}
-                    apiPrefix="/api/admin"
+                    onClear={() => setAdminTargetUser(null)}
                   />
                 </div>
-                <p className="text-xs text-slate-500">
-                  {isActingOnBehalf
-                    ? `Visualizando dados de ${adminTargetUser?.name}.`
-                    : "Visualizando seus próprios dados."}
-                </p>
-              </div>
-            ) : null}
-          </header>
-
-          <div className="sticky top-0 z-20 isolate -mx-4 mb-2 border-b border-slate-200 bg-white/95 px-4 py-3 supports-[backdrop-filter]:backdrop-blur-md sm:mx-0 sm:rounded-2xl sm:border sm:bg-white sm:px-4 sm:py-2.5 sm:shadow-sm">
-            <div className="sm:hidden">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">Leitura atual</p>
-                  <p className="mt-1 text-sm font-semibold text-slate-900">{objectiveLabel}</p>
-                  <p className="mt-0.5 text-xs text-slate-500">{periodLabel}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setShowMobileControls(true)}
-                  className="inline-flex min-h-[40px] items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm"
-                >
-                  <FilterIcon className="h-4 w-4" />
-                  Filtros
-                </button>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold text-slate-700">
-                  {primaryMetricLabel}
-                </span>
-                {metricMeta?.isProxy && (
-                  <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-700">
-                    Métrica estimada
-                  </span>
-                )}
-              </div>
+              )}
             </div>
-
-            <div className="hidden flex-col gap-3 sm:flex sm:flex-row sm:items-center sm:justify-between tracking-tight">
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-slate-50 text-slate-400">
-                  <ZapIcon className="h-4 w-4" />
+          }
+        >
+          <div className={`sticky top-0 z-30 shrink-0 backdrop-blur-md ${
+            useMobileAppView
+              ? "bg-[linear-gradient(180deg,rgba(243,244,246,0.96),rgba(243,244,246,0.92)_74%,rgba(243,244,246,0))]"
+              : "border-b border-zinc-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,255,255,0.94))]"
+          }`}>
+            {/* Board Header & Tabs */}
+            <div className={`${useMobileAppView ? "px-2 pt-0.5" : "px-6"} ${useMobileAppView ? "bg-transparent" : ""}`}>
+              {isActingOnBehalf && (
+                <div className="mb-3 flex items-center gap-2 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                  Visualizando: {adminTargetUser?.name}
                 </div>
-                <div>
-                  <p className="text-xs font-semibold text-slate-600">Objetivo: <span className="text-indigo-600">{objectiveLabel}</span></p>
-                  <p className="text-[11px] text-slate-500">
-                    Base: {primaryMetricLabel}
-                    {metricMeta?.isProxy && metricMeta?.description ? ` • ${metricMeta.description}` : ""}
-                  </p>
-                </div>
-              </div>
+              )}
 
-              <div className="flex flex-wrap items-center gap-4">
-                {recommendationsFeatureEnabled ? (
-                  <div className="flex items-center gap-1.5 rounded-xl border border-slate-200/50 bg-slate-100/80 p-1">
-                    {OBJECTIVE_OPTIONS.map((opt) => (
-                      <button
-                        key={opt.value}
-                        onClick={() => handleObjectiveModeChange(opt.value)}
-                        className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 ${objectiveMode === opt.value
-                          ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200/50"
-                          : "text-slate-500 hover:text-slate-700"
-                          }`}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
+              {isAdminViewer && isCompactBoard ? (
+                <div className="pb-2 pt-3">
+                  <div className="relative z-[100] w-full">
+                    <CreatorQuickSearch
+                      onSelect={(user) => setAdminTargetUser({ id: user.id, name: user.name, profilePictureUrl: user.profilePictureUrl || "" })}
+                      selectedCreatorName={adminTargetUser?.name || null}
+                      selectedCreatorPhotoUrl={adminTargetUser?.profilePictureUrl || null}
+                      onClear={() => setAdminTargetUser(null)}
+                    />
                   </div>
-                ) : null}
-
-                <div className="relative group">
-                  <CalendarIcon className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-indigo-500" />
-                  <select
-                    id="timePeriod"
-                    value={timePeriod}
-                    onChange={(e) => handleTimePeriodChange(e.target.value)}
-                    className="min-h-[36px] min-w-[160px] cursor-pointer appearance-none rounded-xl border border-slate-200 bg-white pl-9 pr-8 text-xs font-bold text-slate-700 transition-all hover:border-slate-300 focus:border-indigo-500 focus:outline-none focus:ring-4 focus:ring-indigo-500/5"
-                  >
-                    {PERIOD_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400 transition-transform group-focus-within:rotate-180" />
                 </div>
-
-                {recommendationsFeatureEnabled ? (
+              ) : null}
+              {!isAdminViewer && isCompactBoard ? (
+                <div className="pb-2 pt-2">
                   <button
                     type="button"
-                    onClick={() => handleGoToPlanner("recommendations_card")}
-                    className="inline-flex h-9 items-center justify-center rounded-xl bg-slate-900 px-4 text-xs font-bold text-white shadow-lg shadow-slate-200 transition-all hover:bg-slate-800 active:scale-[0.98]"
+                    onClick={() => router.push("/planning/graficos")}
+                    className="dashboard-input dashboard-type-body flex min-h-[2.5rem] w-full items-center gap-2.5 border-rose-100/80 bg-[radial-gradient(circle_at_left,rgba(244,114,182,0.12),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,248,244,0.88))] px-4 py-3 text-left text-zinc-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.86)] hover:border-amber-100/80 hover:bg-[radial-gradient(circle_at_left,rgba(251,191,36,0.12),transparent_24%),linear-gradient(180deg,rgba(255,255,255,1),rgba(255,247,250,0.9))]"
                   >
-                    Abrir Planejamento
+                    <Search className="h-4 w-4 shrink-0 text-rose-400" />
+                    <span>Buscar criador...</span>
                   </button>
-                ) : null}
-              </div>
+                </div>
+              ) : null}
+
+              {isCompactBoard ? (
+                <div className="mt-0.5 flex items-center gap-2 px-0 pb-2">
+                  <div className="min-w-0 flex-1">
+                    <ThreadsTabs
+                      tabs={compactChartTabs}
+                      activeTab={activeTab}
+                      onChange={(id) => handleTabChange(id as ActiveChartTab)}
+                      compact
+                      variant="segmented"
+                      segmentedTheme="mono"
+                      className="w-full bg-[linear-gradient(180deg,rgba(255,255,255,0.82),rgba(247,247,248,0.94))] shadow-[inset_0_1px_0_rgba(255,255,255,0.88),0_10px_24px_rgba(24,24,27,0.035)] ring-1 ring-white/75"
+                    />
+                  </div>
+
+                  {useMobileAppView ? (
+                    <div ref={compactControlsRef} className="relative shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setShowMobileControls((current) => !current)}
+                        className={`relative inline-flex h-[2.375rem] w-[2.375rem] items-center justify-center rounded-full border transition-all duration-200 ${
+                          showMobileControls
+                            ? "border-zinc-900 bg-zinc-950 text-white shadow-[0_8px_18px_rgba(24,24,27,0.16)]"
+                            : "border-zinc-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(244,244,245,0.86))] text-zinc-600 hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+                        }`}
+                        aria-label="Abrir filtros"
+                        aria-expanded={showMobileControls}
+                        aria-haspopup="dialog"
+                      >
+                        <FilterIcon className="h-4 w-4" />
+                        {((objectiveMode !== "engagement") || timePeriod !== DEFAULT_TIME_PERIOD) ? (
+                          <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-zinc-300" />
+                        ) : null}
+                      </button>
+
+                      {!isMobileViewport && showMobileControls ? (
+                        <div className="absolute right-0 top-[calc(100%+0.5rem)] z-30 w-[228px] rounded-[1.2rem] border border-zinc-100/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.97),rgba(246,246,247,0.95))] p-3 shadow-[0_16px_36px_rgba(24,24,27,0.08)] backdrop-blur-xl">
+                          <div className="space-y-3">
+                            {recommendationsFeatureEnabled ? (
+                              <div className="space-y-2">
+                                <p className="dashboard-muted-label text-zinc-400">Base</p>
+                                <div className="dashboard-segmented flex w-fit max-w-full items-center gap-1 overflow-x-auto no-scrollbar p-0.5">
+                                  {compactObjectiveOptions.map((opt) => (
+                                    <button
+                                      key={opt.value}
+                                      onClick={() => handleObjectiveModeChange(opt.value)}
+                                      className={`dashboard-type-control min-h-[2.125rem] rounded-full px-3 py-1.5 whitespace-nowrap transition-all duration-200 ${
+                                        objectiveMode === opt.value
+                                          ? "bg-zinc-950 text-white shadow-[0_1px_2px_rgba(15,23,42,0.08)] ring-1 ring-zinc-950"
+                                          : "text-zinc-500 hover:bg-white/80 hover:text-zinc-800"
+                                      }`}
+                                    >
+                                      {opt.label}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
+
+                            <div className="space-y-2">
+                              <p className="dashboard-muted-label text-zinc-400">Janela</p>
+                              <div className="relative group">
+                                <CalendarIcon className="pointer-events-none absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-400 transition-colors group-focus-within:text-zinc-700" />
+                                <select
+                                  id="timePeriod"
+                                  value={timePeriod}
+                                  onChange={(e) => handleTimePeriodChange(e.target.value)}
+                                  className="dashboard-type-control dashboard-select min-h-[2.25rem] w-full cursor-pointer bg-white/78 pl-9 pr-9 text-zinc-600 transition-all hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+                                >
+                                  {compactPeriodOptions.map((opt) => (
+                                    <option key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </option>
+                                  ))}
+                                </select>
+                                <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-400 transition-transform group-focus-within:rotate-180" />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <ThreadsTabs
+                  tabs={CHART_TABS}
+                  activeTab={activeTab}
+                  onChange={(id) => handleTabChange(id as ActiveChartTab)}
+                  compact={false}
+                  variant="underline"
+                />
+              )}
             </div>
+
+            {!isCompactBoard ? (
+              <div className="border-t border-zinc-100/70 bg-zinc-50/32 px-6 py-3">
+              <div className="flex items-center gap-3">
+	                  {recommendationsFeatureEnabled ? (
+                      <div className="dashboard-segmented flex items-center gap-1 p-1">
+                        {OBJECTIVE_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.value}
+                            onClick={() => handleObjectiveModeChange(opt.value)}
+                            className={`dashboard-type-control min-h-[2.5rem] rounded-full px-3 py-1.5 transition-all duration-200 ${
+                              objectiveMode === opt.value
+                                ? "bg-[linear-gradient(180deg,#fff,#fff7fa)] text-zinc-950 shadow-[0_1px_2px_rgba(15,23,42,0.05)] ring-1 ring-pink-100/70"
+                                : "text-zinc-500 hover:text-zinc-800"
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+	                  ) : null}
+
+                  <div className="relative group ml-auto shrink-0">
+                    <CalendarIcon className="pointer-events-none absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-400 transition-colors group-focus-within:text-zinc-700" />
+                    <select
+                      id="timePeriod"
+                      value={timePeriod}
+                      onChange={(e) => handleTimePeriodChange(e.target.value)}
+                      className="dashboard-type-control dashboard-select min-w-[138px] cursor-pointer pl-9 pr-9 text-zinc-600 transition-all hover:border-zinc-300 hover:bg-white hover:text-zinc-900"
+                    >
+                      {PERIOD_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDownIcon className="pointer-events-none absolute right-3 top-1/2 h-3 w-3 -translate-y-1/2 text-zinc-400 transition-transform group-focus-within:rotate-180" />
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
 
-          <Drawer open={showMobileControls} onClose={() => setShowMobileControls(false)} title="Ajustar análise">
+          <div className={`${isCompactBoard ? "px-2 pb-6 pt-2" : "px-4 pb-4 pt-2.5"} relative space-y-3.5`}>
+            {isDemoMode && <ProfileAnalysisFunnelOverlay />}
+            <div className={isDemoMode ? "pointer-events-none select-none opacity-50 blur-[2px]" : ""}>
+
+          <Drawer open={isMobileViewport && showMobileControls} onClose={() => setShowMobileControls(false)} title="Ajustar análise">
             <div className="space-y-4 sm:hidden">
               {recommendationsFeatureEnabled ? (
                 <section className="space-y-2">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Meta</p>
-                  <div className="grid grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1.5">
+                  <p className="dashboard-muted-label text-zinc-400">Meta</p>
+                  <div className="dashboard-segmented grid grid-cols-3 gap-2 p-1.5">
                     {OBJECTIVE_OPTIONS.map((opt) => (
                       <button
                         key={opt.value}
                         type="button"
                         onClick={() => handleObjectiveModeChange(opt.value)}
                         className={`rounded-xl px-2 py-2.5 text-[11px] font-bold transition ${objectiveMode === opt.value
-                          ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200"
-                          : "text-slate-500"
+                          ? "bg-white text-zinc-900 shadow-sm ring-1 ring-zinc-200"
+                          : "text-zinc-500"
                           }`}
                       >
                         {opt.label}
@@ -4584,14 +5441,14 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               ) : null}
 
               <section className="space-y-2">
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Janela de tempo</p>
+                <p className="dashboard-muted-label text-zinc-400">Janela de tempo</p>
                 <div className="relative">
-                  <CalendarIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <CalendarIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                   <select
                     id="timePeriodMobile"
                     value={timePeriod}
                     onChange={(e) => handleTimePeriodChange(e.target.value)}
-                    className="w-full min-h-[46px] appearance-none rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-sm font-bold text-slate-700"
+                    className="dashboard-select w-full min-h-[46px] pl-10 pr-10 text-sm font-bold text-zinc-700"
                   >
                     {PERIOD_OPTIONS.map((opt) => (
                       <option key={opt.value} value={opt.value}>
@@ -4599,15 +5456,15 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                       </option>
                     ))}
                   </select>
-                  <ChevronDownIcon className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <ChevronDownIcon className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-slate-200 bg-slate-50/80 p-3.5">
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">Métrica-base</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{primaryMetricLabel}</p>
+              <section className="rounded-[1.2rem] border border-zinc-100/90 bg-zinc-50/68 p-3.5">
+                <p className="dashboard-muted-label text-zinc-400">Métrica-base</p>
+                <p className="mt-1 text-sm font-semibold text-zinc-900">{primaryMetricLabel}</p>
                 {metricMeta?.isProxy && metricMeta?.description ? (
-                  <p className="mt-1.5 text-xs leading-relaxed text-slate-500">{metricMeta.description}</p>
+                  <p className="mt-1.5 text-xs leading-relaxed text-zinc-500">{metricMeta.description}</p>
                 ) : null}
               </section>
 
@@ -4618,7 +5475,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                     handleGoToPlanner("recommendations_card");
                     setShowMobileControls(false);
                   }}
-                  className="w-full rounded-xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white"
+                  className="dashboard-primary-button w-full px-4 py-3 text-sm font-semibold"
                 >
                   Abrir Planejamento
                 </button>
@@ -4626,100 +5483,28 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
             </div>
           </Drawer>
 
-          <div className="grid grid-cols-2 gap-2 sm:flex sm:w-full sm:items-center sm:gap-2 sm:overflow-x-auto sm:border-b sm:border-slate-200 sm:pb-1.5 sm:scrollbar-none">
-            <button
-              onClick={() => handleTabChange("directioning")}
-              className={`rounded-2xl px-3 py-2.5 text-sm font-semibold transition-colors sm:whitespace-nowrap sm:rounded-full sm:px-4 sm:py-1.5 ${activeTab === "directioning"
-                ? "bg-slate-800 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-            >
-              Próximo passo
-            </button>
-            <button
-              onClick={() => handleTabChange("content")}
-              className={`rounded-2xl px-3 py-2.5 text-sm font-semibold transition-colors sm:whitespace-nowrap sm:rounded-full sm:px-4 sm:py-1.5 ${activeTab === "content"
-                ? "bg-slate-800 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-            >
-              O que postar
-            </button>
-            <button
-              onClick={() => handleTabChange("format")}
-              className={`rounded-2xl px-3 py-2.5 text-sm font-semibold transition-colors sm:whitespace-nowrap sm:rounded-full sm:px-4 sm:py-1.5 ${activeTab === "format"
-                ? "bg-slate-800 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-            >
-              Formato & Timing
-            </button>
-            <button
-              onClick={() => handleTabChange("audience")}
-              className={`rounded-2xl px-3 py-2.5 text-sm font-semibold transition-colors sm:whitespace-nowrap sm:rounded-full sm:px-4 sm:py-1.5 ${activeTab === "audience"
-                ? "bg-slate-800 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                }`}
-            >
-              Sua Audiência
-            </button>
-          </div>
 
-	          <div className="mt-4 pb-12">
 	            <div ref={advancedSectionsSentinelRef} className="h-px w-full" />
-            {showAdvancedSections ? (
+            {advancedSectionsReady ? (
               <>
 
                 {activeTab === "directioning" && (
-                  <div className="space-y-4">
+                  <div className="space-y-3.5">
                     {recommendationsFeatureEnabled ? (
-                      <section className="space-y-3">
-                        <StrategicHeroCard
-                          eyebrow="Próximo passo"
-                          headline={strategicDecisionLine}
-                          footer={
-                            topStrategicAction ? (
-                              <div className="flex flex-wrap items-center gap-2 pt-0.5 text-xs text-white/75">
-                                <span
-                                  className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${queueStageClassName[topStrategicAction.queueStage]}`}
-                                >
-                                  {queueStageLabel[topStrategicAction.queueStage]}
-                                </span>
-                              </div>
-                            ) : null
-                          }
-                        >
-                          <div className="space-y-0.5 text-sm leading-relaxed text-white/80">
-                            {directioningDiagnosisCards.map((card) => (
-                              <p key={card.title}>
-                                <span className="font-semibold text-white">{card.title}:</span> {simplifyEvidenceText(card.body)}
-                              </p>
-                            ))}
-                          </div>
-                        </StrategicHeroCard>
+                    <section className="space-y-2">
+                        <div className="dashboard-section-panel flex items-center gap-2 rounded-[1rem] px-3 py-2">
+                          <Target className="h-2.5 w-2.5 text-pink-500" />
+                          <h3 className="dashboard-muted-label text-pink-500">Antes de agir</h3>
+                          <p className="dashboard-type-meta italic text-zinc-600">
+                            {directioningNoGoLine}
+                          </p>
+                        </div>
 
-                        <article className="rounded-2xl border border-slate-200/80 bg-white/80 p-4 shadow-sm">
-                          <div className="space-y-1 pb-2.5">
-                            <div className="flex items-center gap-2">
-                              <Target className="h-4 w-4 text-slate-400" />
-                              <h3 className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Antes de agir</h3>
-                            </div>
-                            <p className="max-w-2xl text-[11px] leading-relaxed text-slate-500">
-                              Faça uma coisa por vez.
-                            </p>
-                            <p className="max-w-2xl text-[11px] leading-relaxed text-slate-400">
-                              {directioningNoGoLine}
-                            </p>
-                            <p className="max-w-2xl text-[11px] leading-relaxed text-slate-400">
-                              {currentTabGuardrails[1] || "Feche essa ação antes de abrir outra."}
-                            </p>
-                          </div>
-
-                          <div className="divide-y divide-slate-100">
+                          <div className="dashboard-section-stack overflow-hidden rounded-[1.35rem]">
                             {loadingBatch ? (
-                              <p className="text-sm text-slate-500">Carregando plano de ação...</p>
+                              <p className="px-4 py-4 text-sm text-zinc-500">Carregando plano de ação...</p>
                             ) : recommendationActions.length === 0 ? (
-                              <p className="text-sm text-slate-500">Sem ação aberta agora. Volte quando entrar post novo.</p>
+                              <p className="px-4 py-4 text-sm text-zinc-500">Sem ação aberta agora. Volte quando entrar post novo.</p>
                             ) : (
                               recommendationActions.map((item, index) => {
                                 const actionFeedbackKey = String(item.feedbackKey || item.id || "").trim().toLowerCase();
@@ -4727,99 +5512,61 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 return (
                                   <article
                                     key={item.feedbackKey || item.id}
-                                    className={`transition ${index === 0
-                                      ? "rounded-xl bg-indigo-50/15 px-2.5 py-3"
-                                      : "px-1 py-3.5"
-                                      }`}
+                                    className="bg-[radial-gradient(circle_at_top_right,rgba(244,114,182,0.05),transparent_30%),rgba(250,250,250,0.56)] px-4 py-4 transition hover:bg-white/72"
                                   >
-                                    <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start lg:gap-3">
-                                      <div className="flex min-w-0 items-start gap-3.5">
-                                        <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-bold text-[10px] ${index === 0 ? "bg-indigo-100 text-indigo-700" : "bg-slate-100 text-slate-500"}`}>
-                                          {index + 1}
-                                        </div>
-                                        <div className="min-w-0">
-                                          <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
-                                            <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${queueStageClassName[item.queueStage]}`}>
-                                              {queueStageLabel[item.queueStage]}
-                                            </span>
-                                            <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                                              {RECOMMENDATION_TITLE_OVERRIDES[item.id] || item.title}
-                                            </p>
-                                          </div>
-                                          <h4 className="text-sm font-semibold leading-snug text-slate-900" style={index === 0 ? undefined : twoLineClampStyle}>
-                                            {item.nextStep || item.action}
-                                          </h4>
-                                          <div className="mt-2 flex flex-wrap items-center gap-1.5 lg:hidden">
-                                            <button
-                                              type="button"
-                                              disabled={isFeedbackUpdating}
-                                              onClick={() => submitRecommendationFeedback(item, "applied")}
-                                              className={`inline-flex min-h-[28px] items-center justify-center rounded-md px-1.5 text-[11px] font-semibold transition ${item.feedbackStatus === "applied"
-                                                ? "bg-emerald-50 text-emerald-700"
-                                                : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                                                } ${isFeedbackUpdating ? "cursor-not-allowed opacity-60" : ""}`}
-                                            >
-                                              <span className="mr-1.5 text-sm leading-none">{item.feedbackStatus === "applied" ? "✅" : "👍"}</span>
-                                              {feedbackStatusLabel.applied}
-                                            </button>
-                                            <button
-                                              type="button"
-                                              disabled={isFeedbackUpdating}
-                                              onClick={() => submitRecommendationFeedback(item, "not_applied")}
-                                              className={`inline-flex min-h-[28px] items-center justify-center rounded-md px-1.5 text-[11px] font-semibold transition ${item.feedbackStatus === "not_applied"
-                                                ? "bg-amber-50 text-amber-700"
-                                                : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                                                } ${isFeedbackUpdating ? "cursor-not-allowed opacity-60" : ""}`}
-                                            >
-                                              <span className="mr-1.5 text-sm leading-none">{item.feedbackStatus === "not_applied" ? "❌" : "👎"}</span>
-                                              {feedbackStatusLabel.not_applied}
-                                            </button>
-                                            <button
-                                              type="button"
-                                              onClick={() => openRecommendationEvidence(item)}
-                                              className="inline-flex min-h-[28px] items-center justify-center gap-1 rounded-md px-1.5 text-[11px] font-semibold text-indigo-700 transition hover:bg-slate-100 hover:text-indigo-800"
-                                            >
-                                              Ver motivo
-                                              <ArrowUpRight className="h-3.5 w-3.5" />
-                                            </button>
-                                          </div>
-                                          <p className="mt-1.5 text-[11px] leading-relaxed text-slate-400">
-                                            {recommendationTypeLabel[recommendationTypeFallback(item.recommendationType)]} • {executionStateLabel[item.executionState || "planned"]}
+                                    <div className="flex items-start gap-4">
+                                      <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl font-bold text-xs ${index === 0 ? "bg-zinc-900 text-white" : "bg-white/86 text-zinc-500 ring-1 ring-zinc-100/90"}`}>
+                                        {index + 1}
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2 mb-2">
+                                          <span className={`dashboard-type-control inline-flex items-center rounded-full border px-2.5 py-1 text-[9px] ${queueStageClassName[item.queueStage]}`}>
+                                            {queueStageLabel[item.queueStage]}
+                                          </span>
+                                          <p className="dashboard-muted-label text-zinc-400">
+                                            {RECOMMENDATION_TITLE_OVERRIDES[item.id] || item.title}
                                           </p>
                                         </div>
+                                        <h4 className="dashboard-type-item-title mb-1 text-base">
+                                          {item.nextStep || item.action}
+                                        </h4>
+                                        <p className="dashboard-type-meta text-zinc-500">
+                                          {recommendationTypeLabel[recommendationTypeFallback(item.recommendationType)]} • {executionStateLabel[item.executionState || "planned"]}
+                                        </p>
                                       </div>
-                                      <div className="hidden flex-wrap items-center gap-0.5 lg:flex lg:shrink-0">
-                                        <button
-                                          type="button"
-                                          disabled={isFeedbackUpdating}
-                                          onClick={() => submitRecommendationFeedback(item, "applied")}
-                                          className={`inline-flex min-h-[28px] items-center justify-center rounded-md px-1.5 text-[11px] font-semibold transition ${item.feedbackStatus === "applied"
-                                            ? "bg-emerald-50 text-emerald-700"
-                                            : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                                            } ${isFeedbackUpdating ? "cursor-not-allowed opacity-60" : ""}`}
-                                        >
-                                          <span className="mr-1.5 text-sm leading-none">{item.feedbackStatus === "applied" ? "✅" : "👍"}</span>
-                                          {feedbackStatusLabel.applied}
-                                        </button>
-                                        <button
-                                          type="button"
-                                          disabled={isFeedbackUpdating}
-                                          onClick={() => submitRecommendationFeedback(item, "not_applied")}
-                                          className={`inline-flex min-h-[28px] items-center justify-center rounded-md px-1.5 text-[11px] font-semibold transition ${item.feedbackStatus === "not_applied"
-                                            ? "bg-amber-50 text-amber-700"
-                                            : "text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                                            } ${isFeedbackUpdating ? "cursor-not-allowed opacity-60" : ""}`}
-                                        >
-                                          <span className="mr-1.5 text-sm leading-none">{item.feedbackStatus === "not_applied" ? "❌" : "👎"}</span>
-                                          {feedbackStatusLabel.not_applied}
-                                        </button>
+
+                                      <div className="flex flex-col items-end gap-2 shrink-0">
+                                        <div className="flex items-center gap-1.5">
+                                          <button
+                                            type="button"
+                                            disabled={isFeedbackUpdating}
+                                            onClick={() => submitRecommendationFeedback(item, "applied")}
+                                            className={`inline-flex h-8 items-center justify-center rounded-2xl px-3 text-[11px] font-bold transition-all ${item.feedbackStatus === "applied"
+                                              ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200"
+                                              : "dashboard-secondary-button text-zinc-600"
+                                              } ${isFeedbackUpdating ? "cursor-not-allowed opacity-60" : ""}`}
+                                          >
+                                            {item.feedbackStatus === "applied" ? "Feito" : "Concluir"}
+                                          </button>
+                                          <button
+                                            type="button"
+                                            disabled={isFeedbackUpdating}
+                                            onClick={() => submitRecommendationFeedback(item, "not_applied")}
+                                            className={`inline-flex h-8 items-center justify-center rounded-2xl px-3 text-[11px] font-bold transition-all ${item.feedbackStatus === "not_applied"
+                                              ? "bg-pink-50 text-pink-600 ring-1 ring-pink-200"
+                                              : "dashboard-secondary-button text-zinc-600"
+                                              } ${isFeedbackUpdating ? "cursor-not-allowed opacity-60" : ""}`}
+                                          >
+                                            {item.feedbackStatus === "not_applied" ? "Ignorado" : "Pular"}
+                                          </button>
+                                        </div>
                                         <button
                                           type="button"
                                           onClick={() => openRecommendationEvidence(item)}
-                                          className="inline-flex min-h-[28px] items-center justify-center gap-1 rounded-md px-1.5 text-[11px] font-semibold text-indigo-700 transition hover:bg-slate-100 hover:text-indigo-800"
+                                          className="flex items-center gap-1.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-pink-500 transition-colors hover:text-pink-600"
                                         >
-                                          Ver motivo
-                                          <ArrowUpRight className="h-3.5 w-3.5" />
+                                          Ver por que
+                                          <ArrowUpRight className="h-3 w-3" />
                                         </button>
                                       </div>
                                     </div>
@@ -4828,21 +5575,20 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                               })
                             )}
                           </div>
-                        </article>
                       </section>
                     ) : (
-                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-6 text-center">
+                      <div className="rounded-[1.25rem] border border-zinc-100/90 bg-zinc-50/62 p-6 text-center">
                         <p className="text-sm text-slate-500">Sem próximo passo claro por enquanto.</p>
                       </div>
                     )}
                   </div>
                 )}
-                {activeTab !== "directioning" && currentTabBrief ? (
+                {activeTab !== "directioning" && activeTab !== "format" && currentTabBrief && !(isCompactBoard && activeTab === "content") ? (
                   <section className="mb-4">
                     <StrategicHeroCard
-                      variant="compact"
+                      variant="inline"
                       eyebrow={currentTabBrief.eyebrow}
-                      headline={currentTabBrief.headline}
+                      headline={activeTab === "content" ? combinedStrategicInsight : currentTabBrief.headline}
                       reading={currentTabBrief.reading}
                       bulletPoints={currentTabBrief.bulletPoints}
                       action={currentTabBrief.action}
@@ -4851,17 +5597,29 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                     />
                   </section>
                 ) : null}
-	                {activeTab === "content" && (
-	                  <div className="space-y-4">
-                    <section className="space-y-3">
-                      <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Também olhe</p>
-                        <p className="mt-1 text-sm leading-relaxed text-slate-600">
-                          Proposta, tema, tom e referência ajudam a lapidar a ideia.
-                        </p>
-                      </div>
-                      <div className="space-y-3">
-                      <div className="grid gap-4 md:grid-cols-2">
+                {activeTab === "content" && isCompactBoard ? (
+                  <div className="space-y-3.5">
+                    <section className="space-y-4">
+                      {compactContentMetricRows.map((item) => (
+                        <CompactCategoryRankingSummary
+                          key={item.key}
+                          title={item.title}
+                          rows={item.rows}
+                          loading={item.loading}
+                          visual={item.visual}
+                          icon={item.icon}
+                          emptyText={item.emptyText}
+                          onSelect={item.onSelect}
+                        />
+                      ))}
+                    </section>
+                  </div>
+                ) : null}
+	                {activeTab === "content" && !isCompactBoard && (
+	                  <div className="space-y-3.5">
+                    <section className="space-y-2.5">
+                      <div className="space-y-2.5">
+                      <div className="grid gap-4 grid-cols-1">
                         <article className={cardBase}>
                           <header className="flex items-center justify-between gap-3">
                             <div className={chartHeaderTextClassName}>
@@ -4870,14 +5628,14 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                             </div>
                             <Sparkles className="h-5 w-5 text-indigo-500" />
                           </header>
-                          <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
+                          <div className={useCompactContentCharts ? "mt-3" : chartHeightClassName}>
                             {loadingProposal ? (
                               <p className="text-sm text-slate-500">Carregando propostas...</p>
-                            ) : proposalBars.length === 0 ? (
+                            ) : displayProposalBars.length === 0 ? (
                               <p className="text-sm text-slate-500">Sem propostas registradas no período.</p>
-                            ) : isMobileViewport ? (
+                            ) : useCompactContentCharts ? (
                               <MobileBarList
-                                items={proposalBars.map((item) => ({
+                                items={displayProposalBars.map((item) => ({
                                   id: item.name,
                                   label: item.name,
                                   value: item.value,
@@ -4886,18 +5644,19 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 emptyText="Sem propostas registradas no período."
                                 accentClassName="bg-indigo-500"
                                 valueFormatter={(value) => numberFormatter.format(Math.round(value))}
+                                dense={isCompactBoard}
                                 onSelect={(item) => handleCategoryClick("proposal", item.label, `${primaryMetricShortLabel} por proposta`)}
                               />
                             ) : (
                               <ResponsiveContainer width="100%" height="100%">
                                 <BarChart
-                                  data={proposalBars}
+                                  data={displayProposalBars}
                                   layout="vertical"
-                                  margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
+                                  margin={{ top: 6, right: 80, left: 30, bottom: 0 }}
                                   style={{ cursor: "pointer" }}
                                 >
                                   <XAxis type="number" hide />
-                                  <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
+                                  <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={150} />
                                   <Tooltip contentStyle={tooltipStyle} />
                                   <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#6366f1" radius={[0, 6, 6, 0]} onClick={(state: any) => { const val = state?.payload?.name ? String(state.payload.name) : null; if (val) handleCategoryClick("proposal", val, `${primaryMetricShortLabel} por proposta`); }}>
                                     <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
@@ -4906,8 +5665,8 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                               </ResponsiveContainer>
                             )}
                           </div>
-                        </article>
-                        <article className={cardBase}>
+	                      </article>
+		                      <article className={audienceCardBase}>
                           <header className="flex items-center justify-between gap-3">
                             <div className={chartHeaderTextClassName}>
                               <h2 className="text-base font-semibold text-slate-900">Tema</h2>
@@ -4915,14 +5674,14 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                             </div>
                             <Target className="h-5 w-5 text-slate-600" />
                           </header>
-                          <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
+                          <div className={useCompactContentCharts ? "mt-3" : chartHeightClassName}>
                             {loadingPosts ? (
                               <p className="text-sm text-slate-500">Carregando temas...</p>
-                            ) : contextBars.length === 0 ? (
+                            ) : displayContextBars.length === 0 ? (
                               <p className="text-sm text-slate-500">Sem temas registrados no período.</p>
-                            ) : isMobileViewport ? (
+                            ) : useCompactContentCharts ? (
                               <MobileBarList
-                                items={contextBars.map((item) => ({
+                                items={displayContextBars.map((item) => ({
                                   id: item.name,
                                   label: item.name,
                                   value: item.value,
@@ -4931,18 +5690,19 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 emptyText="Sem temas registrados no período."
                                 accentClassName="bg-sky-500"
                                 valueFormatter={(value) => numberFormatter.format(Math.round(value))}
+                                dense={isCompactBoard}
                                 onSelect={(item) => handleCategoryClick("context", item.label, `${primaryMetricShortLabel} por tema`)}
                               />
                             ) : (
                               <ResponsiveContainer width="100%" height="100%">
                                 <BarChart
-                                  data={contextBars}
+                                  data={displayContextBars}
                                   layout="vertical"
-                                  margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
+                                  margin={{ top: 6, right: 80, left: 30, bottom: 0 }}
                                   style={{ cursor: "pointer" }}
                                 >
                                   <XAxis type="number" hide />
-                                  <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
+                                  <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={150} />
                                   <Tooltip contentStyle={tooltipStyle} />
                                   <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#0ea5e9" radius={[0, 6, 6, 0]} onClick={(state: any) => { const val = state?.payload?.name ? String(state.payload.name) : null; if (val) handleCategoryClick("context", val, `${primaryMetricShortLabel} por tema`); }}>
                                     <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
@@ -4953,8 +5713,8 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           </div>
                         </article>
                       </div>
-                      <div className="grid gap-4 md:grid-cols-2">
-                        <article className={cardBase}>
+                      <div className="grid gap-4 grid-cols-1">
+	                      <article className={cardBase}>
                           <header className="flex items-center justify-between gap-3">
                             <div className={chartHeaderTextClassName}>
                               <h2 className="text-base font-semibold text-slate-900">Tom</h2>
@@ -4962,14 +5722,14 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                             </div>
                             <Sparkles className="h-5 w-5 text-emerald-500" />
                           </header>
-                          <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
+                          <div className={useCompactContentCharts ? "mt-3" : chartHeightClassName}>
                             {loadingTone ? (
                               <p className="text-sm text-slate-500">Carregando tons...</p>
-                            ) : toneBars.length === 0 ? (
+                            ) : displayToneBars.length === 0 ? (
                               <p className="text-sm text-slate-500">Sem tons registrados no período.</p>
-                            ) : isMobileViewport ? (
+                            ) : useCompactContentCharts ? (
                               <MobileBarList
-                                items={toneBars.map((item) => ({
+                                items={displayToneBars.map((item) => ({
                                   id: item.name,
                                   label: item.name,
                                   value: item.value,
@@ -4978,18 +5738,19 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 emptyText="Sem tons registrados no período."
                                 accentClassName="bg-emerald-500"
                                 valueFormatter={(value) => numberFormatter.format(Math.round(value))}
+                                dense={isCompactBoard}
                                 onSelect={(item) => handleCategoryClick("tone", item.label, `${primaryMetricShortLabel} por tom`)}
                               />
                             ) : (
                               <ResponsiveContainer width="100%" height="100%">
                                 <BarChart
-                                  data={toneBars}
+                                  data={displayToneBars}
                                   layout="vertical"
-                                  margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
+                                  margin={{ top: 6, right: 80, left: 30, bottom: 0 }}
                                   style={{ cursor: "pointer" }}
                                 >
                                   <XAxis type="number" hide />
-                                  <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
+                                  <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={150} />
                                   <Tooltip contentStyle={tooltipStyle} />
                                   <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#10b981" radius={[0, 6, 6, 0]} onClick={(state: any) => { const val = state?.payload?.name ? String(state.payload.name) : null; if (val) handleCategoryClick("tone", val, `${primaryMetricShortLabel} por tom`); }}>
                                     <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
@@ -4998,8 +5759,8 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                               </ResponsiveContainer>
                             )}
                           </div>
-                        </article>
-                        <article className={cardBase}>
+	                      </article>
+		                      <article className={cardBase}>
                           <header className="flex items-center justify-between gap-3">
                             <div className={chartHeaderTextClassName}>
                               <h2 className="text-base font-semibold text-slate-900">Referência</h2>
@@ -5007,14 +5768,14 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                             </div>
                             <Sparkles className="h-5 w-5 text-amber-500" />
                           </header>
-                          <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
+                          <div className={useCompactContentCharts ? "mt-3" : chartHeightClassName}>
                             {loadingReference ? (
                               <p className="text-sm text-slate-500">Carregando referências...</p>
-                            ) : referenceBars.length === 0 ? (
+                            ) : displayReferenceBars.length === 0 ? (
                               <p className="text-sm text-slate-500">Sem referências registradas.</p>
-                            ) : isMobileViewport ? (
+                            ) : useCompactContentCharts ? (
                               <MobileBarList
-                                items={referenceBars.map((item) => ({
+                                items={displayReferenceBars.map((item) => ({
                                   id: item.name,
                                   label: item.name,
                                   value: item.value,
@@ -5023,18 +5784,19 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 emptyText="Sem referências registradas."
                                 accentClassName="bg-amber-500"
                                 valueFormatter={(value) => numberFormatter.format(Math.round(value))}
+                                dense={isCompactBoard}
                                 onSelect={(item) => handleCategoryClick("references", item.label, `${primaryMetricShortLabel} por referência`)}
                               />
                             ) : (
                               <ResponsiveContainer width="100%" height="100%">
                                 <BarChart
-                                  data={referenceBars}
+                                  data={displayReferenceBars}
                                   layout="vertical"
-                                  margin={{ top: 6, right: 76, left: 30, bottom: 0 }}
+                                  margin={{ top: 6, right: 80, left: 30, bottom: 0 }}
                                   style={{ cursor: "pointer" }}
                                 >
                                   <XAxis type="number" hide />
-                                  <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
+                                  <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={150} />
                                   <Tooltip contentStyle={tooltipStyle} />
                                   <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#f59e0b" radius={[0, 6, 6, 0]} onClick={(state: any) => { const val = state?.payload?.name ? String(state.payload.name) : null; if (val) handleCategoryClick("references", val, `${primaryMetricShortLabel} por referência legada`); }}>
                                     <LabelList dataKey="value" position="right" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
@@ -5054,7 +5816,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           Aqui vale olhar objetivo, jeito de contar, prova e venda.
                         </p>
                       </div>
-                      <div className="grid gap-4 md:grid-cols-2">
+                      <div className="grid gap-4 grid-cols-1">
                         {STRATEGIC_CATEGORY_CARDS.map((config) => {
                           const rowsByField: Record<CategoryCardConfig["field"], CategoryBarDatum[]> = {
                             format: [],
@@ -5076,7 +5838,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                               config={config}
                               rows={rowsByField[config.field] || []}
                               isLoading={loadingPosts}
-                              isMobileViewport={isMobileViewport}
+                              isMobileViewport={useCompactContentCharts}
                               primaryMetricShortLabel={primaryMetricShortLabel}
                               primaryMetricUnitLabel={primaryMetricUnitLabel}
                               onCategoryClick={handleCategoryClick}
@@ -5088,24 +5850,47 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                   </div>
                 )}
 
-	                {activeTab === "format" && (
-                    <div className="space-y-4">
-	                  <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+                {activeTab === "format" && isCompactBoard ? (
+                  <div className="space-y-3.5">
+                    <section className="space-y-4">
+                      {compactFormatMetricRows.map((item) => (
+                        <CompactCategoryRankingSummary
+                          key={item.key}
+                          title={item.title}
+                          rows={item.rows}
+                          loading={item.loading}
+                          visual={item.visual}
+                          icon={item.icon}
+                          emptyText={item.emptyText}
+                          onSelect={item.onSelect}
+                          valueFormatter={item.valueFormatter}
+                        />
+                      ))}
+                    </section>
+                  </div>
+                ) : null}
+
+	                {activeTab === "format" && !isCompactBoard && (
+                    <div className="space-y-3.5">
+		                      <section className="space-y-3">
+		                        <div className="rounded-[1.45rem] border border-zinc-100/90 bg-zinc-50/68 px-4 py-3">
+		                          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Padrão para repetir</p>
+		                        </div>
+	                  <div className="grid gap-4 grid-cols-1">
                       <div className="min-w-0 space-y-4">
-                      <article className={cardBase}>
+                      <article className={formatCardBase}>
                         <header className="flex items-center justify-between gap-3">
                           <div className={chartHeaderTextClassName}>
-                            <h2 className="text-base font-semibold text-slate-900">Horário</h2>
-                            {bestHour !== null && (
-                              <p className="text-xs text-emerald-700">Melhor: {bestHour}h</p>
-                            )}
-                            {timingBenchmarkEnabled && benchmarkPostingHoursLabel ? (
-                              <p className="text-xs text-slate-500">
-                                Contas parecidas costumam postar em {benchmarkPostingHoursLabel}
-                                {bestBenchmarkHourByAverage !== null ? ` • melhor faixa perto de ${bestBenchmarkHourByAverage}h` : ""}
-                              </p>
-                            ) : timingBenchmark?.cohort?.reason ? (
-                              <p className="text-xs text-slate-400">{timingBenchmark.cohort.reason}</p>
+                            <div className="flex items-center gap-2">
+                              <h2 className="text-base font-semibold text-slate-900">Horário</h2>
+                              {bestHour !== null && (
+                                <span className="inline-flex items-center rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                                  Melhor: {bestHour}h
+                                </span>
+                              )}
+                            </div>
+                            {!useCompactFormatCharts && timingBenchmark?.cohort?.reason ? (
+                              <p className="text-[11px] text-slate-400">{timingBenchmark.cohort.reason}</p>
                             ) : null}
                           </div>
                           <Clock3 className="h-5 w-5 text-emerald-500" />
@@ -5119,22 +5904,19 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 {bestHourBenchmarkStatus.label}
                               </span>
                             ) : null}
-                            {benchmarkMetaLine && !isMobileViewport ? (
+                            {benchmarkMetaLine && !useCompactFormatCharts ? (
                               <span className="inline-flex max-w-full whitespace-normal rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
                                 {benchmarkMetaLine}
                               </span>
                             ) : null}
                           </div>
                         ) : null}
-                        {isMobileViewport && benchmarkMetaLine ? (
-                          <p className="mt-2 text-xs leading-relaxed text-slate-500">{benchmarkMetaLine}</p>
-                        ) : null}
-                        <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
+                        <div className={useCompactFormatCharts ? "mt-3" : chartHeightClassName}>
                           {loadingTime ? (
                             <p className="text-sm text-slate-500">Carregando horários...</p>
                           ) : hourBars.length === 0 ? (
                             <div className="space-y-3">
-                              <p className="text-sm text-slate-500">Sem dados suficientes no período selecionado.</p>
+                              <p className="text-sm text-slate-500">Sem dados no período.</p>
                               {timePeriod !== "all_time" ? (
                                 <button
                                   type="button"
@@ -5145,16 +5927,18 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 </button>
                               ) : (
                                 <p className="text-xs text-slate-400">
-                                  Publique novos conteúdos para liberar recomendações de horário.
+                                  Publique mais para liberar leitura.
                                 </p>
                               )}
                             </div>
-                          ) : isMobileViewport ? (
+                          ) : useCompactFormatCharts ? (
                             <MobileBarList
                               items={mobileHourItems}
-                              emptyText="Sem dados suficientes no período selecionado."
+                              emptyText="Sem dados no período."
                               accentClassName="bg-sky-500"
                               valueFormatter={(value) => numberFormatter.format(Math.round(value))}
+                              dense={isCompactBoard}
+                              maxItems={isCompactBoard ? 3 : 4}
                               onSelect={(item) => {
                                 const hour = Number(item.label.replace("h", ""));
                                 if (Number.isFinite(hour)) {
@@ -5231,27 +6015,18 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                             </ResponsiveContainer>
                           )}
                         </div>
-                      </article>
-                      <article className={cardBase}>
+	                      </article>
+			                      <article className={formatCardBase}>
                         <header className="flex items-center justify-between gap-3">
                           <div className={chartHeaderTextClassName}>
-                            <h2 className="text-base font-semibold text-slate-900">Duração</h2>
-                            {bestDurationBucket ? (
-                              <p className="text-xs text-emerald-700">
-                                Melhor: {bestDurationBucket.label}
-                              </p>
-                            ) : null}
-                            {lowSampleDurationBuckets > 0 ? (
-                              <p className="text-xs text-amber-700">
-                                {lowSampleDurationBuckets} faixa(s) com base curta.
-                              </p>
-                            ) : null}
-                            {timingBenchmarkEnabled && benchmarkDurationPostingBucket ? (
-                              <p className="text-xs text-slate-500">
-                                Nesse grupo, {benchmarkDurationPostingBucket.label} aparece mais
-                                {benchmarkDurationPerformanceBucket ? ` • e ${benchmarkDurationPerformanceBucket.label} costuma responder melhor` : ""}
-                              </p>
-                            ) : null}
+                            <div className="flex items-center gap-2">
+                              <h2 className="text-base font-semibold text-slate-900">Duração</h2>
+                              {bestDurationBucket ? (
+                                <span className="inline-flex items-center rounded-md bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                                  Melhor: {bestDurationBucket.label}
+                                </span>
+                              ) : null}
+                            </div>
                           </div>
                           <LineChartIcon className="h-5 w-5 text-indigo-500" />
                         </header>
@@ -5262,29 +6037,28 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                             >
                               {bestDurationBenchmarkStatus.label}
                             </span>
-                            {benchmarkMetaLine && !isMobileViewport ? (
+                            {benchmarkMetaLine && !useCompactFormatCharts ? (
                               <span className="inline-flex max-w-full whitespace-normal rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
                                 {benchmarkMetaLine}
                               </span>
                             ) : null}
                           </div>
                         ) : null}
-                        {isMobileViewport && benchmarkMetaLine ? (
-                          <p className="mt-2 text-xs leading-relaxed text-slate-500">{benchmarkMetaLine}</p>
-                        ) : null}
-                        <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
+                        <div className={useCompactFormatCharts ? "mt-3" : chartHeightClassName}>
                           {loadingDuration ? (
                             <p className="text-sm text-slate-500">Carregando duração dos vídeos...</p>
                           ) : durationSummary.totalVideoPosts === 0 ? (
                             <p className="text-sm text-slate-500">Sem vídeos no período selecionado.</p>
                           ) : durationSummary.totalPostsWithDuration === 0 ? (
-                            <p className="text-sm text-slate-500">Sem duração suficiente para comparar faixas.</p>
-                          ) : isMobileViewport ? (
+                            <p className="text-sm text-slate-500">Sem base para comparar.</p>
+                          ) : useCompactFormatCharts ? (
                             <MobileBarList
                               items={mobileDurationItems}
-                              emptyText="Sem duração suficiente para comparar faixas."
+                              emptyText="Sem base para comparar."
                               accentClassName="bg-violet-500"
                               valueFormatter={(value) => numberFormatter.format(Math.round(value))}
+                              dense={isCompactBoard}
+                              maxItems={isCompactBoard ? 3 : undefined}
                               onSelect={(item) => {
                                 const bucket = DURATION_BUCKETS.find((entry) => entry.label === item.label);
                                 if (bucket) {
@@ -5366,182 +6140,129 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           )}
                         </div>
                       </article>
-                      <article className={cardBase}>
-                        <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <Users className="h-5 w-5 text-slate-700" />
-                              <h2 className="text-base font-semibold text-slate-900">Criadores similares</h2>
-                            </div>
-                            <p className="text-xs text-slate-500">
-                              Contas parecidas com a sua, em ranking por seguidores, para você abrir o mídia kit e entender quem compõe sua base comparativa.
-                            </p>
-                          </div>
-                          <div className="flex flex-wrap gap-2">
-                            {similarCreators?.label ? (
-                              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                                {similarCreators.label}
-                              </span>
-                            ) : null}
-                            {totalSimilarCreatorsCount > 0 ? (
-                              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                                {similarCreatorsSummaryLabel}
-                              </span>
-                            ) : null}
-                          </div>
-                        </header>
-                        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/70 p-2 sm:p-3">
-                          {loadingBatch && !chartsBatchData ? (
-                            <p className="px-2 py-8 text-sm text-slate-500">Carregando criadores similares...</p>
-                          ) : similarCreatorsEnabled ? (
-                            <div className="space-y-2">
-                              {similarCreators?.reason ? (
-                                <div className="rounded-[1rem] border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                                  {similarCreators.reason}
-                                </div>
-                              ) : null}
-                              <ol className="space-y-1">
-                                {similarCreatorItems.map((creator) => {
-                                  const creatorName = creator.name || creator.username || "Criador similar";
-                                  const creatorHandle = creator.username ? `@${creator.username}` : "Conta parecida";
-                                  return (
-                                    <li
-                                      key={creator.id}
-                                      className="flex min-w-0 flex-wrap items-center gap-3 rounded-[1.1rem] bg-white px-3 py-3 shadow-sm ring-1 ring-slate-100 sm:flex-nowrap"
-                                    >
-                                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
-                                        #{creator.rankByFollowers}
-                                      </span>
-                                      <UserAvatar
-                                        name={creatorName}
-                                        src={creator.avatarUrl || null}
-                                        size={44}
-                                        className="h-11 w-11 rounded-full ring-1 ring-slate-200"
-                                      />
-                                      <div className="min-w-0 flex-1">
-                                        <p className="truncate text-sm font-semibold text-slate-900">{creatorName}</p>
-                                        <p className="truncate text-xs text-slate-500">
-                                          {creatorHandle} • {formatCompactFollowers(creator.followers)}
-                                        </p>
-                                      </div>
-                                      {creator.mediaKitSlug ? (
-                                        <a
-                                          href={`/mediakit/${creator.mediaKitSlug}`}
-                                          target="_blank"
-                                          rel="noreferrer"
-                                          onClick={() =>
-                                            track("planning_similar_creator_mediakit_clicked", {
-                                              creator_id: activeUserId || null,
-                                              similar_creator_id: creator.id,
-                                              rank: creator.rankByFollowers,
-                                            })
-                                          }
-                                          className="inline-flex min-h-[36px] w-full items-center justify-center gap-1 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-100 sm:w-auto sm:shrink-0"
-                                        >
-                                          Mídia kit
-                                          <ExternalLink className="h-3.5 w-3.5" />
-                                        </a>
-                                      ) : (
-                                        <span className="inline-flex min-h-[36px] w-full items-center justify-center rounded-full border border-slate-200 bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-500 sm:w-auto sm:shrink-0">
-                                          Sem mídia kit
-                                        </span>
-                                      )}
-                                    </li>
-                                  );
-                                })}
-                              </ol>
-                            </div>
-                          ) : (
-                            <div className="rounded-[1.1rem] bg-white px-4 py-6 text-sm text-slate-500 shadow-sm ring-1 ring-slate-100">
-                              {similarCreators?.reason || "Ainda faltam contas parecidas suficientes para montar esse ranking."}
-                            </div>
-                          )}
-                          {canShowAffiliateInvite ? (
-                            <div className="mt-3 rounded-[1.1rem] border border-emerald-200 bg-[linear-gradient(180deg,rgba(236,253,245,0.92)_0%,rgba(255,255,255,1)_100%)] px-4 py-4 shadow-sm">
-                              <div className="flex items-start gap-3">
-                                <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
-                                  <Gift className="h-5 w-5" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <h3 className="text-sm font-semibold text-slate-900">Convide mais criadores similares</h3>
-                                  <p className="mt-1 text-xs leading-5 text-slate-600">
-                                    Traga mais contas parecidas para melhorar sua base de comparação. Se alguém entrar pelo seu link, você também pode ser remunerado por isso.
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                                <button
-                                  type="button"
-                                  onClick={handleCopyAffiliateInvite}
-                                  className="inline-flex min-h-[40px] flex-1 items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-                                >
-                                  <Copy className="h-4 w-4" />
-                                  Copiar link de convite
-                                </button>
-                                <a
-                                  href="/dashboard/afiliados"
-                                  className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                                >
-                                  Ver afiliados
-                                  <ArrowUpRight className="h-4 w-4" />
-                                </a>
-                              </div>
-                              <p className="mt-2 text-[11px] text-slate-500">
-                                Código: <span className="font-semibold text-slate-700">{viewer.affiliateCode}</span>
-                              </p>
-                              {affiliateCopyStatus === "copied" ? (
-                                <p className="mt-2 text-xs font-medium text-emerald-700">Link copiado. Você já pode compartilhar.</p>
-                              ) : affiliateCopyStatus === "error" ? (
-                                <p className="mt-2 text-xs font-medium text-amber-700">Não deu para copiar agora. Tente novamente.</p>
-                              ) : (
-                                <p className="mt-2 text-xs text-slate-500">Use esse link para aumentar a base com criadores do seu nicho.</p>
-                              )}
-                            </div>
-                          ) : null}
-                        </div>
-                      </article>
+			                      <article className={formatCardBase}>
+	                        <header className="flex items-center justify-between gap-3">
+	                          <div className={chartHeaderTextClassName}>
+	                            <h2 className="text-base font-semibold text-slate-900">Formato</h2>
+	                          </div>
+	                          <LineChartIcon className="h-5 w-5 text-amber-500" />
+	                        </header>
+	                        {timingBenchmarkEnabled ? (
+	                          <div className="mt-3 flex flex-wrap gap-2">
+	                            {formatBars.length > 0 ? (
+	                              <span
+	                                className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${benchmarkToneClassName[bestFormatBenchmarkStatus.tone]}`}
+	                              >
+	                                {bestFormatBenchmarkStatus.label}
+	                              </span>
+	                            ) : null}
+	                            {benchmarkMetaLine && !useCompactFormatCharts ? (
+	                              <span className="inline-flex max-w-full whitespace-normal rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+	                                {benchmarkMetaLine}
+	                              </span>
+	                            ) : null}
+	                          </div>
+	                        ) : null}
+	                        <div className={useCompactFormatCharts ? "mt-3" : chartHeightClassName}>
+	                          {loadingFormat ? (
+	                            <p className="text-sm text-slate-500">Carregando formatos...</p>
+	                          ) : formatBars.length === 0 ? (
+	                            <p className="text-sm text-slate-500">Sem formato no período.</p>
+	                          ) : useCompactFormatCharts ? (
+	                            <MobileBarList
+	                              items={formatBars.map((item: CategoryBarDatum) => ({
+	                                id: item.name,
+	                                label: item.name,
+	                                value: item.value,
+	                                postsCount: item.postsCount,
+	                              }))}
+	                              emptyText="Sem formato no período."
+	                              accentClassName="bg-orange-500"
+	                              valueFormatter={(value) => numberFormatter.format(Math.round(value))}
+	                              dense={isCompactBoard}
+	                              maxItems={isCompactBoard ? 3 : undefined}
+	                              onSelect={(item) => handleCategoryClick("format", item.label, `${primaryMetricShortLabel} por formato`)}
+	                            />
+	                          ) : (
+	                            <ResponsiveContainer width="100%" height="100%">
+	                              <ComposedChart
+	                                data={formatBenchmarkSeries}
+	                                margin={{ top: 20, right: 8, left: -6, bottom: 0 }}
+	                                style={{ cursor: "pointer" }}
+	                              >
+	                                <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
+	                                <YAxis hide />
+	                                <Tooltip
+	                                  contentStyle={tooltipStyle}
+	                                  labelFormatter={(label: string | number, payload: any[]) => {
+	                                    const benchmarkPostsCount = payload?.[0]?.payload?.benchmarkPostsCount ?? 0;
+	                                    return `${label}${
+	                                      timingBenchmarkEnabled && benchmarkPostsCount > 0
+	                                        ? ` • grupo: ${formatPostsCount(benchmarkPostsCount)}`
+	                                        : ""
+	                                    }`;
+	                                  }}
+	                                  formatter={(value: number, name: string) => [
+	                                    numberFormatter.format(Math.round(value)),
+	                                    name === "benchmarkAverage" ? "Linha pontilhada: média de contas parecidas com a sua" : primaryMetricUnitLabel,
+	                                  ]}
+	                                />
+	                                <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#f97316" radius={[6, 6, 0, 0]} onClick={(state: any) => { const val = state?.payload?.name ? String(state.payload.name) : null; if (val) handleCategoryClick("format", val, `${primaryMetricShortLabel} por formato`); }}>
+	                                  <LabelList dataKey="value" position="top" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
+	                                </Bar>
+	                                {canShowFormatBenchmarkLine ? (
+	                                  <Line
+	                                    type="monotone"
+	                                    dataKey="benchmarkAverage"
+	                                    name="benchmarkAverage"
+	                                    stroke="#94a3b8"
+	                                    strokeWidth={2}
+	                                    dot={false}
+	                                    strokeDasharray="4 4"
+	                                    activeDot={{ r: 3 }}
+	                                  />
+	                                ) : null}
+	                              </ComposedChart>
+	                            </ResponsiveContainer>
+	                          )}
+	                        </div>
+	                      </article>
                       </div>
+                      </div>
+                    </section>
+		                    <section className="space-y-3">
+		                      <div className="rounded-[1.45rem] border border-zinc-100/90 bg-zinc-50/68 px-4 py-3">
+		                        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Consistência e comparação</p>
+		                      </div>
                       <div className="min-w-0 space-y-4">
-                    <article className={cardBase}>
+		                      <article className={formatCardBase}>
                         <header className="flex items-center justify-between gap-3">
                           <div className={chartHeaderTextClassName}>
-                            <h2 className="text-base font-semibold text-slate-900">Semana</h2>
-                            {timingBenchmarkEnabled && benchmarkPostingWindowLabel ? (
-                              <p className="text-xs text-slate-500">
-                                Nesse grupo, a rotina aparece mais em {benchmarkPostingWindowLabel}
-                                {benchmarkPerformanceWindowLabel ? ` • e o melhor retorno vem em ${benchmarkPerformanceWindowLabel}` : ""}
-                              </p>
-                            ) : null}
+                            <h2 className="text-base font-semibold text-slate-900 leading-tight">Semana</h2>
                           </div>
                           <Clock3 className="h-5 w-5 text-indigo-500" />
                         </header>
-                        {timingBenchmarkEnabled && benchmarkMetaLine && !isMobileViewport ? (
+                        {timingBenchmarkEnabled && benchmarkMetaLine && !useCompactFormatCharts ? (
                           <div className="mt-3 flex flex-wrap gap-2">
                             <span className="inline-flex max-w-full whitespace-normal rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
                               {benchmarkMetaLine}
                             </span>
-                            <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-[11px] font-medium text-indigo-700">
-                              Contorno = horários que esse grupo mais usa
-                            </span>
                           </div>
                         ) : null}
-                        {isMobileViewport ? (
-                          <div className="mt-2 space-y-1 text-xs leading-relaxed text-slate-500">
-                            {benchmarkMetaLine ? <p>{benchmarkMetaLine}</p> : null}
-                            <p>{heatmapExecutiveSummary.text}</p>
-                          </div>
-                        ) : null}
+                        {useCompactFormatCharts ? <p className="mt-2 text-xs leading-relaxed text-slate-500">{heatmapExecutiveSummary.text}</p> : null}
                         <div className="mt-3">
                           {loadingTime ? (
                             <p className="text-sm text-slate-500">Carregando mapa de horários...</p>
                           ) : heatmap.length === 0 ? (
-                            <p className="text-sm text-slate-500">Sem dados para montar o mapa de horários.</p>
-                          ) : isMobileViewport ? (
+                            <p className="text-sm text-slate-500">Sem base para o mapa.</p>
+                          ) : useCompactFormatCharts ? (
                             <MobileBarList
                               items={mobileWeekWindowItems}
-                              emptyText="Sem dados para montar o mapa de horários."
+                              emptyText="Sem base para o mapa."
                               accentClassName="bg-indigo-500"
                               valueFormatter={(value) => `${Math.round(value)} pts`}
+                              dense={isCompactBoard}
+                              maxItems={isCompactBoard ? 3 : 6}
                               onSelect={(item) => {
                                 const match = item.id.match(/^week-(\d+)-(\d+)$/);
                                 if (!match) return;
@@ -5551,93 +6272,100 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                               }}
                             />
                           ) : (
-                            <div className="overflow-x-auto">
-                              <div className="grid min-w-[320px] grid-cols-7 gap-1 text-[11px] text-slate-500">
-                                <div />
-                                {Array.from({ length: 6 }).map((_, idx) => (
-                                  <div key={idx} className="text-center">{`${idx * 4}h`}</div>
-                                ))}
-                                {[1, 2, 3, 4, 5, 6, 7].map((dow) => (
-                                  <React.Fragment key={dow}>
-                                    <div className="pr-2 text-right">{WEEKDAY_SHORT_SUN_FIRST[dow - 1] || `Dia ${dow}`}</div>
-                                    {Array.from({ length: 6 }).map((_, hIdx) => {
-                                      const h = hIdx * 4;
-                                      const startHour = h;
-                                      const endHour = Math.min(h + 3, 23);
-                                      const windowPoints = heatmap.filter((curr) => curr.day === dow && curr.hour >= startHour && curr.hour <= endHour);
-                                      const score = windowPoints.length
-                                        ? windowPoints.reduce((sum, curr) => sum + curr.score, 0) / windowPoints.length
-                                        : 0;
-                                      const bg = `rgba(14,165,233,${0.12 + score * 0.6})`;
-                                      const isBenchmarkWindow = benchmarkTopWindowKeys.has(`${dow}:${startHour}`);
-                                      return (
-                                        <button
-                                          key={hIdx}
-                                          type="button"
-                                          className={`aspect-square rounded border transition hover:border-slate-300 ${
-                                            isBenchmarkWindow ? "border-indigo-300 ring-1 ring-indigo-200" : "border-slate-100"
-                                          }`}
-                                          style={{ background: bg }}
-                                          onClick={() => handleDayHourClick(dow, startHour, endHour, "Mapa de horários")}
-                                          aria-label={`Posts em ${WEEKDAY_LONG_SUN_FIRST[dow - 1] || `Dia ${dow}`} entre ${startHour}h e ${endHour}h`}
-                                        />
-                                      );
-                                    })}
-                                  </React.Fragment>
-                                ))}
+                            <div className="space-y-4">
+                              <div className="rounded-[1.2rem] border border-zinc-100/90 bg-zinc-50/62 p-3">
+                                <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Melhores janelas</p>
+                                <div className="mt-3">
+                                  <MobileBarList
+                                    items={mobileWeekWindowItems}
+                                    emptyText="Sem base para o mapa."
+                                    accentClassName="bg-indigo-500"
+                                    valueFormatter={(value) => `${Math.round(value)} pts`}
+                                    maxItems={3}
+                                    onSelect={(item) => {
+                                      const match = item.id.match(/^week-(\d+)-(\d+)$/);
+                                      if (!match) return;
+                                      const dow = Number(match[1]);
+                                      const startHour = Number(match[2]);
+                                      handleDayHourClick(dow, startHour, Math.min(startHour + 3, 23), "Mapa de horários");
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                              <div className="overflow-x-auto">
+                                <div className="grid min-w-[320px] grid-cols-7 gap-1 text-[11px] text-slate-500">
+                                  <div />
+                                  {Array.from({ length: 6 }).map((_, idx) => (
+                                    <div key={idx} className="text-center">{`${idx * 4}h`}</div>
+                                  ))}
+                                  {[1, 2, 3, 4, 5, 6, 7].map((dow) => (
+                                    <React.Fragment key={dow}>
+                                      <div className="pr-2 text-right">{WEEKDAY_SHORT_SUN_FIRST[dow - 1] || `Dia ${dow}`}</div>
+                                      {Array.from({ length: 6 }).map((_, hIdx) => {
+                                        const h = hIdx * 4;
+                                        const startHour = h;
+                                        const endHour = Math.min(h + 3, 23);
+                                        const windowPoints = heatmap.filter((curr) => curr.day === dow && curr.hour >= startHour && curr.hour <= endHour);
+                                        const score = windowPoints.length
+                                          ? windowPoints.reduce((sum, curr) => sum + curr.score, 0) / windowPoints.length
+                                          : 0;
+                                        const bg = `rgba(14,165,233,${0.12 + score * 0.6})`;
+                                        const isBenchmarkWindow = benchmarkTopWindowKeys.has(`${dow}:${startHour}`);
+                                        return (
+                                          <button
+                                            key={hIdx}
+                                            type="button"
+                                            className={`aspect-square rounded border transition hover:border-slate-300 ${
+                                              isBenchmarkWindow ? "border-indigo-300 ring-1 ring-indigo-200" : "border-slate-100"
+                                            }`}
+                                            style={{ background: bg }}
+                                            onClick={() => handleDayHourClick(dow, startHour, endHour, "Mapa de horários")}
+                                            aria-label={`Posts em ${WEEKDAY_LONG_SUN_FIRST[dow - 1] || `Dia ${dow}`} entre ${startHour}h e ${endHour}h`}
+                                          />
+                                        );
+                                      })}
+                                    </React.Fragment>
+                                  ))}
+                                </div>
                               </div>
                             </div>
                           )}
                         </div>
-                      </article>
-                    <article className={cardBase}>
+	                      </article>
+	                      <article className={formatCardBase}>
                         <header className="flex items-center justify-between gap-3">
                           <div className={chartHeaderTextClassName}>
                             <h2 className="text-base font-semibold text-slate-900">Cobertura de duração</h2>
                             {durationSummary.totalVideoPosts > 0 ? (
-                              <p className="text-xs text-slate-500">
-                                {(durationSummary.durationCoverageRate * 100).toFixed(0)}% dos vídeos com duração.
-                              </p>
-                            ) : null}
-                            {timingBenchmarkEnabled && benchmarkDurationPostingBucket ? (
-                              <p className="text-xs text-slate-500">
-                                Nesse grupo, {benchmarkDurationPostingBucket.label} aparece mais
-                                {topDurationUsageBucket && topDurationUsageBucket.label !== benchmarkDurationPostingBucket.label
-                                  ? ` • no seu perfil, ${topDurationUsageBucket.label} aparece mais`
-                                  : ""}
-                              </p>
+                              <p className="text-xs text-slate-500">{(durationSummary.durationCoverageRate * 100).toFixed(0)}% lidos</p>
                             ) : null}
                           </div>
                           <Clock3 className="h-5 w-5 text-cyan-500" />
                         </header>
-                            {timingBenchmarkEnabled && benchmarkMetaLine && !isMobileViewport ? (
+                            {timingBenchmarkEnabled && benchmarkMetaLine && !useCompactFormatCharts ? (
                           <div className="mt-3 flex flex-wrap gap-2">
                             <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
                               {benchmarkMetaLine}
                             </span>
-                            <span className="inline-flex items-center rounded-full border border-cyan-200 bg-cyan-50 px-2.5 py-1 text-[11px] font-medium text-cyan-700">
-                              Linha pontilhada = % dos videos desse grupo
-                            </span>
                           </div>
                         ) : null}
-                        {isMobileViewport && benchmarkMetaLine ? (
-                          <p className="mt-2 text-xs leading-relaxed text-slate-500">{benchmarkMetaLine}</p>
-                        ) : null}
-                        <div className={isMobileViewport ? "mt-3" : chartCompactHeightClassName}>
+                        <div className={useCompactFormatCharts ? "mt-3" : chartCompactHeightClassName}>
                           {loadingDuration ? (
                             <p className="text-sm text-slate-500">Carregando duração dos vídeos...</p>
                           ) : durationSummary.totalVideoPosts === 0 ? (
                             <p className="text-sm text-slate-500">Sem vídeos no período selecionado.</p>
                           ) : durationSummary.totalPostsWithDuration === 0 ? (
                             <p className="text-sm text-slate-500">
-                              Ainda não conseguimos ler a duração dos vídeos deste período.
+                              Leitura de duração indisponível.
                             </p>
-                          ) : isMobileViewport ? (
+                          ) : useCompactFormatCharts ? (
                             <MobileBarList
                               items={mobileDurationCoverageItems}
-                              emptyText="Ainda não conseguimos ler a duração dos vídeos deste período."
+                              emptyText="Leitura de duração indisponível."
                               accentClassName="bg-cyan-500"
                               valueFormatter={(value) => formatPercentLabel(value)}
+                              dense={isCompactBoard}
+                              maxItems={isCompactBoard ? 3 : undefined}
                               onSelect={(item) => {
                                 const bucket = DURATION_BUCKETS.find((entry) => entry.label === item.label);
                                 if (bucket) {
@@ -5706,115 +6434,142 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           )}
                         </div>
                       </article>
-                      <article className={cardBase}>
-                        <header className="flex items-center justify-between gap-3">
-                          <div className={chartHeaderTextClassName}>
-                            <h2 className="text-base font-semibold text-slate-900">Formato</h2>
-                            {timingBenchmarkEnabled && benchmarkTopFormatByPosts ? (
-                              <p className="text-xs text-slate-500">
-                                {benchmarkTopFormatByAverage && benchmarkTopFormatByAverage === benchmarkTopFormatByPosts
-                                  ? `Nesse grupo, ${benchmarkTopFormatByPosts} domina em volume e resultado.`
-                                  : `Nesse grupo, ${benchmarkTopFormatByPosts} aparece mais${
-                                      benchmarkTopFormatByAverage ? ` • ${benchmarkTopFormatByAverage} costuma ir melhor` : ""
-                                    }`}
-                              </p>
-                            ) : null}
-                          </div>
-                          <LineChartIcon className="h-5 w-5 text-amber-500" />
-                        </header>
-                        {timingBenchmarkEnabled ? (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {formatBars.length > 0 ? (
-                              <span
-                                className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-semibold ${benchmarkToneClassName[bestFormatBenchmarkStatus.tone]}`}
-                              >
-                                {bestFormatBenchmarkStatus.label}
-                              </span>
-                            ) : null}
-                            {benchmarkMetaLine && !isMobileViewport ? (
-                              <span className="inline-flex max-w-full whitespace-normal rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                                {benchmarkMetaLine}
-                              </span>
-                            ) : null}
-                          </div>
-                        ) : null}
-                        {isMobileViewport && benchmarkMetaLine ? (
-                          <p className="mt-2 text-xs leading-relaxed text-slate-500">{benchmarkMetaLine}</p>
-                        ) : null}
-                        <div className={isMobileViewport ? "mt-3" : chartHeightClassName}>
-                          {loadingFormat ? (
-                            <p className="text-sm text-slate-500">Carregando formatos...</p>
-                          ) : formatBars.length === 0 ? (
-                            <p className="text-sm text-slate-500">Sem dados de formato neste período.</p>
-                          ) : isMobileViewport ? (
-                            <MobileBarList
-                              items={formatBars.map((item: CategoryBarDatum) => ({
-                                id: item.name,
-                                label: item.name,
-                                value: item.value,
-                                postsCount: item.postsCount,
-                                helper: timingBenchmarkEnabled
-                                  ? `Grupo: ${numberFormatter.format(Math.round((formatBenchmarkSeries.find((entry) => entry.name === item.name)?.benchmarkAverage ?? 0)))}`
-                                  : null,
-                              }))}
-                              emptyText="Sem dados de formato neste período."
-                              accentClassName="bg-orange-500"
-                              valueFormatter={(value) => numberFormatter.format(Math.round(value))}
-                              onSelect={(item) => handleCategoryClick("format", item.label, `${primaryMetricShortLabel} por formato`)}
-                            />
-                          ) : (
-                            <ResponsiveContainer width="100%" height="100%">
-                              <ComposedChart
-                                data={formatBenchmarkSeries}
-                                margin={{ top: 20, right: 8, left: -6, bottom: 0 }}
-                                style={{ cursor: "pointer" }}
-                              >
-                                <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: "#94a3b8", fontSize: 12 }} />
-                                <YAxis hide />
-                                <Tooltip
-                                  contentStyle={tooltipStyle}
-                                  labelFormatter={(label: string | number, payload: any[]) => {
-                                    const benchmarkPostsCount = payload?.[0]?.payload?.benchmarkPostsCount ?? 0;
-                                    return `${label}${
-                                      timingBenchmarkEnabled && benchmarkPostsCount > 0
-                                        ? ` • grupo: ${formatPostsCount(benchmarkPostsCount)}`
-                                        : ""
-                                    }`;
-                                  }}
-                                  formatter={(value: number, name: string) => [
-                                    numberFormatter.format(Math.round(value)),
-                                    name === "benchmarkAverage" ? "Linha pontilhada: média de contas parecidas com a sua" : primaryMetricUnitLabel,
-                                  ]}
-                                />
-                                <Bar dataKey="value" name={primaryMetricUnitLabel} fill="#f97316" radius={[6, 6, 0, 0]} onClick={(state: any) => { const val = state?.payload?.name ? String(state.payload.name) : null; if (val) handleCategoryClick("format", val, `${primaryMetricShortLabel} por formato`); }}>
-                                  <LabelList dataKey="value" position="top" formatter={(v: number) => numberFormatter.format(Math.round(v))} fill="#64748b" fontSize={11} />
-                                </Bar>
-                                {canShowFormatBenchmarkLine ? (
-                                  <Line
-                                    type="monotone"
-                                    dataKey="benchmarkAverage"
-                                    name="benchmarkAverage"
-                                    stroke="#94a3b8"
-                                    strokeWidth={2}
-                                    dot={false}
-                                    strokeDasharray="4 4"
-                                    activeDot={{ r: 3 }}
-                                  />
-                                ) : null}
-                              </ComposedChart>
-                            </ResponsiveContainer>
-                          )}
-                        </div>
-                      </article>
-                    </div>
-                  </div>
-                  </div>
-                )}
+			                      <article className={formatCardBase}>
+			                        <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+			                          <div className="space-y-1">
+			                            <div className="flex items-center gap-2">
+			                              <Users className="h-5 w-5 text-slate-700" />
+		                              <h2 className="text-base font-semibold text-slate-900">Criadores similares</h2>
+		                            </div>
+		                          </div>
+	                          <div className="flex flex-wrap gap-2">
+	                            {totalSimilarCreatorsCount > 0 ? (
+	                              <span className="inline-flex items-center rounded-full border border-zinc-200/80 bg-zinc-50/78 px-2.5 py-1 text-[11px] font-medium text-slate-600">
+	                                {similarCreatorsSummaryLabel}
+	                              </span>
+	                            ) : null}
+	                          </div>
+	                        </header>
+	                        <div className="mt-4 rounded-[1.35rem] border border-zinc-100/90 bg-zinc-50/56 p-2 sm:p-3">
+	                          {loadingBatch && !chartsBatchData ? (
+	                            <p className="px-2 py-8 text-sm text-slate-500">Carregando base...</p>
+	                          ) : similarCreatorsEnabled ? (
+	                            <div className="space-y-2">
+	                              {similarCreators?.reason ? (
+	                                <div className="rounded-[1rem] border border-amber-200/80 bg-amber-50/78 px-3 py-2 text-xs text-amber-800">
+	                                  {similarCreators.reason}
+	                                </div>
+	                              ) : null}
+	                              <ol className="space-y-1">
+	                                {similarCreatorItems.map((creator) => {
+	                                  const creatorName = creator.name || creator.username || "Criador similar";
+	                                  const creatorHandle = creator.username ? `@${creator.username}` : "Conta parecida";
+	                                  return (
+	                                    <li
+	                                      key={creator.id}
+	                                      className="flex min-w-0 flex-wrap items-center gap-3 rounded-[1.1rem] border border-zinc-100/90 bg-zinc-50/72 px-3 py-3 sm:flex-nowrap"
+	                                    >
+	                                      <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-xs font-semibold text-white">
+	                                        #{creator.rankByFollowers}
+	                                      </span>
+	                                      <UserAvatar
+	                                        name={creatorName}
+	                                        src={creator.avatarUrl || null}
+	                                        size={44}
+	                                        className="h-11 w-11 rounded-full ring-1 ring-slate-200"
+	                                      />
+	                                      <div className="min-w-0 flex-1">
+	                                        <p className="truncate text-sm font-semibold text-slate-900">{creatorName}</p>
+	                                        <p className="truncate text-xs text-slate-500">
+	                                          {creatorHandle} • {formatCompactFollowers(creator.followers)}
+	                                        </p>
+	                                      </div>
+	                                      {creator.mediaKitSlug ? (
+	                                        <a
+	                                          href={`/mediakit/${creator.mediaKitSlug}`}
+	                                          target="_blank"
+	                                          rel="noreferrer"
+	                                          onClick={() =>
+	                                            track("planning_similar_creator_mediakit_clicked", {
+	                                              creator_id: activeUserId || null,
+	                                              similar_creator_id: creator.id,
+	                                              rank: creator.rankByFollowers,
+	                                            })
+	                                          }
+	                                        className="inline-flex min-h-[36px] w-full items-center justify-center gap-1 rounded-full border border-zinc-200/80 bg-white/84 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-zinc-300 hover:bg-white sm:w-auto sm:shrink-0"
+	                                        >
+	                                          Mídia kit
+	                                          <ExternalLink className="h-3.5 w-3.5" />
+	                                        </a>
+	                                      ) : (
+	                                        <span className="inline-flex min-h-[36px] w-full items-center justify-center rounded-full border border-zinc-200/80 bg-zinc-50/68 px-3 py-1.5 text-xs font-medium text-slate-500 sm:w-auto sm:shrink-0">
+	                                          Sem mídia kit
+	                                        </span>
+	                                      )}
+	                                    </li>
+	                                  );
+	                                })}
+	                              </ol>
+	                            </div>
+	                          ) : (
+	                            <div className="rounded-[1.1rem] border border-zinc-100/90 bg-white/76 px-4 py-6 text-sm text-slate-500">
+	                              {similarCreators?.reason || "Ainda faltam contas parecidas suficientes para montar esse ranking."}
+	                            </div>
+	                          )}
+	                          {canShowAffiliateInvite ? (
+	                            <div className="mt-3 rounded-[1.1rem] border border-emerald-200/80 bg-[linear-gradient(180deg,rgba(236,253,245,0.62)_0%,rgba(255,255,255,0.92)_100%)] px-4 py-4">
+	                              <div className="flex items-start gap-3">
+	                                <div className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
+	                                  <Gift className="h-5 w-5" />
+	                                </div>
+		                                <div className="min-w-0 flex-1">
+		                                  <h3 className="text-sm font-semibold text-slate-900">Convide pares</h3>
+		                                  <p className="mt-1 text-xs leading-5 text-slate-600">
+		                                    Amplie sua base com o seu link.
+		                                  </p>
+		                                </div>
+	                              </div>
+	                              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+	                                <button
+	                                  type="button"
+	                                  onClick={handleCopyAffiliateInvite}
+	                                  className="inline-flex min-h-[40px] flex-1 items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-black"
+	                                >
+	                                  <Copy className="h-4 w-4" />
+	                                  Copiar link de convite
+	                                </button>
+	                                <a
+	                                  href="/dashboard/afiliados"
+	                                  className="inline-flex min-h-[40px] items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white/84 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-white"
+	                                >
+	                                  Ver afiliados
+	                                  <ArrowUpRight className="h-4 w-4" />
+	                                </a>
+	                              </div>
+		                              <p className="mt-2 text-[11px] text-slate-500">
+		                                Código: <span className="font-semibold text-slate-700">{viewer?.affiliateCode ?? "—"}</span>
+		                              </p>
+		                              {affiliateCopyStatus === "copied" ? (
+		                                <p className="mt-2 text-xs font-medium text-emerald-700">Link copiado. Você já pode compartilhar.</p>
+		                              ) : affiliateCopyStatus === "error" ? (
+		                                <p className="mt-2 text-xs font-medium text-amber-700">Não deu para copiar agora. Tente novamente.</p>
+		                              ) : null}
+		                            </div>
+	                          ) : null}
+	                        </div>
+	                      </article>
+	                    </div>
+	                  </section>
+	                </div>
+	                  )}
 
-		                {activeTab === "audience" && (
+			                {activeTab === "audience" && (
 		                  <div className="space-y-4">
-		                    <section>
-		                    <div className="grid items-start gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+		                    <section className="space-y-3">
+                          <div className="rounded-[1.45rem] border border-zinc-100/90 bg-zinc-50/68 px-4 py-3">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Leitura da audiência</p>
+                          </div>
+		                    <div className="grid items-start gap-4 grid-cols-1">
 		                      <article className={cardBase}>
 		                        <header className="flex items-center justify-between gap-3">
 		                          <div className={chartHeaderTextClassName}>
@@ -5883,10 +6638,10 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
 		                                  />
 		                                </ScatterChart>
 		                              </ResponsiveContainer>
-                                  <div className="pointer-events-none absolute left-2 top-2 rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-slate-600 shadow-sm">
+                                  <div className="pointer-events-none absolute left-2 top-2 rounded-full border border-zinc-100/90 bg-white/82 px-2 py-1 text-[10px] font-semibold text-slate-600">
                                     Mais resposta
                                   </div>
-                                  <div className="pointer-events-none absolute bottom-0 right-2 rounded-full bg-white/90 px-2 py-1 text-[10px] font-semibold text-slate-600 shadow-sm">
+                                  <div className="pointer-events-none absolute bottom-0 right-2 rounded-full border border-zinc-100/90 bg-white/82 px-2 py-1 text-[10px] font-semibold text-slate-600">
                                     Mais alcance
                                   </div>
                                 </div>
@@ -5900,7 +6655,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                     key={item.id}
                                     type="button"
                                     onClick={() => handlePlayVideo(item.post)}
-                                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-left"
+                                    className="w-full rounded-xl border border-zinc-100/90 bg-zinc-50/72 px-3 py-2.5 text-left"
                                   >
                                     <p className="text-sm font-semibold text-slate-900">{item.label}</p>
                                     <p className="mt-1 text-xs text-slate-500">{item.helper}</p>
@@ -5910,23 +6665,26 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                             ) : null}
 		                      </article>
 		                      <div className="space-y-3">
-                          <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Leitura</p>
-                            <p className="mt-2 text-sm leading-relaxed text-slate-700">{strategyMatrix.summary}</p>
-                          </article>
-		                      <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-		                        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Como usar</p>
-		                        <div className="mt-3 grid gap-2 text-sm text-slate-700">
-		                          <div className="rounded-xl bg-slate-50 px-3 py-2"><strong className="text-slate-900">Azul escuro:</strong> repetir.</div>
-		                          <div className="rounded-xl bg-slate-50 px-3 py-2"><strong className="text-slate-900">Azul claro:</strong> atrai, mas pede ajuste de mensagem.</div>
-		                          <div className="rounded-xl bg-slate-50 px-3 py-2"><strong className="text-slate-900">Verde:</strong> responde bem, mas precisa de mais alcance.</div>
-		                        </div>
-		                      </article>
-                        </div>
-                    </div>
+                            <article className="rounded-[1.45rem] border border-zinc-100/90 bg-zinc-50/68 p-4">
+                              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Leitura</p>
+                              <p className="mt-2 text-[13px] leading-relaxed text-slate-700">{strategyMatrix.summary}</p>
+                            </article>
+                            <article className="rounded-[1.45rem] border border-zinc-100/90 bg-zinc-50/68 p-3.5">
+                              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Legenda</p>
+                              <div className="mt-2.5 flex flex-wrap gap-2 text-xs text-slate-700">
+                                <div className="rounded-lg border border-zinc-100/90 bg-zinc-50/74 px-2 py-1.5"><strong className="text-slate-900 font-bold">Azul escuro:</strong> repetir.</div>
+                                <div className="rounded-lg border border-zinc-100/90 bg-zinc-50/74 px-2 py-1.5"><strong className="text-slate-900 font-bold">Azul claro:</strong> atrai, mas pede ajuste.</div>
+                                <div className="rounded-lg border border-zinc-100/90 bg-zinc-50/74 px-2 py-1.5"><strong className="text-slate-900 font-bold">Verde:</strong> bom retorno, precisa alcance.</div>
+                              </div>
+                            </article>
+                          </div>
+		                    </div>
                     </section>
-                    <section>
-                    <section className={cardBase}>
+                    <section className="space-y-3">
+                      <div className="rounded-[1.45rem] border border-zinc-100/90 bg-zinc-50/68 px-4 py-3">
+                        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Posts de descoberta</p>
+                      </div>
+                    <section className={audienceCardBase}>
                       <header className="flex items-center justify-between gap-3">
                         <div className={chartHeaderTextClassName}>
                           <h3 className="text-base font-semibold text-slate-900">Posts de descoberta</h3>
@@ -5940,9 +6698,12 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                       )}
                     </section>
                     </section>
-		                    <section>
-		                    <section className="grid items-start gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-		                      <article className={cardBase}>
+		                    <section className="space-y-3">
+                          <div className="rounded-[1.45rem] border border-zinc-100/90 bg-zinc-50/68 px-4 py-3">
+                            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Evolução e sinais</p>
+                          </div>
+		                    <section className="grid items-start gap-4 grid-cols-1">
+		                      <article className={audienceCardBase}>
                         <header className="flex items-center justify-between gap-3">
                           <div className={chartHeaderTextClassName}>
                             <h2 className="text-base font-semibold text-slate-900">Evolução</h2>
@@ -5950,25 +6711,25 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           <Sparkles className="h-5 w-5 text-indigo-500" />
                         </header>
                         {isMobileViewport ? (
-                          <div className="mt-3 grid grid-cols-3 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                          <div className="mt-3 grid grid-cols-3 gap-2 rounded-2xl border border-zinc-100/90 bg-zinc-50/72 p-1">
                             <button
                               type="button"
                               onClick={() => setMobileAudienceTrendMetric("reach")}
-                              className={`rounded-xl px-2 py-2 text-[11px] font-bold ${mobileAudienceTrendMetric === "reach" ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200" : "text-slate-500"}`}
+                              className={`rounded-xl px-2 py-2 text-[11px] font-bold ${mobileAudienceTrendMetric === "reach" ? "bg-white text-indigo-600 ring-1 ring-zinc-100/90" : "text-slate-500"}`}
                             >
                               Alcance
                             </button>
                             <button
                               type="button"
                               onClick={() => setMobileAudienceTrendMetric("interactions")}
-                              className={`rounded-xl px-2 py-2 text-[11px] font-bold ${mobileAudienceTrendMetric === "interactions" ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200" : "text-slate-500"}`}
+                              className={`rounded-xl px-2 py-2 text-[11px] font-bold ${mobileAudienceTrendMetric === "interactions" ? "bg-white text-indigo-600 ring-1 ring-zinc-100/90" : "text-slate-500"}`}
                             >
                               Interações
                             </button>
                             <button
                               type="button"
                               onClick={() => setMobileAudienceTrendMetric("response")}
-                              className={`rounded-xl px-2 py-2 text-[11px] font-bold ${mobileAudienceTrendMetric === "response" ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200" : "text-slate-500"}`}
+                              className={`rounded-xl px-2 py-2 text-[11px] font-bold ${mobileAudienceTrendMetric === "response" ? "bg-white text-indigo-600 ring-1 ring-zinc-100/90" : "text-slate-500"}`}
                             >
                               Resposta
                             </button>
@@ -6079,7 +6840,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           )}
                         </div>
                       </article>
-                      <article className={`${cardBase} ${isMobileViewport ? "hidden" : ""}`}>
+                      <article className={`${audienceCardBase} ${isMobileViewport ? "hidden" : ""}`}>
                         <header className="flex items-center justify-between gap-3">
                           <div className={chartHeaderTextClassName}>
                             <h2 className="text-base font-semibold text-slate-900">Resposta</h2>
@@ -6111,8 +6872,8 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                         </div>
                       </article>
                     </section>
-                    <section className="grid gap-3 lg:grid-cols-3">
-	                      <article className={cardBase}>
+                    <section className="grid gap-3 grid-cols-1">
+	                      <article className={audienceCardBase}>
 	                        <header className="flex items-center justify-between gap-3">
 	                          <div className={chartHeaderTextClassName}>
 	                            <h2 className="text-base font-semibold text-slate-900">
@@ -6122,18 +6883,18 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
 	                          <LineChartIcon className={`h-5 w-5 ${isMobileViewport && mobileDepthMetric === "comments" ? "text-indigo-500" : "text-rose-500"}`} />
 	                        </header>
                         {isMobileViewport ? (
-                          <div className="mt-3 grid grid-cols-2 gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-1">
+                          <div className="mt-3 grid grid-cols-2 gap-2 rounded-2xl border border-zinc-100/90 bg-zinc-50/72 p-1">
                             <button
                               type="button"
                               onClick={() => setMobileDepthMetric("saves")}
-                              className={`rounded-xl px-2 py-2 text-[11px] font-bold ${mobileDepthMetric === "saves" ? "bg-white text-rose-600 shadow-sm ring-1 ring-slate-200" : "text-slate-500"}`}
+                              className={`rounded-xl px-2 py-2 text-[11px] font-bold ${mobileDepthMetric === "saves" ? "bg-white text-rose-600 ring-1 ring-zinc-100/90" : "text-slate-500"}`}
                             >
                               Salvamentos
                             </button>
                             <button
                               type="button"
                               onClick={() => setMobileDepthMetric("comments")}
-                              className={`rounded-xl px-2 py-2 text-[11px] font-bold ${mobileDepthMetric === "comments" ? "bg-white text-indigo-600 shadow-sm ring-1 ring-slate-200" : "text-slate-500"}`}
+                              className={`rounded-xl px-2 py-2 text-[11px] font-bold ${mobileDepthMetric === "comments" ? "bg-white text-indigo-600 ring-1 ring-zinc-100/90" : "text-slate-500"}`}
                             >
                               Comentários
                             </button>
@@ -6210,7 +6971,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
 	                          )}
 	                        </div>
 	                      </article>
-	                      <article className={`${cardBase} ${isMobileViewport ? "hidden" : ""}`}>
+	                      <article className={`${audienceCardBase} ${isMobileViewport ? "hidden" : ""}`}>
                         <header className="flex items-center justify-between gap-3">
                           <div className={chartHeaderTextClassName}>
                             <h2 className="text-base font-semibold text-slate-900">Comentários</h2>
@@ -6255,7 +7016,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                           )}
                         </div>
                       </article>
-                      <article className={cardBase}>
+	                      <article className={audienceCardBase}>
                         <header className="flex items-center justify-between gap-3">
                           <div className={chartHeaderTextClassName}>
                             <h2 className="text-base font-semibold text-slate-900">Compartilhamentos</h2>
@@ -6288,7 +7049,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                                 style={{ cursor: "pointer" }}
                               >
                                 <XAxis type="number" hide />
-                                <YAxis type="category" dataKey="format" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={140} />
+                                <YAxis type="category" dataKey="format" tickLine={false} axisLine={false} tick={{ fill: "#475569", fontSize: 12 }} width={150} />
                                 <Tooltip contentStyle={tooltipStyle} />
                                 <Bar dataKey="sharesPerThousand" name="Compartilhamentos" fill="#0ea5e9" radius={[0, 6, 6, 0]} onClick={(state: any) => { const val = state?.payload?.format ? String(state.payload.format) : null; if (val) handleCategoryClick("format", val, "Compartilhamentos por formato"); }}>
                                   <LabelList dataKey="sharesPerThousand" position="right" formatter={(v: number) => v.toFixed(1)} fill="#64748b" fontSize={11} />
@@ -6304,7 +7065,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 )}
               </>
             ) : (
-              <section className="grid gap-4 md:grid-cols-2">
+                <section className="grid gap-4 grid-cols-1">
                 {[0, 1].map((index) => (
                   <article key={index} className={cardBase}>
                     <div className="h-[340px] animate-pulse rounded-xl bg-slate-100/80" />
@@ -6312,9 +7073,9 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 ))}
               </section>
             )}
+            </div>
           </div>
-        </div>
-      </main>
+        </Board>
       <Drawer
         open={Boolean(selectedRecommendation)}
         onClose={closeRecommendationEvidence}
@@ -6357,7 +7118,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-4">
+              <section className="rounded-2xl border border-zinc-100/90 bg-white/78 p-3.5 sm:p-4">
                 <div className="mb-2 flex items-center gap-2">
                   <Database className="h-4 w-4 text-indigo-500" />
                   <h4 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Por que fazer isso</h4>
@@ -6375,11 +7136,11 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                   </p>
                 ) : null}
                 <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
-                  <div className="rounded-xl bg-slate-50 px-3 py-2">
+                  <div className="rounded-xl border border-zinc-100/90 bg-zinc-50/72 px-3 py-2">
                     <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Métrica</p>
                     <p className="mt-1 text-sm font-medium text-slate-900">{selectedRecommendation.metricLabel || primaryMetricLabel}</p>
                   </div>
-                  <div className="rounded-xl bg-slate-50 px-3 py-2">
+                  <div className="rounded-xl border border-zinc-100/90 bg-zinc-50/72 px-3 py-2">
                     <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Período</p>
                     <p className="mt-1 text-sm font-medium text-slate-900">{selectedRecommendation.timeWindowLabel || periodLabel}</p>
                   </div>
@@ -6387,9 +7148,9 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               </section>
 
               {selectedRecommendationView?.feedbackUpdatedAt ? (
-                <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-4">
+                <section className="rounded-2xl border border-zinc-100/90 bg-white/78 p-3.5 sm:p-4">
                   <div className="flex items-start gap-3">
-                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500">
+                    <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-100/90 bg-zinc-50/72 text-slate-500">
                       <Clock3 className="h-4 w-4" />
                     </div>
                     <div className="space-y-1">
@@ -6415,7 +7176,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 </section>
               ) : null}
 
-              <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-4">
+              <section className="rounded-2xl border border-zinc-100/90 bg-white/78 p-3.5 sm:p-4">
                 <div className="mb-3 flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-indigo-400" />
                   <h4 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Por que isso faz sentido</h4>
@@ -6437,7 +7198,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                     <p className="text-xs text-slate-500">+{selectedRecommendation.evidence.length - 2} observações a mais no detalhe completo.</p>
                   ) : null}
                   {directioningSummary?.compositeConfidence?.factors?.length ? (
-                    <div className="border-t border-slate-100 pt-3">
+                    <div className="border-t border-zinc-100/90 pt-3">
                       <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Também entrou</p>
                       <p className="mt-1.5 text-sm leading-relaxed text-slate-700">
                         {directioningSummary.compositeConfidence.factors
@@ -6449,7 +7210,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                     </div>
                   ) : null}
                   {selectedRecommendationView?.hasLowSampleGuardrail ? (
-                    <div className="rounded-xl border border-amber-200 bg-amber-50/80 px-3 py-2.5">
+                    <div className="rounded-xl border border-amber-200/80 bg-amber-50/72 px-3 py-2.5">
                       <div className="flex items-start gap-2">
                         <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
                         <p className="text-xs font-medium leading-relaxed text-amber-800">
@@ -6462,17 +7223,17 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               </section>
 
               {selectedRecommendation.experimentPlan ? (
-                <section className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-4">
+                <section className="rounded-2xl border border-zinc-100/90 bg-white/78 p-3.5 sm:p-4">
                   <div className="mb-3 flex items-center gap-2">
                     <Sparkles className="h-4 w-4 text-indigo-500" />
                     <h4 className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">Como validar</h4>
                   </div>
                   <div className="grid gap-2 sm:grid-cols-2">
-                    <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+                    <div className="rounded-xl border border-zinc-100/90 bg-zinc-50/72 px-3 py-2.5">
                       <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Sinal de que deu certo</p>
                       <p className="mt-1 text-sm leading-relaxed text-slate-700">{selectedRecommendation.experimentPlan.successSignal}</p>
                     </div>
-                    <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+                    <div className="rounded-xl border border-zinc-100/90 bg-zinc-50/72 px-3 py-2.5">
                       <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Quantos posts</p>
                       <p className="mt-1 text-sm leading-relaxed text-slate-700">{selectedRecommendation.experimentPlan.sampleGoal}</p>
                     </div>
@@ -6481,7 +7242,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
               ) : null}
             </div>
 
-            <div className="sticky bottom-0 z-10 -mx-1 border-t border-slate-200 bg-white/95 px-1 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] pt-3 backdrop-blur">
+            <div className="sticky bottom-0 z-10 -mx-1 border-t border-zinc-100/90 bg-white/88 px-1 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] pt-3 backdrop-blur">
               <div className="mx-auto max-w-lg space-y-2">
                 <p className="text-center text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">Marcar</p>
                 <div className="flex items-center gap-2">
@@ -6490,8 +7251,8 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                     disabled={selectedRecommendationFeedbackLoading}
                     onClick={() => submitRecommendationFeedback(selectedRecommendation, "applied")}
                     className={`flex min-h-[38px] flex-1 items-center justify-center rounded-xl border text-sm font-semibold transition ${selectedRecommendationView?.feedbackStatus === "applied"
-                      ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                      ? "border-emerald-300 bg-emerald-50/78 text-emerald-700"
+                      : "border-zinc-200/80 bg-white/82 text-slate-700 hover:border-zinc-300 hover:bg-zinc-50/82"
                       } ${selectedRecommendationFeedbackLoading ? "cursor-not-allowed opacity-60" : ""}`}
                   >
                     <span className="mr-1.5 text-base leading-none">{selectedRecommendationView?.feedbackStatus === "applied" ? "✅" : "👍"}</span>
@@ -6502,8 +7263,8 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                     disabled={selectedRecommendationFeedbackLoading}
                     onClick={() => submitRecommendationFeedback(selectedRecommendation, "not_applied")}
                     className={`flex min-h-[38px] flex-1 items-center justify-center rounded-xl border text-sm font-semibold transition ${selectedRecommendationView?.feedbackStatus === "not_applied"
-                      ? "border-amber-300 bg-amber-50 text-amber-700"
-                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+                      ? "border-amber-300 bg-amber-50/78 text-amber-700"
+                      : "border-zinc-200/80 bg-white/82 text-slate-700 hover:border-zinc-300 hover:bg-zinc-50/82"
                       } ${selectedRecommendationFeedbackLoading ? "cursor-not-allowed opacity-60" : ""}`}
                   >
                     <span className="mr-1.5 text-base leading-none">{selectedRecommendationView?.feedbackStatus === "not_applied" ? "❌" : "👎"}</span>
@@ -6513,7 +7274,7 @@ export default function PlanningChartsPage({ viewer }: { viewer: ViewerInfo }) {
                 <button
                   type="button"
                   onClick={() => handleGoToPlanner("recommendation_drawer")}
-                  className="flex min-h-[36px] w-full items-center justify-center rounded-xl bg-slate-900 text-sm font-semibold text-white transition hover:bg-slate-800"
+                  className="flex min-h-[36px] w-full items-center justify-center rounded-xl bg-zinc-900 text-sm font-semibold text-white transition hover:bg-black"
                 >
                   Ir para roteiros
                 </button>

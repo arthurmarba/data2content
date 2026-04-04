@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import SidebarNav from "./SidebarNav";
+import ActivationPendingWidget from "./activation/ActivationPendingWidget";
 import Header from "../../components/Header";
 import InstagramReconnectBanner from "./InstagramReconnectBanner";
 import TrialBanner from "./TrialBanner";
@@ -21,22 +22,36 @@ type DashboardShellProps = {
 
 export default function DashboardShell({ children }: DashboardShellProps) {
   React.useEffect(() => {
-    if (typeof document === "undefined") return;
+    if (typeof document === "undefined" || typeof window === "undefined") return;
     const body = document.body;
+    const html = document.documentElement;
     const prevOverflow = body.style.overflow;
     const prevTouch = body.style.touchAction;
-    body.style.overflow = "";
+    const prevHtmlOverflow = html.style.overflow;
     body.style.touchAction = "";
+
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const syncOverflow = () => {
+      const overflowValue = mediaQuery.matches ? "hidden" : "";
+      body.style.overflow = overflowValue;
+      html.style.overflow = overflowValue;
+    };
+
+    syncOverflow();
+    mediaQuery.addEventListener?.("change", syncOverflow);
+
     return () => {
       body.style.overflow = prevOverflow;
       body.style.touchAction = prevTouch;
+      html.style.overflow = prevHtmlOverflow;
+      mediaQuery.removeEventListener?.("change", syncOverflow);
     };
   }, []);
 
   return (
     <SidebarProvider>
       <HeaderProvider>
-        <div className="relative w-full bg-white min-h-screen overflow-x-hidden">
+        <div className="dashboard-skin dashboard-shell-canvas relative h-screen min-h-0 w-full overflow-hidden">
           <LayoutContent>{children}</LayoutContent>
         </div>
       </HeaderProvider>
@@ -46,12 +61,12 @@ export default function DashboardShell({ children }: DashboardShellProps) {
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isCollapsed, toggleSidebar } = useSidebar();
+  const { config: activeHeaderConfig } = useHeaderConfig();
   const overlayIgnoreUntilRef = React.useRef(0);
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const printParam = searchParams?.get("print");
   const isPrintMode = printParam === "1" || printParam === "true";
-  const { config: headerConfig } = useHeaderConfig();
 
   const matchPath = (base: string) => pathname === base || pathname.startsWith(`${base}/`);
 
@@ -82,6 +97,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     return {
       showSidebarToggle: !isGuidedFlow,
       showUserMenu: !isGuidedFlow,
+      hideBrandLogoOnMobile: true,
       sticky: true,
       variant,
       contentTopPadding: undefined,
@@ -91,9 +107,21 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   useHeaderSetup(layoutHeaderConfig, [hasPageOverride, isGuidedFlow]);
 
   useEffect(() => {
-    if (!isGeminiHeaderPage) {
-      document.documentElement.style.setProperty("--header-h", "4rem");
-    }
+    if (typeof window === "undefined") return;
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const syncHeaderOffset = () => {
+      if (mediaQuery.matches) {
+        document.documentElement.style.setProperty("--header-h", "0px");
+        return;
+      }
+      if (!isGeminiHeaderPage) {
+        document.documentElement.style.setProperty("--header-h", "4rem");
+      }
+    };
+
+    syncHeaderOffset();
+    mediaQuery.addEventListener?.("change", syncHeaderOffset);
+    return () => mediaQuery.removeEventListener?.("change", syncHeaderOffset);
   }, [isGeminiHeaderPage]);
 
   useEffect(() => {
@@ -108,39 +136,31 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("pointerdown", handler, true);
   }, []);
 
-  const mainOffset = isGuidedFlow || isPrintMode ? "" : "lg:ml-[72px]";
+  const mainOffset = isGuidedFlow || isPrintMode ? "" : "lg:ml-[92px]";
 
   const mainScrollClass = isPrintMode
     ? "overflow-visible"
-    : isChatPage
-      ? "overflow-hidden flex flex-col"
-      : "overflow-y-auto";
+    : "overflow-hidden flex min-h-0 flex-col";
+  const headerOffsetRequested = Boolean(
+    activeHeaderConfig.mobileTitle ||
+      activeHeaderConfig.mobileSubtitle ||
+      activeHeaderConfig.mobileAccessory ||
+      activeHeaderConfig.contentTopPadding !== undefined
+  );
+  const resolvedExtraTopPadding = React.useMemo(() => {
+    const topPadding = activeHeaderConfig.contentTopPadding;
+    if (topPadding === undefined || topPadding === null) return "0px";
+    return typeof topPadding === "number" ? `${topPadding}px` : String(topPadding);
+  }, [activeHeaderConfig.contentTopPadding]);
+  const resolvedPaddingTop =
+    !isPrintMode && !isGuidedFlow && activeHeaderConfig.sticky && headerOffsetRequested
+      ? resolvedExtraTopPadding === "0px"
+        ? "var(--header-h, 0px)"
+        : `calc(var(--header-h, 0px) + ${resolvedExtraTopPadding})`
+      : "0px";
 
-  const wantsStickyHeader = headerConfig?.sticky !== false;
-  const isMobileDocked = Boolean(headerConfig?.mobileDocked && wantsStickyHeader);
-  const isStickyHeader = !isMediaKitPage && wantsStickyHeader && !isMobileDocked;
-
-  const customPadding = headerConfig?.contentTopPadding;
-  const resolvedContentTopPadding =
-    typeof customPadding === "number"
-      ? `${customPadding}px`
-      : typeof customPadding === "string"
-        ? customPadding
-        : undefined;
-
-  const baseTopPadding = "var(--header-h, 56px)";
-  const resolvedPaddingTop = isPrintMode
-    ? "0px"
-    : isMobileDocked
-    ? "0px"
-    : isStickyHeader || isMediaKitPage
-      ? baseTopPadding
-      : resolvedContentTopPadding ?? "0px";
-
-  const shellClassName = isChatPage
-    ? "flex flex-col w-full min-h-0"
-    : "flex flex-col w-full min-h-screen";
-  const shellStyle = isChatPage ? { height: "100dvh", minHeight: "100dvh" } : undefined;
+  const shellClassName = "flex flex-col w-full min-h-0";
+  const shellStyle = isPrintMode ? undefined : { height: "100dvh", minHeight: "100dvh" };
 
   return (
     <>
@@ -155,23 +175,27 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
             if (Date.now() < overlayIgnoreUntilRef.current) return;
             toggleSidebar(true);
           }}
-          className={`lg:hidden fixed inset-0 bg-black/40 z-50 transition-opacity ${isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          className={`lg:hidden fixed inset-0 bg-black/40 z-[210] transition-opacity ${isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
             }`}
           aria-hidden="true"
         />
       )}
 
       <div className={shellClassName} id="dashboard-shell" style={shellStyle}>
-        {!isPrintMode && <Header />}
+        {!isPrintMode && (
+          <div className="lg:hidden">
+            <Header />
+          </div>
+        )}
 
         <main
           id="dashboard-main"
-          className={`flex flex-col flex-1 min-h-0 ${mainOffset} bg-white lg:rounded-tl-3xl ${isChatPage ? "overflow-hidden" : ""}`}
+          className={`dashboard-main-surface dashboard-ambient-divider flex flex-col flex-1 min-h-0 ${mainOffset} ${isChatPage ? "overflow-hidden" : ""}`}
           style={{ paddingTop: resolvedPaddingTop }}
         >
           <div className={`flex-1 min-h-0 w-full ${mainScrollClass}`}>
             {!isChatPage && !isPrintMode && (
-              <div className="dashboard-page-shell space-y-4 pt-4">
+              <div className={`dashboard-page-shell space-y-4 ${isDiscover ? "pt-0" : "pt-4 lg:pt-0"}`}>
                 <InstagramReconnectBanner />
                 <TrialBanner />
               </div>
@@ -181,10 +205,13 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                 {children}
               </div>
             ) : (
-              children
+              <div className="flex-1 min-h-0 w-full overflow-hidden pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] sm:pb-5 lg:pb-4">
+                {children}
+              </div>
             )}
           </div>
         </main>
+        {!isPrintMode ? <ActivationPendingWidget /> : null}
       </div>
     </>
   );

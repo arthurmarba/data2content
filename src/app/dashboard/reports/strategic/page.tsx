@@ -9,8 +9,7 @@ export default async function Page() {
   const session = await getServerSession(authOptions);
   const userId = (session as any)?.user?.id as string | undefined;
   if (!userId) {
-    redirect('/login');
+    redirect('/login?callbackUrl=%2Fdashboard%2Freports%2Fstrategic');
   }
   return <StrategicReportClient userId={userId!} />;
 }
-

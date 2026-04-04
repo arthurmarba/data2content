@@ -27,15 +27,15 @@ function getBulletTone(item: string): { bulletClass: string; textClass: string }
   }
 
   return {
-    bulletClass: "text-slate-400",
-    textClass: "text-slate-700",
+    bulletClass: "text-zinc-400",
+    textClass: "text-zinc-700",
   };
 }
 
 function renderBulletList(items: string[]): JSX.Element | null {
   if (!items.length) return null;
   return (
-    <div className="space-y-1.5 text-sm leading-6 text-slate-700">
+    <div className="space-y-2 text-sm leading-6 text-zinc-700">
       {items.map((item) => {
         const tone = getBulletTone(item);
         return (
@@ -63,58 +63,41 @@ export default function AnalysisSummaryCard({
   // Fallback for old textual analysis (legacy)
   if (!analysisV2 && analysisMessage) {
     return (
-      <div>
-        <p className="mb-2 text-xs font-semibold text-slate-500">Resumo da IA</p>
-        <p className="whitespace-pre-line text-sm leading-relaxed text-slate-700">{analysisMessage}</p>
+      <div className="dashboard-panel-subtle rounded-[1.35rem] p-4">
+        <p className="whitespace-pre-line text-sm leading-relaxed text-zinc-700">{analysisMessage}</p>
       </div>
     );
   }
 
   if (!analysisV2) return null;
 
-  const nextAction = analysisV2.playbook[0] || 'Responda de forma clara com valor, escopo e prazo.';
+  const nextAction = analysisV2.playbook[0] || 'Responda com valor, escopo e prazo.';
+  const cautionItems = [...analysisPricingMeta.limitations, ...analysisV2.cautions].slice(0, 2);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="flex items-center justify-end">
         <button
           type="button"
           onClick={onToggleViewMode}
-          className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 transition hover:text-slate-700"
+          className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.16em] text-zinc-500 transition hover:text-zinc-900"
         >
           {viewMode === 'summary' ? 'Detalhes' : 'Resumir'}
           {viewMode === 'summary' ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
         </button>
       </div>
 
-      <div className="space-y-3">
-        {(analysisPricingMeta.pricingSource || analysisPricingMeta.pricingConsistency) && (
-          <div className="flex flex-wrap gap-2">
-            {analysisPricingMeta.pricingSource && (
-              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                {analysisPricingMeta.pricingSource === 'calculator_core_v1'
-                  ? 'Baseado no motor da Calculadora'
-                  : 'Baseado em histórico local'}
-              </span>
-            )}
-            {analysisPricingMeta.pricingConsistency && (
-              <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-600">
-                Consistência: {analysisPricingMeta.pricingConsistency}
-              </span>
-            )}
-          </div>
-        )}
-
+      <div className="dashboard-panel-subtle space-y-3 rounded-[1.35rem] p-4">
         <div>
-          <p className="mb-1 text-xs font-semibold text-slate-500">Recomendação</p>
-          <p className="text-sm leading-relaxed text-slate-800">{nextAction}</p>
+          <p className="dashboard-muted-label mb-2 text-pink-500">Recomendação</p>
+          <p className="text-sm leading-relaxed text-zinc-800">{nextAction}</p>
         </div>
 
-        {analysisPricingMeta.limitations.length > 0 && (
-          <div className="rounded-xl border border-amber-100 bg-amber-50/70 px-3 py-2">
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-amber-700">Atenção de contexto</p>
+        {cautionItems.length > 0 && (
+          <div className="rounded-[1.1rem] border border-amber-100 bg-amber-50/80 px-3 py-3">
+            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700">Atenção</p>
             <div className="space-y-1 text-xs leading-5 text-amber-800">
-              {analysisPricingMeta.limitations.map((item) => (
+              {cautionItems.map((item) => (
                 <p key={item}>• {item}</p>
               ))}
             </div>
@@ -122,27 +105,11 @@ export default function AnalysisSummaryCard({
         )}
 
         {viewMode === 'expanded' && (
-          <div className="mt-1 space-y-4 border-t border-slate-100 pt-3 animate-in slide-in-from-top-2 duration-300">
+          <div className="mt-1 space-y-4 border-t border-zinc-100 pt-3 animate-in slide-in-from-top-2 duration-300">
             {analysisV2.rationale.length > 0 && (
               <div>
-                <p className="mb-2 text-xs font-semibold text-slate-500">Por que?</p>
+                <p className="dashboard-muted-label mb-2">Por que?</p>
                 {renderBulletList(analysisV2.rationale)}
-              </div>
-            )}
-
-            {analysisV2.playbook.length > 0 && (
-              <div>
-                <p className="mb-2 text-xs font-semibold text-slate-500">Estratégia</p>
-                {renderBulletList(analysisV2.playbook)}
-              </div>
-            )}
-
-            {analysisV2.cautions.length > 0 && (
-              <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-700">Atenção</p>
-                <div className="text-sm">
-                  {renderBulletList(analysisV2.cautions)}
-                </div>
               </div>
             )}
           </div>

@@ -8,15 +8,16 @@ import MediaKitView from '@/app/mediakit/[token]/MediaKitView';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FaWhatsapp, FaTimes } from 'react-icons/fa';
 import { useHeaderSetup } from '../context/HeaderContext';
+import Board from '../components/Board';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
+import MediaKitConversionSection from './components/MediaKitConversionSection';
 import { normalizePlanStatus, isPlanActiveLike } from '@/utils/planStatus';
+import useBoardMobileViewport from '@/app/dashboard/hooks/useBoardMobileViewport';
 import type {
-  MediaKitViewProps,
   MediaKitPricing,
   MediaKitPackage,
   MediaKitPremiumAccessConfig,
 } from '@/types/mediakit';
-import { notFound } from 'next/navigation';
 import { openPaywallModal } from '@/utils/paywallModal';
 import { INSTAGRAM_READ_ONLY_COPY, PRO_PLAN_FLEXIBILITY_COPY } from '@/app/constants/trustCopy';
 import { startInstagramReconnect } from '@/app/lib/instagram/client/startInstagramReconnect';
@@ -26,7 +27,6 @@ import { canonicalizeV25CategoryValues } from '@/app/lib/classificationV2_5';
 
 type Summary = any;
 type VideoListItem = any;
-type Kpis = any;
 type Demographics = any;
 
 const skeletonPulse = 'animate-pulse bg-gray-200/70';
@@ -35,199 +35,258 @@ const SkeletonLine = ({ className = 'w-full h-3' }: { className?: string }) => (
   <div className={`${skeletonPulse} rounded-full ${className}`} aria-hidden="true" />
 );
 
-const MediaKitSkeleton = ({ compactPadding }: { compactPadding?: boolean }) => {
+function MediaKitBoardShell({
+  children,
+  contentClassName = '',
+  mobileAppView = false,
+}: {
+  children: React.ReactNode;
+  contentClassName?: string;
+  mobileAppView?: boolean;
+}) {
+  const dedicatedDesktopWidthClassName = 'lg:max-w-[1640px]';
+  return (
+    <main className="mx-auto flex h-full min-h-0 w-full flex-col bg-[radial-gradient(120%_36%_at_50%_0%,rgba(255,255,255,0.95),rgba(243,244,246,0.98)_52%,rgba(243,244,246,1)_100%)] px-0 lg:bg-none lg:px-8 lg:pb-5 lg:pt-[2.75rem]">
+      <div className="relative mx-auto flex h-full min-h-0 w-full max-w-[1640px] flex-col overflow-hidden">
+        <Board
+          title="Mídia Kit"
+          showTitleMarker={false}
+          promoteHeaderOnMobile
+          mobilePresentation={mobileAppView ? "flat" : "surface"}
+          variant="card"
+          showChevron={false}
+          showOptions={false}
+          className="mx-auto h-full"
+          desktopWidthClassName={!mobileAppView ? dedicatedDesktopWidthClassName : ""}
+          titleClassName="text-zinc-950"
+          contentClassName={mobileAppView ? "bg-transparent" : "bg-white"}
+        >
+          <div className={contentClassName}>{children}</div>
+        </Board>
+      </div>
+    </main>
+  );
+}
+
+const MediaKitSkeleton = ({
+  compactPadding,
+  compactBoardPreview,
+}: {
+  compactPadding?: boolean;
+  compactBoardPreview?: boolean;
+}) => {
+  if (compactBoardPreview) {
+    return (
+      <div className="px-4 pb-5 pt-3">
+        <div className="flex flex-col items-center text-center">
+          <div className="h-28 w-28 animate-pulse rounded-full bg-zinc-200" />
+          <div className="mt-5 h-8 w-36 animate-pulse rounded-full bg-zinc-200" />
+          <div className="mt-2 h-4 w-24 animate-pulse rounded-full bg-zinc-100" />
+          <div className="mt-5 h-14 w-full animate-pulse rounded-[1.6rem] bg-zinc-100" />
+          <div className="mt-7 flex w-full gap-3">
+            <div className="h-12 flex-1 animate-pulse rounded-2xl bg-zinc-900/90" />
+            <div className="h-12 flex-1 animate-pulse rounded-2xl bg-zinc-100" />
+          </div>
+          <div className="mt-8 grid w-full grid-cols-2 gap-3">
+            <div className="h-28 animate-pulse rounded-[1.35rem] bg-zinc-100" />
+            <div className="h-28 animate-pulse rounded-[1.35rem] bg-zinc-100" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const containerClass = compactPadding
-    ? 'dashboard-page-shell py-6'
-    : 'dashboard-page-shell pb-10 pt-6';
+    ? 'px-4 py-6 sm:px-5'
+    : 'px-4 pb-10 pt-6 sm:px-5';
   const sectionsWrapperClass = 'flex flex-col gap-4 sm:gap-3 lg:gap-2';
-  const cardClass = 'rounded-3xl border border-[#EAEAEA] bg-white shadow-sm p-5 sm:p-6';
+  const polishedCardClass = 'rounded-[28px] border border-white/80 bg-white/76 p-5 shadow-[0_18px_36px_rgba(24,24,27,0.05)] backdrop-blur-xl sm:p-6';
 
   return (
-    <div className="bg-[#FAFAFB] min-h-screen">
-      <div
-        className={`${containerClass} ${sectionsWrapperClass}`}
-        role="status"
-        aria-live="polite"
-        aria-busy="true"
-        aria-label="Carregando Mídia Kit"
-      >
-        <span className="sr-only">Carregando Mídia Kit...</span>
+    <div
+      className={`${containerClass} ${sectionsWrapperClass}`}
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      aria-label="Carregando Mídia Kit"
+    >
+      <span className="sr-only">Carregando Mídia Kit...</span>
 
-        <div className="px-0 py-6 sm:px-0 sm:py-8">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
-              <div className={`${skeletonPulse} h-28 w-28 rounded-full sm:h-32 sm:w-32`} />
-              <div className="w-full space-y-3 text-center sm:text-left">
-                <div className="space-y-2">
-                  <SkeletonLine className="mx-auto h-6 w-48 sm:mx-0" />
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <SkeletonLine className="h-3 w-32" />
-                    <SkeletonLine className="h-3 w-24 sm:w-36" />
-                  </div>
+      <div className="px-0 py-6 sm:px-0 sm:py-8">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-center sm:gap-6">
+            <div className={`${skeletonPulse} h-28 w-28 rounded-full sm:h-32 sm:w-32`} />
+            <div className="w-full space-y-3 text-center sm:text-left">
+              <div className="space-y-2">
+                <SkeletonLine className="mx-auto h-6 w-48 sm:mx-0" />
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <SkeletonLine className="h-3 w-32" />
+                  <SkeletonLine className="h-3 w-24 sm:w-36" />
                 </div>
-                <SkeletonLine className="h-3 w-full sm:w-2/3" />
-                <SkeletonLine className="h-3 w-5/6 sm:w-1/2" />
-                <SkeletonLine className="h-3 w-2/3" />
               </div>
-            </div>
-            <div className="hidden sm:block">
-              <div className={`${skeletonPulse} h-10 w-10 rounded-full`} />
+              <SkeletonLine className="h-3 w-full sm:w-2/3" />
+              <SkeletonLine className="h-3 w-5/6 sm:w-1/2" />
+              <SkeletonLine className="h-3 w-2/3" />
             </div>
           </div>
+          <div className="hidden sm:block">
+            <div className={`${skeletonPulse} h-10 w-10 rounded-full`} />
+          </div>
+        </div>
 
-          <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div
+              key={`hero-metric-${index}`}
+              className="rounded-2xl border border-white/70 bg-white/80 px-4 py-4 shadow-sm backdrop-blur"
+            >
+              <SkeletonLine className="h-3 w-24" />
+              <SkeletonLine className="mt-3 h-4 w-32" />
+              <SkeletonLine className="mt-2 h-3 w-20" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className={`${polishedCardClass} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
+        <div className="space-y-2">
+          <SkeletonLine className="h-3 w-40" />
+          <SkeletonLine className="h-3 w-full" />
+        </div>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+          <div className={`${skeletonPulse} h-10 w-full rounded-full sm:w-40`} />
+          <SkeletonLine className="h-3 w-40" />
+        </div>
+      </div>
+
+      <div className={`${polishedCardClass} bg-gradient-to-br from-[#FFF6FB] via-white to-white`}>
+        <SkeletonLine className="h-3 w-52" />
+        <SkeletonLine className="mt-2 h-3 w-72" />
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {Array.from({ length: 2 }).map((_, index) => (
+            <div key={`cta-${index}`} className="space-y-2 rounded-2xl border border-[#F3E6FF] p-4">
+              <SkeletonLine className="h-3 w-32" />
+              <SkeletonLine className="h-4 w-24" />
+              <div className={`${skeletonPulse} mt-3 h-10 rounded-full`} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className={polishedCardClass}>
+        <SkeletonLine className="h-3 w-48" />
+        <SkeletonLine className="mt-2 h-3 w-64" />
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={`highlight-${index}`} className="rounded-2xl border border-gray-100 p-4 shadow-sm">
+              <SkeletonLine className="h-3 w-24" />
+              <SkeletonLine className="mt-3 h-4 w-32" />
+              <SkeletonLine className="mt-2 h-3 w-20" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className={polishedCardClass}>
+        <SkeletonLine className="h-3 w-48" />
+        <SkeletonLine className="mt-2 h-3 w-56" />
+        <div className="mt-4 grid gap-3 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={`kpi-${index}`} className="rounded-2xl border border-gray-100 p-4">
+              <SkeletonLine className="h-3 w-20" />
+              <SkeletonLine className="mt-3 h-5 w-24" />
+              <SkeletonLine className="mt-2 h-3 w-16" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className={polishedCardClass}>
+        <SkeletonLine className="h-3 w-48" />
+        <SkeletonLine className="mt-2 h-3 w-40" />
+        <div className="mt-4 space-y-3">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <div key={`video-${index}`} className="flex items-center gap-3 rounded-2xl border border-gray-100 p-3">
+              <div className={`${skeletonPulse} h-16 w-20 rounded-2xl`} />
+              <div className="flex-1 space-y-2">
+                <SkeletonLine className="h-3 w-3/4" />
+                <SkeletonLine className="h-3 w-1/2" />
+              </div>
+              <SkeletonLine className="h-3 w-12" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className={polishedCardClass}>
+        <SkeletonLine className="h-3 w-48" />
+        <SkeletonLine className="mt-2 h-3 w-60" />
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="space-y-3">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={`demo-${index}`} className="space-y-1">
+                <div className="flex items-center justify-between gap-3">
+                  <SkeletonLine className="h-3 w-32" />
+                  <SkeletonLine className="h-3 w-10" />
+                </div>
+                <div className="h-2 rounded-full bg-gray-100">
+                  <div
+                    className={`${skeletonPulse} h-2 rounded-full`}
+                    style={{ width: `${80 - index * 10}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, index) => (
-              <div
-                key={`hero-metric-${index}`}
-                className="rounded-2xl border border-white/70 bg-white/80 px-4 py-4 shadow-sm backdrop-blur"
-              >
-                <SkeletonLine className="h-3 w-24" />
-                <SkeletonLine className="mt-3 h-4 w-32" />
-                <SkeletonLine className="mt-2 h-3 w-20" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className={`${cardClass} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}>
-          <div className="space-y-2">
-            <SkeletonLine className="h-3 w-40" />
-            <SkeletonLine className="h-3 w-full" />
-          </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
-            <div className={`${skeletonPulse} h-10 w-full rounded-full sm:w-40`} />
-            <SkeletonLine className="h-3 w-40" />
-          </div>
-        </div>
-
-        <div className={`${cardClass} bg-gradient-to-br from-[#FDF5FF] via-white to-white`}>
-          <SkeletonLine className="h-3 w-52" />
-          <SkeletonLine className="mt-2 h-3 w-72" />
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {Array.from({ length: 2 }).map((_, index) => (
-              <div key={`cta-${index}`} className="space-y-2 rounded-2xl border border-[#F3E6FF] p-4">
-                <SkeletonLine className="h-3 w-32" />
-                <SkeletonLine className="h-4 w-24" />
-                <div className={`${skeletonPulse} mt-3 h-10 rounded-full`} />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className={cardClass}>
-          <SkeletonLine className="h-3 w-48" />
-          <SkeletonLine className="mt-2 h-3 w-64" />
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={`highlight-${index}`} className="rounded-2xl border border-gray-100 p-4 shadow-sm">
-                <SkeletonLine className="h-3 w-24" />
-                <SkeletonLine className="mt-3 h-4 w-32" />
-                <SkeletonLine className="mt-2 h-3 w-20" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className={cardClass}>
-          <SkeletonLine className="h-3 w-48" />
-          <SkeletonLine className="mt-2 h-3 w-56" />
-          <div className="mt-4 grid gap-3 sm:grid-cols-4">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={`kpi-${index}`} className="rounded-2xl border border-gray-100 p-4">
-                <SkeletonLine className="h-3 w-20" />
-                <SkeletonLine className="mt-3 h-5 w-24" />
-                <SkeletonLine className="mt-2 h-3 w-16" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className={cardClass}>
-          <SkeletonLine className="h-3 w-48" />
-          <SkeletonLine className="mt-2 h-3 w-40" />
-          <div className="mt-4 space-y-3">
-            {Array.from({ length: 4 }).map((_, index) => (
-              <div key={`video-${index}`} className="flex items-center gap-3 rounded-2xl border border-gray-100 p-3">
-                <div className={`${skeletonPulse} h-16 w-20 rounded-2xl`} />
-                <div className="flex-1 space-y-2">
-                  <SkeletonLine className="h-3 w-3/4" />
-                  <SkeletonLine className="h-3 w-1/2" />
-                </div>
-                <SkeletonLine className="h-3 w-12" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className={cardClass}>
-          <SkeletonLine className="h-3 w-48" />
-          <SkeletonLine className="mt-2 h-3 w-60" />
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div key={`demo-${index}`} className="space-y-1">
-                  <div className="flex items-center justify-between gap-3">
-                    <SkeletonLine className="h-3 w-32" />
-                    <SkeletonLine className="h-3 w-10" />
+              <div key={`pie-${index}`} className="rounded-2xl border border-gray-100 p-4">
+                <div className="flex items-center gap-3">
+                  <div className={`${skeletonPulse} h-12 w-12 rounded-full`} />
+                  <div className="space-y-2">
+                    <SkeletonLine className="h-3 w-24" />
+                    <SkeletonLine className="h-3 w-16" />
                   </div>
-                  <div className="h-2 rounded-full bg-gray-100">
-                    <div
-                      className={`${skeletonPulse} h-2 rounded-full`}
-                      style={{ width: `${80 - index * 10}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="space-y-3">
-              {Array.from({ length: 3 }).map((_, index) => (
-                <div key={`pie-${index}`} className="rounded-2xl border border-gray-100 p-4">
-                  <div className="flex items-center gap-3">
-                    <div className={`${skeletonPulse} h-12 w-12 rounded-full`} />
-                    <div className="space-y-2">
-                      <SkeletonLine className="h-3 w-24" />
-                      <SkeletonLine className="h-3 w-16" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className={cardClass}>
-          <SkeletonLine className="h-3 w-48" />
-          <SkeletonLine className="mt-2 h-3 w-72" />
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            {Array.from({ length: 3 }).map((_, index) => (
-              <div key={`category-${index}`} className="space-y-2 rounded-2xl border border-gray-100 p-4">
-                <SkeletonLine className="h-3 w-32" />
-                <div className="flex flex-wrap gap-2">
-                  {Array.from({ length: 4 }).map((__, tagIdx) => (
-                    <div key={`chip-${index}-${tagIdx}`} className={`${skeletonPulse} h-8 w-20 rounded-full`} />
-                  ))}
                 </div>
               </div>
             ))}
           </div>
         </div>
       </div>
+
+      <div className={polishedCardClass}>
+        <SkeletonLine className="h-3 w-48" />
+        <SkeletonLine className="mt-2 h-3 w-72" />
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <div key={`category-${index}`} className="space-y-2 rounded-2xl border border-gray-100 p-4">
+              <SkeletonLine className="h-3 w-32" />
+              <div className="flex flex-wrap gap-2">
+                {Array.from({ length: 4 }).map((__, tagIdx) => (
+                  <div key={`chip-${index}-${tagIdx}`} className={`${skeletonPulse} h-8 w-20 rounded-full`} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 };
 
-function SelfMediaKitContent({
+export function SelfMediaKitContent({
   userId,
   fallbackName,
   fallbackEmail,
   fallbackImage,
   compactPadding,
+  compactBoardPreview,
   publicUrlForCopy,
   premiumAccess,
   onPublicUrlChange,
 }: {
   userId: string; fallbackName?: string | null; fallbackEmail?: string | null; fallbackImage?: string | null;
-  compactPadding?: boolean; publicUrlForCopy?: string | null;
+  compactPadding?: boolean; compactBoardPreview?: boolean; publicUrlForCopy?: string | null;
   premiumAccess?: MediaKitPremiumAccessConfig;
   onPublicUrlChange?: (nextUrl: string | null) => void;
 }) {
@@ -235,7 +294,6 @@ function SelfMediaKitContent({
   const [error, setError] = useState<string | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [videos, setVideos] = useState<VideoListItem[]>([]);
-  const [kpis, setKpis] = useState<Kpis | null>(null);
   const [demographics, setDemographics] = useState<Demographics | null>(null);
   const [engagementTrend, setEngagementTrend] = useState<any | null>(null);
   const [ownerProfile, setOwnerProfile] = useState<any | null>(null);
@@ -252,6 +310,8 @@ function SelfMediaKitContent({
     if (!userId) return;
 
     let cancelled = false;
+    let idleId: number | null = null;
+    let timeoutId: number | null = null;
 
     const safeFetch = async (input: RequestInfo | URL) => {
       try {
@@ -267,16 +327,19 @@ function SelfMediaKitContent({
     const loadCoreData = async () => {
       setLoading(true);
       setError(null);
+      setDemographics(null);
+      setPricing(null);
+      setPricingPublished(false);
+      setPackages([]);
+      const videosListUrl = compactBoardPreview
+        ? `/api/v1/users/${userId}/videos/list?sortBy=views&limit=10&surface=board`
+        : `/api/v1/users/${userId}/videos/list?sortBy=views&limit=10`;
 
-      const [summaryData, videosPayload, kpisData, demographicsData, engagementTrendData, ownerProfileData, pricingData, packagesData] = await Promise.all([
+      const [summaryData, videosPayload, engagementTrendData, ownerProfileData] = await Promise.all([
         safeFetch(`/api/v1/users/${userId}/highlights/performance-summary`),
-        safeFetch(`/api/v1/users/${userId}/videos/list?sortBy=views&limit=10`),
-        safeFetch(`/api/v1/users/${userId}/kpis/periodic-comparison?comparisonPeriod=last_30d_vs_previous_30d`),
-        safeFetch(`/api/demographics/${userId}`),
+        safeFetch(videosListUrl),
         safeFetch(`/api/v1/users/${userId}/trends/reach-engagement?timePeriod=last_30_days&granularity=daily`),
         safeFetch(`/api/mediakit/self/user`),
-        safeFetch(`/api/mediakit/self/pricing`),
-        safeFetch(`/api/mediakit/self/packages`),
       ]);
 
       if (cancelled) return;
@@ -335,27 +398,58 @@ function SelfMediaKitContent({
           commercialMode: normalizeVideoCategories(video.commercialMode, 'commercialMode'),
         }))
       );
-      setKpis(kpisData);
-      setDemographics(demographicsData);
       setEngagementTrend(engagementTrendData);
       setOwnerProfile(ownerProfileData?.user ?? null);
-      setPricing(pricingData?.pricing ?? null);
-      setPricingPublished(Boolean(pricingData?.published));
-      setPackages(Array.isArray(packagesData?.packages) ? packagesData.packages : []);
 
-      if (!summaryData && videosList.length === 0 && !kpisData && !demographicsData && !engagementTrendData) {
+      if (!summaryData && videosList.length === 0 && !engagementTrendData && !ownerProfileData?.user) {
         setError('Não foi possível carregar dados recentes do Mídia Kit. Tente novamente em instantes.');
       }
 
       setLoading(false);
+
+      const loadSecondaryData = async () => {
+        const [demographicsData, pricingData, packagesData] = await Promise.all([
+          safeFetch(`/api/demographics/${userId}`),
+          safeFetch(`/api/mediakit/self/pricing`),
+          safeFetch(`/api/mediakit/self/packages`),
+        ]);
+
+        if (cancelled) return;
+
+        setDemographics(demographicsData);
+        setPricing(pricingData?.pricing ?? null);
+        setPricingPublished(Boolean(pricingData?.published));
+        setPackages(Array.isArray(packagesData?.packages) ? packagesData.packages : []);
+      };
+
+      const scheduleSecondaryLoad = () => {
+        if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') {
+          idleId = window.requestIdleCallback(() => {
+            void loadSecondaryData();
+          }, { timeout: 1200 });
+          return;
+        }
+
+        timeoutId = window.setTimeout(() => {
+          void loadSecondaryData();
+        }, 350);
+      };
+
+      scheduleSecondaryLoad();
     };
 
     loadCoreData();
 
     return () => {
       cancelled = true;
+      if (idleId !== null && typeof window !== 'undefined' && typeof window.cancelIdleCallback === 'function') {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timeoutId !== null && typeof window !== 'undefined') {
+        window.clearTimeout(timeoutId);
+      }
     };
-  }, [userId]);
+  }, [compactBoardPreview, userId]);
 
   useEffect(() => {
     const resolvedName =
@@ -486,13 +580,15 @@ function SelfMediaKitContent({
   }, [handleSaveDisplayName]);
 
   if (loading) {
-    return <MediaKitSkeleton compactPadding={compactPadding} />;
+    return <MediaKitSkeleton compactPadding={compactPadding} compactBoardPreview={compactBoardPreview} />;
   }
 
   if (error) {
     return (
-      <div className="dashboard-page-shell py-6">
-        <div className="max-w-md w-full border border-yellow-200 bg-yellow-50 text-yellow-900 rounded-lg p-3 text-sm">{error}</div>
+      <div className="px-4 py-6 sm:px-5">
+        <div className="w-full rounded-lg border border-yellow-200 bg-yellow-50 p-3 text-sm text-yellow-900">
+          {error}
+        </div>
       </div>
     );
   }
@@ -549,11 +645,12 @@ function SelfMediaKitContent({
         user={user}
         summary={summary}
         videos={videos}
-        kpis={kpis}
+        kpis={null}
         demographics={demographics}
         engagementTrend={engagementTrend}
         showOwnerCtas={true}
         compactPadding={compactPadding}
+        compactBoardPreview={compactBoardPreview}
         publicUrlForCopy={publicUrlForCopy || undefined}
         mediaKitSlug={user.mediaKitSlug ?? undefined}
         premiumAccess={premiumAccess}
@@ -584,18 +681,19 @@ function SelfMediaKitContent({
               role="dialog"
               aria-modal="true"
             >
-              <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+              <div className="dashboard-panel w-full max-w-lg rounded-[2rem] p-5 shadow-[0_28px_80px_rgba(15,23,42,0.18)]">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">Nome exibido no mídia kit</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="dashboard-muted-label text-pink-500">Mídia Kit</p>
+                    <p className="mt-1 text-sm font-semibold text-zinc-900">Nome exibido no mídia kit</p>
+                    <p className="mt-1 text-xs text-zinc-500">
                       Mostrado no topo do seu mídia kit. Deixe vazio para usar o nome da sua conta Google
                       {googleName ? ` (${googleName})` : ''}.
                     </p>
                   </div>
                   <button
                     onClick={() => setShowNameModal(false)}
-                    className="rounded-full p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                    className="dashboard-secondary-button rounded-full p-2 text-zinc-400 transition hover:text-zinc-600"
                     aria-label="Fechar"
                   >
                     <FaTimes />
@@ -603,7 +701,7 @@ function SelfMediaKitContent({
                 </div>
 
                 <div className="mt-4 space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  <label className="text-xs font-semibold uppercase tracking-[0.12em] text-zinc-400">
                     Nome
                   </label>
                   <input
@@ -612,10 +710,10 @@ function SelfMediaKitContent({
                     onChange={(e) => setNameInput(e.target.value)}
                     placeholder={googleName || 'Nome da sua conta Google'}
                     maxLength={80}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm focus:border-[#6E1F93] focus:outline-none focus:ring-1 focus:ring-[#6E1F93]/40"
+                    className="dashboard-input w-full rounded-2xl px-3 py-2 text-sm text-zinc-900 shadow-sm"
                   />
-                  <p className="text-xs text-slate-500">
-                    Pré-visualização: <span className="font-semibold text-slate-800">{effectiveDisplayNamePreview}</span>
+                  <p className="text-xs text-zinc-500">
+                    Pré-visualização: <span className="font-semibold text-zinc-800">{effectiveDisplayNamePreview}</span>
                   </p>
                 </div>
 
@@ -626,10 +724,10 @@ function SelfMediaKitContent({
                   <button
                     onClick={() => void handleSaveDisplayName(undefined, { closeAfter: true })}
                     disabled={savingName || !isNameDirty}
-                    className={`inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-semibold text-white transition ${
+                    className={`dashboard-primary-button inline-flex items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold text-white transition ${
                       savingName || !isNameDirty
-                        ? 'cursor-not-allowed bg-slate-300'
-                        : 'bg-[#6E1F93] hover:bg-[#5B167B]'
+                        ? 'cursor-not-allowed opacity-50'
+                        : ''
                     }`}
                   >
                     {savingName ? 'Salvando...' : 'Salvar nome'}
@@ -638,10 +736,10 @@ function SelfMediaKitContent({
                     type="button"
                     onClick={handleResetDisplayName}
                     disabled={savingName || !canResetToGoogle}
-                    className={`inline-flex items-center justify-center rounded-xl border px-4 py-2 text-sm font-semibold transition ${
+                    className={`dashboard-secondary-button inline-flex items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
                       savingName || !canResetToGoogle
-                        ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400'
-                        : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                        ? 'cursor-not-allowed opacity-50'
+                        : 'text-zinc-700'
                     }`}
                   >
                     Usar nome do Google
@@ -649,7 +747,7 @@ function SelfMediaKitContent({
                   <button
                     type="button"
                     onClick={() => setShowNameModal(false)}
-                    className="inline-flex items-center justify-center rounded-xl border border-transparent px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100"
+                    className="inline-flex items-center justify-center rounded-2xl border border-transparent px-4 py-2.5 text-sm font-semibold text-zinc-600 transition hover:bg-zinc-100"
                     disabled={savingName}
                   >
                     Cancelar
@@ -665,14 +763,13 @@ function SelfMediaKitContent({
 }
 
 export default function MediaKitSelfServePage() {
+  const isBoardMobileViewport = useBoardMobileViewport();
   const { data: session, status } = useSession();
   const router = useRouter();
   const sp = useSearchParams();
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const instagramConnected = Boolean((session?.user as any)?.instagramConnected);
   const fetchedOnce = useRef(false);
 
   // Gate: impedir acesso ao Mídia Kit antes de conectar Instagram
@@ -695,15 +792,14 @@ export default function MediaKitSelfServePage() {
   const isGracePeriod = billingStatus.isGracePeriod || effectivePlanStatus === "non_renewing";
   const hasPremiumAccess =
     billingStatus.hasPremiumAccess || isPlanActiveLike(effectivePlanStatus) || isGracePeriod;
-  const trialState = billingStatus.trial?.state ?? null;
-  const trialExpired = trialState === "expired";
-  const canViewCategories = hasPremiumAccess;
-  const categoriesCtaLabel = trialExpired
-    ? "Assinar e continuar de onde parei"
-    : "Ver categorias do meu perfil (Assinar Plano Pro)";
-  const categoriesSubtitle = trialExpired ? PRO_PLAN_FLEXIBILITY_COPY : INSTAGRAM_READ_ONLY_COPY;
+  const billingInstagramConnected = Boolean(billingStatus.instagram?.connected);
+  const instagramConnected = billingStatus.hasResolvedOnce
+    ? billingInstagramConnected
+    : billingInstagramConnected || Boolean((session?.user as any)?.instagramConnected);
+  const categoriesCtaLabel = "Ver categorias do meu perfil (Assinar Plano Pro)";
+  const categoriesSubtitle = INSTAGRAM_READ_ONLY_COPY;
   const handleUpgrade = useCallback(() => {
-    openPaywallModal({ context: 'planning', source: 'media_kit_upgrade' });
+    openPaywallModal({ context: 'media_kit', source: 'media_kit_upgrade' });
   }, []);
   const premiumAccessConfig = useMemo<MediaKitPremiumAccessConfig | undefined>(() => {
     if (hasPremiumAccess) return undefined;
@@ -714,10 +810,9 @@ export default function MediaKitSelfServePage() {
       categoryCtaLabel: categoriesCtaLabel,
       categorySubtitle: categoriesSubtitle,
       onRequestUpgrade: handleUpgrade,
-      trialState,
       visibilityMode: 'lock',
     };
-  }, [hasPremiumAccess, categoriesCtaLabel, categoriesSubtitle, handleUpgrade, trialState]);
+  }, [hasPremiumAccess, categoriesCtaLabel, categoriesSubtitle, handleUpgrade]);
 
   const [showCommunityModal, setShowCommunityModal] = useState(false);
 
@@ -726,6 +821,7 @@ export default function MediaKitSelfServePage() {
       variant: 'compact',
       showSidebarToggle: true,
       showUserMenu: true,
+      hideBrandLogoOnMobile: true,
       sticky: true,
       mobileDocked: false,
       title: undefined,
@@ -810,37 +906,34 @@ export default function MediaKitSelfServePage() {
   }, [status, instagramConnected]);
 
   if (status === 'loading') {
-    return <div className="p-6">Carregando…</div>;
+    return (
+      <MediaKitBoardShell contentClassName="p-5" mobileAppView={isBoardMobileViewport}>
+        <div className="dashboard-empty-state flex min-h-[240px] items-center justify-center px-6 text-sm text-zinc-500">Carregando…</div>
+      </MediaKitBoardShell>
+    );
   }
   if (status === 'unauthenticated') {
-    return <div className="p-6"><p className="text-sm text-gray-600">Faça login para visualizar seu Mídia Kit.</p></div>;
+    return (
+      <MediaKitBoardShell contentClassName="bg-[linear-gradient(180deg,#fafafa_0%,#f5f5f5_100%)]" mobileAppView={isBoardMobileViewport}>
+        <MediaKitConversionSection />
+      </MediaKitBoardShell>
+    );
   }
 
   // ===== IG não conectado → redireciona para Onboarding =====
   if (!instagramConnected) {
     return (
-      <main className="p-6">
-        <div className="mx-auto max-w-3xl rounded-lg border border-amber-200 bg-amber-50 px-4 py-6 text-amber-900">
-          <h2 className="text-lg font-semibold">Conecte seu Instagram para ativar o Mídia Kit</h2>
-          <p className="mt-2 text-sm">
-            Precisamos sincronizar seus dados do Instagram para montar o Mídia Kit automaticamente. Você pode fazer isso em poucos passos.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button
-              onClick={() => router.push('/dashboard?intent=instagram')}
-              className="inline-flex items-center justify-center rounded-md bg-amber-600 px-4 py-2 text-sm font-semibold text-white shadow hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            >
-              Ver primeiros passos
-            </button>
-            <button
-              onClick={handleCorrectInstagramLink}
-              className="inline-flex items-center justify-center rounded-md border border-amber-500 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-500"
-            >
-              Vincular Instagram agora
-            </button>
-          </div>
-        </div>
-      </main>
+      <MediaKitBoardShell contentClassName="bg-[linear-gradient(180deg,#fafafa_0%,#f5f5f5_100%)]" mobileAppView={isBoardMobileViewport}>
+        <MediaKitConversionSection />
+      </MediaKitBoardShell>
+    );
+  }
+
+  if (!hasPremiumAccess) {
+    return (
+      <MediaKitBoardShell contentClassName="bg-[linear-gradient(180deg,#fafafa_0%,#f5f5f5_100%)]" mobileAppView={isBoardMobileViewport}>
+        <MediaKitConversionSection />
+      </MediaKitBoardShell>
     );
   }
 
@@ -850,23 +943,28 @@ export default function MediaKitSelfServePage() {
       {/* 🔥 Removido DiscoverBillingGate e qualquer CTA de assinatura aqui.
           O CTA vive apenas dentro do MediaKitView para evitar duplicação. */}
 
-      <section className="w-full bg-white pb-10 px-6 border-t border-l border-slate-200 lg:rounded-tl-3xl" aria-label="Mídia Kit">
-        {error && (
-          <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-            {error}
-          </div>
-        )}
-        <SelfMediaKitContent
-          userId={(session?.user as any)?.id as string}
-          fallbackName={session?.user?.name}
-          fallbackEmail={session?.user?.email}
-          fallbackImage={session?.user?.image}
-          publicUrlForCopy={url}
-          onPublicUrlChange={setUrl}
-          compactPadding
-          premiumAccess={premiumAccessConfig}
-        />
-      </section>
+      <MediaKitBoardShell mobileAppView={isBoardMobileViewport}>
+        <>
+          {error ? (
+            <div className="px-4 pt-4 sm:px-5">
+              <div className="dashboard-panel-subtle rounded-[1.35rem] border border-amber-200/80 bg-amber-50/75 px-4 py-3 text-sm text-amber-900">
+                {error}
+              </div>
+            </div>
+          ) : null}
+          <SelfMediaKitContent
+            userId={(session?.user as any)?.id as string}
+            fallbackName={session?.user?.name}
+            fallbackEmail={session?.user?.email}
+            fallbackImage={session?.user?.image}
+            compactPadding={isBoardMobileViewport}
+            compactBoardPreview={isBoardMobileViewport}
+            publicUrlForCopy={url}
+            onPublicUrlChange={setUrl}
+            premiumAccess={premiumAccessConfig}
+          />
+        </>
+      </MediaKitBoardShell>
       <AnimatePresence>
         {showCommunityModal && (
           <>

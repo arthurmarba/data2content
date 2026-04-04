@@ -62,7 +62,7 @@ export default function CancelSubscriptionModal({
     >
       <div
         ref={ref}
-        className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+        className="dashboard-scrollbar w-full max-w-md max-h-[90vh] overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
       >
         <h2 className="mb-2 text-lg font-semibold text-gray-900">
           Cancelar renovação

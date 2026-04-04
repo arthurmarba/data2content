@@ -6,8 +6,8 @@ import useBillingStatus from '@/app/hooks/useBillingStatus';
 
 const STATUS_LABELS: Record<string, string> = {
   active: 'Ativo',
-  trialing: 'Teste ativo',
-  trial: 'Teste ativo',
+  trialing: 'Sem plano ativo',
+  trial: 'Sem plano ativo',
   non_renewing: 'Cancelamento agendado',
   past_due: 'Pagamento pendente',
   unpaid: 'Pagamento pendente',
@@ -15,7 +15,7 @@ const STATUS_LABELS: Record<string, string> = {
   incomplete_expired: 'Tentativa expirada',
   pending: 'Checkout pendente',
   canceled: 'Cancelado',
-  expired: 'Teste expirado',
+  expired: 'Expirado',
   inactive: 'Sem plano ativo',
   unknown: 'Indisponível',
 };
@@ -37,7 +37,7 @@ export default function AccountSettingsPage() {
 
   const statusValue = (normalizedStatus ?? planStatus ?? 'inactive') as string;
   const statusLabel = billingLoading ? 'Carregando...' : (STATUS_LABELS[statusValue] ?? 'Indisponível');
-  const isActiveLike = statusValue === 'active' || statusValue === 'trialing' || statusValue === 'trial';
+  const isActiveLike = statusValue === 'active';
   const isNonRenewing = statusValue === 'non_renewing' || (cancelAtPeriodEnd && isActiveLike);
   const canCancel = isActiveLike && !cancelAtPeriodEnd;
   const canReactivate = isNonRenewing;

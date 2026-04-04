@@ -119,4 +119,79 @@ describe('GET /api/v1/users/[userId]/planning/charts-batch', () => {
       })
     );
   });
+
+  it('supplements cached category rankings to always return the top 5 when posts are available', async () => {
+    mockDashboardCache.wrap.mockResolvedValueOnce({
+      value: {
+        payload: {
+          trendData: { chartData: [] },
+          timeData: { buckets: [] },
+          durationData: { buckets: [], totalVideoPosts: 0, totalPostsWithDuration: 0, totalPostsWithoutDuration: 0 },
+          timingBenchmark: null,
+          similarCreators: null,
+          formatData: { chartData: [] },
+          proposalData: { chartData: [{ name: 'Posicionamento/Autoridade', value: 130, postsCount: 2 }], metricUsed: 'stats.total_interactions', groupBy: 'proposal' },
+          toneData: { chartData: [] },
+          referenceData: { chartData: [] },
+          contextData: { chartData: [{ name: 'Moda/Estilo', value: 120, postsCount: 2 }], metricUsed: 'stats.total_interactions', groupBy: 'context' },
+          contentIntentData: { chartData: [] },
+          narrativeFormData: { chartData: [] },
+          contentSignalsData: { chartData: [] },
+          stanceData: { chartData: [] },
+          proofStyleData: { chartData: [] },
+          commercialModeData: { chartData: [] },
+          postsData: {
+            posts: [
+              { proposal: ['positioning_authority'], context: ['fashion_style'], stats: { total_interactions: 130 } },
+              { proposal: ['tips'], context: ['beauty_personal_care'], stats: { total_interactions: 110 } },
+              { proposal: ['review'], context: ['technology_digital'], stats: { total_interactions: 100 } },
+              { proposal: ['lifestyle'], context: ['relationships_family'], stats: { total_interactions: 90 } },
+              { proposal: ['announcement'], context: ['events_celebrations'], stats: { total_interactions: 80 } },
+            ],
+            pagination: {
+              currentPage: 1,
+              totalPages: 1,
+              totalPosts: 5,
+            },
+          },
+          strategicDeltas: {},
+          metricMeta: {
+            field: 'stats.total_interactions',
+            label: 'Interações por post',
+            shortLabel: 'Engajamento',
+            tooltipLabel: 'Interações por post',
+            unitLabel: 'Engajamento',
+            isProxy: false,
+            description: null,
+          },
+        },
+        __perf: {},
+      },
+      hit: true,
+    });
+
+    const res = await GET(
+      makeRequest(userId, '?timePeriod=last_90_days&granularity=weekly&objectiveMode=engagement'),
+      { params: { userId } }
+    );
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.proposalData.chartData).toHaveLength(5);
+    expect(body.proposalData.chartData.map((row: { name: string }) => row.name)).toEqual([
+      'Posicionamento/Autoridade',
+      'Dicas',
+      'Review',
+      'LifeStyle',
+      'Anúncio',
+    ]);
+    expect(body.contextData.chartData).toHaveLength(5);
+    expect(body.contextData.chartData.map((row: { name: string }) => row.name)).toEqual([
+      'Moda/Estilo',
+      'Beleza/Cuidados Pessoais',
+      'Tecnologia/Digital',
+      'Relacionamentos/Família',
+      'Eventos/Celebrações',
+    ]);
+  });
 });
