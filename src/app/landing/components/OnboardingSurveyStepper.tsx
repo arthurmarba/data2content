@@ -870,6 +870,7 @@ export default function OnboardingSurveyStepper({ metrics, onSaved }: Onboarding
 
   const handleSubmit = async () => {
     const finalValidation = mergeErrors(
+      validateStep("niche", profile),
       validateStep("about", profile),
       validateStep("goals", profile),
       validateStep("publis", profile),

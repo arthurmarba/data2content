@@ -264,7 +264,7 @@ export function useActivationChecklist(): UseActivationChecklistResult {
           id: "survey",
           title: "Responder pesquisa",
           description: "Personalize IA e suporte com respostas rápidas sobre seu momento.",
-          href: "/dashboard?intent=survey",
+          href: "/?intent=survey",
           actionLabel: "Responder pesquisa",
         }
       : null,

@@ -118,6 +118,7 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
     scriptsUnreadCount: scriptsRecommendationsUnreadCount,
     campaignsUnreadCount,
   } = useDashboardNotificationBadges();
+
   const sidebarBadges = useMemo(
     () => ({
       "planning.chat": alertsUnreadCount,
@@ -297,6 +298,9 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
       paddingBottom: "calc(var(--sab, 0px) + 1rem)",
     }
     : undefined;
+
+  if (isMobile) return null;
+
   return (
     <>
       <aside

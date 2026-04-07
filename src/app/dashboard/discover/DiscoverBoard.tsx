@@ -265,12 +265,13 @@ export default function DiscoverBoard({
       desktopWidthClassName={!useCompactLayout ? dedicatedDesktopWidthClassName : ""}
       showChevron={false}
       showOptions={false}
+      disableMobilePaddingTop={useMobileAppView}
       contentClassName={useMobileAppView ? "bg-transparent" : "bg-[linear-gradient(180deg,rgba(255,255,255,0.26),rgba(248,248,249,0.72))]"}
     >
       <div
         className={`sticky top-0 z-30 ${
           useMobileAppView
-            ? "-mt-1 bg-[linear-gradient(180deg,rgba(243,244,246,0.96),rgba(243,244,246,0.92)_74%,rgba(243,244,246,0))] px-2 pt-0 pb-1.5 backdrop-blur-xl"
+            ? "bg-[linear-gradient(180deg,rgba(243,244,246,0.96),rgba(243,244,246,0.92)_74%,rgba(243,244,246,0))] px-2 pt-0 pb-1.5 backdrop-blur-xl"
             : "border-b border-zinc-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,255,255,0.94))] px-5 pt-2.5 pb-2.5 backdrop-blur-md"
         }`}
       >

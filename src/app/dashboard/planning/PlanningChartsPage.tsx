@@ -5222,6 +5222,7 @@ export default function PlanningChartsPage({
           showOptions={false}
           className="mx-auto h-full"
           contentClassName={useMobileAppView ? "bg-transparent" : ""}
+          disableMobilePaddingTop={useMobileAppView}
           titleClassName={useMobileAppView ? "text-lg leading-tight" : ""}
           headerActions={
             <div className="flex items-center gap-2">

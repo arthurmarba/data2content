@@ -80,7 +80,7 @@ export default function TutorialProgress({
     progressLabel.length > 0 && progressLabel.toLowerCase() !== completionLabel.toLowerCase();
 
   return (
-    <section className="p-2">
+    <section className="p-2 hidden lg:block">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.32em] text-slate-500">Jornada</p>

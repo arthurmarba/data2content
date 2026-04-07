@@ -68,6 +68,7 @@ export default function CampaignsBoard({
       className="before:hidden"
       desktopWidthClassName={!useCompactLayout ? dedicatedDesktopWidthClassName : ""}
       contentClassName={useMobileAppView ? "bg-transparent" : "bg-white"}
+      disableMobilePaddingTop={useMobileAppView}
       titleClassName="text-zinc-950"
     >
       <div

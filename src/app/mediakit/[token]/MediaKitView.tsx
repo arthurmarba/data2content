@@ -2,6 +2,7 @@
 'use client';
 
 import React, { useEffect, useState, useMemo, useRef, useCallback, useId } from 'react';
+import Link from 'next/link';
 import {
   TrendingUp,
   TrendingDown,
@@ -27,6 +28,7 @@ import {
   Volume2,
   Trash2,
   Pencil,
+  Settings,
 } from 'lucide-react';
 import {
   Area,
@@ -3247,9 +3249,18 @@ const resolvedGlassCardBaseClass = isBoardEmbedded
   if (compactBoardPreview && !isPrintMode) {
     return (
       <GlobalTimePeriodProvider>
-        <div className="px-4 pb-6 pt-3">
+        <div className="px-4 pb-6 pt-3 relative">
+          {showOwnerCtas && !isPrintMode && (
+            <Link
+              href="/settings"
+              className="absolute right-6 top-6 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-zinc-600 shadow-sm ring-1 ring-zinc-200/50 backdrop-blur-sm transition hover:bg-white hover:text-zinc-900"
+              aria-label="Configurações"
+            >
+              <Settings className="h-5 w-5" />
+            </Link>
+          )}
           <section className="space-y-[1.125rem]">
-            <div className="rounded-[1.3rem] border border-zinc-100/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,248,249,0.95))] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+            <div className="rounded-[1.3rem] border border-zinc-100/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,248,249,0.95))] px-4 py-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] relative">
               <div className="flex items-start gap-6">
                 <div className="w-fit shrink-0 rounded-full bg-white/92 p-1.5 ring-1 ring-zinc-100/90">
                   <UserAvatar
@@ -3670,7 +3681,16 @@ const resolvedGlassCardBaseClass = isBoardEmbedded
         className={resolvedRootClassName}
         style={{ background: resolvedRootBackground }}
       >
-        <div id="media-kit-content" className={mainContainerClass}>
+        <div id="media-kit-content" className={`${mainContainerClass} relative`}>
+          {showOwnerCtas && !isPrintMode && (
+            <Link
+              href="/settings"
+              className="absolute right-4 top-4 z-10 hidden h-11 w-11 items-center justify-center rounded-full bg-white/80 text-zinc-600 shadow-sm ring-1 ring-zinc-200/50 backdrop-blur-sm transition hover:bg-white hover:text-zinc-900 lg:flex"
+              aria-label="Configurações"
+            >
+              <Settings className="h-5.5 w-5.5" />
+            </Link>
+          )}
           <div className={sectionsWrapperClass}>
             <motion.section
               variants={resolvedCardVariants}

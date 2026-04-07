@@ -25,6 +25,7 @@ interface BoardProps {
     promoteHeaderOnMobile?: boolean;
     mobileHeaderAccessory?: React.ReactNode;
     desktopWidthClassName?: string;
+    disableMobilePaddingTop?: boolean;
 }
 
 export default function Board({ 
@@ -47,6 +48,7 @@ export default function Board({
     promoteHeaderOnMobile = false,
     mobileHeaderAccessory,
     desktopWidthClassName = "",
+    disableMobilePaddingTop = false,
 }: BoardProps) {
     const isCard = variant === 'card';
     const isCompact = variant === 'compact';
@@ -72,8 +74,8 @@ export default function Board({
         return 'h-full lg:h-[calc(100%-0.9rem)] w-full min-w-0 lg:min-w-[320px] self-start overflow-visible rounded-none lg:rounded-[32px]';
     }, [isCard, isCompact, isWorkspace]);
 
-    const titleBarPaddingClassName = isCompact ? 'px-1 pt-0 pb-3' : 'px-1 pt-0 pb-3.5';
-    const contentPaddingClassName = isCompact ? 'p-3' : '';
+    const titleBarPaddingClassName = isCompact ? (disableMobilePaddingTop ? 'px-1 pt-0 pb-3 lg:pt-0' : 'px-1 pt-0 pb-3') : (disableMobilePaddingTop ? 'px-1 pt-0 pb-3.5 lg:pt-0' : 'px-1 pt-0 pb-3.5');
+    const contentPaddingClassName = isCompact ? (disableMobilePaddingTop ? 'p-3 pt-0 lg:pt-3' : 'p-3') : '';
     const hasInlineTitleAction = Boolean(titleInlineAction);
     const usesTitleChip = showTitleMarker && titleMarkerVariant === 'chip';
 

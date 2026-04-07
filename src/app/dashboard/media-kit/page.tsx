@@ -60,6 +60,7 @@ function MediaKitBoardShell({
           desktopWidthClassName={!mobileAppView ? dedicatedDesktopWidthClassName : ""}
           titleClassName="text-zinc-950"
           contentClassName={mobileAppView ? "bg-transparent" : "bg-white"}
+          disableMobilePaddingTop={mobileAppView}
         >
           <div className={contentClassName}>{children}</div>
         </Board>

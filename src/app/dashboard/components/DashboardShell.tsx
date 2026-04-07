@@ -3,6 +3,8 @@
 import React, { useEffect, useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import SidebarNav from "./SidebarNav";
+import MobileBottomNav from "./MobileBottomNav";
+import { useSidebarViewport } from "./sidebar/hooks";
 import ActivationPendingWidget from "./activation/ActivationPendingWidget";
 import Header from "../../components/Header";
 import InstagramReconnectBanner from "./InstagramReconnectBanner";
@@ -61,6 +63,7 @@ export default function DashboardShell({ children }: DashboardShellProps) {
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isCollapsed, toggleSidebar } = useSidebar();
+  const { isMobile } = useSidebarViewport();
   const { config: activeHeaderConfig } = useHeaderConfig();
   const overlayIgnoreUntilRef = React.useRef(0);
   const pathname = usePathname();
@@ -114,8 +117,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         document.documentElement.style.setProperty("--header-h", "0px");
         return;
       }
-      if (!isGeminiHeaderPage) {
-        document.documentElement.style.setProperty("--header-h", "4rem");
+      if (!mediaQuery.matches) {
+        document.documentElement.style.setProperty("--header-h", "0px");
       }
     };
 
@@ -153,7 +156,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     return typeof topPadding === "number" ? `${topPadding}px` : String(topPadding);
   }, [activeHeaderConfig.contentTopPadding]);
   const resolvedPaddingTop =
-    !isPrintMode && !isGuidedFlow && activeHeaderConfig.sticky && headerOffsetRequested
+    !isMobile && !isPrintMode && !isGuidedFlow && activeHeaderConfig.sticky && headerOffsetRequested
       ? resolvedExtraTopPadding === "0px"
         ? "var(--header-h, 0px)"
         : `calc(var(--header-h, 0px) + ${resolvedExtraTopPadding})`
@@ -168,22 +171,12 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         <SidebarNav isCollapsed={isCollapsed} onToggle={() => toggleSidebar()} />
       )}
 
-      {!isGuidedFlow && !isPrintMode && (
-        <div
-          onClick={() => {
-            if (!isOpen) return;
-            if (Date.now() < overlayIgnoreUntilRef.current) return;
-            toggleSidebar(true);
-          }}
-          className={`lg:hidden fixed inset-0 bg-black/40 z-[210] transition-opacity ${isOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-            }`}
-          aria-hidden="true"
-        />
-      )}
+      {/* Overlay removido pois o menu mobile agora eh bottom nav e o header top foi ocultado */}
 
       <div className={shellClassName} id="dashboard-shell" style={shellStyle}>
-        {!isPrintMode && (
-          <div className="lg:hidden">
+        {!isPrintMode && !isMobile && (
+          <div className="hidden lg:block">
+            {/* Header rendered only on desktop to avoid CSS variable injection on mobile */}
             <Header />
           </div>
         )}
@@ -195,7 +188,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         >
           <div className={`flex-1 min-h-0 w-full ${mainScrollClass}`}>
             {!isChatPage && !isPrintMode && (
-              <div className={`dashboard-page-shell space-y-4 ${isDiscover ? "pt-0" : "pt-4 lg:pt-0"}`}>
+              <div className={`dashboard-page-shell space-y-4 ${isDiscover || isMobile ? "pt-0" : "pt-4 lg:pt-0"}`}>
                 <InstagramReconnectBanner />
                 <TrialBanner />
               </div>
@@ -205,13 +198,14 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                 {children}
               </div>
             ) : (
-              <div className="flex-1 min-h-0 w-full overflow-hidden pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] sm:pb-5 lg:pb-4">
+              <div className="flex-1 min-h-0 w-full overflow-visible">
                 {children}
               </div>
             )}
           </div>
         </main>
         {!isPrintMode ? <ActivationPendingWidget /> : null}
+        <MobileBottomNav />
       </div>
     </>
   );

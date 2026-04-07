@@ -9,6 +9,7 @@ import ThreadsTabs from "@/app/dashboard/components/ThreadsTabs";
 import PlannerClientPage from "@/app/dashboard/planning/PlannerClientPage";
 import MyScriptsPage from "@/app/dashboard/scripts/MyScriptsPage";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
+import { useSidebarViewport } from "../components/sidebar/hooks";
 import { redirectToGoogleConsentLogin } from "@/lib/auth/googleLogin";
 
 import BoardPinButton from "./BoardPinButton";
@@ -24,6 +25,7 @@ export default function PostCreationPinnedBoard({
   const { data: session, status } = useSession();
   const searchParams = useSearchParams();
   const billing = useBillingStatus();
+  const { isMobile } = useSidebarViewport();
   const hasPro = billing.hasPremiumAccess;
 
   const sessionUser = session?.user as
@@ -77,10 +79,14 @@ export default function PostCreationPinnedBoard({
       variant="card"
       showChevron={false}
       showOptions={false}
+      disableMobilePaddingTop={isMobile}
       contentClassName="bg-white"
     >
       <div className="flex h-full min-h-0 flex-col">
-        <div className="sticky top-0 z-30 shrink-0 border-b border-zinc-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,255,255,0.94))] px-3.5 pb-3 pt-2 backdrop-blur-md shadow-[0_1px_0_rgba(228,228,231,0.7)]">
+        <div className={`sticky top-0 z-30 shrink-0 backdrop-blur-md ${isMobile
+          ? "bg-[linear-gradient(180deg,rgba(243,244,246,0.96),rgba(243,244,246,0.92)_74%,rgba(243,244,246,0))] px-2 pt-0.5 pb-1.5"
+          : "border-b border-zinc-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,255,255,0.94))] px-3.5 pb-3 pt-2 shadow-[0_1px_0_rgba(228,228,231,0.7)]"
+        }`}>
           <ThreadsTabs
             tabs={[
               { id: "planner", label: "Pautas de conteúdo" },

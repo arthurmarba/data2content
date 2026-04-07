@@ -22,7 +22,7 @@ export default function ActivationPendingWidget() {
     completionState,
     dismissCompletion,
   } = useActivationChecklist();
-  const [minimized, setMinimized] = React.useState(false);
+  const [minimized, setMinimized] = React.useState(true);
 
   const handleToggle = React.useCallback(() => {
     setMinimized((current) => !current);
@@ -49,7 +49,7 @@ export default function ActivationPendingWidget() {
 
   if (completionState.visible) {
     return (
-      <div className="pointer-events-none fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+0.9rem)] z-[170] sm:inset-x-auto sm:right-5 sm:w-[340px]">
+      <div className="pointer-events-none fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)] z-[170] lg:bottom-[calc(env(safe-area-inset-bottom,0px)+0.9rem)] sm:inset-x-auto sm:right-5 sm:w-[340px]">
         <div className="pointer-events-auto overflow-hidden rounded-[1.6rem] border border-emerald-400/14 bg-[radial-gradient(circle_at_top_left,rgba(52,211,153,0.16),transparent_34%),linear-gradient(180deg,rgba(33,33,38,0.96),rgba(18,18,22,0.94))] ring-1 ring-white/6 shadow-[0_24px_52px_rgba(15,23,42,0.24)] backdrop-blur-xl transition-all duration-300">
           <div className="px-4 py-3 sm:px-3.5 sm:py-3">
             <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/18 bg-emerald-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
@@ -72,7 +72,7 @@ export default function ActivationPendingWidget() {
   }
 
   return (
-    <div className="pointer-events-none fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+0.9rem)] z-[170] sm:inset-x-auto sm:right-5 sm:w-[340px]">
+    <div className="pointer-events-none fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)] z-[170] lg:bottom-[calc(env(safe-area-inset-bottom,0px)+0.9rem)] sm:inset-x-auto sm:right-5 sm:w-[340px]">
       <div
         className={[
           "pointer-events-auto overflow-hidden border border-white/10 bg-[radial-gradient(circle_at_top_left,rgba(244,63,94,0.18),transparent_34%),linear-gradient(180deg,rgba(33,33,38,0.96),rgba(18,18,22,0.94))] ring-1 ring-white/6 backdrop-blur-xl transition-all duration-300",
