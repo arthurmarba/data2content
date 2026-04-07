@@ -198,7 +198,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                 {children}
               </div>
             ) : (
-              <div className="flex-1 min-h-0 w-full overflow-visible">
+              <div className="flex-1 min-h-0 w-full overflow-visible pb-[calc(env(safe-area-inset-bottom,0px)+10rem)] sm:pb-5 lg:pb-4">
                 {children}
               </div>
             )}

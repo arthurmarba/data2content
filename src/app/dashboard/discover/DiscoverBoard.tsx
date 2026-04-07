@@ -47,8 +47,8 @@ export default function DiscoverBoard({
   const useDesktopCompactPreview = useCompactLayout && !useMobileAppView;
   const postsLimitPerRow = useCompactLayout ? 12 : 24;
   const postsWindowInDays = useCompactLayout ? 45 : 80;
-  const creatorMode = useCompactLayout ? "featured" : "full";
-  const creatorLimit = useCompactLayout ? 12 : null;
+  const creatorMode = "full";
+  const creatorLimit = null;
   const [activeTab, setActiveTab] = React.useState<TabId>("posts");
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);

@@ -2417,7 +2417,7 @@ export default function CalculatorClient({
             </div>
           )}
 
-          <div className={compactView ? "border-t border-zinc-100/75 pt-5 mt-2" : "sticky bottom-3 z-20 rounded-[1.25rem] border border-white/90 bg-white/88 p-1.5 shadow-[0_20px_40px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none"}>
+          <div className={compactView ? "border-t border-zinc-100/75 pt-5 mt-2" : "mt-8 sm:static sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none"}>
             <button
               type="submit"
               className={compactView ? calculatorPrimaryCtaClassName : "dashboard-primary-button inline-flex w-full items-center justify-center gap-2 px-5 py-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-accent-ring)] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-white sm:ml-auto sm:w-auto sm:px-7 sm:py-3.5 sm:text-base"}

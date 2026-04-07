@@ -46,7 +46,7 @@ export default function ManageSubscription() {
       </div>
 
       <div className="dashboard-page-shell flex min-h-screen items-start justify-center pt-[var(--sat,1.5rem)] sm:items-center sm:pt-0">
-        <div className="w-full max-w-md space-y-9 pb-44 pt-4 sm:pb-16 sm:pt-8">
+        <div className="w-full max-w-md space-y-9 pt-4 sm:pb-16 sm:pt-8">
           
           {/* Perfil Simplificado */}
           <div className="flex flex-col items-center text-center">
