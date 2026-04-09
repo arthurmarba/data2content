@@ -622,7 +622,7 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
     if (mediaKitUrl) return mediaKitUrl;
     if (!selectedProposal?.mediaKitSlug) return null;
     if (typeof window === 'undefined') return null;
-    return `${window.location.origin}/media-kit/${selectedProposal.mediaKitSlug}`;
+    return `${window.location.origin}/mediakit/${selectedProposal.mediaKitSlug}`;
   }, [mediaKitUrl, selectedProposal?.mediaKitSlug]);
 
   const showUpgradeToast = useCallback(() => {

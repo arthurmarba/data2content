@@ -2,7 +2,19 @@
 "use client";
 
 import React from "react";
-import ChatPanel from "../ChatPanel";
+import dynamic from "next/dynamic";
+
+const ChatPanel = dynamic(() => import("../ChatPanel"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-full min-h-[320px] w-full items-center justify-center rounded-xl border border-zinc-100/80 bg-zinc-50/70 text-sm text-zinc-500">
+      <div className="flex flex-col items-center gap-3">
+        <div className="h-8 w-8 animate-pulse rounded-full bg-zinc-200" />
+        <span>Carregando consultor…</span>
+      </div>
+    </div>
+  ),
+});
 
 export default function ChatCard() {
   return (

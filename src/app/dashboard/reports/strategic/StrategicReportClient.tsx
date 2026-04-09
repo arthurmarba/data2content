@@ -1,21 +1,31 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useState, useMemo } from 'react';
 import useCachedFetch from '@/hooks/useCachedFetch';
-import PlanTeaser from '@/app/dashboard/components/PlanTeaser';
 import type { StrategicReport } from 'types/StrategicReport';
 import Tabs from '@/components/ui/Tabs';
 import Card from '@/components/ui/Card';
 import DeltaBadge from '@/components/ui/DeltaBadge';
 import ConfidencePill from '@/components/ui/ConfidencePill';
-import Drawer from '@/components/ui/Drawer';
-import Heatmap from '@/components/ui/Heatmap';
 import EvidenceBadge from '@/components/ui/EvidenceBadge';
 import { openPaywallModal } from '@/utils/paywallModal';
 import {
   formatCommunityInspirationSubtitle,
   getStrategicQuickStats,
 } from '@/app/lib/strategicReportPresentation';
+
+const PlanTeaser = dynamic(() => import('@/app/dashboard/components/PlanTeaser'), {
+  ssr: false,
+  loading: () => null,
+});
+
+const Heatmap = dynamic(() => import('@/components/ui/Heatmap'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-32 rounded bg-gray-50 animate-pulse" />
+  ),
+});
 
 type ApiResponse = {
   status: 'ready' | 'building' | 'error';
@@ -46,9 +56,6 @@ export default function StrategicReportClient({ userId }: Props) {
   const [regenError, setRegenError] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<'resumo' | 'oportunidades' | 'calendario' | 'roteiros' | 'inspiracoes'>('resumo');
-  const [openHowTo, setOpenHowTo] = useState(false);
-  const [howToContext, setHowToContext] = useState<{ title: string; rationale?: string } | null>(null);
-
   const handleRegenerate = async () => {
     setRegenLoading(true);
     setRegenError(null);
@@ -345,21 +352,6 @@ export default function StrategicReportClient({ userId }: Props) {
           )}
         </div>
       )}
-      <Drawer open={openHowTo} onClose={() => setOpenHowTo(false)} title={`Como executar — ${howToContext?.title ?? ''}`}>
-        <div className="text-sm space-y-3">
-          {howToContext?.rationale && (
-            <p className="text-gray-700">Por que fazer: {howToContext.rationale}</p>
-          )}
-          <ol className="list-decimal pl-5 space-y-1">
-            <li>Defina o objetivo do post (salvamentos, compartilhamentos ou visitas ao perfil).</li>
-            <li>Adapte um roteiro compatível na aba “Roteiros”.</li>
-            <li>Publique no melhor horário sugerido na aba “Calendário”.</li>
-            <li>Reforce nos Stories entre 2–6h após publicar (enquete ou CTA).</li>
-            <li>Após 48h, registre o desempenho e repita a variação promissora.</li>
-          </ol>
-          <p className="text-xs text-gray-500">Dica: gancho claro nos primeiros 3s, promessa explícita e CTA específico.</p>
-        </div>
-      </Drawer>
     </div>
   );
 }

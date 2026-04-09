@@ -5,9 +5,11 @@ import Image from "next/image";
 import NextDynamic from "next/dynamic";
 import { ArrowUpRight, Sparkles } from "lucide-react";
 import type { DiscoverPostCard, DiscoverSection } from "./discoverFeedUtils";
-import DiscoverExplorerSection from "./DiscoverExplorerSection";
 
 const DiscoverActionBar = NextDynamic(() => import("./DiscoverActionBar"), { ssr: false });
+const DiscoverExplorerSection = NextDynamic(() => import("./DiscoverExplorerSection"), {
+  loading: () => <DiscoverExplorerSectionLoading />,
+});
 
 type DiscoverBoardContentProps = {
   allowedPersonalized: boolean;
@@ -118,6 +120,7 @@ function FeaturedStory({
             alt={caption || section.title || "Conteudo em destaque da comunidade"}
             fill
             sizes="(min-width: 1280px) 560px, 100vw"
+            quality={68}
             className="object-cover"
             referrerPolicy="no-referrer"
           />
@@ -186,6 +189,48 @@ function FeaturedStory({
   return content;
 }
 
+function DiscoverExplorerSectionLoading({
+  compactView = false,
+  desktopCompactPreview = false,
+}: {
+  compactView?: boolean;
+  desktopCompactPreview?: boolean;
+}) {
+  const containerClassName = desktopCompactPreview
+    ? "space-y-5 px-5 pb-5 pt-1"
+    : compactView
+      ? "space-y-4 px-0 pb-3"
+      : "space-y-4 px-0 py-2";
+
+  return (
+    <section className={containerClassName} aria-hidden="true">
+      <div className={compactView ? "space-y-3" : "space-y-3.5"}>
+        <div className="h-10 w-full animate-pulse rounded-full bg-zinc-100/90" />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {Array.from({ length: compactView ? 2 : 4 }).map((_, index) => (
+            <div
+              key={`discover-explorer-loading-${index}`}
+              className="space-y-3 rounded-[1.5rem] border border-zinc-100/80 bg-white/70 p-3.5"
+            >
+              <div className="h-4 w-40 animate-pulse rounded-full bg-zinc-200/90" />
+              <div className="flex gap-2 overflow-hidden">
+                {Array.from({ length: compactView ? 2 : 3 }).map((__, cardIndex) => (
+                  <div
+                    key={`discover-explorer-loading-card-${index}-${cardIndex}`}
+                    className={`animate-pulse rounded-[1.3rem] bg-zinc-100 ${
+                      compactView ? "h-[190px] w-[132px]" : "h-[240px] w-[176px]"
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function DiscoverBoardContent({
   allowedPersonalized,
   featuredSection,
@@ -211,7 +256,10 @@ export default function DiscoverBoardContent({
   return (
     <div className={desktopCompactPreview ? "space-y-5 px-5 pb-5 pt-1" : compactView ? "space-y-5 px-2 pb-6 pt-2" : "space-y-4.5 p-4 sm:p-5"}>
       {featuredSection ? (
-        <section className="space-y-2.5">
+        <section
+          className="space-y-2.5"
+          style={compactView ? undefined : ({ contentVisibility: "auto", containIntrinsicSize: "420px" } as React.CSSProperties)}
+        >
           <div className={`flex ${compactView ? "items-start gap-3.5" : "flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"}`}>
             <div className="min-w-0 flex-1">
               <h2 className={`dashboard-type-board-title text-zinc-950 ${compactView ? "max-w-[13rem] leading-tight text-[1.05rem]" : "text-[clamp(1.45rem,2.5vw,2rem)]"}`}>

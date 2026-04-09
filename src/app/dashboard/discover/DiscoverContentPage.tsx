@@ -6,10 +6,11 @@ import {
   buildDiscoverSelectedFromParams,
 } from "@/app/discover/components/discoverFilterState";
 import Board from "@/app/dashboard/components/Board";
-import DiscoverBoard from "./DiscoverBoard";
 import CommunityConversionSection from "./CommunityConversionSection";
 import type { DiscoverSection } from "./discoverFeedUtils";
 import { DISCOVER_MAX_POST_AGE_DAYS } from "./discoverFeedUtils";
+import { prepareDiscoverSections } from "./discoverFeedUtils";
+import PlanningDiscoverBoard from "./PlanningDiscoverBoard";
 
 const DiscoverViewTracker = NextDynamic(
   () => import("../../discover/components/DiscoverViewTracker"),
@@ -152,13 +153,21 @@ export default async function DiscoverContentPage({
     );
   }
 
+  const { featuredSection, secondarySections } = prepareDiscoverSections(result.sections);
+  const boardSections = featuredSection
+    ? [featuredSection, ...secondarySections]
+    : secondarySections;
+
   return (
     <main className="mx-auto flex h-full min-h-0 w-full flex-col bg-[radial-gradient(120%_36%_at_50%_0%,rgba(255,255,255,0.95),rgba(243,244,246,0.98)_52%,rgba(243,244,246,1)_100%)] px-0 sm:px-6 lg:bg-none lg:px-8 lg:pb-5 lg:pt-[2.75rem]">
       <DiscoverHeaderConfigurator />
       <DiscoverViewTracker />
 
       <div className="relative mx-auto flex h-full min-h-0 w-full max-w-[1640px] flex-col overflow-hidden">
-        <DiscoverBoard mobileAppView showTitleMarker={false} />
+        <PlanningDiscoverBoard
+          initialSections={boardSections}
+          initialAllowedPersonalized={result.allowedPersonalized}
+        />
       </div>
     </main>
   );

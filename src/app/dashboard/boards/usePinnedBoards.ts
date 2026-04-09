@@ -28,8 +28,64 @@ export function usePinnedBoards(userId: string | null | undefined) {
     ...DEFAULT_PINNED_BOARD_IDS,
   ]);
   const [hydrated, setHydrated] = React.useState(false);
+  return usePinnedBoardsState({
+    storageKey,
+    pinnedBoardIds,
+    setPinnedBoardIds,
+    hydrated,
+    setHydrated,
+    enabled: true,
+  });
+}
+
+export function usePinnedBoardsEnabled(
+  userId: string | null | undefined,
+  enabled: boolean,
+) {
+  const storageKey = React.useMemo(() => buildStorageKey(userId), [userId]);
+  const [pinnedBoardIds, setPinnedBoardIds] = React.useState<PinnableBoardId[]>([
+    ...DEFAULT_PINNED_BOARD_IDS,
+  ]);
+  const [hydrated, setHydrated] = React.useState(false);
+
+  return usePinnedBoardsState({
+    storageKey,
+    pinnedBoardIds,
+    setPinnedBoardIds,
+    hydrated,
+    setHydrated,
+    enabled,
+  });
+}
+
+function usePinnedBoardsState({
+  storageKey,
+  pinnedBoardIds,
+  setPinnedBoardIds,
+  hydrated,
+  setHydrated,
+  enabled,
+}: {
+  storageKey: string;
+  pinnedBoardIds: PinnableBoardId[];
+  setPinnedBoardIds: React.Dispatch<React.SetStateAction<PinnableBoardId[]>>;
+  hydrated: boolean;
+  setHydrated: React.Dispatch<React.SetStateAction<boolean>>;
+  enabled: boolean;
+}) {
+  React.useEffect(() => {
+    if (!enabled) {
+      setPinnedBoardIds((current) =>
+        areSameBoardLists(current, DEFAULT_PINNED_BOARD_IDS)
+          ? current
+          : [...DEFAULT_PINNED_BOARD_IDS],
+      );
+      setHydrated(false);
+    }
+  }, [enabled, setHydrated, setPinnedBoardIds]);
 
   React.useEffect(() => {
+    if (!enabled) return;
     if (typeof window === "undefined") return;
 
     try {
@@ -47,9 +103,10 @@ export function usePinnedBoards(userId: string | null | undefined) {
     } finally {
       setHydrated(true);
     }
-  }, [storageKey]);
+  }, [enabled, setHydrated, setPinnedBoardIds, storageKey]);
 
   React.useEffect(() => {
+    if (!enabled) return;
     if (typeof window === "undefined") return;
 
     const syncPinnedBoards = (nextBoardIds: PinnableBoardId[]) => {
@@ -90,9 +147,10 @@ export function usePinnedBoards(userId: string | null | undefined) {
       window.removeEventListener("storage", handleStorage);
       window.removeEventListener(PINNED_BOARDS_SYNC_EVENT, handleLocalSync as EventListener);
     };
-  }, [storageKey]);
+  }, [enabled, setPinnedBoardIds, storageKey]);
 
   React.useEffect(() => {
+    if (!enabled) return;
     if (!hydrated || typeof window === "undefined") return;
 
     window.localStorage.setItem(storageKey, JSON.stringify(pinnedBoardIds));
@@ -104,7 +162,7 @@ export function usePinnedBoards(userId: string | null | undefined) {
         },
       }),
     );
-  }, [hydrated, pinnedBoardIds, storageKey]);
+  }, [enabled, hydrated, pinnedBoardIds, storageKey]);
 
   const isPinned = React.useCallback(
     (boardId: PinnableBoardId) => pinnedBoardIds.includes(boardId),
@@ -122,7 +180,7 @@ export function usePinnedBoards(userId: string | null | undefined) {
       setPinnedBoardIds((current) => sanitizePinnedBoardIds([...current, boardId]));
       return true;
     },
-    [pinnedBoardIds],
+    [pinnedBoardIds, setPinnedBoardIds],
   );
 
   const unpinBoard = React.useCallback(
@@ -132,7 +190,7 @@ export function usePinnedBoards(userId: string | null | undefined) {
       setPinnedBoardIds((current) => current.filter((currentBoardId) => currentBoardId !== boardId));
       return true;
     },
-    [pinnedBoardIds],
+    [pinnedBoardIds, setPinnedBoardIds],
   );
 
   const orderedPinnedBoards = React.useMemo<PinnableBoardConfig[]>(

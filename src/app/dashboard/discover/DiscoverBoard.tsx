@@ -1,15 +1,62 @@
 "use client";
 
 import React from "react";
+import dynamic from "next/dynamic";
 import Board from "@/app/dashboard/components/Board";
 import ThreadsTabs from "@/app/dashboard/components/ThreadsTabs";
-import DiscoverBoardContent from "./DiscoverBoardContent";
-import DiscoverCreatorsBoardContent from "./DiscoverCreatorsBoardContent";
-import CommunityConversionSection from "./CommunityConversionSection";
 import type { DiscoverSection } from "./discoverFeedUtils";
 import { prepareDiscoverSections } from "./discoverFeedUtils";
 import type { LandingCreatorHighlight } from "@/types/landing";
 import useBoardMobileViewport from "@/app/dashboard/hooks/useBoardMobileViewport";
+
+function DiscoverPostsTabLoading({
+  compactView = false,
+}: {
+  compactView?: boolean;
+}) {
+  return (
+    <div className={compactView ? "space-y-4 p-4" : "space-y-5 p-4 sm:p-5"}>
+      <div className="space-y-3">
+        <div className="h-3 w-28 animate-pulse rounded-full bg-zinc-200" />
+        <div className="flex flex-wrap gap-2">
+          <div className="h-9 w-24 animate-pulse rounded-full bg-zinc-100" />
+          <div className="h-9 w-24 animate-pulse rounded-full bg-zinc-100" />
+          <div className="h-9 w-24 animate-pulse rounded-full bg-zinc-100" />
+        </div>
+      </div>
+      <div className="space-y-4">
+        {Array.from({ length: compactView ? 2 : 3 }).map((_, index) => (
+          <div key={index} className="space-y-3">
+            <div className="h-4 w-40 animate-pulse rounded-full bg-zinc-200" />
+            <div className="flex gap-2 overflow-hidden">
+              <div className={`animate-pulse rounded-[1.4rem] bg-zinc-100 ${compactView ? "h-[190px] w-[132px]" : "h-[250px] w-[180px]"}`} />
+              <div className={`animate-pulse rounded-[1.4rem] bg-zinc-100 ${compactView ? "h-[190px] w-[132px]" : "h-[250px] w-[180px]"}`} />
+              <div className={`animate-pulse rounded-[1.4rem] bg-zinc-100 ${compactView ? "h-[190px] w-[132px]" : "h-[250px] w-[180px]"}`} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const DiscoverBoardContent = dynamic(() => import("./DiscoverBoardContent"), {
+  loading: () => <DiscoverPostsTabLoading />,
+});
+
+const DiscoverCreatorsBoardContent = dynamic(
+  () => import("./DiscoverCreatorsBoardContent"),
+  {
+    loading: () => null,
+  },
+);
+
+const CommunityConversionSection = dynamic(
+  () => import("./CommunityConversionSection"),
+  {
+    loading: () => null,
+  },
+);
 
 type DiscoverFeedResponse = {
   ok?: boolean;
@@ -23,22 +70,199 @@ type DiscoverCreatorResponse = {
 
 type TabId = "posts" | "creators" | "mentoria";
 
+const DISCOVER_CLIENT_CACHE_TTL_MS = 60_000;
+
+const discoverFeedCache = new Map<
+  string,
+  { data: DiscoverFeedResponse; expiresAt: number }
+>();
+const discoverFeedInFlight = new Map<string, Promise<DiscoverFeedResponse>>();
+
+const discoverCreatorsCache = new Map<
+  string,
+  { data: DiscoverCreatorResponse; expiresAt: number }
+>();
+const discoverCreatorsInFlight = new Map<string, Promise<DiscoverCreatorResponse>>();
+
 const TABS: Array<{ id: TabId; label: string }> = [
   { id: "posts", label: "Posts" },
   { id: "creators", label: "Criadores" },
   { id: "mentoria", label: "Mentoria" },
 ];
 
+function canWarmDiscoverSecondaryContent(useMobileAppView: boolean) {
+  if (typeof window === "undefined" || typeof navigator === "undefined") return !useMobileAppView;
+  if (useMobileAppView) return false;
+
+  const navConnection = (navigator as {
+    connection?: {
+      saveData?: boolean;
+      effectiveType?: string;
+    };
+    deviceMemory?: number;
+  }).connection;
+
+  if (navConnection?.saveData) return false;
+
+  const effectiveType = String(navConnection?.effectiveType || "").toLowerCase();
+  if (effectiveType === "slow-2g" || effectiveType === "2g" || effectiveType === "3g") {
+    return false;
+  }
+
+  const deviceMemory = Number((navigator as { deviceMemory?: number }).deviceMemory);
+  if (Number.isFinite(deviceMemory) && deviceMemory > 0 && deviceMemory <= 2) {
+    return false;
+  }
+
+  return true;
+}
+
+function readCachedDiscoverValue<T>(
+  cache: Map<string, { data: T; expiresAt: number }>,
+  key: string,
+) {
+  const cached = cache.get(key);
+  if (!cached) return null;
+  if (cached.expiresAt <= Date.now()) {
+    cache.delete(key);
+    return null;
+  }
+  return cached.data;
+}
+
+function isAbortLikeError(error: unknown) {
+  if (!error || typeof error !== "object") return false;
+  const name = "name" in error ? String((error as { name?: unknown }).name || "") : "";
+  const message = "message" in error ? String((error as { message?: unknown }).message || "") : "";
+  return (
+    name === "AbortError" ||
+    message === "signal is aborted without reason" ||
+    message.toLowerCase().includes("aborted")
+  );
+}
+
+function createAbortSignalPromise(signal: AbortSignal) {
+  return new Promise<never>((_, reject) => {
+    if (signal.aborted) {
+      reject(new DOMException("The operation was aborted.", "AbortError"));
+      return;
+    }
+
+    const handleAbort = () => {
+      signal.removeEventListener("abort", handleAbort);
+      reject(new DOMException("The operation was aborted.", "AbortError"));
+    };
+
+    signal.addEventListener("abort", handleAbort, { once: true });
+  });
+}
+
+async function awaitAbortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) {
+    throw new DOMException("The operation was aborted.", "AbortError");
+  }
+
+  return Promise.race([promise, createAbortSignalPromise(signal)]);
+}
+
+async function fetchDiscoverFeedCached(
+  key: string,
+  url: string,
+  signal: AbortSignal,
+): Promise<DiscoverFeedResponse> {
+  const cached = readCachedDiscoverValue(discoverFeedCache, key);
+  if (cached) return cached;
+
+  const existingRequest = discoverFeedInFlight.get(key);
+  if (existingRequest) {
+    return existingRequest;
+  }
+
+  const request = (async () => {
+    const res = await fetch(url, {
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      throw new Error("Não foi possível carregar o board de descoberta.");
+    }
+
+    const data = (await res.json()) as DiscoverFeedResponse;
+    if (!data?.ok) {
+      throw new Error("Não foi possível carregar o board de descoberta.");
+    }
+
+    discoverFeedCache.set(key, {
+      data,
+      expiresAt: Date.now() + DISCOVER_CLIENT_CACHE_TTL_MS,
+    });
+
+    return data;
+  })();
+
+  discoverFeedInFlight.set(key, request);
+
+  try {
+    return await awaitAbortable(request, signal);
+  } finally {
+    discoverFeedInFlight.delete(key);
+  }
+}
+
+async function fetchDiscoverCreatorsCached(
+  key: string,
+  url: string,
+  signal: AbortSignal,
+): Promise<DiscoverCreatorResponse> {
+  const cached = readCachedDiscoverValue(discoverCreatorsCache, key);
+  if (cached) return cached;
+
+  const existingRequest = discoverCreatorsInFlight.get(key);
+  if (existingRequest) {
+    return existingRequest;
+  }
+
+  const request = (async () => {
+    const res = await fetch(url, {
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      throw new Error("Não foi possível carregar os criadores agora.");
+    }
+
+    const data = (await res.json()) as DiscoverCreatorResponse;
+    discoverCreatorsCache.set(key, {
+      data,
+      expiresAt: Date.now() + DISCOVER_CLIENT_CACHE_TTL_MS,
+    });
+
+    return data;
+  })();
+
+  discoverCreatorsInFlight.set(key, request);
+
+  try {
+    return await awaitAbortable(request, signal);
+  } finally {
+    discoverCreatorsInFlight.delete(key);
+  }
+}
+
 export default function DiscoverBoard({
   compactView = false,
   mobileAppView = false,
   headerActions,
   showTitleMarker = true,
+  allowCompactWarmup = true,
+  isHighlighted = false,
 }: {
   compactView?: boolean;
   mobileAppView?: boolean;
   headerActions?: React.ReactNode;
   showTitleMarker?: boolean;
+  allowCompactWarmup?: boolean;
+  isHighlighted?: boolean;
 }) {
   const dedicatedDesktopWidthClassName = "lg:max-w-[1640px]";
   const isBoardMobileViewport = useBoardMobileViewport();
@@ -59,11 +283,20 @@ export default function DiscoverBoard({
   const [creators, setCreators] = React.useState<LandingCreatorHighlight[]>([]);
   const [creatorsLoaded, setCreatorsLoaded] = React.useState(false);
   const [fullFeedLoaded, setFullFeedLoaded] = React.useState(!useCompactLayout);
+  const [allowSecondaryWarmup, setAllowSecondaryWarmup] = React.useState(
+    !useCompactLayout && allowCompactWarmup,
+  );
   const creatorsRequestInFlightRef = React.useRef(false);
 
   React.useEffect(() => {
     setFullFeedLoaded(!useCompactLayout);
   }, [postsLimitPerRow, postsWindowInDays, useCompactLayout]);
+
+  React.useEffect(() => {
+    setAllowSecondaryWarmup(
+      allowCompactWarmup && canWarmDiscoverSecondaryContent(useMobileAppView),
+    );
+  }, [allowCompactWarmup, useMobileAppView]);
 
   React.useEffect(() => {
     const controller = new AbortController();
@@ -78,26 +311,18 @@ export default function DiscoverBoard({
           days: String(postsWindowInDays),
           surface: useCompactLayout ? "board" : "full",
         });
-
-        const res = await fetch(`/api/discover/feed?${params.toString()}`, {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-
-        if (!res.ok) {
-          throw new Error("Não foi possível carregar o board de descoberta.");
-        }
-
-        const data = (await res.json()) as DiscoverFeedResponse;
-        if (!data?.ok) {
-          throw new Error("Não foi possível carregar o board de descoberta.");
-        }
+        const queryString = params.toString();
+        const data = await fetchDiscoverFeedCached(
+          queryString,
+          `/api/discover/feed?${queryString}`,
+          controller.signal,
+        );
 
         setSections(Array.isArray(data.sections) ? data.sections : []);
         setAllowedPersonalized(Boolean(data.allowedPersonalized));
         setFullFeedLoaded(!useCompactLayout);
       } catch (err) {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || isAbortLikeError(err)) return;
         setError(err instanceof Error ? err.message : "Não foi possível carregar o board de descoberta.");
       } finally {
         if (!controller.signal.aborted) setLoading(false);
@@ -112,7 +337,7 @@ export default function DiscoverBoard({
   }, [postsLimitPerRow, postsWindowInDays, useCompactLayout]);
 
   React.useEffect(() => {
-    if (!useCompactLayout || fullFeedLoaded || loading || error) return;
+    if (!allowSecondaryWarmup || !useCompactLayout || fullFeedLoaded || loading || error) return;
     if (typeof window === "undefined") return;
 
     const controller = new AbortController();
@@ -126,14 +351,12 @@ export default function DiscoverBoard({
           days: String(postsWindowInDays),
           surface: "full",
         });
-
-        const res = await fetch(`/api/discover/feed?${params.toString()}`, {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-
-        if (!res.ok) return;
-        const data = (await res.json()) as DiscoverFeedResponse;
+        const queryString = params.toString();
+        const data = await fetchDiscoverFeedCached(
+          queryString,
+          `/api/discover/feed?${queryString}`,
+          controller.signal,
+        );
         if (controller.signal.aborted || !data?.ok) return;
 
         setSections(Array.isArray(data.sections) ? data.sections : []);
@@ -163,7 +386,15 @@ export default function DiscoverBoard({
         window.clearTimeout(timeoutId);
       }
     };
-  }, [error, fullFeedLoaded, loading, postsLimitPerRow, postsWindowInDays, useCompactLayout]);
+  }, [
+    allowSecondaryWarmup,
+    error,
+    fullFeedLoaded,
+    loading,
+    postsLimitPerRow,
+    postsWindowInDays,
+    useCompactLayout,
+  ]);
 
   const loadCreators = React.useCallback(
     async (signal: AbortSignal) => {
@@ -181,22 +412,17 @@ export default function DiscoverBoard({
         if (creatorLimit) {
           params.set("limit", String(creatorLimit));
         }
-
-        const res = await fetch(`/api/landing/casting?${params.toString()}`, {
-          cache: "no-store",
+        const queryString = params.toString();
+        const data = await fetchDiscoverCreatorsCached(
+          queryString,
+          `/api/landing/casting?${queryString}`,
           signal,
-        });
-
-        if (!res.ok) {
-          throw new Error("Não foi possível carregar os criadores agora.");
-        }
-
-        const data = (await res.json()) as DiscoverCreatorResponse;
+        );
         if (signal.aborted) return;
         setCreators(Array.isArray(data.creators) ? data.creators : []);
         setCreatorsLoaded(true);
       } catch (err) {
-        if (signal.aborted) return;
+        if (signal.aborted || isAbortLikeError(err)) return;
         setCreatorsError(err instanceof Error ? err.message : "Não foi possível carregar os criadores agora.");
       } finally {
         creatorsRequestInFlightRef.current = false;
@@ -207,7 +433,7 @@ export default function DiscoverBoard({
   );
 
   React.useEffect(() => {
-    if (!useCompactLayout || creatorsLoaded || loading || error) return;
+    if (!allowSecondaryWarmup || !useCompactLayout || creatorsLoaded || loading || error) return;
     if (typeof window === "undefined") return;
 
     const controller = new AbortController();
@@ -233,7 +459,7 @@ export default function DiscoverBoard({
         window.clearTimeout(timeoutId);
       }
     };
-  }, [creatorsLoaded, error, loadCreators, loading, useCompactLayout]);
+  }, [allowSecondaryWarmup, creatorsLoaded, error, loadCreators, loading, useCompactLayout]);
 
   React.useEffect(() => {
     if (activeTab !== "creators" || creatorsLoaded) return;
@@ -266,6 +492,7 @@ export default function DiscoverBoard({
       showChevron={false}
       showOptions={false}
       disableMobilePaddingTop={useMobileAppView}
+      isHighlighted={isHighlighted}
       contentClassName={useMobileAppView ? "bg-transparent" : "bg-[linear-gradient(180deg,rgba(255,255,255,0.26),rgba(248,248,249,0.72))]"}
     >
       <div
@@ -289,28 +516,7 @@ export default function DiscoverBoard({
 
       {activeTab === "posts" ? (
         loading ? (
-        <div className={useCompactLayout ? "space-y-4 p-4" : "space-y-5 p-4 sm:p-5"}>
-          <div className="space-y-3">
-            <div className="h-3 w-28 animate-pulse rounded-full bg-zinc-200" />
-            <div className="flex flex-wrap gap-2">
-              <div className="h-9 w-24 animate-pulse rounded-full bg-zinc-100" />
-              <div className="h-9 w-24 animate-pulse rounded-full bg-zinc-100" />
-              <div className="h-9 w-24 animate-pulse rounded-full bg-zinc-100" />
-            </div>
-          </div>
-          <div className="space-y-4">
-            {Array.from({ length: useCompactLayout ? 2 : 3 }).map((_, index) => (
-              <div key={index} className="space-y-3">
-                <div className="h-4 w-40 animate-pulse rounded-full bg-zinc-200" />
-                <div className="flex gap-2 overflow-hidden">
-                  <div className={`animate-pulse rounded-[1.4rem] bg-zinc-100 ${useCompactLayout ? "h-[190px] w-[132px]" : "h-[250px] w-[180px]"}`} />
-                  <div className={`animate-pulse rounded-[1.4rem] bg-zinc-100 ${useCompactLayout ? "h-[190px] w-[132px]" : "h-[250px] w-[180px]"}`} />
-                  <div className={`animate-pulse rounded-[1.4rem] bg-zinc-100 ${useCompactLayout ? "h-[190px] w-[132px]" : "h-[250px] w-[180px]"}`} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        <DiscoverPostsTabLoading compactView={useCompactLayout} />
         ) : error ? (
         <div className="p-4 sm:p-5">
           <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4 text-sm text-amber-900">

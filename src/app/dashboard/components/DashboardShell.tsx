@@ -1,12 +1,9 @@
 "use client";
 
 import React, { useEffect, useMemo } from "react";
+import dynamic from "next/dynamic";
 import { usePathname, useSearchParams } from "next/navigation";
-import SidebarNav from "./SidebarNav";
-import MobileBottomNav from "./MobileBottomNav";
 import { useSidebarViewport } from "./sidebar/hooks";
-import ActivationPendingWidget from "./activation/ActivationPendingWidget";
-import Header from "../../components/Header";
 import InstagramReconnectBanner from "./InstagramReconnectBanner";
 import TrialBanner from "./TrialBanner";
 import { SidebarProvider, useSidebar } from "../context/SidebarContext";
@@ -17,6 +14,23 @@ import {
   type HeaderConfig,
   type HeaderVariant,
 } from "../context/HeaderContext";
+
+const SidebarNav = dynamic(() => import("./SidebarNav"), {
+  loading: () => null,
+});
+
+const Header = dynamic(() => import("../../components/Header"), {
+  loading: () => null,
+});
+
+const ActivationPendingWidget = dynamic(() => import("./activation/ActivationPendingWidget"), {
+  loading: () => null,
+});
+
+const MobileBottomNav = dynamic(() => import("./MobileBottomNav"), {
+  loading: () => null,
+  ssr: false,
+});
 
 type DashboardShellProps = {
   children: React.ReactNode;
@@ -65,6 +79,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isCollapsed, toggleSidebar } = useSidebar();
   const { isMobile } = useSidebarViewport();
   const { config: activeHeaderConfig } = useHeaderConfig();
+  const [activationWidgetReady, setActivationWidgetReady] = React.useState(false);
   const overlayIgnoreUntilRef = React.useRef(0);
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -139,6 +154,34 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     return () => document.removeEventListener("pointerdown", handler, true);
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let timeoutId: number | null = null;
+    let idleId: number | null = null;
+
+    const activateWidget = () => {
+      setActivationWidgetReady(true);
+    };
+
+    if (typeof window.requestIdleCallback === "function") {
+      idleId = window.requestIdleCallback(activateWidget, {
+        timeout: isMobile ? 1600 : 900,
+      });
+    } else {
+      timeoutId = window.setTimeout(activateWidget, isMobile ? 1100 : 600);
+    }
+
+    return () => {
+      if (idleId !== null && typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [isMobile]);
+
   const mainOffset = isGuidedFlow || isPrintMode ? "" : "lg:ml-[92px]";
 
   const mainScrollClass = isPrintMode
@@ -204,8 +247,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
             )}
           </div>
         </main>
-        {!isPrintMode ? <ActivationPendingWidget /> : null}
-        <MobileBottomNav />
+        {!isPrintMode && activationWidgetReady ? <ActivationPendingWidget /> : null}
+        {!isPrintMode && !isGuidedFlow && isMobile ? <MobileBottomNav /> : null}
       </div>
     </>
   );

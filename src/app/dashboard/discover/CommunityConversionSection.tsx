@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import type { PaywallEventDetail } from "@/types/paywall";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import type { HomeSummaryResponse } from "@/app/dashboard/home/types";
+import { fetchHomeSummaryCached } from "@/app/dashboard/home/homeSummaryClient";
 
 type CommunityConversionSectionProps = {
   teaserMode?: boolean;
@@ -98,14 +99,10 @@ export default function CommunityConversionSection({
 
     const loadCommunitySummary = async () => {
       try {
-        const response = await fetch("/api/dashboard/home/summary?scope=community", {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        if (!response.ok) return;
-        const payload = (await response.json()) as { data?: HomeSummaryResponse | null };
+        const payload = await fetchHomeSummaryCached("community");
+        if (controller.signal.aborted || cancelled) return;
         if (!cancelled) {
-          setCommunitySummary(payload?.data?.community ?? null);
+          setCommunitySummary(payload?.community ?? null);
         }
       } catch (error) {
         if (cancelled || (error as Error)?.name === "AbortError") return;
@@ -346,7 +343,7 @@ export default function CommunityConversionSection({
       </section>
 
       <section
-        className={`sticky bottom-0 z-10 -mx-4 bg-[linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,0.95)_22%,rgba(255,255,255,0.98)_100%)] px-4 sm:-mx-5 sm:px-5 ${
+        className={`sticky bottom-0 z-10 -mx-4 bg-white px-4 sm:-mx-5 sm:px-5 ${
           isCompact ? "pb-0 pt-4" : "pb-0 pt-6"
         }`}
       >

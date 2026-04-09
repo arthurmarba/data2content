@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState, useMemo, useCallback, memo } from 'react';
-import { motion } from 'framer-motion';
 import { Loader2, AlertCircle, Play, CheckCircle2, MessageSquare, ExternalLink, Heart, Share2, Bookmark, BarChart2 } from 'lucide-react';
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
@@ -59,6 +58,11 @@ interface PostReviewItem {
     };
 }
 
+type StrategicPresentation = ReturnType<typeof getMetricStrategicPresentation>;
+type EnrichedPostReviewItem = PostReviewItem & {
+    strategicPresentation: StrategicPresentation;
+};
+
 const STATUS_CONFIG: Record<ReviewStatus, { label: string; bg: string; text: string; border: string; icon: any }> = {
     do: { label: 'Keep Doing', bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: CheckCircle2 },
     dont: { label: 'Stop Doing', bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', icon: AlertCircle },
@@ -102,32 +106,38 @@ export default function PostAnalysisPage() {
         }
     }, [data, setLastViewedAt]);
 
-    const reviews = useMemo(() => data?.items || [], [data?.items]);
+    const reviews = useMemo<EnrichedPostReviewItem[]>(
+        () =>
+            (data?.items || []).map((review) => ({
+                ...review,
+                strategicPresentation: getMetricStrategicPresentation({
+                    description: review.post.description,
+                    format: review.post.format,
+                    proposal: review.post.proposal,
+                    context: review.post.postContext || review.post.context,
+                    tone: review.post.tone,
+                    references: review.post.references,
+                    contentIntent: review.post.contentIntent,
+                    narrativeForm: review.post.narrativeForm,
+                    contentSignals: review.post.contentSignals,
+                    stance: review.post.stance,
+                    proofStyle: review.post.proofStyle,
+                    commercialMode: review.post.commercialMode,
+                }),
+            })),
+        [data?.items]
+    );
 
     // Grouping Logic
     const groupedReviews = useMemo(() => {
-        const groups: Record<string, PostReviewItem[]> = {};
+        const groups: Record<string, EnrichedPostReviewItem[]> = {};
 
         const filteredReviews = statusFilter === 'all'
             ? reviews
             : reviews.filter(r => r.status === statusFilter);
 
         filteredReviews.forEach(review => {
-            const strategicPresentation = getMetricStrategicPresentation({
-                description: review.post.description,
-                format: review.post.format,
-                proposal: review.post.proposal,
-                context: review.post.postContext || review.post.context,
-                tone: review.post.tone,
-                references: review.post.references,
-                contentIntent: review.post.contentIntent,
-                narrativeForm: review.post.narrativeForm,
-                contentSignals: review.post.contentSignals,
-                stance: review.post.stance,
-                proofStyle: review.post.proofStyle,
-                commercialMode: review.post.commercialMode,
-            });
-            const label = strategicPresentation.primaryGroupingLabel;
+            const label = review.strategicPresentation.primaryGroupingLabel;
 
             if (!groups[label]) groups[label] = [];
             groups[label].push(review);
@@ -318,7 +328,7 @@ function ReviewCardSkeleton() {
 }
 
 const ReviewCard = memo(({ review, index, onPlay }: {
-    review: PostReviewItem;
+    review: EnrichedPostReviewItem;
     index: number;
     onPlay: (videoUrl?: string, postLink?: string, posterUrl?: string) => void
 }) => {
@@ -327,23 +337,7 @@ const ReviewCard = memo(({ review, index, onPlay }: {
     const Icon = config.icon;
     const coverUrl = review.post.thumbnail_url || review.post.thumbnailUrl || review.post.coverUrl || review.post.media_url || review.post.mediaUrl;
     const stats = review.post.stats || {};
-    const strategicPresentation = useMemo(
-        () => getMetricStrategicPresentation({
-            description: review.post.description,
-            format: review.post.format,
-            proposal: review.post.proposal,
-            context: review.post.postContext || review.post.context,
-            tone: review.post.tone,
-            references: review.post.references,
-            contentIntent: review.post.contentIntent,
-            narrativeForm: review.post.narrativeForm,
-            contentSignals: review.post.contentSignals,
-            stance: review.post.stance,
-            proofStyle: review.post.proofStyle,
-            commercialMode: review.post.commercialMode,
-        }),
-        [review.post]
-    );
+    const strategicPresentation = review.strategicPresentation;
 
     const handlePlay = useCallback(() => {
         const videoUrl = review.post.media_url || review.post.mediaUrl;
@@ -359,10 +353,7 @@ const ReviewCard = memo(({ review, index, onPlay }: {
     };
 
     return (
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05, duration: 0.4 }}
+        <div
             className="group relative flex flex-col overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1 hover:shadow-xl snap-start w-[85vw] shrink-0 sm:w-auto"
         >
             {/* Status Header */}
@@ -467,7 +458,7 @@ const ReviewCard = memo(({ review, index, onPlay }: {
                     </span>
                 </div>
             </div>
-        </motion.div>
+        </div>
     );
 });
 ReviewCard.displayName = 'ReviewCard';

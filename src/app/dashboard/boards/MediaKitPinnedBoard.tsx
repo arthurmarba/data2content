@@ -10,8 +10,10 @@ import MediaKitConversionSection from "@/app/dashboard/media-kit/components/Medi
 
 export default function MediaKitPinnedBoard({
   showTitleMarker = true,
+  isHighlighted = false,
 }: {
   showTitleMarker?: boolean;
+  isHighlighted?: boolean;
 }) {
   const { data: session, status: sessionStatus } = useSession();
   const billing = useBillingStatus();
@@ -34,6 +36,7 @@ export default function MediaKitPinnedBoard({
       showOptions={false}
       contentClassName="bg-white"
       titleClassName="text-zinc-950"
+      isHighlighted={isHighlighted}
     >
       {showContent ? (
         <SelfMediaKitContent

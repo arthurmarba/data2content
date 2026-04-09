@@ -12,12 +12,18 @@ import { useDebounce } from 'use-debounce';
 import { useToast } from '@/app/components/ui/ToastA11yProvider';
 
 import PubliCard from '@/components/publis/PubliCard';
-import PublisConversionSection from './components/PublisConversionSection';
 
 const ShareModal = dynamic(() => import('@/components/publis/ShareModal'), {
     ssr: false,
     loading: () => null,
 });
+const PublisConversionSection = dynamic(
+    () => import('./components/PublisConversionSection'),
+    {
+        ssr: false,
+        loading: () => null,
+    }
+);
 const CreatorQuickSearch = dynamic(
     () => import("@/app/admin/creator-dashboard/components/CreatorQuickSearch"),
     { ssr: false, loading: () => null }
@@ -75,6 +81,7 @@ export default function PublisClient({ compactView = false }: { compactView?: bo
     const [selectedPubliId, setSelectedPubliId] = useState<string | null>(null);
     const [campaignOptions, setCampaignOptions] = useState<CampaignOption[]>([]);
     const [campaignsLoading, setCampaignsLoading] = useState(false);
+    const [campaignToolsReady, setCampaignToolsReady] = useState(false);
     const [selectedCampaignId, setSelectedCampaignId] = useState('');
     const [linkingPubliId, setLinkingPubliId] = useState<string | null>(null);
     const [linkedPubliIds, setLinkedPubliIds] = useState<string[]>([]);
@@ -185,6 +192,40 @@ export default function PublisClient({ compactView = false }: { compactView?: bo
 
     useEffect(() => {
         if (!hasProAccess) {
+            setCampaignToolsReady(false);
+            return;
+        }
+        if (campaignToolsReady) return;
+        if (typeof window === 'undefined') {
+            setCampaignToolsReady(true);
+            return;
+        }
+
+        let timeoutId: number | null = null;
+        let idleId: number | null = null;
+
+        const enableCampaignTools = () => {
+            setCampaignToolsReady(true);
+        };
+
+        if (typeof window.requestIdleCallback === 'function') {
+            idleId = window.requestIdleCallback(enableCampaignTools, { timeout: 1200 });
+        } else {
+            timeoutId = window.setTimeout(enableCampaignTools, 350);
+        }
+
+        return () => {
+            if (idleId !== null && typeof window.cancelIdleCallback === 'function') {
+                window.cancelIdleCallback(idleId);
+            }
+            if (timeoutId !== null) {
+                window.clearTimeout(timeoutId);
+            }
+        };
+    }, [campaignToolsReady, hasProAccess]);
+
+    useEffect(() => {
+        if (!hasProAccess || !campaignToolsReady) {
             setCampaignOptions([]);
             setSelectedCampaignId('');
             setLinkedPubliIds([]);
@@ -246,10 +287,10 @@ export default function PublisClient({ compactView = false }: { compactView?: bo
         return () => {
             cancelled = true;
         };
-    }, [hasProAccess, toast]);
+    }, [campaignToolsReady, hasProAccess, toast]);
 
     useEffect(() => {
-        if (!hasProAccess || !selectedCampaignId) {
+        if (!hasProAccess || !campaignToolsReady || !selectedCampaignId) {
             setLinkedPubliIds([]);
             return;
         }
@@ -290,7 +331,7 @@ export default function PublisClient({ compactView = false }: { compactView?: bo
         return () => {
             cancelled = true;
         };
-    }, [hasProAccess, selectedCampaignId]);
+    }, [campaignToolsReady, hasProAccess, selectedCampaignId]);
 
     const handleLinkCampaign = useCallback(
         async (publiId: string) => {

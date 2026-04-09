@@ -1,12 +1,25 @@
 "use client"; // Indica que este arquivo é um Client Component
 
 import React, { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useSession, signIn } from "next-auth/react";
 import { DashboardProvider } from "../components/DashboardContext";
-import MegaCard from "../components/MegaCard";
-import ChatCard from "../components/ChatCard";
 // Atualizado o caminho de importação dos tipos para refletir a estrutura correta
 import { ExtendedUser, MetricItem, MetricResult } from "../components/types";
+
+const MegaCard = dynamic(() => import("../components/MegaCard"), {
+  ssr: false,
+  loading: () => (
+    <div className="min-h-[520px] w-full animate-pulse rounded-2xl border border-zinc-200 bg-zinc-50/70" />
+  ),
+});
+
+const ChatCard = dynamic(() => import("../components/ChatCard"), {
+  ssr: false,
+  loading: () => (
+    <div className="min-h-[420px] w-full animate-pulse rounded-2xl border border-zinc-200 bg-zinc-50/70" />
+  ),
+});
 
 /** ===================== */
 /** Componente: UploadMetrics */

@@ -6,7 +6,6 @@ import { useSession } from "next-auth/react";
 import {
   FaArrowDown
 } from 'react-icons/fa';
-import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { isPlanActiveLike } from "@/utils/planStatus";
@@ -154,6 +153,7 @@ export default function ChatPanel({
   const [tapDebugState, setTapDebugState] = useState<TapDebugState | null>(null);
   const lastTapInfoRef = useRef<{ target: string | null; type: string | null } | null>(null);
   const [skipAutoSelect, setSkipAutoSelect] = useState(false);
+  const [sidebarDataReady, setSidebarDataReady] = useState(fullHeight);
   const { selectedThreadId: storedThreadId, setSelectedThreadId: setStoredThreadId } = useThreadSelection(selectedThreadId);
   const effectiveThreadId = selectedThreadId ?? storedThreadId;
 
@@ -163,6 +163,35 @@ export default function ChatPanel({
       setStoredThreadId(selectedThreadId ?? null);
     }
   }, [selectedThreadId, setStoredThreadId]);
+
+  useEffect(() => {
+    if (sidebarDataReady) return;
+    let fallbackTimeoutId: number | null = null;
+    const idleWindow = window as typeof window & {
+      requestIdleCallback?: (callback: IdleRequestCallback, options?: IdleRequestOptions) => number;
+      cancelIdleCallback?: (handle: number) => void;
+    };
+    let idleHandle: number | null = null;
+    const frame = window.requestAnimationFrame(() => {
+      if (typeof idleWindow.requestIdleCallback === "function") {
+        idleHandle = idleWindow.requestIdleCallback(() => {
+          setSidebarDataReady(true);
+        }, { timeout: 240 });
+        return;
+      }
+      fallbackTimeoutId = window.setTimeout(() => setSidebarDataReady(true), 120);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      if (idleHandle !== null && typeof idleWindow.cancelIdleCallback === "function") {
+        idleWindow.cancelIdleCallback(idleHandle);
+      }
+      if (fallbackTimeoutId !== null) {
+        window.clearTimeout(fallbackTimeoutId);
+      }
+    };
+  }, [sidebarDataReady]);
 
   // Mobile Safari: first tap while a textarea is focused often just dismisses the keyboard.
   useEffect(() => {
@@ -299,7 +328,7 @@ export default function ChatPanel({
     renameThread,
     deleteThread,
     hasMore,
-  } = useChatThreads({ autoLoad: true, limit: 50 });
+  } = useChatThreads({ autoLoad: sidebarDataReady || Boolean(selectedThreadId), limit: 50 });
 
   const handleThreadCreated = useCallback((newId: string) => {
     refreshThreads();
@@ -640,16 +669,18 @@ export default function ChatPanel({
 
   // Seleciona automaticamente a thread mais recente caso nada esteja selecionado ao carregar a lista
   useEffect(() => {
+    if (!sidebarDataReady) return;
     if (skipAutoSelect) return;
     if (effectiveThreadId) return;
     if (!threads.length) return;
     const first = threads[0];
     if (!first?._id) return;
     selectThread(first._id);
-  }, [effectiveThreadId, threads, selectThread, skipAutoSelect]);
+  }, [effectiveThreadId, sidebarDataReady, threads, selectThread, skipAutoSelect]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
+    if (!sidebarDataReady) return;
     let id: number | null = null;
 
     const stop = () => {
@@ -684,7 +715,7 @@ export default function ChatPanel({
       stop();
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [refreshAlertsUnreadCount]);
+  }, [refreshAlertsUnreadCount, sidebarDataReady]);
 
   // Auto-refresh alerts + threads ao abrir o sino (uma vez por abertura)
   const refreshedOnOpenRef = useRef(false);
@@ -693,11 +724,14 @@ export default function ChatPanel({
       refreshedOnOpenRef.current = false;
       return;
     }
+    if (!sidebarDataReady) {
+      setSidebarDataReady(true);
+    }
     if (refreshedOnOpenRef.current) return;
     refreshedOnOpenRef.current = true;
     refreshAlerts();
     refreshThreads();
-  }, [isAlertsOpen, refreshAlerts, refreshThreads]);
+  }, [isAlertsOpen, refreshAlerts, refreshThreads, sidebarDataReady]);
 
   const handleSend = async () => {
     await sendPrompt(input);
@@ -1153,11 +1187,7 @@ export default function ChatPanel({
         {isWelcome ? (
           <div className="h-full flex flex-col items-center justify-center pb-10">
             <div className="w-full max-w-6xl text-center px-4">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-              >
+              <div className="transition-opacity duration-300 ease-out">
                 <h1 className="text-3xl sm:text-6xl font-bold tracking-tight text-gray-900 mb-4">
                   Olá, <span className="text-brand-primary">{firstName}</span>
                 </h1>
@@ -1168,16 +1198,15 @@ export default function ChatPanel({
                     Pesquisa desatualizada? Refaça em 2 minutos para respostas mais alinhadas.
                   </div>
                 ) : null}
-              </motion.div>
+              </div>
 
-              <motion.div
-                initial="hidden"
-                animate="visible"
-                variants={{ visible: { transition: { staggerChildren: 0.08, delayChildren: 0.2 } } }}
-                className="flex flex-wrap justify-center gap-3 mt-12"
-              >
+              <div className="mt-12 flex flex-wrap justify-center gap-3">
                 {welcomePrompts.map((p, i) => (
-                  <motion.div key={i} variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}>
+                  <div
+                    key={i}
+                    className="transition-transform duration-200 ease-out"
+                    style={{ transitionDelay: `${Math.min(i * 40, 200)}ms` }}
+                  >
                     <PromptChip
                       label={p.label}
                       onClick={() => {
@@ -1189,9 +1218,9 @@ export default function ChatPanel({
                         }
                       }}
                     />
-                  </motion.div>
+                  </div>
                 ))}
-              </motion.div>
+              </div>
             </div>
           </div>
         ) : (
@@ -1303,21 +1332,13 @@ export default function ChatPanel({
               ))}
 
               {/* “Respondendo…” inline */}
-              <AnimatePresence>
-                {isSending && (
-                  <motion.li
-                    key="respondendo-inline"
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 6 }}
-                    className="w-full flex justify-start"
-                  >
+              {isSending ? (
+                  <li className="w-full flex justify-start">
                     <div className="max-w-[92%] sm:max-w-[80%] lg:max-w-[72ch]">
                       <ThinkingIndicator />
                     </div>
-                  </motion.li>
-                )}
-              </AnimatePresence>
+                  </li>
+              ) : null}
             </ul>
             <div
               ref={messagesEndRef}
@@ -1490,6 +1511,7 @@ export default function ChatPanel({
           onCloseTools={() => setIsToolsOpen(false)}
           onOpenAlerts={() => {
             setIsToolsOpen(false);
+            setSidebarDataReady(true);
             setAlertsOpen(true);
           }}
           isAlertsOpen={isAlertsOpen}
@@ -1553,22 +1575,16 @@ export default function ChatPanel({
       ) : null}
 
       {/* Voltar ao fim */}
-      <AnimatePresence>
-        {!isAtBottom && messages.length > 0 && (
-          <motion.button
-            key="back-to-end"
-            initial={{ opacity: 0, scale: 0.8, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.8, y: 10 }}
+      {!isAtBottom && messages.length > 0 ? (
+          <button
             onClick={scrollToBottom}
-            className="absolute right-6 z-20 p-3 bg-brand-primary text-white rounded-full shadow-lg hover:bg-brand-primary-dark transition-colors"
+            className="absolute right-6 z-20 rounded-full bg-brand-primary p-3 text-white shadow-lg transition-colors hover:bg-brand-primary-dark"
             style={{ bottom: 'calc(var(--composer-h, 80px) + 1rem)' }}
             aria-label="Voltar ao fim"
           >
             <FaArrowDown />
-          </motion.button>
-        )}
-      </AnimatePresence>
+          </button>
+      ) : null}
 
     </div >
   );

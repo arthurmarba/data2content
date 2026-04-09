@@ -9,7 +9,8 @@ import { getPlannerSlotPresentation, type PlannerSlotMetaChip } from './plannerS
 
 const DAYS_FULL_PT = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
 type StatusCategory = 'champion' | 'test' | 'watch' | 'planned';
-const CARD_BATCH_SIZE = 12;
+const CARD_BATCH_SIZE_DESKTOP = 12;
+const CARD_BATCH_SIZE_COMPACT = 4;
 const LABELS_CACHE_LIMIT = 320;
 type LabelCategory = 'proposal' | 'context' | 'tone' | 'reference';
 type SlotCardCacheEntry = {
@@ -141,6 +142,11 @@ const FORMAT_LABELS: Record<string, string> = {
 function formatSlotFormat(formatId?: string): string {
   if (!formatId) return 'Formato livre';
   return FORMAT_LABELS[formatId] ?? formatId;
+}
+
+function joinPlannerCardLabels(labels: readonly string[], limit = 2): string {
+  const values = labels.filter(Boolean).slice(0, limit);
+  return values.length ? values.join(' • ') : '—';
 }
 
 const toProxyUrl = (raw?: string | null) => {
@@ -391,26 +397,44 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
         const formatLabel = formatSlotFormat(slot.format);
         const expectedMetrics = slot.expectedMetrics ?? {};
         const viewsP50 = formatViews(expectedMetrics.viewsP50) ?? '—';
-        void getCachedLabels(labelsCache, slot.categories?.proposal, 'proposal');
-        void getCachedLabels(labelsCache, slot.categories?.context, 'context');
-        void getCachedLabels(labelsCache, slot.categories?.tone ? [slot.categories.tone] : undefined, 'tone');
-        void getCachedLabels(labelsCache, slot.categories?.reference, 'reference');
-        const presentation = getPlannerSlotPresentation(slot);
+        const contextLabels = getCachedLabels(labelsCache, slot.categories?.context, 'context');
 
-        baseFields = {
-          cardId,
-          title,
-          formatLabel: presentation.formatLabel !== '—' ? presentation.formatLabel : formatLabel,
-          viewsP50,
-          intentLabel: presentation.intentLabel,
-          narrativeLabel: presentation.narrativeLabel,
-          contextLabel: presentation.contextLabel,
-          focusDetailLabel: presentation.focusDetailLabel,
-          focusDetailValue: presentation.focusDetailValue,
-          metaChips: presentation.metaChips,
-        };
+        if (compactView) {
+          baseFields = {
+            cardId,
+            title,
+            formatLabel,
+            viewsP50,
+            intentLabel: '—',
+            narrativeLabel: '—',
+            contextLabel: joinPlannerCardLabels(contextLabels),
+            focusDetailLabel: 'Camada extra',
+            focusDetailValue: '—',
+            metaChips: [],
+          };
 
-        baseCache.set(slot, baseFields);
+          baseCache.set(slot, baseFields);
+        } else {
+          void getCachedLabels(labelsCache, slot.categories?.proposal, 'proposal');
+          void getCachedLabels(labelsCache, slot.categories?.tone ? [slot.categories.tone] : undefined, 'tone');
+          void getCachedLabels(labelsCache, slot.categories?.reference, 'reference');
+          const presentation = getPlannerSlotPresentation(slot);
+
+          baseFields = {
+            cardId,
+            title,
+            formatLabel: presentation.formatLabel !== '—' ? presentation.formatLabel : formatLabel,
+            viewsP50,
+            intentLabel: presentation.intentLabel,
+            narrativeLabel: presentation.narrativeLabel,
+            contextLabel: presentation.contextLabel,
+            focusDetailLabel: presentation.focusDetailLabel,
+            focusDetailValue: presentation.focusDetailValue,
+            metaChips: presentation.metaChips,
+          };
+
+          baseCache.set(slot, baseFields);
+        }
       }
 
       const statusInfo = getStatusInfo(heatScore, slot);
@@ -441,7 +465,7 @@ export const ContentPlannerCalendar: React.FC<ContentPlannerCalendarProps> = ({
 
     slotCardCacheRef.current = nextCache;
     return cards;
-  }, [sortedSlots, heatMapMap]);
+  }, [compactView, sortedSlots, heatMapMap]);
   const hasSlotCards = slotCards.length > 0;
 
   if (!publicMode && locked && !isBillingLoading) {
@@ -1271,16 +1295,6 @@ const ListModeSlotCardBase = ({
                 Tema-base: {effectiveTitle}
               </p>
             ) : null}
-            {hasSavedScript && canShowInspirations ? (
-              <div className="pt-1">
-                <SlotInspirationsContent
-                  slot={effectiveSlot}
-                  userId={userId}
-                  compactView={compactView}
-                  embedded
-                />
-              </div>
-            ) : null}
           </>
         ) : (
           <h3 className="line-clamp-2 text-[17px] font-bold leading-snug text-zinc-900 transition-colors group-hover:text-zinc-950 sm:text-[18px]">
@@ -1501,17 +1515,19 @@ const PlannerSlotCardGridBase = ({
   onSelectTheme,
   onOpenSavedScript,
 }: PlannerSlotCardGridProps) => {
-  const [visibleCount, setVisibleCount] = useState(() => Math.min(cards.length, CARD_BATCH_SIZE));
+  const batchSize = compactView ? CARD_BATCH_SIZE_COMPACT : CARD_BATCH_SIZE_DESKTOP;
+  const rootMargin = compactView ? '320px 0px' : '800px 0px';
+  const [visibleCount, setVisibleCount] = useState(() => Math.min(cards.length, batchSize));
   const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setVisibleCount((previousVisible) => {
       if (!cards.length) return 0;
-      const minimumVisible = Math.min(cards.length, CARD_BATCH_SIZE);
+      const minimumVisible = Math.min(cards.length, batchSize);
       const clampedVisible = Math.min(previousVisible, cards.length);
       return Math.max(clampedVisible, minimumVisible);
     });
-  }, [cards.length]);
+  }, [batchSize, cards.length]);
 
   const hasMoreCards = visibleCount < cards.length;
 
@@ -1520,7 +1536,7 @@ const PlannerSlotCardGridBase = ({
     const node = loadMoreRef.current;
     if (!node) return;
     if (typeof IntersectionObserver === 'undefined') {
-      setVisibleCount((previousVisible) => Math.min(cards.length, previousVisible + CARD_BATCH_SIZE));
+      setVisibleCount((previousVisible) => Math.min(cards.length, previousVisible + batchSize));
       return;
     }
 
@@ -1529,14 +1545,14 @@ const PlannerSlotCardGridBase = ({
         const reachedViewport = entries.some((entry) => entry.isIntersecting);
         if (!reachedViewport) return;
         observer.disconnect();
-        setVisibleCount((previousVisible) => Math.min(cards.length, previousVisible + CARD_BATCH_SIZE));
+        setVisibleCount((previousVisible) => Math.min(cards.length, previousVisible + batchSize));
       },
-      { rootMargin: '800px 0px', threshold: 0 }
+      { rootMargin, threshold: 0 }
     );
 
     observer.observe(node);
     return () => observer.disconnect();
-  }, [hasMoreCards, visibleCount, cards.length]);
+  }, [batchSize, cards.length, hasMoreCards, rootMargin, visibleCount]);
 
   const visibleCards = useMemo(
     () => cards.slice(0, visibleCount),

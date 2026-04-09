@@ -93,6 +93,7 @@ export function UserAvatar({
         className={baseClasses}
         style={sharedStyle}
         loading="lazy"
+        decoding="async"
         draggable={false}
         onError={handleFailure}
         onLoad={(e) => {
@@ -112,6 +113,8 @@ export function UserAvatar({
       unoptimized={imgSrc.includes('/api/proxy')}
       width={size}
       height={size}
+      quality={60}
+      sizes={fillContainer ? "100vw" : `${size}px`}
       className={baseClasses}
       style={sharedStyle}
       loading="lazy"

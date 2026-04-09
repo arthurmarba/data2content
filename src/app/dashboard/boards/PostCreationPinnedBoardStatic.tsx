@@ -2,12 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { useSession } from "next-auth/react";
-import { useSearchParams } from "next/navigation";
 
 import Board from "@/app/dashboard/components/Board";
 import ThreadsTabs from "@/app/dashboard/components/ThreadsTabs";
-import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { useSidebarViewport } from "../components/sidebar/hooks";
 import { redirectToGoogleConsentLogin } from "@/lib/auth/googleLogin";
 
@@ -30,49 +27,60 @@ const MyScriptsPage = dynamic(() => import("@/app/dashboard/scripts/MyScriptsPag
 
 type PostCreationTabId = "planner" | "scripts";
 
-export default function PostCreationPinnedBoard({
+type ViewerInfo = {
+  id?: string | null;
+  role?: string | null;
+  name?: string | null;
+};
+
+function PostCreationTabSkeleton() {
+  return (
+    <div className="h-full min-h-[360px] w-full animate-pulse rounded-[1.4rem] border border-zinc-100/80 bg-zinc-50/70" />
+  );
+}
+
+export default function PostCreationPinnedBoardStatic({
   initialTab,
-  isHighlighted = false,
+  viewer,
+  canInteract = false,
+  viewerPending = false,
+  previewMode = false,
+  initialInstagramConnected = false,
 }: {
   initialTab?: PostCreationTabId;
-  isHighlighted?: boolean;
+  viewer?: ViewerInfo;
+  canInteract?: boolean;
+  viewerPending?: boolean;
+  previewMode?: boolean;
+  initialInstagramConnected?: boolean;
 }) {
-  const { data: session, status } = useSession();
-  const searchParams = useSearchParams();
-  const billing = useBillingStatus();
   const { isMobile } = useSidebarViewport();
-  const hasPro = billing.hasPremiumAccess;
-
-  const sessionUser = session?.user as
-    | {
-        id?: string | null;
-        role?: string | null;
-        name?: string | null;
-        instagramConnected?: boolean | null;
-      }
-    | undefined;
-  const viewer = useMemo(
-    () => ({
-      id: sessionUser?.id ?? "",
-      role: sessionUser?.role ?? null,
-      name: sessionUser?.name ?? null,
-    }),
-    [sessionUser?.id, sessionUser?.name, sessionUser?.role],
-  );
-  const requestedTab = searchParams.get("tab");
   const resolvedInitialTab: PostCreationTabId =
-    requestedTab === "planner" || requestedTab === "scripts"
-      ? requestedTab
-      : initialTab === "planner" || initialTab === "scripts"
-        ? initialTab
-        : "scripts";
+    initialTab === "planner" || initialTab === "scripts" ? initialTab : "scripts";
   const [activeTab, setActiveTab] = useState<PostCreationTabId>(resolvedInitialTab);
+  const [activeTabReady, setActiveTabReady] = useState(false);
   useEffect(() => {
     setActiveTab(resolvedInitialTab);
   }, [resolvedInitialTab]);
-  const isPreviewMode =
-    status === "unauthenticated" &&
-    !(typeof sessionUser?.id === "string" && sessionUser.id.trim().length > 0);
+  useEffect(() => {
+    setActiveTabReady(false);
+    const frame = window.requestAnimationFrame(() => {
+      window.setTimeout(() => setActiveTabReady(true), 0);
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+    };
+  }, [activeTab]);
+  const normalizedViewer = useMemo(
+    () => ({
+      id: viewer?.id ?? "",
+      role: viewer?.role ?? null,
+      name: viewer?.name ?? null,
+    }),
+    [viewer?.id, viewer?.name, viewer?.role]
+  );
+  const isPreviewMode = previewMode && !normalizedViewer.id;
 
   const handleActivateBoard = () => {
     const callbackUrl =
@@ -97,7 +105,6 @@ export default function PostCreationPinnedBoard({
       showOptions={false}
       disableMobilePaddingTop={isMobile}
       contentClassName="bg-white"
-      isHighlighted={isHighlighted}
     >
       <div className="flex h-full min-h-0 flex-col">
         <div className={`sticky top-0 z-30 shrink-0 backdrop-blur-md ${isMobile
@@ -119,26 +126,28 @@ export default function PostCreationPinnedBoard({
         </div>
 
         <div className="relative min-h-0 flex-1">
-          {activeTab === "planner" ? (
+          {!activeTabReady ? (
+            <PostCreationTabSkeleton />
+          ) : activeTab === "planner" ? (
             <div className="h-full px-3.5 pb-3 pt-1.5">
               <PlannerClientPage
-                viewer={viewer}
+                viewer={normalizedViewer}
                 compactView
                 onNavigateToScripts={() => setActiveTab("scripts")}
-                viewerPending={status === "loading"}
+                viewerPending={viewerPending}
                 previewMode={isPreviewMode}
-                initialHasAccess={hasPro}
+                initialHasAccess={canInteract}
               />
             </div>
           ) : (
             <MyScriptsPage
               compactView
-              viewer={viewer}
-              canInteract={hasPro}
+              viewer={normalizedViewer}
+              canInteract={canInteract}
               showPreviewBanner={!isPreviewMode}
-              viewerPending={status === "loading"}
+              viewerPending={viewerPending}
               previewMode={isPreviewMode}
-              initialInstagramConnected={Boolean(sessionUser?.instagramConnected)}
+              initialInstagramConnected={initialInstagramConnected}
             />
           )}
           {isPreviewMode ? (

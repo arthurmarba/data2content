@@ -8,16 +8,12 @@ import { useSession } from 'next-auth/react';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
 import { buildCheckoutUrl } from '@/app/lib/checkoutRedirect';
 import { mapSubscribeError } from '@/app/lib/billing/errors';
+import type { BillingPricesShape } from '@/app/lib/billing/pricesShape';
 
 type Plan = 'monthly'|'annual';
 type Cur = 'brl'|'usd';
 
-interface PricesShape {
-  monthly: { brl: number; usd: number };
-  annual: { brl: number; usd: number };
-}
-
-export default function SubscribeInline({ prices }: { prices: PricesShape }) {
+export default function SubscribeInline({ prices }: { prices: BillingPricesShape }) {
   const router = useRouter();
   const { data: session } = useSession();
   const creatorId = (session?.user as { id?: string | null } | undefined)?.id ?? null;

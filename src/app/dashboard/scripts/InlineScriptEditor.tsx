@@ -201,7 +201,7 @@ export function InlineScriptEditor({
             <div
                 ref={backdropRef}
                 className={`pointer-events-none absolute inset-0 z-0 overflow-y-auto whitespace-pre-wrap break-words text-transparent ${
-                    compactView ? "px-1 py-3 text-[14px] leading-7" : "py-7 text-[17px] leading-9"
+                    compactView ? "px-1 py-2 text-[14px] leading-6" : "py-7 text-[17px] leading-9"
                 }`}
                 aria-hidden="true"
             >
@@ -227,7 +227,7 @@ export function InlineScriptEditor({
                 placeholder={placeholder}
                 className={`relative z-10 w-full resize-none overflow-y-auto border-0 bg-transparent text-slate-800 outline-none ring-0 ring-transparent placeholder:text-slate-300 focus:border-transparent focus:outline-none focus:ring-0 focus:ring-transparent focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-0 ${
                     compactView
-                        ? "h-full min-h-0 px-1 py-3 text-[14px] leading-7"
+                        ? "h-full min-h-0 px-1 py-2 text-[14px] leading-6"
                         : "h-full min-h-[62vh] py-7 text-[17px] leading-9"
                 }`}
             />

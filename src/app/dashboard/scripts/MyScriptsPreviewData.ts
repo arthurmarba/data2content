@@ -1,0 +1,103 @@
+export const PREVIEW_SCRIPTS = [
+  {
+    id: "preview-script-1",
+    title: "Roteiro para abrir a semana com posicionamento forte",
+    content:
+      "Hook: 'Se você começa a semana decidindo post na hora, o problema não é falta de ideia. É falta de sistema.'\n\nCena 1: mostra seu bloco de notas ou calendário aberto.\nCena 2: explica que você separa a semana em conteúdo de autoridade, relacionamento e comercial.\nCena 3: dá um exemplo real de pauta que já virou roteiro.\nCTA: 'Se quiser, comenta CALENDÁRIO que eu trago a estrutura completa.'",
+    source: "planner",
+    linkType: "planner_slot",
+    plannerRef: {
+      slotId: "preview-slot-seg-9",
+      weekStart: "2026-03-30",
+      dayOfWeek: 1,
+      blockStartHour: 9,
+    },
+    aiVersionId: null,
+    recommendation: {
+      isRecommended: true,
+      recommendedByAdminName: "Time D2C",
+      recommendedAt: "2026-03-31T10:00:00.000Z",
+    },
+    adminAnnotation: null,
+    inlineAnnotations: [],
+    publication: null,
+    linkingSummary: {
+      isLinked: false,
+      totalLinks: 0,
+      campaigns: [],
+    },
+    createdAt: "2026-03-31T09:00:00.000Z",
+    updatedAt: "2026-04-01T12:20:00.000Z",
+  },
+  {
+    id: "preview-script-2",
+    title: "Roteiro comercial com cara de caso real, não de publi engessada",
+    content:
+      "Hook: 'Esse foi o briefing que parecia simples, mas quase derrubou a negociação.'\n\nDesenvolvimento: contextualize a entrega, mostre a objeção principal e como você reposicionou o valor usando dados do perfil.\nProva: entra com um frame de resultado ou bastidor da aprovação.\nCTA: 'Se você quer cobrar melhor sem travar na negociação, salva esse roteiro.'",
+    source: "ai",
+    linkType: "standalone",
+    plannerRef: null,
+    aiVersionId: "preview-ai-version",
+    recommendation: null,
+    adminAnnotation: {
+      notes: "Bom exemplo de roteiro comercial que educa antes de vender.",
+      updatedByName: "Time D2C",
+      updatedAt: "2026-04-01T14:15:00.000Z",
+    },
+    inlineAnnotations: [],
+    publication: {
+      isPosted: false,
+      postedAt: null,
+      content: null,
+    },
+    linkingSummary: {
+      isLinked: true,
+      totalLinks: 1,
+      campaigns: [
+        {
+          proposalId: "preview-campaign-1",
+          linkId: "preview-link-1",
+          campaignTitle: "Campanha de creator commerce para rotina saudável",
+          brandName: "VivaLeve",
+          linkedAt: "2026-04-01T14:20:00.000Z",
+        },
+      ],
+    },
+    createdAt: "2026-03-29T11:00:00.000Z",
+    updatedAt: "2026-04-01T14:20:00.000Z",
+  },
+  {
+    id: "preview-script-3",
+    title: "Checklist de sexta para não entrar perdido na próxima semana",
+    content:
+      "Abertura: 'Antes de fechar o notebook hoje, eu faço essas 3 checagens.'\n\n1. Qual conteúdo puxou mais resposta ou compartilhamento.\n2. Qual insight precisa virar pauta na semana que vem.\n3. O que já merece virar roteiro pronto.\n\nFecho: 'Se você é creator e vive começando a semana no improviso, salva isso.'",
+    source: "manual",
+    linkType: "standalone",
+    plannerRef: null,
+    aiVersionId: null,
+    recommendation: null,
+    adminAnnotation: null,
+    inlineAnnotations: [],
+    publication: {
+      isPosted: true,
+      postedAt: "2026-03-30T18:00:00.000Z",
+      content: {
+        id: "preview-content-1",
+        caption: "3 checagens simples que eu faço toda sexta para não começar a semana perdida",
+        postDate: "2026-03-30T18:00:00.000Z",
+        postLink: "https://instagram.com/p/preview",
+        type: "reel",
+        coverUrl: null,
+        engagement: 4.7,
+        totalInteractions: 1820,
+      },
+    },
+    linkingSummary: {
+      isLinked: false,
+      totalLinks: 0,
+      campaigns: [],
+    },
+    createdAt: "2026-03-28T13:00:00.000Z",
+    updatedAt: "2026-03-30T18:00:00.000Z",
+  },
+];

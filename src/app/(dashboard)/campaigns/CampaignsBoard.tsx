@@ -27,12 +27,14 @@ export default function CampaignsBoard({
   mobileAppView = false,
   headerActions,
   showTitleMarker = true,
+  isHighlighted = false,
 }: {
   viewer?: any;
   compactView?: boolean;
   mobileAppView?: boolean;
   headerActions?: React.ReactNode;
   showTitleMarker?: boolean;
+  isHighlighted?: boolean;
 }) {
   const dedicatedDesktopWidthClassName = "lg:max-w-[1640px]";
   const isBoardMobileViewport = useBoardMobileViewport();
@@ -70,6 +72,7 @@ export default function CampaignsBoard({
       contentClassName={useMobileAppView ? "bg-transparent" : "bg-white"}
       disableMobilePaddingTop={useMobileAppView}
       titleClassName="text-zinc-950"
+      isHighlighted={isHighlighted}
     >
       <div
         className={`sticky top-0 z-30 backdrop-blur-md ${

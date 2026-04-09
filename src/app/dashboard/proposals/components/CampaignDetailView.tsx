@@ -1297,7 +1297,7 @@ export default function CampaignDetailView({
                 </div>
             </main>
 
-            <div className="sticky bottom-0 z-20 shrink-0 border-t border-zinc-100 bg-white/96 px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-3 backdrop-blur-md sm:px-5">
+            <div className="sticky bottom-0 z-20 shrink-0 border-t border-zinc-100 bg-white px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-3 sm:px-5">
                 <div className="mx-auto w-full max-w-[42rem]">
                     <button
                         type="button"

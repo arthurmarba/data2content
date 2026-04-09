@@ -51,6 +51,7 @@ function CreatorMediaKitCard({
             alt={creator.name || creator.username || "Criador"}
             fill
             sizes={compactView ? "118px" : "154px"}
+            quality={compactView ? 58 : 64}
             className="object-cover"
             loading={priority ? "eager" : "lazy"}
             priority={priority}
@@ -170,6 +171,11 @@ export default function DiscoverCreatorsBoardContent({
           <section
             key={rail.key}
             className={`${sectionIndex > 0 ? "border-t border-zinc-200/70 pt-5" : ""}`}
+            style={
+              sectionIndex === 0
+                ? undefined
+                : ({ contentVisibility: "auto", containIntrinsicSize: compactView ? "280px" : "340px" } as React.CSSProperties)
+            }
           >
             <div className="mb-3 flex items-end justify-between gap-3">
               <div className="min-w-0">

@@ -147,6 +147,7 @@ export default function DiscoverCard({
               className="w-full h-full object-cover"
               loading={priority ? 'eager' : 'lazy'}
               priority={priority}
+              quality={compactView ? 52 : isGrid ? 58 : 60}
               sizes={imageSizes}
               referrerPolicy="no-referrer"
               draggable={false}
@@ -194,6 +195,7 @@ export default function DiscoverCard({
               className="w-full h-full object-cover"
               loading={priority ? 'eager' : 'lazy'}
               priority={priority}
+              quality={compactView ? 52 : isGrid ? 58 : 60}
               sizes={imageSizes}
               referrerPolicy="no-referrer"
               draggable={false}

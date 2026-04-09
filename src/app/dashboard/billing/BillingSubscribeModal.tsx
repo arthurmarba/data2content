@@ -849,7 +849,7 @@ export default function BillingSubscribeModal({
           tabIndex={-1}
         >
           {/* Header sticky */}
-          <div className="sticky top-0 z-10 bg-white/92 backdrop-blur-xl">
+          <div className="sticky top-0 z-10 bg-white">
             <div className="border-b border-zinc-200/80">
               <div className="flex items-start gap-4 p-6 sm:p-7">
                 <div className="shrink-0 rounded-[1.1rem] bg-brand-primary/8 p-3 ring-1 ring-inset ring-brand-primary/12">
@@ -1008,7 +1008,7 @@ export default function BillingSubscribeModal({
           </div>
 
           {/* Rodapé sticky */}
-          <div className="sticky bottom-0 z-10 border-t border-zinc-200/80 bg-white/92 backdrop-blur-xl">
+          <div className="sticky bottom-0 z-10 border-t border-zinc-200/80 bg-white">
             <div className="px-6 sm:px-8 pb-6 pt-5">
               <button
                 type="button"

@@ -26,6 +26,7 @@ interface BoardProps {
     mobileHeaderAccessory?: React.ReactNode;
     desktopWidthClassName?: string;
     disableMobilePaddingTop?: boolean;
+    isHighlighted?: boolean;
 }
 
 export default function Board({ 
@@ -49,6 +50,7 @@ export default function Board({
     mobileHeaderAccessory,
     desktopWidthClassName = "",
     disableMobilePaddingTop = false,
+    isHighlighted = false,
 }: BoardProps) {
     const isCard = variant === 'card';
     const isCompact = variant === 'compact';
@@ -60,18 +62,18 @@ export default function Board({
 
     const surfaceClassName = React.useMemo(() => {
         if (isCompact) {
-            return 'h-full lg:h-[calc(100%-0.75rem)] max-h-full lg:max-h-[calc(100%-0.75rem)] w-full max-w-[460px] self-start overflow-visible rounded-none lg:rounded-[24px]';
+            return 'h-full lg:h-[calc(100%-0.75rem)] max-h-full lg:max-h-[calc(100%-0.75rem)] w-full max-w-[460px] overflow-visible rounded-none lg:rounded-[24px]';
         }
 
         if (isCard) {
-            return 'h-full lg:h-[calc(100%-0.9rem)] max-h-full lg:max-h-[calc(100%-0.9rem)] w-full max-w-[820px] self-start overflow-visible rounded-none lg:rounded-[32px]';
+            return 'h-full lg:h-[calc(100%-0.9rem)] max-h-full lg:max-h-[calc(100%-0.9rem)] w-full max-w-[820px] overflow-visible rounded-none lg:rounded-[32px]';
         }
 
         if (isWorkspace) {
-            return 'h-full lg:h-[calc(100%-1rem)] max-h-full lg:max-h-[calc(100%-1rem)] w-full self-start overflow-visible rounded-none lg:rounded-[32px]';
+            return 'h-full lg:h-[calc(100%-1rem)] max-h-full lg:max-h-[calc(100%-1rem)] w-full overflow-visible rounded-none lg:rounded-[32px]';
         }
 
-        return 'h-full lg:h-[calc(100%-0.9rem)] w-full min-w-0 lg:min-w-[320px] self-start overflow-visible rounded-none lg:rounded-[32px]';
+        return 'h-full lg:h-[calc(100%-0.9rem)] w-full min-w-0 lg:min-w-[320px] overflow-visible rounded-none lg:rounded-[32px]';
     }, [isCard, isCompact, isWorkspace]);
 
     const titleBarPaddingClassName = isCompact ? (disableMobilePaddingTop ? 'px-1 pt-0 pb-3 lg:pt-0' : 'px-1 pt-0 pb-3') : (disableMobilePaddingTop ? 'px-1 pt-0 pb-3.5 lg:pt-0' : 'px-1 pt-0 pb-3.5');
@@ -129,6 +131,7 @@ export default function Board({
             ${surfaceClassName}
             ${desktopWidthClassName}
             ${className}
+            ${isHighlighted ? "z-[10] ring-[3px] ring-indigo-500/80 ring-offset-4 ring-offset-zinc-50 animate-pulse shadow-[0_0_40px_rgba(79,70,229,0.3)]" : ""}
         `}
             data-mobile-frame={isMobileFlat ? "flat" : "surface"}
             onWheel={handleBoardWheel}
@@ -142,21 +145,23 @@ export default function Board({
                 <div className={`${hasInlineTitleAction ? "pointer-events-auto" : "pointer-events-none"} absolute inset-x-0 top-1/2 z-[1] flex -translate-y-1/2 justify-center px-14 sm:px-16`}>
                     <div className="min-w-0 max-w-full">
                         <div className={`flex min-w-0 items-center justify-center text-center ${usesTitleChip ? 'gap-2' : 'gap-1.5'}`}>
-                            {usesTitleChip ? (
-                                <span
-                                    aria-hidden="true"
-                                    className="hidden h-5.5 w-5.5 shrink-0 items-center justify-center rounded-[0.7rem] bg-white ring-1 ring-zinc-200/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] text-zinc-400 lg:inline-flex"
-                                >
-                                    <FaThumbtack className="h-2.5 w-2.5" />
-                                </span>
-                            ) : showTitleMarker ? (
-                                <span
-                                    aria-hidden="true"
-                                    className="hidden h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full text-zinc-400 lg:inline-flex"
-                                >
-                                    <FaThumbtack className="h-2.5 w-2.5" />
-                                </span>
-                            ) : null}
+                            {!hasInlineTitleAction && (
+                                usesTitleChip ? (
+                                    <span
+                                        aria-hidden="true"
+                                        className="hidden h-5.5 w-5.5 shrink-0 items-center justify-center rounded-[0.7rem] bg-white ring-1 ring-zinc-200/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] text-zinc-400 lg:inline-flex"
+                                    >
+                                        <FaThumbtack className="h-2.5 w-2.5" />
+                                    </span>
+                                ) : showTitleMarker ? (
+                                    <span
+                                        aria-hidden="true"
+                                        className="hidden h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full text-zinc-400 lg:inline-flex"
+                                    >
+                                        <FaThumbtack className="h-2.5 w-2.5" />
+                                    </span>
+                                ) : null
+                            )}
                             {hasInlineTitleAction ? (
                                 <span className="pointer-events-auto inline-flex shrink-0">
                                     {titleInlineAction}

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useSession } from "next-auth/react";
 import type { HomeSummaryResponse } from "@/app/dashboard/home/types";
+import { fetchHomeSummaryCached } from "@/app/dashboard/home/homeSummaryClient";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { ACTIVATION_JOURNEY_STORAGE_KEY } from "@/types/paywall";
 import { isPlanActiveLike } from "@/utils/planStatus";
@@ -185,16 +186,10 @@ export function useActivationChecklist(): UseActivationChecklistResult {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/dashboard/home/summary?scope=all", {
-          cache: "no-store",
-          signal: controller.signal,
-        });
-        if (!res.ok) {
-          throw new Error("Não foi possível carregar as etapas pendentes.");
-        }
-        const payload = (await res.json()) as { ok?: boolean; data?: HomeSummaryResponse };
+        const payload = await fetchHomeSummaryCached("all");
+        if (controller.signal.aborted || cancelled) return;
         if (!cancelled) {
-          setSummary(payload?.data ?? null);
+          setSummary(payload ?? null);
         }
       } catch (err) {
         if (cancelled || (err as Error)?.name === "AbortError") return;

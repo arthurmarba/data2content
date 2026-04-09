@@ -22,6 +22,7 @@ export default async function PlanningPlannerPage() {
         role: session?.user?.role ?? null,
         name: session?.user?.name ?? null,
       }}
+      initialHasAccess
     />
   );
 }
