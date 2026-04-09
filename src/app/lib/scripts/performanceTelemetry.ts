@@ -3,6 +3,7 @@ type ScriptsPerformanceStage =
   | "intelligence.ranking"
   | "intelligence.captions"
   | "intelligence.style_profile"
+  | "intelligence.script_examples"
   | "llm.call";
 
 type StageWindow = {

@@ -897,6 +897,7 @@ export async function POST(request: Request) {
         title: nextTitle,
         content: nextContent,
         intelligenceContext,
+        reviewMeta: generated.reviewMeta,
       });
     }
 

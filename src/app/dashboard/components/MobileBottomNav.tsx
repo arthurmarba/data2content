@@ -8,7 +8,7 @@ import {
   Home,
   TrendingUp,
   DollarSign,
-  Calendar,
+  PenLine,
   LayoutGrid
 } from "lucide-react";
 import { UserAvatar } from "@/app/components/UserAvatar";
@@ -47,7 +47,7 @@ const navItems: MobileBottomNavItem[] = [
   {
     key: "calendar",
     label: "Criação",
-    icon: Calendar,
+    icon: PenLine,
     href: "/calendar",
     match: (p: string) => p.startsWith("/calendar"),
   },

@@ -8,6 +8,7 @@ import {
 import { fetchTopCategories } from "@/app/lib/dataService";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import MetricModel from "@/app/models/Metric";
+import ScriptEntry from "@/app/models/ScriptEntry";
 
 import {
   SCRIPT_CATEGORY_DIMENSIONS,
@@ -50,6 +51,7 @@ const INTELLIGENCE_CACHE_TTL_MS = (() => {
 })();
 const RANKED_CACHE_MAX_ENTRIES = 160;
 const CAPTION_CACHE_MAX_ENTRIES = 240;
+const SCRIPT_EXAMPLE_CACHE_MAX_ENTRIES = 320;
 
 export const SCRIPT_INTELLIGENCE_VERSION = "scripts_intelligence_v2";
 export const SCRIPT_INTELLIGENCE_METRIC: "avg_total_interactions" = "avg_total_interactions";
@@ -97,6 +99,7 @@ export type ScriptIntelligenceLinkedOutcome = {
   >;
   topExamples: Array<{
     metricId: string;
+    scriptId?: string | null;
     caption: string;
     score: number;
     lift: number;
@@ -105,6 +108,24 @@ export type ScriptIntelligenceLinkedOutcome = {
     postDate?: string | null;
     categories?: ScriptCategorySelection;
   }>;
+};
+
+export type ScriptIntelligenceWinningScriptExample = {
+  scriptId: string;
+  title: string;
+  opening: string | null;
+  development: string | null;
+  cta: string | null;
+  lift: number;
+  interactions: number;
+  postDate: string | null;
+};
+
+type WinningScriptExampleCandidate = {
+  example: ScriptIntelligenceWinningScriptExample;
+  categories?: ScriptCategorySelection;
+  caption?: string | null;
+  lift: number;
 };
 
 export type ScriptIntelligenceContext = {
@@ -121,6 +142,7 @@ export type ScriptIntelligenceContext = {
   styleProfileVersion: string | null;
   styleSampleSize: number;
   captionEvidence: ScriptIntelligenceCaptionEvidence[];
+  winningScriptExamples: ScriptIntelligenceWinningScriptExample[];
   relaxationLevel: number;
   usedFallbackRules: boolean;
   linkedOutcome?: ScriptIntelligenceLinkedOutcome | null;
@@ -143,6 +165,10 @@ export type ScriptIntelligencePromptSnapshot = {
     avgInteractions: number;
     relaxationLevel: number;
     usedFallbackRules: boolean;
+  };
+  winningScriptExamplesSummary?: {
+    count: number;
+    scriptIds: string[];
   };
   linkedOutcomeSummary?: {
     enabled: boolean;
@@ -169,6 +195,50 @@ const rankedCategoriesCache = new Map<string, TimedCacheEntry<RankedCategoriesBy
 const rankedCategoriesInFlight = new Map<string, Promise<RankedCategoriesByDimension>>();
 const topCaptionsCache = new Map<string, TimedCacheEntry<CaptionFetchResult>>();
 const topCaptionsInFlight = new Map<string, Promise<CaptionFetchResult>>();
+const scriptExampleCache = new Map<
+  string,
+  TimedCacheEntry<ScriptIntelligenceWinningScriptExample | null>
+>();
+
+const WINNING_SCRIPT_CTA_REGEX =
+  /\b(comente|comenta|salve|salva|compartilhe|compartilha|direct|dm|me chama|segue|link|me conta|qual foi|e voc[eê])\b/i;
+const WINNING_SCRIPT_PRACTICAL_REGEX =
+  /\b(passo|ajuste|erro|troca|troque|pare de|comece|ritual|processo|crit[eé]rio|sinal|na pr[aá]tica|eu faço|eu troquei|eu parei|eu comecei)\b/i;
+const WINNING_SCRIPT_DIMENSION_WEIGHTS: Record<ScriptCategoryDimension, number> = {
+  proposal: 1.3,
+  context: 1.15,
+  format: 0.4,
+  tone: 0.85,
+  references: 0.55,
+};
+const SIMILARITY_STOPWORDS = new Set([
+  "como",
+  "com",
+  "para",
+  "pra",
+  "roteiro",
+  "sobre",
+  "esse",
+  "essa",
+  "isso",
+  "mais",
+  "meu",
+  "minha",
+  "perfil",
+  "criar",
+  "gere",
+  "crie",
+  "quero",
+  "fazer",
+  "deixar",
+  "melhor",
+  "melhore",
+  "ajuste",
+  "novo",
+  "real",
+  "pratico",
+  "prática",
+]);
 
 function normalizeCategoryId(value: string, dimension: ScriptCategoryDimension): string {
   const trimmed = value.trim();
@@ -214,6 +284,212 @@ function buildDateWindowCacheKey(dateRange: { startDate: Date; endDate: Date }):
 
 function buildSelectionCacheKey(selection: ScriptCategorySelection): string {
   return SCRIPT_CATEGORY_DIMENSIONS.map((dimension) => `${dimension}=${selection[dimension] || ""}`).join("|");
+}
+
+function compactExampleText(value: string, max = 140): string {
+  const normalized = String(value || "").replace(/\s+/g, " ").replace(/^"+|"+$/g, "").trim();
+  if (!normalized) return "";
+  return normalized.length > max ? `${normalized.slice(0, max - 1).trim()}…` : normalized;
+}
+
+function normalizeSimilarityText(value: string): string {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}+/gu, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractSimilarityTokens(value: string): string[] {
+  return normalizeSimilarityText(value)
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 4 && !SIMILARITY_STOPWORDS.has(token));
+}
+
+function computePromptTokenOverlap(queryTokens: string[], targetText: string): number {
+  if (!queryTokens.length) return 0;
+  const querySet = new Set(queryTokens);
+  const targetSet = new Set(extractSimilarityTokens(targetText));
+  if (!targetSet.size) return 0;
+  let matches = 0;
+  for (const token of querySet) {
+    if (targetSet.has(token)) matches += 1;
+  }
+  return matches / Math.max(1, Math.min(querySet.size, 6));
+}
+
+function scoreWinningScriptExampleCandidate(params: {
+  candidate: WinningScriptExampleCandidate;
+  intent: ScriptNarrativeIntent;
+  resolvedCategories: ScriptCategorySelection;
+  explicitCategories: ScriptCategorySelection;
+  promptTokens: string[];
+}): number {
+  let score = Math.max(0, Math.min(2.5, Number(params.candidate.lift || 0))) * 0.55;
+  let categoryScore = 0;
+
+  for (const dimension of SCRIPT_CATEGORY_DIMENSIONS) {
+    const resolved = params.resolvedCategories[dimension];
+    const candidateValue = params.candidate.categories?.[dimension];
+    if (!resolved || !candidateValue || resolved !== candidateValue) continue;
+    categoryScore += WINNING_SCRIPT_DIMENSION_WEIGHTS[dimension];
+    if (params.explicitCategories[dimension] && params.explicitCategories[dimension] === candidateValue) {
+      categoryScore += 0.35;
+    }
+  }
+  score += categoryScore;
+
+  const searchableText = [
+    params.candidate.example.title,
+    params.candidate.example.opening,
+    params.candidate.example.development,
+    params.candidate.example.cta,
+    params.candidate.caption || "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  score += computePromptTokenOverlap(params.promptTokens, searchableText) * 2.2;
+
+  if (params.intent.wantsHumor) {
+    if (
+      params.candidate.categories?.tone === "humorous" ||
+      params.candidate.categories?.proposal === "humor_scene"
+    ) {
+      score += 0.6;
+    }
+  }
+
+  if (params.intent.wantsEngagement && params.candidate.example.cta && WINNING_SCRIPT_CTA_REGEX.test(params.candidate.example.cta)) {
+    score += 0.18;
+  }
+
+  if (params.candidate.example.development && WINNING_SCRIPT_PRACTICAL_REGEX.test(params.candidate.example.development)) {
+    score += 0.4;
+  }
+
+  return roundScore(score);
+}
+
+export function selectWinningScriptExamplesForPrompt(params: {
+  candidates: WinningScriptExampleCandidate[];
+  prompt: string;
+  intent: ScriptNarrativeIntent;
+  resolvedCategories: ScriptCategorySelection;
+  explicitCategories?: ScriptCategorySelection;
+  limit?: number;
+}): ScriptIntelligenceWinningScriptExample[] {
+  if (!params.candidates.length) return [];
+
+  const promptBasis = [
+    params.intent.subjectHint || "",
+    params.prompt || "",
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const promptTokens = extractSimilarityTokens(promptBasis).slice(0, 8);
+  const explicitCategories = params.explicitCategories || {};
+  const limit = Math.max(1, Math.min(params.limit || 2, params.candidates.length));
+
+  return [...params.candidates]
+    .map((candidate) => ({
+      candidate,
+      score: scoreWinningScriptExampleCandidate({
+        candidate,
+        intent: params.intent,
+        resolvedCategories: params.resolvedCategories,
+        explicitCategories,
+        promptTokens,
+      }),
+    }))
+    .sort((a, b) => b.score - a.score || b.candidate.lift - a.candidate.lift)
+    .slice(0, limit)
+    .map((item) => item.candidate.example);
+}
+
+function extractScriptSpeechLines(content: string): string[] {
+  const normalized = String(content || "").replace(/\r/g, "");
+  if (!normalized.trim()) return [];
+
+  const speeches: string[] = [];
+  for (const rawLine of normalized.split("\n")) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    const directMatch = line.match(/^fala(?:\s*\(literal\))?\s*:\s*(.+)$/i);
+    if (directMatch?.[1]) {
+      const speech = compactExampleText(directMatch[1], 180);
+      if (speech) speeches.push(speech);
+      continue;
+    }
+
+    if (!line.startsWith("|") || /^\|\s*tempo\s*\|/i.test(line)) continue;
+    const cols = line
+      .split("|")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    if (!cols.length || cols.every((part) => /^:?-{2,}:?$/.test(part))) continue;
+
+    const speech = cols.length >= 6 ? cols[4] : cols.length >= 4 ? cols[2] : "";
+    const compacted = compactExampleText(speech ?? "", 180);
+    if (compacted) speeches.push(compacted);
+  }
+
+  if (speeches.length) return speeches.slice(0, 8);
+
+  return normalized
+    .split(/\n\s*\n/g)
+    .map((part) => compactExampleText(part, 180))
+    .filter(Boolean)
+    .slice(0, 4);
+}
+
+function buildWinningScriptExampleFromContent(params: {
+  scriptId: string;
+  title: string;
+  content: string;
+  lift: number;
+  interactions: number;
+  postDate: string | null;
+  fallbackOpening?: string | null;
+  fallbackCta?: string | null;
+}): ScriptIntelligenceWinningScriptExample | null {
+  const speechLines = extractScriptSpeechLines(params.content);
+  const opening = compactExampleText(speechLines[0] || params.fallbackOpening || "", 120) || null;
+
+  const ctaCandidate =
+    speechLines.find((line) => WINNING_SCRIPT_CTA_REGEX.test(line)) ||
+    speechLines[speechLines.length - 1] ||
+    params.fallbackCta ||
+    "";
+  const cta = compactExampleText(ctaCandidate, 120) || null;
+
+  const developmentCandidate =
+    speechLines.find((line) => {
+      const normalized = line.trim();
+      if (!normalized) return false;
+      if (opening && normalized === opening) return false;
+      if (cta && normalized === cta) return false;
+      return WINNING_SCRIPT_PRACTICAL_REGEX.test(normalized);
+    }) ||
+    speechLines[1] ||
+    "";
+  const development = compactExampleText(developmentCandidate, 120) || null;
+
+  if (!opening && !development && !cta) return null;
+
+  return {
+    scriptId: params.scriptId,
+    title: compactExampleText(params.title || "Roteiro de alta performance", 90) || "Roteiro de alta performance",
+    opening,
+    development,
+    cta,
+    lift: params.lift,
+    interactions: params.interactions,
+    postDate: params.postDate,
+  };
 }
 
 function getDateRangeFromLookback(lookbackDays: number): { startDate: Date; endDate: Date } {
@@ -529,6 +805,104 @@ function mergeCaptionEvidenceWithLinkedExamples(params: {
   }
 
   return merged.slice(0, DEFAULT_CAPTION_LIMIT);
+}
+
+async function fetchWinningScriptExamples(params: {
+  userId: string;
+  profile: ScriptOutcomeProfileSnapshot | null;
+  prompt: string;
+  intent: ScriptNarrativeIntent;
+  resolvedCategories: ScriptCategorySelection;
+  explicitCategories: ScriptCategorySelection;
+}): Promise<ScriptIntelligenceWinningScriptExample[]> {
+  if (!Types.ObjectId.isValid(params.userId)) return [];
+
+  const profileExamples = Array.isArray(params.profile?.topExamples) ? params.profile.topExamples.slice(0, 5) : [];
+  if (!profileExamples.length) return [];
+
+  const now = Date.now();
+  const resolved = new Map<string, ScriptIntelligenceWinningScriptExample | null>();
+  const missingIds: string[] = [];
+
+  for (const item of profileExamples) {
+    const scriptId = String(item?.scriptId || "");
+    if (!scriptId || !Types.ObjectId.isValid(scriptId)) continue;
+    const cached = scriptExampleCache.get(scriptId);
+    if (cached && cached.expiresAt > now) {
+      resolved.set(scriptId, cached.value);
+      continue;
+    }
+    missingIds.push(scriptId);
+  }
+
+  if (missingIds.length) {
+    const docs = await ScriptEntry.find({
+      userId: new Types.ObjectId(params.userId),
+      _id: { $in: missingIds.map((id) => new Types.ObjectId(id)) },
+    })
+      .select("_id title content postedAt postedContent.totalInteractions")
+      .lean()
+      .exec();
+
+    const docById = new Map<string, any>();
+    for (const doc of docs || []) {
+      docById.set(String(doc?._id || ""), doc);
+    }
+
+    for (const scriptId of missingIds) {
+      const profileItem = profileExamples.find((item) => String(item?.scriptId || "") === scriptId);
+      const doc = docById.get(scriptId);
+      const built =
+        doc && profileItem
+          ? buildWinningScriptExampleFromContent({
+              scriptId,
+              title: typeof doc?.title === "string" ? doc.title : "",
+              content: typeof doc?.content === "string" ? doc.content : "",
+              lift: typeof profileItem?.lift === "number" ? profileItem.lift : 0,
+              interactions:
+                typeof doc?.postedContent?.totalInteractions === "number" &&
+                Number.isFinite(doc.postedContent.totalInteractions)
+                  ? doc.postedContent.totalInteractions
+                  : typeof profileItem?.interactions === "number" && Number.isFinite(profileItem.interactions)
+                    ? profileItem.interactions
+                    : 0,
+              postDate: profileItem?.postDate || null,
+              fallbackOpening: profileItem?.hookSample || null,
+              fallbackCta: profileItem?.ctaSample || null,
+            })
+          : null;
+
+      scriptExampleCache.set(scriptId, {
+        value: built,
+        expiresAt: Date.now() + INTELLIGENCE_CACHE_TTL_MS,
+      });
+      resolved.set(scriptId, built);
+    }
+
+    pruneTimedCache(scriptExampleCache, SCRIPT_EXAMPLE_CACHE_MAX_ENTRIES);
+  }
+
+  const candidates = profileExamples
+    .map((item) => {
+      const built = resolved.get(String(item?.scriptId || "")) || null;
+      if (!built) return null;
+      return {
+        example: built,
+        categories: item.categories,
+        caption: item.caption || "",
+        lift: typeof item.lift === "number" ? item.lift : 0,
+      } satisfies WinningScriptExampleCandidate;
+    })
+    .filter(Boolean) as WinningScriptExampleCandidate[];
+
+  return selectWinningScriptExamplesForPrompt({
+    candidates,
+    prompt: params.prompt,
+    intent: params.intent,
+    resolvedCategories: params.resolvedCategories,
+    explicitCategories: params.explicitCategories,
+    limit: 2,
+  });
 }
 
 export function resolveFinalCategories(params: {
@@ -1003,6 +1377,18 @@ export async function buildScriptIntelligenceContext(params: {
 
     const dnaProfile = buildCreatorDnaProfileFromCaptions(finalCaptionEvidence);
     const { styleProfile, styleProfileVersion, styleSampleSize } = await styleProfilePromise;
+    const scriptExamplesStartMs = Date.now();
+    const winningScriptExamples = linkedOutcomeData.enabled
+      ? await fetchWinningScriptExamples({
+          userId: params.userId,
+          profile: linkedOutcomeData.profile,
+          prompt: params.prompt,
+          intent: parsed.intent,
+          resolvedCategories,
+          explicitCategories: parsed.explicitCategories,
+        })
+      : [];
+    recordScriptsStageDuration("intelligence.script_examples", Date.now() - scriptExamplesStartMs);
     const linkedOutcome: ScriptIntelligenceLinkedOutcome | null = linkedOutcomeData.enabled
       ? {
           enabled: true,
@@ -1012,6 +1398,7 @@ export async function buildScriptIntelligenceContext(params: {
           topByDimension: blendedRanking.topByDimension,
           topExamples: (linkedOutcomeData.profile?.topExamples || []).slice(0, 4).map((item) => ({
             metricId: item.metricId,
+            scriptId: item.scriptId || null,
             caption: item.caption,
             score: item.score,
             lift: item.lift,
@@ -1037,6 +1424,7 @@ export async function buildScriptIntelligenceContext(params: {
       styleProfileVersion,
       styleSampleSize,
       captionEvidence: finalCaptionEvidence,
+      winningScriptExamples,
       relaxationLevel: captionFetchResult.relaxationLevel,
       usedFallbackRules: captionFetchResult.usedFallbackRules,
       linkedOutcome,
@@ -1073,6 +1461,12 @@ export function buildIntelligencePromptSnapshot(
       relaxationLevel: context.relaxationLevel,
       usedFallbackRules: context.usedFallbackRules,
     },
+    winningScriptExamplesSummary: (context.winningScriptExamples || []).length
+      ? {
+          count: (context.winningScriptExamples || []).length,
+          scriptIds: (context.winningScriptExamples || []).map((item) => item.scriptId),
+        }
+      : undefined,
     linkedOutcomeSummary: context.linkedOutcome
       ? {
           enabled: context.linkedOutcome.enabled,

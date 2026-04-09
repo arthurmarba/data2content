@@ -75,6 +75,7 @@ describe("scripts/observability", () => {
         styleProfileVersion: "scripts_style_profile_v1",
         styleSampleSize: 10,
         captionEvidence: [],
+        winningScriptExamples: [],
         relaxationLevel: 1,
         usedFallbackRules: false,
       },
@@ -101,6 +102,36 @@ describe("scripts/observability", () => {
     expect(diagnostics.operation).toBe("adjust");
     expect(typeof diagnostics.contentLengthDelta).toBe("number");
     expect(typeof diagnostics.contentLengthDeltaPct).toBe("number");
+  });
+
+  it("captures semantic review diagnostics when review metadata is provided", () => {
+    const diagnostics = buildScriptOutputDiagnostics({
+      operation: "create",
+      prompt: "roteiro sobre vendas",
+      title: "Titulo",
+      content: "Texto com CTA: comenta aqui.",
+      reviewMeta: {
+        attempted: true,
+        retried: true,
+        acceptedAfterRetry: true,
+        initialOverallScore: 6.1,
+        finalOverallScore: 8.4,
+        initialPasses: false,
+        finalPasses: true,
+        initialIssues: ["gancho genérico", "cta robótico"],
+        finalIssues: [],
+        rewriteBrief: "deixar mais específico e humano",
+      },
+    });
+
+    expect(diagnostics.semanticReviewAttempted).toBe(true);
+    expect(diagnostics.semanticReviewRetried).toBe(true);
+    expect(diagnostics.semanticReviewAcceptedAfterRetry).toBe(true);
+    expect(diagnostics.semanticInitialOverallScore).toBe(6.1);
+    expect(diagnostics.semanticFinalOverallScore).toBe(8.4);
+    expect(diagnostics.semanticInitialIssueCount).toBe(2);
+    expect(diagnostics.semanticFinalIssueCount).toBe(0);
+    expect(diagnostics.semanticRewriteBrief).toContain("mais específico");
   });
 
   it("captures technical script diagnostics", () => {
@@ -142,6 +173,7 @@ describe("scripts/observability", () => {
     expect(typeof diagnostics.speakabilityScore).toBe("number");
     expect(typeof diagnostics.ctaStrength).toBe("number");
     expect(typeof diagnostics.diversityScore).toBe("number");
+    expect(typeof diagnostics.utilityScore).toBe("number");
   });
 
   it("captures technical diagnostics in flow format", () => {

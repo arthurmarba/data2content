@@ -39,4 +39,15 @@ describe("scripts/performanceTelemetry", () => {
     expect(ranking?.windowSize).toBeLessThanOrEqual(200);
     expect(ranking?.lastMs).toBe(240);
   });
+
+  it("records the script example selection stage", () => {
+    recordScriptsStageDuration("intelligence.script_examples", 42);
+
+    const snapshot = getScriptsPerformanceSnapshot();
+    const stage = snapshot["intelligence.script_examples"];
+
+    expect(stage).toBeDefined();
+    expect(stage?.count).toBe(1);
+    expect(stage?.lastMs).toBe(42);
+  });
 });

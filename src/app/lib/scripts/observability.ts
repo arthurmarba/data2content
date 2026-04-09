@@ -4,7 +4,7 @@ import type { ScriptIntelligenceContext } from "./intelligenceContext";
 import { getScriptsPerformanceSnapshot } from "./performanceTelemetry";
 import { SCRIPT_CATEGORY_DIMENSIONS, type ScriptCategoryDimension } from "./promptParser";
 import { computeStyleSimilarityScore } from "./styleContext";
-import type { ScriptAdjustMeta } from "./ai";
+import type { ScriptAdjustMeta, ScriptSemanticReviewMeta } from "./ai";
 import { evaluateTechnicalScriptQuality } from "./ai";
 
 type ScriptOperation = "create" | "adjust";
@@ -50,6 +50,19 @@ export type ScriptOutputDiagnostics = {
   speakabilityScore?: number;
   ctaStrength?: number;
   diversityScore?: number;
+  utilityScore?: number;
+  semanticReviewAttempted?: boolean;
+  semanticReviewRetried?: boolean;
+  semanticReviewAcceptedAfterRetry?: boolean;
+  semanticInitialOverallScore?: number;
+  semanticFinalOverallScore?: number;
+  semanticInitialPasses?: boolean;
+  semanticFinalPasses?: boolean;
+  semanticInitialIssues?: string[];
+  semanticFinalIssues?: string[];
+  semanticInitialIssueCount?: number;
+  semanticFinalIssueCount?: number;
+  semanticRewriteBrief?: string;
 };
 
 type BuildScriptOutputDiagnosticsInput = {
@@ -60,6 +73,7 @@ type BuildScriptOutputDiagnosticsInput = {
   intelligenceContext?: ScriptIntelligenceContext | null;
   previousContent?: string;
   adjustMeta?: ScriptAdjustMeta;
+  reviewMeta?: ScriptSemanticReviewMeta;
 };
 
 function countParagraphs(content: string): number {
@@ -275,6 +289,7 @@ export function buildScriptOutputDiagnostics(
     diagnostics.speakabilityScore = quality.speakabilityScore;
     diagnostics.ctaStrength = quality.ctaStrength;
     diagnostics.diversityScore = quality.diversityScore;
+    diagnostics.utilityScore = quality.utilityScore;
   }
 
   if (input.intelligenceContext) {
@@ -317,6 +332,31 @@ export function buildScriptOutputDiagnostics(
     diagnostics.scopeFound = input.adjustMeta.scopeFound;
     diagnostics.scopeEnforced = input.adjustMeta.scopeEnforced;
     diagnostics.outOfScopeChangeRate = input.adjustMeta.outOfScopeChangeRate;
+  }
+
+  if (input.reviewMeta) {
+    diagnostics.semanticReviewAttempted = input.reviewMeta.attempted;
+    diagnostics.semanticReviewRetried = input.reviewMeta.retried;
+    diagnostics.semanticReviewAcceptedAfterRetry = input.reviewMeta.acceptedAfterRetry;
+    if (typeof input.reviewMeta.initialOverallScore === "number") {
+      diagnostics.semanticInitialOverallScore = input.reviewMeta.initialOverallScore;
+    }
+    if (typeof input.reviewMeta.finalOverallScore === "number") {
+      diagnostics.semanticFinalOverallScore = input.reviewMeta.finalOverallScore;
+    }
+    if (typeof input.reviewMeta.initialPasses === "boolean") {
+      diagnostics.semanticInitialPasses = input.reviewMeta.initialPasses;
+    }
+    if (typeof input.reviewMeta.finalPasses === "boolean") {
+      diagnostics.semanticFinalPasses = input.reviewMeta.finalPasses;
+    }
+    diagnostics.semanticInitialIssues = input.reviewMeta.initialIssues?.slice(0, 6) || [];
+    diagnostics.semanticFinalIssues = input.reviewMeta.finalIssues?.slice(0, 6) || [];
+    diagnostics.semanticInitialIssueCount = input.reviewMeta.initialIssues?.length || 0;
+    diagnostics.semanticFinalIssueCount = input.reviewMeta.finalIssues?.length || 0;
+    if (input.reviewMeta.rewriteBrief) {
+      diagnostics.semanticRewriteBrief = input.reviewMeta.rewriteBrief;
+    }
   }
 
   return diagnostics;

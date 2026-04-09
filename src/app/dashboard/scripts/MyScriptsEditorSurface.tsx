@@ -365,8 +365,8 @@ export function MyScriptsEditorSurface({
         </div>
       </header>
 
-      <main className={`${compactView ? "flex min-h-0 flex-1 px-3.5 pb-3 pt-2" : "relative flex h-full min-h-0 flex-1 gap-4 py-2"}`}>
-        <div className={`mx-auto flex w-full flex-col rounded-[1.4rem] border border-zinc-100/90 ${compactView ? "h-full min-h-0 overflow-hidden bg-white px-3.5 pt-2.5" : "h-full overflow-hidden max-w-[860px] rounded-[1.7rem] bg-white/72 px-4 backdrop-blur-xl sm:px-6"}`}>
+      <main className={`${compactView ? "flex min-h-0 flex-1 pb-3 pt-2" : "relative flex h-full min-h-0 flex-1 gap-4 py-2"}`}>
+        <div className={`mx-auto flex w-full flex-col ${compactView ? "h-full min-h-0 overflow-hidden bg-transparent" : "h-full overflow-hidden max-w-[860px] rounded-[1.7rem] border border-zinc-100/90 bg-white/72 px-4 backdrop-blur-xl sm:px-6"}`}>
           {compactView && compactEditorSummaryItems.length > 0 ? (
             <div className="dashboard-scrollbar-hidden shrink-0 flex items-center gap-2 border-b border-zinc-100/90 pb-2.5 overflow-x-auto">
               {compactEditorSummaryItems.map((item) => {
@@ -485,9 +485,9 @@ export function MyScriptsEditorSurface({
             </div>
           ) : null}
           <div
-            className={`relative ${
+            className={`relative flex flex-col ${
               compactView
-                ? "mt-2.5 min-h-0 flex-1 overflow-hidden rounded-[1.15rem] border border-zinc-100/90 bg-zinc-50/36 px-3"
+                ? "min-h-0 flex-1 overflow-hidden px-4"
                 : "min-h-0 flex-1"
             }`}
           >
@@ -507,11 +507,11 @@ export function MyScriptsEditorSurface({
           </div>
 
           {isAdminViewer ? (
-            <div className={`shrink-0 border-t border-slate-100 ${compactView ? "py-2" : "py-4"}`}>
+            <div className={`shrink-0 border-t border-zinc-100/80 ${compactView ? "py-4 px-4 bg-zinc-50/30" : "py-4 border-slate-100"}`}>
               {compactView ? (
-                <div className="rounded-[1.05rem] border border-zinc-100/70 bg-zinc-50/52 px-3 py-2.5">
+                <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-2.5">
-                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] bg-zinc-50 text-zinc-500 ring-1 ring-zinc-100/90">
+                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] bg-zinc-100 text-zinc-500">
                       <Check size={14} />
                     </span>
                     <div className="min-w-0 flex-1">
@@ -527,7 +527,7 @@ export function MyScriptsEditorSurface({
                     value={editor.adminAnnotationDraft}
                     onChange={(e) => onAdminAnnotationDraftChange(e.target.value)}
                     placeholder="Esse feedback aparece para o dono do roteiro."
-                    className="mt-2.5 h-14 w-full resize-none rounded-[0.95rem] border border-zinc-100/90 bg-white px-3 py-2 text-sm text-zinc-700 outline-none placeholder:text-zinc-400 focus:border-zinc-200 focus:bg-white"
+                    className="h-20 w-full resize-none rounded-[0.95rem] border border-zinc-200 bg-white px-3 py-2 text-[13px] text-zinc-700 outline-none placeholder:text-zinc-400 focus:border-zinc-300 focus:ring-2 focus:ring-zinc-100"
                   />
                 </div>
               ) : (
@@ -551,9 +551,9 @@ export function MyScriptsEditorSurface({
             </div>
           ) : null}
 
-          <div className={`shrink-0 border-t border-slate-100 ${compactView ? "py-2" : "py-4"}`}>
-            <div className={compactView ? "rounded-[1.05rem] border border-zinc-100/70 bg-zinc-50/52 px-3 py-2.5" : "rounded-xl border border-slate-200 bg-slate-50/70 p-3"}>
-              <label className={`flex cursor-pointer items-center gap-2 font-semibold ${compactView ? "text-xs text-zinc-800" : "text-sm text-slate-800"}`}>
+          <div className={`shrink-0 border-t border-zinc-100/80 ${compactView ? "py-4 px-4 bg-zinc-50/20" : "py-4 border-slate-100"}`}>
+            <div className={compactView ? "flex flex-col gap-3" : "rounded-xl border border-slate-200 bg-slate-50/70 p-3"}>
+              <label className={`flex cursor-pointer items-center gap-2 font-bold ${compactView ? "text-[13px] text-zinc-800" : "text-sm text-slate-800"}`}>
                 <input
                   type="checkbox"
                   checked={editor.isPosted}
@@ -655,7 +655,7 @@ export function MyScriptsEditorSurface({
             </div>
           </div>
 
-          <div className={`shrink-0 border-t border-zinc-100/90 ${compactView ? "py-2" : "py-4"}`}>
+          <div className={`shrink-0 border-t border-zinc-100/80 ${compactView ? "py-4 px-4 bg-zinc-50/10" : "py-4 border-slate-100"}`}>
             <div
               className={!canInteract ? "cursor-pointer group relative" : ""}
               onClick={() => {
@@ -678,9 +678,9 @@ export function MyScriptsEditorSurface({
               ) : null}
               <div className={!canInteract ? "opacity-60 grayscale-[0.5] pointer-events-none" : ""}>
                 {compactView ? (
-                  <div className="flex items-center gap-2 rounded-[0.95rem] border border-zinc-100/70 bg-zinc-50/52 px-2 py-1.5">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600 ring-1 ring-indigo-100/90">
-                      <Sparkles size={14} />
+                  <div className="flex items-center gap-2 rounded-full border border-indigo-100/70 bg-indigo-50/30 pl-1.5 pr-1.5 py-1.5 transition-colors focus-within:border-indigo-200 focus-within:bg-indigo-50/50">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-100/70 text-indigo-600">
+                      <Sparkles size={13} />
                     </span>
                     <input
                       type="text"
@@ -688,15 +688,16 @@ export function MyScriptsEditorSurface({
                       onChange={(e) => onAiPromptChange(e.target.value)}
                       onKeyDown={onAiPromptKeyDown}
                       placeholder="Ajuste com IA..."
-                      className="min-w-0 flex-1 border-0 bg-transparent px-2 py-1.5 text-[13px] text-zinc-800 outline-none ring-0 ring-transparent placeholder:text-zinc-400 focus:outline-none focus:ring-0"
+                      className="min-w-0 flex-1 border-0 bg-transparent px-2 py-1 text-[13px] text-zinc-800 font-medium outline-none ring-0 ring-transparent placeholder:text-zinc-500 placeholder:font-normal focus:outline-none focus:ring-0"
                     />
                     <button
                       type="button"
                       onClick={onAiAdjust}
-                      disabled={editor.adjusting}
-                      className="inline-flex shrink-0 items-center justify-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-black disabled:opacity-60"
+                      disabled={editor.adjusting || !editor.aiPrompt.trim()}
+                      className="inline-flex shrink-0 h-7 w-7 items-center justify-center rounded-full bg-indigo-600 text-white transition hover:bg-indigo-700 disabled:opacity-40 disabled:hover:bg-indigo-600"
+                      aria-label="Enviar ajuste"
                     >
-                      {editor.adjusting ? "..." : "Enviar"}
+                      {editor.adjusting ? "..." : <ArrowLeft size={13} strokeWidth={3} className="rotate-180" />}
                     </button>
                   </div>
                 ) : (

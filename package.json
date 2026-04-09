@@ -19,6 +19,8 @@
     "reclassify:strategic-residual": "tsx --env-file=.env.local ./scripts/reclassifyStrategicResidual.ts",
     "flag:scripts-intelligence:v2": "tsx --env-file=.env.local ./scripts/setScriptsIntelligenceFlag.ts",
     "flag:scripts-style-training:v1": "tsx --env-file=.env.local ./scripts/setScriptsStyleTrainingFlag.ts",
+    "benchmark:scripts": "node --import tsx ./scripts/runScriptsBenchmark.ts",
+    "check:scripts-quality": "npm test -- --runInBand src/app/lib/scripts/ai.test.ts src/app/lib/scripts/observability.test.ts src/app/lib/scripts/promptParser.test.ts src/app/lib/scripts/intelligenceContext.test.ts src/app/lib/scripts/benchmark.test.ts src/app/lib/scripts/performanceTelemetry.test.ts && npm run benchmark:scripts",
     "reset-classification": "tsx --env-file=.env.local ./scripts/resetClassificationStatus.ts",
     "reset-classification-failed": "tsx --env-file=.env.local ./scripts/resetFailedClassificationStatus.ts",
     "requeue:classification-retryable": "tsx --env-file=.env.local ./scripts/requeueRetryableClassificationFailures.ts",

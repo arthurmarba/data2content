@@ -202,6 +202,7 @@ export async function POST(request: Request, { params }: Params) {
     previousContent: doc.content,
     intelligenceContext,
     adjustMeta: adjusted.adjustMeta,
+    reviewMeta: adjusted.reviewMeta,
   });
 
   const aiDoc = await AIGeneratedPost.create({

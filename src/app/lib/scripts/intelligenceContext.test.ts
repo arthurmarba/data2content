@@ -1,6 +1,7 @@
 import {
   buildIntelligencePromptSnapshot,
   resolveFinalCategories,
+  selectWinningScriptExamplesForPrompt,
   SCRIPT_INTELLIGENCE_METRIC,
   SCRIPT_INTELLIGENCE_VERSION,
   type ScriptIntelligenceContext,
@@ -130,6 +131,18 @@ describe("scripts/intelligenceContext", () => {
           categories: { proposal: "tips" },
         },
       ],
+      winningScriptExamples: [
+        {
+          scriptId: "script-1",
+          title: "Roteiro validado",
+          opening: "Seu erro não é falta de ideia.",
+          development: "Você está abrindo sem diagnóstico e isso derruba retenção.",
+          cta: "Qual abertura mais funciona no seu perfil hoje?",
+          lift: 1.5,
+          interactions: 320,
+          postDate: null,
+        },
+      ],
       relaxationLevel: 2,
       usedFallbackRules: true,
       linkedOutcome: {
@@ -144,6 +157,7 @@ describe("scripts/intelligenceContext", () => {
         topExamples: [
           {
             metricId: "m-link",
+            scriptId: "script-1",
             caption: "Exemplo vinculado vencedor",
             score: 1.5,
             lift: 1.5,
@@ -164,9 +178,77 @@ describe("scripts/intelligenceContext", () => {
     expect(snapshot?.dnaEvidence.sampleSize).toBe(2);
     expect(snapshot?.dnaEvidence.avgInteractions).toBe(150);
     expect(snapshot?.dnaEvidence.usedFallbackRules).toBe(true);
+    expect(snapshot?.winningScriptExamplesSummary?.count).toBe(1);
+    expect(snapshot?.winningScriptExamplesSummary?.scriptIds?.[0]).toBe("script-1");
     expect(snapshot?.linkedOutcomeSummary?.enabled).toBe(true);
     expect(snapshot?.linkedOutcomeSummary?.sampleSizeLinked).toBe(6);
     expect(snapshot?.linkedOutcomeSummary?.blendedApplied).toBe(true);
     expect(snapshot?.linkedOutcomeSummary?.topDimensions?.proposal?.[0]).toBe("tips");
+  });
+
+  it("prefers winning script examples that match the current prompt intent", () => {
+    const selected = selectWinningScriptExamplesForPrompt({
+      prompt: "quero um roteiro sobre retenção de reels com diagnóstico de abertura",
+      intent: {
+        wantsHumor: false,
+        wantsEngagement: true,
+        subjectHint: "retenção de reels",
+      },
+      resolvedCategories: {
+        proposal: "tips",
+        context: "career_work",
+        format: "reel",
+        tone: "educational",
+      },
+      explicitCategories: {
+        proposal: "tips",
+      },
+      candidates: [
+        {
+          example: {
+            scriptId: "finance-1",
+            title: "Rotina financeira",
+            opening: "Seu caixa não melhora porque você pula o básico.",
+            development: "Eu separo três colunas antes de tomar decisão.",
+            cta: "Quer que eu te mostre a planilha?",
+            lift: 1.8,
+            interactions: 500,
+            postDate: null,
+          },
+          categories: {
+            proposal: "tips",
+            context: "finance",
+            format: "reel",
+            tone: "educational",
+          },
+          caption: "Conteúdo sobre caixa e planilha",
+          lift: 1.8,
+        },
+        {
+          example: {
+            scriptId: "reels-1",
+            title: "Abertura de reels",
+            opening: "Seu reels não morre no meio. Ele já nasce sem diagnóstico.",
+            development: "Eu abro com o erro, depois o ajuste e só então a dica.",
+            cta: "Qual abertura mais derruba sua retenção hoje?",
+            lift: 1.5,
+            interactions: 420,
+            postDate: null,
+          },
+          categories: {
+            proposal: "tips",
+            context: "career_work",
+            format: "reel",
+            tone: "educational",
+          },
+          caption: "Roteiro sobre retenção e abertura de reels",
+          lift: 1.5,
+        },
+      ],
+      limit: 1,
+    });
+
+    expect(selected).toHaveLength(1);
+    expect(selected[0]?.scriptId).toBe("reels-1");
   });
 });

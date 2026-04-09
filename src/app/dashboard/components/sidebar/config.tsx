@@ -14,6 +14,7 @@ import {
   LinkIcon as LinkIconOutline,
   CreditCardIcon as CreditCardIconOutline,
   ClipboardDocumentCheckIcon as ClipboardDocumentCheckIconOutline,
+  PencilSquareIcon as PencilSquareIconOutline,
 } from "@heroicons/react/24/outline";
 import {
   HomeIcon as HomeIconSolid,
@@ -31,6 +32,7 @@ import {
   LinkIcon as LinkIconSolid,
   CreditCardIcon as CreditCardIconSolid,
   ClipboardDocumentCheckIcon as ClipboardDocumentCheckIconSolid,
+  PencilSquareIcon as PencilSquareIconSolid,
 } from "@heroicons/react/24/solid";
 import { navigationLabels } from "@/constants/navigationLabels";
 import type { PaywallContext } from "@/types/paywall";
@@ -66,7 +68,7 @@ const ICONS = {
   pro: iconSet(SparklesIconOutline, SparklesIconSolid),
   planningChat: iconSet(ChatBubbleLeftRightIconOutline, ChatBubbleLeftRightIconSolid),
   planningCharts: iconSet(PresentationChartLineIconOutline, PresentationChartLineIconSolid),
-  planningCalendar: iconSet(CalendarDaysIconOutline, CalendarDaysIconSolid),
+  planningCalendar: iconSet(PencilSquareIconOutline, PencilSquareIconSolid),
   planningScripts: iconSet(DocumentTextIconOutline, DocumentTextIconSolid),
   planningDiscover: iconSet(MagnifyingGlassCircleIconOutline, MagnifyingGlassCircleIconSolid),
   campaigns: iconSet(MegaphoneIconOutline, MegaphoneIconSolid),

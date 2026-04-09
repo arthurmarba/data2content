@@ -1203,7 +1203,7 @@ const ListModeSlotCardBase = ({
     [canEdit, onRequestSubscribe, onSelectTheme, effectiveSlot, effectiveThemes, effectiveKeyword]
   );
 
-  const cardContent = (
+  return (
     <article
       role={canEdit ? 'button' : undefined}
       tabIndex={canEdit ? 0 : -1}
@@ -1211,13 +1211,33 @@ const ListModeSlotCardBase = ({
       onKeyDown={handleCardKeyDown}
       className={[
         compactView
-          ? 'group relative flex flex-col gap-3 rounded-[1.25rem] border border-zinc-100/80 bg-zinc-50/44 p-3.5 transition-all duration-200 hover:border-zinc-200 hover:bg-white/82'
+          ? 'group relative flex flex-col gap-0 border-t border-zinc-100/80 bg-transparent px-3.5 py-5 transition-all duration-200 first:border-0 hover:bg-zinc-50/40'
           : 'group relative flex flex-col gap-3 rounded-[26px] border border-zinc-100/80 bg-white/74 p-3.5 backdrop-blur-xl transition-all duration-200 hover:bg-white/84 sm:gap-3.5 sm:p-5',
         canEdit ? 'cursor-pointer' : 'cursor-default',
       ].join(' ')}
       style={{ contentVisibility: 'auto', containIntrinsicSize: '365px' }}
     >
-      {!compactView ? (
+      {/* Unified Header for Compact View or regular top for non-compact */}
+      {compactView ? (
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] bg-zinc-50 text-zinc-400 ring-1 ring-zinc-100/80 transition-colors group-hover:bg-white group-hover:text-zinc-500">
+              <CalendarClock className="h-3.5 w-3.5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[13px] font-bold tracking-tight text-zinc-900">{card.dayTitle}</span>
+                <span className="text-[10px] text-zinc-300" aria-hidden>•</span>
+                <span className="text-[12px] font-medium text-zinc-500">{card.blockLabel}</span>
+              </div>
+            </div>
+          </div>
+          <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] shadow-sm ${card.statusClass}`}>
+            <span aria-hidden>{STATUS_EMOJI[card.statusCategory]}</span>
+            <span>{card.statusLabel}</span>
+          </span>
+        </div>
+      ) : (
         <div className="flex items-start justify-between gap-2 max-[360px]:gap-1.5 sm:gap-2.5 sm:pb-2.5">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-x-2 gap-y-1">
@@ -1239,10 +1259,10 @@ const ListModeSlotCardBase = ({
             </span>
           </div>
         </div>
-      ) : null}
+      )}
 
       {hasSecondaryBadges ? (
-        <div className="flex flex-wrap items-center gap-1.5 pb-1 sm:gap-2">
+        <div className={`flex flex-wrap items-center gap-1.5 sm:gap-2 ${compactView ? "mb-3" : "pb-1"}`}>
           {roteiroBadge ? (
             <span
               className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] ${compactView ? roteiroBadge.compactClassName : roteiroBadge.className}`}
@@ -1258,7 +1278,7 @@ const ListModeSlotCardBase = ({
                 <button
                   type="button"
                   onClick={handleDeleteSaved}
-                  className={`ml-1 rounded-full p-0.5 ${compactView ? "text-emerald-700 hover:bg-emerald-100" : "text-emerald-700 hover:bg-emerald-100"}`}
+                  className="ml-1 rounded-full p-0.5 text-emerald-700 hover:bg-emerald-100"
                   title="Remover salvo"
                 >
                   <X className="h-3 w-3" />
@@ -1269,8 +1289,8 @@ const ListModeSlotCardBase = ({
         </div>
       ) : null}
 
-      {/* Title */}
-      <div className={`${hasSavedScript ? "space-y-1 pb-2" : "space-y-1 pb-2 sm:space-y-1.5 sm:pb-2.5"}`}>
+      {/* Theme Section */}
+      <div className={`${hasSavedScript ? "space-y-1 pb-2" : compactView ? "mb-4" : "space-y-1 pb-2 sm:space-y-1.5 sm:pb-2.5"}`}>
         {showSavedState ? (
           <div className="flex items-center justify-end gap-2">
             <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
@@ -1279,144 +1299,137 @@ const ListModeSlotCardBase = ({
             </span>
           </div>
         ) : null}
+        
         {compactView ? (
-          <>
-            <h3
-              className={[
-                hasSavedScript
-                  ? 'dashboard-type-item-title line-clamp-2 break-words leading-[1.42] tracking-[-0.02em] text-zinc-900'
-                  : 'dashboard-type-item-title line-clamp-2 break-words text-[18px] leading-[1.12] tracking-[-0.03em] text-zinc-900 transition-colors group-hover:text-zinc-950',
-              ].join(' ')}
-            >
-              {hasSavedScript ? scriptPreview : effectiveTitle}
-            </h3>
-            {shouldShowThemeBase && !hasSavedScript ? (
-              <p className="dashboard-type-meta line-clamp-1 text-zinc-500">
-                Tema-base: {effectiveTitle}
-              </p>
-            ) : null}
-          </>
+          <div className="flex items-start gap-3">
+            <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-sky-50 text-sky-500 ring-1 ring-sky-100/80 transition-transform duration-300 group-hover:scale-110`}>
+              <Target className="h-3.5 w-3.5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3
+                className={`line-clamp-2 break-words text-[16px] font-bold leading-tight tracking-tight text-zinc-900 transition-colors group-hover:text-zinc-950`}
+              >
+                {hasSavedScript ? scriptPreview : effectiveTitle}
+              </h3>
+              {shouldShowThemeBase && !hasSavedScript ? (
+                <p className="dashboard-type-meta mt-0.5 line-clamp-1 text-zinc-500">
+                  Tema-base: {effectiveTitle}
+                </p>
+              ) : null}
+            </div>
+          </div>
         ) : (
           <h3 className="line-clamp-2 text-[17px] font-bold leading-snug text-zinc-900 transition-colors group-hover:text-zinc-950 sm:text-[18px]">
             {effectiveTitle}
           </h3>
         )}
-        {canEdit ? null : null}
       </div>
 
       {compactView ? (
-        <div className="space-y-2">
+        <div className="space-y-4">
+          {generateError ? (
+            <div className="rounded-[0.95rem] border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-medium text-rose-700">
+              {generateError}
+            </div>
+          ) : null}
+          {effectiveSlot.isSaved && scriptPreview ? (
+            <div className="rounded-[0.95rem] border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-medium text-emerald-700">
+              Esta pauta ficou fixa neste dia e hora e j&aacute; entrou em Meus Roteiros.
+            </div>
+          ) : null}
+
           {hasSavedScript ? (
-            <button
-              type="button"
-              onClick={handlePrimaryAction}
-              className="inline-flex min-h-[34px] w-full items-center justify-center rounded-[0.95rem] bg-zinc-950 px-3 py-2 text-[11px] font-semibold text-white transition hover:bg-black"
-            >
-              {compactPrimaryLabel}
-            </button>
-          ) : (
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleToggleExpanded}
-                className="inline-flex min-h-[36px] flex-1 items-center justify-center rounded-[0.95rem] border border-zinc-200 bg-zinc-50/85 px-3 py-2 text-[11px] font-medium text-zinc-500 transition hover:border-zinc-300 hover:bg-white"
-              >
-                {compactExpandLabel}
-              </button>
+            <div className="space-y-3">
+              <p className="dashboard-type-body whitespace-pre-wrap leading-relaxed text-[13px] text-zinc-700">
+                {scriptPreview}
+              </p>
               <button
                 type="button"
                 onClick={handlePrimaryAction}
-                disabled={isGeneratingThemes}
-                className="inline-flex min-h-[36px] flex-1 items-center justify-center rounded-[0.95rem] bg-zinc-950 px-3 py-2 text-[11px] font-semibold text-white transition hover:bg-black"
+                className="inline-flex min-h-[38px] w-full items-center justify-center rounded-[0.95rem] bg-zinc-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-black"
               >
                 {compactPrimaryLabel}
               </button>
             </div>
-          )}
-
-          {isExpanded ? (
-            <div className="space-y-3 rounded-[1.05rem] border border-zinc-100/90 bg-white p-3">
-              {generateError ? (
-                <div className="rounded-[0.95rem] border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-medium text-rose-700">
-                  {generateError}
-                </div>
-              ) : null}
-              {effectiveSlot.isSaved && scriptPreview ? (
-                <div className="rounded-[0.95rem] border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] font-medium text-emerald-700">
-                  Esta pauta ficou fixa neste dia e hora e j&aacute; entrou em Meus Roteiros com esse texto.
-                </div>
-              ) : null}
-              <div className="space-y-1.5">
-                <p className="dashboard-muted-label text-zinc-300">
-                  {scriptPreview ? 'Pauta sugerida' : alternativeThemes.length ? 'Ideias para este horário' : 'Próximo passo'}
-                </p>
-                {scriptPreview ? (
-                  <p className="dashboard-type-body whitespace-pre-wrap leading-relaxed text-zinc-700">
-                    {scriptPreview}
-                  </p>
-                ) : alternativeThemes.length ? (
-                  <div className="grid gap-1.5">
-                    {alternativeThemes.map((theme) => (
-                      <button
-                        type="button"
-                        key={`${card.id}-${theme}`}
-                        onClick={(event) => void handleSelectAlternativeTheme(event, theme)}
-                        disabled={Boolean(isSavingTheme)}
-                        className={`inline-flex min-h-[40px] items-center justify-between gap-3 rounded-[0.9rem] border px-3 py-2 text-left text-[11px] transition ${
+          ) : alternativeThemes.length > 0 ? (
+            <div className="space-y-4">
+              <div className="-mx-3.5 -mt-1 flex flex-col pt-1">
+                {alternativeThemes.map((theme, index) => {
+                  const numberLabel = String(index + 1).padStart(2, "0");
+                  return (
+                    <button
+                      type="button"
+                      key={`${card.id}-${theme}`}
+                      onClick={(event) => void handleSelectAlternativeTheme(event, theme)}
+                      disabled={Boolean(isSavingTheme)}
+                      className={`group/item relative flex w-full items-start gap-3.5 border-t border-zinc-100/50 px-3.5 py-3 text-left transition first:border-0 hover:bg-zinc-50/80 ${
+                        isSavingTheme === theme ? "bg-emerald-50/50" : ""
+                      }`}
+                    >
+                      <span
+                        className={`mt-0.5 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-[0.55rem] text-[9.5px] font-bold tracking-wide transition-colors ${
                           isSavingTheme === theme
-                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                            : 'border-zinc-100 bg-zinc-50/72 text-zinc-700 hover:border-zinc-200 hover:bg-white'
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-sky-50 text-sky-600 group-hover/item:bg-sky-100/80"
                         }`}
                       >
-                        <span className="line-clamp-2 flex-1 font-medium leading-snug">{theme}</span>
-                        <span className="shrink-0 text-[9px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
-                          {isSavingTheme === theme ? 'Salvando...' : 'Usar'}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="dashboard-type-meta leading-relaxed text-zinc-500">
-                    Gere pautas para ver 4 sugestões prontas para este horário.
-                  </p>
-                )}
-              </div>
-
-              <div className="space-y-0 overflow-hidden rounded-[0.95rem] border border-zinc-100 bg-zinc-50/58">
-                {[
-                  { key: 'projection', icon: <TrendingUp className="h-3.5 w-3.5" />, label: 'Projeção', value: card.viewsP50 },
-                  { key: 'format', icon: <LayoutTemplate className="h-3.5 w-3.5" />, label: 'Formato', value: card.formatLabel },
-                  { key: 'context', icon: <Compass className="h-3.5 w-3.5" />, label: 'Contexto', value: card.contextLabel },
-                ]
-                  .filter((item) => item.value && item.value !== '—')
-                  .map((item, index) => (
-                    <div
-                      key={`${card.id}-${item.key}`}
-                      className={`flex items-start justify-between gap-3 px-3 py-2 ${index > 0 ? 'border-t border-zinc-100/90' : ''}`}
-                    >
-                      <div className="flex min-w-0 items-center gap-2 text-zinc-400">
-                        {item.icon}
-                        <span className="text-[8.5px] font-semibold uppercase tracking-[0.08em]">{item.label}</span>
-                      </div>
-                      <span className="min-w-0 text-right text-[10.5px] font-medium leading-snug text-zinc-700" title={item.value}>
-                        {item.value}
+                        {numberLabel}
                       </span>
-                    </div>
-                  ))}
+                      <div className="min-w-0 flex-1 pr-2">
+                        <span
+                          className={`line-clamp-2 text-[13px] leading-[1.4] transition-colors ${
+                            isSavingTheme === theme
+                              ? "font-semibold text-emerald-800"
+                              : "font-medium text-zinc-700 group-hover/item:text-zinc-950"
+                          }`}
+                        >
+                          {theme}
+                        </span>
+                      </div>
+                      <span
+                        className={`shrink-0 pt-0.5 text-[10px] font-bold uppercase tracking-[0.08em] transition-colors ${
+                          isSavingTheme === theme
+                            ? "text-emerald-600"
+                            : "text-zinc-400 group-hover/item:text-sky-600"
+                        }`}
+                      >
+                        {isSavingTheme === theme ? "Salvando..." : "USAR"}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
-
-              {!hasSavedScript ? (
-                <SlotInspirationsPanel
-                  canShowInspirations={canShowInspirations}
-                  showInspirations={showInspirations}
-                  slot={effectiveSlot}
-                  userId={userId}
-                  compactView={compactView}
-                  onToggleInspirations={handleToggleInspirations}
-                />
-              ) : null}
+              
+              <div className="flex justify-center p-1">
+                <button
+                  type="button"
+                  onClick={handlePrimaryAction}
+                  disabled={isGeneratingThemes}
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-full border border-zinc-200 bg-white px-5 text-[12px] font-bold text-zinc-500 transition-all hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-700 disabled:opacity-70"
+                >
+                  <Sparkles className={`h-3.5 w-3.5 text-sky-400 ${isGeneratingThemes ? 'animate-spin' : ''}`} />
+                  {isGeneratingThemes ? 'Gerando...' : 'Novas Ideias'}
+                </button>
+              </div>
             </div>
-          ) : null}
+          ) : (
+            <div className="flex flex-col items-center justify-center space-y-4 rounded-[1.25rem] border border-dashed border-zinc-200/80 bg-zinc-50/20 p-6 text-center transition-colors group-hover:bg-white/40">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-zinc-400">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <p className="text-[13px] leading-relaxed text-zinc-500">
+                Sem ideias para este horário? <br/>Gere pautas alinhadas ao seu objetivo.
+              </p>
+              <button
+                type="button"
+                onClick={handlePrimaryAction}
+                disabled={isGeneratingThemes}
+                className="inline-flex min-h-[38px] w-full items-center justify-center rounded-[0.95rem] bg-zinc-950 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-black disabled:opacity-70"
+              >
+                {isGeneratingThemes ? 'Gerando...' : 'Gerar Pautas'}
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <SlotCardDetailsPanel
@@ -1439,34 +1452,6 @@ const ListModeSlotCardBase = ({
         </button>
       )}
     </article>
-  );
-
-  if (!compactView) {
-    return cardContent;
-  }
-
-  return (
-    <div className="space-y-2.5">
-      <div className="flex items-center justify-between gap-3 px-1">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] border border-zinc-100 bg-zinc-50/85 text-zinc-400">
-            <CalendarClock className="h-3.5 w-3.5" />
-          </span>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="dashboard-type-section-title text-zinc-950">{card.dayTitle}</span>
-              <span className="text-zinc-300" aria-hidden>•</span>
-              <span className="dashboard-type-section-title font-medium text-zinc-500">{card.blockLabel}</span>
-            </div>
-          </div>
-        </div>
-        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-zinc-200 bg-zinc-50 px-2.5 py-0.5 text-[9px] font-medium uppercase tracking-[0.08em] text-zinc-400">
-          <span aria-hidden>{STATUS_EMOJI[card.statusCategory]}</span>
-          <span>{card.statusLabel}</span>
-        </span>
-      </div>
-      {cardContent}
-    </div>
   );
 };
 

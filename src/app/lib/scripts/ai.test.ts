@@ -105,6 +105,18 @@ describe("scripts/ai identity leakage sanitization", () => {
           categories: { proposal: "humor_scene" },
         },
       ],
+      winningScriptExamples: [
+        {
+          scriptId: "script-1",
+          title: "Roteiro que funcionou bem",
+          opening: "Eu parei de começar pela dica.",
+          development: "Agora eu abro nomeando o erro e só depois mostro o ajuste.",
+          cta: "Qual parte mais falta no seu roteiro hoje?",
+          lift: 1.7,
+          interactions: 420,
+          postDate: null,
+        },
+      ],
       relaxationLevel: 1,
       usedFallbackRules: false,
       linkedOutcome: {
@@ -120,6 +132,7 @@ describe("scripts/ai identity leakage sanitization", () => {
         topExamples: [
           {
             metricId: "m-link-1",
+            scriptId: "script-1",
             caption: "Quando eu simplifiquei meu processo, o resultado subiu.",
             score: 1.7,
             lift: 1.7,
@@ -134,6 +147,118 @@ describe("scripts/ai identity leakage sanitization", () => {
     expect(block).toContain("Amostra de roteiros: 12");
     expect(block).toContain("Imite o estilo do criador sem copiar frases literalmente.");
     expect(block).toContain("Sinais de roteiros vinculados vencedores");
+    expect(block).toContain("Playbook acionável do perfil");
+    expect(block).toContain("diagnóstico concreto + ajuste aplicável + prova");
+    expect(block).toContain("Roteiros reais do perfil que performaram bem");
+  });
+
+  it("keeps the intelligence prompt block within a bounded size", () => {
+    const block = buildIntelligencePromptBlock({
+      intelligenceVersion: "scripts_intelligence_v2",
+      promptMode: "open",
+      intent: { wantsHumor: false, wantsEngagement: true, subjectHint: "retenção de reels" },
+      metricUsed: "avg_total_interactions",
+      lookbackDays: 180,
+      explicitCategories: {},
+      resolvedCategories: {
+        proposal: "tips",
+        context: "career_work",
+        format: "reel",
+        tone: "educational",
+        references: "pop_culture",
+      },
+      rankedCategories: {
+        proposal: ["tips"],
+        context: ["career_work"],
+        format: ["reel"],
+        tone: ["educational"],
+        references: ["pop_culture"],
+      },
+      dnaProfile: {
+        sampleSize: 12,
+        hasEnoughEvidence: true,
+        averageSentenceLength: 10,
+        emojiDensity: 0.01,
+        openingPatterns: ["eu parei de", "o erro é"],
+        ctaPatterns: ["comentario", "salvar"],
+        recurringExpressions: ["abertura", "retenção", "ajuste", "roteiro"],
+        writingGuidelines: [
+          "Use frases curtas.",
+          "Abra com diagnóstico concreto.",
+          "Mostre ajuste aplicável.",
+          "Feche com CTA conversacional.",
+        ],
+      },
+      styleProfile: {
+        profileVersion: "scripts_style_profile_v1",
+        sampleSize: 20,
+        hasEnoughEvidence: true,
+        writingGuidelines: [
+          "Use frases curtas e diretas.",
+          "Abra com observação concreta.",
+          "Evite tese abstrata.",
+          "Feche convidando resposta real.",
+          "Mantenha ritmo rápido.",
+        ],
+        styleSignalsUsed: {
+          hookPatterns: ["eu parei de", "o erro é", "foi quando eu percebi"],
+          ctaPatterns: ["comentario", "salvar", "me conta"],
+          humorMarkers: [],
+          recurringExpressions: ["abertura", "retenção", "roteiro", "ajuste"],
+          avgSentenceLength: 10,
+          emojiDensity: 0.01,
+          narrativeCadence: {
+            openingAvgChars: 80,
+            developmentAvgChars: 220,
+            closingAvgChars: 90,
+          },
+        },
+        styleExamples: Array.from({ length: 12 }, (_, index) => `Exemplo de estilo ${index + 1} com bastante detalhe e contexto.`),
+      },
+      styleProfileVersion: "scripts_style_profile_v1",
+      styleSampleSize: 20,
+      captionEvidence: Array.from({ length: 10 }, (_, index) => ({
+        metricId: `m-${index + 1}`,
+        caption: `Legenda ${index + 1} com detalhe prático sobre abertura, diagnóstico e ajuste de retenção.`,
+        interactions: 200 + index * 10,
+        postDate: null,
+        categories: { proposal: "tips" },
+      })),
+      winningScriptExamples: Array.from({ length: 4 }, (_, index) => ({
+        scriptId: `script-${index + 1}`,
+        title: `Roteiro vencedor ${index + 1}`,
+        opening: "Seu reels já começa fraco quando abre sem diagnóstico.",
+        development: "Eu faço em três linhas: erro, ajuste e prova.",
+        cta: "Qual dessas partes mais falta no seu roteiro hoje?",
+        lift: 1.8 - index * 0.1,
+        interactions: 400 + index * 20,
+        postDate: null,
+      })),
+      relaxationLevel: 1,
+      usedFallbackRules: false,
+      linkedOutcome: {
+        enabled: true,
+        sampleSizeLinked: 10,
+        confidence: "high",
+        blendedApplied: true,
+        topByDimension: {
+          proposal: [{ id: "tips", lift: 1.6, sampleSize: 10 }],
+        },
+        topExamples: Array.from({ length: 4 }, (_, index) => ({
+          metricId: `linked-${index + 1}`,
+          scriptId: `script-${index + 1}`,
+          caption: `Exemplo vinculado ${index + 1} sobre retenção, abertura e ajuste prático.`,
+          score: 1.7,
+          lift: 1.7,
+          hookSample: "Seu reels já nasce sem diagnóstico.",
+          ctaSample: "Qual parte mais falta no seu roteiro hoje?",
+          categories: { proposal: "tips", context: "career_work" },
+        })),
+      },
+    });
+
+    expect(block.length).toBeLessThanOrEqual(3400);
+    expect(block).toContain("Playbook acionável do perfil");
   });
 });
 
@@ -312,6 +437,8 @@ describe("scripts/ai prompt quality guidance", () => {
       intelligenceContext: null,
     });
 
+    expect(prompt).toContain("Utilidade prática obrigatória");
+    expect(prompt).toContain("1 diagnóstico concreto e 1 ajuste aplicável");
     expect(prompt).toContain("Qualidade narrativa obrigatória");
     expect(prompt).toContain("confissão");
     expect(prompt).toContain("dor/tensão real");
@@ -444,6 +571,47 @@ describe("scripts/ai technical contract", () => {
     expect(repaired.content).not.toMatch(/\b(mostre|explique|fa[cç]a|finalize)\b/i);
   });
 
+  it("preserves concise human hook when it is already camera-ready", () => {
+    const base = [
+      "[ROTEIRO_TECNICO_V1]",
+      "[CENA 1: GANCHO]",
+      "Visual: Close no rosto.",
+      "",
+      'Fala: "Você não tá travado."',
+      "",
+      "Direção: Tom direto e confiante.",
+      "",
+      "[CENA 2: CONTEXTO]",
+      "Visual: Rotina corrida.",
+      "",
+      'Fala: "Você só está repetindo um formato que já perdeu força."',
+      "",
+      "Direção: Tom íntimo.",
+      "",
+      "[CENA 3: DEMONSTRAÇÃO]",
+      "Visual: Mostra o ajuste no celular.",
+      "",
+      'Fala: "Quando eu mudei a abertura, a retenção mudou junto."',
+      "",
+      "Direção: Cadência clara.",
+      "",
+      "[CENA 4: CTA]",
+      "Visual: Texto na tela: E VOCÊ?",
+      "",
+      'Fala: "E você, qual abertura mais funciona no seu perfil hoje? Me conta aqui."',
+      "",
+      "Direção: Curioso e leve.",
+      "[/ROTEIRO_TECNICO_V1]",
+    ].join("\n");
+
+    const repaired = enforceTechnicalScriptContract(
+      { title: "Teste", content: base },
+      "roteiro sobre retenção para reels"
+    );
+
+    expect(repaired.content).toContain('Fala: "Você não tá travado."');
+  });
+
   it("converts legacy script text to technical format", () => {
     const converted = convertLegacyScriptToTechnical(
       "Gancho: pare de perder vendas.\nDesenvolvimento: ajuste a mensagem em 2 passos.\nCTA: comente quero.",
@@ -453,6 +621,16 @@ describe("scripts/ai technical contract", () => {
     expect(converted).toMatch(/\[ROTEIRO (TÉCNICO V1 — FORMATO DE FLUXO|COPY-FIRST V1)\]/);
     expect(converted).toContain("CENA 1: O GANCHO");
     expect(converted).toContain("CENA 4: CHAMADA PARA AÇÃO");
+  });
+
+  it("uses a sane fallback topic for winner-based prompts without explicit subject", () => {
+    const converted = convertLegacyScriptToTechnical(
+      "",
+      "escreva um roteiro com base no que mais engaja no meu perfil"
+    );
+
+    expect(converted).toContain("O QUE JA FUNCIONA NO SEU PERFIL");
+    expect(converted).not.toContain("MAIS ENGAJA NO MEU PERFIL");
   });
 
   it("computes higher perceived quality for polished technical script than weak script", () => {
@@ -558,6 +736,78 @@ describe("scripts/ai technical contract", () => {
 
     expect(conversationalScore.ctaStrength).toBeGreaterThan(roboticScore.ctaStrength);
     expect(conversationalScore.perceivedQuality).toBeGreaterThan(roboticScore.perceivedQuality);
+  });
+
+  it("rewards scripts with practical utility over abstract scripts", () => {
+    const abstract = [
+      "[ROTEIRO_TECNICO_V1]",
+      "[CENA 1: GANCHO]",
+      "Visual: Close no rosto.",
+      "",
+      'Fala: "Se você quer melhorar, precisa mudar sua mentalidade."',
+      "",
+      "Direção: Tom sério.",
+      "",
+      "[CENA 2: CONTEXTO]",
+      "Visual: Fundo neutro.",
+      "",
+      'Fala: "O crescimento exige visão estratégica e energia certa para continuar."',
+      "",
+      "Direção: Tom professoral.",
+      "",
+      "[CENA 3: DEMONSTRAÇÃO]",
+      "Visual: Gesticulando para câmera.",
+      "",
+      'Fala: "Quando você entende isso, tudo começa a fazer mais sentido."',
+      "",
+      "Direção: Ritmo constante.",
+      "",
+      "[CENA 4: CTA]",
+      "Visual: Texto na tela: COMENTA.",
+      "",
+      'Fala: "Comenta aqui agora."',
+      "",
+      "Direção: Final direto.",
+      "[/ROTEIRO_TECNICO_V1]",
+    ].join("\n");
+
+    const practical = [
+      "[ROTEIRO_TECNICO_V1]",
+      "[CENA 1: GANCHO]",
+      "Visual: Close no rosto.",
+      "",
+      'Fala: "Seu conteúdo não tá fraco. Ele só abre sem diagnóstico."',
+      "",
+      "Direção: Tom direto.",
+      "",
+      "[CENA 2: CONTEXTO]",
+      "Visual: Mostra o roteiro no celular.",
+      "",
+      'Fala: "O erro é começar pela dica. Primeiro você nomeia o atrito que a pessoa sente hoje."',
+      "",
+      "Direção: Didático e rápido.",
+      "",
+      "[CENA 3: DEMONSTRAÇÃO]",
+      "Visual: Aponta três linhas escritas.",
+      "",
+      'Fala: "Eu faço assim: linha 1 com o erro, linha 2 com o ajuste, linha 3 com a prova de que funciona."',
+      "",
+      "Direção: Cadência clara com gesto de contagem.",
+      "",
+      "[CENA 4: CTA]",
+      "Visual: Texto na tela: QUAL AJUSTE?",
+      "",
+      'Fala: "Qual dessas três linhas mais falta no seu roteiro hoje? Me conta aqui."',
+      "",
+      "Direção: Curioso e leve.",
+      "[/ROTEIRO_TECNICO_V1]",
+    ].join("\n");
+
+    const abstractScore = evaluateTechnicalScriptQuality(abstract, "roteiro sobre melhorar conteúdo");
+    const practicalScore = evaluateTechnicalScriptQuality(practical, "roteiro sobre melhorar conteúdo");
+
+    expect(practicalScore.utilityScore).toBeGreaterThan(abstractScore.utilityScore);
+    expect(practicalScore.perceivedQuality).toBeGreaterThan(abstractScore.perceivedQuality);
   });
 
   it("prevents duplicate CTA headings when script has 5 scenes", () => {

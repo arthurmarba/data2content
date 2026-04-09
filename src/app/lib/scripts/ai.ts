@@ -18,6 +18,23 @@ type ScriptDraft = {
   content: string;
 };
 
+export type ScriptSemanticReviewMeta = {
+  attempted: boolean;
+  retried: boolean;
+  acceptedAfterRetry: boolean;
+  initialOverallScore?: number;
+  finalOverallScore?: number;
+  initialPasses?: boolean;
+  finalPasses?: boolean;
+  initialIssues?: string[];
+  finalIssues?: string[];
+  rewriteBrief?: string;
+};
+
+type ScriptDraftWithReview = ScriptDraft & {
+  reviewMeta?: ScriptSemanticReviewMeta;
+};
+
 type GenerateInput = {
   prompt: string;
   intelligenceContext?: ScriptIntelligenceContext | null;
@@ -39,7 +56,7 @@ export type ScriptAdjustMeta = {
   outOfScopeChangeRate: number;
 };
 
-type AdjustResult = ScriptDraft & {
+type AdjustResult = ScriptDraftWithReview & {
   adjustMeta: ScriptAdjustMeta;
 };
 
@@ -111,6 +128,14 @@ const PATCH_VISUAL_INTENT_REGEX =
   /(visual|imagem|enquadramento|b-roll|broll|texto na tela|cen[aá]rio|mostre|mostra)/i;
 const PATCH_DIRECAO_INTENT_REGEX =
   /(dire[cç][aã]o|tom|entona[cç][aã]o|cad[êe]ncia|ritmo|performance|gesto|postura)/i;
+const GENERIC_SCRIPT_CLICHE_REGEX =
+  /\b(nesse v[ií]deo|neste v[ií]deo|hoje eu vou te mostrar|vou te mostrar|voc[eê] precisa|aprenda isso|fica comigo at[eé] o final)\b/i;
+const PRACTICAL_MARKER_REGEX =
+  /\b(na pr[aá]tica|passo|ajuste|ritual|processo|crit[eé]rio|sinal|erro|troca|troque|pare de|comece|fa[cç]a|teste|observe|repare|h[aá]bito|rotina|checklist|jeito|forma de|como)\b/i;
+const ABSTRACT_CLAIM_REGEX =
+  /\b(importante|essencial|fundamental|necess[aá]rio|estrat[eé]gic[oa]|valor|jornada|mindset|energia|consist[eê]ncia|resultado)\b/i;
+const PRACTICAL_VALUE_PROMISE_REGEX =
+  /\b(diagn[oó]stico|ajuste|passo|crit[eé]rio|erro|ritual|sinal|decis[aã]o|micro passo|mecanismo)\b/i;
 const SCRIPT_NARRATIVE_QUALITY_RULES = [
   "Abra com observação vivida, confissão, contraste ou opinião concreta; evite promessa genérica.",
   "Construa arco humano: gancho -> dor/tensão real -> mudança prática -> motivo humano/prova -> CTA conversacional.",
@@ -151,10 +176,31 @@ export type TechnicalScriptQualityScore = {
   speakabilityScore: number;
   ctaStrength: number;
   diversityScore: number;
+  utilityScore: number;
   sceneCount: number;
 };
 
 const QUALITY_PASS_MIN_SCORE = 0.78;
+const SEMANTIC_REVIEW_MIN_SCORE = 7.4;
+const SEMANTIC_REVIEW_MIN_DIMENSION_SCORE = 6.8;
+const INTELLIGENCE_PROMPT_MAX_CHARS = (() => {
+  const parsed = Number(process.env.SCRIPTS_INTELLIGENCE_PROMPT_MAX_CHARS ?? 3200);
+  return Number.isFinite(parsed) && parsed >= 1200 ? Math.floor(parsed) : 3200;
+})();
+
+type ScriptSemanticQualityAssessment = {
+  overall: number;
+  passes: boolean;
+  adherence: number;
+  specificity: number;
+  humanity: number;
+  creatorFit: number;
+  hook: number;
+  cta: number;
+  utility: number;
+  issues: string[];
+  rewriteBrief: string;
+};
 
 export class ScriptAdjustScopeError extends Error {
   readonly status: number;
@@ -445,7 +491,15 @@ function inferScriptObjective(text: string): "converter" | "engajar" | "autorida
 
 function extractTopicHint(value: string): string {
   const normalized = compactWhitespace(value || "");
-  if (!normalized) return "seu tema principal";
+  if (!normalized) return "esse tema";
+  const parsedIntent = parsePromptForScriptIntelligence(normalized).intent;
+  const explicitSubject = parsedIntent.subjectHint?.trim();
+  if (explicitSubject) {
+    return clampText(stripMarkdownMarkers(explicitSubject), "esse tema", 80);
+  }
+  if (parsedIntent.wantsWinnerBasedScript) {
+    return "o que ja funciona no seu perfil";
+  }
   const patterns = [
     /(?:sobre|tema|assunto)\s+(.+)$/i,
     /(?:para)\s+(.+)$/i,
@@ -454,13 +508,79 @@ function extractTopicHint(value: string): string {
     const match = normalized.match(pattern);
     if (!match?.[1]) continue;
     const candidate = stripMarkdownMarkers(match[1]).replace(/[?.!,:;]+$/g, "").trim();
-    if (candidate.length >= 4) return clampText(candidate, "seu tema principal", 80);
+    if (candidate.length >= 4) return clampText(candidate, "esse tema", 80);
   }
   const cleaned = normalized
     .replace(/\b(crie|gere|fa[cç]a|ajuste|reescreva|roteiro|script|novo|uma|um|para|pra)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
-  return clampText(cleaned || normalized, "seu tema principal", 80);
+  if (cleaned.length >= 6 && cleaned.length <= 80 && !/\b(meu perfil|meu estilo|mais engaja)\b/i.test(cleaned)) {
+    return clampText(cleaned, "esse tema", 80);
+  }
+  return "esse tema";
+}
+
+function compactPromptExample(value: string, max = 140): string {
+  const normalized = sanitizeTableCell(value || "", "");
+  if (!normalized) return "";
+  return normalized.length > max ? `${normalized.slice(0, max - 1).trim()}…` : normalized;
+}
+
+function uniqueCompactValues(values: Array<string | null | undefined>, maxItems: number, maxChars = 120): string[] {
+  const output: string[] = [];
+  const seen = new Set<string>();
+  for (const value of values) {
+    const normalized = compactPromptExample(value || "", maxChars);
+    if (!normalized) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    output.push(normalized);
+    if (output.length >= maxItems) break;
+  }
+  return output;
+}
+
+function buildPracticalValueBlock(prompt: string): string {
+  const objective = inferScriptObjective(prompt);
+  const baseLines = [
+    "- O espectador precisa sair com pelo menos 1 diagnóstico concreto e 1 ajuste aplicável.",
+    "- Se o assunto for amplo, escolha um recorte útil e operacional em vez de falar de tudo.",
+    "- Não entregue tese vaga: mostre mecanismo, critério, passo, erro ou ritual observável.",
+  ];
+
+  if (objective === "converter") {
+    baseLines.push("- Mostre o custo de continuar errando e o micro-passo que aproxima da conversão.");
+  } else if (objective === "autoridade") {
+    baseLines.push("- Traga um critério, erro recorrente ou leitura prática que prove repertório real.");
+  } else if (objective === "engajar") {
+    baseLines.push("- Mesmo se o foco for engajamento, entregue insight reaplicável; não pare em opinião vazia.");
+  } else {
+    baseLines.push("- Ensine algo que a pessoa consiga testar ainda hoje sem depender de contexto extra.");
+  }
+
+  return `Utilidade prática obrigatória:\n${baseLines.join("\n")}\n\n`;
+}
+
+function joinPromptSectionsWithinBudget(sections: Array<string | null | undefined>, maxChars: number): string {
+  const cleaned = sections
+    .map((section) => String(section || "").trim())
+    .filter(Boolean);
+  if (!cleaned.length) return "";
+
+  let result = "";
+  for (const section of cleaned) {
+    const next = result ? `${result}\n${section}` : section;
+    if (next.length <= maxChars) {
+      result = next;
+      continue;
+    }
+    const remaining = maxChars - (result ? result.length + 1 : 0);
+    if (remaining < 120) break;
+    result = `${result}${result ? "\n" : ""}${section.slice(0, remaining - 1).trim()}…`;
+    break;
+  }
+  return result;
 }
 
 function defaultHeadingForScene(index: number, totalScenes = 4): string {
@@ -759,7 +879,15 @@ function ensureLiteralSpeech(
 ): string {
   const cleaned = sanitizeTableCell(speech, fallback);
   if (INSTRUCTIONAL_LITERAL_REGEX.test(cleaned)) return fallback;
-  if (cleaned.split(/\s+/).filter(Boolean).length < 6) return fallback;
+  if (GENERIC_SCRIPT_CLICHE_REGEX.test(cleaned)) return fallback;
+  const wordCount = cleaned.split(/\s+/).filter(Boolean).length;
+  if (wordCount < 4) return fallback;
+  if (wordCount < 6) {
+    const hasNaturalSignal =
+      /[!?]/.test(cleaned) ||
+      /(eu|voc[eê]|voce|quando|porque|mas|parece|foi|s[oó]|nem)/i.test(cleaned);
+    if (!hasNaturalSignal) return fallback;
+  }
   return cleaned;
 }
 
@@ -794,16 +922,21 @@ function scoreHookStrength(row?: TechnicalSceneRow): number {
   const words = countWords(speech);
 
   // Punchy hook
-  if (words >= 6 && words <= 22) score += 0.25;
+  if (words >= 4 && words <= 18) score += 0.25;
+  else if (words > 18 && words <= 26) score += 0.1;
   // Personal connection
-  if (/\b(voc[eê]|seu|sua|te|se voc[eê])\b/i.test(speech)) score += 0.2;
+  if (/(voc[eê]|voce|seu|sua|te|se voc[eê]|se voce)/i.test(speech)) score += 0.2;
   if (/\b(eu|pra mim|comigo|s[oó] consegui|confesso|parece loucura|na verdade|foi quando)\b/i.test(speech)) score += 0.1;
+  if (words <= 8 && /(voc[eê]|voce)/i.test(speech) && /\b(n[aã]o|travado|errando|perdendo|confundindo)\b/i.test(speech)) {
+    score += 0.12;
+  }
   // Urgency / Actionable
   if (/\b(hoje|agora|pare|n[aã]o fa[cç]a|imediata)\b/i.test(speech)) score += 0.2;
   // Curiosity & Agitation
   if (/\b(erro|segredo|motivo|verdade|descubra|sabia que|por que|cai|destrava|resultado|ganha)\b/i.test(speech)) score += 0.25;
   // Visual anchor
   if (hasMeaningfulOverlay(row.visual)) score += 0.1;
+  if (GENERIC_SCRIPT_CLICHE_REGEX.test(speech)) score -= 0.22;
   return roundScore(score);
 }
 
@@ -822,10 +955,28 @@ function scoreSceneSpecificity(row: TechnicalSceneRow): number {
   return roundScore(score);
 }
 
+function scoreUtilityScene(row: TechnicalSceneRow): number {
+  const speech = sanitizeTableCell(row.fala, "");
+  if (!speech) return 0;
+
+  let score = 0;
+  const words = countWords(speech);
+
+  if (PRACTICAL_MARKER_REGEX.test(speech)) score += 0.38;
+  if (/\b(quando|se|antes de|depois de|ent[aã]o eu|por isso|assim|na pr[aá]tica)\b/i.test(speech)) score += 0.2;
+  if (/\b(1|2|3|um|uma|dois|duas|primeiro|segundo)\b/i.test(speech)) score += 0.08;
+  if (words >= 8 && /\b(erro|ajuste|passo|troca|ritual|crit[eé]rio|sinal|processo)\b/i.test(speech)) score += 0.22;
+  if (/\b(eu parei de|eu comecei a|o que mudou foi|o que eu faço [ée]|eu troquei)\b/i.test(speech)) score += 0.16;
+  if (ABSTRACT_CLAIM_REGEX.test(speech) && !PRACTICAL_MARKER_REGEX.test(speech)) score -= 0.18;
+
+  return roundScore(score);
+}
+
 function scoreSpeakability(row: TechnicalSceneRow): number {
   const speech = sanitizeTableCell(row.fala, "");
   if (!speech) return 0;
   if (INSTRUCTIONAL_LITERAL_REGEX.test(speech)) return 0;
+  if (GENERIC_SCRIPT_CLICHE_REGEX.test(speech)) return 0.18;
 
   let score = 0;
   const words = countWords(speech);
@@ -858,6 +1009,7 @@ function scoreCtaStrength(lastScene?: TechnicalSceneRow): number {
   if (/\b(comente|salve|compartilhe|cta|link|direct|dm)\b/i.test(overlay)) score += 0.1;
   if (wordCount <= 4) score -= 0.25;
   if (/^(comente|salve|compartilhe|segue)\b/i.test(speech.trim())) score -= 0.15;
+  if (/^(comente aqui agora|salve isso|compartilhe isso)\b/i.test(speech.trim().toLowerCase())) score -= 0.2;
   return roundScore(score);
 }
 
@@ -887,6 +1039,7 @@ function evaluateTechnicalScriptQualityFromScenes(
       speakabilityScore: 0,
       ctaStrength: 0,
       diversityScore: 0,
+      utilityScore: 0,
       sceneCount: 0,
     };
   }
@@ -899,12 +1052,18 @@ function evaluateTechnicalScriptQualityFromScenes(
   );
   const ctaStrength = scoreCtaStrength(scenes[scenes.length - 1]?.row);
   const diversityScore = scoreDiversity(scenes);
+  const utilityScenes = scenes.slice(1, Math.max(2, scenes.length - 1));
+  const utilityScore = roundScore(
+    (utilityScenes.length ? utilityScenes : scenes).reduce((sum, scene) => sum + scoreUtilityScene(scene.row), 0) /
+      (utilityScenes.length ? utilityScenes.length : scenes.length)
+  );
   const perceivedQuality = roundScore(
-    hookStrength * 0.25 +
-    specificityScore * 0.25 +
-    speakabilityScore * 0.2 +
-    ctaStrength * 0.2 +
-    diversityScore * 0.1
+    hookStrength * 0.22 +
+    specificityScore * 0.22 +
+    speakabilityScore * 0.18 +
+    ctaStrength * 0.18 +
+    utilityScore * 0.14 +
+    diversityScore * 0.06
   );
   return {
     perceivedQuality,
@@ -913,6 +1072,7 @@ function evaluateTechnicalScriptQualityFromScenes(
     speakabilityScore,
     ctaStrength,
     diversityScore,
+    utilityScore,
     sceneCount: scenes.length,
   };
 }
@@ -924,7 +1084,8 @@ function shouldRunQualityPass(score: TechnicalScriptQualityScore): boolean {
     score.hookStrength < 0.62 ||
     score.specificityScore < 0.62 ||
     score.speakabilityScore < 0.75 ||
-    score.ctaStrength < 0.8
+    score.ctaStrength < 0.8 ||
+    score.utilityScore < 0.55
   );
 }
 
@@ -1144,6 +1305,7 @@ export function buildGenerateScriptPrompt(input: GenerateInput): string {
       `- Não trate o assunto de forma genérica; deixe o tema explícito já nas primeiras cenas e mantenha coerência até o final.\n` +
       `- Sempre que possível, conecte o assunto a uma experiência, hábito, dor ou situação concreta.\n\n`
     : "";
+  const practicalValueBlock = buildPracticalValueBlock(userPrompt);
 
   return (
     `Crie um roteiro técnico profissional em português do Brasil para creator.\n` +
@@ -1151,12 +1313,13 @@ export function buildGenerateScriptPrompt(input: GenerateInput): string {
     `${intelligenceBlock}\n\n` +
     `${winnerBasedGuidance}` +
     `${topicGuidance}` +
+    `${practicalValueBlock}` +
     `Qualidade narrativa obrigatória:\n` +
     `${SCRIPT_NARRATIVE_QUALITY_RULES}\n\n` +
     `Preferência de progressão por cena:\n` +
     `- Cena 1: gancho forte com confissão, contraste, opinião ou observação impossível de ignorar\n` +
     `- Cena 2: dor, frustração, tensão ou contexto real que sustenta o tema\n` +
-    `- Cena 3: virada prática, ritual, ajuste concreto ou demonstração viva\n` +
+    `- Cena 3: virada prática, ritual, ajuste concreto, critério ou demonstração viva\n` +
     `- Cena 4 em diante: prova, motivo humano, consequência ou aprofundamento antes do CTA\n` +
     `- Última cena: CTA natural, conversacional e específico\n\n` +
     `Regras obrigatórias:\n` +
@@ -1187,6 +1350,7 @@ export function buildGenerateScriptPrompt(input: GenerateInput): string {
     `- Se tiver 5 cenas: Cena 4 é PROVA e Cena 5 é CHAMADA PARA AÇÃO\n` +
     `- Se tiver 6 cenas: Cena 4 é PROVA, Cena 5 é VIRADA e Cena 6 é CHAMADA PARA AÇÃO\n` +
     `- Fala (literal): copy persuasivo, específico, humano e pronto para câmera\n` +
+    `- O roteiro precisa entregar utilidade real: diagnóstico + ajuste + prova/situação observável\n` +
     `- Direção: orientação objetiva de tom/ritmo/entonação/gesto\n` +
     `- Última cena obrigatoriamente com CTA explícito\n` +
     `- Imitar o estilo do criador sem copiar frases literalmente\n` +
@@ -1251,9 +1415,12 @@ export function buildIntelligencePromptBlock(context: ScriptIntelligenceContext 
     ? context.dnaProfile.writingGuidelines.map((line) => `- ${line}`).join("\n")
     : "- Use linguagem natural em portugues do Brasil com CTA claro.";
 
-  const captionExamples = context.captionEvidence
-    .slice(0, 3)
-    .map((item, index) => `${index + 1}) ${item.caption.replace(/\s+/g, " ").slice(0, 180)}`)
+  const captionExamples = uniqueCompactValues(
+    context.captionEvidence.slice(0, 4).map((item) => item.caption),
+    2,
+    150
+  )
+    .map((item, index) => `${index + 1}) ${item}`)
     .join("\n");
 
   const evidenceBlock = captionExamples
@@ -1262,16 +1429,59 @@ export function buildIntelligencePromptBlock(context: ScriptIntelligenceContext 
 
   const styleGuidelines =
     context.styleProfile?.writingGuidelines?.length
-      ? context.styleProfile.writingGuidelines.map((line) => `- ${line}`).join("\n")
+      ? context.styleProfile.writingGuidelines.slice(0, 4).map((line) => `- ${line}`).join("\n")
       : "- Sem sinais suficientes de estilo por roteiros salvos.";
 
   const styleExamples =
     context.styleProfile?.styleExamples?.length
-      ? context.styleProfile.styleExamples
-        .slice(0, 3)
+      ? uniqueCompactValues(context.styleProfile.styleExamples, 2, 120)
         .map((item, index) => `${index + 1}) ${item}`)
         .join("\n")
       : "";
+
+  const hookExamples = uniqueCompactValues(
+    [
+      ...(context.linkedOutcome?.topExamples?.map((item) => item.hookSample || "") || []),
+      ...(context.styleProfile?.styleSignalsUsed.hookPatterns || []),
+      ...(context.dnaProfile.openingPatterns || []),
+    ],
+    3,
+    90
+  );
+
+  const ctaExamples = uniqueCompactValues(
+    [
+      ...(context.linkedOutcome?.topExamples?.map((item) => item.ctaSample || "") || []),
+      ...(context.styleProfile?.styleSignalsUsed.ctaPatterns || []),
+      ...(context.dnaProfile.ctaPatterns || []),
+    ],
+    3,
+    90
+  );
+
+  const practicalEvidenceLines = uniqueCompactValues(
+    [
+      ...(context.linkedOutcome?.topExamples?.map((item) => item.caption || "") || []),
+      ...context.captionEvidence.map((item) => item.caption || ""),
+    ],
+    2,
+    130
+  )
+    .map((item, index) => `${index + 1}) ${item}`)
+    .join("\n");
+
+  const winningScriptExamplesBlock = (context.winningScriptExamples || []).length
+    ? (context.winningScriptExamples || [])
+        .slice(0, 2)
+        .map((item, index) => {
+          const opening = item.opening ? `Gancho: ${item.opening}` : "";
+          const development = item.development ? `Movimento útil: ${item.development}` : "";
+          const cta = item.cta ? `Fechamento: ${item.cta}` : "";
+          const parts = [opening, development, cta].filter(Boolean).join(" | ");
+          return `${index + 1}) ${item.title} | lift ${item.lift.toFixed(2)}${parts ? ` | ${parts}` : ""}`;
+        })
+        .join("\n")
+    : "";
 
   const styleBlock =
     context.styleProfile && context.styleSampleSize > 0
@@ -1326,46 +1536,259 @@ export function buildIntelligencePromptBlock(context: ScriptIntelligenceContext 
         `- Priorize padrões com lift alto sem copiar textos literalmente.`
       : "";
 
-  return (
-    `\n\nContexto inteligente do criador (aplique silenciosamente, sem explicar ao usuario):\n` +
-    `- Modo do pedido: ${context.promptMode}\n` +
-    `- Métrica usada: ${context.metricUsed}\n` +
-    `- Janela historica: ${context.lookbackDays} dias\n` +
-    `${categoryLines || "- Sem categorias resolvidas."}\n` +
-    `- Evidencias de DNA: ${context.dnaProfile.sampleSize} legendas\n` +
-    `- Perfil de linguagem:\n${dnaLines}\n` +
-    `${evidenceBlock}\n` +
-    `${styleBlock}` +
-    `${linkedOutcomeBlock}`
+  const creatorPlaybookBlock = [
+    hookExamples.length ? `- Ganchos que costumam soar naturais aqui: ${hookExamples.join(" | ")}` : null,
+    ctaExamples.length ? `- CTAs/fechamentos que soam naturais aqui: ${ctaExamples.join(" | ")}` : null,
+    practicalEvidenceLines ? `- Ângulos vivos do perfil:\n${practicalEvidenceLines}` : null,
+    winningScriptExamplesBlock ? `- Roteiros reais do perfil que performaram bem:\n${winningScriptExamplesBlock}` : null,
+    "- Converta os padrões vencedores em roteiro útil: diagnóstico concreto + ajuste aplicável + prova ou situação observável.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  const body = joinPromptSectionsWithinBudget(
+    [
+      `- Modo do pedido: ${context.promptMode}\n` +
+        `- Métrica usada: ${context.metricUsed}\n` +
+        `- Janela historica: ${context.lookbackDays} dias\n` +
+        `${categoryLines || "- Sem categorias resolvidas."}\n` +
+        `- Evidencias de DNA: ${context.dnaProfile.sampleSize} legendas\n` +
+        `- Perfil de linguagem:\n${dnaLines}`,
+      `Playbook acionável do perfil:\n${creatorPlaybookBlock}`,
+      evidenceBlock,
+      styleBlock,
+      linkedOutcomeBlock,
+    ],
+    INTELLIGENCE_PROMPT_MAX_CHARS
   );
+
+  return body
+    ? `\n\nContexto inteligente do criador (aplique silenciosamente, sem explicar ao usuario):\n${body}`
+    : "";
 }
 
 function parseDraftFromResponse(raw: string): ScriptDraft {
+  const parsed = parseLooseJsonObject(raw);
+  const title = clampText(parsed?.title, "Novo roteiro", 80);
+  const content = clampText(parsed?.content, "Roteiro gerado.", 12000);
+  return { title, content };
+}
+
+function parseLooseJsonObject(raw: string): any {
   const trimmed = (raw || "").trim();
   if (!trimmed) {
     throw new Error("Resposta vazia do modelo");
   }
 
-  const direct = (() => {
-    try {
-      return JSON.parse(trimmed);
-    } catch {
-      return null;
-    }
-  })();
-
-  let parsed = direct;
-  if (!parsed) {
+  try {
+    return JSON.parse(trimmed);
+  } catch {
     const start = trimmed.indexOf("{");
     const end = trimmed.lastIndexOf("}");
     if (start >= 0 && end > start) {
-      parsed = JSON.parse(trimmed.slice(start, end + 1));
+      return JSON.parse(trimmed.slice(start, end + 1));
     }
+    throw new Error("Resposta JSON inválida do modelo");
   }
+}
 
-  const title = clampText(parsed?.title, "Novo roteiro", 80);
-  const content = clampText(parsed?.content, "Roteiro gerado.", 12000);
-  return { title, content };
+function normalizeTenPointScore(value: unknown): number {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.min(10, Math.max(0, Math.round(parsed * 10) / 10));
+}
+
+function parseIssuesList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => String(item || "").trim())
+    .filter(Boolean)
+    .slice(0, 6);
+}
+
+function normalizeSemanticReviewAssessment(raw: any): ScriptSemanticQualityAssessment {
+  const overall = normalizeTenPointScore(raw?.overall);
+  const adherence = normalizeTenPointScore(raw?.adherence);
+  const specificity = normalizeTenPointScore(raw?.specificity);
+  const humanity = normalizeTenPointScore(raw?.humanity);
+  const creatorFit = normalizeTenPointScore(raw?.creatorFit);
+  const hook = normalizeTenPointScore(raw?.hook);
+  const cta = normalizeTenPointScore(raw?.cta);
+  const utility = normalizeTenPointScore(raw?.utility);
+  const issues = parseIssuesList(raw?.issues);
+  const rewriteBrief = clampText(
+    raw?.rewriteBrief,
+    issues.join("; ") || "Reescreva com mais especificidade, voz humana e aderência ao pedido.",
+    600
+  );
+  const passes =
+    (raw?.passes === true || overall >= SEMANTIC_REVIEW_MIN_SCORE) &&
+    adherence >= SEMANTIC_REVIEW_MIN_DIMENSION_SCORE &&
+    specificity >= SEMANTIC_REVIEW_MIN_DIMENSION_SCORE &&
+    humanity >= SEMANTIC_REVIEW_MIN_DIMENSION_SCORE &&
+    utility >= SEMANTIC_REVIEW_MIN_DIMENSION_SCORE &&
+    hook >= SEMANTIC_REVIEW_MIN_DIMENSION_SCORE &&
+    cta >= 6.2;
+  return {
+    overall,
+    passes,
+    adherence,
+    specificity,
+    humanity,
+    creatorFit,
+    hook,
+    cta,
+    utility,
+    issues,
+    rewriteBrief,
+  };
+}
+
+function parseSemanticQualityAssessmentFromResponse(raw: string): ScriptSemanticQualityAssessment {
+  const parsed = parseLooseJsonObject(raw);
+  return normalizeSemanticReviewAssessment(parsed);
+}
+
+function getOpenAIClient(): OpenAI | null {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+  if (!openAIClientCache || openAIClientCacheKey !== apiKey) {
+    openAIClientCache = new OpenAI({ apiKey });
+    openAIClientCacheKey = apiKey;
+  }
+  return openAIClientCache;
+}
+
+function selectScriptSemanticJudgeModel(): string {
+  const configured = (
+    process.env.OPENAI_MODEL_SCRIPT_JUDGE ||
+    process.env.OPENAI_MODEL_ADVANCED ||
+    process.env.OPENAI_MODEL_PREMIUM ||
+    process.env.OPENAI_MODEL ||
+    "gpt-4o-mini"
+  ).trim();
+  return configured || "gpt-4o-mini";
+}
+
+function buildSemanticReviewContextSummary(context: ScriptIntelligenceContext | null | undefined): string {
+  if (!context) return "- Sem contexto adicional do criador.";
+  const lines = [
+    context.resolvedCategories.proposal ? `- proposal: ${context.resolvedCategories.proposal}` : null,
+    context.resolvedCategories.context ? `- context: ${context.resolvedCategories.context}` : null,
+    context.resolvedCategories.tone ? `- tone: ${context.resolvedCategories.tone}` : null,
+    `- DNA captions: ${context.dnaProfile.sampleSize}`,
+    `- Style samples: ${context.styleSampleSize}`,
+  ].filter(Boolean);
+  const styleLines = context.styleProfile?.writingGuidelines?.slice(0, 4) || [];
+  const hookLines = uniqueCompactValues(
+    [
+      ...(context.linkedOutcome?.topExamples?.map((item) => item.hookSample || "") || []),
+      ...(context.styleProfile?.styleSignalsUsed.hookPatterns || []),
+    ],
+    2,
+    90
+  );
+  const ctaLines = uniqueCompactValues(
+    [
+      ...(context.linkedOutcome?.topExamples?.map((item) => item.ctaSample || "") || []),
+      ...(context.styleProfile?.styleSignalsUsed.ctaPatterns || []),
+    ],
+    2,
+    90
+  );
+  const winningScripts = (context.winningScriptExamples || [])
+    .slice(0, 2)
+    .map((item) => {
+      const parts = [
+        item.opening ? `gancho: ${item.opening}` : "",
+        item.development ? `movimento: ${item.development}` : "",
+        item.cta ? `cta: ${item.cta}` : "",
+      ]
+        .filter(Boolean)
+        .join(" | ");
+      return parts ? `- Exemplo real (${item.title}): ${parts}` : null;
+    })
+    .filter(Boolean) as string[];
+  return [
+    ...lines,
+    ...(styleLines.length ? ["- Sinais de estilo prioritários:", ...styleLines.map((line) => `  - ${line}`)] : []),
+    ...(hookLines.length ? [`- Hooks vencedores: ${hookLines.join(" | ")}`] : []),
+    ...(ctaLines.length ? [`- CTAs vencedores: ${ctaLines.join(" | ")}`] : []),
+    ...winningScripts,
+  ].join("\n");
+}
+
+function buildSemanticReviewPrompt(params: {
+  userPrompt: string;
+  operation: ScriptModelOperation;
+  draft: ScriptDraft;
+  intelligenceContext?: ScriptIntelligenceContext | null;
+  adjustMode?: ScriptAdjustMode;
+}): string {
+  const operationLabel =
+    params.operation === "generate"
+      ? "geração de novo roteiro"
+      : `ajuste de roteiro${params.adjustMode ? ` (${params.adjustMode})` : ""}`;
+  return (
+    `Faça uma revisão editorial rigorosa de um roteiro para creator brasileiro.\n` +
+    `Pedido original do usuário: ${params.userPrompt}\n` +
+    `Tipo de operação: ${operationLabel}\n` +
+    `Contexto do criador:\n${buildSemanticReviewContextSummary(params.intelligenceContext)}\n\n` +
+    `Roteiro entregue:\nTítulo: ${params.draft.title}\n${params.draft.content}\n\n` +
+    `Critérios de nota (0 a 10):\n` +
+    `- adherence: responde exatamente o pedido e mantém o tema central\n` +
+    `- specificity: tem detalhes concretos, evita generalidades e frases intercambiáveis\n` +
+    `- humanity: soa humano, conversacional e sem cara de manual/publicidade genérica\n` +
+    `- utility: entrega um ajuste, passo, critério, erro ou diagnóstico aplicável; não é só tese bonita\n` +
+    `- creatorFit: respeita o perfil/estilo do criador quando houver sinais suficientes\n` +
+    `- hook: abre com força real e sem clichê\n` +
+    `- cta: fecha com CTA natural, específico e não robótico\n\n` +
+    `Marque como ruim se houver copy genérico, clichês, abstração, tese fraca, CTA burocrático, falta de dor real, falta de utilidade prática ou falta de aderência ao pedido.\n` +
+    `Retorne APENAS JSON válido com:\n` +
+    `{"overall": number, "passes": boolean, "adherence": number, "specificity": number, "humanity": number, "utility": number, "creatorFit": number, "hook": number, "cta": number, "issues": string[], "rewriteBrief": string}\n`
+  );
+}
+
+async function requestSemanticQualityAssessmentFromModel(params: {
+  client: OpenAI;
+  prompt: string;
+  model: string;
+}): Promise<ScriptSemanticQualityAssessment> {
+  const completion = await params.client.chat.completions.create({
+    model: params.model,
+    temperature: 0.1,
+    response_format: { type: "json_object" } as any,
+    messages: [
+      {
+        role: "system",
+        content:
+          "Você é editor-chefe de roteiros curtos para creators. Avalie com rigor e responda somente JSON válido.",
+      },
+      { role: "user", content: params.prompt },
+    ],
+  } as any);
+
+  const raw = completion.choices?.[0]?.message?.content || "{}";
+  return parseSemanticQualityAssessmentFromResponse(raw);
+}
+
+function shouldRunSemanticReview(options: CallModelOptions): boolean {
+  if (options.operation === "generate") return true;
+  return options.adjustMode === "rewrite_full" || options.adjustMode === "new_script";
+}
+
+function buildRetryPromptWithReviewFeedback(basePrompt: string, assessment: ScriptSemanticQualityAssessment): string {
+  const issueLines = assessment.issues.length
+    ? assessment.issues.map((issue) => `- ${issue}`).join("\n")
+    : "- Reescreva com mais especificidade, mais voz humana e menos generalidade.";
+  return (
+    `${basePrompt}\n\n` +
+    `Correção obrigatória após revisão editorial:\n` +
+    `${issueLines}\n` +
+    `- Objetivo da reescrita: ${assessment.rewriteBrief}\n` +
+    `- Refaça o roteiro inteiro do zero, sem reaproveitar frases genéricas do rascunho ruim\n` +
+    `- O roteiro final precisa deixar pelo menos um ajuste aplicável claro para o espectador\n` +
+    `- Deixe o assunto explícito cedo, crie progressão real e elimine qualquer CTA burocrático\n`
+  );
 }
 
 async function requestScriptDraftFromModel(params: {
@@ -1393,12 +1816,8 @@ async function requestScriptDraftFromModel(params: {
 }
 
 async function callModel(prompt: string, options: CallModelOptions): Promise<ScriptDraft | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) return null;
-  if (!openAIClientCache || openAIClientCacheKey !== apiKey) {
-    openAIClientCache = new OpenAI({ apiKey });
-    openAIClientCacheKey = apiKey;
-  }
+  const client = getOpenAIClient();
+  if (!client) return null;
   const modelSelection = selectScriptModelForPrompt({
     userPrompt: options.userPrompt,
     operation: options.operation,
@@ -1413,7 +1832,7 @@ async function callModel(prompt: string, options: CallModelOptions): Promise<Scr
   try {
     try {
       return await requestScriptDraftFromModel({
-        client: openAIClientCache,
+        client,
         prompt,
         model: modelSelection.model,
         temperature,
@@ -1434,7 +1853,7 @@ async function callModel(prompt: string, options: CallModelOptions): Promise<Scr
           error: primaryError instanceof Error ? primaryError.message : String(primaryError || ""),
         });
         return requestScriptDraftFromModel({
-          client: openAIClientCache,
+          client,
           prompt,
           model: modelSelection.fallbackModel,
           temperature,
@@ -1445,6 +1864,174 @@ async function callModel(prompt: string, options: CallModelOptions): Promise<Scr
   } finally {
     recordScriptsStageDuration("llm.call", Date.now() - llmStartMs);
   }
+}
+
+async function assessDraftSemanticQuality(params: {
+  draft: ScriptDraft;
+  userPrompt: string;
+  options: CallModelOptions;
+  intelligenceContext?: ScriptIntelligenceContext | null;
+}): Promise<ScriptSemanticQualityAssessment | null> {
+  const client = getOpenAIClient();
+  if (!client) return null;
+  try {
+    return await requestSemanticQualityAssessmentFromModel({
+      client,
+      prompt: buildSemanticReviewPrompt({
+        userPrompt: params.userPrompt,
+        operation: params.options.operation,
+        draft: params.draft,
+        intelligenceContext: params.intelligenceContext,
+        adjustMode: params.options.adjustMode,
+      }),
+      model: selectScriptSemanticJudgeModel(),
+    });
+  } catch (error) {
+    logger.warn("[scripts][review][semantic_assessment_failed]", {
+      operation: params.options.operation,
+      adjustMode: params.options.adjustMode || null,
+      error: error instanceof Error ? error.message : String(error || ""),
+    });
+    return null;
+  }
+}
+
+async function maybeRefineDraftWithSemanticReview(params: {
+  basePrompt: string;
+  userPrompt: string;
+  draft: ScriptDraft;
+  options: CallModelOptions;
+  intelligenceContext?: ScriptIntelligenceContext | null;
+  allowedIdentitySources: string[];
+}): Promise<ScriptDraftWithReview> {
+  if (!shouldRunSemanticReview(params.options)) {
+    return {
+      ...params.draft,
+      reviewMeta: {
+        attempted: false,
+        retried: false,
+        acceptedAfterRetry: false,
+      },
+    };
+  }
+
+  const initialAssessment = await assessDraftSemanticQuality({
+    draft: params.draft,
+    userPrompt: params.userPrompt,
+    options: params.options,
+    intelligenceContext: params.intelligenceContext,
+  });
+  if (!initialAssessment) {
+    return {
+      ...params.draft,
+      reviewMeta: {
+        attempted: true,
+        retried: false,
+        acceptedAfterRetry: false,
+      },
+    };
+  }
+  if (initialAssessment.passes) {
+    return {
+      ...params.draft,
+      reviewMeta: {
+        attempted: true,
+        retried: false,
+        acceptedAfterRetry: false,
+        initialOverallScore: initialAssessment.overall,
+        finalOverallScore: initialAssessment.overall,
+        initialPasses: initialAssessment.passes,
+        finalPasses: initialAssessment.passes,
+        initialIssues: initialAssessment.issues,
+        finalIssues: initialAssessment.issues,
+        rewriteBrief: initialAssessment.rewriteBrief,
+      },
+    };
+  }
+
+  const retryPrompt = buildRetryPromptWithReviewFeedback(params.basePrompt, initialAssessment);
+  const retryDraft = await callModel(retryPrompt, params.options);
+  if (!retryDraft) {
+    return params.draft;
+  }
+
+  const retrySanitized = sanitizeScriptIdentityLeakage(retryDraft, params.allowedIdentitySources);
+  const retryNormalized = enforceTechnicalScriptContract(retrySanitized, params.userPrompt, {
+    runQualityPass: false,
+  });
+  const retryAssessment = await assessDraftSemanticQuality({
+    draft: retryNormalized,
+    userPrompt: params.userPrompt,
+    options: params.options,
+    intelligenceContext: params.intelligenceContext,
+  });
+
+  const baseMeta: ScriptSemanticReviewMeta = {
+    attempted: true,
+    retried: true,
+    acceptedAfterRetry: false,
+    initialOverallScore: initialAssessment.overall,
+    initialPasses: initialAssessment.passes,
+    initialIssues: initialAssessment.issues,
+    rewriteBrief: initialAssessment.rewriteBrief,
+  };
+
+  if (!retryAssessment) {
+    const retryHeuristic = evaluateTechnicalScriptQuality(retryNormalized.content, params.userPrompt);
+    const currentHeuristic = evaluateTechnicalScriptQuality(params.draft.content, params.userPrompt);
+    if (retryHeuristic.perceivedQuality >= currentHeuristic.perceivedQuality) {
+      return {
+        ...retryNormalized,
+        reviewMeta: {
+          ...baseMeta,
+          acceptedAfterRetry: true,
+        },
+      };
+    }
+    return {
+      ...params.draft,
+      reviewMeta: {
+        ...baseMeta,
+        finalOverallScore: initialAssessment.overall,
+        finalPasses: initialAssessment.passes,
+        finalIssues: initialAssessment.issues,
+      },
+    };
+  }
+
+  if (retryAssessment.passes && !initialAssessment.passes) {
+    return {
+      ...retryNormalized,
+      reviewMeta: {
+        ...baseMeta,
+        acceptedAfterRetry: true,
+        finalOverallScore: retryAssessment.overall,
+        finalPasses: retryAssessment.passes,
+        finalIssues: retryAssessment.issues,
+      },
+    };
+  }
+  if (retryAssessment.overall > initialAssessment.overall) {
+    return {
+      ...retryNormalized,
+      reviewMeta: {
+        ...baseMeta,
+        acceptedAfterRetry: true,
+        finalOverallScore: retryAssessment.overall,
+        finalPasses: retryAssessment.passes,
+        finalIssues: retryAssessment.issues,
+      },
+    };
+  }
+  return {
+    ...params.draft,
+    reviewMeta: {
+      ...baseMeta,
+      finalOverallScore: retryAssessment.overall,
+      finalPasses: retryAssessment.passes,
+      finalIssues: retryAssessment.issues,
+    },
+  };
 }
 
 function buildNormalizedTechnicalScenes(
@@ -1605,8 +2192,6 @@ export function enforceTechnicalScriptContract(
       polishedScore.perceivedQuality >= QUALITY_PASS_MIN_SCORE;
     if (shouldAdoptPolished) {
       scenes = polished;
-    } else if (scoreBefore.perceivedQuality < 0.62) {
-      scenes = buildNormalizedTechnicalScenes("", fallbackPrompt);
     }
   }
   const normalizedContent = serializeTechnicalScript(scenes);
@@ -1674,7 +2259,7 @@ function sanitizeAdjustedScript(input: AdjustInput, draft: ScriptDraft): ScriptD
   return { title: nextTitle, content: nextContent };
 }
 
-export async function generateScriptFromPrompt(input: GenerateInput): Promise<ScriptDraft> {
+export async function generateScriptFromPrompt(input: GenerateInput): Promise<ScriptDraftWithReview> {
   const userPrompt = input.prompt.trim();
   if (!userPrompt) {
     throw new Error("Informe um prompt para gerar o roteiro.");
@@ -1689,7 +2274,27 @@ export async function generateScriptFromPrompt(input: GenerateInput): Promise<Sc
     });
     if (result) {
       const sanitized = sanitizeScriptIdentityLeakage(result, [userPrompt]);
-      return enforceTechnicalScriptContract(sanitized, userPrompt);
+      const normalized = enforceTechnicalScriptContract(sanitized, userPrompt, {
+        runQualityPass: false,
+      });
+      const refined = await maybeRefineDraftWithSemanticReview({
+        basePrompt: llmPrompt,
+        userPrompt,
+        draft: normalized,
+        options: {
+          userPrompt,
+          operation: "generate",
+        },
+        intelligenceContext: input.intelligenceContext,
+        allowedIdentitySources: [userPrompt],
+      });
+      const finalDraft = enforceTechnicalScriptContract(refined, userPrompt, {
+        runQualityPass: refined === normalized ? true : false,
+      });
+      return {
+        ...finalDraft,
+        reviewMeta: refined.reviewMeta,
+      };
     }
   } catch (error) {
     logger.warn("[scripts][generate][model_failed_using_local_fallback]", {
@@ -1700,7 +2305,14 @@ export async function generateScriptFromPrompt(input: GenerateInput): Promise<Sc
   }
 
   const fallback = sanitizeScriptIdentityLeakage(fallbackGenerate(userPrompt), [userPrompt]);
-  return enforceTechnicalScriptContract(fallback, userPrompt);
+  return {
+    ...enforceTechnicalScriptContract(fallback, userPrompt),
+    reviewMeta: {
+      attempted: false,
+      retried: false,
+      acceptedAfterRetry: false,
+    },
+  };
 }
 
 export async function adjustScriptFromPrompt(input: AdjustInput): Promise<AdjustResult> {
@@ -1741,6 +2353,7 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
     `- Cada cena deve seguir: CENA N: TITULO (tempo) + Visual + Fala + Direção\n` +
     `- Fala sempre literal (frase pronta para câmera), fluida e focada em retenção\n` +
     `- Mantenha qualidade narrativa humana: confissão/opinião concreta, dor real, virada prática, motivo humano e CTA conversacional quando fizer sentido\n` +
+    `- Preserve ou reforce utilidade prática: diagnóstico, ajuste, passo, critério ou prova observável\n` +
     `- Direção de Performance sempre acionável (tom de voz, velocidade)\n` +
     `- Somente a última cena pode ter heading CTA\n` +
     `- Se houver 5 cenas, use CENA 4: A PROVA e CENA 5: CHAMADA PARA AÇÃO\n` +
@@ -1816,6 +2429,11 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
         });
         return {
           ...technicalDraft,
+          reviewMeta: {
+            attempted: false,
+            retried: false,
+            acceptedAfterRetry: false,
+          },
           adjustMeta: {
             adjustMode: scope.mode,
             targetScope: scopedResolution.normalizedTargetType,
@@ -1828,8 +2446,21 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
       }
 
       const adjusted = sanitizeAdjustedScript(inputForAdjust, sanitized);
+      const reviewOptions: CallModelOptions = {
+        userPrompt,
+        operation: "adjust",
+        adjustMode: scope.mode,
+      };
       let technicalDraft = enforceTechnicalScriptContract(adjusted, userPrompt, {
-        runQualityPass: shouldRunQualityPassForAdjust,
+        runQualityPass: shouldRunQualityPassForAdjust && !shouldRunSemanticReview(reviewOptions),
+      });
+      technicalDraft = await maybeRefineDraftWithSemanticReview({
+        basePrompt: llmPrompt,
+        userPrompt,
+        draft: technicalDraft,
+        options: reviewOptions,
+        intelligenceContext: input.intelligenceContext,
+        allowedIdentitySources,
       });
       const shouldApplyConservativePatch = scope.mode === "patch" && scope.target.type === "none";
       let outOfScopeChangeRate = -1;
@@ -1878,6 +2509,11 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
     });
     return {
       ...technicalDraft,
+      reviewMeta: {
+        attempted: false,
+        retried: false,
+        acceptedAfterRetry: false,
+      },
       adjustMeta: {
         adjustMode: scope.mode,
         targetScope: scopedResolution.normalizedTargetType,
@@ -1906,6 +2542,11 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
   }
   return {
     ...technicalDraft,
+    reviewMeta: {
+      attempted: false,
+      retried: false,
+      acceptedAfterRetry: false,
+    },
     adjustMeta: {
       adjustMode: scope.mode,
       targetScope: scope.target.type,
