@@ -37,8 +37,8 @@ let postRoute: typeof import('./route').POST;
 function buildFindOneChain(value: any, supportsSort = false) {
   const exec = jest.fn().mockResolvedValue(value);
   const lean = jest.fn(() => ({ exec }));
-  const sort = jest.fn(() => ({ select, lean, exec }));
-  const select = jest.fn(() => (supportsSort ? { sort, lean, exec } : { lean, exec }));
+  const sort: any = jest.fn(() => ({ select, lean, exec }));
+  const select: any = jest.fn(() => (supportsSort ? { sort, lean, exec } : { lean, exec }));
   return { select, sort, lean, exec };
 }
 

@@ -4,7 +4,7 @@ import { connectToDatabase } from "@/app/lib/mongoose"; // Added
 import { logger } from "@/app/lib/logger"; // Added
 import { getStartDateFromTimePeriod as getStartDateFromTimePeriodGeneric } from "./dateHelpers"; // Para fallback
 
-interface AverageEngagementData {
+export interface AverageEngagementData {
   totalEngagement: number;
   numberOfPosts: number;
   averageEngagementPerPost: number;

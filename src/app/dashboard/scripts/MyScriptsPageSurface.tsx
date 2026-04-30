@@ -532,6 +532,10 @@ export type MyScriptsPageProps = {
   viewerPending?: boolean;
   previewMode?: boolean;
   initialInstagramConnected?: boolean;
+  requestedScriptId?: string | null;
+  onFunnelScriptOpen?: (script: ScriptItem) => void;
+  onFunnelScriptSaved?: (script: ScriptItem) => void;
+  onFunnelContentLinked?: (script: ScriptItem) => void;
 };
 
 export function MyScriptsPageSurface({
@@ -542,6 +546,10 @@ export function MyScriptsPageSurface({
   viewerPending = false,
   previewMode = false,
   initialInstagramConnected = false,
+  requestedScriptId: requestedScriptIdProp,
+  onFunnelScriptOpen,
+  onFunnelScriptSaved,
+  onFunnelContentLinked,
 }: MyScriptsPageProps) {
   const openPaywall = usePaywallOpener();
   const router = useRouter();
@@ -580,11 +588,13 @@ export function MyScriptsPageSurface({
   const [quickPublishQuery, setQuickPublishQuery] = useState("");
   const [postedFilter, setPostedFilter] = useState<ScriptPostedFilter>("all");
   const requestedScriptId = useMemo(() => {
+    const propValue = typeof requestedScriptIdProp === "string" ? requestedScriptIdProp.trim() : "";
+    if (propValue) return propValue;
     const value = searchParams?.get("scriptId");
     if (!value) return null;
     const normalized = value.trim();
     return normalized.length > 0 ? normalized : null;
-  }, [searchParams]);
+  }, [requestedScriptIdProp, searchParams]);
   const requestedProposalId = useMemo(() => {
     const value = searchParams?.get("proposalId");
     if (!value) return null;
@@ -1506,8 +1516,10 @@ export function MyScriptsPageSurface({
     setActiveInlineAnnotationId(null);
     resetDraftHistory({ title: initialTitle, content: initialContent });
     setEditorOpen(true);
+    onFunnelScriptOpen?.(script);
   }, [
     isPreviewMode,
+    onFunnelScriptOpen,
     requestGoogleLogin,
     resetDraftHistory,
   ]);
@@ -1611,6 +1623,7 @@ export function MyScriptsPageSurface({
 
         const updated = data.item as ScriptItem;
         patchScriptList(updated);
+        onFunnelContentLinked?.(updated);
         return updated;
       } catch (error) {
         throw new Error(
@@ -1621,7 +1634,7 @@ export function MyScriptsPageSurface({
         );
       }
     },
-    [patchScriptList, targetUserId]
+    [onFunnelContentLinked, patchScriptList, targetUserId]
   );
 
   const handleCardPublicationAction = useCallback(
@@ -1839,6 +1852,7 @@ export function MyScriptsPageSurface({
         }
         const updated = data.item as ScriptItem;
         patchScriptList(updated);
+        onFunnelScriptSaved?.(updated);
         patchEditor({
           id: updated.id,
           clientRequestId: null,
@@ -1886,6 +1900,7 @@ export function MyScriptsPageSurface({
 
         const created = data.item as ScriptItem;
         setScripts((prev) => [withNormalizedLinkingSummary(created), ...prev]);
+        onFunnelScriptSaved?.(created);
         patchEditor({
           id: created.id,
           clientRequestId: null,
@@ -1923,6 +1938,7 @@ export function MyScriptsPageSurface({
     ensureLoggedIn,
     flushPendingDraftSnapshot,
     isAdminViewer,
+    onFunnelScriptSaved,
     patchEditor,
     patchScriptList,
     targetUserId,
@@ -1987,6 +2003,7 @@ export function MyScriptsPageSurface({
 
         const updated = data.item as ScriptItem;
         patchScriptList(updated);
+        onFunnelScriptSaved?.(updated);
         patchEditor({
           title: updated.title,
           content: updated.content,
@@ -2021,6 +2038,7 @@ export function MyScriptsPageSurface({
 
         const created = data.item as ScriptItem;
         setScripts((prev) => [withNormalizedLinkingSummary(created), ...prev]);
+        onFunnelScriptSaved?.(created);
         patchEditor({
           id: created.id,
           clientRequestId: null,
@@ -2055,6 +2073,7 @@ export function MyScriptsPageSurface({
     editor.title,
     ensureLoggedIn,
     flushPendingDraftSnapshot,
+    onFunnelScriptSaved,
     openPaywall,
     patchEditor,
     patchScriptList,

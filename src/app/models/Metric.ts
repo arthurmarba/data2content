@@ -21,6 +21,13 @@ import {
 
 const DEFAULT_MEDIA_TYPE = 'UNKNOWN';
 
+export enum FormatType {
+  REEL = 'reel',
+  IMAGE = 'photo',
+  CAROUSEL = 'carousel',
+  VIDEO = 'long_video',
+}
+
 export interface IMetricStats {
   views?: number;
   reach?: number;

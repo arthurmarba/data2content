@@ -29,3 +29,11 @@ export interface ExpectedMetrics {
   viewsP90?: number; // alta prob.
   sharesP50?: number; // opcional, quando objetivo é teste de compartilhamentos
 }
+
+export interface PlannerEvidencePost {
+  id: string;
+  title?: string | null;
+  coverUrl?: string | null;
+  postLink?: string | null;
+  totalInteractions?: number | null;
+}

@@ -4,6 +4,7 @@
 import Image from 'next/image';
 import dynamic from 'next/dynamic';
 import React, { useEffect, useState } from 'react';
+import { PlayCircle } from 'lucide-react';
 import { track } from '@/lib/track';
 
 const DiscoverVideoModal = dynamic(() => import('./DiscoverVideoModal'), {
@@ -86,7 +87,10 @@ export default function DiscoverCard({
   const metrics = views ? `${formatCompact(views)} ${isViews ? 'views' : 'interações'}` : '';
   const caption = (item?.caption || '').trim();
   const short = caption.length > 110 ? caption.slice(0, 107) + '…' : caption;
+  const creatorName = item.creatorName?.trim() || 'Criador';
+  const creatorInitial = creatorName.charAt(0).toUpperCase();
   const [imgFailed, setImgFailed] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
   const [videoOpen, setVideoOpen] = useState(false);
 
   const isGrid = variant === 'grid';
@@ -119,13 +123,18 @@ export default function DiscoverCard({
     }
   }, [imgFailed, item.id, onUnavailable]);
 
+  useEffect(() => {
+    setImgFailed(false);
+    setImgLoaded(false);
+  }, [item.coverUrl]);
+
   if (imgFailed && onUnavailable) {
     return null;
   }
 
   return (
     <article
-      className={`${isGrid ? 'w-full' : compactView ? 'flex-shrink-0 h-[182px] w-auto snap-start' : 'flex-shrink-0 h-[250px] w-auto snap-start'} relative select-none rounded-[1.5rem] transition-all duration-300 ease-out ${compactView ? 'hover:z-10 hover:-translate-y-0.5' : 'hover:z-20 hover:-translate-y-1 hover:scale-[1.03]'}`}
+      className={`${isGrid ? 'w-full' : compactView ? 'flex-shrink-0 h-[198px] w-auto snap-start' : 'flex-shrink-0 h-[250px] w-auto snap-start'} group/card relative select-none rounded-[1.35rem] transition-all duration-300 ease-out ${compactView ? 'hover:z-10 hover:-translate-y-0.5' : 'hover:z-20 hover:-translate-y-1 hover:scale-[1.02]'}`}
       aria-label={short || 'Post'}
     >
       {item.postLink && !canPlayInline ? (
@@ -136,42 +145,52 @@ export default function DiscoverCard({
           onClick={canPlayInline ? handleOpenVideo : () => {
             try { track('discover_card_click', { id: item.id, action: 'open_instagram', ...(trackContext || {}) }); } catch { }
           }}
-          className={`relative block h-full ${aspectClass} overflow-hidden rounded-[1.5rem] bg-zinc-100 ring-1 ring-black/5`}
+          className={`relative block h-full ${aspectClass} overflow-hidden rounded-[1.35rem] bg-zinc-200 ring-1 ring-black/5`}
           aria-label={canPlayInline ? "Assistir vídeo" : "Abrir no Instagram"}
         >
+          {!imgLoaded ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-[linear-gradient(145deg,#f4f4f5,#e4e4e7)] text-zinc-400">
+              <span className="text-xl font-semibold">{creatorInitial}</span>
+            </div>
+          ) : null}
           {item.coverUrl ? (
             <Image
               src={item.coverUrl}
               alt={short || 'Capa do post'}
               fill
-              className="w-full h-full object-cover"
+              className={`h-full w-full object-cover transition-opacity duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
               loading={priority ? 'eager' : 'lazy'}
               priority={priority}
               quality={compactView ? 52 : isGrid ? 58 : 60}
               sizes={imageSizes}
               referrerPolicy="no-referrer"
               draggable={false}
+              onLoad={() => setImgLoaded(true)}
               onError={() => setImgFailed(true)}
             />
           ) : null}
 
-          <div className="absolute inset-0 bg-gradient-to-t from-black/82 via-black/12 to-transparent opacity-95" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/88 via-black/8 to-black/4 opacity-95" />
 
           <div className={compactView ? "absolute right-1.5 top-1.5" : "absolute top-2 right-2"}>
             {metrics && (
-              <div className={`rounded-full border border-white/12 bg-black/42 font-semibold text-white/92 backdrop-blur-sm ${compactView ? "px-2 py-0.5 text-[8px]" : "px-2 py-1 text-[10px]"}`}>
+              <div className={`inline-flex items-center gap-1 rounded-full border border-white/18 bg-black/58 font-semibold text-white/95 shadow-[0_6px_16px_rgba(0,0,0,0.18)] backdrop-blur-md ${compactView ? "px-2 py-0.5 text-[8.5px]" : "px-2.5 py-1 text-[10px]"}`}>
+                {canPlayInline ? <PlayCircle className={compactView ? "h-2.5 w-2.5" : "h-3 w-3"} aria-hidden="true" /> : null}
                 {metrics}
               </div>
             )}
           </div>
 
-          <div className={`absolute bottom-0 left-0 right-0 text-white ${compactView ? "p-2" : "p-3"}`}>
-            <p className={`truncate font-semibold text-white/94 ${compactView ? "text-[9.5px] leading-none" : "text-[10px]"}`}>{item.creatorName}</p>
+          <div className={`absolute bottom-0 left-0 right-0 text-white ${compactView ? "p-2.5" : "p-3.5"}`}>
+            <p className={`truncate font-semibold text-white ${compactView ? "text-[10.5px] leading-tight" : "text-[11px]"}`}>{creatorName}</p>
+            {!compactView && short ? (
+              <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-white/78">{short}</p>
+            ) : null}
           </div>
         </a>
       ) : (
         <div
-          className={`relative h-full ${aspectClass} overflow-hidden rounded-[1.5rem] bg-zinc-100 ring-1 ring-black/5`}
+          className={`relative h-full ${aspectClass} overflow-hidden rounded-[1.35rem] bg-zinc-200 ring-1 ring-black/5`}
           onClick={canPlayInline ? handleOpenVideo : undefined}
           onKeyDown={
             canPlayInline
@@ -187,33 +206,43 @@ export default function DiscoverCard({
           tabIndex={canPlayInline ? 0 : undefined}
           aria-label={canPlayInline ? "Assistir vídeo" : "Post"}
         >
+          {!imgLoaded ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-[linear-gradient(145deg,#f4f4f5,#e4e4e7)] text-zinc-400">
+              <span className="text-xl font-semibold">{creatorInitial}</span>
+            </div>
+          ) : null}
           {item.coverUrl ? (
             <Image
               src={item.coverUrl}
               alt={short || 'Capa do post'}
               fill
-              className="w-full h-full object-cover"
+              className={`h-full w-full object-cover transition-opacity duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
               loading={priority ? 'eager' : 'lazy'}
               priority={priority}
               quality={compactView ? 52 : isGrid ? 58 : 60}
               sizes={imageSizes}
               referrerPolicy="no-referrer"
               draggable={false}
+              onLoad={() => setImgLoaded(true)}
               onError={() => setImgFailed(true)}
             />
           ) : null}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/82 via-black/12 to-transparent opacity-95" />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/88 via-black/8 to-black/4 opacity-95" />
 
           <div className={compactView ? "absolute right-1.5 top-1.5" : "absolute top-2 right-2"}>
             {metrics && (
-              <div className={`rounded-full border border-white/12 bg-black/42 font-semibold text-white/92 backdrop-blur-sm ${compactView ? "px-2 py-0.5 text-[8px]" : "px-2 py-1 text-[10px]"}`}>
+              <div className={`inline-flex items-center gap-1 rounded-full border border-white/18 bg-black/58 font-semibold text-white/95 shadow-[0_6px_16px_rgba(0,0,0,0.18)] backdrop-blur-md ${compactView ? "px-2 py-0.5 text-[8.5px]" : "px-2.5 py-1 text-[10px]"}`}>
+                {canPlayInline ? <PlayCircle className={compactView ? "h-2.5 w-2.5" : "h-3 w-3"} aria-hidden="true" /> : null}
                 {metrics}
               </div>
             )}
           </div>
 
-          <div className={`absolute bottom-0 left-0 right-0 text-white ${compactView ? "p-2" : "p-3"}`}>
-            <p className={`truncate font-semibold text-white/94 ${compactView ? "text-[9.5px] leading-none" : "text-[10px]"}`}>{item.creatorName}</p>
+          <div className={`absolute bottom-0 left-0 right-0 text-white ${compactView ? "p-2.5" : "p-3.5"}`}>
+            <p className={`truncate font-semibold text-white ${compactView ? "text-[10.5px] leading-tight" : "text-[11px]"}`}>{creatorName}</p>
+            {!compactView && short ? (
+              <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-white/78">{short}</p>
+            ) : null}
           </div>
         </div>
       )}

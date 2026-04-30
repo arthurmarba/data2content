@@ -4,7 +4,7 @@ import { connectToDatabase } from "@/app/lib/mongoose"; // Added
 import { logger } from "@/app/lib/logger"; // Added
 import { getStartDateFromTimePeriod } from "./dateHelpers"; // Added
 
-interface FollowerGrowthData {
+export interface FollowerGrowthData {
   currentFollowers: number | null;
   previousFollowers: number | null;
   absoluteGrowth: number | null;

@@ -11,6 +11,13 @@ import {
   withMongoTransientRetry,
 } from "@/app/lib/mongoTransient";
 import { ensurePlannerAccess } from "@/app/lib/planGuard";
+import {
+  getPostCreationTrialAccess,
+  hasFullPostCreationAccess,
+  markPostCreationTrialAnalysisUsed,
+  serializePostCreationTrial,
+} from "@/app/lib/postCreationTrial/access";
+import { recordPostCreationFunnelEvent } from "@/app/lib/postCreationTrial/events";
 import PlannerPlan from "@/app/models/PlannerPlan";
 import PlannerRecCache from "@/app/models/PlannerRecCache";
 import {
@@ -52,6 +59,7 @@ type RecommendationBatchResult = {
   recommendations: any[];
   heatmap: any[];
   cached: boolean;
+  blockedFresh?: boolean;
   memoryHit?: boolean;
   coalesced?: boolean;
   frozenAt?: string;
@@ -167,6 +175,7 @@ async function loadRecommendationsWithCache({
   targetSlotsPerWeek,
   freezeEnabled,
   allowMemoryCache,
+  allowFreshGeneration,
   includeThemes,
 }: {
   userId: string;
@@ -175,6 +184,7 @@ async function loadRecommendationsWithCache({
   targetSlotsPerWeek: number;
   freezeEnabled: boolean;
   allowMemoryCache: boolean;
+  allowFreshGeneration: boolean;
   includeThemes: boolean;
 }) {
   const startedAt = nowMs();
@@ -241,6 +251,22 @@ async function loadRecommendationsWithCache({
           totalMs: nowMs() - freshStartedAt,
         } satisfies RecommendationBatchResult;
       }
+    }
+
+    if (!allowFreshGeneration) {
+      return {
+        recommendations: [],
+        heatmap: [],
+        cached: false,
+        blockedFresh: true,
+        cacheLookupMs,
+        recommendMs,
+        recommendSlotsMs,
+        heatmapMs,
+        themesMs,
+        cacheWriteMs,
+        totalMs: nowMs() - freshStartedAt,
+      } satisfies RecommendationBatchResult;
     }
 
     const recommendStart = nowMs();
@@ -334,6 +360,13 @@ async function loadRecommendationsWithCache({
   }
   try {
     const fresh = await pending;
+    if (fresh.blockedFresh) {
+      return {
+        ...fresh,
+        totalMs: nowMs() - startedAt,
+      } satisfies RecommendationBatchResult;
+    }
+
     if (allowMemoryCache) {
       const payload: Omit<RecommendationBatchResult, "totalMs"> = {
         recommendations: fresh.recommendations,
@@ -399,6 +432,41 @@ export async function GET(request: Request) {
   const noCache = parseBoolParam(request.url, "nocache") || parseBoolParam(request.url, "disableFreeze");
   const freezeEnabled = FREEZE_ENABLED_ENV && !noCache;
   const includeThemes = parseOptionalBoolParam(request.url, "includeThemes") ?? true;
+  let allowFreshRecommendations = true;
+  let shouldMarkTrialAnalysisUsed = false;
+  let postCreationTrial: ReturnType<typeof serializePostCreationTrial> | null = null;
+
+  if (!hasFullPostCreationAccess(session.user)) {
+    const trialAccess = await getPostCreationTrialAccess(session.user.id);
+    if (!trialAccess.ok) {
+      timings.push({ name: "total", durationMs: nowMs() - requestStartedAt });
+      return jsonWithTiming(
+        { ok: false, error: trialAccess.error, reason: trialAccess.reason },
+        trialAccess.status,
+        timings
+      );
+    }
+    postCreationTrial = trialAccess.trial;
+    if (!trialAccess.instagramConnected) {
+      timings.push({ name: "total", durationMs: nowMs() - requestStartedAt });
+      return jsonWithTiming(
+        {
+          ok: false,
+          error: "Conecte o Instagram para liberar a análise gratuita do board.",
+          reason: "post_creation_instagram_required",
+          postCreationTrial,
+        },
+        403,
+        timings
+      );
+    }
+    if (trialAccess.trial.analysisUsedAt) {
+      allowFreshRecommendations = false;
+    } else {
+      shouldMarkTrialAnalysisUsed = true;
+    }
+  }
+
   const rawWeekStart = parseWeekStartParam(request.url) ?? new Date();
   const weekStart = normalizeToMondayInTZ(rawWeekStart, PLANNER_TIMEZONE);
   const weekStartISO = weekStart.toISOString();
@@ -436,6 +504,7 @@ export async function GET(request: Request) {
             targetSlotsPerWeek,
             freezeEnabled,
             allowMemoryCache: !noCache,
+            allowFreshGeneration: allowFreshRecommendations,
             includeThemes,
           });
           attemptTimings.push({ name: "rec", durationMs: result.totalMs ?? 0 });
@@ -484,6 +553,7 @@ export async function GET(request: Request) {
               ? recResult.value.heatmap
               : [],
           cached: recResult.status === "fulfilled" ? recResult.value.cached : false,
+          blockedFresh: recResult.status === "fulfilled" ? Boolean(recResult.value.blockedFresh) : false,
           frozenAt: recResult.status === "fulfilled" ? recResult.value.frozenAt : undefined,
           partial: planResult.status === "rejected" || recResult.status === "rejected",
         };
@@ -501,6 +571,38 @@ export async function GET(request: Request) {
     timings.push(...batchResult.attemptTimings);
     timings.push({ name: "total", durationMs: nowMs() - requestStartedAt });
 
+    if (batchResult.blockedFresh) {
+      return jsonWithTiming(
+        {
+          ok: false,
+          error: "Você já usou a análise gratuita deste teste. Crie sua conta e assine para gerar uma nova análise.",
+          reason: "post_creation_trial_analysis_used",
+          postCreationTrial,
+        },
+        403,
+        timings
+      );
+    }
+
+    if (shouldMarkTrialAnalysisUsed) {
+      const updatedTrial = await markPostCreationTrialAnalysisUsed(session.user.id);
+      if (updatedTrial?.postCreationTrial) {
+        postCreationTrial = serializePostCreationTrial(updatedTrial.postCreationTrial as any);
+      }
+      await recordPostCreationFunnelEvent({
+        userId: session.user.id,
+        eventName: "post_creation_trial_analysis_generated",
+        stage: "path",
+        source: "planner_batch",
+        metadata: {
+          weekStart: weekStartISO,
+          targetSlotsPerWeek,
+          periodDays,
+          cached: batchResult.cached,
+        },
+      });
+    }
+
     return jsonWithTiming(
       {
         ok: true,
@@ -515,6 +617,7 @@ export async function GET(request: Request) {
         algoVersion: ALGO_VERSION,
         frozenAt: batchResult.frozenAt,
         partial: batchResult.partial,
+        postCreationTrial,
       },
       200,
       timings,

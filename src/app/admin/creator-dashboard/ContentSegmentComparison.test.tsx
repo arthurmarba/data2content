@@ -76,7 +76,7 @@ describe('ContentSegmentComparison Component', () => {
 
     const removeButtons = screen.getAllByTitle('Remover Segmento');
     expect(removeButtons.length).toBe(2);
-    fireEvent.click(removeButtons[1]);
+    fireEvent.click(removeButtons[1]!);
     expect(screen.queryByText('Segmento 2')).not.toBeInTheDocument();
 
     const firstRemoveButton = screen.getByTitle('Remover Segmento');
@@ -121,7 +121,7 @@ describe('ContentSegmentComparison Component', () => {
     render(<ContentSegmentComparison dateRangeFilter={mockDateRange} />);
 
     const formatSelect = screen.getAllByLabelText('Formato')[0];
-    fireEvent.change(formatSelect, { target: { value: 'reel' } });
+    fireEvent.change(formatSelect!, { target: { value: 'reel' } });
     const nameInput = screen.getByLabelText('Nome do Segmento (Opcional)');
     fireEvent.change(nameInput, {target: { value: 'Reels Test'}});
 
@@ -149,7 +149,7 @@ describe('ContentSegmentComparison Component', () => {
     test('shows loading state during fetch', async () => {
         (fetch as jest.Mock).mockImplementationOnce(() => new Promise(() => {}));
         render(<ContentSegmentComparison dateRangeFilter={mockDateRange} />);
-        fireEvent.change(screen.getAllByLabelText('Formato')[0], { target: { value: 'reel' } });
+        fireEvent.change(screen.getAllByLabelText('Formato')[0]!, { target: { value: 'reel' } });
         fireEvent.click(screen.getByText('Comparar Segmentos'));
         expect(await screen.findByText('Carregando resultados da comparação...')).toBeInTheDocument();
     });
@@ -157,7 +157,7 @@ describe('ContentSegmentComparison Component', () => {
     test('shows error message on fetch failure', async () => {
         (fetch as jest.Mock).mockRejectedValueOnce(new Error('API comparison failed'));
         render(<ContentSegmentComparison dateRangeFilter={mockDateRange} />);
-        fireEvent.change(screen.getAllByLabelText('Formato')[0], { target: { value: 'reel' } });
+        fireEvent.change(screen.getAllByLabelText('Formato')[0]!, { target: { value: 'reel' } });
         fireEvent.click(screen.getByText('Comparar Segmentos'));
         expect(await screen.findByText('Erro ao comparar segmentos')).toBeInTheDocument();
         expect(await screen.findByText('API comparison failed')).toBeInTheDocument();
@@ -166,12 +166,12 @@ describe('ContentSegmentComparison Component', () => {
     test('renders comparison table with data and highlights best values', async () => {
       render(<ContentSegmentComparison dateRangeFilter={mockDateRange} />);
       
-      fireEvent.change(screen.getAllByLabelText('Formato')[0], { target: { value: 'reel' } });
-      fireEvent.change(screen.getAllByLabelText('Contexto')[0], { target: { value: 'fashion_style' } });
+      fireEvent.change(screen.getAllByLabelText('Formato')[0]!, { target: { value: 'reel' } });
+      fireEvent.change(screen.getAllByLabelText('Contexto')[0]!, { target: { value: 'fashion_style' } });
 
       fireEvent.click(screen.getByText('Adicionar Segmento'));
-      fireEvent.change(screen.getAllByLabelText('Formato')[1], { target: { value: 'photo' } });
-      fireEvent.change(screen.getAllByLabelText('Contexto')[1], { target: { value: 'career_work' } });
+      fireEvent.change(screen.getAllByLabelText('Formato')[1]!, { target: { value: 'photo' } });
+      fireEvent.change(screen.getAllByLabelText('Contexto')[1]!, { target: { value: 'career_work' } });
 
       fireEvent.click(screen.getByText('Comparar Segmentos'));
 
@@ -199,7 +199,7 @@ describe('ContentSegmentComparison Component', () => {
   test('clears results if dateRangeFilter becomes incomplete', async () => {
     const { rerender } = render(<ContentSegmentComparison dateRangeFilter={mockDateRange} />);
     
-    fireEvent.change(screen.getAllByLabelText('Formato')[0], { target: { value: 'reel' } });
+    fireEvent.change(screen.getAllByLabelText('Formato')[0]!, { target: { value: 'reel' } });
     fireEvent.click(screen.getByText('Comparar Segmentos'));
     await waitFor(() => expect(screen.getByText('Segment 1: Reels de Tech')).toBeInTheDocument());
 

@@ -1,0 +1,107 @@
+
+> d2c-frontend@0.1.0 lint
+> next lint
+
+- info Loaded env from /Users/arthurmarba/d2c-frontend/.env.local
+--- Lendo next.config.js (ESM) --- 2026-04-25T02:09:45.211Z
+--- Configuração de images (ESM): {
+  "unoptimized": false,
+  "formats": [
+    "image/webp"
+  ],
+  "minimumCacheTTL": 2678400,
+  "deviceSizes": [
+    360,
+    640,
+    768,
+    1024,
+    1280,
+    1536
+  ],
+  "imageSizes": [
+    16,
+    32,
+    48,
+    64,
+    96,
+    128,
+    256,
+    384
+  ],
+  "remotePatterns": [
+    {
+      "protocol": "https",
+      "hostname": "lh3.googleusercontent.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "placehold.co",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "scontent-iad3-1.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "scontent-iad3-2.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "scontent.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "**.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "**.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "**.cdninstagram.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "lookaside.instagram.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "lookaside.fbsbx.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "platform-lookaside.fbsbx.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "i.ibb.co",
+      "pathname": "/**"
+    }
+  ]
+}
+- warn You have enabled experimental features (serverActions, outputFileTracingIncludes) in next.config.js.
+- warn Experimental features are not covered by semver, and may cause unexpected or broken application behavior. Use at your own risk.
+
+
+./src/app/dashboard/boards/FunnelPostLinkGallery.tsx
+106:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/app/dashboard/boards/PostCreationFunnelBoardShell.tsx
+3775:5  Warning: React Hook useCallback has a missing dependency: 'searchParams'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+4332:6  Warning: React Hook useCallback has a missing dependency: 'handleFunnelSlotSaved'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+4484:9  Warning: The 'handleBlueprintScriptAction' function makes the dependencies of useCallback Hook (at line 5127) change on every render. To fix this, wrap the definition of 'handleBlueprintScriptAction' in its own useCallback() Hook.  react-hooks/exhaustive-deps
+4934:9  Warning: The 'handleOpenPublishedStep' function makes the dependencies of useCallback Hook (at line 5127) change on every render. To fix this, wrap the definition of 'handleOpenPublishedStep' in its own useCallback() Hook.  react-hooks/exhaustive-deps
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules

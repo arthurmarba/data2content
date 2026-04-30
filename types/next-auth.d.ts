@@ -6,6 +6,17 @@ import type { AvailableInstagramAccount } from '@/app/lib/instagramService';
 import type { UserRole, PlanStatus, AgencyPlanType } from '@/types/enums';
 import type { ProTrialState } from '@/types/billing';
 
+type PostCreationAccountState = 'pre_signup' | 'registered' | 'merged';
+type SerializedPostCreationTrial = {
+  startedAt: string | null;
+  analysisUsedAt: string | null;
+  pautaUsedAt: string | null;
+  firstDraftId: string | null;
+  completedSignupAt: string | null;
+  subscribedAt: string | null;
+  source: string | null;
+};
+
 /**
  * Estende a interface Session com campos extras que o frontend consome.
  */
@@ -18,6 +29,8 @@ declare module "next-auth" {
       image?: string | null;
       provider?: string | null;
       role?: UserRole;
+      accountState?: PostCreationAccountState | null;
+      postCreationTrial?: SerializedPostCreationTrial | null;
 
       // Agency
       agencyId?: string | null;
@@ -71,6 +84,8 @@ declare module "next-auth" {
     role?: UserRole | null;
     agency?: string | null;
     provider?: string | null;
+    accountState?: PostCreationAccountState | null;
+    postCreationTrial?: SerializedPostCreationTrial | null;
     providerAccountId?: string | null;
     facebookProviderAccountId?: string | null;
 
@@ -127,6 +142,8 @@ declare module "next-auth/jwt" {
     agencyPlanType?: AgencyPlanType | null;
 
     provider?: string | null;
+    accountState?: PostCreationAccountState | null;
+    postCreationTrial?: SerializedPostCreationTrial | null;
 
     // Billing
     planStatus?: PlanStatus | "non_renewing" | null;

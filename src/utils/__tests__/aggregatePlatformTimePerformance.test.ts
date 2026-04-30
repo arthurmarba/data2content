@@ -1,4 +1,4 @@
-import aggregatePlatformTimePerformance from '../aggregatePlatformTimePerformance';
+import { aggregatePlatformTimePerformance } from '../aggregatePlatformTimePerformance';
 import MetricModel from '@/app/models/Metric';
 import { connectToDatabase } from '@/app/lib/mongoose';
 

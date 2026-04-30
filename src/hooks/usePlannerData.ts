@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { PlannerEvidencePost } from '@/types/planner';
 
 export interface PlannerUISlot {
   slotId?: string;
@@ -24,7 +25,10 @@ export interface PlannerUISlot {
   rationale?: string;
   recordingTimeSec?: number;
   aiVersionId?: string;
+  savedFrom?: string;
   isSaved?: boolean;
+  evidencePosts?: PlannerEvidencePost[];
+  evidenceCount?: number;
 }
 
 export interface TimeBlockScoreUI {
@@ -34,7 +38,7 @@ export interface TimeBlockScoreUI {
 }
 
 const TARGET_SUGGESTIONS = 5; // regra: sugerir 3..5; usamos 5 como teto
-const PERIOD_DAYS = 90;       // janela histórica
+const DEFAULT_PERIOD_DAYS = 90;
 const PLANNER_UI_CACHE_TTL_MS = 30_000;
 const PLANNER_UI_CACHE_MAX_ENTRIES = 40;
 const PLANNER_UI_BOOT_CACHE_TTL_MS = 5 * 60_000;
@@ -61,6 +65,7 @@ function buildPlannerUiMemoryKey(params: {
   publicMode: boolean;
   weekStart: Date;
   targetSlotsPerWeek: number;
+  periodDays: number;
 }): string {
   return [
     params.publicMode ? 'public' : 'owner',
@@ -68,6 +73,7 @@ function buildPlannerUiMemoryKey(params: {
     params.targetUserId ?? 'self',
     params.weekStart.toISOString(),
     String(params.targetSlotsPerWeek),
+    String(params.periodDays),
   ].join('|');
 }
 
@@ -142,6 +148,37 @@ function normalizeToMondayUTC(d: Date): Date {
   return monday;
 }
 
+function stringArrayShallowEqual(a?: string[], b?: string[]): boolean {
+  if (a === b) return true;
+  if (!a?.length && !b?.length) return true;
+  if (!a || !b) return false;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+  return true;
+}
+
+function categoriesShallowEqual(a: PlannerUISlot["categories"], b: PlannerUISlot["categories"]): boolean {
+  return (
+    (a?.tone || '') === (b?.tone || '') &&
+    stringArrayShallowEqual(a?.context, b?.context) &&
+    stringArrayShallowEqual(a?.proposal, b?.proposal) &&
+    stringArrayShallowEqual(a?.reference, b?.reference)
+  );
+}
+
+function expectedMetricsShallowEqual(
+  a?: PlannerUISlot["expectedMetrics"],
+  b?: PlannerUISlot["expectedMetrics"]
+): boolean {
+  return (
+    (a?.viewsP50 ?? null) === (b?.viewsP50 ?? null) &&
+    (a?.viewsP90 ?? null) === (b?.viewsP90 ?? null) &&
+    (a?.sharesP50 ?? null) === (b?.sharesP50 ?? null)
+  );
+}
+
 // compara arrays de slots superficialmente para evitar sets desnecessários
 function slotsShallowEqual(a: PlannerUISlot[] | null, b: PlannerUISlot[] | null): boolean {
   if (a === b) return true;
@@ -150,13 +187,28 @@ function slotsShallowEqual(a: PlannerUISlot[] | null, b: PlannerUISlot[] | null)
   for (let i = 0; i < a.length; i++) {
     const x = a[i]!, y = b[i]!;
     if (
+      (x.slotId || '') !== (y.slotId || '') ||
       x.dayOfWeek !== y.dayOfWeek ||
       x.blockStartHour !== y.blockStartHour ||
       x.format !== y.format ||
       x.status !== y.status ||
       x.isExperiment !== y.isExperiment ||
+      !categoriesShallowEqual(x.categories, y.categories) ||
+      !stringArrayShallowEqual(x.contentIntent, y.contentIntent) ||
+      !stringArrayShallowEqual(x.narrativeForm, y.narrativeForm) ||
+      !stringArrayShallowEqual(x.contentSignals, y.contentSignals) ||
+      !stringArrayShallowEqual(x.stance, y.stance) ||
+      !stringArrayShallowEqual(x.proofStyle, y.proofStyle) ||
+      !stringArrayShallowEqual(x.commercialMode, y.commercialMode) ||
+      !expectedMetricsShallowEqual(x.expectedMetrics, y.expectedMetrics) ||
       (x.title || '') !== (y.title || '') ||
+      (x.scriptShort || '') !== (y.scriptShort || '') ||
+      (x.rationale || '') !== (y.rationale || '') ||
+      !stringArrayShallowEqual(x.themes, y.themes) ||
       (x.themeKeyword || '') !== (y.themeKeyword || '') ||
+      (x.aiVersionId || '') !== (y.aiVersionId || '') ||
+      (x.savedFrom || '') !== (y.savedFrom || '') ||
+      (x.recordingTimeSec ?? null) !== (y.recordingTimeSec ?? null) ||
       !!x.isSaved !== !!y.isSaved
     ) return false;
   }
@@ -183,7 +235,10 @@ function mergePlanAndRecommendations(planSlots: PlannerUISlot[], recSlots: Plann
     map.set(key, slot);
   });
   planSlots.forEach((slot) => {
-    const key = `${slot.dayOfWeek}-${slot.blockStartHour}`;
+    const key =
+      slot.savedFrom === 'post_creation_funnel' && slot.slotId
+        ? `saved-pauta:${slot.slotId}`
+        : `${slot.dayOfWeek}-${slot.blockStartHour}`;
     map.set(key, slot);
   });
   return Array.from(map.values());
@@ -212,6 +267,29 @@ function mapApiSlot(raw: any, isSaved: boolean): PlannerUISlot {
     rationale: typeof raw?.rationale === 'string' ? raw.rationale : undefined,
     recordingTimeSec: typeof raw?.recordingTimeSec === 'number' ? raw.recordingTimeSec : undefined,
     aiVersionId: typeof raw?.aiVersionId === 'string' ? raw.aiVersionId : undefined,
+    savedFrom: typeof raw?.savedFrom === 'string' ? raw.savedFrom : undefined,
+    evidencePosts: Array.isArray(raw?.evidencePosts)
+      ? raw.evidencePosts
+          .map((item: any): PlannerEvidencePost | null => {
+            const id = typeof item?.id === 'string' ? item.id : typeof item?._id === 'string' ? item._id : '';
+            if (!id) return null;
+            return {
+              id,
+              title: typeof item?.title === 'string' ? item.title : null,
+              coverUrl: typeof item?.coverUrl === 'string' ? item.coverUrl : null,
+              postLink: typeof item?.postLink === 'string' ? item.postLink : null,
+              totalInteractions:
+                typeof item?.totalInteractions === 'number' && Number.isFinite(item.totalInteractions)
+                  ? item.totalInteractions
+                  : null,
+            };
+          })
+          .filter((item: PlannerEvidencePost | null): item is PlannerEvidencePost => Boolean(item))
+      : [],
+    evidenceCount:
+      typeof raw?.evidenceCount === 'number' && Number.isFinite(raw.evidenceCount)
+        ? Math.max(0, Math.round(raw.evidenceCount))
+        : undefined,
     isSaved,
   };
 }
@@ -230,6 +308,7 @@ export function usePlannerData(params: {
   publicMode?: boolean;
   weekStart?: Date;
   targetSlotsPerWeek?: number;
+  periodDays?: number;
 }) {
   const {
     userId,
@@ -237,6 +316,7 @@ export function usePlannerData(params: {
     publicMode = false,
     weekStart,
     targetSlotsPerWeek = TARGET_SUGGESTIONS,
+    periodDays = DEFAULT_PERIOD_DAYS,
   } = params;
   const normalizedTargetUserId = typeof targetUserId === 'string' && targetUserId.trim()
     ? targetUserId.trim()
@@ -253,6 +333,7 @@ export function usePlannerData(params: {
   }, [weekStart]);
 
   const [slots, setSlots] = useState<PlannerUISlot[] | null>(null);
+  const [recommendations, setRecommendations] = useState<PlannerUISlot[]>([]);
   const [heatmap, setHeatmap] = useState<TimeBlockScoreUI[] | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -278,11 +359,13 @@ export function usePlannerData(params: {
         publicMode,
         weekStart: normalizedWeekStart,
         targetSlotsPerWeek: targetSlotsPerWeek ?? TARGET_SUGGESTIONS,
+        periodDays,
       }),
-    [userId, normalizedTargetUserId, publicMode, normalizedWeekStart, targetSlotsPerWeek]
+    [userId, normalizedTargetUserId, publicMode, normalizedWeekStart, targetSlotsPerWeek, periodDays]
   );
   const applySnapshot = useCallback((snapshot: Omit<PlannerSnapshot, 'createdAt'>) => {
     recommendationsRef.current = snapshot.recommendations;
+    setRecommendations(snapshot.recommendations);
     setLocked(snapshot.locked);
     setLockedReason(snapshot.lockedReason);
     safeSetSlots(snapshot.slots);
@@ -301,6 +384,7 @@ export function usePlannerData(params: {
     if (!userId) {
       if (fetchIdRef.current !== myId) return;
       recommendationsRef.current = [];
+      setRecommendations([]);
       safeSetSlots(null);
       safeSetHeatmap(null);
       setLocked(false);
@@ -346,7 +430,7 @@ export function usePlannerData(params: {
           userId,
           weekStart: normalizedWeekStart.toISOString(),
           targetSlotsPerWeek: String(targetSlotsPerWeek ?? TARGET_SUGGESTIONS),
-          periodDays: String(PERIOD_DAYS),
+          periodDays: String(periodDays),
         });
         const res = await fetch(`/api/planner/public?${qs.toString()}`, { cache: 'no-store', signal: controller.signal });
         if (res.status === 403) {
@@ -361,6 +445,7 @@ export function usePlannerData(params: {
           setLocked(true);
           setLockedReason(message);
           recommendationsRef.current = [];
+          setRecommendations([]);
           safeSetSlots(null);
           safeSetHeatmap(null);
           return;
@@ -402,7 +487,7 @@ export function usePlannerData(params: {
         const qs = new URLSearchParams({
           weekStart: normalizedWeekStart.toISOString(),
           targetSlotsPerWeek: String(targetSlotsPerWeek ?? TARGET_SUGGESTIONS),
-          periodDays: String(PERIOD_DAYS),
+          periodDays: String(periodDays),
         });
         if (normalizedTargetUserId) {
           qs.set('targetUserId', normalizedTargetUserId);
@@ -415,16 +500,31 @@ export function usePlannerData(params: {
 
         if (batchRes.status === 403) {
           let message = 'Plano inativo. Assine para acessar o planner.';
+          let reason: string | null = null;
           try {
             const data = await batchRes.json();
             message = data?.error || message;
+            reason = typeof data?.reason === 'string' ? data.reason : null;
           } catch (_) {
             // noop
           }
           if (fetchIdRef.current !== myId) return;
+          if (reason === 'post_creation_trial_analysis_used' && cachedSnapshot) {
+            const snapshot = {
+              slots: cachedSnapshot.slots,
+              heatmap: cachedSnapshot.heatmap,
+              recommendations: cachedSnapshot.recommendations,
+              locked: true,
+              lockedReason: message,
+            };
+            applySnapshot(snapshot);
+            writePlannerUiMemory(plannerUiMemoryKey, snapshot);
+            return;
+          }
           setLocked(true);
           setLockedReason(message);
           recommendationsRef.current = [];
+          setRecommendations([]);
           safeSetSlots(null);
           safeSetHeatmap(null);
           return;
@@ -473,6 +573,7 @@ export function usePlannerData(params: {
     normalizedWeekStart,
     targetSlotsPerWeek,
     normalizedTargetUserId,
+    periodDays,
   ]);
 
   // 🔧 Sem “de-dupe” manual: no Strict Mode a 1ª execução é abortada, a 2ª completa normalmente
@@ -526,9 +627,69 @@ export function usePlannerData(params: {
     return planSlots;
   }, [normalizedWeekStart, normalizedTargetUserId, safeSetSlots, plannerUiMemoryKey, heatmap]);
 
+  const savePostCreationPauta = useCallback(async (slot: PlannerUISlot, userTimeZone?: string) => {
+    const body = {
+      operation: 'save_post_creation_pauta',
+      weekStart: normalizedWeekStart.toISOString(),
+      userTimeZone,
+      targetUserId: normalizedTargetUserId || undefined,
+      slot,
+    };
+    const res = await fetch('/api/planner/plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (res.status === 403) {
+      let message = 'Plano inativo. Assine para salvar seu planejamento.';
+      try {
+        const data = await res.json();
+        message = data?.error || message;
+      } catch (_) {
+        // noop
+      }
+      setLocked(true);
+      setLockedReason(message);
+      throw new Error(message);
+    }
+    if (res.status === 401) {
+      throw new Error('Sessão expirada. Faça login novamente.');
+    }
+    if (!res.ok) throw new Error('Falha ao salvar pauta');
+    const data = await res.json();
+    const returnedPlanSlots = Array.isArray(data?.plan?.slots)
+      ? (data.plan.slots as any[]).map((s: any) => mapApiSlot(s, true))
+      : [];
+    const savedSlot = data?.savedSlot ? mapApiSlot(data.savedSlot, true) : null;
+    const planSlots: PlannerUISlot[] = returnedPlanSlots.length
+      ? returnedPlanSlots
+      : savedSlot
+        ? [
+            ...((slots || []).filter((item) => {
+              if (item.slotId && savedSlot.slotId) return item.slotId !== savedSlot.slotId;
+              return true;
+            }) as PlannerUISlot[]),
+            savedSlot,
+          ]
+        : [];
+    const mergedSlots = mergePlanAndRecommendations(planSlots, recommendationsRef.current || []);
+    safeSetSlots(mergedSlots);
+    setLocked(false);
+    setLockedReason(null);
+    writePlannerUiMemory(plannerUiMemoryKey, {
+      slots: mergedSlots,
+      heatmap,
+      recommendations: recommendationsRef.current || [],
+      locked: false,
+      lockedReason: null,
+    });
+    return planSlots;
+  }, [normalizedWeekStart, normalizedTargetUserId, safeSetSlots, plannerUiMemoryKey, heatmap, slots]);
+
   return {
     weekStart: normalizedWeekStart,
     slots,
+    recommendations,
     heatmap,
     loading,
     error,
@@ -536,5 +697,6 @@ export function usePlannerData(params: {
     lockedReason,
     reload: fetchData,
     saveSlots,
+    savePostCreationPauta,
   };
 }

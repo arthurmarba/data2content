@@ -14,12 +14,14 @@ jest.mock("@/app/lib/stripe", () => ({
   },
 }));
 
-const { stripe } = require("@/app/lib/stripe");
-const {
+import { stripe } from "@/app/lib/stripe";
+import {
   applyStaleStripeBillingPatch,
   getOrCreateStripeCustomerId,
   isStripeResourceMissingError,
-} = require("./stripeHelpers");
+} from "./stripeHelpers";
+
+export {};
 
 const mockCustomerRetrieve = (stripe as any).customers.retrieve as jest.Mock;
 const mockCustomerCreate = (stripe as any).customers.create as jest.Mock;

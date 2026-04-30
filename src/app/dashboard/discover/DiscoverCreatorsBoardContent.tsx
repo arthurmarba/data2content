@@ -21,6 +21,22 @@ function formatCompactValue(value?: number | null) {
   }
 }
 
+function pickCreatorTag(creator: LandingCreatorHighlight) {
+  return (
+    creator.niches?.find(Boolean) ||
+    creator.brandTerritories?.find(Boolean) ||
+    creator.contexts?.find(Boolean) ||
+    creator.topPerformingContext ||
+    null
+  );
+}
+
+function getCreatorHandle(creator: LandingCreatorHighlight) {
+  const username = creator.username?.trim();
+  if (!username) return null;
+  return username.startsWith("@") ? username : `@${username}`;
+}
+
 function CreatorMediaKitCard({
   creator,
   compactView = false,
@@ -32,25 +48,26 @@ function CreatorMediaKitCard({
 }) {
   const mediaKitHref = creator.mediaKitSlug ? `/mediakit/${creator.mediaKitSlug}` : null;
   const followersLabel = formatCompactValue(creator.followers ?? null);
+  const creatorName = creator.name || creator.username || "Criador";
+  const creatorHandle = getCreatorHandle(creator);
+  const creatorTag = pickCreatorTag(creator);
   const hasMediaKit = Boolean(mediaKitHref);
 
   const cardBody = (
     <article
-      className={`group flex h-full flex-col rounded-[1.45rem] border border-zinc-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(250,250,250,0.94))] transition-colors hover:border-zinc-300/90 ${
-        compactView ? "w-[118px] min-w-[118px] p-1.5" : "w-[154px] min-w-[154px] p-2"
+      className={`group flex h-full flex-col overflow-hidden rounded-[1.2rem] border border-zinc-200/80 bg-white transition hover:border-zinc-300 hover:shadow-[0_14px_34px_rgba(24,24,27,0.08)] ${
+        hasMediaKit ? "cursor-pointer" : "opacity-85"
+      } ${
+        compactView ? "w-[124px] min-w-[124px]" : "min-h-[214px]"
       }`}
     >
-      <div
-        className={`relative overflow-hidden rounded-[1.1rem] border border-zinc-200/70 bg-zinc-100 ${
-          compactView ? "aspect-[1/1.08]" : "aspect-[1/1.05]"
-        }`}
-      >
+      <div className="relative aspect-[1/1.08] overflow-hidden bg-zinc-100">
         {creator.avatarUrl ? (
           <Image
             src={creator.avatarUrl}
-            alt={creator.name || creator.username || "Criador"}
+            alt={creatorName}
             fill
-            sizes={compactView ? "118px" : "154px"}
+            sizes={compactView ? "124px" : "(min-width: 1024px) 180px, 154px"}
             quality={compactView ? 58 : 64}
             className="object-cover"
             loading={priority ? "eager" : "lazy"}
@@ -59,7 +76,7 @@ function CreatorMediaKitCard({
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(180deg,rgba(244,244,245,1),rgba(228,228,231,1))]">
             <UserAvatar
-              name={creator.name || creator.username || "Criador"}
+              name={creatorName}
               src={undefined}
               size={compactView ? 52 : 60}
               className="ring-2 ring-white/80"
@@ -68,26 +85,24 @@ function CreatorMediaKitCard({
         )}
       </div>
 
-      <div className="mt-1.5 text-center">
-        <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
-          Seguidores
+      <div className="flex flex-1 flex-col px-2.5 pb-2.5 pt-2.5">
+        <p className="truncate text-[0.72rem] font-semibold leading-tight tracking-[-0.02em] text-zinc-950">
+          {creatorHandle ?? creatorTag ?? "Criador"}
         </p>
-        <p className={`mt-0.5 font-semibold tracking-[-0.03em] text-zinc-950 ${compactView ? "text-[0.95rem]" : "text-[1.02rem]"}`}>
-          {followersLabel}
+        <p className="mt-1 truncate text-[10px] font-medium text-zinc-500">
+          {followersLabel} seguidores
         </p>
-      </div>
 
-      <div className="mt-1.5">
-        {hasMediaKit ? (
-          <span className="inline-flex w-full items-center justify-center gap-1 rounded-full bg-zinc-950 px-2.5 py-1.5 text-[9.5px] font-semibold text-white">
-            <ArrowUpRight className="h-3 w-3" />
-            Ver mídia kit
+        <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+          <span className={`truncate text-[9px] font-semibold uppercase tracking-[0.14em] ${hasMediaKit ? "text-zinc-400" : "text-zinc-300"}`}>
+            {hasMediaKit ? "Mídia kit" : "Indisponível"}
           </span>
-        ) : (
-          <span className="inline-flex w-full items-center justify-center rounded-full border border-zinc-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold text-zinc-600">
-            Sem mídia kit
-          </span>
-        )}
+          {hasMediaKit ? (
+            <span className="inline-flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-white transition group-hover:scale-105">
+              <ArrowUpRight className="h-3 w-3" />
+            </span>
+          ) : null}
+        </div>
       </div>
     </article>
   );
@@ -95,7 +110,7 @@ function CreatorMediaKitCard({
   if (!mediaKitHref) return cardBody;
 
   return (
-    <a href={mediaKitHref} className="block" target="_blank" rel="noreferrer" aria-label={`Abrir mídia kit de ${creator.name || creator.username || "criador"}`}>
+    <a href={mediaKitHref} className="block h-full" target="_blank" rel="noreferrer" aria-label={`Abrir mídia kit de ${creatorName}`}>
       {cardBody}
     </a>
   );
@@ -112,7 +127,11 @@ export default function DiscoverCreatorsBoardContent({
   error?: string | null;
   compactView?: boolean;
 }) {
-  const rails = React.useMemo(() => buildCuratedCreatorRails(creators), [creators]);
+  const displayCreators = React.useMemo(
+    () => creators.filter((creator) => creator.hasAvatarImage !== false),
+    [creators],
+  );
+  const rails = React.useMemo(() => buildCuratedCreatorRails(displayCreators), [displayCreators]);
 
   const renderRailTitle = React.useCallback((title: string, isFallback?: boolean) => {
     const Icon = isFallback ? Compass : Users;
@@ -135,7 +154,7 @@ export default function DiscoverCreatorsBoardContent({
             <div className="h-4 w-40 animate-pulse rounded-full bg-zinc-200" />
             <div className="flex gap-2 overflow-hidden">
               {Array.from({ length: 3 }).map((__, cardIndex) => (
-                <div key={cardIndex} className={`${compactView ? "h-[214px] w-[172px]" : "h-[250px] w-[220px]"} animate-pulse rounded-[1.35rem] bg-zinc-100`} />
+                <div key={cardIndex} className={`${compactView ? "h-[202px] w-[124px]" : "h-[214px] w-[158px]"} animate-pulse rounded-[1.2rem] bg-zinc-100`} />
               ))}
             </div>
           </div>
@@ -188,8 +207,8 @@ export default function DiscoverCreatorsBoardContent({
               </span>
             </div>
 
-            <div className={compactView ? "-mx-2 overflow-x-auto hide-scrollbar" : "overflow-x-auto hide-scrollbar"}>
-              <div className={`flex ${compactView ? "gap-1.5 pl-2 pr-0.5 pb-1" : "gap-3 pb-1"}`}>
+            <div className={compactView ? "-mx-2 overflow-x-auto hide-scrollbar" : ""}>
+              <div className={compactView ? "flex gap-2 pl-2 pr-0.5 pb-1" : "grid grid-cols-3 gap-3 xl:grid-cols-5"}>
                 {rail.creators.map((creator, creatorIndex) => (
                   <CreatorMediaKitCard
                     key={creator.id}

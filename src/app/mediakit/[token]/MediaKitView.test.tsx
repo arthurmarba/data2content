@@ -19,7 +19,7 @@ jest.mock('framer-motion', () => {
   return {
     motion: new Proxy({}, {
       get: (_, prop) => {
-        const MockMotionComponent = React.forwardRef(function MockMotionComponent(props: any, ref) {
+        const MockMotionComponent = React.forwardRef(function MockMotionComponent(props: any, ref: any) {
           return React.createElement(prop as any, { ...props, ref }, props.children);
         });
         MockMotionComponent.displayName = `MockMotion(${String(prop)})`;

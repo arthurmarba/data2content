@@ -44,6 +44,7 @@ export interface LandingCreatorHighlight {
   rank: number;
   consistencyScore?: number | null;
   mediaKitSlug?: string | null;
+  hasAvatarImage?: boolean;
 }
 
 export interface LandingCoverageSegment {

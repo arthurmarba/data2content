@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useSidebarViewport } from "./sidebar/hooks";
 import InstagramReconnectBanner from "./InstagramReconnectBanner";
 import TrialBanner from "./TrialBanner";
+import ChunkLoadRecovery from "./ChunkLoadRecovery";
 import { SidebarProvider, useSidebar } from "../context/SidebarContext";
 import {
   HeaderProvider,
@@ -93,6 +94,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const isSettingsPage = matchPath("/dashboard/settings") || matchPath("/settings");
   const isBillingPage = matchPath("/dashboard/billing") || matchPath("/settings/billing");
   const isDiscover = matchPath("/dashboard/discover") || matchPath("/planning/discover");
+  const isCalendarHub = matchPath("/calendar");
   const isPlanningPage = matchPath("/dashboard/planning") || matchPath("/planning");
   const isGuidedFlow = matchPath("/dashboard/instagram");
   const isPlannerPage =
@@ -102,6 +104,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   const isOpen = !isCollapsed;
   const hasPageOverride = isMediaKitPage || isPlannerPage || isDiscover;
+  const shouldShowGlobalBanners = !isChatPage && !isPrintMode && !isCalendarHub;
 
   React.useEffect(() => {
     if (isOpen) {
@@ -207,6 +210,10 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   const shellClassName = "flex flex-col w-full min-h-0";
   const shellStyle = isPrintMode ? undefined : { height: "100dvh", minHeight: "100dvh" };
+  const contentBottomPaddingClass =
+    isDiscover && isMobile
+      ? "pb-[calc(env(safe-area-inset-bottom,0px)+4.75rem)]"
+      : "pb-[calc(env(safe-area-inset-bottom,0px)+4.75rem)] sm:pb-5 lg:pb-4";
 
   return (
     <>
@@ -230,7 +237,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
           style={{ paddingTop: resolvedPaddingTop }}
         >
           <div className={`flex-1 min-h-0 w-full ${mainScrollClass}`}>
-            {!isChatPage && !isPrintMode && (
+            {shouldShowGlobalBanners && (
               <div className={`dashboard-page-shell space-y-4 ${isDiscover || isMobile ? "pt-0" : "pt-4 lg:pt-0"}`}>
                 <InstagramReconnectBanner />
                 <TrialBanner />
@@ -241,7 +248,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
                 {children}
               </div>
             ) : (
-              <div className="flex-1 min-h-0 w-full overflow-visible pb-[calc(env(safe-area-inset-bottom,0px)+10rem)] sm:pb-5 lg:pb-4">
+              <div className={`flex-1 min-h-0 w-full overflow-visible ${contentBottomPaddingClass}`}>
                 {children}
               </div>
             )}
@@ -249,6 +256,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         </main>
         {!isPrintMode && activationWidgetReady ? <ActivationPendingWidget /> : null}
         {!isPrintMode && !isGuidedFlow && isMobile ? <MobileBottomNav /> : null}
+        <ChunkLoadRecovery />
       </div>
     </>
   );

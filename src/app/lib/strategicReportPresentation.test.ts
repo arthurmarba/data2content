@@ -35,7 +35,7 @@ describe('strategicReportPresentation', () => {
           { dimension: 'proofStyle', name: 'myth_busting', value: 860, postsCount: 7 },
         ],
       },
-    } as StrategicReport;
+    } as any as StrategicReport;
 
     const quickStats = getStrategicQuickStats(report);
     expect(quickStats.map((item) => item.title)).toEqual(

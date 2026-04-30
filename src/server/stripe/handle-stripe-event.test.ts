@@ -37,9 +37,11 @@ jest.mock('@/app/services/affiliate/calcCommissionCents', () => ({
   getCommissionRateBps: jest.fn(() => 5000),
 }));
 
-const { User } = require('@/server/db/models/User');
-const webhookHelpers = require('@/server/stripe/webhook-helpers');
-const { handleStripeEvent } = require('./handle-stripe-event');
+import { User } from '@/server/db/models/User';
+import * as webhookHelpers from '@/server/stripe/webhook-helpers';
+import { handleStripeEvent } from './handle-stripe-event';
+
+export {};
 
 function buildBuyer() {
   return {
@@ -48,6 +50,7 @@ function buildBuyer() {
     name: 'Buyer',
     affiliateUsed: 'AFF123',
     commissionLog: [],
+    affiliateFirstCommissionAt: null as Date | null,
     save: jest.fn(async function save() { return this; }),
   };
 }
@@ -91,8 +94,8 @@ describe('handleStripeEvent affiliate commissions', () => {
     const buyer = buildBuyer();
     const owner = buildOwner();
 
-    webhookHelpers.findUserByCustomerId.mockResolvedValue(buyer);
-    User.findOne.mockResolvedValue(owner);
+    (webhookHelpers.findUserByCustomerId as any).mockResolvedValue(buyer);
+    (User as any).findOne.mockResolvedValue(owner);
 
     await handleStripeEvent(buildEvent() as any);
 
@@ -116,9 +119,9 @@ describe('handleStripeEvent affiliate commissions', () => {
     const buyer = buildBuyer();
     const owner = buildOwner();
 
-    webhookHelpers.findUserByCustomerId.mockResolvedValue(buyer);
-    User.findOne.mockResolvedValue(owner);
-    webhookHelpers.ensureSubscriptionFirstTime.mockResolvedValue(false);
+    (webhookHelpers.findUserByCustomerId as any).mockResolvedValue(buyer);
+    (User as any).findOne.mockResolvedValue(owner);
+    (webhookHelpers.ensureSubscriptionFirstTime as any).mockResolvedValue(false);
 
     await handleStripeEvent(buildEvent() as any);
 

@@ -11,17 +11,17 @@ jest.mock('recharts', () => {
   const OriginalRecharts = jest.requireActual('recharts');
   return {
     ...OriginalRecharts,
-    ResponsiveContainer: (props) => React.createElement('div', { ...props, className: "recharts-responsive-container", style: { width: '100%', height: '100%' } }),
-    BarChart: (props) => React.createElement('div', { ...props, "data-testid": "bar-chart" }),
-    PieChart: (props) => React.createElement('div', { ...props, "data-testid": "pie-chart" }),
-    Bar: (props) => React.createElement('div', { ...props, "data-testid": "bar-element" }, "Bar"),
-    Pie: (props) => React.createElement('div', { ...props, "data-testid": "pie-element" }, "Pie"),
-    XAxis: (props) => React.createElement('div', { ...props, "data-testid": "xaxis-element" }, "XAxis"),
-    YAxis: (props) => React.createElement('div', { ...props, "data-testid": "yaxis-element" }, "YAxis"),
-    Tooltip: (props) => React.createElement('div', { ...props, "data-testid": "tooltip-element" }, "Tooltip"),
-    Legend: (props) => React.createElement('div', { ...props, "data-testid": "legend-element" }, "Legend"),
-    CartesianGrid: (props) => React.createElement('div', { ...props, "data-testid": "grid-element" }, "Grid"),
-    Cell: (props) => React.createElement('div', { ...props, "data-testid": "cell-element" }, "Cell"),
+    ResponsiveContainer: (props: any) => React.createElement('div', { ...props, className: "recharts-responsive-container", style: { width: '100%', height: '100%' } }),
+    BarChart: (props: any) => React.createElement('div', { ...props, "data-testid": "bar-chart" }),
+    PieChart: (props: any) => React.createElement('div', { ...props, "data-testid": "pie-chart" }),
+    Bar: (props: any) => React.createElement('div', { ...props, "data-testid": "bar-element" }, "Bar"),
+    Pie: (props: any) => React.createElement('div', { ...props, "data-testid": "pie-element" }, "Pie"),
+    XAxis: (props: any) => React.createElement('div', { ...props, "data-testid": "xaxis-element" }, "XAxis"),
+    YAxis: (props: any) => React.createElement('div', { ...props, "data-testid": "yaxis-element" }, "YAxis"),
+    Tooltip: (props: any) => React.createElement('div', { ...props, "data-testid": "tooltip-element" }, "Tooltip"),
+    Legend: (props: any) => React.createElement('div', { ...props, "data-testid": "legend-element" }, "Legend"),
+    CartesianGrid: (props: any) => React.createElement('div', { ...props, "data-testid": "grid-element" }, "Grid"),
+    Cell: (props: any) => React.createElement('div', { ...props, "data-testid": "cell-element" }, "Cell"),
   };
 });
 
@@ -29,9 +29,9 @@ const mockStats: IDashboardOverallStats = {
   totalPlatformPosts: 12345,
   averagePlatformEngagementRate: 0.067,
   totalContentCreators: 567,
-  breakdownByFormat: [{ format: 'Video', count: 8000, avgEngagement: 0.07 }],
-  breakdownByProposal: [{ proposal: 'Tutorial', count: 4000, avgEngagement: 0.06 }],
-  breakdownByContext: [{ context: 'Tech', count: 6000, avgEngagement: 0.065 }],
+  breakdownByFormat: [{ format: 'Video', count: 8000 }],
+  breakdownByProposal: [{ proposal: 'Tutorial', count: 4000 }],
+  breakdownByContext: [{ context: 'Tech', count: 6000 }],
 };
 
 describe('ContentStatsWidgets Component', () => {

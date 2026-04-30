@@ -5,7 +5,11 @@ export type ScriptAdjustTarget =
   | { type: "scene"; index: number }
   | { type: "paragraph"; index: number }
   | { type: "first_paragraph" }
-  | { type: "last_paragraph" };
+  | { type: "last_paragraph" }
+  | {
+      type: "editorial";
+      field: "what_to_post" | "why_post_this_way" | "when_to_post" | "how_video_should_work";
+    };
 
 export type ScriptAdjustScope = {
   mode: ScriptAdjustMode;
@@ -25,6 +29,14 @@ const FIRST_PARAGRAPH_REGEX =
 const LAST_PARAGRAPH_REGEX =
   /([uú]ltim[oa].{0,24}par[aá]grafo|par[aá]grafo final|fechamento|conclus[aã]o|encerramento|final)/i;
 const PARTIAL_HINT_REGEX = /(apenas|somente|s[oó]|só|minim[oa]|trecho|parte|bloco)/i;
+const EDITORIAL_WHAT_REGEX =
+  /\b(o que postar|qual v[ií]deo postar|ideia central do v[ií]deo|dire[cç][aã]o editorial)\b/i;
+const EDITORIAL_WHY_REGEX =
+  /\b(por que postar|justificativa estrat[ée]gica|racional estrat[ée]gico|motivo estrat[ée]gico)\b/i;
+const EDITORIAL_WHEN_REGEX =
+  /\b(quando postar|janela de postagem|janela de publica[cç][aã]o|hor[aá]rio de postagem|timing|dia e hora)\b/i;
+const EDITORIAL_HOW_REGEX =
+  /\b(como esse v[ií]deo deve funcionar|estrutura editorial|estrutura do v[ií]deo|[âa]ngulo narrativo|[âa]ngulo do roteiro|mude s[oó] o [âa]ngulo|troque s[oó] o [âa]ngulo)\b/i;
 
 function clampIndex(value: number): number {
   if (!Number.isFinite(value)) return 1;
@@ -47,6 +59,14 @@ export function detectScriptAdjustScope(promptRaw: string): ScriptAdjustScope {
     target = { type: "first_paragraph" };
   } else if (hasLastParagraphIntent) {
     target = { type: "last_paragraph" };
+  } else if (EDITORIAL_WHAT_REGEX.test(prompt)) {
+    target = { type: "editorial", field: "what_to_post" };
+  } else if (EDITORIAL_WHY_REGEX.test(prompt)) {
+    target = { type: "editorial", field: "why_post_this_way" };
+  } else if (EDITORIAL_WHEN_REGEX.test(prompt)) {
+    target = { type: "editorial", field: "when_to_post" };
+  } else if (EDITORIAL_HOW_REGEX.test(prompt)) {
+    target = { type: "editorial", field: "how_video_should_work" };
   }
 
   let mode: ScriptAdjustMode = "patch";
@@ -76,5 +96,11 @@ export function describeScriptAdjustTarget(target: ScriptAdjustTarget): string {
   if (target.type === "paragraph") return `Parágrafo ${target.index}`;
   if (target.type === "first_paragraph") return "Primeiro parágrafo";
   if (target.type === "last_paragraph") return "Último parágrafo";
+  if (target.type === "editorial") {
+    if (target.field === "what_to_post") return 'Linha editorial "O que postar"';
+    if (target.field === "why_post_this_way") return 'Linha editorial "Por que postar assim"';
+    if (target.field === "when_to_post") return 'Linha editorial "Quando postar"';
+    return 'Linha editorial "Como esse vídeo deve funcionar"';
+  }
   return "Roteiro completo";
 }

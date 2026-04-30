@@ -4,7 +4,7 @@ import { connectToDatabase } from "@/app/lib/mongoose"; // Added
 import { logger } from "@/app/lib/logger"; // Added
 import calculateFollowerGrowthRate from "./calculateFollowerGrowthRate"; // Para fallback
 
-interface AccountFollowerConversionRateData {
+export interface AccountFollowerConversionRateData {
   accountFollowerConversionRate: number; // Em percentual, ex: 2.5 para 2.5%
   accountsEngagedInPeriod: number | null;
   followersGainedInPeriod: number | null;

@@ -52,6 +52,16 @@ const BLOCKED_TITLES = new Set<string>([
 
 const PRIMARY_CANDIDATE_KEYS = ["user_suggested", "personalized", "recommended"];
 
+function dedupeSectionItems(items: DiscoverPostCard[]) {
+  const seen = new Set<string>();
+  return (items || []).filter((item) => {
+    const id = String(item?.id || '').trim();
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+}
+
 export function prepareDiscoverSections(sections: DiscoverSection[]) {
   const visibleSections = (sections || []).filter(
     (section) => !BLOCKED_TITLES.has((section.title || "").trim()),
@@ -59,12 +69,14 @@ export function prepareDiscoverSections(sections: DiscoverSection[]) {
 
   const cutoffTimestamp = Date.now() - MAX_POST_AGE_MS;
   const recencyFilteredSections = visibleSections.map((section) => {
-    const filteredItems = (section.items || []).filter((item) => {
-      if (!item.postDate) return false;
-      const timestamp = new Date(item.postDate).getTime();
-      if (Number.isNaN(timestamp)) return false;
-      return timestamp >= cutoffTimestamp;
-    });
+    const filteredItems = dedupeSectionItems(
+      (section.items || []).filter((item) => {
+        if (!item.postDate) return false;
+        const timestamp = new Date(item.postDate).getTime();
+        if (Number.isNaN(timestamp)) return false;
+        return timestamp >= cutoffTimestamp;
+      })
+    );
     return { ...section, items: filteredItems };
   });
 

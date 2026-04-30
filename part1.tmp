@@ -1,0 +1,1773 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ArrowDown, CalendarClock, Clapperboard, FileText, Link2, Sparkles, ArrowLeft, Target, Layout, Clock, PenTool, Check, Flame, Zap, Diamond, Video } from "lucide-react";
+
+
+import { useSidebarViewport } from "../components/sidebar/hooks";
+import { PREVIEW_SCRIPTS } from "../scripts/MyScriptsPreviewData";
+import { PREVIEW_PLANNER_SLOTS } from "../planning/mockPlannerData";
+import { usePlannerData, type PlannerUISlot } from "@/hooks/usePlannerData";
+import { track } from "@/lib/track";
+
+import type { PostCreationFunnelStage } from "./postCreationFunnel";
+import {
+  POST_CREATION_FUNNEL_STAGE_ORDER,
+  createEmptyPostCreationFunnelState,
+  resolveNextFunnelStage,
+  type PostCreationDecisionStep,
+  type PostCreationBlueprintScriptStatus,
+  type PostCreationFunnelState,
+} from "./postCreationFunnel";
+import {
+  buildPostCreationDecisionEngine,
+  type PostCreationOutcomeSignal,
+  type PostCreationPreferenceSignals,
+} from "./postCreationDecisionEngine";
+import { buildBlueprintFromPlannerSlot } from "./postCreationBlueprintBuilder";
+import {
+  adjustBlueprint,
+  type PostCreationBlueprintAdjustment,
+} from "./postCreationBlueprintAdjuster";
+import BoardPinButton from "./BoardPinButton";
+import PostCreationPreviewOverlay from "./PostCreationPreviewOverlay";
+
+const PlannerClientPage = dynamic(() => import("@/app/dashboard/planning/PlannerClientPage"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full min-h-[360px] w-full animate-pulse rounded-[1.4rem] border border-zinc-100/80 bg-zinc-50/70" />
+  ),
+});
+
+const MyScriptsPage = dynamic(() => import("@/app/dashboard/scripts/MyScriptsPage"), {
+  ssr: false,
+  loading: () => (
+    <div className="h-full min-h-[360px] w-full animate-pulse rounded-[1.4rem] border border-zinc-100/80 bg-zinc-50/70" />
+  ),
+});
+
+type ViewerInfo = {
+  id?: string | null;
+  role?: string | null;
+  name?: string | null;
+  instagramConnected?: boolean | null;
+};
+
+type PostCreationFunnelBoardShellProps = {
+  viewer?: ViewerInfo;
+  canInteract?: boolean;
+  viewerPending?: boolean;
+  previewMode?: boolean;
+  initialInstagramConnected?: boolean;
+  isHighlighted?: boolean;
+  initialFocusStage?: PostCreationFunnelStage;
+  onActivatePreview?: () => void;
+};
+
+type FunnelScriptSummaryItem = {
+  id: string;
+  title: string;
+  source: string;
+  plannerRef?: {
+    slotId?: string;
+  } | null;
+  publication?: {
+    isPosted?: boolean;
+    content?: {
+      id?: string;
+      engagement?: number | null;
+      totalInteractions?: number | null;
+    } | null;
+  } | null;
+  linkingSummary?: {
+    isLinked?: boolean;
+    totalLinks?: number;
+  } | null;
+};
+
+type PersistedPostCreationDraft = {
+  id: string;
+  titleSnapshot?: string | null;
+  stage: PostCreationFunnelStage;
+  state?: Record<string, unknown> | null;
+  selectedSlotId?: string | null;
+  selectedScriptId?: string | null;
+  linkedContentId?: string | null;
+};
+
+const STAGE_LABELS: Record<PostCreationFunnelStage, string> = {
+  path: "Caminho",
+  idea: "Pauta",
+  blueprint: "Direção",
+  script: "Roteiro",
+  published: "Publicado",
+};
+
+function resolveNextDecisionStep(step: PostCreationDecisionStep): PostCreationDecisionStep | null {
+  if (step === "window") return "format";
+  if (step === "format") return "proposal";
+  if (step === "proposal") return "narrative";
+  return null;
+}
+
+function resolvePrevFunnelStage(stage: PostCreationFunnelStage): PostCreationFunnelStage | null {
+  const currentIndex = POST_CREATION_FUNNEL_STAGE_ORDER.indexOf(stage);
+  if (currentIndex <= 0) return null;
+  return POST_CREATION_FUNNEL_STAGE_ORDER[currentIndex - 1] ?? null;
+}
+
+function resolveBlueprintScriptStatusFromScript(
+  script: FunnelScriptSummaryItem | null
+): PostCreationBlueprintScriptStatus {
+  if (!script) return "ready";
+  if (script.publication?.isPosted) return "published";
+  if (script.linkingSummary?.isLinked) return "linked";
+  return "generated";
+}
+
+function getDecisionStepLabel(step: PostCreationDecisionStep | null) {
+  if (step === "window") return "Janela";
+  if (step === "format") return "Formato";
+  if (step === "proposal") return "Proposta";
+  if (step === "narrative") return "Narrativa";
+  return "Pauta";
+}
+
+function truncateText(value: string, maxChars: number) {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxChars) return normalized;
+  const sliced = normalized.slice(0, maxChars).trimEnd();
+  const lastSpace = sliced.lastIndexOf(" ");
+  return `${(lastSpace > maxChars * 0.7 ? sliced.slice(0, lastSpace) : sliced).trimEnd()}...`;
+}
+
+function formatCompactDate(value?: string | null) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatCompactNumber(value?: number | null) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return new Intl.NumberFormat("pt-BR").format(Math.round(value));
+}
+
+function normalizeLoadedFunnelState(value: unknown): PostCreationFunnelState {
+  const empty = createEmptyPostCreationFunnelState();
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return empty;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  const stage =
+    candidate.stage === "path" ||
+    candidate.stage === "idea" ||
+    candidate.stage === "blueprint" ||
+    candidate.stage === "script" ||
+    candidate.stage === "published"
+      ? candidate.stage
+      : null;
+  const decision =
+    candidate.decision && typeof candidate.decision === "object" && !Array.isArray(candidate.decision)
+      ? (candidate.decision as Record<string, unknown>)
+      : null;
+  const idea =
+    candidate.idea && typeof candidate.idea === "object" && !Array.isArray(candidate.idea)
+      ? (candidate.idea as Record<string, unknown>)
+      : null;
+  const blueprint =
+    candidate.blueprint && typeof candidate.blueprint === "object" && !Array.isArray(candidate.blueprint)
+      ? (candidate.blueprint as Record<string, unknown>)
+      : null;
+  const linkedContent =
+    candidate.linkedContent && typeof candidate.linkedContent === "object" && !Array.isArray(candidate.linkedContent)
+      ? (candidate.linkedContent as Record<string, unknown>)
+      : null;
+
+  const next: PostCreationFunnelState = {
+    stage: "path",
+    activeDecisionStep:
+      candidate.activeDecisionStep === "window" ||
+      candidate.activeDecisionStep === "format" ||
+      candidate.activeDecisionStep === "proposal" ||
+      candidate.activeDecisionStep === "narrative"
+        ? candidate.activeDecisionStep
+        : null,
+    blueprintScriptStatus:
+      candidate.blueprintScriptStatus === "idle" ||
+      candidate.blueprintScriptStatus === "ready" ||
+      candidate.blueprintScriptStatus === "generating" ||
+      candidate.blueprintScriptStatus === "generated" ||
+      candidate.blueprintScriptStatus === "linked" ||
+      candidate.blueprintScriptStatus === "published"
+        ? candidate.blueprintScriptStatus
+        : "idle",
+    decision: {
+      windowId: typeof decision?.windowId === "string" && decision.windowId.trim() ? decision.windowId.trim() : null,
+      formatId: typeof decision?.formatId === "string" && decision.formatId.trim() ? decision.formatId.trim() : null,
+      proposalId:
+        typeof decision?.proposalId === "string" && decision.proposalId.trim() ? decision.proposalId.trim() : null,
+      narrativeId:
+        typeof decision?.narrativeId === "string" && decision.narrativeId.trim()
+          ? decision.narrativeId.trim()
+          : null,
+    },
+    idea: idea
+      ? {
+          id: typeof idea.id === "string" && idea.id.trim() ? idea.id.trim() : "idea",
+          title: typeof idea.title === "string" ? idea.title.trim() : "",
+          description: typeof idea.description === "string" ? idea.description.trim() : "",
+          lane:
+            idea.lane === "safe" || idea.lane === "bold" || idea.lane === "practical" ? idea.lane : "recommended",
+          source:
+            idea.source === "historical_pattern" ||
+            idea.source === "ai_idea" ||
+            idea.source === "saved_idea" ||
+            idea.source === "manual"
+              ? idea.source
+              : "manual",
+          confidence: typeof idea.confidence === "number" ? idea.confidence : null,
+          evidence: Array.isArray(idea.evidence)
+            ? idea.evidence.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+            : undefined,
+        }
+      : null,
+    blueprint: blueprint
+      ? {
+          whatToPost: typeof blueprint.whatToPost === "string" ? blueprint.whatToPost.trim() : "",
+          whyThisPath: typeof blueprint.whyThisPath === "string" ? blueprint.whyThisPath.trim() : "",
+          whenToPost: typeof blueprint.whenToPost === "string" ? blueprint.whenToPost.trim() : "",
+          howItShouldWork: typeof blueprint.howItShouldWork === "string" ? blueprint.howItShouldWork.trim() : "",
+          scenes: Array.isArray(blueprint.scenes)
+            ? blueprint.scenes
+                .filter((scene): scene is Record<string, unknown> => Boolean(scene && typeof scene === "object"))
+                .map((scene, index) => ({
+                  id: typeof scene.id === "string" && scene.id.trim() ? scene.id.trim() : `scene-${index + 1}`,
+                  title: typeof scene.title === "string" ? scene.title.trim() : "",
+                  visual: typeof scene.visual === "string" ? scene.visual.trim() : "",
+                  message: typeof scene.message === "string" ? scene.message.trim() : "",
+                  direction: typeof scene.direction === "string" ? scene.direction.trim() : "",
+                  rationale: typeof scene.rationale === "string" ? scene.rationale.trim() : "",
+                }))
+            : [],
+        }
+      : null,
+    scriptId:
+      typeof candidate.scriptId === "string" && candidate.scriptId.trim() ? candidate.scriptId.trim() : null,
+    linkedContent:
+      linkedContent && typeof linkedContent.contentId === "string" && linkedContent.contentId.trim()
+        ? {
+            contentId: linkedContent.contentId.trim(),
+            caption:
+              typeof linkedContent.caption === "string" && linkedContent.caption.trim()
+                ? linkedContent.caption.trim()
+                : null,
+            postDate:
+              typeof linkedContent.postDate === "string" && linkedContent.postDate.trim()
+                ? linkedContent.postDate.trim()
+                : null,
+            postLink:
+              typeof linkedContent.postLink === "string" && linkedContent.postLink.trim()
+                ? linkedContent.postLink.trim()
+                : null,
+            coverUrl:
+              typeof linkedContent.coverUrl === "string" && linkedContent.coverUrl.trim()
+                ? linkedContent.coverUrl.trim()
+                : null,
+            engagement:
+              typeof linkedContent.engagement === "number" && Number.isFinite(linkedContent.engagement)
+                ? linkedContent.engagement
+                : null,
+            totalInteractions:
+              typeof linkedContent.totalInteractions === "number" && Number.isFinite(linkedContent.totalInteractions)
+                ? linkedContent.totalInteractions
+                : null,
+          }
+        : null,
+  };
+
+  next.stage = stage || resolveNextFunnelStage(next);
+  if (!next.activeDecisionStep && next.stage === "path") {
+    next.activeDecisionStep = !next.decision.windowId
+      ? "window"
+      : !next.decision.formatId
+        ? "format"
+        : !next.decision.proposalId
+          ? "proposal"
+          : !next.decision.narrativeId
+            ? "narrative"
+            : null;
+  }
+  return next;
+}
+
+function isMeaningfulFunnelState(state: PostCreationFunnelState): boolean {
+  return Boolean(
+    state.idea ||
+      state.blueprint ||
+      state.scriptId ||
+      state.linkedContent ||
+      state.decision.windowId ||
+      state.decision.formatId ||
+      state.decision.proposalId ||
+      state.decision.narrativeId
+  );
+}
+
+function buildTitleSnapshot(state: PostCreationFunnelState): string | null {
+  const candidate =
+    state.idea?.title?.trim() ||
+    state.blueprint?.whatToPost?.trim() ||
+    null;
+  return candidate || null;
+}
+
+function buildDraftPayload(args: {
+  state: PostCreationFunnelState;
+  selectedSlotId: string | null;
+  selectedScriptId: string | null;
+}) {
+  return {
+    stage: args.state.stage,
+    titleSnapshot: buildTitleSnapshot(args.state),
+    state: args.state,
+    selectedSlotId: args.selectedSlotId,
+    selectedScriptId: args.selectedScriptId,
+    linkedContentId: args.state.linkedContent?.contentId || null,
+  };
+}
+
+function buildDraftSignature(payload: {
+  stage: PostCreationFunnelStage;
+  titleSnapshot: string | null;
+  state: PostCreationFunnelState;
+  selectedSlotId: string | null;
+  selectedScriptId: string | null;
+  linkedContentId: string | null;
+}) {
+  return JSON.stringify(payload);
+}
+
+function resolveScriptStatusLabel(script: FunnelScriptSummaryItem | null): "generated" | "linked" | "published" | null {
+  if (!script) return null;
+  if (script.publication?.isPosted) return "published";
+  if (script.linkingSummary?.isLinked) return "linked";
+  return "generated";
+}
+
+function getDayLabel(dayOfWeek?: number) {
+  const labels = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+  if (typeof dayOfWeek !== "number") return "Dia";
+  if (dayOfWeek === 7) return labels[0];
+  return labels[dayOfWeek] || "Dia";
+}
+
+function getBlockLabel(hour?: number) {
+  if (typeof hour !== "number") return "Horário";
+  return `${String(hour).padStart(2, "0")}h`;
+}
+
+function formatPlannerFormatLabel(format?: string) {
+  if (!format) return "Formato";
+  const normalized = format.toLowerCase();
+  if (normalized === "reel") return "Reels direto";
+  if (normalized === "carousel") return "Carrossel";
+  if (normalized === "story") return "Stories";
+  return format;
+}
+
+function formatCategoryLabel(value?: string | null) {
+  if (!value) return "Proposta";
+  return value
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/^\w/, (char) => char.toUpperCase());
+}
+
+function inferNarrativeLabel(slot?: PlannerUISlot | null) {
+  const narrative = slot?.narrativeForm?.[0];
+  if (narrative) return formatCategoryLabel(narrative);
+  if (slot?.scriptShort && /erro|ajuste|prova/i.test(slot.scriptShort)) {
+    return "Erro -> ajuste -> prova";
+  }
+  if (slot?.scriptShort && /bastidor|rotina/i.test(slot.scriptShort)) {
+    return "Bastidor -> ajuste -> conversa";
+  }
+  return "Erro -> ajuste -> prova";
+}
+
+function pickRecommendedPlannerSlot(slots: PlannerUISlot[]): PlannerUISlot | null {
+  if (!slots.length) return null;
+  const saved = slots.find((slot) => slot.isSaved && (slot.status === "planned" || slot.status === "drafted"));
+  if (saved) return saved;
+  const planned = slots.find((slot) => slot.status === "planned" || slot.status === "drafted");
+  return planned || slots[0] || null;
+}
+
+function buildFallbackRecommendation() {
+  return {
+    path: [
+      {
+        id: "window",
+        label: "Janela",
+        value: "Qui, 19h",
+        reason: "Faixa recorrente para conteúdos dessa família no perfil.",
+      },
+      {
+        id: "format",
+        label: "Formato",
+        value: "Reels direto",
+        reason: "Formato mais consistente para essa janela e esse tipo de mensagem.",
+      },
+      {
+        id: "proposal",
+        label: "Proposta",
+        value: "Diagnóstico",
+        reason: "Essa proposta costuma puxar mais retenção do que explicação aberta.",
+      },
+      {
+        id: "narrative",
+        label: "Narrativa",
+        value: "Erro -> ajuste -> prova",
+        reason: "Arco mais próximo do que já repetiu em conteúdos fortes.",
+      },
+    ],
+    idea: {
+      title: "O erro que derruba sua retenção antes da dica",
+      summary: "Pauta recomendada a partir da combinação editorial mais forte do perfil agora.",
+      variants: ["Mais segura", "Mais ousada", "Mais prática"],
+    },
+    blueprint: {
+      summary: "Blueprint curto com como gravar, por que gravar assim e 4 cenas enxutas.",
+      nextStep: "Se fizer sentido, expanda isso para roteiro sugerido sem sair do board.",
+    },
+  };
+}
+
+function buildRecommendationFromPlannerSlot(slot: PlannerUISlot | null) {
+  if (!slot) return buildFallbackRecommendation();
+
+  const proposal = slot.categories?.proposal?.[0] || null;
+  const tone = slot.categories?.tone || null;
+  const context = slot.categories?.context?.[0] || null;
+  const windowLabel = `${getDayLabel(slot.dayOfWeek)}, ${getBlockLabel(slot.blockStartHour)}`;
+  const formatLabel = formatPlannerFormatLabel(slot.format);
+  const proposalLabel = formatCategoryLabel(proposal);
+  const narrativeLabel = inferNarrativeLabel(slot);
+  const rationale = slot.rationale?.trim() || "Combinação alinhada ao histórico recente do perfil.";
+
+  return {
+    path: [
+      {
+        id: "window",
+        label: "Janela",
+        value: windowLabel,
+        reason: rationale,
+      },
+      {
+        id: "format",
+        label: "Formato",
+        value: formatLabel,
+        reason: `Formato recomendado para sustentar ${proposalLabel.toLowerCase()} nessa faixa.`,
+      },
+      {
+        id: "proposal",
+        label: "Proposta",
+        value: proposalLabel,
+        reason: context
+          ? `Recorte puxado pelo contexto ${formatCategoryLabel(context).toLowerCase()} do perfil.`
+          : "Proposta repetida em slots fortes e fáceis de executar.",
+      },
+      {
+        id: "narrative",
+        label: "Narrativa",
+        value: narrativeLabel,
+        reason: tone
+          ? `Tom ${formatCategoryLabel(tone).toLowerCase()} combina com esse arco no perfil.`
+          : "Arco mais compatível com retenção e clareza para esse tema.",
+      },
+    ],
+    idea: {
+      title: slot.title || "Pauta recomendada do planner",
+      summary:
+        slot.scriptShort ||
+        "Pauta sugerida a partir do planner, pronta para virar direção de gravação e depois roteiro.",
+      variants: ["Recomendada", "Mais prática", "Mais ousada"],
+    },
+    blueprint: {
+      summary:
+        slot.scriptShort ||
+        "Transforme essa pauta em um blueprint curto e depois em roteiro, sem sair do mesmo board.",
+      nextStep:
+        "Depois de validar a direção editorial, expanda para roteiro e vincule o conteúdo publicado ao mesmo item.",
+    },
+  };
+}
+
+function buildScriptsProgressSummary(items: FunnelScriptSummaryItem[]) {
+  const total = items.length;
+  const posted = items.filter((item) => Boolean(item.publication?.isPosted)).length;
+  const linked = items.filter((item) => Boolean(item.linkingSummary?.isLinked)).length;
+  const latest = items[0] || null;
+
+  return {
+    total,
+    posted,
+    linked,
+    latestTitle: latest?.title || "Nenhum roteiro recente",
+    latestSource: latest?.source || "manual",
+  };
+}
+
+function buildActiveStageDescription(stage: PostCreationFunnelStage): string {
+  if (stage === "path") return "Fechando a melhor combinação de horário, formato, proposta e narrativa.";
+  if (stage === "idea") return "Validando a pauta escolhida antes de aprofundar a execução.";
+  if (stage === "blueprint") return "Transformando a pauta em direção prática de gravação.";
+  if (stage === "script") return "Expandindo a direção para roteiro e ajustes finos.";
+  return "Conteúdo vinculado ao funil para retroalimentar as próximas recomendações.";
+}
+
+function buildBlueprintScriptStateLabel(
+  status: PostCreationBlueprintScriptStatus,
+  script: FunnelScriptSummaryItem | null
+) {
+  if (!script) {
+    if (status === "generating") {
+      return {
+        label: "Gerando roteiro",
+        description: "A direção já está sendo expandida para um roteiro vinculado a este blueprint.",
+      };
+    }
+    if (status === "generated") {
+      return {
+        label: "Roteiro gerado",
+        description: "O blueprint já gerou um roteiro e o board vai reabrir esse contexto.",
+      };
+    }
+    if (status === "linked") {
+      return {
+        label: "Vínculo ativo",
+        description: "Esse blueprint já gerou um roteiro com vínculo ativo.",
+      };
+    }
+    if (status === "published") {
+      return {
+        label: "Publicado",
+        description: "Esse blueprint já completou o fluxo até publicação.",
+      };
+    }
+    return {
+      label: "Blueprint sem roteiro",
+      description: "Ainda não existe roteiro gerado para esta direção.",
+    };
+  }
+  if (script.publication?.isPosted) {
+    return {
+      label: "Publicado",
+      description: "Esse blueprint já virou roteiro e conteúdo publicado.",
+    };
+  }
+  if (script.linkingSummary?.isLinked) {
+    return {
+      label: "Vínculo ativo",
+      description: "O roteiro já está conectado a campanha ou fluxo comercial.",
+    };
+  }
+  return {
+    label: "Roteiro gerado",
+    description: "A direção já foi expandida para roteiro e pode ser refinada.",
+  };
+}
+
+function buildDecisionFromPlannerSlot(slot: PlannerUISlot | null) {
+  if (!slot) {
+    return {
+      windowId: null,
+      formatId: null,
+      proposalId: null,
+      narrativeId: null,
+    };
+  }
+
+  return {
+    windowId: `${slot.dayOfWeek}-${slot.blockStartHour}`,
+    formatId: slot.format || null,
+    proposalId: slot.categories?.proposal?.[0] || null,
+    narrativeId: slot.narrativeForm?.[0] || inferNarrativeLabel(slot),
+  };
+}
+
+function buildScriptPromptFromBlueprint(blueprint: NonNullable<PostCreationFunnelState["blueprint"]>) {
+  const sceneLines = blueprint.scenes
+    .map(
+      (scene, index) =>
+        `Cena ${index + 1} - ${scene.title}\nVisual: ${scene.visual}\nMensagem: ${scene.message}\nDireção: ${scene.direction}\nPor que assim: ${scene.rationale}`
+    )
+    .join("\n\n");
+
+  return [
+    `Expanda este blueprint em um roteiro pronto para gravação, mantendo a promessa, a estrutura e o tom do plano.`,
+    `Título âncora: ${blueprint.whatToPost}`,
+    `Por que esse caminho: ${blueprint.whyThisPath}`,
+    `Quando postar: ${blueprint.whenToPost}`,
+    `Como o vídeo deve funcionar: ${blueprint.howItShouldWork}`,
+    sceneLines,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+export default function PostCreationFunnelBoardShell({
+  viewer,
+  canInteract = false,
+  viewerPending = false,
+  previewMode = false,
+  initialInstagramConnected = false,
+  isHighlighted = false,
+  initialFocusStage = "path",
+  onActivatePreview,
+}: PostCreationFunnelBoardShellProps) {
+  const { isMobile } = useSidebarViewport();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const normalizedViewer = useMemo(
+    () => ({
+      id: viewer?.id ?? "",
+      role: viewer?.role ?? null,
+      name: viewer?.name ?? null,
+      instagramConnected: viewer?.instagramConnected ?? false,
+    }),
+    [viewer?.id, viewer?.instagramConnected, viewer?.name, viewer?.role]
+  );
+  const isPreviewMode = previewMode && !normalizedViewer.id;
+  const plannerQueryUserId = !isPreviewMode && normalizedViewer.id ? normalizedViewer.id : "";
+  const { weekStart, slots, recommendations } = usePlannerData({
+    userId: plannerQueryUserId,
+    targetSlotsPerWeek: 7,
+  });
+  const [recentScripts, setRecentScripts] = useState<FunnelScriptSummaryItem[]>([]);
+  const [funnelState, setFunnelState] = useState<PostCreationFunnelState>(() => createEmptyPostCreationFunnelState());
+  const [draftId, setDraftId] = useState<string | null>(null);
+  const [hasHydratedDraft, setHasHydratedDraft] = useState(false);
+  const [selectedSlotIdState, setSelectedSlotIdState] = useState<string | null>(null);
+  const [selectedScriptIdState, setSelectedScriptIdState] = useState<string | null>(null);
+  const [isGeneratingBlueprintScript, setIsGeneratingBlueprintScript] = useState(false);
+  const [blueprintActionError, setBlueprintActionError] = useState<string | null>(null);
+  const [preferenceSignals, setPreferenceSignals] = useState<PostCreationPreferenceSignals | null>(null);
+  const [advancingPathId, setAdvancingPathId] = useState<string | null>(null);
+  const [advancingIdeaId, setAdvancingIdeaId] = useState<string | null>(null);
+  const [loadingStep, setLoadingStep] = useState(0);
+  
+  const loadingMessages = [
+    "Analisando tendências de mercado...",
+    "Estruturando ganchos e retenção...",
+    "Refinando narrativa de alto impacto...",
+    "Finalizando roteiro estratégico...",
+    "Quase lá..."
+  ];
+
+  useEffect(() => {
+    let interval;
+    if (isGeneratingBlueprintScript) {
+      setLoadingStep(0);
+      interval = setInterval(() => {
+        setLoadingStep((s) => (s + 1) % loadingMessages.length);
+      }, 1800);
+    }
+    return () => clearInterval(interval);
+  }, [isGeneratingBlueprintScript]);
+  const plannerSectionRef = useRef<HTMLDivElement | null>(null);
+  const scriptsSectionRef = useRef<HTMLDivElement | null>(null);
+  const draftHydrationRef = useRef(false);
+  const saveTimerRef = useRef<any>(null);
+  const lastSavedSignatureRef = useRef<string>("");
+  const hasLocalEditsRef = useRef(false);
+
+  useEffect(() => {
+    if (isPreviewMode || !normalizedViewer.id) {
+      setRecentScripts(PREVIEW_SCRIPTS as FunnelScriptSummaryItem[]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const loadRecentScripts = async () => {
+      try {
+        const response = await fetch("/api/scripts?limit=6", { signal: controller.signal });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !Array.isArray(payload?.items)) {
+          setRecentScripts([]);
+          return;
+        }
+        setRecentScripts(payload.items as FunnelScriptSummaryItem[]);
+      } catch {
+        if (controller.signal.aborted) return;
+        setRecentScripts([]);
+      }
+    };
+
+    void loadRecentScripts();
+    return () => {
+      controller.abort();
+    };
+  }, [isPreviewMode, normalizedViewer.id]);
+
+  useEffect(() => {
+    if (isPreviewMode || !normalizedViewer.id) {
+      setPreferenceSignals(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    const loadPreferences = async () => {
+      try {
+        const params = new URLSearchParams();
+        params.set("days", "120");
+        params.set("targetUserId", normalizedViewer.id);
+        const response = await fetch(`/api/post-creation/events/summary?${params.toString()}`, {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          setPreferenceSignals(null);
+          return;
+        }
+        setPreferenceSignals({
+          stepPreferences: payload?.stepPreferences || {},
+          lanePreferences: Array.isArray(payload?.lanePreferences) ? payload.lanePreferences : [],
+        });
+      } catch {
+        if (controller.signal.aborted) return;
+        setPreferenceSignals(null);
+      }
+    };
+
+    void loadPreferences();
+    return () => {
+      controller.abort();
+    };
+  }, [isPreviewMode, normalizedViewer.id]);
+
+  const plannerSlots = useMemo(
+    () => (isPreviewMode ? PREVIEW_PLANNER_SLOTS : slots || []),
+    [isPreviewMode, slots]
+  );
+  const fallbackRecommendation = useMemo(() => buildFallbackRecommendation(), []);
+  const outcomeSignals = useMemo<PostCreationOutcomeSignal[]>(
+    () =>
+      (isPreviewMode ? (PREVIEW_SCRIPTS as FunnelScriptSummaryItem[]) : recentScripts).map((item) => ({
+        slotId: item.plannerRef?.slotId || null,
+        title: item.title,
+        isPosted: item.publication?.isPosted || false,
+        isLinked: item.linkingSummary?.isLinked || false,
+        engagement: item.publication?.content?.engagement ?? null,
+        totalInteractions: item.publication?.content?.totalInteractions ?? null,
+      })),
+    [isPreviewMode, recentScripts]
+  );
+  const decisionEngine = useMemo(
+    () =>
+      buildPostCreationDecisionEngine(plannerSlots, funnelState.decision, {
+        recommendationSlots: isPreviewMode ? PREVIEW_PLANNER_SLOTS.filter((slot) => !slot.isSaved) : recommendations,
+        outcomeSignals,
+        preferenceSignals: preferenceSignals || undefined,
+      }),
+    [funnelState.decision, isPreviewMode, outcomeSignals, plannerSlots, preferenceSignals, recommendations]
+  );
+  const decisionPathCards = useMemo(() => {
+    if (!decisionEngine.checkpoints.length) {
+      return fallbackRecommendation.path.map((item) => ({
+        id: item.id,
+        label: item.label,
+        value: item.value,
+        reason: item.reason,
+        options: [] as Array<{ id: string; label: string; recommended: boolean }>,
+      }));
+    }
+
+    return decisionEngine.checkpoints.map((checkpoint) => {
+      const selectedOption =
+        checkpoint.options.find((option) => option.id === checkpoint.selectedId) ||
+        checkpoint.options[0] ||
+        null;
+      return {
+        id: checkpoint.step,
+        label: checkpoint.label,
+        value: selectedOption?.label || checkpoint.label,
+        reason: selectedOption?.shortReason || "Ajuste esse checkpoint para recalcular o melhor caminho.",
+        options: checkpoint.options.map((option) => ({
+          id: option.id,
+          label: option.label,
+          recommended: option.recommended,
+        })),
+      };
+    });
+  }, [decisionEngine.checkpoints, fallbackRecommendation.path]);
+  const ideaCandidates = decisionEngine.ideaCandidates;
+  const selectedIdeaCandidate = useMemo(() => {
+    if (funnelState.idea?.id) {
+      const matched = ideaCandidates.find((candidate) => candidate.variant.id === funnelState.idea?.id);
+      if (matched) return matched;
+    }
+    return ideaCandidates[0] || null;
+  }, [funnelState.idea?.id, ideaCandidates]);
+  const scriptsProgress = useMemo(
+    () => buildScriptsProgressSummary(isPreviewMode ? (PREVIEW_SCRIPTS as FunnelScriptSummaryItem[]) : recentScripts),
+    [isPreviewMode, recentScripts]
+  );
+  const currentScript = useMemo(() => {
+    const source = isPreviewMode ? (PREVIEW_SCRIPTS as FunnelScriptSummaryItem[]) : recentScripts;
+    if (!funnelState.scriptId) return null;
+    return source.find((item) => item.id === funnelState.scriptId) || null;
+  }, [funnelState.scriptId, isPreviewMode, recentScripts]);
+
+  const selectedSlotId = searchParams?.get("slotId")?.trim() || null;
+  const selectedScriptId = searchParams?.get("scriptId")?.trim() || funnelState.scriptId || null;
+  const selectedDraftId = searchParams?.get("draftId")?.trim() || null;
+  const resolvedSelectedSlotId =
+    selectedSlotIdState ||
+    selectedSlotId ||
+    (funnelState.idea?.source === "saved_idea" ? funnelState.idea.id : null) ||
+    null;
+  const resolvedSelectedScriptId = selectedScriptIdState || selectedScriptId || funnelState.scriptId || null;
+
+  const updateSelectionParams = useCallback(
+    (updates: {
+      slotId?: string | null;
+      scriptId?: string | null;
+      draftId?: string | null;
+    }) => {
+      const params = new URLSearchParams(searchParams?.toString() || "");
+
+      if (updates.slotId === null) {
+        params.delete("slotId");
+      } else if (typeof updates.slotId === "string" && updates.slotId.trim()) {
+        params.set("slotId", updates.slotId.trim());
+      }
+
+      if (updates.scriptId === null) {
+        params.delete("scriptId");
+      } else if (typeof updates.scriptId === "string" && updates.scriptId.trim()) {
+        params.set("scriptId", updates.scriptId.trim());
+      }
+
+      if (updates.draftId === null) {
+        params.delete("draftId");
+      } else if (typeof updates.draftId === "string" && updates.draftId.trim()) {
+        params.set("draftId", updates.draftId.trim());
+      }
+
+      const nextQuery = params.toString();
+      router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams]
+  );
+
+  useEffect(() => {
+    if (isPreviewMode || !normalizedViewer.id) {
+      setHasHydratedDraft(true);
+      setDraftId(null);
+      return;
+    }
+
+    const shouldLoadLatest = !selectedDraftId && !selectedSlotId && !selectedScriptId;
+    if (!selectedDraftId && !shouldLoadLatest) {
+      setHasHydratedDraft(true);
+      return;
+    }
+
+    const controller = new AbortController();
+    const endpoint = selectedDraftId
+      ? `/api/post-creation/drafts/${encodeURIComponent(selectedDraftId)}`
+      : "/api/post-creation/drafts?latest=1";
+
+    const loadDraft = async () => {
+      try {
+        const response = await fetch(endpoint, {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          setHasHydratedDraft(true);
+          return;
+        }
+
+        const item = payload?.item as PersistedPostCreationDraft | null | undefined;
+        if (!item?.id) {
+          setHasHydratedDraft(true);
+          return;
+        }
+
+        const normalizedState = normalizeLoadedFunnelState(item.state);
+        const nextPayload = buildDraftPayload({
+          state: normalizedState,
+          selectedSlotId: item.selectedSlotId || null,
+          selectedScriptId: item.selectedScriptId || normalizedState.scriptId || null,
+        });
+        draftHydrationRef.current = true;
+        lastSavedSignatureRef.current = buildDraftSignature(nextPayload);
+        hasLocalEditsRef.current = false;
+        setDraftId(item.id);
+        setSelectedSlotIdState(item.selectedSlotId || null);
+        setSelectedScriptIdState(item.selectedScriptId || normalizedState.scriptId || null);
+        setFunnelState(normalizedState);
+        updateSelectionParams({
+          draftId: item.id,
+          slotId: item.selectedSlotId || null,
+          scriptId: item.selectedScriptId || normalizedState.scriptId || null,
+        });
+      } catch {
+        if (controller.signal.aborted) return;
+      } finally {
+        draftHydrationRef.current = false;
+        setHasHydratedDraft(true);
+      }
+    };
+
+    void loadDraft();
+
+    return () => {
+      controller.abort();
+    };
+  }, [isPreviewMode, normalizedViewer.id, selectedDraftId, selectedScriptId, selectedSlotId, updateSelectionParams]);
+
+  useEffect(() => {
+    if (!decisionEngine.checkpoints.length) return;
+    setFunnelState((current) => {
+      if (current.idea || current.blueprint || current.scriptId || current.linkedContent) {
+        return current;
+      }
+      const next: PostCreationFunnelState = {
+        ...current,
+        decision: decisionEngine.decision,
+        stage: resolveNextFunnelStage({
+          ...current,
+          decision: decisionEngine.decision,
+        }),
+      };
+      return next;
+    });
+  }, [decisionEngine]);
+
+  const activeStage = funnelState.stage || initialFocusStage;
+  const activeIdeaTitle =
+    funnelState.idea?.title ||
+    selectedIdeaCandidate?.variant.title ||
+    fallbackRecommendation.idea.title;
+  const activeBlueprint = useMemo(
+    () => funnelState.blueprint || (selectedIdeaCandidate ? buildBlueprintFromPlannerSlot(selectedIdeaCandidate.slot) : null),
+    [funnelState.blueprint, selectedIdeaCandidate]
+  );
+  const activeBlueprintSlot = useMemo(() => {
+    if (selectedIdeaCandidate?.slot) return selectedIdeaCandidate.slot;
+    if (resolvedSelectedSlotId) {
+      return plannerSlots.find((slot) => slot.slotId === resolvedSelectedSlotId) || null;
+    }
+    return null;
+  }, [plannerSlots, resolvedSelectedSlotId, selectedIdeaCandidate]);
+  const activeBlueprintSummary =
+    activeBlueprint?.howItShouldWork ||
+    selectedIdeaCandidate?.slot.scriptShort ||
+    fallbackRecommendation.blueprint.summary;
+  const activePublishedLabel = funnelState.linkedContent?.contentId
+    ? funnelState.linkedContent.caption?.trim()
+      ? truncateText(funnelState.linkedContent.caption, 72)
+      : `Conteúdo vinculado: ${funnelState.linkedContent.contentId}`
+    : "Nenhum conteúdo vinculado ainda";
+  const linkedContentDateLabel = formatCompactDate(funnelState.linkedContent?.postDate);
+  const linkedContentInteractionsLabel = formatCompactNumber(funnelState.linkedContent?.totalInteractions);
+  const linkedContentEngagementLabel =
+    typeof funnelState.linkedContent?.engagement === "number" && Number.isFinite(funnelState.linkedContent.engagement)
+      ? funnelState.linkedContent.engagement.toFixed(2)
+      : null;
+  const linkedBlueprintScript = useMemo(() => {
+    if (!activeBlueprintSlot?.slotId?.trim()) return null;
+    if (funnelState.scriptId) {
+      return recentScripts.find((item) => item.id === funnelState.scriptId) || null;
+    }
+    if (
+      funnelState.blueprintScriptStatus !== "generated" &&
+      funnelState.blueprintScriptStatus !== "linked" &&
+      funnelState.blueprintScriptStatus !== "published"
+    ) {
+      return null;
+    }
+    const slotId = activeBlueprintSlot?.slotId?.trim();
+    return recentScripts.find((item) => item.plannerRef?.slotId?.trim() === slotId) || null;
+  }, [activeBlueprintSlot?.slotId, funnelState.blueprintScriptStatus, funnelState.scriptId, recentScripts]);
+  const blueprintScriptState = useMemo(
+    () => buildBlueprintScriptStateLabel(funnelState.blueprintScriptStatus, linkedBlueprintScript),
+    [funnelState.blueprintScriptStatus, linkedBlueprintScript]
+  );
+  const trackFunnelEvent = useCallback(
+    (
+      name:
+        | "post_creation_checkpoint_selected"
+        | "post_creation_idea_selected"
+        | "post_creation_blueprint_activated"
+        | "post_creation_blueprint_adjusted"
+        | "post_creation_blueprint_script_opened"
+        | "post_creation_blueprint_script_started"
+        | "post_creation_blueprint_script_succeeded"
+        | "post_creation_blueprint_script_failed"
+        | "post_creation_slot_saved"
+        | "post_creation_script_opened"
+        | "post_creation_script_saved"
+        | "post_creation_content_linked"
+        | "post_creation_published_step_reopened",
+      payload: Record<string, unknown>
+    ) => {
+      if (isPreviewMode) return;
+      track(name, {
+        creator_id: normalizedViewer.id || null,
+        draft_id: draftId || null,
+        ...payload,
+      } as any);
+      void fetch("/api/post-creation/events", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        keepalive: true,
+        body: JSON.stringify({
+          eventName: name,
+          stage:
+            (typeof payload.stage_after === "string" && payload.stage_after) ||
+            (typeof payload.stage === "string" && payload.stage) ||
+            funnelState.stage,
+          step: typeof payload.step === "string" ? payload.step : null,
+          draftId: draftId || null,
+          slotId:
+            (typeof payload.slot_id === "string" && payload.slot_id) ||
+            activeBlueprintSlot?.slotId ||
+            resolvedSelectedSlotId ||
+            null,
+          scriptId:
+            (typeof payload.script_id === "string" && payload.script_id) ||
+            resolvedSelectedScriptId ||
+            funnelState.scriptId ||
+            null,
+          ideaId:
+            (typeof payload.idea_id === "string" && payload.idea_id) ||
+            funnelState.idea?.id ||
+            null,
+          contentId:
+            (typeof payload.content_id === "string" && payload.content_id) ||
+            funnelState.linkedContent?.contentId ||
+            null,
+          source: typeof payload.source === "string" ? payload.source : null,
+          lane: typeof payload.lane === "string" ? payload.lane : null,
+          scriptStatus: typeof payload.script_status === "string" ? payload.script_status : null,
+          recommendedSelected:
+            typeof payload.recommended_selected === "boolean" ? payload.recommended_selected : null,
+          confidence: typeof payload.confidence === "number" ? payload.confidence : null,
+          metadata: payload,
+          targetUserId: normalizedViewer.id || "",
+        }),
+      }).catch(() => undefined);
+    },
+    [
+      activeBlueprintSlot?.slotId,
+      draftId,
+      funnelState.idea?.id,
+      funnelState.linkedContent?.contentId,
+      funnelState.scriptId,
+      funnelState.stage,
+      isPreviewMode,
+      normalizedViewer.id,
+      resolvedSelectedScriptId,
+      resolvedSelectedSlotId,
+    ]
+  );
+
+  const handleDecisionOptionSelect = (step: PostCreationDecisionStep, optionId: string) => {
+    const checkpoint = decisionEngine.checkpoints.find((entry) => entry.step === step) || null;
+    const option = checkpoint?.options.find((entry) => entry.id === optionId) || null;
+    
+    // Auto-advance visual feedback
+    setAdvancingPathId(`${step}-${optionId}`);
+    
+    setTimeout(() => {
+      hasLocalEditsRef.current = true;
+      setSelectedSlotIdState(null);
+      setSelectedScriptIdState(null);
+      updateSelectionParams({
+        slotId: null,
+        scriptId: null,
+        draftId,
+      });
+      setFunnelState((current) => {
+        const nextDecision = {
+          ...current.decision,
+          windowId: step === "window" ? optionId : current.decision.windowId,
+          formatId: step === "format" ? optionId : current.decision.formatId,
+          proposalId: step === "proposal" ? optionId : current.decision.proposalId,
+          narrativeId: step === "narrative" ? optionId : current.decision.narrativeId,
+        };
+        if (step === "window") {
+          nextDecision.formatId = null;
+          nextDecision.proposalId = null;
+          nextDecision.narrativeId = null;
+        } else if (step === "format") {
+          nextDecision.proposalId = null;
+          nextDecision.narrativeId = null;
+        } else if (step === "proposal") {
+          nextDecision.narrativeId = null;
+        }
+
+        const next: PostCreationFunnelState = {
+          ...current,
+          activeDecisionStep: resolveNextDecisionStep(step),
+          blueprintScriptStatus: "idle",
+          decision: nextDecision,
+          idea: null,
+          blueprint: null,
+          scriptId: null,
+          linkedContent: null,
+        };
+        return {
+          ...next,
+          stage: resolveNextFunnelStage(next),
+        };
+      });
+      trackFunnelEvent("post_creation_checkpoint_selected", {
+        step,
+        option_id: optionId,
+        option_label: option?.label || optionId,
+        recommended_selected: option?.recommended || false,
+        stage_before: funnelState.stage,
+        stage_after: "path",
+      });
+      setAdvancingPathId(null);
+    }, 500);
+  };
+
+  const handleIdeaSelection = (candidateId: string) => {
+    const candidate = ideaCandidates.find((entry) => entry.variant.id === candidateId);
+    if (!candidate) return;
+
+    // Auto-advance visual feedback
+    setAdvancingIdeaId(candidateId);
+
+    setTimeout(() => {
+      hasLocalEditsRef.current = true;
+      setSelectedSlotIdState(candidate.slot.slotId || null);
+      setSelectedScriptIdState(null);
+      updateSelectionParams({
+        slotId: candidate.slot.slotId || null,
+        scriptId: null,
+        draftId,
+      });
+      setFunnelState((current) => {
+        const next: PostCreationFunnelState = {
+          ...current,
+          decision: candidate.decision,
+          activeDecisionStep: null,
+          idea: candidate.variant,
+          blueprint: buildBlueprintFromPlannerSlot(candidate.slot),
+          scriptId: null,
+          linkedContent: null,
+          blueprintScriptStatus: "ready",
+          stage: "blueprint",
+        };
+        return next;
+      });
+      trackFunnelEvent("post_creation_idea_selected", {
+        idea_id: candidate.variant.id,
+        lane: candidate.variant.lane,
+        source: candidate.variant.source,
+        confidence: candidate.variant.confidence ?? null,
+        evidence_count: candidate.variant.evidence?.length ?? 0,
+        recommended_selected: ideaCandidates[0]?.variant.id === candidate.variant.id,
+        stage_before: funnelState.stage,
+        stage_after: "blueprint",
+      });
+      setAdvancingIdeaId(null);
+    }, 800);
+  };
+
+  const handleActivateRecommendedBlueprint = () => {
+    if (funnelState.idea?.id) return;
+    if (!selectedIdeaCandidate?.variant.id) return;
+    trackFunnelEvent("post_creation_blueprint_activated", {
+      blueprint_title: selectedIdeaCandidate.variant.title,
+      source: "recommended_cta",
+      stage_before: funnelState.stage,
+      stage_after: "blueprint",
+    });
+    handleIdeaSelection(selectedIdeaCandidate.variant.id);
+  };
+
+  const handleBlueprintAdjustment = (adjustment: PostCreationBlueprintAdjustment) => {
+    if (!activeBlueprint) return;
+    const recommendedBlueprint = activeBlueprintSlot ? buildBlueprintFromPlannerSlot(activeBlueprintSlot) : null;
+    const adjustedBlueprint = adjustBlueprint(activeBlueprint, adjustment, {
+      recommendedBlueprint,
+    });
+
+    hasLocalEditsRef.current = true;
+    setSelectedScriptIdState(null);
+    updateSelectionParams({
+      slotId: activeBlueprintSlot?.slotId || resolvedSelectedSlotId,
+      scriptId: null,
+      draftId,
+    });
+    setFunnelState((current) => ({
+      ...current,
+      blueprint: adjustedBlueprint,
+      scriptId: null,
+      linkedContent: null,
+      blueprintScriptStatus: "ready",
+      stage: "blueprint",
+    }));
+    trackFunnelEvent("post_creation_blueprint_adjusted", {
+      blueprint_title: adjustedBlueprint.whatToPost,
+      source: adjustment,
+      stage_before: funnelState.stage,
+      stage_after: "blueprint",
+    });
+  };
+
+  const handleBlueprintScriptAction = async () => {
+    setBlueprintActionError(null);
+
+    if (linkedBlueprintScript?.id) {
+      trackFunnelEvent("post_creation_blueprint_script_opened", {
+        script_id: linkedBlueprintScript.id,
+        slot_id: activeBlueprintSlot?.slotId || resolvedSelectedSlotId,
+        script_status: resolveScriptStatusLabel(linkedBlueprintScript),
+      });
+      setSelectedScriptIdState(linkedBlueprintScript.id);
+      updateSelectionParams({
+        slotId: activeBlueprintSlot?.slotId || resolvedSelectedSlotId,
+        scriptId: linkedBlueprintScript.id,
+        draftId,
+      });
+      setFunnelState((current) => ({
+        ...current,
+        scriptId: linkedBlueprintScript.id,
+        blueprintScriptStatus: resolveBlueprintScriptStatusFromScript(linkedBlueprintScript),
+        stage: "script",
+      }));
+      jumpToScripts();
+      return;
+    }
+
+    if (isPreviewMode) {
+      onActivatePreview?.();
+      return;
+    }
+
+    if (!canInteract) {
+      jumpToScripts();
+      return;
+    }
+
+    if (!activeBlueprint) return;
+
+    setIsGeneratingBlueprintScript(true);
+    trackFunnelEvent("post_creation_blueprint_script_started", {
+      blueprint_title: activeBlueprint.whatToPost,
+      slot_id: activeBlueprintSlot?.slotId || null,
+      has_slot_link: Boolean(activeBlueprintSlot?.slotId && weekStart instanceof Date),
+    });
+    setFunnelState((current) => ({
+      ...current,
+      blueprintScriptStatus: "generating",
+    }));
+    try {
+      const payload: Record<string, unknown> = {
+        mode: "ai",
+        title: activeBlueprint.whatToPost,
+        prompt: buildScriptPromptFromBlueprint(activeBlueprint),
+      };
+
+      if (activeBlueprintSlot?.slotId && weekStart instanceof Date) {
+        payload.linkToSlot = {
+          slotId: activeBlueprintSlot.slotId,
+          weekStart: weekStart.toISOString(),
+          dayOfWeek: activeBlueprintSlot.dayOfWeek,
+          blockStartHour: activeBlueprintSlot.blockStartHour,
+        };
+      }
+
+      const response = await fetch("/api/scripts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result?.ok || !result?.item?.id) {
+        throw new Error(result?.error || "Não foi possível gerar o roteiro a partir do blueprint.");
+      }
+
+      const created = result.item as FunnelScriptSummaryItem;
+      setRecentScripts((current) => {
+        const next = current.filter((item) => item.id !== created.id);
+        return [created, ...next];
+      });
+      setSelectedScriptIdState(created.id);
+      updateSelectionParams({
+        slotId: activeBlueprintSlot?.slotId || resolvedSelectedSlotId,
+        scriptId: created.id,
+        draftId,
+      });
+      setFunnelState((current) => ({
+        ...current,
+        scriptId: created.id,
+        blueprintScriptStatus: resolveBlueprintScriptStatusFromScript(created),
+        stage: "script",
+      }));
+      trackFunnelEvent("post_creation_blueprint_script_succeeded", {
+        script_id: created.id,
+        slot_id: activeBlueprintSlot?.slotId || null,
+        linked_to_slot: Boolean(activeBlueprintSlot?.slotId && weekStart instanceof Date),
+      });
+      jumpToScripts();
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : "Não foi possível gerar o roteiro.";
+      setBlueprintActionError(errorMessage);
+      setFunnelState((current) => ({
+        ...current,
+        blueprintScriptStatus: current.scriptId ? current.blueprintScriptStatus : "ready",
+      }));
+      trackFunnelEvent("post_creation_blueprint_script_failed", {
+        slot_id: activeBlueprintSlot?.slotId || null,
+        message: errorMessage,
+      });
+    } finally {
+      setIsGeneratingBlueprintScript(false);
+    }
+  };
+
+  const handleFunnelSlotFocus = (slot: PlannerUISlot) => {
+    hasLocalEditsRef.current = true;
+    setSelectedSlotIdState(slot.slotId || null);
+    updateSelectionParams({
+      slotId: slot.slotId || null,
+      scriptId: funnelState.scriptId || null,
+      draftId,
+    });
+    setFunnelState((current) => {
+      const next: PostCreationFunnelState = {
+        ...current,
+        decision: buildDecisionFromPlannerSlot(slot),
+        activeDecisionStep: "window",
+        stage: "path",
+      };
+      return next;
+    });
+  };
+
+  const handleFunnelSlotSaved = (slot: PlannerUISlot) => {
+    hasLocalEditsRef.current = true;
+    setSelectedSlotIdState(slot.slotId || null);
+    updateSelectionParams({
+      slotId: slot.slotId || null,
+      scriptId: funnelState.scriptId || null,
+      draftId,
+    });
+    setFunnelState((current) => {
+      const next: PostCreationFunnelState = {
+        ...current,
+        decision: buildDecisionFromPlannerSlot(slot),
+        activeDecisionStep: null,
+        idea: {
+          id: slot.slotId || `${slot.dayOfWeek}-${slot.blockStartHour}`,
+          title: slot.title || "Pauta selecionada",
+          description: slot.scriptShort || slot.rationale || "Pauta pronta para virar direção de gravação.",
+          lane: "recommended",
+          source: "saved_idea",
+        },
+        blueprint: buildBlueprintFromPlannerSlot(slot),
+        blueprintScriptStatus: "ready",
+        stage: "blueprint",
+      };
+      return next;
+    });
+    trackFunnelEvent("post_creation_slot_saved", {
+      slot_id: slot.slotId || null,
+      stage_after: "blueprint",
+    });
+  };
+
+  const handleFunnelScriptOpen = (script: any) => {
+    hasLocalEditsRef.current = true;
+    setSelectedScriptIdState(script.id);
+    updateSelectionParams({
+      slotId: resolvedSelectedSlotId,
+      scriptId: script.id,
+      draftId,
+    });
+    setFunnelState((current) => {
+      return {
+        ...current,
+        scriptId: script.id,
+        blueprintScriptStatus: resolveBlueprintScriptStatusFromScript(script),
+        stage: "script",
+      };
+    });
+    trackFunnelEvent("post_creation_script_opened", {
+      script_id: script.id,
+      script_status: resolveScriptStatusLabel(script),
+      stage_after: "script",
+    });
+  };
+
+  const handleFunnelScriptSaved = (script: any) => {
+    hasLocalEditsRef.current = true;
+    setSelectedScriptIdState(script.id);
+    updateSelectionParams({
+      slotId: resolvedSelectedSlotId,
+      scriptId: script.id,
+      draftId,
+    });
+    setFunnelState((current) => {
+      return {
+        ...current,
+        scriptId: script.id,
+        blueprintScriptStatus: resolveBlueprintScriptStatusFromScript(script),
+        stage: "script",
+      };
+    });
+    trackFunnelEvent("post_creation_script_saved", {
+      script_id: script.id,
+      script_status: resolveScriptStatusLabel(script),
+      stage_after: "script",
+    });
+  };
+
+  const handleFunnelContentLinked = (script: any) => {
+    hasLocalEditsRef.current = true;
+    setSelectedScriptIdState(script.id);
+    updateSelectionParams({
+      slotId: resolvedSelectedSlotId,
+      scriptId: script.id,
+      draftId,
+    });
+    setFunnelState((current) => {
+      const contentId = script.publication?.content?.id;
+      const next: PostCreationFunnelState = {
+        ...current,
+        scriptId: script.id,
+        linkedContent: contentId
+          ? {
+              contentId,
+              caption:
+                typeof script.publication?.content?.caption === "string" && script.publication.content.caption.trim()
+                  ? script.publication.content.caption.trim()
+                  : null,
+              postDate:
+                typeof script.publication?.content?.postDate === "string" && script.publication.content.postDate.trim()
+                  ? script.publication.content.postDate.trim()
+                  : null,
+              postLink:
+                typeof script.publication?.content?.postLink === "string" && script.publication.content.postLink.trim()
+                  ? script.publication.content.postLink.trim()
+                  : null,
+              coverUrl:
+                typeof script.publication?.content?.coverUrl === "string" && script.publication.content.coverUrl.trim()
+                  ? script.publication.content.coverUrl.trim()
+                  : null,
+              engagement:
+                typeof script.publication?.content?.engagement === "number" &&
+                Number.isFinite(script.publication.content.engagement)
+                  ? script.publication.content.engagement
+                  : null,
+              totalInteractions:
+                typeof script.publication?.content?.totalInteractions === "number" &&
+                Number.isFinite(script.publication.content.totalInteractions)
+                  ? script.publication.content.totalInteractions
+                  : null,
+            }
+          : current.linkedContent,
+        blueprintScriptStatus: contentId ? "published" : resolveBlueprintScriptStatusFromScript(script),
+        stage: "published",
+      };
+      return next;
+    });
+    trackFunnelEvent("post_creation_content_linked", {
+      script_id: script.id,
+      content_id: script.publication?.content?.id || null,
+      stage_after: "published",
+    });
+  };
+
+  const handleOpenLinkedContent = () => {
+    const postLink = funnelState.linkedContent?.postLink?.trim();
+    if (!postLink || typeof window === "undefined") return;
+    window.open(postLink, "_blank", "noopener,noreferrer");
+  };
+
+  const handleOpenPublishedStep = () => {
+    if (funnelState.linkedContent?.postLink) {
+      handleOpenLinkedContent();
+      return;
+    }
+    jumpToScripts();
+  };
+
+  const handleReturnToBlueprintFromPublished = () => {
+    setFunnelState((current) => ({
+      ...current,
+      stage: "blueprint",
+    }));
+    trackFunnelEvent("post_creation_published_step_reopened", {
+      content_id: funnelState.linkedContent?.contentId || null,
+      destination: "blueprint",
+      stage_before: funnelState.stage,
+      stage_after: "blueprint",
+    });
+  };
+
+  const handleReturnToScriptFromPublished = () => {
+    setFunnelState((current) => ({
+      ...current,
+      stage: "script",
+    }));
+    trackFunnelEvent("post_creation_published_step_reopened", {
+      content_id: funnelState.linkedContent?.contentId || null,
+      destination: "script",
+      stage_before: funnelState.stage,
+      stage_after: "script",
+    });
+    jumpToScripts();
+  };
+
+  const handleNextStage = useCallback(() => {
+    trackFunnelEvent("post_creation_blueprint_activated", {
+      stage_before: funnelState.stage,
+      stage_after: resolveNextFunnelStage(funnelState),
+    } as any);
+    setFunnelState((current) => {
+      const nextStage = resolveNextFunnelStage(current);
+      if (nextStage === current.stage) return current;
+      return { ...current, stage: nextStage };
+    });
+  }, [funnelState.stage, funnelState, trackFunnelEvent]);
+
+  const handlePrevStage = useCallback(() => {
+    trackFunnelEvent("post_creation_blueprint_activated", {
+      stage_before: funnelState.stage,
+      stage_after: resolvePrevFunnelStage(funnelState.stage) || funnelState.stage,
+    } as any);
+    setFunnelState((current) => {
+      const prevStage = resolvePrevFunnelStage(current.stage);
+      if (!prevStage) return current;
+      return { ...current, stage: prevStage };
+    });
+  }, [funnelState.stage, funnelState, trackFunnelEvent]);
+
+  useEffect(() => {
+    if (initialFocusStage !== "script" && initialFocusStage !== "published") return;
+    const timeoutId = window.setTimeout(() => {
+      scriptsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 120);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [initialFocusStage]);
+
+  const jumpToPlanner = () => {
+    plannerSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const jumpToScripts = () => {
+    scriptsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  useEffect(() => {
+    if (!selectedScriptId) return;
+    setSelectedScriptIdState(selectedScriptId);
+    setFunnelState((current) => {
+      if (current.scriptId === selectedScriptId && (current.stage === "script" || current.stage === "published")) {
+        return current;
+      }
+      return {
+        ...current,
+        scriptId: selectedScriptId,
+        blueprintScriptStatus: current.linkedContent ? "published" : current.blueprintScriptStatus === "linked" ? "linked" : "generated",
+        stage: current.linkedContent ? "published" : "script",
+      };
+    });
+  }, [selectedScriptId]);
+
+  useEffect(() => {
+    if (!selectedSlotId) return;
+    setSelectedSlotIdState(selectedSlotId);
+    const selectedSlot = plannerSlots.find((slot) => slot.slotId === selectedSlotId);
+    if (!selectedSlot) return;
+    setFunnelState((current) => {
+      if (current.idea?.id === selectedSlotId || current.decision.windowId === `${selectedSlot.dayOfWeek}-${selectedSlot.blockStartHour}`) {
+        return current;
+      }
+      return {
+        ...current,
+        decision: buildDecisionFromPlannerSlot(selectedSlot),
+        activeDecisionStep: null,
+        idea: {
+          id: selectedSlot.slotId || `${selectedSlot.dayOfWeek}-${selectedSlot.blockStartHour}`,
+          title: selectedSlot.title || "Pauta selecionada",
+          description:
+            selectedSlot.scriptShort || selectedSlot.rationale || "Pauta pronta para virar direção de gravação.",
+          lane: "recommended",
+          source: "saved_idea",
+        },
+        blueprint: buildBlueprintFromPlannerSlot(selectedSlot),
+        blueprintScriptStatus: current.scriptId ? current.blueprintScriptStatus : "ready",
+        stage: "blueprint",
+      };
+    });
+  }, [plannerSlots, selectedSlotId]);
+
+  useEffect(() => {
+    if (!hasHydratedDraft) return;
+    if (isPreviewMode || !normalizedViewer.id) return;
+    if (!isMeaningfulFunnelState(funnelState)) return;
+    if (!draftId && !hasLocalEditsRef.current) return;
+    if (draftHydrationRef.current) return;
+
+    const payload = buildDraftPayload({
+      state: funnelState,
+      selectedSlotId: resolvedSelectedSlotId,
+      selectedScriptId: resolvedSelectedScriptId,
+    });
+    const signature = buildDraftSignature(payload);
+    if (signature === lastSavedSignatureRef.current) return;
+
+    if (saveTimerRef.current) {
+      window.clearTimeout(saveTimerRef.current);
+    }
+
+    saveTimerRef.current = window.setTimeout(() => {
+      const persistDraft = async () => {
+        try {
+          const response = await fetch(
+              draftId ? `/api/post-creation/drafts/${encodeURIComponent(draftId)}` : "/api/post-creation/drafts",
+            {
+              method: draftId ? "PATCH" : "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(payload),
+            }
+          );
+          const result = await response.json().catch(() => ({}));
+          if (!response.ok) return;
+          const item = result?.item as PersistedPostCreationDraft | null | undefined;
+          if (!item?.id) return;
+          lastSavedSignatureRef.current = signature;
+          hasLocalEditsRef.current = false;
+          if (!draftId || draftId !== item.id) {
+            setDraftId(item.id);
+            updateSelectionParams({
+              draftId: item.id,
+              slotId: payload.selectedSlotId,
+              scriptId: payload.selectedScriptId,
+            });
+          }
+        } catch {
+          return;
+        }
+      };
+
+      void persistDraft();
+    }, 900);
+
+    return () => {
+      if (saveTimerRef.current) {
+        window.clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+    };
+  }, [
+    draftId,
+    funnelState,
+    hasHydratedDraft,
+    isPreviewMode,
+    normalizedViewer.id,
+    resolvedSelectedScriptId,
+    resolvedSelectedSlotId,
+    updateSelectionParams,
+  ]);
+
+  const canGoNext = useMemo(() => {
+    const next = resolveNextFunnelStage(funnelState);
+    return next !== funnelState.stage;
+  }, [funnelState]);
+
+  const canGoPrev = useMemo(() => {
+    return resolvePrevFunnelStage(funnelState.stage) !== null;
+  }, [funnelState.stage]);
+
+  const nextButtonLabel = useMemo(() => {
+    if (funnelState.stage === "path") return "Escolher Pauta";
+    if (funnelState.stage === "idea") return "Ver Direção";
+    if (funnelState.stage === "blueprint") return "Ir para Roteiro";
+    return "Avançar";
+  }, [funnelState.stage]);
+
+  return (
+    <div className="flex h-full min-h-[calc(100vh-2rem)] w-full flex-col bg-white">
+      {/* Immersive Top Bar */}
+      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-zinc-100 bg-white/95 px-4 py-3 backdrop-blur-md sm:px-6">
+        <div className="flex items-center gap-3">
+          {canGoPrev && (
+            <button
+              type="button"
+              onClick={handlePrevStage}
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-50 text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+          )}
+          <span className="text-[11px] font-black uppercase tracking-widest text-zinc-400">
+            Passo {POST_CREATION_FUNNEL_STAGE_ORDER.indexOf(activeStage) + 1} de {POST_CREATION_FUNNEL_STAGE_ORDER.length}
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <BoardPinButton
+            boardId="post-creation"
+            boardTitle="Criação de Post"
+            redirectOnPin={false}
+          />
+        </div>
+          {activeStage === "blueprint" && (
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
+               <div className="mb-10 space-y-2 text-center">
+                <p className="text-[11px] font-bold uppercase tracking-[0.25em] text-zinc-400">Direção Criativa</p>
+                <h3 className="text-3xl font-black tracking-tight text-zinc-950 sm:text-4xl">O plano de gravação</h3>
+                <p className="mx-auto max-w-lg text-sm leading-relaxed text-zinc-500">
+                  Valide a lógica visual e narrativa antes de detalhar o roteiro final.
+                </p>
+              </div>
+
+               {activeBlueprint ? (
+                 <div className="space-y-8">
+                    <div className="flex flex-wrap items-center justify-center gap-4">
+                       {[
+                         { icon: CalendarClock, value: activeBlueprint.whenToPost },
+                         { icon: Sparkles, value: activeBlueprint.whatToPost },
+                         { icon: Clapperboard, value: activeBlueprint.howItShouldWork },
+                       ].map((meta, idx) => (
+                         <div key={idx} className="flex items-center gap-2 rounded-full border border-zinc-100 bg-zinc-50/50 px-4 py-2">
+                           <meta.icon className="h-4 w-4 text-zinc-400" />
+                           <span className="text-[13px] font-bold text-zinc-900">{meta.value}</span>
+                         </div>
+                       ))}
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

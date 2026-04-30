@@ -1,0 +1,123 @@
+
+> d2c-frontend@0.1.0 build
+> npm run playwright:install-chromium && NEXT_DISABLE_SERVER_IPC=1 ./scripts/with-preferred-node.sh next build
+
+
+> d2c-frontend@0.1.0 playwright:install-chromium
+> node scripts/install-playwright-chromium.mjs
+
+[playwright-install] Chromium do Playwright disponível em PLAYWRIGHT_BROWSERS_PATH=0.
+- info Loaded env from /Users/arthurmarba/d2c-frontend/.env.local
+--- Lendo next.config.js (ESM) --- 2026-04-11T02:10:30.507Z
+--- Configuração de images (ESM): {
+  "unoptimized": false,
+  "formats": [
+    "image/webp"
+  ],
+  "minimumCacheTTL": 2678400,
+  "deviceSizes": [
+    360,
+    640,
+    768,
+    1024,
+    1280,
+    1536
+  ],
+  "imageSizes": [
+    16,
+    32,
+    48,
+    64,
+    96,
+    128,
+    256,
+    384
+  ],
+  "remotePatterns": [
+    {
+      "protocol": "https",
+      "hostname": "lh3.googleusercontent.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "placehold.co",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "scontent-iad3-1.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "scontent-iad3-2.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "scontent.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "**.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "**.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "**.cdninstagram.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "lookaside.instagram.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "lookaside.fbsbx.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "platform-lookaside.fbsbx.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "i.ibb.co",
+      "pathname": "/**"
+    }
+  ]
+}
+- warn You have enabled experimental features (serverActions, outputFileTracingIncludes) in next.config.js.
+- warn Experimental features are not covered by semver, and may cause unexpected or broken application behavior. Use at your own risk.
+
+- info Creating an optimized production build...
+- info Compiled successfully
+- info Linting and checking validity of types...
+
+./src/app/dashboard/boards/PostCreationFunnelBoardShell.tsx
+687:6  Warning: React Hook useEffect has a missing dependency: 'loadingMessages.length'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+1559:6  Warning: React Hook useCallback has an unnecessary dependency: 'funnelState.stage'. Either exclude it or remove the dependency array.  react-hooks/exhaustive-deps
+1571:6  Warning: React Hook useCallback has an unnecessary dependency: 'funnelState.stage'. Either exclude it or remove the dependency array.  react-hooks/exhaustive-deps
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules
+Failed to compile.
+
+./src/app/dashboard/boards/PostCreationFunnelBoardShell.tsx:679:9
+Type error: Variable 'interval' implicitly has type 'any' in some locations where its type cannot be determined.
+
+[0m [90m 677 | [39m[0m
+[0m [90m 678 | [39m  useEffect(() [33m=>[39m {[0m
+[0m[31m[1m>[22m[39m[90m 679 | [39m    [36mlet[39m interval[33m;[39m[0m
+[0m [90m     | [39m        [31m[1m^[22m[39m[0m
+[0m [90m 680 | [39m    [36mif[39m (isGeneratingBlueprintScript) {[0m
+[0m [90m 681 | [39m      setLoadingStep([35m0[39m)[33m;[39m[0m
+[0m [90m 682 | [39m      interval [33m=[39m setInterval(() [33m=>[39m {[0m

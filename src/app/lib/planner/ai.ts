@@ -1,5 +1,9 @@
 import OpenAI from 'openai';
+import { logger } from '@/app/lib/logger';
 import { getCategoryById } from '@/app/lib/classification';
+import { getV2CategoryById } from '@/app/lib/classificationV2';
+import { getV25CategoryById } from '@/app/lib/classificationV2_5';
+import type { PlannerCategories } from '@/types/planner';
 
 export interface GenerateDraftInput {
   userId: string;
@@ -112,7 +116,9 @@ function enforceThemePresence(opts: {
 
 // normalização
 function stripDiacritics(s: string) { return s.normalize('NFD').replace(/\p{Diacritic}+/gu, ''); }
-function normalizeToken(t: string): string { return stripDiacritics(t.toLowerCase()).replace(/[^a-z0-9]+/gi, ''); }
+function normalizeToken(t: string): string { 
+  return (t || '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/gi, ''); 
+}
 function isAllDigits(s: string) { return /^[0-9]+$/.test(s); }
 
 // stopwords (normalizadas)
@@ -210,7 +216,10 @@ export async function generateThemeKeyword(input: {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return undefined;
 
-  const openai = new OpenAI({ apiKey });
+  const openai = new OpenAI({
+    apiKey,
+    baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+  });
   const sys = `Você extrai um ÚNICO tema em 1 palavra (comece com letra, sem espaços) a partir de legendas. Evite stopwords. Responda só JSON {"keyword": string}.`;
   const payload = {
     captions: (input.captions || []).slice(0, 10),
@@ -390,7 +399,10 @@ export async function generatePostDraft(input: GenerateDraftInput): Promise<Gene
   }
 
   // --- Com API (OpenAI) ---
-  const openai = new OpenAI({ apiKey });
+  const openai = new OpenAI({
+    apiKey,
+    baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+  });
   const { dayOfWeek, blockStartHour, format, categories, isExperiment, strategy, sourceCaptions, externalSignals, themeKeyword } = input;
 
   // Enrich categories with labels and descriptions
@@ -551,7 +563,10 @@ export async function generateThemes(input: {
   if (!apiKey) {
     return [];
   }
-  const openai = new OpenAI({ apiKey });
+  const openai = new OpenAI({
+    apiKey,
+    baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+  });
   const sys = `Você é um gerador de TEMAS para vídeos curtos (Reels). Gere ideias curtas, diretas e específicas, guiadas por contexto.`;
   const userPayload = {
     keyword: input.keyword,
@@ -621,6 +636,306 @@ export async function generateThemes(input: {
     const uniq = Array.from(new Set(arrRaw.map(norm))).filter((s): s is string => !!s);
     return uniq.slice(0, count);
   } catch {
+    return [];
+  }
+}
+
+export type GeneratedPautaIdea = {
+  title: string;
+  reason: string;
+};
+
+function formatPlannerWindowLabel(dayOfWeek?: number, blockStartHour?: number) {
+  const weekdays = ["domingo", "segunda-feira", "terça-feira", "quarta-feira", "quinta-feira", "sexta-feira", "sábado"];
+  const safeDay = typeof dayOfWeek === 'number' && Number.isFinite(dayOfWeek) ? dayOfWeek : null;
+  const resolvedDay =
+    safeDay === null
+      ? null
+      : weekdays[safeDay === 7 ? 0 : safeDay] || weekdays[((safeDay % 7) + 7) % 7];
+  const resolvedHour =
+    typeof blockStartHour === 'number' && Number.isFinite(blockStartHour)
+      ? `${String(blockStartHour).padStart(2, '0')}h`
+      : null;
+  return resolvedDay && resolvedHour ? `${resolvedDay}, ${resolvedHour}` : resolvedDay || resolvedHour || null;
+}
+
+function buildPlannerCategoryDetails(categories?: PlannerCategories) {
+  return {
+    context: (categories?.context || []).map((id) => {
+      const category = getCategoryById(id, 'context');
+      return { id, label: category?.label || id, description: category?.description || '' };
+    }),
+    proposal: (categories?.proposal || []).map((id) => {
+      const category = getCategoryById(id, 'proposal');
+      return { id, label: category?.label || id, description: category?.description || '' };
+    }),
+    reference: (categories?.reference || []).map((id) => {
+      const category = getCategoryById(id, 'reference');
+      return { id, label: category?.label || id, description: category?.description || '' };
+    }),
+    tone: categories?.tone
+      ? (() => {
+          const category = getCategoryById(categories.tone, 'tone');
+          return { id: categories.tone, label: category?.label || categories.tone, description: category?.description || '' };
+        })()
+      : undefined,
+    contentIntent: (categories?.contentIntent || []).map((id) => {
+      const category = getV2CategoryById(id, 'contentIntent');
+      return { id, label: category?.label || id, description: category?.description || '' };
+    }),
+    narrativeForm: (categories?.narrativeForm || []).map((id) => {
+      const category = getV2CategoryById(id, 'narrativeForm');
+      return { id, label: category?.label || id, description: category?.description || '' };
+    }),
+    proofStyle: (categories?.proofStyle || []).map((id) => {
+      const category = getV25CategoryById(id, 'proofStyle');
+      return { id, label: category?.label || id, description: category?.description || '' };
+    }),
+    commercialMode: (categories?.commercialMode || []).map((id) => {
+      const category = getV25CategoryById(id, 'commercialMode');
+      return { id, label: category?.label || id, description: category?.description || '' };
+    }),
+  };
+}
+
+function stripEmoji(value: string) {
+  return value.replace(/[\p{Extended_Pictographic}\uFE0F]/gu, '').replace(/\s+/g, ' ').trim();
+}
+
+function normalizeGeneratedPautaTitle(value: string) {
+  return stripEmoji(value).replace(/^[-–•\d.:\s]+/, '').trim();
+}
+
+function normalizeGeneratedPautaReason(value: string) {
+  return stripEmoji(value)
+    .replace(/^(um\s+)?momento\s+engra[cç]ado\s+de\s+/i, '')
+    .replace(/^uma\s+situa[cç][aã]o\s+c[oô]mica\s+de\s+/i, '')
+    .replace(/^mostra(ndo)?\s+/i, '')
+    .replace(/^aborda(ndo)?\s+/i, '')
+    .trim();
+}
+
+function scorePautaSpecificity(title: string, themeKeyword: string) {
+  const normalized = title
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  const theme = themeKeyword
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  let score = 0;
+  if (/\b(quando|pov|eu tentando|voce tenta|voce deita|alguem|amigo|familia|vizinho|mensagem|grupo|trabalho|chefe|casa)\b/.test(normalized)) {
+    score += 3;
+  }
+  if (/\b(celular|notificacao|alarme|obra|barulho|liquidificador|porta|interfone|vizinho|mensagem|grupo|audio|louca|roupa|cama|sofa)\b/.test(normalized)) {
+    score += 2;
+  }
+  if (/\b(e|mas|so que|ate que|porque|enquanto)\b/.test(normalized)) score += 1;
+  if (theme && normalized.includes(theme)) score += 1;
+  if (/^(expectativa\s+vs\s+realidade|5\s+erros|como\s+fazer|guia\s+definitivo|passo\s+a\s+passo)/.test(normalized)) {
+    score -= 2;
+  }
+  if (/\b(decidi|tentei relaxar|fui relaxar)\b/.test(normalized)) score -= 1;
+  if (/\b(gato|cachorro|pet)\b/.test(normalized)) score -= 1;
+  if (/\b(o mundo|a vida|a rotina|a cultura viral|tudo conspira|nao deixa)\b/.test(normalized)) score -= 1;
+  if (!theme.includes('medit') && /\b(meditacao|meditar)\b/.test(normalized)) score -= 2;
+  if (normalized.length < 18 || normalized.length > 68) score -= 1;
+  return score;
+}
+
+function hasMotivationalBrief(branchSummary?: string[]) {
+  return (branchSummary || []).some((item) =>
+    /motivacional|inspirador|mensagem/i.test(item)
+  );
+}
+
+function scorePautaBriefFit(
+  pauta: GeneratedPautaIdea,
+  input: { themeKeyword: string; branchSummary?: string[]; editorialGuidance?: string[]; format?: string }
+) {
+  const title = pauta.title.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const reason = pauta.reason.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const text = `${title} ${reason}`;
+  const brief = [...(input.branchSummary || []), ...(input.editorialGuidance || [])]
+    .join(' ')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  let score = scorePautaSpecificity(pauta.title, input.themeKeyword);
+
+  if (hasMotivationalBrief(input.branchSummary)) {
+    if (/\b(une|abraco|salva|aprendi|licao|afeto|carinho|cuidado|familia|amizade|apoio|valor|pertenc|reconcilia|termina bem|no fim)\b/.test(text)) {
+      score += 2;
+    }
+    if (/\b(sem licao|moral da historia|autoajuda|frase motivacional|gratiluz)\b/.test(text)) {
+      score -= 2;
+    }
+  }
+
+  if (/\breuniao em familia\b/.test(title)) score -= 1;
+  if (/\b(almoco|jantar|mesa|grupo da familia|grupo das amigas|casa|churrasco)\b/.test(title)) score += 1;
+  if (/\b(humor|cena|entreter|sketch)\b/.test(brief)) {
+    if (/\b(quando|pov|eu tentando|voce tentando|voce tenta|na hora que|so que|mas)\b/.test(text)) score += 2;
+    if (/\b(aprenda|guia|passo a passo|dicas para|como fazer)\b/.test(title)) score -= 2;
+  }
+  if (/\b(educacional|ensinar|tutorial|dicas|checklist|passo aplicavel)\b/.test(brief)) {
+    if (/\b(erro|passo|checklist|antes de|como|dica|resolve|aprenda|evite|na pratica)\b/.test(text)) score += 2;
+    if (/\b(quando|pov)\b/.test(title) && !/\b(erro|dica|passo|como)\b/.test(text)) score -= 1;
+  }
+  if (/\b(autoridade|opiniao|critico|mito|verdade|mercado|comparacao)\b/.test(brief)) {
+    if (/\b(mito|verdade|ninguem|por que|pare de|o erro|opinio|comparar|versus|vs|melhor|pior)\b/.test(text)) score += 2;
+    if (/\b(coisa|situa[cç]ao|momento|dilema)\b/.test(title)) score -= 1;
+  }
+  if (/\b(conversao|comercial|promocional|divulgacao|converter|comprar|oferta)\b/.test(brief)) {
+    if (/\b(vale|testei|antes de comprar|economiza|resultado|obje[cç]ao|duvida|na pratica|por dentro)\b/.test(text)) score += 2;
+    if (/\b(compre|link na bio|promo[cç]ao|garanta ja)\b/.test(title)) score -= 2;
+  }
+  if (/\b(review|prova|demonstracao|antes\/depois|unboxing)\b/.test(brief)) {
+    if (/\b(teste|testei|antes e depois|resultado|na pratica|por dentro|primeira vez|vale)\b/.test(text)) score += 2;
+  }
+  if (/\b(informativo|noticia|informar|news)\b/.test(brief)) {
+    if (/\b(o que mudou|entenda|impacta|por que importa|explica|agora)\b/.test(text)) score += 2;
+  }
+  if (/\b(conexao|pergunta|q&a|resposta|aproximar)\b/.test(brief)) {
+    if (/\b(pergunta|respondi|quem nunca|voce tambem|comentario|duvida)\b/.test(text)) score += 2;
+  }
+  if (/\b(bastidores|processo|preparacao)\b/.test(brief)) {
+    if (/\b(bastidor|por tras|preparo|antes de|erro|processo|tentativa)\b/.test(text)) score += 2;
+  }
+  if (/\b(carrossel|primeira lamina)\b/.test(brief)) {
+    if (/\b(checklist|antes de|erros|sinais|passos|guia|compare)\b/.test(title)) score += 1;
+    if (/\b(quando|pov|eu tentando)\b/.test(title)) score -= 1;
+  }
+  if (/\b(formato foto|foto)\b/.test(brief)) {
+    if (/\b(foto|legenda|pose|registro|antes de|detalhe)\b/.test(text)) score += 1;
+  }
+  return score;
+}
+
+function rankGeneratedPautas(pautas: GeneratedPautaIdea[], themeKeyword: string) {
+  const seen = new Set<string>();
+  return pautas
+    .map((pauta, index) => ({
+      ...pauta,
+      title: normalizeGeneratedPautaTitle(pauta.title),
+      reason: normalizeGeneratedPautaReason(pauta.reason),
+      index,
+    }))
+    .filter((pauta) => {
+      if (!pauta.title) return false;
+      const key = pauta.title.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .sort((a, b) => {
+      const scoreDelta = scorePautaSpecificity(b.title, themeKeyword) - scorePautaSpecificity(a.title, themeKeyword);
+      if (scoreDelta !== 0) return scoreDelta;
+      return a.index - b.index;
+    })
+    .map(({ index: _index, ...pauta }) => pauta);
+}
+
+export async function generatePautaIdeas(input: {
+  themeKeyword: string;
+  format?: string;
+  dayOfWeek?: number;
+  blockStartHour?: number;
+  categories?: PlannerCategories;
+  sourceCaptions?: string[];
+  branchSummary?: string[];
+  editorialGuidance?: string[];
+  count?: number;
+}): Promise<GeneratedPautaIdea[]> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    logger.warn('[planner/ai] OPENAI_API_KEY missing; skipping pauta generation', {
+      themeKeyword: input.themeKeyword,
+      format: input.format || null,
+      dayOfWeek: input.dayOfWeek ?? null,
+      blockStartHour: input.blockStartHour ?? null,
+    });
+    return [];
+  }
+
+  const openai = new OpenAI({
+    apiKey,
+    baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+  });
+
+  const count = Math.min(10, Math.max(3, input.count || 5));
+  const sys = `Você é um estrategista editorial de Instagram. Sua missão é gerar PAUTAS de posts que respeitam estritamente o recorte escolhido pelo usuário no funil.`;
+  
+  const prompt = `Gere ${count} pautas para Instagram com base no tema editorial "${input.themeKeyword}" e nas seleções obrigatórias abaixo.
+
+Seleções obrigatórias do funil:
+${input.branchSummary?.length ? input.branchSummary.map((item) => `- ${item}`).join('\n') : '- N/A'}
+
+Diretrizes editoriais derivadas da combinação:
+${input.editorialGuidance?.length ? input.editorialGuidance.map((item) => `- ${item}`).join('\n') : '- Use o recorte do funil para escolher a melhor estrutura editorial.'}
+
+Interpretação do tema:
+- Trate "${input.themeKeyword}" como um recorte de assunto para conteúdo, não como uma oferta de serviço, sessão, aula ou produto.
+- Se o tema for genérico (ex.: relaxar), transforme em situação, tensão ou comportamento cotidiano ligado às seleções do funil.
+- Não troque o tema por outro subtópico específico. Ex.: se o tema é "relaxar", não transforme tudo em "meditação" a menos que isso tenha sido selecionado.
+
+Regras:
+- Cada pauta deve combinar explicitamente tema + contexto + proposta + intenção + tom + formato.
+- Priorize ideias filmáveis para ${input.format || 'Reel/Post'}, com gancho visual ou situação concreta.
+- Escolha a estrutura de título conforme a diretriz editorial: cena para humor/lifestyle; promessa prática para educacional; opinião/tensão para autoridade; teste/prova para review/conversão.
+- Quando a proposta for cena/humor/lifestyle, o título precisa deixar clara uma cena: pessoa/ator + tentativa/desejo + obstáculo ou contraste observável.
+- Prefira estruturas como "Quando...", "POV:", "Eu tentando..." apenas quando elas forem coerentes com a proposta e trouxerem uma cena específica.
+- Para dicas/educacional/carrossel, prefira títulos úteis e específicos como erro, checklist, antes de, passo ou comparação aplicável.
+- Para autoridade/opinião, prefira tensão clara: mito, verdade, erro comum, comparação ou ponto de vista.
+- Para comercial/conversão, use prova de uso, objeção, desejo ou resultado concreto sem soar como anúncio.
+- Para review/unboxing/prova, prometa teste, observação, antes/depois ou demonstração concreta.
+- Para informativo/notícia, deixe claro o que mudou ou por que importa sem inventar fatos.
+- Evite primeira pessoa no passado ("decidi", "fui", "tentei") e prefira uma situação universal que qualquer seguidor reconheça.
+- Não invente personagens/props muito específicos (ex.: gato, pet, namorado, chefe) se isso não vier das legendas recentes; prefira obstáculos universais como barulho, mensagem, família, casa, celular, vizinho, rotina.
+- Prefira obstáculos visuais específicos em vez de abstrações. Melhor: "o celular toca", "começa obra", "chega áudio no grupo". Pior: "o mundo não deixa", "a rotina atrapalha".
+- Cada título deve sugerir uma primeira cena gravável em até 5 segundos.
+- Se as seleções incluírem "Mensagem/Motivacional" ou "Inspirador/Motivacional", a cena precisa ter uma virada leve de significado: afeto, apoio, pertencimento, reconciliação, cuidado ou valorização dos laços.
+- Essa virada motivacional deve nascer da cena, sem parecer autoajuda, frase pronta ou conselho genérico.
+- Para família/relacionamentos, prefira situações naturais: almoço, jantar, grupo da família, mesa, casa, churrasco, áudio, conversa atravessada. Evite termos formais como "reunião em família".
+- Cada título deve ter no máximo 64 caracteres.
+- Não use emojis.
+- Evite títulos genéricos como "5 erros", "como fazer", "guia definitivo" e "Expectativa vs Realidade" sem uma cena específica do recorte.
+- Não gere pautas que soem como anúncio de sessão, terapia, curso, desafio genérico ou produto.
+- A "reason" deve ser uma nota de cena filmável em até 110 caracteres.
+- A "reason" não deve usar termos meta como "engajamento", "identificação", "público", "mostra", "situação cômica", "momento engraçado".
+${input.sourceCaptions?.length ? `- Use estas legendas recentes como inspiração de tom: ${input.sourceCaptions.slice(0, 5).join(' | ')}` : ''}
+
+Responda EXCLUSIVAMENTE como JSON: {"pautas": [{"title": string, "reason": string}]}.`;
+
+  try {
+    const completion = await openai.chat.completions.create({
+      model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+      temperature: 0.55,
+      messages: [
+        { role: 'system', content: sys },
+        { role: 'user', content: prompt },
+      ],
+      response_format: { type: 'json_object' } as any,
+    } as any);
+
+    const content = completion.choices?.[0]?.message?.content || '{}';
+    const parsed = JSON.parse(content);
+    const pautas = Array.isArray(parsed?.pautas)
+      ? parsed.pautas
+          .map((p: any) => ({
+            title: normalizeGeneratedPautaTitle(String(p?.title || '')),
+            reason: normalizeGeneratedPautaReason(String(p?.reason || '').trim()),
+          }))
+          .filter((p: any) => p.title)
+      : [];
+    
+    return rankGeneratedPautas(pautas, input.themeKeyword)
+      .sort((a, b) => scorePautaBriefFit(b, input) - scorePautaBriefFit(a, input))
+      .slice(0, count);
+  } catch (err) {
+    logger.error('[planner/ai] Error generating pauta ideas:', err);
     return [];
   }
 }

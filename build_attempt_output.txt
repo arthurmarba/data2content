@@ -1,0 +1,657 @@
+
+> d2c-frontend@0.1.0 build
+> npm run playwright:install-chromium && NEXT_DISABLE_SERVER_IPC=1 ./scripts/with-preferred-node.sh next build
+
+
+> d2c-frontend@0.1.0 playwright:install-chromium
+> node scripts/install-playwright-chromium.mjs
+
+[playwright-install] Chromium do Playwright disponível em PLAYWRIGHT_BROWSERS_PATH=0.
+- info Loaded env from /Users/arthurmarba/d2c-frontend/.env.local
+--- Lendo next.config.js (ESM) --- 2026-04-25T02:07:21.969Z
+--- Configuração de images (ESM): {
+  "unoptimized": false,
+  "formats": [
+    "image/webp"
+  ],
+  "minimumCacheTTL": 2678400,
+  "deviceSizes": [
+    360,
+    640,
+    768,
+    1024,
+    1280,
+    1536
+  ],
+  "imageSizes": [
+    16,
+    32,
+    48,
+    64,
+    96,
+    128,
+    256,
+    384
+  ],
+  "remotePatterns": [
+    {
+      "protocol": "https",
+      "hostname": "lh3.googleusercontent.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "placehold.co",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "scontent-iad3-1.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "scontent-iad3-2.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "scontent.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "**.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "**.xx.fbcdn.net",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "**.cdninstagram.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "lookaside.instagram.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "lookaside.fbsbx.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "platform-lookaside.fbsbx.com",
+      "pathname": "/**"
+    },
+    {
+      "protocol": "https",
+      "hostname": "i.ibb.co",
+      "pathname": "/**"
+    }
+  ]
+}
+- warn You have enabled experimental features (serverActions, outputFileTracingIncludes) in next.config.js.
+- warn Experimental features are not covered by semver, and may cause unexpected or broken application behavior. Use at your own risk.
+
+- info Creating an optimized production build...
+- info Compiled successfully
+- info Linting and checking validity of types...
+
+./src/app/dashboard/boards/FunnelPostLinkGallery.tsx
+106:21  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./src/app/dashboard/boards/PostCreationFunnelBoardShell.tsx
+3775:5  Warning: React Hook useCallback has a missing dependency: 'searchParams'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+4332:6  Warning: React Hook useCallback has a missing dependency: 'handleFunnelSlotSaved'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+4484:9  Warning: The 'handleBlueprintScriptAction' function makes the dependencies of useCallback Hook (at line 5127) change on every render. To fix this, wrap the definition of 'handleBlueprintScriptAction' in its own useCallback() Hook.  react-hooks/exhaustive-deps
+4934:9  Warning: The 'handleOpenPublishedStep' function makes the dependencies of useCallback Hook (at line 5127) change on every render. To fix this, wrap the definition of 'handleOpenPublishedStep' in its own useCallback() Hook.  react-hooks/exhaustive-deps
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules
+- info Collecting page data...
+{"env":"production","level":"info","message":"[connectionManagement] Cliente QStash inicializado com sucesso.","service":"affiliates","timestamp":"2026-04-25T02:08:40.035Z","version":"local"}
+--- SERVER START --- NEXTAUTH_URL: http://localhost:3000
+{"env":"production","level":"info","message":"[connectionManagement] Cliente QStash inicializado com sucesso.","service":"affiliates","timestamp":"2026-04-25T02:08:40.068Z","version":"local"}
+{"env":"production","level":"info","message":"[connectionManagement] Cliente QStash inicializado com sucesso.","service":"affiliates","timestamp":"2026-04-25T02:08:40.085Z","version":"local"}
+--- SERVER START --- NEXTAUTH_URL: http://localhost:3000
+--- SERVER START --- NEXTAUTH_URL: http://localhost:3000
+{"env":"production","level":"info","message":"[connectionManagement] Cliente QStash inicializado com sucesso.","service":"affiliates","timestamp":"2026-04-25T02:08:40.122Z","version":"local"}
+{"env":"production","level":"info","message":"[connectionManagement] Cliente QStash inicializado com sucesso.","service":"affiliates","timestamp":"2026-04-25T02:08:40.118Z","version":"local"}
+--- SERVER START --- NEXTAUTH_URL: http://localhost:3000
+--- SERVER START --- NEXTAUTH_URL: http://localhost:3000
+{"env":"production","level":"info","message":"[connectionManagement] Cliente QStash inicializado com sucesso.","service":"affiliates","timestamp":"2026-04-25T02:08:40.170Z","version":"local"}
+{"env":"production","level":"info","message":"[dataService][index] Módulos do dataService carregados e prontos para uso.","service":"affiliates","timestamp":"2026-04-25T02:08:40.213Z","version":"local"}
+{"env":"production","level":"info","message":"[dataService][index] Módulos do dataService carregados e prontos para uso.","service":"affiliates","timestamp":"2026-04-25T02:08:40.215Z","version":"local"}
+--- SERVER START --- NEXTAUTH_URL: http://localhost:3000
+{"env":"production","level":"info","message":"[dataService][index] Módulos do dataService carregados e prontos para uso.","service":"affiliates","timestamp":"2026-04-25T02:08:40.221Z","version":"local"}
+{"env":"production","level":"info","message":"[connectionManagement] Cliente QStash inicializado com sucesso.","service":"affiliates","timestamp":"2026-04-25T02:08:40.301Z","version":"local"}
+--- SERVER START --- NEXTAUTH_URL: http://localhost:3000
+{"env":"production","level":"info","message":"[AdminAIConfig][Redis] Conectando ao servidor...","service":"affiliates","timestamp":"2026-04-25T02:08:40.331Z","version":"local"}
+{"env":"production","level":"info","message":"[dataService][index] Módulos do dataService carregados e prontos para uso.","service":"affiliates","timestamp":"2026-04-25T02:08:40.358Z","version":"local"}
+{"env":"production","level":"info","message":"[Cron BackfillPostCovers Init] QStash Receiver e Client inicializados. Worker URL: http://localhost:3000/api/worker/backfill-post-cover","service":"affiliates","timestamp":"2026-04-25T02:08:40.386Z","version":"local"}
+{"env":"production","level":"info","message":"[Cron RefreshInstagramData Init] QStash Receiver e Client inicializados. Worker URL: http://localhost:3000/api/worker/refresh-instagram-user","service":"affiliates","timestamp":"2026-04-25T02:08:40.388Z","version":"local"}
+{"env":"production","level":"info","message":"[dataService][index] Módulos do dataService carregados e prontos para uso.","service":"affiliates","timestamp":"2026-04-25T02:08:40.397Z","version":"local"}
+{"env":"production","level":"info","message":"[intentService] Lógica de Intenção Contextual ATIVADA via feature flag.","service":"affiliates","timestamp":"2026-04-25T02:08:40.400Z","version":"local"}
+{"env":"production","level":"info","message":"[Webhook Instagram Init] Cliente QStash inicializado.","service":"affiliates","timestamp":"2026-04-25T02:08:40.502Z","version":"local"}
+{"env":"production","level":"info","message":"[Worker RefreshInstagramUser Init] QStash Receiver inicializado com sucesso.","service":"affiliates","timestamp":"2026-04-25T02:08:40.505Z","version":"local"}
+{"env":"production","level":"info","message":"[Worker ProcessStoryWebhook Init] QStash Receiver inicializado.","service":"affiliates","timestamp":"2026-04-25T02:08:40.506Z","version":"local"}
+{"env":"production","level":"info","message":"[intentService] Lógica de Intenção Contextual ATIVADA via feature flag.","service":"affiliates","timestamp":"2026-04-25T02:08:40.509Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Instanciado.","service":"affiliates","timestamp":"2026-04-25T02:08:40.516Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Iniciando registro de regras no motor...","service":"affiliates","timestamp":"2026-04-25T02:08:40.516Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'peak_performance_shares_v1' (Prioridade: 10) registrada. Total de regras: 1","service":"affiliates","timestamp":"2026-04-25T02:08:40.516Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'peak_performance_shares_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:40.516Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'unexpected_drop_reels_watch_time_v1' (Prioridade: 9) registrada. Total de regras: 2","service":"affiliates","timestamp":"2026-04-25T02:08:40.517Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'unexpected_drop_reels_watch_time_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:40.517Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'forgotten_format_promising_v1' (Prioridade: 8) registrada. Total de regras: 3","service":"affiliates","timestamp":"2026-04-25T02:08:40.517Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'forgotten_format_promising_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:40.517Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'untapped_potential_topic_v2' (Prioridade: 7) registrada. Total de regras: 4","service":"affiliates","timestamp":"2026-04-25T02:08:40.517Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'untapped_potential_topic_v2' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:40.517Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'engagement_peak_not_capitalized_v1' (Prioridade: 9) registrada. Total de regras: 5","service":"affiliates","timestamp":"2026-04-25T02:08:40.517Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'engagement_peak_not_capitalized_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:40.517Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'best_day_format_engagement_v1' (Prioridade: 6) registrada. Total de regras: 6","service":"affiliates","timestamp":"2026-04-25T02:08:40.517Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'best_day_format_engagement_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:40.517Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'follower_growth_stagnation_v1' (Prioridade: 8) registrada. Total de regras: 7","service":"affiliates","timestamp":"2026-04-25T02:08:40.517Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'follower_growth_stagnation_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:40.517Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'posting_consistency_check_v1' (Prioridade: 7) registrada. Total de regras: 8","service":"affiliates","timestamp":"2026-04-25T02:08:40.517Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'posting_consistency_check_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:40.517Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'evergreen_repurpose_suggestion_v1' (Prioridade: 5) registrada. Total de regras: 9","service":"affiliates","timestamp":"2026-04-25T02:08:40.517Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'evergreen_repurpose_suggestion_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:40.518Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'new_format_performance_spike_v1' (Prioridade: 7) registrada. Total de regras: 10","service":"affiliates","timestamp":"2026-04-25T02:08:40.518Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'new_format_performance_spike_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:40.518Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'media_type_performance_comparison_v1' (Prioridade: 6) registrada. Total de regras: 11","service":"affiliates","timestamp":"2026-04-25T02:08:40.518Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'media_type_performance_comparison_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:40.518Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Todas as regras disponíveis foram processadas para registro. Total de regras registradas: 11","service":"affiliates","timestamp":"2026-04-25T02:08:40.518Z","version":"local"}
+{"env":"production","level":"info","message":"[AdminAIConfig][Redis] Cliente pronto e conectado com sucesso.","service":"affiliates","timestamp":"2026-04-25T02:08:40.595Z","version":"local"}
+- warn Using server actions on a page currently disables static generation for that page
+- info Generating static pages (0/129)
+- info Generating static pages (32/129)
+{"env":"production","level":"info","message":"[API TestPermissions] Recebida requisição GET para testar permissões.","service":"affiliates","timestamp":"2026-04-25T02:08:45.752Z","version":"local"}
+- info Generating static pages (64/129)
+{"env":"production","level":"info","message":"[intentService] Lógica de Intenção Contextual ATIVADA via feature flag.","service":"affiliates","timestamp":"2026-04-25T02:08:45.797Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Instanciado.","service":"affiliates","timestamp":"2026-04-25T02:08:45.802Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Iniciando registro de regras no motor...","service":"affiliates","timestamp":"2026-04-25T02:08:45.803Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'peak_performance_shares_v1' (Prioridade: 10) registrada. Total de regras: 1","service":"affiliates","timestamp":"2026-04-25T02:08:45.803Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'peak_performance_shares_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:45.803Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'unexpected_drop_reels_watch_time_v1' (Prioridade: 9) registrada. Total de regras: 2","service":"affiliates","timestamp":"2026-04-25T02:08:45.803Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'unexpected_drop_reels_watch_time_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:45.804Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'forgotten_format_promising_v1' (Prioridade: 8) registrada. Total de regras: 3","service":"affiliates","timestamp":"2026-04-25T02:08:45.804Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'forgotten_format_promising_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:45.804Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'untapped_potential_topic_v2' (Prioridade: 7) registrada. Total de regras: 4","service":"affiliates","timestamp":"2026-04-25T02:08:45.804Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'untapped_potential_topic_v2' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:45.804Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'engagement_peak_not_capitalized_v1' (Prioridade: 9) registrada. Total de regras: 5","service":"affiliates","timestamp":"2026-04-25T02:08:45.804Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'engagement_peak_not_capitalized_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:45.804Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'best_day_format_engagement_v1' (Prioridade: 6) registrada. Total de regras: 6","service":"affiliates","timestamp":"2026-04-25T02:08:45.804Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'best_day_format_engagement_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:45.805Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'follower_growth_stagnation_v1' (Prioridade: 8) registrada. Total de regras: 7","service":"affiliates","timestamp":"2026-04-25T02:08:45.805Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'follower_growth_stagnation_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:45.805Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'posting_consistency_check_v1' (Prioridade: 7) registrada. Total de regras: 8","service":"affiliates","timestamp":"2026-04-25T02:08:45.805Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'posting_consistency_check_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:45.805Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'evergreen_repurpose_suggestion_v1' (Prioridade: 5) registrada. Total de regras: 9","service":"affiliates","timestamp":"2026-04-25T02:08:45.805Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'evergreen_repurpose_suggestion_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:45.805Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'new_format_performance_spike_v1' (Prioridade: 7) registrada. Total de regras: 10","service":"affiliates","timestamp":"2026-04-25T02:08:45.805Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'new_format_performance_spike_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:45.805Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineService] Regra 'media_type_performance_comparison_v1' (Prioridade: 6) registrada. Total de regras: 11","service":"affiliates","timestamp":"2026-04-25T02:08:45.806Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Regra 'media_type_performance_comparison_v1' registrada.","service":"affiliates","timestamp":"2026-04-25T02:08:45.806Z","version":"local"}
+{"env":"production","level":"info","message":"[RuleEngineIndex] Todas as regras disponíveis foram processadas para registro. Total de regras registradas: 11","service":"affiliates","timestamp":"2026-04-25T02:08:45.809Z","version":"local"}
+- info Generating static pages (96/129)
+{"env":"production","level":"info","message":"[landing][castingService][buildCastingCreators] Building casting creators list.","service":"affiliates","timestamp":"2026-04-25T02:08:46.031Z","version":"local"}
+{"env":"production","level":"info","message":"[dataService][connection][connectToDatabase v2.15.0] Solicitada conexão. Estado Mongoose: disconnected (0). Conexão atual: N/A. DB esperado: data2content","service":"affiliates","timestamp":"2026-04-25T02:08:46.031Z","version":"local"}
+{"dbName":"data2content","env":"production","level":"info","maxPoolSize":10,"message":"[mongoose] Opening MongoDB connection.","readyState":0,"serverSelectionTimeoutMS":30000,"service":"affiliates","socketTimeoutMS":60000,"timestamp":"2026-04-25T02:08:46.032Z","version":"local"}
+{"env":"production","level":"info","message":"[landing][castingService][buildCastingCreators] Building casting creators list.","service":"affiliates","timestamp":"2026-04-25T02:08:46.059Z","version":"local"}
+{"env":"production","level":"info","message":"[dataService][connection][connectToDatabase v2.15.0] Solicitada conexão. Estado Mongoose: connecting (2). Conexão atual: N/A. DB esperado: data2content","service":"affiliates","timestamp":"2026-04-25T02:08:46.059Z","version":"local"}
+- info Generating static pages (129/129)
+- info Finalizing page optimization...
+
+Route (app)                                                             Size     First Load JS
+┌ λ /                                                                   1.1 kB          109 kB
+├ λ /admin/affiliates                                                   12 kB           121 kB
+├ λ /admin/affiliates-management                                        4.83 kB        99.7 kB
+├ λ /admin/agencies                                                     10.1 kB         112 kB
+├ λ /admin/billing-debug                                                2.07 kB        85.8 kB
+├ λ /admin/brand-proposals                                              6.57 kB         101 kB
+├ λ /admin/carousels/case-generator                                     28.9 kB         118 kB
+├ λ /admin/chat-telemetry                                               2.51 kB        86.2 kB
+├ λ /admin/chat-telemetry/quality                                       6.49 kB        90.2 kB
+├ λ /admin/chat-telemetry/review-queue                                  1.75 kB        85.5 kB
+├ λ /admin/chat-telemetry/sessions                                      3.19 kB        86.9 kB
+├ λ /admin/creator-dashboard                                            2.76 kB         255 kB
+├ λ /admin/creators-insights                                            53.1 kB         240 kB
+├ λ /admin/creators-management                                          5.56 kB         100 kB
+├ λ /admin/intelligence-hub                                             28.7 kB         214 kB
+├ λ /admin/monitoring                                                   1.64 kB         188 kB
+├ λ /admin/redemptions                                                  12.4 kB         155 kB
+├ λ /admin/redemptions-management                                       11.1 kB        94.8 kB
+├ λ /admin/reviewed-posts                                               10.7 kB         142 kB
+├ λ /affiliate/connect/refresh                                          931 B          87.7 kB
+├ λ /affiliate/connect/return                                           932 B          87.7 kB
+├ λ /affiliates                                                         153 B           111 kB
+├ λ /afiliados                                                          7.13 kB         125 kB
+├ λ /agency/dashboard                                                   87.2 kB         362 kB
+├ λ /agency/signup                                                      6.65 kB        99.5 kB
+├ λ /agency/subscription                                                7.43 kB         106 kB
+├ λ /answer/[query]                                                     11.2 kB         101 kB
+├ λ /api/account/delete                                                 0 B                0 B
+├ λ /api/admin/affiliate/commissions/[invoiceId]/retry                  0 B                0 B
+├ λ /api/admin/affiliates                                               0 B                0 B
+├ λ /api/admin/affiliates/[affiliateId]/status                          0 B                0 B
+├ λ /api/admin/agencies                                                 0 B                0 B
+├ λ /api/admin/billing/abort                                            0 B                0 B
+├ λ /api/admin/billing/debug                                            0 B                0 B
+├ λ /api/admin/billing/reconcile                                        0 B                0 B
+├ λ /api/admin/brand-proposals                                          0 B                0 B
+├ λ /api/admin/brand-proposals/[proposalId]                             0 B                0 B
+├ λ /api/admin/carousels/case-generator/drafts                          0 B                0 B
+├ λ /api/admin/carousels/case-generator/export                          0 B                0 B
+├ λ /api/admin/carousels/case-generator/generate                        0 B                0 B
+├ λ /api/admin/carousels/case-generator/source                          0 B                0 B
+├ λ /api/admin/chat/eval/cases                                          0 B                0 B
+├ λ /api/admin/chat/eval/run                                            0 B                0 B
+├ λ /api/admin/chat/metrics                                             0 B                0 B
+├ λ /api/admin/chat/reviews/queue                                       0 B                0 B
+├ λ /api/admin/chat/reviews/summary                                     0 B                0 B
+├ λ /api/admin/chat/reviews/upsert                                      0 B                0 B
+├ λ /api/admin/chat/sessions                                            0 B                0 B
+├ λ /api/admin/chat/sessions/[id]                                       0 B                0 B
+├ λ /api/admin/cpm-history                                              0 B                0 B
+├ λ /api/admin/cpm-history/snapshot                                     0 B                0 B
+├ λ /api/admin/creators                                                 0 B                0 B
+├ λ /api/admin/creators-survey                                          0 B                0 B
+├ λ /api/admin/creators-survey/[creatorId]                              0 B                0 B
+├ λ /api/admin/creators-survey/[creatorId]/notes                        0 B                0 B
+├ λ /api/admin/creators-survey/analytics                                0 B                0 B
+├ λ /api/admin/creators-survey/export                                   0 B                0 B
+├ λ /api/admin/creators-survey/open-responses                           0 B                0 B
+├ λ /api/admin/creators/[creatorId]/status                              0 B                0 B
+├ λ /api/admin/creators/region-summary                                  0 B                0 B
+├ λ /api/admin/dashboard-summary                                        0 B                0 B
+├ λ /api/admin/dashboard/audience/region-summary                        0 B                0 B
+├ λ /api/admin/dashboard/cohorts/compare                                0 B                0 B
+├ λ /api/admin/dashboard/content-segments/compare                       0 B                0 B
+├ λ /api/admin/dashboard/content-stats                                  0 B                0 B
+├ λ /api/admin/dashboard/content/performance-by-type                    0 B                0 B
+├ λ /api/admin/dashboard/contexts                                       0 B                0 B
+├ λ /api/admin/dashboard/creators                                       0 B                0 B
+├ λ /api/admin/dashboard/creators/[creatorId]/time-series               0 B                0 B
+├ λ /api/admin/dashboard/creators/compare                               0 B                0 B
+├ λ /api/admin/dashboard/creators/search                                0 B                0 B
+├ λ /api/admin/dashboard/demographics                                   0 B                0 B
+├ λ /api/admin/dashboard/highlights/performance-summary                 0 B                0 B
+├ λ /api/admin/dashboard/highlights/performance-summary/batch           0 B                0 B
+├ λ /api/admin/dashboard/market-performance                             0 B                0 B
+├ λ /api/admin/dashboard/performance/average-engagement                 0 B                0 B
+├ λ /api/admin/dashboard/performance/time-distribution                  0 B                0 B
+├ λ /api/admin/dashboard/platform-kpis/periodic-comparison              0 B                0 B
+├ λ /api/admin/dashboard/platform-kpis/summary                          0 B                0 B
+├ λ /api/admin/dashboard/platform-summary                               0 B                0 B
+├ λ /api/admin/dashboard/platform-summary/batch                         0 B                0 B
+├ λ /api/admin/dashboard/post-reviews                                   0 B                0 B
+├ λ /api/admin/dashboard/posts                                          0 B                0 B
+├ λ /api/admin/dashboard/posts/[postId]/details                         0 B                0 B
+├ λ /api/admin/dashboard/radar/effectiveness                            0 B                0 B
+├ λ /api/admin/dashboard/rankings/categories                            0 B                0 B
+├ λ /api/admin/dashboard/rankings/categories/batch                      0 B                0 B
+├ λ /api/admin/dashboard/rankings/creators/avg-engagement-per-post      0 B                0 B
+├ λ /api/admin/dashboard/rankings/creators/avg-reach-per-post           0 B                0 B
+├ λ /api/admin/dashboard/rankings/creators/batch                        0 B                0 B
+├ λ /api/admin/dashboard/rankings/creators/engagement-growth            0 B                0 B
+├ λ /api/admin/dashboard/rankings/creators/most-prolific                0 B                0 B
+├ λ /api/admin/dashboard/rankings/creators/performance-consistency      0 B                0 B
+├ λ /api/admin/dashboard/rankings/creators/reach-per-follower           0 B                0 B
+├ λ /api/admin/dashboard/rankings/creators/top-engaging                 0 B                0 B
+├ λ /api/admin/dashboard/rankings/creators/top-interactions             0 B                0 B
+├ λ /api/admin/dashboard/rankings/creators/top-sharing                  0 B                0 B
+├ λ /api/admin/dashboard/rankings/proposals                             0 B                0 B
+├ λ /api/admin/dashboard/rankings/top-creators                          0 B                0 B
+├ λ /api/admin/dashboard/rankings/top-creators/batch                    0 B                0 B
+├ λ /api/admin/dashboard/top-movers                                     0 B                0 B
+├ λ /api/admin/dashboard/trends/batch                                   0 B                0 B
+├ λ /api/admin/dashboard/trends/follower-change                         0 B                0 B
+├ λ /api/admin/dashboard/trends/followers                               0 B                0 B
+├ λ /api/admin/dashboard/trends/moving-average-engagement               0 B                0 B
+├ λ /api/admin/dashboard/trends/reach-engagement                        0 B                0 B
+├ λ /api/admin/dashboard/usage/history/[userId]                         0 B                0 B
+├ λ /api/admin/dashboard/usage/top-users                                0 B                0 B
+├ λ /api/admin/dashboard/users/[userId]/performance/time-distribution   0 B                0 B
+├ λ /api/admin/dashboard/users/[userId]/planning/batch                  0 B                0 B
+├ λ /api/admin/dashboard/users/[userId]/widgets/batch                   0 B                0 B
+├ λ /api/admin/intelligence-query                                       0 B                0 B
+├ λ /api/admin/maintenance/fix-subscriptions                            0 B                0 B
+├ λ /api/admin/monitoring/summary                                       0 B                0 B
+├ λ /api/admin/plan-guard/metrics                                       0 B                0 B
+├ λ /api/admin/post-creation/funnel/summary                             0 B                0 B
+├ λ /api/admin/redemptions                                              0 B                0 B
+├ λ /api/admin/redemptions/[redemptionId]/status                        0 B                0 B
+├ λ /api/admin/scripts/quality/cases/[id]                               0 B                0 B
+├ λ /api/admin/scripts/quality/summary                                  0 B                0 B
+├ λ /api/admin/seed-usage                                               0 B                0 B
+├ λ /api/admin/users/[userId]/generate-media-kit-token                  0 B                0 B
+├ λ /api/admin/users/[userId]/media-kit-token                           0 B                0 B
+├ λ /api/admin/users/[userId]/role                                      0 B                0 B
+├ λ /api/admin/users/convert-guest                                      0 B                0 B
+├ λ /api/admin/users/search                                             0 B                0 B
+├ λ /api/ads                                                            0 B                0 B
+├ λ /api/affiliate                                                      0 B                0 B
+├ λ /api/affiliate/balances                                             0 B                0 B
+├ λ /api/affiliate/commission-log                                       0 B                0 B
+├ λ /api/affiliate/connect/create                                       0 B                0 B
+├ λ /api/affiliate/connect/link                                         0 B                0 B
+├ λ /api/affiliate/connect/onboard                                      0 B                0 B
+├ λ /api/affiliate/connect/status                                       0 B                0 B
+├ λ /api/affiliate/cron/mature                                          0 B                0 B
+├ λ /api/affiliate/history                                              0 B                0 B
+├ λ /api/affiliate/redeem                                               0 B                0 B
+├ λ /api/affiliate/summary                                              0 B                0 B
+├ λ /api/agency/accept-invite                                           0 B                0 B
+├ λ /api/agency/creators/region-summary                                 0 B                0 B
+├ λ /api/agency/dashboard/contexts                                      0 B                0 B
+├ λ /api/agency/dashboard/creators                                      0 B                0 B
+├ λ /api/agency/dashboard/demographics                                  0 B                0 B
+├ λ /api/agency/dashboard/highlights/performance-summary                0 B                0 B
+├ λ /api/agency/dashboard/highlights/performance-summary/batch          0 B                0 B
+├ λ /api/agency/dashboard/performance/average-engagement                0 B                0 B
+├ λ /api/agency/dashboard/performance/time-distribution                 0 B                0 B
+├ λ /api/agency/dashboard/platform-kpis/periodic-comparison             0 B                0 B
+├ λ /api/agency/dashboard/platform-kpis/summary                         0 B                0 B
+├ λ /api/agency/dashboard/platform-summary                              0 B                0 B
+├ λ /api/agency/dashboard/posts                                         0 B                0 B
+├ λ /api/agency/dashboard/posts/[postId]/details                        0 B                0 B
+├ λ /api/agency/dashboard/rankings/creators/avg-engagement-per-post     0 B                0 B
+├ λ /api/agency/dashboard/rankings/creators/avg-reach-per-post          0 B                0 B
+├ λ /api/agency/dashboard/rankings/creators/engagement-growth           0 B                0 B
+├ λ /api/agency/dashboard/rankings/creators/most-prolific               0 B                0 B
+├ λ /api/agency/dashboard/rankings/creators/performance-consistency     0 B                0 B
+├ λ /api/agency/dashboard/rankings/creators/reach-per-follower          0 B                0 B
+├ λ /api/agency/dashboard/rankings/creators/top-engaging                0 B                0 B
+├ λ /api/agency/dashboard/rankings/creators/top-interactions            0 B                0 B
+├ λ /api/agency/dashboard/rankings/creators/top-sharing                 0 B                0 B
+├ λ /api/agency/dashboard/rankings/top-creators                         0 B                0 B
+├ λ /api/agency/dashboard/top-movers                                    0 B                0 B
+├ λ /api/agency/dashboard/trends/follower-change                        0 B                0 B
+├ λ /api/agency/dashboard/trends/followers                              0 B                0 B
+├ λ /api/agency/dashboard/trends/moving-average-engagement              0 B                0 B
+├ λ /api/agency/dashboard/trends/reach-engagement                       0 B                0 B
+├ λ /api/agency/dashboard/users/[userId]/performance/time-distribution  0 B                0 B
+├ λ /api/agency/guests                                                  0 B                0 B
+├ λ /api/agency/info/[inviteCode]                                       0 B                0 B
+├ λ /api/agency/invite-code                                             0 B                0 B
+├ λ /api/agency/profile                                                 0 B                0 B
+├ λ /api/agency/register                                                0 B                0 B
+├ λ /api/agency/subscription/cancel                                     0 B                0 B
+├ λ /api/agency/subscription/create-checkout                            0 B                0 B
+├ λ /api/agency/subscription/manage-portal                              0 B                0 B
+├ λ /api/agency/subscription/webhook                                    0 B                0 B
+├ λ /api/agency/summary                                                 0 B                0 B
+├ λ /api/agency/users/search                                            0 B                0 B
+├ λ /api/ai-summary                                                     0 B                0 B
+├ λ /api/ai/chat                                                        0 B                0 B
+├ λ /api/ai/chat/threads                                                0 B                0 B
+├ λ /api/ai/chat/threads/[threadId]                                     0 B                0 B
+├ λ /api/ai/dynamicCards                                                0 B                0 B
+├ λ /api/ai/insights                                                    0 B                0 B
+├ λ /api/ai/pricing-analysis                                            0 B                0 B
+├ λ /api/alerts                                                         0 B                0 B
+├ λ /api/alerts/[alertId]/mark-read                                     0 B                0 B
+├ λ /api/alerts/unread-count                                            0 B                0 B
+├ λ /api/analytics/context                                              0 B                0 B
+├ λ /api/auth/[...nextauth]                                             0 B                0 B
+├ λ /api/auth/delete-user-data                                          0 B                0 B
+├ λ /api/auth/iniciar-vinculacao-fb                                     0 B                0 B
+├ λ /api/billing/abort                                                  0 B                0 B
+├ λ /api/billing/cancel                                                 0 B                0 B
+├ λ /api/billing/change-plan                                            0 B                0 B
+├ λ /api/billing/checkout/trial                                         0 B                0 B
+├ λ /api/billing/portal                                                 0 B                0 B
+├ λ /api/billing/preview                                                0 B                0 B
+├ λ /api/billing/preview-plan-change                                    0 B                0 B
+├ λ /api/billing/prices                                                 0 B                0 B
+├ λ /api/billing/reactivate                                             0 B                0 B
+├ λ /api/billing/resume                                                 0 B                0 B
+├ λ /api/billing/status                                                 0 B                0 B
+├ λ /api/billing/subscribe                                              0 B                0 B
+├ λ /api/billing/subscription                                           0 B                0 B
+├ λ /api/calculator                                                     0 B                0 B
+├ λ /api/calculator/[id]                                                0 B                0 B
+├ λ /api/calculator/latest                                              0 B                0 B
+├ λ /api/campaigns/new                                                  0 B                0 B
+├ λ /api/chat/feedback/csat-prompt                                      0 B                0 B
+├ λ /api/chat/feedback/message                                          0 B                0 B
+├ λ /api/chat/feedback/session                                          0 B                0 B
+├ λ /api/creator/profile-extended                                       0 B                0 B
+├ λ /api/cron/backfill-post-covers                                      0 B                0 B
+├ λ /api/cron/expire-trials                                             0 B                0 B
+├ λ /api/cron/mature-affiliate-commissions                              0 B                0 B
+├ λ /api/cron/persist-usage-counters                                    0 B                0 B
+├ λ /api/cron/populate-community-inspirations                           0 B                0 B
+├ λ /api/cron/refresh-instagram-data                                    0 B                0 B
+├ λ /api/cron/send-daily-tips                                           0 B                0 B
+├ λ /api/cron/whatsapp-trial                                            0 B                0 B
+├ λ /api/dashboard/community/free-join                                  0 B                0 B
+├ λ /api/dashboard/community/vip-join-confirmation                      0 B                0 B
+├ λ /api/dashboard/home/summary                                         0 B                0 B
+├ λ /api/dashboard/notifications/badges                                 0 B                0 B
+├ λ /api/dashboard/post-reviews                                         0 B                0 B
+├ λ /api/dashboard/post-reviews/unread-count                            0 B                0 B
+├ λ /api/dashboard/proposals/proposal-link-copied                       0 B                0 B
+├ λ /api/deals/recent                                                   0 B                0 B
+├ λ /api/demographics/[userId]                                          0 B                0 B
+├ λ /api/dev/e2e/ensure-planner-access                                  0 B                0 B
+├ λ /api/dev/e2e/scripts-fixture                                        0 B                0 B
+├ λ /api/dev/test-permissions                                           0 B                0 B
+├ λ /api/discover/feed                                                  0 B                0 B
+├ λ /api/feature-flags                                                  0 B                0 B
+├ λ /api/instagram/[userId]/demographics                                0 B                0 B
+├ λ /api/instagram/connect-selected-account                             0 B                0 B
+├ λ /api/instagram/disconnect                                           0 B                0 B
+├ λ /api/instagram/fetch-media                                          0 B                0 B
+├ λ /api/instagram/status                                               0 B                0 B
+├ λ /api/internal/affiliate/health                                      0 B                0 B
+├ λ /api/internal/affiliate/mature                                      0 B                0 B
+├ λ /api/landing/casting                                                0 B                0 B
+├ λ /api/landing/community-stats                                        0 B                0 B
+├ λ /api/landing/coverage/geography                                     0 B                0 B
+├ λ /api/landing/coverage/segments                                      0 B                0 B
+├ λ /api/landing/discovery                                              0 B                0 B
+├ λ /api/media/cover/[id]                                               0 B                0 B
+├ λ /api/mediakit/[token]/avatar                                        0 B                0 B
+├ λ /api/mediakit/[token]/og-image                                      0 B                0 B
+├ λ /api/mediakit/[token]/pdf                                           0 B                0 B
+├ λ /api/mediakit/[token]/proposals                                     0 B                0 B
+├ λ /api/mediakit/access                                                0 B                0 B
+├ λ /api/mediakit/self/packages                                         0 B                0 B
+├ λ /api/mediakit/self/pricing                                          0 B                0 B
+├ λ /api/mediakit/self/user                                             0 B                0 B
+├ λ /api/metrics                                                        0 B                0 B
+├ λ /api/metrics/[metricId]/daily                                       0 B                0 B
+├ λ /api/metricsHistory                                                 0 B                0 B
+├ λ /api/og/home                                                        0 B                0 B
+├ λ /api/plan/cancel                                                    0 B                0 B
+├ λ /api/plan/last-error                                                0 B                0 B
+├ λ /api/plan/status                                                    0 B                0 B
+├ λ /api/plan/subscribe                                                 0 B                0 B
+├ λ /api/plan/subscribe-one-time                                        0 B                0 B
+├ λ /api/plan/webhook                                                   0 B                0 B
+├ λ /api/planner/batch                                                  0 B                0 B
+├ λ /api/planner/generate                                               0 B                0 B
+├ λ /api/planner/inspirations                                           0 B                0 B
+├ λ /api/planner/inspirations/community                                 0 B                0 B
+├ λ /api/planner/pautas                                                 0 B                0 B
+├ λ /api/planner/plan                                                   0 B                0 B
+├ λ /api/planner/public                                                 0 B                0 B
+├ λ /api/planner/recommendations                                        0 B                0 B
+├ λ /api/planner/themes                                                 0 B                0 B
+├ λ /api/post-creation/drafts                                           0 B                0 B
+├ λ /api/post-creation/drafts/[id]                                      0 B                0 B
+├ λ /api/post-creation/events                                           0 B                0 B
+├ λ /api/post-creation/events/summary                                   0 B                0 B
+├ λ /api/post-creation/trial/start                                      0 B                0 B
+├ λ /api/post-creation/trial/status                                     0 B                0 B
+├ λ /api/proposals                                                      0 B                0 B
+├ λ /api/proposals/[id]                                                 0 B                0 B
+├ λ /api/proposals/[id]/analyze                                         0 B                0 B
+├ λ /api/proposals/[id]/links                                           0 B                0 B
+├ λ /api/proposals/[id]/links/[linkId]                                  0 B                0 B
+├ λ /api/proposals/[id]/notify-upgrade                                  0 B                0 B
+├ λ /api/proposals/[id]/reply                                           0 B                0 B
+├ λ /api/proxy/thumbnail/[...path]                                      0 B                0 B
+├ λ /api/proxy/video/[...path]                                          0 B                0 B
+├ λ /api/public/publis/[token]                                          0 B                0 B
+├ λ /api/publis                                                         0 B                0 B
+├ λ /api/publis/[id]                                                    0 B                0 B
+├ λ /api/publis/[id]/override                                           0 B                0 B
+├ λ /api/publis/[id]/share                                              0 B                0 B
+├ λ /api/publis/[id]/share/revoke                                       0 B                0 B
+├ ○ /api/questions                                                      0 B                0 B
+├ λ /api/reports/strategic/[userId]                                     0 B                0 B
+├ λ /api/resolve-user-id                                                0 B                0 B
+├ λ /api/scripts                                                        0 B                0 B
+├ λ /api/scripts/[id]                                                   0 B                0 B
+├ λ /api/scripts/[id]/ai-adjust                                         0 B                0 B
+├ λ /api/scripts/content-options                                        0 B                0 B
+├ λ /api/scripts/unread-count                                           0 B                0 B
+├ λ /api/stripe/connect-webhook                                         0 B                0 B
+├ λ /api/stripe/webhook                                                 0 B                0 B
+├ λ /api/test-sentry                                                    0 B                0 B
+├ ○ /api/test-whatsapp                                                  0 B                0 B
+├ λ /api/user/account                                                   0 B                0 B
+├ λ /api/user/complete-onboarding                                       0 B                0 B
+├ λ /api/user/summary                                                   0 B                0 B
+├ λ /api/users/media-kit-token                                          0 B                0 B
+├ λ /api/v1/creators/scatter-plot                                       0 B                0 B
+├ λ /api/v1/platform/charts/monthly-engagement-stacked                  0 B                0 B
+├ λ /api/v1/platform/demographics                                       0 B                0 B
+├ λ /api/v1/platform/highlights/performance-summary                     0 B                0 B
+├ λ /api/v1/platform/kpis/periodic-comparison                           0 B                0 B
+├ λ /api/v1/platform/kpis/summary                                       0 B                0 B
+├ λ /api/v1/platform/performance/average-engagement                     0 B                0 B
+├ λ /api/v1/platform/performance/conversion-metrics                     0 B                0 B
+├ λ /api/v1/platform/performance/engagement-distribution-format         0 B                0 B
+├ λ /api/v1/platform/performance/post-distribution-format               0 B                0 B
+├ λ /api/v1/platform/performance/time-distribution                      0 B                0 B
+├ λ /api/v1/platform/performance/time-distribution/posts                0 B                0 B
+├ λ /api/v1/platform/performance/video-metrics                          0 B                0 B
+├ λ /api/v1/platform/trends/follower-change                             0 B                0 B
+├ λ /api/v1/platform/trends/followers                                   0 B                0 B
+├ λ /api/v1/platform/trends/moving-average-engagement                   0 B                0 B
+├ λ /api/v1/platform/trends/reach-engagement                            0 B                0 B
+├ λ /api/v1/posts/[postId]/details                                      0 B                0 B
+├ λ /api/v1/users/[userId]/alerts/active                                0 B                0 B
+├ λ /api/v1/users/[userId]/charts/monthly-comparison                    0 B                0 B
+├ λ /api/v1/users/[userId]/charts/monthly-engagement-stacked            0 B                0 B
+├ λ /api/v1/users/[userId]/comparison/radar-chart                       0 B                0 B
+├ λ /api/v1/users/[userId]/highlights/performance-summary               0 B                0 B
+├ λ /api/v1/users/[userId]/kpis/periodic-comparison                     0 B                0 B
+├ λ /api/v1/users/[userId]/performance/average-engagement               0 B                0 B
+├ λ /api/v1/users/[userId]/performance/conversion-metrics               0 B                0 B
+├ λ /api/v1/users/[userId]/performance/engagement-distribution-format   0 B                0 B
+├ λ /api/v1/users/[userId]/performance/time-distribution                0 B                0 B
+├ λ /api/v1/users/[userId]/performance/time-distribution/posts          0 B                0 B
+├ λ /api/v1/users/[userId]/performance/video-metrics                    0 B                0 B
+├ λ /api/v1/users/[userId]/planning/charts-batch                        0 B                0 B
+├ λ /api/v1/users/[userId]/planning/recommendation-feedback             0 B                0 B
+├ λ /api/v1/users/[userId]/rankings/by-category                         0 B                0 B
+├ λ /api/v1/users/[userId]/trends/follower-change                       0 B                0 B
+├ λ /api/v1/users/[userId]/trends/followers                             0 B                0 B
+├ λ /api/v1/users/[userId]/trends/fpc-history                           0 B                0 B
+├ λ /api/v1/users/[userId]/trends/moving-average-engagement             0 B                0 B
+├ λ /api/v1/users/[userId]/trends/reach-engagement                      0 B                0 B
+├ λ /api/v1/users/[userId]/videos/list                                  0 B                0 B
+├ λ /api/videos                                                         0 B                0 B
+├ λ /api/webhooks/instagram                                             0 B                0 B
+├ λ /api/webhooks/payment                                               0 B                0 B
+├ λ /api/whatsapp/generateCode                                          0 B                0 B
+├ λ /api/whatsapp/incoming                                              0 B                0 B
+├ λ /api/whatsapp/process-response                                      0 B                0 B
+├ λ /api/whatsapp/sendTips                                              0 B                0 B
+├ λ /api/whatsapp/status                                                0 B                0 B
+├ λ /api/whatsapp/verify                                                0 B                0 B
+├ λ /api/whatsapp/weeklyReport                                          0 B                0 B
+├ λ /api/worker/backfill-post-cover                                     0 B                0 B
+├ λ /api/worker/classify-content                                        0 B                0 B
+├ λ /api/worker/process-story-webhook                                   0 B                0 B
+├ λ /api/worker/refresh-instagram-user                                  0 B                0 B
+├ λ /assinar                                                            5.67 kB        98.5 kB
+├ λ /auth/callback                                                      1.83 kB        94.7 kB
+├ λ /auth/complete-signup                                               2.22 kB        95.1 kB
+├ λ /auth/signin                                                        1.91 kB        94.8 kB
+├ λ /auth/signup                                                        2.23 kB        95.1 kB
+├ λ /billing/success                                                    3.25 kB        96.1 kB
+├ λ /calendar                                                           12.7 kB         190 kB
+├ λ /campaigns                                                          31.3 kB         186 kB
+├ λ /campaigns/new                                                      4.89 kB        88.6 kB
+├ λ /casting                                                            16.1 kB         157 kB
+├ λ /dashboard                                                          437 B          84.1 kB
+├ λ /dashboard/afiliados                                                153 B           111 kB
+├ λ /dashboard/billing                                                  8.83 kB          98 kB
+├ λ /dashboard/billing/checkout                                         6.26 kB         144 kB
+├ λ /dashboard/billing/success                                          1.07 kB        84.8 kB
+├ λ /dashboard/billing/thanks                                           1.07 kB        84.8 kB
+├ λ /dashboard/calculator                                               5.06 kB         124 kB
+├ λ /dashboard/chat                                                     23.2 kB         178 kB
+├ λ /dashboard/discover                                                 437 B          84.1 kB
+├ λ /dashboard/home                                                     4.96 kB        88.7 kB
+├ λ /dashboard/instagram-connection                                     10.2 kB         117 kB
+├ λ /dashboard/instagram/connect                                        7.08 kB         100 kB
+├ λ /dashboard/instagram/connecting                                     9.34 kB         102 kB
+├ λ /dashboard/instagram/faq                                            3.2 kB         86.9 kB
+├ λ /dashboard/media-kit                                                1.35 kB         335 kB
+├ λ /dashboard/planning                                                 435 B          84.1 kB
+├ λ /dashboard/post-analysis                                            6.93 kB         117 kB
+├ λ /dashboard/pro                                                      4.54 kB        97.4 kB
+├ λ /dashboard/proposals                                                435 B          84.1 kB
+├ λ /dashboard/publis                                                   11.1 kB         130 kB
+├ λ /dashboard/publis/[id]                                              7.58 kB         117 kB
+├ λ /dashboard/reports/strategic                                        7.66 kB         103 kB
+├ λ /dashboard/settings                                                 175 B           186 kB
+├ λ /dashboard/whatsapp                                                 437 B          84.1 kB
+├ λ /debug/ui                                                           3.97 kB        87.7 kB
+├ λ /discover                                                           437 B          84.1 kB
+├ λ /examples/toasts                                                    6.28 kB          90 kB
+├ ○ /favicon.ico                                                        0 B                0 B
+├ λ /landing                                                            437 B          84.1 kB
+├ λ /lib/instagram/api/demographics/[userId]                            0 B                0 B
+├ λ /login                                                              6.44 kB         139 kB
+├ λ /media-kit                                                          1.35 kB         335 kB
+├ λ /mediakit/[token]                                                   2.75 kB         323 kB
+├ λ /planner/demo                                                       143 B          97.1 kB
+├ λ /planning                                                           224 B           138 kB
+├ λ /planning/chat                                                      5.04 kB         157 kB
+├ λ /planning/demo                                                      143 B          97.1 kB
+├ λ /planning/discover                                                  10.3 kB         157 kB
+├ λ /planning/graficos                                                  36 kB           165 kB
+├ λ /planning/planner                                                   1.36 kB         139 kB
+├ λ /planning/roteiros                                                  6.81 kB         157 kB
+├ λ /planning/whatsapp                                                  946 B           139 kB
+├ λ /politica-de-privacidade                                            315 B          94.8 kB
+├ λ /pro                                                                8.04 kB         110 kB
+├ λ /publi-share/[token]                                                6.81 kB         212 kB
+├ ○ /robots.txt                                                         0 B                0 B
+├ λ /search                                                             145 B          83.8 kB
+├ λ /settings                                                           175 B           186 kB
+├ λ /settings/account                                                   3.22 kB        99.1 kB
+├ λ /settings/billing                                                   985 B           173 kB
+├ ○ /sitemap.xml                                                        0 B                0 B
+└ λ /termos-e-condicoes                                                 147 B          83.9 kB
++ First Load JS shared by all                                           83.7 kB
+  ├ chunks/8114-4d3e4f5302a71170.js                                     26.8 kB
+  ├ chunks/bf6a786c-d3bb9f3bd3f41642.js                                 52.7 kB
+  ├ chunks/main-app-25761f085a3702f9.js                                 228 B
+  └ chunks/webpack-c1b5990350c1036e.js                                  4.03 kB
+
+Route (pages)                                                           Size     First Load JS
+─ ○ /404                                                                185 B          80.3 kB
++ First Load JS shared by all                                           80.1 kB
+  ├ chunks/framework-638abc5ad5ea33cc.js                                45 kB
+  ├ chunks/main-15f9ec0ec199a9ff.js                                     30.8 kB
+  ├ chunks/pages/_app-8af45f6c5c3cbc8e.js                               201 B
+  └ chunks/webpack-c1b5990350c1036e.js                                  4.03 kB
+
+ƒ Middleware                                                            26.3 kB
+
+λ  (Server)  server-side renders at runtime (uses getInitialProps or getServerSideProps)
+○  (Static)  automatically rendered as static HTML (uses no initial props)
+

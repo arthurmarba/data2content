@@ -212,6 +212,7 @@ type IncomingSlot = {
   expectedMetrics?: { viewsP50?: number; viewsP90?: number; sharesP50?: number };
   recordingTimeSec?: number;
   aiVersionId?: string | null;
+  savedFrom?: string | null;
   title?: string;
   scriptShort?: string;
   notes?: string;
@@ -259,6 +260,7 @@ function sanitizeSlot(s: any): IncomingSlot | null {
     expectedMetrics: { viewsP50, viewsP90, ...(sharesP50 !== undefined ? { sharesP50 } : {}) },
     recordingTimeSec: toIntNonNeg(s?.recordingTimeSec),
     aiVersionId: typeof s?.aiVersionId === 'string' ? s.aiVersionId : null,
+    savedFrom: typeof s?.savedFrom === 'string' ? s.savedFrom : null,
     title: typeof s?.title === 'string' ? s.title : undefined,
     scriptShort: typeof s?.scriptShort === 'string' ? s.scriptShort : undefined,
     notes: typeof s?.notes === 'string' ? s.notes : undefined,
@@ -270,12 +272,42 @@ function dedupeByCell(slots: IncomingSlot[]): IncomingSlot[] {
   const seen = new Set<string>();
   const out: IncomingSlot[] = [];
   for (const s of slots) {
-    const k = `${s.dayOfWeek}-${s.blockStartHour}`;
+    const k =
+      s.savedFrom === 'post_creation_funnel'
+        ? `saved-pauta:${s.slotId || s.title || s.scriptShort || ''}:${s.dayOfWeek}-${s.blockStartHour}`
+        : `${s.dayOfWeek}-${s.blockStartHour}`;
     if (seen.has(k)) continue;
     seen.add(k);
     out.push(s);
   }
   return out.sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.blockStartHour - b.blockStartHour);
+}
+
+function isRetryablePlannerWriteError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || '');
+  const labels = (error as { errorLabels?: unknown })?.errorLabels;
+  return (
+    /E11000|duplicate key|WriteConflict|write conflict|please retry|temporar/i.test(message) ||
+    (Array.isArray(labels) &&
+      labels.some((label) => label === 'RetryableWriteError' || label === 'TransientTransactionError')) ||
+    (labels instanceof Set &&
+      (labels.has('RetryableWriteError') || labels.has('TransientTransactionError')))
+  );
+}
+
+async function withPlannerWriteRetry<T>(operation: () => Promise<T>) {
+  let attempt = 0;
+  while (true) {
+    try {
+      return await operation();
+    } catch (error) {
+      attempt += 1;
+      if (attempt >= 4 || !isRetryablePlannerWriteError(error)) {
+        throw error;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100 * attempt));
+    }
+  }
 }
 
 // ----------------------------------------------------------
@@ -382,10 +414,84 @@ export async function POST(request: Request) {
     }
 
     // ---- Sanitização & dedupe ----
-    const incoming = Array.isArray(body?.slots) ? body.slots : [];
+    const incoming = Array.isArray(body?.slots) ? body.slots : body?.slot ? [body.slot] : [];
     const sanitized = incoming
       .map(sanitizeSlot)
       .filter((s: IncomingSlot | null): s is IncomingSlot => s !== null);
+
+    if (body?.operation === 'save_post_creation_pauta') {
+      const incomingSavedSlot = sanitized[0];
+      if (!incomingSavedSlot) {
+        return NextResponse.json({ ok: false, error: 'Pauta inválida.' }, { status: 400 });
+      }
+
+      const savedSlot = {
+        slotId: incomingSavedSlot.slotId ?? new Types.ObjectId().toString(),
+        dayOfWeek: incomingSavedSlot.dayOfWeek,
+        blockStartHour: incomingSavedSlot.blockStartHour,
+        format: incomingSavedSlot.format,
+        categories: incomingSavedSlot.categories || {},
+        contentIntent: incomingSavedSlot.contentIntent || [],
+        narrativeForm: incomingSavedSlot.narrativeForm || [],
+        contentSignals: incomingSavedSlot.contentSignals || [],
+        stance: incomingSavedSlot.stance || [],
+        proofStyle: incomingSavedSlot.proofStyle || [],
+        commercialMode: incomingSavedSlot.commercialMode || [],
+        status: incomingSavedSlot.status || 'drafted',
+        isExperiment: incomingSavedSlot.status === 'test' ? true : !!incomingSavedSlot.isExperiment,
+        expectedMetrics: incomingSavedSlot.expectedMetrics,
+        recordingTimeSec: incomingSavedSlot.recordingTimeSec,
+        aiVersionId: incomingSavedSlot.aiVersionId ?? null,
+        savedFrom: 'post_creation_funnel',
+        title: incomingSavedSlot.title,
+        scriptShort: incomingSavedSlot.scriptShort,
+        notes: incomingSavedSlot.notes,
+        themeKeyword: incomingSavedSlot.themeKeyword,
+      };
+      const savedAt = new Date();
+      const userObjectId = Types.ObjectId.isValid(effectiveUserId)
+        ? new Types.ObjectId(effectiveUserId)
+        : effectiveUserId;
+
+      await withPlannerWriteRetry(() =>
+        PlannerPlan.updateOne(
+          { userId: effectiveUserId, platform: 'instagram', weekStart },
+          [
+            {
+              $set: {
+                userId: userObjectId,
+                platform: 'instagram',
+                weekStart,
+                userTimeZone,
+                createdAt: { $ifNull: ['$createdAt', savedAt] },
+                updatedAt: savedAt,
+                slots: {
+                  $concatArrays: [
+                    {
+                      $filter: {
+                        input: { $ifNull: ['$slots', []] },
+                        as: 'slot',
+                        cond: { $ne: ['$$slot.slotId', savedSlot.slotId] },
+                      },
+                    },
+                    [savedSlot],
+                  ],
+                },
+              },
+            },
+          ],
+          { upsert: true, setDefaultsOnInsert: true }
+        )
+          .exec()
+      );
+
+      invalidatePlannerRecommendationMemory({
+        userId: effectiveUserId,
+        weekStart,
+      });
+
+      return NextResponse.json({ ok: true, savedSlot, weekStart });
+    }
 
     const deduped = dedupeByCell(sanitized).map((s) => ({
       slotId: s.slotId ?? new Types.ObjectId().toString(),
@@ -404,6 +510,7 @@ export async function POST(request: Request) {
       expectedMetrics: s.expectedMetrics,
       recordingTimeSec: s.recordingTimeSec,
       aiVersionId: s.aiVersionId ?? null,
+      savedFrom: s.savedFrom ?? null,
       title: s.title,
       scriptShort: s.scriptShort,
       notes: s.notes,

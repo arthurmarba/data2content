@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
 import OpenAI from 'openai';
-import { getBlockSampleCaptions } from '@/utils/getBlockSampleCaptions';
+import { getBlockSampleCaptions, type BlockCategorySelection } from '@/utils/getBlockSampleCaptions';
 import { PlannerCategories } from '@/types/planner';
 import { getCategoryById } from '@/app/lib/classification';
 import { getV2CategoryById } from '@/app/lib/classificationV2';
@@ -8,6 +8,7 @@ import { getV25CategoryById } from '@/app/lib/classificationV2_5';
 import { generateThemes as generateThemesAI } from '@/app/lib/planner/ai';
 
 type SlotThemesResult = { keyword: string; themes: string[] };
+type ThemeRetrievalSelection = Partial<BlockCategorySelection>;
 
 function normalizePreferredKeyword(value?: string): string | undefined {
   const raw = String(value || '').trim();
@@ -68,6 +69,22 @@ function categoriesCacheSignature(categories: PlannerCategories): string {
   return `ctx=${context}|prop=${proposal}|ref=${reference}|tone=${tone}|intent=${contentIntent}|narr=${narrativeForm}|signal=${contentSignals}|stance=${stance}|proof=${proofStyle}|commercial=${commercialMode}`;
 }
 
+function selectionCacheSignature(selection?: ThemeRetrievalSelection): string {
+  if (!selection) return '';
+  return [
+    `format=${String(selection.formatId || '').trim()}`,
+    `duration=${String(selection.durationId || '').trim()}`,
+    `ctx=${String(selection.contextId || '').trim()}`,
+    `prop=${String(selection.proposalId || '').trim()}`,
+    `ref=${String(selection.referenceId || '').trim()}`,
+    `tone=${String(selection.toneId || '').trim()}`,
+    `intent=${String(selection.contentIntentId || '').trim()}`,
+    `narr=${String(selection.narrativeFormId || '').trim()}`,
+    `proof=${String(selection.proofStyleId || '').trim()}`,
+    `commercial=${String(selection.commercialModeId || '').trim()}`,
+  ].join('|');
+}
+
 function buildSlotThemesCacheKey(params: {
   userId: string | Types.ObjectId;
   periodDays: number;
@@ -75,6 +92,7 @@ function buildSlotThemesCacheKey(params: {
   blockStartHour: number;
   categories: PlannerCategories;
   preferredKeyword?: string;
+  retrievalSelection?: ThemeRetrievalSelection;
 }) {
   const user = typeof params.userId === 'string' ? params.userId : params.userId.toString();
   const mode = String(process.env.PLANNER_THEMES_MODE || 'flex').toLowerCase();
@@ -91,6 +109,7 @@ function buildSlotThemesCacheKey(params: {
     model,
     temp,
     categories,
+    selectionCacheSignature(params.retrievalSelection),
     normalizePreferredKeyword(params.preferredKeyword) || '',
   ].join('|');
 }
@@ -365,7 +384,10 @@ async function aiSummarizeKeyword(params: {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
 
-  const openai = new OpenAI({ apiKey });
+  const openai = new OpenAI({
+    apiKey,
+    baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
+  });
   const sys = `Você extrai um TEMA ÚNICO em 1 palavra (substantivo simples, sem espaços) a partir de legendas vencedoras.`;
   const userPayload = {
     captions: (params.captions || []).slice(0, 20),
@@ -428,12 +450,19 @@ async function computeThemesForSlot(
   blockStartHour: number,
   categories: PlannerCategories,
   preferredKeyword?: string,
+  retrievalSelection?: ThemeRetrievalSelection,
 ): Promise<SlotThemesResult> {
-  const selected = {
-    formatId: undefined,
-    contextId: categories.context?.[0],
-    proposalId: categories.proposal?.[0],
-    referenceId: categories.reference?.[0],
+  const selected: BlockCategorySelection = {
+    formatId: retrievalSelection?.formatId,
+    durationId: retrievalSelection?.durationId,
+    contextId: retrievalSelection?.contextId || categories.context?.[0],
+    proposalId: retrievalSelection?.proposalId || categories.proposal?.[0],
+    referenceId: retrievalSelection?.referenceId || categories.reference?.[0],
+    toneId: retrievalSelection?.toneId,
+    contentIntentId: retrievalSelection?.contentIntentId,
+    narrativeFormId: retrievalSelection?.narrativeFormId,
+    proofStyleId: retrievalSelection?.proofStyleId,
+    commercialModeId: retrievalSelection?.commercialModeId,
   };
 
   // 1) Legendas do bloco (posts vencedores para o filtro escolhido)
@@ -505,9 +534,18 @@ export async function getThemesForSlot(
   blockStartHour: number,
   categories: PlannerCategories,
   preferredKeyword?: string,
+  retrievalSelection?: ThemeRetrievalSelection,
 ): Promise<SlotThemesResult> {
   if (THEMES_CACHE_TTL_MS <= 0) {
-    return computeThemesForSlot(userId, periodDays, dayOfWeek, blockStartHour, categories, preferredKeyword);
+    return computeThemesForSlot(
+      userId,
+      periodDays,
+      dayOfWeek,
+      blockStartHour,
+      categories,
+      preferredKeyword,
+      retrievalSelection
+    );
   }
 
   const nowTs = Date.now();
@@ -518,6 +556,7 @@ export async function getThemesForSlot(
     blockStartHour,
     categories,
     preferredKeyword,
+    retrievalSelection,
   });
 
   const cached = slotThemesCache.get(cacheKey);
@@ -535,7 +574,15 @@ export async function getThemesForSlot(
     return cloneSlotThemesResult(value);
   }
 
-  const promise = computeThemesForSlot(userId, periodDays, dayOfWeek, blockStartHour, categories, preferredKeyword)
+  const promise = computeThemesForSlot(
+    userId,
+    periodDays,
+    dayOfWeek,
+    blockStartHour,
+    categories,
+    preferredKeyword,
+    retrievalSelection
+  )
     .then((value) => {
       const stored = cloneSlotThemesResult(value);
       slotThemesCache.set(cacheKey, {

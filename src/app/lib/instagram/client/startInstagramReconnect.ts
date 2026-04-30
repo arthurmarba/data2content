@@ -7,6 +7,7 @@ export type InstagramReconnectNextTarget =
   | "media-kit"
   | "instagram-connection"
   | "planner"
+  | "post-creation"
   | "campaigns";
 
 type StartInstagramReconnectOptions = {

@@ -1,17 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, Users, FileEdit, Play, Target, CheckCircle2, Crown, Calendar, Instagram } from "lucide-react";
 import { useSession } from "next-auth/react";
+import { motion } from "framer-motion";
 import type { PaywallEventDetail } from "@/types/paywall";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
-import type { HomeSummaryResponse } from "@/app/dashboard/home/types";
+import type { HomeSummaryResponse, MentorshipCardData } from "@/app/dashboard/home/types";
 import { fetchHomeSummaryCached } from "@/app/dashboard/home/homeSummaryClient";
-
-type CommunityConversionSectionProps = {
-  teaserMode?: boolean;
-  compactView?: boolean;
-};
 
 const COMMUNITY_VIP_URL =
   process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ||
@@ -20,39 +16,63 @@ const COMMUNITY_VIP_URL =
 
 const MENTORING_TRACKS = [
   {
-    eyebrow: "Comunidade",
-    title: "Networking entre creators",
+    eyebrow: "Networking",
+    title: "Comunidade de Criadores",
     description: "Trocas práticas com creators em momentos parecidos.",
+    icon: Users,
+    color: "text-blue-600",
+    bg: "bg-blue-50/40 border-blue-100/50",
+    glow: "shadow-blue-500/10",
   },
   {
-    eyebrow: "Conteúdo",
-    title: "Revisão de conteúdo",
-    description: "Ajustes objetivos de posts, formato e execução.",
+    eyebrow: "Execução",
+    title: "Revisão de Conteúdo",
+    description: "Ajustes objetivos de posts, formato e execução técnica.",
+    icon: Play,
+    color: "text-rose-600",
+    bg: "bg-rose-50/40 border-rose-100/50",
+    glow: "shadow-rose-500/10",
   },
   {
     eyebrow: "Roteiro",
-    title: "Revisão de roteiro",
-    description: "Refino de ideias e roteiros antes de publicar.",
+    title: "Refino de Ideias",
+    description: "Otimização de roteiros e ganchos antes de publicar.",
+    icon: FileEdit,
+    color: "text-amber-600",
+    bg: "bg-amber-50/40 border-amber-100/50",
+    glow: "shadow-amber-500/10",
   },
   {
     eyebrow: "Estratégia",
-    title: "Análise estratégica",
-    description: "Direção para posicionamento, crescimento e próximos movimentos.",
+    title: "Análise Direcionada",
+    description: "Direção clara para posicionamento e novos movimentos.",
+    icon: Target,
+    color: "text-emerald-600",
+    bg: "bg-emerald-50/40 border-emerald-100/50",
+    glow: "shadow-emerald-500/10",
   },
 ];
 
 const MENTORING_STEPS = [
   {
-    label: "Entrar com Google",
-    description: "Crie sua conta para continuar.",
+    label: "Conta Ativa",
+    description: "Seu cadastro na Data2Content.",
+    icon: Users,
   },
   {
-    label: "Ativar o Plano Pro",
-    description: "Desbloqueie a mentoria.",
+    label: "Plano Pro",
+    description: "Libere o acesso às mentorias.",
+    icon: Crown,
   },
   {
-    label: "Entrar no grupo VIP",
-    description: "Receba os acessos e participe.",
+    label: "Instagram",
+    description: "Conecte sua conta para análise.",
+    icon: Instagram,
+  },
+  {
+    label: "Grupo VIP",
+    description: "Entre no grupo para o link ao vivo.",
+    icon: ArrowRight,
   },
 ];
 
@@ -73,43 +93,49 @@ function openMentoriaPaywall() {
   }
 }
 
-export default function CommunityConversionSection({
-  teaserMode = false,
-  compactView = false,
-}: CommunityConversionSectionProps) {
+export default function CommunityConversionSection(props: {
+  teaserMode?: boolean;
+  compactView?: boolean;
+}) {
+  const { compactView = false } = props;
   const { status: sessionStatus } = useSession();
   const { hasPremiumAccess } = useBillingStatus();
   const [communitySummary, setCommunitySummary] = React.useState<HomeSummaryResponse["community"] | null>(null);
+  const [mentorshipData, setMentorshipData] = React.useState<MentorshipCardData | null>(null);
   const [resolvingVipAccess, setResolvingVipAccess] = React.useState(false);
   const planActive = Boolean(hasPremiumAccess);
+
   const communityButtonLabel = planActive
-    ? "Entrar no grupo VIP"
-    : "Participar da mentoria";
+    ? "Acessar Grupo VIP"
+    : "Participar da Mentoria";
+
   const vipInviteUrl = communitySummary?.vip?.inviteUrl ?? null;
   const vipHasAccess = Boolean(communitySummary?.vip?.hasAccess);
 
   React.useEffect(() => {
     if (sessionStatus !== "authenticated") {
       setCommunitySummary(null);
+      setMentorshipData(null);
       return;
     }
 
     let cancelled = false;
     const controller = new AbortController();
 
-    const loadCommunitySummary = async () => {
+    const loadData = async () => {
       try {
         const payload = await fetchHomeSummaryCached("community");
         if (controller.signal.aborted || cancelled) return;
         if (!cancelled) {
           setCommunitySummary(payload?.community ?? null);
+          setMentorshipData(payload?.mentorship ?? null);
         }
       } catch (error) {
         if (cancelled || (error as Error)?.name === "AbortError") return;
       }
     };
 
-    void loadCommunitySummary();
+    void loadData();
 
     return () => {
       cancelled = true;
@@ -160,206 +186,185 @@ export default function CommunityConversionSection({
   }, [planActive, vipHasAccess, vipInviteUrl]);
 
   const isCompact = compactView;
-  const buttonClassName =
-    `inline-flex w-full items-center justify-center gap-2 rounded-full bg-zinc-950 px-5 ${
-      isCompact ? "py-3.5 text-[13px]" : "py-4 text-sm"
-    } font-bold text-white ${
-      isCompact ? "" : "shadow-[0_16px_30px_rgba(15,23,42,0.14)]"
-    } transition hover:bg-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950`;
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 },
+  };
 
   return (
-    <div className={isCompact ? "space-y-5 pb-4" : "space-y-8 pb-6"}>
-      <section
-        className={`border border-zinc-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(249,250,251,0.96))] ${
-          isCompact
-            ? "rounded-[1.35rem] px-3.5 py-3.5 shadow-none ring-1 ring-white/70"
-            : "rounded-[1.8rem] px-4 py-5 shadow-[0_14px_32px_rgba(15,23,42,0.04)]"
+    <motion.div
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      className={isCompact ? "space-y-4 pb-6" : "space-y-8 pb-10"}
+    >
+      <motion.section
+        variants={itemVariants}
+        className={`relative overflow-hidden border border-zinc-200/70 bg-white shadow-[0_14px_34px_rgba(15,23,42,0.035)] ${
+          isCompact ? "rounded-[1.35rem] px-5 py-5" : "rounded-[1.8rem] px-7 py-7"
         }`}
       >
-        <div className="min-w-0">
-          <div
-            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-semibold uppercase tracking-[0.18em] text-brand-primary ring-1 ring-inset ring-brand-primary/10 ${
-              isCompact
-                ? "bg-[linear-gradient(180deg,rgba(255,241,246,0.9),rgba(255,255,255,0.95))] text-[9px]"
-                : "bg-brand-primary/5 text-[10px]"
-            }`}
-          >
-            <Sparkles className="h-3 w-3" aria-hidden />
-            Comunidade VIP
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-brand-primary/8 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-brand-primary ring-1 ring-inset ring-brand-primary/12">
+              <Crown className="h-3 w-3" />
+              Mentoria VIP
+            </span>
+            {planActive ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-600 ring-1 ring-inset ring-emerald-500/18">
+                <CheckCircle2 className="h-3 w-3" />
+                Acesso liberado
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-50 px-2.5 py-1 text-[10px] font-bold text-zinc-500 ring-1 ring-inset ring-zinc-200/70">
+                Plano Pro
+              </span>
+            )}
           </div>
-          <h4
-            className={`mt-3 font-black tracking-tight text-zinc-950 ${
-              isCompact
-                ? "max-w-[15rem] text-[1.03rem] leading-[1.02]"
-                : "max-w-[18rem] text-[1.72rem] leading-[0.96]"
-            }`}
-          >
-            Conteúdo, posicionamento e crescimento com mais direção
-          </h4>
-        </div>
 
-        {!planActive ? (
-          <div
-            className={`mt-4 rounded-[1.2rem] border border-zinc-200/90 ${
-              isCompact
-                ? "bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(252,252,253,0.92))] px-3 py-3 shadow-none"
-                : "bg-white px-4 py-4 shadow-[0_8px_20px_rgba(15,23,42,0.03)]"
-            }`}
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className={`font-semibold uppercase tracking-[0.18em] text-brand-primary ${isCompact ? "text-[10px]" : "text-[11px]"}`}>
-                  Investimento
-                </p>
-                <p className={`mt-2 font-black tracking-tight text-zinc-950 ${isCompact ? "text-[1.22rem]" : "text-[1.55rem]"}`}>
-                  R$ 49,90<span className="text-base font-semibold text-zinc-500">/mês</span>
-                </p>
-              </div>
-              {!isCompact ? (
-                <span className="mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full bg-brand-primary/70" aria-hidden />
-              ) : null}
-            </div>
-            {!isCompact ? <div className="mt-3 h-px bg-zinc-100/90 sm:hidden" aria-hidden /> : null}
-            <p className={`max-w-[21rem] text-zinc-600 ${isCompact ? "mt-2.5 text-[13px] leading-5" : "mt-3 text-sm leading-6"}`}>
-              Um formato enxuto, apoiado pela análise de perfil da plataforma e por IA.
+          <div className="max-w-[34rem]">
+            <h1 className={`font-black tracking-tight text-zinc-950 ${
+              isCompact ? "text-[1.55rem] leading-[1.05]" : "text-[2.35rem] leading-[1.02]"
+            }`}>
+              Mentoria para criar com mais direção.
+            </h1>
+            <p className={`mt-3 max-w-xl text-zinc-500 ${isCompact ? "text-[13.5px] leading-5" : "text-base leading-7"}`}>
+              Análise de perfil, revisão de ideias e encontros ao vivo para ajustar conteúdo, roteiro e posicionamento.
             </p>
           </div>
-        ) : null}
-      </section>
 
-      <section className={isCompact ? "pt-1" : "border-t border-zinc-100/90 pt-6"}>
-        <div className={isCompact ? "mb-2 flex items-end justify-between gap-3" : "mb-4 flex items-end justify-between gap-3"}>
-          <div>
-            <h5 className={`flex items-center gap-2 font-semibold tracking-[-0.02em] text-zinc-950 ${isCompact ? "text-[0.86rem]" : "text-[1rem]"}`}>
-              <span className={`rounded-full bg-brand-primary/70 ${isCompact ? "h-1.5 w-1.5" : "h-2 w-2"}`} aria-hidden />
-              Como entrar
-            </h5>
+          <div className="flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-3">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-50 px-3 py-1.5 text-[11px] font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-200/70">
+              <Calendar className="h-3.5 w-3.5 text-zinc-400" />
+              Quintas às 19h
+            </span>
+            {planActive && mentorshipData?.nextSessionLabel ? (
+              <span className="inline-flex min-w-0 items-center gap-1.5 rounded-full bg-indigo-50/70 px-3 py-1.5 text-[11px] font-semibold text-indigo-700 ring-1 ring-inset ring-indigo-100">
+                <span className="truncate">Próxima: {mentorshipData.nextSessionLabel}</span>
+              </span>
+            ) : null}
+            {!planActive ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-50 px-3 py-1.5 text-[11px] font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-200/70">
+                R$ 49,90/mês
+              </span>
+            ) : null}
           </div>
         </div>
+      </motion.section>
 
-        <div
-          className={`overflow-hidden border border-zinc-200/90 bg-white ${
-            isCompact
-              ? "rounded-[1.2rem] shadow-none"
-              : "space-y-3 border-transparent bg-transparent shadow-none"
-          }`}
-        >
-          {MENTORING_STEPS.map((step, index) => (
-            <div
-              key={step.label}
-              className={`relative overflow-hidden ${
-                isCompact
-                  ? "px-3.5 py-3"
-                  : "rounded-[1.5rem] border border-zinc-200/90 bg-white px-4 py-4 shadow-[0_8px_20px_rgba(15,23,42,0.03)]"
-              }`}
-            >
-              {!isCompact ? <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-zinc-100" /> : null}
-              {isCompact && index > 0 ? (
-                <div className="absolute inset-x-3.5 top-0 h-px bg-zinc-100/90" aria-hidden />
-              ) : null}
-              <div className={`relative ${isCompact ? "" : "min-h-[90px]"}`}>
-                <div className={`flex ${isCompact ? "items-start gap-3" : "items-center gap-2"}`}>
-                  <span
-                    className={`inline-flex items-center justify-center rounded-full px-2 text-[10px] font-bold ${
-                      isCompact
-                        ? "mt-0.5 h-5 min-w-5 border border-brand-primary/15 bg-brand-primary/[0.03] text-brand-primary"
-                        : "h-6 min-w-6 bg-zinc-950 text-white"
-                    }`}
-                  >
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <div className="min-w-0">
-                    <p className={`max-w-[14rem] font-semibold leading-tight tracking-[-0.03em] text-zinc-950 ${isCompact ? "text-[0.95rem]" : "mt-3 text-[1rem]"}`}>
-                      {step.label}
-                    </p>
-                    <p className={`max-w-[15rem] text-zinc-600 ${isCompact ? "mt-1 text-[13px] leading-5" : "mt-3 text-sm leading-6"}`}>
-                      {step.description}
-                    </p>
+      <section>
+        <div className="flex items-center gap-2 mb-5">
+          <div className="h-px flex-1 bg-zinc-100" />
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400">O que você recebe</h2>
+          <div className="h-px flex-1 bg-zinc-100" />
+        </div>
+
+        <div className={`grid gap-4 ${isCompact ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2"}`}>
+          {MENTORING_TRACKS.map((track) => {
+            const Icon = track.icon;
+            return (
+              <motion.div
+                key={track.title}
+                variants={itemVariants}
+                whileHover={{ y: -4 }}
+                className="group relative overflow-hidden rounded-[2rem] border border-zinc-100 bg-white p-6 shadow-sm transition-all duration-500 hover:shadow-2xl hover:shadow-zinc-200/60"
+              >
+                <div className="flex items-start gap-4">
+                  <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl ${track.bg} group-hover:scale-110 transition-transform duration-500`}>
+                    <Icon className={`h-7 w-7 ${track.color}`} />
                   </div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className={isCompact ? "pt-1" : "border-t border-zinc-100/90 pt-6"}>
-        <div className={isCompact ? "mb-2 flex items-end justify-between gap-3" : "mb-4 flex items-end justify-between gap-3"}>
-          <div>
-            <h5 className={`flex items-center gap-2 font-semibold tracking-[-0.02em] text-zinc-950 ${isCompact ? "text-[0.86rem]" : "text-[1rem]"}`}>
-              <span className={`rounded-full bg-brand-primary/70 ${isCompact ? "h-1.5 w-1.5" : "h-2 w-2"}`} aria-hidden />
-              O que você recebe
-            </h5>
-          </div>
-        </div>
-
-        <div
-          className={`overflow-hidden border border-zinc-200/90 bg-white ${
-            isCompact
-              ? "rounded-[1.2rem] shadow-none"
-              : "space-y-3 border-transparent bg-transparent shadow-none"
-          }`}
-        >
-          {MENTORING_TRACKS.map((track, index) => (
-            <div
-              key={track.title}
-              className={`relative overflow-hidden ${
-                isCompact
-                  ? "px-3.5 py-3"
-                  : "rounded-[1.5rem] border border-zinc-200/90 bg-white px-4 py-4 shadow-[0_8px_20px_rgba(15,23,42,0.03)]"
-              }`}
-            >
-              {!isCompact ? <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-zinc-100" /> : null}
-              {isCompact && index > 0 ? (
-                <div className="absolute inset-x-3.5 top-0 h-px bg-zinc-100/90" aria-hidden />
-              ) : null}
-              <div className={`relative ${isCompact ? "" : "min-h-[102px]"}`}>
-                <div className={`flex ${isCompact ? "items-start gap-3" : "items-center gap-2"}`}>
-                  <span
-                    className={`inline-flex items-center justify-center rounded-full px-2 text-[10px] font-bold ${
-                      isCompact
-                        ? "mt-0.5 h-5 min-w-5 border border-brand-primary/15 bg-brand-primary/[0.03] text-brand-primary"
-                        : "h-6 min-w-6 bg-zinc-950 text-white"
-                    }`}
-                  >
-                    {String(index + 1).padStart(2, "0")}
-                  </span>
-                  <div className="min-w-0">
-                    <p className={`font-semibold uppercase tracking-[0.18em] text-zinc-400 ${isCompact ? "text-[9px]" : "text-[11px]"}`}>
+                  <div>
+                    <p className={`text-[10px] font-bold uppercase tracking-widest ${track.color} opacity-80`}>
                       {track.eyebrow}
                     </p>
-                    <p className={`max-w-[14rem] font-semibold leading-tight tracking-[-0.03em] text-zinc-950 ${isCompact ? "mt-1 text-[0.95rem]" : "mt-3 text-[1rem]"}`}>
+                    <h3 className="mt-1 text-base font-bold text-zinc-900 tracking-tight">
                       {track.title}
-                    </p>
-                    <p className={`max-w-[16rem] text-zinc-600 ${isCompact ? "mt-1 text-[13px] leading-5" : "mt-3 text-sm leading-6"}`}>
+                    </h3>
+                    <p className="mt-2 text-sm text-zinc-500 leading-relaxed">
                       {track.description}
                     </p>
                   </div>
                 </div>
-              </div>
-            </div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
       </section>
 
-      <section
-        className={`sticky bottom-0 z-10 -mx-4 bg-white px-4 sm:-mx-5 sm:px-5 ${
-          isCompact ? "pb-0 pt-4" : "pb-0 pt-6"
-        }`}
-      >
-        <div>
+      <section className="relative">
+        <div className="mb-4 flex items-center gap-2">
+          <div className="h-px flex-1 bg-zinc-100" />
+          <h2 className="text-[11px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+            Como funciona seu acesso
+          </h2>
+          <div className="h-px flex-1 bg-zinc-100" />
+        </div>
+
+        <div className="overflow-hidden rounded-[1.25rem] border border-zinc-100 bg-white">
+          {MENTORING_STEPS.map((step, index) => {
+            const Icon = step.icon;
+            return (
+              <motion.div
+                key={step.label}
+                variants={itemVariants}
+                className={`flex items-center gap-3 px-4 py-3.5 ${
+                  index > 0 ? "border-t border-zinc-100" : ""
+                }`}
+              >
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-zinc-50 text-zinc-500 ring-1 ring-inset ring-zinc-200/70">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-bold leading-tight text-zinc-950">
+                    {index + 1}. {step.label}
+                  </p>
+                  <p className="mt-0.5 text-[12px] leading-5 text-zinc-500">
+                    {step.description}
+                  </p>
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="mt-12 flex justify-center pb-12">
+        <motion.div 
+          className="pointer-events-auto w-full max-w-md px-4"
+          whileHover={{ y: -4 }} 
+          whileTap={{ scale: 0.97 }}
+        >
           <button
             type="button"
             onClick={handleCommunityAccess}
             disabled={resolvingVipAccess}
-            className={buttonClassName}
+            className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-full bg-zinc-950 py-4 text-sm font-bold text-white shadow-[0_20px_40px_rgba(0,0,0,0.3)] transition-all hover:bg-black disabled:opacity-70"
           >
-            {resolvingVipAccess ? "Verificando acesso..." : communityButtonLabel}
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </button>
-        </div>
-      </section>
+            {/* Shimmer effect */}
+            <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-1000 group-hover:translate-x-full" />
+            
+            {/* Subtle inner border for premium feel */}
+            <div className="absolute inset-0 rounded-full border border-white/10" />
 
-    </div>
+            {resolvingVipAccess ? (
+              <div className="h-5 w-5 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+            ) : (
+              <>
+                <span className="relative z-10 tracking-tight">{communityButtonLabel}</span>
+                <div className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-white transition-all duration-300 group-hover:bg-brand-primary group-hover:translate-x-1">
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </div>
+              </>
+            )}
+          </button>
+        </motion.div>
+      </section>
+    </motion.div>
   );
 }

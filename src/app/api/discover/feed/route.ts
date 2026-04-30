@@ -25,7 +25,21 @@ export const dynamic = 'force-dynamic';
 const DISCOVER_DEBUG_LOGS = ['1', 'true', 'yes'].includes(
   String(process.env.DISCOVER_DEBUG_LOGS || '').toLowerCase()
 );
-const BOARD_SURFACE_SHELF_KEYS = new Set<string>(['trending', 'top_saved', 'community_new']);
+const BOARD_SURFACE_SHELF_KEYS = new Set<string>([
+  'trending',
+  'rising_72h',
+  'top_saved',
+  'top_comments',
+  'top_shares',
+  'reels_lt_15',
+  'reels_15_45',
+  'reels_gt_45',
+  'weekend_ideas',
+  'user_suggested',
+  'top_in_your_format',
+  'collabs',
+  'community_new',
+]);
 
 type Section = { key: string; title: string; items: PostCard[] };
 type SectionsResponse =
@@ -508,8 +522,11 @@ export async function GET(req: NextRequest): Promise<NextResponse<SectionsRespon
   const pushSection = (s: Section) => {
     const dedup: PostCard[] = [];
     const allowDupes = allowDuplicateKeys.has(s.key);
+    const sectionSeen = new Set<string>();
     for (const item of s.items) {
       if (!item?.id) continue;
+      if (sectionSeen.has(item.id)) continue;
+      sectionSeen.add(item.id);
       if (!allowDupes && seen.has(item.id)) continue;
       if (!allowDupes) seen.add(item.id);
       dedup.push(item);

@@ -19,6 +19,7 @@ export const PLANNER_PLAN_READ_PROJECTION = [
   'slots.expectedMetrics',
   'slots.recordingTimeSec',
   'slots.aiVersionId',
+  'slots.savedFrom',
   'slots.title',
   'slots.scriptShort',
   'slots.notes',

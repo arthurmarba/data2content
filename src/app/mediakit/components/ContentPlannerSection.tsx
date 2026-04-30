@@ -35,6 +35,7 @@ function toPlannerSlotData(slot: PlannerUISlot | null): PlannerSlotDataModal | n
     rationale: (slot as any).rationale,
     recordingTimeSec: (slot as any).recordingTimeSec,
     aiVersionId: (slot as any).aiVersionId,
+    savedFrom: (slot as any).savedFrom,
   };
 }
 
@@ -61,6 +62,7 @@ function fromPlannerSlotData(data: PlannerSlotDataModal): PlannerUISlot {
     rationale: Array.isArray(data.rationale) ? data.rationale.join('\n') : (data.rationale as any),
     recordingTimeSec: data.recordingTimeSec,
     aiVersionId: data.aiVersionId ?? undefined,
+    savedFrom: data.savedFrom ?? undefined,
   };
 }
 

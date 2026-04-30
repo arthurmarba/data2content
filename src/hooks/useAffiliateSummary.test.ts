@@ -21,14 +21,14 @@ describe('canRedeem', () => {
 
   test('blocks when debt exists', () => {
     const s: AffiliateSummary = {
-      byCurrency: { ...summary.byCurrency, BRL: { ...summary.byCurrency.BRL, debtCents: 100 } },
+      byCurrency: { ...summary.byCurrency, BRL: { ...summary.byCurrency.BRL, debtCents: 100 } as any },
     };
     expect(canRedeem(status, s, 'BRL')).toBe(false);
   });
 
   test('blocks when below minimum', () => {
     const s: AffiliateSummary = {
-      byCurrency: { ...summary.byCurrency, BRL: { ...summary.byCurrency.BRL, availableCents: 1000 } },
+      byCurrency: { ...summary.byCurrency, BRL: { ...summary.byCurrency.BRL, availableCents: 1000 } as any },
     };
     expect(canRedeem(status, s, 'BRL')).toBe(false);
   });

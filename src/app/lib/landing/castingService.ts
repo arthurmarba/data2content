@@ -401,6 +401,30 @@ function normalizeAvatarCandidate(value?: string | null): string | null {
   return trimmed;
 }
 
+function isLikelyExpiredInstagramImage(value?: string | null): boolean {
+  const candidate = normalizeAvatarCandidate(value);
+  if (!candidate || !/^https?:\/\//i.test(candidate)) return false;
+  try {
+    const host = new URL(candidate).hostname.toLowerCase();
+    return host.includes("cdninstagram.com") || host.includes(".xx.fbcdn.net");
+  } catch {
+    return false;
+  }
+}
+
+function hasLikelyUsableAvatar(creator: SubscriberUser, avatar?: string | null): boolean {
+  const providerImage = normalizeAvatarCandidate(creator.providerImage ?? null);
+  if (providerImage && !isLikelyExpiredInstagramImage(providerImage)) return true;
+
+  const accountImage = normalizeAvatarCandidate(creator.image ?? null);
+  if (accountImage && !isLikelyExpiredInstagramImage(accountImage)) return true;
+
+  const resolvedAvatar = normalizeAvatarCandidate(avatar ?? null);
+  if (resolvedAvatar && !isLikelyExpiredInstagramImage(resolvedAvatar)) return true;
+
+  return Boolean(creator.isInstagramConnected && creator.instagramAccountId);
+}
+
 function pickAvailableIgAvatar(creator: SubscriberUser): string | null {
   if (!Array.isArray(creator.availableIgAccounts)) return null;
   for (const account of creator.availableIgAccounts) {
@@ -678,6 +702,7 @@ async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
     const userId = creator._id.toString();
     const metrics = metricsByUser.get(userId);
     const avatar = pickUserAvatar(creator) ?? normalizeAvatarCandidate(avatarByUserId[userId] ?? null);
+    const hasAvatarImage = hasLikelyUsableAvatar(creator, avatar);
     const niches = sanitizeTags(creator.creatorProfileExtended?.niches);
     const brandTerritories = sanitizeTags(creator.creatorProfileExtended?.brandTerritories);
     const contextId = creator.creatorContext?.id ?? null;
@@ -693,7 +718,7 @@ async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
       name: creator.name || creator.username || "Criador",
       username: creator.username ?? null,
       followers: creator.followers_count ?? null,
-      avatarUrl: toProxyAvatar(avatar),
+      avatarUrl: toMediaKitAvatarUrl(creator.mediaKitSlug, avatar),
       niches: niches.length ? niches : null,
       brandTerritories: brandTerritories.length ? brandTerritories : null,
       contexts: contexts.length ? contexts : null,
@@ -716,6 +741,7 @@ async function buildCastingCreators(): Promise<LandingCreatorHighlight[]> {
       rank: 0, // placeholder until sorted
       consistencyScore: null,
       mediaKitSlug: creator.mediaKitSlug ?? null,
+      hasAvatarImage,
     } satisfies LandingCreatorHighlight;
   });
 
@@ -873,6 +899,7 @@ async function buildFeaturedCastingCreators(): Promise<LandingCreatorHighlight[]
     if (!creator) return;
 
     const avatar = pickUserAvatar(creator) ?? normalizeAvatarCandidate(avatarByUserId[userId] ?? null);
+    const hasAvatarImage = hasLikelyUsableAvatar(creator, avatar);
     const niches = sanitizeTags(creator.creatorProfileExtended?.niches);
     const brandTerritories = sanitizeTags(creator.creatorProfileExtended?.brandTerritories);
     const contextId = creator.creatorContext?.id ?? null;
@@ -886,7 +913,7 @@ async function buildFeaturedCastingCreators(): Promise<LandingCreatorHighlight[]
       name: creator.name || creator.username || "Criador",
       username: creator.username ?? null,
       followers: creator.followers_count ?? null,
-      avatarUrl: toProxyAvatar(avatar),
+      avatarUrl: toMediaKitAvatarUrl(creator.mediaKitSlug, avatar),
       niches: niches.length ? niches : null,
       brandTerritories: brandTerritories.length ? brandTerritories : null,
       contexts: contexts.length ? contexts : null,
@@ -906,6 +933,7 @@ async function buildFeaturedCastingCreators(): Promise<LandingCreatorHighlight[]
       rank: index + 1,
       consistencyScore: null,
       mediaKitSlug: creator.mediaKitSlug ?? null,
+      hasAvatarImage,
     });
   });
 
@@ -1063,6 +1091,7 @@ async function buildFeaturedBoardCastingCreators(): Promise<LandingCreatorHighli
     if (!creator) return;
 
     const avatar = pickUserAvatar(creator) ?? normalizeAvatarCandidate(avatarByUserId[userId] ?? null);
+    const hasAvatarImage = hasLikelyUsableAvatar(creator, avatar);
     const niches = sanitizeTags(creator.creatorProfileExtended?.niches);
     const brandTerritories = sanitizeTags(creator.creatorProfileExtended?.brandTerritories);
     const contextId = creator.creatorContext?.id ?? null;
@@ -1076,7 +1105,7 @@ async function buildFeaturedBoardCastingCreators(): Promise<LandingCreatorHighli
       name: creator.name || creator.username || "Criador",
       username: creator.username ?? null,
       followers: creator.followers_count ?? null,
-      avatarUrl: toProxyAvatar(avatar),
+      avatarUrl: toMediaKitAvatarUrl(creator.mediaKitSlug, avatar),
       niches: niches.length ? niches : null,
       brandTerritories: brandTerritories.length ? brandTerritories : null,
       contexts: contexts.length ? contexts : null,
@@ -1096,6 +1125,7 @@ async function buildFeaturedBoardCastingCreators(): Promise<LandingCreatorHighli
       rank: index + 1,
       consistencyScore: null,
       mediaKitSlug: creator.mediaKitSlug ?? null,
+      hasAvatarImage,
     });
   });
 
@@ -1109,6 +1139,11 @@ function toProxyAvatar(raw?: string | null): string | null {
     return `/api/proxy/thumbnail/${encodeURIComponent(raw)}`;
   }
   return raw;
+}
+
+function toMediaKitAvatarUrl(slug?: string | null, fallback?: string | null): string | null {
+  if (slug) return `/api/mediakit/${encodeURIComponent(slug)}/avatar?v=20260430-avatar-v3`;
+  return toProxyAvatar(fallback);
 }
 
 function sanitizeTags(values?: string[] | null): string[] {

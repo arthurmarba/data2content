@@ -48,9 +48,12 @@ export type ScriptOutputDiagnostics = {
   hookStrength?: number;
   specificityScore?: number;
   speakabilityScore?: number;
+  shootabilityScore?: number;
+  strategyScore?: number;
   ctaStrength?: number;
   diversityScore?: number;
   utilityScore?: number;
+  concisionScore?: number;
   semanticReviewAttempted?: boolean;
   semanticReviewRetried?: boolean;
   semanticReviewAcceptedAfterRetry?: boolean;
@@ -287,9 +290,12 @@ export function buildScriptOutputDiagnostics(
     diagnostics.hookStrength = quality.hookStrength;
     diagnostics.specificityScore = quality.specificityScore;
     diagnostics.speakabilityScore = quality.speakabilityScore;
+    diagnostics.shootabilityScore = quality.shootabilityScore;
+    diagnostics.strategyScore = quality.strategyScore;
     diagnostics.ctaStrength = quality.ctaStrength;
     diagnostics.diversityScore = quality.diversityScore;
     diagnostics.utilityScore = quality.utilityScore;
+    diagnostics.concisionScore = quality.concisionScore;
   }
 
   if (input.intelligenceContext) {

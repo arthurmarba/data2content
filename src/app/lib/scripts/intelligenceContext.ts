@@ -52,6 +52,7 @@ const INTELLIGENCE_CACHE_TTL_MS = (() => {
 const RANKED_CACHE_MAX_ENTRIES = 160;
 const CAPTION_CACHE_MAX_ENTRIES = 240;
 const SCRIPT_EXAMPLE_CACHE_MAX_ENTRIES = 320;
+const DEFAULT_ENGAGEMENT_TIMEZONE = "America/Sao_Paulo";
 
 export const SCRIPT_INTELLIGENCE_VERSION = "scripts_intelligence_v2";
 export const SCRIPT_INTELLIGENCE_METRIC: "avg_total_interactions" = "avg_total_interactions";
@@ -121,6 +122,23 @@ export type ScriptIntelligenceWinningScriptExample = {
   postDate: string | null;
 };
 
+export type ScriptEngagementTimingInsight = {
+  sampleSize: number;
+  timezone: string;
+  topHours: number[];
+  topWeekdays: string[];
+  summary: string;
+};
+
+export type ScriptEditorialDecision = {
+  postDirective: string;
+  narrativeAngle: string;
+  recommendedStructure: string;
+  whyThisShouldWork: string[];
+  evidence: string[];
+  postingWindow: string | null;
+};
+
 type WinningScriptExampleCandidate = {
   example: ScriptIntelligenceWinningScriptExample;
   categories?: ScriptCategorySelection;
@@ -143,6 +161,8 @@ export type ScriptIntelligenceContext = {
   styleSampleSize: number;
   captionEvidence: ScriptIntelligenceCaptionEvidence[];
   winningScriptExamples: ScriptIntelligenceWinningScriptExample[];
+  engagementTiming: ScriptEngagementTimingInsight | null;
+  editorialDecision: ScriptEditorialDecision;
   relaxationLevel: number;
   usedFallbackRules: boolean;
   linkedOutcome?: ScriptIntelligenceLinkedOutcome | null;
@@ -157,6 +177,8 @@ export type ScriptIntelligencePromptSnapshot = {
   lookbackDays: number;
   styleProfileVersion: string | null;
   styleSampleSize: number;
+  engagementTimingSummary?: ScriptEngagementTimingInsight | null;
+  editorialDecisionSummary?: ScriptEditorialDecision;
   styleSignalsUsed?: ScriptStyleContext["styleSignalsUsed"];
   dnaEvidence: {
     sampleSize: number;
@@ -199,6 +221,15 @@ const scriptExampleCache = new Map<
   string,
   TimedCacheEntry<ScriptIntelligenceWinningScriptExample | null>
 >();
+const WEEKDAY_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: DEFAULT_ENGAGEMENT_TIMEZONE,
+  weekday: "short",
+});
+const HOUR_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: DEFAULT_ENGAGEMENT_TIMEZONE,
+  hour: "numeric",
+  hour12: false,
+});
 
 const WINNING_SCRIPT_CTA_REGEX =
   /\b(comente|comenta|salve|salva|compartilhe|compartilha|direct|dm|me chama|segue|link|me conta|qual foi|e voc[eê])\b/i;
@@ -290,6 +321,210 @@ function compactExampleText(value: string, max = 140): string {
   const normalized = String(value || "").replace(/\s+/g, " ").replace(/^"+|"+$/g, "").trim();
   if (!normalized) return "";
   return normalized.length > max ? `${normalized.slice(0, max - 1).trim()}…` : normalized;
+}
+
+function resolveCategoryLabelForEditorial(
+  dimension: ScriptCategoryDimension,
+  id: string | undefined
+): string {
+  const normalized = String(id || "").trim();
+  if (!normalized) return "";
+  const category = getCategoryById(normalized, DIMENSION_CATEGORY_TYPES[dimension]);
+  if (category?.label) return category.label;
+  return normalized.replace(/_/g, " ");
+}
+
+function buildEditorialSubjectLabel(params: {
+  prompt: string;
+  intent: ScriptNarrativeIntent;
+  resolvedCategories: ScriptCategorySelection;
+}): string {
+  const subjectHint = compactExampleText(params.intent.subjectHint || "", 90);
+  if (subjectHint) return subjectHint;
+
+  const proposal = resolveCategoryLabelForEditorial("proposal", params.resolvedCategories.proposal);
+  const context = resolveCategoryLabelForEditorial("context", params.resolvedCategories.context);
+  if (proposal && context && context !== "general") return `${proposal} em ${context}`;
+  if (proposal) return proposal;
+
+  return compactExampleText(params.prompt, 90) || "o tema principal do pedido";
+}
+
+function inferNarrativeAngle(params: {
+  intent: ScriptNarrativeIntent;
+  resolvedCategories: ScriptCategorySelection;
+  winningScriptExamples: ScriptIntelligenceWinningScriptExample[];
+}): string {
+  const topWinner = params.winningScriptExamples[0];
+  const opening = String(topWinner?.opening || "").toLowerCase();
+  const development = String(topWinner?.development || "").toLowerCase();
+
+  if (params.intent.wantsHumor || params.resolvedCategories.tone === "humorous") {
+    return "cena reconhecível com humor observacional e fechamento em pergunta";
+  }
+  if (/(eu parei|eu comecei|confesso|foi quando)/i.test(opening)) {
+    return "confissão prática com virada observável";
+  }
+  if (/(erro|por que|nao|não|trava|derruba|problema)/i.test(opening)) {
+    return "diagnóstico direto do erro antes da dica";
+  }
+  if (WINNING_SCRIPT_PRACTICAL_REGEX.test(development)) {
+    return "ajuste prático mostrado na cena, não explicado de forma abstrata";
+  }
+  return "gancho direto com contexto real e ajuste aplicável";
+}
+
+function inferRecommendedStructure(params: {
+  intent: ScriptNarrativeIntent;
+  resolvedCategories: ScriptCategorySelection;
+}): string {
+  if (params.intent.wantsHumor || params.resolvedCategories.tone === "humorous") {
+    return "cena reconhecível -> exagero/controlado -> virada útil -> pergunta final";
+  }
+  if (params.resolvedCategories.proposal === "tips" || params.resolvedCategories.tone === "educational") {
+    return "erro visível -> contexto observável -> ajuste aplicável -> pergunta específica no fechamento";
+  }
+  return "gancho claro -> tensão real -> movimento útil -> fechamento conversacional";
+}
+
+function buildEditorialDecision(params: {
+  prompt: string;
+  intent: ScriptNarrativeIntent;
+  resolvedCategories: ScriptCategorySelection;
+  dnaProfile: CreatorDnaProfile;
+  captionEvidence: ScriptIntelligenceCaptionEvidence[];
+  winningScriptExamples: ScriptIntelligenceWinningScriptExample[];
+  engagementTiming: ScriptEngagementTimingInsight | null;
+  linkedOutcome: ScriptIntelligenceLinkedOutcome | null | undefined;
+}): ScriptEditorialDecision {
+  const subject = buildEditorialSubjectLabel({
+    prompt: params.prompt,
+    intent: params.intent,
+    resolvedCategories: params.resolvedCategories,
+  });
+  const proposal = resolveCategoryLabelForEditorial("proposal", params.resolvedCategories.proposal);
+  const context = resolveCategoryLabelForEditorial("context", params.resolvedCategories.context);
+  const tone = resolveCategoryLabelForEditorial("tone", params.resolvedCategories.tone);
+  const topWinner = params.winningScriptExamples[0];
+  const topLinkedProposal = params.linkedOutcome?.topByDimension?.proposal?.[0];
+  const languageSignal = [
+    ...(params.dnaProfile.openingPatterns || []).slice(0, 1),
+    ...(params.dnaProfile.recurringExpressions || []).slice(0, 2),
+  ]
+    .map((item) => compactExampleText(item, 60))
+    .filter(Boolean)
+    .join(" | ");
+  const narrativeAngle = inferNarrativeAngle({
+    intent: params.intent,
+    resolvedCategories: params.resolvedCategories,
+    winningScriptExamples: params.winningScriptExamples,
+  });
+  const recommendedStructure = inferRecommendedStructure({
+    intent: params.intent,
+    resolvedCategories: params.resolvedCategories,
+  });
+
+  const postDirective =
+    params.intent.wantsHumor || params.resolvedCategories.tone === "humorous"
+      ? `Poste um reels sobre ${subject} em formato de cena observável, usando humor de situação e uma virada útil no final.`
+      : `Poste um reels sobre ${subject} pelo ângulo de ${narrativeAngle}, deixando o erro claro antes do ajuste.`;
+
+  const whyThisShouldWork = [
+    [proposal, context, tone].filter(Boolean).length
+      ? `No histórico recente, ${[proposal, context, tone].filter(Boolean).join(" + ")} aparece como combinação forte para esse tema.`
+      : null,
+    topWinner || topLinkedProposal
+      ? `${params.winningScriptExamples.length || 0} roteiro(s) vencedor(es) próximo(s) repetem ${narrativeAngle}${topLinkedProposal ? ` e a proposal líder chega a lift ${topLinkedProposal.lift.toFixed(2)}` : ""}.`
+      : null,
+    languageSignal
+      ? `As legendas fortes repetem sinais de linguagem como ${languageSignal}, o que ajuda esse vídeo a soar mais nativo no perfil.`
+      : null,
+    params.engagementTiming?.summary
+      ? `Também existe recorrência temporal nos posts fortes: ${params.engagementTiming.summary}.`
+      : null,
+  ].filter(Boolean) as string[];
+
+  const evidence = [
+    [
+      proposal ? `proposal ${proposal}` : null,
+      context ? `context ${context}` : null,
+      tone ? `tone ${tone}` : null,
+    ]
+      .filter(Boolean)
+      .join(" | "),
+    params.winningScriptExamples.length
+      ? `${params.winningScriptExamples.length} roteiro(s) vencedor(es) próximo(s); principal exemplo: ${compactExampleText(topWinner?.title || "", 70)}.`
+      : null,
+    params.captionEvidence.length
+      ? `${params.captionEvidence.length} legenda(s) forte(s) consideradas na leitura de DNA e linguagem.`
+      : null,
+    topLinkedProposal
+      ? `Lift vinculado líder em proposal: ${topLinkedProposal.id} (${topLinkedProposal.lift.toFixed(2)}).`
+      : null,
+    params.engagementTiming?.summary ? `Timing observado: ${params.engagementTiming.summary}.` : null,
+  ]
+    .filter(Boolean)
+    .map((line) => compactExampleText(line as string, 120));
+
+  return {
+    postDirective: compactExampleText(postDirective, 150),
+    narrativeAngle: compactExampleText(narrativeAngle, 110),
+    recommendedStructure: compactExampleText(recommendedStructure, 130),
+    whyThisShouldWork: whyThisShouldWork.slice(0, 4).map((line) => compactExampleText(line, 150)),
+    evidence: evidence.slice(0, 4),
+    postingWindow: params.engagementTiming?.summary || null,
+  };
+}
+
+function normalizeWeekdayLabel(value: string): string {
+  return value.replace(/\.$/, "").toLowerCase();
+}
+
+function buildEngagementTimingInsight(
+  samples: Array<Pick<ScriptIntelligenceCaptionEvidence, "postDate">>
+): ScriptEngagementTimingInsight | null {
+  const validDates = samples
+    .map((item) => (item?.postDate ? new Date(item.postDate) : null))
+    .filter((date): date is Date => date !== null && Number.isFinite(date.getTime()));
+  if (validDates.length < 3) return null;
+
+  const hourCounts = new Map<number, number>();
+  const weekdayCounts = new Map<string, number>();
+
+  for (const date of validDates) {
+    const weekday = normalizeWeekdayLabel(WEEKDAY_FORMATTER.format(date));
+    const hour = Number(HOUR_FORMATTER.format(date));
+    if (weekday) weekdayCounts.set(weekday, (weekdayCounts.get(weekday) || 0) + 1);
+    if (Number.isFinite(hour)) hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
+  }
+
+  const topHours = Array.from(hourCounts.entries())
+    .sort((a, b) => b[1] - a[1] || a[0] - b[0])
+    .slice(0, 2)
+    .map(([hour]) => hour);
+  const topWeekdays = Array.from(weekdayCounts.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 2)
+    .map(([weekday]) => weekday);
+
+  if (!topHours.length && !topWeekdays.length) return null;
+
+  const hourLabel = topHours.map((hour) => `${String(hour).padStart(2, "0")}h`).join(" e ");
+  const weekdayLabel = topWeekdays.join(" e ");
+  const summary = [
+    weekdayLabel ? `dias com mais recorrência: ${weekdayLabel}` : "",
+    hourLabel ? `horários com mais recorrência: ${hourLabel}` : "",
+  ]
+    .filter(Boolean)
+    .join(" | ");
+
+  return {
+    sampleSize: validDates.length,
+    timezone: DEFAULT_ENGAGEMENT_TIMEZONE,
+    topHours,
+    topWeekdays,
+    summary,
+  };
 }
 
 function normalizeSimilarityText(value: string): string {
@@ -1389,6 +1624,7 @@ export async function buildScriptIntelligenceContext(params: {
         })
       : [];
     recordScriptsStageDuration("intelligence.script_examples", Date.now() - scriptExamplesStartMs);
+    const engagementTiming = buildEngagementTimingInsight(finalCaptionEvidence);
     const linkedOutcome: ScriptIntelligenceLinkedOutcome | null = linkedOutcomeData.enabled
       ? {
           enabled: true,
@@ -1409,6 +1645,16 @@ export async function buildScriptIntelligenceContext(params: {
           })),
         }
       : null;
+    const editorialDecision = buildEditorialDecision({
+      prompt: params.prompt,
+      intent: parsed.intent,
+      resolvedCategories,
+      dnaProfile,
+      captionEvidence: finalCaptionEvidence,
+      winningScriptExamples,
+      engagementTiming,
+      linkedOutcome,
+    });
 
     return {
       intelligenceVersion: SCRIPT_INTELLIGENCE_VERSION,
@@ -1425,6 +1671,8 @@ export async function buildScriptIntelligenceContext(params: {
       styleSampleSize,
       captionEvidence: finalCaptionEvidence,
       winningScriptExamples,
+      engagementTiming,
+      editorialDecision,
       relaxationLevel: captionFetchResult.relaxationLevel,
       usedFallbackRules: captionFetchResult.usedFallbackRules,
       linkedOutcome,
@@ -1452,6 +1700,8 @@ export function buildIntelligencePromptSnapshot(
     lookbackDays: context.lookbackDays,
     styleProfileVersion: context.styleProfileVersion,
     styleSampleSize: context.styleSampleSize,
+    engagementTimingSummary: context.engagementTiming,
+    editorialDecisionSummary: context.editorialDecision,
     styleSignalsUsed: context.styleProfile?.styleSignalsUsed,
     dnaEvidence: {
       sampleSize,

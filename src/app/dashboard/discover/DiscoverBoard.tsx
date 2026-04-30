@@ -2,12 +2,14 @@
 
 import React from "react";
 import dynamic from "next/dynamic";
+import { useSearchParams } from "next/navigation";
 import Board from "@/app/dashboard/components/Board";
 import ThreadsTabs from "@/app/dashboard/components/ThreadsTabs";
 import type { DiscoverSection } from "./discoverFeedUtils";
 import { prepareDiscoverSections } from "./discoverFeedUtils";
 import type { LandingCreatorHighlight } from "@/types/landing";
 import useBoardMobileViewport from "@/app/dashboard/hooks/useBoardMobileViewport";
+import { buildDiscoverBoardFeedQueryString } from "./discoverBoardFeedQuery";
 
 function DiscoverPostsTabLoading({
   compactView = false,
@@ -273,6 +275,8 @@ export default function DiscoverBoard({
   const postsWindowInDays = useCompactLayout ? 45 : 80;
   const creatorMode = "full";
   const creatorLimit = null;
+  const searchParams = useSearchParams();
+  const searchParamsText = searchParams?.toString() || "";
   const [activeTab, setActiveTab] = React.useState<TabId>("posts");
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -287,10 +291,28 @@ export default function DiscoverBoard({
     !useCompactLayout && allowCompactWarmup,
   );
   const creatorsRequestInFlightRef = React.useRef(false);
+  const initialFeedQueryString = React.useMemo(
+    () =>
+      buildDiscoverBoardFeedQueryString(searchParamsText, {
+        limitPerRow: postsLimitPerRow,
+        days: postsWindowInDays,
+        surface: useCompactLayout ? "board" : "full",
+      }),
+    [postsLimitPerRow, postsWindowInDays, searchParamsText, useCompactLayout],
+  );
+  const fullFeedQueryString = React.useMemo(
+    () =>
+      buildDiscoverBoardFeedQueryString(searchParamsText, {
+        limitPerRow: postsLimitPerRow,
+        days: postsWindowInDays,
+        surface: "full",
+      }),
+    [postsLimitPerRow, postsWindowInDays, searchParamsText],
+  );
 
   React.useEffect(() => {
     setFullFeedLoaded(!useCompactLayout);
-  }, [postsLimitPerRow, postsWindowInDays, useCompactLayout]);
+  }, [fullFeedQueryString, useCompactLayout]);
 
   React.useEffect(() => {
     setAllowSecondaryWarmup(
@@ -306,15 +328,9 @@ export default function DiscoverBoard({
       setError(null);
 
       try {
-        const params = new URLSearchParams({
-          limitPerRow: String(postsLimitPerRow),
-          days: String(postsWindowInDays),
-          surface: useCompactLayout ? "board" : "full",
-        });
-        const queryString = params.toString();
         const data = await fetchDiscoverFeedCached(
-          queryString,
-          `/api/discover/feed?${queryString}`,
+          initialFeedQueryString,
+          `/api/discover/feed?${initialFeedQueryString}`,
           controller.signal,
         );
 
@@ -334,7 +350,7 @@ export default function DiscoverBoard({
     return () => {
       controller.abort();
     };
-  }, [postsLimitPerRow, postsWindowInDays, useCompactLayout]);
+  }, [initialFeedQueryString, useCompactLayout]);
 
   React.useEffect(() => {
     if (!allowSecondaryWarmup || !useCompactLayout || fullFeedLoaded || loading || error) return;
@@ -346,15 +362,9 @@ export default function DiscoverBoard({
 
     const hydrateFullFeed = async () => {
       try {
-        const params = new URLSearchParams({
-          limitPerRow: String(postsLimitPerRow),
-          days: String(postsWindowInDays),
-          surface: "full",
-        });
-        const queryString = params.toString();
         const data = await fetchDiscoverFeedCached(
-          queryString,
-          `/api/discover/feed?${queryString}`,
+          fullFeedQueryString,
+          `/api/discover/feed?${fullFeedQueryString}`,
           controller.signal,
         );
         if (controller.signal.aborted || !data?.ok) return;
@@ -390,9 +400,8 @@ export default function DiscoverBoard({
     allowSecondaryWarmup,
     error,
     fullFeedLoaded,
+    fullFeedQueryString,
     loading,
-    postsLimitPerRow,
-    postsWindowInDays,
     useCompactLayout,
   ]);
 

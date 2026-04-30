@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import React from "react";
 import { Check, Link2, Plus } from "lucide-react";
+import { buildScriptBlueprintPresentation } from "@/app/dashboard/lib/scriptBlueprintPresentation";
 
 const MyScriptsCardLinkPopover = dynamic(
   () =>
@@ -103,7 +104,6 @@ type CardActionFeedback = {
   phase: "entering" | "shown" | "leaving";
 };
 
-const CARD_PREVIEW_MAX_CHARS = 210;
 const DAYS_SHORT = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 function getDayLabel(dayOfWeek?: number) {
@@ -225,15 +225,7 @@ function getCardTitle(script: ScriptItem) {
 }
 
 function getCardPreview(script: ScriptItem) {
-  const content = script.content?.trim();
-  if (!content) return "Sem conteúdo ainda.";
-  const normalized = content.replace(/\s+/g, " ");
-  if (normalized.length <= CARD_PREVIEW_MAX_CHARS) return normalized;
-
-  const sliced = normalized.slice(0, CARD_PREVIEW_MAX_CHARS).trimEnd();
-  const lastSpace = sliced.lastIndexOf(" ");
-  const safeCut = lastSpace > CARD_PREVIEW_MAX_CHARS * 0.7 ? sliced.slice(0, lastSpace) : sliced;
-  return `${safeCut}...`;
+  return buildScriptBlueprintPresentation(script.content).previewText;
 }
 
 export type MyScriptsCardsGridProps = {
@@ -376,6 +368,13 @@ export function MyScriptsCardsGrid({
     () => (compactView ? scripts.slice(0, visibleCount) : scripts),
     [compactView, scripts, visibleCount]
   );
+  const presentationByScriptId = React.useMemo(
+    () =>
+      new Map(
+        visibleScripts.map((script) => [script.id, buildScriptBlueprintPresentation(script.content)])
+      ),
+    [visibleScripts]
+  );
 
   return (
     <>
@@ -411,6 +410,7 @@ export function MyScriptsCardsGrid({
         </button>
 
         {visibleScripts.map((script, index) => {
+          const scriptPresentation = presentationByScriptId.get(script.id) ?? buildScriptBlueprintPresentation(script.content);
           const tone = getSourceCardTone(script.source);
           const hasAdminAnnotation = Boolean(script.adminAnnotation?.notes?.trim());
           const hasUnreadFeedback = unreadFeedbackScriptIds.has(script.id);
@@ -560,6 +560,19 @@ export function MyScriptsCardsGrid({
                           </span>
                         </div>
 
+                        {scriptPresentation.previewReason ? (
+                          <p className="line-clamp-2 text-[10px] font-semibold leading-[1.35] text-emerald-700">
+                            {`Por que assim: ${scriptPresentation.previewReason}`}
+                          </p>
+                        ) : scriptPresentation.editorialSummary?.whatToPost ? (
+                          <p className="line-clamp-2 text-[10px] font-semibold leading-[1.35] text-indigo-700">
+                            {`O que postar: ${scriptPresentation.editorialSummary.whatToPost}`}
+                          </p>
+                        ) : scriptPresentation.previewVisual ? (
+                          <p className="line-clamp-2 text-[10px] font-medium leading-[1.35] text-zinc-500">
+                            {`Como gravar: ${scriptPresentation.previewVisual}`}
+                          </p>
+                        ) : null}
                         {hasAdminAnnotation ? (
                           <p className="line-clamp-1 text-[10px] font-medium leading-[1.3] text-zinc-500">
                             {`Feedback: ${script.adminAnnotation?.notes}`}
@@ -603,9 +616,59 @@ export function MyScriptsCardsGrid({
                     </p>
 
                     <div className="mt-3 flex-1 overflow-hidden">
-                      <p className="line-clamp-7 overflow-hidden break-words text-[13px] leading-[1.45] text-zinc-600 sm:text-sm sm:leading-relaxed sm:text-zinc-500">
-                        {getCardPreview(script)}
-                      </p>
+                      {scriptPresentation.hasStructuredScenes ? (
+                        <div className="space-y-2.5">
+                          {scriptPresentation.editorialSummary?.whatToPost ? (
+                            <div className="rounded-[1rem] border border-indigo-100 bg-indigo-50/75 px-3 py-2">
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-indigo-700">
+                                O que postar
+                              </p>
+                              <p className="line-clamp-2 overflow-hidden break-words text-[12px] leading-[1.45] text-indigo-900 sm:text-[13px]">
+                                {scriptPresentation.editorialSummary.whatToPost}
+                              </p>
+                              {scriptPresentation.editorialSummary.whenToPost ? (
+                                <p className="mt-1 line-clamp-1 text-[10px] font-medium text-indigo-700/85">
+                                  {`Quando postar: ${scriptPresentation.editorialSummary.whenToPost}`}
+                                </p>
+                              ) : null}
+                            </div>
+                          ) : null}
+                          {scriptPresentation.previewVisual ? (
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
+                                Como gravar
+                              </p>
+                              <p className="line-clamp-2 overflow-hidden break-words text-[13px] leading-[1.45] text-zinc-600 sm:text-sm sm:leading-relaxed sm:text-zinc-500">
+                                {scriptPresentation.previewVisual}
+                              </p>
+                            </div>
+                          ) : null}
+                          {scriptPresentation.previewMessage ? (
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
+                                O que comunicar
+                              </p>
+                              <p className="line-clamp-2 overflow-hidden break-words text-[13px] leading-[1.45] text-zinc-700 sm:text-sm sm:leading-relaxed sm:text-zinc-600">
+                                {scriptPresentation.previewMessage}
+                              </p>
+                            </div>
+                          ) : null}
+                          {scriptPresentation.previewReason ? (
+                            <div className="rounded-[1rem] border border-emerald-100 bg-emerald-50/75 px-3 py-2">
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-700">
+                                Por que assim
+                              </p>
+                              <p className="line-clamp-3 overflow-hidden break-words text-[12px] leading-[1.5] text-emerald-900 sm:text-[13px]">
+                                {scriptPresentation.previewReason}
+                              </p>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <p className="line-clamp-7 overflow-hidden break-words text-[13px] leading-[1.45] text-zinc-600 sm:text-sm sm:leading-relaxed sm:text-zinc-500">
+                          {getCardPreview(script)}
+                        </p>
+                      )}
                     </div>
 
                     <div className="mt-3 space-y-1">

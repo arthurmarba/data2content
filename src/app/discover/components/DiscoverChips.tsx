@@ -17,6 +17,7 @@ import {
   stanceCategories,
 } from "@/app/lib/classificationV2_5";
 import {
+  AdjustmentsHorizontalIcon,
   CheckIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -204,6 +205,7 @@ export default function DiscoverChips({ defaultView = "master", onViewChange, co
     () => buildDiscoverSelectedFromParams(params)
   );
   const [currentView, setCurrentView] = useState<ViewState>(defaultView);
+  const [compactFiltersOpen, setCompactFiltersOpen] = useState(false);
 
   useEffect(() => {
     const next = buildDiscoverSelectedFromParams(params);
@@ -298,9 +300,20 @@ export default function DiscoverChips({ defaultView = "master", onViewChange, co
     setCurrentView("master");
   }, [applyFilters]);
 
+  const removeFilterAndApply = useCallback(
+    (categoryId: CategoryId, optionId: string) => {
+      const nextValues = (selectedFilters[categoryId] || []).filter((value) => value !== optionId);
+      const nextState = { ...selectedFilters, [categoryId]: nextValues };
+      setSelectedFilters(nextState);
+      applyFilters(nextState);
+    },
+    [applyFilters, selectedFilters]
+  );
+
   const handleApplyFilters = useCallback(() => {
     applyFilters(selectedFilters);
-  }, [applyFilters, selectedFilters]);
+    if (compactView) setCompactFiltersOpen(false);
+  }, [applyFilters, compactView, selectedFilters]);
 
   const currentCategory =
     currentView === "master"
@@ -343,6 +356,64 @@ export default function DiscoverChips({ defaultView = "master", onViewChange, co
   const secondaryPillClassName =
     `dashboard-secondary-button inline-flex items-center rounded-full ${compactView ? "px-2.5 py-1 text-[11px]" : "px-3 py-1.5 text-xs"} font-semibold text-zinc-600 ${focusRingClassName}`;
 
+  const activeFilterPreview = activeFilterChips.slice(0, 2);
+  const hiddenActiveFilterCount = Math.max(0, activeFilterChips.length - activeFilterPreview.length);
+
+  if (compactView && currentView === "master" && !compactFiltersOpen) {
+    return (
+      <div className="filter-container w-full bg-transparent">
+        <style jsx global>{`
+          .hide-scrollbar::-webkit-scrollbar { display: none; }
+          .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        `}</style>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setCompactFiltersOpen(true)}
+            className={`inline-flex h-10 shrink-0 items-center gap-2 rounded-full border border-zinc-200/90 bg-white px-3.5 text-[12px] font-semibold text-zinc-800 shadow-[0_8px_20px_rgba(24,24,27,0.045)] transition hover:border-zinc-300 ${focusRingClassName}`}
+            aria-expanded={compactFiltersOpen}
+          >
+            <AdjustmentsHorizontalIcon className="h-4 w-4" aria-hidden="true" />
+            Filtros
+            {selectedCount > 0 ? (
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-zinc-950 px-1.5 text-[10px] font-bold text-white">
+                {selectedCount}
+              </span>
+            ) : null}
+          </button>
+          <div className="hide-scrollbar flex min-w-0 flex-1 gap-1.5 overflow-x-auto py-0.5">
+            {activeFilterPreview.length > 0 ? (
+              activeFilterPreview.map((chip) => (
+                <button
+                  key={`${chip.categoryId}:${chip.value}`}
+                  type="button"
+                  onClick={() => removeFilterAndApply(chip.categoryId, chip.value)}
+                  className={`inline-flex min-w-0 shrink-0 items-center gap-1.5 rounded-full border border-pink-200/70 bg-pink-50/72 px-2.5 py-1 text-[11px] font-medium text-pink-700 ${focusRingClassName}`}
+                >
+                  <span className="max-w-[8.5rem] truncate">{chip.label}</span>
+                  <XMarkIcon className="h-3.5 w-3.5 text-pink-500/80" aria-hidden="true" />
+                </button>
+              ))
+            ) : (
+              <span className="inline-flex h-10 items-center whitespace-nowrap text-[12px] font-medium text-zinc-500">
+                Refine por formato, intenção ou contexto.
+              </span>
+            )}
+            {hiddenActiveFilterCount > 0 ? (
+              <button
+                type="button"
+                onClick={() => setCompactFiltersOpen(true)}
+                className={`inline-flex shrink-0 items-center rounded-full border border-zinc-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-zinc-600 ${focusRingClassName}`}
+              >
+                +{hiddenActiveFilterCount}
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="filter-container w-full bg-transparent">
       <style jsx global>{`
@@ -377,6 +448,27 @@ export default function DiscoverChips({ defaultView = "master", onViewChange, co
               Limpar tudo
             </button>
           )}
+        </div>
+      )}
+
+      {compactView && currentView === "master" && compactFiltersOpen && (
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+              Filtros
+            </p>
+            <p className="mt-0.5 text-[12px] text-zinc-500">
+              Ajuste a curadoria sem sair da comunidade.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setCompactFiltersOpen(false)}
+            className={`inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 ${focusRingClassName}`}
+            aria-label="Fechar filtros"
+          >
+            <XMarkIcon className="h-4 w-4" aria-hidden="true" />
+          </button>
         </div>
       )}
 

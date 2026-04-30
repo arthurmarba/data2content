@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import React from "react";
 import { ArrowLeft, Save, Trash2, Sparkles, Undo2, Redo2, Check, Lock } from "lucide-react";
 import type { InlineAnnotation } from "./InlineScriptEditor";
+import { buildScriptBlueprintPresentation } from "@/app/dashboard/lib/scriptBlueprintPresentation";
 
 const InlineScriptEditor = dynamic(
   () => import("./InlineScriptEditor").then((mod) => mod.InlineScriptEditor),
@@ -136,6 +137,9 @@ type CompactEditorSummaryItem = {
   description: string;
 };
 
+const MAX_COMPACT_BLUEPRINT_SCENES = 3;
+const MAX_DESKTOP_BLUEPRINT_SCENES = 4;
+
 export function MyScriptsEditorSurface({
   compactView,
   editor,
@@ -187,6 +191,10 @@ export function MyScriptsEditorSurface({
   getPostedContentLabel,
   buildContentOptionLabel,
 }: MyScriptsEditorSurfaceProps) {
+  const blueprintPresentation = React.useMemo(
+    () => buildScriptBlueprintPresentation(editor.content),
+    [editor.content]
+  );
   const compactEditorSummaryItems: CompactEditorSummaryItem[] = compactView
     ? [
         editor.recommendation?.isRecommended
@@ -220,6 +228,18 @@ export function MyScriptsEditorSurface({
           : null,
       ].filter((item): item is CompactEditorSummaryItem => item !== null)
     : [];
+  const visibleBlueprintScenes = React.useMemo(
+    () =>
+      blueprintPresentation.scenes.slice(
+        0,
+        compactView ? MAX_COMPACT_BLUEPRINT_SCENES : MAX_DESKTOP_BLUEPRINT_SCENES
+      ),
+    [blueprintPresentation.scenes, compactView]
+  );
+  const hiddenBlueprintSceneCount = Math.max(
+    blueprintPresentation.scenes.length - visibleBlueprintScenes.length,
+    0
+  );
 
   return (
     <div className={`flex min-h-0 flex-col bg-transparent [-webkit-tap-highlight-color:transparent] ${compactView ? "h-full overflow-hidden" : "h-full overflow-hidden"}`}>
@@ -483,6 +503,141 @@ export function MyScriptsEditorSurface({
                 })}
               </div>
             </div>
+          ) : null}
+          {blueprintPresentation.hasStructuredScenes ? (
+            <section
+              className={`shrink-0 ${
+                compactView
+                  ? "mt-3 rounded-[1.15rem] border border-zinc-100/90 bg-zinc-50/70 px-3 py-3"
+                  : "mt-4 rounded-[1.35rem] border border-zinc-100/90 bg-zinc-50/78 px-4 py-4"
+              }`}
+            >
+              <div className={`flex ${compactView ? "flex-col gap-2.5" : "items-start justify-between gap-4"}`}>
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
+                    Direção de gravação
+                  </p>
+                  <p className={`mt-1 font-semibold text-zinc-900 ${compactView ? "text-[14px]" : "text-[15px]"}`}>
+                    Leia este roteiro como plano de execução, não como fala fechada.
+                  </p>
+                  <p className="mt-1 text-[12px] leading-[1.5] text-zinc-500">
+                    A IA resume o que gravar, o que comunicar e por que esse caminho faz sentido para o perfil.
+                  </p>
+                </div>
+                {blueprintPresentation.previewReason ? (
+                  <div className={`rounded-[1rem] border border-emerald-100 bg-emerald-50/85 px-3 py-2 ${compactView ? "" : "max-w-[320px]"}`}>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-700">
+                      Base estratégica
+                    </p>
+                    <p className="mt-1 text-[12px] leading-[1.5] text-emerald-900">
+                      {blueprintPresentation.previewReason}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+
+              {blueprintPresentation.editorialSummary ? (
+                <div className={`mt-3 grid gap-2.5 ${compactView ? "grid-cols-1" : "grid-cols-2 xl:grid-cols-4"}`}>
+                  {blueprintPresentation.editorialSummary.whatToPost ? (
+                    <article className="rounded-[1rem] border border-indigo-100 bg-indigo-50/80 px-3 py-2.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-indigo-700">
+                        O que postar
+                      </p>
+                      <p className="mt-1 text-[12px] leading-[1.5] text-indigo-950">
+                        {blueprintPresentation.editorialSummary.whatToPost}
+                      </p>
+                    </article>
+                  ) : null}
+                  {blueprintPresentation.editorialSummary.whyPostThisWay ? (
+                    <article className="rounded-[1rem] border border-emerald-100 bg-emerald-50/80 px-3 py-2.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-700">
+                        Por que postar assim
+                      </p>
+                      <p className="mt-1 text-[12px] leading-[1.5] text-emerald-950">
+                        {blueprintPresentation.editorialSummary.whyPostThisWay}
+                      </p>
+                    </article>
+                  ) : null}
+                  {blueprintPresentation.editorialSummary.whenToPost ? (
+                    <article className="rounded-[1rem] border border-amber-100 bg-amber-50/85 px-3 py-2.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-amber-700">
+                        Quando postar
+                      </p>
+                      <p className="mt-1 text-[12px] leading-[1.5] text-amber-950">
+                        {blueprintPresentation.editorialSummary.whenToPost}
+                      </p>
+                    </article>
+                  ) : null}
+                  {blueprintPresentation.editorialSummary.howVideoShouldWork ? (
+                    <article className="rounded-[1rem] border border-sky-100 bg-sky-50/85 px-3 py-2.5">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-sky-700">
+                        Como deve funcionar
+                      </p>
+                      <p className="mt-1 text-[12px] leading-[1.5] text-sky-950">
+                        {blueprintPresentation.editorialSummary.howVideoShouldWork}
+                      </p>
+                    </article>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className={`mt-3 grid gap-2.5 ${compactView ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-2"}`}>
+                {visibleBlueprintScenes.map((scene, index) => (
+                  <article
+                    key={`${scene.label}-${index}`}
+                    className="rounded-[1.1rem] border border-white/80 bg-white/88 px-3.5 py-3 shadow-[0_1px_0_rgba(15,23,42,0.04)]"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
+                        {scene.label}
+                      </p>
+                    </div>
+                    {scene.visual ? (
+                      <div className="mt-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
+                          O que gravar
+                        </p>
+                        <p className="mt-1 text-[13px] leading-[1.5] text-zinc-800">{scene.visual}</p>
+                      </div>
+                    ) : null}
+                    {scene.message ? (
+                      <div className="mt-2.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
+                          O que comunicar
+                        </p>
+                        <p className="mt-1 text-[13px] leading-[1.5] text-zinc-700">{scene.message}</p>
+                      </div>
+                    ) : null}
+                    {scene.direction ? (
+                      <div className="mt-2.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-400">
+                          Como conduzir
+                        </p>
+                        <p className="mt-1 text-[12px] leading-[1.5] font-medium text-zinc-700">
+                          {scene.direction}
+                        </p>
+                      </div>
+                    ) : null}
+                    {scene.strategyReason ? (
+                      <div className="mt-2.5 rounded-[0.95rem] border border-emerald-100 bg-emerald-50/80 px-3 py-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-emerald-700">
+                          Por que assim
+                        </p>
+                        <p className="mt-1 text-[12px] leading-[1.55] text-emerald-900">
+                          {scene.strategyReason}
+                        </p>
+                      </div>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+
+              {hiddenBlueprintSceneCount > 0 ? (
+                <p className="mt-2.5 text-[11px] font-medium text-zinc-500">
+                  {`+${hiddenBlueprintSceneCount} ${hiddenBlueprintSceneCount === 1 ? "cena continua" : "cenas continuam"} no roteiro completo abaixo.`}
+                </p>
+              ) : null}
+            </section>
           ) : null}
           <div
             className={`relative flex flex-col ${

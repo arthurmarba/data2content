@@ -43,7 +43,7 @@ describe('Format PerformanceCalculations', () => {
       _id: new Types.ObjectId(id),
       user: new Types.ObjectId(userId),
       postDate: new Date(),
-      format: format,
+      format: [format],
       stats: Object.keys(stats).length > 0 ? stats : undefined,
     };
   };

@@ -73,6 +73,7 @@ function toPlannerSlotData(slot: PlannerUISlot | null): PlannerSlotDataModal | n
     rationale: (slot as any).rationale,
     recordingTimeSec: (slot as any).recordingTimeSec,
     aiVersionId: (slot as any).aiVersionId,
+    savedFrom: (slot as any).savedFrom,
   };
 }
 
@@ -93,6 +94,7 @@ function fromPlannerSlotData(data: PlannerSlotDataModal): PlannerUISlot {
     rationale: Array.isArray(data.rationale) ? data.rationale.join('\n') : (data.rationale as any),
     recordingTimeSec: data.recordingTimeSec,
     aiVersionId: data.aiVersionId ?? undefined,
+    savedFrom: data.savedFrom ?? undefined,
   };
 }
 
@@ -123,6 +125,9 @@ export type PlannerClientPageProps = {
   viewerPending?: boolean;
   previewMode?: boolean;
   initialHasAccess?: boolean;
+  requestedSlotId?: string | null;
+  onFunnelSlotFocus?: (slot: PlannerUISlot) => void;
+  onFunnelSlotSaved?: (slot: PlannerUISlot) => void;
 };
 
 const ADMIN_PLANNER_TARGET_STORAGE_KEY = 'planner_admin_target_user';
@@ -134,6 +139,9 @@ export function PlannerClientPageSurface({
   viewerPending = false,
   previewMode = false,
   initialHasAccess = false,
+  requestedSlotId,
+  onFunnelSlotFocus,
+  onFunnelSlotSaved,
 }: PlannerClientPageProps) {
   const viewerRoleFromProp = typeof viewer?.role === 'string' ? viewer.role.trim().toLowerCase() : null;
   const viewerUserId =
@@ -157,6 +165,12 @@ export function PlannerClientPageSurface({
 
   const router = useRouter();
   const searchParams = useSearchParams();
+  const activeRequestedSlotId = useMemo(() => {
+    const propValue = typeof requestedSlotId === 'string' ? requestedSlotId.trim() : '';
+    if (propValue) return propValue;
+    const queryValue = searchParams.get('slotId');
+    return queryValue?.trim() || '';
+  }, [requestedSlotId, searchParams]);
   const { toast } = useToast();
   const shouldCheckBilling =
     !isAdminViewer && !initialHasAccess && plannerDataReady && isAuthenticated && !isPreviewMode;
@@ -241,15 +255,14 @@ export function PlannerClientPageSurface({
   );
 
   useEffect(() => {
-    const slotId = searchParams.get('slotId');
-    if (slotId && slots && slots.length > 0 && !selectedSlot && !isModalOpen) {
-      const found = slots.find((s) => s.slotId === slotId);
+    if (activeRequestedSlotId && slots && slots.length > 0 && !selectedSlot && !isModalOpen) {
+      const found = slots.find((s) => s.slotId === activeRequestedSlotId);
       if (found) {
         setSelectedSlot(found);
         setIsModalOpen(true);
       }
     }
-  }, [searchParams, slots, selectedSlot, isModalOpen]);
+  }, [activeRequestedSlotId, slots, selectedSlot, isModalOpen]);
 
   useEffect(() => {
     if (!isAdminViewer || hasHydratedAdminTargetRef.current || typeof window === 'undefined') return;
@@ -394,8 +407,9 @@ export function PlannerClientPageSurface({
     setSelectedSlot(slot);
     setIsModalOpen(true);
     setSavingError(null);
+    onFunnelSlotFocus?.(slot);
     track('planner_slot_opened', { slotId: slot.slotId });
-  }, [isPreviewMode, requestGoogleLogin]);
+  }, [isPreviewMode, onFunnelSlotFocus, requestGoogleLogin]);
 
   const handleCloseSlot = useCallback(() => {
     setSelectedSlot(null);
@@ -445,6 +459,7 @@ export function PlannerClientPageSurface({
               return slot.dayOfWeek === updated.dayOfWeek && slot.blockStartHour === updated.blockStartHour;
             })
           : null;
+        onFunnelSlotSaved?.((persisted ?? merged) as PlannerUISlot);
         const pautaLabel = (
           persisted?.title ||
           updated.title ||
@@ -468,7 +483,7 @@ export function PlannerClientPageSurface({
         throw err;
       }
     },
-    [ensurePlannerAccess, slots, saveSlots, toast, router, handleCloseSlot]
+    [ensurePlannerAccess, slots, saveSlots, toast, router, handleCloseSlot, onFunnelSlotSaved]
   );
 
   const handleDelete = useCallback(
@@ -610,6 +625,7 @@ export function PlannerClientPageSurface({
             return item.dayOfWeek === merged.dayOfWeek && item.blockStartHour === merged.blockStartHour;
           })
         : null;
+      onFunnelSlotSaved?.(((persisted ?? merged) as PlannerUISlot));
 
       toast({
         variant: 'success',
@@ -627,7 +643,7 @@ export function PlannerClientPageSurface({
         isSaved: true,
       } as PlannerUISlot;
     },
-    [ensurePlannerAccess, slots, saveSlots, reload, toast, router]
+    [ensurePlannerAccess, slots, saveSlots, reload, toast, router, onFunnelSlotSaved]
   );
 
   if (viewerPending && !isAuthenticated) {

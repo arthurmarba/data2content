@@ -74,9 +74,20 @@ describe("scripts/observability", () => {
         },
         styleProfileVersion: "scripts_style_profile_v1",
         styleSampleSize: 10,
+        editorialDecision: {
+          postDirective: "Poste um reels pelo ângulo do erro antes do ajuste prático.",
+          narrativeAngle: "diagnóstico direto com virada aplicável",
+          recommendedStructure: "erro visível -> contexto real -> ajuste -> CTA",
+          whyThisShouldWork: [
+            "As categorias fortes do perfil apontam para tips + humorous.",
+          ],
+          evidence: ["proposal tips | tone humorous"],
+          postingWindow: null,
+        },
         captionEvidence: [],
         winningScriptExamples: [],
         relaxationLevel: 1,
+        engagementTiming: null,
         usedFallbackRules: false,
       },
     });
@@ -171,9 +182,12 @@ describe("scripts/observability", () => {
     expect(typeof diagnostics.hookStrength).toBe("number");
     expect(typeof diagnostics.specificityScore).toBe("number");
     expect(typeof diagnostics.speakabilityScore).toBe("number");
+    expect(typeof diagnostics.shootabilityScore).toBe("number");
+    expect(typeof diagnostics.strategyScore).toBe("number");
     expect(typeof diagnostics.ctaStrength).toBe("number");
     expect(typeof diagnostics.diversityScore).toBe("number");
     expect(typeof diagnostics.utilityScore).toBe("number");
+    expect(typeof diagnostics.concisionScore).toBe("number");
   });
 
   it("captures technical diagnostics in flow format", () => {

@@ -37,6 +37,7 @@ type ScriptDraftWithReview = ScriptDraft & {
 
 type GenerateInput = {
   prompt: string;
+  title?: string;
   intelligenceContext?: ScriptIntelligenceContext | null;
 };
 
@@ -95,6 +96,10 @@ const MENTION_REGEX = /@([A-Za-z0-9._]{2,30})/g;
 const HASHTAG_REGEX = /#([\p{L}0-9_]{2,40})/gu;
 const PREMIUM_MODEL_INTENT_REGEX =
   /(premium|refin[ao]|mais criativ|mais elaborad|mais detalhad|storytelling|copywriter|brand voice|tom de voz|cinematogr[aá]f)/i;
+const QUICK_BLUEPRINT_INTENT_REGEX =
+  /(vis[aã]o r[aá]pida|visao rapida|bem direto|mais curt[oa]|enxut[oa]|objetiv[oa]|sem enrola[cç][aã]o|quatro cenas|4 cenas)/i;
+const DEEP_BLUEPRINT_INTENT_REGEX =
+  /(mais dire[cç][aã]o|mais detalhad|aprofund|passo a passo|mais complet[oa]|mais robust[oa]|quebre melhor|cinco cenas|5 cenas|seis cenas|6 cenas)/i;
 const CONSTRAINT_TOKEN_REGEX =
   /(sem|com|evite|obrigat[oó]ri|inclua|não|nao|tom|estrutura|objetivo|p[úu]blico|persona|cta|gancho|par[aá]grafo|hook|copy)/gi;
 const BULLET_ITEM_REGEX = /(?:^|\n)\s*(?:[-*]|\d+[.)])/gm;
@@ -136,10 +141,17 @@ const ABSTRACT_CLAIM_REGEX =
   /\b(importante|essencial|fundamental|necess[aá]rio|estrat[eé]gic[oa]|valor|jornada|mindset|energia|consist[eê]ncia|resultado)\b/i;
 const PRACTICAL_VALUE_PROMISE_REGEX =
   /\b(diagn[oó]stico|ajuste|passo|crit[eé]rio|erro|ritual|sinal|decis[aã]o|micro passo|mecanismo)\b/i;
+const BLUEPRINT_SPEECH_REGEX =
+  /\b(mensagem da cena|o que precisa comunicar|frase[- ]?exemplo|exemplo opcional|ideia central|ponto central|abrir com|fechar perguntando|cta sugerido|dizer que|nomear o erro)\b/i;
+const PRACTICAL_SHOOT_MARKER_REGEX =
+  /\b(close|plano|meio-corpo|rosto|celular|trip[eé]|painel|espelho|mesa|m[aã]o|b-roll|broll|corte|texto na tela|porta|janela|fundo|cen[aá]rio|luz|volante|garrafa|mochila|quadro|notas|aponta|mostra|abre|retorna|grava|gravar)\b/i;
+const STRATEGIC_REASON_REGEX =
+  /\b(por que assim|porque assim|faz sentido porque|isso funciona porque|neste perfil|no perfil|categori|narrativ|gancho|contexto vencedor|formato|tom|refer[eê]ncia|engajamento|lift|janela|hor[aá]rio|publica[cç][aã]o|hist[oó]rico)\b/i;
 const SCRIPT_NARRATIVE_QUALITY_RULES = [
   "Abra com observação vivida, confissão, contraste ou opinião concreta; evite promessa genérica.",
   "Construa arco humano: gancho -> dor/tensão real -> mudança prática -> motivo humano/prova -> CTA conversacional.",
-  "Na Fala, escreva como alguém falaria de verdade para a câmera; nunca como manual, palestra ou apresentação.",
+  "Na Fala, descreva o que precisa ser comunicado em cada cena e, quando ajudar, inclua só uma frase-exemplo curta em vez de tentar fechar o texto inteiro.",
+  "Em Visual e Direção, deixe claro como gravar a cena de forma prática: enquadramento, ação, objeto, cenário, ritmo e gesto.",
   "Use detalhes concretos e cotidianos em vez de abstrações: ritual, objeto, cenário, sensação, hábito ou reação.",
   "Quando fizer sentido, inclua vulnerabilidade, contradição ou ironia leve para gerar identificação.",
   "O CTA final deve parecer continuação da conversa e convidar resposta real; evite CTA robótico e genérico.",
@@ -165,8 +177,24 @@ type TechnicalSceneBlock = {
   row: TechnicalSceneRow;
 };
 
+type TechnicalEditorialBrief = {
+  whatToPost: string;
+  whyPostThisWay: string;
+  whenToPost: string;
+  howVideoShouldWork: string;
+};
+
 type TechnicalContractOptions = {
   runQualityPass?: boolean;
+  editorialDecision?: ScriptIntelligenceContext["editorialDecision"] | null;
+  preferredSceneCount?: number | null;
+  maxSceneCount?: number | null;
+};
+
+type BlueprintDensityProfile = {
+  preferredSceneCount: number;
+  maxSceneCount: number;
+  promptGuidance: string;
 };
 
 export type TechnicalScriptQualityScore = {
@@ -174,15 +202,42 @@ export type TechnicalScriptQualityScore = {
   hookStrength: number;
   specificityScore: number;
   speakabilityScore: number;
+  shootabilityScore: number;
+  strategyScore: number;
   ctaStrength: number;
   diversityScore: number;
   utilityScore: number;
+  concisionScore: number;
   sceneCount: number;
 };
 
 const QUALITY_PASS_MIN_SCORE = 0.78;
 const SEMANTIC_REVIEW_MIN_SCORE = 7.4;
 const SEMANTIC_REVIEW_MIN_DIMENSION_SCORE = 6.8;
+export const TECHNICAL_SCRIPT_MAX_CHARS = (() => {
+  const parsed = Number(process.env.SCRIPTS_TECHNICAL_SCRIPT_MAX_CHARS ?? 3000);
+  return Number.isFinite(parsed) && parsed >= 1800 ? Math.floor(parsed) : 3000;
+})();
+const TECHNICAL_SCENE_VISUAL_MAX_CHARS = (() => {
+  const parsed = Number(process.env.SCRIPTS_TECHNICAL_SCENE_VISUAL_MAX_CHARS ?? 150);
+  return Number.isFinite(parsed) && parsed >= 80 ? Math.floor(parsed) : 150;
+})();
+const TECHNICAL_SCENE_FALA_MAX_CHARS = (() => {
+  const parsed = Number(process.env.SCRIPTS_TECHNICAL_SCENE_FALA_MAX_CHARS ?? 190);
+  return Number.isFinite(parsed) && parsed >= 100 ? Math.floor(parsed) : 190;
+})();
+const TECHNICAL_SCENE_DIRECTION_MAX_CHARS = (() => {
+  const parsed = Number(process.env.SCRIPTS_TECHNICAL_SCENE_DIRECTION_MAX_CHARS ?? 90);
+  return Number.isFinite(parsed) && parsed >= 40 ? Math.floor(parsed) : 90;
+})();
+const TECHNICAL_SCENE_REASON_MAX_CHARS = (() => {
+  const parsed = Number(process.env.SCRIPTS_TECHNICAL_SCENE_REASON_MAX_CHARS ?? 108);
+  return Number.isFinite(parsed) && parsed >= 60 ? Math.floor(parsed) : 108;
+})();
+const TECHNICAL_EDITORIAL_WHAT_MAX_CHARS = 125;
+const TECHNICAL_EDITORIAL_WHY_MAX_CHARS = 135;
+const TECHNICAL_EDITORIAL_WHEN_MAX_CHARS = 72;
+const TECHNICAL_EDITORIAL_HOW_MAX_CHARS = 105;
 const INTELLIGENCE_PROMPT_MAX_CHARS = (() => {
   const parsed = Number(process.env.SCRIPTS_INTELLIGENCE_PROMPT_MAX_CHARS ?? 3200);
   return Number.isFinite(parsed) && parsed >= 1200 ? Math.floor(parsed) : 3200;
@@ -194,6 +249,7 @@ type ScriptSemanticQualityAssessment = {
   adherence: number;
   specificity: number;
   humanity: number;
+  titleAlignment: number;
   creatorFit: number;
   hook: number;
   cta: number;
@@ -218,6 +274,39 @@ function clampText(value: unknown, fallback: string, max: number) {
   const normalized = typeof value === "string" ? value.trim() : "";
   if (!normalized) return fallback;
   return normalized.slice(0, max);
+}
+
+function clampTextByBoundary(value: string, max: number, fallback = "...") {
+  const normalized = typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+  if (!normalized) return fallback;
+  if (normalized.length <= max) return normalized;
+
+  const sliced = normalized.slice(0, max).trimEnd();
+  const sentenceBoundary = Math.max(
+    sliced.lastIndexOf(". "),
+    sliced.lastIndexOf("! "),
+    sliced.lastIndexOf("? "),
+    sliced.lastIndexOf("; ")
+  );
+  const commaBoundary = sliced.lastIndexOf(", ");
+  const wordBoundary = sliced.lastIndexOf(" ");
+
+  const bestBoundary =
+    sentenceBoundary > max * 0.55
+      ? sentenceBoundary + 1
+      : commaBoundary > max * 0.7
+        ? commaBoundary
+        : wordBoundary > max * 0.7
+          ? wordBoundary
+          : sliced.length;
+
+  const compacted = sliced
+    .slice(0, bestBoundary)
+    .replace(/[,:;–—-]\s*$/u, "")
+    .trimEnd();
+
+  if (!compacted) return fallback;
+  return `${compacted}...`;
 }
 
 function parseBoolean(value: string | undefined | null, defaultValue: boolean): boolean {
@@ -277,6 +366,61 @@ function computePromptComplexityScore(prompt: string, operation: ScriptModelOper
   return score;
 }
 
+function extractRequestedSceneCount(prompt: string): number | null {
+  const normalized = String(prompt || "").toLowerCase();
+  const numericMatch = normalized.match(/\b([4-6])\s*cenas?\b/);
+  if (numericMatch?.[1]) return Number(numericMatch[1]);
+  if (/\bquatro cenas?\b/.test(normalized)) return 4;
+  if (/\bcinco cenas?\b/.test(normalized)) return 5;
+  if (/\bseis cenas?\b/.test(normalized)) return 6;
+  return null;
+}
+
+export function resolveBlueprintDensityProfile(prompt: string): BlueprintDensityProfile {
+  const normalized = String(prompt || "").trim();
+  const explicitSceneCount = extractRequestedSceneCount(normalized);
+  if (explicitSceneCount && explicitSceneCount >= 4 && explicitSceneCount <= 6) {
+    return {
+      preferredSceneCount: explicitSceneCount,
+      maxSceneCount: explicitSceneCount,
+      promptGuidance:
+        explicitSceneCount === 4
+          ? "Use exatamente 4 cenas; não abra cenas extras."
+          : `Use exatamente ${explicitSceneCount} cenas; só distribua o arco nelas, sem prolixidade.`,
+    };
+  }
+
+  const complexityScore = computePromptComplexityScore(normalized, "generate");
+  const looksQuick = QUICK_BLUEPRINT_INTENT_REGEX.test(normalized);
+  const wantsDepth = DEEP_BLUEPRINT_INTENT_REGEX.test(normalized);
+  const isSimplePrompt =
+    normalized.length <= 120 &&
+    normalized.split("\n").filter((line) => line.trim()).length <= 2 &&
+    complexityScore <= 1;
+
+  if (wantsDepth || complexityScore >= 3) {
+    return {
+      preferredSceneCount: 5,
+      maxSceneCount: 6,
+      promptGuidance: "Abra para 5 cenas quando a prova ou a virada precisarem de bloco próprio; só use 6 se realmente necessário.",
+    };
+  }
+
+  if (looksQuick || isSimplePrompt) {
+    return {
+      preferredSceneCount: 4,
+      maxSceneCount: 4,
+      promptGuidance: "Use 4 cenas por padrão e deixe cada cena mais seca e filmável.",
+    };
+  }
+
+  return {
+    preferredSceneCount: 4,
+    maxSceneCount: 5,
+    promptGuidance: "Prefira 4 cenas; só abra 5 se faltar clareza real na prova ou na virada.",
+  };
+}
+
 export function selectScriptModelForPrompt(params: {
   userPrompt: string;
   operation: ScriptModelOperation;
@@ -286,7 +430,7 @@ export function selectScriptModelForPrompt(params: {
   const advancedModel = (
     process.env.OPENAI_MODEL_ADVANCED ||
     process.env.OPENAI_MODEL_PREMIUM ||
-    "gpt-4.1"
+    "gpt-4o"
   ).trim();
   const hybridEnabled = parseBoolean(process.env.OPENAI_MODEL_HYBRID_ENABLED, true);
   const operationRoutingEnabled = parseBoolean(
@@ -547,6 +691,8 @@ function buildPracticalValueBlock(prompt: string): string {
     "- O espectador precisa sair com pelo menos 1 diagnóstico concreto e 1 ajuste aplicável.",
     "- Se o assunto for amplo, escolha um recorte útil e operacional em vez de falar de tudo.",
     "- Não entregue tese vaga: mostre mecanismo, critério, passo, erro ou ritual observável.",
+    "- O criador precisa conseguir visualizar como gravar cada cena sem depender de um texto final perfeito.",
+    "- Descreva captação prática: enquadramento, ação, objeto, cenário, corte, gesto ou apoio visual quando fizer sentido.",
   ];
 
   if (objective === "converter") {
@@ -560,6 +706,29 @@ function buildPracticalValueBlock(prompt: string): string {
   }
 
   return `Utilidade prática obrigatória:\n${baseLines.join("\n")}\n\n`;
+}
+
+export function resolveEditorialAnchorTitle(input: {
+  prompt: string;
+  title?: string;
+  intelligenceContext?: ScriptIntelligenceContext | null;
+}): string {
+  const explicitTitle = clampText(input.title, "", 80);
+  if (explicitTitle) return explicitTitle;
+
+  const parsedPrompt = input.intelligenceContext?.intent ?? parsePromptForScriptIntelligence(input.prompt).intent;
+  const subjectHint = clampText(parsedPrompt?.subjectHint, "", 70);
+  if (subjectHint) {
+    return clampText(`Plano de vídeo: ${subjectHint}`, subjectHint, 80);
+  }
+
+  const topic = clampText(extractTopicHint(input.prompt), "", 70);
+  if (topic && topic !== "esse tema") {
+    return clampText(`Plano de vídeo: ${topic}`, topic, 80);
+  }
+
+  const promptFallback = clampText(input.prompt.split(/\s+/).slice(0, 8).join(" "), "Roteiro técnico", 80);
+  return promptFallback || "Roteiro técnico";
 }
 
 function joinPromptSectionsWithinBudget(sections: Array<string | null | undefined>, maxChars: number): string {
@@ -581,6 +750,247 @@ function joinPromptSectionsWithinBudget(sections: Array<string | null | undefine
     break;
   }
   return result;
+}
+
+function compactTechnicalEditorialValue(value: string, maxChars: number, fallback: string): string {
+  return clampTextByBoundary(sanitizeTableCell(value, fallback), maxChars, fallback);
+}
+
+function compactEditorialTiming(value: string): string {
+  const normalized = String(value || "").replace(/\r/g, "").replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+  const parts = normalized.split("|").map((part) => part.trim()).filter(Boolean);
+  const weekdayPart = parts.find((part) => /dias com mais recorr[êe]ncia/i.test(part)) || "";
+  const hoursPart = parts.find((part) => /hor[áa]rios com mais recorr[êe]ncia/i.test(part)) || "";
+  const weekdays = weekdayPart
+    .replace(/dias com mais recorr[êe]ncia:\s*/i, "")
+    .replace(/\se\s/gi, "/")
+    .replace(/\s+/g, "")
+    .trim();
+  const hours = hoursPart
+    .replace(/hor[áa]rios com mais recorr[êe]ncia:\s*/i, "")
+    .replace(/\se\s/gi, "/")
+    .replace(/\s+/g, "")
+    .trim();
+  if (weekdays || hours) {
+    return [weekdays, hours].filter(Boolean).join(", ");
+  }
+  return compactTechnicalEditorialValue(normalized, TECHNICAL_EDITORIAL_WHEN_MAX_CHARS, "");
+}
+
+function compactSceneStrategicReason(value: string, maxChars: number): string {
+  const normalized = sanitizeTableCell(value, "");
+  if (!normalized) return "";
+
+  const tightened = normalized
+    .replace(/\b(tende a|costuma|geralmente|normalmente)\b/gi, "")
+    .replace(/\b(nesse|neste)\s+perfil\b/gi, "no perfil")
+    .replace(/\bde forma\b/gi, "")
+    .replace(/\bmais cedo\b/gi, "cedo")
+    .replace(/\bde que\b/gi, "que")
+    .replace(/\bquando parecer extensão natural da pauta\b/gi, "quando parece continuação da pauta")
+    .replace(/\bem reels curtos\b/gi, "")
+    .replace(/\s+/g, " ")
+    .replace(/\s+,/g, ",")
+    .trim();
+
+  const firstSentence = tightened.split(/(?<=[.!?])\s+/)[0] || tightened;
+  return clampTextByBoundary(firstSentence, maxChars, "");
+}
+
+function compactEvidenceLabel(value: string): string {
+  const normalized = sanitizeTableCell(value, "");
+  if (!normalized) return "";
+  return normalized
+    .replace(/\bproposal\b/gi, "prop")
+    .replace(/\bcontext\b/gi, "ctx")
+    .replace(/\btone\b/gi, "tom")
+    .replace(/\broteiro\(s\) vencedor\(es\)\b/gi, "roteiros fortes")
+    .replace(/\blegenda\(s\) forte\(s\)\b/gi, "legendas fortes")
+    .replace(/\bdias com mais recorr[êe]ncia:\s*/gi, "")
+    .replace(/\bhor[áa]rios com mais recorr[êe]ncia:\s*/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function extractPromptValueAfterColon(value: string): string {
+  const index = value.indexOf(":");
+  if (index < 0) return "";
+  return value.slice(index + 1).trim();
+}
+
+function deriveTechnicalEditorialBriefFromPrompt(fallbackPrompt: string): TechnicalEditorialBrief {
+  const topic = sanitizeTableCell(extractTopicHint(fallbackPrompt), "o tema principal do vídeo");
+  const objective = inferScriptObjective(fallbackPrompt);
+  const whyByObjective =
+    objective === "converter"
+      ? `Melhor quando mostra o custo do erro antes do próximo passo.`
+      : objective === "autoridade"
+        ? `Melhor quando organiza a pauta em critério claro, não em opinião vaga.`
+        : objective === "engajar"
+          ? `Melhor quando abre pela dor real e fecha com pergunta específica.`
+          : `Melhor quando deixa a promessa prática visível logo na abertura.`;
+
+  return {
+    whatToPost: `Reels sobre ${topic} com promessa concreta e recorte observável.`,
+    whyPostThisWay: whyByObjective,
+    whenToPost: "Use a janela forte; sem sinal claro, mantenha consistência.",
+    howVideoShouldWork: "gancho claro -> contexto real -> ajuste -> fechamento conversacional",
+  };
+}
+
+function buildTechnicalEditorialBriefFromDecision(
+  decision: ScriptIntelligenceContext["editorialDecision"] | null | undefined,
+  fallbackPrompt: string
+): TechnicalEditorialBrief {
+  const fallback = deriveTechnicalEditorialBriefFromPrompt(fallbackPrompt);
+  if (!decision) return fallback;
+
+  const whyEvidencePieces = uniqueCompactValues(
+    [
+      ...(decision.whyThisShouldWork || []),
+      ...(decision.evidence || []).filter((line) =>
+        /\b(proposal|context|tone|roteiro\(s\)|lift|timing|legenda\(s\)|hor[aá]rios?|dias?)\b/i.test(line)
+      ),
+    ],
+    2,
+    84
+  ).map((item) => compactEvidenceLabel(item));
+  const whyPostThisWay = compactTechnicalEditorialValue(
+    whyEvidencePieces.join("; "),
+    TECHNICAL_EDITORIAL_WHY_MAX_CHARS,
+    fallback.whyPostThisWay
+  );
+  const postDirective = compactTechnicalEditorialValue(
+    (decision.postDirective || fallback.whatToPost).replace(/^Poste um reels sobre\s*/i, "Reels sobre "),
+    TECHNICAL_EDITORIAL_WHAT_MAX_CHARS,
+    fallback.whatToPost
+  );
+  const howVideoShouldWork = compactTechnicalEditorialValue(
+    [decision.narrativeAngle ? `Ângulo: ${decision.narrativeAngle}.` : "", decision.recommendedStructure || ""]
+      .filter(Boolean)
+      .join(" "),
+    TECHNICAL_EDITORIAL_HOW_MAX_CHARS,
+    fallback.howVideoShouldWork
+  );
+
+  return {
+    whatToPost: postDirective,
+    whyPostThisWay,
+    whenToPost: compactEditorialTiming(decision.postingWindow || fallback.whenToPost),
+    howVideoShouldWork,
+  };
+}
+
+function extractTechnicalEditorialBrief(content: string): TechnicalEditorialBrief | null {
+  const normalized = (content || "").replace(/\r/g, "");
+  if (!normalized) return null;
+
+  const lines = normalized.split("\n");
+  let whatToPost = "";
+  let whyPostThisWay = "";
+  let whenToPost = "";
+  let howVideoShouldWork = "";
+  let activeField: keyof TechnicalEditorialBrief | null = null;
+
+  for (const rawLine of lines) {
+    const trimmed = stripMarkdownMarkers(rawLine).trim();
+    if (!trimmed) continue;
+    if (
+      trimmed === TECHNICAL_SCRIPT_START ||
+      trimmed === TECHNICAL_SCRIPT_END ||
+      trimmed === LEGACY_TECHNICAL_SCRIPT_START ||
+      trimmed === LEGACY_TECHNICAL_SCRIPT_END
+    ) {
+      continue;
+    }
+    if (TECHNICAL_SCENE_HEADING_REGEX.test(trimmed)) break;
+    if (trimmed.startsWith("|")) continue;
+
+    if (/^o que postar\s*:/i.test(trimmed)) {
+      whatToPost = extractPromptValueAfterColon(trimmed);
+      activeField = "whatToPost";
+      continue;
+    }
+    if (/^por que postar(?: assim)?\s*:/i.test(trimmed) || /^por que esse v[ií]deo\s*:/i.test(trimmed)) {
+      whyPostThisWay = extractPromptValueAfterColon(trimmed);
+      activeField = "whyPostThisWay";
+      continue;
+    }
+    if (/^quando postar\s*:/i.test(trimmed) || /^janela de publica[cç][aã]o\s*:/i.test(trimmed)) {
+      whenToPost = extractPromptValueAfterColon(trimmed);
+      activeField = "whenToPost";
+      continue;
+    }
+    if (/^como esse v[ií]deo deve funcionar\s*:/i.test(trimmed) || /^estrutura editorial\s*:/i.test(trimmed)) {
+      howVideoShouldWork = extractPromptValueAfterColon(trimmed);
+      activeField = "howVideoShouldWork";
+      continue;
+    }
+
+    if (activeField === "whatToPost") whatToPost = appendPromptValue(whatToPost, trimmed);
+    if (activeField === "whyPostThisWay") whyPostThisWay = appendPromptValue(whyPostThisWay, trimmed);
+    if (activeField === "whenToPost") whenToPost = appendPromptValue(whenToPost, trimmed);
+    if (activeField === "howVideoShouldWork") howVideoShouldWork = appendPromptValue(howVideoShouldWork, trimmed);
+  }
+
+  if (!whatToPost && !whyPostThisWay && !whenToPost && !howVideoShouldWork) return null;
+
+  return {
+    whatToPost: compactTechnicalEditorialValue(whatToPost, TECHNICAL_EDITORIAL_WHAT_MAX_CHARS, ""),
+    whyPostThisWay: compactTechnicalEditorialValue(whyPostThisWay, TECHNICAL_EDITORIAL_WHY_MAX_CHARS, ""),
+    whenToPost: compactTechnicalEditorialValue(whenToPost, TECHNICAL_EDITORIAL_WHEN_MAX_CHARS, ""),
+    howVideoShouldWork: compactTechnicalEditorialValue(howVideoShouldWork, TECHNICAL_EDITORIAL_HOW_MAX_CHARS, ""),
+  };
+}
+
+function resolveTechnicalEditorialBrief(params: {
+  rawContent: string;
+  fallbackPrompt: string;
+  editorialDecision?: ScriptIntelligenceContext["editorialDecision"] | null;
+}): TechnicalEditorialBrief {
+  const extracted = extractTechnicalEditorialBrief(params.rawContent);
+  if (extracted?.whatToPost || extracted?.whyPostThisWay || extracted?.whenToPost || extracted?.howVideoShouldWork) {
+    return {
+      whatToPost: extracted.whatToPost || buildTechnicalEditorialBriefFromDecision(params.editorialDecision, params.fallbackPrompt).whatToPost,
+      whyPostThisWay:
+        extracted.whyPostThisWay || buildTechnicalEditorialBriefFromDecision(params.editorialDecision, params.fallbackPrompt).whyPostThisWay,
+      whenToPost: extracted.whenToPost || buildTechnicalEditorialBriefFromDecision(params.editorialDecision, params.fallbackPrompt).whenToPost,
+      howVideoShouldWork:
+        extracted.howVideoShouldWork ||
+        buildTechnicalEditorialBriefFromDecision(params.editorialDecision, params.fallbackPrompt).howVideoShouldWork,
+    };
+  }
+  return buildTechnicalEditorialBriefFromDecision(params.editorialDecision, params.fallbackPrompt);
+}
+
+function appendPromptValue(current: string, next: string): string {
+  const normalized = sanitizeTableCell(next, "");
+  if (!normalized) return current;
+  return current ? `${current} ${normalized}` : normalized;
+}
+
+function serializeTechnicalEditorialBrief(brief: TechnicalEditorialBrief | null | undefined): string {
+  if (!brief) return "";
+  const whatToPost = compactTechnicalEditorialValue(brief.whatToPost, TECHNICAL_EDITORIAL_WHAT_MAX_CHARS, "");
+  const whyPostThisWay = compactTechnicalEditorialValue(
+    brief.whyPostThisWay,
+    TECHNICAL_EDITORIAL_WHY_MAX_CHARS,
+    ""
+  );
+  const whenToPost = compactTechnicalEditorialValue(brief.whenToPost, TECHNICAL_EDITORIAL_WHEN_MAX_CHARS, "");
+  const howVideoShouldWork = compactTechnicalEditorialValue(
+    brief.howVideoShouldWork,
+    TECHNICAL_EDITORIAL_HOW_MAX_CHARS,
+    ""
+  );
+  const lines = [
+    whatToPost ? `O que postar: ${whatToPost}` : null,
+    whyPostThisWay ? `Por que postar assim: ${whyPostThisWay}` : null,
+    whenToPost ? `Quando postar: ${whenToPost}` : null,
+    howVideoShouldWork ? `Como esse vídeo deve funcionar: ${howVideoShouldWork}` : null,
+  ].filter(Boolean);
+  return lines.join("\n");
 }
 
 function defaultHeadingForScene(index: number, totalScenes = 4): string {
@@ -626,6 +1036,41 @@ function sanitizeTableCell(value: string, fallback = "..."): string {
     .replace(/\s+/g, " ")
     .trim();
   return sanitized || fallback;
+}
+
+function resolveSceneTextBudgets(totalScenes: number) {
+  const squeezeFactor = totalScenes >= 6 ? 0.86 : totalScenes === 5 ? 0.93 : 1;
+  return {
+    visual: Math.max(90, Math.floor(TECHNICAL_SCENE_VISUAL_MAX_CHARS * squeezeFactor)),
+    fala: Math.max(120, Math.floor(TECHNICAL_SCENE_FALA_MAX_CHARS * squeezeFactor)),
+    direction: Math.max(55, Math.floor(TECHNICAL_SCENE_DIRECTION_MAX_CHARS * squeezeFactor)),
+    reason: Math.max(80, Math.floor(TECHNICAL_SCENE_REASON_MAX_CHARS * squeezeFactor)),
+  };
+}
+
+function compactDirectionBlueprint(value: string, totalScenes: number, fallback = "..."): string {
+  const normalized = sanitizeTableCell(value, fallback);
+  if (!normalized || normalized === fallback) return fallback;
+  const budgets = resolveSceneTextBudgets(totalScenes);
+
+  const parts = normalized.split(/\bPor que assim:\s*/i);
+  const direction = clampTextByBoundary(parts[0] || "", budgets.direction, "");
+  const strategyReason = compactSceneStrategicReason(parts.slice(1).join(" ").trim(), budgets.reason);
+
+  if (strategyReason) {
+    return `${direction || "Tom e execução objetivos."} Por que assim: ${strategyReason}`;
+  }
+  return direction || fallback;
+}
+
+function compactTechnicalRow(row: TechnicalSceneRow, totalScenes: number): TechnicalSceneRow {
+  const budgets = resolveSceneTextBudgets(totalScenes);
+  return {
+    tempo: sanitizeTableCell(row.tempo, "00-03s"),
+    visual: clampTextByBoundary(sanitizeTableCell(row.visual, "..."), budgets.visual, "..."),
+    fala: clampTextByBoundary(sanitizeTableCell(row.fala, "..."), budgets.fala, "..."),
+    direcao: compactDirectionBlueprint(row.direcao, totalScenes, "..."),
+  };
 }
 
 function isTableSeparatorLine(line: string): boolean {
@@ -815,41 +1260,41 @@ function buildDefaultTechnicalRow(
   if (sceneIndex === 1) {
     return {
       tempo: "00-03s",
-      visual: `Texto na tela: FOI ISSO QUE DESTRAVOU ${safeTopic.toUpperCase()}. Close no rosto com micro-pausa antes da frase final.`,
-      fala: `Eu só consegui destravar ${safeTopic} quando parei de fazer do jeito óbvio.`,
-      direcao: "Tom de confissão segura, ritmo firme e olhar direto na lente.",
+      visual: `Close no rosto, câmera parada na altura dos olhos e micro-pausa antes da primeira frase. Texto na tela: FOI ISSO QUE DESTRAVOU ${safeTopic.toUpperCase()}.`,
+      fala: `Abrir com a virada central de ${safeTopic}: dizer que isso só destravou quando você parou de fazer do jeito óbvio. Frase-exemplo opcional: eu só destravei isso quando parei de insistir no caminho mais automático.`,
+      direcao: "Tom de confissão segura, ritmo firme e olhar direto na lente. Por que assim: confissão em close deixa a promessa clara cedo e segura retenção.",
     };
   }
   if (sceneIndex === 2) {
     return {
       tempo: "03-10s",
-      visual: `Texto na tela: A PARTE QUE TE DERRUBA. Corte mostrando o atrito, a pressa ou a frustração do processo.`,
-      fala: `Porque quando ${safeTopic} vira só obrigação, a consistência vai embora primeiro.`,
-      direcao: "Tom íntimo e direto, como quem explica uma verdade desconfortável.",
+      visual: `Corte mostrando o atrito do processo no contexto real: pressa, bagunça, tela, rotina ou frustração ligada a ${safeTopic}. Texto na tela: A PARTE QUE TE DERRUBA.`,
+      fala: `Nomear o erro ou atrito que derruba ${safeTopic} no dia a dia antes de entregar a dica. Se ajudar, conectar com uma situação concreta que o criador vive ou observa.`,
+      direcao: "Tom íntimo e direto, como quem explica uma verdade desconfortável. Por que assim: contexto concreto evita tese solta e aumenta identificação.",
     };
   }
   if (sceneIndex === 3) {
     return {
       tempo: "10-20s",
-      visual: `Texto na tela: O AJUSTE QUE FACILITOU TUDO. B-roll da rotina, do ritual ou da ação concreta acontecendo.`,
-      fala: `Então eu criei um ritual simples pra deixar ${safeTopic} mais leve e repetível no dia a dia.`,
-      direcao: "Cadência natural, didática e sem cara de aula.",
+      visual: `Mostrar o ajuste acontecendo na prática: mão fazendo, tela aberta, ritual montado ou objeto em uso. Texto na tela: O AJUSTE QUE FACILITOU TUDO.`,
+      fala: `Explicar o ajuste, critério ou ritual que deixa ${safeTopic} mais simples de repetir. Se quiser, incluir uma frase-exemplo curta mostrando antes e depois.`,
+      direcao: "Cadência natural, didática e sem cara de aula. Por que assim: ajuste visível passa mais utilidade que opinião solta.",
     };
   }
   if (!isLast && sceneIndex === 4) {
     return {
       tempo: totalScenes >= 6 ? "20-28s" : "20-30s",
-      visual: `Texto na tela: QUANDO VIROU RITUAL. Mostre resultado, sensação de alívio ou mudança concreta na rotina.`,
-      fala: `Quando isso virou ritual, parou de depender de motivação e começou a acontecer de verdade.`,
-      direcao: "Tom de realização, mais calmo e convincente.",
+      visual: `Mostrar prova visível: rotina mais leve, resultado no processo, sensação de alívio ou consequência concreta. Texto na tela: QUANDO VIROU RITUAL.`,
+      fala: `Fechar a prova da cena anterior: mostrar o que mudou quando o ajuste virou hábito, critério ou rotina.`,
+      direcao: "Tom de realização, mais calmo e convincente. Por que assim: prova concreta segura melhor a retenção que repetir a dica.",
     };
   }
   if (!isLast && sceneIndex === 5) {
     return {
       tempo: "28-36s",
-      visual: `Texto na tela: O MOTIVO REAL. Retorno para o rosto, com pausa curta antes da conclusão.`,
-      fala: `No fim, nem era sobre força de vontade. Era sobre facilitar o processo certo.`,
-      direcao: "Tom conclusivo, contato visual forte e pausa curta na virada.",
+      visual: `Retorno para o rosto com pausa curta antes da conclusão. Texto na tela: O MOTIVO REAL.`,
+      fala: `Amarrar o motivo humano por trás do ajuste: mostrar por que isso funcionou melhor do que depender de motivação ou improviso.`,
+      direcao: "Tom conclusivo, contato visual forte e pausa curta na virada. Por que assim: virada humana aumenta identificação e memorabilidade.",
     };
   }
   const ctaTempo = totalScenes <= 4 ? "20-30s" : totalScenes === 5 ? "30-38s" : "36-45s";
@@ -858,14 +1303,14 @@ function buildDefaultTechnicalRow(
       tempo: ctaTempo,
       visual: `Texto na tela: COMENTA "QUERO". Gesto apontando para os comentários como continuação natural da conversa.`,
       fala: `Se quiser, eu continuo essa lógica no seu caso. Comenta "quero" aqui embaixo que eu trago a próxima parte.`,
-      direcao: "Amigável, sorriso curto e sensação de conversa em andamento.",
+      direcao: "Amigável, sorriso curto e sensação de conversa em andamento. Por que assim: CTA de continuidade converte melhor quando parece continuação da pauta.",
     };
   }
   return {
     tempo: ctaTempo,
     visual: `Texto na tela: E VOCÊ?. Gesto leve com a mão, encerrando sem parecer anúncio.`,
     fala: `E você, qual foi o ajuste que mais te ajudou com ${safeTopic}? Me conta aqui embaixo.`,
-    direcao: "Tom conversacional, curioso e com sorriso leve no final.",
+    direcao: "Tom conversacional, curioso e com sorriso leve no final. Por que assim: pergunta específica gera comentário melhor que CTA genérico.",
   };
 }
 
@@ -927,6 +1372,7 @@ function scoreHookStrength(row?: TechnicalSceneRow): number {
   // Personal connection
   if (/(voc[eê]|voce|seu|sua|te|se voc[eê]|se voce)/i.test(speech)) score += 0.2;
   if (/\b(eu|pra mim|comigo|s[oó] consegui|confesso|parece loucura|na verdade|foi quando)\b/i.test(speech)) score += 0.1;
+  if (/\b(abrir com|nomear o erro|virada central|come[çc]ar pelo atrito|gancho)\b/i.test(speech)) score += 0.12;
   if (words <= 8 && /(voc[eê]|voce)/i.test(speech) && /\b(n[aã]o|travado|errando|perdendo|confundindo)\b/i.test(speech)) {
     score += 0.12;
   }
@@ -972,6 +1418,41 @@ function scoreUtilityScene(row: TechnicalSceneRow): number {
   return roundScore(score);
 }
 
+function scoreShootability(row: TechnicalSceneRow): number {
+  const visual = sanitizeTableCell(row.visual, "");
+  const direction = sanitizeTableCell(row.direcao, "");
+  if (!visual && !direction) return 0;
+
+  let score = 0;
+  if (PRACTICAL_SHOOT_MARKER_REGEX.test(visual)) score += 0.34;
+  if (/\b(mostra|aponta|abre|retorna|ajeita|segura|entra|sai|corta|mostrando)\b/i.test(visual)) score += 0.2;
+  if (visual.length >= 24) score += 0.16;
+  if (hasMeaningfulOverlay(row.visual)) score += 0.08;
+  if (/\b(tom|ritmo|cad[êe]ncia|pausa|olhar|gesto|postura|energia|sorriso)\b/i.test(direction)) score += 0.14;
+  if (/\b(curto|leve|firme|calmo|direto|conversacional|did[aá]tico|confiante)\b/i.test(direction)) score += 0.08;
+  if (direction.length >= 18) score += 0.08;
+  if (visual.length < 18 && !PRACTICAL_SHOOT_MARKER_REGEX.test(visual)) score -= 0.12;
+
+  return roundScore(score);
+}
+
+function scoreStrategicReasoning(row: TechnicalSceneRow): number {
+  const direction = sanitizeTableCell(row.direcao, "");
+  if (!direction) return 0;
+
+  let score = 0;
+  if (/\b(por que assim|porque assim)\b/i.test(direction)) score += 0.38;
+  if (STRATEGIC_REASON_REGEX.test(direction)) score += 0.24;
+  if (/\b(gancho|categoria|narrativa|formato|tom|perfil|engajamento|lift)\b/i.test(direction)) score += 0.14;
+  if (/\b(hor[aá]rio|janela|publica[cç][aã]o)\b/i.test(direction)) score += 0.08;
+  if (/\b(\d+\s+roteiro|\d+\s+legenda|lift\s+\d|proposal\s+[a-z_]+|context\s+[a-z_]+|tone\s+[a-z_]+)\b/i.test(direction)) {
+    score += 0.12;
+  }
+  if (direction.length >= 48) score += 0.16;
+
+  return roundScore(score);
+}
+
 function scoreSpeakability(row: TechnicalSceneRow): number {
   const speech = sanitizeTableCell(row.fala, "");
   if (!speech) return 0;
@@ -983,6 +1464,9 @@ function scoreSpeakability(row: TechnicalSceneRow): number {
   // Sweet spot for a fast-paced vertical video scene
   if (words >= 6 && words <= 28) score += 0.4;
   else if (words > 28 && words <= 42) score += 0.2;
+
+  if (BLUEPRINT_SPEECH_REGEX.test(speech)) score += 0.22;
+  if (/\b(frase[- ]?exemplo|exemplo opcional|cta sugerido)\b/i.test(speech)) score += 0.12;
 
   // Conversational markers
   if (/\b(gente|galera|voc[eê]|eu|olha|ent[aã]o|mas a[ií])\b/i.test(speech)) score += 0.3;
@@ -1028,6 +1512,44 @@ function scoreDiversity(scenes: TechnicalSceneBlock[]): number {
   return roundScore(clamp01(ratio * 1.25 - duplicatePenalty));
 }
 
+function scoreConcision(scenes: TechnicalSceneBlock[]): number {
+  if (!scenes.length) return 0;
+
+  const totalScenes = scenes.length;
+  const budgets = resolveSceneTextBudgets(totalScenes);
+  const serializedLength = [TECHNICAL_SCRIPT_START, ...scenes.map((scene) => serializeSceneBlock(scene, totalScenes)), TECHNICAL_SCRIPT_END]
+    .join("\n\n")
+    .trim().length;
+  const idealScriptLength = totalScenes <= 4 ? 2100 : totalScenes === 5 ? 2500 : 2850;
+  const softMaxLength = Math.min(TECHNICAL_SCRIPT_MAX_CHARS, totalScenes <= 4 ? 2700 : totalScenes === 5 ? 3000 : 3200);
+
+  let score = 1;
+  if (serializedLength > idealScriptLength) {
+    const overflowRatio = (serializedLength - idealScriptLength) / Math.max(softMaxLength - idealScriptLength, 1);
+    score -= Math.min(0.46, overflowRatio * 0.46);
+  }
+  if (serializedLength >= softMaxLength) {
+    score -= 0.14;
+  }
+
+  let overflowPenalty = 0;
+  for (const scene of scenes) {
+    const compacted = compactTechnicalRow(scene.row, totalScenes);
+    overflowPenalty += Math.max(0, sanitizeTableCell(compacted.visual, "").length - budgets.visual) / Math.max(budgets.visual, 1);
+    overflowPenalty += Math.max(0, sanitizeTableCell(compacted.fala, "").length - budgets.fala) / Math.max(budgets.fala, 1);
+    const directionParts = sanitizeTableCell(compacted.direcao, "").split(/\bPor que assim:\s*/i);
+    overflowPenalty += Math.max(0, (directionParts[0] || "").trim().length - budgets.direction) / Math.max(budgets.direction, 1);
+    overflowPenalty += Math.max(0, directionParts.slice(1).join(" ").trim().length - budgets.reason) / Math.max(budgets.reason, 1);
+  }
+
+  score -= Math.min(0.24, overflowPenalty * 0.08);
+  if (serializedLength <= idealScriptLength * 0.72) {
+    score -= 0.06;
+  }
+
+  return roundScore(clamp01(score));
+}
+
 function evaluateTechnicalScriptQualityFromScenes(
   scenes: TechnicalSceneBlock[],
 ): TechnicalScriptQualityScore {
@@ -1037,9 +1559,12 @@ function evaluateTechnicalScriptQualityFromScenes(
       hookStrength: 0,
       specificityScore: 0,
       speakabilityScore: 0,
+      shootabilityScore: 0,
+      strategyScore: 0,
       ctaStrength: 0,
       diversityScore: 0,
       utilityScore: 0,
+      concisionScore: 0,
       sceneCount: 0,
     };
   }
@@ -1050,29 +1575,42 @@ function evaluateTechnicalScriptQualityFromScenes(
   const speakabilityScore = roundScore(
     scenes.reduce((sum, scene) => sum + scoreSpeakability(scene.row), 0) / scenes.length
   );
+  const shootabilityScore = roundScore(
+    scenes.reduce((sum, scene) => sum + scoreShootability(scene.row), 0) / scenes.length
+  );
+  const strategyScore = roundScore(
+    scenes.reduce((sum, scene) => sum + scoreStrategicReasoning(scene.row), 0) / scenes.length
+  );
   const ctaStrength = scoreCtaStrength(scenes[scenes.length - 1]?.row);
   const diversityScore = scoreDiversity(scenes);
+  const concisionScore = scoreConcision(scenes);
   const utilityScenes = scenes.slice(1, Math.max(2, scenes.length - 1));
   const utilityScore = roundScore(
     (utilityScenes.length ? utilityScenes : scenes).reduce((sum, scene) => sum + scoreUtilityScene(scene.row), 0) /
       (utilityScenes.length ? utilityScenes.length : scenes.length)
   );
   const perceivedQuality = roundScore(
-    hookStrength * 0.22 +
-    specificityScore * 0.22 +
-    speakabilityScore * 0.18 +
-    ctaStrength * 0.18 +
-    utilityScore * 0.14 +
-    diversityScore * 0.06
+    hookStrength * 0.18 +
+    specificityScore * 0.16 +
+    speakabilityScore * 0.1 +
+    shootabilityScore * 0.14 +
+    strategyScore * 0.12 +
+    ctaStrength * 0.14 +
+    utilityScore * 0.16 +
+    diversityScore * 0.04 +
+    concisionScore * 0.06
   );
   return {
     perceivedQuality,
     hookStrength,
     specificityScore,
     speakabilityScore,
+    shootabilityScore,
+    strategyScore,
     ctaStrength,
     diversityScore,
     utilityScore,
+    concisionScore,
     sceneCount: scenes.length,
   };
 }
@@ -1083,9 +1621,11 @@ function shouldRunQualityPass(score: TechnicalScriptQualityScore): boolean {
     score.perceivedQuality < QUALITY_PASS_MIN_SCORE ||
     score.hookStrength < 0.62 ||
     score.specificityScore < 0.62 ||
-    score.speakabilityScore < 0.75 ||
+    (score.speakabilityScore < 0.55 && score.shootabilityScore < 0.62) ||
+    score.strategyScore < 0.45 ||
     score.ctaStrength < 0.8 ||
-    score.utilityScore < 0.55
+    score.utilityScore < 0.55 ||
+    score.concisionScore < 0.62
   );
 }
 
@@ -1116,6 +1656,10 @@ function polishScenesForQuality(
     if (scoreSceneSpecificity(nextRow) < 0.55) {
       nextRow.visual = fallbackRow.visual;
     }
+    if (scoreShootability(nextRow) < 0.55) {
+      nextRow.visual = fallbackRow.visual;
+      nextRow.direcao = fallbackRow.direcao;
+    }
     if (sceneIndex === 1 && scoreHookStrength(nextRow) < 0.6) {
       nextRow.fala = fallbackRow.fala;
       nextRow.visual = fallbackRow.visual;
@@ -1134,10 +1678,11 @@ function polishScenesForQuality(
         ? nextRow.visual
         : fallbackRow.visual;
     }
+    const compactedRow = compactTechnicalRow(nextRow, total);
     return {
       index: sceneIndex,
       heading: normalizeSceneHeadingLabel(scene.heading, sceneIndex, total),
-      row: nextRow,
+      row: compactedRow,
     };
   });
 }
@@ -1177,7 +1722,7 @@ function formatTempoForHeading(tempoRaw: string): string {
 
 function serializeSceneBlock(scene: TechnicalSceneBlock, totalScenes: number): string {
   const heading = normalizeSceneHeadingLabel(scene.heading, scene.index, totalScenes);
-  const row = scene.row;
+  const row = compactTechnicalRow(scene.row, totalScenes);
   const headingLabel = formatSceneHeadingForDisplay(heading);
   const tempo = formatTempoForHeading(row.tempo);
   const visual = sanitizeTableCell(row.visual, "...");
@@ -1193,11 +1738,29 @@ function serializeSceneBlock(scene: TechnicalSceneBlock, totalScenes: number): s
   ].join("\n");
 }
 
-function serializeTechnicalScript(scenes: TechnicalSceneBlock[]): string {
+function serializeTechnicalScript(
+  scenes: TechnicalSceneBlock[],
+  editorialBrief?: TechnicalEditorialBrief | null
+): string {
   const sortedScenes = scenes.sort((a, b) => a.index - b.index);
   const totalScenes = sortedScenes.length;
   const blocks = sortedScenes.map((scene) => serializeSceneBlock(scene, totalScenes));
-  return [TECHNICAL_SCRIPT_START, ...blocks, TECHNICAL_SCRIPT_END].join("\n\n").trim();
+  const editorialBlock = serializeTechnicalEditorialBrief(editorialBrief);
+  const serialized = [TECHNICAL_SCRIPT_START, editorialBlock, ...blocks, TECHNICAL_SCRIPT_END]
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
+  if (serialized.length <= TECHNICAL_SCRIPT_MAX_CHARS) return serialized;
+
+  const reservedChars =
+    TECHNICAL_SCRIPT_START.length + TECHNICAL_SCRIPT_END.length + editorialBlock.length + 8;
+  const bodyBudget = Math.max(400, TECHNICAL_SCRIPT_MAX_CHARS - reservedChars);
+  const compactBody = clampTextByBoundary(blocks.join("\n\n"), bodyBudget, "").trim();
+
+  return [TECHNICAL_SCRIPT_START, editorialBlock, compactBody, TECHNICAL_SCRIPT_END]
+    .filter(Boolean)
+    .join("\n\n")
+    .trim();
 }
 
 function extractLegacySignals(content: string): { hook?: string; development?: string; cta?: string; paragraphs: string[] } {
@@ -1259,14 +1822,16 @@ function buildTechnicalScenesFromLegacyContent(content: string, fallbackPrompt: 
 export function convertLegacyScriptToTechnical(content: string, fallbackPrompt: string): string {
   const normalized = (content || "").trim();
   if (isTechnicalScript(normalized)) return normalized;
-  return serializeTechnicalScript(buildTechnicalScenesFromLegacyContent(normalized, fallbackPrompt));
+  return serializeTechnicalScript(
+    buildTechnicalScenesFromLegacyContent(normalized, fallbackPrompt),
+    resolveTechnicalEditorialBrief({ rawContent: normalized, fallbackPrompt })
+  );
 }
 
 function fallbackGenerate(prompt: string): ScriptDraft {
   const normalized = prompt.trim();
-  const titleBase = normalized ? normalized.split(/\s+/).slice(0, 7).join(" ") : "Roteiro técnico";
-  const title = clampText(titleBase, "Roteiro técnico", 80);
-  const content = convertLegacyScriptToTechnical("", normalized || "reels de 30s");
+  const title = resolveEditorialAnchorTitle({ prompt: normalized });
+  const content = convertLegacyScriptToTechnical("", `${title}\n${normalized || "reels de 30s"}`);
   return { title, content };
 }
 
@@ -1277,15 +1842,25 @@ function fallbackAdjust(input: AdjustInput): ScriptDraft {
   };
 }
 
-function fallbackAdjustScoped(segmentText: string, prompt: string): string {
+function fallbackAdjustScoped(
+  segmentText: string,
+  prompt: string,
+  target?: ScriptAdjustTarget
+): string {
   const normalizedSegment = String(segmentText || "").trim();
   if (!normalizedSegment) return convertLegacyScriptToTechnical("", prompt);
   if (isTechnicalScript(normalizedSegment)) return normalizedSegment;
+  if (target?.type === "editorial") return normalizedSegment;
+  if (target?.type === "paragraph" || target?.type === "first_paragraph" || target?.type === "last_paragraph") {
+    return normalizedSegment;
+  }
   return convertLegacyScriptToTechnical(normalizedSegment, prompt);
 }
 
 export function buildGenerateScriptPrompt(input: GenerateInput): string {
   const userPrompt = input.prompt.trim();
+  const editorialAnchorTitle = resolveEditorialAnchorTitle(input);
+  const densityProfile = resolveBlueprintDensityProfile(userPrompt);
   const intelligenceBlock =
     input.intelligenceContext && input.intelligenceContext.resolvedCategories
       ? buildIntelligencePromptBlock(input.intelligenceContext)
@@ -1308,8 +1883,15 @@ export function buildGenerateScriptPrompt(input: GenerateInput): string {
   const practicalValueBlock = buildPracticalValueBlock(userPrompt);
 
   return (
-    `Crie um roteiro técnico profissional em português do Brasil para creator.\n` +
+    `Crie um blueprint técnico profissional em português do Brasil para creator.\n` +
     `Pedido do usuário: ${userPrompt}\n` +
+    `Título âncora do roteiro: ${editorialAnchorTitle}\n` +
+    `${input.title?.trim() ? `Esse título já veio salvo pelo usuário e deve orientar o blueprint sem ser contradito.\n` : ""}` +
+    `Use esse título como bússola editorial: o gancho abre a promessa do título, o meio desenvolve a promessa e o fechamento conclui a promessa.\n` +
+    `Se uma cena fugir do título, reescreva a cena.\n` +
+    `Antes de descrever as cenas, faça silenciosamente esta ordem mental: 1) decida qual vídeo faz mais sentido postar agora; 2) defina o ângulo e a estrutura; 3) só então descreva como gravar.\n` +
+    `Essa decisão deve considerar pedido do usuário, título âncora, categorias vencedoras, repertório vencedor do perfil, linguagem das legendas fortes e timing quando houver sinal.\n` +
+    `Densidade do blueprint: ${densityProfile.promptGuidance}\n` +
     `${intelligenceBlock}\n\n` +
     `${winnerBasedGuidance}` +
     `${topicGuidance}` +
@@ -1324,35 +1906,55 @@ export function buildGenerateScriptPrompt(input: GenerateInput): string {
     `- Última cena: CTA natural, conversacional e específico\n\n` +
     `Regras obrigatórias:\n` +
     `- Retornar APENAS JSON válido com os campos title e content\n` +
-    `- Entregar roteiro pronto para gravação, sem explicar raciocínio\n` +
+    `- Entregar um plano prático de gravação, não um monólogo final perfeito\n` +
+    `- O criador precisa bater o olho e entender como vai gravar o vídeo de ponta a ponta\n` +
+    `- O blueprint também precisa explicar por que esse vídeo deve ser gravado desse jeito com base no que mais gera resultado no perfil\n` +
+    `- Antes das cenas, inclua 4 linhas curtas de direção editorial: O que postar / Por que postar assim / Quando postar / Como esse vídeo deve funcionar\n` +
+    `- "Por que postar assim" deve citar pelo menos 1 evidência concreta do perfil: combinação de categorias, quantidade de roteiros/legendas fortes, lift ou timing observado\n` +
+    `- Cada uma dessas 4 linhas deve caber em 1 frase curta e densa\n` +
     `- content deve seguir EXATAMENTE o formato técnico abaixo:\n` +
     `${TECHNICAL_SCRIPT_START}\n` +
+    `O que postar: Resumo curto do vídeo que faz mais sentido publicar agora.\n` +
+    `Por que postar assim: 1 frase curta com evidência concreta do perfil, como categoria vencedora, lift, volume de exemplos ou timing.\n` +
+    `Quando postar: Janela observada do perfil em 1 frase curta; sem sinal, diga só para manter consistência.\n` +
+    `Como esse vídeo deve funcionar: Estrutura editorial em 1 linha (ex.: erro visível -> contexto real -> ajuste -> pergunta final).\n\n` +
     `CENA 1: O GANCHO (0:00 - 0:06)\n` +
-    `Visual: ...\n\n` +
-    `Fala: "..."\n\n` +
-    `Direção: ...\n\n` +
+    `Visual: Close no rosto, câmera parada e texto na tela reforçando a virada principal.\n\n` +
+    `Fala: Abrir nomeando o erro, virada ou tensão central. Frase-exemplo opcional curta se ajudar.\n\n` +
+    `Direção: Tom, ritmo, gesto e execução. Por que assim: justificativa curta baseada em engajamento, categoria, narrativa ou timing quando houver sinal.\n\n` +
     `CENA 2: CONTEXTO (0:07 - 0:15)\n` +
-    `Visual: ...\n\n` +
-    `Fala: "..."\n\n` +
-    `Direção: ...\n\n` +
+    `Visual: Mostrar a situação real, atrito, cenário ou prova cotidiana.\n\n` +
+    `Fala: Explicar o que precisa ficar claro nessa cena e qual erro ou dor precisa aparecer.\n\n` +
+    `Direção: Tom, ritmo, gesto e execução. Por que assim: justificativa curta baseada em engajamento, categoria, narrativa ou timing quando houver sinal.\n\n` +
     `CENA 3: DEMONSTRAÇÃO (0:16 - 0:25)\n` +
-    `Visual: ...\n\n` +
-    `Fala: "..."\n\n` +
-    `Direção: ...\n\n` +
+    `Visual: Mostrar o ajuste acontecendo na prática com objeto, tela, gesto ou rotina.\n\n` +
+    `Fala: Explicar o ajuste, passo, critério ou ritual. Pode incluir uma frase-exemplo curta.\n\n` +
+    `Direção: Tom, ritmo, gesto e execução. Por que assim: justificativa curta baseada em engajamento, categoria, narrativa ou timing quando houver sinal.\n\n` +
     `CENA 4: CHAMADA PARA AÇÃO (0:26 - 0:35)\n` +
-    `Visual: ...\n\n` +
-    `Fala: "..."\n\n` +
-    `Direção: ...\n` +
+    `Visual: Fechamento simples com gesto, texto na tela e continuidade da conversa.\n\n` +
+    `Fala: Sugerir como fechar e qual CTA natural usar, sem soar burocrático.\n\n` +
+    `Direção: Tom, ritmo, gesto e execução. Por que assim: justificativa curta baseada em engajamento, categoria, narrativa ou timing quando houver sinal.\n` +
     `${TECHNICAL_SCRIPT_END}\n` +
     `- Cada cena deve conter obrigatoriamente os campos: Visual, Fala e Direção\n` +
+    `- Prefira ${densityProfile.preferredSceneCount} cenas neste pedido\n` +
+    `- Nunca ultrapasse ${densityProfile.maxSceneCount} cenas neste pedido\n` +
     `- Mínimo 4 e máximo 6 cenas\n` +
+    `- Resposta compacta: priorize clareza e filmabilidade, sem texto sobrando\n` +
+    `- Visual idealmente até ${TECHNICAL_SCENE_VISUAL_MAX_CHARS} caracteres\n` +
+    `- Fala idealmente até ${TECHNICAL_SCENE_FALA_MAX_CHARS} caracteres\n` +
+    `- Na Direção, a parte de execução deve ser curta e o "Por que assim:" também curto e objetivo\n` +
+    `- O "Por que assim:" de cada cena deve usar só 1 motivo curto e não repetir o preâmbulo editorial inteiro\n` +
+    `- O blueprint completo deve caber idealmente em até ${TECHNICAL_SCRIPT_MAX_CHARS} caracteres\n` +
     `- Somente a ÚLTIMA cena pode ter heading CTA\n` +
     `- Se tiver 5 cenas: Cena 4 é PROVA e Cena 5 é CHAMADA PARA AÇÃO\n` +
     `- Se tiver 6 cenas: Cena 4 é PROVA, Cena 5 é VIRADA e Cena 6 é CHAMADA PARA AÇÃO\n` +
-    `- Fala (literal): copy persuasivo, específico, humano e pronto para câmera\n` +
+    `- Visual: descrever como gravar de forma prática, com enquadramento, ação, cenário, objeto, apoio visual ou transição quando fizer sentido\n` +
+    `- Fala: descrever o que precisa ser comunicado em cada cena; use no máximo uma frase-exemplo curta quando realmente ajudar\n` +
     `- O roteiro precisa entregar utilidade real: diagnóstico + ajuste + prova/situação observável\n` +
-    `- Direção: orientação objetiva de tom/ritmo/entonação/gesto\n` +
-    `- Última cena obrigatoriamente com CTA explícito\n` +
+    `- Direção: orientação objetiva de tom/ritmo/entonação/gesto e execução da captação\n` +
+    `- Em TODAS as cenas, a Direção deve incluir "Por que assim:" justificando a escolha com base em categorias, narrativa vencedora, tom, formato, lift, volume de exemplos ou horário/janela quando houver sinal real\n` +
+    `- Se não houver dado de horário, justifique sem inventar timing\n` +
+    `- Última cena obrigatoriamente com CTA claro ou CTA sugerido muito nítido\n` +
     `- Imitar o estilo do criador sem copiar frases literalmente\n` +
     `- Linguagem natural, de creator para humano\n` +
     `- Não citar outros criadores, marcas ou perfis sem pedido explícito\n` +
@@ -1535,6 +2137,13 @@ export function buildIntelligencePromptBlock(context: ScriptIntelligenceContext 
         `${linkedOutcomeLines ? `- Padrões de alto lift:\n${linkedOutcomeLines}\n` : ""}` +
         `- Priorize padrões com lift alto sem copiar textos literalmente.`
       : "";
+  const timingBlock = context.engagementTiming
+    ? `\nJanela de publicação observada nos conteúdos fortes:\n` +
+      `- Base temporal: ${context.engagementTiming.sampleSize} posts com data\n` +
+      `- Timezone de leitura: ${context.engagementTiming.timezone}\n` +
+      `- ${context.engagementTiming.summary}\n` +
+      `- Use isso como justificativa de publicação somente quando ajudar; não invente horário se o sinal não existir.`
+    : "";
 
   const creatorPlaybookBlock = [
     hookExamples.length ? `- Ganchos que costumam soar naturais aqui: ${hookExamples.join(" | ")}` : null,
@@ -1542,9 +2151,37 @@ export function buildIntelligencePromptBlock(context: ScriptIntelligenceContext 
     practicalEvidenceLines ? `- Ângulos vivos do perfil:\n${practicalEvidenceLines}` : null,
     winningScriptExamplesBlock ? `- Roteiros reais do perfil que performaram bem:\n${winningScriptExamplesBlock}` : null,
     "- Converta os padrões vencedores em roteiro útil: diagnóstico concreto + ajuste aplicável + prova ou situação observável.",
+    "- A direção deve justificar por que cada escolha faz sentido com base em categorias, narrativa, formato, tom, sinais de lift ou janela de publicação quando houver sinal.",
   ]
     .filter(Boolean)
     .join("\n");
+  const editorialDecision = context.editorialDecision;
+  const editorialDecisionReasons = editorialDecision
+    ? uniqueCompactValues(editorialDecision.whyThisShouldWork, 3, 130)
+        .map((item) => `- ${item}`)
+        .join("\n")
+    : "";
+  const editorialDecisionEvidence = editorialDecision
+    ? uniqueCompactValues(editorialDecision.evidence, 3, 110)
+        .map((item) => `- ${item}`)
+        .join("\n")
+    : "";
+  const editorialDecisionBlock = editorialDecision
+    ? [
+        "Decisão editorial recomendada:",
+        `- O que postar: ${compactPromptExample(editorialDecision.postDirective, 150)}`,
+        `- Ângulo narrativo: ${compactPromptExample(editorialDecision.narrativeAngle, 110)}`,
+        `- Estrutura recomendada: ${compactPromptExample(editorialDecision.recommendedStructure, 120)}`,
+        editorialDecisionReasons ? `- Por que isso tende a funcionar:\n${editorialDecisionReasons}` : null,
+        editorialDecisionEvidence ? `- Evidências que sustentam a decisão:\n${editorialDecisionEvidence}` : null,
+        editorialDecision.postingWindow
+          ? `- Janela observada: ${compactPromptExample(editorialDecision.postingWindow, 110)}`
+          : null,
+        "- Primeiro decida silenciosamente o vídeo que deveria ser postado; só depois transforme isso em cenas filmáveis.",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "";
   const body = joinPromptSectionsWithinBudget(
     [
       `- Modo do pedido: ${context.promptMode}\n` +
@@ -1553,10 +2190,12 @@ export function buildIntelligencePromptBlock(context: ScriptIntelligenceContext 
         `${categoryLines || "- Sem categorias resolvidas."}\n` +
         `- Evidencias de DNA: ${context.dnaProfile.sampleSize} legendas\n` +
         `- Perfil de linguagem:\n${dnaLines}`,
+      editorialDecisionBlock,
       `Playbook acionável do perfil:\n${creatorPlaybookBlock}`,
       evidenceBlock,
       styleBlock,
       linkedOutcomeBlock,
+      timingBlock,
     ],
     INTELLIGENCE_PROMPT_MAX_CHARS
   );
@@ -1569,7 +2208,7 @@ export function buildIntelligencePromptBlock(context: ScriptIntelligenceContext 
 function parseDraftFromResponse(raw: string): ScriptDraft {
   const parsed = parseLooseJsonObject(raw);
   const title = clampText(parsed?.title, "Novo roteiro", 80);
-  const content = clampText(parsed?.content, "Roteiro gerado.", 12000);
+  const content = clampText(parsed?.content, "Roteiro gerado.", TECHNICAL_SCRIPT_MAX_CHARS);
   return { title, content };
 }
 
@@ -1610,6 +2249,7 @@ function normalizeSemanticReviewAssessment(raw: any): ScriptSemanticQualityAsses
   const adherence = normalizeTenPointScore(raw?.adherence);
   const specificity = normalizeTenPointScore(raw?.specificity);
   const humanity = normalizeTenPointScore(raw?.humanity);
+  const titleAlignment = normalizeTenPointScore(raw?.titleAlignment);
   const creatorFit = normalizeTenPointScore(raw?.creatorFit);
   const hook = normalizeTenPointScore(raw?.hook);
   const cta = normalizeTenPointScore(raw?.cta);
@@ -1625,6 +2265,7 @@ function normalizeSemanticReviewAssessment(raw: any): ScriptSemanticQualityAsses
     adherence >= SEMANTIC_REVIEW_MIN_DIMENSION_SCORE &&
     specificity >= SEMANTIC_REVIEW_MIN_DIMENSION_SCORE &&
     humanity >= SEMANTIC_REVIEW_MIN_DIMENSION_SCORE &&
+    titleAlignment >= SEMANTIC_REVIEW_MIN_DIMENSION_SCORE &&
     utility >= SEMANTIC_REVIEW_MIN_DIMENSION_SCORE &&
     hook >= SEMANTIC_REVIEW_MIN_DIMENSION_SCORE &&
     cta >= 6.2;
@@ -1634,6 +2275,7 @@ function normalizeSemanticReviewAssessment(raw: any): ScriptSemanticQualityAsses
     adherence,
     specificity,
     humanity,
+    titleAlignment,
     creatorFit,
     hook,
     cta,
@@ -1652,7 +2294,10 @@ function getOpenAIClient(): OpenAI | null {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) return null;
   if (!openAIClientCache || openAIClientCacheKey !== apiKey) {
-    openAIClientCache = new OpenAI({ apiKey });
+    openAIClientCache = new OpenAI({
+      apiKey,
+      baseURL: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
+    });
     openAIClientCacheKey = apiKey;
   }
   return openAIClientCache;
@@ -1677,6 +2322,15 @@ function buildSemanticReviewContextSummary(context: ScriptIntelligenceContext | 
     context.resolvedCategories.tone ? `- tone: ${context.resolvedCategories.tone}` : null,
     `- DNA captions: ${context.dnaProfile.sampleSize}`,
     `- Style samples: ${context.styleSampleSize}`,
+    context.editorialDecision?.postDirective
+      ? `- Decisão editorial: ${compactPromptExample(context.editorialDecision.postDirective, 130)}`
+      : null,
+    context.editorialDecision?.narrativeAngle
+      ? `- Ângulo recomendado: ${compactPromptExample(context.editorialDecision.narrativeAngle, 90)}`
+      : null,
+    context.editorialDecision?.recommendedStructure
+      ? `- Estrutura recomendada: ${compactPromptExample(context.editorialDecision.recommendedStructure, 90)}`
+      : null,
   ].filter(Boolean);
   const styleLines = context.styleProfile?.writingGuidelines?.slice(0, 4) || [];
   const hookLines = uniqueCompactValues(
@@ -1710,6 +2364,16 @@ function buildSemanticReviewContextSummary(context: ScriptIntelligenceContext | 
     .filter(Boolean) as string[];
   return [
     ...lines,
+    ...(context.engagementTiming ? [`- Timing vencedor: ${context.engagementTiming.summary}`] : []),
+    ...(context.editorialDecision?.whyThisShouldWork?.length
+      ? [
+          `- Por que isso deveria funcionar: ${uniqueCompactValues(
+            context.editorialDecision.whyThisShouldWork,
+            2,
+            100
+          ).join(" | ")}`,
+        ]
+      : []),
     ...(styleLines.length ? ["- Sinais de estilo prioritários:", ...styleLines.map((line) => `  - ${line}`)] : []),
     ...(hookLines.length ? [`- Hooks vencedores: ${hookLines.join(" | ")}`] : []),
     ...(ctaLines.length ? [`- CTAs vencedores: ${ctaLines.join(" | ")}`] : []),
@@ -1721,6 +2385,7 @@ function buildSemanticReviewPrompt(params: {
   userPrompt: string;
   operation: ScriptModelOperation;
   draft: ScriptDraft;
+  editorialAnchorTitle: string;
   intelligenceContext?: ScriptIntelligenceContext | null;
   adjustMode?: ScriptAdjustMode;
 }): string {
@@ -1732,19 +2397,23 @@ function buildSemanticReviewPrompt(params: {
     `Faça uma revisão editorial rigorosa de um roteiro para creator brasileiro.\n` +
     `Pedido original do usuário: ${params.userPrompt}\n` +
     `Tipo de operação: ${operationLabel}\n` +
+    `Título âncora do roteiro: ${params.editorialAnchorTitle}\n` +
     `Contexto do criador:\n${buildSemanticReviewContextSummary(params.intelligenceContext)}\n\n` +
     `Roteiro entregue:\nTítulo: ${params.draft.title}\n${params.draft.content}\n\n` +
+    `Este produto deve priorizar blueprint prático de gravação. Não cobre texto final perfeito se a cena estiver clara, filmável e útil.\n` +
+    `Além disso, a resposta deve justificar por que cada escolha faz sentido para o engajamento do perfil, como um diretor explicando a lógica da gravação.\n` +
     `Critérios de nota (0 a 10):\n` +
     `- adherence: responde exatamente o pedido e mantém o tema central\n` +
-    `- specificity: tem detalhes concretos, evita generalidades e frases intercambiáveis\n` +
+    `- specificity: tem detalhes concretos, evita generalidades e deixa claro como a cena vai acontecer\n` +
     `- humanity: soa humano, conversacional e sem cara de manual/publicidade genérica\n` +
+    `- titleAlignment: cumpre a promessa do título e mantém todas as cenas servindo a mesma pauta\n` +
     `- utility: entrega um ajuste, passo, critério, erro ou diagnóstico aplicável; não é só tese bonita\n` +
     `- creatorFit: respeita o perfil/estilo do criador quando houver sinais suficientes\n` +
-    `- hook: abre com força real e sem clichê\n` +
-    `- cta: fecha com CTA natural, específico e não robótico\n\n` +
-    `Marque como ruim se houver copy genérico, clichês, abstração, tese fraca, CTA burocrático, falta de dor real, falta de utilidade prática ou falta de aderência ao pedido.\n` +
+    `- hook: deixa claro como abrir o vídeo com força real e sem clichê, mesmo que a frase final ainda seja só sugerida\n` +
+    `- cta: fecha com CTA natural, específico e não robótico, mesmo que esteja descrito como sugestão\n\n` +
+    `Marque como ruim se houver copy genérico, clichês, abstração, tese fraca, CTA burocrático, falta de dor real, falta de utilidade prática, falta de clareza de captação, falta de justificativa estratégica ou falta de aderência ao pedido.\n` +
     `Retorne APENAS JSON válido com:\n` +
-    `{"overall": number, "passes": boolean, "adherence": number, "specificity": number, "humanity": number, "utility": number, "creatorFit": number, "hook": number, "cta": number, "issues": string[], "rewriteBrief": string}\n`
+    `{"overall": number, "passes": boolean, "adherence": number, "specificity": number, "humanity": number, "titleAlignment": number, "utility": number, "creatorFit": number, "hook": number, "cta": number, "issues": string[], "rewriteBrief": string}\n`
   );
 }
 
@@ -1787,7 +2456,8 @@ function buildRetryPromptWithReviewFeedback(basePrompt: string, assessment: Scri
     `- Objetivo da reescrita: ${assessment.rewriteBrief}\n` +
     `- Refaça o roteiro inteiro do zero, sem reaproveitar frases genéricas do rascunho ruim\n` +
     `- O roteiro final precisa deixar pelo menos um ajuste aplicável claro para o espectador\n` +
-    `- Deixe o assunto explícito cedo, crie progressão real e elimine qualquer CTA burocrático\n`
+    `- Deixe o assunto explícito cedo, crie progressão real e elimine qualquer CTA burocrático\n` +
+    `- Faça o criador conseguir visualizar a gravação com clareza: o que mostrar, como gravar e o que comunicar em cada cena\n`
   );
 }
 
@@ -1870,6 +2540,7 @@ async function assessDraftSemanticQuality(params: {
   draft: ScriptDraft;
   userPrompt: string;
   options: CallModelOptions;
+  editorialAnchorTitle: string;
   intelligenceContext?: ScriptIntelligenceContext | null;
 }): Promise<ScriptSemanticQualityAssessment | null> {
   const client = getOpenAIClient();
@@ -1881,6 +2552,7 @@ async function assessDraftSemanticQuality(params: {
         userPrompt: params.userPrompt,
         operation: params.options.operation,
         draft: params.draft,
+        editorialAnchorTitle: params.editorialAnchorTitle,
         intelligenceContext: params.intelligenceContext,
         adjustMode: params.options.adjustMode,
       }),
@@ -1900,6 +2572,7 @@ async function maybeRefineDraftWithSemanticReview(params: {
   basePrompt: string;
   userPrompt: string;
   draft: ScriptDraft;
+  editorialAnchorTitle: string;
   options: CallModelOptions;
   intelligenceContext?: ScriptIntelligenceContext | null;
   allowedIdentitySources: string[];
@@ -1919,6 +2592,7 @@ async function maybeRefineDraftWithSemanticReview(params: {
     draft: params.draft,
     userPrompt: params.userPrompt,
     options: params.options,
+    editorialAnchorTitle: params.editorialAnchorTitle,
     intelligenceContext: params.intelligenceContext,
   });
   if (!initialAssessment) {
@@ -1956,15 +2630,21 @@ async function maybeRefineDraftWithSemanticReview(params: {
   }
 
   const retrySanitized = sanitizeScriptIdentityLeakage(retryDraft, params.allowedIdentitySources);
+  const retryDensityProfile =
+    params.options.operation === "generate" ? resolveBlueprintDensityProfile(params.userPrompt) : null;
   const retryNormalized = enforceTechnicalScriptContract(retrySanitized, params.userPrompt, {
     runQualityPass: false,
+    editorialDecision: params.intelligenceContext?.editorialDecision,
+    preferredSceneCount: retryDensityProfile?.preferredSceneCount,
+    maxSceneCount: retryDensityProfile?.maxSceneCount,
   });
   const retryAssessment = await assessDraftSemanticQuality({
-    draft: retryNormalized,
-    userPrompt: params.userPrompt,
-    options: params.options,
-    intelligenceContext: params.intelligenceContext,
-  });
+      draft: retryNormalized,
+      userPrompt: params.userPrompt,
+      options: params.options,
+      editorialAnchorTitle: params.editorialAnchorTitle,
+      intelligenceContext: params.intelligenceContext,
+    });
 
   const baseMeta: ScriptSemanticReviewMeta = {
     attempted: true,
@@ -2036,7 +2716,8 @@ async function maybeRefineDraftWithSemanticReview(params: {
 
 function buildNormalizedTechnicalScenes(
   content: string,
-  fallbackPrompt: string
+  fallbackPrompt: string,
+  options?: Pick<TechnicalContractOptions, "preferredSceneCount" | "maxSceneCount">
 ): TechnicalSceneBlock[] {
   const topic = extractTopicHint(fallbackPrompt);
   const objective = inferScriptObjective(fallbackPrompt);
@@ -2060,7 +2741,29 @@ function buildNormalizedTechnicalScenes(
       row: buildDefaultTechnicalRow(nextIndex, Math.max(4, nextIndex), topic, objective),
     });
   }
+  const preferredSceneCount = Math.max(4, Math.min(6, options?.preferredSceneCount || 4));
+  const maxSceneCount = Math.max(preferredSceneCount, Math.min(6, options?.maxSceneCount || 6));
+  if (scenes.length > maxSceneCount) {
+    const keepIndices = new Set<number>();
+    if (maxSceneCount <= 4) {
+      [1, 2, 3].forEach((index) => keepIndices.add(index));
+      keepIndices.add(scenes.length);
+    } else {
+      for (let index = 1; index < maxSceneCount; index += 1) {
+        keepIndices.add(index);
+      }
+      keepIndices.add(scenes.length);
+    }
+    const trimmed = scenes.filter((scene) => keepIndices.has(scene.index));
+    if (trimmed.length >= 4) {
+      scenes.length = 0;
+      scenes.push(...trimmed.slice(0, maxSceneCount));
+    }
+  }
   if (scenes.length > 6) scenes.length = 6;
+  if (scenes.length > preferredSceneCount && maxSceneCount === preferredSceneCount) {
+    scenes.length = preferredSceneCount;
+  }
 
   return scenes.map((scene, idx, all) => {
     const sceneIndex = idx + 1;
@@ -2155,7 +2858,7 @@ function applyConservativePatchMerge(
       row: {
         tempo: policy.allowTempo ? (candidateScene.row.tempo || originalScene.row.tempo) : originalScene.row.tempo,
         visual: policy.allowVisual ? (candidateScene.row.visual || originalScene.row.visual) : originalScene.row.visual,
-        // Fala (copy literal) e o campo mais comum para ajustes textuais.
+        // Fala segue sendo o campo mais comum para ajustes textuais, mesmo no modo blueprint.
         fala: candidateScene.row.fala || originalScene.row.fala,
         direcao: policy.allowDirecao
           ? (candidateScene.row.direcao || originalScene.row.direcao)
@@ -2181,8 +2884,16 @@ export function enforceTechnicalScriptContract(
   const runQualityPass = options?.runQualityPass ?? true;
   const fallback = fallbackGenerate(fallbackPrompt);
   const title = clampText(draft.title, fallback.title, 80);
-  const rawContent = clampText(draft.content, "", 12000) || fallback.content;
-  let scenes = buildNormalizedTechnicalScenes(rawContent, fallbackPrompt);
+  const rawContent = clampText(draft.content, "", TECHNICAL_SCRIPT_MAX_CHARS) || fallback.content;
+  const editorialBrief = resolveTechnicalEditorialBrief({
+    rawContent,
+    fallbackPrompt,
+    editorialDecision: options?.editorialDecision,
+  });
+  let scenes = buildNormalizedTechnicalScenes(rawContent, fallbackPrompt, {
+    preferredSceneCount: options?.preferredSceneCount,
+    maxSceneCount: options?.maxSceneCount,
+  });
   const scoreBefore = evaluateTechnicalScriptQualityFromScenes(scenes);
   if (runQualityPass && shouldRunQualityPass(scoreBefore)) {
     const polished = polishScenesForQuality(scenes, fallbackPrompt);
@@ -2194,10 +2905,10 @@ export function enforceTechnicalScriptContract(
       scenes = polished;
     }
   }
-  const normalizedContent = serializeTechnicalScript(scenes);
+  const normalizedContent = serializeTechnicalScript(scenes, editorialBrief);
   return {
     title: clampText(title, fallback.title, 80),
-    content: clampText(normalizedContent, fallback.content, 12000),
+    content: clampText(normalizedContent, fallback.content, TECHNICAL_SCRIPT_MAX_CHARS),
   };
 }
 
@@ -2213,15 +2924,39 @@ function extractScopedSceneContent(rawContent: string, targetSceneIndex: number)
   }, Math.max(targetSceneIndex, 4));
 }
 
+function extractScopedTargetContent(rawContent: string, target: ScriptAdjustTarget): string {
+  const normalized = String(rawContent || "").trim();
+  if (!normalized) return normalized;
+  if (target.type === "scene") {
+    return extractScopedSceneContent(normalized, target.index);
+  }
+  const resolved = resolveScopedSegment(normalized, target);
+  if (resolved?.segment.text) return resolved.segment.text;
+  return normalized;
+}
+
+function buildScopedTargetOutputRule(target: ScriptAdjustTarget): string {
+  if (target.type === "scene") {
+    return "- Retorne APENAS o bloco completo da cena alvo (CENA ... + Visual + Fala + Direção)";
+  }
+  if (target.type === "editorial") {
+    return "- Retorne APENAS a linha editorial alvo atualizada, preservando o mesmo label";
+  }
+  if (target.type === "paragraph" || target.type === "first_paragraph" || target.type === "last_paragraph") {
+    return "- Retorne APENAS o trecho alvo atualizado, sem reescrever outras partes";
+  }
+  return "- Retorne APENAS o trecho alvo atualizado";
+}
+
 function sanitizeAdjustedScript(input: AdjustInput, draft: ScriptDraft): ScriptDraft {
   const originalTitle = clampText(input.title, "Roteiro ajustado", 80);
-  const originalContent = clampText(input.content, "", 12000);
+  const originalContent = clampText(input.content, "", TECHNICAL_SCRIPT_MAX_CHARS);
   const prompt = input.prompt.trim();
   const shouldAllowTitleChange = TITLE_CHANGE_INTENT_REGEX.test(prompt);
   const nextTitle = shouldAllowTitleChange
     ? clampText(draft.title, originalTitle, 80)
     : originalTitle;
-  const nextContent = clampText(draft.content, originalContent, 12000);
+  const nextContent = clampText(draft.content, originalContent, TECHNICAL_SCRIPT_MAX_CHARS);
 
   if (!originalContent) {
     return { title: nextTitle, content: nextContent };
@@ -2236,7 +2971,7 @@ function sanitizeAdjustedScript(input: AdjustInput, draft: ScriptDraft): ScriptD
     const merged = [nextParagraphs[0], ...originalParagraphs.slice(1)].join("\n\n");
     return {
       title: nextTitle,
-      content: clampText(merged, originalContent, 12000),
+      content: clampText(merged, originalContent, TECHNICAL_SCRIPT_MAX_CHARS),
     };
   }
 
@@ -2265,7 +3000,10 @@ export async function generateScriptFromPrompt(input: GenerateInput): Promise<Sc
     throw new Error("Informe um prompt para gerar o roteiro.");
   }
 
+  const editorialAnchorTitle = resolveEditorialAnchorTitle(input);
+  const densityProfile = resolveBlueprintDensityProfile(userPrompt);
   const llmPrompt = buildGenerateScriptPrompt(input);
+  const allowedIdentitySources = [userPrompt, input.title || "", editorialAnchorTitle];
 
   try {
     const result = await callModel(llmPrompt, {
@@ -2273,23 +3011,36 @@ export async function generateScriptFromPrompt(input: GenerateInput): Promise<Sc
       operation: "generate",
     });
     if (result) {
-      const sanitized = sanitizeScriptIdentityLeakage(result, [userPrompt]);
-      const normalized = enforceTechnicalScriptContract(sanitized, userPrompt, {
+      const sanitized = sanitizeScriptIdentityLeakage(result, allowedIdentitySources);
+      const anchoredDraft: ScriptDraft = {
+        title: input.title?.trim()
+          ? clampText(input.title, editorialAnchorTitle, 80)
+          : clampText(sanitized.title, editorialAnchorTitle, 80),
+        content: sanitized.content,
+      };
+      const normalized = enforceTechnicalScriptContract(anchoredDraft, `${editorialAnchorTitle}\n${userPrompt}`, {
         runQualityPass: false,
+        editorialDecision: input.intelligenceContext?.editorialDecision,
+        preferredSceneCount: densityProfile.preferredSceneCount,
+        maxSceneCount: densityProfile.maxSceneCount,
       });
       const refined = await maybeRefineDraftWithSemanticReview({
         basePrompt: llmPrompt,
         userPrompt,
         draft: normalized,
+        editorialAnchorTitle,
         options: {
           userPrompt,
           operation: "generate",
         },
         intelligenceContext: input.intelligenceContext,
-        allowedIdentitySources: [userPrompt],
+        allowedIdentitySources,
       });
-      const finalDraft = enforceTechnicalScriptContract(refined, userPrompt, {
+      const finalDraft = enforceTechnicalScriptContract(refined, `${editorialAnchorTitle}\n${userPrompt}`, {
         runQualityPass: refined === normalized ? true : false,
+        editorialDecision: input.intelligenceContext?.editorialDecision,
+        preferredSceneCount: densityProfile.preferredSceneCount,
+        maxSceneCount: densityProfile.maxSceneCount,
       });
       return {
         ...finalDraft,
@@ -2304,9 +3055,13 @@ export async function generateScriptFromPrompt(input: GenerateInput): Promise<Sc
     });
   }
 
-  const fallback = sanitizeScriptIdentityLeakage(fallbackGenerate(userPrompt), [userPrompt]);
+  const fallback = sanitizeScriptIdentityLeakage(fallbackGenerate(`${editorialAnchorTitle}\n${userPrompt}`), allowedIdentitySources);
   return {
-    ...enforceTechnicalScriptContract(fallback, userPrompt),
+    ...enforceTechnicalScriptContract(fallback, `${editorialAnchorTitle}\n${userPrompt}`, {
+      editorialDecision: input.intelligenceContext?.editorialDecision,
+      preferredSceneCount: densityProfile.preferredSceneCount,
+      maxSceneCount: densityProfile.maxSceneCount,
+    }),
     reviewMeta: {
       attempted: false,
       retried: false,
@@ -2321,9 +3076,16 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
     throw new Error("Descreva o ajuste que você quer aplicar.");
   }
 
+  const editorialAnchorTitle = resolveEditorialAnchorTitle({
+    prompt: userPrompt,
+    title: input.title,
+    intelligenceContext: input.intelligenceContext,
+  });
+  const fallbackPromptForAdjust = `${editorialAnchorTitle}\n${userPrompt}`;
+
   const baseContent = isTechnicalScript(input.content)
     ? input.content.trim()
-    : convertLegacyScriptToTechnical(input.content, userPrompt);
+    : convertLegacyScriptToTechnical(input.content, fallbackPromptForAdjust);
   const inputForAdjust: AdjustInput = {
     ...input,
     content: baseContent,
@@ -2350,19 +3112,23 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
   const technicalFormatRules =
     `Formato técnico obrigatório:\n` +
     `- Manter bloco ${TECHNICAL_SCRIPT_START} ... ${TECHNICAL_SCRIPT_END}\n` +
+    `- Preservar ou atualizar as 4 linhas editoriais antes das cenas: O que postar / Por que postar assim / Quando postar / Como esse vídeo deve funcionar\n` +
     `- Cada cena deve seguir: CENA N: TITULO (tempo) + Visual + Fala + Direção\n` +
-    `- Fala sempre literal (frase pronta para câmera), fluida e focada em retenção\n` +
+    `- Visual deve explicar como gravar a cena de forma prática: enquadramento, cenário, ação, objeto, apoio visual ou corte quando útil\n` +
+    `- Fala deve descrever o que precisa ser comunicado na cena; use no máximo uma frase-exemplo curta quando realmente ajudar\n` +
     `- Mantenha qualidade narrativa humana: confissão/opinião concreta, dor real, virada prática, motivo humano e CTA conversacional quando fizer sentido\n` +
     `- Preserve ou reforce utilidade prática: diagnóstico, ajuste, passo, critério ou prova observável\n` +
-    `- Direção de Performance sempre acionável (tom de voz, velocidade)\n` +
+    `- Direção de Performance sempre acionável (tom de voz, velocidade, pausa, gesto e execução)\n` +
     `- Somente a última cena pode ter heading CTA\n` +
     `- Se houver 5 cenas, use CENA 4: A PROVA e CENA 5: CHAMADA PARA AÇÃO\n` +
     `- Se houver 6 cenas, use CENA 4: A PROVA, CENA 5: VIRADA e CENA 6: CHAMADA PARA AÇÃO\n` +
-    `- Última cena com CTA explícito\n` +
+    `- Última cena com CTA explícito ou CTA sugerido muito claro\n` +
     `- Mínimo 4 e máximo 6 cenas`;
+  const scopedTargetOutputRule = buildScopedTargetOutputRule(scope.target);
 
   const llmPrompt = shouldEnforceScopedPatch
-    ? `Ajuste apenas a cena alvo do roteiro técnico com base no pedido do usuário.\n` +
+    ? `Ajuste apenas o trecho alvo do roteiro técnico com base no pedido do usuário.\n` +
+    `Título âncora do roteiro: ${editorialAnchorTitle}\n` +
     `Título atual: ${inputForAdjust.title}\n` +
     `Roteiro atual:\n${inputForAdjust.content}\n\n` +
     `${intelligenceBlock}\n\n` +
@@ -2372,16 +3138,18 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
     `Conteúdo atual do trecho alvo:\n${scopedResolution?.segment.text || ""}\n\n` +
     `Ajuste solicitado: ${userPrompt}\n\n` +
     `Regras obrigatórias:\n` +
-    `- Edite somente a cena alvo\n` +
-    `- Não reescreva outras cenas\n` +
-    `- Retorne APENAS o bloco completo da cena alvo (CENA ... + campos do formato de fluxo)\n` +
-    `- Preserve a mesma numeração da cena alvo\n` +
+    `- Edite somente o trecho alvo\n` +
+    `- Não reescreva outras partes do roteiro\n` +
+    `- O trecho revisado precisa continuar servindo a promessa do título âncora\n` +
+    `${scopedTargetOutputRule}\n` +
+    `${scope.target.type === "scene" ? "- Preserve a mesma numeração da cena alvo\n" : ""}` +
     `- Retorne JSON válido com {"title","content"}\n` +
     `- "title": mantenha o título atual, salvo pedido explícito para alterá-lo\n` +
-    `- "content": retorne APENAS o bloco da cena alvo revisado\n` +
+    `- "content": retorne APENAS o trecho alvo revisado\n` +
     `- Não inclua explicações fora do JSON\n` +
     `${technicalFormatRules}`
     : `Ajuste o roteiro técnico existente com base no pedido do usuário.\n` +
+    `Título âncora do roteiro: ${editorialAnchorTitle}\n` +
     `Título atual: ${inputForAdjust.title}\n` +
     `Roteiro atual:\n${inputForAdjust.content}\n\n` +
     `${intelligenceBlock}\n\n` +
@@ -2391,6 +3159,7 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
     `Regras obrigatórias:\n` +
     `- Preserve integralmente o que não foi pedido para mudar\n` +
     `- Se o pedido for pontual (ex.: primeiro parágrafo), altere só esse trecho\n` +
+    `- Toda alteração precisa continuar coerente com a promessa do título âncora\n` +
     `- Retorne sempre o roteiro técnico completo atualizado (nunca apenas um trecho)\n` +
     `- Use o formato técnico canônico em todas as cenas\n` +
     `- Imitar o estilo do criador sem copiar frases literalmente\n` +
@@ -2400,7 +3169,7 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
     `- Não inclua explicações fora do JSON\n` +
     `${technicalFormatRules}`;
 
-  const allowedIdentitySources = [userPrompt, inputForAdjust.title, inputForAdjust.content];
+  const allowedIdentitySources = [userPrompt, inputForAdjust.title, editorialAnchorTitle, inputForAdjust.content];
 
   try {
     const result = await callModel(llmPrompt, {
@@ -2411,9 +3180,9 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
     if (result) {
       const sanitized = sanitizeScriptIdentityLeakage(result, allowedIdentitySources);
       if (shouldEnforceScopedPatch && scopedResolution) {
-        const scopedRaw = extractScopedSceneContent(
-          clampText(sanitized.content, scopedResolution.segment.text, 6000),
-          scopedResolution.normalizedTargetIndex || 1
+        const scopedRaw = extractScopedTargetContent(
+          clampText(sanitized.content, scopedResolution.segment.text, TECHNICAL_SCRIPT_MAX_CHARS),
+          scope.target
         );
         const mergedContent = mergeScopedSegment(
           baseContent,
@@ -2424,8 +3193,9 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
           title: sanitized.title,
           content: mergedContent,
         });
-        const technicalDraft = enforceTechnicalScriptContract(mergedDraft, userPrompt, {
+        const technicalDraft = enforceTechnicalScriptContract(mergedDraft, fallbackPromptForAdjust, {
           runQualityPass: shouldRunQualityPassForAdjust,
+          editorialDecision: input.intelligenceContext?.editorialDecision,
         });
         return {
           ...technicalDraft,
@@ -2451,13 +3221,15 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
         operation: "adjust",
         adjustMode: scope.mode,
       };
-      let technicalDraft = enforceTechnicalScriptContract(adjusted, userPrompt, {
+      let technicalDraft = enforceTechnicalScriptContract(adjusted, fallbackPromptForAdjust, {
         runQualityPass: shouldRunQualityPassForAdjust && !shouldRunSemanticReview(reviewOptions),
+        editorialDecision: input.intelligenceContext?.editorialDecision,
       });
       technicalDraft = await maybeRefineDraftWithSemanticReview({
         basePrompt: llmPrompt,
         userPrompt,
         draft: technicalDraft,
+        editorialAnchorTitle,
         options: reviewOptions,
         intelligenceContext: input.intelligenceContext,
         allowedIdentitySources,
@@ -2498,14 +3270,19 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
   }
 
   if (shouldEnforceScopedPatch && scopedResolution) {
-    const fallbackSnippet = fallbackAdjustScoped(scopedResolution.segment.text, userPrompt);
+    const fallbackSnippet = fallbackAdjustScoped(
+      scopedResolution.segment.text,
+      fallbackPromptForAdjust,
+      scope.target
+    );
     const mergedContent = mergeScopedSegment(baseContent, scopedResolution, fallbackSnippet);
     const mergedDraft = sanitizeAdjustedScript(inputForAdjust, {
       title: inputForAdjust.title,
       content: mergedContent,
     });
-    const technicalDraft = enforceTechnicalScriptContract(mergedDraft, userPrompt, {
+    const technicalDraft = enforceTechnicalScriptContract(mergedDraft, fallbackPromptForAdjust, {
       runQualityPass: shouldRunQualityPassForAdjust,
+      editorialDecision: input.intelligenceContext?.editorialDecision,
     });
     return {
       ...technicalDraft,
@@ -2527,8 +3304,9 @@ export async function adjustScriptFromPrompt(input: AdjustInput): Promise<Adjust
 
   const fallback = sanitizeScriptIdentityLeakage(fallbackAdjust(inputForAdjust), allowedIdentitySources);
   const adjusted = sanitizeAdjustedScript(inputForAdjust, fallback);
-  let technicalDraft = enforceTechnicalScriptContract(adjusted, userPrompt, {
+  let technicalDraft = enforceTechnicalScriptContract(adjusted, fallbackPromptForAdjust, {
     runQualityPass: shouldRunQualityPassForAdjust,
+    editorialDecision: input.intelligenceContext?.editorialDecision,
   });
   const shouldApplyConservativePatch = scope.mode === "patch" && scope.target.type === "none";
   let outOfScopeChangeRate = -1;

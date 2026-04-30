@@ -5,12 +5,22 @@ interface searchParams {
   [key: string]: string | string[] | undefined;
 }
 
-export default function DashboardHomePage({ searchParams }: { searchParams: searchParams }) {
+export default function DashboardHomePage({
+  searchParams,
+}: {
+  searchParams: searchParams;
+}) {
   const query = new URLSearchParams();
   Object.entries(searchParams).forEach(([key, value]) => {
     if (typeof value === "string") query.set(key, value);
-    else if (Array.isArray(value)) value.forEach(v => query.append(key, v));
+    else if (Array.isArray(value)) value.forEach((v) => query.append(key, v));
   });
+
+  if (query.get("board") === "post-creation") {
+    query.delete("board");
+    const queryString = query.toString();
+    redirect(queryString ? `/calendar?${queryString}` : "/calendar");
+  }
 
   const queryString = query.toString();
   redirect(queryString ? `/?${queryString}` : "/");

@@ -1,6 +1,6 @@
 import type { ScriptAdjustTarget } from "./adjustScope";
 
-type SegmentKind = "scene" | "paragraph";
+type SegmentKind = "scene" | "paragraph" | "editorial";
 
 export type ScriptSegment = {
   kind: SegmentKind;
@@ -9,6 +9,7 @@ export type ScriptSegment = {
   end: number;
   text: string;
   heading?: string;
+  editorialField?: "what_to_post" | "why_post_this_way" | "when_to_post" | "how_video_should_work";
 };
 
 type ScopedResolution = {
@@ -19,6 +20,20 @@ type ScopedResolution = {
 
 const SCENE_HEADING_LINE_REGEX =
   /^\s*(?:\[\s*)?(?:cena|scene)\s*(?:#\s*)?(\d{1,3})\b(?:[^\]]*)?(?:\]\s*)?$/i;
+const EDITORIAL_FIELD_RULES: Array<{
+  field: NonNullable<ScriptSegment["editorialField"]>;
+  label: string;
+  pattern: RegExp;
+}> = [
+  { field: "what_to_post", label: "O que postar", pattern: /^\s*o que postar\s*:/i },
+  { field: "why_post_this_way", label: "Por que postar assim", pattern: /^\s*por que postar(?: assim)?\s*:/i },
+  { field: "when_to_post", label: "Quando postar", pattern: /^\s*quando postar\s*:/i },
+  {
+    field: "how_video_should_work",
+    label: "Como esse vídeo deve funcionar",
+    pattern: /^\s*como esse v[ií]deo deve funcionar\s*:/i,
+  },
+];
 
 function normalizeContent(value: string): string {
   return (value || "")
@@ -113,6 +128,44 @@ function parseParagraphSegments(content: string): ScriptSegment[] {
   return segments;
 }
 
+function parseEditorialSegments(content: string): ScriptSegment[] {
+  const lines = content.split("\n");
+  const lineStarts: number[] = [];
+  let cursor = 0;
+  for (const line of lines) {
+    lineStarts.push(cursor);
+    cursor += line.length + 1;
+  }
+
+  const segments: ScriptSegment[] = [];
+  for (let i = 0; i < lines.length; i += 1) {
+    const line = lines[i] || "";
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (SCENE_HEADING_LINE_REGEX.test(trimmed)) break;
+
+    const rule = EDITORIAL_FIELD_RULES.find((item) => item.pattern.test(trimmed));
+    if (!rule) continue;
+
+    const start = lineStarts[i] || 0;
+    const end = start + line.length;
+    const text = content.slice(start, end).trim();
+    if (!text) continue;
+
+    segments.push({
+      kind: "editorial",
+      index: segments.length + 1,
+      start,
+      end,
+      text,
+      heading: rule.label,
+      editorialField: rule.field,
+    });
+  }
+
+  return segments;
+}
+
 function detectSceneHeading(text: string): string | null {
   const firstLine = String(text || "").split("\n")[0]?.trim() || "";
   if (!firstLine) return null;
@@ -122,6 +175,17 @@ function detectSceneHeading(text: string): string | null {
 export function resolveScopedSegment(contentRaw: string, target: ScriptAdjustTarget): ScopedResolution | null {
   const content = normalizeContent(contentRaw);
   if (!content) return null;
+
+  if (target.type === "editorial") {
+    const editorialSegments = parseEditorialSegments(content);
+    const match = editorialSegments.find((segment) => segment.editorialField === target.field) || null;
+    if (!match) return null;
+    return {
+      segment: match,
+      normalizedTargetType: "editorial",
+      normalizedTargetIndex: null,
+    };
+  }
 
   if (target.type === "scene") {
     const scenes = parseSceneSegments(content);
@@ -180,6 +244,13 @@ export function mergeScopedSegment(contentRaw: string, scoped: ScopedResolution,
     const replacementHeading = detectSceneHeading(replacement);
     if (originalHeading && !replacementHeading) {
       nextSegmentText = `${originalHeading}\n${replacement}`.trim();
+    }
+  }
+  if (scoped.segment.kind === "editorial") {
+    const originalHeading = scoped.segment.heading;
+    const hasLabel = EDITORIAL_FIELD_RULES.some((rule) => rule.pattern.test(replacement));
+    if (originalHeading && !hasLabel) {
+      nextSegmentText = `${originalHeading}: ${replacement}`.trim();
     }
   }
 

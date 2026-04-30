@@ -178,6 +178,7 @@ export interface PlannerSlotData {
   rationale?: string[];
   recordingTimeSec?: number;
   aiVersionId?: string | null;
+  savedFrom?: string | null;
 }
 
 export interface PlannerSlotModalProps {

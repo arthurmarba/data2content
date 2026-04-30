@@ -18,7 +18,7 @@ import {
 import { createSeededRng, softmax, softmaxSample } from '@/app/lib/planner/random';
 import { isScriptsOutcomeLearningV1Enabled } from '@/app/lib/scripts/featureFlag';
 import { getScriptOutcomeProfile, type ScriptOutcomeProfileSnapshot } from '@/app/lib/scripts/outcomeTraining';
-import { PlannerCategories, PlannerFormat, PlannerSlotStatus, ExpectedMetrics } from '@/types/planner';
+import { PlannerCategories, PlannerFormat, PlannerSlotStatus, ExpectedMetrics, type PlannerEvidencePost } from '@/types/planner';
 
 // === Helper para evitar problemas de tipo com a tupla readonly ===
 const BLOCKS: number[] = [...ALLOWED_BLOCKS];
@@ -43,6 +43,8 @@ export interface RecommendedSlot {
     confidence: 'low' | 'medium' | 'high';
     sampleSize: number;
   };
+  evidencePosts?: PlannerEvidencePost[];
+  evidenceCount?: number;
   rationale?: string[];       // notas p/ debug
 }
 
@@ -95,6 +97,80 @@ function normalizeCategoryId(
   if (byId?.id) return byId.id;
   const byVal = getCategoryByValue(valueOrId, dim as any);
   return byVal?.id ?? valueOrId;
+}
+
+function pickMetricCoverUrl(post: Partial<IMetric> | any): string | null {
+  const candidates = [post?.thumbnailUrl, post?.coverUrl].filter(
+    (item): item is string => typeof item === 'string' && item.trim().length > 0
+  );
+  return candidates[0] || null;
+}
+
+function mapMetricEvidencePost(post: Partial<IMetric> | any): PlannerEvidencePost {
+  const stats = post?.stats || {};
+  const totalInteractions =
+    typeof stats.total_interactions === 'number' && Number.isFinite(stats.total_interactions)
+      ? stats.total_interactions
+      : typeof stats.engagement === 'number' && Number.isFinite(stats.engagement)
+        ? stats.engagement
+        : typeof stats.views === 'number' && Number.isFinite(stats.views)
+          ? stats.views
+          : null;
+
+  return {
+    id: String(post?._id || post?.id || post?.postLink || 'evidence-post'),
+    title:
+      typeof post?.description === 'string' && post.description.trim()
+        ? post.description.trim().slice(0, 90)
+        : null,
+    coverUrl: pickMetricCoverUrl(post),
+    postLink: typeof post?.postLink === 'string' && post.postLink.trim() ? post.postLink.trim() : null,
+    totalInteractions,
+  };
+}
+
+async function getEvidencePostsForWinner(
+  userId: string | Types.ObjectId,
+  periodDays: number,
+  winner: { format: PlannerFormat; proposal: string; context: string }
+): Promise<{ posts: PlannerEvidencePost[]; count: number }> {
+  const uid = typeof userId === 'string' ? new Types.ObjectId(userId) : userId;
+  const now = new Date();
+  const start = new Date();
+  start.setUTCDate(now.getUTCDate() - periodDays);
+
+  const query = {
+    user: uid,
+    postDate: { $gte: start, $lte: now },
+    format: winner.format,
+    proposal: winner.proposal,
+    context: winner.context,
+  };
+
+  const [posts, count] = await Promise.all([
+    MetricModel.find(query)
+      .select({
+        description: 1,
+        postLink: 1,
+        coverUrl: 1,
+        thumbnailUrl: 1,
+        stats: 1,
+      })
+      .sort({ 'stats.total_interactions': -1, 'stats.views': -1, postDate: -1 })
+      .limit(12)
+      .lean(),
+    MetricModel.countDocuments(query),
+  ]);
+
+  const mappedPosts = posts
+    .map(mapMetricEvidencePost)
+    .filter((post) => Boolean(post.coverUrl))
+    .slice(0, 12);
+
+  return {
+    posts: mappedPosts,
+    count: mappedPosts.length,
+  };
 }
 
 // --------- Formatos: normalização ----------
@@ -465,13 +541,23 @@ export async function recommendWeeklySlots(options: RecommendationOptions): Prom
     tone: undefined,
     reference: [],
   }));
+  const evidenceByWinner = await Promise.all(
+    winners.map((winner) =>
+      getEvidencePostsForWinner(userId, periodDays, {
+        format: winner.format,
+        proposal: winner.proposal,
+        context: winner.context,
+      }).catch(() => ({ posts: [], count: 0 }))
+    )
+  );
 
   const slots: RecommendedSlot[] = [];
-  for (const w of winners) {
+  for (const [winnerIndex, w] of winners.entries()) {
     const p50 = Math.round(w.avgFinal);
     const blkAvg = w.parents.blockAvg || 1;
     const lift = safeDiv(p50, blkAvg);
     const score = plannerHybridApplied ? (w.hybridScore || 0) : lift;
+    const evidence = evidenceByWinner[winnerIndex] || { posts: [], count: 0 };
 
     const proposalList = Array.from(new Set([w.proposal, ...(extra.proposal || [])])).filter(Boolean).slice(0, 2);
 
@@ -500,6 +586,8 @@ export async function recommendWeeklySlots(options: RecommendationOptions): Prom
               sampleSize: w.scriptEvidence.sampleSize,
             }
           : undefined,
+      evidencePosts: evidence.posts.slice(0, 12),
+      evidenceCount: evidence.count,
       rationale: [
         ...w.rationale,
         `perfNorm=${(w.perfNorm || 0).toFixed(3)}`,

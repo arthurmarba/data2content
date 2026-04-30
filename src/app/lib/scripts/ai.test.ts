@@ -5,10 +5,13 @@ import {
   evaluateTechnicalScriptQuality,
   extractAdjustIntentGuidance,
   enforceTechnicalScriptContract,
+  resolveBlueprintDensityProfile,
+  resolveEditorialAnchorTitle,
   sanitizeScriptIdentityLeakage,
   selectScriptModelForPrompt,
   selectScriptTemperature,
   shouldRunQualityPassForAdjustMode,
+  TECHNICAL_SCRIPT_MAX_CHARS,
 } from "./ai";
 
 describe("scripts/ai identity leakage sanitization", () => {
@@ -96,6 +99,21 @@ describe("scripts/ai identity leakage sanitization", () => {
       },
       styleProfileVersion: "scripts_style_profile_v1",
       styleSampleSize: 12,
+      engagementTiming: null,
+      editorialDecision: {
+        postDirective: "Poste um reels mostrando o erro antes da dica, com humor observável e virada útil.",
+        narrativeAngle: "diagnóstico direto com cena reconhecível",
+        recommendedStructure: "erro visível -> contexto real -> ajuste prático -> pergunta final",
+        whyThisShouldWork: [
+          "A combinação de humor_scene + career_work + humorous já performa bem nesse perfil.",
+          "Os roteiros vencedores próximos repetem abertura curta e fechamento em pergunta.",
+        ],
+        evidence: [
+          "proposal humor_scene | context career_work | tone humorous",
+          "1 roteiro vencedor próximo do pedido.",
+        ],
+        postingWindow: null,
+      },
       captionEvidence: [
         {
           metricId: "m1",
@@ -148,6 +166,8 @@ describe("scripts/ai identity leakage sanitization", () => {
     expect(block).toContain("Imite o estilo do criador sem copiar frases literalmente.");
     expect(block).toContain("Sinais de roteiros vinculados vencedores");
     expect(block).toContain("Playbook acionável do perfil");
+    expect(block).toContain("Decisão editorial recomendada");
+    expect(block).toContain("O que postar:");
     expect(block).toContain("diagnóstico concreto + ajuste aplicável + prova");
     expect(block).toContain("Roteiros reais do perfil que performaram bem");
   });
@@ -217,11 +237,34 @@ describe("scripts/ai identity leakage sanitization", () => {
       },
       styleProfileVersion: "scripts_style_profile_v1",
       styleSampleSize: 20,
+      engagementTiming: {
+        sampleSize: 4,
+        timezone: "America/Sao_Paulo",
+        topHours: [19, 21],
+        topWeekdays: ["ter", "qui"],
+        summary: "dias com mais recorrência: ter e qui | horários com mais recorrência: 19h e 21h",
+      },
+      editorialDecision: {
+        postDirective: "Poste um reels sobre retenção de reels pelo ângulo do erro de abertura antes da dica.",
+        narrativeAngle: "diagnóstico do erro antes do ajuste",
+        recommendedStructure: "erro visível -> contexto observável -> ajuste aplicável -> CTA específico",
+        whyThisShouldWork: [
+          "As categorias vencedoras do perfil apontam para tips + career_work + educational.",
+          "Os roteiros fortes desse tema repetem explicação prática com linguagem curta.",
+          "Existe recorrência em ter/qui às 19h e 21h.",
+        ],
+        evidence: [
+          "proposal tips | context career_work | tone educational",
+          "4 roteiros vencedores próximos do pedido.",
+          "10 legendas fortes consideradas.",
+        ],
+        postingWindow: "dias com mais recorrência: ter e qui | horários com mais recorrência: 19h e 21h",
+      },
       captionEvidence: Array.from({ length: 10 }, (_, index) => ({
         metricId: `m-${index + 1}`,
         caption: `Legenda ${index + 1} com detalhe prático sobre abertura, diagnóstico e ajuste de retenção.`,
         interactions: 200 + index * 10,
-        postDate: null,
+        postDate: index < 4 ? `2026-04-0${(index % 4) + 1}T22:00:00.000Z` : null,
         categories: { proposal: "tips" },
       })),
       winningScriptExamples: Array.from({ length: 4 }, (_, index) => ({
@@ -259,6 +302,7 @@ describe("scripts/ai identity leakage sanitization", () => {
 
     expect(block.length).toBeLessThanOrEqual(3400);
     expect(block).toContain("Playbook acionável do perfil");
+    expect(block).toContain("Decisão editorial recomendada");
   });
 });
 
@@ -276,7 +320,7 @@ describe("scripts/ai model selection", () => {
 
   beforeEach(() => {
     process.env.OPENAI_MODEL = "gpt-4o-mini";
-    process.env.OPENAI_MODEL_ADVANCED = "gpt-4.1";
+    process.env.OPENAI_MODEL_ADVANCED = "gpt-4o";
     process.env.OPENAI_MODEL_HYBRID_ENABLED = "true";
     process.env.OPENAI_MODEL_HYBRID_OPERATION_ROUTING_ENABLED = "true";
     process.env.OPENAI_MODEL_HYBRID_ADJUST_REWRITE_PREMIUM_ENABLED = "true";
@@ -301,7 +345,7 @@ describe("scripts/ai model selection", () => {
     });
 
     expect(selected.tier).toBe("premium");
-    expect(selected.model).toBe("gpt-4.1");
+    expect(selected.model).toBe("gpt-4o");
     expect(selected.reason).toBe("operation_generate_default");
     expect(selected.fallbackModel).toBe("gpt-4o-mini");
   });
@@ -325,7 +369,7 @@ describe("scripts/ai model selection", () => {
     });
 
     expect(selected.tier).toBe("premium");
-    expect(selected.model).toBe("gpt-4.1");
+    expect(selected.model).toBe("gpt-4o");
     expect(selected.reason).toBe("operation_adjust_rewrite_default");
     expect(selected.fallbackModel).toBe("gpt-4o-mini");
   });
@@ -365,7 +409,7 @@ describe("scripts/ai model selection", () => {
     });
 
     expect(selected.tier).toBe("premium");
-    expect(selected.model).toBe("gpt-4.1");
+    expect(selected.model).toBe("gpt-4o");
     expect(selected.reason).toBe("explicit_intent");
     expect(selected.fallbackModel).toBe("gpt-4o-mini");
   });
@@ -439,11 +483,40 @@ describe("scripts/ai prompt quality guidance", () => {
 
     expect(prompt).toContain("Utilidade prática obrigatória");
     expect(prompt).toContain("1 diagnóstico concreto e 1 ajuste aplicável");
+    expect(prompt).toContain("plano prático de gravação");
+    expect(prompt).toContain("como gravar");
+    expect(prompt.toLowerCase()).toContain("frase-exemplo opcional");
+    expect(prompt).toContain('Por que assim:');
     expect(prompt).toContain("Qualidade narrativa obrigatória");
     expect(prompt).toContain("confissão");
     expect(prompt).toContain("dor/tensão real");
     expect(prompt).toContain("motivo humano/prova");
     expect(prompt).toContain("CTA natural, conversacional e específico");
+    expect(prompt).toContain("Resposta compacta");
+    expect(prompt).toContain("O blueprint completo deve caber idealmente");
+    expect(prompt).toContain("Antes de descrever as cenas");
+    expect(prompt).toContain("categorias vencedoras");
+    expect(prompt).toContain("O que postar:");
+    expect(prompt).toContain("Como esse vídeo deve funcionar:");
+    expect(prompt).toContain("evidência concreta do perfil");
+    expect(prompt).toContain("1 frase curta e densa");
+    expect(prompt).toContain("Densidade do blueprint:");
+    expect(prompt).toContain("Use 4 cenas por padrão");
+  });
+
+  it("opens room for 5 scenes only when the prompt asks for more direction", () => {
+    const profile = resolveBlueprintDensityProfile(
+      "quero um roteiro mais detalhado, com mais direção prática e passo a passo sobre retenção"
+    );
+    const prompt = buildGenerateScriptPrompt({
+      prompt: "quero um roteiro mais detalhado, com mais direção prática e passo a passo sobre retenção",
+      intelligenceContext: null,
+    });
+
+    expect(profile.preferredSceneCount).toBe(5);
+    expect(profile.maxSceneCount).toBe(6);
+    expect(prompt).toContain("Abra para 5 cenas");
+    expect(prompt).toContain("Nunca ultrapasse 6 cenas neste pedido");
   });
 
   it("builds generation prompt with explicit winner-based guidance", () => {
@@ -464,6 +537,60 @@ describe("scripts/ai prompt quality guidance", () => {
     expect(prompt).toContain("prefira o repertório vencedor");
   });
 
+  it("includes timing and strategic rationale signals when available", () => {
+    const prompt = buildGenerateScriptPrompt({
+      prompt: "quero um roteiro sobre retenção de reels",
+      intelligenceContext: {
+        intent: {
+          wantsHumor: false,
+          wantsEngagement: true,
+          subjectHint: "retenção de reels",
+          wantsWinnerBasedScript: true,
+          wantsTopicDrivenScript: true,
+        },
+        resolvedCategories: {
+          proposal: "tips",
+          context: "career_work",
+          format: "reel",
+          tone: "educational",
+        },
+        metricUsed: "avg_total_interactions",
+        lookbackDays: 180,
+        promptMode: "open",
+        explicitCategories: {},
+        rankedCategories: {},
+        dnaProfile: {
+          sampleSize: 8,
+          hasEnoughEvidence: true,
+          averageSentenceLength: 10,
+          emojiDensity: 0.01,
+          openingPatterns: ["eu parei de"],
+          ctaPatterns: ["me conta"],
+          recurringExpressions: ["retenção"],
+          writingGuidelines: ["Use frases curtas."],
+        },
+        styleProfile: null,
+        styleProfileVersion: null,
+        styleSampleSize: 0,
+        engagementTiming: {
+          sampleSize: 4,
+          timezone: "America/Sao_Paulo",
+          topHours: [19, 21],
+          topWeekdays: ["ter", "qui"],
+          summary: "dias com mais recorrência: ter e qui | horários com mais recorrência: 19h e 21h",
+        },
+        captionEvidence: [],
+        winningScriptExamples: [],
+        relaxationLevel: 1,
+        usedFallbackRules: false,
+        linkedOutcome: null,
+      } as any,
+    });
+
+    expect(prompt).toContain("horários com mais recorrência");
+    expect(prompt).toContain("categorias, narrativa vencedora, tom, formato, lift, volume de exemplos ou horário/janela");
+  });
+
   it("builds generation prompt with explicit topic guidance", () => {
     const prompt = buildGenerateScriptPrompt({
       prompt: "quero um roteiro sobre manter frequência na academia",
@@ -480,6 +607,31 @@ describe("scripts/ai prompt quality guidance", () => {
 
     expect(prompt).toContain("O tema principal deste roteiro é: manter frequência na academia");
     expect(prompt).toContain("Não trate o assunto de forma genérica");
+  });
+
+  it("uses saved title as editorial anchor when available", () => {
+    const prompt = buildGenerateScriptPrompt({
+      prompt: "quero um roteiro sobre manter frequência na academia",
+      title: "O ritual que me fez treinar sem depender de motivação",
+      intelligenceContext: null,
+    });
+
+    expect(prompt).toContain("Título âncora do roteiro: O ritual que me fez treinar sem depender de motivação");
+    expect(prompt).toContain("Esse título já veio salvo pelo usuário");
+    expect(resolveEditorialAnchorTitle({
+      prompt: "quero um roteiro sobre manter frequência na academia",
+      title: "O ritual que me fez treinar sem depender de motivação",
+      intelligenceContext: null,
+    })).toBe("O ritual que me fez treinar sem depender de motivação");
+  });
+
+  it("derives a working anchor title when the script has no title", () => {
+    const anchor = resolveEditorialAnchorTitle({
+      prompt: "quero um roteiro sobre retenção de reels",
+      intelligenceContext: null,
+    });
+
+    expect(anchor).toContain("retenção");
   });
 
   it("extracts incremental adjust guidance for 'ser mais...'", () => {
@@ -619,8 +771,107 @@ describe("scripts/ai technical contract", () => {
     );
 
     expect(converted).toMatch(/\[ROTEIRO (TÉCNICO V1 — FORMATO DE FLUXO|COPY-FIRST V1)\]/);
+    expect(converted).toContain("O que postar:");
+    expect(converted).toContain("Por que postar assim:");
     expect(converted).toContain("CENA 1: O GANCHO");
     expect(converted).toContain("CENA 4: CHAMADA PARA AÇÃO");
+  });
+
+  it("preserves or injects editorial direction before the scenes", () => {
+    const repaired = enforceTechnicalScriptContract(
+      {
+        title: "Roteiro editorial",
+        content: [
+          "[ROTEIRO_TECNICO_V1]",
+          "O que postar: Reels sobre o erro que derruba retenção antes da dica.",
+          "Por que postar assim: Esse recorte costuma funcionar melhor no perfil quando abre pelo atrito real.",
+          "Quando postar: Priorizar a janela recorrente do perfil quando esse tema entrar na fila.",
+          "Como esse vídeo deve funcionar: erro visível -> contexto real -> ajuste -> pergunta final.",
+          "[CENA 1: GANCHO]",
+          "Visual: Close no rosto com comentário na tela.",
+          'Fala: "Seu reels não morre no meio. Ele já nasce sem diagnóstico."',
+          "Direção: Tom direto e preciso.",
+          "[CENA 2: CONTEXTO]",
+          "Visual: Mostrar o atrito no celular.",
+          'Fala: "O erro é abrir já com a dica."',
+          "Direção: Didático e ágil.",
+          "[CENA 3: DEMONSTRAÇÃO]",
+          "Visual: Mostrar a estrutura em três linhas.",
+          'Fala: "Primeiro o erro, depois o ajuste, depois a prova."',
+          "Direção: Cadência clara.",
+          "[CENA 4: CTA]",
+          "Visual: Texto na tela: QUAL PARTE FALTA?",
+          'Fala: "Qual parte mais falta no seu conteúdo hoje? Me conta aqui."',
+          "Direção: Curioso e conversacional.",
+          "[/ROTEIRO_TECNICO_V1]",
+        ].join("\n"),
+      },
+      "roteiro sobre retenção de reels"
+    );
+
+    expect(repaired.content).toContain("O que postar: Reels sobre o erro que derruba retenção antes da dica.");
+    expect(repaired.content).toContain("Por que postar assim:");
+    expect(repaired.content).toContain("Quando postar:");
+    expect(repaired.content).toContain("Como esse vídeo deve funcionar:");
+    expect(repaired.content.indexOf("O que postar:")).toBeLessThan(repaired.content.indexOf("CENA 1:"));
+  });
+
+  it("uses evidence-backed editorial rationale when intelligence context is available", () => {
+    const repaired = enforceTechnicalScriptContract(
+      {
+        title: "Roteiro com evidência",
+        content: [
+          "[ROTEIRO_TECNICO_V1]",
+          "[CENA 1: GANCHO]",
+          "Visual: Close no rosto com comentário na tela.",
+          'Fala: "Seu reels não morre no meio. Ele já nasce sem diagnóstico."',
+          "Direção: Tom direto. Por que assim: abertura curta prende mais atenção.",
+          "[CENA 2: CONTEXTO]",
+          "Visual: Mostrar o atrito no celular.",
+          'Fala: "O erro é abrir pela dica antes do problema."',
+          "Direção: Didático e rápido. Por que assim: contexto visual deixa o erro claro.",
+          "[CENA 3: DEMONSTRAÇÃO]",
+          "Visual: Mostrar a estrutura em três linhas.",
+          'Fala: "Primeiro o erro, depois o ajuste, depois a prova."',
+          "Direção: Cadência clara. Por que assim: método simples aumenta utilidade.",
+          "[CENA 4: CTA]",
+          "Visual: Texto na tela: QUAL PARTE FALTA?",
+          'Fala: "Qual parte mais falta no seu conteúdo hoje? Me conta aqui."',
+          "Direção: Curioso e conversacional. Por que assim: pergunta específica gera comentário melhor.",
+          "[/ROTEIRO_TECNICO_V1]",
+        ].join("\n"),
+      },
+      "roteiro sobre retenção de reels",
+      {
+        editorialDecision: {
+          postDirective: "Poste um reels sobre retenção pelo ângulo do erro de abertura antes da dica.",
+          narrativeAngle: "diagnóstico direto do erro antes da dica",
+          recommendedStructure: "erro visível -> contexto observável -> ajuste aplicável -> pergunta específica no fechamento",
+          whyThisShouldWork: [
+            "No histórico recente, Tips + Trabalho + Educacional aparece como combinação forte para esse tema.",
+            "3 roteiro(s) vencedor(es) próximo(s) repetem diagnóstico direto do erro antes da dica e a proposal líder chega a lift 1.40.",
+          ],
+          evidence: [
+            "proposal tips | context career_work | tone educational",
+            "3 roteiro(s) vencedor(es) próximos; principal exemplo: Abertura de reels.",
+            "Timing observado: dias com mais recorrência: ter e qui | horários com mais recorrência: 19h e 21h.",
+          ],
+          postingWindow: "dias com mais recorrência: ter e qui | horários com mais recorrência: 19h e 21h",
+        },
+      }
+    );
+
+    expect(repaired.content).toContain("Por que postar assim:");
+    expect(repaired.content).toContain("Tips + Trabalho + Educacional");
+    expect(repaired.content).toContain("Quando postar: ter/qui, 19h/21h");
+    expect(repaired.content).toContain("Ângulo: diagnóstico direto do erro antes da dica.");
+
+    const editorialLines = repaired.content
+      .split("\n")
+      .filter((line) => /^(O que postar|Por que postar assim|Quando postar|Como esse vídeo deve funcionar):/i.test(line));
+
+    expect(editorialLines).toHaveLength(4);
+    expect(editorialLines.every((line) => line.length <= 170)).toBe(true);
   });
 
   it("uses a sane fallback topic for winner-based prompts without explicit subject", () => {
@@ -629,8 +880,8 @@ describe("scripts/ai technical contract", () => {
       "escreva um roteiro com base no que mais engaja no meu perfil"
     );
 
-    expect(converted).toContain("O QUE JA FUNCIONA NO SEU PERFIL");
-    expect(converted).not.toContain("MAIS ENGAJA NO MEU PERFIL");
+    expect(converted.toLowerCase()).toContain("o que ja funciona no seu perfil");
+    expect(converted.toLowerCase()).not.toContain("mais engaja no meu perfil");
   });
 
   it("computes higher perceived quality for polished technical script than weak script", () => {
@@ -810,6 +1061,78 @@ describe("scripts/ai technical contract", () => {
     expect(practicalScore.perceivedQuality).toBeGreaterThan(abstractScore.perceivedQuality);
   });
 
+  it("rewards filmable blueprints over vague scene descriptions", () => {
+    const vague = [
+      "[ROTEIRO_TECNICO_V1]",
+      "[CENA 1: GANCHO]",
+      "Visual: Mostrar alguma coisa.",
+      "",
+      'Fala: "Falar de um jeito interessante sobre o tema."',
+      "",
+      "Direção: Boa energia.",
+      "",
+      "[CENA 2: CONTEXTO]",
+      "Visual: Mostrar o contexto.",
+      "",
+      'Fala: "Explicar o problema de forma geral."',
+      "",
+      "Direção: Ser claro.",
+      "",
+      "[CENA 3: DEMONSTRAÇÃO]",
+      "Visual: Mostrar a solução.",
+      "",
+      'Fala: "Explicar o ajuste."',
+      "",
+      "Direção: Tom didático.",
+      "",
+      "[CENA 4: CTA]",
+      "Visual: Fechamento.",
+      "",
+      'Fala: "Me conta aqui."',
+      "",
+      "Direção: Final leve.",
+      "[/ROTEIRO_TECNICO_V1]",
+    ].join("\n");
+
+    const shootable = [
+      "[ROTEIRO_TECNICO_V1]",
+      "[CENA 1: GANCHO]",
+      "Visual: Close no rosto, câmera parada na altura dos olhos e texto na tela destacando o erro principal.",
+      "",
+      'Fala: "Abrir nomeando o erro que trava a rotina. Frase-exemplo opcional: eu só voltei a ter frequência quando parei de decidir tudo em cima da hora."',
+      "",
+      "Direção: Tom de confissão segura, ritmo firme e micro-pausa antes da virada.",
+      "",
+      "[CENA 2: CONTEXTO]",
+      "Visual: Mostrar a mochila pronta perto da porta e o celular com o horário travado.",
+      "",
+      'Fala: "Explicar o atrito real: toda decisão extra vira desculpa e consome energia antes do treino."',
+      "",
+      "Direção: Íntimo, direto e com gesto curto apontando para os objetos.",
+      "",
+      "[CENA 3: DEMONSTRAÇÃO]",
+      "Visual: Mostrar roupa, garrafa e alarme em sequência com cortes curtos.",
+      "",
+      'Fala: "Descrever o ritual prático: separar os itens na noite anterior e deixar a ida automática."',
+      "",
+      "Direção: Didático, cadência clara e câmera acompanhando os objetos.",
+      "",
+      "[CENA 4: CTA]",
+      "Visual: Retorno para o rosto com texto na tela: QUAL PARTE TE TRAVA?",
+      "",
+      'Fala: "Fechar perguntando qual parte da rotina ainda depende de motivação. CTA sugerido: me conta aqui que eu posso aprofundar a próxima."',
+      "",
+      "Direção: Curioso, leve e com sorriso curto no final.",
+      "[/ROTEIRO_TECNICO_V1]",
+    ].join("\n");
+
+    const vagueScore = evaluateTechnicalScriptQuality(vague, "roteiro sobre manter frequência na academia");
+    const shootableScore = evaluateTechnicalScriptQuality(shootable, "roteiro sobre manter frequência na academia");
+
+    expect(shootableScore.shootabilityScore).toBeGreaterThan(vagueScore.shootabilityScore);
+    expect(shootableScore.perceivedQuality).toBeGreaterThan(vagueScore.perceivedQuality);
+  });
+
   it("prevents duplicate CTA headings when script has 5 scenes", () => {
     const duplicatedCta = [
       "[ROTEIRO_TECNICO_V1]",
@@ -877,5 +1200,238 @@ describe("scripts/ai technical contract", () => {
     expect(repaired.content).toMatch(/\nVisual:\s+/);
     expect(repaired.content).toMatch(/\nDireção:\s+/);
     expect(repaired.content).toMatch(/\nFala:\s*"/);
+  });
+
+  it("compacts verbose blueprint scenes to stay within response budget", () => {
+    const repeatedVisual =
+      "Close no rosto com celular na mão, apontando para a tela, depois mostrando cenário, gesto, luz, enquadramento e repetindo a mesma explicação visual para alongar a cena sem necessidade prática real. ";
+    const repeatedSpeech =
+      "Explicar em detalhes longos demais o que precisa ser comunicado, repetindo a mesma ideia de erro, ajuste, prova e contexto várias vezes, como se fosse um mini texto corrido em vez de uma orientação enxuta para gravação. ";
+    const repeatedDirection =
+      "Tom direto, ritmo firme, pausa curta, olhar na lente e gesto com a mão para marcar a virada. Por que assim: no perfil, esse tipo de construção costuma gerar mais retenção, clareza, identificação, repetição de comentário e sensação de utilidade quando a narrativa é objetiva e muito bem encaixada no histórico do criador. ";
+
+    const verbose = [
+      "[ROTEIRO_TECNICO_V1]",
+      "[CENA 1: GANCHO]",
+      `Visual: ${repeatedVisual.repeat(3)}`,
+      "",
+      `Fala: "${repeatedSpeech.repeat(3)}"`,
+      "",
+      `Direção: ${repeatedDirection.repeat(2)}`,
+      "",
+      "[CENA 2: CONTEXTO]",
+      `Visual: ${repeatedVisual.repeat(3)}`,
+      "",
+      `Fala: "${repeatedSpeech.repeat(3)}"`,
+      "",
+      `Direção: ${repeatedDirection.repeat(2)}`,
+      "",
+      "[CENA 3: DEMONSTRAÇÃO]",
+      `Visual: ${repeatedVisual.repeat(3)}`,
+      "",
+      `Fala: "${repeatedSpeech.repeat(3)}"`,
+      "",
+      `Direção: ${repeatedDirection.repeat(2)}`,
+      "",
+      "[CENA 4: CTA]",
+      `Visual: ${repeatedVisual.repeat(2)}`,
+      "",
+      `Fala: "${repeatedSpeech.repeat(2)}"`,
+      "",
+      `Direção: ${repeatedDirection.repeat(2)}`,
+      "[/ROTEIRO_TECNICO_V1]",
+    ].join("\n");
+
+    const repaired = enforceTechnicalScriptContract(
+      { title: "Roteiro prolixo", content: verbose },
+      "roteiro sobre vendas no instagram"
+    );
+
+    expect(repaired.content.length).toBeLessThanOrEqual(TECHNICAL_SCRIPT_MAX_CHARS);
+
+    const visualLines = repaired.content.match(/^Visual:\s+.*$/gim) || [];
+    const falaLines = repaired.content.match(/^Fala:\s+.*$/gim) || [];
+    const direcaoLines = repaired.content.match(/^Direção:\s+.*$/gim) || [];
+    const reasonSegments = direcaoLines
+      .map((line) => line.split(/\bPor que assim:\s*/i)[1] || "")
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    expect(visualLines.every((line) => line.length <= 170)).toBe(true);
+    expect(falaLines.every((line) => line.length <= 220)).toBe(true);
+    expect(direcaoLines.every((line) => line.length <= 220)).toBe(true);
+    expect(reasonSegments.every((segment) => segment.length <= 115)).toBe(true);
+    expect(repaired.content).toContain("Por que assim:");
+  });
+
+  it("prefers 4 scenes for simple requests even when draft arrives longer", () => {
+    const longerDraft = [
+      "[ROTEIRO_TECNICO_V1]",
+      "O que postar: Reels sobre erro de abertura.",
+      "Por que postar assim: Tips + Trabalho aparecem fortes.",
+      "Quando postar: ter/qui, 19h/21h.",
+      "Como esse vídeo deve funcionar: erro -> contexto -> ajuste -> prova -> CTA.",
+      "",
+      "[CENA 1: GANCHO]",
+      "Visual: Close no rosto.",
+      "",
+      'Fala: "Abrir nomeando o erro."',
+      "",
+      "Direção: Tom firme. Por que assim: abertura direta segura atenção.",
+      "",
+      "[CENA 2: CONTEXTO]",
+      "Visual: Mostrar o celular.",
+      "",
+      'Fala: "Explicar o atrito real."',
+      "",
+      "Direção: Didático. Por que assim: contexto observável aumenta identificação.",
+      "",
+      "[CENA 3: DEMONSTRAÇÃO]",
+      "Visual: Mostrar três linhas no bloco de notas.",
+      "",
+      'Fala: "Descrever o ajuste."',
+      "",
+      "Direção: Cadência clara. Por que assim: método simples aumenta utilidade.",
+      "",
+      "[CENA 4: PROVA]",
+      "Visual: Mostrar antes e depois.",
+      "",
+      'Fala: "Mostrar a prova."',
+      "",
+      "Direção: Objetivo. Por que assim: prova concreta reforça credibilidade.",
+      "",
+      "[CENA 5: CTA]",
+      "Visual: Volta para o rosto.",
+      "",
+      'Fala: "Perguntar qual parte mais falta."',
+      "",
+      "Direção: Conversa aberta. Por que assim: pergunta específica gera comentário melhor.",
+      "[/ROTEIRO_TECNICO_V1]",
+    ].join("\n");
+
+    const repaired = enforceTechnicalScriptContract(
+      { title: "Blueprint longo", content: longerDraft },
+      "roteiro sobre retenção",
+      { preferredSceneCount: 4, maxSceneCount: 4 }
+    );
+    const scenes = repaired.content.match(/^\s*CENA\s+\d+:/gim) || [];
+
+    expect(scenes).toHaveLength(4);
+    expect(repaired.content).toContain("CENA 4: CHAMADA PARA AÇÃO");
+    expect(repaired.content).not.toContain("CENA 5:");
+  });
+
+  it("rewards concise blueprints over verbose ones", () => {
+    const concise = [
+      "[ROTEIRO_TECNICO_V1]",
+      "[CENA 1: GANCHO]",
+      "Visual: Close no rosto com comentário na tela.",
+      "",
+      'Fala: "Nomear o erro logo na abertura para deixar a promessa clara."',
+      "",
+      "Direção: Tom firme e frase curta. Por que assim: abertura direta segura melhor a atenção do perfil.",
+      "",
+      "[CENA 2: CONTEXTO]",
+      "Visual: Mostrar no celular a situação que trava o resultado.",
+      "",
+      'Fala: "Explicar o atrito real antes da dica."',
+      "",
+      "Direção: Didático e rápido. Por que assim: contexto observável aumenta identificação.",
+      "",
+      "[CENA 3: DEMONSTRAÇÃO]",
+      "Visual: Apontar três linhas da estrutura na tela.",
+      "",
+      'Fala: "Mostrar a ordem prática: erro, ajuste e prova."',
+      "",
+      "Direção: Cadência clara. Por que assim: método simples deixa o vídeo mais aplicável.",
+      "",
+      "[CENA 4: CTA]",
+      "Visual: Texto na tela: QUAL PARTE FALTA?",
+      "",
+      'Fala: "Perguntar qual parte mais falta hoje no conteúdo."',
+      "",
+      "Direção: Conversa aberta. Por que assim: pergunta específica gera comentário melhor.",
+      "[/ROTEIRO_TECNICO_V1]",
+    ].join("\n");
+
+    const verbose = [
+      "[ROTEIRO_TECNICO_V1]",
+      "[CENA 1: GANCHO]",
+      "Visual: Close no rosto com comentário na tela, depois novo corte no mesmo close, repetindo o enquadramento e alongando a descrição visual sem acrescentar nova informação prática para a gravação.",
+      "",
+      'Fala: "Explicar em vários trechos longos que o erro precisa ser nomeado logo na abertura, reforçando a mesma ideia mais de uma vez e detalhando demais algo que poderia ser comunicado em uma orientação mais enxuta."',
+      "",
+      "Direção: Tom firme, frase curta, pausa, olhar na lente, gesto de mão e reforço final da mesma intenção. Por que assim: abertura direta segura melhor a atenção do perfil, aumenta clareza, melhora retenção, reduz dispersão e deixa a leitura do vídeo mais fácil para a audiência quando a promessa aparece cedo.",
+      "",
+      "[CENA 2: CONTEXTO]",
+      "Visual: Mostrar no celular a situação que trava o resultado, contextualizar o cenário, detalhar o celular, a tela, a mão, a postura e a repetição do mesmo atrito visual de forma extensa.",
+      "",
+      'Fala: "Explicar o atrito real antes da dica, trazendo repetições adicionais sobre dor, contexto, percepção e dificuldade cotidiana em um nível de detalhe maior do que o necessário para orientar a gravação."',
+      "",
+      "Direção: Didático e rápido, mas com descrição longa da mesma orientação. Por que assim: contexto observável aumenta identificação, deixa a dor mais clara, aumenta proximidade e reforça a construção narrativa do conteúdo.",
+      "",
+      "[CENA 3: DEMONSTRAÇÃO]",
+      "Visual: Apontar três linhas da estrutura na tela, repetir a ordem, detalhar o gesto, a mão, a cadência e a transição como se fosse um manual em vez de um blueprint compacto.",
+      "",
+      'Fala: "Mostrar a ordem prática: erro, ajuste e prova, expandindo a explicação com observações extras e repetitivas que aumentam o comprimento da cena sem melhorar a utilidade real."',
+      "",
+      "Direção: Cadência clara e explicação longa da mesma execução. Por que assim: método simples deixa o vídeo mais aplicável, mais didático, mais claro e mais fácil de repetir, então vale reforçar a lógica de forma extensa.",
+      "",
+      "[CENA 4: CTA]",
+      "Visual: Texto na tela com a pergunta final, mais descrição complementar do gesto, da expressão, da pausa e do fechamento do enquadramento.",
+      "",
+      'Fala: "Perguntar qual parte mais falta hoje no conteúdo, expandindo a pergunta com novos detalhes de intenção, continuidade e abertura de conversa que poderiam ser bem mais curtos."',
+      "",
+      "Direção: Conversa aberta com descrição longa do tom e da intenção. Por que assim: pergunta específica gera comentário melhor, prolonga a conversa e reforça a continuidade editorial do perfil.",
+      "[/ROTEIRO_TECNICO_V1]",
+    ].join("\n");
+
+    const conciseScore = evaluateTechnicalScriptQuality(concise, "roteiro sobre vendas no instagram");
+    const verboseScore = evaluateTechnicalScriptQuality(verbose, "roteiro sobre vendas no instagram");
+
+    expect(conciseScore.concisionScore).toBeGreaterThan(verboseScore.concisionScore);
+    expect(conciseScore.perceivedQuality).toBeGreaterThanOrEqual(verboseScore.perceivedQuality);
+  });
+
+  it("preserves practical blueprint guidance when it is already useful", () => {
+    const base = [
+      "[ROTEIRO_TECNICO_V1]",
+      "[CENA 1: GANCHO]",
+      "Visual: Close no rosto com texto na tela reforçando a virada.",
+      "",
+      'Fala: "Abrir nomeando o erro central. Frase-exemplo opcional: eu só destravei isso quando parei de insistir no formato mais óbvio."',
+      "",
+      "Direção: Tom direto, ritmo firme e micro-pausa antes da virada. Por que assim: abertura curta e confessional tende a segurar melhor a atenção do perfil.",
+      "",
+      "[CENA 2: CONTEXTO]",
+      "Visual: Mostrar o celular e a bagunça do processo.",
+      "",
+      'Fala: "Explicar o atrito real que derruba a execução antes do resultado."',
+      "",
+      "Direção: Íntimo e preciso. Por que assim: contexto observável aumenta identificação e evita teoria solta.",
+      "",
+      "[CENA 3: DEMONSTRAÇÃO]",
+      "Visual: Mostrar o ajuste acontecendo em três passos curtos.",
+      "",
+      'Fala: "Descrever o ajuste prático e o que precisa ficar claro nessa cena."',
+      "",
+      "Direção: Didático e leve. Por que assim: passo simples e visual melhora utilidade percebida.",
+      "",
+      "[CENA 4: CTA]",
+      "Visual: Retorno para o rosto com texto na tela: QUAL PARTE FALTA?",
+      "",
+      'Fala: "Fechar perguntando qual parte mais falta no processo. CTA sugerido: me conta aqui."',
+      "",
+      "Direção: Curioso e conversacional. Por que assim: pergunta aberta tende a gerar comentário melhor que CTA genérico.",
+      "[/ROTEIRO_TECNICO_V1]",
+    ].join("\n");
+
+    const repaired = enforceTechnicalScriptContract(
+      { title: "Blueprint", content: base },
+      "roteiro sobre retenção para reels"
+    );
+
+    expect(repaired.content).toContain("Abrir com a virada central");
+    expect(repaired.content).toContain("CTA sugerido");
   });
 });

@@ -3,6 +3,7 @@ import { RenderTheme } from './chatUtils';
 import Image from 'next/image.js';
 import { Copy, Check } from 'lucide-react';
 import { track } from '@/lib/track';
+import { splitStrategicDirection } from '@/app/dashboard/lib/scriptBlueprintPresentation';
 
 // --- Types ---
 
@@ -22,6 +23,10 @@ interface ScriptMetadata {
     audio?: string;
     inspiration?: string;
     inspirationReason?: string;
+    editorialDirective?: string;
+    editorialWhy?: string;
+    editorialWhen?: string;
+    editorialHow?: string;
 }
 
 interface ScriptScene {
@@ -31,7 +36,7 @@ interface ScriptScene {
     direction?: string;
 }
 
-type SceneExpandedMap = Record<string, { visual: boolean; audio: boolean; direction: boolean }>;
+type SceneExpandedMap = Record<string, { visual: boolean; audio: boolean; direction: boolean; strategyReason: boolean }>;
 
 interface InspirationData {
     source?: 'community' | 'user_top_posts' | 'none';
@@ -76,7 +81,7 @@ type SceneCardProps = {
     isFirstScene: boolean;
     theme: RenderTheme;
     isExpandedMap: SceneExpandedMap;
-    onToggleExpand: (sceneKey: string, field: 'visual' | 'audio' | 'direction') => void;
+    onToggleExpand: (sceneKey: string, field: 'visual' | 'audio' | 'direction' | 'strategyReason') => void;
 };
 
 // --- Parsing Logic ---
@@ -266,6 +271,26 @@ const parseVariationChunk = (label: string, lines: string[]): ScriptVariation =>
             continue;
         }
 
+        if (/^o que postar\s*:/i.test(normalized)) {
+            metadata.editorialDirective = extractAfterColon(normalized);
+            continue;
+        }
+
+        if (/^por que postar(?: assim)?\s*:/i.test(normalized) || /^por que esse v[íi]deo\s*:/i.test(normalized)) {
+            metadata.editorialWhy = extractAfterColon(normalized);
+            continue;
+        }
+
+        if (/^quando postar\s*:/i.test(normalized) || /^janela de publica(?:ç|c)[aã]o\s*:/i.test(normalized)) {
+            metadata.editorialWhen = extractAfterColon(normalized);
+            continue;
+        }
+
+        if (/^como esse v[íi]deo deve funcionar\s*:/i.test(normalized) || /^estrutura editorial\s*:/i.test(normalized)) {
+            metadata.editorialHow = extractAfterColon(normalized);
+            continue;
+        }
+
         if (/^a[úu]dio sugerido\s*:/i.test(normalized) || /^audio sugerido\s*:/i.test(normalized)) {
             metadata.audio = extractAfterColon(normalized);
             continue;
@@ -411,7 +436,16 @@ const parseScriptContent = (content: string): ParsedScript => {
         .map((chunk, idx) => parseVariationChunk(chunk.label || `V${idx + 1}`, chunk.lines))
         .filter((variation) => (
             variation.scenes.length > 0 ||
-            Boolean(variation.metadata.title || variation.metadata.format || variation.metadata.duration || variation.metadata.audio) ||
+            Boolean(
+                variation.metadata.title ||
+                variation.metadata.format ||
+                variation.metadata.duration ||
+                variation.metadata.audio ||
+                variation.metadata.editorialDirective ||
+                variation.metadata.editorialWhy ||
+                variation.metadata.editorialWhen ||
+                variation.metadata.editorialHow
+            ) ||
             Boolean(variation.caption)
         ));
 
@@ -623,6 +657,12 @@ const MetadataHeader: React.FC<{
         metadata.inspirationSource ? { label: 'Fonte da inspiração', value: metadata.inspirationSource } : null,
         metadata.inspirationReason ? { label: 'Por que essa inspiração', value: metadata.inspirationReason } : null,
     ].filter(Boolean) as Array<{ label: string; value: string }>;
+    const editorialItems = [
+        metadata.editorialDirective ? { label: 'O que postar', value: metadata.editorialDirective } : null,
+        metadata.editorialWhy ? { label: 'Por que postar assim', value: metadata.editorialWhy } : null,
+        metadata.editorialWhen ? { label: 'Quando postar', value: metadata.editorialWhen } : null,
+        metadata.editorialHow ? { label: 'Como esse vídeo deve funcionar', value: metadata.editorialHow } : null,
+    ].filter(Boolean) as Array<{ label: string; value: string }>;
 
     const strategicThemeStyle: React.CSSProperties = {
         display: '-webkit-box',
@@ -681,6 +721,24 @@ const MetadataHeader: React.FC<{
                 </p>
             ) : null}
 
+            {editorialItems.length > 0 ? (
+                <div className={`mt-3 grid gap-2 ${editorialItems.length > 1 ? 'sm:grid-cols-2' : 'grid-cols-1'}`}>
+                    {editorialItems.map((item) => (
+                        <div
+                            key={item.label}
+                            className={`rounded-[0.95rem] border px-3 py-2 ${isInverse ? 'border-white/15 bg-white/5' : 'border-slate-200 bg-slate-50/80'}`}
+                        >
+                            <p className={`text-[10px] font-semibold uppercase tracking-[0.08em] ${isInverse ? 'text-white/60' : 'text-slate-500'}`}>
+                                {item.label}
+                            </p>
+                            <p className={`mt-1 text-[13px] leading-[1.5] ${isInverse ? 'text-white/85' : 'text-slate-800'}`}>
+                                {item.value}
+                            </p>
+                        </div>
+                    ))}
+                </div>
+            ) : null}
+
             {evidenceItems.length > 0 ? (
                 <details className={`mt-3 ${isInverse ? 'text-white/80' : 'text-gray-700'}`}>
                     <CountedEvidenceSummary total={evidenceItems.length} theme={theme} />
@@ -698,20 +756,20 @@ const MetadataHeader: React.FC<{
 };
 
 const SceneField: React.FC<{
-    label: 'Visual' | 'Fala' | 'Direção';
+    label: 'Visual' | 'Fala' | 'Direção' | 'Por que assim';
     text: string;
     maxLines: number;
     sceneKey: string;
-    field: 'visual' | 'audio' | 'direction';
+    field: 'visual' | 'audio' | 'direction' | 'strategyReason';
     theme: RenderTheme;
     isExpandedMap: SceneExpandedMap;
-    onToggleExpand: (sceneKey: string, field: 'visual' | 'audio' | 'direction') => void;
+    onToggleExpand: (sceneKey: string, field: 'visual' | 'audio' | 'direction' | 'strategyReason') => void;
 }> = ({ label, text, maxLines, sceneKey, field, theme, isExpandedMap, onToggleExpand }) => {
     const isInverse = theme === 'inverse';
     const cleanValue = cleanText(text).replace(/"/g, '');
     if (!cleanValue || cleanValue === '...') return null;
     const isExpanded = Boolean(isExpandedMap[sceneKey]?.[field]);
-    const shouldCollapse = cleanValue.length > (field === 'visual' ? 140 : 180);
+    const shouldCollapse = cleanValue.length > (field === 'visual' ? 140 : field === 'strategyReason' ? 190 : 180);
     const clampStyle: React.CSSProperties = isExpanded || !shouldCollapse
         ? {}
         : {
@@ -722,12 +780,22 @@ const SceneField: React.FC<{
         };
 
     return (
-        <div className={label === 'Fala' ? 'mt-3.5' : ''}>
+        <div className={label === 'Fala' || label === 'Por que assim' ? 'mt-3.5' : ''}>
             <p className={`mb-1 text-[11px] font-semibold uppercase tracking-wide ${isInverse ? 'text-white/60' : 'text-gray-500'}`}>
                 {label}
             </p>
             <p
-                className={`${label === 'Visual' ? 'text-[15px] leading-[1.55] font-medium' : 'text-[14px] leading-[1.6] font-semibold'} ${isInverse ? (label === 'Visual' ? 'text-white/92' : 'text-white/88') : (label === 'Visual' ? 'text-gray-800' : 'text-gray-900')}`}
+                className={`${
+                    label === 'Visual'
+                        ? 'text-[15px] leading-[1.55] font-medium'
+                        : label === 'Por que assim'
+                            ? 'text-[13px] leading-[1.65] font-medium'
+                            : 'text-[14px] leading-[1.6] font-semibold'
+                } ${
+                    isInverse
+                        ? (label === 'Visual' ? 'text-white/92' : label === 'Por que assim' ? 'text-emerald-100/90' : 'text-white/88')
+                        : (label === 'Visual' ? 'text-gray-800' : label === 'Por que assim' ? 'text-emerald-800' : 'text-gray-900')
+                }`}
                 style={clampStyle}
             >
                 {cleanValue}
@@ -757,6 +825,7 @@ const SceneCard: React.FC<SceneCardProps> = ({
     const isInverse = theme === 'inverse';
     const sceneKey = `${index}`;
     const isLastScene = index === totalScenes - 1;
+    const { direction, strategyReason } = splitStrategicDirection(scene.direction);
 
     return (
         <article
@@ -798,13 +867,25 @@ const SceneCard: React.FC<SceneCardProps> = ({
                     isExpandedMap={isExpandedMap}
                     onToggleExpand={onToggleExpand}
                 />
-                {scene.direction && (
+                {direction && (
                     <SceneField
                         label="Direção"
-                        text={scene.direction}
+                        text={direction}
                         maxLines={2}
                         sceneKey={sceneKey}
                         field="direction"
+                        theme={theme}
+                        isExpandedMap={isExpandedMap}
+                        onToggleExpand={onToggleExpand}
+                    />
+                )}
+                {strategyReason && (
+                    <SceneField
+                        label="Por que assim"
+                        text={strategyReason}
+                        maxLines={3}
+                        sceneKey={sceneKey}
+                        field="strategyReason"
                         theme={theme}
                         isExpandedMap={isExpandedMap}
                         onToggleExpand={onToggleExpand}
@@ -930,13 +1011,17 @@ export const ScriptBlock: React.FC<ScriptBlockProps> = ({ content, theme, onSend
         }
     };
 
-    const handleToggleSceneExpand = (sceneKey: string, field: 'visual' | 'audio' | 'direction') => {
+    const handleToggleSceneExpand = (sceneKey: string, field: 'visual' | 'audio' | 'direction' | 'strategyReason') => {
         setSceneExpandedMap((prev) => ({
             ...prev,
             [sceneKey]: {
                 visual: field === 'visual' ? !prev[sceneKey]?.visual : Boolean(prev[sceneKey]?.visual),
                 audio: field === 'audio' ? !prev[sceneKey]?.audio : Boolean(prev[sceneKey]?.audio),
                 direction: field === 'direction' ? !prev[sceneKey]?.direction : Boolean(prev[sceneKey]?.direction),
+                strategyReason:
+                    field === 'strategyReason'
+                        ? !prev[sceneKey]?.strategyReason
+                        : Boolean(prev[sceneKey]?.strategyReason),
             },
         }));
     };

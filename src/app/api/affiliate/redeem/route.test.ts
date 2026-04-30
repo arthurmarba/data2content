@@ -11,11 +11,13 @@ jest.mock('@/app/lib/stripe', () => ({
   },
 }));
 
-const getServerSession = require('next-auth/next').getServerSession as jest.Mock;
-const User = require('@/app/models/User');
-const Redemption = require('@/app/models/Redemption');
-const { stripe } = require('@/app/lib/stripe');
-const { POST } = require('./route');
+import { getServerSession } from 'next-auth/next';
+import User from '@/app/models/User';
+import Redemption from '@/app/models/Redemption';
+import { stripe } from '@/app/lib/stripe';
+import { POST } from './route';
+
+export {};
 
 function mockRequest(body: any = { currency: 'BRL', amountCents: null, clientToken: 'tok1' }) {
   return new Request('http://localhost/api/affiliate/redeem', {
@@ -29,8 +31,8 @@ describe('POST /api/affiliate/redeem', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.AFFILIATE_MIN_REDEEM_BRL = '1000';
-    getServerSession.mockResolvedValue({ user: { id: 'u1' } });
-    User.findById.mockResolvedValue({
+    (getServerSession as any).mockResolvedValue({ user: { id: 'u1' } });
+    (User as any).findById.mockResolvedValue({
       _id: 'u1',
       affiliateBalances: new Map([['BRL', 2000]]),
       affiliateDebtByCurrency: new Map(),
@@ -40,21 +42,21 @@ describe('POST /api/affiliate/redeem', () => {
         { _id: 'entry2', status: 'available', currency: 'BRL', amountCents: 1000 },
       ],
     });
-    User.updateOne.mockResolvedValue({ modifiedCount: 1 });
-    Redemption.create.mockImplementation(async (data: any) => ({ _id: 'red1', ...data }));
-    Redemption.updateOne.mockResolvedValue({});
-    stripe.accounts.retrieve.mockResolvedValue({ payouts_enabled: true, default_currency: 'BRL' });
-    stripe.transfers.create.mockResolvedValue({ id: 'tr_1' });
+    (User as any).updateOne.mockResolvedValue({ modifiedCount: 1 });
+    (Redemption as any).create.mockImplementation(async (data: any) => ({ _id: 'red1', ...data }));
+    (Redemption as any).updateOne.mockResolvedValue({});
+    (stripe as any).accounts.retrieve.mockResolvedValue({ payouts_enabled: true, default_currency: 'BRL' });
+    (stripe as any).transfers.create.mockResolvedValue({ id: 'tr_1' });
   });
 
   it('returns 401 without session', async () => {
-    getServerSession.mockResolvedValueOnce(null);
+    (getServerSession as any).mockResolvedValueOnce(null);
     const res = await POST(mockRequest());
     expect(res.status).toBe(401);
   });
 
   it('returns needs_onboarding if Stripe payouts disabled', async () => {
-    stripe.accounts.retrieve.mockResolvedValueOnce({ payouts_enabled: false });
+    (stripe as any).accounts.retrieve.mockResolvedValueOnce({ payouts_enabled: false });
     const res = await POST(mockRequest());
     const body = await res.json();
     expect(res.status).toBe(400);
@@ -62,7 +64,7 @@ describe('POST /api/affiliate/redeem', () => {
   });
 
   it('returns below_min when amount below minimum', async () => {
-    User.findById.mockResolvedValueOnce({
+    (User as any).findById.mockResolvedValueOnce({
       _id: 'u1',
       affiliateBalances: new Map([['BRL', 500]]),
       affiliateDebtByCurrency: new Map(),
@@ -76,7 +78,7 @@ describe('POST /api/affiliate/redeem', () => {
   });
 
   it('blocks when user has debt', async () => {
-    User.findById.mockResolvedValueOnce({
+    (User as any).findById.mockResolvedValueOnce({
       _id: 'u1',
       affiliateBalances: new Map([['BRL', 2000]]),
       affiliateDebtByCurrency: new Map([['BRL', 500]]),
@@ -95,13 +97,13 @@ describe('POST /api/affiliate/redeem', () => {
     expect(res.status).toBe(200);
     expect(body.ok).toBe(true);
     expect(body.transferId).toBe('tr_1');
-    expect(stripe.transfers.create).toHaveBeenCalled();
-    const [, opts] = stripe.transfers.create.mock.calls[0];
+    expect((stripe as any).transfers.create).toHaveBeenCalled();
+    const [, opts] = (stripe as any).transfers.create.mock.calls[0];
     expect(opts.idempotencyKey).toBe('redeem:u1:BRL:2000:tok1');
   });
 
   it('returns stripe_error when transfer fails', async () => {
-    stripe.transfers.create.mockRejectedValueOnce(new Error('balance_insufficient'));
+    (stripe as any).transfers.create.mockRejectedValueOnce(new Error('balance_insufficient'));
     const res = await POST(mockRequest());
     const body = await res.json();
     expect(res.status).toBe(400);

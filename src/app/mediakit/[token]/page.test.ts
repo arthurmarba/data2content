@@ -62,9 +62,9 @@ describe('MediaKitPage logging', () => {
     mockHeaders.mockReturnValue(new Headers());
     const req = { socket: { remoteAddress: '3.3.3.3' } } as any;
     const prev = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
+    (process.env as any).NODE_ENV = 'production';
     await MediaKitPage({ params: { token: 'tok' } } as Params, req);
     expect(mockLogAccess).toHaveBeenCalledWith('u1', 'unknown', undefined);
-    process.env.NODE_ENV = prev;
+    (process.env as any).NODE_ENV = prev;
   });
 });

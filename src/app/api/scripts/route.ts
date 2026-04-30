@@ -256,6 +256,8 @@ function normalizeCreateBody(body: any) {
   const title = typeof body?.title === "string" ? body.title.trim() : "";
   const content = typeof body?.content === "string" ? body.content.trim() : "";
   const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
+  const persistResult = body?.persistResult === false ? false : true;
+  const reuseGeneratedDraft = body?.reuseGeneratedDraft === true;
   const linkToSlot = body?.linkToSlot && typeof body.linkToSlot === "object" ? body.linkToSlot : null;
   const targetUserId = typeof body?.targetUserId === "string" ? body.targetUserId.trim() : "";
   const adminAnnotation =
@@ -277,6 +279,8 @@ function normalizeCreateBody(body: any) {
     title,
     content,
     prompt,
+    persistResult,
+    reuseGeneratedDraft,
     linkToSlot,
     targetUserId,
     adminAnnotation,
@@ -834,6 +838,8 @@ export async function POST(request: Request) {
       title,
       content,
       prompt,
+      persistResult,
+      reuseGeneratedDraft,
       linkToSlot,
       targetUserId,
       adminAnnotation,
@@ -867,38 +873,50 @@ export async function POST(request: Request) {
     let diagnostics: ScriptOutputDiagnostics | null = null;
 
     if (mode === "ai") {
-      if (!prompt) {
+      if (!prompt && !reuseGeneratedDraft) {
         return NextResponse.json({ ok: false, error: "Prompt é obrigatório para gerar com IA." }, { status: 400 });
       }
-      const useIntelligence = await isScriptsIntelligenceV2Enabled();
-      if (useIntelligence) {
-        try {
-          intelligenceContext = await buildScriptIntelligenceContext({
-            userId: effectiveUserId,
-            prompt,
-            lookbackDays: 180,
-          });
-        } catch (error) {
-          intelligenceContext = null;
-          logger.warn("[scripts][create][intelligence_context_failed]", {
-            userId: effectiveUserId,
-            promptLength: prompt.length,
-            error: error instanceof Error ? error.message : String(error || ""),
-          });
+      if (reuseGeneratedDraft) {
+        nextTitle = title;
+        nextContent = content;
+        diagnostics = buildScriptOutputDiagnostics({
+          operation: "create",
+          prompt,
+          title: nextTitle,
+          content: nextContent,
+          intelligenceContext: null,
+        });
+      } else {
+        const useIntelligence = await isScriptsIntelligenceV2Enabled();
+        if (useIntelligence) {
+          try {
+            intelligenceContext = await buildScriptIntelligenceContext({
+              userId: effectiveUserId,
+              prompt,
+              lookbackDays: 180,
+            });
+          } catch (error) {
+            intelligenceContext = null;
+            logger.warn("[scripts][create][intelligence_context_failed]", {
+              userId: effectiveUserId,
+              promptLength: prompt.length,
+              error: error instanceof Error ? error.message : String(error || ""),
+            });
+          }
         }
-      }
 
-      const generated = await generateScriptFromPrompt({ prompt, intelligenceContext });
-      nextTitle = generated.title;
-      nextContent = generated.content;
-      diagnostics = buildScriptOutputDiagnostics({
-        operation: "create",
-        prompt,
-        title: nextTitle,
-        content: nextContent,
-        intelligenceContext,
-        reviewMeta: generated.reviewMeta,
-      });
+        const generated = await generateScriptFromPrompt({ prompt, title, intelligenceContext });
+        nextTitle = generated.title;
+        nextContent = generated.content;
+        diagnostics = buildScriptOutputDiagnostics({
+          operation: "create",
+          prompt,
+          title: nextTitle,
+          content: nextContent,
+          intelligenceContext,
+          reviewMeta: generated.reviewMeta,
+        });
+      }
     }
 
     if (!nextTitle && !nextContent) {
@@ -909,6 +927,16 @@ export async function POST(request: Request) {
     const finalContent = (nextContent || "").trim();
     if (!finalContent) {
       return NextResponse.json({ ok: false, error: "O conteúdo do roteiro não pode ficar vazio." }, { status: 400 });
+    }
+
+    if (mode === "ai" && !persistResult) {
+      return NextResponse.json({
+        ok: true,
+        draft: {
+          title: finalTitle,
+          content: finalContent,
+        },
+      });
     }
 
     await withMongoTransientRetry(

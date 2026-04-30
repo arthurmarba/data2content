@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 import Drawer from "@/components/ui/Drawer";
 
@@ -75,6 +75,113 @@ type ScriptQualitySummary = {
   recentCases: ScriptQualityRecentCase[];
 };
 
+type PostCreationFunnelOverview = {
+  totalEvents: number;
+  distinctDrafts: number;
+  checkpointSelections: number;
+  checkpointRecommendedSelections: number;
+  ideaSelections: number;
+  ideaRecommendedSelections: number;
+  blueprintActivations: number;
+  scriptStarts: number;
+  scriptSuccesses: number;
+  scriptFailures: number;
+  scriptOpens: number;
+  scriptSaves: number;
+  contentLinked: number;
+  checkpointRecommendationAcceptanceRate: number;
+  ideaRecommendationAcceptanceRate: number;
+  blueprintToScriptRate: number;
+  scriptToLinkedRate: number;
+};
+
+type PostCreationFunnelStepStat = {
+  step: string;
+  count: number;
+  recommendedCount: number;
+  recommendedRate: number | null;
+};
+
+type PostCreationFunnelOptionStat = {
+  step: string;
+  optionId: string;
+  optionLabel: string;
+  count: number;
+  recommendedCount: number;
+  recommendedRate: number | null;
+};
+
+type PostCreationFunnelCheckpointRule = {
+  step: string;
+  optionId: string;
+  optionLabel: string;
+  mode: "promote" | "degrade";
+  strength: number | null;
+};
+
+type PostCreationFunnelStageStat = {
+  stage: string;
+  count: number;
+};
+
+type PostCreationFunnelLaneStat = {
+  lane: string;
+  count: number;
+  avgConfidence: number | null;
+  recommendedCount: number;
+  recommendedRate: number | null;
+};
+
+type PostCreationFunnelLaneRule = {
+  lane: string;
+  mode: "promote" | "degrade";
+  strength: number | null;
+};
+
+type PostCreationFunnelPathStat = {
+  pathKey: string;
+  count: number;
+  avgConfidence: number | null;
+  recommendedCount: number;
+  recommendedRate: number | null;
+};
+
+type PostCreationFunnelPathRule = {
+  pathKey: string;
+  mode: "promote" | "degrade";
+  strength: number | null;
+};
+
+type PostCreationFunnelRecentEvent = {
+  id: string;
+  createdAt: string;
+  eventName: string;
+  stage: string;
+  step: string | null;
+  slotId: string | null;
+  scriptId: string | null;
+  ideaId: string | null;
+  contentId: string | null;
+  source: string | null;
+  lane: string | null;
+  recommendedSelected: boolean | null;
+};
+
+type PostCreationFunnelSummary = {
+  windowDays: number;
+  from: string;
+  overview: PostCreationFunnelOverview;
+  checkpointSteps: PostCreationFunnelStepStat[];
+  checkpointOptions: PostCreationFunnelOptionStat[];
+  checkpointRules: PostCreationFunnelCheckpointRule[];
+  latestStageDistribution: PostCreationFunnelStageStat[];
+  ideaLanes: PostCreationFunnelLaneStat[];
+  laneRules: PostCreationFunnelLaneRule[];
+  topPaths: PostCreationFunnelPathStat[];
+  pathRules: PostCreationFunnelPathRule[];
+  recentEvents: PostCreationFunnelRecentEvent[];
+};
+
 type ScriptQualityCaseDiagnostics = {
   intelligenceEnabled?: boolean;
   promptMode?: string;
@@ -91,9 +198,12 @@ type ScriptQualityCaseDiagnostics = {
   hookStrength?: number;
   specificityScore?: number;
   speakabilityScore?: number;
+  shootabilityScore?: number;
+  strategyScore?: number;
   ctaStrength?: number;
   diversityScore?: number;
   utilityScore?: number;
+  concisionScore?: number;
   semanticReviewAttempted?: boolean;
   semanticReviewRetried?: boolean;
   semanticReviewAcceptedAfterRetry?: boolean;
@@ -172,6 +282,7 @@ export default function QualityPage() {
   const detailRequestToken = useRef(0);
   const [categories, setCategories] = useState<CategoryStat[]>([]);
   const [scriptsSummary, setScriptsSummary] = useState<ScriptQualitySummary | null>(null);
+  const [funnelSummary, setFunnelSummary] = useState<PostCreationFunnelSummary | null>(null);
   const [selectedCaseId, setSelectedCaseId] = useState<string | null>(null);
   const [selectedCase, setSelectedCase] = useState<ScriptQualityCaseDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -179,29 +290,32 @@ export default function QualityPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [chatRes, scriptsRes] = await Promise.all([
+      const [chatRes, scriptsRes, funnelRes] = await Promise.all([
         fetch("/api/admin/chat/reviews/summary"),
         fetch("/api/admin/scripts/quality/summary"),
+        fetch("/api/admin/post-creation/funnel/summary"),
       ]);
       if (!chatRes.ok) throw new Error(`Erro ${chatRes.status}`);
       if (!scriptsRes.ok) throw new Error(`Erro ${scriptsRes.status}`);
-      const [chatJson, scriptsJson] = await Promise.all([chatRes.json(), scriptsRes.json()]);
+      if (!funnelRes.ok) throw new Error(`Erro ${funnelRes.status}`);
+      const [chatJson, scriptsJson, funnelJson] = await Promise.all([chatRes.json(), scriptsRes.json(), funnelRes.json()]);
       setCategories(chatJson.categories || []);
       setScriptsSummary(scriptsJson || null);
+      setFunnelSummary(funnelJson || null);
     } catch (e: any) {
       setError(e?.message || "Falha ao carregar categorias");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    load();
-  }, []);
+    void load();
+  }, [load]);
 
   const closeCaseDetail = () => {
     detailRequestToken.current += 1;
@@ -237,6 +351,7 @@ export default function QualityPage() {
   };
 
   const overview = scriptsSummary?.overview;
+  const funnelOverview = funnelSummary?.overview;
   const kpis = overview
     ? [
         { label: "Runs", value: overview.totalRuns },
@@ -255,6 +370,16 @@ export default function QualityPage() {
             overview.avgPerceivedQualityScore !== null ? overview.avgPerceivedQualityScore.toFixed(3) : "—",
         },
         { label: "Low quality", value: overview.lowPerceivedQualityCount },
+      ]
+    : [];
+  const funnelKpis = funnelOverview
+    ? [
+        { label: "Eventos", value: funnelOverview.totalEvents },
+        { label: "Drafts", value: funnelOverview.distinctDrafts },
+        { label: "Checkpoints", value: funnelOverview.checkpointSelections },
+        { label: "Ideias", value: funnelOverview.ideaSelections },
+        { label: "Blueprint → roteiro", value: `${(funnelOverview.blueprintToScriptRate * 100).toFixed(0)}%` },
+        { label: "Roteiro → vínculo", value: `${(funnelOverview.scriptToLinkedRate * 100).toFixed(0)}%` },
       ]
     : [];
 
@@ -437,6 +562,307 @@ export default function QualityPage() {
               ) : null}
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Criação de Post</p>
+          <h2 className="text-xl font-bold text-slate-900">Resumo do funil</h2>
+          {funnelSummary ? (
+            <p className="text-sm text-slate-500">
+              Últimos {funnelSummary.windowDays} dias desde{" "}
+              {new Date(funnelSummary.from).toLocaleDateString("pt-BR")}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+          {funnelKpis.map((item) => (
+            <div key={item.label} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{item.label}</p>
+              <p className="mt-2 text-2xl font-bold text-slate-900">{item.value}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-3">
+          <div className="overflow-auto rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-4 py-3">
+              <h3 className="font-semibold text-slate-900">Troca por checkpoint</h3>
+            </div>
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-left text-slate-600 font-semibold">
+                <tr>
+                  <th className="px-4 py-3">Checkpoint</th>
+                  <th className="px-4 py-3">Seleções</th>
+                  <th className="px-4 py-3">Seguiu recomendação</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {(funnelSummary?.checkpointSteps || []).map((row) => (
+                  <tr key={row.step}>
+                    <td className="px-4 py-3 font-medium text-slate-800">{row.step}</td>
+                    <td className="px-4 py-3">{row.count}</td>
+                    <td className="px-4 py-3">{row.recommendedRate !== null ? `${(row.recommendedRate * 100).toFixed(0)}%` : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="overflow-auto rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-4 py-3">
+              <h3 className="font-semibold text-slate-900">Último estágio por draft</h3>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {(funnelSummary?.latestStageDistribution || []).map((row) => (
+                <div key={row.stage} className="flex items-center justify-between px-4 py-3 text-sm">
+                  <span className="text-slate-700">{row.stage}</span>
+                  <span className="font-semibold text-slate-900">{row.count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="overflow-auto rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-4 py-3">
+              <h3 className="font-semibold text-slate-900">Faixas de pauta</h3>
+            </div>
+            <div className="divide-y divide-slate-100">
+              {(funnelSummary?.ideaLanes || []).map((row) => (
+                <div key={row.lane} className="flex items-center justify-between px-4 py-3 text-sm">
+                  <span className="text-slate-700">{row.lane}</span>
+                  <span className="font-semibold text-slate-900">
+                    {row.count}
+                    {row.avgConfidence !== null ? ` • ${row.avgConfidence.toFixed(2)}` : ""}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          <div className="overflow-auto rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-4 py-3">
+              <h3 className="font-semibold text-slate-900">Opções mais escolhidas</h3>
+            </div>
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-left text-slate-600 font-semibold">
+                <tr>
+                  <th className="px-4 py-3">Checkpoint</th>
+                  <th className="px-4 py-3">Opção</th>
+                  <th className="px-4 py-3">Escolhas</th>
+                  <th className="px-4 py-3">Seguiu recomendação</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {(funnelSummary?.checkpointOptions || []).map((row) => (
+                  <tr key={`${row.step}-${row.optionId}`}>
+                    <td className="px-4 py-3 font-medium text-slate-800">{row.step}</td>
+                    <td className="px-4 py-3 text-slate-700">{row.optionLabel}</td>
+                    <td className="px-4 py-3">{row.count}</td>
+                    <td className="px-4 py-3">
+                      {row.recommendedRate !== null ? `${(row.recommendedRate * 100).toFixed(0)}%` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="overflow-auto rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-4 py-3">
+              <h3 className="font-semibold text-slate-900">Comportamento por faixa</h3>
+            </div>
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-left text-slate-600 font-semibold">
+                <tr>
+                  <th className="px-4 py-3">Faixa</th>
+                  <th className="px-4 py-3">Escolhas</th>
+                  <th className="px-4 py-3">Fit médio</th>
+                  <th className="px-4 py-3">Recomendada</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {(funnelSummary?.ideaLanes || []).map((row) => (
+                  <tr key={row.lane}>
+                    <td className="px-4 py-3 font-medium text-slate-800">{row.lane}</td>
+                    <td className="px-4 py-3">{row.count}</td>
+                    <td className="px-4 py-3">{row.avgConfidence !== null ? row.avgConfidence.toFixed(2) : "—"}</td>
+                    <td className="px-4 py-3">
+                      {row.recommendedRate !== null ? `${(row.recommendedRate * 100).toFixed(0)}%` : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          <div className="overflow-auto rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-4 py-3">
+              <h3 className="font-semibold text-slate-900">Regras por checkpoint</h3>
+            </div>
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-left text-slate-600 font-semibold">
+                <tr>
+                  <th className="px-4 py-3">Checkpoint</th>
+                  <th className="px-4 py-3">Opção</th>
+                  <th className="px-4 py-3">Ação</th>
+                  <th className="px-4 py-3">Força</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {(funnelSummary?.checkpointRules || []).map((row) => (
+                  <tr key={`${row.step}-${row.optionId}-${row.mode}`}>
+                    <td className="px-4 py-3 font-medium text-slate-800">{row.step}</td>
+                    <td className="px-4 py-3 text-slate-700">{row.optionLabel}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={
+                          row.mode === "promote"
+                            ? "rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
+                            : "rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700"
+                        }
+                      >
+                        {row.mode === "promote" ? "promove" : "degrada"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">{row.strength !== null ? row.strength.toFixed(3) : "—"}</td>
+                  </tr>
+                ))}
+                {!funnelSummary?.checkpointRules?.length && !loading ? (
+                  <tr>
+                    <td className="px-4 py-3 text-slate-500" colSpan={4}>
+                      Ainda sem regra forte o suficiente.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="overflow-auto rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-4 py-3">
+              <h3 className="font-semibold text-slate-900">Regras por faixa</h3>
+            </div>
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-left text-slate-600 font-semibold">
+                <tr>
+                  <th className="px-4 py-3">Faixa</th>
+                  <th className="px-4 py-3">Ação</th>
+                  <th className="px-4 py-3">Força</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {(funnelSummary?.laneRules || []).map((row) => (
+                  <tr key={`${row.lane}-${row.mode}`}>
+                    <td className="px-4 py-3 font-medium text-slate-800">{row.lane}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={
+                          row.mode === "promote"
+                            ? "rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
+                            : "rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700"
+                        }
+                      >
+                        {row.mode === "promote" ? "promove" : "degrada"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">{row.strength !== null ? row.strength.toFixed(3) : "—"}</td>
+                  </tr>
+                ))}
+                {!funnelSummary?.laneRules?.length && !loading ? (
+                  <tr>
+                    <td className="px-4 py-3 text-slate-500" colSpan={3}>
+                      Ainda sem regra forte o suficiente.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="grid gap-4 xl:grid-cols-2">
+          <div className="overflow-auto rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-4 py-3">
+              <h3 className="font-semibold text-slate-900">Caminhos mais aceitos</h3>
+            </div>
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-left text-slate-600 font-semibold">
+                <tr>
+                  <th className="px-4 py-3">Caminho</th>
+                  <th className="px-4 py-3">Escolhas</th>
+                  <th className="px-4 py-3">Fit médio</th>
+                  <th className="px-4 py-3">Recomendada</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {(funnelSummary?.topPaths || []).map((row) => (
+                  <tr key={row.pathKey}>
+                    <td className="px-4 py-3 font-medium text-slate-800">{row.pathKey}</td>
+                    <td className="px-4 py-3">{row.count}</td>
+                    <td className="px-4 py-3">{row.avgConfidence !== null ? row.avgConfidence.toFixed(2) : "—"}</td>
+                    <td className="px-4 py-3">
+                      {row.recommendedRate !== null ? `${(row.recommendedRate * 100).toFixed(0)}%` : "—"}
+                    </td>
+                  </tr>
+                ))}
+                {!funnelSummary?.topPaths?.length && !loading ? (
+                  <tr>
+                    <td className="px-4 py-3 text-slate-500" colSpan={4}>
+                      Ainda sem caminho dominante o suficiente.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="overflow-auto rounded-2xl border border-slate-100 bg-white shadow-sm">
+            <div className="border-b border-slate-100 px-4 py-3">
+              <h3 className="font-semibold text-slate-900">Regras por caminho</h3>
+            </div>
+            <table className="min-w-full text-sm">
+              <thead className="bg-slate-50 text-left text-slate-600 font-semibold">
+                <tr>
+                  <th className="px-4 py-3">Caminho</th>
+                  <th className="px-4 py-3">Ação</th>
+                  <th className="px-4 py-3">Força</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {(funnelSummary?.pathRules || []).map((row) => (
+                  <tr key={`${row.pathKey}-${row.mode}`}>
+                    <td className="px-4 py-3 font-medium text-slate-800">{row.pathKey}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={
+                          row.mode === "promote"
+                            ? "rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700"
+                            : "rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700"
+                        }
+                      >
+                        {row.mode === "promote" ? "promove" : "degrada"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">{row.strength !== null ? row.strength.toFixed(3) : "—"}</td>
+                  </tr>
+                ))}
+                {!funnelSummary?.pathRules?.length && !loading ? (
+                  <tr>
+                    <td className="px-4 py-3 text-slate-500" colSpan={3}>
+                      Ainda sem regra forte o suficiente.
+                    </td>
+                  </tr>
+                ) : null}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -636,6 +1062,14 @@ export default function QualityPage() {
                     {formatScore(detailDiagnostics?.speakabilityScore, 2)}
                   </div>
                   <div>
+                    <span className="font-semibold text-slate-900">Shootability:</span>{" "}
+                    {formatScore(detailDiagnostics?.shootabilityScore, 2)}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-900">Strategy:</span>{" "}
+                    {formatScore(detailDiagnostics?.strategyScore, 2)}
+                  </div>
+                  <div>
                     <span className="font-semibold text-slate-900">CTA:</span>{" "}
                     {formatScore(detailDiagnostics?.ctaStrength, 2)}
                   </div>
@@ -646,6 +1080,10 @@ export default function QualityPage() {
                   <div>
                     <span className="font-semibold text-slate-900">Utility:</span>{" "}
                     {formatScore(detailDiagnostics?.utilityScore, 2)}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-900">Concision:</span>{" "}
+                    {formatScore(detailDiagnostics?.concisionScore, 2)}
                   </div>
                 </div>
                 <div className="rounded-xl bg-slate-50 p-3 text-sm">

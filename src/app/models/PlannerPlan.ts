@@ -34,6 +34,7 @@ export interface PlannerSlot {
   expectedMetrics?: PlannerExpectedMetrics;
   recordingTimeSec?: number;
   aiVersionId?: string | null;
+  savedFrom?: string | null;
   title?: string;
   scriptShort?: string;
   notes?: string;
@@ -97,6 +98,7 @@ const SlotSchema = new Schema<PlannerSlot>(
     expectedMetrics: { type: ExpectedMetricsSchema, default: undefined },
     recordingTimeSec: { type: Number, min: 0 },
     aiVersionId: { type: String, default: null },
+    savedFrom: { type: String, default: null },
     title: { type: String },
     scriptShort: { type: String },
     notes: { type: String },

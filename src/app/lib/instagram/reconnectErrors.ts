@@ -7,6 +7,7 @@ export const IG_RECONNECT_ERROR_CODES = {
   NO_LINKED_IG_ACCOUNT: "NO_LINKED_IG_ACCOUNT",
   NO_IG_ACCOUNT: "NO_IG_ACCOUNT",
   FACEBOOK_ALREADY_LINKED: "FACEBOOK_ALREADY_LINKED",
+  POST_CREATION_TRIAL_ALREADY_USED: "POST_CREATION_TRIAL_ALREADY_USED",
   LINK_TOKEN_INVALID: "LINK_TOKEN_INVALID",
   INVALID_IG_ACCOUNT_SELECTION: "INVALID_IG_ACCOUNT_SELECTION",
   NOT_CONNECTED: "NOT_CONNECTED",
@@ -28,6 +29,7 @@ export const IG_RECONNECT_ACTIONABLE_CODES = new Set<InstagramReconnectErrorCode
   IG_RECONNECT_ERROR_CODES.INVALID_IG_ACCOUNT_SELECTION,
   IG_RECONNECT_ERROR_CODES.LINK_TOKEN_INVALID,
   IG_RECONNECT_ERROR_CODES.FACEBOOK_ALREADY_LINKED,
+  IG_RECONNECT_ERROR_CODES.POST_CREATION_TRIAL_ALREADY_USED,
 ]);
 
 export function normalizeInstagramReconnectErrorCode(
@@ -152,6 +154,8 @@ export function reconnectErrorMessageForCode(code: InstagramReconnectErrorCode):
       return "Nenhuma conta profissional do Instagram foi encontrada para o Facebook autenticado.";
     case IG_RECONNECT_ERROR_CODES.FACEBOOK_ALREADY_LINKED:
       return "Esta conta do Facebook já está vinculada a outro usuário da plataforma.";
+    case IG_RECONNECT_ERROR_CODES.POST_CREATION_TRIAL_ALREADY_USED:
+      return "Este Instagram já usou o teste gratuito do board de criação.";
     case IG_RECONNECT_ERROR_CODES.LINK_TOKEN_INVALID:
       return "Não foi possível validar o vínculo de segurança. Reinicie a conexão do Instagram.";
     case IG_RECONNECT_ERROR_CODES.INVALID_IG_ACCOUNT_SELECTION:
@@ -190,9 +194,10 @@ export function reconnectFaqLinkForCode(
         label: "Token expirado/inválido — abrir solução",
       };
     case IG_RECONNECT_ERROR_CODES.FACEBOOK_ALREADY_LINKED:
+    case IG_RECONNECT_ERROR_CODES.POST_CREATION_TRIAL_ALREADY_USED:
       return {
         href: "/dashboard/instagram/faq#conta-vinculada",
-        label: "Conta já vinculada — abrir solução",
+        label: "Conta ou teste já usado — abrir solução",
       };
     case IG_RECONNECT_ERROR_CODES.NO_FACEBOOK_PAGE:
       return {

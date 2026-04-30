@@ -70,6 +70,7 @@ import {
   IFetchSegmentPerformanceArgs,
   IFetchTopMoversArgs,
   ITopMoverResult,
+  IGlobalPostResult,
   // Service functions will be called via namespace
 } from './marketAnalysisService';
 import * as marketAnalysisService from './marketAnalysisService'; // Import all as a namespace
@@ -293,15 +294,15 @@ describe('MarketAnalysisService', () => {
         topContextPerUser: [{ _id: objectId1, topContext: 'Tech' }],
     }];
     it('should fetch multiple creator profiles successfully', async () => {
-      (UserModel.find().select().lean as jest.Mock).mockResolvedValue([mockUsers[0]]);
+      (UserModel.find({}).select('').lean as jest.Mock).mockResolvedValue([mockUsers[0]]);
       (MetricModel.aggregate as jest.Mock).mockResolvedValue(mockMetricsFacetResult);
       const args = { creatorIds: [objectId1.toString()] };
       const profiles = await marketAnalysisService.fetchMultipleCreatorProfiles(args);
       expect(profiles).toHaveLength(1);
-      expect(profiles[0].creatorName).toBe('User One');
+      expect(profiles[0]!.creatorName).toBe('User One');
     });
      it('should throw DatabaseError if UserModel.find fails', async () => {
-      (UserModel.find().select().lean as jest.Mock).mockRejectedValue(new Error('User find failed'));
+      (UserModel.find({}).select('').lean as jest.Mock).mockRejectedValue(new Error('User find failed'));
       const args = { creatorIds: [objectId1.toString()] };
       await expect(marketAnalysisService.fetchMultipleCreatorProfiles(args)).rejects.toThrow('Failed to fetch multiple creator profiles: User find failed');
     });
@@ -344,11 +345,11 @@ describe('MarketAnalysisService', () => {
       (DailyMetricSnapshotModel.aggregate as jest.Mock).mockResolvedValue([
         { _id: metricId1, previousValue: 100, currentValue: 150, absoluteChange: 50, percentageChange: 0.5, metricInfo: mockMetricDetails[0] },
       ]);
-      (MetricModel.find().select().lean as jest.Mock).mockResolvedValue([{_id: metricId1}]);
+      (MetricModel.find({}).select('').lean as jest.Mock).mockResolvedValue([{_id: metricId1}]);
 
       const result = await marketAnalysisService.fetchTopMoversData({ ...baseArgs, sortBy: 'absoluteChange_increase' });
       expect(result).toHaveLength(1);
-      expect(result[0].entityId).toBe(metricId1.toString());
+      expect(result[0]!.entityId).toBe(metricId1.toString());
     });
     it('should throw DatabaseError if DailyMetricSnapshotModel.aggregate fails', async () => {
       (DailyMetricSnapshotModel.aggregate as jest.Mock).mockRejectedValue(new Error('Snapshot Aggregation failed'));

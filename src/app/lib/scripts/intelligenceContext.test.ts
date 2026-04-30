@@ -115,19 +115,40 @@ describe("scripts/intelligenceContext", () => {
       },
       styleProfileVersion: "scripts_style_profile_v1",
       styleSampleSize: 8,
+      engagementTiming: {
+        sampleSize: 3,
+        timezone: "America/Sao_Paulo",
+        topHours: [19, 20],
+        topWeekdays: ["seg", "qua"],
+        summary: "dias com mais recorrência: seg e qua | horários com mais recorrência: 19h e 20h",
+      },
+      editorialDecision: {
+        postDirective: "Poste um reels sobre creator pelo ângulo do erro antes do ajuste prático.",
+        narrativeAngle: "diagnóstico direto do erro antes da dica",
+        recommendedStructure: "erro visível -> contexto observável -> ajuste aplicável -> pergunta final",
+        whyThisShouldWork: [
+          "As categorias mais fortes do perfil apontam para tips + career_work + educational.",
+          "Os roteiros vencedores próximos repetem diagnóstico claro e CTA específico.",
+        ],
+        evidence: [
+          "proposal tips | context career_work | tone educational",
+          "1 roteiro vencedor próximo do pedido.",
+        ],
+        postingWindow: "dias com mais recorrência: seg e qua | horários com mais recorrência: 19h e 20h",
+      },
       captionEvidence: [
         {
           metricId: "m1",
           caption: "Legenda 1",
           interactions: 100,
-          postDate: null,
+          postDate: "2026-04-07T22:00:00.000Z",
           categories: { proposal: "tips" },
         },
         {
           metricId: "m2",
           caption: "Legenda 2",
           interactions: 200,
-          postDate: null,
+          postDate: "2026-04-09T23:00:00.000Z",
           categories: { proposal: "tips" },
         },
       ],
@@ -174,6 +195,9 @@ describe("scripts/intelligenceContext", () => {
     expect(snapshot?.metricUsed).toBe(SCRIPT_INTELLIGENCE_METRIC);
     expect(snapshot?.styleProfileVersion).toBe("scripts_style_profile_v1");
     expect(snapshot?.styleSampleSize).toBe(8);
+    expect(snapshot?.engagementTimingSummary?.timezone).toBe("America/Sao_Paulo");
+    expect(snapshot?.editorialDecisionSummary?.postDirective).toContain("Poste um reels");
+    expect(snapshot?.editorialDecisionSummary?.postingWindow).toContain("19h");
     expect(snapshot?.styleSignalsUsed?.hookPatterns?.[0]).toBe("deixa eu te mostrar");
     expect(snapshot?.dnaEvidence.sampleSize).toBe(2);
     expect(snapshot?.dnaEvidence.avgInteractions).toBe(150);

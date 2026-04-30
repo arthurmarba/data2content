@@ -1309,7 +1309,7 @@ const ListModeSlotCardBase = ({
               <h3
                 className={`line-clamp-2 break-words text-[16px] font-bold leading-tight tracking-tight text-zinc-900 transition-colors group-hover:text-zinc-950`}
               >
-                {hasSavedScript ? scriptPreview : effectiveTitle}
+                {effectiveTitle}
               </h3>
               {shouldShowThemeBase && !hasSavedScript ? (
                 <p className="dashboard-type-meta mt-0.5 line-clamp-1 text-zinc-500">
@@ -1338,11 +1338,21 @@ const ListModeSlotCardBase = ({
             </div>
           ) : null}
 
-          {hasSavedScript ? (
+          {hasSavedScript && scriptPreview.trim() !== effectiveTitle.trim() ? (
             <div className="space-y-3">
               <p className="dashboard-type-body whitespace-pre-wrap leading-relaxed text-[13px] text-zinc-700">
                 {scriptPreview}
               </p>
+              <button
+                type="button"
+                onClick={handlePrimaryAction}
+                className="inline-flex min-h-[38px] w-full items-center justify-center rounded-[0.95rem] bg-zinc-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-black"
+              >
+                {compactPrimaryLabel}
+              </button>
+            </div>
+          ) : hasSavedScript ? (
+            <div className="pt-1">
               <button
                 type="button"
                 onClick={handlePrimaryAction}

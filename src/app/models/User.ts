@@ -289,6 +289,19 @@ export interface IAlertHistoryEntry {
   };
 }
 
+export type AccountState = 'pre_signup' | 'registered' | 'merged';
+
+export interface IPostCreationTrial {
+  startedAt?: Date | null;
+  analysisUsedAt?: Date | null;
+  pautaUsedAt?: Date | null;
+  firstDraftId?: Types.ObjectId | null;
+  instagramAccountId?: string | null;
+  completedSignupAt?: Date | null;
+  subscribedAt?: Date | null;
+  source?: string | null;
+}
+
 export interface IUser extends Document {
   _id: Types.ObjectId;
   name?: string;
@@ -300,6 +313,11 @@ export interface IUser extends Document {
   googleId?: string;
   provider?: string;
   providerAccountId?: string;
+  accountState?: AccountState;
+  mergedIntoUserId?: Types.ObjectId | null;
+  preSignupLoginToken?: string;
+  preSignupLoginTokenExpiresAt?: Date | null;
+  postCreationTrial?: IPostCreationTrial | null;
   facebookProviderAccountId?: string;
   instagramAccessToken?: string;
   instagramAccountId?: string | null;
@@ -518,6 +536,17 @@ const AlertHistoryEntrySchema = new Schema<IAlertHistoryEntry>({
   },
 }, { _id: true });
 
+const PostCreationTrialSchema = new Schema<IPostCreationTrial>({
+  startedAt: { type: Date, default: null },
+  analysisUsedAt: { type: Date, default: null },
+  pautaUsedAt: { type: Date, default: null },
+  firstDraftId: { type: Schema.Types.ObjectId, default: null },
+  instagramAccountId: { type: String, default: null, index: true },
+  completedSignupAt: { type: Date, default: null },
+  subscribedAt: { type: Date, default: null },
+  source: { type: String, default: null },
+}, { _id: false });
+
 // --- SCHEMA PRINCIPAL DO USUÁRIO ---
 const userSchema = new Schema<IUser>(
   {
@@ -583,6 +612,16 @@ const userSchema = new Schema<IUser>(
     googleId: { type: String },
     provider: { type: String, index: true },
     providerAccountId: { type: String, index: true },
+    accountState: {
+      type: String,
+      enum: ['pre_signup', 'registered', 'merged'],
+      default: 'registered',
+      index: true,
+    },
+    mergedIntoUserId: { type: Schema.Types.ObjectId, ref: 'User', default: null, index: true },
+    preSignupLoginToken: { type: String, index: true, sparse: true },
+    preSignupLoginTokenExpiresAt: { type: Date, default: null },
+    postCreationTrial: { type: PostCreationTrialSchema, default: null },
     facebookProviderAccountId: { type: String, index: true, sparse: true },
     instagramAccessToken: { type: String },
     instagramAccessTokenExpiresAt: { type: Date, default: null },

@@ -4,6 +4,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import UserModel from '@/app/models/User';
 import AccountInsightModel from '@/app/models/AccountInsight';
 import { fetchBasicAccountData } from '@/app/lib/instagram/api/fetchers';
+import { refreshLongLivedUserAccessToken } from '@/app/lib/instagram/api/auth';
 import { logger } from '@/app/lib/logger';
 import { resolveMediaKitToken } from '@/app/lib/mediakit/slugService';
 
@@ -70,11 +71,6 @@ function toAbsoluteUrl(url: string, origin: string) {
   return `${origin}${url.startsWith('/') ? url : `/${url}`}`;
 }
 
-function toProxyUrl(url: string) {
-  if (!/^https?:\/\//i.test(url)) return url;
-  return `/api/proxy/thumbnail/${encodeURIComponent(url)}?strict=1`;
-}
-
 const IG_FETCH_HEADERS = {
   referer: 'https://www.instagram.com/',
   origin: 'https://www.instagram.com',
@@ -93,6 +89,30 @@ function describeUrlForLog(url: string) {
   } catch {
     return 'invalid-url';
   }
+}
+
+function isLikelyInstagramCdnUrl(url: string) {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    return host.includes('cdninstagram.com') || host.includes('fbcdn.net');
+  } catch {
+    return false;
+  }
+}
+
+function buildFallbackAvatarSvg() {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" role="img" aria-label="Avatar">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#f4f4f5"/>
+      <stop offset="100%" stop-color="#e4e4e7"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="128" fill="url(#g)"/>
+  <circle cx="128" cy="102" r="42" fill="#d4d4d8"/>
+  <path d="M56 214c10-44 38-68 72-68s62 24 72 68" fill="#d4d4d8"/>
+</svg>`;
 }
 
 async function fetchImage(url: string, headers?: HeadersInit) {
@@ -140,7 +160,7 @@ async function refreshAvatarFromGraph(user: any) {
 
   try {
     await UserModel.findByIdAndUpdate(user._id, {
-      $set: { profile_picture_url: nextUrl, image: nextUrl },
+      $set: { profile_picture_url: nextUrl },
     }).exec();
   } catch (error) {
     logger.warn('[mediakit-avatar] Failed to update user avatar from IG.', error);
@@ -149,25 +169,94 @@ async function refreshAvatarFromGraph(user: any) {
   return nextUrl;
 }
 
-function buildGraphAvatarUrl(accountId: string, accessToken: string) {
-  const version = 'v22.0';
-  return `https://graph.facebook.com/${version}/${accountId}/picture?type=large&access_token=${encodeURIComponent(accessToken)}`;
+async function refreshInstagramTokenIfNeeded(user: any) {
+  const accessToken = user?.instagramAccessToken;
+  if (!user?._id || !accessToken) return user;
+
+  const expiresAt = user?.instagramAccessTokenExpiresAt
+    ? new Date(user.instagramAccessTokenExpiresAt)
+    : null;
+  const thresholdMs = 10 * 24 * 60 * 60 * 1000;
+  const shouldRefresh = !expiresAt || Number.isNaN(expiresAt.getTime()) || expiresAt.getTime() - Date.now() < thresholdMs;
+  if (!shouldRefresh) return user;
+
+  const refreshed = await refreshLongLivedUserAccessToken(accessToken);
+  if (!refreshed.success || !refreshed.accessToken) {
+    logger.warn('[mediakit-avatar] Silent Instagram token refresh failed. Falling back to stored/provider avatar.', {
+      userId: String(user._id),
+      error: refreshed.error,
+    });
+    return user;
+  }
+
+  try {
+    await UserModel.findByIdAndUpdate(user._id, {
+      $set: {
+        instagramAccessToken: refreshed.accessToken,
+        instagramAccessTokenExpiresAt: refreshed.expiresAt ?? null,
+      },
+    }).exec();
+  } catch (error) {
+    logger.warn('[mediakit-avatar] Failed to persist refreshed Instagram token.', error);
+  }
+
+  return {
+    ...user,
+    instagramAccessToken: refreshed.accessToken,
+    instagramAccessTokenExpiresAt: refreshed.expiresAt ?? user.instagramAccessTokenExpiresAt,
+  };
 }
 
-async function fetchGraphPictureUrl(accountId: string, accessToken: string) {
-  const version = 'v22.0';
-  const url = `https://graph.facebook.com/${version}/${accountId}/picture?type=large&redirect=false&access_token=${encodeURIComponent(accessToken)}`;
-  const res = await fetch(url, { cache: 'no-store' });
-  if (!res.ok) {
-    logger.warn('[mediakit-avatar] Graph picture metadata fetch failed.', {
-      status: res.status,
-    });
-    return null;
+function pushCandidate(
+  candidates: Array<{ label: string; url: string }>,
+  seen: Set<string>,
+  label: string,
+  raw?: string | null,
+  options?: { allowInstagramCdn?: boolean },
+) {
+  const candidate = normalizeAvatarCandidate(raw);
+  if (!candidate || seen.has(candidate)) return;
+  if (options?.allowInstagramCdn === false && isLikelyInstagramCdnUrl(candidate)) return;
+  seen.add(candidate);
+  candidates.push({ label, url: candidate });
+}
+
+async function buildAvatarCandidates(user: any) {
+  const candidates: Array<{ label: string; url: string }> = [];
+  const seen = new Set<string>();
+
+  const refreshedGraphAvatar =
+    user?.instagramAccountId && user?.instagramAccessToken
+      ? await refreshAvatarFromGraph(user)
+      : null;
+
+  if (user?.isInstagramConnected || user?.instagramAccountId) {
+    pushCandidate(candidates, seen, 'graph-basic', refreshedGraphAvatar, { allowInstagramCdn: true });
+    pushCandidate(candidates, seen, 'provider-image', user?.providerImage, { allowInstagramCdn: false });
+    pushCandidate(candidates, seen, 'account-image', user?.image, { allowInstagramCdn: false });
+    pushCandidate(candidates, seen, 'available-ig-account', pickAvailableIgAvatar(user), { allowInstagramCdn: false });
+    pushCandidate(candidates, seen, 'stored-instagram', user?.profile_picture_url, { allowInstagramCdn: false });
+  } else {
+    pushCandidate(candidates, seen, 'provider-image', user?.providerImage, { allowInstagramCdn: false });
+    pushCandidate(candidates, seen, 'account-image', user?.image, { allowInstagramCdn: false });
+    pushCandidate(candidates, seen, 'stored-instagram', user?.profile_picture_url, { allowInstagramCdn: false });
+    pushCandidate(candidates, seen, 'available-ig-account', pickAvailableIgAvatar(user), { allowInstagramCdn: false });
   }
-  const data = await res.json();
-  const pictureUrl = normalizeAvatarCandidate(data?.data?.url ?? null);
-  if (!pictureUrl) return null;
-  return pictureUrl;
+
+  const insightAvatar = await resolveAvatarCandidate({
+    ...user,
+    profile_picture_url: null,
+    image: null,
+    providerImage: null,
+    availableIgAccounts: null,
+  });
+  pushCandidate(candidates, seen, 'account-insight', insightAvatar, { allowInstagramCdn: false });
+  pushCandidate(candidates, seen, 'legacy-account-image', user?.image, { allowInstagramCdn: true });
+  pushCandidate(candidates, seen, 'legacy-stored-instagram', user?.profile_picture_url, { allowInstagramCdn: true });
+  pushCandidate(candidates, seen, 'legacy-available-ig-account', pickAvailableIgAvatar(user), { allowInstagramCdn: true });
+  pushCandidate(candidates, seen, 'legacy-account-insight', insightAvatar, { allowInstagramCdn: true });
+
+  return candidates;
 }
 
 export async function GET(
@@ -183,7 +272,7 @@ export async function GET(
 
   const user = await UserModel.findById(resolvedToken.userId)
     .select(
-      'profile_picture_url image providerImage instagram isInstagramConnected availableIgAccounts.profile_picture_url instagramAccountId instagramAccessToken'
+      'name profile_picture_url image providerImage instagram isInstagramConnected availableIgAccounts.igAccountId availableIgAccounts.profile_picture_url instagramAccountId instagramAccessToken instagramAccessTokenExpiresAt'
     )
     .lean();
 
@@ -192,44 +281,33 @@ export async function GET(
   }
 
   const origin = req.nextUrl.origin;
-  const accountId = user?.instagramAccountId;
-  const accessToken = user?.instagramAccessToken;
+  const tokenRefreshedUser = await refreshInstagramTokenIfNeeded(user);
+  const candidates = await buildAvatarCandidates(tokenRefreshedUser);
 
-  if (accountId && accessToken) {
-    const refreshed = await refreshAvatarFromGraph(user);
-    if (refreshed) {
-      const refreshedUrl = toAbsoluteUrl(refreshed, origin);
-      const proxyUrl = toProxyUrl(refreshedUrl);
-      logger.info('[mediakit-avatar] Redirecting to refreshed avatar URL.', {
-        source: 'graph-basic',
-        url: proxyUrl,
-      });
-      return new Response(null, {
-        status: 302,
-        headers: {
-          Location: proxyUrl,
-          'Cache-Control': 'no-store',
-        },
-      });
-    }
-  }
+  for (const candidate of candidates) {
+    const candidateUrl = toAbsoluteUrl(candidate.url, origin);
+    const fetched = await tryFetchImage(candidateUrl, candidate.label);
+    if (!fetched) continue;
 
-  const candidate = await resolveAvatarCandidate(user);
-  if (candidate) {
-    const candidateUrl = toAbsoluteUrl(candidate, origin);
-    const proxyUrl = toProxyUrl(candidateUrl);
-    logger.info('[mediakit-avatar] Redirecting to stored avatar URL.', {
-      source: 'db',
-      url: proxyUrl,
+    logger.info('[mediakit-avatar] Serving avatar image.', {
+      source: candidate.label,
+      url: describeUrlForLog(candidateUrl),
     });
-    return new Response(null, {
-      status: 302,
+
+    return new Response(fetched.body, {
+      status: 200,
       headers: {
-        Location: proxyUrl,
-        'Cache-Control': 'no-store',
+        'Content-Type': fetched.contentType,
+        'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
       },
     });
   }
 
-  return new Response(null, { status: 404 });
+  return new Response(buildFallbackAvatarSvg(), {
+    status: 200,
+    headers: {
+      'Content-Type': 'image/svg+xml; charset=utf-8',
+      'Cache-Control': 'public, max-age=3600, stale-while-revalidate=86400',
+    },
+  });
 }

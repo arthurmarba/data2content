@@ -34,13 +34,16 @@ function SingleBoardHomeFrame({
     <div className="relative h-full min-h-0 w-full">
       <div className="h-full overflow-x-hidden overflow-y-hidden px-4 pb-4 pt-4 sm:px-6 lg:px-8 lg:pb-5 lg:pt-11">
         <div className="flex h-full items-start justify-center">
-          <div className={`${boardWidthClassName} h-full ${itemClassName ?? ""}`}>{children}</div>
+          <div
+            className={`${boardWidthClassName} h-full ${itemClassName ?? ""}`}
+          >
+            {children}
+          </div>
         </div>
       </div>
     </div>
   );
 }
-
 
 export default function HomeClientPage() {
   const searchParams = useSearchParams();
@@ -63,7 +66,8 @@ export default function HomeClientPage() {
     [],
   );
 
-  const boardWidthClassName = "w-[min(415px,calc(100vw-28px))] lg:w-[450px] xl:w-[470px]";
+  const boardWidthClassName =
+    "w-[min(415px,calc(100vw-28px))] lg:w-[450px] xl:w-[470px]";
   const shouldUseSingleDiscoverBoard = !viewportMounted || isMobile;
 
   return (

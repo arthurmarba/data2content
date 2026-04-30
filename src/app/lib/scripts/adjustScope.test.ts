@@ -29,4 +29,15 @@ describe("scripts/adjustScope", () => {
     expect(newScript.mode).toBe("new_script");
     expect(newScript.target.type).toBe("none");
   });
+
+  it("detects editorial-only adjustments for angle and posting window", () => {
+    const angle = detectScriptAdjustScope("mude só o ângulo do roteiro");
+    expect(angle.mode).toBe("patch");
+    expect(angle.target).toEqual({ type: "editorial", field: "how_video_should_work" });
+    expect(describeScriptAdjustTarget(angle.target)).toBe('Linha editorial "Como esse vídeo deve funcionar"');
+
+    const when = detectScriptAdjustScope("ajuste a janela de postagem desse roteiro");
+    expect(when.mode).toBe("patch");
+    expect(when.target).toEqual({ type: "editorial", field: "when_to_post" });
+  });
 });

@@ -77,7 +77,7 @@ export default function BoardPinButton({
   return (
     <div className="relative inline-flex z-[60]">
       {showOnboarding && !pinned && (
-        <div className="absolute -top-[3.75rem] left-1/2 z-[100] w-48 -translate-x-1/2 animate-bounce">
+        <div className="absolute -top-[3.75rem] left-1/2 z-[100] hidden w-48 -translate-x-1/2 animate-bounce lg:block">
           <div className="relative rounded-lg bg-indigo-600 px-3 py-2 text-center text-[11px] font-bold text-white shadow-xl">
             Clique aqui para fixar este board no seu início!
             <div className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 bg-indigo-600" />

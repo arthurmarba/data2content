@@ -19,6 +19,8 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import DbUser, { IUser } from "@/app/models/User";
 import AgencyModel from "@/app/models/Agency";
+import PostCreationDraft from "@/app/models/PostCreationDraft";
+import PostCreationFunnelEvent from "@/app/models/PostCreationFunnelEvent";
 
 import { Types } from "mongoose";
 import bcrypt from "bcryptjs";
@@ -55,13 +57,16 @@ import {
   PRIVACY_POLICY_VERSION,
   SERVICE_TERMS_VERSION,
 } from "@/lib/auth/legalConsent";
+import { serializePostCreationTrial, type SerializedPostCreationTrial } from "@/app/lib/postCreationTrial/access";
 
 // --- AUGMENT NEXT-AUTH TYPES ---
 declare module "next-auth" {
-interface User extends DefaultUser {
+  interface User extends DefaultUser {
     id: string;
     role?: string | null;
     provider?: string | null;
+    accountState?: "pre_signup" | "registered" | "merged" | null;
+    postCreationTrial?: SerializedPostCreationTrial | null;
     agency?: string | null;
     isNewUserForOnboarding?: boolean;
     onboardingCompletedAt?: Date | null;
@@ -115,6 +120,8 @@ interface User extends DefaultUser {
       image?: string | null;
       provider?: string | null;
       role?: string | null;
+      accountState?: "pre_signup" | "registered" | "merged" | null;
+      postCreationTrial?: SerializedPostCreationTrial | null;
 
       // Parceiro
       agencyId?: string | null;
@@ -178,6 +185,8 @@ declare module "next-auth/jwt" {
     agencyPlanStatus?: string | null;
     agencyPlanType?: string | null;
     provider?: string | null;
+    accountState?: "pre_signup" | "registered" | "merged" | null;
+    postCreationTrial?: SerializedPostCreationTrial | null;
 
     // Onboarding
     isNewUserForOnboarding?: boolean;
@@ -320,6 +329,56 @@ function applyRecordedLegalAcceptance(userRecord: IUser, acceptedAt: Date) {
   }
 
   return changed;
+}
+
+async function resolveSessionUserIdFromCookie(cookieStore: ReturnType<typeof cookies>) {
+  try {
+    const sessionCookieName = process.env.NODE_ENV === 'production'
+      ? '__Secure-next-auth.session-token'
+      : 'next-auth.session-token';
+    const sessionToken = cookieStore.get(sessionCookieName)?.value
+      ?? cookieStore.get('__Secure-next-auth.session-token')?.value
+      ?? cookieStore.get('next-auth.session-token')?.value;
+    if (!sessionToken || !process.env.NEXTAUTH_SECRET) return null;
+
+    const decoded = await customDecode({ token: sessionToken, secret: process.env.NEXTAUTH_SECRET });
+    return decoded?.id ? String(decoded.id) : null;
+  } catch (e) {
+    logger.warn("[NextAuth] Falha ao decodificar sessão ativa por cookie.", e);
+    return null;
+  }
+}
+
+function copyInstagramTrialData(target: IUser, source: IUser) {
+  let changed = false;
+  if (source.postCreationTrial?.startedAt) {
+    target.postCreationTrial = {
+      ...(target.postCreationTrial ?? {}),
+      ...source.postCreationTrial,
+      completedSignupAt: target.postCreationTrial?.completedSignupAt ?? new Date(),
+    };
+    changed = true;
+  }
+
+  if (source.isInstagramConnected && !target.isInstagramConnected) {
+    target.isInstagramConnected = true;
+    target.instagramAccountId = source.instagramAccountId ?? target.instagramAccountId ?? null;
+    target.username = source.username ?? target.username ?? null;
+    target.instagramAccessToken = source.instagramAccessToken ?? target.instagramAccessToken;
+    target.instagramAccessTokenExpiresAt = source.instagramAccessTokenExpiresAt ?? target.instagramAccessTokenExpiresAt ?? null;
+    target.facebookProviderAccountId = source.facebookProviderAccountId ?? target.facebookProviderAccountId;
+    target.availableIgAccounts = source.availableIgAccounts ?? target.availableIgAccounts ?? null;
+    changed = true;
+  }
+
+  return changed;
+}
+
+async function migratePostCreationTrialArtifacts(sourceUserId: Types.ObjectId, targetUserId: Types.ObjectId) {
+  await Promise.all([
+    PostCreationDraft.updateMany({ userId: sourceUserId }, { $set: { userId: targetUserId } }).exec(),
+    PostCreationFunnelEvent.updateMany({ userId: sourceUserId }, { $set: { userId: targetUserId } }).exec(),
+  ]);
 }
 
 function applySessionRevalidationSnapshot(
@@ -690,14 +749,53 @@ const authOptionsConfig = {
         const name = profile.name && profile.name.trim() !== "" ? profile.name.trim() : profile.email?.split("@")[0] ?? "User";
         return { id: profile.id!, name, email: profile.email, image: (profile as any).picture?.data?.url };
       },
-    }),
+      }),
     CredentialsProvider({
       name: "Credentials",
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Senha", type: "password" },
+        boardTrialToken: { label: "Board Trial Token", type: "text" },
       },
       async authorize(credentials) {
+        const boardTrialToken =
+          typeof (credentials as any)?.boardTrialToken === "string"
+            ? (credentials as any).boardTrialToken.trim()
+            : "";
+        if (boardTrialToken) {
+          await connectToDatabase();
+          const trialUser = await DbUser.findOne({
+            accountState: "pre_signup",
+            preSignupLoginToken: boardTrialToken,
+            preSignupLoginTokenExpiresAt: { $gt: new Date() },
+          }).exec();
+
+          if (!trialUser) {
+            logger.warn("[NextAuth Credentials] Token de trial do board inválido ou expirado.");
+            return null;
+          }
+
+          trialUser.preSignupLoginToken = undefined;
+          trialUser.preSignupLoginTokenExpiresAt = null;
+          await trialUser.save();
+
+          logger.info(`[NextAuth Credentials] Sessão pre_signup criada para trial do board: ${trialUser._id}`);
+          return {
+            id: trialUser._id.toString(),
+            name: trialUser.name,
+            email: trialUser.email,
+            image: trialUser.image,
+            role: trialUser.role,
+            provider: trialUser.provider ?? "credentials",
+            accountState: trialUser.accountState ?? "pre_signup",
+            postCreationTrial: serializePostCreationTrial(trialUser.postCreationTrial),
+            planStatus: trialUser.planStatus,
+            isInstagramConnected: trialUser.isInstagramConnected ?? false,
+            instagramAccountId: trialUser.instagramAccountId ?? null,
+            instagramUsername: trialUser.username ?? null,
+          } as NextAuthUserArg;
+        }
+
         if (!credentials?.email || !credentials.password) return null;
         const devE2EUser = resolveDevE2ECredentialsUser({
           email: credentials.email,
@@ -720,6 +818,8 @@ const authOptionsConfig = {
           image: user.image,
           role: user.role,
           agency: user.agency ? user.agency.toString() : null,
+          accountState: user.accountState ?? "registered",
+          postCreationTrial: serializePostCreationTrial(user.postCreationTrial),
           proTrialStatus: user.proTrialStatus ?? null,
           proTrialActivatedAt: user.proTrialActivatedAt ?? null,
           proTrialExpiresAt: user.proTrialExpiresAt ?? null,
@@ -1004,8 +1104,80 @@ const authOptionsConfig = {
             logger.info(`${TAG_SIGNIN} [Facebook] Vinculação/IG processadas via sessão ativa para ${dbUserRecord._id}. flowId=${reconnectFlowId}`);
             logger.info(`${TAG_SIGNIN} telemetry ig_oauth_callback_ok userId=${dbUserRecord._id} flowId=${reconnectFlowId} reconnectState=${dbUserRecord.instagramReconnectState ?? "idle"}`);
           }
-        } else if (provider === "google") {
-          dbUserRecord = await DbUser.findOne({ provider, providerAccountId }).exec();
+          } else if (provider === "google") {
+            const currentSessionUserId = await resolveSessionUserIdFromCookie(cookieStore);
+            let preSignupUser: IUser | null = null;
+            if (currentSessionUserId && Types.ObjectId.isValid(currentSessionUserId)) {
+              const candidate = await DbUser.findById(currentSessionUserId).exec();
+              if (candidate?.accountState === "pre_signup") {
+                preSignupUser = candidate;
+              }
+            }
+
+            if (preSignupUser && currentEmailFromProvider) {
+              const existingByProvider = await DbUser.findOne({
+                provider,
+                providerAccountId,
+                _id: { $ne: preSignupUser._id },
+              }).exec();
+              const existingByEmail = existingByProvider
+                ? null
+                : await DbUser.findOne({
+                    email: currentEmailFromProvider,
+                    _id: { $ne: preSignupUser._id },
+                  }).exec();
+              const targetUser = existingByProvider ?? existingByEmail;
+              const completedSignupAt = new Date();
+
+              if (targetUser) {
+                logger.info(`${TAG_SIGNIN} [Google] Merge pre_signup ${preSignupUser._id} -> usuário existente ${targetUser._id}.`);
+                targetUser.provider = provider;
+                targetUser.providerAccountId = providerAccountId;
+                if (nameFromProvider && nameFromProvider !== targetUser.name) targetUser.name = nameFromProvider;
+                if (imageFromProvider) {
+                  if (imageFromProvider !== targetUser.providerImage) targetUser.providerImage = imageFromProvider;
+                  if (imageFromProvider !== targetUser.image) targetUser.image = imageFromProvider;
+                }
+                copyInstagramTrialData(targetUser, preSignupUser);
+                if (targetUser.postCreationTrial) {
+                  targetUser.postCreationTrial.completedSignupAt =
+                    targetUser.postCreationTrial.completedSignupAt ?? completedSignupAt;
+                }
+                applyRecordedLegalAcceptance(targetUser, completedSignupAt);
+                await targetUser.save();
+                await migratePostCreationTrialArtifacts(preSignupUser._id, targetUser._id);
+
+                preSignupUser.accountState = "merged";
+                preSignupUser.mergedIntoUserId = targetUser._id;
+                preSignupUser.preSignupLoginToken = undefined;
+                preSignupUser.preSignupLoginTokenExpiresAt = null;
+                await preSignupUser.save();
+                dbUserRecord = targetUser;
+              } else {
+                logger.info(`${TAG_SIGNIN} [Google] Completando pre_signup ${preSignupUser._id} como usuário registrado.`);
+                preSignupUser.email = currentEmailFromProvider;
+                preSignupUser.name = nameFromProvider?.trim() || preSignupUser.name || currentEmailFromProvider.split("@")[0];
+                preSignupUser.image = imageFromProvider ?? preSignupUser.image;
+                preSignupUser.providerImage = imageFromProvider ?? preSignupUser.providerImage;
+                preSignupUser.provider = provider;
+                preSignupUser.providerAccountId = providerAccountId;
+                preSignupUser.accountState = "registered";
+                preSignupUser.preSignupLoginToken = undefined;
+                preSignupUser.preSignupLoginTokenExpiresAt = null;
+                preSignupUser.isNewUserForOnboarding = true;
+                preSignupUser.postCreationTrial = {
+                  ...(preSignupUser.postCreationTrial ?? {}),
+                  completedSignupAt,
+                };
+                applyRecordedLegalAcceptance(preSignupUser, completedSignupAt);
+                dbUserRecord = await preSignupUser.save();
+                isNewUser = true;
+              }
+            }
+
+            if (!dbUserRecord) {
+              dbUserRecord = await DbUser.findOne({ provider, providerAccountId }).exec();
+            }
 
           if (!dbUserRecord && currentEmailFromProvider) {
             const userByEmail = await DbUser.findOne({ email: currentEmailFromProvider }).exec();
@@ -1111,10 +1283,13 @@ const authOptionsConfig = {
           (authUserFromProvider as NextAuthUserArg).role = dbUserRecord.role ?? "user";
           (authUserFromProvider as NextAuthUserArg).isNewUserForOnboarding =
             (provider === "google" && isNewUser) || (dbUserRecord.isNewUserForOnboarding ?? false);
-          (authUserFromProvider as NextAuthUserArg).onboardingCompletedAt = dbUserRecord.onboardingCompletedAt;
-          (authUserFromProvider as NextAuthUserArg).provider = dbUserRecord.provider ?? provider;
+            (authUserFromProvider as NextAuthUserArg).onboardingCompletedAt = dbUserRecord.onboardingCompletedAt;
+            (authUserFromProvider as NextAuthUserArg).provider = dbUserRecord.provider ?? provider;
+            (authUserFromProvider as NextAuthUserArg).accountState = dbUserRecord.accountState ?? "registered";
+            (authUserFromProvider as NextAuthUserArg).postCreationTrial =
+              serializePostCreationTrial(dbUserRecord.postCreationTrial);
 
-          // Instagram
+            // Instagram
           (authUserFromProvider as NextAuthUserArg).isInstagramConnected = dbUserRecord.isInstagramConnected ?? false;
           (authUserFromProvider as NextAuthUserArg).instagramAccountId = dbUserRecord.instagramAccountId;
           (authUserFromProvider as NextAuthUserArg).instagramUsername = dbUserRecord.username;
@@ -1176,9 +1351,11 @@ const authOptionsConfig = {
       if (typeof token.affiliateCode === "undefined") token.affiliateCode = null;
       if (typeof token.affiliateBalances === "undefined") token.affiliateBalances = {};
       if (typeof (token as any).cancelAtPeriodEnd === "undefined") (token as any).cancelAtPeriodEnd = null;
-      if (typeof token.proTrialStatus === "undefined") token.proTrialStatus = null;
-      if (typeof token.proTrialActivatedAt === "undefined") token.proTrialActivatedAt = null;
-      if (typeof token.proTrialExpiresAt === "undefined") token.proTrialExpiresAt = null;
+        if (typeof token.proTrialStatus === "undefined") token.proTrialStatus = null;
+        if (typeof token.proTrialActivatedAt === "undefined") token.proTrialActivatedAt = null;
+        if (typeof token.proTrialExpiresAt === "undefined") token.proTrialExpiresAt = null;
+        if (typeof token.accountState === "undefined") token.accountState = null;
+        if (typeof token.postCreationTrial === "undefined") token.postCreationTrial = null;
 
       if ((trigger === "signIn" || trigger === "signUp") && userFromSignIn) {
         token.id = (userFromSignIn as any).id;
@@ -1186,8 +1363,10 @@ const authOptionsConfig = {
         token.name = userFromSignIn.name;
         token.email = userFromSignIn.email;
         token.image = (userFromSignIn as any).image;
-        token.role = (userFromSignIn as NextAuthUserArg).role ?? "user";
-        token.provider = (userFromSignIn as NextAuthUserArg).provider;
+          token.role = (userFromSignIn as NextAuthUserArg).role ?? "user";
+          token.provider = (userFromSignIn as NextAuthUserArg).provider;
+          token.accountState = (userFromSignIn as NextAuthUserArg).accountState ?? "registered";
+          token.postCreationTrial = (userFromSignIn as NextAuthUserArg).postCreationTrial ?? null;
 
         // Onboarding
         token.isNewUserForOnboarding = (userFromSignIn as NextAuthUserArg).isNewUserForOnboarding;
@@ -1302,10 +1481,12 @@ const authOptionsConfig = {
           typeof token.affiliateBalances === "undefined" ||
           typeof (token as any).cancelAtPeriodEnd === "undefined" ||
           typeof token.stripeAccountStatus === "undefined" ||
-          typeof token.stripeAccountDefaultCurrency === "undefined" ||
-          (typeof token.isInstagramConnected === "undefined" && typeof token.availableIgAccounts === "undefined") ||
-          typeof token.instagramReconnectState === "undefined" ||
-          typeof token.instagramReconnectFlowId === "undefined";
+            typeof token.stripeAccountDefaultCurrency === "undefined" ||
+            (typeof token.isInstagramConnected === "undefined" && typeof token.availableIgAccounts === "undefined") ||
+            typeof token.instagramReconnectState === "undefined" ||
+            typeof token.instagramReconnectFlowId === "undefined" ||
+            typeof token.accountState === "undefined" ||
+            typeof token.postCreationTrial === "undefined";
 
         const tokenIssuedAt = token.iat;
         if (!needsDbRefresh && tokenIssuedAt && typeof tokenIssuedAt === "number") {
@@ -1325,8 +1506,9 @@ const authOptionsConfig = {
                 await connectToDatabase();
                 return DbUser.findById(token.id)
                   .select(
-                    "name email image role agency provider providerAccountId facebookProviderAccountId " +
-                    "isNewUserForOnboarding onboardingCompletedAt " +
+                      "name email image role agency provider providerAccountId facebookProviderAccountId " +
+                      "accountState postCreationTrial " +
+                      "isNewUserForOnboarding onboardingCompletedAt " +
                     "isInstagramConnected instagramAccountId username lastInstagramSyncAttempt lastInstagramSyncSuccess instagramSyncErrorMsg instagramSyncErrorCode instagramReconnectNotifiedAt instagramDisconnectCount instagramReconnectState " +
                     "instagramReconnectFlowId " +
                     "planStatus planType planInterval planExpiresAt cancelAtPeriodEnd proTrialStatus proTrialActivatedAt proTrialExpiresAt " +
@@ -1350,12 +1532,14 @@ const authOptionsConfig = {
               const rawDbPlanStatus = dbUser.planStatus;
 
               token.name = dbUser.name ?? token.name;
-              token.email = dbUser.email ?? token.email;
-              token.image = dbUser.image ?? token.image;
-              token.role = dbUser.role ?? token.role ?? "user";
-              token.provider = dbUser.provider ?? token.provider;
+                token.email = dbUser.email ?? token.email;
+                token.image = dbUser.image ?? token.image;
+                token.role = dbUser.role ?? token.role ?? "user";
+                token.provider = dbUser.provider ?? token.provider;
+                token.accountState = dbUser.accountState ?? token.accountState ?? "registered";
+                token.postCreationTrial = serializePostCreationTrial(dbUser.postCreationTrial);
 
-              // Onboarding
+                // Onboarding
               token.isNewUserForOnboarding =
                 typeof dbUser.isNewUserForOnboarding === "boolean" ? dbUser.isNewUserForOnboarding : token.isNewUserForOnboarding ?? false;
               token.onboardingCompletedAt = dbUser.onboardingCompletedAt ?? token.onboardingCompletedAt ?? null;
@@ -1495,11 +1679,13 @@ const authOptionsConfig = {
         session.user.id = token.id;
         session.user.name = token.name;
         session.user.email = token.email;
-        session.user.image = token.image;
-        session.user.role = token.role;
-        session.user.provider = token.provider;
+          session.user.image = token.image;
+          session.user.role = token.role;
+          session.user.provider = token.provider;
+          session.user.accountState = token.accountState ?? null;
+          session.user.postCreationTrial = token.postCreationTrial ?? null;
 
-        // Onboarding
+          // Onboarding
         session.user.isNewUserForOnboarding = token.isNewUserForOnboarding;
         session.user.onboardingCompletedAt = token.onboardingCompletedAt ? new Date(token.onboardingCompletedAt).toISOString() : null;
 

@@ -1,7 +1,8 @@
 'use client';
 
 import Image from 'next/image';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ChartBarIcon,
   XMarkIcon,
@@ -125,21 +126,26 @@ function compactNumber(n?: number) {
   try { return n.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 1 }); } catch { return n.toString(); }
 }
 
+function copyText(value?: string | null) {
+  if (!value || typeof navigator === 'undefined') return;
+  void navigator.clipboard?.writeText(value);
+}
+
 const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, postId, publicMode = false, apiPrefix = '/api/admin' }) => {
   const [postData, setPostData] = useState<IPostDetailsData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const surfaceClassName = publicMode
-    ? 'rounded-[1.65rem] border border-zinc-100/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,248,249,0.95))] shadow-[0_24px_60px_rgba(24,24,27,0.16)]'
+    ? 'rounded-[1.5rem] border border-zinc-200/80 bg-white shadow-[0_20px_52px_rgba(24,24,27,0.18)]'
     : 'rounded-xl bg-white shadow-2xl';
   const sectionShellClassName = publicMode
-    ? 'rounded-[1.2rem] border border-zinc-100/80 bg-zinc-50/52 p-4'
+    ? 'rounded-[1.2rem] border border-zinc-100 bg-zinc-50/64 p-4'
     : '';
   const sectionTitleClassName = publicMode
-    ? 'text-base font-semibold text-zinc-900 mb-3 flex items-center'
+    ? 'text-sm font-semibold text-zinc-900 mb-3 flex items-center'
     : 'text-md font-semibold text-gray-700 mb-3 flex items-center';
   const metricItemClassName = publicMode
-    ? 'rounded-[1rem] border border-zinc-100/80 bg-white/84 p-3'
+    ? 'rounded-[1rem] border border-zinc-100 bg-white p-3'
     : 'bg-gray-50 p-3 rounded-md';
   const isPublicMinimalTable = publicMode;
 
@@ -199,7 +205,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
     const labels = idsToLabels(items, type);
     return (
       <div>
-        <div className="text-xs font-semibold text-gray-600 mb-1">{label}</div>
+        <div className={`text-xs font-semibold mb-1 ${publicMode ? 'text-zinc-500' : 'text-gray-600'}`}>{label}</div>
         <div className="flex flex-wrap gap-1.5">
           {labels.length > 0 ? (
             labels.slice(0, 8).map((t, i) => (
@@ -218,6 +224,146 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
     const shortPost = formatShortUrl(postData?.postLink);
     const shortCover = formatShortUrl(postData?.coverUrl);
     const dateStr = postData?.postDate ? new Date(postData.postDate).toLocaleDateString('pt-BR', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+
+    if (publicMode) {
+      const headline = postData?.description?.trim() || 'Conteúdo usado como referência';
+      const primaryStats = [
+        {
+          label: 'Interações',
+          value: compactNumber(postData?.stats?.total_interactions),
+        },
+        {
+          label: 'Views',
+          value: compactNumber(postData?.stats?.views),
+        },
+        {
+          label: 'Alcance',
+          value: compactNumber(postData?.stats?.reach),
+        },
+      ];
+      const strategicGroups = postData
+        ? [
+            { label: 'Formato', labels: idsToLabels(postData.format, 'format'), color: COLOR_BY_TYPE.format },
+            { label: 'Proposta', labels: idsToLabels(postData.proposal, 'proposal'), color: COLOR_BY_TYPE.proposal },
+            { label: 'Contexto', labels: idsToLabels(postData.context, 'context'), color: COLOR_BY_TYPE.context },
+            {
+              label: 'Tom',
+              labels: idsToLabels(Array.isArray(postData.tone) ? postData.tone : postData.tone ? [postData.tone as any] : [], 'tone'),
+              color: COLOR_BY_TYPE.tone,
+            },
+            { label: 'Referências', labels: idsToLabels(postData.references, 'reference'), color: COLOR_BY_TYPE.reference },
+            { label: 'Tema', labels: postData.theme ? [postData.theme] : [], color: 'bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200' },
+          ].filter((group) => group.labels.length > 0)
+        : [];
+      const strategicSignals = strategicGroups
+        .flatMap((group) => group.labels.slice(0, 2).map((label) => ({ group: group.label, value: label })))
+        .slice(0, 6);
+
+      return (
+        <section>
+          {isLoading ? (
+            <div className="space-y-3 p-3">
+              <SkeletonBlock width="w-full" height="h-52" />
+              <SkeletonBlock width="w-3/4" height="h-4" />
+              <SkeletonBlock width="w-full" height="h-12" />
+            </div>
+          ) : postData && (
+            <>
+              <div className="grid grid-cols-[6.85rem_minmax(0,1fr)] gap-3.5 px-4 pb-3 pt-4">
+                <div className="relative aspect-[9/16] overflow-hidden rounded-[1rem] bg-zinc-100">
+                  {postData.coverUrl ? (
+                    <Image
+                      src={postData.coverUrl}
+                      alt="Capa do post"
+                      fill
+                      sizes="128px"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center px-3 text-center text-xs font-semibold text-zinc-400">
+                      Sem capa
+                    </div>
+                  )}
+                </div>
+
+                <div className="min-w-0 pr-9">
+                  <h4 className="line-clamp-4 text-[1rem] font-semibold leading-5 tracking-[-0.02em] text-zinc-950">
+                    {headline}
+                  </h4>
+
+                  <div className="mt-2 flex flex-wrap gap-x-2.5 gap-y-1 text-[11px] text-zinc-500">
+                    <span className="inline-flex items-center gap-1">
+                      <CalendarDaysIcon className="h-3.5 w-3.5" />
+                      {dateStr}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <TagIcon className="h-3.5 w-3.5" />
+                      {postData.type || '—'}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {postData.postLink ? (
+                      <a
+                        href={postData.postLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex h-8 items-center gap-1.5 rounded-full bg-zinc-950 px-3 text-xs font-semibold text-white transition hover:bg-zinc-800"
+                      >
+                        <LinkIcon className="h-3.5 w-3.5" />
+                        Abrir post
+                      </a>
+                    ) : null}
+                    {postData.postLink ? (
+                      <button
+                        type="button"
+                        onClick={() => copyText(postData.postLink)}
+                        className="inline-flex h-8 items-center rounded-full border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-600 transition hover:bg-zinc-50"
+                      >
+                        Copiar
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 border-y border-zinc-100">
+                {primaryStats.map((stat, index) => (
+                  <div key={stat.label} className="px-3 py-2.5 text-center">
+                    <p className={index === 0 ? "text-[1.18rem] font-semibold leading-none tracking-[-0.045em] text-zinc-950" : "text-[1rem] font-semibold leading-none tracking-[-0.035em] text-zinc-950"}>
+                      {stat.value}
+                    </p>
+                    <p className="mt-1 text-[10px] font-medium text-zinc-400">{stat.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              {renderPublicTrend()}
+
+              {strategicSignals.length > 0 ? (
+                <div className="border-b border-zinc-100 px-4 py-3.5">
+                  <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
+                    Sinais usados
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                    {strategicSignals.map((signal) => (
+                      <div key={`${signal.group}-${signal.value}`} className="min-w-0">
+                        <p className="text-[10px] font-medium uppercase tracking-[0.08em] text-zinc-400">
+                          {signal.group}
+                        </p>
+                        <p className="mt-0.5 truncate text-xs font-medium text-zinc-700">
+                          {signal.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </>
+          )}
+        </section>
+      );
+    }
 
     return (
       <section className={sectionShellClassName}>
@@ -247,7 +393,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
                     </a>
                     <button
                       className={`text-xs px-2 py-0.5 rounded ${publicMode ? 'border border-zinc-100/90 bg-white/80 text-zinc-600 hover:bg-zinc-50' : 'border text-gray-700 hover:bg-gray-50'}`}
-                      onClick={() => navigator.clipboard.writeText(postData.coverUrl || '')}
+                      onClick={() => copyText(postData.coverUrl)}
                     >Copiar link</button>
                   </div>
                   <div className={`text-xs mt-1 break-all ${publicMode ? 'text-zinc-400' : 'text-gray-500'}`}>{shortCover.display}</div>
@@ -268,7 +414,7 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
               {postData.postLink && (
                 <button
                   className={`ml-1 text-xs px-2 py-0.5 rounded ${publicMode ? 'border border-zinc-100/90 bg-white/80 text-zinc-600 hover:bg-zinc-50' : 'border text-gray-700 hover:bg-gray-50'}`}
-                  onClick={() => navigator.clipboard.writeText(postData.postLink || '')}
+                  onClick={() => copyText(postData.postLink)}
                 >Copiar</button>
               )}
             </div>
@@ -316,13 +462,13 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
 
   const renderMainMetrics = () => (
     <section className={sectionShellClassName}>
-      <h4 className={sectionTitleClassName}><ArrowTrendingUpIcon className={`w-5 h-5 mr-2 ${publicMode ? 'text-zinc-500' : 'text-indigo-500'}`} />Métricas Principais</h4>
+      <h4 className={sectionTitleClassName}><ArrowTrendingUpIcon className={`w-5 h-5 mr-2 ${publicMode ? 'text-zinc-500' : 'text-indigo-500'}`} />{publicMode ? 'Performance' : 'Métricas Principais'}</h4>
       {isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {Array.from({ length: 6 }).map((_, i) => <SkeletonBlock key={i} width="w-full" height="h-12" />)}
         </div>
       ) : postData && postData.stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+        <div className={`${publicMode ? 'grid grid-cols-2 gap-2.5 text-sm' : 'grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm'}`}>
           <MetricItem icon={EyeIcon} label="Visualizações" value={postData.stats.views?.toLocaleString('pt-BR') ?? 'N/A'} />
           <MetricItem icon={HeartIcon} label="Curtidas" value={postData.stats.likes?.toLocaleString('pt-BR') ?? 'N/A'} />
           <MetricItem icon={ChatBubbleOvalLeftEllipsisIcon} label="Comentários" value={postData.stats.comments?.toLocaleString('pt-BR') ?? 'N/A'} />
@@ -401,30 +547,89 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
     </section>
   );
 
-  return (
+  const renderPublicTrend = () => {
+    if (!postData?.dailySnapshots || postData.dailySnapshots.length < 2) return null;
+
+    return (
+      <div className="border-b border-zinc-100 px-4 py-3.5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
+            Evolução diária
+          </p>
+          <div className="flex items-center gap-3 text-[10px] font-medium text-zinc-500">
+            <span className="inline-flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-zinc-950" />
+              Views
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-teal-500" />
+              Curtidas
+            </span>
+          </div>
+        </div>
+        <div className="mt-2 h-[6.75rem]">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={postData.dailySnapshots} margin={{ top: 8, right: 4, left: 4, bottom: 2 }}>
+              <XAxis dataKey="date" hide />
+              <YAxis hide />
+              <Tooltip
+                cursor={{ stroke: '#e4e4e7', strokeWidth: 1 }}
+                labelFormatter={(label: Date | string) => new Date(label).toLocaleDateString('pt-BR')}
+                formatter={(value: number, name: string) => [value.toLocaleString('pt-BR'), name]}
+                contentStyle={{
+                  backgroundColor: 'rgba(255,255,255,0.96)',
+                  border: '1px solid #e4e4e7',
+                  borderRadius: '12px',
+                  boxShadow: '0 10px 30px rgba(24,24,27,0.12)',
+                  fontSize: '12px',
+                }}
+              />
+              <Line type="monotone" dataKey="dailyViews" name="Views" stroke="#18181B" strokeWidth={2.25} dot={false} activeDot={{ r: 4 }} />
+              <Line type="monotone" dataKey="dailyLikes" name="Curtidas" stroke="#14B8A6" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    );
+  };
+
+  const modalContent = (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center p-4 transition-opacity duration-300 ${publicMode ? 'bg-black/45 backdrop-blur-[2px]' : 'bg-black/50 backdrop-blur-sm'} ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+      className={`fixed inset-0 z-[2147483647] flex items-center justify-center overflow-hidden transition-opacity duration-300 ${publicMode ? 'bg-black/45 p-4 pb-7 backdrop-blur-[2px] sm:p-6' : 'bg-black/50 p-3 backdrop-blur-sm sm:p-5'} ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="post-detail-title"
+      aria-label={publicMode ? 'Referência usada na pauta' : undefined}
+      aria-labelledby={publicMode ? undefined : 'post-detail-title'}
     >
       <div
-        className={`${surfaceClassName} w-full ${publicMode ? 'max-w-xl' : 'max-w-2xl'} max-h-[90vh] flex flex-col transform transition-all duration-300 ${isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}
+        className={`${surfaceClassName} relative w-full ${publicMode ? 'max-w-[24.5rem] max-h-[72dvh] sm:max-h-[76dvh]' : 'max-w-2xl max-h-[90vh]'} flex flex-col overflow-hidden transform transition-all duration-300 ${isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'}`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* HEADER */}
-        <header className={`sticky top-0 backdrop-blur px-5 py-4 flex items-center justify-between ${publicMode ? 'bg-white/88 border-b border-zinc-100/90' : 'bg-white/90 border-b border-gray-200 px-6'}`}>
-          <h3 id="post-detail-title" className={`text-lg font-semibold flex items-center gap-2 ${publicMode ? 'text-zinc-900' : 'text-gray-800'}`}>
-            <TagIcon className={`w-5 h-5 ${publicMode ? 'text-zinc-500' : 'text-indigo-600'}`} /> {publicMode ? 'Ver conteúdo' : 'Detalhes do Post'}
-          </h3>
-          <button onClick={onClose} className={`p-1.5 rounded-full transition-colors ${publicMode ? 'text-zinc-500 hover:bg-zinc-100/80 hover:text-zinc-700' : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700'}`} aria-label="Fechar">
-            <XMarkIcon className="w-6 h-6" />
+        {publicMode ? (
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute right-5 top-5 z-30 flex h-8 w-8 items-center justify-center rounded-full border border-white/65 bg-white/92 text-zinc-500 shadow-[0_10px_24px_rgba(15,23,42,0.18)] backdrop-blur transition hover:bg-white hover:text-zinc-950"
+            aria-label="Fechar"
+          >
+            <XMarkIcon className="h-4 w-4" />
           </button>
-        </header>
+        ) : (
+          <header className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white/90 px-6 py-3.5 backdrop-blur">
+            <div className="min-w-0">
+              <h3 id="post-detail-title" className="truncate text-base font-semibold text-gray-800">
+                Detalhes do Post
+              </h3>
+            </div>
+            <button onClick={onClose} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700" aria-label="Fechar">
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+          </header>
+        )}
 
         {/* CONTENT */}
-        <main className={`flex-grow overflow-y-auto ${publicMode ? 'px-5 py-5 space-y-4' : 'px-6 py-6 space-y-6'}`}>
+        <main className={`min-h-0 flex-grow overflow-y-auto overscroll-contain ${publicMode ? 'pb-7 sm:pb-8' : 'px-6 py-6 space-y-6'}`}>
           {error && (
             <div className={`text-center py-10 text-red-600 bg-red-50 p-4 ${publicMode ? 'rounded-[1rem]' : 'rounded-md'}`}>
               <ExclamationCircleIcon className="w-8 h-8 mx-auto mb-2" />
@@ -432,16 +637,20 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
             </div>
           )}
           {!error && (
-            <>
-              {renderGeneralInfo()}
-              {renderMainMetrics()}
-              {renderDailyPerformance()}
-            </>
+            publicMode ? (
+              renderGeneralInfo()
+            ) : (
+              <>
+                {renderGeneralInfo()}
+                {renderMainMetrics()}
+                {renderDailyPerformance()}
+              </>
+            )
           )}
         </main>
 
         {/* FOOTER */}
-        <footer className={`sticky bottom-0 backdrop-blur text-right ${publicMode ? 'bg-white/88 border-t border-zinc-100/90 px-5 py-3.5' : 'bg-white/90 border-t border-gray-200 px-6 py-4'}`}>
+        <footer className={`sticky bottom-0 backdrop-blur text-right ${publicMode ? 'hidden' : 'bg-white/90 border-t border-gray-200 px-6 py-4'}`}>
           <button onClick={onClose} className={`px-4 py-2 text-sm font-medium transition-colors ${publicMode ? 'text-zinc-700 bg-zinc-100 hover:bg-zinc-200 rounded-full' : 'text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md'}`}>
             Fechar
           </button>
@@ -449,6 +658,8 @@ const PostDetailModal: React.FC<PostDetailModalProps> = ({ isOpen, onClose, post
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 };
 
 export default PostDetailModal;

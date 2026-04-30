@@ -11,6 +11,19 @@ Explica a dor principal com exemplo real.
 Finaliza com CTA para comentar.
 `.trim();
 
+const EDITORIAL_SCRIPT = [
+  "[ROTEIRO_TECNICO_V1]",
+  "O que postar: Reels sobre o erro que trava retenção antes da dica.",
+  "Por que postar assim: No perfil, diagnóstico direto tende a reter melhor.",
+  "Quando postar: Priorizar terça às 19h quando esse tema entrar na fila.",
+  "Como esse vídeo deve funcionar: erro visível -> contexto real -> ajuste -> pergunta final.",
+  "[CENA 1: GANCHO]",
+  "Visual: Close no rosto.",
+  'Fala: "Seu reels não morre no meio."',
+  "Direção: Tom direto.",
+  "[/ROTEIRO_TECNICO_V1]",
+].join("\n");
+
 describe("scripts/scriptSegmentation", () => {
   it("resolves and merges scene-specific changes preserving other scenes", () => {
     const resolved = resolveScopedSegment(SCENE_SCRIPT, { type: "scene", index: 2 });
@@ -79,5 +92,25 @@ describe("scripts/scriptSegmentation", () => {
     expect(merged).toContain("[/ROTEIRO_TECNICO_V1]");
     expect(merged).toContain("Frase de contexto revisada");
     expect(merged).toContain("Frase de CTA");
+  });
+
+  it("resolves and merges editorial direction without touching scenes", () => {
+    const resolved = resolveScopedSegment(EDITORIAL_SCRIPT, {
+      type: "editorial",
+      field: "when_to_post",
+    });
+    expect(resolved).not.toBeNull();
+    expect(resolved?.segment.text).toContain("Quando postar:");
+
+    const merged = mergeScopedSegment(
+      EDITORIAL_SCRIPT,
+      resolved!,
+      "Priorizar quinta às 20h quando o histórico desse tema estiver forte."
+    );
+
+    expect(merged).toContain("O que postar: Reels sobre o erro que trava retenção antes da dica.");
+    expect(merged).toContain("Quando postar: Priorizar quinta às 20h quando o histórico desse tema estiver forte.");
+    expect(merged).toContain("[CENA 1: GANCHO]");
+    expect(merged).toContain('Fala: "Seu reels não morre no meio."');
   });
 });
