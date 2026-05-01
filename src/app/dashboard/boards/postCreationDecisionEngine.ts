@@ -132,6 +132,26 @@ function mergeEvidencePosts(
     .slice(0, limit);
 }
 
+function prioritizeCandidatesWithEvidence(
+  candidates: OptionAggregate[],
+  step: PostCreationDecisionStep
+): OptionAggregate[] {
+  if (step === "pauta") return candidates;
+
+  const withThumbs: OptionAggregate[] = [];
+  const withoutThumbs: OptionAggregate[] = [];
+
+  for (const option of candidates) {
+    if (option.evidencePosts.some(hasEvidenceThumb)) {
+      withThumbs.push(option);
+    } else {
+      withoutThumbs.push(option);
+    }
+  }
+
+  return [...withThumbs, ...withoutThumbs];
+}
+
 export type PostCreationDecisionEngineResult = {
   decision: PostCreationDecisionState;
   checkpoints: PostCreationDecisionCheckpoint[];
@@ -791,7 +811,7 @@ function buildOptionList(
     const current = grouped.get(id);
     const nextScore = getEntryScore(entry);
     const expectedInteractions = estimatePlannerSlotInteractions(slot, outcomeSignals) || 0;
-    const slotEvidencePosts = (slot.evidencePosts || []).filter(hasEvidenceThumb);
+    const slotEvidencePosts = slot.evidencePosts || [];
     const slotEvidenceCount = Math.max(slot.evidenceCount || 0, slotEvidencePosts.length);
     if (!current) {
       const preferenceBonus = resolvePreferenceBonus(step, id, preferenceSignals);
@@ -827,13 +847,8 @@ function buildOptionList(
   }
 
   const rankedCandidates = Array.from(grouped.values())
-    .sort((a, b) => b.score + b.preferenceBonus - (a.score + a.preferenceBonus))
-  const rankedWithThumbs =
-    step === "pauta"
-      ? rankedCandidates
-      : rankedCandidates.filter((option) => option.evidencePosts.some(hasEvidenceThumb));
-  const ranked = (step !== "pauta" && rankedWithThumbs.length > 0 ? rankedWithThumbs : rankedCandidates)
-    .slice(0, TARGET_DECISION_OPTIONS);
+    .sort((a, b) => b.score + b.preferenceBonus - (a.score + a.preferenceBonus));
+  const ranked = prioritizeCandidatesWithEvidence(rankedCandidates, step).slice(0, TARGET_DECISION_OPTIONS);
   const topScore = ranked[0] ? ranked[0].score + ranked[0].preferenceBonus : 1;
   const recommendedId = ranked[0]?.id || null;
   const selectedId = currentId && ranked.some((option) => option.id === currentId) ? currentId : recommendedId;

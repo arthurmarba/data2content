@@ -163,7 +163,7 @@ function toDiscoverPostCard(source: Record<string, any>): PostCard {
     ...resolveVideoMeta(source?.type, source?.mediaUrl || source?.media_url || null),
     caption: source.description || source.text_content || '',
     postDate: source.postDate ? new Date(source.postDate).toISOString() : undefined,
-    creatorName: source.creatorName || source?.creatorInfo?.username,
+    creatorName: source?.creatorInfo?.username || source.creatorUsername || source.creatorName,
     creatorAvatarUrl:
       toProxyUrl(
         source.creatorAvatarUrl ||

@@ -1088,9 +1088,40 @@ export function PlanningAudienceSection(props: any) {
 
   return (
     <div className="space-y-4">
+      <section>
+        <section className="min-w-0 px-1 py-1">
+          <header className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-sm">
+                <Sparkles className="h-4 w-4" aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-base font-semibold leading-5 text-slate-900">Meus conteúdos</h3>
+                <p className="mt-0.5 text-[11px] font-medium leading-4 text-slate-500">
+                  Ranking dos posts do período.
+                </p>
+              </div>
+            </div>
+            {!props.loadingPosts ? (
+              <span className="inline-flex shrink-0 items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-bold tabular-nums text-slate-600">
+                {numberFormatter.format(Array.isArray(props.topDiscovery) ? props.topDiscovery.length : 0)} conteúdos
+              </span>
+            ) : null}
+          </header>
+          {props.loadingPosts ? (
+            <p className="mt-3 text-sm text-slate-500">Carregando lista...</p>
+          ) : (
+            <TopDiscoveryTable
+              posts={props.topDiscovery}
+              isLoading={props.loadingPosts}
+              compactLayout
+            />
+          )}
+        </section>
+      </section>
       <section className="space-y-3">
         <div className="rounded-[1.45rem] border border-zinc-100/90 bg-zinc-50/68 px-4 py-3">
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Leitura da audiência</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Leitura</p>
         </div>
         <div className="grid items-start gap-4 grid-cols-1">
           <article className={cardBase}>
@@ -1205,25 +1236,7 @@ export function PlanningAudienceSection(props: any) {
       </section>
       <section className="space-y-3">
         <div className="rounded-[1.45rem] border border-zinc-100/90 bg-zinc-50/68 px-4 py-3">
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Posts de descoberta</p>
-        </div>
-        <section className={audienceCardBase}>
-          <header className="flex items-center justify-between gap-3">
-            <div className={props.chartHeaderTextClassName}>
-              <h3 className="text-base font-semibold text-slate-900">Posts de descoberta</h3>
-            </div>
-            <Sparkles className="h-5 w-5 text-indigo-500" />
-          </header>
-          {props.loadingPosts ? (
-            <p className="mt-3 text-sm text-slate-500">Carregando lista...</p>
-          ) : (
-            <TopDiscoveryTable posts={props.topDiscovery} isLoading={props.loadingPosts} />
-          )}
-        </section>
-      </section>
-      <section className="space-y-3">
-        <div className="rounded-[1.45rem] border border-zinc-100/90 bg-zinc-50/68 px-4 py-3">
-          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Evolução e sinais</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">Sinais</p>
         </div>
         <section className="grid items-start gap-4 grid-cols-1">
           <article className={audienceCardBase}>

@@ -113,6 +113,7 @@ const FUNNEL_HISTORY_LOOKBACK_DAYS = 180;
 const POST_CREATION_SAVED_FROM = "post_creation_funnel";
 const POST_CREATION_LOCAL_CACHE_LIMIT = 12;
 const POST_CREATION_PAUTA_REQUEST_VERSION = "pauta-ai-v7";
+const POST_CREATION_COLLAB_REQUEST_VERSION = "collab-v5";
 const POST_CREATION_DEBUG =
   process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_POST_CREATION_DEBUG === "1";
 const POST_CREATION_LOADING_MESSAGES = [
@@ -295,6 +296,29 @@ type ThemeCaptionSignalsState = {
   status: "idle" | "loading" | "ready";
   requestKey: string | null;
   captions: string[];
+};
+
+type CollabCreatorSuggestion = {
+  id: string;
+  rank: number;
+  name: string;
+  username?: string | null;
+  avatarUrl?: string | null;
+  followers?: number | null;
+  mediaKitSlug?: string | null;
+  avgInteractions?: number | null;
+  avgReach?: number | null;
+  avgShares?: number | null;
+  avgSaves?: number | null;
+  postCount?: number | null;
+  matchedTheme?: boolean;
+};
+
+type CollabCreatorsState = {
+  status: "idle" | "loading" | "ready";
+  requestKey: string | null;
+  items: CollabCreatorSuggestion[];
+  contextLabel?: string | null;
 };
 
 type PostCreationBoardView = "create" | "saved";
@@ -842,6 +866,16 @@ function formatProjectedMetricValue(value?: number | null) {
   return formatK(Math.round(value));
 }
 
+function getInitials(value?: string | null) {
+  const parts = (value || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2);
+  if (!parts.length) return "C";
+  return parts.map((part) => part.charAt(0).toUpperCase()).join("");
+}
+
 function formatInteractionsCopy(value?: number | null) {
   const formatted = formatCompactNumber(value);
   return formatted ? `${formatted} interações em média` : "Média de interações indisponível";
@@ -1069,31 +1103,40 @@ const EvidenceThumbStrip = memo(function EvidenceThumbStrip({
   labelText = "refs suas",
   maxVisible = 3,
   posts,
+  size = "sm",
   total,
 }: {
   labelText?: string | null;
   maxVisible?: number;
   posts: PlannerEvidencePost[];
+  size?: "sm" | "lg";
   total: number;
 }) {
   const visiblePosts = posts
     .filter((post) => typeof post.coverUrl === "string" && post.coverUrl.trim().length > 0)
     .slice(0, maxVisible);
   const overflowCount = Math.max(0, total - visiblePosts.length);
+  const isLarge = size === "lg";
+  const thumbClassName = isLarge ? "h-12 w-12 rounded-[14px]" : "h-7 w-7 rounded-[9px]";
+  const imageSizes = isLarge ? "48px" : "28px";
+  const iconClassName = isLarge ? "h-5 w-5" : "h-3.5 w-3.5";
 
   if (!visiblePosts.length && total <= 0) return null;
   if (!visiblePosts.length) return null;
 
   return (
     <div
-      className="flex items-center gap-1.5"
+      className={cn("flex items-center", isLarge ? "gap-2" : "gap-1.5")}
       aria-label={`${total} ${total === 1 ? "conteúdo seu usado" : "conteúdos seus usados"} como referência`}
     >
-      <div className="flex -space-x-1.5">
+      <div className={cn("flex", isLarge ? "-space-x-2.5" : "-space-x-1.5")}>
         {visiblePosts.map((post, index) => (
           <span
             key={`${post.id}-${index}`}
-            className="relative flex h-7 w-7 shrink-0 overflow-hidden rounded-[9px] border border-white bg-zinc-100 shadow-[0_4px_10px_rgba(15,23,42,0.08)] ring-1 ring-zinc-200/80"
+            className={cn(
+              "relative flex shrink-0 overflow-hidden border border-white bg-zinc-100 shadow-[0_4px_10px_rgba(15,23,42,0.08)] ring-1 ring-zinc-200/80",
+              thumbClassName
+            )}
             title={post.title || "Conteúdo usado como referência"}
           >
             {post.coverUrl ? (
@@ -1102,18 +1145,25 @@ const EvidenceThumbStrip = memo(function EvidenceThumbStrip({
                 alt=""
                 fill
                 className="object-cover"
-                sizes="28px"
+                sizes={imageSizes}
                 priority
               />
             ) : (
               <span className="flex h-full w-full items-center justify-center bg-zinc-50 text-zinc-400">
-                <Video className="h-3.5 w-3.5" />
+                <Video className={iconClassName} />
               </span>
             )}
           </span>
         ))}
         {overflowCount > 0 ? (
-          <span className="relative flex h-7 min-w-7 shrink-0 items-center justify-center rounded-[9px] border border-white bg-zinc-950 px-1.5 text-[10px] font-semibold text-white shadow-[0_4px_10px_rgba(15,23,42,0.08)] ring-1 ring-zinc-200/80">
+          <span
+            className={cn(
+              "relative flex shrink-0 items-center justify-center border border-white bg-zinc-950 font-semibold text-white shadow-[0_4px_10px_rgba(15,23,42,0.08)] ring-1 ring-zinc-200/80",
+              isLarge
+                ? "h-12 min-w-12 rounded-[14px] px-2 text-[12px]"
+                : "h-7 min-w-7 rounded-[9px] px-1.5 text-[10px]"
+            )}
+          >
             +{overflowCount}
           </span>
         ) : null}
@@ -1130,13 +1180,11 @@ const EvidenceThumbStrip = memo(function EvidenceThumbStrip({
 const ProjectionReferenceSummary = memo(function ProjectionReferenceSummary({
   baseLabel,
   onOpen,
-  origin,
   posts,
   total,
 }: {
   baseLabel: string;
   onOpen?: () => void;
-  origin: "actual" | "idea" | "branch" | "none";
   posts: PlannerEvidencePost[];
   total: number;
 }) {
@@ -1145,45 +1193,31 @@ const ProjectionReferenceSummary = memo(function ProjectionReferenceSummary({
   }
 
   const suffix = total === 1 ? "post similar" : "posts similares";
-  const sourceLabel =
-    origin === "branch"
-      ? "do caminho escolhido"
-      : origin === "actual"
-        ? "do post conectado"
-        : "do seu histórico recente";
 
   return (
     <button
       type="button"
       onClick={onOpen}
-      className="group w-full rounded-[18px] border border-sky-100/90 bg-sky-50/55 px-3.5 py-3 text-left transition duration-300 hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white hover:shadow-[0_14px_28px_rgba(14,165,233,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/60"
+      className="group w-full rounded-[20px] border border-sky-100/90 bg-sky-50/55 px-3.5 py-3.5 text-left transition duration-300 hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white hover:shadow-[0_14px_28px_rgba(14,165,233,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/60"
       aria-label={`Ver ${total} ${suffix} usados como base da projeção`}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-500/80">
-            Base da projeção
-          </p>
-          <p className="mt-1 line-clamp-1 text-sm font-semibold leading-5 text-zinc-950">
+          <p className="line-clamp-1 text-sm font-semibold leading-5 text-zinc-950">
             {total} {suffix}
           </p>
-          <p className="mt-0.5 text-[10px] font-medium leading-4 text-zinc-500">
-            Ver conteúdos usados na validação
-          </p>
-          <p className="mt-0.5 text-[10px] font-medium leading-4 text-zinc-400">
-            {sourceLabel}
-          </p>
         </div>
-        <span className="mt-0.5 inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-sky-200/75 bg-white px-2.5 text-[10px] font-semibold text-sky-700 shadow-[0_6px_14px_rgba(14,165,233,0.08)] transition group-hover:border-sky-300 group-hover:text-sky-800">
-          Ver referências
+        <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-sky-200/75 bg-white px-3 text-[10px] font-semibold text-sky-700 shadow-[0_6px_14px_rgba(14,165,233,0.08)] transition group-hover:border-sky-300 group-hover:text-sky-800">
+          Referências
           <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
         </span>
       </div>
-      <div className="mt-2.5 flex items-center">
+      <div className="mt-3 flex items-center">
         <EvidenceThumbStrip
           labelText={null}
           maxVisible={5}
           posts={posts}
+          size="lg"
           total={total}
         />
       </div>
@@ -1935,7 +1969,6 @@ const ProjectionSummaryCard = memo(function ProjectionSummaryCard({
         <ProjectionReferenceSummary
           baseLabel={baseLabel}
           onOpen={onOpenReferencePosts}
-          origin={origin}
           posts={referencePosts}
           total={referenceTotal}
         />
@@ -1946,6 +1979,214 @@ const ProjectionSummaryCard = memo(function ProjectionSummaryCard({
               <p className="mt-1 text-[10px] font-semibold text-zinc-400">{metric.label}</p>
             </div>
           ))}
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const CollabCreatorsCard = memo(function CollabCreatorsCard({
+  contextLabel,
+  items,
+  status,
+}: {
+  contextLabel?: string | null;
+  items: CollabCreatorSuggestion[];
+  status: CollabCreatorsState["status"];
+}) {
+  if (status === "idle") return null;
+
+  const isLoading = status === "loading";
+
+  return (
+    <div className="w-full overflow-hidden rounded-[26px] border border-zinc-200/78 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.03)] transform-gpu backface-hidden antialiased will-change-transform">
+      <div className="flex items-start gap-3 px-5 pb-4 pt-5">
+        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] border border-indigo-100 bg-indigo-50 text-indigo-600">
+          <Users className="h-3.5 w-3.5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+            Collab sugerida
+          </p>
+          <h3 className="mt-1 text-[1rem] font-semibold leading-tight tracking-[-0.025em] text-zinc-950">
+            {contextLabel ? `Top 3 em ${contextLabel}` : "Top 3 para collab"}
+          </h3>
+          <p className="mt-1 text-[12px] font-medium leading-5 text-zinc-500">
+            Criadores com sinais próximos da pauta.
+          </p>
+        </div>
+      </div>
+
+      <div className="grid gap-3 px-4 pb-4">
+        {isLoading
+          ? Array.from({ length: 3 }).map((_, index) => (
+              <div key={`collab-skeleton-${index}`} className="grid animate-pulse grid-cols-[3.5rem_minmax(0,1fr)] gap-x-3 gap-y-3 rounded-[22px] bg-zinc-50/70 px-3 py-3">
+                <div className="h-14 w-14 rounded-full bg-zinc-100" />
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="h-3 w-32 rounded bg-zinc-100" />
+                  <div className="h-2.5 w-full max-w-[220px] rounded bg-zinc-100/80" />
+                </div>
+                <div className="col-span-2 grid grid-cols-2 gap-2">
+                  {Array.from({ length: 4 }).map((__, metricIndex) => (
+                    <div key={`collab-skeleton-metric-${index}-${metricIndex}`} className="rounded-[14px] bg-zinc-100/70 px-3 py-2.5">
+                      <div className="h-2 w-16 rounded bg-zinc-200/70" />
+                      <div className="mt-2 h-3 w-12 rounded bg-zinc-200/80" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          : items.length
+            ? items.map((creator) => {
+                const metrics = [
+                  {
+                    label: "Alcance",
+                    value: formatProjectedMetricValue(creator.avgReach),
+                  },
+                  {
+                    label: "Interações",
+                    value: formatProjectedMetricValue(creator.avgInteractions),
+                  },
+                  {
+                    label: "Seguidores",
+                    value: formatProjectedMetricValue(creator.followers),
+                  },
+                  {
+                    label: "Base",
+                    value:
+                      typeof creator.postCount === "number" && Number.isFinite(creator.postCount) && creator.postCount > 0
+                        ? `${formatCompactNumber(creator.postCount)} posts`
+                      : "—",
+                  },
+                ].filter((metric) => metric.value !== "—");
+
+                return (
+                  <div
+                    key={creator.id}
+                    className="rounded-[22px] border border-zinc-100/90 bg-white px-3.5 py-3.5 transition duration-300 hover:bg-zinc-50/35"
+                  >
+                    <div className="grid grid-cols-[52px_minmax(0,1fr)] items-start gap-3">
+                      <div className="relative h-[52px] w-[52px] shrink-0">
+                        <div className="relative h-[52px] w-[52px] overflow-hidden rounded-full border-2 border-white bg-zinc-100 shadow-sm ring-1 ring-zinc-200/70">
+                          {creator.avatarUrl ? (
+                            <Image
+                              src={creator.avatarUrl}
+                              alt=""
+                              fill
+                              className="object-cover"
+                              sizes="52px"
+                            />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center text-[16px] font-bold text-zinc-500">
+                              {getInitials(creator.name)}
+                            </span>
+                          )}
+                        </div>
+                        <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-zinc-950 px-1 text-[10px] font-bold text-white shadow-sm">
+                          {creator.rank}
+                        </span>
+                      </div>
+
+                      <div className="min-w-0 pt-0.5">
+                        <div className="min-w-0">
+                          <p className="break-words text-[14px] font-bold leading-[1.15] text-zinc-950">
+                            {creator.name}
+                          </p>
+                        </div>
+
+                        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                          {creator.username ? (
+                            <p className="break-all text-[11px] font-semibold leading-4 text-zinc-400">
+                              @{creator.username}
+                            </p>
+                          ) : null}
+                          {creator.mediaKitSlug ? (
+                            <a
+                              href={`/mediakit/${creator.mediaKitSlug}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="group inline-flex items-center gap-1 text-[11px] font-bold leading-4 text-indigo-600 transition duration-300 hover:text-indigo-800"
+                              aria-label={`Abrir mídia kit de ${creator.name}`}
+                            >
+                              Mídia kit
+                              <ArrowRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-0.5" />
+                            </a>
+                          ) : null}
+                          {creator.matchedTheme ? (
+                            <span className="inline-flex rounded-full bg-indigo-50 px-2 py-1 text-[9px] font-bold uppercase leading-3 text-indigo-600">
+                              Tema próximo
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </div>
+
+                    {metrics.length ? (
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        {metrics.map((metric, metricIndex) => (
+                          <div
+                            key={metric.label}
+	                            className={cn(
+	                              "min-w-0 rounded-[14px] px-3 py-2.5",
+	                              metricIndex === 0
+	                                ? "border border-indigo-100 bg-indigo-50/80 text-zinc-950"
+	                                : "border border-zinc-100 bg-zinc-50/65 text-zinc-800",
+	                            )}
+	                          >
+                            <p
+	                              className={cn(
+	                                "text-[8.5px] font-bold uppercase leading-3 tracking-[0.08em]",
+	                                metricIndex === 0 ? "text-indigo-500" : "text-zinc-400",
+	                              )}
+                            >
+                              {metric.label}
+                            </p>
+                            <p className="mt-1 text-[12px] font-black leading-4 tracking-[-0.02em]">
+                              {metric.value}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })
+            : (
+                <div className="rounded-[18px] border border-dashed border-zinc-200 bg-zinc-50/70 px-4 py-4 text-[12px] font-medium leading-5 text-zinc-500">
+                  Ainda não há base suficiente para sugerir criadores de collab nesse recorte.
+                </div>
+              )}
+      </div>
+    </div>
+  );
+});
+
+const CollabRadarUpsellBanner = memo(function CollabRadarUpsellBanner({
+  onActivate,
+}: {
+  onActivate: () => void;
+}) {
+  return (
+    <div className="w-full rounded-[22px] border border-indigo-100 bg-indigo-50/70 px-4 py-4 shadow-[0_10px_24px_rgba(79,70,229,0.045)]">
+      <div className="flex items-start gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] border border-indigo-200/70 bg-white text-indigo-600">
+          <Sparkles className="h-4.5 w-4.5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] font-bold leading-5 text-zinc-950">
+            Seu perfil também pode aparecer aqui
+          </p>
+          <p className="mt-1 text-[12px] font-medium leading-5 text-zinc-600">
+            Assinantes entram no radar de collabs compatíveis e recebem consultorias semanais para melhorar posicionamento.
+          </p>
+          <button
+            type="button"
+            onClick={onActivate}
+            className="mt-3 inline-flex h-8 items-center justify-center gap-1.5 rounded-full bg-zinc-950 px-3.5 text-[11px] font-bold text-white shadow-[0_10px_20px_rgba(15,23,42,0.12)] transition duration-300 hover:bg-zinc-800 active:scale-[0.98]"
+          >
+            Ativar assinatura
+            <ArrowRight className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
     </div>
@@ -3053,6 +3294,7 @@ function buildGeneratedPautaSlot(
 ): PlannerUISlot {
   return {
     ...baseSlot,
+    slotId: decision?.pautaId || baseSlot.slotId,
     format: decision?.formatId || baseSlot.format,
     categories: {
       ...baseSlot.categories,
@@ -3096,7 +3338,7 @@ function medianNumber(values: number[]) {
 }
 
 function estimateGeneratedPautaInteractions(slot: PlannerUISlot, outcomeSignals: PostCreationOutcomeSignal[]) {
-  const broadEstimate = estimatePlannerSlotInteractions(slot, outcomeSignals);
+  const broadEstimate = estimatePlannerSlotInteractions({ ...slot, slotId: undefined }, outcomeSignals);
   const evidenceValues = getEvidenceInteractionValues(slot);
   const evidenceMedian = medianNumber(evidenceValues);
 
@@ -3109,6 +3351,32 @@ function estimateGeneratedPautaInteractions(slot: PlannerUISlot, outcomeSignals:
   }
 
   return broadEstimate;
+}
+
+function readPositiveMetric(value: number | null | undefined) {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.round(value) : null;
+}
+
+function estimateProjectedReach(slot: PlannerUISlot | null | undefined, interactions: number | null, activeStage: PostCreationFunnelStage) {
+  const viewsP50 = readPositiveMetric(slot?.expectedMetrics?.viewsP50);
+  if (activeStage !== "published" && viewsP50) return viewsP50;
+  return typeof interactions === "number" && interactions > 0
+    ? Math.round(interactions * (activeStage === "published" ? 2.9 : 5.6))
+    : null;
+}
+
+function estimateProjectedShares(slot: PlannerUISlot | null | undefined, interactions: number | null, activeStage: PostCreationFunnelStage) {
+  const sharesP50 = readPositiveMetric(slot?.expectedMetrics?.sharesP50);
+  if (activeStage !== "published" && sharesP50) return sharesP50;
+  return typeof interactions === "number" && interactions > 0
+    ? Math.round(interactions * (activeStage === "published" ? 0.08 : 0.12))
+    : null;
+}
+
+function estimateProjectedSaves(interactions: number | null, activeStage: PostCreationFunnelStage) {
+  return typeof interactions === "number" && interactions > 0
+    ? Math.round(interactions * (activeStage === "published" ? 0.14 : 0.19))
+    : null;
 }
 
 function clampUnit(value: number) {
@@ -3290,7 +3558,7 @@ export default function PostCreationFunnelBoardShell({
   const shouldShowActivationOverlay = (isPreviewMode || (isTrialViewer && !instagramConnectedForTrial)) && !isPendingPaywall;
   const usesBoardSurface = surfaceMode === "board";
   const plannerQueryUserId = !isPreviewMode && normalizedViewer.id ? normalizedViewer.id : "";
-  const { weekStart, slots, recommendations, saveSlots, savePostCreationPauta } = usePlannerData({
+  const { weekStart, slots, recommendations, loading: plannerLoading, saveSlots, savePostCreationPauta } = usePlannerData({
     userId: plannerQueryUserId,
     targetSlotsPerWeek: 5,
     periodDays: FUNNEL_HISTORY_LOOKBACK_DAYS,
@@ -3358,6 +3626,9 @@ export default function PostCreationFunnelBoardShell({
 	        ? "Criar conta para gerar de novo"
 	        : "Assinar para gerar de novo"
 	      : "Criar nova pauta";
+  const handleActivateCollabRadar = useCallback(() => {
+    requestContinuationGate("post_creation_collab_radar");
+  }, [requestContinuationGate]);
   const fetchContentOptions = useCallback(async () => {
     if (contentOptions.length > 0) return;
     try {
@@ -3439,6 +3710,12 @@ export default function PostCreationFunnelBoardShell({
     requestKey: null,
     captions: [],
   });
+  const [collabCreators, setCollabCreators] = useState<CollabCreatorsState>({
+    status: "idle",
+    requestKey: null,
+    items: [],
+    contextLabel: null,
+  });
   const [loadingStep, setLoadingStep] = useState(0);
 
   useEffect(() => {
@@ -3458,12 +3735,16 @@ export default function PostCreationFunnelBoardShell({
   const skipLatestDraftHydrationRef = useRef(false);
   const hydratedDraftIdRef = useRef<string | null>(null);
   const saveTimerRef = useRef<any>(null);
+  const autoAdvanceTimerRef = useRef<any>(null);
   const lastSavedSignatureRef = useRef<string>("");
   const hasLocalEditsRef = useRef(false);
   const generatedPautasCacheRef = useRef(
     new Map<string, Omit<GeneratedPautaState, "status" | "requestKey">>()
   );
   const themeCaptionSignalsCacheRef = useRef(new Map<string, string[]>());
+  const collabCreatorsCacheRef = useRef(
+    new Map<string, Omit<CollabCreatorsState, "status" | "requestKey">>()
+  );
   const [stageTransitionDirection, setStageTransitionDirection] = useState<"forward" | "backward">("forward");
 
   useEffect(() => {
@@ -4151,7 +4432,7 @@ export default function PostCreationFunnelBoardShell({
   ]);
   const ideaCandidates =
     generatedPautaCandidates.length > 0 ? generatedPautaCandidates : decisionEngine.ideaCandidates;
-  const decisionPathCards = useMemo(() => {
+  const decisionPathCards = useMemo<DecisionPathCard[]>(() => {
     if (!decisionEngine.checkpoints.length) {
       return fallbackRecommendation.path.map((item) => ({
         id: item.id,
@@ -4440,12 +4721,10 @@ export default function PostCreationFunnelBoardShell({
   }, [selectedDraftId, selectedScriptId, selectedSlotId]);
 
   useEffect(() => {
-    if (boardView !== requestedBoardView) {
-      startTransition(() => {
-        setBoardView(requestedBoardView);
-      });
-    }
-  }, [boardView, requestedBoardView]);
+    startTransition(() => {
+      setBoardView((current) => (current === requestedBoardView ? current : requestedBoardView));
+    });
+  }, [requestedBoardView]);
 
   useEffect(() => {
     if (isPreviewMode || !normalizedViewer.id) {
@@ -4562,12 +4841,19 @@ export default function PostCreationFunnelBoardShell({
   const activeStage = funnelState.stage || initialFocusStage;
   const activeStageLegacySurface = activeStage as PostCreationFunnelStage;
   const usesCompactStageSurface = activeStage === "path" || activeStage === "idea";
-  const isRestoringDraft =
+  const isRestoringSlotSelection =
     boardView === "create" &&
-    !hasHydratedDraft &&
     !isPreviewMode &&
-    Boolean(normalizedViewer.id) &&
-    draftHydrationTarget !== "none";
+    Boolean(selectedSlotId) &&
+    plannerLoading &&
+    !plannerSlots.some((slot) => slot.slotId === selectedSlotId);
+  const isRestoringDraft =
+    isRestoringSlotSelection ||
+    (boardView === "create" &&
+      !hasHydratedDraft &&
+      !isPreviewMode &&
+      Boolean(normalizedViewer.id) &&
+      draftHydrationTarget !== "none");
   const activeStageIndex = POST_CREATION_FUNNEL_STAGE_ORDER.indexOf(activeStage);
   const stageTransitionClass =
     stageTransitionDirection === "backward"
@@ -4675,6 +4961,23 @@ export default function PostCreationFunnelBoardShell({
     });
   }, [activeBlueprint?.scenes, hookVariations]);
 
+  const clearAutoAdvanceTimer = useCallback(() => {
+    if (autoAdvanceTimerRef.current) {
+      window.clearTimeout(autoAdvanceTimerRef.current);
+      autoAdvanceTimerRef.current = null;
+    }
+    setAdvancingPathId(null);
+    setAdvancingIdeaId(null);
+  }, []);
+  useEffect(() => {
+    return () => {
+      if (autoAdvanceTimerRef.current) {
+        window.clearTimeout(autoAdvanceTimerRef.current);
+        autoAdvanceTimerRef.current = null;
+      }
+    };
+  }, []);
+
   const trackFunnelEvent = useCallback(
     (
       name:
@@ -4761,10 +5064,11 @@ export default function PostCreationFunnelBoardShell({
     const checkpoint = decisionEngine.checkpoints.find((entry) => entry.step === step) || null;
     const option = checkpoint?.options.find((entry) => entry.id === optionId) || null;
 
-    // Auto-advance visual feedback
+    clearAutoAdvanceTimer();
     setAdvancingPathId(`${step}-${optionId}`);
 
-    setTimeout(() => {
+    autoAdvanceTimerRef.current = window.setTimeout(() => {
+      autoAdvanceTimerRef.current = null;
       startTransition(() => {
         hasLocalEditsRef.current = true;
         skipLatestDraftHydrationRef.current = true;
@@ -4816,7 +5120,7 @@ export default function PostCreationFunnelBoardShell({
       });
       setAdvancingPathId(null);
     }, PATH_AUTONAV_DELAY_MS);
-  }, [decisionEngine.checkpoints, draftId, funnelState.stage, trackFunnelEvent, updateSelectionParams, visibleDecisionSteps]);
+  }, [clearAutoAdvanceTimer, decisionEngine.checkpoints, draftId, funnelState.stage, trackFunnelEvent, updateSelectionParams, visibleDecisionSteps]);
 
   const handleIdeaSelection = useCallback((candidateId: string) => {
     const candidate =
@@ -4824,10 +5128,11 @@ export default function PostCreationFunnelBoardShell({
       (selectedIdeaCandidate?.variant.id === candidateId ? selectedIdeaCandidate : null);
     if (!candidate) return;
 
-    // Auto-advance visual feedback
+    clearAutoAdvanceTimer();
     setAdvancingIdeaId(candidateId);
 
-    setTimeout(() => {
+    autoAdvanceTimerRef.current = window.setTimeout(() => {
+      autoAdvanceTimerRef.current = null;
       startTransition(() => {
         hasLocalEditsRef.current = true;
         skipLatestDraftHydrationRef.current = true;
@@ -4894,7 +5199,7 @@ export default function PostCreationFunnelBoardShell({
       });
       setAdvancingIdeaId(null);
     }, IDEA_AUTONAV_DELAY_MS);
-  }, [draftId, funnelState.stage, ideaCandidates, selectedIdeaCandidate, trackFunnelEvent, updateSelectionParams]);
+  }, [clearAutoAdvanceTimer, draftId, funnelState.stage, ideaCandidates, selectedIdeaCandidate, trackFunnelEvent, updateSelectionParams]);
 
   const handleActiveDecisionOptionSelect = useCallback(
     (optionId: string) => {
@@ -4905,14 +5210,20 @@ export default function PostCreationFunnelBoardShell({
   );
 
   const handleFunnelSlotSaved = useCallback((slot: PlannerUISlot) => {
+    clearAutoAdvanceTimer();
     hasLocalEditsRef.current = true;
     skipLatestDraftHydrationRef.current = true;
+    setBoardView("saved");
     setSelectedSlotIdState(slot.slotId || null);
-    updateSelectionParams({
-      slotId: slot.slotId || null,
-      scriptId: funnelState.scriptId || null,
-      draftId,
-    });
+    updateSelectionParams(
+      {
+        slotId: slot.slotId || null,
+        scriptId: funnelState.scriptId || null,
+        draftId,
+        view: "saved",
+      },
+      { history: "push" }
+    );
     setFunnelState((current) => {
       const persistedDecision = buildDecisionFromPlannerSlot(slot);
       const next: PostCreationFunnelState = {
@@ -4949,8 +5260,9 @@ export default function PostCreationFunnelBoardShell({
     trackFunnelEvent("post_creation_slot_saved", {
       slot_id: slot.slotId || null,
       stage_after: "idea",
+      board_view: "saved",
     });
-  }, [draftId, funnelState.scriptId, outcomeSignals, trackFunnelEvent, updateSelectionParams]);
+  }, [clearAutoAdvanceTimer, draftId, funnelState.scriptId, outcomeSignals, trackFunnelEvent, updateSelectionParams]);
 
   const handleSaveIdeaPauta = useCallback(async () => {
     setIdeaSaveError(null);
@@ -5408,6 +5720,7 @@ export default function PostCreationFunnelBoardShell({
 
   const handleOpenSavedPauta = useCallback(
     (slot: PlannerUISlot) => {
+      clearAutoAdvanceTimer();
       hasLocalEditsRef.current = true;
       skipLatestDraftHydrationRef.current = true;
       setBoardView("create");
@@ -5444,7 +5757,7 @@ export default function PostCreationFunnelBoardShell({
         stage: "idea",
       }));
     },
-    [draftId, outcomeSignals, updateSelectionParams]
+    [clearAutoAdvanceTimer, draftId, outcomeSignals, updateSelectionParams]
   );
 
 	  const handleOpenSavedView = useCallback(() => {
@@ -5452,6 +5765,7 @@ export default function PostCreationFunnelBoardShell({
 	      requestContinuationGate("post_creation_open_saved_pautas");
 	      return;
 	    }
+	    clearAutoAdvanceTimer();
 	    setDiscardSavedPautaError(null);
 	    setBoardView("saved");
     updateSelectionParams(
@@ -5460,9 +5774,10 @@ export default function PostCreationFunnelBoardShell({
       },
       { history: "push" }
     );
-	  }, [canInteract, requestContinuationGate, updateSelectionParams]);
+	  }, [canInteract, clearAutoAdvanceTimer, requestContinuationGate, updateSelectionParams]);
 
   const handleReturnToCreateView = useCallback(() => {
+    clearAutoAdvanceTimer();
     setDiscardSavedPautaError(null);
     setBoardView("create");
     updateSelectionParams(
@@ -5471,7 +5786,7 @@ export default function PostCreationFunnelBoardShell({
       },
       { history: "replace" }
     );
-  }, [updateSelectionParams]);
+  }, [clearAutoAdvanceTimer, updateSelectionParams]);
 
   const handleFunnelScriptOpen = (script: any) => {
     hasLocalEditsRef.current = true;
@@ -5604,6 +5919,7 @@ export default function PostCreationFunnelBoardShell({
 	      requestContinuationGate("post_creation_generate_another_pauta");
 	      return;
 	    }
+	    clearAutoAdvanceTimer();
 	    hasLocalEditsRef.current = true;
     skipLatestDraftHydrationRef.current = true;
     draftHydrationRef.current = false;
@@ -5643,7 +5959,7 @@ export default function PostCreationFunnelBoardShell({
       view: null,
     });
     setFunnelState(createEmptyPostCreationFunnelState());
-	  }, [isTrialViewer, requestContinuationGate, trialPautaConsumed, updateSelectionParams]);
+	  }, [clearAutoAdvanceTimer, isTrialViewer, requestContinuationGate, trialPautaConsumed, updateSelectionParams]);
 
   const toggleChecklistItem = useCallback((collection: "scene" | "hook", id: string) => {
     hasLocalEditsRef.current = true;
@@ -5665,6 +5981,7 @@ export default function PostCreationFunnelBoardShell({
   }, []);
 
   const handlePrevStage = useCallback(() => {
+    clearAutoAdvanceTimer();
     if (boardView !== "create" || requestedBoardView === "saved") {
       setBoardView("create");
       updateSelectionParams(
@@ -5732,6 +6049,7 @@ export default function PostCreationFunnelBoardShell({
     draftId,
     funnelState,
     boardView,
+    clearAutoAdvanceTimer,
     resolvedSelectedSlotId,
     requestedBoardView,
     trackFunnelEvent,
@@ -6109,15 +6427,31 @@ export default function PostCreationFunnelBoardShell({
     const pautaId = funnelState.decision.pautaId || pautaCard?.selectedId || null;
     return pautaCard?.options.find((option) => option.id === pautaId) || pautaCard?.options[0] || null;
   }, [decisionPathCards, funnelState.decision.pautaId]);
+  const selectedDecisionEvidenceOptions = useMemo(
+    () =>
+      decisionPathCards
+        .map((card) => {
+          const selectedId = card.id === "pauta" ? funnelState.decision.pautaId || card.selectedId : card.selectedId;
+          return card.options.find((option) => option.id === selectedId) || card.options[0] || null;
+        })
+        .filter((option): option is DecisionOptionCardItem => Boolean(option)),
+    [decisionPathCards, funnelState.decision.pautaId]
+  );
+  const selectedDecisionEvidencePosts = useMemo(
+    () => mergeEvidencePostGroups(...selectedDecisionEvidenceOptions.map((option) => option.evidencePosts)),
+    [selectedDecisionEvidenceOptions]
+  );
   const selectedIdeaReferencePosts = useMemo(
     () =>
       mergeEvidencePostGroups(
         selectedIdeaCandidate?.slot.evidencePosts,
         selectedSavedPautaSlot?.evidencePosts,
-        selectedPautaEvidenceOption?.evidencePosts
+        selectedPautaEvidenceOption?.evidencePosts,
+        selectedDecisionEvidencePosts
       ),
     [
       selectedIdeaCandidate?.slot.evidencePosts,
+      selectedDecisionEvidencePosts,
       selectedPautaEvidenceOption?.evidencePosts,
       selectedSavedPautaSlot?.evidencePosts,
     ]
@@ -6141,9 +6475,14 @@ export default function PostCreationFunnelBoardShell({
           getEvidenceCountFromReason(selectedPautaEvidenceOption.reason)
         )
       : 0;
-    return Math.max(selectedIdeaReferencePosts.length, candidateTotal, savedTotal, pautaOptionTotal);
+    const decisionPathTotal = selectedDecisionEvidenceOptions.reduce(
+      (total, option) => Math.max(total, getEvidenceTotal(option), getEvidenceCountFromReason(option.reason)),
+      0
+    );
+    return Math.max(selectedIdeaReferencePosts.length, candidateTotal, savedTotal, pautaOptionTotal, decisionPathTotal);
   }, [
     selectedIdeaCandidate,
+    selectedDecisionEvidenceOptions,
     selectedIdeaReferencePosts.length,
     selectedPautaEvidenceOption,
     selectedSavedPautaSlot,
@@ -6172,6 +6511,12 @@ export default function PostCreationFunnelBoardShell({
     setReferenceDrawerOpen(false);
     setSelectedReferencePostId(null);
   }, [activeStage]);
+  useEffect(() => {
+    if (boardView !== "saved") return;
+    setReferenceDrawerOpen(false);
+    setSelectedReferencePostId(null);
+    setShowLinkGallery(false);
+  }, [boardView]);
   const isDiscardingCurrentSavedPauta = selectedSavedPautaSlot
     ? discardingSavedPautaKey === getPlannerSlotLibraryKey(selectedSavedPautaSlot)
     : false;
@@ -6428,18 +6773,121 @@ export default function PostCreationFunnelBoardShell({
         ? Math.round(funnelState.linkedContent.totalInteractions)
         : selectedIdeaProjectedInteractions
       : selectedIdeaProjectedInteractions;
-  const projectedReach =
-    typeof projectedInteractions === "number" && projectedInteractions > 0
-      ? Math.round(projectedInteractions * (activeStage === "published" ? 2.9 : 5.6))
-      : null;
-  const projectedSaves =
-    typeof projectedInteractions === "number" && projectedInteractions > 0
-      ? Math.round(projectedInteractions * (activeStage === "published" ? 0.14 : 0.19))
-      : null;
-  const projectedShares =
-    typeof projectedInteractions === "number" && projectedInteractions > 0
-      ? Math.round(projectedInteractions * (activeStage === "published" ? 0.08 : 0.12))
-      : null;
+  const selectedProjectionSlot = selectedIdeaCandidate?.slot || selectedSavedPautaSlot || null;
+  const projectedReach = estimateProjectedReach(selectedProjectionSlot, projectedInteractions, activeStage);
+  const projectedSaves = estimateProjectedSaves(projectedInteractions, activeStage);
+  const projectedShares = estimateProjectedShares(selectedProjectionSlot, projectedInteractions, activeStage);
+  const collabCreatorsRequest = useMemo(() => {
+    if (boardView !== "create" || activeStage !== "idea" || !selectedIdeaForProjection) return null;
+    const contextId = funnelState.decision.contextId || selectedProjectionSlot?.categories?.context?.[0] || null;
+    const proposalId = funnelState.decision.proposalId || selectedProjectionSlot?.categories?.proposal?.[0] || null;
+    const referenceId = funnelState.decision.referenceId || selectedProjectionSlot?.categories?.reference?.[0] || null;
+    const payload = {
+      categories: {
+        context: contextId ? [contextId] : undefined,
+        proposal: proposalId ? [proposalId] : undefined,
+        reference: referenceId ? [referenceId] : undefined,
+      },
+      themeKeyword: selectedThemeLabel || undefined,
+      title: selectedIdeaForProjection.title || undefined,
+      periodDays: FUNNEL_HISTORY_LOOKBACK_DAYS,
+      limit: 3,
+    };
+    return {
+      key: JSON.stringify({
+        version: POST_CREATION_COLLAB_REQUEST_VERSION,
+        contextId,
+        proposalId,
+        referenceId,
+        themeKeyword: selectedThemeLabel || null,
+        title: selectedIdeaForProjection.title || null,
+      }),
+      payload,
+    };
+  }, [
+    activeStage,
+    boardView,
+    funnelState.decision.contextId,
+    funnelState.decision.proposalId,
+    funnelState.decision.referenceId,
+    selectedIdeaForProjection,
+    selectedProjectionSlot,
+    selectedThemeLabel,
+  ]);
+
+  useEffect(() => {
+    if (!collabCreatorsRequest) {
+      setCollabCreators((current) =>
+        current.status === "idle" && current.requestKey === null
+          ? current
+          : {
+              status: "idle",
+              requestKey: null,
+              items: [],
+              contextLabel: null,
+            }
+      );
+      return;
+    }
+
+    const cached = collabCreatorsCacheRef.current.get(collabCreatorsRequest.key);
+    if (cached) {
+      setCollabCreators({
+        status: "ready",
+        requestKey: collabCreatorsRequest.key,
+        ...cached,
+      });
+      return;
+    }
+
+    const controller = new AbortController();
+    setCollabCreators({
+      status: "loading",
+      requestKey: collabCreatorsRequest.key,
+      items: [],
+      contextLabel: null,
+    });
+
+    const loadCollabCreators = async () => {
+      try {
+        const response = await fetch("/api/planner/collab-creators", {
+          method: "POST",
+          signal: controller.signal,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(collabCreatorsRequest.payload),
+        });
+        const payload = await response.json().catch(() => null);
+        if (controller.signal.aborted) return;
+        const nextState: Omit<CollabCreatorsState, "status" | "requestKey"> = {
+          items: Array.isArray(payload?.items) ? payload.items.slice(0, 3) : [],
+          contextLabel: typeof payload?.contextLabel === "string" ? payload.contextLabel : null,
+        };
+        writeBoundedCache(collabCreatorsCacheRef.current, collabCreatorsRequest.key, nextState);
+        setCollabCreators({
+          status: "ready",
+          requestKey: collabCreatorsRequest.key,
+          ...nextState,
+        });
+      } catch {
+        if (controller.signal.aborted) return;
+        setCollabCreators({
+          status: "ready",
+          requestKey: collabCreatorsRequest.key,
+          items: [],
+          contextLabel: null,
+        });
+      }
+    };
+
+    void loadCollabCreators();
+
+    return () => {
+      controller.abort();
+    };
+  }, [collabCreatorsRequest]);
+
   const finalProjectionSupportCopy =
     activeStage === "published"
       ? typeof funnelState.linkedContent?.totalInteractions === "number" && funnelState.linkedContent.totalInteractions > 0
@@ -6455,8 +6903,8 @@ export default function PostCreationFunnelBoardShell({
       [
         typeof projectedInteractions === "number" && projectedInteractions > 900
           ? {
-              label: activeStage === "published" ? "Tração alta" : "Retenção forte",
-              detail: activeStage === "published" ? "Acima da média." : "Boa chance de retenção cedo.",
+              label: activeStage === "published" ? "Tração alta" : "Interações fortes",
+              detail: activeStage === "published" ? "Acima da média." : "Boa projeção de interações para esse recorte.",
               accent: "from-amber-50 to-orange-50/50",
               border: "border-orange-200/60",
               text: "text-orange-600",
@@ -6793,6 +7241,15 @@ export default function PostCreationFunnelBoardShell({
                               tier={selectedIdeaTier}
                               title={selectedIdeaForProjection.title}
                             />
+
+                            <CollabCreatorsCard
+                              contextLabel={collabCreators.contextLabel}
+                              items={collabCreators.items}
+                              status={collabCreators.status}
+                            />
+                            {!canInteract ? (
+                              <CollabRadarUpsellBanner onActivate={handleActivateCollabRadar} />
+                            ) : null}
 
                             <PautaRayXCard
                               badges={achievementBadges}
@@ -7138,39 +7595,27 @@ export default function PostCreationFunnelBoardShell({
                                 <button
                                   type="button"
                                   onClick={handleOpenReferenceDrawer}
-                                  className="dashboard-glass-pill group mt-5 w-full rounded-[1.25rem] px-4 py-3 text-left transition duration-300 hover:bg-white/[0.13] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
+                                  className="dashboard-glass-pill group mt-5 w-full rounded-[1.25rem] px-4 py-3.5 text-left transition duration-300 hover:bg-white/[0.13] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/30"
                                   aria-label={`Ver ${selectedIdeaReferenceTotal} posts similares usados como base da projeção`}
                                 >
-                                  <div className="flex items-start justify-between gap-3">
+                                  <div className="flex items-center justify-between gap-3">
                                     <div className="min-w-0">
-                                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/40">
-                                        Base da projeção
-                                      </p>
                                       <p className="line-clamp-1 text-sm font-semibold text-white">
                                         {selectedIdeaReferenceTotal}{" "}
                                         {selectedIdeaReferenceTotal === 1 ? "post similar" : "posts similares"}
                                       </p>
-                                      <p className="mt-0.5 text-[10px] font-medium text-white/55">
-                                        Ver conteúdos usados na validação
-                                      </p>
-                                      <p className="mt-0.5 text-[10px] font-medium text-white/40">
-                                        {selectedIdeaProjectionOrigin === "branch"
-                                          ? "do caminho escolhido"
-                                          : activeStage === "published"
-                                            ? "do post conectado"
-                                            : "do seu histórico recente"}
-                                      </p>
                                     </div>
-                                    <span className="mt-0.5 inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-white/15 bg-white/10 px-2.5 text-[10px] font-semibold text-sky-100 transition group-hover:border-white/25 group-hover:bg-white/15 group-hover:text-white">
-                                      Ver referências
+                                    <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-white/15 bg-white/10 px-3 text-[10px] font-semibold text-sky-100 transition group-hover:border-white/25 group-hover:bg-white/15 group-hover:text-white">
+                                      Referências
                                       <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
                                     </span>
                                   </div>
-                                  <div className="mt-2.5 flex items-center">
+                                  <div className="mt-3 flex items-center">
                                     <EvidenceThumbStrip
                                       labelText={null}
                                       maxVisible={5}
                                       posts={selectedIdeaReferencePosts}
+                                      size="lg"
                                       total={selectedIdeaReferenceTotal}
                                     />
                                   </div>

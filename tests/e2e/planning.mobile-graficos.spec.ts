@@ -85,23 +85,23 @@ for (const deviceName of targetDevices) {
       contentBoxes.push({ name: "Tom", box: await expectCardFitsViewport(page, "Tom") });
       expectCardsStacked(contentBoxes as Array<{ name: string; box: NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>> }>);
 
-      await page.getByRole("button", { name: "Formato & Timing" }).click();
+      await page.getByRole("button", { name: "Hora/Tempo" }).click();
       await dismissCookieBanner(page);
       await expect(page.getByRole("heading", { name: "Horário" })).toBeVisible({ timeout: 30_000 });
-      await expectNoHorizontalPageOverflow(page, "Formato & Timing");
+      await expectNoHorizontalPageOverflow(page, "Hora/Tempo");
       const formatBoxes = [];
       formatBoxes.push({ name: "Horário", box: await expectCardFitsViewport(page, "Horário") });
       formatBoxes.push({ name: "Duração", box: await expectCardFitsViewport(page, "Duração") });
       formatBoxes.push({ name: "Semana", box: await expectCardFitsViewport(page, "Semana") });
       expectCardsStacked(formatBoxes as Array<{ name: string; box: NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>> }>);
 
-      await page.getByRole("button", { name: "Sua Audiência" }).click();
+      await page.getByRole("button", { name: "Meus Conteúdos" }).click();
       await dismissCookieBanner(page);
-      await expect(page.getByRole("heading", { name: "Alcance x resposta" })).toBeVisible({ timeout: 30_000 });
-      await expectNoHorizontalPageOverflow(page, "Sua Audiência");
+      await expect(page.getByRole("heading", { name: "Meus conteúdos" })).toBeVisible({ timeout: 30_000 });
+      await expectNoHorizontalPageOverflow(page, "Meus Conteúdos");
       const audienceBoxes = [];
+      audienceBoxes.push({ name: "Meus conteúdos", box: await expectCardFitsViewport(page, "Meus conteúdos") });
       audienceBoxes.push({ name: "Alcance x resposta", box: await expectCardFitsViewport(page, "Alcance x resposta") });
-      audienceBoxes.push({ name: "Posts de descoberta", box: await expectCardFitsViewport(page, "Posts de descoberta") });
       audienceBoxes.push({ name: "Evolução", box: await expectCardFitsViewport(page, "Evolução") });
       expectCardsStacked(audienceBoxes as Array<{ name: string; box: NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>> }>);
 

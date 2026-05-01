@@ -128,7 +128,7 @@ test.describe("Planning graficos - duração real", () => {
     ).toBeTruthy();
     expect(chartsBatchInterceptCount).toBeGreaterThan(0);
     await expect(page.getByText("Carregando duração real...")).toHaveCount(0);
-    await page.getByRole("button", { name: "Formato & Timing" }).click();
+    await page.getByRole("button", { name: "Hora/Tempo" }).click();
 
     await expect(page.getByRole("heading", { name: "Duração", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Cobertura de duração" })).toBeVisible();

@@ -224,7 +224,13 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
 
     const baseAggregation: PipelineStage[] = [
       ...createBasePipeline(),
-      { $addFields: { creatorName: '$creatorInfo.name', creatorAvatarUrl: '$creatorInfo.profile_picture_url' } },
+      {
+        $addFields: {
+          creatorName: '$creatorInfo.name',
+          creatorUsername: '$creatorInfo.username',
+          creatorAvatarUrl: '$creatorInfo.profile_picture_url',
+        },
+      },
       // Se solicitado, filtra apenas criadores com opt-in de comunidade
       ...(args.onlyOptIn ? [{ $match: { 'creatorInfo.communityInspirationOptIn': true } }] as PipelineStage[] : []),
       // Se solicitado, filtra apenas assinantes ativos
@@ -266,7 +272,7 @@ export async function findGlobalPostsByCriteria(args: FindGlobalPostsArgs): Prom
     postsPipeline.push({ $limit: limit });
     postsPipeline.push({
       $project: {
-        _id: 1, text_content: 1, description: 1, creatorName: 1, postDate: 1,
+        _id: 1, text_content: 1, description: 1, creatorName: 1, creatorUsername: 1, postDate: 1,
         creatorAvatarUrl: 1,
         format: 1, proposal: 1, context: 1, tone: 1, references: 1,
         contentIntent: 1, narrativeForm: 1, contentSignals: 1,

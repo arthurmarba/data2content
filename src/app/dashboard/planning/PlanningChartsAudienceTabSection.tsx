@@ -292,12 +292,12 @@ export default function PlanningChartsAudienceTabSection(props: any) {
           comments: toNumber(post?.stats?.comments) ?? 0,
           shares: toNumber(post?.stats?.shares) ?? 0,
           saves: (toNumber(post?.stats?.saved) ?? toNumber(post?.stats?.saves) ?? 0) || 0,
+          durationSeconds: toNumber(post?.stats?.video_duration_seconds),
           thumbnail: post.thumbnailUrl || post.coverUrl || null,
         };
       })
       .filter(Boolean)
-      .sort((a: any, b: any) => (b?.nf ?? 0) - (a?.nf ?? 0))
-      .slice(0, 10);
+      .sort((a: any, b: any) => (b?.reach ?? 0) - (a?.reach ?? 0));
   }, [props.normalizedPosts, props.showAdvancedSections]);
 
   const deepEngagement = useMemo(() => {

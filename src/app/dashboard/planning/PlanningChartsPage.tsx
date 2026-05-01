@@ -527,8 +527,8 @@ type ActiveChartTab = "content" | "format" | "audience" | "directioning";
 
 const CHART_TABS = [
   { id: "content", label: "O que postar" },
-  { id: "format", label: "Formato & Timing" },
-  { id: "audience", label: "Sua Audiência" },
+  { id: "format", label: "Hora/Tempo" },
+  { id: "audience", label: "Meus Conteúdos" },
   { id: "directioning", label: "Próximo passo" },
 ];
 
@@ -3839,8 +3839,7 @@ export default function PlanningChartsPage({
   const compactChartTabs = useMemo(
     () =>
       CHART_TABS
-        .filter((tab) => tab.id !== "directioning")
-        .map((tab) => (tab.id === "format" ? { ...tab, label: "Formato" } : tab)),
+        .filter((tab) => tab.id !== "directioning"),
     []
   );
   const compactObjectiveOptions = useMemo(
@@ -4404,7 +4403,7 @@ export default function PlanningChartsPage({
                     }}
                   />
                 )}
-                {activeTab !== "directioning" && activeTab !== "format" && currentTabBrief && !(isCompactBoard && activeTab === "content") ? (
+                {activeTab !== "directioning" && activeTab !== "format" && activeTab !== "audience" && currentTabBrief && !(isCompactBoard && activeTab === "content") ? (
                   <section className="mb-4">
                     <PlanningChartsStrategicHeroCard
                       variant="inline"
@@ -4533,6 +4532,7 @@ export default function PlanningChartsPage({
                       handleCategoryClick={handleCategoryClick}
                       showAdvancedSections={showAdvancedSections}
                       isAudienceTabActive={isAudienceTabActive}
+                      isCompactBoard={isCompactBoard}
                       postsSource={postsSource}
                       normalizedPosts={normalizedPosts}
                     />

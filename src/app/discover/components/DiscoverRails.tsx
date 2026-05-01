@@ -329,17 +329,6 @@ export default function DiscoverRails({
 
   return (
     <div className={compactView ? "space-y-4" : "space-y-6"}>
-      {(missingThumbs > 0 || hiddenIds.size > 0) && (
-        <div className="rounded-[1.35rem] border border-amber-200/70 bg-amber-50/70 px-4 py-3 text-sm text-amber-900">
-          <p className="font-medium">
-            Removemos {missingThumbs} conteúdo(s) sem capa recente
-            {hiddenIds.size ? ` e ocultamos ${hiddenIds.size} indisponível(eis)` : ""}.
-          </p>
-          <p className="mt-1 text-xs text-amber-800">
-            Reconecte o Instagram em <a className="underline" href="/dashboard/settings">Configurações → Instagram</a> para carregar tudo novamente.
-          </p>
-        </div>
-      )}
       {sectionsWithCover.map((s, sectionIndex) => {
         const title = TITLE_OVERRIDES[s.key] || s.title;
         const description = DESCRIPTIONS[s.key];

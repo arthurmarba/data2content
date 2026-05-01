@@ -79,7 +79,7 @@ describe("postCreationDecisionEngine", () => {
     expect(result.decision.hourId).toBe("19");
     expect(result.decision.proposalId).toBe("framework");
     expect(result.decision.contextId).toBe("planejamento");
-    expect(result.ideaCandidates[0]?.variant.title).toContain("Framework");
+    expect(result.ideaCandidates[0]?.variant.title).toMatch(/framework/i);
   });
 
   it("includes recommendation slots as AI ideas in the candidate pool", () => {
@@ -103,6 +103,89 @@ describe("postCreationDecisionEngine", () => {
     });
 
     expect(result.ideaCandidates.some((candidate) => candidate.variant.source === "ai_idea")).toBe(true);
+  });
+
+  it("keeps five step options even when only one candidate has a cover thumbnail", () => {
+    const contextSlots: PlannerUISlot[] = [
+      "bem-estar",
+      "moda",
+      "beleza",
+      "fitness",
+      "culinaria",
+    ].map((context, index) => ({
+      slotId: `context-${index + 1}`,
+      dayOfWeek: index + 1,
+      blockStartHour: 12,
+      format: "reel",
+      categories: { proposal: ["diagnostico"], context: [context] },
+      status: "planned" as const,
+      title: `Ideia ${index + 1}`,
+      expectedMetrics: {
+        viewsP50: 10000 - index * 500,
+        viewsP90: 22000 - index * 750,
+        sharesP50: 120 - index * 10,
+      },
+      evidencePosts:
+        index === 0
+          ? [
+              {
+                id: "post-with-cover",
+                title: "Post com capa",
+                coverUrl: "https://example.com/cover.jpg",
+                totalInteractions: 1500,
+              },
+            ]
+          : [],
+    }));
+
+    const result = buildPostCreationDecisionEngine(contextSlots, createEmptyPostCreationFunnelState().decision);
+    const contextCheckpoint = result.checkpoints.find((item) => item.step === "context");
+
+    expect(contextCheckpoint?.options).toHaveLength(5);
+    expect(contextCheckpoint?.options[0]?.id).toBe("bem-estar");
+    expect(contextCheckpoint?.options.map((option) => option.id)).toEqual([
+      "bem-estar",
+      "moda",
+      "beleza",
+      "fitness",
+      "culinaria",
+    ]);
+  });
+
+  it("keeps reference posts in option payloads even when they have no cover thumbnail", () => {
+    const result = buildPostCreationDecisionEngine(
+      [
+        {
+          slotId: "no-cover-reference",
+          dayOfWeek: 2,
+          blockStartHour: 12,
+          format: "reel",
+          categories: { proposal: ["diagnostico"], context: ["retencao"] },
+          status: "planned",
+          title: "Ideia com referência sem capa",
+          expectedMetrics: { viewsP50: 10000, viewsP90: 22000, sharesP50: 120 },
+          evidencePosts: [
+            {
+              id: "post-without-cover",
+              title: "Post usado como referência",
+              postLink: "https://instagram.com/p/example",
+              totalInteractions: 1200,
+            },
+          ],
+          evidenceCount: 1,
+        },
+      ],
+      createEmptyPostCreationFunnelState().decision
+    );
+
+    const contextCheckpoint = result.checkpoints.find((item) => item.step === "context");
+
+    expect(contextCheckpoint?.options[0]?.evidencePosts).toEqual([
+      expect.objectContaining({
+        id: "post-without-cover",
+        title: "Post usado como referência",
+      }),
+    ]);
   });
 
   it("deduplicates legacy and V2 intent aliases before rendering options", () => {
@@ -233,7 +316,7 @@ describe("postCreationDecisionEngine", () => {
       }
     );
 
-    expect(result.ideaCandidates[0]?.variant.title).toContain("Framework");
+    expect(result.ideaCandidates[0]?.variant.title).toMatch(/framework/i);
   });
 
   it("matches outcome signals by slotId instead of shared title", () => {
