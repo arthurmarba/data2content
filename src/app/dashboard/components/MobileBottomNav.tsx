@@ -71,11 +71,10 @@ export default function MobileBottomNav() {
   // Ocultar em fluxos guiados ou print
   const isGuidedFlow = pathname === "/dashboard/instagram";
   const isPrintMode = searchParams?.get("print") === "1" || searchParams?.get("print") === "true";
-
   if (isGuidedFlow || isPrintMode) return null;
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-[200] flex h-[calc(env(safe-area-inset-bottom,0px)+4.75rem)] items-start justify-around border-t border-zinc-100 bg-white px-1.5 pb-[env(safe-area-inset-bottom,0px)] pt-3 shadow-[0_-12px_45px_rgba(0,0,0,0.08)] lg:hidden">
+    <nav data-mobile-bottom-nav="true" className="fixed bottom-0 left-0 right-0 z-[200] flex h-[calc(env(safe-area-inset-bottom,0px)+4.75rem)] items-start justify-around border-t border-zinc-100 bg-white px-1.5 pb-[env(safe-area-inset-bottom,0px)] pt-3 shadow-[0_-12px_45px_rgba(0,0,0,0.08)] lg:hidden">
       {navItems.map((item) => {
         const isActive = item.match(pathname || "");
         const Icon = item.icon;

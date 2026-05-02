@@ -1198,17 +1198,17 @@ const ProjectionReferenceSummary = memo(function ProjectionReferenceSummary({
     <button
       type="button"
       onClick={onOpen}
-      className="group w-full rounded-[20px] border border-sky-100/90 bg-sky-50/55 px-3.5 py-3.5 text-left transition duration-300 hover:-translate-y-0.5 hover:border-sky-200 hover:bg-white hover:shadow-[0_14px_28px_rgba(14,165,233,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/60"
+      className="group w-full rounded-[17px] bg-sky-50/70 px-3.5 py-3 text-left transition duration-300 hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/60"
       aria-label={`Ver ${total} ${suffix} usados como base da projeção`}
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="line-clamp-1 text-sm font-semibold leading-5 text-zinc-950">
-            {total} {suffix}
+          <p className="line-clamp-1 text-[13px] font-semibold leading-5 text-zinc-950">
+            Base: {total} {suffix}
           </p>
         </div>
-        <span className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full border border-sky-200/75 bg-white px-3 text-[10px] font-semibold text-sky-700 shadow-[0_6px_14px_rgba(14,165,233,0.08)] transition group-hover:border-sky-300 group-hover:text-sky-800">
-          Referências
+        <span className="inline-flex h-7 shrink-0 items-center gap-1 rounded-full border border-sky-200/75 bg-white px-2.5 text-[10px] font-semibold text-sky-700 transition group-hover:border-sky-300 group-hover:text-sky-800">
+          Ver referências
           <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
         </span>
       </div>
@@ -1789,9 +1789,9 @@ const CompactStageHeader = memo(function CompactStageHeader({
           <button
             type="button"
             onClick={onAction}
-            className="inline-flex h-9 shrink-0 items-center gap-2 rounded-full border border-zinc-200/80 bg-white/76 px-3.5 text-xs font-semibold text-zinc-700 shadow-[0_8px_20px_rgba(15,23,42,0.035)] backdrop-blur-sm transition duration-300 hover:border-zinc-300 hover:bg-white hover:text-zinc-950 active:scale-95 transform-gpu backface-hidden antialiased"
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-zinc-200/70 bg-white/70 px-3 text-[11px] font-semibold text-zinc-600 shadow-[0_6px_16px_rgba(15,23,42,0.03)] backdrop-blur-sm transition duration-300 hover:border-zinc-300 hover:bg-white hover:text-zinc-950 active:scale-95 transform-gpu backface-hidden antialiased"
           >
-            <BookOpen className="h-3.5 w-3.5 opacity-60" />
+            <BookOpen className="h-3 w-3 opacity-55" />
             {actionLabel}
           </button>
         ) : null}
@@ -1883,7 +1883,6 @@ const PathDecisionStage = memo(function PathDecisionStage({
 
 const ProjectionSummaryCard = memo(function ProjectionSummaryCard({
   activeStage,
-  confidencePercent,
   interactions,
   onOpenReferencePosts,
   origin,
@@ -1897,7 +1896,6 @@ const ProjectionSummaryCard = memo(function ProjectionSummaryCard({
   title,
 }: {
   activeStage: PostCreationFunnelStage;
-  confidencePercent: number | null;
   interactions: number | null;
   onOpenReferencePosts: () => void;
   origin: "actual" | "idea" | "branch" | "none";
@@ -1915,12 +1913,6 @@ const ProjectionSummaryCard = memo(function ProjectionSummaryCard({
     { label: "Salvos", value: formatProjectedMetricValue(saves) },
     { label: "Shares", value: formatProjectedMetricValue(shares) },
   ];
-  const heading =
-    activeStage === "published"
-      ? "Engajamento registrado"
-      : origin === "branch"
-        ? "Sinal do recorte"
-        : "Pauta escolhida";
   const metricLabel =
     activeStage === "published" ? "interações registradas" : "interações estimadas";
   const baseLabel =
@@ -1933,36 +1925,28 @@ const ProjectionSummaryCard = memo(function ProjectionSummaryCard({
           : "base recente limitada";
 
   return (
-    <div className="relative w-full overflow-hidden rounded-[28px] border border-zinc-200/78 bg-white px-5 py-5 shadow-[0_12px_36px_rgba(15,23,42,0.035)] transform-gpu backface-hidden antialiased will-change-transform sm:px-6 sm:py-6">
-      <div className="relative border-b border-zinc-100 pb-4">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-400/90">{heading}</p>
-        <h2 className="mt-2 text-[1.28rem] font-semibold leading-tight tracking-[-0.035em] text-zinc-950 sm:text-[1.42rem]">
+    <section className="relative w-full px-1 py-1 transform-gpu backface-hidden antialiased will-change-transform">
+      <div className="relative">
+        <h2 className="text-[1.48rem] font-semibold leading-[1.08] tracking-[-0.045em] text-zinc-950 sm:text-[1.7rem]">
           &ldquo;{title || "Pauta em destaque"}&rdquo;
         </h2>
       </div>
 
       <div className="relative mt-4">
         <div className="flex flex-col">
-          <span className="text-[3.2rem] font-black leading-none tracking-[-0.06em] text-zinc-950 sm:text-[3.5rem]">
+          <span className="text-[3.35rem] font-black leading-none tracking-[-0.065em] text-zinc-950 sm:text-[3.85rem]">
             {typeof interactions === "number" && interactions > 0 ? formatK(interactions) : "—"}
           </span>
           <span className="mt-0.5 text-[11px] font-semibold leading-4 text-zinc-500">{metricLabel}</span>
         </div>
-
-        {confidencePercent ? (
-          <div className="mt-4 flex w-full flex-col gap-2">
-            <div className="flex w-full justify-between text-[11px] font-semibold text-zinc-500">
-              <span>Confiança da IA</span>
-              <span className="text-zinc-800">{confidencePercent}%</span>
+        <div className="mt-3 grid w-full grid-cols-3 gap-3">
+          {metrics.map((metric) => (
+            <div key={metric.label} className="flex flex-col justify-center">
+              <p className="text-[1rem] font-semibold tracking-tight text-zinc-900">{metric.value}</p>
+              <p className="mt-1 text-[10px] font-semibold text-zinc-400">{metric.label}</p>
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white shadow-inner">
-              <div
-                className="h-full rounded-full bg-gradient-to-r from-sky-400 via-blue-400 to-indigo-400 opacity-90 transition-all duration-1000 ease-out"
-                style={{ width: `${confidencePercent}%` }}
-              />
-            </div>
-          </div>
-        ) : null}
+          ))}
+        </div>
       </div>
 
       <div className="relative mt-4">
@@ -1972,16 +1956,8 @@ const ProjectionSummaryCard = memo(function ProjectionSummaryCard({
           posts={referencePosts}
           total={referenceTotal}
         />
-        <div className="mt-4 grid w-full grid-cols-3">
-          {metrics.map((metric) => (
-            <div key={metric.label} className="flex flex-col justify-center text-center">
-              <p className="text-[0.95rem] font-semibold tracking-tight text-zinc-900">{metric.value}</p>
-              <p className="mt-1 text-[10px] font-semibold text-zinc-400">{metric.label}</p>
-            </div>
-          ))}
-        </div>
       </div>
-    </div>
+    </section>
   );
 });
 
@@ -1999,165 +1975,118 @@ const CollabCreatorsCard = memo(function CollabCreatorsCard({
   const isLoading = status === "loading";
 
   return (
-    <div className="w-full overflow-hidden rounded-[26px] border border-zinc-200/78 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.03)] transform-gpu backface-hidden antialiased will-change-transform">
-      <div className="flex items-start gap-3 px-5 pb-4 pt-5">
-        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[12px] border border-indigo-100 bg-indigo-50 text-indigo-600">
-          <Users className="h-3.5 w-3.5" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
-            Collab sugerida
+    <section className="mt-4 w-full rounded-[24px] bg-[linear-gradient(180deg,rgba(250,250,251,0.86)_0%,rgba(248,249,252,0.58)_100%)] px-3 py-4 ring-1 ring-white/70 transform-gpu backface-hidden antialiased will-change-transform">
+      <div className="min-w-0 px-1">
+        <p className="text-[9.5px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
+          Parcerias sugeridas
+        </p>
+        <h3 className="mt-1.5 text-[1rem] font-semibold leading-tight tracking-[-0.025em] text-zinc-950">
+          Collabs que combinam
+        </h3>
+        <p className="mt-1 text-[12px] font-medium leading-5 text-zinc-500">
+          Criadores com audiência próxima desta pauta.
+        </p>
+        {contextLabel ? (
+          <p className="mt-2 inline-flex max-w-full rounded-full bg-white/72 px-2 py-1 text-[10.5px] font-bold leading-4 text-zinc-500 ring-1 ring-zinc-200/55">
+            {contextLabel}
           </p>
-          <h3 className="mt-1 text-[1rem] font-semibold leading-tight tracking-[-0.025em] text-zinc-950">
-            {contextLabel ? `Top 3 em ${contextLabel}` : "Top 3 para collab"}
-          </h3>
-          <p className="mt-1 text-[12px] font-medium leading-5 text-zinc-500">
-            Criadores com sinais próximos da pauta.
-          </p>
-        </div>
+        ) : null}
       </div>
 
-      <div className="grid gap-3 px-4 pb-4">
+      <div className="mt-3.5 space-y-1">
         {isLoading
           ? Array.from({ length: 3 }).map((_, index) => (
-              <div key={`collab-skeleton-${index}`} className="grid animate-pulse grid-cols-[3.5rem_minmax(0,1fr)] gap-x-3 gap-y-3 rounded-[22px] bg-zinc-50/70 px-3 py-3">
-                <div className="h-14 w-14 rounded-full bg-zinc-100" />
+              <div key={`collab-skeleton-${index}`} className="grid animate-pulse grid-cols-[3.35rem_minmax(0,1fr)_4.5rem] items-center gap-x-3 rounded-[18px] px-1.5 py-3">
+                <div className="h-12 w-12 rounded-full bg-zinc-100" />
                 <div className="min-w-0 flex-1 space-y-2">
                   <div className="h-3 w-32 rounded bg-zinc-100" />
                   <div className="h-2.5 w-full max-w-[220px] rounded bg-zinc-100/80" />
                 </div>
-                <div className="col-span-2 grid grid-cols-2 gap-2">
-                  {Array.from({ length: 4 }).map((__, metricIndex) => (
-                    <div key={`collab-skeleton-metric-${index}-${metricIndex}`} className="rounded-[14px] bg-zinc-100/70 px-3 py-2.5">
-                      <div className="h-2 w-16 rounded bg-zinc-200/70" />
-                      <div className="mt-2 h-3 w-12 rounded bg-zinc-200/80" />
-                    </div>
-                  ))}
+                <div className="space-y-2">
+                  <div className="h-2 w-14 rounded bg-zinc-100" />
+                  <div className="h-3 w-16 rounded bg-zinc-100" />
                 </div>
               </div>
             ))
           : items.length
             ? items.map((creator) => {
-                const metrics = [
-                  {
-                    label: "Alcance",
-                    value: formatProjectedMetricValue(creator.avgReach),
-                  },
-                  {
-                    label: "Interações",
-                    value: formatProjectedMetricValue(creator.avgInteractions),
-                  },
-                  {
-                    label: "Seguidores",
-                    value: formatProjectedMetricValue(creator.followers),
-                  },
-                  {
-                    label: "Base",
-                    value:
-                      typeof creator.postCount === "number" && Number.isFinite(creator.postCount) && creator.postCount > 0
-                        ? `${formatCompactNumber(creator.postCount)} posts`
-                      : "—",
-                  },
-                ].filter((metric) => metric.value !== "—");
+                const reachValue = formatProjectedMetricValue(creator.avgReach);
+                const interactionValue = formatProjectedMetricValue(creator.avgInteractions);
 
                 return (
                   <div
                     key={creator.id}
-                    className="rounded-[22px] border border-zinc-100/90 bg-white px-3.5 py-3.5 transition duration-300 hover:bg-zinc-50/35"
+                    className="grid grid-cols-[54px_minmax(0,1fr)_4.7rem] items-center gap-x-3 rounded-[18px] px-1.5 py-3 transition duration-300 hover:bg-white/65"
                   >
-                    <div className="grid grid-cols-[52px_minmax(0,1fr)] items-start gap-3">
-                      <div className="relative h-[52px] w-[52px] shrink-0">
-                        <div className="relative h-[52px] w-[52px] overflow-hidden rounded-full border-2 border-white bg-zinc-100 shadow-sm ring-1 ring-zinc-200/70">
-                          {creator.avatarUrl ? (
-                            <Image
-                              src={creator.avatarUrl}
-                              alt=""
-                              fill
-                              className="object-cover"
-                              sizes="52px"
-                            />
-                          ) : (
-                            <span className="flex h-full w-full items-center justify-center text-[16px] font-bold text-zinc-500">
-                              {getInitials(creator.name)}
-                            </span>
-                          )}
-                        </div>
-                        <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full border-2 border-white bg-zinc-950 px-1 text-[10px] font-bold text-white shadow-sm">
-                          {creator.rank}
-                        </span>
-                      </div>
-
-                      <div className="min-w-0 pt-0.5">
-                        <div className="min-w-0">
-                          <p className="break-words text-[14px] font-bold leading-[1.15] text-zinc-950">
-                            {creator.name}
-                          </p>
-                        </div>
-
-                        <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                          {creator.username ? (
-                            <p className="break-all text-[11px] font-semibold leading-4 text-zinc-400">
-                              @{creator.username}
-                            </p>
-                          ) : null}
-                          {creator.mediaKitSlug ? (
-                            <a
-                              href={`/mediakit/${creator.mediaKitSlug}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="group inline-flex items-center gap-1 text-[11px] font-bold leading-4 text-indigo-600 transition duration-300 hover:text-indigo-800"
-                              aria-label={`Abrir mídia kit de ${creator.name}`}
-                            >
-                              Mídia kit
-                              <ArrowRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-0.5" />
-                            </a>
-                          ) : null}
-                          {creator.matchedTheme ? (
-                            <span className="inline-flex rounded-full bg-indigo-50 px-2 py-1 text-[9px] font-bold uppercase leading-3 text-indigo-600">
-                              Tema próximo
-                            </span>
-                          ) : null}
-                        </div>
+                    <div className="relative h-[54px] w-[54px] shrink-0">
+                      <div className="relative h-[54px] w-[54px] overflow-hidden rounded-full border-2 border-white bg-zinc-100 shadow-sm ring-1 ring-zinc-200/70">
+                        {creator.avatarUrl ? (
+                          <Image
+                            src={creator.avatarUrl}
+                            alt=""
+                            fill
+                            className="object-cover"
+                            sizes="54px"
+                          />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center text-[16px] font-bold text-zinc-500">
+                            {getInitials(creator.name)}
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    {metrics.length ? (
-                      <div className="mt-3 grid grid-cols-2 gap-2">
-                        {metrics.map((metric, metricIndex) => (
-                          <div
-                            key={metric.label}
-	                            className={cn(
-	                              "min-w-0 rounded-[14px] px-3 py-2.5",
-	                              metricIndex === 0
-	                                ? "border border-indigo-100 bg-indigo-50/80 text-zinc-950"
-	                                : "border border-zinc-100 bg-zinc-50/65 text-zinc-800",
-	                            )}
-	                          >
-                            <p
-	                              className={cn(
-	                                "text-[8.5px] font-bold uppercase leading-3 tracking-[0.08em]",
-	                                metricIndex === 0 ? "text-indigo-500" : "text-zinc-400",
-	                              )}
-                            >
-                              {metric.label}
-                            </p>
-                            <p className="mt-1 text-[12px] font-black leading-4 tracking-[-0.02em]">
-                              {metric.value}
-                            </p>
-                          </div>
-                        ))}
+                    <div className="min-w-0">
+                      <p className="break-words text-[14px] font-bold leading-[1.15] text-zinc-950">
+                        {creator.name}
+                      </p>
+
+                      <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                        {creator.username ? (
+                          <p className="break-all text-[11px] font-semibold leading-4 text-zinc-400">
+                            @{creator.username}
+                          </p>
+                        ) : null}
+                        {creator.mediaKitSlug ? (
+                          <a
+                            href={`/mediakit/${creator.mediaKitSlug}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="group inline-flex items-center gap-1 text-[11px] font-bold leading-4 text-indigo-600 transition duration-300 hover:text-indigo-800"
+                            aria-label={`Abrir mídia kit de ${creator.name}`}
+                          >
+                            Mídia kit
+                            <ArrowRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-0.5" />
+                          </a>
+                        ) : null}
                       </div>
-                    ) : null}
+
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-semibold leading-4 text-zinc-500">
+                        <span>
+                          <span className="text-zinc-400">Interações </span>
+                          <span className="text-zinc-900">{interactionValue}</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <p className="text-[13px] font-black leading-4 tracking-[-0.02em] text-zinc-950">
+                        {reachValue}
+                      </p>
+                      <p className="mt-1 text-[9px] font-semibold lowercase leading-3 text-zinc-400">
+                        alcance
+                      </p>
+                    </div>
                   </div>
                 );
               })
             : (
-                <div className="rounded-[18px] border border-dashed border-zinc-200 bg-zinc-50/70 px-4 py-4 text-[12px] font-medium leading-5 text-zinc-500">
+                <div className="rounded-[18px] bg-zinc-50/70 px-4 py-4 text-[12px] font-medium leading-5 text-zinc-500">
                   Ainda não há base suficiente para sugerir criadores de collab nesse recorte.
                 </div>
               )}
       </div>
-    </div>
+    </section>
   );
 });
 
@@ -2273,27 +2202,6 @@ const AchievementBadgeCards = memo(function AchievementBadgeCards({
   );
 });
 
-const ConfigurationPills = memo(function ConfigurationPills({
-  items,
-}: {
-  items: SelectedConfigurationItem[];
-}) {
-  return (
-    <div className="flex flex-wrap items-center gap-2 pt-1">
-      {items.map((item) => (
-        <div
-          key={item.label}
-          className="flex items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 shadow-sm transform-gpu backface-hidden antialiased"
-        >
-          <item.icon className="h-3.5 w-3.5 text-zinc-400" />
-          <span className="text-[11px] font-semibold text-zinc-400">{item.label}:</span>
-          <span className="max-w-[120px] truncate text-[12px] text-zinc-700">{item.value}</span>
-        </div>
-      ))}
-    </div>
-  );
-});
-
 const ConfigurationGrid = memo(function ConfigurationGrid({
   items,
 }: {
@@ -2319,124 +2227,33 @@ const ConfigurationGrid = memo(function ConfigurationGrid({
   );
 });
 
-const PautaRayXCard = memo(function PautaRayXCard({
-  badges,
-  configurationItems,
-  confidencePercent,
-  isDiscardingSavedPauta,
-  isSaved,
-  isSelectedCandidate,
-  savedSlot,
-  onDiscardSavedPauta,
-}: {
-  badges: AchievementBadgeItem[];
-  configurationItems: SelectedConfigurationItem[];
-  confidencePercent: number | null;
-  isDiscardingSavedPauta: boolean;
-  isSaved: boolean;
-  isSelectedCandidate: boolean;
-  savedSlot: PlannerUISlot | null;
-  onDiscardSavedPauta: (slot: PlannerUISlot) => void;
-}) {
-  return (
-    <div className="mt-2 flex w-full flex-col transform-gpu backface-hidden antialiased">
-      <div className="overflow-hidden rounded-[28px] border border-zinc-200 bg-white p-6 shadow-[0_12px_40px_rgba(0,0,0,0.03)]">
-        <p className="mb-5 text-sm font-semibold text-zinc-500">
-          Raio-X da Pauta
-        </p>
-
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center gap-4 border-b border-zinc-100 pb-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-sky-200 bg-sky-50">
-              <Sparkles className="h-5 w-5 text-sky-600" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="mb-0.5 flex items-center justify-between">
-                <p className="truncate text-[11px] font-semibold text-zinc-400">
-                  {isSelectedCandidate ? "Match Perfeito" : "Insight"}
-                </p>
-                {confidencePercent ? (
-                  <p className="ml-2 shrink-0 text-[10px] font-bold text-zinc-400">{confidencePercent}%</p>
-                ) : null}
-              </div>
-              <p className="truncate text-[14px] font-bold text-zinc-900">
-                {isSelectedCandidate ? "Melhor leitura do recorte" : "Leitura promissora"}
-              </p>
-            </div>
-          </div>
-
-          {badges.slice(0, 2).map((badge) => (
-            <div key={badge.label} className="flex items-center gap-4 border-b border-zinc-100 pb-4">
-              <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-full border bg-zinc-50", badge.border)}>
-                <badge.icon className={cn("h-5 w-5", badge.text)} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="mb-0.5 truncate text-[11px] font-semibold text-zinc-400">
-                  Desbloqueado
-                </p>
-                <p className="truncate text-[14px] font-bold text-zinc-900">{badge.label}</p>
-              </div>
-            </div>
-          ))}
-
-          {isSaved ? (
-            <div className="flex items-center gap-4 border-b border-zinc-100 pb-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-emerald-200 bg-emerald-100">
-                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-              </div>
-              <div className="flex min-w-0 flex-1 items-center justify-between">
-                <div className="min-w-0 pr-3">
-                  <p className="mb-0.5 truncate text-[11px] font-semibold text-zinc-400">
-                    Status
-                  </p>
-                  <p className="truncate text-[14px] font-bold text-zinc-900">Pauta salva no planejamento</p>
-                </div>
-                {savedSlot ? (
-                  <button
-                    type="button"
-                    onClick={() => onDiscardSavedPauta(savedSlot)}
-                    disabled={isDiscardingSavedPauta}
-                    className="flex h-8 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white px-4 text-[10px] font-bold uppercase tracking-[0.18em] text-rose-600 shadow-sm transition duration-300 hover:border-rose-200 hover:bg-rose-50 disabled:opacity-50"
-                  >
-                    {isDiscardingSavedPauta ? "..." : "Desfazer"}
-                  </button>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-
-          <ConfigurationPills items={configurationItems} />
-        </div>
-      </div>
-    </div>
-  );
-});
-
 const IdeaActionButtons = memo(function IdeaActionButtons({
   buttonTone = "dark",
+  className,
   hasPostLink = false,
   isPublished = false,
   isSaving,
   isSaved,
   onOpenPublished,
-	  onOpenLinkGallery,
-	  onReset,
-	  onSave,
-	  resetLabel = "Criar nova pauta",
-	  saveLabel = "Salvar pauta",
-	}: {
+  onOpenLinkGallery,
+  onReset,
+  onSave,
+  resetLabel = "Criar nova pauta",
+  saveLabel = "Salvar pauta",
+}: {
   buttonTone?: "dark" | "light";
+  className?: string;
   hasPostLink?: boolean;
   isPublished?: boolean;
   isSaving: boolean;
   isSaved: boolean;
   onOpenPublished?: () => void;
   onOpenLinkGallery?: () => void;
-	  onReset: () => void;
-	  onSave: () => void;
-	  resetLabel?: string;
-	  saveLabel?: string;
-	}) {
+  onReset: () => void;
+  onSave: () => void;
+  resetLabel?: string;
+  saveLabel?: string;
+}) {
   const primaryClassName = cn(
     FUNNEL_BUTTON_PRIMARY_CLASS,
     buttonTone === "light" && "!text-white transform-gpu backface-hidden antialiased"
@@ -2453,7 +2270,7 @@ const IdeaActionButtons = memo(function IdeaActionButtons({
 
   if (!isPublished && isSaved) {
     return (
-      <div className="mt-4 grid w-full gap-3 sm:mt-0 sm:grid-cols-2">
+      <div className={cn("mt-4 grid w-full gap-3 sm:mt-0 sm:grid-cols-2", className)}>
         <button type="button" onClick={onReset} className={primaryClassName}>
           <span className={shimmerClassName} />
           <span className={contentClassName}>
@@ -2466,7 +2283,7 @@ const IdeaActionButtons = memo(function IdeaActionButtons({
   }
 
   return (
-    <div className="mt-4 grid w-full gap-3 sm:mt-0 sm:grid-cols-2">
+    <div className={cn("mt-4 grid w-full gap-3 sm:mt-0 sm:grid-cols-2", className)}>
       {isPublished ? (
         <>
           <button type="button" onClick={onOpenPublished} className={FUNNEL_BUTTON_PRIMARY_CLASS}>
@@ -2485,7 +2302,7 @@ const IdeaActionButtons = memo(function IdeaActionButtons({
           <button type="button" onClick={onSave} disabled={isSaving} className={primaryClassName}>
             <span className={shimmerClassName} />
             <span className={contentClassName}>
-	              {isSaving ? "Salvando pauta..." : saveLabel}
+              {isSaving ? "Salvando pauta..." : saveLabel}
               {isSaving ? (
                 <div
                   className={cn(
@@ -2498,9 +2315,9 @@ const IdeaActionButtons = memo(function IdeaActionButtons({
               )}
             </span>
           </button>
-	          <button type="button" onClick={onReset} className={FUNNEL_BUTTON_SECONDARY_CLASS}>
-	            {resetLabel}
-	          </button>
+          <button type="button" onClick={onReset} className={FUNNEL_BUTTON_SECONDARY_CLASS}>
+            {resetLabel}
+          </button>
         </>
       )}
     </div>
@@ -4714,11 +4531,8 @@ export default function PostCreationFunnelBoardShell({
     if (selectedDraftId) {
       return `draft:${selectedDraftId}`;
     }
-    if (!selectedSlotId && !selectedScriptId) {
-      return "latest";
-    }
     return "none";
-  }, [selectedDraftId, selectedScriptId, selectedSlotId]);
+  }, [selectedDraftId]);
 
   useEffect(() => {
     startTransition(() => {
@@ -4734,14 +4548,7 @@ export default function PostCreationFunnelBoardShell({
       return;
     }
 
-    const shouldLoadLatest = draftHydrationTarget === "latest";
-    if (shouldLoadLatest && skipLatestDraftHydrationRef.current) {
-      setHasHydratedDraft(true);
-      setDraftId(null);
-      hydratedDraftIdRef.current = null;
-      return;
-    }
-    if (draftHydrationTarget === "none") {
+    if (draftHydrationTarget === "none" || !selectedDraftId) {
       setHasHydratedDraft(true);
       return;
     }
@@ -4751,9 +4558,7 @@ export default function PostCreationFunnelBoardShell({
     }
 
     const controller = new AbortController();
-    const endpoint = selectedDraftId
-      ? `/api/post-creation/drafts/${encodeURIComponent(selectedDraftId)}`
-      : "/api/post-creation/drafts?latest=1";
+    const endpoint = `/api/post-creation/drafts/${encodeURIComponent(selectedDraftId)}`;
 
     const loadDraft = async () => {
       try {
@@ -6291,11 +6096,13 @@ export default function PostCreationFunnelBoardShell({
           if (!draftId || draftId !== item.id) {
             hydratedDraftIdRef.current = item.id;
             setDraftId(item.id);
-            updateSelectionParams({
-              draftId: item.id,
-              slotId: payload.selectedSlotId,
-              scriptId: payload.selectedScriptId,
-            });
+            if (selectedDraftId) {
+              updateSelectionParams({
+                draftId: item.id,
+                slotId: payload.selectedSlotId,
+                scriptId: payload.selectedScriptId,
+              });
+            }
           }
         } catch {
           return;
@@ -6319,6 +6126,7 @@ export default function PostCreationFunnelBoardShell({
     normalizedViewer.id,
     resolvedSelectedScriptId,
     resolvedSelectedSlotId,
+    selectedDraftId,
     updateSelectionParams,
   ]);
 
@@ -6523,8 +6331,8 @@ export default function PostCreationFunnelBoardShell({
   const headerGoalLabel =
     activeStage === "path"
       ? activeStepMeta?.goal || "Direção editorial"
-      : activeStage === "idea"
-        ? "Resultado"
+    : activeStage === "idea"
+        ? "Pauta final"
         : activeStage === "blueprint"
           ? "Direção"
         : activeStage === "published"
@@ -6539,8 +6347,10 @@ export default function PostCreationFunnelBoardShell({
           ? "Retomar publicação"
           : "Retomar criação";
   const headerActionLabel =
-    activeStage === "path" || activeStage === "idea"
+    activeStage === "path"
       ? "Pautas salvas"
+      : activeStage === "idea"
+        ? "Salvas"
       : activeStage === "blueprint"
         ? linkedBlueprintScript?.id && hasInlineBlueprintScriptDraft
           ? null
@@ -7198,37 +7008,19 @@ export default function PostCreationFunnelBoardShell({
                         />
                       ) : activeStage === "idea" && selectedIdeaForProjection ? (
                         <main className="flex-1 pb-4 sm:pb-20">
-                          <div className="flex flex-1 flex-col items-center gap-4">
+                          <div className="flex flex-1 flex-col items-stretch gap-4">
                             <FunnelConfetti
                               burstKey={`idea-${selectedIdeaForProjection.id || "strategy"}`}
                               variant="success"
-                              originSelector='[data-confetti-origin="post-creation-achievement-legacy"]'
+                              originSelector='[data-confetti-origin="post-creation-final-status"]'
                             />
 
-                            <div className="w-full rounded-[22px] border border-zinc-200/64 bg-white/72 px-4 py-4 shadow-[0_10px_26px_rgba(15,23,42,0.028)] transform-gpu backface-hidden antialiased will-change-transform">
-                              <div className="flex items-start gap-3">
-                                <div
-                                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] border border-amber-200/66 bg-amber-50/82 text-amber-600"
-                                  data-confetti-origin="post-creation-achievement-legacy"
-                                >
-                                  <Trophy className="h-4.5 w-4.5" />
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <h1 className="text-[1.35rem] font-semibold leading-tight tracking-[-0.04em] text-zinc-950 sm:text-[1.55rem]">
-                                    Pauta validada
-                                  </h1>
-                                  <p className="mt-1 text-sm leading-5 text-zinc-500">
-                                    {isSelectedIdeaSaved
-                                      ? "Esta pauta foi salva. Veja a projeção ou crie outra opção."
-                                      : "Revise a projeção e salve a pauta para retomar depois."}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
+                            <span className="sr-only" data-confetti-origin="post-creation-final-status">
+                              {isSelectedIdeaSaved ? "Pauta salva" : "Pauta validada"}
+                            </span>
 
                             <ProjectionSummaryCard
                               activeStage={activeStage}
-                              confidencePercent={selectedIdeaConfidencePercent}
                               interactions={projectedInteractions}
                               onOpenReferencePosts={handleOpenReferenceDrawer}
                               origin={selectedIdeaProjectionOrigin}
@@ -7251,27 +7043,29 @@ export default function PostCreationFunnelBoardShell({
                               <CollabRadarUpsellBanner onActivate={handleActivateCollabRadar} />
                             ) : null}
 
-                            <PautaRayXCard
-                              badges={achievementBadges}
-                              configurationItems={selectedConfigurationItems}
-                              confidencePercent={selectedIdeaConfidencePercent}
-                              isDiscardingSavedPauta={isDiscardingCurrentSavedPauta}
-                              isSaved={isSelectedIdeaSaved}
-                              isSelectedCandidate={selectedIdeaCandidate?.variant.id === selectedIdeaForProjection.id}
-                              savedSlot={selectedSavedPautaSlot}
-                              onDiscardSavedPauta={handleDiscardSavedPauta}
-                            />
-
-                            <div className="flex-1" />
-                            <IdeaActionButtons
-                              buttonTone="light"
-                              isSaving={isSavingIdeaPauta}
-                              isSaved={isSelectedIdeaSaved}
-	                              onReset={handleResetFunnel}
-	                              onSave={handleSaveIdeaPauta}
-	                              resetLabel={gatedResetLabel}
-	                              saveLabel={gatedSaveLabel}
-	                            />
+                            <div className="min-h-2 flex-1" />
+                            <div className="mt-1 border-t border-zinc-200/60 pb-2 pt-4">
+                              <IdeaActionButtons
+                                buttonTone="light"
+                                className="mt-0"
+                                isSaving={isSavingIdeaPauta}
+                                isSaved={isSelectedIdeaSaved}
+                                onReset={handleResetFunnel}
+                                onSave={handleSaveIdeaPauta}
+                                resetLabel={isTrialViewer && trialPautaConsumed ? gatedResetLabel : "Gerar outra pauta"}
+                                saveLabel={gatedSaveLabel}
+                              />
+                            </div>
+                            {isSelectedIdeaSaved && selectedSavedPautaSlot ? (
+                              <button
+                                type="button"
+                                onClick={() => void handleDiscardSavedPauta(selectedSavedPautaSlot)}
+                                disabled={isDiscardingCurrentSavedPauta}
+                                className="mx-auto -mt-1 inline-flex h-9 items-center justify-center rounded-full px-4 text-[12px] font-semibold text-rose-600 transition duration-300 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-default disabled:opacity-60"
+                              >
+                                {isDiscardingCurrentSavedPauta ? "Descartando pauta..." : "Descartar pauta salva"}
+                              </button>
+                            ) : null}
                             {ideaSaveError ? (
                               <p className="w-full text-sm text-rose-600">{ideaSaveError}</p>
                             ) : null}
@@ -7669,12 +7463,12 @@ export default function PostCreationFunnelBoardShell({
                           isSaving={isSavingIdeaPauta}
                           isSaved={isSelectedIdeaSaved}
                           onOpenPublished={handleOpenPublishedStep}
-	                          onOpenLinkGallery={handleOpenLinkGallery}
-	                          onReset={handleResetFunnel}
-	                          onSave={handleSaveIdeaPauta}
-	                          resetLabel={gatedResetLabel}
-	                          saveLabel={gatedSaveLabel}
-	                        />
+                          onOpenLinkGallery={handleOpenLinkGallery}
+                          onReset={handleResetFunnel}
+                          onSave={handleSaveIdeaPauta}
+                          resetLabel={gatedResetLabel}
+                          saveLabel={gatedSaveLabel}
+                        />
                         {discardSavedPautaError ? (
                           <p className="w-full text-sm text-rose-600">{discardSavedPautaError}</p>
                         ) : null}
