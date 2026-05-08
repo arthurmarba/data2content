@@ -68,13 +68,29 @@ export interface IBrandNarrativeReportMetricsSummary {
   topInteractions?: number | null;
 }
 
+export interface IBrandNarrativeReportNarrativeFormulaStep {
+  title: string;
+  description: string;
+}
+
+export interface IBrandNarrativeReportActivationPlanStep {
+  title: string;
+  description: string;
+}
+
 export interface IBrandNarrativeReportContent {
   headline: string;
   executiveSummary: string;
   narrativeThesis: string;
+  narrativeFormula?: IBrandNarrativeReportNarrativeFormulaStep[];
   brandFit: string;
+  evidenceReading?: string;
   organicProof: string;
+  campaignConcept?: string;
   campaignIdea: string;
+  activationPlan?: IBrandNarrativeReportActivationPlanStep[];
+  brandRole?: string;
+  commercialClose?: string;
   suggestedExecution: string[];
   creatorApproachMessage: string;
   disclaimer: string;
@@ -223,14 +239,36 @@ const BrandReportMetricsSummarySchema = new Schema<IBrandNarrativeReportMetricsS
   { _id: false }
 );
 
+const BrandReportNarrativeFormulaStepSchema = new Schema<IBrandNarrativeReportNarrativeFormulaStep>(
+  {
+    title: { type: String, required: true, trim: true },
+    description: { type: String, required: true, trim: true },
+  },
+  { _id: false }
+);
+
+const BrandReportActivationPlanStepSchema = new Schema<IBrandNarrativeReportActivationPlanStep>(
+  {
+    title: { type: String, required: true, trim: true },
+    description: { type: String, required: true, trim: true },
+  },
+  { _id: false }
+);
+
 const BrandReportContentSchema = new Schema<IBrandNarrativeReportContent>(
   {
     headline: { type: String, required: true, trim: true },
     executiveSummary: { type: String, required: true, trim: true },
     narrativeThesis: { type: String, required: true, trim: true },
+    narrativeFormula: { type: [BrandReportNarrativeFormulaStepSchema], default: undefined },
     brandFit: { type: String, required: true, trim: true },
+    evidenceReading: { type: String, trim: true, default: undefined },
     organicProof: { type: String, required: true, trim: true },
+    campaignConcept: { type: String, trim: true, default: undefined },
     campaignIdea: { type: String, required: true, trim: true },
+    activationPlan: { type: [BrandReportActivationPlanStepSchema], default: undefined },
+    brandRole: { type: String, trim: true, default: undefined },
+    commercialClose: { type: String, trim: true, default: undefined },
     suggestedExecution: { type: [String], default: [], set: normalizeStringArray },
     creatorApproachMessage: { type: String, required: true, trim: true },
     disclaimer: { type: String, required: true, trim: true },

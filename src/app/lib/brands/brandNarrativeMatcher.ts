@@ -21,6 +21,7 @@ const SCORE_NORMALIZATION_DENOMINATOR = 110;
 const CLEAR_DOMAIN_LOW_ANCHOR_SCORE_CAP = 0.6;
 const CLEAR_DOMAIN_NO_ANCHOR_SCORE_CAP = 0.55;
 const CHILD_FAMILY_NO_CONTEXT_SCORE_CAP = 0.39;
+const SPORT_NO_CONTEXT_SCORE_CAP = 0.39;
 const MAX_MATCH_SCORE = 0.96;
 
 type BrandNarrativeProfileLike = Pick<
@@ -277,6 +278,31 @@ const DOMAIN_ANCHORS: Record<string, string[]> = {
     'rotina digital',
     'bem estar digital',
   ],
+  noise_sleep_comfort: [
+    'barulho',
+    'vizinho',
+    'som',
+    'som alto',
+    'ruido',
+    'descanso interrompido',
+    'relaxamento interrompido',
+    'tentar relaxar',
+    'sono',
+    'dormir',
+    'pausa interrompida',
+    'casa',
+    'conforto',
+    'silencio',
+    'fone',
+    'fone de ouvido',
+    'cancelamento de ruido',
+    'audio',
+    'musica',
+    'caixa de som',
+    'rotina domestica',
+    'caos domestico',
+    'humor cotidiano',
+  ],
 };
 
 const STOP_WORDS = new Set([
@@ -317,6 +343,9 @@ type NarrativeContext = {
   hasLifestyleWellness: boolean;
   hasDomesticChaos: boolean;
   hasDigitalWellbeing: boolean;
+  hasNoiseSleepComfort: boolean;
+  hasWeakRelaxOnly: boolean;
+  hasSportContext: boolean;
   hasChildFamilyContext: boolean;
   contextualSignals: string[];
 };
@@ -360,6 +389,58 @@ const CHILD_FAMILY_INPUT_ANCHORS = [
   'rotina com bebe',
   'casa com crianca',
   'casa com criancas',
+];
+
+const SPORT_BRAND_TERMS = [
+  'adidas',
+  'nike',
+  'asics',
+  'garmin',
+  'olympikus',
+  'decathlon',
+  'track field',
+  'trackfield',
+  'centauro',
+  'gatorade',
+  'growth supplements',
+  'integralmedica',
+  'esporte',
+  'esportivo',
+  'corrida',
+  'corrida de rua',
+  'performance',
+  'treino',
+  'prova esportiva',
+  'lifestyle esportivo',
+  'tenis de corrida',
+  'tenis de performance',
+  'isotonico',
+  'hidratacao esportiva',
+  'pace',
+  'longao',
+  'atleta',
+  'fitness',
+];
+
+const SPORT_BRAND_NAME_TERMS = SPORT_BRAND_TERMS.slice(0, 12);
+
+const SPORT_INPUT_ANCHORS = [
+  'corrida',
+  'corrida de rua',
+  'treino',
+  'prova',
+  'prova esportiva',
+  'meia maratona',
+  'maratona',
+  'academia',
+  'esporte',
+  'performance',
+  'atleta',
+  'tenis de corrida',
+  'hidratacao esportiva',
+  'fitness',
+  'pace',
+  'longao',
 ];
 
 function clamp(value: number, min: number, max: number): number {
@@ -463,6 +544,56 @@ export function buildNarrativeInputTerms(input: BrandNarrativeMatchInput): strin
   ]);
 
   return terms;
+}
+
+function buildNarrativeInputSearchText(input: BrandNarrativeMatchInput): string {
+  const categories = input.categories || {};
+  const pauta = input.pauta || {};
+  return normalizeNarrativeTerm(
+    [
+      pauta.title,
+      pauta.description,
+      pauta.reason,
+      pauta.theme,
+      ...(Array.isArray(pauta.keywords) ? pauta.keywords : []),
+      ...(categories.context || []),
+      ...(categories.proposal || []),
+      ...(categories.contentIntent || []),
+      ...(categories.narrativeForm || []),
+      ...(categories.contentSignals || []),
+      ...(categories.proofStyle || []),
+      ...(categories.commercialMode || []),
+    ]
+      .filter(Boolean)
+      .join(' ')
+  );
+}
+
+function hasRawInputPhrase(searchText: string, value: string): boolean {
+  const normalized = normalizeNarrativeTerm(value);
+  return searchText === normalized || phraseIncludesTerm(searchText, normalized);
+}
+
+function hasWeakRelaxOnlyInInput(input: BrandNarrativeMatchInput): boolean {
+  const searchText = buildNarrativeInputSearchText(input);
+  if (!hasRawInputPhrase(searchText, 'relaxar')) return false;
+  return ![
+    'autocuidado',
+    'cuidado pessoal',
+    'pausa',
+    'sono',
+    'dormir',
+    'barulho',
+    'vizinho',
+    'som',
+    'ruido',
+    'celular',
+    'smartphone',
+    'notificacao',
+    'notificacoes',
+    'rotina digital',
+    'bem estar digital',
+  ].some((term) => hasRawInputPhrase(searchText, term));
 }
 
 function normalizeBrandValues(values: string[] | undefined): string[] {
@@ -587,6 +718,8 @@ function anchorsCompatible(inputAnchor: string, brandAnchor: string): boolean {
     ['bem estar digital', 'celular', 'smartphone', 'telefone', 'notificacao', 'notificacoes', 'tela', 'tempo de tela', 'modo descanso', 'modo nao perturbe'],
     ['bem estar digital', 'internet', 'conexao', 'conectividade', 'rotina digital', 'tecnologia', 'app', 'aplicativo', 'produtividade', 'foco'],
     ['casa', 'conforto', 'casa conectada', 'home office'],
+    ['barulho', 'som alto', 'som', 'vizinho', 'ruido', 'descanso interrompido', 'relaxamento interrompido', 'pausa interrompida', 'caos domestico', 'rotina domestica', 'humor cotidiano'],
+    ['silencio', 'fone', 'fone de ouvido', 'cancelamento de ruido', 'audio', 'musica', 'caixa de som', 'conforto', 'sono', 'descanso'],
     ['rotina saudavel', 'lanche saudavel', 'alimentacao', 'mercado natural', 'produtos naturais', 'vida saudavel'],
   ];
 
@@ -656,6 +789,50 @@ function resolveNarrativeContext(inputTerms: string[]): NarrativeContext {
     'bem estar digital',
     'rotina digital',
   ].some((term) => inputHasTerm(inputTerms, term));
+  const noiseSleepTerms = [
+    'barulho',
+    'som alto',
+    'som',
+    'vizinho',
+    'ruido',
+    'silencio',
+    'fone',
+    'fone de ouvido',
+    'cancelamento de ruido',
+    'audio',
+    'musica',
+    'caixa de som',
+  ];
+  const noiseSleepTermCount = noiseSleepTerms.filter((term) => inputHasTerm(inputTerms, term)).length;
+  const hasNoiseSleepComfort = noiseSleepTermCount >= 2;
+  const hasSportContext = SPORT_INPUT_ANCHORS.some((term) => inputContainsTerm(inputTerms, term));
+  const weakRelaxSupportTerms = [
+    'autocuidado',
+    'cuidado pessoal',
+    'pausa',
+    'sono',
+    'dormir',
+    'barulho',
+    'vizinho',
+    'som',
+    'ruido',
+    'celular',
+    'smartphone',
+    'notificacao',
+    'notificacoes',
+    'rotina digital',
+    'bem estar digital',
+  ].map(normalizeNarrativeTerm);
+  const hasWeakRelaxSupport = weakRelaxSupportTerms.some((supportTerm) =>
+    inputTerms.some((inputTerm) => inputTerm === supportTerm || phraseIncludesTerm(inputTerm, supportTerm))
+  );
+  const hasWeakRelaxOnly =
+    inputHasTerm(inputTerms, 'relaxar') &&
+    !hasNoiseSleepComfort &&
+    !hasDomesticChaos &&
+    !hasDigitalWellbeing &&
+    !hasSportContext &&
+    !hasWeakRelaxSupport;
   const hasChildFamilyContext = CHILD_FAMILY_INPUT_ANCHORS.some((term) => inputContainsTerm(inputTerms, term));
   const contextualSignals: string[] = [];
 
@@ -664,7 +841,16 @@ function resolveNarrativeContext(inputTerms: string[]): NarrativeContext {
   if (inputContainsTerm(inputTerms, 'familia')) contextualSignals.push('familia');
   if (inputHasTerm(inputTerms, 'obra')) contextualSignals.push('obra');
   if (inputHasTerm(inputTerms, 'barulho')) contextualSignals.push('barulho');
+  if (inputHasTerm(inputTerms, 'vizinho')) contextualSignals.push('vizinho');
+  if (inputHasTerm(inputTerms, 'som alto')) contextualSignals.push('som alto');
+  if (inputHasTerm(inputTerms, 'som')) contextualSignals.push('som');
+  if (inputHasTerm(inputTerms, 'ruido')) contextualSignals.push('ruido');
+  if (inputHasTerm(inputTerms, 'silencio')) contextualSignals.push('silencio');
+  if (inputHasTerm(inputTerms, 'fone')) contextualSignals.push('fone');
+  if (inputHasTerm(inputTerms, 'cancelamento de ruido')) contextualSignals.push('cancelamento de ruido');
+  if (inputHasTerm(inputTerms, 'descanso')) contextualSignals.push('descanso');
   if (hasDomesticChaos) contextualSignals.push('caos domestico', 'humor cotidiano');
+  if (hasNoiseSleepComfort) contextualSignals.push('pausa interrompida', 'rotina domestica');
   if (inputHasTerm(inputTerms, 'relaxar')) contextualSignals.push('relaxar');
   if (inputHasTerm(inputTerms, 'pausa')) contextualSignals.push('pausa');
   if (inputHasTerm(inputTerms, 'autocuidado')) contextualSignals.push('autocuidado');
@@ -674,6 +860,11 @@ function resolveNarrativeContext(inputTerms: string[]): NarrativeContext {
     hasLifestyleWellness,
     hasDomesticChaos,
     hasDigitalWellbeing,
+    hasNoiseSleepComfort,
+    hasWeakRelaxOnly:
+      hasWeakRelaxOnly &&
+      !contextualSignals.some((signal) => !['relaxar', 'rotina real'].includes(signal)),
+    hasSportContext,
     hasChildFamilyContext,
     contextualSignals,
   };
@@ -743,6 +934,24 @@ function isChildFamilyBrand(brand: BrandNarrativeProfileLike): boolean {
     .some((value) => brandTerms.some((term) => term === value || phraseIncludesTerm(term, value)));
 }
 
+function isSportBrand(brand: BrandNarrativeProfileLike): boolean {
+  const brandName = normalizeNarrativeTerm(brand.brandName);
+  if (SPORT_BRAND_NAME_TERMS.some((term) => phraseIncludesTerm(brandName, normalizeNarrativeTerm(term)))) {
+    return true;
+  }
+
+  if (isFoodWellnessBrand(brand) || isBeautyCareBrand(brand) || isChildFamilyBrand(brand)) return false;
+
+  if (SPORT_BRAND_TERMS.some((term) => phraseIncludesTerm(brandName, normalizeNarrativeTerm(term)))) {
+    return true;
+  }
+
+  const brandTerms = brandTermsForCopy(brand);
+  return SPORT_BRAND_TERMS
+    .map(normalizeNarrativeTerm)
+    .some((value) => brandTerms.some((term) => term === value || phraseIncludesTerm(term, value)));
+}
+
 function isBrand(brand: BrandNarrativeProfileLike, value: string): boolean {
   return normalizeNarrativeTerm(brand.brandName) === normalizeNarrativeTerm(value);
 }
@@ -787,6 +996,9 @@ function isFoodWellnessBrand(brand: BrandNarrativeProfileLike): boolean {
 
 function resolveBrandSpecificSignals(brand: BrandNarrativeProfileLike, context: NarrativeContext): string[] {
   if (!context.hasLifestyleWellness) return [];
+  if (context.hasNoiseSleepComfort && brandHasDailyTechnologySignal(brand)) {
+    return ['barulho', 'som', 'pausa interrompida'];
+  }
   if (isBrand(brand, 'Natura')) return ['autocuidado natural', 'ritual', 'pausa'];
   if (isBrand(brand, 'O Boticário')) return ['fragrancia', 'autoestima', 'cuidado pessoal'];
   if (isBrand(brand, "L'Oréal Paris")) return ['skincare', 'cabelo', 'cuidado pessoal'];
@@ -830,6 +1042,17 @@ function hasLifestyleWellnessSignal(signals: string[]): boolean {
       'aplicativo',
       'tecnologia',
       'rotina digital',
+      'barulho',
+      'som',
+      'som alto',
+      'vizinho',
+      'ruido',
+      'pausa interrompida',
+      'rotina domestica',
+      'silencio',
+      'fone',
+      'audio',
+      'musica',
     ].some((anchor) => termsMatch(signal, anchor))
   );
 }
@@ -845,6 +1068,21 @@ function humanSignal(signal: string): string {
 }
 
 function buildRationale(brand: BrandNarrativeProfileLike, matchedSignals: string[], context: NarrativeContext): string {
+  if (context.hasNoiseSleepComfort) {
+    if (brandHasDailyTechnologySignal(brand)) {
+      return `${brand.brandName} combina porque o conflito da pauta é o descanso interrompido pelo som do vizinho. A inserção pode acontecer pelo território de áudio, foco, silêncio ou controle do ambiente sonoro.`;
+    }
+    if (isBeautyCareBrand(brand)) {
+      return `${brand.brandName} combina porque a narrativa mostra uma tentativa de pausa em meio ao ruído doméstico. A inserção funciona como ritual de autocuidado possível mesmo quando o descanso perfeito não acontece.`;
+    }
+    if (isFoodWellnessBrand(brand)) {
+      return `${brand.brandName} combina se a pauta for tratada como pequena pausa de bem-estar no meio do barulho, com produto entrando como chá, lanche ou ritual simples enquanto a casa não colabora.`;
+    }
+    if (brandHasAnyTerm(brand, ['casa', 'conforto', 'sono', 'silencio', 'rotina domestica'])) {
+      return `${brand.brandName} combina porque a pauta fala de conforto, descanso e ambiente doméstico. A marca pode entrar como parte da tentativa de transformar a casa em um espaço de pausa, mesmo com interferências externas.`;
+    }
+  }
+
   if (context.hasDomesticChaos) {
     if (isBrand(brand, 'Natura')) {
       return 'A Natura combina com essa pauta porque a narrativa fala de tentar criar um momento de calma mesmo quando a rotina sai do controle. A marca pode entrar pelo território de autocuidado natural, presença e pequenos rituais de respiro dentro de um dia caótico.';
@@ -891,6 +1129,21 @@ function buildRationale(brand: BrandNarrativeProfileLike, matchedSignals: string
 }
 
 function buildInsertionAngle(brand: BrandNarrativeProfileLike, matchedSignals: string[], context: NarrativeContext): string {
+  if (context.hasNoiseSleepComfort) {
+    if (brandHasDailyTechnologySignal(brand)) {
+      return 'A marca pode entrar como apoio para lidar com barulho, som alto, foco ou controle do ambiente sonoro durante a tentativa de pausa.';
+    }
+    if (isBeautyCareBrand(brand)) {
+      return 'A marca pode entrar como ritual rápido de autocuidado quando o criador tenta relaxar, mas o som do vizinho quebra o clima.';
+    }
+    if (isFoodWellnessBrand(brand)) {
+      return 'A marca pode entrar como chá, lanche ou pequeno ritual de pausa enquanto o barulho atrapalha o descanso.';
+    }
+    if (brandHasAnyTerm(brand, ['casa', 'conforto', 'sono', 'silencio', 'rotina domestica'])) {
+      return 'A marca pode entrar pelo conforto da casa e pela tentativa de criar um ambiente de descanso mesmo com ruídos externos.';
+    }
+  }
+
   if (context.hasDomesticChaos) {
     if (isBrand(brand, 'Natura')) {
       return 'A marca pode entrar como um ritual de autocuidado natural no momento em que o criador tenta recuperar a calma apesar do barulho da obra.';
@@ -932,6 +1185,30 @@ function buildInsertionAngle(brand: BrandNarrativeProfileLike, matchedSignals: s
 }
 
 function buildDeliverables(brand: BrandNarrativeProfileLike, input: BrandNarrativeMatchInput, context: NarrativeContext): string[] {
+  if (context.hasNoiseSleepComfort) {
+    if (brandHasDailyTechnologySignal(brand)) {
+      return [
+        '1 Reels narrativo com pausa interrompida pelo som do vizinho',
+        'Stories mostrando áudio, foco ou tecnologia em uso real na rotina',
+        'Recorte com humor sobre barulho, casa e tentativa de descanso',
+      ];
+    }
+    if (isBeautyCareBrand(brand)) {
+      return [
+        '1 Reels narrativo com tentativa de relaxar interrompida pelo som do vizinho',
+        'Stories mostrando ritual de autocuidado possível no meio do barulho',
+        'Recorte em tom leve sobre tentar pausar mesmo quando a casa não colabora',
+      ];
+    }
+    if (isFoodWellnessBrand(brand)) {
+      return [
+        '1 Reels narrativo com pausa de bem-estar no meio do barulho',
+        'Stories mostrando chá, lanche ou produto como ritual de descanso',
+        'Recorte com humor sobre buscar calma apesar do som do vizinho',
+      ];
+    }
+  }
+
   if (context.hasDomesticChaos) {
     if (isBrand(brand, 'Natura')) {
       return [
@@ -1028,6 +1305,15 @@ function prioritizeMatchedSignals(signals: string[], domainAnchorMatches: string
 
   return uniqueSignals
     .sort((left, right) => {
+      const leftExactDomainIndex = domainAnchorMatches.findIndex((anchor) => anchor === left);
+      const rightExactDomainIndex = domainAnchorMatches.findIndex((anchor) => anchor === right);
+      const leftIsExactDomain = leftExactDomainIndex >= 0;
+      const rightIsExactDomain = rightExactDomainIndex >= 0;
+      if (leftIsExactDomain !== rightIsExactDomain) return leftIsExactDomain ? -1 : 1;
+      if (leftIsExactDomain && rightIsExactDomain && leftExactDomainIndex !== rightExactDomainIndex) {
+        return leftExactDomainIndex - rightExactDomainIndex;
+      }
+
       const leftDomainIndex = domainAnchorMatches.findIndex((anchor) => anchorsCompatible(anchor, left));
       const rightDomainIndex = domainAnchorMatches.findIndex((anchor) => anchorsCompatible(anchor, right));
       const leftIsDomain = leftDomainIndex >= 0;
@@ -1057,6 +1343,7 @@ export function scoreBrandNarrativeMatch(
   if (inputTerms.length === 0) return null;
 
   const narrativeContext = resolveNarrativeContext(inputTerms);
+  const hasWeakRelaxOnly = hasWeakRelaxOnlyInInput(input);
   const domainProfile = resolveInputDomainProfile(inputTerms);
   const inputHasSpecificTerms = inputTerms.some((term) => !isGenericNarrativeTerm(term));
   const primaryDomainAnchorMatches = resolveBrandDomainAnchorMatches(
@@ -1115,7 +1402,7 @@ export function scoreBrandNarrativeMatch(
     ? Math.min(domainCappedScore, 0.65)
     : domainCappedScore;
   const contextualDisplaySignals =
-    (narrativeContext.hasDomesticChaos || narrativeContext.hasDigitalWellbeing) && domainAnchorMatches.length > 0
+    (narrativeContext.hasDomesticChaos || narrativeContext.hasDigitalWellbeing || narrativeContext.hasNoiseSleepComfort) && domainAnchorMatches.length > 0
       ? [...narrativeContext.contextualSignals, ...resolveBrandSpecificSignals(brand, narrativeContext)]
       : [];
   const displaySignalPriorityAnchors = [
@@ -1127,13 +1414,17 @@ export function scoreBrandNarrativeMatch(
     displaySignalPriorityAnchors
   );
   const signalQualityCappedScore = cleanSignals.length > 0 ? genericCappedScore : Math.min(genericCappedScore, 0.39);
+  const weakRelaxCappedScore = hasWeakRelaxOnly
+    ? Math.min(signalQualityCappedScore, 0.39)
+    : signalQualityCappedScore;
   const lifestyleDomainFloor =
     avoidMatches.length === 0 &&
+    !hasWeakRelaxOnly &&
     (domainProfile.primaryDomain === 'lifestyle_wellness' || domainProfile.primaryDomain === 'digital_wellbeing') &&
     domainAnchorMatches.length >= 2 &&
     cleanSignals.length > 0
-      ? Math.max(signalQualityCappedScore, 0.42)
-      : signalQualityCappedScore;
+      ? Math.max(weakRelaxCappedScore, 0.42)
+      : weakRelaxCappedScore;
   const digitalWellbeingFloor =
     avoidMatches.length === 0 &&
     digitalInputAnchors.length >= 2 &&
@@ -1142,11 +1433,31 @@ export function scoreBrandNarrativeMatch(
     cleanSignals.length > 0
       ? Math.max(lifestyleDomainFloor, 0.8)
       : lifestyleDomainFloor;
+  const noiseSleepComfortFloor =
+    avoidMatches.length === 0 &&
+    narrativeContext.hasNoiseSleepComfort &&
+    cleanSignals.length > 0 &&
+    (brandHasDailyTechnologySignal(brand) ||
+      isBeautyCareBrand(brand) ||
+      brandHasAnyTerm(brand, ['casa', 'conforto', 'sono', 'silencio', 'rotina domestica']))
+      ? Math.max(digitalWellbeingFloor, 0.46)
+      : digitalWellbeingFloor;
+  const foodWellnessFloor =
+    avoidMatches.length === 0 &&
+    !narrativeContext.hasSportContext &&
+    isFoodWellnessBrand(brand) &&
+    cleanSignals.length > 0
+      ? Math.max(noiseSleepComfortFloor, 0.42)
+      : noiseSleepComfortFloor;
   const childFamilyContextCappedScore =
     isChildFamilyBrand(brand) && !narrativeContext.hasChildFamilyContext
-      ? Math.min(digitalWellbeingFloor, CHILD_FAMILY_NO_CONTEXT_SCORE_CAP)
-      : digitalWellbeingFloor;
-  const matchScore = clamp(childFamilyContextCappedScore, 0, MAX_MATCH_SCORE);
+      ? Math.min(foodWellnessFloor, CHILD_FAMILY_NO_CONTEXT_SCORE_CAP)
+      : foodWellnessFloor;
+  const sportContextCappedScore =
+    isSportBrand(brand) && !narrativeContext.hasSportContext
+      ? Math.min(childFamilyContextCappedScore, SPORT_NO_CONTEXT_SCORE_CAP)
+      : childFamilyContextCappedScore;
+  const matchScore = clamp(sportContextCappedScore, 0, MAX_MATCH_SCORE);
 
   if (matchScore < MIN_RELEVANT_SCORE && rawScore <= 0) return null;
 

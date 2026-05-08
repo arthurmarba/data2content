@@ -538,6 +538,87 @@ function buildStrategicBrandFit(params: StrategicReportTextParams) {
   return `${cleanString(params.match.rationale) || `${params.brandName} tem aderência aos sinais principais da pauta.`} ${insertionAngle || ''}`.trim();
 }
 
+function buildNarrativeFormula(params: StrategicReportTextParams) {
+  const domain = resolveReportDomain(params);
+  const situation = cleanSituationText(params.pauta?.title);
+  const creatorReference = getCreatorReference(params.creatorName);
+
+  if (domain === 'technology') {
+    return [
+      {
+        title: 'Conflito reconhecível',
+        description: `${creatorReference} tenta relaxar ou criar uma pausa dentro de ${situation}.`,
+      },
+      {
+        title: 'Desenvolvimento da situação',
+        description: 'O celular interrompe a pausa com notificações, excesso de estímulos ou uma rotina digital que a audiência reconhece.',
+      },
+      {
+        title: 'Entrada natural da marca',
+        description: `${params.brandName} entra como parte da conversa sobre foco, notificações e equilíbrio digital, sem deslocar a narrativa para uma publi forçada.`,
+      },
+    ];
+  }
+
+  if (domain === 'beauty') {
+    return [
+      {
+        title: 'Conflito reconhecível',
+        description: `A rotina sai do controle e transforma ${situation} em uma tentativa imperfeita de pausa.`,
+      },
+      {
+        title: 'Desenvolvimento da situação',
+        description: 'A narrativa mostra humor cotidiano, frustração leve e a busca por um momento próprio no meio do caos.',
+      },
+      {
+        title: 'Entrada natural da marca',
+        description: `${params.brandName} entra como ritual rápido de autocuidado, cuidado pessoal ou conforto possível dentro da rotina real.`,
+      },
+    ];
+  }
+
+  if (domain === 'foodWellness') {
+    return [
+      {
+        title: 'Conflito reconhecível',
+        description: `A pausa desejada aparece dentro de ${situation}, mas a rotina não colabora totalmente.`,
+      },
+      {
+        title: 'Desenvolvimento da situação',
+        description: 'O conteúdo explora a tentativa de recuperar equilíbrio por meio de pequenos gestos cotidianos.',
+      },
+      {
+        title: 'Entrada natural da marca',
+        description: `${params.brandName} entra como pausa saudável, lanche, chá ou ritual simples de descanso.`,
+      },
+    ];
+  }
+
+  return [
+    {
+      title: 'Conflito reconhecível',
+      description: `A narrativa parte de ${situation}, uma situação fácil de reconhecer na rotina.`,
+    },
+    {
+      title: 'Desenvolvimento da situação',
+      description: `A pauta desenvolve os sinais de ${buildSignalPhrase(params)} até criar um contexto claro para a audiência.`,
+    },
+    {
+      title: 'Entrada natural da marca',
+      description: `${params.brandName} entra como elemento funcional da história, sem interromper a lógica do conteúdo.`,
+    },
+  ];
+}
+
+function buildCampaignConcept(params: StrategicReportTextParams) {
+  const domain = resolveReportDomain(params);
+  if (domain === 'technology') return 'Quando a pausa encontra a tecnologia';
+  if (domain === 'beauty') return 'Autocuidado possível no meio do caos';
+  if (domain === 'foodWellness') return 'Uma pausa saudável dentro da rotina real';
+  const theme = firstNonEmpty([params.pauta?.theme, buildSignalPhrase(params)]);
+  return theme ? `${params.brandName} dentro de ${theme}` : `Uma narrativa orgânica para ${params.brandName}`;
+}
+
 function buildStrategicCampaignIdea(params: StrategicReportTextParams) {
   const domain = resolveReportDomain(params);
   const pautaTitle = cleanString(params.pauta?.title) || 'a pauta selecionada';
@@ -552,6 +633,21 @@ function buildStrategicCampaignIdea(params: StrategicReportTextParams) {
     return `Um Reels em formato POV partindo de "${pautaTitle}" e transformando a pausa em um gesto simples de bem-estar. ${params.brandName} entra como lanche, chá ou escolha prática que ajuda a marcar um intervalo real no dia.`;
   }
   return `Um conteúdo narrativo partindo de "${pautaTitle}", com a marca entrando de forma orgânica no conflito da pauta e na solução cotidiana apresentada pela criadora.`;
+}
+
+function buildBrandRole(params: StrategicReportTextParams) {
+  const domain = resolveReportDomain(params);
+  const creatorReference = getCreatorReference(params.creatorName);
+  if (domain === 'technology') {
+    return `${params.brandName} entra porque o celular e a tecnologia já fazem parte do conflito central. A marca não precisa interromper a história: ela participa da conversa sobre foco, notificações e uso mais consciente da rotina digital.`;
+  }
+  if (domain === 'beauty') {
+    return `${params.brandName} entra como gesto de autocuidado dentro da rotina de ${creatorReference}. O papel da marca é tornar a pausa possível, não vender uma rotina perfeita.`;
+  }
+  if (domain === 'foodWellness') {
+    return `${params.brandName} entra como pequeno ritual de equilíbrio dentro do dia. O produto funciona como apoio narrativo para a pausa, não como interrupção publicitária.`;
+  }
+  return `${params.brandName} entra como elemento natural da situação apresentada, conectando o território da marca ao comportamento que a audiência já reconhece.`;
 }
 
 function buildOrganicEntry(params: StrategicReportTextParams) {
@@ -569,6 +665,29 @@ function buildOrganicEntry(params: StrategicReportTextParams) {
   const insertionAngle = cleanString(params.match.insertionAngle);
   if (insertionAngle) return insertionAngle;
   return `A marca pode entrar como parte funcional da narrativa, conectando ${buildSignalPhrase(params)} a uma situação real da rotina da criadora.`;
+}
+
+function buildEvidenceReading(params: StrategicReportTextParams) {
+  const evidenceCount = params.metricsSummary.evidenceCount || 0;
+  const totalViews = params.metricsSummary.totalViews || 0;
+  const totalInteractions = params.metricsSummary.totalInteractions || 0;
+  const evidenceTags = Array.from(
+    new Set(params.evidencePosts.flatMap((post) => getBrandReportEvidenceTags(post, params.match.matchedSignals || [])))
+  ).slice(0, 4);
+  const tagPhrase = evidenceTags.length ? evidenceTags.join(', ') : buildSignalPhrase(params);
+  const creatorReference = getCreatorReference(params.creatorName);
+  const situation = cleanSituationText(params.pauta?.title);
+
+  if (!evidenceCount) {
+    return 'Ainda não há evidências orgânicas suficientes para afirmar recorrência de performance nessa narrativa. Mesmo assim, a fórmula criativa pode ser avaliada como hipótese estratégica antes de uma abordagem comercial.';
+  }
+
+  const metricsSentence =
+    totalViews > 0 || totalInteractions > 0
+      ? ` A base selecionada soma aproximadamente ${formatBrandReportMetricLong(totalViews)} de visualizações e ${formatBrandReportMetricLong(totalInteractions)} de interações.`
+      : '';
+
+  return `Os conteúdos selecionados mostram que a audiência responde quando ${creatorReference} transforma ${situation} em ${tagPhrase}. Isso sustenta a entrada de ${params.brandName} porque a campanha parte de uma linguagem já validada organicamente, com menor risco de parecer uma publicidade desconectada.${metricsSentence}`;
 }
 
 function buildOrganicProofText(params: StrategicReportTextParams) {
@@ -620,6 +739,109 @@ function buildDomainSuggestedExecution(params: StrategicReportTextParams) {
   return cleanStringArray(params.match.suggestedDeliverables);
 }
 
+function buildActivationPlan(params: StrategicReportTextParams) {
+  const domain = resolveReportDomain(params);
+  if (domain === 'technology') {
+    return [
+      {
+        title: 'Stories de contexto',
+        description: 'Apresentar a tentativa de relaxar e o excesso de estímulos digitais na rotina.',
+      },
+      {
+        title: 'Reels principal',
+        description: 'POV da pausa interrompida pelo celular, com humor cotidiano e conflito reconhecível.',
+      },
+      {
+        title: 'Entrada da marca',
+        description: `${params.brandName} entra pela conversa sobre foco, notificações e uso mais consciente da tecnologia.`,
+      },
+      {
+        title: 'Stories de continuidade',
+        description: 'Mostrar bastidores da rotina digital e como a tecnologia aparece no dia a dia.',
+      },
+      {
+        title: 'Recorte pós-campanha',
+        description: 'Reflexão leve sobre equilíbrio, presença e relação com as notificações.',
+      },
+    ];
+  }
+  if (domain === 'beauty') {
+    return [
+      {
+        title: 'Stories de contexto',
+        description: 'Apresentar o caos cotidiano e a tentativa de criar uma pausa possível.',
+      },
+      {
+        title: 'Reels principal',
+        description: 'POV com tentativa de pausa, interrupções e humor de rotina real.',
+      },
+      {
+        title: 'Entrada da marca',
+        description: `${params.brandName} aparece como ritual rápido de autocuidado dentro da cena, não como anúncio separado.`,
+      },
+      {
+        title: 'Stories de continuidade',
+        description: 'Mostrar o produto em uso sem esconder interrupções, pressa ou imperfeições do dia.',
+      },
+      {
+        title: 'Recorte pós-campanha',
+        description: 'Fechar com uma reflexão curta sobre autocuidado possível, sem romantizar a rotina.',
+      },
+    ];
+  }
+  if (domain === 'foodWellness') {
+    return [
+      {
+        title: 'Stories de contexto',
+        description: 'Mostrar o momento em que a rotina pede uma pausa simples.',
+      },
+      {
+        title: 'Reels principal',
+        description: 'Narrar a busca por um intervalo real no meio do dia.',
+      },
+      {
+        title: 'Entrada da marca',
+        description: `Inserir ${params.brandName} como chá, lanche ou escolha prática que marca a pausa.`,
+      },
+      {
+        title: 'Stories de continuidade',
+        description: 'Mostrar o produto como pequeno ritual de descanso e equilíbrio.',
+      },
+      {
+        title: 'Recorte pós-campanha',
+        description: 'Retomar a ideia de rotina equilibrada com tom leve e cotidiano.',
+      },
+    ];
+  }
+
+  return [
+    {
+      title: 'Stories de contexto',
+      description: 'Abrir o contexto da pauta e preparar a audiência para o conflito narrativo.',
+    },
+    {
+      title: 'Reels principal',
+      description: 'Executar a narrativa principal com conflito, desenvolvimento e resolução cotidiana.',
+    },
+    {
+      title: 'Entrada da marca',
+      description: `${params.brandName} entra como parte orgânica da situação, sem interromper a história.`,
+    },
+    {
+      title: 'Stories de continuidade',
+      description: 'Mostrar a presença da marca em uso real, sem deslocar o conteúdo para um anúncio isolado.',
+    },
+    {
+      title: 'Recorte pós-campanha',
+      description: 'Fechar com aprendizado, comentário ou continuidade da pauta.',
+    },
+  ];
+}
+
+function buildCommercialClose(params: StrategicReportTextParams) {
+  return `Essa proposta parte de uma narrativa orgânica já coerente com a audiência de ${params.creatorName}. ${params.brandName} entra em uma história reconhecível, sustentada por dados de performance e com menor risco de parecer uma publicidade desconectada.`;
+}
+
 function buildUsefulPautaChips(params: StrategicReportTextParams) {
   const chips: string[] = [];
   cleanStringArray(params.pauta?.keywords).forEach((chip) => pushChip(chips, chip));
@@ -650,9 +872,15 @@ function buildStrategicReportContent(params: StrategicReportTextParams): IBrandN
     headline: `Relatório de match narrativo: ${creatorName} + ${brandName}`,
     executiveSummary: opportunityThesis,
     narrativeThesis: opportunityThesis,
+    narrativeFormula: buildNarrativeFormula(params),
     brandFit: buildStrategicBrandFit(params),
+    evidenceReading: buildEvidenceReading(params),
     organicProof: buildOrganicProofText(params),
+    campaignConcept: buildCampaignConcept(params),
     campaignIdea: buildStrategicCampaignIdea(params),
+    activationPlan: buildActivationPlan(params),
+    brandRole: buildBrandRole(params),
+    commercialClose: buildCommercialClose(params),
     suggestedExecution: buildDomainSuggestedExecution(params),
     creatorApproachMessage: buildApproachMessageForBrand(params),
     disclaimer: BRAND_NARRATIVE_REPORT_DISCLAIMER,

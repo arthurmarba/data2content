@@ -56,6 +56,15 @@ function firstValue(values?: string[] | null) {
   return Array.isArray(values) ? values.find((value) => value.trim()) || null : null;
 }
 
+function formatEvidenceReason(post: PublicEvidencePost, tags: string[]) {
+  if (!tags.length) return null;
+  const tagText = tags.join(' + ');
+  const metrics: string[] = [];
+  if ((post.views || 0) >= 100_000) metrics.push(`${formatBrandReportMetricCompact(post.views)} visualizações`);
+  if ((post.totalInteractions || 0) >= 10_000) metrics.push(`${formatBrandReportMetricCompact(post.totalInteractions)} interações`);
+  return metrics.length ? `${tagText}. Prova comportamental com ${metrics.join(' e ')}.` : `${tagText}.`;
+}
+
 const BRAND_REPORT_PUBLIC_PAGE_DEBUG = process.env.NODE_ENV === 'development';
 
 async function resolvePageParams(params: PageProps['params']) {
@@ -119,6 +128,10 @@ export default async function BrandNarrativeReportPage({ params }: PageProps) {
   const suggestedExecution = (Array.isArray(content.suggestedExecution)
     ? content.suggestedExecution
     : []) as string[];
+  const narrativeFormula = Array.isArray(content.narrativeFormula) ? content.narrativeFormula : [];
+  const activationPlan = Array.isArray(content.activationPlan) && content.activationPlan.length
+    ? content.activationPlan
+    : suggestedExecution.map((item) => ({ title: item, description: '' }));
 
   return (
     <main className="min-h-screen bg-[#f7f8fb] text-zinc-950">
@@ -210,6 +223,9 @@ export default async function BrandNarrativeReportPage({ params }: PageProps) {
               </div>
             }
           />
+          {narrativeFormula.length ? (
+            <FormulaSection steps={narrativeFormula} />
+          ) : null}
           <ReportSection
             icon={<ShieldCheck className="h-5 w-5" />}
             title="Por que essa narrativa combina com a marca"
@@ -236,55 +252,68 @@ export default async function BrandNarrativeReportPage({ params }: PageProps) {
         <section className="py-4">
           <SectionHeader
             eyebrow="Evidências"
-            title="Prova orgânica"
-            description={content.organicProof}
+            title="O que os conteúdos orgânicos provam"
+            description={content.evidenceReading || content.organicProof}
           />
           {evidencePosts.length ? (
+            <div className="mt-4 rounded-[24px] border border-zinc-200 bg-white px-5 py-4 text-sm font-semibold leading-7 text-zinc-700 shadow-[0_12px_34px_rgba(15,23,42,0.04)]">
+              {content.organicProof}
+            </div>
+          ) : null}
+          {evidencePosts.length ? (
             <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {evidencePosts.map((post, index) => (
-                <article key={post.postLink || post.title || post.description || `evidence-${index}`} className="overflow-hidden rounded-[24px] border border-zinc-200 bg-white shadow-[0_16px_46px_rgba(15,23,42,0.05)]">
-                  {post.coverUrl ? (
-                    <img src={post.coverUrl} alt="" className="aspect-[16/10] w-full bg-zinc-100 object-cover" />
-                  ) : (
-                    <div className="flex aspect-[16/10] w-full items-center justify-center bg-zinc-100 text-zinc-400">
-                      <BarChart3 className="h-8 w-8" aria-hidden="true" />
-                    </div>
-                  )}
-                  <div className="p-4">
-                    <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-zinc-400">
-                      {post.format ? <span>{post.format}</span> : null}
-                      {formatDate(post.postDate) ? <span>{formatDate(post.postDate)}</span> : null}
-                    </div>
-                    {getBrandReportEvidenceTags(post, matchedSignals).length ? (
-                      <div className="mt-2 flex flex-wrap gap-1.5">
-                        {getBrandReportEvidenceTags(post, matchedSignals).map((tag) => (
-                          <span key={tag} className="rounded-full border border-sky-100 bg-sky-50 px-2 py-0.5 text-[11px] font-bold text-sky-700">
-                            {tag}
-                          </span>
-                        ))}
+              {evidencePosts.map((post, index) => {
+                const evidenceTags = getBrandReportEvidenceTags(post, matchedSignals);
+                return (
+                  <article key={post.postLink || post.title || post.description || `evidence-${index}`} className="overflow-hidden rounded-[24px] border border-zinc-200 bg-white shadow-[0_16px_46px_rgba(15,23,42,0.05)]">
+                    {post.coverUrl ? (
+                      <img src={post.coverUrl} alt="" className="aspect-[16/10] w-full bg-zinc-100 object-cover" />
+                    ) : (
+                      <div className="flex aspect-[16/10] w-full items-center justify-center bg-zinc-100 text-zinc-400">
+                        <BarChart3 className="h-8 w-8" aria-hidden="true" />
                       </div>
-                    ) : null}
-                    <p className="mt-2 line-clamp-3 text-sm font-semibold leading-6 text-zinc-800">
-                      {post.title || post.description || 'Conteúdo orgânico'}
-                    </p>
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      <MetricPill label="Visualizações" value={formatBrandReportMetricCompact(post.views)} compact />
-                      <MetricPill label="Interações" value={formatBrandReportMetricCompact(post.totalInteractions)} compact />
+                    )}
+                    <div className="p-4">
+                      <div className="flex flex-wrap items-center gap-2 text-xs font-bold text-zinc-400">
+                        {post.format ? <span>{post.format}</span> : null}
+                        {formatDate(post.postDate) ? <span>{formatDate(post.postDate)}</span> : null}
+                      </div>
+                      {evidenceTags.length ? (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {evidenceTags.map((tag) => (
+                            <span key={tag} className="rounded-full border border-sky-100 bg-sky-50 px-2 py-0.5 text-[11px] font-bold text-sky-700">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                      <p className="mt-2 line-clamp-3 text-sm font-semibold leading-6 text-zinc-800">
+                        {post.title || post.description || 'Conteúdo orgânico'}
+                      </p>
+                      {evidenceTags.length ? (
+                        <p className="mt-3 rounded-2xl bg-zinc-50 px-3 py-2 text-xs font-semibold leading-5 text-zinc-600">
+                          <span className="font-bold text-zinc-800">Por que é evidência:</span> {formatEvidenceReason(post, evidenceTags)}
+                        </p>
+                      ) : null}
+                      <div className="mt-4 grid grid-cols-2 gap-2">
+                        <MetricPill label="Visualizações" value={formatBrandReportMetricCompact(post.views)} compact />
+                        <MetricPill label="Interações" value={formatBrandReportMetricCompact(post.totalInteractions)} compact />
+                      </div>
+                      {post.postLink ? (
+                        <a
+                          href={post.postLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-sky-700 hover:text-sky-800"
+                        >
+                          Ver post
+                          <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+                        </a>
+                      ) : null}
                     </div>
-                    {post.postLink ? (
-                      <a
-                        href={post.postLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-sky-700 hover:text-sky-800"
-                      >
-                        Ver post
-                        <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-                      </a>
-                    ) : null}
-                  </div>
-                </article>
-              ))}
+                  </article>
+                );
+              })}
             </div>
           ) : (
             <div className="mt-5 rounded-[24px] border border-zinc-200 bg-white px-5 py-5 text-sm font-medium leading-6 text-zinc-600">
@@ -296,32 +325,55 @@ export default async function BrandNarrativeReportPage({ params }: PageProps) {
         <div className="grid gap-5 py-8">
           <ReportSection
             icon={<Sparkles className="h-5 w-5" />}
-            title="Ideia de campanha"
-            body={content.campaignIdea}
+            title="Conceito de campanha"
+            body={content.campaignConcept || content.campaignIdea}
+            aside={
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-400">Ideia criativa</p>
+                <p className="mt-2 text-sm font-semibold leading-6 text-zinc-700">{content.campaignIdea}</p>
+              </div>
+            }
           />
           <ReportSection
             icon={<FileText className="h-5 w-5" />}
-            title="Como a marca pode entrar organicamente"
-            body={presentation.organicEntry}
+            title="Papel da marca"
+            body={content.brandRole || presentation.organicEntry}
+            aside={
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-400">Como entra organicamente</p>
+                <p className="mt-2 text-sm font-semibold leading-6 text-zinc-700">{presentation.organicEntry}</p>
+              </div>
+            }
           />
         </div>
 
         <section className="grid gap-5 py-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <div className="rounded-[28px] border border-zinc-200 bg-white p-5 shadow-[0_16px_46px_rgba(15,23,42,0.05)]">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-400">Entregáveis sugeridos</p>
-            <ul className="mt-4 space-y-3">
-              {suggestedExecution.map((item) => (
-                <li key={item} className="flex items-start gap-3 text-sm font-semibold leading-6 text-zinc-700">
-                  <span className="mt-2 h-1.5 w-1.5 rounded-full bg-sky-500" />
-                  {item}
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-400">Plano de ativação sugerido</p>
+            <ul className="mt-4 space-y-4">
+              {activationPlan.map((item, index) => (
+                <li key={`${item.title}-${index}`} className="flex gap-3 text-sm leading-6 text-zinc-700">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-50 text-xs font-bold text-sky-700">
+                    {index + 1}
+                  </span>
+                  <span>
+                    <span className="block font-bold text-zinc-950">{item.title}</span>
+                    {item.description ? <span className="mt-0.5 block font-medium text-zinc-600">{item.description}</span> : null}
+                  </span>
                 </li>
               ))}
             </ul>
           </div>
 
-          <div className="rounded-[28px] border border-zinc-200 bg-zinc-950 p-5 text-white shadow-[0_22px_60px_rgba(15,23,42,0.18)]">
-            <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/40">Mensagem sugerida para abordagem</p>
-            <p className="mt-4 text-base font-medium leading-8 text-white/86">{content.creatorApproachMessage}</p>
+          <div className="space-y-5">
+            <div className="rounded-[28px] border border-zinc-200 bg-white p-5 shadow-[0_16px_46px_rgba(15,23,42,0.05)]">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-zinc-400">Por que vale testar</p>
+              <p className="mt-4 text-base font-medium leading-8 text-zinc-700">{content.commercialClose}</p>
+            </div>
+            <div className="rounded-[28px] border border-zinc-200 bg-zinc-950 p-5 text-white shadow-[0_22px_60px_rgba(15,23,42,0.18)]">
+              <p className="text-xs font-bold uppercase tracking-[0.16em] text-white/40">Mensagem sugerida para abordagem</p>
+              <p className="mt-4 text-base font-medium leading-8 text-white/86">{content.creatorApproachMessage}</p>
+            </div>
           </div>
         </section>
 
@@ -330,6 +382,38 @@ export default async function BrandNarrativeReportPage({ params }: PageProps) {
         </footer>
       </div>
     </main>
+  );
+}
+
+function FormulaSection({ steps }: { steps: Array<{ title: string; description: string }> }) {
+  return (
+    <section className="rounded-[32px] border border-sky-100 bg-white p-5 shadow-[0_22px_70px_rgba(2,132,199,0.08)] sm:p-6">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-sky-600">
+            <Sparkles className="h-5 w-5" aria-hidden="true" />
+            <p className="text-xs font-bold uppercase tracking-[0.16em]">Fórmula narrativa</p>
+          </div>
+          <h2 className="mt-2 text-2xl font-semibold tracking-[-0.055em] text-zinc-950">
+            A lógica criativa que sustenta a campanha
+          </h2>
+        </div>
+        <p className="max-w-sm text-sm font-medium leading-6 text-zinc-500">
+          Três movimentos para transformar a pauta em uma entrada de marca natural.
+        </p>
+      </div>
+      <div className="mt-6 grid gap-3 md:grid-cols-3">
+        {steps.map((step, index) => (
+          <div key={`${step.title}-${index}`} className="rounded-[24px] border border-zinc-200 bg-zinc-50 p-4">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-sky-600 text-sm font-bold text-white">
+              {index + 1}
+            </div>
+            <h3 className="mt-4 text-base font-bold text-zinc-950">{step.title}</h3>
+            <p className="mt-2 text-sm font-medium leading-6 text-zinc-600">{step.description}</p>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

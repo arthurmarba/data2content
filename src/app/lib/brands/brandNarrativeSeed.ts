@@ -176,6 +176,22 @@ const techFinanceTemplate: NarrativeTemplate = {
   insertionIdeas: ['setup de trabalho', 'organização do mês', 'tutorial de recurso', 'review honesto', 'dia produtivo com tecnologia'],
 };
 
+const homeAudioComfortTemplate: NarrativeTemplate = {
+  ...COMMON_STATUS,
+  category: ['casa', 'tecnologia', 'conforto'],
+  subcategories: ['áudio', 'casa conectada', 'sono', 'conforto doméstico', 'rotina em casa'],
+  territories: ['descanso', 'silêncio', 'conforto', 'bem-estar em casa', 'ambiente doméstico', 'foco'],
+  contexts: ['rotina doméstica', 'descanso em casa', 'home office', 'casa barulhenta', 'pausa interrompida'],
+  narrativeForms: ['pov', 'rotina', 'história real', 'humor cotidiano', 'review'],
+  contentIntents: ['conectar', 'demonstrar uso', 'gerar identificação', 'reduzir atrito'],
+  contentSignals: ['produto em uso real', 'rotina real', 'pausa interrompida', 'caos doméstico', 'experiência vivida'],
+  tones: ['leve', 'prático', 'humor cotidiano', 'realista'],
+  proofStyles: ['uso cotidiano', 'experiência real', 'demonstração prática'],
+  commercialModes: ['produto em uso', 'review', 'experiência', 'seeding'],
+  avoidContexts: ['promessa médica de sono', 'isolamento acústico garantido', 'alegações técnicas sem fonte'],
+  insertionIdeas: ['tentativa de descanso', 'controle do ambiente sonoro', 'setup de conforto em casa', 'review em rotina real'],
+};
+
 export const BRAND_NARRATIVE_SEED: BrandNarrativeSeedItem[] = [
   ...buildSeedItems(sportTemplate, [
     { brandName: 'Adidas', products: ['tênis de corrida', 'camiseta esportiva', 'shorts', 'jaqueta', 'acessórios'], campaignKeywords: ['meia maratona', 'corrida', 'treino', 'prova', 'superação'], confidenceScore: 0.85 },
@@ -261,5 +277,14 @@ export const BRAND_NARRATIVE_SEED: BrandNarrativeSeedItem[] = [
     { brandName: 'XP', products: ['investimentos', 'conta investimento', 'assessoria', 'conteúdo financeiro'], campaignKeywords: ['educação financeira', 'investimentos', 'planejamento de futuro', 'carteira'], confidenceScore: 0.82 },
     { brandName: 'Claro', products: ['plano móvel', 'internet residencial', 'TV', '5G', 'combo'], campaignKeywords: ['conectividade', 'home office', 'internet rápida', 'família conectada'], confidenceScore: 0.82 },
     { brandName: 'Vivo', products: ['plano móvel', 'fibra', '5G', 'serviços digitais', 'combo'], campaignKeywords: ['internet em casa', 'conexão confiável', 'rotina digital', 'trabalho remoto'], confidenceScore: 0.82 },
+  ]),
+  ...buildSeedItems(homeAudioComfortTemplate, [
+    { brandName: 'Sony', products: ['fone de ouvido', 'headphone', 'caixa de som', 'soundbar', 'TV'], campaignKeywords: ['cancelamento de ruído', 'áudio', 'música', 'foco', 'silêncio'], confidenceScore: 0.84 },
+    { brandName: 'JBL', products: ['caixa de som', 'fone de ouvido', 'headphone', 'soundbar'], campaignKeywords: ['som', 'áudio', 'música em casa', 'fone', 'rotina sonora'], confidenceScore: 0.83 },
+    { brandName: 'Bose', products: ['fone com cancelamento de ruído', 'headphone', 'caixa de som', 'soundbar'], campaignKeywords: ['cancelamento de ruído', 'silêncio', 'foco', 'áudio premium', 'descanso'], confidenceScore: 0.84 },
+    { brandName: 'Philips', products: ['fone de ouvido', 'soundbar', 'lâmpada inteligente', 'purificador', 'aparelhos para casa'], campaignKeywords: ['conforto em casa', 'áudio', 'rotina doméstica', 'sono', 'bem-estar em casa'], confidenceScore: 0.82 },
+    { brandName: 'Emma Colchão', products: ['colchão', 'travesseiro', 'protetor de colchão'], campaignKeywords: ['sono', 'descanso', 'conforto', 'rotina noturna', 'cama'], confidenceScore: 0.83 },
+    { brandName: 'Zissou', products: ['colchão', 'travesseiro', 'roupa de cama'], campaignKeywords: ['sono', 'descanso', 'conforto', 'quarto', 'rotina de dormir'], confidenceScore: 0.82 },
+    { brandName: 'Leroy Merlin', products: ['janela acústica', 'cortina', 'iluminação', 'itens para casa', 'ferramentas'], campaignKeywords: ['casa', 'conforto', 'isolamento acústico', 'ambiente doméstico', 'reforma'], confidenceScore: 0.82 },
   ]),
 ];

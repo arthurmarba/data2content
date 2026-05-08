@@ -16,7 +16,7 @@ const SCRIPT_TAG = '[SMOKE_BRAND_NARRATIVE_FLOW]';
 type SmokeOptions = {
   dryRun: boolean;
   skipReport: boolean;
-  scenario: 'running' | 'wellness-digital' | 'wellness-chaos';
+  scenario: 'running' | 'wellness-digital' | 'wellness-chaos' | 'noisy-neighbor-relax';
   verbose: boolean;
   userId?: string;
 };
@@ -85,7 +85,12 @@ function parseArgs(argv: string[]): SmokeOptions {
     }
     if (arg.startsWith('--scenario=')) {
       const scenario = arg.slice('--scenario='.length).trim();
-      if (scenario === 'running' || scenario === 'wellness-digital' || scenario === 'wellness-chaos') {
+      if (
+        scenario === 'running' ||
+        scenario === 'wellness-digital' ||
+        scenario === 'wellness-chaos' ||
+        scenario === 'noisy-neighbor-relax'
+      ) {
         options.scenario = scenario;
       }
       continue;
@@ -93,7 +98,12 @@ function parseArgs(argv: string[]): SmokeOptions {
     if (arg === '--scenario') {
       const nextValue = argv[index + 1]?.trim();
       if (
-        (nextValue === 'running' || nextValue === 'wellness-digital' || nextValue === 'wellness-chaos') &&
+        (
+          nextValue === 'running' ||
+          nextValue === 'wellness-digital' ||
+          nextValue === 'wellness-chaos' ||
+          nextValue === 'noisy-neighbor-relax'
+        ) &&
         !nextValue.startsWith('--')
       ) {
         options.scenario = nextValue;
@@ -219,10 +229,40 @@ const wellnessChaosSmokeInput: BrandNarrativeMatchInput = {
   limit: 6,
 };
 
+const noisyNeighborRelaxSmokeInput: BrandNarrativeMatchInput = {
+  decision: {
+    contextId: 'Estilo de Vida e Bem-Estar',
+    proposalId: 'rotina real',
+    toneId: 'humor cotidiano',
+    narrativeId: 'pov',
+    intentId: 'conectar',
+    formatId: 'reels',
+    themeId: 'Estilo de Vida e Bem-Estar',
+  },
+  pauta: {
+    title: 'Quando você se deita pra relaxar e o vizinho liga o som',
+    description:
+      'Pauta de humor cotidiano sobre tentativa de descanso interrompida por barulho, vizinho, som alto, ruído doméstico e rotina real.',
+    reason: 'Mostrar tentativa frustrada de relaxar, ruído doméstico, casa barulhenta e pausa interrompida.',
+    theme: 'Estilo de Vida e Bem-Estar',
+    keywords: ['relaxar', 'vizinho', 'som', 'barulho', 'descanso', 'ruído', 'casa', 'conforto', 'humor cotidiano'],
+  },
+  categories: {
+    context: ['Estilo de Vida e Bem-Estar'],
+    narrativeForm: ['pov', 'humor cotidiano', 'rotina real'],
+    contentIntent: ['conectar', 'gerar identificação'],
+    contentSignals: ['humor cotidiano', 'rotina real', 'pausa interrompida', 'caos doméstico'],
+    proofStyle: ['experiência real', 'uso cotidiano'],
+    commercialMode: ['produto em uso real', 'experiência', 'rotina doméstica'],
+  },
+  limit: 6,
+};
+
 const smokeInputs: Record<SmokeOptions['scenario'], BrandNarrativeMatchInput> = {
   running: runningSmokeInput,
   'wellness-digital': wellnessDigitalSmokeInput,
   'wellness-chaos': wellnessChaosSmokeInput,
+  'noisy-neighbor-relax': noisyNeighborRelaxSmokeInput,
 };
 
 async function assertUserExists(userId: string) {
@@ -316,6 +356,12 @@ async function run() {
 
     if (summary.matchLevels.panelVisible < 1) {
       throw new Error(`O cenario ${options.scenario} nao retornou matches medios/altos para exibicao no painel.`);
+    }
+    if (
+      options.scenario === 'noisy-neighbor-relax' &&
+      matches.some((match) => match.brandName === 'Asics' && (match.matchLevel === 'alto' || match.matchLevel === 'medio'))
+    ) {
+      throw new Error('O cenario noisy-neighbor-relax retornou Asics como match medio/alto.');
     }
 
     log('Match narrativo validado.', {

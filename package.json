@@ -28,6 +28,7 @@
     "ensure-indexes": "tsx --env-file=.env.local ./scripts/ensureIndexes.ts",
     "seed:brand-narratives": "tsx --env-file=.env.local ./scripts/seedBrandNarrativeProfiles.ts",
     "seed:brand-narratives:dry-run": "npm run seed:brand-narratives -- --dry-run",
+    "seed:brand-narratives:only-new": "npm run seed:brand-narratives -- --only-new",
     "seed:brand-narratives:force": "npm run seed:brand-narratives -- --force",
     "smoke:brand-narratives": "tsx --env-file=.env.local ./scripts/smokeBrandNarrativeFlow.ts",
     "force-clean-indexes": "tsx --env-file=.env.local ./scripts/forceCleanIndexes.ts",

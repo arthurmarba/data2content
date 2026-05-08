@@ -49,6 +49,11 @@ describe('brandNarrativeReportBuilder', () => {
     expect(content.headline).toBe('Relatório de match narrativo: Creator Teste + Adidas');
     expect(content.disclaimer).toBe(BRAND_NARRATIVE_REPORT_DISCLAIMER);
     expect(content.organicProof).toContain('Ainda não há volume suficiente de posts orgânicos relacionados');
+    expect(content.narrativeFormula).toHaveLength(3);
+    expect(content.campaignConcept).toBeTruthy();
+    expect(content.activationPlan).toHaveLength(5);
+    expect(content.brandRole).toContain('Adidas');
+    expect(content.commercialClose).toContain('Essa proposta parte de uma narrativa orgânica');
   });
 
   it('gera tese comercial e copy específica para relatório de tecnologia', () => {
@@ -94,9 +99,29 @@ describe('brandNarrativeReportBuilder', () => {
     expect(content.brandFit).toContain('notificações');
     expect(content.brandFit).toContain('recursos de foco');
     expect(content.brandFit).toContain('uso mais consciente da tecnologia');
+    expect(content.narrativeFormula).toEqual([
+      expect.objectContaining({ title: 'Conflito reconhecível' }),
+      expect.objectContaining({ title: 'Desenvolvimento da situação' }),
+      expect.objectContaining({ title: 'Entrada natural da marca' }),
+    ]);
+    expect(content.narrativeFormula?.[2]?.description).toContain('foco, notificações e equilíbrio digital');
+    expect(content.evidenceReading).toContain('menor risco de parecer uma publicidade desconectada');
+    expect(content.evidenceReading).toContain('11,4 milhões de visualizações');
+    expect(content.campaignConcept).toBe('Quando a pausa encontra a tecnologia');
     expect(content.campaignIdea).toContain('Um Reels em formato POV mostrando Lívia tentando relaxar');
     expect(content.campaignIdea).not.toContain('a creator');
     expect(content.campaignIdea).toContain('organização da rotina digital');
+    expect(content.brandRole).toContain('não precisa interromper a história');
+    expect(content.activationPlan).toEqual([
+      expect.objectContaining({ title: 'Stories de contexto' }),
+      expect.objectContaining({ title: 'Reels principal' }),
+      expect.objectContaining({ title: 'Entrada da marca' }),
+      expect.objectContaining({ title: 'Stories de continuidade' }),
+      expect.objectContaining({ title: 'Recorte pós-campanha' }),
+    ]);
+    expect(content.activationPlan?.[1]?.description).toContain('POV da pausa interrompida pelo celular');
+    expect(content.activationPlan?.[2]?.description).toContain('foco, notificações e uso mais consciente');
+    expect(content.commercialClose).toContain('menor risco de parecer uma publicidade desconectada');
     expect(content.narrativeThesis).toContain('A oportunidade está em transformar');
     expect(content.suggestedExecution).toEqual([
       'Reels POV sobre interrupção digital e tentativa de pausa',
@@ -151,8 +176,16 @@ describe('brandNarrativeReportBuilder', () => {
     expect(presentation.content.executiveSummary).toContain('equilíbrio digital');
     expect(presentation.content.executiveSummary).toContain('tentar relaxar e o celular toca');
     expect(presentation.content.executiveSummary).not.toContain('foi identificada como uma possibilidade');
+    expect(presentation.content.narrativeFormula).toHaveLength(3);
+    expect(presentation.content.evidenceReading).toContain('rotina digital');
+    expect(presentation.content.evidenceReading).toContain('menor risco de parecer uma publicidade desconectada');
+    expect(presentation.content.campaignConcept).toBe('Quando a pausa encontra a tecnologia');
     expect(presentation.content.campaignIdea).toContain('Lívia tentando relaxar');
     expect(presentation.content.campaignIdea).not.toContain('a creator');
+    expect(presentation.content.activationPlan?.[0]?.title).toBe('Stories de contexto');
+    expect(presentation.content.activationPlan?.[2]?.title).toBe('Entrada da marca');
+    expect(presentation.content.brandRole).toContain('celular e a tecnologia');
+    expect(presentation.content.commercialClose).toContain('Apple entra em uma história reconhecível');
     expect(presentation.organicEntry).toContain('rotina de Lívia');
     expect(presentation.organicEntry).toContain('celular que tira a paz');
     expect(presentation.chips).toEqual(expect.arrayContaining(['celular', 'notificações', 'rotina digital', 'foco', 'relaxar', 'pausa', 'equilíbrio digital']));

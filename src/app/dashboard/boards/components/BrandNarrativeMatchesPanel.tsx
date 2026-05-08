@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, Loader2, Sparkles, Tag } from "lucide-react";
+import { AlertTriangle, ArrowRight, Loader2, Tag } from "lucide-react";
 
 import type {
   BrandNarrativeMatchInput,
@@ -22,7 +22,7 @@ const BRAND_MATCH_DISCLAIMER =
 const BRAND_MATCH_EMPTY_TITLE = "Ainda não encontramos marcas com match narrativo forte para essa pauta.";
 const BRAND_MATCH_EMPTY_SUBTEXT =
   "Tente escolher uma pauta mais específica ou gerar o relatório depois com uma marca em mente.";
-const VISIBLE_SIGNAL_LIMIT = 2;
+const VISIBLE_SIGNAL_LIMIT = 3;
 
 type BrandNarrativeDecision = {
   contextId?: string | null;
@@ -112,35 +112,8 @@ function cleanDecision(decision: BrandNarrativeDecision): BrandNarrativeDecision
   };
 }
 
-function getLevelClass(matchLevel: BrandNarrativeMatchResult["matchLevel"]) {
-  if (matchLevel === "alto") {
-    return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  }
-  if (matchLevel === "medio") {
-    return "border-amber-200 bg-amber-50 text-amber-700";
-  }
-  return "border-zinc-200 bg-zinc-50 text-zinc-600";
-}
-
 function getPrimaryCategory(category: string[]) {
   return category.find((item) => item.trim().length > 0) || "marca observada";
-}
-
-function compactDeliverableLabel(deliverable: string) {
-  const normalized = deliverable.replace(/^1\s+/i, "").trim();
-  if (/stories/i.test(normalized)) return "Stories";
-  if (/reels?/i.test(normalized)) return "Reels narrativo";
-  if (/recorte/i.test(normalized)) return "Recorte";
-  if (/carrossel/i.test(normalized)) return "Carrossel";
-  if (/foto/i.test(normalized)) return "Foto";
-  return normalized;
-}
-
-function formatCompactDeliverables(deliverables: string[]) {
-  const visible = Array.from(new Set(deliverables.map(compactDeliverableLabel).filter(Boolean))).slice(0, 2);
-  if (visible.length === 0) return null;
-  const extraCount = Math.max(0, deliverables.length - visible.length);
-  return `${visible.join(", ")}${extraCount > 0 ? ` +${extraCount}` : ""}`;
 }
 
 const SIGNAL_PRIORITY = [
@@ -152,10 +125,22 @@ const SIGNAL_PRIORITY = [
   "tecnologia",
   "autocuidado",
   "cuidado pessoal",
-  "pausa",
-  "descanso",
-  "obra",
   "barulho",
+  "vizinho",
+  "som alto",
+  "som",
+  "ruido",
+  "pausa interrompida",
+  "descanso",
+  "conforto",
+  "casa",
+  "silencio",
+  "fone",
+  "cancelamento de ruido",
+  "audio",
+  "rotina domestica",
+  "pausa",
+  "obra",
   "caos domestico",
   "corrida",
   "treino",
@@ -203,24 +188,6 @@ function getVisibleSignals(signals: string[]) {
   return sortSignalsByPriority(baseSignals).slice(0, VISIBLE_SIGNAL_LIMIT);
 }
 
-function formatSignalPhrase(signals: string[]) {
-  if (signals.length === 0) return null;
-  if (signals.length === 1) return signals[0];
-  if (signals.length === 2) return `${signals[0]} e ${signals[1]}`;
-  return `${signals[0]}, ${signals[1]} e ${signals[2]}`;
-}
-
-function buildOpportunitySummary(match: BrandNarrativeMatchResult, visibleSignals: string[]) {
-  const signalPhrase = formatSignalPhrase(visibleSignals);
-  const levelLabel = match.matchLevel === "alto" ? "Match forte" : "Match promissor";
-
-  if (!signalPhrase) {
-    return match.rationale;
-  }
-
-  return `${levelLabel} por ${signalPhrase}.`;
-}
-
 function hasAnyNormalizedTerm(values: string[], terms: string[]) {
   const normalizedValues = values.map(normalizeDisplaySignal);
   return terms.some((term) => normalizedValues.some((value) => value.includes(term)));
@@ -237,9 +204,69 @@ function getMatchTextCorpus(match: BrandNarrativeMatchResult) {
   ];
 }
 
-function buildPracticalAngle(match: BrandNarrativeMatchResult) {
+function shortText(value: string, maxLength = 120) {
+  const cleanValue = value.replace(/\s+/g, " ").trim();
+  if (cleanValue.length <= maxLength) return cleanValue;
+  return `${cleanValue.slice(0, maxLength - 1).trimEnd()}…`;
+}
+
+export function buildNarrativeConnectionLine(match: BrandNarrativeMatchResult) {
   const brandName = normalizeDisplaySignal(match.brandName);
   const corpus = getMatchTextCorpus(match);
+  const visibleSignals = getVisibleSignals(match.matchedSignals);
+  const primaryCategory = getPrimaryCategory(match.category);
+
+  if (brandName.includes("bose")) {
+    return "Áudio e controle de ruído como resposta ao descanso interrompido.";
+  }
+  if (brandName.includes("jbl")) {
+    return "Som como parte do conflito da narrativa, com entrada natural pelo território de áudio.";
+  }
+  if (brandName.includes("sony")) {
+    return "Tecnologia de áudio conectada à tentativa de recuperar silêncio e foco.";
+  }
+  if (brandName.includes("philips")) {
+    return "Conforto doméstico e tecnologia cotidiana dentro da pausa interrompida.";
+  }
+  if (brandName.includes("leroy merlin")) {
+    return "Casa e ambiente como parte da tentativa de transformar o espaço em descanso.";
+  }
+  if (brandName.includes("emma") || brandName.includes("zissou") || brandName.includes("ortobom")) {
+    return "Conforto e sono como promessa narrativa diante do barulho externo.";
+  }
+  if (brandName.includes("apple")) {
+    return "Celular e notificações como conflito central da tentativa de relaxar.";
+  }
+  if (brandName.includes("samsung")) {
+    return "Tecnologia cotidiana atravessando o momento de descanso.";
+  }
+  if (brandName.includes("motorola")) {
+    return "Celular e rotina digital como ponto de tensão e organização da pausa.";
+  }
+  if (brandName.includes("natura")) {
+    return "Autocuidado natural como tentativa de pausa em meio ao caos cotidiano.";
+  }
+  if (brandName.includes("o boticario")) {
+    return "Ritual de cuidado para recuperar humor e pausa dentro da rotina real.";
+  }
+  if (brandName.includes("l'oreal") || brandName.includes("l oreal") || brandName.includes("garnier") || brandName.includes("sallve")) {
+    return "Cuidado prático de pele ou cabelo dentro de uma pausa possível.";
+  }
+  if (brandName.includes("nivea") || brandName.includes("dove")) {
+    return "Cuidado diário, hidratação e conforto conectados ao descanso real.";
+  }
+  if (brandName.includes("gatorade")) {
+    return "Hidratação e esforço físico conectados à rotina de performance.";
+  }
+  if (
+    brandName.includes("asics") ||
+    brandName.includes("adidas") ||
+    brandName.includes("nike") ||
+    brandName.includes("olympikus")
+  ) {
+    return "Corrida, treino e performance como eixo natural da narrativa.";
+  }
+
   const isTechnology = hasAnyNormalizedTerm(corpus, [
     "tecnologia",
     "celular",
@@ -248,6 +275,21 @@ function buildPracticalAngle(match: BrandNarrativeMatchResult) {
     "notificacoes",
     "rotina digital",
     "internet",
+  ]);
+  const isAudioNoise = hasAnyNormalizedTerm(corpus, [
+    "audio",
+    "som",
+    "barulho",
+    "ruido",
+    "silencio",
+    "fone",
+  ]);
+  const isHomeComfort = hasAnyNormalizedTerm(corpus, [
+    "casa",
+    "conforto",
+    "sono",
+    "descanso",
+    "ambiente domestico",
   ]);
   const isBeautyCare = hasAnyNormalizedTerm(corpus, [
     "beleza",
@@ -265,27 +307,31 @@ function buildPracticalAngle(match: BrandNarrativeMatchResult) {
     "bem estar",
     "rotina saudavel",
   ]);
+  const isSport = hasAnyNormalizedTerm(corpus, [
+    "corrida",
+    "treino",
+    "performance",
+    "prova",
+    "atleta",
+  ]);
 
-  if (brandName.includes("apple")) {
-    return "Usar o celular como conflito da história e puxar foco, notificações e pausa.";
-  }
-  if (brandName.includes("samsung")) {
-    return "Mostrar tecnologia cotidiana ajudando a organizar a rotina sem tomar o centro da narrativa.";
-  }
-  if (brandName.includes("motorola")) {
-    return "Entrar pelo celular como ferramenta prática da rotina, com pausa e uso mais consciente.";
-  }
+  if (isAudioNoise) return "Áudio, silêncio e ruído conectados ao conflito principal da pauta.";
   if (isTechnology) {
-    return "Entrar pela rotina digital: uso cotidiano, interrupções e tentativa de recuperar foco.";
+    return "Tecnologia cotidiana ligada à rotina digital e às interrupções da pauta.";
+  }
+  if (isHomeComfort) {
+    return "Casa, conforto e descanso como resposta ao conflito cotidiano.";
   }
   if (isBeautyCare) {
-    return "Entrar como ritual rápido de autocuidado possível dentro de uma rotina real.";
+    return "Autocuidado e cuidado pessoal como pausa possível dentro da rotina real.";
   }
   if (isWellnessFood) {
-    return "Entrar como pequena pausa saudável dentro da rotina, sem forçar uma campanha perfeita.";
+    return "Pausa saudável e rotina equilibrada como entrada natural da marca.";
   }
+  if (isSport) return "Treino, esforço e performance conectados à história da pauta.";
 
-  return match.insertionAngle;
+  const signalText = visibleSignals.length ? visibleSignals.join(", ") : primaryCategory;
+  return shortText(`${match.brandName}: ${primaryCategory} conectado a ${signalText}.`);
 }
 
 function debugBrandMatches(message: string, payload?: Record<string, unknown>) {
@@ -644,31 +690,23 @@ const BrandNarrativeMatchesPanel = memo(function BrandNarrativeMatchesPanel({
   return (
     <section
       className={cn(
-        "w-full rounded-[24px] border border-sky-100/80 bg-white/88 p-4 shadow-[0_18px_44px_rgba(15,23,42,0.06)] ring-1 ring-white/80",
+        "w-full rounded-[24px] bg-[linear-gradient(180deg,rgba(250,250,251,0.86)_0%,rgba(248,249,252,0.58)_100%)] px-3 py-4 ring-1 ring-white/70 transform-gpu backface-hidden antialiased will-change-transform",
         compact ? "mt-4" : "mt-2"
       )}
       aria-label="Marcas sugeridas por match narrativo"
     >
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[16px] border border-sky-100 bg-sky-50 text-sky-600">
-          <Sparkles className="h-[18px] w-[18px]" aria-hidden="true" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-[9.5px] font-semibold uppercase tracking-[0.16em] text-sky-500">
-            Oportunidade narrativa
-          </p>
-          <h3 className="mt-1 text-[1rem] font-semibold leading-tight tracking-[-0.025em] text-zinc-950">
-            Marcas que combinam com essa narrativa
-          </h3>
-          <p className="mt-1 text-[12px] font-medium leading-5 text-zinc-500">
-            Com base na pauta escolhida, encontramos marcas que poderiam entrar de forma natural no conteúdo.
-          </p>
-        </div>
+      <div className="min-w-0 px-1">
+        <p className="text-[9.5px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
+          Oportunidade narrativa
+        </p>
+        <h3 className="mt-1.5 text-[1rem] font-semibold leading-tight tracking-[-0.025em] text-zinc-950">
+          Marcas que combinam com essa narrativa
+        </h3>
       </div>
 
-      <div className="mt-3 rounded-lg border border-amber-200/70 bg-amber-50/80 px-3 py-2 text-[11px] font-medium leading-4 text-amber-800">
-        {BRAND_MATCH_DISCLAIMER}
-      </div>
+      <p className="mx-1 mt-2.5 text-[10.5px] font-semibold leading-4 text-zinc-400">
+        Nota: {BRAND_MATCH_DISCLAIMER}
+      </p>
 
       {localMessage ? (
         <div
@@ -716,95 +754,70 @@ const BrandNarrativeMatchesPanel = memo(function BrandNarrativeMatchesPanel({
         ) : null}
 
         {matches.length ? (
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {displayedMatches.map((match) => {
               const isGeneratingReport = generatingReportBrandIds.includes(match.brandId);
               const visibleSignals = getVisibleSignals(match.matchedSignals);
               const extraSignalsCount = Math.max(0, match.matchedSignals.length - visibleSignals.length);
-              const compactDeliverables = formatCompactDeliverables(match.suggestedDeliverables);
-              const opportunitySummary = buildOpportunitySummary(match, visibleSignals);
-              const practicalAngle = buildPracticalAngle(match);
+              const connectionLine = buildNarrativeConnectionLine(match);
+              const primaryCategory = getPrimaryCategory(match.category);
+              const signalLabel = visibleSignals.length
+                ? `${visibleSignals.join(" · ")}${extraSignalsCount > 0 ? ` · +${extraSignalsCount}` : ""}`
+                : null;
 
               return (
               <article
                 key={match.brandId}
-                className="rounded-lg border border-zinc-200/80 bg-white px-3 py-2.5 shadow-[0_8px_20px_rgba(15,23,42,0.035)]"
+                className="rounded-[16px] border border-zinc-200/70 bg-white/62 px-3 py-3.5 ring-1 ring-white/75 transition duration-300 hover:border-indigo-100 hover:bg-white hover:ring-indigo-100/80"
               >
-                <div className="flex flex-wrap items-start justify-between gap-2.5">
-                  <div className="min-w-0 flex-1">
-                    <h4 className="break-words text-[15px] font-bold leading-tight tracking-[-0.02em] text-zinc-950">
+                <div className="min-w-0">
+                  <div className="flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-1.5">
+                    <p className="break-words text-[14px] font-bold leading-[1.15] text-zinc-950">
                       {match.brandName}
-                    </h4>
-                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                      <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-[10px] font-bold leading-4 text-zinc-500">
-                        <Tag className="h-3 w-3" aria-hidden="true" />
-                        <span className="truncate">{getPrimaryCategory(match.category)}</span>
-                      </span>
-                      {visibleSignals.map((signal) => (
-                        <span
-                          key={signal}
-                          className="rounded-full border border-sky-100 bg-sky-50 px-2 py-0.5 text-[10px] font-bold leading-4 text-sky-700"
-                        >
-                          {signal}
-                        </span>
-                      ))}
-                      {extraSignalsCount > 0 ? (
-                        <span className="rounded-full border border-zinc-200/80 bg-zinc-50 px-2 py-0.5 text-[10px] font-bold leading-4 text-zinc-500">
-                          +{extraSignalsCount}
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                  <span
-                    className={cn(
-                      "shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.12em]",
-                      getLevelClass(match.matchLevel)
-                    )}
-                  >
-                    {match.matchLevel}
-                  </span>
-                </div>
-
-                <p className="mt-2 line-clamp-2 text-[12.5px] font-semibold leading-5 text-zinc-600">
-                  {opportunitySummary}
-                </p>
-                <div className="mt-2 rounded-lg border border-sky-100 bg-sky-50/75 px-2.5 py-1.5">
-                  <p className="text-[9.5px] font-bold uppercase tracking-[0.12em] text-sky-600">Oportunidade</p>
-                  <p className="mt-0.5 line-clamp-2 text-[12px] font-semibold leading-5 text-sky-900">
-                    {practicalAngle}
-                  </p>
-                </div>
-
-                <div className="mt-2.5 flex flex-col gap-2 border-t border-zinc-100 pt-2.5 sm:flex-row sm:items-center sm:justify-between">
-                  {compactDeliverables ? (
-                    <p className="text-[11px] font-medium leading-4 text-zinc-500">
-                      <span className="font-bold text-zinc-700">Entregáveis:</span> {compactDeliverables}
                     </p>
-                  ) : (
-                    <span aria-hidden="true" />
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => void handleReportClick(match)}
-                    disabled={isGeneratingReport}
-                    aria-label={`${isGeneratingReport ? "Gerando relatório" : "Gerar relatório"} para ${match.brandName}`}
-                    className={cn(
-                      "inline-flex h-10 w-full cursor-pointer items-center justify-center rounded-lg border px-4 text-[13px] font-semibold shadow-sm transition duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2 sm:min-w-[160px] sm:w-auto",
-                      isGeneratingReport
-                        ? "!border-zinc-950 !bg-zinc-950 !text-white opacity-90 disabled:cursor-wait"
-                        : "!border-zinc-950 !bg-zinc-950 !text-white hover:!border-zinc-800 hover:!bg-zinc-800 active:!bg-zinc-900 disabled:cursor-not-allowed disabled:!border-zinc-300 disabled:!bg-zinc-200 disabled:!text-zinc-700"
-                    )}
-                  >
-                    {isGeneratingReport ? (
-                      <>
-                        <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin text-white" aria-hidden="true" />
-                        Gerando relatório...
-                      </>
-                    ) : (
-                      "Gerar relatório"
-                    )}
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleReportClick(match)}
+                      disabled={isGeneratingReport}
+                      aria-label={`${isGeneratingReport ? "Gerando relatório" : "Gerar relatório"} para ${match.brandName}`}
+                      className={cn(
+                        "group inline-flex h-7 shrink-0 items-center gap-1 rounded-full border px-2.5 text-[11px] font-bold leading-4 transition duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 disabled:cursor-wait",
+                        isGeneratingReport
+                          ? "border-zinc-200 bg-zinc-50 text-zinc-400"
+                          : "border-indigo-100 bg-indigo-50/70 text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-800"
+                      )}
+                    >
+                      {isGeneratingReport ? (
+                        <>
+                          <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />
+                          Gerando...
+                        </>
+                      ) : (
+                        <>
+                          Relatório
+                          <ArrowRight className="h-3 w-3 transition-transform duration-300 group-hover:translate-x-0.5" aria-hidden="true" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                  <div className="mt-1 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="inline-flex min-w-0 items-center gap-1 text-[11px] font-semibold leading-4 text-zinc-400">
+                      <Tag className="h-3 w-3 shrink-0" aria-hidden="true" />
+                      <span className="truncate">{primaryCategory}</span>
+                    </span>
+                  </div>
+
+                  <p className="mt-1.5 line-clamp-2 text-[12.5px] font-semibold leading-5 text-zinc-600">
+                    {connectionLine}
+                  </p>
+                  {signalLabel ? (
+                    <p className="mt-1.5 line-clamp-1 text-[11px] font-semibold leading-4 text-zinc-500">
+                      <span className="text-zinc-400">Sinais </span>
+                      {signalLabel}
+                    </p>
+                  ) : null}
                 </div>
+
               </article>
               );
             })}

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { StrictMode } from "react";
 
-import BrandNarrativeMatchesPanel from "./BrandNarrativeMatchesPanel";
+import BrandNarrativeMatchesPanel, { buildNarrativeConnectionLine } from "./BrandNarrativeMatchesPanel";
 import { track } from "@/lib/track";
 
 jest.mock("@/lib/track", () => ({
@@ -56,6 +56,20 @@ const nikeMatch = {
   suggestedApproachMessage: "Tenho uma narrativa orgânica para a marca.",
   disclaimer: "Marca sugerida por possível match narrativo.",
 };
+
+function makeConnectionMatch(overrides: Partial<typeof nikeMatch>) {
+  return {
+    ...nikeMatch,
+    brandId: overrides.brandId || `brand-${overrides.brandName || "test"}`,
+    brandName: overrides.brandName || nikeMatch.brandName,
+    slug: overrides.slug || String(overrides.brandName || "test").toLowerCase().replace(/\s+/g, "-"),
+    category: overrides.category || nikeMatch.category,
+    matchedSignals: overrides.matchedSignals || nikeMatch.matchedSignals,
+    rationale: overrides.rationale || nikeMatch.rationale,
+    insertionAngle: overrides.insertionAngle || nikeMatch.insertionAngle,
+    suggestedDeliverables: overrides.suggestedDeliverables || nikeMatch.suggestedDeliverables,
+  };
+}
 
 const lowMatch = {
   brandId: "brand-mundo-verde",
@@ -197,14 +211,17 @@ describe("BrandNarrativeMatchesPanel", () => {
     });
 
     expect(screen.queryByText("Buscando marcas com match narrativo...")).not.toBeInTheDocument();
-    expect(screen.getByText("alto")).toBeInTheDocument();
-    expect(screen.getByText("Oportunidade")).toBeInTheDocument();
-    expect(screen.getByText("A marca pode entrar no kit e no treino pré-prova.")).toBeInTheDocument();
-    expect(screen.getByText(/Entregáveis:/)).toBeInTheDocument();
-    expect(screen.getByText(/Reels narrativo/)).toBeInTheDocument();
+    expect(screen.queryByText("alto")).not.toBeInTheDocument();
+    expect(screen.queryByText("Marcas com conexão narrativa para esta pauta.")).not.toBeInTheDocument();
+    expect(screen.queryByText("Conexão narrativa")).not.toBeInTheDocument();
+    expect(screen.getByText("Corrida, treino e performance como eixo natural da narrativa.")).toBeInTheDocument();
+    expect(screen.queryByText("Oportunidade")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Entregáveis:/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Reels narrativo/)).not.toBeInTheDocument();
+    expect(screen.getByText("Relatório")).toBeInTheDocument();
     const reportButton = screen.getByRole("button", { name: /Gerar relatório/ });
     expect(reportButton).toBeInTheDocument();
-    expect(reportButton).toHaveClass("!bg-zinc-950", "!text-white", "h-10");
+    expect(reportButton).toHaveClass("text-indigo-600");
     expect(track).toHaveBeenCalledWith("post_creation_brand_matches_loaded", { count: 1 });
   });
 
@@ -259,12 +276,12 @@ describe("BrandNarrativeMatchesPanel", () => {
       expect(screen.getByText("Nike")).toBeInTheDocument();
     });
 
-    expect(screen.getByText("medio")).toBeInTheDocument();
+    expect(screen.queryByText("medio")).not.toBeInTheDocument();
     expect(screen.queryByText("Mundo Verde")).not.toBeInTheDocument();
     expect(screen.queryByText("baixo")).not.toBeInTheDocument();
     const reportButton = screen.getByRole("button", { name: /Gerar relatório/ });
     expect(reportButton).toBeInTheDocument();
-    expect(reportButton).toHaveClass("!bg-zinc-950", "!text-white");
+    expect(reportButton).toHaveClass("text-indigo-600");
   });
 
   it("renderiza apenas 3 marcas inicialmente e permite expandir/recolher", async () => {
@@ -294,6 +311,55 @@ describe("BrandNarrativeMatchesPanel", () => {
 
     expect(screen.queryByText("Marca 4")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ver mais marcas" })).toBeInTheDocument();
+  });
+
+  it("gera conexão narrativa curta e específica por marca", () => {
+    const cases = [
+      ["Apple", ["tecnologia"], ["celular", "notificacao"], "Celular e notificações como conflito central da tentativa de relaxar."],
+      ["Samsung", ["tecnologia"], ["celular", "rotina digital"], "Tecnologia cotidiana atravessando o momento de descanso."],
+      ["Bose", ["áudio"], ["barulho", "som", "cancelamento de ruido"], "Áudio e controle de ruído como resposta ao descanso interrompido."],
+      ["JBL", ["áudio"], ["som", "caixa de som"], "Som como parte do conflito da narrativa, com entrada natural pelo território de áudio."],
+      ["Leroy Merlin", ["casa"], ["casa", "conforto"], "Casa e ambiente como parte da tentativa de transformar o espaço em descanso."],
+      ["Emma Colchão", ["casa"], ["sono", "conforto"], "Conforto e sono como promessa narrativa diante do barulho externo."],
+      ["Natura", ["beleza"], ["autocuidado", "pausa"], "Autocuidado natural como tentativa de pausa em meio ao caos cotidiano."],
+      ["O Boticário", ["beleza"], ["fragrância", "autocuidado"], "Ritual de cuidado para recuperar humor e pausa dentro da rotina real."],
+      ["Asics", ["esporte"], ["corrida", "treino"], "Corrida, treino e performance como eixo natural da narrativa."],
+    ] as const;
+
+    for (const [brandName, category, matchedSignals, expected] of cases) {
+      expect(buildNarrativeConnectionLine(makeConnectionMatch({ brandName, category: [...category], matchedSignals: [...matchedSignals] }))).toBe(expected);
+    }
+  });
+
+  it("não usa conexão narrativa idêntica para marcas com territórios diferentes", () => {
+    const matches = [
+      makeConnectionMatch({ brandName: "Apple", category: ["tecnologia"], matchedSignals: ["celular", "notificacao"] }),
+      makeConnectionMatch({ brandName: "Samsung", category: ["tecnologia"], matchedSignals: ["celular", "rotina digital"] }),
+      makeConnectionMatch({ brandName: "Bose", category: ["áudio"], matchedSignals: ["barulho", "som"] }),
+      makeConnectionMatch({ brandName: "Natura", category: ["beleza"], matchedSignals: ["autocuidado", "pausa"] }),
+      makeConnectionMatch({ brandName: "O Boticário", category: ["beleza"], matchedSignals: ["fragrância", "autocuidado"] }),
+    ];
+    const lines = matches.map(buildNarrativeConnectionLine);
+
+    expect(new Set(lines).size).toBe(lines.length);
+  });
+
+  it("fallback de conexão narrativa não retorna frases genéricas", () => {
+    const line = buildNarrativeConnectionLine(
+      makeConnectionMatch({
+        brandName: "Marca Nova",
+        category: ["casa"],
+        matchedSignals: ["relaxar"],
+        rationale: "Combina com essa narrativa.",
+        insertionAngle: "Entrar como produto em uso.",
+      })
+    );
+
+    expect(line).not.toBe("Match forte por relaxar.");
+    expect(line).not.toBe("Combina com essa narrativa.");
+    expect(line).not.toBe("Marca pode entrar de forma natural.");
+    expect(line).not.toBe("Oportunidade de conteúdo.");
+    expect(line).not.toBe("Entrar como produto em uso.");
   });
 
   it("loading termina após erro 500", async () => {
@@ -438,7 +504,8 @@ describe("BrandNarrativeMatchesPanel", () => {
     expect((global.fetch as jest.Mock).mock.calls.filter(([url]) => url === "/api/brand-narratives/reports")).toHaveLength(1);
     const loadingButton = screen.getByRole("button", { name: /Gerando relatório/ });
     expect(loadingButton).toBeDisabled();
-    expect(loadingButton).toHaveClass("!bg-zinc-950", "!text-white", "disabled:cursor-wait");
+    expect(screen.getByText("Gerando...")).toBeInTheDocument();
+    expect(loadingButton).toHaveClass("text-zinc-400", "disabled:cursor-wait");
 
     resolveReport({
       ok: true,

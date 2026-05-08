@@ -10,10 +10,12 @@ const SCRIPT_TAG = '[SCRIPT_SEED_BRAND_NARRATIVE_PROFILES]';
 type SeedSummary = {
   dryRun: boolean;
   force: boolean;
+  onlyNew: boolean;
   totalSeed: number;
   created: number;
   updated: number;
   ignored: number;
+  ignoredExisting: number;
   errors: number;
 };
 
@@ -90,23 +92,31 @@ async function assertNoDuplicateSeedSlugs(preparedItems: PreparedSeedItem[]) {
 async function run() {
   const dryRun = hasFlag('dry-run');
   const force = hasFlag('force');
+  const onlyNew = hasFlag('only-new');
   const summary: SeedSummary = {
     dryRun,
     force,
+    onlyNew,
     totalSeed: BRAND_NARRATIVE_SEED.length,
     created: 0,
     updated: 0,
     ignored: 0,
+    ignoredExisting: 0,
     errors: 0,
   };
 
   logger.info(`${SCRIPT_TAG} Iniciando seed de brand narrative profiles.`, {
     dryRun,
     force,
+    onlyNew,
     totalSeed: BRAND_NARRATIVE_SEED.length,
   });
 
   try {
+    if (onlyNew && force) {
+      throw new Error('As flags --only-new e --force não podem ser usadas juntas.');
+    }
+
     await connectToDatabase();
 
     const preparedItems = await Promise.all(BRAND_NARRATIVE_SEED.map(prepareSeedItem));
@@ -130,6 +140,17 @@ async function run() {
           if (!dryRun) {
             await new BrandNarrativeProfile(prepared.seedItem).save();
           }
+          continue;
+        }
+
+        if (onlyNew) {
+          summary.ignoredExisting += 1;
+          logger.info(`${SCRIPT_TAG} Marca existente ignorada por --only-new.`, {
+            brandName: prepared.seedItem.brandName,
+            slug: prepared.slug,
+            existingSource: existing.source,
+            existingValidationStatus: existing.validationStatus,
+          });
           continue;
         }
 

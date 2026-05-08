@@ -40,12 +40,15 @@ function makeBrand(seed: BrandNarrativeSeedItem, overrides: Record<string, unkno
 
 const adidasSeed = BRAND_NARRATIVE_SEED.find((brand) => brand.brandName === 'Adidas')!;
 const nikeSeed = BRAND_NARRATIVE_SEED.find((brand) => brand.brandName === 'Nike')!;
+const asicsSeed = BRAND_NARRATIVE_SEED.find((brand) => brand.brandName === 'Asics')!;
 const naturaSeed = BRAND_NARRATIVE_SEED.find((brand) => brand.brandName === 'Natura')!;
 const boticarioSeed = BRAND_NARRATIVE_SEED.find((brand) => brand.brandName === 'O Boticário')!;
 const lorealSeed = BRAND_NARRATIVE_SEED.find((brand) => brand.brandName === "L'Oréal Paris")!;
 const johnsonsBabySeed = BRAND_NARRATIVE_SEED.find((brand) => brand.brandName === "Johnson's Baby")!;
 const samsungSeed = BRAND_NARRATIVE_SEED.find((brand) => brand.brandName === 'Samsung')!;
 const mundoVerdeSeed = BRAND_NARRATIVE_SEED.find((brand) => brand.brandName === 'Mundo Verde')!;
+const sonySeed = BRAND_NARRATIVE_SEED.find((brand) => brand.brandName === 'Sony')!;
+const jblSeed = BRAND_NARRATIVE_SEED.find((brand) => brand.brandName === 'JBL')!;
 
 const runningInput: BrandNarrativeMatchInput = {
   decision: {
@@ -192,6 +195,35 @@ const wellnessFamilyChaosInput: BrandNarrativeMatchInput = {
     context: ['Estilo de Vida e Bem-Estar', 'família', 'maternidade'],
     contentSignals: ['rotina familiar', 'cuidado infantil', 'pausa'],
   },
+};
+
+const noisyNeighborRelaxInput: BrandNarrativeMatchInput = {
+  decision: {
+    contextId: 'Estilo de Vida e Bem-Estar',
+    proposalId: 'rotina real',
+    toneId: 'humor cotidiano',
+    narrativeId: 'pov',
+    intentId: 'conectar',
+    formatId: 'reels',
+    themeId: 'Estilo de Vida e Bem-Estar',
+  },
+  pauta: {
+    title: 'Quando você se deita pra relaxar e o vizinho liga o som',
+    description:
+      'Pauta de humor cotidiano sobre tentativa de descanso interrompida por barulho, vizinho, som alto, ruído doméstico e rotina real.',
+    reason: 'Mostrar tentativa frustrada de relaxar, ruído doméstico, casa barulhenta e pausa interrompida.',
+    theme: 'Estilo de Vida e Bem-Estar',
+    keywords: ['relaxar', 'vizinho', 'som', 'barulho', 'descanso', 'ruído', 'casa', 'conforto', 'humor cotidiano'],
+  },
+  categories: {
+    context: ['Estilo de Vida e Bem-Estar'],
+    narrativeForm: ['pov', 'humor cotidiano', 'rotina real'],
+    contentIntent: ['conectar', 'gerar identificação'],
+    contentSignals: ['humor cotidiano', 'rotina real', 'pausa interrompida', 'caos doméstico'],
+    proofStyle: ['experiência real', 'uso cotidiano'],
+    commercialMode: ['produto em uso real', 'experiência', 'rotina doméstica'],
+  },
+  limit: 6,
 };
 
 describe('brandNarrativeMatcher', () => {
@@ -406,6 +438,62 @@ describe('brandNarrativeMatcher', () => {
 
     expect(matches.every((match) => match.matchLevel !== 'alto')).toBe(true);
     expect(matches.flatMap((match) => match.matchedSignals)).not.toEqual(expect.arrayContaining(['bem', 'estar', 'vida']));
+  });
+
+  it('não promove marca esportiva para pauta de descanso interrompido por vizinho e som', () => {
+    const asics = scoreBrandNarrativeMatch(makeBrand(asicsSeed), noisyNeighborRelaxInput);
+    const matches = rankBrandNarrativeMatches(BRAND_NARRATIVE_SEED.map((seed) => makeBrand(seed)), noisyNeighborRelaxInput, 6);
+    const panelVisibleMatches = matches.filter((match) => match.matchLevel === 'alto' || match.matchLevel === 'medio');
+
+    expect(asics?.matchLevel).toBe('baixo');
+    expect(asics?.matchScore).toBeLessThan(0.4);
+    expect(panelVisibleMatches.map((match) => match.brandName)).not.toContain('Asics');
+  });
+
+  it('retorna marcas coerentes para barulho, vizinho, som e descanso interrompido', () => {
+    const matches = rankBrandNarrativeMatches(BRAND_NARRATIVE_SEED.map((seed) => makeBrand(seed)), noisyNeighborRelaxInput, 6);
+    const panelVisibleMatches = matches.filter((match) => match.matchLevel === 'alto' || match.matchLevel === 'medio');
+    const brandNames = panelVisibleMatches.map((match) => match.brandName);
+    const signals = panelVisibleMatches.flatMap((match) => match.matchedSignals);
+
+    expect(panelVisibleMatches.length).toBeGreaterThan(0);
+    expect(brandNames).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/Sony|JBL|Bose|Philips|Emma Colchão|Zissou|Leroy Merlin|Natura|O Boticário|L'Oréal Paris|Samsung|Apple|Motorola/),
+      ])
+    );
+    expect(signals).toEqual(expect.arrayContaining(['barulho', 'vizinho', 'som']));
+    expect(signals).not.toEqual(['relaxar']);
+  });
+
+  it('relaxar sozinho não sustenta match médio ou alto', () => {
+    const relaxOnlyInput: BrandNarrativeMatchInput = {
+      pauta: {
+        title: 'Quero relaxar',
+        description: 'Uma pauta simples sobre relaxar sem contexto específico.',
+        keywords: ['relaxar'],
+      },
+      categories: {
+        context: ['Estilo de Vida e Bem-Estar'],
+      },
+    };
+    const matches = rankBrandNarrativeMatches(
+      [naturaSeed, boticarioSeed, lorealSeed, asicsSeed].map((seed) => makeBrand(seed)),
+      relaxOnlyInput,
+      4
+    );
+
+    expect(matches.every((match) => match.matchLevel === 'baixo')).toBe(true);
+  });
+
+  it('barulho, vizinho, som e descanso geram domínio específico de ruído e conforto', () => {
+    const sony = scoreBrandNarrativeMatch(makeBrand(sonySeed), noisyNeighborRelaxInput);
+    const jbl = scoreBrandNarrativeMatch(makeBrand(jblSeed), noisyNeighborRelaxInput);
+
+    expect(sony?.matchLevel).not.toBe('baixo');
+    expect(jbl?.matchLevel).not.toBe('baixo');
+    expect(sony?.matchedSignals).toEqual(expect.arrayContaining(['barulho', 'som']));
+    expect(sony?.rationale).toContain('descanso interrompido pelo som do vizinho');
   });
 
   it('diferencia justificativas e entregáveis para marcas de autocuidado em pauta de obra e pausa interrompida', () => {
