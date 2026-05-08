@@ -11,6 +11,8 @@
 import mongoose from 'mongoose';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import Metric from '@/app/models/Metric';
+import BrandNarrativeProfile from '@/app/models/BrandNarrativeProfile';
+import BrandNarrativeReport from '@/app/models/BrandNarrativeReport';
 import { logger } from '@/app/lib/logger';
 
 const SCRIPT_TAG = '[SCRIPT_ENSURE_INDEXES]';
@@ -52,6 +54,10 @@ async function ensureCorrectIndexes() {
     // 3. Garantir que os índices individuais e seguros existam
     logger.info(`${SCRIPT_TAG} Garantindo a existência dos índices individuais corretos...`);
     await Metric.createIndexes();
+    await BrandNarrativeProfile.createIndexes();
+    logger.info(`${SCRIPT_TAG} Índices de brand narrative profiles garantidos.`);
+    await BrandNarrativeReport.createIndexes();
+    logger.info(`${SCRIPT_TAG} Índices de brand narrative reports garantidos.`);
 
     // campaign_links pode variar conforme legado/pluralização
     const collectionCandidates = ['campaignlinks', 'campaign_links'];

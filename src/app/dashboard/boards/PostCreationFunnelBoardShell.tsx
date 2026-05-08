@@ -75,6 +75,7 @@ import {
   adjustBlueprint,
   type PostCreationBlueprintAdjustment,
 } from "./postCreationBlueprintAdjuster";
+import BrandNarrativeMatchesPanel from "./components/BrandNarrativeMatchesPanel";
 
 const MyScriptsPage = dynamic(() => import("@/app/dashboard/scripts/MyScriptsPage"), {
   ssr: false,
@@ -114,6 +115,8 @@ const POST_CREATION_SAVED_FROM = "post_creation_funnel";
 const POST_CREATION_LOCAL_CACHE_LIMIT = 12;
 const POST_CREATION_PAUTA_REQUEST_VERSION = "pauta-ai-v7";
 const POST_CREATION_COLLAB_REQUEST_VERSION = "collab-v5";
+const BRAND_MATCHES_ENABLED =
+  process.env.NEXT_PUBLIC_POST_CREATION_BRAND_MATCHES_ENABLED !== "0";
 const POST_CREATION_DEBUG =
   process.env.NODE_ENV !== "production" && process.env.NEXT_PUBLIC_POST_CREATION_DEBUG === "1";
 const POST_CREATION_LOADING_MESSAGES = [
@@ -163,6 +166,52 @@ const FUNNEL_TEXTAREA_CLASS =
 
 function cn(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
+}
+
+function buildBrandNarrativeKeywords(...values: Array<string | null | undefined>) {
+  const stopWords = new Set([
+    "para",
+    "com",
+    "uma",
+    "que",
+    "dos",
+    "das",
+    "por",
+    "como",
+    "esse",
+    "essa",
+    "este",
+    "esta",
+    "sobre",
+  ]);
+
+  return Array.from(
+    new Set(
+      values
+        .flatMap((value) => (value || "").split(/[\s,.;:!?()[\]{}"']+/))
+        .map((keyword) => keyword.trim())
+        .filter((keyword) => keyword.length > 3 && !stopWords.has(keyword.toLowerCase()))
+    )
+  ).slice(0, 14);
+}
+
+function buildBrandNarrativeCategoryValues(
+  type: Extract<CategoryType, "proposal" | "context" | "tone" | "format" | "reference"> | null,
+  ...values: Array<string | string[] | null | undefined>
+) {
+  const normalizedValues = values.flatMap((value) => {
+    if (Array.isArray(value)) return value;
+    return value ? [value] : [];
+  });
+  const withLabels = normalizedValues.flatMap((value) => {
+    const trimmed = value.trim();
+    if (!trimmed) return [];
+    if (!type) return [trimmed];
+    const label = formatCategoryLabel(trimmed, type);
+    return label && label !== trimmed ? [trimmed, label] : [trimmed];
+  });
+  const uniqueValues = Array.from(new Set(withLabels.filter((value) => value.trim().length > 0)));
+  return uniqueValues.length ? uniqueValues : undefined;
 }
 
 function writeBoundedCache<K, V>(cache: Map<K, V>, key: K, value: V, limit = POST_CREATION_LOCAL_CACHE_LIMIT) {
@@ -6392,6 +6441,26 @@ export default function PostCreationFunnelBoardShell({
     decisionPathCards.find((item) => item.id === "theme")?.value ||
     funnelState.decision.themeId ||
     "tema";
+  const brandNarrativePautaPayload = useMemo(() => {
+    if (!selectedIdeaForProjection) return null;
+
+    const evidence =
+      "evidence" in selectedIdeaForProjection && Array.isArray(selectedIdeaForProjection.evidence)
+        ? selectedIdeaForProjection.evidence.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+        : [];
+    const title = selectedIdeaForProjection.title || null;
+    const description = selectedIdeaForProjection.description || null;
+    const reason = evidence.length ? evidence.slice(0, 3).join(" | ") : description;
+    const theme = selectedThemeLabel || funnelState.decision.themeId || null;
+
+    return {
+      title,
+      description,
+      reason,
+      theme,
+      keywords: buildBrandNarrativeKeywords(title, description, reason, theme),
+    };
+  }, [funnelState.decision.themeId, selectedIdeaForProjection, selectedThemeLabel]);
   const selectedPautaLabel =
     funnelState.idea?.title ||
     decisionPathCards.find((item) => item.id === "pauta")?.value ||
@@ -6624,6 +6693,55 @@ export default function PostCreationFunnelBoardShell({
     selectedProjectionSlot,
     selectedThemeLabel,
   ]);
+
+  const brandNarrativeCategoriesPayload = useMemo(
+    () => ({
+      context: buildBrandNarrativeCategoryValues(
+        "context",
+        funnelState.decision.contextId,
+        selectedProjectionSlot?.categories?.context
+      ),
+      proposal: buildBrandNarrativeCategoryValues(
+        "proposal",
+        funnelState.decision.proposalId,
+        selectedProjectionSlot?.categories?.proposal
+      ),
+      tone: buildBrandNarrativeCategoryValues(
+        "tone",
+        funnelState.decision.toneId,
+        selectedProjectionSlot?.categories?.tone
+      ),
+      reference: buildBrandNarrativeCategoryValues(
+        "reference",
+        funnelState.decision.referenceId,
+        selectedProjectionSlot?.categories?.reference
+      ),
+      contentIntent: buildBrandNarrativeCategoryValues(null, funnelState.decision.intentId, selectedProjectionSlot?.contentIntent),
+      narrativeForm: buildBrandNarrativeCategoryValues(null, funnelState.decision.narrativeId, selectedProjectionSlot?.narrativeForm),
+      contentSignals: buildBrandNarrativeCategoryValues(null, selectedProjectionSlot?.contentSignals),
+      stance: buildBrandNarrativeCategoryValues(null, selectedProjectionSlot?.stance),
+      proofStyle: buildBrandNarrativeCategoryValues(null, selectedProjectionSlot?.proofStyle),
+      commercialMode: buildBrandNarrativeCategoryValues(null, selectedProjectionSlot?.commercialMode),
+    }),
+    [
+      funnelState.decision.contextId,
+      funnelState.decision.intentId,
+      funnelState.decision.narrativeId,
+      funnelState.decision.proposalId,
+      funnelState.decision.referenceId,
+      funnelState.decision.toneId,
+      selectedProjectionSlot?.categories?.context,
+      selectedProjectionSlot?.categories?.proposal,
+      selectedProjectionSlot?.categories?.reference,
+      selectedProjectionSlot?.categories?.tone,
+      selectedProjectionSlot?.commercialMode,
+      selectedProjectionSlot?.contentIntent,
+      selectedProjectionSlot?.contentSignals,
+      selectedProjectionSlot?.narrativeForm,
+      selectedProjectionSlot?.proofStyle,
+      selectedProjectionSlot?.stance,
+    ]
+  );
 
   useEffect(() => {
     if (!collabCreatorsRequest) {
@@ -7042,6 +7160,13 @@ export default function PostCreationFunnelBoardShell({
                             {!canInteract ? (
                               <CollabRadarUpsellBanner onActivate={handleActivateCollabRadar} />
                             ) : null}
+                            <BrandNarrativeMatchesPanel
+                              compact
+                              categories={brandNarrativeCategoriesPayload}
+                              decision={funnelState.decision}
+                              enabled={BRAND_MATCHES_ENABLED}
+                              pauta={brandNarrativePautaPayload}
+                            />
 
                             <div className="min-h-2 flex-1" />
                             <div className="mt-1 border-t border-zinc-200/60 pb-2 pt-4">
@@ -7455,6 +7580,15 @@ export default function PostCreationFunnelBoardShell({
 
                         {activeStageLegacySurface === "idea" ? (
                           <ConfigurationGrid items={selectedConfigurationItems} />
+                        ) : null}
+
+                        {activeStageLegacySurface === "idea" ? (
+                          <BrandNarrativeMatchesPanel
+                            categories={brandNarrativeCategoriesPayload}
+                            decision={funnelState.decision}
+                            enabled={BRAND_MATCHES_ENABLED}
+                            pauta={brandNarrativePautaPayload}
+                          />
                         ) : null}
 
                         <IdeaActionButtons
