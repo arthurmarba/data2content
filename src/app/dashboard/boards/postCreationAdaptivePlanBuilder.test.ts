@@ -194,8 +194,8 @@ describe("buildPostCreationStrategicPlan", () => {
     ];
     const plan = buildPostCreationStrategicPlan({ detection, questions, answers });
 
-    expect(plan.objective).toBe("Autoridade");
-    expect(plan.format).toBe("Carrossel");
+    expect(plan.objective).toBe("Algo que mostre seu ponto de vista");
+    expect(plan.format).toBe("Um carrossel bem salvável");
     expect(plan.fiveW2H.howMuch).toContain("Alto");
   });
 

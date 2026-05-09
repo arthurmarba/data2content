@@ -27,6 +27,17 @@ function detectionForMode(mode: PostCreationAdaptiveMode) {
   };
 }
 
+const adaptiveModes: PostCreationAdaptiveMode[] = [
+  "validate_pauta",
+  "discover_pauta",
+  "create_by_goal",
+  "brand_match",
+  "collab_match",
+  "comment_to_post",
+  "weekly_plan",
+  "unknown",
+];
+
 describe("buildPostCreationAdaptiveQuiz", () => {
   it("returns between 3 and 5 questions for validate_pauta", () => {
     const quiz = quizFor("Quero gravar um POV sobre minha família fazendo barulho");
@@ -79,40 +90,18 @@ describe("buildPostCreationAdaptiveQuiz", () => {
     const keys = quiz.map((question) => question.mapKey);
 
     expect(keys).toEqual(expect.arrayContaining(["objective", "what"]));
-    expect(quiz[0]?.title).toMatch(/o que voce quer fazer|o que você quer fazer/i);
+    expect(quiz[0]?.title).toMatch(/achar o melhor caminho/i);
   });
 
   it("gives every generated question at least 3 options", () => {
-    const modes: PostCreationAdaptiveMode[] = [
-      "validate_pauta",
-      "discover_pauta",
-      "create_by_goal",
-      "brand_match",
-      "collab_match",
-      "comment_to_post",
-      "weekly_plan",
-      "unknown",
-    ];
-
-    for (const mode of modes) {
+    for (const mode of adaptiveModes) {
       const quiz = buildPostCreationAdaptiveQuiz({ detection: detectionForMode(mode) });
       expect(quiz.every((question) => question.options.length >= 3)).toBe(true);
     }
   });
 
   it("does not return more than 5 questions for any mode", () => {
-    const modes: PostCreationAdaptiveMode[] = [
-      "validate_pauta",
-      "discover_pauta",
-      "create_by_goal",
-      "brand_match",
-      "collab_match",
-      "comment_to_post",
-      "weekly_plan",
-      "unknown",
-    ];
-
-    for (const mode of modes) {
+    for (const mode of adaptiveModes) {
       const quiz = buildPostCreationAdaptiveQuiz({ detection: detectionForMode(mode) });
       expect(quiz.length).toBeLessThanOrEqual(5);
     }
@@ -161,5 +150,127 @@ describe("buildPostCreationAdaptiveQuiz", () => {
     const quiz = quizFor("Quero planejar meus posts da semana");
 
     expect(quiz.every((question) => allowedKeys.has(question.mapKey))).toBe(true);
+  });
+
+  it("uses more human language for validate_pauta", () => {
+    const quiz = quizFor("Quero gravar um POV sobre minha família fazendo barulho");
+
+    expect(quiz[0]?.id).toBe("validate-objective");
+    expect(quiz[0]?.title).toMatch(/provocar em quem assistir/i);
+    expect(quiz[1]?.title).toMatch(/força dessa ideia/i);
+    expect(quiz[2]?.title).toMatch(/primeiros 2 segundos/i);
+    expect(quiz[3]?.title).toMatch(/entrar na brincadeira/i);
+  });
+
+  it("uses more human language for discover_pauta", () => {
+    const quiz = quizFor("Não sei o que postar essa semana");
+
+    expect(quiz[0]?.id).toBe("discover-objective");
+    expect(quiz[0]?.title).toMatch(/energia/i);
+    expect(quiz[1]?.title).toMatch(/topa produzir/i);
+    expect(quiz[3]?.title).toMatch(/fôlego/i);
+  });
+
+  it("uses more human language for brand_match", () => {
+    const quiz = quizFor("Quero atrair marcas de skincare");
+
+    expect(quiz[0]?.id).toBe("brand-category");
+    expect(quiz[0]?.title).toMatch(/caberia naturalmente/i);
+    expect(quiz[1]?.title).toMatch(/sem parecer interrupção/i);
+    expect(quiz[4]?.title).toMatch(/entender o match/i);
+  });
+
+  it("uses more human language for comment_to_post", () => {
+    const quiz = quizFor("Alguém comentou isso aqui e quero transformar em post");
+
+    expect(quiz[0]?.id).toBe("comment-why");
+    expect(quiz[0]?.title).toMatch(/comentário está te entregando/i);
+    expect(quiz[1]?.title).toMatch(/não só reply/i);
+    expect(quiz[3]?.title).toMatch(/puxar mais comentários/i);
+  });
+
+  it("preserves primary ids and mapKeys for every mode", () => {
+    const expectedByMode: Record<PostCreationAdaptiveMode, Array<[string, PostCreationAdaptiveQuestionMapKey]>> = {
+      validate_pauta: [
+        ["validate-objective", "objective"],
+        ["validate-how", "how"],
+        ["validate-hook", "hook"],
+        ["validate-cta", "cta"],
+        ["validate-opportunity", "collab"],
+      ],
+      discover_pauta: [
+        ["discover-objective", "objective"],
+        ["discover-format", "format"],
+        ["discover-narrative", "narrative"],
+        ["discover-effort", "effort"],
+      ],
+      create_by_goal: [
+        ["goal-response", "objective"],
+        ["goal-narrative", "narrative"],
+        ["goal-format", "format"],
+        ["goal-cta", "cta"],
+      ],
+      brand_match: [
+        ["brand-category", "brand"],
+        ["brand-how", "how"],
+        ["brand-narrative", "narrative"],
+        ["brand-format", "format"],
+        ["brand-why", "why"],
+      ],
+      collab_match: [
+        ["collab-type", "collab"],
+        ["collab-who", "who"],
+        ["collab-objective", "objective"],
+        ["collab-narrative", "narrative"],
+      ],
+      comment_to_post: [
+        ["comment-why", "why"],
+        ["comment-format", "format"],
+        ["comment-narrative", "narrative"],
+        ["comment-cta", "cta"],
+      ],
+      weekly_plan: [
+        ["weekly-objective", "objective"],
+        ["weekly-schedule", "schedule"],
+        ["weekly-format", "format"],
+        ["weekly-narrative", "narrative"],
+      ],
+      unknown: [
+        ["unknown-intent", "objective"],
+        ["unknown-what", "what"],
+        ["unknown-objective", "objective"],
+      ],
+    };
+
+    for (const mode of adaptiveModes) {
+      const quiz = buildPostCreationAdaptiveQuiz({ detection: detectionForMode(mode) });
+      expect(quiz.map((question) => [question.id, question.mapKey])).toEqual(expectedByMode[mode]);
+    }
+  });
+
+  it("keeps options complete and visible copy non-empty for every mode", () => {
+    for (const mode of adaptiveModes) {
+      const quiz = buildPostCreationAdaptiveQuiz({ detection: detectionForMode(mode) });
+
+      for (const question of quiz) {
+        expect(question.title.trim()).toBeTruthy();
+        expect(question.helper?.trim()).toBeTruthy();
+
+        for (const option of question.options) {
+          expect(option.id.trim()).toBeTruthy();
+          expect(option.label.trim()).toBeTruthy();
+          expect(option.reason?.trim()).toBeTruthy();
+        }
+      }
+    }
+  });
+
+  it("continues building a quiz for all adaptive modes", () => {
+    for (const mode of adaptiveModes) {
+      const quiz = buildPostCreationAdaptiveQuiz({ detection: detectionForMode(mode) });
+
+      expect(quiz.length).toBeGreaterThan(0);
+      expect(quiz.every((question) => question.required)).toBe(true);
+    }
   });
 });
