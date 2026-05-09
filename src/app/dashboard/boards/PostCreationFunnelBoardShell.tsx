@@ -76,7 +76,7 @@ import {
   type PostCreationBlueprintAdjustment,
 } from "./postCreationBlueprintAdjuster";
 import BrandNarrativeMatchesPanel from "./components/BrandNarrativeMatchesPanel";
-import PostCreationAdaptiveFlowPreview from "./components/PostCreationAdaptiveFlowPreview";
+import PostCreationAdaptiveNativeFlow from "./components/PostCreationAdaptiveNativeFlow";
 import {
   createPostCreationAdaptiveHandoffState,
   type PostCreationAdaptiveLegacyHandoff,
@@ -7147,145 +7147,132 @@ export default function PostCreationFunnelBoardShell({
                   <div className="relative flex-1 overflow-y-auto px-5 pb-4 pt-4 sm:px-6 sm:pb-7">
                     <div className="mx-auto flex w-full max-w-[34rem] flex-col gap-3.5">
                       {shouldShowAdaptiveExperience && activeStage === "path" ? (
-                        <section className="rounded-[22px] border border-indigo-100 bg-white/92 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
-                          <div className="mb-3 flex items-center justify-between gap-3">
-                            <div>
-                              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-indigo-500">
-                                Experimento
-                              </p>
-                              <h2 className="mt-1 text-[1.05rem] font-semibold leading-tight tracking-[-0.025em] text-zinc-950">
-                                Nova experiência estratégica
-                              </h2>
-                            </div>
-                            <span className="rounded-full border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-[10px] font-semibold text-indigo-700">
-                              Flag ativa
-                            </span>
-                          </div>
-                          <PostCreationAdaptiveFlowPreview
-                            targetUserId={normalizedViewer.id || null}
-                            initialSnapshot={adaptiveSnapshot}
-                            onSnapshotChange={handleAdaptiveSnapshotChange}
-                            onUsePlan={handleUseAdaptivePlan}
-                          />
-                        </section>
-                      ) : null}
-
-                      <CompactStageHeader
-                        canGoPrev={canGoPrev}
-                        onPrev={handlePrevStage}
-                        stepLabel={
-                          activeStage === "path" && activeDecisionCard
-                            ? `Passo ${activeDecisionIndex + 1} de ${decisionStepCount}`
-                            : "Etapa atual"
-                        }
-                        goalLabel={headerGoalLabel}
-                        actionLabel={headerActionLabel}
-                        onAction={handleHeaderAction}
-                      />
-
-                      {activeStage === "path" && activeDecisionCard ? (
-                        <PathDecisionStage
-                          activeDecisionCard={activeDecisionCard}
-                          activeDecisionExpectedInteractions={activeDecisionExpectedInteractions}
-                          advancingPathId={advancingPathId}
-                          decisionTrailItems={decisionTrailItems}
-                          generatedPautasError={generatedPautas.error}
-                          generatedPautasStatus={generatedPautas.status}
-                          isFinalPautaDecision={isFinalPautaDecision}
-                          progressValue={progressValue}
-                          question={activeStepMeta?.question}
-                          onSelect={handleActiveDecisionOptionSelect}
+                        <PostCreationAdaptiveNativeFlow
+                          targetUserId={normalizedViewer.id || null}
+                          initialSnapshot={adaptiveSnapshot}
+                          onSnapshotChange={handleAdaptiveSnapshotChange}
+                          onUsePlan={handleUseAdaptivePlan}
                         />
-                      ) : isReferenceDrawerOpen ? (
-                        <ReferencePostsDrawer
-                          isOpen={isReferenceDrawerOpen}
-                          onClose={handleCloseReferenceDrawer}
-                          onOpenPost={handleOpenReferencePost}
-                          origin={selectedIdeaProjectionOrigin}
-                          posts={selectedIdeaReferencePosts}
-                          total={selectedIdeaReferenceTotal}
-                        />
-                      ) : activeStage === "idea" && selectedIdeaForProjection ? (
-                        <main className="flex-1 pb-4 sm:pb-20">
-                          <div className="flex flex-1 flex-col items-stretch gap-4">
-                            <FunnelConfetti
-                              burstKey={`idea-${selectedIdeaForProjection.id || "strategy"}`}
-                              variant="success"
-                              originSelector='[data-confetti-origin="post-creation-final-status"]'
-                            />
-
-                            <span className="sr-only" data-confetti-origin="post-creation-final-status">
-                              {isSelectedIdeaSaved ? "Pauta salva" : "Pauta validada"}
-                            </span>
-
-                            <ProjectionSummaryCard
-                              activeStage={activeStage}
-                              interactions={projectedInteractions}
-                              onOpenReferencePosts={handleOpenReferenceDrawer}
-                              origin={selectedIdeaProjectionOrigin}
-                              reach={projectedReach}
-                              referencePosts={selectedIdeaReferencePosts}
-                              referenceTotal={selectedIdeaReferenceTotal}
-                              saves={projectedSaves}
-                              shares={projectedShares}
-                              supportCopy={finalProjectionSupportCopy}
-                              tier={selectedIdeaTier}
-                              title={selectedIdeaForProjection.title}
-                            />
-
-                            <CollabCreatorsCard
-                              contextLabel={collabCreators.contextLabel}
-                              items={collabCreators.items}
-                              status={collabCreators.status}
-                            />
-                            {!canInteract ? (
-                              <CollabRadarUpsellBanner onActivate={handleActivateCollabRadar} />
-                            ) : null}
-                            <BrandNarrativeMatchesPanel
-                              compact
-                              categories={brandNarrativeCategoriesPayload}
-                              decision={funnelState.decision}
-                              enabled={BRAND_MATCHES_ENABLED}
-                              pauta={brandNarrativePautaPayload}
-                            />
-
-                            <div className="min-h-2 flex-1" />
-                            <div className="mt-1 border-t border-zinc-200/60 pb-2 pt-4">
-                              <IdeaActionButtons
-                                buttonTone="light"
-                                className="mt-0"
-                                isSaving={isSavingIdeaPauta}
-                                isSaved={isSelectedIdeaSaved}
-                                onReset={handleResetFunnel}
-                                onSave={handleSaveIdeaPauta}
-                                resetLabel={isTrialViewer && trialPautaConsumed ? gatedResetLabel : "Gerar outra pauta"}
-                                saveLabel={gatedSaveLabel}
-                              />
-                            </div>
-                            {isSelectedIdeaSaved && selectedSavedPautaSlot ? (
-                              <button
-                                type="button"
-                                onClick={() => void handleDiscardSavedPauta(selectedSavedPautaSlot)}
-                                disabled={isDiscardingCurrentSavedPauta}
-                                className="mx-auto -mt-1 inline-flex h-9 items-center justify-center rounded-full px-4 text-[12px] font-semibold text-rose-600 transition duration-300 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-default disabled:opacity-60"
-                              >
-                                {isDiscardingCurrentSavedPauta ? "Descartando pauta..." : "Descartar pauta salva"}
-                              </button>
-                            ) : null}
-                            {ideaSaveError ? (
-                              <p className="w-full text-sm text-rose-600">{ideaSaveError}</p>
-                            ) : null}
-                            {discardSavedPautaError ? (
-                              <p className="w-full text-sm text-rose-600">{discardSavedPautaError}</p>
-                            ) : null}
-                          </div>
-                        </main>
                       ) : (
-                        <main className="flex-1 pb-4 sm:pb-20">
-                          <div className={cn(FUNNEL_PANEL_SOFT_CLASS, "px-5 py-6 text-center text-sm text-zinc-500")}>
-                            Selecione uma pauta para ver a projeção final.
-                          </div>
-                        </main>
+                        <>
+                          <CompactStageHeader
+                            canGoPrev={canGoPrev}
+                            onPrev={handlePrevStage}
+                            stepLabel={
+                              activeStage === "path" && activeDecisionCard
+                                ? `Passo ${activeDecisionIndex + 1} de ${decisionStepCount}`
+                                : "Etapa atual"
+                            }
+                            goalLabel={headerGoalLabel}
+                            actionLabel={headerActionLabel}
+                            onAction={handleHeaderAction}
+                          />
+
+                          {activeStage === "path" && activeDecisionCard ? (
+                            <PathDecisionStage
+                              activeDecisionCard={activeDecisionCard}
+                              activeDecisionExpectedInteractions={activeDecisionExpectedInteractions}
+                              advancingPathId={advancingPathId}
+                              decisionTrailItems={decisionTrailItems}
+                              generatedPautasError={generatedPautas.error}
+                              generatedPautasStatus={generatedPautas.status}
+                              isFinalPautaDecision={isFinalPautaDecision}
+                              progressValue={progressValue}
+                              question={activeStepMeta?.question}
+                              onSelect={handleActiveDecisionOptionSelect}
+                            />
+                          ) : isReferenceDrawerOpen ? (
+                            <ReferencePostsDrawer
+                              isOpen={isReferenceDrawerOpen}
+                              onClose={handleCloseReferenceDrawer}
+                              onOpenPost={handleOpenReferencePost}
+                              origin={selectedIdeaProjectionOrigin}
+                              posts={selectedIdeaReferencePosts}
+                              total={selectedIdeaReferenceTotal}
+                            />
+                          ) : activeStage === "idea" && selectedIdeaForProjection ? (
+                            <main className="flex-1 pb-4 sm:pb-20">
+                              <div className="flex flex-1 flex-col items-stretch gap-4">
+                                <FunnelConfetti
+                                  burstKey={`idea-${selectedIdeaForProjection.id || "strategy"}`}
+                                  variant="success"
+                                  originSelector='[data-confetti-origin="post-creation-final-status"]'
+                                />
+
+                                <span className="sr-only" data-confetti-origin="post-creation-final-status">
+                                  {isSelectedIdeaSaved ? "Pauta salva" : "Pauta validada"}
+                                </span>
+
+                                <ProjectionSummaryCard
+                                  activeStage={activeStage}
+                                  interactions={projectedInteractions}
+                                  onOpenReferencePosts={handleOpenReferenceDrawer}
+                                  origin={selectedIdeaProjectionOrigin}
+                                  reach={projectedReach}
+                                  referencePosts={selectedIdeaReferencePosts}
+                                  referenceTotal={selectedIdeaReferenceTotal}
+                                  saves={projectedSaves}
+                                  shares={projectedShares}
+                                  supportCopy={finalProjectionSupportCopy}
+                                  tier={selectedIdeaTier}
+                                  title={selectedIdeaForProjection.title}
+                                />
+
+                                <CollabCreatorsCard
+                                  contextLabel={collabCreators.contextLabel}
+                                  items={collabCreators.items}
+                                  status={collabCreators.status}
+                                />
+                                {!canInteract ? (
+                                  <CollabRadarUpsellBanner onActivate={handleActivateCollabRadar} />
+                                ) : null}
+                                <BrandNarrativeMatchesPanel
+                                  compact
+                                  categories={brandNarrativeCategoriesPayload}
+                                  decision={funnelState.decision}
+                                  enabled={BRAND_MATCHES_ENABLED}
+                                  pauta={brandNarrativePautaPayload}
+                                />
+
+                                <div className="min-h-2 flex-1" />
+                                <div className="mt-1 border-t border-zinc-200/60 pb-2 pt-4">
+                                  <IdeaActionButtons
+                                    buttonTone="light"
+                                    className="mt-0"
+                                    isSaving={isSavingIdeaPauta}
+                                    isSaved={isSelectedIdeaSaved}
+                                    onReset={handleResetFunnel}
+                                    onSave={handleSaveIdeaPauta}
+                                    resetLabel={isTrialViewer && trialPautaConsumed ? gatedResetLabel : "Gerar outra pauta"}
+                                    saveLabel={gatedSaveLabel}
+                                  />
+                                </div>
+                                {isSelectedIdeaSaved && selectedSavedPautaSlot ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => void handleDiscardSavedPauta(selectedSavedPautaSlot)}
+                                    disabled={isDiscardingCurrentSavedPauta}
+                                    className="mx-auto -mt-1 inline-flex h-9 items-center justify-center rounded-full px-4 text-[12px] font-semibold text-rose-600 transition duration-300 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-default disabled:opacity-60"
+                                  >
+                                    {isDiscardingCurrentSavedPauta ? "Descartando pauta..." : "Descartar pauta salva"}
+                                  </button>
+                                ) : null}
+                                {ideaSaveError ? (
+                                  <p className="w-full text-sm text-rose-600">{ideaSaveError}</p>
+                                ) : null}
+                                {discardSavedPautaError ? (
+                                  <p className="w-full text-sm text-rose-600">{discardSavedPautaError}</p>
+                                ) : null}
+                              </div>
+                            </main>
+                          ) : (
+                            <main className="flex-1 pb-4 sm:pb-20">
+                              <div className={cn(FUNNEL_PANEL_SOFT_CLASS, "px-5 py-6 text-center text-sm text-zinc-500")}>
+                                Selecione uma pauta para ver a projeção final.
+                              </div>
+                            </main>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
