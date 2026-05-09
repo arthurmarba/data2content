@@ -8,6 +8,7 @@ import BrandNarrativeReport, {
   type IBrandNarrativeReportContent,
   type IBrandNarrativeReportEvidencePost,
   type IBrandNarrativeReportMetricsSummary,
+  type IBrandNarrativeReportNarrativeFormulaStep,
   type IBrandNarrativeReportPauta,
   type BrandNarrativeReportMatchLevel,
 } from '@/app/models/BrandNarrativeReport';
@@ -352,6 +353,66 @@ type StrategicReportTextParams = {
   metricsSummary: IBrandNarrativeReportMetricsSummary;
 };
 
+export type BrandNarrativeDeckPresentation = {
+  heroThesis: {
+    eyebrow: string;
+    title: string;
+    subtitle: string;
+    disclaimer: string;
+  };
+  organicSeriesProof: {
+    title: string;
+    summary: string;
+    metrics: Array<{ label: string; value: string }>;
+  };
+  narrativeFormulaTitle: string;
+  narrativeFormulaSteps: IBrandNarrativeReportNarrativeFormulaStep[];
+  evidenceStoryline: Array<{
+    role: string;
+    title: string;
+    description: string;
+    reason: string;
+    metricHighlight: string;
+    metricLabel: string;
+    proof: string | null;
+    postLink: string | null;
+    coverUrl: string | null;
+    metrics: Array<{ label: string; value: string }>;
+    tags: string[];
+  }>;
+  brandMatchMatrix: Array<{
+    dimension: string;
+    evidence: string;
+    brandRelevance: string;
+  }>;
+  brandInsertionThesis: {
+    title: string;
+    body: string;
+    guardrail: string;
+  };
+  activationTimeline: Array<{
+    phase: string;
+    stepLabel: string;
+    title: string;
+    description: string;
+    suggestedFormat: string;
+    brandRole: string;
+  }>;
+  commercialRecap: {
+    title: string;
+    bullets: string[];
+    disclaimer: string;
+  };
+  suggestedNextStep: string;
+  approachMessageTitle: string;
+  approachMessageIntro: string;
+  finalCta: {
+    title: string;
+    body: string;
+    suggestedMessage: string;
+  };
+};
+
 const WEAK_REPORT_CHIP_TERMS = new Set([
   'a',
   'as',
@@ -386,6 +447,9 @@ const WEAK_REPORT_CHIP_TERMS = new Set([
   'seu',
   'sua',
   'tenta',
+  'tema base',
+  'toca',
+  'tocar',
   'um',
   'uma',
   'voce',
@@ -394,7 +458,13 @@ const WEAK_REPORT_CHIP_TERMS = new Set([
 
 function hasAnyTerm(values: Array<string | null | undefined>, anchors: string[]) {
   const haystack = values.flatMap((value) => tokenize(value)).join(' ');
-  return anchors.some((anchor) => tokenize(anchor).some((token) => haystack.includes(token)));
+  return anchors.some((anchor) => {
+    const tokens = tokenize(anchor);
+    if (!tokens.length) return false;
+    if (tokens.length > 1) return tokens.every((token) => haystack.includes(token));
+    const [token] = tokens;
+    return Boolean(token && haystack.includes(token));
+  });
 }
 
 function getCreatorReference(creatorName: string) {
@@ -424,12 +494,22 @@ function isUsefulReportChip(value: string) {
   return !tokens.every((token) => WEAK_REPORT_CHIP_TERMS.has(token));
 }
 
+function normalizeReportChipDisplay(value: string) {
+  const normalized = normalizeTerm(value);
+  if (normalized === 'notificacao' || normalized === 'notificacoes') return 'notificações';
+  if (normalized === 'equilibrio digital') return 'equilíbrio digital';
+  if (normalized === 'bem estar') return 'bem-estar';
+  if (normalized === 'rotina digital') return 'rotina digital';
+  return value.trim();
+}
+
 function pushChip(target: string[], value?: string | null) {
   const cleanValue = cleanString(value);
   if (!cleanValue || !isUsefulReportChip(cleanValue)) return;
-  const normalized = normalizeTerm(cleanValue);
+  const displayValue = normalizeReportChipDisplay(cleanValue);
+  const normalized = normalizeTerm(displayValue);
   if (target.some((item) => normalizeTerm(item) === normalized)) return;
-  target.push(cleanValue);
+  target.push(displayValue);
 }
 
 function resolveReportDomain(params: StrategicReportTextParams) {
@@ -494,6 +574,27 @@ function resolveReportDomain(params: StrategicReportTextParams) {
     ])
   ) {
     return 'foodWellness';
+  }
+  if (
+    hasAnyTerm(values, [
+      'corrida',
+      'corredor',
+      'corredora',
+      'maratona',
+      'meia maratona',
+      'treino',
+      'prova',
+      'km',
+      'quilômetro',
+      'quilometro',
+      'running',
+      'esporte',
+      'esportivo',
+      'performance',
+      'chegada',
+    ])
+  ) {
+    return 'sportsRunning';
   }
   return 'general';
 }
@@ -667,6 +768,33 @@ function buildOrganicEntry(params: StrategicReportTextParams) {
   return `A marca pode entrar como parte funcional da narrativa, conectando ${buildSignalPhrase(params)} a uma situação real da rotina da criadora.`;
 }
 
+function buildDeckHeroTitle(params: StrategicReportTextParams) {
+  const creatorName = cleanString(params.creatorName);
+  if (!creatorName || normalizeTerm(creatorName) === 'creator') {
+    return `${params.brandName} dentro de uma narrativa já validada pela audiência.`;
+  }
+  return `${params.brandName} dentro de uma narrativa já validada pela audiência de ${creatorName}.`;
+}
+
+function buildDeckHeroSubtitle(params: StrategicReportTextParams) {
+  const domain = resolveReportDomain(params);
+  const situation = cleanSituationText(params.pauta?.title);
+
+  if (domain === 'technology') {
+    return `A oportunidade está em transformar uma tensão cotidiana, a tentativa de relaxar enquanto o celular interrompe, em uma narrativa onde ${params.brandName} entra de forma natural na conversa sobre foco, notificações e equilíbrio digital.`;
+  }
+  if (domain === 'beauty') {
+    return `A oportunidade está em transformar ${situation} em uma narrativa sobre autocuidado possível, com ${params.brandName} entrando como parte natural de uma rotina real.`;
+  }
+  if (domain === 'foodWellness') {
+    return `A oportunidade está em transformar ${situation} em uma narrativa de pausa e bem-estar, com ${params.brandName} entrando como gesto simples dentro do dia a dia.`;
+  }
+  if (domain === 'sportsRunning') {
+    return `A oportunidade está em transformar uma jornada de esforço, preparação e chegada emocional em uma narrativa onde ${params.brandName} entra de forma natural no contexto da performance.`;
+  }
+  return `A oportunidade está em transformar ${situation} em uma narrativa orgânica sobre ${buildSignalPhrase(params)}, com ${params.brandName} entrando sem interromper a história.`;
+}
+
 function buildEvidenceReading(params: StrategicReportTextParams) {
   const evidenceCount = params.metricsSummary.evidenceCount || 0;
   const totalViews = params.metricsSummary.totalViews || 0;
@@ -709,7 +837,7 @@ function buildOrganicProofText(params: StrategicReportTextParams) {
 }
 
 function buildApproachMessageForBrand(params: StrategicReportTextParams) {
-  return `Olá, equipe ${params.brandName}. Identifiquei uma oportunidade de conteúdo em que a marca pode entrar de forma natural em uma narrativa orgânica já validada com minha audiência. Preparei um relatório com a tese criativa, evidências de performance e sugestão de execução. Segue o link para avaliação.`;
+  return `Olá, equipe ${params.brandName}. Identifiquei uma oportunidade de conteúdo em que ${params.brandName} pode entrar de forma natural em uma narrativa que minha audiência já vem validando organicamente. Preparei um relatório com a tese criativa, evidências de performance e uma sugestão de ativação. Posso enviar para vocês avaliarem?`;
 }
 
 function buildDomainSuggestedExecution(params: StrategicReportTextParams) {
@@ -844,12 +972,10 @@ function buildCommercialClose(params: StrategicReportTextParams) {
 
 function buildUsefulPautaChips(params: StrategicReportTextParams) {
   const chips: string[] = [];
-  cleanStringArray(params.pauta?.keywords).forEach((chip) => pushChip(chips, chip));
-  cleanStringArray(params.match.matchedSignals).forEach((chip) => pushChip(chips, chip));
 
   const domain = resolveReportDomain(params);
   if (domain === 'technology') {
-    ['relaxar', 'celular', 'notificações', 'pausa', 'rotina digital', 'equilíbrio digital'].forEach((chip) =>
+    ['relaxar', 'celular', 'notificações', 'foco', 'rotina digital', 'equilíbrio digital'].forEach((chip) =>
       pushChip(chips, chip)
     );
   } else if (domain === 'beauty') {
@@ -858,6 +984,8 @@ function buildUsefulPautaChips(params: StrategicReportTextParams) {
     ['pausa saudável', 'bem-estar', 'rotina equilibrada'].forEach((chip) => pushChip(chips, chip));
   }
 
+  cleanStringArray(params.match.matchedSignals).forEach((chip) => pushChip(chips, chip));
+  cleanStringArray(params.pauta?.keywords).forEach((chip) => pushChip(chips, chip));
   pushChip(chips, params.pauta?.theme);
   return chips.slice(0, 8);
 }
@@ -962,6 +1090,455 @@ export function buildPublicBrandNarrativeReportPresentation(report: any) {
       evidenceCount: formatBrandReportMetricCompact(metricsSummary.evidenceCount),
       totalViews: formatBrandReportMetricCompact(metricsSummary.totalViews),
       totalInteractions: formatBrandReportMetricCompact(metricsSummary.totalInteractions),
+    },
+  };
+}
+
+function buildDeckMetricList(metricsSummary: Partial<IBrandNarrativeReportMetricsSummary>) {
+  return [
+    { label: 'Base analisada', value: formatBrandReportMetricCompact(metricsSummary.postsAnalyzed) },
+    { label: 'Evidências orgânicas', value: formatBrandReportMetricCompact(metricsSummary.evidenceCount) },
+    { label: 'Visualizações', value: formatBrandReportMetricCompact(metricsSummary.totalViews) },
+    { label: 'Interações', value: formatBrandReportMetricCompact(metricsSummary.totalInteractions) },
+  ];
+}
+
+function normalizeDeckMetricsSummary(
+  metricsSummary: Partial<IBrandNarrativeReportMetricsSummary>,
+  evidencePosts: IBrandNarrativeReportEvidencePost[]
+): IBrandNarrativeReportMetricsSummary {
+  return {
+    postsAnalyzed: metricsSummary.postsAnalyzed || 0,
+    evidenceCount: metricsSummary.evidenceCount || evidencePosts.length,
+    totalViews: metricsSummary.totalViews || null,
+    totalReach: metricsSummary.totalReach || null,
+    totalInteractions: metricsSummary.totalInteractions || null,
+    avgViews: metricsSummary.avgViews || null,
+    avgInteractions: metricsSummary.avgInteractions || null,
+    topViews: metricsSummary.topViews || null,
+    topInteractions: metricsSummary.topInteractions || null,
+  };
+}
+
+function buildDeckEvidenceStoryline(
+  evidencePosts: IBrandNarrativeReportEvidencePost[],
+  params: StrategicReportTextParams
+): BrandNarrativeDeckPresentation['evidenceStoryline'] {
+  const domain = resolveReportDomain(params);
+  const matchedSignals = params.match.matchedSignals || [];
+  const situation = cleanSituationText(params.pauta?.title);
+  const roleCycle = evidencePosts.length >= 3
+    ? ['Conexão', 'Conflito', 'Resolução', 'Prova de performance', 'Entrada natural da marca']
+    : ['Conexão', 'Prova de performance'];
+
+  const buildRole = (index: number) => roleCycle[Math.min(index, roleCycle.length - 1)] || 'Prova de performance';
+  const buildReason = (post: IBrandNarrativeReportEvidencePost, tags: string[]) => {
+    const hasPerformance = (post.views || 0) >= 100_000 || (post.totalInteractions || 0) >= 10_000;
+    if (domain === 'technology') {
+      return 'Esse conteúdo mostra que celular, notificações e foco já fazem parte do conflito narrativo que a audiência reconhece.';
+    }
+    if (domain === 'sportsRunning') {
+      return 'Esse conteúdo mostra que a audiência acompanha a jornada de esforço, deslocamento e chegada emocional.';
+    }
+    if (domain === 'beauty') {
+      return 'Esse conteúdo mostra que a audiência responde a momentos de pausa, cuidado pessoal e rotina real.';
+    }
+    if (domain === 'foodWellness') {
+      return 'Esse conteúdo mostra que a audiência responde quando a pausa aparece como gesto simples de bem-estar dentro da rotina.';
+    }
+    if (tags.includes('Alta interação') || hasPerformance) {
+      return `Esse conteúdo mostra que a audiência já respondeu a uma narrativa reconhecível sobre ${buildSignalPhrase(params)}.`;
+    }
+    return `Esse conteúdo ajuda a sustentar a hipótese de que ${situation} pode virar uma narrativa orgânica para a audiência.`;
+  };
+  const buildMetric = (post: IBrandNarrativeReportEvidencePost) => {
+    if ((post.views || 0) > 0) {
+      return { metricHighlight: formatBrandReportMetricCompact(post.views), metricLabel: 'visualizações' };
+    }
+    if ((post.totalInteractions || 0) > 0) {
+      return { metricHighlight: formatBrandReportMetricCompact(post.totalInteractions), metricLabel: 'interações' };
+    }
+    if ((post.reach || 0) > 0) {
+      return { metricHighlight: formatBrandReportMetricCompact(post.reach), metricLabel: 'alcance' };
+    }
+    return { metricHighlight: '0', metricLabel: 'métrica disponível' };
+  };
+
+  return evidencePosts.slice(0, 6).map((post, index) => {
+    const tags = getBrandReportEvidenceTags(post, matchedSignals);
+    const metric = buildMetric(post);
+    const metrics = [
+      { label: 'Visualizações', value: formatBrandReportMetricCompact(post.views) },
+      { label: 'Interações', value: formatBrandReportMetricCompact(post.totalInteractions) },
+    ];
+    const proofParts: string[] = [];
+    if (tags.length) proofParts.push(tags.join(' + '));
+    if ((post.views || 0) > 0) proofParts.push(`${formatBrandReportMetricCompact(post.views)} visualizações`);
+    if ((post.totalInteractions || 0) > 0) {
+      proofParts.push(`${formatBrandReportMetricCompact(post.totalInteractions)} interações`);
+    }
+
+    return {
+      role: buildRole(index),
+      title: cleanString(post.title) || cleanString(post.description) || `Evidência orgânica ${index + 1}`,
+      description:
+        cleanString(post.description) ||
+        'Conteúdo orgânico selecionado como sinal de aderência narrativa com a audiência.',
+      reason: buildReason(post, tags),
+      metricHighlight: metric.metricHighlight,
+      metricLabel: metric.metricLabel,
+      proof: proofParts.length ? proofParts.join(' | ') : null,
+      postLink: cleanString(post.postLink),
+      coverUrl: cleanString(post.coverUrl),
+      metrics,
+      tags,
+    };
+  });
+}
+
+function buildDeckActivationTimeline(params: StrategicReportTextParams): BrandNarrativeDeckPresentation['activationTimeline'] {
+  const domain = resolveReportDomain(params);
+  const brandName = params.brandName;
+  const formatFromSuggested = (fallback: string) => cleanStringArray(params.match.suggestedDeliverables)[0] || fallback;
+
+  if (domain === 'technology') {
+    return [
+      {
+        phase: 'Etapa 1',
+        stepLabel: 'Contexto',
+        title: 'Apresentar a tensão cotidiana',
+        description: 'Abrir a história com a tentativa de relaxar enquanto o celular, as notificações e os estímulos digitais interrompem a pausa.',
+        suggestedFormat: 'Stories ou Reels curto',
+        brandRole: `${brandName} pode aparecer primeiro como território da conversa, sem entrar como anúncio.`,
+      },
+      {
+        phase: 'Etapa 2',
+        stepLabel: 'Preparação',
+        title: 'Mostrar rotina digital e bastidores',
+        description: 'Explorar o problema antes da solução: excesso de tela, alertas, rotina corrida e tentativa de criar foco.',
+        suggestedFormat: 'Stories de bastidor',
+        brandRole: `A presença de ${brandName} pode ser preparada como parte do contexto de uso cotidiano da tecnologia.`,
+      },
+      {
+        phase: 'Etapa 3',
+        stepLabel: 'Conteúdo principal',
+        title: 'Reels/POV com conflito e entrada da marca',
+        description: 'Construir o conteúdo principal em cima do conflito reconhecível e inserir a marca como caminho possível de organização digital.',
+        suggestedFormat: formatFromSuggested('Reels/POV'),
+        brandRole: `${brandName} pode entrar como parte da conversa sobre foco, notificações e equilíbrio digital.`,
+      },
+      {
+        phase: 'Etapa 4',
+        stepLabel: 'Continuidade',
+        title: 'Desdobrar uso cotidiano e reflexão',
+        description: 'Continuar a narrativa com stories, bastidores ou comentários sobre como a tecnologia aparece na rotina real.',
+        suggestedFormat: 'Stories de continuidade',
+        brandRole: `A marca pode seguir presente como recurso de rotina, não como interrupção publicitária.`,
+      },
+      {
+        phase: 'Etapa 5',
+        stepLabel: 'Pós-campanha',
+        title: 'Recorte sobre foco e equilíbrio digital',
+        description: 'Fechar com um aprendizado leve sobre presença, foco, notificações e uma relação mais consciente com a tecnologia.',
+        suggestedFormat: 'Recorte curto',
+        brandRole: `${brandName} pode ser retomada como parte do aprendizado, sem promessa de resultado garantido.`,
+      },
+    ];
+  }
+
+  if (domain === 'sportsRunning') {
+    return [
+      {
+        phase: 'Etapa 1',
+        stepLabel: 'Contexto',
+        title: 'Apresentar desafio, prova ou objetivo',
+        description: 'Abrir a campanha com a meta da jornada: preparação, distância, prova, expectativa ou desafio pessoal.',
+        suggestedFormat: 'Stories de contexto',
+        brandRole: `${brandName} pode entrar como marca associada ao território da jornada, sem antecipar uma venda.`,
+      },
+      {
+        phase: 'Etapa 2',
+        stepLabel: 'Preparação',
+        title: 'Treino, kit e bastidores',
+        description: 'Mostrar treino, rotina, preparação do kit, deslocamento ou expectativa antes do momento principal.',
+        suggestedFormat: 'Stories ou bastidores',
+        brandRole: `A marca pode ser explorada como parte real da preparação e do equipamento usado na jornada.`,
+      },
+      {
+        phase: 'Etapa 3',
+        stepLabel: 'Conteúdo principal',
+        title: 'Jornada de esforço e uso real da marca',
+        description: 'Transformar o esforço, o deslocamento e a chegada em uma narrativa principal com presença natural da marca.',
+        suggestedFormat: formatFromSuggested('Reels de jornada'),
+        brandRole: `${brandName} pode aparecer no uso real durante a experiência, como apoio narrativo da performance.`,
+      },
+      {
+        phase: 'Etapa 4',
+        stepLabel: 'Continuidade',
+        title: 'Stories durante ou depois da experiência',
+        description: 'Desdobrar bastidores, sensação pós-prova, recuperação, comentários da audiência ou detalhes do percurso.',
+        suggestedFormat: 'Stories de continuidade',
+        brandRole: `A marca pode continuar como parte da experiência vivida, sem virar bloco publicitário isolado.`,
+      },
+      {
+        phase: 'Etapa 5',
+        stepLabel: 'Pós-campanha',
+        title: 'Resultado, aprendizado e fechamento emocional',
+        description: 'Fechar a narrativa com resultado, emoção, aprendizado ou próximos passos da jornada esportiva.',
+        suggestedFormat: 'Recorte de fechamento',
+        brandRole: `${brandName} pode ser conectada ao significado da jornada, sem prometer resultado esportivo.`,
+      },
+    ];
+  }
+
+  if (domain === 'beauty') {
+    return [
+      {
+        phase: 'Etapa 1',
+        stepLabel: 'Contexto',
+        title: 'Apresentar rotina real ou tensão cotidiana',
+        description: 'Abrir com uma situação imperfeita da rotina: pressa, pausa difícil, autoestima ou tentativa de cuidado.',
+        suggestedFormat: 'Stories de contexto',
+        brandRole: `${brandName} pode aparecer como território de cuidado possível, sem vender uma rotina perfeita.`,
+      },
+      {
+        phase: 'Etapa 2',
+        stepLabel: 'Preparação',
+        title: 'Bastidor do ritual ou momento de pausa',
+        description: 'Mostrar o antes do ritual: ambiente, rotina, escolha do produto ou tentativa de criar um momento próprio.',
+        suggestedFormat: 'Stories de bastidor',
+        brandRole: `A marca pode ser preparada como parte do ritual, integrada ao contexto da criadora.`,
+      },
+      {
+        phase: 'Etapa 3',
+        stepLabel: 'Conteúdo principal',
+        title: 'Transformação possível, cuidado ou ritual',
+        description: 'Construir o conteúdo principal em torno de cuidado pessoal possível, sem prometer transformação perfeita.',
+        suggestedFormat: formatFromSuggested('Reels de ritual'),
+        brandRole: `${brandName} pode entrar como gesto de autocuidado dentro da história, não como anúncio separado.`,
+      },
+      {
+        phase: 'Etapa 4',
+        stepLabel: 'Continuidade',
+        title: 'Uso e comentários de rotina',
+        description: 'Continuar com stories de uso, comentários de rotina e contexto real depois do conteúdo principal.',
+        suggestedFormat: 'Stories de continuidade',
+        brandRole: `A marca pode seguir presente como parte do cuidado cotidiano e da conversa com a audiência.`,
+      },
+      {
+        phase: 'Etapa 5',
+        stepLabel: 'Pós-campanha',
+        title: 'Resultado emocional ou aprendizado',
+        description: 'Fechar com uma reflexão sobre pausa, autoestima, cuidado possível ou aprendizado da rotina.',
+        suggestedFormat: 'Recorte de fechamento',
+        brandRole: `${brandName} pode ser retomada pelo papel emocional do cuidado, sem prometer resultado garantido.`,
+      },
+    ];
+  }
+
+  return [
+    {
+      phase: 'Etapa 1',
+      stepLabel: 'Contexto',
+      title: 'Abrir a situação que a audiência reconhece',
+      description: 'Apresentar o contexto da pauta e o comportamento que já faz sentido na rotina da criadora.',
+      suggestedFormat: 'Stories de contexto',
+      brandRole: `${brandName} pode ser introduzida como território possível, sem antecipar uma abordagem publicitária.`,
+    },
+    {
+      phase: 'Etapa 2',
+      stepLabel: 'Preparação',
+      title: 'Preparar o conflito ou desejo da narrativa',
+      description: 'Mostrar bastidores, expectativa ou elementos que tornam a entrada da marca mais contextual.',
+      suggestedFormat: 'Stories de bastidor',
+      brandRole: `A marca pode ser preparada como parte do cenário e da lógica do conteúdo.`,
+    },
+    {
+      phase: 'Etapa 3',
+      stepLabel: 'Conteúdo principal',
+      title: 'Executar a narrativa principal',
+      description: 'Construir o conteúdo com começo, desenvolvimento e entrada natural da marca dentro da história.',
+      suggestedFormat: formatFromSuggested('Reels principal'),
+      brandRole: `${brandName} pode entrar como elemento funcional da narrativa, sem interromper o conteúdo.`,
+    },
+    {
+      phase: 'Etapa 4',
+      stepLabel: 'Continuidade',
+      title: 'Desdobrar a presença em uso real',
+      description: 'Continuar a conversa com bastidores, stories ou comentários que mantenham a linguagem orgânica.',
+      suggestedFormat: 'Stories de continuidade',
+      brandRole: `A marca pode seguir presente como parte da rotina, não como peça isolada.`,
+    },
+    {
+      phase: 'Etapa 5',
+      stepLabel: 'Pós-campanha',
+      title: 'Fechar com aprendizado ou próximo passo',
+      description: 'Encerrar com reflexão, recorte ou continuidade editorial da pauta.',
+      suggestedFormat: 'Recorte pós-campanha',
+      brandRole: `${brandName} pode ser retomada como parte do aprendizado da história, sem promessa de resultado.`,
+    },
+  ];
+}
+
+function buildCommercialRecapTitle(params: StrategicReportTextParams) {
+  const domain = resolveReportDomain(params);
+  if (domain === 'sportsRunning') return 'Uma jornada pronta para conversa';
+  if (domain === 'technology') return 'Uma oportunidade pronta para conversa';
+  if (domain === 'beauty') return 'Um ritual pronto para conversa';
+  return 'Uma oportunidade pronta para conversa';
+}
+
+function buildCommercialRecapBullets(params: StrategicReportTextParams, organicSummary: string, commercialClose?: string | null) {
+  const domain = resolveReportDomain(params);
+  const creatorReference = getCreatorReference(params.creatorName);
+  const evidenceCount = params.metricsSummary.evidenceCount || params.evidencePosts.length || 0;
+  const bullets = [
+    evidenceCount > 0
+      ? 'A oportunidade parte de sinais orgânicos reais: a audiência já respondeu à narrativa antes de qualquer proposta comercial.'
+      : 'A oportunidade deve ser tratada como hipótese criativa para validação, já organizada em tese, papel da marca e caminho possível de ativação.',
+  ];
+
+  if (domain === 'technology') {
+    bullets.push(
+      `${params.brandName} pode entrar pela conversa sobre foco, notificações e equilíbrio digital, preservando a linguagem natural de ${creatorReference}.`
+    );
+  } else if (domain === 'sportsRunning') {
+    bullets.push(
+      `${params.brandName} pode ser explorada dentro de uma jornada de preparação, esforço e fechamento emocional, sem transformar a história em anúncio isolado.`
+    );
+  } else if (domain === 'beauty') {
+    bullets.push(
+      `${params.brandName} pode entrar como parte de um ritual de cuidado possível, mantendo a rotina real como centro da narrativa.`
+    );
+  } else {
+    bullets.push(
+      `${params.brandName} pode entrar como parte funcional da história, sem deslocar a linguagem orgânica da criadora.`
+    );
+  }
+
+  bullets.push(
+    cleanString(commercialClose) ||
+      organicSummary ||
+      'A leitura comercial organiza tese, evidências e sugestão de ativação para facilitar uma conversa objetiva com a marca.'
+  );
+  bullets.push(
+    'O próximo passo é abrir conversa para avaliar aderência, timing e guardrails de marca, sem tratar este relatório como parceria confirmada.'
+  );
+
+  return bullets;
+}
+
+function buildSuggestedNextStep(params: StrategicReportTextParams) {
+  return `Abrir uma conversa consultiva com a equipe ${params.brandName}, compartilhando o relatório como hipótese criativa de ativação para avaliação.`;
+}
+
+function buildFinalCtaBody(params: StrategicReportTextParams) {
+  const creatorReference = getCreatorReference(params.creatorName);
+  const evidenceCount = params.metricsSummary.evidenceCount || params.evidencePosts.length || 0;
+  if (!evidenceCount) {
+    return `Essa oportunidade organiza uma hipótese criativa de entrada para ${params.brandName}, com uma ativação pensada para preservar a linguagem natural de ${creatorReference}. O próximo passo é avaliar aderência, timing e guardrails antes de qualquer abordagem comercial.`;
+  }
+  return `Essa oportunidade parte de uma narrativa que já mostrou resposta orgânica da audiência. ${params.brandName} pode entrar como parte da história, com uma ativação pensada para preservar a linguagem natural de ${creatorReference} e transformar o match narrativo em uma conversa comercial mais objetiva.`;
+}
+
+export function buildBrandNarrativeDeckPresentation(report: any): BrandNarrativeDeckPresentation {
+  const brandName = cleanString(report?.brand?.brandName) || 'Marca';
+  const creatorName = cleanString(report?.creator?.name) || 'Creator';
+  const match = report?.match || {};
+  const evidencePosts = (Array.isArray(report?.evidencePosts) ? report.evidencePosts : []) as IBrandNarrativeReportEvidencePost[];
+  const metricsSummary = (report?.metricsSummary || {}) as Partial<IBrandNarrativeReportMetricsSummary>;
+  const matchedSignals = cleanStringArray(match.matchedSignals);
+  const suggestedExecution = cleanStringArray(match.suggestedDeliverables || report?.reportContent?.suggestedExecution);
+  const presentation = buildPublicBrandNarrativeReportPresentation(report);
+  const content = presentation.content;
+  const strategicParams: StrategicReportTextParams = {
+    creatorName,
+    brandName,
+    pauta: report?.pauta || {},
+    match: {
+      category: cleanStringArray(report?.brand?.category),
+      subcategories: cleanStringArray(report?.brand?.subcategories),
+      matchedSignals,
+      rationale: cleanString(match.rationale),
+      insertionAngle: cleanString(match.insertionAngle),
+      suggestedDeliverables: suggestedExecution,
+      suggestedApproachMessage: cleanString(match.suggestedApproachMessage),
+      disclaimer: cleanString(match.disclaimer),
+    },
+    evidencePosts,
+    metricsSummary: normalizeDeckMetricsSummary(metricsSummary, evidencePosts),
+  };
+  const narrativeFormulaSteps = Array.isArray(content.narrativeFormula) && content.narrativeFormula.length
+    ? content.narrativeFormula
+    : buildNarrativeFormula(strategicParams);
+  const signalPhrase = buildSignalPhrase(strategicParams);
+  const evidenceCount = metricsSummary.evidenceCount || evidencePosts.length;
+  const totalViews = metricsSummary.totalViews || 0;
+  const totalInteractions = metricsSummary.totalInteractions || 0;
+  const metricsPhrase =
+    totalViews > 0 || totalInteractions > 0
+      ? ` A seleção soma aproximadamente ${formatBrandReportMetricLong(totalViews)} de visualizações e ${formatBrandReportMetricLong(totalInteractions)} de interações.`
+      : '';
+  const disclaimer = BRAND_NARRATIVE_REPORT_DISCLAIMER;
+  const organicSummary = evidenceCount
+    ? `A oportunidade parte de ${evidenceCount} conteúdos orgânicos que indicam resposta da audiência a ${signalPhrase}.${metricsPhrase}`
+    : 'A oportunidade ainda deve ser tratada como hipótese estratégica: não há evidências orgânicas suficientes para consolidar prova quantitativa específica nessa narrativa.';
+  return {
+    heroThesis: {
+      eyebrow: 'Oportunidade narrativa validada organicamente',
+      title: buildDeckHeroTitle(strategicParams),
+      subtitle: buildDeckHeroSubtitle(strategicParams) || content.narrativeThesis || content.executiveSummary,
+      disclaimer,
+    },
+    organicSeriesProof: {
+      title: 'Prova de narrativa orgânica',
+      summary: organicSummary,
+      metrics: buildDeckMetricList(metricsSummary),
+    },
+    narrativeFormulaTitle: content.campaignConcept
+      ? `Fórmula narrativa: ${content.campaignConcept}`
+      : 'Fórmula narrativa da oportunidade',
+    narrativeFormulaSteps,
+    evidenceStoryline: buildDeckEvidenceStoryline(evidencePosts, strategicParams),
+    brandMatchMatrix: [
+      {
+        dimension: 'Território narrativo',
+        evidence: signalPhrase,
+        brandRelevance: content.brandFit,
+      },
+      {
+        dimension: 'Prova orgânica',
+        evidence: content.organicProof,
+        brandRelevance: `${brandName} entra com mais força quando a leitura comercial parte de um comportamento já observado, não de uma promessa de parceria ou campanha ativa.`,
+      },
+      {
+        dimension: 'Papel da marca',
+        evidence: content.brandRole || presentation.organicEntry,
+        brandRelevance:
+          cleanString(match.insertionAngle) ||
+          'A marca aparece como parte funcional da história, preservando a lógica do conteúdo orgânico.',
+      },
+    ],
+    brandInsertionThesis: {
+      title: 'Como a marca entra sem parecer publi forçada',
+      body: content.brandRole || presentation.organicEntry,
+      guardrail:
+        'A entrada deve ser apresentada como hipótese de ativação e possibilidade narrativa. Este relatório não indica relação comercial, aprovação, aceite ou campanha ativa da marca.',
+    },
+    activationTimeline: buildDeckActivationTimeline(strategicParams),
+    commercialRecap: {
+      title: buildCommercialRecapTitle(strategicParams),
+      bullets: buildCommercialRecapBullets(strategicParams, organicSummary, content.commercialClose),
+      disclaimer,
+    },
+    suggestedNextStep: buildSuggestedNextStep(strategicParams),
+    approachMessageTitle: 'Mensagem sugerida para abordagem',
+    approachMessageIntro:
+      'Use este texto como ponto de partida para abrir uma conversa consultiva. Ele apresenta a oportunidade sem assumir parceria, aprovação ou campanha ativa.',
+    finalCta: {
+      title: 'Próximo passo',
+      body: buildFinalCtaBody(strategicParams),
+      suggestedMessage: content.creatorApproachMessage,
     },
   };
 }
