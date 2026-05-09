@@ -76,6 +76,22 @@ import {
   type PostCreationBlueprintAdjustment,
 } from "./postCreationBlueprintAdjuster";
 import BrandNarrativeMatchesPanel from "./components/BrandNarrativeMatchesPanel";
+import PostCreationAdaptiveFlowPreview from "./components/PostCreationAdaptiveFlowPreview";
+import {
+  createPostCreationAdaptiveHandoffState,
+  type PostCreationAdaptiveLegacyHandoff,
+} from "./postCreationAdaptiveHandoffState";
+import { shouldShowPostCreationAdaptiveExperience } from "./postCreationAdaptiveFeatureFlag";
+import {
+  isMeaningfulPostCreationAdaptiveSnapshot,
+  type PostCreationAdaptiveSnapshot,
+} from "./postCreationAdaptiveSnapshot";
+import {
+  buildStablePostCreationDraftStateForSignature,
+  extractPostCreationAdaptiveSnapshotFromDraftState,
+  mergePostCreationAdaptiveSnapshotIntoDraftState,
+  type PostCreationDraftStateWithAdaptive,
+} from "./postCreationDraftAdaptiveState";
 
 const MyScriptsPage = dynamic(() => import("@/app/dashboard/scripts/MyScriptsPage"), {
   ssr: false,
@@ -2887,11 +2903,13 @@ function buildDraftPayload(args: {
   state: PostCreationFunnelState;
   selectedSlotId: string | null;
   selectedScriptId: string | null;
+  adaptiveSnapshot?: PostCreationAdaptiveSnapshot | null;
 }) {
+  const state = mergePostCreationAdaptiveSnapshotIntoDraftState(args.state, args.adaptiveSnapshot);
   return {
     stage: args.state.stage,
     titleSnapshot: buildTitleSnapshot(args.state),
-    state: args.state,
+    state,
     selectedSlotId: args.selectedSlotId,
     selectedScriptId: args.selectedScriptId,
     linkedContentId: args.state.linkedContent?.id || null,
@@ -2901,12 +2919,15 @@ function buildDraftPayload(args: {
 function buildDraftSignature(payload: {
   stage: PostCreationFunnelStage;
   titleSnapshot: string | null;
-  state: PostCreationFunnelState;
+  state: PostCreationFunnelState | PostCreationDraftStateWithAdaptive;
   selectedSlotId: string | null;
   selectedScriptId: string | null;
   linkedContentId: string | null;
 }) {
-  return JSON.stringify(payload);
+  return JSON.stringify({
+    ...payload,
+    state: buildStablePostCreationDraftStateForSignature(payload.state),
+  });
 }
 
 function resolveScriptStatusLabel(script: FunnelScriptSummaryItem | null): "generated" | "linked" | "published" | null {
@@ -3423,6 +3444,11 @@ export default function PostCreationFunnelBoardShell({
   const isPendingPaywall = isPaywallReturning && !canInteract;
   const shouldShowActivationOverlay = (isPreviewMode || (isTrialViewer && !instagramConnectedForTrial)) && !isPendingPaywall;
   const usesBoardSurface = surfaceMode === "board";
+  const shouldShowAdaptiveExperience = shouldShowPostCreationAdaptiveExperience({
+    role: normalizedViewer.role,
+    userId: normalizedViewer.id,
+    searchParams,
+  });
   const plannerQueryUserId = !isPreviewMode && normalizedViewer.id ? normalizedViewer.id : "";
   const { weekStart, slots, recommendations, loading: plannerLoading, saveSlots, savePostCreationPauta } = usePlannerData({
     userId: plannerQueryUserId,
@@ -3549,6 +3575,7 @@ export default function PostCreationFunnelBoardShell({
   const [hasHydratedDraft, setHasHydratedDraft] = useState(false);
   const [selectedSlotIdState, setSelectedSlotIdState] = useState<string | null>(null);
   const [selectedScriptIdState, setSelectedScriptIdState] = useState<string | null>(null);
+  const [adaptiveSnapshot, setAdaptiveSnapshot] = useState<PostCreationAdaptiveSnapshot | null>(null);
   const [isGeneratingBlueprintScript, setIsGeneratingBlueprintScript] = useState(false);
   const [inlineBlueprintScriptDraft, setInlineBlueprintScriptDraft] = useState<BlueprintScriptDraftState | null>(null);
   const [isSavingBlueprintScript, setIsSavingBlueprintScript] = useState(false);
@@ -4633,10 +4660,12 @@ export default function PostCreationFunnelBoardShell({
         }
 
         const normalizedState = normalizeLoadedFunnelState(item.state);
+        const normalizedAdaptiveSnapshot = extractPostCreationAdaptiveSnapshotFromDraftState(item.state);
         const nextPayload = buildDraftPayload({
           state: normalizedState,
           selectedSlotId: item.selectedSlotId || null,
           selectedScriptId: item.selectedScriptId || normalizedState.scriptId || null,
+          adaptiveSnapshot: normalizedAdaptiveSnapshot,
         });
         draftHydrationRef.current = true;
         hydratedDraftIdRef.current = item.id;
@@ -4645,6 +4674,7 @@ export default function PostCreationFunnelBoardShell({
         setDraftId(item.id);
         setSelectedSlotIdState(item.selectedSlotId || null);
         setSelectedScriptIdState(item.selectedScriptId || normalizedState.scriptId || null);
+        setAdaptiveSnapshot(normalizedAdaptiveSnapshot);
         setFunnelState(normalizedState);
         updateSelectionParams({
           draftId: item.id,
@@ -5054,6 +5084,29 @@ export default function PostCreationFunnelBoardShell({
       setAdvancingIdeaId(null);
     }, IDEA_AUTONAV_DELAY_MS);
   }, [clearAutoAdvanceTimer, draftId, funnelState.stage, ideaCandidates, selectedIdeaCandidate, trackFunnelEvent, updateSelectionParams]);
+
+  const handleAdaptiveSnapshotChange = useCallback((snapshot: PostCreationAdaptiveSnapshot) => {
+    hasLocalEditsRef.current = true;
+    skipLatestDraftHydrationRef.current = true;
+    setAdaptiveSnapshot(snapshot);
+  }, []);
+
+  const handleUseAdaptivePlan = useCallback((handoff: PostCreationAdaptiveLegacyHandoff) => {
+    const { nextState, selectedSlotId, selectedScriptId } =
+      createPostCreationAdaptiveHandoffState({ handoff });
+
+    clearAutoAdvanceTimer();
+    hasLocalEditsRef.current = true;
+    skipLatestDraftHydrationRef.current = true;
+    setBoardView("create");
+    setStageTransitionDirection("forward");
+    setSelectedSlotIdState(selectedSlotId);
+    setSelectedScriptIdState(selectedScriptId);
+    setInlineBlueprintScriptDraft(null);
+    setBlueprintActionError(null);
+    setBlueprintSaveError(null);
+    setFunnelState(nextState);
+  }, [clearAutoAdvanceTimer]);
 
   const handleActiveDecisionOptionSelect = useCallback(
     (optionId: string) => {
@@ -5795,6 +5848,7 @@ export default function PostCreationFunnelBoardShell({
     setAdvancingIdeaId(null);
     setSelectedSlotIdState(null);
     setSelectedScriptIdState(null);
+    setAdaptiveSnapshot(null);
     setDraftId(null);
     hydratedDraftIdRef.current = null;
     setGeneratedPautas({
@@ -6107,7 +6161,8 @@ export default function PostCreationFunnelBoardShell({
   useEffect(() => {
     if (!hasHydratedDraft) return;
     if (isPreviewMode || !normalizedViewer.id) return;
-    if (!isMeaningfulFunnelState(funnelState)) return;
+    const hasMeaningfulAdaptiveSnapshot = isMeaningfulPostCreationAdaptiveSnapshot(adaptiveSnapshot);
+    if (!isMeaningfulFunnelState(funnelState) && !hasMeaningfulAdaptiveSnapshot) return;
     if (!draftId && !hasLocalEditsRef.current) return;
     if (draftHydrationRef.current) return;
 
@@ -6115,6 +6170,7 @@ export default function PostCreationFunnelBoardShell({
       state: funnelState,
       selectedSlotId: resolvedSelectedSlotId,
       selectedScriptId: resolvedSelectedScriptId,
+      adaptiveSnapshot,
     });
     const signature = buildDraftSignature(payload);
     if (signature === lastSavedSignatureRef.current) return;
@@ -6168,6 +6224,7 @@ export default function PostCreationFunnelBoardShell({
       }
     };
   }, [
+    adaptiveSnapshot,
     draftId,
     funnelState,
     hasHydratedDraft,
@@ -7089,6 +7146,30 @@ export default function PostCreationFunnelBoardShell({
                 ) : usesCompactStageSurface ? (
                   <div className="relative flex-1 overflow-y-auto px-5 pb-4 pt-4 sm:px-6 sm:pb-7">
                     <div className="mx-auto flex w-full max-w-[34rem] flex-col gap-3.5">
+                      {shouldShowAdaptiveExperience && activeStage === "path" ? (
+                        <section className="rounded-[22px] border border-indigo-100 bg-white/92 p-4 shadow-[0_12px_30px_rgba(15,23,42,0.05)] backdrop-blur-xl">
+                          <div className="mb-3 flex items-center justify-between gap-3">
+                            <div>
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-indigo-500">
+                                Experimento
+                              </p>
+                              <h2 className="mt-1 text-[1.05rem] font-semibold leading-tight tracking-[-0.025em] text-zinc-950">
+                                Nova experiência estratégica
+                              </h2>
+                            </div>
+                            <span className="rounded-full border border-indigo-100 bg-indigo-50 px-2.5 py-1 text-[10px] font-semibold text-indigo-700">
+                              Flag ativa
+                            </span>
+                          </div>
+                          <PostCreationAdaptiveFlowPreview
+                            targetUserId={normalizedViewer.id || null}
+                            initialSnapshot={adaptiveSnapshot}
+                            onSnapshotChange={handleAdaptiveSnapshotChange}
+                            onUsePlan={handleUseAdaptivePlan}
+                          />
+                        </section>
+                      ) : null}
+
                       <CompactStageHeader
                         canGoPrev={canGoPrev}
                         onPrev={handlePrevStage}
