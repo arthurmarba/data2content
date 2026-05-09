@@ -6,6 +6,7 @@ import {
   isValidAdaptivePlanBody,
   normalizeAdaptivePlanBody,
 } from "@/app/api/post-creation/adaptive/payload";
+import { validatePostCreationAdaptiveServerAccess } from "@/app/api/post-creation/adaptive/access";
 import { validatePostCreationBoardAccess } from "@/app/lib/postCreationTrial/access";
 import { resolveTargetScriptsUser } from "@/app/lib/scripts/access";
 import { buildPostCreationStrategicPlan } from "@/app/dashboard/boards/postCreationAdaptivePlanBuilder";
@@ -30,6 +31,14 @@ export async function POST(request: Request) {
   const access = await validatePostCreationBoardAccess({ request, session: session as any });
   if (!access.ok) {
     return NextResponse.json({ ok: false, error: access.error, reason: access.reason }, { status: access.status });
+  }
+
+  const adaptiveAccess = validatePostCreationAdaptiveServerAccess({ session });
+  if (!adaptiveAccess.ok) {
+    return NextResponse.json(
+      { ok: false, error: adaptiveAccess.error, reason: adaptiveAccess.reason },
+      { status: adaptiveAccess.status }
+    );
   }
 
   let body: any = {};
