@@ -81,6 +81,7 @@ import {
   createPostCreationAdaptiveHandoffState,
   type PostCreationAdaptiveLegacyHandoff,
 } from "./postCreationAdaptiveHandoffState";
+import { createPostCreationAdaptiveIdeaHandoffState } from "./postCreationAdaptiveIdeaHandoffState";
 import { shouldShowPostCreationAdaptiveExperience } from "./postCreationAdaptiveFeatureFlag";
 import {
   isMeaningfulPostCreationAdaptiveSnapshot,
@@ -5108,6 +5109,25 @@ export default function PostCreationFunnelBoardShell({
     setFunnelState(nextState);
   }, [clearAutoAdvanceTimer]);
 
+  const handleCompleteAdaptiveGame = useCallback((result: {
+    legacyHandoff: PostCreationAdaptiveLegacyHandoff;
+  }) => {
+    const { nextState, selectedSlotId, selectedScriptId } =
+      createPostCreationAdaptiveIdeaHandoffState({ handoff: result.legacyHandoff });
+
+    clearAutoAdvanceTimer();
+    hasLocalEditsRef.current = true;
+    skipLatestDraftHydrationRef.current = true;
+    setBoardView("create");
+    setStageTransitionDirection("forward");
+    setSelectedSlotIdState(selectedSlotId);
+    setSelectedScriptIdState(selectedScriptId);
+    setInlineBlueprintScriptDraft(null);
+    setBlueprintActionError(null);
+    setBlueprintSaveError(null);
+    setFunnelState(nextState);
+  }, [clearAutoAdvanceTimer]);
+
   const handleActiveDecisionOptionSelect = useCallback(
     (optionId: string) => {
       if (!activeDecisionCard) return;
@@ -7152,6 +7172,7 @@ export default function PostCreationFunnelBoardShell({
                           initialSnapshot={adaptiveSnapshot}
                           onSnapshotChange={handleAdaptiveSnapshotChange}
                           onUsePlan={handleUseAdaptivePlan}
+                          onCompleteGame={handleCompleteAdaptiveGame}
                         />
                       ) : (
                         <>

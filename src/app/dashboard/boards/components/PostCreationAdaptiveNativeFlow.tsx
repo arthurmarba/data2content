@@ -38,6 +38,15 @@ export type PostCreationAdaptiveNativeFlowProps = {
     idea: PostCreationIdeaVariant;
     blueprint: PostCreationBlueprint;
   }) => void;
+  onCompleteGame?: (result: {
+    legacyHandoff: {
+      decision: PostCreationDecisionState;
+      idea: PostCreationIdeaVariant;
+      blueprint: PostCreationBlueprint;
+    };
+    score: PostCreationAdaptiveScore;
+    evaluations: PostCreationAdaptiveAnswerEvaluation[];
+  }) => void;
 };
 
 type NativeAdaptivePlanResult = {
@@ -92,6 +101,7 @@ export default function PostCreationAdaptiveNativeFlow({
   initialSnapshot = null,
   onSnapshotChange,
   onUsePlan,
+  onCompleteGame,
 }: PostCreationAdaptiveNativeFlowProps) {
   const flow = usePostCreationAdaptiveFlow({
     targetUserId,
@@ -225,6 +235,16 @@ export default function PostCreationAdaptiveNativeFlow({
                   answerKey,
                   answers: flow.answers,
                 });
+
+              if (onCompleteGame) {
+                onCompleteGame({
+                  legacyHandoff: answerKey.legacyHandoff,
+                  score: result.score,
+                  evaluations: result.evaluations,
+                });
+                return;
+              }
+
               setNativePlanResult({
                 plan: answerKey.idealPlan,
                 legacyHandoff: answerKey.legacyHandoff,

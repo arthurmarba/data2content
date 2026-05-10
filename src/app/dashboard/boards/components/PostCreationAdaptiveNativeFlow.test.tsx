@@ -417,6 +417,107 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     expect(generatePlan).not.toHaveBeenCalled();
   });
 
+  it("calls onCompleteGame on the last question when answerKey exists", () => {
+    const onCompleteGame = jest.fn();
+    const answerKey = buildPostCreationAdaptiveAnswerKey({
+      detection: detectionFixture,
+      questions: questionFixtures,
+    });
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: answerFixtures,
+    });
+
+    render(
+      <PostCreationAdaptiveNativeFlow
+        initialSnapshot={snapshotFixture({ answers: [answerFixtures[0]!] })}
+        onCompleteGame={onCompleteGame}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
+
+    expect(onCompleteGame).toHaveBeenCalledWith({
+      legacyHandoff: answerKey.legacyHandoff,
+      score: expect.objectContaining({
+        total: 2,
+        correct: 2,
+        percentage: 100,
+      }),
+      evaluations: expect.arrayContaining([
+        expect.objectContaining({ questionId: "q-brand", isCorrect: true }),
+        expect.objectContaining({ questionId: "q-format", isCorrect: true }),
+      ]),
+    });
+  });
+
+  it("does not render NativePlanStage when onCompleteGame handles completion", () => {
+    const onCompleteGame = jest.fn();
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: answerFixtures,
+    });
+
+    render(
+      <PostCreationAdaptiveNativeFlow
+        initialSnapshot={snapshotFixture({ answers: [answerFixtures[0]!] })}
+        onCompleteGame={onCompleteGame}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
+
+    expect(onCompleteGame).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Sua pauta está pronta para virar conteúdo")).not.toBeInTheDocument();
+  });
+
+  it("uses answerKey.legacyHandoff in onCompleteGame even when the user selects a different answer", () => {
+    const onCompleteGame = jest.fn();
+    const answerKey = buildPostCreationAdaptiveAnswerKey({
+      detection: detectionFixture,
+      questions: questionFixtures,
+    });
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [
+        answerFixtures[0]!,
+        {
+          questionId: "q-format",
+          key: "format",
+          optionId: "stories",
+          value: "Stories",
+        },
+      ],
+    });
+
+    render(
+      <PostCreationAdaptiveNativeFlow
+        initialSnapshot={snapshotFixture({ answers: [answerFixtures[0]!] })}
+        onCompleteGame={onCompleteGame}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
+
+    expect(onCompleteGame).toHaveBeenCalledWith({
+      legacyHandoff: answerKey.legacyHandoff,
+      score: expect.objectContaining({
+        total: 2,
+        correct: 1,
+        percentage: 50,
+      }),
+      evaluations: expect.arrayContaining([
+        expect.objectContaining({ questionId: "q-format", isCorrect: false }),
+      ]),
+    });
+  });
+
   it("creates a native plan result from answerKey.idealPlan on the last question", () => {
     const answerKey = buildPostCreationAdaptiveAnswerKey({
       detection: detectionFixture,
