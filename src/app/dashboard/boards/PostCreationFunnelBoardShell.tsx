@@ -89,6 +89,10 @@ import {
 import { createPostCreationAdaptiveIdeaHandoffState } from "./postCreationAdaptiveIdeaHandoffState";
 import { shouldShowPostCreationAdaptiveExperience } from "./postCreationAdaptiveFeatureFlag";
 import {
+  buildPostCreationAdaptiveStudyContext,
+  type PostCreationAdaptiveStudyContext,
+} from "./postCreationAdaptiveStudyContext";
+import {
   isMeaningfulPostCreationAdaptiveSnapshot,
   type PostCreationAdaptiveSnapshot,
 } from "./postCreationAdaptiveSnapshot";
@@ -6838,6 +6842,46 @@ export default function PostCreationFunnelBoardShell({
       selectedProjectionSlot?.stance,
     ]
   );
+  const adaptiveStudyContext = useMemo<PostCreationAdaptiveStudyContext | null>(() => {
+    if (!shouldShowAdaptiveExperience) return null;
+
+    return buildPostCreationAdaptiveStudyContext({
+      plannerSlots,
+      recommendations,
+      outcomeSignals,
+      evidencePosts: selectedIdeaReferencePosts,
+      brandSignals: [
+        brandNarrativeCategoriesPayload,
+        ...selectedConfigurationItems.map((item) => ({
+          label: item.value,
+          category: item.label,
+        })),
+      ],
+      collabSignals: [
+        ...(collabCreatorsRequest ? [collabCreatorsRequest.payload] : []),
+        ...collabCreators.items.map((item) => ({
+          label: item.name,
+          creatorProfile: item.username || item.name,
+          interactions: item.avgInteractions,
+          reach: item.avgReach,
+          saves: item.avgSaves,
+          shares: item.avgShares,
+          evidenceCount: item.postCount,
+        })),
+      ],
+      periodDays: FUNNEL_HISTORY_LOOKBACK_DAYS,
+    });
+  }, [
+    brandNarrativeCategoriesPayload,
+    collabCreators.items,
+    collabCreatorsRequest,
+    outcomeSignals,
+    plannerSlots,
+    recommendations,
+    selectedConfigurationItems,
+    selectedIdeaReferencePosts,
+    shouldShowAdaptiveExperience,
+  ]);
 
   useEffect(() => {
     if (!collabCreatorsRequest) {
@@ -7192,6 +7236,7 @@ export default function PostCreationFunnelBoardShell({
                           onSnapshotChange={handleAdaptiveSnapshotChange}
                           onUsePlan={handleUseAdaptivePlan}
                           onCompleteGame={handleCompleteAdaptiveGame}
+                          studyContext={adaptiveStudyContext}
                         />
                       ) : (
                         <>

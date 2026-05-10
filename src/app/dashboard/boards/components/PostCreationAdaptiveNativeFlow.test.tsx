@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import { buildPostCreationAdaptiveAnswerKey } from "../postCreationAdaptiveAnswerKey";
+import { buildPostCreationAdaptiveStudyContext } from "../postCreationAdaptiveStudyContext";
 import type { PostCreationAdaptiveSnapshot } from "../postCreationAdaptiveSnapshot";
 import type {
   PostCreationAdaptiveAnswer,
@@ -81,6 +82,28 @@ const answerFixtures: PostCreationAdaptiveAnswer[] = [
     value: "Reels",
   },
 ];
+
+const studyContextFixture = buildPostCreationAdaptiveStudyContext({
+  plannerSlots: [
+    {
+      slotId: "slot-home",
+      format: "Stories",
+      categories: { context: ["Casa"], proposal: ["Conversa"] },
+      narrativeForm: ["Rotina real"],
+      contentSignals: ["Comentários"],
+      comments: 90,
+      evidenceCount: 3,
+      evidencePosts: [
+        { id: "study-post-1", title: "Rotina em casa", totalInteractions: 4200 },
+        { id: "study-post-2", title: "Casa e conforto", totalInteractions: 3200 },
+        { id: "study-post-3", title: "Pergunta de rotina", totalInteractions: 2800 },
+      ],
+    },
+    { slotId: "slot-reels", format: "Reels" },
+    { slotId: "slot-carousel", format: "Carrossel" },
+  ],
+  brandSignals: [{ brandCategory: "Casa/conforto", evidenceCount: 3, confidence: 0.9 }],
+});
 
 const planFixture: PostCreationStrategicPlan = {
   pauta: "Rotina real com produto de skincare",
@@ -238,6 +261,63 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     expect(screen.getByText("Boa aposta")).toBeInTheDocument();
     expect(screen.getByText("A marca funciona melhor quando entra como parte natural da narrativa.")).toBeInTheDocument();
+  });
+
+  it("uses studyContext to guide the answer key when provided", () => {
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [
+        {
+          questionId: "q-brand",
+          key: "brand",
+          optionId: "home",
+          value: "Casa/conforto",
+        },
+      ],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow studyContext={studyContextFixture} />);
+
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByText("Boa aposta")).toBeInTheDocument();
+    expect(screen.getByText(/sinais fortes do seu histórico/i)).toBeInTheDocument();
+  });
+
+  it("keeps legacy answer key behavior when studyContext is not provided", () => {
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [
+        {
+          questionId: "q-brand",
+          key: "brand",
+          optionId: "home",
+          value: "Casa/conforto",
+        },
+      ],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByText("Quase")).toBeInTheDocument();
+    expect(screen.queryByText(/sinais fortes do seu histórico/i)).not.toBeInTheDocument();
+  });
+
+  it("does not break when studyContext is null", () => {
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [answerFixtures[0]!],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow studyContext={null} />);
+
+    expect(screen.getByText("Boa aposta")).toBeInTheDocument();
   });
 
   it("does not show game feedback before selecting an option", () => {
@@ -434,6 +514,58 @@ describe("PostCreationAdaptiveNativeFlow", () => {
       <PostCreationAdaptiveNativeFlow
         initialSnapshot={snapshotFixture({ answers: [answerFixtures[0]!] })}
         onCompleteGame={onCompleteGame}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
+
+    expect(onCompleteGame).toHaveBeenCalledWith({
+      legacyHandoff: answerKey.legacyHandoff,
+      score: expect.objectContaining({
+        total: 2,
+        correct: 2,
+        percentage: 100,
+      }),
+      evaluations: expect.arrayContaining([
+        expect.objectContaining({ questionId: "q-brand", isCorrect: true }),
+        expect.objectContaining({ questionId: "q-format", isCorrect: true }),
+      ]),
+    });
+  });
+
+  it("uses studyContext-guided answerKey for final plan and onCompleteGame", () => {
+    const onCompleteGame = jest.fn();
+    const guidedAnswers: PostCreationAdaptiveAnswer[] = [
+      {
+        questionId: "q-brand",
+        key: "brand",
+        optionId: "home",
+        value: "Casa/conforto",
+      },
+      {
+        questionId: "q-format",
+        key: "format",
+        optionId: "stories",
+        value: "Stories",
+      },
+    ];
+    const answerKey = buildPostCreationAdaptiveAnswerKey({
+      detection: detectionFixture,
+      questions: questionFixtures,
+      studyContext: studyContextFixture,
+    });
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: guidedAnswers,
+    });
+
+    render(
+      <PostCreationAdaptiveNativeFlow
+        initialSnapshot={snapshotFixture({ answers: [guidedAnswers[0]!] })}
+        onCompleteGame={onCompleteGame}
+        studyContext={studyContextFixture}
       />,
     );
 

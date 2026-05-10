@@ -17,6 +17,7 @@ import type {
   PostCreationAdaptiveQuestion,
   PostCreationStrategicPlan,
 } from "../postCreationAdaptiveTypes";
+import type { PostCreationAdaptiveStudyContext } from "../postCreationAdaptiveStudyContext";
 import type { PostCreationAdaptiveSnapshot } from "../postCreationAdaptiveSnapshot";
 import type {
   PostCreationBlueprint,
@@ -47,6 +48,7 @@ export type PostCreationAdaptiveNativeFlowProps = {
     score: PostCreationAdaptiveScore;
     evaluations: PostCreationAdaptiveAnswerEvaluation[];
   }) => void;
+  studyContext?: PostCreationAdaptiveStudyContext | null;
 };
 
 type NativeAdaptivePlanResult = {
@@ -102,6 +104,7 @@ export default function PostCreationAdaptiveNativeFlow({
   onSnapshotChange,
   onUsePlan,
   onCompleteGame,
+  studyContext = null,
 }: PostCreationAdaptiveNativeFlowProps) {
   const flow = usePostCreationAdaptiveFlow({
     targetUserId,
@@ -120,11 +123,12 @@ export default function PostCreationAdaptiveNativeFlow({
       return buildPostCreationAdaptiveAnswerKey({
         detection: flow.detection,
         questions: flow.questions,
+        studyContext,
       });
     } catch {
       return null;
     }
-  }, [flow.detection, flow.questions]);
+  }, [flow.detection, flow.questions, studyContext]);
   const answerEvaluation = useMemo(() => {
     if (!answerKey) return null;
 
