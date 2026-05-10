@@ -77,6 +77,11 @@ import {
 } from "./postCreationBlueprintAdjuster";
 import BrandNarrativeMatchesPanel from "./components/BrandNarrativeMatchesPanel";
 import PostCreationAdaptiveNativeFlow from "./components/PostCreationAdaptiveNativeFlow";
+import PostCreationAdaptiveScoreCard from "./components/PostCreationAdaptiveScoreCard";
+import type {
+  PostCreationAdaptiveAnswerEvaluation,
+  PostCreationAdaptiveScore,
+} from "./postCreationAdaptiveAnswerKey";
 import {
   createPostCreationAdaptiveHandoffState,
   type PostCreationAdaptiveLegacyHandoff,
@@ -3577,6 +3582,10 @@ export default function PostCreationFunnelBoardShell({
   const [selectedSlotIdState, setSelectedSlotIdState] = useState<string | null>(null);
   const [selectedScriptIdState, setSelectedScriptIdState] = useState<string | null>(null);
   const [adaptiveSnapshot, setAdaptiveSnapshot] = useState<PostCreationAdaptiveSnapshot | null>(null);
+  const [adaptiveGameResult, setAdaptiveGameResult] = useState<{
+    score: PostCreationAdaptiveScore;
+    evaluations: PostCreationAdaptiveAnswerEvaluation[];
+  } | null>(null);
   const [isGeneratingBlueprintScript, setIsGeneratingBlueprintScript] = useState(false);
   const [inlineBlueprintScriptDraft, setInlineBlueprintScriptDraft] = useState<BlueprintScriptDraftState | null>(null);
   const [isSavingBlueprintScript, setIsSavingBlueprintScript] = useState(false);
@@ -5089,6 +5098,9 @@ export default function PostCreationFunnelBoardShell({
   const handleAdaptiveSnapshotChange = useCallback((snapshot: PostCreationAdaptiveSnapshot) => {
     hasLocalEditsRef.current = true;
     skipLatestDraftHydrationRef.current = true;
+    if (snapshot.status === "idle" || snapshot.status === "starting") {
+      setAdaptiveGameResult(null);
+    }
     setAdaptiveSnapshot(snapshot);
   }, []);
 
@@ -5111,6 +5123,8 @@ export default function PostCreationFunnelBoardShell({
 
   const handleCompleteAdaptiveGame = useCallback((result: {
     legacyHandoff: PostCreationAdaptiveLegacyHandoff;
+    score: PostCreationAdaptiveScore;
+    evaluations: PostCreationAdaptiveAnswerEvaluation[];
   }) => {
     const { nextState, selectedSlotId, selectedScriptId } =
       createPostCreationAdaptiveIdeaHandoffState({ handoff: result.legacyHandoff });
@@ -5125,6 +5139,10 @@ export default function PostCreationFunnelBoardShell({
     setInlineBlueprintScriptDraft(null);
     setBlueprintActionError(null);
     setBlueprintSaveError(null);
+    setAdaptiveGameResult({
+      score: result.score,
+      evaluations: result.evaluations,
+    });
     setFunnelState(nextState);
   }, [clearAutoAdvanceTimer]);
 
@@ -5869,6 +5887,7 @@ export default function PostCreationFunnelBoardShell({
     setSelectedSlotIdState(null);
     setSelectedScriptIdState(null);
     setAdaptiveSnapshot(null);
+    setAdaptiveGameResult(null);
     setDraftId(null);
     hydratedDraftIdRef.current = null;
     setGeneratedPautas({
@@ -7224,6 +7243,13 @@ export default function PostCreationFunnelBoardShell({
                                   {isSelectedIdeaSaved ? "Pauta salva" : "Pauta validada"}
                                 </span>
 
+                                {activeStage === "idea" && adaptiveGameResult ? (
+                                  <PostCreationAdaptiveScoreCard
+                                    score={adaptiveGameResult.score}
+                                    evaluations={adaptiveGameResult.evaluations}
+                                  />
+                                ) : null}
+
                                 <ProjectionSummaryCard
                                   activeStage={activeStage}
                                   interactions={projectedInteractions}
@@ -7552,9 +7578,16 @@ export default function PostCreationFunnelBoardShell({
                               ? "A execução voltou para o funnel."
                               : isSelectedIdeaSaved
                                 ? "A pauta já foi registrada no planejamento com esta configuração."
-                                : "Histórico, timing e formato alinhados."}
+                              : "Histórico, timing e formato alinhados."}
                           </p>
                         </div>
+
+                        {activeStageLegacySurface === "idea" && adaptiveGameResult ? (
+                          <PostCreationAdaptiveScoreCard
+                            score={adaptiveGameResult.score}
+                            evaluations={adaptiveGameResult.evaluations}
+                          />
+                        ) : null}
 
                         <div className="grid w-full gap-4 lg:grid-cols-[minmax(0,1.28fr)_minmax(16rem,0.72fr)]">
                           <div className="dashboard-dark-spotlight group relative overflow-hidden rounded-[34px] border border-white/10 shadow-[0_24px_54px_rgba(15,23,42,0.18)]">
