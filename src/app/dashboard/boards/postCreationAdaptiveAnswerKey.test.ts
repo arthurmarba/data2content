@@ -688,6 +688,49 @@ describe("buildPostCreationAdaptiveAnswerKey", () => {
     expect(answerKey.questionKeys[0]?.feedback.evidence?.length).toBeLessThanOrEqual(3);
   });
 
+  it("copies feedback evidence into evaluations", () => {
+    const { question, answerKey } = answerKeyForCustomQuestion({
+      mapKey: "format",
+      options: [
+        { id: "carousel", label: "Carrossel" },
+        { id: "reels", label: "Reels" },
+      ],
+      studyContext: highStudyContext,
+    });
+    const result = evaluatePostCreationAdaptiveAnswers({
+      answerKey,
+      answers: [answerFromOption(question, "reels")],
+    });
+
+    expect(result.evaluations[0]?.evidence).toEqual(answerKey.questionKeys[0]?.feedback.evidence);
+    expect(result.evaluations[0]?.evidence).toEqual(expect.arrayContaining(["Formato forte: Reels"]));
+  });
+
+  it("keeps evaluation evidence limited and without empty strings", () => {
+    const detection = detectionForMode("validate_pauta");
+    const question = customQuestion("format", [
+      { id: "reels", label: "Reels" },
+    ]);
+    const answerKey = buildPostCreationAdaptiveAnswerKey({ detection, questions: [question] });
+    answerKey.questionKeys[0]!.feedback.evidence = [
+      "Formato forte: Reels",
+      " ",
+      "Sinal de engajamento: Comentários",
+      "Post de referência: POV rotina",
+      "Extra",
+    ];
+    const result = evaluatePostCreationAdaptiveAnswers({
+      answerKey,
+      answers: [answerFromOption(question, "reels")],
+    });
+
+    expect(result.evaluations[0]?.evidence).toEqual([
+      "Formato forte: Reels",
+      "Sinal de engajamento: Comentários",
+      "Post de referência: POV rotina",
+    ]);
+  });
+
   it("idealAnswers use correctOptionId from studyContext", () => {
     const { answerKey } = answerKeyForCustomQuestion({
       mapKey: "format",

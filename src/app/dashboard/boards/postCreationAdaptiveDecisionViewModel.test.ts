@@ -56,6 +56,7 @@ function answerKeyFor(
           correct: "Esse é o caminho mais forte para esta pauta.",
           incorrect: "Essa opção pode funcionar, mas eu iria por outro caminho.",
           rationale: "O objetivo define o comportamento que o conteúdo precisa provocar.",
+          evidence: ["Formato forte: Reels"],
         },
       },
     ],
@@ -91,6 +92,7 @@ function evaluationFor(
     feedbackTitle: "Boa aposta",
     feedbackMessage: "Esse é o caminho mais forte para esta pauta.",
     rationale: "O objetivo define o comportamento que o conteúdo precisa provocar.",
+    evidence: [],
     ...overrides,
   };
 }
@@ -380,6 +382,7 @@ describe("buildAdaptiveDecisionViewModel", () => {
     expect(viewModel.feedbackTitle).toBeNull();
     expect(viewModel.feedbackMessage).toBeNull();
     expect(viewModel.feedbackRationale).toBeNull();
+    expect(viewModel.feedbackEvidence).toEqual([]);
     expect(viewModel.shouldRevealFeedback).toBe(false);
     expect(viewModel.options.map((option) => option.isCorrect)).toEqual([null, null, null]);
   });
@@ -478,6 +481,69 @@ describe("buildAdaptiveDecisionViewModel", () => {
     expect(viewModel.feedbackRationale).toBe("O objetivo define o comportamento que o conteúdo precisa provocar.");
   });
 
+  it("keeps feedbackEvidence empty without an evaluation", () => {
+    const question = baseQuestion();
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [answerFor(question.id, "comments")],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey: answerKeyFor(question, "comments"),
+    });
+
+    expect(viewModel.feedbackEvidence).toEqual([]);
+  });
+
+  it("attaches feedbackEvidence from the evaluation", () => {
+    const question = baseQuestion();
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [answerFor(question.id, "comments")],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey: answerKeyFor(question, "comments"),
+      evaluations: [
+        evaluationFor(question.id, {
+          evidence: ["Formato forte: Reels", "Sinal de engajamento: Comentários"],
+        }),
+      ],
+    });
+
+    expect(viewModel.feedbackEvidence).toEqual([
+      "Formato forte: Reels",
+      "Sinal de engajamento: Comentários",
+    ]);
+  });
+
+  it("limits and cleans feedbackEvidence", () => {
+    const question = baseQuestion();
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [answerFor(question.id, "comments")],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey: answerKeyFor(question, "comments"),
+      evaluations: [
+        evaluationFor(question.id, {
+          evidence: [
+            "Formato forte: Reels",
+            " ",
+            "Formato forte: Reels",
+            "Sinal de engajamento: Comentários",
+            "Post de referência: POV rotina",
+            "Extra",
+          ],
+        }),
+      ],
+    });
+
+    expect(viewModel.feedbackEvidence).toEqual([
+      "Formato forte: Reels",
+      "Sinal de engajamento: Comentários",
+      "Post de referência: POV rotina",
+    ]);
+  });
+
   it("keeps feedback null when no evaluation exists", () => {
     const question = baseQuestion();
     const viewModel = buildAdaptiveDecisionViewModel({
@@ -492,6 +558,7 @@ describe("buildAdaptiveDecisionViewModel", () => {
     expect(viewModel.feedbackTitle).toBeNull();
     expect(viewModel.feedbackMessage).toBeNull();
     expect(viewModel.feedbackRationale).toBeNull();
+    expect(viewModel.feedbackEvidence).toEqual([]);
   });
 
   it("marks option.isCorrect true only on the correct option", () => {
@@ -611,6 +678,7 @@ describe("buildAdaptiveDecisionViewModel", () => {
 
     expect(viewModel.correctOptionId).toBe("comments");
     expect(viewModel.shouldRevealFeedback).toBe(false);
+    expect(viewModel.feedbackEvidence).toEqual([]);
   });
 
   it("exposes feedback to be revealed after the user answers", () => {

@@ -43,6 +43,7 @@ export type PostCreationAdaptiveAnswerEvaluation = {
   feedbackTitle: string;
   feedbackMessage: string;
   rationale: string;
+  evidence: string[];
 };
 
 export type PostCreationAdaptiveScore = {
@@ -679,6 +680,7 @@ export function evaluatePostCreationAdaptiveAnswers(params: {
       feedbackTitle: isCorrect ? "Boa aposta" : "Quase",
       feedbackMessage: isCorrect ? questionKey.feedback.correct : questionKey.feedback.incorrect,
       rationale: questionKey.feedback.rationale,
+      evidence: compactEvidence(questionKey.feedback.evidence || []),
     };
   });
 

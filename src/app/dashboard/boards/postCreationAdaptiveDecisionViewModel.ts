@@ -40,6 +40,7 @@ export type PostCreationAdaptiveDecisionViewModel = {
   feedbackTitle: string | null;
   feedbackMessage: string | null;
   feedbackRationale: string | null;
+  feedbackEvidence: string[];
   shouldRevealFeedback: boolean;
   options: PostCreationAdaptiveDecisionOptionViewModel[];
 };
@@ -79,6 +80,11 @@ function resolveVisualStep(mapKey: PostCreationAdaptiveQuestionMapKey): string {
 
 function resolveSelectedOptionId(answer: PostCreationAdaptiveAnswer | null): string | null {
   return normalizeNullableText(answer?.optionId);
+}
+
+function normalizeEvidence(values: Array<string | null | undefined> | undefined): string[] {
+  if (!values) return [];
+  return Array.from(new Set(values.map(normalizeNullableText).filter((item): item is string => Boolean(item)))).slice(0, 3);
 }
 
 export function buildAdaptiveDecisionViewModel(params: {
@@ -124,6 +130,7 @@ export function buildAdaptiveDecisionViewModel(params: {
     feedbackTitle: evaluation?.feedbackTitle ?? null,
     feedbackMessage: evaluation?.feedbackMessage ?? null,
     feedbackRationale: evaluation?.rationale ?? null,
+    feedbackEvidence: normalizeEvidence(evaluation?.evidence),
     shouldRevealFeedback,
     options: params.question.options.map((option) => ({
       id: option.id,

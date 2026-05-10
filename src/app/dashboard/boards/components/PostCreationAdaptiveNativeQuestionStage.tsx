@@ -101,6 +101,19 @@ export default function PostCreationAdaptiveNativeQuestionStage({
           {viewModel.feedbackRationale ? (
             <p className="mt-2 text-xs leading-5 text-slate-500">{viewModel.feedbackRationale}</p>
           ) : null}
+          {viewModel.feedbackEvidence.length > 0 ? (
+            <div className="mt-3 rounded-lg border border-slate-200 bg-white/70 px-3 py-2.5">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Base da análise</p>
+              <ul className="mt-2 space-y-1.5 text-xs leading-5 text-slate-600">
+                {viewModel.feedbackEvidence.map((item) => (
+                  <li key={item} className="flex gap-2">
+                    <span aria-hidden="true" className="mt-2 h-1 w-1 shrink-0 rounded-full bg-slate-400" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

@@ -283,6 +283,8 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     expect(screen.getByRole("status")).toBeInTheDocument();
     expect(screen.getByText("Boa aposta")).toBeInTheDocument();
     expect(screen.getByText(/sinais fortes do seu histórico/i)).toBeInTheDocument();
+    expect(screen.getByText("Base da análise")).toBeInTheDocument();
+    expect(screen.getByText("Sinal de marca: Casa/conforto")).toBeInTheDocument();
   });
 
   it("keeps legacy answer key behavior when studyContext is not provided", () => {
@@ -305,6 +307,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     expect(screen.getByRole("status")).toBeInTheDocument();
     expect(screen.getByText("Quase")).toBeInTheDocument();
     expect(screen.queryByText(/sinais fortes do seu histórico/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Base da análise")).not.toBeInTheDocument();
   });
 
   it("does not break when studyContext is null", () => {

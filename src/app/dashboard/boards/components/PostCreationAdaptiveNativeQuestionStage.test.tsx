@@ -39,6 +39,7 @@ function baseViewModel(
     feedbackTitle: null,
     feedbackMessage: null,
     feedbackRationale: null,
+    feedbackEvidence: [],
     shouldRevealFeedback: false,
     options: [
       {
@@ -85,6 +86,7 @@ function withFeedback(
     feedbackTitle: null,
     feedbackMessage: null,
     feedbackRationale: null,
+    feedbackEvidence: [],
     shouldRevealFeedback: true,
     options: baseViewModel().options.map((option) => ({
       ...option,
@@ -316,6 +318,41 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
     expect(screen.queryByText("O gancho decide se a pessoa entende a tensão nos primeiros segundos.")).not.toBeInTheDocument();
   });
 
+  it("does not show evidence before selecting an answer", () => {
+    renderStage({
+      viewModel: baseViewModel({
+        selectedOptionId: null,
+        selectedAnswer: null,
+        shouldRevealFeedback: false,
+        feedbackEvidence: ["Formato forte: Reels"],
+      }),
+    });
+
+    expect(screen.queryByText("Base da análise")).not.toBeInTheDocument();
+    expect(screen.queryByText("Formato forte: Reels")).not.toBeInTheDocument();
+  });
+
+  it("shows evidence when feedback is revealed", () => {
+    renderStage({
+      viewModel: withFeedback({
+        feedbackEvidence: [
+          "Formato forte: Reels",
+          "Sinal de engajamento: Comentários",
+        ],
+      }),
+    });
+
+    expect(screen.getByText("Base da análise")).toBeInTheDocument();
+    expect(screen.getByText("Formato forte: Reels")).toBeInTheDocument();
+    expect(screen.getByText("Sinal de engajamento: Comentários")).toBeInTheDocument();
+  });
+
+  it("does not render evidence section when evidence is empty", () => {
+    renderStage({ viewModel: withFeedback({ feedbackEvidence: [] }) });
+
+    expect(screen.queryByText("Base da análise")).not.toBeInTheDocument();
+  });
+
   it("does not render hard language in feedback", () => {
     renderStage({
       viewModel: withFeedback({
@@ -327,6 +364,9 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
 
     expect(document.body).not.toHaveTextContent(/errado/i);
     expect(document.body).not.toHaveTextContent(/incorreto/i);
+    expect(document.body).not.toHaveTextContent(/garantido/i);
+    expect(document.body).not.toHaveTextContent(/provado/i);
+    expect(document.body).not.toHaveTextContent(/certeza/i);
   });
 
   it("shows Sua aposta on the selected adjustment option", () => {

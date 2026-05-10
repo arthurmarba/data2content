@@ -22,6 +22,7 @@ const correctEvaluation: PostCreationAdaptiveAnswerEvaluation = {
   feedbackTitle: "Boa aposta",
   feedbackMessage: "Esse caminho está alinhado com a pauta.",
   rationale: "O objetivo define o comportamento que o conteúdo precisa provocar.",
+  evidence: [],
 };
 
 const adjustmentEvaluation: PostCreationAdaptiveAnswerEvaluation = {
@@ -32,6 +33,7 @@ const adjustmentEvaluation: PostCreationAdaptiveAnswerEvaluation = {
   feedbackTitle: "Quase",
   feedbackMessage: "Essa opção pode funcionar, mas eu iria por outro caminho.",
   rationale: "O formato precisa combinar com a força principal da ideia.",
+  evidence: [],
 };
 
 function renderScoreCard(
