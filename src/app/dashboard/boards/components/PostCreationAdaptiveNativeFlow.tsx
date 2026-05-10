@@ -29,6 +29,7 @@ import type { PostCreationAdaptiveLegacyHandoff } from "../usePostCreationAdapti
 import PostCreationAdaptiveNativeIntentStage from "./PostCreationAdaptiveNativeIntentStage";
 import PostCreationAdaptiveNativePlanStage from "./PostCreationAdaptiveNativePlanStage";
 import PostCreationAdaptiveNativeQuestionStage from "./PostCreationAdaptiveNativeQuestionStage";
+import PostCreationAdaptivePromptContextCard from "./PostCreationAdaptivePromptContextCard";
 
 export type PostCreationAdaptiveNativeFlowProps = {
   targetUserId?: string | null;
@@ -47,6 +48,7 @@ export type PostCreationAdaptiveNativeFlowProps = {
     };
     score: PostCreationAdaptiveScore;
     evaluations: PostCreationAdaptiveAnswerEvaluation[];
+    originalPrompt?: string | null;
   }) => void;
   studyContext?: PostCreationAdaptiveStudyContext | null;
 };
@@ -98,6 +100,11 @@ function resolveCurrentQuestion(params: {
   };
 }
 
+function normalizeOriginalPrompt(value: string | null | undefined): string | null {
+  const normalized = typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
+  return normalized || null;
+}
+
 export default function PostCreationAdaptiveNativeFlow({
   targetUserId = null,
   initialSnapshot = null,
@@ -137,6 +144,10 @@ export default function PostCreationAdaptiveNativeFlow({
       answers: flow.answers,
     });
   }, [answerKey, flow.answers]);
+  const originalPrompt =
+    normalizeOriginalPrompt(flow.detection?.originalInput)
+    || normalizeOriginalPrompt(flow.input)
+    || normalizeOriginalPrompt(initialSnapshot?.input);
 
   useEffect(() => {
     if (!didMountQuestionsEffectRef.current) {
@@ -228,20 +239,32 @@ export default function PostCreationAdaptiveNativeFlow({
     const isLastQuestion = safeQuestionIndex >= flow.questions.length - 1;
 
     return (
-      <PostCreationAdaptiveNativeQuestionStage
-        viewModel={viewModel}
-        onSelectOption={(optionId) => handleSelectOption(question.id, optionId)}
-        onNext={() => {
-          if (isLastQuestion) {
-            if (answerKey) {
-              const result = answerEvaluation
-                ?? evaluatePostCreationAdaptiveAnswers({
-                  answerKey,
-                  answers: flow.answers,
-                });
+      <div className="space-y-4">
+        <PostCreationAdaptivePromptContextCard prompt={originalPrompt} />
+        <PostCreationAdaptiveNativeQuestionStage
+          viewModel={viewModel}
+          onSelectOption={(optionId) => handleSelectOption(question.id, optionId)}
+          onNext={() => {
+            if (isLastQuestion) {
+              if (answerKey) {
+                const result = answerEvaluation
+                  ?? evaluatePostCreationAdaptiveAnswers({
+                    answerKey,
+                    answers: flow.answers,
+                  });
 
-              if (onCompleteGame) {
-                onCompleteGame({
+                if (onCompleteGame) {
+                  onCompleteGame({
+                    legacyHandoff: answerKey.legacyHandoff,
+                    score: result.score,
+                    evaluations: result.evaluations,
+                    originalPrompt,
+                  });
+                  return;
+                }
+
+                setNativePlanResult({
+                  plan: answerKey.idealPlan,
                   legacyHandoff: answerKey.legacyHandoff,
                   score: result.score,
                   evaluations: result.evaluations,
@@ -249,28 +272,20 @@ export default function PostCreationAdaptiveNativeFlow({
                 return;
               }
 
-              setNativePlanResult({
-                plan: answerKey.idealPlan,
-                legacyHandoff: answerKey.legacyHandoff,
-                score: result.score,
-                evaluations: result.evaluations,
-              });
+              flow.generatePlan();
               return;
             }
 
-            flow.generatePlan();
-            return;
+            setCurrentQuestionIndex((index) => clampQuestionIndex(index + 1, flow.questions.length));
+          }}
+          onBack={
+            safeQuestionIndex > 0
+              ? () => setCurrentQuestionIndex((index) => clampQuestionIndex(index - 1, flow.questions.length))
+              : undefined
           }
-
-          setCurrentQuestionIndex((index) => clampQuestionIndex(index + 1, flow.questions.length));
-        }}
-        onBack={
-          safeQuestionIndex > 0
-            ? () => setCurrentQuestionIndex((index) => clampQuestionIndex(index - 1, flow.questions.length))
-            : undefined
-        }
-        loading={flow.status === "planning"}
-      />
+          loading={flow.status === "planning"}
+        />
+      </div>
     );
   }
 

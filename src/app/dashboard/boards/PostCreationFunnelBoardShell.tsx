@@ -77,6 +77,7 @@ import {
 } from "./postCreationBlueprintAdjuster";
 import BrandNarrativeMatchesPanel from "./components/BrandNarrativeMatchesPanel";
 import PostCreationAdaptiveNativeFlow from "./components/PostCreationAdaptiveNativeFlow";
+import PostCreationAdaptivePromptContextCard from "./components/PostCreationAdaptivePromptContextCard";
 import PostCreationAdaptiveScoreCard from "./components/PostCreationAdaptiveScoreCard";
 import type {
   PostCreationAdaptiveAnswerEvaluation,
@@ -3589,6 +3590,7 @@ export default function PostCreationFunnelBoardShell({
   const [adaptiveGameResult, setAdaptiveGameResult] = useState<{
     score: PostCreationAdaptiveScore;
     evaluations: PostCreationAdaptiveAnswerEvaluation[];
+    originalPrompt: string | null;
   } | null>(null);
   const [isGeneratingBlueprintScript, setIsGeneratingBlueprintScript] = useState(false);
   const [inlineBlueprintScriptDraft, setInlineBlueprintScriptDraft] = useState<BlueprintScriptDraftState | null>(null);
@@ -5129,6 +5131,7 @@ export default function PostCreationFunnelBoardShell({
     legacyHandoff: PostCreationAdaptiveLegacyHandoff;
     score: PostCreationAdaptiveScore;
     evaluations: PostCreationAdaptiveAnswerEvaluation[];
+    originalPrompt?: string | null;
   }) => {
     const { nextState, selectedSlotId, selectedScriptId } =
       createPostCreationAdaptiveIdeaHandoffState({ handoff: result.legacyHandoff });
@@ -5146,6 +5149,7 @@ export default function PostCreationFunnelBoardShell({
     setAdaptiveGameResult({
       score: result.score,
       evaluations: result.evaluations,
+      originalPrompt: result.originalPrompt?.trim() || null,
     });
     setFunnelState(nextState);
   }, [clearAutoAdvanceTimer]);
@@ -7289,10 +7293,16 @@ export default function PostCreationFunnelBoardShell({
                                 </span>
 
                                 {activeStage === "idea" && adaptiveGameResult ? (
-                                  <PostCreationAdaptiveScoreCard
-                                    score={adaptiveGameResult.score}
-                                    evaluations={adaptiveGameResult.evaluations}
-                                  />
+                                  <>
+                                    <PostCreationAdaptivePromptContextCard
+                                      prompt={adaptiveGameResult.originalPrompt}
+                                      variant="final"
+                                    />
+                                    <PostCreationAdaptiveScoreCard
+                                      score={adaptiveGameResult.score}
+                                      evaluations={adaptiveGameResult.evaluations}
+                                    />
+                                  </>
                                 ) : null}
 
                                 <ProjectionSummaryCard
@@ -7628,10 +7638,16 @@ export default function PostCreationFunnelBoardShell({
                         </div>
 
                         {activeStageLegacySurface === "idea" && adaptiveGameResult ? (
-                          <PostCreationAdaptiveScoreCard
-                            score={adaptiveGameResult.score}
-                            evaluations={adaptiveGameResult.evaluations}
-                          />
+                          <div className="w-full space-y-3">
+                            <PostCreationAdaptivePromptContextCard
+                              prompt={adaptiveGameResult.originalPrompt}
+                              variant="final"
+                            />
+                            <PostCreationAdaptiveScoreCard
+                              score={adaptiveGameResult.score}
+                              evaluations={adaptiveGameResult.evaluations}
+                            />
+                          </div>
                         ) : null}
 
                         <div className="grid w-full gap-4 lg:grid-cols-[minmax(0,1.28fr)_minmax(16rem,0.72fr)]">

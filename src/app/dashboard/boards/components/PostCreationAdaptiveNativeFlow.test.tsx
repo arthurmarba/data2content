@@ -232,7 +232,15 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     render(<PostCreationAdaptiveNativeFlow />);
 
-    expect(screen.getByText("O que você quer criar, validar ou resolver hoje?")).toBeInTheDocument();
+    expect(screen.getByText("Teste sua leitura estratégica")).toBeInTheDocument();
+  });
+
+  it("does not render prompt context in the intent stage", () => {
+    mockFlow({ input: "Quero validar uma pauta" });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    expect(screen.queryByText("Você perguntou")).not.toBeInTheDocument();
   });
 
   it("shows the first question after a successful start", () => {
@@ -247,6 +255,52 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     expect(screen.getByText("Que tipo de marca você quer atrair?")).toBeInTheDocument();
     expect(screen.getByText("Pergunta 1 de 2")).toBeInTheDocument();
+  });
+
+  it("renders prompt context in the quiz from detection originalInput", () => {
+    mockFlow({
+      input: "texto editado depois",
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    expect(screen.getByText("Você perguntou")).toBeInTheDocument();
+    expect(screen.getByText("“Quero atrair marcas de skincare”")).toBeInTheDocument();
+    expect(screen.queryByText("“texto editado depois”")).not.toBeInTheDocument();
+  });
+
+  it("renders prompt context in the quiz from flow input when detection input is absent", () => {
+    mockFlow({
+      input: "Quero validar uma pauta",
+      status: "quiz",
+      detection: { ...detectionFixture, originalInput: "" },
+      questions: questionFixtures,
+      answers: [],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    expect(screen.getByText("Você perguntou")).toBeInTheDocument();
+    expect(screen.getByText("“Quero validar uma pauta”")).toBeInTheDocument();
+  });
+
+  it("does not break when originalPrompt is null", () => {
+    mockFlow({
+      input: "",
+      status: "quiz",
+      detection: null,
+      questions: questionFixtures,
+      answers: [],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    expect(screen.getByText("Que tipo de marca você quer atrair?")).toBeInTheDocument();
+    expect(screen.queryByText("Você perguntou")).not.toBeInTheDocument();
   });
 
   it("creates an answerKey when detection and questions exist", () => {
@@ -522,7 +576,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
 
-    expect(onCompleteGame).toHaveBeenCalledWith({
+    expect(onCompleteGame).toHaveBeenCalledWith(expect.objectContaining({
       legacyHandoff: answerKey.legacyHandoff,
       score: expect.objectContaining({
         total: 2,
@@ -533,7 +587,8 @@ describe("PostCreationAdaptiveNativeFlow", () => {
         expect.objectContaining({ questionId: "q-brand", isCorrect: true }),
         expect.objectContaining({ questionId: "q-format", isCorrect: true }),
       ]),
-    });
+      originalPrompt: "Quero atrair marcas de skincare",
+    }));
   });
 
   it("uses studyContext-guided answerKey for final plan and onCompleteGame", () => {
@@ -574,7 +629,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
 
-    expect(onCompleteGame).toHaveBeenCalledWith({
+    expect(onCompleteGame).toHaveBeenCalledWith(expect.objectContaining({
       legacyHandoff: answerKey.legacyHandoff,
       score: expect.objectContaining({
         total: 2,
@@ -585,7 +640,8 @@ describe("PostCreationAdaptiveNativeFlow", () => {
         expect.objectContaining({ questionId: "q-brand", isCorrect: true }),
         expect.objectContaining({ questionId: "q-format", isCorrect: true }),
       ]),
-    });
+      originalPrompt: "Quero atrair marcas de skincare",
+    }));
   });
 
   it("does not render NativePlanStage when onCompleteGame handles completion", () => {
@@ -640,7 +696,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
 
-    expect(onCompleteGame).toHaveBeenCalledWith({
+    expect(onCompleteGame).toHaveBeenCalledWith(expect.objectContaining({
       legacyHandoff: answerKey.legacyHandoff,
       score: expect.objectContaining({
         total: 2,
@@ -650,7 +706,8 @@ describe("PostCreationAdaptiveNativeFlow", () => {
       evaluations: expect.arrayContaining([
         expect.objectContaining({ questionId: "q-format", isCorrect: false }),
       ]),
-    });
+      originalPrompt: "Quero atrair marcas de skincare",
+    }));
   });
 
   it("creates a native plan result from answerKey.idealPlan on the last question", () => {
@@ -845,7 +902,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     mockFlow({ status: "idle", reset });
     rerender(<PostCreationAdaptiveNativeFlow />);
 
-    expect(screen.getByText("O que você quer criar, validar ou resolver hoje?")).toBeInTheDocument();
+    expect(screen.getByText("Teste sua leitura estratégica")).toBeInTheDocument();
   });
 
   it("restores initialSnapshot with questions and answers", () => {
@@ -894,7 +951,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     render(<PostCreationAdaptiveNativeFlow />);
 
-    expect(screen.getByText("O que você quer criar, validar ou resolver hoje?")).toBeInTheDocument();
+    expect(screen.getByText("Teste sua leitura estratégica")).toBeInTheDocument();
   });
 
   it("updates feedback when the selected answer changes", () => {

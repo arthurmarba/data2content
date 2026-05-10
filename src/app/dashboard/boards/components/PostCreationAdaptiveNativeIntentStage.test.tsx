@@ -23,26 +23,40 @@ describe("PostCreationAdaptiveNativeIntentStage", () => {
   it("renders the main title", () => {
     renderStage();
 
-    expect(screen.getByText("O que você quer criar, validar ou resolver hoje?")).toBeInTheDocument();
+    expect(screen.getByText("Teste sua leitura estratégica")).toBeInTheDocument();
   });
 
-  it("renders the subtitle", () => {
+  it("renders the subtitle about crossing with Instagram analysis", () => {
     renderStage();
 
     expect(
       screen.getByText(
-        "Escreva uma pauta, objetivo, dúvida, comentário da audiência, marca ou collab. A partir disso, eu monto o caminho estratégico.",
+        "Escreva uma ideia, dúvida ou objetivo. A D2C cruza isso com sua análise do Instagram e transforma em um jogo de decisões para você tentar acertar o caminho mais forte.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("renders the microcopy near the composer", () => {
+    renderStage();
+
+    expect(screen.getByText("Pode escrever do seu jeito. Eu transformo isso em perguntas estratégicas.")).toBeInTheDocument();
+  });
+
+  it("renders the strategic game CTA", () => {
+    renderStage();
+
+    expect(screen.getByRole("button", { name: "Montar meu jogo estratégico" })).toBeInTheDocument();
   });
 
   it("renders default examples", () => {
     renderStage();
 
-    expect(screen.getByRole("button", { name: "Quero validar uma pauta" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tenho uma pauta e quero validar" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Não sei o que postar essa semana" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Quero atrair marcas" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Quero saber qual formato usar" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Quero transformar um comentário em post" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Quero abrir espaço para marcas" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Quero uma ideia de collab" })).toBeInTheDocument();
   });
 
   it("uses custom examples when provided", () => {
@@ -50,7 +64,7 @@ describe("PostCreationAdaptiveNativeIntentStage", () => {
 
     expect(screen.getByRole("button", { name: "Quero vender mais" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Preciso responder uma dúvida" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Quero validar uma pauta" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tenho uma pauta e quero validar" })).not.toBeInTheDocument();
   });
 
   it("calls onChange when typing in the textarea", () => {
@@ -68,16 +82,16 @@ describe("PostCreationAdaptiveNativeIntentStage", () => {
     const onChange = jest.fn();
     renderStage({ onChange });
 
-    fireEvent.click(screen.getByRole("button", { name: "Quero atrair marcas" }));
+    fireEvent.click(screen.getByRole("button", { name: "Quero abrir espaço para marcas" }));
 
-    expect(onChange).toHaveBeenCalledWith("Quero atrair marcas");
+    expect(onChange).toHaveBeenCalledWith("Quero abrir espaço para marcas");
   });
 
   it("does not call onSubmit when clicking an example", () => {
     const onSubmit = jest.fn();
     renderStage({ onSubmit });
 
-    fireEvent.click(screen.getByRole("button", { name: "Quero atrair marcas" }));
+    fireEvent.click(screen.getByRole("button", { name: "Quero abrir espaço para marcas" }));
 
     expect(onSubmit).not.toHaveBeenCalled();
   });
@@ -86,7 +100,7 @@ describe("PostCreationAdaptiveNativeIntentStage", () => {
     const onSubmit = jest.fn();
     renderStage({ onSubmit, canSubmit: true });
 
-    fireEvent.click(screen.getByRole("button", { name: "Começar estratégia" }));
+    fireEvent.click(screen.getByRole("button", { name: "Montar meu jogo estratégico" }));
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
   });
@@ -95,15 +109,21 @@ describe("PostCreationAdaptiveNativeIntentStage", () => {
     const onSubmit = jest.fn();
     renderStage({ onSubmit, canSubmit: false });
 
-    fireEvent.click(screen.getByRole("button", { name: "Começar estratégia" }));
+    fireEvent.click(screen.getByRole("button", { name: "Montar meu jogo estratégico" }));
 
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("disables the button when canSubmit is false", () => {
+    renderStage({ canSubmit: false });
+
+    expect(screen.getByRole("button", { name: "Montar meu jogo estratégico" })).toBeDisabled();
   });
 
   it("disables the button when loading", () => {
     renderStage({ loading: true });
 
-    expect(screen.getByRole("button", { name: "Lendo sua intenção..." })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Montando seu jogo..." })).toBeDisabled();
   });
 
   it("disables the textarea when disabled", () => {
@@ -156,6 +176,26 @@ describe("PostCreationAdaptiveNativeIntentStage", () => {
   it("shows loading text in the button", () => {
     renderStage({ loading: true });
 
-    expect(screen.getByRole("button", { name: "Lendo sua intenção..." })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Montando seu jogo..." })).toBeInTheDocument();
+  });
+
+  it("renders copy about content signals", () => {
+    renderStage();
+
+    expect(
+      screen.getByText("Seu quiz usa sinais do seu conteúdo, como formatos, narrativas, horários e posts de referência."),
+    ).toBeInTheDocument();
+  });
+
+  it("does not break with an empty value", () => {
+    renderStage({ value: "" });
+
+    expect(screen.getByRole("textbox", { name: "Intenção estratégica" })).toHaveValue("");
+  });
+
+  it("keeps aria-label on the textarea", () => {
+    renderStage();
+
+    expect(screen.getByRole("textbox", { name: "Intenção estratégica" })).toBeInTheDocument();
   });
 });
