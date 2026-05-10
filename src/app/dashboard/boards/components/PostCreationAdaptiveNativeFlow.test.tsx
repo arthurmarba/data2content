@@ -1,5 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
+import { buildPostCreationAdaptiveAnswerKey } from "../postCreationAdaptiveAnswerKey";
 import type { PostCreationAdaptiveSnapshot } from "../postCreationAdaptiveSnapshot";
 import type {
   PostCreationAdaptiveAnswer,
@@ -200,6 +201,7 @@ function mockFlow(overrides: Partial<ReturnType<typeof usePostCreationAdaptiveFl
 describe("PostCreationAdaptiveNativeFlow", () => {
   beforeEach(() => {
     mockedUsePostCreationAdaptiveFlow.mockReset();
+    jest.restoreAllMocks();
   });
 
   it("renders intent stage initially", () => {
@@ -222,6 +224,136 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     expect(screen.getByText("Que tipo de marca você quer atrair?")).toBeInTheDocument();
     expect(screen.getByText("Pergunta 1 de 2")).toBeInTheDocument();
+  });
+
+  it("creates an answerKey when detection and questions exist", () => {
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [answerFixtures[0]!],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    expect(screen.getByText("Boa aposta")).toBeInTheDocument();
+    expect(screen.getByText("A marca funciona melhor quando entra como parte natural da narrativa.")).toBeInTheDocument();
+  });
+
+  it("does not show game feedback before selecting an option", () => {
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Boa aposta")).not.toBeInTheDocument();
+    expect(screen.queryByText("Quase")).not.toBeInTheDocument();
+  });
+
+  it("shows positive feedback after selecting the strategic answer", () => {
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [answerFixtures[0]!],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByText("Boa aposta")).toBeInTheDocument();
+  });
+
+  it("shows adjustment feedback after selecting a different answer from the answer key", () => {
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [
+        {
+          questionId: "q-brand",
+          key: "brand",
+          optionId: "tech",
+          value: "Tecnologia",
+        },
+      ],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByText("Quase")).toBeInTheDocument();
+    expect(screen.getByText("Sua aposta")).toBeInTheDocument();
+  });
+
+  it("lets the user advance after selecting a different answer from the answer key", () => {
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [
+        {
+          questionId: "q-brand",
+          key: "brand",
+          optionId: "tech",
+          value: "Tecnologia",
+        },
+      ],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Próxima decisão" }));
+
+    expect(screen.getByText("Qual entrega faria mais sentido?")).toBeInTheDocument();
+  });
+
+  it("does not reveal feedback or the correct option before the answer", () => {
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sua aposta")).not.toBeInTheDocument();
+    expect(document.body).not.toHaveTextContent(/corret/i);
+  });
+
+  it("uses answerKey and evaluations through the decision view model", () => {
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [answerFixtures[0]!],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    expect(screen.getByText("Boa aposta")).toBeInTheDocument();
+    expect(screen.getByText("A marca funciona melhor quando entra como parte natural da narrativa.")).toBeInTheDocument();
+  });
+
+  it("does not break when detection is null", () => {
+    mockFlow({
+      status: "quiz",
+      detection: null,
+      questions: questionFixtures,
+      answers: [answerFixtures[0]!],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    expect(screen.getByText("Que tipo de marca você quer atrair?")).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("selects an option and advances to the second question", () => {
@@ -247,7 +379,132 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     const generatePlan = jest.fn();
     mockFlow({
       status: "quiz",
+      detection: null,
+      questions: questionFixtures,
+      answers: answerFixtures,
+      generatePlan,
+    });
+
+    render(
+      <PostCreationAdaptiveNativeFlow
+        initialSnapshot={snapshotFixture({ answers: [answerFixtures[0]!] })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
+
+    expect(generatePlan).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not call generatePlan on the last question when answerKey exists", () => {
+    const generatePlan = jest.fn();
+    mockFlow({
+      status: "quiz",
       detection: detectionFixture,
+      questions: questionFixtures,
+      answers: answerFixtures,
+      generatePlan,
+    });
+
+    render(
+      <PostCreationAdaptiveNativeFlow
+        initialSnapshot={snapshotFixture({ answers: [answerFixtures[0]!] })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
+
+    expect(generatePlan).not.toHaveBeenCalled();
+  });
+
+  it("creates a native plan result from answerKey.idealPlan on the last question", () => {
+    const answerKey = buildPostCreationAdaptiveAnswerKey({
+      detection: detectionFixture,
+      questions: questionFixtures,
+    });
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: answerFixtures,
+    });
+
+    render(
+      <PostCreationAdaptiveNativeFlow
+        initialSnapshot={snapshotFixture({ answers: [answerFixtures[0]!] })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
+
+    expect(screen.getByText("Sua pauta está pronta para virar conteúdo")).toBeInTheDocument();
+    expect(screen.getAllByText(answerKey.idealPlan.pauta!).length).toBeGreaterThan(0);
+  });
+
+  it("uses answerKey.legacyHandoff when using a native plan result", () => {
+    const onUsePlan = jest.fn();
+    const answerKey = buildPostCreationAdaptiveAnswerKey({
+      detection: detectionFixture,
+      questions: questionFixtures,
+    });
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: answerFixtures,
+    });
+
+    render(
+      <PostCreationAdaptiveNativeFlow
+        initialSnapshot={snapshotFixture({ answers: [answerFixtures[0]!] })}
+        onUsePlan={onUsePlan}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
+    fireEvent.click(screen.getByRole("button", { name: "Usar este plano" }));
+
+    expect(onUsePlan).toHaveBeenCalledWith(answerKey.legacyHandoff);
+  });
+
+  it("uses answerKey.idealPlan even when the user selects a different answer", () => {
+    const answerKey = buildPostCreationAdaptiveAnswerKey({
+      detection: detectionFixture,
+      questions: questionFixtures,
+    });
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [
+        answerFixtures[0]!,
+        {
+          questionId: "q-format",
+          key: "format",
+          optionId: "stories",
+          value: "Stories",
+        },
+      ],
+    });
+
+    render(
+      <PostCreationAdaptiveNativeFlow
+        initialSnapshot={snapshotFixture({ answers: [answerFixtures[0]!] })}
+      />,
+    );
+
+    expect(screen.getByText("Quase")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
+
+    expect(screen.getAllByText(answerKey.idealPlan.pauta!).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(answerKey.idealPlan.format!).length).toBeGreaterThan(0);
+  });
+
+  it("falls back to generatePlan on the last question when answerKey does not exist", () => {
+    const generatePlan = jest.fn();
+    mockFlow({
+      status: "quiz",
+      detection: null,
       questions: questionFixtures,
       answers: answerFixtures,
       generatePlan,
@@ -328,6 +585,33 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     expect(reset).toHaveBeenCalledTimes(1);
   });
 
+  it("clears nativePlanResult and calls reset from the native plan screen", () => {
+    const reset = jest.fn();
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: answerFixtures,
+      reset,
+    });
+
+    const { rerender } = render(
+      <PostCreationAdaptiveNativeFlow
+        initialSnapshot={snapshotFixture({ answers: [answerFixtures[0]!] })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
+    fireEvent.click(screen.getByRole("button", { name: "Criar outra estratégia" }));
+
+    expect(reset).toHaveBeenCalledTimes(1);
+
+    mockFlow({ status: "idle", reset });
+    rerender(<PostCreationAdaptiveNativeFlow />);
+
+    expect(screen.getByText("O que você quer criar, validar ou resolver hoje?")).toBeInTheDocument();
+  });
+
   it("restores initialSnapshot with questions and answers", () => {
     mockFlow({
       input: "Quero atrair marcas de skincare",
@@ -375,6 +659,76 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     render(<PostCreationAdaptiveNativeFlow />);
 
     expect(screen.getByText("O que você quer criar, validar ou resolver hoje?")).toBeInTheDocument();
+  });
+
+  it("updates feedback when the selected answer changes", () => {
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [
+        {
+          questionId: "q-brand",
+          key: "brand",
+          optionId: "tech",
+          value: "Tecnologia",
+        },
+      ],
+    });
+
+    const { rerender } = render(<PostCreationAdaptiveNativeFlow />);
+
+    expect(screen.getByText("Quase")).toBeInTheDocument();
+
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [answerFixtures[0]!],
+    });
+
+    rerender(<PostCreationAdaptiveNativeFlow />);
+
+    expect(screen.getByText("Boa aposta")).toBeInTheDocument();
+    expect(screen.queryByText("Quase")).not.toBeInTheDocument();
+  });
+
+  it("clears nativePlanResult when questions change after a new quiz starts", async () => {
+    const nextQuestions: PostCreationAdaptiveQuestion[] = [
+      {
+        ...questionFixtures[0]!,
+        id: "q-brand-next",
+        title: "Nova pergunta de marca",
+      },
+    ];
+
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: answerFixtures,
+    });
+
+    const { rerender } = render(
+      <PostCreationAdaptiveNativeFlow
+        initialSnapshot={snapshotFixture({ answers: [answerFixtures[0]!] })}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
+    expect(screen.getByText("Sua pauta está pronta para virar conteúdo")).toBeInTheDocument();
+
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: nextQuestions,
+      answers: [],
+    });
+    rerender(<PostCreationAdaptiveNativeFlow />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Nova pergunta de marca")).toBeInTheDocument();
+    });
   });
 
   it("shows hook error in the intent stage", () => {

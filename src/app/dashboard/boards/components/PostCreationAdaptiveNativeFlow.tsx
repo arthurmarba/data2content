@@ -1,9 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { buildAdaptiveDecisionViewModel } from "../postCreationAdaptiveDecisionViewModel";
-import type { PostCreationAdaptiveAnswer, PostCreationAdaptiveQuestion } from "../postCreationAdaptiveTypes";
+import {
+  buildPostCreationAdaptiveAnswerKey,
+  evaluatePostCreationAdaptiveAnswers,
+} from "../postCreationAdaptiveAnswerKey";
+import type {
+  PostCreationAdaptiveAnswerEvaluation,
+  PostCreationAdaptiveAnswerKey,
+  PostCreationAdaptiveScore,
+} from "../postCreationAdaptiveAnswerKey";
+import type {
+  PostCreationAdaptiveAnswer,
+  PostCreationAdaptiveQuestion,
+  PostCreationStrategicPlan,
+} from "../postCreationAdaptiveTypes";
 import type { PostCreationAdaptiveSnapshot } from "../postCreationAdaptiveSnapshot";
 import type {
   PostCreationBlueprint,
@@ -25,6 +38,17 @@ export type PostCreationAdaptiveNativeFlowProps = {
     idea: PostCreationIdeaVariant;
     blueprint: PostCreationBlueprint;
   }) => void;
+};
+
+type NativeAdaptivePlanResult = {
+  plan: PostCreationStrategicPlan;
+  legacyHandoff: {
+    decision: PostCreationDecisionState;
+    idea: PostCreationIdeaVariant;
+    blueprint: PostCreationBlueprint;
+  };
+  score: PostCreationAdaptiveScore;
+  evaluations: PostCreationAdaptiveAnswerEvaluation[];
 };
 
 function clampQuestionIndex(index: number, questionCount: number): number {
@@ -77,7 +101,28 @@ export default function PostCreationAdaptiveNativeFlow({
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(() =>
     resolveInitialQuestionIndex(initialSnapshot),
   );
+  const [nativePlanResult, setNativePlanResult] = useState<NativeAdaptivePlanResult | null>(null);
   const didMountQuestionsEffectRef = useRef(false);
+  const answerKey = useMemo<PostCreationAdaptiveAnswerKey | null>(() => {
+    if (!flow.detection || flow.questions.length === 0) return null;
+
+    try {
+      return buildPostCreationAdaptiveAnswerKey({
+        detection: flow.detection,
+        questions: flow.questions,
+      });
+    } catch {
+      return null;
+    }
+  }, [flow.detection, flow.questions]);
+  const answerEvaluation = useMemo(() => {
+    if (!answerKey) return null;
+
+    return evaluatePostCreationAdaptiveAnswers({
+      answerKey,
+      answers: flow.answers,
+    });
+  }, [answerKey, flow.answers]);
 
   useEffect(() => {
     if (!didMountQuestionsEffectRef.current) {
@@ -86,7 +131,21 @@ export default function PostCreationAdaptiveNativeFlow({
     }
 
     setCurrentQuestionIndex(0);
+    setNativePlanResult(null);
   }, [flow.questions]);
+
+  function handleReset() {
+    setNativePlanResult(null);
+    setCurrentQuestionIndex(0);
+    flow.reset();
+  }
+
+  function handleSelectOption(questionId: string, optionId: string) {
+    if (nativePlanResult) {
+      setNativePlanResult(null);
+    }
+    flow.selectAnswer(questionId, optionId);
+  }
 
   function renderIntentStage() {
     return (
@@ -97,6 +156,21 @@ export default function PostCreationAdaptiveNativeFlow({
         loading={flow.status === "starting"}
         canSubmit={flow.canStart}
         error={flow.error}
+      />
+    );
+  }
+
+  if (nativePlanResult) {
+    return (
+      <PostCreationAdaptiveNativePlanStage
+        plan={nativePlanResult.plan}
+        legacyHandoff={nativePlanResult.legacyHandoff}
+        onUsePlan={
+          onUsePlan
+            ? () => onUsePlan(nativePlanResult.legacyHandoff)
+            : undefined
+        }
+        onReset={handleReset}
       />
     );
   }
@@ -115,7 +189,7 @@ export default function PostCreationAdaptiveNativeFlow({
             ? () => onUsePlan(flow.legacyHandoff as PostCreationAdaptiveLegacyHandoff)
             : undefined
         }
-        onReset={flow.reset}
+        onReset={handleReset}
       />
     );
   }
@@ -134,15 +208,32 @@ export default function PostCreationAdaptiveNativeFlow({
       answers: flow.answers,
       questionIndex: safeQuestionIndex,
       questionCount: flow.questions.length,
+      answerKey,
+      evaluations: answerEvaluation?.evaluations,
     });
     const isLastQuestion = safeQuestionIndex >= flow.questions.length - 1;
 
     return (
       <PostCreationAdaptiveNativeQuestionStage
         viewModel={viewModel}
-        onSelectOption={(optionId) => flow.selectAnswer(question.id, optionId)}
+        onSelectOption={(optionId) => handleSelectOption(question.id, optionId)}
         onNext={() => {
           if (isLastQuestion) {
+            if (answerKey) {
+              const result = answerEvaluation
+                ?? evaluatePostCreationAdaptiveAnswers({
+                  answerKey,
+                  answers: flow.answers,
+                });
+              setNativePlanResult({
+                plan: answerKey.idealPlan,
+                legacyHandoff: answerKey.legacyHandoff,
+                score: result.score,
+                evaluations: result.evaluations,
+              });
+              return;
+            }
+
             flow.generatePlan();
             return;
           }

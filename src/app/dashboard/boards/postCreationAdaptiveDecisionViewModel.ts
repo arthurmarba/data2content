@@ -1,4 +1,8 @@
 import type {
+  PostCreationAdaptiveAnswerEvaluation,
+  PostCreationAdaptiveAnswerKey,
+} from "./postCreationAdaptiveAnswerKey";
+import type {
   PostCreationAdaptiveAnswer,
   PostCreationAdaptiveQuestion,
   PostCreationAdaptiveQuestionMapKey,
@@ -12,6 +16,8 @@ export type PostCreationAdaptiveDecisionOptionViewModel = {
   value: string | string[] | boolean | null;
   selected: boolean;
   recommended: boolean;
+  isCorrect: boolean | null;
+  isIncorrectSelection: boolean;
 };
 
 export type PostCreationAdaptiveDecisionViewModel = {
@@ -29,6 +35,12 @@ export type PostCreationAdaptiveDecisionViewModel = {
   selectedAnswer: PostCreationAdaptiveAnswer | null;
   canAdvance: boolean;
   nextLabel: string;
+  correctOptionId: string | null;
+  selectedIsCorrect: boolean | null;
+  feedbackTitle: string | null;
+  feedbackMessage: string | null;
+  feedbackRationale: string | null;
+  shouldRevealFeedback: boolean;
   options: PostCreationAdaptiveDecisionOptionViewModel[];
 };
 
@@ -74,6 +86,8 @@ export function buildAdaptiveDecisionViewModel(params: {
   answers: PostCreationAdaptiveAnswer[];
   questionIndex: number;
   questionCount: number;
+  answerKey?: PostCreationAdaptiveAnswerKey | null;
+  evaluations?: PostCreationAdaptiveAnswerEvaluation[];
 }): PostCreationAdaptiveDecisionViewModel {
   const safeQuestionCount = Math.max(1, Math.floor(params.questionCount || 0));
   const safeQuestionIndex = clampNumber(Math.floor(params.questionIndex || 0), 0, safeQuestionCount - 1);
@@ -82,6 +96,13 @@ export function buildAdaptiveDecisionViewModel(params: {
     params.answers.find((answer) => answer.questionId === params.question.id) || null;
   const selectedOptionId = resolveSelectedOptionId(selectedAnswer);
   const isLastQuestion = safeQuestionIndex >= safeQuestionCount - 1;
+  const correctOptionId =
+    normalizeNullableText(params.answerKey?.correctAnswersByQuestionId?.[params.question.id]) || null;
+  const selectedIsCorrect =
+    selectedOptionId && correctOptionId ? selectedOptionId === correctOptionId : null;
+  const evaluation =
+    params.evaluations?.find((candidate) => candidate.questionId === params.question.id) || null;
+  const shouldRevealFeedback = Boolean(selectedOptionId && correctOptionId);
 
   return {
     id: params.question.id,
@@ -98,6 +119,12 @@ export function buildAdaptiveDecisionViewModel(params: {
     selectedAnswer,
     canAdvance: params.question.required !== true || Boolean(selectedOptionId),
     nextLabel: isLastQuestion ? "Ver plano estratégico" : "Próxima decisão",
+    correctOptionId,
+    selectedIsCorrect,
+    feedbackTitle: evaluation?.feedbackTitle ?? null,
+    feedbackMessage: evaluation?.feedbackMessage ?? null,
+    feedbackRationale: evaluation?.rationale ?? null,
+    shouldRevealFeedback,
     options: params.question.options.map((option) => ({
       id: option.id,
       label: option.label,
@@ -105,6 +132,13 @@ export function buildAdaptiveDecisionViewModel(params: {
       value: option.value ?? option.label ?? option.id ?? null,
       selected: option.id === selectedOptionId,
       recommended: option.recommended === true,
+      isCorrect: correctOptionId ? option.id === correctOptionId : null,
+      isIncorrectSelection: Boolean(
+        selectedOptionId
+          && correctOptionId
+          && option.id === selectedOptionId
+          && option.id !== correctOptionId,
+      ),
     })),
   };
 }

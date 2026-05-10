@@ -3,6 +3,10 @@ import type { ComponentProps } from "react";
 
 import { buildAdaptiveDecisionViewModel } from "../postCreationAdaptiveDecisionViewModel";
 import type { PostCreationAdaptiveDecisionViewModel } from "../postCreationAdaptiveDecisionViewModel";
+import {
+  buildPostCreationAdaptiveAnswerKey,
+  evaluatePostCreationAdaptiveAnswers,
+} from "../postCreationAdaptiveAnswerKey";
 import { buildPostCreationAdaptiveQuiz } from "../postCreationAdaptiveQuizBuilder";
 import { detectPostCreationAdaptiveIntent } from "../postCreationAdaptiveRouter";
 import PostCreationAdaptiveNativeQuestionStage from "./PostCreationAdaptiveNativeQuestionStage";
@@ -30,6 +34,12 @@ function baseViewModel(
     },
     canAdvance: true,
     nextLabel: "Próxima decisão",
+    correctOptionId: null,
+    selectedIsCorrect: null,
+    feedbackTitle: null,
+    feedbackMessage: null,
+    feedbackRationale: null,
+    shouldRevealFeedback: false,
     options: [
       {
         id: "comments",
@@ -38,6 +48,8 @@ function baseViewModel(
         value: "Comentários",
         selected: true,
         recommended: true,
+        isCorrect: null,
+        isIncorrectSelection: false,
       },
       {
         id: "reach",
@@ -46,6 +58,8 @@ function baseViewModel(
         value: "Alcance",
         selected: false,
         recommended: false,
+        isCorrect: null,
+        isIncorrectSelection: false,
       },
       {
         id: "saves",
@@ -54,10 +68,31 @@ function baseViewModel(
         value: "Salvamentos",
         selected: false,
         recommended: false,
+        isCorrect: null,
+        isIncorrectSelection: false,
       },
     ],
     ...overrides,
   };
+}
+
+function withFeedback(
+  overrides: Partial<PostCreationAdaptiveDecisionViewModel> = {},
+): PostCreationAdaptiveDecisionViewModel {
+  return baseViewModel({
+    correctOptionId: "comments",
+    selectedIsCorrect: true,
+    feedbackTitle: null,
+    feedbackMessage: null,
+    feedbackRationale: null,
+    shouldRevealFeedback: true,
+    options: baseViewModel().options.map((option) => ({
+      ...option,
+      isCorrect: option.id === "comments",
+      isIncorrectSelection: false,
+    })),
+    ...overrides,
+  });
 }
 
 function renderStage(
@@ -211,6 +246,143 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
     expect(screen.queryByRole("button", { name: "Voltar" })).not.toBeInTheDocument();
   });
 
+  it("does not show feedback before selecting an answer", () => {
+    renderStage({ viewModel: baseViewModel({ selectedOptionId: null, selectedAnswer: null, shouldRevealFeedback: false }) });
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Boa aposta")).not.toBeInTheDocument();
+    expect(screen.queryByText("Quase")).not.toBeInTheDocument();
+  });
+
+  it("shows feedback when shouldRevealFeedback is true", () => {
+    renderStage({ viewModel: withFeedback() });
+
+    expect(screen.getByRole("status")).toBeInTheDocument();
+  });
+
+  it("shows Boa aposta fallback when selectedIsCorrect is true and there is no custom title", () => {
+    renderStage({ viewModel: withFeedback({ selectedIsCorrect: true, feedbackTitle: null }) });
+
+    expect(screen.getByText("Boa aposta")).toBeInTheDocument();
+    expect(screen.getByText("Esse caminho está bem alinhado com a estratégia dessa pauta.")).toBeInTheDocument();
+  });
+
+  it("shows Quase fallback when selectedIsCorrect is false and there is no custom title", () => {
+    renderStage({
+      viewModel: withFeedback({
+        selectedOptionId: "reach",
+        selectedIsCorrect: false,
+        feedbackTitle: null,
+        feedbackMessage: null,
+        options: baseViewModel().options.map((option) => ({
+          ...option,
+          selected: option.id === "reach",
+          isCorrect: option.id === "comments",
+          isIncorrectSelection: option.id === "reach",
+        })),
+      }),
+    });
+
+    expect(screen.getByText("Quase")).toBeInTheDocument();
+    expect(screen.getByText("Essa opção pode funcionar, mas eu iria por outro caminho para essa pauta.")).toBeInTheDocument();
+  });
+
+  it("uses feedbackTitle from the view model when present", () => {
+    renderStage({ viewModel: withFeedback({ feedbackTitle: "Boa leitura" }) });
+
+    expect(screen.getByText("Boa leitura")).toBeInTheDocument();
+    expect(screen.queryByText("Boa aposta")).not.toBeInTheDocument();
+  });
+
+  it("uses feedbackMessage from the view model when present", () => {
+    renderStage({ viewModel: withFeedback({ feedbackMessage: "Esse caminho cria identificação rápido." }) });
+
+    expect(screen.getByText("Esse caminho cria identificação rápido.")).toBeInTheDocument();
+  });
+
+  it("renders feedbackRationale when it exists", () => {
+    renderStage({
+      viewModel: withFeedback({
+        feedbackRationale: "O gancho decide se a pessoa entende a tensão nos primeiros segundos.",
+      }),
+    });
+
+    expect(screen.getByText("O gancho decide se a pessoa entende a tensão nos primeiros segundos.")).toBeInTheDocument();
+  });
+
+  it("does not render feedbackRationale when it is null", () => {
+    renderStage({ viewModel: withFeedback({ feedbackRationale: null }) });
+
+    expect(screen.queryByText("O gancho decide se a pessoa entende a tensão nos primeiros segundos.")).not.toBeInTheDocument();
+  });
+
+  it("does not render hard language in feedback", () => {
+    renderStage({
+      viewModel: withFeedback({
+        selectedIsCorrect: false,
+        feedbackTitle: null,
+        feedbackMessage: null,
+      }),
+    });
+
+    expect(document.body).not.toHaveTextContent(/errado/i);
+    expect(document.body).not.toHaveTextContent(/incorreto/i);
+  });
+
+  it("shows Sua aposta on the selected adjustment option", () => {
+    renderStage({
+      viewModel: withFeedback({
+        selectedOptionId: "reach",
+        selectedIsCorrect: false,
+        options: baseViewModel().options.map((option) => ({
+          ...option,
+          selected: option.id === "reach",
+          isCorrect: option.id === "comments",
+          isIncorrectSelection: option.id === "reach",
+        })),
+      }),
+    });
+
+    expect(screen.getByText("Sua aposta")).toBeInTheDocument();
+  });
+
+  it("continues calling onNext after feedback appears", () => {
+    const onNext = jest.fn();
+    renderStage({ viewModel: withFeedback(), onNext });
+
+    fireEvent.click(screen.getByRole("button", { name: "Próxima decisão" }));
+
+    expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps aria-pressed on options when feedback appears", () => {
+    renderStage({ viewModel: withFeedback() });
+
+    expect(screen.getByRole("button", { name: /Gerar comentários/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Ganhar alcance/ })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("does not reveal the correct option before selection", () => {
+    renderStage({
+      viewModel: withFeedback({
+        selectedOptionId: null,
+        selectedAnswer: null,
+        selectedIsCorrect: null,
+        shouldRevealFeedback: false,
+        options: baseViewModel().options.map((option) => ({
+          ...option,
+          selected: false,
+          isCorrect: option.id === "comments",
+          isIncorrectSelection: false,
+        })),
+      }),
+    });
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sua aposta")).not.toBeInTheDocument();
+    expect(screen.queryByText(/corret/i)).not.toBeInTheDocument();
+  });
+
   it("works integrated with the adaptive router, quiz builder, and decision view model", () => {
     const detection = detectPostCreationAdaptiveIntent("Quero atrair marcas de skincare");
     const questions = buildPostCreationAdaptiveQuiz({ detection });
@@ -241,5 +413,37 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
       "aria-pressed",
       "true",
     );
+  });
+
+  it("works integrated with answer key and answer evaluation feedback", () => {
+    const detection = detectPostCreationAdaptiveIntent(
+      "Quero gravar um POV sobre minha família fazendo barulho quando tento relaxar",
+    );
+    const questions = buildPostCreationAdaptiveQuiz({ detection });
+    const answerKey = buildPostCreationAdaptiveAnswerKey({ detection, questions });
+    const firstQuestion = questions[0]!;
+    const correctOptionId = answerKey.correctAnswersByQuestionId[firstQuestion.id]!;
+    const answers = [
+      {
+        questionId: firstQuestion.id,
+        key: firstQuestion.mapKey,
+        optionId: correctOptionId,
+        value: correctOptionId,
+      },
+    ];
+    const { evaluations } = evaluatePostCreationAdaptiveAnswers({ answerKey, answers });
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question: firstQuestion,
+      answers,
+      questionIndex: 0,
+      questionCount: questions.length,
+      answerKey,
+      evaluations,
+    });
+
+    renderStage({ viewModel });
+
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByText("Boa aposta")).toBeInTheDocument();
   });
 });

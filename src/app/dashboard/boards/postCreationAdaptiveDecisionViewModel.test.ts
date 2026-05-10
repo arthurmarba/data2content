@@ -2,6 +2,14 @@ import type {
   PostCreationAdaptiveAnswer,
   PostCreationAdaptiveQuestion,
 } from "./postCreationAdaptiveTypes";
+import type {
+  PostCreationAdaptiveAnswerEvaluation,
+  PostCreationAdaptiveAnswerKey,
+} from "./postCreationAdaptiveAnswerKey";
+import {
+  buildPostCreationAdaptiveAnswerKey,
+  evaluatePostCreationAdaptiveAnswers,
+} from "./postCreationAdaptiveAnswerKey";
 import { buildAdaptiveDecisionViewModel } from "./postCreationAdaptiveDecisionViewModel";
 import { detectPostCreationAdaptiveIntent } from "./postCreationAdaptiveRouter";
 import { buildPostCreationAdaptiveQuiz } from "./postCreationAdaptiveQuizBuilder";
@@ -30,6 +38,60 @@ function answerFor(questionId = "q-objective", optionId = "reach"): PostCreation
     optionId,
     value: "Alcance",
     answeredAt: "2026-05-09T00:00:00.000Z",
+  };
+}
+
+function answerKeyFor(
+  question: PostCreationAdaptiveQuestion,
+  correctOptionId = "comments",
+): PostCreationAdaptiveAnswerKey {
+  return {
+    mode: "validate_pauta",
+    questionKeys: [
+      {
+        questionId: question.id,
+        mapKey: question.mapKey,
+        correctOptionId,
+        feedback: {
+          correct: "Esse é o caminho mais forte para esta pauta.",
+          incorrect: "Essa opção pode funcionar, mas eu iria por outro caminho.",
+          rationale: "O objetivo define o comportamento que o conteúdo precisa provocar.",
+        },
+      },
+    ],
+    correctAnswersByQuestionId: {
+      [question.id]: correctOptionId,
+    },
+    idealAnswers: [
+      {
+        questionId: question.id,
+        key: question.mapKey,
+        optionId: correctOptionId,
+        value: correctOptionId,
+      },
+    ],
+    idealPlan: {} as PostCreationAdaptiveAnswerKey["idealPlan"],
+    legacyHandoff: {} as PostCreationAdaptiveAnswerKey["legacyHandoff"],
+    score: {
+      max: 1,
+      passing: 1,
+    },
+  };
+}
+
+function evaluationFor(
+  questionId = "q-objective",
+  overrides: Partial<PostCreationAdaptiveAnswerEvaluation> = {},
+): PostCreationAdaptiveAnswerEvaluation {
+  return {
+    questionId,
+    selectedOptionId: "comments",
+    correctOptionId: "comments",
+    isCorrect: true,
+    feedbackTitle: "Boa aposta",
+    feedbackMessage: "Esse é o caminho mais forte para esta pauta.",
+    rationale: "O objetivo define o comportamento que o conteúdo precisa provocar.",
+    ...overrides,
   };
 }
 
@@ -302,5 +364,276 @@ describe("buildAdaptiveDecisionViewModel", () => {
     expect(viewModel.questionCount).toBe(1);
     expect(viewModel.progressLabel).toBe("Pergunta 1 de 1");
     expect(viewModel.progressValue).toBe(1);
+  });
+
+  it("keeps legacy behavior when answerKey is not provided", () => {
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question: baseQuestion(),
+      answers: [answerFor()],
+      questionIndex: 0,
+      questionCount: 4,
+    });
+
+    expect(viewModel.selectedOptionId).toBe("reach");
+    expect(viewModel.correctOptionId).toBeNull();
+    expect(viewModel.selectedIsCorrect).toBeNull();
+    expect(viewModel.feedbackTitle).toBeNull();
+    expect(viewModel.feedbackMessage).toBeNull();
+    expect(viewModel.feedbackRationale).toBeNull();
+    expect(viewModel.shouldRevealFeedback).toBe(false);
+    expect(viewModel.options.map((option) => option.isCorrect)).toEqual([null, null, null]);
+  });
+
+  it("gets correctOptionId from answerKey", () => {
+    const question = baseQuestion();
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey: answerKeyFor(question, "saves"),
+    });
+
+    expect(viewModel.correctOptionId).toBe("saves");
+  });
+
+  it("sets selectedIsCorrect true when selectedOptionId matches correctOptionId", () => {
+    const question = baseQuestion();
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [answerFor(question.id, "comments")],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey: answerKeyFor(question, "comments"),
+    });
+
+    expect(viewModel.selectedIsCorrect).toBe(true);
+  });
+
+  it("sets selectedIsCorrect false when selectedOptionId differs from correctOptionId", () => {
+    const question = baseQuestion();
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [answerFor(question.id, "reach")],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey: answerKeyFor(question, "comments"),
+    });
+
+    expect(viewModel.selectedIsCorrect).toBe(false);
+  });
+
+  it("sets selectedIsCorrect null when there is no answer", () => {
+    const question = baseQuestion();
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey: answerKeyFor(question, "comments"),
+    });
+
+    expect(viewModel.selectedIsCorrect).toBeNull();
+  });
+
+  it("does not reveal feedback without an answer", () => {
+    const question = baseQuestion();
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey: answerKeyFor(question, "comments"),
+    });
+
+    expect(viewModel.shouldRevealFeedback).toBe(false);
+  });
+
+  it("reveals feedback when there is an answer and a correctOptionId", () => {
+    const question = baseQuestion();
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [answerFor(question.id, "comments")],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey: answerKeyFor(question, "comments"),
+    });
+
+    expect(viewModel.shouldRevealFeedback).toBe(true);
+  });
+
+  it("attaches feedbackTitle, feedbackMessage, and rationale from evaluations", () => {
+    const question = baseQuestion();
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [answerFor(question.id, "comments")],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey: answerKeyFor(question, "comments"),
+      evaluations: [evaluationFor(question.id)],
+    });
+
+    expect(viewModel.feedbackTitle).toBe("Boa aposta");
+    expect(viewModel.feedbackMessage).toBe("Esse é o caminho mais forte para esta pauta.");
+    expect(viewModel.feedbackRationale).toBe("O objetivo define o comportamento que o conteúdo precisa provocar.");
+  });
+
+  it("keeps feedback null when no evaluation exists", () => {
+    const question = baseQuestion();
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [answerFor(question.id, "comments")],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey: answerKeyFor(question, "comments"),
+      evaluations: [evaluationFor("other-question")],
+    });
+
+    expect(viewModel.feedbackTitle).toBeNull();
+    expect(viewModel.feedbackMessage).toBeNull();
+    expect(viewModel.feedbackRationale).toBeNull();
+  });
+
+  it("marks option.isCorrect true only on the correct option", () => {
+    const question = baseQuestion();
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey: answerKeyFor(question, "comments"),
+    });
+
+    expect(viewModel.options.map((option) => [option.id, option.isCorrect])).toEqual([
+      ["comments", true],
+      ["reach", false],
+      ["saves", false],
+    ]);
+  });
+
+  it("sets option.isCorrect null when there is no correctOptionId", () => {
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question: baseQuestion(),
+      answers: [],
+      questionIndex: 0,
+      questionCount: 1,
+    });
+
+    expect(viewModel.options.map((option) => option.isCorrect)).toEqual([null, null, null]);
+  });
+
+  it("marks isIncorrectSelection only on the selected wrong option", () => {
+    const question = baseQuestion();
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [answerFor(question.id, "reach")],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey: answerKeyFor(question, "comments"),
+    });
+
+    expect(viewModel.options.map((option) => [option.id, option.isIncorrectSelection])).toEqual([
+      ["comments", false],
+      ["reach", true],
+      ["saves", false],
+    ]);
+  });
+
+  it("does not mark isIncorrectSelection on the selected correct option", () => {
+    const question = baseQuestion();
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [answerFor(question.id, "comments")],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey: answerKeyFor(question, "comments"),
+    });
+
+    expect(viewModel.options.map((option) => option.isIncorrectSelection)).toEqual([false, false, false]);
+  });
+
+  it("does not treat recommended as correct automatically without answerKey", () => {
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question: baseQuestion(),
+      answers: [answerFor("q-objective", "comments")],
+      questionIndex: 0,
+      questionCount: 1,
+    });
+
+    expect(viewModel.options[0]?.recommended).toBe(true);
+    expect(viewModel.correctOptionId).toBeNull();
+    expect(viewModel.options[0]?.isCorrect).toBeNull();
+  });
+
+  it("works integrated with detection, quiz builder, answer key, and evaluation", () => {
+    const detection = detectPostCreationAdaptiveIntent(
+      "Quero gravar um POV sobre minha família fazendo barulho quando tento relaxar",
+    );
+    const questions = buildPostCreationAdaptiveQuiz({ detection });
+    const answerKey = buildPostCreationAdaptiveAnswerKey({ detection, questions });
+    const firstQuestion = questions[0]!;
+    const correctOptionId = answerKey.correctAnswersByQuestionId[firstQuestion.id]!;
+    const answers = [
+      {
+        questionId: firstQuestion.id,
+        key: firstQuestion.mapKey,
+        optionId: correctOptionId,
+        value: correctOptionId,
+      },
+    ];
+    const { evaluations } = evaluatePostCreationAdaptiveAnswers({ answerKey, answers });
+
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question: firstQuestion,
+      answers,
+      questionIndex: 0,
+      questionCount: questions.length,
+      answerKey,
+      evaluations,
+    });
+
+    expect(viewModel.correctOptionId).toBe(correctOptionId);
+    expect(viewModel.selectedIsCorrect).toBe(true);
+    expect(viewModel.shouldRevealFeedback).toBe(true);
+    expect(viewModel.feedbackTitle).toBe("Boa aposta");
+  });
+
+  it("does not expose feedback to be revealed before the user answers", () => {
+    const question = baseQuestion();
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey: answerKeyFor(question, "comments"),
+      evaluations: [evaluationFor(question.id, { selectedOptionId: null, isCorrect: false })],
+    });
+
+    expect(viewModel.correctOptionId).toBe("comments");
+    expect(viewModel.shouldRevealFeedback).toBe(false);
+  });
+
+  it("exposes feedback to be revealed after the user answers", () => {
+    const question = baseQuestion();
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [answerFor(question.id, "reach")],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey: answerKeyFor(question, "comments"),
+      evaluations: [
+        evaluationFor(question.id, {
+          selectedOptionId: "reach",
+          correctOptionId: "comments",
+          isCorrect: false,
+          feedbackTitle: "Quase",
+          feedbackMessage: "Essa opção pode funcionar, mas eu iria por outro caminho.",
+        }),
+      ],
+    });
+
+    expect(viewModel.shouldRevealFeedback).toBe(true);
+    expect(viewModel.feedbackTitle).toBe("Quase");
+    expect(viewModel.feedbackMessage).toBe("Essa opção pode funcionar, mas eu iria por outro caminho.");
   });
 });

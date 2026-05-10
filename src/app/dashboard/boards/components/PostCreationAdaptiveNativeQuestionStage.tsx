@@ -22,6 +22,14 @@ export default function PostCreationAdaptiveNativeQuestionStage({
   const interactionDisabled = disabled || loading;
   const nextDisabled = interactionDisabled || !viewModel.canAdvance;
   const progressPercent = `${Math.round(viewModel.progressValue * 100)}%`;
+  const shouldShowFeedback = viewModel.shouldRevealFeedback && viewModel.selectedIsCorrect !== null;
+  const feedbackTitle =
+    viewModel.feedbackTitle || (viewModel.selectedIsCorrect ? "Boa aposta" : "Quase");
+  const feedbackMessage =
+    viewModel.feedbackMessage
+    || (viewModel.selectedIsCorrect
+      ? "Esse caminho está bem alinhado com a estratégia dessa pauta."
+      : "Essa opção pode funcionar, mas eu iria por outro caminho para essa pauta.");
 
   function handleNext() {
     if (nextDisabled) return;
@@ -60,7 +68,14 @@ export default function PostCreationAdaptiveNativeQuestionStage({
             disabled={interactionDisabled}
             onClick={() => onSelectOption(option.id)}
           >
-            <span className="block text-sm font-semibold leading-5">{option.label}</span>
+            <span className="flex items-start justify-between gap-3">
+              <span className="block text-sm font-semibold leading-5">{option.label}</span>
+              {viewModel.shouldRevealFeedback && option.isIncorrectSelection ? (
+                <span className="shrink-0 rounded-full border border-white/25 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-200">
+                  Sua aposta
+                </span>
+              ) : null}
+            </span>
             {option.reason ? (
               <span className={option.selected ? "mt-2 block text-xs leading-5 text-slate-200" : "mt-2 block text-xs leading-5 text-slate-500"}>
                 {option.reason}
@@ -69,6 +84,25 @@ export default function PostCreationAdaptiveNativeQuestionStage({
           </button>
         ))}
       </div>
+
+      {shouldShowFeedback ? (
+        <div
+          className={[
+            "mt-5 rounded-xl border p-4",
+            viewModel.selectedIsCorrect
+              ? "border-slate-200 bg-slate-50"
+              : "border-amber-200 bg-amber-50/60",
+          ].join(" ")}
+          role="status"
+          aria-live="polite"
+        >
+          <p className="text-sm font-semibold text-slate-950">{feedbackTitle}</p>
+          <p className="mt-1 text-sm leading-6 text-slate-700">{feedbackMessage}</p>
+          {viewModel.feedbackRationale ? (
+            <p className="mt-2 text-xs leading-5 text-slate-500">{viewModel.feedbackRationale}</p>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="mt-5 flex items-center justify-between gap-3">
         {onBack ? (
