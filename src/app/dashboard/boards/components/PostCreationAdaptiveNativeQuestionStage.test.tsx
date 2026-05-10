@@ -125,6 +125,12 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
     expect(screen.getByText("Pergunta 1 de 4")).toBeInTheDocument();
   });
 
+  it("renders the progress bar", () => {
+    renderStage();
+
+    expect(screen.getByRole("progressbar", { name: "Pergunta 1 de 4" })).toHaveAttribute("aria-valuenow", "25");
+  });
+
   it("renders the question title", () => {
     renderStage();
 
@@ -364,6 +370,7 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
 
     expect(document.body).not.toHaveTextContent(/errado/i);
     expect(document.body).not.toHaveTextContent(/incorreto/i);
+    expect(document.body).not.toHaveTextContent(/falhou/i);
     expect(document.body).not.toHaveTextContent(/garantido/i);
     expect(document.body).not.toHaveTextContent(/provado/i);
     expect(document.body).not.toHaveTextContent(/certeza/i);
