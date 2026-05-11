@@ -789,7 +789,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
 
-    expect(screen.getByText("Sua pauta está pronta para virar conteúdo")).toBeInTheDocument();
+    expect(screen.getByText("Match de marca recomendado")).toBeInTheDocument();
     expect(screen.getAllByText(answerKey.idealPlan.pauta!).length).toBeGreaterThan(0);
   });
 
@@ -902,8 +902,29 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     render(<PostCreationAdaptiveNativeFlow />);
 
-    expect(screen.getByText("Sua pauta está pronta para virar conteúdo")).toBeInTheDocument();
-    expect(screen.getByText("Rotina real com produto de skincare")).toBeInTheDocument();
+    expect(screen.getByText("Match de marca recomendado")).toBeInTheDocument();
+    expect(screen.getByText(/Pauta:/)).toHaveTextContent("Rotina real com produto de skincare");
+  });
+
+  it("passes detection mode and original prompt to NativePlanStage", () => {
+    mockFlow({
+      status: "plan_ready",
+      detection: {
+        ...detectionFixture,
+        mode: "format_guidance",
+        originalInput: "Quero saber qual formato usar",
+        normalizedInput: "quero saber qual formato usar",
+        brandCategory: null,
+        signals: ["qual formato"],
+      },
+      plan: planFixture,
+      legacyHandoff: legacyHandoffFixture,
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    expect(screen.getByText("Formato recomendado")).toBeInTheDocument();
+    expect(screen.getByText(/A partir da sua pergunta/i)).toHaveTextContent("Quero saber qual formato usar");
   });
 
   it("calls onUsePlan with legacyHandoff", () => {
@@ -1068,7 +1089,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
-    expect(screen.getByText("Sua pauta está pronta para virar conteúdo")).toBeInTheDocument();
+    expect(screen.getByText("Match de marca recomendado")).toBeInTheDocument();
 
     mockFlow({
       status: "quiz",

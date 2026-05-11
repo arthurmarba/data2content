@@ -192,6 +192,8 @@ export default function PostCreationAdaptiveNativeFlow({
       <PostCreationAdaptiveNativePlanStage
         plan={nativePlanResult.plan}
         legacyHandoff={nativePlanResult.legacyHandoff}
+        mode={flow.detection?.mode ?? null}
+        originalPrompt={originalPrompt}
         onUsePlan={
           onUsePlan
             ? () => onUsePlan(nativePlanResult.legacyHandoff)
@@ -211,6 +213,8 @@ export default function PostCreationAdaptiveNativeFlow({
       <PostCreationAdaptiveNativePlanStage
         plan={flow.plan}
         legacyHandoff={flow.legacyHandoff}
+        mode={flow.detection?.mode ?? null}
+        originalPrompt={originalPrompt}
         onUsePlan={
           flow.legacyHandoff && onUsePlan
             ? () => onUsePlan(flow.legacyHandoff as PostCreationAdaptiveLegacyHandoff)

@@ -1,7 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { PostCreationStrategicPlan } from "../postCreationAdaptiveTypes";
+import {
+  buildPostCreationAdaptivePlanPresentation,
+} from "../postCreationAdaptivePlanPresentation";
+import type {
+  PostCreationAdaptiveMode,
+  PostCreationStrategicPlan,
+} from "../postCreationAdaptiveTypes";
 import type {
   PostCreationBlueprint,
   PostCreationDecisionState,
@@ -20,6 +26,8 @@ export type PostCreationAdaptiveNativePlanStageProps = {
   onReset?: () => void;
   loading?: boolean;
   disabled?: boolean;
+  mode?: PostCreationAdaptiveMode | null;
+  originalPrompt?: string | null;
 };
 
 function hasText(value: string | null | undefined): value is string {
@@ -71,11 +79,21 @@ export default function PostCreationAdaptiveNativePlanStage({
   onReset,
   loading = false,
   disabled = false,
+  mode = null,
+  originalPrompt = null,
 }: PostCreationAdaptiveNativePlanStageProps) {
   if (!plan) return null;
 
+  const presentation = buildPostCreationAdaptivePlanPresentation({
+    plan,
+    mode,
+    originalPrompt,
+  });
   const canUsePlan = Boolean(onUsePlan && legacyHandoff) && !loading && !disabled;
   const canInteract = !loading && !disabled;
+  const showPautaContext =
+    hasText(plan.pauta) &&
+    (!hasText(presentation.primaryValue) || plan.pauta.trim() !== presentation.primaryValue.trim());
   const scenes = plan.scenes.filter(
     (scene) => hasText(scene.title) || hasText(scene.visual) || hasText(scene.message) || hasText(scene.direction),
   );
@@ -101,25 +119,34 @@ export default function PostCreationAdaptiveNativePlanStage({
   return (
     <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Plano estratégico</p>
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{presentation.eyebrow}</p>
         <div>
           <h2 className="text-2xl font-semibold leading-tight text-slate-950">
-            Sua pauta está pronta para virar conteúdo
+            {presentation.title}
           </h2>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-            Refinei a ideia em uma direção prática para gravar, testar e evoluir.
+            {presentation.subtitle}
           </p>
+          {hasText(presentation.promptContext) ? (
+            <p className="mt-2 max-w-2xl text-xs font-medium leading-5 text-slate-500">
+              {presentation.promptContext}
+            </p>
+          ) : null}
         </div>
       </div>
 
       <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
-        {hasText(plan.pauta) ? <h3 className="text-xl font-semibold leading-tight text-slate-950">{plan.pauta}</h3> : null}
-        {hasText(plan.objective) || hasText(plan.narrative) ? (
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-            {hasText(plan.objective) ? `Objetivo: ${plan.objective}.` : null}
-            {hasText(plan.objective) && hasText(plan.narrative) ? " " : null}
-            {hasText(plan.narrative) ? `Narrativa: ${plan.narrative}.` : null}
-          </p>
+        {hasText(presentation.primaryValue) ? (
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{presentation.primaryLabel}</p>
+            <h3 className="mt-1 text-xl font-semibold leading-tight text-slate-950">{presentation.primaryValue}</h3>
+          </div>
+        ) : null}
+        {showPautaContext ? (
+          <p className="mt-3 max-w-3xl text-sm font-semibold leading-6 text-slate-800">Pauta: {plan.pauta}</p>
+        ) : null}
+        {hasText(presentation.summary) ? (
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{presentation.summary}</p>
         ) : null}
         <div className="mt-4 flex flex-wrap gap-2">
           <DetailPill label="Objetivo" value={plan.objective} />
@@ -130,7 +157,7 @@ export default function PostCreationAdaptiveNativePlanStage({
 
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         {hasWhy ? (
-          <Section title="Por que essa narrativa funciona">
+          <Section title={presentation.sectionTitles.why}>
             {hasText(plan.fiveW2H.why) ? <p className="text-sm leading-6 text-slate-700">{plan.fiveW2H.why}</p> : null}
             {hasText(plan.objective) || hasText(plan.narrative) ? (
               <p className="mt-3 text-sm leading-6 text-slate-500">
@@ -143,7 +170,7 @@ export default function PostCreationAdaptiveNativePlanStage({
         ) : null}
 
         {hasExecution ? (
-          <Section title="Como gravar">
+          <Section title={presentation.sectionTitles.execution}>
             <dl>
               <DetailRow label="Onde" value={plan.fiveW2H.where} />
               <DetailRow label="Quem" value={plan.fiveW2H.who} />
@@ -156,7 +183,7 @@ export default function PostCreationAdaptiveNativePlanStage({
 
       {hasHookOrCta ? (
         <div className="mt-4">
-          <Section title="Gancho e CTA">
+          <Section title={presentation.sectionTitles.hookCta}>
             <dl className="grid gap-3 md:grid-cols-2">
               <DetailRow label="Gancho" value={plan.hook} />
               <DetailRow label="CTA" value={plan.cta} />
@@ -167,7 +194,7 @@ export default function PostCreationAdaptiveNativePlanStage({
 
       {scenes.length > 0 ? (
         <div className="mt-4">
-          <Section title="Cenas ou pilares">
+          <Section title={presentation.sectionTitles.scenes}>
             <div className="grid gap-3 md:grid-cols-2">
               {scenes.map((scene) => (
                 <article key={scene.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -184,7 +211,7 @@ export default function PostCreationAdaptiveNativePlanStage({
 
       {showBrandMatch || showCollabMatch ? (
         <div className="mt-4">
-          <Section title="Oportunidades">
+          <Section title={presentation.sectionTitles.opportunities}>
             <div className="grid gap-3 md:grid-cols-2">
               {showBrandMatch ? (
                 <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -218,7 +245,7 @@ export default function PostCreationAdaptiveNativePlanStage({
 
       {nextActions.length > 0 ? (
         <div className="mt-4">
-          <Section title="Próximas ações">
+          <Section title={presentation.sectionTitles.nextActions}>
             <div className="flex flex-wrap gap-2">
               {nextActions.map((action) => (
                 <span key={action} className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">

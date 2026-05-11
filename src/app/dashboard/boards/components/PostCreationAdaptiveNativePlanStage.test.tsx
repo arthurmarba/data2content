@@ -166,6 +166,28 @@ describe("PostCreationAdaptiveNativePlanStage", () => {
     expect(screen.getByText("Sua pauta está pronta para virar conteúdo")).toBeInTheDocument();
   });
 
+  it("renders format_guidance presentation", () => {
+    renderStage({
+      mode: "format_guidance",
+      originalPrompt: "Quero saber qual formato usar",
+    });
+
+    expect(screen.getByText("Resposta da D2C")).toBeInTheDocument();
+    expect(screen.getByText("Formato recomendado")).toBeInTheDocument();
+    expect(screen.getAllByText("Formato").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Reels").length).toBeGreaterThan(0);
+    expect(screen.getByText("Por que esse formato faz sentido")).toBeInTheDocument();
+    expect(screen.getByText(/A partir da sua pergunta/i)).toHaveTextContent("Quero saber qual formato usar");
+  });
+
+  it("keeps the generic fallback when mode is not provided", () => {
+    renderStage({ mode: null });
+
+    expect(screen.getByText("Plano estratégico")).toBeInTheDocument();
+    expect(screen.getByText("Sua pauta está pronta para virar conteúdo")).toBeInTheDocument();
+    expect(screen.getByText("Por que essa narrativa funciona")).toBeInTheDocument();
+  });
+
   it("renders the plan pauta", () => {
     renderStage();
 
