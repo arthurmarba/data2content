@@ -47,6 +47,33 @@ describe("detectPostCreationAdaptiveIntent", () => {
     expect(result.mode).toBe("weekly_plan");
   });
 
+  it("detects explicit format guidance intent", () => {
+    const result = detectPostCreationAdaptiveIntent("Quero saber qual formato usar");
+
+    expect(result.mode).toBe("format_guidance");
+    expect(result.confidence).toBeGreaterThanOrEqual(0.8);
+  });
+
+  it("detects format guidance phrased as what to post", () => {
+    const result = detectPostCreationAdaptiveIntent("Qual formato devo postar?");
+
+    expect(result.mode).toBe("format_guidance");
+  });
+
+  it("detects format guidance from format alternatives", () => {
+    const result = detectPostCreationAdaptiveIntent("Melhor reels ou carrossel?");
+
+    expect(result.mode).toBe("format_guidance");
+    expect(result.signals.some((signal) => signal.includes("reels") && signal.includes("carrossel"))).toBe(true);
+  });
+
+  it("preserves pauta context when detecting format guidance", () => {
+    const result = detectPostCreationAdaptiveIntent("Qual formato usar para falar sobre skincare no verão?");
+
+    expect(result.mode).toBe("format_guidance");
+    expect(result.detectedPauta).toContain("falar sobre skincare no verao");
+  });
+
   it("returns unknown for vague input", () => {
     const result = detectPostCreationAdaptiveIntent("me ajuda");
 
@@ -67,5 +94,11 @@ describe("detectPostCreationAdaptiveIntent", () => {
 
     expect(result.mode).toBe("brand_match");
     expect(result.mode).not.toBe("validate_pauta");
+  });
+
+  it("prioritizes format guidance over broad discover, validate, and goal signals", () => {
+    expect(detectPostCreationAdaptiveIntent("Não sei o que postar, qual formato usar?").mode).toBe("format_guidance");
+    expect(detectPostCreationAdaptiveIntent("Quero gravar uma pauta, devo fazer reels ou carrossel?").mode).toBe("format_guidance");
+    expect(detectPostCreationAdaptiveIntent("Quero mais alcance, qual formato tem mais chance?").mode).toBe("format_guidance");
   });
 });

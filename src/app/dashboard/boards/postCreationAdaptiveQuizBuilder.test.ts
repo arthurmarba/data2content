@@ -31,6 +31,7 @@ const adaptiveModes: PostCreationAdaptiveMode[] = [
   "validate_pauta",
   "discover_pauta",
   "create_by_goal",
+  "format_guidance",
   "brand_match",
   "collab_match",
   "comment_to_post",
@@ -58,6 +59,12 @@ describe("buildPostCreationAdaptiveQuiz", () => {
     const keys = mapKeysFor("Quero gerar mais comentários");
 
     expect(keys).toEqual(expect.arrayContaining(["objective", "narrative", "format", "cta"]));
+  });
+
+  it("builds format_guidance questions around format choice, objective, narrative, hook, and effort", () => {
+    const keys = mapKeysFor("Quero saber qual formato usar");
+
+    expect(keys).toEqual(expect.arrayContaining(["format", "objective", "narrative", "hook", "effort"]));
   });
 
   it("builds brand_match questions around brand, how, narrative, and why or format", () => {
@@ -180,6 +187,17 @@ describe("buildPostCreationAdaptiveQuiz", () => {
     expect(quiz[4]?.title).toMatch(/entender o match/i);
   });
 
+  it("uses specific language for format_guidance", () => {
+    const quiz = quizFor("Melhor reels ou carrossel para uma pauta de skincare?");
+
+    expect(quiz).toHaveLength(5);
+    expect(quiz[0]?.id).toBe("format-primary");
+    expect(quiz[0]?.title).toMatch(/formato parece mais forte/i);
+    expect(quiz[1]?.title).toMatch(/reação esse formato/i);
+    expect(quiz[2]?.title).toMatch(/pesa na escolha do formato/i);
+    expect(quiz[3]?.title).toMatch(/abrir para segurar atenção/i);
+  });
+
   it("uses more human language for comment_to_post", () => {
     const quiz = quizFor("Alguém comentou isso aqui e quero transformar em post");
 
@@ -209,6 +227,13 @@ describe("buildPostCreationAdaptiveQuiz", () => {
         ["goal-narrative", "narrative"],
         ["goal-format", "format"],
         ["goal-cta", "cta"],
+      ],
+      format_guidance: [
+        ["format-primary", "format"],
+        ["format-objective", "objective"],
+        ["format-narrative", "narrative"],
+        ["format-hook", "hook"],
+        ["format-effort", "effort"],
       ],
       brand_match: [
         ["brand-category", "brand"],

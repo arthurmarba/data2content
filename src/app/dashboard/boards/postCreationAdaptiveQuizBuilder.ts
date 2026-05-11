@@ -227,6 +227,80 @@ function createByGoalQuestions(): PostCreationAdaptiveQuestion[] {
   ];
 }
 
+function formatGuidanceQuestions(detection: PostCreationAdaptiveIntentDetection): PostCreationAdaptiveQuestion[] {
+  const pautaHelper = detection.detectedPauta
+    ? `Vamos escolher o formato mais forte para: ${detection.detectedPauta}.`
+    : "A escolha do formato precisa combinar intenção, narrativa e esforço real.";
+
+  return [
+    question({
+      id: "format-primary",
+      type: "strategic_choice",
+      title: "Qual formato parece mais forte para essa intenção?",
+      helper: pautaHelper,
+      mapKey: "format",
+      options: [
+        option("reels", "Reels", "Melhor quando a força está em cena, ritmo, reação ou movimento.", true),
+        option("carousel", "Carrossel", "Melhor quando a ideia precisa de ordem, comparação ou consulta depois."),
+        option("photo_post", "Foto com legenda forte", "Melhor quando imagem e opinião carregam a mensagem sem muita edição."),
+        option("stories", "Stories", "Melhor quando a intenção é testar conversa rápida ou bastidor próximo."),
+      ],
+    }),
+    question({
+      id: "format-objective",
+      type: "strategic_choice",
+      title: "Que reação esse formato precisa provocar?",
+      helper: "A reação desejada ajuda a escolher se o conteúdo precisa ser visto, salvo, comentado ou clicado.",
+      mapKey: "objective",
+      options: [
+        option("reach", "Alcance e descoberta", "Pede formato fácil de entender e compartilhar rápido.", true),
+        option("saves", "Salvamento e consulta", "Pede estrutura clara, lista ou passo que a pessoa queira rever."),
+        option("comments", "Comentário e conversa", "Pede identificação, tensão ou pergunta que abra resposta."),
+        option("clicks", "Clique ou conversão", "Pede promessa objetiva e motivo claro para o próximo passo."),
+      ],
+    }),
+    question({
+      id: "format-narrative",
+      type: "strategic_choice",
+      title: "O que mais pesa na escolha do formato?",
+      helper: "O melhor formato é o que deixa a força da ideia mais fácil de perceber.",
+      mapKey: "narrative",
+      options: [
+        option("scene_motion", "Cena ou movimento", "Favorece vídeo curto, reação e contexto visual imediato.", true),
+        option("step_by_step", "Passo a passo", "Favorece carrossel, checklist ou estrutura de consulta."),
+        option("opinion_positioning", "Opinião ou posicionamento", "Favorece fala direta, legenda forte ou corte com ponto de vista."),
+        option("backstage_context", "Bastidor ou contexto", "Favorece stories, sequência simples ou registro menos produzido."),
+      ],
+    }),
+    question({
+      id: "format-hook",
+      type: "strategic_choice",
+      title: "Como a ideia precisa abrir para segurar atenção?",
+      helper: "A abertura indica se o formato precisa mostrar, prometer, perguntar ou comparar.",
+      mapKey: "hook",
+      options: [
+        option("visual_tension", "Tensão visual imediata", "Funciona quando a pessoa entende a cena antes da explicação.", true),
+        option("practical_promise", "Promessa prática", "Funciona quando o valor está em resolver algo de forma clara."),
+        option("direct_question", "Pergunta direta", "Funciona quando o conteúdo depende de identificação ou opinião."),
+        option("contrast", "Antes/depois ou contraste", "Funciona quando a diferença precisa aparecer rápido."),
+      ],
+    }),
+    question({
+      id: "format-effort",
+      type: "constraint",
+      title: "Quanto esforço de produção cabe agora?",
+      helper: "O formato ideal também precisa caber no tempo e na energia disponíveis.",
+      mapKey: "effort",
+      options: [
+        option("low", "Baixo, quero decidir e postar rápido", "Favorece stories, foto com legenda ou reels simples.", true),
+        option("medium", "Médio, dá pra estruturar melhor", "Favorece carrossel curto ou reels com roteiro enxuto."),
+        option("high", "Alto, quero caprichar na entrega", "Favorece vídeo com cenas, edição e prova visual."),
+        option("batch", "Quero gravar em lote", "Bom para aproveitar produção, mas exige formatos fáceis de repetir."),
+      ],
+    }),
+  ];
+}
+
 function brandMatchQuestions(detection: PostCreationAdaptiveIntentDetection): PostCreationAdaptiveQuestion[] {
   return [
     question({
@@ -520,6 +594,7 @@ export function buildPostCreationAdaptiveQuiz(params: {
   if (mode === "validate_pauta") return validatePautaQuestions(params.detection);
   if (mode === "discover_pauta") return discoverPautaQuestions();
   if (mode === "create_by_goal") return createByGoalQuestions();
+  if (mode === "format_guidance") return formatGuidanceQuestions(params.detection);
   if (mode === "brand_match") return brandMatchQuestions(params.detection);
   if (mode === "collab_match") return collabMatchQuestions();
   if (mode === "comment_to_post") return commentToPostQuestions();

@@ -142,6 +142,39 @@ function detectWeeklyPlan(normalizedInput: string): IntentMatch | null {
   };
 }
 
+function detectFormatGuidance(normalizedInput: string): IntentMatch | null {
+  const patterns = [
+    /\bqual formato\b/,
+    /\bque formato\b/,
+    /\bformato usar\b/,
+    /\bmelhor formato\b/,
+    /\bdevo fazer (?:em )?(?:reels?|video|carrossel|foto|stories?)\b/,
+    /\b(?:reels?|video|foto|carrossel|stories?)\s+ou\s+(?:reels?|video|foto|carrossel|stories?)\b/,
+    /\bpostar em reels\b/,
+    /\bfazer em carrossel\b/,
+    /\btipo de post\b/,
+    /\bformato performa\b/,
+    /\bformato tem mais chance\b/,
+    /\bfunciona melhor em (?:reels?|video|carrossel|foto|stories?)\b/,
+  ];
+  const signals = collectSignals(normalizedInput, patterns);
+  if (!signals.length) return null;
+
+  const detectedPauta = findFirstCapture(normalizedInput, [
+    /(?:qual|que)\s+formato\s+(?:eu\s+)?(?:devo\s+)?(?:usar|postar|fazer)(?:\s+(?:para|pra|sobre|de|em))?\s+(.+)/,
+    /(?:formato|tipo de post)\s+(?:usar|tem mais chance|performa|funciona melhor)(?:\s+(?:para|pra|sobre|de|em))?\s+(.+)/,
+    /(?:reels?|video|foto|carrossel|stories?)\s+ou\s+(?:reels?|video|foto|carrossel|stories?)(?:\s+(?:para|pra|sobre|de|em))?\s+(.+)/,
+    /(?:devo fazer|melhor eu fazer)(?:\s+(?:em|um|uma))?\s+(?:reels?|video|foto|carrossel|stories?)(?:\s+(?:para|pra|sobre|de|em))?\s+(.+)/,
+  ]);
+
+  return {
+    mode: "format_guidance",
+    confidence: detectedPauta ? 0.9 : 0.84,
+    signals,
+    detectedPauta,
+  };
+}
+
 function detectDiscoverPauta(normalizedInput: string): IntentMatch | null {
   const patterns = [
     /\bnao sei o que postar\b/,
@@ -247,6 +280,7 @@ export function detectPostCreationAdaptiveIntent(input: string): PostCreationAda
     detectCommentToPost(normalizedInput) ||
     detectBrandMatch(normalizedInput) ||
     detectCollabMatch(normalizedInput) ||
+    detectFormatGuidance(normalizedInput) ||
     detectDiscoverPauta(normalizedInput) ||
     detectWeeklyPlan(normalizedInput) ||
     detectValidatePauta(normalizedInput) ||

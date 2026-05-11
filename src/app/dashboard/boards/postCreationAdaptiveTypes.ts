@@ -2,6 +2,7 @@ export type PostCreationAdaptiveMode =
   | "validate_pauta"
   | "discover_pauta"
   | "create_by_goal"
+  | "format_guidance"
   | "brand_match"
   | "collab_match"
   | "comment_to_post"

@@ -22,6 +22,7 @@ const adaptiveModes: PostCreationAdaptiveMode[] = [
   "validate_pauta",
   "discover_pauta",
   "create_by_goal",
+  "format_guidance",
   "brand_match",
   "collab_match",
   "comment_to_post",
@@ -74,7 +75,7 @@ describe("adaptive quiz game contract compatibility", () => {
       }
     }
 
-    expect(totalQuestions).toBe(33);
+    expect(totalQuestions).toBe(38);
   });
 
   it("builds valid game contracts for every generated question in every mode", () => {
@@ -137,5 +138,45 @@ describe("adaptive quiz game contract compatibility", () => {
     expect(formatGameQuestion?.isValid).toBe(true);
     expect(formatGameQuestion?.validationErrors).toEqual([]);
     expect(answerKey.idealAnswers.find((answer) => answer.questionId === "discover-format")?.optionId).toBe("carousel");
+  });
+
+  it("keeps format_guidance compatible when StudyContext overrides the recommended format", () => {
+    const detection = detectionForMode("format_guidance");
+    const questions = buildPostCreationAdaptiveQuiz({ detection });
+    const studyContext = buildPostCreationAdaptiveStudyContext({
+      recommendations: [
+        {
+          id: "rec-carousel-format",
+          format: "Carrossel",
+          saves: 220,
+          shares: 30,
+          comments: 18,
+          evidenceCount: 5,
+        },
+      ],
+      evidencePosts: [
+        {
+          id: "post-carousel-format",
+          title: "Carrossel de checklist com muitos salvamentos",
+          format: "Carrossel",
+          saves: 220,
+        },
+      ],
+    });
+
+    const answerKey = buildPostCreationAdaptiveAnswerKey({
+      detection,
+      questions,
+      studyContext,
+    });
+    const formatGameQuestion = answerKey.gameQuestions.find((question) => question.questionId === "format-primary");
+
+    expect(answerKey.correctAnswersByQuestionId["format-primary"]).toBe("carousel");
+    expect(formatGameQuestion?.correctOptionId).toBe("carousel");
+    expect(formatGameQuestion?.isValid).toBe(true);
+    expect(formatGameQuestion?.validationErrors).toEqual([]);
+    expect(formatGameQuestion?.options).toHaveLength(4);
+    expect(formatGameQuestion?.options.filter((option) => option.role === "correct")).toHaveLength(1);
+    expect(answerKey.idealAnswers.find((answer) => answer.questionId === "format-primary")?.optionId).toBe("carousel");
   });
 });
