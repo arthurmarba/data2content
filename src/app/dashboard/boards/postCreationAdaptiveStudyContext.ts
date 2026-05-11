@@ -19,6 +19,7 @@ export type PostCreationAdaptiveStudyWindowSignal = {
 export type PostCreationAdaptiveStudyReferencePost = {
   id: string;
   title: string;
+  caption?: string | null;
   permalink?: string | null;
   format?: string | null;
   context?: string | null;
@@ -28,6 +29,7 @@ export type PostCreationAdaptiveStudyReferencePost = {
   reach?: number | null;
   saves?: number | null;
   shares?: number | null;
+  comments?: number | null;
   reason: string;
 };
 
@@ -46,12 +48,26 @@ export type PostCreationAdaptiveStudyContext = {
     recommendationsCount: number;
     postedSignalsCount: number;
     evidencePostsCount: number;
+    captionSignalsCount: number;
+    themeSignalsCount: number;
+    qualitativeSignalsCount: number;
   };
   topFormats: PostCreationAdaptiveStudySignal[];
   topNarratives: PostCreationAdaptiveStudySignal[];
   topContexts: PostCreationAdaptiveStudySignal[];
   topProposals: PostCreationAdaptiveStudySignal[];
   topEngagementDrivers: PostCreationAdaptiveStudySignal[];
+  topContentIntents: PostCreationAdaptiveStudySignal[];
+  topNarrativeForms: PostCreationAdaptiveStudySignal[];
+  topTones: PostCreationAdaptiveStudySignal[];
+  topThemes: PostCreationAdaptiveStudySignal[];
+  topThemeKeywords: PostCreationAdaptiveStudySignal[];
+  topHooks: PostCreationAdaptiveStudySignal[];
+  topCtas: PostCreationAdaptiveStudySignal[];
+  topProofStyles: PostCreationAdaptiveStudySignal[];
+  topStances: PostCreationAdaptiveStudySignal[];
+  topCommercialModes: PostCreationAdaptiveStudySignal[];
+  topCaptionSignals: PostCreationAdaptiveStudySignal[];
   bestPostingWindows: PostCreationAdaptiveStudyWindowSignal[];
   referencePosts: PostCreationAdaptiveStudyReferencePost[];
   brandSignals: PostCreationAdaptiveStudySignal[];
@@ -89,6 +105,7 @@ type ReferencePostCandidate = PostCreationAdaptiveStudyReferencePost & {
 
 const DEFAULT_PERIOD_DAYS = 90;
 const MAX_SAFE_SCORE = 1_000_000;
+const MAX_TEXT_SIGNAL_LENGTH = 96;
 
 const DAY_LABELS = [
   "Domingo",
@@ -99,6 +116,50 @@ const DAY_LABELS = [
   "Sexta-feira",
   "Sabado",
 ];
+
+const CAPTION_STOPWORDS = new Set([
+  "agora",
+  "ainda",
+  "algo",
+  "aqui",
+  "assim",
+  "cada",
+  "coisa",
+  "como",
+  "com",
+  "contra",
+  "depois",
+  "desse",
+  "dessa",
+  "deste",
+  "desta",
+  "dentro",
+  "deixa",
+  "essa",
+  "esse",
+  "esta",
+  "este",
+  "fazer",
+  "mais",
+  "mesmo",
+  "minha",
+  "muito",
+  "nada",
+  "nessa",
+  "nesse",
+  "para",
+  "pela",
+  "pelo",
+  "porque",
+  "quando",
+  "quem",
+  "sobre",
+  "tambem",
+  "todo",
+  "toda",
+  "voce",
+  "voces",
+]);
 
 function isRecord(value: unknown): value is UnknownRecord {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -120,6 +181,12 @@ function normalizeId(value: string): string {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
+}
+
+function truncateTextSignal(value: string): string {
+  const cleaned = value.replace(/\s+/g, " ").trim();
+  if (cleaned.length <= MAX_TEXT_SIGNAL_LENGTH) return cleaned;
+  return `${cleaned.slice(0, MAX_TEXT_SIGNAL_LENGTH - 1).trim()}...`;
 }
 
 function getPath(record: UnknownRecord, path: string): unknown {
@@ -161,6 +228,12 @@ function readStringArray(record: UnknownRecord, paths: string[]): string[] {
   return Array.from(new Set(values));
 }
 
+function readTextFields(record: UnknownRecord, paths: string[]): string[] {
+  return readStringArray(record, paths)
+    .map(truncateTextSignal)
+    .filter(Boolean);
+}
+
 function readNumber(record: UnknownRecord, paths: string[]): number | null {
   for (const path of paths) {
     const value = getPath(record, path);
@@ -199,9 +272,9 @@ function readConfidence(record: UnknownRecord): number {
 function computeMetricScore(record: UnknownRecord): number {
   const interactions = positiveNumber(readNumber(record, ["totalInteractions", "interactions", "expectedInteractionsAvg"]));
   const reach = positiveNumber(readNumber(record, ["reach", "expectedMetrics.viewsP50", "expectedMetrics.viewsP90"]));
-  const saves = positiveNumber(readNumber(record, ["saves"]));
+  const saves = positiveNumber(readNumber(record, ["saves", "expectedMetrics.savesP50"]));
   const shares = positiveNumber(readNumber(record, ["shares", "expectedMetrics.sharesP50"]));
-  const comments = positiveNumber(readNumber(record, ["comments", "commentCount"]));
+  const comments = positiveNumber(readNumber(record, ["comments", "commentCount", "expectedMetrics.commentsP50"]));
   const evidenceCount = readEvidenceCount(record);
   const confidence = readConfidence(record);
 
@@ -255,6 +328,87 @@ function addSignalsFromArrays(
 ) {
   for (const label of labels) {
     addSignal(map, label, score, evidenceCount);
+  }
+}
+
+function extractHookSignalsFromText(text: string): string[] {
+  const sentences = text
+    .split(/(?<=[.!?])\s+|\n+/)
+    .map(cleanText)
+    .filter((value): value is string => Boolean(value));
+  const hooks: string[] = [];
+
+  for (const sentence of sentences) {
+    const normalized = normalizeId(sentence).replace(/_/g, " ");
+    const looksLikeHook =
+      sentence.includes("?")
+      || normalized.startsWith("voce ja")
+      || normalized.startsWith("ninguem fala")
+      || normalized.startsWith("o erro")
+      || normalized.startsWith("pare de")
+      || normalized.startsWith("como ")
+      || normalized.startsWith("por que")
+      || normalized.startsWith("quando ");
+
+    if (looksLikeHook) hooks.push(truncateTextSignal(sentence));
+  }
+
+  return Array.from(new Set(hooks)).slice(0, 5);
+}
+
+function extractCtaSignalsFromText(text: string): string[] {
+  const normalized = normalizeId(text).replace(/_/g, " ");
+  const signals: string[] = [];
+
+  if (/\bcomenta(r|m|ndo)?\b|\bme conta\b|\bconta aqui\b/.test(normalized)) signals.push("Comentar");
+  if (/\bsalva(r|m)?\b|\bguarda(r|m)?\b/.test(normalized)) signals.push("Salvar");
+  if (/\bcompartilha(r|m)?\b|\benvia(r|m)?\b|\bmanda(r|m)?\b/.test(normalized)) signals.push("Compartilhar");
+  if (/\bmarca(r|m)?\b/.test(normalized)) signals.push("Marcar alguem");
+  if (/\bclica(r|m)?\b|\blink\b/.test(normalized)) signals.push("Clicar");
+  if (/\bsegue\b|\bseguir\b/.test(normalized)) signals.push("Seguir");
+
+  return Array.from(new Set(signals));
+}
+
+function extractCaptionKeywords(text: string): Array<{ label: string; count: number }> {
+  const counts = new Map<string, number>();
+  const normalized = text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+
+  for (const token of normalized.match(/[a-z0-9]{4,}/g) || []) {
+    if (CAPTION_STOPWORDS.has(token)) continue;
+    counts.set(token, (counts.get(token) || 0) + 1);
+  }
+
+  return Array.from(counts.entries())
+    .sort((left, right) => right[1] - left[1] || left[0].localeCompare(right[0]))
+    .slice(0, 10)
+    .map(([label, count]) => ({ label, count }));
+}
+
+function addTextSignals(
+  map: Map<string, MutableSignal>,
+  labels: string[],
+  score: number,
+  evidenceCount: number,
+) {
+  for (const label of labels) {
+    addSignal(map, label, score, evidenceCount);
+  }
+}
+
+function addCaptionKeywordSignals(
+  map: Map<string, MutableSignal>,
+  texts: string[],
+  score: number,
+  evidenceCount: number,
+) {
+  for (const text of texts) {
+    for (const keyword of extractCaptionKeywords(text)) {
+      addSignal(map, keyword.label, score * keyword.count, evidenceCount);
+    }
   }
 }
 
@@ -369,16 +523,19 @@ function buildReferencePost(post: UnknownRecord, parent?: UnknownRecord): Refere
   const id = readString(post, ["id", "postId", "_id", "permalink", "postLink"]);
   if (!id) return null;
   const parentRecord: UnknownRecord = parent || {};
-  const title = readString(post, ["title", "caption", "description"]) || "Post de referencia";
+  const title = readString(post, ["title", "caption", "description", "scriptShort", "rationale"]) || "Post de referencia";
+  const caption = readString(post, ["caption", "description", "scriptShort"]);
   const interactions = readNumber(post, ["totalInteractions", "interactions"]);
   const reach = readNumber(post, ["reach", "views"]);
   const saves = readNumber(post, ["saves"]);
   const shares = readNumber(post, ["shares"]);
+  const comments = readNumber(post, ["comments", "commentCount"]);
   const score = clampScore(computeMetricScore(post) + (parent ? computeMetricScore(parent) * 0.15 : 0));
 
   return {
     id,
     title,
+    caption,
     permalink: readString(post, ["permalink", "postLink", "url"]),
     format: readString(post, ["format", "formatId", "formatLabel"]) || readString(parentRecord, ["format", "formatId", "formatLabel"]),
     context: readString(post, ["context", "contextId", "contextLabel"]) || readString(parentRecord, ["context", "contextId", "contextLabel", "categories.context.0"]),
@@ -388,6 +545,7 @@ function buildReferencePost(post: UnknownRecord, parent?: UnknownRecord): Refere
     reach,
     saves,
     shares,
+    comments,
     reason: interactions && interactions > 0
       ? `Post de evidencia com ${Math.round(interactions)} interacoes.`
       : "Post de evidencia do material de estudo.",
@@ -504,12 +662,24 @@ export function buildPostCreationAdaptiveStudyContext(
   const outcomeSignals = toRecords(input.outcomeSignals);
   const directEvidencePosts = toRecords(input.evidencePosts);
   const studyRecords = [...plannerSlots, ...recommendations];
+  const qualitativeRecords = [...studyRecords, ...outcomeSignals, ...directEvidencePosts];
 
   const formatSignals = new Map<string, MutableSignal>();
   const narrativeSignals = new Map<string, MutableSignal>();
   const contextSignals = new Map<string, MutableSignal>();
   const proposalSignals = new Map<string, MutableSignal>();
   const engagementSignals = new Map<string, MutableSignal>();
+  const contentIntentSignals = new Map<string, MutableSignal>();
+  const narrativeFormSignals = new Map<string, MutableSignal>();
+  const toneSignals = new Map<string, MutableSignal>();
+  const themeSignals = new Map<string, MutableSignal>();
+  const themeKeywordSignals = new Map<string, MutableSignal>();
+  const hookSignals = new Map<string, MutableSignal>();
+  const ctaSignals = new Map<string, MutableSignal>();
+  const proofStyleSignals = new Map<string, MutableSignal>();
+  const stanceSignals = new Map<string, MutableSignal>();
+  const commercialModeSignals = new Map<string, MutableSignal>();
+  const captionSignals = new Map<string, MutableSignal>();
   const windowSignals = new Map<string, MutableWindowSignal>();
 
   for (const record of studyRecords) {
@@ -519,7 +689,12 @@ export function buildPostCreationAdaptiveStudyContext(
     addSignal(narrativeSignals, readString(record, ["narrativeLabel", "narrative", "narrativeId", "narrativeForm.0"]), score, evidenceCount);
     addSignal(contextSignals, readString(record, ["contextLabel", "context", "contextId", "categories.context.0"]), score, evidenceCount);
     addSignal(proposalSignals, readString(record, ["proposalLabel", "proposal", "proposalId", "categories.proposal.0"]), score, evidenceCount);
-    addSignalsFromArrays(engagementSignals, readStringArray(record, ["contentSignals", "stance", "proofStyle"]), score, evidenceCount);
+    addSignalsFromArrays(
+      engagementSignals,
+      readStringArray(record, ["contentSignals", "signals", "sourceSignals", "outcomeSignals", "stance", "proofStyle"]),
+      score,
+      evidenceCount,
+    );
 
     if (positiveNumber(readNumber(record, ["comments", "commentCount"])) > 0) {
       addSignal(engagementSignals, "Comentarios", score, evidenceCount);
@@ -537,9 +712,90 @@ export function buildPostCreationAdaptiveStudyContext(
     addWindowSignal(windowSignals, record);
   }
 
+  for (const record of qualitativeRecords) {
+    const score = computeMetricScore(record) || 1;
+    const evidenceCount = getSupportCount(record);
+    addSignalsFromArrays(
+      contentIntentSignals,
+      readStringArray(record, [
+        "contentIntent",
+        "contentIntents",
+        "content_intent",
+        "intent",
+        "intents",
+        "categories.contentIntent",
+        "categories.contentIntent.0",
+      ]),
+      score,
+      evidenceCount,
+    );
+    addSignalsFromArrays(
+      narrativeFormSignals,
+      readStringArray(record, ["narrativeForm", "narrativeForm.0", "narrative_form", "narrative.form", "narrativeForms"]),
+      score,
+      evidenceCount,
+    );
+    addSignalsFromArrays(
+      toneSignals,
+      readStringArray(record, ["tone", "toneLabel", "toneId", "categories.tone", "categories.tone.0"]),
+      score,
+      evidenceCount,
+    );
+    addSignalsFromArrays(
+      themeSignals,
+      readStringArray(record, ["themes", "theme", "topic", "topics", "categories.theme", "categories.theme.0", "categories.topic", "categories.topic.0"]),
+      score,
+      evidenceCount,
+    );
+    addSignalsFromArrays(
+      themeKeywordSignals,
+      readStringArray(record, ["themeKeyword", "themeKeywords", "theme_keyword", "theme_keywords"]),
+      score,
+      evidenceCount,
+    );
+    addSignalsFromArrays(
+      proofStyleSignals,
+      readStringArray(record, ["proofStyle", "proof_style", "categories.proofStyle", "categories.proofStyle.0"]),
+      score,
+      evidenceCount,
+    );
+    addSignalsFromArrays(
+      stanceSignals,
+      readStringArray(record, ["stance", "categories.stance", "categories.stance.0"]),
+      score,
+      evidenceCount,
+    );
+    addSignalsFromArrays(
+      commercialModeSignals,
+      readStringArray(record, ["commercialMode", "commercialModes", "commercial_mode", "categories.commercialMode", "categories.commercialMode.0"]),
+      score,
+      evidenceCount,
+    );
+
+    const hookTexts = readTextFields(record, ["hook", "opening", "title", "scriptShort", "caption", "description", "rationale"]);
+    const ctaTexts = readTextFields(record, ["cta", "callToAction", "caption", "description", "scriptShort"]);
+    const captionTexts = readTextFields(record, ["caption", "description", "scriptShort", "rationale", "title"]);
+    addTextSignals(hookSignals, hookTexts.flatMap(extractHookSignalsFromText), score, evidenceCount);
+    addTextSignals(ctaSignals, ctaTexts.flatMap(extractCtaSignalsFromText), score, evidenceCount);
+    addCaptionKeywordSignals(captionSignals, captionTexts, score, evidenceCount);
+  }
+
   const referencePosts = collectReferencePosts(studyRecords, directEvidencePosts);
   const evidencePostsCount = referencePosts.length;
   const periodDays = positiveNumber(input.periodDays ?? null) || DEFAULT_PERIOD_DAYS;
+  const captionSignalsCount = captionSignals.size;
+  const themeSignalsCount = themeSignals.size + themeKeywordSignals.size;
+  const qualitativeSignalsCount =
+    contentIntentSignals.size
+    + narrativeFormSignals.size
+    + toneSignals.size
+    + themeSignalsCount
+    + hookSignals.size
+    + ctaSignals.size
+    + proofStyleSignals.size
+    + stanceSignals.size
+    + commercialModeSignals.size
+    + captionSignalsCount;
 
   return {
     source: "planner_client",
@@ -555,12 +811,26 @@ export function buildPostCreationAdaptiveStudyContext(
       recommendationsCount: recommendations.length,
       postedSignalsCount: outcomeSignals.length,
       evidencePostsCount,
+      captionSignalsCount,
+      themeSignalsCount,
+      qualitativeSignalsCount,
     },
     topFormats: toStudySignals(formatSignals, 5, "Formato"),
     topNarratives: toStudySignals(narrativeSignals, 5, "Narrativa"),
     topContexts: toStudySignals(contextSignals, 5, "Contexto"),
     topProposals: toStudySignals(proposalSignals, 5, "Proposta"),
     topEngagementDrivers: toStudySignals(engagementSignals, 6, "Sinal de engajamento"),
+    topContentIntents: toStudySignals(contentIntentSignals, 5, "Intencao de conteudo"),
+    topNarrativeForms: toStudySignals(narrativeFormSignals, 5, "Forma narrativa"),
+    topTones: toStudySignals(toneSignals, 5, "Tom"),
+    topThemes: toStudySignals(themeSignals, 5, "Tema"),
+    topThemeKeywords: toStudySignals(themeKeywordSignals, 5, "Palavra de tema"),
+    topHooks: toStudySignals(hookSignals, 5, "Abertura"),
+    topCtas: toStudySignals(ctaSignals, 5, "CTA"),
+    topProofStyles: toStudySignals(proofStyleSignals, 5, "Prova narrativa"),
+    topStances: toStudySignals(stanceSignals, 5, "Posicionamento"),
+    topCommercialModes: toStudySignals(commercialModeSignals, 5, "Modo comercial"),
+    topCaptionSignals: toStudySignals(captionSignals, 10, "Sinal de legenda"),
     bestPostingWindows: toWindowSignals(windowSignals),
     referencePosts,
     brandSignals: buildSignalsFromInput(input.brandSignals, "Sinal de marca"),

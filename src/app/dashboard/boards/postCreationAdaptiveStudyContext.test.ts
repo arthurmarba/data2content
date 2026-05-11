@@ -105,8 +105,22 @@ describe("buildPostCreationAdaptiveStudyContext", () => {
       recommendationsCount: 0,
       postedSignalsCount: 0,
       evidencePostsCount: 0,
+      captionSignalsCount: 0,
+      themeSignalsCount: 0,
+      qualitativeSignalsCount: 0,
     });
     expect(context.topFormats).toEqual([]);
+    expect(context.topContentIntents).toEqual([]);
+    expect(context.topNarrativeForms).toEqual([]);
+    expect(context.topTones).toEqual([]);
+    expect(context.topThemes).toEqual([]);
+    expect(context.topThemeKeywords).toEqual([]);
+    expect(context.topHooks).toEqual([]);
+    expect(context.topCtas).toEqual([]);
+    expect(context.topProofStyles).toEqual([]);
+    expect(context.topStances).toEqual([]);
+    expect(context.topCommercialModes).toEqual([]);
+    expect(context.topCaptionSignals).toEqual([]);
     expect(context.referencePosts).toEqual([]);
     expect(context.confidence.label).toBe("low");
   });
@@ -134,6 +148,9 @@ describe("buildPostCreationAdaptiveStudyContext", () => {
     expect(context.profileSummary.recommendationsCount).toBe(1);
     expect(context.profileSummary.postedSignalsCount).toBe(2);
     expect(context.profileSummary.evidencePostsCount).toBe(3);
+    expect(context.profileSummary.captionSignalsCount).toBeGreaterThanOrEqual(0);
+    expect(context.profileSummary.themeSignalsCount).toBeGreaterThanOrEqual(0);
+    expect(context.profileSummary.qualitativeSignalsCount).toBeGreaterThanOrEqual(0);
   });
 
   it("extracts topFormats from plannerSlots", () => {
@@ -199,6 +216,137 @@ describe("buildPostCreationAdaptiveStudyContext", () => {
     );
   });
 
+  it("extracts topContentIntents from qualitative planner records", () => {
+    const context = buildPostCreationAdaptiveStudyContext({
+      plannerSlots: [{ ...strongSlot, contentIntent: "Gerar conversa" }],
+    });
+
+    expect(context.topContentIntents.map((signal) => signal.label)).toContain("Gerar conversa");
+  });
+
+  it("extracts topNarrativeForms from narrativeForm fields", () => {
+    const context = buildPostCreationAdaptiveStudyContext({
+      plannerSlots: [{ ...strongSlot, narrativeForm: ["POV", "Antes e depois"] }],
+    });
+
+    expect(context.topNarrativeForms.map((signal) => signal.label)).toEqual(
+      expect.arrayContaining(["POV", "Antes e depois"]),
+    );
+  });
+
+  it("extracts topTones from nested categories", () => {
+    const context = buildPostCreationAdaptiveStudyContext({
+      plannerSlots: [{ ...strongSlot, categories: { ...strongSlot.categories, tone: ["Humor leve"] } }],
+    });
+
+    expect(context.topTones.map((signal) => signal.label)).toContain("Humor leve");
+  });
+
+  it("extracts themes and theme keywords", () => {
+    const context = buildPostCreationAdaptiveStudyContext({
+      plannerSlots: [
+        {
+          ...strongSlot,
+          themes: ["Rotina em casa", "Familia"],
+          themeKeyword: "barulho",
+        },
+      ],
+    });
+
+    expect(context.topThemes.map((signal) => signal.label)).toEqual(
+      expect.arrayContaining(["Rotina em casa", "Familia"]),
+    );
+    expect(context.topThemeKeywords.map((signal) => signal.label)).toContain("barulho");
+    expect(context.profileSummary.themeSignalsCount).toBeGreaterThan(0);
+  });
+
+  it("extracts CTA signals from captions and scripts", () => {
+    const context = buildPostCreationAdaptiveStudyContext({
+      plannerSlots: [
+        {
+          ...strongSlot,
+          caption: "Comenta aqui se isso acontece na sua casa e salva para lembrar depois.",
+          scriptShort: "Compartilha com alguem que precisa ver isso.",
+        },
+      ],
+    });
+
+    expect(context.topCtas.map((signal) => signal.label)).toEqual(
+      expect.arrayContaining(["Comentar", "Salvar", "Compartilhar"]),
+    );
+  });
+
+  it("extracts hook signals from questions and recognized openings", () => {
+    const context = buildPostCreationAdaptiveStudyContext({
+      plannerSlots: [
+        {
+          ...strongSlot,
+          title: "Voce ja tentou relaxar e todo mundo resolveu fazer barulho?",
+          scriptShort: "Ninguem fala sobre esse caos de fim de dia.",
+        },
+      ],
+    });
+
+    expect(context.topHooks.map((signal) => signal.label)).toEqual(
+      expect.arrayContaining([
+        "Voce ja tentou relaxar e todo mundo resolveu fazer barulho?",
+        "Ninguem fala sobre esse caos de fim de dia.",
+      ]),
+    );
+  });
+
+  it("extracts caption keywords from recurring relevant terms", () => {
+    const context = buildPostCreationAdaptiveStudyContext({
+      plannerSlots: [
+        {
+          ...strongSlot,
+          caption: "skincare rotina skincare familia barulho familia skincare",
+        },
+      ],
+    });
+
+    expect(context.topCaptionSignals.map((signal) => signal.label)).toEqual(
+      expect.arrayContaining(["skincare", "familia", "barulho"]),
+    );
+    expect(context.profileSummary.captionSignalsCount).toBeGreaterThan(0);
+  });
+
+  it("extracts stance, proofStyle, and commercialMode signals", () => {
+    const context = buildPostCreationAdaptiveStudyContext({
+      plannerSlots: [
+        {
+          ...strongSlot,
+          stance: "Opiniao direta",
+          proofStyle: "Antes e depois",
+          commercialMode: "Produto na rotina",
+        },
+      ],
+    });
+
+    expect(context.topStances.map((signal) => signal.label)).toContain("Opiniao direta");
+    expect(context.topProofStyles.map((signal) => signal.label)).toContain("Antes e depois");
+    expect(context.topCommercialModes.map((signal) => signal.label)).toContain("Produto na rotina");
+  });
+
+  it("orders qualitative signals by performance score", () => {
+    const context = buildPostCreationAdaptiveStudyContext({
+      plannerSlots: [
+        {
+          theme: "Tema fraco",
+          totalInteractions: 100,
+          evidenceCount: 1,
+        },
+        {
+          theme: "Tema forte",
+          totalInteractions: 5000,
+          evidenceCount: 3,
+        },
+      ],
+    });
+
+    expect(context.topThemes[0]?.label).toBe("Tema forte");
+  });
+
   it("extracts bestPostingWindows with day and hour labels", () => {
     const context = buildPostCreationAdaptiveStudyContext({ plannerSlots: [strongSlot], recommendations: [recommendation] });
 
@@ -222,6 +370,8 @@ describe("buildPostCreationAdaptiveStudyContext", () => {
           reach: 15_000,
           saves: 60,
           shares: 30,
+          comments: 12,
+          caption: "Legenda com contexto do post",
         },
       ],
     });
@@ -236,6 +386,8 @@ describe("buildPostCreationAdaptiveStudyContext", () => {
           reach: 15_000,
           saves: 60,
           shares: 30,
+          comments: 12,
+          caption: "Legenda com contexto do post",
         }),
       ]),
     );
