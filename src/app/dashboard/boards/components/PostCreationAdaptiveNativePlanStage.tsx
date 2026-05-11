@@ -38,9 +38,9 @@ function DetailPill({ label, value }: { label: string; value: string | null | un
   if (!hasText(value)) return null;
 
   return (
-    <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
+    <div className="flex max-w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-1 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1.5 sm:rounded-full">
       <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</span>
-      <span className="ml-2 text-sm font-semibold text-slate-950">{value}</span>
+      <span className="min-w-0 break-words text-sm font-semibold text-slate-950">{value}</span>
     </div>
   );
 }
@@ -49,9 +49,9 @@ function DetailRow({ label, value }: { label: string; value: string | null | und
   if (!hasText(value)) return null;
 
   return (
-    <div className="grid gap-1 border-b border-slate-100 py-3 last:border-b-0 sm:grid-cols-[96px_1fr]">
+    <div className="grid min-w-0 gap-1 border-b border-slate-100 py-3 last:border-b-0 sm:grid-cols-[96px_1fr]">
       <dt className="text-sm font-semibold text-slate-800">{label}</dt>
-      <dd className="text-sm leading-6 text-slate-600">{value}</dd>
+      <dd className="min-w-0 break-words text-sm leading-6 text-slate-600">{value}</dd>
     </div>
   );
 }
@@ -64,7 +64,7 @@ function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-slate-200 bg-white p-4">
+    <section className="min-w-0 rounded-xl border border-slate-200 bg-white p-4">
       <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">{title}</h3>
       <div className="mt-3">{children}</div>
     </section>
@@ -117,38 +117,38 @@ export default function PostCreationAdaptiveNativePlanStage({
   }
 
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-sm sm:p-5">
       <div className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{presentation.eyebrow}</p>
         <div>
-          <h2 className="text-2xl font-semibold leading-tight text-slate-950">
+          <h2 className="break-words text-2xl font-semibold leading-tight text-slate-950">
             {presentation.title}
           </h2>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+          <p className="mt-2 max-w-2xl break-words text-sm leading-6 text-slate-600">
             {presentation.subtitle}
           </p>
           {hasText(presentation.promptContext) ? (
-            <p className="mt-2 max-w-2xl text-xs font-medium leading-5 text-slate-500">
+            <p className="mt-2 max-w-2xl break-words text-xs font-medium leading-5 text-slate-500">
               {presentation.promptContext}
             </p>
           ) : null}
         </div>
       </div>
 
-      <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-5">
+      <div className="mt-6 min-w-0 rounded-xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
         {hasText(presentation.primaryValue) ? (
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{presentation.primaryLabel}</p>
-            <h3 className="mt-1 text-xl font-semibold leading-tight text-slate-950">{presentation.primaryValue}</h3>
+            <h3 className="mt-1 break-words text-xl font-semibold leading-tight text-slate-950">{presentation.primaryValue}</h3>
           </div>
         ) : null}
         {showPautaContext ? (
-          <p className="mt-3 max-w-3xl text-sm font-semibold leading-6 text-slate-800">Pauta: {plan.pauta}</p>
+          <p className="mt-3 max-w-3xl break-words text-sm font-semibold leading-6 text-slate-800">Pauta: {plan.pauta}</p>
         ) : null}
         {hasText(presentation.summary) ? (
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">{presentation.summary}</p>
+          <p className="mt-3 max-w-3xl break-words text-sm leading-6 text-slate-600">{presentation.summary}</p>
         ) : null}
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="mt-4 flex min-w-0 flex-wrap gap-2">
           <DetailPill label="Objetivo" value={plan.objective} />
           <DetailPill label="Narrativa" value={plan.narrative} />
           <DetailPill label="Formato" value={plan.format} />
@@ -198,10 +198,10 @@ export default function PostCreationAdaptiveNativePlanStage({
             <div className="grid gap-3 md:grid-cols-2">
               {scenes.map((scene) => (
                 <article key={scene.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  {hasText(scene.title) ? <h4 className="text-sm font-semibold text-slate-950">{scene.title}</h4> : null}
-                  {hasText(scene.visual) ? <p className="mt-2 text-sm leading-6 text-slate-600">{scene.visual}</p> : null}
-                  {hasText(scene.message) ? <p className="mt-2 text-sm font-semibold leading-6 text-slate-900">{scene.message}</p> : null}
-                  {hasText(scene.direction) ? <p className="mt-2 text-xs leading-5 text-slate-500">{scene.direction}</p> : null}
+                  {hasText(scene.title) ? <h4 className="break-words text-sm font-semibold text-slate-950">{scene.title}</h4> : null}
+                  {hasText(scene.visual) ? <p className="mt-2 break-words text-sm leading-6 text-slate-600">{scene.visual}</p> : null}
+                  {hasText(scene.message) ? <p className="mt-2 break-words text-sm font-semibold leading-6 text-slate-900">{scene.message}</p> : null}
+                  {hasText(scene.direction) ? <p className="mt-2 break-words text-xs leading-5 text-slate-500">{scene.direction}</p> : null}
                 </article>
               ))}
             </div>
@@ -217,10 +217,10 @@ export default function PostCreationAdaptiveNativePlanStage({
                 <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <h4 className="text-sm font-semibold text-slate-950">Marca</h4>
                   {hasText(plan.brandMatch?.category) ? (
-                    <p className="mt-2 text-sm leading-6 text-slate-600">{plan.brandMatch.category}</p>
+                    <p className="mt-2 break-words text-sm leading-6 text-slate-600">{plan.brandMatch.category}</p>
                   ) : null}
                   {hasText(plan.brandMatch?.angle) ? (
-                    <p className="mt-2 text-sm font-medium leading-6 text-slate-900">{plan.brandMatch.angle}</p>
+                    <p className="mt-2 break-words text-sm font-medium leading-6 text-slate-900">{plan.brandMatch.angle}</p>
                   ) : null}
                 </article>
               ) : null}
@@ -229,10 +229,10 @@ export default function PostCreationAdaptiveNativePlanStage({
                 <article className="rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <h4 className="text-sm font-semibold text-slate-950">Collab</h4>
                   {hasText(plan.collabMatch?.creatorProfile) ? (
-                    <p className="mt-2 text-sm leading-6 text-slate-600">{plan.collabMatch.creatorProfile}</p>
+                    <p className="mt-2 break-words text-sm leading-6 text-slate-600">{plan.collabMatch.creatorProfile}</p>
                   ) : null}
                   {hasText(plan.collabMatch?.collaborationAngle) ? (
-                    <p className="mt-2 text-sm font-medium leading-6 text-slate-900">
+                    <p className="mt-2 break-words text-sm font-medium leading-6 text-slate-900">
                       {plan.collabMatch.collaborationAngle}
                     </p>
                   ) : null}
@@ -246,9 +246,9 @@ export default function PostCreationAdaptiveNativePlanStage({
       {nextActions.length > 0 ? (
         <div className="mt-4">
           <Section title={presentation.sectionTitles.nextActions}>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex min-w-0 flex-wrap gap-2">
               {nextActions.map((action) => (
-                <span key={action} className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700">
+                <span key={action} className="max-w-full break-words rounded-2xl bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 sm:rounded-full">
                   {action}
                 </span>
               ))}
@@ -257,12 +257,12 @@ export default function PostCreationAdaptiveNativePlanStage({
         </div>
       ) : null}
 
-      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap gap-2">
+      <div className="mt-5 flex flex-col gap-3 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:justify-between sm:pb-0">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           {onBack ? (
             <button
               type="button"
-              className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               disabled={!canInteract}
               onClick={onBack}
             >
@@ -273,7 +273,7 @@ export default function PostCreationAdaptiveNativePlanStage({
           {onReset ? (
             <button
               type="button"
-              className="rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               disabled={!canInteract}
               onClick={onReset}
             >
@@ -284,7 +284,7 @@ export default function PostCreationAdaptiveNativePlanStage({
 
         <button
           type="button"
-          className="rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-white"
+          className="w-full rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-300 disabled:text-white sm:w-auto"
           disabled={!canUsePlan}
           onClick={handleUsePlan}
         >

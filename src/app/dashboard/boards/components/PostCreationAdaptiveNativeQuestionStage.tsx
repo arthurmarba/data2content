@@ -43,7 +43,7 @@ export default function PostCreationAdaptiveNativeQuestionStage({
   }
 
   return (
-    <section className="relative overflow-hidden rounded-[28px] border border-white/90 bg-[linear-gradient(180deg,#ffffff_0%,#f7f8fc_100%)] p-4 text-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.98),0_24px_70px_rgba(15,23,42,0.06)] sm:p-6">
+    <section className="relative min-w-0 overflow-hidden rounded-[28px] border border-white/90 bg-[linear-gradient(180deg,#ffffff_0%,#f7f8fc_100%)] p-4 text-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.98),0_24px_70px_rgba(15,23,42,0.06)] sm:p-6">
       <div className="pointer-events-none absolute inset-x-0 top-0 h-32 bg-[linear-gradient(180deg,rgba(255,255,255,0.82)_0%,rgba(247,248,252,0)_100%)]" />
       <div className="relative">
         <div className="space-y-3.5">
@@ -74,7 +74,7 @@ export default function PostCreationAdaptiveNativeQuestionStage({
         </div>
 
         <div className="mt-6 sm:mt-7">
-          <h2 className="max-w-[15ch] text-[1.9rem] font-semibold leading-[1.02] tracking-[-0.045em] text-zinc-950 sm:max-w-[18ch] sm:text-[2.28rem]">
+          <h2 className="max-w-2xl break-words text-[1.7rem] font-semibold leading-[1.06] tracking-[-0.025em] text-zinc-950 sm:text-[2.18rem] sm:tracking-[-0.04em]">
             {viewModel.title}
           </h2>
           {viewModel.helper ? (
@@ -84,7 +84,7 @@ export default function PostCreationAdaptiveNativeQuestionStage({
           ) : null}
         </div>
 
-        <div className="mt-6 grid gap-3 sm:mt-8 sm:grid-cols-2">
+        <div className="mt-6 grid min-w-0 gap-3 sm:mt-8 sm:grid-cols-2">
           {viewModel.options.map((option, optionIndex) => {
             const isLockedUnselected = hasLockedAnswer && !option.selected;
 
@@ -93,7 +93,7 @@ export default function PostCreationAdaptiveNativeQuestionStage({
                 key={option.id}
                 type="button"
                 className={[
-                  "group relative min-h-28 overflow-hidden rounded-[22px] border px-4 py-3.5 text-left outline-none transition-all duration-300 ease-out active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-sky-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed sm:min-h-32",
+                  "group relative min-h-28 min-w-0 overflow-hidden rounded-[22px] border px-4 py-3.5 text-left outline-none transition-all duration-300 ease-out active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-sky-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed sm:min-h-32",
                   option.selected
                     ? "border-sky-200 bg-white ring-1 ring-sky-100/80 shadow-[0_14px_34px_rgba(56,189,248,0.08)]"
                     : isLockedUnselected
@@ -116,7 +116,7 @@ export default function PostCreationAdaptiveNativeQuestionStage({
                       : "opacity-0",
                   ].join(" ")}
                 />
-                <span className="relative flex h-full flex-col gap-3">
+                <span className="relative flex h-full min-w-0 flex-col gap-3">
                   <span className="flex items-start justify-between gap-3">
                     <span
                       className={[
@@ -136,7 +136,7 @@ export default function PostCreationAdaptiveNativeQuestionStage({
                   </span>
                   <span
                     className={[
-                      "block text-[0.98rem] font-semibold leading-[1.16] tracking-[-0.025em]",
+                      "block break-words text-[0.98rem] font-semibold leading-[1.16] tracking-[-0.025em]",
                       isLockedUnselected ? "text-zinc-500" : "text-zinc-950",
                     ].join(" ")}
                   >
@@ -145,7 +145,7 @@ export default function PostCreationAdaptiveNativeQuestionStage({
                   {option.reason ? (
                     <span
                       className={[
-                        "mt-auto block border-t border-zinc-100/80 pt-3 text-xs font-medium leading-5",
+                        "mt-auto block break-words border-t border-zinc-100/80 pt-3 text-xs font-medium leading-5",
                         isLockedUnselected ? "text-zinc-400" : "text-zinc-500",
                       ].join(" ")}
                     >
@@ -160,32 +160,32 @@ export default function PostCreationAdaptiveNativeQuestionStage({
 
         {shouldShowFeedback ? (
           <div
-            className="mt-5 overflow-hidden rounded-[24px] border border-white/90 bg-white/92 shadow-[0_18px_45px_rgba(15,23,42,0.055)] sm:mt-6"
+            className="mt-5 min-w-0 overflow-hidden rounded-[24px] border border-white/90 bg-white/92 shadow-[0_18px_45px_rgba(15,23,42,0.055)] sm:mt-6"
             role="status"
             aria-live="polite"
           >
-            <div className="grid gap-4 p-4 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] sm:p-5">
+            <div className="grid min-w-0 gap-4 p-4 sm:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)] sm:p-5">
               <div className="min-w-0">
                 <p className="text-[11px] font-semibold text-zinc-400">
                   {viewModel.selectedIsCorrect ? "Caminho estratégico" : "Ajuste fino"}
                 </p>
                 <p className="mt-1.5 text-base font-semibold tracking-[-0.025em] text-zinc-950">{feedbackTitle}</p>
-                <p className="mt-2 text-sm leading-6 text-zinc-600">{feedbackMessage}</p>
+                <p className="mt-2 break-words text-sm leading-6 text-zinc-600">{feedbackMessage}</p>
                 {viewModel.feedbackRationale ? (
-                  <p className="mt-3 rounded-[16px] border border-zinc-100 bg-zinc-50/80 px-3 py-2.5 text-xs font-medium leading-5 text-zinc-500">
+                  <p className="mt-3 break-words rounded-[16px] border border-zinc-100 bg-zinc-50/80 px-3 py-2.5 text-xs font-medium leading-5 text-zinc-500">
                     {viewModel.feedbackRationale}
                   </p>
                 ) : null}
                 {viewModel.feedbackMode === "correct" && viewModel.correctReason ? (
                   <div className="mt-3 rounded-[16px] border border-sky-100 bg-sky-50/45 px-3 py-2.5">
                     <p className="text-[11px] font-semibold text-sky-700">Por que essa resposta venceu</p>
-                    <p className="mt-1 text-xs font-medium leading-5 text-zinc-600">{viewModel.correctReason}</p>
+                    <p className="mt-1 break-words text-xs font-medium leading-5 text-zinc-600">{viewModel.correctReason}</p>
                   </div>
                 ) : null}
                 {viewModel.feedbackMode === "incorrect" && viewModel.selectedIncorrectReason ? (
                   <div className="mt-3 rounded-[16px] border border-zinc-100 bg-zinc-50/80 px-3 py-2.5">
                     <p className="text-[11px] font-semibold text-zinc-600">Por que sua aposta perdeu força</p>
-                    <p className="mt-1 text-xs font-medium leading-5 text-zinc-500">
+                    <p className="mt-1 break-words text-xs font-medium leading-5 text-zinc-500">
                       {viewModel.selectedIncorrectReason}
                     </p>
                   </div>
@@ -194,22 +194,22 @@ export default function PostCreationAdaptiveNativeQuestionStage({
                   <div className="mt-3 rounded-[16px] border border-sky-100 bg-sky-50/45 px-3 py-2.5">
                     <p className="text-[11px] font-semibold text-sky-700">Resposta mais forte</p>
                     {viewModel.correctOptionLabel ? (
-                      <p className="mt-1 text-sm font-semibold leading-5 text-zinc-950">{viewModel.correctOptionLabel}</p>
+                      <p className="mt-1 break-words text-sm font-semibold leading-5 text-zinc-950">{viewModel.correctOptionLabel}</p>
                     ) : null}
                     {viewModel.correctReason ? (
-                      <p className="mt-1.5 text-xs font-medium leading-5 text-zinc-600">{viewModel.correctReason}</p>
+                      <p className="mt-1.5 break-words text-xs font-medium leading-5 text-zinc-600">{viewModel.correctReason}</p>
                     ) : null}
                   </div>
                 ) : null}
               </div>
               {viewModel.feedbackEvidence.length > 0 ? (
-                <div className="rounded-[18px] border border-zinc-200/70 bg-zinc-50/92 px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.96)]">
+                <div className="min-w-0 rounded-[18px] border border-zinc-200/70 bg-zinc-50/92 px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.96)]">
                   <p className="text-[11px] font-semibold text-zinc-500">Base da análise</p>
                   <ul className="mt-2.5 flex flex-wrap gap-2 text-xs font-medium leading-5 text-zinc-600">
                     {viewModel.feedbackEvidence.map((item) => (
                       <li
                         key={item}
-                        className="rounded-full border border-white bg-white px-2.5 py-1 shadow-[0_3px_10px_rgba(15,23,42,0.03)]"
+                        className="max-w-full break-words rounded-2xl border border-white bg-white px-2.5 py-1 shadow-[0_3px_10px_rgba(15,23,42,0.03)] sm:rounded-full"
                       >
                         {item}
                       </li>
@@ -221,11 +221,11 @@ export default function PostCreationAdaptiveNativeQuestionStage({
           </div>
         ) : null}
 
-        <div className="mt-6 flex flex-col-reverse gap-3 pb-1 sm:flex-row sm:items-center sm:justify-between sm:pb-0">
+        <div className="mt-6 flex flex-col-reverse gap-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:flex-row sm:items-center sm:justify-between sm:pb-0">
           {onBack ? (
             <button
               type="button"
-              className="inline-flex h-11 items-center justify-center rounded-full border border-zinc-200/80 bg-white px-5 text-sm font-semibold text-zinc-700 shadow-[0_8px_20px_rgba(15,23,42,0.035)] transition hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex h-11 w-full items-center justify-center rounded-full border border-zinc-200/80 bg-white px-5 text-sm font-semibold text-zinc-700 shadow-[0_8px_20px_rgba(15,23,42,0.035)] transition hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
               disabled={interactionDisabled}
               onClick={onBack}
             >
@@ -237,7 +237,7 @@ export default function PostCreationAdaptiveNativeQuestionStage({
 
           <button
             type="button"
-            className="inline-flex h-11 items-center justify-center rounded-full bg-zinc-950 px-5 text-sm font-semibold text-white shadow-[0_16px_28px_rgba(15,23,42,0.16)] transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-white sm:min-w-40"
+            className="inline-flex h-11 w-full items-center justify-center rounded-full bg-zinc-950 px-5 text-sm font-semibold text-white shadow-[0_16px_28px_rgba(15,23,42,0.16)] transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-white sm:w-auto sm:min-w-40"
             disabled={nextDisabled}
             onClick={handleNext}
           >

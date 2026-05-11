@@ -362,6 +362,31 @@ describe("PostCreationAdaptiveNativePlanStage", () => {
     expect(onReset).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps final actions available with long plan content", () => {
+    renderStage({
+      legacyHandoff: legacyHandoffFixture,
+      onUsePlan: jest.fn(),
+      onReset: jest.fn(),
+      plan: basePlan({
+        pauta:
+          "Rotina real com produto de skincare em uma narrativa longa para validar quebra de linha e evitar overflow horizontal na tela final adaptativa",
+        hook:
+          "POV: quando sua pele pede pausa, sua rotina esta corrida e voce precisa explicar tudo sem parecer uma demonstracao artificial",
+        cta:
+          "Comenta qual parte da sua rotina tambem precisa de uma solucao simples e salva para consultar depois",
+        nextActions: [
+          "salvar_pauta_com_contexto_longo",
+          "gerar_roteiro_quando_estiver_pronto",
+          "revisar_collabs_e_marcas_sugeridas",
+        ],
+      }),
+    });
+
+    expect(screen.getByRole("button", { name: "Usar este plano" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Criar outra estratégia" })).toBeInTheDocument();
+    expect(screen.getByText("salvar_pauta_com_contexto_longo")).toBeInTheDocument();
+  });
+
   it("does not render empty fields", () => {
     renderStage({ plan: emptyPlan() });
 

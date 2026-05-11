@@ -176,31 +176,35 @@ export default function PostCreationAdaptiveNativeFlow({
 
   function renderIntentStage() {
     return (
-      <PostCreationAdaptiveNativeIntentStage
-        value={flow.input}
-        onChange={flow.setInput}
-        onSubmit={flow.start}
-        loading={flow.status === "starting"}
-        canSubmit={flow.canStart}
-        error={flow.error}
-      />
+      <div className="min-w-0 overflow-visible pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-0">
+        <PostCreationAdaptiveNativeIntentStage
+          value={flow.input}
+          onChange={flow.setInput}
+          onSubmit={flow.start}
+          loading={flow.status === "starting"}
+          canSubmit={flow.canStart}
+          error={flow.error}
+        />
+      </div>
     );
   }
 
   if (nativePlanResult) {
     return (
-      <PostCreationAdaptiveNativePlanStage
-        plan={nativePlanResult.plan}
-        legacyHandoff={nativePlanResult.legacyHandoff}
-        mode={flow.detection?.mode ?? null}
-        originalPrompt={originalPrompt}
-        onUsePlan={
-          onUsePlan
-            ? () => onUsePlan(nativePlanResult.legacyHandoff)
-            : undefined
-        }
-        onReset={handleReset}
-      />
+      <div className="min-w-0 overflow-visible pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-0">
+        <PostCreationAdaptiveNativePlanStage
+          plan={nativePlanResult.plan}
+          legacyHandoff={nativePlanResult.legacyHandoff}
+          mode={flow.detection?.mode ?? null}
+          originalPrompt={originalPrompt}
+          onUsePlan={
+            onUsePlan
+              ? () => onUsePlan(nativePlanResult.legacyHandoff)
+              : undefined
+          }
+          onReset={handleReset}
+        />
+      </div>
     );
   }
 
@@ -210,18 +214,20 @@ export default function PostCreationAdaptiveNativeFlow({
 
   if (flow.status === "plan_ready") {
     return (
-      <PostCreationAdaptiveNativePlanStage
-        plan={flow.plan}
-        legacyHandoff={flow.legacyHandoff}
-        mode={flow.detection?.mode ?? null}
-        originalPrompt={originalPrompt}
-        onUsePlan={
-          flow.legacyHandoff && onUsePlan
-            ? () => onUsePlan(flow.legacyHandoff as PostCreationAdaptiveLegacyHandoff)
-            : undefined
-        }
-        onReset={handleReset}
-      />
+      <div className="min-w-0 overflow-visible pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:pb-0">
+        <PostCreationAdaptiveNativePlanStage
+          plan={flow.plan}
+          legacyHandoff={flow.legacyHandoff}
+          mode={flow.detection?.mode ?? null}
+          originalPrompt={originalPrompt}
+          onUsePlan={
+            flow.legacyHandoff && onUsePlan
+              ? () => onUsePlan(flow.legacyHandoff as PostCreationAdaptiveLegacyHandoff)
+              : undefined
+          }
+          onReset={handleReset}
+        />
+      </div>
     );
   }
 
@@ -245,7 +251,7 @@ export default function PostCreationAdaptiveNativeFlow({
     const isLastQuestion = safeQuestionIndex >= flow.questions.length - 1;
 
     return (
-      <div className="space-y-4">
+      <div className="min-w-0 space-y-4 overflow-visible pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:space-y-5 sm:pb-0">
         <PostCreationAdaptivePromptContextCard prompt={originalPrompt} />
         <PostCreationAdaptiveNativeQuestionStage
           viewModel={viewModel}

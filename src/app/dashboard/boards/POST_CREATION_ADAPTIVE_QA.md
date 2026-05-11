@@ -299,13 +299,24 @@ Esperado:
 
 ## Cenario M: mobile
 
-Validar em viewport estreito:
+Validar pelo menos em `390x844` e `375x667`. Se possivel, validar tambem Safari mobile real.
 
 - o composer inicial nao ocupa a tela inteira;
+- o CTA "Montar meu jogo estrategico" fica visivel e clicavel;
 - opcoes do quiz ficam legiveis em uma coluna;
 - feedback com motivo/evidencias nao quebra layout;
+- pills de evidencia fazem wrap sem scroll horizontal;
 - CTA de proxima decisao nao fica coberto por overlay;
+- CTA continua acessivel depois de feedback longo;
+- voltar para pergunta respondida mantem a resposta travada e o CTA acessivel;
 - acoes finais continuam acessiveis.
+
+Checklist de overlay/safe area:
+
+- nao existe zoom horizontal;
+- o final do fluxo tem respiro abaixo dos botoes;
+- bottom navigation, sidebar ou overlay do dashboard nao cobrem "Proxima decisao", "Ver plano estrategico" ou acoes finais;
+- textos longos em prompt, feedback, evidencias e proxima acoes quebram linha dentro do card.
 
 ## Cenario N: Network e efeitos colaterais
 

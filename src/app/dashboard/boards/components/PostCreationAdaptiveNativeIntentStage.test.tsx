@@ -193,6 +193,17 @@ describe("PostCreationAdaptiveNativeIntentStage", () => {
     expect(screen.getByRole("textbox", { name: "Intenção estratégica" })).toHaveValue("");
   });
 
+  it("accepts a long prompt without submitting automatically", () => {
+    const longPrompt =
+      "Quero validar uma ideia longa sobre transformar uma situação de rotina em conteúdo, entender se ela pede reels, carrossel ou stories, e decidir qual gancho usar.";
+    const onSubmit = jest.fn();
+    renderStage({ value: longPrompt, onSubmit });
+
+    expect(screen.getByRole("textbox", { name: "Intenção estratégica" })).toHaveValue(longPrompt);
+    expect(screen.getByRole("button", { name: "Montar meu jogo estratégico" })).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it("keeps aria-label on the textarea", () => {
     renderStage();
 

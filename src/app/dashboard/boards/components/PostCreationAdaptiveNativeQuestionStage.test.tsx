@@ -497,6 +497,29 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
     expect(onNext).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps the primary action available with long feedback and evidence", () => {
+    renderStage({
+      viewModel: withFeedback({
+        feedbackMessage:
+          "Essa leitura considera uma explicação mais longa para simular o feedback expandido em telas estreitas sem remover o CTA da próxima decisão.",
+        feedbackRationale:
+          "A decisão foi priorizada porque combina os sinais do material de estudo com o comportamento que a pauta precisa provocar agora.",
+        correctReason:
+          "Esse caminho venceu porque sustenta a promessa principal, mantém a execução simples e conversa com o histórico da pauta.",
+        feedbackEvidence: [
+          "Gancho forte: Você já tentou relaxar e a casa inteira resolveu fazer barulho?",
+          "CTA recorrente: Comentar",
+          "Post de referência: POV rotina em casa com comentários acima da média",
+        ],
+      }),
+    });
+
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByText("Por que essa resposta venceu")).toBeInTheDocument();
+    expect(screen.getByText("Base da análise")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Próxima decisão" })).toBeInTheDocument();
+  });
+
   it("keeps aria-pressed on options when feedback appears", () => {
     renderStage({ viewModel: withFeedback() });
 

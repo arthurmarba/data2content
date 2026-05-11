@@ -20,9 +20,9 @@ export default function PostCreationAdaptivePromptContextCard({
   const label = variant === "final" ? "A partir da sua pergunta" : "Você perguntou";
 
   return (
-    <aside className="rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+    <aside className="min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
       <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</p>
-      <p className="mt-1 line-clamp-3 text-sm font-medium leading-6 text-slate-900">
+      <p className="mt-1 line-clamp-3 break-words text-sm font-medium leading-6 text-slate-900">
         “{normalizedPrompt}”
       </p>
     </aside>
