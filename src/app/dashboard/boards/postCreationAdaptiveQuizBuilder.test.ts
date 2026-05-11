@@ -93,10 +93,10 @@ describe("buildPostCreationAdaptiveQuiz", () => {
     expect(quiz[0]?.title).toMatch(/achar o melhor caminho/i);
   });
 
-  it("gives every generated question at least 3 options", () => {
+  it("gives every generated question exactly 4 options", () => {
     for (const mode of adaptiveModes) {
       const quiz = buildPostCreationAdaptiveQuiz({ detection: detectionForMode(mode) });
-      expect(quiz.every((question) => question.options.length >= 3)).toBe(true);
+      expect(quiz.every((question) => question.options.length === 4)).toBe(true);
     }
   });
 

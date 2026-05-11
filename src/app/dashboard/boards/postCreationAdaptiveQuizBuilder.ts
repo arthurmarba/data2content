@@ -164,6 +164,7 @@ function discoverPautaQuestions(): PostCreationAdaptiveQuestion[] {
         option("low", "Baixo, quero resolver rápido", "Uma cena, uma ideia e pouca produção.", true),
         option("medium", "Médio, dá pra caprichar um pouco", "Roteiro curto com exemplo ou virada."),
         option("high", "Alto, quero construir melhor", "Mais cenas, prova, edição e acabamento."),
+        option("batch", "Quero gravar mais de uma ideia de uma vez", "Bom para aproveitar energia de produção, mas pode diluir a precisão de cada pauta."),
       ],
     }),
   ];
