@@ -18,6 +18,10 @@ import type {
   PostCreationAdaptiveStudySignal,
   PostCreationAdaptiveStudyWindowSignal,
 } from "./postCreationAdaptiveStudyContext";
+import {
+  buildPostCreationAdaptiveGameContract,
+  type PostCreationAdaptiveGameQuestionContract,
+} from "./postCreationAdaptiveGameContract";
 import { buildPostCreationLegacyHandoff } from "./postCreationAdaptiveLegacyAdapter";
 import { buildPostCreationStrategicPlan } from "./postCreationAdaptivePlanBuilder";
 
@@ -67,6 +71,7 @@ export type PostCreationAdaptiveAnswerKey = {
   idealAnswers: PostCreationAdaptiveAnswer[];
   idealPlan: PostCreationStrategicPlan;
   legacyHandoff: PostCreationAdaptiveLegacyHandoff;
+  gameQuestions: PostCreationAdaptiveGameQuestionContract[];
   score: {
     max: number;
     passing: number;
@@ -655,6 +660,10 @@ export function buildPostCreationAdaptiveAnswerKey(params: {
     idealAnswers,
     idealPlan,
     legacyHandoff,
+    gameQuestions: buildPostCreationAdaptiveGameContract({
+      questions: params.questions,
+      answerKey: { questionKeys },
+    }),
     score: buildScoreContract(questionKeys.length),
   };
 }
