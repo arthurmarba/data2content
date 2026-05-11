@@ -825,6 +825,260 @@ describe("buildPostCreationAdaptiveAnswerKey", () => {
     expect(result.evaluations[0]?.feedbackMessage).toMatch(/histórico/i);
   });
 
+  it("uses qualitative topHooks to choose a direct question hook", () => {
+    const studyContext = buildPostCreationAdaptiveStudyContext({
+      plannerSlots: [
+        {
+          title: "Voce ja passou por isso?",
+          totalInteractions: 3000,
+          evidenceCount: 3,
+          evidencePosts: [{ id: "hook-ref", title: "Hook de pergunta" }],
+        },
+      ],
+    });
+    const { answerKey } = answerKeyForCustomQuestion({
+      mapKey: "hook",
+      options: [
+        { id: "contrast", label: "Abrir com contraste visual", recommended: true },
+        { id: "question", label: "Começar com pergunta direta" },
+      ],
+      studyContext,
+    });
+
+    expect(answerKey.correctAnswersByQuestionId["custom-hook"]).toBe("question");
+    expect(answerKey.questionKeys[0]?.feedback.evidence).toEqual(
+      expect.arrayContaining(["Gancho forte: Voce ja passou por isso?"]),
+    );
+  });
+
+  it("uses qualitative topCtas to choose a save CTA", () => {
+    const studyContext = buildPostCreationAdaptiveStudyContext({
+      plannerSlots: [
+        {
+          caption: "Salva esse checklist para consultar depois.",
+          totalInteractions: 2400,
+          evidenceCount: 2,
+        },
+      ],
+    });
+    const { answerKey } = answerKeyForCustomQuestion({
+      mapKey: "cta",
+      options: [
+        { id: "comment", label: "Pedir um comentário", recommended: true },
+        { id: "save", label: "Pedir para salvar e consultar depois" },
+      ],
+      studyContext,
+    });
+
+    expect(answerKey.correctAnswersByQuestionId["custom-cta"]).toBe("save");
+    expect(answerKey.questionKeys[0]?.feedback.evidence).toEqual(
+      expect.arrayContaining(["CTA recorrente: Salvar"]),
+    );
+  });
+
+  it("uses qualitative narrative forms to favor carousel when format signals are absent", () => {
+    const studyContext = buildPostCreationAdaptiveStudyContext({
+      plannerSlots: [
+        {
+          narrativeForm: ["passo a passo"],
+          totalInteractions: 3500,
+          evidenceCount: 3,
+        },
+      ],
+    });
+    const { answerKey } = answerKeyForCustomQuestion({
+      mapKey: "format",
+      options: [
+        { id: "reels", label: "Reels com cena em movimento", recommended: true },
+        { id: "carousel", label: "Carrossel em lista para consulta" },
+      ],
+      studyContext,
+    });
+
+    expect(answerKey.correctAnswersByQuestionId["custom-format"]).toBe("carousel");
+    expect(answerKey.questionKeys[0]?.feedback.evidence).toEqual(
+      expect.arrayContaining(["Forma narrativa forte: passo a passo"]),
+    );
+  });
+
+  it("uses qualitative narrative forms to favor reels when the signal points to scene or reaction", () => {
+    const studyContext = buildPostCreationAdaptiveStudyContext({
+      plannerSlots: [
+        {
+          narrativeForm: ["cena e reacao"],
+          totalInteractions: 3600,
+          evidenceCount: 3,
+        },
+      ],
+    });
+    const { answerKey } = answerKeyForCustomQuestion({
+      mapKey: "format",
+      options: [
+        { id: "carousel", label: "Carrossel organizado", recommended: true },
+        { id: "reels", label: "Reels com cena e reação" },
+      ],
+      studyContext,
+    });
+
+    expect(answerKey.correctAnswersByQuestionId["custom-format"]).toBe("reels");
+  });
+
+  it("uses qualitative content intents to favor comment objectives", () => {
+    const studyContext = buildPostCreationAdaptiveStudyContext({
+      plannerSlots: [
+        {
+          contentIntent: "gerar conversa",
+          evidenceCount: 2,
+        },
+      ],
+    });
+    const { answerKey } = answerKeyForCustomQuestion({
+      mapKey: "objective",
+      options: [
+        { id: "save", label: "Fazer alguém salvar", recommended: true },
+        { id: "comment", label: "Fazer a galera comentar e responder" },
+      ],
+      studyContext,
+    });
+
+    expect(answerKey.correctAnswersByQuestionId["custom-objective"]).toBe("comment");
+    expect(answerKey.questionKeys[0]?.feedback.evidence).toEqual(
+      expect.arrayContaining(["Intenção de conteúdo: gerar conversa"]),
+    );
+  });
+
+  it("uses qualitative themes when they clearly match a context option", () => {
+    const studyContext = buildPostCreationAdaptiveStudyContext({
+      plannerSlots: [
+        {
+          themes: ["rotina em casa"],
+          totalInteractions: 3200,
+          evidenceCount: 2,
+        },
+      ],
+    });
+    const mapKey = "context" as PostCreationAdaptiveQuestionMapKey;
+    const { answerKey } = answerKeyForCustomQuestion({
+      mapKey,
+      options: [
+        { id: "street", label: "Cena na rua", recommended: true },
+        { id: "home", label: "Rotina em casa" },
+      ],
+      studyContext,
+    });
+
+    expect(answerKey.correctAnswersByQuestionId["custom-context"]).toBe("home");
+    expect(answerKey.questionKeys[0]?.feedback.evidence).toEqual(
+      expect.arrayContaining(["Tema recorrente: rotina em casa"]),
+    );
+  });
+
+  it("keeps direct topFormats priority over qualitative narrative forms", () => {
+    const studyContext = buildPostCreationAdaptiveStudyContext({
+      plannerSlots: [
+        {
+          format: "Carrossel",
+          narrativeForm: ["cena e reacao"],
+          totalInteractions: 4000,
+          evidenceCount: 3,
+        },
+      ],
+    });
+    const { answerKey } = answerKeyForCustomQuestion({
+      mapKey: "format",
+      options: [
+        { id: "reels", label: "Reels com cena e reação", recommended: true },
+        { id: "carousel", label: "Carrossel organizado" },
+      ],
+      studyContext,
+    });
+
+    expect(answerKey.correctAnswersByQuestionId["custom-format"]).toBe("carousel");
+    expect(answerKey.questionKeys[0]?.feedback.evidence).toEqual(
+      expect.arrayContaining(["Formato forte: Carrossel"]),
+    );
+  });
+
+  it("does not force a qualitative match when signals do not map safely to options", () => {
+    const studyContext = buildPostCreationAdaptiveStudyContext({
+      plannerSlots: [
+        {
+          title: "Voce ja viu isso?",
+          totalInteractions: 2600,
+          evidenceCount: 2,
+        },
+      ],
+    });
+    const { answerKey } = answerKeyForCustomQuestion({
+      mapKey: "hook",
+      options: [
+        { id: "quiet", label: "Abrir de forma contemplativa", recommended: true },
+        { id: "technical", label: "Abrir com explicação técnica" },
+      ],
+      studyContext,
+    });
+
+    expect(answerKey.correctAnswersByQuestionId["custom-hook"]).toBe("quiet");
+  });
+
+  it("keeps cautious language for low-confidence qualitative matches", () => {
+    const studyContext = buildPostCreationAdaptiveStudyContext({
+      plannerSlots: [
+        {
+          caption: "Salva para consultar depois.",
+        },
+      ],
+    });
+    studyContext.confidence = {
+      score: 20,
+      label: "low",
+      reasons: ["Contexto criado com dados limitados do planner."],
+    };
+    const { answerKey } = answerKeyForCustomQuestion({
+      mapKey: "cta",
+      options: [
+        { id: "comment", label: "Pedir comentário", recommended: true },
+        { id: "save", label: "Pedir para salvar" },
+      ],
+      studyContext,
+    });
+
+    expect(answerKey.correctAnswersByQuestionId["custom-cta"]).toBe("save");
+    expect(answerKey.questionKeys[0]?.feedback.correct).toMatch(/Com os sinais disponíveis/i);
+  });
+
+  it("keeps gameQuestions valid when qualitative signals decide the answer", () => {
+    const studyContext = buildPostCreationAdaptiveStudyContext({
+      plannerSlots: [
+        {
+          caption: "Salva esse passo a passo para consultar depois.",
+          evidenceCount: 3,
+          evidencePosts: [
+            { id: "a", title: "A" },
+            { id: "b", title: "B" },
+            { id: "c", title: "C" },
+          ],
+        },
+      ],
+    });
+    const { answerKey } = answerKeyForCustomQuestion({
+      mapKey: "cta",
+      options: [
+        { id: "comment", label: "Pedir comentário", reason: "Puxa conversa quando a ideia pede troca." },
+        { id: "save", label: "Pedir para salvar", reason: "Ajuda quando o conteúdo serve para consulta." },
+        { id: "share", label: "Pedir compartilhamento", reason: "Funciona quando o conteúdo tem alcance social." },
+        { id: "click", label: "Pedir clique", reason: "Funciona quando existe uma ação externa clara." },
+      ],
+      studyContext,
+    });
+
+    expect(answerKey.correctAnswersByQuestionId["custom-cta"]).toBe("save");
+    expect(answerKey.gameQuestions).toHaveLength(1);
+    expect(answerKey.gameQuestions[0]?.isValid).toBe(true);
+    expect(answerKey.gameQuestions[0]?.correctOptionId).toBe("save");
+    expect(answerKey.gameQuestions[0]?.validationErrors).toEqual([]);
+  });
+
   it("works integrated with buildPostCreationAdaptiveStudyContext", () => {
     const detection = detectionForInput("Quero validar uma pauta sobre rotina em casa");
     const questions = buildPostCreationAdaptiveQuiz({ detection });

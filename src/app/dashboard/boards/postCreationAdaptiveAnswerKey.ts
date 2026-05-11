@@ -122,6 +122,13 @@ type StudyContextMatch = {
   rationale: string;
 };
 
+type QualitativeSignalMatch = {
+  option: PostCreationAdaptiveQuestionOption;
+  signal: PostCreationAdaptiveStudySignal;
+  evidencePrefix: string;
+  rationale: string;
+};
+
 function cleanText(value?: string | null): string | null {
   const trimmed = typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
   return trimmed || null;
@@ -192,6 +199,75 @@ function findOptionByStudySignals(
   for (const signal of signals) {
     const option = options.find((candidate) => optionMatchesSignal(candidate, signal));
     if (option) return { option, signal };
+  }
+  return null;
+}
+
+const CONTROLLED_SIGNAL_GROUPS = {
+  question: {
+    signalTerms: ["pergunta", "voce ja", "ninguem fala", "me conta", "comenta", "comentario", "conversa", "responder"],
+    optionTerms: ["pergunta", "responder", "comentario", "comentarios", "conversa"],
+  },
+  save: {
+    signalTerms: ["salvar", "salvamento", "consulta", "checklist", "passo", "passo a passo", "tutorial", "lista", "guardar"],
+    optionTerms: ["salvar", "salvamento", "guardar", "consulta", "checklist", "passo", "tutorial", "lista", "educ"],
+  },
+  share: {
+    signalTerms: ["compartilhar", "compartilhamento", "enviar", "manda", "viral", "alcance"],
+    optionTerms: ["compartilhar", "compartilhamento", "enviar", "viral", "alcance"],
+  },
+  reelsVideo: {
+    signalTerms: ["reels", "video", "cena", "movimento", "reacao", "rotina real", "pov"],
+    optionTerms: ["reels", "video", "cena", "movimento", "reacao", "pov"],
+  },
+  carousel: {
+    signalTerms: ["carrossel", "carousel", "passo", "passo a passo", "lista", "checklist", "organizado", "consulta", "tutorial"],
+    optionTerms: ["carrossel", "carousel", "passo", "lista", "organizado", "consulta", "checklist", "salvar", "tutorial"],
+  },
+  stories: {
+    signalTerms: ["stories", "story", "bastidor", "conversa", "teste", "enquete"],
+    optionTerms: ["stories", "story", "bastidor", "conversa", "teste", "enquete"],
+  },
+  commercial: {
+    signalTerms: ["marca", "publi", "comercial", "produto", "uso real", "rotina", "venda"],
+    optionTerms: ["marca", "publi", "comercial", "produto", "uso real", "rotina", "venda"],
+  },
+  collab: {
+    signalTerms: ["collab", "colab", "parceria", "creator", "dupla", "debate", "reacao", "conversa"],
+    optionTerms: ["collab", "colab", "parceria", "creator", "dupla", "debate", "reacao", "conversa"],
+  },
+  proof: {
+    signalTerms: ["prova", "antes e depois", "resultado", "comparacao", "uso real", "cena real"],
+    optionTerms: ["prova", "antes", "depois", "resultado", "comparacao", "uso real", "cena real"],
+  },
+};
+
+type ControlledSignalGroupName = keyof typeof CONTROLLED_SIGNAL_GROUPS;
+
+function textHasAnyTerm(value: string, terms: string[]): boolean {
+  const normalizedValue = normalizeText(value);
+  return terms.some((term) => {
+    const normalizedTerm = normalizeText(term);
+    return Boolean(normalizedTerm && normalizedValue.includes(normalizedTerm));
+  });
+}
+
+function findOptionByControlledSignalGroups(
+  options: PostCreationAdaptiveQuestionOption[],
+  signals: PostCreationAdaptiveStudySignal[],
+  groupNames: ControlledSignalGroupName[],
+): { option: PostCreationAdaptiveQuestionOption; signal: PostCreationAdaptiveStudySignal } | null {
+  for (const signal of signals) {
+    const signalCorpus = `${signal.id} ${signal.label}`;
+    const direct = options.find((candidate) => optionMatchesSignal(candidate, signal));
+    if (direct) return { option: direct, signal };
+
+    for (const groupName of groupNames) {
+      const group = CONTROLLED_SIGNAL_GROUPS[groupName];
+      if (!textHasAnyTerm(signalCorpus, group.signalTerms)) continue;
+      const option = findFirstOptionByTerms(options, group.optionTerms);
+      if (option) return { option, signal };
+    }
   }
   return null;
 }
@@ -301,6 +377,152 @@ function resolveStudyHookOption(params: {
   ]);
 }
 
+function qualitativeRationaleFor(mapKey: string, evidencePrefix: string): string {
+  if (mapKey === "hook") {
+    return "O gancho foi priorizado porque seus textos e aberturas mais fortes apontam para esse tipo de entrada.";
+  }
+  if (mapKey === "cta") {
+    return "O CTA foi priorizado porque os sinais de chamada para ação do seu histórico favorecem esse comportamento.";
+  }
+  if (mapKey === "narrative") {
+    return "A narrativa foi priorizada porque aparece nos sinais qualitativos mais recorrentes do seu conteúdo.";
+  }
+  if (mapKey === "format") {
+    return "O formato foi priorizado porque combina desempenho, forma narrativa e intenção do conteúdo.";
+  }
+  if (mapKey === "objective") {
+    return "O objetivo foi priorizado porque os sinais qualitativos indicam o comportamento mais natural para essa pauta.";
+  }
+  if (mapKey === "brand") {
+    return "A oportunidade comercial foi priorizada porque os sinais qualitativos apontam para um encaixe natural de marca.";
+  }
+  if (mapKey === "collab") {
+    return "A collab foi priorizada porque os sinais qualitativos sugerem contraste, conversa ou repertório compartilhado.";
+  }
+  if (evidencePrefix === "Tema recorrente" || evidencePrefix === "Palavra recorrente") {
+    return "A escolha foi priorizada porque os temas recorrentes do seu conteúdo sustentam esse caminho.";
+  }
+  return rationaleForStudyMatch(mapKey);
+}
+
+function findQualitativeOptionBySource(params: {
+  question: PostCreationAdaptiveQuestion;
+  sources: Array<{
+    signals: PostCreationAdaptiveStudySignal[];
+    evidencePrefix: string;
+    groupNames: ControlledSignalGroupName[];
+  }>;
+  rationaleMapKey: string;
+}): QualitativeSignalMatch | null {
+  for (const source of params.sources) {
+    const match = findOptionByControlledSignalGroups(params.question.options, source.signals, source.groupNames);
+    if (!match) continue;
+    return {
+      option: match.option,
+      signal: match.signal,
+      evidencePrefix: source.evidencePrefix,
+      rationale: qualitativeRationaleFor(params.rationaleMapKey, source.evidencePrefix),
+    };
+  }
+  return null;
+}
+
+function resolveQualitativeContextOption(params: {
+  question: PostCreationAdaptiveQuestion;
+  studyContext: PostCreationAdaptiveStudyContext;
+  mapKey: string;
+}): QualitativeSignalMatch | null {
+  const { question, studyContext, mapKey } = params;
+  if (mapKey === "format") {
+    return findQualitativeOptionBySource({
+      question,
+      rationaleMapKey: mapKey,
+      sources: [
+        { signals: studyContext.topNarrativeForms, evidencePrefix: "Forma narrativa forte", groupNames: ["reelsVideo", "carousel", "stories"] },
+        { signals: studyContext.topContentIntents, evidencePrefix: "Intenção de conteúdo", groupNames: ["question", "save", "share", "reelsVideo", "carousel", "stories"] },
+        { signals: studyContext.topThemes, evidencePrefix: "Tema recorrente", groupNames: ["reelsVideo", "carousel", "stories", "commercial"] },
+        { signals: studyContext.topThemeKeywords, evidencePrefix: "Palavra recorrente", groupNames: ["reelsVideo", "carousel", "stories", "commercial"] },
+      ],
+    });
+  }
+  if (mapKey === "narrative") {
+    return findQualitativeOptionBySource({
+      question,
+      rationaleMapKey: mapKey,
+      sources: [
+        { signals: studyContext.topNarrativeForms, evidencePrefix: "Forma narrativa forte", groupNames: ["reelsVideo", "carousel", "stories", "question", "proof"] },
+        { signals: studyContext.topThemes, evidencePrefix: "Tema recorrente", groupNames: ["reelsVideo", "carousel", "stories", "commercial"] },
+        { signals: studyContext.topStances, evidencePrefix: "Sinal de posicionamento", groupNames: ["question", "collab", "commercial"] },
+        { signals: studyContext.topProofStyles, evidencePrefix: "Sinal de prova", groupNames: ["proof", "reelsVideo", "carousel"] },
+      ],
+    });
+  }
+  if (mapKey === "hook") {
+    return findQualitativeOptionBySource({
+      question,
+      rationaleMapKey: mapKey,
+      sources: [
+        { signals: studyContext.topHooks, evidencePrefix: "Gancho forte", groupNames: ["question", "reelsVideo", "proof"] },
+        { signals: studyContext.topNarrativeForms, evidencePrefix: "Forma narrativa forte", groupNames: ["reelsVideo", "carousel", "stories", "question", "proof"] },
+        { signals: studyContext.topCaptionSignals, evidencePrefix: "Sinal de legenda", groupNames: ["question", "save", "share", "reelsVideo", "carousel"] },
+        { signals: studyContext.topThemes, evidencePrefix: "Tema recorrente", groupNames: ["question", "reelsVideo", "carousel", "commercial"] },
+      ],
+    });
+  }
+  if (mapKey === "cta") {
+    return findQualitativeOptionBySource({
+      question,
+      rationaleMapKey: mapKey,
+      sources: [
+        { signals: studyContext.topCtas, evidencePrefix: "CTA recorrente", groupNames: ["question", "save", "share", "collab", "commercial"] },
+        { signals: studyContext.topContentIntents, evidencePrefix: "Intenção de conteúdo", groupNames: ["question", "save", "share", "commercial"] },
+      ],
+    });
+  }
+  if (mapKey === "objective") {
+    return findQualitativeOptionBySource({
+      question,
+      rationaleMapKey: mapKey,
+      sources: [
+        { signals: studyContext.topContentIntents, evidencePrefix: "Intenção de conteúdo", groupNames: ["question", "save", "share", "commercial"] },
+        { signals: studyContext.topCommercialModes, evidencePrefix: "Sinal comercial", groupNames: ["commercial"] },
+      ],
+    });
+  }
+  if (mapKey === "brand") {
+    return findQualitativeOptionBySource({
+      question,
+      rationaleMapKey: mapKey,
+      sources: [
+        { signals: studyContext.topCommercialModes, evidencePrefix: "Sinal comercial", groupNames: ["commercial"] },
+        { signals: studyContext.topThemes, evidencePrefix: "Tema recorrente", groupNames: ["commercial", "reelsVideo", "carousel", "stories"] },
+      ],
+    });
+  }
+  if (mapKey === "collab") {
+    return findQualitativeOptionBySource({
+      question,
+      rationaleMapKey: mapKey,
+      sources: [
+        { signals: studyContext.topStances, evidencePrefix: "Sinal de posicionamento", groupNames: ["collab", "question", "reelsVideo"] },
+        { signals: studyContext.topNarrativeForms, evidencePrefix: "Forma narrativa forte", groupNames: ["collab", "reelsVideo", "question"] },
+      ],
+    });
+  }
+  if (mapKey === "what" || mapKey === "where" || mapKey === "proposal" || mapKey === "context") {
+    return findQualitativeOptionBySource({
+      question,
+      rationaleMapKey: mapKey,
+      sources: [
+        { signals: studyContext.topThemes, evidencePrefix: "Tema recorrente", groupNames: ["reelsVideo", "carousel", "stories", "commercial", "question"] },
+        { signals: studyContext.topThemeKeywords, evidencePrefix: "Palavra recorrente", groupNames: ["reelsVideo", "carousel", "stories", "commercial", "question"] },
+        { signals: studyContext.topCaptionSignals, evidencePrefix: "Sinal de legenda", groupNames: ["reelsVideo", "carousel", "stories", "commercial", "question", "save"] },
+      ],
+    });
+  }
+  return null;
+}
+
 function resolveBrandOption(params: {
   detection: PostCreationAdaptiveIntentDetection;
   question: PostCreationAdaptiveQuestion;
@@ -408,9 +630,10 @@ function buildStudyMatch(
   mapKey: PostCreationAdaptiveQuestionMapKey | string,
   evidence: string[],
   studyContext: PostCreationAdaptiveStudyContext,
+  rationale?: string,
 ): StudyContextMatch {
   return {
-    rationale: rationaleForStudyMatch(mapKey),
+    rationale: rationale || rationaleForStudyMatch(mapKey),
     evidence: addReferenceEvidence(evidence, studyContext),
   };
 }
@@ -431,6 +654,18 @@ function resolveStudyContextOption(params: {
         studyContextMatch: buildStudyMatch(mapKey, [evidenceFromSignal("Formato forte", match.signal)], studyContext),
       };
     }
+    const qualitativeMatch = resolveQualitativeContextOption({ question, studyContext, mapKey });
+    if (qualitativeMatch) {
+      return {
+        option: qualitativeMatch.option,
+        studyContextMatch: buildStudyMatch(
+          mapKey,
+          [evidenceFromSignal(qualitativeMatch.evidencePrefix, qualitativeMatch.signal)],
+          studyContext,
+          qualitativeMatch.rationale,
+        ),
+      };
+    }
   }
   if (mapKey === "narrative") {
     const match = findOptionByStudySignals(question.options, studyContext.topNarratives);
@@ -438,6 +673,18 @@ function resolveStudyContextOption(params: {
       return {
         option: match.option,
         studyContextMatch: buildStudyMatch(mapKey, [evidenceFromSignal("Narrativa forte", match.signal)], studyContext),
+      };
+    }
+    const qualitativeMatch = resolveQualitativeContextOption({ question, studyContext, mapKey });
+    if (qualitativeMatch) {
+      return {
+        option: qualitativeMatch.option,
+        studyContextMatch: buildStudyMatch(
+          mapKey,
+          [evidenceFromSignal(qualitativeMatch.evidencePrefix, qualitativeMatch.signal)],
+          studyContext,
+          qualitativeMatch.rationale,
+        ),
       };
     }
   }
@@ -449,6 +696,18 @@ function resolveStudyContextOption(params: {
         studyContextMatch: buildStudyMatch(mapKey, [evidenceFromSignal("Proposta forte", match.signal)], studyContext),
       };
     }
+    const qualitativeMatch = resolveQualitativeContextOption({ question, studyContext, mapKey });
+    if (qualitativeMatch) {
+      return {
+        option: qualitativeMatch.option,
+        studyContextMatch: buildStudyMatch(
+          mapKey,
+          [evidenceFromSignal(qualitativeMatch.evidencePrefix, qualitativeMatch.signal)],
+          studyContext,
+          qualitativeMatch.rationale,
+        ),
+      };
+    }
   }
   if (mapKey === "where" || mapKey === "context") {
     const match = findOptionByStudySignals(question.options, studyContext.topContexts);
@@ -458,8 +717,53 @@ function resolveStudyContextOption(params: {
         studyContextMatch: buildStudyMatch(mapKey, [evidenceFromSignal("Contexto forte", match.signal)], studyContext),
       };
     }
+    const qualitativeMatch = resolveQualitativeContextOption({ question, studyContext, mapKey });
+    if (qualitativeMatch) {
+      return {
+        option: qualitativeMatch.option,
+        studyContextMatch: buildStudyMatch(
+          mapKey,
+          [evidenceFromSignal(qualitativeMatch.evidencePrefix, qualitativeMatch.signal)],
+          studyContext,
+          qualitativeMatch.rationale,
+        ),
+      };
+    }
   }
-  if (mapKey === "objective" || mapKey === "cta") {
+  if (mapKey === "objective") {
+    const match = resolveEngagementDriverOption({ question, studyContext });
+    if (match) {
+      return {
+        option: match.option,
+        studyContextMatch: buildStudyMatch(mapKey, [evidenceFromSignal("Sinal de engajamento", match.signal)], studyContext),
+      };
+    }
+    const qualitativeMatch = resolveQualitativeContextOption({ question, studyContext, mapKey });
+    if (qualitativeMatch) {
+      return {
+        option: qualitativeMatch.option,
+        studyContextMatch: buildStudyMatch(
+          mapKey,
+          [evidenceFromSignal(qualitativeMatch.evidencePrefix, qualitativeMatch.signal)],
+          studyContext,
+          qualitativeMatch.rationale,
+        ),
+      };
+    }
+  }
+  if (mapKey === "cta") {
+    const qualitativeMatch = resolveQualitativeContextOption({ question, studyContext, mapKey });
+    if (qualitativeMatch) {
+      return {
+        option: qualitativeMatch.option,
+        studyContextMatch: buildStudyMatch(
+          mapKey,
+          [evidenceFromSignal(qualitativeMatch.evidencePrefix, qualitativeMatch.signal)],
+          studyContext,
+          qualitativeMatch.rationale,
+        ),
+      };
+    }
     const match = resolveEngagementDriverOption({ question, studyContext });
     if (match) {
       return {
@@ -485,6 +789,18 @@ function resolveStudyContextOption(params: {
         studyContextMatch: buildStudyMatch(mapKey, [evidenceFromSignal("Sinal de marca", match.signal)], studyContext),
       };
     }
+    const qualitativeMatch = resolveQualitativeContextOption({ question, studyContext, mapKey });
+    if (qualitativeMatch) {
+      return {
+        option: qualitativeMatch.option,
+        studyContextMatch: buildStudyMatch(
+          mapKey,
+          [evidenceFromSignal(qualitativeMatch.evidencePrefix, qualitativeMatch.signal)],
+          studyContext,
+          qualitativeMatch.rationale,
+        ),
+      };
+    }
   }
   if (mapKey === "collab") {
     const match = findOptionByStudySignals(question.options, studyContext.collabSignals);
@@ -494,8 +810,32 @@ function resolveStudyContextOption(params: {
         studyContextMatch: buildStudyMatch(mapKey, [evidenceFromSignal("Sinal de collab", match.signal)], studyContext),
       };
     }
+    const qualitativeMatch = resolveQualitativeContextOption({ question, studyContext, mapKey });
+    if (qualitativeMatch) {
+      return {
+        option: qualitativeMatch.option,
+        studyContextMatch: buildStudyMatch(
+          mapKey,
+          [evidenceFromSignal(qualitativeMatch.evidencePrefix, qualitativeMatch.signal)],
+          studyContext,
+          qualitativeMatch.rationale,
+        ),
+      };
+    }
   }
   if (mapKey === "hook") {
+    const qualitativeMatch = resolveQualitativeContextOption({ question, studyContext, mapKey });
+    if (qualitativeMatch) {
+      return {
+        option: qualitativeMatch.option,
+        studyContextMatch: buildStudyMatch(
+          mapKey,
+          [evidenceFromSignal(qualitativeMatch.evidencePrefix, qualitativeMatch.signal)],
+          studyContext,
+          qualitativeMatch.rationale,
+        ),
+      };
+    }
     const match = resolveStudyHookOption({ question, studyContext });
     if (match) {
       return {
