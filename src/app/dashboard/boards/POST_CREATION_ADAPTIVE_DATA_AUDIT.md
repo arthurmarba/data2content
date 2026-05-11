@@ -322,15 +322,19 @@ Usar com cautela:
 - Evidence posts: deduplicar por `_id`/`instagramMediaId`/`postLink` e limitar volume.
 - Comercial: distinguir `publi detectada no post`, `deal fechado`, `proposta inbound`, `match narrativo` e `taxonomia de marca`.
 
-## Proposta de arquitetura para V9B, sem implementar
+## Proposta de arquitetura para V9B
 
-Criar um builder server-side puro na camada de dominio, por exemplo:
+A V9B materializa a primeira parte desta arquitetura como normalizador puro, sem endpoint,
+sem query Mongoose e sem integracao com o board:
 
 ```ts
-buildPostCreationAdaptiveStudyContextServerSide(userId, options)
+buildPostCreationAdaptiveStudyContextFromServerSources(input)
 ```
 
-Fluxo sugerido:
+Essa funcao recebe objetos ja carregados de fontes server-side, normaliza para o shape aceito
+por `buildPostCreationAdaptiveStudyContext` e retorna tambem metadados de coverage.
+
+Fluxo sugerido para a fase de query/integracao posterior:
 
 1. Validar permissao: dono, admin/dev target ou regras equivalentes ao planner.
 2. Resolver `periodDays` com default 90 e maximo defensivo, por exemplo 180 ou 365.
@@ -345,7 +349,7 @@ Fluxo sugerido:
 6. Consultar `PlannerPlan` da semana atual/ultimas semanas se for necessario considerar plano salvo.
 7. Consultar `BrandNarrativeReport`, `BrandProposal` e `AdDeal` com limites por recencia.
 8. Opcionalmente consultar `StoryMetric` para sinais de stories.
-9. Normalizar tudo para um input interno, sem expor modelos Mongoose ao AnswerKey.
+9. Normalizar tudo com `buildPostCreationAdaptiveStudyContextFromServerSources`, sem expor modelos Mongoose ao AnswerKey.
 10. Reutilizar o builder client atual onde fizer sentido, ou criar uma versao server que produza o mesmo contrato com `source: "planner_server"` em fase futura.
 11. Cachear por userId + periodDays + data de ultima atualizacao relevante. TTL inicial sugerido: 5 a 15 minutos.
 12. Registrar metadados de confianca e coverage: posts analisados, posts classificados, posts com caption, posts com metricas, demographics disponivel, commercial data disponivel.
@@ -373,13 +377,14 @@ Limites de volume sugeridos:
 
 V9B:
 
-- Criar `PostCreationAdaptiveStudyContextServerInput` e normalizador server-side sem endpoint publico novo.
-- Implementar queries bounded em `Metric`, `AccountInsight`, `AudienceDemographicSnapshot`, `PlannerPlan`, `BrandNarrativeReport`, `BrandProposal`, `AdDeal`.
+- Criar tipos de entrada server-side e normalizador puro sem endpoint publico novo.
+- Receber objetos ja carregados de `Metric`, `AccountInsight`, `AudienceDemographicSnapshot`, planner, brand e collab.
 - Produzir contexto deterministico e testavel, ainda sem conectar ao board.
 
 V9C:
 
-- Conectar builder server-side a um endpoint existente ou novo com guard forte, se o produto decidir.
+- Implementar queries bounded em `Metric`, `AccountInsight`, `AudienceDemographicSnapshot`, `PlannerPlan`, `BrandNarrativeReport`, `BrandProposal`, `AdDeal`.
+- Conectar o normalizador server-side a um endpoint existente ou novo com guard forte, se o produto decidir.
 - Definir cache e invalidacao por userId/periodDays.
 - Testar permissao, performance e fallback client-side.
 
@@ -391,4 +396,3 @@ V9D:
 V9E:
 
 - Resolver lacuna de comentarios reais se `comment_to_post` precisar estudar comentarios da audiencia, com model/endpoint proprio e politicas de privacidade.
-
