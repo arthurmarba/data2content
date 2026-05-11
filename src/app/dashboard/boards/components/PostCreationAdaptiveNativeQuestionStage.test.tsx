@@ -40,6 +40,12 @@ function baseViewModel(
     feedbackMessage: null,
     feedbackRationale: null,
     feedbackEvidence: [],
+    correctOptionLabel: null,
+    correctReason: null,
+    selectedIncorrectReason: null,
+    selectedOptionReason: null,
+    gameEvidence: [],
+    feedbackMode: "neutral",
     shouldRevealFeedback: false,
     options: [
       {
@@ -51,6 +57,8 @@ function baseViewModel(
         recommended: true,
         isCorrect: null,
         isIncorrectSelection: false,
+        gameRole: null,
+        gameReason: null,
       },
       {
         id: "reach",
@@ -61,6 +69,8 @@ function baseViewModel(
         recommended: false,
         isCorrect: null,
         isIncorrectSelection: false,
+        gameRole: null,
+        gameReason: null,
       },
       {
         id: "saves",
@@ -71,6 +81,8 @@ function baseViewModel(
         recommended: false,
         isCorrect: null,
         isIncorrectSelection: false,
+        gameRole: null,
+        gameReason: null,
       },
     ],
     ...overrides,
@@ -87,6 +99,12 @@ function withFeedback(
     feedbackMessage: null,
     feedbackRationale: null,
     feedbackEvidence: [],
+    correctOptionLabel: "Gerar comentários",
+    correctReason: null,
+    selectedIncorrectReason: null,
+    selectedOptionReason: null,
+    gameEvidence: [],
+    feedbackMode: "correct",
     shouldRevealFeedback: true,
     options: baseViewModel().options.map((option) => ({
       ...option,
@@ -393,6 +411,43 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
     expect(screen.getByText("Sinal de engajamento: Comentários")).toBeInTheDocument();
   });
 
+  it("shows the winning reason when the selected answer is correct", () => {
+    renderStage({
+      viewModel: withFeedback({
+        feedbackMode: "correct",
+        correctReason: "Essa resposta venceu porque conversa melhor com o histórico da pauta.",
+      }),
+    });
+
+    expect(screen.getByText("Por que essa resposta venceu")).toBeInTheDocument();
+    expect(screen.getByText("Essa resposta venceu porque conversa melhor com o histórico da pauta.")).toBeInTheDocument();
+  });
+
+  it("shows why the selected answer lost strength and the strongest answer when incorrect", () => {
+    renderStage({
+      viewModel: withFeedback({
+        selectedOptionId: "reach",
+        selectedIsCorrect: false,
+        feedbackMode: "incorrect",
+        correctOptionLabel: "Gerar comentários",
+        correctReason: "A conversa era o caminho mais forte para essa pauta.",
+        selectedIncorrectReason: "Ganhar alcance fazia sentido, mas perde força porque a pauta pede identificação.",
+        options: baseViewModel().options.map((option) => ({
+          ...option,
+          selected: option.id === "reach",
+          isCorrect: option.id === "comments",
+          isIncorrectSelection: option.id === "reach",
+        })),
+      }),
+    });
+
+    expect(screen.getByText("Por que sua aposta perdeu força")).toBeInTheDocument();
+    expect(screen.getByText("Ganhar alcance fazia sentido, mas perde força porque a pauta pede identificação.")).toBeInTheDocument();
+    expect(screen.getByText("Resposta mais forte")).toBeInTheDocument();
+    expect(screen.getAllByText("Gerar comentários").length).toBeGreaterThan(0);
+    expect(screen.getByText("A conversa era o caminho mais forte para essa pauta.")).toBeInTheDocument();
+  });
+
   it("does not render evidence section when evidence is empty", () => {
     renderStage({ viewModel: withFeedback({ feedbackEvidence: [] }) });
 
@@ -468,6 +523,8 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(screen.queryByText("Sua aposta")).not.toBeInTheDocument();
     expect(screen.queryByText(/corret/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Por que essa resposta venceu")).not.toBeInTheDocument();
+    expect(screen.queryByText("Resposta mais forte")).not.toBeInTheDocument();
   });
 
   it("works integrated with the adaptive router, quiz builder, and decision view model", () => {

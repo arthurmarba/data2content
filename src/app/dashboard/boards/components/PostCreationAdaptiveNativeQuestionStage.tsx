@@ -176,6 +176,31 @@ export default function PostCreationAdaptiveNativeQuestionStage({
                     {viewModel.feedbackRationale}
                   </p>
                 ) : null}
+                {viewModel.feedbackMode === "correct" && viewModel.correctReason ? (
+                  <div className="mt-3 rounded-[16px] border border-sky-100 bg-sky-50/45 px-3 py-2.5">
+                    <p className="text-[11px] font-semibold text-sky-700">Por que essa resposta venceu</p>
+                    <p className="mt-1 text-xs font-medium leading-5 text-zinc-600">{viewModel.correctReason}</p>
+                  </div>
+                ) : null}
+                {viewModel.feedbackMode === "incorrect" && viewModel.selectedIncorrectReason ? (
+                  <div className="mt-3 rounded-[16px] border border-zinc-100 bg-zinc-50/80 px-3 py-2.5">
+                    <p className="text-[11px] font-semibold text-zinc-600">Por que sua aposta perdeu força</p>
+                    <p className="mt-1 text-xs font-medium leading-5 text-zinc-500">
+                      {viewModel.selectedIncorrectReason}
+                    </p>
+                  </div>
+                ) : null}
+                {viewModel.feedbackMode === "incorrect" && (viewModel.correctOptionLabel || viewModel.correctReason) ? (
+                  <div className="mt-3 rounded-[16px] border border-sky-100 bg-sky-50/45 px-3 py-2.5">
+                    <p className="text-[11px] font-semibold text-sky-700">Resposta mais forte</p>
+                    {viewModel.correctOptionLabel ? (
+                      <p className="mt-1 text-sm font-semibold leading-5 text-zinc-950">{viewModel.correctOptionLabel}</p>
+                    ) : null}
+                    {viewModel.correctReason ? (
+                      <p className="mt-1.5 text-xs font-medium leading-5 text-zinc-600">{viewModel.correctReason}</p>
+                    ) : null}
+                  </div>
+                ) : null}
               </div>
               {viewModel.feedbackEvidence.length > 0 ? (
                 <div className="rounded-[18px] border border-zinc-200/70 bg-zinc-50/92 px-3.5 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.96)]">

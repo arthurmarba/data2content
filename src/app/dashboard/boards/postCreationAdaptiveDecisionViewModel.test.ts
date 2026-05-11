@@ -73,6 +73,31 @@ function answerKeyFor(
     ],
     idealPlan: {} as PostCreationAdaptiveAnswerKey["idealPlan"],
     legacyHandoff: {} as PostCreationAdaptiveAnswerKey["legacyHandoff"],
+    gameQuestions: [
+      {
+        questionId: question.id,
+        mapKey: question.mapKey,
+        correctOptionId,
+        correctReason: "Comentários vencem porque a pauta pede conversa e identificação.",
+        incorrectReasonsByOptionId: question.options.reduce<Record<string, string>>((result, option) => {
+          if (option.id !== correctOptionId) {
+            result[option.id] = `${option.label} faz sentido, mas perde força perto da conversa.`;
+          }
+          return result;
+        }, {}),
+        evidence: ["Formato forte: Reels", "Sinal de engajamento: Comentários"],
+        options: question.options.map((option) => ({
+          optionId: option.id,
+          role: option.id === correctOptionId ? "correct" : "distractor",
+          reason: option.id === correctOptionId
+            ? "Comentários vencem porque a pauta pede conversa e identificação."
+            : `${option.label} faz sentido, mas perde força perto da conversa.`,
+          evidence: option.id === correctOptionId ? ["Formato forte: Reels"] : [],
+        })),
+        isValid: true,
+        validationErrors: [],
+      },
+    ],
     score: {
       max: 1,
       passing: 1,
@@ -383,8 +408,15 @@ describe("buildAdaptiveDecisionViewModel", () => {
     expect(viewModel.feedbackMessage).toBeNull();
     expect(viewModel.feedbackRationale).toBeNull();
     expect(viewModel.feedbackEvidence).toEqual([]);
+    expect(viewModel.correctOptionLabel).toBeNull();
+    expect(viewModel.correctReason).toBeNull();
+    expect(viewModel.selectedIncorrectReason).toBeNull();
+    expect(viewModel.selectedOptionReason).toBeNull();
+    expect(viewModel.gameEvidence).toEqual([]);
+    expect(viewModel.feedbackMode).toBe("neutral");
     expect(viewModel.shouldRevealFeedback).toBe(false);
     expect(viewModel.options.map((option) => option.isCorrect)).toEqual([null, null, null]);
+    expect(viewModel.options.map((option) => option.gameRole)).toEqual([null, null, null]);
   });
 
   it("gets correctOptionId from answerKey", () => {
@@ -481,7 +513,7 @@ describe("buildAdaptiveDecisionViewModel", () => {
     expect(viewModel.feedbackRationale).toBe("O objetivo define o comportamento que o conteúdo precisa provocar.");
   });
 
-  it("keeps feedbackEvidence empty without an evaluation", () => {
+  it("uses game evidence when feedback is revealed even without an evaluation", () => {
     const question = baseQuestion();
     const viewModel = buildAdaptiveDecisionViewModel({
       question,
@@ -491,7 +523,7 @@ describe("buildAdaptiveDecisionViewModel", () => {
       answerKey: answerKeyFor(question, "comments"),
     });
 
-    expect(viewModel.feedbackEvidence).toEqual([]);
+    expect(viewModel.feedbackEvidence).toEqual(["Formato forte: Reels", "Sinal de engajamento: Comentários"]);
   });
 
   it("attaches feedbackEvidence from the evaluation", () => {
@@ -544,6 +576,111 @@ describe("buildAdaptiveDecisionViewModel", () => {
     ]);
   });
 
+  it("keeps new game feedback fields empty when answerKey has no gameQuestions", () => {
+    const question = baseQuestion();
+    const answerKey = {
+      ...answerKeyFor(question, "comments"),
+      gameQuestions: undefined,
+    } as unknown as PostCreationAdaptiveAnswerKey;
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [answerFor(question.id, "comments")],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey,
+      evaluations: [evaluationFor(question.id)],
+    });
+
+    expect(viewModel.correctOptionLabel).toBeNull();
+    expect(viewModel.correctReason).toBeNull();
+    expect(viewModel.selectedIncorrectReason).toBeNull();
+    expect(viewModel.selectedOptionReason).toBeNull();
+    expect(viewModel.gameEvidence).toEqual([]);
+    expect(viewModel.feedbackMode).toBe("correct");
+  });
+
+  it("uses a valid gameQuestion to explain a correct answer", () => {
+    const question = baseQuestion();
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [answerFor(question.id, "comments")],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey: answerKeyFor(question, "comments"),
+      evaluations: [
+        evaluationFor(question.id, {
+          evidence: ["Formato forte: Reels", "Formato forte: Reels"],
+        }),
+      ],
+    });
+
+    expect(viewModel.correctOptionLabel).toBe("Comentários");
+    expect(viewModel.correctReason).toBe("Comentários vencem porque a pauta pede conversa e identificação.");
+    expect(viewModel.selectedIncorrectReason).toBeNull();
+    expect(viewModel.selectedOptionReason).toBe("Comentários vencem porque a pauta pede conversa e identificação.");
+    expect(viewModel.gameEvidence).toEqual(["Formato forte: Reels", "Sinal de engajamento: Comentários"]);
+    expect(viewModel.feedbackEvidence).toEqual(["Formato forte: Reels", "Sinal de engajamento: Comentários"]);
+    expect(viewModel.feedbackMode).toBe("correct");
+    expect(viewModel.options.map((option) => [option.id, option.gameRole])).toEqual([
+      ["comments", "correct"],
+      ["reach", "distractor"],
+      ["saves", "distractor"],
+    ]);
+    expect(viewModel.options[0]?.gameReason).toBe("Comentários vencem porque a pauta pede conversa e identificação.");
+  });
+
+  it("uses a valid gameQuestion to explain a wrong answer", () => {
+    const question = baseQuestion();
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [answerFor(question.id, "reach")],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey: answerKeyFor(question, "comments"),
+      evaluations: [
+        evaluationFor(question.id, {
+          selectedOptionId: "reach",
+          correctOptionId: "comments",
+          isCorrect: false,
+          feedbackTitle: "Quase",
+          evidence: ["Formato forte: Reels"],
+        }),
+      ],
+    });
+
+    expect(viewModel.correctOptionLabel).toBe("Comentários");
+    expect(viewModel.correctReason).toBe("Comentários vencem porque a pauta pede conversa e identificação.");
+    expect(viewModel.selectedIncorrectReason).toBe("Alcance faz sentido, mas perde força perto da conversa.");
+    expect(viewModel.selectedOptionReason).toBe("Alcance faz sentido, mas perde força perto da conversa.");
+    expect(viewModel.feedbackEvidence).toEqual(["Formato forte: Reels", "Sinal de engajamento: Comentários"]);
+    expect(viewModel.feedbackMode).toBe("incorrect");
+  });
+
+  it("ignores invalid gameQuestion contracts and keeps fallback behavior", () => {
+    const question = baseQuestion();
+    const answerKey = answerKeyFor(question, "comments");
+    answerKey.gameQuestions = answerKey.gameQuestions.map((gameQuestion) => ({
+      ...gameQuestion,
+      isValid: false,
+      validationErrors: ["GameQuestion precisa ter exatamente 4 opções."],
+    }));
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question,
+      answers: [answerFor(question.id, "comments")],
+      questionIndex: 0,
+      questionCount: 1,
+      answerKey,
+      evaluations: [evaluationFor(question.id)],
+    });
+
+    expect(viewModel.correctOptionId).toBe("comments");
+    expect(viewModel.feedbackTitle).toBe("Boa aposta");
+    expect(viewModel.correctReason).toBeNull();
+    expect(viewModel.selectedIncorrectReason).toBeNull();
+    expect(viewModel.gameEvidence).toEqual([]);
+    expect(viewModel.options.map((option) => option.gameRole)).toEqual([null, null, null]);
+  });
+
   it("keeps feedback null when no evaluation exists", () => {
     const question = baseQuestion();
     const viewModel = buildAdaptiveDecisionViewModel({
@@ -558,7 +695,7 @@ describe("buildAdaptiveDecisionViewModel", () => {
     expect(viewModel.feedbackTitle).toBeNull();
     expect(viewModel.feedbackMessage).toBeNull();
     expect(viewModel.feedbackRationale).toBeNull();
-    expect(viewModel.feedbackEvidence).toEqual([]);
+    expect(viewModel.feedbackEvidence).toEqual(["Formato forte: Reels", "Sinal de engajamento: Comentários"]);
   });
 
   it("marks option.isCorrect true only on the correct option", () => {
@@ -679,6 +816,10 @@ describe("buildAdaptiveDecisionViewModel", () => {
     expect(viewModel.correctOptionId).toBe("comments");
     expect(viewModel.shouldRevealFeedback).toBe(false);
     expect(viewModel.feedbackEvidence).toEqual([]);
+    expect(viewModel.correctReason).toBeNull();
+    expect(viewModel.selectedIncorrectReason).toBeNull();
+    expect(viewModel.gameEvidence).toEqual([]);
+    expect(viewModel.feedbackMode).toBe("neutral");
   });
 
   it("exposes feedback to be revealed after the user answers", () => {

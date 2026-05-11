@@ -2,6 +2,7 @@ import type {
   PostCreationAdaptiveAnswerEvaluation,
   PostCreationAdaptiveAnswerKey,
 } from "./postCreationAdaptiveAnswerKey";
+import type { PostCreationAdaptiveGameOptionRole } from "./postCreationAdaptiveGameContract";
 import type {
   PostCreationAdaptiveAnswer,
   PostCreationAdaptiveQuestion,
@@ -18,6 +19,8 @@ export type PostCreationAdaptiveDecisionOptionViewModel = {
   recommended: boolean;
   isCorrect: boolean | null;
   isIncorrectSelection: boolean;
+  gameRole: PostCreationAdaptiveGameOptionRole | null;
+  gameReason: string | null;
 };
 
 export type PostCreationAdaptiveDecisionViewModel = {
@@ -41,6 +44,12 @@ export type PostCreationAdaptiveDecisionViewModel = {
   feedbackMessage: string | null;
   feedbackRationale: string | null;
   feedbackEvidence: string[];
+  correctOptionLabel: string | null;
+  correctReason: string | null;
+  selectedIncorrectReason: string | null;
+  selectedOptionReason: string | null;
+  gameEvidence: string[];
+  feedbackMode: "correct" | "incorrect" | "neutral";
   shouldRevealFeedback: boolean;
   options: PostCreationAdaptiveDecisionOptionViewModel[];
 };
@@ -87,6 +96,10 @@ function normalizeEvidence(values: Array<string | null | undefined> | undefined)
   return Array.from(new Set(values.map(normalizeNullableText).filter((item): item is string => Boolean(item)))).slice(0, 3);
 }
 
+function mergeEvidence(...groups: Array<Array<string | null | undefined> | undefined>): string[] {
+  return normalizeEvidence(groups.flatMap((group) => group || []));
+}
+
 export function buildAdaptiveDecisionViewModel(params: {
   question: PostCreationAdaptiveQuestion;
   answers: PostCreationAdaptiveAnswer[];
@@ -109,6 +122,25 @@ export function buildAdaptiveDecisionViewModel(params: {
   const evaluation =
     params.evaluations?.find((candidate) => candidate.questionId === params.question.id) || null;
   const shouldRevealFeedback = Boolean(selectedOptionId && correctOptionId);
+  const gameQuestion =
+    params.answerKey?.gameQuestions?.find((candidate) => candidate.questionId === params.question.id && candidate.isValid)
+    || null;
+  const correctOption = correctOptionId
+    ? params.question.options.find((option) => option.id === correctOptionId) || null
+    : null;
+  const selectedGameOption = selectedOptionId
+    ? gameQuestion?.options.find((option) => option.optionId === selectedOptionId) || null
+    : null;
+  const gameEvidence = shouldRevealFeedback && gameQuestion ? normalizeEvidence(gameQuestion.evidence) : [];
+  const feedbackEvidence = shouldRevealFeedback
+    ? mergeEvidence(evaluation?.evidence, gameEvidence)
+    : [];
+  const feedbackMode =
+    shouldRevealFeedback && selectedIsCorrect === true
+      ? "correct"
+      : shouldRevealFeedback && selectedIsCorrect === false
+        ? "incorrect"
+        : "neutral";
 
   return {
     id: params.question.id,
@@ -130,9 +162,26 @@ export function buildAdaptiveDecisionViewModel(params: {
     feedbackTitle: evaluation?.feedbackTitle ?? null,
     feedbackMessage: evaluation?.feedbackMessage ?? null,
     feedbackRationale: evaluation?.rationale ?? null,
-    feedbackEvidence: normalizeEvidence(evaluation?.evidence),
+    feedbackEvidence,
+    correctOptionLabel: shouldRevealFeedback && gameQuestion ? normalizeNullableText(correctOption?.label) : null,
+    correctReason: shouldRevealFeedback && gameQuestion ? normalizeNullableText(gameQuestion.correctReason) : null,
+    selectedIncorrectReason:
+      shouldRevealFeedback && selectedOptionId && selectedIsCorrect === false && gameQuestion
+        ? normalizeNullableText(gameQuestion.incorrectReasonsByOptionId[selectedOptionId])
+        : null,
+    selectedOptionReason:
+      shouldRevealFeedback && selectedGameOption ? normalizeNullableText(selectedGameOption.reason) : null,
+    gameEvidence,
+    feedbackMode,
     shouldRevealFeedback,
     options: params.question.options.map((option) => ({
+      ...(() => {
+        const gameOption = gameQuestion?.options.find((candidate) => candidate.optionId === option.id) || null;
+        return {
+          gameRole: gameOption?.role ?? null,
+          gameReason: normalizeNullableText(gameOption?.reason),
+        };
+      })(),
       id: option.id,
       label: option.label,
       reason: normalizeNullableText(option.reason),
