@@ -21,6 +21,7 @@ export default function PostCreationAdaptiveNativeQuestionStage({
 }: PostCreationAdaptiveNativeQuestionStageProps) {
   const interactionDisabled = disabled || loading;
   const nextDisabled = interactionDisabled || !viewModel.canAdvance;
+  const hasLockedAnswer = Boolean(viewModel.selectedOptionId);
   const progressPercent = `${Math.round(viewModel.progressValue * 100)}%`;
   const shouldShowFeedback = viewModel.shouldRevealFeedback && viewModel.selectedIsCorrect !== null;
   const feedbackTitle =
@@ -34,6 +35,11 @@ export default function PostCreationAdaptiveNativeQuestionStage({
   function handleNext() {
     if (nextDisabled) return;
     onNext();
+  }
+
+  function handleSelectOption(optionId: string) {
+    if (interactionDisabled || hasLockedAnswer) return;
+    onSelectOption(optionId);
   }
 
   return (
@@ -79,53 +85,77 @@ export default function PostCreationAdaptiveNativeQuestionStage({
         </div>
 
         <div className="mt-6 grid gap-3 sm:mt-8 sm:grid-cols-2">
-          {viewModel.options.map((option, optionIndex) => (
-            <button
-              key={option.id}
-              type="button"
-              className={[
-                "group relative min-h-28 overflow-hidden rounded-[22px] border px-4 py-3.5 text-left outline-none transition-all duration-300 ease-out active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-sky-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-60 sm:min-h-32",
-                option.selected
-                  ? "border-sky-200 bg-white ring-1 ring-sky-100/80 shadow-[0_14px_34px_rgba(56,189,248,0.08)]"
-                  : "border-zinc-200/80 bg-white shadow-[0_8px_26px_rgba(15,23,42,0.025)] hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-[0_18px_34px_rgba(15,23,42,0.07)]",
-              ].join(" ")}
-              aria-pressed={option.selected}
-              disabled={interactionDisabled}
-              onClick={() => onSelectOption(option.id)}
-            >
-              {option.selected ? (
-                <span className="pointer-events-none absolute inset-y-4 left-0 w-1 rounded-r-full bg-sky-400/80" />
-              ) : null}
-              <span
+          {viewModel.options.map((option, optionIndex) => {
+            const isLockedUnselected = hasLockedAnswer && !option.selected;
+
+            return (
+              <button
+                key={option.id}
+                type="button"
                 className={[
-                  "pointer-events-none absolute inset-0 transition duration-500",
+                  "group relative min-h-28 overflow-hidden rounded-[22px] border px-4 py-3.5 text-left outline-none transition-all duration-300 ease-out active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-sky-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed sm:min-h-32",
                   option.selected
-                    ? "bg-[linear-gradient(180deg,rgba(240,249,255,0.58)_0%,rgba(255,255,255,0.08)_100%)] opacity-100"
-                    : "opacity-0",
+                    ? "border-sky-200 bg-white ring-1 ring-sky-100/80 shadow-[0_14px_34px_rgba(56,189,248,0.08)]"
+                    : isLockedUnselected
+                      ? "border-zinc-200/70 bg-zinc-50/75 text-zinc-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]"
+                      : "border-zinc-200/80 bg-white shadow-[0_8px_26px_rgba(15,23,42,0.025)] hover:-translate-y-0.5 hover:border-zinc-300 hover:shadow-[0_18px_34px_rgba(15,23,42,0.07)]",
                 ].join(" ")}
-              />
-              <span className="relative flex h-full flex-col gap-3">
-                <span className="flex items-start justify-between gap-3">
-                  <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-zinc-100 bg-zinc-50 text-[10px] font-semibold text-zinc-500 shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] transition group-hover:bg-white">
-                    {String(optionIndex + 1).padStart(2, "0")}
+                aria-pressed={option.selected}
+                aria-disabled={hasLockedAnswer || interactionDisabled}
+                disabled={hasLockedAnswer || interactionDisabled}
+                onClick={() => handleSelectOption(option.id)}
+              >
+                {option.selected ? (
+                  <span className="pointer-events-none absolute inset-y-4 left-0 w-1 rounded-r-full bg-sky-400/80" />
+                ) : null}
+                <span
+                  className={[
+                    "pointer-events-none absolute inset-0 transition duration-500",
+                    option.selected
+                      ? "bg-[linear-gradient(180deg,rgba(240,249,255,0.58)_0%,rgba(255,255,255,0.08)_100%)] opacity-100"
+                      : "opacity-0",
+                  ].join(" ")}
+                />
+                <span className="relative flex h-full flex-col gap-3">
+                  <span className="flex items-start justify-between gap-3">
+                    <span
+                      className={[
+                        "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[10px] font-semibold shadow-[inset_0_1px_2px_rgba(0,0,0,0.02)] transition",
+                        isLockedUnselected
+                          ? "border-zinc-200/70 bg-white/70 text-zinc-400"
+                          : "border-zinc-100 bg-zinc-50 text-zinc-500 group-hover:bg-white",
+                      ].join(" ")}
+                    >
+                      {String(optionIndex + 1).padStart(2, "0")}
+                    </span>
+                    {viewModel.shouldRevealFeedback && option.isIncorrectSelection ? (
+                      <span className="shrink-0 rounded-full border border-zinc-200/80 bg-white/85 px-2 py-1 text-[10px] font-semibold text-zinc-500 shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
+                        Sua aposta
+                      </span>
+                    ) : null}
                   </span>
-                  {viewModel.shouldRevealFeedback && option.isIncorrectSelection ? (
-                    <span className="shrink-0 rounded-full border border-zinc-200/80 bg-white/85 px-2 py-1 text-[10px] font-semibold text-zinc-500 shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
-                      Sua aposta
+                  <span
+                    className={[
+                      "block text-[0.98rem] font-semibold leading-[1.16] tracking-[-0.025em]",
+                      isLockedUnselected ? "text-zinc-500" : "text-zinc-950",
+                    ].join(" ")}
+                  >
+                    {option.label}
+                  </span>
+                  {option.reason ? (
+                    <span
+                      className={[
+                        "mt-auto block border-t border-zinc-100/80 pt-3 text-xs font-medium leading-5",
+                        isLockedUnselected ? "text-zinc-400" : "text-zinc-500",
+                      ].join(" ")}
+                    >
+                      {option.reason}
                     </span>
                   ) : null}
                 </span>
-                <span className="block text-[0.98rem] font-semibold leading-[1.16] tracking-[-0.025em] text-zinc-950">
-                  {option.label}
-                </span>
-                {option.reason ? (
-                  <span className="mt-auto block border-t border-zinc-100/80 pt-3 text-xs font-medium leading-5 text-zinc-500">
-                    {option.reason}
-                  </span>
-                ) : null}
-              </span>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
 
         {shouldShowFeedback ? (

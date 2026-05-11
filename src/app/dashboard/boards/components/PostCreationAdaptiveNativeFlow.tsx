@@ -166,6 +166,8 @@ export default function PostCreationAdaptiveNativeFlow({
   }
 
   function handleSelectOption(questionId: string, optionId: string) {
+    if (flow.answers.some((answer) => answer.questionId === questionId)) return;
+
     if (nativePlanResult) {
       setNativePlanResult(null);
     }

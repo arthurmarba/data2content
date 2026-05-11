@@ -493,7 +493,24 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("selects an option and advances to the second question", () => {
+  it("saves the first selection for an unanswered question", () => {
+    const selectAnswer = jest.fn();
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [],
+      selectAnswer,
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Tecnologia/ }));
+
+    expect(selectAnswer).toHaveBeenCalledWith("q-brand", "tech");
+  });
+
+  it("does not change an already answered question when another option is clicked", () => {
     const selectAnswer = jest.fn();
     mockFlow({
       status: "quiz",
@@ -506,10 +523,52 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     render(<PostCreationAdaptiveNativeFlow />);
 
     fireEvent.click(screen.getByRole("button", { name: /Tecnologia/ }));
+
+    expect(selectAnswer).not.toHaveBeenCalled();
+  });
+
+  it("advances to the second question after an answer is locked", () => {
+    const selectAnswer = jest.fn();
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [answerFixtures[0]!],
+      selectAnswer,
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
     fireEvent.click(screen.getByRole("button", { name: "Próxima decisão" }));
 
-    expect(selectAnswer).toHaveBeenCalledWith("q-brand", "tech");
+    expect(selectAnswer).not.toHaveBeenCalled();
     expect(screen.getByText("Qual entrega faria mais sentido?")).toBeInTheDocument();
+  });
+
+  it("keeps a previous question locked after going back", () => {
+    const selectAnswer = jest.fn();
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [answerFixtures[0]!],
+      selectAnswer,
+    });
+
+    render(
+      <PostCreationAdaptiveNativeFlow
+        initialSnapshot={snapshotFixture({ answers: [answerFixtures[0]!] })}
+      />,
+    );
+
+    expect(screen.getByText("Qual entrega faria mais sentido?")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
+    fireEvent.click(screen.getByRole("button", { name: /Tecnologia/ }));
+
+    expect(screen.getByText("Que tipo de marca você quer atrair?")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Beleza\/autocuidado/ })).toHaveAttribute("aria-pressed", "true");
+    expect(selectAnswer).not.toHaveBeenCalled();
   });
 
   it("calls generatePlan from the last question primary button", () => {

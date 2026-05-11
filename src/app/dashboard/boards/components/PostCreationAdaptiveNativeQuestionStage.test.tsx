@@ -97,6 +97,22 @@ function withFeedback(
   });
 }
 
+function unansweredViewModel(
+  overrides: Partial<PostCreationAdaptiveDecisionViewModel> = {},
+): PostCreationAdaptiveDecisionViewModel {
+  return baseViewModel({
+    selectedOptionId: null,
+    selectedAnswer: null,
+    canAdvance: false,
+    options: baseViewModel().options.map((option) => ({
+      ...option,
+      selected: false,
+      isIncorrectSelection: false,
+    })),
+    ...overrides,
+  });
+}
+
 function renderStage(
   overrides: Partial<ComponentProps<typeof PostCreationAdaptiveNativeQuestionStage>> = {},
 ) {
@@ -171,7 +187,7 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
 
   it("calls onSelectOption with the correct optionId when clicking an option", () => {
     const onSelectOption = jest.fn();
-    renderStage({ onSelectOption });
+    renderStage({ viewModel: unansweredViewModel(), onSelectOption });
 
     fireEvent.click(screen.getByRole("button", { name: /Ganhar alcance/ }));
 
@@ -185,6 +201,30 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
     fireEvent.click(screen.getByRole("button", { name: /Ganhar alcance/ }));
 
     expect(onNext).not.toHaveBeenCalled();
+  });
+
+  it("locks options after an answer is selected", () => {
+    renderStage();
+
+    expect(screen.getByRole("button", { name: /Gerar comentários/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Ganhar alcance/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Aumentar salvamentos/ })).toBeDisabled();
+  });
+
+  it("keeps selected option marked after locking the answer", () => {
+    renderStage();
+
+    expect(screen.getByRole("button", { name: /Gerar comentários/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Ganhar alcance/ })).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("does not call onSelectOption again after the answer is locked", () => {
+    const onSelectOption = jest.fn();
+    renderStage({ onSelectOption });
+
+    fireEvent.click(screen.getByRole("button", { name: /Ganhar alcance/ }));
+
+    expect(onSelectOption).not.toHaveBeenCalled();
   });
 
   it("marks the selected option with an accessible pressed state", () => {
