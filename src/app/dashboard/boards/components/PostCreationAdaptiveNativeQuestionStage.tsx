@@ -128,9 +128,9 @@ export default function PostCreationAdaptiveNativeQuestionStage({
                     >
                       {String(optionIndex + 1).padStart(2, "0")}
                     </span>
-                    {viewModel.shouldRevealFeedback && option.isIncorrectSelection ? (
+                    {option.selected && hasLockedAnswer ? (
                       <span className="shrink-0 rounded-full border border-zinc-200/80 bg-white/85 px-2 py-1 text-[10px] font-semibold text-zinc-500 shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
-                        Sua aposta
+                        {viewModel.shouldRevealFeedback && option.isIncorrectSelection ? "Sua aposta" : "Aposta registrada"}
                       </span>
                     ) : null}
                   </span>

@@ -236,6 +236,12 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
     expect(screen.getByRole("button", { name: /Ganhar alcance/ })).toHaveAttribute("aria-disabled", "true");
   });
 
+  it("shows Aposta registrada when an answer is locked without answerKey feedback", () => {
+    renderStage();
+
+    expect(screen.getByText("Aposta registrada")).toBeInTheDocument();
+  });
+
   it("does not call onSelectOption again after the answer is locked", () => {
     const onSelectOption = jest.fn();
     renderStage({ onSelectOption });
@@ -486,6 +492,12 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
     });
 
     expect(screen.getByText("Sua aposta")).toBeInTheDocument();
+  });
+
+  it("does not show Aposta registrada on unselected locked options", () => {
+    renderStage();
+
+    expect(screen.getAllByText("Aposta registrada")).toHaveLength(1);
   });
 
   it("continues calling onNext after feedback appears", () => {
