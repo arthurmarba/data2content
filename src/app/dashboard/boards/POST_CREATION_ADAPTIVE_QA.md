@@ -1,34 +1,40 @@
 # QA da experiencia adaptativa do Board de Criacao de Post
 
-Este checklist valida a experiencia adaptativa antes de liberar a feature flag para teste interno real.
+Este checklist valida a experiencia adaptativa como jogo estrategico antes de liberar a feature flag para teste interno real.
 
 ## Objetivo
 
-Validar que a experiencia adaptativa aparece somente para usuarios autorizados, funciona nos fluxos principais, persiste no draft existente e nao altera o fluxo legado.
+Garantir que o fluxo adaptativo:
+
+- aparece apenas quando a feature flag ou override permitido estiver ativo;
+- transforma o input livre em quiz estrategico;
+- usa o gabarito do AnswerKey e contratos GameQuestion validos;
+- trava a resposta apos a primeira escolha;
+- mostra feedback com motivo e evidencias reais;
+- cai na tela final antiga com pauta, score, collabs, marcas e acoes;
+- nao altera endpoints, planner, eventos ou fluxo legado quando a flag esta off.
 
 ## Pre-condicoes
 
-- Rodar localmente com um usuario autenticado.
-- Ter acesso a um usuario comum e a um usuario com `role` igual a `admin` ou `dev`.
-- Confirmar que `NEXT_PUBLIC_POST_CREATION_ADAPTIVE_ENABLED` nao esta definido como `"1"` para testar a flag OFF.
+- Rodar localmente com usuario autenticado.
+- Ter um usuario comum e um usuario com `role` igual a `admin` ou `dev`.
 - Abrir o Board de Criacao de Post no dashboard.
-- Usar DevTools para inspecionar `localStorage`, Network e chamadas para drafts/eventos.
+- Usar DevTools para inspecionar `localStorage`, Network, responsividade e chamadas de draft/eventos.
+- Para testar flag OFF, confirmar que `NEXT_PUBLIC_POST_CREATION_ADAPTIVE_ENABLED` nao esta definido como `"1"`.
 
-## Como ativar em ambiente local/dev
+## Como ativar
 
-### Ativacao global
-
-Defina:
+### Env global
 
 ```bash
 NEXT_PUBLIC_POST_CREATION_ADAPTIVE_ENABLED=1
 ```
 
-Resultado esperado: a experiencia adaptativa aparece para todos os usuarios.
+Resultado esperado: a experiencia adaptativa aparece para todos os usuarios autorizados pelo fluxo atual.
 
-### Ativacao interna por query
+### Query para admin/dev
 
-Com usuario `admin` ou `dev`, abrir o board com:
+Abrir o board com:
 
 ```text
 ?adaptiveBoard=1
@@ -36,12 +42,11 @@ Com usuario `admin` ou `dev`, abrir o board com:
 
 Resultado esperado:
 
-- A secao "Nova experiencia estrategica" aparece.
-- `localStorage["d2c:postCreationAdaptiveEnabled"]` fica igual a `"1"`.
+- o board entra na experiencia adaptativa;
+- `localStorage["d2c:postCreationAdaptiveEnabled"]` fica igual a `"1"`;
+- o fluxo legado continua disponivel quando a flag/override nao estiver ativo.
 
-### Ativacao interna por localStorage
-
-Com usuario `admin` ou `dev`, executar no console:
+### LocalStorage para admin/dev
 
 ```js
 localStorage.setItem("d2c:postCreationAdaptiveEnabled", "1");
@@ -49,11 +54,11 @@ localStorage.setItem("d2c:postCreationAdaptiveEnabled", "1");
 
 Recarregar a pagina.
 
-Resultado esperado: a secao adaptativa aparece.
+Resultado esperado: a experiencia adaptativa aparece.
 
 ## Como desativar
 
-Com usuario `admin` ou `dev`, abrir o board com:
+Abrir com:
 
 ```text
 ?adaptiveBoard=0
@@ -61,14 +66,40 @@ Com usuario `admin` ou `dev`, abrir o board com:
 
 Resultado esperado:
 
-- A secao adaptativa desaparece.
-- `localStorage["d2c:postCreationAdaptiveEnabled"]` e removido.
+- o override local e removido;
+- a experiencia adaptativa deixa de aparecer;
+- o fluxo legado segue funcional.
 
 Tambem e possivel executar:
 
 ```js
 localStorage.removeItem("d2c:postCreationAdaptiveEnabled");
 ```
+
+## Regressao automatizada
+
+Rodar a bateria minima da experiencia adaptativa:
+
+```bash
+npm test -- --runInBand src/app/dashboard/boards/postCreationAdaptiveRegression.test.ts
+npm test -- --runInBand src/app/dashboard/boards/postCreationAdaptiveFeatureFlag.test.ts
+npm test -- --runInBand src/app/dashboard/boards/postCreationAdaptiveSnapshot.test.ts
+npm test -- --runInBand src/app/dashboard/boards/postCreationAdaptiveDecisionViewModel.test.ts src/app/dashboard/boards/postCreationAdaptiveAnswerKey.test.ts
+npm test -- --runInBand src/app/dashboard/boards/postCreationAdaptiveStudyContext.test.ts src/app/dashboard/boards/postCreationAdaptiveGameContract.test.ts src/app/dashboard/boards/postCreationAdaptiveQuizGameCompatibility.test.ts
+npm test -- --runInBand src/app/dashboard/boards/postCreationAdaptiveRouter.test.ts src/app/dashboard/boards/postCreationAdaptiveQuizBuilder.test.ts src/app/dashboard/boards/postCreationAdaptivePlanPresentation.test.ts
+npm test -- --runInBand src/app/dashboard/boards/components/PostCreationAdaptiveNativeQuestionStage.test.tsx src/app/dashboard/boards/components/PostCreationAdaptiveNativeFlow.test.tsx src/app/dashboard/boards/components/PostCreationAdaptiveNativePlanStage.test.tsx
+npm run typecheck
+npm run build
+```
+
+Esperado:
+
+- todos os modos geram perguntas com 4 opcoes;
+- todos os contratos GameQuestion ficam validos;
+- respostas ideais fazem score 100%;
+- respostas erradas continuam gerando feedback seguro;
+- snapshots antigos e atuais continuam normalizando;
+- feature flag e overrides continuam respeitados.
 
 ## Cenario A: flag OFF
 
@@ -80,50 +111,48 @@ Passos:
 
 Esperado:
 
-- A experiencia adaptativa nao aparece.
-- O fluxo legado continua igual.
-- Nao ha chamadas para `/api/post-creation/adaptive/start` ou `/api/post-creation/adaptive/plan`.
+- a experiencia adaptativa nao aparece;
+- o fluxo legado continua igual;
+- nao ha chamadas adaptativas iniciadas por UI escondida;
+- `?adaptiveBoard=1` ou localStorage nao habilitam a experiencia para usuario comum.
 
-## Cenario B: admin/dev ativa via query
-
-Passos:
-
-1. Entrar como `admin` ou `dev`.
-2. Abrir o board com `?adaptiveBoard=1`.
-
-Esperado:
-
-- A secao "Nova experiencia estrategica" aparece.
-- `localStorage["d2c:postCreationAdaptiveEnabled"] === "1"`.
-- O fluxo legado permanece abaixo/intacto.
-
-## Cenario C: admin/dev desativa via query
+## Cenario B: tela inicial IA
 
 Passos:
 
-1. Entrar como `admin` ou `dev`.
-2. Abrir com `?adaptiveBoard=0`.
+1. Ativar a experiencia como admin/dev.
+2. Abrir o board.
 
 Esperado:
 
-- A secao adaptativa desaparece.
-- O override local e removido.
-- O fluxo legado segue funcional.
+- a tela inicial mostra "Teste sua leitura estrategica";
+- o campo parece um composer de IA, nao um formulario comum;
+- as sugestoes prontas preenchem o campo sem submeter automaticamente;
+- o CTA principal e "Montar meu jogo estrategico".
 
-## Cenario D: usuario comum tenta ativar
+## Cenario C: format_guidance
 
-Passos:
+Inputs:
 
-1. Entrar como usuario comum.
-2. Abrir com `?adaptiveBoard=1`.
-3. Opcionalmente setar `localStorage["d2c:postCreationAdaptiveEnabled"] = "1"`.
+```text
+Quero saber qual formato usar
+Melhor reels ou carrossel?
+Qual formato usar para falar sobre skincare no verao?
+```
 
 Esperado:
 
-- A experiencia adaptativa nao aparece.
-- Usuario comum nao consegue ativar via query ou localStorage.
+- o router cai em `format_guidance`;
+- o quiz e especifico de formato;
+- toda pergunta tem exatamente 4 opcoes;
+- ao clicar em uma opcao, a resposta vira aposta final;
+- nao e possivel trocar a resposta;
+- voltar para uma pergunta respondida mostra a resposta marcada e bloqueia as demais;
+- o feedback mostra "Boa aposta" ou "Quase";
+- o feedback mostra motivo da resposta certa/errada quando GameContract estiver disponivel;
+- a final antiga comeca com "Formato recomendado".
 
-## Cenario E: fluxo validate_pauta
+## Cenario D: validate_pauta
 
 Input:
 
@@ -131,26 +160,17 @@ Input:
 Quero gravar um POV sobre minha familia fazendo barulho quando tento relaxar
 ```
 
-Passos:
-
-1. Inserir o input.
-2. Clicar em "Transformar em estrategia".
-3. Selecionar respostas do quiz.
-4. Gerar o plano 5W2H.
-5. Clicar em "Usar este plano".
-
 Esperado:
 
-- Detecta modo de validar pauta.
-- Mostra quiz.
-- Permite selecionar respostas.
-- Gera plano 5W2H.
-- Mostra botao "Usar este plano".
-- Ao usar, vai para blueprint.
-- Nao salva no planner.
-- Nao gera roteiro automatico.
+- detecta `validate_pauta`;
+- o PromptContextCard mostra "Voce perguntou";
+- o quiz mostra feedback com evidencias quando houver StudyContext;
+- a resposta trava apos selecao;
+- ao terminar, cai na tela final antiga;
+- a final comeca com "Pauta refinada";
+- salvar pauta, gerar roteiro/acoes finais e gerar outra pauta continuam visiveis conforme o fluxo antigo.
 
-## Cenario F: fluxo discover_pauta
+## Cenario E: discover_pauta
 
 Input:
 
@@ -160,131 +180,162 @@ Nao sei o que postar essa semana
 
 Esperado:
 
-- Detecta descobrir pauta.
-- Mostra quiz.
-- Gera plano.
-- Handoff leva para blueprint sem quebrar o legado.
+- detecta `discover_pauta`;
+- gera quiz e gabarito estrategico;
+- final comeca com "Pauta recomendada";
+- score nao substitui ProjectionSummaryCard, collabs, marcas ou acoes.
 
-## Cenario G: fluxo brand_match
+## Cenario F: brand_match
 
 Input:
 
 ```text
-Quero atrair marcas de skincare
+Quero atrair marcas de beleza
 ```
 
 Esperado:
 
-- Detecta match com marca.
-- Plano mostra `brandMatch`.
-- Proximas acoes incluem ver marcas ou equivalente.
-- Limitacao atual: painel real de marcas ainda nao esta acoplado ao plano adaptativo.
+- detecta `brand_match`;
+- o gabarito pode usar sinais comerciais do StudyContext;
+- final comeca com "Match de marca recomendado";
+- BrandNarrativeMatchesPanel continua aparecendo quando houver dados;
+- abrir relatorio de marca segue funcionando quando disponivel.
 
-## Cenario H: persistencia de draft
+## Cenario G: collab_match
 
-Passos:
+Input:
 
-1. Ativar a experiencia como admin/dev.
-2. Iniciar fluxo adaptativo.
-3. Responder pelo menos uma pergunta.
-4. Aguardar autosave.
-5. Recarregar a pagina.
-6. Gerar plano.
-7. Aguardar autosave.
-8. Recarregar novamente.
-
-Esperado:
-
-- Input, perguntas e respostas sao restaurados.
-- Depois de gerar plano, o plano tambem e restaurado.
-- Drafts legados sem `state.adaptive` continuam abrindo normalmente.
-
-## Cenario I: autosave
-
-Passos:
-
-1. Abrir DevTools > Network.
-2. Filtrar por `/api/post-creation/drafts`.
-3. Iniciar fluxo adaptativo e responder perguntas.
-4. Observar as chamadas.
-
-Esperado:
-
-- Ha autosave apos mudancas reais.
-- Nao ha chamadas repetitivas infinitas.
-- `updatedAt` do snapshot nao causa loop de assinatura.
-
-## Cenario J: eventos
-
-Passos:
-
-1. Iniciar fluxo.
-2. Responder pergunta.
-3. Gerar plano.
-4. Usar plano.
-5. Filtrar Network por `/api/post-creation/events`.
-
-Esperado:
-
-- Eventos fire-and-forget sao enviados para inicio, quiz, resposta, plano gerado e uso do plano.
-- Falha de evento nao quebra a experiencia.
-
-## Cenario K: reset
-
-Passos:
-
-1. Iniciar fluxo.
-2. Gerar plano.
-3. Clicar em "Criar outra estrategia".
-
-Esperado:
-
-- Experiencia adaptativa limpa input, quiz, respostas, plano e handoff.
-- Draft nao quebra.
-- Fluxo legado permanece funcional.
-
-## Cenario L: build e testes
-
-Rodar:
-
-```bash
-npm test -- --runInBand src/app/dashboard/boards/postCreationAdaptiveFeatureFlag.test.ts
-npm test -- --runInBand src/app/dashboard/boards/postCreationDraftAdaptiveState.test.ts
-npm test -- --runInBand src/app/dashboard/boards/postCreationAdaptiveSnapshot.test.ts
-npm test -- --runInBand src/app/dashboard/boards/usePostCreationAdaptiveFlow.test.tsx
-npm test -- --runInBand src/app/dashboard/boards/components/PostCreationAdaptiveComponents.test.tsx
-npm test -- --runInBand src/app/api/post-creation/events/payload.test.ts
-npm test -- --runInBand src/app/api/post-creation/adaptive/payload.test.ts
-npm test -- --runInBand src/app/dashboard/boards/postCreationAdaptiveHandoffState.test.ts
-npm test -- --runInBand src/app/dashboard/boards/postCreationAdaptiveLegacyAdapter.test.ts
-npm test -- --runInBand src/app/dashboard/boards/postCreationAdaptivePlanBuilder.test.ts
-npm test -- --runInBand src/app/dashboard/boards/postCreationAdaptiveQuizBuilder.test.ts
-npm test -- --runInBand src/app/dashboard/boards/postCreationAdaptiveRouter.test.ts
-npm run typecheck
-npm run build
+```text
+Quero uma ideia de collab
 ```
 
 Esperado:
 
-- Todos os testes passam.
-- Typecheck passa.
-- Build passa.
+- detecta `collab_match`;
+- o quiz usa decisoes de collab;
+- final comeca com "Collab recomendada";
+- CollabCreatorsCard continua aparecendo quando houver dados.
 
-## Problemas conhecidos e limitacoes
+## Cenario H: comment_to_post
 
-- O match real com marcas/collabs ainda nao esta acoplado ao plano adaptativo.
-- O handoff usa estruturas sinteticas para o fluxo legado, sem `PlannerUISlot` real.
-- A experiencia ainda nao deve ser liberada globalmente.
-- Eventos adaptativos sao registrados, mas o summary admin pode ainda nao exibir todos os novos eventos de forma dedicada.
-- O QA visual completo deve ser feito manualmente em desktop e mobile antes de liberar para usuarios internos.
+Input:
+
+```text
+Transforma esse comentario em post: como lidar com barulho em casa?
+```
+
+Esperado:
+
+- detecta `comment_to_post`;
+- o comentario original acompanha a estrategia;
+- final comeca com "Comentario transformado em pauta";
+- nao gera roteiro automaticamente.
+
+## Cenario I: weekly_plan
+
+Input:
+
+```text
+Quero organizar minha semana de conteudo
+```
+
+Esperado:
+
+- detecta `weekly_plan`;
+- o quiz orienta cadencia e intencao da semana;
+- final comeca com "Direcao semanal recomendada".
+
+## Cenario J: feedback e trava da aposta
+
+Passos:
+
+1. Responder a primeira pergunta.
+2. Tentar clicar em outra alternativa da mesma pergunta.
+3. Avancar.
+4. Voltar para a pergunta respondida.
+5. Tentar trocar a resposta.
+
+Esperado:
+
+- a primeira escolha permanece marcada;
+- as outras opcoes ficam bloqueadas, mas legiveis;
+- nenhuma nova chamada ou mutacao de resposta ocorre por clique bloqueado;
+- o botao "Proxima decisao" continua avancando;
+- a ultima pergunta continua finalizando o jogo.
+
+## Cenario K: tela final antiga
+
+Ao terminar qualquer modo, validar:
+
+- PromptContextCard com "A partir da sua pergunta", quando houver prompt;
+- PostCreationAdaptiveScoreCard compacto;
+- ProjectionSummaryCard;
+- CollabCreatorsCard;
+- BrandNarrativeMatchesPanel;
+- IdeaActionButtons;
+- salvar pauta;
+- gerar outra pauta/estrategia;
+- abrir relatorio de marca, se existir;
+- o score nao rouba protagonismo da pauta.
+
+## Cenario L: snapshot e restauracao
+
+Passos:
+
+1. Iniciar fluxo adaptativo.
+2. Responder pelo menos uma pergunta.
+3. Aguardar autosave.
+4. Recarregar a pagina.
+5. Continuar o quiz.
+6. Finalizar.
+7. Recarregar novamente, se houver plano em snapshot.
+
+Esperado:
+
+- input, detection, perguntas e respostas sao restaurados;
+- respostas ja dadas continuam travadas;
+- snapshots antigos sem campos novos continuam abrindo;
+- o contrato persistido de `answers` nao muda.
+
+## Cenario M: mobile
+
+Validar em viewport estreito:
+
+- o composer inicial nao ocupa a tela inteira;
+- opcoes do quiz ficam legiveis em uma coluna;
+- feedback com motivo/evidencias nao quebra layout;
+- CTA de proxima decisao nao fica coberto por overlay;
+- acoes finais continuam acessiveis.
+
+## Cenario N: Network e efeitos colaterais
+
+Com DevTools > Network:
+
+- cliques bloqueados nao geram chamadas extras;
+- nao ha chamada OpenAI;
+- nao ha salvamento automatico no planner;
+- nao ha geracao automatica de roteiro;
+- endpoints adaptativos existentes nao recebem contrato novo de resposta.
+
+## Limitacoes conhecidas
+
+- StudyContext ainda e client-side e usa dados ja disponiveis no board.
+- Nao ha busca direta no banco real nesta fase.
+- A experiencia nao usa IA generativa.
+- O QA de mobile/overlay pode demandar fase propria se aparecer problema visual.
+- Marcas e collabs dependem dos dados que a tela antiga ja possui.
+- O score/evidencias nao sao persistidos como entidade propria no draft nesta fase.
 
 ## Criterios de bloqueio
 
 Bloquear liberacao interna se qualquer item ocorrer:
 
-- Usuario comum consegue ativar a experiencia sem env flag global.
-- Flag OFF mostra UI adaptativa para usuario comum.
-- Autosave entra em loop.
-- Build ou typecheck quebra.
-- Handoff nao leva para blueprint.
-- Clicar "Usar este plano" salva no planner ou gera roteiro automaticamente.
+- usuario comum consegue ativar a experiencia sem permissao;
+- flag OFF mostra UI adaptativa para usuario comum;
+- qualquer modo gera pergunta fora do contrato de 4 opcoes;
+- GameQuestion invalido aparece em fluxo real;
+- resposta pode ser trocada apos selecao;
+- feedback revela gabarito antes da resposta;
+- final nao cai na tela antiga;
+- salvar pauta, collabs, marcas ou acoes finais desaparecem sem intencao;
+- build, typecheck ou bateria adaptativa quebram.
