@@ -388,6 +388,47 @@ V9C:
 - Definir cache e invalidacao por userId/periodDays.
 - Testar permissao, performance e fallback client-side.
 
+### V9C - Loader server-side bounded
+
+A V9C adiciona um loader server-side isolado:
+
+```ts
+loadPostCreationAdaptiveStudyContextFromServer(params)
+```
+
+Fontes consultadas:
+
+- `Metric`, limitado por `user`, `postDate >= cutoff`, `periodDays` e `postLimit`.
+- `AccountInsight`, ultimo registro por `user`.
+- `AudienceDemographicSnapshot`, ultimo registro por `user`.
+- `BrandNarrativeReport`, ultimos reports por `userId`.
+- `BrandProposal`, ultimas propostas por `userId`.
+- `AdDeal`, ultimos deals por `userId`.
+
+Limites defensivos:
+
+- `periodDays`: default 90, maximo 365.
+- `postLimit`: default 150, maximo 250.
+- `BrandNarrativeReport`: maximo 10.
+- `BrandProposal`: maximo 20.
+- `AdDeal`: maximo 20.
+
+Regras de seguranca:
+
+- Todas as queries usam projection explicita.
+- Todas as queries usam `.lean()`.
+- `rawData` nao entra na projection.
+- O loader converte documentos para POJOs antes de chamar o normalizador.
+- UserId invalido retorna contexto vazio seguro sem query.
+- Ainda nao existe endpoint publico.
+- Ainda nao ha conexao com Board, Shell, NativeFlow ou AnswerKey em runtime.
+
+Proximos passos:
+
+- V9D/V9E podem decidir se o loader sera exposto por endpoint interno ou chamado por rota server-side existente.
+- Antes de conectar ao produto, definir cache por `userId + periodDays` e regra de fallback para o StudyContext client-side.
+- Validar custo de query em contas grandes antes de liberar para usuarios comuns.
+
 V9D:
 
 - Usar o contexto server-side no AnswerKey/NativeFlow quando disponivel.
