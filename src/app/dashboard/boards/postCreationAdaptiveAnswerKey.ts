@@ -48,6 +48,13 @@ export type PostCreationAdaptiveAnswerEvaluation = {
   feedbackMessage: string;
   rationale: string;
   evidence: string[];
+  mapKey?: PostCreationAdaptiveQuestionMapKey | null;
+  questionTitle?: string | null;
+  selectedOptionLabel?: string | null;
+  selectedOptionReason?: string | null;
+  correctOptionLabel?: string | null;
+  correctOptionReason?: string | null;
+  correctReason?: string | null;
 };
 
 export type PostCreationAdaptiveScore = {

@@ -109,6 +109,31 @@ function normalizeOriginalPrompt(value: string | null | undefined): string | nul
   return normalized || null;
 }
 
+function enrichAdaptiveEvaluationsWithQuestions(params: {
+  evaluations: PostCreationAdaptiveAnswerEvaluation[];
+  questions: PostCreationAdaptiveQuestion[];
+}): PostCreationAdaptiveAnswerEvaluation[] {
+  return params.evaluations.map((evaluation) => {
+    const question = params.questions.find((q) => q.id === evaluation.questionId);
+    if (!question) return evaluation;
+
+    const selectedOption = question.options.find((o) => o.id === evaluation.selectedOptionId);
+    const correctOption = question.options.find((o) => o.id === evaluation.correctOptionId);
+    const gameQuestion = question as any;
+
+    return {
+      ...evaluation,
+      mapKey: question.mapKey,
+      questionTitle: question.title,
+      selectedOptionLabel: selectedOption?.label ?? null,
+      selectedOptionReason: selectedOption?.reason ?? null,
+      correctOptionLabel: correctOption?.label ?? null,
+      correctOptionReason: correctOption?.reason ?? null,
+      correctReason: gameQuestion.correctReason ?? null,
+    };
+  });
+}
+
 export default function PostCreationAdaptiveNativeFlow({
   targetUserId = null,
   initialSnapshot = null,
@@ -285,11 +310,16 @@ export default function PostCreationAdaptiveNativeFlow({
                     answers: flow.answers,
                   });
 
+                const enrichedEvaluations = enrichAdaptiveEvaluationsWithQuestions({
+                  evaluations: result.evaluations,
+                  questions: visibleQuestions,
+                });
+
                 if (onCompleteGame) {
                   onCompleteGame({
                     legacyHandoff: answerKey.legacyHandoff,
                     score: result.score,
-                    evaluations: result.evaluations,
+                    evaluations: enrichedEvaluations,
                     originalPrompt,
                     mode: flow.detection?.mode ?? null,
                     idealPlan: answerKey.idealPlan,
@@ -301,7 +331,7 @@ export default function PostCreationAdaptiveNativeFlow({
                   plan: answerKey.idealPlan,
                   legacyHandoff: answerKey.legacyHandoff,
                   score: result.score,
-                  evaluations: result.evaluations,
+                  evaluations: enrichedEvaluations,
                 });
                 return;
               }

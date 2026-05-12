@@ -208,4 +208,125 @@ describe("PostCreationAdaptiveFinalIntentSummaryCard", () => {
 
     expect(summary?.answer.length).toBeLessThanOrEqual(118);
   });
+
+  it("format_guidance shows correctOptionLabel when evaluation.mapKey === 'format'", () => {
+    const evalWithMapKey = {
+      ...formatEvaluation,
+      mapKey: "format",
+      correctOptionLabel: "Reels por mapKey",
+    };
+
+    render(
+      <PostCreationAdaptiveFinalIntentSummaryCard
+        mode="format_guidance"
+        evaluations={[evalWithMapKey]}
+      />,
+    );
+
+    expect(screen.getByText("Reels por mapKey")).toBeInTheDocument();
+  });
+
+  it("format_guidance prefers correctOptionLabel over idealPlan.format", () => {
+    render(
+      <PostCreationAdaptiveFinalIntentSummaryCard
+        mode="format_guidance"
+        idealPlan={{ ...basePlan, format: "Formato do Plano" }}
+        evaluations={[formatEvaluation]}
+      />,
+    );
+
+    expect(screen.getByText("Reels sobre meditação em rotina real com humor de situação")).toBeInTheDocument();
+    expect(screen.queryByText("Formato do Plano")).not.toBeInTheDocument();
+  });
+
+  it("format_guidance does not use selectedOptionLabel when isCorrect is false", () => {
+    const wrongEval = {
+      ...formatEvaluation,
+      isCorrect: false,
+      selectedOptionLabel: "Aposta Errada",
+      correctOptionLabel: "Caminho Certo",
+    };
+
+    render(
+      <PostCreationAdaptiveFinalIntentSummaryCard
+        mode="format_guidance"
+        evaluations={[wrongEval]}
+      />,
+    );
+
+    expect(screen.getByText("Caminho Certo")).toBeInTheDocument();
+    expect(screen.queryByText("Aposta Errada")).not.toBeInTheDocument();
+  });
+
+  it("format_guidance can use selectedOptionLabel when isCorrect is true and correctOptionLabel is missing", () => {
+    const correctEvalWithoutLabel = {
+      ...formatEvaluation,
+      correctOptionLabel: null,
+      selectedOptionLabel: "Aposta Correta",
+      isCorrect: true,
+    };
+
+    render(
+      <PostCreationAdaptiveFinalIntentSummaryCard
+        mode="format_guidance"
+        evaluations={[correctEvalWithoutLabel as any]}
+      />,
+    );
+
+    expect(screen.getByText("Aposta Correta")).toBeInTheDocument();
+  });
+
+  it("brand_match uses correctOptionLabel from mapKey brand when available", () => {
+    const brandEval = {
+      questionId: "q-brand",
+      mapKey: "brand",
+      isCorrect: true,
+      correctOptionLabel: "Marca Contextualizada",
+    } as any;
+
+    render(
+      <PostCreationAdaptiveFinalIntentSummaryCard
+        mode="brand_match"
+        evaluations={[brandEval]}
+      />,
+    );
+
+    expect(screen.getByText("Marca Contextualizada")).toBeInTheDocument();
+  });
+
+  it("collab_match uses correctOptionLabel from mapKey collab/who when available", () => {
+    const collabEval = {
+      questionId: "q-collab",
+      mapKey: "collab",
+      isCorrect: true,
+      correctOptionLabel: "Collab Contextualizada",
+    } as any;
+
+    render(
+      <PostCreationAdaptiveFinalIntentSummaryCard
+        mode="collab_match"
+        evaluations={[collabEval]}
+      />,
+    );
+
+    expect(screen.getByText("Collab Contextualizada")).toBeInTheDocument();
+  });
+
+  it("weekly_plan uses correctOptionLabel from mapKey schedule when available", () => {
+    const scheduleEval = {
+      questionId: "q-schedule",
+      mapKey: "schedule",
+      isCorrect: true,
+      correctOptionLabel: "Agenda Contextualizada",
+    } as any;
+
+    render(
+      <PostCreationAdaptiveFinalIntentSummaryCard
+        mode="weekly_plan"
+        evaluations={[scheduleEval]}
+      />,
+    );
+
+    expect(screen.getByText("Agenda Contextualizada")).toBeInTheDocument();
+  });
 });

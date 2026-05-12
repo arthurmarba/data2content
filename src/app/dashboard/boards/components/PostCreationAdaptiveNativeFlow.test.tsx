@@ -1380,4 +1380,93 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     fireEvent.click(button);
     expect(onUsePlan).not.toHaveBeenCalled();
   });
+
+  it("onCompleteGame receives evaluations with correctOptionLabel and mapKey", () => {
+    const onCompleteGame = jest.fn();
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: answerFixtures,
+    });
+
+    render(
+      <PostCreationAdaptiveNativeFlow
+        initialSnapshot={snapshotFixture({ answers: [answerFixtures[0]!] })}
+        onCompleteGame={onCompleteGame}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
+
+    expect(onCompleteGame).toHaveBeenCalledWith(expect.objectContaining({
+      evaluations: expect.arrayContaining([
+        expect.objectContaining({
+          questionId: "q-brand",
+          mapKey: "brand",
+          correctOptionLabel: "Beleza/autocuidado",
+          selectedOptionLabel: "Beleza/autocuidado",
+        }),
+      ]),
+    }));
+  });
+
+  it("onCompleteGame continues pointing correctOptionLabel even when user misses", () => {
+    const onCompleteGame = jest.fn();
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [
+        answerFixtures[0]!,
+        {
+          questionId: "q-format",
+          key: "format",
+          optionId: "stories",
+          value: "Stories",
+        },
+      ],
+    });
+
+    render(
+      <PostCreationAdaptiveNativeFlow
+        initialSnapshot={snapshotFixture({ answers: [answerFixtures[0]!] })}
+        onCompleteGame={onCompleteGame}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
+
+    expect(onCompleteGame).toHaveBeenCalledWith(expect.objectContaining({
+      evaluations: expect.arrayContaining([
+        expect.objectContaining({
+          questionId: "q-format",
+          isCorrect: false,
+          correctOptionLabel: "Reels",
+          selectedOptionLabel: "Stories",
+        }),
+      ]),
+    }));
+  });
+
+  it("does not break without GameQuestions", () => {
+    const onCompleteGame = jest.fn();
+    mockFlow({
+      status: "quiz",
+      detection: null,
+      questions: questionFixtures,
+      answers: answerFixtures,
+    });
+
+    render(
+      <PostCreationAdaptiveNativeFlow
+        initialSnapshot={snapshotFixture({ answers: [answerFixtures[0]!] })}
+        onCompleteGame={onCompleteGame}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
+
+    expect(onCompleteGame).toHaveBeenCalledTimes(0);
+  });
 });

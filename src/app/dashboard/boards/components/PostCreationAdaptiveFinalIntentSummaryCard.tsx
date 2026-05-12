@@ -75,13 +75,24 @@ function readRecordString(value: unknown, keys: string[]): string | null {
 function findEvaluationAnswer(
   evaluations: PostCreationAdaptiveAnswerEvaluation[] | undefined,
   questionPattern: RegExp,
+  mapKey?: string | null,
 ): string | null {
-  const evaluation = (evaluations ?? []).find((item) => questionPattern.test(item.questionId));
+  const list = evaluations ?? [];
+  const evaluation = list.find((item) =>
+    (mapKey && item.mapKey === mapKey) || questionPattern.test(item.questionId),
+  );
+
   if (!evaluation) return null;
 
+  const correct = cleanShortText(evaluation.correctOptionLabel);
+  if (correct) return correct;
+
+  if (evaluation.isCorrect) {
+    const selected = cleanShortText(evaluation.selectedOptionLabel);
+    if (selected) return selected;
+  }
+
   return readRecordString(evaluation, [
-    "correctOptionLabel",
-    "selectedOptionLabel",
     "answerLabel",
     "optionLabel",
     "label",
@@ -111,7 +122,7 @@ function hasMinimumData(params: ResolveAdaptiveFinalIntentSummaryParams): boolea
 
 function resolveFormatAnswer(params: ResolveAdaptiveFinalIntentSummaryParams): string {
   return firstNonEmpty(
-    findEvaluationAnswer(params.evaluations, /format/i),
+    findEvaluationAnswer(params.evaluations, /format/i, "format"),
     params.idealPlan?.format,
     readRecordString(params.blueprint, ["formatLabel", "format"]),
     readRecordString(params.decision, ["formatLabel", "format"]),
@@ -124,6 +135,7 @@ function resolveFormatAnswer(params: ResolveAdaptiveFinalIntentSummaryParams): s
 
 function resolveBrandAnswer(params: ResolveAdaptiveFinalIntentSummaryParams): string {
   return firstNonEmpty(
+    findEvaluationAnswer(params.evaluations, /brand/i, "brand"),
     params.idealPlan?.brandMatch?.category
       ? `Marca em ${params.idealPlan.brandMatch.category}`
       : null,
@@ -135,6 +147,8 @@ function resolveBrandAnswer(params: ResolveAdaptiveFinalIntentSummaryParams): st
 
 function resolveCollabAnswer(params: ResolveAdaptiveFinalIntentSummaryParams): string {
   return firstNonEmpty(
+    findEvaluationAnswer(params.evaluations, /collab|who/i, "collab"),
+    findEvaluationAnswer(params.evaluations, /collab|who/i, "who"),
     params.idealPlan?.collabMatch?.creatorProfile,
     params.idealPlan?.collabMatch?.collaborationAngle,
     params.idea?.title,
@@ -189,7 +203,10 @@ export function resolveAdaptiveFinalIntentSummary(
     return {
       eyebrow: "Resposta da sua pergunta",
       title: "Resposta que vira conteúdo",
-      answer: "Transforme o comentário em uma pauta com gancho, narrativa e CTA claros.",
+      answer: firstNonEmpty(
+        findEvaluationAnswer(params.evaluations, /format/i, "format"),
+        findEvaluationAnswer(params.evaluations, /why/i, "why"),
+      ) || "Transforme o comentário em uma pauta com gancho, narrativa e CTA claros.",
       supportingText: "O comentário vira ponto de partida para uma pauta que continua a conversa da audiência.",
       chips: ["Comentário", "Gancho", "CTA"],
     };
@@ -199,7 +216,10 @@ export function resolveAdaptiveFinalIntentSummary(
     return {
       eyebrow: "Resposta da sua pergunta",
       title: "Direção da semana",
-      answer: "Plano orientado pela cadência e pelos sinais de conteúdo mais fortes.",
+      answer: firstNonEmpty(
+        findEvaluationAnswer(params.evaluations, /schedule/i, "schedule"),
+        findEvaluationAnswer(params.evaluations, /format/i, "format"),
+      ) || "Plano orientado pela cadência e pelos sinais de conteúdo mais fortes.",
       supportingText: "A semana fica mais clara quando cada pauta tem função, formato e janela de publicação.",
       chips: ["Cadência", "Formato", "Ação"],
     };
