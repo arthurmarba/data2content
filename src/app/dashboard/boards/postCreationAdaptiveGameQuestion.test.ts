@@ -562,6 +562,218 @@ describe("postCreationAdaptiveGameQuestion", () => {
     expect(validatePostCreationAdaptiveGameQuestion(gameQuestion).ok).toBe(true);
   });
 
+  it("uses topThemeKeywords before topThemes and caption signals in format labels", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "reels", label: "Reels", score: 100, evidenceCount: 5, reason: "Forte em alcance." },
+          { id: "carousel", label: "Carrossel", score: 90, evidenceCount: 4, reason: "Forte em salvamento." },
+          { id: "stories", label: "Stories", score: 80, evidenceCount: 3, reason: "Forte em conversa." },
+          { id: "photo", label: "Foto", score: 70, evidenceCount: 2, reason: "Forte em legenda." },
+        ],
+        topThemeKeywords: [
+          { id: "meditation", label: "Meditação", score: 100, evidenceCount: 5, reason: "Recorrente." },
+        ],
+        topThemes: [
+          { id: "beach", label: "Praia", score: 90, evidenceCount: 4, reason: "Recorrente." },
+        ],
+        topCaptionSignals: [
+          { id: "sleep", label: "Sono", score: 80, evidenceCount: 3, reason: "Recorrente." },
+        ],
+        topNarratives: [
+          { id: "humor_scene", label: "Humor de situação", score: 95, evidenceCount: 4, reason: "Recorrente." },
+        ],
+        topContexts: [
+          { id: "routine", label: "Rotina real", score: 90, evidenceCount: 4, reason: "Recorrente." },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.options[0]?.label).toBe("Reels sobre meditação em rotina real com humor de situação");
+    expect(gameQuestion.options[0]?.label).not.toContain("praia");
+    expect(gameQuestion.options[0]?.label).not.toContain("sono");
+    expect(gameQuestion.evidence).toContain("Palavra forte nas legendas: meditação");
+    expect(validatePostCreationAdaptiveGameQuestion(gameQuestion).ok).toBe(true);
+  });
+
+  it("uses topThemes when theme keywords are absent", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "reels", label: "Reels", score: 100, evidenceCount: 5, reason: "Forte em alcance." },
+          { id: "carousel", label: "Carrossel", score: 90, evidenceCount: 4, reason: "Forte em salvamento." },
+          { id: "stories", label: "Stories", score: 80, evidenceCount: 3, reason: "Forte em conversa." },
+          { id: "photo", label: "Foto", score: 70, evidenceCount: 2, reason: "Forte em legenda." },
+        ],
+        topThemes: [
+          { id: "beach", label: "Praia", score: 90, evidenceCount: 4, reason: "Recorrente." },
+        ],
+        topNarratives: [
+          { id: "routine", label: "Rotina real", score: 90, evidenceCount: 4, reason: "Recorrente." },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.options[0]?.label).toBe("Reels sobre praia com rotina real");
+    expect(gameQuestion.evidence).toContain("Tema recorrente: praia");
+  });
+
+  it("uses caption signals when theme keywords and themes are absent", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "stories", label: "Stories", score: 100, evidenceCount: 5, reason: "Forte em conversa." },
+          { id: "reels", label: "Reels", score: 90, evidenceCount: 4, reason: "Forte em alcance." },
+          { id: "carousel", label: "Carrossel", score: 80, evidenceCount: 3, reason: "Forte em salvamento." },
+          { id: "photo", label: "Foto", score: 70, evidenceCount: 2, reason: "Forte em legenda." },
+        ],
+        topCaptionSignals: [
+          { id: "sleep", label: "Sono", score: 80, evidenceCount: 3, reason: "Recorrente." },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.options[0]?.label).toBe("Stories sobre sono para testar conversa rápida");
+    expect(gameQuestion.evidence).toContain("Palavra forte nas legendas: sono");
+  });
+
+  it("ignores weak generic themes when composing labels", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "reels", label: "Reels", score: 100, evidenceCount: 5, reason: "Forte em alcance." },
+          { id: "carousel", label: "Carrossel", score: 90, evidenceCount: 4, reason: "Forte em salvamento." },
+          { id: "stories", label: "Stories", score: 80, evidenceCount: 3, reason: "Forte em conversa." },
+          { id: "photo", label: "Foto", score: 70, evidenceCount: 2, reason: "Forte em legenda." },
+        ],
+        topThemeKeywords: [
+          { id: "content", label: "conteúdo", score: 100, evidenceCount: 5, reason: "Genérico." },
+        ],
+        topThemes: [
+          { id: "reels", label: "reels", score: 90, evidenceCount: 4, reason: "Genérico." },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.options[0]?.label).toBe("Reels com cena e ritmo do seu conteúdo");
+    expect(gameQuestion.options[0]?.label).not.toContain("sobre conteúdo");
+    expect(gameQuestion.evidence.some((item) => item.includes("conteúdo"))).toBe(false);
+  });
+
+  it("builds themed carousel, stories, and photo labels from StudyContext", () => {
+    const themedBase = {
+      topThemeKeywords: [
+        { id: "work", label: "Trabalho", score: 100, evidenceCount: 5, reason: "Recorrente." },
+      ],
+    };
+    const carouselQuestion = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        ...themedBase,
+        topFormats: [
+          { id: "carousel", label: "Carrossel", score: 100, evidenceCount: 5, reason: "Forte em salvamento." },
+          { id: "reels", label: "Reels", score: 90, evidenceCount: 4, reason: "Forte em alcance." },
+          { id: "stories", label: "Stories", score: 80, evidenceCount: 3, reason: "Forte em conversa." },
+          { id: "photo", label: "Foto", score: 70, evidenceCount: 2, reason: "Forte em legenda." },
+        ],
+        topProposals: [
+          { id: "tips", label: "Dica prática", score: 90, evidenceCount: 4, reason: "Recorrente." },
+        ],
+        topEngagementDrivers: [
+          { id: "saves", label: "Salvamentos", score: 95, evidenceCount: 5, reason: "Recorrente." },
+        ],
+      }),
+    });
+    const storiesQuestion = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        ...themedBase,
+        topFormats: [
+          { id: "stories", label: "Stories", score: 100, evidenceCount: 5, reason: "Forte em conversa." },
+          { id: "reels", label: "Reels", score: 90, evidenceCount: 4, reason: "Forte em alcance." },
+          { id: "carousel", label: "Carrossel", score: 80, evidenceCount: 3, reason: "Forte em salvamento." },
+          { id: "photo", label: "Foto", score: 70, evidenceCount: 2, reason: "Forte em legenda." },
+        ],
+        topEngagementDrivers: [
+          { id: "comments", label: "Comentários", score: 95, evidenceCount: 5, reason: "Recorrente." },
+        ],
+      }),
+    });
+    const photoQuestion = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        ...themedBase,
+        topFormats: [
+          { id: "photo", label: "Foto", score: 100, evidenceCount: 5, reason: "Forte em legenda." },
+          { id: "reels", label: "Reels", score: 90, evidenceCount: 4, reason: "Forte em alcance." },
+          { id: "carousel", label: "Carrossel", score: 80, evidenceCount: 3, reason: "Forte em salvamento." },
+          { id: "stories", label: "Stories", score: 70, evidenceCount: 2, reason: "Forte em conversa." },
+        ],
+        topContexts: [
+          { id: "routine", label: "Rotina", score: 90, evidenceCount: 4, reason: "Recorrente." },
+        ],
+      }),
+    });
+
+    expect(carouselQuestion.options[0]?.label).toBe("Carrossel sobre trabalho para organizar dica prática com potencial de salvamento");
+    expect(storiesQuestion.options[0]?.label).toBe("Stories sobre trabalho para testar conversa com a audiência");
+    expect(photoQuestion.options[0]?.label).toBe("Foto com legenda opinativa sobre trabalho e rotina");
+  });
+
+  it("uses theme in narrative, context, proposal, objective, and cta labels", () => {
+    const themedStudyContext = studyContext({
+      topThemeKeywords: [
+        { id: "meditation", label: "Meditação", score: 100, evidenceCount: 5, reason: "Recorrente." },
+      ],
+      topContexts: [
+        { id: "home", label: "Casa", score: 90, evidenceCount: 4, reason: "Recorrente." },
+      ],
+      topNarratives: [
+        { id: "humor", label: "Humor de situação", score: 80, evidenceCount: 3, reason: "Recorrente." },
+      ],
+      topProposals: [
+        { id: "tips", label: "Dica prática", score: 70, evidenceCount: 2, reason: "Recorrente." },
+      ],
+      topEngagementDrivers: [
+        { id: "comments", label: "Comentários", score: 90, evidenceCount: 4, reason: "Recorrente." },
+        { id: "saves", label: "Salvamentos", score: 80, evidenceCount: 3, reason: "Recorrente." },
+      ],
+    });
+    const narrativeQuestion = buildFirstGameQuestion({
+      inputQuestion: question([option("humor", "Humor de situação")], { mapKey: "narrative" }),
+      inputAnswerKey: { ...answerKey("humor"), correctAnswersByQuestionId: { "game-question": "humor" } },
+      inputStudyContext: themedStudyContext,
+    });
+    const contextQuestion = buildFirstGameQuestion({
+      inputQuestion: question([option("home", "Casa")], { mapKey: "where" }),
+      inputAnswerKey: { ...answerKey("home"), correctAnswersByQuestionId: { "game-question": "home" } },
+      inputStudyContext: themedStudyContext,
+    });
+    const proposalQuestion = buildFirstGameQuestion({
+      inputQuestion: question([option("tips", "Dica prática")], { mapKey: "what" }),
+      inputAnswerKey: { ...answerKey("tips"), correctAnswersByQuestionId: { "game-question": "tips" } },
+      inputStudyContext: themedStudyContext,
+    });
+    const objectiveQuestion = buildFirstGameQuestion({
+      inputQuestion: question([option("comments", "Comentários")], { mapKey: "objective" }),
+      inputAnswerKey: { ...answerKey("comments"), correctAnswersByQuestionId: { "game-question": "comments" } },
+      inputStudyContext: themedStudyContext,
+    });
+    const ctaQuestion = buildFirstGameQuestion({
+      inputQuestion: question([option("saves", "Salvamentos")], { mapKey: "cta" }),
+      inputAnswerKey: { ...answerKey("saves"), correctAnswersByQuestionId: { "game-question": "saves" } },
+      inputStudyContext: studyContext({
+        ...themedStudyContext,
+        topEngagementDrivers: [
+          { id: "saves", label: "Salvamentos", score: 90, evidenceCount: 4, reason: "Recorrente." },
+        ],
+      }),
+    });
+
+    expect(narrativeQuestion.options[0]?.label).toBe("Humor de situação sobre meditação em casa");
+    expect(contextQuestion.options[0]?.label).toBe("Casa com tema de meditação e humor de situação reconhecível");
+    expect(proposalQuestion.options[0]?.label).toBe("Dica prática sobre meditação");
+    expect(objectiveQuestion.options[0]?.label).toBe("Comentário a partir de meditação em casa");
+    expect(ctaQuestion.options[0]?.label).toBe("Salvamento para dica sobre meditação");
+  });
+
   it("uses topFormats as distractors when enough StudyContext signals exist", () => {
     const gameQuestion = buildFirstGameQuestion({
       inputStudyContext: studyContext({
@@ -694,6 +906,64 @@ describe("postCreationAdaptiveGameQuestion", () => {
 
     expect(gameQuestion.correctReason).toContain("cruza formato, narrativa e contexto");
     expect(gameQuestion.correctReason).toContain("sinal de engajamento");
+    expect(gameQuestion.correctReason).not.toContain("tema recorrente");
+  });
+
+  it("uses theme in correctReason when a strong theme exists", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "reels", label: "Reels", score: 100, evidenceCount: 5, reason: "Forte em alcance." },
+          { id: "carousel", label: "Carrossel", score: 90, evidenceCount: 4, reason: "Forte em salvamento." },
+          { id: "stories", label: "Stories", score: 80, evidenceCount: 3, reason: "Forte em conversa." },
+          { id: "photo", label: "Foto", score: 70, evidenceCount: 2, reason: "Forte em legenda." },
+        ],
+        topThemeKeywords: [
+          { id: "meditation", label: "Meditação", score: 100, evidenceCount: 5, reason: "Recorrente." },
+        ],
+        topNarratives: [
+          { id: "routine", label: "Rotina real", score: 90, evidenceCount: 4, reason: "Recorrente." },
+        ],
+        topContexts: [
+          { id: "home", label: "Casa", score: 80, evidenceCount: 3, reason: "Recorrente." },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.correctReason).toContain("tema recorrente, formato, narrativa e contexto");
+  });
+
+  it("keeps evidence limited when theme and reference post are available", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputAnswerKey: answerKey("carousel", [
+        "Formato forte: Carrossel",
+        "Sinal de engajamento: salvamentos",
+        "Racional extra do gabarito",
+      ]),
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "carousel", label: "Carrossel", score: 90, evidenceCount: 4, reason: "Forte em salvamento." },
+        ],
+        topThemeKeywords: [
+          { id: "beach", label: "Praia", score: 90, evidenceCount: 4, reason: "Recorrente." },
+        ],
+        referencePosts: [
+          {
+            id: "post-1",
+            title: "Checklist de rotina para organizar a semana",
+            interactions: 1200,
+            reason: "Post usado como referência.",
+          },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.evidence).toHaveLength(3);
+    expect(gameQuestion.evidence).toEqual([
+      "Formato forte: Carrossel",
+      "Sinal de engajamento: salvamentos",
+      "Racional extra do gabarito",
+    ]);
   });
 
   it("adds referencePost evidence only when a reference post exists", () => {

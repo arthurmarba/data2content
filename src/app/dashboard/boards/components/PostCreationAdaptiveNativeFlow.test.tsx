@@ -135,6 +135,7 @@ const studyContextFixture = buildPostCreationAdaptiveStudyContext({
       format: "Stories",
       categories: { context: ["Casa"], proposal: ["Conversa"] },
       narrativeForm: ["Rotina real"],
+      themeKeyword: "Meditação",
       contentSignals: ["Comentários"],
       comments: 90,
       evidenceCount: 3,
@@ -435,8 +436,8 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     render(<PostCreationAdaptiveNativeFlow studyContext={studyContextFixture} />);
 
-    expect(screen.getByRole("button", { name: /Stories para testar conversa com a audiência/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Reels com casa e rotina real/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Stories sobre meditação para testar conversa com a audiência/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Reels sobre meditação em casa com rotina real/ })).toBeInTheDocument();
     expect(screen.getAllByRole("button").filter((button) => button.hasAttribute("aria-pressed"))).toHaveLength(4);
   });
 

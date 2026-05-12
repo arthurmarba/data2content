@@ -45,6 +45,14 @@ type StudyContextOptionDescriptor = {
   reason: string;
 };
 
+type StudyContextThemeSource = "themeKeyword" | "theme" | "captionSignal";
+
+type StudyContextThemeMatch = {
+  signal: PostCreationAdaptiveStudySignal;
+  source: StudyContextThemeSource;
+  phrase: string;
+};
+
 const FALLBACK_DISTRACTOR_REASON =
   "Pode funcionar em outro contexto, mas nao e a aposta principal aqui.";
 
@@ -102,6 +110,23 @@ const GENERIC_FALLBACK_OPTIONS = [
   { id: "fallback-generic-commercial", label: "Caminho comercial", reason: "Testa encaixe de marca sem forcar a pauta." },
 ];
 
+const WEAK_THEME_TERMS = new Set([
+  "conteudo",
+  "video",
+  "reels",
+  "post",
+  "story",
+  "stories",
+  "dica",
+  "dicas",
+  "tutorial",
+  "humor",
+  "trend",
+  "publicidade",
+  "publi",
+  "rotina",
+]);
+
 const CORRECT_REASON_BY_MAP_KEY: Partial<Record<PostCreationAdaptiveQuestionMapKey, string>> = {
   objective: "A resposta foi definida pelo gabarito estrategico da reacao que o conteudo precisa provocar.",
   format: "A resposta foi definida pelo gabarito estrategico do formato mais alinhado a esta pauta.",
@@ -142,6 +167,11 @@ function displayFragment(value?: string | null, maxLength = 32): string | null {
   const cleaned = cleanText(value);
   if (!cleaned) return null;
   return shortenText(cleaned, maxLength).toLocaleLowerCase("pt-BR");
+}
+
+function isWeakThemePhrase(value?: string | null): boolean {
+  const normalized = normalizeText(value);
+  return !normalized || WEAK_THEME_TERMS.has(normalized);
 }
 
 function compactEvidence(evidence: Array<string | null | undefined>): string[] {
@@ -200,6 +230,43 @@ function getPrimaryEngagementDriver(studyContext?: PostCreationAdaptiveStudyCont
 
 function getPrimaryReferencePost(studyContext?: PostCreationAdaptiveStudyContext | null) {
   return studyContext?.referencePosts.find((post) => cleanText(post.title)) || null;
+}
+
+function firstStrongThemeSignal(
+  signals: PostCreationAdaptiveStudySignal[] | undefined,
+  source: StudyContextThemeSource,
+): StudyContextThemeMatch | null {
+  const signal = signals?.find((candidate) => {
+    const phrase = cleanText(candidate.label);
+    return Boolean(phrase && !isWeakThemePhrase(phrase));
+  });
+  const phrase = displayFragment(signal?.label, 36);
+  return signal && phrase ? { signal, source, phrase } : null;
+}
+
+function getPrimaryThemeKeywordSignal(studyContext?: PostCreationAdaptiveStudyContext | null): StudyContextThemeMatch | null {
+  return firstStrongThemeSignal(studyContext?.topThemeKeywords, "themeKeyword");
+}
+
+function getPrimaryThemeSignal(studyContext?: PostCreationAdaptiveStudyContext | null): StudyContextThemeMatch | null {
+  return firstStrongThemeSignal(studyContext?.topThemes, "theme");
+}
+
+function getPrimaryCaptionSignal(studyContext?: PostCreationAdaptiveStudyContext | null): StudyContextThemeMatch | null {
+  return firstStrongThemeSignal(studyContext?.topCaptionSignals, "captionSignal");
+}
+
+function getPrimaryThemePhrase(studyContext?: PostCreationAdaptiveStudyContext | null): StudyContextThemeMatch | null {
+  return getPrimaryThemeKeywordSignal(studyContext)
+    || getPrimaryThemeSignal(studyContext)
+    || getPrimaryCaptionSignal(studyContext);
+}
+
+function buildThemeEvidence(studyContext?: PostCreationAdaptiveStudyContext | null): string | null {
+  const theme = getPrimaryThemePhrase(studyContext);
+  if (!theme) return null;
+  if (theme.source === "theme") return `Tema recorrente: ${theme.phrase}`;
+  return `Palavra forte nas legendas: ${theme.phrase}`;
 }
 
 function hasAnyTerm(value: string, terms: string[]): boolean {
@@ -280,60 +347,96 @@ function buildStudyContextOptionDescriptor(params: {
   const context = getPrimaryContextSignal(params.studyContext);
   const proposal = getPrimaryProposalSignal(params.studyContext);
   const engagementDriver = getPrimaryEngagementDriver(params.studyContext);
+  const theme = getPrimaryThemePhrase(params.studyContext);
   const narrativeLabel = displayFragment(narrative?.label);
   const contextLabel = displayFragment(context?.label);
   const proposalLabel = displayFragment(proposal?.label);
+  const themeLabel = theme?.phrase || null;
   const signalLabel = cleanText(params.signal.label) || "Sinal do seu conteúdo";
 
   if (params.mapKey === "format") {
     const kind = formatKind(params.signal);
     if (kind === "reels") {
       return {
-        label: narrativeLabel && contextLabel
-          ? `Reels com ${contextLabel} e ${narrativeLabel}`
-          : narrativeLabel
-            ? `Reels com ${narrativeLabel}`
-            : contextLabel
-              ? `Reels em ${contextLabel}`
-              : "Reels com cena e ritmo do seu conteúdo",
-        reason: narrativeLabel || contextLabel
-          ? "Combina formato forte do histórico com contexto/narrativa que aparecem nos seus conteúdos."
-          : "Boa alternativa quando a força está em cena, ritmo ou reação.",
+        label: themeLabel && narrativeLabel && contextLabel
+          ? `Reels sobre ${themeLabel} em ${contextLabel} com ${narrativeLabel}`
+          : themeLabel && narrativeLabel
+            ? `Reels sobre ${themeLabel} com ${narrativeLabel}`
+            : themeLabel && contextLabel
+              ? `Reels sobre ${themeLabel} em ${contextLabel}`
+              : themeLabel
+                ? `Reels sobre ${themeLabel} com cena e ritmo do seu conteúdo`
+                : narrativeLabel && contextLabel
+                  ? `Reels com ${contextLabel} e ${narrativeLabel}`
+                  : narrativeLabel
+                    ? `Reels com ${narrativeLabel}`
+                    : contextLabel
+                      ? `Reels em ${contextLabel}`
+                      : "Reels com cena e ritmo do seu conteúdo",
+        reason: themeLabel
+          ? "Cruza tema recorrente das legendas com formato, contexto e narrativa presentes nos sinais do seu conteúdo."
+          : narrativeLabel || contextLabel
+            ? "Combina formato forte do histórico com contexto/narrativa que aparecem nos seus conteúdos."
+            : "Boa alternativa quando a força está em cena, ritmo ou reação.",
       };
     }
 
     if (kind === "carousel") {
       return {
-        label: proposalLabel && isSaveSignal(engagementDriver)
-          ? `Carrossel para organizar ${proposalLabel} com potencial de salvamento`
-          : proposalLabel
-            ? `Carrossel para organizar ${proposalLabel}`
-            : isSaveSignal(engagementDriver)
-              ? "Carrossel para consulta e salvamento"
-              : "Carrossel para estruturar uma ideia consultável",
-        reason: "É uma alternativa quando a ideia precisa virar consulta, lista ou passo a passo.",
+        label: themeLabel && proposalLabel && isSaveSignal(engagementDriver)
+          ? `Carrossel sobre ${themeLabel} para organizar ${proposalLabel} com potencial de salvamento`
+          : themeLabel && proposalLabel
+            ? `Carrossel sobre ${themeLabel} para organizar ${proposalLabel}`
+            : themeLabel && isSaveSignal(engagementDriver)
+              ? `Carrossel sobre ${themeLabel} para consulta e salvamento`
+              : themeLabel
+                ? `Carrossel sobre ${themeLabel} para estruturar uma ideia consultável`
+                : proposalLabel && isSaveSignal(engagementDriver)
+                  ? `Carrossel para organizar ${proposalLabel} com potencial de salvamento`
+                  : proposalLabel
+                    ? `Carrossel para organizar ${proposalLabel}`
+                    : isSaveSignal(engagementDriver)
+                      ? "Carrossel para consulta e salvamento"
+                      : "Carrossel para estruturar uma ideia consultável",
+        reason: themeLabel
+          ? "Usa um tema recorrente para transformar a pauta em consulta, lista ou passo a passo."
+          : "É uma alternativa quando a ideia precisa virar consulta, lista ou passo a passo.",
       };
     }
 
     if (kind === "stories") {
       return {
-        label: isCommentSignal(engagementDriver)
-          ? "Stories para testar conversa com a audiência"
-          : contextLabel
-            ? `Stories para testar conversa sobre ${contextLabel}`
-            : "Stories para testar conversa rápida",
-        reason: "Boa alternativa quando o objetivo é sentir reação antes de transformar em post principal.",
+        label: themeLabel && isCommentSignal(engagementDriver)
+          ? `Stories sobre ${themeLabel} para testar conversa com a audiência`
+            : themeLabel && contextLabel
+              ? `Stories sobre ${themeLabel} para testar conversa em ${contextLabel}`
+              : themeLabel
+                ? `Stories sobre ${themeLabel} para testar conversa rápida`
+                : isCommentSignal(engagementDriver)
+                  ? "Stories para testar conversa com a audiência"
+                  : contextLabel
+                    ? `Stories para testar conversa sobre ${contextLabel}`
+                    : "Stories para testar conversa rápida",
+        reason: themeLabel
+          ? "Boa alternativa quando o tema pode virar resposta rápida antes de um post principal."
+          : "Boa alternativa quando o objetivo é sentir reação antes de transformar em post principal.",
       };
     }
 
     if (kind === "photo") {
       return {
-        label: contextLabel
-          ? `Foto com legenda opinativa sobre ${contextLabel}`
-          : narrativeLabel
-            ? `Foto com legenda opinativa em ${narrativeLabel}`
-            : "Foto com legenda opinativa sobre contexto recorrente",
-        reason: "Depende mais de texto e ponto de vista do que de cena ou movimento.",
+        label: themeLabel && contextLabel
+          ? `Foto com legenda opinativa sobre ${themeLabel} e ${contextLabel}`
+          : themeLabel
+            ? `Foto com legenda opinativa sobre ${themeLabel}`
+            : contextLabel
+              ? `Foto com legenda opinativa sobre ${contextLabel}`
+              : narrativeLabel
+                ? `Foto com legenda opinativa em ${narrativeLabel}`
+                : "Foto com legenda opinativa sobre contexto recorrente",
+        reason: themeLabel
+          ? "Depende mais de texto, ponto de vista e tema reconhecível do que de cena ou movimento."
+          : "Depende mais de texto e ponto de vista do que de cena ou movimento.",
       };
     }
 
@@ -345,21 +448,33 @@ function buildStudyContextOptionDescriptor(params: {
 
   if (params.mapKey === "narrative") {
     return {
-      label: contextLabel
-        ? `${signalLabel} em contexto de ${contextLabel}`
-        : proposalLabel
-          ? `${signalLabel} com ${proposalLabel}`
-          : `${signalLabel}, narrativa que aparece nos seus posts`,
-      reason: "Cruza forma narrativa com sinais recorrentes do seu conteúdo.",
+      label: themeLabel && contextLabel
+        ? `${signalLabel} sobre ${themeLabel} em ${contextLabel}`
+        : themeLabel
+          ? `${signalLabel} sobre ${themeLabel}`
+          : contextLabel
+            ? `${signalLabel} em contexto de ${contextLabel}`
+            : proposalLabel
+              ? `${signalLabel} com ${proposalLabel}`
+              : `${signalLabel}, narrativa que aparece nos seus posts`,
+      reason: themeLabel
+        ? "Ancora a forma narrativa em um assunto recorrente do seu conteúdo."
+        : "Cruza forma narrativa com sinais recorrentes do seu conteúdo.",
     };
   }
 
   if (params.mapKey === "where") {
     return {
-      label: narrativeLabel
-        ? `${signalLabel} com ${narrativeLabel} reconhecível`
-        : `${signalLabel}, contexto presente nos posts de referência`,
-      reason: "Usa um território que aparece nos sinais analisados.",
+      label: themeLabel && narrativeLabel
+        ? `${signalLabel} com tema de ${themeLabel} e ${narrativeLabel} reconhecível`
+        : themeLabel
+          ? `${signalLabel} como contexto reconhecível para ${themeLabel}`
+          : narrativeLabel
+            ? `${signalLabel} com ${narrativeLabel} reconhecível`
+            : `${signalLabel}, contexto presente nos posts de referência`,
+      reason: themeLabel
+        ? "Usa um território recorrente para dar corpo ao tema da pauta."
+        : "Usa um território que aparece nos sinais analisados.",
     };
   }
 
@@ -367,29 +482,41 @@ function buildStudyContextOptionDescriptor(params: {
     const format = getPrimaryFormatSignal(params.studyContext);
     const formatLabel = displayFragment(format?.label);
     return {
-      label: formatLabel
-        ? `${signalLabel} em formato ${formatLabel}`
-        : `${signalLabel}, proposta recorrente no seu conteúdo`,
-      reason: "Transforma uma proposta recorrente em uma decisão mais fácil de executar.",
+      label: themeLabel
+        ? `${signalLabel} sobre ${themeLabel}`
+        : formatLabel
+          ? `${signalLabel} em formato ${formatLabel}`
+          : `${signalLabel}, proposta recorrente no seu conteúdo`,
+      reason: themeLabel
+        ? "Transforma um assunto recorrente em uma proposta mais concreta."
+        : "Transforma uma proposta recorrente em uma decisão mais fácil de executar.",
     };
   }
 
   if (params.mapKey === "objective" || params.mapKey === "cta") {
     if (isCommentSignal(params.signal)) {
       return {
-        label: "Comentário a partir de situação reconhecível",
+        label: themeLabel && contextLabel
+          ? `Comentário a partir de ${themeLabel} em ${contextLabel}`
+          : themeLabel
+            ? `Comentário a partir de ${themeLabel}`
+            : "Comentário a partir de situação reconhecível",
         reason: "Conecta a decisão ao tipo de conversa que já aparece nos sinais do histórico.",
       };
     }
     if (isSaveSignal(params.signal)) {
       return {
-        label: "Salvamento para dica consultável",
+        label: themeLabel
+          ? `Salvamento para dica sobre ${themeLabel}`
+          : "Salvamento para dica consultável",
         reason: "Funciona quando a pauta pode virar lista, consulta ou passo a passo.",
       };
     }
     if (isShareSignal(params.signal)) {
       return {
-        label: "Compartilhamento por frase fácil de repassar",
+        label: themeLabel
+          ? `Compartilhamento por frase sobre ${themeLabel}`
+          : "Compartilhamento por frase fácil de repassar",
         reason: "Ajuda quando a força está em uma ideia simples de enviar para outra pessoa.",
       };
     }
@@ -589,6 +716,15 @@ function resolveStudyContextCorrectReason(
   const hasContext = Boolean(getPrimaryContextSignal(studyContext));
   const hasEngagement = Boolean(getPrimaryEngagementDriver(studyContext));
   const hasReferencePost = Boolean(getPrimaryReferencePost(studyContext));
+  const hasTheme = Boolean(getPrimaryThemePhrase(studyContext));
+
+  if (mapKey === "format" && hasTheme && hasFormat && (hasNarrative || hasContext)) {
+    return [
+      "A aposta cruza tema recorrente, formato, narrativa e contexto dos sinais analisados.",
+      hasEngagement ? "O sinal de engajamento reforça essa escolha." : null,
+      hasReferencePost ? "Apoiado por post de referência do seu histórico." : null,
+    ].filter(Boolean).join(" ");
+  }
 
   if (mapKey === "format" && hasFormat && (hasNarrative || hasContext)) {
     return [
@@ -598,9 +734,23 @@ function resolveStudyContextCorrectReason(
     ].filter(Boolean).join(" ");
   }
 
+  if ((mapKey === "objective" || mapKey === "cta") && hasTheme && hasEngagement) {
+    return [
+      "A escolha usa um tema recorrente e um sinal de engajamento do histórico.",
+      hasReferencePost ? "Apoiado por post de referência do seu histórico." : null,
+    ].filter(Boolean).join(" ");
+  }
+
   if ((mapKey === "objective" || mapKey === "cta") && hasEngagement) {
     return [
       "A escolha usa um sinal de engajamento recorrente do seu histórico.",
+      hasReferencePost ? "Apoiado por post de referência do seu histórico." : null,
+    ].filter(Boolean).join(" ");
+  }
+
+  if ((mapKey === "narrative" || mapKey === "where" || mapKey === "what") && hasTheme && (hasNarrative || hasContext)) {
+    return [
+      "A aposta combina tema, narrativa e contexto recorrentes no material de estudo.",
       hasReferencePost ? "Apoiado por post de referência do seu histórico." : null,
     ].filter(Boolean).join(" ");
   }
@@ -629,10 +779,11 @@ export function buildPostCreationAdaptiveGameQuestions(
       studyContext: params.studyContext,
     });
     const questionKey = getQuestionKey(params, question.id);
+    const themeEvidence = buildThemeEvidence(params.studyContext);
     const referencePostEvidence = params.studyContext?.referencePosts[0]?.title
       ? `Post de referência: ${shortenText(params.studyContext.referencePosts[0].title, 56)}`
       : null;
-    const evidence = compactEvidence([...(questionKey?.feedback.evidence || []), referencePostEvidence]);
+    const evidence = compactEvidence([...(questionKey?.feedback.evidence || []), themeEvidence, referencePostEvidence]);
     const correctOption = options.find((option) => option.id === correctOptionId) || null;
     const correctReason = resolveCorrectReason({
       mapKey: question.mapKey,
