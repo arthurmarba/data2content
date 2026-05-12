@@ -15,6 +15,7 @@ import type {
 } from "../postCreationAdaptiveAnswerKey";
 import type {
   PostCreationAdaptiveAnswer,
+  PostCreationAdaptiveMode,
   PostCreationAdaptiveQuestion,
   PostCreationStrategicPlan,
 } from "../postCreationAdaptiveTypes";
@@ -50,6 +51,8 @@ export type PostCreationAdaptiveNativeFlowProps = {
     score: PostCreationAdaptiveScore;
     evaluations: PostCreationAdaptiveAnswerEvaluation[];
     originalPrompt?: string | null;
+    mode?: PostCreationAdaptiveMode | null;
+    idealPlan?: PostCreationStrategicPlan | null;
   }) => void;
   studyContext?: PostCreationAdaptiveStudyContext | null;
 };
@@ -288,6 +291,8 @@ export default function PostCreationAdaptiveNativeFlow({
                     score: result.score,
                     evaluations: result.evaluations,
                     originalPrompt,
+                    mode: flow.detection?.mode ?? null,
+                    idealPlan: answerKey.idealPlan,
                   });
                   return;
                 }

@@ -846,6 +846,8 @@ describe("PostCreationAdaptiveNativeFlow", () => {
         expect.objectContaining({ questionId: "q-format", isCorrect: true }),
       ]),
       originalPrompt: "Quero atrair marcas de skincare",
+      mode: "brand_match",
+      idealPlan: answerKey.idealPlan,
     }));
   });
 
@@ -899,6 +901,8 @@ describe("PostCreationAdaptiveNativeFlow", () => {
         expect.objectContaining({ questionId: "q-format", isCorrect: true }),
       ]),
       originalPrompt: "Quero atrair marcas de skincare",
+      mode: "brand_match",
+      idealPlan: answerKey.idealPlan,
     }));
   });
 
@@ -965,6 +969,8 @@ describe("PostCreationAdaptiveNativeFlow", () => {
         expect.objectContaining({ questionId: "q-format", isCorrect: false }),
       ]),
       originalPrompt: "Quero atrair marcas de skincare",
+      mode: "brand_match",
+      idealPlan: answerKey.idealPlan,
     }));
   });
 
@@ -1218,6 +1224,8 @@ describe("PostCreationAdaptiveNativeFlow", () => {
       expect.objectContaining({
         initialSnapshot: expect.not.objectContaining({
           gameQuestions: expect.anything(),
+          mode: expect.anything(),
+          idealPlan: expect.anything(),
         }),
       }),
     );

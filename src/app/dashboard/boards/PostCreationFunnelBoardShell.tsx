@@ -76,6 +76,7 @@ import {
   type PostCreationBlueprintAdjustment,
 } from "./postCreationBlueprintAdjuster";
 import BrandNarrativeMatchesPanel from "./components/BrandNarrativeMatchesPanel";
+import PostCreationAdaptiveFinalIntentSummaryCard from "./components/PostCreationAdaptiveFinalIntentSummaryCard";
 import PostCreationAdaptiveNativeFlow from "./components/PostCreationAdaptiveNativeFlow";
 import PostCreationAdaptivePromptContextCard from "./components/PostCreationAdaptivePromptContextCard";
 import PostCreationAdaptiveScoreCard from "./components/PostCreationAdaptiveScoreCard";
@@ -93,6 +94,10 @@ import {
   buildPostCreationAdaptiveStudyContext,
   type PostCreationAdaptiveStudyContext,
 } from "./postCreationAdaptiveStudyContext";
+import type {
+  PostCreationAdaptiveMode,
+  PostCreationStrategicPlan,
+} from "./postCreationAdaptiveTypes";
 import {
   isMeaningfulPostCreationAdaptiveSnapshot,
   type PostCreationAdaptiveSnapshot,
@@ -3591,6 +3596,8 @@ export default function PostCreationFunnelBoardShell({
     score: PostCreationAdaptiveScore;
     evaluations: PostCreationAdaptiveAnswerEvaluation[];
     originalPrompt: string | null;
+    mode: PostCreationAdaptiveMode | null;
+    idealPlan: PostCreationStrategicPlan | null;
   } | null>(null);
   const [isGeneratingBlueprintScript, setIsGeneratingBlueprintScript] = useState(false);
   const [inlineBlueprintScriptDraft, setInlineBlueprintScriptDraft] = useState<BlueprintScriptDraftState | null>(null);
@@ -5132,6 +5139,8 @@ export default function PostCreationFunnelBoardShell({
     score: PostCreationAdaptiveScore;
     evaluations: PostCreationAdaptiveAnswerEvaluation[];
     originalPrompt?: string | null;
+    mode?: PostCreationAdaptiveMode | null;
+    idealPlan?: PostCreationStrategicPlan | null;
   }) => {
     const { nextState, selectedSlotId, selectedScriptId } =
       createPostCreationAdaptiveIdeaHandoffState({ handoff: result.legacyHandoff });
@@ -5150,6 +5159,8 @@ export default function PostCreationFunnelBoardShell({
       score: result.score,
       evaluations: result.evaluations,
       originalPrompt: result.originalPrompt?.trim() || null,
+      mode: result.mode ?? null,
+      idealPlan: result.idealPlan ?? null,
     });
     setFunnelState(nextState);
   }, [clearAutoAdvanceTimer]);
@@ -7298,6 +7309,15 @@ export default function PostCreationFunnelBoardShell({
                                       prompt={adaptiveGameResult.originalPrompt}
                                       variant="final"
                                     />
+                                    <PostCreationAdaptiveFinalIntentSummaryCard
+                                      mode={adaptiveGameResult.mode}
+                                      originalPrompt={adaptiveGameResult.originalPrompt}
+                                      decision={funnelState.decision}
+                                      idea={selectedIdeaForProjection}
+                                      blueprint={activeBlueprint}
+                                      idealPlan={adaptiveGameResult.idealPlan}
+                                      evaluations={adaptiveGameResult.evaluations}
+                                    />
                                     <PostCreationAdaptiveScoreCard
                                       score={adaptiveGameResult.score}
                                       evaluations={adaptiveGameResult.evaluations}
@@ -7642,6 +7662,15 @@ export default function PostCreationFunnelBoardShell({
                             <PostCreationAdaptivePromptContextCard
                               prompt={adaptiveGameResult.originalPrompt}
                               variant="final"
+                            />
+                            <PostCreationAdaptiveFinalIntentSummaryCard
+                              mode={adaptiveGameResult.mode}
+                              originalPrompt={adaptiveGameResult.originalPrompt}
+                              decision={funnelState.decision}
+                              idea={selectedIdeaForProjection}
+                              blueprint={activeBlueprint}
+                              idealPlan={adaptiveGameResult.idealPlan}
+                              evaluations={adaptiveGameResult.evaluations}
                             />
                             <PostCreationAdaptiveScoreCard
                               score={adaptiveGameResult.score}
