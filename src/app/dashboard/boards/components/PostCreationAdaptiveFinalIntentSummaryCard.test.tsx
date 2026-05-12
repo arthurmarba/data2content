@@ -329,4 +329,111 @@ describe("PostCreationAdaptiveFinalIntentSummaryCard", () => {
 
     expect(screen.getByText("Agenda Contextualizada")).toBeInTheDocument();
   });
+
+  it("se isCorrect false e correctOptionLabel existe, usa correctOptionLabel", () => {
+    const wrongEval = {
+      questionId: "format",
+      isCorrect: false,
+      correctOptionLabel: "Recomendação correta",
+      selectedOptionLabel: "Aposta errada",
+    } as any;
+
+    render(
+      <PostCreationAdaptiveFinalIntentSummaryCard
+        mode="format_guidance"
+        evaluations={[wrongEval]}
+      />,
+    );
+
+    expect(screen.getByText("Recomendação correta")).toBeInTheDocument();
+    expect(screen.queryByText("Aposta errada")).not.toBeInTheDocument();
+  });
+
+  it("se isCorrect false e só selectedOptionLabel existe, não usa selectedOptionLabel", () => {
+    const wrongEval = {
+      questionId: "format",
+      isCorrect: false,
+      selectedOptionLabel: "Aposta errada",
+    } as any;
+
+    render(
+      <PostCreationAdaptiveFinalIntentSummaryCard
+        mode="format_guidance"
+        evaluations={[wrongEval]}
+      />,
+    );
+
+    // Deve cair no fallback do idealPlan ou string genérica, não na aposta errada
+    expect(screen.queryByText("Aposta errada")).not.toBeInTheDocument();
+  });
+
+  it("se isCorrect false e só label/value existe, não usa label/value", () => {
+    const wrongEval = {
+      questionId: "format",
+      isCorrect: false,
+      label: "Aposta errada",
+    } as any;
+
+    render(
+      <PostCreationAdaptiveFinalIntentSummaryCard
+        mode="format_guidance"
+        evaluations={[wrongEval]}
+      />,
+    );
+
+    expect(screen.queryByText("Aposta errada")).not.toBeInTheDocument();
+  });
+
+  it("se isCorrect true e selectedOptionLabel existe, pode usar selectedOptionLabel", () => {
+    const correctEval = {
+      questionId: "format",
+      isCorrect: true,
+      selectedOptionLabel: "Escolha certa do usuário",
+    } as any;
+
+    render(
+      <PostCreationAdaptiveFinalIntentSummaryCard
+        mode="format_guidance"
+        evaluations={[correctEval]}
+      />,
+    );
+
+    expect(screen.getByText("Escolha certa do usuário")).toBeInTheDocument();
+  });
+
+  it("se isCorrect true e value/label existe como fallback, pode usar", () => {
+    const correctEval = {
+      questionId: "format",
+      isCorrect: true,
+      value: "Valor correto",
+    } as any;
+
+    render(
+      <PostCreationAdaptiveFinalIntentSummaryCard
+        mode="format_guidance"
+        evaluations={[correctEval]}
+      />,
+    );
+
+    expect(screen.getByText("Valor correto")).toBeInTheDocument();
+  });
+
+  it("format_guidance continua preferindo correctOptionLabel a idealPlan.format", () => {
+    const evalItem = {
+      questionId: "format",
+      isCorrect: false,
+      correctOptionLabel: "Label Contextual",
+    } as any;
+
+    render(
+      <PostCreationAdaptiveFinalIntentSummaryCard
+        mode="format_guidance"
+        idealPlan={{ format: "Formato Genérico" } as any}
+        evaluations={[evalItem]}
+      />,
+    );
+
+    expect(screen.getByText("Label Contextual")).toBeInTheDocument();
+    expect(screen.queryByText("Formato Genérico")).not.toBeInTheDocument();
+  });
 });

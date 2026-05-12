@@ -1469,4 +1469,94 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     expect(onCompleteGame).toHaveBeenCalledTimes(0);
   });
+
+  it("enrichment preenche labels e metadados das questões", () => {
+    const onCompleteGame = jest.fn();
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      visibleQuestions: questionFixtures,
+      answers: answerFixtures,
+    });
+
+    render(
+      <PostCreationAdaptiveNativeFlow
+        initialSnapshot={snapshotFixture({ answers: [answerFixtures[0]!] })}
+        onCompleteGame={onCompleteGame}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
+
+    expect(onCompleteGame).toHaveBeenCalledWith(expect.objectContaining({
+      evaluations: expect.arrayContaining([
+        expect.objectContaining({
+          questionId: "q-brand",
+          correctOptionLabel: "Beleza/autocuidado",
+          questionTitle: "Que tipo de marca você quer atrair?",
+        }),
+      ]),
+    }));
+  });
+
+  it("enrichment não muta evaluations originais", () => {
+    const onCompleteGame = jest.fn();
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      visibleQuestions: questionFixtures,
+      answers: answerFixtures,
+    });
+
+    render(
+      <PostCreationAdaptiveNativeFlow
+        initialSnapshot={snapshotFixture({ answers: [answerFixtures[0]!] })}
+        onCompleteGame={onCompleteGame}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
+
+    const calls = onCompleteGame.mock.calls;
+    const enrichedEvaluations = calls[0][0].evaluations;
+    
+    expect(enrichedEvaluations[0]).toHaveProperty("correctOptionLabel");
+    expect(enrichedEvaluations[0]).not.toBe(answerFixtures[0]);
+  });
+
+  it("enrichment retorna dados seguros quando question não existe no visibleQuestions", () => {
+    const onCompleteGame = jest.fn();
+    
+    // flow.questions tem 2 questões, então answerKey terá 2 questões.
+    // Mas visibleQuestions (vinda do mock) só terá 1.
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      visibleQuestions: questionFixtures,
+      answers: answerFixtures,
+    });
+
+    render(
+      <PostCreationAdaptiveNativeFlow
+        initialSnapshot={snapshotFixture({ 
+          answers: [answerFixtures[0]!],
+          questions: [questionFixtures[0]!] // Forçar index 0 se necessário, mas o mock manda visibleQuestions
+        })}
+        onCompleteGame={onCompleteGame}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Próxima decisão" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
+
+    expect(onCompleteGame).toHaveBeenCalledWith(expect.objectContaining({
+      evaluations: expect.arrayContaining([
+        expect.objectContaining({ questionId: "q-brand" }),
+        expect.objectContaining({ questionId: "q-format" }),
+      ]),
+    }));
+  });
 });

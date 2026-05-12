@@ -87,10 +87,10 @@ function findEvaluationAnswer(
   const correct = cleanShortText(evaluation.correctOptionLabel);
   if (correct) return correct;
 
-  if (evaluation.isCorrect) {
-    const selected = cleanShortText(evaluation.selectedOptionLabel);
-    if (selected) return selected;
-  }
+  if (!evaluation.isCorrect) return null;
+
+  const selected = cleanShortText(evaluation.selectedOptionLabel);
+  if (selected) return selected;
 
   return readRecordString(evaluation, [
     "answerLabel",

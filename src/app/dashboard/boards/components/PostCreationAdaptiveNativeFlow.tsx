@@ -109,6 +109,14 @@ function normalizeOriginalPrompt(value: string | null | undefined): string | nul
   return normalized || null;
 }
 
+function getQuestionCorrectReason(question: PostCreationAdaptiveQuestion): string | null {
+  const q = question as PostCreationAdaptiveQuestion & { correctReason?: unknown };
+  if (typeof q.correctReason === "string") {
+    return q.correctReason.trim() || null;
+  }
+  return null;
+}
+
 function enrichAdaptiveEvaluationsWithQuestions(params: {
   evaluations: PostCreationAdaptiveAnswerEvaluation[];
   questions: PostCreationAdaptiveQuestion[];
@@ -119,7 +127,6 @@ function enrichAdaptiveEvaluationsWithQuestions(params: {
 
     const selectedOption = question.options.find((o) => o.id === evaluation.selectedOptionId);
     const correctOption = question.options.find((o) => o.id === evaluation.correctOptionId);
-    const gameQuestion = question as any;
 
     return {
       ...evaluation,
@@ -129,7 +136,7 @@ function enrichAdaptiveEvaluationsWithQuestions(params: {
       selectedOptionReason: selectedOption?.reason ?? null,
       correctOptionLabel: correctOption?.label ?? null,
       correctOptionReason: correctOption?.reason ?? null,
-      correctReason: gameQuestion.correctReason ?? null,
+      correctReason: getQuestionCorrectReason(question),
     };
   });
 }
