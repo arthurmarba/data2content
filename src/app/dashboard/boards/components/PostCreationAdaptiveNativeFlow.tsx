@@ -143,8 +143,9 @@ export default function PostCreationAdaptiveNativeFlow({
     return buildPostCreationAdaptiveGameQuestions({
       questions: flow.questions,
       answerKey,
+      studyContext,
     });
-  }, [answerKey, flow.questions]);
+  }, [answerKey, flow.questions, studyContext]);
   const visibleQuestions: PostCreationAdaptiveQuestion[] = useMemo(() => {
     if (answerKey && gameQuestions.length === flow.questions.length && gameQuestions.length > 0) {
       return gameQuestions;

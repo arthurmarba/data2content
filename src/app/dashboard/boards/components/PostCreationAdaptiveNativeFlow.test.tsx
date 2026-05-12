@@ -86,6 +86,33 @@ const fiveOptionQuestionFixtures: PostCreationAdaptiveQuestion[] = [
   },
 ];
 
+const formatGuidanceDetectionFixture: PostCreationAdaptiveIntentDetection = {
+  ...detectionFixture,
+  mode: "format_guidance",
+  normalizedInput: "quero saber qual formato usar",
+  originalInput: "Quero saber qual formato usar",
+  detectedPauta: "rotina real",
+  brandCategory: null,
+  signals: ["qual formato"],
+};
+
+const formatGuidanceQuestionFixtures: PostCreationAdaptiveQuestion[] = [
+  {
+    id: "format-primary",
+    type: "strategic_choice",
+    title: "Pelos sinais do seu conteúdo, qual formato parece a melhor aposta?",
+    helper: "Formato não é gosto pessoal.",
+    mapKey: "format",
+    required: true,
+    options: [
+      { id: "reels", label: "Reels", reason: "Mostra cena e movimento.", recommended: true },
+      { id: "carousel", label: "Carrossel", reason: "Organiza a ideia." },
+      { id: "stories", label: "Stories", reason: "Testa conversa." },
+      { id: "photo_post", label: "Foto com legenda forte", reason: "Depende de contexto." },
+    ],
+  },
+];
+
 const answerFixtures: PostCreationAdaptiveAnswer[] = [
   {
     questionId: "q-brand",
@@ -396,6 +423,21 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     expect(screen.getByText(/sinais fortes do seu histórico/i)).toBeInTheDocument();
     expect(screen.getByText("Base da análise")).toBeInTheDocument();
     expect(screen.getByText("Sinal de marca: Casa/conforto")).toBeInTheDocument();
+  });
+
+  it("uses studyContext in GameQuestion to render contextualized format options", () => {
+    mockFlow({
+      status: "quiz",
+      detection: formatGuidanceDetectionFixture,
+      questions: formatGuidanceQuestionFixtures,
+      answers: [],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow studyContext={studyContextFixture} />);
+
+    expect(screen.getByRole("button", { name: /Stories, bom para conversa rapida/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Reels, formato forte no seu historico/ })).toBeInTheDocument();
+    expect(screen.getAllByRole("button").filter((button) => button.hasAttribute("aria-pressed"))).toHaveLength(4);
   });
 
   it("keeps legacy answer key behavior when studyContext is not provided", () => {

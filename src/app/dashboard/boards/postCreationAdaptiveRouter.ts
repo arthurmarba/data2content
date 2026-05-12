@@ -146,16 +146,22 @@ function detectFormatGuidance(normalizedInput: string): IntentMatch | null {
   const patterns = [
     /\bqual formato\b/,
     /\bque formato\b/,
+    /\bem que formato\b/,
+    /\bquero saber (?:o|qual) formato\b/,
     /\bformato usar\b/,
     /\bmelhor formato\b/,
-    /\bdevo fazer (?:em )?(?:reels?|video|carrossel|foto|stories?)\b/,
-    /\b(?:reels?|video|foto|carrossel|stories?)\s+ou\s+(?:reels?|video|foto|carrossel|stories?)\b/,
+    /\bformato ideal\b/,
+    /\bqual formato (?:performa|funciona) melhor\b/,
+    /\bdevo fazer (?:em )?(?:reels?|video|carrossel|foto|story|stories?)\b/,
+    /\b(?:reels?|video|foto|carrossel|story|stories?)\s+ou\s+(?:reels?|video|foto|carrossel|story|stories?)\b/,
+    /\bnao sei se faco (?:reels?|video|foto|carrossel|story|stories?)(?:,\s*(?:reels?|video|foto|carrossel|story|stories?))*\s+ou\s+(?:reels?|video|foto|carrossel|story|stories?)\b/,
     /\bpostar em reels\b/,
+    /\bformato postar\b/,
     /\bfazer em carrossel\b/,
     /\btipo de post\b/,
     /\bformato performa\b/,
     /\bformato tem mais chance\b/,
-    /\bfunciona melhor em (?:reels?|video|carrossel|foto|stories?)\b/,
+    /\bfunciona melhor em (?:reels?|video|carrossel|foto|story|stories?)\b/,
   ];
   const signals = collectSignals(normalizedInput, patterns);
   if (!signals.length) return null;
@@ -163,8 +169,8 @@ function detectFormatGuidance(normalizedInput: string): IntentMatch | null {
   const detectedPauta = findFirstCapture(normalizedInput, [
     /(?:qual|que)\s+formato\s+(?:eu\s+)?(?:devo\s+)?(?:usar|postar|fazer)(?:\s+(?:para|pra|sobre|de|em))?\s+(.+)/,
     /(?:formato|tipo de post)\s+(?:usar|tem mais chance|performa|funciona melhor)(?:\s+(?:para|pra|sobre|de|em))?\s+(.+)/,
-    /(?:reels?|video|foto|carrossel|stories?)\s+ou\s+(?:reels?|video|foto|carrossel|stories?)(?:\s+(?:para|pra|sobre|de|em))?\s+(.+)/,
-    /(?:devo fazer|melhor eu fazer)(?:\s+(?:em|um|uma))?\s+(?:reels?|video|foto|carrossel|stories?)(?:\s+(?:para|pra|sobre|de|em))?\s+(.+)/,
+    /(?:reels?|video|foto|carrossel|story|stories?)\s+ou\s+(?:reels?|video|foto|carrossel|story|stories?)(?:\s+(?:para|pra|sobre|de|em))?\s+(.+)/,
+    /(?:devo fazer|melhor eu fazer)(?:\s+(?:em|um|uma))?\s+(?:reels?|video|foto|carrossel|story|stories?)(?:\s+(?:para|pra|sobre|de|em))?\s+(.+)/,
   ]);
 
   return {

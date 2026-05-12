@@ -192,10 +192,23 @@ describe("buildPostCreationAdaptiveQuiz", () => {
 
     expect(quiz).toHaveLength(5);
     expect(quiz[0]?.id).toBe("format-primary");
-    expect(quiz[0]?.title).toMatch(/formato parece mais forte/i);
+    expect(quiz[0]?.title).toMatch(/sinais do seu conteúdo/i);
+    expect(quiz[0]?.helper).toMatch(/dados|sinais/i);
     expect(quiz[1]?.title).toMatch(/reação esse formato/i);
-    expect(quiz[2]?.title).toMatch(/pesa na escolha do formato/i);
+    expect(quiz[2]?.title).toMatch(/execução aproveita melhor/i);
     expect(quiz[3]?.title).toMatch(/abrir para segurar atenção/i);
+  });
+
+  it("keeps format_guidance questions complete and grounded in content signals", () => {
+    const quiz = quizFor("Quero saber qual formato usar");
+    const text = quiz.map((question) => `${question.title} ${question.helper}`).join(" ");
+
+    expect(quiz).toHaveLength(5);
+    expect(quiz.every((question) => question.options.length === 4)).toBe(true);
+    expect(quiz.some((question) => question.mapKey === "format")).toBe(true);
+    expect(quiz.some((question) => question.mapKey === "objective")).toBe(true);
+    expect(text).toMatch(/sinais|conteúdo|dados/i);
+    expect(text).not.toMatch(/garantido|provado|certeza|comprovam|sempre performa/i);
   });
 
   it("uses more human language for comment_to_post", () => {

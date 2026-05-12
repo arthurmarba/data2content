@@ -10,6 +10,7 @@ import {
   validatePostCreationAdaptiveGameQuestions,
   type PostCreationAdaptiveGameQuestion,
 } from "./postCreationAdaptiveGameQuestion";
+import type { PostCreationAdaptiveStudyContext } from "./postCreationAdaptiveStudyContext";
 import { buildPostCreationAdaptiveQuiz } from "./postCreationAdaptiveQuizBuilder";
 import type {
   PostCreationAdaptiveIntentDetection,
@@ -108,6 +109,46 @@ function answerKey(correctOptionId = "carousel", evidence = ["Formato forte: Car
   };
 }
 
+function studyContext(
+  overrides: Partial<PostCreationAdaptiveStudyContext> = {},
+): PostCreationAdaptiveStudyContext {
+  return {
+    source: "planner_client",
+    periodDays: 90,
+    confidence: { score: 0.8, label: "high", reasons: ["fixture"] },
+    profileSummary: {
+      slotsCount: 0,
+      recommendationsCount: 0,
+      postedSignalsCount: 0,
+      evidencePostsCount: 0,
+      captionSignalsCount: 0,
+      themeSignalsCount: 0,
+      qualitativeSignalsCount: 0,
+    },
+    topFormats: [],
+    topNarratives: [],
+    topContexts: [],
+    topProposals: [],
+    topEngagementDrivers: [],
+    topContentIntents: [],
+    topNarrativeForms: [],
+    topTones: [],
+    topThemes: [],
+    topThemeKeywords: [],
+    topHooks: [],
+    topCtas: [],
+    topProofStyles: [],
+    topStances: [],
+    topCommercialModes: [],
+    topCaptionSignals: [],
+    bestPostingWindows: [],
+    referencePosts: [],
+    brandSignals: [],
+    collabSignals: [],
+    ...overrides,
+  };
+}
+
 function detectionForMode(mode: PostCreationAdaptiveMode): PostCreationAdaptiveIntentDetection {
   return {
     mode,
@@ -126,10 +167,12 @@ function detectionForMode(mode: PostCreationAdaptiveMode): PostCreationAdaptiveI
 function buildFirstGameQuestion(params: {
   inputQuestion?: PostCreationAdaptiveQuestion;
   inputAnswerKey?: PostCreationAdaptiveAnswerKey;
+  inputStudyContext?: PostCreationAdaptiveStudyContext | null;
 } = {}) {
   const [gameQuestion] = buildPostCreationAdaptiveGameQuestions({
     questions: [params.inputQuestion || fourOptionQuestion()],
     answerKey: params.inputAnswerKey || answerKey(),
+    studyContext: params.inputStudyContext,
   });
   if (!gameQuestion) throw new Error("GameQuestion nao foi gerada.");
   return gameQuestion;
@@ -409,6 +452,142 @@ describe("postCreationAdaptiveGameQuestion", () => {
 
     expect(gameQuestion.evidence).toEqual([]);
     expect(validatePostCreationAdaptiveGameQuestion(gameQuestion).ok).toBe(true);
+  });
+
+  it("uses studyContext topFormats to contextualize format option labels", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "reels", label: "Reels", score: 100, evidenceCount: 5, reason: "Forte em alcance." },
+          { id: "carousel", label: "Carrossel", score: 90, evidenceCount: 4, reason: "Forte em salvamento." },
+          { id: "stories", label: "Stories", score: 80, evidenceCount: 3, reason: "Forte em conversa." },
+          { id: "photo", label: "Foto", score: 70, evidenceCount: 2, reason: "Forte em legenda." },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.options).toHaveLength(4);
+    expect(gameQuestion.options.map((candidate) => candidate.label)).toEqual([
+      "Reels, formato forte no seu historico",
+      "Carrossel, alternativa com potencial de salvamento",
+      "Stories, bom para conversa rapida",
+      "Foto, aposta mais dependente de legenda/contexto",
+    ]);
+    expect(validatePostCreationAdaptiveGameQuestion(gameQuestion).ok).toBe(true);
+  });
+
+  it("uses topFormats as distractors when enough StudyContext signals exist", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "reels", label: "Reels", score: 100, evidenceCount: 5, reason: "Forte em alcance." },
+          { id: "carousel", label: "Carrossel", score: 90, evidenceCount: 4, reason: "Forte em salvamento." },
+          { id: "stories", label: "Stories", score: 80, evidenceCount: 3, reason: "Forte em conversa." },
+          { id: "photo", label: "Foto", score: 70, evidenceCount: 2, reason: "Forte em legenda." },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.options.filter((candidate) => candidate.isDistractor).map((candidate) => candidate.id)).toEqual([
+      "reels",
+      "stories",
+      "photo",
+    ]);
+  });
+
+  it("completes StudyContext format options with fallback when signals are insufficient", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputQuestion: question([option("carousel", "Carrossel")]),
+      inputAnswerKey: answerKey("carousel"),
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "carousel", label: "Carrossel", score: 90, evidenceCount: 4, reason: "Forte em salvamento." },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.options).toHaveLength(4);
+    expect(gameQuestion.correctOptionId).toBe("carousel");
+    expect(gameQuestion.options.some((candidate) => candidate.id.startsWith("fallback-format"))).toBe(true);
+  });
+
+  it("keeps the AnswerKey correctOptionId when StudyContext contextualizes options", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputAnswerKey: answerKey("stories"),
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "carousel", label: "Carrossel", score: 100, evidenceCount: 5, reason: "Forte em salvamento." },
+          { id: "stories", label: "Stories", score: 90, evidenceCount: 4, reason: "Forte em conversa." },
+          { id: "reels", label: "Reels", score: 80, evidenceCount: 3, reason: "Forte em alcance." },
+          { id: "photo", label: "Foto", score: 70, evidenceCount: 2, reason: "Forte em legenda." },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.correctOptionId).toBe("stories");
+    expect(gameQuestion.options.find((candidate) => candidate.id === "stories")?.isCorrect).toBe(true);
+    expect(gameQuestion.options.filter((candidate) => candidate.isCorrect)).toHaveLength(1);
+    expect(gameQuestion.options.filter((candidate) => candidate.isDistractor)).toHaveLength(3);
+  });
+
+  it("does not duplicate ids when StudyContext signals map to existing options", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "carousel", label: "Carrossel", score: 100, evidenceCount: 5, reason: "Forte em salvamento." },
+          { id: "carrossel", label: "Carrossel", score: 95, evidenceCount: 4, reason: "Duplicado." },
+          { id: "reels", label: "Reels", score: 80, evidenceCount: 3, reason: "Forte em alcance." },
+        ],
+      }),
+    });
+
+    expect(new Set(gameQuestion.options.map((candidate) => candidate.id)).size).toBe(4);
+    expect(validatePostCreationAdaptiveGameQuestion(gameQuestion).ok).toBe(true);
+  });
+
+  it("does not use forbidden terms in StudyContext-driven labels or reasons", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "reels", label: "Reels", score: 100, evidenceCount: 5, reason: "Forte em alcance." },
+          { id: "carousel", label: "Carrossel", score: 90, evidenceCount: 4, reason: "Forte em salvamento." },
+        ],
+      }),
+    });
+    const text = gameQuestion.options.map((candidate) => `${candidate.label} ${candidate.reason}`).join(" ").toLowerCase();
+
+    expect(text).not.toContain("garantido");
+    expect(text).not.toContain("provado");
+    expect(text).not.toContain("certeza");
+  });
+
+  it("uses topNarratives, topContexts, and topProposals for matching mapKeys", () => {
+    const key = answerKey("routine");
+    const narrativeQuestion = buildFirstGameQuestion({
+      inputQuestion: question([option("routine", "Rotina real")], { mapKey: "narrative" }),
+      inputAnswerKey: { ...key, correctAnswersByQuestionId: { "game-question": "routine" } },
+      inputStudyContext: studyContext({
+        topNarratives: [{ id: "routine", label: "Rotina real", score: 80, evidenceCount: 3, reason: "Recorrente." }],
+      }),
+    });
+    const contextQuestion = buildFirstGameQuestion({
+      inputQuestion: question([option("home", "Casa")], { mapKey: "where" }),
+      inputAnswerKey: { ...key, correctAnswersByQuestionId: { "game-question": "home" } },
+      inputStudyContext: studyContext({
+        topContexts: [{ id: "home", label: "Casa", score: 70, evidenceCount: 2, reason: "Recorrente." }],
+      }),
+    });
+    const proposalQuestion = buildFirstGameQuestion({
+      inputQuestion: question([option("tutorial", "Tutorial")], { mapKey: "what" }),
+      inputAnswerKey: { ...key, correctAnswersByQuestionId: { "game-question": "tutorial" } },
+      inputStudyContext: studyContext({
+        topProposals: [{ id: "tutorial", label: "Tutorial", score: 60, evidenceCount: 2, reason: "Recorrente." }],
+      }),
+    });
+
+    expect(narrativeQuestion.options[0]?.label).toContain("narrativa que aparece");
+    expect(contextQuestion.options[0]?.label).toContain("contexto presente");
+    expect(proposalQuestion.options[0]?.label).toContain("proposta recorrente");
   });
 
   it("generates one correct answer and three distractors for all current quizBuilder questions", () => {

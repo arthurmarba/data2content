@@ -229,14 +229,14 @@ function createByGoalQuestions(): PostCreationAdaptiveQuestion[] {
 
 function formatGuidanceQuestions(detection: PostCreationAdaptiveIntentDetection): PostCreationAdaptiveQuestion[] {
   const pautaHelper = detection.detectedPauta
-    ? `Vamos escolher o formato mais forte para: ${detection.detectedPauta}.`
-    : "A escolha do formato precisa combinar intenção, narrativa e esforço real.";
+    ? `Vamos ler os sinais do seu conteúdo para escolher o formato de: ${detection.detectedPauta}.`
+    : "Formato não é gosto pessoal. É o jeito mais forte de carregar uma intenção que seus dados já ajudam a revelar.";
 
   return [
     question({
       id: "format-primary",
       type: "strategic_choice",
-      title: "Qual formato parece mais forte para essa intenção?",
+      title: "Pelos sinais do seu conteúdo, qual formato parece a melhor aposta?",
       helper: pautaHelper,
       mapKey: "format",
       options: [
@@ -249,8 +249,8 @@ function formatGuidanceQuestions(detection: PostCreationAdaptiveIntentDetection)
     question({
       id: "format-objective",
       type: "strategic_choice",
-      title: "Que reação esse formato precisa provocar?",
-      helper: "A reação desejada ajuda a escolher se o conteúdo precisa ser visto, salvo, comentado ou clicado.",
+      title: "Qual reação esse formato deveria puxar primeiro?",
+      helper: "Antes do formato, vem o comportamento que você quer provocar na audiência.",
       mapKey: "objective",
       options: [
         option("reach", "Alcance e descoberta", "Pede formato fácil de entender e compartilhar rápido.", true),
@@ -262,8 +262,8 @@ function formatGuidanceQuestions(detection: PostCreationAdaptiveIntentDetection)
     question({
       id: "format-narrative",
       type: "strategic_choice",
-      title: "O que mais pesa na escolha do formato?",
-      helper: "O melhor formato é o que deixa a força da ideia mais fácil de perceber.",
+      title: "Qual execução aproveita melhor esse formato?",
+      helper: "Depois de escolher o formato, a execução precisa combinar com a narrativa que o seu conteúdo sustenta.",
       mapKey: "narrative",
       options: [
         option("scene_motion", "Cena ou movimento", "Favorece vídeo curto, reação e contexto visual imediato.", true),
@@ -276,7 +276,7 @@ function formatGuidanceQuestions(detection: PostCreationAdaptiveIntentDetection)
       id: "format-hook",
       type: "strategic_choice",
       title: "Como a ideia precisa abrir para segurar atenção?",
-      helper: "A abertura indica se o formato precisa mostrar, prometer, perguntar ou comparar.",
+      helper: "A abertura indica se os sinais do conteúdo pedem mostrar, prometer, perguntar ou comparar.",
       mapKey: "hook",
       options: [
         option("visual_tension", "Tensão visual imediata", "Funciona quando a pessoa entende a cena antes da explicação.", true),
@@ -289,7 +289,7 @@ function formatGuidanceQuestions(detection: PostCreationAdaptiveIntentDetection)
       id: "format-effort",
       type: "constraint",
       title: "Quanto esforço de produção cabe agora?",
-      helper: "O formato ideal também precisa caber no tempo e na energia disponíveis.",
+      helper: "O formato escolhido ainda precisa caber no tempo e na energia disponíveis.",
       mapKey: "effort",
       options: [
         option("low", "Baixo, quero decidir e postar rápido", "Favorece stories, foto com legenda ou reels simples.", true),

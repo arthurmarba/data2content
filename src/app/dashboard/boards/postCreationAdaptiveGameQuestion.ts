@@ -1,5 +1,9 @@
 import type { PostCreationAdaptiveAnswerKey } from "./postCreationAdaptiveAnswerKey";
 import type {
+  PostCreationAdaptiveStudyContext,
+  PostCreationAdaptiveStudySignal,
+} from "./postCreationAdaptiveStudyContext";
+import type {
   PostCreationAdaptiveQuestion,
   PostCreationAdaptiveQuestionMapKey,
   PostCreationAdaptiveQuestionOption,
@@ -28,6 +32,7 @@ export type PostCreationAdaptiveGameQuestion = {
 export type BuildPostCreationAdaptiveGameQuestionsParams = {
   questions: PostCreationAdaptiveQuestion[];
   answerKey: PostCreationAdaptiveAnswerKey;
+  studyContext?: PostCreationAdaptiveStudyContext | null;
 };
 
 export type PostCreationAdaptiveGameQuestionValidationResult = {
@@ -109,6 +114,19 @@ function cleanText(value?: string | null): string | null {
   return trimmed || null;
 }
 
+function normalizeText(value?: string | null): string {
+  return (value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function normalizeId(value?: string | null): string {
+  return normalizeText(value).replace(/\s+/g, "_");
+}
+
 function compactEvidence(evidence: Array<string | null | undefined>): string[] {
   return Array.from(new Set(evidence.map(cleanText).filter((item): item is string => Boolean(item)))).slice(0, 3);
 }
@@ -126,6 +144,127 @@ function cloneValidOptions(options: PostCreationAdaptiveQuestionOption[]): PostC
     if (!id || seen.has(id)) continue;
     seen.add(id);
     result.push({ ...option, id });
+  }
+
+  return result;
+}
+
+function optionCorpus(option: PostCreationAdaptiveQuestionOption): string {
+  return normalizeText([option.id, option.label, option.value, option.reason, option.description].filter(Boolean).join(" "));
+}
+
+function signalCorpus(signal: PostCreationAdaptiveStudySignal): string {
+  return normalizeText([signal.id, signal.label].filter(Boolean).join(" "));
+}
+
+function optionMatchesSignal(option: PostCreationAdaptiveQuestionOption, signal: PostCreationAdaptiveStudySignal): boolean {
+  const optionText = optionCorpus(option);
+  const signalText = signalCorpus(signal);
+  if (!optionText || !signalText) return false;
+  return optionText.includes(signalText) || signalText.includes(optionText);
+}
+
+function findOptionForSignal(
+  options: PostCreationAdaptiveQuestionOption[],
+  signal: PostCreationAdaptiveStudySignal,
+): PostCreationAdaptiveQuestionOption | null {
+  const directMatch = options.find((option) => optionMatchesSignal(option, signal));
+  if (directMatch) return directMatch;
+
+  if (normalizeText(signal.label).includes("carrossel") || normalizeText(signal.id).includes("carousel")) {
+    return options.find((option) => /carousel|carrossel/.test(optionCorpus(option))) || null;
+  }
+  if (/reels?|video|movimento|cena/.test(signalCorpus(signal))) {
+    return options.find((option) => /reels?|video/.test(optionCorpus(option))) || null;
+  }
+  if (/stories?|story|conversa/.test(signalCorpus(signal))) {
+    return options.find((option) => /stories?|story/.test(optionCorpus(option))) || null;
+  }
+  if (/foto|photo|imagem|legenda/.test(signalCorpus(signal))) {
+    return options.find((option) => /foto|photo|image|legenda/.test(optionCorpus(option))) || null;
+  }
+
+  return null;
+}
+
+function getStudySignalsForMapKey(
+  mapKey: PostCreationAdaptiveQuestionMapKey,
+  studyContext?: PostCreationAdaptiveStudyContext | null,
+): PostCreationAdaptiveStudySignal[] {
+  if (!studyContext) return [];
+
+  if (mapKey === "format") return studyContext.topFormats;
+  if (mapKey === "narrative") return studyContext.topNarratives;
+  if (mapKey === "where") return studyContext.topContexts;
+  if (mapKey === "what") return studyContext.topProposals;
+  if (mapKey === "objective" || mapKey === "cta") return studyContext.topEngagementDrivers;
+  return [];
+}
+
+function contextualFormatLabel(signal: PostCreationAdaptiveStudySignal): string {
+  const text = signalCorpus(signal);
+  if (/reels?|video/.test(text)) return "Reels, formato forte no seu historico";
+  if (/carrossel|carousel/.test(text)) return "Carrossel, alternativa com potencial de salvamento";
+  if (/stories?|story/.test(text)) return "Stories, bom para conversa rapida";
+  if (/foto|photo|image|imagem/.test(text)) return "Foto, aposta mais dependente de legenda/contexto";
+  return `${signal.label}, formato presente no seu historico`;
+}
+
+function contextualSignalLabel(
+  mapKey: PostCreationAdaptiveQuestionMapKey,
+  signal: PostCreationAdaptiveStudySignal,
+): string {
+  if (mapKey === "format") return contextualFormatLabel(signal);
+  if (mapKey === "narrative") return `${signal.label}, narrativa que aparece nos seus posts`;
+  if (mapKey === "where") return `${signal.label}, contexto presente nos posts de referencia`;
+  if (mapKey === "what") return `${signal.label}, proposta recorrente no seu conteudo`;
+  if (mapKey === "objective" || mapKey === "cta") {
+    return `${signal.label}, sinal de engajamento do seu historico`;
+  }
+  return `${signal.label}, sinal recorrente nos seus conteudos`;
+}
+
+function contextualSignalReason(signal: PostCreationAdaptiveStudySignal): string {
+  const evidenceSuffix = signal.evidenceCount > 0
+    ? ` aparece em ${signal.evidenceCount} sinal(is) analisado(s).`
+    : " aparece entre os sinais analisados.";
+  return `Sinal recorrente nos seus conteudos;${evidenceSuffix}`;
+}
+
+function applyStudyContextToOptions(params: {
+  question: PostCreationAdaptiveQuestion;
+  options: PostCreationAdaptiveQuestionOption[];
+  studyContext?: PostCreationAdaptiveStudyContext | null;
+}): PostCreationAdaptiveQuestionOption[] {
+  const signals = getStudySignalsForMapKey(params.question.mapKey, params.studyContext)
+    .filter((signal) => cleanText(signal.label))
+    .slice(0, 6);
+  if (!signals.length) return params.options;
+
+  const result: PostCreationAdaptiveQuestionOption[] = [];
+  const usedIds = new Set<string>();
+
+  for (const signal of signals) {
+    const existingOption = findOptionForSignal(params.options, signal);
+    const id = existingOption?.id || `study-${params.question.mapKey}-${normalizeId(signal.id || signal.label)}`;
+    if (!id || usedIds.has(id)) continue;
+
+    usedIds.add(id);
+    result.push({
+      ...(existingOption || {}),
+      id,
+      label: contextualSignalLabel(params.question.mapKey, signal),
+      reason: contextualSignalReason(signal),
+      value: existingOption?.value || signal.label,
+      recommended: existingOption?.recommended,
+    });
+  }
+
+  for (const option of params.options) {
+    if (!usedIds.has(option.id)) {
+      usedIds.add(option.id);
+      result.push(option);
+    }
   }
 
   return result;
@@ -182,8 +321,13 @@ function resolveCorrectOptionId(params: {
 function normalizeToFourOptions(params: {
   question: PostCreationAdaptiveQuestion;
   answerKey: PostCreationAdaptiveAnswerKey;
+  studyContext?: PostCreationAdaptiveStudyContext | null;
 }): { options: PostCreationAdaptiveQuestionOption[]; correctOptionId: string } {
-  const initialOptions = cloneValidOptions(params.question.options);
+  const initialOptions = applyStudyContextToOptions({
+    question: params.question,
+    options: cloneValidOptions(params.question.options),
+    studyContext: params.studyContext,
+  });
   const usedIds = new Set(initialOptions.map((option) => option.id));
   let options = initialOptions;
 
@@ -264,9 +408,13 @@ export function buildPostCreationAdaptiveGameQuestions(
     const { options, correctOptionId } = normalizeToFourOptions({
       question,
       answerKey: params.answerKey,
+      studyContext: params.studyContext,
     });
     const questionKey = getQuestionKey(params, question.id);
-    const evidence = compactEvidence(questionKey?.feedback.evidence || []);
+    const referencePostEvidence = params.studyContext?.referencePosts[0]?.title
+      ? `Post de referencia: ${params.studyContext.referencePosts[0].title}`
+      : null;
+    const evidence = compactEvidence([...(questionKey?.feedback.evidence || []), referencePostEvidence]);
     const correctOption = options.find((option) => option.id === correctOptionId) || null;
     const correctReason = resolveCorrectReason({
       mapKey: question.mapKey,
