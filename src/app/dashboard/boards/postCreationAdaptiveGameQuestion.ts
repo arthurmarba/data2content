@@ -54,12 +54,12 @@ type StudyContextThemeMatch = {
 };
 
 const FALLBACK_DISTRACTOR_REASON =
-  "Pode funcionar em outro contexto, mas nao e a aposta principal aqui.";
+  "Pode funcionar em outro contexto, mas não é a aposta principal aqui.";
 
 const FALLBACK_DISTRACTOR_REASONS = [
-  "Parece uma boa saida, mas pode ignorar o sinal mais forte do historico.",
-  "E uma alternativa possivel, mas menos alinhada ao gabarito desta pergunta.",
-  "Pode funcionar em outro contexto, mas nao e a aposta principal aqui.",
+  "Parece uma boa saída, mas pode ignorar o sinal mais forte do histórico.",
+  "É uma alternativa possível, mas menos alinhada ao gabarito desta pergunta.",
+  "Pode funcionar em outro contexto, mas não é a aposta principal aqui.",
 ];
 
 const FALLBACK_OPTIONS_BY_MAP_KEY: Partial<
@@ -67,47 +67,47 @@ const FALLBACK_OPTIONS_BY_MAP_KEY: Partial<
 > = {
   format: [
     { id: "fallback-format-carousel", label: "Carrossel explicativo", reason: "Ajuda quando a ideia precisa de ordem e consulta." },
-    { id: "fallback-format-stories", label: "Stories em conversa", reason: "Ajuda quando a ideia precisa testar resposta rapida." },
-    { id: "fallback-format-photo", label: "Foto com legenda forte", reason: "Ajuda quando imagem e opiniao carregam o contexto." },
-    { id: "fallback-format-reels", label: "Reels direto ao ponto", reason: "Ajuda quando cena, ritmo ou reacao sustentam a pauta." },
+    { id: "fallback-format-stories", label: "Stories em conversa", reason: "Ajuda quando a ideia precisa testar resposta rápida." },
+    { id: "fallback-format-photo", label: "Foto com legenda forte", reason: "Ajuda quando imagem e opinião carregam o contexto." },
+    { id: "fallback-format-reels", label: "Reels direto ao ponto", reason: "Ajuda quando cena, ritmo ou reação sustentam a pauta." },
   ],
   objective: [
-    { id: "fallback-objective-comments", label: "Gerar comentarios", reason: "Bom quando a ideia abre conversa ou identificacao." },
-    { id: "fallback-objective-shares", label: "Gerar compartilhamentos", reason: "Bom quando a frase e facil de repassar." },
+    { id: "fallback-objective-comments", label: "Gerar comentários", reason: "Bom quando a ideia abre conversa ou identificação." },
+    { id: "fallback-objective-shares", label: "Gerar compartilhamentos", reason: "Bom quando a frase é fácil de repassar." },
     { id: "fallback-objective-saves", label: "Gerar salvamentos", reason: "Bom quando a pauta tem utilidade para consultar depois." },
-    { id: "fallback-objective-brand", label: "Abrir espaco para marca", reason: "Bom quando existe encaixe comercial organico." },
+    { id: "fallback-objective-brand", label: "Abrir espaço para marca", reason: "Bom quando existe encaixe comercial orgânico." },
   ],
   narrative: [
     { id: "fallback-narrative-routine", label: "Rotina real", reason: "Traz contexto vivido e naturalidade." },
-    { id: "fallback-narrative-opinion", label: "Opiniao direta", reason: "Ajuda quando a forca esta no posicionamento." },
+    { id: "fallback-narrative-opinion", label: "Opinião direta", reason: "Ajuda quando a força está no posicionamento." },
     { id: "fallback-narrative-backstage", label: "Bastidor", reason: "Aproxima quando o processo importa para a pauta." },
-    { id: "fallback-narrative-tutorial", label: "Tutorial simples", reason: "Organiza uma solucao em passos claros." },
+    { id: "fallback-narrative-tutorial", label: "Tutorial simples", reason: "Organiza uma solução em passos claros." },
   ],
   cta: [
-    { id: "fallback-cta-question", label: "Pergunta especifica", reason: "Facilita resposta direta nos comentarios." },
-    { id: "fallback-cta-examples", label: "Pedir exemplos parecidos", reason: "Abre espaco para repertorio da audiencia." },
-    { id: "fallback-cta-save", label: "Salvar para consultar depois", reason: "Combina com dica, lista ou passo reutilizavel." },
-    { id: "fallback-cta-send", label: "Enviar para alguem", reason: "Combina com situacoes reconheciveis e compartilhaves." },
+    { id: "fallback-cta-question", label: "Pergunta específica", reason: "Facilita resposta direta nos comentários." },
+    { id: "fallback-cta-examples", label: "Pedir exemplos parecidos", reason: "Abre espaço para repertório da audiência." },
+    { id: "fallback-cta-save", label: "Salvar para consultar depois", reason: "Combina com dica, lista ou passo reutilizável." },
+    { id: "fallback-cta-send", label: "Enviar para alguém", reason: "Combina com situações reconhecíveis e compartilháveis." },
   ],
   brand: [
     { id: "fallback-brand-routine", label: "Encaixe por rotina", reason: "Funciona quando a marca aparece no uso cotidiano." },
-    { id: "fallback-brand-problem", label: "Encaixe por problema resolvido", reason: "Funciona quando o produto resolve uma tensao real." },
-    { id: "fallback-brand-product", label: "Encaixe por produto em uso", reason: "Funciona quando a demonstracao nao parece forçada." },
-    { id: "fallback-brand-proof", label: "Encaixe por prova de performance", reason: "Funciona quando resultado e evidencia sustentam a pauta." },
+    { id: "fallback-brand-problem", label: "Encaixe por problema resolvido", reason: "Funciona quando o produto resolve uma tensão real." },
+    { id: "fallback-brand-product", label: "Encaixe por produto em uso", reason: "Funciona quando a demonstração não parece forçada." },
+    { id: "fallback-brand-proof", label: "Encaixe por prova de performance", reason: "Funciona quando resultado e evidência sustentam a pauta." },
   ],
   collab: [
     { id: "fallback-collab-same-niche", label: "Creator do mesmo nicho", reason: "Aumenta afinidade e leitura compartilhada do tema." },
-    { id: "fallback-collab-complementary", label: "Creator complementar", reason: "Adiciona repertorio sem disputar a mesma funcao." },
-    { id: "fallback-collab-contrast", label: "Creator com opiniao diferente", reason: "Cria contraste e conversa quando o tema comporta debate." },
-    { id: "fallback-collab-audience", label: "Creator com audiencia parecida", reason: "Facilita reconhecimento entre publicos proximos." },
+    { id: "fallback-collab-complementary", label: "Creator complementar", reason: "Adiciona repertório sem disputar a mesma função." },
+    { id: "fallback-collab-contrast", label: "Creator com opinião diferente", reason: "Cria contraste e conversa quando o tema comporta debate." },
+    { id: "fallback-collab-audience", label: "Creator com audiência parecida", reason: "Facilita reconhecimento entre públicos próximos." },
   ],
 };
 
 const GENERIC_FALLBACK_OPTIONS = [
-  { id: "fallback-generic-practical", label: "Caminho pratico", reason: "Mantem a decisao simples e executavel." },
-  { id: "fallback-generic-conversation", label: "Caminho de conversa", reason: "Abre espaco para resposta da audiencia." },
-  { id: "fallback-generic-proof", label: "Caminho de prova", reason: "Valoriza evidencia, exemplo ou contexto." },
-  { id: "fallback-generic-commercial", label: "Caminho comercial", reason: "Testa encaixe de marca sem forcar a pauta." },
+  { id: "fallback-generic-practical", label: "Caminho prático", reason: "Mantém a decisão simples e executável." },
+  { id: "fallback-generic-conversation", label: "Caminho de conversa", reason: "Abre espaço para resposta da audiência." },
+  { id: "fallback-generic-proof", label: "Caminho de prova", reason: "Valoriza evidência, exemplo ou contexto." },
+  { id: "fallback-generic-commercial", label: "Caminho comercial", reason: "Testa encaixe de marca sem forçar a pauta." },
 ];
 
 const WEAK_THEME_TERMS = new Set([
@@ -128,15 +128,15 @@ const WEAK_THEME_TERMS = new Set([
 ]);
 
 const CORRECT_REASON_BY_MAP_KEY: Partial<Record<PostCreationAdaptiveQuestionMapKey, string>> = {
-  objective: "A resposta foi definida pelo gabarito estrategico da reacao que o conteudo precisa provocar.",
-  format: "A resposta foi definida pelo gabarito estrategico do formato mais alinhado a esta pauta.",
-  narrative: "A resposta foi definida pelo gabarito estrategico da narrativa com melhor encaixe.",
-  hook: "A resposta foi definida pelo gabarito estrategico da abertura mais forte para segurar atencao.",
-  cta: "A resposta foi definida pelo gabarito estrategico do convite mais coerente com a decisao.",
-  brand: "A resposta foi definida pelo gabarito estrategico do encaixe comercial mais natural.",
-  collab: "A resposta foi definida pelo gabarito estrategico da colaboracao com melhor funcao para a pauta.",
-  effort: "A resposta foi definida pelo gabarito estrategico do esforco mais realista para executar.",
-  schedule: "A resposta foi definida pelo gabarito estrategico da cadencia mais sustentavel.",
+  objective: "A resposta foi definida pelo gabarito estratégico da reação que o conteúdo precisa provocar.",
+  format: "A resposta foi definida pelo gabarito estratégico do formato mais alinhado a esta pauta.",
+  narrative: "A resposta foi definida pelo gabarito estratégico da narrativa com melhor encaixe.",
+  hook: "A resposta foi definida pelo gabarito estratégico da abertura mais forte para segurar atenção.",
+  cta: "A resposta foi definida pelo gabarito estratégico do convite mais coerente com a decisão.",
+  brand: "A resposta foi definida pelo gabarito estratégico do encaixe comercial mais natural.",
+  collab: "A resposta foi definida pelo gabarito estratégico da colaboração com melhor função para a pauta.",
+  effort: "A resposta foi definida pelo gabarito estratégico do esforço mais realista para executar.",
+  schedule: "A resposta foi definida pelo gabarito estratégico da cadência mais sustentável.",
 };
 
 function cleanText(value?: string | null): string | null {
@@ -160,13 +160,27 @@ function normalizeId(value?: string | null): string {
 function shortenText(value: string, maxLength = 72): string {
   const cleaned = value.replace(/\s+/g, " ").trim();
   if (cleaned.length <= maxLength) return cleaned;
-  return `${cleaned.slice(0, maxLength - 1).trim()}…`;
+  const sliced = cleaned.slice(0, maxLength - 1).trim();
+  const lastSpace = sliced.lastIndexOf(" ");
+  const safeSlice = lastSpace > 24 ? sliced.slice(0, lastSpace).trim() : sliced;
+  return `${safeSlice}…`;
 }
 
 function displayFragment(value?: string | null, maxLength = 32): string | null {
   const cleaned = cleanText(value);
   if (!cleaned) return null;
   return shortenText(cleaned, maxLength).toLocaleLowerCase("pt-BR");
+}
+
+function limitUiLabel(value: string): string {
+  return shortenText(value, 86);
+}
+
+function buildDescriptor(label: string, reason: string): StudyContextOptionDescriptor {
+  return {
+    label: limitUiLabel(label),
+    reason: shortenText(reason, 140),
+  };
 }
 
 function isWeakThemePhrase(value?: string | null): boolean {
@@ -202,6 +216,44 @@ function optionCorpus(option: PostCreationAdaptiveQuestionOption): string {
 
 function signalCorpus(signal: PostCreationAdaptiveStudySignal): string {
   return normalizeText([signal.id, signal.label].filter(Boolean).join(" "));
+}
+
+function mergeStudySignals(...groups: Array<PostCreationAdaptiveStudySignal[] | undefined>): PostCreationAdaptiveStudySignal[] {
+  const seen = new Set<string>();
+  const result: PostCreationAdaptiveStudySignal[] = [];
+
+  for (const group of groups) {
+    for (const signal of group || []) {
+      const label = cleanText(signal.label);
+      const id = cleanText(signal.id) || label;
+      const key = normalizeText(id || label);
+      if (!label || !key || seen.has(key)) continue;
+      seen.add(key);
+      result.push(signal);
+    }
+  }
+
+  return result;
+}
+
+function referencePostsToSignals(studyContext?: PostCreationAdaptiveStudyContext | null): PostCreationAdaptiveStudySignal[] {
+  return (studyContext?.referencePosts || []).map((post) => ({
+    id: `reference-${post.id}`,
+    label: post.title,
+    score: Math.max(0, post.interactions || post.reach || 0),
+    evidenceCount: 1,
+    reason: post.reason || "Post de referência do histórico.",
+  }));
+}
+
+function postingWindowsToSignals(studyContext?: PostCreationAdaptiveStudyContext | null): PostCreationAdaptiveStudySignal[] {
+  return (studyContext?.bestPostingWindows || []).map((window) => ({
+    id: window.id,
+    label: window.label,
+    score: window.score,
+    evidenceCount: window.evidenceCount,
+    reason: window.reason,
+  }));
 }
 
 function getPrimaryFormatSignal(studyContext?: PostCreationAdaptiveStudyContext | null): PostCreationAdaptiveStudySignal | null {
@@ -285,6 +337,27 @@ function isShareSignal(signal?: PostCreationAdaptiveStudySignal | null): boolean
   return Boolean(signal && hasAnyTerm(signalCorpus(signal), ["share", "shares", "compartilhamento", "compartilhar", "enviar"]));
 }
 
+function isQuestionSignal(signal?: PostCreationAdaptiveStudySignal | null): boolean {
+  const text = signalCorpus(signal || { id: "", label: "", score: 0, evidenceCount: 0, reason: "" });
+  return Boolean(signal && (hasAnyTerm(text, ["pergunta", "voce ja", "por que", "como"]) || signal.label.includes("?")));
+}
+
+function isContrastSignal(signal?: PostCreationAdaptiveStudySignal | null): boolean {
+  return Boolean(signal && hasAnyTerm(signalCorpus(signal), ["contraste", "antes depois", "tensao", "erro", "pare"]));
+}
+
+function isProofSignal(signal?: PostCreationAdaptiveStudySignal | null): boolean {
+  return Boolean(signal && hasAnyTerm(signalCorpus(signal), ["prova", "resultado", "evidencia", "processo", "bastidor"]));
+}
+
+function hasEngagementSignal(
+  primary?: PostCreationAdaptiveStudySignal | null,
+  candidate?: PostCreationAdaptiveStudySignal | null,
+): boolean {
+  return isCommentSignal(primary) || isSaveSignal(primary) || isShareSignal(primary)
+    || isCommentSignal(candidate) || isSaveSignal(candidate) || isShareSignal(candidate);
+}
+
 function optionMatchesSignal(option: PostCreationAdaptiveQuestionOption, signal: PostCreationAdaptiveStudySignal): boolean {
   const optionText = optionCorpus(option);
   const signalText = signalCorpus(signal);
@@ -326,6 +399,65 @@ function getStudySignalsForMapKey(
   if (mapKey === "where") return studyContext.topContexts;
   if (mapKey === "what") return studyContext.topProposals;
   if (mapKey === "objective" || mapKey === "cta") return studyContext.topEngagementDrivers;
+  if (mapKey === "hook") {
+    return mergeStudySignals(
+      studyContext.topHooks,
+      studyContext.topCaptionSignals,
+      studyContext.topThemes,
+      studyContext.topThemeKeywords,
+    );
+  }
+  if (mapKey === "how") {
+    return mergeStudySignals(
+      studyContext.topNarratives,
+      studyContext.topContexts,
+      studyContext.topProposals,
+      studyContext.topProofStyles,
+      studyContext.topCaptionSignals,
+    );
+  }
+  if (mapKey === "why") {
+    return mergeStudySignals(
+      studyContext.topEngagementDrivers,
+      studyContext.topProofStyles,
+      studyContext.topCaptionSignals,
+      referencePostsToSignals(studyContext),
+    );
+  }
+  if (mapKey === "effort") {
+    return mergeStudySignals(
+      studyContext.topFormats,
+      studyContext.topNarratives,
+      studyContext.topThemeKeywords,
+      studyContext.topThemes,
+    );
+  }
+  if (mapKey === "brand") {
+    return mergeStudySignals(
+      studyContext.brandSignals,
+      studyContext.topCommercialModes,
+      studyContext.topContexts,
+      studyContext.topThemeKeywords,
+      studyContext.topThemes,
+    );
+  }
+  if (mapKey === "collab") {
+    return mergeStudySignals(
+      studyContext.collabSignals,
+      studyContext.topNarratives,
+      studyContext.topContexts,
+      studyContext.topThemeKeywords,
+      studyContext.topThemes,
+    );
+  }
+  if (mapKey === "who") {
+    return mergeStudySignals(
+      studyContext.collabSignals,
+      studyContext.topContexts,
+      studyContext.topNarratives,
+    );
+  }
+  if (mapKey === "schedule") return postingWindowsToSignals(studyContext);
   return [];
 }
 
@@ -526,6 +658,154 @@ function buildStudyContextOptionDescriptor(params: {
     };
   }
 
+  if (params.mapKey === "hook") {
+    if (themeLabel && isQuestionSignal(params.signal)) {
+      return buildDescriptor(
+        `Começar com pergunta sobre ${themeLabel}`,
+        "Usa uma abertura de conversa ancorada em assunto recorrente do conteúdo.",
+      );
+    }
+    if (themeLabel && isContrastSignal(params.signal)) {
+      return buildDescriptor(
+        `Mostrar contraste de ${themeLabel} logo no início`,
+        "Transforma o tema em tensão rápida para segurar atenção.",
+      );
+    }
+    if (themeLabel && contextLabel) {
+      return buildDescriptor(
+        `Abrir com ${themeLabel} em uma cena reconhecível`,
+        "Cruza tema e contexto para deixar o gancho menos genérico.",
+      );
+    }
+    if (themeLabel) {
+      return buildDescriptor(
+        `Abrir com ${themeLabel} em uma cena reconhecível`,
+        "Usa um tema recorrente como ponto de entrada do post.",
+      );
+    }
+    return buildDescriptor(
+      `${signalLabel}, gancho do seu histórico`,
+      "Usa uma abertura que aparece nos sinais de legenda e conteúdo.",
+    );
+  }
+
+  if (params.mapKey === "how") {
+    if (themeLabel && proposalLabel) {
+      return buildDescriptor(
+        `Organizar ${themeLabel} em ${proposalLabel}`,
+        "Transforma o tema em execução mais clara para o post.",
+      );
+    }
+    if (themeLabel && contextLabel) {
+      return buildDescriptor(
+        `Mostrar bastidor de ${themeLabel} com contexto real`,
+        "Apoia a execução em um território recorrente do conteúdo.",
+      );
+    }
+    if (themeLabel && narrativeLabel) {
+      return buildDescriptor(
+        `Transformar ${themeLabel} em cena curta`,
+        "Usa a narrativa recorrente para reduzir a ideia a uma execução simples.",
+      );
+    }
+    return buildDescriptor(
+      `${signalLabel}, execução apoiada nos seus sinais`,
+      "Usa narrativa, contexto ou proposta que aparecem no material analisado.",
+    );
+  }
+
+  if (params.mapKey === "why") {
+    if (themeLabel && (isProofSignal(params.signal) || hasAnyTerm(signalCorpus(params.signal), ["referencia"]))) {
+      return buildDescriptor(
+        `Porque ${themeLabel} já aparece como sinal recorrente`,
+        "Conecta a justificativa ao tema e às evidências do histórico.",
+      );
+    }
+    if (themeLabel && hasEngagementSignal(engagementDriver, params.signal)) {
+      return buildDescriptor(
+        `Porque ${themeLabel} cruza tema e reação da audiência`,
+        "Usa o assunto recorrente junto do comportamento que ele tende a provocar.",
+      );
+    }
+    if (themeLabel) {
+      return buildDescriptor(
+        `Porque ${themeLabel} já aparece no material analisado`,
+        "A justificativa parte de um assunto recorrente, sem inventar dado novo.",
+      );
+    }
+    return buildDescriptor(
+      `${signalLabel}, razão apoiada no histórico`,
+      "Usa engajamento, prova ou post de referência para sustentar a escolha.",
+    );
+  }
+
+  if (params.mapKey === "effort") {
+    const text = signalCorpus(params.signal);
+    if (themeLabel && hasAnyTerm(text, ["reels", "stories", "foto", "cena"])) {
+      return buildDescriptor(
+        `Versão simples: ${themeLabel} em uma cena rápida`,
+        "Contextualiza esforço como execução viável, não como métrica do histórico.",
+      );
+    }
+    if (themeLabel && hasAnyTerm(text, ["carrossel", "carousel", "tutorial", "passo"])) {
+      return buildDescriptor(
+        `Versão média: ${themeLabel} com roteiro curto`,
+        "Organiza o tema em uma execução um pouco mais preparada.",
+      );
+    }
+    if (themeLabel) {
+      return buildDescriptor(
+        `Versão completa: ${themeLabel} com mais cenas e prova visual`,
+        "Reserva mais produção quando a pauta precisa de contexto e sustentação.",
+      );
+    }
+    return buildDescriptor(
+      `${signalLabel}, esforço conectado ao seu conteúdo`,
+      "Usa sinais do histórico apenas para contextualizar a execução.",
+    );
+  }
+
+  if (params.mapKey === "brand") {
+    if (params.studyContext?.brandSignals.some((signal) => signal.id === params.signal.id || signal.label === params.signal.label)) {
+      return buildDescriptor(
+        themeLabel || contextLabel
+          ? `Marca ligada a ${signalLabel} dentro de ${themeLabel || contextLabel}`
+          : `Marca ligada a ${signalLabel}`,
+        "Usa sinal comercial existente sem prometer match garantido.",
+      );
+    }
+    return buildDescriptor(
+      themeLabel
+        ? `Marca em contexto de ${themeLabel} sem parecer interrupção`
+        : `${signalLabel}, encaixe comercial contextual`,
+      "Apoia o encaixe em contexto, tema ou modo comercial já observado.",
+    );
+  }
+
+  if (params.mapKey === "collab" || params.mapKey === "who") {
+    if (params.studyContext?.collabSignals.some((signal) => signal.id === params.signal.id || signal.label === params.signal.label)) {
+      return buildDescriptor(
+        themeLabel
+          ? `Collab com ${signalLabel} para ampliar ${themeLabel}`
+          : `Collab com ${signalLabel}`,
+        "Usa sinal de colaboração existente como ponto de partida.",
+      );
+    }
+    return buildDescriptor(
+      themeLabel
+        ? `Creator complementar para discutir ${themeLabel}`
+        : `${signalLabel}, creator alinhado ao contexto`,
+      "Usa narrativa ou contexto recorrente para orientar o perfil da parceria.",
+    );
+  }
+
+  if (params.mapKey === "schedule") {
+    return buildDescriptor(
+      `${signalLabel}, janela forte do histórico`,
+      "Usa uma janela recorrente como contexto de cadência, sem tratar horário como certeza.",
+    );
+  }
+
   return {
     label: `${signalLabel}, sinal recorrente nos seus conteúdos`,
     reason: "Aparece entre os sinais analisados e ajuda a reduzir escolha genérica.",
@@ -559,7 +839,7 @@ function applyStudyContextToOptions(params: {
     result.push({
       ...(existingOption || {}),
       id,
-      label: descriptor.label,
+      label: limitUiLabel(descriptor.label),
       reason: descriptor.reason,
       value: existingOption?.value || signal.label,
       recommended: existingOption?.recommended,
@@ -702,7 +982,7 @@ function resolveCorrectReason(params: {
     || cleanText(params.rationale)
     || cleanText(params.correctOption?.reason)
     || CORRECT_REASON_BY_MAP_KEY[params.mapKey]
-    || "A resposta foi definida pelo gabarito estrategico desta pergunta.";
+    || "A resposta foi definida pelo gabarito estratégico desta pergunta.";
 }
 
 function resolveStudyContextCorrectReason(

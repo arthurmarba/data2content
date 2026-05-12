@@ -774,6 +774,204 @@ describe("postCreationAdaptiveGameQuestion", () => {
     expect(ctaQuestion.options[0]?.label).toBe("Salvamento para dica sobre meditação");
   });
 
+  it("uses hook signals with theme and caption context", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputQuestion: question([option("question", "Pergunta direta")], { mapKey: "hook" }),
+      inputAnswerKey: { ...answerKey("question"), correctAnswersByQuestionId: { "game-question": "question" } },
+      inputStudyContext: studyContext({
+        topThemeKeywords: [
+          { id: "meditation", label: "Meditação", score: 100, evidenceCount: 5, reason: "Recorrente." },
+        ],
+        topHooks: [
+          { id: "question", label: "Você já passou por isso?", score: 90, evidenceCount: 4, reason: "Abertura recorrente." },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.options[0]?.label).toBe("Começar com pergunta sobre meditação");
+    expect(gameQuestion.options[0]?.reason).toContain("abertura de conversa");
+    expect(validatePostCreationAdaptiveGameQuestion(gameQuestion).ok).toBe(true);
+  });
+
+  it("uses how signals with theme, context, and narrative", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputQuestion: question([option("backstage", "Bastidor")], { mapKey: "how" }),
+      inputAnswerKey: { ...answerKey("backstage"), correctAnswersByQuestionId: { "game-question": "backstage" } },
+      inputStudyContext: studyContext({
+        topThemeKeywords: [
+          { id: "beach", label: "Praia", score: 100, evidenceCount: 5, reason: "Recorrente." },
+        ],
+        topNarratives: [
+          { id: "backstage", label: "Bastidor", score: 90, evidenceCount: 4, reason: "Recorrente." },
+        ],
+        topContexts: [
+          { id: "travel", label: "Viagem", score: 80, evidenceCount: 3, reason: "Recorrente." },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.options[0]?.label).toBe("Mostrar bastidor de praia com contexto real");
+    expect(gameQuestion.options[0]?.reason).toContain("território recorrente");
+    expect(validatePostCreationAdaptiveGameQuestion(gameQuestion).ok).toBe(true);
+  });
+
+  it("uses why signals with theme, engagement, and proof context", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputQuestion: question([option("comments", "Comentários")], { mapKey: "why" }),
+      inputAnswerKey: { ...answerKey("comments"), correctAnswersByQuestionId: { "game-question": "comments" } },
+      inputStudyContext: studyContext({
+        topThemeKeywords: [
+          { id: "work", label: "Trabalho", score: 100, evidenceCount: 5, reason: "Recorrente." },
+        ],
+        topEngagementDrivers: [
+          { id: "comments", label: "Comentários", score: 90, evidenceCount: 4, reason: "Recorrente." },
+        ],
+        topProofStyles: [
+          { id: "proof", label: "Prova de processo", score: 70, evidenceCount: 2, reason: "Recorrente." },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.options[0]?.label).toBe("Porque trabalho cruza tema e reação da audiência");
+    expect(gameQuestion.options[0]?.reason).toContain("comportamento");
+    expect(validatePostCreationAdaptiveGameQuestion(gameQuestion).ok).toBe(true);
+  });
+
+  it("uses effort signals as production versions without pretending effort is a metric", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputQuestion: question([option("simple", "Baixo")], { mapKey: "effort" }),
+      inputAnswerKey: { ...answerKey("simple"), correctAnswersByQuestionId: { "game-question": "simple" } },
+      inputStudyContext: studyContext({
+        topThemeKeywords: [
+          { id: "sleep", label: "Sono", score: 100, evidenceCount: 5, reason: "Recorrente." },
+        ],
+        topFormats: [
+          { id: "reels", label: "Reels", score: 90, evidenceCount: 4, reason: "Forte em alcance." },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.options[0]?.label).toBe("Versão simples: sono em uma cena rápida");
+    expect(gameQuestion.options[0]?.reason).toContain("não como métrica");
+    expect(validatePostCreationAdaptiveGameQuestion(gameQuestion).ok).toBe(true);
+  });
+
+  it("uses brandSignals and collabSignals when they exist", () => {
+    const brandQuestion = buildFirstGameQuestion({
+      inputQuestion: question([option("skincare", "Skincare")], { mapKey: "brand" }),
+      inputAnswerKey: { ...answerKey("skincare"), correctAnswersByQuestionId: { "game-question": "skincare" } },
+      inputStudyContext: studyContext({
+        topThemeKeywords: [
+          { id: "skin", label: "Pele sensível", score: 100, evidenceCount: 5, reason: "Recorrente." },
+        ],
+        brandSignals: [
+          { id: "skincare", label: "Skincare", score: 90, evidenceCount: 4, reason: "Sinal comercial." },
+        ],
+      }),
+    });
+    const collabQuestion = buildFirstGameQuestion({
+      inputQuestion: question([option("nutrition", "Nutricionista")], { mapKey: "collab" }),
+      inputAnswerKey: { ...answerKey("nutrition"), correctAnswersByQuestionId: { "game-question": "nutrition" } },
+      inputStudyContext: studyContext({
+        topThemeKeywords: [
+          { id: "sleep", label: "Sono", score: 100, evidenceCount: 5, reason: "Recorrente." },
+        ],
+        collabSignals: [
+          { id: "nutrition", label: "Nutricionista", score: 90, evidenceCount: 4, reason: "Sinal de collab." },
+        ],
+      }),
+    });
+
+    expect(brandQuestion.options[0]?.label).toBe("Marca ligada a Skincare dentro de pele sensível");
+    expect(brandQuestion.options[0]?.reason).toContain("sem prometer match garantido");
+    expect(collabQuestion.options[0]?.label).toBe("Collab com Nutricionista para ampliar sono");
+    expect(collabQuestion.options[0]?.reason).toContain("sinal de colaboração");
+  });
+
+  it("uses who signals from collabSignals or contextual fallback", () => {
+    const withCollabSignal = buildFirstGameQuestion({
+      inputQuestion: question([option("creator", "Creator de maternidade")], { mapKey: "who" }),
+      inputAnswerKey: { ...answerKey("creator"), correctAnswersByQuestionId: { "game-question": "creator" } },
+      inputStudyContext: studyContext({
+        topThemeKeywords: [
+          { id: "motherhood", label: "Maternidade", score: 100, evidenceCount: 5, reason: "Recorrente." },
+        ],
+        collabSignals: [
+          { id: "creator", label: "Creator de maternidade", score: 90, evidenceCount: 4, reason: "Sinal de collab." },
+        ],
+      }),
+    });
+    const fallbackContext = buildFirstGameQuestion({
+      inputQuestion: question([option("home", "Casa")], { mapKey: "who" }),
+      inputAnswerKey: { ...answerKey("home"), correctAnswersByQuestionId: { "game-question": "home" } },
+      inputStudyContext: studyContext({
+        topThemeKeywords: [
+          { id: "motherhood", label: "Maternidade", score: 100, evidenceCount: 5, reason: "Recorrente." },
+        ],
+        topContexts: [
+          { id: "home", label: "Casa", score: 80, evidenceCount: 3, reason: "Recorrente." },
+        ],
+      }),
+    });
+
+    expect(withCollabSignal.options[0]?.label).toBe("Collab com Creator de maternidade para ampliar maternidade");
+    expect(fallbackContext.options[0]?.label).toBe("Creator complementar para discutir maternidade");
+  });
+
+  it("uses schedule windows when available", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputQuestion: question([option("monday-9", "Segunda 9h")], { mapKey: "schedule" }),
+      inputAnswerKey: { ...answerKey("monday-9"), correctAnswersByQuestionId: { "game-question": "monday-9" } },
+      inputStudyContext: studyContext({
+        bestPostingWindows: [
+          {
+            id: "monday-9",
+            label: "Segunda-feira às 9h",
+            dayLabel: "Segunda-feira",
+            hourLabel: "9h",
+            score: 90,
+            evidenceCount: 4,
+            reason: "Janela recorrente.",
+          },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.options[0]?.label).toBe("Segunda-feira às 9h, janela forte do histórico");
+    expect(validatePostCreationAdaptiveGameQuestion(gameQuestion).ok).toBe(true);
+  });
+
+  it("keeps new UI labels accented and within the safe length", () => {
+    const longTheme = "Trabalho remoto com rotina de autocuidado e organização da casa";
+    const gameQuestion = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "carousel", label: "Carrossel", score: 100, evidenceCount: 5, reason: "Forte em salvamento." },
+          { id: "reels", label: "Reels", score: 90, evidenceCount: 4, reason: "Forte em alcance." },
+          { id: "stories", label: "Stories", score: 80, evidenceCount: 3, reason: "Forte em conversa." },
+          { id: "photo", label: "Foto", score: 70, evidenceCount: 2, reason: "Forte em legenda." },
+        ],
+        topThemeKeywords: [
+          { id: "long-theme", label: longTheme, score: 100, evidenceCount: 5, reason: "Recorrente." },
+        ],
+        topProposals: [
+          { id: "tips", label: "Dica prática", score: 90, evidenceCount: 4, reason: "Recorrente." },
+        ],
+        topEngagementDrivers: [
+          { id: "saves", label: "Salvamentos", score: 95, evidenceCount: 5, reason: "Recorrente." },
+        ],
+      }),
+    });
+    const labels = gameQuestion.options.map((candidate) => candidate.label);
+    const allCopy = gameQuestion.options.map((candidate) => `${candidate.label} ${candidate.reason}`).join(" ");
+
+    expect(labels.every((label) => label.length <= 86)).toBe(true);
+    expect(allCopy).toContain("conteúdo");
+    expect(allCopy).not.toContain("historico");
+    expect(allCopy).not.toContain("conteudo");
+    expect(validatePostCreationAdaptiveGameQuestion(gameQuestion).ok).toBe(true);
+  });
+
   it("uses topFormats as distractors when enough StudyContext signals exist", () => {
     const gameQuestion = buildFirstGameQuestion({
       inputStudyContext: studyContext({
