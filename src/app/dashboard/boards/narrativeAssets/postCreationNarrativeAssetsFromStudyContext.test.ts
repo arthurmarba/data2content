@@ -2,7 +2,7 @@ import { buildCreatorNarrativeMapFromStudyContext } from './postCreationNarrativ
 import { PostCreationAdaptiveStudyContext } from '../postCreationAdaptiveStudyContext';
 import { canAutoConfirmAsset } from './postCreationNarrativeAssets';
 
-describe('Narrative Assets Extrator from StudyContext (Hardening)', () => {
+describe('Narrative Assets Extrator from StudyContext (Coverage Reinforcement)', () => {
   const mockStudyContext: PostCreationAdaptiveStudyContext = {
     source: 'planner_client',
     periodDays: 90,
@@ -77,12 +77,101 @@ describe('Narrative Assets Extrator from StudyContext (Hardening)', () => {
     expect(result.generatedAt).toBe(fixedTimestamp);
     expect(result.updatedAt).toBe(fixedTimestamp);
     expect(result.assets.length).toBeGreaterThan(0);
-    expect(result.assets[0].createdAt).toBe(fixedTimestamp);
-    expect(result.assets[0].updatedAt).toBe(fixedTimestamp);
+    expect(result.assets.every(a => a.createdAt === fixedTimestamp)).toBe(true);
+    expect(result.assets.every(a => a.updatedAt === fixedTimestamp)).toBe(true);
   });
 
-  it('should infer relationship function from accented drivers like "Comentários" and "Interações"', () => {
-    const contextWithAccents: PostCreationAdaptiveStudyContext = {
+  it('should generate assets of type "scenario" from topContexts', () => {
+    const result = buildCreatorNarrativeMapFromStudyContext({ studyContext: mockStudyContext });
+    const scenario = result.assets.find(a => a.label === 'Escritório');
+    
+    expect(scenario).toBeDefined();
+    expect(scenario?.type).toBe('scenario');
+    expect(scenario?.status).toBe('suggested');
+    expect(scenario?.source).toBe('study_context');
+    expect(scenario?.evidence.length).toBeGreaterThan(0);
+  });
+
+  it('should generate assets of type "language" from topNarratives, topNarrativeForms and topTones', () => {
+    const result = buildCreatorNarrativeMapFromStudyContext({ studyContext: mockStudyContext });
+    const bastidores = result.assets.find(a => a.label === 'Bastidores');
+    const humor = result.assets.find(a => a.label === 'Humor');
+    const inspiracional = result.assets.find(a => a.label === 'Inspiracional');
+    
+    expect(bastidores?.type).toBe('language');
+    expect(humor?.type).toBe('language');
+    expect(inspiracional?.type).toBe('language');
+    
+    expect(bastidores?.status).toBe('suggested');
+    expect(bastidores?.evidence.length).toBeGreaterThan(0);
+  });
+
+  it('should generate assets of type "commercial_proof" from topProofStyles, topCommercialModes and brandSignals', () => {
+    const result = buildCreatorNarrativeMapFromStudyContext({ studyContext: mockStudyContext });
+    const resultados = result.assets.find(a => a.label === 'Resultados');
+    const vendaDireta = result.assets.find(a => a.label === 'Venda Direta');
+    const parceria = result.assets.find(a => a.label === 'Parceria Marca X');
+    
+    expect(resultados?.type).toBe('commercial_proof');
+    expect(vendaDireta?.type).toBe('commercial_proof');
+    expect(parceria?.type).toBe('commercial_proof');
+    
+    expect(resultados?.status).toBe('suggested');
+    expect(resultados?.evidence.length).toBeGreaterThan(0);
+  });
+
+  it('should generate assets of type "theme" from topThemes, topThemeKeywords and topCaptionSignals', () => {
+    const result = buildCreatorNarrativeMapFromStudyContext({ studyContext: mockStudyContext });
+    const carreira = result.assets.find(a => a.label === 'Carreira');
+    const produtividade = result.assets.find(a => a.label === 'Produtividade');
+    const rotina = result.assets.find(a => a.label === 'Rotina');
+    
+    expect(carreira?.type).toBe('theme');
+    expect(produtividade?.type).toBe('theme');
+    expect(rotina?.type).toBe('theme');
+    
+    expect(carreira?.status).toBe('suggested');
+    expect(carreira?.evidence.length).toBeGreaterThan(0);
+  });
+
+  it('should infer "reach" from sharing/reach/viral drivers', () => {
+    const context: PostCreationAdaptiveStudyContext = {
+      ...mockStudyContext,
+      topEngagementDrivers: [
+        { id: 'd1', label: 'Alcance', score: 100, evidenceCount: 1, reason: 'R1' },
+        { id: 'd2', label: 'Viral', score: 100, evidenceCount: 1, reason: 'R2' }
+      ]
+    };
+    const result = buildCreatorNarrativeMapFromStudyContext({ studyContext: context });
+    expect(result.strategicFunctions).toContain('reach');
+  });
+
+  it('should infer "commercial_proof" from commercial/brand/product/sale/publi drivers', () => {
+    const context: PostCreationAdaptiveStudyContext = {
+      ...mockStudyContext,
+      topEngagementDrivers: [
+        { id: 'd1', label: 'Venda de produtos', score: 100, evidenceCount: 1, reason: 'R1' },
+        { id: 'd2', label: 'Marca parceira', score: 100, evidenceCount: 1, reason: 'R2' }
+      ]
+    };
+    const result = buildCreatorNarrativeMapFromStudyContext({ studyContext: context });
+    expect(result.strategicFunctions).toContain('commercial_proof');
+  });
+
+  it('should infer "experiment" from test/stories/poll/question drivers', () => {
+    const context: PostCreationAdaptiveStudyContext = {
+      ...mockStudyContext,
+      topEngagementDrivers: [
+        { id: 'd1', label: 'Enquete nos stories', score: 100, evidenceCount: 1, reason: 'R1' },
+        { id: 'd2', label: 'Teste de formato', score: 100, evidenceCount: 1, reason: 'R2' }
+      ]
+    };
+    const result = buildCreatorNarrativeMapFromStudyContext({ studyContext: context });
+    expect(result.strategicFunctions).toContain('experiment');
+  });
+
+  it('should infer "relationship" from accented drivers like "Comentários" and "Interações"', () => {
+    const context: PostCreationAdaptiveStudyContext = {
       ...mockStudyContext,
       topEngagementDrivers: [
         { id: 'drv-1', label: 'Comentários', score: 100, evidenceCount: 1, reason: 'Test' },
@@ -90,21 +179,32 @@ describe('Narrative Assets Extrator from StudyContext (Hardening)', () => {
       ]
     };
 
-    const result = buildCreatorNarrativeMapFromStudyContext({ studyContext: contextWithAccents });
+    const result = buildCreatorNarrativeMapFromStudyContext({ studyContext: context });
     expect(result.strategicFunctions).toContain('relationship');
   });
 
-  it('should NOT infer "positioning" for unknown engagement drivers', () => {
-    const contextWithUnknown: PostCreationAdaptiveStudyContext = {
-      ...mockStudyContext,
-      topEngagementDrivers: [
-        { id: 'drv-unk', label: 'Algum driver aleatorio', score: 100, evidenceCount: 1, reason: 'Test' }
-      ]
-    };
+  it('should maintain all assets as "suggested"', () => {
+    const result = buildCreatorNarrativeMapFromStudyContext({ studyContext: mockStudyContext });
+    expect(result.assets.length).toBeGreaterThan(0);
+    expect(result.assets.every(a => a.status === 'suggested')).toBe(true);
+  });
 
-    const result = buildCreatorNarrativeMapFromStudyContext({ studyContext: contextWithUnknown });
-    expect(result.strategicFunctions).not.toContain('positioning');
-    expect(result.strategicFunctions.length).toBe(0);
+  it('should ensure every asset has a stable ID based on type + normalized label', () => {
+    const result = buildCreatorNarrativeMapFromStudyContext({ studyContext: mockStudyContext });
+    
+    const carreira = result.assets.find(a => a.label === 'Carreira');
+    expect(carreira?.id).toBe('theme_carreira');
+    
+    const escritorio = result.assets.find(a => a.label === 'Escritório');
+    expect(escritorio?.id).toBe('scenario_escritorio');
+    
+    const vendaDireta = result.assets.find(a => a.label === 'Venda Direta');
+    expect(vendaDireta?.id).toBe('commercial_proof_venda_direta');
+  });
+
+  it('should ensure centralNarrative remains null in this phase', () => {
+    const result = buildCreatorNarrativeMapFromStudyContext({ studyContext: mockStudyContext });
+    expect(result.centralNarrative).toBeNull();
   });
 
   it('should deduplicate assets and keep accumulating evidence', () => {
@@ -127,7 +227,7 @@ describe('Narrative Assets Extrator from StudyContext (Hardening)', () => {
     expect(carreraAssets[0].evidence.some(e => e.reason === 'Second')).toBe(true);
   });
 
-  it('should allow relationship suggested from collabSignals and respect sensitive rules', () => {
+  it('should NOT allow auto-confirmation for relationship assets', () => {
     const result = buildCreatorNarrativeMapFromStudyContext({ studyContext: mockStudyContext });
     const collabAsset = result.assets.find(a => a.type === 'relationship');
     
