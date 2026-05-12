@@ -7,6 +7,7 @@ import {
   buildPostCreationAdaptiveAnswerKey,
   evaluatePostCreationAdaptiveAnswers,
 } from "../postCreationAdaptiveAnswerKey";
+import { buildPostCreationAdaptiveGameQuestions } from "../postCreationAdaptiveGameQuestion";
 import type {
   PostCreationAdaptiveAnswerEvaluation,
   PostCreationAdaptiveAnswerKey,
@@ -136,6 +137,21 @@ export default function PostCreationAdaptiveNativeFlow({
       return null;
     }
   }, [flow.detection, flow.questions, studyContext]);
+  const gameQuestions = useMemo(() => {
+    if (!answerKey) return [];
+
+    return buildPostCreationAdaptiveGameQuestions({
+      questions: flow.questions,
+      answerKey,
+    });
+  }, [answerKey, flow.questions]);
+  const visibleQuestions: PostCreationAdaptiveQuestion[] = useMemo(() => {
+    if (answerKey && gameQuestions.length === flow.questions.length && gameQuestions.length > 0) {
+      return gameQuestions;
+    }
+
+    return flow.questions;
+  }, [answerKey, flow.questions, gameQuestions]);
   const answerEvaluation = useMemo(() => {
     if (!answerKey) return null;
 
@@ -233,7 +249,7 @@ export default function PostCreationAdaptiveNativeFlow({
 
   if (flow.status === "quiz" || flow.status === "planning") {
     const { safeQuestionIndex, question } = resolveCurrentQuestion({
-      questions: flow.questions,
+      questions: visibleQuestions,
       answers: flow.answers,
       currentQuestionIndex,
     });
@@ -244,11 +260,11 @@ export default function PostCreationAdaptiveNativeFlow({
       question,
       answers: flow.answers,
       questionIndex: safeQuestionIndex,
-      questionCount: flow.questions.length,
+      questionCount: visibleQuestions.length,
       answerKey,
       evaluations: answerEvaluation?.evaluations,
     });
-    const isLastQuestion = safeQuestionIndex >= flow.questions.length - 1;
+    const isLastQuestion = safeQuestionIndex >= visibleQuestions.length - 1;
 
     return (
       <div className="min-w-0 space-y-4 overflow-visible pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:space-y-5 sm:pb-0">
@@ -288,11 +304,11 @@ export default function PostCreationAdaptiveNativeFlow({
               return;
             }
 
-            setCurrentQuestionIndex((index) => clampQuestionIndex(index + 1, flow.questions.length));
+            setCurrentQuestionIndex((index) => clampQuestionIndex(index + 1, visibleQuestions.length));
           }}
           onBack={
             safeQuestionIndex > 0
-              ? () => setCurrentQuestionIndex((index) => clampQuestionIndex(index - 1, flow.questions.length))
+              ? () => setCurrentQuestionIndex((index) => clampQuestionIndex(index - 1, visibleQuestions.length))
               : undefined
           }
           loading={flow.status === "planning"}

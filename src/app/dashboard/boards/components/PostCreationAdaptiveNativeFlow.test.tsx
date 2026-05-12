@@ -68,6 +68,24 @@ const questionFixtures: PostCreationAdaptiveQuestion[] = [
   },
 ];
 
+const fiveOptionQuestionFixtures: PostCreationAdaptiveQuestion[] = [
+  {
+    id: "q-overflow",
+    type: "strategic_choice",
+    title: "Qual opção deve aparecer normalizada?",
+    helper: "A UI deve receber só quatro opções.",
+    mapKey: "format",
+    required: true,
+    options: [
+      { id: "a", label: "Opção A", reason: "Primeira alternativa plausível." },
+      { id: "b", label: "Opção B", reason: "Segunda alternativa plausível." },
+      { id: "c", label: "Opção C", reason: "Terceira alternativa plausível." },
+      { id: "d", label: "Opção D", reason: "Quarta alternativa plausível." },
+      { id: "e", label: "Opção E", reason: "Alternativa recomendada que precisa continuar visível.", recommended: true },
+    ],
+  },
+];
+
 const answerFixtures: PostCreationAdaptiveAnswer[] = [
   {
     questionId: "q-brand",
@@ -221,6 +239,10 @@ function mockFlow(overrides: Partial<ReturnType<typeof usePostCreationAdaptiveFl
   return flow;
 }
 
+function getOptionButtons(): HTMLElement[] {
+  return screen.getAllByRole("button").filter((button) => button.hasAttribute("aria-pressed"));
+}
+
 describe("PostCreationAdaptiveNativeFlow", () => {
   beforeEach(() => {
     mockedUsePostCreationAdaptiveFlow.mockReset();
@@ -255,6 +277,41 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     expect(screen.getByText("Que tipo de marca você quer atrair?")).toBeInTheDocument();
     expect(screen.getByText("Pergunta 1 de 2")).toBeInTheDocument();
+  });
+
+  it("renders four normalized options when the original question has fewer than four", () => {
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    expect(getOptionButtons()).toHaveLength(4);
+    expect(screen.getByRole("button", { name: /Beleza\/autocuidado/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Tecnologia/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Casa\/conforto/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Encaixe por rotina/ })).toBeInTheDocument();
+  });
+
+  it("renders only four normalized options when the original question has more than four", () => {
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: fiveOptionQuestionFixtures,
+      answers: [],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    expect(getOptionButtons()).toHaveLength(4);
+    expect(screen.getByRole("button", { name: /Opção A/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Opção B/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Opção C/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Opção E/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Opção D/ })).not.toBeInTheDocument();
   });
 
   it("renders prompt context in the quiz from detection originalInput", () => {
@@ -406,6 +463,27 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     expect(screen.getByText("Boa aposta")).toBeInTheDocument();
   });
 
+  it("recognizes the answerKey correct option through the normalized GameQuestion", () => {
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: fiveOptionQuestionFixtures,
+      answers: [
+        {
+          questionId: "q-overflow",
+          key: "format",
+          optionId: "e",
+          value: "Opção E",
+        },
+      ],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    expect(screen.getByRole("button", { name: /Opção E/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Boa aposta")).toBeInTheDocument();
+  });
+
   it("shows adjustment feedback after selecting a different answer from the answer key", () => {
     mockFlow({
       status: "quiz",
@@ -424,6 +502,28 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     render(<PostCreationAdaptiveNativeFlow />);
 
     expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByText("Quase")).toBeInTheDocument();
+    expect(screen.getByText("Sua aposta")).toBeInTheDocument();
+  });
+
+  it("shows adjustment feedback when a fallback distractor is selected", () => {
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [
+        {
+          questionId: "q-brand",
+          key: "brand",
+          optionId: "fallback-brand-routine",
+          value: "Encaixe por rotina",
+        },
+      ],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    expect(screen.getByRole("button", { name: /Encaixe por rotina/ })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("Quase")).toBeInTheDocument();
     expect(screen.getByText("Sua aposta")).toBeInTheDocument();
   });
@@ -491,6 +591,20 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     expect(screen.getByText("Que tipo de marca você quer atrair?")).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("keeps the original question options when there is no answerKey", () => {
+    mockFlow({
+      status: "quiz",
+      detection: null,
+      questions: questionFixtures,
+      answers: [],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow />);
+
+    expect(getOptionButtons()).toHaveLength(3);
+    expect(screen.queryByRole("button", { name: /Encaixe por rotina/ })).not.toBeInTheDocument();
   });
 
   it("saves the first selection for an unanswered question", () => {
@@ -568,6 +682,48 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     expect(screen.getByText("Que tipo de marca você quer atrair?")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Beleza\/autocuidado/ })).toHaveAttribute("aria-pressed", "true");
+    expect(selectAnswer).not.toHaveBeenCalled();
+  });
+
+  it("keeps a normalized GameQuestion answer marked after going back", () => {
+    const selectAnswer = jest.fn();
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [
+        {
+          questionId: "q-brand",
+          key: "brand",
+          optionId: "fallback-brand-routine",
+          value: "Encaixe por rotina",
+        },
+      ],
+      selectAnswer,
+    });
+
+    render(
+      <PostCreationAdaptiveNativeFlow
+        initialSnapshot={snapshotFixture({
+          answers: [
+            {
+              questionId: "q-brand",
+              key: "brand",
+              optionId: "fallback-brand-routine",
+              value: "Encaixe por rotina",
+            },
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByText("Qual entrega faria mais sentido?")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
+
+    expect(screen.getByRole("button", { name: /Encaixe por rotina/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByText("Quase")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Tecnologia/ }));
     expect(selectAnswer).not.toHaveBeenCalled();
   });
 
@@ -1001,6 +1157,27 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     );
 
     expect(screen.getByText("Qual entrega faria mais sentido?")).toBeInTheDocument();
+  });
+
+  it("does not pass gameQuestions into the snapshot contract", () => {
+    const initialSnapshot = snapshotFixture({ answers: [answerFixtures[0]!] });
+    mockFlow({
+      input: "Quero atrair marcas de skincare",
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: [answerFixtures[0]!],
+    });
+
+    render(<PostCreationAdaptiveNativeFlow initialSnapshot={initialSnapshot} />);
+
+    expect(mockedUsePostCreationAdaptiveFlow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        initialSnapshot: expect.not.objectContaining({
+          gameQuestions: expect.anything(),
+        }),
+      }),
+    );
   });
 
   it("starts currentQuestionIndex on the next unanswered question", () => {
