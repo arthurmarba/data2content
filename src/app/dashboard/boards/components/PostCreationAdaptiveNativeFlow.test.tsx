@@ -1559,4 +1559,59 @@ describe("PostCreationAdaptiveNativeFlow", () => {
       ]),
     }));
   });
+
+  it("passes narrativeMap to onCompleteGame when studyContext exists", () => {
+    const onCompleteGame = jest.fn();
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: answerFixtures,
+    });
+
+    render(
+      <PostCreationAdaptiveNativeFlow
+        studyContext={studyContextFixture}
+        onCompleteGame={onCompleteGame}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Próxima decisão" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
+
+    expect(onCompleteGame).toHaveBeenCalledTimes(1);
+    const payload = onCompleteGame.mock.calls[0]?.[0];
+
+    expect(payload.narrativeMap).toBeDefined();
+    expect(payload.narrativeMap.assets.length).toBeGreaterThan(0);
+    expect(payload.narrativeMap.assets.every((a: any) => a.status === "suggested")).toBe(true);
+
+    if (payload.narrativeMap.centralNarrative) {
+      expect(payload.narrativeMap.centralNarrative.status).toBe("suggested");
+    }
+  });
+
+  it("calls onCompleteGame with null narrativeMap when studyContext is missing", () => {
+    const onCompleteGame = jest.fn();
+    mockFlow({
+      status: "quiz",
+      detection: detectionFixture,
+      questions: questionFixtures,
+      answers: answerFixtures,
+    });
+
+    render(
+      <PostCreationAdaptiveNativeFlow
+        studyContext={null}
+        onCompleteGame={onCompleteGame}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Próxima decisão" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
+
+    expect(onCompleteGame).toHaveBeenCalledWith(expect.objectContaining({
+      narrativeMap: null,
+    }));
+  });
 });

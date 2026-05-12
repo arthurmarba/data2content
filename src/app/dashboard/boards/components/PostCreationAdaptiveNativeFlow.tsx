@@ -26,6 +26,8 @@ import type {
   PostCreationDecisionState,
   PostCreationIdeaVariant,
 } from "../postCreationFunnel";
+import type { CreatorNarrativeMap } from "../narrativeAssets/postCreationNarrativeAssets";
+import { buildCreatorNarrativeMap } from "../narrativeAssets/postCreationNarrativeMapBuilder";
 import { usePostCreationAdaptiveFlow } from "../usePostCreationAdaptiveFlow";
 import type { PostCreationAdaptiveLegacyHandoff } from "../usePostCreationAdaptiveFlow";
 import PostCreationAdaptiveNativeIntentStage from "./PostCreationAdaptiveNativeIntentStage";
@@ -53,6 +55,7 @@ export type PostCreationAdaptiveNativeFlowProps = {
     originalPrompt?: string | null;
     mode?: PostCreationAdaptiveMode | null;
     idealPlan?: PostCreationStrategicPlan | null;
+    narrativeMap?: CreatorNarrativeMap | null;
   }) => void;
   studyContext?: PostCreationAdaptiveStudyContext | null;
 };
@@ -201,6 +204,15 @@ export default function PostCreationAdaptiveNativeFlow({
     || normalizeOriginalPrompt(flow.input)
     || normalizeOriginalPrompt(initialSnapshot?.input);
 
+  const narrativeMap = useMemo(() => {
+    if (!studyContext) return null;
+
+    return buildCreatorNarrativeMap({
+      creatorId: targetUserId,
+      studyContext,
+    });
+  }, [studyContext, targetUserId]);
+
   useEffect(() => {
     if (!didMountQuestionsEffectRef.current) {
       didMountQuestionsEffectRef.current = true;
@@ -330,6 +342,7 @@ export default function PostCreationAdaptiveNativeFlow({
                     originalPrompt,
                     mode: flow.detection?.mode ?? null,
                     idealPlan: answerKey.idealPlan,
+                    narrativeMap,
                   });
                   return;
                 }
