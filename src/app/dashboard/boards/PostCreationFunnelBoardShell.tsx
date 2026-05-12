@@ -108,6 +108,7 @@ import {
   mergePostCreationAdaptiveSnapshotIntoDraftState,
   type PostCreationDraftStateWithAdaptive,
 } from "./postCreationDraftAdaptiveState";
+import type { CreatorNarrativeMap } from "./narrativeAssets/postCreationNarrativeAssets";
 
 const MyScriptsPage = dynamic(() => import("@/app/dashboard/scripts/MyScriptsPage"), {
   ssr: false,
@@ -3598,6 +3599,7 @@ export default function PostCreationFunnelBoardShell({
     originalPrompt: string | null;
     mode: PostCreationAdaptiveMode | null;
     idealPlan: PostCreationStrategicPlan | null;
+    narrativeMap?: CreatorNarrativeMap | null;
   } | null>(null);
   const [isGeneratingBlueprintScript, setIsGeneratingBlueprintScript] = useState(false);
   const [inlineBlueprintScriptDraft, setInlineBlueprintScriptDraft] = useState<BlueprintScriptDraftState | null>(null);
@@ -5141,6 +5143,7 @@ export default function PostCreationFunnelBoardShell({
     originalPrompt?: string | null;
     mode?: PostCreationAdaptiveMode | null;
     idealPlan?: PostCreationStrategicPlan | null;
+    narrativeMap?: CreatorNarrativeMap | null;
   }) => {
     const { nextState, selectedSlotId, selectedScriptId } =
       createPostCreationAdaptiveIdeaHandoffState({ handoff: result.legacyHandoff });
@@ -5161,6 +5164,7 @@ export default function PostCreationFunnelBoardShell({
       originalPrompt: result.originalPrompt?.trim() || null,
       mode: result.mode ?? null,
       idealPlan: result.idealPlan ?? null,
+      narrativeMap: result.narrativeMap ?? null,
     });
     setFunnelState(nextState);
   }, [clearAutoAdvanceTimer]);
