@@ -80,6 +80,7 @@ import PostCreationAdaptiveFinalIntentSummaryCard from "./components/PostCreatio
 import PostCreationAdaptiveNativeFlow from "./components/PostCreationAdaptiveNativeFlow";
 import PostCreationAdaptivePromptContextCard from "./components/PostCreationAdaptivePromptContextCard";
 import PostCreationAdaptiveScoreCard from "./components/PostCreationAdaptiveScoreCard";
+import PostCreationNarrativeMapCard from "./components/PostCreationNarrativeMapCard";
 import type {
   PostCreationAdaptiveAnswerEvaluation,
   PostCreationAdaptiveScore,
@@ -7322,6 +7323,9 @@ export default function PostCreationFunnelBoardShell({
                                       idealPlan={adaptiveGameResult.idealPlan}
                                       evaluations={adaptiveGameResult.evaluations}
                                     />
+                                    <PostCreationNarrativeMapCard
+                                      narrativeMap={adaptiveGameResult.narrativeMap}
+                                    />
                                     <PostCreationAdaptiveScoreCard
                                       score={adaptiveGameResult.score}
                                       evaluations={adaptiveGameResult.evaluations}
@@ -7675,6 +7679,9 @@ export default function PostCreationFunnelBoardShell({
                               blueprint={activeBlueprint}
                               idealPlan={adaptiveGameResult.idealPlan}
                               evaluations={adaptiveGameResult.evaluations}
+                            />
+                            <PostCreationNarrativeMapCard
+                              narrativeMap={adaptiveGameResult.narrativeMap}
                             />
                             <PostCreationAdaptiveScoreCard
                               score={adaptiveGameResult.score}
