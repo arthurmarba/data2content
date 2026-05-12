@@ -454,7 +454,94 @@ describe("postCreationAdaptiveGameQuestion", () => {
     expect(validatePostCreationAdaptiveGameQuestion(gameQuestion).ok).toBe(true);
   });
 
-  it("uses studyContext topFormats to contextualize format option labels", () => {
+  it("combines topFormats, topNarratives, and topContexts in format option labels", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "reels", label: "Reels", score: 100, evidenceCount: 5, reason: "Forte em alcance." },
+          { id: "carousel", label: "Carrossel", score: 90, evidenceCount: 4, reason: "Forte em salvamento." },
+          { id: "stories", label: "Stories", score: 80, evidenceCount: 3, reason: "Forte em conversa." },
+          { id: "photo", label: "Foto", score: 70, evidenceCount: 2, reason: "Forte em legenda." },
+        ],
+        topNarratives: [
+          { id: "humor_scene", label: "Humor de situação", score: 95, evidenceCount: 4, reason: "Recorrente." },
+        ],
+        topContexts: [
+          { id: "routine", label: "Rotina real", score: 90, evidenceCount: 4, reason: "Recorrente." },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.options).toHaveLength(4);
+    expect(gameQuestion.options[0]?.label).toBe("Reels com rotina real e humor de situação");
+    expect(gameQuestion.options[0]?.label).not.toBe("Reels, formato forte no seu historico");
+    expect(validatePostCreationAdaptiveGameQuestion(gameQuestion).ok).toBe(true);
+  });
+
+  it("builds a carousel format option around proposal and saving signals", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "carousel", label: "Carrossel", score: 100, evidenceCount: 5, reason: "Forte em salvamento." },
+          { id: "reels", label: "Reels", score: 80, evidenceCount: 3, reason: "Forte em alcance." },
+          { id: "stories", label: "Stories", score: 70, evidenceCount: 2, reason: "Forte em conversa." },
+          { id: "photo", label: "Foto", score: 60, evidenceCount: 1, reason: "Forte em legenda." },
+        ],
+        topProposals: [
+          { id: "tips", label: "Dica prática", score: 90, evidenceCount: 4, reason: "Recorrente." },
+        ],
+        topEngagementDrivers: [
+          { id: "saves", label: "Salvamentos", score: 95, evidenceCount: 5, reason: "Recorrente." },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.options[0]?.label).toBe("Carrossel para organizar dica prática com potencial de salvamento");
+    expect(gameQuestion.options[0]?.reason).toBe("É uma alternativa quando a ideia precisa virar consulta, lista ou passo a passo.");
+    expect(validatePostCreationAdaptiveGameQuestion(gameQuestion).ok).toBe(true);
+  });
+
+  it("builds a stories option around conversation signals", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "stories", label: "Stories", score: 100, evidenceCount: 5, reason: "Forte em conversa." },
+          { id: "reels", label: "Reels", score: 80, evidenceCount: 3, reason: "Forte em alcance." },
+          { id: "carousel", label: "Carrossel", score: 70, evidenceCount: 2, reason: "Forte em salvamento." },
+          { id: "photo", label: "Foto", score: 60, evidenceCount: 1, reason: "Forte em legenda." },
+        ],
+        topEngagementDrivers: [
+          { id: "comments", label: "Comentários", score: 95, evidenceCount: 5, reason: "Recorrente." },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.options[0]?.label).toBe("Stories para testar conversa com a audiência");
+    expect(gameQuestion.options[0]?.reason).toBe("Boa alternativa quando o objetivo é sentir reação antes de transformar em post principal.");
+    expect(validatePostCreationAdaptiveGameQuestion(gameQuestion).ok).toBe(true);
+  });
+
+  it("builds a photo option around caption and context signals", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "photo", label: "Foto", score: 100, evidenceCount: 5, reason: "Forte em legenda." },
+          { id: "reels", label: "Reels", score: 80, evidenceCount: 3, reason: "Forte em alcance." },
+          { id: "carousel", label: "Carrossel", score: 70, evidenceCount: 2, reason: "Forte em salvamento." },
+          { id: "stories", label: "Stories", score: 60, evidenceCount: 1, reason: "Forte em conversa." },
+        ],
+        topContexts: [
+          { id: "home", label: "Casa", score: 90, evidenceCount: 4, reason: "Recorrente." },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.options[0]?.label).toBe("Foto com legenda opinativa sobre casa");
+    expect(gameQuestion.options[0]?.reason).toBe("Depende mais de texto e ponto de vista do que de cena ou movimento.");
+    expect(validatePostCreationAdaptiveGameQuestion(gameQuestion).ok).toBe(true);
+  });
+
+  it("uses a contextual fallback when format signals do not have narrative or context", () => {
     const gameQuestion = buildFirstGameQuestion({
       inputStudyContext: studyContext({
         topFormats: [
@@ -466,12 +553,11 @@ describe("postCreationAdaptiveGameQuestion", () => {
       }),
     });
 
-    expect(gameQuestion.options).toHaveLength(4);
     expect(gameQuestion.options.map((candidate) => candidate.label)).toEqual([
-      "Reels, formato forte no seu historico",
-      "Carrossel, alternativa com potencial de salvamento",
-      "Stories, bom para conversa rapida",
-      "Foto, aposta mais dependente de legenda/contexto",
+      "Reels com cena e ritmo do seu conteúdo",
+      "Carrossel para estruturar uma ideia consultável",
+      "Stories para testar conversa rápida",
+      "Foto com legenda opinativa sobre contexto recorrente",
     ]);
     expect(validatePostCreationAdaptiveGameQuestion(gameQuestion).ok).toBe(true);
   });
@@ -559,6 +645,83 @@ describe("postCreationAdaptiveGameQuestion", () => {
     expect(text).not.toContain("garantido");
     expect(text).not.toContain("provado");
     expect(text).not.toContain("certeza");
+    expect(text).not.toContain("comprova");
+  });
+
+  it("uses accented Portuguese in new StudyContext-driven labels", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "stories", label: "Stories", score: 100, evidenceCount: 5, reason: "Forte em conversa." },
+          { id: "reels", label: "Reels", score: 90, evidenceCount: 4, reason: "Forte em alcance." },
+          { id: "carousel", label: "Carrossel", score: 80, evidenceCount: 3, reason: "Forte em salvamento." },
+          { id: "photo", label: "Foto", score: 70, evidenceCount: 2, reason: "Forte em legenda." },
+        ],
+        topEngagementDrivers: [
+          { id: "comments", label: "Comentários", score: 95, evidenceCount: 5, reason: "Recorrente." },
+        ],
+      }),
+    });
+    const text = gameQuestion.options.map((candidate) => `${candidate.label} ${candidate.reason}`).join(" ");
+
+    expect(text).toContain("audiência");
+    expect(text).not.toContain("audiencia");
+    expect(text).not.toContain("historico");
+    expect(text).not.toContain("conteudo");
+    expect(text).not.toContain("rapida");
+  });
+
+  it("uses StudyContext to build a contextual correctReason", () => {
+    const gameQuestion = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "reels", label: "Reels", score: 100, evidenceCount: 5, reason: "Forte em alcance." },
+          { id: "carousel", label: "Carrossel", score: 90, evidenceCount: 4, reason: "Forte em salvamento." },
+          { id: "stories", label: "Stories", score: 80, evidenceCount: 3, reason: "Forte em conversa." },
+          { id: "photo", label: "Foto", score: 70, evidenceCount: 2, reason: "Forte em legenda." },
+        ],
+        topNarratives: [
+          { id: "routine", label: "Rotina real", score: 90, evidenceCount: 4, reason: "Recorrente." },
+        ],
+        topContexts: [
+          { id: "home", label: "Casa", score: 80, evidenceCount: 3, reason: "Recorrente." },
+        ],
+        topEngagementDrivers: [
+          { id: "saves", label: "Salvamentos", score: 70, evidenceCount: 2, reason: "Recorrente." },
+        ],
+      }),
+    });
+
+    expect(gameQuestion.correctReason).toContain("cruza formato, narrativa e contexto");
+    expect(gameQuestion.correctReason).toContain("sinal de engajamento");
+  });
+
+  it("adds referencePost evidence only when a reference post exists", () => {
+    const withoutReference = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "carousel", label: "Carrossel", score: 90, evidenceCount: 4, reason: "Forte em salvamento." },
+        ],
+      }),
+    });
+    const withReference = buildFirstGameQuestion({
+      inputStudyContext: studyContext({
+        topFormats: [
+          { id: "carousel", label: "Carrossel", score: 90, evidenceCount: 4, reason: "Forte em salvamento." },
+        ],
+        referencePosts: [
+          {
+            id: "post-1",
+            title: "Checklist de rotina para organizar a semana",
+            interactions: 1200,
+            reason: "Post usado como referência.",
+          },
+        ],
+      }),
+    });
+
+    expect(withoutReference.evidence.some((item) => item.startsWith("Post de referência:"))).toBe(false);
+    expect(withReference.evidence).toContain("Post de referência: Checklist de rotina para organizar a semana");
   });
 
   it("uses topNarratives, topContexts, and topProposals for matching mapKeys", () => {

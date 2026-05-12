@@ -40,6 +40,11 @@ export type PostCreationAdaptiveGameQuestionValidationResult = {
   errors: string[];
 };
 
+type StudyContextOptionDescriptor = {
+  label: string;
+  reason: string;
+};
+
 const FALLBACK_DISTRACTOR_REASON =
   "Pode funcionar em outro contexto, mas nao e a aposta principal aqui.";
 
@@ -127,6 +132,18 @@ function normalizeId(value?: string | null): string {
   return normalizeText(value).replace(/\s+/g, "_");
 }
 
+function shortenText(value: string, maxLength = 72): string {
+  const cleaned = value.replace(/\s+/g, " ").trim();
+  if (cleaned.length <= maxLength) return cleaned;
+  return `${cleaned.slice(0, maxLength - 1).trim()}…`;
+}
+
+function displayFragment(value?: string | null, maxLength = 32): string | null {
+  const cleaned = cleanText(value);
+  if (!cleaned) return null;
+  return shortenText(cleaned, maxLength).toLocaleLowerCase("pt-BR");
+}
+
 function compactEvidence(evidence: Array<string | null | undefined>): string[] {
   return Array.from(new Set(evidence.map(cleanText).filter((item): item is string => Boolean(item)))).slice(0, 3);
 }
@@ -155,6 +172,50 @@ function optionCorpus(option: PostCreationAdaptiveQuestionOption): string {
 
 function signalCorpus(signal: PostCreationAdaptiveStudySignal): string {
   return normalizeText([signal.id, signal.label].filter(Boolean).join(" "));
+}
+
+function getPrimaryFormatSignal(studyContext?: PostCreationAdaptiveStudyContext | null): PostCreationAdaptiveStudySignal | null {
+  return studyContext?.topFormats.find((signal) => cleanText(signal.label)) || null;
+}
+
+function getPrimaryNarrativeSignal(studyContext?: PostCreationAdaptiveStudyContext | null): PostCreationAdaptiveStudySignal | null {
+  return studyContext?.topNarratives.find((signal) => cleanText(signal.label))
+    || studyContext?.topNarrativeForms.find((signal) => cleanText(signal.label))
+    || null;
+}
+
+function getPrimaryContextSignal(studyContext?: PostCreationAdaptiveStudyContext | null): PostCreationAdaptiveStudySignal | null {
+  return studyContext?.topContexts.find((signal) => cleanText(signal.label)) || null;
+}
+
+function getPrimaryProposalSignal(studyContext?: PostCreationAdaptiveStudyContext | null): PostCreationAdaptiveStudySignal | null {
+  return studyContext?.topProposals.find((signal) => cleanText(signal.label))
+    || studyContext?.topContentIntents.find((signal) => cleanText(signal.label))
+    || null;
+}
+
+function getPrimaryEngagementDriver(studyContext?: PostCreationAdaptiveStudyContext | null): PostCreationAdaptiveStudySignal | null {
+  return studyContext?.topEngagementDrivers.find((signal) => cleanText(signal.label)) || null;
+}
+
+function getPrimaryReferencePost(studyContext?: PostCreationAdaptiveStudyContext | null) {
+  return studyContext?.referencePosts.find((post) => cleanText(post.title)) || null;
+}
+
+function hasAnyTerm(value: string, terms: string[]): boolean {
+  return terms.some((term) => value.includes(term));
+}
+
+function isSaveSignal(signal?: PostCreationAdaptiveStudySignal | null): boolean {
+  return Boolean(signal && hasAnyTerm(signalCorpus(signal), ["save", "salvar", "salvamento", "salvamentos", "consulta"]));
+}
+
+function isCommentSignal(signal?: PostCreationAdaptiveStudySignal | null): boolean {
+  return Boolean(signal && hasAnyTerm(signalCorpus(signal), ["comentario", "comentarios", "comment", "comments", "conversa"]));
+}
+
+function isShareSignal(signal?: PostCreationAdaptiveStudySignal | null): boolean {
+  return Boolean(signal && hasAnyTerm(signalCorpus(signal), ["share", "shares", "compartilhamento", "compartilhar", "enviar"]));
 }
 
 function optionMatchesSignal(option: PostCreationAdaptiveQuestionOption, signal: PostCreationAdaptiveStudySignal): boolean {
@@ -201,34 +262,147 @@ function getStudySignalsForMapKey(
   return [];
 }
 
-function contextualFormatLabel(signal: PostCreationAdaptiveStudySignal): string {
+function formatKind(signal: PostCreationAdaptiveStudySignal): "reels" | "carousel" | "stories" | "photo" | "unknown" {
   const text = signalCorpus(signal);
-  if (/reels?|video/.test(text)) return "Reels, formato forte no seu historico";
-  if (/carrossel|carousel/.test(text)) return "Carrossel, alternativa com potencial de salvamento";
-  if (/stories?|story/.test(text)) return "Stories, bom para conversa rapida";
-  if (/foto|photo|image|imagem/.test(text)) return "Foto, aposta mais dependente de legenda/contexto";
-  return `${signal.label}, formato presente no seu historico`;
+  if (/reels?|video/.test(text)) return "reels";
+  if (/carrossel|carousel/.test(text)) return "carousel";
+  if (/stories?|story/.test(text)) return "stories";
+  if (/foto|photo|image|imagem/.test(text)) return "photo";
+  return "unknown";
 }
 
-function contextualSignalLabel(
+function buildStudyContextOptionDescriptor(params: {
   mapKey: PostCreationAdaptiveQuestionMapKey,
-  signal: PostCreationAdaptiveStudySignal,
-): string {
-  if (mapKey === "format") return contextualFormatLabel(signal);
-  if (mapKey === "narrative") return `${signal.label}, narrativa que aparece nos seus posts`;
-  if (mapKey === "where") return `${signal.label}, contexto presente nos posts de referencia`;
-  if (mapKey === "what") return `${signal.label}, proposta recorrente no seu conteudo`;
-  if (mapKey === "objective" || mapKey === "cta") {
-    return `${signal.label}, sinal de engajamento do seu historico`;
-  }
-  return `${signal.label}, sinal recorrente nos seus conteudos`;
-}
+  signal: PostCreationAdaptiveStudySignal;
+  studyContext?: PostCreationAdaptiveStudyContext | null;
+}): StudyContextOptionDescriptor {
+  const narrative = getPrimaryNarrativeSignal(params.studyContext);
+  const context = getPrimaryContextSignal(params.studyContext);
+  const proposal = getPrimaryProposalSignal(params.studyContext);
+  const engagementDriver = getPrimaryEngagementDriver(params.studyContext);
+  const narrativeLabel = displayFragment(narrative?.label);
+  const contextLabel = displayFragment(context?.label);
+  const proposalLabel = displayFragment(proposal?.label);
+  const signalLabel = cleanText(params.signal.label) || "Sinal do seu conteúdo";
 
-function contextualSignalReason(signal: PostCreationAdaptiveStudySignal): string {
-  const evidenceSuffix = signal.evidenceCount > 0
-    ? ` aparece em ${signal.evidenceCount} sinal(is) analisado(s).`
-    : " aparece entre os sinais analisados.";
-  return `Sinal recorrente nos seus conteudos;${evidenceSuffix}`;
+  if (params.mapKey === "format") {
+    const kind = formatKind(params.signal);
+    if (kind === "reels") {
+      return {
+        label: narrativeLabel && contextLabel
+          ? `Reels com ${contextLabel} e ${narrativeLabel}`
+          : narrativeLabel
+            ? `Reels com ${narrativeLabel}`
+            : contextLabel
+              ? `Reels em ${contextLabel}`
+              : "Reels com cena e ritmo do seu conteúdo",
+        reason: narrativeLabel || contextLabel
+          ? "Combina formato forte do histórico com contexto/narrativa que aparecem nos seus conteúdos."
+          : "Boa alternativa quando a força está em cena, ritmo ou reação.",
+      };
+    }
+
+    if (kind === "carousel") {
+      return {
+        label: proposalLabel && isSaveSignal(engagementDriver)
+          ? `Carrossel para organizar ${proposalLabel} com potencial de salvamento`
+          : proposalLabel
+            ? `Carrossel para organizar ${proposalLabel}`
+            : isSaveSignal(engagementDriver)
+              ? "Carrossel para consulta e salvamento"
+              : "Carrossel para estruturar uma ideia consultável",
+        reason: "É uma alternativa quando a ideia precisa virar consulta, lista ou passo a passo.",
+      };
+    }
+
+    if (kind === "stories") {
+      return {
+        label: isCommentSignal(engagementDriver)
+          ? "Stories para testar conversa com a audiência"
+          : contextLabel
+            ? `Stories para testar conversa sobre ${contextLabel}`
+            : "Stories para testar conversa rápida",
+        reason: "Boa alternativa quando o objetivo é sentir reação antes de transformar em post principal.",
+      };
+    }
+
+    if (kind === "photo") {
+      return {
+        label: contextLabel
+          ? `Foto com legenda opinativa sobre ${contextLabel}`
+          : narrativeLabel
+            ? `Foto com legenda opinativa em ${narrativeLabel}`
+            : "Foto com legenda opinativa sobre contexto recorrente",
+        reason: "Depende mais de texto e ponto de vista do que de cena ou movimento.",
+      };
+    }
+
+    return {
+      label: `${signalLabel}, formato conectado aos seus sinais`,
+      reason: "Aparece como alternativa entre os formatos observados no seu histórico.",
+    };
+  }
+
+  if (params.mapKey === "narrative") {
+    return {
+      label: contextLabel
+        ? `${signalLabel} em contexto de ${contextLabel}`
+        : proposalLabel
+          ? `${signalLabel} com ${proposalLabel}`
+          : `${signalLabel}, narrativa que aparece nos seus posts`,
+      reason: "Cruza forma narrativa com sinais recorrentes do seu conteúdo.",
+    };
+  }
+
+  if (params.mapKey === "where") {
+    return {
+      label: narrativeLabel
+        ? `${signalLabel} com ${narrativeLabel} reconhecível`
+        : `${signalLabel}, contexto presente nos posts de referência`,
+      reason: "Usa um território que aparece nos sinais analisados.",
+    };
+  }
+
+  if (params.mapKey === "what") {
+    const format = getPrimaryFormatSignal(params.studyContext);
+    const formatLabel = displayFragment(format?.label);
+    return {
+      label: formatLabel
+        ? `${signalLabel} em formato ${formatLabel}`
+        : `${signalLabel}, proposta recorrente no seu conteúdo`,
+      reason: "Transforma uma proposta recorrente em uma decisão mais fácil de executar.",
+    };
+  }
+
+  if (params.mapKey === "objective" || params.mapKey === "cta") {
+    if (isCommentSignal(params.signal)) {
+      return {
+        label: "Comentário a partir de situação reconhecível",
+        reason: "Conecta a decisão ao tipo de conversa que já aparece nos sinais do histórico.",
+      };
+    }
+    if (isSaveSignal(params.signal)) {
+      return {
+        label: "Salvamento para dica consultável",
+        reason: "Funciona quando a pauta pode virar lista, consulta ou passo a passo.",
+      };
+    }
+    if (isShareSignal(params.signal)) {
+      return {
+        label: "Compartilhamento por frase fácil de repassar",
+        reason: "Ajuda quando a força está em uma ideia simples de enviar para outra pessoa.",
+      };
+    }
+    return {
+      label: `${signalLabel}, sinal de engajamento do seu histórico`,
+      reason: "Usa um comportamento de audiência já presente nos sinais analisados.",
+    };
+  }
+
+  return {
+    label: `${signalLabel}, sinal recorrente nos seus conteúdos`,
+    reason: "Aparece entre os sinais analisados e ajuda a reduzir escolha genérica.",
+  };
 }
 
 function applyStudyContextToOptions(params: {
@@ -250,11 +424,16 @@ function applyStudyContextToOptions(params: {
     if (!id || usedIds.has(id)) continue;
 
     usedIds.add(id);
+    const descriptor = buildStudyContextOptionDescriptor({
+      mapKey: params.question.mapKey,
+      signal,
+      studyContext: params.studyContext,
+    });
     result.push({
       ...(existingOption || {}),
       id,
-      label: contextualSignalLabel(params.question.mapKey, signal),
-      reason: contextualSignalReason(signal),
+      label: descriptor.label,
+      reason: descriptor.reason,
       value: existingOption?.value || signal.label,
       recommended: existingOption?.recommended,
     });
@@ -390,11 +569,50 @@ function resolveCorrectReason(params: {
   mapKey: PostCreationAdaptiveQuestionMapKey;
   rationale?: string | null;
   correctOption?: PostCreationAdaptiveQuestionOption | null;
+  studyContext?: PostCreationAdaptiveStudyContext | null;
 }): string {
-  return cleanText(params.rationale)
+  return resolveStudyContextCorrectReason(params.mapKey, params.studyContext)
+    || cleanText(params.rationale)
     || cleanText(params.correctOption?.reason)
     || CORRECT_REASON_BY_MAP_KEY[params.mapKey]
     || "A resposta foi definida pelo gabarito estrategico desta pergunta.";
+}
+
+function resolveStudyContextCorrectReason(
+  mapKey: PostCreationAdaptiveQuestionMapKey,
+  studyContext?: PostCreationAdaptiveStudyContext | null,
+): string | null {
+  if (!studyContext) return null;
+
+  const hasFormat = Boolean(getPrimaryFormatSignal(studyContext));
+  const hasNarrative = Boolean(getPrimaryNarrativeSignal(studyContext));
+  const hasContext = Boolean(getPrimaryContextSignal(studyContext));
+  const hasEngagement = Boolean(getPrimaryEngagementDriver(studyContext));
+  const hasReferencePost = Boolean(getPrimaryReferencePost(studyContext));
+
+  if (mapKey === "format" && hasFormat && (hasNarrative || hasContext)) {
+    return [
+      "A aposta cruza formato, narrativa e contexto recorrentes nos sinais analisados.",
+      hasEngagement ? "O sinal de engajamento reforça essa escolha." : null,
+      hasReferencePost ? "Apoiado por post de referência do seu histórico." : null,
+    ].filter(Boolean).join(" ");
+  }
+
+  if ((mapKey === "objective" || mapKey === "cta") && hasEngagement) {
+    return [
+      "A escolha usa um sinal de engajamento recorrente do seu histórico.",
+      hasReferencePost ? "Apoiado por post de referência do seu histórico." : null,
+    ].filter(Boolean).join(" ");
+  }
+
+  if ((mapKey === "narrative" || mapKey === "where" || mapKey === "what") && (hasNarrative || hasContext)) {
+    return [
+      "A aposta usa narrativa, contexto ou proposta recorrente nos sinais analisados.",
+      hasReferencePost ? "Apoiado por post de referência do seu histórico." : null,
+    ].filter(Boolean).join(" ");
+  }
+
+  return null;
 }
 
 function resolveDistractorReason(index: number): string {
@@ -412,7 +630,7 @@ export function buildPostCreationAdaptiveGameQuestions(
     });
     const questionKey = getQuestionKey(params, question.id);
     const referencePostEvidence = params.studyContext?.referencePosts[0]?.title
-      ? `Post de referencia: ${params.studyContext.referencePosts[0].title}`
+      ? `Post de referência: ${shortenText(params.studyContext.referencePosts[0].title, 56)}`
       : null;
     const evidence = compactEvidence([...(questionKey?.feedback.evidence || []), referencePostEvidence]);
     const correctOption = options.find((option) => option.id === correctOptionId) || null;
@@ -420,6 +638,7 @@ export function buildPostCreationAdaptiveGameQuestions(
       mapKey: question.mapKey,
       rationale: questionKey?.feedback.rationale,
       correctOption,
+      studyContext: params.studyContext,
     });
     let distractorIndex = 0;
 

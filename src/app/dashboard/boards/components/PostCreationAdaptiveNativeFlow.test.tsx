@@ -435,8 +435,8 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     render(<PostCreationAdaptiveNativeFlow studyContext={studyContextFixture} />);
 
-    expect(screen.getByRole("button", { name: /Stories, bom para conversa rapida/ })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Reels, formato forte no seu historico/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Stories para testar conversa com a audiência/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Reels com casa e rotina real/ })).toBeInTheDocument();
     expect(screen.getAllByRole("button").filter((button) => button.hasAttribute("aria-pressed"))).toHaveLength(4);
   });
 
