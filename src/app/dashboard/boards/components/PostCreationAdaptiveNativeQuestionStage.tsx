@@ -93,7 +93,7 @@ export default function PostCreationAdaptiveNativeQuestionStage({
                 key={option.id}
                 type="button"
                 className={[
-                  "group relative min-h-28 min-w-0 overflow-hidden rounded-[22px] border px-4 py-3.5 text-left outline-none transition-all duration-300 ease-out active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-sky-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed sm:min-h-32",
+                  "group relative min-h-28 min-w-0 overflow-hidden rounded-[24px] border p-4 text-left outline-none transition-all duration-300 ease-out active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-sky-300/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed sm:min-h-32 sm:p-5",
                   option.selected
                     ? "border-sky-200 bg-white ring-1 ring-sky-100/80 shadow-[0_14px_34px_rgba(56,189,248,0.08)]"
                     : isLockedUnselected
@@ -116,7 +116,7 @@ export default function PostCreationAdaptiveNativeQuestionStage({
                       : "opacity-0",
                   ].join(" ")}
                 />
-                <span className="relative flex h-full min-w-0 flex-col gap-3">
+                <span className="relative flex h-full min-w-0 flex-col gap-4">
                   <span className="flex items-start justify-between gap-3">
                     <span
                       className={[
@@ -136,20 +136,27 @@ export default function PostCreationAdaptiveNativeQuestionStage({
                   </span>
                   <span
                     className={[
-                      "block break-words text-[0.98rem] font-semibold leading-[1.16] tracking-[-0.025em]",
+                      "block break-words text-[1rem] font-semibold leading-[1.3] tracking-[-0.015em]",
                       isLockedUnselected ? "text-zinc-500" : "text-zinc-950",
                     ].join(" ")}
                   >
                     {option.label}
                   </span>
                   {option.reason ? (
-                    <span
-                      className={[
-                        "mt-auto block break-words border-t border-zinc-100/80 pt-3 text-xs font-medium leading-5",
-                        isLockedUnselected ? "text-zinc-400" : "text-zinc-500",
-                      ].join(" ")}
-                    >
-                      {option.reason}
+                    <span className="mt-auto block pt-1">
+                      <span className="mb-2 block text-[11px] font-semibold text-zinc-400">
+                        Base da leitura
+                      </span>
+                      <span
+                        className={[
+                          "block break-words rounded-[16px] border px-3 py-2.5 text-xs font-medium leading-5 transition-colors",
+                          isLockedUnselected
+                            ? "border-zinc-200/40 bg-zinc-100/30 text-zinc-400"
+                            : "border-zinc-100/80 bg-zinc-50/80 text-zinc-500",
+                        ].join(" ")}
+                      >
+                        {option.reason}
+                      </span>
                     </span>
                   ) : null}
                 </span>
