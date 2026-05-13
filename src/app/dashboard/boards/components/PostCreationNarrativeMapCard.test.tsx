@@ -36,10 +36,10 @@ describe("PostCreationNarrativeMapCard", () => {
       generatedAt: "2026-05-12T00:00:00Z",
     };
     render(<PostCreationNarrativeMapCard narrativeMap={map} />);
-    expect(screen.getByText(/DNA narrativo sugerido/i)).toBeInTheDocument();
+    expect(screen.getByText(/Leitura narrativa sugerida/i)).toBeInTheDocument();
   });
 
-  it("renders text 'Parece que sua narrativa caminha para:'", () => {
+  it("renders text 'Pelos sinais do seu conteúdo, este parece ser um caminho narrativo forte:'", () => {
     const map: CreatorNarrativeMap = {
       creatorId: "user-1",
       assets: [],
@@ -51,7 +51,7 @@ describe("PostCreationNarrativeMapCard", () => {
       generatedAt: "2026-05-12T00:00:00Z",
     };
     render(<PostCreationNarrativeMapCard narrativeMap={map} />);
-    expect(screen.getByText(/Parece que sua narrativa caminha para:/i)).toBeInTheDocument();
+    expect(screen.getByText(/Pelos sinais do seu conteúdo, este parece ser um caminho narrativo forte:/i)).toBeInTheDocument();
   });
 
   it("renders centralNarrative.statement", () => {
@@ -168,8 +168,8 @@ describe("PostCreationNarrativeMapCard", () => {
     };
     render(<PostCreationNarrativeMapCard narrativeMap={map} />);
     expect(screen.getByText(/Temas fortes/i)).toBeInTheDocument();
-    expect(screen.getByText(/Linguagem/i)).toBeInTheDocument();
-    expect(screen.getByText(/Cenários/i)).toBeInTheDocument();
+    expect(screen.getByText(/Jeito de comunicar/i)).toBeInTheDocument();
+    expect(screen.getByText(/Cenários naturais/i)).toBeInTheDocument();
     expect(screen.getByText("Finanças")).toBeInTheDocument();
     expect(screen.getByText("Prática")).toBeInTheDocument();
     expect(screen.getByText("Home Office")).toBeInTheDocument();
@@ -251,7 +251,7 @@ describe("PostCreationNarrativeMapCard", () => {
       generatedAt: "2026-05-12T00:00:00Z",
     };
     render(<PostCreationNarrativeMapCard narrativeMap={map} />);
-    expect(screen.getByText(/Isto é uma hipótese estratégica/i)).toBeInTheDocument();
-    expect(screen.getByText(/Você poderá confirmar, editar ou rejeitar/i)).toBeInTheDocument();
+    expect(screen.getByText(/Esta é uma leitura estratégica inicial/i)).toBeInTheDocument();
+    expect(screen.getByText(/Em breve, você poderá confirmar, editar ou rejeitar/i)).toBeInTheDocument();
   });
 });

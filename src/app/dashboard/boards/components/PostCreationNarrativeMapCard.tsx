@@ -9,11 +9,11 @@ type PostCreationNarrativeMapCardProps = {
 
 const ASSET_GROUP_LABELS: Partial<Record<NarrativeAssetType, string>> = {
   theme: "Temas fortes",
-  language: "Linguagem",
-  scenario: "Cenários",
-  commercial_proof: "Prova comercial",
-  tension: "Tensões narrativas",
-  narrative_limit: "Limites narrativos",
+  language: "Jeito de comunicar",
+  scenario: "Cenários naturais",
+  commercial_proof: "Força comercial",
+  tension: "Tensões que geram identificação",
+  narrative_limit: "Limites de narrativa",
 };
 
 const ALLOWED_ASSET_TYPES = new Set<NarrativeAssetType>([
@@ -92,23 +92,23 @@ export default function PostCreationNarrativeMapCard({ narrativeMap }: PostCreat
           <Sparkles className="h-3.5 w-3.5" />
         </div>
         <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-zinc-400">
-          DNA narrativo sugerido
+          Leitura narrativa sugerida
         </h3>
       </div>
 
       {safeCentralNarrative && (
         <div className="mt-4">
           <p className="text-xs font-medium text-zinc-400">
-            Parece que sua narrativa caminha para:
+            Pelos sinais do seu conteúdo, este parece ser um caminho narrativo forte:
           </p>
           <p className="mt-2 text-lg font-semibold tracking-[-0.02em] text-zinc-950 leading-relaxed">
             {safeCentralNarrative.statement}
           </p>
           {safeCentralNarrative.confidence && (
             <p className="mt-2 text-[11px] font-medium text-zinc-400">
-              {safeCentralNarrative.confidence === "high" && "Baseado em sinais recorrentes do seu conteúdo"}
-              {safeCentralNarrative.confidence === "medium" && "Confiança da leitura: média"}
-              {safeCentralNarrative.confidence === "low" && "Hipótese baseada em sinais iniciais"}
+              {safeCentralNarrative.confidence === "high" && "Baseado em sinais recorrentes do seu histórico."}
+              {safeCentralNarrative.confidence === "medium" && "Leitura inicial com bons sinais de apoio."}
+              {safeCentralNarrative.confidence === "low" && "Hipótese inicial, ainda precisa de mais sinais."}
             </p>
           )}
         </div>
@@ -142,7 +142,7 @@ export default function PostCreationNarrativeMapCard({ narrativeMap }: PostCreat
       <div className="mt-6 flex gap-3 rounded-2xl bg-zinc-50 p-3.5 border border-zinc-100">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-zinc-400" />
         <p className="text-[11px] leading-5 text-zinc-500">
-          Isto é uma hipótese estratégica criada a partir dos seus sinais de conteúdo. Você poderá confirmar, editar ou rejeitar isso em uma próxima etapa.
+          Esta é uma leitura estratégica inicial, criada a partir dos sinais do seu conteúdo. Em breve, você poderá confirmar, editar ou rejeitar esses pontos.
         </p>
       </div>
     </section>
