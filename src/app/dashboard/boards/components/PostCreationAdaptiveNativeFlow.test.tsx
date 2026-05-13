@@ -282,7 +282,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     render(<PostCreationAdaptiveNativeFlow />);
 
-    expect(screen.getByText("Teste sua leitura estratégica")).toBeInTheDocument();
+    expect(screen.getByText("Transforme sua dúvida em direção estratégica")).toBeInTheDocument();
   });
 
   it("does not render prompt context in the intent stage", () => {
@@ -1187,7 +1187,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     mockFlow({ status: "idle", reset });
     rerender(<PostCreationAdaptiveNativeFlow />);
 
-    expect(screen.getByText("Teste sua leitura estratégica")).toBeInTheDocument();
+    expect(screen.getByText("Transforme sua dúvida em direção estratégica")).toBeInTheDocument();
   });
 
   it("restores initialSnapshot with questions and answers", () => {
@@ -1259,7 +1259,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     render(<PostCreationAdaptiveNativeFlow />);
 
-    expect(screen.getByText("Teste sua leitura estratégica")).toBeInTheDocument();
+    expect(screen.getByText("Transforme sua dúvida em direção estratégica")).toBeInTheDocument();
   });
 
   it("updates feedback when the selected answer changes", () => {
