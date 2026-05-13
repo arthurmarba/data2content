@@ -47,12 +47,10 @@ describe("buildPostCreationAdaptiveQuiz", () => {
     expect(quiz.length).toBeLessThanOrEqual(5);
   });
 
-  it("builds discover_pauta questions around objective, format or narrative, and effort", () => {
+  it("builds discover_pauta questions around narrative, objective, format, and effort", () => {
     const keys = mapKeysFor("Não sei o que postar amanhã");
 
-    expect(keys).toContain("objective");
-    expect(keys.some((key) => key === "format" || key === "narrative")).toBe(true);
-    expect(keys).toContain("effort");
+    expect(keys).toEqual(expect.arrayContaining(["narrative", "objective", "format", "effort"]));
   });
 
   it("builds create_by_goal questions around objective, narrative, format, and CTA", () => {
@@ -172,9 +170,10 @@ describe("buildPostCreationAdaptiveQuiz", () => {
   it("uses more human language for discover_pauta", () => {
     const quiz = quizFor("Não sei o que postar amanhã");
 
-    expect(quiz[0]?.id).toBe("discover-objective");
-    expect(quiz[0]?.title).toMatch(/energia/i);
-    expect(quiz[1]?.title).toMatch(/topa produzir/i);
+    expect(quiz[0]?.id).toBe("discover-territory");
+    expect(quiz[0]?.title).toMatch(/território/i);
+    expect(quiz[1]?.title).toMatch(/reação/i);
+    expect(quiz[2]?.title).toMatch(/topa produzir/i);
     expect(quiz[3]?.title).toMatch(/fôlego/i);
   });
 
@@ -230,9 +229,9 @@ describe("buildPostCreationAdaptiveQuiz", () => {
         ["validate-opportunity", "collab"],
       ],
       discover_pauta: [
+        ["discover-territory", "narrative"],
         ["discover-objective", "objective"],
         ["discover-format", "format"],
-        ["discover-narrative", "narrative"],
         ["discover-effort", "effort"],
       ],
       create_by_goal: [

@@ -116,10 +116,23 @@ function validatePautaQuestions(detection: PostCreationAdaptiveIntentDetection):
 function discoverPautaQuestions(): PostCreationAdaptiveQuestion[] {
   return [
     question({
+      id: "discover-territory",
+      type: "strategic_choice",
+      title: "Qual território parece mais vivo para explorar agora?",
+      helper: "Quando falta ideia, começar por um território ajuda a transformar sensação solta em direção de conteúdo.",
+      mapKey: "narrative",
+      options: [
+        option("audience_pain", "Uma dor que sua audiência vive", "Bom para criar identificação, conversa e próximos posts.", true),
+        option("real_backstage", "Um bastidor seu", "Bom para aproximar, mostrar processo e dar contexto real."),
+        option("held_opinion", "Uma opinião que você vem segurando", "Bom para posicionamento, comentários e clareza de ponto de vista."),
+        option("routine_scene", "Uma situação comum da rotina", "Bom para transformar vida real em cena reconhecível."),
+      ],
+    }),
+    question({
       id: "discover-objective",
       type: "strategic_choice",
-      title: "Que tipo de energia você quer puxar agora?",
-      helper: "Quando a tela está em branco, começar pela reação ajuda a achar a pauta.",
+      title: "Que reação esse território deveria puxar?",
+      helper: "Depois de escolher o território, a reação ajuda a definir o caminho da pauta.",
       mapKey: "objective",
       options: [
         option("reach", "Algo leve pra mais gente ver", "Pede uma ideia simples, forte e compartilhável.", true),
@@ -139,19 +152,6 @@ function discoverPautaQuestions(): PostCreationAdaptiveQuestion[] {
         option("carousel", "Um carrossel bem salvável", "Bom quando a ideia precisa de ordem e consulta depois."),
         option("behind_scenes", "Um bastidor real", "Funciona quando existe processo acontecendo para mostrar."),
         option("story", "Um story pra testar conversa", "Bom para sentir a resposta antes de virar post maior."),
-      ],
-    }),
-    question({
-      id: "discover-narrative",
-      type: "strategic_choice",
-      title: "De onde essa pauta pode nascer com mais verdade?",
-      helper: "Uma pauta boa costuma sair de algo que você já vive, observa ou escuta.",
-      mapKey: "narrative",
-      options: [
-        option("real_routine", "Da sua rotina real", "Dá contexto, cena e naturalidade.", true),
-        option("opinion", "De uma opinião que você segurou", "Bom para posicionamento e comentário."),
-        option("backstage", "Do bastidor do que você faz", "Mostra processo e aproxima quem acompanha."),
-        option("audience_pain", "De uma dor que a audiência vive", "Bom para conversa, salvamento e próximos posts."),
       ],
     }),
     question({
