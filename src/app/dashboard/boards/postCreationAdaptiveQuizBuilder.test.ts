@@ -310,4 +310,28 @@ describe("buildPostCreationAdaptiveQuiz", () => {
       expect(quiz.every((question) => question.required)).toBe(true);
     }
   });
+
+  it("personalizes format_guidance with detected pauta", () => {
+    const quiz = quizFor("Qual formato usar para uma publi de skincare?");
+    const helper = quiz[0]?.helper || "";
+    expect(helper).toMatch(/uma publi de skincare/i);
+  });
+
+  it("personalizes brand_match with detected brand category", () => {
+    const quiz = quizFor("Quero atrair marcas de skincare");
+    const helper = quiz[0]?.helper || "";
+    expect(helper).toMatch(/skincare/i);
+  });
+
+  it("personalizes comment_to_post with source comment", () => {
+    const quiz = quizFor("Comentaram isso aqui: como você organiza sua rotina?");
+    const helper = quiz[0]?.helper || "";
+    expect(helper).toMatch(/como voce organiza sua rotina/i);
+  });
+
+  it("personalizes create_by_goal with detected objective", () => {
+    const quiz = quizFor("Quero gerar mais comentários");
+    const helper = quiz[0]?.helper || "";
+    expect(helper).toMatch(/comentarios/i);
+  });
 });

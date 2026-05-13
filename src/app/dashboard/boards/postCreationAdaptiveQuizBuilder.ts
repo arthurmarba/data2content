@@ -29,6 +29,13 @@ function option(
   };
 }
 
+function compactPromptSnippet(value?: string | null, maxLength = 90): string | null {
+  if (!value) return null;
+  const trimmed = value.replace(/\s+/g, " ").trim();
+  if (!trimmed) return null;
+  return trimmed.length > maxLength ? trimmed.substring(0, maxLength - 3) + "..." : trimmed;
+}
+
 function question(input: QuestionInput): PostCreationAdaptiveQuestion {
   return {
     id: input.id,
@@ -170,13 +177,17 @@ function discoverPautaQuestions(): PostCreationAdaptiveQuestion[] {
   ];
 }
 
-function createByGoalQuestions(): PostCreationAdaptiveQuestion[] {
+function createByGoalQuestions(detection: PostCreationAdaptiveIntentDetection): PostCreationAdaptiveQuestion[] {
+  const goal = compactPromptSnippet(detection.objective, 40);
+
   return [
     question({
       id: "goal-response",
       type: "strategic_choice",
       title: "Que tipo de reação você quer provocar?",
-      helper: "Quando o objetivo já está claro, o próximo passo é entender a qualidade da resposta que você quer gerar.",
+      helper: goal
+        ? `Você já trouxe o objetivo: ${goal}. Agora vamos qualificar o tipo de reação que faz mais sentido.`
+        : "Quando o objetivo já está claro, o próximo passo é entender a qualidade da resposta que você quer gerar.",
       mapKey: "objective",
       options: [
         option("identification", "Identificação: ‘isso acontece comigo’", "Bom para comentários espontâneos e sensação de comunidade.", true),
@@ -228,12 +239,16 @@ function createByGoalQuestions(): PostCreationAdaptiveQuestion[] {
 }
 
 function formatGuidanceQuestions(detection: PostCreationAdaptiveIntentDetection): PostCreationAdaptiveQuestion[] {
+  const pauta = compactPromptSnippet(detection.detectedPauta, 60);
+
   return [
     question({
       id: "format-narrative",
       type: "strategic_choice",
       title: "Onde está a força principal dessa pauta?",
-      helper: "Antes de escolher o formato, vale entender o que precisa carregar a ideia.",
+      helper: pauta
+        ? `Antes de escolher o formato de ${pauta}, vale entender o que precisa carregar a ideia.`
+        : "Antes de escolher o formato, vale entender o que precisa carregar a ideia.",
       mapKey: "narrative",
       options: [
         option("scene_motion", "Cena, reação ou movimento", "Pede vídeo curto, ritmo e contexto visual rápido.", true),
@@ -300,12 +315,16 @@ function formatGuidanceQuestions(detection: PostCreationAdaptiveIntentDetection)
 }
 
 function brandMatchQuestions(detection: PostCreationAdaptiveIntentDetection): PostCreationAdaptiveQuestion[] {
+  const brand = compactPromptSnippet(detection.brandCategory, 40);
+
   return [
     question({
       id: "brand-category",
       type: "strategic_choice",
       title: "Que tipo de marca caberia naturalmente no seu conteúdo?",
-      helper: detection.brandCategory ? `Parece que existe um caminho com ${detection.brandCategory}.` : "Escolha o território comercial que entraria sem cara de interrupção.",
+      helper: brand
+        ? `Você citou ${brand}. Vamos buscar um encaixe que pareça natural.`
+        : "Escolha o território comercial que entraria sem cara de interrupção.",
       mapKey: "brand",
       options: [
         option("beauty_selfcare", "Beleza ou autocuidado", "Entra bem em rotina, pausa, preparação e transformação.", detection.brandCategory === "beleza" || detection.brandCategory === "skincare"),
@@ -426,13 +445,17 @@ function collabMatchQuestions(): PostCreationAdaptiveQuestion[] {
   ];
 }
 
-function commentToPostQuestions(): PostCreationAdaptiveQuestion[] {
+function commentToPostQuestions(detection: PostCreationAdaptiveIntentDetection): PostCreationAdaptiveQuestion[] {
+  const comment = compactPromptSnippet(detection.sourceComment, 60);
+
   return [
     question({
       id: "comment-why",
       type: "strategic_choice",
       title: "O que esse comentário está te entregando?",
-      helper: "Por trás de um comentário pode ter dúvida, dor, piada ou pauta inteira.",
+      helper: comment
+        ? `Partindo de "${comment}", vamos entender se existe dúvida, dor, identificação ou pauta inteira.`
+        : "Por trás de um comentário pode ter dúvida, dor, piada ou pauta inteira.",
       mapKey: "why",
       options: [
         option("question", "Uma dúvida real", "Pede resposta clara e útil.", true),
@@ -591,11 +614,11 @@ export function buildPostCreationAdaptiveQuiz(params: {
 
   if (mode === "validate_pauta") return validatePautaQuestions(params.detection);
   if (mode === "discover_pauta") return discoverPautaQuestions();
-  if (mode === "create_by_goal") return createByGoalQuestions();
+  if (mode === "create_by_goal") return createByGoalQuestions(params.detection);
   if (mode === "format_guidance") return formatGuidanceQuestions(params.detection);
   if (mode === "brand_match") return brandMatchQuestions(params.detection);
   if (mode === "collab_match") return collabMatchQuestions();
-  if (mode === "comment_to_post") return commentToPostQuestions();
+  if (mode === "comment_to_post") return commentToPostQuestions(params.detection);
   if (mode === "weekly_plan") return weeklyPlanQuestions();
   return unknownQuestions();
 }
