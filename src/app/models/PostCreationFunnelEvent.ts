@@ -25,50 +25,10 @@ const POST_CREATION_FUNNEL_EVENT_NAMES = [
   "post_creation_trial_pauta_generated",
   "post_creation_account_gate_opened",
   "post_creation_paywall_opened",
-  "post_creation_saved_pauta_discarded",
-  "post_creation_adaptive_intent_started",
-  "post_creation_adaptive_quiz_started",
-  "post_creation_adaptive_answer_selected",
-  "post_creation_adaptive_plan_generated",
-  "post_creation_adaptive_plan_failed",
-  "post_creation_adaptive_plan_used",
-  "post_creation_adaptive_flow_reset",
 ] as const;
 
 const POST_CREATION_FUNNEL_STAGES = ["path", "idea", "blueprint", "script", "published"] as const;
-const POST_CREATION_FUNNEL_STEPS = [
-  "window",
-  "proposal",
-  "context",
-  "tone",
-  "theme",
-  "format",
-  "duration",
-  "reference",
-  "intent",
-  "narrative",
-  "day",
-  "hour",
-  "pauta",
-  "adaptive_intent",
-  "adaptive_quiz",
-  "adaptive_plan",
-  "adaptive_handoff",
-  "who",
-  "what",
-  "where",
-  "when",
-  "why",
-  "how",
-  "how_much",
-  "hook",
-  "cta",
-  "brand",
-  "collab",
-  "effort",
-  "schedule",
-  "objective",
-] as const;
+const POST_CREATION_FUNNEL_STEPS = ["window", "proposal", "context", "tone", "theme"] as const;
 const POST_CREATION_IDEA_LANES = ["recommended", "safe", "bold", "practical"] as const;
 const POST_CREATION_SCRIPT_STATUSES = ["generated", "linked", "published"] as const;
 
@@ -144,10 +104,7 @@ const shouldRefreshPostCreationFunnelEventModel =
     existingPostCreationFunnelEventModel.schema.path("scriptStatus")?.options?.default !== undefined ||
     !(
       existingPostCreationFunnelEventModel.schema.path("eventName")?.options?.enum as string[] | undefined
-    )?.includes("post_creation_adaptive_intent_started") ||
-    !(
-      existingPostCreationFunnelEventModel.schema.path("step")?.options?.enum as string[] | undefined
-    )?.includes("adaptive_intent")
+    )?.includes("post_creation_trial_started")
   );
 
 if (shouldRefreshPostCreationFunnelEventModel) {
