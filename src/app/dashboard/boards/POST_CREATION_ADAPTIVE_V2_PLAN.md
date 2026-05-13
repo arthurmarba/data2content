@@ -22,7 +22,12 @@ Este documento descreve a estratégia de reintrodução do Board Adaptativo em e
 - Validar recomendações e linguagem consultiva via testes unitários.
 - Manter a fase sem UI e sem score visual.
 
-## Fase V2E: Componentes de UI & Handoff
+## Fase V2E: Strategic Plan Builder puro (Concluída)
+- Criar a camada de construção do plano estratégico (`postCreationAdaptivePlanBuilder.ts`).
+- Gerar cenas, 5W2H e próximas ações de forma determinística.
+- Validar linguagem consultiva e integridade do plano via testes unitários.
+
+## Fase V2F: Componentes de UI & Handoff
 - Reintroduzir o NativeFlow e ScoreCard de forma modular.
 - Integrar com o BoardShell através da feature flag.
 - Garantir handoff seguro para o fluxo legado.
