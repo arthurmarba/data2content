@@ -12,11 +12,16 @@ Este documento descreve a estratégia de reintrodução do Board Adaptativo em e
 - Validar prioridades de intenção via testes unitários.
 - Manter a lógica isolada, sem UI, BoardShell, endpoints ou OpenAI.
 
-## Fase V2C: Quiz Builder & Gerenciamento de Estado
-- Reintroduzir a construção de perguntas baseada na intenção.
-- Implementar o AnswerKey para mapeamento de respostas estratégicas.
+## Fase V2C: Quiz Builder Isolado (Concluída)
+- Reintroduzir a construção de perguntas baseada na intenção (`postCreationAdaptiveQuizBuilder.ts`).
+- Validar estrutura, mapKeys e linguagem consultiva via testes unitários.
+- Manter a fase sem AnswerKey, score, UI, BoardShell, endpoints ou OpenAI.
 
-## Fase V2D: Componentes de UI & Handoff
+## Fase V2D: AnswerKey & Recomendações Estratégicas
+- Implementar o mapeamento de respostas estratégicas.
+- Validar recomendações sem UI e sem score visual.
+
+## Fase V2E: Componentes de UI & Handoff
 - Reintroduzir o NativeFlow e ScoreCard de forma modular.
 - Integrar com o BoardShell através da feature flag.
 - Garantir handoff seguro para o fluxo legado.
