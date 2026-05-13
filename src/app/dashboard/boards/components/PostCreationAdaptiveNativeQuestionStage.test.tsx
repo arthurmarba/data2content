@@ -1,0 +1,628 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+import type { ComponentProps } from "react";
+
+import { buildAdaptiveDecisionViewModel } from "../postCreationAdaptiveDecisionViewModel";
+import type { PostCreationAdaptiveDecisionViewModel } from "../postCreationAdaptiveDecisionViewModel";
+import {
+  buildPostCreationAdaptiveAnswerKey,
+  evaluatePostCreationAdaptiveAnswers,
+} from "../postCreationAdaptiveAnswerKey";
+import { buildPostCreationAdaptiveQuiz } from "../postCreationAdaptiveQuizBuilder";
+import { detectPostCreationAdaptiveIntent } from "../postCreationAdaptiveRouter";
+import PostCreationAdaptiveNativeQuestionStage from "./PostCreationAdaptiveNativeQuestionStage";
+
+function baseViewModel(
+  overrides: Partial<PostCreationAdaptiveDecisionViewModel> = {},
+): PostCreationAdaptiveDecisionViewModel {
+  return {
+    id: "q-objective",
+    title: "Qual objetivo principal deste post?",
+    helper: "Escolha a decisão que orienta o resto da criação.",
+    mapKey: "objective",
+    questionType: "strategic_choice",
+    visualStep: "Objetivo",
+    progressLabel: "Pergunta 1 de 4",
+    progressValue: 0.25,
+    questionIndex: 0,
+    questionCount: 4,
+    selectedOptionId: "comments",
+    selectedAnswer: {
+      questionId: "q-objective",
+      key: "objective",
+      optionId: "comments",
+      value: "Comentários",
+    },
+    canAdvance: true,
+    nextLabel: "Próxima decisão",
+    correctOptionId: null,
+    selectedIsCorrect: null,
+    feedbackTitle: null,
+    feedbackMessage: null,
+    feedbackRationale: null,
+    feedbackEvidence: [],
+    correctOptionLabel: null,
+    correctReason: null,
+    selectedIncorrectReason: null,
+    selectedOptionReason: null,
+    gameEvidence: [],
+    feedbackMode: "neutral",
+    shouldRevealFeedback: false,
+    options: [
+      {
+        id: "comments",
+        label: "Gerar comentários",
+        reason: "Abre espaço para conversa nos comentários.",
+        value: "Comentários",
+        selected: true,
+        recommended: true,
+        isCorrect: null,
+        isIncorrectSelection: false,
+        gameRole: null,
+        gameReason: null,
+      },
+      {
+        id: "reach",
+        label: "Ganhar alcance",
+        reason: "Ajuda a ampliar descoberta.",
+        value: "Alcance",
+        selected: false,
+        recommended: false,
+        isCorrect: null,
+        isIncorrectSelection: false,
+        gameRole: null,
+        gameReason: null,
+      },
+      {
+        id: "saves",
+        label: "Aumentar salvamentos",
+        reason: null,
+        value: "Salvamentos",
+        selected: false,
+        recommended: false,
+        isCorrect: null,
+        isIncorrectSelection: false,
+        gameRole: null,
+        gameReason: null,
+      },
+    ],
+    ...overrides,
+  };
+}
+
+function withFeedback(
+  overrides: Partial<PostCreationAdaptiveDecisionViewModel> = {},
+): PostCreationAdaptiveDecisionViewModel {
+  return baseViewModel({
+    correctOptionId: "comments",
+    selectedIsCorrect: true,
+    feedbackTitle: null,
+    feedbackMessage: null,
+    feedbackRationale: null,
+    feedbackEvidence: [],
+    correctOptionLabel: "Gerar comentários",
+    correctReason: null,
+    selectedIncorrectReason: null,
+    selectedOptionReason: null,
+    gameEvidence: [],
+    feedbackMode: "correct",
+    shouldRevealFeedback: true,
+    options: baseViewModel().options.map((option) => ({
+      ...option,
+      isCorrect: option.id === "comments",
+      isIncorrectSelection: false,
+    })),
+    ...overrides,
+  });
+}
+
+function unansweredViewModel(
+  overrides: Partial<PostCreationAdaptiveDecisionViewModel> = {},
+): PostCreationAdaptiveDecisionViewModel {
+  return baseViewModel({
+    selectedOptionId: null,
+    selectedAnswer: null,
+    canAdvance: false,
+    options: baseViewModel().options.map((option) => ({
+      ...option,
+      selected: false,
+      isIncorrectSelection: false,
+    })),
+    ...overrides,
+  });
+}
+
+function renderStage(
+  overrides: Partial<ComponentProps<typeof PostCreationAdaptiveNativeQuestionStage>> = {},
+) {
+  const props: ComponentProps<typeof PostCreationAdaptiveNativeQuestionStage> = {
+    viewModel: baseViewModel(),
+    onSelectOption: jest.fn(),
+    onNext: jest.fn(),
+    ...overrides,
+  };
+
+  render(<PostCreationAdaptiveNativeQuestionStage {...props} />);
+
+  return props;
+}
+
+describe("PostCreationAdaptiveNativeQuestionStage", () => {
+  it("renders visualStep", () => {
+    renderStage();
+
+    expect(screen.getByText("Objetivo")).toBeInTheDocument();
+  });
+
+  it("renders progressLabel", () => {
+    renderStage();
+
+    expect(screen.getByText("Pergunta 1 de 4")).toBeInTheDocument();
+  });
+
+  it("renders the progress bar", () => {
+    renderStage();
+
+    expect(screen.getByRole("progressbar", { name: "Pergunta 1 de 4" })).toHaveAttribute("aria-valuenow", "25");
+  });
+
+  it("renders the question title", () => {
+    renderStage();
+
+    expect(screen.getByText("Qual objetivo principal deste post?")).toBeInTheDocument();
+  });
+
+  it("renders helper when it exists", () => {
+    renderStage();
+
+    expect(screen.getByText("Escolha a decisão que orienta o resto da criação.")).toBeInTheDocument();
+  });
+
+  it("does not render helper when it is null", () => {
+    renderStage({ viewModel: baseViewModel({ helper: null }) });
+
+    expect(screen.queryByText("Escolha a decisão que orienta o resto da criação.")).not.toBeInTheDocument();
+  });
+
+  it("renders all options", () => {
+    renderStage();
+
+    expect(screen.getByRole("button", { name: /Gerar comentários/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Ganhar alcance/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Aumentar salvamentos/ })).toBeInTheDocument();
+  });
+
+  it("renders option reason when it exists", () => {
+    renderStage();
+
+    expect(screen.getByText("Abre espaço para conversa nos comentários.")).toBeInTheDocument();
+  });
+
+  it("does not render option reason when it is null", () => {
+    renderStage();
+
+    expect(screen.queryByText("Razão ausente")).not.toBeInTheDocument();
+  });
+
+  it("calls onSelectOption with the correct optionId when clicking an option", () => {
+    const onSelectOption = jest.fn();
+    renderStage({ viewModel: unansweredViewModel(), onSelectOption });
+
+    fireEvent.click(screen.getByRole("button", { name: /Ganhar alcance/ }));
+
+    expect(onSelectOption).toHaveBeenCalledWith("reach");
+  });
+
+  it("does not call onNext when clicking an option", () => {
+    const onNext = jest.fn();
+    renderStage({ onNext });
+
+    fireEvent.click(screen.getByRole("button", { name: /Ganhar alcance/ }));
+
+    expect(onNext).not.toHaveBeenCalled();
+  });
+
+  it("locks options after an answer is selected", () => {
+    renderStage();
+
+    expect(screen.getByRole("button", { name: /Gerar comentários/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Ganhar alcance/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Aumentar salvamentos/ })).toBeDisabled();
+  });
+
+  it("keeps selected option marked after locking the answer", () => {
+    renderStage();
+
+    expect(screen.getByRole("button", { name: /Gerar comentários/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Ganhar alcance/ })).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("shows Leitura registrada when an answer is locked without answerKey feedback", () => {
+    renderStage();
+
+    expect(screen.getByText("Leitura registrada")).toBeInTheDocument();
+  });
+
+  it("does not call onSelectOption again after the answer is locked", () => {
+    const onSelectOption = jest.fn();
+    renderStage({ onSelectOption });
+
+    fireEvent.click(screen.getByRole("button", { name: /Ganhar alcance/ }));
+
+    expect(onSelectOption).not.toHaveBeenCalled();
+  });
+
+  it("marks the selected option with an accessible pressed state", () => {
+    renderStage();
+
+    expect(screen.getByRole("button", { name: /Gerar comentários/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Ganhar alcance/ })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("does not show recommended indication in the UI", () => {
+    renderStage();
+
+    expect(screen.queryByText(/recomend/i)).not.toBeInTheDocument();
+  });
+
+  it("uses viewModel.nextLabel on the primary button", () => {
+    renderStage({ viewModel: baseViewModel({ nextLabel: "Ver plano estratégico" }) });
+
+    expect(screen.getByRole("button", { name: "Ver plano estratégico" })).toBeInTheDocument();
+  });
+
+  it("calls onNext when clicking the enabled primary button", () => {
+    const onNext = jest.fn();
+    renderStage({ onNext });
+
+    fireEvent.click(screen.getByRole("button", { name: "Próxima decisão" }));
+
+    expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables the primary button when viewModel.canAdvance is false", () => {
+    renderStage({ viewModel: baseViewModel({ canAdvance: false }) });
+
+    expect(screen.getByRole("button", { name: "Próxima decisão" })).toBeDisabled();
+  });
+
+  it("disables the primary button when loading is true", () => {
+    renderStage({ loading: true });
+
+    expect(screen.getByRole("button", { name: "Avançando..." })).toBeDisabled();
+  });
+
+  it("shows loading text on the primary button when loading is true", () => {
+    renderStage({ loading: true });
+
+    expect(screen.getByRole("button", { name: "Avançando..." })).toBeInTheDocument();
+  });
+
+  it("renders back button when onBack exists", () => {
+    renderStage({ onBack: jest.fn() });
+
+    expect(screen.getByRole("button", { name: "Voltar" })).toBeInTheDocument();
+  });
+
+  it("calls onBack when clicking back button", () => {
+    const onBack = jest.fn();
+    renderStage({ onBack });
+
+    fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
+
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not render back button when onBack does not exist", () => {
+    renderStage();
+
+    expect(screen.queryByRole("button", { name: "Voltar" })).not.toBeInTheDocument();
+  });
+
+  it("does not show feedback before selecting an answer", () => {
+    renderStage({ viewModel: baseViewModel({ selectedOptionId: null, selectedAnswer: null, shouldRevealFeedback: false }) });
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Boa leitura")).not.toBeInTheDocument();
+    expect(screen.queryByText("Bom ponto de partida")).not.toBeInTheDocument();
+  });
+
+  it("shows feedback when shouldRevealFeedback is true", () => {
+    renderStage({ viewModel: withFeedback() });
+
+    expect(screen.getByRole("status")).toBeInTheDocument();
+  });
+
+  it("shows Boa leitura fallback when selectedIsCorrect is true and there is no custom title", () => {
+    renderStage({ viewModel: withFeedback({ selectedIsCorrect: true, feedbackTitle: null }) });
+
+    expect(screen.getByText("Boa leitura")).toBeInTheDocument();
+    expect(screen.getByText("Essa leitura está bem alinhada com a estratégia dessa pauta.")).toBeInTheDocument();
+  });
+
+  it("shows Bom ponto de partida fallback when selectedIsCorrect is false and there is no custom title", () => {
+    renderStage({
+      viewModel: withFeedback({
+        selectedOptionId: "reach",
+        selectedIsCorrect: false,
+        feedbackTitle: null,
+        feedbackMessage: null,
+        options: baseViewModel().options.map((option) => ({
+          ...option,
+          selected: option.id === "reach",
+          isCorrect: option.id === "comments",
+          isIncorrectSelection: option.id === "reach",
+        })),
+      }),
+    });
+
+    expect(screen.getByText("Bom ponto de partida")).toBeInTheDocument();
+    expect(screen.getByText("Essa escolha pode funcionar, mas eu ajustaria o caminho para fortalecer a pauta.")).toBeInTheDocument();
+  });
+
+  it("uses feedbackTitle from the view model when present", () => {
+    renderStage({ viewModel: withFeedback({ feedbackTitle: "Leitura preservada" }) });
+
+    expect(screen.getByText("Leitura preservada")).toBeInTheDocument();
+    expect(screen.queryByText("Boa leitura")).not.toBeInTheDocument();
+  });
+
+  it("uses feedbackMessage from the view model when present", () => {
+    renderStage({ viewModel: withFeedback({ feedbackMessage: "Esse caminho cria identificação rápido." }) });
+
+    expect(screen.getByText("Esse caminho cria identificação rápido.")).toBeInTheDocument();
+  });
+
+  it("renders feedbackRationale when it exists", () => {
+    renderStage({
+      viewModel: withFeedback({
+        feedbackRationale: "O gancho decide se a pessoa entende a tensão nos primeiros segundos.",
+      }),
+    });
+
+    expect(screen.getByText("O gancho decide se a pessoa entende a tensão nos primeiros segundos.")).toBeInTheDocument();
+  });
+
+  it("does not render feedbackRationale when it is null", () => {
+    renderStage({ viewModel: withFeedback({ feedbackRationale: null }) });
+
+    expect(screen.queryByText("O gancho decide se a pessoa entende a tensão nos primeiros segundos.")).not.toBeInTheDocument();
+  });
+
+  it("does not show evidence before selecting an answer", () => {
+    renderStage({
+      viewModel: baseViewModel({
+        selectedOptionId: null,
+        selectedAnswer: null,
+        shouldRevealFeedback: false,
+        feedbackEvidence: ["Formato forte: Reels"],
+      }),
+    });
+
+    expect(screen.queryByText("Base da análise")).not.toBeInTheDocument();
+    expect(screen.queryByText("Formato forte: Reels")).not.toBeInTheDocument();
+  });
+
+  it("shows evidence when feedback is revealed", () => {
+    renderStage({
+      viewModel: withFeedback({
+        feedbackEvidence: [
+          "Formato forte: Reels",
+          "Sinal de engajamento: Comentários",
+        ],
+      }),
+    });
+
+    expect(screen.getByText("Base da análise")).toBeInTheDocument();
+    expect(screen.getByText("Formato forte: Reels")).toBeInTheDocument();
+    expect(screen.getByText("Sinal de engajamento: Comentários")).toBeInTheDocument();
+  });
+
+  it("shows the winning reason when the selected answer is correct", () => {
+    renderStage({
+      viewModel: withFeedback({
+        feedbackMode: "correct",
+        correctReason: "Esse caminho se destaca porque conversa melhor com o histórico da pauta.",
+      }),
+    });
+
+    expect(screen.getByText("Por que esse caminho é mais coerente")).toBeInTheDocument();
+    expect(screen.getByText("Esse caminho se destaca porque conversa melhor com o histórico da pauta.")).toBeInTheDocument();
+  });
+
+  it("shows why the selected answer lost strength and the strongest answer when incorrect", () => {
+    renderStage({
+      viewModel: withFeedback({
+        selectedOptionId: "reach",
+        selectedIsCorrect: false,
+        feedbackMode: "incorrect",
+        correctOptionLabel: "Gerar comentários",
+        correctReason: "A conversa era o caminho mais coerente para essa pauta.",
+        selectedIncorrectReason: "Ganhar alcance fazia sentido, mas fica menos estratégico porque a pauta pede identificação.",
+        options: baseViewModel().options.map((option) => ({
+          ...option,
+          selected: option.id === "reach",
+          isCorrect: option.id === "comments",
+          isIncorrectSelection: option.id === "reach",
+        })),
+      }),
+    });
+
+    expect(screen.getByText("Por que eu ajustaria essa escolha")).toBeInTheDocument();
+    expect(screen.getByText("Ganhar alcance fazia sentido, mas fica menos estratégico porque a pauta pede identificação.")).toBeInTheDocument();
+    expect(screen.getByText("Caminho mais coerente")).toBeInTheDocument();
+    expect(screen.getAllByText("Gerar comentários").length).toBeGreaterThan(0);
+    expect(screen.getByText("A conversa era o caminho mais coerente para essa pauta.")).toBeInTheDocument();
+  });
+
+  it("does not render evidence section when evidence is empty", () => {
+    renderStage({ viewModel: withFeedback({ feedbackEvidence: [] }) });
+
+    expect(screen.queryByText("Base da análise")).not.toBeInTheDocument();
+  });
+
+  it("does not render hard language in feedback", () => {
+    renderStage({
+      viewModel: withFeedback({
+        selectedIsCorrect: false,
+        feedbackTitle: null,
+        feedbackMessage: null,
+      }),
+    });
+
+    expect(document.body).not.toHaveTextContent(/errado/i);
+    expect(document.body).not.toHaveTextContent(/incorreto/i);
+    expect(document.body).not.toHaveTextContent(/falhou/i);
+    expect(document.body).not.toHaveTextContent(/garantido/i);
+    expect(document.body).not.toHaveTextContent(/provado/i);
+    expect(document.body).not.toHaveTextContent(/certeza/i);
+  });
+
+  it("shows Sua leitura on the selected adjustment option", () => {
+    renderStage({
+      viewModel: withFeedback({
+        selectedOptionId: "reach",
+        selectedIsCorrect: false,
+        options: baseViewModel().options.map((option) => ({
+          ...option,
+          selected: option.id === "reach",
+          isCorrect: option.id === "comments",
+          isIncorrectSelection: option.id === "reach",
+        })),
+      }),
+    });
+
+    expect(screen.getByText("Sua leitura")).toBeInTheDocument();
+  });
+
+  it("does not show Leitura registrada on unselected locked options", () => {
+    renderStage();
+
+    expect(screen.getAllByText("Leitura registrada")).toHaveLength(1);
+  });
+
+  it("continues calling onNext after feedback appears", () => {
+    const onNext = jest.fn();
+    renderStage({ viewModel: withFeedback(), onNext });
+
+    fireEvent.click(screen.getByRole("button", { name: "Próxima decisão" }));
+
+    expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the primary action available with long feedback and evidence", () => {
+    renderStage({
+      viewModel: withFeedback({
+        feedbackMessage:
+          "Essa leitura considera uma explicação mais longa para simular o feedback expandido em telas estreitas sem remover o CTA da próxima decisão.",
+        feedbackRationale:
+          "A decisão foi priorizada porque combina os sinais do material de estudo com o comportamento que a pauta precisa provocar agora.",
+        correctReason:
+          "Esse caminho se destacou porque sustenta a promessa principal, mantém a execução simples e conversa com o histórico da pauta.",
+        feedbackEvidence: [
+          "Gancho forte: Você já tentou relaxar e a casa inteira resolveu fazer barulho?",
+          "CTA recorrente: Comentar",
+          "Post de referência: POV rotina em casa com comentários acima da média",
+        ],
+      }),
+    });
+
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByText("Por que esse caminho é mais coerente")).toBeInTheDocument();
+    expect(screen.getByText("Base da análise")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Próxima decisão" })).toBeInTheDocument();
+  });
+
+  it("keeps aria-pressed on options when feedback appears", () => {
+    renderStage({ viewModel: withFeedback() });
+
+    expect(screen.getByRole("button", { name: /Gerar comentários/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /Ganhar alcance/ })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("does not reveal the correct option before selection", () => {
+    renderStage({
+      viewModel: withFeedback({
+        selectedOptionId: null,
+        selectedAnswer: null,
+        selectedIsCorrect: null,
+        shouldRevealFeedback: false,
+        options: baseViewModel().options.map((option) => ({
+          ...option,
+          selected: false,
+          isCorrect: option.id === "comments",
+          isIncorrectSelection: false,
+        })),
+      }),
+    });
+
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sua leitura")).not.toBeInTheDocument();
+    expect(screen.queryByText(/corret/i)).not.toBeInTheDocument();
+    expect(screen.queryByText("Por que esse caminho é mais coerente")).not.toBeInTheDocument();
+    expect(screen.queryByText("Caminho mais coerente")).not.toBeInTheDocument();
+  });
+
+  it("works integrated with the adaptive router, quiz builder, and decision view model", () => {
+    const detection = detectPostCreationAdaptiveIntent("Quero atrair marcas de skincare");
+    const questions = buildPostCreationAdaptiveQuiz({ detection });
+    const firstQuestion = questions[0];
+
+    expect(firstQuestion).toBeTruthy();
+
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question: firstQuestion!,
+      answers: [
+        {
+          questionId: firstQuestion!.id,
+          key: firstQuestion!.mapKey,
+          optionId: firstQuestion!.options[0]!.id,
+          value: firstQuestion!.options[0]!.label,
+        },
+      ],
+      questionIndex: 0,
+      questionCount: questions.length,
+    });
+
+    renderStage({ viewModel });
+
+    expect(screen.getByText(viewModel.visualStep)).toBeInTheDocument();
+    expect(screen.getByText(viewModel.progressLabel)).toBeInTheDocument();
+    expect(screen.getByText(firstQuestion!.title)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: new RegExp(firstQuestion!.options[0]!.label) })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("works integrated with answer key and answer evaluation feedback", () => {
+    const detection = detectPostCreationAdaptiveIntent(
+      "Quero gravar um POV sobre minha família fazendo barulho quando tento relaxar",
+    );
+    const questions = buildPostCreationAdaptiveQuiz({ detection });
+    const answerKey = buildPostCreationAdaptiveAnswerKey({ detection, questions });
+    const firstQuestion = questions[0]!;
+    const correctOptionId = answerKey.correctAnswersByQuestionId[firstQuestion.id]!;
+    const answers = [
+      {
+        questionId: firstQuestion.id,
+        key: firstQuestion.mapKey,
+        optionId: correctOptionId,
+        value: correctOptionId,
+      },
+    ];
+    const { evaluations } = evaluatePostCreationAdaptiveAnswers({ answerKey, answers });
+    const viewModel = buildAdaptiveDecisionViewModel({
+      question: firstQuestion,
+      answers,
+      questionIndex: 0,
+      questionCount: questions.length,
+      answerKey,
+      evaluations,
+    });
+
+    renderStage({ viewModel });
+
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    expect(screen.getByText("Boa leitura")).toBeInTheDocument();
+  });
+});
