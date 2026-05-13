@@ -88,6 +88,8 @@ describe("Post Creation Adaptive Pipeline QA", () => {
     expect(plan.pauta).toBeTruthy();
     expect(plan.scenes.length).toBeGreaterThanOrEqual(2);
     expect(plan.nextActions.length).toBeGreaterThanOrEqual(3);
+    expect(plan.collabMatch).toBeNull();
+    expect(plan.nextActions.some((a) => /collab|parceiro/i.test(a))).toBe(false);
   });
 
   it("validates format_guidance journey", () => {
@@ -123,11 +125,20 @@ describe("Post Creation Adaptive Pipeline QA", () => {
     expect(detection.mode).toBe("brand_match");
     expect(plan.brandMatch?.enabled).toBe(true);
     expect(plan.brandMatch?.category).toMatch(/skincare|beauty|beleza|autocuidado/i);
+    expect(plan.collabMatch).toBeNull();
     expect(plan.nextActions.some((a) => /marca|encaixe|parceria/i.test(a))).toBe(true);
   });
 
   it("validates collab_match journey", () => {
     const { detection, plan } = runPipeline("Quero fazer uma collab para gerar comentários");
+
+    expect(detection.mode).toBe("collab_match");
+    expect(plan.collabMatch?.enabled).toBe(true);
+    expect(plan.nextActions.some((a) => /collab|parceiro/i.test(a))).toBe(true);
+  });
+
+  it("routes explicit collab validation input into collab_match", () => {
+    const { detection, plan } = runPipeline("Quero gravar um vídeo sobre rotina com uma collab");
 
     expect(detection.mode).toBe("collab_match");
     expect(plan.collabMatch?.enabled).toBe(true);

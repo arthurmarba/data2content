@@ -28,6 +28,8 @@ describe("buildPostCreationAdaptiveStrategicPlan", () => {
     expect(plan.fiveW2H.what).toBe(plan.pauta);
     expect(plan.scenes.length).toBeGreaterThanOrEqual(2);
     expect(plan.nextActions.length).toBeGreaterThanOrEqual(3);
+    expect(plan.collabMatch).toBeNull();
+    expect(plan.nextActions.some((a) => /collab|parceiro/i.test(a))).toBe(false);
   });
 
   it("handles brand_match mode correctly", () => {
@@ -50,6 +52,7 @@ describe("buildPostCreationAdaptiveStrategicPlan", () => {
 
     expect(plan.brandMatch?.enabled).toBe(true);
     expect(plan.brandMatch?.category).toMatch(/skincare|beleza|autocuidado/i);
+    expect(plan.collabMatch).toBeNull();
     expect(plan.nextActions.some((a) => a.toLowerCase().includes("marca"))).toBe(true);
   });
 
@@ -73,6 +76,29 @@ describe("buildPostCreationAdaptiveStrategicPlan", () => {
 
     expect(plan.collabMatch?.enabled).toBe(true);
     expect(plan.nextActions.some((a) => a.toLowerCase().includes("collab"))).toBe(true);
+  });
+
+  it("keeps explicit collab input on the collab_match path", () => {
+    const detection = detectPostCreationAdaptiveIntent("Quero gravar um vídeo sobre rotina com uma collab");
+    const questions = buildPostCreationAdaptiveQuiz({ detection });
+    const answers: PostCreationAdaptiveAnswer[] = questions.map((q) => ({
+      questionId: q.id,
+      key: q.mapKey,
+      optionId: q.options.find((o) => o.recommended)?.id || q.options[0]!.id,
+      value: null,
+    }));
+    const answerKey = buildPostCreationAdaptiveAnswerKey({ detection, questions, answers });
+
+    const plan = buildPostCreationAdaptiveStrategicPlan({
+      detection,
+      questions,
+      answers,
+      answerKey,
+    });
+
+    expect(detection.mode).toBe("collab_match");
+    expect(plan.collabMatch?.enabled).toBe(true);
+    expect(plan.nextActions.some((a) => /collab|parceiro/i.test(a))).toBe(true);
   });
 
   it("handles comment_to_post mode correctly", () => {

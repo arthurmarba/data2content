@@ -26,6 +26,11 @@ export function buildPostCreationAdaptiveStrategicPlan(params: {
     return option?.label || null;
   };
 
+  const getAnswerOptionId = (key: PostCreationAdaptiveQuestionMapKey): string | null => {
+    const answer = answers.find((a) => a.key === key);
+    return answer?.optionId || null;
+  };
+
   const pauta = compactPromptSnippet(
     detection.detectedPauta || detection.sourceComment || detection.originalInput,
     100
@@ -44,6 +49,12 @@ export function buildPostCreationAdaptiveStrategicPlan(params: {
   const hook = getAnswerLabel("hook");
   const cta = getAnswerLabel("cta");
   const effort = getAnswerLabel("effort");
+  const collabOptionId = getAnswerOptionId("collab");
+  const collabAnswerLabel = getAnswerLabel("collab");
+  const hasExplicitCollabSignal =
+    detection.mode === "collab_match" ||
+    detection.signals.some((signal) => /\b(collab|colab|colaboracao|conteudo junto|criador parceiro|parceria)\b/.test(signal)) ||
+    /\b(collab|colab|colaboracao|conteudo junto|criador parceiro|parceria)\b/.test(detection.normalizedInput);
 
   const fiveW2H: PostCreationFiveW2HPlan = {
     who: "Sua audiência no Instagram",
@@ -83,8 +94,10 @@ export function buildPostCreationAdaptiveStrategicPlan(params: {
   };
 
   const collabMatch = {
-    enabled: detection.mode === "collab_match" || Boolean(getAnswerLabel("collab")),
-    creatorProfile: getAnswerLabel("who") || getAnswerLabel("collab"),
+    enabled:
+      detection.mode === "collab_match" ||
+      (hasExplicitCollabSignal && collabOptionId === "collab"),
+    creatorProfile: getAnswerLabel("who") || collabAnswerLabel,
     collaborationAngle: getAnswerLabel("why"),
   };
 
