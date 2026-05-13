@@ -1,0 +1,22 @@
+# Plano de Implementação: Board Adaptativo V2
+
+Este documento descreve a estratégia de reintrodução do Board Adaptativo em etapas modulares, garantindo segurança e estabilidade.
+
+## Fase V2A: Fundação & Feature Flag (Concluída)
+- Reintrodução dos tipos base (`postCreationAdaptiveTypes.ts`).
+- Implementação da lógica de Feature Flag isolada (`postCreationAdaptiveFeatureFlag.ts`).
+- Testes unitários para a Feature Flag.
+
+## Fase V2B: Roteamento de Intenção & Lógica (Próxima)
+- Reintroduzir o roteador adaptativo para detecção de intenção.
+- Implementar a lógica de decisão (DecisionViewModel) sem UI.
+- Validar via testes unitários.
+
+## Fase V2C: Quiz Builder & Gerenciamento de Estado
+- Reintroduzir a construção de perguntas baseada na intenção.
+- Implementar o AnswerKey para mapeamento de respostas estratégicas.
+
+## Fase V2D: Componentes de UI & Handoff
+- Reintroduzir o NativeFlow e ScoreCard de forma modular.
+- Integrar com o BoardShell através da feature flag.
+- Garantir handoff seguro para o fluxo legado.
