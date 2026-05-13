@@ -27,7 +27,7 @@ Para manter a integridade e a confiança do criador, seguimos diretrizes rígida
 2. **Ativos Sensíveis**: Ativos do tipo `personal` e `relationship` são sensíveis por padrão e não são utilizados na síntese automática da frase narrativa central.
 3. **Linguagem Não-Determinística**: Evitamos afirmações definitivas. Termos como "comprovado", "garantido", "certeza", "sua narrativa é" ou "sua identidade é" são proibidos nos statements gerados.
 4. **Pureza Técnica**: Nesta fase inicial, não há persistência em banco de dados ou chamadas de OpenAI. O módulo de lógica é 100% focado em lógica de negócio pura e testável, consumido por componentes de UI desacoplados.
-5. **Segurança Visual**: O componente de visualização (`PostCreationNarrativeMapCard`) replica os guardrails de segurança, filtrando ativos sensíveis e bloqueando termos proibidos antes da exibição ao usuário final.
+5. **Segurança Visual**: O componente de visualização (`PostCreationNarrativeMapCard`) replica os guardrails de segurança, filtrando ativos sensíveis e bloqueando termos proibidos antes da exibição ao usuário final. O card é estritamente **read-only** (somente leitura) e os dados não são salvos entre sessões.
 
 ## Fluxo de Integração (Fase N5)
 

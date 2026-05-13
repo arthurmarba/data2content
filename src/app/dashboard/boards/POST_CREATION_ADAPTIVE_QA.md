@@ -328,6 +328,24 @@ Com DevTools > Network:
 - nao ha geracao automatica de roteiro;
 - endpoints adaptativos existentes nao recebem contrato novo de resposta.
 
+## Cenario O: Leitura Narrativa (QA manual)
+
+Passos:
+1. Usar um usuario com `studyContext` rico (posts classificados).
+2. Abrir o board e completar o jogo adaptativo.
+3. Checar a tela final.
+
+Esperado:
+- O card "Leitura narrativa sugerida" aparece apos o resumo da intencao e antes do score.
+- O card mostra a frase da narrativa central (se houver densidade de sinais).
+- O card mostra os grupos de ativos (Temas, Jeito de comunicar, Cenarios).
+- O card NAO exibe ativos sensiveis (pessoal, relacionamento) ou marcados como sensiveis.
+- O card NAO exibe termos proibidos ("comprovado", "garantido", etc).
+- O card nao aparece se `narrativeMap` for nulo ou vazio.
+- O card nao aparece durante o quiz ou na tela de intencao.
+- O card e puramente visual (read-only); nao ha botoes de confirmacao/edicao.
+- A tela final antiga continua exibindo pauta, plano ideal, score, salvamento, collabs e marcas normalmente.
+
 ## Limitacoes conhecidas
 
 - StudyContext ainda e client-side e usa dados ja disponiveis no board.
@@ -336,6 +354,8 @@ Com DevTools > Network:
 - O QA de mobile/overlay pode demandar fase propria se aparecer problema visual.
 - Marcas e collabs dependem dos dados que a tela antiga ja possui.
 - O score/evidencias nao sao persistidos como entidade propria no draft nesta fase.
+- **DNA Narrativo**: o `narrativeMap` e calculado em memoria; nao e persistido no banco e e perdido ao recarregar a pagina/limpar snapshot.
+- **Media Kit**: o DNA narrativo ainda nao e consumido pela pagina publica do criador.
 
 ## Criterios de bloqueio
 

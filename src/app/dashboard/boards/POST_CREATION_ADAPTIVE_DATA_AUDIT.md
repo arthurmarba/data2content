@@ -20,6 +20,7 @@ Sinais comerciais existem em varios niveis: `Metric.isPubli`, `Metric.contentSig
 - `buildPostCreationAdaptiveStudyContext` aceita objetos defensivos (`plannerSlots`, `recommendations`, `outcomeSignals`, `evidencePosts`, `brandSignals`, `collabSignals`) e extrai sinais quantitativos e qualitativos sem depender de shape forte.
 - `PostCreationDecisionEngine` usa `PlannerUISlot`, `PostCreationOutcomeSignal`, `PostCreationPreferenceSignals`, evidencePosts e expectedMetrics para montar decisoes, ideia candidata e evidencias de UI.
 - `usePlannerData` recebe `/api/planner/batch` ou `/api/planner/public` e transforma slots em `PlannerUISlot`. Esse hook preserva muitos campos estrategicos, mas `evidencePosts` fica limitado a `id`, `title`, `coverUrl`, `postLink`, `totalInteractions`.
+- `CreatorNarrativeMap`: dado derivado em memoria a partir do `StudyContext` via `buildCreatorNarrativeMap`. Nao possui persistencia em banco nesta fase, nao e enviado a endpoints e existe apenas durante a sessao ativa do board para exibicao de leitura estrategica.
 
 ## Models encontrados
 
