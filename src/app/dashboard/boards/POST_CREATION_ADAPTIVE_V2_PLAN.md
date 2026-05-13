@@ -7,10 +7,10 @@ Este documento descreve a estratégia de reintrodução do Board Adaptativo em e
 - Implementação da lógica de Feature Flag isolada (`postCreationAdaptiveFeatureFlag.ts`).
 - Testes unitários para a Feature Flag.
 
-## Fase V2B: Roteamento de Intenção & Lógica (Próxima)
-- Reintroduzir o roteador adaptativo para detecção de intenção.
-- Implementar a lógica de decisão (DecisionViewModel) sem UI.
-- Validar via testes unitários.
+## Fase V2B: Roteamento de Intenção & Lógica (Concluída)
+- Reintroduzir o roteador adaptativo para detecção de intenção (`postCreationAdaptiveRouter.ts`).
+- Validar prioridades de intenção via testes unitários.
+- Manter a lógica isolada, sem UI, BoardShell, endpoints ou OpenAI.
 
 ## Fase V2C: Quiz Builder & Gerenciamento de Estado
 - Reintroduzir a construção de perguntas baseada na intenção.
