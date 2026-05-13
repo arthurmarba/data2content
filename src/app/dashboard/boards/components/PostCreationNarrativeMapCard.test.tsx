@@ -24,14 +24,15 @@ describe("PostCreationNarrativeMapCard", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders 'DNA narrativo sugerido' when there is centralNarrative", () => {
+  it("renders 'Leitura narrativa sugerida' when there is centralNarrative", () => {
     const map: CreatorNarrativeMap = {
       creatorId: "user-1",
       assets: [],
       centralNarrative: {
         statement: "Bastidores de carreira",
-        confidence: "medium",
+        confidence: 0.6,
         status: "suggested",
+        evidence: [],
       },
       generatedAt: "2026-05-12T00:00:00Z",
     };
@@ -45,8 +46,9 @@ describe("PostCreationNarrativeMapCard", () => {
       assets: [],
       centralNarrative: {
         statement: "Bastidores de carreira",
-        confidence: "medium",
+        confidence: 0.6,
         status: "suggested",
+        evidence: [],
       },
       generatedAt: "2026-05-12T00:00:00Z",
     };
@@ -60,8 +62,9 @@ describe("PostCreationNarrativeMapCard", () => {
       assets: [],
       centralNarrative: {
         statement: "Bastidores de carreira em contexto de escritório",
-        confidence: "medium",
+        confidence: 0.6,
         status: "suggested",
+        evidence: [],
       },
       generatedAt: "2026-05-12T00:00:00Z",
     };
@@ -75,8 +78,9 @@ describe("PostCreationNarrativeMapCard", () => {
       assets: [],
       centralNarrative: {
         statement: "Sua narrativa é carreira",
-        confidence: "medium",
+        confidence: 0.6,
         status: "suggested",
+        evidence: [],
       },
       generatedAt: "2026-05-12T00:00:00Z",
     };
@@ -91,8 +95,9 @@ describe("PostCreationNarrativeMapCard", () => {
       assets: [],
       centralNarrative: {
         statement: "Sua identidade é beleza",
-        confidence: "medium",
+        confidence: 0.6,
         status: "suggested",
+        evidence: [],
       },
       generatedAt: "2026-05-12T00:00:00Z",
     };
@@ -109,8 +114,9 @@ describe("PostCreationNarrativeMapCard", () => {
         assets: [],
         centralNarrative: {
           statement,
-          confidence: "medium",
+          confidence: 0.6,
           status: "suggested",
+          evidence: [],
         },
         generatedAt: "2026-05-12T00:00:00Z",
       };
@@ -129,8 +135,9 @@ describe("PostCreationNarrativeMapCard", () => {
         assets: [],
         centralNarrative: {
           statement: "Bastidores",
-          confidence: "medium",
+          confidence: 0.6,
           status,
+          evidence: [],
         },
         generatedAt: "2026-05-12T00:00:00Z",
       };
@@ -146,8 +153,9 @@ describe("PostCreationNarrativeMapCard", () => {
       assets: [],
       centralNarrative: {
         statement: "Bastidores de carreira",
-        confidence: "medium",
+        confidence: 0.6,
         status: "suggested",
+        evidence: [],
       },
       generatedAt: "2026-05-12T00:00:00Z",
     };
@@ -159,9 +167,9 @@ describe("PostCreationNarrativeMapCard", () => {
     const map: CreatorNarrativeMap = {
       creatorId: "user-1",
       assets: [
-        { id: "a1", type: "theme", label: "Finanças", status: "suggested", createdAt: "", updatedAt: "" },
-        { id: "a2", type: "language", label: "Prática", status: "suggested", createdAt: "", updatedAt: "" },
-        { id: "a3", type: "scenario", label: "Home Office", status: "suggested", createdAt: "", updatedAt: "" },
+        { id: "a1", type: "theme", label: "Finanças", status: "suggested", confidence: 0.8, source: 'study_context', evidence: [], createdAt: "", updatedAt: "" },
+        { id: "a2", type: "language", label: "Prática", status: "suggested", confidence: 0.8, source: 'study_context', evidence: [], createdAt: "", updatedAt: "" },
+        { id: "a3", type: "scenario", label: "Home Office", status: "suggested", confidence: 0.8, source: 'study_context', evidence: [], createdAt: "", updatedAt: "" },
       ],
       centralNarrative: null,
       generatedAt: "2026-05-12T00:00:00Z",
@@ -179,8 +187,8 @@ describe("PostCreationNarrativeMapCard", () => {
     const map: CreatorNarrativeMap = {
       creatorId: "user-1",
       assets: [
-        { id: "a1", type: "theme", label: "Rejeitado", status: "rejected", createdAt: "", updatedAt: "" },
-        { id: "a2", type: "theme", label: "Escondido", status: "hidden", createdAt: "", updatedAt: "" },
+        { id: "a1", type: "theme", label: "Rejeitado", status: "rejected", confidence: 0.8, source: 'study_context', evidence: [], createdAt: "", updatedAt: "" },
+        { id: "a2", type: "theme", label: "Escondido", status: "hidden", confidence: 0.8, source: 'study_context', evidence: [], createdAt: "", updatedAt: "" },
       ],
       centralNarrative: null,
       generatedAt: "2026-05-12T00:00:00Z",
@@ -194,8 +202,8 @@ describe("PostCreationNarrativeMapCard", () => {
     const map: CreatorNarrativeMap = {
       creatorId: "user-1",
       assets: [
-        { id: "a1", type: "personal", label: "Pessoal", status: "suggested", createdAt: "", updatedAt: "" },
-        { id: "a2", type: "relationship", label: "Relacionamento", status: "suggested", createdAt: "", updatedAt: "" },
+        { id: "a1", type: "personal", label: "Pessoal", status: "suggested", confidence: 0.8, source: 'study_context', evidence: [], createdAt: "", updatedAt: "" },
+        { id: "a2", type: "relationship", label: "Relacionamento", status: "suggested", confidence: 0.8, source: 'study_context', evidence: [], createdAt: "", updatedAt: "" },
       ],
       centralNarrative: null,
       generatedAt: "2026-05-12T00:00:00Z",
@@ -210,7 +218,7 @@ describe("PostCreationNarrativeMapCard", () => {
     const map: CreatorNarrativeMap = {
       creatorId: "user-1",
       assets: [
-        { id: "a1", type: "theme", label: "Sensível", status: "suggested", isSensitive: true, createdAt: "", updatedAt: "" },
+        { id: "a1", type: "theme", label: "Sensível", status: "suggested", isSensitive: true, confidence: 0.8, source: 'study_context', evidence: [], createdAt: "", updatedAt: "" },
       ],
       centralNarrative: null,
       generatedAt: "2026-05-12T00:00:00Z",
@@ -224,10 +232,10 @@ describe("PostCreationNarrativeMapCard", () => {
     const map: CreatorNarrativeMap = {
       creatorId: "user-1",
       assets: [
-        { id: "a1", type: "theme", label: "T1", status: "suggested", createdAt: "", updatedAt: "" },
-        { id: "a2", type: "theme", label: "T2", status: "suggested", createdAt: "", updatedAt: "" },
-        { id: "a3", type: "theme", label: "T3", status: "suggested", createdAt: "", updatedAt: "" },
-        { id: "a4", type: "theme", label: "T4", status: "suggested", createdAt: "", updatedAt: "" },
+        { id: "a1", type: "theme", label: "T1", status: "suggested", confidence: 0.8, source: 'study_context', evidence: [], createdAt: "", updatedAt: "" },
+        { id: "a2", type: "theme", label: "T2", status: "suggested", confidence: 0.8, source: 'study_context', evidence: [], createdAt: "", updatedAt: "" },
+        { id: "a3", type: "theme", label: "T3", status: "suggested", confidence: 0.8, source: 'study_context', evidence: [], createdAt: "", updatedAt: "" },
+        { id: "a4", type: "theme", label: "T4", status: "suggested", confidence: 0.8, source: 'study_context', evidence: [], createdAt: "", updatedAt: "" },
       ],
       centralNarrative: null,
       generatedAt: "2026-05-12T00:00:00Z",
@@ -245,8 +253,9 @@ describe("PostCreationNarrativeMapCard", () => {
       assets: [],
       centralNarrative: {
         statement: "Frase",
-        confidence: "medium",
+        confidence: 0.6,
         status: "suggested",
+        evidence: [],
       },
       generatedAt: "2026-05-12T00:00:00Z",
     };

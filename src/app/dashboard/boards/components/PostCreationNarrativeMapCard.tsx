@@ -104,11 +104,11 @@ export default function PostCreationNarrativeMapCard({ narrativeMap }: PostCreat
           <p className="mt-2 text-lg font-semibold tracking-[-0.02em] text-zinc-950 leading-relaxed">
             {safeCentralNarrative.statement}
           </p>
-          {safeCentralNarrative.confidence && (
+          {safeCentralNarrative.confidence > 0 && (
             <p className="mt-2 text-[11px] font-medium text-zinc-400">
-              {safeCentralNarrative.confidence === "high" && "Baseado em sinais recorrentes do seu histórico."}
-              {safeCentralNarrative.confidence === "medium" && "Leitura inicial com bons sinais de apoio."}
-              {safeCentralNarrative.confidence === "low" && "Hipótese inicial, ainda precisa de mais sinais."}
+              {safeCentralNarrative.confidence >= 0.75 && "Baseado em sinais recorrentes do seu histórico."}
+              {safeCentralNarrative.confidence >= 0.5 && safeCentralNarrative.confidence < 0.75 && "Leitura inicial com bons sinais de apoio."}
+              {safeCentralNarrative.confidence < 0.5 && "Hipótese inicial, ainda precisa de mais sinais."}
             </p>
           )}
         </div>
