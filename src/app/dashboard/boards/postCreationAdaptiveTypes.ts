@@ -133,3 +133,25 @@ export type PostCreationAdaptiveState = {
   createdAt?: string | null;
   updatedAt?: string | null;
 };
+
+export type PostCreationAdaptiveAnswerEvaluation = {
+  questionId: string;
+  key: PostCreationAdaptiveQuestionMapKey;
+  selectedOptionId: string | null;
+  selectedLabel: string | null;
+  recommendedOptionId: string | null;
+  recommendedLabel: string | null;
+  isRecommendedChoice: boolean;
+  reason: string;
+};
+
+export type PostCreationAdaptiveAnswerKeyResult = {
+  mode: PostCreationAdaptiveMode;
+  totalQuestions: number;
+  answeredQuestions: number;
+  recommendedMatches: number;
+  evaluations: PostCreationAdaptiveAnswerEvaluation[];
+  strengths: string[];
+  adjustments: string[];
+  summary: string;
+};

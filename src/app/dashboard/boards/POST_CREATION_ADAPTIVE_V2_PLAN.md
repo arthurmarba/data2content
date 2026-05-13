@@ -17,9 +17,10 @@ Este documento descreve a estratégia de reintrodução do Board Adaptativo em e
 - Validar estrutura, mapKeys e linguagem consultiva via testes unitários.
 - Manter a fase sem AnswerKey, score, UI, BoardShell, endpoints ou OpenAI.
 
-## Fase V2D: AnswerKey & Recomendações Estratégicas
-- Implementar o mapeamento de respostas estratégicas.
-- Validar recomendações sem UI e sem score visual.
+## Fase V2D: AnswerKey & Recomendações Estratégicas (Concluída)
+- Implementar o mapeamento de respostas estratégicas (`postCreationAdaptiveAnswerKey.ts`).
+- Validar recomendações e linguagem consultiva via testes unitários.
+- Manter a fase sem UI e sem score visual.
 
 ## Fase V2E: Componentes de UI & Handoff
 - Reintroduzir o NativeFlow e ScoreCard de forma modular.
