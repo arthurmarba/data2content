@@ -250,7 +250,7 @@ describe("buildPostCreationAdaptiveAnswerKey", () => {
   });
 
   it("idealAnswers use the correct answers, not user answers", () => {
-    const { questions, answerKey } = quizForInput("Não sei o que postar essa semana");
+    const { questions, answerKey } = quizForInput("Não sei o que postar amanhã");
     const wrongAnswers = wrongAnswersForQuestions(questions, answerKey);
 
     expect(wrongAnswers.length).toBeGreaterThan(0);
@@ -310,7 +310,7 @@ describe("buildPostCreationAdaptiveAnswerKey", () => {
   });
 
   it("works with discover_pauta", () => {
-    const { answerKey } = quizForInput("Não sei o que postar essa semana");
+    const { answerKey } = quizForInput("Não sei o que postar amanhã");
 
     expect(answerKey.mode).toBe("discover_pauta");
     expect(answerKey.questionKeys.length).toBeGreaterThan(0);
@@ -345,11 +345,11 @@ describe("buildPostCreationAdaptiveAnswerKey", () => {
   });
 
   it("does not change idealPlan when user answers miss the answer key", () => {
-    const { questions, answerKey } = quizForInput("Não sei o que postar essa semana");
+    const { questions, answerKey } = quizForInput("Não sei o que postar amanhã");
     const before = JSON.stringify(answerKey.idealPlan);
     const wrongAnswers = wrongAnswersForQuestions(questions, answerKey);
     const wrongPlan = buildPostCreationStrategicPlan({
-      detection: detectionForInput("Não sei o que postar essa semana"),
+      detection: detectionForInput("Não sei o que postar amanhã"),
       questions,
       answers: wrongAnswers,
     });
@@ -359,7 +359,7 @@ describe("buildPostCreationAdaptiveAnswerKey", () => {
     expect(JSON.stringify(answerKey.idealPlan)).toBe(before);
     expect(answerKey.idealPlan).toEqual(
       buildPostCreationStrategicPlan({
-        detection: detectionForInput("Não sei o que postar essa semana"),
+        detection: detectionForInput("Não sei o que postar amanhã"),
         questions,
         answers: answerKey.idealAnswers,
       }),
@@ -1114,7 +1114,7 @@ describe("buildPostCreationAdaptiveAnswerKey", () => {
   });
 
   it("works with discover_pauta and studyContext", () => {
-    const detection = detectionForInput("Não sei o que postar essa semana");
+    const detection = detectionForInput("Não sei o que postar amanhã");
     const questions = buildPostCreationAdaptiveQuiz({ detection });
     const answerKey = buildPostCreationAdaptiveAnswerKey({ detection, questions, studyContext: highStudyContext });
 
@@ -1186,7 +1186,7 @@ describe("evaluatePostCreationAdaptiveAnswers", () => {
   });
 
   it("changes score label according to performance", () => {
-    const { questions, answerKey } = quizForInput("Não sei o que postar essa semana");
+    const { questions, answerKey } = quizForInput("Não sei o que postar amanhã");
 
     expect(evaluatePostCreationAdaptiveAnswers({
       answerKey,
@@ -1207,7 +1207,7 @@ describe("evaluatePostCreationAdaptiveAnswers", () => {
   });
 
   it("uses the expected score summary", () => {
-    const { questions, answerKey } = quizForInput("Não sei o que postar essa semana");
+    const { questions, answerKey } = quizForInput("Não sei o que postar amanhã");
     const result = evaluatePostCreationAdaptiveAnswers({
       answerKey,
       answers: mixedAnswersForScore(questions, answerKey, 2),

@@ -191,12 +191,12 @@ describe("buildPostCreationAdaptiveQuiz", () => {
     const quiz = quizFor("Melhor reels ou carrossel para uma pauta de skincare?");
 
     expect(quiz).toHaveLength(5);
-    expect(quiz[0]?.id).toBe("format-primary");
-    expect(quiz[0]?.title).toMatch(/sinais do seu conteúdo/i);
-    expect(quiz[0]?.helper).toMatch(/dados|sinais/i);
-    expect(quiz[1]?.title).toMatch(/reação esse formato/i);
-    expect(quiz[2]?.title).toMatch(/execução aproveita melhor/i);
-    expect(quiz[3]?.title).toMatch(/abrir para segurar atenção/i);
+    expect(quiz[0]?.id).toBe("format-narrative");
+    expect(quiz[0]?.title).toMatch(/força principal/i);
+    expect(quiz[0]?.helper).toMatch(/precisa carregar/i);
+    expect(quiz[1]?.title).toMatch(/reação esse conteúdo/i);
+    expect(quiz[2]?.title).toMatch(/abrir para segurar atenção/i);
+    expect(quiz[4]?.title).toMatch(/formato parece mais coerente/i);
   });
 
   it("keeps format_guidance questions complete and grounded in content signals", () => {
@@ -207,7 +207,7 @@ describe("buildPostCreationAdaptiveQuiz", () => {
     expect(quiz.every((question) => question.options.length === 4)).toBe(true);
     expect(quiz.some((question) => question.mapKey === "format")).toBe(true);
     expect(quiz.some((question) => question.mapKey === "objective")).toBe(true);
-    expect(text).toMatch(/sinais|conteúdo|dados/i);
+    expect(text).toMatch(/esforço|consequência|leitura/i);
     expect(text).not.toMatch(/garantido|provado|certeza|comprovam|sempre performa/i);
   });
 
@@ -242,11 +242,11 @@ describe("buildPostCreationAdaptiveQuiz", () => {
         ["goal-cta", "cta"],
       ],
       format_guidance: [
-        ["format-primary", "format"],
-        ["format-objective", "objective"],
         ["format-narrative", "narrative"],
+        ["format-objective", "objective"],
         ["format-hook", "hook"],
         ["format-effort", "effort"],
+        ["format-primary", "format"],
       ],
       brand_match: [
         ["brand-category", "brand"],

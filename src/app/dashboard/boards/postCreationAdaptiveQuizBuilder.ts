@@ -228,29 +228,25 @@ function createByGoalQuestions(): PostCreationAdaptiveQuestion[] {
 }
 
 function formatGuidanceQuestions(detection: PostCreationAdaptiveIntentDetection): PostCreationAdaptiveQuestion[] {
-  const pautaHelper = detection.detectedPauta
-    ? `Vamos ler os sinais do seu conteúdo para escolher o formato de: ${detection.detectedPauta}.`
-    : "Formato não é gosto pessoal. É o jeito mais forte de carregar uma intenção que seus dados já ajudam a revelar.";
-
   return [
     question({
-      id: "format-primary",
+      id: "format-narrative",
       type: "strategic_choice",
-      title: "Pelos sinais do seu conteúdo, qual formato parece a melhor aposta?",
-      helper: pautaHelper,
-      mapKey: "format",
+      title: "Onde está a força principal dessa pauta?",
+      helper: "Antes de escolher o formato, vale entender o que precisa carregar a ideia.",
+      mapKey: "narrative",
       options: [
-        option("reels", "Reels", "Melhor quando a força está em cena, ritmo, reação ou movimento.", true),
-        option("carousel", "Carrossel", "Melhor quando a ideia precisa de ordem, comparação ou consulta depois."),
-        option("photo_post", "Foto com legenda forte", "Melhor quando imagem e opinião carregam a mensagem sem muita edição."),
-        option("stories", "Stories", "Melhor quando a intenção é testar conversa rápida ou bastidor próximo."),
+        option("scene_motion", "Cena, reação ou movimento", "Pede vídeo curto, ritmo e contexto visual rápido.", true),
+        option("step_by_step", "Lista, passo a passo ou organização", "Pede estrutura clara para a pessoa consultar ou salvar."),
+        option("opinion_positioning", "Opinião, tensão ou posicionamento", "Pede fala direta, argumento e ponto de vista."),
+        option("backstage_context", "Bastidor, contexto ou rotina real", "Pede proximidade e construção de cena com naturalidade."),
       ],
     }),
     question({
       id: "format-objective",
       type: "strategic_choice",
-      title: "Qual reação esse formato deveria puxar primeiro?",
-      helper: "Antes do formato, vem o comportamento que você quer provocar na audiência.",
+      title: "Qual reação esse conteúdo deveria puxar primeiro?",
+      helper: "O formato fica mais claro quando a intenção da audiência está definida.",
       mapKey: "objective",
       options: [
         option("reach", "Alcance e descoberta", "Pede formato fácil de entender e compartilhar rápido.", true),
@@ -260,23 +256,10 @@ function formatGuidanceQuestions(detection: PostCreationAdaptiveIntentDetection)
       ],
     }),
     question({
-      id: "format-narrative",
-      type: "strategic_choice",
-      title: "Qual execução aproveita melhor esse formato?",
-      helper: "Depois de escolher o formato, a execução precisa combinar com a narrativa que o seu conteúdo sustenta.",
-      mapKey: "narrative",
-      options: [
-        option("scene_motion", "Cena ou movimento", "Favorece vídeo curto, reação e contexto visual imediato.", true),
-        option("step_by_step", "Passo a passo", "Favorece carrossel, checklist ou estrutura de consulta."),
-        option("opinion_positioning", "Opinião ou posicionamento", "Favorece fala direta, legenda forte ou corte com ponto de vista."),
-        option("backstage_context", "Bastidor ou contexto", "Favorece stories, sequência simples ou registro menos produzido."),
-      ],
-    }),
-    question({
       id: "format-hook",
       type: "strategic_choice",
       title: "Como a ideia precisa abrir para segurar atenção?",
-      helper: "A abertura indica se os sinais do conteúdo pedem mostrar, prometer, perguntar ou comparar.",
+      helper: "A abertura indica se a pauta precisa mostrar, prometer, perguntar ou comparar.",
       mapKey: "hook",
       options: [
         option("visual_tension", "Tensão visual imediata", "Funciona quando a pessoa entende a cena antes da explicação.", true),
@@ -289,13 +272,28 @@ function formatGuidanceQuestions(detection: PostCreationAdaptiveIntentDetection)
       id: "format-effort",
       type: "constraint",
       title: "Quanto esforço de produção cabe agora?",
-      helper: "O formato escolhido ainda precisa caber no tempo e na energia disponíveis.",
+      helper: "O melhor formato também precisa caber no tempo e na energia disponíveis.",
       mapKey: "effort",
       options: [
         option("low", "Baixo, quero decidir e postar rápido", "Favorece stories, foto com legenda ou reels simples.", true),
         option("medium", "Médio, dá pra estruturar melhor", "Favorece carrossel curto ou reels com roteiro enxuto."),
         option("high", "Alto, quero caprichar na entrega", "Favorece vídeo com cenas, edição e prova visual."),
         option("batch", "Quero gravar em lote", "Bom para aproveitar produção, mas exige formatos fáceis de repetir."),
+      ],
+    }),
+    question({
+      id: "format-primary",
+      type: "strategic_choice",
+      title: "Com essa leitura, qual formato parece mais coerente?",
+      helper: detection.detectedPauta
+        ? `Agora sim, vamos escolher o formato mais coerente para: ${detection.detectedPauta}.`
+        : "Agora sim, o formato entra como consequência da intenção, da execução e do esforço.",
+      mapKey: "format",
+      options: [
+        option("reels", "Reels", "Faz sentido quando a força está em cena, ritmo, reação ou movimento.", true),
+        option("carousel", "Carrossel", "Faz sentido quando a ideia precisa de ordem, comparação ou consulta depois."),
+        option("photo_post", "Foto com legenda forte", "Faz sentido quando imagem e opinião carregam a mensagem sem muita edição."),
+        option("stories", "Stories", "Faz sentido quando a intenção é testar conversa rápida ou bastidor próximo."),
       ],
     }),
   ];
