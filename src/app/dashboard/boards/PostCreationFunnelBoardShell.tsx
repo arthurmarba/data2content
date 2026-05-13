@@ -76,40 +76,6 @@ import {
   type PostCreationBlueprintAdjustment,
 } from "./postCreationBlueprintAdjuster";
 import BrandNarrativeMatchesPanel from "./components/BrandNarrativeMatchesPanel";
-import PostCreationAdaptiveFinalIntentSummaryCard from "./components/PostCreationAdaptiveFinalIntentSummaryCard";
-import PostCreationAdaptiveNativeFlow from "./components/PostCreationAdaptiveNativeFlow";
-import PostCreationAdaptivePromptContextCard from "./components/PostCreationAdaptivePromptContextCard";
-import PostCreationAdaptiveScoreCard from "./components/PostCreationAdaptiveScoreCard";
-import PostCreationNarrativeMapCard from "./components/PostCreationNarrativeMapCard";
-import type {
-  PostCreationAdaptiveAnswerEvaluation,
-  PostCreationAdaptiveScore,
-} from "./postCreationAdaptiveAnswerKey";
-import {
-  createPostCreationAdaptiveHandoffState,
-  type PostCreationAdaptiveLegacyHandoff,
-} from "./postCreationAdaptiveHandoffState";
-import { createPostCreationAdaptiveIdeaHandoffState } from "./postCreationAdaptiveIdeaHandoffState";
-import { shouldShowPostCreationAdaptiveExperience } from "./postCreationAdaptiveFeatureFlag";
-import {
-  buildPostCreationAdaptiveStudyContext,
-  type PostCreationAdaptiveStudyContext,
-} from "./postCreationAdaptiveStudyContext";
-import type {
-  PostCreationAdaptiveMode,
-  PostCreationStrategicPlan,
-} from "./postCreationAdaptiveTypes";
-import {
-  isMeaningfulPostCreationAdaptiveSnapshot,
-  type PostCreationAdaptiveSnapshot,
-} from "./postCreationAdaptiveSnapshot";
-import {
-  buildStablePostCreationDraftStateForSignature,
-  extractPostCreationAdaptiveSnapshotFromDraftState,
-  mergePostCreationAdaptiveSnapshotIntoDraftState,
-  type PostCreationDraftStateWithAdaptive,
-} from "./postCreationDraftAdaptiveState";
-import type { CreatorNarrativeMap } from "./narrativeAssets/postCreationNarrativeAssets";
 
 const MyScriptsPage = dynamic(() => import("@/app/dashboard/scripts/MyScriptsPage"), {
   ssr: false,
@@ -2921,13 +2887,11 @@ function buildDraftPayload(args: {
   state: PostCreationFunnelState;
   selectedSlotId: string | null;
   selectedScriptId: string | null;
-  adaptiveSnapshot?: PostCreationAdaptiveSnapshot | null;
 }) {
-  const state = mergePostCreationAdaptiveSnapshotIntoDraftState(args.state, args.adaptiveSnapshot);
   return {
     stage: args.state.stage,
     titleSnapshot: buildTitleSnapshot(args.state),
-    state,
+    state: args.state,
     selectedSlotId: args.selectedSlotId,
     selectedScriptId: args.selectedScriptId,
     linkedContentId: args.state.linkedContent?.id || null,
@@ -2937,15 +2901,12 @@ function buildDraftPayload(args: {
 function buildDraftSignature(payload: {
   stage: PostCreationFunnelStage;
   titleSnapshot: string | null;
-  state: PostCreationFunnelState | PostCreationDraftStateWithAdaptive;
+  state: PostCreationFunnelState;
   selectedSlotId: string | null;
   selectedScriptId: string | null;
   linkedContentId: string | null;
 }) {
-  return JSON.stringify({
-    ...payload,
-    state: buildStablePostCreationDraftStateForSignature(payload.state),
-  });
+  return JSON.stringify(payload);
 }
 
 function resolveScriptStatusLabel(script: FunnelScriptSummaryItem | null): "generated" | "linked" | "published" | null {
@@ -3462,11 +3423,6 @@ export default function PostCreationFunnelBoardShell({
   const isPendingPaywall = isPaywallReturning && !canInteract;
   const shouldShowActivationOverlay = (isPreviewMode || (isTrialViewer && !instagramConnectedForTrial)) && !isPendingPaywall;
   const usesBoardSurface = surfaceMode === "board";
-  const shouldShowAdaptiveExperience = shouldShowPostCreationAdaptiveExperience({
-    role: normalizedViewer.role,
-    userId: normalizedViewer.id,
-    searchParams,
-  });
   const plannerQueryUserId = !isPreviewMode && normalizedViewer.id ? normalizedViewer.id : "";
   const { weekStart, slots, recommendations, loading: plannerLoading, saveSlots, savePostCreationPauta } = usePlannerData({
     userId: plannerQueryUserId,
@@ -3593,15 +3549,6 @@ export default function PostCreationFunnelBoardShell({
   const [hasHydratedDraft, setHasHydratedDraft] = useState(false);
   const [selectedSlotIdState, setSelectedSlotIdState] = useState<string | null>(null);
   const [selectedScriptIdState, setSelectedScriptIdState] = useState<string | null>(null);
-  const [adaptiveSnapshot, setAdaptiveSnapshot] = useState<PostCreationAdaptiveSnapshot | null>(null);
-  const [adaptiveGameResult, setAdaptiveGameResult] = useState<{
-    score: PostCreationAdaptiveScore;
-    evaluations: PostCreationAdaptiveAnswerEvaluation[];
-    originalPrompt: string | null;
-    mode: PostCreationAdaptiveMode | null;
-    idealPlan: PostCreationStrategicPlan | null;
-    narrativeMap?: CreatorNarrativeMap | null;
-  } | null>(null);
   const [isGeneratingBlueprintScript, setIsGeneratingBlueprintScript] = useState(false);
   const [inlineBlueprintScriptDraft, setInlineBlueprintScriptDraft] = useState<BlueprintScriptDraftState | null>(null);
   const [isSavingBlueprintScript, setIsSavingBlueprintScript] = useState(false);
@@ -4686,12 +4633,10 @@ export default function PostCreationFunnelBoardShell({
         }
 
         const normalizedState = normalizeLoadedFunnelState(item.state);
-        const normalizedAdaptiveSnapshot = extractPostCreationAdaptiveSnapshotFromDraftState(item.state);
         const nextPayload = buildDraftPayload({
           state: normalizedState,
           selectedSlotId: item.selectedSlotId || null,
           selectedScriptId: item.selectedScriptId || normalizedState.scriptId || null,
-          adaptiveSnapshot: normalizedAdaptiveSnapshot,
         });
         draftHydrationRef.current = true;
         hydratedDraftIdRef.current = item.id;
@@ -4700,7 +4645,6 @@ export default function PostCreationFunnelBoardShell({
         setDraftId(item.id);
         setSelectedSlotIdState(item.selectedSlotId || null);
         setSelectedScriptIdState(item.selectedScriptId || normalizedState.scriptId || null);
-        setAdaptiveSnapshot(normalizedAdaptiveSnapshot);
         setFunnelState(normalizedState);
         updateSelectionParams({
           draftId: item.id,
@@ -5110,65 +5054,6 @@ export default function PostCreationFunnelBoardShell({
       setAdvancingIdeaId(null);
     }, IDEA_AUTONAV_DELAY_MS);
   }, [clearAutoAdvanceTimer, draftId, funnelState.stage, ideaCandidates, selectedIdeaCandidate, trackFunnelEvent, updateSelectionParams]);
-
-  const handleAdaptiveSnapshotChange = useCallback((snapshot: PostCreationAdaptiveSnapshot) => {
-    hasLocalEditsRef.current = true;
-    skipLatestDraftHydrationRef.current = true;
-    if (snapshot.status === "idle" || snapshot.status === "starting") {
-      setAdaptiveGameResult(null);
-    }
-    setAdaptiveSnapshot(snapshot);
-  }, []);
-
-  const handleUseAdaptivePlan = useCallback((handoff: PostCreationAdaptiveLegacyHandoff) => {
-    const { nextState, selectedSlotId, selectedScriptId } =
-      createPostCreationAdaptiveHandoffState({ handoff });
-
-    clearAutoAdvanceTimer();
-    hasLocalEditsRef.current = true;
-    skipLatestDraftHydrationRef.current = true;
-    setBoardView("create");
-    setStageTransitionDirection("forward");
-    setSelectedSlotIdState(selectedSlotId);
-    setSelectedScriptIdState(selectedScriptId);
-    setInlineBlueprintScriptDraft(null);
-    setBlueprintActionError(null);
-    setBlueprintSaveError(null);
-    setFunnelState(nextState);
-  }, [clearAutoAdvanceTimer]);
-
-  const handleCompleteAdaptiveGame = useCallback((result: {
-    legacyHandoff: PostCreationAdaptiveLegacyHandoff;
-    score: PostCreationAdaptiveScore;
-    evaluations: PostCreationAdaptiveAnswerEvaluation[];
-    originalPrompt?: string | null;
-    mode?: PostCreationAdaptiveMode | null;
-    idealPlan?: PostCreationStrategicPlan | null;
-    narrativeMap?: CreatorNarrativeMap | null;
-  }) => {
-    const { nextState, selectedSlotId, selectedScriptId } =
-      createPostCreationAdaptiveIdeaHandoffState({ handoff: result.legacyHandoff });
-
-    clearAutoAdvanceTimer();
-    hasLocalEditsRef.current = true;
-    skipLatestDraftHydrationRef.current = true;
-    setBoardView("create");
-    setStageTransitionDirection("forward");
-    setSelectedSlotIdState(selectedSlotId);
-    setSelectedScriptIdState(selectedScriptId);
-    setInlineBlueprintScriptDraft(null);
-    setBlueprintActionError(null);
-    setBlueprintSaveError(null);
-    setAdaptiveGameResult({
-      score: result.score,
-      evaluations: result.evaluations,
-      originalPrompt: result.originalPrompt?.trim() || null,
-      mode: result.mode ?? null,
-      idealPlan: result.idealPlan ?? null,
-      narrativeMap: result.narrativeMap ?? null,
-    });
-    setFunnelState(nextState);
-  }, [clearAutoAdvanceTimer]);
 
   const handleActiveDecisionOptionSelect = useCallback(
     (optionId: string) => {
@@ -5910,8 +5795,6 @@ export default function PostCreationFunnelBoardShell({
     setAdvancingIdeaId(null);
     setSelectedSlotIdState(null);
     setSelectedScriptIdState(null);
-    setAdaptiveSnapshot(null);
-    setAdaptiveGameResult(null);
     setDraftId(null);
     hydratedDraftIdRef.current = null;
     setGeneratedPautas({
@@ -6224,8 +6107,7 @@ export default function PostCreationFunnelBoardShell({
   useEffect(() => {
     if (!hasHydratedDraft) return;
     if (isPreviewMode || !normalizedViewer.id) return;
-    const hasMeaningfulAdaptiveSnapshot = isMeaningfulPostCreationAdaptiveSnapshot(adaptiveSnapshot);
-    if (!isMeaningfulFunnelState(funnelState) && !hasMeaningfulAdaptiveSnapshot) return;
+    if (!isMeaningfulFunnelState(funnelState)) return;
     if (!draftId && !hasLocalEditsRef.current) return;
     if (draftHydrationRef.current) return;
 
@@ -6233,7 +6115,6 @@ export default function PostCreationFunnelBoardShell({
       state: funnelState,
       selectedSlotId: resolvedSelectedSlotId,
       selectedScriptId: resolvedSelectedScriptId,
-      adaptiveSnapshot,
     });
     const signature = buildDraftSignature(payload);
     if (signature === lastSavedSignatureRef.current) return;
@@ -6287,7 +6168,6 @@ export default function PostCreationFunnelBoardShell({
       }
     };
   }, [
-    adaptiveSnapshot,
     draftId,
     funnelState,
     hasHydratedDraft,
@@ -6862,46 +6742,6 @@ export default function PostCreationFunnelBoardShell({
       selectedProjectionSlot?.stance,
     ]
   );
-  const adaptiveStudyContext = useMemo<PostCreationAdaptiveStudyContext | null>(() => {
-    if (!shouldShowAdaptiveExperience) return null;
-
-    return buildPostCreationAdaptiveStudyContext({
-      plannerSlots,
-      recommendations,
-      outcomeSignals,
-      evidencePosts: selectedIdeaReferencePosts,
-      brandSignals: [
-        brandNarrativeCategoriesPayload,
-        ...selectedConfigurationItems.map((item) => ({
-          label: item.value,
-          category: item.label,
-        })),
-      ],
-      collabSignals: [
-        ...(collabCreatorsRequest ? [collabCreatorsRequest.payload] : []),
-        ...collabCreators.items.map((item) => ({
-          label: item.name,
-          creatorProfile: item.username || item.name,
-          interactions: item.avgInteractions,
-          reach: item.avgReach,
-          saves: item.avgSaves,
-          shares: item.avgShares,
-          evidenceCount: item.postCount,
-        })),
-      ],
-      periodDays: FUNNEL_HISTORY_LOOKBACK_DAYS,
-    });
-  }, [
-    brandNarrativeCategoriesPayload,
-    collabCreators.items,
-    collabCreatorsRequest,
-    outcomeSignals,
-    plannerSlots,
-    recommendations,
-    selectedConfigurationItems,
-    selectedIdeaReferencePosts,
-    shouldShowAdaptiveExperience,
-  ]);
 
   useEffect(() => {
     if (!collabCreatorsRequest) {
@@ -7249,160 +7089,122 @@ export default function PostCreationFunnelBoardShell({
                 ) : usesCompactStageSurface ? (
                   <div className="relative flex-1 overflow-y-auto px-5 pb-4 pt-4 sm:px-6 sm:pb-7">
                     <div className="mx-auto flex w-full max-w-[34rem] flex-col gap-3.5">
-                      {shouldShowAdaptiveExperience && activeStage === "path" ? (
-                        <PostCreationAdaptiveNativeFlow
-                          targetUserId={normalizedViewer.id || null}
-                          initialSnapshot={adaptiveSnapshot}
-                          onSnapshotChange={handleAdaptiveSnapshotChange}
-                          onUsePlan={handleUseAdaptivePlan}
-                          onCompleteGame={handleCompleteAdaptiveGame}
-                          studyContext={adaptiveStudyContext}
+                      <CompactStageHeader
+                        canGoPrev={canGoPrev}
+                        onPrev={handlePrevStage}
+                        stepLabel={
+                          activeStage === "path" && activeDecisionCard
+                            ? `Passo ${activeDecisionIndex + 1} de ${decisionStepCount}`
+                            : "Etapa atual"
+                        }
+                        goalLabel={headerGoalLabel}
+                        actionLabel={headerActionLabel}
+                        onAction={handleHeaderAction}
+                      />
+
+                      {activeStage === "path" && activeDecisionCard ? (
+                        <PathDecisionStage
+                          activeDecisionCard={activeDecisionCard}
+                          activeDecisionExpectedInteractions={activeDecisionExpectedInteractions}
+                          advancingPathId={advancingPathId}
+                          decisionTrailItems={decisionTrailItems}
+                          generatedPautasError={generatedPautas.error}
+                          generatedPautasStatus={generatedPautas.status}
+                          isFinalPautaDecision={isFinalPautaDecision}
+                          progressValue={progressValue}
+                          question={activeStepMeta?.question}
+                          onSelect={handleActiveDecisionOptionSelect}
                         />
-                      ) : (
-                        <>
-                          <CompactStageHeader
-                            canGoPrev={canGoPrev}
-                            onPrev={handlePrevStage}
-                            stepLabel={
-                              activeStage === "path" && activeDecisionCard
-                                ? `Passo ${activeDecisionIndex + 1} de ${decisionStepCount}`
-                                : "Etapa atual"
-                            }
-                            goalLabel={headerGoalLabel}
-                            actionLabel={headerActionLabel}
-                            onAction={handleHeaderAction}
-                          />
-
-                          {activeStage === "path" && activeDecisionCard ? (
-                            <PathDecisionStage
-                              activeDecisionCard={activeDecisionCard}
-                              activeDecisionExpectedInteractions={activeDecisionExpectedInteractions}
-                              advancingPathId={advancingPathId}
-                              decisionTrailItems={decisionTrailItems}
-                              generatedPautasError={generatedPautas.error}
-                              generatedPautasStatus={generatedPautas.status}
-                              isFinalPautaDecision={isFinalPautaDecision}
-                              progressValue={progressValue}
-                              question={activeStepMeta?.question}
-                              onSelect={handleActiveDecisionOptionSelect}
+                      ) : isReferenceDrawerOpen ? (
+                        <ReferencePostsDrawer
+                          isOpen={isReferenceDrawerOpen}
+                          onClose={handleCloseReferenceDrawer}
+                          onOpenPost={handleOpenReferencePost}
+                          origin={selectedIdeaProjectionOrigin}
+                          posts={selectedIdeaReferencePosts}
+                          total={selectedIdeaReferenceTotal}
+                        />
+                      ) : activeStage === "idea" && selectedIdeaForProjection ? (
+                        <main className="flex-1 pb-4 sm:pb-20">
+                          <div className="flex flex-1 flex-col items-stretch gap-4">
+                            <FunnelConfetti
+                              burstKey={`idea-${selectedIdeaForProjection.id || "strategy"}`}
+                              variant="success"
+                              originSelector='[data-confetti-origin="post-creation-final-status"]'
                             />
-                          ) : isReferenceDrawerOpen ? (
-                            <ReferencePostsDrawer
-                              isOpen={isReferenceDrawerOpen}
-                              onClose={handleCloseReferenceDrawer}
-                              onOpenPost={handleOpenReferencePost}
+
+                            <span className="sr-only" data-confetti-origin="post-creation-final-status">
+                              {isSelectedIdeaSaved ? "Pauta salva" : "Pauta validada"}
+                            </span>
+
+                            <ProjectionSummaryCard
+                              activeStage={activeStage}
+                              interactions={projectedInteractions}
+                              onOpenReferencePosts={handleOpenReferenceDrawer}
                               origin={selectedIdeaProjectionOrigin}
-                              posts={selectedIdeaReferencePosts}
-                              total={selectedIdeaReferenceTotal}
+                              reach={projectedReach}
+                              referencePosts={selectedIdeaReferencePosts}
+                              referenceTotal={selectedIdeaReferenceTotal}
+                              saves={projectedSaves}
+                              shares={projectedShares}
+                              supportCopy={finalProjectionSupportCopy}
+                              tier={selectedIdeaTier}
+                              title={selectedIdeaForProjection.title}
                             />
-                          ) : activeStage === "idea" && selectedIdeaForProjection ? (
-                            <main className="flex-1 pb-4 sm:pb-20">
-                              <div className="flex flex-1 flex-col items-stretch gap-4">
-                                <FunnelConfetti
-                                  burstKey={`idea-${selectedIdeaForProjection.id || "strategy"}`}
-                                  variant="success"
-                                  originSelector='[data-confetti-origin="post-creation-final-status"]'
-                                />
 
-                                <span className="sr-only" data-confetti-origin="post-creation-final-status">
-                                  {isSelectedIdeaSaved ? "Pauta salva" : "Pauta validada"}
-                                </span>
+                            <CollabCreatorsCard
+                              contextLabel={collabCreators.contextLabel}
+                              items={collabCreators.items}
+                              status={collabCreators.status}
+                            />
+                            {!canInteract ? (
+                              <CollabRadarUpsellBanner onActivate={handleActivateCollabRadar} />
+                            ) : null}
+                            <BrandNarrativeMatchesPanel
+                              compact
+                              categories={brandNarrativeCategoriesPayload}
+                              decision={funnelState.decision}
+                              enabled={BRAND_MATCHES_ENABLED}
+                              pauta={brandNarrativePautaPayload}
+                            />
 
-                                {activeStage === "idea" && adaptiveGameResult ? (
-                                  <>
-                                    <PostCreationAdaptivePromptContextCard
-                                      prompt={adaptiveGameResult.originalPrompt}
-                                      variant="final"
-                                    />
-                                    <PostCreationAdaptiveFinalIntentSummaryCard
-                                      mode={adaptiveGameResult.mode}
-                                      originalPrompt={adaptiveGameResult.originalPrompt}
-                                      decision={funnelState.decision}
-                                      idea={selectedIdeaForProjection}
-                                      blueprint={activeBlueprint}
-                                      idealPlan={adaptiveGameResult.idealPlan}
-                                      evaluations={adaptiveGameResult.evaluations}
-                                    />
-                                    <PostCreationNarrativeMapCard
-                                      narrativeMap={adaptiveGameResult.narrativeMap}
-                                    />
-                                    <PostCreationAdaptiveScoreCard
-                                      score={adaptiveGameResult.score}
-                                      evaluations={adaptiveGameResult.evaluations}
-                                    />
-                                  </>
-                                ) : null}
-
-                                <ProjectionSummaryCard
-                                  activeStage={activeStage}
-                                  interactions={projectedInteractions}
-                                  onOpenReferencePosts={handleOpenReferenceDrawer}
-                                  origin={selectedIdeaProjectionOrigin}
-                                  reach={projectedReach}
-                                  referencePosts={selectedIdeaReferencePosts}
-                                  referenceTotal={selectedIdeaReferenceTotal}
-                                  saves={projectedSaves}
-                                  shares={projectedShares}
-                                  supportCopy={finalProjectionSupportCopy}
-                                  tier={selectedIdeaTier}
-                                  title={selectedIdeaForProjection.title}
-                                />
-
-                                <CollabCreatorsCard
-                                  contextLabel={collabCreators.contextLabel}
-                                  items={collabCreators.items}
-                                  status={collabCreators.status}
-                                />
-                                {!canInteract ? (
-                                  <CollabRadarUpsellBanner onActivate={handleActivateCollabRadar} />
-                                ) : null}
-                                <BrandNarrativeMatchesPanel
-                                  compact
-                                  categories={brandNarrativeCategoriesPayload}
-                                  decision={funnelState.decision}
-                                  enabled={BRAND_MATCHES_ENABLED}
-                                  pauta={brandNarrativePautaPayload}
-                                />
-
-                                <div className="min-h-2 flex-1" />
-                                <div className="mt-1 border-t border-zinc-200/60 pb-2 pt-4">
-                                  <IdeaActionButtons
-                                    buttonTone="light"
-                                    className="mt-0"
-                                    isSaving={isSavingIdeaPauta}
-                                    isSaved={isSelectedIdeaSaved}
-                                    onReset={handleResetFunnel}
-                                    onSave={handleSaveIdeaPauta}
-                                    resetLabel={isTrialViewer && trialPautaConsumed ? gatedResetLabel : "Gerar outra pauta"}
-                                    saveLabel={gatedSaveLabel}
-                                  />
-                                </div>
-                                {isSelectedIdeaSaved && selectedSavedPautaSlot ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => void handleDiscardSavedPauta(selectedSavedPautaSlot)}
-                                    disabled={isDiscardingCurrentSavedPauta}
-                                    className="mx-auto -mt-1 inline-flex h-9 items-center justify-center rounded-full px-4 text-[12px] font-semibold text-rose-600 transition duration-300 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-default disabled:opacity-60"
-                                  >
-                                    {isDiscardingCurrentSavedPauta ? "Descartando pauta..." : "Descartar pauta salva"}
-                                  </button>
-                                ) : null}
-                                {ideaSaveError ? (
-                                  <p className="w-full text-sm text-rose-600">{ideaSaveError}</p>
-                                ) : null}
-                                {discardSavedPautaError ? (
-                                  <p className="w-full text-sm text-rose-600">{discardSavedPautaError}</p>
-                                ) : null}
-                              </div>
-                            </main>
-                          ) : (
-                            <main className="flex-1 pb-4 sm:pb-20">
-                              <div className={cn(FUNNEL_PANEL_SOFT_CLASS, "px-5 py-6 text-center text-sm text-zinc-500")}>
-                                Selecione uma pauta para ver a projeção final.
-                              </div>
-                            </main>
-                          )}
-                        </>
+                            <div className="min-h-2 flex-1" />
+                            <div className="mt-1 border-t border-zinc-200/60 pb-2 pt-4">
+                              <IdeaActionButtons
+                                buttonTone="light"
+                                className="mt-0"
+                                isSaving={isSavingIdeaPauta}
+                                isSaved={isSelectedIdeaSaved}
+                                onReset={handleResetFunnel}
+                                onSave={handleSaveIdeaPauta}
+                                resetLabel={isTrialViewer && trialPautaConsumed ? gatedResetLabel : "Gerar outra pauta"}
+                                saveLabel={gatedSaveLabel}
+                              />
+                            </div>
+                            {isSelectedIdeaSaved && selectedSavedPautaSlot ? (
+                              <button
+                                type="button"
+                                onClick={() => void handleDiscardSavedPauta(selectedSavedPautaSlot)}
+                                disabled={isDiscardingCurrentSavedPauta}
+                                className="mx-auto -mt-1 inline-flex h-9 items-center justify-center rounded-full px-4 text-[12px] font-semibold text-rose-600 transition duration-300 hover:bg-rose-50 hover:text-rose-700 disabled:cursor-default disabled:opacity-60"
+                              >
+                                {isDiscardingCurrentSavedPauta ? "Descartando pauta..." : "Descartar pauta salva"}
+                              </button>
+                            ) : null}
+                            {ideaSaveError ? (
+                              <p className="w-full text-sm text-rose-600">{ideaSaveError}</p>
+                            ) : null}
+                            {discardSavedPautaError ? (
+                              <p className="w-full text-sm text-rose-600">{discardSavedPautaError}</p>
+                            ) : null}
+                          </div>
+                        </main>
+                      ) : (
+                        <main className="flex-1 pb-4 sm:pb-20">
+                          <div className={cn(FUNNEL_PANEL_SOFT_CLASS, "px-5 py-6 text-center text-sm text-zinc-500")}>
+                            Selecione uma pauta para ver a projeção final.
+                          </div>
+                        </main>
                       )}
                     </div>
                   </div>
@@ -7661,34 +7463,9 @@ export default function PostCreationFunnelBoardShell({
                               ? "A execução voltou para o funnel."
                               : isSelectedIdeaSaved
                                 ? "A pauta já foi registrada no planejamento com esta configuração."
-                              : "Histórico, timing e formato alinhados."}
+                                : "Histórico, timing e formato alinhados."}
                           </p>
                         </div>
-
-                        {activeStageLegacySurface === "idea" && adaptiveGameResult ? (
-                          <div className="w-full space-y-3">
-                            <PostCreationAdaptivePromptContextCard
-                              prompt={adaptiveGameResult.originalPrompt}
-                              variant="final"
-                            />
-                            <PostCreationAdaptiveFinalIntentSummaryCard
-                              mode={adaptiveGameResult.mode}
-                              originalPrompt={adaptiveGameResult.originalPrompt}
-                              decision={funnelState.decision}
-                              idea={selectedIdeaForProjection}
-                              blueprint={activeBlueprint}
-                              idealPlan={adaptiveGameResult.idealPlan}
-                              evaluations={adaptiveGameResult.evaluations}
-                            />
-                            <PostCreationNarrativeMapCard
-                              narrativeMap={adaptiveGameResult.narrativeMap}
-                            />
-                            <PostCreationAdaptiveScoreCard
-                              score={adaptiveGameResult.score}
-                              evaluations={adaptiveGameResult.evaluations}
-                            />
-                          </div>
-                        ) : null}
 
                         <div className="grid w-full gap-4 lg:grid-cols-[minmax(0,1.28fr)_minmax(16rem,0.72fr)]">
                           <div className="dashboard-dark-spotlight group relative overflow-hidden rounded-[34px] border border-white/10 shadow-[0_24px_54px_rgba(15,23,42,0.18)]">
