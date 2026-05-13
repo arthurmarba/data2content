@@ -53,13 +53,13 @@ export default function PostCreationAdaptiveScoreCard({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-zinc-400">
-            Leitura estratégica
+            Alinhamento da rodada
           </p>
           <h3 className="mt-2 text-xl font-semibold tracking-[-0.03em] text-zinc-950">
-            {cleanVisibleText(score.label) || "Caminho estratégico"}
+            {cleanVisibleText(score.label) || "Direção estratégica encontrada"}
           </h3>
           <p className="mt-1 text-sm leading-6 text-zinc-500">
-            {cleanVisibleText(score.summary) || "Decisões estratégicas avaliadas nesta rodada."}
+            {cleanVisibleText(score.summary) || "Essa leitura mostra o quanto suas escolhas se aproximaram do caminho recomendado para a pauta."}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-2.5">
@@ -69,7 +69,10 @@ export default function PostCreationAdaptiveScoreCard({
               style={{ width: `${percentage}%` }}
             />
           </div>
-          <span className="text-sm font-semibold tabular-nums text-zinc-950">{percentage}%</span>
+          <div className="flex flex-col items-end leading-none">
+            <span className="text-sm font-semibold tabular-nums text-zinc-950">{percentage}%</span>
+            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wider text-zinc-400">alinhamento</span>
+          </div>
         </div>
       </div>
 
@@ -78,7 +81,7 @@ export default function PostCreationAdaptiveScoreCard({
           {visibleCorrectEvaluations.length > 0 ? (
             <div className="rounded-[22px] border border-zinc-200/80 bg-zinc-50/80 p-3.5">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                Boas apostas
+                Pontos fortes da sua leitura
               </p>
               <ul className="mt-3 space-y-3">
                 {visibleCorrectEvaluations.map((evaluation) => (
@@ -94,7 +97,7 @@ export default function PostCreationAdaptiveScoreCard({
           {visibleAdjustmentEvaluations.length > 0 ? (
             <div className="rounded-[22px] border border-zinc-200/80 bg-zinc-50/80 p-3.5">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                Ajustes que eu faria
+                Ajustes recomendados
               </p>
               <ul className="mt-3 space-y-3">
                 {visibleAdjustmentEvaluations.map((evaluation) => (
@@ -109,13 +112,13 @@ export default function PostCreationAdaptiveScoreCard({
         </div>
       ) : (
         <p className="mt-5 rounded-[22px] border border-zinc-200/80 bg-zinc-50/80 p-3.5 text-sm leading-6 text-zinc-500">
-          Sem decisões avaliadas nesta rodada.
+          Sem pontos analisados nesta rodada.
         </p>
       )}
 
       {hiddenCount > 0 ? (
         <p className="mt-3 text-xs font-semibold text-zinc-400">
-          + {hiddenCount} decisões avaliadas
+          + {hiddenCount} pontos analisados
         </p>
       ) : null}
     </section>

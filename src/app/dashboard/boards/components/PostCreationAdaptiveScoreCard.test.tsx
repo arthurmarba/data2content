@@ -54,7 +54,7 @@ describe("PostCreationAdaptiveScoreCard", () => {
   it("renders the strategic reading label", () => {
     renderScoreCard();
 
-    expect(screen.getByText("Leitura estratégica")).toBeInTheDocument();
+    expect(screen.getByText("Alinhamento da rodada")).toBeInTheDocument();
   });
 
   it("renders score label", () => {
@@ -73,19 +73,20 @@ describe("PostCreationAdaptiveScoreCard", () => {
     renderScoreCard();
 
     expect(screen.getByText("75%")).toBeInTheDocument();
+    expect(screen.getByText("alinhamento")).toBeInTheDocument();
   });
 
   it("renders good bets when there are correct evaluations", () => {
     renderScoreCard();
 
-    expect(screen.getByText("Boas apostas")).toBeInTheDocument();
+    expect(screen.getByText("Pontos fortes da sua leitura")).toBeInTheDocument();
     expect(screen.getByText("O objetivo define o comportamento que o conteúdo precisa provocar.")).toBeInTheDocument();
   });
 
   it("renders adjustment section when there are adjustment evaluations", () => {
     renderScoreCard();
 
-    expect(screen.getByText("Ajustes que eu faria")).toBeInTheDocument();
+    expect(screen.getByText("Ajustes recomendados")).toBeInTheDocument();
     expect(screen.getByText("O formato precisa combinar com a força principal da ideia.")).toBeInTheDocument();
   });
 
@@ -120,7 +121,7 @@ describe("PostCreationAdaptiveScoreCard", () => {
 
     renderScoreCard({ evaluations });
 
-    expect(screen.getByText("+ 2 decisões avaliadas")).toBeInTheDocument();
+    expect(screen.getByText("+ 2 pontos analisados")).toBeInTheDocument();
   });
 
   it("works with score total zero", () => {
@@ -136,7 +137,7 @@ describe("PostCreationAdaptiveScoreCard", () => {
     });
 
     expect(screen.getByText("0%")).toBeInTheDocument();
-    expect(screen.getByText("Sem decisões avaliadas nesta rodada.")).toBeInTheDocument();
+    expect(screen.getByText("Sem pontos analisados nesta rodada.")).toBeInTheDocument();
   });
 
   it("works with all evaluations correct", () => {
@@ -152,8 +153,8 @@ describe("PostCreationAdaptiveScoreCard", () => {
     });
 
     expect(screen.getByText("Leitura afiada")).toBeInTheDocument();
-    expect(screen.getByText("Boas apostas")).toBeInTheDocument();
-    expect(screen.queryByText("Ajustes que eu faria")).not.toBeInTheDocument();
+    expect(screen.getByText("Pontos fortes da sua leitura")).toBeInTheDocument();
+    expect(screen.queryByText("Ajustes recomendados")).not.toBeInTheDocument();
   });
 
   it("works with all evaluations as adjustments", () => {
@@ -168,13 +169,13 @@ describe("PostCreationAdaptiveScoreCard", () => {
       evaluations: [adjustmentEvaluation, { ...adjustmentEvaluation, questionId: "q-hook" }],
     });
 
-    expect(screen.queryByText("Boas apostas")).not.toBeInTheDocument();
-    expect(screen.getByText("Ajustes que eu faria")).toBeInTheDocument();
+    expect(screen.queryByText("Pontos fortes da sua leitura")).not.toBeInTheDocument();
+    expect(screen.getByText("Ajustes recomendados")).toBeInTheDocument();
   });
 
   it("renders fallback when evaluations are empty", () => {
     renderScoreCard({ evaluations: [] });
 
-    expect(screen.getByText("Sem decisões avaliadas nesta rodada.")).toBeInTheDocument();
+    expect(screen.getByText("Sem pontos analisados nesta rodada.")).toBeInTheDocument();
   });
 });
