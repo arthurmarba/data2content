@@ -53,10 +53,10 @@ function answerKeyFor(
         mapKey: question.mapKey,
         correctOptionId,
         feedback: {
-          correct: "Esse é o caminho mais forte para esta pauta.",
-          incorrect: "Essa opção pode funcionar, mas eu iria por outro caminho.",
+          correct: "Esse é o caminho mais coerente para esta pauta.",
+          incorrect: "Essa opção pode funcionar, mas eu ajustaria o caminho para fortalecer a pauta.",
           rationale: "O objetivo define o comportamento que o conteúdo precisa provocar.",
-          evidence: ["Formato forte: Reels"],
+          evidence: ["Caminho coerente: Reels"],
         },
       },
     ],
@@ -81,18 +81,18 @@ function answerKeyFor(
         correctReason: "Comentários vencem porque a pauta pede conversa e identificação.",
         incorrectReasonsByOptionId: question.options.reduce<Record<string, string>>((result, option) => {
           if (option.id !== correctOptionId) {
-            result[option.id] = `${option.label} faz sentido, mas perde força perto da conversa.`;
+            result[option.id] = `${option.label} faz sentido, mas fica menos estratégico perto da conversa.`;
           }
           return result;
         }, {}),
-        evidence: ["Formato forte: Reels", "Sinal de engajamento: Comentários"],
+        evidence: ["Caminho coerente: Reels", "Sinal de engajamento: Comentários"],
         options: question.options.map((option) => ({
           optionId: option.id,
           role: option.id === correctOptionId ? "correct" : "distractor",
           reason: option.id === correctOptionId
             ? "Comentários vencem porque a pauta pede conversa e identificação."
-            : `${option.label} faz sentido, mas perde força perto da conversa.`,
-          evidence: option.id === correctOptionId ? ["Formato forte: Reels"] : [],
+            : `${option.label} faz sentido, mas fica menos estratégico perto da conversa.`,
+          evidence: option.id === correctOptionId ? ["Caminho coerente: Reels"] : [],
         })),
         isValid: true,
         validationErrors: [],
@@ -114,8 +114,8 @@ function evaluationFor(
     selectedOptionId: "comments",
     correctOptionId: "comments",
     isCorrect: true,
-    feedbackTitle: "Boa aposta",
-    feedbackMessage: "Esse é o caminho mais forte para esta pauta.",
+    feedbackTitle: "Boa leitura",
+    feedbackMessage: "Esse é o caminho mais coerente para esta pauta.",
     rationale: "O objetivo define o comportamento que o conteúdo precisa provocar.",
     evidence: [],
     ...overrides,
@@ -508,8 +508,8 @@ describe("buildAdaptiveDecisionViewModel", () => {
       evaluations: [evaluationFor(question.id)],
     });
 
-    expect(viewModel.feedbackTitle).toBe("Boa aposta");
-    expect(viewModel.feedbackMessage).toBe("Esse é o caminho mais forte para esta pauta.");
+    expect(viewModel.feedbackTitle).toBe("Boa leitura");
+    expect(viewModel.feedbackMessage).toBe("Esse é o caminho mais coerente para esta pauta.");
     expect(viewModel.feedbackRationale).toBe("O objetivo define o comportamento que o conteúdo precisa provocar.");
   });
 
@@ -523,7 +523,7 @@ describe("buildAdaptiveDecisionViewModel", () => {
       answerKey: answerKeyFor(question, "comments"),
     });
 
-    expect(viewModel.feedbackEvidence).toEqual(["Formato forte: Reels", "Sinal de engajamento: Comentários"]);
+    expect(viewModel.feedbackEvidence).toEqual(["Caminho coerente: Reels", "Sinal de engajamento: Comentários"]);
   });
 
   it("attaches feedbackEvidence from the evaluation", () => {
@@ -536,13 +536,13 @@ describe("buildAdaptiveDecisionViewModel", () => {
       answerKey: answerKeyFor(question, "comments"),
       evaluations: [
         evaluationFor(question.id, {
-          evidence: ["Formato forte: Reels", "Sinal de engajamento: Comentários"],
+          evidence: ["Caminho coerente: Reels", "Sinal de engajamento: Comentários"],
         }),
       ],
     });
 
     expect(viewModel.feedbackEvidence).toEqual([
-      "Formato forte: Reels",
+      "Caminho coerente: Reels",
       "Sinal de engajamento: Comentários",
     ]);
   });
@@ -558,9 +558,9 @@ describe("buildAdaptiveDecisionViewModel", () => {
       evaluations: [
         evaluationFor(question.id, {
           evidence: [
-            "Formato forte: Reels",
+            "Caminho coerente: Reels",
             " ",
-            "Formato forte: Reels",
+            "Caminho coerente: Reels",
             "Sinal de engajamento: Comentários",
             "Post de referência: POV rotina",
             "Extra",
@@ -570,7 +570,7 @@ describe("buildAdaptiveDecisionViewModel", () => {
     });
 
     expect(viewModel.feedbackEvidence).toEqual([
-      "Formato forte: Reels",
+      "Caminho coerente: Reels",
       "Sinal de engajamento: Comentários",
       "Post de referência: POV rotina",
     ]);
@@ -609,24 +609,24 @@ describe("buildAdaptiveDecisionViewModel", () => {
       answerKey: answerKeyFor(question, "comments"),
       evaluations: [
         evaluationFor(question.id, {
-          evidence: ["Formato forte: Reels", "Formato forte: Reels"],
+          evidence: ["Caminho coerente: Reels", "Caminho coerente: Reels"],
         }),
       ],
     });
 
     expect(viewModel.correctOptionLabel).toBe("Comentários");
-    expect(viewModel.correctReason).toBe("Comentários vencem porque a pauta pede conversa e identificação.");
+    expect(viewModel.correctReason).toBe("Comentários se destacam porque a pauta pede conversa e identificação.");
     expect(viewModel.selectedIncorrectReason).toBeNull();
-    expect(viewModel.selectedOptionReason).toBe("Comentários vencem porque a pauta pede conversa e identificação.");
-    expect(viewModel.gameEvidence).toEqual(["Formato forte: Reels", "Sinal de engajamento: Comentários"]);
-    expect(viewModel.feedbackEvidence).toEqual(["Formato forte: Reels", "Sinal de engajamento: Comentários"]);
+    expect(viewModel.selectedOptionReason).toBe("Comentários se destacam porque a pauta pede conversa e identificação.");
+    expect(viewModel.gameEvidence).toEqual(["Caminho coerente: Reels", "Sinal de engajamento: Comentários"]);
+    expect(viewModel.feedbackEvidence).toEqual(["Caminho coerente: Reels", "Sinal de engajamento: Comentários"]);
     expect(viewModel.feedbackMode).toBe("correct");
     expect(viewModel.options.map((option) => [option.id, option.gameRole])).toEqual([
       ["comments", "correct"],
       ["reach", "distractor"],
       ["saves", "distractor"],
     ]);
-    expect(viewModel.options[0]?.gameReason).toBe("Comentários vencem porque a pauta pede conversa e identificação.");
+    expect(viewModel.options[0]?.gameReason).toBe("Comentários se destacam porque a pauta pede conversa e identificação.");
   });
 
   it("uses a valid gameQuestion to explain a wrong answer", () => {
@@ -642,17 +642,17 @@ describe("buildAdaptiveDecisionViewModel", () => {
           selectedOptionId: "reach",
           correctOptionId: "comments",
           isCorrect: false,
-          feedbackTitle: "Quase",
-          evidence: ["Formato forte: Reels"],
+          feedbackTitle: "Bom ponto de partida",
+          evidence: ["Caminho coerente: Reels"],
         }),
       ],
     });
 
     expect(viewModel.correctOptionLabel).toBe("Comentários");
-    expect(viewModel.correctReason).toBe("Comentários vencem porque a pauta pede conversa e identificação.");
-    expect(viewModel.selectedIncorrectReason).toBe("Alcance faz sentido, mas perde força perto da conversa.");
-    expect(viewModel.selectedOptionReason).toBe("Alcance faz sentido, mas perde força perto da conversa.");
-    expect(viewModel.feedbackEvidence).toEqual(["Formato forte: Reels", "Sinal de engajamento: Comentários"]);
+    expect(viewModel.correctReason).toBe("Comentários se destacam porque a pauta pede conversa e identificação.");
+    expect(viewModel.selectedIncorrectReason).toBe("Alcance faz sentido, mas fica menos estratégico perto da conversa.");
+    expect(viewModel.selectedOptionReason).toBe("Alcance faz sentido, mas fica menos estratégico perto da conversa.");
+    expect(viewModel.feedbackEvidence).toEqual(["Caminho coerente: Reels", "Sinal de engajamento: Comentários"]);
     expect(viewModel.feedbackMode).toBe("incorrect");
   });
 
@@ -674,7 +674,7 @@ describe("buildAdaptiveDecisionViewModel", () => {
     });
 
     expect(viewModel.correctOptionId).toBe("comments");
-    expect(viewModel.feedbackTitle).toBe("Boa aposta");
+    expect(viewModel.feedbackTitle).toBe("Boa leitura");
     expect(viewModel.correctReason).toBeNull();
     expect(viewModel.selectedIncorrectReason).toBeNull();
     expect(viewModel.gameEvidence).toEqual([]);
@@ -695,7 +695,7 @@ describe("buildAdaptiveDecisionViewModel", () => {
     expect(viewModel.feedbackTitle).toBeNull();
     expect(viewModel.feedbackMessage).toBeNull();
     expect(viewModel.feedbackRationale).toBeNull();
-    expect(viewModel.feedbackEvidence).toEqual(["Formato forte: Reels", "Sinal de engajamento: Comentários"]);
+    expect(viewModel.feedbackEvidence).toEqual(["Caminho coerente: Reels", "Sinal de engajamento: Comentários"]);
   });
 
   it("marks option.isCorrect true only on the correct option", () => {
@@ -799,7 +799,7 @@ describe("buildAdaptiveDecisionViewModel", () => {
     expect(viewModel.correctOptionId).toBe(correctOptionId);
     expect(viewModel.selectedIsCorrect).toBe(true);
     expect(viewModel.shouldRevealFeedback).toBe(true);
-    expect(viewModel.feedbackTitle).toBe("Boa aposta");
+    expect(viewModel.feedbackTitle).toBe("Boa leitura");
   });
 
   it("does not expose feedback to be revealed before the user answers", () => {
@@ -842,7 +842,7 @@ describe("buildAdaptiveDecisionViewModel", () => {
     });
 
     expect(viewModel.shouldRevealFeedback).toBe(true);
-    expect(viewModel.feedbackTitle).toBe("Quase");
-    expect(viewModel.feedbackMessage).toBe("Essa opção pode funcionar, mas eu iria por outro caminho.");
+    expect(viewModel.feedbackTitle).toBe("Bom ponto de partida");
+    expect(viewModel.feedbackMessage).toBe("Essa escolha pode funcionar, mas eu ajustaria o caminho para fortalecer a pauta.");
   });
 });

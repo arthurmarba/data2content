@@ -25,12 +25,12 @@ export default function PostCreationAdaptiveNativeQuestionStage({
   const progressPercent = `${Math.round(viewModel.progressValue * 100)}%`;
   const shouldShowFeedback = viewModel.shouldRevealFeedback && viewModel.selectedIsCorrect !== null;
   const feedbackTitle =
-    viewModel.feedbackTitle || (viewModel.selectedIsCorrect ? "Boa aposta" : "Quase");
+    viewModel.feedbackTitle || (viewModel.selectedIsCorrect ? "Boa leitura" : "Bom ponto de partida");
   const feedbackMessage =
     viewModel.feedbackMessage
     || (viewModel.selectedIsCorrect
-      ? "Esse caminho está bem alinhado com a estratégia dessa pauta."
-      : "Essa opção pode funcionar, mas eu iria por outro caminho para essa pauta.");
+      ? "Essa leitura está bem alinhada com a estratégia dessa pauta."
+      : "Essa escolha pode funcionar, mas eu ajustaria o caminho para fortalecer a pauta.");
 
   function handleNext() {
     if (nextDisabled) return;
@@ -51,7 +51,7 @@ export default function PostCreationAdaptiveNativeQuestionStage({
             <div className="min-w-0">
               <p className="text-[11px] font-semibold text-zinc-400">{viewModel.visualStep}</p>
               <p className="mt-1 text-[13px] font-medium leading-5 text-zinc-500">
-                Tente acertar o caminho mais forte para essa pauta.
+                Escolha o caminho que parece mais estratégico para essa pauta.
               </p>
             </div>
             <p className="inline-flex w-fit shrink-0 rounded-full border border-zinc-200/80 bg-white/80 px-3 py-1.5 text-[12px] font-semibold text-zinc-600 shadow-[0_6px_16px_rgba(15,23,42,0.03)]">
@@ -130,7 +130,7 @@ export default function PostCreationAdaptiveNativeQuestionStage({
                     </span>
                     {option.selected && hasLockedAnswer ? (
                       <span className="shrink-0 rounded-full border border-zinc-200/80 bg-white/85 px-2 py-1 text-[10px] font-semibold text-zinc-500 shadow-[0_4px_10px_rgba(15,23,42,0.03)]">
-                        {viewModel.shouldRevealFeedback && option.isIncorrectSelection ? "Sua aposta" : "Aposta registrada"}
+                        {viewModel.shouldRevealFeedback && option.isIncorrectSelection ? "Sua leitura" : "Leitura registrada"}
                       </span>
                     ) : null}
                   </span>
@@ -178,13 +178,13 @@ export default function PostCreationAdaptiveNativeQuestionStage({
                 ) : null}
                 {viewModel.feedbackMode === "correct" && viewModel.correctReason ? (
                   <div className="mt-3 rounded-[16px] border border-sky-100 bg-sky-50/45 px-3 py-2.5">
-                    <p className="text-[11px] font-semibold text-sky-700">Por que essa resposta venceu</p>
+                    <p className="text-[11px] font-semibold text-sky-700">Por que esse caminho é mais coerente</p>
                     <p className="mt-1 break-words text-xs font-medium leading-5 text-zinc-600">{viewModel.correctReason}</p>
                   </div>
                 ) : null}
                 {viewModel.feedbackMode === "incorrect" && viewModel.selectedIncorrectReason ? (
                   <div className="mt-3 rounded-[16px] border border-zinc-100 bg-zinc-50/80 px-3 py-2.5">
-                    <p className="text-[11px] font-semibold text-zinc-600">Por que sua aposta perdeu força</p>
+                    <p className="text-[11px] font-semibold text-zinc-600">Por que eu ajustaria essa escolha</p>
                     <p className="mt-1 break-words text-xs font-medium leading-5 text-zinc-500">
                       {viewModel.selectedIncorrectReason}
                     </p>
@@ -192,7 +192,7 @@ export default function PostCreationAdaptiveNativeQuestionStage({
                 ) : null}
                 {viewModel.feedbackMode === "incorrect" && (viewModel.correctOptionLabel || viewModel.correctReason) ? (
                   <div className="mt-3 rounded-[16px] border border-sky-100 bg-sky-50/45 px-3 py-2.5">
-                    <p className="text-[11px] font-semibold text-sky-700">Resposta mais forte</p>
+                    <p className="text-[11px] font-semibold text-sky-700">Caminho mais coerente</p>
                     {viewModel.correctOptionLabel ? (
                       <p className="mt-1 break-words text-sm font-semibold leading-5 text-zinc-950">{viewModel.correctOptionLabel}</p>
                     ) : null}

@@ -100,6 +100,29 @@ function mergeEvidence(...groups: Array<Array<string | null | undefined> | undef
   return normalizeEvidence(groups.flatMap((group) => group || []));
 }
 
+function sanitizeStrategicCopy(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return value
+    .replace(/\bPor que essa resposta venceu\b/g, "Por que esse caminho é mais coerente")
+    .replace(/\bPor que sua aposta perdeu força\b/g, "Por que eu ajustaria essa escolha")
+    .replace(/\bTente acertar o caminho mais forte\b/g, "Escolha o caminho que parece mais estratégico")
+    .replace(/\bEssa opção pode funcionar, mas eu iria por outro caminho\b/g, "Essa escolha pode funcionar, mas eu ajustaria o caminho para fortalecer a pauta")
+    .replace(/\bEsse caminho está bem alinhado\b/g, "Essa leitura está bem alinhada")
+    .replace(/\bEssa resposta venceu\b/g, "Esse caminho se destaca")
+    .replace(/\bessa resposta venceu\b/g, "esse caminho se destaca")
+    .replace(/\bResposta mais forte\b/g, "Caminho mais coerente")
+    .replace(/\bcaminho mais forte\b/g, "caminho mais coerente")
+    .replace(/\bmais forte\b/g, "mais coerente")
+    .replace(/\bvencem\b/g, "se destacam")
+    .replace(/\bvenceu\b/g, "se destacou")
+    .replace(/\bperde força\b/g, "fica menos estratégico")
+    .replace(/\bperdeu força\b/g, "ficou menos estratégico")
+    .replace(/\bBoa aposta\b/g, "Boa leitura")
+    .replace(/\bQuase\b/g, "Bom ponto de partida")
+    .replace(/\bAposta registrada\b/g, "Leitura registrada")
+    .replace(/\bSua aposta\b/g, "Sua leitura");
+}
+
 export function buildAdaptiveDecisionViewModel(params: {
   question: PostCreationAdaptiveQuestion;
   answers: PostCreationAdaptiveAnswer[];
@@ -159,18 +182,18 @@ export function buildAdaptiveDecisionViewModel(params: {
     nextLabel: isLastQuestion ? "Ver plano estratégico" : "Próxima decisão",
     correctOptionId,
     selectedIsCorrect,
-    feedbackTitle: evaluation?.feedbackTitle ?? null,
-    feedbackMessage: evaluation?.feedbackMessage ?? null,
+    feedbackTitle: sanitizeStrategicCopy(evaluation?.feedbackTitle),
+    feedbackMessage: sanitizeStrategicCopy(evaluation?.feedbackMessage),
     feedbackRationale: evaluation?.rationale ?? null,
     feedbackEvidence,
     correctOptionLabel: shouldRevealFeedback && gameQuestion ? normalizeNullableText(correctOption?.label) : null,
-    correctReason: shouldRevealFeedback && gameQuestion ? normalizeNullableText(gameQuestion.correctReason) : null,
+    correctReason: sanitizeStrategicCopy(shouldRevealFeedback && gameQuestion ? normalizeNullableText(gameQuestion.correctReason) : null),
     selectedIncorrectReason:
-      shouldRevealFeedback && selectedOptionId && selectedIsCorrect === false && gameQuestion
+      sanitizeStrategicCopy(shouldRevealFeedback && selectedOptionId && selectedIsCorrect === false && gameQuestion
         ? normalizeNullableText(gameQuestion.incorrectReasonsByOptionId[selectedOptionId])
-        : null,
+        : null),
     selectedOptionReason:
-      shouldRevealFeedback && selectedGameOption ? normalizeNullableText(selectedGameOption.reason) : null,
+      sanitizeStrategicCopy(shouldRevealFeedback && selectedGameOption ? normalizeNullableText(selectedGameOption.reason) : null),
     gameEvidence,
     feedbackMode,
     shouldRevealFeedback,
@@ -179,7 +202,7 @@ export function buildAdaptiveDecisionViewModel(params: {
         const gameOption = gameQuestion?.options.find((candidate) => candidate.optionId === option.id) || null;
         return {
           gameRole: gameOption?.role ?? null,
-          gameReason: normalizeNullableText(gameOption?.reason),
+          gameReason: sanitizeStrategicCopy(normalizeNullableText(gameOption?.reason)),
         };
       })(),
       id: option.id,

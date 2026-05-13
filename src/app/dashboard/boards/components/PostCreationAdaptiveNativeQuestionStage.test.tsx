@@ -236,10 +236,10 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
     expect(screen.getByRole("button", { name: /Ganhar alcance/ })).toHaveAttribute("aria-disabled", "true");
   });
 
-  it("shows Aposta registrada when an answer is locked without answerKey feedback", () => {
+  it("shows Leitura registrada when an answer is locked without answerKey feedback", () => {
     renderStage();
 
-    expect(screen.getByText("Aposta registrada")).toBeInTheDocument();
+    expect(screen.getByText("Leitura registrada")).toBeInTheDocument();
   });
 
   it("does not call onSelectOption again after the answer is locked", () => {
@@ -322,8 +322,8 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
     renderStage({ viewModel: baseViewModel({ selectedOptionId: null, selectedAnswer: null, shouldRevealFeedback: false }) });
 
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    expect(screen.queryByText("Boa aposta")).not.toBeInTheDocument();
-    expect(screen.queryByText("Quase")).not.toBeInTheDocument();
+    expect(screen.queryByText("Boa leitura")).not.toBeInTheDocument();
+    expect(screen.queryByText("Bom ponto de partida")).not.toBeInTheDocument();
   });
 
   it("shows feedback when shouldRevealFeedback is true", () => {
@@ -332,14 +332,14 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
     expect(screen.getByRole("status")).toBeInTheDocument();
   });
 
-  it("shows Boa aposta fallback when selectedIsCorrect is true and there is no custom title", () => {
+  it("shows Boa leitura fallback when selectedIsCorrect is true and there is no custom title", () => {
     renderStage({ viewModel: withFeedback({ selectedIsCorrect: true, feedbackTitle: null }) });
 
-    expect(screen.getByText("Boa aposta")).toBeInTheDocument();
-    expect(screen.getByText("Esse caminho está bem alinhado com a estratégia dessa pauta.")).toBeInTheDocument();
+    expect(screen.getByText("Boa leitura")).toBeInTheDocument();
+    expect(screen.getByText("Essa leitura está bem alinhada com a estratégia dessa pauta.")).toBeInTheDocument();
   });
 
-  it("shows Quase fallback when selectedIsCorrect is false and there is no custom title", () => {
+  it("shows Bom ponto de partida fallback when selectedIsCorrect is false and there is no custom title", () => {
     renderStage({
       viewModel: withFeedback({
         selectedOptionId: "reach",
@@ -355,15 +355,15 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
       }),
     });
 
-    expect(screen.getByText("Quase")).toBeInTheDocument();
-    expect(screen.getByText("Essa opção pode funcionar, mas eu iria por outro caminho para essa pauta.")).toBeInTheDocument();
+    expect(screen.getByText("Bom ponto de partida")).toBeInTheDocument();
+    expect(screen.getByText("Essa escolha pode funcionar, mas eu ajustaria o caminho para fortalecer a pauta.")).toBeInTheDocument();
   });
 
   it("uses feedbackTitle from the view model when present", () => {
-    renderStage({ viewModel: withFeedback({ feedbackTitle: "Boa leitura" }) });
+    renderStage({ viewModel: withFeedback({ feedbackTitle: "Leitura preservada" }) });
 
-    expect(screen.getByText("Boa leitura")).toBeInTheDocument();
-    expect(screen.queryByText("Boa aposta")).not.toBeInTheDocument();
+    expect(screen.getByText("Leitura preservada")).toBeInTheDocument();
+    expect(screen.queryByText("Boa leitura")).not.toBeInTheDocument();
   });
 
   it("uses feedbackMessage from the view model when present", () => {
@@ -421,12 +421,12 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
     renderStage({
       viewModel: withFeedback({
         feedbackMode: "correct",
-        correctReason: "Essa resposta venceu porque conversa melhor com o histórico da pauta.",
+        correctReason: "Esse caminho se destaca porque conversa melhor com o histórico da pauta.",
       }),
     });
 
-    expect(screen.getByText("Por que essa resposta venceu")).toBeInTheDocument();
-    expect(screen.getByText("Essa resposta venceu porque conversa melhor com o histórico da pauta.")).toBeInTheDocument();
+    expect(screen.getByText("Por que esse caminho é mais coerente")).toBeInTheDocument();
+    expect(screen.getByText("Esse caminho se destaca porque conversa melhor com o histórico da pauta.")).toBeInTheDocument();
   });
 
   it("shows why the selected answer lost strength and the strongest answer when incorrect", () => {
@@ -436,8 +436,8 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
         selectedIsCorrect: false,
         feedbackMode: "incorrect",
         correctOptionLabel: "Gerar comentários",
-        correctReason: "A conversa era o caminho mais forte para essa pauta.",
-        selectedIncorrectReason: "Ganhar alcance fazia sentido, mas perde força porque a pauta pede identificação.",
+        correctReason: "A conversa era o caminho mais coerente para essa pauta.",
+        selectedIncorrectReason: "Ganhar alcance fazia sentido, mas fica menos estratégico porque a pauta pede identificação.",
         options: baseViewModel().options.map((option) => ({
           ...option,
           selected: option.id === "reach",
@@ -447,11 +447,11 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
       }),
     });
 
-    expect(screen.getByText("Por que sua aposta perdeu força")).toBeInTheDocument();
-    expect(screen.getByText("Ganhar alcance fazia sentido, mas perde força porque a pauta pede identificação.")).toBeInTheDocument();
-    expect(screen.getByText("Resposta mais forte")).toBeInTheDocument();
+    expect(screen.getByText("Por que eu ajustaria essa escolha")).toBeInTheDocument();
+    expect(screen.getByText("Ganhar alcance fazia sentido, mas fica menos estratégico porque a pauta pede identificação.")).toBeInTheDocument();
+    expect(screen.getByText("Caminho mais coerente")).toBeInTheDocument();
     expect(screen.getAllByText("Gerar comentários").length).toBeGreaterThan(0);
-    expect(screen.getByText("A conversa era o caminho mais forte para essa pauta.")).toBeInTheDocument();
+    expect(screen.getByText("A conversa era o caminho mais coerente para essa pauta.")).toBeInTheDocument();
   });
 
   it("does not render evidence section when evidence is empty", () => {
@@ -477,7 +477,7 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
     expect(document.body).not.toHaveTextContent(/certeza/i);
   });
 
-  it("shows Sua aposta on the selected adjustment option", () => {
+  it("shows Sua leitura on the selected adjustment option", () => {
     renderStage({
       viewModel: withFeedback({
         selectedOptionId: "reach",
@@ -491,13 +491,13 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
       }),
     });
 
-    expect(screen.getByText("Sua aposta")).toBeInTheDocument();
+    expect(screen.getByText("Sua leitura")).toBeInTheDocument();
   });
 
-  it("does not show Aposta registrada on unselected locked options", () => {
+  it("does not show Leitura registrada on unselected locked options", () => {
     renderStage();
 
-    expect(screen.getAllByText("Aposta registrada")).toHaveLength(1);
+    expect(screen.getAllByText("Leitura registrada")).toHaveLength(1);
   });
 
   it("continues calling onNext after feedback appears", () => {
@@ -517,7 +517,7 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
         feedbackRationale:
           "A decisão foi priorizada porque combina os sinais do material de estudo com o comportamento que a pauta precisa provocar agora.",
         correctReason:
-          "Esse caminho venceu porque sustenta a promessa principal, mantém a execução simples e conversa com o histórico da pauta.",
+          "Esse caminho se destacou porque sustenta a promessa principal, mantém a execução simples e conversa com o histórico da pauta.",
         feedbackEvidence: [
           "Gancho forte: Você já tentou relaxar e a casa inteira resolveu fazer barulho?",
           "CTA recorrente: Comentar",
@@ -527,7 +527,7 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
     });
 
     expect(screen.getByRole("status")).toBeInTheDocument();
-    expect(screen.getByText("Por que essa resposta venceu")).toBeInTheDocument();
+    expect(screen.getByText("Por que esse caminho é mais coerente")).toBeInTheDocument();
     expect(screen.getByText("Base da análise")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Próxima decisão" })).toBeInTheDocument();
   });
@@ -556,10 +556,10 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
     });
 
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    expect(screen.queryByText("Sua aposta")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sua leitura")).not.toBeInTheDocument();
     expect(screen.queryByText(/corret/i)).not.toBeInTheDocument();
-    expect(screen.queryByText("Por que essa resposta venceu")).not.toBeInTheDocument();
-    expect(screen.queryByText("Resposta mais forte")).not.toBeInTheDocument();
+    expect(screen.queryByText("Por que esse caminho é mais coerente")).not.toBeInTheDocument();
+    expect(screen.queryByText("Caminho mais coerente")).not.toBeInTheDocument();
   });
 
   it("works integrated with the adaptive router, quiz builder, and decision view model", () => {
@@ -623,6 +623,6 @@ describe("PostCreationAdaptiveNativeQuestionStage", () => {
     renderStage({ viewModel });
 
     expect(screen.getByRole("status")).toBeInTheDocument();
-    expect(screen.getByText("Boa aposta")).toBeInTheDocument();
+    expect(screen.getByText("Boa leitura")).toBeInTheDocument();
   });
 });

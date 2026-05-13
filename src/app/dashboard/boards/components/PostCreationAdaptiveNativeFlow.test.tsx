@@ -398,7 +398,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     render(<PostCreationAdaptiveNativeFlow />);
 
-    expect(screen.getByText("Boa aposta")).toBeInTheDocument();
+    expect(screen.getByText("Boa leitura")).toBeInTheDocument();
     expect(screen.getByText("A marca funciona melhor quando entra como parte natural da narrativa.")).toBeInTheDocument();
   });
 
@@ -420,7 +420,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     render(<PostCreationAdaptiveNativeFlow studyContext={studyContextFixture} />);
 
     expect(screen.getByRole("status")).toBeInTheDocument();
-    expect(screen.getByText("Boa aposta")).toBeInTheDocument();
+    expect(screen.getByText("Boa leitura")).toBeInTheDocument();
     expect(screen.getByText(/sinais fortes do seu histórico/i)).toBeInTheDocument();
     expect(screen.getByText("Base da análise")).toBeInTheDocument();
     expect(screen.getByText("Sinal de marca: Casa/conforto")).toBeInTheDocument();
@@ -459,7 +459,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     render(<PostCreationAdaptiveNativeFlow />);
 
     expect(screen.getByRole("status")).toBeInTheDocument();
-    expect(screen.getByText("Quase")).toBeInTheDocument();
+    expect(screen.getByText("Bom ponto de partida")).toBeInTheDocument();
     expect(screen.queryByText(/sinais fortes do seu histórico/i)).not.toBeInTheDocument();
     expect(screen.queryByText("Base da análise")).not.toBeInTheDocument();
   });
@@ -474,7 +474,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     render(<PostCreationAdaptiveNativeFlow studyContext={null} />);
 
-    expect(screen.getByText("Boa aposta")).toBeInTheDocument();
+    expect(screen.getByText("Boa leitura")).toBeInTheDocument();
   });
 
   it("does not show game feedback before selecting an option", () => {
@@ -488,8 +488,8 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     render(<PostCreationAdaptiveNativeFlow />);
 
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    expect(screen.queryByText("Boa aposta")).not.toBeInTheDocument();
-    expect(screen.queryByText("Quase")).not.toBeInTheDocument();
+    expect(screen.queryByText("Boa leitura")).not.toBeInTheDocument();
+    expect(screen.queryByText("Bom ponto de partida")).not.toBeInTheDocument();
   });
 
   it("shows positive feedback after selecting the strategic answer", () => {
@@ -503,7 +503,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     render(<PostCreationAdaptiveNativeFlow />);
 
     expect(screen.getByRole("status")).toBeInTheDocument();
-    expect(screen.getByText("Boa aposta")).toBeInTheDocument();
+    expect(screen.getByText("Boa leitura")).toBeInTheDocument();
   });
 
   it("recognizes the answerKey correct option through the normalized GameQuestion", () => {
@@ -524,7 +524,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     render(<PostCreationAdaptiveNativeFlow />);
 
     expect(screen.getByRole("button", { name: /Opção E/ })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("Boa aposta")).toBeInTheDocument();
+    expect(screen.getByText("Boa leitura")).toBeInTheDocument();
   });
 
   it("shows adjustment feedback after selecting a different answer from the answer key", () => {
@@ -545,8 +545,8 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     render(<PostCreationAdaptiveNativeFlow />);
 
     expect(screen.getByRole("status")).toBeInTheDocument();
-    expect(screen.getByText("Quase")).toBeInTheDocument();
-    expect(screen.getByText("Sua aposta")).toBeInTheDocument();
+    expect(screen.getByText("Bom ponto de partida")).toBeInTheDocument();
+    expect(screen.getByText("Sua leitura")).toBeInTheDocument();
   });
 
   it("shows adjustment feedback when a fallback distractor is selected", () => {
@@ -567,8 +567,8 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     render(<PostCreationAdaptiveNativeFlow />);
 
     expect(screen.getByRole("button", { name: /Encaixe por rotina/ })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("Quase")).toBeInTheDocument();
-    expect(screen.getByText("Sua aposta")).toBeInTheDocument();
+    expect(screen.getByText("Bom ponto de partida")).toBeInTheDocument();
+    expect(screen.getByText("Sua leitura")).toBeInTheDocument();
   });
 
   it("lets the user advance after selecting a different answer from the answer key", () => {
@@ -604,7 +604,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     render(<PostCreationAdaptiveNativeFlow />);
 
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    expect(screen.queryByText("Sua aposta")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sua leitura")).not.toBeInTheDocument();
     expect(document.body).not.toHaveTextContent(/corret/i);
   });
 
@@ -618,7 +618,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     render(<PostCreationAdaptiveNativeFlow />);
 
-    expect(screen.getByText("Boa aposta")).toBeInTheDocument();
+    expect(screen.getByText("Boa leitura")).toBeInTheDocument();
     expect(screen.getByText("A marca funciona melhor quando entra como parte natural da narrativa.")).toBeInTheDocument();
   });
 
@@ -765,7 +765,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
 
     expect(screen.getByRole("button", { name: /Encaixe por rotina/ })).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText("Quase")).toBeInTheDocument();
+    expect(screen.getByText("Bom ponto de partida")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Tecnologia/ }));
     expect(selectAnswer).not.toHaveBeenCalled();
   });
@@ -1050,7 +1050,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
       />,
     );
 
-    expect(screen.getByText("Quase")).toBeInTheDocument();
+    expect(screen.getByText("Bom ponto de partida")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Ver plano estratégico" }));
 
     expect(screen.getAllByText(answerKey.idealPlan.pauta!).length).toBeGreaterThan(0);
@@ -1279,7 +1279,7 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     const { rerender } = render(<PostCreationAdaptiveNativeFlow />);
 
-    expect(screen.getByText("Quase")).toBeInTheDocument();
+    expect(screen.getByText("Bom ponto de partida")).toBeInTheDocument();
 
     mockFlow({
       status: "quiz",
@@ -1290,8 +1290,8 @@ describe("PostCreationAdaptiveNativeFlow", () => {
 
     rerender(<PostCreationAdaptiveNativeFlow />);
 
-    expect(screen.getByText("Boa aposta")).toBeInTheDocument();
-    expect(screen.queryByText("Quase")).not.toBeInTheDocument();
+    expect(screen.getByText("Boa leitura")).toBeInTheDocument();
+    expect(screen.queryByText("Bom ponto de partida")).not.toBeInTheDocument();
   });
 
   it("clears nativePlanResult when questions change after a new quiz starts", async () => {
