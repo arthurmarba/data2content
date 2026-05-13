@@ -50,6 +50,7 @@ function findFirstCapture(normalizedInput: string, patterns: RegExp[]): string |
 function detectCommentToPost(normalizedInput: string): IntentMatch | null {
   const patterns = [
     /\bcomentario\b/,
+    /\bcomentaram\b/,
     /\balguem comentou\b/,
     /\bresponder comentario\b/,
     /\btransformar comentario em (post|conteudo)\b/,
@@ -59,7 +60,7 @@ function detectCommentToPost(normalizedInput: string): IntentMatch | null {
   if (!signals.length) return null;
 
   const sourceComment = findFirstCapture(normalizedInput, [
-    /(?:alguem comentou|comentario|responder comentario|transformar comentario em post|transformar comentario em conteudo)\s*(?:isso aqui|que)?\s*[:\-]?\s*(.+)/,
+    /(?:alguem comentou|comentaram|comentario|responder comentario|transformar comentario em post|transformar comentario em conteudo)\s*(?:isso aqui|que)?\s*[:\-]?\s*(.+)/,
     /(?:duvida da audiencia)\s*[:\-]?\s*(.+)/,
   ]);
 
@@ -128,6 +129,7 @@ function detectWeeklyPlan(normalizedInput: string): IntentMatch | null {
     /\bplanejar (?:a )?semana\b/,
     /\bminha semana\b/,
     /\bposts da semana\b/,
+    /\bessa semana\b/,
     /\bcalendario\b/,
     /\bplanejamento semanal\b/,
     /\bsemana de conteudo\b/,
@@ -187,6 +189,7 @@ function detectDiscoverPauta(normalizedInput: string): IntentMatch | null {
     /\bme da ideias\b/,
     /\bme de ideias\b/,
     /\bpreciso de ideias\b/,
+    /\bto sem ideia\b/,
     /\bo que postar\b/,
     /\bideia de post\b/,
     /\bideias de conteudo\b/,
@@ -196,7 +199,7 @@ function detectDiscoverPauta(normalizedInput: string): IntentMatch | null {
 
   return {
     mode: "discover_pauta",
-    confidence: signals.some((signal) => signal.includes("nao sei") || signal.includes("o que postar")) ? 0.85 : 0.72,
+    confidence: signals.some((signal) => signal.includes("nao sei") || signal.includes("o que postar") || signal.includes("to sem ideia")) ? 0.85 : 0.72,
     signals,
   };
 }
@@ -282,14 +285,27 @@ export function detectPostCreationAdaptiveIntent(input: string): PostCreationAda
     };
   }
 
+  const brandMatch = detectBrandMatch(normalizedInput);
+  const isStrongBrandIntent =
+    brandMatch &&
+    collectSignals(normalizedInput, [
+      /\batrair marca/,
+      /\batrair marcas/,
+      /\bconseguir publi/,
+      /\bencaixar marca/,
+      /\bcampanha\b/,
+      /\bpublicidade\b/,
+    ]).length > 0;
+
   const match =
     detectCommentToPost(normalizedInput) ||
-    detectBrandMatch(normalizedInput) ||
-    detectCollabMatch(normalizedInput) ||
     detectFormatGuidance(normalizedInput) ||
-    detectDiscoverPauta(normalizedInput) ||
     detectWeeklyPlan(normalizedInput) ||
+    detectDiscoverPauta(normalizedInput) ||
+    detectCollabMatch(normalizedInput) ||
+    (isStrongBrandIntent ? brandMatch : null) ||
     detectValidatePauta(normalizedInput) ||
+    brandMatch ||
     detectCreateByGoal(normalizedInput);
 
   if (!match) {

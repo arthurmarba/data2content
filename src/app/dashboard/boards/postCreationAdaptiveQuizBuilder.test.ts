@@ -48,7 +48,7 @@ describe("buildPostCreationAdaptiveQuiz", () => {
   });
 
   it("builds discover_pauta questions around objective, format or narrative, and effort", () => {
-    const keys = mapKeysFor("Não sei o que postar essa semana");
+    const keys = mapKeysFor("Não sei o que postar amanhã");
 
     expect(keys).toContain("objective");
     expect(keys.some((key) => key === "format" || key === "narrative")).toBe(true);
@@ -170,7 +170,7 @@ describe("buildPostCreationAdaptiveQuiz", () => {
   });
 
   it("uses more human language for discover_pauta", () => {
-    const quiz = quizFor("Não sei o que postar essa semana");
+    const quiz = quizFor("Não sei o que postar amanhã");
 
     expect(quiz[0]?.id).toBe("discover-objective");
     expect(quiz[0]?.title).toMatch(/energia/i);

@@ -9,10 +9,31 @@ describe("detectPostCreationAdaptiveIntent", () => {
     expect(result.confidence).toBeGreaterThanOrEqual(0.8);
   });
 
-  it("prioritizes discovering a pauta when the user does not know what to post this week", () => {
-    const result = detectPostCreationAdaptiveIntent("Não sei o que postar essa semana");
+  it("prioritizes weekly plan when the user explicitly mentions the week, even if lacking ideas or mentioning brands", () => {
+    const result = detectPostCreationAdaptiveIntent("Não sei o que postar essa semana para atrair marcas");
+
+    expect(result.mode).toBe("weekly_plan");
+  });
+
+  it("prioritizes format guidance even when mentioning a brand campaign or publi", () => {
+    const result1 = detectPostCreationAdaptiveIntent("Qual formato usar para uma publi de skincare?");
+    expect(result1.mode).toBe("format_guidance");
+    expect(result1.detectedPauta).toContain("uma publi de skincare");
+
+    const result2 = detectPostCreationAdaptiveIntent("Melhor reels ou carrossel para uma campanha de skincare?");
+    expect(result2.mode).toBe("format_guidance");
+  });
+
+  it("prioritizes discover pauta over brand match when lacking ideas", () => {
+    const result = detectPostCreationAdaptiveIntent("Não sei o que postar para atrair marcas");
 
     expect(result.mode).toBe("discover_pauta");
+  });
+
+  it("prioritizes collab match over create by goal", () => {
+    const result = detectPostCreationAdaptiveIntent("Quero fazer uma collab para gerar comentários");
+
+    expect(result.mode).toBe("collab_match");
   });
 
   it("detects goal-based post creation", () => {
@@ -35,8 +56,8 @@ describe("detectPostCreationAdaptiveIntent", () => {
     expect(result.mode).toBe("collab_match");
   });
 
-  it("detects comment-to-post intent", () => {
-    const result = detectPostCreationAdaptiveIntent("Alguém comentou isso aqui e quero transformar em post");
+  it("detects comment-to-post intent explicitly", () => {
+    const result = detectPostCreationAdaptiveIntent("Comentaram isso aqui e quero transformar em post");
 
     expect(result.mode).toBe("comment_to_post");
   });
@@ -101,11 +122,14 @@ describe("detectPostCreationAdaptiveIntent", () => {
     expect(result.normalizedInput).toBe("quero transformar comentario em conteudo");
   });
 
-  it("uses brand priority over validate pauta", () => {
+  it("prioritizes brand match over pauta validation when intent is purely commercial", () => {
     const result = detectPostCreationAdaptiveIntent("Quero fazer uma pauta para atrair marca de beleza");
-
     expect(result.mode).toBe("brand_match");
-    expect(result.mode).not.toBe("validate_pauta");
+  });
+
+  it("continues detecting concrete creative ideas as pauta validation", () => {
+    expect(detectPostCreationAdaptiveIntent("Quero gravar um POV sobre rotina").mode).toBe("validate_pauta");
+    expect(detectPostCreationAdaptiveIntent("Pensei em gravar um vídeo sobre minha rotina no trabalho").mode).toBe("validate_pauta");
   });
 
   it("prioritizes format guidance over broad discover, validate, and goal signals", () => {
@@ -117,7 +141,7 @@ describe("detectPostCreationAdaptiveIntent", () => {
   });
 
   it("keeps older routing when there is no format signal", () => {
-    expect(detectPostCreationAdaptiveIntent("Não sei o que postar essa semana").mode).toBe("discover_pauta");
+    expect(detectPostCreationAdaptiveIntent("Não sei o que postar amanhã").mode).toBe("discover_pauta");
     expect(detectPostCreationAdaptiveIntent("Quero gerar mais comentários").mode).toBe("create_by_goal");
     expect(detectPostCreationAdaptiveIntent("Quero gravar um POV sobre rotina").mode).toBe("validate_pauta");
   });
