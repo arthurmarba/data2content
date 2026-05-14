@@ -21,3 +21,7 @@ Esta fase adiciona `detectNarrativeSourceIntent(source)`, um roteador heurístic
 ## NSE3
 
 Esta fase adiciona `extractNarrativeAssets({ source, intentDetection })`, um extractor simulado e determinístico que transforma a fonte em assets narrativos e sinais de perfil por heurísticas simples. Ele continua sem UI, endpoint, banco, upload, OpenAI ou integração com o fluxo real.
+
+## NSE4
+
+Esta fase adiciona `buildAdaptiveInputFromNarrativeSource(...)`, um adapter puro que transforma uma fonte narrativa analisada em uma entrada textual estratégica para o Adaptive V2. Ele apenas monta `input`, `modeHint`, `sourceSummary` e `signals`; não chama Router, QuizBuilder, AnswerKey, PlanBuilder, UI, endpoint, banco, upload ou OpenAI.
