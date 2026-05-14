@@ -231,6 +231,33 @@ O que não faz:
 - não cria UI nova;
 - não conecta no produto real.
 
+### STOR1 — Contratos de storage temporário
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoTemporaryStorageTypes.ts`
+- `videoTemporaryStorageTypes.test.ts`
+
+O que faz:
+
+- define providers futuros de storage temporário sem acoplar SDK real;
+- define status, visibilidade, política de retenção e objeto temporário;
+- cria helpers puros para calcular expiração, marcar upload simulado e marcar remoção;
+- valida vínculo com draft, chave temporária, data de expiração, acesso público e status reconhecido;
+- mantém `publicUrl` sempre nulo nesta fase.
+
+O que não faz:
+
+- não cria storage real;
+- não gera URL assinada;
+- não usa S3, Vercel Blob, R2, GCS ou SDK de provider;
+- não cria upload real;
+- não cria endpoint;
+- não salva nada em banco;
+- não conecta no produto real.
+
 ## Arquitetura Atual
 
 ```text
@@ -239,6 +266,8 @@ VideoUploadDraft
 validateVideoUploadDraft
 ↓
 buildNarrativeSourceFromVideoUploadDraft
+↓
+VideoTemporaryStorageObject futuro
 ↓
 VideoProcessingArtifacts simulados
 ↓
@@ -269,6 +298,7 @@ Na prática, existem dois níveis de prova:
 - Harness interno com cenários simulados atrás de feature flag.
 - Proteção admin/dev compartilhada para previews internos.
 - Checklist manual do preview interno.
+- Contratos puros de storage temporário com retenção e validação.
 - Testes de linguagem segura e isolamento de escopo.
 
 ## O Que Ainda Não Existe
@@ -276,6 +306,8 @@ Na prática, existem dois níveis de prova:
 - Upload real.
 - Endpoint.
 - Storage.
+- Provider real de storage temporário.
+- URL assinada gerada por serviço real.
 - Transcrição automática.
 - Extração real de frames.
 - OCR real.
@@ -302,6 +334,8 @@ Antes de qualquer upload real, ainda é preciso decidir:
 
 - provedor de storage temporário;
 - política de retenção e exclusão do vídeo;
+- contrato de URL assinada e escopo de acesso;
+- estratégia de remoção após processamento;
 - limite final de tamanho e duração;
 - extração de duração no client, no server ou em ambos;
 - provedor de transcrição;
@@ -319,6 +353,7 @@ Antes de qualquer upload real, ainda é preciso decidir:
 ```bash
 npm test -- --runInBand src/app/dashboard/boards/video-upload-preview/page.test.tsx
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadPreviewFeatureFlag.test.ts
+npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoTemporaryStorageTypes.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoProcessingArtifacts.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadProcessedPipeline.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadProcessedNarrativeSource.test.ts
@@ -331,7 +366,7 @@ git diff --check
 
 ## Próximas Fases Sugeridas
 
-- VU10: contrato de storage temporário, ainda sem implementação real.
-- VU11: contrato de providers de transcrição, frames e OCR.
-- VU12: documentação de custos, limites e retenção.
-- VU13: upload real em PR separado ou fase isolada, somente depois das decisões de produto, segurança e custo.
+- STOR2: contrato de URL assinada, ainda sem provider real.
+- VU10: contrato de providers de transcrição, frames e OCR.
+- VU11: documentação de custos, limites e retenção.
+- VU12: upload real em PR separado ou fase isolada, somente depois das decisões de produto, segurança e custo.
