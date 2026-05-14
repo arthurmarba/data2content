@@ -175,6 +175,39 @@ O que não faz:
 - não cria storage;
 - não cria UI.
 
+### VU8 — Harness interno com artifacts simulados
+
+Status: concluído.
+
+Arquivos principais:
+
+- `../video-upload-preview/page.tsx`
+- `../video-upload-preview/page.test.tsx`
+- `../components/videoUpload/buildVideoUploadPreviewScenario.ts`
+- `videoUploadPreviewFeatureFlag.ts`
+- `videoUploadPreviewFeatureFlag.test.ts`
+
+O que faz:
+
+- cria uma rota interna em `/dashboard/boards/video-upload-preview`;
+- protege a rota com `NEXT_PUBLIC_VIDEO_UPLOAD_PREVIEW_ENABLED=1`;
+- renderiza cenários fixos de `VideoUploadDraft + VideoProcessingArtifacts`;
+- mostra validação, readiness, artifacts simulados, `NarrativeSource` enriquecida, intenção NSE, entrada Adaptive V2 e plano estratégico;
+- aborta NSE/Adaptive quando o draft controlado não passa pela validação;
+- mantém QA de linguagem segura e isolamento de imports.
+
+O que não faz:
+
+- não cria upload real;
+- não cria file picker;
+- não aceita input livre;
+- não cria endpoint;
+- não cria storage;
+- não usa ffmpeg;
+- não usa OpenAI;
+- não conecta no BoardShell;
+- não adiciona link em navegação ou menu.
+
 ## Arquitetura Atual
 
 ```text
@@ -210,6 +243,7 @@ Na prática, existem dois níveis de prova:
 - Helpers para transcrição e descrição visual a partir de artefatos.
 - Adapter para `NarrativeSource` enriquecida.
 - QA de pipeline completo com artifacts simulados.
+- Harness interno com cenários simulados atrás de feature flag.
 - Testes de linguagem segura e isolamento de escopo.
 
 ## O Que Ainda Não Existe
@@ -258,6 +292,8 @@ Antes de qualquer upload real, ainda é preciso decidir:
 ## QA Recomendada
 
 ```bash
+npm test -- --runInBand src/app/dashboard/boards/video-upload-preview/page.test.tsx
+npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadPreviewFeatureFlag.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoProcessingArtifacts.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadProcessedPipeline.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadProcessedNarrativeSource.test.ts
@@ -270,7 +306,6 @@ git diff --check
 
 ## Próximas Fases Sugeridas
 
-- VU8: fixture/harness interno com artifacts simulados, sem input livre.
 - VU9: contrato de storage temporário, ainda sem implementação real.
 - VU10: contrato de providers de transcrição, frames e OCR.
 - VU11: documentação de custos, limites e retenção.
