@@ -180,12 +180,38 @@ Helpers criados:
 
 Esta fase não processa vídeo real. Ela apenas prepara a forma dos dados que, no futuro, poderão enriquecer uma `NarrativeSource` com transcrição, contexto visual e sinais técnicos.
 
+## VU5 — Adapter de artefatos para NarrativeSource
+
+Status: concluído nesta branch.
+
+Arquivos principais:
+
+- `videoUploadProcessedNarrativeSource.ts`: combina `VideoUploadDraft` validado com `VideoProcessingArtifacts` simulados para gerar uma `NarrativeSource` enriquecida.
+- `videoUploadProcessedNarrativeSource.test.ts`: cobre draft inválido, artifacts vazios, transcript, visual description, preservação de metadata e isolamento de escopo.
+
+Helpers criados:
+
+- `buildProcessedNarrativeSourceFromVideoUpload`;
+- `hasEnoughProcessedContextForNarrativeAnalysis`.
+
+O adapter:
+
+- usa `buildNarrativeSourceFromVideoUploadDraft` como base;
+- preserva `rawText: null`;
+- preserva `creatorQuestion`, `metadata`, `id` e `createdAt` da base;
+- preenche `transcript` via `buildTranscriptTextFromArtifacts`;
+- preenche `visualDescription` via `buildVisualDescriptionFromArtifacts`;
+- não roda NSE;
+- não roda Adaptive V2;
+- não processa vídeo real.
+
 ## QA
 
 Comandos recomendados para esta fundação:
 
 ```bash
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoProcessingArtifacts.test.ts
+npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadProcessedNarrativeSource.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadNarrativeSourceBridge.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadPipeline.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadTypes.test.ts
@@ -195,7 +221,6 @@ git diff --check
 
 ## Próximas fases sugeridas
 
-- VU5: adapter puro de artefatos para enriquecer `NarrativeSource`.
 - VU6: fixture/harness interno com artefatos simulados.
 - VU7: contrato de storage temporário, ainda sem implementação real.
 - VU8: documentação de rollout antes de qualquer upload real.
