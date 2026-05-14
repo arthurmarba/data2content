@@ -106,12 +106,58 @@ O que continua fora do escopo:
 
 Esta fase prova apenas que um vídeo já validado pode ser representado como uma fonte narrativa futura. A bridge não infere transcrição, não descreve visualmente o vídeo e não salva nada.
 
+## VU3 — QA do pipeline VideoUpload → NSE → Adaptive V2
+
+Status: concluído nesta branch.
+
+Arquivo principal:
+
+- `videoUploadPipeline.test.ts`: teste ponta a ponta, apenas em ambiente de QA, cobrindo `VideoUploadDraft` validado até o plano estratégico Adaptive V2.
+
+Pipeline validado:
+
+```text
+VideoUploadDraft
+↓
+validateVideoUploadDraft
+↓
+buildNarrativeSourceFromVideoUploadDraft
+↓
+detectNarrativeSourceIntent
+↓
+extractNarrativeAssets
+↓
+buildAdaptiveInputFromNarrativeSource
+↓
+Adaptive V2 Router
+↓
+QuizBuilder
+↓
+AnswerKey
+↓
+PlanBuilder
+```
+
+O teste cobre:
+
+- vídeo válido para validar antes de postar;
+- vídeo válido para potencial de marca;
+- vídeo válido para melhorar gancho;
+- vídeo válido para collab;
+- draft inválido sem rodar NSE/Adaptive;
+- vídeo longo com limites customizados;
+- linguagem segura nos outputs gerados;
+- isolamento de imports.
+
+Esta fase não cria lógica nova de produção. O pipeline existe apenas como teste de integridade.
+
 ## QA
 
 Comandos recomendados para esta fundação:
 
 ```bash
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadNarrativeSourceBridge.test.ts
+npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadPipeline.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadTypes.test.ts
 npm run typecheck
 git diff --check
