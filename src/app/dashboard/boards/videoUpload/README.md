@@ -73,11 +73,45 @@ O retorno usa:
 
 O arquivo não importa tipos da NSE nesta fase para manter o acoplamento baixo. A compatibilidade é conceitual e deve ser formalizada em uma fase posterior.
 
+## VU2 — Bridge tipada com NarrativeSource
+
+Status: concluído nesta branch.
+
+Arquivos principais:
+
+- `videoUploadNarrativeSourceBridge.ts`: converte um `VideoUploadDraft` validado em `NarrativeSource`.
+- `videoUploadNarrativeSourceBridge.test.ts`: cobre conversão, `id`, `createdAt`, formato curto/longo, helper de prontidão e isolamento de escopo.
+
+O que existe:
+
+- `buildNarrativeSourceFromVideoUploadDraft`;
+- `isVideoUploadReadyForNarrativeSource`;
+- import tipado de `NarrativeSource`;
+- uso de `validateVideoUploadDraft` como fonte da verdade;
+- conversão para `sourceType: "video_upload_future"`;
+- metadados básicos de vídeo preservados.
+
+O que continua fora do escopo:
+
+- upload real;
+- endpoint;
+- storage;
+- transcrição;
+- frames;
+- OpenAI;
+- banco;
+- UI;
+- BoardShell;
+- navegação real.
+
+Esta fase prova apenas que um vídeo já validado pode ser representado como uma fonte narrativa futura. A bridge não infere transcrição, não descreve visualmente o vídeo e não salva nada.
+
 ## QA
 
 Comandos recomendados para esta fundação:
 
 ```bash
+npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadNarrativeSourceBridge.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadTypes.test.ts
 npm run typecheck
 git diff --check
