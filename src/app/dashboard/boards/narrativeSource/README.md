@@ -29,3 +29,7 @@ Esta fase adiciona `buildAdaptiveInputFromNarrativeSource(...)`, um adapter puro
 ## NSE5
 
 Esta fase adiciona `narrativeSourcePipeline.test.ts`, uma suíte de QA que valida o fluxo completo em ambiente de teste: `NarrativeSource` → roteador NSE → extractor → adapter → pipeline Adaptive V2. A fase não cria lógica nova de produção e continua sem UI, endpoint, banco, upload, OpenAI ou conexão com o BoardShell.
+
+## NSE6
+
+Esta fase adiciona uma preview visual isolada em `components/narrativeSource/`. Os componentes recebem dados prontos por props e mostram fonte, intenção, assets, sinais de perfil, ponte para Adaptive V2 e plano recebido. Eles não rodam pipeline, não criam rota, não chamam UI real, endpoint, banco, upload, OpenAI ou BoardShell.
