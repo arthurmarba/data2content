@@ -205,12 +205,57 @@ O adapter:
 - não roda Adaptive V2;
 - não processa vídeo real.
 
+## VU6 — QA do pipeline com artefatos simulados
+
+Status: concluído nesta branch.
+
+Arquivo principal:
+
+- `videoUploadProcessedPipeline.test.ts`: teste ponta a ponta, apenas em QA, cobrindo `VideoUploadDraft + VideoProcessingArtifacts` até o plano Adaptive V2.
+
+Pipeline validado:
+
+```text
+VideoUploadDraft
++
+VideoProcessingArtifacts
+↓
+buildProcessedNarrativeSourceFromVideoUpload
+↓
+detectNarrativeSourceIntent
+↓
+extractNarrativeAssets
+↓
+buildAdaptiveInputFromNarrativeSource
+↓
+Adaptive V2 Router
+↓
+QuizBuilder
+↓
+AnswerKey
+↓
+PlanBuilder
+```
+
+O teste cobre:
+
+- transcript de rotina/skincare melhorando a extração narrativa;
+- visual summary de bastidor melhorando narrativa de processo;
+- frames e OCR alimentando potencial de marca;
+- artifacts vazios ainda permitindo rota por `creatorQuestion`;
+- draft inválido abortando NSE/Adaptive;
+- `hasEnoughProcessedContextForNarrativeAnalysis`;
+- linguagem segura e isolamento de imports.
+
+Esta fase não cria lógica nova de produção e não processa vídeo real.
+
 ## QA
 
 Comandos recomendados para esta fundação:
 
 ```bash
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoProcessingArtifacts.test.ts
+npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadProcessedPipeline.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadProcessedNarrativeSource.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadNarrativeSourceBridge.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadPipeline.test.ts
@@ -221,6 +266,6 @@ git diff --check
 
 ## Próximas fases sugeridas
 
-- VU6: fixture/harness interno com artefatos simulados.
-- VU7: contrato de storage temporário, ainda sem implementação real.
-- VU8: documentação de rollout antes de qualquer upload real.
+- VU7: fixture/harness interno com artefatos simulados.
+- VU8: contrato de storage temporário, ainda sem implementação real.
+- VU9: documentação de rollout antes de qualquer upload real.
