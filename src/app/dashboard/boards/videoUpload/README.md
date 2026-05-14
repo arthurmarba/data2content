@@ -208,6 +208,28 @@ O que não faz:
 - não conecta no BoardShell;
 - não adiciona link em navegação ou menu.
 
+### VU9 — Checklist manual do Video Upload Preview
+
+Status: concluído.
+
+Arquivo principal:
+
+- `VIDEO_UPLOAD_PREVIEW_QA.md`
+
+O que faz:
+
+- documenta a QA manual da rota `/dashboard/boards/video-upload-preview`;
+- lista URLs de todos os cenários controlados;
+- define checklist geral, mobile, por cenário, linguagem proibida e segurança de produto;
+- cria tabela de achados para revisão visual antes de qualquer avanço para storage ou upload real.
+
+O que não faz:
+
+- não altera lógica;
+- não altera testes;
+- não cria UI nova;
+- não conecta no produto real.
+
 ## Arquitetura Atual
 
 ```text
@@ -244,6 +266,7 @@ Na prática, existem dois níveis de prova:
 - Adapter para `NarrativeSource` enriquecida.
 - QA de pipeline completo com artifacts simulados.
 - Harness interno com cenários simulados atrás de feature flag.
+- Checklist manual do preview interno.
 - Testes de linguagem segura e isolamento de escopo.
 
 ## O Que Ainda Não Existe
@@ -306,7 +329,7 @@ git diff --check
 
 ## Próximas Fases Sugeridas
 
-- VU9: contrato de storage temporário, ainda sem implementação real.
-- VU10: contrato de providers de transcrição, frames e OCR.
-- VU11: documentação de custos, limites e retenção.
-- VU12: upload real em PR separado ou fase isolada, somente depois das decisões de produto, segurança e custo.
+- VU10: contrato de storage temporário, ainda sem implementação real.
+- VU11: contrato de providers de transcrição, frames e OCR.
+- VU12: documentação de custos, limites e retenção.
+- VU13: upload real em PR separado ou fase isolada, somente depois das decisões de produto, segurança e custo.
