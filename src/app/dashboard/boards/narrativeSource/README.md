@@ -17,3 +17,7 @@ Os contratos vivem em `narrativeSourceTypes.ts`. A fase não implementa extraç�
 ## NSE2
 
 Esta fase adiciona `detectNarrativeSourceIntent(source)`, um roteador heurístico e determinístico para identificar a intenção estratégica da fonte narrativa. Ele usa apenas texto local da `NarrativeSource` e continua sem UI, endpoint, banco, upload, OpenAI ou integração com o fluxo real.
+
+## NSE3
+
+Esta fase adiciona `extractNarrativeAssets({ source, intentDetection })`, um extractor simulado e determinístico que transforma a fonte em assets narrativos e sinais de perfil por heurísticas simples. Ele continua sem UI, endpoint, banco, upload, OpenAI ou integração com o fluxo real.
