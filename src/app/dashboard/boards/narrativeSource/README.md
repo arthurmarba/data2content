@@ -25,3 +25,7 @@ Esta fase adiciona `extractNarrativeAssets({ source, intentDetection })`, um ext
 ## NSE4
 
 Esta fase adiciona `buildAdaptiveInputFromNarrativeSource(...)`, um adapter puro que transforma uma fonte narrativa analisada em uma entrada textual estratégica para o Adaptive V2. Ele apenas monta `input`, `modeHint`, `sourceSummary` e `signals`; não chama Router, QuizBuilder, AnswerKey, PlanBuilder, UI, endpoint, banco, upload ou OpenAI.
+
+## NSE5
+
+Esta fase adiciona `narrativeSourcePipeline.test.ts`, uma suíte de QA que valida o fluxo completo em ambiente de teste: `NarrativeSource` → roteador NSE → extractor → adapter → pipeline Adaptive V2. A fase não cria lógica nova de produção e continua sem UI, endpoint, banco, upload, OpenAI ou conexão com o BoardShell.

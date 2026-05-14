@@ -145,11 +145,11 @@ function buildInput(params: {
     case "improve_content":
       return `Quero melhorar uma pauta sobre ${params.theme}, principalmente o gancho e a clareza.`;
     case "discover_narrative":
-      return `Não sei qual narrativa explorar em um conteúdo sobre ${params.theme}.`;
+      return `Não sei o que postar para explorar a narrativa sobre ${params.theme}.`;
     case "brand_potential":
       return `Quero atrair marcas de ${params.territory} com uma narrativa sobre ${params.theme}.`;
     case "adapt_to_ad":
-      return `Quero adaptar uma pauta sobre ${params.theme} para uma publi de ${params.territory} sem parecer forçado.`;
+      return `Quero adaptar uma pauta sobre ${params.theme} para uma campanha/publi de ${params.territory} sem parecer forçado.`;
     case "collab_potential":
       return `Quero fazer uma collab em uma narrativa sobre ${params.theme}.`;
     case "positioning_fit":
