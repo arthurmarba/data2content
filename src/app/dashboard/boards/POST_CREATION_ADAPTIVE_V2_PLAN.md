@@ -11,7 +11,7 @@ A implementação atual cobre:
 - Lógica pura de detecção, perguntas, leitura estratégica e plano.
 - QA de pipeline completo: Router -> QuizBuilder -> AnswerKey -> PlanBuilder.
 - UI preview isolada, renderizada apenas por props.
-- Harness interno em rota própria, protegido por env flag.
+- Harness interno em rota própria, protegido por env flag e sessão admin/dev.
 - Cenários controlados do pipeline para visualização interna.
 
 A implementação atual não cobre:
@@ -55,6 +55,7 @@ NEXT_PUBLIC_POST_CREATION_ADAPTIVE_ENABLED=1
 ```
 
 Com a flag desligada, a rota renderiza um estado bloqueado e não monta a preview.
+Com a flag ligada, a rota ainda exige sessão interna com `role: "admin"`, `role: "dev"`, `isAdmin` ou `isDev`.
 
 ### Cenários disponíveis
 
@@ -79,7 +80,7 @@ Se `scenario` estiver ausente ou inválido, o harness usa `validate-pauta` como 
 - A V2 não usa OpenAI.
 - A V2 não tem input livre.
 - A V2 usa cenários controlados no harness.
-- A proteção atual é por env flag, não por sessão admin/dev.
+- A proteção atual combina env flag e sessão admin/dev.
 - O harness não adiciona link em menu ou navegação principal.
 
 ## Critérios Antes de Conectar no BoardShell
@@ -89,7 +90,7 @@ Antes de qualquer integração experimental com o BoardShell:
 - Validar visualmente o harness em browser real.
 - Revisar linguagem e tom com foco em mentoria consultiva.
 - Decidir explicitamente se haverá score visual ou se a V2 seguirá sem score.
-- Se necessário, proteger acesso por sessão admin/dev além da env flag.
+- Revisar se a política admin/dev deve ser centralizada com outros acessos internos do produto.
 - Definir handoff para fluxo real sem quebrar o legado.
 - Definir se e como haverá salvar pauta.
 - Criar plano de rollback.
@@ -113,7 +114,6 @@ npm run typecheck
 ## Próximas Fases Sugeridas
 
 - V2L: QA visual manual no harness.
-- V2M: Proteção por sessão admin/dev.
-- V2N: Integração experimental no BoardShell atrás da flag.
+- V2M: Integração experimental no BoardShell atrás da flag.
 - V2O: Handoff para plano real ou salvar pauta.
 - V2P: Decisão sobre liberar para beta interno.

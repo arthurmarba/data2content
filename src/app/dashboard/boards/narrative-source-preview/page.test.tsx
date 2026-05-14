@@ -4,6 +4,9 @@ import { render, screen } from "@testing-library/react";
 import NarrativeSourcePreviewPage from "./page";
 
 const originalEnvValue = process.env.NEXT_PUBLIC_NARRATIVE_SOURCE_ENGINE_ENABLED;
+const adminViewer = { role: "admin" };
+const devViewer = { role: "dev" };
+const commonViewer = { role: "user" };
 
 afterEach(() => {
   if (originalEnvValue === undefined) {
@@ -15,20 +18,29 @@ afterEach(() => {
 });
 
 describe("NarrativeSourcePreviewPage", () => {
-  it("renders a blocked state when the internal flag is off", () => {
+  it("renders a blocked state when the internal flag is off", async () => {
     process.env.NEXT_PUBLIC_NARRATIVE_SOURCE_ENGINE_ENABLED = "0";
 
-    render(<NarrativeSourcePreviewPage />);
+    render(await NarrativeSourcePreviewPage({ viewer: adminViewer }));
 
-    expect(screen.getByText("Preview interno — Narrative Source Engine")).toBeInTheDocument();
-    expect(screen.getByText(/permanece bloqueada/i)).toBeInTheDocument();
+    expect(screen.getByText("Narrative Source Engine")).toBeInTheDocument();
+    expect(screen.getByText("Preview interno bloqueado. Ative a flag correspondente para visualizar esta rota.")).toBeInTheDocument();
     expect(screen.queryByText("Fonte narrativa")).not.toBeInTheDocument();
   });
 
-  it("renders the default video validation scenario when enabled without scenario", () => {
+  it("blocks common users even when the flag is on", async () => {
     process.env.NEXT_PUBLIC_NARRATIVE_SOURCE_ENGINE_ENABLED = "1";
 
-    render(<NarrativeSourcePreviewPage />);
+    render(await NarrativeSourcePreviewPage({ viewer: commonViewer }));
+
+    expect(screen.getByText("Preview interno restrito a usuários admin/dev.")).toBeInTheDocument();
+    expect(screen.queryByText("Fonte narrativa")).not.toBeInTheDocument();
+  });
+
+  it("renders the default video validation scenario when enabled for admin", async () => {
+    process.env.NEXT_PUBLIC_NARRATIVE_SOURCE_ENGINE_ENABLED = "1";
+
+    render(await NarrativeSourcePreviewPage({ viewer: adminViewer }));
 
     expect(screen.getByText("Preview interno — Narrative Source Engine")).toBeInTheDocument();
     expect(screen.getByText("Fonte narrativa")).toBeInTheDocument();
@@ -38,10 +50,10 @@ describe("NarrativeSourcePreviewPage", () => {
     expect(screen.getAllByText("Vídeo: validar antes de postar").length).toBeGreaterThan(0);
   });
 
-  it("renders the brand potential scenario from search params", () => {
+  it("renders the brand potential scenario from search params", async () => {
     process.env.NEXT_PUBLIC_NARRATIVE_SOURCE_ENGINE_ENABLED = "1";
 
-    render(<NarrativeSourcePreviewPage searchParams={{ scenario: "video-brand-potential" }} />);
+    render(await NarrativeSourcePreviewPage({ searchParams: { scenario: "video-brand-potential" }, viewer: adminViewer }));
 
     expect(screen.getAllByText("Vídeo: potencial de marca").length).toBeGreaterThan(0);
     expect(screen.getAllByText("brand_potential").length).toBeGreaterThan(0);
@@ -50,39 +62,41 @@ describe("NarrativeSourcePreviewPage", () => {
     expect(screen.queryByText("Encaixe com collab")).not.toBeInTheDocument();
   });
 
-  it("renders the collab scenario from search params", () => {
+  it("renders the collab scenario from search params for dev", async () => {
     process.env.NEXT_PUBLIC_NARRATIVE_SOURCE_ENGINE_ENABLED = "1";
 
-    render(<NarrativeSourcePreviewPage searchParams={{ scenario: "video-collab" }} />);
+    render(await NarrativeSourcePreviewPage({ searchParams: { scenario: "video-collab" }, viewer: devViewer }));
 
     expect(screen.getAllByText("collab_potential").length).toBeGreaterThan(0);
     expect(screen.getAllByText("collab_match").length).toBeGreaterThan(0);
     expect(screen.getByText("Encaixe com collab")).toBeInTheDocument();
   });
 
-  it("renders the comment-to-post scenario from search params", () => {
+  it("renders the comment-to-post scenario from search params", async () => {
     process.env.NEXT_PUBLIC_NARRATIVE_SOURCE_ENGINE_ENABLED = "1";
 
-    render(<NarrativeSourcePreviewPage searchParams={{ scenario: "comment-to-post" }} />);
+    render(await NarrativeSourcePreviewPage({ searchParams: { scenario: "comment-to-post" }, viewer: adminViewer }));
 
     expect(screen.getAllByText("comment").length).toBeGreaterThan(0);
     expect(screen.getAllByText("comment_to_post").length).toBeGreaterThan(0);
     expect(screen.getAllByText(/rotina/i).length).toBeGreaterThan(0);
   });
 
-  it("falls back to the default scenario when search params are invalid", () => {
+  it("falls back to the default scenario when search params are invalid", async () => {
     process.env.NEXT_PUBLIC_NARRATIVE_SOURCE_ENGINE_ENABLED = "1";
 
-    render(<NarrativeSourcePreviewPage searchParams={{ scenario: "missing-scenario" }} />);
+    render(await NarrativeSourcePreviewPage({ searchParams: { scenario: "missing-scenario" }, viewer: adminViewer }));
 
     expect(screen.getAllByText("Vídeo: validar antes de postar").length).toBeGreaterThan(0);
     expect(screen.getAllByText("validate_before_posting").length).toBeGreaterThan(0);
   });
 
-  it("continues without forbidden or game language", () => {
+  it("continues without forbidden or game language", async () => {
     process.env.NEXT_PUBLIC_NARRATIVE_SOURCE_ENGINE_ENABLED = "1";
 
-    const { container } = render(<NarrativeSourcePreviewPage searchParams={{ scenario: "video-brand-potential" }} />);
+    const { container } = render(
+      await NarrativeSourcePreviewPage({ searchParams: { scenario: "video-brand-potential" }, viewer: adminViewer }),
+    );
     const text = container.textContent?.toLowerCase() || "";
 
     for (const forbidden of [
