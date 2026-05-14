@@ -151,11 +151,41 @@ O teste cobre:
 
 Esta fase não cria lógica nova de produção. O pipeline existe apenas como teste de integridade.
 
+## VU4 — Contratos de artefatos de processamento
+
+Status: concluído nesta branch.
+
+Arquivos principais:
+
+- `videoProcessingArtifacts.ts`: tipos e helpers puros para representar artefatos futuros de processamento de vídeo.
+- `videoProcessingArtifacts.test.ts`: cobertura dos defaults, transcrição, descrição visual, OCR, sinais úteis e isolamento de escopo.
+
+Artefatos representados:
+
+- status de processamento;
+- transcrição completa e por segmentos;
+- frames-chave;
+- OCR/texto na tela;
+- sinais técnicos;
+- resumo visual;
+- notas de processamento.
+
+Helpers criados:
+
+- `createEmptyVideoProcessingArtifacts`;
+- `mergeTranscriptSegments`;
+- `buildTranscriptTextFromArtifacts`;
+- `buildVisualDescriptionFromArtifacts`;
+- `hasUsableVideoProcessingArtifacts`.
+
+Esta fase não processa vídeo real. Ela apenas prepara a forma dos dados que, no futuro, poderão enriquecer uma `NarrativeSource` com transcrição, contexto visual e sinais técnicos.
+
 ## QA
 
 Comandos recomendados para esta fundação:
 
 ```bash
+npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoProcessingArtifacts.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadNarrativeSourceBridge.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadPipeline.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadTypes.test.ts
@@ -165,7 +195,7 @@ git diff --check
 
 ## Próximas fases sugeridas
 
-- VU2: fixture/harness de pré-validação sem upload real.
-- VU3: contrato de storage temporário, ainda sem implementação real.
-- VU4: contrato de transcrição e frames.
-- VU5: integração conceitual com NSE em teste, sem produto real.
+- VU5: adapter puro de artefatos para enriquecer `NarrativeSource`.
+- VU6: fixture/harness interno com artefatos simulados.
+- VU7: contrato de storage temporário, ainda sem implementação real.
+- VU8: documentação de rollout antes de qualquer upload real.
