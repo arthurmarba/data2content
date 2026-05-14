@@ -1,120 +1,181 @@
 # Video Upload Foundation
 
-Este diretório guarda a fundação pura do épico VU. A intenção é preparar, em fases pequenas, uma forma futura de receber vídeo como fonte narrativa sem tratar vídeo como produto separado.
+Este diretório guarda a fundação pura do épico VU. A intenção é preparar, em fases pequenas, uma entrada futura de vídeo como fonte narrativa, sem tratar vídeo como produto separado.
 
-Nesta fase, vídeo é apenas uma possível origem futura para preencher uma `NarrativeSource`.
+O vídeo ainda não é enviado de verdade e ainda não é processado de verdade. A fundação existe para manter essa futura experiência conectada à promessa da D2C: transformar fontes criativas em narrativa, estratégia e sinais úteis para entender o perfil do criador.
 
-## VU1 — Contratos puros e validação
+Hoje, vídeo é apenas uma possível origem futura para preencher uma `NarrativeSource`.
 
-Status: concluído nesta branch.
+## Visão Geral
 
-Arquivos principais:
+O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
 
-- `videoUploadTypes.ts`: tipos, limites padrão, validação pura e bridge conceitual para fonte narrativa.
-- `videoUploadTypes.test.ts`: cobertura dos tipos utilitários, validações, bridge e isolamento de escopo.
+O que esta fundação permite validar agora:
 
-O que existe:
+- um draft de vídeo pode ser representado e validado de forma determinística;
+- um draft válido pode virar uma `NarrativeSource` do tipo `video_upload_future`;
+- artefatos simulados de processamento podem enriquecer `transcript` e `visualDescription`;
+- a fonte enriquecida pode alimentar o Narrative Source Engine;
+- a NSE pode alimentar o Adaptive V2;
+- o Adaptive V2 pode gerar um plano estratégico em ambiente de teste.
 
-- status de processamento futuro;
-- fontes possíveis de vídeo;
-- MIME types aceitos;
-- limites padrão de duração e tamanho;
-- códigos e mensagens de validação;
-- criação de draft vazio;
-- validação determinística de draft;
-- bridge compatível com a ideia de `video_upload_future`.
+O que ela não faz:
 
-O que não existe:
+- não recebe arquivo real;
+- não processa arquivo real;
+- não salva vídeo;
+- não extrai transcrição, frames ou OCR reais;
+- não chama OpenAI;
+- não conecta nada ao produto real.
 
-- upload real;
-- endpoint;
-- storage;
-- transcrição;
-- extração de frames;
-- análise multimodal;
-- OpenAI;
-- banco;
-- UI;
-- BoardShell;
-- integração com o fluxo real.
+## Mapa Das Fases
 
-## Limites padrão
+### VU1 — Contratos puros e validação
 
-- Duração máxima: 60 segundos.
-- Tamanho máximo: 100 MB.
-- Formatos aceitos: `video/mp4`, `video/quicktime`, `video/webm`.
-- Pergunta do criador obrigatória.
-
-## Validação
-
-`validateVideoUploadDraft` normaliza `fileName`, `mimeType` e `creatorQuestion`, preserva tamanho e duração, e retorna erros exibíveis de forma simples.
-
-Validações atuais:
-
-- arquivo obrigatório;
-- formato suportado;
-- limite de tamanho;
-- duração informada;
-- limite de duração;
-- pergunta do criador quando exigida;
-- nome de arquivo sem caracteres simples de risco.
-
-## Bridge narrativa
-
-`buildNarrativeSourceBridgeFromVideoUpload` só retorna dados quando o draft passa pela validação.
-
-O retorno usa:
-
-- `sourceType: "video_upload_future"`;
-- `creatorQuestion` normalizada;
-- `transcript: null`;
-- `visualDescription: null`;
-- metadados básicos do vídeo.
-
-O arquivo não importa tipos da NSE nesta fase para manter o acoplamento baixo. A compatibilidade é conceitual e deve ser formalizada em uma fase posterior.
-
-## VU2 — Bridge tipada com NarrativeSource
-
-Status: concluído nesta branch.
+Status: concluído.
 
 Arquivos principais:
 
-- `videoUploadNarrativeSourceBridge.ts`: converte um `VideoUploadDraft` validado em `NarrativeSource`.
-- `videoUploadNarrativeSourceBridge.test.ts`: cobre conversão, `id`, `createdAt`, formato curto/longo, helper de prontidão e isolamento de escopo.
+- `videoUploadTypes.ts`
+- `videoUploadTypes.test.ts`
 
-O que existe:
+O que faz:
 
-- `buildNarrativeSourceFromVideoUploadDraft`;
-- `isVideoUploadReadyForNarrativeSource`;
-- import tipado de `NarrativeSource`;
-- uso de `validateVideoUploadDraft` como fonte da verdade;
-- conversão para `sourceType: "video_upload_future"`;
-- metadados básicos de vídeo preservados.
+- define status futuros de upload/processamento;
+- define origens possíveis de vídeo;
+- define MIME types aceitos;
+- define limites padrão;
+- cria `VideoUploadDraft`;
+- valida draft de vídeo de forma pura;
+- cria uma bridge conceitual para `video_upload_future`.
 
-O que continua fora do escopo:
+O que não faz:
 
-- upload real;
-- endpoint;
-- storage;
-- transcrição;
-- frames;
-- OpenAI;
-- banco;
-- UI;
-- BoardShell;
-- navegação real.
+- não importa tipos da NSE;
+- não cria upload real;
+- não cria endpoint;
+- não cria storage;
+- não cria UI.
 
-Esta fase prova apenas que um vídeo já validado pode ser representado como uma fonte narrativa futura. A bridge não infere transcrição, não descreve visualmente o vídeo e não salva nada.
+### VU2 — Bridge tipada com NarrativeSource
 
-## VU3 — QA do pipeline VideoUpload → NSE → Adaptive V2
+Status: concluído.
 
-Status: concluído nesta branch.
+Arquivos principais:
+
+- `videoUploadNarrativeSourceBridge.ts`
+- `videoUploadNarrativeSourceBridge.test.ts`
+
+O que faz:
+
+- converte `VideoUploadDraft` validado em `NarrativeSource`;
+- usa `validateVideoUploadDraft` como fonte da verdade;
+- preserva `id`, `createdAt`, `creatorQuestion` e metadados básicos;
+- define `sourceType: "video_upload_future"`;
+- mantém `rawText`, `transcript` e `visualDescription` vazios.
+
+O que não faz:
+
+- não infere transcrição;
+- não descreve visualmente o vídeo;
+- não salva nada;
+- não roda NSE;
+- não roda Adaptive V2.
+
+### VU3 — QA do pipeline VideoUpload → NSE → Adaptive V2
+
+Status: concluído.
 
 Arquivo principal:
 
-- `videoUploadPipeline.test.ts`: teste ponta a ponta, apenas em ambiente de QA, cobrindo `VideoUploadDraft` validado até o plano estratégico Adaptive V2.
+- `videoUploadPipeline.test.ts`
 
-Pipeline validado:
+O que faz:
+
+- valida, apenas em teste, o caminho `VideoUploadDraft` → `NarrativeSource` → NSE → Adaptive V2;
+- cobre vídeos válidos para validação, marca, melhoria de gancho, collab e vídeo longo com limites customizados;
+- garante abort seguro para draft inválido;
+- verifica linguagem segura e isolamento de imports.
+
+O que não faz:
+
+- não cria lógica nova de produção;
+- não processa vídeo real;
+- não cria rota, endpoint ou UI.
+
+### VU4 — Contratos de artefatos de processamento
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoProcessingArtifacts.ts`
+- `videoProcessingArtifacts.test.ts`
+
+O que faz:
+
+- define contratos para transcrição, segmentos, frames-chave, OCR, sinais técnicos, resumo visual e notas de processamento;
+- cria helpers puros para montar texto de transcrição e descrição visual a partir de artefatos;
+- identifica se há contexto utilizável.
+
+O que não faz:
+
+- não usa ffmpeg;
+- não usa OpenAI;
+- não transcreve;
+- não extrai frames;
+- não executa OCR;
+- não salva artefatos.
+
+### VU5 — Adapter de artefatos para NarrativeSource
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoUploadProcessedNarrativeSource.ts`
+- `videoUploadProcessedNarrativeSource.test.ts`
+
+O que faz:
+
+- combina `VideoUploadDraft` validado com `VideoProcessingArtifacts` simulados;
+- usa `buildNarrativeSourceFromVideoUploadDraft` como base;
+- preenche `transcript` via `buildTranscriptTextFromArtifacts`;
+- preenche `visualDescription` via `buildVisualDescriptionFromArtifacts`;
+- preserva metadata, `id`, `createdAt` e `creatorQuestion`;
+- cria helper para saber se há contexto suficiente para análise narrativa.
+
+O que não faz:
+
+- não roda NSE;
+- não roda Adaptive V2;
+- não processa vídeo real;
+- não salva nada.
+
+### VU6 — QA do pipeline com artefatos simulados
+
+Status: concluído.
+
+Arquivo principal:
+
+- `videoUploadProcessedPipeline.test.ts`
+
+O que faz:
+
+- valida, apenas em teste, o pipeline com `VideoUploadDraft + VideoProcessingArtifacts`;
+- cobre transcript de rotina/skincare, visual summary de bastidor, frames + OCR para marca, artifacts vazios e draft inválido;
+- demonstra `hasEnoughProcessedContextForNarrativeAnalysis`;
+- garante linguagem segura e isolamento de imports.
+
+O que não faz:
+
+- não cria lógica nova de produção;
+- não cria upload real;
+- não cria endpoint;
+- não cria storage;
+- não cria UI.
+
+## Arquitetura Atual
 
 ```text
 VideoUploadDraft
@@ -123,135 +184,78 @@ validateVideoUploadDraft
 ↓
 buildNarrativeSourceFromVideoUploadDraft
 ↓
-detectNarrativeSourceIntent
-↓
-extractNarrativeAssets
-↓
-buildAdaptiveInputFromNarrativeSource
-↓
-Adaptive V2 Router
-↓
-QuizBuilder
-↓
-AnswerKey
-↓
-PlanBuilder
-```
-
-O teste cobre:
-
-- vídeo válido para validar antes de postar;
-- vídeo válido para potencial de marca;
-- vídeo válido para melhorar gancho;
-- vídeo válido para collab;
-- draft inválido sem rodar NSE/Adaptive;
-- vídeo longo com limites customizados;
-- linguagem segura nos outputs gerados;
-- isolamento de imports.
-
-Esta fase não cria lógica nova de produção. O pipeline existe apenas como teste de integridade.
-
-## VU4 — Contratos de artefatos de processamento
-
-Status: concluído nesta branch.
-
-Arquivos principais:
-
-- `videoProcessingArtifacts.ts`: tipos e helpers puros para representar artefatos futuros de processamento de vídeo.
-- `videoProcessingArtifacts.test.ts`: cobertura dos defaults, transcrição, descrição visual, OCR, sinais úteis e isolamento de escopo.
-
-Artefatos representados:
-
-- status de processamento;
-- transcrição completa e por segmentos;
-- frames-chave;
-- OCR/texto na tela;
-- sinais técnicos;
-- resumo visual;
-- notas de processamento.
-
-Helpers criados:
-
-- `createEmptyVideoProcessingArtifacts`;
-- `mergeTranscriptSegments`;
-- `buildTranscriptTextFromArtifacts`;
-- `buildVisualDescriptionFromArtifacts`;
-- `hasUsableVideoProcessingArtifacts`.
-
-Esta fase não processa vídeo real. Ela apenas prepara a forma dos dados que, no futuro, poderão enriquecer uma `NarrativeSource` com transcrição, contexto visual e sinais técnicos.
-
-## VU5 — Adapter de artefatos para NarrativeSource
-
-Status: concluído nesta branch.
-
-Arquivos principais:
-
-- `videoUploadProcessedNarrativeSource.ts`: combina `VideoUploadDraft` validado com `VideoProcessingArtifacts` simulados para gerar uma `NarrativeSource` enriquecida.
-- `videoUploadProcessedNarrativeSource.test.ts`: cobre draft inválido, artifacts vazios, transcript, visual description, preservação de metadata e isolamento de escopo.
-
-Helpers criados:
-
-- `buildProcessedNarrativeSourceFromVideoUpload`;
-- `hasEnoughProcessedContextForNarrativeAnalysis`.
-
-O adapter:
-
-- usa `buildNarrativeSourceFromVideoUploadDraft` como base;
-- preserva `rawText: null`;
-- preserva `creatorQuestion`, `metadata`, `id` e `createdAt` da base;
-- preenche `transcript` via `buildTranscriptTextFromArtifacts`;
-- preenche `visualDescription` via `buildVisualDescriptionFromArtifacts`;
-- não roda NSE;
-- não roda Adaptive V2;
-- não processa vídeo real.
-
-## VU6 — QA do pipeline com artefatos simulados
-
-Status: concluído nesta branch.
-
-Arquivo principal:
-
-- `videoUploadProcessedPipeline.test.ts`: teste ponta a ponta, apenas em QA, cobrindo `VideoUploadDraft + VideoProcessingArtifacts` até o plano Adaptive V2.
-
-Pipeline validado:
-
-```text
-VideoUploadDraft
-+
-VideoProcessingArtifacts
+VideoProcessingArtifacts simulados
 ↓
 buildProcessedNarrativeSourceFromVideoUpload
 ↓
-detectNarrativeSourceIntent
+NSE
 ↓
-extractNarrativeAssets
+Adaptive V2
 ↓
-buildAdaptiveInputFromNarrativeSource
-↓
-Adaptive V2 Router
-↓
-QuizBuilder
-↓
-AnswerKey
-↓
-PlanBuilder
+Strategic Plan
 ```
 
-O teste cobre:
+Na prática, existem dois níveis de prova:
 
-- transcript de rotina/skincare melhorando a extração narrativa;
-- visual summary de bastidor melhorando narrativa de processo;
-- frames e OCR alimentando potencial de marca;
-- artifacts vazios ainda permitindo rota por `creatorQuestion`;
-- draft inválido abortando NSE/Adaptive;
-- `hasEnoughProcessedContextForNarrativeAnalysis`;
-- linguagem segura e isolamento de imports.
+- `VideoUploadDraft` validado já pode virar uma `NarrativeSource` básica.
+- `VideoUploadDraft + VideoProcessingArtifacts` simulados já pode virar uma `NarrativeSource` enriquecida com `transcript` e `visualDescription`.
 
-Esta fase não cria lógica nova de produção e não processa vídeo real.
+## O Que Existe Hoje
 
-## QA
+- Validação pura de draft de vídeo.
+- Limites padrão de duração, tamanho e pergunta obrigatória.
+- MIME types aceitos: `video/mp4`, `video/quicktime`, `video/webm`.
+- Bridge tipada para `NarrativeSource`.
+- Contratos de artefatos de processamento.
+- Helpers para transcrição e descrição visual a partir de artefatos.
+- Adapter para `NarrativeSource` enriquecida.
+- QA de pipeline completo com artifacts simulados.
+- Testes de linguagem segura e isolamento de escopo.
 
-Comandos recomendados para esta fundação:
+## O Que Ainda Não Existe
+
+- Upload real.
+- Endpoint.
+- Storage.
+- Transcrição automática.
+- Extração real de frames.
+- OCR real.
+- Análise multimodal.
+- OpenAI.
+- ffmpeg.
+- Banco ou persistência.
+- UI.
+- BoardShell.
+- Navegação ou menu.
+- Liberação para usuário.
+
+## Conexão Com A NSE E A Promessa Da D2C
+
+O vídeo é uma fonte narrativa. Ele pode carregar falas, contexto visual, ritmo, cenas, texto na tela e intenção do criador.
+
+Nesta fundação, a transcrição e a `visualDescription` enriquecem a leitura sem transformar vídeo em produto isolado. A fonte enriquecida alimenta a NSE, a NSE transforma a fonte em intenção, assets narrativos e sinais de perfil, e o Adaptive V2 transforma essa leitura em plano estratégico.
+
+Isso prepara a futura experiência: envie um vídeo e descubra qual narrativa ele comunica, como melhorar a pauta e que direção estratégica faz sentido.
+
+## Critérios Antes De Upload Real
+
+Antes de qualquer upload real, ainda é preciso decidir:
+
+- provedor de storage temporário;
+- política de retenção e exclusão do vídeo;
+- limite final de tamanho e duração;
+- extração de duração no client, no server ou em ambos;
+- provedor de transcrição;
+- estratégia de frames-chave;
+- estratégia de OCR;
+- estratégia de análise multimodal;
+- custo estimado por análise;
+- rate limit por plano;
+- consentimento do usuário para usar análise no perfil narrativo;
+- plano de rollback;
+- feature flag para manter a experiência desligada em produção até aprovação.
+
+## QA Recomendada
 
 ```bash
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoProcessingArtifacts.test.ts
@@ -264,8 +268,10 @@ npm run typecheck
 git diff --check
 ```
 
-## Próximas fases sugeridas
+## Próximas Fases Sugeridas
 
-- VU7: fixture/harness interno com artefatos simulados.
-- VU8: contrato de storage temporário, ainda sem implementação real.
-- VU9: documentação de rollout antes de qualquer upload real.
+- VU8: fixture/harness interno com artifacts simulados, sem input livre.
+- VU9: contrato de storage temporário, ainda sem implementação real.
+- VU10: contrato de providers de transcrição, frames e OCR.
+- VU11: documentação de custos, limites e retenção.
+- VU12: upload real em PR separado ou fase isolada, somente depois das decisões de produto, segurança e custo.
