@@ -3,30 +3,46 @@ import {
   buildNarrativeSourcePreviewScenario,
   NARRATIVE_SOURCE_PREVIEW_SCENARIOS,
 } from "../components/narrativeSource/buildNarrativeSourcePreviewScenario";
+import {
+  canAccessInternalPreview,
+  getCurrentInternalPreviewUser,
+  type InternalPreviewUser,
+} from "../internalPreviewAccess";
 import { isNarrativeSourceEngineEnabled } from "../narrativeSource/narrativeSourceFeatureFlag";
 
 type NarrativeSourcePreviewPageProps = {
   searchParams?: {
     scenario?: string | string[];
   };
+  viewer?: InternalPreviewUser | null;
 };
 
-export default function NarrativeSourcePreviewPage({ searchParams }: NarrativeSourcePreviewPageProps = {}) {
+function BlockedInternalPreview({ reason }: { reason: "flag" | "permission" }) {
+  return (
+    <main className="min-h-screen bg-zinc-100 px-6 py-10 text-zinc-950">
+      <section className="mx-auto max-w-3xl rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
+        <p className="text-xs font-semibold uppercase text-zinc-500">Prévia interna bloqueada</p>
+        <h1 className="mt-2 text-2xl font-semibold">Narrative Source Engine</h1>
+        <p className="mt-3 text-sm leading-6 text-zinc-700">
+          {reason === "flag"
+            ? "Preview interno bloqueado. Ative a flag correspondente para visualizar esta rota."
+            : "Preview interno restrito a usuários admin/dev."}
+        </p>
+      </section>
+    </main>
+  );
+}
+
+export default async function NarrativeSourcePreviewPage({ searchParams, viewer }: NarrativeSourcePreviewPageProps = {}) {
   const isEnabled = isNarrativeSourceEngineEnabled();
 
   if (!isEnabled) {
-    return (
-      <main className="min-h-screen bg-zinc-100 px-6 py-10 text-zinc-950">
-        <section className="mx-auto max-w-3xl rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-zinc-500">Prévia interna bloqueada</p>
-          <h1 className="mt-2 text-2xl font-semibold">Preview interno — Narrative Source Engine</h1>
-          <p className="mt-3 text-sm leading-6 text-zinc-700">
-            Esta tela usa cenários controlados e permanece bloqueada enquanto a flag interna do Narrative Source
-            Engine estiver desligada.
-          </p>
-        </section>
-      </main>
-    );
+    return <BlockedInternalPreview reason="flag" />;
+  }
+
+  const currentUser = viewer === undefined ? await getCurrentInternalPreviewUser() : viewer;
+  if (!canAccessInternalPreview(currentUser)) {
+    return <BlockedInternalPreview reason="permission" />;
   }
 
   const preview = buildNarrativeSourcePreviewScenario(searchParams?.scenario);

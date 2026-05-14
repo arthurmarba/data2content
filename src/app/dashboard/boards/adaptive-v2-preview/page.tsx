@@ -3,30 +3,46 @@ import {
   ADAPTIVE_V2_PREVIEW_SCENARIOS,
   buildAdaptiveV2PreviewScenario,
 } from "../components/adaptiveV2/buildAdaptiveV2PreviewScenario";
+import {
+  canAccessInternalPreview,
+  getCurrentInternalPreviewUser,
+  type InternalPreviewUser,
+} from "../internalPreviewAccess";
 import { isPostCreationAdaptiveEnvEnabled } from "../postCreationAdaptiveFeatureFlag";
 
 type AdaptiveV2PreviewPageProps = {
   searchParams?: {
     scenario?: string | string[];
   };
+  viewer?: InternalPreviewUser | null;
 };
 
-export default function AdaptiveV2PreviewPage({ searchParams }: AdaptiveV2PreviewPageProps = {}) {
+function BlockedInternalPreview({ reason }: { reason: "flag" | "permission" }) {
+  return (
+    <main className="min-h-screen bg-zinc-100 px-6 py-10 text-zinc-950">
+      <section className="mx-auto max-w-3xl rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
+        <p className="text-xs font-semibold uppercase text-zinc-500">Prévia interna bloqueada</p>
+        <h1 className="mt-2 text-2xl font-semibold">Board Adaptativo V2</h1>
+        <p className="mt-3 text-sm leading-6 text-zinc-700">
+          {reason === "flag"
+            ? "Preview interno bloqueado. Ative a flag correspondente para visualizar esta rota."
+            : "Preview interno restrito a usuários admin/dev."}
+        </p>
+      </section>
+    </main>
+  );
+}
+
+export default async function AdaptiveV2PreviewPage({ searchParams, viewer }: AdaptiveV2PreviewPageProps = {}) {
   const isEnabled = isPostCreationAdaptiveEnvEnabled();
 
   if (!isEnabled) {
-    return (
-      <main className="min-h-screen bg-zinc-100 px-6 py-10 text-zinc-950">
-        <section className="mx-auto max-w-3xl rounded-lg border border-zinc-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-zinc-500">Prévia interna bloqueada</p>
-          <h1 className="mt-2 text-2xl font-semibold">Preview interno — Board Adaptativo V2</h1>
-          <p className="mt-3 text-sm leading-6 text-zinc-700">
-            Esta tela usa cenários controlados e permanece bloqueada enquanto a flag interna da experiência adaptativa
-            estiver desligada.
-          </p>
-        </section>
-      </main>
-    );
+    return <BlockedInternalPreview reason="flag" />;
+  }
+
+  const currentUser = viewer === undefined ? await getCurrentInternalPreviewUser() : viewer;
+  if (!canAccessInternalPreview(currentUser)) {
+    return <BlockedInternalPreview reason="permission" />;
   }
 
   const preview = buildAdaptiveV2PreviewScenario(searchParams?.scenario);

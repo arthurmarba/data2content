@@ -190,10 +190,11 @@ Arquivos principais:
 O que faz:
 
 - cria uma rota interna em `/dashboard/boards/video-upload-preview`;
-- protege a rota com `NEXT_PUBLIC_VIDEO_UPLOAD_PREVIEW_ENABLED=1`;
+- protege a rota com `NEXT_PUBLIC_VIDEO_UPLOAD_PREVIEW_ENABLED=1` e sessão admin/dev;
 - renderiza cenários fixos de `VideoUploadDraft + VideoProcessingArtifacts`;
 - mostra validação, readiness, artifacts simulados, `NarrativeSource` enriquecida, intenção NSE, entrada Adaptive V2 e plano estratégico;
 - aborta NSE/Adaptive quando o draft controlado não passa pela validação;
+- não monta o pipeline quando a flag está desligada ou a sessão não tem permissão;
 - mantém QA de linguagem segura e isolamento de imports.
 
 O que não faz:
@@ -266,6 +267,7 @@ Na prática, existem dois níveis de prova:
 - Adapter para `NarrativeSource` enriquecida.
 - QA de pipeline completo com artifacts simulados.
 - Harness interno com cenários simulados atrás de feature flag.
+- Proteção admin/dev compartilhada para previews internos.
 - Checklist manual do preview interno.
 - Testes de linguagem segura e isolamento de escopo.
 

@@ -20,7 +20,7 @@ Vídeo é uma fonte futura e rica, mas a NSE ainda não faz upload, transcriçã
 | NSE4 | Concluída | `narrativeSourceAdaptiveAdapter.ts`, `narrativeSourceAdaptiveAdapter.test.ts` | Transforma a fonte analisada em input textual para o Adaptive V2. | Não roda Router, QuizBuilder, AnswerKey ou PlanBuilder dentro do adapter. |
 | NSE5 | Concluída | `narrativeSourcePipeline.test.ts` | Valida em teste o pipeline NSE -> Adaptive V2 completo. | Não cria lógica nova de produção e não conecta o fluxo real. |
 | NSE6 | Concluída | `components/narrativeSource/*` | Renderiza preview visual isolada por props. | Não roda pipeline internamente, não cria rota e não chama serviços. |
-| NSE7 | Concluída | `narrative-source-preview/page.tsx`, `buildNarrativeSourcePreviewScenario.ts`, `narrativeSourceFeatureFlag.ts` | Cria harness interno com cenários controlados e flag própria. | Não adiciona navegação/menu, input livre, upload, endpoint ou BoardShell. |
+| NSE7 | Concluída | `narrative-source-preview/page.tsx`, `buildNarrativeSourcePreviewScenario.ts`, `narrativeSourceFeatureFlag.ts` | Cria harness interno com cenários controlados, flag própria e proteção admin/dev compartilhada. | Não adiciona navegação/menu, input livre, upload, endpoint ou BoardShell. |
 
 ## Arquitetura atual
 
@@ -61,6 +61,8 @@ Flag necessária:
 ```text
 NEXT_PUBLIC_NARRATIVE_SOURCE_ENGINE_ENABLED=1
 ```
+
+Além da flag, a rota exige sessão interna com `role: "admin"`, `role: "dev"`, `isAdmin` ou `isDev`. Quando a flag está desligada ou a sessão não tem permissão, o pipeline de preview não é montado.
 
 Cenários disponíveis:
 
@@ -132,8 +134,7 @@ npm run typecheck
 ## Próximas fases sugeridas
 
 - NSE9: QA manual visual do harness.
-- NSE10: proteção por sessão admin/dev.
-- NSE11: integração experimental com BoardShell atrás de flag.
+- NSE10: integração experimental com BoardShell atrás de flag.
 - VU1: fundação de upload de vídeo, em PR separado.
 - VU2: transcrição e frames.
 - VU3: análise multimodal com IA.
