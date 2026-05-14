@@ -13,3 +13,7 @@ Esta fase define:
 - Diagnóstico narrativo básico.
 
 Os contratos vivem em `narrativeSourceTypes.ts`. A fase não implementa extração, roteamento, adapters para Adaptive V2 ou persistência.
+
+## NSE2
+
+Esta fase adiciona `detectNarrativeSourceIntent(source)`, um roteador heurístico e determinístico para identificar a intenção estratégica da fonte narrativa. Ele usa apenas texto local da `NarrativeSource` e continua sem UI, endpoint, banco, upload, OpenAI ou integração com o fluxo real.
