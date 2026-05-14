@@ -106,6 +106,7 @@ describe("NarrativeSourcePreview", () => {
     const source = fs
       .readdirSync(previewDir)
       .filter((file) => /\.(tsx|ts)$/.test(file) && !file.endsWith(".test.tsx"))
+      .filter((file) => file !== "buildNarrativeSourcePreviewScenario.ts")
       .map((file) => fs.readFileSync(path.join(previewDir, file), "utf8"))
       .join("\n");
 

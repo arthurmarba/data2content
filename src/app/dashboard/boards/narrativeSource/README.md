@@ -33,3 +33,7 @@ Esta fase adiciona `narrativeSourcePipeline.test.ts`, uma suíte de QA que valid
 ## NSE6
 
 Esta fase adiciona uma preview visual isolada em `components/narrativeSource/`. Os componentes recebem dados prontos por props e mostram fonte, intenção, assets, sinais de perfil, ponte para Adaptive V2 e plano recebido. Eles não rodam pipeline, não criam rota, não chamam UI real, endpoint, banco, upload, OpenAI ou BoardShell.
+
+## NSE7
+
+Esta fase adiciona a rota interna `/dashboard/boards/narrative-source-preview`, protegida por `NEXT_PUBLIC_NARRATIVE_SOURCE_ENGINE_ENABLED=1`. O harness usa apenas cenários controlados, não aceita input livre, não faz upload e não aparece em navegação/menu.
