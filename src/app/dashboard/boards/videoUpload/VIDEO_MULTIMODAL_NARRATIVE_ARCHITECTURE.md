@@ -218,7 +218,9 @@ Exemplos:
 8. MM9 — Factory isolada do cliente Gemini. Concluída como adapter server-side para cliente real, sem integração automática ao fluxo.
 9. MM10 — Composer seguro do provider Gemini. Concluído como composição explícita de config, factory e provider, sem integração automática ao fluxo.
 10. MM11 — Harness interno para execução real controlada. Concluído como teste manual explícito, sem endpoint, UI ou upload real.
-11. Integração experimental futura no Board de Criação.
+11. MM12 — Readiness audit sem chamada real. Concluído como auditoria documental e estática antes de qualquer teste externo.
+12. Teste real manual quando houver quota/billing disponível.
+13. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -239,3 +241,7 @@ Exemplos:
 ## Harness Real Controlado
 
 MM11 adiciona apenas um caminho manual de avaliação para o provider real já composto. Ele continua sem endpoint, sem UI e sem upload real. O objetivo é observar output, latência e issues do parser em ambiente interno antes de qualquer exposição ao fluxo do produto.
+
+## Readiness Audit
+
+MM12 confirma que a linha está preparada para um teste real futuro sem executar rede nesta fase. O próximo passo prático deixa de ser nova implementação e passa a ser um teste manual curto quando houver quota/billing disponível.
