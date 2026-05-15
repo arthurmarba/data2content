@@ -97,6 +97,7 @@ Só criar endpoint depois que:
 Próximo passo documental:
 
 - revisar `VIDEO_NARRATIVE_INTERNAL_ENDPOINT_CONTRACT.md` antes de qualquer implementação de rota.
+- revisar `VIDEO_NARRATIVE_INPUT_SOURCE_CONTRACT.md` antes de qualquer implementação de upload real.
 
 ## Decisão Recomendada
 
@@ -106,6 +107,7 @@ Como não há billing agora, seguir sem teste real e avançar apenas em:
 - docs;
 - preview/fallback;
 - planejamento de endpoint/storage;
+- contrato formal de origem do vídeo;
 - sem expor para usuário.
 
 ## Frase Norte

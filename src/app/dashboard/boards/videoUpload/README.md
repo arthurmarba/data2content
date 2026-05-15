@@ -301,6 +301,26 @@ O que não faz:
 - não cria upload real ou UI;
 - não conecta nada ao fluxo real do produto.
 
+### MM14 — Contrato de origem do vídeo
+
+Status: concluído.
+
+Arquivos principais:
+
+- `VIDEO_NARRATIVE_INPUT_SOURCE_CONTRACT.md`
+- `videoNarrativeInputSourceContract.test.ts`
+
+O que faz:
+
+- compara Gemini File API, inline base64, storage temporário próprio, GCS/S3/R2 e URL pública restrita;
+- define recomendação por fase para teste manual, endpoint interno/admin e beta/produto;
+- separa a decisão de origem do vídeo de qualquer implementação de upload real.
+
+O que não faz:
+
+- não cria endpoint, upload real, storage real ou UI;
+- não conecta nada ao fluxo real do produto.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
