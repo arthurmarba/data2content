@@ -389,6 +389,30 @@ O que não faz:
 - não cria endpoint, fila, storage, banco ou UI;
 - não usa OpenAI, Whisper, OCR real, ffmpeg ou SDK de processamento.
 
+### PROVIDER1 — Provider mock in-memory
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoProcessingMockProvider.ts`
+- `videoProcessingMockProvider.test.ts`
+
+O que faz:
+
+- cria um provider local, síncrono e determinístico para simular resultados de processamento;
+- recebe `VideoProcessingTaskRequest` e retorna `VideoProcessingTaskResult`;
+- cobre cenários de rotina/skincare, bastidor/processo, OCR de marca, melhoria de gancho, vazio e falha;
+- valida requests com os contratos de provider antes de simular artifacts;
+- permite batch local para compor resultados e testar `mergeVideoProcessingTaskResults`.
+
+O que não faz:
+
+- não implementa provider real;
+- não faz rede, `fetch`, upload, storage, fila ou job real;
+- não usa OpenAI, Whisper, OCR real, ffmpeg ou SDK de processamento;
+- não cria endpoint, banco, UI ou integração com BoardShell.
+
 ## Arquitetura Atual
 
 ```text
@@ -405,6 +429,8 @@ VideoTemporaryStorageObject futuro
 VideoRetentionPolicy / VideoCleanupJob futuros
 ↓
 VideoProcessingProviderContracts futuros
+↓
+VideoProcessingMockProvider local
 ↓
 VideoProcessingTaskResult mockado
 ↓
@@ -443,6 +469,7 @@ Na prática, existem dois níveis de prova:
 - Contratos puros de providers de processamento de vídeo.
 - QA de pipeline com resultados mockados de provider de processamento.
 - Documentação de rollout e matriz de decisão de providers de processamento.
+- Provider mock in-memory para simulação local sem rede.
 - Testes de linguagem segura e isolamento de escopo.
 
 ## O Que Ainda Não Existe
@@ -510,6 +537,7 @@ Antes de qualquer upload real, ainda é preciso decidir:
 ```bash
 npm test -- --runInBand src/app/dashboard/boards/video-upload-preview/page.test.tsx
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadPreviewFeatureFlag.test.ts
+npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoProcessingMockProvider.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoProcessingProviderPipeline.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoProcessingProviderContracts.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoStorageRetentionContracts.test.ts
