@@ -1,5 +1,6 @@
 import {
   GoogleGenAI,
+  Part,
   createPartFromBase64,
   createPartFromUri,
   createUserContent,
@@ -50,7 +51,7 @@ export function createGeminiVideoNarrativeClient(
           return { text: null };
         }
 
-        const parts = [userInstruction, responseFormatInstruction];
+        const parts: Array<string | Part> = [userInstruction, responseFormatInstruction];
 
         if (videoUri) {
           parts.push(createPartFromUri(videoUri, mimeType ?? "video/mp4"));
