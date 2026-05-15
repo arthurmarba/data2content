@@ -366,6 +366,29 @@ O que não faz:
 - não salva nada em banco;
 - não conecta no produto real.
 
+### PROC3 — Documentação de rollout de providers
+
+Status: concluído.
+
+Arquivo principal:
+
+- `VIDEO_PROCESSING_PROVIDER_ROLLOUT.md`
+
+O que faz:
+
+- documenta a arquitetura preparada para providers futuros de processamento;
+- compara tarefas como transcrição, frames, OCR, resumo visual, sinais técnicos e análise multimodal;
+- registra critérios de decisão, política de custos, consentimento, riscos, flags futuras e checklist antes de provider real;
+- sugere próximos PRs para mock in-memory, storage real, upload session server-side e processamento protegido.
+
+O que não faz:
+
+- não altera lógica;
+- não altera testes;
+- não implementa provider real;
+- não cria endpoint, fila, storage, banco ou UI;
+- não usa OpenAI, Whisper, OCR real, ffmpeg ou SDK de processamento.
+
 ## Arquitetura Atual
 
 ```text
@@ -419,6 +442,7 @@ Na prática, existem dois níveis de prova:
 - Contratos puros de retenção e cleanup de vídeo temporário.
 - Contratos puros de providers de processamento de vídeo.
 - QA de pipeline com resultados mockados de provider de processamento.
+- Documentação de rollout e matriz de decisão de providers de processamento.
 - Testes de linguagem segura e isolamento de escopo.
 
 ## O Que Ainda Não Existe
@@ -503,7 +527,7 @@ git diff --check
 
 ## Próximas Fases Sugeridas
 
-- PROC3: contrato de fila/job conceitual de processamento.
+- PROC4: contrato de fila/job conceitual de processamento.
 - STOR4: contrato de auditoria de cleanup e eventos de retenção.
 - VU11: documentação de custos, limites e retenção.
 - VU12: upload real em PR separado ou fase isolada, somente depois das decisões de produto, segurança e custo.
