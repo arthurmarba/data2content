@@ -91,6 +91,26 @@ O que não faz:
 - não usa Gemini;
 - não cria endpoint, UI ou integração com o board real.
 
+### MM5 — QA do pipeline narrativo multimodal
+
+Status: concluído.
+
+Arquivo principal:
+
+- `videoNarrativePipeline.test.ts`
+
+O que faz:
+
+- valida o fluxo `VideoNarrativeMockProvider` → `VideoNarrativeAnalysis` → `PostCreationVideoSeed`;
+- prova que análises narrativas já geram blueprint, direção de abertura, hints de marca e perguntas de refinamento úteis;
+- mantém a linha nova separada de `VideoProcessingArtifacts`, NSE e Adaptive V2.
+
+O que não faz:
+
+- não cria lógica nova de produção;
+- não integra o seed ao board real;
+- não usa provider externo.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

@@ -211,7 +211,7 @@ function buildScenario(
     case "unclear_content":
       return {
         ...base,
-        summary: clean("Leitura inicial disponível, mas ainda sem contexto suficiente para definir a pauta."),
+        summary: null,
         hook: { detected: null, strength: "unknown", why: null },
         d2cClassification: {
           ...base.d2cClassification,
