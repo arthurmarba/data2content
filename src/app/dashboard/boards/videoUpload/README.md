@@ -158,6 +158,29 @@ O que não faz:
 - não usa SDK;
 - não conecta no board real nem em navegação.
 
+### MM8 — Provider multimodal atrás de flag server-side
+
+Status: concluído.
+
+Arquivos principais:
+
+- `geminiVideoNarrativeFeatureFlag.ts`
+- `geminiVideoNarrativeFeatureFlag.test.ts`
+- `geminiVideoNarrativeProvider.ts`
+- `geminiVideoNarrativeProvider.test.ts`
+
+O que faz:
+
+- protege a futura execução multimodal com `VIDEO_NARRATIVE_GEMINI_FLASH_ENABLED=true`;
+- expõe um provider server-side injetável, com fallback seguro e sem rede nos testes;
+- mantém a dependência de cliente externa fora desta fase.
+
+O que não faz:
+
+- não cria endpoint;
+- não adiciona cliente real;
+- não conecta no board real nem em navegação.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
