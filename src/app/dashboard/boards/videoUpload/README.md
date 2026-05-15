@@ -6,6 +6,27 @@ O vídeo ainda não é enviado de verdade e ainda não é processado de verdade.
 
 Hoje, vídeo é apenas uma possível origem futura para preencher uma `NarrativeSource`.
 
+### MM1 — Arquitetura narrativa multimodal-first
+
+Status: concluído.
+
+Arquivo principal:
+
+- `VIDEO_MULTIMODAL_NARRATIVE_ARCHITECTURE.md`
+
+O que faz:
+
+- redefine a direção de produto para uma experiência `multimodal-first`;
+- posiciona `VideoNarrativeAnalysis` como saída principal da análise futura;
+- trata transcrição, OCR, frames e sinais técnicos como evidências auxiliares;
+- introduz `PostCreationVideoSeed` como ponte conceitual para o board de criação.
+
+O que não faz:
+
+- não altera contratos existentes;
+- não cria provider real;
+- não conecta nada ao fluxo real do produto.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
