@@ -111,6 +111,30 @@ O que não faz:
 - não integra o seed ao board real;
 - não usa provider externo.
 
+### MM6 — Preview interno narrativo multimodal
+
+Status: concluído.
+
+Arquivos principais:
+
+- `../video-narrative-preview/page.tsx`
+- `../video-narrative-preview/page.test.tsx`
+- `../components/videoUpload/buildVideoNarrativePreviewScenario.ts`
+- `videoNarrativePreviewFeatureFlag.ts`
+- `videoNarrativePreviewFeatureFlag.test.ts`
+
+O que faz:
+
+- cria a rota interna `/dashboard/boards/video-narrative-preview`;
+- mostra cenários controlados de `VideoNarrativeAnalysis` → `PostCreationVideoSeed`;
+- protege o harness com `NEXT_PUBLIC_VIDEO_NARRATIVE_PREVIEW_ENABLED=1` e sessão admin/dev.
+
+O que não faz:
+
+- não aceita input livre;
+- não usa provider real;
+- não conecta no board real nem em navegação.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

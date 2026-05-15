@@ -212,7 +212,7 @@ Exemplos:
 2. MM3 — Adapter `VideoNarrativeAnalysis` → `PostCreationVideoSeed`.
 3. MM4 — Mock provider narrativo multimodal. Concluído como provider local determinístico.
 4. MM5 — Pipeline QA multimodal. Concluído como validação de `VideoNarrativeAnalysis` → `PostCreationVideoSeed`.
-5. MM6 — Preview interno narrativo.
+5. MM6 — Preview interno narrativo. Concluído como harness isolado por flag e sessão admin/dev.
 6. MM7 — Prompt/schema Gemini.
 7. MM8 — Gemini Flash real atrás de server flag.
 8. MM9 — Integração experimental no Board de Criação.
