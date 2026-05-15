@@ -142,7 +142,8 @@ Flags server-side devem ser preferidas para processamento real, providers e cust
 ## Próximos PRs Sugeridos
 
 - PROVIDER1: provider mock in-memory, apenas teste, sem rede. Concluído como provider local determinístico.
-- PROVIDER2: usar o provider mock em harness ou QA adicional, ainda sem rede.
+- PROVIDER2: usar o provider mock em harness ou QA adicional, ainda sem rede. Concluído como QA de pipeline completo com mock provider.
+- PROVIDER3: avaliar uso do mock provider em harness interno controlado.
 - STORAGE1: implementação real de storage temporário.
 - UPLOAD1: endpoint server-side para criar upload session.
 - PROCESS1: transcrição real em ambiente protegido.
