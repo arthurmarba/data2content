@@ -55,6 +55,7 @@ Regras:
 - `creatorQuestion` é recomendado;
 - inline base64 só para testes pequenos/controlados;
 - `videoUri`/File API/storage é preferível para fluxo futuro;
+- a decisão detalhada de origem do vídeo fica no contrato `VIDEO_NARRATIVE_INPUT_SOURCE_CONTRACT.md`;
 - não aceitar arquivo multipart neste contrato inicial;
 - não aceitar input livre sem limites;
 - não aceitar usuário comum.
@@ -165,7 +166,7 @@ Só implementar depois que:
 
 ## Próximas Fases Possíveis
 
-- MM14: contrato de upload/File API;
+- MM14: contrato de origem do vídeo;
 - MM15: endpoint interno real, se billing existir;
 - MM16: preview interno com chamada real;
 - MM17: integração experimental no board.

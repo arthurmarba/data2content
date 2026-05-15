@@ -220,6 +220,7 @@ Exemplos:
 10. MM11 — Harness interno para execução real controlada. Concluído como teste manual explícito, sem endpoint, UI ou upload real.
 11. MM12 — Readiness audit sem chamada real. Concluído como auditoria documental e estática antes de qualquer teste externo.
 12. MM13 — Internal endpoint contract. Concluído como contrato interno/admin, ainda sem endpoint real.
+13. MM14 — Input source contract. Define a origem futura do vídeo por fase, ainda sem upload ou storage real.
 13. Teste real manual quando houver quota/billing disponível.
 14. Integração experimental futura no Board de Criação.
 
@@ -250,3 +251,5 @@ MM12 confirma que a linha está preparada para um teste real futuro sem executar
 ## Internal Endpoint Contract
 
 MM13 define o formato futuro de acesso interno/admin, payload, resposta e limites antes de existir qualquer rota real. O contrato preserva a separação entre prontidão técnica e exposição de produto.
+
+MM14 separa a decisão de origem do vídeo da implementação de upload. Ele recomenda File API ou inline pequeno para teste manual, `videoUri` primeiro no endpoint interno e storage temporário próprio para beta/produto.
