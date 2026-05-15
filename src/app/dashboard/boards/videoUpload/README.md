@@ -280,6 +280,27 @@ O que não faz:
 - não cria endpoint, upload real ou UI;
 - não integra nada ao fluxo real do produto.
 
+### MM13 — Contrato de endpoint interno/admin
+
+Status: concluído.
+
+Arquivos principais:
+
+- `VIDEO_NARRATIVE_INTERNAL_ENDPOINT_CONTRACT.md`
+- `videoNarrativeInternalEndpointContract.test.ts`
+
+O que faz:
+
+- define antes da implementação o futuro endpoint interno/admin;
+- descreve segurança, payload, resposta, status, limites e privacidade;
+- fixa os critérios que precisam existir antes de qualquer rota real.
+
+O que não faz:
+
+- não cria endpoint real;
+- não cria upload real ou UI;
+- não conecta nada ao fluxo real do produto.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
