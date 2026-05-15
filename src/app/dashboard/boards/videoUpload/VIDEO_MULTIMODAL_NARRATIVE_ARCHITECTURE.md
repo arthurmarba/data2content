@@ -219,8 +219,9 @@ Exemplos:
 9. MM10 — Composer seguro do provider Gemini. Concluído como composição explícita de config, factory e provider, sem integração automática ao fluxo.
 10. MM11 — Harness interno para execução real controlada. Concluído como teste manual explícito, sem endpoint, UI ou upload real.
 11. MM12 — Readiness audit sem chamada real. Concluído como auditoria documental e estática antes de qualquer teste externo.
-12. Teste real manual quando houver quota/billing disponível.
-13. Integração experimental futura no Board de Criação.
+12. MM13 — Internal endpoint contract. Concluído como contrato interno/admin, ainda sem endpoint real.
+13. Teste real manual quando houver quota/billing disponível.
+14. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -245,3 +246,7 @@ MM11 adiciona apenas um caminho manual de avaliação para o provider real já c
 ## Readiness Audit
 
 MM12 confirma que a linha está preparada para um teste real futuro sem executar rede nesta fase. O próximo passo prático deixa de ser nova implementação e passa a ser um teste manual curto quando houver quota/billing disponível.
+
+## Internal Endpoint Contract
+
+MM13 define o formato futuro de acesso interno/admin, payload, resposta e limites antes de existir qualquer rota real. O contrato preserva a separação entre prontidão técnica e exposição de produto.

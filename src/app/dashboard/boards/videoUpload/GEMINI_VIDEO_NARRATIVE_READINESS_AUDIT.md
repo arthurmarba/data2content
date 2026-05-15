@@ -94,6 +94,10 @@ Só criar endpoint depois que:
 - decisão de input de vídeo for tomada: File API, inline ou storage;
 - autenticação admin/dev for definida.
 
+Próximo passo documental:
+
+- revisar `VIDEO_NARRATIVE_INTERNAL_ENDPOINT_CONTRACT.md` antes de qualquer implementação de rota.
+
 ## Decisão Recomendada
 
 Como não há billing agora, seguir sem teste real e avançar apenas em:
