@@ -56,6 +56,7 @@
     "audit:video-postdates": "node ./scripts/auditVideoPostDates.mjs",
     "sales:tutorial": "tsx --env-file=.env.local ./scripts/createSalesTutorial.ts",
     "sales:tutorial:auth": "tsx --env-file=.env.local ./scripts/createTutorialStorageState.ts",
+    "video:narrative:real-run": "tsx --env-file=.env.local ./scripts/video-narrative-real-run.ts",
     "smoke:types": "tsc -p tsconfig.smoke.json",
     "compliance:whatsapp": "node scripts/compliance-whatsapp.mjs"
   },

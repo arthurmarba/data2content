@@ -223,6 +223,42 @@ O que não faz:
 - não inicia fluxo automático;
 - não conecta no board real nem em navegação.
 
+### MM11 — Harness manual de execução real
+
+Status: concluído.
+
+Arquivos principais:
+
+- `geminiVideoNarrativeRealRunHarness.ts`
+- `geminiVideoNarrativeRealRunHarness.test.ts`
+- `../../../../../scripts/video-narrative-real-run.ts`
+
+O que faz:
+
+- expõe um harness manual para avaliar uma execução real controlada do provider Gemini;
+- resume `VideoNarrativeAnalysis` e `PostCreationVideoSeed` sem imprimir o texto bruto completo;
+- pode ser executado localmente com `npm run video:narrative:real-run`.
+
+Variáveis necessárias para uso manual:
+
+- `VIDEO_NARRATIVE_GEMINI_FLASH_ENABLED=true`
+- `GEMINI_API_KEY` ou `GOOGLE_GENAI_API_KEY`
+- `VIDEO_NARRATIVE_VIDEO_URI` ou `VIDEO_NARRATIVE_INLINE_BASE64` + `VIDEO_NARRATIVE_MIME_TYPE`
+- `VIDEO_NARRATIVE_CREATOR_QUESTION`
+
+Cuidados:
+
+- não commitar API key;
+- não commitar vídeo nem base64 de vídeo;
+- usar apenas em ambiente local/admin;
+- não usar ainda com usuário real.
+
+O que não faz:
+
+- não cria endpoint;
+- não cria upload real;
+- não integra o harness ao fluxo real do produto.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
