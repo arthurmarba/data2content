@@ -285,6 +285,33 @@ O que não faz:
 - não salva sessão em banco;
 - não conecta no produto real.
 
+### STOR3 — Contratos de retenção e cleanup
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoStorageRetentionContracts.ts`
+- `videoStorageRetentionContracts.test.ts`
+
+O que faz:
+
+- define política de retenção para vídeos temporários;
+- define decisão de retenção, ação de cleanup, motivo e mensagem;
+- cria contrato de job de cleanup sem executar remoção real;
+- cria helpers puros para decidir cleanup, criar job, marcar fila/execução/conclusão/falha e validar tentativas;
+- cobre objetos expirados, uploads abortados, arquivos processados e fallback de manter pela política.
+
+O que não faz:
+
+- não cria cron ou job real;
+- não deleta arquivo real;
+- não chama provider de storage;
+- não usa SDK de storage;
+- não cria endpoint;
+- não salva nada em banco;
+- não conecta no produto real.
+
 ## Arquitetura Atual
 
 ```text
@@ -297,6 +324,8 @@ VideoUploadSession futuro
 buildNarrativeSourceFromVideoUploadDraft
 ↓
 VideoTemporaryStorageObject futuro
+↓
+VideoRetentionPolicy / VideoCleanupJob futuros
 ↓
 VideoProcessingArtifacts simulados
 ↓
@@ -329,6 +358,7 @@ Na prática, existem dois níveis de prova:
 - Checklist manual do preview interno.
 - Contratos puros de storage temporário com retenção e validação.
 - Contratos puros de sessão de upload e interface conceitual de provider.
+- Contratos puros de retenção e cleanup de vídeo temporário.
 - Testes de linguagem segura e isolamento de escopo.
 
 ## O Que Ainda Não Existe
@@ -340,6 +370,9 @@ Na prática, existem dois níveis de prova:
 - URL assinada gerada por serviço real.
 - Sessão persistida de upload.
 - Provider real de URL temporária.
+- Cleanup real.
+- Cron ou job real de remoção.
+- Deleção real de arquivo.
 - Transcrição automática.
 - Extração real de frames.
 - OCR real.
@@ -368,6 +401,8 @@ Antes de qualquer upload real, ainda é preciso decidir:
 - política de retenção e exclusão do vídeo;
 - contrato de URL assinada e escopo de acesso;
 - estratégia de remoção após processamento;
+- janela de retenção por plano e por status de processamento;
+- auditoria de cleanup e tentativas de remoção;
 - limite final de tamanho e duração;
 - extração de duração no client, no server ou em ambos;
 - provedor de transcrição;
@@ -385,6 +420,7 @@ Antes de qualquer upload real, ainda é preciso decidir:
 ```bash
 npm test -- --runInBand src/app/dashboard/boards/video-upload-preview/page.test.tsx
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadPreviewFeatureFlag.test.ts
+npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoStorageRetentionContracts.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadSessionContracts.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoTemporaryStorageTypes.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoProcessingArtifacts.test.ts
@@ -399,7 +435,7 @@ git diff --check
 
 ## Próximas Fases Sugeridas
 
-- STOR3: contrato de auditoria e limpeza de objetos temporários.
+- STOR4: contrato de auditoria de cleanup e eventos de retenção.
 - VU10: contrato de providers de transcrição, frames e OCR.
 - VU11: documentação de custos, limites e retenção.
 - VU12: upload real em PR separado ou fase isolada, somente depois das decisões de produto, segurança e custo.
