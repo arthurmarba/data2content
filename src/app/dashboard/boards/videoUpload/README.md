@@ -413,6 +413,29 @@ O que não faz:
 - não usa OpenAI, Whisper, OCR real, ffmpeg ou SDK de processamento;
 - não cria endpoint, banco, UI ou integração com BoardShell.
 
+### PROVIDER2 — QA do pipeline com mock provider
+
+Status: concluído.
+
+Arquivo principal:
+
+- `videoProcessingMockProviderPipeline.test.ts`
+
+O que faz:
+
+- valida, apenas em teste, o caminho `VideoUploadSession` → `VideoProcessingTaskRequest[]` → mock provider → artifacts → `NarrativeSource` enriquecida → NSE → Adaptive V2;
+- cobre cenários de skincare, bastidor, marca com OCR, melhoria de gancho, artifacts vazios, falha total e falha parcial;
+- garante que `failTasks` preserva o pipeline quando parte das tarefas falha;
+- garante abort seguro para draft inválido;
+- verifica linguagem segura e isolamento de imports.
+
+O que não faz:
+
+- não implementa provider real;
+- não cria endpoint, fila, storage, banco ou UI;
+- não faz rede, `fetch`, upload real ou integração com BoardShell;
+- não usa OpenAI, Whisper, OCR real, ffmpeg ou SDK de processamento.
+
 ## Arquitetura Atual
 
 ```text
@@ -470,6 +493,7 @@ Na prática, existem dois níveis de prova:
 - QA de pipeline com resultados mockados de provider de processamento.
 - Documentação de rollout e matriz de decisão de providers de processamento.
 - Provider mock in-memory para simulação local sem rede.
+- QA de pipeline usando provider mock in-memory.
 - Testes de linguagem segura e isolamento de escopo.
 
 ## O Que Ainda Não Existe
@@ -537,6 +561,7 @@ Antes de qualquer upload real, ainda é preciso decidir:
 ```bash
 npm test -- --runInBand src/app/dashboard/boards/video-upload-preview/page.test.tsx
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadPreviewFeatureFlag.test.ts
+npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoProcessingMockProviderPipeline.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoProcessingMockProvider.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoProcessingProviderPipeline.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoProcessingProviderContracts.test.ts
