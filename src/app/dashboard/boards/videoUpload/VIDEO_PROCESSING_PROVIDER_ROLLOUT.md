@@ -1,5 +1,9 @@
 # Video Processing Providers — Rollout Plan
 
+## Direção De Produto
+
+Esta matriz continua útil como infraestrutura para providers e artifacts. A direção principal do produto, porém, passa a ser `VideoNarrativeAnalysis` em arquitetura `multimodal-first`: transcrição, OCR, frames e sinais técnicos funcionam como evidências auxiliares, não como centro da experiência.
+
 ## Objetivo
 
 Este documento orienta a escolha futura de providers para transformar vídeo em artifacts narrativos úteis para a D2C.
