@@ -202,6 +202,27 @@ O que não faz:
 - não integra automaticamente a factory ao fluxo real;
 - não cria endpoint nem navegação.
 
+### MM10 — Composer seguro do provider Gemini
+
+Status: concluído.
+
+Arquivos principais:
+
+- `geminiVideoNarrativeProviderComposer.ts`
+- `geminiVideoNarrativeProviderComposer.test.ts`
+
+O que faz:
+
+- resolve chave e modelo a partir de configuração server-side;
+- compõe explicitamente a factory real com o provider injetável já existente;
+- mantém a chamada isolada e sob a flag server-side existente.
+
+O que não faz:
+
+- não cria endpoint;
+- não inicia fluxo automático;
+- não conecta no board real nem em navegação.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
