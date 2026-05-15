@@ -27,6 +27,28 @@ O que não faz:
 - não cria provider real;
 - não conecta nada ao fluxo real do produto.
 
+### MM2 — Contratos de VideoNarrativeAnalysis
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoNarrativeAnalysisTypes.ts`
+- `videoNarrativeAnalysisTypes.test.ts`
+
+O que faz:
+
+- define o contrato puro de `VideoNarrativeAnalysis`;
+- modela hook, cenas, classificação D2C, diagnóstico, blueprint, brand match, evidências e sinais futuros de perfil;
+- cria helpers para reconhecer análise útil, direção principal, próximo passo sugerido e sanitização de texto.
+
+O que não faz:
+
+- não implementa provider real;
+- não usa Gemini;
+- não cria endpoint, UI ou persistência;
+- não conecta o contrato ao board real.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
