@@ -312,6 +312,33 @@ O que não faz:
 - não salva nada em banco;
 - não conecta no produto real.
 
+### PROC1 — Contratos de providers de processamento
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoProcessingProviderContracts.ts`
+- `videoProcessingProviderContracts.test.ts`
+
+O que faz:
+
+- define providers futuros de processamento sem implementar provider real;
+- define tarefas de transcrição, extração de frames, OCR, resumo visual, sinais técnicos e análise multimodal futura;
+- cria contrato de input de processamento a partir de sessão e objeto temporário;
+- cria capabilities conceituais de provider e valida request por tarefa, URL temporária, duração e tamanho;
+- cria helpers puros para resultado de tarefa, conclusão, falha e merge de resultados em `VideoProcessingArtifacts`.
+
+O que não faz:
+
+- não implementa provider real;
+- não usa OpenAI, Whisper, ffmpeg, OCR real ou SDK de processamento;
+- não cria fila ou job real;
+- não cria endpoint;
+- não cria storage real;
+- não salva nada em banco;
+- não conecta no produto real.
+
 ## Arquitetura Atual
 
 ```text
@@ -326,6 +353,8 @@ buildNarrativeSourceFromVideoUploadDraft
 VideoTemporaryStorageObject futuro
 ↓
 VideoRetentionPolicy / VideoCleanupJob futuros
+↓
+VideoProcessingProviderContracts futuros
 ↓
 VideoProcessingArtifacts simulados
 ↓
@@ -359,6 +388,7 @@ Na prática, existem dois níveis de prova:
 - Contratos puros de storage temporário com retenção e validação.
 - Contratos puros de sessão de upload e interface conceitual de provider.
 - Contratos puros de retenção e cleanup de vídeo temporário.
+- Contratos puros de providers de processamento de vídeo.
 - Testes de linguagem segura e isolamento de escopo.
 
 ## O Que Ainda Não Existe
@@ -373,9 +403,13 @@ Na prática, existem dois níveis de prova:
 - Cleanup real.
 - Cron ou job real de remoção.
 - Deleção real de arquivo.
+- Provider real de processamento.
+- Fila ou job real de processamento.
 - Transcrição automática.
 - Extração real de frames.
 - OCR real.
+- Whisper SDK.
+- OCR SDK.
 - Análise multimodal.
 - OpenAI.
 - ffmpeg.
@@ -406,6 +440,8 @@ Antes de qualquer upload real, ainda é preciso decidir:
 - limite final de tamanho e duração;
 - extração de duração no client, no server ou em ambos;
 - provedor de transcrição;
+- contrato operacional de provider de processamento;
+- estratégia de fila/job de processamento;
 - estratégia de frames-chave;
 - estratégia de OCR;
 - estratégia de análise multimodal;
@@ -420,6 +456,7 @@ Antes de qualquer upload real, ainda é preciso decidir:
 ```bash
 npm test -- --runInBand src/app/dashboard/boards/video-upload-preview/page.test.tsx
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadPreviewFeatureFlag.test.ts
+npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoProcessingProviderContracts.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoStorageRetentionContracts.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadSessionContracts.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoTemporaryStorageTypes.test.ts
@@ -435,7 +472,7 @@ git diff --check
 
 ## Próximas Fases Sugeridas
 
+- PROC2: contrato de fila/job conceitual de processamento.
 - STOR4: contrato de auditoria de cleanup e eventos de retenção.
-- VU10: contrato de providers de transcrição, frames e OCR.
 - VU11: documentação de custos, limites e retenção.
 - VU12: upload real em PR separado ou fase isolada, somente depois das decisões de produto, segurança e custo.
