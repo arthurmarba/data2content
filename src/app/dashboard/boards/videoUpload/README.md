@@ -135,6 +135,29 @@ O que não faz:
 - não usa provider real;
 - não conecta no board real nem em navegação.
 
+### MM7 — Prompt e schema para análise narrativa multimodal
+
+Status: concluído.
+
+Arquivos principais:
+
+- `geminiVideoNarrativePrompt.ts`
+- `geminiVideoNarrativePrompt.test.ts`
+- `geminiVideoNarrativeSchema.ts`
+- `geminiVideoNarrativeSchema.test.ts`
+
+O que faz:
+
+- define o prompt textual base da futura análise narrativa multimodal;
+- normaliza a resposta estruturada esperada para `VideoNarrativeAnalysis`;
+- aplica sanitização e fallback seguro antes de qualquer integração real.
+
+O que não faz:
+
+- não chama provider externo;
+- não usa SDK;
+- não conecta no board real nem em navegação.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
