@@ -259,6 +259,27 @@ O que não faz:
 - não cria upload real;
 - não integra o harness ao fluxo real do produto.
 
+### MM12 — Auditoria de prontidão sem chamada real
+
+Status: concluído.
+
+Arquivos principais:
+
+- `GEMINI_VIDEO_NARRATIVE_READINESS_AUDIT.md`
+- `geminiVideoNarrativeReadinessAudit.test.ts`
+
+O que faz:
+
+- consolida a prontidão técnica da linha Gemini sem chamar a API real;
+- verifica guardas, isolamento e pendências antes de qualquer teste externo;
+- registra que a API real só deve ser testada depois de billing/quota disponível.
+
+O que não faz:
+
+- não substitui teste real com vídeo curto;
+- não cria endpoint, upload real ou UI;
+- não integra nada ao fluxo real do produto.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
