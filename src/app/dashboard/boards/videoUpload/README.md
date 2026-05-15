@@ -49,6 +49,27 @@ O que não faz:
 - não cria endpoint, UI ou persistência;
 - não conecta o contrato ao board real.
 
+### MM3 — Adapter para PostCreationVideoSeed
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoNarrativePostCreationSeed.ts`
+- `videoNarrativePostCreationSeed.test.ts`
+
+O que faz:
+
+- define `PostCreationVideoSeed` como ponte intermediária entre análise multimodal e board futuro;
+- converte `VideoNarrativeAnalysis` em ideia inicial, narrativa detectada, diagnóstico, blueprint draft, direção de roteiro, hints de marca e perguntas de refinamento;
+- mantém sanitização dos textos oriundos da análise.
+
+O que não faz:
+
+- não altera `PostCreationFunnelState`;
+- não conecta no `BoardShell`;
+- não cria provider, endpoint ou UI real.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
