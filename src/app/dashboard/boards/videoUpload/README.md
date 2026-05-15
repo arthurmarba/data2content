@@ -258,12 +258,41 @@ O que não faz:
 - não salva nada em banco;
 - não conecta no produto real.
 
+### STOR2 — Contratos de sessão de upload e provider
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoUploadSessionContracts.ts`
+- `videoUploadSessionContracts.test.ts`
+
+O que faz:
+
+- define `VideoUploadSession` como contrato futuro entre draft validado, objeto temporário e URL temporária recebida;
+- define status de sessão, issues de validação e capacidades conceituais de provider;
+- cria helpers puros para criar sessão, marcar URL temporária pronta, marcar envio em andamento, marcar enviado e abortar;
+- valida sessão, draft snapshot, vínculo com usuário quando exigido, URL temporária e expiração;
+- cria mocks explícitos de capabilities e prepared upload result para testes/harness futuros.
+
+O que não faz:
+
+- não implementa provider real;
+- não gera URL assinada;
+- não usa S3, Vercel Blob, R2, GCS ou SDK de provider;
+- não cria upload real;
+- não cria endpoint;
+- não salva sessão em banco;
+- não conecta no produto real.
+
 ## Arquitetura Atual
 
 ```text
 VideoUploadDraft
 ↓
 validateVideoUploadDraft
+↓
+VideoUploadSession futuro
 ↓
 buildNarrativeSourceFromVideoUploadDraft
 ↓
@@ -299,6 +328,7 @@ Na prática, existem dois níveis de prova:
 - Proteção admin/dev compartilhada para previews internos.
 - Checklist manual do preview interno.
 - Contratos puros de storage temporário com retenção e validação.
+- Contratos puros de sessão de upload e interface conceitual de provider.
 - Testes de linguagem segura e isolamento de escopo.
 
 ## O Que Ainda Não Existe
@@ -308,6 +338,8 @@ Na prática, existem dois níveis de prova:
 - Storage.
 - Provider real de storage temporário.
 - URL assinada gerada por serviço real.
+- Sessão persistida de upload.
+- Provider real de URL temporária.
 - Transcrição automática.
 - Extração real de frames.
 - OCR real.
@@ -353,6 +385,7 @@ Antes de qualquer upload real, ainda é preciso decidir:
 ```bash
 npm test -- --runInBand src/app/dashboard/boards/video-upload-preview/page.test.tsx
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadPreviewFeatureFlag.test.ts
+npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadSessionContracts.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoTemporaryStorageTypes.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoProcessingArtifacts.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadProcessedPipeline.test.ts
@@ -366,7 +399,7 @@ git diff --check
 
 ## Próximas Fases Sugeridas
 
-- STOR2: contrato de URL assinada, ainda sem provider real.
+- STOR3: contrato de auditoria e limpeza de objetos temporários.
 - VU10: contrato de providers de transcrição, frames e OCR.
 - VU11: documentação de custos, limites e retenção.
 - VU12: upload real em PR separado ou fase isolada, somente depois das decisões de produto, segurança e custo.
