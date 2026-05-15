@@ -48,6 +48,8 @@ O vídeo deve ser interpretado como peça de conteúdo em construção. A análi
 
 `VideoNarrativeAnalysis` será o principal objeto de saída da análise.
 
+MM2 formaliza esse conceito em contratos puros no arquivo `videoNarrativeAnalysisTypes.ts`, ainda sem provider real e sem integração com o board.
+
 Campos conceituais esperados:
 
 - `hook`;
