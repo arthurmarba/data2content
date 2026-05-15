@@ -181,6 +181,27 @@ O que não faz:
 - não adiciona cliente real;
 - não conecta no board real nem em navegação.
 
+### MM9 — Factory isolada do cliente Gemini
+
+Status: concluído.
+
+Arquivos principais:
+
+- `geminiVideoNarrativeClientFactory.ts`
+- `geminiVideoNarrativeClientFactory.test.ts`
+
+O que faz:
+
+- adiciona o SDK oficial `@google/genai`;
+- cria uma factory server-side isolada que adapta URI existente ou vídeo inline à interface local do provider;
+- centraliza o modelo inicial em `DEFAULT_GEMINI_VIDEO_NARRATIVE_MODEL`.
+
+O que não faz:
+
+- não cria upload via File API;
+- não integra automaticamente a factory ao fluxo real;
+- não cria endpoint nem navegação.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
