@@ -217,7 +217,8 @@ Exemplos:
 7. MM8 — Gemini Flash real atrás de server flag. Concluído como provider injetável protegido por flag server-side, sem cliente real nesta fase.
 8. MM9 — Factory isolada do cliente Gemini. Concluída como adapter server-side para cliente real, sem integração automática ao fluxo.
 9. MM10 — Composer seguro do provider Gemini. Concluído como composição explícita de config, factory e provider, sem integração automática ao fluxo.
-10. Integração experimental futura no Board de Criação.
+10. MM11 — Harness interno para execução real controlada. Concluído como teste manual explícito, sem endpoint, UI ou upload real.
+11. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -234,3 +235,7 @@ Exemplos:
 ## Frase Norte
 
 > O vídeo não entra na D2C para ser extraído. Ele entra para ser interpretado como narrativa em construção.
+
+## Harness Real Controlado
+
+MM11 adiciona apenas um caminho manual de avaliação para o provider real já composto. Ele continua sem endpoint, sem UI e sem upload real. O objetivo é observar output, latência e issues do parser em ambiente interno antes de qualquer exposição ao fluxo do produto.
