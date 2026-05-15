@@ -339,6 +339,33 @@ O que não faz:
 - não salva nada em banco;
 - não conecta no produto real.
 
+### PROC2 — QA do pipeline com resultados mockados de provider
+
+Status: concluído.
+
+Arquivo principal:
+
+- `videoProcessingProviderPipeline.test.ts`
+
+O que faz:
+
+- valida, apenas em teste, o caminho `VideoUploadSession` → `VideoProcessingTaskResult` mockado → `VideoProcessingArtifacts` → `NarrativeSource` enriquecida → NSE → Adaptive V2;
+- cobre resultado de transcrição para rotina/skincare, visual summary para descoberta de narrativa, frames + OCR para potencial de marca e falhas parciais de provider;
+- garante que resultados de provider com falha não quebram o merge de artefatos;
+- garante que, quando todos os resultados falham, o pipeline ainda pode usar a pergunta do criador se o draft for válido;
+- garante abort seguro para draft inválido;
+- verifica linguagem segura e isolamento de imports.
+
+O que não faz:
+
+- não implementa provider real;
+- não cria fila ou job real;
+- não usa OpenAI, Whisper, OCR real, ffmpeg ou SDK de processamento;
+- não cria endpoint;
+- não cria storage real;
+- não salva nada em banco;
+- não conecta no produto real.
+
 ## Arquitetura Atual
 
 ```text
@@ -355,6 +382,8 @@ VideoTemporaryStorageObject futuro
 VideoRetentionPolicy / VideoCleanupJob futuros
 ↓
 VideoProcessingProviderContracts futuros
+↓
+VideoProcessingTaskResult mockado
 ↓
 VideoProcessingArtifacts simulados
 ↓
@@ -389,6 +418,7 @@ Na prática, existem dois níveis de prova:
 - Contratos puros de sessão de upload e interface conceitual de provider.
 - Contratos puros de retenção e cleanup de vídeo temporário.
 - Contratos puros de providers de processamento de vídeo.
+- QA de pipeline com resultados mockados de provider de processamento.
 - Testes de linguagem segura e isolamento de escopo.
 
 ## O Que Ainda Não Existe
@@ -456,6 +486,7 @@ Antes de qualquer upload real, ainda é preciso decidir:
 ```bash
 npm test -- --runInBand src/app/dashboard/boards/video-upload-preview/page.test.tsx
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadPreviewFeatureFlag.test.ts
+npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoProcessingProviderPipeline.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoProcessingProviderContracts.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoStorageRetentionContracts.test.ts
 npm test -- --runInBand src/app/dashboard/boards/videoUpload/videoUploadSessionContracts.test.ts
@@ -472,7 +503,7 @@ git diff --check
 
 ## Próximas Fases Sugeridas
 
-- PROC2: contrato de fila/job conceitual de processamento.
+- PROC3: contrato de fila/job conceitual de processamento.
 - STOR4: contrato de auditoria de cleanup e eventos de retenção.
 - VU11: documentação de custos, limites e retenção.
 - VU12: upload real em PR separado ou fase isolada, somente depois das decisões de produto, segurança e custo.
