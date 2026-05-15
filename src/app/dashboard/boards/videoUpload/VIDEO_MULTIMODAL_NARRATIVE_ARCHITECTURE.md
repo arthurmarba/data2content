@@ -150,6 +150,8 @@ A abstração de produto deve ser `Multimodal Narrative Provider`.
 
 `PostCreationVideoSeed`
 
+MM3 formaliza esse intermediário no adapter puro `videoNarrativePostCreationSeed.ts`, sem alterar o `PostCreationFunnelState` real.
+
 Esse seed deve carregar:
 
 - `initialIdea`;
