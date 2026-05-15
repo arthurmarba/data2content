@@ -70,6 +70,27 @@ O que não faz:
 - não conecta no `BoardShell`;
 - não cria provider, endpoint ou UI real.
 
+### MM4 — Mock provider narrativo multimodal
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoNarrativeMockProvider.ts`
+- `videoNarrativeMockProvider.test.ts`
+
+O que faz:
+
+- simula leituras narrativas multimodais determinísticas;
+- retorna `VideoNarrativeAnalysis` diretamente, sem usar artifacts técnicos como saída principal;
+- cobre rotina de skincare, bastidor, potencial de marca, gancho fraco, collab, conteúdo pouco claro e adaptação para publi.
+
+O que não faz:
+
+- não usa provider real;
+- não usa Gemini;
+- não cria endpoint, UI ou integração com o board real.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
