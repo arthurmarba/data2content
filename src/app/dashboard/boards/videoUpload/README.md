@@ -364,6 +364,28 @@ O que não faz:
 - não cria endpoint, upload real, storage real, UI ou rota;
 - não conecta nada ao fluxo real do produto.
 
+### MM17 — Contrato de métricas e observabilidade
+
+Status: concluído.
+
+Arquivos principais:
+
+- `VIDEO_NARRATIVE_OBSERVABILITY_CONTRACT.md`
+- `videoNarrativeObservabilityContract.test.ts`
+
+O que faz:
+
+- define métricas, eventos conceituais, logs seguros, dashboards e alertas futuros;
+- exige visibilidade de custo, latência, falha, fallback e utilidade antes de endpoint real;
+- formaliza que `rawText` completo, base64, vídeo bruto, API key e URL assinada com token não devem ir para logs.
+
+O que não faz:
+
+- não cria analytics real;
+- não cria banco/tabela;
+- não cria endpoint, upload real, storage real, UI ou rota;
+- não conecta provider externo nem fluxo real do produto.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
