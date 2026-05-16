@@ -112,6 +112,8 @@ Requisitos futuros:
 - usuário/admin deve poder ver status de expiração em beta/produto;
 - arquivos expirados não devem ser usados para nova análise.
 
+O futuro endpoint deve aplicar consent guard e retention guard conforme `VIDEO_NARRATIVE_REAL_ENDPOINT_GUARDS_CONTRACT.md` antes de qualquer chamada ao provider.
+
 ## Logs
 
 Regras para logs:

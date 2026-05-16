@@ -31,6 +31,8 @@ Regra conceitual para consumo de quota:
 - resposta parcial com análise útil pode consumir quota;
 - reprocessamento manual deve consumir nova análise, salvo exceção admin/dev.
 
+O usage guard do futuro endpoint deve seguir `VIDEO_NARRATIVE_REAL_ENDPOINT_GUARDS_CONTRACT.md`: falhas antes do provider não consomem quota, e consumo só acontece depois da regra de usage consumption.
+
 ## Limites Recomendados Por Fase
 
 ### Fase Admin/Manual
@@ -176,6 +178,7 @@ Só implementar limite real depois que houver:
 - endpoint interno implementado;
 - logs seguros definidos;
 - observabilidade mínima definida;
+- usage guard definido;
 - decisão sobre plano atual e pacotes extras.
 
 ## Decisão Recomendada Agora

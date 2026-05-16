@@ -386,6 +386,28 @@ O que não faz:
 - não cria endpoint, upload real, storage real, UI ou rota;
 - não conecta provider externo nem fluxo real do produto.
 
+### MM18 — Contrato dos guards do endpoint real
+
+Status: concluído.
+
+Arquivos principais:
+
+- `VIDEO_NARRATIVE_REAL_ENDPOINT_GUARDS_CONTRACT.md`
+- `videoNarrativeRealEndpointGuardsContract.test.ts`
+
+O que faz:
+
+- define a ordem obrigatória dos guards do futuro endpoint real/admin;
+- bloqueia chamada ao provider antes de acesso, flag, payload, origem, consentimento, retenção, usage/quota e observabilidade;
+- documenta o contrato de resposta segura e a regra de consumo de quota.
+
+O que não faz:
+
+- não cria endpoint real;
+- não cria `route.ts`;
+- não cria upload real, storage real, UI, banco/tabela ou analytics real;
+- não conecta nada ao fluxo real do produto.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

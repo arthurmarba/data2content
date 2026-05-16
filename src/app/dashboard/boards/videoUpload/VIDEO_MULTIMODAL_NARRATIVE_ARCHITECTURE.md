@@ -224,8 +224,9 @@ Exemplos:
 14. MM15 — Consent and retention contract. Define consentimento, retenção, expiração e uso de sinais antes de upload real ou beta.
 15. MM16 — Usage limits and cost contract. Define limite, quota, custo, retry, cooldown e regras comerciais futuras.
 16. MM17 — Observability contract. Define métricas, eventos, logs seguros, dashboards e alertas futuros.
-17. Teste real manual quando houver quota/billing disponível.
-18. Integração experimental futura no Board de Criação.
+17. MM18 — Real endpoint guards contract. Define a ordem dos guards obrigatórios antes de route.ts ou provider real.
+18. Teste real manual quando houver quota/billing disponível.
+19. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -262,3 +263,5 @@ MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou
 MM16 formaliza limites e custo antes de billing real, endpoint real ou beta. Ele usa 5 análises/mês como hipótese inicial de beta e só considera 10 análises/mês depois de medir custo real.
 
 MM17 formaliza observabilidade antes de analytics real, endpoint real ou beta. Ele exige medir custo, latência, falha, fallback e utilidade sem logar vídeo, base64, API key, rawText completo ou URL assinada com token.
+
+MM18 formaliza a ordem de guards do futuro endpoint real/admin. Ele bloqueia `route.ts` e provider real até que método, sessão, admin/dev, flag, payload, origem, consentimento, retenção, usage/quota e observabilidade estejam resolvidos.

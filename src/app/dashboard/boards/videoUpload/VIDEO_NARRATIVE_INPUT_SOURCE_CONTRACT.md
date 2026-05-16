@@ -139,6 +139,8 @@ Pode servir apenas para testes muito controlados. Não é recomendada para produ
 - nunca logar base64;
 - nunca retornar raw video data.
 
+O futuro endpoint deve aplicar input source guard conforme `VIDEO_NARRATIVE_REAL_ENDPOINT_GUARDS_CONTRACT.md` antes de chamar o provider.
+
 ## Limites Iniciais
 
 - vídeo até 60s;
