@@ -221,8 +221,9 @@ Exemplos:
 11. MM12 — Readiness audit sem chamada real. Concluído como auditoria documental e estática antes de qualquer teste externo.
 12. MM13 — Internal endpoint contract. Concluído como contrato interno/admin, ainda sem endpoint real.
 13. MM14 — Input source contract. Define a origem futura do vídeo por fase, ainda sem upload ou storage real.
-13. Teste real manual quando houver quota/billing disponível.
-14. Integração experimental futura no Board de Criação.
+14. MM15 — Consent and retention contract. Define consentimento, retenção, expiração e uso de sinais antes de upload real ou beta.
+15. Teste real manual quando houver quota/billing disponível.
+16. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -253,3 +254,5 @@ MM12 confirma que a linha está preparada para um teste real futuro sem executar
 MM13 define o formato futuro de acesso interno/admin, payload, resposta e limites antes de existir qualquer rota real. O contrato preserva a separação entre prontidão técnica e exposição de produto.
 
 MM14 separa a decisão de origem do vídeo da implementação de upload. Ele recomenda File API ou inline pequeno para teste manual, `videoUri` primeiro no endpoint interno e storage temporário próprio para beta/produto.
+
+MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.

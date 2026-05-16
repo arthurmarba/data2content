@@ -66,7 +66,7 @@ Já existe:
 - schema pode precisar tolerar variações;
 - File API/upload ainda não existe;
 - origem real do `videoUri` ainda precisa ser definida;
-- consentimento/retenção ainda não foram implementados;
+- consentimento/retenção foram formalizados em MM15, mas ainda não foram implementados;
 - limite por plano ainda não existe;
 - custo real ainda desconhecido.
 
@@ -108,6 +108,7 @@ Como não há billing agora, seguir sem teste real e avançar apenas em:
 - preview/fallback;
 - planejamento de endpoint/storage;
 - contrato formal de origem do vídeo;
+- contrato formal de consentimento/retenção;
 - sem expor para usuário.
 
 ## Frase Norte
