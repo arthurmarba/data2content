@@ -123,6 +123,8 @@ Regras para logs:
 - logs podem conter ids, status, duração, tamanho, provider status, timestamps e issues seguras;
 - logs de custo/latência devem ser agregados quando possível.
 
+Logs seguros e observabilidade futura devem seguir `VIDEO_NARRATIVE_OBSERVABILITY_CONTRACT.md` antes de endpoint real ou beta.
+
 ## Relação Com Contratos Existentes
 
 Este contrato depende e complementa:
@@ -142,6 +144,7 @@ Antes de qualquer beta com usuário real:
 - consentimento aprovado;
 - retenção definida;
 - limites/custo definidos;
+- logs seguros e observabilidade definidos;
 - cleanup implementado;
 - limite por plano definido;
 - storage definido;

@@ -68,6 +68,7 @@ Já existe:
 - origem real do `videoUri` ainda precisa ser definida;
 - consentimento/retenção foram formalizados em MM15, mas ainda não foram implementados;
 - limites/custo foram formalizados em MM16, mas ainda não foram implementados;
+- observabilidade foi formalizada em MM17, mas ainda não foi implementada;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
@@ -111,6 +112,7 @@ Como não há billing agora, seguir sem teste real e avançar apenas em:
 - contrato formal de origem do vídeo;
 - contrato formal de consentimento/retenção;
 - contrato formal de limites/custo;
+- contrato formal de observabilidade;
 - sem expor para usuário.
 
 ## Frase Norte

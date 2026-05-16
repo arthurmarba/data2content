@@ -58,6 +58,7 @@ Regras:
 - a decisão detalhada de origem do vídeo fica no contrato `VIDEO_NARRATIVE_INPUT_SOURCE_CONTRACT.md`;
 - consentimento e retenção ficam no contrato `VIDEO_NARRATIVE_CONSENT_RETENTION_CONTRACT.md`;
 - limites, quota e cooldown ficam no contrato `VIDEO_NARRATIVE_USAGE_LIMITS_COST_CONTRACT.md`;
+- métricas, eventos e logs seguros ficam no contrato `VIDEO_NARRATIVE_OBSERVABILITY_CONTRACT.md`;
 - não aceitar arquivo multipart neste contrato inicial;
 - não aceitar input livre sem limites;
 - não aceitar usuário comum.
@@ -146,6 +147,7 @@ Regras:
 - não liberar sem quota/billing conhecido;
 - registrar latência/custo futuramente;
 - aplicar usage guard, quota e cooldown antes de endpoint real ou beta;
+- planejar observability hooks antes de endpoint real;
 - feature flag deve permitir desligamento rápido.
 
 ## Relação Com Código Atual
@@ -169,6 +171,7 @@ Só implementar depois que:
 - decisão de input de vídeo for tomada;
 - contrato de consentimento/retenção estiver aprovado como bloqueio antes de endpoint real ou beta;
 - contrato de limites/custo estiver aprovado como bloqueio antes de endpoint real ou beta;
+- contrato de observabilidade estiver aprovado como bloqueio antes de endpoint real;
 - admin guard server-side estiver definido;
 - rate limit/usage limit tiver contrato;
 - consentimento/retenção estiverem planejados.
@@ -178,6 +181,7 @@ Só implementar depois que:
 - MM14: contrato de origem do vídeo;
 - MM15: contrato de consentimento/retenção;
 - MM16: contrato de limites/custos;
-- MM17: endpoint interno real, se billing existir;
-- MM18: preview interno com chamada real;
-- MM19: integração experimental no board.
+- MM17: contrato de métricas/observabilidade;
+- MM18: endpoint interno real, se billing existir;
+- MM19: preview interno com chamada real;
+- MM20: integração experimental no board.

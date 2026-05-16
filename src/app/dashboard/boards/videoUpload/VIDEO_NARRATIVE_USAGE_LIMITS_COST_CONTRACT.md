@@ -92,6 +92,8 @@ Antes de lançar análise de vídeo para usuários, devemos medir:
 - seed útil gerado ou não;
 - conversão para blueprint/roteiro.
 
+As métricas obrigatórias e logs seguros devem seguir `VIDEO_NARRATIVE_OBSERVABILITY_CONTRACT.md` antes de qualquer uso real.
+
 ## Retry E Cooldown
 
 - retry automático deve ser limitado;
@@ -173,6 +175,7 @@ Só implementar limite real depois que houver:
 - storage/input definido;
 - endpoint interno implementado;
 - logs seguros definidos;
+- observabilidade mínima definida;
 - decisão sobre plano atual e pacotes extras.
 
 ## Decisão Recomendada Agora
@@ -188,6 +191,6 @@ Como não há billing/quota:
 ## Próximas Fases Possíveis
 
 - MM17: contrato de métricas/observabilidade;
-- MM18: contrato de endpoint real com usage guard;
+- MM18: contrato de endpoint real com usage guard e observability hooks;
 - MM19: contrato de UI copy para limites;
 - MM20: implementação de limite real depois de billing e endpoint interno.
