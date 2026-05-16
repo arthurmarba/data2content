@@ -342,6 +342,28 @@ O que não faz:
 - não cria endpoint, upload real, storage real, UI ou rota;
 - não conecta nada ao fluxo real do produto.
 
+### MM16 — Contrato de limites e custo
+
+Status: concluído.
+
+Arquivos principais:
+
+- `VIDEO_NARRATIVE_USAGE_LIMITS_COST_CONTRACT.md`
+- `videoNarrativeUsageLimitsCostContract.test.ts`
+
+O que faz:
+
+- define limites, custo, quota, retry, cooldown, rate limit e regras comerciais futuras;
+- registra 5 análises/mês como hipótese de beta, não promessa pública;
+- condiciona 10 análises/mês à medição de custo real.
+
+O que não faz:
+
+- não cria billing real;
+- não cria cobrança;
+- não cria endpoint, upload real, storage real, UI ou rota;
+- não conecta nada ao fluxo real do produto.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

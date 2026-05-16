@@ -147,6 +147,7 @@ Pode servir apenas para testes muito controlados. Não é recomendada para produ
 - 1 vídeo por análise;
 - 1 análise por execução interna;
 - beta futuro com 5 análises/mês;
+- limites de tamanho/duração devem considerar custo real por análise;
 - timeout server-side;
 - expiração obrigatória para storage temporário.
 
@@ -169,6 +170,7 @@ Pode servir apenas para testes muito controlados. Não é recomendada para produ
 - `VideoTemporaryStorageObject`;
 - `VideoStorageRetention`;
 - contrato de consentimento/retenção;
+- contrato de limites/custo;
 - real run harness Gemini;
 - contrato de endpoint interno/admin;
 - `VideoNarrativeAnalysis`.
@@ -180,6 +182,7 @@ Pode servir apenas para testes muito controlados. Não é recomendada para produ
 - definir consentimento;
 - aprovar o contrato de consentimento/retenção;
 - definir limites por plano;
+- definir regra de custo/usage limit por tamanho/duração;
 - definir cleanup;
 - definir quem pode acessar;
 - validar Gemini real com 3 vídeos curtos;

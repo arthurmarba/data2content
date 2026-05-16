@@ -67,7 +67,8 @@ Já existe:
 - File API/upload ainda não existe;
 - origem real do `videoUri` ainda precisa ser definida;
 - consentimento/retenção foram formalizados em MM15, mas ainda não foram implementados;
-- limite por plano ainda não existe;
+- limites/custo foram formalizados em MM16, mas ainda não foram implementados;
+- limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
 ## Critérios Para Liberar Teste Real Manual
@@ -109,6 +110,7 @@ Como não há billing agora, seguir sem teste real e avançar apenas em:
 - planejamento de endpoint/storage;
 - contrato formal de origem do vídeo;
 - contrato formal de consentimento/retenção;
+- contrato formal de limites/custo;
 - sem expor para usuário.
 
 ## Frase Norte
