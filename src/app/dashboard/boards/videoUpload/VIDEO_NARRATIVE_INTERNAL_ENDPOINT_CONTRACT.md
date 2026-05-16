@@ -57,6 +57,7 @@ Regras:
 - `videoUri`/File API/storage é preferível para fluxo futuro;
 - a decisão detalhada de origem do vídeo fica no contrato `VIDEO_NARRATIVE_INPUT_SOURCE_CONTRACT.md`;
 - consentimento e retenção ficam no contrato `VIDEO_NARRATIVE_CONSENT_RETENTION_CONTRACT.md`;
+- limites, quota e cooldown ficam no contrato `VIDEO_NARRATIVE_USAGE_LIMITS_COST_CONTRACT.md`;
 - não aceitar arquivo multipart neste contrato inicial;
 - não aceitar input livre sem limites;
 - não aceitar usuário comum.
@@ -97,7 +98,10 @@ Regras:
 - `insufficient_context`;
 - `blocked_unauthorized`;
 - `blocked_forbidden`;
-- `usage_limited`.
+- `usage_limited`;
+- `quota_exceeded`;
+- `cooldown_active`;
+- `provider_unavailable`.
 
 ## Validações Futuras
 
@@ -141,6 +145,7 @@ Regras:
 - custo real ainda não medido;
 - não liberar sem quota/billing conhecido;
 - registrar latência/custo futuramente;
+- aplicar usage guard, quota e cooldown antes de endpoint real ou beta;
 - feature flag deve permitir desligamento rápido.
 
 ## Relação Com Código Atual
@@ -163,6 +168,7 @@ Só implementar depois que:
 - prompt/schema forem ajustados se necessário;
 - decisão de input de vídeo for tomada;
 - contrato de consentimento/retenção estiver aprovado como bloqueio antes de endpoint real ou beta;
+- contrato de limites/custo estiver aprovado como bloqueio antes de endpoint real ou beta;
 - admin guard server-side estiver definido;
 - rate limit/usage limit tiver contrato;
 - consentimento/retenção estiverem planejados.

@@ -141,6 +141,7 @@ Antes de qualquer beta com usuário real:
 
 - consentimento aprovado;
 - retenção definida;
+- limites/custo definidos;
 - cleanup implementado;
 - limite por plano definido;
 - storage definido;
@@ -156,11 +157,12 @@ Como não há billing/quota e ainda não há upload real:
 - não implementar consentimento em UI ainda;
 - não implementar retenção real ainda;
 - documentar contrato;
+- tratar o contrato de limites/custo como dependência antes de beta;
 - usar o contrato como bloqueio antes de qualquer beta.
 
 ## Próximas Fases Possíveis
 
 - MM16: contrato de custo/limites de uso;
 - MM17: contrato de cleanup/storage retention real;
-- MM18: endpoint interno real, somente depois de billing;
-- MM19: UI copy de consentimento, antes de beta.
+- MM18: endpoint interno real com usage guard, somente depois de billing;
+- MM19: UI copy de consentimento e limites, antes de beta.
