@@ -321,6 +321,27 @@ O que não faz:
 - não cria endpoint, upload real, storage real ou UI;
 - não conecta nada ao fluxo real do produto.
 
+### MM15 — Contrato de consentimento e retenção
+
+Status: concluído.
+
+Arquivos principais:
+
+- `VIDEO_NARRATIVE_CONSENT_RETENTION_CONTRACT.md`
+- `videoNarrativeConsentRetentionContract.test.ts`
+
+O que faz:
+
+- define consentimento, retenção, privacidade, logs, expiração e uso de sinais narrativos antes de qualquer beta;
+- trata vídeo como dado temporário de análise, não como ativo permanente da conta;
+- formaliza que `profileSignals` não devem ser persistidos automaticamente no perfil.
+
+O que não faz:
+
+- não cria implementação real;
+- não cria endpoint, upload real, storage real, UI ou rota;
+- não conecta nada ao fluxo real do produto.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

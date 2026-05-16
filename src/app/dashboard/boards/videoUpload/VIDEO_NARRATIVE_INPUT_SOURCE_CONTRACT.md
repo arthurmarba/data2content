@@ -156,6 +156,7 @@ Pode servir apenas para testes muito controlados. Não é recomendada para produ
 - não persistir sinais no perfil sem decisão posterior;
 - consentimento antes de beta;
 - retenção documentada;
+- seguir `VIDEO_NARRATIVE_CONSENT_RETENTION_CONTRACT.md` antes de qualquer upload real;
 - cleanup obrigatório;
 - logs sem vídeo/base64/API key;
 - resposta sem `rawText` completo;
@@ -167,6 +168,7 @@ Pode servir apenas para testes muito controlados. Não é recomendada para produ
 - `VideoUploadSession`;
 - `VideoTemporaryStorageObject`;
 - `VideoStorageRetention`;
+- contrato de consentimento/retenção;
 - real run harness Gemini;
 - contrato de endpoint interno/admin;
 - `VideoNarrativeAnalysis`.
@@ -176,6 +178,7 @@ Pode servir apenas para testes muito controlados. Não é recomendada para produ
 - escolher provider de storage;
 - definir política de retenção;
 - definir consentimento;
+- aprovar o contrato de consentimento/retenção;
 - definir limites por plano;
 - definir cleanup;
 - definir quem pode acessar;

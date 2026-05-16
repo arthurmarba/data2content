@@ -56,6 +56,7 @@ Regras:
 - inline base64 só para testes pequenos/controlados;
 - `videoUri`/File API/storage é preferível para fluxo futuro;
 - a decisão detalhada de origem do vídeo fica no contrato `VIDEO_NARRATIVE_INPUT_SOURCE_CONTRACT.md`;
+- consentimento e retenção ficam no contrato `VIDEO_NARRATIVE_CONSENT_RETENTION_CONTRACT.md`;
 - não aceitar arquivo multipart neste contrato inicial;
 - não aceitar input livre sem limites;
 - não aceitar usuário comum.
@@ -131,6 +132,7 @@ Regras:
 - não logar vídeo;
 - redigir issues;
 - expiração futura do arquivo;
+- seguir o contrato de consentimento/retenção antes de endpoint real ou beta;
 - consentimento obrigatório antes de beta.
 
 ## Custo
@@ -160,6 +162,7 @@ Só implementar depois que:
 - harness manual rodar pelo menos 3 vídeos curtos;
 - prompt/schema forem ajustados se necessário;
 - decisão de input de vídeo for tomada;
+- contrato de consentimento/retenção estiver aprovado como bloqueio antes de endpoint real ou beta;
 - admin guard server-side estiver definido;
 - rate limit/usage limit tiver contrato;
 - consentimento/retenção estiverem planejados.
@@ -167,6 +170,8 @@ Só implementar depois que:
 ## Próximas Fases Possíveis
 
 - MM14: contrato de origem do vídeo;
-- MM15: endpoint interno real, se billing existir;
-- MM16: preview interno com chamada real;
-- MM17: integração experimental no board.
+- MM15: contrato de consentimento/retenção;
+- MM16: contrato de limites/custos;
+- MM17: endpoint interno real, se billing existir;
+- MM18: preview interno com chamada real;
+- MM19: integração experimental no board.
