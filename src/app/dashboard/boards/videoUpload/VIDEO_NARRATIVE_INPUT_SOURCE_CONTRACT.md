@@ -141,6 +141,8 @@ Pode servir apenas para testes muito controlados. Não é recomendada para produ
 
 O futuro endpoint deve aplicar input source guard conforme `VIDEO_NARRATIVE_REAL_ENDPOINT_GUARDS_CONTRACT.md` antes de chamar o provider.
 
+MM20 formaliza `VIDEO_NARRATIVE_ALLOWED_SOURCES` e `VIDEO_NARRATIVE_ALLOWED_MIME_TYPES` em código puro para preparar o futuro `payload_schema` guard e parte do `input_source` guard. `public_url_restricted` permanece documentado como source possível, mas bloqueado por padrão nesta fase.
+
 ## Limites Iniciais
 
 - vídeo até 60s;
@@ -175,6 +177,7 @@ O futuro endpoint deve aplicar input source guard conforme `VIDEO_NARRATIVE_REAL
 - contrato de limites/custo;
 - real run harness Gemini;
 - contrato de endpoint interno/admin;
+- payload validation contracts;
 - `VideoNarrativeAnalysis`.
 
 ## Critérios Antes De Implementar Upload Real

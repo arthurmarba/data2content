@@ -53,6 +53,8 @@ Regras:
 
 - precisa ter `videoUri` ou `inlineVideoBase64` + `mimeType`;
 - `creatorQuestion` é recomendado;
+- `VideoNarrativeAnalyzePayload` representa o payload bruto futuro;
+- `VideoNarrativeNormalizedAnalyzePayload` representa o payload normalizado após validação pura;
 - inline base64 só para testes pequenos/controlados;
 - `videoUri`/File API/storage é preferível para fluxo futuro;
 - a decisão detalhada de origem do vídeo fica no contrato `VIDEO_NARRATIVE_INPUT_SOURCE_CONTRACT.md`;
@@ -158,6 +160,8 @@ Regras:
 - `parseGeminiVideoNarrativeJson`;
 - `VideoNarrativeGuardResult`;
 - `VideoNarrativeGuardPipelineSummary`;
+- `VideoNarrativeAnalyzePayload`;
+- `VideoNarrativeNormalizedAnalyzePayload`;
 - `VideoNarrativeAnalysis`;
 - `buildPostCreationVideoSeedFromAnalysis`;
 - `getPostCreationVideoSeedPrimaryAction`;
@@ -177,6 +181,7 @@ Só implementar depois que:
 - contrato de observabilidade estiver aprovado como bloqueio antes de endpoint real;
 - contrato de guards do endpoint real estiver aprovado antes de criar a rota real;
 - contratos puros de guard result/status estiverem disponíveis;
+- payload validation contracts estiverem disponíveis para `payload_schema` e `input_source`;
 - admin guard server-side estiver definido;
 - rate limit/usage limit tiver contrato;
 - consentimento/retenção estiverem planejados.
@@ -188,6 +193,8 @@ Só implementar depois que:
 - MM16: contrato de limites/custos;
 - MM17: contrato de métricas/observabilidade;
 - MM18: contrato dos guards do endpoint real;
-- MM19: endpoint interno real, se billing existir;
-- MM20: preview interno com chamada real;
-- MM21: integração experimental no board.
+- MM19: contratos puros de guard result/status;
+- MM20: payload validation contracts;
+- MM21: endpoint interno real, se billing existir;
+- MM22: preview interno com chamada real;
+- MM23: integração experimental no board.
