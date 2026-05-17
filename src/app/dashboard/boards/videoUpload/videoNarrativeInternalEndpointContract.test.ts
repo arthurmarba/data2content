@@ -41,6 +41,7 @@ describe("videoNarrativeInternalEndpointContract", () => {
       "sem upload real",
       "sem UI",
       "sem endpoint real nesta fase",
+      "VIDEO_NARRATIVE_INTERNAL_ENDPOINT_ENABLED",
     ];
 
     expectedTerms.forEach((term) => {
@@ -50,20 +51,19 @@ describe("videoNarrativeInternalEndpointContract", () => {
 
   it("não inclui implementação real, credencial ou payload bruto extenso", () => {
     const contract = readContract();
-    expect(contract).not.toContain("route.ts");
     expect(contract).not.toMatch(/AIza[0-9A-Za-z_-]{20,}/);
     expect(contract).not.toMatch(/[A-Za-z0-9+/]{120,}={0,2}/);
     expect(contract).not.toContain("usuário comum pode");
     expect(contract.toLowerCase()).not.toContain("promessa de performance");
   });
 
-  it("confirma que a rota futura ainda não existe", () => {
+  it("confirma que a rota skeleton MM27 existe", () => {
     const routePath = path.join(
       process.cwd(),
       "src/app/api/internal/video-narrative/analyze/route.ts",
     );
 
-    expect(fs.existsSync(routePath)).toBe(false);
+    expect(fs.existsSync(routePath)).toBe(true);
   });
 
   it("mantém linguagem consultiva no documento", () => {

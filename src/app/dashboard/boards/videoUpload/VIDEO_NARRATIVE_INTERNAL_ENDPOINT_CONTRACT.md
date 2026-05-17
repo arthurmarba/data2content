@@ -95,6 +95,8 @@ Regras:
 
 MM25 adiciona `VideoNarrativeSafeResponse` e helpers puros para montar essa resposta futura sem retornar `rawText` completo, base64, API key, vídeo bruto ou URL assinada com token.
 
+MM27 cria o skeleton de `POST /api/internal/video-narrative/analyze` protegido por `VIDEO_NARRATIVE_INTERNAL_ENDPOINT_ENABLED=true`. A flag é server-side, separada de `VIDEO_NARRATIVE_GEMINI_FLASH_ENABLED`, e permite validar guards e safe response sem ligar provider real.
+
 ## Status Futuros
 
 - `disabled`;
@@ -202,6 +204,13 @@ Só implementar depois que:
 - MM18: contrato dos guards do endpoint real;
 - MM19: contratos puros de guard result/status;
 - MM20: payload validation contracts;
-- MM21: endpoint interno real, se billing existir;
-- MM22: preview interno com chamada real;
-- MM23: integração experimental no board.
+- MM21: input/source guard helpers;
+- MM22: consent/retention guard helpers;
+- MM23: usage/quota guard helpers;
+- MM24: observability event contracts;
+- MM25: safe response builder;
+- MM26: endpoint skeleton readiness;
+- MM27: endpoint skeleton admin/dev sem provider real;
+- MM28: endpoint real somente depois de billing/teste real;
+- MM29: preview interno com chamada real;
+- MM30: integração experimental no board.

@@ -75,13 +75,13 @@ describe("videoNarrativeConsentRetentionContract", () => {
     expect(readContract()).toContain("O rawText completo não deve ser retornado/salvo por padrão.");
   });
 
-  it("confirma que a rota futura ainda não existe", () => {
+  it("confirma que a rota skeleton MM27 existe", () => {
     const routePath = path.join(
       process.cwd(),
       "src/app/api/internal/video-narrative/analyze/route.ts",
     );
 
-    expect(fs.existsSync(routePath)).toBe(false);
+    expect(fs.existsSync(routePath)).toBe(true);
   });
 
   it("mantém linguagem consultiva no documento", () => {

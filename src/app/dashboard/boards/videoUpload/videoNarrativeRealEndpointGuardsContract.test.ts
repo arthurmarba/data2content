@@ -66,9 +66,10 @@ describe("videoNarrativeRealEndpointGuardsContract", () => {
     );
   });
 
-  it("bloqueia criação de route.ts nesta fase", () => {
+  it("documenta a transição de contrato MM18 para skeleton MM27", () => {
     expect(readContract()).toContain("não existe route.ts nesta fase");
-    expect(readContract()).toContain("não criar route.ts");
+    expect(readContract()).toContain("MM27 cria");
+    expect(readContract()).toContain("endpoint skeleton admin/dev");
   });
 
   it("documenta que falha antes do provider não consome quota", () => {
@@ -76,13 +77,13 @@ describe("videoNarrativeRealEndpointGuardsContract", () => {
     expect(readContract()).toContain("falha antes de chamar provider");
   });
 
-  it("confirma que a rota futura ainda não existe", () => {
+  it("confirma que a rota skeleton MM27 existe", () => {
     const routePath = path.join(
       process.cwd(),
       "src/app/api/internal/video-narrative/analyze/route.ts",
     );
 
-    expect(fs.existsSync(routePath)).toBe(false);
+    expect(fs.existsSync(routePath)).toBe(true);
   });
 
   it("mantém os novos arquivos sem imports proibidos", () => {

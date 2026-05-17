@@ -9,8 +9,10 @@ Ele mapeia o que já existe, o que o endpoint skeleton poderá usar, o que deve 
 ## Escopo
 
 - é checklist, não implementação;
-- não existe endpoint real nesta fase;
-- não existe route.ts nesta fase;
+- MM26 era checklist, não implementação;
+- em MM27 existe endpoint skeleton interno/admin-dev;
+- em MM27 existe `route.ts` skeleton;
+- não existe provider real nesta fase;
 - não existe chamada Gemini real;
 - sem chamada Gemini real;
 - não existe upload real;
@@ -87,7 +89,7 @@ Caminho futuro:
 
 `POST /api/internal/video-narrative/analyze`
 
-Esse caminho ainda não será criado neste PR. Esta fase não cria endpoint, rota, `route.ts` ou diretório `app/api/internal/video-narrative/analyze`.
+MM27 cria esse caminho como skeleton interno/admin-dev. Ele continua sem provider real, sem upload real, sem persistência e sem analytics real.
 
 ## Comportamento Esperado Do Skeleton Futuro
 
@@ -161,13 +163,12 @@ Provider real continua bloqueado por:
 
 ## Decisão Recomendada
 
-A próxima fase pode criar endpoint skeleton admin/dev sem provider real.
+MM27 implementa parcialmente a próxima fase: o endpoint skeleton admin/dev existe e nasce bloqueado por flag server-side e pela ausência intencional de provider real.
 
-A fase ainda não deve ligar Gemini real.
+A fase ainda não liga Gemini real.
 
 ## Próximas Fases Possíveis
 
-- MM27: endpoint skeleton admin/dev sem provider real;
-- MM28: endpoint skeleton com integração dos guards puros;
-- MM29: endpoint com safe blocked response e observability local;
+- MM28: reforço dos guards puros do skeleton, se necessário;
+- MM29: storage cleanup contract;
 - MM30: provider real somente depois de billing/teste manual.
