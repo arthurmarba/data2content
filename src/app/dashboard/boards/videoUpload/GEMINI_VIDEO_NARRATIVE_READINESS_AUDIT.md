@@ -72,6 +72,7 @@ Já existe:
 - endpoint guards foram formalizados em MM18, mas ainda não foram implementados;
 - guard contracts puros foram formalizados em MM19, mas ainda não foram conectados a endpoint real;
 - payload validation contracts foram formalizados em MM20, mas ainda não foram conectados a endpoint real;
+- input/source guard helpers foram formalizados em MM21, mas ainda não foram conectados a endpoint real;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
@@ -119,6 +120,7 @@ Como não há billing agora, seguir sem teste real e avançar apenas em:
 - contrato formal de guards do endpoint real;
 - contratos puros de guard result/status;
 - contratos puros de payload validation;
+- helpers puros de input/source guard;
 - sem expor para usuário.
 
 ## Frase Norte
