@@ -114,6 +114,8 @@ Requisitos futuros:
 
 O futuro endpoint deve aplicar consent guard e retention guard conforme `VIDEO_NARRATIVE_REAL_ENDPOINT_GUARDS_CONTRACT.md` antes de qualquer chamada ao provider.
 
+MM22 formaliza `VideoNarrativeConsentPolicy`, `VideoNarrativeRetentionPolicy` e `validateVideoNarrativeConsentRetentionForPhase` como helpers puros para esses guards futuros. Isso ainda não cria endpoint, upload real, storage real, cleanup real ou UI.
+
 ## Logs
 
 Regras para logs:
@@ -136,6 +138,7 @@ Este contrato depende e complementa:
 - `VideoUploadSession`;
 - `VideoNarrativeInputSourceContract`;
 - `VideoNarrativeInternalEndpointContract`;
+- consent/retention guard helpers;
 - `VideoNarrativeAnalysis`;
 - `PostCreationVideoSeed`.
 

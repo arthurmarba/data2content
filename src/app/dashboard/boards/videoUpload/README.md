@@ -474,6 +474,28 @@ O que não faz:
 - não cria upload real, storage real, UI, banco/tabela ou analytics real;
 - não conecta nada ao fluxo real do produto.
 
+### MM22 — Consent/retention guard helpers
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoNarrativeConsentRetentionGuards.ts`
+- `videoNarrativeConsentRetentionGuards.test.ts`
+
+O que faz:
+
+- cria helpers puros para validar consentimento, retenção e expiração por fase;
+- define políticas para `manual_real_test`, `internal_endpoint`, `closed_beta` e `production`;
+- prepara os futuros guards `consent` e `retention` sem criar endpoint, upload real ou storage real.
+
+O que não faz:
+
+- não cria endpoint;
+- não cria `route.ts`;
+- não cria upload real, storage real, UI, banco/tabela ou analytics real;
+- não conecta nada ao fluxo real do produto.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
