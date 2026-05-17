@@ -218,6 +218,8 @@ O futuro endpoint deve seguir `VIDEO_NARRATIVE_REAL_ENDPOINT_GUARDS_CONTRACT.md`
 
 Os eventos e logs futuros podem usar `VideoNarrativeGuardResult` e `VideoNarrativeGuardPipelineSummary` para registrar qual guard bloqueou sem expor payload sensível.
 
+MM23 adiciona reasons puros de `decideVideoNarrativeUsageConsumption`, que podem alimentar futuramente `video_narrative_usage_consumed`, `video_narrative_usage_not_consumed`, `usage counted reason` e `usage not counted reason` sem criar analytics real nesta fase.
+
 ## Decisão Recomendada Agora
 
 Como ainda não há billing/quota:

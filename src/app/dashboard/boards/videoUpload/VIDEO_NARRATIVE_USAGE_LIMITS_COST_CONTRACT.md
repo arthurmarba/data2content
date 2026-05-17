@@ -33,6 +33,8 @@ Regra conceitual para consumo de quota:
 
 O usage guard do futuro endpoint deve seguir `VIDEO_NARRATIVE_REAL_ENDPOINT_GUARDS_CONTRACT.md`: falhas antes do provider não consomem quota, e consumo só acontece depois da regra de usage consumption.
 
+MM23 formaliza `VideoNarrativeUsagePolicy`, `validateVideoNarrativeUsageQuotaForPhase` e `decideVideoNarrativeUsageConsumption` como helpers puros para esse futuro guard. Isso ainda não cria billing real, Stripe, cobrança, endpoint ou persistência de quota.
+
 ## Limites Recomendados Por Fase
 
 ### Fase Admin/Manual
@@ -179,6 +181,7 @@ Só implementar limite real depois que houver:
 - logs seguros definidos;
 - observabilidade mínima definida;
 - usage guard definido;
+- usage/quota guard helpers puros definidos;
 - decisão sobre plano atual e pacotes extras.
 
 ## Decisão Recomendada Agora
