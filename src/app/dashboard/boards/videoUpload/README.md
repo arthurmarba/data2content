@@ -562,6 +562,28 @@ O que não faz:
 - não cria upload real, UI, banco/tabela ou analytics real;
 - não conecta nada ao fluxo real do produto.
 
+### MM26 — Endpoint skeleton readiness
+
+Status: concluído.
+
+Arquivos principais:
+
+- `VIDEO_NARRATIVE_ENDPOINT_SKELETON_READINESS.md`
+- `videoNarrativeEndpointSkeletonReadiness.test.ts`
+
+O que faz:
+
+- cria checklist documental e testável para o futuro endpoint skeleton admin/dev sem provider real;
+- mapeia fundação disponível, helpers que o skeleton pode usar e itens que continuam desligados;
+- prepara MM27 sem criar `route.ts`.
+
+O que não faz:
+
+- não cria endpoint;
+- não cria `route.ts`;
+- não cria upload real, UI, banco/tabela ou analytics real;
+- não liga Gemini real.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

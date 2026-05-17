@@ -301,6 +301,8 @@ MM24 adiciona `VideoNarrativeObservabilityEventPayload` e helpers de build/valid
 
 MM25 adiciona `VideoNarrativeSafeResponse` como fundação pura para o safe_response guard e para o empacotamento final do endpoint futuro.
 
+MM26 adiciona `VIDEO_NARRATIVE_ENDPOINT_SKELETON_READINESS.md` como checklist final antes de qualquer `route.ts`, separando endpoint skeleton admin/dev sem provider real de provider real com Gemini.
+
 ## Critérios Antes De Implementar Route.ts
 
 Só criar route.ts depois que:
@@ -318,6 +320,7 @@ Só criar route.ts depois que:
 - usage/quota guard helpers estiverem disponíveis para `usage_quota` e `usage_consumption`;
 - observability event contracts estiverem disponíveis para start/completion hooks;
 - safe response builder estiver disponível para `safe_response`;
+- endpoint skeleton readiness estiver verde;
 - admin/dev guard server-side estiver confirmado.
 
 ## Decisão Recomendada Agora
@@ -338,6 +341,8 @@ Como ainda não há billing/quota:
 - MM23: usage/quota guard helpers;
 - MM24: observability event contracts;
 - MM25: safe response builder;
-- MM26: storage cleanup contract;
-- MM27: endpoint real somente depois de billing/teste real;
-- MM28: preview interno com endpoint real.
+- MM26: endpoint skeleton readiness;
+- MM27: endpoint skeleton admin/dev sem provider real;
+- MM28: storage cleanup contract;
+- MM29: endpoint real somente depois de billing/teste real;
+- MM30: preview interno com endpoint real.
