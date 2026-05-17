@@ -205,12 +205,16 @@ Só implementar endpoint real quando:
 
 - eventos mínimos estiverem definidos;
 - logs seguros estiverem definidos;
+- start hook com requestId estiver definido;
+- completion hook com latencyMs estiver definido;
 - métrica de latencyMs estiver planejada;
 - métrica de custo estiver planejada;
 - usage/quota estiver planejado;
 - consentimento/retenção estiverem definidos;
 - input source estiver definido;
 - fallback estiver monitorável.
+
+O futuro endpoint deve seguir `VIDEO_NARRATIVE_REAL_ENDPOINT_GUARDS_CONTRACT.md` para acionar observability start/completion hook somente depois dos guards corretos.
 
 ## Decisão Recomendada Agora
 

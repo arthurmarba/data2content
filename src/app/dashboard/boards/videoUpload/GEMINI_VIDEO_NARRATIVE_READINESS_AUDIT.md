@@ -69,6 +69,7 @@ Já existe:
 - consentimento/retenção foram formalizados em MM15, mas ainda não foram implementados;
 - limites/custo foram formalizados em MM16, mas ainda não foram implementados;
 - observabilidade foi formalizada em MM17, mas ainda não foi implementada;
+- endpoint guards foram formalizados em MM18, mas ainda não foram implementados;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
@@ -113,6 +114,7 @@ Como não há billing agora, seguir sem teste real e avançar apenas em:
 - contrato formal de consentimento/retenção;
 - contrato formal de limites/custo;
 - contrato formal de observabilidade;
+- contrato formal de guards do endpoint real;
 - sem expor para usuário.
 
 ## Frase Norte

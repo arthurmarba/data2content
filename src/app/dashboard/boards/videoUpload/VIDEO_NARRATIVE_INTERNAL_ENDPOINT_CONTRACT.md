@@ -59,6 +59,7 @@ Regras:
 - consentimento e retenção ficam no contrato `VIDEO_NARRATIVE_CONSENT_RETENTION_CONTRACT.md`;
 - limites, quota e cooldown ficam no contrato `VIDEO_NARRATIVE_USAGE_LIMITS_COST_CONTRACT.md`;
 - métricas, eventos e logs seguros ficam no contrato `VIDEO_NARRATIVE_OBSERVABILITY_CONTRACT.md`;
+- a ordem de guards fica no contrato `VIDEO_NARRATIVE_REAL_ENDPOINT_GUARDS_CONTRACT.md`;
 - não aceitar arquivo multipart neste contrato inicial;
 - não aceitar input livre sem limites;
 - não aceitar usuário comum.
@@ -172,6 +173,7 @@ Só implementar depois que:
 - contrato de consentimento/retenção estiver aprovado como bloqueio antes de endpoint real ou beta;
 - contrato de limites/custo estiver aprovado como bloqueio antes de endpoint real ou beta;
 - contrato de observabilidade estiver aprovado como bloqueio antes de endpoint real;
+- contrato de guards do endpoint real estiver aprovado antes de criar a rota real;
 - admin guard server-side estiver definido;
 - rate limit/usage limit tiver contrato;
 - consentimento/retenção estiverem planejados.
@@ -182,6 +184,7 @@ Só implementar depois que:
 - MM15: contrato de consentimento/retenção;
 - MM16: contrato de limites/custos;
 - MM17: contrato de métricas/observabilidade;
-- MM18: endpoint interno real, se billing existir;
-- MM19: preview interno com chamada real;
-- MM20: integração experimental no board.
+- MM18: contrato dos guards do endpoint real;
+- MM19: endpoint interno real, se billing existir;
+- MM20: preview interno com chamada real;
+- MM21: integração experimental no board.
