@@ -303,6 +303,8 @@ MM25 adiciona `VideoNarrativeSafeResponse` como fundação pura para o safe_resp
 
 MM26 adiciona `VIDEO_NARRATIVE_ENDPOINT_SKELETON_READINESS.md` como checklist final antes de qualquer `route.ts`, separando endpoint skeleton admin/dev sem provider real de provider real com Gemini.
 
+MM27 cria `src/app/api/internal/video-narrative/analyze/route.ts` como endpoint skeleton admin/dev. A rota usa guards puros, observabilidade local e safe response, mas bloqueia na etapa `provider` e não chama Gemini real.
+
 ## Critérios Antes De Implementar Route.ts
 
 Só criar route.ts depois que:

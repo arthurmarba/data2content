@@ -233,8 +233,9 @@ Exemplos:
 23. MM24 — Observability event contracts. Define eventos e payloads seguros, sem analytics real.
 24. MM25 — Safe response builder. Define empacotamento seguro da resposta futura, sem endpoint.
 25. MM26 — Endpoint skeleton readiness. Define checklist final antes de endpoint skeleton admin/dev sem provider real.
-26. Teste real manual quando houver quota/billing disponível.
-27. Integração experimental futura no Board de Criação.
+26. MM27 — Endpoint skeleton admin/dev sem provider real. Cria `route.ts` interno protegido por flag, com guards puros e resposta segura, sem provider real.
+27. Teste real manual quando houver quota/billing disponível.
+28. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -279,6 +280,8 @@ MM24 adiciona `VideoNarrativeObservabilityEventPayload`, `buildVideoNarrativeObs
 MM25 adiciona `VideoNarrativeSafeResponse`, `buildVideoNarrativeSafeResponse` e `validateVideoNarrativeSafeResponse` para preparar a resposta segura futura sem endpoint, route.ts, upload real ou UI.
 
 MM26 adiciona `VIDEO_NARRATIVE_ENDPOINT_SKELETON_READINESS.md` para confirmar que a próxima fase pode criar endpoint skeleton admin/dev sem provider real, desde que nasça bloqueado, observável e sem vazamento de dados sensíveis.
+
+MM27 cria `POST /api/internal/video-narrative/analyze` como skeleton admin/dev protegido por `VIDEO_NARRATIVE_INTERNAL_ENDPOINT_ENABLED=true`. Ele valida payload, origem, consentimento/retenção e usage/quota, gera eventos locais em response e retorna safe response bloqueada/disabled sem chamar Gemini real, sem upload real, sem storage real, sem analytics real e sem UI.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 

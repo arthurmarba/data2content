@@ -584,6 +584,31 @@ O que não faz:
 - não cria upload real, UI, banco/tabela ou analytics real;
 - não liga Gemini real.
 
+### MM27 — Endpoint skeleton admin/dev sem provider real
+
+Status: concluído.
+
+Arquivos principais:
+
+- `../../../../api/internal/video-narrative/analyze/route.ts`
+- `../../../../api/internal/video-narrative/analyze/route.test.ts`
+- `videoNarrativeInternalEndpointFeatureFlag.ts`
+- `videoNarrativeInternalEndpointFeatureFlag.test.ts`
+
+O que faz:
+
+- cria `POST /api/internal/video-narrative/analyze` como skeleton interno/admin-dev;
+- protege a rota com `VIDEO_NARRATIVE_INTERNAL_ENDPOINT_ENABLED=true`;
+- executa guards de sessão, admin/dev, content-type, payload, input source, consent/retention e usage/quota;
+- retorna `VideoNarrativeSafeResponse` bloqueada/disabled com observabilidade local resumida.
+
+O que não faz:
+
+- não chama Gemini real nem provider real;
+- não cria upload real, storage real, UI, banco/tabela, analytics real, billing, Stripe ou cobrança;
+- não conecta BoardShell, navegação/menu ou `PostCreationFunnelState`;
+- não aceita multipart e não faz rede.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

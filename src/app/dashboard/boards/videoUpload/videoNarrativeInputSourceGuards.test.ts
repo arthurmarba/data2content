@@ -419,12 +419,12 @@ describe("videoNarrativeInputSourceGuards", () => {
     });
   });
 
-  it("confirma que a rota futura ainda não existe", () => {
+  it("confirma que a rota skeleton MM27 existe", () => {
     const routePath = path.join(
       process.cwd(),
       "src/app/api/internal/video-narrative/analyze/route.ts",
     );
 
-    expect(fs.existsSync(routePath)).toBe(false);
+    expect(fs.existsSync(routePath)).toBe(true);
   });
 });

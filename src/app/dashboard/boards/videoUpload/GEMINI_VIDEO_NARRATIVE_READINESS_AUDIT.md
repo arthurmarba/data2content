@@ -77,7 +77,8 @@ Já existe:
 - usage/quota guard helpers foram formalizados em MM23, mas ainda não foram conectados a endpoint real;
 - observability event contracts foram formalizados em MM24, mas ainda não enviam eventos para analytics real;
 - safe response builder foi formalizado em MM25, mas ainda não foi conectado a endpoint real;
-- endpoint skeleton readiness foi formalizado em MM26, mas ainda não criou route.ts;
+- endpoint skeleton readiness foi formalizado em MM26;
+- endpoint skeleton admin/dev foi criado em MM27, mas bloqueia provider real e não chama Gemini;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
@@ -131,6 +132,7 @@ Como não há billing agora, seguir sem teste real e avançar apenas em:
 - contratos puros de eventos de observabilidade;
 - safe response builder puro;
 - endpoint skeleton readiness verde;
+- endpoint skeleton admin/dev protegido por `VIDEO_NARRATIVE_INTERNAL_ENDPOINT_ENABLED=true`, sem provider real;
 - sem expor para usuário.
 
 ## Frase Norte

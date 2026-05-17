@@ -75,12 +75,12 @@ describe("videoNarrativeEndpointSkeletonReadiness", () => {
     expect(readReadiness()).toContain("provider real continua dependente da flag Gemini");
   });
 
-  it("confirma que a rota futura ainda não existe", () => {
-    expect(fs.existsSync(FUTURE_ROUTE_PATH)).toBe(false);
+  it("confirma que a rota skeleton MM27 existe", () => {
+    expect(fs.existsSync(FUTURE_ROUTE_PATH)).toBe(true);
   });
 
-  it("confirma que o diretório futuro do endpoint ainda não foi criado", () => {
-    expect(fs.existsSync(FUTURE_ENDPOINT_DIR)).toBe(false);
+  it("confirma que o diretório skeleton MM27 foi criado", () => {
+    expect(fs.existsSync(FUTURE_ENDPOINT_DIR)).toBe(true);
   });
 
   it("mantém linguagem segura no documento", () => {
