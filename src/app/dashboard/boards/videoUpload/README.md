@@ -496,6 +496,28 @@ O que não faz:
 - não cria upload real, storage real, UI, banco/tabela ou analytics real;
 - não conecta nada ao fluxo real do produto.
 
+### MM23 — Usage/quota guard helpers
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoNarrativeUsageQuotaGuards.ts`
+- `videoNarrativeUsageQuotaGuards.test.ts`
+
+O que faz:
+
+- cria helpers puros para limite de uso, cooldown e decisão de consumo de quota;
+- define políticas para `manual_real_test`, `internal_endpoint`, `closed_beta` e `production`;
+- prepara o futuro `usage_quota` guard e a etapa `usage_consumption` sem billing real, Stripe ou cobrança.
+
+O que não faz:
+
+- não cria endpoint;
+- não cria `route.ts`;
+- não cria billing real, Stripe, cobrança, banco/tabela ou analytics real;
+- não conecta nada ao fluxo real do produto.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

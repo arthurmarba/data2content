@@ -106,6 +106,8 @@ MM22 adiciona helpers puros para validar `expiresAt`, expiração e limite máxi
 - `cooldown_active`;
 - falhas antes do provider não consomem quota.
 
+MM23 adiciona helpers puros para preparar este guard por fase, incluindo limite mensal, limite diário, cooldown e bypass interno quando permitido, sem billing real ou cobrança.
+
 ### 13. Observability Start Hook
 
 - criar requestId;
@@ -135,6 +137,8 @@ MM22 adiciona helpers puros para validar `expiresAt`, expiração e limite máxi
 - resposta parcial útil pode consumir;
 - payload inválido não consome;
 - falha antes do provider não consome.
+
+MM23 adiciona `decideVideoNarrativeUsageConsumption` para formalizar os motivos futuros de consumo ou não consumo de quota antes de qualquer endpoint real.
 
 ### 18. Observability Completion Hook
 
@@ -285,6 +289,8 @@ MM21 adiciona `VideoNarrativeInputSourceGuardPolicy`, `VideoNarrativeInputSource
 
 MM22 adiciona `VideoNarrativeConsentPolicy`, `VideoNarrativeRetentionPolicy` e `validateVideoNarrativeConsentRetentionForPhase` como fundação pura para os guards consent e retention.
 
+MM23 adiciona `VideoNarrativeUsagePolicy`, `VideoNarrativeQuotaGuardResult` e `VideoNarrativeUsageConsumptionDecision` como fundação pura para usage_quota e usage_consumption.
+
 ## Critérios Antes De Implementar Route.ts
 
 Só criar route.ts depois que:
@@ -299,6 +305,7 @@ Só criar route.ts depois que:
 - payload validation contracts estiverem disponíveis para `payload_schema`;
 - input/source guard helpers estiverem disponíveis para `input_source`;
 - consent/retention guard helpers estiverem disponíveis para `consent` e `retention`;
+- usage/quota guard helpers estiverem disponíveis para `usage_quota` e `usage_consumption`;
 - admin/dev guard server-side estiver confirmado.
 
 ## Decisão Recomendada Agora
@@ -316,6 +323,7 @@ Como ainda não há billing/quota:
 - MM20: payload validation contracts;
 - MM21: input/source guard helpers;
 - MM22: consent/retention guard helpers;
-- MM23: storage cleanup contract;
-- MM24: endpoint real somente depois de billing/teste real;
-- MM25: preview interno com endpoint real.
+- MM23: usage/quota guard helpers;
+- MM24: storage cleanup contract;
+- MM25: endpoint real somente depois de billing/teste real;
+- MM26: preview interno com endpoint real.
