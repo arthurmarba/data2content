@@ -47,6 +47,15 @@ function disableEndpointFlag(): void {
   delete process.env.VIDEO_NARRATIVE_INTERNAL_ENDPOINT_ENABLED;
 }
 
+function setProviderMode(mode: "disabled" | "mock" | "real"): void {
+  if (mode === "disabled") {
+    delete process.env.VIDEO_NARRATIVE_INTERNAL_PROVIDER_MODE;
+    return;
+  }
+
+  process.env.VIDEO_NARRATIVE_INTERNAL_PROVIDER_MODE = mode;
+}
+
 function makeRequest(payload: unknown, headers: Record<string, string> = {}): Request {
   return new Request("http://localhost/api/internal/video-narrative/analyze", {
     method: "POST",
@@ -90,6 +99,7 @@ describe("POST /api/internal/video-narrative/analyze skeleton", () => {
     jest.restoreAllMocks();
     jest.clearAllMocks();
     disableEndpointFlag();
+    setProviderMode("disabled");
   });
 
   it("GET returns 405 and a safe response", async () => {
@@ -217,7 +227,7 @@ describe("POST /api/internal/video-narrative/analyze skeleton", () => {
     });
   });
 
-  it("POST admin/dev with valid payload returns disabled because provider is not enabled in this phase", async () => {
+  it("POST admin/dev with valid payload and provider mode disabled returns disabled without analysis or seed", async () => {
     enableEndpointFlag();
     getServerSession.mockResolvedValue({ user: { role: "admin" } });
 
@@ -227,8 +237,137 @@ describe("POST /api/internal/video-narrative/analyze skeleton", () => {
     expect(response.status).toBe(200);
     expect(body.ok).toBe(false);
     expect(body.status).toBe("disabled");
-    expect(JSON.stringify(body)).toContain("Provider real desativado nesta fase.");
+    expect(body.analysis).toBeNull();
+    expect(body.seed).toBeNull();
+    expect(JSON.stringify(body)).toContain("Provider interno desativado.");
     expectSafeResponse(body);
+  });
+
+  it("POST admin/dev with provider mode real returns disabled and does not call real provider", async () => {
+    enableEndpointFlag();
+    setProviderMode("real");
+    getServerSession.mockResolvedValue({ user: { role: "admin" } });
+
+    const response = await POST(makeRequest(validPayload()));
+    const body = await readJson(response);
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(false);
+    expect(body.status).toBe("disabled");
+    expect(JSON.stringify(body)).toContain("real_provider_disabled_in_mock_phase");
+    expect(JSON.stringify(body)).toContain("Provider real continua desativado nesta fase.");
+    expectSafeResponse(body);
+  });
+
+  it("POST admin/dev with provider mode mock returns ready with analysis, seed, and primaryAction", async () => {
+    enableEndpointFlag();
+    setProviderMode("mock");
+    getServerSession.mockResolvedValue({ user: { role: "admin" } });
+
+    const response = await POST(makeRequest(validPayload()));
+    const body = await readJson(response);
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.status).toBe("ready");
+    expect(body.analysis).toBeTruthy();
+    expect(body.seed).toBeTruthy();
+    expect(typeof body.primaryAction).toBe("string");
+    expectSafeResponse(body);
+  });
+
+  it("POST mock mode brand question returns coherent brand potential hints", async () => {
+    enableEndpointFlag();
+    setProviderMode("mock");
+    getServerSession.mockResolvedValue({ user: { role: "admin" } });
+
+    const response = await POST(makeRequest({
+      ...validPayload(),
+      creatorQuestion: "Como adaptar esse vídeo para marca ou publi?",
+      creatorContext: { knownNarratives: [] },
+    }));
+    const body = await readJson(response);
+    const analysis = body.analysis as { brandMatch?: { enabled?: boolean; territories?: string[] } };
+    const seed = body.seed as { brandMatchHints?: string[] };
+
+    expect(response.status).toBe(200);
+    expect(body.status).toBe("ready");
+    expect(analysis.brandMatch?.enabled).toBe(true);
+    expect(seed.brandMatchHints?.length).toBeGreaterThan(0);
+    expect(JSON.stringify(body)).toContain("publi orgânica");
+  });
+
+  it("POST mock mode weak hook returns hook diagnosis and primaryAction", async () => {
+    enableEndpointFlag();
+    setProviderMode("mock");
+    getServerSession.mockResolvedValue({ user: { role: "admin" } });
+
+    const response = await POST(makeRequest({
+      ...validPayload(),
+      creatorQuestion: "Como melhorar o gancho?",
+      creatorContext: { knownNarratives: [] },
+    }));
+    const body = await readJson(response);
+    const analysis = body.analysis as { hook?: { strength?: string } };
+    const seed = body.seed as { strategicDiagnosis?: string | null };
+
+    expect(response.status).toBe(200);
+    expect(body.status).toBe("ready");
+    expect(analysis.hook?.strength).toBe("weak");
+    expect(seed.strategicDiagnosis).toContain("gancho");
+    expect(body.primaryAction).toBe("Transformar a sugestão de blueprint em roteiro.");
+  });
+
+  it("POST mock mode unclear returns follow-up questions without breaking", async () => {
+    enableEndpointFlag();
+    setProviderMode("mock");
+    getServerSession.mockResolvedValue({ user: { role: "admin" } });
+
+    const response = await POST(makeRequest({
+      ...validPayload(),
+      creatorQuestion: "Não sei, está confuso",
+      creatorContext: { knownNarratives: [] },
+    }));
+    const body = await readJson(response);
+    const seed = body.seed as { followUpQuestions?: unknown[] };
+
+    expect(response.status).toBe(200);
+    expect(body.status).toBe("ready");
+    expect(seed.followUpQuestions?.length).toBeGreaterThan(0);
+    expectSafeResponse(body);
+  });
+
+  it("response mock includes guard, usage, and observability summaries", async () => {
+    enableEndpointFlag();
+    setProviderMode("mock");
+    getServerSession.mockResolvedValue({ user: { role: "admin" } });
+
+    const response = await POST(makeRequest(validPayload()));
+    const body = await readJson(response);
+
+    expect(body.guardSummary).toBeTruthy();
+    expect(body.usageSummary).toBeTruthy();
+    expect(body.observabilitySummary).toBeTruthy();
+  });
+
+  it("response mock includes local events without external analytics delivery", async () => {
+    enableEndpointFlag();
+    setProviderMode("mock");
+    getServerSession.mockResolvedValue({ user: { role: "admin" } });
+
+    const response = await POST(makeRequest(validPayload()));
+    const body = await readJson(response);
+    const observabilitySummary = body.observabilitySummary as { events: Array<{ eventName: string }> };
+    const eventNames = observabilitySummary.events.map((event) => event.eventName);
+
+    expect(eventNames).toEqual(expect.arrayContaining([
+      "video_narrative_analysis_requested",
+      "video_narrative_analysis_started",
+      "video_narrative_analysis_completed",
+      "video_narrative_seed_created",
+      "video_narrative_usage_not_consumed",
+    ]));
+    expect(JSON.stringify(body)).not.toContain("analytics.track");
   });
 
   it("rejects non JSON content-type", async () => {

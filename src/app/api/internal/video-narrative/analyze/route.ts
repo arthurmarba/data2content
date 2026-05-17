@@ -10,9 +10,15 @@ import {
   type VideoNarrativeGuardPipelineSummary,
   type VideoNarrativeGuardResult,
 } from "@/app/dashboard/boards/videoUpload/videoNarrativeGuardContracts";
+import {
+  getVideoNarrativeInternalProviderMode,
+  resolveVideoNarrativeMockScenarioFromPayload,
+} from "@/app/dashboard/boards/videoUpload/videoNarrativeEndpointMockMode";
 import { isVideoNarrativeInternalEndpointEnabled } from "@/app/dashboard/boards/videoUpload/videoNarrativeInternalEndpointFeatureFlag";
 import { validateVideoNarrativeConsentRetentionForPhase } from "@/app/dashboard/boards/videoUpload/videoNarrativeConsentRetentionGuards";
 import { validateVideoNarrativeInputSourceForPhase } from "@/app/dashboard/boards/videoUpload/videoNarrativeInputSourceGuards";
+import { hasUsefulVideoNarrativeAnalysis } from "@/app/dashboard/boards/videoUpload/videoNarrativeAnalysisTypes";
+import { runVideoNarrativeMockProvider } from "@/app/dashboard/boards/videoUpload/videoNarrativeMockProvider";
 import {
   buildVideoNarrativeObservabilityEvent,
   createVideoNarrativeRequestId,
@@ -21,7 +27,14 @@ import {
 } from "@/app/dashboard/boards/videoUpload/videoNarrativeObservabilityEvents";
 import { validateVideoNarrativeAnalyzePayload } from "@/app/dashboard/boards/videoUpload/videoNarrativePayloadValidation";
 import {
+  buildPostCreationVideoSeedFromAnalysis,
+  getPostCreationVideoSeedPrimaryAction,
+  hasUsefulPostCreationVideoSeed,
+} from "@/app/dashboard/boards/videoUpload/videoNarrativePostCreationSeed";
+import {
   buildBlockedVideoNarrativeSafeResponse,
+  buildVideoNarrativeSafeResponse,
+  redactVideoNarrativeSafeResponse,
   validateVideoNarrativeSafeResponse,
   type VideoNarrativeSafeIssue,
   type VideoNarrativeSafeResponse,
@@ -58,6 +71,12 @@ function createEvent(params: {
   providerStatus?: string | null;
   guardBlockedBy?: string | null;
   issuesCount?: number | null;
+  inputSource?: string | null;
+  mimeType?: string | null;
+  quotaConsumed?: boolean | null;
+  usageReason?: string | null;
+  primaryAction?: string | null;
+  hasUsefulSeed?: boolean | null;
 }): VideoNarrativeObservabilityEventPayload | null {
   const result = buildVideoNarrativeObservabilityEvent({
     requestId: REQUEST_ID,
@@ -68,10 +87,15 @@ function createEvent(params: {
     providerStatus: params.providerStatus,
     guardBlockedBy: params.guardBlockedBy,
     issuesCount: params.issuesCount,
+    inputSource: params.inputSource,
+    mimeType: params.mimeType,
     hasRawText: false,
     fallbackUsed: false,
-    schemaParseOk: null,
-    quotaConsumed: false,
+    schemaParseOk: params.status === "completed" ? true : null,
+    quotaConsumed: params.quotaConsumed ?? false,
+    usageReason: params.usageReason,
+    primaryAction: params.primaryAction,
+    hasUsefulSeed: params.hasUsefulSeed,
   });
 
   return result.ok ? result.event : null;
@@ -415,12 +439,119 @@ export async function POST(request: Request): Promise<NextResponse<VideoNarrativ
     });
   }
 
+  const usageState = {
+    usedToday: 0,
+    usedThisMonth: 0,
+    repeatedFailureCount: 0,
+    isAdminOrDev: true,
+    now: CREATED_AT,
+  };
   const observabilityStartGuard = createPassedVideoNarrativeGuardResult("observability_start");
-  const providerGuard = createBlockedVideoNarrativeGuardResult({
-    name: "provider",
-    code: "disabled",
-    message: "Provider real desativado nesta fase.",
+  const providerMode = getVideoNarrativeInternalProviderMode();
+  const providerDisabledCode =
+    providerMode === "real" ? "real_provider_disabled_in_mock_phase" : "provider_disabled_in_skeleton";
+  const providerDisabledMessage =
+    providerMode === "real"
+      ? "Provider real continua desativado nesta fase."
+      : "Provider interno desativado.";
+
+  if (providerMode !== "mock") {
+    const providerGuard = createBlockedVideoNarrativeGuardResult({
+      name: "provider",
+      code: "disabled",
+      message: providerDisabledMessage,
+    });
+    const guardResults = [
+      methodGuard,
+      sessionGuard,
+      adminDevGuard,
+      featureFlagGuard,
+      contentTypeGuard,
+      payloadValidation.guardResult,
+      inputSourceGuard.guardResult,
+      consentRetentionGuard.consentGuardResult,
+      consentRetentionGuard.retentionGuardResult,
+      usageQuotaGuard.guardResult,
+      observabilityStartGuard,
+      providerGuard,
+    ];
+    const guardSummary = buildGuardSummary(guardResults);
+    const events = compactEvents([
+      createEvent({
+        eventName: "video_narrative_analysis_requested",
+        status: "requested",
+        providerStatus: providerMode,
+        inputSource: payloadValidation.normalized.source,
+        mimeType: payloadValidation.normalized.mimeType,
+        issuesCount: 0,
+      }),
+      createEvent({
+        eventName: "video_narrative_analysis_started",
+        status: "started",
+        providerStatus: providerMode,
+        inputSource: payloadValidation.normalized.source,
+        mimeType: payloadValidation.normalized.mimeType,
+        issuesCount: 0,
+      }),
+      createEvent({
+        eventName: "video_narrative_analysis_failed",
+        status: "blocked",
+        providerStatus: providerDisabledCode,
+        guardBlockedBy: guardSummary.blockedBy?.name ?? null,
+        inputSource: payloadValidation.normalized.source,
+        mimeType: payloadValidation.normalized.mimeType,
+        issuesCount: 1,
+      }),
+    ]);
+
+    return buildSafeJsonResponse(
+      buildBlockedVideoNarrativeSafeResponse({
+        status: "disabled",
+        issues: [
+          createSafeIssue({
+            code: providerDisabledCode,
+            message: providerDisabledMessage,
+          }),
+        ],
+        guardSummary,
+        observabilityEvents: events,
+      }),
+      200,
+    );
+  }
+
+  const scenario = resolveVideoNarrativeMockScenarioFromPayload(payloadValidation.normalized);
+  const analysis = runVideoNarrativeMockProvider({
+    input: {
+      id: payloadValidation.normalized.id,
+      creatorQuestion: payloadValidation.normalized.creatorQuestion,
+      createdAt: CREATED_AT,
+    },
+    options: {
+      scenario,
+    },
   });
+  const seed = buildPostCreationVideoSeedFromAnalysis({
+    id: `${payloadValidation.normalized.id}-seed`,
+    analysis,
+    creatorQuestion: payloadValidation.normalized.creatorQuestion,
+    createdAt: CREATED_AT,
+  });
+  const primaryAction = getPostCreationVideoSeedPrimaryAction(seed);
+  const analysisIsUseful = hasUsefulVideoNarrativeAnalysis(analysis);
+  const seedIsUseful = hasUsefulPostCreationVideoSeed(seed);
+  const usageDecision = usageQuotaGuards.decideVideoNarrativeUsageConsumption({
+    phase: PHASE,
+    usageState,
+    providerWasCalled: true,
+    providerReturnedUsefulAnalysis: analysisIsUseful && seedIsUseful,
+    providerReturnedUsefulPartialAnalysis: analysisIsUseful || seedIsUseful,
+  });
+  const providerGuard = createPassedVideoNarrativeGuardResult("provider");
+  const parseFallbackGuard = createPassedVideoNarrativeGuardResult("parse_fallback");
+  const seedGenerationGuard = createPassedVideoNarrativeGuardResult("seed_generation");
+  const observabilityCompletionGuard = createPassedVideoNarrativeGuardResult("observability_completion");
+  const safeResponseGuard = createPassedVideoNarrativeGuardResult("safe_response");
   const guardResults = [
     methodGuard,
     sessionGuard,
@@ -434,42 +565,79 @@ export async function POST(request: Request): Promise<NextResponse<VideoNarrativ
     usageQuotaGuard.guardResult,
     observabilityStartGuard,
     providerGuard,
+    parseFallbackGuard,
+    seedGenerationGuard,
+    usageDecision.guardResult,
+    observabilityCompletionGuard,
+    safeResponseGuard,
   ];
   const guardSummary = buildGuardSummary(guardResults);
   const events = compactEvents([
     createEvent({
       eventName: "video_narrative_analysis_requested",
       status: "requested",
-      providerStatus: "skeleton",
+      providerStatus: "mock",
+      inputSource: payloadValidation.normalized.source,
+      mimeType: payloadValidation.normalized.mimeType,
       issuesCount: 0,
     }),
     createEvent({
       eventName: "video_narrative_analysis_started",
       status: "started",
-      providerStatus: "skeleton",
+      providerStatus: "mock",
+      inputSource: payloadValidation.normalized.source,
+      mimeType: payloadValidation.normalized.mimeType,
       issuesCount: 0,
     }),
     createEvent({
-      eventName: "video_narrative_analysis_failed",
-      status: "blocked",
-      providerStatus: "provider_disabled_in_skeleton",
-      guardBlockedBy: guardSummary.blockedBy?.name ?? null,
-      issuesCount: 1,
+      eventName: "video_narrative_analysis_completed",
+      status: "completed",
+      providerStatus: "mock",
+      inputSource: payloadValidation.normalized.source,
+      mimeType: payloadValidation.normalized.mimeType,
+      issuesCount: analysis.diagnosis.recommendedAdjustments.length,
+      hasUsefulSeed: seedIsUseful,
+      primaryAction,
+    }),
+    createEvent({
+      eventName: "video_narrative_seed_created",
+      status: "completed",
+      providerStatus: "mock",
+      inputSource: payloadValidation.normalized.source,
+      mimeType: payloadValidation.normalized.mimeType,
+      issuesCount: 0,
+      hasUsefulSeed: seedIsUseful,
+      primaryAction,
+    }),
+    createEvent({
+      eventName: usageDecision.shouldConsumeQuota
+        ? "video_narrative_usage_consumed"
+        : "video_narrative_usage_not_consumed",
+      status: usageDecision.shouldConsumeQuota ? "consumed" : "not_consumed",
+      providerStatus: "mock",
+      inputSource: payloadValidation.normalized.source,
+      mimeType: payloadValidation.normalized.mimeType,
+      quotaConsumed: usageDecision.shouldConsumeQuota,
+      usageReason: usageDecision.reason,
+      issuesCount: usageDecision.issues.length,
     }),
   ]);
 
   return buildSafeJsonResponse(
-    buildBlockedVideoNarrativeSafeResponse({
-      status: "disabled",
-      issues: [
-        createSafeIssue({
-          code: "provider_disabled_in_skeleton",
-          message: "Provider real desativado nesta fase.",
-        }),
-      ],
-      guardSummary,
-      observabilityEvents: events,
-    }),
+    redactVideoNarrativeSafeResponse(
+      buildVideoNarrativeSafeResponse({
+        status: "ready",
+        analysis,
+        seed,
+        primaryAction,
+        issues: [],
+        hasRawText: false,
+        guardSummary,
+        usageDecision,
+        quotaGuard: usageQuotaGuard,
+        observabilityEvents: events,
+      }),
+    ),
     200,
   );
 }
