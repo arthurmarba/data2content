@@ -35,6 +35,8 @@ O usage guard do futuro endpoint deve seguir `VIDEO_NARRATIVE_REAL_ENDPOINT_GUAR
 
 MM23 formaliza `VideoNarrativeUsagePolicy`, `validateVideoNarrativeUsageQuotaForPhase` e `decideVideoNarrativeUsageConsumption` como helpers puros para esse futuro guard. Isso ainda não cria billing real, Stripe, cobrança, endpoint ou persistência de quota.
 
+MM24 formaliza eventos puros para `video_narrative_usage_consumed`, `video_narrative_usage_not_consumed` e `video_narrative_limit_reached`, permitindo carregar `usageReason` e `quotaConsumed` futuramente sem analytics real, billing real, Stripe ou cobrança.
+
 ## Limites Recomendados Por Fase
 
 ### Fase Admin/Manual

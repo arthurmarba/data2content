@@ -220,6 +220,8 @@ Os eventos e logs futuros podem usar `VideoNarrativeGuardResult` e `VideoNarrati
 
 MM23 adiciona reasons puros de `decideVideoNarrativeUsageConsumption`, que podem alimentar futuramente `video_narrative_usage_consumed`, `video_narrative_usage_not_consumed`, `usage counted reason` e `usage not counted reason` sem criar analytics real nesta fase.
 
+MM24 adiciona `VideoNarrativeObservabilityEventPayload`, `buildVideoNarrativeObservabilityEvent`, `validateVideoNarrativeObservabilityEvent`, buckets de duração/tamanho e redação de campos sensíveis. Esses helpers apenas constroem e validam payloads locais; não enviam eventos para analytics real, não criam banco/tabela e não conectam provider externo.
+
 ## Decisão Recomendada Agora
 
 Como ainda não há billing/quota:
