@@ -235,8 +235,9 @@ Exemplos:
 25. MM26 — Endpoint skeleton readiness. Define checklist final antes de endpoint skeleton admin/dev sem provider real.
 26. MM27 — Endpoint skeleton admin/dev sem provider real. Cria `route.ts` interno protegido por flag, com guards puros e resposta segura, sem provider real.
 27. MM28 — Endpoint mock mode. Permite resposta narrativa simulada útil via mock provider, sem Gemini real.
-28. Teste real manual quando houver quota/billing disponível.
-29. Integração experimental futura no Board de Criação.
+28. MM29 — Diagnosis and Creator Learning Model. Define diagnóstico estratégico e sinais de aprendizado do criador, sem UI, persistência ou Instagram real.
+29. Teste real manual quando houver quota/billing disponível.
+30. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -285,6 +286,8 @@ MM26 adiciona `VIDEO_NARRATIVE_ENDPOINT_SKELETON_READINESS.md` para confirmar qu
 MM27 cria `POST /api/internal/video-narrative/analyze` como skeleton admin/dev protegido por `VIDEO_NARRATIVE_INTERNAL_ENDPOINT_ENABLED=true`. Ele valida payload, origem, consentimento/retenção e usage/quota, gera eventos locais em response e retorna safe response bloqueada/disabled sem chamar Gemini real, sem upload real, sem storage real, sem analytics real e sem UI.
 
 MM28 adiciona `VIDEO_NARRATIVE_INTERNAL_PROVIDER_MODE=mock` para que o skeleton retorne `VideoNarrativeAnalysis`, `PostCreationVideoSeed` e `primaryAction` a partir do mock provider narrativo existente. O modo `real` segue bloqueado nesta fase e a rota continua sem Gemini real, sem SDK Gemini, sem fetch, sem upload/storage real, sem UI e sem analytics real.
+
+MM29 adiciona `VideoNarrativeStrategicDiagnosis` e `VideoNarrativeDiagnosisCreatorSignal` como camada pura posterior à análise/seed. O diagnóstico passa a orientar quiz, UX futura e extração narrativa por níveis `free`, `premium` e `instagram_optimized`, enquanto as respostas do quiz geram sinais internos com `shouldPersistLater: false`.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 

@@ -99,6 +99,8 @@ MM27 cria o skeleton de `POST /api/internal/video-narrative/analyze` protegido p
 
 MM28 adiciona `VIDEO_NARRATIVE_INTERNAL_PROVIDER_MODE` com valores conceituais `disabled`, `mock` e `real`. Nesta fase a rota suporta `disabled` e `mock`; `real` retorna safe response disabled porque provider Gemini real continua fora de escopo.
 
+MM29 adiciona `VideoNarrativeStrategicDiagnosis` como camada futura depois do mock endpoint e da safe response. Essa camada cruza `VideoNarrativeAnalysis`, `PostCreationVideoSeed`, pergunta do criador, quiz futuro, perfil narrativo futuro e contexto futuro de Instagram sem alterar a rota nesta fase.
+
 ## Status Futuros
 
 - `disabled`;
@@ -172,6 +174,8 @@ MM28 adiciona `VIDEO_NARRATIVE_INTERNAL_PROVIDER_MODE` com valores conceituais `
 - `VideoNarrativeAnalyzePayload`;
 - `VideoNarrativeNormalizedAnalyzePayload`;
 - `VideoNarrativeSafeResponse`;
+- `VideoNarrativeStrategicDiagnosis`;
+- `VideoNarrativeDiagnosisCreatorSignal`;
 - `VIDEO_NARRATIVE_INTERNAL_ENDPOINT_ENABLED`;
 - `VideoNarrativeAnalysis`;
 - `buildPostCreationVideoSeedFromAnalysis`;
@@ -214,6 +218,7 @@ Só implementar depois que:
 - MM26: endpoint skeleton readiness;
 - MM27: endpoint skeleton admin/dev sem provider real;
 - MM28: endpoint mock mode sem Gemini real;
-- MM29: endpoint real somente depois de billing/teste real;
-- MM30: preview interno com chamada real;
-- MM31: integração experimental no board.
+- MM29: diagnosis and creator learning model;
+- MM30: endpoint real somente depois de billing/teste real;
+- MM31: preview interno com chamada real;
+- MM32: integração experimental no board.
