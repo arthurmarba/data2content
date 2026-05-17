@@ -232,8 +232,9 @@ Exemplos:
 22. MM23 — Usage/quota guard helpers. Define políticas puras para usage_quota e usage_consumption, sem billing real.
 23. MM24 — Observability event contracts. Define eventos e payloads seguros, sem analytics real.
 24. MM25 — Safe response builder. Define empacotamento seguro da resposta futura, sem endpoint.
-25. Teste real manual quando houver quota/billing disponível.
-26. Integração experimental futura no Board de Criação.
+25. MM26 — Endpoint skeleton readiness. Define checklist final antes de endpoint skeleton admin/dev sem provider real.
+26. Teste real manual quando houver quota/billing disponível.
+27. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -276,6 +277,8 @@ MM23 adiciona `VideoNarrativeUsagePolicy`, `validateVideoNarrativeUsageQuotaForP
 MM24 adiciona `VideoNarrativeObservabilityEventPayload`, `buildVideoNarrativeObservabilityEvent` e `validateVideoNarrativeObservabilityEvent` para preparar eventos seguros sem endpoint, analytics real, banco/tabela ou provider externo.
 
 MM25 adiciona `VideoNarrativeSafeResponse`, `buildVideoNarrativeSafeResponse` e `validateVideoNarrativeSafeResponse` para preparar a resposta segura futura sem endpoint, route.ts, upload real ou UI.
+
+MM26 adiciona `VIDEO_NARRATIVE_ENDPOINT_SKELETON_READINESS.md` para confirmar que a próxima fase pode criar endpoint skeleton admin/dev sem provider real, desde que nasça bloqueado, observável e sem vazamento de dados sensíveis.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 

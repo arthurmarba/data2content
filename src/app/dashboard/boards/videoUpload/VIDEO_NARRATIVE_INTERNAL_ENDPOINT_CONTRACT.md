@@ -62,9 +62,12 @@ Regras:
 - limites, quota e cooldown ficam no contrato `VIDEO_NARRATIVE_USAGE_LIMITS_COST_CONTRACT.md`;
 - métricas, eventos e logs seguros ficam no contrato `VIDEO_NARRATIVE_OBSERVABILITY_CONTRACT.md`;
 - a ordem de guards fica no contrato `VIDEO_NARRATIVE_REAL_ENDPOINT_GUARDS_CONTRACT.md`;
+- readiness do endpoint skeleton fica em `VIDEO_NARRATIVE_ENDPOINT_SKELETON_READINESS.md`;
 - não aceitar arquivo multipart neste contrato inicial;
 - não aceitar input livre sem limites;
 - não aceitar usuário comum.
+
+Flag futura sugerida para o skeleton: `VIDEO_NARRATIVE_INTERNAL_ENDPOINT_ENABLED`. Ela deve ser server-side, não `NEXT_PUBLIC`, e separada de `VIDEO_NARRATIVE_GEMINI_FLASH_ENABLED`.
 
 ## Resposta Futura
 
@@ -165,6 +168,7 @@ MM25 adiciona `VideoNarrativeSafeResponse` e helpers puros para montar essa resp
 - `VideoNarrativeAnalyzePayload`;
 - `VideoNarrativeNormalizedAnalyzePayload`;
 - `VideoNarrativeSafeResponse`;
+- `VIDEO_NARRATIVE_INTERNAL_ENDPOINT_ENABLED`;
 - `VideoNarrativeAnalysis`;
 - `buildPostCreationVideoSeedFromAnalysis`;
 - `getPostCreationVideoSeedPrimaryAction`;
