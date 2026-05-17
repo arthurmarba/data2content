@@ -80,6 +80,8 @@ Já existe:
 - endpoint skeleton readiness foi formalizado em MM26;
 - endpoint skeleton admin/dev foi criado em MM27, mas bloqueia provider real e não chama Gemini;
 - endpoint mock mode foi criado em MM28 com `VIDEO_NARRATIVE_INTERNAL_PROVIDER_MODE=mock`, mas ainda sem Gemini real;
+- diagnosis and creator learning model foi criado em MM29 para orientar extração, quiz e UX futura;
+- sinais do criador são extraídos em MM29, mas não são persistidos;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
@@ -135,6 +137,8 @@ Como não há billing agora, seguir sem teste real e avançar apenas em:
 - endpoint skeleton readiness verde;
 - endpoint skeleton admin/dev protegido por `VIDEO_NARRATIVE_INTERNAL_ENDPOINT_ENABLED=true`, sem provider real;
 - endpoint mock mode interno com resposta simulada útil por `VIDEO_NARRATIVE_INTERNAL_PROVIDER_MODE=mock`;
+- diagnóstico estratégico puro para níveis `free`, `premium` e `instagram_optimized`;
+- creatorSignals derivados de quiz/pergunta/análise/seed/Instagram futuro, sempre sem persistência automática;
 - sem expor para usuário.
 
 ## Frase Norte

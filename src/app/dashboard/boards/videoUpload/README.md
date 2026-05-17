@@ -634,6 +634,29 @@ O que não faz:
 - não cria upload real, storage real, UI, banco/tabela ou analytics real;
 - não conecta BoardShell, navegação/menu, Stripe, billing ou cobrança.
 
+### MM29 — Diagnosis and Creator Learning Model
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoNarrativeDiagnosisLearningModel.ts`
+- `videoNarrativeDiagnosisLearningModel.test.ts`
+
+O que faz:
+
+- cria um modelo puro de diagnóstico estratégico para `free`, `premium` e `instagram_optimized`;
+- cruza `VideoNarrativeAnalysis`, `PostCreationVideoSeed`, pergunta do criador, respostas futuras de quiz, perfil narrativo futuro e contexto futuro de Instagram;
+- transforma respostas do quiz em `creatorSignals` para aprendizado progressivo futuro do criador;
+- mantém `shouldPersistLater: false` em todos os sinais nesta fase.
+
+O que não faz:
+
+- não cria UI, upload real, storage real, banco/tabela, analytics real ou persistência;
+- não conecta Instagram real nem usa dados reais de Instagram;
+- não chama Gemini real, OpenAI, fetch, Stripe, billing ou cobrança;
+- não conecta BoardShell, navegação/menu ou `PostCreationFunnelState`.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
