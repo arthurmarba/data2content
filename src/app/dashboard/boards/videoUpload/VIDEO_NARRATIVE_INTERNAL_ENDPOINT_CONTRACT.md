@@ -156,6 +156,8 @@ Regras:
 - `runGeminiVideoNarrativeProviderFromEnv`;
 - `createGeminiVideoNarrativeClient`;
 - `parseGeminiVideoNarrativeJson`;
+- `VideoNarrativeGuardResult`;
+- `VideoNarrativeGuardPipelineSummary`;
 - `VideoNarrativeAnalysis`;
 - `buildPostCreationVideoSeedFromAnalysis`;
 - `getPostCreationVideoSeedPrimaryAction`;
@@ -174,6 +176,7 @@ Só implementar depois que:
 - contrato de limites/custo estiver aprovado como bloqueio antes de endpoint real ou beta;
 - contrato de observabilidade estiver aprovado como bloqueio antes de endpoint real;
 - contrato de guards do endpoint real estiver aprovado antes de criar a rota real;
+- contratos puros de guard result/status estiverem disponíveis;
 - admin guard server-side estiver definido;
 - rate limit/usage limit tiver contrato;
 - consentimento/retenção estiverem planejados.

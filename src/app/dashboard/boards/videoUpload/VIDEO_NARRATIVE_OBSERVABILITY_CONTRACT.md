@@ -216,6 +216,8 @@ Só implementar endpoint real quando:
 
 O futuro endpoint deve seguir `VIDEO_NARRATIVE_REAL_ENDPOINT_GUARDS_CONTRACT.md` para acionar observability start/completion hook somente depois dos guards corretos.
 
+Os eventos e logs futuros podem usar `VideoNarrativeGuardResult` e `VideoNarrativeGuardPipelineSummary` para registrar qual guard bloqueou sem expor payload sensível.
+
 ## Decisão Recomendada Agora
 
 Como ainda não há billing/quota:

@@ -269,6 +269,8 @@ Este contrato complementa:
 - `VideoNarrativeAnalysis`;
 - `PostCreationVideoSeed`.
 
+MM19 adiciona `VideoNarrativeGuardResult`, `VideoNarrativeGuardPipelineSummary` e `VIDEO_NARRATIVE_GUARD_ORDER` como fundação pura para representar essa ordem de guards, ainda sem endpoint real.
+
 ## Critérios Antes De Implementar Route.ts
 
 Só criar route.ts depois que:

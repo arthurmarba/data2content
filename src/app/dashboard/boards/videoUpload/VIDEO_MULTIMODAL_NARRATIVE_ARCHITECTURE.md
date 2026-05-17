@@ -225,8 +225,9 @@ Exemplos:
 15. MM16 — Usage limits and cost contract. Define limite, quota, custo, retry, cooldown e regras comerciais futuras.
 16. MM17 — Observability contract. Define métricas, eventos, logs seguros, dashboards e alertas futuros.
 17. MM18 — Real endpoint guards contract. Define a ordem dos guards obrigatórios antes de route.ts ou provider real.
-18. Teste real manual quando houver quota/billing disponível.
-19. Integração experimental futura no Board de Criação.
+18. MM19 — Pure guard contracts. Define tipos/helpers puros para resultados e resumo dos guards, sem endpoint.
+19. Teste real manual quando houver quota/billing disponível.
+20. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -265,3 +266,5 @@ MM16 formaliza limites e custo antes de billing real, endpoint real ou beta. Ele
 MM17 formaliza observabilidade antes de analytics real, endpoint real ou beta. Ele exige medir custo, latência, falha, fallback e utilidade sem logar vídeo, base64, API key, rawText completo ou URL assinada com token.
 
 MM18 formaliza a ordem de guards do futuro endpoint real/admin. Ele bloqueia `route.ts` e provider real até que método, sessão, admin/dev, flag, payload, origem, consentimento, retenção, usage/quota e observabilidade estejam resolvidos.
+
+MM19 começa a transformar a ordem de guards em fundação de código puro. Ele cria `VideoNarrativeGuardResult`, `VideoNarrativeGuardPipelineSummary` e helpers determinísticos para decidir provider/quota sem endpoint real.
