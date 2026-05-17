@@ -76,6 +76,8 @@ MM20 adiciona `validateVideoNarrativeAnalyzePayload` como helper puro para prepa
 - restringir public_url_restricted;
 - bloquear base64 como fluxo principal.
 
+MM21 adiciona `validateVideoNarrativeInputSourceForPhase` e políticas puras por fase para preparar este guard futuro sem criar endpoint, route.ts, upload real ou storage real.
+
 ### 9. Mime/Duration/Size Guard
 
 - mimeTypes permitidos;
@@ -275,6 +277,8 @@ MM19 adiciona `VideoNarrativeGuardResult`, `VideoNarrativeGuardPipelineSummary` 
 
 MM20 adiciona `VideoNarrativeAnalyzePayload`, `VideoNarrativeNormalizedAnalyzePayload` e `validateVideoNarrativeAnalyzePayload` como fundação pura para o futuro payload_schema guard e parte do input_source guard.
 
+MM21 adiciona `VideoNarrativeInputSourceGuardPolicy`, `VideoNarrativeInputSourcePhase` e `validateVideoNarrativeInputSourceForPhase` como fundação pura específica para o input_source guard.
+
 ## Critérios Antes De Implementar Route.ts
 
 Só criar route.ts depois que:
@@ -287,6 +291,7 @@ Só criar route.ts depois que:
 - usage/quota estiverem implementáveis;
 - observability hooks estiverem definidos;
 - payload validation contracts estiverem disponíveis para `payload_schema`;
+- input/source guard helpers estiverem disponíveis para `input_source`;
 - admin/dev guard server-side estiver confirmado.
 
 ## Decisão Recomendada Agora
@@ -302,6 +307,7 @@ Como ainda não há billing/quota:
 
 - MM19: contratos puros de guard result/status;
 - MM20: payload validation contracts;
-- MM21: storage cleanup contract;
-- MM22: endpoint real somente depois de billing/teste real;
-- MM23: preview interno com endpoint real.
+- MM21: input/source guard helpers;
+- MM22: storage cleanup contract;
+- MM23: endpoint real somente depois de billing/teste real;
+- MM24: preview interno com endpoint real.

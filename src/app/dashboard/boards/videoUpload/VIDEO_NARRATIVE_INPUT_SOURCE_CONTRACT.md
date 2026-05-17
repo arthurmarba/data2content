@@ -143,6 +143,8 @@ O futuro endpoint deve aplicar input source guard conforme `VIDEO_NARRATIVE_REAL
 
 MM20 formaliza `VIDEO_NARRATIVE_ALLOWED_SOURCES` e `VIDEO_NARRATIVE_ALLOWED_MIME_TYPES` em código puro para preparar o futuro `payload_schema` guard e parte do `input_source` guard. `public_url_restricted` permanece documentado como source possível, mas bloqueado por padrão nesta fase.
 
+MM21 formaliza `VIDEO_NARRATIVE_INPUT_SOURCE_POLICIES` para as fases `manual_real_test`, `internal_endpoint`, `closed_beta` e `production`. As políticas permitem File API e inline pequeno apenas em fases internas/controladas, priorizam storage/URI para beta/produto e mantêm `public_url_restricted` bloqueado por padrão.
+
 ## Limites Iniciais
 
 - vídeo até 60s;
@@ -178,6 +180,7 @@ MM20 formaliza `VIDEO_NARRATIVE_ALLOWED_SOURCES` e `VIDEO_NARRATIVE_ALLOWED_MIME
 - real run harness Gemini;
 - contrato de endpoint interno/admin;
 - payload validation contracts;
+- input/source guard helpers;
 - `VideoNarrativeAnalysis`.
 
 ## Critérios Antes De Implementar Upload Real
