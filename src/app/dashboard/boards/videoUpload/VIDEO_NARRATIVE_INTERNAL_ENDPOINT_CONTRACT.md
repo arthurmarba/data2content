@@ -90,6 +90,8 @@ Regras:
 - `issues` devem ser sanitizadas;
 - fallback deve retornar `ok false` com analysis segura.
 
+MM25 adiciona `VideoNarrativeSafeResponse` e helpers puros para montar essa resposta futura sem retornar `rawText` completo, base64, API key, vídeo bruto ou URL assinada com token.
+
 ## Status Futuros
 
 - `disabled`;
@@ -162,6 +164,7 @@ Regras:
 - `VideoNarrativeGuardPipelineSummary`;
 - `VideoNarrativeAnalyzePayload`;
 - `VideoNarrativeNormalizedAnalyzePayload`;
+- `VideoNarrativeSafeResponse`;
 - `VideoNarrativeAnalysis`;
 - `buildPostCreationVideoSeedFromAnalysis`;
 - `getPostCreationVideoSeedPrimaryAction`;

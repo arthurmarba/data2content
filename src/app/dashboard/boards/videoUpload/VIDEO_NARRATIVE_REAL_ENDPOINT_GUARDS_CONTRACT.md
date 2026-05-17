@@ -159,6 +159,8 @@ MM24 também prepara eventos de completion, failure, fallback, seed, usage consu
 - nunca retornar API key;
 - nunca retornar base64.
 
+MM25 adiciona `buildVideoNarrativeSafeResponse`, `buildBlockedVideoNarrativeSafeResponse` e `validateVideoNarrativeSafeResponse` como fundação pura para esta etapa, garantindo que `rawText`, base64, API key, vídeo bruto e URL assinada não saiam no response.
+
 ## Payload Futuro
 
 Exemplo conceitual:
@@ -297,6 +299,8 @@ MM23 adiciona `VideoNarrativeUsagePolicy`, `VideoNarrativeQuotaGuardResult` e `V
 
 MM24 adiciona `VideoNarrativeObservabilityEventPayload` e helpers de build/validate/redact como fundação pura para os hooks de observabilidade do endpoint futuro.
 
+MM25 adiciona `VideoNarrativeSafeResponse` como fundação pura para o safe_response guard e para o empacotamento final do endpoint futuro.
+
 ## Critérios Antes De Implementar Route.ts
 
 Só criar route.ts depois que:
@@ -313,6 +317,7 @@ Só criar route.ts depois que:
 - consent/retention guard helpers estiverem disponíveis para `consent` e `retention`;
 - usage/quota guard helpers estiverem disponíveis para `usage_quota` e `usage_consumption`;
 - observability event contracts estiverem disponíveis para start/completion hooks;
+- safe response builder estiver disponível para `safe_response`;
 - admin/dev guard server-side estiver confirmado.
 
 ## Decisão Recomendada Agora
@@ -332,6 +337,7 @@ Como ainda não há billing/quota:
 - MM22: consent/retention guard helpers;
 - MM23: usage/quota guard helpers;
 - MM24: observability event contracts;
-- MM25: storage cleanup contract;
-- MM26: endpoint real somente depois de billing/teste real;
-- MM27: preview interno com endpoint real.
+- MM25: safe response builder;
+- MM26: storage cleanup contract;
+- MM27: endpoint real somente depois de billing/teste real;
+- MM28: preview interno com endpoint real.
