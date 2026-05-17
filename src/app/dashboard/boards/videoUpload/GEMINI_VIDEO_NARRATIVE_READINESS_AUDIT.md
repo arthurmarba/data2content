@@ -70,6 +70,7 @@ Já existe:
 - limites/custo foram formalizados em MM16, mas ainda não foram implementados;
 - observabilidade foi formalizada em MM17, mas ainda não foi implementada;
 - endpoint guards foram formalizados em MM18, mas ainda não foram implementados;
+- guard contracts puros foram formalizados em MM19, mas ainda não foram conectados a endpoint real;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
@@ -115,6 +116,7 @@ Como não há billing agora, seguir sem teste real e avançar apenas em:
 - contrato formal de limites/custo;
 - contrato formal de observabilidade;
 - contrato formal de guards do endpoint real;
+- contratos puros de guard result/status;
 - sem expor para usuário.
 
 ## Frase Norte

@@ -408,6 +408,28 @@ O que não faz:
 - não cria upload real, storage real, UI, banco/tabela ou analytics real;
 - não conecta nada ao fluxo real do produto.
 
+### MM19 — Contratos puros de guard result/status
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoNarrativeGuardContracts.ts`
+- `videoNarrativeGuardContracts.test.ts`
+
+O que faz:
+
+- cria tipos puros para nomes, status, códigos, severidade, resultado e resumo dos guards;
+- define `VIDEO_NARRATIVE_GUARD_ORDER` na mesma ordem do contrato MM18;
+- adiciona helpers determinísticos para resultado passed/blocked/skipped, resumo do pipeline, decisão de provider/quota e sanitização de mensagens.
+
+O que não faz:
+
+- não cria endpoint;
+- não cria `route.ts`;
+- não cria upload real, storage real, UI, banco/tabela ou analytics real;
+- não conecta nada ao fluxo real do produto.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
