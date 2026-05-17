@@ -89,10 +89,14 @@ MM21 adiciona `validateVideoNarrativeInputSourceForPhase` e políticas puras por
 - exigir confirmação futura de consentimento antes de beta;
 - admin/manual pode ter bypass documentado, mas não para usuário comum.
 
+MM22 adiciona helpers puros para preparar este guard por fase, mantendo bypass apenas para fases internas/admin e exigindo consentimento explícito para beta/produto.
+
 ### 11. Retention Guard
 
 - exigir expiresAt quando houver storage temporário;
 - não aceitar arquivo expirado.
+
+MM22 adiciona helpers puros para validar `expiresAt`, expiração e limite máximo de retenção por fase, sem criar storage real ou cleanup real.
 
 ### 12. Usage/Quota Guard
 
@@ -279,6 +283,8 @@ MM20 adiciona `VideoNarrativeAnalyzePayload`, `VideoNarrativeNormalizedAnalyzePa
 
 MM21 adiciona `VideoNarrativeInputSourceGuardPolicy`, `VideoNarrativeInputSourcePhase` e `validateVideoNarrativeInputSourceForPhase` como fundação pura específica para o input_source guard.
 
+MM22 adiciona `VideoNarrativeConsentPolicy`, `VideoNarrativeRetentionPolicy` e `validateVideoNarrativeConsentRetentionForPhase` como fundação pura para os guards consent e retention.
+
 ## Critérios Antes De Implementar Route.ts
 
 Só criar route.ts depois que:
@@ -292,6 +298,7 @@ Só criar route.ts depois que:
 - observability hooks estiverem definidos;
 - payload validation contracts estiverem disponíveis para `payload_schema`;
 - input/source guard helpers estiverem disponíveis para `input_source`;
+- consent/retention guard helpers estiverem disponíveis para `consent` e `retention`;
 - admin/dev guard server-side estiver confirmado.
 
 ## Decisão Recomendada Agora
@@ -308,6 +315,7 @@ Como ainda não há billing/quota:
 - MM19: contratos puros de guard result/status;
 - MM20: payload validation contracts;
 - MM21: input/source guard helpers;
-- MM22: storage cleanup contract;
-- MM23: endpoint real somente depois de billing/teste real;
-- MM24: preview interno com endpoint real.
+- MM22: consent/retention guard helpers;
+- MM23: storage cleanup contract;
+- MM24: endpoint real somente depois de billing/teste real;
+- MM25: preview interno com endpoint real.

@@ -228,8 +228,9 @@ Exemplos:
 18. MM19 — Pure guard contracts. Define tipos/helpers puros para resultados e resumo dos guards, sem endpoint.
 19. MM20 — Payload validation contracts. Define validação pura para o futuro payload_schema guard e parte do input_source guard.
 20. MM21 — Input/source guard helpers. Define políticas puras por fase para o futuro input_source guard.
-21. Teste real manual quando houver quota/billing disponível.
-22. Integração experimental futura no Board de Criação.
+21. MM22 — Consent/retention guard helpers. Define políticas puras por fase para os futuros guards consent e retention.
+22. Teste real manual quando houver quota/billing disponível.
+23. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -264,6 +265,8 @@ MM14 separa a decisão de origem do vídeo da implementação de upload. Ele rec
 MM20 adiciona `VideoNarrativeAnalyzePayload`, `VideoNarrativeNormalizedAnalyzePayload` e `validateVideoNarrativeAnalyzePayload` como contratos puros para validar payload futuro sem criar endpoint, route.ts, upload real ou UI.
 
 MM21 adiciona `VideoNarrativeInputSourceGuardPolicy` e `validateVideoNarrativeInputSourceForPhase` para aplicar políticas por fase sobre payload já normalizado, ainda sem endpoint, upload real ou storage real.
+
+MM22 adiciona `VideoNarrativeConsentPolicy`, `VideoNarrativeRetentionPolicy` e `validateVideoNarrativeConsentRetentionForPhase` para preparar consentimento, retenção e expiração sem endpoint, upload real, storage real ou cleanup real.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 
