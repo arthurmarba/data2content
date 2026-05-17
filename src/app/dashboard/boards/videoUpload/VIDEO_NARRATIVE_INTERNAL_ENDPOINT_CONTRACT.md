@@ -97,6 +97,8 @@ MM25 adiciona `VideoNarrativeSafeResponse` e helpers puros para montar essa resp
 
 MM27 cria o skeleton de `POST /api/internal/video-narrative/analyze` protegido por `VIDEO_NARRATIVE_INTERNAL_ENDPOINT_ENABLED=true`. A flag é server-side, separada de `VIDEO_NARRATIVE_GEMINI_FLASH_ENABLED`, e permite validar guards e safe response sem ligar provider real.
 
+MM28 adiciona `VIDEO_NARRATIVE_INTERNAL_PROVIDER_MODE` com valores conceituais `disabled`, `mock` e `real`. Nesta fase a rota suporta `disabled` e `mock`; `real` retorna safe response disabled porque provider Gemini real continua fora de escopo.
+
 ## Status Futuros
 
 - `disabled`;
@@ -211,6 +213,7 @@ Só implementar depois que:
 - MM25: safe response builder;
 - MM26: endpoint skeleton readiness;
 - MM27: endpoint skeleton admin/dev sem provider real;
-- MM28: endpoint real somente depois de billing/teste real;
-- MM29: preview interno com chamada real;
-- MM30: integração experimental no board.
+- MM28: endpoint mock mode sem Gemini real;
+- MM29: endpoint real somente depois de billing/teste real;
+- MM30: preview interno com chamada real;
+- MM31: integração experimental no board.

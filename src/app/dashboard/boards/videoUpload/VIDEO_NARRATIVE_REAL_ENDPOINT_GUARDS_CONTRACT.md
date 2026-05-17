@@ -305,6 +305,8 @@ MM26 adiciona `VIDEO_NARRATIVE_ENDPOINT_SKELETON_READINESS.md` como checklist fi
 
 MM27 cria `src/app/api/internal/video-narrative/analyze/route.ts` como endpoint skeleton admin/dev. A rota usa guards puros, observabilidade local e safe response, mas bloqueia na etapa `provider` e não chama Gemini real.
 
+MM28 adiciona mock provider como etapa temporária controlada antes do provider real. Quando `VIDEO_NARRATIVE_INTERNAL_PROVIDER_MODE=mock`, a rota chama apenas `runVideoNarrativeMockProvider`, gera seed e safe response; quando o modo é `real`, continua bloqueando sem chamar Gemini.
+
 ## Critérios Antes De Implementar Route.ts
 
 Só criar route.ts depois que:

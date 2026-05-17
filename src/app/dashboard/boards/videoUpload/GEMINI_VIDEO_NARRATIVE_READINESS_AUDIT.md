@@ -79,6 +79,7 @@ Já existe:
 - safe response builder foi formalizado em MM25, mas ainda não foi conectado a endpoint real;
 - endpoint skeleton readiness foi formalizado em MM26;
 - endpoint skeleton admin/dev foi criado em MM27, mas bloqueia provider real e não chama Gemini;
+- endpoint mock mode foi criado em MM28 com `VIDEO_NARRATIVE_INTERNAL_PROVIDER_MODE=mock`, mas ainda sem Gemini real;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
@@ -133,6 +134,7 @@ Como não há billing agora, seguir sem teste real e avançar apenas em:
 - safe response builder puro;
 - endpoint skeleton readiness verde;
 - endpoint skeleton admin/dev protegido por `VIDEO_NARRATIVE_INTERNAL_ENDPOINT_ENABLED=true`, sem provider real;
+- endpoint mock mode interno com resposta simulada útil por `VIDEO_NARRATIVE_INTERNAL_PROVIDER_MODE=mock`;
 - sem expor para usuário.
 
 ## Frase Norte

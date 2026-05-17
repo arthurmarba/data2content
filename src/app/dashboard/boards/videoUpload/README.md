@@ -609,6 +609,31 @@ O que não faz:
 - não conecta BoardShell, navegação/menu ou `PostCreationFunnelState`;
 - não aceita multipart e não faz rede.
 
+### MM28 — Endpoint mock mode
+
+Status: concluído.
+
+Arquivos principais:
+
+- `../../../../api/internal/video-narrative/analyze/route.ts`
+- `../../../../api/internal/video-narrative/analyze/route.test.ts`
+- `videoNarrativeEndpointMockMode.ts`
+- `videoNarrativeEndpointMockMode.test.ts`
+
+O que faz:
+
+- adiciona `VIDEO_NARRATIVE_INTERNAL_PROVIDER_MODE=mock` para o endpoint interno/admin-dev;
+- resolve cenário mock por `creatorQuestion` e `creatorContext.knownNarratives`;
+- executa o mock provider narrativo existente e retorna `VideoNarrativeAnalysis`, `PostCreationVideoSeed` e `primaryAction`;
+- mantém `usageSummary`, `guardSummary` e eventos locais resumidos para UX/UI futura.
+
+O que não faz:
+
+- não chama Gemini real nem provider real;
+- não importa SDK Gemini na rota;
+- não cria upload real, storage real, UI, banco/tabela ou analytics real;
+- não conecta BoardShell, navegação/menu, Stripe, billing ou cobrança.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

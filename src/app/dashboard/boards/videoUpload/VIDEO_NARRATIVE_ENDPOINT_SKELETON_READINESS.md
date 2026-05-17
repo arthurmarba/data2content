@@ -91,6 +91,8 @@ Caminho futuro:
 
 MM27 cria esse caminho como skeleton interno/admin-dev. Ele continua sem provider real, sem upload real, sem persistência e sem analytics real.
 
+MM28 evolui o skeleton para `VIDEO_NARRATIVE_INTERNAL_PROVIDER_MODE=mock`, permitindo retorno narrativo simulado útil para UX/UI futura. O provider real continua bloqueado e o modo `real` retorna safe response disabled.
+
 ## Comportamento Esperado Do Skeleton Futuro
 
 Quando for criado, o endpoint skeleton deve:
@@ -165,7 +167,7 @@ Provider real continua bloqueado por:
 
 MM27 implementa parcialmente a próxima fase: o endpoint skeleton admin/dev existe e nasce bloqueado por flag server-side e pela ausência intencional de provider real.
 
-A fase ainda não liga Gemini real.
+MM28 permite mock mode interno com análise simulada útil, mas ainda não liga Gemini real.
 
 ## Próximas Fases Possíveis
 
