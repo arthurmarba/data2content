@@ -657,6 +657,29 @@ O que não faz:
 - não chama Gemini real, OpenAI, fetch, Stripe, billing ou cobrança;
 - não conecta BoardShell, navegação/menu ou `PostCreationFunnelState`.
 
+### MM30 — Diagnosis-driven quiz builder
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoNarrativeDiagnosisQuizBuilder.ts`
+- `videoNarrativeDiagnosisQuizBuilder.test.ts`
+
+O que faz:
+
+- cria um quiz builder puro orientado por lacunas do diagnóstico estratégico;
+- gera entre 3 e 5 perguntas consultivas a partir de análise, seed, diagnóstico, pergunta do criador e sinais existentes;
+- associa opções a `learningSignalType` e `learningSignalValue` para aprendizado futuro;
+- preserva o quiz no acesso free, sem bloquear respostas.
+
+O que não faz:
+
+- não cria UI, upload real, storage real, banco/tabela, analytics real ou persistência;
+- não persiste respostas nem sinais;
+- não conecta Instagram real nem usa dados reais de Instagram;
+- não altera endpoint real, BoardShell, navegação/menu ou `PostCreationFunnelState`.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

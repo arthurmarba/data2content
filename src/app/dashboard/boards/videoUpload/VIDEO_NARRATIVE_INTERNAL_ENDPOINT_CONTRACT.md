@@ -101,6 +101,8 @@ MM28 adiciona `VIDEO_NARRATIVE_INTERNAL_PROVIDER_MODE` com valores conceituais `
 
 MM29 adiciona `VideoNarrativeStrategicDiagnosis` como camada futura depois do mock endpoint e da safe response. Essa camada cruza `VideoNarrativeAnalysis`, `PostCreationVideoSeed`, pergunta do criador, quiz futuro, perfil narrativo futuro e contexto futuro de Instagram sem alterar a rota nesta fase.
 
+MM30 adiciona `buildVideoNarrativeDiagnosisQuiz` como camada futura depois do diagnosis builder. O endpoint/mock pode alimentar diagnóstico e quiz builder no futuro, mas a rota não foi alterada nesta fase.
+
 ## Status Futuros
 
 - `disabled`;
@@ -176,6 +178,8 @@ MM29 adiciona `VideoNarrativeStrategicDiagnosis` como camada futura depois do mo
 - `VideoNarrativeSafeResponse`;
 - `VideoNarrativeStrategicDiagnosis`;
 - `VideoNarrativeDiagnosisCreatorSignal`;
+- `VideoNarrativeDiagnosisQuizQuestion`;
+- `buildVideoNarrativeDiagnosisQuiz`;
 - `VIDEO_NARRATIVE_INTERNAL_ENDPOINT_ENABLED`;
 - `VideoNarrativeAnalysis`;
 - `buildPostCreationVideoSeedFromAnalysis`;
@@ -219,6 +223,7 @@ Só implementar depois que:
 - MM27: endpoint skeleton admin/dev sem provider real;
 - MM28: endpoint mock mode sem Gemini real;
 - MM29: diagnosis and creator learning model;
-- MM30: endpoint real somente depois de billing/teste real;
-- MM31: preview interno com chamada real;
-- MM32: integração experimental no board.
+- MM30: diagnosis-driven quiz builder;
+- MM31: endpoint real somente depois de billing/teste real;
+- MM32: preview interno com chamada real;
+- MM33: integração experimental no board.
