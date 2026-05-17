@@ -226,8 +226,9 @@ Exemplos:
 16. MM17 — Observability contract. Define métricas, eventos, logs seguros, dashboards e alertas futuros.
 17. MM18 — Real endpoint guards contract. Define a ordem dos guards obrigatórios antes de route.ts ou provider real.
 18. MM19 — Pure guard contracts. Define tipos/helpers puros para resultados e resumo dos guards, sem endpoint.
-19. Teste real manual quando houver quota/billing disponível.
-20. Integração experimental futura no Board de Criação.
+19. MM20 — Payload validation contracts. Define validação pura para o futuro payload_schema guard e parte do input_source guard.
+20. Teste real manual quando houver quota/billing disponível.
+21. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -258,6 +259,8 @@ MM12 confirma que a linha está preparada para um teste real futuro sem executar
 MM13 define o formato futuro de acesso interno/admin, payload, resposta e limites antes de existir qualquer rota real. O contrato preserva a separação entre prontidão técnica e exposição de produto.
 
 MM14 separa a decisão de origem do vídeo da implementação de upload. Ele recomenda File API ou inline pequeno para teste manual, `videoUri` primeiro no endpoint interno e storage temporário próprio para beta/produto.
+
+MM20 adiciona `VideoNarrativeAnalyzePayload`, `VideoNarrativeNormalizedAnalyzePayload` e `validateVideoNarrativeAnalyzePayload` como contratos puros para validar payload futuro sem criar endpoint, route.ts, upload real ou UI.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 

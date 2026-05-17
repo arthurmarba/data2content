@@ -68,6 +68,8 @@ POST /api/internal/video-narrative/analyze
 - validar source;
 - validar creatorContext.
 
+MM20 adiciona `validateVideoNarrativeAnalyzePayload` como helper puro para preparar este guard futuro sem criar endpoint, route.ts ou chamada real.
+
 ### 8. Input Source Guard
 
 - aceitar sources documentados: gemini_file_api, inline_base64, temporary_storage, gcs, s3, r2, public_url_restricted;
@@ -271,6 +273,8 @@ Este contrato complementa:
 
 MM19 adiciona `VideoNarrativeGuardResult`, `VideoNarrativeGuardPipelineSummary` e `VIDEO_NARRATIVE_GUARD_ORDER` como fundação pura para representar essa ordem de guards, ainda sem endpoint real.
 
+MM20 adiciona `VideoNarrativeAnalyzePayload`, `VideoNarrativeNormalizedAnalyzePayload` e `validateVideoNarrativeAnalyzePayload` como fundação pura para o futuro payload_schema guard e parte do input_source guard.
+
 ## Critérios Antes De Implementar Route.ts
 
 Só criar route.ts depois que:
@@ -282,6 +286,7 @@ Só criar route.ts depois que:
 - consentimento/retenção estiverem aprovados;
 - usage/quota estiverem implementáveis;
 - observability hooks estiverem definidos;
+- payload validation contracts estiverem disponíveis para `payload_schema`;
 - admin/dev guard server-side estiver confirmado.
 
 ## Decisão Recomendada Agora
@@ -296,6 +301,7 @@ Como ainda não há billing/quota:
 ## Próximas Fases Possíveis
 
 - MM19: contratos puros de guard result/status;
-- MM20: storage cleanup contract;
-- MM21: endpoint real somente depois de billing/teste real;
-- MM22: preview interno com endpoint real.
+- MM20: payload validation contracts;
+- MM21: storage cleanup contract;
+- MM22: endpoint real somente depois de billing/teste real;
+- MM23: preview interno com endpoint real.

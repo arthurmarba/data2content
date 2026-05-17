@@ -430,6 +430,28 @@ O que não faz:
 - não cria upload real, storage real, UI, banco/tabela ou analytics real;
 - não conecta nada ao fluxo real do produto.
 
+### MM20 — Payload validation contracts
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoNarrativePayloadValidation.ts`
+- `videoNarrativePayloadValidation.test.ts`
+
+O que faz:
+
+- cria tipos puros para `VideoNarrativeAnalyzePayload` e `VideoNarrativeNormalizedAnalyzePayload`;
+- valida `id`, `creatorQuestion`, `videoUri`, `inlineVideoBase64`, `mimeType`, `source` e `creatorContext`;
+- prepara o futuro `payload_schema` guard e parte do `input_source` guard sem criar rota real.
+
+O que não faz:
+
+- não cria endpoint;
+- não cria `route.ts`;
+- não cria upload real, storage real, UI, banco/tabela ou analytics real;
+- não conecta nada ao fluxo real do produto.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
