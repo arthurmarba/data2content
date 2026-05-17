@@ -222,6 +222,8 @@ MM23 adiciona reasons puros de `decideVideoNarrativeUsageConsumption`, que podem
 
 MM24 adiciona `VideoNarrativeObservabilityEventPayload`, `buildVideoNarrativeObservabilityEvent`, `validateVideoNarrativeObservabilityEvent`, buckets de duração/tamanho e redação de campos sensíveis. Esses helpers apenas constroem e validam payloads locais; não enviam eventos para analytics real, não criam banco/tabela e não conectam provider externo.
 
+MM25 adiciona `observabilitySummary` reduzido dentro de `VideoNarrativeSafeResponse`: apenas `requestId` e eventos mínimos com `eventName`, `status`, `source` e `createdAt`. O response não retorna payload completo de observabilidade.
+
 ## Decisão Recomendada Agora
 
 Como ainda não há billing/quota:

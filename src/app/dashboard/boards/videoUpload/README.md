@@ -540,6 +540,28 @@ O que não faz:
 - não cria endpoint, `route.ts`, upload real ou UI;
 - não conecta provider externo nem envia eventos.
 
+### MM25 — Safe response builder
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoNarrativeSafeResponseBuilder.ts`
+- `videoNarrativeSafeResponseBuilder.test.ts`
+
+O que faz:
+
+- cria helpers puros para montar a resposta segura do futuro endpoint interno/admin;
+- reduz guard, usage e observability para summaries seguros;
+- garante resposta sem `rawText` completo, base64, API key, vídeo bruto ou URL assinada com token.
+
+O que não faz:
+
+- não cria endpoint;
+- não cria `route.ts`;
+- não cria upload real, UI, banco/tabela ou analytics real;
+- não conecta nada ao fluxo real do produto.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

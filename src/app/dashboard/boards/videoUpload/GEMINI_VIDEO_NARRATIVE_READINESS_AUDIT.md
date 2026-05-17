@@ -76,6 +76,7 @@ Já existe:
 - consent/retention guard helpers foram formalizados em MM22, mas ainda não foram conectados a endpoint real;
 - usage/quota guard helpers foram formalizados em MM23, mas ainda não foram conectados a endpoint real;
 - observability event contracts foram formalizados em MM24, mas ainda não enviam eventos para analytics real;
+- safe response builder foi formalizado em MM25, mas ainda não foi conectado a endpoint real;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
@@ -127,6 +128,7 @@ Como não há billing agora, seguir sem teste real e avançar apenas em:
 - helpers puros de consent/retention guard;
 - helpers puros de usage/quota guard;
 - contratos puros de eventos de observabilidade;
+- safe response builder puro;
 - sem expor para usuário.
 
 ## Frase Norte
