@@ -230,8 +230,9 @@ Exemplos:
 20. MM21 — Input/source guard helpers. Define políticas puras por fase para o futuro input_source guard.
 21. MM22 — Consent/retention guard helpers. Define políticas puras por fase para os futuros guards consent e retention.
 22. MM23 — Usage/quota guard helpers. Define políticas puras para usage_quota e usage_consumption, sem billing real.
-23. Teste real manual quando houver quota/billing disponível.
-24. Integração experimental futura no Board de Criação.
+23. MM24 — Observability event contracts. Define eventos e payloads seguros, sem analytics real.
+24. Teste real manual quando houver quota/billing disponível.
+25. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -270,6 +271,8 @@ MM21 adiciona `VideoNarrativeInputSourceGuardPolicy` e `validateVideoNarrativeIn
 MM22 adiciona `VideoNarrativeConsentPolicy`, `VideoNarrativeRetentionPolicy` e `validateVideoNarrativeConsentRetentionForPhase` para preparar consentimento, retenção e expiração sem endpoint, upload real, storage real ou cleanup real.
 
 MM23 adiciona `VideoNarrativeUsagePolicy`, `validateVideoNarrativeUsageQuotaForPhase` e `decideVideoNarrativeUsageConsumption` para preparar limite, cooldown e consumo de quota sem endpoint, billing real, Stripe ou cobrança.
+
+MM24 adiciona `VideoNarrativeObservabilityEventPayload`, `buildVideoNarrativeObservabilityEvent` e `validateVideoNarrativeObservabilityEvent` para preparar eventos seguros sem endpoint, analytics real, banco/tabela ou provider externo.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 

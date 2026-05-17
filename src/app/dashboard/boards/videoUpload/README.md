@@ -518,6 +518,28 @@ O que não faz:
 - não cria billing real, Stripe, cobrança, banco/tabela ou analytics real;
 - não conecta nada ao fluxo real do produto.
 
+### MM24 — Observability event contracts
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoNarrativeObservabilityEvents.ts`
+- `videoNarrativeObservabilityEvents.test.ts`
+
+O que faz:
+
+- cria tipos e helpers puros para eventos futuros de observabilidade;
+- define payloads seguros para requested, started, completed, failed, fallback, seed, usage consumed/not consumed e limit reached;
+- adiciona buckets de duração/tamanho, requestId determinístico, validação de payload e redação de API key, base64 e URL assinada.
+
+O que não faz:
+
+- não cria analytics real;
+- não cria banco/tabela;
+- não cria endpoint, `route.ts`, upload real ou UI;
+- não conecta provider externo nem envia eventos.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

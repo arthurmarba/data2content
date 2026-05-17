@@ -115,6 +115,8 @@ MM23 adiciona helpers puros para preparar este guard por fase, incluindo limite 
 - registrar evento conceitual video_narrative_analysis_started;
 - logs sem vídeo/base64/API key/rawText.
 
+MM24 adiciona `buildVideoNarrativeObservabilityEvent` para preparar esse hook futuro com payload seguro, requestId, buckets e redação de campos sensíveis, ainda sem analytics real.
+
 ### 14. Provider Call
 
 - chamar `runGeminiVideoNarrativeProviderFromEnv`;
@@ -147,6 +149,8 @@ MM23 adiciona `decideVideoNarrativeUsageConsumption` para formalizar os motivos 
 - registrar provider status;
 - registrar parse ok/fail;
 - registrar cost estimate no futuro.
+
+MM24 também prepara eventos de completion, failure, fallback, seed, usage consumed/not consumed e limit reached sem enviar nada para ferramenta externa.
 
 ### 19. Safe Response
 
@@ -291,6 +295,8 @@ MM22 adiciona `VideoNarrativeConsentPolicy`, `VideoNarrativeRetentionPolicy` e `
 
 MM23 adiciona `VideoNarrativeUsagePolicy`, `VideoNarrativeQuotaGuardResult` e `VideoNarrativeUsageConsumptionDecision` como fundação pura para usage_quota e usage_consumption.
 
+MM24 adiciona `VideoNarrativeObservabilityEventPayload` e helpers de build/validate/redact como fundação pura para os hooks de observabilidade do endpoint futuro.
+
 ## Critérios Antes De Implementar Route.ts
 
 Só criar route.ts depois que:
@@ -306,6 +312,7 @@ Só criar route.ts depois que:
 - input/source guard helpers estiverem disponíveis para `input_source`;
 - consent/retention guard helpers estiverem disponíveis para `consent` e `retention`;
 - usage/quota guard helpers estiverem disponíveis para `usage_quota` e `usage_consumption`;
+- observability event contracts estiverem disponíveis para start/completion hooks;
 - admin/dev guard server-side estiver confirmado.
 
 ## Decisão Recomendada Agora
@@ -324,6 +331,7 @@ Como ainda não há billing/quota:
 - MM21: input/source guard helpers;
 - MM22: consent/retention guard helpers;
 - MM23: usage/quota guard helpers;
-- MM24: storage cleanup contract;
-- MM25: endpoint real somente depois de billing/teste real;
-- MM26: preview interno com endpoint real.
+- MM24: observability event contracts;
+- MM25: storage cleanup contract;
+- MM26: endpoint real somente depois de billing/teste real;
+- MM27: preview interno com endpoint real.
