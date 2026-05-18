@@ -812,6 +812,32 @@ O que não faz:
 - não conecta BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
 - não conecta Instagram real, billing, Stripe ou cobrança.
 
+### MM36 — Interactive preview UX refinement
+
+Status: concluído.
+
+Arquivos principais:
+
+- `../components/videoUpload/VideoNarrativeInteractiveAppPreview.tsx`
+- `../components/videoUpload/appPreview/VideoNarrativeInteractiveQuiz.tsx`
+- `../components/videoUpload/appPreview/VideoNarrativeDiagnosisBlocks.tsx`
+- `../components/videoUpload/appPreview/VideoNarrativePromptCards.tsx`
+- `videoNarrativeAppFlowState.ts`
+
+O que faz:
+
+- refina copy de boas-vindas, upload simulado, loadings, pergunta central e prompts;
+- deixa o quiz com sensação de conversa guiada, opções maiores e sinal aprendido discreto;
+- reorganiza o diagnóstico em blocos de narrativa, leitura estratégica, gancho, potencial comercial, blueprint, ações e aprendizado;
+- torna CTAs finais mais diretos para roteiro, blueprint, versão para publi, Instagram e planos.
+
+O que não faz:
+
+- não cria upload real, storage real, banco/tabela, analytics real ou persistência;
+- não altera endpoint real nem chama Gemini, OpenAI, endpoint ou rede;
+- não conecta BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
+- não conecta Instagram real, billing, Stripe ou cobrança.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

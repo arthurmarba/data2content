@@ -43,7 +43,7 @@ describe("VideoNarrativeAppPreviewPage", () => {
 
     expect(screen.getByText("Preview interno — Análise Guiada de Vídeo")).toBeInTheDocument();
     expect(screen.getByText("Experiência app-first com mock narrativo")).toBeInTheDocument();
-    expect(screen.getByText("Entenda a narrativa do seu vídeo")).toBeInTheDocument();
+    expect(screen.getByText("Descubra a narrativa do seu vídeo")).toBeInTheDocument();
   });
 
   it("mode=static keeps static preview", async () => {
@@ -71,7 +71,7 @@ describe("VideoNarrativeAppPreviewPage", () => {
     );
 
     expect(screen.getByText("Preview interativo app-first")).toBeInTheDocument();
-    expect(screen.getByText("Começar")).toBeInTheDocument();
+    expect(screen.getByText("Começar análise")).toBeInTheDocument();
   });
 
   it("query params alter scenario, stage, access and Instagram state", async () => {

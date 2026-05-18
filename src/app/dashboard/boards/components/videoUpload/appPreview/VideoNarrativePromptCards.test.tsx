@@ -8,14 +8,15 @@ describe("VideoNarrativePromptCards", () => {
   it("renders upgrade prompt when showUpgrade", () => {
     render(<VideoNarrativePromptCards showUpgrade />);
 
-    expect(screen.getByText("Quer liberar diagnósticos completos?")).toBeInTheDocument();
+    expect(screen.getByText("Quer diagnósticos mais completos?")).toBeInTheDocument();
+    expect(screen.getByText(/liberar roteiro, versão para publi/)).toBeInTheDocument();
     expect(screen.getByText("Ver planos")).toBeInTheDocument();
   });
 
   it("renders Instagram prompt when showInstagram", () => {
     render(<VideoNarrativePromptCards showInstagram />);
 
-    expect(screen.getByText("Quer deixar o diagnóstico mais preciso?")).toBeInTheDocument();
+    expect(screen.getByText("Quer um diagnóstico mais preciso?")).toBeInTheDocument();
     expect(screen.getByText("Conectar Instagram")).toBeInTheDocument();
   });
 

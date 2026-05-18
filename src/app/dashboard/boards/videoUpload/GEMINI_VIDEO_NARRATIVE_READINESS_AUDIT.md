@@ -94,6 +94,8 @@ Já existe:
 - os primitives MM34 seguem isolados da rota real, sem upload real, persistência, BoardShell ou integração externa;
 - interactive app-first preview foi criado em MM35 para navegar pela jornada com estado local;
 - o modo `mode=interactive` continua sem upload real, endpoint call, persistência, BoardShell ou Gemini real;
+- interactive preview UX refinement foi concluído em MM36 para lapidar copy, quiz, diagnóstico, CTAs e prompts;
+- a preview MM36 segue mock/local-state; a próxima etapa pode revisar visualmente no navegador ou preparar integração controlada com fluxo real;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 

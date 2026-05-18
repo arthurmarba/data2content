@@ -38,15 +38,17 @@ export function VideoNarrativeInteractiveQuiz({
 
   return (
     <div className="grid gap-4">
-      <p className="text-sm font-semibold text-zinc-700">
-        {answered}/{questions.length} perguntas respondidas
+      <p className="text-sm font-semibold text-zinc-700" data-testid="quiz-local-state-note">
+        {answered}/{questions.length} respondidas. Respostas salvas apenas nesta preview.
       </p>
       <div className="grid gap-3">
         {questions.map((question, index) => (
-          <article key={question.id} className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
-            <p className="text-xs font-semibold uppercase text-zinc-500">Pergunta {index + 1}</p>
+          <article key={question.id} className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+            <p className="text-xs font-semibold uppercase text-zinc-500">
+              Pergunta {index + 1} de {questions.length}
+            </p>
             <h3 className="mt-1 text-base font-semibold text-zinc-950">{question.title}</h3>
-            <p className="mt-2 text-sm leading-6 text-zinc-600">{question.helper ?? question.reason}</p>
+            <p className="mt-2 text-sm leading-6 text-zinc-600">{question.reason}</p>
             <div className="mt-4 grid gap-2">
               {question.options.map((option) => {
                 const selected = selectedAnswers[question.id] === option.id;
@@ -58,17 +60,18 @@ export function VideoNarrativeInteractiveQuiz({
                     onClick={() => onAnswer(question.id, option.id)}
                     className={
                       selected
-                        ? "rounded-lg border border-zinc-950 bg-white p-3 text-left shadow-sm"
-                        : "rounded-lg border border-zinc-200 bg-white p-3 text-left hover:border-zinc-400"
+                        ? "rounded-xl border border-zinc-950 bg-white p-4 text-left shadow-sm ring-2 ring-zinc-950/10"
+                        : "rounded-xl border border-zinc-200 bg-white p-4 text-left hover:border-zinc-400"
                     }
+                    aria-pressed={selected}
                   >
                     <span className="block text-sm font-semibold text-zinc-800">{option.label}</span>
                     {option.description ? (
                       <span className="mt-1 block text-xs leading-5 text-zinc-500">{option.description}</span>
                     ) : null}
                     {option.learningSignalType ? (
-                      <span className="mt-2 inline-flex rounded-full bg-zinc-900 px-2.5 py-1 text-xs font-semibold text-white">
-                        sinal: {formatSignalLabel(option.learningSignalType)}
+                      <span className="mt-2 inline-flex rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold text-zinc-600">
+                        aprende: {formatSignalLabel(option.learningSignalType)}
                       </span>
                     ) : null}
                   </button>

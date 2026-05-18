@@ -44,7 +44,9 @@ describe("VideoNarrativeInteractiveQuiz", () => {
       />,
     );
 
-    expect(screen.getByText(`1/${scenario.quiz.questions.length} perguntas respondidas`)).toBeInTheDocument();
+    expect(screen.getByTestId("quiz-local-state-note")).toHaveTextContent(
+      `1/${scenario.quiz.questions.length} respondidas. Respostas salvas apenas nesta preview.`,
+    );
   });
 
   it("keeps complete disabled until required questions are answered", () => {
@@ -89,6 +91,6 @@ describe("VideoNarrativeInteractiveQuiz", () => {
       />,
     );
 
-    expect(screen.getAllByText(/sinal:/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/aprende:/).length).toBeGreaterThan(0);
   });
 });

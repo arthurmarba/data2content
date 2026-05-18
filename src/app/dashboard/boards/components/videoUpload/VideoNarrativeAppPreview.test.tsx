@@ -44,8 +44,8 @@ describe("VideoNarrativeAppPreview", () => {
   it("renders loading messages in analyzing_video", () => {
     render(<VideoNarrativeAppPreview preview={buildVideoNarrativeAppPreviewScenario({ stage: "analyzing_video" })} />);
 
-    expect(screen.getByText("Identificando gancho")).toBeInTheDocument();
-    expect(screen.getByText("Mapeando narrativa")).toBeInTheDocument();
+    expect(screen.getByText("Lendo a abertura")).toBeInTheDocument();
+    expect(screen.getByText("Mapeando a narrativa principal")).toBeInTheDocument();
   });
 
   it("renders central question in asking_creator_goal", () => {
@@ -65,7 +65,7 @@ describe("VideoNarrativeAppPreview", () => {
     render(<VideoNarrativeAppPreview preview={buildVideoNarrativeAppPreviewScenario({ stage: "diagnosis_ready" })} />);
 
     expect(screen.getAllByText("Diagnóstico").length).toBeGreaterThan(0);
-    expect(screen.getByText("Potencial de marcas")).toBeInTheDocument();
+    expect(screen.getByText("Potencial comercial")).toBeInTheDocument();
     expect(screen.getByText("Blueprint")).toBeInTheDocument();
     expect(screen.getByText("Próximas ações")).toBeInTheDocument();
   });
@@ -95,7 +95,7 @@ describe("VideoNarrativeAppPreview", () => {
   it("renders upgrade prompt", () => {
     render(<VideoNarrativeAppPreview preview={buildVideoNarrativeAppPreviewScenario({ stage: "upgrade_prompt" })} />);
 
-    expect(screen.getAllByText("Quer liberar diagnósticos completos?").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Quer diagnósticos mais completos?").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Ver planos").length).toBeGreaterThan(0);
   });
 
@@ -106,7 +106,7 @@ describe("VideoNarrativeAppPreview", () => {
       />,
     );
 
-    expect(screen.getAllByText("Quer deixar o diagnóstico mais preciso?").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Quer um diagnóstico mais preciso?").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Conectar Instagram").length).toBeGreaterThan(0);
   });
 

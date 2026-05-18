@@ -59,7 +59,7 @@ describe("videoNarrativeAppFlowState", () => {
   it("initial state has start CTA", () => {
     const state = createInitialVideoNarrativeAppFlowState();
 
-    expect(state.copy.ctas.some((cta) => cta.label === "Começar")).toBe(true);
+    expect(state.copy.ctas.some((cta) => cta.label === "Começar análise")).toBe(true);
   });
 
   it("transitions start to upload_video", () => {
@@ -101,8 +101,10 @@ describe("videoNarrativeAppFlowState", () => {
   it("analyzing_video includes analysis loading messages", () => {
     const messages = flowTo("analyzing_video").copy.loadingMessages;
 
-    expect(messages).toContain("Identificando gancho");
-    expect(messages).toContain("Mapeando narrativa");
+    expect(messages).toContain("Lendo a abertura");
+    expect(messages).toContain("Identificando cenas e contexto");
+    expect(messages).toContain("Mapeando a narrativa principal");
+    expect(messages).toContain("Separando conteúdo bruto de direção estratégica");
   });
 
   it("video_analysis_ready goes to asking_creator_goal", () => {
@@ -132,7 +134,8 @@ describe("videoNarrativeAppFlowState", () => {
   it("understanding_goal includes goal loading messages", () => {
     const messages = flowTo("understanding_goal").copy.loadingMessages;
 
-    expect(messages).toContain("Cruzando seu objetivo com a narrativa do vídeo");
+    expect(messages).toContain("Cruzando sua dúvida com a narrativa do vídeo");
+    expect(messages).toContain("Identificando o que ainda falta entender");
     expect(messages).toContain("Preparando perguntas estratégicas");
   });
 
