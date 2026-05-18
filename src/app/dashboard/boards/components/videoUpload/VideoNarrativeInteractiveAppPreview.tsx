@@ -124,13 +124,19 @@ export function VideoNarrativeInteractiveAppPreview({ scenarioData }: VideoNarra
   function renderBody() {
     if (currentStage === "upload_video") {
       return (
-        <button
-          type="button"
-          onClick={actions.simulateVideoUpload}
-          className="flex min-h-36 w-full items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-6 py-8 text-lg font-semibold text-zinc-950 hover:border-zinc-500 hover:bg-white"
-        >
-          + Subir vídeo
-        </button>
+        <div className="grid gap-4">
+          <button
+            type="button"
+            onClick={actions.simulateVideoUpload}
+            className="flex min-h-52 w-full flex-col items-center justify-center rounded-3xl border border-dashed border-zinc-300 bg-zinc-50 px-6 py-10 text-zinc-950 hover:border-zinc-500 hover:bg-white"
+          >
+            <span className="grid h-14 w-14 place-items-center rounded-full bg-zinc-950 text-3xl font-semibold text-white">+</span>
+            <span className="mt-4 text-xl font-semibold">Subir vídeo</span>
+            <span className="mt-2 max-w-sm text-sm leading-6 text-zinc-600">
+              Na preview interna, o upload é simulado por cenário mockado.
+            </span>
+          </button>
+        </div>
       );
     }
 
@@ -185,6 +191,7 @@ export function VideoNarrativeInteractiveAppPreview({ scenarioData }: VideoNarra
           <div className="flex flex-wrap gap-2">
             <SecondaryButton onClick={() => undefined}>Transformar em roteiro</SecondaryButton>
             <SecondaryButton onClick={() => undefined}>Criar blueprint</SecondaryButton>
+            <SecondaryButton onClick={() => undefined}>Criar versão para publi</SecondaryButton>
             <SecondaryButton onClick={actions.requestUpgrade}>Ver planos</SecondaryButton>
             <SecondaryButton onClick={actions.requestInstagramConnection}>Conectar Instagram</SecondaryButton>
           </div>
@@ -214,7 +221,7 @@ export function VideoNarrativeInteractiveAppPreview({ scenarioData }: VideoNarra
 
   function renderFooter() {
     if (currentStage === "welcome") {
-      return <PrimaryButton onClick={actions.start}>Começar</PrimaryButton>;
+      return <PrimaryButton onClick={actions.start}>Começar análise</PrimaryButton>;
     }
 
     if (currentStage === "diagnosis_ready") {

@@ -72,7 +72,7 @@ describe("buildVideoNarrativeAppPreviewScenario", () => {
   it("analyzing_video stage has loading messages", () => {
     const preview = buildVideoNarrativeAppPreviewScenario({ stage: "analyzing_video" });
 
-    expect(preview.flowState.copy.loadingMessages).toContain("Identificando gancho");
+    expect(preview.flowState.copy.loadingMessages).toContain("Lendo a abertura");
   });
 
   it("asking_creator_goal stage has central question", () => {

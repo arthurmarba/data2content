@@ -14,6 +14,7 @@ const QUICK_PROMPTS = [
   "Virar publi",
   "Entender narrativa",
   "Encontrar marcas",
+  "Criar próximos conteúdos",
 ];
 
 export function VideoNarrativeGoalInput({ initialValue = "", onSubmit }: VideoNarrativeGoalInputProps) {
@@ -33,13 +34,16 @@ export function VideoNarrativeGoalInput({ initialValue = "", onSubmit }: VideoNa
         onSubmit(safeValue);
       }}
     >
-      <textarea
-        value={value}
-        onChange={(event) => updateValue(event.currentTarget.value)}
-        rows={4}
-        placeholder="Ex: quero saber se vale postar, se o gancho está bom ou se pode virar publi."
-        className="min-h-32 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm leading-6 text-zinc-950 outline-none transition focus:border-zinc-500"
-      />
+      <label className="grid gap-2">
+        <span className="text-sm font-semibold text-zinc-900">Sua dúvida ou objetivo</span>
+        <textarea
+          value={value}
+          onChange={(event) => updateValue(event.currentTarget.value)}
+          rows={4}
+          placeholder="Ex: quero saber se vale postar, se o gancho está bom ou se pode virar publi."
+          className="min-h-32 rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm leading-6 text-zinc-950 outline-none transition focus:border-zinc-500"
+        />
+      </label>
       <div className="flex flex-wrap gap-2">
         {QUICK_PROMPTS.map((prompt) => (
           <button

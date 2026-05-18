@@ -21,22 +21,24 @@ describe("VideoNarrativeInteractiveAppPreview", () => {
     renderInteractive();
 
     expect(screen.getByText("Preview interativo app-first")).toBeInTheDocument();
-    expect(screen.getByText("Entenda a narrativa do seu vídeo")).toBeInTheDocument();
+    expect(screen.getByText("Descubra a narrativa do seu vídeo")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Começar análise" })).toBeInTheDocument();
   });
 
-  it("clicking Começar shows upload_video", () => {
+  it("clicking Começar análise shows upload_video", () => {
     renderInteractive();
 
-    fireEvent.click(screen.getByRole("button", { name: "Começar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar análise" }));
 
     expect(screen.getByText("Suba seu vídeo")).toBeInTheDocument();
+    expect(screen.getAllByText("Na preview interna, o upload é simulado por cenário mockado.").length).toBeGreaterThan(0);
   });
 
   it("clicking upload shows analyzing_video", () => {
     renderInteractive();
 
-    fireEvent.click(screen.getByRole("button", { name: "Começar" }));
-    fireEvent.click(screen.getByRole("button", { name: "+ Subir vídeo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar análise" }));
+    fireEvent.click(screen.getByRole("button", { name: /Subir vídeo/ }));
 
     expect(screen.getByText("Analisando seu vídeo")).toBeInTheDocument();
   });
@@ -44,40 +46,45 @@ describe("VideoNarrativeInteractiveAppPreview", () => {
   it("loading analysis shows messages", () => {
     renderInteractive();
 
-    fireEvent.click(screen.getByRole("button", { name: "Começar" }));
-    fireEvent.click(screen.getByRole("button", { name: "+ Subir vídeo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar análise" }));
+    fireEvent.click(screen.getByRole("button", { name: /Subir vídeo/ }));
 
-    expect(screen.getByText("Identificando gancho")).toBeInTheDocument();
-    expect(screen.getByText("Mapeando narrativa")).toBeInTheDocument();
+    expect(screen.getByText("Lendo a abertura")).toBeInTheDocument();
+    expect(screen.getByText("Identificando cenas e contexto")).toBeInTheDocument();
+    expect(screen.getByText("Mapeando a narrativa principal")).toBeInTheDocument();
+    expect(screen.getByText("Separando conteúdo bruto de direção estratégica")).toBeInTheDocument();
   });
 
   it("continue shows central question", () => {
     renderInteractive();
 
-    fireEvent.click(screen.getByRole("button", { name: "Começar" }));
-    fireEvent.click(screen.getByRole("button", { name: "+ Subir vídeo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar análise" }));
+    fireEvent.click(screen.getByRole("button", { name: /Subir vídeo/ }));
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
     expect(screen.getByText("O que você quer entender sobre esse vídeo?")).toBeInTheDocument();
+    expect(screen.getByText("Quanto mais claro for seu objetivo, melhor fica o diagnóstico.")).toBeInTheDocument();
   });
 
   it("filling goal and continuing shows understanding_goal", () => {
     renderInteractive();
 
-    fireEvent.click(screen.getByRole("button", { name: "Começar" }));
-    fireEvent.click(screen.getByRole("button", { name: "+ Subir vídeo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar análise" }));
+    fireEvent.click(screen.getByRole("button", { name: /Subir vídeo/ }));
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "Quero entender a narrativa" } });
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
     expect(screen.getByText("Entendendo sua dúvida")).toBeInTheDocument();
+    expect(screen.getByText("Cruzando sua dúvida com a narrativa do vídeo")).toBeInTheDocument();
+    expect(screen.getByText("Identificando o que ainda falta entender")).toBeInTheDocument();
   });
 
   it("continue from understanding_goal shows adaptive quiz", () => {
     renderInteractive();
 
-    fireEvent.click(screen.getByRole("button", { name: "Começar" }));
-    fireEvent.click(screen.getByRole("button", { name: "+ Subir vídeo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar análise" }));
+    fireEvent.click(screen.getByRole("button", { name: /Subir vídeo/ }));
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "Quero entender a narrativa" } });
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
@@ -89,8 +96,8 @@ describe("VideoNarrativeInteractiveAppPreview", () => {
   it("answering quiz and completing shows building diagnosis", () => {
     const { container } = renderInteractive();
 
-    fireEvent.click(screen.getByRole("button", { name: "Começar" }));
-    fireEvent.click(screen.getByRole("button", { name: "+ Subir vídeo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar análise" }));
+    fireEvent.click(screen.getByRole("button", { name: /Subir vídeo/ }));
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "Quero entender a narrativa" } });
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
@@ -104,8 +111,8 @@ describe("VideoNarrativeInteractiveAppPreview", () => {
   it("build diagnosis shows diagnosis_ready", () => {
     const { container } = renderInteractive();
 
-    fireEvent.click(screen.getByRole("button", { name: "Começar" }));
-    fireEvent.click(screen.getByRole("button", { name: "+ Subir vídeo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar análise" }));
+    fireEvent.click(screen.getByRole("button", { name: /Subir vídeo/ }));
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "Quero entender a narrativa" } });
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
@@ -120,8 +127,8 @@ describe("VideoNarrativeInteractiveAppPreview", () => {
   it("diagnosis_ready shows diagnosis, locked sections, profile summary and prompts", () => {
     const { container } = renderInteractive();
 
-    fireEvent.click(screen.getByRole("button", { name: "Começar" }));
-    fireEvent.click(screen.getByRole("button", { name: "+ Subir vídeo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar análise" }));
+    fireEvent.click(screen.getByRole("button", { name: /Subir vídeo/ }));
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "Quero entender a narrativa" } });
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
@@ -130,18 +137,20 @@ describe("VideoNarrativeInteractiveAppPreview", () => {
     fireEvent.click(screen.getByRole("button", { name: "Concluir quiz" }));
     fireEvent.click(screen.getByRole("button", { name: "Montar diagnóstico" }));
 
-    expect(screen.getAllByText("Diagnóstico").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Narrativa principal").length).toBeGreaterThan(0);
+    expect(screen.getByText("Leitura estratégica")).toBeInTheDocument();
     expect(screen.getByText("Seções bloqueadas")).toBeInTheDocument();
     expect(screen.getByText("Resumo do perfil narrativo")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ver planos" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Conectar Instagram" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Criar versão para publi" })).toBeInTheDocument();
   });
 
   it("clicking Ver planos shows upgrade prompt", () => {
     const { container } = renderInteractive();
 
-    fireEvent.click(screen.getByRole("button", { name: "Começar" }));
-    fireEvent.click(screen.getByRole("button", { name: "+ Subir vídeo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar análise" }));
+    fireEvent.click(screen.getByRole("button", { name: /Subir vídeo/ }));
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "Quero entender a narrativa" } });
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
@@ -151,14 +160,14 @@ describe("VideoNarrativeInteractiveAppPreview", () => {
     fireEvent.click(screen.getByRole("button", { name: "Montar diagnóstico" }));
     fireEvent.click(screen.getByRole("button", { name: "Ver planos" }));
 
-    expect(screen.getAllByText("Quer liberar diagnósticos completos?").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Quer diagnósticos mais completos?").length).toBeGreaterThan(0);
   });
 
   it("clicking Conectar Instagram shows Instagram prompt", () => {
     const { container } = renderInteractive();
 
-    fireEvent.click(screen.getByRole("button", { name: "Começar" }));
-    fireEvent.click(screen.getByRole("button", { name: "+ Subir vídeo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar análise" }));
+    fireEvent.click(screen.getByRole("button", { name: /Subir vídeo/ }));
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "Quero entender a narrativa" } });
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
@@ -168,21 +177,21 @@ describe("VideoNarrativeInteractiveAppPreview", () => {
     fireEvent.click(screen.getByRole("button", { name: "Montar diagnóstico" }));
     fireEvent.click(screen.getByRole("button", { name: "Conectar Instagram" }));
 
-    expect(screen.getAllByText("Quer deixar o diagnóstico mais preciso?").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Quer um diagnóstico mais preciso?").length).toBeGreaterThan(0);
   });
 
   it("reset returns to beginning", () => {
     renderInteractive();
 
-    fireEvent.click(screen.getByRole("button", { name: "Começar" }));
-    fireEvent.click(screen.getByRole("button", { name: "+ Subir vídeo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Começar análise" }));
+    fireEvent.click(screen.getByRole("button", { name: /Subir vídeo/ }));
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "Quero entender a narrativa" } });
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     fireEvent.click(screen.getByRole("button", { name: "Reiniciar" }));
 
-    expect(screen.getByText("Entenda a narrativa do seu vídeo")).toBeInTheDocument();
+    expect(screen.getByText("Descubra a narrativa do seu vídeo")).toBeInTheDocument();
   });
 
   it("does not call endpoint or fetch", () => {

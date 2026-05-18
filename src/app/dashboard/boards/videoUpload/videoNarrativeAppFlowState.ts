@@ -229,11 +229,12 @@ export function getVideoNarrativeAppFlowCopy(
 ): VideoNarrativeAppFlowCopy {
   if (stage === "welcome") {
     return copy({
-      title: "Entenda a narrativa do seu vídeo",
-      subtitle: "Envie um vídeo e receba um diagnóstico com narrativa, gancho, marcas potenciais e próximos passos.",
-      helper: null,
+      title: "Descubra a narrativa do seu vídeo",
+      subtitle:
+        "Envie um vídeo, conte sua dúvida e receba um diagnóstico com gancho, narrativa, marcas potenciais e próximos passos.",
+      helper: "A experiência é guiada do upload ao diagnóstico final.",
       loadingMessages: [],
-      ctas: [cta({ id: "start", label: "Começar", action: "continue", primary: true })],
+      ctas: [cta({ id: "start", label: "Começar análise", action: "continue", primary: true })],
     });
   }
 
@@ -241,7 +242,7 @@ export function getVideoNarrativeAppFlowCopy(
     return copy({
       title: "Suba seu vídeo",
       subtitle: "Escolha um vídeo para a D2C analisar a narrativa.",
-      helper: "Você poderá explicar sua dúvida depois do envio.",
+      helper: "Na preview interna, o upload é simulado por cenário mockado.",
       loadingMessages: [],
       ctas: [cta({ id: "select-video", label: "Subir vídeo", action: "select_video", primary: true })],
     });
@@ -253,10 +254,11 @@ export function getVideoNarrativeAppFlowCopy(
       subtitle: null,
       helper: null,
       loadingMessages: [
-        "Identificando gancho",
-        "Lendo cenas e contexto",
-        "Mapeando narrativa",
+        "Lendo a abertura",
+        "Identificando cenas e contexto",
+        "Mapeando a narrativa principal",
         "Buscando sinais de marca",
+        "Separando conteúdo bruto de direção estratégica",
       ],
       ctas: [],
     });
@@ -266,7 +268,7 @@ export function getVideoNarrativeAppFlowCopy(
     return copy({
       title: "O que você quer entender sobre esse vídeo?",
       subtitle: "Escreva sua dúvida, objetivo ou incômodo.",
-      helper: "Ex: quero saber se vale postar, se o gancho está bom ou se pode virar publi.",
+      helper: "Quanto mais claro for seu objetivo, melhor fica o diagnóstico.",
       loadingMessages: [],
       ctas: [cta({ id: "submit-goal", label: "Continuar", action: "submit_goal", primary: true })],
     });
@@ -278,9 +280,9 @@ export function getVideoNarrativeAppFlowCopy(
       subtitle: null,
       helper: null,
       loadingMessages: [
-        "Cruzando seu objetivo com a narrativa do vídeo",
+        "Cruzando sua dúvida com a narrativa do vídeo",
+        "Identificando o que ainda falta entender",
         "Preparando perguntas estratégicas",
-        "Organizando o caminho do diagnóstico",
       ],
       ctas: [],
     });
@@ -335,7 +337,8 @@ export function getVideoNarrativeAppFlowCopy(
   if (stage === "upgrade_prompt") {
     return copy({
       title: "Quer liberar diagnósticos completos?",
-      subtitle: "Assinantes podem fazer novas análises e acessar ações mais profundas.",
+      subtitle:
+        "Assinantes podem fazer novas análises e liberar roteiro, versão para publi, ações completas e próximos conteúdos.",
       helper: null,
       loadingMessages: [],
       ctas: [cta({ id: "upgrade", label: "Ver planos", action: "upgrade", primary: true })],
@@ -344,7 +347,7 @@ export function getVideoNarrativeAppFlowCopy(
 
   if (stage === "instagram_optimization_prompt") {
     return copy({
-      title: "Quer deixar o diagnóstico mais preciso?",
+      title: "Quer um diagnóstico mais preciso?",
       subtitle: "Conecte seu Instagram para comparar esse vídeo com o que já funciona no seu perfil.",
       helper: null,
       loadingMessages: [],

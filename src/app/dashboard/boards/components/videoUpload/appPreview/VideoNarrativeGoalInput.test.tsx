@@ -30,6 +30,12 @@ describe("VideoNarrativeGoalInput", () => {
     expect(screen.getByRole("textbox")).toHaveValue("Virar publi");
   });
 
+  it("renders quick prompt for next content ideas", () => {
+    render(<VideoNarrativeGoalInput onSubmit={jest.fn()} />);
+
+    expect(screen.getByRole("button", { name: "Criar próximos conteúdos" })).toBeInTheDocument();
+  });
+
   it("submit calls callback with text", () => {
     const onSubmit = jest.fn();
     render(<VideoNarrativeGoalInput onSubmit={onSubmit} />);

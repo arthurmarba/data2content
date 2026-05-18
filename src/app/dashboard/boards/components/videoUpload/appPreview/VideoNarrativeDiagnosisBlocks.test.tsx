@@ -18,7 +18,7 @@ describe("VideoNarrativeDiagnosisBlocks", () => {
 
   it("renders main narrative", () => {
     renderBlocks();
-    expect(screen.getByText("Narrativa principal")).toBeInTheDocument();
+    expect(screen.getAllByText("Narrativa principal").length).toBeGreaterThan(0);
   });
 
   it("renders what video communicates", () => {
@@ -51,7 +51,8 @@ describe("VideoNarrativeDiagnosisBlocks", () => {
 
   it("renders brand potential", () => {
     renderBlocks();
-    expect(screen.getByText("Potencial de marcas")).toBeInTheDocument();
+    expect(screen.getByText("Potencial comercial")).toBeInTheDocument();
+    expect(screen.getByText("Marcas e territórios")).toBeInTheDocument();
   });
 
   it("renders blueprint", () => {
@@ -59,10 +60,9 @@ describe("VideoNarrativeDiagnosisBlocks", () => {
     expect(screen.getByText("Blueprint")).toBeInTheDocument();
   });
 
-  it("renders scriptDirection when unlocked", () => {
+  it("renders blueprint scenes", () => {
     renderBlocks();
-    expect(screen.getByText("Direção de roteiro")).toBeInTheDocument();
-    expect(screen.getByText("Abertura")).toBeInTheDocument();
+    expect(screen.getByText("Cenas")).toBeInTheDocument();
   });
 
   it("renders lockedSections", () => {
@@ -83,6 +83,7 @@ describe("VideoNarrativeDiagnosisBlocks", () => {
 
   it("renders creatorSignals", () => {
     renderBlocks();
+    expect(screen.getByText("Aprendizado sobre o criador")).toBeInTheDocument();
     expect(screen.getByText("Sinais do criador")).toBeInTheDocument();
   });
 
