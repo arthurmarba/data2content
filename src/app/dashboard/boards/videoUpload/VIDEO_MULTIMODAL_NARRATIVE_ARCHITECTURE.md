@@ -237,8 +237,9 @@ Exemplos:
 27. MM28 — Endpoint mock mode. Permite resposta narrativa simulada útil via mock provider, sem Gemini real.
 28. MM29 — Diagnosis and Creator Learning Model. Define diagnóstico estratégico e sinais de aprendizado do criador, sem UI, persistência ou Instagram real.
 29. MM30 — Diagnosis-driven quiz builder. Gera perguntas por lacunas do diagnóstico e opções com sinais de aprendizado futuro.
-30. Teste real manual quando houver quota/billing disponível.
-31. Integração experimental futura no Board de Criação.
+30. MM31 — Creator Narrative Profile contract. Organiza sinais acumulados do criador sem persistência, banco ou Instagram real.
+31. Teste real manual quando houver quota/billing disponível.
+32. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -291,6 +292,8 @@ MM28 adiciona `VIDEO_NARRATIVE_INTERNAL_PROVIDER_MODE=mock` para que o skeleton 
 MM29 adiciona `VideoNarrativeStrategicDiagnosis` e `VideoNarrativeDiagnosisCreatorSignal` como camada pura posterior à análise/seed. O diagnóstico passa a orientar quiz, UX futura e extração narrativa por níveis `free`, `premium` e `instagram_optimized`, enquanto as respostas do quiz geram sinais internos com `shouldPersistLater: false`.
 
 MM30 adiciona `buildVideoNarrativeDiagnosisQuiz` para gerar perguntas adaptativas a partir das lacunas do diagnóstico. O quiz existe para completar o diagnóstico daquele vídeo e capturar respostas com `learningSignalType`/`learningSignalValue`, ainda sem UI, persistência, endpoint real ou integração com Instagram real.
+
+MM31 adiciona `VideoNarrativeCreatorProfile` como contrato puro para agregar sinais narrativos ao longo do tempo. O perfil futuro pode melhorar diagnósticos recorrentes, mas nesta fase não há banco, persistência, Instagram real ou sinal transformado em verdade permanente automaticamente.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 

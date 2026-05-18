@@ -84,6 +84,8 @@ Já existe:
 - sinais do criador são extraídos em MM29, mas não são persistidos;
 - diagnosis-driven quiz builder foi criado em MM30 para gerar perguntas a partir do diagnóstico;
 - perguntas de MM30 têm `learningSignalType` e respostas ainda não persistem;
+- creator narrative profile contract foi criado em MM31 para agregar sinais sem banco ou persistência;
+- `shouldPersistLater` segue apenas metadado e persistência continua bloqueada;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
@@ -142,6 +144,7 @@ Como não há billing agora, seguir sem teste real e avançar apenas em:
 - diagnóstico estratégico puro para níveis `free`, `premium` e `instagram_optimized`;
 - creatorSignals derivados de quiz/pergunta/análise/seed/Instagram futuro, sempre sem persistência automática;
 - quiz builder puro orientado por lacunas do diagnóstico, sem UI e sem persistir respostas;
+- contrato de perfil narrativo do criador com merge/summary em memória, sem banco;
 - sem expor para usuário.
 
 ## Frase Norte

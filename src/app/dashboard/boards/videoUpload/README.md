@@ -680,6 +680,29 @@ O que não faz:
 - não conecta Instagram real nem usa dados reais de Instagram;
 - não altera endpoint real, BoardShell, navegação/menu ou `PostCreationFunnelState`.
 
+### MM31 — Creator Narrative Profile contract
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoNarrativeCreatorProfileContract.ts`
+- `videoNarrativeCreatorProfileContract.test.ts`
+
+O que faz:
+
+- cria um contrato puro para organizar sinais narrativos acumulados do criador;
+- mapeia `creatorSignals` para categorias como objetivos, preferências criativas, dores recorrentes, formatos e territórios de marca;
+- mescla sinais repetidos por categoria/tipo/valor e recalcula recorrência, força, status e evidências;
+- gera summary limitado para contexto futuro de diagnóstico.
+
+O que não faz:
+
+- não cria banco, tabela, Prisma ou persistência;
+- não conecta Instagram real nem usa dados reais de Instagram;
+- não cria UI, endpoint, upload real, storage real ou analytics real;
+- não transforma sinais em verdade permanente automaticamente.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
