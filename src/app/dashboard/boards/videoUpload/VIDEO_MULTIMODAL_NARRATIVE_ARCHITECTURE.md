@@ -243,8 +243,9 @@ Exemplos:
 33. MM34 — Diagnosis and Quiz UI primitives. Modulariza a preview interna em componentes reutilizáveis de shell, progresso, loading, quiz, diagnóstico e prompts.
 34. MM35 — Interactive app-first preview state. Permite navegar pela jornada em estado local via `mode=interactive`, sem depender de query params etapa por etapa.
 35. MM36 — Interactive preview UX refinement. Lapida copy, quiz, diagnóstico, CTAs e prompts antes de conectar upload real ou BoardShell.
-36. Teste real manual quando houver quota/billing disponível.
-37. Integração experimental futura no Board de Criação.
+36. MM37 — Browser UX QA checklist. Cria roteiro manual e testável para revisar a experiência no navegador antes de upload, BoardShell ou paywall.
+37. Teste real manual quando houver quota/billing disponível.
+38. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -309,6 +310,8 @@ MM34 adiciona primitives visuais em `components/videoUpload/appPreview/` para to
 MM35 adiciona `VideoNarrativeInteractiveAppPreview` e `useVideoNarrativeInteractivePreviewState` para transformar a preview em uma jornada navegável por estado local. `mode=interactive` simula upload, loadings, objetivo do criador, quiz, diagnóstico e prompts sem upload real, endpoint call, persistência, BoardShell, Gemini real ou integração externa.
 
 MM36 refina a UX da preview interativa. A experiência fica mais clara na primeira tela, o upload simulado ganha CTA central, os loadings usam mensagens mais estratégicas, o quiz parece conversa guiada e o diagnóstico passa a priorizar narrativa, leitura estratégica, potencial comercial, blueprint, ações e aprendizado do criador. A fase continua mock/local-state, sem upload real, endpoint call, persistência, BoardShell ou Gemini real.
+
+MM37 cria uma checklist de QA visual/funcional para testar a preview interativa no navegador. O roteiro cobre URLs, cenários, acessos, mobile-first, segurança visual, critérios por etapa e registro de achados antes de integrar upload, BoardShell, paywall ou qualquer fluxo real.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 
