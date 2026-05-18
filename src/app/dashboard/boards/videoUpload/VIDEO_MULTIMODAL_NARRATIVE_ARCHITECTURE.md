@@ -239,8 +239,9 @@ Exemplos:
 29. MM30 — Diagnosis-driven quiz builder. Gera perguntas por lacunas do diagnóstico e opções com sinais de aprendizado futuro.
 30. MM31 — Creator Narrative Profile contract. Organiza sinais acumulados do criador sem persistência, banco ou Instagram real.
 31. MM32 — App-first flow state model. Define estados, transições, copy e prompts antes de qualquer UI real.
-32. Teste real manual quando houver quota/billing disponível.
-33. Integração experimental futura no Board de Criação.
+32. MM33 — Internal app-first preview with mock. Permite sentir a experiência app-first em preview interna/admin-dev com cenários mockados, sem produto real.
+33. Teste real manual quando houver quota/billing disponível.
+34. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -297,6 +298,8 @@ MM30 adiciona `buildVideoNarrativeDiagnosisQuiz` para gerar perguntas adaptativa
 MM31 adiciona `VideoNarrativeCreatorProfile` como contrato puro para agregar sinais narrativos ao longo do tempo. O perfil futuro pode melhorar diagnósticos recorrentes, mas nesta fase não há banco, persistência, Instagram real ou sinal transformado em verdade permanente automaticamente.
 
 MM32 adiciona `VideoNarrativeAppFlowState` para modelar a experiência app-first antes da UI. A jornada cobre upload, análise, pergunta central, quiz, diagnóstico, CTAs e prompts de upgrade/Instagram sem alterar endpoint, criar upload real ou persistir respostas/sinais.
+
+MM33 adiciona `/dashboard/boards/video-narrative-app-preview` como preview interna protegida por flag e admin/dev. A experiência já pode ser sentida com cenários mockados, controles por query param, diagnóstico, quiz, perfil narrativo e prompts, mas continua fora do produto real, sem upload real, storage, banco, BoardShell, endpoint real ou persistência.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 
