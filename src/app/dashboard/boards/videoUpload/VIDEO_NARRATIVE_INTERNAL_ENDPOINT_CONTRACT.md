@@ -103,6 +103,8 @@ MM29 adiciona `VideoNarrativeStrategicDiagnosis` como camada futura depois do mo
 
 MM30 adiciona `buildVideoNarrativeDiagnosisQuiz` como camada futura depois do diagnosis builder. O endpoint/mock pode alimentar diagnóstico e quiz builder no futuro, mas a rota não foi alterada nesta fase.
 
+MM31 adiciona `VideoNarrativeCreatorProfile` como contrato futuro para agregar sinais vindos de diagnóstico e quiz. O endpoint não persiste nada nesta fase, e `shouldPersistLater` continua apenas metadado para decisão posterior.
+
 ## Status Futuros
 
 - `disabled`;
@@ -180,6 +182,8 @@ MM30 adiciona `buildVideoNarrativeDiagnosisQuiz` como camada futura depois do di
 - `VideoNarrativeDiagnosisCreatorSignal`;
 - `VideoNarrativeDiagnosisQuizQuestion`;
 - `buildVideoNarrativeDiagnosisQuiz`;
+- `VideoNarrativeCreatorProfile`;
+- `buildVideoNarrativeCreatorProfile`;
 - `VIDEO_NARRATIVE_INTERNAL_ENDPOINT_ENABLED`;
 - `VideoNarrativeAnalysis`;
 - `buildPostCreationVideoSeedFromAnalysis`;
@@ -224,6 +228,7 @@ Só implementar depois que:
 - MM28: endpoint mock mode sem Gemini real;
 - MM29: diagnosis and creator learning model;
 - MM30: diagnosis-driven quiz builder;
-- MM31: endpoint real somente depois de billing/teste real;
-- MM32: preview interno com chamada real;
-- MM33: integração experimental no board.
+- MM31: creator narrative profile contract;
+- MM32: endpoint real somente depois de billing/teste real;
+- MM33: preview interno com chamada real;
+- MM34: integração experimental no board.
