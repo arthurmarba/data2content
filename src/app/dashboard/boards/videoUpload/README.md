@@ -703,6 +703,29 @@ O que não faz:
 - não cria UI, endpoint, upload real, storage real ou analytics real;
 - não transforma sinais em verdade permanente automaticamente.
 
+### MM32 — App-first flow state model
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoNarrativeAppFlowState.ts`
+- `videoNarrativeAppFlowState.test.ts`
+
+O que faz:
+
+- define estados puros da jornada app-first de análise narrativa de vídeo;
+- modela transições, progresso, copies, loading messages e CTAs;
+- define prompts de upgrade e otimização com Instagram a partir do contexto;
+- permite carregar diagnóstico, quiz e perfil como contexto futuro sem persistir nada.
+
+O que não faz:
+
+- não cria UI, upload real, storage real, banco/tabela, analytics real ou persistência;
+- não altera endpoint real nem conecta BoardShell;
+- não conecta Instagram real nem usa dados reais de Instagram;
+- não altera navegação/menu ou `PostCreationFunnelState`.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

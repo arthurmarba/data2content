@@ -86,6 +86,8 @@ Já existe:
 - perguntas de MM30 têm `learningSignalType` e respostas ainda não persistem;
 - creator narrative profile contract foi criado em MM31 para agregar sinais sem banco ou persistência;
 - `shouldPersistLater` segue apenas metadado e persistência continua bloqueada;
+- app-first flow state model foi criado em MM32 para modelar jornada, copy e prompts antes da UI;
+- prompts de upgrade e Instagram foram definidos em MM32 sem conectar billing ou Instagram real;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
@@ -145,6 +147,7 @@ Como não há billing agora, seguir sem teste real e avançar apenas em:
 - creatorSignals derivados de quiz/pergunta/análise/seed/Instagram futuro, sempre sem persistência automática;
 - quiz builder puro orientado por lacunas do diagnóstico, sem UI e sem persistir respostas;
 - contrato de perfil narrativo do criador com merge/summary em memória, sem banco;
+- modelo puro de fluxo app-first com estados, CTAs e prompts, sem UI;
 - sem expor para usuário.
 
 ## Frase Norte
