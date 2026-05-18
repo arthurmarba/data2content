@@ -63,8 +63,8 @@ describe("VideoNarrativeAppPreviewPage", () => {
 
     expect(screen.getAllByText("Marca").length).toBeGreaterThan(0);
     expect(screen.getByText("Seu diagnóstico está pronto")).toBeInTheDocument();
-    expect(screen.getAllByText("instagram_optimized").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("connected").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Instagram otimizado").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Conectado").length).toBeGreaterThan(0);
     expect(screen.getByText("Comparação com Instagram")).toBeInTheDocument();
   });
 

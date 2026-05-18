@@ -240,8 +240,9 @@ Exemplos:
 30. MM31 — Creator Narrative Profile contract. Organiza sinais acumulados do criador sem persistência, banco ou Instagram real.
 31. MM32 — App-first flow state model. Define estados, transições, copy e prompts antes de qualquer UI real.
 32. MM33 — Internal app-first preview with mock. Permite sentir a experiência app-first em preview interna/admin-dev com cenários mockados, sem produto real.
-33. Teste real manual quando houver quota/billing disponível.
-34. Integração experimental futura no Board de Criação.
+33. MM34 — Diagnosis and Quiz UI primitives. Modulariza a preview interna em componentes reutilizáveis de shell, progresso, loading, quiz, diagnóstico e prompts.
+34. Teste real manual quando houver quota/billing disponível.
+35. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -300,6 +301,8 @@ MM31 adiciona `VideoNarrativeCreatorProfile` como contrato puro para agregar sin
 MM32 adiciona `VideoNarrativeAppFlowState` para modelar a experiência app-first antes da UI. A jornada cobre upload, análise, pergunta central, quiz, diagnóstico, CTAs e prompts de upgrade/Instagram sem alterar endpoint, criar upload real ou persistir respostas/sinais.
 
 MM33 adiciona `/dashboard/boards/video-narrative-app-preview` como preview interna protegida por flag e admin/dev. A experiência já pode ser sentida com cenários mockados, controles por query param, diagnóstico, quiz, perfil narrativo e prompts, mas continua fora do produto real, sem upload real, storage, banco, BoardShell, endpoint real ou persistência.
+
+MM34 adiciona primitives visuais em `components/videoUpload/appPreview/` para tornar a preview interna mais próxima de um app. A rota passa a compor shell, progresso, loading, quiz, diagnóstico e prompts com componentes testáveis, ainda sem upload real, endpoint alterado, persistência, BoardShell ou integração real.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 
