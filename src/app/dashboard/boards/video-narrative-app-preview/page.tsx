@@ -1,4 +1,5 @@
 import { VideoNarrativeAppPreview } from "../components/videoUpload/VideoNarrativeAppPreview";
+import { VideoNarrativeInteractiveAppPreview } from "../components/videoUpload/VideoNarrativeInteractiveAppPreview";
 import { buildVideoNarrativeAppPreviewScenario } from "../components/videoUpload/buildVideoNarrativeAppPreviewScenario";
 import {
   canAccessInternalPreview,
@@ -13,6 +14,7 @@ type VideoNarrativeAppPreviewPageProps = {
     stage?: string | string[];
     access?: string | string[];
     instagram?: string | string[];
+    mode?: string | string[];
   };
   viewer?: InternalPreviewUser | null;
 };
@@ -47,5 +49,10 @@ export default async function VideoNarrativeAppPreviewPage({
   }
 
   const preview = buildVideoNarrativeAppPreviewScenario(searchParams);
+  const mode = Array.isArray(searchParams?.mode) ? searchParams?.mode[0] : searchParams?.mode;
+  if (mode === "interactive") {
+    return <VideoNarrativeInteractiveAppPreview scenarioData={preview} />;
+  }
+
   return <VideoNarrativeAppPreview preview={preview} />;
 }

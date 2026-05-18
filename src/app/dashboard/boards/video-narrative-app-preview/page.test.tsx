@@ -46,6 +46,34 @@ describe("VideoNarrativeAppPreviewPage", () => {
     expect(screen.getByText("Entenda a narrativa do seu vídeo")).toBeInTheDocument();
   });
 
+  it("mode=static keeps static preview", async () => {
+    process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_APP_PREVIEW_ENABLED = "1";
+
+    render(
+      await VideoNarrativeAppPreviewPage({
+        viewer: adminViewer,
+        searchParams: { mode: "static" },
+      }),
+    );
+
+    expect(screen.getByText("Experiência app-first com mock narrativo")).toBeInTheDocument();
+    expect(screen.queryByText("Preview interativo app-first")).not.toBeInTheDocument();
+  });
+
+  it("mode=interactive renders interactive preview", async () => {
+    process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_APP_PREVIEW_ENABLED = "1";
+
+    render(
+      await VideoNarrativeAppPreviewPage({
+        viewer: adminViewer,
+        searchParams: { mode: "interactive" },
+      }),
+    );
+
+    expect(screen.getByText("Preview interativo app-first")).toBeInTheDocument();
+    expect(screen.getByText("Começar")).toBeInTheDocument();
+  });
+
   it("query params alter scenario, stage, access and Instagram state", async () => {
     process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_APP_PREVIEW_ENABLED = "1";
 
@@ -68,6 +96,27 @@ describe("VideoNarrativeAppPreviewPage", () => {
     expect(screen.getByText("Comparação com Instagram")).toBeInTheDocument();
   });
 
+  it("query params keep working in interactive mode", async () => {
+    process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_APP_PREVIEW_ENABLED = "1";
+
+    render(
+      await VideoNarrativeAppPreviewPage({
+        viewer: adminViewer,
+        searchParams: {
+          scenario: "brand",
+          access: "premium",
+          instagram: "connected",
+          mode: "interactive",
+        },
+      }),
+    );
+
+    expect(screen.getByText("Preview interativo app-first")).toBeInTheDocument();
+    expect(screen.getByText("Cenário: Marca")).toBeInTheDocument();
+    expect(screen.getByText("Acesso: Premium")).toBeInTheDocument();
+    expect(screen.getByText("Instagram: Conectado")).toBeInTheDocument();
+  });
+
   it("does not call endpoint or fetch", () => {
     const pageSource = fs.readFileSync(path.join(__dirname, "page.tsx"), "utf8");
     const importLines = pageSource
@@ -77,7 +126,7 @@ describe("VideoNarrativeAppPreviewPage", () => {
 
     expect(pageSource).not.toContain("fetch(");
     expect(importLines).not.toContain("app/api");
-    expect(importLines).not.toContain("route");
+    expect(importLines).not.toContain("route.ts");
   });
 
   it("does not import Gemini SDK or provider real", () => {

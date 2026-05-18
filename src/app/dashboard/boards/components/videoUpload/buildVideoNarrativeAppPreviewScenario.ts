@@ -45,6 +45,7 @@ export type VideoNarrativeAppPreviewScenarioParams = {
   stage?: string | string[] | null;
   access?: string | string[] | null;
   instagram?: string | string[] | null;
+  mode?: string | string[] | null;
 };
 
 export const VIDEO_NARRATIVE_APP_PREVIEW_SCENARIOS: VideoNarrativeAppPreviewScenarioDefinition[] = [
