@@ -238,8 +238,9 @@ Exemplos:
 28. MM29 — Diagnosis and Creator Learning Model. Define diagnóstico estratégico e sinais de aprendizado do criador, sem UI, persistência ou Instagram real.
 29. MM30 — Diagnosis-driven quiz builder. Gera perguntas por lacunas do diagnóstico e opções com sinais de aprendizado futuro.
 30. MM31 — Creator Narrative Profile contract. Organiza sinais acumulados do criador sem persistência, banco ou Instagram real.
-31. Teste real manual quando houver quota/billing disponível.
-32. Integração experimental futura no Board de Criação.
+31. MM32 — App-first flow state model. Define estados, transições, copy e prompts antes de qualquer UI real.
+32. Teste real manual quando houver quota/billing disponível.
+33. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -294,6 +295,8 @@ MM29 adiciona `VideoNarrativeStrategicDiagnosis` e `VideoNarrativeDiagnosisCreat
 MM30 adiciona `buildVideoNarrativeDiagnosisQuiz` para gerar perguntas adaptativas a partir das lacunas do diagnóstico. O quiz existe para completar o diagnóstico daquele vídeo e capturar respostas com `learningSignalType`/`learningSignalValue`, ainda sem UI, persistência, endpoint real ou integração com Instagram real.
 
 MM31 adiciona `VideoNarrativeCreatorProfile` como contrato puro para agregar sinais narrativos ao longo do tempo. O perfil futuro pode melhorar diagnósticos recorrentes, mas nesta fase não há banco, persistência, Instagram real ou sinal transformado em verdade permanente automaticamente.
+
+MM32 adiciona `VideoNarrativeAppFlowState` para modelar a experiência app-first antes da UI. A jornada cobre upload, análise, pergunta central, quiz, diagnóstico, CTAs e prompts de upgrade/Instagram sem alterar endpoint, criar upload real ou persistir respostas/sinais.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 

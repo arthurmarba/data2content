@@ -105,6 +105,8 @@ MM30 adiciona `buildVideoNarrativeDiagnosisQuiz` como camada futura depois do di
 
 MM31 adiciona `VideoNarrativeCreatorProfile` como contrato futuro para agregar sinais vindos de diagnóstico e quiz. O endpoint não persiste nada nesta fase, e `shouldPersistLater` continua apenas metadado para decisão posterior.
 
+MM32 adiciona `VideoNarrativeAppFlowState` como modelo futuro de jornada app-first. O endpoint/mock pode alimentar essa jornada com análise, safe response, diagnóstico, quiz e perfil, mas a rota não foi alterada nesta fase.
+
 ## Status Futuros
 
 - `disabled`;
@@ -184,6 +186,8 @@ MM31 adiciona `VideoNarrativeCreatorProfile` como contrato futuro para agregar s
 - `buildVideoNarrativeDiagnosisQuiz`;
 - `VideoNarrativeCreatorProfile`;
 - `buildVideoNarrativeCreatorProfile`;
+- `VideoNarrativeAppFlowState`;
+- `transitionVideoNarrativeAppFlowState`;
 - `VIDEO_NARRATIVE_INTERNAL_ENDPOINT_ENABLED`;
 - `VideoNarrativeAnalysis`;
 - `buildPostCreationVideoSeedFromAnalysis`;
@@ -229,6 +233,7 @@ Só implementar depois que:
 - MM29: diagnosis and creator learning model;
 - MM30: diagnosis-driven quiz builder;
 - MM31: creator narrative profile contract;
-- MM32: endpoint real somente depois de billing/teste real;
-- MM33: preview interno com chamada real;
-- MM34: integração experimental no board.
+- MM32: app-first flow state model;
+- MM33: endpoint real somente depois de billing/teste real;
+- MM34: preview interno com chamada real;
+- MM35: integração experimental no board.
