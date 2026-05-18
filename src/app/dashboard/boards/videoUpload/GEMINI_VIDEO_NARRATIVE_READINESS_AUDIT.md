@@ -96,6 +96,8 @@ Já existe:
 - o modo `mode=interactive` continua sem upload real, endpoint call, persistência, BoardShell ou Gemini real;
 - interactive preview UX refinement foi concluído em MM36 para lapidar copy, quiz, diagnóstico, CTAs e prompts;
 - a preview MM36 segue mock/local-state; a próxima etapa pode revisar visualmente no navegador ou preparar integração controlada com fluxo real;
+- browser UX QA checklist foi criada em MM37 para orientar revisão visual/funcional da preview interativa;
+- a próxima etapa deve considerar os achados da QA antes de qualquer upload real, BoardShell, paywall ou integração real;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 

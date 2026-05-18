@@ -838,6 +838,29 @@ O que não faz:
 - não conecta BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
 - não conecta Instagram real, billing, Stripe ou cobrança.
 
+### MM37 — Browser UX QA checklist
+
+Status: concluído.
+
+Arquivos principais:
+
+- `VIDEO_NARRATIVE_BROWSER_UX_QA_CHECKLIST.md`
+- `videoNarrativeBrowserUxQaChecklist.test.ts`
+
+O que faz:
+
+- cria uma checklist manual para revisar a preview interativa no navegador;
+- documenta ambiente, URLs de teste, roteiro principal, critérios por etapa e cenários obrigatórios;
+- cobre acessos `free`, `premium` e `instagram_optimized`, mobile-first, segurança visual e critérios de aprovação;
+- prepara a próxima decisão a partir dos achados da revisão.
+
+O que não faz:
+
+- não cria feature nova, upload real, storage real, banco/tabela, analytics real ou persistência;
+- não altera endpoint real nem chama Gemini, OpenAI, endpoint ou rede;
+- não conecta BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
+- não conecta Instagram real, billing, Stripe ou cobrança.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
