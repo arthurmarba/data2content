@@ -726,6 +726,35 @@ O que não faz:
 - não conecta Instagram real nem usa dados reais de Instagram;
 - não altera navegação/menu ou `PostCreationFunnelState`.
 
+### MM33 — Internal app-first preview with mock
+
+Status: concluído.
+
+Arquivos principais:
+
+- `../video-narrative-app-preview/page.tsx`
+- `../video-narrative-app-preview/page.test.tsx`
+- `../components/videoUpload/buildVideoNarrativeAppPreviewScenario.ts`
+- `../components/videoUpload/buildVideoNarrativeAppPreviewScenario.test.ts`
+- `../components/videoUpload/VideoNarrativeAppPreview.tsx`
+- `../components/videoUpload/VideoNarrativeAppPreview.test.tsx`
+- `videoNarrativeAppPreviewFeatureFlag.ts`
+- `videoNarrativeAppPreviewFeatureFlag.test.ts`
+
+O que faz:
+
+- cria a rota interna `/dashboard/boards/video-narrative-app-preview`;
+- protege a preview com `NEXT_PUBLIC_VIDEO_NARRATIVE_APP_PREVIEW_ENABLED=1` e sessão admin/dev;
+- monta cenários mockados com análise, seed, diagnóstico, quiz, perfil narrativo e estado app-first;
+- permite alternar scenario, stage, access e Instagram por query params para sentir a jornada.
+
+O que não faz:
+
+- não cria upload real, storage real, banco/tabela, analytics real ou persistência;
+- não chama Gemini, OpenAI, endpoint real ou rede;
+- não conecta BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
+- não conecta Instagram real, billing, Stripe ou cobrança.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

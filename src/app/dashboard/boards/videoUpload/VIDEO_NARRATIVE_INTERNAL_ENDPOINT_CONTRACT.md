@@ -107,6 +107,8 @@ MM31 adiciona `VideoNarrativeCreatorProfile` como contrato futuro para agregar s
 
 MM32 adiciona `VideoNarrativeAppFlowState` como modelo futuro de jornada app-first. O endpoint/mock pode alimentar essa jornada com análise, safe response, diagnóstico, quiz e perfil, mas a rota não foi alterada nesta fase.
 
+MM33 adiciona `/dashboard/boards/video-narrative-app-preview` como preview interna da jornada app-first. Ela usa helpers locais e mock provider para montar análise, seed, diagnóstico, quiz, perfil narrativo e flow state por query params. A preview não chama o endpoint real, não altera a rota interna e não cria upload, storage, persistência, BoardShell ou fluxo real.
+
 ## Status Futuros
 
 - `disabled`;
@@ -234,6 +236,7 @@ Só implementar depois que:
 - MM30: diagnosis-driven quiz builder;
 - MM31: creator narrative profile contract;
 - MM32: app-first flow state model;
-- MM33: endpoint real somente depois de billing/teste real;
-- MM34: preview interno com chamada real;
-- MM35: integração experimental no board.
+- MM33: internal app-first preview with mock;
+- MM34: endpoint real somente depois de billing/teste real;
+- MM35: preview interno com chamada real;
+- MM36: integração experimental no board.

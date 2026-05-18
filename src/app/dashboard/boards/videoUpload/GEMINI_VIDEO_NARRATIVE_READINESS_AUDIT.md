@@ -88,6 +88,8 @@ Já existe:
 - `shouldPersistLater` segue apenas metadado e persistência continua bloqueada;
 - app-first flow state model foi criado em MM32 para modelar jornada, copy e prompts antes da UI;
 - prompts de upgrade e Instagram foram definidos em MM32 sem conectar billing ou Instagram real;
+- internal app-first preview foi criado em MM33 para visualizar a jornada com cenários mockados;
+- a preview MM33 continua sem upload real, persistência, BoardShell, endpoint real ou Instagram real;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
