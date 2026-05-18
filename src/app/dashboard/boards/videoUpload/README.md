@@ -783,6 +783,35 @@ O que não faz:
 - não conecta BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
 - não conecta Instagram real, billing, Stripe ou cobrança.
 
+### MM35 — Interactive app-first preview
+
+Status: concluído.
+
+Arquivos principais:
+
+- `../components/videoUpload/VideoNarrativeInteractiveAppPreview.tsx`
+- `../components/videoUpload/VideoNarrativeInteractiveAppPreview.test.tsx`
+- `../components/videoUpload/appPreview/useVideoNarrativeInteractivePreviewState.ts`
+- `../components/videoUpload/appPreview/useVideoNarrativeInteractivePreviewState.test.tsx`
+- `../components/videoUpload/appPreview/VideoNarrativeGoalInput.tsx`
+- `../components/videoUpload/appPreview/VideoNarrativeGoalInput.test.tsx`
+- `../components/videoUpload/appPreview/VideoNarrativeInteractiveQuiz.tsx`
+- `../components/videoUpload/appPreview/VideoNarrativeInteractiveQuiz.test.tsx`
+
+O que faz:
+
+- adiciona `mode=interactive` em `/dashboard/boards/video-narrative-app-preview`;
+- simula a jornada app-first em estado local, de começar até diagnóstico e prompts;
+- permite digitar objetivo, selecionar respostas do quiz e avançar manualmente por loadings;
+- usa os helpers puros já existentes para recompor diagnóstico, quiz e perfil narrativo em memória.
+
+O que não faz:
+
+- não cria upload real, storage real, banco/tabela, analytics real ou persistência;
+- não altera endpoint real nem chama Gemini, OpenAI, endpoint ou rede;
+- não conecta BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
+- não conecta Instagram real, billing, Stripe ou cobrança.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

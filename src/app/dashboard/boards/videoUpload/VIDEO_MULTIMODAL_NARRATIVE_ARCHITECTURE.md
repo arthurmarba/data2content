@@ -241,8 +241,9 @@ Exemplos:
 31. MM32 — App-first flow state model. Define estados, transições, copy e prompts antes de qualquer UI real.
 32. MM33 — Internal app-first preview with mock. Permite sentir a experiência app-first em preview interna/admin-dev com cenários mockados, sem produto real.
 33. MM34 — Diagnosis and Quiz UI primitives. Modulariza a preview interna em componentes reutilizáveis de shell, progresso, loading, quiz, diagnóstico e prompts.
-34. Teste real manual quando houver quota/billing disponível.
-35. Integração experimental futura no Board de Criação.
+34. MM35 — Interactive app-first preview state. Permite navegar pela jornada em estado local via `mode=interactive`, sem depender de query params etapa por etapa.
+35. Teste real manual quando houver quota/billing disponível.
+36. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -303,6 +304,8 @@ MM32 adiciona `VideoNarrativeAppFlowState` para modelar a experiência app-first
 MM33 adiciona `/dashboard/boards/video-narrative-app-preview` como preview interna protegida por flag e admin/dev. A experiência já pode ser sentida com cenários mockados, controles por query param, diagnóstico, quiz, perfil narrativo e prompts, mas continua fora do produto real, sem upload real, storage, banco, BoardShell, endpoint real ou persistência.
 
 MM34 adiciona primitives visuais em `components/videoUpload/appPreview/` para tornar a preview interna mais próxima de um app. A rota passa a compor shell, progresso, loading, quiz, diagnóstico e prompts com componentes testáveis, ainda sem upload real, endpoint alterado, persistência, BoardShell ou integração real.
+
+MM35 adiciona `VideoNarrativeInteractiveAppPreview` e `useVideoNarrativeInteractivePreviewState` para transformar a preview em uma jornada navegável por estado local. `mode=interactive` simula upload, loadings, objetivo do criador, quiz, diagnóstico e prompts sem upload real, endpoint call, persistência, BoardShell, Gemini real ou integração externa.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 

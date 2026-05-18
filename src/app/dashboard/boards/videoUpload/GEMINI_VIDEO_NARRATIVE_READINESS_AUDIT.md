@@ -92,6 +92,8 @@ Já existe:
 - a preview MM33 continua sem upload real, persistência, BoardShell, endpoint real ou Instagram real;
 - UI primitives foram criados em MM34 para deixar a preview mais próxima de app;
 - os primitives MM34 seguem isolados da rota real, sem upload real, persistência, BoardShell ou integração externa;
+- interactive app-first preview foi criado em MM35 para navegar pela jornada com estado local;
+- o modo `mode=interactive` continua sem upload real, endpoint call, persistência, BoardShell ou Gemini real;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
