@@ -755,6 +755,34 @@ O que não faz:
 - não conecta BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
 - não conecta Instagram real, billing, Stripe ou cobrança.
 
+### MM34 — Diagnosis and Quiz UI primitives
+
+Status: concluído.
+
+Arquivos principais:
+
+- `../components/videoUpload/appPreview/VideoNarrativeStageShell.tsx`
+- `../components/videoUpload/appPreview/VideoNarrativeProgress.tsx`
+- `../components/videoUpload/appPreview/VideoNarrativeLoadingBlock.tsx`
+- `../components/videoUpload/appPreview/VideoNarrativeQuizCard.tsx`
+- `../components/videoUpload/appPreview/VideoNarrativeDiagnosisBlocks.tsx`
+- `../components/videoUpload/appPreview/VideoNarrativePromptCards.tsx`
+- `../components/videoUpload/appPreview/VideoNarrativeAppPreviewPrimitives.ts`
+
+O que faz:
+
+- cria primitives reutilizáveis para a preview app-first;
+- deixa quiz, diagnóstico, loading, progresso e prompts em componentes modulares;
+- melhora a sensação de app interno sem conectar a experiência ao produto real;
+- mantém `VideoNarrativeAppPreview` como composição de blocos testáveis.
+
+O que não faz:
+
+- não cria upload real, storage real, banco/tabela, analytics real ou persistência;
+- não altera endpoint real nem chama Gemini, OpenAI, endpoint ou rede;
+- não conecta BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
+- não conecta Instagram real, billing, Stripe ou cobrança.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

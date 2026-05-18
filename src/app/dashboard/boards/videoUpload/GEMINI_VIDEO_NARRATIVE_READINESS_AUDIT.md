@@ -90,6 +90,8 @@ Já existe:
 - prompts de upgrade e Instagram foram definidos em MM32 sem conectar billing ou Instagram real;
 - internal app-first preview foi criado em MM33 para visualizar a jornada com cenários mockados;
 - a preview MM33 continua sem upload real, persistência, BoardShell, endpoint real ou Instagram real;
+- UI primitives foram criados em MM34 para deixar a preview mais próxima de app;
+- os primitives MM34 seguem isolados da rota real, sem upload real, persistência, BoardShell ou integração externa;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 

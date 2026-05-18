@@ -24,15 +24,15 @@ describe("VideoNarrativeAppPreview", () => {
     expect(screen.getByText("Acesso")).toBeInTheDocument();
     expect(screen.getByText("Instagram")).toBeInTheDocument();
     expect(screen.getByText("Skincare")).toBeInTheDocument();
-    expect(screen.getByText("welcome")).toBeInTheDocument();
-    expect(screen.getByText("free")).toBeInTheDocument();
-    expect(screen.getByText("disconnected")).toBeInTheDocument();
+    expect(screen.getAllByText("Boas-vindas").length).toBeGreaterThan(0);
+    expect(screen.getByText("Free")).toBeInTheDocument();
+    expect(screen.getByText("Desconectado")).toBeInTheDocument();
   });
 
   it("renders progress", () => {
     render(<VideoNarrativeAppPreview preview={buildVideoNarrativeAppPreviewScenario({ stage: "adaptive_quiz" })} />);
 
-    expect(screen.getByText(/Passo 4 de 6/)).toBeInTheDocument();
+    expect(screen.getByText("Etapa 4 de 6")).toBeInTheDocument();
   });
 
   it("renders stage card title", () => {
@@ -64,7 +64,7 @@ describe("VideoNarrativeAppPreview", () => {
   it("renders diagnosis blocks in diagnosis_ready", () => {
     render(<VideoNarrativeAppPreview preview={buildVideoNarrativeAppPreviewScenario({ stage: "diagnosis_ready" })} />);
 
-    expect(screen.getByText("Diagnóstico")).toBeInTheDocument();
+    expect(screen.getAllByText("Diagnóstico").length).toBeGreaterThan(0);
     expect(screen.getByText("Potencial de marcas")).toBeInTheDocument();
     expect(screen.getByText("Blueprint")).toBeInTheDocument();
     expect(screen.getByText("Próximas ações")).toBeInTheDocument();
@@ -95,8 +95,8 @@ describe("VideoNarrativeAppPreview", () => {
   it("renders upgrade prompt", () => {
     render(<VideoNarrativeAppPreview preview={buildVideoNarrativeAppPreviewScenario({ stage: "upgrade_prompt" })} />);
 
-    expect(screen.getByText("Quer liberar diagnósticos completos?")).toBeInTheDocument();
-    expect(screen.getByText("Ver planos")).toBeInTheDocument();
+    expect(screen.getAllByText("Quer liberar diagnósticos completos?").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Ver planos").length).toBeGreaterThan(0);
   });
 
   it("renders Instagram prompt", () => {
@@ -106,7 +106,7 @@ describe("VideoNarrativeAppPreview", () => {
       />,
     );
 
-    expect(screen.getByText("Quer deixar o diagnóstico mais preciso?")).toBeInTheDocument();
+    expect(screen.getAllByText("Quer deixar o diagnóstico mais preciso?").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Conectar Instagram").length).toBeGreaterThan(0);
   });
 
