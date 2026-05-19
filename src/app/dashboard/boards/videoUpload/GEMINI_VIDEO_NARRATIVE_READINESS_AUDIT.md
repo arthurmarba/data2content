@@ -102,6 +102,8 @@ Já existe:
 - MM38 não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint e não muda upload/storage;
 - access tier diagnosis rules foi criado em MM39 para separar valor free, premium e Instagram conectado;
 - MM39 não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage e não muda billing real;
+- diagnosis presentation model foi criado em MM40 como camada segura de produto/apresentação;
+- MM40 transforma diagnóstico evolutivo e regras de acesso em blocos estruturados para futura UI, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage e não muda UI real;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
