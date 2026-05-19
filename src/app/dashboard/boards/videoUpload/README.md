@@ -1195,6 +1195,30 @@ O que não faz:
 - não chama Gemini real, OpenAI, endpoint ou rede;
 - não conecta Instagram real, billing ou Stripe.
 
+### MM51 — Strategic Profile Mobile UX QA Checklist
+
+Status: concluído.
+
+Arquivos principais:
+
+- `MOBILE_STRATEGIC_PROFILE_UX_QA.md`
+- `mobileStrategicProfileUxQa.test.ts`
+
+O que faz:
+
+- cria checklist manual/testável para validar a experiência mobile do Perfil Estratégico;
+- cobre auth gate, Perfil em construção, primeira leitura, premium, Instagram optimized, Mídia Kit modal, fluxo `+`, navegação, Comunidade e `ActivationPendingWidget`;
+- define critérios de aprovação antes de integração real;
+- define tabela de achados e próximas decisões sugeridas;
+- recomenda QA/polish visual antes de qualquer integração real.
+
+O que não faz:
+
+- não altera UI, preview, navegação real, `ActivationPendingWidget`, `LoginClient`, NextAuth, endpoint, `MediaKitView` ou Comunidade real;
+- não cria upload real, storage real, persistência, banco/tabela, schema ou Prisma;
+- não chama Gemini real, OpenAI, endpoint ou rede;
+- não conecta Instagram real, billing ou Stripe.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
