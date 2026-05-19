@@ -7,6 +7,9 @@ import {
 } from "../../videoUpload/videoNarrativeDiagnosisLearningModel";
 import { buildVideoNarrativeDiagnosisQuiz } from "../../videoUpload/videoNarrativeDiagnosisQuizBuilder";
 import { buildVideoNarrativeCreatorProfile } from "../../videoUpload/videoNarrativeCreatorProfileContract";
+import { buildVideoNarrativeAccessTierDiagnosisRules } from "../../videoUpload/videoNarrativeAccessTierDiagnosisRules";
+import { buildVideoNarrativeDiagnosisPresentation } from "../../videoUpload/videoNarrativeDiagnosisPresentationModel";
+import { buildVideoNarrativeEvolvingDiagnosis } from "../../videoUpload/videoNarrativeEvolvingDiagnosisContract";
 import { VideoNarrativeDiagnosisBlocks } from "./appPreview/VideoNarrativeDiagnosisBlocks";
 import { VideoNarrativeGoalInput } from "./appPreview/VideoNarrativeGoalInput";
 import { VideoNarrativeInteractiveQuiz } from "./appPreview/VideoNarrativeInteractiveQuiz";
@@ -117,8 +120,30 @@ export function VideoNarrativeInteractiveAppPreview({ scenarioData }: VideoNarra
       diagnosisId: diagnosis.id,
       createdAt: scenarioData.analysis.createdAt,
     });
+    const evolvingDiagnosis = buildVideoNarrativeEvolvingDiagnosis({
+      diagnosis,
+      creatorProfile,
+      accessLevel: scenarioData.accessLevel,
+      instagramConnected: scenarioData.instagramConnected,
+      analyzedVideosCount: scenarioData.accessLevel === "instagram_optimized" && scenarioData.instagramConnected
+        ? 5
+        : scenarioData.accessLevel === "premium"
+          ? 3
+          : 1,
+      createdAt: scenarioData.analysis.createdAt,
+    });
+    const accessRules = buildVideoNarrativeAccessTierDiagnosisRules({
+      evolvingDiagnosis,
+      accessLevel: scenarioData.accessLevel,
+      instagramConnected: scenarioData.instagramConnected,
+    });
+    const diagnosisPresentation = buildVideoNarrativeDiagnosisPresentation({
+      diagnosis,
+      evolvingDiagnosis,
+      accessRules,
+    });
 
-    return { diagnosis, quiz, creatorProfile };
+    return { diagnosis, quiz, creatorProfile, diagnosisPresentation };
   }, [creatorGoal, scenarioData, selectedQuizAnswers]);
 
   function renderBody() {
@@ -195,7 +220,11 @@ export function VideoNarrativeInteractiveAppPreview({ scenarioData }: VideoNarra
             <SecondaryButton onClick={actions.requestUpgrade}>Ver planos</SecondaryButton>
             <SecondaryButton onClick={actions.requestInstagramConnection}>Conectar Instagram</SecondaryButton>
           </div>
-          <VideoNarrativeDiagnosisBlocks diagnosis={derived.diagnosis} creatorProfile={derived.creatorProfile} />
+          <VideoNarrativeDiagnosisBlocks
+            diagnosis={derived.diagnosis}
+            creatorProfile={derived.creatorProfile}
+            presentation={derived.diagnosisPresentation}
+          />
         </div>
       );
     }

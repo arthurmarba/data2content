@@ -248,8 +248,9 @@ Exemplos:
 38. MM39 — Access Tier Diagnosis Rules. Define regras de acesso e valor por camada para free, premium e Instagram conectado.
 39. MM40 — Diagnosis Presentation Model. Transforma diagnóstico evolutivo e regras de acesso em blocos de apresentação para futura UI mobile-first.
 40. MM41 — Evolving Diagnosis Preview Scenarios. Conecta os contratos evolutivos ao builder mockado da preview interna, sem alterar UI visual.
-41. Teste real manual quando houver quota/billing disponível.
-42. Integração experimental futura no Board de Criação.
+41. MM42 — Mobile Diagnosis UI Refactor. Materializa o presentation model na UI interna do diagnóstico, com layout mobile-first.
+42. Teste real manual quando houver quota/billing disponível.
+43. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -324,6 +325,8 @@ MM39 adiciona `VideoNarrativeAccessTierDiagnosisRules` para explicitar as regras
 MM40 adiciona `VideoNarrativeDiagnosisPresentation` como superfície de apresentação pura acima de MM38 e MM39. MM38 define o diagnóstico evolutivo, MM39 define as regras de acesso e MM40 organiza o que a futura UI deve renderizar como hero, cards prioritários, seções, previews bloqueados, badges e CTAs. Componentes React futuros devem consumir essa camada para evitar lógica de copy, paywall e priorização espalhada na UI.
 
 MM41 conecta a cadeia de contratos ao builder da preview interna. A preview passa a carregar diagnóstico pontual, diagnóstico evolutivo, regras de acesso e presentation model em cada cenário mockado, mantendo tudo local e determinístico. A UI futura deve consumir `VideoNarrativeDiagnosisPresentation` em vez de reconstruir lógica de tier, bloqueio, oportunidade comercial ou precisão por Instagram dentro dos componentes.
+
+MM42 é a primeira materialização visual do presentation model. A preview interna passa a renderizar o diagnóstico a partir de `VideoNarrativeDiagnosisPresentation`, com hero, cards prioritários, CTAs, seções e previews bloqueados em layout mobile-first. Os componentes não devem reconstruir lógica de tier diretamente; essa lógica permanece nas camadas MM39/MM40.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 
