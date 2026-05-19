@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type {
   MobileStrategicProfile,
   MobileStrategicProfileAction,
@@ -8,6 +11,7 @@ import {
   MOBILE_STRATEGIC_PROFILE_PREVIEW_STATES,
   type MobileStrategicProfilePreviewFixtureState,
 } from "./buildMobileStrategicProfilePreviewFixture";
+import { MobileStrategicProfileMediaKitModal } from "./MobileStrategicProfileMediaKitModal";
 
 type MobileStrategicProfilePreviewProps = {
   profile: MobileStrategicProfile;
@@ -21,6 +25,17 @@ const CARD_TONE: Record<MobileStrategicProfileSectionCard["tone"], string> = {
   action: "border-zinc-200 bg-zinc-50",
   locked: "border-amber-100 bg-amber-50/70",
 };
+
+const MEDIA_KIT_ACTION_INTENTS = new Set<MobileStrategicProfileAction["intent"]>([
+  "share_media_kit",
+  "copy_link",
+  "view_as_brand",
+  "edit_or_open_media_kit",
+]);
+
+function isMediaKitAction(action: MobileStrategicProfileAction): boolean {
+  return MEDIA_KIT_ACTION_INTENTS.has(action.intent);
+}
 
 function StateSwitcher({ activeState }: { activeState?: MobileStrategicProfilePreviewFixtureState }) {
   return (
@@ -42,11 +57,18 @@ function StateSwitcher({ activeState }: { activeState?: MobileStrategicProfilePr
   );
 }
 
-function ActionButton({ action }: { action: MobileStrategicProfileAction }) {
+function ActionButton({
+  action,
+  onAction,
+}: {
+  action: MobileStrategicProfileAction;
+  onAction?: (action: MobileStrategicProfileAction) => void;
+}) {
   return (
     <button
       type="button"
       disabled={action.disabled}
+      onClick={() => onAction?.(action)}
       className={
         action.priority === "primary"
           ? "rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white disabled:bg-zinc-300"
@@ -97,7 +119,13 @@ function AuthGate({ profile }: { profile: MobileStrategicProfile }) {
   );
 }
 
-function ProfileHeader({ profile }: { profile: MobileStrategicProfile }) {
+function ProfileHeader({
+  profile,
+  onAction,
+}: {
+  profile: MobileStrategicProfile;
+  onAction: (action: MobileStrategicProfileAction) => void;
+}) {
   const identity = profile.header.identity;
   const initials = identity.displayName
     .split(/\s+/)
@@ -140,7 +168,7 @@ function ProfileHeader({ profile }: { profile: MobileStrategicProfile }) {
 
       <div className="mt-4 flex flex-wrap gap-2">
         {profile.primaryActions.slice(0, 2).map((action) => (
-          <ActionButton key={action.id} action={action} />
+          <ActionButton key={action.id} action={action} onAction={onAction} />
         ))}
       </div>
     </header>
@@ -202,7 +230,13 @@ function ProfileSection({ section }: { section: MobileStrategicProfileSection })
   );
 }
 
-function MediaKitBridge({ profile }: { profile: MobileStrategicProfile }) {
+function MediaKitBridge({
+  profile,
+  onOpen,
+}: {
+  profile: MobileStrategicProfile;
+  onOpen: () => void;
+}) {
   const bridge = profile.mediaKitBridge;
   if (bridge.state === "hidden" || bridge.state === "unavailable" || !bridge.title || !bridge.description) return null;
 
@@ -220,9 +254,17 @@ function MediaKitBridge({ profile }: { profile: MobileStrategicProfile }) {
       {bridge.actions.length > 0 ? (
         <div className="mt-4 flex flex-wrap gap-2">
           {bridge.actions.map((action) => (
-            <ActionButton key={action.id} action={action} />
+            <ActionButton key={action.id} action={action} onAction={onOpen} />
           ))}
         </div>
+      ) : bridge.state === "connect_instagram_required" ? (
+        <button
+          type="button"
+          className="mt-4 rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-800"
+          onClick={onOpen}
+        >
+          Ativar Mídia Kit
+        </button>
       ) : null}
     </section>
   );
@@ -254,7 +296,15 @@ export function MobileStrategicProfilePreview({
   profile,
   activeState,
 }: MobileStrategicProfilePreviewProps) {
+  const [mediaKitModalOpen, setMediaKitModalOpen] = useState(false);
+
   if (profile.authGate.visible) return <AuthGate profile={profile} />;
+
+  const handleAction = (action: MobileStrategicProfileAction) => {
+    if (isMediaKitAction(action)) {
+      setMediaKitModalOpen(true);
+    }
+  };
 
   return (
     <main className="min-h-screen bg-zinc-100 px-4 py-6 text-zinc-950">
@@ -272,7 +322,7 @@ export function MobileStrategicProfilePreview({
 
         <div className="mx-auto w-full max-w-sm rounded-[2rem] border border-zinc-200 bg-zinc-950 p-2 shadow-xl">
           <div className="min-h-[720px] overflow-hidden rounded-[1.5rem] bg-white">
-            <ProfileHeader profile={profile} />
+            <ProfileHeader profile={profile} onAction={handleAction} />
             <Tabs profile={profile} />
 
             <div className="mt-5 grid gap-5 pb-2">
@@ -292,7 +342,7 @@ export function MobileStrategicProfilePreview({
                 <ProfileSection key={section.id} section={section} />
               ))}
 
-              <MediaKitBridge profile={profile} />
+              <MediaKitBridge profile={profile} onOpen={() => setMediaKitModalOpen(true)} />
 
               {profile.communityBridge.visible ? (
                 <section className="mx-5 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
@@ -306,6 +356,11 @@ export function MobileStrategicProfilePreview({
           </div>
         </div>
       </div>
+      <MobileStrategicProfileMediaKitModal
+        profile={profile}
+        open={mediaKitModalOpen}
+        onClose={() => setMediaKitModalOpen(false)}
+      />
     </main>
   );
 }

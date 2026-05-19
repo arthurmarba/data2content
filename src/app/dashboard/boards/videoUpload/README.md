@@ -1089,6 +1089,32 @@ O que não faz:
 - não chama Gemini real, OpenAI, endpoint ou rede;
 - não conecta Instagram real, Mídia Kit real, `MediaKitView`, Comunidade real, billing ou Stripe.
 
+### MM47 — Media Kit Modal Bridge
+
+Status: concluído.
+
+Arquivos principais:
+
+- `../components/videoUpload/appPreview/MobileStrategicProfileMediaKitModal.tsx`
+- `../components/videoUpload/appPreview/MobileStrategicProfilePreview.tsx`
+
+O que faz:
+
+- cria modal visual/local para acessar o Mídia Kit existente a partir do Perfil Estratégico mobile;
+- mantém Mídia Kit como recurso existente, sem recriar ou alterar `MediaKitView`;
+- abre o modal a partir da ação `share_media_kit` e dos botões do `mediaKitBridge`;
+- adiciona ações visuais para copiar link, compartilhar, ver como marca e abrir Mídia Kit;
+- cobre estado informativo de ativação quando conectar Instagram é o próximo passo.
+
+O que não faz:
+
+- não executa clipboard real, Web Share API, abertura de aba ou navegação real;
+- não cria novo Mídia Kit, QR Code, seção pública nova ou alteração em `/mediakit/[token]`;
+- não altera endpoint, `LoginClient`, NextAuth, navegação/sidebar, `ActivationPendingWidget`, Mídia Kit real, `MediaKitView` ou Comunidade real;
+- não cria upload real, storage real, persistência, banco/tabela, schema ou Prisma;
+- não chama Gemini real, OpenAI, endpoint ou rede;
+- não conecta Instagram real, billing ou Stripe.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

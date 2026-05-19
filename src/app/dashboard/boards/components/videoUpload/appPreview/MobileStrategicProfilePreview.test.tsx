@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MobileStrategicProfilePreview } from "./MobileStrategicProfilePreview";
 import {
   buildMobileStrategicProfilePreviewFixture,
@@ -90,6 +90,39 @@ describe("MobileStrategicProfilePreview", () => {
     expect(text).not.toContain("mediakitview");
     expect(text).not.toContain("qr code");
     expect(text).not.toContain("diagnóstico interno");
+  });
+
+  it("Media Kit modal does not appear by default", () => {
+    renderState("media_kit_available");
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("opens Media Kit modal from share_media_kit action", () => {
+    renderState("media_kit_available");
+
+    fireEvent.click(screen.getByRole("button", { name: "Compartilhar Mídia Kit" }));
+
+    expect(screen.getByRole("dialog", { name: "Compartilhar Mídia Kit" })).toBeInTheDocument();
+    expect(screen.getByText("Use o Mídia Kit existente para apresentar seu perfil para marcas.")).toBeInTheDocument();
+  });
+
+  it("opens Media Kit modal from bridge action", () => {
+    renderState("media_kit_available");
+
+    fireEvent.click(screen.getByRole("button", { name: "Copiar link" }));
+
+    expect(screen.getByRole("dialog", { name: "Compartilhar Mídia Kit" })).toBeInTheDocument();
+    expect(screen.getByText("/mediakit/ana-preview")).toBeInTheDocument();
+  });
+
+  it("closes Media Kit modal from close button", () => {
+    renderState("media_kit_available");
+
+    fireEvent.click(screen.getByRole("button", { name: "Copiar link" }));
+    fireEvent.click(screen.getByRole("button", { name: "Fechar" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("Community appears only as destination/nav, without social surfaces", () => {
