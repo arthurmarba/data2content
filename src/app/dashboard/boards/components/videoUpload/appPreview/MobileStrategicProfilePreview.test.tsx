@@ -33,6 +33,31 @@ function advanceAnalyzeFlowToConfirmation() {
 }
 
 describe("MobileStrategicProfilePreview", () => {
+  it("renders polished header with creator name, handle and bio", () => {
+    renderState("first_reading_free");
+
+    expect(screen.getByText("Ana Creator")).toBeInTheDocument();
+    expect(screen.getAllByText("@ana.creator").length).toBeGreaterThan(0);
+    expect(screen.getByText("Diagnóstico vivo do creator")).toBeInTheDocument();
+    expect(screen.getByText(/Use o botão \+ para trazer uma nova leitura/)).toBeInTheDocument();
+  });
+
+  it("renders header plus button as profile update action", () => {
+    renderState("first_reading_free");
+
+    expect(screen.getByLabelText("Analisar vídeo")).toBeInTheDocument();
+  });
+
+  it("renders status pills without forbidden technical language", () => {
+    const { container } = renderState("instagram_optimized");
+    const text = renderedText(container);
+
+    expect(screen.getByText("Instagram conectado")).toBeInTheDocument();
+    for (const forbidden of ["18 sinais", "3 narrativas", "percentual de perfil", "score", "ranking"]) {
+      expect(text).not.toContain(forbidden);
+    }
+  });
+
   it("auth gate renders Perfil Estratégico copy", () => {
     renderState("anonymous_view_profile");
 
@@ -77,6 +102,7 @@ describe("MobileStrategicProfilePreview", () => {
 
   it("premium renders Commercial section without brand promise", () => {
     const { container } = renderState("premium_without_instagram");
+    fireEvent.click(screen.getByRole("tab", { name: "Comercial" }));
     const text = renderedText(container);
 
     expect(screen.getAllByText("Potencial comercial").length).toBeGreaterThan(0);
@@ -91,6 +117,30 @@ describe("MobileStrategicProfilePreview", () => {
 
     expect(screen.getAllByText("Leitura mais precisa").length).toBeGreaterThan(0);
     expect(screen.getByText("Instagram conectado")).toBeInTheDocument();
+  });
+
+  it("internal tabs switch between Diagnóstico and Comercial locally", () => {
+    renderState("premium_without_instagram");
+
+    expect(screen.getByRole("tab", { name: "Diagnóstico" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Diagnóstico vivo")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Comercial" }));
+
+    expect(screen.getByRole("tab", { name: "Comercial" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getAllByText("Potencial comercial").length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Diagnóstico" }));
+
+    expect(screen.getByRole("tab", { name: "Diagnóstico" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Diagnóstico vivo")).toBeInTheDocument();
+  });
+
+  it("diagnosis tab keeps the first view compact", () => {
+    renderState("first_reading_free");
+    const diagnosisSection = screen.getByLabelText("Diagnóstico vivo");
+
+    expect(within(diagnosisSection).getAllByRole("article").length).toBeLessThanOrEqual(3);
   });
 
   it("Media Kit Bridge available renders visual buttons without changing MediaKitView", () => {
@@ -244,6 +294,23 @@ describe("MobileStrategicProfilePreview", () => {
     expect(within(nav).queryByText("Comercial")).not.toBeInTheDocument();
   });
 
+  it("all required preview states continue rendering", () => {
+    for (const state of [
+      "anonymous_view_profile",
+      "anonymous_analyze_video",
+      "account_only",
+      "first_reading_free",
+      "premium_without_instagram",
+      "instagram_optimized",
+      "media_kit_available",
+    ] satisfies MobileStrategicProfilePreviewFixtureState[]) {
+      const { unmount } = renderState(state);
+
+      expect(screen.getByText("Perfil Estratégico mobile")).toBeInTheDocument();
+      unmount();
+    }
+  });
+
   it("does not render forbidden terms", () => {
     const { container } = renderState("media_kit_available");
     const text = renderedText(container);
@@ -295,8 +362,13 @@ describe("MobileStrategicProfilePreview", () => {
       "OpenAI",
       "Stripe",
       "SDK",
+      "ActivationPendingWidget",
     ]) {
       expect(importLines).not.toContain(forbidden);
+    }
+
+    for (const forbiddenCall of ["fetch(", "router.push", "navigator.clipboard", "navigator.share", "window.open"]) {
+      expect(source).not.toContain(forbiddenCall);
     }
   });
 });

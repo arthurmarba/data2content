@@ -268,6 +268,11 @@ Após QA, os próximos PRs prováveis são:
 
 Não recomendar integração real antes do QA/polish visual.
 
+## Histórico
+
+- MM52 aplica polish visual inicial na preview mobile do Perfil Estratégico.
+- QA manual ainda deve ser executado antes de qualquer integração real.
+
 ## Guardrails do MM51
 
 - Sem Gemini real.
