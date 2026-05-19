@@ -110,6 +110,8 @@ Já existe:
 - MM42 materializa o presentation model na preview interna, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage e não cria UI pública;
 - strategic profile state contract foi criado em MM43 como camada segura de contrato/produto;
 - MM43 modela o Perfil Estratégico mobile como diagnóstico vivo do creator, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera Mídia Kit ou Comunidade reais;
+- strategic profile mapping layer foi criado em MM44 como camada segura de contrato/mapping;
+- MM44 monta um `MobileStrategicProfile` consumível pela futura UI, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera Mídia Kit ou Comunidade reais;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 

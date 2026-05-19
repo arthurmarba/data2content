@@ -250,8 +250,9 @@ Exemplos:
 40. MM41 — Evolving Diagnosis Preview Scenarios. Conecta os contratos evolutivos ao builder mockado da preview interna, sem alterar UI visual.
 41. MM42 — Mobile Diagnosis UI Refactor. Materializa o presentation model na UI interna do diagnóstico, com layout mobile-first.
 42. MM43 — Strategic Profile State Contract. Modela o Perfil Estratégico mobile como diagnóstico vivo do creator, sem UI real.
-43. Teste real manual quando houver quota/billing disponível.
-44. Integração experimental futura no Board de Criação.
+43. MM44 — Strategic Profile Mapping Layer. Monta o modelo consumível do Perfil Estratégico mobile a partir do estado e do diagnóstico.
+44. Teste real manual quando houver quota/billing disponível.
+45. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -330,6 +331,8 @@ MM41 conecta a cadeia de contratos ao builder da preview interna. A preview pass
 MM42 é a primeira materialização visual do presentation model. A preview interna passa a renderizar o diagnóstico a partir de `VideoNarrativeDiagnosisPresentation`, com hero, cards prioritários, CTAs, seções e previews bloqueados em layout mobile-first. Os componentes não devem reconstruir lógica de tier diretamente; essa lógica permanece nas camadas MM39/MM40.
 
 MM43 adiciona `MobileStrategicProfileState` como contrato puro para a experiência mobile do Perfil Estratégico. O diagnóstico deixa de ser tratado como uma página isolada e passa a alimentar o Perfil: a análise de vídeo é uma ação temporária que atualiza o diagnóstico vivo do creator. O Perfil existe desde o login, mas pode estar em construção até a primeira leitura. Mídia Kit e Comunidade continuam sendo recursos existentes acessados pelo Perfil ou pela navegação futura; MM43 apenas modela disponibilidade, intenção e próximos passos, sem recriar Mídia Kit, `MediaKitView`, Comunidade, feed ou navegação real.
+
+MM44 adiciona `MobileStrategicProfile` como mapping puro acima de MM43. MM43 resolve os estados do Perfil; MM44 monta a estrutura consumível pela futura UI: header, tabs internas, seções, ações, bridges e navegação mobile futura. `VideoNarrativeDiagnosisPresentation` alimenta a aba Diagnóstico. A seção Comercial é uma tradução interna do diagnóstico para potencial comercial, não substitui Mídia Kit. Mídia Kit e Comunidade aparecem como bridges para recursos existentes, sem recriar `MediaKitView`, Comunidade, navegação real ou páginas públicas.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 
