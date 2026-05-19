@@ -1353,6 +1353,39 @@ O que não faz:
 - não altera o layout `MediaKitView`, a Comunidade real ou a navegação do dashboard legado;
 - não usa real upload, storage ou Gemini real.
 
+### MM57 — Persisted Strategic Profile Snapshot
+
+Status: concluído.
+
+Arquivos principais:
+
+- `src/app/models/CreatorStrategicProfileSnapshot.ts`
+- `mobileStrategicProfileSnapshotTypes.ts`
+- `mobileStrategicProfileSnapshotService.ts`
+- `mobileStrategicProfileSnapshotService.test.ts`
+- `mobileStrategicProfileSnapshotMapping.ts`
+- `mobileStrategicProfileSnapshotMapping.test.ts`
+- `MobileStrategicProfileRealShellClient.tsx`
+- `MobileStrategicProfileRealShellClient.test.tsx`
+- `page.tsx`
+- `page.test.tsx`
+
+O que faz:
+
+- modela a entidade Mongoose de persistência do snapshot estratégico (`CreatorStrategicProfileSnapshot`), limitando estritamente a 1 snapshot por usuário com índice único ativo no `userId`;
+- define tipos de dados versionados em `mobile_strategic_profile_snapshot_v1`;
+- implementa o serviço e repositório de persistência pura (`mobileStrategicProfileSnapshotService`) com validações estritas de segurança: bloqueia API keys (Gemini e OpenAI), URLs assinadas ou de vídeos e payloads volumosos contendo transcrições/base64 longos;
+- implementa a camada de mapeamento síncrona (`mobileStrategicProfileSnapshotMapping`) para converter o snapshot em cards e sinalizações visuais estruturadas do Perfil Estratégico mobile;
+- integra a leitura do snapshot de forma segura na rota real (`page.tsx`), buscando o snapshot persistido server-side e repassando-o diretamente ao cliente, eliminando chamadas desnecessárias;
+- garante 100% de cobertura de testes unitários e de integração com 26 asserções totalmente verdes e typecheck de 0 erros.
+
+O que não faz:
+
+- não salva arquivos de vídeo, imagens ou mídias em banco de dados;
+- não gera histórico visual de vídeos analisados ou feeds públicos no mídia kit;
+- não conecta OpenAI, Gemini real ou qualquer API externa de rede nesta fase;
+- não altera tabelas ou esquemas do Prisma.
+
 ## Visão Geral
 
 
