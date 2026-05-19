@@ -114,6 +114,8 @@ Já existe:
 - MM44 monta um `MobileStrategicProfile` consumível pela futura UI, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera Mídia Kit ou Comunidade reais;
 - strategic profile preview UI foi criado em MM45 como camada segura de UI interna/preview;
 - MM45 materializa visualmente o Perfil Estratégico mobile em preview interna, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera Mídia Kit ou Comunidade reais;
+- strategic profile login intent copy foi criado em MM46 como camada segura de auth copy/reuso;
+- MM46 reaproveita `LoginClient` para copy contextual de Perfil Estratégico e análise narrativa, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera NextAuth;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
