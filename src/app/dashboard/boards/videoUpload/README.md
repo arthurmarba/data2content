@@ -1035,6 +1035,34 @@ O que não faz:
 - não chama Gemini real, OpenAI, endpoint ou rede;
 - não conecta Instagram real, billing, Stripe, match real de marcas ou creators.
 
+### MM45 — Strategic Profile Preview UI
+
+Status: concluído.
+
+Arquivos principais:
+
+- `../components/videoUpload/appPreview/MobileStrategicProfilePreview.tsx`
+- `../components/videoUpload/appPreview/buildMobileStrategicProfilePreviewFixture.ts`
+- `../mobile-strategic-profile-preview/page.tsx`
+- `mobileStrategicProfilePreviewFeatureFlag.ts`
+
+O que faz:
+
+- cria a primeira UI interna do Perfil Estratégico mobile;
+- consome `MobileStrategicProfile` em vez de reconstruir lógica de estado ou tier;
+- renderiza auth gate visual, Perfil em construção, primeira leitura, premium, Instagram otimizado e Mídia Kit Bridge;
+- usa estrutura familiar de perfil social sem copiar métricas de rede social;
+- mantém Mídia Kit e Comunidade como recursos existentes, não recriados;
+- expõe preview interna por flag `NEXT_PUBLIC_MOBILE_STRATEGIC_PROFILE_PREVIEW_ENABLED=1` e acesso admin/dev.
+
+O que não faz:
+
+- não altera endpoint, NextAuth, `LoginClient`, navegação/sidebar, `ActivationPendingWidget`, Mídia Kit real, `MediaKitView` ou Comunidade real;
+- não cria upload real, storage real, persistência, banco/tabela, schema ou Prisma;
+- não chama Gemini real, OpenAI, endpoint ou rede;
+- não conecta Instagram real, billing, Stripe, match real de marcas ou creators;
+- não cria histórico de vídeos analisados.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
