@@ -88,6 +88,14 @@ Não recriar Comunidade, página social, chat, comentários, creators públicos,
 - migrar a home mobile para Perfil sem quebrar o dashboard atual;
 - revisar `src/app/dashboard/components/sidebar/config.tsx` com cuidado antes de qualquer alteração real.
 
+### ActivationPendingWidget conflict
+
+Risco identificado: o widget de ativação atual pode competir com bottom nav, botão `+`, CTAs do Perfil, modal de Mídia Kit, fluxo de análise e safe area.
+
+Estratégia temporária: não renderizar esse widget dentro da preview do Perfil e não alterar produção nesta fase.
+
+Recomendação futura: quando a navegação mobile real for integrada por feature flag, preferir ocultar o widget flutuante no app mobile e transformar ativação em card interno do Perfil, preservando comportamento desktop se necessário.
+
 ## Fora de escopo
 
 - produção;

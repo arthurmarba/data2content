@@ -1169,6 +1169,32 @@ O que não faz:
 - não chama Gemini real, OpenAI, endpoint ou rede;
 - não conecta Instagram real, billing ou Stripe.
 
+### MM50 — Activation Widget Conflict Strategy
+
+Status: concluído.
+
+Arquivos principais:
+
+- `mobileStrategicProfileActivationWidgetStrategy.ts`
+- `mobileStrategicProfileActivationWidgetStrategy.test.ts`
+- `MOBILE_STRATEGIC_PROFILE_ACTIVATION_WIDGET_STRATEGY.md`
+
+O que faz:
+
+- cria estratégia pura/documental para o conflito entre `ActivationPendingWidget` e futura experiência mobile app-first;
+- modela riscos com bottom nav, botão `+`, Mídia Kit modal e fluxo de análise;
+- recomenda não alterar produção agora;
+- prepara decisão futura por feature flag;
+- recomenda card interno do Perfil como opção futura.
+
+O que não faz:
+
+- não altera widget real, `useActivationChecklist`, navegação real, sidebar/config, `DashboardShell` ou `BoardShell`;
+- não altera endpoint, `LoginClient`, NextAuth, `MediaKitView`, Mídia Kit real ou Comunidade real;
+- não cria upload real, storage real, persistência, banco/tabela, schema ou Prisma;
+- não chama Gemini real, OpenAI, endpoint ou rede;
+- não conecta Instagram real, billing ou Stripe.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

@@ -256,8 +256,9 @@ Exemplos:
 46. MM47 — Media Kit Modal Bridge. Cria a ponte visual em modal entre Perfil Estratégico e Mídia Kit existente.
 47. MM48 — Analyze Entry and Return Flow. Modela o fluxo local do `+ / Analisar vídeo` que retorna ao Perfil.
 48. MM49 — Mobile Navigation Preview Strategy. Consolida a estratégia futura de navegação app-first mobile.
-49. Teste real manual quando houver quota/billing disponível.
-50. Integração experimental futura no Board de Criação.
+49. MM50 — Activation Widget Conflict Strategy. Modela o conflito do widget de ativação com a experiência mobile app-first futura.
+50. Teste real manual quando houver quota/billing disponível.
+51. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -348,6 +349,8 @@ MM47 materializa o Mídia Kit como bridge visual do Perfil, não como nova seç�
 MM48 materializa o `+` como ação central, não como aba. A análise de vídeo alimenta o Perfil Estratégico e retorna para a seção Diagnóstico, em vez de criar página isolada, recibo longo ou histórico visual. O produto preserva o aprendizado no diagnóstico vivo; o arquivo de vídeo pode ser descartado futuramente. A preview usa apenas estado local/mockado, sem upload real, storage, endpoint, persistência, fetch, FileReader ou navegação real.
 
 MM49 consolida a navegação app-first futura como `Perfil / + / Comunidade`. O Perfil é a home mobile, o `+` é mecanismo de atualização do Perfil e Comunidade é destino existente. Mídia Kit segue como bridge/modal, enquanto Diagnóstico e Comercial ficam dentro do Perfil. A integração real da navegação, sidebar mobile e `ActivationPendingWidget` fica para etapa posterior; este PR não altera produção.
+
+MM50 fecha a análise dos conflitos de camada mobile. O `ActivationPendingWidget` fica fora da preview do Perfil, e qualquer integração real depende de feature flag e decisão futura. A estratégia recomenda manter produção atual, preferir card interno do Perfil ou ocultação no futuro app mobile, sem alterar widget real, `useActivationChecklist`, sidebar ou navegação real.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 
