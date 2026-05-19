@@ -120,6 +120,8 @@ Já existe:
 - MM47 adiciona um modal visual/local para apontar ao Mídia Kit existente, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera Mídia Kit real ou `MediaKitView`;
 - analyze entry and return flow foi criado em MM48 como camada segura de UI interna/mock;
 - MM48 modela a ação `+ / Analisar vídeo` como fluxo local que retorna ao Perfil, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera Mídia Kit, Comunidade ou login reais;
+- mobile navigation preview strategy foi criado em MM49 como camada segura de estratégia/contrato;
+- MM49 consolida `Perfil / + / Comunidade` para navegação mobile futura, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera navegação real;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
