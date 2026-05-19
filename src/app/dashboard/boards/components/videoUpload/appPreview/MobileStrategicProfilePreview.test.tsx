@@ -18,6 +18,20 @@ function renderedText(container: HTMLElement): string {
   return container.textContent?.toLowerCase() ?? "";
 }
 
+function clickAnalyzeAction(label: string) {
+  const button = screen
+    .getAllByRole("button", { name: label })
+    .find((candidate) => candidate.textContent === label);
+  if (!button) throw new Error(`Action button not found: ${label}`);
+  fireEvent.click(button);
+}
+
+function advanceAnalyzeFlowToConfirmation() {
+  for (let index = 0; index < 5; index += 1) {
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+  }
+}
+
 describe("MobileStrategicProfilePreview", () => {
   it("auth gate renders Perfil Estratégico copy", () => {
     renderState("anonymous_view_profile");
@@ -90,6 +104,81 @@ describe("MobileStrategicProfilePreview", () => {
     expect(text).not.toContain("mediakitview");
     expect(text).not.toContain("qr code");
     expect(text).not.toContain("diagnóstico interno");
+  });
+
+  it("Analyze flow does not appear by default", () => {
+    renderState("first_reading_free");
+
+    expect(screen.queryByRole("dialog", { name: "Vamos atualizar seu Perfil Estratégico" })).not.toBeInTheDocument();
+  });
+
+  it("opens Analyze flow from header plus button", () => {
+    renderState("first_reading_free");
+
+    fireEvent.click(screen.getByLabelText("Analisar vídeo"));
+
+    expect(screen.getByRole("dialog", { name: "Vamos atualizar seu Perfil Estratégico" })).toBeInTheDocument();
+  });
+
+  it("opens Analyze flow from bottom nav central plus", () => {
+    renderState("first_reading_free");
+    const nav = screen.getByLabelText("Navegação mobile futura");
+
+    fireEvent.click(within(nav).getByRole("button", { name: "Analisar vídeo pela ação central" }));
+
+    expect(screen.getByRole("dialog", { name: "Vamos atualizar seu Perfil Estratégico" })).toBeInTheDocument();
+  });
+
+  it("opens Analyze flow from Analisar vídeo action", () => {
+    renderState("first_reading_free");
+
+    clickAnalyzeAction("Analisar vídeo");
+
+    expect(screen.getByText("Envie um vídeo para a D2C entender novos sinais da sua narrativa.")).toBeInTheDocument();
+  });
+
+  it("opens Analyze flow from Analisar primeiro vídeo action in account_only", () => {
+    renderState("account_only");
+
+    clickAnalyzeAction("Analisar primeiro vídeo");
+
+    expect(screen.getByRole("dialog", { name: "Vamos atualizar seu Perfil Estratégico" })).toBeInTheDocument();
+  });
+
+  it("anonymous auth gate does not open real Analyze flow", () => {
+    renderState("anonymous_analyze_video");
+
+    fireEvent.click(screen.getByRole("button", { name: "Entrar para analisar vídeo" }));
+
+    expect(screen.queryByRole("dialog", { name: "Vamos atualizar seu Perfil Estratégico" })).not.toBeInTheDocument();
+  });
+
+  it("Analyze flow returns to Profile after short confirmation", () => {
+    renderState("first_reading_free");
+
+    clickAnalyzeAction("Analisar vídeo");
+    advanceAnalyzeFlowToConfirmation();
+
+    expect(screen.getByRole("dialog", { name: "Diagnóstico atualizado." })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Voltar para meu Perfil" }));
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByText("Perfil Estratégico mobile")).toBeInTheDocument();
+    expect(screen.getAllByText("Diagnóstico").length).toBeGreaterThan(0);
+    expect(screen.getByText("Perfil atualizado nesta simulação.")).toBeInTheDocument();
+  });
+
+  it("Analyze flow does not create analyzed videos history or active file input", () => {
+    const { container } = renderState("first_reading_free");
+
+    clickAnalyzeAction("Analisar vídeo");
+    advanceAnalyzeFlowToConfirmation();
+    fireEvent.click(screen.getByRole("button", { name: "Voltar para meu Perfil" }));
+
+    const text = renderedText(container);
+    expect(text).not.toContain("histórico de vídeos");
+    expect(text).not.toContain("vídeos salvos");
+    expect(container.querySelector('input[type="file"]')).not.toBeInTheDocument();
   });
 
   it("Media Kit modal does not appear by default", () => {
@@ -196,6 +285,10 @@ describe("MobileStrategicProfilePreview", () => {
       "NextAuth",
       "MediaKitView",
       "fetch",
+      "FileReader",
+      "localStorage",
+      "sessionStorage",
+      "router.push",
       "Prisma",
       "banco",
       "Gemini",
