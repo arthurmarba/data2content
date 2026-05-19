@@ -1115,6 +1115,32 @@ O que não faz:
 - não chama Gemini real, OpenAI, endpoint ou rede;
 - não conecta Instagram real, billing ou Stripe.
 
+### MM48 — Analyze Entry and Return Flow
+
+Status: concluído.
+
+Arquivos principais:
+
+- `../components/videoUpload/appPreview/MobileStrategicProfileAnalyzeFlow.tsx`
+- `../components/videoUpload/appPreview/MobileStrategicProfilePreview.tsx`
+
+O que faz:
+
+- cria fluxo local/mockado para a ação `+ / Analisar vídeo`;
+- trata análise como ação temporária que atualiza o Perfil Estratégico;
+- usa o mesmo fluxo para o `+` do header, o `+` central da bottom nav, `Analisar vídeo` e `Analisar primeiro vídeo`;
+- mostra etapas curtas de intro, upload mockado, objetivo, perguntas rápidas, atualização e confirmação;
+- mostra confirmação curta e retorna para o Perfil na seção Diagnóstico;
+- adiciona indicação temporária local de diagnóstico atualizado na simulação.
+
+O que não faz:
+
+- não cria upload real, input de arquivo ativo, storage, endpoint, persistência, histórico de vídeos ou página final separada;
+- não usa fetch, FileReader, storage do navegador, router push ou navegação real;
+- não altera Mídia Kit, Comunidade, `LoginClient`, NextAuth, navegação/sidebar, `ActivationPendingWidget` ou `MediaKitView`;
+- não chama Gemini real, OpenAI, endpoint ou rede;
+- não conecta Instagram real, billing, Stripe ou match real de marcas/creators.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

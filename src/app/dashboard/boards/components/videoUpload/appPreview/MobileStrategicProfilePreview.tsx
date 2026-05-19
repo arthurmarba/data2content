@@ -11,6 +11,7 @@ import {
   MOBILE_STRATEGIC_PROFILE_PREVIEW_STATES,
   type MobileStrategicProfilePreviewFixtureState,
 } from "./buildMobileStrategicProfilePreviewFixture";
+import { MobileStrategicProfileAnalyzeFlow } from "./MobileStrategicProfileAnalyzeFlow";
 import { MobileStrategicProfileMediaKitModal } from "./MobileStrategicProfileMediaKitModal";
 
 type MobileStrategicProfilePreviewProps = {
@@ -35,6 +36,10 @@ const MEDIA_KIT_ACTION_INTENTS = new Set<MobileStrategicProfileAction["intent"]>
 
 function isMediaKitAction(action: MobileStrategicProfileAction): boolean {
   return MEDIA_KIT_ACTION_INTENTS.has(action.intent);
+}
+
+function isAnalyzeAction(action: MobileStrategicProfileAction): boolean {
+  return action.intent === "analyze_video";
 }
 
 function StateSwitcher({ activeState }: { activeState?: MobileStrategicProfilePreviewFixtureState }) {
@@ -122,9 +127,11 @@ function AuthGate({ profile }: { profile: MobileStrategicProfile }) {
 function ProfileHeader({
   profile,
   onAction,
+  onAnalyze,
 }: {
   profile: MobileStrategicProfile;
   onAction: (action: MobileStrategicProfileAction) => void;
+  onAnalyze: () => void;
 }) {
   const identity = profile.header.identity;
   const initials = identity.displayName
@@ -142,7 +149,12 @@ function ProfileHeader({
           <p className="text-sm font-semibold text-zinc-950">{identity.displayHandle ?? "Perfil Estratégico"}</p>
           <p className="text-xs text-zinc-500">Diagnóstico vivo</p>
         </div>
-        <button type="button" className="grid h-9 w-9 place-items-center rounded-full bg-zinc-950 text-xl font-semibold text-white">
+        <button
+          type="button"
+          aria-label="Analisar vídeo"
+          className="grid h-9 w-9 place-items-center rounded-full bg-zinc-950 text-xl font-semibold text-white"
+          onClick={onAnalyze}
+        >
           +
         </button>
       </div>
@@ -270,24 +282,36 @@ function MediaKitBridge({
   );
 }
 
-function BottomNav({ profile }: { profile: MobileStrategicProfile }) {
+function BottomNav({
+  profile,
+  onAnalyze,
+}: {
+  profile: MobileStrategicProfile;
+  onAnalyze: () => void;
+}) {
   return (
     <nav className="sticky bottom-0 mt-6 grid grid-cols-3 border-t border-zinc-200 bg-white px-4 py-3" aria-label="Navegação mobile futura">
-      {profile.navigation.items.map((item) => (
-        <a
-          key={item.id}
-          href={item.href ?? "#"}
-          className={
-            item.role === "central_action"
-              ? "mx-auto grid h-12 w-12 place-items-center rounded-full bg-zinc-950 text-lg font-semibold text-white"
-              : item.active
-                ? "text-center text-xs font-semibold text-zinc-950"
-                : "text-center text-xs font-semibold text-zinc-500"
-          }
-        >
-          {item.label}
-        </a>
-      ))}
+      {profile.navigation.items.map((item) =>
+        item.role === "central_action" ? (
+          <button
+            key={item.id}
+            type="button"
+            aria-label="Analisar vídeo pela ação central"
+            className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-zinc-950 text-lg font-semibold text-white"
+            onClick={onAnalyze}
+          >
+            {item.label}
+          </button>
+        ) : (
+          <a
+            key={item.id}
+            href={item.href ?? "#"}
+            className={item.active ? "text-center text-xs font-semibold text-zinc-950" : "text-center text-xs font-semibold text-zinc-500"}
+          >
+            {item.label}
+          </a>
+        ),
+      )}
     </nav>
   );
 }
@@ -297,13 +321,25 @@ export function MobileStrategicProfilePreview({
   activeState,
 }: MobileStrategicProfilePreviewProps) {
   const [mediaKitModalOpen, setMediaKitModalOpen] = useState(false);
+  const [analyzeFlowOpen, setAnalyzeFlowOpen] = useState(false);
+  const [profileUpdated, setProfileUpdated] = useState(false);
 
   if (profile.authGate.visible) return <AuthGate profile={profile} />;
 
   const handleAction = (action: MobileStrategicProfileAction) => {
     if (isMediaKitAction(action)) {
       setMediaKitModalOpen(true);
+      return;
     }
+
+    if (isAnalyzeAction(action)) {
+      setAnalyzeFlowOpen(true);
+    }
+  };
+
+  const handleAnalyzeComplete = () => {
+    setAnalyzeFlowOpen(false);
+    setProfileUpdated(true);
   };
 
   return (
@@ -321,19 +357,30 @@ export function MobileStrategicProfilePreview({
         </header>
 
         <div className="mx-auto w-full max-w-sm rounded-[2rem] border border-zinc-200 bg-zinc-950 p-2 shadow-xl">
-          <div className="min-h-[720px] overflow-hidden rounded-[1.5rem] bg-white">
-            <ProfileHeader profile={profile} onAction={handleAction} />
+          <div className="relative min-h-[720px] overflow-hidden rounded-[1.5rem] bg-white">
+            <ProfileHeader profile={profile} onAction={handleAction} onAnalyze={() => setAnalyzeFlowOpen(true)} />
             <Tabs profile={profile} />
 
             <div className="mt-5 grid gap-5 pb-2">
+              {profileUpdated ? (
+                <section className="mx-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+                  <p className="text-sm font-semibold text-zinc-950">Diagnóstico atualizado</p>
+                  <p className="mt-1 text-sm leading-6 text-zinc-600">Perfil atualizado nesta simulação.</p>
+                </section>
+              ) : null}
+
               {profile.constructionState.visible ? (
                 <section className="mx-5 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
                   <h3 className="text-base font-semibold text-zinc-950">{profile.constructionState.title}</h3>
                   <p className="mt-2 text-sm leading-6 text-zinc-600">{profile.constructionState.description}</p>
                   {profile.constructionState.recommendedActionLabel ? (
-                    <span className="mt-3 inline-flex rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white">
+                    <button
+                      type="button"
+                      className="mt-3 inline-flex rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white"
+                      onClick={() => setAnalyzeFlowOpen(true)}
+                    >
                       {profile.constructionState.recommendedActionLabel}
-                    </span>
+                    </button>
                   ) : null}
                 </section>
               ) : null}
@@ -352,7 +399,12 @@ export function MobileStrategicProfilePreview({
               ) : null}
             </div>
 
-            <BottomNav profile={profile} />
+            <BottomNav profile={profile} onAnalyze={() => setAnalyzeFlowOpen(true)} />
+            <MobileStrategicProfileAnalyzeFlow
+              open={analyzeFlowOpen}
+              onClose={() => setAnalyzeFlowOpen(false)}
+              onComplete={handleAnalyzeComplete}
+            />
           </div>
         </div>
       </div>

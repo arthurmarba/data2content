@@ -118,6 +118,8 @@ Já existe:
 - MM46 reaproveita `LoginClient` para copy contextual de Perfil Estratégico e análise narrativa, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera NextAuth;
 - media kit modal bridge foi criado em MM47 como camada segura de UI interna/preview;
 - MM47 adiciona um modal visual/local para apontar ao Mídia Kit existente, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera Mídia Kit real ou `MediaKitView`;
+- analyze entry and return flow foi criado em MM48 como camada segura de UI interna/mock;
+- MM48 modela a ação `+ / Analisar vídeo` como fluxo local que retorna ao Perfil, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera Mídia Kit, Comunidade ou login reais;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
