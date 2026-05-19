@@ -21,10 +21,10 @@ type MobileStrategicProfilePreviewProps = {
 
 const CARD_TONE: Record<MobileStrategicProfileSectionCard["tone"], string> = {
   neutral: "border-zinc-200 bg-white",
-  diagnosis: "border-sky-100 bg-sky-50/70",
-  commercial: "border-emerald-100 bg-emerald-50/70",
+  diagnosis: "border-sky-100 bg-sky-50/80",
+  commercial: "border-emerald-100 bg-emerald-50/80",
   action: "border-zinc-200 bg-zinc-50",
-  locked: "border-amber-100 bg-amber-50/70",
+  locked: "border-amber-100 bg-amber-50/80",
 };
 
 const MEDIA_KIT_ACTION_INTENTS = new Set<MobileStrategicProfileAction["intent"]>([
@@ -65,10 +65,14 @@ function StateSwitcher({ activeState }: { activeState?: MobileStrategicProfilePr
 function ActionButton({
   action,
   onAction,
+  fullWidth = false,
 }: {
   action: MobileStrategicProfileAction;
   onAction?: (action: MobileStrategicProfileAction) => void;
+  fullWidth?: boolean;
 }) {
+  const baseClass = fullWidth ? "w-full justify-center" : "";
+
   return (
     <button
       type="button"
@@ -76,8 +80,8 @@ function ActionButton({
       onClick={() => onAction?.(action)}
       className={
         action.priority === "primary"
-          ? "rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white disabled:bg-zinc-300"
-          : "rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-800 disabled:text-zinc-400"
+          ? `${baseClass} inline-flex min-h-[42px] items-center rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-zinc-950/15 disabled:bg-zinc-300`
+          : `${baseClass} inline-flex min-h-[42px] items-center rounded-full border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-800 disabled:text-zinc-400`
       }
     >
       {action.label}
@@ -100,13 +104,13 @@ function AuthGate({ profile }: { profile: MobileStrategicProfile }) {
         </header>
 
         <div className="mx-auto w-full max-w-sm rounded-[2rem] border border-zinc-200 bg-zinc-950 p-2 shadow-xl">
-          <div className="min-h-[680px] rounded-[1.5rem] bg-white px-5 py-5">
+          <div className="min-h-[680px] rounded-[1.5rem] bg-[#f7f7f4] px-5 py-5">
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-zinc-950">Perfil Estratégico</span>
-              <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">D2C</span>
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-zinc-600 shadow-sm">D2C</span>
             </div>
-            <div className="mt-24 grid place-items-center text-center">
-              <div className="grid h-20 w-20 place-items-center rounded-full bg-zinc-950 text-2xl font-semibold text-white">
+            <div className="mt-20 grid place-items-center rounded-[1.75rem] bg-white p-6 text-center shadow-sm">
+              <div className="grid h-20 w-20 place-items-center rounded-full bg-zinc-950 text-2xl font-semibold text-white shadow-lg shadow-zinc-950/20">
                 D2C
               </div>
               <h2 className="mt-6 text-2xl font-semibold text-zinc-950">{gate.title}</h2>
@@ -147,55 +151,72 @@ function ProfileHeader({
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold text-zinc-950">{identity.displayHandle ?? "Perfil Estratégico"}</p>
-          <p className="text-xs text-zinc-500">Diagnóstico vivo</p>
+          <p className="text-xs font-medium text-zinc-500">Diagnóstico vivo do creator</p>
         </div>
         <button
           type="button"
           aria-label="Analisar vídeo"
-          className="grid h-9 w-9 place-items-center rounded-full bg-zinc-950 text-xl font-semibold text-white"
+          className="grid h-10 w-10 place-items-center rounded-full bg-zinc-950 text-xl font-semibold text-white shadow-lg shadow-zinc-950/20"
           onClick={onAnalyze}
         >
           +
         </button>
       </div>
 
-      <div className="mt-6 flex items-start gap-4">
-        <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-zinc-950 text-xl font-semibold text-white">
-          {identity.userImage ? <span>{initials}</span> : initials}
+      <div className="mt-5 rounded-[1.75rem] bg-[#f7f7f4] p-4">
+        <div className="flex items-start gap-4">
+          <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-zinc-950 text-xl font-semibold text-white shadow-lg shadow-zinc-950/15">
+            {identity.userImage ? <span>{initials}</span> : initials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-xl font-semibold text-zinc-950">{identity.displayName}</h2>
+            {identity.displayHandle ? <p className="mt-0.5 text-sm text-zinc-500">{identity.displayHandle}</p> : null}
+            {identity.bio ? <p className="mt-2 text-sm leading-6 text-zinc-700">{identity.bio}</p> : null}
+          </div>
         </div>
-        <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-semibold text-zinc-950">{identity.displayName}</h2>
-          {identity.displayHandle ? <p className="mt-0.5 text-sm text-zinc-500">{identity.displayHandle}</p> : null}
-          {identity.bio ? <p className="mt-2 text-sm leading-6 text-zinc-700">{identity.bio}</p> : null}
-        </div>
+
+        <p className="mt-4 rounded-2xl bg-white px-3 py-2 text-sm leading-6 text-zinc-700 shadow-sm">
+          Cada análise atualiza este Perfil Estratégico. Use o botão + para trazer uma nova leitura.
+        </p>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {profile.header.statusPills.map((pill) => (
-          <span key={pill.id} className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
+        {profile.header.statusPills.slice(0, 4).map((pill) => (
+          <span key={pill.id} className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-xs font-semibold text-zinc-700 shadow-sm">
             {pill.label}
           </span>
         ))}
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        {profile.primaryActions.slice(0, 2).map((action) => (
-          <ActionButton key={action.id} action={action} onAction={onAction} />
+      <div className="mt-4 grid gap-2">
+        {profile.primaryActions.slice(0, 2).map((action, index) => (
+          <ActionButton key={action.id} action={action} onAction={onAction} fullWidth={index === 0} />
         ))}
       </div>
     </header>
   );
 }
 
-function Tabs({ profile }: { profile: MobileStrategicProfile }) {
+function Tabs({
+  profile,
+  activeTab,
+  onChange,
+}: {
+  profile: MobileStrategicProfile;
+  activeTab: "diagnosis" | "commercial";
+  onChange: (tab: "diagnosis" | "commercial") => void;
+}) {
   return (
-    <div className="mx-5 mt-5 grid grid-cols-2 rounded-full bg-zinc-100 p-1">
+    <div className="mx-5 mt-5 grid grid-cols-2 rounded-full bg-zinc-100 p-1" role="tablist" aria-label="Abas internas do Perfil">
       {profile.tabs.map((tab) => (
         <button
           key={tab.id}
           type="button"
+          role="tab"
+          aria-selected={activeTab === tab.id}
+          onClick={() => onChange(tab.id)}
           className={
-            tab.active
+            activeTab === tab.id
               ? "rounded-full bg-white px-3 py-2 text-sm font-semibold text-zinc-950 shadow-sm"
               : "rounded-full px-3 py-2 text-sm font-semibold text-zinc-500"
           }
@@ -209,7 +230,7 @@ function Tabs({ profile }: { profile: MobileStrategicProfile }) {
 
 function SectionCard({ card }: { card: MobileStrategicProfileSectionCard }) {
   return (
-    <article className={`rounded-2xl border p-4 ${CARD_TONE[card.tone]}`}>
+    <article className={`rounded-[1.25rem] border p-4 ${CARD_TONE[card.tone]}`}>
       <div className="flex items-start justify-between gap-3">
         <h4 className="text-sm font-semibold text-zinc-950">{card.title}</h4>
         {card.locked ? <span className="rounded-full bg-white px-2 py-1 text-xs font-semibold text-zinc-500">Bloqueado</span> : null}
@@ -220,8 +241,10 @@ function SectionCard({ card }: { card: MobileStrategicProfileSectionCard }) {
 }
 
 function ProfileSection({ section }: { section: MobileStrategicProfileSection }) {
+  const visibleCards = section.cards.slice(0, section.id === "diagnosis" ? 3 : 4);
+
   return (
-    <section className="px-5">
+    <section className="px-5" aria-label={section.title}>
       <div className="flex items-end justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-zinc-950">{section.title}</h3>
@@ -234,7 +257,7 @@ function ProfileSection({ section }: { section: MobileStrategicProfileSection })
         ) : null}
       </div>
       <div className="mt-3 grid gap-3">
-        {section.cards.slice(0, 5).map((card) => (
+        {visibleCards.map((card) => (
           <SectionCard key={card.id} card={card} />
         ))}
       </div>
@@ -253,14 +276,14 @@ function MediaKitBridge({
   if (bridge.state === "hidden" || bridge.state === "unavailable" || !bridge.title || !bridge.description) return null;
 
   return (
-    <section className="mx-5 rounded-2xl border border-zinc-200 bg-white p-4">
+    <section className="mx-5 rounded-[1.5rem] border border-zinc-200 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-zinc-950">{bridge.title}</h3>
           <p className="mt-1 text-sm leading-6 text-zinc-600">{bridge.description}</p>
         </div>
-        <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-600">
-          {bridge.state === "available" ? "Ativo" : "Instagram"}
+        <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+          {bridge.state === "available" ? "Mídia Kit ativo" : "Instagram"}
         </span>
       </div>
       {bridge.actions.length > 0 ? (
@@ -272,7 +295,7 @@ function MediaKitBridge({
       ) : bridge.state === "connect_instagram_required" ? (
         <button
           type="button"
-          className="mt-4 rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-800"
+          className="mt-4 rounded-full border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-800"
           onClick={onOpen}
         >
           Ativar Mídia Kit
@@ -290,14 +313,14 @@ function BottomNav({
   onAnalyze: () => void;
 }) {
   return (
-    <nav className="sticky bottom-0 mt-6 grid grid-cols-3 border-t border-zinc-200 bg-white px-4 py-3" aria-label="Navegação mobile futura">
+    <nav className="sticky bottom-0 mt-6 grid grid-cols-3 items-center border-t border-zinc-200 bg-white/95 px-4 pb-4 pt-3 backdrop-blur" aria-label="Navegação mobile futura">
       {profile.navigation.items.map((item) =>
         item.role === "central_action" ? (
           <button
             key={item.id}
             type="button"
             aria-label="Analisar vídeo pela ação central"
-            className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-zinc-950 text-lg font-semibold text-white"
+            className="mx-auto -mt-7 grid h-14 w-14 place-items-center rounded-full border-4 border-white bg-zinc-950 text-xl font-semibold text-white shadow-xl shadow-zinc-950/25"
             onClick={onAnalyze}
           >
             {item.label}
@@ -323,6 +346,7 @@ export function MobileStrategicProfilePreview({
   const [mediaKitModalOpen, setMediaKitModalOpen] = useState(false);
   const [analyzeFlowOpen, setAnalyzeFlowOpen] = useState(false);
   const [profileUpdated, setProfileUpdated] = useState(false);
+  const [activeTab, setActiveTab] = useState<"diagnosis" | "commercial">("diagnosis");
 
   if (profile.authGate.visible) return <AuthGate profile={profile} />;
 
@@ -340,7 +364,10 @@ export function MobileStrategicProfilePreview({
   const handleAnalyzeComplete = () => {
     setAnalyzeFlowOpen(false);
     setProfileUpdated(true);
+    setActiveTab("diagnosis");
   };
+
+  const activeSection = profile.sections.find((section) => section.id === activeTab);
 
   return (
     <main className="min-h-screen bg-zinc-100 px-4 py-6 text-zinc-950">
@@ -359,7 +386,7 @@ export function MobileStrategicProfilePreview({
         <div className="mx-auto w-full max-w-sm rounded-[2rem] border border-zinc-200 bg-zinc-950 p-2 shadow-xl">
           <div className="relative min-h-[720px] overflow-hidden rounded-[1.5rem] bg-white">
             <ProfileHeader profile={profile} onAction={handleAction} onAnalyze={() => setAnalyzeFlowOpen(true)} />
-            <Tabs profile={profile} />
+            <Tabs profile={profile} activeTab={activeTab} onChange={setActiveTab} />
 
             <div className="mt-5 grid gap-5 pb-2">
               {profileUpdated ? (
@@ -385,9 +412,7 @@ export function MobileStrategicProfilePreview({
                 </section>
               ) : null}
 
-              {profile.sections.map((section) => (
-                <ProfileSection key={section.id} section={section} />
-              ))}
+              {activeSection ? <ProfileSection section={activeSection} /> : null}
 
               <MediaKitBridge profile={profile} onOpen={() => setMediaKitModalOpen(true)} />
 

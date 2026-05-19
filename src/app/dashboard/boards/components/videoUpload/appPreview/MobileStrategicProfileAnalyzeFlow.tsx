@@ -22,6 +22,10 @@ function nextStep(current: AnalyzeFlowStep): AnalyzeFlowStep {
   return STEPS[Math.min(index + 1, STEPS.length - 1)] ?? "updated_confirmation";
 }
 
+function stepIndex(step: AnalyzeFlowStep): number {
+  return STEPS.indexOf(step);
+}
+
 export function MobileStrategicProfileAnalyzeFlow({
   open,
   onClose,
@@ -40,17 +44,21 @@ export function MobileStrategicProfileAnalyzeFlow({
     setStep("intro");
     onComplete();
   };
+  const currentStepIndex = stepIndex(step);
 
   return (
     <section
       role="dialog"
       aria-modal="true"
       aria-labelledby="mobile-strategic-profile-analyze-flow-title"
-      className="absolute inset-x-0 bottom-0 z-40 rounded-t-[1.75rem] border-t border-zinc-200 bg-white p-5 shadow-2xl"
+      className="absolute inset-x-0 bottom-0 z-40 rounded-t-[2rem] border-t border-zinc-200 bg-white p-5 shadow-2xl"
     >
+      <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-zinc-200" aria-hidden="true" />
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase text-zinc-500">Analisar vídeo</p>
+          <p className="text-xs font-semibold uppercase text-zinc-500">
+            Etapa {currentStepIndex + 1} de {STEPS.length} · Analisar vídeo
+          </p>
           <h2 id="mobile-strategic-profile-analyze-flow-title" className="mt-1 text-xl font-semibold text-zinc-950">
             {step === "updated_confirmation" ? "Diagnóstico atualizado." : "Vamos atualizar seu Perfil Estratégico"}
           </h2>
@@ -65,13 +73,22 @@ export function MobileStrategicProfileAnalyzeFlow({
         </button>
       </div>
 
+      <div className="mt-4 grid grid-cols-6 gap-1" aria-hidden="true">
+        {STEPS.map((item, index) => (
+          <span
+            key={item}
+            className={index <= currentStepIndex ? "h-1.5 rounded-full bg-zinc-950" : "h-1.5 rounded-full bg-zinc-200"}
+          />
+        ))}
+      </div>
+
       <div className="mt-4">
         {step === "intro" ? (
           <div>
             <p className="text-sm leading-6 text-zinc-600">
               Envie um vídeo para a D2C entender novos sinais da sua narrativa.
             </p>
-            <div className="mt-5 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+            <div className="mt-5 rounded-[1.5rem] border border-zinc-200 bg-[#f7f7f4] p-4">
               <p className="text-sm font-semibold text-zinc-950">Atualizar Perfil</p>
               <p className="mt-1 text-sm leading-6 text-zinc-600">
                 A análise é temporária e retorna para o Diagnóstico vivo.
@@ -81,7 +98,7 @@ export function MobileStrategicProfileAnalyzeFlow({
         ) : null}
 
         {step === "mock_upload" ? (
-          <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-4">
+          <div className="rounded-[1.5rem] border border-dashed border-zinc-300 bg-[#f7f7f4] p-4">
             <p className="text-sm font-semibold text-zinc-950">Vídeo selecionado para análise</p>
             <p className="mt-2 text-sm leading-6 text-zinc-600">
               Preview local. Nenhum arquivo será enviado neste protótipo.
@@ -97,7 +114,7 @@ export function MobileStrategicProfileAnalyzeFlow({
                 <button
                   key={label}
                   type="button"
-                  className="rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3 text-left text-sm font-semibold text-zinc-800"
+                  className="rounded-2xl border border-zinc-200 bg-[#f7f7f4] px-3 py-3 text-left text-sm font-semibold text-zinc-800"
                 >
                   {label}
                 </button>
@@ -110,11 +127,11 @@ export function MobileStrategicProfileAnalyzeFlow({
           <div>
             <p className="text-sm font-semibold text-zinc-950">Duas perguntas rápidas para entender contexto</p>
             <div className="mt-3 grid gap-3">
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+              <div className="rounded-2xl border border-zinc-200 bg-[#f7f7f4] p-4">
                 <p className="text-sm font-semibold text-zinc-800">Esse conteúdo representa sua fase atual?</p>
                 <p className="mt-1 text-xs leading-5 text-zinc-500">Resposta visual nesta preview, sem salvar nada.</p>
               </div>
-              <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+              <div className="rounded-2xl border border-zinc-200 bg-[#f7f7f4] p-4">
                 <p className="text-sm font-semibold text-zinc-800">Você quer repetir essa direção no próximo post?</p>
                 <p className="mt-1 text-xs leading-5 text-zinc-500">A leitura volta para o Perfil Estratégico.</p>
               </div>
@@ -123,7 +140,7 @@ export function MobileStrategicProfileAnalyzeFlow({
         ) : null}
 
         {step === "updating_profile" ? (
-          <div className="rounded-2xl border border-sky-100 bg-sky-50 p-4">
+          <div className="rounded-[1.5rem] border border-sky-100 bg-sky-50 p-4">
             <p className="text-sm font-semibold text-zinc-950">Atualizando seu diagnóstico vivo...</p>
             <p className="mt-2 text-sm leading-6 text-zinc-600">
               Estamos conectando esta leitura ao seu Perfil Estratégico.
@@ -132,7 +149,7 @@ export function MobileStrategicProfileAnalyzeFlow({
         ) : null}
 
         {step === "updated_confirmation" ? (
-          <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
+          <div className="rounded-[1.5rem] border border-emerald-100 bg-emerald-50 p-4">
             <p className="text-sm font-semibold text-zinc-950">Identificamos novos sinais sobre sua narrativa.</p>
             <p className="mt-2 text-sm leading-6 text-zinc-600">
               A confirmação é curta porque o destino final é o seu Perfil.

@@ -126,6 +126,8 @@ Já existe:
 - MM50 modela conflitos do `ActivationPendingWidget` com bottom nav, ação central, Mídia Kit modal e fluxo de análise, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera `ActivationPendingWidget` real;
 - strategic profile mobile UX QA checklist foi criado em MM51 como camada segura de QA;
 - MM51 valida a experiência do Perfil Estratégico como produto antes de integração real, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera UI real de produção;
+- strategic profile mobile visual polish foi aplicado em MM52 como camada segura de UI interna/preview;
+- MM52 refina visualmente a preview do Perfil Estratégico, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera UI real de produção;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
