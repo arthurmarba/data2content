@@ -10,6 +10,9 @@ import {
 } from "../../videoUpload/videoNarrativeDiagnosisLearningModel";
 import { buildVideoNarrativeDiagnosisQuiz } from "../../videoUpload/videoNarrativeDiagnosisQuizBuilder";
 import { buildVideoNarrativeCreatorProfile } from "../../videoUpload/videoNarrativeCreatorProfileContract";
+import { buildVideoNarrativeEvolvingDiagnosis } from "../../videoUpload/videoNarrativeEvolvingDiagnosisContract";
+import { buildVideoNarrativeAccessTierDiagnosisRules } from "../../videoUpload/videoNarrativeAccessTierDiagnosisRules";
+import { buildVideoNarrativeDiagnosisPresentation } from "../../videoUpload/videoNarrativeDiagnosisPresentationModel";
 import {
   buildVideoNarrativeAppFlowState,
   type VideoNarrativeAppFlowAccessLevel,
@@ -192,6 +195,15 @@ function buildInstagramContext(connected: boolean): VideoNarrativeInstagramConte
   };
 }
 
+function analyzedVideosCountForPreview(params: {
+  accessLevel: VideoNarrativeAppPreviewAccess;
+  instagramConnected: boolean;
+}): number {
+  if (params.accessLevel === "instagram_optimized" && params.instagramConnected) return 5;
+  if (params.accessLevel === "premium") return 3;
+  return 1;
+}
+
 export function buildVideoNarrativeAppPreviewScenario(params: VideoNarrativeAppPreviewScenarioParams = {}) {
   const scenario = resolveScenario(params.scenario);
   const stage = resolveStage(params.stage);
@@ -233,6 +245,24 @@ export function buildVideoNarrativeAppPreviewScenario(params: VideoNarrativeAppP
     diagnosisId: diagnosis.id,
     createdAt: analysis.createdAt,
   });
+  const evolvingDiagnosis = buildVideoNarrativeEvolvingDiagnosis({
+    diagnosis,
+    creatorProfile,
+    accessLevel: toDiagnosisAccessLevel(accessLevel),
+    instagramConnected,
+    analyzedVideosCount: analyzedVideosCountForPreview({ accessLevel, instagramConnected }),
+    createdAt: analysis.createdAt,
+  });
+  const accessRules = buildVideoNarrativeAccessTierDiagnosisRules({
+    evolvingDiagnosis,
+    accessLevel: toDiagnosisAccessLevel(accessLevel),
+    instagramConnected,
+  });
+  const diagnosisPresentation = buildVideoNarrativeDiagnosisPresentation({
+    diagnosis,
+    evolvingDiagnosis,
+    accessRules,
+  });
   const hasUsefulDiagnosis = hasUsefulVideoNarrativeStrategicDiagnosis(diagnosis);
   const flowState = buildVideoNarrativeAppFlowState({
     stage,
@@ -255,6 +285,9 @@ export function buildVideoNarrativeAppPreviewScenario(params: VideoNarrativeAppP
     diagnosis,
     quiz,
     creatorProfile,
+    evolvingDiagnosis,
+    accessRules,
+    diagnosisPresentation,
     primaryAction: getPostCreationVideoSeedPrimaryAction(seed),
     accessLevel,
     instagramConnected,
