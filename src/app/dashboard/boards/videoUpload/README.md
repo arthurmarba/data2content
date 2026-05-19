@@ -861,6 +861,30 @@ O que não faz:
 - não conecta BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
 - não conecta Instagram real, billing, Stripe ou cobrança.
 
+### MM38 — Evolving Creator Diagnosis Contract
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoNarrativeEvolvingDiagnosisContract.ts`
+- `videoNarrativeEvolvingDiagnosisContract.test.ts`
+
+O que faz:
+
+- cria um contrato puro para diagnóstico evolutivo do creator;
+- conecta o diagnóstico pontual de vídeo ao mapa estratégico do creator;
+- modela nível atual, próximo nível, impacto no perfil, sinais desbloqueados, sinais pendentes, próximos sinais e oportunidades futuras;
+- diferencia `free`, `premium` e `instagram_optimized` sem billing real;
+- mantém marca/collab como oportunidade futura, sem match real.
+
+O que não faz:
+
+- não cria persistência, banco/tabela, endpoint, UI, preview, upload real, storage real ou analytics real;
+- não chama Gemini real, OpenAI, endpoint ou rede;
+- não conecta Instagram real, BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
+- não conecta billing, Stripe ou cobrança.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
