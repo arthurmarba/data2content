@@ -108,6 +108,8 @@ Já existe:
 - MM41 conecta diagnóstico evolutivo, regras de acesso e presentation model aos cenários mockados, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage e não muda UI pública;
 - mobile diagnosis UI refactor foi criado em MM42 como camada segura de UI interna/preview;
 - MM42 materializa o presentation model na preview interna, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage e não cria UI pública;
+- strategic profile state contract foi criado em MM43 como camada segura de contrato/produto;
+- MM43 modela o Perfil Estratégico mobile como diagnóstico vivo do creator, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera Mídia Kit ou Comunidade reais;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
