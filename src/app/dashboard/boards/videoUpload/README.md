@@ -1271,6 +1271,34 @@ O que não faz:
 - não chama Gemini real, OpenAI, endpoint ou rede;
 - não conecta Instagram real, billing ou Stripe.
 
+### MM54 — Mobile Strategic Profile Real Route Shell
+
+Status: concluído.
+
+Arquivos principais:
+
+- `mobileStrategicProfileFeatureFlag.ts`
+- `buildMobileStrategicProfileRealShellInput.ts`
+- `buildMobileStrategicProfileRealShellInput.test.ts`
+- `MobileStrategicProfilePreview.tsx`
+- `src/app/dashboard/boards/mobile-strategic-profile/page.tsx`
+- `src/app/dashboard/boards/mobile-strategic-profile/page.test.tsx`
+
+O que faz:
+
+- adiciona feature flag `NEXT_PUBLIC_MOBILE_STRATEGIC_PROFILE_ENABLED=1` e helper correspondente;
+- implementa o mapeador `buildMobileStrategicProfileRealShellInput` adaptando dados leves da sessão NextAuth;
+- atualiza o renderer `MobileStrategicProfilePreview` com suporte à flag `isRealShell` ocultando banners internos de preview;
+- cria a rota real segura `/dashboard/boards/mobile-strategic-profile` protegida por flag e NextAuth session;
+- redireciona usuários anônimos com segurança preservando `callbackUrl` e `intent=strategic_profile`;
+- garante 100% de cobertura de testes unitários e de integração cobrindo os cenários descritos.
+
+O que não faz:
+
+- não altera comportamento do dashboard atual e não integra upload/storage/Gemini/persistência;
+- não faz chamadas de rede externas ou de banco reais;
+- não altera componentes de login real, `MediaKitView`, Comunidade real ou navegação global legado.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

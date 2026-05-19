@@ -17,6 +17,7 @@ import { MobileStrategicProfileMediaKitModal } from "./MobileStrategicProfileMed
 type MobileStrategicProfilePreviewProps = {
   profile: MobileStrategicProfile;
   activeState?: MobileStrategicProfilePreviewFixtureState;
+  isRealShell?: boolean;
 };
 
 const CARD_TONE: Record<MobileStrategicProfileSectionCard["tone"], string> = {
@@ -89,19 +90,21 @@ function ActionButton({
   );
 }
 
-function AuthGate({ profile }: { profile: MobileStrategicProfile }) {
+function AuthGate({ profile, isRealShell }: { profile: MobileStrategicProfile; isRealShell?: boolean }) {
   const gate = profile.authGate;
 
   return (
     <section className="min-h-screen bg-zinc-100 px-4 py-6 text-zinc-950">
       <div className="mx-auto grid max-w-5xl gap-5">
-        <header className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-zinc-500">Preview interno — Perfil Estratégico</p>
-          <h1 className="mt-2 text-2xl font-semibold">Perfil Estratégico mobile</h1>
-          <p className="mt-3 text-sm leading-6 text-zinc-700">
-            Seu Perfil Estratégico mostra o que a D2C já entendeu sobre sua narrativa e o próximo passo mais importante.
-          </p>
-        </header>
+        {!isRealShell ? (
+          <header className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-semibold uppercase text-zinc-500">Preview interno — Perfil Estratégico</p>
+            <h1 className="mt-2 text-2xl font-semibold">Perfil Estratégico mobile</h1>
+            <p className="mt-3 text-sm leading-6 text-zinc-700">
+              Seu Perfil Estratégico mostra o que a D2C já entendeu sobre sua narrativa e o próximo passo mais importante.
+            </p>
+          </header>
+        ) : null}
 
         <div className="mx-auto w-full max-w-sm rounded-[2rem] border border-zinc-200 bg-zinc-950 p-2 shadow-xl">
           <div className="min-h-[680px] rounded-[1.5rem] bg-[#f7f7f4] px-5 py-5">
@@ -342,13 +345,14 @@ function BottomNav({
 export function MobileStrategicProfilePreview({
   profile,
   activeState,
+  isRealShell,
 }: MobileStrategicProfilePreviewProps) {
   const [mediaKitModalOpen, setMediaKitModalOpen] = useState(false);
   const [analyzeFlowOpen, setAnalyzeFlowOpen] = useState(false);
   const [profileUpdated, setProfileUpdated] = useState(false);
   const [activeTab, setActiveTab] = useState<"diagnosis" | "commercial">("diagnosis");
 
-  if (profile.authGate.visible) return <AuthGate profile={profile} />;
+  if (profile.authGate.visible) return <AuthGate profile={profile} isRealShell={isRealShell} />;
 
   const handleAction = (action: MobileStrategicProfileAction) => {
     if (isMediaKitAction(action)) {
@@ -372,16 +376,18 @@ export function MobileStrategicProfilePreview({
   return (
     <main className="min-h-screen bg-zinc-100 px-4 py-6 text-zinc-950">
       <div className="mx-auto grid max-w-5xl gap-5">
-        <header className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase text-zinc-500">Preview interno — Perfil Estratégico</p>
-          <h1 className="mt-2 text-2xl font-semibold">Perfil Estratégico mobile</h1>
-          <p className="mt-3 text-sm leading-6 text-zinc-700">
-            Seu Perfil Estratégico mostra sua leitura atual, seus próximos passos e seu potencial comercial.
-          </p>
-          <div className="mt-4">
-            <StateSwitcher activeState={activeState} />
-          </div>
-        </header>
+        {!isRealShell ? (
+          <header className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-semibold uppercase text-zinc-500">Preview interno — Perfil Estratégico</p>
+            <h1 className="mt-2 text-2xl font-semibold">Perfil Estratégico mobile</h1>
+            <p className="mt-3 text-sm leading-6 text-zinc-700">
+              Seu Perfil Estratégico mostra sua leitura atual, seus próximos passos e seu potencial comercial.
+            </p>
+            <div className="mt-4">
+              <StateSwitcher activeState={activeState} />
+            </div>
+          </header>
+        ) : null}
 
         <div className="mx-auto w-full max-w-sm rounded-[2rem] border border-zinc-200 bg-zinc-950 p-2 shadow-xl">
           <div className="relative min-h-[720px] overflow-hidden rounded-[1.5rem] bg-white">
