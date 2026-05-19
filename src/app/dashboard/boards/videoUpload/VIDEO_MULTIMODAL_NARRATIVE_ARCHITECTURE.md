@@ -257,8 +257,9 @@ Exemplos:
 47. MM48 — Analyze Entry and Return Flow. Modela o fluxo local do `+ / Analisar vídeo` que retorna ao Perfil.
 48. MM49 — Mobile Navigation Preview Strategy. Consolida a estratégia futura de navegação app-first mobile.
 49. MM50 — Activation Widget Conflict Strategy. Modela o conflito do widget de ativação com a experiência mobile app-first futura.
-50. Teste real manual quando houver quota/billing disponível.
-51. Integração experimental futura no Board de Criação.
+50. MM51 — Strategic Profile Mobile UX QA Checklist. Define QA visual/funcional antes de integração real.
+51. Teste real manual quando houver quota/billing disponível.
+52. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -351,6 +352,8 @@ MM48 materializa o `+` como ação central, não como aba. A análise de vídeo 
 MM49 consolida a navegação app-first futura como `Perfil / + / Comunidade`. O Perfil é a home mobile, o `+` é mecanismo de atualização do Perfil e Comunidade é destino existente. Mídia Kit segue como bridge/modal, enquanto Diagnóstico e Comercial ficam dentro do Perfil. A integração real da navegação, sidebar mobile e `ActivationPendingWidget` fica para etapa posterior; este PR não altera produção.
 
 MM50 fecha a análise dos conflitos de camada mobile. O `ActivationPendingWidget` fica fora da preview do Perfil, e qualquer integração real depende de feature flag e decisão futura. A estratégia recomenda manter produção atual, preferir card interno do Perfil ou ocultação no futuro app mobile, sem alterar widget real, `useActivationChecklist`, sidebar ou navegação real.
+
+MM51 é uma pausa de QA antes de qualquer integração real. A experiência do Perfil Estratégico precisa ser validada como produto: clareza do Perfil como diagnóstico vivo, entendimento do `+` como ação, Mídia Kit como recurso existente, Comunidade como destino existente e ausência de histórico de vídeos. Os próximos passos devem priorizar polish visual e refinamento de copy antes de dados reais, navegação real, upload/storage ou provider real.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 
