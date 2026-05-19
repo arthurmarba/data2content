@@ -259,8 +259,9 @@ Exemplos:
 49. MM50 — Activation Widget Conflict Strategy. Modela o conflito do widget de ativação com a experiência mobile app-first futura.
 50. MM51 — Strategic Profile Mobile UX QA Checklist. Define QA visual/funcional antes de integração real.
 51. MM52 — Strategic Profile Mobile Visual Polish. Refina visualmente a preview interna do Perfil Estratégico.
-52. Teste real manual quando houver quota/billing disponível.
-53. Integração experimental futura no Board de Criação.
+52. MM53 — Strategic Profile Preview Copy Refinement. Refina a linguagem da preview interna do Perfil Estratégico.
+53. Teste real manual quando houver quota/billing disponível.
+54. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -357,6 +358,8 @@ MM50 fecha a análise dos conflitos de camada mobile. O `ActivationPendingWidget
 MM51 é uma pausa de QA antes de qualquer integração real. A experiência do Perfil Estratégico precisa ser validada como produto: clareza do Perfil como diagnóstico vivo, entendimento do `+` como ação, Mídia Kit como recurso existente, Comunidade como destino existente e ausência de histórico de vídeos. Os próximos passos devem priorizar polish visual e refinamento de copy antes de dados reais, navegação real, upload/storage ou provider real.
 
 MM52 é polish visual da experiência interna. Ele não muda arquitetura de dados, contratos puros, mapping/state ou endpoints. A UI continua consumindo `MobileStrategicProfile`, reforça que o Perfil substitui a ideia de diagnóstico isolado, mantém Diagnóstico/Comercial como abas internas e preserva Mídia Kit/Comunidade como recursos existentes.
+
+MM53 é refinamento de linguagem da preview. Ele não muda arquitetura, contratos, endpoints ou comportamento real. A copy reforça o Perfil como diagnóstico vivo, a análise como ação temporária que atualiza o Perfil, Mídia Kit e Comunidade como recursos existentes e a experiência como clara, humana e orientada a próximo passo.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 

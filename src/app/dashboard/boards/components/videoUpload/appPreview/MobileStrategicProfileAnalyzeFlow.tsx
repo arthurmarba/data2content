@@ -60,7 +60,7 @@ export function MobileStrategicProfileAnalyzeFlow({
             Etapa {currentStepIndex + 1} de {STEPS.length} · Analisar vídeo
           </p>
           <h2 id="mobile-strategic-profile-analyze-flow-title" className="mt-1 text-xl font-semibold text-zinc-950">
-            {step === "updated_confirmation" ? "Diagnóstico atualizado." : "Vamos atualizar seu Perfil Estratégico"}
+            {step === "updated_confirmation" ? "Diagnóstico atualizado." : "Vamos atualizar seu Perfil"}
           </h2>
         </div>
         <button
@@ -86,7 +86,7 @@ export function MobileStrategicProfileAnalyzeFlow({
         {step === "intro" ? (
           <div>
             <p className="text-sm leading-6 text-zinc-600">
-              Envie um vídeo para a D2C entender novos sinais da sua narrativa.
+              Use um vídeo para a D2C entender novos sinais da sua narrativa.
             </p>
             <div className="mt-5 rounded-[1.5rem] border border-zinc-200 bg-[#f7f7f4] p-4">
               <p className="text-sm font-semibold text-zinc-950">Atualizar Perfil</p>
@@ -99,7 +99,7 @@ export function MobileStrategicProfileAnalyzeFlow({
 
         {step === "mock_upload" ? (
           <div className="rounded-[1.5rem] border border-dashed border-zinc-300 bg-[#f7f7f4] p-4">
-            <p className="text-sm font-semibold text-zinc-950">Vídeo selecionado para análise</p>
+            <p className="text-sm font-semibold text-zinc-950">Vídeo pronto para análise</p>
             <p className="mt-2 text-sm leading-6 text-zinc-600">
               Preview local. Nenhum arquivo será enviado neste protótipo.
             </p>
@@ -108,7 +108,7 @@ export function MobileStrategicProfileAnalyzeFlow({
 
         {step === "creator_goal" ? (
           <div>
-            <p className="text-sm font-semibold text-zinc-950">Qual era o objetivo desse conteúdo?</p>
+            <p className="text-sm font-semibold text-zinc-950">Qual era o objetivo do conteúdo?</p>
             <div className="mt-3 grid grid-cols-2 gap-2">
               {["Ganhar autoridade", "Melhorar retenção", "Testar formato", "Preparar publi"].map((label) => (
                 <button
@@ -125,7 +125,10 @@ export function MobileStrategicProfileAnalyzeFlow({
 
         {step === "quick_questions" ? (
           <div>
-            <p className="text-sm font-semibold text-zinc-950">Duas perguntas rápidas para entender contexto</p>
+            <p className="text-sm font-semibold text-zinc-950">Só mais um contexto rápido</p>
+            <p className="mt-1 text-sm leading-6 text-zinc-600">
+              Essas respostas ajudam a D2C entender o que você queria comunicar.
+            </p>
             <div className="mt-3 grid gap-3">
               <div className="rounded-2xl border border-zinc-200 bg-[#f7f7f4] p-4">
                 <p className="text-sm font-semibold text-zinc-800">Esse conteúdo representa sua fase atual?</p>
@@ -141,16 +144,16 @@ export function MobileStrategicProfileAnalyzeFlow({
 
         {step === "updating_profile" ? (
           <div className="rounded-[1.5rem] border border-sky-100 bg-sky-50 p-4">
-            <p className="text-sm font-semibold text-zinc-950">Atualizando seu diagnóstico vivo...</p>
+            <p className="text-sm font-semibold text-zinc-950">Atualizando seu Perfil Estratégico</p>
             <p className="mt-2 text-sm leading-6 text-zinc-600">
-              Estamos conectando esta leitura ao seu Perfil Estratégico.
+              Estamos conectando essa leitura ao seu diagnóstico vivo.
             </p>
           </div>
         ) : null}
 
         {step === "updated_confirmation" ? (
           <div className="rounded-[1.5rem] border border-emerald-100 bg-emerald-50 p-4">
-            <p className="text-sm font-semibold text-zinc-950">Identificamos novos sinais sobre sua narrativa.</p>
+            <p className="text-sm font-semibold text-zinc-950">Identificamos novos aprendizados sobre sua narrativa.</p>
             <p className="mt-2 text-sm leading-6 text-zinc-600">
               A confirmação é curta porque o destino final é o seu Perfil.
             </p>

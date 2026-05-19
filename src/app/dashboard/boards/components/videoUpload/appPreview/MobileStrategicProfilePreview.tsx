@@ -99,7 +99,7 @@ function AuthGate({ profile }: { profile: MobileStrategicProfile }) {
           <p className="text-xs font-semibold uppercase text-zinc-500">Preview interno — Perfil Estratégico</p>
           <h1 className="mt-2 text-2xl font-semibold">Perfil Estratégico mobile</h1>
           <p className="mt-3 text-sm leading-6 text-zinc-700">
-            O Perfil da D2C é o diagnóstico vivo do creator. Cada vídeo analisado atualiza esse perfil.
+            Seu Perfil Estratégico mostra o que a D2C já entendeu sobre sua narrativa e o próximo passo mais importante.
           </p>
         </header>
 
@@ -176,7 +176,7 @@ function ProfileHeader({
         </div>
 
         <p className="mt-4 rounded-2xl bg-white px-3 py-2 text-sm leading-6 text-zinc-700 shadow-sm">
-          Cada análise atualiza este Perfil Estratégico. Use o botão + para trazer uma nova leitura.
+          Cada vídeo analisado ajuda a atualizar seu diagnóstico como creator. Use o botão + para trazer uma nova leitura.
         </p>
       </div>
 
@@ -376,7 +376,7 @@ export function MobileStrategicProfilePreview({
           <p className="text-xs font-semibold uppercase text-zinc-500">Preview interno — Perfil Estratégico</p>
           <h1 className="mt-2 text-2xl font-semibold">Perfil Estratégico mobile</h1>
           <p className="mt-3 text-sm leading-6 text-zinc-700">
-            O Perfil da D2C é o diagnóstico vivo do creator. Cada vídeo analisado atualiza esse perfil.
+            Seu Perfil Estratégico mostra sua leitura atual, seus próximos passos e seu potencial comercial.
           </p>
           <div className="mt-4">
             <StateSwitcher activeState={activeState} />
@@ -392,7 +392,7 @@ export function MobileStrategicProfilePreview({
               {profileUpdated ? (
                 <section className="mx-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
                   <p className="text-sm font-semibold text-zinc-950">Diagnóstico atualizado</p>
-                  <p className="mt-1 text-sm leading-6 text-zinc-600">Perfil atualizado nesta simulação.</p>
+                  <p className="mt-1 text-sm leading-6 text-zinc-600">Seu Perfil foi atualizado nesta simulação.</p>
                 </section>
               ) : null}
 

@@ -188,15 +188,15 @@ function buildAnonymousSummary(intent: MobileStrategicProfilePrimaryIntent): Mob
   if (intent === "analyze_video") {
     return {
       title: "Entre para analisar seu primeiro vídeo",
-      description: "Entre com Google para analisar seu primeiro vídeo.",
-      helper: "O Perfil Estratégico nasce da primeira análise e evolui com novos vídeos.",
+      description: "Use sua conta Google para salvar essa primeira leitura no seu Perfil Estratégico.",
+      helper: "A análise atualiza seu Perfil. Ela não cria uma galeria pública de vídeos.",
     };
   }
 
   return {
     title: "Crie seu Perfil Estratégico",
-    description: "Entre com Google para criar seu Perfil Estratégico.",
-    helper: "O Perfil da D2C é o diagnóstico vivo do creator. Cada vídeo analisado atualiza esse perfil.",
+    description: "Entre com Google para começar seu diagnóstico como creator.",
+    helper: "Depois do login, você volta para o Perfil e pode analisar seu primeiro vídeo.",
   };
 }
 
@@ -209,36 +209,36 @@ function buildAuthenticatedSummary(params: {
 }): MobileStrategicProfileStateSummary {
   if (params.diagnosisState === "empty") {
     return {
-      title: "Seu Perfil Estratégico ainda está começando.",
+      title: "Seu Perfil Estratégico começa aqui",
       description: "Analise seu primeiro vídeo para a D2C identificar sua narrativa, ponto forte e próximo passo.",
-      helper: "O vídeo analisado é temporário; o aprendizado fica organizado no Perfil.",
+      helper: "Aqui ficam sua leitura atual, seus próximos passos e seu potencial comercial.",
     };
   }
 
   if (params.diagnosisState === "instagram_optimized") {
     return {
-      title: "Diagnóstico vivo atualizado",
-      description: "Seu Perfil Estratégico está ativo com leitura mais precisa por estado de Instagram conectado.",
-      helper: "A leitura usa linguagem de estado e não promete performance.",
+      title: "Leitura mais precisa",
+      description: "Com Instagram conectado, a D2C consegue comparar sua narrativa com mais contexto.",
+      helper: "Use essa leitura para decidir o próximo conteúdo com mais contexto.",
     };
   }
 
   if (params.subscriptionState === "premium" || params.diagnosisState === "complete") {
     return {
-      title: "Diagnóstico atualizado",
-      description: "Seu Perfil Estratégico conecta esta leitura aos próximos passos do creator.",
+      title: "Seu diagnóstico está mais completo",
+      description: "A D2C conecta suas análises para entender sua narrativa com mais profundidade.",
       helper: params.instagramState === "connected"
-        ? "O Perfil segue evoluindo a cada análise."
-        : "Conectar Instagram pode aumentar a precisão da leitura em uma etapa futura.",
+        ? "Use novos vídeos para atualizar seu próximo movimento."
+        : "Conectar Instagram ajuda a comparar sua narrativa com mais contexto.",
     };
   }
 
   return {
-    title: "Primeira leitura criada.",
-    description: "A D2C já identificou uma direção inicial da sua narrativa.",
+    title: "Primeira leitura criada",
+    description: "A D2C já identificou uma direção inicial para sua narrativa.",
     helper: params.presentation?.readingTimeHint
       ? sentence(params.presentation.readingTimeHint, 96)
-      : "Novas análises ajudam o Perfil Estratégico a ficar mais completo.",
+      : "Analise mais vídeos para confirmar se esse padrão se repete.",
   };
 }
 
@@ -261,7 +261,7 @@ function buildStatusPills(params: {
   } else if (params.diagnosisState === "complete") {
     pills.push(pill("diagnosis-complete", "Diagnóstico atualizado", "premium"));
   } else {
-    pills.push(pill("first-reading", "Primeira leitura", "active"));
+    pills.push(pill("first-reading", "Primeira leitura criada", "active"));
   }
 
   if (params.subscriptionState === "premium") pills.push(pill("premium", "Premium", "premium"));
@@ -280,10 +280,10 @@ function buildRecommendedActions(params: {
   subscriptionState: MobileStrategicProfileSubscriptionState;
 }): MobileStrategicProfileRecommendedAction[] {
   if (!params.input.isAuthenticated) {
-    const label = params.primaryIntent === "analyze_video" ? "Entrar para analisar vídeo" : "Entrar para criar Perfil";
+    const label = params.primaryIntent === "analyze_video" ? "Entrar e analisar vídeo" : "Entrar com Google";
     const description = params.primaryIntent === "analyze_video"
-      ? "Entre com Google para analisar seu primeiro vídeo."
-      : "Entre com Google para criar seu Perfil Estratégico.";
+      ? "Use sua conta Google para salvar essa primeira leitura no seu Perfil Estratégico."
+      : "Entre com Google para começar seu diagnóstico como creator.";
 
     return [action({
       id: "login",
@@ -301,7 +301,7 @@ function buildRecommendedActions(params: {
       id: "analyze-first-video",
       intent: "analyze_video",
       label: "Analisar primeiro vídeo",
-      description: "Analise seu primeiro vídeo para começar o Perfil Estratégico.",
+      description: "Analise seu primeiro vídeo para a D2C entender sua narrativa, ponto forte e próximo passo.",
       priority: "primary",
     }));
   } else {
@@ -309,7 +309,7 @@ function buildRecommendedActions(params: {
       id: "analyze-next-video",
       intent: "analyze_video",
       label: "Analisar vídeo",
-      description: "Use outro vídeo para atualizar o diagnóstico vivo do creator.",
+      description: "Use um vídeo para atualizar seu Perfil Estratégico.",
       priority: "primary",
     }));
   }
@@ -320,8 +320,8 @@ function buildRecommendedActions(params: {
       intent: "connect_instagram",
       label: "Conectar Instagram",
       description: params.subscriptionState === "premium"
-        ? "Conecte Instagram para aumentar a precisão da leitura em uma etapa futura."
-        : "Conecte Instagram para completar o contexto do Perfil.",
+        ? "Conecte Instagram para comparar sua narrativa com mais contexto."
+        : "Conecte Instagram para ativar o Mídia Kit existente e melhorar a leitura.",
       priority: "secondary",
     }));
   }
@@ -331,14 +331,14 @@ function buildRecommendedActions(params: {
       id: "share-media-kit",
       intent: "share_media_kit",
       label: "Compartilhar Mídia Kit",
-      description: "Use o Mídia Kit existente como recurso de compartilhamento.",
+      description: "Use o Mídia Kit existente para apresentar seu perfil para marcas.",
       priority: params.diagnosisState === "instagram_optimized" ? "secondary" : "primary",
     }));
   } else if (params.mediaKitState === "connect_instagram_required") {
     actions.push(action({
       id: "prepare-media-kit",
       intent: "connect_instagram",
-      label: "Preparar Mídia Kit",
+      label: "Ativar Mídia Kit",
       description: "Conectar Instagram é o próximo passo para ativar o Mídia Kit existente.",
       priority: "secondary",
     }));
@@ -348,8 +348,8 @@ function buildRecommendedActions(params: {
     actions.push(action({
       id: "upgrade",
       intent: "upgrade",
-      label: "Ver diagnóstico completo",
-      description: "Desbloqueie uma leitura mais completa do Perfil Estratégico.",
+      label: "Aprofundar diagnóstico",
+      description: "Veja mais contexto para transformar sua leitura em próximos passos.",
       priority: "secondary",
     }));
   }

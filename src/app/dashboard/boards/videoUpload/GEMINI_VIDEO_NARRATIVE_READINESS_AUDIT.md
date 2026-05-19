@@ -128,6 +128,8 @@ Já existe:
 - MM51 valida a experiência do Perfil Estratégico como produto antes de integração real, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera UI real de produção;
 - strategic profile mobile visual polish foi aplicado em MM52 como camada segura de UI interna/preview;
 - MM52 refina visualmente a preview do Perfil Estratégico, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera UI real de produção;
+- strategic profile preview copy refinement foi aplicado em MM53 como camada segura de copy/preview;
+- MM53 melhora a linguagem da preview do Perfil Estratégico, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera UI real de produção;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 

@@ -193,7 +193,7 @@ describe("mobileStrategicProfileMapping", () => {
     const result = build({ state, loginHref: "/login" });
 
     expect(result.authGate.visible).toBe(true);
-    expect(result.authGate.description).toBe("Entre com Google para criar seu Perfil Estratégico.");
+    expect(result.authGate.description).toBe("Entre com Google para começar seu diagnóstico como creator.");
     expect(result.authGate.action).toMatchObject({ href: "/login", intent: "view_profile" });
     expect(result.sections).toEqual([]);
     expect(result.tabs).toEqual([]);
@@ -203,8 +203,8 @@ describe("mobileStrategicProfileMapping", () => {
     const state = makeState({ isAuthenticated: false, primaryIntent: "analyze_video" });
     const result = build({ state, loginHref: "/login?callbackUrl=/dashboard/analyze" });
 
-    expect(result.authGate.description).toBe("Entre com Google para analisar seu primeiro vídeo.");
-    expect(result.authGate.action).toMatchObject({ label: "Entrar para analisar vídeo" });
+    expect(result.authGate.description).toBe("Use sua conta Google para salvar essa primeira leitura no seu Perfil Estratégico.");
+    expect(result.authGate.action).toMatchObject({ label: "Entrar e analisar vídeo" });
   });
 
   it("construction profile builds header, empty diagnosis section and Analisar primeiro vídeo action", () => {
@@ -349,7 +349,7 @@ describe("mobileStrategicProfileMapping", () => {
       visible: true,
       label: "Comunidade",
       href: "/community",
-      description: "Destino existente da Comunidade Data2Content.",
+      description: "Acesse a Comunidade Data2Content, destino existente para continuar aprendendo com outros membros.",
     });
     expect(text).not.toContain("comments");
     expect(text).not.toContain("posts");

@@ -39,7 +39,9 @@ describe("MobileStrategicProfilePreview", () => {
     expect(screen.getByText("Ana Creator")).toBeInTheDocument();
     expect(screen.getAllByText("@ana.creator").length).toBeGreaterThan(0);
     expect(screen.getByText("Diagnóstico vivo do creator")).toBeInTheDocument();
-    expect(screen.getByText(/Use o botão \+ para trazer uma nova leitura/)).toBeInTheDocument();
+    expect(
+      screen.getAllByText(/Cada vídeo analisado ajuda a atualizar seu diagnóstico como creator/).length,
+    ).toBeGreaterThan(0);
   });
 
   it("renders header plus button as profile update action", () => {
@@ -62,16 +64,16 @@ describe("MobileStrategicProfilePreview", () => {
     renderState("anonymous_view_profile");
 
     expect(screen.getByText("Crie seu Perfil Estratégico")).toBeInTheDocument();
-    expect(screen.getByText("Entre com Google para criar seu Perfil Estratégico.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Entrar para criar Perfil" })).toBeInTheDocument();
+    expect(screen.getByText("Entre com Google para começar seu diagnóstico como creator.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Entrar com Google" })).toBeInTheDocument();
   });
 
   it("auth gate for analyze_video renders first video copy", () => {
     renderState("anonymous_analyze_video");
 
     expect(screen.getByText("Entre para analisar seu primeiro vídeo")).toBeInTheDocument();
-    expect(screen.getByText("Entre com Google para analisar seu primeiro vídeo.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Entrar para analisar vídeo" })).toBeInTheDocument();
+    expect(screen.getByText("Use sua conta Google para salvar essa primeira leitura no seu Perfil Estratégico.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Entrar e analisar vídeo" })).toBeInTheDocument();
   });
 
   it("construction profile renders Analisar primeiro vídeo CTA", () => {
@@ -79,7 +81,7 @@ describe("MobileStrategicProfilePreview", () => {
 
     expect(screen.getAllByText("Perfil em construção").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Analisar primeiro vídeo").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Seu Perfil Estratégico ainda está começando.").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Seu Perfil Estratégico começa aqui").length).toBeGreaterThan(0);
   });
 
   it("construction profile does not show Media Kit available", () => {
@@ -159,7 +161,7 @@ describe("MobileStrategicProfilePreview", () => {
   it("Analyze flow does not appear by default", () => {
     renderState("first_reading_free");
 
-    expect(screen.queryByRole("dialog", { name: "Vamos atualizar seu Perfil Estratégico" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Vamos atualizar seu Perfil" })).not.toBeInTheDocument();
   });
 
   it("opens Analyze flow from header plus button", () => {
@@ -167,7 +169,7 @@ describe("MobileStrategicProfilePreview", () => {
 
     fireEvent.click(screen.getByLabelText("Analisar vídeo"));
 
-    expect(screen.getByRole("dialog", { name: "Vamos atualizar seu Perfil Estratégico" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Vamos atualizar seu Perfil" })).toBeInTheDocument();
   });
 
   it("opens Analyze flow from bottom nav central plus", () => {
@@ -176,7 +178,7 @@ describe("MobileStrategicProfilePreview", () => {
 
     fireEvent.click(within(nav).getByRole("button", { name: "Analisar vídeo pela ação central" }));
 
-    expect(screen.getByRole("dialog", { name: "Vamos atualizar seu Perfil Estratégico" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Vamos atualizar seu Perfil" })).toBeInTheDocument();
   });
 
   it("opens Analyze flow from Analisar vídeo action", () => {
@@ -184,7 +186,7 @@ describe("MobileStrategicProfilePreview", () => {
 
     clickAnalyzeAction("Analisar vídeo");
 
-    expect(screen.getByText("Envie um vídeo para a D2C entender novos sinais da sua narrativa.")).toBeInTheDocument();
+    expect(screen.getByText("Use um vídeo para a D2C entender novos sinais da sua narrativa.")).toBeInTheDocument();
   });
 
   it("opens Analyze flow from Analisar primeiro vídeo action in account_only", () => {
@@ -192,15 +194,15 @@ describe("MobileStrategicProfilePreview", () => {
 
     clickAnalyzeAction("Analisar primeiro vídeo");
 
-    expect(screen.getByRole("dialog", { name: "Vamos atualizar seu Perfil Estratégico" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Vamos atualizar seu Perfil" })).toBeInTheDocument();
   });
 
   it("anonymous auth gate does not open real Analyze flow", () => {
     renderState("anonymous_analyze_video");
 
-    fireEvent.click(screen.getByRole("button", { name: "Entrar para analisar vídeo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Entrar e analisar vídeo" }));
 
-    expect(screen.queryByRole("dialog", { name: "Vamos atualizar seu Perfil Estratégico" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Vamos atualizar seu Perfil" })).not.toBeInTheDocument();
   });
 
   it("Analyze flow returns to Profile after short confirmation", () => {
@@ -215,7 +217,7 @@ describe("MobileStrategicProfilePreview", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByText("Perfil Estratégico mobile")).toBeInTheDocument();
     expect(screen.getAllByText("Diagnóstico").length).toBeGreaterThan(0);
-    expect(screen.getByText("Perfil atualizado nesta simulação.")).toBeInTheDocument();
+    expect(screen.getByText("Seu Perfil foi atualizado nesta simulação.")).toBeInTheDocument();
   });
 
   it("Analyze flow does not create analyzed videos history or active file input", () => {
@@ -269,7 +271,7 @@ describe("MobileStrategicProfilePreview", () => {
     const text = renderedText(container);
 
     expect(screen.getAllByText("Comunidade").length).toBeGreaterThan(0);
-    expect(screen.getByText("Destino existente da Comunidade Data2Content.")).toBeInTheDocument();
+    expect(screen.getByText("Acesse a Comunidade Data2Content, destino existente para continuar aprendendo com outros membros.")).toBeInTheDocument();
     expect(text).not.toContain("feed");
     expect(text).not.toContain("chat");
     expect(text).not.toContain("comments");
