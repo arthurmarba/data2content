@@ -245,8 +245,9 @@ Exemplos:
 35. MM36 — Interactive preview UX refinement. Lapida copy, quiz, diagnóstico, CTAs e prompts antes de conectar upload real ou BoardShell.
 36. MM37 — Browser UX QA checklist. Cria roteiro manual e testável para revisar a experiência no navegador antes de upload, BoardShell ou paywall.
 37. MM38 — Evolving Creator Diagnosis Contract. Modela a camada evolutiva acima do diagnóstico pontual, sem persistência ou match real.
-38. Teste real manual quando houver quota/billing disponível.
-39. Integração experimental futura no Board de Criação.
+38. MM39 — Access Tier Diagnosis Rules. Define regras de acesso e valor por camada para free, premium e Instagram conectado.
+39. Teste real manual quando houver quota/billing disponível.
+40. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -315,6 +316,8 @@ MM36 refina a UX da preview interativa. A experiência fica mais clara na primei
 MM37 cria uma checklist de QA visual/funcional para testar a preview interativa no navegador. O roteiro cobre URLs, cenários, acessos, mobile-first, segurança visual, critérios por etapa e registro de achados antes de integrar upload, BoardShell, paywall ou qualquer fluxo real.
 
 MM38 adiciona `VideoNarrativeEvolvingDiagnosis` como camada acima de `VideoNarrativeStrategicDiagnosis`. O diagnóstico estratégico continua sendo a leitura pontual do vídeo; a nova camada organiza esse valor em torno da evolução do creator, com nível atual, próximo nível, impacto no perfil, sinais desbloqueados, sinais pendentes e oportunidades futuras. Ela usa o `VideoNarrativeCreatorProfile` como contexto, mas não persiste sinais, não substitui o profile contract e não cria match real de marcas ou creators.
+
+MM39 adiciona `VideoNarrativeAccessTierDiagnosisRules` para explicitar as regras de acesso e valor por camada. MM38 define o diagnóstico evolutivo; MM39 define o que fica visível, limitado, bloqueado ou sugerido em `free`, `premium` e `instagram_optimized`. Essa camada deve ser usada futuramente pela apresentação/UI para não espalhar lógica de paywall, disponibilidade comercial, collab e precisão por Instagram pelos componentes.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 
