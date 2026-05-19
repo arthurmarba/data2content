@@ -206,6 +206,13 @@ Com o PR MM59, avançamos na prontidão (readiness) para a futura camada de uplo
 - **Ainda NÃO altera endpoints ou fluxos reais de upload**.
 - **Cria apenas contratos, políticas recomendadas e validações estritas** (`videoNarrativeTemporaryUploadValidation.ts`) para mitigar os riscos de segurança, arquivos executáveis maliciosos e injeções de Base64, estabelecendo um trilho seguro antes do código físico de upload.
 
+## MM60 — Readiness da API de Sessão de Upload Temporário
+
+A introdução da API de sessão avança a nossa maturidade (readiness) server-side sem violar as restrições:
+- **Ainda NÃO aumenta a prontidão para Gemini real**: Nenhuma IA é acionada e nenhum SDK externo foi introduzido.
+- **Ainda NÃO adiciona nenhum provedor externo de storage**: Nenhuma signed URL real é gerada e nenhuma conexão R2/S3 é disparada.
+- **Apenas valida metadados e consentimento**: O servidor agora atua como um guichê inteligente que valida sessão ativa, feature flags e a conformidade do arquivo do criador antes de qualquer transferência física.
+
 ## Frase Norte
 
 > O sistema pode estar pronto para testar Gemini real sem ainda estar pronto para lançar vídeo no produto.
