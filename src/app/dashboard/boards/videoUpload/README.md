@@ -1141,6 +1141,34 @@ O que não faz:
 - não chama Gemini real, OpenAI, endpoint ou rede;
 - não conecta Instagram real, billing, Stripe ou match real de marcas/creators.
 
+### MM49 — Mobile Navigation Preview Strategy
+
+Status: concluído.
+
+Arquivos principais:
+
+- `mobileStrategicProfileNavigationStrategy.ts`
+- `mobileStrategicProfileNavigationStrategy.test.ts`
+- `MOBILE_STRATEGIC_PROFILE_NAVIGATION_STRATEGY.md`
+
+O que faz:
+
+- cria estratégia pura/documental para futura navegação mobile;
+- define `Perfil / + / Comunidade`;
+- mantém `+` como ação central, não aba;
+- mantém Mídia Kit como bridge/modal;
+- mantém Diagnóstico e Comercial dentro do Perfil;
+- modela redirects futuros de auth por intenção para Perfil e análise;
+- documenta riscos com sidebar mobile e `ActivationPendingWidget`.
+
+O que não faz:
+
+- não altera navegação real, sidebar/config, `DashboardShell`, `BoardShell` ou rotas reais de produção;
+- não altera Mídia Kit real, `MediaKitView`, Comunidade real, `LoginClient`, NextAuth ou `ActivationPendingWidget`;
+- não cria upload real, storage real, persistência, banco/tabela, schema ou Prisma;
+- não chama Gemini real, OpenAI, endpoint ou rede;
+- não conecta Instagram real, billing ou Stripe.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
