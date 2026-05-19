@@ -244,8 +244,9 @@ Exemplos:
 34. MM35 — Interactive app-first preview state. Permite navegar pela jornada em estado local via `mode=interactive`, sem depender de query params etapa por etapa.
 35. MM36 — Interactive preview UX refinement. Lapida copy, quiz, diagnóstico, CTAs e prompts antes de conectar upload real ou BoardShell.
 36. MM37 — Browser UX QA checklist. Cria roteiro manual e testável para revisar a experiência no navegador antes de upload, BoardShell ou paywall.
-37. Teste real manual quando houver quota/billing disponível.
-38. Integração experimental futura no Board de Criação.
+37. MM38 — Evolving Creator Diagnosis Contract. Modela a camada evolutiva acima do diagnóstico pontual, sem persistência ou match real.
+38. Teste real manual quando houver quota/billing disponível.
+39. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -312,6 +313,8 @@ MM35 adiciona `VideoNarrativeInteractiveAppPreview` e `useVideoNarrativeInteract
 MM36 refina a UX da preview interativa. A experiência fica mais clara na primeira tela, o upload simulado ganha CTA central, os loadings usam mensagens mais estratégicas, o quiz parece conversa guiada e o diagnóstico passa a priorizar narrativa, leitura estratégica, potencial comercial, blueprint, ações e aprendizado do criador. A fase continua mock/local-state, sem upload real, endpoint call, persistência, BoardShell ou Gemini real.
 
 MM37 cria uma checklist de QA visual/funcional para testar a preview interativa no navegador. O roteiro cobre URLs, cenários, acessos, mobile-first, segurança visual, critérios por etapa e registro de achados antes de integrar upload, BoardShell, paywall ou qualquer fluxo real.
+
+MM38 adiciona `VideoNarrativeEvolvingDiagnosis` como camada acima de `VideoNarrativeStrategicDiagnosis`. O diagnóstico estratégico continua sendo a leitura pontual do vídeo; a nova camada organiza esse valor em torno da evolução do creator, com nível atual, próximo nível, impacto no perfil, sinais desbloqueados, sinais pendentes e oportunidades futuras. Ela usa o `VideoNarrativeCreatorProfile` como contexto, mas não persiste sinais, não substitui o profile contract e não cria match real de marcas ou creators.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 

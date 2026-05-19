@@ -98,6 +98,8 @@ Já existe:
 - a preview MM36 segue mock/local-state; a próxima etapa pode revisar visualmente no navegador ou preparar integração controlada com fluxo real;
 - browser UX QA checklist foi criada em MM37 para orientar revisão visual/funcional da preview interativa;
 - a próxima etapa deve considerar os achados da QA antes de qualquer upload real, BoardShell, paywall ou integração real;
+- evolving creator diagnosis contract foi criado em MM38 como camada segura de produto sobre o diagnóstico pontual;
+- MM38 não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint e não muda upload/storage;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
