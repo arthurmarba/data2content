@@ -1327,7 +1327,34 @@ O que não faz:
 - não conecta OpenAI, Gemini real ou qualquer provider multimodal externo;
 - não altera o layout `MediaKitView`, Comunidade real ou navegação do dashboard legado.
 
+### MM56 — Mobile Strategic Profile Real Data Hydration
+
+Status: concluído.
+
+Arquivos principais:
+
+- `MobileStrategicProfileRealShellClient.tsx`
+- `MobileStrategicProfileRealShellClient.test.tsx`
+- `page.tsx`
+- `page.test.tsx`
+
+O que faz:
+
+- enriquece a rota real do Perfil Estratégico com dados existentes da dashboard/home;
+- usa o adapter puro `buildMobileStrategicProfileExistingDataAdapter` do MM55;
+- mantém render inicial rápido e seguro com dados da sessão;
+- hidrata dinamicamente o Mídia Kit, a comunidade e os planos/acesso premium quando `HomeSummaryResponse` estiver disponível;
+- mantém fallback seguro sem quebrar a rota quando o summary falha ou o fetch é rejeitado;
+- exibe um indicador discreto e polido de "Atualizando dados do Perfil..." durante a hidratação em segundo plano.
+
+O que não faz:
+
+- não cria endpoint, banco de dados ou persistência;
+- não altera o layout `MediaKitView`, a Comunidade real ou a navegação do dashboard legado;
+- não usa real upload, storage ou Gemini real.
+
 ## Visão Geral
+
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
 

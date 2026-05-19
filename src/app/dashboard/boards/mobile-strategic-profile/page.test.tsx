@@ -27,18 +27,15 @@ jest.mock("../videoUpload/mobileStrategicProfileFeatureFlag", () => ({
   isMobileStrategicProfileEnabled: jest.fn(),
 }));
 
-// Mock do componente MobileStrategicProfilePreview para evitar renderização interna complexa nos testes da rota
+// Mock do componente MobileStrategicProfileRealShellClient para evitar renderização interna complexa nos testes da rota
 jest.mock(
-  "../components/videoUpload/appPreview/MobileStrategicProfilePreview",
+  "../components/videoUpload/appPreview/MobileStrategicProfileRealShellClient",
   () => {
     return {
-      MobileStrategicProfilePreview: ({ profile, isRealShell }: any) => (
-        <div data-testid="real-profile-renderer" data-realshell={String(isRealShell)}>
-          <h1>{profile.header.identity.displayName}</h1>
-          <p>{profile.header.identity.displayHandle}</p>
-          <span data-testid="subscription-state">{profile.state.subscriptionState}</span>
-          <span data-testid="instagram-state">{profile.state.instagramState}</span>
-          <span data-testid="availability">{profile.state.profileAvailability}</span>
+      MobileStrategicProfileRealShellClient: ({ session, stateQuery }: any) => (
+        <div data-testid="real-profile-client-wrapper" data-statequery={stateQuery || ""}>
+          <h1>{session?.user?.name || "Anonymous"}</h1>
+          <p>{session?.user?.instagramUsername || ""}</p>
         </div>
       ),
     };
@@ -71,7 +68,7 @@ describe("MobileStrategicProfilePage Rota Real", () => {
     );
   });
 
-  it("renderiza o perfil em modo Real Shell quando o usuário está autenticado e a flag está ativa", async () => {
+  it("renderiza o wrapper cliente quando o usuário está autenticado e a flag está ativa", async () => {
     (isMobileStrategicProfileEnabled as jest.Mock).mockReturnValue(true);
     (getServerSession as jest.Mock).mockResolvedValue({
       user: {
@@ -86,33 +83,11 @@ describe("MobileStrategicProfilePage Rota Real", () => {
     const jsx = await MobileStrategicProfilePage({});
     render(jsx);
 
-    expect(screen.getByTestId("real-profile-renderer")).toBeInTheDocument();
-    expect(screen.getByTestId("real-profile-renderer")).toHaveAttribute("data-realshell", "true");
+    expect(screen.getByTestId("real-profile-client-wrapper")).toBeInTheDocument();
     expect(screen.getByText("Arthur Teste")).toBeInTheDocument();
-    expect(screen.getByText("@arthur.test")).toBeInTheDocument();
-    expect(screen.getByTestId("subscription-state").textContent).toBe("premium");
   });
 
-  it("renderiza em estado de construção por padrão (sem diagnóstico persistido)", async () => {
-    (isMobileStrategicProfileEnabled as jest.Mock).mockReturnValue(true);
-    (getServerSession as jest.Mock).mockResolvedValue({
-      user: {
-        id: "usr_123",
-        name: "Ana Criadora",
-        instagramConnected: false,
-        planStatus: "inactive",
-      },
-    });
-
-    const jsx = await MobileStrategicProfilePage({});
-    render(jsx);
-
-    expect(screen.getByTestId("availability").textContent).toBe("construction");
-    expect(screen.getByTestId("subscription-state").textContent).toBe("inactive");
-    expect(screen.getByTestId("instagram-state").textContent).toBe("disconnected");
-  });
-
-  it("permite diagnostico mockado quando o query param state for fornecido", async () => {
+  it("repassa corretamente o state query param para o componente cliente", async () => {
     (isMobileStrategicProfileEnabled as jest.Mock).mockReturnValue(true);
     (getServerSession as jest.Mock).mockResolvedValue({
       user: {
@@ -129,6 +104,6 @@ describe("MobileStrategicProfilePage Rota Real", () => {
     });
     render(jsx);
 
-    expect(screen.getByTestId("availability").textContent).toBe("active");
+    expect(screen.getByTestId("real-profile-client-wrapper")).toHaveAttribute("data-statequery", "instagram_optimized");
   });
 });

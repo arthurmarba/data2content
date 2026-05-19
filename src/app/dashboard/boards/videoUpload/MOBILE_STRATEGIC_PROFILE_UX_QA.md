@@ -304,3 +304,13 @@ Não recomendar integração real antes do QA/polish visual.
 - Suporte a overrides no mapeamento apenas em modo de teste/QA sob a feature flag ativa.
 - Validação estrita para descartar base64 longo e strings inseguras no avatar.
 - Retorno de warnings de forma interna na lista de retorno para depuração.
+
+## Guardrails do MM56
+
+- A hidratação de dados reais deve ocorrer de forma assíncrona client-side, sem bloquear a exibição inicial baseada nos dados da sessão do NextAuth.
+- Utilização estrita do helper client-side existente `fetchHomeSummaryCached("all")` para obter as informações de Mídia Kit, planos/premium e convites de comunidade.
+- Fallback seguro para preservar o estado inicial e manter a rota totalmente funcional em caso de falhas ou rejeições do endpoint de home summary.
+- O indicador visual "Atualizando dados do Perfil..." deve ser sutil, temporário, e desaparecer automaticamente quando a hidratação for concluída ou falhar.
+- Nenhuma alteração permitida em endpoints, Prisma, banco de dados ou integração com Gemini real nesta fase.
+- Nenhuma alteração permitida na navegação de produção global (sidebar, bottom nav ou dashboard shell legado).
+
