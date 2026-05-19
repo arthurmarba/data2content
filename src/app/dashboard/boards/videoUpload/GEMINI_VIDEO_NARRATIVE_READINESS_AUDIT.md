@@ -198,6 +198,14 @@ Como não há billing agora, seguir sem teste real e avançar apenas em:
 - modelo puro de fluxo app-first com estados, CTAs e prompts, sem UI;
 - sem expor para usuário.
 
+## MM59 — Readiness de Upload/Storage Temporário Seguro
+
+Com o PR MM59, avançamos na prontidão (readiness) para a futura camada de upload e storage temporário:
+- **Ainda NÃO aumenta a prontidão do provider Gemini real** (nenhum SDK ou provedor externo de IA foi adicionado).
+- **Ainda NÃO adiciona nenhum provedor externo de storage** (sem conexões S3/R2/GCS ativas).
+- **Ainda NÃO altera endpoints ou fluxos reais de upload**.
+- **Cria apenas contratos, políticas recomendadas e validações estritas** (`videoNarrativeTemporaryUploadValidation.ts`) para mitigar os riscos de segurança, arquivos executáveis maliciosos e injeções de Base64, estabelecendo um trilho seguro antes do código físico de upload.
+
 ## Frase Norte
 
 > O sistema pode estar pronto para testar Gemini real sem ainda estar pronto para lançar vídeo no produto.

@@ -314,3 +314,20 @@ Não recomendar integração real antes do QA/polish visual.
 - Nenhuma alteração permitida em endpoints, Prisma, banco de dados ou integração com Gemini real nesta fase.
 - Nenhuma alteração permitida na navegação de produção global (sidebar, bottom nav ou dashboard shell legado).
 
+## Guardrails do MM57
+
+- O Perfil Estratégico mobile deve carregar e exibir as informações de diagnóstico persistidas de forma transparente.
+- Nenhuma mídia bruta, thumbnail ou signed URL de vídeo real deve ser gravada no banco de dados.
+
+## Guardrails do MM58
+
+- O botão central de análise "+" deve abrir o modal de análise interativo mobile.
+- A finalização do fluxo de análise narrativa mobile no client deve re-hidratar o estado local do Perfil com o novo snapshot gerado e salvo sem exigir recarregamento total.
+- Cenários de falhas temporárias na API devem renderizar estados de erro apropriados e oferecer botões de retentativa claros.
+
+## Guardrails do MM59
+
+- Qualquer futuro upload de vídeo real deve requerer consentimento explícito e prévio do criador na interface do fluxo.
+- Mídias não permitidas, extensões suspeitas de executáveis disfarçados e injeções de Base64 ou URLs devem ser sumariamente bloqueadas.
+- O processamento de vídeos reais deve seguir o modelo de descarte seguro forçado, descartando mídias imediatamente após a análise.
+- Nenhuma interface do fluxo "+" ou endpoint de análise de produção deve ser alterado para processar arquivos de vídeo reais neste momento.
