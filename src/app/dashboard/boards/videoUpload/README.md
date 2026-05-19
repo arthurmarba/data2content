@@ -983,6 +983,32 @@ O que não faz:
 - não conecta Instagram real, BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
 - não conecta billing, Stripe ou cobrança.
 
+### MM43 — Strategic Profile State Contract
+
+Status: concluído.
+
+Arquivos principais:
+
+- `mobileStrategicProfileStateContract.ts`
+- `mobileStrategicProfileStateContract.test.ts`
+
+O que faz:
+
+- cria contrato puro para os estados do Perfil Estratégico mobile;
+- define que o Perfil é o diagnóstico vivo do creator;
+- cobre usuário anônimo, conta criada só com Gmail, primeira leitura, premium e Instagram otimizado;
+- modela estado do Mídia Kit sem recriar Mídia Kit ou alterar `MediaKitView`;
+- modela Comunidade apenas como destino existente de navegação futura;
+- reaproveita a lógica existente de login/callback em etapa futura, sem recriar login com Google.
+
+O que não faz:
+
+- não cria UI, preview visual, nova página de diagnóstico, nova tela de login ou histórico visual;
+- não altera endpoint, NextAuth, `LoginClient`, navegação/sidebar, `ActivationPendingWidget`, Mídia Kit real, `MediaKitView` ou Comunidade real;
+- não cria persistência, banco/tabela, schema, Prisma, upload real ou storage real;
+- não chama Gemini real, OpenAI, endpoint ou rede;
+- não conecta Instagram real, billing, Stripe, match real de marcas ou creators.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
