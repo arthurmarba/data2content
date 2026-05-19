@@ -933,6 +933,30 @@ O que não faz:
 - não conecta Instagram real, BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
 - não conecta billing, Stripe ou cobrança.
 
+### MM41 — Evolving Diagnosis Preview Scenarios
+
+Status: concluído.
+
+Arquivos principais:
+
+- `../components/videoUpload/buildVideoNarrativeAppPreviewScenario.ts`
+- `../components/videoUpload/buildVideoNarrativeAppPreviewScenario.test.ts`
+
+O que faz:
+
+- conecta diagnóstico evolutivo, regras de acesso e presentation model ao builder da preview interna;
+- retorna `evolvingDiagnosis`, `accessRules` e `diagnosisPresentation` junto dos cenários mockados;
+- mantém tudo local, mockado e determinístico;
+- prepara a futura UI mobile-first sem alterar visual ainda;
+- garante cenários `free`, `premium` e `instagram_optimized` conectados aos novos contratos.
+
+O que não faz:
+
+- não cria persistência, banco/tabela, endpoint, UI pública, preview visual nova, upload real, storage real ou analytics real;
+- não chama Gemini real, OpenAI, endpoint ou rede;
+- não conecta Instagram real, BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
+- não conecta billing, Stripe ou cobrança.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

@@ -3,6 +3,10 @@ import path from "path";
 import { buildVideoNarrativeAppPreviewScenario } from "./buildVideoNarrativeAppPreviewScenario";
 
 describe("buildVideoNarrativeAppPreviewScenario", () => {
+  function stringify(value: unknown): string {
+    return JSON.stringify(value).toLowerCase();
+  }
+
   it("builds the default skincare scenario", () => {
     const preview = buildVideoNarrativeAppPreviewScenario();
 
@@ -10,6 +14,27 @@ describe("buildVideoNarrativeAppPreviewScenario", () => {
     expect(preview.scenario.creatorQuestion).toBe("Quero saber se vale postar");
     expect(preview.analysis.id).toContain("skincare");
     expect(preview.seed.analysisId).toBe(preview.analysis.id);
+  });
+
+  it("returns evolvingDiagnosis", () => {
+    const preview = buildVideoNarrativeAppPreviewScenario();
+
+    expect(preview.evolvingDiagnosis.videoDiagnosisId).toBe(preview.diagnosis.id);
+    expect(preview.evolvingDiagnosis.unlockedSignals.length).toBeGreaterThan(0);
+  });
+
+  it("returns accessRules", () => {
+    const preview = buildVideoNarrativeAppPreviewScenario();
+
+    expect(preview.accessRules.accessLevel).toBe(preview.accessLevel);
+    expect(preview.accessRules.visibleSections.length).toBeGreaterThan(0);
+  });
+
+  it("returns diagnosisPresentation", () => {
+    const preview = buildVideoNarrativeAppPreviewScenario();
+
+    expect(preview.diagnosisPresentation.accessLevel).toBe(preview.accessLevel);
+    expect(preview.diagnosisPresentation.priorityCards.length).toBeGreaterThan(0);
   });
 
   it("builds the brand scenario with brand question", () => {
@@ -31,6 +56,26 @@ describe("buildVideoNarrativeAppPreviewScenario", () => {
     expect(buildVideoNarrativeAppPreviewScenario().accessLevel).toBe("free");
   });
 
+  it("free scenario generates first_reading value layer", () => {
+    const preview = buildVideoNarrativeAppPreviewScenario({ access: "free" });
+
+    expect(preview.evolvingDiagnosis.accessLevel).toBe("free");
+    expect(preview.accessRules.valueLayer).toBe("first_reading");
+  });
+
+  it("free scenario generates first reading presentation hero", () => {
+    const preview = buildVideoNarrativeAppPreviewScenario({ access: "free" });
+
+    expect(preview.diagnosisPresentation.hero.title).toBe("Primeira leitura do seu vídeo");
+    expect(preview.diagnosisPresentation.hero.badge.label).toBe("Primeira leitura gratuita");
+  });
+
+  it("free scenario generates locked presentation previews", () => {
+    const preview = buildVideoNarrativeAppPreviewScenario({ access: "free" });
+
+    expect(preview.diagnosisPresentation.lockedPreviews.length).toBeGreaterThan(0);
+  });
+
   it("uses disconnected Instagram by default", () => {
     expect(buildVideoNarrativeAppPreviewScenario().instagramConnected).toBe(false);
   });
@@ -42,11 +87,58 @@ describe("buildVideoNarrativeAppPreviewScenario", () => {
     expect(preview.flowState.context.accessLevel).toBe("premium");
   });
 
+  it("premium scenario generates strategic_map value layer", () => {
+    const preview = buildVideoNarrativeAppPreviewScenario({ access: "premium" });
+
+    expect(preview.evolvingDiagnosis.accessLevel).toBe("premium");
+    expect(preview.accessRules.valueLayer).toBe("strategic_map");
+  });
+
+  it("premium scenario generates complete diagnosis presentation hero", () => {
+    const preview = buildVideoNarrativeAppPreviewScenario({ access: "premium" });
+
+    expect(preview.diagnosisPresentation.hero.title).toBe("Seu mapa estratégico foi atualizado");
+    expect(preview.diagnosisPresentation.hero.badge.label).toBe("Diagnóstico completo");
+  });
+
+  it("premium disconnected scenario keeps instagram_precision locked", () => {
+    const preview = buildVideoNarrativeAppPreviewScenario({
+      access: "premium",
+      instagram: "disconnected",
+    });
+
+    expect(preview.diagnosisPresentation.sections.map((section) => section.id)).not.toContain("instagram_precision");
+    expect(preview.diagnosisPresentation.lockedPreviews.map((previewItem) => previewItem.id)).toContain(
+      "locked-instagram_precision",
+    );
+  });
+
   it("respects instagram_optimized access", () => {
     const preview = buildVideoNarrativeAppPreviewScenario({ access: "instagram_optimized" });
 
     expect(preview.accessLevel).toBe("instagram_optimized");
     expect(preview.flowState.context.accessLevel).toBe("instagram_optimized");
+  });
+
+  it("instagram_optimized connected scenario generates instagram_precision value layer", () => {
+    const preview = buildVideoNarrativeAppPreviewScenario({
+      access: "instagram_optimized",
+      instagram: "connected",
+    });
+
+    expect(preview.evolvingDiagnosis.accessLevel).toBe("instagram_optimized");
+    expect(preview.accessRules.valueLayer).toBe("instagram_precision");
+  });
+
+  it("instagram_optimized connected scenario includes instagram_precision presentation section", () => {
+    const preview = buildVideoNarrativeAppPreviewScenario({
+      access: "instagram_optimized",
+      instagram: "connected",
+    });
+
+    expect(preview.diagnosisPresentation.hero.badge.label).toBe("Leitura mais precisa");
+    expect(preview.diagnosisPresentation.sections.map((section) => section.id)).toContain("instagram_precision");
+    expect(stringify(preview.diagnosisPresentation)).not.toContain("dados reais");
   });
 
   it("respects connected Instagram", () => {
@@ -122,11 +214,53 @@ describe("buildVideoNarrativeAppPreviewScenario", () => {
     expect(preview.creatorProfile.signals.length).toBeGreaterThan(0);
   });
 
+  it("brand scenario generates future brand opportunity without real match", () => {
+    const preview = buildVideoNarrativeAppPreviewScenario({
+      scenario: "brand",
+      access: "premium",
+    });
+    const text = stringify(preview.diagnosisPresentation);
+
+    expect(preview.diagnosisPresentation.sections.map((section) => section.id)).toContain("brand_opportunities");
+    expect(text).toContain("oportunidade futura");
+    expect(text).not.toContain("match real");
+    expect(text).not.toContain("garantido");
+    expect(text).not.toContain("comprovado");
+    expect(text).not.toContain("certeza");
+  });
+
+  it("collab scenario generates future collab opportunity without real creator names", () => {
+    const preview = buildVideoNarrativeAppPreviewScenario({
+      scenario: "collab",
+      access: "premium",
+    });
+    const text = stringify(preview.diagnosisPresentation);
+
+    expect(preview.diagnosisPresentation.sections.map((section) => section.id)).toContain("collab_opportunities");
+    expect(text).toContain("tipo de collab");
+    expect(text).not.toContain("creator famoso");
+    expect(text).not.toContain("match real");
+  });
+
   it("unclear scenario generates missing context quiz or context question", () => {
     const preview = buildVideoNarrativeAppPreviewScenario({ scenario: "unclear", stage: "adaptive_quiz" });
     const keys = preview.quiz.questions.map((question) => question.key);
 
     expect(keys.some((key) => key === "missing_context" || key === "narrative_preference")).toBe(true);
+  });
+
+  it("keeps existing scenarios resolving by query params", () => {
+    [
+      "skincare",
+      "backstage",
+      "brand",
+      "weak-hook",
+      "collab",
+      "ad-adaptation",
+      "unclear",
+    ].forEach((scenario) => {
+      expect(buildVideoNarrativeAppPreviewScenario({ scenario }).scenario.id).toBe(scenario);
+    });
   });
 
   it("does not import forbidden integrations", () => {
@@ -153,5 +287,25 @@ describe("buildVideoNarrativeAppPreviewScenario", () => {
     ]) {
       expect(importLines).not.toContain(forbidden);
     }
+  });
+
+  it("does not alter endpoint or visual UI", () => {
+    const source = fs.readFileSync(path.join(__dirname, "buildVideoNarrativeAppPreviewScenario.ts"), "utf8");
+    const importLines = source
+      .split("\n")
+      .filter((line) => line.trim().startsWith("import"))
+      .join("\n");
+
+    [
+      "route.ts",
+      "app/api",
+      "VideoNarrativeDiagnosisBlocks",
+      "VideoNarrativeAppPreview",
+      "VideoNarrativeInteractiveAppPreview",
+      "React",
+      "tsx",
+    ].forEach((forbidden) => {
+      expect(importLines).not.toContain(forbidden);
+    });
   });
 });
