@@ -370,3 +370,7 @@ MM17 formaliza observabilidade antes de analytics real, endpoint real ou beta. E
 MM18 formaliza a ordem de guards do futuro endpoint real/admin. Ele bloqueia `route.ts` e provider real até que método, sessão, admin/dev, flag, payload, origem, consentimento, retenção, usage/quota e observabilidade estejam resolvidos.
 
 MM19 começa a transformar a ordem de guards em fundação de código puro. Ele cria `VideoNarrativeGuardResult`, `VideoNarrativeGuardPipelineSummary` e helpers determinísticos para decidir provider/quota sem endpoint real.
+
+MM54 cria a primeira rota real `/dashboard/boards/mobile-strategic-profile` protegida por feature flag server-side e sessão de login do usuário, redirecionando usuários anônimos com segurança e aplicando `isRealShell: true` para ocultar os controles de desenvolvimento do header do Perfil Estratégico.
+
+MM55 implementa a camada de dados síncronos e puros `buildMobileStrategicProfileExistingDataAdapter`, isolando completamente a lógica de extração e resolução de dados de sessão e da home summary (displayName, displayHandle, avatar, premium plan e bridges de Mídia Kit/Comunidade) de qualquer camada de renderização React, fetch HTTP ou Prisma. A persistência do diagnóstico vivo segue isolada para fases futuras.

@@ -285,7 +285,22 @@ Não recomendar integração real antes do QA/polish visual.
 - Sem NextAuth alterado.
 - Sem `MediaKitView` alterado.
 - Sem Comunidade real alterada.
-- Sem navegação real alterada.
 - Sem `ActivationPendingWidget` alterado.
 - Sem Instagram real.
 - Sem billing real.
+
+## Guardrails do MM54
+
+- Rota real protegida por feature flag server-side e sessão NextAuth ativa.
+- Redirecionamento correto de usuários deslogados preservando callbackUrl e intent=strategic_profile.
+- Ocultação de elementos internos de preview no header (`isRealShell`).
+- Zero alteração no dashboard atual e sem duplicação de produto pronto.
+
+## Guardrails do MM55
+
+- O adapter de dados `buildMobileStrategicProfileExistingDataAdapter` deve ser 100% puro e determinístico.
+- Nenhuma consulta ao banco de dados, Prisma ou chamada HTTP/fetch externa dentro do adapter.
+- Sem dependência ou uso de bibliotecas de renderização React ou NextAuth runtime.
+- Suporte a overrides no mapeamento apenas em modo de teste/QA sob a feature flag ativa.
+- Validação estrita para descartar base64 longo e strings inseguras no avatar.
+- Retorno de warnings de forma interna na lista de retorno para depuração.
