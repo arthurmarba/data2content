@@ -1009,6 +1009,32 @@ O que não faz:
 - não chama Gemini real, OpenAI, endpoint ou rede;
 - não conecta Instagram real, billing, Stripe, match real de marcas ou creators.
 
+### MM44 — Strategic Profile Mapping Layer
+
+Status: concluído.
+
+Arquivos principais:
+
+- `mobileStrategicProfileMapping.ts`
+- `mobileStrategicProfileMapping.test.ts`
+
+O que faz:
+
+- cria camada pura que transforma estado do Perfil + diagnóstico em um `MobileStrategicProfile`;
+- monta header, tabs internas, seções, ações, bridges de Mídia Kit/Comunidade e navegação mobile futura;
+- mantém o Perfil Estratégico como diagnóstico vivo do creator;
+- usa `VideoNarrativeDiagnosisPresentation` para alimentar a aba Diagnóstico;
+- traduz Comercial como leitura interna do diagnóstico, sem substituir Mídia Kit;
+- mantém Mídia Kit e Comunidade como recursos existentes, não recriados.
+
+O que não faz:
+
+- não cria UI, preview visual, nova navegação real, nova página de diagnóstico ou histórico visual;
+- não altera endpoint, NextAuth, `LoginClient`, navegação/sidebar, `ActivationPendingWidget`, Mídia Kit real, `MediaKitView` ou Comunidade real;
+- não cria persistência, banco/tabela, schema, Prisma, upload real ou storage real;
+- não chama Gemini real, OpenAI, endpoint ou rede;
+- não conecta Instagram real, billing, Stripe, match real de marcas ou creators.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
