@@ -1063,6 +1063,32 @@ O que não faz:
 - não conecta Instagram real, billing, Stripe, match real de marcas ou creators;
 - não cria histórico de vídeos analisados.
 
+### MM46 — Strategic Profile Login Intent Copy
+
+Status: concluído.
+
+Arquivos principais:
+
+- `../../../login/LoginClient.tsx`
+- `../../../login/loginIntentCopy.ts`
+- `../../../login/loginIntentCopy.test.ts`
+
+O que faz:
+
+- reaproveita `LoginClient` existente para suportar Perfil Estratégico e análise narrativa;
+- adiciona copy contextual para usuário não logado que tenta acessar Perfil ou tocar no `+`;
+- preserva `callbackUrl` e o fluxo existente de login com Google;
+- suporta intenção por path e query param `intent=strategic_profile` ou `intent=analyze_video`;
+- mantém comportamento existente para calculator, media-kit, planning, campaigns e community.
+
+O que não faz:
+
+- não cria nova tela de login, novo Auth Gate real ou rota pública do Perfil Estratégico;
+- não altera endpoint, NextAuth, provider Google, callback real de autenticação, navegação/sidebar ou `ActivationPendingWidget`;
+- não cria upload real, storage real, persistência, banco/tabela, schema ou Prisma;
+- não chama Gemini real, OpenAI, endpoint ou rede;
+- não conecta Instagram real, Mídia Kit real, `MediaKitView`, Comunidade real, billing ou Stripe.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
