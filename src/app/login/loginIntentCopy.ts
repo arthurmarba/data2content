@@ -18,18 +18,17 @@ export const DEFAULT_LOGIN_INTENT_COPY: LoginIntentCopy = {
 export const STRATEGIC_PROFILE_LOGIN_INTENT_COPY: LoginIntentCopy = {
   badge: "Perfil Estratégico",
   title: "Crie seu Perfil Estratégico",
-  description:
-    "Entre com Google para começar seu diagnóstico como creator e construir um perfil que evolui a cada análise.",
-  buttonLabel: "Entrar e criar perfil",
-  footer: "Depois do login, você volta para o Perfil Estratégico.",
+  description: "Entre com Google para começar seu diagnóstico como creator.",
+  buttonLabel: "Entrar com Google",
+  footer: "Depois do login, você volta para o Perfil e pode analisar seu primeiro vídeo.",
 };
 
 export const ANALYZE_VIDEO_LOGIN_INTENT_COPY: LoginIntentCopy = {
   badge: "Análise narrativa",
   title: "Entre para analisar seu primeiro vídeo",
-  description: "Use sua conta Google para salvar a primeira leitura no seu Perfil Estratégico.",
+  description: "Use sua conta Google para salvar essa primeira leitura no seu Perfil Estratégico.",
   buttonLabel: "Entrar e analisar vídeo",
-  footer: "A análise atualiza seu Perfil Estratégico, sem criar histórico visual de vídeos.",
+  footer: "A análise atualiza seu Perfil. Ela não cria uma galeria pública de vídeos.",
 };
 
 function normalizeCallbackUrl(rawCallbackUrl: string): URL | null {

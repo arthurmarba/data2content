@@ -279,12 +279,12 @@ function buildDiagnosisSection(input: MobileStrategicProfileInput): MobileStrate
     return {
       id: "diagnosis",
       title: "Diagnóstico",
-      description: "Seu Perfil Estratégico ainda está começando.",
+      description: "Seu Perfil Estratégico mostra o que a D2C já entendeu sobre sua narrativa.",
       state: "construction",
       cards: [
         card({
           id: "diagnosis-empty",
-          title: "Perfil em construção",
+          title: "Seu Perfil Estratégico começa aqui",
           body: "Analise seu primeiro vídeo para a D2C identificar sua narrativa, ponto forte e próximo passo.",
           tone: "action",
           source: "state",
@@ -311,8 +311,8 @@ function buildDiagnosisSection(input: MobileStrategicProfileInput): MobileStrate
     id: "diagnosis",
     title: state.diagnosisState === "instagram_optimized" ? "Diagnóstico vivo com leitura mais precisa" : "Diagnóstico vivo",
     description: state.diagnosisState === "complete"
-      ? "Diagnóstico atualizado a partir do Perfil Estratégico."
-      : "Cada vídeo analisado atualiza este Perfil Estratégico.",
+      ? "A D2C conecta suas análises para entender sua narrativa com mais profundidade."
+      : "Cada vídeo analisado ajuda a atualizar seu diagnóstico como creator.",
     state: state.diagnosisState === "first_reading" || state.diagnosisState === "limited" ? "limited" : "ready",
     cards,
   };
@@ -342,7 +342,7 @@ function buildCommercialSection(input: MobileStrategicProfileInput): MobileStrat
         card({
           id: "commercial-construction",
           title: "Leitura comercial em construção",
-          body: "A D2C precisa da primeira leitura para entender territórios possíveis e próximos passos.",
+          body: "A primeira análise ajuda a entender territórios possíveis e como apresentar seu valor.",
           tone: "commercial",
           source: "state",
         }),
@@ -358,7 +358,7 @@ function buildCommercialSection(input: MobileStrategicProfileInput): MobileStrat
         id: "commercial-initial",
         title: "Potencial comercial",
         body: state.diagnosisState === "first_reading" || state.diagnosisState === "limited"
-          ? "Leitura inicial de potencial comercial, sem promessa de marca ou campanha."
+          ? "Uma leitura inicial sobre como sua narrativa pode ser útil para marcas."
           : "Tradução estratégica do diagnóstico para oportunidades futuras.",
         tone: "commercial",
         source: "state",
@@ -369,8 +369,8 @@ function buildCommercialSection(input: MobileStrategicProfileInput): MobileStrat
     id: "commercial",
     title: "Potencial comercial",
     description: state.diagnosisState === "complete" || state.diagnosisState === "instagram_optimized"
-      ? "Tradução interna do diagnóstico para oportunidades futuras."
-      : "Leitura inicial para orientar próximos passos comerciais.",
+      ? "Como sua narrativa pode ser útil para marcas, sem substituir o Mídia Kit."
+      : "Essa leitura ajuda você a entender como apresentar seu valor.",
     state: state.diagnosisState === "first_reading" || state.diagnosisState === "limited" ? "limited" : "ready",
     cards,
   };
@@ -443,7 +443,7 @@ function buildCommunityBridge(input: MobileStrategicProfileInput): MobileStrateg
     visible: input.state.profileAvailability !== "auth_gate",
     label: "Comunidade",
     href: href(input.communityHref) ?? "/dashboard/community",
-    description: "Destino existente da Comunidade Data2Content.",
+    description: "Acesse a Comunidade Data2Content, destino existente para continuar aprendendo com outros membros.",
   };
 }
 
@@ -479,7 +479,7 @@ function buildConstructionState(input: MobileStrategicProfileInput): MobileStrat
   const visible = input.state.profileAvailability === "construction";
   return {
     visible,
-    title: visible ? "Seu Perfil Estratégico ainda está começando." : "",
+    title: visible ? "Seu Perfil Estratégico começa aqui" : "",
     description: visible
       ? "Analise seu primeiro vídeo para a D2C identificar sua narrativa, ponto forte e próximo passo."
       : "",

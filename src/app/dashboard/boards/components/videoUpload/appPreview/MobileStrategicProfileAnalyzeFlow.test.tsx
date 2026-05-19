@@ -26,15 +26,15 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
   it("renders intro step", () => {
     renderFlow();
 
-    expect(screen.getByRole("dialog", { name: "Vamos atualizar seu Perfil Estratégico" })).toBeInTheDocument();
-    expect(screen.getByText("Envie um vídeo para a D2C entender novos sinais da sua narrativa.")).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Vamos atualizar seu Perfil" })).toBeInTheDocument();
+    expect(screen.getByText("Use um vídeo para a D2C entender novos sinais da sua narrativa.")).toBeInTheDocument();
   });
 
   it("advances to mock upload", () => {
     renderFlow();
     continueFlow();
 
-    expect(screen.getByText("Vídeo selecionado para análise")).toBeInTheDocument();
+    expect(screen.getByText("Vídeo pronto para análise")).toBeInTheDocument();
     expect(screen.getByText("Preview local. Nenhum arquivo será enviado neste protótipo.")).toBeInTheDocument();
   });
 
@@ -43,7 +43,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     continueFlow();
     continueFlow();
 
-    expect(screen.getByText("Qual era o objetivo desse conteúdo?")).toBeInTheDocument();
+    expect(screen.getByText("Qual era o objetivo do conteúdo?")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ganhar autoridade" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Preparar publi" })).toBeInTheDocument();
   });
@@ -54,7 +54,8 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     continueFlow();
     continueFlow();
 
-    expect(screen.getByText("Duas perguntas rápidas para entender contexto")).toBeInTheDocument();
+    expect(screen.getByText("Só mais um contexto rápido")).toBeInTheDocument();
+    expect(screen.getByText("Essas respostas ajudam a D2C entender o que você queria comunicar.")).toBeInTheDocument();
     expect(screen.getByText("Esse conteúdo representa sua fase atual?")).toBeInTheDocument();
   });
 
@@ -65,8 +66,8 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     continueFlow();
     continueFlow();
 
-    expect(screen.getByText("Atualizando seu diagnóstico vivo...")).toBeInTheDocument();
-    expect(screen.getByText("Estamos conectando esta leitura ao seu Perfil Estratégico.")).toBeInTheDocument();
+    expect(screen.getByText("Atualizando seu Perfil Estratégico")).toBeInTheDocument();
+    expect(screen.getByText("Estamos conectando essa leitura ao seu diagnóstico vivo.")).toBeInTheDocument();
   });
 
   it("advances to updated confirmation and completes", () => {
@@ -78,7 +79,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     continueFlow();
 
     expect(screen.getByRole("dialog", { name: "Diagnóstico atualizado." })).toBeInTheDocument();
-    expect(screen.getByText("Identificamos novos sinais sobre sua narrativa.")).toBeInTheDocument();
+    expect(screen.getByText("Identificamos novos aprendizados sobre sua narrativa.")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Voltar para meu Perfil" }));
 

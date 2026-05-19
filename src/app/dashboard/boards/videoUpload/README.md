@@ -1245,6 +1245,32 @@ O que não faz:
 - não chama Gemini real, OpenAI, endpoint ou rede;
 - não conecta Instagram real, billing ou Stripe.
 
+### MM53 — Strategic Profile Preview Copy Refinement
+
+Status: concluído.
+
+Arquivos principais:
+
+- `mobileStrategicProfileStateContract.ts`
+- `mobileStrategicProfileMapping.ts`
+- `MobileStrategicProfilePreview.tsx`
+- `MobileStrategicProfileAnalyzeFlow.tsx`
+- `loginIntentCopy.ts`
+
+O que faz:
+
+- refina a linguagem da preview mobile do Perfil Estratégico;
+- melhora copy de auth gate, Perfil em construção, primeira leitura, premium, Instagram optimized, Comercial, Mídia Kit, Comunidade e fluxo `+`;
+- mantém a experiência clara, humana e orientada a próximo passo;
+- reforça que Perfil é diagnóstico vivo, análise é ação temporária e Mídia Kit/Comunidade são recursos existentes.
+
+O que não faz:
+
+- não altera comportamento real, contratos de tipo, endpoint, login real, NextAuth, `MediaKitView`, Mídia Kit real, Comunidade real ou navegação real;
+- não cria upload real, storage real, persistência, banco/tabela, schema ou Prisma;
+- não chama Gemini real, OpenAI, endpoint ou rede;
+- não conecta Instagram real, billing ou Stripe.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

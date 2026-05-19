@@ -57,11 +57,11 @@ describe("mobileStrategicProfileStateContract", () => {
     expect(result.profileAvailability).toBe("auth_gate");
     expect(result.diagnosisState).toBe("empty");
     expect(result.mediaKitState).toBe("unavailable");
-    expect(result.summary.description).toBe("Entre com Google para criar seu Perfil Estratégico.");
+    expect(result.summary.description).toBe("Entre com Google para começar seu diagnóstico como creator.");
     expect(result.recommendedActions[0]).toMatchObject({
       id: "login",
       intent: "view_profile",
-      label: "Entrar para criar Perfil",
+      label: "Entrar com Google",
     });
   });
 
@@ -72,11 +72,11 @@ describe("mobileStrategicProfileStateContract", () => {
     });
 
     expect(result.profileAvailability).toBe("auth_gate");
-    expect(result.summary.description).toBe("Entre com Google para analisar seu primeiro vídeo.");
+    expect(result.summary.description).toBe("Use sua conta Google para salvar essa primeira leitura no seu Perfil Estratégico.");
     expect(result.recommendedActions[0]).toMatchObject({
       id: "login",
       intent: "analyze_video",
-      label: "Entrar para analisar vídeo",
+      label: "Entrar e analisar vídeo",
     });
   });
 
@@ -92,7 +92,7 @@ describe("mobileStrategicProfileStateContract", () => {
     expect(result.readinessState).toBe("first_diagnosis_pending");
     expect(result.diagnosisState).toBe("empty");
     expect(result.statusPills.map((pill) => pill.label)).toContain("Perfil em construção");
-    expect(result.summary.title).toBe("Seu Perfil Estratégico ainda está começando.");
+    expect(result.summary.title).toBe("Seu Perfil Estratégico começa aqui");
   });
 
   it("authenticated user without diagnosis prioritizes Analisar primeiro vídeo", () => {
@@ -119,7 +119,7 @@ describe("mobileStrategicProfileStateContract", () => {
     expect(result.profileAvailability).toBe("active");
     expect(result.readinessState).toBe("first_reading_ready");
     expect(result.diagnosisState).toBe("first_reading");
-    expect(result.summary.title).toBe("Primeira leitura criada.");
+    expect(result.summary.title).toBe("Primeira leitura criada");
   });
 
   it("free user without Instagram suggests connecting Instagram as secondary next step", () => {
@@ -164,7 +164,7 @@ describe("mobileStrategicProfileStateContract", () => {
       instagramConnected: false,
     });
 
-    expect(allText(result)).toContain("aumentar a precisão");
+    expect(allText(result)).toContain("comparar sua narrativa com mais contexto");
     expect(result.recommendedActions).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: "connect-instagram", intent: "connect_instagram" }),
