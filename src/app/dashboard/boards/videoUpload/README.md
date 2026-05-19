@@ -909,6 +909,30 @@ O que não faz:
 - não conecta Instagram real, BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
 - não conecta billing, Stripe ou cobrança.
 
+### MM40 — Diagnosis Presentation Model
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoNarrativeDiagnosisPresentationModel.ts`
+- `videoNarrativeDiagnosisPresentationModel.test.ts`
+
+O que faz:
+
+- cria uma camada pura de apresentação para o diagnóstico evolutivo;
+- transforma diagnóstico, regras de acesso e mapa evolutivo em hero, cards prioritários, seções, previews bloqueados, badges e CTAs;
+- prepara uma futura UI mobile-first sem criar componentes React;
+- mantém a superfície curta e escaneável, com profundidade organizada em seções;
+- diferencia `free`, `premium` e `instagram_optimized` sem billing real.
+
+O que não faz:
+
+- não cria persistência, banco/tabela, endpoint, UI, preview, upload real, storage real ou analytics real;
+- não chama Gemini real, OpenAI, endpoint ou rede;
+- não conecta Instagram real, BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
+- não conecta billing, Stripe ou cobrança.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

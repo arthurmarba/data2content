@@ -246,8 +246,9 @@ Exemplos:
 36. MM37 — Browser UX QA checklist. Cria roteiro manual e testável para revisar a experiência no navegador antes de upload, BoardShell ou paywall.
 37. MM38 — Evolving Creator Diagnosis Contract. Modela a camada evolutiva acima do diagnóstico pontual, sem persistência ou match real.
 38. MM39 — Access Tier Diagnosis Rules. Define regras de acesso e valor por camada para free, premium e Instagram conectado.
-39. Teste real manual quando houver quota/billing disponível.
-40. Integração experimental futura no Board de Criação.
+39. MM40 — Diagnosis Presentation Model. Transforma diagnóstico evolutivo e regras de acesso em blocos de apresentação para futura UI mobile-first.
+40. Teste real manual quando houver quota/billing disponível.
+41. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -318,6 +319,8 @@ MM37 cria uma checklist de QA visual/funcional para testar a preview interativa 
 MM38 adiciona `VideoNarrativeEvolvingDiagnosis` como camada acima de `VideoNarrativeStrategicDiagnosis`. O diagnóstico estratégico continua sendo a leitura pontual do vídeo; a nova camada organiza esse valor em torno da evolução do creator, com nível atual, próximo nível, impacto no perfil, sinais desbloqueados, sinais pendentes e oportunidades futuras. Ela usa o `VideoNarrativeCreatorProfile` como contexto, mas não persiste sinais, não substitui o profile contract e não cria match real de marcas ou creators.
 
 MM39 adiciona `VideoNarrativeAccessTierDiagnosisRules` para explicitar as regras de acesso e valor por camada. MM38 define o diagnóstico evolutivo; MM39 define o que fica visível, limitado, bloqueado ou sugerido em `free`, `premium` e `instagram_optimized`. Essa camada deve ser usada futuramente pela apresentação/UI para não espalhar lógica de paywall, disponibilidade comercial, collab e precisão por Instagram pelos componentes.
+
+MM40 adiciona `VideoNarrativeDiagnosisPresentation` como superfície de apresentação pura acima de MM38 e MM39. MM38 define o diagnóstico evolutivo, MM39 define as regras de acesso e MM40 organiza o que a futura UI deve renderizar como hero, cards prioritários, seções, previews bloqueados, badges e CTAs. Componentes React futuros devem consumir essa camada para evitar lógica de copy, paywall e priorização espalhada na UI.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 
