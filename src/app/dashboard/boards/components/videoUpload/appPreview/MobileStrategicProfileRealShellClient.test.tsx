@@ -204,4 +204,43 @@ describe("MobileStrategicProfileRealShellClient", () => {
 
     expect(screen.getByTestId("profile-community-href").textContent).toBe("https://free-community.url");
   });
+
+  it("carrega e renderiza o snapshot estratégico inicial persistido", async () => {
+    (fetchHomeSummaryCached as jest.Mock).mockResolvedValue(null);
+
+    const mockSnapshot = {
+      schemaVersion: "mobile_strategic_profile_snapshot_v1",
+      profileState: "active",
+      unlockedSignals: ["Narrativa"],
+      pendingSignals: [],
+      recurringPatterns: ["Minha Estrutura Única"],
+      opportunities: ["Marca X"],
+      diagnosisSummary: "Resumo do Diagnóstico Salvo",
+      commercialSummary: "Resumo Comercial Salvo",
+      lastAnalysisSummary: "Último Vídeo Salvo",
+    };
+
+    const sessionWithInstagram = {
+      user: {
+        ...mockSession.user,
+        instagramConnected: true,
+      },
+    };
+
+    await act(async () => {
+      render(
+        <MobileStrategicProfileRealShellClient
+          session={sessionWithInstagram}
+          stateQuery={null}
+          initialSnapshotPayload={mockSnapshot}
+        />
+      );
+    });
+
+    expect(screen.getByTestId("profile-bio").textContent).toBe("Seu Perfil Estratégico mostra o que a D2C já entendeu sobre sua narrativa.");
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+  });
 });

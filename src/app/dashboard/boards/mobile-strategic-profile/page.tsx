@@ -3,6 +3,7 @@ import { redirect, notFound } from "next/navigation";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { isMobileStrategicProfileEnabled } from "../videoUpload/mobileStrategicProfileFeatureFlag";
 import { MobileStrategicProfileRealShellClient } from "../components/videoUpload/appPreview/MobileStrategicProfileRealShellClient";
+import { getStrategicProfileSnapshotByUserId } from "../videoUpload/mobileStrategicProfileSnapshotService";
 
 export const dynamic = "force-dynamic";
 
@@ -30,13 +31,29 @@ export default async function MobileStrategicProfilePage({
     return null;
   }
 
-  // 3. Adapt session data and optional debug state to profile input
+  // 3. Obter o snapshot estratégico ativo persistido
+  let initialSnapshotPayload = null;
+  const isSnapshotEnabled = process.env.MOBILE_STRATEGIC_PROFILE_SNAPSHOT_ENABLED !== "0";
+
+  if (isSnapshotEnabled && session.user?.id) {
+    try {
+      const result = await getStrategicProfileSnapshotByUserId(session.user.id);
+      if (result?.snapshot) {
+        initialSnapshotPayload = result.snapshot;
+      }
+    } catch (err) {
+      console.error("Erro silencioso ao ler snapshot estratégico no servidor:", err);
+    }
+  }
+
+  // 4. Adapt session data and optional debug state to profile input
   const stateQuery = typeof searchParams?.state === "string" ? searchParams.state : null;
 
   return (
     <MobileStrategicProfileRealShellClient
       session={session}
       stateQuery={stateQuery}
+      initialSnapshotPayload={initialSnapshotPayload}
     />
   );
 }

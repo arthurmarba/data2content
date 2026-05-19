@@ -4,6 +4,7 @@ import MobileStrategicProfilePage from "./page";
 import { isMobileStrategicProfileEnabled } from "../videoUpload/mobileStrategicProfileFeatureFlag";
 import { getServerSession } from "next-auth";
 import { redirect, notFound } from "next/navigation";
+import { getStrategicProfileSnapshotByUserId } from "../videoUpload/mobileStrategicProfileSnapshotService";
 
 // Mock das dependências externas
 jest.mock("next-auth", () => ({
@@ -27,13 +28,21 @@ jest.mock("../videoUpload/mobileStrategicProfileFeatureFlag", () => ({
   isMobileStrategicProfileEnabled: jest.fn(),
 }));
 
-// Mock do componente MobileStrategicProfileRealShellClient para evitar renderização interna complexa nos testes da rota
+jest.mock("../videoUpload/mobileStrategicProfileSnapshotService", () => ({
+  getStrategicProfileSnapshotByUserId: jest.fn(),
+}));
+
+// Mock do componente MobileStrategicProfileRealShellClient
 jest.mock(
   "../components/videoUpload/appPreview/MobileStrategicProfileRealShellClient",
   () => {
     return {
-      MobileStrategicProfileRealShellClient: ({ session, stateQuery }: any) => (
-        <div data-testid="real-profile-client-wrapper" data-statequery={stateQuery || ""}>
+      MobileStrategicProfileRealShellClient: ({ session, stateQuery, initialSnapshotPayload }: any) => (
+        <div
+          data-testid="real-profile-client-wrapper"
+          data-statequery={stateQuery || ""}
+          data-hassnapshot={initialSnapshotPayload ? "true" : "false"}
+        >
           <h1>{session?.user?.name || "Anonymous"}</h1>
           <p>{session?.user?.instagramUsername || ""}</p>
         </div>
@@ -45,6 +54,7 @@ jest.mock(
 describe("MobileStrategicProfilePage Rota Real", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (getStrategicProfileSnapshotByUserId as jest.Mock).mockResolvedValue(null);
   });
 
   it("bloqueia o acesso e chama notFound se a feature flag estiver desligada", async () => {
@@ -105,5 +115,34 @@ describe("MobileStrategicProfilePage Rota Real", () => {
     render(jsx);
 
     expect(screen.getByTestId("real-profile-client-wrapper")).toHaveAttribute("data-statequery", "instagram_optimized");
+  });
+
+  it("carrega e repassa snapshot estratégico ativo do usuário se existir no banco", async () => {
+    (isMobileStrategicProfileEnabled as jest.Mock).mockReturnValue(true);
+    (getServerSession as jest.Mock).mockResolvedValue({
+      user: {
+        id: "usr_123",
+        name: "Arthur Teste",
+        instagramConnected: true,
+        instagramUsername: "arthur.test",
+        planStatus: "premium",
+      },
+    });
+
+    const mockSnapshot = {
+      schemaVersion: "mobile_strategic_profile_snapshot_v1",
+      profileState: "active",
+    };
+
+    (getStrategicProfileSnapshotByUserId as jest.Mock).mockResolvedValue({
+      userId: "usr_123",
+      snapshot: mockSnapshot,
+    });
+
+    const jsx = await MobileStrategicProfilePage({});
+    render(jsx);
+
+    const wrapper = screen.getByTestId("real-profile-client-wrapper");
+    expect(wrapper).toHaveAttribute("data-hassnapshot", "true");
   });
 });

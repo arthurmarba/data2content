@@ -4,27 +4,44 @@ import { useEffect, useState } from "react";
 import { buildMobileStrategicProfileRealShellInput } from "./buildMobileStrategicProfileRealShellInput";
 import { buildMobileStrategicProfile, type MobileStrategicProfile } from "../../../videoUpload/mobileStrategicProfileMapping";
 import { buildMobileStrategicProfileExistingDataAdapter } from "../../../videoUpload/mobileStrategicProfileExistingDataAdapter";
+import { buildMobileStrategicProfileFromSnapshot } from "../../../videoUpload/mobileStrategicProfileSnapshotMapping";
 import { MobileStrategicProfilePreview } from "./MobileStrategicProfilePreview";
 import { fetchHomeSummaryCached } from "../../../../home/homeSummaryClient";
 
 interface MobileStrategicProfileRealShellClientProps {
   session: any;
   stateQuery: string | null;
+  initialSnapshotPayload?: any; // MobileStrategicProfileSnapshotPayload
 }
 
 export function MobileStrategicProfileRealShellClient({
   session,
   stateQuery,
+  initialSnapshotPayload,
 }: MobileStrategicProfileRealShellClientProps) {
-  // 1. Calcular o perfil inicial (Session-only ou fixture via stateQuery)
-  const initialInput = buildMobileStrategicProfileRealShellInput({
-    session,
-    stateQuery,
+  // 1. Calcular o perfil inicial (Session-only, snapshot ou fixture via stateQuery)
+  const [profile, setProfile] = useState<MobileStrategicProfile>(() => {
+    if (stateQuery) {
+      const input = buildMobileStrategicProfileRealShellInput({
+        session,
+        stateQuery,
+      });
+      return buildMobileStrategicProfile(input);
+    }
+    const input = buildMobileStrategicProfileFromSnapshot({
+      sessionUser: session?.user ? {
+        name: session.user.name,
+        email: session.user.email,
+        image: session.user.image,
+        instagramConnected: Boolean(session.user.instagramConnected || session.user.isInstagramConnected),
+        instagramUsername: session.user.instagramUsername,
+        planStatus: session.user.planStatus,
+      } : null,
+      snapshotPayload: initialSnapshotPayload || null,
+      accessLevel: session?.user?.planStatus === "active" ? "premium" : "free",
+    });
+    return buildMobileStrategicProfile(input);
   });
-
-  const [profile, setProfile] = useState<MobileStrategicProfile>(() =>
-    buildMobileStrategicProfile(initialInput)
-  );
 
   const [isHydrating, setIsHydrating] = useState(false);
 
@@ -55,14 +72,26 @@ export function MobileStrategicProfileRealShellClient({
             diagnosisOverrideState: stateQuery,
             profileHref: "/dashboard/boards/mobile-profile",
             analyzeVideoHref: "/dashboard/boards/mobile-profile",
-            // Não enviamos communityHref para permitir priorização dos links de convite do summary
           });
 
-          // Se estivermos em modo override de teste QA, mesclamos o estado da fixture
           let diagnosisPresentation = res.profileInput.diagnosisPresentation;
           let extraState = {};
+
+          // Carrega a apresentação a partir do snapshot persistido
+          if (initialSnapshotPayload) {
+            const { mapSnapshotToDiagnosisPresentation } = await import("../../../videoUpload/mobileStrategicProfileSnapshotMapping");
+            diagnosisPresentation = mapSnapshotToDiagnosisPresentation(initialSnapshotPayload);
+          }
+
+          // Se estivermos em modo override de teste QA, mesclamos o estado da fixture
           if (stateQuery) {
+            const { buildMobileStrategicProfileRealShellInput } = await import("./buildMobileStrategicProfileRealShellInput");
+            const initialInput = buildMobileStrategicProfileRealShellInput({
+              session,
+              stateQuery,
+            });
             diagnosisPresentation = initialInput.diagnosisPresentation || diagnosisPresentation;
+
             const { buildMobileStrategicProfilePreviewFixture } = await import("./buildMobileStrategicProfilePreviewFixture");
             const fixture = buildMobileStrategicProfilePreviewFixture({ state: stateQuery });
             extraState = fixture.profile.state;
@@ -94,7 +123,7 @@ export function MobileStrategicProfileRealShellClient({
     return () => {
       active = false;
     };
-  }, [session, stateQuery, initialInput.diagnosisPresentation]);
+  }, [session, stateQuery, initialSnapshotPayload]);
 
   return (
     <div className="relative">
