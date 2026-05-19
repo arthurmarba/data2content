@@ -957,6 +957,32 @@ O que não faz:
 - não conecta Instagram real, BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
 - não conecta billing, Stripe ou cobrança.
 
+### MM42 — Mobile Diagnosis UI Refactor
+
+Status: concluído.
+
+Arquivos principais:
+
+- `../components/videoUpload/appPreview/VideoNarrativeDiagnosisPresentationBlocks.tsx`
+- `../components/videoUpload/appPreview/VideoNarrativeDiagnosisBlocks.tsx`
+- `../components/videoUpload/VideoNarrativeAppPreview.tsx`
+- `../components/videoUpload/VideoNarrativeInteractiveAppPreview.tsx`
+
+O que faz:
+
+- refatora a UI interna do diagnóstico para consumir `VideoNarrativeDiagnosisPresentation`;
+- troca a sensação de relatório por um painel estratégico mobile-first;
+- renderiza hero, cards prioritários, CTAs, seções, badges e previews bloqueados;
+- diferencia visualmente `free`, `premium` e `instagram_optimized` na preview interna;
+- mantém a experiência mockada e interna.
+
+O que não faz:
+
+- não cria persistência, banco/tabela, endpoint, UI pública, upload real, storage real ou analytics real;
+- não chama Gemini real, OpenAI, endpoint ou rede;
+- não conecta Instagram real, BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
+- não conecta billing, Stripe ou cobrança.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

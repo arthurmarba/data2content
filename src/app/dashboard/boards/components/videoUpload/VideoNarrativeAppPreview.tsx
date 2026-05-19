@@ -208,7 +208,11 @@ export function VideoNarrativeAppPreview({ preview }: VideoNarrativeAppPreviewPr
         </VideoNarrativeStageShell>
 
         {flowState.stage === "diagnosis_ready" ? (
-          <VideoNarrativeDiagnosisBlocks diagnosis={preview.diagnosis} creatorProfile={preview.creatorProfile} />
+          <VideoNarrativeDiagnosisBlocks
+            diagnosis={preview.diagnosis}
+            creatorProfile={preview.creatorProfile}
+            presentation={preview.diagnosisPresentation}
+          />
         ) : null}
       </div>
     </main>

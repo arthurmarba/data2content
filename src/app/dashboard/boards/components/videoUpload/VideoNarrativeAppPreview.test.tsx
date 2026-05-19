@@ -64,10 +64,10 @@ describe("VideoNarrativeAppPreview", () => {
   it("renders diagnosis blocks in diagnosis_ready", () => {
     render(<VideoNarrativeAppPreview preview={buildVideoNarrativeAppPreviewScenario({ stage: "diagnosis_ready" })} />);
 
-    expect(screen.getAllByText("Diagnóstico").length).toBeGreaterThan(0);
-    expect(screen.getByText("Potencial comercial")).toBeInTheDocument();
-    expect(screen.getByText("Blueprint")).toBeInTheDocument();
-    expect(screen.getByText("Próximas ações")).toBeInTheDocument();
+    expect(screen.getByText("Primeira leitura do seu vídeo")).toBeInTheDocument();
+    expect(screen.getByText("O que este vídeo comunica")).toBeInTheDocument();
+    expect(screen.getByText("Ajuste mais importante")).toBeInTheDocument();
+    expect(screen.getByText("Próximo movimento")).toBeInTheDocument();
   });
 
   it("renders locked sections for free access", () => {
@@ -77,8 +77,8 @@ describe("VideoNarrativeAppPreview", () => {
       />,
     );
 
-    expect(screen.getByText("Seções bloqueadas")).toBeInTheDocument();
-    expect(screen.getAllByText(/premium|Instagram/i).length).toBeGreaterThan(0);
+    expect(screen.getByText("Próximas camadas do diagnóstico")).toBeInTheDocument();
+    expect(screen.getAllByText(/diagnóstico completo|Instagram/i).length).toBeGreaterThan(0);
   });
 
   it("renders creator profile summary", () => {
@@ -88,8 +88,39 @@ describe("VideoNarrativeAppPreview", () => {
       />,
     );
 
-    expect(screen.getByText("Resumo do perfil narrativo")).toBeInTheDocument();
-    expect(screen.getByText("Territórios")).toBeInTheDocument();
+    expect(screen.getByText("Evolução do creator")).toBeInTheDocument();
+    expect(screen.getByText("Território de marca possível")).toBeInTheDocument();
+  });
+
+  it("renders premium presentation with Instagram lock", () => {
+    render(
+      <VideoNarrativeAppPreview
+        preview={buildVideoNarrativeAppPreviewScenario({
+          stage: "diagnosis_ready",
+          access: "premium",
+          instagram: "disconnected",
+        })}
+      />,
+    );
+
+    expect(screen.getByText("Diagnóstico completo")).toBeInTheDocument();
+    expect(screen.getByText("Seu mapa estratégico foi atualizado")).toBeInTheDocument();
+    expect(screen.getAllByText("Leitura mais precisa com Instagram").length).toBeGreaterThan(0);
+  });
+
+  it("renders instagram optimized presentation with precision section", () => {
+    render(
+      <VideoNarrativeAppPreview
+        preview={buildVideoNarrativeAppPreviewScenario({
+          stage: "diagnosis_ready",
+          access: "instagram_optimized",
+          instagram: "connected",
+        })}
+      />,
+    );
+
+    expect(screen.getAllByText("Leitura mais precisa").length).toBeGreaterThan(0);
+    expect(screen.getByText("Precisão com Instagram")).toBeInTheDocument();
   });
 
   it("renders upgrade prompt", () => {

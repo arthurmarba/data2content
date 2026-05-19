@@ -137,10 +137,10 @@ describe("VideoNarrativeInteractiveAppPreview", () => {
     fireEvent.click(screen.getByRole("button", { name: "Concluir quiz" }));
     fireEvent.click(screen.getByRole("button", { name: "Montar diagnóstico" }));
 
-    expect(screen.getAllByText("Narrativa principal").length).toBeGreaterThan(0);
-    expect(screen.getByText("Leitura estratégica")).toBeInTheDocument();
-    expect(screen.getByText("Seções bloqueadas")).toBeInTheDocument();
-    expect(screen.getByText("Resumo do perfil narrativo")).toBeInTheDocument();
+    expect(screen.getByText("Primeira leitura do seu vídeo")).toBeInTheDocument();
+    expect(screen.getByText("O que este vídeo comunica")).toBeInTheDocument();
+    expect(screen.getByText("Ajuste mais importante")).toBeInTheDocument();
+    expect(screen.getByText("Próximas camadas do diagnóstico")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ver planos" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Conectar Instagram" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Criar versão para publi" })).toBeInTheDocument();

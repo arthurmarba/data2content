@@ -1,11 +1,14 @@
 import type { VideoNarrativeCreatorProfile } from "../../../videoUpload/videoNarrativeCreatorProfileContract";
+import type { VideoNarrativeDiagnosisPresentation } from "../../../videoUpload/videoNarrativeDiagnosisPresentationModel";
 import type { VideoNarrativeStrategicDiagnosis } from "../../../videoUpload/videoNarrativeDiagnosisLearningModel";
 import { formatSignalLabel } from "./VideoNarrativeAppPreviewPrimitives";
+import { VideoNarrativeDiagnosisPresentationBlocks } from "./VideoNarrativeDiagnosisPresentationBlocks";
 import type { ReactNode } from "react";
 
 type VideoNarrativeDiagnosisBlocksProps = {
   diagnosis: VideoNarrativeStrategicDiagnosis;
   creatorProfile?: VideoNarrativeCreatorProfile | null;
+  presentation?: VideoNarrativeDiagnosisPresentation | null;
 };
 
 const FINAL_ACTIONS = [
@@ -75,7 +78,15 @@ function ActionPills() {
   );
 }
 
-export function VideoNarrativeDiagnosisBlocks({ diagnosis, creatorProfile }: VideoNarrativeDiagnosisBlocksProps) {
+export function VideoNarrativeDiagnosisBlocks({
+  diagnosis,
+  creatorProfile,
+  presentation,
+}: VideoNarrativeDiagnosisBlocksProps) {
+  if (presentation) {
+    return <VideoNarrativeDiagnosisPresentationBlocks presentation={presentation} />;
+  }
+
   return (
     <div className="grid gap-4 lg:grid-cols-2">
       <Block title="Narrativa principal" eyebrow="Hero do diagnóstico" wide>
