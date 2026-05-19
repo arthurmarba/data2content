@@ -253,8 +253,9 @@ Exemplos:
 43. MM44 — Strategic Profile Mapping Layer. Monta o modelo consumível do Perfil Estratégico mobile a partir do estado e do diagnóstico.
 44. MM45 — Strategic Profile Preview UI. Materializa a primeira preview interna visual do Perfil Estratégico mobile.
 45. MM46 — Strategic Profile Login Intent Copy. Reaproveita o login existente para copy contextual de Perfil e análise narrativa.
-46. Teste real manual quando houver quota/billing disponível.
-47. Integração experimental futura no Board de Criação.
+46. MM47 — Media Kit Modal Bridge. Cria a ponte visual em modal entre Perfil Estratégico e Mídia Kit existente.
+47. Teste real manual quando houver quota/billing disponível.
+48. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 
@@ -339,6 +340,8 @@ MM44 adiciona `MobileStrategicProfile` como mapping puro acima de MM43. MM43 res
 MM45 é a primeira materialização visual do Perfil Estratégico. A UI interna consome `MobileStrategicProfile` e não reconstrói lógica de estado, tier, Mídia Kit ou Comunidade. O Perfil substitui a ideia de uma página isolada de diagnóstico: a análise de vídeo segue como ação temporária para atualizar o Perfil. A preview usa formato mobile-first com header de perfil, tabs internas, ações, Mídia Kit Bridge e navegação mockada Perfil / + / Comunidade, sem alterar navegação real.
 
 MM46 conecta a intenção anônima ao login existente. Usuário anônimo deve passar pelo `LoginClient` já existente, com copy contextual para criar Perfil Estratégico ou analisar o primeiro vídeo. O Perfil Estratégico só existe como experiência interna depois da autenticação, e a intenção original deve ser preservada por `callbackUrl`. Não há nova tela de login, novo provider, alteração de NextAuth ou mudança de navegação real.
+
+MM47 materializa o Mídia Kit como bridge visual do Perfil, não como nova seção, aba ou produto. O Perfil traduz estratégia internamente, enquanto o Mídia Kit existente continua sendo a saída pública/comercial. O modal apenas aponta para copiar, compartilhar, ver como marca ou abrir o recurso existente em modo preview/local, sem clipboard real, Web Share API, navegação real, QR Code, alteração de `MediaKitView` ou mudança em `/mediakit/[token]`.
 
 MM15 formaliza consentimento e retenção antes de upload real, endpoint real ou beta. O contrato trata vídeo como dado temporário de análise e bloqueia persistência automática de sinais narrativos no perfil.
 
