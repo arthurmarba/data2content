@@ -108,3 +108,11 @@ sequenceDiagram
 O envio só é habilitado após o consentimento explícito em uma caixa de diálogo antes de selecionar a mídia. O consentimento contém:
 - **Finalidade**: `"video_narrative_analysis"` para diagnóstico no perfil estratégico.
 - **Transparência**: Alerta claro de que o vídeo físico **não é mantido** e será permanentemente descartado em até 1 hora ou imediatamente após o processamento.
+
+---
+
+## 🚀 Fase MM60 — API de Sessão Temporária de Upload (Modo Mock/Disabled)
+A primeira materialização física deste plano é a API `/api/dashboard/mobile-strategic-profile/upload-session`.
+* **Segurança do Endpoint**: Exige sessão real autenticada e feature flags.
+* **Modo Mock Seguro**: Retorna o status `mock_session_created` sem expor nenhuma `uploadUrl` ou token físico quando o payload é aprovado pelo validador do MM59.
+* **Futura Rota Real**: Quando a feature flag `VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED` for ativada (após auditoria final de custos e segurança), o endpoint será expandido para assinar as URLs curtas do provedor sem alterar o contrato de metadados estabelecido aqui.

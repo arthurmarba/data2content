@@ -1834,6 +1834,23 @@ O que não faz:
 - Não assina URLs de envio nem gera chaves reais;
 - Não altera o fluxo interativo "+" do perfil ou o endpoint interno de análise.
 
+### MM60 — Temporary Upload Session API
+
+Status: concluído.
+
+O que faz:
+- Cria a API server-side `/api/dashboard/mobile-strategic-profile/upload-session` para preparar sessões de upload temporário de vídeo;
+- Exige sessão real autenticada do criador e feature flags ativas (`MOBILE_STRATEGIC_PROFILE_ENABLED=1` e `VIDEO_NARRATIVE_TEMP_UPLOAD_SESSION_ENABLED=1`);
+- Executa as validações puras de metadados, tamanhos e consentimento aceito e versão explícita do termo criadas no MM59;
+- Retorna uma resposta de sessão em modo mock segura (`mock_session_created`) com ID seguro, mantendo o provider real inativo (`providerMode = "mock"`, `storageProvider = "none"`);
+- Protege a API rejeitando payloads suspeitos de dupla extensão, injeções de Base64, links de mídia assinados e arquivos maiores que 5000 bytes.
+
+O que não faz:
+- Não implementa upload real nem picks de arquivo físico;
+- Não conecta com buckets de storage reais (S3/R2/GCS) nem assina URLs reais;
+- Não salva nenhuma informação em banco de dados, nem vídeo nem thumbnail;
+- Não altera o endpoint de análise narrativa existente.
+
 ## Arquitetura Atual
 
 ```text

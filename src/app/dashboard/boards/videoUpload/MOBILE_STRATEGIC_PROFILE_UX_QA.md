@@ -331,3 +331,10 @@ Não recomendar integração real antes do QA/polish visual.
 - Mídias não permitidas, extensões suspeitas de executáveis disfarçados e injeções de Base64 ou URLs devem ser sumariamente bloqueadas.
 - O processamento de vídeos reais deve seguir o modelo de descarte seguro forçado, descartando mídias imediatamente após a análise.
 - Nenhuma interface do fluxo "+" ou endpoint de análise de produção deve ser alterado para processar arquivos de vídeo reais neste momento.
+
+## Guardrails do MM60
+
+- A criação de uma sessão temporária de upload de vídeo no client deve consumir obrigatoriamente a rota server-side `/api/dashboard/mobile-strategic-profile/upload-session`.
+- Toda sessão retornada em produção deve ser em modo mock (`providerMode = "mock"`, `storageProvider = "none"`) e sem expor nenhuma `uploadUrl` física até a homologação final.
+- O payload enviado pelo client deve conter o consentimento aceito e a versão legível do termo.
+- Qualquer erro ou violação de política na requisição da API de sessão deve renderizar mensagens claras de falha na interface sem expor stack traces ou dados sensíveis de servidor.
