@@ -125,6 +125,44 @@ export function MobileStrategicProfileRealShellClient({
     };
   }, [session, stateQuery, initialSnapshotPayload]);
 
+  const handleAnalysisSubmit = async (payload: {
+    creatorGoal: string;
+    selectedGoalOption: "authority" | "retention" | "format_test" | "sponsored_content";
+    quickAnswers?: Array<{ id: string; value: string }>;
+    mockScenario?: string;
+  }) => {
+    const response = await fetch("/api/dashboard/mobile-strategic-profile/analyze", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(errData.message || "Erro ao conectar com o serviço de análise mockada.");
+    }
+
+    const data = await response.json();
+    if (data.snapshot) {
+      const { buildMobileStrategicProfileFromSnapshot } = await import("../../../videoUpload/mobileStrategicProfileSnapshotMapping");
+      const input = buildMobileStrategicProfileFromSnapshot({
+        sessionUser: session?.user ? {
+          name: session.user.name,
+          email: session.user.email,
+          image: session.user.image,
+          instagramConnected: Boolean(session.user.instagramConnected || session.user.isInstagramConnected),
+          instagramUsername: session.user.instagramUsername,
+          planStatus: session.user.planStatus,
+        } : null,
+        snapshotPayload: data.snapshot,
+        accessLevel: session?.user?.planStatus === "active" ? "premium" : "free",
+      });
+      setProfile(buildMobileStrategicProfile(input));
+    }
+  };
+
   return (
     <div className="relative">
       {isHydrating && (
@@ -142,6 +180,7 @@ export function MobileStrategicProfileRealShellClient({
       <MobileStrategicProfilePreview
         profile={profile}
         isRealShell={true}
+        onSubmitAnalysis={handleAnalysisSubmit}
       />
     </div>
   );

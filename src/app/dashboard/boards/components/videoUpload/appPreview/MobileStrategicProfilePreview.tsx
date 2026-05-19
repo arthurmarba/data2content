@@ -18,6 +18,12 @@ type MobileStrategicProfilePreviewProps = {
   profile: MobileStrategicProfile;
   activeState?: MobileStrategicProfilePreviewFixtureState;
   isRealShell?: boolean;
+  onSubmitAnalysis?: (payload: {
+    creatorGoal: string;
+    selectedGoalOption: "authority" | "retention" | "format_test" | "sponsored_content";
+    quickAnswers?: Array<{ id: string; value: string }>;
+    mockScenario?: string;
+  }) => Promise<void>;
 };
 
 const CARD_TONE: Record<MobileStrategicProfileSectionCard["tone"], string> = {
@@ -346,6 +352,7 @@ export function MobileStrategicProfilePreview({
   profile,
   activeState,
   isRealShell,
+  onSubmitAnalysis,
 }: MobileStrategicProfilePreviewProps) {
   const [mediaKitModalOpen, setMediaKitModalOpen] = useState(false);
   const [analyzeFlowOpen, setAnalyzeFlowOpen] = useState(false);
@@ -435,6 +442,7 @@ export function MobileStrategicProfilePreview({
               open={analyzeFlowOpen}
               onClose={() => setAnalyzeFlowOpen(false)}
               onComplete={handleAnalyzeComplete}
+              onSubmitAnalysis={onSubmitAnalysis}
             />
           </div>
         </div>

@@ -1,14 +1,21 @@
 import fs from "fs";
 import path from "path";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MobileStrategicProfileAnalyzeFlow } from "./MobileStrategicProfileAnalyzeFlow";
 
 const SOURCE_PATH = path.join(__dirname, "MobileStrategicProfileAnalyzeFlow.tsx");
 
-function renderFlow() {
+function renderFlow(onSubmitAnalysis?: any) {
   const onClose = jest.fn();
   const onComplete = jest.fn();
-  render(<MobileStrategicProfileAnalyzeFlow open onClose={onClose} onComplete={onComplete} />);
+  render(
+    <MobileStrategicProfileAnalyzeFlow
+      open
+      onClose={onClose}
+      onComplete={onComplete}
+      onSubmitAnalysis={onSubmitAnalysis}
+    />
+  );
   return { onClose, onComplete };
 }
 
@@ -38,14 +45,18 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     expect(screen.getByText("Preview local. Nenhum arquivo será enviado neste protótipo.")).toBeInTheDocument();
   });
 
-  it("advances to creator goal", () => {
+  it("advances to creator goal and allows selection", () => {
     renderFlow();
     continueFlow();
     continueFlow();
 
     expect(screen.getByText("Qual era o objetivo do conteúdo?")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ganhar autoridade" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Preparar publi" })).toBeInTheDocument();
+    
+    // Click "Preparar publi" to select
+    const sponsoredBtn = screen.getByRole("button", { name: "Preparar publi" });
+    fireEvent.click(sponsoredBtn);
+    expect(sponsoredBtn).toHaveClass("bg-zinc-950 text-white");
   });
 
   it("advances to quick questions", () => {
@@ -59,30 +70,57 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     expect(screen.getByText("Esse conteúdo representa sua fase atual?")).toBeInTheDocument();
   });
 
-  it("advances to updating profile", () => {
-    renderFlow();
-    continueFlow();
-    continueFlow();
-    continueFlow();
-    continueFlow();
+  it("chama onSubmitAnalysis ao entrar em updating_profile e avança para sucesso", async () => {
+    const onSubmit = jest.fn().mockResolvedValue(undefined);
+    renderFlow(onSubmit);
+
+    continueFlow(); // intro -> mock_upload
+    continueFlow(); // mock_upload -> creator_goal
+    continueFlow(); // creator_goal -> quick_questions
+    continueFlow(); // quick_questions -> updating_profile
 
     expect(screen.getByText("Atualizando seu Perfil Estratégico")).toBeInTheDocument();
-    expect(screen.getByText("Estamos conectando essa leitura ao seu diagnóstico vivo.")).toBeInTheDocument();
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        selectedGoalOption: "authority",
+      })
+    );
+
+    // Wait until it advances to success step
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "Diagnóstico atualizado." })).toBeInTheDocument();
+    });
   });
 
-  it("advances to updated confirmation and completes", () => {
-    const { onComplete } = renderFlow();
-    continueFlow();
-    continueFlow();
-    continueFlow();
-    continueFlow();
-    continueFlow();
+  it("mostra erro amigável se onSubmitAnalysis falhar e permite tentar novamente", async () => {
+    const onSubmit = jest
+      .fn()
+      .mockRejectedValueOnce(new Error("Erro de conexão simulado."))
+      .mockResolvedValueOnce(undefined);
 
-    expect(screen.getByRole("dialog", { name: "Diagnóstico atualizado." })).toBeInTheDocument();
-    expect(screen.getByText("Identificamos novos aprendizados sobre sua narrativa.")).toBeInTheDocument();
+    const { onComplete } = renderFlow(onSubmit);
 
-    fireEvent.click(screen.getByRole("button", { name: "Voltar para meu Perfil" }));
+    continueFlow(); // intro -> mock_upload
+    continueFlow(); // mock_upload -> creator_goal
+    continueFlow(); // creator_goal -> quick_questions
+    continueFlow(); // quick_questions -> updating_profile
 
+    await waitFor(() => {
+      expect(screen.getByText("Erro na atualização")).toBeInTheDocument();
+      expect(screen.getByText("Erro de conexão simulado.")).toBeInTheDocument();
+    });
+
+    // Clique em tentar novamente
+    const retryBtn = screen.getByRole("button", { name: "Tentar novamente" });
+    fireEvent.click(retryBtn);
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "Diagnóstico atualizado." })).toBeInTheDocument();
+    });
+
+    // Clique em concluir
+    const completeBtn = screen.getByRole("button", { name: "Voltar para meu Perfil" });
+    fireEvent.click(completeBtn);
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 

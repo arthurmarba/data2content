@@ -10,7 +10,7 @@ jest.mock("../../../../home/homeSummaryClient", () => ({
 
 jest.mock("./MobileStrategicProfilePreview", () => {
   return {
-    MobileStrategicProfilePreview: ({ profile }: any) => (
+    MobileStrategicProfilePreview: ({ profile, onSubmitAnalysis }: any) => (
       <div data-testid="profile-preview-mock">
         <h1 data-testid="profile-display-name">{profile.header.identity.displayName}</h1>
         <p data-testid="profile-bio">{profile.header.identity.bio}</p>
@@ -19,6 +19,9 @@ jest.mock("./MobileStrategicProfilePreview", () => {
         <span data-testid="profile-mediakit-state">{profile.mediaKitBridge.state}</span>
         <span data-testid="profile-mediakit-href">{profile.mediaKitBridge.href || ""}</span>
         <span data-testid="profile-community-href">{profile.communityBridge.href || ""}</span>
+        <button data-testid="trigger-analysis-submit" onClick={() => onSubmitAnalysis?.({ creatorGoal: "test", selectedGoalOption: "authority" })}>
+          Submit
+        </button>
       </div>
     ),
   };
@@ -242,5 +245,54 @@ describe("MobileStrategicProfileRealShellClient", () => {
     await act(async () => {
       await Promise.resolve();
     });
+  });
+
+  it("chama o endpoint de análise no submit e atualiza o estado com o snapshot recebido", async () => {
+    (fetchHomeSummaryCached as jest.Mock).mockResolvedValue(null);
+
+    const mockNewSnapshot = {
+      schemaVersion: "mobile_strategic_profile_snapshot_v1",
+      profileState: "active",
+      unlockedSignals: ["Novo Sinal"],
+      pendingSignals: [],
+      recurringPatterns: ["Novo Padrão"],
+      opportunities: [],
+      diagnosisSummary: "Novo Diagnóstico",
+      commercialSummary: "Novo Comercial",
+      lastAnalysisSummary: "Novo Vídeo",
+    };
+
+    const mockResponse = {
+      ok: true,
+      json: async () => ({
+        ok: true,
+        snapshotUpdated: true,
+        snapshot: mockNewSnapshot,
+      }),
+    };
+
+    const globalFetchSpy = jest.spyOn(global, "fetch").mockResolvedValue(mockResponse as any);
+
+    render(
+      <MobileStrategicProfileRealShellClient
+        session={mockSession}
+        stateQuery={null}
+      />
+    );
+
+    // Dispara a submissão via botão mockado
+    await act(async () => {
+      screen.getByTestId("trigger-analysis-submit").click();
+    });
+
+    expect(globalFetchSpy).toHaveBeenCalledWith(
+      "/api/dashboard/mobile-strategic-profile/analyze",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ creatorGoal: "test", selectedGoalOption: "authority" }),
+      })
+    );
+
+    globalFetchSpy.mockRestore();
   });
 });
