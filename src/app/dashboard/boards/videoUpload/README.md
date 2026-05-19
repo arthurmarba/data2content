@@ -1817,6 +1817,23 @@ O que não faz:
 - não faz rede, `fetch`, upload real ou integração com BoardShell;
 - não usa OpenAI, Whisper, OCR real, ffmpeg ou SDK de processamento.
 
+### MM59 — Temporary Upload/Storage Readiness Plan
+
+Status: concluído.
+
+O que faz:
+- Cria tipos, contratos e políticas seguras de upload e storage temporário de vídeo (`videoNarrativeTemporaryUploadContracts.ts`);
+- Implementa validação puríssima de metadados, tamanhos, durações e consentimento explícito do criador (`videoNarrativeTemporaryUploadValidation.ts`);
+- Garante mitigação de riscos bloqueando Base64, URLs externas no nome/source do arquivo, e arquivos executáveis disfarçados;
+- Preserva a segurança operacional mantendo o provider de storage desativado por padrão (`providerMode = "disabled"`);
+- Garante total conformidade com a premissa de produto: não cria histórico visual de vídeos, não salva thumbnails e exige descarte físico seguro pós-análise.
+
+O que não faz:
+- Não implementa upload real nem picks de arquivo físico;
+- Não conecta com buckets S3, R2, GCS ou APIs do Cloudinary;
+- Não assina URLs de envio nem gera chaves reais;
+- Não altera o fluxo interativo "+" do perfil ou o endpoint interno de análise.
+
 ## Arquitetura Atual
 
 ```text

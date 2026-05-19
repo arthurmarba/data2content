@@ -377,3 +377,8 @@ MM55 implementa a camada de dados síncronos e puros `buildMobileStrategicProfil
 
 MM56 conecta a casca real a dados existentes da dashboard/home. O client-side wrapper `MobileStrategicProfileRealShellClient` realiza a hidratação em background disparando `fetchHomeSummaryCached("all")` de forma totalmente assíncrona, atualizando dinamicamente a UI com o adapter puro do MM55 sem bloquear a renderização inicial baseada nos dados da sessão. Fallbacks seguros garantem que falhas na API de summary sejam silenciadas sem quebrar a rota. O Perfil ainda não possui diagnóstico persistido nesta fase; análise real, upload, storage e Gemini real continuam fora do escopo.
 
+MM57 modela e implementa a persistência do snapshot mínimo do Perfil Estratégico mobile, definindo o modelo Mongoose para guardar os dados essenciais e signals do diagnóstico vivo sem salvar o vídeo físico, sem upload/storage real e sem Gemini.
+
+MM58 integra o fluxo de análise "+" à API interna em modo mock (`/api/dashboard/mobile-strategic-profile/analyze`), efetuando o processamento simulado baseado no objetivo do criador, gravando o novo snapshot no banco de dados, e re-renderizando a interface cliente reativamente com o perfil vivo atualizado de forma instantânea.
+
+MM59 prepara a futura camada de upload temporário e storage seguro de mídias. Cria tipos de políticas, contratos e validações rígidas de metadados, tamanhos e extensões (`videoNarrativeTemporaryUploadValidation.ts`) para evitar abusos e executáveis. O vídeo segue descartável e efêmero; o snapshot estratégico permanece como a única memória viva persistente. Os provedores reais de storage e Gemini continuam desativados por padrão.
