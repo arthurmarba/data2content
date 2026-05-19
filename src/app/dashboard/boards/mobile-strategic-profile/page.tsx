@@ -2,9 +2,7 @@ import { getServerSession } from "next-auth";
 import { redirect, notFound } from "next/navigation";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { isMobileStrategicProfileEnabled } from "../videoUpload/mobileStrategicProfileFeatureFlag";
-import { buildMobileStrategicProfileRealShellInput } from "../components/videoUpload/appPreview/buildMobileStrategicProfileRealShellInput";
-import { buildMobileStrategicProfile } from "../videoUpload/mobileStrategicProfileMapping";
-import { MobileStrategicProfilePreview } from "../components/videoUpload/appPreview/MobileStrategicProfilePreview";
+import { MobileStrategicProfileRealShellClient } from "../components/videoUpload/appPreview/MobileStrategicProfileRealShellClient";
 
 export const dynamic = "force-dynamic";
 
@@ -34,17 +32,11 @@ export default async function MobileStrategicProfilePage({
 
   // 3. Adapt session data and optional debug state to profile input
   const stateQuery = typeof searchParams?.state === "string" ? searchParams.state : null;
-  const shellInput = buildMobileStrategicProfileRealShellInput({
-    session,
-    stateQuery,
-  });
-
-  const profile = buildMobileStrategicProfile(shellInput);
 
   return (
-    <MobileStrategicProfilePreview
-      profile={profile}
-      isRealShell={true}
+    <MobileStrategicProfileRealShellClient
+      session={session}
+      stateQuery={stateQuery}
     />
   );
 }
