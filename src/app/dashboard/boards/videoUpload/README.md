@@ -1299,6 +1299,34 @@ O que não faz:
 - não faz chamadas de rede externas ou de banco reais;
 - não altera componentes de login real, `MediaKitView`, Comunidade real ou navegação global legado.
 
+### MM55 — Existing Data Adapter
+
+Status: concluído.
+
+Arquivos principais:
+
+- `mobileStrategicProfileExistingDataAdapter.ts`
+- `mobileStrategicProfileExistingDataAdapter.test.ts`
+- `buildMobileStrategicProfileRealShellInput.ts`
+- `buildMobileStrategicProfileRealShellInput.test.ts`
+
+O que faz:
+
+- cria o adapter puro `buildMobileStrategicProfileExistingDataAdapter` para enriquecer o Perfil Estratégico mobile com dados leves existentes;
+- consome dados de sessão, home summary, mídia kit, comunidade e planos de forma totalmente síncrona;
+- resolve displayName de forma segura (nome da sessão -> email local part -> "Creator") e displayHandle (instagramUsername da sessão -> null);
+- valida avatares descartando base64 longo e emite warnings testáveis em formato de lista interna sem poluir a UI;
+- resolve o estado do Mídia Kit a partir do `MediaKitCardData` e o Href da Comunidade respeitando os inviteUrls de VIP/Free existentes;
+- mantém o diagnóstico no fallback seguro de "Perfil em construção" quando não há snapshot persistido;
+- garante 100% de cobertura de testes unitários e de regressão.
+
+O que não faz:
+
+- não busca dados sozinho, não faz fetch HTTP, consultas ao banco de dados ou Prisma;
+- não cria tabelas ou persistência e não altera contratos do Stripe ou billing;
+- não conecta OpenAI, Gemini real ou qualquer provider multimodal externo;
+- não altera o layout `MediaKitView`, Comunidade real ou navegação do dashboard legado.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.

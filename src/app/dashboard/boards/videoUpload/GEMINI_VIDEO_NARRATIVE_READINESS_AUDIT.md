@@ -16,7 +16,9 @@ Já existe:
 - provider com flag server-side;
 - client factory com `@google/genai`;
 - composer `env/config -> factory -> provider`;
-- harness manual de execução real.
+- harness manual de execução real;
+- rota real segura do Perfil Estratégico mobile `/dashboard/boards/mobile-strategic-profile` (MM54);
+- adapter de dados síncrono e puro `mobileStrategicProfileExistingDataAdapter.ts` (MM55).
 
 ## O Que Ainda Não Foi Validado
 
@@ -130,6 +132,8 @@ Já existe:
 - MM52 refina visualmente a preview do Perfil Estratégico, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera UI real de produção;
 - strategic profile preview copy refinement foi aplicado em MM53 como camada segura de copy/preview;
 - MM53 melhora a linguagem da preview do Perfil Estratégico, mas não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage, não muda persistência e não altera UI real de produção;
+- rota real segura do Perfil Estratégico mobile foi criada em MM54, protegida por feature flag server-side e sessão do NextAuth, garantindo isolamento total do dashboard legado, sem impactar prontidão externa;
+- adapter de dados síncrono e puro foi criado em MM55, isolando o mapeamento de sessão NextAuth e home summary do Perfil mobile, garantindo zero dependência de banco de dados, Prisma, chamadas fetch ou providers externos;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
