@@ -100,6 +100,8 @@ Já existe:
 - a próxima etapa deve considerar os achados da QA antes de qualquer upload real, BoardShell, paywall ou integração real;
 - evolving creator diagnosis contract foi criado em MM38 como camada segura de produto sobre o diagnóstico pontual;
 - MM38 não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint e não muda upload/storage;
+- access tier diagnosis rules foi criado em MM39 para separar valor free, premium e Instagram conectado;
+- MM39 não aumenta readiness de Gemini real, não adiciona provider externo, não muda endpoint, não muda upload/storage e não muda billing real;
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 

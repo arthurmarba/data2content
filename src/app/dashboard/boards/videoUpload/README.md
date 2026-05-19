@@ -885,6 +885,30 @@ O que não faz:
 - não conecta Instagram real, BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
 - não conecta billing, Stripe ou cobrança.
 
+### MM39 — Access Tier Diagnosis Rules
+
+Status: concluído.
+
+Arquivos principais:
+
+- `videoNarrativeAccessTierDiagnosisRules.ts`
+- `videoNarrativeAccessTierDiagnosisRules.test.ts`
+
+O que faz:
+
+- cria regras puras para diferenciar diagnóstico `free`, `premium` e `instagram_optimized`;
+- separa valor gratuito, valor de assinatura e valor de Instagram conectado;
+- modela disponibilidade de marca/collab sem match real;
+- prepara a futura camada de apresentação sem criar UI;
+- centraliza a lógica de acesso para evitar espalhar paywall/copy pelos componentes.
+
+O que não faz:
+
+- não cria persistência, banco/tabela, endpoint, UI, preview, upload real, storage real ou analytics real;
+- não chama Gemini real, OpenAI, endpoint ou rede;
+- não conecta Instagram real, BoardShell, navegação/menu, fluxo real ou `PostCreationFunnelState`;
+- não conecta billing, Stripe ou cobrança.
+
 ## Visão Geral
 
 O Video Upload Foundation prepara os contratos e testes para uma experiência futura em que o criador poderá enviar um vídeo e descobrir qual narrativa ele comunica.
