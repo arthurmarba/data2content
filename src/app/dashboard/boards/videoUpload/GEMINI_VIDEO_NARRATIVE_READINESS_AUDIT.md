@@ -221,6 +221,14 @@ MM61 conecta a experiência real do `+ / Analisar vídeo` ao guichê de upload s
 - **Ainda NÃO muda storage**: não há signed URL real, bucket, upload direto, thumbnail ou vídeo salvo.
 - **Apenas exercita consentimento + validação metadata-only** antes de continuar para a análise mock e atualização do snapshot existente.
 
+## MM62 — Readiness De Storage Abstraction
+
+MM62 melhora a prontidão arquitetural de storage sem aproximar a execução de Gemini real:
+- **Ainda NÃO aumenta readiness de Gemini real**: nenhum provider Gemini, OpenAI ou análise multimodal foi conectado.
+- **Ainda NÃO adiciona SDK de storage**: não há import de S3/R2/GCS/Cloudinary.
+- **Ainda NÃO gera signed URL real**: a factory só retorna `disabled` ou sessão `mock_session_created` sem URL/chave física.
+- **Apenas separa contratos, config/env e escolha de provider** para preparar uma futura allowlist de signed URL em PR separado.
+
 ## Frase Norte
 
 > O sistema pode estar pronto para testar Gemini real sem ainda estar pronto para lançar vídeo no produto.

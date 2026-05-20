@@ -127,3 +127,20 @@ MM61 conecta a rota real do Perfil Estratégico mobile ao endpoint de sessão te
 - a resposta `mock_session_created` apenas libera o caminho para a análise mock já existente.
 
 Próximos passos para provider real permanecem separados: escolher storage, assinar URL curta, implementar upload direto, confirmar processamento, deletar o arquivo e auditar cleanup. Nenhum desses passos é liberado por MM61.
+
+## Fase MM62 — Provider Abstraction
+
+MM62 adiciona a camada server-side que decide qual provider de storage temporário seria usado, sem habilitar storage real.
+
+- `disabled`: retorno seguro para qualquer configuração sem provider mock ou com blockers.
+- `mock`: cria sessão `mock_session_created` com TTL, retenção e flags de descarte, sem URL ou chave de storage.
+- `r2_planned`, `s3_planned`, `gcs_planned`, `cloudinary_planned`: modos documentados para futuro, sempre disabled nesta build.
+- Validação de env: lê sessão habilitada, max MB, TTL de retenção, TTL de signed URL e provider planejado, mas bloqueia `VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED=true`.
+
+Próximos passos antes de signed URL real:
+
+- definir allowlist exata de provider e ambiente;
+- validar credenciais sem logar secrets;
+- adicionar assinatura curta em provider isolado;
+- testar upload direto sem passar bytes pelo servidor da aplicação;
+- auditar cleanup, expiração e remoção pós-processamento.

@@ -2001,6 +2001,14 @@ MM61 integra a UI do fluxo `+ / Analisar vídeo` à upload-session API em modo m
 
 Esta fase não envia arquivo, não lê bytes, não usa `FileReader`, não cria thumbnail/player, não salva vídeo e não usa storage real. Depois que a API retorna `mock_session_created`, o fluxo continua para objetivo/perguntas e mantém a atualização do snapshot pela análise mock existente.
 
+### MM62 — Temporary Storage Provider Abstraction
+
+Status: concluído.
+
+MM62 cria a abstração server-side para storage temporário futuro, separando a upload-session API da decisão de provider físico. A fase adiciona contratos de provider, providers `disabled`/`mock`, parser seguro de configuração/env e factory server-side para escolher o comportamento em runtime.
+
+A upload-session API passa a usar a factory, mas provider real continua bloqueado. Não há signed URL real, `uploadUrl`, `storageKey`, SDK de storage, bucket real ou upload real. Providers R2/S3/GCS/Cloudinary existem apenas como modos planejados e retornam disabled nesta build.
+
 ## Próximas Fases Sugeridas
 
 - PROC4: contrato de fila/job conceitual de processamento.
