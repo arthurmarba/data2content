@@ -158,6 +158,19 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
   }
 
   const runProvider = deps.runProvider ?? runVideoNarrativeGeminiProvider;
+  const geminiClient =
+    "geminiClient" in deps
+      ? deps.geminiClient ?? null
+      : deps.runProvider
+        ? null
+        : configResult.config.apiKey
+          ? (
+              await import("./geminiVideoNarrativeClientFactory")
+            ).createVideoNarrativeGeminiClientAdapter({
+              apiKey: configResult.config.apiKey,
+              model: configResult.config.model ?? undefined,
+            }).client
+        : null;
   const providerResult = await runProvider({
     input: {
       userId: params.user.id ?? "unknown",
@@ -181,7 +194,7 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     user: params.user,
     env,
     config: configResult.config,
-    client: deps.geminiClient ?? null,
+    client: geminiClient,
     videoInput: storageInputResult.geminiInput,
   });
 

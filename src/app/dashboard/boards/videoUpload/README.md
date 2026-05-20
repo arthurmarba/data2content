@@ -2079,3 +2079,13 @@ Status: concluído.
 - Não salva vídeo.
 - Não persiste objectKey/signed URL no snapshot.
 - Cleanup pode deletar objeto temporário quando provider suporta.
+
+### MM69 — Real E2E Smoke + Runtime Fixes
+
+Status: concluído.
+
+MM69 configurou o runtime local real com Gemini e storage temporário R2/S3-compatible sem commitar segredos. O env audit final passou com `ok=true`, storage ready e allowlist configurada. O Gemini smoke retornou `ok=true`, `model=gemini-2.5-flash`, `parserReady=true`, `timingMs=8738` e sem issues seguras.
+
+O storage smoke validou upload temporário, leitura via runtime adapter (`GetObject`) e cleanup (`DeleteObject`) com `ok=true`, `provider=r2`, `status=ready` e sem signed URL em logs. O real E2E smoke foi executado por chamadas internas controladas, porque o signer de signed URL do endpoint público ainda segue injetável/não habilitado para browser: o fluxo validou upload temporário, adapter, Gemini real, parser, snapshot privado salvo no Mongo e cleanup, retornando `e2e_real_passed`.
+
+Correções de runtime feitas nesta fase: o smoke harness interno deixou de validar o provider legado com o parser novo incompatível, e o orchestrator real passou a instanciar o client Gemini server-side via factory lazy-loaded quando nenhum client é injetado. Usuários comuns permanecem bloqueados por flags, allowlist e guards server-side; o endpoint mock segue preservado.

@@ -231,3 +231,16 @@ MM68 implementa oficialmente o `videoNarrativeTemporaryStorageRuntimeAdapter.ts`
 - **Consumo Seguro Multimodal**: Passa os bytes puros do buffer em tempo de memória para a API do Google, impedindo a geração ou o tráfego de signed URLs inseguras na interface.
 - **Deleção Programática**: O adapter conta com o método `deleteVideoNarrativeTemporaryStorageObject` que aciona a destruição do arquivo assim que a request de `upload-cleanup` é engatilhada, removendo da nuvem de imediato. O erro na deleção vira um log/warning não-impeditivo.
 - **Riscos de Custo/Timeout**: Ler arquivos pesados diretamente na Lambda/Runtime e transformá-los num Base64/buffer do Gemini requer atenção ao tamanho (MAX_MB suportado vs limites de Vercel e da IA), sendo vital os limites estritos definidos no contrato do Adapter.
+
+## Fase MM69 — Storage Smoke Real
+
+MM69 validou o provider R2/S3-compatible em runtime local sem commitar segredos:
+
+- env audit confirmou storage provider `r2` e credenciais presentes;
+- storage smoke criou um objeto temporário pequeno, validou `GetObject` pelo adapter e confirmou `DeleteObject`;
+- nenhum vídeo foi commitado ou salvo no app;
+- nenhuma signed URL foi impressa;
+- nenhum `objectKey` foi persistido em snapshot;
+- cleanup real funcionou no bucket de teste.
+
+Limitação registrada: o caminho browser completo ainda depende de signer real em `/api/dashboard/mobile-strategic-profile/upload-session`; por isso o E2E real foi executado com upload interno controlado para provar runtime, não para lançar o fluxo amplo.

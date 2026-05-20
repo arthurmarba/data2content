@@ -460,3 +460,23 @@ Não recomendar integração real antes do QA/polish visual.
 - Em caso de arquivo ausente/apagado ou credencial falha, a IA deve abortar com aviso seguro ao criador e NÃO vazar exceção da AWS;
 - `Cleanup_accepted`: O arquivo deve de fato ser deletado no bucket se provider disponível;
 - `Cleanup_not_configured`: Fallback seguro continua valendo e sem impactar persistência da snapshot se adapter de storage ou permissão faltarem.
+
+## Cenários MM69 — Real E2E Smoke + Runtime Fixes
+
+- Env audit local deve retornar `ok=true` sem imprimir segredos.
+- Gemini smoke deve retornar apenas `ok`, `model`, `parserReady`, `timingMs` e issue codes seguros; MM69 validou `ok=true`, `parserReady=true`, `model=gemini-2.5-flash`.
+- Storage smoke deve confirmar upload temporário, leitura server-side via adapter e cleanup real; MM69 validou `putObject=true`, `getObject=true`, `deleteObject=true`.
+- Real E2E smoke deve validar upload temporário, storage adapter, Gemini real, parser, snapshot salvo e cleanup. MM69 retornou `e2e_real_passed` por chamadas internas controladas.
+- Usuário comum continua bloqueado por flags/allowlist server-side e não deve ver upload real ou Gemini real.
+- Não deve aparecer thumbnail, player, galeria, histórico visual, raw response, signed URL ou `objectKey` no Perfil.
+
+## Guardrails do MM69
+
+- `.env.local` não pode ser versionado.
+- Nenhuma chave Gemini/R2 pode aparecer em arquivo versionado, doc, fixture ou log.
+- Sem vídeo salvo no banco.
+- Sem raw Gemini response salvo.
+- Sem signed URL persistida.
+- Sem `objectKey` persistido no snapshot.
+- Endpoint mock `/api/dashboard/mobile-strategic-profile/analyze` preservado.
+- Mídia Kit, Comunidade, navegação real, DashboardShell/BoardShell/sidebar, ActivationPendingWidget, LoginClient, NextAuth e billing seguem fora do escopo.

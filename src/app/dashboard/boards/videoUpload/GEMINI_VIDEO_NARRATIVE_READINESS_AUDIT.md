@@ -279,6 +279,17 @@ MM68 implementa o acesso ao arquivo físico para consumo da IA:
 - **Isolamento Constante**: Continua focado exclusivamente em allowlist, não afetando usuários comuns.
 - **Exclusão Transparente**: Uma vez processado, o vídeo efêmero é limpo do bucket via adapter da AWS SDK durante a request `upload-cleanup`.
 
+## MM69 — Real E2E Smoke + Runtime Fixes
+
+MM69 executou o primeiro smoke real completo em runtime local allowlist:
+
+- **Env audit**: `ok=true`, Gemini key presente, provider habilitado, análise real habilitada, upload real habilitado, signed upload allowlist habilitada, storage `r2` e credenciais presentes.
+- **Gemini smoke**: `ok=true`, `model=gemini-2.5-flash`, `parserReady=true`, `timingMs=8738`, sem raw response e sem snapshot.
+- **Storage smoke**: `ok=true`, upload temporário seguro, leitura via adapter e cleanup confirmados, sem signed URL ou object key em logs.
+- **Real E2E smoke**: `e2e_real_passed` por chamadas internas controladas, validando upload temporário, adapter, Gemini real, parser, snapshot privado salvo e cleanup.
+
+Correções aplicadas: o smoke harness interno passou a confiar no parser do provider legado que ele próprio usa, evitando falso negativo `missing_required_fields`; o orchestrator real passou a criar o client Gemini server-side por lazy import da factory quando nenhum client é injetado. O provider continua allowlist/admin-dev, usuários comuns seguem bloqueados e o endpoint mock permanece intacto.
+
 ## Frase Norte
 
 > O sistema pode estar pronto para testar Gemini real sem ainda estar pronto para lançar vídeo no produto.

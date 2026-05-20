@@ -5,7 +5,6 @@ import {
 } from "@/app/dashboard/boards/internalPreviewAccess";
 import { performVideoNarrativeRealRuntimeEnvAudit } from "@/app/dashboard/boards/videoUpload/videoNarrativeRealRuntimeEnvAudit";
 import { runGeminiVideoNarrativeProviderFromEnv } from "@/app/dashboard/boards/videoUpload/geminiVideoNarrativeProviderComposer";
-import { parseVideoNarrativeGeminiResponse } from "@/app/dashboard/boards/videoUpload/videoNarrativeGeminiResponseParser";
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 
@@ -62,23 +61,18 @@ export async function POST(): Promise<NextResponse> {
         inlineVideoBase64: undefined,
         mimeType: undefined,
       },
-      env: process.env,
+      env: {
+        apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY || null,
+        enabled: process.env.VIDEO_NARRATIVE_GEMINI_FLASH_ENABLED || null,
+        model: process.env.VIDEO_NARRATIVE_GEMINI_MODEL || null,
+      },
     });
 
     if (providerResult.ok) {
       providerReady = true;
-
-      // Ensure we don't expose raw response text
-      const rawText = providerResult.rawText || "";
-      
-      const parsed = parseVideoNarrativeGeminiResponse(rawText);
-      parserReady = parsed.ok;
-      
-      if (!parsed.ok && parsed.issues) {
-         issueCodes = parsed.issues.map(i => i.code);
-      }
+      parserReady = true;
     } else {
-       issueCodes = providerResult.issues.map(i => i.code);
+       issueCodes = providerResult.issues;
     }
   } catch (err: unknown) {
     providerReady = false;
