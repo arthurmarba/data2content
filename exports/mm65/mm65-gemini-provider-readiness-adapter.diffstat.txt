@@ -1,0 +1,21 @@
+ .../GEMINI_VIDEO_NARRATIVE_READINESS_AUDIT.md      |   9 +
+ .../videoUpload/MOBILE_STRATEGIC_PROFILE_UX_QA.md  |  17 ++
+ src/app/dashboard/boards/videoUpload/README.md     |  10 ++
+ .../VIDEO_MULTIMODAL_NARRATIVE_ARCHITECTURE.md     |   2 +
+ ..._NARRATIVE_TEMPORARY_UPLOAD_STORAGE_STRATEGY.md |   6 +
+ .../geminiVideoNarrativeResponse.fixture.ts        |  23 +++
+ .../mobileStrategicProfileSnapshotTypes.ts         |   2 +-
+ .../videoUpload/videoNarrativeAiProviderTypes.ts   |  65 +++++++
+ .../videoNarrativeGeminiAllowlist.test.ts          |  50 ++++++
+ .../videoUpload/videoNarrativeGeminiAllowlist.ts   |  74 ++++++++
+ .../videoNarrativeGeminiPromptBuilder.test.ts      |  71 ++++++++
+ .../videoNarrativeGeminiPromptBuilder.ts           |  84 +++++++++
+ .../videoNarrativeGeminiProvider.test.ts           | 168 ++++++++++++++++++
+ .../videoUpload/videoNarrativeGeminiProvider.ts    | 160 +++++++++++++++++
+ .../videoNarrativeGeminiProviderConfig.test.ts     |  68 ++++++++
+ .../videoNarrativeGeminiProviderConfig.ts          | 105 +++++++++++
+ .../videoNarrativeGeminiResponseParser.test.ts     |  80 +++++++++
+ .../videoNarrativeGeminiResponseParser.ts          | 192 +++++++++++++++++++++
+ .../videoNarrativeGeminiSnapshotMapper.test.ts     |  63 +++++++
+ .../videoNarrativeGeminiSnapshotMapper.ts          |  56 ++++++
+ 20 files changed, 1304 insertions(+), 1 deletion(-)

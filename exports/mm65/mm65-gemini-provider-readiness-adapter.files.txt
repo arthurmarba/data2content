@@ -1,0 +1,21 @@
+268cc91b feat: add gemini provider readiness adapter
+M	src/app/dashboard/boards/videoUpload/GEMINI_VIDEO_NARRATIVE_READINESS_AUDIT.md
+M	src/app/dashboard/boards/videoUpload/MOBILE_STRATEGIC_PROFILE_UX_QA.md
+M	src/app/dashboard/boards/videoUpload/README.md
+M	src/app/dashboard/boards/videoUpload/VIDEO_MULTIMODAL_NARRATIVE_ARCHITECTURE.md
+M	src/app/dashboard/boards/videoUpload/VIDEO_NARRATIVE_TEMPORARY_UPLOAD_STORAGE_STRATEGY.md
+A	src/app/dashboard/boards/videoUpload/__fixtures__/geminiVideoNarrativeResponse.fixture.ts
+M	src/app/dashboard/boards/videoUpload/mobileStrategicProfileSnapshotTypes.ts
+A	src/app/dashboard/boards/videoUpload/videoNarrativeAiProviderTypes.ts
+A	src/app/dashboard/boards/videoUpload/videoNarrativeGeminiAllowlist.test.ts
+A	src/app/dashboard/boards/videoUpload/videoNarrativeGeminiAllowlist.ts
+A	src/app/dashboard/boards/videoUpload/videoNarrativeGeminiPromptBuilder.test.ts
+A	src/app/dashboard/boards/videoUpload/videoNarrativeGeminiPromptBuilder.ts
+A	src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProvider.test.ts
+A	src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProvider.ts
+A	src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProviderConfig.test.ts
+A	src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProviderConfig.ts
+A	src/app/dashboard/boards/videoUpload/videoNarrativeGeminiResponseParser.test.ts
+A	src/app/dashboard/boards/videoUpload/videoNarrativeGeminiResponseParser.ts
+A	src/app/dashboard/boards/videoUpload/videoNarrativeGeminiSnapshotMapper.test.ts
+A	src/app/dashboard/boards/videoUpload/videoNarrativeGeminiSnapshotMapper.ts

@@ -1,0 +1,125 @@
+import { performVideoNarrativeRealRuntimeEnvAudit } from "./videoNarrativeRealRuntimeEnvAudit";
+
+describe("videoNarrativeRealRuntimeEnvAudit", () => {
+  it("Retorna missing API key sem expor valor", () => {
+    const env = {
+      VIDEO_NARRATIVE_GEMINI_FLASH_ENABLED: "true",
+      VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED: "true",
+      VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED: "true",
+      VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED: "true",
+      VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "true",
+      VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS: "test@example.com",
+      VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "cloudflare_r2",
+    };
+    const result = performVideoNarrativeRealRuntimeEnvAudit(env);
+    expect(result.ok).toBe(false);
+    expect(result.flags.geminiApiKeyPresent).toBe(false);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ code: "gemini_api_key_missing" })
+    );
+    // Assegura que nenhum valor de variável é exposto nas mensagens
+    expect(JSON.stringify(result)).not.toContain("test@example.com");
+  });
+
+  it("Retorna provider disabled", () => {
+    const env = {
+      GEMINI_API_KEY: "secret",
+      VIDEO_NARRATIVE_GEMINI_FLASH_ENABLED: "false",
+      VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED: "true",
+      VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED: "true",
+      VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED: "true",
+      VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "true",
+      VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS: "test@example.com",
+      VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "cloudflare_r2",
+    };
+    const result = performVideoNarrativeRealRuntimeEnvAudit(env);
+    expect(result.ok).toBe(false);
+    expect(result.flags.geminiProviderEnabled).toBe(false);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ code: "gemini_provider_disabled" })
+    );
+  });
+
+  it("Retorna real analysis disabled", () => {
+    const env = {
+      GEMINI_API_KEY: "secret",
+      VIDEO_NARRATIVE_GEMINI_FLASH_ENABLED: "true",
+      VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED: "false",
+      VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED: "true",
+      VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED: "true",
+      VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "true",
+      VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS: "test@example.com",
+      VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "cloudflare_r2",
+    };
+    const result = performVideoNarrativeRealRuntimeEnvAudit(env);
+    expect(result.ok).toBe(false);
+    expect(result.flags.realAnalysisEnabled).toBe(false);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ code: "real_analysis_disabled" })
+    );
+  });
+
+  it("Retorna storage provider missing", () => {
+    const env = {
+      GEMINI_API_KEY: "secret",
+      VIDEO_NARRATIVE_GEMINI_FLASH_ENABLED: "true",
+      VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED: "true",
+      VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED: "true",
+      VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED: "true",
+      VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "true",
+      VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS: "test@example.com",
+      VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "disabled",
+    };
+    const result = performVideoNarrativeRealRuntimeEnvAudit(env);
+    expect(result.ok).toBe(false);
+    expect(result.flags.storageProvider).toBe("disabled");
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ code: "storage_provider_missing" })
+    );
+  });
+
+  it("Retorna allowlist missing", () => {
+    const env = {
+      GEMINI_API_KEY: "secret",
+      VIDEO_NARRATIVE_GEMINI_FLASH_ENABLED: "true",
+      VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED: "true",
+      VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED: "true",
+      VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED: "true",
+      VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "false",
+      VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "cloudflare_r2",
+    };
+    const result = performVideoNarrativeRealRuntimeEnvAudit(env);
+    expect(result.ok).toBe(false);
+    expect(result.flags.allowlistConfigured).toBe(false);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ code: "allowlist_missing" })
+    );
+  });
+
+  it("Retorna ready quando env fake está completa", () => {
+    const env = {
+      GEMINI_API_KEY: "fake-secret-key-123",
+      VIDEO_NARRATIVE_GEMINI_FLASH_ENABLED: "true",
+      VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED: "true",
+      VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED: "true",
+      VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED: "true",
+      VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "true",
+      VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS: "test@example.com",
+      VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "cloudflare_r2",
+    };
+    const result = performVideoNarrativeRealRuntimeEnvAudit(env);
+    expect(result.ok).toBe(true);
+    expect(result.issues).toHaveLength(1);
+    expect(result.issues[0].code).toBe("env_ready_for_smoke");
+  });
+
+  it("Não retorna nenhum secret", () => {
+    const secretKey = "super-secret-api-key-that-should-never-leak";
+    const env = {
+      GEMINI_API_KEY: secretKey,
+    };
+    const result = performVideoNarrativeRealRuntimeEnvAudit(env);
+    const jsonStr = JSON.stringify(result);
+    expect(jsonStr).not.toContain(secretKey);
+  });
+});

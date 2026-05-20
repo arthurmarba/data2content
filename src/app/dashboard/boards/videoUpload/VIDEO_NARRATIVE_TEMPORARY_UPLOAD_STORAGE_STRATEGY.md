@@ -214,3 +214,12 @@ Próximos passos para beta hardening:
 - implementar delete real do provider temporário;
 - adicionar auditoria de cleanup, custo e latência;
 - validar rate limits antes de ampliar a allowlist.
+
+## Fase MM67 — Runtime Resolver Audit
+
+MM67 adiciona o `videoNarrativeTemporaryStorageRuntimeResolver.ts` como validação estrita antes do provider Gemini tentar acessar o vídeo real:
+
+- atua como um contrato/auditoria que sinaliza `missing_storage_adapter` caso o pipeline tente ler um objeto temporário sem um SDK de download implementado;
+- o orquestrador bloqueia a análise real antes da execução com a IA, retornando a mensagem segura: "A análise real ainda precisa da conexão temporária de storage para ler o vídeo.";
+- garante que nenhum detalhe interno ou raw stack trace seja exposto ao criador no momento do bloqueio;
+- consolida a estratégia de que o Gemini provider não assume a responsabilidade do download e que o sistema está blindado contra falhas não tratadas na ausência de implementação do storage físico.
