@@ -302,6 +302,17 @@ MM70 transforma o runtime real validado no MM69 em beta fechado controlável:
 
 O beta fechado permanece protegido por allowlist/admin-dev; billing real e usuários comuns não foram ativados.
 
+## MM71 — Closed Beta Launch Candidate
+
+MM71 adiciona a visão operacional de readiness para o beta fechado:
+
+- **Readiness puro**: `videoNarrativeClosedBetaReadiness.ts` compõe env audit, allowlist e usage state sem chamar Gemini ou storage.
+- **Estados seguros**: `beta_ready`, `beta_disabled`, `user_not_allowlisted`, `usage_limit_reached`, `env_not_ready`, `storage_not_ready`, `gemini_not_ready`, `rollback_enabled`.
+- **Launch checklist**: `VIDEO_NARRATIVE_CLOSED_BETA_LAUNCH_CHECKLIST.md` documenta Vercel envs, allowlist, smoke, rollback e anti-vazamento.
+- **QA mobile**: valida público comum bloqueado, allowlist dentro do limite, limite atingido, falha Gemini, falha storage e cleanup warning.
+
+O launch candidate continua restrito a 3 a 5 creators reais, sem ativar público geral.
+
 ## Frase Norte
 
 > O sistema pode estar pronto para testar Gemini real sem ainda estar pronto para lançar vídeo no produto.

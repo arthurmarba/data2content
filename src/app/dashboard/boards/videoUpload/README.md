@@ -2099,3 +2099,13 @@ MM70 adiciona limites persistentes de uso para análise real de vídeo antes de 
 A fase protege custo do Gemini com `VIDEO_NARRATIVE_REAL_ANALYSIS_BETA_LIMITS_ENABLED=1`, contador Mongoose mínimo por usuário/dia/mês e bloqueio antes de storage/Gemini quando limite, cooldown ou acesso beta falham. Mensagens humanas foram mapeadas para limite, beta access, storage, timeout/provider Gemini, parser/snapshot e cleanup warning, sem stack trace, secret, signed URL ou `objectKey`.
 
 Também foi criado `VIDEO_NARRATIVE_REAL_ANALYSIS_PRODUCTION_CHECKLIST.md` com envs de Vercel, smoke checklist, rollback por feature flags, R2/Gemini/cleanup checks e rotação de secrets. Billing real não foi alterado, o endpoint mock permanece preservado e MediaKit, Comunidade, navegação, shells, LoginClient, NextAuth e billing seguem fora do escopo.
+
+### MM71 — Closed Beta Launch Candidate
+
+Status: concluído.
+
+MM71 consolida o beta fechado como launch candidate para 3 a 5 creators reais. A fase adiciona um helper puro de readiness/access (`videoNarrativeClosedBetaReadiness.ts`) que compõe env audit, allowlist e usage state sem chamar Gemini nem storage. Ele retorna estado seguro de beta, rollback, allowlist, limite, env, storage e Gemini.
+
+Também cria `VIDEO_NARRATIVE_CLOSED_BETA_LAUNCH_CHECKLIST.md` com envs de Vercel, liberação de creator por allowlist, smoke Preview/Production, rollback rápido e checklist anti-vazamento. O QA mobile foi ampliado com cenários de usuário comum, allowlist válido, limite atingido, falha Gemini, falha storage e cleanup warning.
+
+Público geral continua bloqueado; allowlist/admin-dev seguem como únicos caminhos para o fluxo real. O endpoint mock permanece preservado e billing, MediaKit, Comunidade, navegação, shells, LoginClient e NextAuth não foram alterados.
