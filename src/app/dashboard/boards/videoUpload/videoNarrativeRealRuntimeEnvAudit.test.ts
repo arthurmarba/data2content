@@ -9,6 +9,7 @@ describe("videoNarrativeRealRuntimeEnvAudit", () => {
       VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED: "true",
       VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "true",
       VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS: "test@example.com",
+      VIDEO_NARRATIVE_REAL_ANALYSIS_BETA_LIMITS_ENABLED: "1",
       VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "cloudflare_r2",
     };
     const result = performVideoNarrativeRealRuntimeEnvAudit(env);
@@ -30,6 +31,7 @@ describe("videoNarrativeRealRuntimeEnvAudit", () => {
       VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED: "true",
       VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "true",
       VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS: "test@example.com",
+      VIDEO_NARRATIVE_REAL_ANALYSIS_BETA_LIMITS_ENABLED: "1",
       VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "cloudflare_r2",
     };
     const result = performVideoNarrativeRealRuntimeEnvAudit(env);
@@ -49,6 +51,7 @@ describe("videoNarrativeRealRuntimeEnvAudit", () => {
       VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED: "true",
       VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "true",
       VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS: "test@example.com",
+      VIDEO_NARRATIVE_REAL_ANALYSIS_BETA_LIMITS_ENABLED: "1",
       VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "cloudflare_r2",
     };
     const result = performVideoNarrativeRealRuntimeEnvAudit(env);
@@ -68,6 +71,7 @@ describe("videoNarrativeRealRuntimeEnvAudit", () => {
       VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED: "true",
       VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "true",
       VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS: "test@example.com",
+      VIDEO_NARRATIVE_REAL_ANALYSIS_BETA_LIMITS_ENABLED: "1",
       VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "disabled",
     };
     const result = performVideoNarrativeRealRuntimeEnvAudit(env);
@@ -86,6 +90,7 @@ describe("videoNarrativeRealRuntimeEnvAudit", () => {
       VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED: "true",
       VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED: "true",
       VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "false",
+      VIDEO_NARRATIVE_REAL_ANALYSIS_BETA_LIMITS_ENABLED: "1",
       VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "cloudflare_r2",
     };
     const result = performVideoNarrativeRealRuntimeEnvAudit(env);
@@ -105,6 +110,7 @@ describe("videoNarrativeRealRuntimeEnvAudit", () => {
       VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED: "true",
       VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "true",
       VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS: "test@example.com",
+      VIDEO_NARRATIVE_REAL_ANALYSIS_BETA_LIMITS_ENABLED: "1",
       VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "cloudflare_r2",
       // Faltam as keys
     };
@@ -125,6 +131,7 @@ describe("videoNarrativeRealRuntimeEnvAudit", () => {
       VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED: "true",
       VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "true",
       VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS: "test@example.com",
+      VIDEO_NARRATIVE_REAL_ANALYSIS_BETA_LIMITS_ENABLED: "1",
       VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "cloudflare_r2",
       VIDEO_NARRATIVE_TEMP_STORAGE_BUCKET: "fake-bucket",
       VIDEO_NARRATIVE_TEMP_STORAGE_ACCESS_KEY_ID: "fake-key",
@@ -132,6 +139,7 @@ describe("videoNarrativeRealRuntimeEnvAudit", () => {
     };
     const result = performVideoNarrativeRealRuntimeEnvAudit(env);
     expect(result.ok).toBe(true);
+    expect(result.flags.betaLimitsEnabled).toBe(true);
     expect(result.issues).toHaveLength(2);
     expect(result.issues).toContainEqual(expect.objectContaining({ code: "env_ready_for_smoke" }));
     expect(result.issues).toContainEqual(expect.objectContaining({ code: "storage_runtime_resolver_ready" }));
@@ -145,5 +153,25 @@ describe("videoNarrativeRealRuntimeEnvAudit", () => {
     const result = performVideoNarrativeRealRuntimeEnvAudit(env);
     const jsonStr = JSON.stringify(result);
     expect(jsonStr).not.toContain(secretKey);
+  });
+
+  it("Retorna beta limits disabled quando proteção de custo falta", () => {
+    const env = {
+      GEMINI_API_KEY: "secret",
+      VIDEO_NARRATIVE_GEMINI_FLASH_ENABLED: "true",
+      VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED: "true",
+      VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED: "true",
+      VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED: "true",
+      VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "true",
+      VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS: "test@example.com",
+      VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "cloudflare_r2",
+      VIDEO_NARRATIVE_TEMP_STORAGE_BUCKET: "fake-bucket",
+      VIDEO_NARRATIVE_TEMP_STORAGE_ACCESS_KEY_ID: "fake-key",
+      VIDEO_NARRATIVE_TEMP_STORAGE_SECRET_ACCESS_KEY: "fake-secret",
+    };
+    const result = performVideoNarrativeRealRuntimeEnvAudit(env);
+    expect(result.ok).toBe(false);
+    expect(result.flags.betaLimitsEnabled).toBe(false);
+    expect(result.issues).toContainEqual(expect.objectContaining({ code: "beta_limits_disabled" }));
   });
 });

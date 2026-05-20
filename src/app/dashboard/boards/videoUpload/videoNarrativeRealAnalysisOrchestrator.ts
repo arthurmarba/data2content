@@ -15,6 +15,15 @@ import {
 import { runVideoNarrativeGeminiProvider, type VideoNarrativeGeminiClientAdapter } from "./videoNarrativeGeminiProvider";
 import { mapGeminiAnalysisToStrategicProfileSnapshot } from "./videoNarrativeGeminiSnapshotMapper";
 import type { VideoNarrativeRealAnalysisPayload } from "./videoNarrativeRealAnalysisTypes";
+import {
+  assertCanRunVideoNarrativeRealAnalysis,
+  recordVideoNarrativeRealAnalysisAttempt,
+  recordVideoNarrativeRealAnalysisFailure,
+  recordVideoNarrativeRealAnalysisSuccess,
+} from "./videoNarrativeRealAnalysisUsageService";
+import {
+  getVideoNarrativeRealAnalysisUserFacingMessage,
+} from "./videoNarrativeRealAnalysisUserFacingErrors";
 import { resolveVideoNarrativeTemporaryStorageObject } from "./videoNarrativeTemporaryStorageRuntimeResolver";
 import { resolveVideoNarrativeTemporaryStorageInput } from "./videoNarrativeTemporaryStorageRuntimeAdapter";
 
@@ -50,6 +59,10 @@ export type VideoNarrativeRealAnalysisOrchestratorDeps = {
     client?: VideoNarrativeGeminiClientAdapter | null;
   }) => Promise<VideoNarrativeAiProviderResult>;
   upsertSnapshot?: typeof upsertStrategicProfileSnapshot;
+  assertCanRunRealAnalysis?: typeof assertCanRunVideoNarrativeRealAnalysis;
+  recordUsageAttempt?: typeof recordVideoNarrativeRealAnalysisAttempt;
+  recordUsageSuccess?: typeof recordVideoNarrativeRealAnalysisSuccess;
+  recordUsageFailure?: typeof recordVideoNarrativeRealAnalysisFailure;
   cleanupTemporaryUpload?: (payload: {
     uploadSessionId: string;
     objectKey?: string;
@@ -90,6 +103,24 @@ async function tryCleanup(params: {
   }
 }
 
+async function recordFailureSafely(params: {
+  deps: VideoNarrativeRealAnalysisOrchestratorDeps;
+  userId?: string | null;
+  reason: string;
+  now: Date;
+}): Promise<void> {
+  if (!params.userId) return;
+  try {
+    await (params.deps.recordUsageFailure ?? recordVideoNarrativeRealAnalysisFailure)({
+      userId: params.userId,
+      reason: params.reason,
+      now: params.now,
+    });
+  } catch {
+    // Usage telemetry must not leak implementation details or mask the original safe failure.
+  }
+}
+
 export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
   payload: VideoNarrativeRealAnalysisPayload;
   user: VideoNarrativeGeminiAllowlistUser & {
@@ -125,6 +156,49 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     });
   }
 
+  let usageAttemptRecorded = false;
+  const assertCanRunRealAnalysis = deps.assertCanRunRealAnalysis ?? assertCanRunVideoNarrativeRealAnalysis;
+  try {
+    const usageDecision = await assertCanRunRealAnalysis({
+      user: params.user,
+      env,
+      now,
+    });
+
+    if (!usageDecision.ok) {
+      return safeFailure({
+        status: "blocked",
+        message: getVideoNarrativeRealAnalysisUserFacingMessage(usageDecision.code),
+        safeIssueCode: usageDecision.code,
+      });
+    }
+
+    if (
+      params.payload.temporaryUpload?.sizeBytes &&
+      params.payload.temporaryUpload.sizeBytes > usageDecision.policy.maxFileSizeBytes
+    ) {
+      return safeFailure({
+        status: "blocked",
+        message: getVideoNarrativeRealAnalysisUserFacingMessage("storage_not_ready"),
+        safeIssueCode: "object_too_large",
+      });
+    }
+
+    if (params.user.id) {
+      await (deps.recordUsageAttempt ?? recordVideoNarrativeRealAnalysisAttempt)({
+        userId: params.user.id,
+        now,
+      });
+      usageAttemptRecorded = true;
+    }
+  } catch {
+    return safeFailure({
+      status: "failed",
+      message: getVideoNarrativeRealAnalysisUserFacingMessage("unknown_error"),
+      safeIssueCode: "usage_check_failed",
+    });
+  }
+
   const storageResolver = resolveVideoNarrativeTemporaryStorageObject({
     uploadSessionId: params.payload.uploadSessionId,
     objectKey: params.payload.temporaryUpload?.objectKey,
@@ -132,9 +206,12 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
   });
 
   if (!storageResolver.ok) {
+    if (usageAttemptRecorded) {
+      await recordFailureSafely({ deps, userId: params.user.id, reason: storageResolver.status, now });
+    }
     return safeFailure({
       status: "blocked",
-      message: storageResolver.safeMessage,
+      message: getVideoNarrativeRealAnalysisUserFacingMessage(storageResolver.status),
       safeIssueCode: storageResolver.status,
     });
   }
@@ -150,9 +227,12 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
   });
 
   if (!storageInputResult.ok) {
+    if (usageAttemptRecorded) {
+      await recordFailureSafely({ deps, userId: params.user.id, reason: storageInputResult.status, now });
+    }
     return safeFailure({
       status: "failed",
-      message: storageInputResult.safeMessage,
+      message: getVideoNarrativeRealAnalysisUserFacingMessage(storageInputResult.status),
       safeIssueCode: storageInputResult.status,
     });
   }
@@ -200,9 +280,27 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
 
   if (!providerResult.ok || !providerResult.analysis) {
     const cleanupWarning = await tryCleanup({ deps, payload: params.payload, reason: "analysis_failed" });
+    const providerIssueCode = providerResult.issues?.[0]?.code;
+    const safeProviderIssueCode = providerIssueCode && [
+      "gemini_timeout",
+      "gemini_invalid_response",
+      "provider_invalid_response",
+    ].includes(providerIssueCode)
+      ? providerIssueCode
+      : "gemini_provider_failed";
+    if (usageAttemptRecorded) {
+      await recordFailureSafely({
+        deps,
+        userId: params.user.id,
+        reason: safeProviderIssueCode,
+        now,
+      });
+    }
     return safeFailure({
-      message: "Não foi possível concluir a análise real agora.",
-      safeIssueCode: providerResult.issues?.[0]?.code ?? "gemini_provider_failed",
+      message: getVideoNarrativeRealAnalysisUserFacingMessage(
+        safeProviderIssueCode,
+      ),
+      safeIssueCode: safeProviderIssueCode,
       cleanupWarning,
     });
   }
@@ -224,6 +322,16 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
       lastAnalyzedAt: now,
     });
     const cleanupWarning = await tryCleanup({ deps, payload: params.payload, reason: "analysis_completed" });
+    if (usageAttemptRecorded && params.user.id) {
+      try {
+        await (deps.recordUsageSuccess ?? recordVideoNarrativeRealAnalysisSuccess)({
+          userId: params.user.id,
+          now,
+        });
+      } catch {
+        // Usage telemetry should not turn a completed snapshot into a user-facing failure.
+      }
+    }
 
     return {
       ok: true,
@@ -234,8 +342,11 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     };
   } catch {
     const cleanupWarning = await tryCleanup({ deps, payload: params.payload, reason: "analysis_failed" });
+    if (usageAttemptRecorded) {
+      await recordFailureSafely({ deps, userId: params.user.id, reason: "snapshot_save_failed", now });
+    }
     return safeFailure({
-      message: "Não foi possível salvar o diagnóstico real agora.",
+      message: getVideoNarrativeRealAnalysisUserFacingMessage("snapshot_save_failed"),
       safeIssueCode: "snapshot_upsert_failed",
       cleanupWarning,
     });

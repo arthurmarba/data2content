@@ -480,3 +480,23 @@ Não recomendar integração real antes do QA/polish visual.
 - Sem `objectKey` persistido no snapshot.
 - Endpoint mock `/api/dashboard/mobile-strategic-profile/analyze` preservado.
 - Mídia Kit, Comunidade, navegação real, DashboardShell/BoardShell/sidebar, ActivationPendingWidget, LoginClient, NextAuth e billing seguem fora do escopo.
+
+## Cenários MM70 — Beta Hardening + Usage Limits
+
+- Usuário allowlist dentro do limite: upload temporário, storage adapter, Gemini, parser, snapshot e cleanup devem completar.
+- Usuário allowlist acima do limite diário/mensal: deve receber mensagem humana de limite e não chamar storage/Gemini.
+- Usuário comum: deve continuar bloqueado antes de storage/Gemini.
+- Premium comum: deve continuar bloqueado por default sem flag explícita de beta.
+- Storage falha: Perfil antigo preservado, erro humano exibido, sem stack trace.
+- Gemini timeout/provider indisponível: Perfil antigo preservado, erro humano exibido, cleanup tentado.
+- Cleanup warning: snapshot salvo permanece válido; warning não vira falha da análise.
+- Rollback flag desligada: endpoint real bloqueia, endpoint mock continua preservado.
+
+## Guardrails do MM70
+
+- Limites de uso ativos antes de storage/Gemini.
+- Contador de uso não salva prompt, raw response, vídeo, signed URL, `uploadUrl` ou `objectKey`.
+- Gemini não é chamado quando beta access, allowlist, limite ou cooldown bloqueia.
+- Mensagens humanas não expõem chave, stack trace, signed URL ou `objectKey`.
+- Checklist de produção cobre envs, smoke, rollback e rotação de secrets.
+- Usuários comuns seguem bloqueados; billing real, MediaKit, Comunidade, navegação, shells, LoginClient, NextAuth e billing seguem intocados.

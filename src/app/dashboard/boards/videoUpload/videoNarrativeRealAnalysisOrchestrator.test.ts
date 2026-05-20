@@ -14,6 +14,7 @@ jest.mock("./videoNarrativeTemporaryStorageRuntimeAdapter", () => ({
 const env = {
   VIDEO_NARRATIVE_GEMINI_PROVIDER_ENABLED: "true",
   VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "1",
+  VIDEO_NARRATIVE_REAL_ANALYSIS_BETA_LIMITS_ENABLED: "1",
   VIDEO_NARRATIVE_GEMINI_MODEL: "gemini-test",
   GOOGLE_GEMINI_API_KEY: "test-key",
 };
@@ -40,6 +41,24 @@ const user = {
   name: "Creator",
 };
 
+const usageDeps = {
+  assertCanRunRealAnalysis: jest.fn().mockResolvedValue({
+    ok: true,
+    tier: "admin_dev",
+    policy: {
+      tier: "admin_dev",
+      dailyLimit: 20,
+      monthlyLimit: 100,
+      maxFileSizeBytes: 100 * 1024 * 1024,
+      cooldownSeconds: 15,
+      allowRealAnalysis: true,
+    },
+  }),
+  recordUsageAttempt: jest.fn().mockResolvedValue(undefined),
+  recordUsageSuccess: jest.fn().mockResolvedValue(undefined),
+  recordUsageFailure: jest.fn().mockResolvedValue(undefined),
+};
+
 describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
   beforeEach(() => {
     (resolveVideoNarrativeTemporaryStorageObject as jest.Mock).mockReturnValue({
@@ -62,6 +81,21 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
         provider: "cloudflare_r2",
       },
     });
+    usageDeps.assertCanRunRealAnalysis.mockResolvedValue({
+      ok: true,
+      tier: "admin_dev",
+      policy: {
+        tier: "admin_dev",
+        dailyLimit: 20,
+        monthlyLimit: 100,
+        maxFileSizeBytes: 100 * 1024 * 1024,
+        cooldownSeconds: 15,
+        allowRealAnalysis: true,
+      },
+    });
+    usageDeps.recordUsageAttempt.mockResolvedValue(undefined);
+    usageDeps.recordUsageSuccess.mockResolvedValue(undefined);
+    usageDeps.recordUsageFailure.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -107,16 +141,58 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
     const result = await runVideoNarrativeRealAnalysisOrchestrator({
       payload,
       user,
-      deps: { env, runProvider },
+      deps: { env, runProvider, ...usageDeps },
     });
 
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.status).toBe("blocked");
-      expect(result.message).toBe("A análise real ainda precisa da conexão temporária de storage.");
+      expect(result.message).toBe("Não conseguimos preparar o vídeo temporário para análise agora.");
       expect(result.safeIssueCode).toBe("missing_storage_adapter");
     }
     expect(runProvider).not.toHaveBeenCalled();
+    expect(usageDeps.recordUsageAttempt).toHaveBeenCalled();
+    expect(usageDeps.recordUsageFailure).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "missing_storage_adapter" }),
+    );
+  });
+
+  it("limite atingido bloqueia antes de storage e Gemini", async () => {
+    const runProvider = jest.fn();
+    const result = await runVideoNarrativeRealAnalysisOrchestrator({
+      payload,
+      user,
+      deps: {
+        env,
+        runProvider,
+        assertCanRunRealAnalysis: jest.fn().mockResolvedValue({
+          ok: false,
+          tier: "allowlist",
+          code: "daily_limit_reached",
+          message: "daily_limit_reached",
+          policy: {
+            tier: "allowlist",
+            dailyLimit: 5,
+            monthlyLimit: 20,
+            maxFileSizeBytes: 100 * 1024 * 1024,
+            cooldownSeconds: 60,
+            allowRealAnalysis: true,
+          },
+        }),
+        recordUsageAttempt: usageDeps.recordUsageAttempt,
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.status).toBe("blocked");
+      expect(result.safeIssueCode).toBe("daily_limit_reached");
+      expect(result.message).toBe("Você atingiu o limite de análises reais do beta por hoje.");
+    }
+    expect(resolveVideoNarrativeTemporaryStorageObject).not.toHaveBeenCalled();
+    expect(resolveVideoNarrativeTemporaryStorageInput).not.toHaveBeenCalled();
+    expect(runProvider).not.toHaveBeenCalled();
+    expect(usageDeps.recordUsageAttempt).not.toHaveBeenCalled();
   });
 
   it("chama provider fake, mapeia, salva snapshot e aciona cleanup", async () => {
@@ -141,6 +217,7 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
         runProvider,
         upsertSnapshot,
         cleanupTemporaryUpload,
+        ...usageDeps,
       },
     });
 
@@ -175,6 +252,12 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
         reason: "analysis_completed",
       }),
     );
+    expect(usageDeps.recordUsageAttempt).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: user.id }),
+    );
+    expect(usageDeps.recordUsageSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: user.id }),
+    );
   });
 
   it("erro do provider vira mensagem segura e tenta cleanup", async () => {
@@ -192,13 +275,18 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
           issues: [{ code: "external_secret_error", severity: "blocker", message: "raw provider stack" }],
         }),
         cleanupTemporaryUpload,
+        ...usageDeps,
       },
     });
 
     expect(result.ok).toBe(false);
-    expect(result.message).toBe("Não foi possível concluir a análise real agora.");
+    expect(result.message).toBe("A análise real está temporariamente indisponível.");
     expect(JSON.stringify(result)).not.toContain("raw provider stack");
+    expect(JSON.stringify(result)).not.toContain("external_secret_error");
     expect(cleanupTemporaryUpload).toHaveBeenCalledWith(expect.objectContaining({ reason: "analysis_failed" }));
+    expect(usageDeps.recordUsageFailure).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "gemini_provider_failed" }),
+    );
   });
 
   it("erro do snapshot não vaza stack trace", async () => {
@@ -215,10 +303,14 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
           analysis: geminiVideoNarrativeResponseFixture,
         }),
         upsertSnapshot: jest.fn().mockRejectedValue(new Error("mongo stack secret")),
+        ...usageDeps,
       },
     });
 
     expect(result.ok).toBe(false);
     expect(JSON.stringify(result)).not.toContain("mongo stack secret");
+    expect(usageDeps.recordUsageFailure).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "snapshot_save_failed" }),
+    );
   });
 });

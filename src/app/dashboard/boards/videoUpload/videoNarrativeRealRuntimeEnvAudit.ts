@@ -8,6 +8,7 @@ export type VideoNarrativeEnvAuditIssueCode =
   | "storage_credentials_missing"
   | "storage_runtime_resolver_ready"
   | "allowlist_missing"
+  | "beta_limits_disabled"
   | "env_ready_for_smoke";
 
 export type VideoNarrativeEnvAuditIssue = {
@@ -27,6 +28,7 @@ export type VideoNarrativeEnvAuditResult = {
     storageProvider: string;
     storageCredentialsPresent: boolean;
     allowlistConfigured: boolean;
+    betaLimitsEnabled: boolean;
   };
 };
 
@@ -45,6 +47,7 @@ export function performVideoNarrativeRealRuntimeEnvAudit(
   const realUploadEnabled = parseBoolean(env.VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED);
   const signedUploadAllowlistEnabled = parseBoolean(env.VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED);
   const geminiAllowlistEnabled = parseBoolean(env.VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED);
+  const betaLimitsEnabled = parseBoolean(env.VIDEO_NARRATIVE_REAL_ANALYSIS_BETA_LIMITS_ENABLED);
   
   const hasAllowedEmails = !!env.VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS?.trim();
   const hasAllowedUserIds = !!env.VIDEO_NARRATIVE_GEMINI_ALLOWED_USER_IDS?.trim();
@@ -77,6 +80,13 @@ export function performVideoNarrativeRealRuntimeEnvAudit(
     issues.push({
       code: "allowlist_missing",
       message: "Allowlist do Gemini não está configurada (VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED e/ou emails/ids).",
+    });
+  }
+
+  if (!betaLimitsEnabled) {
+    issues.push({
+      code: "beta_limits_disabled",
+      message: "Limites de uso do beta estão desabilitados (VIDEO_NARRATIVE_REAL_ANALYSIS_BETA_LIMITS_ENABLED).",
     });
   }
 
@@ -138,6 +148,7 @@ export function performVideoNarrativeRealRuntimeEnvAudit(
       storageProvider,
       storageCredentialsPresent: !!env.VIDEO_NARRATIVE_TEMP_STORAGE_BUCKET?.trim() && !!env.VIDEO_NARRATIVE_TEMP_STORAGE_ACCESS_KEY_ID?.trim() && !!env.VIDEO_NARRATIVE_TEMP_STORAGE_SECRET_ACCESS_KEY?.trim(),
       allowlistConfigured,
+      betaLimitsEnabled,
     },
   };
 }
