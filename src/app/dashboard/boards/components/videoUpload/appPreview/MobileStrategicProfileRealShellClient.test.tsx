@@ -25,6 +25,7 @@ jest.mock("./MobileStrategicProfilePreview", () => {
       onSubmitAnalysis,
       onCreateUploadSession,
       onUploadToTemporarySignedUrl,
+      enableRealAnalysis,
       onCleanupTemporaryUpload,
     }: any) => (
       <div data-testid="profile-preview-mock">
@@ -37,9 +38,28 @@ jest.mock("./MobileStrategicProfilePreview", () => {
         <span data-testid="profile-community-href">{profile.communityBridge.href || ""}</span>
         <span data-testid="has-on-create-session">{String(!!onCreateUploadSession)}</span>
         <span data-testid="has-on-direct-upload">{String(!!onUploadToTemporarySignedUrl)}</span>
+        <span data-testid="real-analysis-enabled">{String(!!enableRealAnalysis)}</span>
         <span data-testid="has-on-cleanup">{String(!!onCleanupTemporaryUpload)}</span>
         <button data-testid="trigger-analysis-submit" onClick={() => onSubmitAnalysis?.({ creatorGoal: "test", selectedGoalOption: "authority" })}>
           Submit
+        </button>
+        <button
+          data-testid="trigger-real-analysis-submit"
+          onClick={() => onSubmitAnalysis?.({
+            creatorGoal: "test",
+            selectedGoalOption: "authority",
+            quickAnswers: [{ id: "represents_current_phase", value: "sim" }],
+            consentTextVersion: "mobile_strategic_profile_temporary_video_v1",
+            temporaryUpload: {
+              uploadSessionId: "video-temp-upload-session-abc_123",
+              objectKey: "temporary/video-narrative/0123456789abcdef/video-temp-upload-session-abc_123.mp4",
+              mimeType: "video/mp4",
+              sizeBytes: 1024,
+              uploadedAt: "2026-05-19T20:00:00.000Z",
+            },
+          })}
+        >
+          Real Submit
         </button>
         <button
           data-testid="trigger-upload-session"
@@ -95,6 +115,7 @@ describe("MobileStrategicProfileRealShellClient", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    delete process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED;
     (requestUploadSession as jest.Mock).mockResolvedValue({ ok: true, status: "mock_session_created" });
     (uploadVideoToTemporarySignedUrl as jest.Mock).mockResolvedValue({ ok: true, status: "uploaded" });
   });
@@ -375,6 +396,53 @@ describe("MobileStrategicProfileRealShellClient", () => {
     expect(analyzeCall).toBeTruthy();
     expect(String(analyzeCall?.[1]?.body)).not.toContain("uploadUrl");
     expect(String(analyzeCall?.[1]?.body)).not.toContain("objectKey");
+
+    globalFetchSpy.mockRestore();
+  });
+
+  it("MM66 - com flag pública e upload real chama analyze-real sem File/uploadUrl/signedUrl/base64", async () => {
+    process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED = "1";
+    (fetchHomeSummaryCached as jest.Mock).mockResolvedValue(null);
+    const globalFetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        snapshotUpdated: true,
+        snapshot: {
+          schemaVersion: "mobile_strategic_profile_snapshot_v1",
+          profileState: "active",
+          unlockedSignals: [],
+          pendingSignals: [],
+          recurringPatterns: [],
+          opportunities: [],
+          diagnosisSummary: "Diagnóstico atualizado",
+          commercialSummary: "Potencial comercial futuro",
+          lastAnalysisSummary: "Próximo passo",
+        },
+      }),
+    } as any);
+
+    render(
+      <MobileStrategicProfileRealShellClient
+        session={mockSession}
+        stateQuery={null}
+      />
+    );
+
+    expect(screen.getByTestId("real-analysis-enabled").textContent).toBe("true");
+
+    await act(async () => {
+      screen.getByTestId("trigger-real-analysis-submit").click();
+    });
+
+    const realCall = globalFetchSpy.mock.calls.find(([url]) => url === "/api/dashboard/mobile-strategic-profile/analyze-real");
+    expect(realCall).toBeTruthy();
+    const body = String(realCall?.[1]?.body);
+    expect(body).toContain("video-temp-upload-session-abc_123");
+    expect(body).not.toContain("uploadUrl");
+    expect(body).not.toContain("signedUrl");
+    expect(body).not.toContain("base64");
+    expect(body).not.toContain("File");
 
     globalFetchSpy.mockRestore();
   });

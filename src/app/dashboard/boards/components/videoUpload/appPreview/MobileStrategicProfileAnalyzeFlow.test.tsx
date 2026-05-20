@@ -534,6 +534,67 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       console.warn = originalWarn;
     });
 
+    it("MM66 - com real analysis habilitado envia apenas referência temporária segura para análise", async () => {
+      const onCreateSession = jest.fn().mockResolvedValue({
+        ok: true,
+        status: "signed_upload_session_created",
+        uploadSession: {
+          id: "video-temp-upload-session-abc_123",
+          providerMode: "real",
+          storageProvider: "cloudflare_r2",
+          uploadUrl: "https://signed.example.test/upload?signature=test",
+          method: "PUT",
+          headers: { "Content-Type": "video/mp4" },
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          objectKey: "temporary/video-narrative/0123456789abcdef/video-temp-upload-session-abc_123.mp4",
+          retentionTtlMinutes: 60,
+          shouldDeleteAfterAnalysis: true,
+          shouldPersistVideo: false,
+          shouldPersistThumbnail: false,
+        },
+      });
+      const onSubmit = jest.fn().mockResolvedValue(undefined);
+      const { container } = render(
+        <MobileStrategicProfileAnalyzeFlow
+          open
+          onClose={jest.fn()}
+          onComplete={jest.fn()}
+          onCreateUploadSession={onCreateSession}
+          onUploadToTemporarySignedUrl={jest.fn().mockResolvedValue({
+            ok: true,
+            status: "uploaded",
+            uploadedAt: "2026-05-19T20:00:00.000Z",
+            bytesSent: fileMock.size,
+          })}
+          enableRealAnalysis
+          onSubmitAnalysis={onSubmit}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
+      fireEvent.click(screen.getByRole("checkbox"));
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+      await waitFor(() => {
+        expect(screen.getByText("Qual era o objetivo do conteúdo?")).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+      await waitFor(() => {
+        expect(onSubmit).toHaveBeenCalled();
+      });
+
+      const submitted = JSON.stringify(onSubmit.mock.calls[0][0]);
+      expect(submitted).toContain("video-temp-upload-session-abc_123");
+      expect(submitted).toContain("temporary/video-narrative");
+      expect(submitted).not.toContain("uploadUrl");
+      expect(submitted).not.toContain("signedUrl");
+      expect(submitted).not.toContain("base64");
+      expect(submitted).not.toContain("File");
+    });
+
     it("nao cria historico visual de videos nem usa APIs proibidas do browser", () => {
       render(
         <MobileStrategicProfileAnalyzeFlow

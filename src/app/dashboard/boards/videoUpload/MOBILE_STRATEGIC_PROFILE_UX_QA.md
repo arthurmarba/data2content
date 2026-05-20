@@ -423,3 +423,27 @@ Não recomendar integração real antes do QA/polish visual.
 - Sem vídeo, signed URL, `uploadUrl` ou `objectKey` no snapshot.
 - Sem API key exposta.
 - Sem import Gemini/OpenAI em client component.
+
+## Cenários MM66 — Real Video Analysis Allowlist
+
+- Usuário allowlist/admin-dev com flags completas: seleciona vídeo, aceita consentimento, faz upload signed temporário, responde objetivo/perguntas e recebe "Diagnóstico atualizado." após snapshot real sanitizado.
+- Análise real com falha: exibe erro humano, mantém Perfil antigo visível, não cria snapshot fake silencioso e permite tentar novamente.
+- Cleanup warning: falha de cleanup aparece apenas como warning seguro no contrato e não desfaz snapshot salvo.
+- Usuário comum: fica bloqueado no servidor e nunca chama Gemini real.
+- Fluxo mock preservado: com flag pública real desligada ou sessão `mock_session_created`, o app continua usando `/analyze`.
+- Ausência de histórico visual: não deve aparecer thumbnail, player, galeria, recibo ou lista de vídeos analisados.
+
+## Guardrails do MM66
+
+- Real analysis só allowlist/admin-dev.
+- Usuários comuns bloqueados.
+- Sem Gemini para usuários comuns.
+- Sem vídeo salvo no banco.
+- Sem raw response salvo.
+- Sem signed URL persistida.
+- Sem `objectKey` persistido no snapshot.
+- Sem histórico visual de vídeos.
+- Sem API key exposta.
+- Sem import Gemini/OpenAI em client component.
+- Endpoint mock preservado.
+- Mídia Kit, Comunidade, navegação real, DashboardShell/BoardShell/sidebar, ActivationPendingWidget, LoginClient, NextAuth e billing seguem intocados.

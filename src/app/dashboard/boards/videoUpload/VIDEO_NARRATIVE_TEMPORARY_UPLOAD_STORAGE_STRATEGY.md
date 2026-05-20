@@ -196,3 +196,21 @@ Próximos passos:
 MM65 prepara o provider/parser/mapper de IA real, mas ainda não conecta upload temporário e Gemini end-to-end. A análise real futura depende do ciclo MM64 estar seguro: signed upload temporário, cleanup confiável e nenhum vídeo persistido no banco.
 
 Mesmo quando o provider real for ligado em ambiente controlado, `signedUrl`, `uploadUrl` e `objectKey` não devem entrar no prompt por padrão, na resposta parseada ou no snapshot. O snapshot permanece a única memória persistida do Perfil Estratégico.
+
+## Fase MM66 — Real Analysis Allowlist E Cleanup
+
+MM66 usa o upload temporário como referência transitória para a primeira análise real allowlist:
+
+- a UI só chama `/api/dashboard/mobile-strategic-profile/analyze-real` depois de `signed_upload_session_created` e PUT concluído;
+- o endpoint real exige `VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED=1`, upload real ativo, provider Gemini habilitado e allowlist/admin-dev;
+- `uploadUrl` e `signedUrl` nunca entram no endpoint de análise real;
+- `objectKey` pode ser usado transitoriamente para resolver o arquivo temporário, mas não entra no prompt por padrão nem no snapshot;
+- o snapshot persistido usa source seguro e continua sendo a única memória durável do Perfil;
+- cleanup é acionado após sucesso e também tentado após falha aplicável; falha de cleanup vira warning seguro.
+
+Próximos passos para beta hardening:
+
+- implementar resolver server-side auditável para transformar `uploadSessionId`/`objectKey` em input multimodal real;
+- implementar delete real do provider temporário;
+- adicionar auditoria de cleanup, custo e latência;
+- validar rate limits antes de ampliar a allowlist.

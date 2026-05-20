@@ -31,11 +31,20 @@ type MobileStrategicProfilePreviewProps = {
     selectedGoalOption: "authority" | "retention" | "format_test" | "sponsored_content";
     quickAnswers?: Array<{ id: string; value: string }>;
     mockScenario?: string;
+    consentTextVersion?: string;
+    temporaryUpload?: {
+      uploadSessionId: string;
+      objectKey?: string;
+      mimeType: string;
+      sizeBytes: number;
+      uploadedAt?: string;
+    };
   }) => Promise<void>;
   onCreateUploadSession?: (payload: UploadSessionPayload) => Promise<UploadSessionResponse>;
   onUploadToTemporarySignedUrl?: (
     input: MobileStrategicProfileDirectUploadInput,
   ) => Promise<MobileStrategicProfileDirectUploadResult>;
+  enableRealAnalysis?: boolean;
   onCleanupTemporaryUpload?: (payload: {
     uploadSessionId: string;
     objectKey?: string;
@@ -372,6 +381,7 @@ export function MobileStrategicProfilePreview({
   onSubmitAnalysis,
   onCreateUploadSession,
   onUploadToTemporarySignedUrl,
+  enableRealAnalysis,
   onCleanupTemporaryUpload,
 }: MobileStrategicProfilePreviewProps) {
   const [mediaKitModalOpen, setMediaKitModalOpen] = useState(false);
@@ -465,6 +475,7 @@ export function MobileStrategicProfilePreview({
               onSubmitAnalysis={onSubmitAnalysis}
               onCreateUploadSession={onCreateUploadSession}
               onUploadToTemporarySignedUrl={onUploadToTemporarySignedUrl}
+              enableRealAnalysis={enableRealAnalysis}
               onCleanupTemporaryUpload={onCleanupTemporaryUpload}
             />
           </div>

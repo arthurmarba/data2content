@@ -2039,6 +2039,16 @@ Gemini real segue desligado por default e exige `VIDEO_NARRATIVE_GEMINI_PROVIDER
 
 O parser não aceita resposta vazia, JSON inválido, campos obrigatórios ausentes, signed URLs, tokens/API keys ou transcrição bruta longa. A resposta bruta não é retornada nem persistida; apenas a análise parseada/sanitizada pode virar snapshot. O mapper não inclui vídeo, thumbnail, signed URL, `uploadUrl` ou `objectKey`, e usa source seguro `gemini_ready`/`gemini_fixture` nesta fase.
 
+### MM66 — Real Video Analysis Allowlist End-to-End
+
+Status: concluído.
+
+MM66 conecta o primeiro ciclo controlado de análise real allowlist: upload temporário, endpoint `/api/dashboard/mobile-strategic-profile/analyze-real`, provider Gemini preparado no MM65, snapshot persistido e cleanup contract. O fluxo só tenta esse caminho quando há upload signed real concluído e a flag pública `NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED=1` permite a UI chamar o endpoint real.
+
+O servidor exige `VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED=1`, upload temporário real, provider Gemini habilitado, API key/model env e allowlist/admin-dev. Usuários comuns continuam bloqueados, e o endpoint mock `/api/dashboard/mobile-strategic-profile/analyze` permanece preservado para preview, dry-run e fallback explícito quando o caminho real não está habilitado.
+
+O vídeo não é enviado ao app server pelo browser e não é salvo no banco. A análise real recebe apenas referência temporária controlada (`uploadSessionId` e, quando permitido, `objectKey` transitório), nunca `uploadUrl`/`signedUrl`, arquivo, Base64, thumbnail ou raw response. O snapshot salvo usa source `gemini_real_allowlist` e passa pelo parser/sanitizer/mapper antes do upsert, sem persistir raw response, signed URL ou `objectKey`.
+
 ## Próximas Fases Sugeridas
 
 - PROC4: contrato de fila/job conceitual de processamento.

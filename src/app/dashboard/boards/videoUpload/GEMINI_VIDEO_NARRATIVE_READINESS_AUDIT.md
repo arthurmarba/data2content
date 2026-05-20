@@ -254,6 +254,16 @@ MM65 aumenta a readiness do provider Gemini em prompt/parser/adapter, mas ainda 
 - **Sem raw response persistido**: o adapter retorna apenas análise parseada, issues seguras, timing e debug summary seguro.
 - **Mapper seguro**: `gemini_ready`/`gemini_fixture` prepara snapshot sem vídeo, signed URL, `uploadUrl` ou `objectKey`.
 
+## MM66 — Primeira Integração Real Allowlist
+
+MM66 adiciona a primeira integração real end-to-end, mas ainda não é produção ampla:
+- **Somente allowlist/admin-dev**: o caminho real exige flags completas, env de provider, upload temporário real e allowlist server-side.
+- **Endpoint separado**: `/api/dashboard/mobile-strategic-profile/analyze-real` não substitui o endpoint mock atual.
+- **Parser/sanitizer/mapper obrigatórios**: nenhuma resposta do provider pode virar snapshot sem passar pela camada MM65.
+- **Sem raw response persistido**: o banco recebe apenas snapshot estratégico sanitizado com source `gemini_real_allowlist`.
+- **Sem vazamento de mídia**: `signedUrl`, `uploadUrl`, arquivo, Base64, thumbnail e `objectKey` não entram no snapshot.
+- **Provider real depende de infraestrutura completa**: quando o reader/resolver multimodal não está configurado, o endpoint retorna erro seguro em vez de inventar análise.
+
 ## Frase Norte
 
 > O sistema pode estar pronto para testar Gemini real sem ainda estar pronto para lançar vídeo no produto.

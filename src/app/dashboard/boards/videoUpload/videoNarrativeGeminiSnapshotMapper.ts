@@ -14,7 +14,7 @@ function cleanSummary(value: string, fallback: string): string {
 
 export function mapGeminiAnalysisToStrategicProfileSnapshot(params: {
   analysis: VideoNarrativeAiAnalysis;
-  source?: "gemini_ready" | "gemini_fixture";
+  source?: "gemini_ready" | "gemini_fixture" | "gemini_real_allowlist";
   promptVersion: string;
 }): VideoNarrativeGeminiSnapshotMappingResult {
   const source = params.source ?? "gemini_ready";

@@ -29,11 +29,20 @@ type MobileStrategicProfileAnalyzeFlowProps = {
     selectedGoalOption: "authority" | "retention" | "format_test" | "sponsored_content";
     quickAnswers?: Array<{ id: string; value: string }>;
     mockScenario?: string;
+    consentTextVersion?: string;
+    temporaryUpload?: {
+      uploadSessionId: string;
+      objectKey?: string;
+      mimeType: string;
+      sizeBytes: number;
+      uploadedAt?: string;
+    };
   }) => Promise<void>;
   onCreateUploadSession?: (payload: UploadSessionPayload) => Promise<UploadSessionResponse>;
   onUploadToTemporarySignedUrl?: (
     input: MobileStrategicProfileDirectUploadInput,
   ) => Promise<MobileStrategicProfileDirectUploadResult>;
+  enableRealAnalysis?: boolean;
   onCleanupTemporaryUpload?: (payload: {
     uploadSessionId: string;
     objectKey?: string;
@@ -90,6 +99,7 @@ export function MobileStrategicProfileAnalyzeFlow({
   onSubmitAnalysis,
   onCreateUploadSession,
   onUploadToTemporarySignedUrl,
+  enableRealAnalysis = false,
   onCleanupTemporaryUpload,
 }: MobileStrategicProfileAnalyzeFlowProps) {
   const [step, setStep] = useState<AnalyzeFlowStep>("intro");
@@ -107,6 +117,13 @@ export function MobileStrategicProfileAnalyzeFlow({
     uploadSessionId: string;
     objectKey?: string;
   } | null>(null);
+  const [temporaryUploadForAnalysis, setTemporaryUploadForAnalysis] = useState<{
+    uploadSessionId: string;
+    objectKey?: string;
+    mimeType: string;
+    sizeBytes: number;
+    uploadedAt?: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -119,6 +136,7 @@ export function MobileStrategicProfileAnalyzeFlow({
       setFileValidationError(null);
       setUploadSessionValidated(false);
       setTemporaryUploadForCleanup(null);
+      setTemporaryUploadForAnalysis(null);
     }
   }, [open]);
 
@@ -140,6 +158,8 @@ export function MobileStrategicProfileAnalyzeFlow({
               { id: "represents_current_phase", value: "sim" },
               { id: "wants_to_repeat_direction", value: "sim" }
             ],
+            consentTextVersion: "mobile_strategic_profile_temporary_video_v1",
+            temporaryUpload: enableRealAnalysis ? temporaryUploadForAnalysis ?? undefined : undefined,
           });
           if (temporaryUploadForCleanup && onCleanupTemporaryUpload) {
             try {
@@ -188,7 +208,16 @@ export function MobileStrategicProfileAnalyzeFlow({
         clearTimeout(fallbackTimer);
       }
     };
-  }, [step, selectedOption, onSubmitAnalysis, submitAttempt, temporaryUploadForCleanup, onCleanupTemporaryUpload]);
+  }, [
+    step,
+    selectedOption,
+    onSubmitAnalysis,
+    submitAttempt,
+    temporaryUploadForCleanup,
+    onCleanupTemporaryUpload,
+    temporaryUploadForAnalysis,
+    enableRealAnalysis,
+  ]);
 
   if (!open) return null;
 
@@ -243,6 +272,13 @@ export function MobileStrategicProfileAnalyzeFlow({
             uploadSessionId: session.id,
             objectKey: session.objectKey,
           });
+          setTemporaryUploadForAnalysis({
+            uploadSessionId: session.id,
+            objectKey: session.objectKey,
+            mimeType: selectedFile.type || "video/mp4",
+            sizeBytes: selectedFile.size,
+            uploadedAt: uploadResult.uploadedAt,
+          });
           setValidationStatus("uploaded");
           setUploadSessionValidated(true);
           setStep("creator_goal");
@@ -264,6 +300,7 @@ export function MobileStrategicProfileAnalyzeFlow({
     setErrorMsg(null);
     setUploadSessionValidated(false);
     setTemporaryUploadForCleanup(null);
+    setTemporaryUploadForAnalysis(null);
     onClose();
   };
 
@@ -272,6 +309,7 @@ export function MobileStrategicProfileAnalyzeFlow({
     setErrorMsg(null);
     setUploadSessionValidated(false);
     setTemporaryUploadForCleanup(null);
+    setTemporaryUploadForAnalysis(null);
     onComplete();
   };
 
@@ -367,6 +405,7 @@ export function MobileStrategicProfileAnalyzeFlow({
                     setFileValidationError(null);
                     setUploadSessionValidated(false);
                     setTemporaryUploadForCleanup(null);
+                    setTemporaryUploadForAnalysis(null);
                   }
                 }}
                 className="hidden"
@@ -515,7 +554,9 @@ export function MobileStrategicProfileAnalyzeFlow({
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  <p className="text-sm font-semibold text-zinc-950">Atualizando seu Perfil Estratégico</p>
+                  <p className="text-sm font-semibold text-zinc-950">
+                    {temporaryUploadForAnalysis ? "Analisando vídeo e atualizando seu Perfil" : "Atualizando seu Perfil Estratégico"}
+                  </p>
                 </div>
                 <p className="mt-2 text-sm leading-6 text-zinc-600">
                   Estamos conectando essa leitura ao seu diagnóstico vivo.
