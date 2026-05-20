@@ -342,7 +342,7 @@ export function MobileStrategicProfileAnalyzeFlow({
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase text-zinc-500">
-            Etapa {currentStepIndex + 1} de {STEPS.length} · Analisar vídeo
+            Etapa {currentStepIndex + 1} de {STEPS.length} · Atualizar Perfil
           </p>
           <h2 id="mobile-strategic-profile-analyze-flow-title" className="mt-1 text-xl font-semibold text-zinc-950">
             {step === "updated_confirmation" ? "Diagnóstico atualizado." : "Vamos atualizar seu Perfil"}
@@ -555,7 +555,7 @@ export function MobileStrategicProfileAnalyzeFlow({
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                   <p className="text-sm font-semibold text-zinc-950">
-                    {temporaryUploadForAnalysis ? "Analisando vídeo e atualizando seu Perfil" : "Atualizando seu Perfil Estratégico"}
+                    {temporaryUploadForAnalysis ? "Analisando vídeo e atualizando seu Perfil" : "Atualizando seu Perfil"}
                   </p>
                 </div>
                 <p className="mt-2 text-sm leading-6 text-zinc-600">

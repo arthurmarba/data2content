@@ -47,7 +47,7 @@ describe("MobileStrategicProfilePreview", () => {
   it("renders header plus button as profile update action", () => {
     renderState("first_reading_free");
 
-    expect(screen.getByLabelText("Analisar vídeo")).toBeInTheDocument();
+    expect(screen.getByLabelText("Atualizar meu Perfil")).toBeInTheDocument();
   });
 
   it("renders status pills without forbidden technical language", () => {
@@ -93,13 +93,13 @@ describe("MobileStrategicProfilePreview", () => {
     expect(text).not.toContain("ver como marca");
   });
 
-  it("first reading renders Diagnosis and Analisar vídeo CTA", () => {
+  it("first reading renders Diagnosis and Atualizar meu Perfil CTA", () => {
     renderState("first_reading_free");
 
     expect(screen.getAllByText("Diagnóstico").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Comercial").length).toBeGreaterThan(0);
     expect(screen.getByText("O que este vídeo comunica")).toBeInTheDocument();
-    expect(screen.getAllByText("Analisar vídeo").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Atualizar meu Perfil").length).toBeGreaterThan(0);
   });
 
   it("premium renders Commercial section without brand promise", () => {
@@ -167,7 +167,7 @@ describe("MobileStrategicProfilePreview", () => {
   it("opens Analyze flow from header plus button", () => {
     renderState("first_reading_free");
 
-    fireEvent.click(screen.getByLabelText("Analisar vídeo"));
+    fireEvent.click(screen.getByLabelText("Atualizar meu Perfil"));
 
     expect(screen.getByRole("dialog", { name: "Vamos atualizar seu Perfil" })).toBeInTheDocument();
   });
@@ -181,10 +181,10 @@ describe("MobileStrategicProfilePreview", () => {
     expect(screen.getByRole("dialog", { name: "Vamos atualizar seu Perfil" })).toBeInTheDocument();
   });
 
-  it("opens Analyze flow from Analisar vídeo action", () => {
+  it("opens Analyze flow from Atualizar meu Perfil action", () => {
     renderState("first_reading_free");
 
-    clickAnalyzeAction("Analisar vídeo");
+    clickAnalyzeAction("Atualizar meu Perfil");
 
     expect(screen.getByText("Use um vídeo para a D2C entender novos sinais da sua narrativa.")).toBeInTheDocument();
   });
@@ -208,7 +208,7 @@ describe("MobileStrategicProfilePreview", () => {
   it("Analyze flow returns to Profile after short confirmation", () => {
     renderState("first_reading_free");
 
-    clickAnalyzeAction("Analisar vídeo");
+    clickAnalyzeAction("Atualizar meu Perfil");
     advanceAnalyzeFlowToConfirmation();
 
     expect(screen.getByRole("dialog", { name: "Diagnóstico atualizado." })).toBeInTheDocument();
@@ -217,13 +217,13 @@ describe("MobileStrategicProfilePreview", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByText("Perfil Estratégico mobile")).toBeInTheDocument();
     expect(screen.getAllByText("Diagnóstico").length).toBeGreaterThan(0);
-    expect(screen.getByText("Seu Perfil foi atualizado nesta simulação.")).toBeInTheDocument();
+    expect(screen.getByText("Seu Perfil foi atualizado com a nova leitura.")).toBeInTheDocument();
   });
 
   it("Analyze flow does not create analyzed videos history or active file input", () => {
     const { container } = renderState("first_reading_free");
 
-    clickAnalyzeAction("Analisar vídeo");
+    clickAnalyzeAction("Atualizar meu Perfil");
     advanceAnalyzeFlowToConfirmation();
     fireEvent.click(screen.getByRole("button", { name: "Voltar para meu Perfil" }));
 

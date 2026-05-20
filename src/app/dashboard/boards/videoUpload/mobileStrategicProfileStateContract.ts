@@ -308,7 +308,7 @@ function buildRecommendedActions(params: {
     actions.push(action({
       id: "analyze-next-video",
       intent: "analyze_video",
-      label: "Analisar vídeo",
+      label: "Atualizar meu Perfil",
       description: "Use um vídeo para atualizar seu Perfil Estratégico.",
       priority: "primary",
     }));

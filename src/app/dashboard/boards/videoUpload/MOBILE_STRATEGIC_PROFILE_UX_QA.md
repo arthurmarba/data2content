@@ -23,6 +23,7 @@ Documentos relacionados:
 - `MOBILE_STRATEGIC_PROFILE_ACTIVATION_WIDGET_STRATEGY.md`
 - `VIDEO_NARRATIVE_BETA_OPERATOR_RUNBOOK.md`
 - `VIDEO_NARRATIVE_BETA_SMOKE_TEST_PLAN.md`
+- `MOBILE_STRATEGIC_PROFILE_UI_UX_COPY_AUDIT.md`
 
 ## Setup da preview
 
@@ -231,6 +232,16 @@ Validar que a experiência não renderiza:
 - [ ] Rollback desliga o fluxo real sem quebrar o endpoint mock.
 - [ ] Feedback do creator é coletado pelo template não técnico.
 
+## Critérios MM73 de UI/UX e copy
+
+- [ ] A primeira dobra responde quem é o creator, qual é o estado do Perfil e o que fazer agora.
+- [ ] A ação recorrente depois da primeira leitura comunica atualização do Perfil, não biblioteca de upload.
+- [ ] Mensagens visíveis na casca real não usam linguagem de preview, simulação ou teste interno.
+- [ ] Mídia Kit continua aparecendo apenas como bridge/modal para recurso existente.
+- [ ] Comunidade continua aparecendo apenas como destino existente.
+- [ ] Diagnóstico e Comercial continuam como abas internas do Perfil.
+- [ ] Termos técnicos como Gemini, storage, endpoint, signed URL, objectKey, raw response, provider, allowlist e beta flag não aparecem para o creator.
+
 ## Cenário MM61 — Upload Metadata Dry-Run
 
 Validar na rota real do Perfil Estratégico mobile:
@@ -323,6 +334,7 @@ Não recomendar integração real antes do QA/polish visual.
 - Sem NextAuth alterado.
 - Sem `MediaKitView` alterado.
 - Sem Comunidade real alterada.
+- Sem navegação real alterada.
 - Sem `ActivationPendingWidget` alterado.
 - Sem Instagram real.
 - Sem billing real.

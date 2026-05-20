@@ -2135,3 +2135,28 @@ O que não faz:
 - não altera fluxo core;
 - não libera público geral;
 - não altera billing, Stripe, Mídia Kit, Comunidade, navegação, shells, login ou NextAuth.
+
+### MM73 — Strategic Profile UI/UX + Copy Audit
+
+Status: concluído.
+
+Arquivos principais:
+
+- `MOBILE_STRATEGIC_PROFILE_UI_UX_COPY_AUDIT.md`
+- `mobileStrategicProfileStateContract.ts`
+- `MobileStrategicProfilePreview.tsx`
+- `MobileStrategicProfileAnalyzeFlow.tsx`
+- `MobileStrategicProfileMediaKitModal.tsx`
+
+O que faz:
+
+- audita estados, hierarquia, copy, arquitetura de informação, Mídia Kit, Comunidade e ação `+`;
+- documenta riscos P0-P3 antes/depois do beta;
+- ajusta copies pequenas para remover linguagem de preview/simulação da casca real;
+- troca o CTA recorrente pós-primeira leitura para `Atualizar meu Perfil`.
+
+O que não faz:
+
+- não muda Gemini, upload, storage, cleanup, usage limits ou endpoints;
+- não altera Mídia Kit real, Comunidade real, navegação global, shells, LoginClient, NextAuth ou billing;
+- não cria histórico visual de vídeos, galeria, player ou thumbnail.

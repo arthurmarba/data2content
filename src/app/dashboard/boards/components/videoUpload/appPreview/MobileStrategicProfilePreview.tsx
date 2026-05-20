@@ -190,7 +190,7 @@ function ProfileHeader({
         </div>
         <button
           type="button"
-          aria-label="Analisar vídeo"
+          aria-label="Atualizar meu Perfil"
           className="grid h-10 w-10 place-items-center rounded-full bg-zinc-950 text-xl font-semibold text-white shadow-lg shadow-zinc-950/20"
           onClick={onAnalyze}
         >
@@ -435,7 +435,7 @@ export function MobileStrategicProfilePreview({
               {profileUpdated ? (
                 <section className="mx-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
                   <p className="text-sm font-semibold text-zinc-950">Diagnóstico atualizado</p>
-                  <p className="mt-1 text-sm leading-6 text-zinc-600">Seu Perfil foi atualizado nesta simulação.</p>
+                  <p className="mt-1 text-sm leading-6 text-zinc-600">Seu Perfil foi atualizado com a nova leitura.</p>
                 </section>
               ) : null}
 

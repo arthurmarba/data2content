@@ -85,12 +85,12 @@ export function MobileStrategicProfileMediaKitModal({
               </p>
             ) : (
               <p className="mt-4 rounded-2xl bg-white px-3 py-2 text-sm leading-6 text-zinc-600 shadow-sm">
-                O link do Mídia Kit existente ainda não está disponível nesta preview.
+                O link do Mídia Kit existente ainda não está disponível por aqui.
               </p>
             )
           ) : (
             <p className="mt-4 rounded-2xl bg-white px-3 py-2 text-sm leading-6 text-zinc-600 shadow-sm">
-              Esta preview não conecta Instagram de verdade; ela só mostra a ponte visual para o recurso existente.
+              Conectar Instagram acontece no recurso existente; aqui mostramos apenas o caminho para ativar.
             </p>
           )}
         </div>

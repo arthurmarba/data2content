@@ -80,7 +80,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     continueFlow(); // creator_goal -> quick_questions
     continueFlow(); // quick_questions -> updating_profile
 
-    expect(screen.getByText("Atualizando seu Perfil Estratégico")).toBeInTheDocument();
+    expect(screen.getByText("Atualizando seu Perfil")).toBeInTheDocument();
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         selectedGoalOption: "authority",

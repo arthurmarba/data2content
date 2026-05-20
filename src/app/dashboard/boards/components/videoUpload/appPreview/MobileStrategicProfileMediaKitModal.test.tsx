@@ -75,7 +75,7 @@ describe("MobileStrategicProfileMediaKitModal", () => {
 
     render(<MobileStrategicProfileMediaKitModal profile={profile} open onClose={jest.fn()} />);
 
-    expect(screen.getByText("O link do Mídia Kit existente ainda não está disponível nesta preview.")).toBeInTheDocument();
+    expect(screen.getByText("O link do Mídia Kit existente ainda não está disponível por aqui.")).toBeInTheDocument();
     for (const label of ["Copiar link", "Compartilhar", "Ver como marca", "Abrir Mídia Kit"]) {
       expect(screen.getByRole("button", { name: label })).toBeDisabled();
     }
@@ -86,7 +86,7 @@ describe("MobileStrategicProfileMediaKitModal", () => {
 
     expect(screen.getByRole("dialog", { name: "Ativar Mídia Kit" })).toBeInTheDocument();
     expect(screen.getByText("Conectar Instagram é o próximo passo para ativar o Mídia Kit existente.")).toBeInTheDocument();
-    expect(screen.getByText(/não conecta Instagram de verdade/)).toBeInTheDocument();
+    expect(screen.getByText(/Conectar Instagram acontece no recurso existente/)).toBeInTheDocument();
   });
 
   it("does not show internal diagnosis, quiz, pending signals or weak points", () => {
