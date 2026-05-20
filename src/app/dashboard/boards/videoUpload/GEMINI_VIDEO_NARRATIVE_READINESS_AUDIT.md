@@ -213,6 +213,14 @@ A introdução da API de sessão avança a nossa maturidade (readiness) server-s
 - **Ainda NÃO adiciona nenhum provedor externo de storage**: Nenhuma signed URL real é gerada e nenhuma conexão R2/S3 é disparada.
 - **Apenas valida metadados e consentimento**: O servidor agora atua como um guichê inteligente que valida sessão ativa, feature flags e a conformidade do arquivo do criador antes de qualquer transferência física.
 
+## MM61 — UI Dry-Run De Upload Metadata
+
+MM61 conecta a experiência real do `+ / Analisar vídeo` ao guichê de upload session sem aumentar readiness de Gemini real:
+- **Ainda NÃO envia arquivo**: o client lê somente `File.name`, `File.type` e `File.size`.
+- **Ainda NÃO adiciona provider**: nenhum Gemini, OpenAI, storage SDK ou processamento externo foi conectado.
+- **Ainda NÃO muda storage**: não há signed URL real, bucket, upload direto, thumbnail ou vídeo salvo.
+- **Apenas exercita consentimento + validação metadata-only** antes de continuar para a análise mock e atualização do snapshot existente.
+
 ## Frase Norte
 
 > O sistema pode estar pronto para testar Gemini real sem ainda estar pronto para lançar vídeo no produto.

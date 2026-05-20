@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MobileStrategicProfileAnalyzeFlow } from "./MobileStrategicProfileAnalyzeFlow";
 
 const SOURCE_PATH = path.join(__dirname, "MobileStrategicProfileAnalyzeFlow.tsx");
+const UPLOAD_CLIENT_SOURCE_PATH = path.join(__dirname, "mobileStrategicProfileUploadSessionClient.ts");
 
 function renderFlow(onSubmitAnalysis?: any) {
   const onClose = jest.fn();
@@ -173,16 +174,209 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       expect(importLines).not.toContain(forbidden);
     }
 
-    for (const forbiddenCall of [
-      "fetch(",
-      "FileReader",
-      "navigator.storage",
-      "localStorage",
-      "sessionStorage",
-      "router.push",
-      "input type=\"file\"",
-    ]) {
+    for (const forbiddenCall of ["fetch(", "FileReader", "URL.createObjectURL", "navigator.storage", "localStorage", "sessionStorage", "router.push"]) {
       expect(source).not.toContain(forbiddenCall);
     }
+  });
+
+  describe("Fase MM61 - Upload Metadata & Consent Dry Run", () => {
+    const fileMock = new File(["dummy content"], "vlog.mp4", { type: "video/mp4" });
+
+    it("preview sem onCreateUploadSession continua mostrando modal local original", () => {
+      render(
+        <MobileStrategicProfileAnalyzeFlow
+          open
+          onClose={jest.fn()}
+          onComplete={jest.fn()}
+        />
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      expect(screen.getByText("Vídeo pronto para análise")).toBeInTheDocument();
+      expect(screen.queryByText("Selecionar arquivo de vídeo")).not.toBeInTheDocument();
+    });
+
+    it("rota real com onCreateUploadSession mostra seletor de arquivo e não mostra thumbnail/player", () => {
+      const onCreateSession = jest.fn();
+      const { container } = render(
+        <MobileStrategicProfileAnalyzeFlow
+          open
+          onClose={jest.fn()}
+          onComplete={jest.fn()}
+          onCreateUploadSession={onCreateSession}
+        />
+      );
+      // Avança para mock_upload
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+      expect(screen.getByText("Selecionar arquivo de vídeo")).toBeInTheDocument();
+      expect(screen.queryByRole("img")).not.toBeInTheDocument();
+      expect(container.querySelector("video")).not.toBeInTheDocument();
+      expect(screen.getByText("Aguardando seleção.")).toBeInTheDocument();
+    });
+
+    it("selecionar arquivo e interagir com consentimento e validação da API", async () => {
+      const onCreateSession = jest.fn().mockResolvedValue({
+        ok: true,
+        status: "mock_session_created",
+      });
+      const { container } = render(
+        <MobileStrategicProfileAnalyzeFlow
+          open
+          onClose={jest.fn()}
+          onComplete={jest.fn()}
+          onCreateUploadSession={onCreateSession}
+        />
+      );
+
+      // Avança para mock_upload
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+      // Seleciona o arquivo
+      const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+      expect(fileInput).toBeInTheDocument();
+      fireEvent.change(fileInput, { target: { files: [fileMock] } });
+
+      expect(screen.getByText("vlog.mp4")).toBeInTheDocument();
+      expect(screen.getByText(/video\/mp4/i)).toBeInTheDocument();
+
+      // Sem consentimento aceito, a chamada não é feita
+      const continueBtn = screen.getByRole("button", { name: "Continuar" });
+      fireEvent.click(continueBtn);
+      expect(onCreateSession).not.toHaveBeenCalled();
+      expect(screen.getByText("Aceite o consentimento para continuar.")).toBeInTheDocument();
+
+      // Aceita consentimento
+      const checkbox = screen.getByRole("checkbox");
+      fireEvent.click(checkbox);
+
+      // Clica em Continuar
+      fireEvent.click(continueBtn);
+
+      await waitFor(() => {
+        expect(onCreateSession).toHaveBeenCalledWith({
+          fileName: "vlog.mp4",
+          mimeType: "video/mp4",
+          sizeBytes: fileMock.size,
+          durationSeconds: null,
+          userConsentAccepted: true,
+          consentTextVersion: "video_narrative_upload_consent_v1",
+          source: "mobile_strategic_profile",
+        });
+      });
+
+      // Valida que seguiu para objetivo/perguntas (Creator Goal)
+      await waitFor(() => {
+        expect(screen.getByText("Vídeo validado para análise")).toBeInTheDocument();
+        expect(screen.getByText("Qual era o objetivo do conteúdo?")).toBeInTheDocument();
+      });
+    });
+
+    it("exibe erro humano amigável se a API falhar", async () => {
+      const onCreateSession = jest.fn().mockResolvedValue({
+        ok: false,
+        status: "disabled",
+        message: "O tamanho do vídeo excede o limite permitido.",
+      });
+      const { container } = render(
+        <MobileStrategicProfileAnalyzeFlow
+          open
+          onClose={jest.fn()}
+          onComplete={jest.fn()}
+          onCreateUploadSession={onCreateSession}
+        />
+      );
+
+      // Avança para mock_upload
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+      // Seleciona o arquivo
+      const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+      fireEvent.change(fileInput, { target: { files: [fileMock] } });
+
+      // Aceita consentimento
+      const checkbox = screen.getByRole("checkbox");
+      fireEvent.click(checkbox);
+
+      // Clica em Continuar
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+      await waitFor(() => {
+        expect(screen.getByText(/O tamanho do vídeo excede o limite/i)).toBeInTheDocument();
+      });
+      expect(screen.queryByText("Qual era o objetivo do conteúdo?")).not.toBeInTheDocument();
+    });
+
+    it("finaliza a analise mock depois da validacao de upload metadata", async () => {
+      const onCreateSession = jest.fn().mockResolvedValue({
+        ok: true,
+        status: "mock_session_created",
+      });
+      const onSubmit = jest.fn().mockResolvedValue(undefined);
+      const { container } = render(
+        <MobileStrategicProfileAnalyzeFlow
+          open
+          onClose={jest.fn()}
+          onComplete={jest.fn()}
+          onCreateUploadSession={onCreateSession}
+          onSubmitAnalysis={onSubmit}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
+      fireEvent.click(screen.getByRole("checkbox"));
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+      await waitFor(() => {
+        expect(screen.getByText("Qual era o objetivo do conteúdo?")).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+      await waitFor(() => {
+        expect(onSubmit).toHaveBeenCalledWith(
+          expect.objectContaining({
+            selectedGoalOption: "authority",
+          })
+        );
+      });
+    });
+
+    it("nao cria historico visual de videos nem usa APIs proibidas do browser", () => {
+      render(
+        <MobileStrategicProfileAnalyzeFlow
+          open
+          onClose={jest.fn()}
+          onComplete={jest.fn()}
+          onCreateUploadSession={jest.fn()}
+        />
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+      const text = document.body.textContent?.toLowerCase() ?? "";
+      expect(text).not.toContain("histórico de vídeos");
+      expect(text).not.toContain("vídeos salvos");
+      expect(text).not.toContain("thumbnail");
+      expect(text).not.toContain("player");
+
+      const source = `${fs.readFileSync(SOURCE_PATH, "utf8")}\n${fs.readFileSync(UPLOAD_CLIENT_SOURCE_PATH, "utf8")}`;
+      for (const forbiddenCall of [
+        "FileReader",
+        "URL.createObjectURL",
+        "canvas",
+        "localStorage",
+        "sessionStorage",
+        "navigator.storage",
+        "@google/genai",
+        "openai",
+        "aws-sdk",
+        "@aws-sdk",
+        "@google-cloud/storage",
+        "cloudinary",
+      ]) {
+        expect(source).not.toContain(forbiddenCall);
+      }
+    });
   });
 });
