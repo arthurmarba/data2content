@@ -453,3 +453,10 @@ Não recomendar integração real antes do QA/polish visual.
 - A ausência do adapter real de storage no momento do teste deve bloquear o provider da IA de forma segura.
 - Erros de ausência de SDK, timeout ou permissões de adapter não vazam raw stack no console/client.
 - Não expor API Keys do Gemini durante a auditoria server-side, logs ou status codes da resposta da validação local.
+
+## Guardrails do MM68 (Runtime S3-compatible Adapter)
+
+- Adapter validará presencialmente as chaves (bucket/access/secret) antes de avançar;
+- Em caso de arquivo ausente/apagado ou credencial falha, a IA deve abortar com aviso seguro ao criador e NÃO vazar exceção da AWS;
+- `Cleanup_accepted`: O arquivo deve de fato ser deletado no bucket se provider disponível;
+- `Cleanup_not_configured`: Fallback seguro continua valendo e sem impactar persistência da snapshot se adapter de storage ou permissão faltarem.

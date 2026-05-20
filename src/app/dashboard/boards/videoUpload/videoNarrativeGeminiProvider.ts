@@ -19,6 +19,12 @@ export type VideoNarrativeGeminiClientAdapter = {
     responseSchemaInstruction: string;
     model: string;
     maxOutputTokens: number;
+    videoInput?: {
+      mimeType: string;
+      bytes?: Uint8Array | Buffer;
+      uri?: string;
+      source: "temporary_storage";
+    };
   }): Promise<{ text: string | null }>;
 };
 
@@ -63,6 +69,12 @@ export async function runVideoNarrativeGeminiProvider(params: {
   env?: EnvLike;
   config?: VideoNarrativeGeminiProviderConfig;
   client?: VideoNarrativeGeminiClientAdapter | null;
+  videoInput?: {
+    mimeType: string;
+    bytes?: Uint8Array | Buffer;
+    uri?: string;
+    source: "temporary_storage";
+  };
 }): Promise<VideoNarrativeAiProviderResult> {
   const startedAt = Date.now();
   const resolved = params.config
@@ -118,6 +130,7 @@ export async function runVideoNarrativeGeminiProvider(params: {
         responseSchemaInstruction: prompt.responseSchemaInstruction,
         model: resolved.config.model!,
         maxOutputTokens: resolved.config.maxOutputTokens,
+        videoInput: params.videoInput,
       }),
       resolved.config.timeoutMs,
     );

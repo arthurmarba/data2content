@@ -5,6 +5,8 @@ export type VideoNarrativeEnvAuditIssueCode =
   | "real_upload_disabled"
   | "signed_upload_allowlist_disabled"
   | "storage_provider_missing"
+  | "storage_credentials_missing"
+  | "storage_runtime_resolver_ready"
   | "allowlist_missing"
   | "env_ready_for_smoke";
 
@@ -23,6 +25,7 @@ export type VideoNarrativeEnvAuditResult = {
     realUploadEnabled: boolean;
     signedUploadAllowlistEnabled: boolean;
     storageProvider: string;
+    storageCredentialsPresent: boolean;
     allowlistConfigured: boolean;
   };
 };
@@ -96,9 +99,25 @@ export function performVideoNarrativeRealRuntimeEnvAudit(
       code: "storage_provider_missing",
       message: "Nenhum provider de storage real configurado (VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER).",
     });
+  } else {
+    const bucket = !!env.VIDEO_NARRATIVE_TEMP_STORAGE_BUCKET?.trim();
+    const accessKeyId = !!env.VIDEO_NARRATIVE_TEMP_STORAGE_ACCESS_KEY_ID?.trim();
+    const secretAccessKey = !!env.VIDEO_NARRATIVE_TEMP_STORAGE_SECRET_ACCESS_KEY?.trim();
+
+    if (!bucket || !accessKeyId || !secretAccessKey) {
+      issues.push({
+        code: "storage_credentials_missing",
+        message: "Credenciais de storage incompletas (falta bucket ou access keys).",
+      });
+    } else {
+      issues.push({
+        code: "storage_runtime_resolver_ready",
+        message: "Provider e credenciais de storage configurados e prontos.",
+      });
+    }
   }
 
-  const ok = issues.length === 0;
+  const ok = issues.filter(i => i.code !== "storage_runtime_resolver_ready").length === 0;
 
   if (ok) {
     issues.push({
@@ -117,6 +136,7 @@ export function performVideoNarrativeRealRuntimeEnvAudit(
       realUploadEnabled,
       signedUploadAllowlistEnabled,
       storageProvider,
+      storageCredentialsPresent: !!env.VIDEO_NARRATIVE_TEMP_STORAGE_BUCKET?.trim() && !!env.VIDEO_NARRATIVE_TEMP_STORAGE_ACCESS_KEY_ID?.trim() && !!env.VIDEO_NARRATIVE_TEMP_STORAGE_SECRET_ACCESS_KEY?.trim(),
       allowlistConfigured,
     },
   };

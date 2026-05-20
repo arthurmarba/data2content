@@ -2068,3 +2068,14 @@ Descrever:
 - STOR4: contrato de auditoria de cleanup e eventos de retenção.
 - VU11: documentação de custos, limites e retenção.
 - VU12: upload real em PR separado ou fase isolada, somente depois das decisões de produto, segurança e custo.
+
+### MM68 — Storage Runtime Adapter for Gemini Input
+
+Status: concluído.
+
+- Conecta storage temporário server-side ao input seguro do Gemini.
+- Mantém acesso allowlist/admin-dev.
+- Não expõe signed URL ao client.
+- Não salva vídeo.
+- Não persiste objectKey/signed URL no snapshot.
+- Cleanup pode deletar objeto temporário quando provider suporta.

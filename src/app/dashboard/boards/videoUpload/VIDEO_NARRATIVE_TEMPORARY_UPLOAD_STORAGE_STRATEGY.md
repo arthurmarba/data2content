@@ -223,3 +223,11 @@ MM67 adiciona o `videoNarrativeTemporaryStorageRuntimeResolver.ts` como validaç
 - o orquestrador bloqueia a análise real antes da execução com a IA, retornando a mensagem segura: "A análise real ainda precisa da conexão temporária de storage para ler o vídeo.";
 - garante que nenhum detalhe interno ou raw stack trace seja exposto ao criador no momento do bloqueio;
 - consolida a estratégia de que o Gemini provider não assume a responsabilidade do download e que o sistema está blindado contra falhas não tratadas na ausência de implementação do storage físico.
+
+## Fase MM68 — Storage Runtime Adapter
+
+MM68 implementa oficialmente o `videoNarrativeTemporaryStorageRuntimeAdapter.ts`, viabilizando o consumo e descarte real do arquivo armazenado:
+- **Resolução de Input**: Lê o `objectKey` e faz o download seguro como `Uint8Array` via @aws-sdk/client-s3 (server-side only);
+- **Consumo Seguro Multimodal**: Passa os bytes puros do buffer em tempo de memória para a API do Google, impedindo a geração ou o tráfego de signed URLs inseguras na interface.
+- **Deleção Programática**: O adapter conta com o método `deleteVideoNarrativeTemporaryStorageObject` que aciona a destruição do arquivo assim que a request de `upload-cleanup` é engatilhada, removendo da nuvem de imediato. O erro na deleção vira um log/warning não-impeditivo.
+- **Riscos de Custo/Timeout**: Ler arquivos pesados diretamente na Lambda/Runtime e transformá-los num Base64/buffer do Gemini requer atenção ao tamanho (MAX_MB suportado vs limites de Vercel e da IA), sendo vital os limites estritos definidos no contrato do Adapter.

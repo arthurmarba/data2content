@@ -8,6 +8,7 @@ import {
 } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadFeatureFlag";
 import { evaluateVideoNarrativeSignedUploadAllowlist } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageAllowlist";
 import { validateVideoNarrativeTemporaryUploadCleanupPayload } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadCleanupTypes";
+import { deleteVideoNarrativeTemporaryStorageObject } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageRuntimeAdapter";
 
 type MobileStrategicProfileCleanupSession = {
   user?: {
@@ -92,6 +93,20 @@ export async function POST(request: Request) {
           },
           { status: 403 },
         );
+      }
+    }
+
+    if (validation.payload.objectKey) {
+      const deleted = await deleteVideoNarrativeTemporaryStorageObject({
+        objectKey: validation.payload.objectKey,
+      });
+
+      if (deleted) {
+        return NextResponse.json({
+          ok: true,
+          status: "cleanup_accepted",
+          message: "Arquivo temporário excluído com sucesso do storage.",
+        });
       }
     }
 
