@@ -20,7 +20,7 @@ const MIN_ALLOWED_UPLOAD_MB = 1;
 const MAX_RETENTION_TTL_MINUTES = 24 * 60;
 const MIN_RETENTION_TTL_MINUTES = 5;
 const MAX_SIGNED_URL_TTL_SECONDS = 15 * 60;
-const MIN_SIGNED_URL_TTL_SECONDS = 30;
+const MIN_SIGNED_URL_TTL_SECONDS = 60;
 
 function issue(params: {
   code: string;
@@ -41,7 +41,7 @@ function parsePositiveNumber(value: string | undefined): number | null {
   return parsed;
 }
 
-function resolveProvider(value: string | undefined): {
+function resolveProvider(value: string | undefined, realUploadEnabled: boolean, signedUploadAllowlistEnabled: boolean): {
   mode: VideoNarrativeTemporaryStorageProviderMode;
   providerName: VideoNarrativeTemporaryStorageProviderName;
 } {
@@ -52,11 +52,17 @@ function resolveProvider(value: string | undefined): {
   }
 
   if (normalized === "r2" || normalized === "cloudflare_r2") {
-    return { mode: "r2_planned", providerName: "cloudflare_r2" };
+    return {
+      mode: realUploadEnabled && signedUploadAllowlistEnabled ? "real" : "r2_planned",
+      providerName: "cloudflare_r2",
+    };
   }
 
   if (normalized === "s3" || normalized === "aws_s3") {
-    return { mode: "s3_planned", providerName: "aws_s3" };
+    return {
+      mode: realUploadEnabled && signedUploadAllowlistEnabled ? "real" : "s3_planned",
+      providerName: "aws_s3",
+    };
   }
 
   if (normalized === "gcs" || normalized === "google_cloud_storage") {
@@ -105,10 +111,15 @@ export function resolveTemporaryStorageProviderConfig(
 } {
   const env = options.env ?? process.env;
   const issues: VideoNarrativeTemporaryStorageProviderConfigIssue[] = [];
-  const provider = resolveProvider(env.VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER);
   const realUploadEnabled = options.realUploadEnabled ?? parseBoolean(env.VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED);
   const uploadSessionEnabled =
     options.uploadSessionEnabled ?? parseBoolean(env.VIDEO_NARRATIVE_TEMP_UPLOAD_SESSION_ENABLED);
+  const signedUploadAllowlistEnabled = parseBoolean(env.VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED);
+  const provider = resolveProvider(
+    env.VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER,
+    realUploadEnabled,
+    signedUploadAllowlistEnabled,
+  );
 
   const maxFileSizeBytes = readBoundedInteger({
     raw: env.VIDEO_NARRATIVE_TEMP_UPLOAD_MAX_MB,
@@ -141,14 +152,42 @@ export function resolveTemporaryStorageProviderConfig(
     issues,
   });
 
-  if (realUploadEnabled) {
+  if (realUploadEnabled && !signedUploadAllowlistEnabled) {
     issues.push(
       issue({
-        code: "real_upload_not_supported_in_this_build",
+        code: "signed_upload_allowlist_required",
         severity: "blocker",
-        message: "Upload real não é suportado nesta build.",
+        message: "Upload real exige allowlist server-side habilitada nesta build.",
       }),
     );
+  }
+
+  if (realUploadEnabled && provider.mode !== "real") {
+    issues.push(
+      issue({
+        code: "valid_real_storage_provider_required",
+        severity: "blocker",
+        message: "Provider de storage temporário real não está disponível nesta build.",
+      }),
+    );
+  }
+
+  if (provider.mode === "real") {
+    for (const [code, label, raw] of [
+      ["missing_storage_bucket", "Bucket de storage temporário", env.VIDEO_NARRATIVE_TEMP_STORAGE_BUCKET],
+      ["missing_storage_region", "Região de storage temporário", env.VIDEO_NARRATIVE_TEMP_STORAGE_REGION],
+      ["missing_storage_endpoint", "Endpoint de storage temporário", env.VIDEO_NARRATIVE_TEMP_STORAGE_ENDPOINT],
+    ] as const) {
+      if (!raw?.trim()) {
+        issues.push(
+          issue({
+            code,
+            severity: "blocker",
+            message: `${label} deve estar configurado para signed upload session.`,
+          }),
+        );
+      }
+    }
   }
 
   if (PLANNED_TEMPORARY_STORAGE_PROVIDER_MODES.includes(provider.mode) && !realUploadEnabled) {
@@ -167,6 +206,7 @@ export function resolveTemporaryStorageProviderConfig(
       providerName: provider.providerName,
       realUploadEnabled,
       uploadSessionEnabled,
+      signedUploadAllowlistEnabled,
       maxFileSizeBytes,
       retentionTtlMinutes,
       signedUrlTtlSeconds,

@@ -2009,6 +2009,14 @@ MM62 cria a abstração server-side para storage temporário futuro, separando a
 
 A upload-session API passa a usar a factory, mas provider real continua bloqueado. Não há signed URL real, `uploadUrl`, `storageKey`, SDK de storage, bucket real ou upload real. Providers R2/S3/GCS/Cloudinary existem apenas como modos planejados e retornam disabled nesta build.
 
+### MM63 — Signed Upload Session Allowlist
+
+Status: concluído.
+
+MM63 adiciona o primeiro caminho server-side para signed upload session, restrito a allowlist/admin-dev e atrás das flags `VIDEO_NARRATIVE_TEMP_UPLOAD_SESSION_ENABLED=1`, `VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED=true`, `VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER=r2|aws_s3` e `VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED=1`.
+
+Como o repo ainda não possui SDK S3/R2 adequado instalado, a geração física de signed URL fica isolada em um signer server-side injetável/testável. A rota real continua sem upload client, sem envio de arquivo, sem storage SDK, sem vídeo salvo, sem thumbnail, sem Gemini e sem persistir signed URL. Usuários comuns seguem bloqueados e o modo mock/disabled permanece o comportamento padrão.
+
 ## Próximas Fases Sugeridas
 
 - PROC4: contrato de fila/job conceitual de processamento.

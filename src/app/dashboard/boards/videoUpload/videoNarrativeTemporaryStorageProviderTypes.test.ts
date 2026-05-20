@@ -32,11 +32,11 @@ describe("videoNarrativeTemporaryStorageProviderTypes", () => {
     ]);
   });
 
-  it("does not define uploadUrl, signedUrl, bucket, or storageKey in the upload session result", () => {
+  it("does not define uploadUrl, signedUrl, bucket, or storageKey in the mock upload session result", () => {
     const source = fs.readFileSync(SOURCE_PATH, "utf8");
     const uploadSessionType = source.slice(
-      source.indexOf("export type VideoNarrativeTemporaryStorageUploadSession"),
-      source.indexOf("export type VideoNarrativeTemporaryStorageCreateSessionResult"),
+      source.indexOf("export type VideoNarrativeTemporaryStorageMockUploadSession"),
+      source.indexOf("export type VideoNarrativeTemporaryStorageSignedUploadSession"),
     );
 
     for (const forbidden of ["uploadUrl", "signedUrl", "storageKey", "bucket:"]) {

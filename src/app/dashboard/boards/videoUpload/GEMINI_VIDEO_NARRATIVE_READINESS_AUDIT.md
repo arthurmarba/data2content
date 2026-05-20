@@ -229,6 +229,14 @@ MM62 melhora a prontidão arquitetural de storage sem aproximar a execução de 
 - **Ainda NÃO gera signed URL real**: a factory só retorna `disabled` ou sessão `mock_session_created` sem URL/chave física.
 - **Apenas separa contratos, config/env e escolha de provider** para preparar uma futura allowlist de signed URL em PR separado.
 
+## MM63 — Readiness De Signed Upload Allowlist
+
+MM63 avança a prontidão de storage temporário sem aumentar readiness de Gemini real:
+- **Ainda NÃO aumenta readiness de Gemini real**: nenhum provider Gemini/OpenAI foi adicionado e nenhuma análise multimodal real é chamada.
+- **Ainda NÃO adiciona SDK de storage**: a assinatura fica em adapter server-side injetável/testável porque o repo não possui SDK S3/R2 adequado instalado.
+- **Ainda NÃO integra upload real no client**: a UI continua metadata-only, sem `PUT`, sem envio de bytes e sem `FileReader`.
+- **Apenas prepara signed upload session curta para allowlist/admin-dev**, com flags rígidas, objectKey seguro, sem persistir signed URL e sem salvar vídeo.
+
 ## Frase Norte
 
 > O sistema pode estar pronto para testar Gemini real sem ainda estar pronto para lançar vídeo no produto.
