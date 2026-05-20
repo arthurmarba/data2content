@@ -81,13 +81,13 @@ describe("/api/internal/video-narrative/gemini-smoke", () => {
     expect(data.error).toBe("Ambiente não está pronto para smoke test.");
   });
 
-  it("15. Com fake provider retorna ok seguro", async () => {
+  it("15. Com fake provider validado retorna ok seguro", async () => {
     const response = await POST();
     expect(response.status).toBe(200);
     const data = await response.json();
-    expect(data.ok).toBe(false); // Porque o JSON no fake provider acima não tem os dados completos do parser
+    expect(data.ok).toBe(true);
     expect(data.providerReady).toBe(true);
-    expect(data.parserReady).toBe(false);
+    expect(data.parserReady).toBe(true);
     expect(typeof data.timingMs).toBe("number");
   });
 
