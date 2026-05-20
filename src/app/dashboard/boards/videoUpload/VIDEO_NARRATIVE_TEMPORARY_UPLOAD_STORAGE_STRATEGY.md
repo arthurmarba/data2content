@@ -144,3 +144,16 @@ Próximos passos antes de signed URL real:
 - adicionar assinatura curta em provider isolado;
 - testar upload direto sem passar bytes pelo servidor da aplicação;
 - auditar cleanup, expiração e remoção pós-processamento.
+
+## Fase MM63 — Signed Upload Allowlist
+
+MM63 adiciona o primeiro caminho de signed upload session server-side para R2/S3-compatible, ainda sem upload real no client:
+
+- feature flags obrigatórias: `VIDEO_NARRATIVE_TEMP_UPLOAD_SESSION_ENABLED=1`, `VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED=true`, `VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER=r2|aws_s3` e `VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED=1`;
+- allowlist server-side por admin/dev, email ou userId via env;
+- validação de env obrigatória para bucket, região, endpoint, TTL curto de signed URL e TTL de retenção;
+- `objectKey` gerado sem nome original, email, handle, espaços ou dados sensíveis;
+- `uploadUrl` só aparece no resultado de sessão signed allowlist e nunca é persistida;
+- não há bucket secreto, access key, secret key, account id ou token retornado fora da URL assinada.
+
+Como o repo ainda não possui SDK S3/R2 adequado instalado, a assinatura real fica isolada em um signer server-side injetável/testável. Próximo passo para upload direto: escolher/adicionar o SDK server-only, implementar o signer S3-compatible, manter allowlist por ambiente e só depois criar o client direct upload em PR separado.

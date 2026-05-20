@@ -1,6 +1,7 @@
 export type VideoNarrativeTemporaryStorageProviderMode =
   | "disabled"
   | "mock"
+  | "real"
   | "r2_planned"
   | "s3_planned"
   | "gcs_planned"
@@ -25,6 +26,7 @@ export type VideoNarrativeTemporaryStorageProviderConfig = {
   providerName: VideoNarrativeTemporaryStorageProviderName;
   realUploadEnabled: boolean;
   uploadSessionEnabled: boolean;
+  signedUploadAllowlistEnabled: boolean;
   maxFileSizeBytes: number;
   retentionTtlMinutes: number;
   signedUrlTtlSeconds: number;
@@ -42,16 +44,35 @@ export type VideoNarrativeTemporaryStorageCreateSessionInput = {
   durationSeconds?: number;
   consentTextVersion: string;
   userId: string;
+  userEmail?: string | null;
   source: "mobile_strategic_profile";
   nowIso?: string;
 };
 
-export type VideoNarrativeTemporaryStorageUploadSession = {
+export type VideoNarrativeTemporaryStorageMockUploadSession = {
   id: string;
   providerMode: "mock";
   storageProvider: "none";
   expiresAt: string;
   retentionTtlMinutes: number;
+  shouldDeleteAfterAnalysis: true;
+  shouldPersistVideo: false;
+  shouldPersistThumbnail: false;
+};
+
+export type VideoNarrativeTemporaryStorageSignedUploadSession = {
+  id: string;
+  providerMode: "real";
+  storageProvider: "cloudflare_r2" | "aws_s3";
+  uploadUrl: string;
+  method: "PUT";
+  expiresAt: string;
+  signedUrlTtlSeconds: number;
+  retentionTtlMinutes: number;
+  headers: {
+    "Content-Type": string;
+  };
+  objectKey: string;
   shouldDeleteAfterAnalysis: true;
   shouldPersistVideo: false;
   shouldPersistThumbnail: false;
@@ -63,7 +84,15 @@ export type VideoNarrativeTemporaryStorageCreateSessionResult =
       status: "mock_session_created";
       providerMode: "mock";
       storageProvider: "none";
-      uploadSession: VideoNarrativeTemporaryStorageUploadSession;
+      uploadSession: VideoNarrativeTemporaryStorageMockUploadSession;
+      issues?: VideoNarrativeTemporaryStorageProviderConfigIssue[];
+    }
+  | {
+      ok: true;
+      status: "signed_upload_session_created";
+      providerMode: "real";
+      storageProvider: "cloudflare_r2" | "aws_s3";
+      uploadSession: VideoNarrativeTemporaryStorageSignedUploadSession;
       issues?: VideoNarrativeTemporaryStorageProviderConfigIssue[];
     }
   | {
@@ -80,7 +109,7 @@ export type VideoNarrativeTemporaryStorageProvider = {
   providerName: VideoNarrativeTemporaryStorageProviderName;
   createUploadSession(
     input: VideoNarrativeTemporaryStorageCreateSessionInput,
-  ): VideoNarrativeTemporaryStorageCreateSessionResult;
+  ): VideoNarrativeTemporaryStorageCreateSessionResult | Promise<VideoNarrativeTemporaryStorageCreateSessionResult>;
 };
 
 export const DEFAULT_TEMPORARY_STORAGE_PROVIDER_CONFIG: VideoNarrativeTemporaryStorageProviderConfig = {
@@ -88,6 +117,7 @@ export const DEFAULT_TEMPORARY_STORAGE_PROVIDER_CONFIG: VideoNarrativeTemporaryS
   providerName: "none",
   realUploadEnabled: false,
   uploadSessionEnabled: false,
+  signedUploadAllowlistEnabled: false,
   maxFileSizeBytes: 100 * 1024 * 1024,
   retentionTtlMinutes: 60,
   signedUrlTtlSeconds: 300,

@@ -380,3 +380,11 @@ Não recomendar integração real antes do QA/polish visual.
 - Nenhuma resposta deve conter signed URL, uploadUrl, storageKey ou bucket real.
 - Nenhum SDK de storage deve ser importado.
 - `VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED=true` deve bloquear a sessão nesta build.
+
+## Guardrails do MM63
+
+- Signed upload session só pode aparecer para admin/dev ou allowlist server-side com flags rígidas habilitadas.
+- Usuários comuns devem continuar recebendo erro seguro e não devem ver `uploadUrl`.
+- A UI do `+ / Analisar vídeo` continua sem fazer `PUT`, sem enviar bytes, sem thumbnail/player e sem histórico visual.
+- QA deve validar que a sessão signed allowlist não salva vídeo, thumbnail, signed URL ou `objectKey` em banco.
+- O fluxo metadata dry-run continua mostrando vídeo validado e seguindo para análise mock, mesmo que o servidor seja capaz de criar sessão signed em ambiente controlado.

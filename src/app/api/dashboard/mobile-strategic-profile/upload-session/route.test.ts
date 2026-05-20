@@ -27,7 +27,18 @@ jest.mock("@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadFeatu
   isRealUploadEnabled: jest.fn(),
 }));
 
+jest.mock("@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageSignedUrlProvider", () => {
+  const actual = jest.requireActual("@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageSignedUrlProvider");
+  return {
+    ...actual,
+    createServerSideSignedUploadUrlSigner: jest.fn(() => null),
+  };
+});
+
 const getServerSession = require("next-auth/next").getServerSession as jest.Mock;
+const createServerSideSignedUploadUrlSigner =
+  require("@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageSignedUrlProvider")
+    .createServerSideSignedUploadUrlSigner as jest.Mock;
 const ROUTE_SOURCE_PATH = path.join(__dirname, "route.ts");
 const originalEnv = process.env;
 
@@ -77,8 +88,15 @@ describe("POST /api/dashboard/mobile-strategic-profile/upload-session", () => {
       ...originalEnv,
       VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "mock",
       VIDEO_NARRATIVE_TEMP_UPLOAD_SESSION_ENABLED: "1",
+      VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED: "",
+      VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWED_EMAILS: "",
+      VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWED_USER_IDS: "",
+      VIDEO_NARRATIVE_TEMP_STORAGE_BUCKET: "",
+      VIDEO_NARRATIVE_TEMP_STORAGE_REGION: "",
+      VIDEO_NARRATIVE_TEMP_STORAGE_ENDPOINT: "",
     };
     jest.clearAllMocks();
+    createServerSideSignedUploadUrlSigner.mockReturnValue(null);
     (isMobileStrategicProfileEnabled as jest.Mock).mockReturnValue(true);
     (isTemporaryUploadSessionEnabled as jest.Mock).mockReturnValue(true);
     (isRealUploadEnabled as jest.Mock).mockReturnValue(false);
@@ -110,15 +128,51 @@ describe("POST /api/dashboard/mobile-strategic-profile/upload-session", () => {
     expect(res.status).toBe(403);
   });
 
-  it("POST bloqueia provider real / storage real se estiver ativo de forma insegura", async () => {
+  it("POST bloqueia provider real / storage real se allowlist estiver desligada", async () => {
     (isRealUploadEnabled as jest.Mock).mockReturnValue(true);
 
     const res = await POST(createRequest("POST", validBasePayload));
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(403);
     const body = await res.json();
     expect(body.ok).toBe(false);
     expect(body.status).toBe("disabled");
-    expect(body.issues.some((issue: any) => issue.code === "real_upload_not_supported_in_this_build")).toBe(true);
+    expect(body.issues.some((issue: any) => issue.code === "signed_upload_allowlist_disabled")).toBe(true);
+  });
+
+  it("POST bloqueia usuário não allowlisted quando upload real está ativo", async () => {
+    (isRealUploadEnabled as jest.Mock).mockReturnValue(true);
+    process.env.VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED = "1";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER = "r2";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_BUCKET = "temporary-video";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_REGION = "auto";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_ENDPOINT = "https://r2.example.test";
+    (getServerSession as jest.Mock).mockResolvedValue({
+      user: { id: "usr_common", email: "common@example.com", role: "creator" },
+    });
+
+    const res = await POST(createRequest("POST", validBasePayload));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.issues.some((issue: any) => issue.code === "signed_upload_user_not_allowed")).toBe(true);
+    expect(JSON.stringify(body)).not.toContain("common@example.com");
+  });
+
+  it("POST bloqueia payload inválido antes do provider real", async () => {
+    const signer = jest.fn().mockReturnValue({ uploadUrl: "https://signed.example.test/upload?signature=test" });
+    createServerSideSignedUploadUrlSigner.mockReturnValue(signer);
+    (isRealUploadEnabled as jest.Mock).mockReturnValue(true);
+    process.env.VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED = "1";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER = "r2";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_BUCKET = "temporary-video";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_REGION = "auto";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_ENDPOINT = "https://r2.example.test";
+    (getServerSession as jest.Mock).mockResolvedValue({
+      user: { id: "usr_admin", email: "admin@example.com", role: "admin" },
+    });
+
+    const res = await POST(createRequest("POST", { ...validBasePayload, mimeType: "image/png" }));
+    expect(res.status).toBe(400);
+    expect(signer).not.toHaveBeenCalled();
   });
 
   it("POST bloqueia payload com 'file' no corpo", async () => {
@@ -273,6 +327,57 @@ describe("POST /api/dashboard/mobile-strategic-profile/upload-session", () => {
     expect(body.uploadSession).toBeUndefined();
   });
 
+  it("POST retorna signed_upload_session_created para usuário allowlisted com signer server-side", async () => {
+    const signer = jest.fn().mockReturnValue({ uploadUrl: "https://signed.example.test/upload?signature=test" });
+    createServerSideSignedUploadUrlSigner.mockReturnValue(signer);
+    (isRealUploadEnabled as jest.Mock).mockReturnValue(true);
+    process.env.VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED = "1";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER = "r2";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_BUCKET = "temporary-video";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_REGION = "auto";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_ENDPOINT = "https://r2.example.test";
+    (getServerSession as jest.Mock).mockResolvedValue({
+      user: { id: "usr_allowed", email: "allowed@example.com", role: "creator" },
+    });
+    process.env.VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWED_EMAILS = "allowed@example.com";
+
+    const res = await POST(createRequest("POST", validBasePayload));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(body.status).toBe("signed_upload_session_created");
+    expect(body.uploadSession.method).toBe("PUT");
+    expect(body.uploadSession.headers["Content-Type"]).toBe("video/mp4");
+    expect(body.uploadSession.uploadUrl).toContain("https://signed.example.test/upload");
+    expect(body.uploadSession.objectKey).toMatch(/^temporary\/video-narrative\/[a-f0-9]{16}\//);
+    expect(body.uploadSession.objectKey).not.toContain("video.mp4");
+    expect(body.uploadSession.shouldPersistVideo).toBe(false);
+    expect(body.uploadSession.shouldPersistThumbnail).toBe(false);
+    expect(body.uploadSession.shouldDeleteAfterAnalysis).toBe(true);
+    expect(JSON.stringify(body)).not.toContain("temporary-video");
+    expect(JSON.stringify(body)).not.toContain("access");
+    expect(JSON.stringify(body)).not.toContain("secret");
+  });
+
+  it("POST retorna erro seguro se provider real estiver incompleto", async () => {
+    createServerSideSignedUploadUrlSigner.mockReturnValue(() => ({ uploadUrl: "https://signed.example.test/upload" }));
+    (isRealUploadEnabled as jest.Mock).mockReturnValue(true);
+    process.env.VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED = "1";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER = "r2";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_BUCKET = "";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_REGION = "";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_ENDPOINT = "";
+    (getServerSession as jest.Mock).mockResolvedValue({
+      user: { id: "usr_admin", email: "admin@example.com", role: "admin" },
+    });
+
+    const res = await POST(createRequest("POST", validBasePayload));
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.issues.some((issue: any) => issue.code === "missing_storage_bucket")).toBe(true);
+    expect(JSON.stringify(body)).not.toContain("SECRET");
+  });
+
   it("POST usa a factory de storage temporário", () => {
     const source = fs.readFileSync(ROUTE_SOURCE_PATH, "utf8");
 
@@ -291,6 +396,8 @@ describe("POST /api/dashboard/mobile-strategic-profile/upload-session", () => {
       "@aws-sdk",
       "@google-cloud/storage",
       "cloudinary",
+      "uploadUrl: signed",
+      "bucketName",
     ]) {
       expect(source).not.toContain(forbidden);
     }

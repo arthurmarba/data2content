@@ -7,13 +7,19 @@ import {
   isRealUploadEnabled,
 } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadFeatureFlag";
 import { validateTemporaryUploadInput } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadValidation";
+import { evaluateVideoNarrativeSignedUploadAllowlist } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageAllowlist";
 import { createVideoNarrativeTemporaryStorageProvider } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageProviderFactory";
+import { createServerSideSignedUploadUrlSigner } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageSignedUrlProvider";
 
 const SIGNED_URL_KEYWORDS = ["signature=", "expires=", "token=", "policy="];
 const BASE64_INDICATOR = "base64";
 type MobileStrategicProfileSession = {
   user?: {
     id?: string;
+    email?: string | null;
+    role?: string | null;
+    isAdmin?: boolean | null;
+    isDev?: boolean | null;
   };
 } | null;
 
@@ -171,17 +177,40 @@ export async function POST(request: Request) {
       );
     }
 
+    const realUploadEnabled = isRealUploadEnabled();
+
+    if (realUploadEnabled) {
+      const allowlist = evaluateVideoNarrativeSignedUploadAllowlist({
+        user: session.user,
+      });
+      if (!allowlist.ok) {
+        return NextResponse.json(
+          {
+            ok: false,
+            status: "disabled",
+            reason: "temporary_storage_disabled",
+            providerMode: "disabled",
+            storageProvider: "none",
+            issues: allowlist.issues,
+          },
+          { status: 403 },
+        );
+      }
+    }
+
     const storageFactory = createVideoNarrativeTemporaryStorageProvider({
-      realUploadEnabled: isRealUploadEnabled(),
+      realUploadEnabled,
       uploadSessionEnabled: true,
+      signedUrlSigner: createServerSideSignedUploadUrlSigner(),
     });
-    const providerResult = storageFactory.provider.createUploadSession({
+    const providerResult = await storageFactory.provider.createUploadSession({
       fileName,
       mimeType,
       sizeBytes,
       durationSeconds,
       consentTextVersion,
       userId: session.user.id,
+      userEmail: session.user.email,
       source: "mobile_strategic_profile",
     });
 

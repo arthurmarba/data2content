@@ -1,5 +1,9 @@
 import { resolveTemporaryStorageProviderConfig } from "./videoNarrativeTemporaryStorageProviderConfig";
 import {
+  createVideoNarrativeSignedUploadSession,
+  type VideoNarrativeTemporaryStorageSignedUrlSigner,
+} from "./videoNarrativeTemporaryStorageSignedUrlProvider";
+import {
   PLANNED_TEMPORARY_STORAGE_PROVIDER_MODES,
   type VideoNarrativeTemporaryStorageCreateSessionInput,
   type VideoNarrativeTemporaryStorageCreateSessionResult,
@@ -14,6 +18,7 @@ type CreateProviderOptions = {
   env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
   realUploadEnabled?: boolean;
   uploadSessionEnabled?: boolean;
+  signedUrlSigner?: VideoNarrativeTemporaryStorageSignedUrlSigner | null;
 };
 
 function disabledIssue(message = "Storage temporário desativado nesta fase."): VideoNarrativeTemporaryStorageProviderConfigIssue {
@@ -89,6 +94,25 @@ function buildMockProvider(params: {
   };
 }
 
+function buildSignedProvider(params: {
+  config: VideoNarrativeTemporaryStorageProviderConfig;
+  issues: VideoNarrativeTemporaryStorageProviderConfigIssue[];
+  signedUrlSigner?: VideoNarrativeTemporaryStorageSignedUrlSigner | null;
+}): VideoNarrativeTemporaryStorageProvider {
+  return {
+    mode: "real",
+    providerName: params.config.providerName,
+    createUploadSession(input: VideoNarrativeTemporaryStorageCreateSessionInput) {
+      return createVideoNarrativeSignedUploadSession({
+        config: params.config,
+        input,
+        signer: params.signedUrlSigner ?? undefined,
+        issues: params.issues,
+      });
+    },
+  };
+}
+
 export function createVideoNarrativeTemporaryStorageProvider(
   options: CreateProviderOptions = {},
 ): {
@@ -118,6 +142,17 @@ export function createVideoNarrativeTemporaryStorageProvider(
     return {
       ...resolved,
       provider: buildMockProvider({ config: resolved.config, issues: resolved.issues }),
+    };
+  }
+
+  if (resolved.config.mode === "real" && resolved.config.uploadSessionEnabled) {
+    return {
+      ...resolved,
+      provider: buildSignedProvider({
+        config: resolved.config,
+        issues: resolved.issues,
+        signedUrlSigner: options.signedUrlSigner,
+      }),
     };
   }
 
