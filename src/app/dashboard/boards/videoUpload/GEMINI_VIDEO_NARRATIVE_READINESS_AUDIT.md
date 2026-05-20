@@ -290,6 +290,18 @@ MM69 executou o primeiro smoke real completo em runtime local allowlist:
 
 Correções aplicadas: o smoke harness interno passou a confiar no parser do provider legado que ele próprio usa, evitando falso negativo `missing_required_fields`; o orchestrator real passou a criar o client Gemini server-side por lazy import da factory quando nenhum client é injetado. O provider continua allowlist/admin-dev, usuários comuns seguem bloqueados e o endpoint mock permanece intacto.
 
+## MM70 — Beta Hardening + Usage Limits
+
+MM70 transforma o runtime real validado no MM69 em beta fechado controlável:
+
+- **Usage policy**: anonymous/free/premium comum continuam bloqueados por default; allowlist recebe 5 análises/dia e 20/mês; admin/dev recebe 20/dia e 100/mês.
+- **Proteção de custo**: `VIDEO_NARRATIVE_REAL_ANALYSIS_BETA_LIMITS_ENABLED=1` passa a ser requisito de readiness; limite e cooldown bloqueiam antes de storage/Gemini.
+- **Persistência mínima**: `CreatorVideoNarrativeRealAnalysisUsage` registra contadores e timestamps seguros, sem prompt, raw response, vídeo, signed URL, `uploadUrl` ou `objectKey`.
+- **Mensagens humanas**: falhas de beta, limite, storage, Gemini, snapshot e cleanup retornam texto curto e seguro.
+- **Produção**: `VIDEO_NARRATIVE_REAL_ANALYSIS_PRODUCTION_CHECKLIST.md` lista envs, smoke, rollback e rotação de secrets.
+
+O beta fechado permanece protegido por allowlist/admin-dev; billing real e usuários comuns não foram ativados.
+
 ## Frase Norte
 
 > O sistema pode estar pronto para testar Gemini real sem ainda estar pronto para lançar vídeo no produto.

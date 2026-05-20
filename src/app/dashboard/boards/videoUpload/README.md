@@ -2089,3 +2089,13 @@ MM69 configurou o runtime local real com Gemini e storage temporário R2/S3-comp
 O storage smoke validou upload temporário, leitura via runtime adapter (`GetObject`) e cleanup (`DeleteObject`) com `ok=true`, `provider=r2`, `status=ready` e sem signed URL em logs. O real E2E smoke foi executado por chamadas internas controladas, porque o signer de signed URL do endpoint público ainda segue injetável/não habilitado para browser: o fluxo validou upload temporário, adapter, Gemini real, parser, snapshot privado salvo no Mongo e cleanup, retornando `e2e_real_passed`.
 
 Correções de runtime feitas nesta fase: o smoke harness interno deixou de validar o provider legado com o parser novo incompatível, e o orchestrator real passou a instanciar o client Gemini server-side via factory lazy-loaded quando nenhum client é injetado. Usuários comuns permanecem bloqueados por flags, allowlist e guards server-side; o endpoint mock segue preservado.
+
+### MM70 — Beta Hardening + Usage Limits + Production Readiness
+
+Status: concluído.
+
+MM70 adiciona limites persistentes de uso para análise real de vídeo antes de qualquer chamada a storage/Gemini. A política de beta mantém usuários comuns bloqueados: anonymous/free/premium comum ficam com limite zero por default, allowlist recebe limite baixo e admin/dev recebe limite maior. Flags explícitas controlam se free/premium poderão entrar no beta em fase futura.
+
+A fase protege custo do Gemini com `VIDEO_NARRATIVE_REAL_ANALYSIS_BETA_LIMITS_ENABLED=1`, contador Mongoose mínimo por usuário/dia/mês e bloqueio antes de storage/Gemini quando limite, cooldown ou acesso beta falham. Mensagens humanas foram mapeadas para limite, beta access, storage, timeout/provider Gemini, parser/snapshot e cleanup warning, sem stack trace, secret, signed URL ou `objectKey`.
+
+Também foi criado `VIDEO_NARRATIVE_REAL_ANALYSIS_PRODUCTION_CHECKLIST.md` com envs de Vercel, smoke checklist, rollback por feature flags, R2/Gemini/cleanup checks e rotação de secrets. Billing real não foi alterado, o endpoint mock permanece preservado e MediaKit, Comunidade, navegação, shells, LoginClient, NextAuth e billing seguem fora do escopo.

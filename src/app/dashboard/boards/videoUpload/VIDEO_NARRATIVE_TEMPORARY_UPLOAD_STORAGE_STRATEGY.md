@@ -244,3 +244,15 @@ MM69 validou o provider R2/S3-compatible em runtime local sem commitar segredos:
 - cleanup real funcionou no bucket de teste.
 
 Limitação registrada: o caminho browser completo ainda depende de signer real em `/api/dashboard/mobile-strategic-profile/upload-session`; por isso o E2E real foi executado com upload interno controlado para provar runtime, não para lançar o fluxo amplo.
+
+## Fase MM70 — Beta Limits Antes Do Storage
+
+MM70 coloca a proteção de uso antes do adapter de storage:
+
+- usuário comum, free e premium comum continuam bloqueados por default;
+- allowlist/admin-dev precisam passar pela policy e pelos contadores diários/mensais;
+- limite atingido ou cooldown ativo bloqueia antes de `GetObject` e antes do Gemini;
+- falhas de storage retornam mensagem humana sem stack trace;
+- cleanup warning continua seguro e não transforma snapshot salvo em falha.
+
+O adapter R2/S3 permanece server-side e nenhum SDK de storage entra em client component.
