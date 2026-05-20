@@ -120,6 +120,11 @@ describe("mobileStrategicProfileStateContract", () => {
     expect(result.readinessState).toBe("first_reading_ready");
     expect(result.diagnosisState).toBe("first_reading");
     expect(result.summary.title).toBe("Primeira leitura criada");
+    expect(result.recommendedActions[0]).toMatchObject({
+      id: "analyze-next-video",
+      intent: "analyze_video",
+      label: "Atualizar meu Perfil",
+    });
   });
 
   it("free user without Instagram suggests connecting Instagram as secondary next step", () => {
