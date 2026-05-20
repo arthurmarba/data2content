@@ -19,6 +19,7 @@ export interface CreatorStrategicProfileSnapshotInput {
   source:
     | "manual_seed"
     | "mock_analysis"
+    | "video_reading_synthesis_v1"
     | "future_video_analysis"
     | "gemini_ready"
     | "gemini_fixture"

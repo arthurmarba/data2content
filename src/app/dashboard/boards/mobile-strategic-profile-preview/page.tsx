@@ -1,5 +1,10 @@
 import { MobileStrategicProfilePreview } from "../components/videoUpload/appPreview/MobileStrategicProfilePreview";
 import { buildMobileStrategicProfilePreviewFixture } from "../components/videoUpload/appPreview/buildMobileStrategicProfilePreviewFixture";
+import { NarrativeMapReadingPreview } from "../components/videoUpload/appPreview/NarrativeMapReadingPreview";
+import {
+  buildNarrativeMapReadingPreviewFixture,
+  isNarrativeMapReadingPreviewState,
+} from "../components/videoUpload/appPreview/buildNarrativeMapReadingPreviewFixture";
 import {
   canAccessInternalPreview,
   getCurrentInternalPreviewUser,
@@ -43,7 +48,11 @@ export default async function MobileStrategicProfilePreviewPage({
     return <BlockedInternalPreview reason="permission" />;
   }
 
-  const fixture = buildMobileStrategicProfilePreviewFixture({ state: searchParams?.state });
+  if (isNarrativeMapReadingPreviewState(searchParams?.state)) {
+    const fixture = buildNarrativeMapReadingPreviewFixture({ state: searchParams?.state });
+    return <NarrativeMapReadingPreview fixture={fixture} />;
+  }
 
+  const fixture = buildMobileStrategicProfilePreviewFixture({ state: searchParams?.state });
   return <MobileStrategicProfilePreview profile={fixture.profile} activeState={fixture.id} />;
 }

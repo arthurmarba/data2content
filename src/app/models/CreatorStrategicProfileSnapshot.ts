@@ -5,6 +5,7 @@ export type CreatorStrategicProfileSnapshotStatus = "active" | "inactive" | "arc
 export type CreatorStrategicProfileSnapshotSource =
   | "manual_seed"
   | "mock_analysis"
+  | "video_reading_synthesis_v1"
   | "future_video_analysis"
   | "imported"
   | "unknown";
@@ -47,7 +48,7 @@ const CreatorStrategicProfileSnapshotSchema = new Schema<ICreatorStrategicProfil
     },
     source: {
       type: String,
-      enum: ["manual_seed", "mock_analysis", "future_video_analysis", "imported", "unknown"],
+      enum: ["manual_seed", "mock_analysis", "video_reading_synthesis_v1", "future_video_analysis", "imported", "unknown"],
       default: "manual_seed",
       required: true,
     },

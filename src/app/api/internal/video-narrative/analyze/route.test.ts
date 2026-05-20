@@ -6,11 +6,25 @@ jest.mock("@/app/api/auth/[...nextauth]/route", () => ({
   authOptions: {},
 }));
 
+jest.mock("@/app/dashboard/boards/videoUpload/creatorVideoNarrativeDiagnosisMockSaveIntegration", () => ({
+  saveMockVideoNarrativeReading: jest.fn(),
+}));
+
+jest.mock("@/app/dashboard/boards/videoUpload/creatorVideoNarrativeMockSynthesisSnapshotWriteOrchestrator", () => ({
+  runControlledVideoReadingSynthesisSnapshotWrite: jest.fn(),
+}));
+
 const {
   createBlockedVideoNarrativeGuardResult,
 } = require("@/app/dashboard/boards/videoUpload/videoNarrativeGuardContracts");
 const { GET, POST } = require("./route");
 const getServerSession = require("next-auth/next").getServerSession as jest.Mock;
+const saveMockVideoNarrativeReading =
+  require("@/app/dashboard/boards/videoUpload/creatorVideoNarrativeDiagnosisMockSaveIntegration")
+    .saveMockVideoNarrativeReading as jest.Mock;
+const runControlledVideoReadingSynthesisSnapshotWrite =
+  require("@/app/dashboard/boards/videoUpload/creatorVideoNarrativeMockSynthesisSnapshotWriteOrchestrator")
+    .runControlledVideoReadingSynthesisSnapshotWrite as jest.Mock;
 
 const FORBIDDEN_RESPONSE_FIELDS = [
   '"rawText"',
@@ -297,6 +311,186 @@ describe("POST /api/internal/video-narrative/analyze skeleton", () => {
     expect(JSON.stringify(body)).toContain("publi orgânica");
   });
 
+  it("fluxo mock salva leitura quando persistReading é permitido", async () => {
+    enableEndpointFlag();
+    setProviderMode("mock");
+    getServerSession.mockResolvedValue({ user: { role: "admin", id: "665f0f2c8a0b7d1f2c3a4b5c" } });
+    saveMockVideoNarrativeReading.mockResolvedValue({
+      ok: true,
+      diagnosisId: "manual-video-narrative-run",
+      profileContribution: {
+        type: "opens_new_hypothesis",
+        confidence: "low",
+        weight: "low",
+        profileImpactPreview: "Sinal em observação.",
+      },
+    });
+
+    const response = await POST(makeRequest({ ...validPayload(), persistReading: true }));
+    const body = await readJson(response);
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(saveMockVideoNarrativeReading).toHaveBeenCalledWith(expect.objectContaining({
+      userId: "665f0f2c8a0b7d1f2c3a4b5c",
+      diagnosisId: "manual-video-narrative-run",
+    }));
+    expect(body.readingSaveSummary).toEqual({
+      attempted: true,
+      ok: true,
+      diagnosisId: "manual-video-narrative-run",
+      errorCode: null,
+      message: null,
+    });
+    expect(body.synthesisSnapshotWrite).toBeNull();
+  });
+
+  it("com persistReading=true e persistSynthesisSnapshot=true salva leitura e tenta sintese", async () => {
+    enableEndpointFlag();
+    setProviderMode("mock");
+    getServerSession.mockResolvedValue({ user: { role: "admin", id: "665f0f2c8a0b7d1f2c3a4b5c" } });
+    saveMockVideoNarrativeReading.mockResolvedValue({
+      ok: true,
+      diagnosisId: "manual-video-narrative-run",
+      profileContribution: {
+        type: "confirms_existing_pattern",
+        confidence: "medium",
+        weight: "medium",
+        profileImpactPreview: "Sinal em formação.",
+      },
+    });
+    runControlledVideoReadingSynthesisSnapshotWrite.mockResolvedValue({
+      attempted: true,
+      written: true,
+      synthesisStatus: "signals_emerging",
+      analyzedReadingsCount: 2,
+      updatedAt: "2026-05-20T00:00:00.000Z",
+    });
+
+    const response = await POST(makeRequest({
+      ...validPayload(),
+      persistReading: true,
+      persistSynthesisSnapshot: true,
+    }));
+    const body = await readJson(response);
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(runControlledVideoReadingSynthesisSnapshotWrite).toHaveBeenCalledWith({
+      userId: "665f0f2c8a0b7d1f2c3a4b5c",
+      savedDiagnosisId: "manual-video-narrative-run",
+      enableSnapshotWrite: true,
+      source: "mock_internal",
+      requestId: expect.any(String),
+    });
+    expect(body.synthesisSnapshotWrite).toEqual({
+      attempted: true,
+      written: true,
+      synthesisStatus: "signals_emerging",
+      analyzedReadingsCount: 2,
+      updatedAt: "2026-05-20T00:00:00.000Z",
+    });
+  });
+
+  it("se save reading falhar, sintese nao roda", async () => {
+    enableEndpointFlag();
+    setProviderMode("mock");
+    getServerSession.mockResolvedValue({ user: { role: "admin", id: "665f0f2c8a0b7d1f2c3a4b5c" } });
+    saveMockVideoNarrativeReading.mockResolvedValue({
+      ok: false,
+      errorCode: "diagnosis_persistence_failed",
+      message: "Não foi possível salvar a leitura documentada deste video agora.",
+    });
+
+    const response = await POST(makeRequest({
+      ...validPayload(),
+      persistReading: true,
+      persistSynthesisSnapshot: true,
+    }));
+    const body = await readJson(response);
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(runControlledVideoReadingSynthesisSnapshotWrite).not.toHaveBeenCalled();
+    expect(body.synthesisSnapshotWrite).toEqual({
+      attempted: false,
+      written: false,
+      skippedReason: "saved_reading_not_found",
+    });
+  });
+
+  it("se sintese falhar, resposta mock continua segura", async () => {
+    enableEndpointFlag();
+    setProviderMode("mock");
+    getServerSession.mockResolvedValue({ user: { role: "admin", id: "665f0f2c8a0b7d1f2c3a4b5c" } });
+    saveMockVideoNarrativeReading.mockResolvedValue({
+      ok: true,
+      diagnosisId: "manual-video-narrative-run",
+    });
+    runControlledVideoReadingSynthesisSnapshotWrite.mockResolvedValue({
+      attempted: true,
+      written: false,
+      skippedReason: "synthesis_snapshot_write_failed",
+      synthesisStatus: "pattern_in_formation",
+      analyzedReadingsCount: 3,
+    });
+
+    const response = await POST(makeRequest({
+      ...validPayload(),
+      persistReading: true,
+      persistSynthesisSnapshot: true,
+    }));
+    const body = await readJson(response);
+    const serialized = JSON.stringify(body);
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.synthesisSnapshotWrite.written).toBe(false);
+    expect(serialized).not.toContain("Error:");
+    expect(serialized).not.toContain("snapshotJson");
+  });
+
+  it("persistSynthesisSnapshot sem persistReading nao altera comportamento principal e nao roda sintese", async () => {
+    enableEndpointFlag();
+    setProviderMode("mock");
+    getServerSession.mockResolvedValue({ user: { role: "admin", id: "665f0f2c8a0b7d1f2c3a4b5c" } });
+
+    const response = await POST(makeRequest({
+      ...validPayload(),
+      persistSynthesisSnapshot: true,
+    }));
+    const body = await readJson(response);
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(saveMockVideoNarrativeReading).not.toHaveBeenCalled();
+    expect(runControlledVideoReadingSynthesisSnapshotWrite).not.toHaveBeenCalled();
+    expect(body.synthesisSnapshotWrite).toEqual({
+      attempted: false,
+      written: false,
+      skippedReason: "saved_reading_not_found",
+    });
+  });
+
+  it("falha de persistência retorna erro seguro sem quebrar resposta mock", async () => {
+    enableEndpointFlag();
+    setProviderMode("mock");
+    getServerSession.mockResolvedValue({ user: { role: "admin", id: "665f0f2c8a0b7d1f2c3a4b5c" } });
+    saveMockVideoNarrativeReading.mockResolvedValue({
+      ok: false,
+      errorCode: "diagnosis_persistence_failed",
+      message: "Não foi possível salvar a leitura documentada deste video agora.",
+    });
+
+    const response = await POST(makeRequest({ ...validPayload(), persistReading: true }));
+    const body = await readJson(response);
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.readingSaveSummary.ok).toBe(false);
+    expect(JSON.stringify(body)).not.toContain("Error:");
+  });
+
   it("POST mock mode weak hook returns hook diagnosis and primaryAction", async () => {
     enableEndpointFlag();
     setProviderMode("mock");
@@ -432,6 +626,7 @@ describe("POST /api/internal/video-narrative/analyze skeleton", () => {
       "BoardShell",
       "React",
       "from \"@/components",
+      "analyze-real",
     ];
 
     forbiddenFragments.forEach((fragment) => {

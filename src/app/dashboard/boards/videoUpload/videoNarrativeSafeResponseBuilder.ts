@@ -57,6 +57,24 @@ export interface VideoNarrativeSafeObservabilitySummary {
   }>;
 }
 
+export interface VideoNarrativeReadingSaveSummary {
+  attempted: boolean;
+  ok: boolean;
+  diagnosisId: string | null;
+  errorCode: string | null;
+  message: string | null;
+}
+
+export interface VideoNarrativeSynthesisSnapshotWriteSummary {
+  attempted: boolean;
+  written: boolean;
+  skippedReason?: string | null;
+  synthesisStatus?: string | null;
+  analyzedReadingsCount?: number | null;
+  snapshotId?: string | null;
+  updatedAt?: string | null;
+}
+
 export interface VideoNarrativeSafeResponse {
   ok: boolean;
   status: VideoNarrativeSafeResponseStatus;
@@ -68,6 +86,8 @@ export interface VideoNarrativeSafeResponse {
   guardSummary: VideoNarrativeSafeGuardSummary | null;
   usageSummary: VideoNarrativeSafeUsageSummary | null;
   observabilitySummary: VideoNarrativeSafeObservabilitySummary | null;
+  readingSaveSummary?: VideoNarrativeReadingSaveSummary | null;
+  synthesisSnapshotWrite?: VideoNarrativeSynthesisSnapshotWriteSummary | null;
 }
 
 export interface VideoNarrativeSafeResponseInput {
@@ -85,6 +105,8 @@ export interface VideoNarrativeSafeResponseInput {
   usageDecision?: VideoNarrativeUsageConsumptionDecision | null;
   quotaGuard?: VideoNarrativeQuotaGuardResult | null;
   observabilityEvents?: VideoNarrativeObservabilityEventPayload[] | null;
+  readingSaveSummary?: VideoNarrativeReadingSaveSummary | null;
+  synthesisSnapshotWrite?: VideoNarrativeSynthesisSnapshotWriteSummary | null;
 }
 
 const SAFE_RESPONSE_STATUSES: VideoNarrativeSafeResponseStatus[] = [
@@ -324,6 +346,8 @@ export function buildVideoNarrativeSafeResponse(
       quotaGuard: input.quotaGuard,
     }),
     observabilitySummary: buildObservabilitySummary(input.observabilityEvents),
+    readingSaveSummary: input.readingSaveSummary ? sanitizeDeep(input.readingSaveSummary) : null,
+    synthesisSnapshotWrite: input.synthesisSnapshotWrite ? sanitizeDeep(input.synthesisSnapshotWrite) : null,
   };
 
   return redactVideoNarrativeSafeResponse(response);
