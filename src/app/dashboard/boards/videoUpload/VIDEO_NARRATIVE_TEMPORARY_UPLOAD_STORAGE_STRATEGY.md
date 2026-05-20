@@ -190,3 +190,9 @@ Próximos passos:
 - adicionar provider real de delete temporário;
 - conectar cleanup a eventos/auditoria;
 - só depois avançar para Gemini readiness com vídeo temporário real e análise controlada.
+
+## Nota MM65 — Gemini Readiness E Storage Temporário
+
+MM65 prepara o provider/parser/mapper de IA real, mas ainda não conecta upload temporário e Gemini end-to-end. A análise real futura depende do ciclo MM64 estar seguro: signed upload temporário, cleanup confiável e nenhum vídeo persistido no banco.
+
+Mesmo quando o provider real for ligado em ambiente controlado, `signedUrl`, `uploadUrl` e `objectKey` não devem entrar no prompt por padrão, na resposta parseada ou no snapshot. O snapshot permanece a única memória persistida do Perfil Estratégico.

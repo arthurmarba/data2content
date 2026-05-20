@@ -406,3 +406,20 @@ Não recomendar integração real antes do QA/polish visual.
 - A análise posterior continua mock e não recebe `uploadUrl` nem `objectKey`.
 - Snapshot não persiste signed URL, `objectKey`, vídeo ou thumbnail.
 - Falha de cleanup é warning seguro, não erro fatal do diagnóstico.
+
+## Nota MM65 — QA Futuro De Resposta Real
+
+- QA futuro deve validar toda resposta real contra linguagem proibida: sem score, nota, ranking, viralização garantida, marca garantida ou promessa de patrocínio.
+- O diagnóstico deve continuar humano, estratégico e acionável, reforçando que o Perfil da D2C é diagnóstico vivo do creator.
+- A análise real não deve criar histórico visual, player, thumbnail ou recibo de vídeo.
+- O fluxo principal continua mock até que feature flags, allowlist, upload temporário, cleanup e parser estejam validados em conjunto.
+
+## Guardrails do MM65
+
+- Gemini real desligado por default.
+- Sem ativação para usuários comuns.
+- Sem substituição do fluxo mock atual.
+- Sem raw response salvo.
+- Sem vídeo, signed URL, `uploadUrl` ou `objectKey` no snapshot.
+- Sem API key exposta.
+- Sem import Gemini/OpenAI em client component.

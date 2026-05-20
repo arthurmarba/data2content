@@ -245,6 +245,15 @@ MM64 avança a readiness de upload temporário no client, mas não aumenta a rea
 - **Análise segue mock**: após upload bem-sucedido, o fluxo continua para objetivo/perguntas e chama a análise mock existente.
 - **Snapshot permanece limpo**: `uploadUrl` e `objectKey` são usados apenas no contrato temporário e não entram no snapshot.
 
+## MM65 — Gemini Provider Readiness + Response Adapter
+
+MM65 aumenta a readiness do provider Gemini em prompt/parser/adapter, mas ainda não é produção:
+- **Provider real segue desligado por default** e exige feature flag, API key, model env e allowlist/admin-dev.
+- **Ainda NÃO é caminho padrão do app**: `/api/dashboard/mobile-strategic-profile/analyze` permanece mock e o fluxo `+` não chama Gemini.
+- **Parser obrigatório antes do snapshot**: resposta precisa ser JSON válido, curta, sem signed URL, token, API key, raw transcript longo ou linguagem proibida.
+- **Sem raw response persistido**: o adapter retorna apenas análise parseada, issues seguras, timing e debug summary seguro.
+- **Mapper seguro**: `gemini_ready`/`gemini_fixture` prepara snapshot sem vídeo, signed URL, `uploadUrl` ou `objectKey`.
+
 ## Frase Norte
 
 > O sistema pode estar pronto para testar Gemini real sem ainda estar pronto para lançar vídeo no produto.
