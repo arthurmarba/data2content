@@ -237,6 +237,14 @@ MM63 avança a prontidão de storage temporário sem aumentar readiness de Gemin
 - **Ainda NÃO integra upload real no client**: a UI continua metadata-only, sem `PUT`, sem envio de bytes e sem `FileReader`.
 - **Apenas prepara signed upload session curta para allowlist/admin-dev**, com flags rígidas, objectKey seguro, sem persistir signed URL e sem salvar vídeo.
 
+## MM64 — Client Upload Readiness
+
+MM64 avança a readiness de upload temporário no client, mas não aumenta a readiness de Gemini real:
+- **Ainda NÃO chama IA**: não há provider Gemini/OpenAI, análise multimodal real ou uso do vídeo no endpoint de análise.
+- **Upload real é allowlist/flagged**: o client só tenta PUT quando a API server-side já retornou `signed_upload_session_created`.
+- **Análise segue mock**: após upload bem-sucedido, o fluxo continua para objetivo/perguntas e chama a análise mock existente.
+- **Snapshot permanece limpo**: `uploadUrl` e `objectKey` são usados apenas no contrato temporário e não entram no snapshot.
+
 ## Frase Norte
 
 > O sistema pode estar pronto para testar Gemini real sem ainda estar pronto para lançar vídeo no produto.

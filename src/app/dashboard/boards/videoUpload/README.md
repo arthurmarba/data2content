@@ -1913,14 +1913,14 @@ Na prática, existem dois níveis de prova:
 
 ## O Que Ainda Não Existe
 
-- Upload real.
+- Upload real amplo fora de allowlist/flags.
 - Endpoint.
 - Storage.
 - Provider real de storage temporário.
 - URL assinada gerada por serviço real.
 - Sessão persistida de upload.
 - Provider real de URL temporária.
-- Cleanup real.
+- Cleanup real físico.
 - Cron ou job real de remoção.
 - Deleção real de arquivo.
 - Provider real de processamento.
@@ -2016,6 +2016,18 @@ Status: concluído.
 MM63 adiciona o primeiro caminho server-side para signed upload session, restrito a allowlist/admin-dev e atrás das flags `VIDEO_NARRATIVE_TEMP_UPLOAD_SESSION_ENABLED=1`, `VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED=true`, `VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER=r2|aws_s3` e `VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED=1`.
 
 Como o repo ainda não possui SDK S3/R2 adequado instalado, a geração física de signed URL fica isolada em um signer server-side injetável/testável. A rota real continua sem upload client, sem envio de arquivo, sem storage SDK, sem vídeo salvo, sem thumbnail, sem Gemini e sem persistir signed URL. Usuários comuns seguem bloqueados e o modo mock/disabled permanece o comportamento padrão.
+
+### MM64 — Client Direct Upload + Cleanup Contract
+
+Status: concluído.
+
+MM64 adiciona o primeiro client direct upload para signed URL temporária, somente quando o servidor retorna `signed_upload_session_created` para allowlist/admin-dev e flags reais ativas. O arquivo vai direto do browser para a signed URL via `PUT` com `credentials: "omit"`; ele não passa pelo servidor da aplicação.
+
+O fluxo mock permanece funcionando: `mock_session_created` continua exibindo vídeo validado para análise e não faz PUT. A preview interna sem callbacks continua funcionando sem upload-session e sem direct upload.
+
+Também foi criado o contrato/API seguro de cleanup temporário em `/api/dashboard/mobile-strategic-profile/upload-cleanup`, preparado para receber `uploadSessionId`, `objectKey` seguro e reason, sem aceitar `uploadUrl`, `signedUrl`, bucket público ou secrets. Nesta fase o cleanup real ainda pode responder `cleanup_not_configured` sem quebrar a análise mock.
+
+Guardrails preservados: sem `FileReader`, sem object URL, sem thumbnail/player, sem vídeo salvo no banco, sem signed URL persistida, sem `objectKey` no snapshot, sem histórico visual e sem Gemini/análise real de vídeo.
 
 ## Próximas Fases Sugeridas
 

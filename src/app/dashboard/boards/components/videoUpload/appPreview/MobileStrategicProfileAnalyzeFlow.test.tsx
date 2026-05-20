@@ -343,6 +343,197 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       });
     });
 
+    it("com signed_upload_session_created faz PUT direto e mostra estado de envio", async () => {
+      const onCreateSession = jest.fn().mockResolvedValue({
+        ok: true,
+        status: "signed_upload_session_created",
+        uploadSession: {
+          id: "video-temp-upload-session-abc_123",
+          providerMode: "real",
+          storageProvider: "cloudflare_r2",
+          uploadUrl: "https://signed.example.test/upload?signature=test",
+          method: "PUT",
+          headers: { "Content-Type": "video/mp4" },
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          objectKey: "temporary/video-narrative/0123456789abcdef/video-temp-upload-session-abc_123.mp4",
+          retentionTtlMinutes: 60,
+          shouldDeleteAfterAnalysis: true,
+          shouldPersistVideo: false,
+          shouldPersistThumbnail: false,
+        },
+      });
+      let resolveUpload: any;
+      const onDirectUpload = jest.fn().mockReturnValue(new Promise((resolve) => {
+        resolveUpload = resolve;
+      }));
+      const { container } = render(
+        <MobileStrategicProfileAnalyzeFlow
+          open
+          onClose={jest.fn()}
+          onComplete={jest.fn()}
+          onCreateUploadSession={onCreateSession}
+          onUploadToTemporarySignedUrl={onDirectUpload}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
+      fireEvent.click(screen.getByRole("checkbox"));
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+      await waitFor(() => {
+        expect(screen.getByText("Enviando vídeo...")).toBeInTheDocument();
+      });
+      expect(onDirectUpload).toHaveBeenCalledWith(
+        expect.objectContaining({
+          file: fileMock,
+          uploadUrl: "https://signed.example.test/upload?signature=test",
+          method: "PUT",
+          headers: { "Content-Type": "video/mp4" },
+        })
+      );
+
+      resolveUpload({ ok: true, status: "uploaded", uploadedAt: "2026-05-19T00:00:00.000Z", bytesSent: fileMock.size });
+
+      await waitFor(() => {
+        expect(screen.getByText("Vídeo enviado para análise temporária.")).toBeInTheDocument();
+        expect(screen.getByText("Qual era o objetivo do conteúdo?")).toBeInTheDocument();
+      });
+    });
+
+    it("com mock_session_created não faz PUT", async () => {
+      const onCreateSession = jest.fn().mockResolvedValue({
+        ok: true,
+        status: "mock_session_created",
+      });
+      const onDirectUpload = jest.fn();
+      const { container } = render(
+        <MobileStrategicProfileAnalyzeFlow
+          open
+          onClose={jest.fn()}
+          onComplete={jest.fn()}
+          onCreateUploadSession={onCreateSession}
+          onUploadToTemporarySignedUrl={onDirectUpload}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
+      fireEvent.click(screen.getByRole("checkbox"));
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+      await waitFor(() => {
+        expect(screen.getByText("Qual era o objetivo do conteúdo?")).toBeInTheDocument();
+      });
+      expect(onDirectUpload).not.toHaveBeenCalled();
+    });
+
+    it("após PUT erro mostra erro humano e não avança", async () => {
+      const onCreateSession = jest.fn().mockResolvedValue({
+        ok: true,
+        status: "signed_upload_session_created",
+        uploadSession: {
+          id: "video-temp-upload-session-abc_123",
+          providerMode: "real",
+          storageProvider: "cloudflare_r2",
+          uploadUrl: "https://signed.example.test/upload?signature=test",
+          method: "PUT",
+          headers: { "Content-Type": "video/mp4" },
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          objectKey: "temporary/video-narrative/0123456789abcdef/video-temp-upload-session-abc_123.mp4",
+          retentionTtlMinutes: 60,
+          shouldDeleteAfterAnalysis: true,
+          shouldPersistVideo: false,
+          shouldPersistThumbnail: false,
+        },
+      });
+      const onDirectUpload = jest.fn().mockResolvedValue({
+        ok: false,
+        status: "failed",
+        errorMessage: "Não foi possível enviar o vídeo agora.",
+      });
+      const { container } = render(
+        <MobileStrategicProfileAnalyzeFlow
+          open
+          onClose={jest.fn()}
+          onComplete={jest.fn()}
+          onCreateUploadSession={onCreateSession}
+          onUploadToTemporarySignedUrl={onDirectUpload}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
+      fireEvent.click(screen.getByRole("checkbox"));
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+      await waitFor(() => {
+        expect(screen.getByText("Não foi possível enviar o vídeo agora.")).toBeInTheDocument();
+      });
+      expect(screen.queryByText("Qual era o objetivo do conteúdo?")).not.toBeInTheDocument();
+    });
+
+    it("cleanup failure não quebra análise mock nem envia uploadUrl/objectKey para análise", async () => {
+      const onCreateSession = jest.fn().mockResolvedValue({
+        ok: true,
+        status: "signed_upload_session_created",
+        uploadSession: {
+          id: "video-temp-upload-session-abc_123",
+          providerMode: "real",
+          storageProvider: "cloudflare_r2",
+          uploadUrl: "https://signed.example.test/upload?signature=test",
+          method: "PUT",
+          headers: { "Content-Type": "video/mp4" },
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          objectKey: "temporary/video-narrative/0123456789abcdef/video-temp-upload-session-abc_123.mp4",
+          retentionTtlMinutes: 60,
+          shouldDeleteAfterAnalysis: true,
+          shouldPersistVideo: false,
+          shouldPersistThumbnail: false,
+        },
+      });
+      const onSubmit = jest.fn().mockResolvedValue(undefined);
+      const onCleanup = jest.fn().mockRejectedValue(new Error("cleanup unavailable"));
+      const originalWarn = console.warn;
+      console.warn = jest.fn();
+      const { container } = render(
+        <MobileStrategicProfileAnalyzeFlow
+          open
+          onClose={jest.fn()}
+          onComplete={jest.fn()}
+          onCreateUploadSession={onCreateSession}
+          onUploadToTemporarySignedUrl={jest.fn().mockResolvedValue({ ok: true, status: "uploaded" })}
+          onSubmitAnalysis={onSubmit}
+          onCleanupTemporaryUpload={onCleanup}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
+      fireEvent.click(screen.getByRole("checkbox"));
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+      await waitFor(() => {
+        expect(screen.getByText("Qual era o objetivo do conteúdo?")).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+      await waitFor(() => {
+        expect(screen.getByRole("dialog", { name: "Diagnóstico atualizado." })).toBeInTheDocument();
+      });
+      expect(onCleanup).toHaveBeenCalledWith(
+        expect.objectContaining({
+          uploadSessionId: "video-temp-upload-session-abc_123",
+          objectKey: "temporary/video-narrative/0123456789abcdef/video-temp-upload-session-abc_123.mp4",
+          reason: "analysis_completed",
+        })
+      );
+      expect(JSON.stringify(onSubmit.mock.calls[0][0])).not.toContain("uploadUrl");
+      expect(JSON.stringify(onSubmit.mock.calls[0][0])).not.toContain("objectKey");
+      console.warn = originalWarn;
+    });
+
     it("nao cria historico visual de videos nem usa APIs proibidas do browser", () => {
       render(
         <MobileStrategicProfileAnalyzeFlow

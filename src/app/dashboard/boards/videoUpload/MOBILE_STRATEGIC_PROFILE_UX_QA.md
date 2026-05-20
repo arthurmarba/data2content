@@ -388,3 +388,21 @@ Não recomendar integração real antes do QA/polish visual.
 - A UI do `+ / Analisar vídeo` continua sem fazer `PUT`, sem enviar bytes, sem thumbnail/player e sem histórico visual.
 - QA deve validar que a sessão signed allowlist não salva vídeo, thumbnail, signed URL ou `objectKey` em banco.
 - O fluxo metadata dry-run continua mostrando vídeo validado e seguindo para análise mock, mesmo que o servidor seja capaz de criar sessão signed em ambiente controlado.
+
+## Cenários MM64 — Client Direct Upload + Cleanup
+
+- Usuário allowlist/admin-dev com flags reais: seleciona vídeo, aceita consentimento, recebe sessão signed, vê "Enviando vídeo..." e depois "Vídeo enviado para análise temporária.", seguindo para objetivo/perguntas.
+- Upload com falha: exibe "Não foi possível enviar o vídeo agora.", permite tentar novamente ou escolher outro vídeo, mantém o Perfil antigo visível e não avança para análise.
+- Cleanup mock/contract-first: após análise mock, a chamada de cleanup pode retornar `cleanup_not_configured` sem quebrar o diagnóstico.
+- Usuário comum sem signed session: segue em mock/dry-run ou recebe bloqueio seguro da API, nunca faz PUT real.
+- Ausência de histórico visual: não deve aparecer thumbnail, player, galeria, lista de vídeos analisados ou qualquer histórico visual.
+
+## Guardrails do MM64
+
+- Direct upload só ocorre após `signed_upload_session_created` vindo do servidor.
+- `mock_session_created` continua sem PUT e sem bytes.
+- O arquivo vai direto para a signed URL temporária; não passa pelo app server.
+- Sem `FileReader`, `URL.createObjectURL`, storage local, thumbnail, player ou histórico visual.
+- A análise posterior continua mock e não recebe `uploadUrl` nem `objectKey`.
+- Snapshot não persiste signed URL, `objectKey`, vídeo ou thumbnail.
+- Falha de cleanup é warning seguro, não erro fatal do diagnóstico.

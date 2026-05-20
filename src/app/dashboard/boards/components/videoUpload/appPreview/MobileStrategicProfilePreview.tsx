@@ -17,6 +17,10 @@ import type {
   UploadSessionPayload,
   UploadSessionResponse,
 } from "./mobileStrategicProfileUploadSessionClient";
+import type {
+  MobileStrategicProfileDirectUploadInput,
+  MobileStrategicProfileDirectUploadResult,
+} from "./mobileStrategicProfileDirectUploadClient";
 
 type MobileStrategicProfilePreviewProps = {
   profile: MobileStrategicProfile;
@@ -29,6 +33,14 @@ type MobileStrategicProfilePreviewProps = {
     mockScenario?: string;
   }) => Promise<void>;
   onCreateUploadSession?: (payload: UploadSessionPayload) => Promise<UploadSessionResponse>;
+  onUploadToTemporarySignedUrl?: (
+    input: MobileStrategicProfileDirectUploadInput,
+  ) => Promise<MobileStrategicProfileDirectUploadResult>;
+  onCleanupTemporaryUpload?: (payload: {
+    uploadSessionId: string;
+    objectKey?: string;
+    reason: "analysis_completed" | "analysis_failed" | "user_cancelled" | "expired";
+  }) => Promise<void>;
 };
 
 const CARD_TONE: Record<MobileStrategicProfileSectionCard["tone"], string> = {
@@ -359,6 +371,8 @@ export function MobileStrategicProfilePreview({
   isRealShell,
   onSubmitAnalysis,
   onCreateUploadSession,
+  onUploadToTemporarySignedUrl,
+  onCleanupTemporaryUpload,
 }: MobileStrategicProfilePreviewProps) {
   const [mediaKitModalOpen, setMediaKitModalOpen] = useState(false);
   const [analyzeFlowOpen, setAnalyzeFlowOpen] = useState(false);
@@ -450,6 +464,8 @@ export function MobileStrategicProfilePreview({
               onComplete={handleAnalyzeComplete}
               onSubmitAnalysis={onSubmitAnalysis}
               onCreateUploadSession={onCreateUploadSession}
+              onUploadToTemporarySignedUrl={onUploadToTemporarySignedUrl}
+              onCleanupTemporaryUpload={onCleanupTemporaryUpload}
             />
           </div>
         </div>
