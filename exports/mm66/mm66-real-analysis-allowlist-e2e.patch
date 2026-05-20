@@ -1,0 +1,1558 @@
+From 94ae5ccb0c870704c132965ded07de30b4fdad72 Mon Sep 17 00:00:00 2001
+From: Arthur Marba <arthurmarba@Mac-mini-de-Arthur.local>
+Date: Tue, 19 May 2026 23:05:07 -0300
+Subject: [PATCH] feat: add real video analysis allowlist e2e
+
+---
+ .../analyze-real/route.test.ts                | 162 +++++++++++++++
+ .../analyze-real/route.ts                     | 129 ++++++++++++
+ ...MobileStrategicProfileAnalyzeFlow.test.tsx |  61 ++++++
+ .../MobileStrategicProfileAnalyzeFlow.tsx     |  45 +++-
+ .../MobileStrategicProfilePreview.tsx         |  11 +
+ ...leStrategicProfileRealShellClient.test.tsx |  68 ++++++
+ .../MobileStrategicProfileRealShellClient.tsx |  46 ++++-
+ .../GEMINI_VIDEO_NARRATIVE_READINESS_AUDIT.md |  10 +
+ .../MOBILE_STRATEGIC_PROFILE_UX_QA.md         |  24 +++
+ .../dashboard/boards/videoUpload/README.md    |  10 +
+ ...VIDEO_MULTIMODAL_NARRATIVE_ARCHITECTURE.md |   2 +
+ ...ATIVE_TEMPORARY_UPLOAD_STORAGE_STRATEGY.md |  18 ++
+ .../mobileStrategicProfileSnapshotTypes.ts    |  10 +-
+ .../videoNarrativeAiProviderTypes.ts          |   2 +-
+ .../videoNarrativeGeminiSnapshotMapper.ts     |   2 +-
+ .../videoNarrativeRealAnalysisFeatureFlag.ts  |   9 +
+ ...oNarrativeRealAnalysisOrchestrator.test.ts | 163 +++++++++++++++
+ .../videoNarrativeRealAnalysisOrchestrator.ts | 195 ++++++++++++++++++
+ .../videoNarrativeRealAnalysisTypes.test.ts   |  53 +++++
+ .../videoNarrativeRealAnalysisTypes.ts        | 177 ++++++++++++++++
+ 20 files changed, 1188 insertions(+), 9 deletions(-)
+ create mode 100644 src/app/api/dashboard/mobile-strategic-profile/analyze-real/route.test.ts
+ create mode 100644 src/app/api/dashboard/mobile-strategic-profile/analyze-real/route.ts
+ create mode 100644 src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisFeatureFlag.ts
+ create mode 100644 src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisOrchestrator.test.ts
+ create mode 100644 src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisOrchestrator.ts
+ create mode 100644 src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisTypes.test.ts
+ create mode 100644 src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisTypes.ts
+
+diff --git a/src/app/api/dashboard/mobile-strategic-profile/analyze-real/route.test.ts b/src/app/api/dashboard/mobile-strategic-profile/analyze-real/route.test.ts
+new file mode 100644
+index 00000000..7e715be6
+--- /dev/null
++++ b/src/app/api/dashboard/mobile-strategic-profile/analyze-real/route.test.ts
+@@ -0,0 +1,162 @@
++/** @jest-environment node */
++import "next/dist/server/node-polyfill-fetch";
++import { NextRequest } from "next/server";
++import { POST, GET, PUT, PATCH, DELETE } from "./route";
++import { isMobileStrategicProfileEnabled } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileFeatureFlag";
++import {
++  isRealUploadEnabled,
++  isTemporaryUploadSessionEnabled,
++} from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadFeatureFlag";
++import { isVideoNarrativeRealAnalysisE2EEnabled } from "@/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisFeatureFlag";
++import { runVideoNarrativeRealAnalysisOrchestrator } from "@/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisOrchestrator";
++
++jest.mock("next-auth/next", () => ({
++  getServerSession: jest.fn(),
++}));
++
++jest.mock("@/app/api/auth/resolveAuthOptions", () => ({
++  resolveAuthOptions: jest.fn(),
++}));
++
++jest.mock("@/app/dashboard/boards/videoUpload/mobileStrategicProfileFeatureFlag", () => ({
++  isMobileStrategicProfileEnabled: jest.fn(),
++}));
++
++jest.mock("@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadFeatureFlag", () => ({
++  isTemporaryUploadSessionEnabled: jest.fn(),
++  isRealUploadEnabled: jest.fn(),
++}));
++
++jest.mock("@/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisFeatureFlag", () => ({
++  isVideoNarrativeRealAnalysisE2EEnabled: jest.fn(),
++}));
++
++jest.mock("@/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisOrchestrator", () => ({
++  runVideoNarrativeRealAnalysisOrchestrator: jest.fn(),
++}));
++
++const getServerSession = require("next-auth/next").getServerSession as jest.Mock;
++const runOrchestrator = runVideoNarrativeRealAnalysisOrchestrator as jest.Mock;
++
++const validPayload = {
++  uploadSessionId: "video-temp-upload-session-abc_123",
++  temporaryUpload: {
++    objectKey: "temporary/video-narrative/0123456789abcdef/video-temp-upload-session-abc_123.mp4",
++    mimeType: "video/mp4",
++    sizeBytes: 1024 * 1024,
++    uploadedAt: "2026-05-19T20:00:00.000Z",
++  },
++  creatorGoal: "Quero melhorar autoridade sem perder leveza.",
++  selectedGoalOption: "authority",
++  quickAnswers: [{ id: "represents_current_phase", value: "sim" }],
++  consentTextVersion: "mobile_strategic_profile_temporary_video_v1",
++};
++
++function createRequest(body: unknown) {
++  return new NextRequest("http://localhost/api/dashboard/mobile-strategic-profile/analyze-real", {
++    method: "POST",
++    body: JSON.stringify(body),
++    headers: { "content-type": "application/json" },
++  });
++}
++
++describe("GET / PUT / PATCH / DELETE /api/dashboard/mobile-strategic-profile/analyze-real", () => {
++  it("bloqueia métodos não suportados", async () => {
++    expect((await GET()).status).toBe(405);
++    expect((await PUT()).status).toBe(405);
++    expect((await PATCH()).status).toBe(405);
++    expect((await DELETE()).status).toBe(405);
++  });
++});
++
++describe("POST /api/dashboard/mobile-strategic-profile/analyze-real", () => {
++  beforeEach(() => {
++    jest.clearAllMocks();
++    (isMobileStrategicProfileEnabled as jest.Mock).mockReturnValue(true);
++    (isTemporaryUploadSessionEnabled as jest.Mock).mockReturnValue(true);
++    (isRealUploadEnabled as jest.Mock).mockReturnValue(true);
++    (isVideoNarrativeRealAnalysisE2EEnabled as jest.Mock).mockReturnValue(true);
++    (getServerSession as jest.Mock).mockResolvedValue({
++      user: { id: "usr_admin", email: "admin@example.com", role: "admin", planStatus: "active" },
++    });
++    runOrchestrator.mockResolvedValue({
++      ok: true,
++      snapshotUpdated: true,
++      source: "gemini_real_allowlist",
++      snapshot: { schemaVersion: "mobile_strategic_profile_snapshot_v1" },
++    });
++  });
++
++  it("bloqueia usuário anônimo", async () => {
++    (getServerSession as jest.Mock).mockResolvedValue(null);
++    const res = await POST(createRequest(validPayload));
++    expect(res.status).toBe(401);
++    expect(runOrchestrator).not.toHaveBeenCalled();
++  });
++
++  it("bloqueia feature flag real analysis desligada", async () => {
++    (isVideoNarrativeRealAnalysisE2EEnabled as jest.Mock).mockReturnValue(false);
++    const res = await POST(createRequest(validPayload));
++    expect(res.status).toBe(403);
++    expect(runOrchestrator).not.toHaveBeenCalled();
++  });
++
++  it("bloqueia upload real desligado", async () => {
++    (isRealUploadEnabled as jest.Mock).mockReturnValue(false);
++    const res = await POST(createRequest(validPayload));
++    expect(res.status).toBe(403);
++    expect(runOrchestrator).not.toHaveBeenCalled();
++  });
++
++  it("bloqueia payloads proibidos", async () => {
++    for (const forbidden of ["file", "uploadUrl", "signedUrl", "base64"]) {
++      const res = await POST(createRequest({ ...validPayload, [forbidden]: "x" }));
++      expect(res.status).toBe(400);
++    }
++  });
++
++  it("bloqueia payload grande demais", async () => {
++    const res = await POST(createRequest({ ...validPayload, creatorGoal: "a".repeat(8000) }));
++    expect(res.status).toBe(400);
++  });
++
++  it("bloqueia sem uploadSessionId", async () => {
++    const res = await POST(createRequest({ ...validPayload, uploadSessionId: "" }));
++    expect(res.status).toBe(400);
++  });
++
++  it("bloqueia sem consentTextVersion", async () => {
++    const res = await POST(createRequest({ ...validPayload, consentTextVersion: "" }));
++    expect(res.status).toBe(400);
++  });
++
++  it("retorna bloqueio seguro do orquestrador sem vazar secrets", async () => {
++    runOrchestrator.mockResolvedValue({
++      ok: false,
++      status: "blocked",
++      message: "Análise real indisponível para este usuário.",
++      safeIssueCode: "gemini_user_not_allowed",
++    });
++    const res = await POST(createRequest(validPayload));
++    expect(res.status).toBe(403);
++    const body = await res.json();
++    expect(JSON.stringify(body)).not.toContain("admin@example.com");
++    expect(JSON.stringify(body)).not.toContain("temporary/video-narrative");
++  });
++
++  it("retorna snapshot seguro no sucesso", async () => {
++    const res = await POST(createRequest(validPayload));
++    expect(res.status).toBe(200);
++    const body = await res.json();
++    expect(body.ok).toBe(true);
++    expect(body.source).toBe("gemini_real_allowlist");
++    expect(runOrchestrator).toHaveBeenCalledWith(
++      expect.objectContaining({
++        payload: expect.objectContaining({
++          uploadSessionId: validPayload.uploadSessionId,
++          temporaryUpload: expect.objectContaining({ mimeType: "video/mp4" }),
++        }),
++      }),
++    );
++  });
++});
+diff --git a/src/app/api/dashboard/mobile-strategic-profile/analyze-real/route.ts b/src/app/api/dashboard/mobile-strategic-profile/analyze-real/route.ts
+new file mode 100644
+index 00000000..601ee55f
+--- /dev/null
++++ b/src/app/api/dashboard/mobile-strategic-profile/analyze-real/route.ts
+@@ -0,0 +1,129 @@
++import { NextResponse } from "next/server";
++import { getServerSession } from "next-auth/next";
++import { resolveAuthOptions } from "@/app/api/auth/resolveAuthOptions";
++import { isMobileStrategicProfileEnabled } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileFeatureFlag";
++import {
++  isRealUploadEnabled,
++  isTemporaryUploadSessionEnabled,
++} from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadFeatureFlag";
++import { isVideoNarrativeRealAnalysisE2EEnabled } from "@/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisFeatureFlag";
++import { validateVideoNarrativeRealAnalysisPayload } from "@/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisTypes";
++import { runVideoNarrativeRealAnalysisOrchestrator } from "@/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisOrchestrator";
++import { validateVideoNarrativeTemporaryUploadCleanupPayload } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadCleanupTypes";
++
++type MobileStrategicProfileRealAnalysisSession = {
++  user?: {
++    id?: string;
++    email?: string | null;
++    name?: string | null;
++    role?: string | null;
++    isAdmin?: boolean | null;
++    isDev?: boolean | null;
++    planStatus?: string | null;
++    instagramConnected?: boolean | null;
++    isInstagramConnected?: boolean | null;
++  };
++} | null;
++
++export async function GET() {
++  return NextResponse.json({ message: "Método não permitido." }, { status: 405 });
++}
++
++export async function PUT() {
++  return NextResponse.json({ message: "Método não permitido." }, { status: 405 });
++}
++
++export async function PATCH() {
++  return NextResponse.json({ message: "Método não permitido." }, { status: 405 });
++}
++
++export async function DELETE() {
++  return NextResponse.json({ message: "Método não permitido." }, { status: 405 });
++}
++
++export async function POST(request: Request) {
++  try {
++    if (
++      !isMobileStrategicProfileEnabled() ||
++      !isTemporaryUploadSessionEnabled() ||
++      !isRealUploadEnabled() ||
++      !isVideoNarrativeRealAnalysisE2EEnabled()
++    ) {
++      return NextResponse.json(
++        { message: "Análise real de vídeo indisponível nesta configuração." },
++        { status: 403 },
++      );
++    }
++
++    const session = (await getServerSession(await resolveAuthOptions())) as MobileStrategicProfileRealAnalysisSession;
++    if (!session?.user?.id) {
++      return NextResponse.json(
++        { message: "Acesso não autorizado: sessão não identificada." },
++        { status: 401 },
++      );
++    }
++
++    const contentType = request.headers.get("content-type") || "";
++    if (!contentType.toLowerCase().includes("application/json")) {
++      return NextResponse.json(
++        { message: "Content-type inválido: deve ser application/json." },
++        { status: 400 },
++      );
++    }
++
++    let body: unknown;
++    try {
++      body = await request.json();
++    } catch {
++      return NextResponse.json({ message: "Payload inválido: formato JSON corrompido." }, { status: 400 });
++    }
++
++    const validation = validateVideoNarrativeRealAnalysisPayload(body);
++    if (!validation.ok) {
++      return NextResponse.json({ ok: false, message: validation.message, code: validation.code }, { status: 400 });
++    }
++
++    const result = await runVideoNarrativeRealAnalysisOrchestrator({
++      payload: validation.payload,
++      user: session.user,
++      deps: {
++        cleanupTemporaryUpload: async ({ uploadSessionId, objectKey, reason }) => {
++          const cleanupValidation = validateVideoNarrativeTemporaryUploadCleanupPayload({
++            uploadSessionId,
++            objectKey,
++            reason,
++          });
++          if (!cleanupValidation.ok) {
++            throw new Error("cleanup_payload_rejected");
++          }
++        },
++      },
++    });
++
++    if (!result.ok) {
++      const status = result.status === "blocked" ? 403 : 502;
++      return NextResponse.json(
++        {
++          ok: false,
++          message: result.message,
++          code: result.safeIssueCode,
++          cleanupWarning: result.cleanupWarning,
++        },
++        { status },
++      );
++    }
++
++    return NextResponse.json({
++      ok: true,
++      snapshotUpdated: true,
++      snapshot: result.snapshot,
++      source: result.source,
++      cleanupWarning: result.cleanupWarning,
++    });
++  } catch {
++    return NextResponse.json(
++      { message: "Ocorreu um erro ao processar a análise real do diagnóstico." },
++      { status: 500 },
++    );
++  }
++}
+diff --git a/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileAnalyzeFlow.test.tsx b/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileAnalyzeFlow.test.tsx
+index d13909a6..ca8a3342 100644
+--- a/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileAnalyzeFlow.test.tsx
++++ b/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileAnalyzeFlow.test.tsx
+@@ -534,6 +534,67 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
+       console.warn = originalWarn;
+     });
+ 
++    it("MM66 - com real analysis habilitado envia apenas referência temporária segura para análise", async () => {
++      const onCreateSession = jest.fn().mockResolvedValue({
++        ok: true,
++        status: "signed_upload_session_created",
++        uploadSession: {
++          id: "video-temp-upload-session-abc_123",
++          providerMode: "real",
++          storageProvider: "cloudflare_r2",
++          uploadUrl: "https://signed.example.test/upload?signature=test",
++          method: "PUT",
++          headers: { "Content-Type": "video/mp4" },
++          expiresAt: "2099-01-01T00:00:00.000Z",
++          objectKey: "temporary/video-narrative/0123456789abcdef/video-temp-upload-session-abc_123.mp4",
++          retentionTtlMinutes: 60,
++          shouldDeleteAfterAnalysis: true,
++          shouldPersistVideo: false,
++          shouldPersistThumbnail: false,
++        },
++      });
++      const onSubmit = jest.fn().mockResolvedValue(undefined);
++      const { container } = render(
++        <MobileStrategicProfileAnalyzeFlow
++          open
++          onClose={jest.fn()}
++          onComplete={jest.fn()}
++          onCreateUploadSession={onCreateSession}
++          onUploadToTemporarySignedUrl={jest.fn().mockResolvedValue({
++            ok: true,
++            status: "uploaded",
++            uploadedAt: "2026-05-19T20:00:00.000Z",
++            bytesSent: fileMock.size,
++          })}
++          enableRealAnalysis
++          onSubmitAnalysis={onSubmit}
++        />
++      );
++
++      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
++      fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
++      fireEvent.click(screen.getByRole("checkbox"));
++      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
++
++      await waitFor(() => {
++        expect(screen.getByText("Qual era o objetivo do conteúdo?")).toBeInTheDocument();
++      });
++      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
++      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
++
++      await waitFor(() => {
++        expect(onSubmit).toHaveBeenCalled();
++      });
++
++      const submitted = JSON.stringify(onSubmit.mock.calls[0][0]);
++      expect(submitted).toContain("video-temp-upload-session-abc_123");
++      expect(submitted).toContain("temporary/video-narrative");
++      expect(submitted).not.toContain("uploadUrl");
++      expect(submitted).not.toContain("signedUrl");
++      expect(submitted).not.toContain("base64");
++      expect(submitted).not.toContain("File");
++    });
++
+     it("nao cria historico visual de videos nem usa APIs proibidas do browser", () => {
+       render(
+         <MobileStrategicProfileAnalyzeFlow
+diff --git a/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileAnalyzeFlow.tsx b/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileAnalyzeFlow.tsx
+index 0b583bd4..0c5b90ce 100644
+--- a/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileAnalyzeFlow.tsx
++++ b/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileAnalyzeFlow.tsx
+@@ -29,11 +29,20 @@ type MobileStrategicProfileAnalyzeFlowProps = {
+     selectedGoalOption: "authority" | "retention" | "format_test" | "sponsored_content";
+     quickAnswers?: Array<{ id: string; value: string }>;
+     mockScenario?: string;
++    consentTextVersion?: string;
++    temporaryUpload?: {
++      uploadSessionId: string;
++      objectKey?: string;
++      mimeType: string;
++      sizeBytes: number;
++      uploadedAt?: string;
++    };
+   }) => Promise<void>;
+   onCreateUploadSession?: (payload: UploadSessionPayload) => Promise<UploadSessionResponse>;
+   onUploadToTemporarySignedUrl?: (
+     input: MobileStrategicProfileDirectUploadInput,
+   ) => Promise<MobileStrategicProfileDirectUploadResult>;
++  enableRealAnalysis?: boolean;
+   onCleanupTemporaryUpload?: (payload: {
+     uploadSessionId: string;
+     objectKey?: string;
+@@ -90,6 +99,7 @@ export function MobileStrategicProfileAnalyzeFlow({
+   onSubmitAnalysis,
+   onCreateUploadSession,
+   onUploadToTemporarySignedUrl,
++  enableRealAnalysis = false,
+   onCleanupTemporaryUpload,
+ }: MobileStrategicProfileAnalyzeFlowProps) {
+   const [step, setStep] = useState<AnalyzeFlowStep>("intro");
+@@ -107,6 +117,13 @@ export function MobileStrategicProfileAnalyzeFlow({
+     uploadSessionId: string;
+     objectKey?: string;
+   } | null>(null);
++  const [temporaryUploadForAnalysis, setTemporaryUploadForAnalysis] = useState<{
++    uploadSessionId: string;
++    objectKey?: string;
++    mimeType: string;
++    sizeBytes: number;
++    uploadedAt?: string;
++  } | null>(null);
+ 
+   useEffect(() => {
+     if (!open) {
+@@ -119,6 +136,7 @@ export function MobileStrategicProfileAnalyzeFlow({
+       setFileValidationError(null);
+       setUploadSessionValidated(false);
+       setTemporaryUploadForCleanup(null);
++      setTemporaryUploadForAnalysis(null);
+     }
+   }, [open]);
+ 
+@@ -140,6 +158,8 @@ export function MobileStrategicProfileAnalyzeFlow({
+               { id: "represents_current_phase", value: "sim" },
+               { id: "wants_to_repeat_direction", value: "sim" }
+             ],
++            consentTextVersion: "mobile_strategic_profile_temporary_video_v1",
++            temporaryUpload: enableRealAnalysis ? temporaryUploadForAnalysis ?? undefined : undefined,
+           });
+           if (temporaryUploadForCleanup && onCleanupTemporaryUpload) {
+             try {
+@@ -188,7 +208,16 @@ export function MobileStrategicProfileAnalyzeFlow({
+         clearTimeout(fallbackTimer);
+       }
+     };
+-  }, [step, selectedOption, onSubmitAnalysis, submitAttempt, temporaryUploadForCleanup, onCleanupTemporaryUpload]);
++  }, [
++    step,
++    selectedOption,
++    onSubmitAnalysis,
++    submitAttempt,
++    temporaryUploadForCleanup,
++    onCleanupTemporaryUpload,
++    temporaryUploadForAnalysis,
++    enableRealAnalysis,
++  ]);
+ 
+   if (!open) return null;
+ 
+@@ -243,6 +272,13 @@ export function MobileStrategicProfileAnalyzeFlow({
+             uploadSessionId: session.id,
+             objectKey: session.objectKey,
+           });
++          setTemporaryUploadForAnalysis({
++            uploadSessionId: session.id,
++            objectKey: session.objectKey,
++            mimeType: selectedFile.type || "video/mp4",
++            sizeBytes: selectedFile.size,
++            uploadedAt: uploadResult.uploadedAt,
++          });
+           setValidationStatus("uploaded");
+           setUploadSessionValidated(true);
+           setStep("creator_goal");
+@@ -264,6 +300,7 @@ export function MobileStrategicProfileAnalyzeFlow({
+     setErrorMsg(null);
+     setUploadSessionValidated(false);
+     setTemporaryUploadForCleanup(null);
++    setTemporaryUploadForAnalysis(null);
+     onClose();
+   };
+ 
+@@ -272,6 +309,7 @@ export function MobileStrategicProfileAnalyzeFlow({
+     setErrorMsg(null);
+     setUploadSessionValidated(false);
+     setTemporaryUploadForCleanup(null);
++    setTemporaryUploadForAnalysis(null);
+     onComplete();
+   };
+ 
+@@ -367,6 +405,7 @@ export function MobileStrategicProfileAnalyzeFlow({
+                     setFileValidationError(null);
+                     setUploadSessionValidated(false);
+                     setTemporaryUploadForCleanup(null);
++                    setTemporaryUploadForAnalysis(null);
+                   }
+                 }}
+                 className="hidden"
+@@ -515,7 +554,9 @@ export function MobileStrategicProfileAnalyzeFlow({
+                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                   </svg>
+-                  <p className="text-sm font-semibold text-zinc-950">Atualizando seu Perfil Estratégico</p>
++                  <p className="text-sm font-semibold text-zinc-950">
++                    {temporaryUploadForAnalysis ? "Analisando vídeo e atualizando seu Perfil" : "Atualizando seu Perfil Estratégico"}
++                  </p>
+                 </div>
+                 <p className="mt-2 text-sm leading-6 text-zinc-600">
+                   Estamos conectando essa leitura ao seu diagnóstico vivo.
+diff --git a/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfilePreview.tsx b/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfilePreview.tsx
+index fe930752..9d5ac5ec 100644
+--- a/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfilePreview.tsx
++++ b/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfilePreview.tsx
+@@ -31,11 +31,20 @@ type MobileStrategicProfilePreviewProps = {
+     selectedGoalOption: "authority" | "retention" | "format_test" | "sponsored_content";
+     quickAnswers?: Array<{ id: string; value: string }>;
+     mockScenario?: string;
++    consentTextVersion?: string;
++    temporaryUpload?: {
++      uploadSessionId: string;
++      objectKey?: string;
++      mimeType: string;
++      sizeBytes: number;
++      uploadedAt?: string;
++    };
+   }) => Promise<void>;
+   onCreateUploadSession?: (payload: UploadSessionPayload) => Promise<UploadSessionResponse>;
+   onUploadToTemporarySignedUrl?: (
+     input: MobileStrategicProfileDirectUploadInput,
+   ) => Promise<MobileStrategicProfileDirectUploadResult>;
++  enableRealAnalysis?: boolean;
+   onCleanupTemporaryUpload?: (payload: {
+     uploadSessionId: string;
+     objectKey?: string;
+@@ -372,6 +381,7 @@ export function MobileStrategicProfilePreview({
+   onSubmitAnalysis,
+   onCreateUploadSession,
+   onUploadToTemporarySignedUrl,
++  enableRealAnalysis,
+   onCleanupTemporaryUpload,
+ }: MobileStrategicProfilePreviewProps) {
+   const [mediaKitModalOpen, setMediaKitModalOpen] = useState(false);
+@@ -465,6 +475,7 @@ export function MobileStrategicProfilePreview({
+               onSubmitAnalysis={onSubmitAnalysis}
+               onCreateUploadSession={onCreateUploadSession}
+               onUploadToTemporarySignedUrl={onUploadToTemporarySignedUrl}
++              enableRealAnalysis={enableRealAnalysis}
+               onCleanupTemporaryUpload={onCleanupTemporaryUpload}
+             />
+           </div>
+diff --git a/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileRealShellClient.test.tsx b/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileRealShellClient.test.tsx
+index 104f2e7d..969a982c 100644
+--- a/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileRealShellClient.test.tsx
++++ b/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileRealShellClient.test.tsx
+@@ -25,6 +25,7 @@ jest.mock("./MobileStrategicProfilePreview", () => {
+       onSubmitAnalysis,
+       onCreateUploadSession,
+       onUploadToTemporarySignedUrl,
++      enableRealAnalysis,
+       onCleanupTemporaryUpload,
+     }: any) => (
+       <div data-testid="profile-preview-mock">
+@@ -37,10 +38,29 @@ jest.mock("./MobileStrategicProfilePreview", () => {
+         <span data-testid="profile-community-href">{profile.communityBridge.href || ""}</span>
+         <span data-testid="has-on-create-session">{String(!!onCreateUploadSession)}</span>
+         <span data-testid="has-on-direct-upload">{String(!!onUploadToTemporarySignedUrl)}</span>
++        <span data-testid="real-analysis-enabled">{String(!!enableRealAnalysis)}</span>
+         <span data-testid="has-on-cleanup">{String(!!onCleanupTemporaryUpload)}</span>
+         <button data-testid="trigger-analysis-submit" onClick={() => onSubmitAnalysis?.({ creatorGoal: "test", selectedGoalOption: "authority" })}>
+           Submit
+         </button>
++        <button
++          data-testid="trigger-real-analysis-submit"
++          onClick={() => onSubmitAnalysis?.({
++            creatorGoal: "test",
++            selectedGoalOption: "authority",
++            quickAnswers: [{ id: "represents_current_phase", value: "sim" }],
++            consentTextVersion: "mobile_strategic_profile_temporary_video_v1",
++            temporaryUpload: {
++              uploadSessionId: "video-temp-upload-session-abc_123",
++              objectKey: "temporary/video-narrative/0123456789abcdef/video-temp-upload-session-abc_123.mp4",
++              mimeType: "video/mp4",
++              sizeBytes: 1024,
++              uploadedAt: "2026-05-19T20:00:00.000Z",
++            },
++          })}
++        >
++          Real Submit
++        </button>
+         <button
+           data-testid="trigger-upload-session"
+           onClick={() => onCreateUploadSession?.({
+@@ -95,6 +115,7 @@ describe("MobileStrategicProfileRealShellClient", () => {
+ 
+   beforeEach(() => {
+     jest.clearAllMocks();
++    delete process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED;
+     (requestUploadSession as jest.Mock).mockResolvedValue({ ok: true, status: "mock_session_created" });
+     (uploadVideoToTemporarySignedUrl as jest.Mock).mockResolvedValue({ ok: true, status: "uploaded" });
+   });
+@@ -379,6 +400,53 @@ describe("MobileStrategicProfileRealShellClient", () => {
+     globalFetchSpy.mockRestore();
+   });
+ 
++  it("MM66 - com flag pública e upload real chama analyze-real sem File/uploadUrl/signedUrl/base64", async () => {
++    process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED = "1";
++    (fetchHomeSummaryCached as jest.Mock).mockResolvedValue(null);
++    const globalFetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
++      ok: true,
++      json: async () => ({
++        ok: true,
++        snapshotUpdated: true,
++        snapshot: {
++          schemaVersion: "mobile_strategic_profile_snapshot_v1",
++          profileState: "active",
++          unlockedSignals: [],
++          pendingSignals: [],
++          recurringPatterns: [],
++          opportunities: [],
++          diagnosisSummary: "Diagnóstico atualizado",
++          commercialSummary: "Potencial comercial futuro",
++          lastAnalysisSummary: "Próximo passo",
++        },
++      }),
++    } as any);
++
++    render(
++      <MobileStrategicProfileRealShellClient
++        session={mockSession}
++        stateQuery={null}
++      />
++    );
++
++    expect(screen.getByTestId("real-analysis-enabled").textContent).toBe("true");
++
++    await act(async () => {
++      screen.getByTestId("trigger-real-analysis-submit").click();
++    });
++
++    const realCall = globalFetchSpy.mock.calls.find(([url]) => url === "/api/dashboard/mobile-strategic-profile/analyze-real");
++    expect(realCall).toBeTruthy();
++    const body = String(realCall?.[1]?.body);
++    expect(body).toContain("video-temp-upload-session-abc_123");
++    expect(body).not.toContain("uploadUrl");
++    expect(body).not.toContain("signedUrl");
++    expect(body).not.toContain("base64");
++    expect(body).not.toContain("File");
++
++    globalFetchSpy.mockRestore();
++  });
++
+   it("Fase MM61 - passa callback onCreateUploadSession para o MobileStrategicProfilePreview e preserva hidratacao", async () => {
+     (fetchHomeSummaryCached as jest.Mock).mockResolvedValue(null);
+ 
+diff --git a/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileRealShellClient.tsx b/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileRealShellClient.tsx
+index 19fec1fe..15db112b 100644
+--- a/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileRealShellClient.tsx
++++ b/src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileRealShellClient.tsx
+@@ -21,6 +21,8 @@ export function MobileStrategicProfileRealShellClient({
+   stateQuery,
+   initialSnapshotPayload,
+ }: MobileStrategicProfileRealShellClientProps) {
++  const realAnalysisEnabled = process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED === "1";
++
+   // 1. Calcular o perfil inicial (Session-only, snapshot ou fixture via stateQuery)
+   const [profile, setProfile] = useState<MobileStrategicProfile>(() => {
+     if (stateQuery) {
+@@ -132,18 +134,53 @@ export function MobileStrategicProfileRealShellClient({
+     selectedGoalOption: "authority" | "retention" | "format_test" | "sponsored_content";
+     quickAnswers?: Array<{ id: string; value: string }>;
+     mockScenario?: string;
++    consentTextVersion?: string;
++    temporaryUpload?: {
++      uploadSessionId: string;
++      objectKey?: string;
++      mimeType: string;
++      sizeBytes: number;
++      uploadedAt?: string;
++    };
+   }) => {
+-    const response = await fetch("/api/dashboard/mobile-strategic-profile/analyze", {
++    const shouldUseRealAnalysis =
++      realAnalysisEnabled &&
++      Boolean(payload.temporaryUpload?.uploadSessionId);
++    const endpoint = shouldUseRealAnalysis
++      ? "/api/dashboard/mobile-strategic-profile/analyze-real"
++      : "/api/dashboard/mobile-strategic-profile/analyze";
++    const requestPayload = shouldUseRealAnalysis
++      ? {
++          uploadSessionId: payload.temporaryUpload!.uploadSessionId,
++          temporaryUpload: {
++            objectKey: payload.temporaryUpload!.objectKey,
++            mimeType: payload.temporaryUpload!.mimeType,
++            sizeBytes: payload.temporaryUpload!.sizeBytes,
++            uploadedAt: payload.temporaryUpload!.uploadedAt,
++          },
++          creatorGoal: payload.creatorGoal,
++          selectedGoalOption: payload.selectedGoalOption,
++          quickAnswers: payload.quickAnswers,
++          consentTextVersion: payload.consentTextVersion || "mobile_strategic_profile_temporary_video_v1",
++        }
++      : {
++          creatorGoal: payload.creatorGoal,
++          selectedGoalOption: payload.selectedGoalOption,
++          quickAnswers: payload.quickAnswers,
++          mockScenario: payload.mockScenario,
++        };
++
++    const response = await fetch(endpoint, {
+       method: "POST",
+       headers: {
+         "Content-Type": "application/json",
+       },
+-      body: JSON.stringify(payload),
++      body: JSON.stringify(requestPayload),
+     });
+ 
+     if (!response.ok) {
+       const errData = await response.json().catch(() => ({}));
+-      throw new Error(errData.message || "Erro ao conectar com o serviço de análise mockada.");
++      throw new Error(errData.message || "Erro ao conectar com o serviço de análise.");
+     }
+ 
+     const data = await response.json();
+@@ -163,7 +200,7 @@ export function MobileStrategicProfileRealShellClient({
+       });
+       setProfile(buildMobileStrategicProfile(input));
+     }
+-  }, [session]);
++  }, [session, realAnalysisEnabled]);
+ 
+   const handleCleanupTemporaryUpload = useCallback(async (payload: {
+     uploadSessionId: string;
+@@ -207,6 +244,7 @@ export function MobileStrategicProfileRealShellClient({
+         onSubmitAnalysis={handleAnalysisSubmit}
+         onCreateUploadSession={requestUploadSession}
+         onUploadToTemporarySignedUrl={uploadVideoToTemporarySignedUrl}
++        enableRealAnalysis={realAnalysisEnabled}
+         onCleanupTemporaryUpload={handleCleanupTemporaryUpload}
+       />
+     </div>
+diff --git a/src/app/dashboard/boards/videoUpload/GEMINI_VIDEO_NARRATIVE_READINESS_AUDIT.md b/src/app/dashboard/boards/videoUpload/GEMINI_VIDEO_NARRATIVE_READINESS_AUDIT.md
+index dd9c16a0..b5366b80 100644
+--- a/src/app/dashboard/boards/videoUpload/GEMINI_VIDEO_NARRATIVE_READINESS_AUDIT.md
++++ b/src/app/dashboard/boards/videoUpload/GEMINI_VIDEO_NARRATIVE_READINESS_AUDIT.md
+@@ -254,6 +254,16 @@ MM65 aumenta a readiness do provider Gemini em prompt/parser/adapter, mas ainda
+ - **Sem raw response persistido**: o adapter retorna apenas análise parseada, issues seguras, timing e debug summary seguro.
+ - **Mapper seguro**: `gemini_ready`/`gemini_fixture` prepara snapshot sem vídeo, signed URL, `uploadUrl` ou `objectKey`.
+ 
++## MM66 — Primeira Integração Real Allowlist
++
++MM66 adiciona a primeira integração real end-to-end, mas ainda não é produção ampla:
++- **Somente allowlist/admin-dev**: o caminho real exige flags completas, env de provider, upload temporário real e allowlist server-side.
++- **Endpoint separado**: `/api/dashboard/mobile-strategic-profile/analyze-real` não substitui o endpoint mock atual.
++- **Parser/sanitizer/mapper obrigatórios**: nenhuma resposta do provider pode virar snapshot sem passar pela camada MM65.
++- **Sem raw response persistido**: o banco recebe apenas snapshot estratégico sanitizado com source `gemini_real_allowlist`.
++- **Sem vazamento de mídia**: `signedUrl`, `uploadUrl`, arquivo, Base64, thumbnail e `objectKey` não entram no snapshot.
++- **Provider real depende de infraestrutura completa**: quando o reader/resolver multimodal não está configurado, o endpoint retorna erro seguro em vez de inventar análise.
++
+ ## Frase Norte
+ 
+ > O sistema pode estar pronto para testar Gemini real sem ainda estar pronto para lançar vídeo no produto.
+diff --git a/src/app/dashboard/boards/videoUpload/MOBILE_STRATEGIC_PROFILE_UX_QA.md b/src/app/dashboard/boards/videoUpload/MOBILE_STRATEGIC_PROFILE_UX_QA.md
+index 7713c018..636c779e 100644
+--- a/src/app/dashboard/boards/videoUpload/MOBILE_STRATEGIC_PROFILE_UX_QA.md
++++ b/src/app/dashboard/boards/videoUpload/MOBILE_STRATEGIC_PROFILE_UX_QA.md
+@@ -423,3 +423,27 @@ Não recomendar integração real antes do QA/polish visual.
+ - Sem vídeo, signed URL, `uploadUrl` ou `objectKey` no snapshot.
+ - Sem API key exposta.
+ - Sem import Gemini/OpenAI em client component.
++
++## Cenários MM66 — Real Video Analysis Allowlist
++
++- Usuário allowlist/admin-dev com flags completas: seleciona vídeo, aceita consentimento, faz upload signed temporário, responde objetivo/perguntas e recebe "Diagnóstico atualizado." após snapshot real sanitizado.
++- Análise real com falha: exibe erro humano, mantém Perfil antigo visível, não cria snapshot fake silencioso e permite tentar novamente.
++- Cleanup warning: falha de cleanup aparece apenas como warning seguro no contrato e não desfaz snapshot salvo.
++- Usuário comum: fica bloqueado no servidor e nunca chama Gemini real.
++- Fluxo mock preservado: com flag pública real desligada ou sessão `mock_session_created`, o app continua usando `/analyze`.
++- Ausência de histórico visual: não deve aparecer thumbnail, player, galeria, recibo ou lista de vídeos analisados.
++
++## Guardrails do MM66
++
++- Real analysis só allowlist/admin-dev.
++- Usuários comuns bloqueados.
++- Sem Gemini para usuários comuns.
++- Sem vídeo salvo no banco.
++- Sem raw response salvo.
++- Sem signed URL persistida.
++- Sem `objectKey` persistido no snapshot.
++- Sem histórico visual de vídeos.
++- Sem API key exposta.
++- Sem import Gemini/OpenAI em client component.
++- Endpoint mock preservado.
++- Mídia Kit, Comunidade, navegação real, DashboardShell/BoardShell/sidebar, ActivationPendingWidget, LoginClient, NextAuth e billing seguem intocados.
+diff --git a/src/app/dashboard/boards/videoUpload/README.md b/src/app/dashboard/boards/videoUpload/README.md
+index 7b9393e6..c95a964f 100644
+--- a/src/app/dashboard/boards/videoUpload/README.md
++++ b/src/app/dashboard/boards/videoUpload/README.md
+@@ -2039,6 +2039,16 @@ Gemini real segue desligado por default e exige `VIDEO_NARRATIVE_GEMINI_PROVIDER
+ 
+ O parser não aceita resposta vazia, JSON inválido, campos obrigatórios ausentes, signed URLs, tokens/API keys ou transcrição bruta longa. A resposta bruta não é retornada nem persistida; apenas a análise parseada/sanitizada pode virar snapshot. O mapper não inclui vídeo, thumbnail, signed URL, `uploadUrl` ou `objectKey`, e usa source seguro `gemini_ready`/`gemini_fixture` nesta fase.
+ 
++### MM66 — Real Video Analysis Allowlist End-to-End
++
++Status: concluído.
++
++MM66 conecta o primeiro ciclo controlado de análise real allowlist: upload temporário, endpoint `/api/dashboard/mobile-strategic-profile/analyze-real`, provider Gemini preparado no MM65, snapshot persistido e cleanup contract. O fluxo só tenta esse caminho quando há upload signed real concluído e a flag pública `NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED=1` permite a UI chamar o endpoint real.
++
++O servidor exige `VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED=1`, upload temporário real, provider Gemini habilitado, API key/model env e allowlist/admin-dev. Usuários comuns continuam bloqueados, e o endpoint mock `/api/dashboard/mobile-strategic-profile/analyze` permanece preservado para preview, dry-run e fallback explícito quando o caminho real não está habilitado.
++
++O vídeo não é enviado ao app server pelo browser e não é salvo no banco. A análise real recebe apenas referência temporária controlada (`uploadSessionId` e, quando permitido, `objectKey` transitório), nunca `uploadUrl`/`signedUrl`, arquivo, Base64, thumbnail ou raw response. O snapshot salvo usa source `gemini_real_allowlist` e passa pelo parser/sanitizer/mapper antes do upsert, sem persistir raw response, signed URL ou `objectKey`.
++
+ ## Próximas Fases Sugeridas
+ 
+ - PROC4: contrato de fila/job conceitual de processamento.
+diff --git a/src/app/dashboard/boards/videoUpload/VIDEO_MULTIMODAL_NARRATIVE_ARCHITECTURE.md b/src/app/dashboard/boards/videoUpload/VIDEO_MULTIMODAL_NARRATIVE_ARCHITECTURE.md
+index 5ada2f02..dbc41469 100644
+--- a/src/app/dashboard/boards/videoUpload/VIDEO_MULTIMODAL_NARRATIVE_ARCHITECTURE.md
++++ b/src/app/dashboard/boards/videoUpload/VIDEO_MULTIMODAL_NARRATIVE_ARCHITECTURE.md
+@@ -394,3 +394,5 @@ MM63 cria o primeiro caminho server-side para signed upload session curta, mas s
+ MM64 é o primeiro passo de upload real controlado no client: quando a upload-session API retorna `signed_upload_session_created` para allowlist/admin-dev e flags reais, o app envia o arquivo diretamente para a signed URL temporária por `PUT`, sem passar bytes pelo app server. `mock_session_created` continua sendo metadata-only e a preview interna segue sem upload-session/direct upload. O snapshot continua sendo a memória persistida do Perfil, não recebe `uploadUrl` nem `objectKey`; cleanup entra como contrato/API seguro e Gemini continua fora do fluxo.
+ 
+ MM65 prepara o motor de IA real sem fechar o ciclo end-to-end. A nova camada server-side define provider interface, config/env, allowlist, prompt builder, parser e mapper para snapshot, mas o fluxo `+` continua usando análise mock. Upload temporário e provider Gemini ainda não estão conectados como caminho padrão. A resposta da IA precisa passar por parser/sanitizer antes de virar snapshot, e o snapshot continua sendo a memória persistida, sem raw response, signed URL, `uploadUrl` ou `objectKey`.
++
++MM66 fecha o primeiro ciclo real controlado de análise de vídeo apenas para allowlist/admin-dev. O client só chama `/api/dashboard/mobile-strategic-profile/analyze-real` depois de upload signed temporário bem-sucedido e flag pública ativa; o servidor ainda exige flags/env/allowlist completas. A resposta do provider passa por parser, sanitizer e mapper antes de persistir snapshot `gemini_real_allowlist`. O snapshot segue sendo a memória do produto, sem vídeo bruto, raw response, signed URL ou `objectKey`, e o upload temporário deve ser descartado via cleanup após a análise.
+diff --git a/src/app/dashboard/boards/videoUpload/VIDEO_NARRATIVE_TEMPORARY_UPLOAD_STORAGE_STRATEGY.md b/src/app/dashboard/boards/videoUpload/VIDEO_NARRATIVE_TEMPORARY_UPLOAD_STORAGE_STRATEGY.md
+index 20b7b9b9..566ac374 100644
+--- a/src/app/dashboard/boards/videoUpload/VIDEO_NARRATIVE_TEMPORARY_UPLOAD_STORAGE_STRATEGY.md
++++ b/src/app/dashboard/boards/videoUpload/VIDEO_NARRATIVE_TEMPORARY_UPLOAD_STORAGE_STRATEGY.md
+@@ -196,3 +196,21 @@ Próximos passos:
+ MM65 prepara o provider/parser/mapper de IA real, mas ainda não conecta upload temporário e Gemini end-to-end. A análise real futura depende do ciclo MM64 estar seguro: signed upload temporário, cleanup confiável e nenhum vídeo persistido no banco.
+ 
+ Mesmo quando o provider real for ligado em ambiente controlado, `signedUrl`, `uploadUrl` e `objectKey` não devem entrar no prompt por padrão, na resposta parseada ou no snapshot. O snapshot permanece a única memória persistida do Perfil Estratégico.
++
++## Fase MM66 — Real Analysis Allowlist E Cleanup
++
++MM66 usa o upload temporário como referência transitória para a primeira análise real allowlist:
++
++- a UI só chama `/api/dashboard/mobile-strategic-profile/analyze-real` depois de `signed_upload_session_created` e PUT concluído;
++- o endpoint real exige `VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED=1`, upload real ativo, provider Gemini habilitado e allowlist/admin-dev;
++- `uploadUrl` e `signedUrl` nunca entram no endpoint de análise real;
++- `objectKey` pode ser usado transitoriamente para resolver o arquivo temporário, mas não entra no prompt por padrão nem no snapshot;
++- o snapshot persistido usa source seguro e continua sendo a única memória durável do Perfil;
++- cleanup é acionado após sucesso e também tentado após falha aplicável; falha de cleanup vira warning seguro.
++
++Próximos passos para beta hardening:
++
++- implementar resolver server-side auditável para transformar `uploadSessionId`/`objectKey` em input multimodal real;
++- implementar delete real do provider temporário;
++- adicionar auditoria de cleanup, custo e latência;
++- validar rate limits antes de ampliar a allowlist.
+diff --git a/src/app/dashboard/boards/videoUpload/mobileStrategicProfileSnapshotTypes.ts b/src/app/dashboard/boards/videoUpload/mobileStrategicProfileSnapshotTypes.ts
+index d12bcfae..bb83701c 100644
+--- a/src/app/dashboard/boards/videoUpload/mobileStrategicProfileSnapshotTypes.ts
++++ b/src/app/dashboard/boards/videoUpload/mobileStrategicProfileSnapshotTypes.ts
+@@ -16,6 +16,14 @@ export interface CreatorStrategicProfileSnapshotInput {
+   status?: "active" | "inactive" | "archived";
+   accessLevel: "free" | "premium" | "instagram_optimized";
+   snapshot: MobileStrategicProfileSnapshotPayload;
+-  source: "manual_seed" | "mock_analysis" | "future_video_analysis" | "gemini_ready" | "gemini_fixture" | "imported" | "unknown";
++  source:
++    | "manual_seed"
++    | "mock_analysis"
++    | "future_video_analysis"
++    | "gemini_ready"
++    | "gemini_fixture"
++    | "gemini_real_allowlist"
++    | "imported"
++    | "unknown";
+   lastAnalyzedAt?: Date;
+ }
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeAiProviderTypes.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeAiProviderTypes.ts
+index 3364e6a6..d65a8730 100644
+--- a/src/app/dashboard/boards/videoUpload/videoNarrativeAiProviderTypes.ts
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeAiProviderTypes.ts
+@@ -60,6 +60,6 @@ export type VideoNarrativeAiProviderResult = {
+ };
+ 
+ export type VideoNarrativeGeminiSnapshotMappingResult = {
+-  source: "gemini_ready" | "gemini_fixture";
++  source: "gemini_ready" | "gemini_fixture" | "gemini_real_allowlist";
+   snapshot: MobileStrategicProfileSnapshotPayload;
+ };
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiSnapshotMapper.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiSnapshotMapper.ts
+index d5d6abc7..64b24303 100644
+--- a/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiSnapshotMapper.ts
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiSnapshotMapper.ts
+@@ -14,7 +14,7 @@ function cleanSummary(value: string, fallback: string): string {
+ 
+ export function mapGeminiAnalysisToStrategicProfileSnapshot(params: {
+   analysis: VideoNarrativeAiAnalysis;
+-  source?: "gemini_ready" | "gemini_fixture";
++  source?: "gemini_ready" | "gemini_fixture" | "gemini_real_allowlist";
+   promptVersion: string;
+ }): VideoNarrativeGeminiSnapshotMappingResult {
+   const source = params.source ?? "gemini_ready";
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisFeatureFlag.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisFeatureFlag.ts
+new file mode 100644
+index 00000000..329c7b9c
+--- /dev/null
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisFeatureFlag.ts
+@@ -0,0 +1,9 @@
++function parseBoolean(value: string | undefined): boolean {
++  return value === "1" || value === "true";
++}
++
++export function isVideoNarrativeRealAnalysisE2EEnabled(
++  env: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env,
++): boolean {
++  return parseBoolean(env.VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED);
++}
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisOrchestrator.test.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisOrchestrator.test.ts
+new file mode 100644
+index 00000000..14f9bf86
+--- /dev/null
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisOrchestrator.test.ts
+@@ -0,0 +1,163 @@
++import { runVideoNarrativeRealAnalysisOrchestrator } from "./videoNarrativeRealAnalysisOrchestrator";
++import { geminiVideoNarrativeResponseFixture } from "./__fixtures__/geminiVideoNarrativeResponse.fixture";
++
++const env = {
++  VIDEO_NARRATIVE_GEMINI_PROVIDER_ENABLED: "true",
++  VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "1",
++  VIDEO_NARRATIVE_GEMINI_MODEL: "gemini-test",
++  GOOGLE_GEMINI_API_KEY: "test-key",
++};
++
++const payload = {
++  uploadSessionId: "video-temp-upload-session-abc_123",
++  temporaryUpload: {
++    objectKey: "temporary/video-narrative/0123456789abcdef/video-temp-upload-session-abc_123.mp4",
++    mimeType: "video/mp4",
++    sizeBytes: 1024,
++    uploadedAt: "2026-05-19T20:00:00.000Z",
++  },
++  creatorGoal: "Quero ganhar autoridade.",
++  selectedGoalOption: "authority" as const,
++  quickAnswers: [{ id: "represents_current_phase", value: "sim" }],
++  consentTextVersion: "mobile_strategic_profile_temporary_video_v1",
++};
++
++const user = {
++  id: "507f1f77bcf86cd799439011",
++  email: "admin@example.com",
++  role: "admin",
++  planStatus: "active",
++  name: "Creator",
++};
++
++describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
++  it("bloqueia provider disabled sem chamar rede ou snapshot", async () => {
++    const runProvider = jest.fn();
++    const upsertSnapshot = jest.fn();
++    const result = await runVideoNarrativeRealAnalysisOrchestrator({
++      payload,
++      user,
++      deps: { env: { ...env, VIDEO_NARRATIVE_GEMINI_PROVIDER_ENABLED: "" }, runProvider, upsertSnapshot },
++    });
++
++    expect(result.ok).toBe(false);
++    expect(runProvider).not.toHaveBeenCalled();
++    expect(upsertSnapshot).not.toHaveBeenCalled();
++  });
++
++  it("bloqueia usuário comum antes do provider", async () => {
++    const runProvider = jest.fn();
++    const result = await runVideoNarrativeRealAnalysisOrchestrator({
++      payload,
++      user: { ...user, role: "creator", email: "common@example.com" },
++      deps: { env, runProvider },
++    });
++
++    expect(result.ok).toBe(false);
++    expect(runProvider).not.toHaveBeenCalled();
++    expect(JSON.stringify(result)).not.toContain("common@example.com");
++  });
++
++  it("chama provider fake, mapeia, salva snapshot e aciona cleanup", async () => {
++    const runProvider = jest.fn().mockResolvedValue({
++      ok: true,
++      provider: "gemini",
++      mode: "ready",
++      promptVersion: "video_narrative_gemini_mm66_v1",
++      analysis: geminiVideoNarrativeResponseFixture,
++      issues: [],
++    });
++    const upsertSnapshot = jest.fn(async (input) => input);
++    const cleanupTemporaryUpload = jest.fn().mockResolvedValue(undefined);
++
++    const result = await runVideoNarrativeRealAnalysisOrchestrator({
++      payload,
++      user,
++      deps: {
++        env,
++        requestId: "req-test",
++        now: () => new Date("2026-05-19T20:00:00.000Z"),
++        runProvider,
++        upsertSnapshot,
++        cleanupTemporaryUpload,
++      },
++    });
++
++    expect(result.ok).toBe(true);
++    expect(runProvider).toHaveBeenCalledWith(
++      expect.objectContaining({
++        input: expect.objectContaining({
++          creatorGoal: payload.creatorGoal,
++          temporaryUpload: expect.objectContaining({ uploadSessionId: payload.uploadSessionId }),
++          requestId: "req-test",
++        }),
++      }),
++    );
++    expect(upsertSnapshot).toHaveBeenCalledWith(
++      expect.objectContaining({
++        userId: user.id,
++        source: "gemini_real_allowlist",
++        snapshot: expect.not.objectContaining({
++          objectKey: expect.anything(),
++          uploadUrl: expect.anything(),
++          rawResponse: expect.anything(),
++        }),
++      }),
++    );
++    const snapshotArg = upsertSnapshot.mock.calls[0][0].snapshot;
++    expect(JSON.stringify(snapshotArg)).not.toContain("temporary/video-narrative");
++    expect(JSON.stringify(snapshotArg)).not.toContain("uploadUrl");
++    expect(cleanupTemporaryUpload).toHaveBeenCalledWith(
++      expect.objectContaining({
++        uploadSessionId: payload.uploadSessionId,
++        objectKey: payload.temporaryUpload.objectKey,
++        reason: "analysis_completed",
++      }),
++    );
++  });
++
++  it("erro do provider vira mensagem segura e tenta cleanup", async () => {
++    const cleanupTemporaryUpload = jest.fn().mockResolvedValue(undefined);
++    const result = await runVideoNarrativeRealAnalysisOrchestrator({
++      payload,
++      user,
++      deps: {
++        env,
++        runProvider: jest.fn().mockResolvedValue({
++          ok: false,
++          provider: "gemini",
++          mode: "failed",
++          promptVersion: "v1",
++          issues: [{ code: "external_secret_error", severity: "blocker", message: "raw provider stack" }],
++        }),
++        cleanupTemporaryUpload,
++      },
++    });
++
++    expect(result.ok).toBe(false);
++    expect(result.message).toBe("Não foi possível concluir a análise real agora.");
++    expect(JSON.stringify(result)).not.toContain("raw provider stack");
++    expect(cleanupTemporaryUpload).toHaveBeenCalledWith(expect.objectContaining({ reason: "analysis_failed" }));
++  });
++
++  it("erro do snapshot não vaza stack trace", async () => {
++    const result = await runVideoNarrativeRealAnalysisOrchestrator({
++      payload,
++      user,
++      deps: {
++        env,
++        runProvider: jest.fn().mockResolvedValue({
++          ok: true,
++          provider: "gemini",
++          mode: "ready",
++          promptVersion: "v1",
++          analysis: geminiVideoNarrativeResponseFixture,
++        }),
++        upsertSnapshot: jest.fn().mockRejectedValue(new Error("mongo stack secret")),
++      },
++    });
++
++    expect(result.ok).toBe(false);
++    expect(JSON.stringify(result)).not.toContain("mongo stack secret");
++  });
++});
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisOrchestrator.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisOrchestrator.ts
+new file mode 100644
+index 00000000..94c1e6f4
+--- /dev/null
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisOrchestrator.ts
+@@ -0,0 +1,195 @@
++import type { CreatorStrategicProfileSnapshotInput } from "./mobileStrategicProfileSnapshotTypes";
++import {
++  upsertStrategicProfileSnapshot,
++} from "./mobileStrategicProfileSnapshotService";
++import type {
++  VideoNarrativeAiProviderInput,
++  VideoNarrativeAiProviderResult,
++} from "./videoNarrativeAiProviderTypes";
++import type { VideoNarrativeGeminiAllowlistUser } from "./videoNarrativeGeminiAllowlist";
++import { evaluateVideoNarrativeGeminiAllowlist } from "./videoNarrativeGeminiAllowlist";
++import {
++  resolveVideoNarrativeGeminiProviderConfig,
++  type VideoNarrativeGeminiProviderConfig,
++} from "./videoNarrativeGeminiProviderConfig";
++import { runVideoNarrativeGeminiProvider, type VideoNarrativeGeminiClientAdapter } from "./videoNarrativeGeminiProvider";
++import { mapGeminiAnalysisToStrategicProfileSnapshot } from "./videoNarrativeGeminiSnapshotMapper";
++import type { VideoNarrativeRealAnalysisPayload } from "./videoNarrativeRealAnalysisTypes";
++
++type EnvLike = NodeJS.ProcessEnv | Record<string, string | undefined>;
++
++export type VideoNarrativeRealAnalysisOrchestratorResult =
++  | {
++      ok: true;
++      snapshotUpdated: true;
++      snapshot: CreatorStrategicProfileSnapshotInput["snapshot"];
++      source: "gemini_real_allowlist";
++      cleanupWarning?: string;
++    }
++  | {
++      ok: false;
++      status: "blocked" | "failed";
++      message: string;
++      safeIssueCode?: string;
++      cleanupWarning?: string;
++    };
++
++export type VideoNarrativeRealAnalysisOrchestratorDeps = {
++  env?: EnvLike;
++  requestId?: string;
++  now?: () => Date;
++  geminiConfig?: VideoNarrativeGeminiProviderConfig;
++  geminiClient?: VideoNarrativeGeminiClientAdapter | null;
++  runProvider?: (params: {
++    input: VideoNarrativeAiProviderInput;
++    user: VideoNarrativeGeminiAllowlistUser;
++    env?: EnvLike;
++    config?: VideoNarrativeGeminiProviderConfig;
++    client?: VideoNarrativeGeminiClientAdapter | null;
++  }) => Promise<VideoNarrativeAiProviderResult>;
++  upsertSnapshot?: typeof upsertStrategicProfileSnapshot;
++  cleanupTemporaryUpload?: (payload: {
++    uploadSessionId: string;
++    objectKey?: string;
++    reason: "analysis_completed" | "analysis_failed";
++  }) => Promise<void>;
++};
++
++function safeFailure(params: {
++  status?: "blocked" | "failed";
++  message?: string;
++  safeIssueCode?: string;
++  cleanupWarning?: string;
++}): VideoNarrativeRealAnalysisOrchestratorResult {
++  return {
++    ok: false,
++    status: params.status ?? "failed",
++    message: params.message ?? "Não foi possível atualizar o diagnóstico real agora.",
++    safeIssueCode: params.safeIssueCode,
++    cleanupWarning: params.cleanupWarning,
++  };
++}
++
++async function tryCleanup(params: {
++  deps: VideoNarrativeRealAnalysisOrchestratorDeps;
++  payload: VideoNarrativeRealAnalysisPayload;
++  reason: "analysis_completed" | "analysis_failed";
++}): Promise<string | undefined> {
++  if (!params.deps.cleanupTemporaryUpload) return undefined;
++  try {
++    await params.deps.cleanupTemporaryUpload({
++      uploadSessionId: params.payload.uploadSessionId,
++      objectKey: params.payload.temporaryUpload?.objectKey,
++      reason: params.reason,
++    });
++    return undefined;
++  } catch {
++    return "Cleanup temporário não foi confirmado.";
++  }
++}
++
++export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
++  payload: VideoNarrativeRealAnalysisPayload;
++  user: VideoNarrativeGeminiAllowlistUser & {
++    planStatus?: string | null;
++    name?: string | null;
++    instagramConnected?: boolean | null;
++    isInstagramConnected?: boolean | null;
++  };
++  deps?: VideoNarrativeRealAnalysisOrchestratorDeps;
++}): Promise<VideoNarrativeRealAnalysisOrchestratorResult> {
++  const deps = params.deps ?? {};
++  const env = deps.env ?? process.env;
++  const now = deps.now?.() ?? new Date();
++  const configResult = deps.geminiConfig
++    ? { config: deps.geminiConfig, issues: [] }
++    : resolveVideoNarrativeGeminiProviderConfig(env);
++  const blocker = configResult.issues.find((issue) => issue.severity === "blocker");
++
++  if (!configResult.config.enabled || blocker) {
++    return safeFailure({
++      status: "blocked",
++      message: "Análise real indisponível nesta configuração.",
++      safeIssueCode: blocker?.code ?? "gemini_provider_disabled",
++    });
++  }
++
++  const allowlist = evaluateVideoNarrativeGeminiAllowlist({ user: params.user, env });
++  if (!allowlist.ok) {
++    return safeFailure({
++      status: "blocked",
++      message: "Análise real indisponível para este usuário.",
++      safeIssueCode: allowlist.issues[0]?.code,
++    });
++  }
++
++  const runProvider = deps.runProvider ?? runVideoNarrativeGeminiProvider;
++  const providerResult = await runProvider({
++    input: {
++      userId: params.user.id ?? "unknown",
++      creatorGoal: params.payload.creatorGoal,
++      selectedGoalOption: params.payload.selectedGoalOption,
++      quickAnswers: params.payload.quickAnswers,
++      temporaryUpload: {
++        uploadSessionId: params.payload.uploadSessionId,
++        objectKey: params.payload.temporaryUpload?.objectKey,
++        mimeType: params.payload.temporaryUpload?.mimeType ?? "video/mp4",
++        sizeBytes: params.payload.temporaryUpload?.sizeBytes ?? 0,
++      },
++      profileContext: {
++        displayName: params.user.name ?? undefined,
++        instagramConnected: Boolean(params.user.instagramConnected || params.user.isInstagramConnected),
++        premiumAccess: params.user.planStatus === "active",
++      },
++      promptVersion: configResult.config.promptVersion,
++      requestId: deps.requestId ?? `real-analysis-${now.getTime()}`,
++    },
++    user: params.user,
++    env,
++    config: configResult.config,
++    client: deps.geminiClient ?? null,
++  });
++
++  if (!providerResult.ok || !providerResult.analysis) {
++    const cleanupWarning = await tryCleanup({ deps, payload: params.payload, reason: "analysis_failed" });
++    return safeFailure({
++      message: "Não foi possível concluir a análise real agora.",
++      safeIssueCode: providerResult.issues?.[0]?.code ?? "gemini_provider_failed",
++      cleanupWarning,
++    });
++  }
++
++  const mapped = mapGeminiAnalysisToStrategicProfileSnapshot({
++    analysis: providerResult.analysis,
++    promptVersion: providerResult.promptVersion,
++    source: "gemini_real_allowlist",
++  });
++  const upsertSnapshot = deps.upsertSnapshot ?? upsertStrategicProfileSnapshot;
++
++  try {
++    const upserted = await upsertSnapshot({
++      userId: params.user.id ?? "",
++      status: "active",
++      accessLevel: params.user.planStatus === "active" ? "premium" : "free",
++      snapshot: mapped.snapshot,
++      source: mapped.source,
++      lastAnalyzedAt: now,
++    });
++    const cleanupWarning = await tryCleanup({ deps, payload: params.payload, reason: "analysis_completed" });
++
++    return {
++      ok: true,
++      snapshotUpdated: true,
++      snapshot: upserted.snapshot,
++      source: "gemini_real_allowlist",
++      cleanupWarning,
++    };
++  } catch {
++    const cleanupWarning = await tryCleanup({ deps, payload: params.payload, reason: "analysis_failed" });
++    return safeFailure({
++      message: "Não foi possível salvar o diagnóstico real agora.",
++      safeIssueCode: "snapshot_upsert_failed",
++      cleanupWarning,
++    });
++  }
++}
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisTypes.test.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisTypes.test.ts
+new file mode 100644
+index 00000000..7902b895
+--- /dev/null
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisTypes.test.ts
+@@ -0,0 +1,53 @@
++import { validateVideoNarrativeRealAnalysisPayload } from "./videoNarrativeRealAnalysisTypes";
++
++const validPayload = {
++  uploadSessionId: "video-temp-upload-session-abc_123",
++  temporaryUpload: {
++    objectKey: "temporary/video-narrative/0123456789abcdef/video-temp-upload-session-abc_123.mp4",
++    mimeType: "video/mp4",
++    sizeBytes: 1024,
++    uploadedAt: "2026-05-19T20:00:00.000Z",
++  },
++  creatorGoal: "Quero melhorar retenção.",
++  selectedGoalOption: "retention",
++  quickAnswers: [{ id: "represents_current_phase", value: "sim" }],
++  consentTextVersion: "mobile_strategic_profile_temporary_video_v1",
++};
++
++describe("validateVideoNarrativeRealAnalysisPayload", () => {
++  it("aceita payload real seguro", () => {
++    const result = validateVideoNarrativeRealAnalysisPayload(validPayload);
++    expect(result.ok).toBe(true);
++    if (result.ok) {
++      expect(result.payload.temporaryUpload?.objectKey).toBe(validPayload.temporaryUpload.objectKey);
++    }
++  });
++
++  it("bloqueia campos proibidos", () => {
++    for (const forbidden of ["file", "video", "uploadUrl", "signedUrl", "base64", "rawModelResponse", "bucket", "token"]) {
++      const result = validateVideoNarrativeRealAnalysisPayload({ ...validPayload, [forbidden]: "x" });
++      expect(result.ok).toBe(false);
++    }
++  });
++
++  it("bloqueia signed URL dentro de string", () => {
++    const result = validateVideoNarrativeRealAnalysisPayload({
++      ...validPayload,
++      creatorGoal: "https://signed.example.test/video.mp4?signature=abc",
++    });
++    expect(result.ok).toBe(false);
++  });
++
++  it("bloqueia sem uploadSessionId ou consentimento", () => {
++    expect(validateVideoNarrativeRealAnalysisPayload({ ...validPayload, uploadSessionId: "" }).ok).toBe(false);
++    expect(validateVideoNarrativeRealAnalysisPayload({ ...validPayload, consentTextVersion: "" }).ok).toBe(false);
++  });
++
++  it("bloqueia objectKey fora do padrão seguro", () => {
++    const result = validateVideoNarrativeRealAnalysisPayload({
++      ...validPayload,
++      temporaryUpload: { ...validPayload.temporaryUpload, objectKey: "bucket/public/video.mp4" },
++    });
++    expect(result.ok).toBe(false);
++  });
++});
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisTypes.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisTypes.ts
+new file mode 100644
+index 00000000..488516f7
+--- /dev/null
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisTypes.ts
+@@ -0,0 +1,177 @@
++import type { VideoNarrativeAiProviderGoalOption } from "./videoNarrativeAiProviderTypes";
++
++export type VideoNarrativeRealAnalysisPayload = {
++  uploadSessionId: string;
++  temporaryUpload?: {
++    objectKey?: string;
++    mimeType: string;
++    sizeBytes: number;
++    uploadedAt?: string;
++  };
++  creatorGoal: string;
++  selectedGoalOption: VideoNarrativeAiProviderGoalOption;
++  quickAnswers?: Array<{ id: string; value: string }>;
++  consentTextVersion: string;
++};
++
++export type VideoNarrativeRealAnalysisPayloadValidationResult =
++  | { ok: true; payload: VideoNarrativeRealAnalysisPayload }
++  | { ok: false; message: string; code: string };
++
++const FORBIDDEN_KEYS = [
++  "file",
++  "video",
++  "videoUrl",
++  "uploadUrl",
++  "signedUrl",
++  "thumbnailUrl",
++  "base64",
++  "rawTranscript",
++  "rawModelResponse",
++  "bucket",
++  "accessKey",
++  "secretKey",
++  "token",
++];
++
++const ALLOWED_GOAL_OPTIONS: VideoNarrativeAiProviderGoalOption[] = [
++  "authority",
++  "retention",
++  "format_test",
++  "sponsored_content",
++];
++
++const SESSION_ID_PATTERN = /^video-temp-upload-session-[a-zA-Z0-9_-]+$/;
++const OBJECT_KEY_PATTERN = /^temporary\/video-narrative\/[a-f0-9]{16}\/video-temp-upload-session-[a-zA-Z0-9_-]+\.(mp4|mov|webm)$/;
++const ALLOWED_MIME_TYPES = new Set(["video/mp4", "video/quicktime", "video/webm"]);
++const SIGNED_URL_KEYWORDS = ["signature=", "expires=", "policy=", "x-amz-", "x-goog-"];
++
++function isRecord(value: unknown): value is Record<string, unknown> {
++  return typeof value === "object" && value !== null && !Array.isArray(value);
++}
++
++function hasForbiddenKey(value: unknown): string | null {
++  if (!isRecord(value) && !Array.isArray(value)) return null;
++  const entries = Array.isArray(value) ? value.entries() : Object.entries(value);
++  for (const [key, nested] of entries as Iterable<[string | number, unknown]>) {
++    if (typeof key === "string" && FORBIDDEN_KEYS.includes(key)) return key;
++    const found = hasForbiddenKey(nested);
++    if (found) return found;
++  }
++  return null;
++}
++
++function hasForbiddenString(serialized: string): boolean {
++  const lower = serialized.toLowerCase();
++  return (
++    lower.includes("base64") ||
++    /data:[a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+;base64,/i.test(serialized) ||
++    SIGNED_URL_KEYWORDS.some((keyword) => lower.includes(keyword))
++  );
++}
++
++function readQuickAnswers(value: unknown): Array<{ id: string; value: string }> | undefined {
++  if (!Array.isArray(value)) return undefined;
++  return value
++    .slice(0, 6)
++    .map((item) => {
++      if (!isRecord(item)) return null;
++      const id = typeof item.id === "string" ? item.id.slice(0, 80).trim() : "";
++      const answerValue = typeof item.value === "string" ? item.value.slice(0, 240).trim() : "";
++      if (!id || !answerValue) return null;
++      return { id, value: answerValue };
++    })
++    .filter((item): item is { id: string; value: string } => Boolean(item));
++}
++
++export function validateVideoNarrativeRealAnalysisPayload(
++  body: unknown,
++): VideoNarrativeRealAnalysisPayloadValidationResult {
++  if (!isRecord(body)) {
++    return { ok: false, code: "invalid_payload", message: "Payload inválido: deve ser um objeto." };
++  }
++
++  const serialized = JSON.stringify(body);
++  if (serialized.length > 7000) {
++    return {
++      ok: false,
++      code: "payload_too_large",
++      message: "Regra de segurança: tamanho do payload excedeu o limite máximo seguro.",
++    };
++  }
++
++  const forbiddenKey = hasForbiddenKey(body);
++  if (forbiddenKey) {
++    return {
++      ok: false,
++      code: "forbidden_payload_key",
++      message: `Regra de segurança: o campo '${forbiddenKey}' não é permitido nesta rota.`,
++    };
++  }
++
++  if (hasForbiddenString(serialized)) {
++    return {
++      ok: false,
++      code: "forbidden_payload_content",
++      message: "Regra de segurança: mídia bruta, Base64 ou links assinados não são permitidos.",
++    };
++  }
++
++  const uploadSessionId = typeof body.uploadSessionId === "string" ? body.uploadSessionId.trim() : "";
++  if (!SESSION_ID_PATTERN.test(uploadSessionId)) {
++    return { ok: false, code: "upload_session_required", message: "Sessão de upload temporário inválida." };
++  }
++
++  const consentTextVersion = typeof body.consentTextVersion === "string" ? body.consentTextVersion.trim() : "";
++  if (!consentTextVersion) {
++    return { ok: false, code: "consent_version_required", message: "Versão de consentimento obrigatória." };
++  }
++
++  const creatorGoal = typeof body.creatorGoal === "string" ? body.creatorGoal.trim() : "";
++  if (!creatorGoal || creatorGoal.length > 500) {
++    return { ok: false, code: "invalid_creator_goal", message: "Objetivo do creator inválido." };
++  }
++
++  const selectedGoalOption = typeof body.selectedGoalOption === "string" ? body.selectedGoalOption : "";
++  if (!ALLOWED_GOAL_OPTIONS.includes(selectedGoalOption as VideoNarrativeAiProviderGoalOption)) {
++    return { ok: false, code: "invalid_goal_option", message: "Objetivo selecionado inválido." };
++  }
++
++  if (!isRecord(body.temporaryUpload)) {
++    return { ok: false, code: "temporary_upload_required", message: "Referência temporária do vídeo obrigatória." };
++  }
++
++  const objectKey = typeof body.temporaryUpload.objectKey === "string" ? body.temporaryUpload.objectKey.trim() : undefined;
++  if (objectKey && !OBJECT_KEY_PATTERN.test(objectKey)) {
++    return { ok: false, code: "invalid_object_key", message: "Referência temporária do vídeo inválida." };
++  }
++
++  const mimeType = typeof body.temporaryUpload.mimeType === "string" ? body.temporaryUpload.mimeType.trim() : "";
++  if (!ALLOWED_MIME_TYPES.has(mimeType)) {
++    return { ok: false, code: "invalid_mime_type", message: "Formato de vídeo inválido." };
++  }
++
++  const sizeBytes = typeof body.temporaryUpload.sizeBytes === "number" ? body.temporaryUpload.sizeBytes : 0;
++  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0 || sizeBytes > 100 * 1024 * 1024) {
++    return { ok: false, code: "invalid_size_bytes", message: "Tamanho do vídeo inválido." };
++  }
++
++  const uploadedAt = typeof body.temporaryUpload.uploadedAt === "string" ? body.temporaryUpload.uploadedAt : undefined;
++
++  return {
++    ok: true,
++    payload: {
++      uploadSessionId,
++      temporaryUpload: {
++        ...(objectKey ? { objectKey } : {}),
++        mimeType,
++        sizeBytes,
++        ...(uploadedAt ? { uploadedAt } : {}),
++      },
++      creatorGoal: creatorGoal.slice(0, 500),
++      selectedGoalOption: selectedGoalOption as VideoNarrativeAiProviderGoalOption,
++      quickAnswers: readQuickAnswers(body.quickAnswers),
++      consentTextVersion: consentTextVersion.slice(0, 80),
++    },
++  };
++}
+-- 
+2.39.5 (Apple Git-154)
+

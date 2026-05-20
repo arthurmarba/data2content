@@ -447,3 +447,9 @@ Não recomendar integração real antes do QA/polish visual.
 - Sem import Gemini/OpenAI em client component.
 - Endpoint mock preservado.
 - Mídia Kit, Comunidade, navegação real, DashboardShell/BoardShell/sidebar, ActivationPendingWidget, LoginClient, NextAuth e billing seguem intocados.
+
+## Guardrails do MM67
+
+- A ausência do adapter real de storage no momento do teste deve bloquear o provider da IA de forma segura.
+- Erros de ausência de SDK, timeout ou permissões de adapter não vazam raw stack no console/client.
+- Não expor API Keys do Gemini durante a auditoria server-side, logs ou status codes da resposta da validação local.

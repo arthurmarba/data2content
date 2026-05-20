@@ -1,0 +1,21 @@
+94ae5ccb feat: add real video analysis allowlist e2e
+A	src/app/api/dashboard/mobile-strategic-profile/analyze-real/route.test.ts
+A	src/app/api/dashboard/mobile-strategic-profile/analyze-real/route.ts
+M	src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileAnalyzeFlow.test.tsx
+M	src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileAnalyzeFlow.tsx
+M	src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfilePreview.tsx
+M	src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileRealShellClient.test.tsx
+M	src/app/dashboard/boards/components/videoUpload/appPreview/MobileStrategicProfileRealShellClient.tsx
+M	src/app/dashboard/boards/videoUpload/GEMINI_VIDEO_NARRATIVE_READINESS_AUDIT.md
+M	src/app/dashboard/boards/videoUpload/MOBILE_STRATEGIC_PROFILE_UX_QA.md
+M	src/app/dashboard/boards/videoUpload/README.md
+M	src/app/dashboard/boards/videoUpload/VIDEO_MULTIMODAL_NARRATIVE_ARCHITECTURE.md
+M	src/app/dashboard/boards/videoUpload/VIDEO_NARRATIVE_TEMPORARY_UPLOAD_STORAGE_STRATEGY.md
+M	src/app/dashboard/boards/videoUpload/mobileStrategicProfileSnapshotTypes.ts
+M	src/app/dashboard/boards/videoUpload/videoNarrativeAiProviderTypes.ts
+M	src/app/dashboard/boards/videoUpload/videoNarrativeGeminiSnapshotMapper.ts
+A	src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisFeatureFlag.ts
+A	src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisOrchestrator.test.ts
+A	src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisOrchestrator.ts
+A	src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisTypes.test.ts
+A	src/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisTypes.ts

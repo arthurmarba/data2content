@@ -1,5 +1,10 @@
 import { runVideoNarrativeRealAnalysisOrchestrator } from "./videoNarrativeRealAnalysisOrchestrator";
 import { geminiVideoNarrativeResponseFixture } from "./__fixtures__/geminiVideoNarrativeResponse.fixture";
+import { resolveVideoNarrativeTemporaryStorageObject } from "./videoNarrativeTemporaryStorageRuntimeResolver";
+
+jest.mock("./videoNarrativeTemporaryStorageRuntimeResolver", () => ({
+  resolveVideoNarrativeTemporaryStorageObject: jest.fn(),
+}));
 
 const env = {
   VIDEO_NARRATIVE_GEMINI_PROVIDER_ENABLED: "true",
@@ -31,6 +36,19 @@ const user = {
 };
 
 describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
+  beforeEach(() => {
+    (resolveVideoNarrativeTemporaryStorageObject as jest.Mock).mockReturnValue({
+      ok: true,
+      status: "ready",
+      safeMessage: "",
+      issues: [],
+    });
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
   it("bloqueia provider disabled sem chamar rede ou snapshot", async () => {
     const runProvider = jest.fn();
     const upsertSnapshot = jest.fn();
@@ -56,6 +74,30 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
     expect(result.ok).toBe(false);
     expect(runProvider).not.toHaveBeenCalled();
     expect(JSON.stringify(result)).not.toContain("common@example.com");
+  });
+
+  it("retorna erro seguro se storage resolver falhar", async () => {
+    (resolveVideoNarrativeTemporaryStorageObject as jest.Mock).mockReturnValue({
+      ok: false,
+      status: "missing_storage_adapter",
+      safeMessage: "A análise real ainda precisa da conexão temporária de storage.",
+      issues: [{ code: "missing", message: "faltando" }],
+    });
+
+    const runProvider = jest.fn();
+    const result = await runVideoNarrativeRealAnalysisOrchestrator({
+      payload,
+      user,
+      deps: { env, runProvider },
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.status).toBe("blocked");
+      expect(result.message).toBe("A análise real ainda precisa da conexão temporária de storage.");
+      expect(result.safeIssueCode).toBe("missing_storage_adapter");
+    }
+    expect(runProvider).not.toHaveBeenCalled();
   });
 
   it("chama provider fake, mapeia, salva snapshot e aciona cleanup", async () => {

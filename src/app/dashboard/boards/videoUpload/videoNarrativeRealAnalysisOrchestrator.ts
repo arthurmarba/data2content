@@ -15,6 +15,7 @@ import {
 import { runVideoNarrativeGeminiProvider, type VideoNarrativeGeminiClientAdapter } from "./videoNarrativeGeminiProvider";
 import { mapGeminiAnalysisToStrategicProfileSnapshot } from "./videoNarrativeGeminiSnapshotMapper";
 import type { VideoNarrativeRealAnalysisPayload } from "./videoNarrativeRealAnalysisTypes";
+import { resolveVideoNarrativeTemporaryStorageObject } from "./videoNarrativeTemporaryStorageRuntimeResolver";
 
 type EnvLike = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
@@ -120,6 +121,20 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
       status: "blocked",
       message: "Análise real indisponível para este usuário.",
       safeIssueCode: allowlist.issues[0]?.code,
+    });
+  }
+
+  const storageResolver = resolveVideoNarrativeTemporaryStorageObject({
+    uploadSessionId: params.payload.uploadSessionId,
+    objectKey: params.payload.temporaryUpload?.objectKey,
+    mimeType: params.payload.temporaryUpload?.mimeType,
+  });
+
+  if (!storageResolver.ok) {
+    return safeFailure({
+      status: "blocked",
+      message: storageResolver.safeMessage,
+      safeIssueCode: storageResolver.status,
     });
   }
 

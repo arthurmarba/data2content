@@ -2049,6 +2049,19 @@ O servidor exige `VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED=1`, upload temporár
 
 O vídeo não é enviado ao app server pelo browser e não é salvo no banco. A análise real recebe apenas referência temporária controlada (`uploadSessionId` e, quando permitido, `objectKey` transitório), nunca `uploadUrl`/`signedUrl`, arquivo, Base64, thumbnail ou raw response. O snapshot salvo usa source `gemini_real_allowlist` e passa pelo parser/sanitizer/mapper antes do upsert, sem persistir raw response, signed URL ou `objectKey`.
 
+### MM67 — Real Runtime Env + Gemini/Storage Smoke Harness
+
+Status: concluído.
+
+Descrever:
+- adiciona auditoria de env real (`videoNarrativeRealRuntimeEnvAudit.ts`);
+- prepara `.env.example` sem segredos e com configurações para testes locais;
+- garante que `.env.local` tenha as configurações ignoradas pelo git;
+- cria um smoke harness isolado (`/api/internal/video-narrative/gemini-smoke`) para testar configuração segura de API do Gemini, sem expor RAW;
+- adiciona validador do status do adapter de storage temporário em modo real (`videoNarrativeTemporaryStorageRuntimeResolver.ts`);
+- bloqueia a execução da análise real de modo seguro, retornando erro claro quando o adapter de storage real estiver ausente;
+- garante ambiente isolado e restrito por allowlist, evitando impacto em usuários reais.
+
 ## Próximas Fases Sugeridas
 
 - PROC4: contrato de fila/job conceitual de processamento.

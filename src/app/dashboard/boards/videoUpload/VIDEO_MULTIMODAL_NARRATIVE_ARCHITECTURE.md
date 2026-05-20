@@ -260,8 +260,22 @@ Exemplos:
 50. MM51 — Strategic Profile Mobile UX QA Checklist. Define QA visual/funcional antes de integração real.
 51. MM52 — Strategic Profile Mobile Visual Polish. Refina visualmente a preview interna do Perfil Estratégico.
 52. MM53 — Strategic Profile Preview Copy Refinement. Refina a linguagem da preview interna do Perfil Estratégico.
-53. Teste real manual quando houver quota/billing disponível.
-54. Integração experimental futura no Board de Criação.
+53. MM54 — Rota Real do Perfil Estratégico Mobile. Protegida por flag e sessão, sem alterar navegação global.
+54. MM55 — Adapter Puro de Dados Existentes. Prepara a integração de home summary sem rede ou dependência do dashboard legado.
+55. MM56 — Real Data Hydration. Enriquece o perfil real com mídia kit existente e dados puros de summary sem persistir novo banco.
+56. MM57 — Persisted Strategic Profile Snapshot. Adiciona o snapshot mínimo privado de perfil (diagnóstico vivo) no banco de dados.
+57. MM58 — Analyze Flow Endpoint Integration. Integra a interface do Analisar vídeo com o endpoint mock, salvando no snapshot persistido.
+58. MM59 — Temporary Upload/Storage Readiness. Cria contratos server-side de segurança para evitar upload de malwares ou executáveis.
+59. MM60 — Temporary Upload Session API. Cria endpoint `upload-session` para validar metadados e consentimento (mocked/metadata-only).
+60. MM61 — Upload Metadata & Consent UI Dry Run. A rota passa a usar FileReader limitadamente (name/size/type) chamando o upload-session sem upload real.
+61. MM62 — Temporary Storage Provider Abstraction. Cria a camada de fallback/provider resolver para o local do arquivo físico temporário.
+62. MM63 — Signed Upload Session Allowlist. Libera signed URL para S3/R2 apenas na allowlist/admin-dev server-side.
+63. MM64 — Client Direct Upload + Cleanup Contract. Client faz direct upload para a url temporária assinada. Cria cleanup session API segurada.
+64. MM65 — Gemini Provider Readiness + Response Adapter. Prompt real preparado, validation forte em runtime contra API key leakage.
+65. MM66 — Real Video Analysis Allowlist E2E. Rota `analyze-real` executa e-2-e da chamada multimodal isolada, sem afetar o mock.
+66. MM67 — Real Runtime Env + Gemini/Storage Smoke Harness. Validação env real local, resolver de falha segura p/ falta de SDK S3, smoke interno para devs.
+67. Teste real manual quando houver quota/billing disponível.
+68. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 

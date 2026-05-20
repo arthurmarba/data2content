@@ -1,0 +1,21 @@
+ .../analyze-real/route.test.ts                     | 162 +++++++++++++++++
+ .../mobile-strategic-profile/analyze-real/route.ts | 129 ++++++++++++++
+ .../MobileStrategicProfileAnalyzeFlow.test.tsx     |  61 +++++++
+ .../MobileStrategicProfileAnalyzeFlow.tsx          |  45 ++++-
+ .../appPreview/MobileStrategicProfilePreview.tsx   |  11 ++
+ .../MobileStrategicProfileRealShellClient.test.tsx |  68 +++++++
+ .../MobileStrategicProfileRealShellClient.tsx      |  46 ++++-
+ .../GEMINI_VIDEO_NARRATIVE_READINESS_AUDIT.md      |  10 ++
+ .../videoUpload/MOBILE_STRATEGIC_PROFILE_UX_QA.md  |  24 +++
+ src/app/dashboard/boards/videoUpload/README.md     |  10 ++
+ .../VIDEO_MULTIMODAL_NARRATIVE_ARCHITECTURE.md     |   2 +
+ ..._NARRATIVE_TEMPORARY_UPLOAD_STORAGE_STRATEGY.md |  18 ++
+ .../mobileStrategicProfileSnapshotTypes.ts         |  10 +-
+ .../videoUpload/videoNarrativeAiProviderTypes.ts   |   2 +-
+ .../videoNarrativeGeminiSnapshotMapper.ts          |   2 +-
+ .../videoNarrativeRealAnalysisFeatureFlag.ts       |   9 +
+ .../videoNarrativeRealAnalysisOrchestrator.test.ts | 163 +++++++++++++++++
+ .../videoNarrativeRealAnalysisOrchestrator.ts      | 195 +++++++++++++++++++++
+ .../videoNarrativeRealAnalysisTypes.test.ts        |  53 ++++++
+ .../videoUpload/videoNarrativeRealAnalysisTypes.ts | 177 +++++++++++++++++++
+ 20 files changed, 1188 insertions(+), 9 deletions(-)

@@ -1,0 +1,1490 @@
+From 268cc91bdcbfa67c3ace7a52a19af007c8545793 Mon Sep 17 00:00:00 2001
+From: Arthur Marba <arthurmarba@Mac-mini-de-Arthur.local>
+Date: Tue, 19 May 2026 22:20:04 -0300
+Subject: [PATCH] feat: add gemini provider readiness adapter
+
+---
+ .../GEMINI_VIDEO_NARRATIVE_READINESS_AUDIT.md |   9 +
+ .../MOBILE_STRATEGIC_PROFILE_UX_QA.md         |  17 ++
+ .../dashboard/boards/videoUpload/README.md    |  10 +
+ ...VIDEO_MULTIMODAL_NARRATIVE_ARCHITECTURE.md |   2 +
+ ...ATIVE_TEMPORARY_UPLOAD_STORAGE_STRATEGY.md |   6 +
+ .../geminiVideoNarrativeResponse.fixture.ts   |  23 +++
+ .../mobileStrategicProfileSnapshotTypes.ts    |   2 +-
+ .../videoNarrativeAiProviderTypes.ts          |  65 ++++++
+ .../videoNarrativeGeminiAllowlist.test.ts     |  50 +++++
+ .../videoNarrativeGeminiAllowlist.ts          |  74 +++++++
+ .../videoNarrativeGeminiPromptBuilder.test.ts |  71 +++++++
+ .../videoNarrativeGeminiPromptBuilder.ts      |  84 ++++++++
+ .../videoNarrativeGeminiProvider.test.ts      | 168 +++++++++++++++
+ .../videoNarrativeGeminiProvider.ts           | 160 +++++++++++++++
+ ...videoNarrativeGeminiProviderConfig.test.ts |  68 +++++++
+ .../videoNarrativeGeminiProviderConfig.ts     | 105 ++++++++++
+ ...videoNarrativeGeminiResponseParser.test.ts |  80 ++++++++
+ .../videoNarrativeGeminiResponseParser.ts     | 192 ++++++++++++++++++
+ ...videoNarrativeGeminiSnapshotMapper.test.ts |  63 ++++++
+ .../videoNarrativeGeminiSnapshotMapper.ts     |  56 +++++
+ 20 files changed, 1304 insertions(+), 1 deletion(-)
+ create mode 100644 src/app/dashboard/boards/videoUpload/__fixtures__/geminiVideoNarrativeResponse.fixture.ts
+ create mode 100644 src/app/dashboard/boards/videoUpload/videoNarrativeAiProviderTypes.ts
+ create mode 100644 src/app/dashboard/boards/videoUpload/videoNarrativeGeminiAllowlist.test.ts
+ create mode 100644 src/app/dashboard/boards/videoUpload/videoNarrativeGeminiAllowlist.ts
+ create mode 100644 src/app/dashboard/boards/videoUpload/videoNarrativeGeminiPromptBuilder.test.ts
+ create mode 100644 src/app/dashboard/boards/videoUpload/videoNarrativeGeminiPromptBuilder.ts
+ create mode 100644 src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProvider.test.ts
+ create mode 100644 src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProvider.ts
+ create mode 100644 src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProviderConfig.test.ts
+ create mode 100644 src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProviderConfig.ts
+ create mode 100644 src/app/dashboard/boards/videoUpload/videoNarrativeGeminiResponseParser.test.ts
+ create mode 100644 src/app/dashboard/boards/videoUpload/videoNarrativeGeminiResponseParser.ts
+ create mode 100644 src/app/dashboard/boards/videoUpload/videoNarrativeGeminiSnapshotMapper.test.ts
+ create mode 100644 src/app/dashboard/boards/videoUpload/videoNarrativeGeminiSnapshotMapper.ts
+
+diff --git a/src/app/dashboard/boards/videoUpload/GEMINI_VIDEO_NARRATIVE_READINESS_AUDIT.md b/src/app/dashboard/boards/videoUpload/GEMINI_VIDEO_NARRATIVE_READINESS_AUDIT.md
+index e7e2cdab..dd9c16a0 100644
+--- a/src/app/dashboard/boards/videoUpload/GEMINI_VIDEO_NARRATIVE_READINESS_AUDIT.md
++++ b/src/app/dashboard/boards/videoUpload/GEMINI_VIDEO_NARRATIVE_READINESS_AUDIT.md
+@@ -245,6 +245,15 @@ MM64 avança a readiness de upload temporário no client, mas não aumenta a rea
+ - **Análise segue mock**: após upload bem-sucedido, o fluxo continua para objetivo/perguntas e chama a análise mock existente.
+ - **Snapshot permanece limpo**: `uploadUrl` e `objectKey` são usados apenas no contrato temporário e não entram no snapshot.
+ 
++## MM65 — Gemini Provider Readiness + Response Adapter
++
++MM65 aumenta a readiness do provider Gemini em prompt/parser/adapter, mas ainda não é produção:
++- **Provider real segue desligado por default** e exige feature flag, API key, model env e allowlist/admin-dev.
++- **Ainda NÃO é caminho padrão do app**: `/api/dashboard/mobile-strategic-profile/analyze` permanece mock e o fluxo `+` não chama Gemini.
++- **Parser obrigatório antes do snapshot**: resposta precisa ser JSON válido, curta, sem signed URL, token, API key, raw transcript longo ou linguagem proibida.
++- **Sem raw response persistido**: o adapter retorna apenas análise parseada, issues seguras, timing e debug summary seguro.
++- **Mapper seguro**: `gemini_ready`/`gemini_fixture` prepara snapshot sem vídeo, signed URL, `uploadUrl` ou `objectKey`.
++
+ ## Frase Norte
+ 
+ > O sistema pode estar pronto para testar Gemini real sem ainda estar pronto para lançar vídeo no produto.
+diff --git a/src/app/dashboard/boards/videoUpload/MOBILE_STRATEGIC_PROFILE_UX_QA.md b/src/app/dashboard/boards/videoUpload/MOBILE_STRATEGIC_PROFILE_UX_QA.md
+index 16d2db0d..7713c018 100644
+--- a/src/app/dashboard/boards/videoUpload/MOBILE_STRATEGIC_PROFILE_UX_QA.md
++++ b/src/app/dashboard/boards/videoUpload/MOBILE_STRATEGIC_PROFILE_UX_QA.md
+@@ -406,3 +406,20 @@ Não recomendar integração real antes do QA/polish visual.
+ - A análise posterior continua mock e não recebe `uploadUrl` nem `objectKey`.
+ - Snapshot não persiste signed URL, `objectKey`, vídeo ou thumbnail.
+ - Falha de cleanup é warning seguro, não erro fatal do diagnóstico.
++
++## Nota MM65 — QA Futuro De Resposta Real
++
++- QA futuro deve validar toda resposta real contra linguagem proibida: sem score, nota, ranking, viralização garantida, marca garantida ou promessa de patrocínio.
++- O diagnóstico deve continuar humano, estratégico e acionável, reforçando que o Perfil da D2C é diagnóstico vivo do creator.
++- A análise real não deve criar histórico visual, player, thumbnail ou recibo de vídeo.
++- O fluxo principal continua mock até que feature flags, allowlist, upload temporário, cleanup e parser estejam validados em conjunto.
++
++## Guardrails do MM65
++
++- Gemini real desligado por default.
++- Sem ativação para usuários comuns.
++- Sem substituição do fluxo mock atual.
++- Sem raw response salvo.
++- Sem vídeo, signed URL, `uploadUrl` ou `objectKey` no snapshot.
++- Sem API key exposta.
++- Sem import Gemini/OpenAI em client component.
+diff --git a/src/app/dashboard/boards/videoUpload/README.md b/src/app/dashboard/boards/videoUpload/README.md
+index 5f435015..7b9393e6 100644
+--- a/src/app/dashboard/boards/videoUpload/README.md
++++ b/src/app/dashboard/boards/videoUpload/README.md
+@@ -2029,6 +2029,16 @@ Também foi criado o contrato/API seguro de cleanup temporário em `/api/dashboa
+ 
+ Guardrails preservados: sem `FileReader`, sem object URL, sem thumbnail/player, sem vídeo salvo no banco, sem signed URL persistida, sem `objectKey` no snapshot, sem histórico visual e sem Gemini/análise real de vídeo.
+ 
++### MM65 — Gemini Provider Readiness + Response Adapter
++
++Status: concluído.
++
++MM65 prepara a camada server-side de análise real para o Perfil Estratégico mobile sem conectá-la ao fluxo principal. A fase cria provider interface, config/env validation, allowlist server-side, prompt builder estratégico, parser seguro de resposta JSON, adapter de provider com timeout e mapper de resposta parseada para snapshot estratégico.
++
++Gemini real segue desligado por default e exige `VIDEO_NARRATIVE_GEMINI_PROVIDER_ENABLED=true`, `VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED=1`, allowlist/admin-dev, API key e `VIDEO_NARRATIVE_GEMINI_MODEL`. O provider novo usa client injetável em testes e não substitui `/api/dashboard/mobile-strategic-profile/analyze`, que continua mock.
++
++O parser não aceita resposta vazia, JSON inválido, campos obrigatórios ausentes, signed URLs, tokens/API keys ou transcrição bruta longa. A resposta bruta não é retornada nem persistida; apenas a análise parseada/sanitizada pode virar snapshot. O mapper não inclui vídeo, thumbnail, signed URL, `uploadUrl` ou `objectKey`, e usa source seguro `gemini_ready`/`gemini_fixture` nesta fase.
++
+ ## Próximas Fases Sugeridas
+ 
+ - PROC4: contrato de fila/job conceitual de processamento.
+diff --git a/src/app/dashboard/boards/videoUpload/VIDEO_MULTIMODAL_NARRATIVE_ARCHITECTURE.md b/src/app/dashboard/boards/videoUpload/VIDEO_MULTIMODAL_NARRATIVE_ARCHITECTURE.md
+index ed8ce398..5ada2f02 100644
+--- a/src/app/dashboard/boards/videoUpload/VIDEO_MULTIMODAL_NARRATIVE_ARCHITECTURE.md
++++ b/src/app/dashboard/boards/videoUpload/VIDEO_MULTIMODAL_NARRATIVE_ARCHITECTURE.md
+@@ -392,3 +392,5 @@ MM62 separa o conceito de upload session da decisão de storage provider. A rota
+ MM63 cria o primeiro caminho server-side para signed upload session curta, mas somente para allowlist/admin-dev e sem integração de upload real no client. Como não há SDK S3/R2 adequado instalado no repo, a assinatura fica atrás de um signer server-side injetável/testável; fora desse adapter, a rota retorna erro seguro. O vídeo continua não persistido pelo app, a UI não faz PUT, o snapshot segue sendo a memória persistida e Gemini continua fase futura.
+ 
+ MM64 é o primeiro passo de upload real controlado no client: quando a upload-session API retorna `signed_upload_session_created` para allowlist/admin-dev e flags reais, o app envia o arquivo diretamente para a signed URL temporária por `PUT`, sem passar bytes pelo app server. `mock_session_created` continua sendo metadata-only e a preview interna segue sem upload-session/direct upload. O snapshot continua sendo a memória persistida do Perfil, não recebe `uploadUrl` nem `objectKey`; cleanup entra como contrato/API seguro e Gemini continua fora do fluxo.
++
++MM65 prepara o motor de IA real sem fechar o ciclo end-to-end. A nova camada server-side define provider interface, config/env, allowlist, prompt builder, parser e mapper para snapshot, mas o fluxo `+` continua usando análise mock. Upload temporário e provider Gemini ainda não estão conectados como caminho padrão. A resposta da IA precisa passar por parser/sanitizer antes de virar snapshot, e o snapshot continua sendo a memória persistida, sem raw response, signed URL, `uploadUrl` ou `objectKey`.
+diff --git a/src/app/dashboard/boards/videoUpload/VIDEO_NARRATIVE_TEMPORARY_UPLOAD_STORAGE_STRATEGY.md b/src/app/dashboard/boards/videoUpload/VIDEO_NARRATIVE_TEMPORARY_UPLOAD_STORAGE_STRATEGY.md
+index 17c0d070..20b7b9b9 100644
+--- a/src/app/dashboard/boards/videoUpload/VIDEO_NARRATIVE_TEMPORARY_UPLOAD_STORAGE_STRATEGY.md
++++ b/src/app/dashboard/boards/videoUpload/VIDEO_NARRATIVE_TEMPORARY_UPLOAD_STORAGE_STRATEGY.md
+@@ -190,3 +190,9 @@ Próximos passos:
+ - adicionar provider real de delete temporário;
+ - conectar cleanup a eventos/auditoria;
+ - só depois avançar para Gemini readiness com vídeo temporário real e análise controlada.
++
++## Nota MM65 — Gemini Readiness E Storage Temporário
++
++MM65 prepara o provider/parser/mapper de IA real, mas ainda não conecta upload temporário e Gemini end-to-end. A análise real futura depende do ciclo MM64 estar seguro: signed upload temporário, cleanup confiável e nenhum vídeo persistido no banco.
++
++Mesmo quando o provider real for ligado em ambiente controlado, `signedUrl`, `uploadUrl` e `objectKey` não devem entrar no prompt por padrão, na resposta parseada ou no snapshot. O snapshot permanece a única memória persistida do Perfil Estratégico.
+diff --git a/src/app/dashboard/boards/videoUpload/__fixtures__/geminiVideoNarrativeResponse.fixture.ts b/src/app/dashboard/boards/videoUpload/__fixtures__/geminiVideoNarrativeResponse.fixture.ts
+new file mode 100644
+index 00000000..14863e16
+--- /dev/null
++++ b/src/app/dashboard/boards/videoUpload/__fixtures__/geminiVideoNarrativeResponse.fixture.ts
+@@ -0,0 +1,23 @@
++import type { VideoNarrativeAiAnalysis } from "../videoNarrativeAiProviderTypes";
++
++export const geminiVideoNarrativeResponseFixture: VideoNarrativeAiAnalysis = {
++  mainNarrative: "Rotina prática que transforma bastidor em autoridade acessível.",
++  whatVideoCommunicates: "O creator mostra método, cuidado e clareza na forma de explicar.",
++  creatorIntention: "Reforçar confiança e aproximar a audiência de uma rotina replicável.",
++  strategicReading: "O vídeo posiciona o creator como alguém que simplifica decisões e guia a audiência com segurança.",
++  strengthPoint: "A força está na demonstração concreta do processo e na linguagem direta.",
++  attentionPoint: "O início pode ganhar mais contexto para deixar a promessa do conteúdo evidente.",
++  recommendedAdjustment: "Abrir com a tensão principal antes de mostrar o passo a passo.",
++  suggestedHook: "Antes de seguir essa rotina, entenda o erro que muda o resultado.",
++  commercialPotential: "Pode atrair marcas ligadas a rotina, cuidado e educação prática, como oportunidade futura.",
++  nextActions: [
++    "Testar um gancho com contraste claro.",
++    "Repetir o formato com uma pergunta inicial.",
++    "Fechar com um próximo passo simples.",
++  ],
++  creatorSignals: ["Didática prática", "Autoridade acessível", "Bastidor como prova"],
++  brandTerritories: ["Cuidados pessoais", "Educação prática", "Rotina inteligente"],
++  collabOpportunities: ["Collabs com creators de rotina", "Séries com especialistas convidados"],
++};
++
++export const geminiVideoNarrativeRawJsonFixture = JSON.stringify(geminiVideoNarrativeResponseFixture);
+diff --git a/src/app/dashboard/boards/videoUpload/mobileStrategicProfileSnapshotTypes.ts b/src/app/dashboard/boards/videoUpload/mobileStrategicProfileSnapshotTypes.ts
+index b67eed65..d12bcfae 100644
+--- a/src/app/dashboard/boards/videoUpload/mobileStrategicProfileSnapshotTypes.ts
++++ b/src/app/dashboard/boards/videoUpload/mobileStrategicProfileSnapshotTypes.ts
+@@ -16,6 +16,6 @@ export interface CreatorStrategicProfileSnapshotInput {
+   status?: "active" | "inactive" | "archived";
+   accessLevel: "free" | "premium" | "instagram_optimized";
+   snapshot: MobileStrategicProfileSnapshotPayload;
+-  source: "manual_seed" | "mock_analysis" | "future_video_analysis" | "imported" | "unknown";
++  source: "manual_seed" | "mock_analysis" | "future_video_analysis" | "gemini_ready" | "gemini_fixture" | "imported" | "unknown";
+   lastAnalyzedAt?: Date;
+ }
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeAiProviderTypes.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeAiProviderTypes.ts
+new file mode 100644
+index 00000000..3364e6a6
+--- /dev/null
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeAiProviderTypes.ts
+@@ -0,0 +1,65 @@
++import type { MobileStrategicProfileSnapshotPayload } from "./mobileStrategicProfileSnapshotTypes";
++
++export type VideoNarrativeAiProviderGoalOption =
++  | "authority"
++  | "retention"
++  | "format_test"
++  | "sponsored_content";
++
++export type VideoNarrativeAiProviderInput = {
++  userId: string;
++  creatorGoal: string;
++  selectedGoalOption: VideoNarrativeAiProviderGoalOption;
++  quickAnswers?: Array<{ id: string; value: string }>;
++  temporaryUpload?: {
++    uploadSessionId: string;
++    objectKey?: string;
++    mimeType: string;
++    sizeBytes: number;
++  };
++  profileContext?: {
++    displayName?: string;
++    instagramConnected?: boolean;
++    premiumAccess?: boolean;
++  };
++  promptVersion: string;
++  requestId: string;
++};
++
++export type VideoNarrativeAiIssue = {
++  code: string;
++  severity: "blocker" | "warning" | "info";
++  message: string;
++};
++
++export type VideoNarrativeAiAnalysis = {
++  mainNarrative: string;
++  whatVideoCommunicates: string;
++  creatorIntention: string;
++  strategicReading: string;
++  strengthPoint: string;
++  attentionPoint: string;
++  recommendedAdjustment: string;
++  suggestedHook: string;
++  commercialPotential: string;
++  nextActions: string[];
++  creatorSignals: string[];
++  brandTerritories: string[];
++  collabOpportunities: string[];
++};
++
++export type VideoNarrativeAiProviderResult = {
++  ok: boolean;
++  provider: "gemini";
++  mode: "disabled" | "ready" | "fixture" | "failed";
++  promptVersion: string;
++  analysis?: VideoNarrativeAiAnalysis;
++  issues?: VideoNarrativeAiIssue[];
++  safeDebugSummary?: string;
++  timingMs?: number;
++};
++
++export type VideoNarrativeGeminiSnapshotMappingResult = {
++  source: "gemini_ready" | "gemini_fixture";
++  snapshot: MobileStrategicProfileSnapshotPayload;
++};
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiAllowlist.test.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiAllowlist.test.ts
+new file mode 100644
+index 00000000..4e196649
+--- /dev/null
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiAllowlist.test.ts
+@@ -0,0 +1,50 @@
++import { evaluateVideoNarrativeGeminiAllowlist } from "./videoNarrativeGeminiAllowlist";
++
++describe("videoNarrativeGeminiAllowlist", () => {
++  const enabledEnv = { VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "1" };
++
++  it("permite admin/dev", () => {
++    expect(evaluateVideoNarrativeGeminiAllowlist({ user: { id: "u1", role: "admin" }, env: enabledEnv }).ok).toBe(true);
++    expect(evaluateVideoNarrativeGeminiAllowlist({ user: { id: "u2", isDev: true }, env: enabledEnv }).ok).toBe(true);
++  });
++
++  it("permite email allowlist", () => {
++    const result = evaluateVideoNarrativeGeminiAllowlist({
++      user: { email: "creator@example.com" },
++      env: {
++        ...enabledEnv,
++        VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS: "creator@example.com",
++      },
++    });
++    expect(result.ok).toBe(true);
++  });
++
++  it("permite userId allowlist", () => {
++    const result = evaluateVideoNarrativeGeminiAllowlist({
++      user: { id: "usr_allowed" },
++      env: {
++        ...enabledEnv,
++        VIDEO_NARRATIVE_GEMINI_ALLOWED_USER_IDS: "usr_allowed",
++      },
++    });
++    expect(result.ok).toBe(true);
++  });
++
++  it("bloqueia usuário comum", () => {
++    const result = evaluateVideoNarrativeGeminiAllowlist({ user: { id: "usr_common" }, env: enabledEnv });
++    expect(result.ok).toBe(false);
++  });
++
++  it("erro não expõe allowlist", () => {
++    const result = evaluateVideoNarrativeGeminiAllowlist({
++      user: { id: "usr_common" },
++      env: {
++        ...enabledEnv,
++        VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS: "sensitive@example.com",
++        VIDEO_NARRATIVE_GEMINI_ALLOWED_USER_IDS: "usr_sensitive",
++      },
++    });
++    expect(JSON.stringify(result)).not.toContain("sensitive@example.com");
++    expect(JSON.stringify(result)).not.toContain("usr_sensitive");
++  });
++});
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiAllowlist.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiAllowlist.ts
+new file mode 100644
+index 00000000..64f61ffc
+--- /dev/null
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiAllowlist.ts
+@@ -0,0 +1,74 @@
++import type { VideoNarrativeAiIssue } from "./videoNarrativeAiProviderTypes";
++
++type EnvLike = NodeJS.ProcessEnv | Record<string, string | undefined>;
++
++export type VideoNarrativeGeminiAllowlistUser = {
++  id?: string | null;
++  email?: string | null;
++  role?: string | null;
++  isAdmin?: boolean | null;
++  isDev?: boolean | null;
++};
++
++export type VideoNarrativeGeminiAllowlistResult =
++  | { ok: true; reason: "admin_dev_user" | "email_allowlist" | "user_id_allowlist" }
++  | { ok: false; issues: VideoNarrativeAiIssue[] };
++
++function parseList(value: string | undefined): string[] {
++  return (value ?? "")
++    .split(",")
++    .map((item) => item.trim())
++    .filter(Boolean);
++}
++
++function parseBoolean(value: string | undefined): boolean {
++  return value === "1" || value === "true";
++}
++
++export function evaluateVideoNarrativeGeminiAllowlist(params: {
++  user: VideoNarrativeGeminiAllowlistUser;
++  env?: EnvLike;
++}): VideoNarrativeGeminiAllowlistResult {
++  const env = params.env ?? process.env;
++  const user = params.user;
++
++  if (!parseBoolean(env.VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED)) {
++    return {
++      ok: false,
++      issues: [
++        {
++          code: "gemini_allowlist_disabled",
++          severity: "blocker",
++          message: "Provider multimodal real indisponível nesta fase.",
++        },
++      ],
++    };
++  }
++
++  if (user.isAdmin || user.isDev || user.role === "admin" || user.role === "dev") {
++    return { ok: true, reason: "admin_dev_user" };
++  }
++
++  const normalizedEmail = user.email?.trim().toLowerCase();
++  const allowedEmails = parseList(env.VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS).map((email) => email.toLowerCase());
++  if (normalizedEmail && allowedEmails.includes(normalizedEmail)) {
++    return { ok: true, reason: "email_allowlist" };
++  }
++
++  const userId = user.id?.trim();
++  const allowedUserIds = parseList(env.VIDEO_NARRATIVE_GEMINI_ALLOWED_USER_IDS);
++  if (userId && allowedUserIds.includes(userId)) {
++    return { ok: true, reason: "user_id_allowlist" };
++  }
++
++  return {
++    ok: false,
++    issues: [
++      {
++        code: "gemini_user_not_allowed",
++        severity: "blocker",
++        message: "Provider multimodal real indisponível para este usuário.",
++      },
++    ],
++  };
++}
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiPromptBuilder.test.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiPromptBuilder.test.ts
+new file mode 100644
+index 00000000..9f534004
+--- /dev/null
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiPromptBuilder.test.ts
+@@ -0,0 +1,71 @@
++import { buildVideoNarrativeGeminiPrompt } from "./videoNarrativeGeminiPromptBuilder";
++import type { VideoNarrativeAiProviderInput } from "./videoNarrativeAiProviderTypes";
++
++function input(overrides: Partial<VideoNarrativeAiProviderInput> = {}): VideoNarrativeAiProviderInput {
++  return {
++    userId: "usr_123",
++    creatorGoal: "Quero melhorar retenção.",
++    selectedGoalOption: "retention",
++    quickAnswers: [{ id: "represents_current_phase", value: "sim" }],
++    temporaryUpload: {
++      uploadSessionId: "video-temp-upload-session-abc_123",
++      objectKey: "temporary/video-narrative/0123456789abcdef/video-temp-upload-session-abc_123.mp4",
++      mimeType: "video/mp4",
++      sizeBytes: 1024,
++    },
++    profileContext: {
++      displayName: "Creator Teste",
++      instagramConnected: true,
++      premiumAccess: false,
++    },
++    promptVersion: "mm65_v1",
++    requestId: "req_123",
++    ...overrides,
++  };
++}
++
++describe("videoNarrativeGeminiPromptBuilder", () => {
++  it("gera prompt com schema JSON esperado", () => {
++    const prompt = buildVideoNarrativeGeminiPrompt(input());
++    expect(prompt.responseSchemaInstruction).toContain("mainNarrative");
++    expect(prompt.responseSchemaInstruction).toContain("nextActions");
++    expect(prompt.systemInstruction).toContain("JSON válido e estrito");
++  });
++
++  it("inclui objetivo e respostas rápidas", () => {
++    const prompt = buildVideoNarrativeGeminiPrompt(input());
++    expect(prompt.userInstruction).toContain("Quero melhorar retenção.");
++    expect(prompt.userInstruction).toContain("represents_current_phase");
++  });
++
++  it("não inclui email", () => {
++    const prompt = buildVideoNarrativeGeminiPrompt(input({ profileContext: { displayName: "Creator creator@example.com" } }));
++    expect(prompt.userInstruction).not.toContain("email");
++    expect(prompt.userInstruction).not.toContain("creator@example.com");
++    expect(prompt.userInstruction).toContain("[redigido]");
++  });
++
++  it("não inclui signed URL", () => {
++    const prompt = buildVideoNarrativeGeminiPrompt(input());
++    expect(prompt.userInstruction).not.toContain("signature=");
++    expect(prompt.systemInstruction).toContain("signed URL");
++  });
++
++  it("não inclui objectKey por padrão", () => {
++    const prompt = buildVideoNarrativeGeminiPrompt(input());
++    expect(prompt.userInstruction).not.toContain("temporary/video-narrative");
++    expect(prompt.userInstruction).not.toContain("objectKey");
++  });
++
++  it("inclui instruções contra promessa de viralização/marca", () => {
++    const prompt = buildVideoNarrativeGeminiPrompt(input());
++    expect(prompt.systemInstruction).toContain("Não prometa viralização");
++    expect(prompt.systemInstruction).toContain("contrato de marca");
++  });
++
++  it("inclui promptVersion", () => {
++    const prompt = buildVideoNarrativeGeminiPrompt(input());
++    expect(prompt.promptVersion).toBe("mm65_v1");
++    expect(prompt.userInstruction).toContain("promptVersion: mm65_v1");
++  });
++});
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiPromptBuilder.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiPromptBuilder.ts
+new file mode 100644
+index 00000000..c9c4e8f2
+--- /dev/null
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiPromptBuilder.ts
+@@ -0,0 +1,84 @@
++import type { VideoNarrativeAiProviderInput } from "./videoNarrativeAiProviderTypes";
++
++export type VideoNarrativeGeminiPrompt = {
++  systemInstruction: string;
++  userInstruction: string;
++  responseSchemaInstruction: string;
++  promptVersion: string;
++};
++
++const schemaExample = {
++  mainNarrative: "string",
++  whatVideoCommunicates: "string",
++  creatorIntention: "string",
++  strategicReading: "string",
++  strengthPoint: "string",
++  attentionPoint: "string",
++  recommendedAdjustment: "string",
++  suggestedHook: "string",
++  commercialPotential: "string",
++  nextActions: ["string"],
++  creatorSignals: ["string"],
++  brandTerritories: ["string"],
++  collabOpportunities: ["string"],
++};
++
++function safeString(value: string | undefined | null, fallback = "Não informado"): string {
++  const trimmed = value?.replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[redigido]").replace(/\s+/g, " ").trim();
++  return trimmed || fallback;
++}
++
++function formatQuickAnswers(input: VideoNarrativeAiProviderInput): string {
++  const answers = input.quickAnswers ?? [];
++  if (answers.length === 0) return "- Sem respostas rápidas.";
++
++  return answers
++    .slice(0, 6)
++    .map((answer) => `- ${safeString(answer.id)}: ${safeString(answer.value)}`)
++    .join("\n");
++}
++
++export function buildVideoNarrativeGeminiPrompt(input: VideoNarrativeAiProviderInput): VideoNarrativeGeminiPrompt {
++  const hasTemporaryUpload = Boolean(input.temporaryUpload);
++  const videoMetadata = input.temporaryUpload
++    ? [
++        `- mimeType: ${safeString(input.temporaryUpload.mimeType)}`,
++        `- sizeBytes: ${input.temporaryUpload.sizeBytes}`,
++        `- uploadSessionId: ${safeString(input.temporaryUpload.uploadSessionId)}`,
++      ].join("\n")
++    : "- Sem upload temporário informado.";
++
++  return {
++    promptVersion: input.promptVersion,
++    systemInstruction: [
++      "Você é um analista narrativo estratégico da Data2Content.",
++      "Interprete o vídeo como uma peça de conteúdo em construção para atualizar o diagnóstico vivo do creator.",
++      "Responda apenas em JSON válido e estrito, sem Markdown, sem comentários e sem texto fora do objeto.",
++      "Não prometa viralização, contrato de marca, patrocínio, certeza de performance, ranking, nota, score ou resultado garantido.",
++      "Não faça diagnóstico médico, psicológico, jurídico ou financeiro.",
++      "Não retorne conteúdo privado bruto, transcrição longa, URL, signed URL, token, API key ou identificador de storage.",
++      "Não mencione o nome do provedor de IA na resposta.",
++    ].join("\n"),
++    userInstruction: [
++      `promptVersion: ${input.promptVersion}`,
++      `requestId: ${safeString(input.requestId)}`,
++      `Objetivo do creator: ${safeString(input.creatorGoal)}`,
++      `Opção selecionada: ${input.selectedGoalOption}`,
++      "Respostas rápidas:",
++      formatQuickAnswers(input),
++      "Contexto do Perfil Estratégico:",
++      `- displayName: ${safeString(input.profileContext?.displayName)}`,
++      `- instagramConnected: ${Boolean(input.profileContext?.instagramConnected)}`,
++      `- premiumAccess: ${Boolean(input.profileContext?.premiumAccess)}`,
++      "Metadados seguros do vídeo temporário:",
++      videoMetadata,
++      `- hasTemporaryUpload: ${hasTemporaryUpload}`,
++      "Tarefa: gere uma leitura estratégica curta, humana e acionável para atualizar o Perfil da D2C.",
++    ].join("\n"),
++    responseSchemaInstruction: [
++      "Retorne exatamente um objeto JSON com este schema:",
++      JSON.stringify(schemaExample, null, 2),
++      "Todas as strings devem ser curtas. Arrays devem ter no máximo 5 itens.",
++    ].join("\n"),
++  };
++}
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProvider.test.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProvider.test.ts
+new file mode 100644
+index 00000000..f421298d
+--- /dev/null
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProvider.test.ts
+@@ -0,0 +1,168 @@
++import fs from "fs";
++import path from "path";
++import { geminiVideoNarrativeRawJsonFixture } from "./__fixtures__/geminiVideoNarrativeResponse.fixture";
++import { runVideoNarrativeGeminiProvider, type VideoNarrativeGeminiClientAdapter } from "./videoNarrativeGeminiProvider";
++import type { VideoNarrativeAiProviderInput } from "./videoNarrativeAiProviderTypes";
++
++const SOURCE_PATH = path.join(__dirname, "videoNarrativeGeminiProvider.ts");
++const CLIENT_SOURCE_PATH = path.join(__dirname, "geminiVideoNarrativeClientFactory.ts");
++
++function input(overrides: Partial<VideoNarrativeAiProviderInput> = {}): VideoNarrativeAiProviderInput {
++  return {
++    userId: "usr_123",
++    creatorGoal: "Quero melhorar o gancho.",
++    selectedGoalOption: "authority",
++    quickAnswers: [{ id: "represents_current_phase", value: "sim" }],
++    temporaryUpload: {
++      uploadSessionId: "video-temp-upload-session-abc_123",
++      objectKey: "temporary/video-narrative/0123456789abcdef/video-temp-upload-session-abc_123.mp4",
++      mimeType: "video/mp4",
++      sizeBytes: 2048,
++    },
++    profileContext: {
++      displayName: "Creator Teste",
++      instagramConnected: true,
++      premiumAccess: false,
++    },
++    promptVersion: "mm65_v1",
++    requestId: "req_123",
++    ...overrides,
++  };
++}
++
++const enabledEnv = {
++  VIDEO_NARRATIVE_GEMINI_PROVIDER_ENABLED: "true",
++  VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "1",
++  VIDEO_NARRATIVE_GEMINI_MODEL: "model-a",
++  GOOGLE_GEMINI_API_KEY: "secret-key",
++};
++
++function clientReturning(text: string | null): VideoNarrativeGeminiClientAdapter {
++  return {
++    generateContent: jest.fn().mockResolvedValue({ text }),
++  };
++}
++
++describe("videoNarrativeGeminiProvider", () => {
++  it("não chama rede quando disabled", async () => {
++    const client = clientReturning(geminiVideoNarrativeRawJsonFixture);
++    const result = await runVideoNarrativeGeminiProvider({
++      input: input(),
++      user: { id: "usr_123", role: "admin" },
++      env: {},
++      client,
++    });
++    expect(result.ok).toBe(false);
++    expect(result.mode).toBe("disabled");
++    expect(client.generateContent).not.toHaveBeenCalled();
++  });
++
++  it("usa mock/fake fetch em testes e resposta válida vira analysis parseada", async () => {
++    const client = clientReturning(geminiVideoNarrativeRawJsonFixture);
++    const result = await runVideoNarrativeGeminiProvider({
++      input: input(),
++      user: { id: "usr_123", role: "admin" },
++      env: enabledEnv,
++      client,
++    });
++
++    expect(client.generateContent).toHaveBeenCalledWith(
++      expect.objectContaining({
++        model: "model-a",
++        maxOutputTokens: expect.any(Number),
++      }),
++    );
++    expect(result.ok).toBe(true);
++    expect(result.analysis?.mainNarrative).toContain("Rotina prática");
++    expect(JSON.stringify(result)).not.toContain("rawText");
++    expect(JSON.stringify(result)).not.toContain("rawResponse");
++  });
++
++  it("timeout é aplicado", async () => {
++    const client: VideoNarrativeGeminiClientAdapter = {
++      generateContent: jest.fn(() => new Promise(() => undefined)),
++    };
++    const result = await runVideoNarrativeGeminiProvider({
++      input: input(),
++      user: { id: "usr_123", role: "admin" },
++      env: { ...enabledEnv, VIDEO_NARRATIVE_GEMINI_TIMEOUT_MS: "1000" },
++      config: {
++        enabled: true,
++        allowlistEnabled: true,
++        apiKey: "secret-key",
++        model: "model-a",
++        timeoutMs: 1,
++        maxOutputTokens: 1000,
++        promptVersion: "mm65_v1",
++      },
++      client,
++    });
++    expect(result.ok).toBe(false);
++    expect(result.issues?.[0].code).toBe("gemini_timeout");
++  });
++
++  it("erro externo vira issue segura", async () => {
++    const client: VideoNarrativeGeminiClientAdapter = {
++      generateContent: jest.fn().mockRejectedValue(new Error("secret stack")),
++    };
++    const result = await runVideoNarrativeGeminiProvider({
++      input: input(),
++      user: { id: "usr_123", role: "admin" },
++      env: enabledEnv,
++      client,
++    });
++    expect(result.ok).toBe(false);
++    expect(result.issues?.[0].code).toBe("gemini_external_error");
++    expect(JSON.stringify(result)).not.toContain("secret stack");
++  });
++
++  it("resposta inválida vira erro seguro", async () => {
++    const result = await runVideoNarrativeGeminiProvider({
++      input: input(),
++      user: { id: "usr_123", role: "admin" },
++      env: enabledEnv,
++      client: clientReturning("{"),
++    });
++    expect(result.ok).toBe(false);
++    expect(result.issues?.[0].code).toBe("invalid_json");
++  });
++
++  it("bloqueia usuário comum por allowlist", async () => {
++    const client = clientReturning(geminiVideoNarrativeRawJsonFixture);
++    const result = await runVideoNarrativeGeminiProvider({
++      input: input(),
++      user: { id: "usr_common", role: "creator" },
++      env: enabledEnv,
++      client,
++    });
++    expect(result.ok).toBe(false);
++    expect(result.issues?.[0].code).toBe("gemini_user_not_allowed");
++    expect(client.generateContent).not.toHaveBeenCalled();
++  });
++
++  it("não importa provider em client component", () => {
++    const clientFiles = [
++      "MobileStrategicProfileAnalyzeFlow.tsx",
++      "MobileStrategicProfilePreview.tsx",
++      "MobileStrategicProfileRealShellClient.tsx",
++    ];
++    for (const file of clientFiles) {
++      const source = fs.readFileSync(path.join(__dirname, "../components/videoUpload/appPreview", file), "utf8");
++      expect(source).not.toContain("videoNarrativeGeminiProvider");
++      expect(source).not.toContain("@google/genai");
++    }
++  });
++
++  it("provider adapter não importa SDK, fetch ou OpenAI diretamente", () => {
++    const source = fs.readFileSync(SOURCE_PATH, "utf8");
++    expect(source).not.toContain("@google/genai");
++    expect(source).not.toContain("fetch(");
++    expect(source).not.toContain("OpenAI");
++  });
++
++  it("SDK existente fica isolado na factory server-side", () => {
++    const source = fs.readFileSync(CLIENT_SOURCE_PATH, "utf8");
++    expect(source).toContain("@google/genai");
++    expect(source).not.toContain("OpenAI");
++  });
++});
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProvider.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProvider.ts
+new file mode 100644
+index 00000000..9bb65015
+--- /dev/null
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProvider.ts
+@@ -0,0 +1,160 @@
++import type {
++  VideoNarrativeAiIssue,
++  VideoNarrativeAiProviderInput,
++  VideoNarrativeAiProviderResult,
++} from "./videoNarrativeAiProviderTypes";
++import type { VideoNarrativeGeminiAllowlistUser } from "./videoNarrativeGeminiAllowlist";
++import { evaluateVideoNarrativeGeminiAllowlist } from "./videoNarrativeGeminiAllowlist";
++import {
++  resolveVideoNarrativeGeminiProviderConfig,
++  type VideoNarrativeGeminiProviderConfig,
++} from "./videoNarrativeGeminiProviderConfig";
++import { buildVideoNarrativeGeminiPrompt } from "./videoNarrativeGeminiPromptBuilder";
++import { parseVideoNarrativeGeminiResponse } from "./videoNarrativeGeminiResponseParser";
++
++export type VideoNarrativeGeminiClientAdapter = {
++  generateContent(params: {
++    systemInstruction: string;
++    userInstruction: string;
++    responseSchemaInstruction: string;
++    model: string;
++    maxOutputTokens: number;
++  }): Promise<{ text: string | null }>;
++};
++
++type EnvLike = NodeJS.ProcessEnv | Record<string, string | undefined>;
++
++function disabledResult(params: {
++  promptVersion: string;
++  mode?: VideoNarrativeAiProviderResult["mode"];
++  issues: VideoNarrativeAiIssue[];
++  timingMs?: number;
++}): VideoNarrativeAiProviderResult {
++  return {
++    ok: false,
++    provider: "gemini",
++    mode: params.mode ?? "disabled",
++    promptVersion: params.promptVersion,
++    issues: params.issues,
++    safeDebugSummary: params.issues.map((issue) => issue.code).join(", "),
++    timingMs: params.timingMs,
++  };
++}
++
++function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
++  return new Promise((resolve, reject) => {
++    const timer = setTimeout(() => reject(new Error("provider_timeout")), timeoutMs);
++    promise.then(
++      (value) => {
++        clearTimeout(timer);
++        resolve(value);
++      },
++      (error) => {
++        clearTimeout(timer);
++        reject(error);
++      },
++    );
++  });
++}
++
++export async function runVideoNarrativeGeminiProvider(params: {
++  input: VideoNarrativeAiProviderInput;
++  user: VideoNarrativeGeminiAllowlistUser;
++  env?: EnvLike;
++  config?: VideoNarrativeGeminiProviderConfig;
++  client?: VideoNarrativeGeminiClientAdapter | null;
++}): Promise<VideoNarrativeAiProviderResult> {
++  const startedAt = Date.now();
++  const resolved = params.config
++    ? { config: params.config, issues: [] as VideoNarrativeAiIssue[] }
++    : resolveVideoNarrativeGeminiProviderConfig(params.env);
++  const promptVersion = resolved.config.promptVersion || params.input.promptVersion;
++  const blockerIssues = resolved.issues.filter((issue) => issue.severity === "blocker");
++
++  if (!resolved.config.enabled || blockerIssues.length > 0) {
++    return disabledResult({
++      promptVersion,
++      issues: resolved.issues,
++      timingMs: Date.now() - startedAt,
++    });
++  }
++
++  const allowlist = evaluateVideoNarrativeGeminiAllowlist({
++    user: params.user,
++    env: params.env,
++  });
++  if (!allowlist.ok) {
++    return disabledResult({
++      promptVersion,
++      issues: allowlist.issues,
++      timingMs: Date.now() - startedAt,
++    });
++  }
++
++  if (!params.client) {
++    return disabledResult({
++      promptVersion,
++      mode: "failed",
++      issues: [
++        {
++          code: "gemini_client_missing",
++          severity: "blocker",
++          message: "Cliente multimodal não configurado.",
++        },
++      ],
++      timingMs: Date.now() - startedAt,
++    });
++  }
++
++  try {
++    const prompt = buildVideoNarrativeGeminiPrompt({
++      ...params.input,
++      promptVersion,
++    });
++    const response = await withTimeout(
++      params.client.generateContent({
++        systemInstruction: prompt.systemInstruction,
++        userInstruction: prompt.userInstruction,
++        responseSchemaInstruction: prompt.responseSchemaInstruction,
++        model: resolved.config.model!,
++        maxOutputTokens: resolved.config.maxOutputTokens,
++      }),
++      resolved.config.timeoutMs,
++    );
++    const parsed = parseVideoNarrativeGeminiResponse(response.text ?? "");
++
++    if (!parsed.ok) {
++      return disabledResult({
++        promptVersion,
++        mode: "failed",
++        issues: parsed.issues,
++        timingMs: Date.now() - startedAt,
++      });
++    }
++
++    return {
++      ok: true,
++      provider: "gemini",
++      mode: "ready",
++      promptVersion,
++      analysis: parsed.analysis,
++      issues: parsed.issues,
++      safeDebugSummary: "gemini_analysis_parsed",
++      timingMs: Date.now() - startedAt,
++    };
++  } catch (error) {
++    const code = error instanceof Error && error.message === "provider_timeout" ? "gemini_timeout" : "gemini_external_error";
++    return disabledResult({
++      promptVersion,
++      mode: "failed",
++      issues: [
++        {
++          code,
++          severity: "blocker",
++          message: "Provider multimodal indisponível nesta execução.",
++        },
++      ],
++      timingMs: Date.now() - startedAt,
++    });
++  }
++}
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProviderConfig.test.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProviderConfig.test.ts
+new file mode 100644
+index 00000000..ec35d391
+--- /dev/null
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProviderConfig.test.ts
+@@ -0,0 +1,68 @@
++import { resolveVideoNarrativeGeminiProviderConfig } from "./videoNarrativeGeminiProviderConfig";
++
++describe("videoNarrativeGeminiProviderConfig", () => {
++  it("provider disabled por default", () => {
++    const result = resolveVideoNarrativeGeminiProviderConfig({});
++    expect(result.config.enabled).toBe(false);
++    expect(result.issues.some((issue) => issue.code === "gemini_provider_disabled")).toBe(true);
++  });
++
++  it("bloqueia sem API key", () => {
++    const result = resolveVideoNarrativeGeminiProviderConfig({
++      VIDEO_NARRATIVE_GEMINI_PROVIDER_ENABLED: "true",
++      VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "1",
++      VIDEO_NARRATIVE_GEMINI_MODEL: "model-a",
++    });
++    expect(result.issues.some((issue) => issue.code === "gemini_api_key_missing")).toBe(true);
++  });
++
++  it("bloqueia sem model env", () => {
++    const result = resolveVideoNarrativeGeminiProviderConfig({
++      VIDEO_NARRATIVE_GEMINI_PROVIDER_ENABLED: "true",
++      VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "1",
++      GOOGLE_GEMINI_API_KEY: "secret-key",
++    });
++    expect(result.issues.some((issue) => issue.code === "gemini_model_missing")).toBe(true);
++  });
++
++  it("timeout default é seguro", () => {
++    const result = resolveVideoNarrativeGeminiProviderConfig({});
++    expect(result.config.timeoutMs).toBeGreaterThanOrEqual(1000);
++    expect(result.config.timeoutMs).toBeLessThanOrEqual(30000);
++  });
++
++  it("max output tokens default é seguro", () => {
++    const result = resolveVideoNarrativeGeminiProviderConfig({});
++    expect(result.config.maxOutputTokens).toBeGreaterThanOrEqual(256);
++    expect(result.config.maxOutputTokens).toBeLessThanOrEqual(4096);
++  });
++
++  it("não expõe API key em issues", () => {
++    const result = resolveVideoNarrativeGeminiProviderConfig({
++      VIDEO_NARRATIVE_GEMINI_PROVIDER_ENABLED: "true",
++      VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "1",
++      GOOGLE_GEMINI_API_KEY: "super-secret-key",
++    });
++    expect(JSON.stringify(result.issues)).not.toContain("super-secret-key");
++  });
++
++  it("feature flag disabled bloqueia", () => {
++    const result = resolveVideoNarrativeGeminiProviderConfig({
++      VIDEO_NARRATIVE_GEMINI_PROVIDER_ENABLED: "false",
++      VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "1",
++      GOOGLE_GEMINI_API_KEY: "secret-key",
++      VIDEO_NARRATIVE_GEMINI_MODEL: "model-a",
++    });
++    expect(result.config.enabled).toBe(false);
++    expect(result.issues.some((issue) => issue.code === "gemini_provider_disabled")).toBe(true);
++  });
++
++  it("allowlist disabled impede real provider", () => {
++    const result = resolveVideoNarrativeGeminiProviderConfig({
++      VIDEO_NARRATIVE_GEMINI_PROVIDER_ENABLED: "true",
++      GOOGLE_GEMINI_API_KEY: "secret-key",
++      VIDEO_NARRATIVE_GEMINI_MODEL: "model-a",
++    });
++    expect(result.issues.some((issue) => issue.code === "gemini_allowlist_required")).toBe(true);
++  });
++});
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProviderConfig.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProviderConfig.ts
+new file mode 100644
+index 00000000..c236bae6
+--- /dev/null
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiProviderConfig.ts
+@@ -0,0 +1,105 @@
++import type { VideoNarrativeAiIssue } from "./videoNarrativeAiProviderTypes";
++
++export type VideoNarrativeGeminiProviderConfig = {
++  enabled: boolean;
++  allowlistEnabled: boolean;
++  apiKey: string | null;
++  model: string | null;
++  timeoutMs: number;
++  maxOutputTokens: number;
++  promptVersion: string;
++};
++
++type EnvLike = NodeJS.ProcessEnv | Record<string, string | undefined>;
++
++const DEFAULT_TIMEOUT_MS = 12_000;
++const MIN_TIMEOUT_MS = 1_000;
++const MAX_TIMEOUT_MS = 30_000;
++const DEFAULT_MAX_OUTPUT_TOKENS = 1800;
++const MIN_MAX_OUTPUT_TOKENS = 256;
++const MAX_MAX_OUTPUT_TOKENS = 4096;
++const DEFAULT_PROMPT_VERSION = "video_narrative_gemini_mm65_v1";
++
++function parseBoolean(value: string | undefined): boolean {
++  return value === "1" || value === "true";
++}
++
++function readBoundedInteger(params: {
++  raw: string | undefined;
++  fallback: number;
++  min: number;
++  max: number;
++}): number {
++  if (!params.raw?.trim()) return params.fallback;
++  const parsed = Number(params.raw);
++  if (!Number.isFinite(parsed) || parsed < params.min || parsed > params.max) return params.fallback;
++  return Math.round(parsed);
++}
++
++function readApiKey(env: EnvLike): string | null {
++  return env.GOOGLE_GEMINI_API_KEY?.trim() || env.GEMINI_API_KEY?.trim() || null;
++}
++
++export function resolveVideoNarrativeGeminiProviderConfig(
++  env: EnvLike = process.env,
++): { config: VideoNarrativeGeminiProviderConfig; issues: VideoNarrativeAiIssue[] } {
++  const enabled = parseBoolean(env.VIDEO_NARRATIVE_GEMINI_PROVIDER_ENABLED);
++  const allowlistEnabled = parseBoolean(env.VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED);
++  const apiKey = readApiKey(env);
++  const model = env.VIDEO_NARRATIVE_GEMINI_MODEL?.trim() || null;
++  const issues: VideoNarrativeAiIssue[] = [];
++
++  const config: VideoNarrativeGeminiProviderConfig = {
++    enabled,
++    allowlistEnabled,
++    apiKey,
++    model,
++    timeoutMs: readBoundedInteger({
++      raw: env.VIDEO_NARRATIVE_GEMINI_TIMEOUT_MS,
++      fallback: DEFAULT_TIMEOUT_MS,
++      min: MIN_TIMEOUT_MS,
++      max: MAX_TIMEOUT_MS,
++    }),
++    maxOutputTokens: readBoundedInteger({
++      raw: env.VIDEO_NARRATIVE_GEMINI_MAX_OUTPUT_TOKENS,
++      fallback: DEFAULT_MAX_OUTPUT_TOKENS,
++      min: MIN_MAX_OUTPUT_TOKENS,
++      max: MAX_MAX_OUTPUT_TOKENS,
++    }),
++    promptVersion: env.VIDEO_NARRATIVE_GEMINI_PROMPT_VERSION?.trim() || DEFAULT_PROMPT_VERSION,
++  };
++
++  if (!enabled) {
++    issues.push({
++      code: "gemini_provider_disabled",
++      severity: "info",
++      message: "Provider multimodal real desativado por feature flag.",
++    });
++  }
++
++  if (enabled && !allowlistEnabled) {
++    issues.push({
++      code: "gemini_allowlist_required",
++      severity: "blocker",
++      message: "Provider multimodal real exige allowlist server-side habilitada.",
++    });
++  }
++
++  if (enabled && !apiKey) {
++    issues.push({
++      code: "gemini_api_key_missing",
++      severity: "blocker",
++      message: "Chave do provider multimodal ausente.",
++    });
++  }
++
++  if (enabled && !model) {
++    issues.push({
++      code: "gemini_model_missing",
++      severity: "blocker",
++      message: "Modelo do provider multimodal ausente.",
++    });
++  }
++
++  return { config, issues };
++}
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiResponseParser.test.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiResponseParser.test.ts
+new file mode 100644
+index 00000000..8714cafa
+--- /dev/null
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiResponseParser.test.ts
+@@ -0,0 +1,80 @@
++import { geminiVideoNarrativeRawJsonFixture } from "./__fixtures__/geminiVideoNarrativeResponse.fixture";
++import { parseVideoNarrativeGeminiResponse } from "./videoNarrativeGeminiResponseParser";
++
++describe("videoNarrativeGeminiResponseParser", () => {
++  it("parseia fixture válida", () => {
++    const result = parseVideoNarrativeGeminiResponse(geminiVideoNarrativeRawJsonFixture);
++    expect(result.ok).toBe(true);
++    if (result.ok) {
++      expect(result.analysis.mainNarrative).toContain("Rotina prática");
++    }
++  });
++
++  it("remove code fences se necessário", () => {
++    const result = parseVideoNarrativeGeminiResponse(`\`\`\`json\n${geminiVideoNarrativeRawJsonFixture}\n\`\`\``);
++    expect(result.ok).toBe(true);
++  });
++
++  it("rejeita JSON inválido", () => {
++    const result = parseVideoNarrativeGeminiResponse("{");
++    expect(result.ok).toBe(false);
++    expect(result.issues[0].code).toBe("invalid_json");
++  });
++
++  it("rejeita campos obrigatórios ausentes", () => {
++    const result = parseVideoNarrativeGeminiResponse(JSON.stringify({ mainNarrative: "x" }));
++    expect(result.ok).toBe(false);
++    expect(result.issues[0].code).toBe("missing_required_fields");
++  });
++
++  it("limita strings longas", () => {
++    const raw = JSON.parse(geminiVideoNarrativeRawJsonFixture);
++    raw.mainNarrative = "a".repeat(1000);
++    const result = parseVideoNarrativeGeminiResponse(JSON.stringify(raw));
++    expect(result.ok).toBe(true);
++    if (result.ok) expect(result.analysis.mainNarrative.length).toBeLessThanOrEqual(420);
++  });
++
++  it("sanitiza termos proibidos", () => {
++    const raw = JSON.parse(geminiVideoNarrativeRawJsonFixture);
++    raw.strengthPoint = "score garantido e ranking comprovado";
++    const result = parseVideoNarrativeGeminiResponse(JSON.stringify(raw));
++    expect(result.ok).toBe(true);
++    if (result.ok) {
++      const serialized = JSON.stringify(result.analysis).toLowerCase();
++      expect(serialized).not.toContain("score");
++      expect(serialized).not.toContain("ranking");
++      expect(serialized).not.toContain("garantido");
++    }
++  });
++
++  it("rejeita signed URL", () => {
++    const raw = JSON.parse(geminiVideoNarrativeRawJsonFixture);
++    raw.mainNarrative = "https://storage.example.test/video.mp4?signature=secret";
++    const result = parseVideoNarrativeGeminiResponse(JSON.stringify(raw));
++    expect(result.ok).toBe(false);
++    expect(result.issues[0].code).toBe("signed_url");
++  });
++
++  it("rejeita token/API key", () => {
++    const raw = JSON.parse(geminiVideoNarrativeRawJsonFixture);
++    raw.mainNarrative = "AIzaSy12345678901234567890123456789012345";
++    const result = parseVideoNarrativeGeminiResponse(JSON.stringify(raw));
++    expect(result.ok).toBe(false);
++    expect(result.issues[0].code).toBe("api_key");
++  });
++
++  it("rejeita raw transcript longo", () => {
++    const raw = JSON.parse(geminiVideoNarrativeRawJsonFixture);
++    raw.rawTranscript = "fala ".repeat(200);
++    const result = parseVideoNarrativeGeminiResponse(JSON.stringify(raw));
++    expect(result.ok).toBe(false);
++    expect(result.issues[0].code).toBe("raw_transcript");
++  });
++
++  it("não retorna raw response", () => {
++    const result = parseVideoNarrativeGeminiResponse(geminiVideoNarrativeRawJsonFixture);
++    expect(JSON.stringify(result)).not.toContain("rawText");
++    expect(JSON.stringify(result)).not.toContain("rawResponse");
++  });
++});
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiResponseParser.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiResponseParser.ts
+new file mode 100644
+index 00000000..b68090db
+--- /dev/null
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiResponseParser.ts
+@@ -0,0 +1,192 @@
++import type { VideoNarrativeAiAnalysis, VideoNarrativeAiIssue } from "./videoNarrativeAiProviderTypes";
++
++const REQUIRED_FIELDS: Array<keyof VideoNarrativeAiAnalysis> = [
++  "mainNarrative",
++  "whatVideoCommunicates",
++  "creatorIntention",
++  "strategicReading",
++  "strengthPoint",
++  "attentionPoint",
++  "recommendedAdjustment",
++  "suggestedHook",
++  "commercialPotential",
++  "nextActions",
++  "creatorSignals",
++  "brandTerritories",
++  "collabOpportunities",
++];
++
++const STRING_FIELDS: Array<keyof VideoNarrativeAiAnalysis> = [
++  "mainNarrative",
++  "whatVideoCommunicates",
++  "creatorIntention",
++  "strategicReading",
++  "strengthPoint",
++  "attentionPoint",
++  "recommendedAdjustment",
++  "suggestedHook",
++  "commercialPotential",
++];
++
++const ARRAY_FIELDS: Array<keyof VideoNarrativeAiAnalysis> = [
++  "nextActions",
++  "creatorSignals",
++  "brandTerritories",
++  "collabOpportunities",
++];
++
++const FORBIDDEN_REPLACEMENTS: Array<[RegExp, string]> = [
++  [/score/gi, "leitura"],
++  [/nota/gi, "avaliação"],
++  [/pontos/gi, "sinais"],
++  [/ranking/gi, "referência"],
++  [/gabarito/gi, "direção"],
++  [/garantido/gi, "possível"],
++  [/certeza/gi, "hipótese"],
++  [/comprovado/gi, "observado"],
++  [/viralizar garantido/gi, "ganhar clareza"],
++  [/match real/gi, "afinidade possível"],
++  [/marca garantida/gi, "marca possível"],
++  [/patrocínio garantido/gi, "oportunidade futura"],
++  [/vídeos salvos/gi, "leituras anteriores"],
++  [/histórico de vídeos/gi, "diagnóstico vivo"],
++  [/novo Mídia Kit/gi, "Perfil da D2C"],
++  [/Mídia Kit mobile/gi, "Perfil da D2C"],
++  [/18 sinais/gi, "sinais"],
++  [/3 narrativas/gi, "narrativas"],
++  [/percentual de perfil/gi, "leitura do perfil"],
++];
++
++const SIGNED_URL_PATTERN = /https?:\/\/\S*(signature|expires|token|policy)=\S*/i;
++const API_KEY_PATTERN = /(AIzaSy[A-Za-z0-9-_]{20,}|sk-[A-Za-z0-9-_]{20,}|api[_-]?key|bearer\s+[A-Za-z0-9._-]+)/i;
++const RAW_TRANSCRIPT_KEYS = new Set(["rawTranscript", "transcript", "fullTranscript"]);
++const MAX_STRING_LENGTH = 420;
++const MAX_ARRAY_ITEMS = 5;
++
++export type VideoNarrativeGeminiResponseParseResult =
++  | { ok: true; analysis: VideoNarrativeAiAnalysis; issues: VideoNarrativeAiIssue[] }
++  | { ok: false; issues: VideoNarrativeAiIssue[] };
++
++function issue(code: string, message: string, severity: VideoNarrativeAiIssue["severity"] = "blocker"): VideoNarrativeAiIssue {
++  return { code, severity, message };
++}
++
++function stripCodeFences(rawText: string): string {
++  const trimmed = rawText.trim();
++  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
++  return fenced?.[1]?.trim() ?? trimmed;
++}
++
++function isRecord(value: unknown): value is Record<string, unknown> {
++  return typeof value === "object" && value !== null && !Array.isArray(value);
++}
++
++function containsForbiddenPayload(value: unknown): "signed_url" | "api_key" | "raw_transcript" | null {
++  if (typeof value === "string") {
++    if (SIGNED_URL_PATTERN.test(value)) return "signed_url";
++    if (API_KEY_PATTERN.test(value)) return "api_key";
++    return null;
++  }
++  if (Array.isArray(value)) {
++    for (const item of value) {
++      const found = containsForbiddenPayload(item);
++      if (found) return found;
++    }
++  }
++  if (isRecord(value)) {
++    for (const [key, nested] of Object.entries(value)) {
++      if (RAW_TRANSCRIPT_KEYS.has(key) && typeof nested === "string" && nested.length > 600) {
++        return "raw_transcript";
++      }
++      const found = containsForbiddenPayload(nested);
++      if (found) return found;
++    }
++  }
++  return null;
++}
++
++function sanitizeText(value: string): string {
++  let output = value.replace(/\s+/g, " ").trim();
++  for (const [pattern, replacement] of FORBIDDEN_REPLACEMENTS) {
++    output = output.replace(pattern, replacement);
++  }
++  return output.slice(0, MAX_STRING_LENGTH).trim();
++}
++
++function readRequiredString(raw: Record<string, unknown>, field: keyof VideoNarrativeAiAnalysis): string | null {
++  const value = raw[field];
++  if (typeof value !== "string" || !value.trim()) return null;
++  return sanitizeText(value);
++}
++
++function readStringArray(raw: Record<string, unknown>, field: keyof VideoNarrativeAiAnalysis): string[] | null {
++  const value = raw[field];
++  if (!Array.isArray(value)) return null;
++  return value
++    .filter((item): item is string => typeof item === "string")
++    .map(sanitizeText)
++    .filter(Boolean)
++    .slice(0, MAX_ARRAY_ITEMS);
++}
++
++export function parseVideoNarrativeGeminiResponse(rawText: string): VideoNarrativeGeminiResponseParseResult {
++  if (!rawText.trim()) {
++    return { ok: false, issues: [issue("empty_response", "Resposta vazia do provider multimodal.")] };
++  }
++
++  let parsed: unknown;
++  try {
++    parsed = JSON.parse(stripCodeFences(rawText));
++  } catch {
++    return { ok: false, issues: [issue("invalid_json", "Resposta do provider multimodal não é JSON válido.")] };
++  }
++
++  if (!isRecord(parsed)) {
++    return { ok: false, issues: [issue("missing_object", "Resposta do provider multimodal não contém objeto estruturado.")] };
++  }
++
++  const forbidden = containsForbiddenPayload(parsed);
++  if (forbidden) {
++    return { ok: false, issues: [issue(forbidden, "Resposta do provider multimodal contém dado inseguro.")] };
++  }
++
++  const missing = REQUIRED_FIELDS.filter((field) => !(field in parsed));
++  if (missing.length > 0) {
++    return { ok: false, issues: [issue("missing_required_fields", "Resposta do provider multimodal está incompleta.")] };
++  }
++
++  const strings = Object.fromEntries(
++    STRING_FIELDS.map((field) => [field, readRequiredString(parsed, field)]),
++  ) as Record<(typeof STRING_FIELDS)[number], string | null>;
++  if (Object.values(strings).some((value) => !value)) {
++    return { ok: false, issues: [issue("invalid_required_string", "Resposta do provider multimodal tem campos textuais inválidos.")] };
++  }
++
++  const arrays = Object.fromEntries(ARRAY_FIELDS.map((field) => [field, readStringArray(parsed, field)])) as Record<
++    (typeof ARRAY_FIELDS)[number],
++    string[] | null
++  >;
++  if (Object.values(arrays).some((value) => !value)) {
++    return { ok: false, issues: [issue("invalid_required_array", "Resposta do provider multimodal tem listas inválidas.")] };
++  }
++
++  return {
++    ok: true,
++    analysis: {
++      mainNarrative: strings.mainNarrative!,
++      whatVideoCommunicates: strings.whatVideoCommunicates!,
++      creatorIntention: strings.creatorIntention!,
++      strategicReading: strings.strategicReading!,
++      strengthPoint: strings.strengthPoint!,
++      attentionPoint: strings.attentionPoint!,
++      recommendedAdjustment: strings.recommendedAdjustment!,
++      suggestedHook: strings.suggestedHook!,
++      commercialPotential: strings.commercialPotential!,
++      nextActions: arrays.nextActions!,
++      creatorSignals: arrays.creatorSignals!,
++      brandTerritories: arrays.brandTerritories!,
++      collabOpportunities: arrays.collabOpportunities!,
++    },
++    issues: [],
++  };
++}
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiSnapshotMapper.test.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiSnapshotMapper.test.ts
+new file mode 100644
+index 00000000..438816d5
+--- /dev/null
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiSnapshotMapper.test.ts
+@@ -0,0 +1,63 @@
++import { validateSnapshotPayload } from "./mobileStrategicProfileSnapshotService";
++import { geminiVideoNarrativeResponseFixture } from "./__fixtures__/geminiVideoNarrativeResponse.fixture";
++import { mapGeminiAnalysisToStrategicProfileSnapshot } from "./videoNarrativeGeminiSnapshotMapper";
++
++describe("videoNarrativeGeminiSnapshotMapper", () => {
++  it("converte análise parseada em snapshotJson versionado", () => {
++    const result = mapGeminiAnalysisToStrategicProfileSnapshot({
++      analysis: geminiVideoNarrativeResponseFixture,
++      source: "gemini_fixture",
++      promptVersion: "mm65_v1",
++    });
++    expect(result.snapshot.schemaVersion).toBe("mobile_strategic_profile_snapshot_v1");
++    expect(result.source).toBe("gemini_fixture");
++  });
++
++  it("snapshot não inclui raw response", () => {
++    const result = mapGeminiAnalysisToStrategicProfileSnapshot({
++      analysis: geminiVideoNarrativeResponseFixture,
++      promptVersion: "mm65_v1",
++    });
++    expect(JSON.stringify(result)).not.toContain("rawResponse");
++    expect(JSON.stringify(result)).not.toContain("rawText");
++  });
++
++  it("snapshot não inclui uploadUrl/objectKey/signed URL/transcript longo", () => {
++    const result = mapGeminiAnalysisToStrategicProfileSnapshot({
++      analysis: geminiVideoNarrativeResponseFixture,
++      promptVersion: "mm65_v1",
++    });
++    const serialized = JSON.stringify(result);
++    expect(serialized).not.toContain("uploadUrl");
++    expect(serialized).not.toContain("objectKey");
++    expect(serialized).not.toContain("signature=");
++    expect(serialized).not.toContain("rawTranscript");
++  });
++
++  it("snapshot não cria histórico visual", () => {
++    const result = mapGeminiAnalysisToStrategicProfileSnapshot({
++      analysis: geminiVideoNarrativeResponseFixture,
++      promptVersion: "mm65_v1",
++    });
++    const serialized = JSON.stringify(result).toLowerCase();
++    expect(serialized).not.toContain("histórico de vídeos");
++    expect(serialized).not.toContain("vídeos salvos");
++  });
++
++  it("snapshot usa source seguro deste PR", () => {
++    const result = mapGeminiAnalysisToStrategicProfileSnapshot({
++      analysis: geminiVideoNarrativeResponseFixture,
++      promptVersion: "mm65_v1",
++    });
++    expect(result.source).toBe("gemini_ready");
++    expect(result.source).not.toBe("gemini_real");
++  });
++
++  it("snapshot passa validações do snapshot service MM57", () => {
++    const result = mapGeminiAnalysisToStrategicProfileSnapshot({
++      analysis: geminiVideoNarrativeResponseFixture,
++      promptVersion: "mm65_v1",
++    });
++    expect(validateSnapshotPayload(result.snapshot)).toEqual(result.snapshot);
++  });
++});
+diff --git a/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiSnapshotMapper.ts b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiSnapshotMapper.ts
+new file mode 100644
+index 00000000..d5d6abc7
+--- /dev/null
++++ b/src/app/dashboard/boards/videoUpload/videoNarrativeGeminiSnapshotMapper.ts
+@@ -0,0 +1,56 @@
++import type {
++  VideoNarrativeAiAnalysis,
++  VideoNarrativeGeminiSnapshotMappingResult,
++} from "./videoNarrativeAiProviderTypes";
++import { cleanForbiddenText } from "./mobileStrategicProfileAnalyzeSnapshotMapper";
++
++function cleanList(values: string[]): string[] {
++  return values.map(cleanForbiddenText).filter(Boolean).slice(0, 5);
++}
++
++function cleanSummary(value: string, fallback: string): string {
++  return (cleanForbiddenText(value) || fallback).slice(0, 2000);
++}
++
++export function mapGeminiAnalysisToStrategicProfileSnapshot(params: {
++  analysis: VideoNarrativeAiAnalysis;
++  source?: "gemini_ready" | "gemini_fixture";
++  promptVersion: string;
++}): VideoNarrativeGeminiSnapshotMappingResult {
++  const source = params.source ?? "gemini_ready";
++
++  return {
++    source,
++    snapshot: {
++      schemaVersion: "mobile_strategic_profile_snapshot_v1",
++      profileState: "active",
++      unlockedSignals: cleanList([
++        params.analysis.mainNarrative,
++        params.analysis.whatVideoCommunicates,
++        ...params.analysis.creatorSignals,
++      ]),
++      pendingSignals: cleanList([
++        params.analysis.attentionPoint,
++        params.analysis.recommendedAdjustment,
++        ...params.analysis.nextActions,
++      ]),
++      recurringPatterns: cleanList([
++        params.analysis.strengthPoint,
++        params.analysis.creatorIntention,
++      ]),
++      opportunities: cleanList([
++        params.analysis.commercialPotential,
++        ...params.analysis.brandTerritories,
++        ...params.analysis.collabOpportunities,
++      ]),
++      diagnosisSummary: cleanSummary(params.analysis.strategicReading, "Diagnóstico estratégico atualizado."),
++      commercialSummary: cleanSummary(params.analysis.commercialPotential, "Potencial comercial futuro em avaliação."),
++      lastAnalysisSummary: cleanSummary(params.analysis.suggestedHook, "Próximo gancho sugerido para teste criativo."),
++      extraData: {
++        source,
++        promptVersion: params.promptVersion,
++        adapterVersion: "mm65_gemini_snapshot_adapter_v1",
++      },
++    },
++  };
++}
+-- 
+2.39.5 (Apple Git-154)
+

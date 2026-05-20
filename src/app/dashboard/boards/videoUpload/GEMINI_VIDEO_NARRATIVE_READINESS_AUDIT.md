@@ -264,6 +264,13 @@ MM66 adiciona a primeira integração real end-to-end, mas ainda não é produç
 - **Sem vazamento de mídia**: `signedUrl`, `uploadUrl`, arquivo, Base64, thumbnail e `objectKey` não entram no snapshot.
 - **Provider real depende de infraestrutura completa**: quando o reader/resolver multimodal não está configurado, o endpoint retorna erro seguro em vez de inventar análise.
 
+## MM67 — Real Runtime Env + Gemini/Storage Smoke Harness
+
+MM67 solidifica a prontidão real (readiness) com ferramentas de validação isoladas:
+- **Auditoria Server-Side**: verifica env, flags e dependências (Gemini API, Storage) sem expor secrets, e bloqueia a execução caso algo falte.
+- **Smoke Harness Isolado**: novo endpoint `/api/internal/video-narrative/gemini-smoke` protegido para devs, testando configuração da API real do Gemini de ponta a ponta sem salvar snapshot.
+- **Runtime Resolver**: garante que a análise real caia em bloqueio seguro (`missing_storage_adapter`) se o SDK de storage temporário não estiver implementado.
+
 ## Frase Norte
 
 > O sistema pode estar pronto para testar Gemini real sem ainda estar pronto para lançar vídeo no produto.
