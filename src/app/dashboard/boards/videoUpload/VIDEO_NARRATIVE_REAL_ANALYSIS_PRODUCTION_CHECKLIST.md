@@ -9,13 +9,22 @@ Este checklist prepara o beta fechado da análise narrativa real de vídeo. Ele 
 - O beta continua restrito a allowlist/admin-dev por default.
 - Premium e free comuns continuam bloqueados enquanto as flags explícitas de beta não forem ligadas.
 
+## Status MM71
+
+- Launch candidate documentado para 3 a 5 creators reais.
+- Readiness/access check consolidado em `videoNarrativeClosedBetaReadiness.ts`.
+- Checklist dedicado de beta fechado criado em `VIDEO_NARRATIVE_CLOSED_BETA_LAUNCH_CHECKLIST.md`.
+- Rollback, smoke Preview/Production, allowlist e QA manual mobile documentados.
+
 ## Envs obrigatórias em Vercel
 
 - `GEMINI_API_KEY`
 - `VIDEO_NARRATIVE_GEMINI_MODEL`
 - `VIDEO_NARRATIVE_GEMINI_FLASH_ENABLED`
 - `VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED`
+- `VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS`
 - `VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED`
+- `NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED`
 - `VIDEO_NARRATIVE_GEMINI_SMOKE_ENABLED`
 - `VIDEO_NARRATIVE_TEMP_UPLOAD_SESSION_ENABLED`
 - `VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED`
@@ -26,7 +35,6 @@ Este checklist prepara o beta fechado da análise narrativa real de vídeo. Ele 
 - `VIDEO_NARRATIVE_TEMP_STORAGE_REGION`
 - `VIDEO_NARRATIVE_TEMP_STORAGE_ACCESS_KEY_ID`
 - `VIDEO_NARRATIVE_TEMP_STORAGE_SECRET_ACCESS_KEY`
-- `VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS`
 - `VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWED_EMAILS`
 - `VIDEO_NARRATIVE_REAL_ANALYSIS_BETA_LIMITS_ENABLED`
 
@@ -118,3 +126,16 @@ Depois do rollback, validar que `/api/dashboard/mobile-strategic-profile/analyze
 - Sem SDK de storage em client component.
 - Endpoint mock preservado.
 - MediaKit, Comunidade, navegação, shells, LoginClient, NextAuth e billing ficam fora do escopo.
+
+## Roteiro Preview/Production
+
+1. Atualizar envs no ambiente alvo sem imprimir valores.
+2. Confirmar allowlists com os emails dos creators do beta.
+3. Executar env audit.
+4. Executar Gemini smoke.
+5. Executar storage smoke.
+6. Fazer upload/análise com vídeo pequeno por usuário allowlist.
+7. Confirmar snapshot atualizado no Perfil.
+8. Confirmar cleanup.
+9. Testar usuário comum bloqueado.
+10. Testar rollback desligando a flag pública e confirmando fallback mock.

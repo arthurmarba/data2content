@@ -500,3 +500,61 @@ Não recomendar integração real antes do QA/polish visual.
 - Mensagens humanas não expõem chave, stack trace, signed URL ou `objectKey`.
 - Checklist de produção cobre envs, smoke, rollback e rotação de secrets.
 - Usuários comuns seguem bloqueados; billing real, MediaKit, Comunidade, navegação, shells, LoginClient, NextAuth e billing seguem intocados.
+
+## Roteiro Manual MM71 — Closed Beta Launch Candidate
+
+### Cenário A — Usuário comum
+
+- Acessa o Perfil Estratégico mobile.
+- Tenta iniciar análise de vídeo.
+- Recebe bloqueio claro de beta fechado.
+- Gemini não é chamado.
+- Perfil antigo permanece visível.
+
+### Cenário B — Usuário allowlist com vídeo válido
+
+- Acessa o Perfil Estratégico mobile.
+- Escolhe vídeo pequeno e válido.
+- Aceita consentimento.
+- Upload temporário conclui.
+- Análise real conclui.
+- Perfil atualiza com snapshot novo.
+- Mídia Kit não muda.
+- Comunidade não muda.
+
+### Cenário C — Limite atingido
+
+- Usuário allowlist tenta analisar acima do limite.
+- Mensagem de limite aparece.
+- Gemini não é chamado.
+- Perfil antigo permanece visível.
+
+### Cenário D — Falha Gemini
+
+- Provider retorna falha controlada ou timeout.
+- Mensagem humana aparece.
+- CTA de tentar novamente existe quando aplicável.
+- Perfil antigo permanece visível.
+
+### Cenário E — Falha storage
+
+- Upload/adapter falha de forma controlada.
+- Mensagem humana aparece.
+- Não há histórico visual de vídeo.
+- Perfil antigo permanece visível.
+
+### Cenário F — Cleanup warning
+
+- Snapshot salvo não quebra.
+- Warning fica seguro em estado/log controlado.
+- Creator não vê detalhe técnico.
+
+## Guardrails do MM71
+
+- Público geral bloqueado.
+- Allowlist/admin-dev permitido.
+- Rollback documentado.
+- Readiness não chama Gemini nem storage.
+- Gemini não chamado quando bloqueado.
+- Endpoint mock preservado.
+- Sem alteração em Mídia Kit, Comunidade, navegação real, shells, ActivationPendingWidget, LoginClient, NextAuth ou billing.

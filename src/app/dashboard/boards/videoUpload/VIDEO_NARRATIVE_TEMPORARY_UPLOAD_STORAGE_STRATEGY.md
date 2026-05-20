@@ -256,3 +256,16 @@ MM70 coloca a proteção de uso antes do adapter de storage:
 - cleanup warning continua seguro e não transforma snapshot salvo em falha.
 
 O adapter R2/S3 permanece server-side e nenhum SDK de storage entra em client component.
+
+## Fase MM71 — Closed Beta Launch Candidate
+
+MM71 documenta a operação do storage para beta fechado:
+
+- allowlist de upload e allowlist Gemini precisam conter os mesmos creators do beta;
+- bucket deve permanecer privado;
+- token R2 deve ser restrito ao bucket;
+- smoke Preview/Production deve validar upload, `GetObject` e `DeleteObject`;
+- rollback pode desligar a flag pública, a flag server-side, upload real ou as allowlists;
+- usuário comum deve ser bloqueado antes de qualquer leitura do objeto temporário.
+
+Nenhum vídeo passa a ser salvo no banco e nenhum `objectKey` entra no snapshot.
