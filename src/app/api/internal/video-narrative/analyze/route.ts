@@ -17,7 +17,10 @@ import {
 import { isVideoNarrativeInternalEndpointEnabled } from "@/app/dashboard/boards/videoUpload/videoNarrativeInternalEndpointFeatureFlag";
 import { validateVideoNarrativeConsentRetentionForPhase } from "@/app/dashboard/boards/videoUpload/videoNarrativeConsentRetentionGuards";
 import { validateVideoNarrativeInputSourceForPhase } from "@/app/dashboard/boards/videoUpload/videoNarrativeInputSourceGuards";
-import { hasUsefulVideoNarrativeAnalysis } from "@/app/dashboard/boards/videoUpload/videoNarrativeAnalysisTypes";
+import {
+  hasUsefulVideoNarrativeAnalysis,
+  type VideoNarrativeAnalysis,
+} from "@/app/dashboard/boards/videoUpload/videoNarrativeAnalysisTypes";
 import { runVideoNarrativeMockProvider } from "@/app/dashboard/boards/videoUpload/videoNarrativeMockProvider";
 import {
   buildVideoNarrativeObservabilityEvent,
@@ -30,6 +33,7 @@ import {
   buildPostCreationVideoSeedFromAnalysis,
   getPostCreationVideoSeedPrimaryAction,
   hasUsefulPostCreationVideoSeed,
+  type PostCreationVideoSeed,
 } from "@/app/dashboard/boards/videoUpload/videoNarrativePostCreationSeed";
 import {
   buildBlockedVideoNarrativeSafeResponse,
@@ -39,6 +43,8 @@ import {
   type VideoNarrativeSafeIssue,
   type VideoNarrativeSafeResponse,
   type VideoNarrativeSafeResponseStatus,
+  type VideoNarrativeReadingSaveSummary,
+  type VideoNarrativeSynthesisSnapshotWriteSummary,
 } from "@/app/dashboard/boards/videoUpload/videoNarrativeSafeResponseBuilder";
 import * as usageQuotaGuards from "@/app/dashboard/boards/videoUpload/videoNarrativeUsageQuotaGuards";
 import { getServerSession } from "next-auth/next";
@@ -105,6 +111,119 @@ function compactEvents(
   events: Array<VideoNarrativeObservabilityEventPayload | null>,
 ): VideoNarrativeObservabilityEventPayload[] {
   return events.filter((event): event is VideoNarrativeObservabilityEventPayload => Boolean(event));
+}
+
+function shouldPersistReading(payload: unknown): boolean {
+  return isRecord(payload) && payload.persistReading === true;
+}
+
+function shouldPersistSynthesisSnapshot(payload: unknown): boolean {
+  return isRecord(payload) && payload.persistSynthesisSnapshot === true;
+}
+
+function userIdFromInternalUser(user: InternalPreviewUser): string | null {
+  const candidate = (user as InternalPreviewUser & { id?: unknown; _id?: unknown; userId?: unknown }).id ??
+    (user as InternalPreviewUser & { id?: unknown; _id?: unknown; userId?: unknown })._id ??
+    (user as InternalPreviewUser & { id?: unknown; _id?: unknown; userId?: unknown }).userId;
+  return typeof candidate === "string" && candidate.trim() ? candidate.trim() : null;
+}
+
+async function buildReadingSaveSummary(params: {
+  payload: unknown;
+  user: InternalPreviewUser;
+  diagnosisId: string;
+  creatorGoal: string | null;
+  selectedGoalOption: string | null;
+  analysis: VideoNarrativeAnalysis;
+  seed: PostCreationVideoSeed;
+}): Promise<VideoNarrativeReadingSaveSummary | null> {
+  if (!shouldPersistReading(params.payload)) return null;
+
+  const userId = userIdFromInternalUser(params.user);
+  if (!userId) {
+    return {
+      attempted: true,
+      ok: false,
+      diagnosisId: null,
+      errorCode: "missing_user_id",
+      message: "Não foi possível salvar a leitura documentada agora.",
+    };
+  }
+
+  const { saveMockVideoNarrativeReading } = await import(
+    "@/app/dashboard/boards/videoUpload/creatorVideoNarrativeDiagnosisMockSaveIntegration"
+  );
+  const result = await saveMockVideoNarrativeReading({
+    userId,
+    diagnosisId: params.diagnosisId,
+    creatorGoal: params.creatorGoal,
+    selectedGoalOption: params.selectedGoalOption,
+    analysis: params.analysis,
+    seed: params.seed,
+    createdAt: CREATED_AT,
+  });
+
+  if (result.ok) {
+    return {
+      attempted: true,
+      ok: true,
+      diagnosisId: result.diagnosisId,
+      errorCode: null,
+      message: null,
+    };
+  }
+
+  return {
+    attempted: true,
+    ok: false,
+    diagnosisId: null,
+    errorCode: result.errorCode,
+    message: result.message,
+  };
+}
+
+async function buildSynthesisSnapshotWriteSummary(params: {
+  payload: unknown;
+  user: InternalPreviewUser;
+  readingSaveSummary: VideoNarrativeReadingSaveSummary | null;
+}): Promise<VideoNarrativeSynthesisSnapshotWriteSummary | null> {
+  if (!shouldPersistSynthesisSnapshot(params.payload)) return null;
+
+  if (!shouldPersistReading(params.payload) || !params.readingSaveSummary?.ok || !params.readingSaveSummary.diagnosisId) {
+    return {
+      attempted: false,
+      written: false,
+      skippedReason: "saved_reading_not_found",
+    };
+  }
+
+  const userId = userIdFromInternalUser(params.user);
+  if (!userId) {
+    return {
+      attempted: true,
+      written: false,
+      skippedReason: "saved_reading_not_found",
+    };
+  }
+
+  try {
+    const { runControlledVideoReadingSynthesisSnapshotWrite } = await import(
+      "@/app/dashboard/boards/videoUpload/creatorVideoNarrativeMockSynthesisSnapshotWriteOrchestrator"
+    );
+    return await runControlledVideoReadingSynthesisSnapshotWrite({
+      userId,
+      savedDiagnosisId: params.readingSaveSummary.diagnosisId,
+      enableSnapshotWrite: true,
+      source: "mock_internal",
+      requestId: REQUEST_ID,
+    });
+  } catch {
+    return {
+      attempted: true,
+      written: false,
+      skippedReason: "unknown_synthesis_write_error",
+    };
+  }
 }
 
 function buildGuardSummary(results: VideoNarrativeGuardResult[]): VideoNarrativeGuardPipelineSummary {
@@ -622,6 +741,22 @@ export async function POST(request: Request): Promise<NextResponse<VideoNarrativ
       issuesCount: usageDecision.issues.length,
     }),
   ]);
+  const readingSaveSummary = await buildReadingSaveSummary({
+    payload,
+    user,
+    diagnosisId: analysis.id,
+    creatorGoal: payloadValidation.normalized.creatorQuestion,
+    selectedGoalOption: isRecord(payload) && typeof payload.selectedGoalOption === "string"
+      ? payload.selectedGoalOption
+      : null,
+    analysis,
+    seed,
+  });
+  const synthesisSnapshotWrite = await buildSynthesisSnapshotWriteSummary({
+    payload,
+    user,
+    readingSaveSummary,
+  });
 
   return buildSafeJsonResponse(
     redactVideoNarrativeSafeResponse(
@@ -636,6 +771,8 @@ export async function POST(request: Request): Promise<NextResponse<VideoNarrativ
         usageDecision,
         quotaGuard: usageQuotaGuard,
         observabilityEvents: events,
+        readingSaveSummary,
+        synthesisSnapshotWrite,
       }),
     ),
     200,

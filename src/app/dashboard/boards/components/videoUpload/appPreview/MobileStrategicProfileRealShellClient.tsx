@@ -6,20 +6,32 @@ import { buildMobileStrategicProfile, type MobileStrategicProfile } from "../../
 import { buildMobileStrategicProfileExistingDataAdapter } from "../../../videoUpload/mobileStrategicProfileExistingDataAdapter";
 import { buildMobileStrategicProfileFromSnapshot } from "../../../videoUpload/mobileStrategicProfileSnapshotMapping";
 import { MobileStrategicProfilePreview } from "./MobileStrategicProfilePreview";
+import { NarrativeMapMobileShell } from "./NarrativeMapMobileShell";
 import { fetchHomeSummaryCached } from "../../../../home/homeSummaryClient";
 import { requestUploadSession } from "./mobileStrategicProfileUploadSessionClient";
 import { uploadVideoToTemporarySignedUrl } from "./mobileStrategicProfileDirectUploadClient";
+import type { CreatorNarrativeMapReadingPresentation } from "../../../videoUpload/creatorNarrativeMapReadingChapters";
+import type { NarrativeMapMobileViewModel } from "../../../videoUpload/narrativeMapMobileViewModel";
+import type { VideoNarrativeSynthesisSnapshotWriteSummary } from "../../../videoUpload/videoNarrativeSafeResponseBuilder";
 
 interface MobileStrategicProfileRealShellClientProps {
   session: any;
   stateQuery: string | null;
   initialSnapshotPayload?: any; // MobileStrategicProfileSnapshotPayload
+  initialNarrativeMapViewModel?: NarrativeMapMobileViewModel | null;
+  initialNarrativeMapPresentation?: CreatorNarrativeMapReadingPresentation | null;
+  initialSynthesisSnapshotWrite?: VideoNarrativeSynthesisSnapshotWriteSummary | null;
+  internalSnapshotReview?: boolean;
 }
 
 export function MobileStrategicProfileRealShellClient({
   session,
   stateQuery,
   initialSnapshotPayload,
+  initialNarrativeMapViewModel,
+  initialNarrativeMapPresentation,
+  initialSynthesisSnapshotWrite,
+  internalSnapshotReview,
 }: MobileStrategicProfileRealShellClientProps) {
   const realAnalysisEnabled = process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED === "1";
 
@@ -238,15 +250,28 @@ export function MobileStrategicProfileRealShellClient({
           <span>Atualizando dados do Perfil...</span>
         </div>
       )}
-      <MobileStrategicProfilePreview
-        profile={profile}
-        isRealShell={true}
-        onSubmitAnalysis={handleAnalysisSubmit}
-        onCreateUploadSession={requestUploadSession}
-        onUploadToTemporarySignedUrl={uploadVideoToTemporarySignedUrl}
-        enableRealAnalysis={realAnalysisEnabled}
-        onCleanupTemporaryUpload={handleCleanupTemporaryUpload}
-      />
+      {initialNarrativeMapViewModel && initialNarrativeMapPresentation ? (
+        <main className="min-h-screen bg-zinc-100 px-4 py-6 text-zinc-950">
+          <div className="mx-auto grid max-w-5xl gap-5">
+            <NarrativeMapMobileShell
+              viewModel={initialNarrativeMapViewModel}
+              presentation={initialNarrativeMapPresentation}
+              snapshotReview={initialSynthesisSnapshotWrite}
+              internalReview={internalSnapshotReview}
+            />
+          </div>
+        </main>
+      ) : (
+        <MobileStrategicProfilePreview
+          profile={profile}
+          isRealShell={true}
+          onSubmitAnalysis={handleAnalysisSubmit}
+          onCreateUploadSession={requestUploadSession}
+          onUploadToTemporarySignedUrl={uploadVideoToTemporarySignedUrl}
+          enableRealAnalysis={realAnalysisEnabled}
+          onCleanupTemporaryUpload={handleCleanupTemporaryUpload}
+        />
+      )}
     </div>
   );
 }

@@ -6,6 +6,355 @@ O vídeo ainda não é enviado de verdade e ainda não é processado de verdade.
 
 Hoje, vídeo é apenas uma possível origem futura para preencher uma `NarrativeSource`.
 
+### MM74 — Video Reading Document Foundation
+
+Status: concluído.
+
+Arquivos principais:
+
+- `MM74_VIDEO_READING_DOCUMENT_FOUNDATION.md`
+- `creatorVideoNarrativeDiagnosisTypes.ts`
+- `creatorVideoNarrativeDiagnosisSanitizer.ts`
+- `creatorVideoNarrativeDiagnosisService.ts`
+- `creatorVideoNarrativeDiagnosisFixtures.ts`
+- `src/app/models/CreatorVideoNarrativeDiagnosis.ts`
+
+O que faz:
+
+- cria o contrato documental `CreatorVideoNarrativeDiagnosis` para persistir uma leitura estratégica por vídeo;
+- mantém `profileContribution` como ponte explícita entre leitura do vídeo e síntese futura do Perfil;
+- sanitiza/redige referências a signed URLs, storage URLs, object keys, tokens e base64 grande;
+- restringe `videoMetadata` a metadados seguros;
+- bloqueia raw model responses e transcrições longas antes da persistência.
+
+O que não faz:
+
+- não altera endpoint real ou endpoint mock;
+- não chama Gemini;
+- não salva vídeo, thumbnail, upload URL, signed URL, objectKey ou raw response;
+- não atualiza `CreatorStrategicProfileSnapshot`;
+- não cria agregador do Perfil nem UI final de Leituras/Oportunidades.
+
+### MM75 — Video Reading Mapper Foundation
+
+Status: concluído.
+
+Arquivos principais:
+
+- `MM75_VIDEO_READING_DOCUMENT_MAPPER_FOUNDATION.md`
+- `creatorVideoNarrativeDiagnosisMapper.ts`
+- `creatorVideoNarrativeDiagnosisMapperFixtures.ts`
+- `creatorVideoNarrativeDiagnosisMapper.test.ts`
+
+O que faz:
+
+- cria um mapper puro de camadas estruturadas para `CreatorVideoNarrativeDiagnosisInput`;
+- consome diagnóstico estratégico, diagnóstico evolutivo, presentation model, seed e metadados seguros;
+- passa o resultado pelo sanitizer do MM74 antes de devolver o contrato persistível;
+- classifica `profileContribution` de forma determinística e conservadora;
+- mantém oportunidades comerciais como territórios futuros, sem match real ou promessa de publi.
+
+O que não faz:
+
+- não lê raw Gemini response;
+- não chama Gemini;
+- não importa Mongoose, SDK de storage ou código client-side;
+- não persiste nada sozinho;
+- não altera endpoint real ou endpoint mock;
+- não atualiza `CreatorStrategicProfileSnapshot`;
+- não cria agregador do Perfil nem UI.
+
+### MM76 — Video Reading Save Orchestrator Foundation
+
+Status: concluído.
+
+Arquivos principais:
+
+- `MM76_VIDEO_READING_SAVE_ORCHESTRATOR_FOUNDATION.md`
+- `creatorVideoNarrativeDiagnosisSaveOrchestrator.ts`
+- `creatorVideoNarrativeDiagnosisSaveOrchestratorFixtures.ts`
+- `creatorVideoNarrativeDiagnosisSaveOrchestrator.test.ts`
+
+O que faz:
+
+- cria um orquestrador server-side e injetável para salvar leitura documentada por vídeo;
+- usa mapper MM75 + sanitizer/service MM74;
+- retorna apenas `diagnosisId`, `documentId` seguro e resumo de `profileContribution`;
+- converte falhas de mapper/service em mensagens seguras sem stack trace ou payload sensível.
+
+O que não faz:
+
+- não pluga endpoint real ou endpoint mock;
+- não chama Gemini ou storage;
+- não cria upload session nem cleanup;
+- não atualiza `CreatorStrategicProfileSnapshot` nem Perfil geral;
+- não altera UI, MediaKit, Comunidade, billing, Stripe, NextAuth, shells ou sidebar.
+
+### MM77 — Narrative Map Reading Chapters Contract
+
+Status: concluído.
+
+Arquivos principais:
+
+- `MM77_NARRATIVE_MAP_READING_CHAPTERS_CONTRACT.md`
+- `creatorNarrativeMapReadingChapters.ts`
+- `creatorNarrativeMapReadingChaptersFixtures.ts`
+- `creatorNarrativeMapReadingChapters.test.ts`
+
+O que faz:
+
+- cria um contrato editorial puro para transformar `CreatorVideoNarrativeDiagnosis` em capítulos de leitura;
+- prepara cards curtos e leituras completas para modais/bottom sheets futuros;
+- traduz `profileContribution` em impacto humano no Perfil;
+- limita previews, full readings, evidências e ações;
+- mantém oportunidades como territórios/fit narrativo em formação.
+
+O que não faz:
+
+- não cria UI;
+- não altera endpoint real ou endpoint mock;
+- não chama Gemini ou storage;
+- não persiste documentos novos;
+- não atualiza `CreatorStrategicProfileSnapshot` nem Perfil geral;
+- não cria agregador do Perfil nem matches reais.
+
+### MM78 — Narrative Map Reading Chapters Preview Harness
+
+Status: concluído.
+
+Arquivos principais:
+
+- `MM78_NARRATIVE_MAP_READING_CHAPTERS_PREVIEW_HARNESS.md`
+- `../components/videoUpload/appPreview/NarrativeMapReadingPreview.tsx`
+- `../components/videoUpload/appPreview/NarrativeMapReadingChapterCard.tsx`
+- `../components/videoUpload/appPreview/NarrativeMapReadingChapterModal.tsx`
+- `../components/videoUpload/appPreview/NarrativeMapReadingFullDiagnosisModal.tsx`
+- `../components/videoUpload/appPreview/buildNarrativeMapReadingPreviewFixture.ts`
+- `../components/videoUpload/appPreview/NarrativeMapReadingPreview.test.tsx`
+
+O que faz:
+
+- cria um preview interno para validar capítulos do mapa narrativo;
+- renderiza cards curtos e modais/bottom sheet com leitura profunda;
+- adiciona estados mockados para capítulos, primeira leitura, Instagram conectado e oportunidades;
+- expõe o harness apenas dentro da rota interna de preview já protegida.
+
+O que não faz:
+
+- não cria UI real do Perfil Estratégico;
+- não altera endpoint real ou endpoint mock;
+- não chama Gemini ou storage;
+- não salva documento;
+- não atualiza `CreatorStrategicProfileSnapshot` nem Perfil geral;
+- não altera upload, cleanup, MediaKit, Comunidade, billing, Stripe, NextAuth, shells, sidebar ou navegação real.
+
+### MM79 — Narrative Map Reading Preview QA Polish
+
+Status: concluído.
+
+Arquivo principal:
+
+- `MM79_NARRATIVE_MAP_READING_PREVIEW_QA_POLISH.md`
+
+O que faz:
+
+- melhora espaçamento, hierarquia e microcopy do preview interno MM78;
+- reforça a fórmula card curto, leitura profunda sob demanda e diagnóstico completo opcional;
+- adiciona regressões de UX para topo compacto, CTAs, cards, modal e termos proibidos.
+
+O que não faz:
+
+- não altera UI real do Perfil Estratégico;
+- não altera endpoint real ou endpoint mock;
+- não chama Gemini ou storage;
+- não salva documento;
+- não atualiza `CreatorStrategicProfileSnapshot` nem Perfil geral.
+
+### MM80 — Narrative Map Reading Preview Adapter Contract
+
+Status: concluído.
+
+Arquivos principais:
+
+- `MM80_NARRATIVE_MAP_READING_PREVIEW_ADAPTER_CONTRACT.md`
+- `narrativeMapMobileViewModel.ts`
+- `narrativeMapMobileViewModelFixtures.ts`
+- `narrativeMapMobileViewModel.test.ts`
+
+O que faz:
+
+- cria um view model puro para a futura experiência `Perfil | Leituras | Oportunidades`;
+- organiza capítulos, leituras recentes, métricas, CTAs e oportunidades;
+- mantém Instagram como camada de precisão, sem criar aba própria;
+- mantém oportunidades como territórios e fit narrativo em formação;
+- permite que o preview interno consuma o view model sem virar UI real.
+
+O que não faz:
+
+- não altera endpoint real ou endpoint mock;
+- não busca banco nem salva documento;
+- não chama Gemini ou storage;
+- não atualiza `CreatorStrategicProfileSnapshot` nem Perfil geral;
+- não altera UI real, MediaKit, Comunidade, billing, Stripe, NextAuth, shells, sidebar ou navegação real.
+
+### MM81 — Mock Reading Loop + Retrieval + Preview Wiring
+
+Status: concluído.
+
+Arquivos principais:
+
+- `MM81_MOCK_READING_LOOP_RETRIEVAL_PREVIEW_WIRING.md`
+- `creatorVideoNarrativeDiagnosisReadService.ts`
+- `narrativeMapMobileViewModelServerSelector.ts`
+- `creatorVideoNarrativeDiagnosisMockSaveIntegration.ts`
+- `../components/videoUpload/appPreview/NarrativeMapReadingPreview.tsx`
+- `../components/videoUpload/appPreview/buildNarrativeMapReadingPreviewFixture.ts`
+
+O que faz:
+
+- fecha o primeiro ciclo mock seguro de leitura documentada por vídeo;
+- permite salvar leitura no fluxo mock interno quando `persistReading: true`;
+- cria retrieval server-side user-scoped com shape seguro para UI;
+- cria selector server-side para escolher leitura atual/recentes e montar o view model MM80;
+- atualiza o preview interno para renderizar `Perfil | Leituras | Oportunidades` com leituras recentes e oportunidades em formação.
+
+O que não faz:
+
+- não pluga endpoint real;
+- não chama Gemini ou storage;
+- não salva mídia persistida, thumbnail, objectKey, signed URL, upload URL ou path local;
+- não atualiza `CreatorStrategicProfileSnapshot` nem Perfil geral;
+- não cria agregador do Perfil;
+- não promete match real, marca real, creator real ou publi garantida;
+- não altera UI real, MediaKit, Comunidade, billing, Stripe, NextAuth, shells, sidebar ou navegação real.
+
+### MM82 — Profile Synthesis V1 Dry-Run + Preview
+
+Status: concluído.
+
+Arquivos principais:
+
+- `MM82_PROFILE_SYNTHESIS_DRY_RUN_PREVIEW.md`
+- `creatorStrategicProfileSynthesis.ts`
+- `creatorStrategicProfileSynthesisFixtures.ts`
+- `creatorStrategicProfileSynthesis.test.ts`
+- `narrativeMapMobileViewModelServerSelector.ts`
+- `narrativeMapMobileViewModel.ts`
+- `../components/videoUpload/appPreview/buildNarrativeMapReadingPreviewFixture.ts`
+- `../components/videoUpload/appPreview/NarrativeMapReadingPreview.tsx`
+
+O que faz:
+
+- cria a primeira síntese acumulada dry-run do Perfil Estratégico;
+- consome leituras documentadas seguras;
+- impede que uma única leitura sobrescreva a narrativa principal do Perfil;
+- enriquece o view model interno com síntese para `Perfil | Leituras | Oportunidades`;
+- atualiza o preview interno para mostrar Perfil como síntese acumulada, não como última leitura isolada.
+
+O que não faz:
+
+- não atualiza `CreatorStrategicProfileSnapshot`;
+- não persiste snapshot geral;
+- não pluga endpoint real;
+- não chama Gemini ou storage;
+- não altera UI real, MediaKit, Comunidade, billing, Stripe, NextAuth, shells, sidebar ou navegação real;
+- não promete match real, marca real, creator real ou publi garantida.
+
+### MM83 — Profile Synthesis Snapshot Guarded Persistence
+
+Status: concluído.
+
+Arquivos principais:
+
+- `MM83_PROFILE_SYNTHESIS_SNAPSHOT_GUARDED_PERSISTENCE.md`
+- `creatorStrategicProfileSynthesisSnapshotMapper.ts`
+- `creatorStrategicProfileSynthesisSnapshotMapper.test.ts`
+- `creatorStrategicProfileSynthesisPersistenceService.ts`
+- `creatorStrategicProfileSynthesisPersistenceService.test.ts`
+- `creatorStrategicProfileSynthesis.ts`
+- `mobileStrategicProfileSnapshotTypes.ts`
+- `../../../models/CreatorStrategicProfileSnapshot.ts`
+
+O que faz:
+
+- cria o mapper seguro da síntese acumulada para o payload atual do snapshot;
+- cria o service explícito `persistCreatorStrategicProfileSynthesis`;
+- mantém `dry_run` como padrão e escreve somente com `mode: "write"`;
+- adiciona `video_reading_synthesis_v1` como origem auditável do snapshot;
+- bloqueia escrita com síntese vazia;
+- impede que primeira leitura ou vídeo isolado apaguem padrão existente sem evidência acumulada.
+
+O que não faz:
+
+- não pluga endpoint real;
+- não chama Gemini ou storage;
+- não altera upload/cleanup;
+- não altera UI real, MediaKit, Comunidade, billing, Stripe, NextAuth, shells, sidebar ou navegação real;
+- não salva vídeo, thumbnail, signed URL, objectKey, raw response ou transcrição longa;
+- não integra automaticamente o selector ou preview ao write path.
+
+### MM84 — Controlled Mock/Allowlist Synthesis Snapshot Write
+
+Status: concluído.
+
+Arquivos principais:
+
+- `MM84_CONTROLLED_MOCK_SYNTHESIS_SNAPSHOT_WRITE.md`
+- `creatorVideoNarrativeMockSynthesisSnapshotWriteOrchestrator.ts`
+- `creatorVideoNarrativeMockSynthesisSnapshotWriteOrchestrator.test.ts`
+- `videoNarrativeSafeResponseBuilder.ts`
+- `../../../api/internal/video-narrative/analyze/route.ts`
+- `../../../api/internal/video-narrative/analyze/route.test.ts`
+
+O que faz:
+
+- conecta o write path do MM83 ao fluxo mock/internal;
+- exige `persistReading: true` e `persistSynthesisSnapshot: true`;
+- salva a leitura, consulta leituras recentes, gera síntese acumulada e escreve o snapshot com `mode: "write"`;
+- retorna apenas auditoria segura em `synthesisSnapshotWrite`;
+- preserva a resposta mock quando a síntese ou a escrita falham.
+
+O que não faz:
+
+- não pluga endpoint real público;
+- não chama Gemini ou storage;
+- não altera upload/cleanup;
+- não altera UI real, MediaKit, Comunidade, billing, Stripe, NextAuth, shells, sidebar ou navegação real;
+- não cria matches reais;
+- não ativa escrita por padrão para usuários comuns fora da rota interna allowlist/admin-dev.
+
+### MM85 — Real Mobile Narrative Map Shell + Snapshot Review Panel
+
+Status: concluído.
+
+Arquivos principais:
+
+- `MM85_REAL_MOBILE_NARRATIVE_MAP_SHELL_SNAPSHOT_REVIEW.md`
+- `../components/videoUpload/appPreview/NarrativeMapMobileShell.tsx`
+- `../components/videoUpload/appPreview/NarrativeMapMobileShell.test.tsx`
+- `../components/videoUpload/appPreview/NarrativeMapSnapshotReviewPanel.tsx`
+- `../components/videoUpload/appPreview/NarrativeMapReadingPreview.tsx`
+- `../components/videoUpload/appPreview/MobileStrategicProfileRealShellClient.tsx`
+- `../mobile-strategic-profile/page.tsx`
+
+O que faz:
+
+- leva o shell mobile real para `Perfil | Leituras | Oportunidades`;
+- usa `NarrativeMapMobileViewModel` e o selector server-side seguro;
+- mostra Perfil como síntese acumulada;
+- mostra Leituras como evidências por vídeo;
+- mostra Oportunidades como territórios e fit narrativo em formação;
+- adiciona painel interno de snapshot review com auditoria segura.
+
+O que não faz:
+
+- não pluga endpoint real público;
+- não chama Gemini ou storage;
+- não altera upload/cleanup;
+- não altera `MediaKitView`, Comunidade, billing, Stripe, NextAuth, DashboardShell, BoardShell ou sidebar;
+- não cria marcas reais, creators reais ou matches reais;
+- não salva vídeo, thumbnail, signed URL, objectKey, raw response ou transcrição longa.
+
 ### MM1 — Arquitetura narrativa multimodal-first
 
 Status: concluído.

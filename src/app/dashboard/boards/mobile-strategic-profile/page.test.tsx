@@ -5,6 +5,7 @@ import { isMobileStrategicProfileEnabled } from "../videoUpload/mobileStrategicP
 import { getServerSession } from "next-auth";
 import { redirect, notFound } from "next/navigation";
 import { getStrategicProfileSnapshotByUserId } from "../videoUpload/mobileStrategicProfileSnapshotService";
+import { buildNarrativeMapMobileViewModelFromReadings } from "../videoUpload/narrativeMapMobileViewModelServerSelector";
 
 // Mock das dependências externas
 jest.mock("next-auth", () => ({
@@ -32,16 +33,21 @@ jest.mock("../videoUpload/mobileStrategicProfileSnapshotService", () => ({
   getStrategicProfileSnapshotByUserId: jest.fn(),
 }));
 
+jest.mock("../videoUpload/narrativeMapMobileViewModelServerSelector", () => ({
+  buildNarrativeMapMobileViewModelFromReadings: jest.fn(),
+}));
+
 // Mock do componente MobileStrategicProfileRealShellClient
 jest.mock(
   "../components/videoUpload/appPreview/MobileStrategicProfileRealShellClient",
   () => {
     return {
-      MobileStrategicProfileRealShellClient: ({ session, stateQuery, initialSnapshotPayload }: any) => (
+      MobileStrategicProfileRealShellClient: ({ session, stateQuery, initialSnapshotPayload, initialNarrativeMapViewModel }: any) => (
         <div
           data-testid="real-profile-client-wrapper"
           data-statequery={stateQuery || ""}
           data-hassnapshot={initialSnapshotPayload ? "true" : "false"}
+          data-hasnarrativemap={initialNarrativeMapViewModel ? "true" : "false"}
         >
           <h1>{session?.user?.name || "Anonymous"}</h1>
           <p>{session?.user?.instagramUsername || ""}</p>
@@ -55,6 +61,10 @@ describe("MobileStrategicProfilePage Rota Real", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (getStrategicProfileSnapshotByUserId as jest.Mock).mockResolvedValue(null);
+    (buildNarrativeMapMobileViewModelFromReadings as jest.Mock).mockResolvedValue({
+      viewModel: { id: "narrative-map-test" },
+      currentPresentation: { id: "presentation-test" },
+    });
   });
 
   it("bloqueia o acesso e chama notFound se a feature flag estiver desligada", async () => {
@@ -144,5 +154,30 @@ describe("MobileStrategicProfilePage Rota Real", () => {
 
     const wrapper = screen.getByTestId("real-profile-client-wrapper");
     expect(wrapper).toHaveAttribute("data-hassnapshot", "true");
+  });
+
+  it("MM85 monta e repassa o NarrativeMapMobileViewModel seguro para o shell real", async () => {
+    (isMobileStrategicProfileEnabled as jest.Mock).mockReturnValue(true);
+    (getServerSession as jest.Mock).mockResolvedValue({
+      user: {
+        id: "665f0f2c8a0b7d1f2c3a4b5c",
+        name: "Arthur Teste",
+        instagramConnected: true,
+        instagramUsername: "arthur.test",
+        planStatus: "active",
+      },
+    });
+
+    const jsx = await MobileStrategicProfilePage({});
+    render(jsx);
+
+    expect(buildNarrativeMapMobileViewModelFromReadings).toHaveBeenCalledWith(expect.objectContaining({
+      userId: "665f0f2c8a0b7d1f2c3a4b5c",
+      displayName: "Arthur Teste",
+      displayHandle: "@arthur.test",
+      accessLevel: "premium",
+      instagramConnected: true,
+    }));
+    expect(screen.getByTestId("real-profile-client-wrapper")).toHaveAttribute("data-hasnarrativemap", "true");
   });
 });

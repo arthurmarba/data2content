@@ -60,6 +60,21 @@ describe("MobileStrategicProfilePreviewPage", () => {
     expect(screen.getByRole("button", { name: "Copiar link" })).toBeInTheDocument();
   });
 
+  it("state query can render narrative map reading preview harness", async () => {
+    process.env.NEXT_PUBLIC_MOBILE_STRATEGIC_PROFILE_PREVIEW_ENABLED = "1";
+
+    render(
+      await MobileStrategicProfilePreviewPage({
+        viewer: adminViewer,
+        searchParams: { state: "narrative_map_chapters" },
+      }),
+    );
+
+    expect(screen.getByText("Preview interno — Mapa narrativo")).toBeInTheDocument();
+    expect(screen.getByText("Seu mapa narrativo")).toBeInTheDocument();
+    expect(screen.getByText("Ler diagnóstico completo")).toBeInTheDocument();
+  });
+
   it("does not import forbidden integrations or real UI surfaces", () => {
     const source = fs.readFileSync(path.join(__dirname, "page.tsx"), "utf8");
     const importLines = source

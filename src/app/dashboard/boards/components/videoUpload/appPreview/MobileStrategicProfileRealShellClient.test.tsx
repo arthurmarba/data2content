@@ -4,6 +4,7 @@ import { MobileStrategicProfileRealShellClient } from "./MobileStrategicProfileR
 import { fetchHomeSummaryCached } from "../../../../home/homeSummaryClient";
 import { requestUploadSession } from "./mobileStrategicProfileUploadSessionClient";
 import { uploadVideoToTemporarySignedUrl } from "./mobileStrategicProfileDirectUploadClient";
+import { buildNarrativeMapReadingPreviewFixture } from "./buildNarrativeMapReadingPreviewFixture";
 
 // Mock das dependências
 jest.mock("../../../../home/homeSummaryClient", () => ({
@@ -554,5 +555,62 @@ describe("MobileStrategicProfileRealShellClient", () => {
     expect(screen.getByTestId("profile-display-name").textContent).toBe("Arthur Teste");
 
     globalFetchSpy.mockRestore();
+  });
+
+  it("MM85 - renderiza shell real Perfil | Leituras | Oportunidades quando view model narrativo vem do servidor", async () => {
+    (fetchHomeSummaryCached as jest.Mock).mockResolvedValue(null);
+    const fixture = buildNarrativeMapReadingPreviewFixture({ state: "narrative_map_three_related_readings" });
+
+    render(
+      <MobileStrategicProfileRealShellClient
+        session={mockSession}
+        stateQuery={null}
+        initialNarrativeMapViewModel={fixture.viewModel}
+        initialNarrativeMapPresentation={fixture.presentation}
+      />
+    );
+
+    expect(screen.getByRole("tab", { name: "Perfil" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Leituras" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Oportunidades" })).toBeInTheDocument();
+    expect(screen.getByText("Seu mapa narrativo")).toBeInTheDocument();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+  });
+
+  it("MM85 - painel de snapshot review so aparece quando liberado como interno", async () => {
+    (fetchHomeSummaryCached as jest.Mock).mockResolvedValue(null);
+    const fixture = buildNarrativeMapReadingPreviewFixture({ state: "narrative_map_three_related_readings" });
+
+    const { rerender } = render(
+      <MobileStrategicProfileRealShellClient
+        session={mockSession}
+        stateQuery={null}
+        initialNarrativeMapViewModel={fixture.viewModel}
+        initialNarrativeMapPresentation={fixture.presentation}
+        initialSynthesisSnapshotWrite={fixture.synthesisSnapshotWrite}
+      />
+    );
+
+    expect(screen.queryByLabelText("Snapshot write review")).not.toBeInTheDocument();
+
+    rerender(
+      <MobileStrategicProfileRealShellClient
+        session={mockSession}
+        stateQuery={null}
+        initialNarrativeMapViewModel={fixture.viewModel}
+        initialNarrativeMapPresentation={fixture.presentation}
+        initialSynthesisSnapshotWrite={fixture.synthesisSnapshotWrite}
+        internalSnapshotReview
+      />
+    );
+
+    expect(screen.getByLabelText("Snapshot write review")).toBeInTheDocument();
+
+    await act(async () => {
+      await Promise.resolve();
+    });
   });
 });
