@@ -274,8 +274,9 @@ Exemplos:
 64. MM65 — Gemini Provider Readiness + Response Adapter. Prompt real preparado, validation forte em runtime contra API key leakage.
 65. MM66 — Real Video Analysis Allowlist E2E. Rota `analyze-real` executa e-2-e da chamada multimodal isolada, sem afetar o mock.
 66. MM67 — Real Runtime Env + Gemini/Storage Smoke Harness. Validação env real local, resolver de falha segura p/ falta de SDK S3, smoke interno para devs.
-67. Teste real manual quando houver quota/billing disponível.
-68. Integração experimental futura no Board de Criação.
+67. MM68 — Storage Runtime Adapter for Gemini Input. Ponte segura entre o vídeo efêmero em S3 e a IA; mantém snapshot como única memória durável.
+68. Teste real manual quando houver quota/billing disponível.
+69. Integração experimental futura no Board de Criação.
 
 ## Critérios Antes De Provider Real
 

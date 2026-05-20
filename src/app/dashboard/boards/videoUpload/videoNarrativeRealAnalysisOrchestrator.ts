@@ -16,6 +16,7 @@ import { runVideoNarrativeGeminiProvider, type VideoNarrativeGeminiClientAdapter
 import { mapGeminiAnalysisToStrategicProfileSnapshot } from "./videoNarrativeGeminiSnapshotMapper";
 import type { VideoNarrativeRealAnalysisPayload } from "./videoNarrativeRealAnalysisTypes";
 import { resolveVideoNarrativeTemporaryStorageObject } from "./videoNarrativeTemporaryStorageRuntimeResolver";
+import { resolveVideoNarrativeTemporaryStorageInput } from "./videoNarrativeTemporaryStorageRuntimeAdapter";
 
 type EnvLike = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
@@ -138,6 +139,24 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     });
   }
 
+  const storageInputResult = await resolveVideoNarrativeTemporaryStorageInput({
+    input: {
+      uploadSessionId: params.payload.uploadSessionId,
+      objectKey: params.payload.temporaryUpload?.objectKey ?? "",
+      mimeType: params.payload.temporaryUpload?.mimeType ?? "video/mp4",
+      sizeBytes: params.payload.temporaryUpload?.sizeBytes ?? 0,
+    },
+    env,
+  });
+
+  if (!storageInputResult.ok) {
+    return safeFailure({
+      status: "failed",
+      message: storageInputResult.safeMessage,
+      safeIssueCode: storageInputResult.status,
+    });
+  }
+
   const runProvider = deps.runProvider ?? runVideoNarrativeGeminiProvider;
   const providerResult = await runProvider({
     input: {
@@ -163,6 +182,7 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     env,
     config: configResult.config,
     client: deps.geminiClient ?? null,
+    videoInput: storageInputResult.geminiInput,
   });
 
   if (!providerResult.ok || !providerResult.analysis) {

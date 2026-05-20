@@ -96,6 +96,26 @@ describe("videoNarrativeRealRuntimeEnvAudit", () => {
     );
   });
 
+  it("Retorna storage credentials missing", () => {
+    const env = {
+      GEMINI_API_KEY: "secret",
+      VIDEO_NARRATIVE_GEMINI_FLASH_ENABLED: "true",
+      VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED: "true",
+      VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED: "true",
+      VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED: "true",
+      VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "true",
+      VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS: "test@example.com",
+      VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "cloudflare_r2",
+      // Faltam as keys
+    };
+    const result = performVideoNarrativeRealRuntimeEnvAudit(env);
+    expect(result.ok).toBe(false);
+    expect(result.flags.storageCredentialsPresent).toBe(false);
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ code: "storage_credentials_missing" })
+    );
+  });
+
   it("Retorna ready quando env fake está completa", () => {
     const env = {
       GEMINI_API_KEY: "fake-secret-key-123",
@@ -106,11 +126,15 @@ describe("videoNarrativeRealRuntimeEnvAudit", () => {
       VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "true",
       VIDEO_NARRATIVE_GEMINI_ALLOWED_EMAILS: "test@example.com",
       VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "cloudflare_r2",
+      VIDEO_NARRATIVE_TEMP_STORAGE_BUCKET: "fake-bucket",
+      VIDEO_NARRATIVE_TEMP_STORAGE_ACCESS_KEY_ID: "fake-key",
+      VIDEO_NARRATIVE_TEMP_STORAGE_SECRET_ACCESS_KEY: "fake-secret",
     };
     const result = performVideoNarrativeRealRuntimeEnvAudit(env);
     expect(result.ok).toBe(true);
-    expect(result.issues).toHaveLength(1);
-    expect(result.issues[0].code).toBe("env_ready_for_smoke");
+    expect(result.issues).toHaveLength(2);
+    expect(result.issues).toContainEqual(expect.objectContaining({ code: "env_ready_for_smoke" }));
+    expect(result.issues).toContainEqual(expect.objectContaining({ code: "storage_runtime_resolver_ready" }));
   });
 
   it("Não retorna nenhum secret", () => {

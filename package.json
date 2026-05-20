@@ -61,6 +61,7 @@
     "compliance:whatsapp": "node scripts/compliance-whatsapp.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1050.0",
     "@google/genai": "^2.3.0",
     "@headlessui/react": "^2.2.2",
     "@heroicons/react": "^2.2.0",

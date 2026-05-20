@@ -1,9 +1,14 @@
 import { runVideoNarrativeRealAnalysisOrchestrator } from "./videoNarrativeRealAnalysisOrchestrator";
 import { geminiVideoNarrativeResponseFixture } from "./__fixtures__/geminiVideoNarrativeResponse.fixture";
 import { resolveVideoNarrativeTemporaryStorageObject } from "./videoNarrativeTemporaryStorageRuntimeResolver";
+import { resolveVideoNarrativeTemporaryStorageInput } from "./videoNarrativeTemporaryStorageRuntimeAdapter";
 
 jest.mock("./videoNarrativeTemporaryStorageRuntimeResolver", () => ({
   resolveVideoNarrativeTemporaryStorageObject: jest.fn(),
+}));
+
+jest.mock("./videoNarrativeTemporaryStorageRuntimeAdapter", () => ({
+  resolveVideoNarrativeTemporaryStorageInput: jest.fn(),
 }));
 
 const env = {
@@ -42,6 +47,20 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
       status: "ready",
       safeMessage: "",
       issues: [],
+    });
+    (resolveVideoNarrativeTemporaryStorageInput as jest.Mock).mockResolvedValue({
+      ok: true,
+      status: "ready",
+      geminiInput: {
+        mimeType: "video/mp4",
+        bytes: new Uint8Array([1, 2, 3]),
+        source: "temporary_storage",
+      },
+      safeDebugSummary: {
+        mimeType: "video/mp4",
+        sizeBytes: 1024,
+        provider: "cloudflare_r2",
+      },
     });
   });
 

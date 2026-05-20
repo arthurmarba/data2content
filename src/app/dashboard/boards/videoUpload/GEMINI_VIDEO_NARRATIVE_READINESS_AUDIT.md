@@ -271,6 +271,14 @@ MM67 solidifica a prontidão real (readiness) com ferramentas de validação iso
 - **Smoke Harness Isolado**: novo endpoint `/api/internal/video-narrative/gemini-smoke` protegido para devs, testando configuração da API real do Gemini de ponta a ponta sem salvar snapshot.
 - **Runtime Resolver**: garante que a análise real caia em bloqueio seguro (`missing_storage_adapter`) se o SDK de storage temporário não estiver implementado.
 
+## MM68 — Storage Runtime Adapter for Gemini Input
+
+MM68 implementa o acesso ao arquivo físico para consumo da IA:
+- **Provider Ready**: O bloqueio `storage_runtime_adapter_missing` agora avança para `ready` se provider (S3/R2) e chaves estiverem configurados.
+- **Buffer Flow**: Os bytes do vídeo são repassados ao Google GenAI em tempo de execução server-side. Nenhuma URL assinada é gerada, lida pelo client ou adicionada no payload de snapshot.
+- **Isolamento Constante**: Continua focado exclusivamente em allowlist, não afetando usuários comuns.
+- **Exclusão Transparente**: Uma vez processado, o vídeo efêmero é limpo do bucket via adapter da AWS SDK durante a request `upload-cleanup`.
+
 ## Frase Norte
 
 > O sistema pode estar pronto para testar Gemini real sem ainda estar pronto para lançar vídeo no produto.
