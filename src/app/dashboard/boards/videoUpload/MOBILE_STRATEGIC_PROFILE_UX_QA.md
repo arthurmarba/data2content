@@ -21,6 +21,8 @@ Documentos relacionados:
 
 - `MOBILE_STRATEGIC_PROFILE_NAVIGATION_STRATEGY.md`
 - `MOBILE_STRATEGIC_PROFILE_ACTIVATION_WIDGET_STRATEGY.md`
+- `VIDEO_NARRATIVE_BETA_OPERATOR_RUNBOOK.md`
+- `VIDEO_NARRATIVE_BETA_SMOKE_TEST_PLAN.md`
 
 ## Setup da preview
 
@@ -218,6 +220,16 @@ Validar que a experiência não renderiza:
 - thumbnail real;
 - diagnóstico interno no Mídia Kit;
 - dados privados de Instagram real.
+
+## Critérios MM72 para beta fechado
+
+- [ ] Usuário comum fora da allowlist recebe bloqueio humano antes de storage/Gemini.
+- [ ] Usuário allowlist entende consentimento e consegue enviar vídeo pequeno.
+- [ ] Falha de storage preserva o Perfil antigo.
+- [ ] Falha de Gemini preserva o Perfil antigo.
+- [ ] Limite atingido bloqueia antes de storage/Gemini.
+- [ ] Rollback desliga o fluxo real sem quebrar o endpoint mock.
+- [ ] Feedback do creator é coletado pelo template não técnico.
 
 ## Cenário MM61 — Upload Metadata Dry-Run
 

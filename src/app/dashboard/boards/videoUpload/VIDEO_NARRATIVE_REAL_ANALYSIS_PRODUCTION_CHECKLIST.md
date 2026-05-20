@@ -16,6 +16,13 @@ Este checklist prepara o beta fechado da análise narrativa real de vídeo. Ele 
 - Checklist dedicado de beta fechado criado em `VIDEO_NARRATIVE_CLOSED_BETA_LAUNCH_CHECKLIST.md`.
 - Rollback, smoke Preview/Production, allowlist e QA manual mobile documentados.
 
+## Status MM72
+
+- Operação prática do beta fechado consolidada em `VIDEO_NARRATIVE_BETA_OPERATOR_RUNBOOK.md`.
+- Smoke test manual Preview/Production consolidado em `VIDEO_NARRATIVE_BETA_SMOKE_TEST_PLAN.md`.
+- Feedback não técnico para creators consolidado em `VIDEO_NARRATIVE_BETA_FEEDBACK_TEMPLATE.md`.
+- Critérios objetivos de aprovação/reprovação, rollback, custos, cleanup e Vercel envs documentados.
+
 ## Envs obrigatórias em Vercel
 
 - `GEMINI_API_KEY`
@@ -139,3 +146,5 @@ Depois do rollback, validar que `/api/dashboard/mobile-strategic-profile/analyze
 8. Confirmar cleanup.
 9. Testar usuário comum bloqueado.
 10. Testar rollback desligando a flag pública e confirmando fallback mock.
+
+Para MM72, use o roteiro completo de cenários em `VIDEO_NARRATIVE_BETA_SMOKE_TEST_PLAN.md` antes de convidar qualquer creator.

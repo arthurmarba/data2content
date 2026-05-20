@@ -2,6 +2,16 @@
 
 Checklist final para liberar a análise narrativa real de vídeo para 3 a 5 creators reais em beta fechado. O público geral permanece bloqueado.
 
+## Status MM72
+
+MM72 transforma o launch candidate em operação de beta fechado:
+
+- runbook operacional: `VIDEO_NARRATIVE_BETA_OPERATOR_RUNBOOK.md`;
+- smoke test Preview/Production: `VIDEO_NARRATIVE_BETA_SMOKE_TEST_PLAN.md`;
+- template de feedback para creators: `VIDEO_NARRATIVE_BETA_FEEDBACK_TEMPLATE.md`;
+- critérios objetivos de aprovação/reprovação;
+- checklist Vercel/env e rollback rápido consolidados.
+
 ## 1. Envs obrigatórias
 
 - `GEMINI_API_KEY`
@@ -89,3 +99,36 @@ Use uma das opções abaixo e valide que o endpoint mock continua funcionando:
 - Smoke Preview/Production documentado.
 - Guardrails anti-vazamento confirmados.
 - Endpoint mock preservado como fallback.
+
+## 9. Critérios de aprovação do beta
+
+Beta passa se:
+
+- 3 creators completam o fluxo;
+- pelo menos 2 acham o diagnóstico útil;
+- nenhum creator comum acessa fluxo real;
+- nenhum vídeo fica persistido indevidamente;
+- cleanup funciona ou warning é seguro;
+- custo por análise fica dentro do esperado;
+- Perfil antigo fica preservado em erro.
+
+Beta reprova se:
+
+- usuário comum acessa real analysis;
+- secret aparece em log;
+- vídeo fica salvo indevidamente;
+- snapshot contém `objectKey`, `signedUrl` ou raw response;
+- diagnóstico quebra com frequência;
+- erro técnico aparece para usuário;
+- custo fica imprevisível.
+
+## 10. Checklist operacional antes do convite
+
+- [ ] Runbook MM72 lido.
+- [ ] Vercel envs obrigatórias conferidas sem imprimir valores.
+- [ ] Allowlist Gemini e signed upload com os mesmos creators.
+- [ ] Smoke test MM72 executado no ambiente alvo.
+- [ ] Feedback template pronto para envio.
+- [ ] Rollback rápido testado.
+- [ ] Bucket temporário privado.
+- [ ] Sem `.env.local`, secrets, vídeos ou raw responses versionados.

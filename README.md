@@ -120,6 +120,17 @@ GET /api/v1/users/123/videos/list?timePeriod=last_90_days&sortBy=views&sortOrder
 
 Responses include computed `retentionRate` and `averageVideoWatchTimeSeconds` along with pagination details.
 
+## Video Narrative Closed Beta
+
+O beta fechado da análise narrativa real de vídeo é documentado em:
+
+- `src/app/dashboard/boards/videoUpload/VIDEO_NARRATIVE_BETA_OPERATOR_RUNBOOK.md`
+- `src/app/dashboard/boards/videoUpload/VIDEO_NARRATIVE_BETA_SMOKE_TEST_PLAN.md`
+- `src/app/dashboard/boards/videoUpload/VIDEO_NARRATIVE_BETA_FEEDBACK_TEMPLATE.md`
+- `src/app/dashboard/boards/videoUpload/VIDEO_NARRATIVE_CLOSED_BETA_LAUNCH_CHECKLIST.md`
+
+Esse beta é restrito a allowlist de 3 a 5 creators. Público geral, billing/Stripe, Mídia Kit, Comunidade, navegação real, shells, login e NextAuth permanecem fora do escopo.
+
 ### Video Drill-Down in the Dashboard
 
 On the dashboard, clicking any of the video metrics or the **Ver Todos os Vídeos** button opens a table listing all posts for that creator. The table can be sorted by any column and includes pagination controls. Thumbnails and captions link directly to the original Instagram post.

@@ -269,3 +269,15 @@ MM71 documenta a operação do storage para beta fechado:
 - usuário comum deve ser bloqueado antes de qualquer leitura do objeto temporário.
 
 Nenhum vídeo passa a ser salvo no banco e nenhum `objectKey` entra no snapshot.
+
+## Fase MM72 — Preview Deployment + Beta Operator Runbook
+
+MM72 consolida a operação do beta em ambiente real/preview:
+
+- Vercel env checklist para Gemini, upload temporário, allowlists, storage e limits;
+- smoke test cobrindo usuário comum bloqueado, usuário allowlist, limite, falha de storage, falha de Gemini e rollback;
+- rollback rápido desligando flag pública, flag server-side, upload real e allowlists;
+- validação explícita de que cleanup remove o objeto temporário ou gera warning seguro;
+- critérios de reprovação se vídeo, signed URL, raw response ou `objectKey` forem persistidos indevidamente.
+
+O storage temporário continua sendo transitório: vídeo não vira histórico, galeria, player, snapshot, fixture ou arquivo versionado.

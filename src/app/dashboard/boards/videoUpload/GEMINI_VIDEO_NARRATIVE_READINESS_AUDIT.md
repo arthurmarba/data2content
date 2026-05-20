@@ -139,6 +139,23 @@ Já existe:
 - limite por plano real ainda não existe;
 - custo real ainda desconhecido.
 
+## MM72 — Preview Deployment + Beta Operator Runbook
+
+MM72 não altera o provider Gemini, não muda prompt/schema e não amplia o rollout. A fase adiciona operação prática para rodar o beta fechado com 3 a 5 creators:
+
+- runbook para allowlist, Vercel envs, smoke, rollback, cleanup, bugs e custos;
+- plano de smoke test Preview/Production cobrindo usuário comum, allowlist, limite, storage, Gemini e rollback;
+- template de feedback em linguagem não técnica;
+- critérios objetivos de aprovação/reprovação do beta.
+
+Guardrails mantidos:
+
+- Gemini não deve ser chamado quando allowlist, flag ou limite bloquearem;
+- raw response não deve ser salvo;
+- prompt completo e secrets não devem aparecer em logs;
+- Perfil antigo deve ser preservado em erro;
+- endpoint mock deve seguir preservado.
+
 ## Critérios Para Liberar Teste Real Manual
 
 Antes de rodar real:
