@@ -21,6 +21,8 @@ export function MobileStrategicProfileRealShellClient({
   stateQuery,
   initialSnapshotPayload,
 }: MobileStrategicProfileRealShellClientProps) {
+  const realAnalysisEnabled = process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED === "1";
+
   // 1. Calcular o perfil inicial (Session-only, snapshot ou fixture via stateQuery)
   const [profile, setProfile] = useState<MobileStrategicProfile>(() => {
     if (stateQuery) {
@@ -132,18 +134,53 @@ export function MobileStrategicProfileRealShellClient({
     selectedGoalOption: "authority" | "retention" | "format_test" | "sponsored_content";
     quickAnswers?: Array<{ id: string; value: string }>;
     mockScenario?: string;
+    consentTextVersion?: string;
+    temporaryUpload?: {
+      uploadSessionId: string;
+      objectKey?: string;
+      mimeType: string;
+      sizeBytes: number;
+      uploadedAt?: string;
+    };
   }) => {
-    const response = await fetch("/api/dashboard/mobile-strategic-profile/analyze", {
+    const shouldUseRealAnalysis =
+      realAnalysisEnabled &&
+      Boolean(payload.temporaryUpload?.uploadSessionId);
+    const endpoint = shouldUseRealAnalysis
+      ? "/api/dashboard/mobile-strategic-profile/analyze-real"
+      : "/api/dashboard/mobile-strategic-profile/analyze";
+    const requestPayload = shouldUseRealAnalysis
+      ? {
+          uploadSessionId: payload.temporaryUpload!.uploadSessionId,
+          temporaryUpload: {
+            objectKey: payload.temporaryUpload!.objectKey,
+            mimeType: payload.temporaryUpload!.mimeType,
+            sizeBytes: payload.temporaryUpload!.sizeBytes,
+            uploadedAt: payload.temporaryUpload!.uploadedAt,
+          },
+          creatorGoal: payload.creatorGoal,
+          selectedGoalOption: payload.selectedGoalOption,
+          quickAnswers: payload.quickAnswers,
+          consentTextVersion: payload.consentTextVersion || "mobile_strategic_profile_temporary_video_v1",
+        }
+      : {
+          creatorGoal: payload.creatorGoal,
+          selectedGoalOption: payload.selectedGoalOption,
+          quickAnswers: payload.quickAnswers,
+          mockScenario: payload.mockScenario,
+        };
+
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(requestPayload),
     });
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.message || "Erro ao conectar com o serviço de análise mockada.");
+      throw new Error(errData.message || "Erro ao conectar com o serviço de análise.");
     }
 
     const data = await response.json();
@@ -163,7 +200,7 @@ export function MobileStrategicProfileRealShellClient({
       });
       setProfile(buildMobileStrategicProfile(input));
     }
-  }, [session]);
+  }, [session, realAnalysisEnabled]);
 
   const handleCleanupTemporaryUpload = useCallback(async (payload: {
     uploadSessionId: string;
@@ -207,6 +244,7 @@ export function MobileStrategicProfileRealShellClient({
         onSubmitAnalysis={handleAnalysisSubmit}
         onCreateUploadSession={requestUploadSession}
         onUploadToTemporarySignedUrl={uploadVideoToTemporarySignedUrl}
+        enableRealAnalysis={realAnalysisEnabled}
         onCleanupTemporaryUpload={handleCleanupTemporaryUpload}
       />
     </div>

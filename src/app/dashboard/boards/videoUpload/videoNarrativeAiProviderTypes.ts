@@ -60,6 +60,6 @@ export type VideoNarrativeAiProviderResult = {
 };
 
 export type VideoNarrativeGeminiSnapshotMappingResult = {
-  source: "gemini_ready" | "gemini_fixture";
+  source: "gemini_ready" | "gemini_fixture" | "gemini_real_allowlist";
   snapshot: MobileStrategicProfileSnapshotPayload;
 };
