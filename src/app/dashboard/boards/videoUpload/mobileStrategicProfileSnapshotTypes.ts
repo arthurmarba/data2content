@@ -16,6 +16,6 @@ export interface CreatorStrategicProfileSnapshotInput {
   status?: "active" | "inactive" | "archived";
   accessLevel: "free" | "premium" | "instagram_optimized";
   snapshot: MobileStrategicProfileSnapshotPayload;
-  source: "manual_seed" | "mock_analysis" | "future_video_analysis" | "imported" | "unknown";
+  source: "manual_seed" | "mock_analysis" | "future_video_analysis" | "gemini_ready" | "gemini_fixture" | "imported" | "unknown";
   lastAnalyzedAt?: Date;
 }

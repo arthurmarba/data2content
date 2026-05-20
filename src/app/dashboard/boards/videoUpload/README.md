@@ -2029,6 +2029,16 @@ Também foi criado o contrato/API seguro de cleanup temporário em `/api/dashboa
 
 Guardrails preservados: sem `FileReader`, sem object URL, sem thumbnail/player, sem vídeo salvo no banco, sem signed URL persistida, sem `objectKey` no snapshot, sem histórico visual e sem Gemini/análise real de vídeo.
 
+### MM65 — Gemini Provider Readiness + Response Adapter
+
+Status: concluído.
+
+MM65 prepara a camada server-side de análise real para o Perfil Estratégico mobile sem conectá-la ao fluxo principal. A fase cria provider interface, config/env validation, allowlist server-side, prompt builder estratégico, parser seguro de resposta JSON, adapter de provider com timeout e mapper de resposta parseada para snapshot estratégico.
+
+Gemini real segue desligado por default e exige `VIDEO_NARRATIVE_GEMINI_PROVIDER_ENABLED=true`, `VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED=1`, allowlist/admin-dev, API key e `VIDEO_NARRATIVE_GEMINI_MODEL`. O provider novo usa client injetável em testes e não substitui `/api/dashboard/mobile-strategic-profile/analyze`, que continua mock.
+
+O parser não aceita resposta vazia, JSON inválido, campos obrigatórios ausentes, signed URLs, tokens/API keys ou transcrição bruta longa. A resposta bruta não é retornada nem persistida; apenas a análise parseada/sanitizada pode virar snapshot. O mapper não inclui vídeo, thumbnail, signed URL, `uploadUrl` ou `objectKey`, e usa source seguro `gemini_ready`/`gemini_fixture` nesta fase.
+
 ## Próximas Fases Sugeridas
 
 - PROC4: contrato de fila/job conceitual de processamento.
