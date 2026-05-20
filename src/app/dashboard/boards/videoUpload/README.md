@@ -1993,6 +1993,14 @@ npm run typecheck
 git diff --check
 ```
 
+### MM61 — Upload Metadata & Consent UI Dry Run
+
+Status: concluído.
+
+MM61 integra a UI do fluxo `+ / Analisar vídeo` à upload-session API em modo metadata-only. A rota real do Perfil Estratégico mobile permite seleção local de arquivo apenas para ler `name`, `type` e `size` do objeto `File`, exige consentimento explícito e chama `/api/dashboard/mobile-strategic-profile/upload-session` antes de seguir para a análise mock.
+
+Esta fase não envia arquivo, não lê bytes, não usa `FileReader`, não cria thumbnail/player, não salva vídeo e não usa storage real. Depois que a API retorna `mock_session_created`, o fluxo continua para objetivo/perguntas e mantém a atualização do snapshot pela análise mock existente.
+
 ## Próximas Fases Sugeridas
 
 - PROC4: contrato de fila/job conceitual de processamento.

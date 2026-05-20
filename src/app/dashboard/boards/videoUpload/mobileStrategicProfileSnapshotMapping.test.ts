@@ -46,11 +46,13 @@ describe("mobileStrategicProfileSnapshotMapping", () => {
 
       expect(presentation.id).toBe("snapshot-diagnosis");
       expect(presentation.hero.subtitle).toBe("Resumo do diagnóstico");
+      expect(presentation.hero.badge.label).toBe("Diagnóstico atualizado");
       expect(presentation.priorityCards).toHaveLength(2);
       expect(presentation.priorityCards[0].body).toBe("Estrutura em 3 atos");
+      expect(presentation.primaryCTA.action).toBe("analyze_another_video");
 
       // Verifica se a seção de sinais pendentes contém cartões bloqueados
-      const pendingSection = presentation.sections.find((s) => s.id === "pending_signals");
+      const pendingSection = presentation.sections.find((s) => s.id === "next_signals");
       expect(pendingSection).toBeDefined();
       expect(pendingSection?.cards[0].locked).toBe(true);
     });

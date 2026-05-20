@@ -13,6 +13,10 @@ import {
 } from "./buildMobileStrategicProfilePreviewFixture";
 import { MobileStrategicProfileAnalyzeFlow } from "./MobileStrategicProfileAnalyzeFlow";
 import { MobileStrategicProfileMediaKitModal } from "./MobileStrategicProfileMediaKitModal";
+import type {
+  UploadSessionPayload,
+  UploadSessionResponse,
+} from "./mobileStrategicProfileUploadSessionClient";
 
 type MobileStrategicProfilePreviewProps = {
   profile: MobileStrategicProfile;
@@ -24,6 +28,7 @@ type MobileStrategicProfilePreviewProps = {
     quickAnswers?: Array<{ id: string; value: string }>;
     mockScenario?: string;
   }) => Promise<void>;
+  onCreateUploadSession?: (payload: UploadSessionPayload) => Promise<UploadSessionResponse>;
 };
 
 const CARD_TONE: Record<MobileStrategicProfileSectionCard["tone"], string> = {
@@ -353,6 +358,7 @@ export function MobileStrategicProfilePreview({
   activeState,
   isRealShell,
   onSubmitAnalysis,
+  onCreateUploadSession,
 }: MobileStrategicProfilePreviewProps) {
   const [mediaKitModalOpen, setMediaKitModalOpen] = useState(false);
   const [analyzeFlowOpen, setAnalyzeFlowOpen] = useState(false);
@@ -443,6 +449,7 @@ export function MobileStrategicProfilePreview({
               onClose={() => setAnalyzeFlowOpen(false)}
               onComplete={handleAnalyzeComplete}
               onSubmitAnalysis={onSubmitAnalysis}
+              onCreateUploadSession={onCreateUploadSession}
             />
           </div>
         </div>

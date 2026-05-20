@@ -10,6 +10,11 @@ import { validateTemporaryUploadInput } from "@/app/dashboard/boards/videoUpload
 
 const SIGNED_URL_KEYWORDS = ["signature=", "expires=", "token=", "policy="];
 const BASE64_INDICATOR = "base64";
+type MobileStrategicProfileSession = {
+  user?: {
+    id?: string;
+  };
+} | null;
 
 export async function GET() {
   return NextResponse.json({ message: "Método não permitido." }, { status: 405 });
@@ -38,7 +43,7 @@ export async function POST(request: Request) {
     }
 
     // 2. Auth Session Check
-    const session = await getServerSession(await resolveAuthOptions());
+    const session = await getServerSession(await resolveAuthOptions()) as MobileStrategicProfileSession;
     if (!session?.user?.id) {
       return NextResponse.json(
         { message: "Acesso não autorizado: sessão não identificada." },

@@ -219,6 +219,19 @@ Validar que a experiência não renderiza:
 - diagnóstico interno no Mídia Kit;
 - dados privados de Instagram real.
 
+## Cenário MM61 — Upload Metadata Dry-Run
+
+Validar na rota real do Perfil Estratégico mobile:
+
+- abrir o fluxo `+ / Analisar vídeo`;
+- selecionar um vídeo válido MP4, MOV ou WEBM;
+- confirmar que a UI mostra nome, tipo e tamanho aproximado, sem thumbnail ou player;
+- aceitar o consentimento curto de validação narrativa;
+- continuar e ver a mensagem de vídeo validado antes de objetivo/perguntas;
+- simular arquivo inválido ou grande demais e confirmar mensagem humana de erro;
+- confirmar que o arquivo não aparece como histórico, galeria, replay ou card salvo;
+- finalizar o fluxo e validar que a análise mock segue atualizando o snapshot do Perfil.
+
 ## Critérios de aprovação geral
 
 A experiência só passa se:
@@ -338,3 +351,11 @@ Não recomendar integração real antes do QA/polish visual.
 - Toda sessão retornada em produção deve ser em modo mock (`providerMode = "mock"`, `storageProvider = "none"`) e sem expor nenhuma `uploadUrl` física até a homologação final.
 - O payload enviado pelo client deve conter o consentimento aceito e a versão legível do termo.
 - Qualquer erro ou violação de política na requisição da API de sessão deve renderizar mensagens claras de falha na interface sem expor stack traces ou dados sensíveis de servidor.
+
+## Guardrails do MM61
+
+- O fluxo real deve chamar `/api/dashboard/mobile-strategic-profile/upload-session` antes de avançar para objetivo/perguntas.
+- O client só pode enviar `fileName`, `mimeType`, `sizeBytes`, `durationSeconds: null`, consentimento, versão do texto e `source`.
+- Sem `FileReader`, `URL.createObjectURL`, canvas, video element para metadados, thumbnail, player, storage local ou histórico visual.
+- Falhas de upload session não podem apagar o Perfil atual nem impedir a hidratação do HomeSummary.
+- A análise mock existente continua sendo o único endpoint de análise chamado após a validação metadata-only.

@@ -7,6 +7,7 @@ import { buildMobileStrategicProfileExistingDataAdapter } from "../../../videoUp
 import { buildMobileStrategicProfileFromSnapshot } from "../../../videoUpload/mobileStrategicProfileSnapshotMapping";
 import { MobileStrategicProfilePreview } from "./MobileStrategicProfilePreview";
 import { fetchHomeSummaryCached } from "../../../../home/homeSummaryClient";
+import { requestUploadSession } from "./mobileStrategicProfileUploadSessionClient";
 
 interface MobileStrategicProfileRealShellClientProps {
   session: any;
@@ -181,6 +182,7 @@ export function MobileStrategicProfileRealShellClient({
         profile={profile}
         isRealShell={true}
         onSubmitAnalysis={handleAnalysisSubmit}
+        onCreateUploadSession={requestUploadSession}
       />
     </div>
   );

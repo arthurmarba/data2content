@@ -1,4 +1,9 @@
 import { useState, useEffect } from "react";
+import {
+  buildUploadSessionPayloadFromFile,
+  type UploadSessionPayload,
+  type UploadSessionResponse,
+} from "./mobileStrategicProfileUploadSessionClient";
 
 const STEPS = [
   "intro",
@@ -21,6 +26,7 @@ type MobileStrategicProfileAnalyzeFlowProps = {
     quickAnswers?: Array<{ id: string; value: string }>;
     mockScenario?: string;
   }) => Promise<void>;
+  onCreateUploadSession?: (payload: UploadSessionPayload) => Promise<UploadSessionResponse>;
 };
 
 function nextStep(current: AnalyzeFlowStep): AnalyzeFlowStep {
@@ -32,11 +38,45 @@ function stepIndex(step: AnalyzeFlowStep): number {
   return STEPS.indexOf(step);
 }
 
+const formatSize = (bytes: number) => {
+  const mb = bytes / (1024 * 1024);
+  return `${mb.toFixed(2)} MB`;
+};
+
+const sanitizeVisibleFileName = (fileName: string) => {
+  const normalized = fileName.replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, " ").trim();
+  if (normalized.length <= 44) return normalized || "video";
+  return `${normalized.slice(0, 28)}...${normalized.slice(-12)}`;
+};
+
+function getUploadSessionErrorMessage(response?: UploadSessionResponse) {
+  const blockerCode = response?.issues?.find((issue) => issue.severity === "blocker")?.code;
+
+  if (blockerCode === "invalid_mime_type" || blockerCode === "invalid_extension") {
+    return "Formato não aceito. Escolha um vídeo MP4, MOV ou WEBM.";
+  }
+
+  if (blockerCode === "file_too_large") {
+    return "Arquivo muito grande. Escolha um vídeo de até 100 MB.";
+  }
+
+  if (blockerCode === "consent_required") {
+    return "Aceite o consentimento para continuar.";
+  }
+
+  if (blockerCode === "empty_file") {
+    return "O arquivo selecionado parece vazio. Escolha outro vídeo.";
+  }
+
+  return response?.message || "Não foi possível validar o vídeo agora.";
+}
+
 export function MobileStrategicProfileAnalyzeFlow({
   open,
   onClose,
   onComplete,
   onSubmitAnalysis,
+  onCreateUploadSession,
 }: MobileStrategicProfileAnalyzeFlowProps) {
   const [step, setStep] = useState<AnalyzeFlowStep>("intro");
   const [selectedOption, setSelectedOption] = useState<"authority" | "retention" | "format_test" | "sponsored_content">("authority");
@@ -44,19 +84,30 @@ export function MobileStrategicProfileAnalyzeFlow({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [submitAttempt, setSubmitAttempt] = useState(0);
 
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [consentAccepted, setConsentAccepted] = useState(false);
+  const [validationStatus, setValidationStatus] = useState<"idle" | "validating" | "validated" | "error">("idle");
+  const [fileValidationError, setFileValidationError] = useState<string | null>(null);
+  const [uploadSessionValidated, setUploadSessionValidated] = useState(false);
+
   useEffect(() => {
     if (!open) {
       setStep("intro");
       setErrorMsg(null);
       setIsSubmitting(false);
+      setSelectedFile(null);
+      setConsentAccepted(false);
+      setValidationStatus("idle");
+      setFileValidationError(null);
+      setUploadSessionValidated(false);
     }
   }, [open]);
 
-  // Executa o envio da análise ao entrar na etapa 'updating_profile'
   useEffect(() => {
     if (step !== "updating_profile") return;
 
     let active = true;
+    let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
 
     async function triggerSubmit() {
       if (onSubmitAnalysis) {
@@ -82,13 +133,11 @@ export function MobileStrategicProfileAnalyzeFlow({
           }
         }
       } else {
-        // Fallback local do preview de simulação offline (1000ms)
-        const timer = setTimeout(() => {
+        fallbackTimer = setTimeout(() => {
           if (active) {
             setStep("updated_confirmation");
           }
         }, 1000);
-        return () => clearTimeout(timer);
       }
     }
 
@@ -96,24 +145,57 @@ export function MobileStrategicProfileAnalyzeFlow({
 
     return () => {
       active = false;
+      if (fallbackTimer) {
+        clearTimeout(fallbackTimer);
+      }
     };
   }, [step, selectedOption, onSubmitAnalysis, submitAttempt]);
 
   if (!open) return null;
 
-  const goNext = () => {
+  const handleContinue = async () => {
+    if (step === "mock_upload" && onCreateUploadSession) {
+      if (!selectedFile) {
+        setFileValidationError("Selecione um arquivo de vídeo primeiro.");
+        return;
+      }
+      if (!consentAccepted) {
+        setFileValidationError("Aceite o consentimento para continuar.");
+        return;
+      }
+      setValidationStatus("validating");
+      setFileValidationError(null);
+      try {
+        const res = await onCreateUploadSession(buildUploadSessionPayloadFromFile(selectedFile, true));
+
+        if (res.ok) {
+          setValidationStatus("validated");
+          setUploadSessionValidated(true);
+          setStep("creator_goal");
+        } else {
+          setValidationStatus("error");
+          setFileValidationError(getUploadSessionErrorMessage(res));
+        }
+      } catch {
+        setValidationStatus("error");
+        setFileValidationError("Não foi possível validar o vídeo agora.");
+      }
+      return;
+    }
     setStep((current) => nextStep(current));
   };
 
   const close = () => {
     setStep("intro");
     setErrorMsg(null);
+    setUploadSessionValidated(false);
     onClose();
   };
 
   const complete = () => {
     setStep("intro");
     setErrorMsg(null);
+    setUploadSessionValidated(false);
     onComplete();
   };
 
@@ -125,6 +207,14 @@ export function MobileStrategicProfileAnalyzeFlow({
     { label: "Testar formato", value: "format_test" as const },
     { label: "Preparar publi", value: "sponsored_content" as const },
   ];
+
+  // Regra de disabled para o botão Continuar
+  const isContinueDisabled =
+    isSubmitting ||
+    validationStatus === "validating" ||
+    (step === "mock_upload" &&
+      onCreateUploadSession &&
+      validationStatus === "validated");
 
   return (
     <section
@@ -179,16 +269,106 @@ export function MobileStrategicProfileAnalyzeFlow({
         ) : null}
 
         {step === "mock_upload" ? (
-          <div className="rounded-[1.5rem] border border-dashed border-zinc-300 bg-[#f7f7f4] p-4">
-            <p className="text-sm font-semibold text-zinc-950">Vídeo pronto para análise</p>
-            <p className="mt-2 text-sm leading-6 text-zinc-600">
-              Preview local. Nenhum arquivo será enviado neste protótipo.
-            </p>
-          </div>
+          onCreateUploadSession ? (
+            <div>
+              <p className="text-sm leading-6 text-zinc-600 mb-4">
+                Selecione um vídeo para validar se ele está pronto para análise. Nesta fase, o arquivo ainda não será enviado.
+              </p>
+              {!selectedFile ? (
+                <p className="mb-3 text-xs font-semibold text-zinc-500">Aguardando seleção.</p>
+              ) : null}
+
+              <input
+                type="file"
+                accept="video/mp4,video/quicktime,video/webm"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setSelectedFile(file);
+                    setConsentAccepted(false);
+                    setValidationStatus("idle");
+                    setFileValidationError(null);
+                    setUploadSessionValidated(false);
+                  }
+                }}
+                className="hidden"
+                id="video-file-picker"
+              />
+
+              <label
+                htmlFor="video-file-picker"
+                className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-300 bg-[#f7f7f4] px-4 py-8 text-center transition-colors hover:bg-zinc-50"
+              >
+                <span className="text-sm font-semibold text-zinc-950">Selecionar arquivo de vídeo</span>
+                <span className="mt-1 text-xs text-zinc-500">MP4, MOV ou WEBM (max. 100MB)</span>
+              </label>
+
+              {selectedFile ? (
+                <div className="mt-4 rounded-2xl border border-zinc-200 bg-[#f7f7f4] p-4 text-left">
+                  <p className="text-xs uppercase font-semibold text-zinc-500">Arquivo Selecionado</p>
+                  <p className="mt-1 truncate text-sm font-semibold text-zinc-950">{sanitizeVisibleFileName(selectedFile.name)}</p>
+                  <p className="text-xs text-zinc-600 mt-1">
+                    {selectedFile.type || "video/mp4"} · {formatSize(selectedFile.size)}
+                  </p>
+                </div>
+              ) : null}
+
+              {selectedFile ? (
+                <div className="mt-4 flex items-start gap-2.5">
+                  <input
+                    type="checkbox"
+                    id="video-consent-checkbox"
+                    checked={consentAccepted}
+                    onChange={(e) => {
+                      setConsentAccepted(e.target.checked);
+                      if (e.target.checked) {
+                        setFileValidationError(null);
+                      }
+                    }}
+                    className="mt-1 h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
+                  />
+                  <label htmlFor="video-consent-checkbox" className="text-xs leading-5 text-zinc-600 cursor-pointer">
+                    Entendo que este vídeo será usado apenas para validar a análise narrativa e que, nesta etapa, o arquivo ainda não será enviado.
+                  </label>
+                </div>
+              ) : null}
+
+              {validationStatus === "validating" ? (
+                <p className="mt-3 text-xs font-medium text-sky-600">
+                  Validando vídeo...
+                </p>
+              ) : null}
+
+              {validationStatus === "validated" ? (
+                <p className="mt-3 text-xs font-semibold text-emerald-600">
+                  Vídeo validado para análise
+                </p>
+              ) : null}
+
+              {fileValidationError ? (
+                <p className="mt-3 text-xs font-semibold text-red-600">
+                  {fileValidationError}
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            // Interface Mock de Preview local legada
+            <div className="rounded-[1.5rem] border border-dashed border-zinc-300 bg-[#f7f7f4] p-4">
+              <p className="text-sm font-semibold text-zinc-950">Vídeo pronto para análise</p>
+              <p className="mt-2 text-sm leading-6 text-zinc-600">
+                Preview local. Nenhum arquivo será enviado neste protótipo.
+              </p>
+            </div>
+          )
         ) : null}
 
         {step === "creator_goal" ? (
           <div>
+            {uploadSessionValidated ? (
+              <p className="mb-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
+                Vídeo validado para análise
+              </p>
+            ) : null}
             <p className="text-sm font-semibold text-zinc-950">Qual era o objetivo do conteúdo?</p>
             <div className="mt-3 grid grid-cols-2 gap-2">
               {goalOptions.map((opt) => {
@@ -299,8 +479,8 @@ export function MobileStrategicProfileAnalyzeFlow({
           <button
             type="button"
             className="w-full rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 transition-colors disabled:opacity-50 disabled:pointer-events-none"
-            onClick={goNext}
-            disabled={isSubmitting}
+            onClick={handleContinue}
+            disabled={isContinueDisabled}
           >
             Continuar
           </button>

@@ -2,15 +2,20 @@ import React from "react";
 import { render, screen, act } from "@testing-library/react";
 import { MobileStrategicProfileRealShellClient } from "./MobileStrategicProfileRealShellClient";
 import { fetchHomeSummaryCached } from "../../../../home/homeSummaryClient";
+import { requestUploadSession } from "./mobileStrategicProfileUploadSessionClient";
 
 // Mock das dependências
 jest.mock("../../../../home/homeSummaryClient", () => ({
   fetchHomeSummaryCached: jest.fn(),
 }));
 
+jest.mock("./mobileStrategicProfileUploadSessionClient", () => ({
+  requestUploadSession: jest.fn(),
+}));
+
 jest.mock("./MobileStrategicProfilePreview", () => {
   return {
-    MobileStrategicProfilePreview: ({ profile, onSubmitAnalysis }: any) => (
+    MobileStrategicProfilePreview: ({ profile, onSubmitAnalysis, onCreateUploadSession }: any) => (
       <div data-testid="profile-preview-mock">
         <h1 data-testid="profile-display-name">{profile.header.identity.displayName}</h1>
         <p data-testid="profile-bio">{profile.header.identity.bio}</p>
@@ -19,8 +24,23 @@ jest.mock("./MobileStrategicProfilePreview", () => {
         <span data-testid="profile-mediakit-state">{profile.mediaKitBridge.state}</span>
         <span data-testid="profile-mediakit-href">{profile.mediaKitBridge.href || ""}</span>
         <span data-testid="profile-community-href">{profile.communityBridge.href || ""}</span>
+        <span data-testid="has-on-create-session">{String(!!onCreateUploadSession)}</span>
         <button data-testid="trigger-analysis-submit" onClick={() => onSubmitAnalysis?.({ creatorGoal: "test", selectedGoalOption: "authority" })}>
           Submit
+        </button>
+        <button
+          data-testid="trigger-upload-session"
+          onClick={() => onCreateUploadSession?.({
+            fileName: "vlog.mp4",
+            mimeType: "video/mp4",
+            sizeBytes: 1024,
+            durationSeconds: null,
+            userConsentAccepted: true,
+            consentTextVersion: "video_narrative_upload_consent_v1",
+            source: "mobile_strategic_profile",
+          })}
+        >
+          Upload session
         </button>
       </div>
     ),
@@ -40,6 +60,7 @@ describe("MobileStrategicProfileRealShellClient", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (requestUploadSession as jest.Mock).mockResolvedValue({ ok: true, status: "mock_session_created" });
   });
 
   it("renderiza perfil inicial com dados da sessão e dispara busca em background", async () => {
@@ -294,5 +315,59 @@ describe("MobileStrategicProfileRealShellClient", () => {
     );
 
     globalFetchSpy.mockRestore();
+  });
+
+  it("Fase MM61 - passa callback onCreateUploadSession para o MobileStrategicProfilePreview e preserva hidratacao", async () => {
+    (fetchHomeSummaryCached as jest.Mock).mockResolvedValue(null);
+
+    render(
+      <MobileStrategicProfileRealShellClient
+        session={mockSession}
+        stateQuery={null}
+      />
+    );
+
+    // Garante que o callback foi passado com sucesso
+    expect(screen.getByTestId("has-on-create-session").textContent).toBe("true");
+    // Garante que o perfil inicial continua com o nome correto
+    expect(screen.getByTestId("profile-display-name").textContent).toBe("Arthur Teste");
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+  });
+
+  it("Fase MM61 - erro de upload session nao apaga o Perfil atual", async () => {
+    (fetchHomeSummaryCached as jest.Mock).mockResolvedValue(null);
+    (requestUploadSession as jest.Mock).mockResolvedValue({
+      ok: false,
+      status: "disabled",
+      message: "Não foi possível validar o vídeo agora.",
+    });
+
+    render(
+      <MobileStrategicProfileRealShellClient
+        session={mockSession}
+        stateQuery={null}
+      />
+    );
+
+    await act(async () => {
+      screen.getByTestId("trigger-upload-session").click();
+    });
+
+    expect(requestUploadSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileName: "vlog.mp4",
+        mimeType: "video/mp4",
+        sizeBytes: 1024,
+        durationSeconds: null,
+      })
+    );
+    expect(screen.getByTestId("profile-display-name").textContent).toBe("Arthur Teste");
+
+    await act(async () => {
+      await Promise.resolve();
+    });
   });
 });

@@ -116,3 +116,14 @@ A primeira materialização física deste plano é a API `/api/dashboard/mobile-
 * **Segurança do Endpoint**: Exige sessão real autenticada e feature flags.
 * **Modo Mock Seguro**: Retorna o status `mock_session_created` sem expor nenhuma `uploadUrl` ou token físico quando o payload é aprovado pelo validador do MM59.
 * **Futura Rota Real**: Quando a feature flag `VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED` for ativada (após auditoria final de custos e segurança), o endpoint será expandido para assinar as URLs curtas do provedor sem alterar o contrato de metadados estabelecido aqui.
+
+## Fase MM61 — UI Metadata Dry-Run E Consentimento
+
+MM61 conecta a rota real do Perfil Estratégico mobile ao endpoint de sessão temporária em modo seco:
+
+- a UI permite seleção local de vídeo apenas para capturar `name`, `type` e `size`;
+- o consentimento curto usa a versão `video_narrative_upload_consent_v1`;
+- o arquivo não é enviado, não é lido como bytes, não vira preview e não é salvo;
+- a resposta `mock_session_created` apenas libera o caminho para a análise mock já existente.
+
+Próximos passos para provider real permanecem separados: escolher storage, assinar URL curta, implementar upload direto, confirmar processamento, deletar o arquivo e auditar cleanup. Nenhum desses passos é liberado por MM61.
