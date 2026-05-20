@@ -157,3 +157,36 @@ MM63 adiciona o primeiro caminho de signed upload session server-side para R2/S3
 - não há bucket secreto, access key, secret key, account id ou token retornado fora da URL assinada.
 
 Como o repo ainda não possui SDK S3/R2 adequado instalado, a assinatura real fica isolada em um signer server-side injetável/testável. Próximo passo para upload direto: escolher/adicionar o SDK server-only, implementar o signer S3-compatible, manter allowlist por ambiente e só depois criar o client direct upload em PR separado.
+
+## Fase MM64 — Client Direct Upload + Cleanup Contract
+
+MM64 implementa o primeiro direct upload controlado no client:
+
+- o client só faz `PUT` quando a upload-session API retorna `signed_upload_session_created`;
+- o arquivo é enviado diretamente do browser para a signed URL temporária, sem passar pelo app server;
+- as flags obrigatórias seguem sendo `VIDEO_NARRATIVE_TEMP_UPLOAD_SESSION_ENABLED=1`, `VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED=true`, `VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER=r2|cloudflare_r2|s3|aws_s3` e `VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED=1`;
+- a allowlist/admin-dev continua server-side e não pode ser burlada por flag pública de client;
+- o helper client rejeita URL não HTTPS, sessão expirada, método diferente de `PUT` e headers perigosos;
+- `FileReader`, object URL, storage local, thumbnail e player continuam proibidos.
+
+Cleanup:
+
+- novo contrato/API `POST /api/dashboard/mobile-strategic-profile/upload-cleanup`;
+- payload permitido: `uploadSessionId`, `objectKey` temporário seguro e reason;
+- payload proibido: `uploadUrl`, `signedUrl`, bucket público e qualquer secret;
+- sem provider delete real nesta fase, a API pode retornar `cleanup_not_configured` de forma segura;
+- falha de cleanup vira warning seguro no fluxo e não quebra a análise mock.
+
+Riscos remanescentes:
+
+- signer R2/S3 real ainda precisa ser implementado server-only;
+- delete real ainda precisa de provider isolado e auditável;
+- expiração de signed URL depende do provider físico;
+- análise real ainda exige decisão de input para Gemini e política de custo/latência.
+
+Próximos passos:
+
+- implementar signer server-only do provider escolhido;
+- adicionar provider real de delete temporário;
+- conectar cleanup a eventos/auditoria;
+- só depois avançar para Gemini readiness com vídeo temporário real e análise controlada.

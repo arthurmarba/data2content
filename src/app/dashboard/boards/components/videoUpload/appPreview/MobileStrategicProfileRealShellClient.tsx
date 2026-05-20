@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { buildMobileStrategicProfileRealShellInput } from "./buildMobileStrategicProfileRealShellInput";
 import { buildMobileStrategicProfile, type MobileStrategicProfile } from "../../../videoUpload/mobileStrategicProfileMapping";
 import { buildMobileStrategicProfileExistingDataAdapter } from "../../../videoUpload/mobileStrategicProfileExistingDataAdapter";
@@ -8,6 +8,7 @@ import { buildMobileStrategicProfileFromSnapshot } from "../../../videoUpload/mo
 import { MobileStrategicProfilePreview } from "./MobileStrategicProfilePreview";
 import { fetchHomeSummaryCached } from "../../../../home/homeSummaryClient";
 import { requestUploadSession } from "./mobileStrategicProfileUploadSessionClient";
+import { uploadVideoToTemporarySignedUrl } from "./mobileStrategicProfileDirectUploadClient";
 
 interface MobileStrategicProfileRealShellClientProps {
   session: any;
@@ -126,7 +127,7 @@ export function MobileStrategicProfileRealShellClient({
     };
   }, [session, stateQuery, initialSnapshotPayload]);
 
-  const handleAnalysisSubmit = async (payload: {
+  const handleAnalysisSubmit = useCallback(async (payload: {
     creatorGoal: string;
     selectedGoalOption: "authority" | "retention" | "format_test" | "sponsored_content";
     quickAnswers?: Array<{ id: string; value: string }>;
@@ -162,7 +163,29 @@ export function MobileStrategicProfileRealShellClient({
       });
       setProfile(buildMobileStrategicProfile(input));
     }
-  };
+  }, [session]);
+
+  const handleCleanupTemporaryUpload = useCallback(async (payload: {
+    uploadSessionId: string;
+    objectKey?: string;
+    reason: "analysis_completed" | "analysis_failed" | "user_cancelled" | "expired";
+  }) => {
+    const response = await fetch("/api/dashboard/mobile-strategic-profile/upload-cleanup", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        uploadSessionId: payload.uploadSessionId,
+        objectKey: payload.objectKey,
+        reason: payload.reason,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Cleanup temporário não foi confirmado.");
+    }
+  }, []);
 
   return (
     <div className="relative">
@@ -183,6 +206,8 @@ export function MobileStrategicProfileRealShellClient({
         isRealShell={true}
         onSubmitAnalysis={handleAnalysisSubmit}
         onCreateUploadSession={requestUploadSession}
+        onUploadToTemporarySignedUrl={uploadVideoToTemporarySignedUrl}
+        onCleanupTemporaryUpload={handleCleanupTemporaryUpload}
       />
     </div>
   );

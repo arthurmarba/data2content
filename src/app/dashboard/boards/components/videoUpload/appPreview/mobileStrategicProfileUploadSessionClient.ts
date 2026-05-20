@@ -10,13 +10,18 @@ export type UploadSessionPayload = {
 
 export type UploadSessionResponse = {
   ok: boolean;
-  status: string;
+  status: "mock_session_created" | "signed_upload_session_created" | "disabled" | string;
   uploadSession?: {
     id: string;
     providerMode: string;
     storageProvider: string;
+    uploadUrl?: string;
+    method?: "PUT";
+    headers?: Record<string, string>;
     expiresAt: string;
+    signedUrlTtlSeconds?: number;
     retentionTtlMinutes: number;
+    objectKey?: string;
     shouldDeleteAfterAnalysis: boolean;
     shouldPersistVideo: boolean;
     shouldPersistThumbnail: boolean;

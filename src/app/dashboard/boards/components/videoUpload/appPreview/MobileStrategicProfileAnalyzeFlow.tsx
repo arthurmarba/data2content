@@ -4,6 +4,10 @@ import {
   type UploadSessionPayload,
   type UploadSessionResponse,
 } from "./mobileStrategicProfileUploadSessionClient";
+import type {
+  MobileStrategicProfileDirectUploadInput,
+  MobileStrategicProfileDirectUploadResult,
+} from "./mobileStrategicProfileDirectUploadClient";
 
 const STEPS = [
   "intro",
@@ -27,6 +31,14 @@ type MobileStrategicProfileAnalyzeFlowProps = {
     mockScenario?: string;
   }) => Promise<void>;
   onCreateUploadSession?: (payload: UploadSessionPayload) => Promise<UploadSessionResponse>;
+  onUploadToTemporarySignedUrl?: (
+    input: MobileStrategicProfileDirectUploadInput,
+  ) => Promise<MobileStrategicProfileDirectUploadResult>;
+  onCleanupTemporaryUpload?: (payload: {
+    uploadSessionId: string;
+    objectKey?: string;
+    reason: "analysis_completed" | "analysis_failed" | "user_cancelled" | "expired";
+  }) => Promise<void>;
 };
 
 function nextStep(current: AnalyzeFlowStep): AnalyzeFlowStep {
@@ -77,6 +89,8 @@ export function MobileStrategicProfileAnalyzeFlow({
   onComplete,
   onSubmitAnalysis,
   onCreateUploadSession,
+  onUploadToTemporarySignedUrl,
+  onCleanupTemporaryUpload,
 }: MobileStrategicProfileAnalyzeFlowProps) {
   const [step, setStep] = useState<AnalyzeFlowStep>("intro");
   const [selectedOption, setSelectedOption] = useState<"authority" | "retention" | "format_test" | "sponsored_content">("authority");
@@ -86,9 +100,13 @@ export function MobileStrategicProfileAnalyzeFlow({
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [consentAccepted, setConsentAccepted] = useState(false);
-  const [validationStatus, setValidationStatus] = useState<"idle" | "validating" | "validated" | "error">("idle");
+  const [validationStatus, setValidationStatus] = useState<"idle" | "validating" | "uploading" | "validated" | "uploaded" | "error">("idle");
   const [fileValidationError, setFileValidationError] = useState<string | null>(null);
   const [uploadSessionValidated, setUploadSessionValidated] = useState(false);
+  const [temporaryUploadForCleanup, setTemporaryUploadForCleanup] = useState<{
+    uploadSessionId: string;
+    objectKey?: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -100,6 +118,7 @@ export function MobileStrategicProfileAnalyzeFlow({
       setValidationStatus("idle");
       setFileValidationError(null);
       setUploadSessionValidated(false);
+      setTemporaryUploadForCleanup(null);
     }
   }, [open]);
 
@@ -122,11 +141,31 @@ export function MobileStrategicProfileAnalyzeFlow({
               { id: "wants_to_repeat_direction", value: "sim" }
             ],
           });
+          if (temporaryUploadForCleanup && onCleanupTemporaryUpload) {
+            try {
+              await onCleanupTemporaryUpload({
+                ...temporaryUploadForCleanup,
+                reason: "analysis_completed",
+              });
+            } catch {
+              console.warn("Cleanup temporário não foi confirmado após a análise mock.");
+            }
+          }
           if (active) {
             setIsSubmitting(false);
             setStep("updated_confirmation");
           }
         } catch (err: any) {
+          if (temporaryUploadForCleanup && onCleanupTemporaryUpload) {
+            try {
+              await onCleanupTemporaryUpload({
+                ...temporaryUploadForCleanup,
+                reason: "analysis_failed",
+              });
+            } catch {
+              console.warn("Cleanup temporário não foi confirmado após falha da análise mock.");
+            }
+          }
           if (active) {
             setIsSubmitting(false);
             setErrorMsg(err.message || "Ocorreu um erro no processamento do diagnóstico.");
@@ -149,7 +188,7 @@ export function MobileStrategicProfileAnalyzeFlow({
         clearTimeout(fallbackTimer);
       }
     };
-  }, [step, selectedOption, onSubmitAnalysis, submitAttempt]);
+  }, [step, selectedOption, onSubmitAnalysis, submitAttempt, temporaryUploadForCleanup, onCleanupTemporaryUpload]);
 
   if (!open) return null;
 
@@ -168,8 +207,43 @@ export function MobileStrategicProfileAnalyzeFlow({
       try {
         const res = await onCreateUploadSession(buildUploadSessionPayloadFromFile(selectedFile, true));
 
-        if (res.ok) {
+        if (res.ok && res.status === "mock_session_created") {
           setValidationStatus("validated");
+          setUploadSessionValidated(true);
+          setStep("creator_goal");
+        } else if (res.ok && res.status === "signed_upload_session_created") {
+          const session = res.uploadSession;
+          if (!session?.uploadUrl || session.method !== "PUT" || !session.headers || !session.expiresAt) {
+            setValidationStatus("error");
+            setFileValidationError("Não foi possível enviar o vídeo agora.");
+            return;
+          }
+          if (!onUploadToTemporarySignedUrl) {
+            setValidationStatus("error");
+            setFileValidationError("Não foi possível enviar o vídeo agora.");
+            return;
+          }
+
+          setValidationStatus("uploading");
+          const uploadResult = await onUploadToTemporarySignedUrl({
+            file: selectedFile,
+            uploadUrl: session.uploadUrl,
+            method: session.method,
+            headers: session.headers,
+            expiresAt: session.expiresAt,
+          });
+
+          if (!uploadResult.ok) {
+            setValidationStatus("error");
+            setFileValidationError(uploadResult.errorMessage || "Não foi possível enviar o vídeo agora.");
+            return;
+          }
+
+          setTemporaryUploadForCleanup({
+            uploadSessionId: session.id,
+            objectKey: session.objectKey,
+          });
+          setValidationStatus("uploaded");
           setUploadSessionValidated(true);
           setStep("creator_goal");
         } else {
@@ -189,6 +263,7 @@ export function MobileStrategicProfileAnalyzeFlow({
     setStep("intro");
     setErrorMsg(null);
     setUploadSessionValidated(false);
+    setTemporaryUploadForCleanup(null);
     onClose();
   };
 
@@ -196,6 +271,7 @@ export function MobileStrategicProfileAnalyzeFlow({
     setStep("intro");
     setErrorMsg(null);
     setUploadSessionValidated(false);
+    setTemporaryUploadForCleanup(null);
     onComplete();
   };
 
@@ -212,9 +288,10 @@ export function MobileStrategicProfileAnalyzeFlow({
   const isContinueDisabled =
     isSubmitting ||
     validationStatus === "validating" ||
+    validationStatus === "uploading" ||
     (step === "mock_upload" &&
       onCreateUploadSession &&
-      validationStatus === "validated");
+      (validationStatus === "validated" || validationStatus === "uploaded"));
 
   return (
     <section
@@ -272,7 +349,7 @@ export function MobileStrategicProfileAnalyzeFlow({
           onCreateUploadSession ? (
             <div>
               <p className="text-sm leading-6 text-zinc-600 mb-4">
-                Selecione um vídeo para validar se ele está pronto para análise. Nesta fase, o arquivo ainda não será enviado.
+                Selecione um vídeo para validar se ele está pronto para análise temporária.
               </p>
               {!selectedFile ? (
                 <p className="mb-3 text-xs font-semibold text-zinc-500">Aguardando seleção.</p>
@@ -289,6 +366,7 @@ export function MobileStrategicProfileAnalyzeFlow({
                     setValidationStatus("idle");
                     setFileValidationError(null);
                     setUploadSessionValidated(false);
+                    setTemporaryUploadForCleanup(null);
                   }
                 }}
                 className="hidden"
@@ -328,20 +406,32 @@ export function MobileStrategicProfileAnalyzeFlow({
                     className="mt-1 h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
                   />
                   <label htmlFor="video-consent-checkbox" className="text-xs leading-5 text-zinc-600 cursor-pointer">
-                    Entendo que este vídeo será usado apenas para validar a análise narrativa e que, nesta etapa, o arquivo ainda não será enviado.
+                    Entendo que este vídeo será usado apenas para validar a análise narrativa temporária.
                   </label>
                 </div>
               ) : null}
 
               {validationStatus === "validating" ? (
                 <p className="mt-3 text-xs font-medium text-sky-600">
-                  Validando vídeo...
+                  Preparando envio...
+                </p>
+              ) : null}
+
+              {validationStatus === "uploading" ? (
+                <p className="mt-3 text-xs font-medium text-sky-600">
+                  Enviando vídeo...
                 </p>
               ) : null}
 
               {validationStatus === "validated" ? (
                 <p className="mt-3 text-xs font-semibold text-emerald-600">
                   Vídeo validado para análise
+                </p>
+              ) : null}
+
+              {validationStatus === "uploaded" ? (
+                <p className="mt-3 text-xs font-semibold text-emerald-600">
+                  Vídeo enviado para análise temporária.
                 </p>
               ) : null}
 
@@ -366,7 +456,7 @@ export function MobileStrategicProfileAnalyzeFlow({
           <div>
             {uploadSessionValidated ? (
               <p className="mb-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
-                Vídeo validado para análise
+                {validationStatus === "uploaded" ? "Vídeo enviado para análise temporária." : "Vídeo validado para análise"}
               </p>
             ) : null}
             <p className="text-sm font-semibold text-zinc-950">Qual era o objetivo do conteúdo?</p>

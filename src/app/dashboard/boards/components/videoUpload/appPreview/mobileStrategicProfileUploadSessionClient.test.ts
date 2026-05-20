@@ -82,6 +82,44 @@ describe("mobileStrategicProfileUploadSessionClient", () => {
     expect(res.status).toBe("mock_session_created");
   });
 
+  it("reconhece signed_upload_session_created sem enviar file/bytes/base64/objectUrl", async () => {
+    const mockFetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: jest.fn().mockResolvedValue({
+        ok: true,
+        status: "signed_upload_session_created",
+        uploadSession: {
+          id: "video-temp-upload-session-abc_123",
+          providerMode: "real",
+          storageProvider: "cloudflare_r2",
+          uploadUrl: "https://signed.example.test/upload?signature=test",
+          method: "PUT",
+          headers: { "Content-Type": "video/mp4" },
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          objectKey: "temporary/video-narrative/0123456789abcdef/video-temp-upload-session-abc_123.mp4",
+          retentionTtlMinutes: 60,
+          shouldDeleteAfterAnalysis: true,
+          shouldPersistVideo: false,
+          shouldPersistThumbnail: false,
+        },
+      }),
+    });
+    global.fetch = mockFetch;
+
+    const res = await requestUploadSession(validPayload);
+    const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+
+    expect(res.ok).toBe(true);
+    expect(res.status).toBe("signed_upload_session_created");
+    expect(res.uploadSession?.method).toBe("PUT");
+    expect(body.file).toBeUndefined();
+    expect(body.bytes).toBeUndefined();
+    expect(body.base64).toBeUndefined();
+    expect(body.objectUrl).toBeUndefined();
+    expect(body.videoUrl).toBeUndefined();
+  });
+
   it("trata erro 401 de forma humana e amigável", async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: false,

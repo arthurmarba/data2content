@@ -3,6 +3,7 @@ import { render, screen, act } from "@testing-library/react";
 import { MobileStrategicProfileRealShellClient } from "./MobileStrategicProfileRealShellClient";
 import { fetchHomeSummaryCached } from "../../../../home/homeSummaryClient";
 import { requestUploadSession } from "./mobileStrategicProfileUploadSessionClient";
+import { uploadVideoToTemporarySignedUrl } from "./mobileStrategicProfileDirectUploadClient";
 
 // Mock das dependências
 jest.mock("../../../../home/homeSummaryClient", () => ({
@@ -13,9 +14,19 @@ jest.mock("./mobileStrategicProfileUploadSessionClient", () => ({
   requestUploadSession: jest.fn(),
 }));
 
+jest.mock("./mobileStrategicProfileDirectUploadClient", () => ({
+  uploadVideoToTemporarySignedUrl: jest.fn(),
+}));
+
 jest.mock("./MobileStrategicProfilePreview", () => {
   return {
-    MobileStrategicProfilePreview: ({ profile, onSubmitAnalysis, onCreateUploadSession }: any) => (
+    MobileStrategicProfilePreview: ({
+      profile,
+      onSubmitAnalysis,
+      onCreateUploadSession,
+      onUploadToTemporarySignedUrl,
+      onCleanupTemporaryUpload,
+    }: any) => (
       <div data-testid="profile-preview-mock">
         <h1 data-testid="profile-display-name">{profile.header.identity.displayName}</h1>
         <p data-testid="profile-bio">{profile.header.identity.bio}</p>
@@ -25,6 +36,8 @@ jest.mock("./MobileStrategicProfilePreview", () => {
         <span data-testid="profile-mediakit-href">{profile.mediaKitBridge.href || ""}</span>
         <span data-testid="profile-community-href">{profile.communityBridge.href || ""}</span>
         <span data-testid="has-on-create-session">{String(!!onCreateUploadSession)}</span>
+        <span data-testid="has-on-direct-upload">{String(!!onUploadToTemporarySignedUrl)}</span>
+        <span data-testid="has-on-cleanup">{String(!!onCleanupTemporaryUpload)}</span>
         <button data-testid="trigger-analysis-submit" onClick={() => onSubmitAnalysis?.({ creatorGoal: "test", selectedGoalOption: "authority" })}>
           Submit
         </button>
@@ -41,6 +54,28 @@ jest.mock("./MobileStrategicProfilePreview", () => {
           })}
         >
           Upload session
+        </button>
+        <button
+          data-testid="trigger-direct-upload"
+          onClick={() => onUploadToTemporarySignedUrl?.({
+            file: new File(["video"], "vlog.mp4", { type: "video/mp4" }),
+            uploadUrl: "https://signed.example.test/upload?signature=test",
+            method: "PUT",
+            headers: { "Content-Type": "video/mp4" },
+            expiresAt: "2099-01-01T00:00:00.000Z",
+          })}
+        >
+          Direct upload
+        </button>
+        <button
+          data-testid="trigger-cleanup"
+          onClick={() => onCleanupTemporaryUpload?.({
+            uploadSessionId: "video-temp-upload-session-abc_123",
+            objectKey: "temporary/video-narrative/0123456789abcdef/video-temp-upload-session-abc_123.mp4",
+            reason: "analysis_completed",
+          })}
+        >
+          Cleanup
         </button>
       </div>
     ),
@@ -61,6 +96,7 @@ describe("MobileStrategicProfileRealShellClient", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (requestUploadSession as jest.Mock).mockResolvedValue({ ok: true, status: "mock_session_created" });
+    (uploadVideoToTemporarySignedUrl as jest.Mock).mockResolvedValue({ ok: true, status: "uploaded" });
   });
 
   it("renderiza perfil inicial com dados da sessão e dispara busca em background", async () => {
@@ -317,6 +353,32 @@ describe("MobileStrategicProfileRealShellClient", () => {
     globalFetchSpy.mockRestore();
   });
 
+  it("não persiste uploadUrl/objectKey no payload de análise mock", async () => {
+    (fetchHomeSummaryCached as jest.Mock).mockResolvedValue(null);
+    const globalFetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true }),
+    } as any);
+
+    render(
+      <MobileStrategicProfileRealShellClient
+        session={mockSession}
+        stateQuery={null}
+      />
+    );
+
+    await act(async () => {
+      screen.getByTestId("trigger-analysis-submit").click();
+    });
+
+    const analyzeCall = globalFetchSpy.mock.calls.find(([url]) => url === "/api/dashboard/mobile-strategic-profile/analyze");
+    expect(analyzeCall).toBeTruthy();
+    expect(String(analyzeCall?.[1]?.body)).not.toContain("uploadUrl");
+    expect(String(analyzeCall?.[1]?.body)).not.toContain("objectKey");
+
+    globalFetchSpy.mockRestore();
+  });
+
   it("Fase MM61 - passa callback onCreateUploadSession para o MobileStrategicProfilePreview e preserva hidratacao", async () => {
     (fetchHomeSummaryCached as jest.Mock).mockResolvedValue(null);
 
@@ -329,6 +391,8 @@ describe("MobileStrategicProfileRealShellClient", () => {
 
     // Garante que o callback foi passado com sucesso
     expect(screen.getByTestId("has-on-create-session").textContent).toBe("true");
+    expect(screen.getByTestId("has-on-direct-upload").textContent).toBe("true");
+    expect(screen.getByTestId("has-on-cleanup").textContent).toBe("true");
     // Garante que o perfil inicial continua com o nome correto
     expect(screen.getByTestId("profile-display-name").textContent).toBe("Arthur Teste");
 
@@ -369,5 +433,58 @@ describe("MobileStrategicProfileRealShellClient", () => {
     await act(async () => {
       await Promise.resolve();
     });
+  });
+
+  it("Fase MM64 - passa callback de direct upload para o MobileStrategicProfilePreview", async () => {
+    (fetchHomeSummaryCached as jest.Mock).mockResolvedValue(null);
+
+    render(
+      <MobileStrategicProfileRealShellClient
+        session={mockSession}
+        stateQuery={null}
+      />
+    );
+
+    await act(async () => {
+      screen.getByTestId("trigger-direct-upload").click();
+    });
+
+    expect(uploadVideoToTemporarySignedUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        uploadUrl: "https://signed.example.test/upload?signature=test",
+        method: "PUT",
+        headers: { "Content-Type": "video/mp4" },
+      })
+    );
+  });
+
+  it("Fase MM64 - chama cleanup contract sem apagar o Perfil atual", async () => {
+    (fetchHomeSummaryCached as jest.Mock).mockResolvedValue(null);
+    const globalFetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, status: "cleanup_not_configured" }),
+    } as any);
+
+    render(
+      <MobileStrategicProfileRealShellClient
+        session={mockSession}
+        stateQuery={null}
+      />
+    );
+
+    await act(async () => {
+      screen.getByTestId("trigger-cleanup").click();
+    });
+
+    expect(globalFetchSpy).toHaveBeenCalledWith(
+      "/api/dashboard/mobile-strategic-profile/upload-cleanup",
+      expect.objectContaining({
+        method: "POST",
+        body: expect.stringContaining("video-temp-upload-session-abc_123"),
+      })
+    );
+    expect(screen.getByTestId("profile-display-name").textContent).toBe("Arthur Teste");
+
+    globalFetchSpy.mockRestore();
   });
 });
