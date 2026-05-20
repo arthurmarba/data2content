@@ -2109,3 +2109,29 @@ MM71 consolida o beta fechado como launch candidate para 3 a 5 creators reais. A
 Também cria `VIDEO_NARRATIVE_CLOSED_BETA_LAUNCH_CHECKLIST.md` com envs de Vercel, liberação de creator por allowlist, smoke Preview/Production, rollback rápido e checklist anti-vazamento. O QA mobile foi ampliado com cenários de usuário comum, allowlist válido, limite atingido, falha Gemini, falha storage e cleanup warning.
 
 Público geral continua bloqueado; allowlist/admin-dev seguem como únicos caminhos para o fluxo real. O endpoint mock permanece preservado e billing, MediaKit, Comunidade, navegação, shells, LoginClient e NextAuth não foram alterados.
+
+### MM72 — Preview Deployment + Beta Operator Runbook
+
+Status: concluído.
+
+Arquivos principais:
+
+- `VIDEO_NARRATIVE_BETA_OPERATOR_RUNBOOK.md`
+- `VIDEO_NARRATIVE_BETA_SMOKE_TEST_PLAN.md`
+- `VIDEO_NARRATIVE_BETA_FEEDBACK_TEMPLATE.md`
+- `VIDEO_NARRATIVE_CLOSED_BETA_LAUNCH_CHECKLIST.md`
+- `VIDEO_NARRATIVE_REAL_ANALYSIS_PRODUCTION_CHECKLIST.md`
+
+O que faz:
+
+- consolida a operação prática do beta fechado com 3 a 5 creators;
+- documenta Vercel envs, allowlists, smoke tests, rollback, cleanup, custos e bugs;
+- define critérios objetivos de aprovação/reprovação;
+- cria template de feedback em linguagem não técnica.
+
+O que não faz:
+
+- não cria nova arquitetura;
+- não altera fluxo core;
+- não libera público geral;
+- não altera billing, Stripe, Mídia Kit, Comunidade, navegação, shells, login ou NextAuth.
