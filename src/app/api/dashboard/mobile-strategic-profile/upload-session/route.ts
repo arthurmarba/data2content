@@ -7,6 +7,7 @@ import {
   isRealUploadEnabled,
 } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadFeatureFlag";
 import { validateTemporaryUploadInput } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadValidation";
+import { createVideoNarrativeTemporaryStorageProvider } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageProviderFactory";
 
 const SIGNED_URL_KEYWORDS = ["signature=", "expires=", "token=", "policy="];
 const BASE64_INDICATOR = "base64";
@@ -170,31 +171,26 @@ export async function POST(request: Request) {
       );
     }
 
-    // 7. Bloqueio de real provider
-    const realUploadEnabled = isRealUploadEnabled();
-    if (realUploadEnabled) {
-      // Bloqueado até auditoria final
-      return NextResponse.json(
-        { message: "Regra de segurança: provedor de storage real temporariamente inativo." },
-        { status: 400 }
-      );
+    const storageFactory = createVideoNarrativeTemporaryStorageProvider({
+      realUploadEnabled: isRealUploadEnabled(),
+      uploadSessionEnabled: true,
+    });
+    const providerResult = storageFactory.provider.createUploadSession({
+      fileName,
+      mimeType,
+      sizeBytes,
+      durationSeconds,
+      consentTextVersion,
+      userId: session.user.id,
+      source: "mobile_strategic_profile",
+    });
+
+    if (!providerResult.ok) {
+      const hasBlocker = providerResult.issues.some((issue) => issue.severity === "blocker");
+      return NextResponse.json(providerResult, { status: hasBlocker ? 400 : 200 });
     }
 
-    // Retorna resposta segura em modo mock/session-ready
-    return NextResponse.json({
-      ok: true,
-      status: "mock_session_created",
-      uploadSession: {
-        id: `video-temp-upload-session-mock-${Date.now()}`,
-        providerMode: "mock",
-        storageProvider: "none",
-        expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(), // 60 min TTL
-        retentionTtlMinutes: 60,
-        shouldDeleteAfterAnalysis: true,
-        shouldPersistVideo: false,
-        shouldPersistThumbnail: false,
-      },
-    });
+    return NextResponse.json(providerResult);
 
   } catch (err: any) {
     // Retorna mensagem amigável sem revelar stack trace

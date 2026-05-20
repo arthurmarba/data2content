@@ -232,6 +232,19 @@ Validar na rota real do Perfil Estratégico mobile:
 - confirmar que o arquivo não aparece como histórico, galeria, replay ou card salvo;
 - finalizar o fluxo e validar que a análise mock segue atualizando o snapshot do Perfil.
 
+## Nota MM62 — Storage Provider Abstraction
+
+O dry-run de upload metadata continua sem arquivo sair do browser. A camada server-side de provider temporário pode retornar `disabled` ou `mock`, mas provider real segue bloqueado.
+
+QA deve validar que a UI e a resposta da upload-session API não exibem nem persistem:
+
+- signed URL;
+- uploadUrl;
+- storageKey;
+- bucket real;
+- thumbnail;
+- histórico visual de vídeos.
+
 ## Critérios de aprovação geral
 
 A experiência só passa se:
@@ -359,3 +372,11 @@ Não recomendar integração real antes do QA/polish visual.
 - Sem `FileReader`, `URL.createObjectURL`, canvas, video element para metadados, thumbnail, player, storage local ou histórico visual.
 - Falhas de upload session não podem apagar o Perfil atual nem impedir a hidratação do HomeSummary.
 - A análise mock existente continua sendo o único endpoint de análise chamado após a validação metadata-only.
+
+## Guardrails do MM62
+
+- A upload-session API deve usar a factory server-side de provider temporário.
+- Providers reais R2/S3/GCS/Cloudinary permanecem apenas planejados e retornam disabled.
+- Nenhuma resposta deve conter signed URL, uploadUrl, storageKey ou bucket real.
+- Nenhum SDK de storage deve ser importado.
+- `VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED=true` deve bloquear a sessão nesta build.

@@ -7,6 +7,8 @@ import {
   isTemporaryUploadSessionEnabled,
   isRealUploadEnabled,
 } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadFeatureFlag";
+import fs from "fs";
+import path from "path";
 
 jest.mock("next-auth/next", () => ({
   getServerSession: jest.fn(),
@@ -26,6 +28,8 @@ jest.mock("@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadFeatu
 }));
 
 const getServerSession = require("next-auth/next").getServerSession as jest.Mock;
+const ROUTE_SOURCE_PATH = path.join(__dirname, "route.ts");
+const originalEnv = process.env;
 
 function createRequest(method: string, body: any) {
   return new NextRequest("http://localhost/api/dashboard/mobile-strategic-profile/upload-session", {
@@ -69,11 +73,20 @@ describe("POST /api/dashboard/mobile-strategic-profile/upload-session", () => {
   };
 
   beforeEach(() => {
+    process.env = {
+      ...originalEnv,
+      VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "mock",
+      VIDEO_NARRATIVE_TEMP_UPLOAD_SESSION_ENABLED: "1",
+    };
     jest.clearAllMocks();
     (isMobileStrategicProfileEnabled as jest.Mock).mockReturnValue(true);
     (isTemporaryUploadSessionEnabled as jest.Mock).mockReturnValue(true);
     (isRealUploadEnabled as jest.Mock).mockReturnValue(false);
     (getServerSession as jest.Mock).mockResolvedValue({ user: { id: "usr_123" } });
+  });
+
+  afterAll(() => {
+    process.env = originalEnv;
   });
 
   it("POST bloqueia usuário anônimo/deslogado", async () => {
@@ -103,7 +116,9 @@ describe("POST /api/dashboard/mobile-strategic-profile/upload-session", () => {
     const res = await POST(createRequest("POST", validBasePayload));
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.message).toContain("provedor de storage real temporariamente inativo");
+    expect(body.ok).toBe(false);
+    expect(body.status).toBe("disabled");
+    expect(body.issues.some((issue: any) => issue.code === "real_upload_not_supported_in_this_build")).toBe(true);
   });
 
   it("POST bloqueia payload com 'file' no corpo", async () => {
@@ -192,6 +207,8 @@ describe("POST /api/dashboard/mobile-strategic-profile/upload-session", () => {
     const body = await res.json();
     expect(body.ok).toBe(true);
     expect(body.status).toBe("mock_session_created");
+    expect(body.providerMode).toBe("mock");
+    expect(body.storageProvider).toBe("none");
   });
 
   it("POST aceita quicktime válido em modo mock", async () => {
@@ -242,6 +259,41 @@ describe("POST /api/dashboard/mobile-strategic-profile/upload-session", () => {
     const body = await res.json();
     expect(body.uploadSession.bucket).toBeUndefined();
     expect(body.uploadSession.storageKey).toBeUndefined();
+  });
+
+  it("POST retorna disabled quando provider está disabled", async () => {
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER = "disabled";
+
+    const res = await POST(createRequest("POST", validBasePayload));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(false);
+    expect(body.status).toBe("disabled");
+    expect(body.reason).toBe("temporary_storage_disabled");
+    expect(body.uploadSession).toBeUndefined();
+  });
+
+  it("POST usa a factory de storage temporário", () => {
+    const source = fs.readFileSync(ROUTE_SOURCE_PATH, "utf8");
+
+    expect(source).toContain("createVideoNarrativeTemporaryStorageProvider");
+    expect(source).toContain("storageFactory.provider.createUploadSession");
+  });
+
+  it("POST não salva vídeo/metadados em banco nem importa SDK storage", () => {
+    const source = fs.readFileSync(ROUTE_SOURCE_PATH, "utf8");
+
+    for (const forbidden of [
+      "upsert",
+      "mongoose",
+      "Prisma",
+      "aws-sdk",
+      "@aws-sdk",
+      "@google-cloud/storage",
+      "cloudinary",
+    ]) {
+      expect(source).not.toContain(forbidden);
+    }
   });
 
   it("Erro interno retorna mensagem humana sem stack trace", async () => {
