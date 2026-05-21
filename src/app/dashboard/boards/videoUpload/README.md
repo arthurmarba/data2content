@@ -6,6 +6,36 @@ O vídeo ainda não é enviado de verdade e ainda não é processado de verdade.
 
 Hoje, vídeo é apenas uma possível origem futura para preencher uma `NarrativeSource`.
 
+### MM91 — Closed Beta Activation, Telemetry and Operator Smoke Harness
+
+Status: implementado.
+
+Arquivos principais:
+
+- `MM91_CLOSED_BETA_ACTIVATION_TELEMETRY_SMOKE.md`
+- `mobileNarrativeTelemetry.ts`
+- `mobileClosedBetaSmokeScenarios.ts`
+- `../components/videoUpload/appPreview/MobileClosedBetaSmokeHarness.tsx`
+- `../components/videoUpload/appPreview/MobileStrategicProfileRealShellClient.tsx`
+- `src/app/billing/success/page.tsx`
+- `src/app/dashboard/discover/CommunityConversionSection.tsx`
+
+O que faz:
+
+- adiciona telemetria segura e tipada para o funil mobile, com provider noop-safe por padrão do `track`;
+- bloqueia campos sensíveis em eventos, incluindo texto livre, URLs, storage metadata, raw response, transcript, diagnóstico e snapshot completos;
+- registra follow-through de `postCheckoutIntent` para `connect_instagram` e `join_community`;
+- simplifica mensagens de leituras perto do limite e em 10/10;
+- adiciona smoke harness interno/admin-dev no preview mobile sem chamar Gemini, storage ou upload real automaticamente.
+
+O que não faz:
+
+- não abre beta para usuários comuns;
+- não altera Stripe core, billing core profundo, NextAuth, DashboardShell, BoardShell, sidebar ou `MediaKitView`;
+- não cria plano, pacote extra, matches, marcas, creators sugeridos ou novas features de marketplace;
+- não altera prompt/schema/parser, Gemini provider ou storage/R2;
+- não salva vídeo, thumbnail, signed/upload URL, objectKey, localPath, storageProviderPath, raw response ou transcrição longa.
+
 ### MM90 — Mobile UX Simplification Pass
 
 Status: implementado.

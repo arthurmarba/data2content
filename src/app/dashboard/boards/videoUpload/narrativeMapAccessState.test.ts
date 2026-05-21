@@ -79,11 +79,20 @@ describe("narrativeMapAccessState", () => {
       quota: { usedThisMonth: 3 },
     })).toMatchObject({
       title: "Pro ativo",
-      description: "Você usou 3 de 10 leituras deste mês.",
+      description: "3/10 leituras",
+      primaryLabel: "Nova leitura",
+    });
+    expect(getNarrativeMapStatusCardContent({
+      state: "pro_instagram_connected",
+      quota: { usedThisMonth: 9 },
+    })).toMatchObject({
+      title: "Pro ativo",
+      description: "Restam 1 leituras este mês.",
       primaryLabel: "Nova leitura",
     });
     expect(getNarrativeMapStatusCardContent({ state: "pro_quota_reached" })).toMatchObject({
-      title: "Limite mensal usado",
+      title: "10/10 usadas",
+      description: "Novas leituras liberam no próximo ciclo. Seu Perfil continua disponível.",
       primaryLabel: "Ver leituras",
     });
     expect(getNarrativeMapStatusCardContent({ state: "payment_pending" }).primaryLabel).toBe("Continuar pagamento");

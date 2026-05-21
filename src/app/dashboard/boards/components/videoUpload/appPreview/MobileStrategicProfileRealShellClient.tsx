@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { buildMobileStrategicProfileRealShellInput } from "./buildMobileStrategicProfileRealShellInput";
 import { buildMobileStrategicProfile, type MobileStrategicProfile } from "../../../videoUpload/mobileStrategicProfileMapping";
 import { buildMobileStrategicProfileExistingDataAdapter } from "../../../videoUpload/mobileStrategicProfileExistingDataAdapter";
@@ -16,10 +16,18 @@ import { uploadVideoToTemporarySignedUrl } from "./mobileStrategicProfileDirectU
 import type { CreatorNarrativeMapReadingPresentation } from "../../../videoUpload/creatorNarrativeMapReadingChapters";
 import type { NarrativeMapMobileViewModel } from "../../../videoUpload/narrativeMapMobileViewModel";
 import {
+  getNarrativeMapAccessAction,
+  getNarrativeMapStatusCardContent,
   normalizeNarrativeMapReadingQuotaSnapshot,
   resolveNarrativeMapAccessState,
   type NarrativeMapReadingQuotaSnapshot,
 } from "../../../videoUpload/narrativeMapAccessState";
+import {
+  buildMobileNarrativeTelemetryContext,
+  getSafeMobileNarrativeErrorCode,
+  trackMobileNarrativeEvent,
+  type MobileNarrativeAnalysisMode,
+} from "../../../videoUpload/mobileNarrativeTelemetry";
 import {
   MOBILE_INSTAGRAM_CONNECT_ROUTE,
   MOBILE_MEDIA_KIT_ROUTE,
@@ -52,8 +60,14 @@ export function MobileStrategicProfileRealShellClient({
   const billing = useBillingStatus();
   const quota = normalizeNarrativeMapReadingQuotaSnapshot(initialReadingQuota);
   const sessionUser = session?.user as any;
+  const isPro = billing.hasResolvedOnce ? billing.hasPremiumAccess : sessionUser?.planStatus === "active";
+  const instagramConnected = Boolean(
+    (billing.instagram?.connected && !billing.instagram?.needsReconnect) ||
+    sessionUser?.instagramConnected ||
+    sessionUser?.isInstagramConnected,
+  );
   const accessState = resolveNarrativeMapAccessState({
-    hasPremiumAccess: billing.hasResolvedOnce ? billing.hasPremiumAccess : sessionUser?.planStatus === "active",
+    hasPremiumAccess: isPro,
     hasFullReportAccess: billing.hasResolvedOnce ? billing.hasFullReportAccess : sessionUser?.planStatus === "active",
     needsCheckout: billing.needsCheckout,
     needsPaymentAction: billing.needsPaymentAction,
@@ -66,6 +80,14 @@ export function MobileStrategicProfileRealShellClient({
     },
     readingQuota: quota,
   });
+  const telemetryContext = useMemo(() => buildMobileNarrativeTelemetryContext({
+    route: MOBILE_PROFILE_ROUTE,
+    accessState,
+    isPro,
+    instagramConnected,
+    quotaUsedThisMonth: quota.usedThisMonth,
+    quotaLimit: quota.proMonthlyLimit,
+  }), [accessState, instagramConnected, isPro, quota.proMonthlyLimit, quota.usedThisMonth]);
 
   // 1. Calcular o perfil inicial (Session-only, snapshot ou fixture via stateQuery)
   const [profile, setProfile] = useState<MobileStrategicProfile>(() => {
@@ -95,6 +117,13 @@ export function MobileStrategicProfileRealShellClient({
   const [mapAnalyzeFlowOpen, setMapAnalyzeFlowOpen] = useState(false);
   const [mapAccessMessage, setMapAccessMessage] = useState<string | null>(null);
   const [mapProfileUpdated, setMapProfileUpdated] = useState(false);
+
+  useEffect(() => {
+    trackMobileNarrativeEvent("mobile_profile_viewed", telemetryContext);
+    if (accessState === "pro_quota_reached") {
+      trackMobileNarrativeEvent("mobile_quota_reached_seen", telemetryContext);
+    }
+  }, [accessState, telemetryContext]);
 
   useEffect(() => {
     // Se for anônimo, não precisamos hidratar
@@ -193,6 +222,7 @@ export function MobileStrategicProfileRealShellClient({
     const shouldUseRealAnalysis =
       realAnalysisEnabled &&
       Boolean(payload.temporaryUpload?.uploadSessionId);
+    const analysisMode: MobileNarrativeAnalysisMode = shouldUseRealAnalysis ? "real_gated" : "mock";
     const endpoint = shouldUseRealAnalysis
       ? "/api/dashboard/mobile-strategic-profile/analyze-real"
       : "/api/dashboard/mobile-strategic-profile/analyze";
@@ -217,20 +247,89 @@ export function MobileStrategicProfileRealShellClient({
           mockScenario: payload.mockScenario,
         };
 
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestPayload),
+    trackMobileNarrativeEvent("mobile_analysis_submitted", {
+      ...telemetryContext,
+      selectedGoalOption: payload.selectedGoalOption,
+      analysisMode,
     });
 
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.message || "Erro ao conectar com o serviço de análise.");
+    let data: any = null;
+    let failureTracked = false;
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestPayload),
+      });
+
+      data = await response.json().catch(() => ({}));
+      const persistence = data?.videoReadingPersistence;
+      const synthesis = data?.synthesisSnapshotWrite;
+      const allowlistGatePassed = Boolean(data?.e2eBetaAudit?.allowlistGatePassed);
+
+      if (persistence?.attempted) {
+        trackMobileNarrativeEvent("mobile_reading_saved", {
+          ...telemetryContext,
+          analysisMode,
+          allowlistGatePassed,
+          readingSaved: Boolean(persistence.saved),
+          safeErrorCode: persistence.saved ? undefined : persistence.errorCode ?? persistence.skippedReason,
+        });
+      }
+      if (synthesis?.attempted) {
+        trackMobileNarrativeEvent("mobile_synthesis_snapshot_write_attempted", {
+          ...telemetryContext,
+          analysisMode,
+          allowlistGatePassed,
+          synthesisWritten: Boolean(synthesis.written),
+        });
+        trackMobileNarrativeEvent(
+          synthesis.written
+            ? "mobile_synthesis_snapshot_write_succeeded"
+            : "mobile_synthesis_snapshot_write_failed",
+          {
+            ...telemetryContext,
+            analysisMode,
+            allowlistGatePassed,
+            synthesisWritten: Boolean(synthesis.written),
+            safeErrorCode: synthesis.written ? undefined : synthesis.skippedReason,
+          },
+        );
+      }
+
+      if (!response.ok) {
+        failureTracked = true;
+        trackMobileNarrativeEvent("mobile_analysis_failed", {
+          ...telemetryContext,
+          selectedGoalOption: payload.selectedGoalOption,
+          analysisMode,
+          allowlistGatePassed,
+          safeErrorCode: data?.code ?? data?.reason ?? `http_${response.status}`,
+        });
+        throw new Error(data.message || "Erro ao conectar com o serviço de análise.");
+      }
+    } catch (error) {
+      if (!failureTracked) {
+        trackMobileNarrativeEvent("mobile_analysis_failed", {
+          ...telemetryContext,
+          selectedGoalOption: payload.selectedGoalOption,
+          analysisMode,
+          safeErrorCode: getSafeMobileNarrativeErrorCode(error),
+        });
+      }
+      throw error;
     }
 
-    const data = await response.json();
+    trackMobileNarrativeEvent("mobile_analysis_succeeded", {
+      ...telemetryContext,
+      selectedGoalOption: payload.selectedGoalOption,
+      analysisMode,
+      allowlistGatePassed: Boolean(data?.e2eBetaAudit?.allowlistGatePassed),
+      readingSaved: Boolean(data?.videoReadingPersistence?.saved),
+      synthesisWritten: Boolean(data?.synthesisSnapshotWrite?.written),
+    });
     if (data.snapshot) {
       const { buildMobileStrategicProfileFromSnapshot } = await import("../../../videoUpload/mobileStrategicProfileSnapshotMapping");
       const input = buildMobileStrategicProfileFromSnapshot({
@@ -247,7 +346,7 @@ export function MobileStrategicProfileRealShellClient({
       });
       setProfile(buildMobileStrategicProfile(input));
     }
-  }, [session, realAnalysisEnabled]);
+  }, [session, realAnalysisEnabled, telemetryContext]);
 
   const handleCleanupTemporaryUpload = useCallback(async (payload: {
     uploadSessionId: string;
@@ -282,27 +381,127 @@ export function MobileStrategicProfileRealShellClient({
 
   const handleMapPrimaryAccessAction = useCallback(() => {
     setMapAccessMessage(null);
+    const content = getNarrativeMapStatusCardContent({ state: accessState, quota });
+    const accessAction = getNarrativeMapAccessAction(accessState);
+    trackMobileNarrativeEvent("mobile_status_action_clicked", {
+      ...telemetryContext,
+      actionLabel: content.primaryLabel,
+      actionType: accessAction.reason,
+    });
     if (accessState === "pro_needs_instagram") {
+      trackMobileNarrativeEvent("mobile_instagram_connect_clicked", {
+        ...telemetryContext,
+        actionLabel: content.primaryLabel,
+        actionType: "connect_instagram",
+      });
       window.location.href = MOBILE_INSTAGRAM_CONNECT_ROUTE;
       return;
     }
     if (accessState === "free_unused" || accessState === "pro_instagram_connected" || accessState === "admin") {
+      trackMobileNarrativeEvent("mobile_upload_gate_checked", {
+        ...telemetryContext,
+        gateResult: "allowed",
+        actionType: "start_reading",
+      });
+      trackMobileNarrativeEvent("mobile_new_reading_started", {
+        ...telemetryContext,
+        actionType: "start_reading",
+      });
       setMapAnalyzeFlowOpen(true);
       return;
     }
     if (accessState === "pro_quota_reached") {
+      trackMobileNarrativeEvent("mobile_upload_gate_checked", {
+        ...telemetryContext,
+        gateResult: "blocked",
+        actionType: "start_reading",
+        safeErrorCode: "pro_quota_reached",
+      });
+      trackMobileNarrativeEvent("mobile_upload_gate_blocked", {
+        ...telemetryContext,
+        gateResult: "blocked",
+        actionType: "start_reading",
+        safeErrorCode: "pro_quota_reached",
+      });
       setMapAccessMessage("Você usou suas 10 leituras deste mês. Seu Perfil continua disponível.");
       return;
     }
+    trackMobileNarrativeEvent("mobile_upload_gate_checked", {
+      ...telemetryContext,
+      gateResult: "blocked",
+      actionType: "start_reading",
+      safeErrorCode: accessAction.reason,
+    });
+    trackMobileNarrativeEvent("mobile_upload_gate_blocked", {
+      ...telemetryContext,
+      gateResult: "blocked",
+      actionType: "start_reading",
+      safeErrorCode: accessAction.reason,
+    });
     openProfilePaywall();
-  }, [accessState, openProfilePaywall]);
+  }, [accessState, openProfilePaywall, quota, telemetryContext]);
 
   const handleMapSecondaryAccessAction = useCallback(() => {
     setMapAccessMessage(null);
     if (accessState === "pro_needs_instagram") {
+      trackMobileNarrativeEvent("mobile_status_action_clicked", {
+        ...telemetryContext,
+        actionLabel: "Nova leitura",
+        actionType: "start_reading",
+      });
+      trackMobileNarrativeEvent("mobile_upload_gate_checked", {
+        ...telemetryContext,
+        gateResult: "allowed",
+        actionType: "start_reading",
+      });
+      trackMobileNarrativeEvent("mobile_new_reading_started", {
+        ...telemetryContext,
+        actionType: "start_reading",
+      });
       setMapAnalyzeFlowOpen(true);
     }
-  }, [accessState]);
+  }, [accessState, telemetryContext]);
+
+  const handleCreateUploadSession = useCallback(async (...args: Parameters<typeof requestUploadSession>) => {
+    trackMobileNarrativeEvent("mobile_upload_session_requested", {
+      ...telemetryContext,
+      analysisMode: realAnalysisEnabled ? "real_gated" : "mock",
+    });
+    const response = await requestUploadSession(...args);
+    if (response.ok) {
+      trackMobileNarrativeEvent("mobile_upload_session_created", {
+        ...telemetryContext,
+        analysisMode: response.status === "signed_upload_session_created" ? "real_gated" : "mock",
+        allowlistGatePassed: response.status === "signed_upload_session_created",
+      });
+    } else {
+      trackMobileNarrativeEvent("mobile_upload_gate_blocked", {
+        ...telemetryContext,
+        gateResult: "blocked",
+        safeErrorCode: response.issues?.find((issue) => issue.severity === "blocker")?.code ?? response.status,
+        analysisMode: realAnalysisEnabled ? "real_gated" : "mock",
+      });
+    }
+    return response;
+  }, [realAnalysisEnabled, telemetryContext]);
+
+  const handleUploadToTemporarySignedUrl = useCallback(async (...args: Parameters<typeof uploadVideoToTemporarySignedUrl>) => {
+    const response = await uploadVideoToTemporarySignedUrl(...args);
+    if (response.ok) {
+      trackMobileNarrativeEvent("mobile_video_upload_completed", {
+        ...telemetryContext,
+        analysisMode: "real_gated",
+        allowlistGatePassed: true,
+      });
+    } else {
+      trackMobileNarrativeEvent("mobile_analysis_failed", {
+        ...telemetryContext,
+        analysisMode: "real_gated",
+        safeErrorCode: response.status ?? "video_upload_failed",
+      });
+    }
+    return response;
+  }, [telemetryContext]);
 
   const handleMapAnalyzeComplete = useCallback(() => {
     setMapAnalyzeFlowOpen(false);
@@ -336,6 +535,11 @@ export function MobileStrategicProfileRealShellClient({
               onPrimaryAccessAction={handleMapPrimaryAccessAction}
               onSecondaryAccessAction={handleMapSecondaryAccessAction}
               onOpenMediaKit={() => {
+                trackMobileNarrativeEvent("mobile_mediakit_action_clicked", {
+                  ...telemetryContext,
+                  actionLabel: "Abrir Mídia Kit",
+                  actionType: "open_media_kit",
+                });
                 window.location.href = MOBILE_MEDIA_KIT_ROUTE;
               }}
               profileUpdateNotice={mapProfileUpdated}
@@ -351,8 +555,8 @@ export function MobileStrategicProfileRealShellClient({
               onClose={() => setMapAnalyzeFlowOpen(false)}
               onComplete={handleMapAnalyzeComplete}
               onSubmitAnalysis={handleAnalysisSubmit}
-              onCreateUploadSession={requestUploadSession}
-              onUploadToTemporarySignedUrl={uploadVideoToTemporarySignedUrl}
+              onCreateUploadSession={handleCreateUploadSession}
+              onUploadToTemporarySignedUrl={handleUploadToTemporarySignedUrl}
               enableRealAnalysis={realAnalysisEnabled}
               onCleanupTemporaryUpload={handleCleanupTemporaryUpload}
             />
@@ -363,8 +567,8 @@ export function MobileStrategicProfileRealShellClient({
           profile={profile}
           isRealShell={true}
           onSubmitAnalysis={handleAnalysisSubmit}
-          onCreateUploadSession={requestUploadSession}
-          onUploadToTemporarySignedUrl={uploadVideoToTemporarySignedUrl}
+          onCreateUploadSession={handleCreateUploadSession}
+          onUploadToTemporarySignedUrl={handleUploadToTemporarySignedUrl}
           enableRealAnalysis={realAnalysisEnabled}
           onCleanupTemporaryUpload={handleCleanupTemporaryUpload}
           accessState={accessState}

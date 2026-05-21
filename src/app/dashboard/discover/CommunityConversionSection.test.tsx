@@ -3,6 +3,7 @@ import { useSession } from "next-auth/react";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { fetchHomeSummaryCached } from "@/app/dashboard/home/homeSummaryClient";
 import CommunityConversionSection from "./CommunityConversionSection";
+import { trackMobileNarrativeEvent } from "@/app/dashboard/boards/videoUpload/mobileNarrativeTelemetry";
 
 jest.mock("next-auth/react", () => ({
   useSession: jest.fn(),
@@ -15,6 +16,10 @@ jest.mock("@/app/hooks/useBillingStatus", () => ({
 
 jest.mock("@/app/dashboard/home/homeSummaryClient", () => ({
   fetchHomeSummaryCached: jest.fn(),
+}));
+
+jest.mock("@/app/dashboard/boards/videoUpload/mobileNarrativeTelemetry", () => ({
+  trackMobileNarrativeEvent: jest.fn(),
 }));
 
 jest.mock("framer-motion", () => ({
@@ -75,6 +80,14 @@ describe("CommunityConversionSection", () => {
           source: "community_mentoria",
           postCheckoutIntent: "join_community",
         }),
+      }),
+    );
+    expect(trackMobileNarrativeEvent).toHaveBeenCalledWith(
+      "mobile_community_action_clicked",
+      expect.objectContaining({
+        actionType: "open_paywall",
+        paywallContext: "mentoria",
+        postCheckoutIntent: "join_community",
       }),
     );
   });

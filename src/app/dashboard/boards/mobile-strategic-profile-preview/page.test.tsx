@@ -44,6 +44,9 @@ describe("MobileStrategicProfilePreviewPage", () => {
     expect(screen.getByText("Preview interno — Perfil Estratégico")).toBeInTheDocument();
     expect(screen.getByText("Perfil Estratégico mobile")).toBeInTheDocument();
     expect(screen.getAllByText("Mapa").length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("MM91 smoke harness")).toBeInTheDocument();
+    expect(screen.getByText("Free sem leitura")).toBeInTheDocument();
+    expect(screen.getByText("Endpoint real bloqueado")).toBeInTheDocument();
   });
 
   it("state query selects fixture", async () => {

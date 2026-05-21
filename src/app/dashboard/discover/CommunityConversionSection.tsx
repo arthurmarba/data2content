@@ -9,6 +9,7 @@ import useBillingStatus from "@/app/hooks/useBillingStatus";
 import type { HomeSummaryResponse, MentorshipCardData } from "@/app/dashboard/home/types";
 import { fetchHomeSummaryCached } from "@/app/dashboard/home/homeSummaryClient";
 import { MOBILE_COMMUNITY_ROUTE } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
+import { trackMobileNarrativeEvent } from "@/app/dashboard/boards/videoUpload/mobileNarrativeTelemetry";
 
 const COMMUNITY_VIP_URL =
   process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ||
@@ -84,9 +85,25 @@ export default function CommunityConversionSection(_props: {
 
   const handleCommunityAccess = React.useCallback(async () => {
     if (!planActive || paymentPending) {
+      trackMobileNarrativeEvent("mobile_community_action_clicked", {
+        route: MOBILE_COMMUNITY_ROUTE,
+        isPro: planActive,
+        actionLabel: communityButtonLabel,
+        actionType: paymentPending ? "continue_payment" : "open_paywall",
+        paywallContext: "mentoria",
+        postCheckoutIntent: "join_community",
+      });
       openMentoriaPaywall();
       return;
     }
+
+    trackMobileNarrativeEvent("mobile_community_action_clicked", {
+      route: MOBILE_COMMUNITY_ROUTE,
+      isPro: true,
+      actionLabel: communityButtonLabel,
+      actionType: "join_community",
+      postCheckoutIntent: "join_community",
+    });
 
     if (vipHasAccess && vipInviteUrl) {
       window.open(vipInviteUrl, "_blank", "noopener,noreferrer");
@@ -122,7 +139,7 @@ export default function CommunityConversionSection(_props: {
     } finally {
       setResolvingVipAccess(false);
     }
-  }, [paymentPending, planActive, vipHasAccess, vipInviteUrl]);
+  }, [communityButtonLabel, paymentPending, planActive, vipHasAccess, vipInviteUrl]);
 
   return (
     <motion.div initial="hidden" animate="visible" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }} className="pb-4">

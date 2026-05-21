@@ -579,7 +579,7 @@ export function MobileStrategicProfileAnalyzeFlow({
                 const isSelected = selectedOption === opt.value;
                 return (
                   <button
-                    key={opt.value}
+                    key={`${opt.value}-${opt.label}`}
                     type="button"
                     className={`rounded-2xl border px-3 py-3 text-left text-sm font-semibold transition-all duration-200 ${
                       isSelected

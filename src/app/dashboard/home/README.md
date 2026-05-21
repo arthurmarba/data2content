@@ -11,6 +11,7 @@ Este diretório implementa a nova Home do dashboard. Cada card tem regras claras
 - Free vê CTA `Assinar Pro e entrar`; Pro vê apenas `Entrar na consultoria` / acesso ao Grupo VIP.
 - O banner usa o paywall existente com contexto de mentoria e `postCheckoutIntent: join_community`.
 - O Perfil mobile usa balão/status para próxima ação; Comunidade não renderiza balão sobreposto.
+- MM91 adiciona telemetria segura para o CTA da Comunidade, sem dados pessoais, URLs de convite ou payload sensível.
 
 ### 1. `next_post`
 - **Dados esperados**: slot (dia/hora), 1–3 ganchos, lift vs. P50, status de conexão do Instagram.

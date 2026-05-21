@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { track } from "@/lib/track";
+import { trackMobileNarrativeEvent } from "@/app/dashboard/boards/videoUpload/mobileNarrativeTelemetry";
 import { PAYWALL_RETURN_STORAGE_KEY } from "@/types/paywall";
 
 async function fetchInstagramConnected(force = false): Promise<boolean | null> {
@@ -41,11 +42,15 @@ function resolveInstagramNextTarget(
   return null;
 }
 
-function sanitizeReturnTo(value: unknown): string | null {
+export function sanitizeBillingSuccessReturnTo(value: unknown): string | null {
   if (typeof value === "string" && value.startsWith("/") && !value.startsWith("//")) {
     return value;
   }
   return null;
+}
+
+export function normalizeBillingSuccessPostCheckoutIntent(value: unknown): "connect_instagram" | "join_community" | null {
+  return value === "connect_instagram" || value === "join_community" ? value : null;
 }
 
 export default function BillingSuccessPage() {
@@ -86,15 +91,20 @@ export default function BillingSuccessPage() {
             if (typeof data?.context === "string") {
               resolvedContext = data.context;
             }
-            const returnTo = sanitizeReturnTo(data?.returnTo);
-            const postCheckoutIntent =
-              data?.postCheckoutIntent === "connect_instagram" || data?.postCheckoutIntent === "join_community"
-                ? data.postCheckoutIntent
-                : null;
+            const returnTo = sanitizeBillingSuccessReturnTo(data?.returnTo);
+            const postCheckoutIntent = normalizeBillingSuccessPostCheckoutIntent(data?.postCheckoutIntent);
             const source =
               typeof data?.source === "string" && data.source.trim().length > 0
                 ? data.source.trim().toLowerCase()
                 : null;
+            if (postCheckoutIntent) {
+              trackMobileNarrativeEvent("mobile_post_checkout_intent_seen", {
+                route: returnTo ?? "/billing/success",
+                paywallContext: resolvedContext ?? undefined,
+                postCheckoutIntent,
+                actionType: "billing_success_seen",
+              });
+            }
             if (postCheckoutIntent === "connect_instagram" && !instagramConnected) {
               redirectHref = "/dashboard/instagram/connect?next=narrative-map";
               keepPaywallReturnState = true;
@@ -111,6 +121,20 @@ export default function BillingSuccessPage() {
               const current = `${window.location.pathname}${window.location.search || ""}`;
               if (current !== returnTo) {
                 redirectHref = returnTo;
+              }
+            }
+            if (postCheckoutIntent) {
+              const consumedKey = sid
+                ? `mobile-post-checkout-intent-consumed:${sid}:${postCheckoutIntent}`
+                : `mobile-post-checkout-intent-consumed:${postCheckoutIntent}`;
+              if (!sessionStorage.getItem(consumedKey)) {
+                sessionStorage.setItem(consumedKey, "1");
+                trackMobileNarrativeEvent("mobile_post_checkout_intent_consumed", {
+                  route: redirectHref ?? returnTo ?? "/billing/success",
+                  paywallContext: resolvedContext ?? undefined,
+                  postCheckoutIntent,
+                  actionType: "billing_success_consumed",
+                });
               }
             }
           } catch {
