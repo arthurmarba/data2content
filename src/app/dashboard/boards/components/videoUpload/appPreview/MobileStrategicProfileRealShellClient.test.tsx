@@ -5,6 +5,7 @@ import { fetchHomeSummaryCached } from "../../../../home/homeSummaryClient";
 import { requestUploadSession } from "./mobileStrategicProfileUploadSessionClient";
 import { uploadVideoToTemporarySignedUrl } from "./mobileStrategicProfileDirectUploadClient";
 import { buildNarrativeMapReadingPreviewFixture } from "./buildNarrativeMapReadingPreviewFixture";
+import { trackMobileNarrativeEvent } from "../../../videoUpload/mobileNarrativeTelemetry";
 
 // Mock das dependências
 jest.mock("../../../../home/homeSummaryClient", () => ({
@@ -28,6 +29,11 @@ jest.mock("@/app/hooks/useBillingStatus", () => ({
 
 jest.mock("@/utils/paywallModal", () => ({
   openPaywallModal: jest.fn(),
+}));
+
+jest.mock("../../../videoUpload/mobileNarrativeTelemetry", () => ({
+  ...jest.requireActual("../../../videoUpload/mobileNarrativeTelemetry"),
+  trackMobileNarrativeEvent: jest.fn(),
 }));
 
 jest.mock("./mobileStrategicProfileUploadSessionClient", () => ({
@@ -463,6 +469,47 @@ describe("MobileStrategicProfileRealShellClient", () => {
     expect(body).not.toContain("signedUrl");
     expect(body).not.toContain("base64");
     expect(body).not.toContain("File");
+
+    globalFetchSpy.mockRestore();
+  });
+
+  it("MM91 - telemetria de análise real não envia texto livre nem metadata sensível", async () => {
+    process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED = "1";
+    (fetchHomeSummaryCached as jest.Mock).mockResolvedValue(null);
+    const globalFetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        e2eBetaAudit: { allowlistGatePassed: true },
+        videoReadingPersistence: { attempted: true, saved: true },
+        synthesisSnapshotWrite: { attempted: true, written: true },
+      }),
+    } as any);
+
+    render(
+      <MobileStrategicProfileRealShellClient
+        session={mockSession}
+        stateQuery={null}
+      />
+    );
+
+    await act(async () => {
+      screen.getByTestId("trigger-real-analysis-submit").click();
+    });
+
+    expect(trackMobileNarrativeEvent).toHaveBeenCalledWith(
+      "mobile_analysis_submitted",
+      expect.objectContaining({
+        selectedGoalOption: "authority",
+        analysisMode: "real_gated",
+      }),
+    );
+    const serializedEvents = JSON.stringify((trackMobileNarrativeEvent as jest.Mock).mock.calls);
+    expect(serializedEvents).not.toContain("creatorGoal");
+    expect(serializedEvents).not.toContain("quickAnswers");
+    expect(serializedEvents).not.toContain("objectKey");
+    expect(serializedEvents).not.toContain("uploadUrl");
+    expect(serializedEvents).not.toContain("temporary/video-narrative");
 
     globalFetchSpy.mockRestore();
   });

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import BillingSubscribeModal from "@/app/dashboard/billing/BillingSubscribeModal";
+import { trackMobileNarrativeEvent } from "@/app/dashboard/boards/videoUpload/mobileNarrativeTelemetry";
 import { useFeatureFlag } from "@/app/context/FeatureFlagsContext";
 import { startGoogleSignInForPaywall } from "@/app/lib/paywall/startGoogleSignInForPaywall";
 import type { PaywallContext, PaywallEventDetail } from "@/types/paywall";
@@ -64,6 +65,14 @@ export default function PaywallModalProvider() {
           : null;
 
       setContext(normalizedContext);
+      if (normalizedContext === "narrative_map" || normalizedContext === "mentoria") {
+        trackMobileNarrativeEvent("mobile_paywall_opened", {
+          route: sanitizedReturn ?? (typeof window !== "undefined" ? window.location.pathname : undefined),
+          paywallContext: normalizedContext,
+          postCheckoutIntent: postCheckoutIntent ?? undefined,
+          actionType: "open_paywall",
+        });
+      }
 
       if (typeof window !== "undefined") {
         try {

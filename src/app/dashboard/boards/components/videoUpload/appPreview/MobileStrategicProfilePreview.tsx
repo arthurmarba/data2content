@@ -24,6 +24,7 @@ import {
   type MobileStrategicProfilePreviewFixtureState,
 } from "./buildMobileStrategicProfilePreviewFixture";
 import { MobileStrategicProfileAnalyzeFlow } from "./MobileStrategicProfileAnalyzeFlow";
+import { MobileClosedBetaSmokeHarness } from "./MobileClosedBetaSmokeHarness";
 import { MobileStrategicProfileMediaKitModal } from "./MobileStrategicProfileMediaKitModal";
 import type {
   UploadSessionPayload,
@@ -57,6 +58,7 @@ type MobileStrategicProfilePreviewProps = {
     input: MobileStrategicProfileDirectUploadInput,
   ) => Promise<MobileStrategicProfileDirectUploadResult>;
   enableRealAnalysis?: boolean;
+  showSmokeHarness?: boolean;
   accessState?: NarrativeMapAccessState;
   readingQuota?: Partial<NarrativeMapReadingQuotaSnapshot> | null;
   onCleanupTemporaryUpload?: (payload: {
@@ -442,6 +444,7 @@ export function MobileStrategicProfilePreview({
   onCreateUploadSession,
   onUploadToTemporarySignedUrl,
   enableRealAnalysis,
+  showSmokeHarness = false,
   accessState: accessStateProp,
   readingQuota,
   onCleanupTemporaryUpload,
@@ -545,6 +548,7 @@ export function MobileStrategicProfilePreview({
             <div className="mt-4">
               <StateSwitcher activeState={activeState} />
             </div>
+            {showSmokeHarness ? <MobileClosedBetaSmokeHarness /> : null}
           </header>
         ) : null}
 

@@ -54,5 +54,5 @@ export default async function MobileStrategicProfilePreviewPage({
   }
 
   const fixture = buildMobileStrategicProfilePreviewFixture({ state: searchParams?.state });
-  return <MobileStrategicProfilePreview profile={fixture.profile} activeState={fixture.id} />;
+  return <MobileStrategicProfilePreview profile={fixture.profile} activeState={fixture.id} showSmokeHarness />;
 }

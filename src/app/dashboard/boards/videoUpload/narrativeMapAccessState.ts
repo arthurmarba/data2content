@@ -200,6 +200,7 @@ export function getNarrativeMapStatusCardContent(params: {
   quota?: Partial<NarrativeMapReadingQuotaSnapshot> | null;
 }): NarrativeMapStatusCardContent {
   const quota = normalizeNarrativeMapReadingQuotaSnapshot(params.quota);
+  const remainingThisMonth = Math.max(0, quota.proMonthlyLimit - quota.usedThisMonth);
   switch (params.state) {
     case "free_unused":
       return {
@@ -223,13 +224,16 @@ export function getNarrativeMapStatusCardContent(params: {
     case "pro_instagram_connected":
       return {
         title: "Pro ativo",
-        description: `Você usou ${quota.usedThisMonth} de 10 leituras deste mês.`,
+        description:
+          remainingThisMonth > 0 && remainingThisMonth <= 2
+            ? `Restam ${remainingThisMonth} leituras este mês.`
+            : `${quota.usedThisMonth}/10 leituras`,
         primaryLabel: "Nova leitura",
       };
     case "pro_quota_reached":
       return {
-        title: "Limite mensal usado",
-        description: "Seu Perfil continua disponível. Novas leituras voltam no próximo ciclo.",
+        title: "10/10 usadas",
+        description: "Novas leituras liberam no próximo ciclo. Seu Perfil continua disponível.",
         primaryLabel: "Ver leituras",
       };
     case "payment_pending":
@@ -247,7 +251,7 @@ export function getNarrativeMapStatusCardContent(params: {
     case "admin":
       return {
         title: "Acesso interno",
-        description: `Você usou ${quota.usedThisMonth} de 10 leituras deste mês.`,
+        description: `${quota.usedThisMonth}/10 leituras`,
         primaryLabel: "Nova leitura",
       };
   }
