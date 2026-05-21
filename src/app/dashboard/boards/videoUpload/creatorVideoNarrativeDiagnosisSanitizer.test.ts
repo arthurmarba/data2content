@@ -205,6 +205,33 @@ describe("creatorVideoNarrativeDiagnosisSanitizer", () => {
     expect(JSON.stringify(result)).not.toContain("https://example.com");
   });
 
+  it("aceita sceneAnchor model_observed seguro", () => {
+    const result = sanitizeCreatorVideoNarrativeDiagnosisInput(
+      buildCreatorVideoNarrativeDiagnosisFixture({
+        evidenceAnchors: {
+          speechQuotes: [],
+          sceneAnchors: [
+            {
+              description: "A abertura demora a mostrar o conflito principal.",
+              source: "model_observed",
+              momentRole: "opening",
+              whyItMatters: "Mostra onde a tensão atrasa.",
+              chapterHint: "tension",
+            },
+          ],
+          creatorIntentAnchor: null,
+          profilePatternAnchors: [],
+          instagramAnchors: [],
+        },
+      }),
+    );
+
+    expect(result.evidenceAnchors?.sceneAnchors[0]).toEqual(expect.objectContaining({
+      source: "model_observed",
+      momentRole: "opening",
+    }));
+  });
+
   it("bloqueia base64 grande e transcrição longa dentro de anchors", () => {
     expect(() =>
       sanitizeCreatorVideoNarrativeDiagnosisInput(

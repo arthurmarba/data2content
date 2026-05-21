@@ -22,6 +22,18 @@ describe("videoNarrativeGeminiSnapshotMapper", () => {
     expect(JSON.stringify(result)).not.toContain("rawText");
   });
 
+  it("snapshot preserva evidenceAnchors seguros do parser", () => {
+    const result = mapGeminiAnalysisToStrategicProfileSnapshot({
+      analysis: geminiVideoNarrativeResponseFixture,
+      promptVersion: "mm87_v1",
+    });
+
+    expect(result.snapshot.extraData?.evidenceAnchors?.speechQuotes[0]).toEqual(expect.objectContaining({
+      quote: "rapidinho",
+      source: "creator_spoken",
+    }));
+  });
+
   it("snapshot não inclui uploadUrl/objectKey/signed URL/transcript longo", () => {
     const result = mapGeminiAnalysisToStrategicProfileSnapshot({
       analysis: geminiVideoNarrativeResponseFixture,

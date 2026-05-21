@@ -18,6 +18,34 @@ export const geminiVideoNarrativeResponseFixture: VideoNarrativeAiAnalysis = {
   creatorSignals: ["Didática prática", "Autoridade acessível", "Bastidor como prova"],
   brandTerritories: ["Cuidados pessoais", "Educação prática", "Rotina inteligente"],
   collabOpportunities: ["Collabs com creators de rotina", "Séries com especialistas convidados"],
+  evidenceAnchors: {
+    speechQuotes: [
+      {
+        quote: "rapidinho",
+        source: "creator_spoken",
+        quoteRole: "hook",
+        whyItMatters: "A palavra cria uma promessa pequena para a abertura.",
+        chapterHint: "pattern",
+      },
+    ],
+    sceneAnchors: [
+      {
+        description: "A cena começa como rotina simples e vira explicação de escolha.",
+        source: "model_observed",
+        momentRole: "turning_point",
+        whyItMatters: "A virada sustenta a leitura de autoridade acessível.",
+        chapterHint: "tension",
+      },
+    ],
+    creatorIntentAnchor: {
+      source: "creator_goal",
+      statedGoal: "Reforçar confiança e aproximar a audiência.",
+      interpretedGoal: "Testar se a rotina prática pode virar autoridade acessível.",
+      whyItMatters: "A intenção muda a leitura do gancho para entregar confiança antes da explicação.",
+    },
+    profilePatternAnchors: [],
+    instagramAnchors: [],
+  },
 };
 
 export const geminiVideoNarrativeRawJsonFixture = JSON.stringify(geminiVideoNarrativeResponseFixture);

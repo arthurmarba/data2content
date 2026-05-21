@@ -22,6 +22,7 @@ export type GeminiVideoNarrativeRawResponse = {
   blueprintSuggestion?: unknown;
   brandMatch?: unknown;
   evidence?: unknown;
+  evidenceAnchors?: unknown;
   profileSignals?: unknown;
   confidence?: unknown;
 };
@@ -33,6 +34,7 @@ export type GeminiVideoNarrativeSchemaIssueCode =
   | "invalid_classification"
   | "invalid_diagnosis"
   | "invalid_blueprint"
+  | "invalid_evidence_anchors"
   | "unsafe_language"
   | "insufficient_context";
 
@@ -83,6 +85,16 @@ const profileSignalTypes = new Set([
   "unknown",
 ]);
 const unsafeLanguageTerms = ["viralizar garantido", "sempre performa", "garantido", "certeza", "comprovado"];
+const MAX_ANCHOR_ITEMS = 4;
+const MAX_QUOTE_LENGTH = 180;
+const MAX_ANCHOR_TEXT_LENGTH = 260;
+const LARGE_BASE64_REGEX = /(?:data:[^;]+;base64,)?[A-Za-z0-9+/=]{1200,}/;
+const URL_REGEX = /https?:\/\/[^\s"'<>]+/gi;
+const STORAGE_PATH_REGEX = /\b(?:uploads|video-narrative|mobile-strategic-profile|tmp|temporary)\/[A-Za-z0-9._/-]+\.(mp4|mov|webm|mkv)\b/gi;
+const STORAGE_FIELD_REGEX = /\b(?:objectKey|signedUrl|uploadUrl|thumbnailUrl|localPath|storageProviderPath)\b/gi;
+const quoteRoles = new Set(["hook", "promise", "turning_point", "closing", "example", "context", "other"]);
+const momentRoles = new Set(["opening", "conflict", "turning_point", "visual_signal", "pacing_signal", "production_signal", "other"]);
+const chapterHints = new Set(["pattern", "tension", "movement", "territory", "video_reveal", "profile_impact", "opportunities"]);
 
 function issue(code: GeminiVideoNarrativeSchemaIssueCode, message: string): GeminiVideoNarrativeSchemaIssue {
   return { code, message };
@@ -101,6 +113,110 @@ function readString(value: unknown): string | null {
 function readStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.map(readString).filter((item): item is string => Boolean(item));
+}
+
+function truncateText(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, Math.max(0, maxLength - 3)).trim()}...`;
+}
+
+function readAnchorString(value: unknown, maxLength = MAX_ANCHOR_TEXT_LENGTH): string | null {
+  if (typeof value !== "string") return null;
+  if (LARGE_BASE64_REGEX.test(value)) return null;
+  const lineCount = value.split(/\n+/).filter(Boolean).length;
+  const timestampCount = (value.match(/\b\d{1,2}:\d{2}(?::\d{2})?\b/g) ?? []).length;
+  if (value.length > 2000 || lineCount >= 12 || timestampCount >= 6) return null;
+  const sanitized = sanitizeVideoNarrativeAnalysisText(value)
+    .replace(URL_REGEX, "[url-redigida]")
+    .replace(STORAGE_PATH_REGEX, "[storage-redigido]")
+    .replace(STORAGE_FIELD_REGEX, "[storage-redigido]")
+    .replace(/\b\d{1,2}:\d{2}(?::\d{2})?\b/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return sanitized ? truncateText(sanitized, maxLength) : null;
+}
+
+function readEnum<T extends string>(value: unknown, valid: Set<string>, fallback: T): T {
+  return typeof value === "string" && valid.has(value) ? (value as T) : fallback;
+}
+
+function normalizeEvidenceAnchors(value: unknown): {
+  anchors: VideoNarrativeAnalysis["evidenceAnchors"];
+  invalid: boolean;
+} {
+  if (value === undefined || value === null) return { anchors: undefined, invalid: false };
+  if (!isRecord(value)) return { anchors: undefined, invalid: true };
+  let invalid = false;
+
+  const speechQuotes = (Array.isArray(value.speechQuotes) ? value.speechQuotes : [])
+    .slice(0, MAX_ANCHOR_ITEMS)
+    .filter(isRecord)
+    .map((item) => {
+      const quote = readAnchorString(item.quote, MAX_QUOTE_LENGTH);
+      const whyItMatters = readAnchorString(item.whyItMatters);
+      if (!quote || !whyItMatters || item.source !== "creator_spoken") {
+        invalid = true;
+        return null;
+      }
+      return {
+        quote,
+        source: "creator_spoken" as const,
+        quoteRole: readEnum(item.quoteRole, quoteRoles, "other"),
+        whyItMatters,
+        chapterHint: readEnum(item.chapterHint, chapterHints, "video_reveal"),
+      };
+    })
+    .filter(Boolean) as NonNullable<VideoNarrativeAnalysis["evidenceAnchors"]>["speechQuotes"];
+
+  const sceneAnchors = (Array.isArray(value.sceneAnchors) ? value.sceneAnchors : [])
+    .slice(0, MAX_ANCHOR_ITEMS)
+    .filter(isRecord)
+    .map((item) => {
+      const description = readAnchorString(item.description);
+      const whyItMatters = readAnchorString(item.whyItMatters);
+      if (!description || !whyItMatters) {
+        invalid = true;
+        return null;
+      }
+      return {
+        description,
+        source: item.source === "derived_scene" ? "derived_scene" as const : "model_observed" as const,
+        momentRole: readEnum(item.momentRole, momentRoles, "other"),
+        whyItMatters,
+        chapterHint: readEnum(item.chapterHint, chapterHints, "video_reveal"),
+      };
+    })
+    .filter(Boolean) as NonNullable<VideoNarrativeAnalysis["evidenceAnchors"]>["sceneAnchors"];
+
+  const rawIntent = isRecord(value.creatorIntentAnchor) ? value.creatorIntentAnchor : null;
+  const creatorIntentAnchor = rawIntent
+    ? (() => {
+        const statedGoal = readAnchorString(rawIntent.statedGoal);
+        const interpretedGoal = readAnchorString(rawIntent.interpretedGoal);
+        const whyItMatters = readAnchorString(rawIntent.whyItMatters);
+        if (!statedGoal || !interpretedGoal || !whyItMatters) {
+          invalid = true;
+          return null;
+        }
+        return {
+          source: "creator_goal" as const,
+          statedGoal,
+          interpretedGoal,
+          whyItMatters,
+        };
+      })()
+    : null;
+
+  return {
+    anchors: {
+      speechQuotes,
+      sceneAnchors,
+      creatorIntentAnchor,
+      profilePatternAnchors: [],
+      instagramAnchors: [],
+    },
+    invalid,
+  };
 }
 
 function containsUnsafeLanguage(value: unknown): boolean {
@@ -302,6 +418,10 @@ export function normalizeGeminiVideoNarrativeResponse(params: {
 
   const brandMatch = isRecord(raw.brandMatch) ? raw.brandMatch : {};
   const evidence = isRecord(raw.evidence) ? raw.evidence : {};
+  const evidenceAnchors = normalizeEvidenceAnchors(raw.evidenceAnchors);
+  if (evidenceAnchors.invalid) {
+    issues.push(issue("invalid_evidence_anchors", "Evidence anchors inválidos foram descartados ou limpos."));
+  }
   const analysis: VideoNarrativeAnalysis = {
     ...base,
     summary: readString(raw.summary),
@@ -324,6 +444,7 @@ export function normalizeGeminiVideoNarrativeResponse(params: {
       frames: readStringArray(evidence.frames),
       technicalSignals: readStringArray(evidence.technicalSignals),
     },
+    evidenceAnchors: evidenceAnchors.anchors,
     profileSignals: normalizeProfileSignals(raw.profileSignals),
     confidence:
       typeof raw.confidence === "string" && confidenceValues.has(raw.confidence as VideoNarrativeConfidence)
@@ -340,7 +461,7 @@ export function normalizeGeminiVideoNarrativeResponse(params: {
   }
 
   return {
-    ok: issues.length === 0 || issues.every((item) => item.code === "unsafe_language"),
+    ok: issues.length === 0 || issues.every((item) => item.code === "unsafe_language" || item.code === "invalid_evidence_anchors"),
     analysis,
     issues,
   };

@@ -1,4 +1,5 @@
 import type { VideoNarrativeAiAnalysis, VideoNarrativeAiIssue } from "./videoNarrativeAiProviderTypes";
+import type { CreatorVideoNarrativeEvidenceAnchors } from "./creatorVideoNarrativeDiagnosisTypes";
 
 const REQUIRED_FIELDS: Array<keyof VideoNarrativeAiAnalysis> = [
   "mainNarrative",
@@ -62,6 +63,16 @@ const API_KEY_PATTERN = /(AIzaSy[A-Za-z0-9-_]{20,}|sk-[A-Za-z0-9-_]{20,}|api[_-]
 const RAW_TRANSCRIPT_KEYS = new Set(["rawTranscript", "transcript", "fullTranscript"]);
 const MAX_STRING_LENGTH = 420;
 const MAX_ARRAY_ITEMS = 5;
+const MAX_ANCHOR_ITEMS = 4;
+const MAX_QUOTE_LENGTH = 180;
+const MAX_ANCHOR_TEXT_LENGTH = 260;
+const LARGE_BASE64_PATTERN = /(?:data:[^;]+;base64,)?[A-Za-z0-9+/=]{1200,}/;
+const URL_PATTERN = /https?:\/\/[^\s"'<>]+/gi;
+const STORAGE_PATH_PATTERN = /\b(?:uploads|video-narrative|mobile-strategic-profile|tmp|temporary)\/[A-Za-z0-9._/-]+\.(mp4|mov|webm|mkv)\b/gi;
+const STORAGE_FIELD_PATTERN = /\b(?:objectKey|signedUrl|uploadUrl|thumbnailUrl|localPath|storageProviderPath)\b/gi;
+const VALID_QUOTE_ROLES = new Set(["hook", "promise", "turning_point", "closing", "example", "context", "other"]);
+const VALID_MOMENT_ROLES = new Set(["opening", "conflict", "turning_point", "visual_signal", "pacing_signal", "production_signal", "other"]);
+const VALID_CHAPTER_HINTS = new Set(["pattern", "tension", "movement", "territory", "video_reveal", "profile_impact", "opportunities"]);
 
 export type VideoNarrativeGeminiResponseParseResult =
   | { ok: true; analysis: VideoNarrativeAiAnalysis; issues: VideoNarrativeAiIssue[] }
@@ -95,6 +106,7 @@ function containsForbiddenPayload(value: unknown): "signed_url" | "api_key" | "r
   }
   if (isRecord(value)) {
     for (const [key, nested] of Object.entries(value)) {
+      if (key === "evidenceAnchors") continue;
       if (RAW_TRANSCRIPT_KEYS.has(key) && typeof nested === "string" && nested.length > 600) {
         return "raw_transcript";
       }
@@ -110,7 +122,117 @@ function sanitizeText(value: string): string {
   for (const [pattern, replacement] of FORBIDDEN_REPLACEMENTS) {
     output = output.replace(pattern, replacement);
   }
+  output = output
+    .replace(URL_PATTERN, "[url-redigida]")
+    .replace(STORAGE_PATH_PATTERN, "[storage-redigido]")
+    .replace(STORAGE_FIELD_PATTERN, "[storage-redigido]")
+    .replace(LARGE_BASE64_PATTERN, "[base64-redigido]");
   return output.slice(0, MAX_STRING_LENGTH).trim();
+}
+
+function truncate(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, Math.max(0, maxLength - 3)).trim()}...`;
+}
+
+function sanitizeAnchorText(value: unknown, maxLength = MAX_ANCHOR_TEXT_LENGTH): string | null {
+  if (typeof value !== "string") return null;
+  if (LARGE_BASE64_PATTERN.test(value)) return null;
+  const lineCount = value.split(/\n+/).filter(Boolean).length;
+  const timestampCount = (value.match(/\b\d{1,2}:\d{2}(?::\d{2})?\b/g) ?? []).length;
+  if (value.length > 2000 || lineCount >= 12 || timestampCount >= 6) return null;
+  const sanitized = sanitizeText(value).replace(/\b\d{1,2}:\d{2}(?::\d{2})?\b/g, "").replace(/\s+/g, " ").trim();
+  return sanitized ? truncate(sanitized, maxLength) : null;
+}
+
+function readEnum<T extends string>(value: unknown, valid: Set<string>, fallback: T): T {
+  return typeof value === "string" && valid.has(value) ? (value as T) : fallback;
+}
+
+function readEvidenceAnchors(value: unknown): {
+  anchors?: CreatorVideoNarrativeEvidenceAnchors;
+  issues: VideoNarrativeAiIssue[];
+} {
+  if (value === undefined || value === null) return { anchors: undefined, issues: [] };
+  if (!isRecord(value)) {
+    return { anchors: undefined, issues: [issue("invalid_evidence_anchors", "Evidence anchors inválidos foram descartados.", "warning")] };
+  }
+
+  const issues: VideoNarrativeAiIssue[] = [];
+  try {
+    const speechQuotes = (Array.isArray(value.speechQuotes) ? value.speechQuotes : [])
+      .slice(0, MAX_ANCHOR_ITEMS)
+      .filter(isRecord)
+      .map((item) => {
+        const quote = sanitizeAnchorText(item.quote, MAX_QUOTE_LENGTH);
+        const whyItMatters = sanitizeAnchorText(item.whyItMatters);
+        const source = item.source === "creator_spoken" ? "creator_spoken" : null;
+        if (!quote || !whyItMatters || !source) return null;
+        return {
+          quote,
+          source,
+          quoteRole: readEnum(item.quoteRole, VALID_QUOTE_ROLES, "other"),
+          whyItMatters,
+          chapterHint: readEnum(item.chapterHint, VALID_CHAPTER_HINTS, "video_reveal"),
+        };
+      })
+      .filter(Boolean) as CreatorVideoNarrativeEvidenceAnchors["speechQuotes"];
+
+    const sceneAnchors = (Array.isArray(value.sceneAnchors) ? value.sceneAnchors : [])
+      .slice(0, MAX_ANCHOR_ITEMS)
+      .filter(isRecord)
+      .map((item) => {
+        const description = sanitizeAnchorText(item.description);
+        const whyItMatters = sanitizeAnchorText(item.whyItMatters);
+        const source = item.source === "model_observed" || item.source === "derived_scene" ? item.source : "model_observed";
+        if (!description || !whyItMatters) return null;
+        return {
+          description,
+          source,
+          momentRole: readEnum(item.momentRole, VALID_MOMENT_ROLES, "other"),
+          whyItMatters,
+          chapterHint: readEnum(item.chapterHint, VALID_CHAPTER_HINTS, "video_reveal"),
+        };
+      })
+      .filter(Boolean) as CreatorVideoNarrativeEvidenceAnchors["sceneAnchors"];
+
+    const rawIntent = isRecord(value.creatorIntentAnchor) ? value.creatorIntentAnchor : null;
+    const creatorIntentAnchor = rawIntent
+      ? (() => {
+          const statedGoal = sanitizeAnchorText(rawIntent.statedGoal);
+          const interpretedGoal = sanitizeAnchorText(rawIntent.interpretedGoal);
+          const whyItMatters = sanitizeAnchorText(rawIntent.whyItMatters);
+          if (!statedGoal || !interpretedGoal || !whyItMatters) return null;
+          return {
+            source: "creator_goal" as const,
+            statedGoal,
+            interpretedGoal,
+            whyItMatters,
+          };
+        })()
+      : null;
+
+    if (
+      (Array.isArray(value.speechQuotes) && speechQuotes.length < Math.min(value.speechQuotes.length, MAX_ANCHOR_ITEMS)) ||
+      (Array.isArray(value.sceneAnchors) && sceneAnchors.length < Math.min(value.sceneAnchors.length, MAX_ANCHOR_ITEMS)) ||
+      (rawIntent && !creatorIntentAnchor)
+    ) {
+      issues.push(issue("invalid_evidence_anchors", "Parte dos evidence anchors foi descartada por segurança.", "warning"));
+    }
+
+    return {
+      anchors: {
+        speechQuotes,
+        sceneAnchors,
+        creatorIntentAnchor,
+        profilePatternAnchors: [],
+        instagramAnchors: [],
+      },
+      issues,
+    };
+  } catch {
+    return { anchors: undefined, issues: [issue("invalid_evidence_anchors", "Evidence anchors inválidos foram descartados.", "warning")] };
+  }
 }
 
 function readRequiredString(raw: Record<string, unknown>, field: keyof VideoNarrativeAiAnalysis): string | null {
@@ -169,6 +291,7 @@ export function parseVideoNarrativeGeminiResponse(rawText: string): VideoNarrati
   if (Object.values(arrays).some((value) => !value)) {
     return { ok: false, issues: [issue("invalid_required_array", "Resposta do provider multimodal tem listas inválidas.")] };
   }
+  const evidenceAnchors = readEvidenceAnchors(parsed.evidenceAnchors);
 
   return {
     ok: true,
@@ -186,7 +309,8 @@ export function parseVideoNarrativeGeminiResponse(rawText: string): VideoNarrati
       creatorSignals: arrays.creatorSignals!,
       brandTerritories: arrays.brandTerritories!,
       collabOpportunities: arrays.collabOpportunities!,
+      ...(evidenceAnchors.anchors ? { evidenceAnchors: evidenceAnchors.anchors } : {}),
     },
-    issues: [],
+    issues: evidenceAnchors.issues,
   };
 }

@@ -142,10 +142,14 @@ function anchorForChapter(
   anchors: CreatorVideoNarrativeEvidenceAnchors | undefined,
   chapterId: CreatorNarrativeMapReadingChapterId,
 ): string | null {
-  const speech = anchors?.speechQuotes.find((anchor) => anchor.chapterHint === chapterId);
+  const speech =
+    anchors?.speechQuotes.find((anchor) => anchor.chapterHint === chapterId && anchor.source === "creator_spoken") ??
+    anchors?.speechQuotes.find((anchor) => anchor.chapterHint === chapterId);
   if (speech) return speechAnchorLabel(speech);
 
-  const scene = anchors?.sceneAnchors.find((anchor) => anchor.chapterHint === chapterId);
+  const scene =
+    anchors?.sceneAnchors.find((anchor) => anchor.chapterHint === chapterId && anchor.source === "model_observed") ??
+    anchors?.sceneAnchors.find((anchor) => anchor.chapterHint === chapterId);
   if (scene) return `Cena: ${scene.description}`;
 
   if (chapterId === "profile_impact" && anchors?.profilePatternAnchors?.[0]) {

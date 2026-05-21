@@ -105,6 +105,7 @@ export type VideoNarrativeAnalysis = {
   blueprintSuggestion: VideoNarrativeBlueprintSuggestion;
   brandMatch: VideoNarrativeBrandMatch;
   evidence: VideoNarrativeEvidence;
+  evidenceAnchors?: CreatorVideoNarrativeEvidenceAnchors;
   profileSignals: VideoNarrativeProfileSignal[];
   confidence: VideoNarrativeConfidence;
   createdAt: string | null;
@@ -158,6 +159,7 @@ export function createEmptyVideoNarrativeAnalysis(params: {
       frames: [],
       technicalSignals: [],
     },
+    evidenceAnchors: undefined,
     profileSignals: [],
     confidence: "unknown",
     createdAt: params.createdAt ?? null,
@@ -227,3 +229,4 @@ export function sanitizeVideoNarrativeAnalysisText(value: string): string {
     .replace(/comprovado/gi, "observado")
     .trim();
 }
+import type { CreatorVideoNarrativeEvidenceAnchors } from "./creatorVideoNarrativeDiagnosisTypes";

@@ -270,6 +270,27 @@ function mapEvidenceAnchors(params: {
   rememberedAs: string;
   profileContribution: CreatorVideoNarrativeDiagnosisInput["profileContribution"];
 }): CreatorVideoNarrativeEvidenceAnchors {
+  const providerAnchors = params.strategicDiagnosis.evidenceAnchors;
+  const hasProviderAnchors = Boolean(
+    providerAnchors &&
+      (
+        providerAnchors.speechQuotes.length > 0 ||
+        providerAnchors.sceneAnchors.length > 0 ||
+        providerAnchors.creatorIntentAnchor ||
+        (providerAnchors.profilePatternAnchors?.length ?? 0) > 0 ||
+        (providerAnchors.instagramAnchors?.length ?? 0) > 0
+      ),
+  );
+  if (providerAnchors && hasProviderAnchors) {
+    return {
+      speechQuotes: providerAnchors.speechQuotes.slice(0, 4),
+      sceneAnchors: providerAnchors.sceneAnchors.slice(0, 4),
+      creatorIntentAnchor: providerAnchors.creatorIntentAnchor ?? null,
+      profilePatternAnchors: providerAnchors.profilePatternAnchors ?? [],
+      instagramAnchors: providerAnchors.instagramAnchors ?? [],
+    };
+  }
+
   const speechQuotes = [
     buildAiSuggestedQuoteAnchor({
       quote: params.strategicDiagnosis.suggestedHook,

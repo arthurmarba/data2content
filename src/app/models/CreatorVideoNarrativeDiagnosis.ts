@@ -160,7 +160,7 @@ const EvidenceAnchorsSchema = new Schema<CreatorVideoNarrativeEvidenceAnchors>(
         new Schema(
           {
             description: { type: String, required: true },
-            source: { type: String, enum: ["derived_scene"], required: true },
+            source: { type: String, enum: ["model_observed", "derived_scene"], required: true },
             momentRole: {
               type: String,
               enum: ["opening", "conflict", "turning_point", "visual_signal", "pacing_signal", "production_signal", "other"],

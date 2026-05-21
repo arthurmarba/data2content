@@ -21,6 +21,31 @@ const schemaExample = {
   creatorSignals: ["string"],
   brandTerritories: ["string"],
   collabOpportunities: ["string"],
+  evidenceAnchors: {
+    speechQuotes: [
+      {
+        quote: "string curta realmente dita pelo creator",
+        source: "creator_spoken",
+        quoteRole: "hook",
+        whyItMatters: "string",
+        chapterHint: "pattern",
+      },
+    ],
+    sceneAnchors: [
+      {
+        description: "cena ou momento observado sem timestamp técnico",
+        source: "model_observed",
+        momentRole: "opening",
+        whyItMatters: "string",
+        chapterHint: "video_reveal",
+      },
+    ],
+    creatorIntentAnchor: {
+      statedGoal: "string",
+      interpretedGoal: "string",
+      whyItMatters: "string",
+    },
+  },
 };
 
 function safeString(value: string | undefined | null, fallback = "Não informado"): string {
@@ -44,7 +69,6 @@ export function buildVideoNarrativeGeminiPrompt(input: VideoNarrativeAiProviderI
     ? [
         `- mimeType: ${safeString(input.temporaryUpload.mimeType)}`,
         `- sizeBytes: ${input.temporaryUpload.sizeBytes}`,
-        `- uploadSessionId: ${safeString(input.temporaryUpload.uploadSessionId)}`,
       ].join("\n")
     : "- Sem upload temporário informado.";
 
@@ -57,6 +81,7 @@ export function buildVideoNarrativeGeminiPrompt(input: VideoNarrativeAiProviderI
       "Não prometa viralização, contrato de marca, patrocínio, certeza de performance, ranking, nota, score ou resultado garantido.",
       "Não faça diagnóstico médico, psicológico, jurídico ou financeiro.",
       "Não retorne conteúdo privado bruto, transcrição longa, URL, signed URL, token, API key ou identificador de storage.",
+      "Não retorne transcrição completa, timestamps técnicos, nome de arquivo, objectKey, uploadUrl, signedUrl, localPath ou storageProviderPath.",
       "Não mencione o nome do provedor de IA na resposta.",
     ].join("\n"),
     userInstruction: [
@@ -74,11 +99,25 @@ export function buildVideoNarrativeGeminiPrompt(input: VideoNarrativeAiProviderI
       videoMetadata,
       `- hasTemporaryUpload: ${hasTemporaryUpload}`,
       "Tarefa: gere uma leitura estratégica curta, humana e acionável para atualizar o Perfil da D2C.",
+      "Evidence anchors:",
+      "- Extraia até 4 falas curtas realmente ditas pelo creator que sustentem a leitura estratégica.",
+      "- Use source creator_spoken apenas quando tiver confiança de que a frase foi dita no vídeo.",
+      "- Não invente falas e não transforme sugestão sua em fala real.",
+      "- Se não houver certeza sobre uma fala, retorne speechQuotes como array vazio.",
+      "- Não transcreva o vídeo; use apenas trechos curtos.",
+      "- Descreva até 4 cenas ou momentos observados que respondam onde a D2C percebeu isso.",
+      "- Cenas não devem ter timestamp técnico, storage metadata, URL, filename ou caminho de arquivo.",
+      "- Diferencie statedGoal do creator de interpretedGoal da leitura estratégica.",
     ].join("\n"),
     responseSchemaInstruction: [
       "Retorne exatamente um objeto JSON com este schema:",
       JSON.stringify(schemaExample, null, 2),
       "Todas as strings devem ser curtas. Arrays devem ter no máximo 5 itens.",
+      "evidenceAnchors é opcional, mas preferido; se não houver evidência concreta, use speechQuotes: [] e sceneAnchors: [].",
+      "Valores aceitos em quoteRole: hook, promise, turning_point, closing, example, context, other.",
+      "Valores aceitos em momentRole: opening, conflict, turning_point, visual_signal, pacing_signal, production_signal, other.",
+      "Valores aceitos em chapterHint: pattern, tension, movement, territory, video_reveal, profile_impact, opportunities.",
+      "Não inclua transcript, raw notes, timestamps técnicos, URLs ou metadata de upload/storage.",
     ].join("\n"),
   };
 }

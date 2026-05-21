@@ -79,7 +79,27 @@ describe("geminiVideoNarrativePrompt", () => {
       "blueprintSuggestion",
       "brandMatch",
       "evidence",
+      "evidenceAnchors",
     ].forEach((field) => expect(instruction).toContain(field));
+  });
+
+  it("asks for real short quotes and empty arrays when uncertain", () => {
+    const instruction = buildGeminiVideoNarrativeUserInstruction({ creatorQuestion: "Quero melhorar retenção." });
+
+    expect(instruction).toContain("falas curtas realmente ditas");
+    expect(instruction).toContain("Não transcreva o vídeo");
+    expect(instruction).toContain("Não invente frases");
+    expect(instruction).toContain("speechQuotes vazio");
+  });
+
+  it("asks for specific scenes without technical timestamps or storage metadata", () => {
+    const prompt = buildGeminiVideoNarrativePrompt({ creatorQuestion: null });
+    const content = `${prompt.userInstruction} ${prompt.responseFormatInstruction}`;
+
+    expect(content).toContain("cenas ou momentos específicos observados");
+    expect(content).toContain("sem timestamp técnico");
+    expect(content).toContain("objectKey");
+    expect(content).toContain("Não retorne transcript bruto");
   });
 
   it("states that the video is a content piece in progress", () => {

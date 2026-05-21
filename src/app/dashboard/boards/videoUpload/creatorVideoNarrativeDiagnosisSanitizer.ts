@@ -63,7 +63,7 @@ const PROFILE_CONTRIBUTION_CONFIDENCE = ["low", "medium", "high"];
 const PROFILE_CONTRIBUTION_WEIGHT = ["low", "medium", "high"];
 const QUOTE_SOURCES = ["creator_spoken", "ai_suggested"];
 const QUOTE_ROLES = ["hook", "promise", "turning_point", "closing", "example", "context", "other"];
-const SCENE_SOURCES = ["derived_scene"];
+const SCENE_SOURCES = ["model_observed", "derived_scene"];
 const MOMENT_ROLES = ["opening", "conflict", "turning_point", "visual_signal", "pacing_signal", "production_signal", "other"];
 const CHAPTER_HINTS = ["pattern", "tension", "movement", "territory", "video_reveal", "profile_impact", "opportunities"];
 
@@ -266,7 +266,7 @@ function sanitizeEvidenceAnchors(
         text(scene.source, `evidenceAnchors.sceneAnchors[${index}].source`, 40),
         SCENE_SOURCES,
         `evidenceAnchors.sceneAnchors[${index}].source`,
-      ) as "derived_scene",
+      ) as CreatorVideoNarrativeEvidenceAnchors["sceneAnchors"][number]["source"],
       momentRole: requireOneOf(
         text(scene.momentRole, `evidenceAnchors.sceneAnchors[${index}].momentRole`, 40),
         MOMENT_ROLES,

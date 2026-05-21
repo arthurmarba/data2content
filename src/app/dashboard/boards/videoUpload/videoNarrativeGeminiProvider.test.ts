@@ -74,6 +74,10 @@ describe("videoNarrativeGeminiProvider", () => {
     );
     expect(result.ok).toBe(true);
     expect(result.analysis?.mainNarrative).toContain("Rotina prática");
+    expect(result.analysis?.evidenceAnchors?.speechQuotes[0]).toEqual(expect.objectContaining({
+      quote: "rapidinho",
+      source: "creator_spoken",
+    }));
     expect(JSON.stringify(result)).not.toContain("rawText");
     expect(JSON.stringify(result)).not.toContain("rawResponse");
   });

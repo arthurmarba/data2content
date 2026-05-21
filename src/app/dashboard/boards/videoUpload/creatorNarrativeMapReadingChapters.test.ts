@@ -268,6 +268,49 @@ describe("creatorNarrativeMapReadingChapters", () => {
     );
   });
 
+  it("prioriza quote creator_spoken e cena model_observed sem expor source tecnico", () => {
+    const diagnosis = buildNarrativeMapReadingDiagnosisFixture({
+      evidenceAnchors: {
+        speechQuotes: [
+          {
+            quote: "sugestão menor",
+            source: "ai_suggested",
+            quoteRole: "hook",
+            whyItMatters: "Sugestão de teste.",
+            chapterHint: "pattern",
+          },
+          {
+            quote: "rapidinho",
+            source: "creator_spoken",
+            quoteRole: "hook",
+            whyItMatters: "Fala real que sustenta a promessa.",
+            chapterHint: "pattern",
+          },
+        ],
+        sceneAnchors: [
+          {
+            description: "A virada aparece quando a explicação vira situação.",
+            source: "model_observed",
+            momentRole: "turning_point",
+            whyItMatters: "Sustenta a tensão.",
+            chapterHint: "tension",
+          },
+        ],
+        creatorIntentAnchor: null,
+        profilePatternAnchors: [],
+        instagramAnchors: [],
+      },
+    });
+    const presentation = buildCreatorNarrativeMapReadingPresentation({ diagnosis, analyzedVideosCount: 4 });
+    const serialized = JSON.stringify(presentation);
+
+    expect(presentation.chapters.find((chapter) => chapter.id === "pattern")?.fullReading).toContain('Fala: "rapidinho"');
+    expect(presentation.chapters.find((chapter) => chapter.id === "pattern")?.fullReading).not.toContain("sugestão menor");
+    expect(presentation.chapters.find((chapter) => chapter.id === "tension")?.fullReading).toContain("A virada aparece");
+    expect(serialized).not.toContain("creator_spoken");
+    expect(serialized).not.toContain("model_observed");
+  });
+
   it("diferencia fala real de sugestao da IA em movement", () => {
     const diagnosis = buildNarrativeMapReadingDiagnosisFixture({
       evidenceAnchors: {

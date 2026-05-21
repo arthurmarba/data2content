@@ -214,6 +214,54 @@ describe("creatorVideoNarrativeDiagnosisMapper", () => {
     expect(result.evidenceAnchors?.speechQuotes.some((anchor) => anchor.source === "creator_spoken")).toBe(false);
   });
 
+  it("preserva creator_spoken real vindo do parser e nao sobrescreve com ai_suggested", () => {
+    const result = mapVideoNarrativeDiagnosisToCreatorVideoNarrativeDiagnosisInput(
+      buildCreatorVideoNarrativeDiagnosisMapperParams({
+        strategicDiagnosis: buildMapperStrategicDiagnosisFixture({
+          suggestedHook: "Sugestão que não deve sobrescrever quote real.",
+          evidenceAnchors: {
+            speechQuotes: [
+              {
+                quote: "rapidinho",
+                source: "creator_spoken",
+                quoteRole: "hook",
+                whyItMatters: "A palavra cria promessa pequena.",
+                chapterHint: "pattern",
+              },
+            ],
+            sceneAnchors: [
+              {
+                description: "A cena gira em torno de uma conversa curta que vira situação maior.",
+                source: "model_observed",
+                momentRole: "turning_point",
+                whyItMatters: "A virada sustenta o humor.",
+                chapterHint: "tension",
+              },
+            ],
+            creatorIntentAnchor: {
+              source: "creator_goal",
+              statedGoal: "gerar identificação e comentários",
+              interpretedGoal: "testar humor de reconhecimento rápido",
+              whyItMatters: "A intenção muda a leitura do gancho.",
+            },
+            profilePatternAnchors: [],
+            instagramAnchors: [],
+          },
+        }),
+      }),
+    );
+
+    expect(result.evidenceAnchors?.speechQuotes).toEqual([
+      expect.objectContaining({ quote: "rapidinho", source: "creator_spoken" }),
+    ]);
+    expect(result.evidenceAnchors?.speechQuotes.some((anchor) => anchor.source === "ai_suggested")).toBe(false);
+    expect(result.evidenceAnchors?.sceneAnchors[0]).toEqual(expect.objectContaining({
+      source: "model_observed",
+      description: expect.stringContaining("conversa curta"),
+    }));
+    expect(result.evidenceAnchors?.creatorIntentAnchor?.statedGoal).toBe("gerar identificação e comentários");
+  });
+
   it("mapeia rememberedAs como sceneAnchor seguro", () => {
     const result = mapVideoNarrativeDiagnosisToCreatorVideoNarrativeDiagnosisInput(
       buildCreatorVideoNarrativeDiagnosisMapperParams(),
