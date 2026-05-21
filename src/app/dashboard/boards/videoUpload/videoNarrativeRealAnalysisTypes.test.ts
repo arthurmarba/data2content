@@ -23,6 +23,26 @@ describe("validateVideoNarrativeRealAnalysisPayload", () => {
     }
   });
 
+  it("aceita flags explícitas de persistência sem exigir snapshot por padrão", () => {
+    const withoutFlags = validateVideoNarrativeRealAnalysisPayload(validPayload);
+    expect(withoutFlags.ok).toBe(true);
+    if (withoutFlags.ok) {
+      expect(withoutFlags.payload.persistReading).toBeUndefined();
+      expect(withoutFlags.payload.persistSynthesisSnapshot).toBeUndefined();
+    }
+
+    const withFlags = validateVideoNarrativeRealAnalysisPayload({
+      ...validPayload,
+      persistReading: true,
+      persistSynthesisSnapshot: true,
+    });
+    expect(withFlags.ok).toBe(true);
+    if (withFlags.ok) {
+      expect(withFlags.payload.persistReading).toBe(true);
+      expect(withFlags.payload.persistSynthesisSnapshot).toBe(true);
+    }
+  });
+
   it("bloqueia campos proibidos", () => {
     for (const forbidden of ["file", "video", "uploadUrl", "signedUrl", "base64", "rawModelResponse", "bucket", "token"]) {
       const result = validateVideoNarrativeRealAnalysisPayload({ ...validPayload, [forbidden]: "x" });

@@ -2576,3 +2576,13 @@ O que não faz:
 - não muda Gemini, upload, storage, cleanup, usage limits ou endpoints;
 - não altera Mídia Kit real, Comunidade real, navegação global, shells, LoginClient, NextAuth ou billing;
 - não cria histórico visual de vídeos, galeria, player ou thumbnail.
+
+### MM88 — Gated Real Endpoint + E2E Beta Runbook
+
+Status: concluído.
+
+MM88 conecta o endpoint real gated ao pipeline seguro de leitura documentada. Com `persistReading=true`, a análise real estruturada salva `CreatorVideoNarrativeDiagnosis` com anchors seguros vindos do provider/parser quando disponíveis. Com `persistReading=true` e `persistSynthesisSnapshot=true`, o fluxo consulta leituras recentes, gera síntese acumulada e escreve snapshot pelo guard de síntese, evitando que um único vídeo sobrescreva diretamente o Perfil geral.
+
+O response do beta retorna apenas `videoReadingPersistence`, `synthesisSnapshotWrite` e `e2eBetaAudit`; não retorna snapshot completo, leitura completa, raw response, transcrição, vídeo, thumbnail, signed URL, upload URL, objectKey, localPath ou metadata de storage. O cleanup temporário e os usage limits existentes permanecem no caminho real.
+
+Runbook operacional: `MM88_GATED_REAL_ENDPOINT_E2E_BETA_RUNBOOK.md`.

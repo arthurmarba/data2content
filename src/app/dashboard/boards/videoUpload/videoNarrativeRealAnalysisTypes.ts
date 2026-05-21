@@ -12,6 +12,8 @@ export type VideoNarrativeRealAnalysisPayload = {
   selectedGoalOption: VideoNarrativeAiProviderGoalOption;
   quickAnswers?: Array<{ id: string; value: string }>;
   consentTextVersion: string;
+  persistReading?: boolean;
+  persistSynthesisSnapshot?: boolean;
 };
 
 export type VideoNarrativeRealAnalysisPayloadValidationResult =
@@ -172,6 +174,8 @@ export function validateVideoNarrativeRealAnalysisPayload(
       selectedGoalOption: selectedGoalOption as VideoNarrativeAiProviderGoalOption,
       quickAnswers: readQuickAnswers(body.quickAnswers),
       consentTextVersion: consentTextVersion.slice(0, 80),
+      ...(body.persistReading === true ? { persistReading: true } : {}),
+      ...(body.persistSynthesisSnapshot === true ? { persistSynthesisSnapshot: true } : {}),
     },
   };
 }

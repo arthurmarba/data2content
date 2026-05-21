@@ -23,7 +23,7 @@ export interface ControlledVideoReadingSynthesisSnapshotWriteParams {
   userId: string;
   savedDiagnosisId: string;
   enableSnapshotWrite: boolean;
-  source: "mock_internal";
+  source: "mock_internal" | "real_internal";
   requestId?: string | null;
 }
 
@@ -71,7 +71,7 @@ export async function runControlledVideoReadingSynthesisSnapshotWrite(
     });
   }
 
-  if (params.source !== "mock_internal" || !params.userId.trim() || !params.savedDiagnosisId.trim()) {
+  if (!["mock_internal", "real_internal"].includes(params.source) || !params.userId.trim() || !params.savedDiagnosisId.trim()) {
     return skipped({
       attempted: true,
       skippedReason: "saved_reading_not_found",
