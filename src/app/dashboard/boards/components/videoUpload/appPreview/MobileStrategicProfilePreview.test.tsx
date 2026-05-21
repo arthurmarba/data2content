@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MobileStrategicProfilePreview } from "./MobileStrategicProfilePreview";
 import {
   buildMobileStrategicProfilePreviewFixture,
@@ -30,10 +30,13 @@ function clickAnalyzeAction(label: string) {
   fireEvent.click(button);
 }
 
-function advanceAnalyzeFlowToConfirmation() {
-  for (let index = 0; index < 5; index += 1) {
-    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+async function advanceAnalyzeFlowToConfirmation() {
+  for (const label of ["Começar", "Continuar", "Continuar", "Gerar leitura"]) {
+    fireEvent.click(screen.getByRole("button", { name: label }));
   }
+  await waitFor(() => {
+    expect(screen.getByRole("dialog", { name: "Leitura pronta" })).toBeInTheDocument();
+  }, { timeout: 2000 });
 }
 
 describe("MobileStrategicProfilePreview", () => {
@@ -165,15 +168,15 @@ describe("MobileStrategicProfilePreview", () => {
   it("Analyze flow does not appear by default", () => {
     renderState("first_reading_free");
 
-    expect(screen.queryByRole("dialog", { name: "Vamos atualizar seu Perfil" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Nova leitura estratégica" })).not.toBeInTheDocument();
   });
 
   it("opens Analyze flow from status bubble when free reading is available", () => {
     renderState("account_only");
 
-    fireEvent.click(screen.getByRole("button", { name: "Analisar vídeo" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Analisar meu primeiro vídeo" })[0]);
 
-    expect(screen.getByRole("dialog", { name: "Vamos atualizar seu Perfil" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Nova leitura estratégica" })).toBeInTheDocument();
   });
 
   it("does not render central analyze action in bottom nav", () => {
@@ -189,7 +192,7 @@ describe("MobileStrategicProfilePreview", () => {
 
     clickAnalyzeAction("Analisar meu primeiro vídeo");
 
-    expect(screen.getByText("Use um vídeo para a D2C entender novos sinais da sua narrativa.")).toBeInTheDocument();
+    expect(screen.getByText("Envie um vídeo e diga o que você quer entender. A D2C transforma esse conteúdo em direção para o seu Perfil.")).toBeInTheDocument();
   });
 
   it("opens Analyze flow from empty state CTA in account_only", () => {
@@ -197,7 +200,7 @@ describe("MobileStrategicProfilePreview", () => {
 
     clickAnalyzeAction("Analisar meu primeiro vídeo");
 
-    expect(screen.getByRole("dialog", { name: "Vamos atualizar seu Perfil" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Nova leitura estratégica" })).toBeInTheDocument();
   });
 
   it("anonymous auth gate does not open real Analyze flow", () => {
@@ -205,30 +208,30 @@ describe("MobileStrategicProfilePreview", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Entrar e analisar vídeo" }));
 
-    expect(screen.queryByRole("dialog", { name: "Vamos atualizar seu Perfil" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Nova leitura estratégica" })).not.toBeInTheDocument();
   });
 
-  it("Analyze flow returns to Profile after short confirmation", () => {
+  it("Analyze flow returns to Profile after short confirmation", async () => {
     renderState("account_only");
 
     clickAnalyzeAction("Analisar meu primeiro vídeo");
-    advanceAnalyzeFlowToConfirmation();
+    await advanceAnalyzeFlowToConfirmation();
 
-    expect(screen.getByRole("dialog", { name: "Diagnóstico atualizado." })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Voltar para meu Perfil" }));
+    expect(screen.getByRole("dialog", { name: "Leitura pronta" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ver leitura no Perfil" }));
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByText("Perfil Estratégico mobile")).toBeInTheDocument();
     expect(screen.getAllByText("Mapa").length).toBeGreaterThan(0);
-    expect(screen.getByText("Seu Perfil foi atualizado com a nova leitura.")).toBeInTheDocument();
+    expect(screen.getByText("A D2C atualizou seu Perfil com sinais deste vídeo.")).toBeInTheDocument();
   });
 
-  it("Analyze flow does not create analyzed videos history or active file input", () => {
+  it("Analyze flow does not create analyzed videos history or active file input", async () => {
     const { container } = renderState("account_only");
 
     clickAnalyzeAction("Analisar meu primeiro vídeo");
-    advanceAnalyzeFlowToConfirmation();
-    fireEvent.click(screen.getByRole("button", { name: "Voltar para meu Perfil" }));
+    await advanceAnalyzeFlowToConfirmation();
+    fireEvent.click(screen.getByRole("button", { name: "Ver leitura no Perfil" }));
 
     const text = renderedText(container);
     expect(text).not.toContain("histórico de vídeos");

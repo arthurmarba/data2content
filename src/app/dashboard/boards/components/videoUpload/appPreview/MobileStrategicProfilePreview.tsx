@@ -8,12 +8,16 @@ import type {
   MobileStrategicProfileSectionCard,
 } from "../../../videoUpload/mobileStrategicProfileMapping";
 import {
-  getNarrativeMapAccessAction,
-  getNarrativeMapAccessStatusText,
+  getNarrativeMapStatusCardContent,
   normalizeNarrativeMapReadingQuotaSnapshot,
   type NarrativeMapAccessState,
   type NarrativeMapReadingQuotaSnapshot,
 } from "../../../videoUpload/narrativeMapAccessState";
+import {
+  MOBILE_COMMUNITY_ROUTE,
+  MOBILE_INSTAGRAM_CONNECT_ROUTE,
+  MOBILE_PROFILE_ROUTE,
+} from "../../../videoUpload/mobileStrategicProfileRoutes";
 import { openPaywallModal } from "@/utils/paywallModal";
 import {
   MOBILE_STRATEGIC_PROFILE_PREVIEW_STATES,
@@ -145,8 +149,8 @@ function AuthGate({ profile, isRealShell }: { profile: MobileStrategicProfile; i
   const gate = profile.authGate;
 
   return (
-    <section className="min-h-screen bg-zinc-100 px-4 py-6 text-zinc-950">
-      <div className="mx-auto grid max-w-5xl gap-5">
+    <section className={isRealShell ? "min-h-screen bg-[#f7f7f4] text-zinc-950" : "min-h-screen bg-zinc-100 px-4 py-6 text-zinc-950"}>
+      <div className={isRealShell ? "mx-auto grid w-full max-w-md gap-5" : "mx-auto grid max-w-5xl gap-5"}>
         {!isRealShell ? (
           <header className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
             <p className="text-xs font-semibold uppercase text-zinc-500">Preview interno — Perfil Estratégico</p>
@@ -157,8 +161,8 @@ function AuthGate({ profile, isRealShell }: { profile: MobileStrategicProfile; i
           </header>
         ) : null}
 
-        <div className="mx-auto w-full max-w-sm rounded-[2rem] border border-zinc-200 bg-zinc-950 p-2 shadow-xl">
-          <div className="min-h-[680px] rounded-[1.5rem] bg-[#f7f7f4] px-5 py-5">
+        <div className={isRealShell ? "mx-auto w-full max-w-md bg-[#f7f7f4]" : "mx-auto w-full max-w-sm rounded-[2rem] border border-zinc-200 bg-zinc-950 p-2 shadow-xl"}>
+          <div className={isRealShell ? "min-h-screen bg-[#f7f7f4] px-5 py-5" : "min-h-[680px] rounded-[1.5rem] bg-[#f7f7f4] px-5 py-5"}>
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-zinc-950">Perfil Estratégico</span>
               <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-zinc-600 shadow-sm">D2C</span>
@@ -198,9 +202,7 @@ function ProfileHeader({
   onJoinCommunity: () => void;
 }) {
   const identity = profile.header.identity;
-  const accessAction = getNarrativeMapAccessAction(accessState);
-  const statusText = getNarrativeMapAccessStatusText({ state: accessState, quota: readingQuota });
-  const quota = normalizeNarrativeMapReadingQuotaSnapshot(readingQuota);
+  const statusCard = getNarrativeMapStatusCardContent({ state: accessState, quota: readingQuota });
   const initials = identity.displayName
     .split(/\s+/)
     .filter(Boolean)
@@ -232,21 +234,33 @@ function ProfileHeader({
         </div>
 
         <section className="mt-4 rounded-2xl bg-white px-3 py-3 shadow-sm" aria-label="Status do Perfil">
-          <p className="text-xs font-semibold uppercase text-zinc-500">Próximo passo</p>
-          <div className="mt-2 flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold text-zinc-950">{statusText}</p>
-              {accessState === "pro_instagram_connected" ? (
-                <p className="mt-0.5 text-xs text-zinc-500">{quota.usedThisMonth}/10 leituras usadas este mês · Instagram conectado</p>
-              ) : null}
-            </div>
+          <p className="text-sm font-semibold text-zinc-950">{statusCard.title}</p>
+          <p className="mt-1 text-xs leading-5 text-zinc-500">{statusCard.description}</p>
+          <div className="mt-3 flex flex-wrap gap-2">
             <button
               type="button"
-              className="shrink-0 rounded-full bg-zinc-950 px-3 py-2 text-xs font-semibold text-white"
+              className="rounded-full bg-zinc-950 px-3 py-2 text-xs font-semibold text-white"
               onClick={onPrimaryAccessAction}
             >
-              {accessAction.label}
+              {statusCard.primaryLabel}
             </button>
+            {statusCard.secondaryLabel ? (
+              <button
+                type="button"
+                className="rounded-full border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-800"
+                onClick={() => onAction({
+                  id: "status-secondary-new-reading",
+                  intent: "analyze_video",
+                  label: statusCard.secondaryLabel ?? "Nova leitura",
+                  description: "Iniciar uma nova leitura estratégica.",
+                  href: null,
+                  priority: "secondary",
+                  disabled: false,
+                })}
+              >
+                {statusCard.secondaryLabel}
+              </button>
+            ) : null}
           </div>
         </section>
       </div>
@@ -348,14 +362,16 @@ function MediaKitBridge({
   onOpen: () => void;
 }) {
   const bridge = profile.mediaKitBridge;
-  if (bridge.state === "hidden" || bridge.state === "unavailable" || !bridge.title || !bridge.description) return null;
+  if (bridge.state === "hidden" || !bridge.title || !bridge.description) return null;
 
   return (
     <section className="mx-5 rounded-[1.5rem] border border-zinc-200 bg-white p-4 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold text-zinc-950">{bridge.title}</h3>
-          <p className="mt-1 text-sm leading-6 text-zinc-600">{bridge.description}</p>
+          <p className="mt-1 text-sm leading-6 text-zinc-600">
+            {bridge.state === "available" ? "Seu perfil pronto para enviar às marcas." : "Conecte o Instagram para liberar seu perfil comercial."}
+          </p>
         </div>
         <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
           {bridge.state === "available" ? "Mídia Kit ativo" : "Instagram"}
@@ -367,13 +383,13 @@ function MediaKitBridge({
             <ActionButton key={action.id} action={action} onAction={onOpen} />
           ))}
         </div>
-      ) : bridge.state === "connect_instagram_required" ? (
+      ) : bridge.state === "connect_instagram_required" || bridge.state === "unavailable" ? (
         <button
           type="button"
           className="mt-4 rounded-full border border-zinc-200 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-800"
           onClick={onOpen}
         >
-          Ativar Mídia Kit
+          Conectar Instagram
         </button>
       ) : null}
     </section>
@@ -444,14 +460,14 @@ export function MobileStrategicProfilePreview({
     openPaywallModal({
       context: "narrative_map",
       source: "mobile_profile",
-      returnTo: "/dashboard/boards/mobile-strategic-profile",
+      returnTo: MOBILE_PROFILE_ROUTE,
       postCheckoutIntent: "connect_instagram",
     });
   };
 
   const joinCommunity = () => {
     if (typeof window !== "undefined") {
-      window.location.href = "/planning/discover";
+      window.location.href = MOBILE_COMMUNITY_ROUTE;
     }
   };
 
@@ -461,7 +477,7 @@ export function MobileStrategicProfilePreview({
       return;
     }
     if (typeof window !== "undefined") {
-      window.location.href = "/dashboard/instagram/connect?next=narrative-map";
+      window.location.href = MOBILE_INSTAGRAM_CONNECT_ROUTE;
     }
   };
 
@@ -517,7 +533,7 @@ export function MobileStrategicProfilePreview({
   const activeSection = profile.sections.find((section) => section.id === activeTab);
 
   return (
-    <main className="min-h-screen bg-zinc-100 px-4 py-6 text-zinc-950">
+    <main className={isRealShell ? "min-h-screen bg-white text-zinc-950" : "min-h-screen bg-zinc-100 px-4 py-6 text-zinc-950"}>
       <div className="mx-auto grid max-w-5xl gap-5">
         {!isRealShell ? (
           <header className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
@@ -532,8 +548,8 @@ export function MobileStrategicProfilePreview({
           </header>
         ) : null}
 
-        <div className="mx-auto w-full max-w-sm rounded-[2rem] border border-zinc-200 bg-zinc-950 p-2 shadow-xl">
-          <div className="relative min-h-[720px] overflow-hidden rounded-[1.5rem] bg-white">
+        <div className={isRealShell ? "mx-auto w-full max-w-md bg-white" : "mx-auto w-full max-w-sm rounded-[2rem] border border-zinc-200 bg-zinc-950 p-2 shadow-xl"}>
+          <div className={isRealShell ? "relative min-h-screen overflow-hidden bg-white" : "relative min-h-[720px] overflow-hidden rounded-[1.5rem] bg-white"}>
             <ProfileHeader
               profile={profile}
               onAction={handleAction}
@@ -547,8 +563,16 @@ export function MobileStrategicProfilePreview({
             <div className="mt-5 grid gap-5 pb-2">
               {profileUpdated ? (
                 <section className="mx-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
-                  <p className="text-sm font-semibold text-zinc-950">Diagnóstico atualizado</p>
-                  <p className="mt-1 text-sm leading-6 text-zinc-600">Seu Perfil foi atualizado com a nova leitura.</p>
+                  <p className="text-sm font-semibold text-zinc-950">Nova leitura adicionada</p>
+                  <p className="mt-1 text-sm leading-6 text-zinc-600">A D2C atualizou seu Perfil com sinais deste vídeo.</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" className="rounded-full bg-zinc-950 px-3 py-2 text-xs font-semibold text-white" onClick={() => setActiveTab("diagnosis")}>
+                      Ver Mapa
+                    </button>
+                    <button type="button" className="rounded-full border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-800">
+                      Ver leitura
+                    </button>
+                  </div>
                 </section>
               ) : null}
 

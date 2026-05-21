@@ -11,6 +11,7 @@ import type {
   VideoNarrativeDiagnosisPresentationCard,
   VideoNarrativeDiagnosisPresentationSection,
 } from "./videoNarrativeDiagnosisPresentationModel";
+import { MOBILE_COMMUNITY_ROUTE } from "./mobileStrategicProfileRoutes";
 
 export interface MobileStrategicProfileInput {
   state: MobileStrategicProfileState;
@@ -391,7 +392,7 @@ function buildMediaKitBridge(input: MobileStrategicProfileInput): MobileStrategi
     return {
       state,
       title: "Mídia Kit",
-      description: "Use o Mídia Kit existente para compartilhar seu perfil com marcas.",
+      description: "Seu perfil pronto para enviar às marcas.",
       href: shareHref,
       actions: [
         profileAction({
@@ -429,7 +430,7 @@ function buildMediaKitBridge(input: MobileStrategicProfileInput): MobileStrategi
     return {
       state,
       title: "Mídia Kit",
-      description: "Conectar Instagram é o próximo passo para ativar o Mídia Kit existente.",
+      description: "Conecte o Instagram para liberar seu perfil comercial.",
       href: null,
       actions: [],
     };
@@ -442,7 +443,7 @@ function buildCommunityBridge(input: MobileStrategicProfileInput): MobileStrateg
   return {
     visible: false,
     label: "Comunidade",
-    href: href(input.communityHref) ?? "/dashboard/community",
+    href: href(input.communityHref) ?? MOBILE_COMMUNITY_ROUTE,
     description: "Acesse a Comunidade Data2Content, destino existente para continuar aprendendo com outros membros.",
   };
 }
@@ -460,7 +461,7 @@ function buildNavigation(input: MobileStrategicProfileInput): MobileStrategicPro
       {
         id: "community",
         label: "Comunidade",
-        href: href(input.communityHref) ?? "/dashboard/community",
+        href: href(input.communityHref) ?? MOBILE_COMMUNITY_ROUTE,
         role: "destination",
         active: false,
       },

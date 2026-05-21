@@ -2,6 +2,7 @@ import type { VideoNarrativeDiagnosisPresentation } from "./videoNarrativeDiagno
 import type { MobileStrategicProfileSnapshotPayload } from "./mobileStrategicProfileSnapshotTypes";
 import type { MobileStrategicProfileInput } from "./mobileStrategicProfileMapping";
 import { resolveMobileStrategicProfileState } from "./mobileStrategicProfileStateContract";
+import { MOBILE_COMMUNITY_ROUTE } from "./mobileStrategicProfileRoutes";
 
 /**
  * Converte o snapshot estratégico persistido no formato VideoNarrativeDiagnosisPresentation.
@@ -167,7 +168,7 @@ export function buildMobileStrategicProfileFromSnapshot(params: {
       loginHref: params.loginHref || "/login?intent=strategic_profile",
       profileHref: params.profileHref || "/dashboard/boards/mobile-strategic-profile",
       analyzeVideoHref: params.analyzeVideoHref || "/dashboard/boards/mobile-strategic-profile",
-      communityHref: params.communityHref || "/dashboard/community",
+      communityHref: params.communityHref || MOBILE_COMMUNITY_ROUTE,
     };
   }
 
@@ -196,6 +197,6 @@ export function buildMobileStrategicProfileFromSnapshot(params: {
     creatorBio: resolvedBio,
     profileHref: params.profileHref || "/dashboard/boards/mobile-strategic-profile",
     analyzeVideoHref: params.analyzeVideoHref || "/dashboard/boards/mobile-strategic-profile",
-    communityHref: params.communityHref || "/dashboard/community",
+    communityHref: params.communityHref || MOBILE_COMMUNITY_ROUTE,
   };
 }

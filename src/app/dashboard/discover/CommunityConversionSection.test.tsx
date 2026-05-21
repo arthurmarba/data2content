@@ -61,10 +61,11 @@ describe("CommunityConversionSection", () => {
 
     render(<CommunityConversionSection />);
 
-    expect(screen.getByText("Consultoria em grupo da D2C")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Assinar Pro e entrar/i })).toBeInTheDocument();
+    expect(screen.getByText("Consultoria em grupo")).toBeInTheDocument();
+    expect(screen.getByText("Assine o Pro para entrar no Grupo VIP da D2C.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Assinar e entrar/i })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Assinar Pro e entrar/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Assinar e entrar/i }));
 
     expect(window.dispatchEvent).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -83,10 +84,10 @@ describe("CommunityConversionSection", () => {
 
     render(<CommunityConversionSection />);
 
-    expect(screen.getByText("Seu acesso à consultoria está liberado")).toBeInTheDocument();
+    expect(screen.getByText("Grupo VIP liberado")).toBeInTheDocument();
     expect(screen.getByText("via WhatsApp")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Entrar na consultoria/i })).toBeInTheDocument();
-    expect(screen.queryByText("Consultoria em grupo da D2C")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Entrar" })).toBeInTheDocument();
+    expect(screen.queryByText("Consultoria em grupo")).not.toBeInTheDocument();
 
     await waitFor(() => expect(screen.getByText("Próxima consultoria: quinta, 19h")).toBeInTheDocument());
   });

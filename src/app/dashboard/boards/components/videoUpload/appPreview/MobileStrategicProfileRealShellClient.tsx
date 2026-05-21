@@ -20,6 +20,11 @@ import {
   resolveNarrativeMapAccessState,
   type NarrativeMapReadingQuotaSnapshot,
 } from "../../../videoUpload/narrativeMapAccessState";
+import {
+  MOBILE_INSTAGRAM_CONNECT_ROUTE,
+  MOBILE_MEDIA_KIT_ROUTE,
+  MOBILE_PROFILE_ROUTE,
+} from "../../../videoUpload/mobileStrategicProfileRoutes";
 import type { VideoNarrativeSynthesisSnapshotWriteSummary } from "../../../videoUpload/videoNarrativeSafeResponseBuilder";
 
 interface MobileStrategicProfileRealShellClientProps {
@@ -89,6 +94,7 @@ export function MobileStrategicProfileRealShellClient({
   const [isHydrating, setIsHydrating] = useState(false);
   const [mapAnalyzeFlowOpen, setMapAnalyzeFlowOpen] = useState(false);
   const [mapAccessMessage, setMapAccessMessage] = useState<string | null>(null);
+  const [mapProfileUpdated, setMapProfileUpdated] = useState(false);
 
   useEffect(() => {
     // Se for anônimo, não precisamos hidratar
@@ -269,18 +275,18 @@ export function MobileStrategicProfileRealShellClient({
     openPaywallModal({
       context: "narrative_map",
       source: "mobile_profile",
-      returnTo: "/dashboard/boards/mobile-strategic-profile",
+      returnTo: MOBILE_PROFILE_ROUTE,
       postCheckoutIntent: "connect_instagram",
     });
   }, []);
 
   const handleMapPrimaryAccessAction = useCallback(() => {
     setMapAccessMessage(null);
-    if (accessState === "free_unused" || accessState === "pro_instagram_connected" || accessState === "pro_needs_instagram" || accessState === "admin") {
-      if (accessState === "pro_needs_instagram") {
-        window.location.href = "/dashboard/instagram/connect?next=narrative-map";
-        return;
-      }
+    if (accessState === "pro_needs_instagram") {
+      window.location.href = MOBILE_INSTAGRAM_CONNECT_ROUTE;
+      return;
+    }
+    if (accessState === "free_unused" || accessState === "pro_instagram_connected" || accessState === "admin") {
       setMapAnalyzeFlowOpen(true);
       return;
     }
@@ -290,6 +296,18 @@ export function MobileStrategicProfileRealShellClient({
     }
     openProfilePaywall();
   }, [accessState, openProfilePaywall]);
+
+  const handleMapSecondaryAccessAction = useCallback(() => {
+    setMapAccessMessage(null);
+    if (accessState === "pro_needs_instagram") {
+      setMapAnalyzeFlowOpen(true);
+    }
+  }, [accessState]);
+
+  const handleMapAnalyzeComplete = useCallback(() => {
+    setMapAnalyzeFlowOpen(false);
+    setMapProfileUpdated(true);
+  }, []);
 
   return (
     <div className="relative">
@@ -306,8 +324,8 @@ export function MobileStrategicProfileRealShellClient({
         </div>
       )}
       {initialNarrativeMapViewModel && initialNarrativeMapPresentation ? (
-        <main className="min-h-screen bg-zinc-100 px-4 py-6 text-zinc-950">
-          <div className="mx-auto grid max-w-5xl gap-5">
+        <main className="min-h-screen bg-[#f7f7f4] text-zinc-950">
+          <div className="mx-auto grid w-full max-w-md gap-5">
             <NarrativeMapMobileShell
               viewModel={initialNarrativeMapViewModel}
               presentation={initialNarrativeMapPresentation}
@@ -316,6 +334,12 @@ export function MobileStrategicProfileRealShellClient({
               accessState={accessState}
               readingQuota={quota}
               onPrimaryAccessAction={handleMapPrimaryAccessAction}
+              onSecondaryAccessAction={handleMapSecondaryAccessAction}
+              onOpenMediaKit={() => {
+                window.location.href = MOBILE_MEDIA_KIT_ROUTE;
+              }}
+              profileUpdateNotice={mapProfileUpdated}
+              frameMode="app"
             />
             {mapAccessMessage ? (
               <p className="mx-auto max-w-sm rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-semibold text-zinc-950">
@@ -325,7 +349,7 @@ export function MobileStrategicProfileRealShellClient({
             <MobileStrategicProfileAnalyzeFlow
               open={mapAnalyzeFlowOpen}
               onClose={() => setMapAnalyzeFlowOpen(false)}
-              onComplete={() => setMapAnalyzeFlowOpen(false)}
+              onComplete={handleMapAnalyzeComplete}
               onSubmitAnalysis={handleAnalysisSubmit}
               onCreateUploadSession={requestUploadSession}
               onUploadToTemporarySignedUrl={uploadVideoToTemporarySignedUrl}

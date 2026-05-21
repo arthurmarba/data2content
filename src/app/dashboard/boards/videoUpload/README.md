@@ -6,6 +6,39 @@ O vídeo ainda não é enviado de verdade e ainda não é processado de verdade.
 
 Hoje, vídeo é apenas uma possível origem futura para preencher uma `NarrativeSource`.
 
+### MM90 — Mobile UX Simplification Pass
+
+Status: implementado.
+
+Arquivos principais:
+
+- `MM90_MOBILE_UX_SIMPLIFICATION_PASS.md`
+- `narrativeMapAccessState.ts`
+- `mobileStrategicProfileRoutes.ts`
+- `../components/videoUpload/appPreview/NarrativeMapMobileShell.tsx`
+- `../components/videoUpload/appPreview/MobileStrategicProfileRealShellClient.tsx`
+- `../components/videoUpload/appPreview/MobileStrategicProfilePreview.tsx`
+- `../components/videoUpload/appPreview/MobileStrategicProfileAnalyzeFlow.tsx`
+- `src/app/dashboard/discover/CommunityConversionSection.tsx`
+
+O que faz:
+
+- remove a moldura de mockup da experiência mobile real e preserva o frame apenas no preview interno;
+- troca o balão flutuante por Status Card compacto no Perfil;
+- mantém `Perfil | Comunidade` como navegação global mobile e `Mapa | Leituras | Oportunidades` como abas internas;
+- reposiciona `Nova leitura` dentro do Perfil e reformula o fluxo como `Nova leitura estratégica`;
+- envia `creatorGoal` livre e `quickAnswers` reais, selecionadas pelo usuário;
+- coloca Mídia Kit no topo de `Oportunidades`, sem criar aba global;
+- mantém Comunidade como marketplace/lista com banner compacto de consultoria;
+- centraliza CTAs mobile de Comunidade na rota `/planning/discover`.
+
+O que não faz:
+
+- não implementa telemetria ou beta activation;
+- não altera motor de IA, prompts, schema, parser, Stripe, NextAuth, DashboardShell, BoardShell, sidebar ou `MediaKitView`;
+- não cria novo plano, pacote extra de leitura, aba Instagram, página de Mídia Kit ou landing page de Comunidade;
+- não expõe vídeo bruto, thumbnail persistente, signed/upload URL, objectKey, localPath, storageProviderPath, raw response ou transcrição longa.
+
 ### MM89 — Pro Access, Reading Quota, Instagram and Community UX
 
 Status: implementado.

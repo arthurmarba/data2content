@@ -4,6 +4,7 @@ import {
   resolveMobileStrategicProfileState,
   sanitizeMobileStrategicProfileText,
 } from "./mobileStrategicProfileStateContract";
+import { MOBILE_COMMUNITY_ROUTE } from "./mobileStrategicProfileRoutes";
 import type { VideoNarrativeDiagnosisAccessLevel } from "./videoNarrativeDiagnosisLearningModel";
 
 export interface MobileStrategicProfileExistingDataAdapterInput {
@@ -257,7 +258,7 @@ export function buildMobileStrategicProfileExistingDataAdapter(
     mediaKitPublicUrl: resolvedMediaKitShareUrl,
     profileHref: input.profileHref || "/dashboard/boards/mobile-profile",
     analyzeVideoHref: input.analyzeVideoHref || "/dashboard/boards/mobile-profile",
-    communityHref: resolvedCommunityHref || "/dashboard/community",
+    communityHref: resolvedCommunityHref || MOBILE_COMMUNITY_ROUTE,
     createdAt,
   };
 

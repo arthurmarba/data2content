@@ -43,7 +43,7 @@ describe("MobileStrategicProfilePreviewPage", () => {
 
     expect(screen.getByText("Preview interno — Perfil Estratégico")).toBeInTheDocument();
     expect(screen.getByText("Perfil Estratégico mobile")).toBeInTheDocument();
-    expect(screen.getAllByText("Diagnóstico").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Mapa").length).toBeGreaterThan(0);
   });
 
   it("state query selects fixture", async () => {

@@ -8,6 +8,7 @@ import type { PaywallEventDetail } from "@/types/paywall";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import type { HomeSummaryResponse, MentorshipCardData } from "@/app/dashboard/home/types";
 import { fetchHomeSummaryCached } from "@/app/dashboard/home/homeSummaryClient";
+import { MOBILE_COMMUNITY_ROUTE } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
 
 const COMMUNITY_VIP_URL =
   process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ||
@@ -19,7 +20,7 @@ function openMentoriaPaywall() {
     const returnTo =
       typeof window !== "undefined"
         ? `${window.location.pathname}${window.location.search}${window.location.hash}`
-        : "/dashboard/discover";
+        : MOBILE_COMMUNITY_ROUTE;
     const detail: PaywallEventDetail = {
       context: "mentoria",
       source: "community_mentoria",
@@ -49,8 +50,8 @@ export default function CommunityConversionSection(_props: {
   const communityButtonLabel = paymentPending
     ? "Continuar pagamento"
     : planActive
-      ? "Entrar na consultoria"
-      : "Assinar Pro e entrar";
+      ? "Entrar"
+      : "Assinar e entrar";
 
   React.useEffect(() => {
     if (sessionStatus !== "authenticated") {
@@ -147,15 +148,15 @@ export default function CommunityConversionSection(_props: {
               {paymentPending
                 ? "Finalize seu Plano Pro"
                 : planActive
-                  ? "Seu acesso à consultoria está liberado"
-                  : "Consultoria em grupo da D2C"}
+                  ? "Grupo VIP liberado"
+                  : "Consultoria em grupo"}
             </h2>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">
               {paymentPending
                 ? "Conclua o pagamento para liberar consultoria, Instagram e 10 leituras por mês."
                 : planActive
-                  ? "Entre no Grupo VIP para acompanhar a agenda e participar dos encontros."
-                  : "No Plano Pro, você entra no Grupo VIP, participa das consultorias em grupo e libera o Perfil vivo com 10 leituras por mês e Instagram conectado."}
+                  ? "Entre para acompanhar a agenda e participar das consultorias."
+                  : "Assine o Pro para entrar no Grupo VIP da D2C."}
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               {planActive && !paymentPending ? (

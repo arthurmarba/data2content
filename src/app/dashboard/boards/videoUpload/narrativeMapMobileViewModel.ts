@@ -337,8 +337,8 @@ function buildOpportunities(input: BuildNarrativeMapMobileViewModelInput): Narra
   if (input.mediaKitAvailable) {
     items.push({
       id: "media-kit-bridge",
-      title: "Ponte para Mídia Kit",
-      preview: "Use o Mídia Kit para organizar territórios possíveis quando houver fit narrativo mais claro.",
+      title: "Mídia Kit",
+      preview: "Seu perfil pronto para enviar às marcas.",
       type: "media_kit_bridge",
       badgeLabel: "Apresentação",
       action: action({

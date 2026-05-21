@@ -6,6 +6,7 @@ import {
   buildMobileStrategicProfile,
   type MobileStrategicProfile,
 } from "../../../videoUpload/mobileStrategicProfileMapping";
+import { MOBILE_COMMUNITY_ROUTE } from "../../../videoUpload/mobileStrategicProfileRoutes";
 import type { VideoNarrativeDiagnosisAccessLevel } from "../../../videoUpload/videoNarrativeDiagnosisLearningModel";
 import { buildVideoNarrativeAppPreviewScenario } from "../buildVideoNarrativeAppPreviewScenario";
 
@@ -72,7 +73,7 @@ function buildAnonymousFixture(params: {
       loginHref: "/login",
       profileHref: "/dashboard/profile",
       analyzeVideoHref: "/dashboard/boards/mobile-strategic-profile-preview?state=account_only",
-      communityHref: "/dashboard/community",
+      communityHref: MOBILE_COMMUNITY_ROUTE,
       createdAt: "2026-05-19T00:00:00.000Z",
     }),
   };
@@ -117,7 +118,7 @@ function buildAuthenticatedFixture(params: {
       mediaKitPublicUrl: params.hasMediaKit ? "/mediakit/ana-preview" : null,
       profileHref: "/dashboard/profile",
       analyzeVideoHref: "/dashboard/boards/video-narrative-app-preview",
-      communityHref: "/dashboard/community",
+      communityHref: MOBILE_COMMUNITY_ROUTE,
       createdAt: "2026-05-19T00:00:00.000Z",
     }),
   };

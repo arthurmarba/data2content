@@ -196,7 +196,7 @@ describe("buildMobileStrategicProfileExistingDataAdapter", () => {
 
   it("does not create vip feed, chats, comments or complex social layers", () => {
     const res = buildMobileStrategicProfileExistingDataAdapter({});
-    expect(res.profileInput.communityHref).toBe("/dashboard/community");
+    expect(res.profileInput.communityHref).toBe("/planning/discover");
   });
 
   it("always returns no_existing_diagnosis when diagnosis is empty/construction", () => {

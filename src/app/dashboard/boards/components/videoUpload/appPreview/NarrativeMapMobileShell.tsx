@@ -9,8 +9,7 @@ import { NarrativeMapReadingChapterModal } from "./NarrativeMapReadingChapterMod
 import { NarrativeMapReadingFullDiagnosisModal } from "./NarrativeMapReadingFullDiagnosisModal";
 import { NarrativeMapSnapshotReviewPanel } from "./NarrativeMapSnapshotReviewPanel";
 import {
-  getNarrativeMapAccessAction,
-  getNarrativeMapAccessStatusText,
+  getNarrativeMapStatusCardContent,
   type NarrativeMapAccessState,
   type NarrativeMapReadingQuotaSnapshot,
 } from "../../../videoUpload/narrativeMapAccessState";
@@ -78,6 +77,10 @@ export function NarrativeMapMobileShell({
   accessState,
   readingQuota,
   onPrimaryAccessAction,
+  onSecondaryAccessAction,
+  onOpenMediaKit,
+  profileUpdateNotice,
+  frameMode = "preview",
 }: {
   viewModel: NarrativeMapMobileViewModel;
   presentation: CreatorNarrativeMapReadingPresentation;
@@ -88,6 +91,10 @@ export function NarrativeMapMobileShell({
   accessState?: NarrativeMapAccessState;
   readingQuota?: Partial<NarrativeMapReadingQuotaSnapshot> | null;
   onPrimaryAccessAction?: () => void;
+  onSecondaryAccessAction?: () => void;
+  onOpenMediaKit?: () => void;
+  profileUpdateNotice?: boolean;
+  frameMode?: "app" | "preview";
 }) {
   const [activeTab, setActiveTab] = useState<NarrativeMapReadingPreviewTab>(
     (viewModel.tabs.find((tab) => tab.active)?.id ?? "profile") as NarrativeMapReadingPreviewTab,
@@ -99,14 +106,21 @@ export function NarrativeMapMobileShell({
   const readingsCount = viewModel.profileHeader.metrics.find((metric) => metric.label === "Leituras")?.value ?? "0";
   const patternsCount = viewModel.profileHeader.metrics.find((metric) => metric.label === "Padrões")?.value ?? "0";
   const opportunitiesCount = viewModel.profileHeader.metrics.find((metric) => metric.label === "Oportunidades")?.value ?? "0";
-  const accessAction = accessState ? getNarrativeMapAccessAction(accessState) : null;
-  const accessStatusText = accessState
-    ? getNarrativeMapAccessStatusText({ state: accessState, quota: readingQuota })
-    : null;
+  const statusCard = accessState ? getNarrativeMapStatusCardContent({ state: accessState, quota: readingQuota }) : null;
+  const mediaKitItem = viewModel.opportunities.items.find((item) => item.type === "media_kit_bridge");
+  const opportunityItems = viewModel.opportunities.items.filter((item) => item.type !== "media_kit_bridge");
+  const appFrame = frameMode === "app";
+
+  const handlePrimaryStatusAction = () => {
+    if (accessState === "pro_quota_reached") {
+      setActiveTab("readings");
+    }
+    onPrimaryAccessAction?.();
+  };
 
   return (
-    <div className="mx-auto w-full max-w-sm rounded-[2rem] border border-zinc-200 bg-zinc-950 p-2 shadow-xl">
-      <section className="relative min-h-[760px] overflow-hidden rounded-[1.5rem] bg-[#f7f7f4]">
+    <div className={appFrame ? "mx-auto w-full max-w-md bg-[#f7f7f4]" : "mx-auto w-full max-w-sm rounded-[2rem] border border-zinc-200 bg-zinc-950 p-2 shadow-xl"}>
+      <section className={appFrame ? "relative min-h-screen overflow-hidden bg-[#f7f7f4]" : "relative min-h-[760px] overflow-hidden rounded-[1.5rem] bg-[#f7f7f4]"}>
         <div className="px-5 pt-4" aria-label="Topo compacto do creator">
           <div className="flex items-start justify-between gap-4">
             <div>
@@ -137,24 +151,61 @@ export function NarrativeMapMobileShell({
         </div>
 
         <div className="px-5 pt-4">
+          {statusCard ? (
+            <section className="mb-4 rounded-[1.35rem] border border-zinc-200 bg-white p-4 shadow-sm" aria-label="Status do Perfil">
+              <p className="text-base font-semibold text-zinc-950">{statusCard.title}</p>
+              <p className="mt-1 text-sm leading-6 text-zinc-600">{statusCard.description}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  data-priority="primary"
+                  className="min-h-[40px] rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-zinc-950/15"
+                  onClick={handlePrimaryStatusAction}
+                >
+                  {statusCard.primaryLabel}
+                </button>
+                {statusCard.secondaryLabel ? (
+                  <button
+                    type="button"
+                    data-priority="secondary"
+                    className="min-h-[40px] rounded-full border border-zinc-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-800"
+                    onClick={onSecondaryAccessAction}
+                  >
+                    {statusCard.secondaryLabel}
+                  </button>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+
+          {profileUpdateNotice ? (
+            <section className="mb-4 rounded-[1.35rem] border border-emerald-100 bg-emerald-50 p-4" aria-label="Nova leitura adicionada">
+              <p className="text-base font-semibold text-zinc-950">Nova leitura adicionada</p>
+              <p className="mt-1 text-sm leading-6 text-zinc-600">A D2C atualizou seu Perfil com sinais deste vídeo.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className="rounded-full bg-zinc-950 px-3 py-2 text-xs font-semibold text-white"
+                  onClick={() => setActiveTab("readings")}
+                >
+                  Ver leitura
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-800"
+                  onClick={() => setActiveTab("profile")}
+                >
+                  Ver Mapa
+                </button>
+              </div>
+            </section>
+          ) : null}
+
           <section className="rounded-[1.5rem] bg-white p-4 shadow-sm">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">{viewModel.hero.badgeLabel}</p>
             <h2 className="mt-1.5 text-2xl font-semibold tracking-normal text-zinc-950">{viewModel.hero.title}</h2>
             <p className="mt-2 text-base font-semibold leading-6 text-zinc-950">{viewModel.hero.headline}</p>
             <p className="mt-2 text-sm leading-6 text-zinc-600">{viewModel.hero.subheadline}</p>
-            {accessAction && accessStatusText ? (
-              <div className="mt-4 rounded-2xl bg-zinc-50 p-3">
-                <p className="text-xs font-semibold text-zinc-500">{accessStatusText}</p>
-                <button
-                  type="button"
-                  data-priority="primary"
-                  className="mt-2 min-h-[40px] w-full rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-zinc-950/15"
-                  onClick={onPrimaryAccessAction}
-                >
-                  {accessAction.label}
-                </button>
-              </div>
-            ) : null}
             <div className="mt-4 grid gap-2">
               {viewModel.profile.secondaryAction ? (
                 <button
@@ -233,11 +284,43 @@ export function NarrativeMapMobileShell({
 
           {activeTab === "opportunities" ? (
             <>
+              {mediaKitItem ? (
+                <article className="rounded-[1.35rem] border border-emerald-100 bg-white p-4 shadow-sm" aria-label="Mídia Kit">
+                  <p className="text-xs font-semibold uppercase text-emerald-700">Mídia Kit</p>
+                  <h3 className="mt-2 text-base font-semibold leading-6 text-zinc-950">Mídia Kit</h3>
+                  <p className="mt-2 text-sm leading-6 text-zinc-600">Seu perfil pronto para enviar às marcas.</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {["Copiar link", "Ver como marca", "Abrir Mídia Kit"].map((label) => (
+                      <button
+                        key={label}
+                        type="button"
+                        className="rounded-full border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-800"
+                        onClick={onOpenMediaKit}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </article>
+              ) : accessState === "pro_needs_instagram" ? (
+                <article className="rounded-[1.35rem] border border-zinc-200 bg-white p-4 shadow-sm" aria-label="Mídia Kit">
+                  <p className="text-xs font-semibold uppercase text-zinc-500">Mídia Kit</p>
+                  <h3 className="mt-2 text-base font-semibold leading-6 text-zinc-950">Mídia Kit</h3>
+                  <p className="mt-2 text-sm leading-6 text-zinc-600">Conecte o Instagram para liberar seu perfil comercial.</p>
+                  <button
+                    type="button"
+                    className="mt-3 rounded-full bg-zinc-950 px-3 py-2 text-xs font-semibold text-white"
+                    onClick={onPrimaryAccessAction}
+                  >
+                    Conectar Instagram
+                  </button>
+                </article>
+              ) : null}
               <div className="rounded-[1.35rem] bg-white p-4 shadow-sm">
                 <h3 className="text-base font-semibold text-zinc-950">{viewModel.opportunities.title}</h3>
                 <p className="mt-2 text-sm leading-6 text-zinc-600">{viewModel.opportunities.description}</p>
               </div>
-              {viewModel.opportunities.items.map((item) => (
+              {opportunityItems.map((item) => (
                 <article key={item.id} className="rounded-[1.35rem] bg-white p-4 shadow-sm">
                   <p className="text-xs font-semibold text-zinc-500">
                     {item.type === "brand_territory"

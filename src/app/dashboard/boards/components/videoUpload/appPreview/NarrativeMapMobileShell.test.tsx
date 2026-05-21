@@ -1,10 +1,15 @@
 import fs from "fs";
 import path from "path";
+import type { ComponentProps } from "react";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { NarrativeMapMobileShell } from "./NarrativeMapMobileShell";
 import { buildNarrativeMapReadingPreviewFixture } from "./buildNarrativeMapReadingPreviewFixture";
 
-function renderShell(state = "narrative_map_three_related_readings", internalReview = false) {
+function renderShell(
+  state = "narrative_map_three_related_readings",
+  internalReview = false,
+  overrides: Partial<ComponentProps<typeof NarrativeMapMobileShell>> = {},
+) {
   const fixture = buildNarrativeMapReadingPreviewFixture({ state });
   return render(
     <NarrativeMapMobileShell
@@ -22,6 +27,7 @@ function renderShell(state = "narrative_map_three_related_readings", internalRev
         periodEnd: "2026-06-01T00:00:00.000Z",
       }}
       onPrimaryAccessAction={jest.fn()}
+      {...overrides}
     />,
   );
 }
@@ -85,6 +91,35 @@ describe("NarrativeMapMobileShell", () => {
 
     expect(screen.getByRole("button", { name: "Nova leitura" })).toHaveAttribute("data-priority", "primary");
     expect(screen.getByRole("button", { name: "Ler diagnóstico completo" })).toHaveAttribute("data-priority", "secondary");
+  });
+
+  it("Status Card MM90 mostra pro sem Instagram sem bloquear nova leitura", () => {
+    const onPrimary = jest.fn();
+    const onSecondary = jest.fn();
+    renderShell("narrative_map_three_related_readings", false, {
+      accessState: "pro_needs_instagram",
+      onPrimaryAccessAction: onPrimary,
+      onSecondaryAccessAction: onSecondary,
+    });
+
+    expect(screen.getByText("Pro ativo")).toBeInTheDocument();
+    expect(screen.getByText("Conecte o Instagram para melhorar a precisão do Perfil.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Conectar Instagram" }));
+    fireEvent.click(screen.getByRole("button", { name: "Nova leitura" }));
+
+    expect(onPrimary).toHaveBeenCalledTimes(1);
+    expect(onSecondary).toHaveBeenCalledTimes(1);
+  });
+
+  it("frameMode app remove moldura de preview da superficie real", () => {
+    const { container } = renderShell("narrative_map_three_related_readings", false, {
+      frameMode: "app",
+    });
+
+    expect(container.firstElementChild).toHaveClass("max-w-md");
+    expect(container.firstElementChild).not.toHaveClass("rounded-[2rem]");
+    expect(container.firstElementChild).not.toHaveClass("bg-zinc-950");
   });
 
   it("Ler diagnostico completo abre leitura completa sob demanda", () => {
