@@ -65,6 +65,14 @@ export interface VideoNarrativeReadingSaveSummary {
   message: string | null;
 }
 
+export interface VideoNarrativeReadingPersistenceSummary {
+  attempted: boolean;
+  saved: boolean;
+  diagnosisId?: string;
+  skippedReason?: string;
+  errorCode?: string;
+}
+
 export interface VideoNarrativeSynthesisSnapshotWriteSummary {
   attempted: boolean;
   written: boolean;
@@ -73,6 +81,14 @@ export interface VideoNarrativeSynthesisSnapshotWriteSummary {
   analyzedReadingsCount?: number | null;
   snapshotId?: string | null;
   updatedAt?: string | null;
+}
+
+export interface VideoNarrativeE2EBetaAudit {
+  realAnalysis: boolean;
+  evidenceAnchorsUsed: boolean;
+  cleanupAttempted: boolean;
+  usageLimitChecked: boolean;
+  allowlistGatePassed: boolean;
 }
 
 export interface VideoNarrativeSafeResponse {
@@ -87,7 +103,9 @@ export interface VideoNarrativeSafeResponse {
   usageSummary: VideoNarrativeSafeUsageSummary | null;
   observabilitySummary: VideoNarrativeSafeObservabilitySummary | null;
   readingSaveSummary?: VideoNarrativeReadingSaveSummary | null;
+  videoReadingPersistence?: VideoNarrativeReadingPersistenceSummary | null;
   synthesisSnapshotWrite?: VideoNarrativeSynthesisSnapshotWriteSummary | null;
+  e2eBetaAudit?: VideoNarrativeE2EBetaAudit | null;
 }
 
 export interface VideoNarrativeSafeResponseInput {
@@ -106,7 +124,9 @@ export interface VideoNarrativeSafeResponseInput {
   quotaGuard?: VideoNarrativeQuotaGuardResult | null;
   observabilityEvents?: VideoNarrativeObservabilityEventPayload[] | null;
   readingSaveSummary?: VideoNarrativeReadingSaveSummary | null;
+  videoReadingPersistence?: VideoNarrativeReadingPersistenceSummary | null;
   synthesisSnapshotWrite?: VideoNarrativeSynthesisSnapshotWriteSummary | null;
+  e2eBetaAudit?: VideoNarrativeE2EBetaAudit | null;
 }
 
 const SAFE_RESPONSE_STATUSES: VideoNarrativeSafeResponseStatus[] = [
@@ -126,6 +146,14 @@ const DANGEROUS_KEYS = [
   "video",
   "videoUrl",
   "signedUrl",
+  "uploadUrl",
+  "objectKey",
+  "thumbnailUrl",
+  "localPath",
+  "storageProviderPath",
+  "rawTranscript",
+  "rawModelResponse",
+  "rawGeminiResponse",
   "apiKey",
   "GEMINI_API_KEY",
   "GOOGLE_GENAI_API_KEY",
@@ -347,7 +375,9 @@ export function buildVideoNarrativeSafeResponse(
     }),
     observabilitySummary: buildObservabilitySummary(input.observabilityEvents),
     readingSaveSummary: input.readingSaveSummary ? sanitizeDeep(input.readingSaveSummary) : null,
+    videoReadingPersistence: input.videoReadingPersistence ? sanitizeDeep(input.videoReadingPersistence) : null,
     synthesisSnapshotWrite: input.synthesisSnapshotWrite ? sanitizeDeep(input.synthesisSnapshotWrite) : null,
+    e2eBetaAudit: input.e2eBetaAudit ? sanitizeDeep(input.e2eBetaAudit) : null,
   };
 
   return redactVideoNarrativeSafeResponse(response);

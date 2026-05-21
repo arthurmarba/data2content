@@ -1,5 +1,7 @@
 /** @jest-environment node */
 import "next/dist/server/node-polyfill-fetch";
+import fs from "fs";
+import path from "path";
 import { NextRequest } from "next/server";
 import { POST, GET, PUT, PATCH, DELETE } from "./route";
 import { isMobileStrategicProfileEnabled } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileFeatureFlag";
@@ -81,9 +83,14 @@ describe("POST /api/dashboard/mobile-strategic-profile/analyze-real", () => {
     });
     runOrchestrator.mockResolvedValue({
       ok: true,
-      snapshotUpdated: true,
+      realAnalysis: true,
       source: "gemini_real_allowlist",
-      snapshot: { schemaVersion: "mobile_strategic_profile_snapshot_v1" },
+      videoReadingPersistence: { attempted: false, saved: false, skippedReason: "persist_reading_disabled" },
+      synthesisSnapshotWrite: { attempted: false, written: false, skippedReason: "synthesis_write_disabled" },
+      evidenceAnchorsUsed: true,
+      cleanupAttempted: true,
+      usageLimitChecked: true,
+      allowlistGatePassed: true,
     });
   });
 
@@ -142,6 +149,7 @@ describe("POST /api/dashboard/mobile-strategic-profile/analyze-real", () => {
     const body = await res.json();
     expect(JSON.stringify(body)).not.toContain("admin@example.com");
     expect(JSON.stringify(body)).not.toContain("temporary/video-narrative");
+    expect(JSON.stringify(body)).not.toContain("gemini");
   });
 
   it("retorna snapshot seguro no sucesso", async () => {
@@ -149,7 +157,20 @@ describe("POST /api/dashboard/mobile-strategic-profile/analyze-real", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.ok).toBe(true);
-    expect(body.source).toBe("gemini_real_allowlist");
+    expect(body.source).toBeUndefined();
+    expect(body.snapshot).toBeUndefined();
+    expect(body.videoReadingPersistence).toEqual({
+      attempted: false,
+      saved: false,
+      skippedReason: "persist_reading_disabled",
+    });
+    expect(body.e2eBetaAudit).toEqual({
+      realAnalysis: true,
+      evidenceAnchorsUsed: true,
+      cleanupAttempted: true,
+      usageLimitChecked: true,
+      allowlistGatePassed: true,
+    });
     expect(runOrchestrator).toHaveBeenCalledWith(
       expect.objectContaining({
         payload: expect.objectContaining({
@@ -158,5 +179,23 @@ describe("POST /api/dashboard/mobile-strategic-profile/analyze-real", () => {
         }),
       }),
     );
+  });
+});
+
+describe("MM88 runbook", () => {
+  it("documenta checklist E2E, rollback e verificação de cleanup sem secrets", () => {
+    const runbookPath = path.join(
+      process.cwd(),
+      "src/app/dashboard/boards/videoUpload/MM88_GATED_REAL_ENDPOINT_E2E_BETA_RUNBOOK.md",
+    );
+    const content = fs.readFileSync(runbookPath, "utf8");
+
+    expect(content).toContain("Checklist Antes de Testar");
+    expect(content).toContain("Rollback");
+    expect(content).toContain("Verificação de Cleanup");
+    expect(content).toContain("leitura");
+    expect(content).toContain("síntese");
+    expect(content).toContain("snapshot");
+    expect(content).not.toMatch(/AIza|secret=|GEMINI_API_KEY=|GOOGLE_GENAI_API_KEY=/i);
   });
 });

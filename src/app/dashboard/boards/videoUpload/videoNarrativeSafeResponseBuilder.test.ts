@@ -175,6 +175,41 @@ describe("videoNarrativeSafeResponseBuilder", () => {
     });
   });
 
+  it("inclui auditoria beta e persistência segura sem snapshot completo", () => {
+    const response = buildVideoNarrativeSafeResponse({
+      analysis: createAnalysis(),
+      videoReadingPersistence: {
+        attempted: true,
+        saved: true,
+        diagnosisId: "diagnosis-safe-1",
+      },
+      synthesisSnapshotWrite: {
+        attempted: true,
+        written: true,
+        synthesisStatus: "first_reading",
+        analyzedReadingsCount: 1,
+        updatedAt: CREATED_AT,
+      },
+      e2eBetaAudit: {
+        realAnalysis: true,
+        evidenceAnchorsUsed: true,
+        cleanupAttempted: true,
+        usageLimitChecked: true,
+        allowlistGatePassed: true,
+      },
+    });
+
+    expect(response.videoReadingPersistence).toEqual({
+      attempted: true,
+      saved: true,
+      diagnosisId: "diagnosis-safe-1",
+    });
+    expect(response.synthesisSnapshotWrite?.written).toBe(true);
+    expect(response.e2eBetaAudit?.cleanupAttempted).toBe(true);
+    expect(JSON.stringify(response)).not.toContain("schemaVersion");
+    expect(JSON.stringify(response)).not.toContain("objectKey");
+  });
+
   it("observabilitySummary inclui apenas requestId e eventos mínimos", () => {
     const response = buildVideoNarrativeSafeResponse({
       analysis: createAnalysis(),
@@ -307,8 +342,8 @@ describe("videoNarrativeSafeResponseBuilder", () => {
     });
   });
 
-  it("validateVideoNarrativeSafeResponse rejeita signedUrl/videoUrl em qualquer nível", () => {
-    ["signedUrl", "videoUrl"].forEach((key) => {
+  it("validateVideoNarrativeSafeResponse rejeita storage metadata em qualquer nível", () => {
+    ["signedUrl", "uploadUrl", "thumbnailUrl", "objectKey", "localPath", "storageProviderPath", "videoUrl"].forEach((key) => {
       const response = {
         ...buildVideoNarrativeSafeResponse({ analysis: createAnalysis() }),
         analysis: { ...createAnalysis(), [key]: "https://cdn.example/video.mp4?token=abc123" },

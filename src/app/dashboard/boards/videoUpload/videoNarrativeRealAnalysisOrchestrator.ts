@@ -1,11 +1,8 @@
-import type { CreatorStrategicProfileSnapshotInput } from "./mobileStrategicProfileSnapshotTypes";
-import {
-  upsertStrategicProfileSnapshot,
-} from "./mobileStrategicProfileSnapshotService";
 import type {
   VideoNarrativeAiProviderInput,
   VideoNarrativeAiProviderResult,
 } from "./videoNarrativeAiProviderTypes";
+import type { VideoNarrativeReadingPersistenceSummary, VideoNarrativeSynthesisSnapshotWriteSummary } from "./videoNarrativeSafeResponseBuilder";
 import type { VideoNarrativeGeminiAllowlistUser } from "./videoNarrativeGeminiAllowlist";
 import { evaluateVideoNarrativeGeminiAllowlist } from "./videoNarrativeGeminiAllowlist";
 import {
@@ -13,7 +10,7 @@ import {
   type VideoNarrativeGeminiProviderConfig,
 } from "./videoNarrativeGeminiProviderConfig";
 import { runVideoNarrativeGeminiProvider, type VideoNarrativeGeminiClientAdapter } from "./videoNarrativeGeminiProvider";
-import { mapGeminiAnalysisToStrategicProfileSnapshot } from "./videoNarrativeGeminiSnapshotMapper";
+import { buildRealProviderDiagnosisArtifacts } from "./videoNarrativeRealAnalysisDiagnosisPipeline";
 import type { VideoNarrativeRealAnalysisPayload } from "./videoNarrativeRealAnalysisTypes";
 import {
   assertCanRunVideoNarrativeRealAnalysis,
@@ -26,15 +23,28 @@ import {
 } from "./videoNarrativeRealAnalysisUserFacingErrors";
 import { resolveVideoNarrativeTemporaryStorageObject } from "./videoNarrativeTemporaryStorageRuntimeResolver";
 import { resolveVideoNarrativeTemporaryStorageInput } from "./videoNarrativeTemporaryStorageRuntimeAdapter";
+import {
+  saveCreatorVideoNarrativeDiagnosisFromStructuredAnalysis,
+  type SaveCreatorVideoNarrativeDiagnosisResult,
+} from "./creatorVideoNarrativeDiagnosisSaveOrchestrator";
+import {
+  runControlledVideoReadingSynthesisSnapshotWrite,
+  type ControlledVideoReadingSynthesisSnapshotWriteResult,
+} from "./creatorVideoNarrativeMockSynthesisSnapshotWriteOrchestrator";
 
 type EnvLike = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
 export type VideoNarrativeRealAnalysisOrchestratorResult =
   | {
       ok: true;
-      snapshotUpdated: true;
-      snapshot: CreatorStrategicProfileSnapshotInput["snapshot"];
+      realAnalysis: true;
       source: "gemini_real_allowlist";
+      videoReadingPersistence: VideoNarrativeReadingPersistenceSummary;
+      synthesisSnapshotWrite: VideoNarrativeSynthesisSnapshotWriteSummary;
+      evidenceAnchorsUsed: boolean;
+      cleanupAttempted: boolean;
+      usageLimitChecked: boolean;
+      allowlistGatePassed: boolean;
       cleanupWarning?: string;
     }
   | {
@@ -42,6 +52,12 @@ export type VideoNarrativeRealAnalysisOrchestratorResult =
       status: "blocked" | "failed";
       message: string;
       safeIssueCode?: string;
+      videoReadingPersistence?: VideoNarrativeReadingPersistenceSummary;
+      synthesisSnapshotWrite?: VideoNarrativeSynthesisSnapshotWriteSummary;
+      evidenceAnchorsUsed?: boolean;
+      cleanupAttempted?: boolean;
+      usageLimitChecked?: boolean;
+      allowlistGatePassed?: boolean;
       cleanupWarning?: string;
     };
 
@@ -58,7 +74,8 @@ export type VideoNarrativeRealAnalysisOrchestratorDeps = {
     config?: VideoNarrativeGeminiProviderConfig;
     client?: VideoNarrativeGeminiClientAdapter | null;
   }) => Promise<VideoNarrativeAiProviderResult>;
-  upsertSnapshot?: typeof upsertStrategicProfileSnapshot;
+  saveReading?: typeof saveCreatorVideoNarrativeDiagnosisFromStructuredAnalysis;
+  runSynthesisSnapshotWrite?: typeof runControlledVideoReadingSynthesisSnapshotWrite;
   assertCanRunRealAnalysis?: typeof assertCanRunVideoNarrativeRealAnalysis;
   recordUsageAttempt?: typeof recordVideoNarrativeRealAnalysisAttempt;
   recordUsageSuccess?: typeof recordVideoNarrativeRealAnalysisSuccess;
@@ -74,6 +91,12 @@ function safeFailure(params: {
   status?: "blocked" | "failed";
   message?: string;
   safeIssueCode?: string;
+  videoReadingPersistence?: VideoNarrativeReadingPersistenceSummary;
+  synthesisSnapshotWrite?: VideoNarrativeSynthesisSnapshotWriteSummary;
+  evidenceAnchorsUsed?: boolean;
+  cleanupAttempted?: boolean;
+  usageLimitChecked?: boolean;
+  allowlistGatePassed?: boolean;
   cleanupWarning?: string;
 }): VideoNarrativeRealAnalysisOrchestratorResult {
   return {
@@ -81,8 +104,71 @@ function safeFailure(params: {
     status: params.status ?? "failed",
     message: params.message ?? "Não foi possível atualizar o diagnóstico real agora.",
     safeIssueCode: params.safeIssueCode,
+    videoReadingPersistence: params.videoReadingPersistence,
+    synthesisSnapshotWrite: params.synthesisSnapshotWrite,
+    evidenceAnchorsUsed: params.evidenceAnchorsUsed,
+    cleanupAttempted: params.cleanupAttempted,
+    usageLimitChecked: params.usageLimitChecked,
+    allowlistGatePassed: params.allowlistGatePassed,
     cleanupWarning: params.cleanupWarning,
   };
+}
+
+function skippedReading(reason: string): VideoNarrativeReadingPersistenceSummary {
+  return {
+    attempted: false,
+    saved: false,
+    skippedReason: reason,
+  };
+}
+
+function skippedSnapshot(reason: string): VideoNarrativeSynthesisSnapshotWriteSummary {
+  return {
+    attempted: false,
+    written: false,
+    skippedReason: reason,
+  };
+}
+
+function mapSaveResult(result: SaveCreatorVideoNarrativeDiagnosisResult): VideoNarrativeReadingPersistenceSummary {
+  if (result.ok) {
+    return {
+      attempted: true,
+      saved: true,
+      diagnosisId: result.diagnosisId,
+    };
+  }
+
+  return {
+    attempted: true,
+    saved: false,
+    errorCode: result.errorCode,
+  };
+}
+
+function mapSynthesisResult(
+  result: ControlledVideoReadingSynthesisSnapshotWriteResult,
+): VideoNarrativeSynthesisSnapshotWriteSummary {
+  return {
+    attempted: result.attempted,
+    written: result.written,
+    skippedReason: result.skippedReason ?? null,
+    synthesisStatus: result.synthesisStatus ?? null,
+    analyzedReadingsCount: result.analyzedReadingsCount ?? null,
+    snapshotId: result.snapshotId ?? null,
+    updatedAt: result.updatedAt ?? null,
+  };
+}
+
+function hasEvidenceAnchors(analysis: VideoNarrativeAiProviderResult["analysis"]): boolean {
+  return Boolean(
+    analysis?.evidenceAnchors &&
+      (
+        analysis.evidenceAnchors.speechQuotes.length > 0 ||
+        analysis.evidenceAnchors.sceneAnchors.length > 0 ||
+        analysis.evidenceAnchors.creatorIntentAnchor
+      ),
+  );
 }
 
 async function tryCleanup(params: {
@@ -134,6 +220,7 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
   const deps = params.deps ?? {};
   const env = deps.env ?? process.env;
   const now = deps.now?.() ?? new Date();
+  const createdAt = now.toISOString();
   const configResult = deps.geminiConfig
     ? { config: deps.geminiConfig, issues: [] }
     : resolveVideoNarrativeGeminiProviderConfig(env);
@@ -157,6 +244,7 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
   }
 
   let usageAttemptRecorded = false;
+  let usageLimitChecked = false;
   const assertCanRunRealAnalysis = deps.assertCanRunRealAnalysis ?? assertCanRunVideoNarrativeRealAnalysis;
   try {
     const usageDecision = await assertCanRunRealAnalysis({
@@ -164,6 +252,7 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
       env,
       now,
     });
+    usageLimitChecked = true;
 
     if (!usageDecision.ok) {
       return safeFailure({
@@ -301,54 +390,128 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
         safeProviderIssueCode,
       ),
       safeIssueCode: safeProviderIssueCode,
+      evidenceAnchorsUsed: false,
+      cleanupAttempted: Boolean(deps.cleanupTemporaryUpload),
+      usageLimitChecked,
+      allowlistGatePassed: true,
       cleanupWarning,
     });
   }
 
-  const mapped = mapGeminiAnalysisToStrategicProfileSnapshot({
-    analysis: providerResult.analysis,
-    promptVersion: providerResult.promptVersion,
-    source: "gemini_real_allowlist",
+  const evidenceAnchorsUsed = hasEvidenceAnchors(providerResult.analysis);
+  const artifacts = buildRealProviderDiagnosisArtifacts({
+    analysisId: `real-video-narrative-${params.payload.uploadSessionId}`,
+    providerAnalysis: providerResult.analysis,
+    creatorGoal: params.payload.creatorGoal,
+    selectedGoalOption: params.payload.selectedGoalOption,
+    accessLevel: params.user.planStatus === "active" ? "premium" : "free",
+    instagramConnected: Boolean(params.user.instagramConnected || params.user.isInstagramConnected),
+    createdAt,
   });
-  const upsertSnapshot = deps.upsertSnapshot ?? upsertStrategicProfileSnapshot;
 
-  try {
-    const upserted = await upsertSnapshot({
+  const cleanupWarning = await tryCleanup({ deps, payload: params.payload, reason: "analysis_completed" });
+  const cleanupAttempted = Boolean(deps.cleanupTemporaryUpload);
+  const saveReading = deps.saveReading ?? saveCreatorVideoNarrativeDiagnosisFromStructuredAnalysis;
+  let videoReadingPersistence = skippedReading("persist_reading_disabled");
+  let synthesisSnapshotWrite = skippedSnapshot("synthesis_write_disabled");
+
+  if (params.payload.persistReading === true) {
+    const saveResult = await saveReading({
       userId: params.user.id ?? "",
-      status: "active",
-      accessLevel: params.user.planStatus === "active" ? "premium" : "free",
-      snapshot: mapped.snapshot,
-      source: mapped.source,
-      lastAnalyzedAt: now,
+      source: "real",
+      creatorGoal: params.payload.creatorGoal,
+      selectedGoalOption: params.payload.selectedGoalOption,
+      safeVideoMetadata: {
+        mimeType: params.payload.temporaryUpload?.mimeType,
+        sizeBytes: params.payload.temporaryUpload?.sizeBytes,
+        uploadedAt: params.payload.temporaryUpload?.uploadedAt ? new Date(params.payload.temporaryUpload.uploadedAt) : undefined,
+        analyzedAt: now,
+      },
+      strategicDiagnosis: artifacts.strategicDiagnosis,
+      evolvingDiagnosis: artifacts.evolvingDiagnosis,
+      presentation: artifacts.presentation,
+      seed: artifacts.seed,
+      analyzedAt: now,
+      createdAt: now,
     });
-    const cleanupWarning = await tryCleanup({ deps, payload: params.payload, reason: "analysis_completed" });
-    if (usageAttemptRecorded && params.user.id) {
-      try {
-        await (deps.recordUsageSuccess ?? recordVideoNarrativeRealAnalysisSuccess)({
-          userId: params.user.id,
-          now,
-        });
-      } catch {
-        // Usage telemetry should not turn a completed snapshot into a user-facing failure.
+    videoReadingPersistence = mapSaveResult(saveResult);
+
+    if (!saveResult.ok) {
+      if (usageAttemptRecorded) {
+        await recordFailureSafely({ deps, userId: params.user.id, reason: saveResult.errorCode, now });
       }
+      return safeFailure({
+        status: "failed",
+        message: saveResult.message,
+        safeIssueCode: saveResult.errorCode,
+        videoReadingPersistence,
+        synthesisSnapshotWrite: skippedSnapshot("saved_reading_not_found"),
+        evidenceAnchorsUsed,
+        cleanupAttempted,
+        usageLimitChecked,
+        allowlistGatePassed: true,
+        cleanupWarning,
+      });
     }
 
-    return {
-      ok: true,
-      snapshotUpdated: true,
-      snapshot: upserted.snapshot,
-      source: "gemini_real_allowlist",
-      cleanupWarning,
-    };
-  } catch {
-    const cleanupWarning = await tryCleanup({ deps, payload: params.payload, reason: "analysis_failed" });
-    if (usageAttemptRecorded) {
-      await recordFailureSafely({ deps, userId: params.user.id, reason: "snapshot_save_failed", now });
+    if (params.payload.persistSynthesisSnapshot === true && saveResult.diagnosisId) {
+      const runSynthesisSnapshotWrite = deps.runSynthesisSnapshotWrite ?? runControlledVideoReadingSynthesisSnapshotWrite;
+      synthesisSnapshotWrite = mapSynthesisResult(await runSynthesisSnapshotWrite({
+        userId: params.user.id ?? "",
+        savedDiagnosisId: saveResult.diagnosisId,
+        enableSnapshotWrite: true,
+        source: "real_internal",
+        requestId: deps.requestId,
+      }));
+
+      if (!synthesisSnapshotWrite.written) {
+        if (usageAttemptRecorded) {
+          await recordFailureSafely({
+            deps,
+            userId: params.user.id,
+            reason: synthesisSnapshotWrite.skippedReason ?? "unknown_synthesis_write_error",
+            now,
+          });
+        }
+        return safeFailure({
+          status: "failed",
+          message: "A leitura foi salva, mas a síntese acumulada não foi atualizada agora.",
+          safeIssueCode: synthesisSnapshotWrite.skippedReason ?? "unknown_synthesis_write_error",
+          videoReadingPersistence,
+          synthesisSnapshotWrite,
+          evidenceAnchorsUsed,
+          cleanupAttempted,
+          usageLimitChecked,
+          allowlistGatePassed: true,
+          cleanupWarning,
+        });
+      }
+    } else if (params.payload.persistSynthesisSnapshot === true) {
+      synthesisSnapshotWrite = skippedSnapshot("saved_reading_not_found");
     }
-    return safeFailure({
-      message: getVideoNarrativeRealAnalysisUserFacingMessage("snapshot_save_failed"),
-      safeIssueCode: "snapshot_upsert_failed",
-      cleanupWarning,
-    });
   }
+
+  if (usageAttemptRecorded && params.user.id) {
+    try {
+      await (deps.recordUsageSuccess ?? recordVideoNarrativeRealAnalysisSuccess)({
+        userId: params.user.id,
+        now,
+      });
+    } catch {
+      // Usage telemetry should not turn a completed safe analysis into a user-facing failure.
+    }
+  }
+
+  return {
+    ok: true,
+    realAnalysis: true,
+    source: "gemini_real_allowlist",
+    videoReadingPersistence,
+    synthesisSnapshotWrite,
+    evidenceAnchorsUsed,
+    cleanupAttempted,
+    usageLimitChecked,
+    allowlistGatePassed: true,
+    cleanupWarning,
+  };
 }

@@ -195,7 +195,7 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
     expect(usageDeps.recordUsageAttempt).not.toHaveBeenCalled();
   });
 
-  it("chama provider fake, mapeia, salva snapshot e aciona cleanup", async () => {
+  it("sem flags chama provider fake, não persiste leitura/snapshot e aciona cleanup", async () => {
     const runProvider = jest.fn().mockResolvedValue({
       ok: true,
       provider: "gemini",
@@ -204,7 +204,8 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
       analysis: geminiVideoNarrativeResponseFixture,
       issues: [],
     });
-    const upsertSnapshot = jest.fn(async (input) => input);
+    const saveReading = jest.fn();
+    const runSynthesisSnapshotWrite = jest.fn();
     const cleanupTemporaryUpload = jest.fn().mockResolvedValue(undefined);
 
     const result = await runVideoNarrativeRealAnalysisOrchestrator({
@@ -215,7 +216,8 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
         requestId: "req-test",
         now: () => new Date("2026-05-19T20:00:00.000Z"),
         runProvider,
-        upsertSnapshot,
+        saveReading,
+        runSynthesisSnapshotWrite,
         cleanupTemporaryUpload,
         ...usageDeps,
       },
@@ -231,20 +233,23 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
         }),
       }),
     );
-    expect(upsertSnapshot).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: user.id,
-        source: "gemini_real_allowlist",
-        snapshot: expect.not.objectContaining({
-          objectKey: expect.anything(),
-          uploadUrl: expect.anything(),
-          rawResponse: expect.anything(),
-        }),
-      }),
-    );
-    const snapshotArg = upsertSnapshot.mock.calls[0][0].snapshot;
-    expect(JSON.stringify(snapshotArg)).not.toContain("temporary/video-narrative");
-    expect(JSON.stringify(snapshotArg)).not.toContain("uploadUrl");
+    expect(saveReading).not.toHaveBeenCalled();
+    expect(runSynthesisSnapshotWrite).not.toHaveBeenCalled();
+    if (result.ok) {
+      expect(result.videoReadingPersistence).toEqual({
+        attempted: false,
+        saved: false,
+        skippedReason: "persist_reading_disabled",
+      });
+      expect(result.synthesisSnapshotWrite).toEqual({
+        attempted: false,
+        written: false,
+        skippedReason: "synthesis_write_disabled",
+      });
+      expect(result.evidenceAnchorsUsed).toBe(true);
+    }
+    expect(JSON.stringify(result)).not.toContain("temporary/video-narrative");
+    expect(JSON.stringify(result)).not.toContain("uploadUrl");
     expect(cleanupTemporaryUpload).toHaveBeenCalledWith(
       expect.objectContaining({
         uploadSessionId: payload.uploadSessionId,
@@ -258,6 +263,81 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
     expect(usageDeps.recordUsageSuccess).toHaveBeenCalledWith(
       expect.objectContaining({ userId: user.id }),
     );
+  });
+
+  it("com flags salva leitura, roda síntese acumulada e escreve snapshot guardado", async () => {
+    const saveReading = jest.fn().mockResolvedValue({
+      ok: true,
+      diagnosisId: "diagnosis-real-1",
+      profileContribution: {
+        type: "opens_new_hypothesis",
+        confidence: "medium",
+        weight: "low",
+        profileImpactPreview: "Nova hipótese de leitura.",
+      },
+    });
+    const runSynthesisSnapshotWrite = jest.fn().mockResolvedValue({
+      attempted: true,
+      written: true,
+      synthesisStatus: "first_reading",
+      analyzedReadingsCount: 1,
+      snapshotId: "snapshot-1",
+      updatedAt: "2026-05-19T20:00:00.000Z",
+    });
+
+    const result = await runVideoNarrativeRealAnalysisOrchestrator({
+      payload: { ...payload, persistReading: true, persistSynthesisSnapshot: true },
+      user,
+      deps: {
+        env,
+        requestId: "req-test",
+        now: () => new Date("2026-05-19T20:00:00.000Z"),
+        runProvider: jest.fn().mockResolvedValue({
+          ok: true,
+          provider: "gemini",
+          mode: "ready",
+          promptVersion: "video_narrative_gemini_mm66_v1",
+          analysis: geminiVideoNarrativeResponseFixture,
+          issues: [],
+        }),
+        saveReading,
+        runSynthesisSnapshotWrite,
+        ...usageDeps,
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(saveReading).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: user.id,
+        source: "real",
+        strategicDiagnosis: expect.objectContaining({
+          evidenceAnchors: expect.objectContaining({
+            speechQuotes: expect.arrayContaining([
+              expect.objectContaining({ source: "creator_spoken" }),
+            ]),
+          }),
+        }),
+        safeVideoMetadata: expect.not.objectContaining({
+          objectKey: expect.anything(),
+          uploadUrl: expect.anything(),
+          signedUrl: expect.anything(),
+        }),
+      }),
+    );
+    expect(runSynthesisSnapshotWrite).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: user.id,
+        savedDiagnosisId: "diagnosis-real-1",
+        enableSnapshotWrite: true,
+        source: "real_internal",
+      }),
+    );
+    if (result.ok) {
+      expect(result.videoReadingPersistence.saved).toBe(true);
+      expect(result.synthesisSnapshotWrite.written).toBe(true);
+    }
+    expect(JSON.stringify(result)).not.toContain("temporary/video-narrative");
   });
 
   it("erro do provider vira mensagem segura e tenta cleanup", async () => {
@@ -289,9 +369,9 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
     );
   });
 
-  it("erro do snapshot não vaza stack trace", async () => {
+  it("erro de snapshot guardado não vaza stack trace", async () => {
     const result = await runVideoNarrativeRealAnalysisOrchestrator({
-      payload,
+      payload: { ...payload, persistReading: true, persistSynthesisSnapshot: true },
       user,
       deps: {
         env,
@@ -302,7 +382,21 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
           promptVersion: "v1",
           analysis: geminiVideoNarrativeResponseFixture,
         }),
-        upsertSnapshot: jest.fn().mockRejectedValue(new Error("mongo stack secret")),
+        saveReading: jest.fn().mockResolvedValue({
+          ok: true,
+          diagnosisId: "diagnosis-real-1",
+          profileContribution: {
+            type: "opens_new_hypothesis",
+            confidence: "medium",
+            weight: "low",
+            profileImpactPreview: "Nova hipótese de leitura.",
+          },
+        }),
+        runSynthesisSnapshotWrite: jest.fn().mockResolvedValue({
+          attempted: true,
+          written: false,
+          skippedReason: "synthesis_snapshot_write_failed",
+        }),
         ...usageDeps,
       },
     });
@@ -310,7 +404,7 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
     expect(result.ok).toBe(false);
     expect(JSON.stringify(result)).not.toContain("mongo stack secret");
     expect(usageDeps.recordUsageFailure).toHaveBeenCalledWith(
-      expect.objectContaining({ reason: "snapshot_save_failed" }),
+      expect.objectContaining({ reason: "synthesis_snapshot_write_failed" }),
     );
   });
 });

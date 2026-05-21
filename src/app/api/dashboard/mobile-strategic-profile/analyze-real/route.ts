@@ -25,6 +25,10 @@ type MobileStrategicProfileRealAnalysisSession = {
   };
 } | null;
 
+function safeResponseCode(code: string | undefined): string | undefined {
+  return code?.replace(/gemini/gi, "provider");
+}
+
 export async function GET() {
   return NextResponse.json({ message: "Método não permitido." }, { status: 405 });
 }
@@ -106,7 +110,16 @@ export async function POST(request: Request) {
         {
           ok: false,
           message: result.message,
-          code: result.safeIssueCode,
+          code: safeResponseCode(result.safeIssueCode),
+          videoReadingPersistence: result.videoReadingPersistence,
+          synthesisSnapshotWrite: result.synthesisSnapshotWrite,
+          e2eBetaAudit: {
+            realAnalysis: false,
+            evidenceAnchorsUsed: Boolean(result.evidenceAnchorsUsed),
+            cleanupAttempted: Boolean(result.cleanupAttempted),
+            usageLimitChecked: Boolean(result.usageLimitChecked),
+            allowlistGatePassed: Boolean(result.allowlistGatePassed),
+          },
           cleanupWarning: result.cleanupWarning,
         },
         { status },
@@ -115,9 +128,15 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
-      snapshotUpdated: true,
-      snapshot: result.snapshot,
-      source: result.source,
+      videoReadingPersistence: result.videoReadingPersistence,
+      synthesisSnapshotWrite: result.synthesisSnapshotWrite,
+      e2eBetaAudit: {
+        realAnalysis: result.realAnalysis,
+        evidenceAnchorsUsed: result.evidenceAnchorsUsed,
+        cleanupAttempted: result.cleanupAttempted,
+        usageLimitChecked: result.usageLimitChecked,
+        allowlistGatePassed: result.allowlistGatePassed,
+      },
       cleanupWarning: result.cleanupWarning,
     });
   } catch {
