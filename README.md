@@ -157,6 +157,11 @@ with their followers.
 Posts are considered eligible only if they have at least three shares and a save
 rate of 0.2% (saved divided by reach) or higher.
 
+Mobile community UX note: the creator-facing mobile app uses `/planning/discover`
+as the canonical Community route. Community remains a marketplace/list of D2C
+creators; the Pro consulting/Grupo VIP entry appears as a compact inline banner,
+not as a replacement for the marketplace.
+
 #### Running the community cron manually
 
 Set `LOG_LEVEL=debug` before invoking the cron route to see additional debug

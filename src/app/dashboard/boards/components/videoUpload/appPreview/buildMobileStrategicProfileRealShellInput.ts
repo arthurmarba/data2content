@@ -1,6 +1,7 @@
 import type { MobileStrategicProfileInput } from "../../../videoUpload/mobileStrategicProfileMapping";
 import { buildMobileStrategicProfilePreviewFixture } from "./buildMobileStrategicProfilePreviewFixture";
 import { buildMobileStrategicProfileExistingDataAdapter } from "../../../videoUpload/mobileStrategicProfileExistingDataAdapter";
+import { MOBILE_COMMUNITY_ROUTE, MOBILE_PROFILE_ROUTE } from "../../../videoUpload/mobileStrategicProfileRoutes";
 import { buildVideoNarrativeAppPreviewScenario } from "../buildVideoNarrativeAppPreviewScenario";
 
 function resolveOverrideLevel(stateQuery: string): {
@@ -29,9 +30,9 @@ export function buildMobileStrategicProfileRealShellInput(params: {
   if (!isAuthenticated) {
     const res = buildMobileStrategicProfileExistingDataAdapter({
       sessionUser: null,
-      profileHref: "/dashboard/boards/mobile-profile",
-      analyzeVideoHref: "/dashboard/boards/mobile-profile",
-      communityHref: "/dashboard/community",
+      profileHref: MOBILE_PROFILE_ROUTE,
+      analyzeVideoHref: MOBILE_PROFILE_ROUTE,
+      communityHref: MOBILE_COMMUNITY_ROUTE,
     });
     return {
       ...res.profileInput,
@@ -53,9 +54,9 @@ export function buildMobileStrategicProfileRealShellInput(params: {
         planStatus: user.planStatus,
       },
       diagnosisOverrideState: params.stateQuery,
-      profileHref: "/dashboard/boards/mobile-profile",
-      analyzeVideoHref: "/dashboard/boards/mobile-profile",
-      communityHref: "/dashboard/community",
+      profileHref: MOBILE_PROFILE_ROUTE,
+      analyzeVideoHref: MOBILE_PROFILE_ROUTE,
+      communityHref: MOBILE_COMMUNITY_ROUTE,
     });
 
     const override = resolveOverrideLevel(params.stateQuery);
@@ -89,9 +90,9 @@ export function buildMobileStrategicProfileRealShellInput(params: {
       instagramUsername: user.instagramUsername,
       planStatus: user.planStatus,
     },
-    profileHref: "/dashboard/boards/mobile-profile",
-    analyzeVideoHref: "/dashboard/boards/mobile-profile",
-    communityHref: "/dashboard/community",
+    profileHref: MOBILE_PROFILE_ROUTE,
+    analyzeVideoHref: MOBILE_PROFILE_ROUTE,
+    communityHref: MOBILE_COMMUNITY_ROUTE,
   });
 
   return res.profileInput;

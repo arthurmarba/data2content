@@ -1,5 +1,6 @@
 import {
   getNarrativeMapAccessAction,
+  getNarrativeMapStatusCardContent,
   resolveNarrativeMapAccessState,
   sanitizeInternalReturnTo,
 } from "./narrativeMapAccessState";
@@ -8,6 +9,7 @@ describe("narrativeMapAccessState", () => {
   it("Free sem leitura usada retorna free_unused", () => {
     expect(resolveNarrativeMapAccessState({ readingQuota: { usedTotal: 0 } })).toBe("free_unused");
     expect(getNarrativeMapAccessAction("free_unused").canStartReading).toBe(true);
+    expect(getNarrativeMapAccessAction("free_unused").label).toBe("Analisar meu primeiro vídeo");
   });
 
   it("Free com leitura usada retorna free_preview_used", () => {
@@ -56,5 +58,35 @@ describe("narrativeMapAccessState", () => {
     expect(sanitizeInternalReturnTo("/dashboard/boards/mobile-strategic-profile")).toBe("/dashboard/boards/mobile-strategic-profile");
     expect(sanitizeInternalReturnTo("//evil.example/path", "/fallback")).toBe("/fallback");
     expect(sanitizeInternalReturnTo("https://evil.example/path", "/fallback")).toBe("/fallback");
+  });
+
+  it("resolve copy compacta do Status Card por estado MM90", () => {
+    expect(getNarrativeMapStatusCardContent({ state: "free_unused" })).toMatchObject({
+      title: "Perfil em construção",
+      primaryLabel: "Analisar meu primeiro vídeo",
+    });
+    expect(getNarrativeMapStatusCardContent({ state: "free_preview_used" })).toMatchObject({
+      title: "Leitura grátis usada",
+      primaryLabel: "Assinar Pro",
+    });
+    expect(getNarrativeMapStatusCardContent({ state: "pro_needs_instagram" })).toMatchObject({
+      title: "Pro ativo",
+      primaryLabel: "Conectar Instagram",
+      secondaryLabel: "Nova leitura",
+    });
+    expect(getNarrativeMapStatusCardContent({
+      state: "pro_instagram_connected",
+      quota: { usedThisMonth: 3 },
+    })).toMatchObject({
+      title: "Pro ativo",
+      description: "Você usou 3 de 10 leituras deste mês.",
+      primaryLabel: "Nova leitura",
+    });
+    expect(getNarrativeMapStatusCardContent({ state: "pro_quota_reached" })).toMatchObject({
+      title: "Limite mensal usado",
+      primaryLabel: "Ver leituras",
+    });
+    expect(getNarrativeMapStatusCardContent({ state: "payment_pending" }).primaryLabel).toBe("Continuar pagamento");
+    expect(getNarrativeMapStatusCardContent({ state: "payment_action_needed" }).primaryLabel).toBe("Atualizar pagamento");
   });
 });

@@ -49,6 +49,13 @@ export interface NarrativeMapAccessAction {
     | "admin";
 }
 
+export interface NarrativeMapStatusCardContent {
+  title: string;
+  description: string;
+  primaryLabel: string;
+  secondaryLabel?: string | null;
+}
+
 function normalizeCount(value: number | null | undefined): number {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.trunc(value) : 0;
 }
@@ -115,7 +122,7 @@ export function getNarrativeMapAccessAction(
     case "free_unused":
       return {
         canStartReading: true,
-        label: "Analisar vídeo",
+        label: "Analisar meu primeiro vídeo",
         reason: "free_first_reading_available",
       };
     case "free_preview_used":
@@ -139,7 +146,7 @@ export function getNarrativeMapAccessAction(
     case "pro_quota_reached":
       return {
         canStartReading: false,
-        label: "Ver Perfil",
+        label: "Ver leituras",
         reason: "pro_quota_reached",
       };
     case "payment_pending":
@@ -185,6 +192,64 @@ export function getNarrativeMapAccessStatusText(params: {
       return "Ação de pagamento necessária";
     case "admin":
       return `Admin · ${quota.usedThisMonth}/10 leituras`;
+  }
+}
+
+export function getNarrativeMapStatusCardContent(params: {
+  state: NarrativeMapAccessState;
+  quota?: Partial<NarrativeMapReadingQuotaSnapshot> | null;
+}): NarrativeMapStatusCardContent {
+  const quota = normalizeNarrativeMapReadingQuotaSnapshot(params.quota);
+  switch (params.state) {
+    case "free_unused":
+      return {
+        title: "Perfil em construção",
+        description: "Comece com uma leitura gratuita para a D2C entender sua narrativa.",
+        primaryLabel: "Analisar meu primeiro vídeo",
+      };
+    case "free_preview_used":
+      return {
+        title: "Leitura grátis usada",
+        description: "Assine o Pro para continuar evoluindo seu Perfil.",
+        primaryLabel: "Assinar Pro",
+      };
+    case "pro_needs_instagram":
+      return {
+        title: "Pro ativo",
+        description: "Conecte o Instagram para melhorar a precisão do Perfil.",
+        primaryLabel: "Conectar Instagram",
+        secondaryLabel: "Nova leitura",
+      };
+    case "pro_instagram_connected":
+      return {
+        title: "Pro ativo",
+        description: `Você usou ${quota.usedThisMonth} de 10 leituras deste mês.`,
+        primaryLabel: "Nova leitura",
+      };
+    case "pro_quota_reached":
+      return {
+        title: "Limite mensal usado",
+        description: "Seu Perfil continua disponível. Novas leituras voltam no próximo ciclo.",
+        primaryLabel: "Ver leituras",
+      };
+    case "payment_pending":
+      return {
+        title: "Pagamento pendente",
+        description: "Finalize o pagamento para liberar suas próximas leituras.",
+        primaryLabel: "Continuar pagamento",
+      };
+    case "payment_action_needed":
+      return {
+        title: "Ação de pagamento necessária",
+        description: "Atualize o pagamento para continuar usando o Plano Pro.",
+        primaryLabel: "Atualizar pagamento",
+      };
+    case "admin":
+      return {
+        title: "Acesso interno",
+        description: `Você usou ${quota.usedThisMonth} de 10 leituras deste mês.`,
+        primaryLabel: "Nova leitura",
+      };
   }
 }
 

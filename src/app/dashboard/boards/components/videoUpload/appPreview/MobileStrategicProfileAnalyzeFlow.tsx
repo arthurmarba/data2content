@@ -11,11 +11,11 @@ import type {
 
 const STEPS = [
   "intro",
-  "mock_upload",
+  "upload",
   "creator_goal",
-  "quick_questions",
-  "updating_profile",
-  "updated_confirmation",
+  "context",
+  "processing",
+  "confirmation",
 ] as const;
 
 type AnalyzeFlowStep = (typeof STEPS)[number];
@@ -52,7 +52,7 @@ type MobileStrategicProfileAnalyzeFlowProps = {
 
 function nextStep(current: AnalyzeFlowStep): AnalyzeFlowStep {
   const index = STEPS.indexOf(current);
-  return STEPS[Math.min(index + 1, STEPS.length - 1)] ?? "updated_confirmation";
+  return STEPS[Math.min(index + 1, STEPS.length - 1)] ?? "confirmation";
 }
 
 function stepIndex(step: AnalyzeFlowStep): number {
@@ -92,6 +92,60 @@ function getUploadSessionErrorMessage(response?: UploadSessionResponse) {
   return response?.message || "Não foi possível validar o vídeo agora.";
 }
 
+const goalOptions = [
+  {
+    label: "Melhorar retenção",
+    value: "retention" as const,
+    defaultQuestion: "Como esse vídeo pode prender mais atenção?",
+  },
+  {
+    label: "Entender narrativa",
+    value: "authority" as const,
+    defaultQuestion: "O que esse vídeo revela sobre minha narrativa?",
+  },
+  {
+    label: "Preparar publi",
+    value: "sponsored_content" as const,
+    defaultQuestion: "Como transformar essa direção em um conteúdo útil para marcas?",
+  },
+  {
+    label: "Testar formato",
+    value: "format_test" as const,
+    defaultQuestion: "Esse formato vale repetir no meu Perfil?",
+  },
+  {
+    label: "Ganhar autoridade",
+    value: "authority" as const,
+    defaultQuestion: "Como esse conteúdo fortalece minha autoridade?",
+  },
+];
+
+const contextQuestions = [
+  {
+    id: "represents_current_phase",
+    question: "Esse vídeo representa sua fase atual?",
+    options: ["Sim", "Mais ou menos", "Não"],
+  },
+  {
+    id: "wants_to_repeat_direction",
+    question: "Você quer repetir essa direção?",
+    options: ["Sim", "Talvez", "Não"],
+  },
+  {
+    id: "content_intent",
+    question: "O que você mais queria com esse conteúdo?",
+    options: ["Alcançar mais pessoas", "Gerar comentários", "Atrair marcas", "Fortalecer autoridade"],
+  },
+];
+
+function defaultContextAnswers(): Record<string, string> {
+  return {
+    represents_current_phase: "Sim",
+    wants_to_repeat_direction: "Talvez",
+    content_intent: "Fortalecer autoridade",
+  };
+}
+
 export function MobileStrategicProfileAnalyzeFlow({
   open,
   onClose,
@@ -104,6 +158,8 @@ export function MobileStrategicProfileAnalyzeFlow({
 }: MobileStrategicProfileAnalyzeFlowProps) {
   const [step, setStep] = useState<AnalyzeFlowStep>("intro");
   const [selectedOption, setSelectedOption] = useState<"authority" | "retention" | "format_test" | "sponsored_content">("authority");
+  const [creatorGoal, setCreatorGoal] = useState("");
+  const [quickAnswers, setQuickAnswers] = useState<Record<string, string>>(() => defaultContextAnswers());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [submitAttempt, setSubmitAttempt] = useState(0);
@@ -137,11 +193,14 @@ export function MobileStrategicProfileAnalyzeFlow({
       setUploadSessionValidated(false);
       setTemporaryUploadForCleanup(null);
       setTemporaryUploadForAnalysis(null);
+      setCreatorGoal("");
+      setSelectedOption("authority");
+      setQuickAnswers(defaultContextAnswers());
     }
   }, [open]);
 
   useEffect(() => {
-    if (step !== "updating_profile") return;
+    if (step !== "processing") return;
 
     let active = true;
     let fallbackTimer: ReturnType<typeof setTimeout> | undefined;
@@ -152,12 +211,12 @@ export function MobileStrategicProfileAnalyzeFlow({
         setErrorMsg(null);
         try {
           await onSubmitAnalysis({
-            creatorGoal: "Como posso otimizar meu posicionamento de conteúdo?",
+            creatorGoal: creatorGoal.trim() || goalOptions.find((option) => option.value === selectedOption)?.defaultQuestion || "O que este vídeo revela sobre minha narrativa?",
             selectedGoalOption: selectedOption,
-            quickAnswers: [
-              { id: "represents_current_phase", value: "sim" },
-              { id: "wants_to_repeat_direction", value: "sim" }
-            ],
+            quickAnswers: contextQuestions.map((question) => ({
+              id: question.id,
+              value: quickAnswers[question.id] ?? "",
+            })),
             consentTextVersion: "mobile_strategic_profile_temporary_video_v1",
             temporaryUpload: enableRealAnalysis ? temporaryUploadForAnalysis ?? undefined : undefined,
           });
@@ -173,7 +232,7 @@ export function MobileStrategicProfileAnalyzeFlow({
           }
           if (active) {
             setIsSubmitting(false);
-            setStep("updated_confirmation");
+            setStep("confirmation");
           }
         } catch (err: any) {
           if (temporaryUploadForCleanup && onCleanupTemporaryUpload) {
@@ -194,7 +253,7 @@ export function MobileStrategicProfileAnalyzeFlow({
       } else {
         fallbackTimer = setTimeout(() => {
           if (active) {
-            setStep("updated_confirmation");
+            setStep("confirmation");
           }
         }, 1000);
       }
@@ -210,7 +269,9 @@ export function MobileStrategicProfileAnalyzeFlow({
     };
   }, [
     step,
+    creatorGoal,
     selectedOption,
+    quickAnswers,
     onSubmitAnalysis,
     submitAttempt,
     temporaryUploadForCleanup,
@@ -222,7 +283,7 @@ export function MobileStrategicProfileAnalyzeFlow({
   if (!open) return null;
 
   const handleContinue = async () => {
-    if (step === "mock_upload" && onCreateUploadSession) {
+    if (step === "upload" && onCreateUploadSession) {
       if (!selectedFile) {
         setFileValidationError("Selecione um arquivo de vídeo primeiro.");
         return;
@@ -301,6 +362,9 @@ export function MobileStrategicProfileAnalyzeFlow({
     setUploadSessionValidated(false);
     setTemporaryUploadForCleanup(null);
     setTemporaryUploadForAnalysis(null);
+    setCreatorGoal("");
+    setSelectedOption("authority");
+    setQuickAnswers(defaultContextAnswers());
     onClose();
   };
 
@@ -310,24 +374,20 @@ export function MobileStrategicProfileAnalyzeFlow({
     setUploadSessionValidated(false);
     setTemporaryUploadForCleanup(null);
     setTemporaryUploadForAnalysis(null);
+    setCreatorGoal("");
+    setSelectedOption("authority");
+    setQuickAnswers(defaultContextAnswers());
     onComplete();
   };
 
   const currentStepIndex = stepIndex(step);
-
-  const goalOptions = [
-    { label: "Ganhar autoridade", value: "authority" as const },
-    { label: "Melhorar retenção", value: "retention" as const },
-    { label: "Testar formato", value: "format_test" as const },
-    { label: "Preparar publi", value: "sponsored_content" as const },
-  ];
 
   // Regra de disabled para o botão Continuar
   const isContinueDisabled =
     isSubmitting ||
     validationStatus === "validating" ||
     validationStatus === "uploading" ||
-    (step === "mock_upload" &&
+    (step === "upload" &&
       onCreateUploadSession &&
       (validationStatus === "validated" || validationStatus === "uploaded"));
 
@@ -342,10 +402,20 @@ export function MobileStrategicProfileAnalyzeFlow({
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase text-zinc-500">
-            Etapa {currentStepIndex + 1} de {STEPS.length} · Atualizar Perfil
+            Etapa {currentStepIndex + 1} de {STEPS.length} · Nova leitura
           </p>
           <h2 id="mobile-strategic-profile-analyze-flow-title" className="mt-1 text-xl font-semibold text-zinc-950">
-            {step === "updated_confirmation" ? "Diagnóstico atualizado." : "Vamos atualizar seu Perfil"}
+            {step === "intro"
+              ? "Nova leitura estratégica"
+              : step === "upload"
+                ? "Escolha o vídeo"
+                : step === "creator_goal"
+                  ? "O que você quer entender?"
+                  : step === "context"
+                    ? "Só mais um contexto rápido"
+                    : step === "processing"
+                      ? "Analisando sua narrativa"
+                      : "Leitura pronta"}
           </h2>
         </div>
         <button
@@ -372,25 +442,25 @@ export function MobileStrategicProfileAnalyzeFlow({
         {step === "intro" ? (
           <div>
             <p className="text-sm leading-6 text-zinc-600">
-              Use um vídeo para a D2C entender novos sinais da sua narrativa.
+              Envie um vídeo e diga o que você quer entender. A D2C transforma esse conteúdo em direção para o seu Perfil.
             </p>
             <div className="mt-5 rounded-[1.5rem] border border-zinc-200 bg-[#f7f7f4] p-4">
-              <p className="text-sm font-semibold text-zinc-950">Atualizar Perfil</p>
+              <p className="text-sm font-semibold text-zinc-950">Seu Perfil é a casa da leitura</p>
               <p className="mt-1 text-sm leading-6 text-zinc-600">
-                A análise é temporária e retorna para o Diagnóstico vivo.
+                O vídeo traz sinais, sua pergunta dá intenção e o resultado volta para o Perfil.
               </p>
             </div>
           </div>
         ) : null}
 
-        {step === "mock_upload" ? (
+        {step === "upload" ? (
           onCreateUploadSession ? (
             <div>
               <p className="text-sm leading-6 text-zinc-600 mb-4">
-                Selecione um vídeo para validar se ele está pronto para análise temporária.
+                Use um post recente, um conteúdo que performou bem ou uma ideia que você quer avaliar.
               </p>
               {!selectedFile ? (
-                <p className="mb-3 text-xs font-semibold text-zinc-500">Aguardando seleção.</p>
+                <p className="mb-3 text-xs font-semibold text-zinc-500">Escolha um arquivo para começar.</p>
               ) : null}
 
               <input
@@ -416,13 +486,13 @@ export function MobileStrategicProfileAnalyzeFlow({
                 htmlFor="video-file-picker"
                 className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed border-zinc-300 bg-[#f7f7f4] px-4 py-8 text-center transition-colors hover:bg-zinc-50"
               >
-                <span className="text-sm font-semibold text-zinc-950">Selecionar arquivo de vídeo</span>
-                <span className="mt-1 text-xs text-zinc-500">MP4, MOV ou WEBM (max. 100MB)</span>
+                <span className="text-sm font-semibold text-zinc-950">Selecionar vídeo</span>
+                <span className="mt-1 text-xs text-zinc-500">MP4, MOV ou WEBM até 100 MB</span>
               </label>
 
               {selectedFile ? (
                 <div className="mt-4 rounded-2xl border border-zinc-200 bg-[#f7f7f4] p-4 text-left">
-                  <p className="text-xs uppercase font-semibold text-zinc-500">Arquivo Selecionado</p>
+                  <p className="text-xs uppercase font-semibold text-zinc-500">Vídeo selecionado</p>
                   <p className="mt-1 truncate text-sm font-semibold text-zinc-950">{sanitizeVisibleFileName(selectedFile.name)}</p>
                   <p className="text-xs text-zinc-600 mt-1">
                     {selectedFile.type || "video/mp4"} · {formatSize(selectedFile.size)}
@@ -445,14 +515,14 @@ export function MobileStrategicProfileAnalyzeFlow({
                     className="mt-1 h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
                   />
                   <label htmlFor="video-consent-checkbox" className="text-xs leading-5 text-zinc-600 cursor-pointer">
-                    Entendo que este vídeo será usado apenas para validar a análise narrativa temporária.
+                    Usar este vídeo apenas para gerar esta leitura.
                   </label>
                 </div>
               ) : null}
 
               {validationStatus === "validating" ? (
                 <p className="mt-3 text-xs font-medium text-sky-600">
-                  Preparando envio...
+                  Preparando vídeo...
                 </p>
               ) : null}
 
@@ -464,13 +534,13 @@ export function MobileStrategicProfileAnalyzeFlow({
 
               {validationStatus === "validated" ? (
                 <p className="mt-3 text-xs font-semibold text-emerald-600">
-                  Vídeo validado para análise
+                  Vídeo pronto para leitura
                 </p>
               ) : null}
 
               {validationStatus === "uploaded" ? (
                 <p className="mt-3 text-xs font-semibold text-emerald-600">
-                  Vídeo enviado para análise temporária.
+                  Vídeo pronto para leitura
                 </p>
               ) : null}
 
@@ -481,11 +551,10 @@ export function MobileStrategicProfileAnalyzeFlow({
               ) : null}
             </div>
           ) : (
-            // Interface Mock de Preview local legada
             <div className="rounded-[1.5rem] border border-dashed border-zinc-300 bg-[#f7f7f4] p-4">
-              <p className="text-sm font-semibold text-zinc-950">Vídeo pronto para análise</p>
+              <p className="text-sm font-semibold text-zinc-950">Vídeo pronto para leitura</p>
               <p className="mt-2 text-sm leading-6 text-zinc-600">
-                Preview local. Nenhum arquivo será enviado neste protótipo.
+                Continue para informar sua pergunta e gerar uma leitura estratégica.
               </p>
             </div>
           )
@@ -495,10 +564,16 @@ export function MobileStrategicProfileAnalyzeFlow({
           <div>
             {uploadSessionValidated ? (
               <p className="mb-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
-                {validationStatus === "uploaded" ? "Vídeo enviado para análise temporária." : "Vídeo validado para análise"}
+                Vídeo pronto para leitura
               </p>
             ) : null}
-            <p className="text-sm font-semibold text-zinc-950">Qual era o objetivo do conteúdo?</p>
+            <p className="text-sm leading-6 text-zinc-600">Escreva sua dúvida ou escolha um objetivo rápido.</p>
+            <textarea
+              value={creatorGoal}
+              onChange={(event) => setCreatorGoal(event.target.value)}
+              placeholder="Ex: por que esse vídeo prendeu atenção?"
+              className="mt-3 min-h-[92px] w-full resize-none rounded-2xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-950 outline-none transition focus:border-zinc-950"
+            />
             <div className="mt-3 grid grid-cols-2 gap-2">
               {goalOptions.map((opt) => {
                 const isSelected = selectedOption === opt.value;
@@ -511,7 +586,12 @@ export function MobileStrategicProfileAnalyzeFlow({
                         ? "border-zinc-950 bg-zinc-950 text-white shadow-sm"
                         : "border-zinc-200 bg-[#f7f7f4] text-zinc-800 hover:border-zinc-300"
                     }`}
-                    onClick={() => setSelectedOption(opt.value)}
+                    onClick={() => {
+                      setSelectedOption(opt.value);
+                      if (!creatorGoal.trim()) {
+                        setCreatorGoal(opt.defaultQuestion);
+                      }
+                    }}
                   >
                     {opt.label}
                   </button>
@@ -521,26 +601,41 @@ export function MobileStrategicProfileAnalyzeFlow({
           </div>
         ) : null}
 
-        {step === "quick_questions" ? (
+        {step === "context" ? (
           <div>
-            <p className="text-sm font-semibold text-zinc-950">Só mais um contexto rápido</p>
             <p className="mt-1 text-sm leading-6 text-zinc-600">
-              Essas respostas ajudam a D2C entender o que você queria comunicar.
+              Isso ajuda a D2C interpretar o vídeo pela sua intenção, não só pela imagem.
             </p>
             <div className="mt-3 grid gap-3">
-              <div className="rounded-2xl border border-zinc-200 bg-[#f7f7f4] p-4">
-                <p className="text-sm font-semibold text-zinc-800">Esse conteúdo representa sua fase atual?</p>
-                <p className="mt-1 text-xs leading-5 text-zinc-500">Resposta visual nesta preview, sem salvar nada.</p>
-              </div>
-              <div className="rounded-2xl border border-zinc-200 bg-[#f7f7f4] p-4">
-                <p className="text-sm font-semibold text-zinc-800">Você quer repetir essa direção no próximo post?</p>
-                <p className="mt-1 text-xs leading-5 text-zinc-500">A leitura volta para o Perfil Estratégico.</p>
-              </div>
+              {contextQuestions.map((item) => (
+                <div key={item.id} className="rounded-2xl border border-zinc-200 bg-[#f7f7f4] p-4">
+                  <p className="text-sm font-semibold text-zinc-800">{item.question}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {item.options.map((option) => {
+                      const selected = quickAnswers[item.id] === option;
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          className={
+                            selected
+                              ? "rounded-full bg-zinc-950 px-3 py-2 text-xs font-semibold text-white"
+                              : "rounded-full border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-700"
+                          }
+                          onClick={() => setQuickAnswers((current) => ({ ...current, [item.id]: option }))}
+                        >
+                          {option}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         ) : null}
 
-        {step === "updating_profile" ? (
+        {step === "processing" ? (
           <div className="rounded-[1.5rem] border border-sky-100 bg-sky-50 p-4 transition-all">
             {errorMsg ? (
               <div>
@@ -555,37 +650,58 @@ export function MobileStrategicProfileAnalyzeFlow({
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
                   <p className="text-sm font-semibold text-zinc-950">
-                    {temporaryUploadForAnalysis ? "Analisando vídeo e atualizando seu Perfil" : "Atualizando seu Perfil"}
+                    Analisando sua narrativa
                   </p>
                 </div>
                 <p className="mt-2 text-sm leading-6 text-zinc-600">
-                  Estamos conectando essa leitura ao seu diagnóstico vivo.
+                  Estamos conectando vídeo, pergunta e contexto ao seu Perfil.
                 </p>
+                <div className="mt-3 grid gap-2 text-xs font-semibold text-sky-700">
+                  <span>Lendo sinais do vídeo</span>
+                  <span>Interpretando sua intenção</span>
+                  <span>Atualizando o Perfil</span>
+                </div>
               </div>
             )}
           </div>
         ) : null}
 
-        {step === "updated_confirmation" ? (
+        {step === "confirmation" ? (
           <div className="rounded-[1.5rem] border border-emerald-100 bg-emerald-50 p-4">
-            <p className="text-sm font-semibold text-zinc-950">Identificamos novos aprendizados sobre sua narrativa.</p>
+            <p className="text-sm font-semibold text-zinc-950">Encontramos novos sinais para o seu Perfil.</p>
             <p className="mt-2 text-sm leading-6 text-zinc-600">
-              A confirmação é curta porque o destino final é o seu Perfil.
+              O diagnóstico completo aparece no Perfil, junto das leituras e do mapa.
             </p>
           </div>
         ) : null}
       </div>
 
       <div className="mt-5 flex gap-2">
-        {step === "updated_confirmation" ? (
-          <button
-            type="button"
-            className="w-full rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 transition-colors"
-            onClick={complete}
-          >
-            Voltar para meu Perfil
-          </button>
-        ) : step === "updating_profile" && errorMsg ? (
+        {step === "confirmation" ? (
+          <div className="flex w-full gap-2">
+            <button
+              type="button"
+              className="w-2/3 rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 transition-colors"
+              onClick={complete}
+            >
+              Ver leitura no Perfil
+            </button>
+            <button
+              type="button"
+              className="w-1/3 rounded-full border border-zinc-300 bg-white px-3 py-2.5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 transition-colors"
+              onClick={() => {
+                setStep("upload");
+                setSelectedFile(null);
+                setConsentAccepted(false);
+                setValidationStatus("idle");
+                setFileValidationError(null);
+                setUploadSessionValidated(false);
+              }}
+            >
+              Outro vídeo
+            </button>
+          </div>
+        ) : step === "processing" && errorMsg ? (
           <div className="flex w-full gap-2">
             <button
               type="button"
@@ -600,7 +716,7 @@ export function MobileStrategicProfileAnalyzeFlow({
               onClick={() => {
                 setErrorMsg(null);
                 setSubmitAttempt((prev) => prev + 1);
-                setStep("updating_profile");
+                setStep("processing");
               }}
             >
               Tentar novamente
@@ -613,7 +729,11 @@ export function MobileStrategicProfileAnalyzeFlow({
             onClick={handleContinue}
             disabled={isContinueDisabled}
           >
-            Continuar
+            {step === "intro"
+              ? "Começar"
+              : step === "context"
+                ? "Gerar leitura"
+                : "Continuar"}
           </button>
         )}
       </div>
