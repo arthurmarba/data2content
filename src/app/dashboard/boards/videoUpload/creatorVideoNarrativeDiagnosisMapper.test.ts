@@ -181,6 +181,51 @@ describe("creatorVideoNarrativeDiagnosisMapper", () => {
     expect(() => sanitizeCreatorVideoNarrativeDiagnosisInput(result)).not.toThrow();
   });
 
+  it("mapeia creatorGoal para creatorIntentAnchor", () => {
+    const result = mapVideoNarrativeDiagnosisToCreatorVideoNarrativeDiagnosisInput(
+      buildCreatorVideoNarrativeDiagnosisMapperParams({
+        creatorGoal: "Quero entender se a piada de reunião reforça meu humor cotidiano.",
+      }),
+    );
+
+    expect(result.evidenceAnchors?.creatorIntentAnchor).toEqual(expect.objectContaining({
+      source: "creator_goal",
+      statedGoal: "Quero entender se a piada de reunião reforça meu humor cotidiano.",
+    }));
+  });
+
+  it("mapeia suggestedHook como ai_suggested e nao inventa creator_spoken", () => {
+    const result = mapVideoNarrativeDiagnosisToCreatorVideoNarrativeDiagnosisInput(
+      buildCreatorVideoNarrativeDiagnosisMapperParams({
+        strategicDiagnosis: buildMapperStrategicDiagnosisFixture({
+          suggestedHook: "Quando a reunião era para ser rapidinha...",
+        }),
+      }),
+    );
+
+    expect(result.evidenceAnchors?.speechQuotes).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          quote: "Quando a reunião era para ser rapidinha...",
+          source: "ai_suggested",
+        }),
+      ]),
+    );
+    expect(result.evidenceAnchors?.speechQuotes.some((anchor) => anchor.source === "creator_spoken")).toBe(false);
+  });
+
+  it("mapeia rememberedAs como sceneAnchor seguro", () => {
+    const result = mapVideoNarrativeDiagnosisToCreatorVideoNarrativeDiagnosisInput(
+      buildCreatorVideoNarrativeDiagnosisMapperParams(),
+    );
+
+    expect(result.evidenceAnchors?.sceneAnchors[0]).toEqual(expect.objectContaining({
+      source: "derived_scene",
+      chapterHint: "pattern",
+    }));
+    expect(result.evidenceAnchors?.sceneAnchors[0].description).toContain("Video sobre");
+  });
+
   it("nao importa Mongoose, storage SDK, Gemini SDK ou codigo client-side", () => {
     const mapperPath = path.join(__dirname, "creatorVideoNarrativeDiagnosisMapper.ts");
     const source = readFileSync(mapperPath, "utf8");

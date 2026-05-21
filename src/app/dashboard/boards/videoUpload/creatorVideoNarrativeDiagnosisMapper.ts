@@ -1,5 +1,7 @@
 import type {
   CreatorVideoNarrativeDiagnosisContributionType,
+  CreatorVideoNarrativeEvidenceAnchors,
+  CreatorVideoNarrativeEvidenceChapterHint,
   CreatorVideoNarrativeDiagnosisInput,
   CreatorVideoNarrativeDiagnosisSource,
   CreatorVideoNarrativeDiagnosisVideoMetadata,
@@ -86,6 +88,32 @@ function shortText(value: string, maxLength: number): string {
   const text = clean(value);
   if (text.length <= maxLength) return text;
   return `${text.slice(0, maxLength - 1).trim()}...`;
+}
+
+function isShortSpeechCandidate(value: string | null | undefined): value is string {
+  const text = clean(value ?? "");
+  if (!text || text.length > 180) return false;
+  if (text.split(/\s+/).length > 24) return false;
+  if (/https?:\/\/|objectKey|signedUrl|uploadUrl|thumbnailUrl|localPath|storageProviderPath|raw response/i.test(text)) {
+    return false;
+  }
+  return true;
+}
+
+function buildAiSuggestedQuoteAnchor(params: {
+  quote: string | null | undefined;
+  quoteRole: CreatorVideoNarrativeEvidenceAnchors["speechQuotes"][number]["quoteRole"];
+  chapterHint: CreatorVideoNarrativeEvidenceChapterHint;
+  whyItMatters: string;
+}): CreatorVideoNarrativeEvidenceAnchors["speechQuotes"][number] | null {
+  if (!isShortSpeechCandidate(params.quote)) return null;
+  return {
+    quote: shortText(params.quote, 180),
+    source: "ai_suggested",
+    quoteRole: params.quoteRole,
+    whyItMatters: shortText(params.whyItMatters, 260),
+    chapterHint: params.chapterHint,
+  };
 }
 
 function dateFrom(value: Date | string | null | undefined): Date | null {
@@ -235,6 +263,79 @@ function mapSafeMetadata(params: CreatorVideoNarrativeDiagnosisMapperParams): Cr
   };
 }
 
+function mapEvidenceAnchors(params: {
+  creatorGoal: string;
+  strategicDiagnosis: VideoNarrativeStrategicDiagnosis;
+  evolvingDiagnosis: VideoNarrativeEvolvingDiagnosis;
+  rememberedAs: string;
+  profileContribution: CreatorVideoNarrativeDiagnosisInput["profileContribution"];
+}): CreatorVideoNarrativeEvidenceAnchors {
+  const speechQuotes = [
+    buildAiSuggestedQuoteAnchor({
+      quote: params.strategicDiagnosis.suggestedHook,
+      quoteRole: "hook",
+      chapterHint: "tension",
+      whyItMatters: "E uma sugestao de abertura para explicitar a promessa da cena; nao e tratada como fala real do creator.",
+    }),
+    buildAiSuggestedQuoteAnchor({
+      quote: params.strategicDiagnosis.scriptDirection.opening,
+      quoteRole: "promise",
+      chapterHint: "movement",
+      whyItMatters: "Serve como teste de frase para deixar a virada narrativa mais visivel.",
+    }),
+  ].filter((item): item is CreatorVideoNarrativeEvidenceAnchors["speechQuotes"][number] => Boolean(item));
+
+  const sceneAnchors: CreatorVideoNarrativeEvidenceAnchors["sceneAnchors"] = params.rememberedAs
+    ? [{
+        description: shortText(params.rememberedAs, 260),
+        source: "derived_scene",
+        momentRole: "opening",
+        whyItMatters: "Resume a cena documentada sem salvar video, thumbnail ou transcricao longa.",
+        chapterHint: "pattern",
+      }]
+    : [];
+
+  const creatorIntentAnchor = clean(params.creatorGoal)
+    ? {
+        source: "creator_goal" as const,
+        statedGoal: shortText(params.creatorGoal, 260),
+        interpretedGoal: shortText(params.strategicDiagnosis.creatorIntent ?? params.creatorGoal, 260),
+        whyItMatters: "Ajuda a comparar a intencao declarada com a leitura do video.",
+      }
+    : null;
+
+  const profilePatternAnchors = params.profileContribution.reason
+    ? [{
+        patternLabel: shortText(params.profileContribution.profileImpactPreview, 180),
+        whyThisVideoRelates: shortText(params.profileContribution.reason, 260),
+        evidenceCount: Math.max(1, params.evolvingDiagnosis.profileImpact.usefulSignalsCount),
+      }]
+    : [];
+
+  const instagramAnchors = params.strategicDiagnosis.instagramComparison.connected
+    ? [
+        ...params.strategicDiagnosis.instagramComparison.matchingNarratives.map((signal) => ({
+          signalLabel: shortText(signal, 180),
+          whyItMatters: "Sinal do Instagram usado apenas como precisao contextual, nao como aba nova.",
+          evidenceSummary: shortText(params.strategicDiagnosis.instagramComparison.summary ?? signal, 260),
+        })),
+        ...params.strategicDiagnosis.instagramComparison.matchingFormats.map((signal) => ({
+          signalLabel: shortText(signal, 180),
+          whyItMatters: "Formato observado no Instagram para comparar recorrencia narrativa.",
+          evidenceSummary: shortText(params.strategicDiagnosis.instagramComparison.summary ?? signal, 260),
+        })),
+      ].slice(0, 4)
+    : [];
+
+  return {
+    speechQuotes: speechQuotes.slice(0, 4),
+    sceneAnchors: sceneAnchors.slice(0, 4),
+    creatorIntentAnchor,
+    profilePatternAnchors,
+    instagramAnchors,
+  };
+}
+
 export function mapVideoNarrativeDiagnosisToCreatorVideoNarrativeDiagnosisInput(
   params: CreatorVideoNarrativeDiagnosisMapperParams,
 ): CreatorVideoNarrativeDiagnosisInput {
@@ -253,6 +354,11 @@ export function mapVideoNarrativeDiagnosisToCreatorVideoNarrativeDiagnosisInput(
     [strategic.nextActions[0]?.description, seed?.blueprintDraft.whatToPost, evolving.nextSignalsToUnlock[0]?.action],
     "Testar uma abertura mais direta e comparar a resposta em novas leituras.",
   );
+  const profileContribution = mapProfileContribution({
+    strategicDiagnosis: strategic,
+    evolvingDiagnosis: evolving,
+  });
+  const rememberedAs = safeRememberedAs(params);
 
   const mapped: CreatorVideoNarrativeDiagnosisInput = {
     userId: params.userId,
@@ -264,7 +370,7 @@ export function mapVideoNarrativeDiagnosisToCreatorVideoNarrativeDiagnosisInput(
     selectedGoalOption: clean(params.selectedGoalOption, "strategic_reading"),
     videoReading: {
       title: shortText(firstText([strategic.mainNarrative, presentation.hero.title], "Leitura estrategica do video"), 140),
-      rememberedAs: safeRememberedAs(params),
+      rememberedAs,
       summary: firstText([strategic.whatVideoCommunicates, presentation.priorityCards[0]?.body], "Este video traz uma leitura inicial para o mapa estrategico."),
       whatVideoReveals: firstText([evolving.profileImpact.summary, strategic.strength], "Este video revela um sinal inicial sobre a narrativa do creator."),
       mainNarrative: firstText([strategic.mainNarrative, seed?.detectedNarrative], "Narrativa em formacao."),
@@ -311,9 +417,13 @@ export function mapVideoNarrativeDiagnosisToCreatorVideoNarrativeDiagnosisInput(
       whatToAvoid: firstText([strategic.weakness], "Evitar transformar uma leitura isolada em conclusao geral do Perfil."),
       successSignal: "Observar se o mesmo sinal aparece de novo em proximas leituras e respostas da audiencia.",
     },
-    profileContribution: mapProfileContribution({
+    profileContribution,
+    evidenceAnchors: mapEvidenceAnchors({
+      creatorGoal: params.creatorGoal,
       strategicDiagnosis: strategic,
       evolvingDiagnosis: evolving,
+      rememberedAs,
+      profileContribution,
     }),
     schemaVersion: "creator_video_narrative_diagnosis_v1",
   };
@@ -334,6 +444,7 @@ export function mapVideoNarrativeDiagnosisToCreatorVideoNarrativeDiagnosisInput(
     commercialReading: sanitized.commercialReading,
     strategicRecommendation: sanitized.strategicRecommendation,
     profileContribution: sanitized.profileContribution,
+    evidenceAnchors: sanitized.evidenceAnchors,
     schemaVersion: sanitized.schemaVersion,
   };
 }

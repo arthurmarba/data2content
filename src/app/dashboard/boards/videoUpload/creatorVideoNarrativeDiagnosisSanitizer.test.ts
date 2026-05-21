@@ -138,4 +138,116 @@ describe("creatorVideoNarrativeDiagnosisSanitizer", () => {
     expect(serialized).not.toContain("signedUrl");
     expect(serialized).toContain("[object-key-redacted]");
   });
+
+  it("aceita speechQuote curta e diferencia source creator_spoken de ai_suggested", () => {
+    const result = sanitizeCreatorVideoNarrativeDiagnosisInput(
+      buildCreatorVideoNarrativeDiagnosisFixture({
+        evidenceAnchors: {
+          speechQuotes: [
+            {
+              quote: "rapidinho",
+              source: "creator_spoken",
+              quoteRole: "hook",
+              whyItMatters: "A palavra cria promessa pequena para a cena.",
+              chapterHint: "pattern",
+            },
+            {
+              quote: "Quando a reunião era para ser rápida...",
+              source: "ai_suggested",
+              quoteRole: "promise",
+              whyItMatters: "E sugestao de frase, nao fala real.",
+              chapterHint: "movement",
+            },
+          ],
+          sceneAnchors: [],
+          creatorIntentAnchor: null,
+          profilePatternAnchors: [],
+          instagramAnchors: [],
+        },
+      }),
+    );
+
+    expect(result.evidenceAnchors?.speechQuotes[0]).toEqual(expect.objectContaining({
+      quote: "rapidinho",
+      source: "creator_spoken",
+    }));
+    expect(result.evidenceAnchors?.speechQuotes[1].source).toBe("ai_suggested");
+  });
+
+  it("trunca quote longa, remove URLs e limita quantidade de anchors", () => {
+    const result = sanitizeCreatorVideoNarrativeDiagnosisInput(
+      buildCreatorVideoNarrativeDiagnosisFixture({
+        evidenceAnchors: {
+          speechQuotes: Array.from({ length: 6 }, (_, index) => ({
+            quote: `${"frase longa ".repeat(30)} https://example.com/video.mp4?token=abc ${index}`,
+            source: "ai_suggested",
+            quoteRole: "example",
+            whyItMatters: "Remove URL e limita frase.",
+            chapterHint: "movement",
+          })),
+          sceneAnchors: Array.from({ length: 6 }, (_, index) => ({
+            description: `Cena segura ${index}`,
+            source: "derived_scene",
+            momentRole: "opening",
+            whyItMatters: "Limita cenas.",
+            chapterHint: "pattern",
+          })),
+          creatorIntentAnchor: null,
+          profilePatternAnchors: [],
+          instagramAnchors: [],
+        },
+      }),
+    );
+
+    expect(result.evidenceAnchors?.speechQuotes).toHaveLength(4);
+    expect(result.evidenceAnchors?.sceneAnchors).toHaveLength(4);
+    expect(result.evidenceAnchors?.speechQuotes[0].quote.length).toBeLessThanOrEqual(180);
+    expect(JSON.stringify(result)).not.toContain("https://example.com");
+  });
+
+  it("bloqueia base64 grande e transcrição longa dentro de anchors", () => {
+    expect(() =>
+      sanitizeCreatorVideoNarrativeDiagnosisInput(
+        buildCreatorVideoNarrativeDiagnosisFixture({
+          evidenceAnchors: {
+            speechQuotes: [
+              {
+                quote: "data:video/mp4;base64," + "A".repeat(1500),
+                source: "creator_spoken",
+                quoteRole: "hook",
+                whyItMatters: "nao deve persistir",
+                chapterHint: "pattern",
+              },
+            ],
+            sceneAnchors: [],
+            creatorIntentAnchor: null,
+            profilePatternAnchors: [],
+            instagramAnchors: [],
+          },
+        }),
+      ),
+    ).toThrow("base64 grande");
+
+    expect(() =>
+      sanitizeCreatorVideoNarrativeDiagnosisInput(
+        buildCreatorVideoNarrativeDiagnosisFixture({
+          evidenceAnchors: {
+            speechQuotes: [],
+            sceneAnchors: [
+              {
+                description: Array.from({ length: 12 }, (_, index) => `00:${String(index).padStart(2, "0")} fala`).join("\n"),
+                source: "derived_scene",
+                momentRole: "opening",
+                whyItMatters: "nao deve persistir",
+                chapterHint: "pattern",
+              },
+            ],
+            creatorIntentAnchor: null,
+            profilePatternAnchors: [],
+            instagramAnchors: [],
+          },
+        }),
+      ),
+    ).toThrow("transcrição longa");
+  });
 });

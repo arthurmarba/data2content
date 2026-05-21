@@ -1,6 +1,7 @@
 import mongoose, { Schema, Types, Document, model } from "mongoose";
 import type {
   CreatorVideoNarrativeDiagnosisCommercialReading,
+  CreatorVideoNarrativeEvidenceAnchors,
   CreatorVideoNarrativeDiagnosisProfileContribution,
   CreatorVideoNarrativeDiagnosisProductionReading,
   CreatorVideoNarrativeDiagnosisSafetyFlags,
@@ -26,6 +27,7 @@ export interface ICreatorVideoNarrativeDiagnosis extends Document {
   commercialReading: CreatorVideoNarrativeDiagnosisCommercialReading;
   strategicRecommendation: CreatorVideoNarrativeDiagnosisStrategicRecommendation;
   profileContribution: CreatorVideoNarrativeDiagnosisProfileContribution;
+  evidenceAnchors?: CreatorVideoNarrativeEvidenceAnchors;
   safetyFlags: CreatorVideoNarrativeDiagnosisSafetyFlags;
   schemaVersion: "creator_video_narrative_diagnosis_v1";
   createdAt: Date;
@@ -128,6 +130,96 @@ const ProfileContributionSchema = new Schema<CreatorVideoNarrativeDiagnosisProfi
   { _id: false, strict: true },
 );
 
+const EvidenceAnchorsSchema = new Schema<CreatorVideoNarrativeEvidenceAnchors>(
+  {
+    speechQuotes: {
+      type: [
+        new Schema(
+          {
+            quote: { type: String, required: true },
+            source: { type: String, enum: ["creator_spoken", "ai_suggested"], required: true },
+            quoteRole: {
+              type: String,
+              enum: ["hook", "promise", "turning_point", "closing", "example", "context", "other"],
+              required: true,
+            },
+            whyItMatters: { type: String, required: true },
+            chapterHint: {
+              type: String,
+              enum: ["pattern", "tension", "movement", "territory", "video_reveal", "profile_impact", "opportunities"],
+              required: true,
+            },
+          },
+          { _id: false, strict: true },
+        ),
+      ],
+      default: [],
+    },
+    sceneAnchors: {
+      type: [
+        new Schema(
+          {
+            description: { type: String, required: true },
+            source: { type: String, enum: ["derived_scene"], required: true },
+            momentRole: {
+              type: String,
+              enum: ["opening", "conflict", "turning_point", "visual_signal", "pacing_signal", "production_signal", "other"],
+              required: true,
+            },
+            whyItMatters: { type: String, required: true },
+            chapterHint: {
+              type: String,
+              enum: ["pattern", "tension", "movement", "territory", "video_reveal", "profile_impact", "opportunities"],
+              required: true,
+            },
+          },
+          { _id: false, strict: true },
+        ),
+      ],
+      default: [],
+    },
+    creatorIntentAnchor: {
+      type: new Schema(
+        {
+          source: { type: String, enum: ["creator_goal"], required: true },
+          statedGoal: { type: String, required: true },
+          interpretedGoal: { type: String, required: true },
+          whyItMatters: { type: String, required: true },
+        },
+        { _id: false, strict: true },
+      ),
+      default: null,
+    },
+    profilePatternAnchors: {
+      type: [
+        new Schema(
+          {
+            patternLabel: { type: String, required: true },
+            whyThisVideoRelates: { type: String, required: true },
+            evidenceCount: { type: Number },
+          },
+          { _id: false, strict: true },
+        ),
+      ],
+      default: [],
+    },
+    instagramAnchors: {
+      type: [
+        new Schema(
+          {
+            signalLabel: { type: String, required: true },
+            whyItMatters: { type: String, required: true },
+            evidenceSummary: { type: String, required: true },
+          },
+          { _id: false, strict: true },
+        ),
+      ],
+      default: [],
+    },
+  },
+  { _id: false, strict: true },
+);
+
 const SafetyFlagsSchema = new Schema<CreatorVideoNarrativeDiagnosisSafetyFlags>(
   {
     containsPersistedVideoReference: { type: Boolean, required: true, default: false },
@@ -165,6 +257,7 @@ const CreatorVideoNarrativeDiagnosisSchema = new Schema<ICreatorVideoNarrativeDi
     commercialReading: { type: CommercialReadingSchema, required: true },
     strategicRecommendation: { type: StrategicRecommendationSchema, required: true },
     profileContribution: { type: ProfileContributionSchema, required: true },
+    evidenceAnchors: { type: EvidenceAnchorsSchema, required: false },
     safetyFlags: { type: SafetyFlagsSchema, required: true },
     schemaVersion: {
       type: String,

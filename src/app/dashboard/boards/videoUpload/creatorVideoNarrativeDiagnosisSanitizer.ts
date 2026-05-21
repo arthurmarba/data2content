@@ -1,5 +1,6 @@
 import type {
   CreatorVideoNarrativeDiagnosisDocument,
+  CreatorVideoNarrativeEvidenceAnchors,
   CreatorVideoNarrativeDiagnosisInput,
   CreatorVideoNarrativeDiagnosisSafetyFlags,
   CreatorVideoNarrativeDiagnosisVideoMetadata,
@@ -9,6 +10,12 @@ const MAX_TEXT_FIELD_LENGTH = 4000;
 const MAX_ARRAY_ITEM_LENGTH = 1000;
 const MAX_SERIALIZED_INPUT_LENGTH = 60000;
 const MAX_TRANSCRIPT_LENGTH = 2000;
+const MAX_SPEECH_QUOTES = 4;
+const MAX_SCENE_ANCHORS = 4;
+const MAX_PROFILE_PATTERN_ANCHORS = 4;
+const MAX_INSTAGRAM_ANCHORS = 4;
+const MAX_QUOTE_LENGTH = 180;
+const MAX_ANCHOR_TEXT_LENGTH = 260;
 
 const SIGNED_URL_REGEX = /https?:\/\/[^\s"'<>]+[?&](x-amz-signature|x-goog-signature|signature|expires|token|policy|x-amz-credential)=\S*/gi;
 const STORAGE_URL_REGEX = /https?:\/\/[^\s"'<>]*(s3|r2|cloudfront|storage\.googleapis|amazonaws|blob\.core\.windows)[^\s"'<>]*/gi;
@@ -54,6 +61,24 @@ const PROFILE_CONTRIBUTION_TYPES = [
 ];
 const PROFILE_CONTRIBUTION_CONFIDENCE = ["low", "medium", "high"];
 const PROFILE_CONTRIBUTION_WEIGHT = ["low", "medium", "high"];
+const QUOTE_SOURCES = ["creator_spoken", "ai_suggested"];
+const QUOTE_ROLES = ["hook", "promise", "turning_point", "closing", "example", "context", "other"];
+const SCENE_SOURCES = ["derived_scene"];
+const MOMENT_ROLES = ["opening", "conflict", "turning_point", "visual_signal", "pacing_signal", "production_signal", "other"];
+const CHAPTER_HINTS = ["pattern", "tension", "movement", "territory", "video_reveal", "profile_impact", "opportunities"];
+
+function truncateSafeText(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+  return `${value.slice(0, Math.max(0, maxLength - 3)).trim()}...`;
+}
+
+function looksLikeTranscriptBlob(value: string): boolean {
+  const normalized = value.trim();
+  if (normalized.length > MAX_TRANSCRIPT_LENGTH) return true;
+  const lineCount = normalized.split(/\n+/).filter(Boolean).length;
+  const timestampLikeCount = (normalized.match(/\b\d{1,2}:\d{2}(?::\d{2})?\b/g) ?? []).length;
+  return lineCount >= 12 || timestampLikeCount >= 6;
+}
 
 function createSafetyFlags(sanitized: boolean): CreatorVideoNarrativeDiagnosisSafetyFlags {
   return {
@@ -181,6 +206,130 @@ function requireOneOf(value: string, validValues: string[], fieldName: string): 
   return value;
 }
 
+function sanitizeEvidenceAnchors(
+  input: unknown,
+  text: (value: unknown, fieldName: string, maxLength?: number) => string,
+): CreatorVideoNarrativeEvidenceAnchors | undefined {
+  if (input === undefined || input === null) return undefined;
+  const anchors = requireObject<Record<string, unknown>>(input, "evidenceAnchors");
+
+  const speechQuotes = Array.isArray(anchors.speechQuotes) ? anchors.speechQuotes.slice(0, MAX_SPEECH_QUOTES) : [];
+  const sceneAnchors = Array.isArray(anchors.sceneAnchors) ? anchors.sceneAnchors.slice(0, MAX_SCENE_ANCHORS) : [];
+
+  const sanitizedSpeechQuotes = speechQuotes.map((item, index) => {
+    const quote = requireObject<Record<string, unknown>>(item, `evidenceAnchors.speechQuotes[${index}]`);
+    if (typeof quote.quote === "string" && /[A-Za-z0-9+/=]{1200,}/.test(quote.quote)) {
+      throw new Error("Leitura de vídeo insegura: base64 grande não pode ser persistido em evidenceAnchors");
+    }
+    const cleanedQuote = text(quote.quote, `evidenceAnchors.speechQuotes[${index}].quote`, MAX_ARRAY_ITEM_LENGTH);
+    if (looksLikeTranscriptBlob(cleanedQuote)) {
+      throw new Error("Leitura de vídeo insegura: transcrição longa não pode ser persistida em evidenceAnchors");
+    }
+
+    return {
+      quote: truncateSafeText(cleanedQuote, MAX_QUOTE_LENGTH),
+      source: requireOneOf(
+        text(quote.source, `evidenceAnchors.speechQuotes[${index}].source`, 40),
+        QUOTE_SOURCES,
+        `evidenceAnchors.speechQuotes[${index}].source`,
+      ) as CreatorVideoNarrativeEvidenceAnchors["speechQuotes"][number]["source"],
+      quoteRole: requireOneOf(
+        text(quote.quoteRole, `evidenceAnchors.speechQuotes[${index}].quoteRole`, 40),
+        QUOTE_ROLES,
+        `evidenceAnchors.speechQuotes[${index}].quoteRole`,
+      ) as CreatorVideoNarrativeEvidenceAnchors["speechQuotes"][number]["quoteRole"],
+      whyItMatters: truncateSafeText(
+        text(quote.whyItMatters, `evidenceAnchors.speechQuotes[${index}].whyItMatters`, MAX_ANCHOR_TEXT_LENGTH),
+        MAX_ANCHOR_TEXT_LENGTH,
+      ),
+      chapterHint: requireOneOf(
+        text(quote.chapterHint, `evidenceAnchors.speechQuotes[${index}].chapterHint`, 40),
+        CHAPTER_HINTS,
+        `evidenceAnchors.speechQuotes[${index}].chapterHint`,
+      ) as CreatorVideoNarrativeEvidenceAnchors["speechQuotes"][number]["chapterHint"],
+    };
+  });
+
+  const sanitizedSceneAnchors = sceneAnchors.map((item, index) => {
+    const scene = requireObject<Record<string, unknown>>(item, `evidenceAnchors.sceneAnchors[${index}]`);
+    if (typeof scene.description === "string" && /[A-Za-z0-9+/=]{1200,}/.test(scene.description)) {
+      throw new Error("Leitura de vídeo insegura: base64 grande não pode ser persistido em evidenceAnchors");
+    }
+    const description = text(scene.description, `evidenceAnchors.sceneAnchors[${index}].description`, MAX_ARRAY_ITEM_LENGTH);
+    if (looksLikeTranscriptBlob(description)) {
+      throw new Error("Leitura de vídeo insegura: transcrição longa não pode ser persistida em evidenceAnchors");
+    }
+
+    return {
+      description: truncateSafeText(description, MAX_ANCHOR_TEXT_LENGTH),
+      source: requireOneOf(
+        text(scene.source, `evidenceAnchors.sceneAnchors[${index}].source`, 40),
+        SCENE_SOURCES,
+        `evidenceAnchors.sceneAnchors[${index}].source`,
+      ) as "derived_scene",
+      momentRole: requireOneOf(
+        text(scene.momentRole, `evidenceAnchors.sceneAnchors[${index}].momentRole`, 40),
+        MOMENT_ROLES,
+        `evidenceAnchors.sceneAnchors[${index}].momentRole`,
+      ) as CreatorVideoNarrativeEvidenceAnchors["sceneAnchors"][number]["momentRole"],
+      whyItMatters: truncateSafeText(
+        text(scene.whyItMatters, `evidenceAnchors.sceneAnchors[${index}].whyItMatters`, MAX_ANCHOR_TEXT_LENGTH),
+        MAX_ANCHOR_TEXT_LENGTH,
+      ),
+      chapterHint: requireOneOf(
+        text(scene.chapterHint, `evidenceAnchors.sceneAnchors[${index}].chapterHint`, 40),
+        CHAPTER_HINTS,
+        `evidenceAnchors.sceneAnchors[${index}].chapterHint`,
+      ) as CreatorVideoNarrativeEvidenceAnchors["sceneAnchors"][number]["chapterHint"],
+    };
+  });
+
+  const creatorIntentAnchor = anchors.creatorIntentAnchor && typeof anchors.creatorIntentAnchor === "object"
+    ? (() => {
+        const intent = requireObject<Record<string, unknown>>(anchors.creatorIntentAnchor, "evidenceAnchors.creatorIntentAnchor");
+        return {
+          source: "creator_goal" as const,
+          statedGoal: truncateSafeText(text(intent.statedGoal, "evidenceAnchors.creatorIntentAnchor.statedGoal", MAX_ANCHOR_TEXT_LENGTH), MAX_ANCHOR_TEXT_LENGTH),
+          interpretedGoal: truncateSafeText(text(intent.interpretedGoal, "evidenceAnchors.creatorIntentAnchor.interpretedGoal", MAX_ANCHOR_TEXT_LENGTH), MAX_ANCHOR_TEXT_LENGTH),
+          whyItMatters: truncateSafeText(text(intent.whyItMatters, "evidenceAnchors.creatorIntentAnchor.whyItMatters", MAX_ANCHOR_TEXT_LENGTH), MAX_ANCHOR_TEXT_LENGTH),
+        };
+      })()
+    : null;
+
+  const profilePatternAnchors = Array.isArray(anchors.profilePatternAnchors)
+    ? anchors.profilePatternAnchors.slice(0, MAX_PROFILE_PATTERN_ANCHORS).map((item, index) => {
+        const pattern = requireObject<Record<string, unknown>>(item, `evidenceAnchors.profilePatternAnchors[${index}]`);
+        const evidenceCount = typeof pattern.evidenceCount === "number" && Number.isFinite(pattern.evidenceCount)
+          ? Math.max(0, Math.trunc(pattern.evidenceCount))
+          : undefined;
+        return {
+          patternLabel: truncateSafeText(text(pattern.patternLabel, `evidenceAnchors.profilePatternAnchors[${index}].patternLabel`, MAX_ANCHOR_TEXT_LENGTH), MAX_ANCHOR_TEXT_LENGTH),
+          whyThisVideoRelates: truncateSafeText(text(pattern.whyThisVideoRelates, `evidenceAnchors.profilePatternAnchors[${index}].whyThisVideoRelates`, MAX_ANCHOR_TEXT_LENGTH), MAX_ANCHOR_TEXT_LENGTH),
+          ...(evidenceCount === undefined ? {} : { evidenceCount }),
+        };
+      })
+    : [];
+
+  const instagramAnchors = Array.isArray(anchors.instagramAnchors)
+    ? anchors.instagramAnchors.slice(0, MAX_INSTAGRAM_ANCHORS).map((item, index) => {
+        const signal = requireObject<Record<string, unknown>>(item, `evidenceAnchors.instagramAnchors[${index}]`);
+        return {
+          signalLabel: truncateSafeText(text(signal.signalLabel, `evidenceAnchors.instagramAnchors[${index}].signalLabel`, MAX_ANCHOR_TEXT_LENGTH), MAX_ANCHOR_TEXT_LENGTH),
+          whyItMatters: truncateSafeText(text(signal.whyItMatters, `evidenceAnchors.instagramAnchors[${index}].whyItMatters`, MAX_ANCHOR_TEXT_LENGTH), MAX_ANCHOR_TEXT_LENGTH),
+          evidenceSummary: truncateSafeText(text(signal.evidenceSummary, `evidenceAnchors.instagramAnchors[${index}].evidenceSummary`, MAX_ANCHOR_TEXT_LENGTH), MAX_ANCHOR_TEXT_LENGTH),
+        };
+      })
+    : [];
+
+  return {
+    speechQuotes: sanitizedSpeechQuotes,
+    sceneAnchors: sanitizedSceneAnchors,
+    creatorIntentAnchor,
+    profilePatternAnchors,
+    instagramAnchors,
+  };
+}
+
 export function sanitizeCreatorVideoNarrativeDiagnosisInput(
   input: CreatorVideoNarrativeDiagnosisInput,
 ): CreatorVideoNarrativeDiagnosisDocument {
@@ -208,8 +357,8 @@ export function sanitizeCreatorVideoNarrativeDiagnosisInput(
   }
 
   let sanitized = false;
-  const text = (value: unknown, fieldName: string) => {
-    const result = sanitizeText(value, fieldName);
+  const text = (value: unknown, fieldName: string, maxLength = MAX_TEXT_FIELD_LENGTH) => {
+    const result = sanitizeText(value, fieldName, maxLength);
     sanitized = sanitized || result.sanitized;
     return result.value;
   };
@@ -231,6 +380,7 @@ export function sanitizeCreatorVideoNarrativeDiagnosisInput(
     "strategicRecommendation",
   );
   const profileContribution = requireObject<Record<string, unknown>>(input.profileContribution, "profileContribution");
+  const evidenceAnchors = sanitizeEvidenceAnchors(input.evidenceAnchors, text);
   const profileContributionType = requireOneOf(
     text(profileContribution.type, "profileContribution.type"),
     PROFILE_CONTRIBUTION_TYPES,
@@ -303,6 +453,7 @@ export function sanitizeCreatorVideoNarrativeDiagnosisInput(
       reason: text(profileContribution.reason, "profileContribution.reason"),
       profileImpactPreview: text(profileContribution.profileImpactPreview, "profileContribution.profileImpactPreview"),
     },
+    ...(evidenceAnchors ? { evidenceAnchors } : {}),
     safetyFlags: createSafetyFlags(sanitized),
     schemaVersion: "creator_video_narrative_diagnosis_v1",
   };

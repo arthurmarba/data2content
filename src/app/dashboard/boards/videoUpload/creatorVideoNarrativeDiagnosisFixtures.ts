@@ -68,6 +68,40 @@ export function buildCreatorVideoNarrativeDiagnosisFixture(
       reason: "O vídeo mostra potencial comercial, mas ainda não deve redefinir o Perfil geral.",
       profileImpactPreview: "Pode virar evidência futura de território em beleza funcional se recorrente.",
     },
+    evidenceAnchors: {
+      speechQuotes: [
+        {
+          quote: "Eu uso isso quando quero resolver textura sem complicar a rotina.",
+          source: "ai_suggested",
+          quoteRole: "example",
+          whyItMatters: "E uma sugestao curta para transformar escolha de produto em promessa clara.",
+          chapterHint: "movement",
+        },
+      ],
+      sceneAnchors: [
+        {
+          description: "Bastidor simples com clareza de recomendação.",
+          source: "derived_scene",
+          momentRole: "visual_signal",
+          whyItMatters: "A cena documenta uso real sem depender de vídeo ou thumbnail persistidos.",
+          chapterHint: "pattern",
+        },
+      ],
+      creatorIntentAnchor: {
+        source: "creator_goal",
+        statedGoal: "Entender se este vídeo pode fortalecer posicionamento comercial.",
+        interpretedGoal: "Mostrar uma rotina confiável sem parecer publi direta.",
+        whyItMatters: "Compara a intenção declarada com a leitura estratégica do vídeo.",
+      },
+      profilePatternAnchors: [
+        {
+          patternLabel: "beleza funcional com rotina prática",
+          whyThisVideoRelates: "O vídeo conecta cuidado cotidiano, critério e explicação simples.",
+          evidenceCount: 1,
+        },
+      ],
+      instagramAnchors: [],
+    },
     schemaVersion: "creator_video_narrative_diagnosis_v1",
     ...overrides,
   };
