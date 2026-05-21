@@ -7,7 +7,7 @@ function text(value: unknown): string {
 }
 
 describe("narrativeMapMobileViewModel", () => {
-  it("gera view model valido com Perfil, Leituras e Oportunidades", () => {
+  it("gera view model valido com Mapa, Leituras e Oportunidades", () => {
     const viewModel = buildNarrativeMapMobileViewModelFixture();
 
     expect(viewModel.profileHeader.displayName).toBe("Lívia Linhares");
@@ -17,11 +17,11 @@ describe("narrativeMapMobileViewModel", () => {
     expect(viewModel.opportunities.items.length).toBeGreaterThan(0);
   });
 
-  it("tabs sao exatamente Perfil, Leituras e Oportunidades", () => {
+  it("tabs sao exatamente Mapa, Leituras e Oportunidades", () => {
     const viewModel = buildNarrativeMapMobileViewModelFixture("default", { activeTab: "readings" });
 
     expect(viewModel.tabs).toEqual([
-      { id: "profile", label: "Perfil", active: false },
+      { id: "profile", label: "Mapa", active: false },
       { id: "readings", label: "Leituras", active: true },
       { id: "opportunities", label: "Oportunidades", active: false },
     ]);

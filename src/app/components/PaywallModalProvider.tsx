@@ -20,6 +20,7 @@ const ALLOWED_CONTEXTS: PaywallContext[] = [
   "reply_email",
   "ai_analysis",
   "calculator",
+  "narrative_map",
   "mentoria",
   "media_kit",
   "publis",
@@ -57,6 +58,10 @@ export default function PaywallModalProvider() {
         typeof detail?.proposalId === "string" && detail.proposalId.trim().length > 0
           ? detail.proposalId.trim()
           : null;
+      const postCheckoutIntent =
+        detail?.postCheckoutIntent === "connect_instagram" || detail?.postCheckoutIntent === "join_community"
+          ? detail.postCheckoutIntent
+          : null;
 
       setContext(normalizedContext);
 
@@ -69,6 +74,7 @@ export default function PaywallModalProvider() {
               source: typeof detail?.source === "string" ? detail.source : null,
               returnTo: sanitizedReturn,
               proposalId,
+              postCheckoutIntent,
               ts: Date.now(),
             })
           );
@@ -83,6 +89,7 @@ export default function PaywallModalProvider() {
               context: normalizedContext,
               source: typeof detail?.source === "string" ? detail.source : null,
               returnTo: sanitizedReturn,
+              postCheckoutIntent,
               ts: Date.now(),
             })
           );

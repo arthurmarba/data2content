@@ -637,7 +637,7 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
     (source: string, context: PaywallContext) => {
       const normalizedPlan = billingStatus.normalizedStatus ?? billingStatus.planStatus ?? null;
       const telemetryContext =
-        context === 'default'
+        context === 'default' || context === 'narrative_map'
           ? 'other'
           : context === 'whatsapp'
             ? 'whatsapp_ai'

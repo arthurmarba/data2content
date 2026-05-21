@@ -10,6 +10,9 @@ import { validateTemporaryUploadInput } from "@/app/dashboard/boards/videoUpload
 import { evaluateVideoNarrativeSignedUploadAllowlist } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageAllowlist";
 import { createVideoNarrativeTemporaryStorageProvider } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageProviderFactory";
 import { createServerSideSignedUploadUrlSigner } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageSignedUrlProvider";
+import { assertCanStartNarrativeMapReading } from "@/app/dashboard/boards/videoUpload/narrativeMapReadingQuotaService";
+import { ensurePlannerAccess } from "@/app/lib/planGuard";
+import { hasPlanPremiumAccess } from "@/utils/planStatus";
 
 const SIGNED_URL_KEYWORDS = ["signature=", "expires=", "token=", "policy="];
 const BASE64_INDICATOR = "base64";
@@ -20,8 +23,41 @@ type MobileStrategicProfileSession = {
     role?: string | null;
     isAdmin?: boolean | null;
     isDev?: boolean | null;
+    planStatus?: string | null;
+    instagramConnected?: boolean | null;
+    isInstagramConnected?: boolean | null;
   };
 } | null;
+
+async function resolveNarrativeMapUploadAccess(sessionUser: NonNullable<MobileStrategicProfileSession>["user"]) {
+  const isAdmin =
+    Boolean(sessionUser?.isAdmin || sessionUser?.isDev) ||
+    sessionUser?.role === "admin" ||
+    sessionUser?.role === "dev";
+  let hasPremiumAccess = hasPlanPremiumAccess(sessionUser?.planStatus ?? null);
+
+  if (!hasPremiumAccess && sessionUser?.id) {
+    const planAccess = await ensurePlannerAccess({
+      session: { user: sessionUser } as any,
+      userId: sessionUser.id,
+      email: sessionUser.email ?? undefined,
+      allowAdmin: true,
+      forceReload: true,
+      routePath: "/api/dashboard/mobile-strategic-profile/upload-session",
+    });
+    hasPremiumAccess = Boolean(planAccess.ok && hasPlanPremiumAccess(planAccess.normalizedStatus));
+  }
+
+  return {
+    isAdmin,
+    hasPremiumAccess,
+    hasFullReportAccess: hasPremiumAccess,
+    instagram: {
+      connected: Boolean(sessionUser?.instagramConnected || sessionUser?.isInstagramConnected),
+      needsReconnect: false,
+    },
+  };
+}
 
 export async function GET() {
   return NextResponse.json({ message: "Método não permitido." }, { status: 405 });
@@ -55,6 +91,31 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { message: "Acesso não autorizado: sessão não identificada." },
         { status: 401 }
+      );
+    }
+
+    const access = await resolveNarrativeMapUploadAccess(session.user);
+    const accessDecision = await assertCanStartNarrativeMapReading({
+      userId: session.user.id,
+      access,
+    });
+    if (!accessDecision.ok) {
+      return NextResponse.json(
+        {
+          ok: false,
+          status: "disabled",
+          reason: "reading_quota_unavailable",
+          accessState: accessDecision.state,
+          quota: accessDecision.quota,
+          issues: [
+            {
+              code: "reading_quota_unavailable",
+              message: accessDecision.message,
+              severity: "blocker",
+            },
+          ],
+        },
+        { status: 403 },
       );
     }
 

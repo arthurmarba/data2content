@@ -399,7 +399,7 @@ export function buildNarrativeMapMobileViewModel(
       badgeLabel: input.instagramConnected ? "Cruzado com Instagram" : synthesisLabel ?? input.currentPresentation.statusLabel,
     },
     tabs: [
-      { id: "profile", label: "Perfil", active: activeTab === "profile" },
+      { id: "profile", label: "Mapa", active: activeTab === "profile" },
       { id: "readings", label: "Leituras", active: activeTab === "readings" },
       { id: "opportunities", label: "Oportunidades", active: activeTab === "opportunities" },
     ],

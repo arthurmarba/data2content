@@ -117,7 +117,7 @@ describe("narrativeMapMobileViewModelServerSelector", () => {
     });
     const serialized = JSON.stringify(result.viewModel).toLowerCase();
 
-    expect(result.viewModel.tabs.map((tab) => tab.label)).toEqual(["Perfil", "Leituras", "Oportunidades"]);
+    expect(result.viewModel.tabs.map((tab) => tab.label)).toEqual(["Mapa", "Leituras", "Oportunidades"]);
     expect(serialized).not.toContain("match real");
   });
 
@@ -180,7 +180,7 @@ describe("narrativeMapMobileViewModelServerSelector", () => {
     });
 
     expect(result.viewModel.hero.badgeLabel).toBe("Cruzado com Instagram");
-    expect(result.viewModel.tabs.map((tab) => tab.label)).toEqual(["Perfil", "Leituras", "Oportunidades"]);
+    expect(result.viewModel.tabs.map((tab) => tab.label)).toEqual(["Mapa", "Leituras", "Oportunidades"]);
   });
 
   it("oportunidades não prometem marca real, creator real ou match real", async () => {

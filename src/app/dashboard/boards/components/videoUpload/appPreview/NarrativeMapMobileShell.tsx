@@ -8,11 +8,17 @@ import { NarrativeMapReadingChapterCard } from "./NarrativeMapReadingChapterCard
 import { NarrativeMapReadingChapterModal } from "./NarrativeMapReadingChapterModal";
 import { NarrativeMapReadingFullDiagnosisModal } from "./NarrativeMapReadingFullDiagnosisModal";
 import { NarrativeMapSnapshotReviewPanel } from "./NarrativeMapSnapshotReviewPanel";
+import {
+  getNarrativeMapAccessAction,
+  getNarrativeMapAccessStatusText,
+  type NarrativeMapAccessState,
+  type NarrativeMapReadingQuotaSnapshot,
+} from "../../../videoUpload/narrativeMapAccessState";
 
 type NarrativeMapReadingPreviewTab = "profile" | "readings" | "opportunities";
 
 const TAB_LABELS: Record<NarrativeMapReadingPreviewTab, string> = {
-  profile: "Perfil",
+  profile: "Mapa",
   readings: "Leituras",
   opportunities: "Oportunidades",
 };
@@ -69,6 +75,9 @@ export function NarrativeMapMobileShell({
   stateNav,
   snapshotReview,
   internalReview,
+  accessState,
+  readingQuota,
+  onPrimaryAccessAction,
 }: {
   viewModel: NarrativeMapMobileViewModel;
   presentation: CreatorNarrativeMapReadingPresentation;
@@ -76,6 +85,9 @@ export function NarrativeMapMobileShell({
   stateNav?: ReactNode;
   snapshotReview?: VideoNarrativeSynthesisSnapshotWriteSummary | null;
   internalReview?: boolean;
+  accessState?: NarrativeMapAccessState;
+  readingQuota?: Partial<NarrativeMapReadingQuotaSnapshot> | null;
+  onPrimaryAccessAction?: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<NarrativeMapReadingPreviewTab>(
     (viewModel.tabs.find((tab) => tab.active)?.id ?? "profile") as NarrativeMapReadingPreviewTab,
@@ -87,6 +99,10 @@ export function NarrativeMapMobileShell({
   const readingsCount = viewModel.profileHeader.metrics.find((metric) => metric.label === "Leituras")?.value ?? "0";
   const patternsCount = viewModel.profileHeader.metrics.find((metric) => metric.label === "Padrões")?.value ?? "0";
   const opportunitiesCount = viewModel.profileHeader.metrics.find((metric) => metric.label === "Oportunidades")?.value ?? "0";
+  const accessAction = accessState ? getNarrativeMapAccessAction(accessState) : null;
+  const accessStatusText = accessState
+    ? getNarrativeMapAccessStatusText({ state: accessState, quota: readingQuota })
+    : null;
 
   return (
     <div className="mx-auto w-full max-w-sm rounded-[2rem] border border-zinc-200 bg-zinc-950 p-2 shadow-xl">
@@ -126,14 +142,20 @@ export function NarrativeMapMobileShell({
             <h2 className="mt-1.5 text-2xl font-semibold tracking-normal text-zinc-950">{viewModel.hero.title}</h2>
             <p className="mt-2 text-base font-semibold leading-6 text-zinc-950">{viewModel.hero.headline}</p>
             <p className="mt-2 text-sm leading-6 text-zinc-600">{viewModel.hero.subheadline}</p>
+            {accessAction && accessStatusText ? (
+              <div className="mt-4 rounded-2xl bg-zinc-50 p-3">
+                <p className="text-xs font-semibold text-zinc-500">{accessStatusText}</p>
+                <button
+                  type="button"
+                  data-priority="primary"
+                  className="mt-2 min-h-[40px] w-full rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-zinc-950/15"
+                  onClick={onPrimaryAccessAction}
+                >
+                  {accessAction.label}
+                </button>
+              </div>
+            ) : null}
             <div className="mt-4 grid gap-2">
-              <button
-                type="button"
-                data-priority="primary"
-                className="min-h-[44px] rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-zinc-950/15"
-              >
-                {viewModel.profile.primaryAction.label}
-              </button>
               {viewModel.profile.secondaryAction ? (
                 <button
                   type="button"

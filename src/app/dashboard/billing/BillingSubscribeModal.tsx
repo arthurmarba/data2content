@@ -143,16 +143,33 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
       "Volte para liberar suas publis",
     ],
   },
-  mentoria: {
-    title: "Mentoria D2C",
-    subtitle:
-      "Participe das reuniões com Arthur Marba, Ronaldo Fonseca e convidados para revisar conteúdo, repertório e posicionamento.",
+  narrative_map: {
+    title: "Desbloqueie seu Perfil vivo",
+    subtitle: "A leitura gratuita mostra o que a D2C percebeu neste vídeo.",
     bullets: [
-      "Agenda semanal com encontros ao vivo",
-      "Acesso ao grupo da comunidade no WhatsApp",
-      "Revisões de conteúdo e roteiros com olhar comercial",
+      "Até 10 leituras estratégicas por mês",
+      "Perfil vivo com padrões e hipóteses",
+      "Conexão com Instagram",
+      "Consultorias em grupo",
     ],
-    ctaLabel: "Ativar Acesso VIP",
+    ctaLabel: "Assinar Pro e conectar Instagram",
+    steps: [
+      "Ative sua assinatura",
+      "Conecte seu Instagram",
+      "Volte para o Perfil",
+    ],
+  },
+  mentoria: {
+    title: "Entre na consultoria da D2C",
+    subtitle:
+      "No Plano Pro, você entra no Grupo VIP e participa das consultorias em grupo, além de liberar o Perfil vivo com 10 leituras por mês e Instagram conectado.",
+    bullets: [
+      "Grupo VIP da D2C",
+      "Consultorias em grupo",
+      "Perfil vivo com 10 leituras por mês",
+      "Instagram conectado",
+    ],
+    ctaLabel: "Assinar Pro e entrar",
     steps: [
       "Ative sua assinatura",
       "Entre no grupo VIP",
@@ -252,9 +269,9 @@ export default function BillingSubscribeModal({
   
   // O modal deve ser uniforme mostrando todo o valor do plano Pro (D2C)
   // mas mantendo os "steps" específicos para guiar o usuário no funil atual.
-  const paywallCopy = PAYWALL_COPY.default;
   const contextCopy = PAYWALL_COPY[effectiveContext] ?? PAYWALL_COPY.default;
-  const bulletItems = FEATURES; 
+  const paywallCopy = contextCopy;
+  const bulletItems = contextCopy.bullets;
   const stepItems = useMemo(() => {
     let items = Array.isArray(contextCopy.steps) ? [...contextCopy.steps] : [];
     if (sessionStatus === "unauthenticated" && items.length > 0) {
@@ -262,7 +279,7 @@ export default function BillingSubscribeModal({
     }
     return items;
   }, [contextCopy.steps, sessionStatus]);
-  const primaryCtaLabel = "Assinar e continuar";
+  const primaryCtaLabel = contextCopy.ctaLabel || "Assinar e continuar";
   const isDefaultContext = effectiveContext === "default";
   const shouldBlockSubscribe =
     !billingStatusError && (hasPremiumAccess || needsPaymentAction);
@@ -372,6 +389,8 @@ export default function BillingSubscribeModal({
             return "planning";
           case "calculator":
             return "calculator";
+          case "narrative_map":
+            return "other";
           case "mentoria":
             return "discover";
           case "whatsapp":

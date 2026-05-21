@@ -8,6 +8,14 @@ import type {
   MobileStrategicProfileSectionCard,
 } from "../../../videoUpload/mobileStrategicProfileMapping";
 import {
+  getNarrativeMapAccessAction,
+  getNarrativeMapAccessStatusText,
+  normalizeNarrativeMapReadingQuotaSnapshot,
+  type NarrativeMapAccessState,
+  type NarrativeMapReadingQuotaSnapshot,
+} from "../../../videoUpload/narrativeMapAccessState";
+import { openPaywallModal } from "@/utils/paywallModal";
+import {
   MOBILE_STRATEGIC_PROFILE_PREVIEW_STATES,
   type MobileStrategicProfilePreviewFixtureState,
 } from "./buildMobileStrategicProfilePreviewFixture";
@@ -45,6 +53,8 @@ type MobileStrategicProfilePreviewProps = {
     input: MobileStrategicProfileDirectUploadInput,
   ) => Promise<MobileStrategicProfileDirectUploadResult>;
   enableRealAnalysis?: boolean;
+  accessState?: NarrativeMapAccessState;
+  readingQuota?: Partial<NarrativeMapReadingQuotaSnapshot> | null;
   onCleanupTemporaryUpload?: (payload: {
     uploadSessionId: string;
     objectKey?: string;
@@ -73,6 +83,15 @@ function isMediaKitAction(action: MobileStrategicProfileAction): boolean {
 
 function isAnalyzeAction(action: MobileStrategicProfileAction): boolean {
   return action.intent === "analyze_video";
+}
+
+function inferAccessStateFromProfile(profile: MobileStrategicProfile): NarrativeMapAccessState {
+  if (profile.state.subscriptionState === "premium") {
+    return profile.state.instagramState === "connected" ? "pro_instagram_connected" : "pro_needs_instagram";
+  }
+  if (profile.state.profileAvailability === "construction") return "free_unused";
+  if (profile.state.diagnosisState !== "empty") return "free_preview_used";
+  return "free_unused";
 }
 
 function StateSwitcher({ activeState }: { activeState?: MobileStrategicProfilePreviewFixtureState }) {
@@ -166,13 +185,22 @@ function AuthGate({ profile, isRealShell }: { profile: MobileStrategicProfile; i
 function ProfileHeader({
   profile,
   onAction,
-  onAnalyze,
+  accessState,
+  readingQuota,
+  onPrimaryAccessAction,
+  onJoinCommunity,
 }: {
   profile: MobileStrategicProfile;
   onAction: (action: MobileStrategicProfileAction) => void;
-  onAnalyze: () => void;
+  accessState: NarrativeMapAccessState;
+  readingQuota: Partial<NarrativeMapReadingQuotaSnapshot> | null | undefined;
+  onPrimaryAccessAction: () => void;
+  onJoinCommunity: () => void;
 }) {
   const identity = profile.header.identity;
+  const accessAction = getNarrativeMapAccessAction(accessState);
+  const statusText = getNarrativeMapAccessStatusText({ state: accessState, quota: readingQuota });
+  const quota = normalizeNarrativeMapReadingQuotaSnapshot(readingQuota);
   const initials = identity.displayName
     .split(/\s+/)
     .filter(Boolean)
@@ -188,14 +216,7 @@ function ProfileHeader({
           <p className="text-sm font-semibold text-zinc-950">{identity.displayHandle ?? "Perfil Estratégico"}</p>
           <p className="text-xs font-medium text-zinc-500">Diagnóstico vivo do creator</p>
         </div>
-        <button
-          type="button"
-          aria-label="Atualizar meu Perfil"
-          className="grid h-10 w-10 place-items-center rounded-full bg-zinc-950 text-xl font-semibold text-white shadow-lg shadow-zinc-950/20"
-          onClick={onAnalyze}
-        >
-          +
-        </button>
+        <span className="rounded-full bg-zinc-950 px-3 py-1 text-xs font-semibold text-white shadow-sm">D2C</span>
       </div>
 
       <div className="mt-5 rounded-[1.75rem] bg-[#f7f7f4] p-4">
@@ -210,9 +231,24 @@ function ProfileHeader({
           </div>
         </div>
 
-        <p className="mt-4 rounded-2xl bg-white px-3 py-2 text-sm leading-6 text-zinc-700 shadow-sm">
-          Cada vídeo analisado ajuda a atualizar seu diagnóstico como creator. Use o botão + para trazer uma nova leitura.
-        </p>
+        <section className="mt-4 rounded-2xl bg-white px-3 py-3 shadow-sm" aria-label="Status do Perfil">
+          <p className="text-xs font-semibold uppercase text-zinc-500">Próximo passo</p>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-zinc-950">{statusText}</p>
+              {accessState === "pro_instagram_connected" ? (
+                <p className="mt-0.5 text-xs text-zinc-500">{quota.usedThisMonth}/10 leituras usadas este mês · Instagram conectado</p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              className="shrink-0 rounded-full bg-zinc-950 px-3 py-2 text-xs font-semibold text-white"
+              onClick={onPrimaryAccessAction}
+            >
+              {accessAction.label}
+            </button>
+          </div>
+        </section>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -223,11 +259,15 @@ function ProfileHeader({
         ))}
       </div>
 
-      <div className="mt-4 grid gap-2">
-        {profile.primaryActions.slice(0, 2).map((action, index) => (
-          <ActionButton key={action.id} action={action} onAction={onAction} fullWidth={index === 0} />
-        ))}
-      </div>
+      {profile.state.subscriptionState === "premium" ? (
+        <button
+          type="button"
+          className="mt-4 rounded-full border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-700"
+          onClick={onJoinCommunity}
+        >
+          Entrar na consultoria
+        </button>
+      ) : null}
     </header>
   );
 }
@@ -342,25 +382,12 @@ function MediaKitBridge({
 
 function BottomNav({
   profile,
-  onAnalyze,
 }: {
   profile: MobileStrategicProfile;
-  onAnalyze: () => void;
 }) {
   return (
-    <nav className="sticky bottom-0 mt-6 grid grid-cols-3 items-center border-t border-zinc-200 bg-white/95 px-4 pb-4 pt-3 backdrop-blur" aria-label="Navegação mobile futura">
-      {profile.navigation.items.map((item) =>
-        item.role === "central_action" ? (
-          <button
-            key={item.id}
-            type="button"
-            aria-label="Analisar vídeo pela ação central"
-            className="mx-auto -mt-7 grid h-14 w-14 place-items-center rounded-full border-4 border-white bg-zinc-950 text-xl font-semibold text-white shadow-xl shadow-zinc-950/25"
-            onClick={onAnalyze}
-          >
-            {item.label}
-          </button>
-        ) : (
+    <nav className="sticky bottom-0 mt-6 grid grid-cols-2 items-center border-t border-zinc-200 bg-white/95 px-4 pb-4 pt-3 backdrop-blur" aria-label="Navegação mobile principal">
+      {profile.navigation.items.map((item) => (
           <a
             key={item.id}
             href={item.href ?? "#"}
@@ -368,9 +395,26 @@ function BottomNav({
           >
             {item.label}
           </a>
-        ),
-      )}
+      ))}
     </nav>
+  );
+}
+
+function FreeConversionCard({ onSubscribe }: { onSubscribe: () => void }) {
+  return (
+    <section className="mx-5 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
+      <h3 className="text-base font-semibold text-zinc-950">Transforme essa leitura em um Perfil vivo</h3>
+      <p className="mt-2 text-sm leading-6 text-zinc-600">
+        No Plano Pro, você libera 10 leituras por mês, conecta seu Instagram e participa das consultorias em grupo.
+      </p>
+      <button
+        type="button"
+        className="mt-3 rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white"
+        onClick={onSubscribe}
+      >
+        Assinar Pro e conectar Instagram
+      </button>
+    </section>
   );
 }
 
@@ -382,14 +426,71 @@ export function MobileStrategicProfilePreview({
   onCreateUploadSession,
   onUploadToTemporarySignedUrl,
   enableRealAnalysis,
+  accessState: accessStateProp,
+  readingQuota,
   onCleanupTemporaryUpload,
 }: MobileStrategicProfilePreviewProps) {
   const [mediaKitModalOpen, setMediaKitModalOpen] = useState(false);
   const [analyzeFlowOpen, setAnalyzeFlowOpen] = useState(false);
   const [profileUpdated, setProfileUpdated] = useState(false);
   const [activeTab, setActiveTab] = useState<"diagnosis" | "commercial">("diagnosis");
+  const [accessMessage, setAccessMessage] = useState<string | null>(null);
+  const accessState = accessStateProp ?? inferAccessStateFromProfile(profile);
+  const normalizedQuota = normalizeNarrativeMapReadingQuotaSnapshot(readingQuota);
 
   if (profile.authGate.visible) return <AuthGate profile={profile} isRealShell={isRealShell} />;
+
+  const openProfilePaywall = () => {
+    openPaywallModal({
+      context: "narrative_map",
+      source: "mobile_profile",
+      returnTo: "/dashboard/boards/mobile-strategic-profile",
+      postCheckoutIntent: "connect_instagram",
+    });
+  };
+
+  const joinCommunity = () => {
+    if (typeof window !== "undefined") {
+      window.location.href = "/planning/discover";
+    }
+  };
+
+  const connectInstagram = () => {
+    if (accessState === "free_unused" || accessState === "free_preview_used") {
+      openProfilePaywall();
+      return;
+    }
+    if (typeof window !== "undefined") {
+      window.location.href = "/dashboard/instagram/connect?next=narrative-map";
+    }
+  };
+
+  const handleStartAnalysis = () => {
+    setAccessMessage(null);
+    if (accessState === "free_unused" || accessState === "pro_instagram_connected" || accessState === "admin" || accessState === "pro_needs_instagram") {
+      setAnalyzeFlowOpen(true);
+      return;
+    }
+    if (accessState === "free_preview_used") {
+      openProfilePaywall();
+      return;
+    }
+    if (accessState === "payment_pending" || accessState === "payment_action_needed") {
+      openProfilePaywall();
+      return;
+    }
+    if (accessState === "pro_quota_reached") {
+      setAccessMessage("Você usou suas 10 leituras deste mês. Seu Perfil continua disponível.");
+    }
+  };
+
+  const handlePrimaryAccessAction = () => {
+    if (accessState === "pro_needs_instagram") {
+      connectInstagram();
+      return;
+    }
+    handleStartAnalysis();
+  };
 
   const handleAction = (action: MobileStrategicProfileAction) => {
     if (isMediaKitAction(action)) {
@@ -398,7 +499,12 @@ export function MobileStrategicProfilePreview({
     }
 
     if (isAnalyzeAction(action)) {
-      setAnalyzeFlowOpen(true);
+      handleStartAnalysis();
+      return;
+    }
+
+    if (action.intent === "connect_instagram") {
+      connectInstagram();
     }
   };
 
@@ -428,7 +534,14 @@ export function MobileStrategicProfilePreview({
 
         <div className="mx-auto w-full max-w-sm rounded-[2rem] border border-zinc-200 bg-zinc-950 p-2 shadow-xl">
           <div className="relative min-h-[720px] overflow-hidden rounded-[1.5rem] bg-white">
-            <ProfileHeader profile={profile} onAction={handleAction} onAnalyze={() => setAnalyzeFlowOpen(true)} />
+            <ProfileHeader
+              profile={profile}
+              onAction={handleAction}
+              accessState={accessState}
+              readingQuota={normalizedQuota}
+              onPrimaryAccessAction={handlePrimaryAccessAction}
+              onJoinCommunity={joinCommunity}
+            />
             <Tabs profile={profile} activeTab={activeTab} onChange={setActiveTab} />
 
             <div className="mt-5 grid gap-5 pb-2">
@@ -436,6 +549,12 @@ export function MobileStrategicProfilePreview({
                 <section className="mx-5 rounded-2xl border border-emerald-100 bg-emerald-50 p-4">
                   <p className="text-sm font-semibold text-zinc-950">Diagnóstico atualizado</p>
                   <p className="mt-1 text-sm leading-6 text-zinc-600">Seu Perfil foi atualizado com a nova leitura.</p>
+                </section>
+              ) : null}
+
+              {accessMessage ? (
+                <section className="mx-5 rounded-2xl border border-amber-100 bg-amber-50 p-4">
+                  <p className="text-sm font-semibold text-zinc-950">{accessMessage}</p>
                 </section>
               ) : null}
 
@@ -447,9 +566,9 @@ export function MobileStrategicProfilePreview({
                     <button
                       type="button"
                       className="mt-3 inline-flex rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white"
-                      onClick={() => setAnalyzeFlowOpen(true)}
+                      onClick={handleStartAnalysis}
                     >
-                      {profile.constructionState.recommendedActionLabel}
+                      Analisar meu primeiro vídeo
                     </button>
                   ) : null}
                 </section>
@@ -459,15 +578,10 @@ export function MobileStrategicProfilePreview({
 
               <MediaKitBridge profile={profile} onOpen={() => setMediaKitModalOpen(true)} />
 
-              {profile.communityBridge.visible ? (
-                <section className="mx-5 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
-                  <h3 className="text-base font-semibold text-zinc-950">{profile.communityBridge.label}</h3>
-                  <p className="mt-1 text-sm leading-6 text-zinc-600">{profile.communityBridge.description}</p>
-                </section>
-              ) : null}
+              {accessState === "free_preview_used" ? <FreeConversionCard onSubscribe={openProfilePaywall} /> : null}
             </div>
 
-            <BottomNav profile={profile} onAnalyze={() => setAnalyzeFlowOpen(true)} />
+            <BottomNav profile={profile} />
             <MobileStrategicProfileAnalyzeFlow
               open={analyzeFlowOpen}
               onClose={() => setAnalyzeFlowOpen(false)}

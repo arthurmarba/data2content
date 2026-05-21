@@ -3,6 +3,7 @@ export type PaywallContext =
   | "reply_email"
   | "ai_analysis"
   | "calculator"
+  | "narrative_map"
   | "mentoria"
   | "media_kit"
   | "publis"
@@ -14,6 +15,7 @@ export type PaywallEventDetail = {
   source?: string | null;
   returnTo?: string | null;
   proposalId?: string | null;
+  postCheckoutIntent?: "connect_instagram" | "join_community" | null;
 };
 
 export const PAYWALL_RETURN_STORAGE_KEY = "d2c.paywall.return";

@@ -4,6 +4,14 @@ Este diretório implementa a nova Home do dashboard. Cada card tem regras claras
 
 ## Cards da Release 1
 
+### Comunidade / MM89
+
+- A Comunidade permanece marketplace/vitrine de creators da D2C.
+- O acesso à consultoria em grupo e ao Grupo VIP aparece como banner compacto inline na página Comunidade.
+- Free vê CTA `Assinar Pro e entrar`; Pro vê apenas `Entrar na consultoria` / acesso ao Grupo VIP.
+- O banner usa o paywall existente com contexto de mentoria e `postCheckoutIntent: join_community`.
+- O Perfil mobile usa balão/status para próxima ação; Comunidade não renderiza balão sobreposto.
+
 ### 1. `next_post`
 - **Dados esperados**: slot (dia/hora), 1–3 ganchos, lift vs. P50, status de conexão do Instagram.
 - **Fallback**: se `isInstagramConnected === false`, exibe CTA “Conectar Instagram” com copy “Conecte o Instagram para gerar seu primeiro planner personalizado”.
@@ -37,4 +45,3 @@ Este diretório implementa a nova Home do dashboard. Cada card tem regras claras
 - Substituir dados mockados em `HomeClientPage` por chamadas reais (planner, métricas de comunidade, billing etc.).
 - Implementar camada de carregamento (`loading`) e tratamento de erros usando os props já previstos em `CardShell`.
 - Encadear ações dos CTAs às rotas/modais correspondentes (planner, WhatsApp, media kit).
-

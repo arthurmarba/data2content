@@ -247,8 +247,8 @@ function buildTabs(state: MobileStrategicProfileState): MobileStrategicProfileTa
   if (state.profileAvailability === "auth_gate") return [];
 
   return [
-    { id: "diagnosis", label: "Diagnóstico", active: true },
-    { id: "commercial", label: "Comercial", active: false },
+    { id: "diagnosis", label: "Mapa", active: true },
+    { id: "commercial", label: "Oportunidades", active: false },
   ];
 }
 
@@ -284,8 +284,8 @@ function buildDiagnosisSection(input: MobileStrategicProfileInput): MobileStrate
       cards: [
         card({
           id: "diagnosis-empty",
-          title: "Seu Perfil Estratégico começa aqui",
-          body: "Analise seu primeiro vídeo para a D2C identificar sua narrativa, ponto forte e próximo passo.",
+          title: "Teste sua primeira leitura narrativa",
+          body: "Envie um vídeo e veja como a D2C entende sua fala, cena, intenção e próximo ajuste.",
           tone: "action",
           source: "state",
         }),
@@ -440,7 +440,7 @@ function buildMediaKitBridge(input: MobileStrategicProfileInput): MobileStrategi
 
 function buildCommunityBridge(input: MobileStrategicProfileInput): MobileStrategicProfileCommunityBridge {
   return {
-    visible: input.state.profileAvailability !== "auth_gate",
+    visible: false,
     label: "Comunidade",
     href: href(input.communityHref) ?? "/dashboard/community",
     description: "Acesse a Comunidade Data2Content, destino existente para continuar aprendendo com outros membros.",
@@ -458,13 +458,6 @@ function buildNavigation(input: MobileStrategicProfileInput): MobileStrategicPro
         active: true,
       },
       {
-        id: "analyze_video",
-        label: "+",
-        href: href(input.analyzeVideoHref),
-        role: "central_action",
-        active: false,
-      },
-      {
         id: "community",
         label: "Comunidade",
         href: href(input.communityHref) ?? "/dashboard/community",
@@ -479,12 +472,12 @@ function buildConstructionState(input: MobileStrategicProfileInput): MobileStrat
   const visible = input.state.profileAvailability === "construction";
   return {
     visible,
-    title: visible ? "Seu Perfil Estratégico começa aqui" : "",
+    title: visible ? "Teste sua primeira leitura narrativa" : "",
     description: visible
-      ? "Analise seu primeiro vídeo para a D2C identificar sua narrativa, ponto forte e próximo passo."
+      ? "Envie um vídeo e veja como a D2C entende sua fala, cena, intenção e próximo ajuste."
       : "",
     recommendedActionLabel: visible
-      ? input.state.recommendedActions.find((item) => item.intent === "analyze_video")?.label ?? "Analisar primeiro vídeo"
+      ? input.state.recommendedActions.find((item) => item.intent === "analyze_video")?.label ?? "Analisar meu primeiro vídeo"
       : null,
   };
 }
@@ -492,7 +485,6 @@ function buildConstructionState(input: MobileStrategicProfileInput): MobileStrat
 export function buildMobileStrategicProfile(input: MobileStrategicProfileInput): MobileStrategicProfile {
   const tabs = buildTabs(input.state);
   const primaryActions = input.state.recommendedActions
-    .filter((item) => item.id !== "community-future")
     .map((item) => actionFromState(item, input));
 
   return {

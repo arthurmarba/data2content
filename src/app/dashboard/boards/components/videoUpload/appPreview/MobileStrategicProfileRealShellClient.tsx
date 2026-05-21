@@ -7,11 +7,19 @@ import { buildMobileStrategicProfileExistingDataAdapter } from "../../../videoUp
 import { buildMobileStrategicProfileFromSnapshot } from "../../../videoUpload/mobileStrategicProfileSnapshotMapping";
 import { MobileStrategicProfilePreview } from "./MobileStrategicProfilePreview";
 import { NarrativeMapMobileShell } from "./NarrativeMapMobileShell";
+import { MobileStrategicProfileAnalyzeFlow } from "./MobileStrategicProfileAnalyzeFlow";
 import { fetchHomeSummaryCached } from "../../../../home/homeSummaryClient";
+import useBillingStatus from "@/app/hooks/useBillingStatus";
+import { openPaywallModal } from "@/utils/paywallModal";
 import { requestUploadSession } from "./mobileStrategicProfileUploadSessionClient";
 import { uploadVideoToTemporarySignedUrl } from "./mobileStrategicProfileDirectUploadClient";
 import type { CreatorNarrativeMapReadingPresentation } from "../../../videoUpload/creatorNarrativeMapReadingChapters";
 import type { NarrativeMapMobileViewModel } from "../../../videoUpload/narrativeMapMobileViewModel";
+import {
+  normalizeNarrativeMapReadingQuotaSnapshot,
+  resolveNarrativeMapAccessState,
+  type NarrativeMapReadingQuotaSnapshot,
+} from "../../../videoUpload/narrativeMapAccessState";
 import type { VideoNarrativeSynthesisSnapshotWriteSummary } from "../../../videoUpload/videoNarrativeSafeResponseBuilder";
 
 interface MobileStrategicProfileRealShellClientProps {
@@ -21,6 +29,7 @@ interface MobileStrategicProfileRealShellClientProps {
   initialNarrativeMapViewModel?: NarrativeMapMobileViewModel | null;
   initialNarrativeMapPresentation?: CreatorNarrativeMapReadingPresentation | null;
   initialSynthesisSnapshotWrite?: VideoNarrativeSynthesisSnapshotWriteSummary | null;
+  initialReadingQuota?: NarrativeMapReadingQuotaSnapshot | null;
   internalSnapshotReview?: boolean;
 }
 
@@ -31,9 +40,27 @@ export function MobileStrategicProfileRealShellClient({
   initialNarrativeMapViewModel,
   initialNarrativeMapPresentation,
   initialSynthesisSnapshotWrite,
+  initialReadingQuota,
   internalSnapshotReview,
 }: MobileStrategicProfileRealShellClientProps) {
   const realAnalysisEnabled = process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED === "1";
+  const billing = useBillingStatus();
+  const quota = normalizeNarrativeMapReadingQuotaSnapshot(initialReadingQuota);
+  const sessionUser = session?.user as any;
+  const accessState = resolveNarrativeMapAccessState({
+    hasPremiumAccess: billing.hasResolvedOnce ? billing.hasPremiumAccess : sessionUser?.planStatus === "active",
+    hasFullReportAccess: billing.hasResolvedOnce ? billing.hasFullReportAccess : sessionUser?.planStatus === "active",
+    needsCheckout: billing.needsCheckout,
+    needsPaymentAction: billing.needsPaymentAction,
+    needsBilling: billing.needsBilling,
+    needsPaymentUpdate: billing.needsPaymentUpdate,
+    isAdmin: billing.isAdminViewer || sessionUser?.role === "admin" || sessionUser?.isAdmin || sessionUser?.isDev,
+    instagram: billing.instagram ?? {
+      connected: Boolean(sessionUser?.instagramConnected || sessionUser?.isInstagramConnected),
+      needsReconnect: false,
+    },
+    readingQuota: quota,
+  });
 
   // 1. Calcular o perfil inicial (Session-only, snapshot ou fixture via stateQuery)
   const [profile, setProfile] = useState<MobileStrategicProfile>(() => {
@@ -60,6 +87,8 @@ export function MobileStrategicProfileRealShellClient({
   });
 
   const [isHydrating, setIsHydrating] = useState(false);
+  const [mapAnalyzeFlowOpen, setMapAnalyzeFlowOpen] = useState(false);
+  const [mapAccessMessage, setMapAccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     // Se for anônimo, não precisamos hidratar
@@ -236,6 +265,32 @@ export function MobileStrategicProfileRealShellClient({
     }
   }, []);
 
+  const openProfilePaywall = useCallback(() => {
+    openPaywallModal({
+      context: "narrative_map",
+      source: "mobile_profile",
+      returnTo: "/dashboard/boards/mobile-strategic-profile",
+      postCheckoutIntent: "connect_instagram",
+    });
+  }, []);
+
+  const handleMapPrimaryAccessAction = useCallback(() => {
+    setMapAccessMessage(null);
+    if (accessState === "free_unused" || accessState === "pro_instagram_connected" || accessState === "pro_needs_instagram" || accessState === "admin") {
+      if (accessState === "pro_needs_instagram") {
+        window.location.href = "/dashboard/instagram/connect?next=narrative-map";
+        return;
+      }
+      setMapAnalyzeFlowOpen(true);
+      return;
+    }
+    if (accessState === "pro_quota_reached") {
+      setMapAccessMessage("Você usou suas 10 leituras deste mês. Seu Perfil continua disponível.");
+      return;
+    }
+    openProfilePaywall();
+  }, [accessState, openProfilePaywall]);
+
   return (
     <div className="relative">
       {isHydrating && (
@@ -258,6 +313,24 @@ export function MobileStrategicProfileRealShellClient({
               presentation={initialNarrativeMapPresentation}
               snapshotReview={initialSynthesisSnapshotWrite}
               internalReview={internalSnapshotReview}
+              accessState={accessState}
+              readingQuota={quota}
+              onPrimaryAccessAction={handleMapPrimaryAccessAction}
+            />
+            {mapAccessMessage ? (
+              <p className="mx-auto max-w-sm rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-semibold text-zinc-950">
+                {mapAccessMessage}
+              </p>
+            ) : null}
+            <MobileStrategicProfileAnalyzeFlow
+              open={mapAnalyzeFlowOpen}
+              onClose={() => setMapAnalyzeFlowOpen(false)}
+              onComplete={() => setMapAnalyzeFlowOpen(false)}
+              onSubmitAnalysis={handleAnalysisSubmit}
+              onCreateUploadSession={requestUploadSession}
+              onUploadToTemporarySignedUrl={uploadVideoToTemporarySignedUrl}
+              enableRealAnalysis={realAnalysisEnabled}
+              onCleanupTemporaryUpload={handleCleanupTemporaryUpload}
             />
           </div>
         </main>
@@ -270,6 +343,8 @@ export function MobileStrategicProfileRealShellClient({
           onUploadToTemporarySignedUrl={uploadVideoToTemporarySignedUrl}
           enableRealAnalysis={realAnalysisEnabled}
           onCleanupTemporaryUpload={handleCleanupTemporaryUpload}
+          accessState={accessState}
+          readingQuota={quota}
         />
       )}
     </div>

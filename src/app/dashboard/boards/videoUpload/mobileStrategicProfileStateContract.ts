@@ -209,8 +209,8 @@ function buildAuthenticatedSummary(params: {
 }): MobileStrategicProfileStateSummary {
   if (params.diagnosisState === "empty") {
     return {
-      title: "Seu Perfil Estratégico começa aqui",
-      description: "Analise seu primeiro vídeo para a D2C identificar sua narrativa, ponto forte e próximo passo.",
+      title: "Teste sua primeira leitura narrativa",
+      description: "Envie um vídeo e veja como a D2C entende sua fala, cena, intenção e próximo ajuste.",
       helper: "Aqui ficam sua leitura atual, seus próximos passos e seu potencial comercial.",
     };
   }
@@ -300,7 +300,7 @@ function buildRecommendedActions(params: {
     actions.push(action({
       id: "analyze-first-video",
       intent: "analyze_video",
-      label: "Analisar primeiro vídeo",
+      label: "Analisar meu primeiro vídeo",
       description: "Analise seu primeiro vídeo para a D2C entender sua narrativa, ponto forte e próximo passo.",
       priority: "primary",
     }));
@@ -308,8 +308,8 @@ function buildRecommendedActions(params: {
     actions.push(action({
       id: "analyze-next-video",
       intent: "analyze_video",
-      label: "Atualizar meu Perfil",
-      description: "Use um vídeo para atualizar seu Perfil Estratégico.",
+      label: "Nova leitura",
+      description: "Use um vídeo para atualizar seu Perfil vivo.",
       priority: "primary",
     }));
   }
@@ -320,8 +320,8 @@ function buildRecommendedActions(params: {
       intent: "connect_instagram",
       label: "Conectar Instagram",
       description: params.subscriptionState === "premium"
-        ? "Conecte Instagram para comparar sua narrativa com mais contexto."
-        : "Conecte Instagram para ativar o Mídia Kit existente e melhorar a leitura.",
+        ? "Conecte Instagram para cruzar suas leituras com conteúdos que sua audiência respondeu melhor."
+        : "Instagram é um recurso Pro do Perfil vivo.",
       priority: "secondary",
     }));
   }
@@ -353,15 +353,6 @@ function buildRecommendedActions(params: {
       priority: "secondary",
     }));
   }
-
-  actions.push(action({
-    id: "community-future",
-    intent: "continue_diagnosis",
-    label: "Comunidade",
-    description: "Destino existente de navegação futura, sem recriar experiências sociais neste contrato.",
-    priority: "secondary",
-    disabled: true,
-  }));
 
   return actions;
 }
