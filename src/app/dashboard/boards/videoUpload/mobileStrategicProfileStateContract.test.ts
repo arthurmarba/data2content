@@ -92,10 +92,10 @@ describe("mobileStrategicProfileStateContract", () => {
     expect(result.readinessState).toBe("first_diagnosis_pending");
     expect(result.diagnosisState).toBe("empty");
     expect(result.statusPills.map((pill) => pill.label)).toContain("Perfil em construção");
-    expect(result.summary.title).toBe("Seu Perfil Estratégico começa aqui");
+    expect(result.summary.title).toBe("Teste sua primeira leitura narrativa");
   });
 
-  it("authenticated user without diagnosis prioritizes Analisar primeiro vídeo", () => {
+  it("authenticated user without diagnosis prioritizes Analisar meu primeiro vídeo", () => {
     const result = resolveMobileStrategicProfileState({
       isAuthenticated: true,
     });
@@ -103,7 +103,7 @@ describe("mobileStrategicProfileStateContract", () => {
     expect(result.recommendedActions[0]).toMatchObject({
       id: "analyze-first-video",
       intent: "analyze_video",
-      label: "Analisar primeiro vídeo",
+      label: "Analisar meu primeiro vídeo",
       priority: "primary",
     });
   });
@@ -123,7 +123,7 @@ describe("mobileStrategicProfileStateContract", () => {
     expect(result.recommendedActions[0]).toMatchObject({
       id: "analyze-next-video",
       intent: "analyze_video",
-      label: "Atualizar meu Perfil",
+      label: "Nova leitura",
     });
   });
 
@@ -218,7 +218,7 @@ describe("mobileStrategicProfileStateContract", () => {
     expect(allText(result)).not.toContain("mediakitview");
   });
 
-  it("Comunidade is only modeled as a future existing destination without feed or chat", () => {
+  it("Comunidade is not duplicated as a Perfil CTA when it already exists in navigation", () => {
     const result = resolveMobileStrategicProfileState({
       isAuthenticated: true,
       diagnosisPresentation: makePresentation("free"),
@@ -226,11 +226,7 @@ describe("mobileStrategicProfileStateContract", () => {
     });
     const communityAction = result.recommendedActions.find((item) => item.id === "community-future");
 
-    expect(communityAction).toMatchObject({
-      label: "Comunidade",
-      disabled: true,
-    });
-    expect(communityAction?.description).toContain("Destino existente de navegação futura");
+    expect(communityAction).toBeUndefined();
     expect(allText(result)).not.toContain("feed");
     expect(allText(result)).not.toContain("comentários");
   });

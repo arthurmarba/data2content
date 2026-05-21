@@ -7,6 +7,10 @@ import {
   type MobileStrategicProfilePreviewFixtureState,
 } from "./buildMobileStrategicProfilePreviewFixture";
 
+jest.mock("@/utils/paywallModal", () => ({
+  openPaywallModal: jest.fn(),
+}));
+
 const SOURCE_PATH = path.join(__dirname, "MobileStrategicProfilePreview.tsx");
 
 function renderState(state: MobileStrategicProfilePreviewFixtureState) {
@@ -39,15 +43,14 @@ describe("MobileStrategicProfilePreview", () => {
     expect(screen.getByText("Ana Creator")).toBeInTheDocument();
     expect(screen.getAllByText("@ana.creator").length).toBeGreaterThan(0);
     expect(screen.getByText("Diagnóstico vivo do creator")).toBeInTheDocument();
-    expect(
-      screen.getAllByText(/Cada vídeo analisado ajuda a atualizar seu diagnóstico como creator/).length,
-    ).toBeGreaterThan(0);
+    expect(screen.getByLabelText("Status do Perfil")).toBeInTheDocument();
   });
 
-  it("renders header plus button as profile update action", () => {
+  it("renders profile status bubble as next action", () => {
     renderState("first_reading_free");
 
-    expect(screen.getByLabelText("Atualizar meu Perfil")).toBeInTheDocument();
+    expect(screen.getByText("Leitura grátis usada")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Assinar Pro" })).toBeInTheDocument();
   });
 
   it("renders status pills without forbidden technical language", () => {
@@ -80,8 +83,8 @@ describe("MobileStrategicProfilePreview", () => {
     renderState("account_only");
 
     expect(screen.getAllByText("Perfil em construção").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Analisar primeiro vídeo").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Seu Perfil Estratégico começa aqui").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Analisar meu primeiro vídeo").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Teste sua primeira leitura narrativa").length).toBeGreaterThan(0);
   });
 
   it("construction profile does not show Media Kit available", () => {
@@ -93,18 +96,19 @@ describe("MobileStrategicProfilePreview", () => {
     expect(text).not.toContain("ver como marca");
   });
 
-  it("first reading renders Diagnosis and Atualizar meu Perfil CTA", () => {
+  it("first reading renders Mapa and conversion CTA", () => {
     renderState("first_reading_free");
 
-    expect(screen.getAllByText("Diagnóstico").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("Comercial").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Mapa").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Oportunidades").length).toBeGreaterThan(0);
     expect(screen.getByText("O que este vídeo comunica")).toBeInTheDocument();
-    expect(screen.getAllByText("Atualizar meu Perfil").length).toBeGreaterThan(0);
+    expect(screen.getByText("Transforme essa leitura em um Perfil vivo")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Assinar Pro e conectar Instagram" })).toBeInTheDocument();
   });
 
   it("premium renders Commercial section without brand promise", () => {
     const { container } = renderState("premium_without_instagram");
-    fireEvent.click(screen.getByRole("tab", { name: "Comercial" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Oportunidades" }));
     const text = renderedText(container);
 
     expect(screen.getAllByText("Potencial comercial").length).toBeGreaterThan(0);
@@ -121,20 +125,20 @@ describe("MobileStrategicProfilePreview", () => {
     expect(screen.getByText("Instagram conectado")).toBeInTheDocument();
   });
 
-  it("internal tabs switch between Diagnóstico and Comercial locally", () => {
+  it("internal tabs switch between Mapa and Oportunidades locally", () => {
     renderState("premium_without_instagram");
 
-    expect(screen.getByRole("tab", { name: "Diagnóstico" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Mapa" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("Diagnóstico vivo")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("tab", { name: "Comercial" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Oportunidades" }));
 
-    expect(screen.getByRole("tab", { name: "Comercial" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Oportunidades" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getAllByText("Potencial comercial").length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole("tab", { name: "Diagnóstico" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Mapa" }));
 
-    expect(screen.getByRole("tab", { name: "Diagnóstico" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Mapa" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("Diagnóstico vivo")).toBeInTheDocument();
   });
 
@@ -164,35 +168,34 @@ describe("MobileStrategicProfilePreview", () => {
     expect(screen.queryByRole("dialog", { name: "Vamos atualizar seu Perfil" })).not.toBeInTheDocument();
   });
 
-  it("opens Analyze flow from header plus button", () => {
-    renderState("first_reading_free");
+  it("opens Analyze flow from status bubble when free reading is available", () => {
+    renderState("account_only");
 
-    fireEvent.click(screen.getByLabelText("Atualizar meu Perfil"));
-
-    expect(screen.getByRole("dialog", { name: "Vamos atualizar seu Perfil" })).toBeInTheDocument();
-  });
-
-  it("opens Analyze flow from bottom nav central plus", () => {
-    renderState("first_reading_free");
-    const nav = screen.getByLabelText("Navegação mobile futura");
-
-    fireEvent.click(within(nav).getByRole("button", { name: "Analisar vídeo pela ação central" }));
+    fireEvent.click(screen.getByRole("button", { name: "Analisar vídeo" }));
 
     expect(screen.getByRole("dialog", { name: "Vamos atualizar seu Perfil" })).toBeInTheDocument();
   });
 
-  it("opens Analyze flow from Atualizar meu Perfil action", () => {
+  it("does not render central analyze action in bottom nav", () => {
     renderState("first_reading_free");
+    const nav = screen.getByLabelText("Navegação mobile principal");
 
-    clickAnalyzeAction("Atualizar meu Perfil");
+    expect(within(nav).queryByRole("button", { name: "Analisar vídeo pela ação central" })).not.toBeInTheDocument();
+    expect(within(nav).queryByText("+")).not.toBeInTheDocument();
+  });
+
+  it("opens Analyze flow from Analisar meu primeiro vídeo action in account_only", () => {
+    renderState("account_only");
+
+    clickAnalyzeAction("Analisar meu primeiro vídeo");
 
     expect(screen.getByText("Use um vídeo para a D2C entender novos sinais da sua narrativa.")).toBeInTheDocument();
   });
 
-  it("opens Analyze flow from Analisar primeiro vídeo action in account_only", () => {
+  it("opens Analyze flow from empty state CTA in account_only", () => {
     renderState("account_only");
 
-    clickAnalyzeAction("Analisar primeiro vídeo");
+    clickAnalyzeAction("Analisar meu primeiro vídeo");
 
     expect(screen.getByRole("dialog", { name: "Vamos atualizar seu Perfil" })).toBeInTheDocument();
   });
@@ -206,9 +209,9 @@ describe("MobileStrategicProfilePreview", () => {
   });
 
   it("Analyze flow returns to Profile after short confirmation", () => {
-    renderState("first_reading_free");
+    renderState("account_only");
 
-    clickAnalyzeAction("Atualizar meu Perfil");
+    clickAnalyzeAction("Analisar meu primeiro vídeo");
     advanceAnalyzeFlowToConfirmation();
 
     expect(screen.getByRole("dialog", { name: "Diagnóstico atualizado." })).toBeInTheDocument();
@@ -216,14 +219,14 @@ describe("MobileStrategicProfilePreview", () => {
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.getByText("Perfil Estratégico mobile")).toBeInTheDocument();
-    expect(screen.getAllByText("Diagnóstico").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Mapa").length).toBeGreaterThan(0);
     expect(screen.getByText("Seu Perfil foi atualizado com a nova leitura.")).toBeInTheDocument();
   });
 
   it("Analyze flow does not create analyzed videos history or active file input", () => {
-    const { container } = renderState("first_reading_free");
+    const { container } = renderState("account_only");
 
-    clickAnalyzeAction("Atualizar meu Perfil");
+    clickAnalyzeAction("Analisar meu primeiro vídeo");
     advanceAnalyzeFlowToConfirmation();
     fireEvent.click(screen.getByRole("button", { name: "Voltar para meu Perfil" }));
 
@@ -239,13 +242,11 @@ describe("MobileStrategicProfilePreview", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("opens Media Kit modal from share_media_kit action", () => {
+  it("does not compete with status action for Media Kit", () => {
     renderState("media_kit_available");
 
-    fireEvent.click(screen.getByRole("button", { name: "Compartilhar Mídia Kit" }));
-
-    expect(screen.getByRole("dialog", { name: "Compartilhar Mídia Kit" })).toBeInTheDocument();
-    expect(screen.getByText("Use o Mídia Kit existente para apresentar seu perfil para marcas.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Compartilhar Mídia Kit" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Copiar link" })).toBeInTheDocument();
   });
 
   it("opens Media Kit modal from bridge action", () => {
@@ -271,25 +272,25 @@ describe("MobileStrategicProfilePreview", () => {
     const text = renderedText(container);
 
     expect(screen.getAllByText("Comunidade").length).toBeGreaterThan(0);
-    expect(screen.getByText("Acesse a Comunidade Data2Content, destino existente para continuar aprendendo com outros membros.")).toBeInTheDocument();
+    expect(text).not.toContain("conhecer comunidade");
     expect(text).not.toContain("feed");
     expect(text).not.toContain("chat");
     expect(text).not.toContain("comments");
     expect(text).not.toContain("comentários");
   });
 
-  it("bottom nav renders Perfil, + and Comunidade", () => {
+  it("bottom nav renders only Perfil and Comunidade", () => {
     renderState("first_reading_free");
-    const nav = screen.getByLabelText("Navegação mobile futura");
+    const nav = screen.getByLabelText("Navegação mobile principal");
 
     expect(within(nav).getByText("Perfil")).toBeInTheDocument();
-    expect(within(nav).getByText("+")).toBeInTheDocument();
     expect(within(nav).getByText("Comunidade")).toBeInTheDocument();
+    expect(within(nav).queryByText("+")).not.toBeInTheDocument();
   });
 
   it("bottom nav does not render Mídia Kit, Diagnóstico or Comercial as global tabs", () => {
     renderState("media_kit_available");
-    const nav = screen.getByLabelText("Navegação mobile futura");
+    const nav = screen.getByLabelText("Navegação mobile principal");
 
     expect(within(nav).queryByText("Mídia Kit")).not.toBeInTheDocument();
     expect(within(nav).queryByText("Diagnóstico")).not.toBeInTheDocument();

@@ -207,7 +207,7 @@ describe("mobileStrategicProfileMapping", () => {
     expect(result.authGate.action).toMatchObject({ label: "Entrar e analisar vídeo" });
   });
 
-  it("construction profile builds header, empty diagnosis section and Analisar primeiro vídeo action", () => {
+  it("construction profile builds header, empty diagnosis section and Analisar meu primeiro vídeo action", () => {
     const result = build({ state: makeState({ diagnosisPresentation: null, instagramConnected: false }) });
 
     expect(result.constructionState.visible).toBe(true);
@@ -217,7 +217,7 @@ describe("mobileStrategicProfileMapping", () => {
       state: "construction",
       title: "Diagnóstico",
     });
-    expect(result.primaryActions[0]).toMatchObject({ label: "Analisar primeiro vídeo", intent: "analyze_video" });
+    expect(result.primaryActions[0]).toMatchObject({ label: "Analisar meu primeiro vídeo", intent: "analyze_video" });
   });
 
   it("construction profile does not show Media Kit Bridge as available", () => {
@@ -339,14 +339,14 @@ describe("mobileStrategicProfileMapping", () => {
     expect(text).not.toContain("mediakitview");
   });
 
-  it("Community appears only as bridge and existing destination, without social surface modeling", () => {
+  it("Community bridge is not duplicated inside Perfil when Community is a fixed destination", () => {
     const presentation = makePresentation("free");
     const state = makeState({ accessLevel: "free", diagnosisPresentation: presentation });
     const result = build({ state, presentation, communityHref: "/community" });
     const text = textOf(result.communityBridge);
 
     expect(result.communityBridge).toMatchObject({
-      visible: true,
+      visible: false,
       label: "Comunidade",
       href: "/community",
       description: "Acesse a Comunidade Data2Content, destino existente para continuar aprendendo com outros membros.",
@@ -356,12 +356,11 @@ describe("mobileStrategicProfileMapping", () => {
     expect(text).not.toContain("creators");
   });
 
-  it("navigation contains profile, central analyze_video and community", () => {
+  it("navigation contains only profile and community destinations", () => {
     const result = build({ state: makeState({ diagnosisPresentation: null }) });
 
     expect(result.navigation.items).toEqual([
       expect.objectContaining({ id: "profile", role: "destination", active: true }),
-      expect.objectContaining({ id: "analyze_video", role: "central_action" }),
       expect.objectContaining({ id: "community", role: "destination" }),
     ]);
   });

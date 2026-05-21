@@ -27,6 +27,14 @@ jest.mock("@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadFeatu
   isRealUploadEnabled: jest.fn(),
 }));
 
+jest.mock("@/app/dashboard/boards/videoUpload/narrativeMapReadingQuotaService", () => ({
+  assertCanStartNarrativeMapReading: jest.fn(),
+}));
+
+jest.mock("@/app/lib/planGuard", () => ({
+  ensurePlannerAccess: jest.fn(),
+}));
+
 jest.mock("@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageSignedUrlProvider", () => {
   const actual = jest.requireActual("@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageSignedUrlProvider");
   return {
@@ -39,6 +47,10 @@ const getServerSession = require("next-auth/next").getServerSession as jest.Mock
 const createServerSideSignedUploadUrlSigner =
   require("@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageSignedUrlProvider")
     .createServerSideSignedUploadUrlSigner as jest.Mock;
+const assertCanStartNarrativeMapReading =
+  require("@/app/dashboard/boards/videoUpload/narrativeMapReadingQuotaService")
+    .assertCanStartNarrativeMapReading as jest.Mock;
+const ensurePlannerAccess = require("@/app/lib/planGuard").ensurePlannerAccess as jest.Mock;
 const ROUTE_SOURCE_PATH = path.join(__dirname, "route.ts");
 const originalEnv = process.env;
 
@@ -101,6 +113,13 @@ describe("POST /api/dashboard/mobile-strategic-profile/upload-session", () => {
     (isTemporaryUploadSessionEnabled as jest.Mock).mockReturnValue(true);
     (isRealUploadEnabled as jest.Mock).mockReturnValue(false);
     (getServerSession as jest.Mock).mockResolvedValue({ user: { id: "usr_123" } });
+    ensurePlannerAccess.mockResolvedValue({ ok: true, normalizedStatus: null, source: "database" });
+    assertCanStartNarrativeMapReading.mockResolvedValue({
+      ok: true,
+      state: "free_unused",
+      quota: { monthKey: "2026-05", usedTotal: 0, usedThisMonth: 0, freeTotalLimit: 1, proMonthlyLimit: 10 },
+      message: "Leitura disponível.",
+    });
   });
 
   afterAll(() => {
@@ -126,6 +145,21 @@ describe("POST /api/dashboard/mobile-strategic-profile/upload-session", () => {
 
     const res = await POST(createRequest("POST", validBasePayload));
     expect(res.status).toBe(403);
+  });
+
+  it("POST bloqueia antes do upload quando quota de leitura está indisponível", async () => {
+    assertCanStartNarrativeMapReading.mockResolvedValue({
+      ok: false,
+      state: "free_preview_used",
+      quota: { monthKey: "2026-05", usedTotal: 1, usedThisMonth: 1, freeTotalLimit: 1, proMonthlyLimit: 10 },
+      message: "Limite de leituras indisponível.",
+    });
+
+    const res = await POST(createRequest("POST", validBasePayload));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.reason).toBe("reading_quota_unavailable");
+    expect(body.accessState).toBe("free_preview_used");
   });
 
   it("POST bloqueia provider real / storage real se allowlist estiver desligada", async () => {

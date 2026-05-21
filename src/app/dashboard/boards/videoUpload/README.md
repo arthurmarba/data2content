@@ -6,6 +6,41 @@ O vídeo ainda não é enviado de verdade e ainda não é processado de verdade.
 
 Hoje, vídeo é apenas uma possível origem futura para preencher uma `NarrativeSource`.
 
+### MM89 — Pro Access, Reading Quota, Instagram and Community UX
+
+Status: implementado.
+
+Arquivos principais:
+
+- `MM89_PRO_ACCESS_READING_QUOTA_INSTAGRAM_COMMUNITY_UX.md`
+- `narrativeMapAccessState.ts`
+- `narrativeMapReadingQuotaService.ts`
+- `../components/videoUpload/appPreview/MobileStrategicProfilePreview.tsx`
+- `../components/videoUpload/appPreview/MobileStrategicProfileRealShellClient.tsx`
+- `../components/videoUpload/appPreview/NarrativeMapMobileShell.tsx`
+- `src/app/dashboard/discover/CommunityConversionSection.tsx`
+- `src/app/billing/success/page.tsx`
+
+O que faz:
+
+- cria o estado de acesso do Mapa Narrativo para Free, Pro, pagamento pendente e admin;
+- aplica 1 leitura gratuita total para Free e 10 leituras por mês para Pro;
+- bloqueia nova leitura antes de criar sessão de upload quando o usuário não tem acesso ou quota;
+- mantém Instagram como recurso Pro;
+- deixa o menu fixo mobile com apenas `Perfil` e `Comunidade`;
+- move `Nova leitura` para o Perfil, no balão/status ou no estado vazio inicial;
+- troca as abas internas para `Mapa | Leituras | Oportunidades`;
+- mantém Comunidade como marketplace e troca a seção de mentoria por banner compacto;
+- adiciona `postCheckoutIntent` seguro para `connect_instagram` e `join_community`.
+
+O que não faz:
+
+- não cria novo plano, novo checkout ou pacote extra de leituras;
+- não cria botão central de nova leitura no menu;
+- não transforma Comunidade em landing page de mentoria;
+- não altera profundamente Stripe, NextAuth, DashboardShell, BoardShell, sidebar ou MediaKitView;
+- não salva vídeo, thumbnail, signed URL, upload URL, objectKey, localPath, storageProviderPath, raw response ou transcrição longa.
+
 ### MM86 — Diagnostic Writer Evidence Anchors
 
 Status: concluído.

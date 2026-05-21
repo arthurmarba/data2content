@@ -12,6 +12,16 @@ function renderShell(state = "narrative_map_three_related_readings", internalRev
       presentation={fixture.presentation}
       snapshotReview={fixture.synthesisSnapshotWrite}
       internalReview={internalReview}
+      accessState="pro_instagram_connected"
+      readingQuota={{
+        userId: "user-test",
+        freeReadingUsed: true,
+        totalCompletedReadings: 4,
+        usedThisMonth: 4,
+        periodStart: "2026-05-01T00:00:00.000Z",
+        periodEnd: "2026-06-01T00:00:00.000Z",
+      }}
+      onPrimaryAccessAction={jest.fn()}
     />,
   );
 }
@@ -21,10 +31,10 @@ function renderedText(container: HTMLElement): string {
 }
 
 describe("NarrativeMapMobileShell", () => {
-  it("renderiza tabs Perfil, Leituras e Oportunidades", () => {
+  it("renderiza tabs Mapa, Leituras e Oportunidades", () => {
     renderShell();
 
-    expect(screen.getByRole("tab", { name: "Perfil" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Mapa" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Leituras" })).toBeInTheDocument();
     expect(screen.getByRole("tab", { name: "Oportunidades" })).toBeInTheDocument();
   });

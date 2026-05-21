@@ -5,6 +5,8 @@ import { isMobileStrategicProfileEnabled } from "../videoUpload/mobileStrategicP
 import { MobileStrategicProfileRealShellClient } from "../components/videoUpload/appPreview/MobileStrategicProfileRealShellClient";
 import { getStrategicProfileSnapshotByUserId } from "../videoUpload/mobileStrategicProfileSnapshotService";
 import { buildNarrativeMapMobileViewModelFromReadings } from "../videoUpload/narrativeMapMobileViewModelServerSelector";
+import { getNarrativeMapReadingQuotaForUser } from "../videoUpload/narrativeMapReadingQuotaService";
+import type { NarrativeMapReadingQuotaSnapshot } from "../videoUpload/narrativeMapAccessState";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +38,7 @@ export default async function MobileStrategicProfilePage({
   let initialSnapshotPayload = null;
   let initialNarrativeMapViewModel = null;
   let initialNarrativeMapPresentation = null;
+  let initialReadingQuota: NarrativeMapReadingQuotaSnapshot | null = null;
   const isSnapshotEnabled = process.env.MOBILE_STRATEGIC_PROFILE_SNAPSHOT_ENABLED !== "0";
 
   if (isSnapshotEnabled && session.user?.id) {
@@ -51,6 +54,9 @@ export default async function MobileStrategicProfilePage({
 
   if (session.user?.id) {
     try {
+      initialReadingQuota = await getNarrativeMapReadingQuotaForUser({
+        userId: session.user.id,
+      });
       const result = await buildNarrativeMapMobileViewModelFromReadings({
         userId: session.user.id,
         displayName: session.user.name ?? "Creator",
@@ -76,6 +82,7 @@ export default async function MobileStrategicProfilePage({
       initialSnapshotPayload={initialSnapshotPayload}
       initialNarrativeMapViewModel={initialNarrativeMapViewModel}
       initialNarrativeMapPresentation={initialNarrativeMapPresentation}
+      initialReadingQuota={initialReadingQuota}
     />
   );
 }

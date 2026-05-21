@@ -7,6 +7,7 @@ export type OpenPaywallModalOptions = {
   source?: string | null;
   returnTo?: string | null;
   proposalId?: string | null;
+  postCheckoutIntent?: "connect_instagram" | "join_community" | null;
 };
 
 export function openPaywallModal(options?: OpenPaywallModalOptions) {
@@ -17,6 +18,7 @@ export function openPaywallModal(options?: OpenPaywallModalOptions) {
     source: options?.source ?? null,
     returnTo: options?.returnTo ?? null,
     proposalId: options?.proposalId ?? null,
+    postCheckoutIntent: options?.postCheckoutIntent ?? null,
   };
 
   try {

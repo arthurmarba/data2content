@@ -41,6 +41,13 @@ function resolveInstagramNextTarget(
   return null;
 }
 
+function sanitizeReturnTo(value: unknown): string | null {
+  if (typeof value === "string" && value.startsWith("/") && !value.startsWith("//")) {
+    return value;
+  }
+  return null;
+}
+
 export default function BillingSuccessPage() {
   const sp = useSearchParams();
   const sid = sp.get("session_id");
@@ -79,15 +86,22 @@ export default function BillingSuccessPage() {
             if (typeof data?.context === "string") {
               resolvedContext = data.context;
             }
-            const returnTo =
-              typeof data?.returnTo === "string" && data.returnTo.startsWith("/")
-                ? data.returnTo
+            const returnTo = sanitizeReturnTo(data?.returnTo);
+            const postCheckoutIntent =
+              data?.postCheckoutIntent === "connect_instagram" || data?.postCheckoutIntent === "join_community"
+                ? data.postCheckoutIntent
                 : null;
             const source =
               typeof data?.source === "string" && data.source.trim().length > 0
                 ? data.source.trim().toLowerCase()
                 : null;
-            const instagramNextTarget = !instagramConnected
+            if (postCheckoutIntent === "connect_instagram" && !instagramConnected) {
+              redirectHref = "/dashboard/instagram/connect?next=narrative-map";
+              keepPaywallReturnState = true;
+            } else if (postCheckoutIntent === "join_community" && returnTo) {
+              redirectHref = returnTo;
+            }
+            const instagramNextTarget = !redirectHref && !instagramConnected
               ? resolveInstagramNextTarget(resolvedContext, source)
               : null;
             if (instagramNextTarget) {
