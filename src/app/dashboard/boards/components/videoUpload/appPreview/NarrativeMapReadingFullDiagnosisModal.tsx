@@ -36,6 +36,18 @@ export function NarrativeMapReadingFullDiagnosisModal({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
           <div className="grid gap-5">
+            {presentation.evidenceSummaryItems.length > 0 ? (
+              <section className="border-b border-zinc-200 pb-5" aria-label="Onde a D2C percebeu isso">
+                <h3 className="text-sm font-semibold text-zinc-950">Onde a D2C percebeu isso</h3>
+                <ul className="mt-3 grid gap-2">
+                  {presentation.evidenceSummaryItems.map((item) => (
+                    <li key={item} className="rounded-lg bg-zinc-50 px-3 py-2 text-xs leading-5 text-zinc-700">
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
             {presentation.chapters.map((chapter) => (
               <article key={chapter.id} className="border-b border-zinc-200 pb-5 last:border-b-0">
                 <div className="flex items-start justify-between gap-3">

@@ -1,5 +1,6 @@
 import type {
   CreatorVideoNarrativeDiagnosisDocument,
+  CreatorVideoNarrativeEvidenceAnchors,
   CreatorVideoNarrativeDiagnosisProfileContribution,
 } from "./creatorVideoNarrativeDiagnosisTypes";
 
@@ -43,6 +44,7 @@ export interface CreatorNarrativeMapReadingPresentation {
     intent: "analyze_another_video" | "connect_instagram" | "upgrade" | "open_full_reading";
     helper: string | null;
   };
+  evidenceSummaryItems: string[];
   safetyNote?: string | null;
   createdAt: string | null;
 }
@@ -57,6 +59,7 @@ export type CreatorNarrativeMapReadingDiagnosisShape = Pick<
   | "commercialReading"
   | "strategicRecommendation"
   | "profileContribution"
+  | "evidenceAnchors"
   | "createdAt"
 >;
 
@@ -129,6 +132,54 @@ function evidenceFrom(values: Array<string | null | undefined>): string[] {
     .slice(0, MAX_EVIDENCE_ITEMS);
 }
 
+function speechAnchorLabel(anchor: CreatorVideoNarrativeEvidenceAnchors["speechQuotes"][number]): string {
+  return anchor.source === "creator_spoken"
+    ? `Fala: "${anchor.quote}"`
+    : `Sugestão de fala: "${anchor.quote}"`;
+}
+
+function anchorForChapter(
+  anchors: CreatorVideoNarrativeEvidenceAnchors | undefined,
+  chapterId: CreatorNarrativeMapReadingChapterId,
+): string | null {
+  const speech = anchors?.speechQuotes.find((anchor) => anchor.chapterHint === chapterId);
+  if (speech) return speechAnchorLabel(speech);
+
+  const scene = anchors?.sceneAnchors.find((anchor) => anchor.chapterHint === chapterId);
+  if (scene) return `Cena: ${scene.description}`;
+
+  if (chapterId === "profile_impact" && anchors?.profilePatternAnchors?.[0]) {
+    return `Perfil: ${anchors.profilePatternAnchors[0].whyThisVideoRelates}`;
+  }
+
+  if (chapterId === "opportunities" && anchors?.instagramAnchors?.[0]) {
+    return `Instagram: ${anchors.instagramAnchors[0].evidenceSummary}`;
+  }
+
+  if (chapterId === "video_reveal" && anchors?.creatorIntentAnchor) {
+    return `Intenção: ${anchors.creatorIntentAnchor.statedGoal}`;
+  }
+
+  return null;
+}
+
+function anchorSentence(anchor: string | null): string {
+  if (!anchor) {
+    return "Ainda falta uma fala ou cena curta suficiente para sustentar esta parte com precisão.";
+  }
+  return `Isso aparece em: ${anchor}.`;
+}
+
+function evidenceSummaryItemsFrom(anchors: CreatorVideoNarrativeEvidenceAnchors | undefined): string[] {
+  if (!anchors) return [];
+  return [
+    ...anchors.speechQuotes.slice(0, 2).map(speechAnchorLabel),
+    ...anchors.sceneAnchors.slice(0, 2).map((anchor) => `Cena: ${anchor.description}`),
+    ...(anchors.creatorIntentAnchor ? [`Intenção: ${anchors.creatorIntentAnchor.statedGoal}`] : []),
+    ...(anchors.instagramAnchors?.slice(0, 1).map((anchor) => `Instagram: ${anchor.evidenceSummary}`) ?? []),
+  ].map((item) => limitText(item, PREVIEW_LIMIT)).slice(0, MAX_EVIDENCE_ITEMS);
+}
+
 function isoDate(value: Date | string | undefined): string | null {
   if (value instanceof Date && Number.isFinite(value.getTime())) return value.toISOString();
   if (typeof value === "string") {
@@ -178,7 +229,7 @@ function buildChapter(params: {
   title: string;
   preview: string;
   fullReading: string;
-  evidence: string[];
+  evidence: Array<string | null | undefined>;
   action?: string | null;
   badgeLabel?: string | null;
   tone: CreatorNarrativeMapReadingChapterTone;
@@ -262,7 +313,15 @@ export function buildCreatorNarrativeMapReadingPresentation(
   const commercial = diagnosis.commercialReading;
   const recommendation = diagnosis.strategicRecommendation;
   const contribution = diagnosis.profileContribution;
+  const anchors = diagnosis.evidenceAnchors;
   const firstReading = isFirstReading(input);
+  const patternAnchor = anchorForChapter(anchors, "pattern");
+  const tensionAnchor = anchorForChapter(anchors, "tension");
+  const movementAnchor = anchorForChapter(anchors, "movement");
+  const territoryAnchor = anchorForChapter(anchors, "territory");
+  const videoRevealAnchor = anchorForChapter(anchors, "video_reveal");
+  const profileImpactAnchor = anchorForChapter(anchors, "profile_impact");
+  const opportunitiesAnchor = anchorForChapter(anchors, "opportunities");
   const patternPreview = firstReading
     ? "Ainda é cedo para cravar um padrão. Este vídeo abre uma hipótese inicial para acompanhar nas próximas leituras."
     : firstText([video.mainNarrative, contribution.profileImpactPreview]);
@@ -278,9 +337,9 @@ export function buildCreatorNarrativeMapReadingPresentation(
       title: "Seu padrão",
       preview: patternPreview,
       fullReading: firstReading
-        ? "Você parece estar abrindo uma primeira pista, não uma conclusão sobre o Perfil. Neste vídeo, a leitura mostra um sinal útil, mas ainda precisa aparecer em novas amostras para virar padrão. O próximo movimento é repetir a intenção narrativa em formatos próximos e observar o que volta com força."
-        : `Você parece ter mais força quando ${cleanText(video.mainNarrative).toLowerCase()}. Isso aparece neste vídeo como ${cleanText(video.dominantInsight).toLowerCase()}. O próximo movimento é repetir esse eixo em novas cenas para entender se ele sustenta o Perfil.`,
-      evidence: [video.mainNarrative, video.dominantInsight, contribution.reason],
+        ? `Você parece estar abrindo uma primeira pista, não uma conclusão sobre o Perfil. ${anchorSentence(patternAnchor)} O que isso revela é um sinal útil, mas ainda precisa aparecer em novas amostras para virar padrão. Por isso, teste a mesma intenção narrativa em formatos próximos e observe o que volta com força.`
+        : `Você parece ter mais força quando ${cleanText(video.mainNarrative).toLowerCase()}. ${anchorSentence(patternAnchor)} O que isso revela é ${cleanText(video.dominantInsight).toLowerCase()}. Por isso, repita esse eixo em novas cenas para entender se ele sustenta o Perfil.`,
+      evidence: [patternAnchor, video.mainNarrative, video.dominantInsight, contribution.reason],
       action: recommendation.whatToRepeat,
       badgeLabel: firstReading ? "Hipótese" : "Padrão",
       tone: "mirror",
@@ -293,8 +352,8 @@ export function buildCreatorNarrativeMapReadingPresentation(
         speech.openingRead,
         production.firstFrame,
       ], "A ideia existe, mas a tensão ainda precisa aparecer mais cedo."),
-      fullReading: `A narrativa ganha clareza quando o conflito aparece cedo. Neste vídeo, a tensão principal passa por ${cleanText(recommendation.whatToAvoid).toLowerCase()}. O ajuste é tornar o incômodo mais visível antes de explicar demais a cena.`,
-      evidence: [speech.openingRead, production.firstFrame, recommendation.whatToAvoid],
+      fullReading: `Você parece ganhar clareza quando o conflito aparece cedo. ${anchorSentence(tensionAnchor)} O que isso revela é que a tensão principal passa por ${cleanText(recommendation.whatToAvoid).toLowerCase()}. Por isso, torne o incômodo mais visível antes de explicar demais a cena.`,
+      evidence: [tensionAnchor, speech.openingRead, production.firstFrame, recommendation.whatToAvoid],
       action: recommendation.mainAdjustment,
       badgeLabel: "Ajuste",
       tone: "attention",
@@ -306,8 +365,8 @@ export function buildCreatorNarrativeMapReadingPresentation(
         recommendation.nextExperiment,
         recommendation.mainAdjustment,
       ], "Testar uma abertura mais direta e comparar se a leitura fica mais clara."),
-      fullReading: `O próximo teste deve ser simples: ${cleanText(recommendation.nextExperiment).toLowerCase()}. A evidência a observar é ${cleanText(recommendation.successSignal).toLowerCase()}. Isso transforma a leitura em movimento prático, sem tratar um vídeo isolado como verdade final.`,
-      evidence: [recommendation.nextExperiment, recommendation.successSignal, recommendation.mainAdjustment],
+      fullReading: `Você parece pronto para transformar a leitura em teste. ${anchorSentence(movementAnchor)} O que isso revela é um caminho prático: ${cleanText(recommendation.nextExperiment).toLowerCase()}. Por isso, observe ${cleanText(recommendation.successSignal).toLowerCase()}, sem tratar um vídeo isolado como verdade final.`,
+      evidence: [movementAnchor, recommendation.nextExperiment, recommendation.successSignal, recommendation.mainAdjustment],
       action: recommendation.nextExperiment,
       badgeLabel: "Próximo teste",
       tone: "action",
@@ -316,8 +375,8 @@ export function buildCreatorNarrativeMapReadingPresentation(
       id: "territory",
       title: "Seu território",
       preview: territoryText,
-      fullReading: `${territoryText} A leitura comercial aqui é de fit narrativo: ${cleanText(commercial.whyItCouldFitBrands).toLowerCase()}. Isso nao indica marca fechada; indica um campo para testar linguagem, formato e repetição.`,
-      evidence: [commercial.summary, ...territories, commercial.whyItCouldFitBrands],
+      fullReading: `Você parece se aproximar de um território, não de uma promessa comercial. ${anchorSentence(territoryAnchor)} O que isso revela é fit narrativo possível: ${cleanText(commercial.whyItCouldFitBrands).toLowerCase()}. Por isso, teste linguagem, formato e repetição antes de falar em marca fechada.`,
+      evidence: [territoryAnchor, commercial.summary, ...territories, commercial.whyItCouldFitBrands],
       action: commercial.adAdaptationIdea,
       badgeLabel: "Território",
       tone: "opportunity",
@@ -329,8 +388,8 @@ export function buildCreatorNarrativeMapReadingPresentation(
         video.whatVideoReveals,
         video.summary,
       ], "Este vídeo adiciona uma leitura inicial ao mapa narrativo."),
-      fullReading: `Este vídeo revela ${cleanText(video.whatVideoReveals).toLowerCase()}. A intenção percebida é ${cleanText(video.creatorIntent).toLowerCase()}. Como leitura isolada, ele documenta um sinal; como Perfil, ele ainda precisa ser comparado com novas leituras.`,
-      evidence: [video.summary, video.whatVideoReveals, video.creatorIntent],
+      fullReading: `Você parece estar mostrando mais do que o tema do vídeo. ${anchorSentence(videoRevealAnchor)} O que isso revela é ${cleanText(video.whatVideoReveals).toLowerCase()}. Por isso, compare a intenção percebida, ${cleanText(video.creatorIntent).toLowerCase()}, com novas leituras antes de transformar isso em Perfil.`,
+      evidence: [videoRevealAnchor, video.summary, video.whatVideoReveals, video.creatorIntent],
       action: recommendation.whatToRepeat,
       badgeLabel: "Leitura",
       tone: "neutral",
@@ -339,8 +398,8 @@ export function buildCreatorNarrativeMapReadingPresentation(
       id: "profile_impact",
       title: "Como pesa no Perfil",
       preview: contribution.profileImpactPreview,
-      fullReading: `${cleanText(contribution.reason)} Esta contribuição tem confiança ${contribution.confidence} e peso ${contribution.weight}. Ela não atualiza a narrativa principal sozinha; apenas organiza o que o agregador futuro deve considerar.`,
-      evidence: [contribution.reason, contribution.profileImpactPreview],
+      fullReading: `Você parece adicionar um sinal ao Perfil, não uma conclusão final. ${anchorSentence(profileImpactAnchor)} O que isso revela é: ${cleanText(contribution.reason).toLowerCase()} Por isso, trate esta leitura como insumo para o agregador futuro, sem atualizar a narrativa principal sozinha.`,
+      evidence: [profileImpactAnchor, contribution.reason, contribution.profileImpactPreview],
       action: firstReading
         ? "Analise mais vídeos para entender se este sinal se repete."
         : "Compare este sinal com novas leituras antes de transformar em narrativa principal.",
@@ -354,8 +413,8 @@ export function buildCreatorNarrativeMapReadingPresentation(
         commercial.adAdaptationIdea,
         territoryText,
       ], "A oportunidade ainda esta em formação e depende de repetição narrativa."),
-      fullReading: `A oportunidade aqui ainda é um território em formação. ${cleanText(commercial.adAdaptationIdea)} O limite importante é: ${cleanText(commercial.limitations).toLowerCase()}. O caminho é testar o fit narrativo antes de falar em parceria real.`,
-      evidence: [commercial.summary, commercial.adAdaptationIdea, commercial.limitations, ...territories],
+      fullReading: `Você parece ter um território em formação, ainda dependente de repetição. ${anchorSentence(opportunitiesAnchor)} O que isso revela é uma adaptação possível: ${cleanText(commercial.adAdaptationIdea).toLowerCase()} Por isso, teste o fit narrativo antes de falar em parceria real; o limite é ${cleanText(commercial.limitations).toLowerCase()}.`,
+      evidence: [opportunitiesAnchor, commercial.summary, commercial.adAdaptationIdea, commercial.limitations, ...territories],
       action: recommendation.nextExperiment,
       badgeLabel: "Em formação",
       tone: "opportunity",
@@ -370,6 +429,7 @@ export function buildCreatorNarrativeMapReadingPresentation(
     statusLabel: status.statusLabel,
     chapters,
     primaryAction: buildPrimaryAction(input),
+    evidenceSummaryItems: evidenceSummaryItemsFrom(anchors),
     safetyNote: "A D2C guarda a leitura estratégica, não o vídeo.",
     createdAt: isoDate(diagnosis.createdAt),
   };

@@ -3,6 +3,10 @@ import path from "path";
 import {
   buildCreatorNarrativeMapReadingPresentation,
 } from "./creatorNarrativeMapReadingChapters";
+import {
+  hasSpecificEvidenceAnchor,
+  isProbablyGenericDiagnosticText,
+} from "./creatorVideoNarrativeDiagnosticSpecificityQa";
 import { buildNarrativeMapReadingDiagnosisFixture } from "./creatorNarrativeMapReadingChaptersFixtures";
 
 const FORBIDDEN_OUTPUT_TERMS = [
@@ -116,7 +120,8 @@ describe("creatorNarrativeMapReadingChapters", () => {
       badgeLabel: "Sinal comercial",
       tone: "opportunity",
     }));
-    expect(chapter?.fullReading).toContain("não atualiza a narrativa principal sozinha");
+    expect(chapter?.fullReading).toContain("sem atualizar a narrativa principal sozinha");
+    expect(chapter?.fullReading).not.toMatch(/confiança|peso|low|medium|high/i);
   });
 
   it("nao usa termos proibidos na apresentacao", () => {
@@ -225,6 +230,106 @@ describe("creatorNarrativeMapReadingChapters", () => {
     });
 
     expect(presentation.safetyNote).toBe("A D2C guarda a leitura estratégica, não o vídeo.");
+  });
+
+  it("usa anchor especifica nos capitulos pattern e tension quando disponivel", () => {
+    const diagnosis = buildNarrativeMapReadingDiagnosisFixture({
+      evidenceAnchors: {
+        speechQuotes: [
+          {
+            quote: "rapidinho",
+            source: "creator_spoken",
+            quoteRole: "hook",
+            whyItMatters: "A palavra cria promessa pequena.",
+            chapterHint: "tension",
+          },
+        ],
+        sceneAnchors: [
+          {
+            description: "promessa de conversa curta que vira conversa longa",
+            source: "derived_scene",
+            momentRole: "turning_point",
+            whyItMatters: "A virada sustenta o humor.",
+            chapterHint: "pattern",
+          },
+        ],
+        creatorIntentAnchor: null,
+        profilePatternAnchors: [],
+        instagramAnchors: [],
+      },
+    });
+
+    const presentation = buildCreatorNarrativeMapReadingPresentation({ diagnosis, analyzedVideosCount: 4 });
+    expect(presentation.chapters.find((chapter) => chapter.id === "pattern")?.fullReading).toContain(
+      "promessa de conversa curta",
+    );
+    expect(presentation.chapters.find((chapter) => chapter.id === "tension")?.fullReading).toContain(
+      'Fala: "rapidinho"',
+    );
+  });
+
+  it("diferencia fala real de sugestao da IA em movement", () => {
+    const diagnosis = buildNarrativeMapReadingDiagnosisFixture({
+      evidenceAnchors: {
+        speechQuotes: [
+          {
+            quote: "Quando a reunião era para ser rápida...",
+            source: "ai_suggested",
+            quoteRole: "promise",
+            whyItMatters: "Teste de frase para abertura.",
+            chapterHint: "movement",
+          },
+        ],
+        sceneAnchors: [],
+        creatorIntentAnchor: null,
+        profilePatternAnchors: [],
+        instagramAnchors: [],
+      },
+    });
+    const presentation = buildCreatorNarrativeMapReadingPresentation({ diagnosis });
+
+    expect(presentation.chapters.find((chapter) => chapter.id === "movement")?.fullReading).toContain(
+      "Sugestão de fala",
+    );
+    expect(presentation.chapters.find((chapter) => chapter.id === "movement")?.fullReading).not.toContain(
+      "quando você diz",
+    );
+  });
+
+  it("capitulos sem anchors assumem limitacao em vez de ficarem genericos", () => {
+    const diagnosis = buildNarrativeMapReadingDiagnosisFixture({ evidenceAnchors: undefined });
+    const presentation = buildCreatorNarrativeMapReadingPresentation({ diagnosis });
+
+    expect(presentation.chapters[0].fullReading).toContain("Ainda falta uma fala ou cena curta");
+  });
+
+  it("expoe resumo de evidencias para modal como Onde a D2C percebeu isso", () => {
+    const presentation = buildCreatorNarrativeMapReadingPresentation({
+      diagnosis: buildNarrativeMapReadingDiagnosisFixture(),
+    });
+
+    expect(presentation.evidenceSummaryItems.length).toBeGreaterThan(0);
+    expect(presentation.evidenceSummaryItems.join(" ")).toContain("Sugestão de fala");
+  });
+
+  it("detecta diagnostico generico sem evidencia e permite frase ampla com anchor", () => {
+    const diagnosis = buildNarrativeMapReadingDiagnosisFixture();
+    const text = "Seu conteúdo gera conexão.";
+    const anchored = `${text} Isso aparece em: Cena: Bastidor simples com clareza de recomendação.`;
+
+    expect(isProbablyGenericDiagnosticText(text, diagnosis.evidenceAnchors)).toBe(true);
+    expect(hasSpecificEvidenceAnchor(anchored, diagnosis.evidenceAnchors)).toBe(true);
+    expect(isProbablyGenericDiagnosticText(anchored, diagnosis.evidenceAnchors)).toBe(false);
+  });
+
+  it("texto final nao serve para qualquer creator sem evidencia especifica", () => {
+    const presentation = buildCreatorNarrativeMapReadingPresentation({
+      diagnosis: buildNarrativeMapReadingDiagnosisFixture(),
+    });
+    const serialized = JSON.stringify(presentation);
+
+    expect(serialized).toMatch(/Bastidor simples|Eu uso isso|Intenção:/);
+    expect(isProbablyGenericDiagnosticText(serialized, buildNarrativeMapReadingDiagnosisFixture().evidenceAnchors)).toBe(false);
   });
 
   it("e funcao pura e testavel, sem banco", () => {

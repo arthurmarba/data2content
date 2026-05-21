@@ -6,6 +6,38 @@ O vídeo ainda não é enviado de verdade e ainda não é processado de verdade.
 
 Hoje, vídeo é apenas uma possível origem futura para preencher uma `NarrativeSource`.
 
+### MM86 — Diagnostic Writer Evidence Anchors
+
+Status: concluído.
+
+Arquivos principais:
+
+- `MM86_DIAGNOSTIC_WRITER_EVIDENCE_ANCHORS.md`
+- `creatorVideoNarrativeDiagnosisTypes.ts`
+- `creatorVideoNarrativeDiagnosisSanitizer.ts`
+- `creatorVideoNarrativeDiagnosisMapper.ts`
+- `creatorNarrativeMapReadingChapters.ts`
+- `creatorVideoNarrativeDiagnosticSpecificityQa.ts`
+- `../components/videoUpload/appPreview/NarrativeMapReadingFullDiagnosisModal.tsx`
+
+O que faz:
+
+- adiciona `evidenceAnchors` seguro ao diagnóstico documentado;
+- diferencia fala real do creator (`creator_spoken`) de sugestão da IA (`ai_suggested`);
+- sanitiza quotes, cenas, intenção, sinais de Perfil e sinais de Instagram;
+- faz o mapper preencher anchors conservadores quando só há dados estruturados;
+- atualiza capítulos para priorizar fala, cena ou intenção específica;
+- adiciona QA anti-genérico sem expor score para o usuário;
+- mostra “Onde a D2C percebeu isso” na modal quando houver anchors.
+
+O que não faz:
+
+- não pluga endpoint real público;
+- não chama Gemini real;
+- não chama storage/R2;
+- não salva vídeo, thumbnail, signed URL, objectKey, raw response ou transcrição longa;
+- não altera upload, cleanup, billing/Stripe, NextAuth, MediaKitView, Comunidade, DashboardShell, BoardShell, sidebar ou matches reais.
+
 ### MM74 — Video Reading Document Foundation
 
 Status: concluído.

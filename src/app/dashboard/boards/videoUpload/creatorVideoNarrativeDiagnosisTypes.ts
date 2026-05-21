@@ -15,6 +15,68 @@ export type CreatorVideoNarrativeDiagnosisContributionType =
 
 export type CreatorVideoNarrativeDiagnosisWeight = "low" | "medium" | "high";
 
+export type CreatorVideoNarrativeEvidenceChapterHint =
+  | "pattern"
+  | "tension"
+  | "movement"
+  | "territory"
+  | "video_reveal"
+  | "profile_impact"
+  | "opportunities";
+
+export type CreatorVideoNarrativeSpeechQuoteSource = "creator_spoken" | "ai_suggested";
+
+export interface CreatorVideoNarrativeDiagnosisSpeechQuoteAnchor {
+  quote: string;
+  source: CreatorVideoNarrativeSpeechQuoteSource;
+  quoteRole:
+    | "hook"
+    | "promise"
+    | "turning_point"
+    | "closing"
+    | "example"
+    | "context"
+    | "other";
+  whyItMatters: string;
+  chapterHint: CreatorVideoNarrativeEvidenceChapterHint;
+}
+
+export interface CreatorVideoNarrativeDiagnosisSceneAnchor {
+  description: string;
+  source: "derived_scene";
+  momentRole:
+    | "opening"
+    | "conflict"
+    | "turning_point"
+    | "visual_signal"
+    | "pacing_signal"
+    | "production_signal"
+    | "other";
+  whyItMatters: string;
+  chapterHint: CreatorVideoNarrativeEvidenceChapterHint;
+}
+
+export interface CreatorVideoNarrativeEvidenceAnchors {
+  speechQuotes: CreatorVideoNarrativeDiagnosisSpeechQuoteAnchor[];
+  sceneAnchors: CreatorVideoNarrativeDiagnosisSceneAnchor[];
+  creatorIntentAnchor?: {
+    source: "creator_goal";
+    statedGoal: string;
+    interpretedGoal: string;
+    whyItMatters: string;
+  } | null;
+  profilePatternAnchors?: Array<{
+    patternLabel: string;
+    whyThisVideoRelates: string;
+    evidenceCount?: number;
+  }>;
+  instagramAnchors?: Array<{
+    signalLabel: string;
+    whyItMatters: string;
+    evidenceSummary: string;
+  }>;
+}
+
 export interface CreatorVideoNarrativeDiagnosisVideoMetadata {
   mimeType?: string;
   sizeBytes?: number;
@@ -101,6 +163,7 @@ export interface CreatorVideoNarrativeDiagnosisInput {
   commercialReading: CreatorVideoNarrativeDiagnosisCommercialReading;
   strategicRecommendation: CreatorVideoNarrativeDiagnosisStrategicRecommendation;
   profileContribution: CreatorVideoNarrativeDiagnosisProfileContribution;
+  evidenceAnchors?: CreatorVideoNarrativeEvidenceAnchors;
   schemaVersion?: "creator_video_narrative_diagnosis_v1";
 }
 

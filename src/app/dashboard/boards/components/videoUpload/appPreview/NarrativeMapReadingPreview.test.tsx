@@ -127,6 +127,7 @@ describe("NarrativeMapReadingPreview", () => {
     expect(within(dialog).getByText("O que este vídeo revela")).toBeInTheDocument();
     expect(within(dialog).getByText("Como pesa no Perfil")).toBeInTheDocument();
     expect(within(dialog).getByText("Oportunidades em formação")).toBeInTheDocument();
+    expect(within(dialog).getByText("Onde a D2C percebeu isso")).toBeInTheDocument();
     expect(within(dialog).getByText(/Capítulos em sequência/)).toBeInTheDocument();
   });
 

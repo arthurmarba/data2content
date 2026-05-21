@@ -4,6 +4,7 @@ import { Types } from "mongoose";
 import type {
   CreatorVideoNarrativeDiagnosisCommercialReading,
   CreatorVideoNarrativeDiagnosisDocument,
+  CreatorVideoNarrativeEvidenceAnchors,
   CreatorVideoNarrativeDiagnosisProductionReading,
   CreatorVideoNarrativeDiagnosisProfileContribution,
   CreatorVideoNarrativeDiagnosisSafetyFlags,
@@ -23,6 +24,7 @@ export interface CreatorVideoNarrativeDiagnosisSafeReading {
   commercialReading: CreatorVideoNarrativeDiagnosisCommercialReading;
   strategicRecommendation: CreatorVideoNarrativeDiagnosisStrategicRecommendation;
   profileContribution: CreatorVideoNarrativeDiagnosisProfileContribution;
+  evidenceAnchors?: CreatorVideoNarrativeEvidenceAnchors;
   safetyFlags: CreatorVideoNarrativeDiagnosisSafetyFlags;
   createdAt?: Date;
   updatedAt?: Date;
@@ -75,6 +77,7 @@ export function mapCreatorVideoNarrativeDiagnosisToSafeReading(
     commercialReading: doc.commercialReading,
     strategicRecommendation: doc.strategicRecommendation,
     profileContribution: doc.profileContribution,
+    evidenceAnchors: doc.evidenceAnchors,
     safetyFlags: doc.safetyFlags,
     createdAt: asDate(doc.createdAt),
     updatedAt: asDate(doc.updatedAt),
@@ -93,6 +96,7 @@ function queryProjection() {
     commercialReading: 1,
     strategicRecommendation: 1,
     profileContribution: 1,
+    evidenceAnchors: 1,
     safetyFlags: 1,
     "videoMetadata.analyzedAt": 1,
     createdAt: 1,
