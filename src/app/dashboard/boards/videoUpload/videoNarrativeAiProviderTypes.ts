@@ -1,4 +1,5 @@
 import type { MobileStrategicProfileSnapshotPayload } from "./mobileStrategicProfileSnapshotTypes";
+import type { CreatorVideoNarrativeEvidenceAnchors } from "./creatorVideoNarrativeDiagnosisTypes";
 
 export type VideoNarrativeAiProviderGoalOption =
   | "authority"
@@ -46,6 +47,7 @@ export type VideoNarrativeAiAnalysis = {
   creatorSignals: string[];
   brandTerritories: string[];
   collabOpportunities: string[];
+  evidenceAnchors?: CreatorVideoNarrativeEvidenceAnchors;
 };
 
 export type VideoNarrativeAiProviderResult = {

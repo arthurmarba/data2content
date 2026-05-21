@@ -7,6 +7,10 @@ describe("videoNarrativeGeminiResponseParser", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.analysis.mainNarrative).toContain("Rotina prática");
+      expect(result.analysis.evidenceAnchors?.speechQuotes[0]).toEqual(expect.objectContaining({
+        quote: "rapidinho",
+        source: "creator_spoken",
+      }));
     }
   });
 
@@ -70,6 +74,109 @@ describe("videoNarrativeGeminiResponseParser", () => {
     const result = parseVideoNarrativeGeminiResponse(JSON.stringify(raw));
     expect(result.ok).toBe(false);
     expect(result.issues[0].code).toBe("raw_transcript");
+  });
+
+  it("aceita speechQuotes, sceneAnchors e creatorIntentAnchor seguros", () => {
+    const raw = JSON.parse(geminiVideoNarrativeRawJsonFixture);
+    raw.evidenceAnchors = {
+      speechQuotes: [
+        {
+          quote: "rapidinho",
+          source: "creator_spoken",
+          quoteRole: "hook",
+          whyItMatters: "Cria promessa pequena.",
+          chapterHint: "pattern",
+        },
+      ],
+      sceneAnchors: [
+        {
+          description: "A abertura demora a mostrar o conflito principal.",
+          source: "model_observed",
+          momentRole: "opening",
+          whyItMatters: "Mostra onde a tensão atrasa.",
+          chapterHint: "tension",
+        },
+      ],
+      creatorIntentAnchor: {
+        statedGoal: "gerar identificação e comentários",
+        interpretedGoal: "testar humor de reconhecimento rápido",
+        whyItMatters: "Muda a leitura do gancho.",
+      },
+    };
+
+    const result = parseVideoNarrativeGeminiResponse(JSON.stringify(raw));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.analysis.evidenceAnchors?.speechQuotes[0].source).toBe("creator_spoken");
+    expect(result.analysis.evidenceAnchors?.sceneAnchors[0].source).toBe("model_observed");
+    expect(result.analysis.evidenceAnchors?.creatorIntentAnchor?.source).toBe("creator_goal");
+  });
+
+  it("limpa anchors inseguros sem quebrar a analise", () => {
+    const raw = JSON.parse(geminiVideoNarrativeRawJsonFixture);
+    raw.evidenceAnchors = {
+      speechQuotes: Array.from({ length: 6 }, (_, index) => ({
+        quote: index === 0 ? "https://storage.test/video.mp4?signature=abc" : `fala segura ${index}`,
+        source: "creator_spoken",
+        quoteRole: "hook",
+        whyItMatters: "objectKey uploads/user/video.mp4",
+        chapterHint: "pattern",
+      })),
+      sceneAnchors: [
+        {
+          description: "Cena com uploadUrl e localPath removidos.",
+          source: "model_observed",
+          momentRole: "opening",
+          whyItMatters: "storageProviderPath deve sumir.",
+          chapterHint: "tension",
+        },
+      ],
+      creatorIntentAnchor: null,
+    };
+
+    const result = parseVideoNarrativeGeminiResponse(JSON.stringify(raw));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const serialized = JSON.stringify(result.analysis);
+    expect(result.analysis.evidenceAnchors?.speechQuotes.length).toBeLessThanOrEqual(4);
+    expect(serialized).not.toContain("https://storage.test");
+    expect(serialized).not.toContain("uploads/user/video.mp4");
+    expect(serialized).not.toContain("objectKey");
+    expect(serialized).not.toContain("uploadUrl");
+    expect(serialized).not.toContain("localPath");
+    expect(serialized).not.toContain("storageProviderPath");
+  });
+
+  it("descarta base64 grande e blobs parecidos com transcript em anchors", () => {
+    const raw = JSON.parse(geminiVideoNarrativeRawJsonFixture);
+    raw.evidenceAnchors = {
+      speechQuotes: [
+        {
+          quote: "data:video/mp4;base64," + "A".repeat(1500),
+          source: "creator_spoken",
+          quoteRole: "hook",
+          whyItMatters: "não persistir",
+          chapterHint: "pattern",
+        },
+      ],
+      sceneAnchors: [
+        {
+          description: Array.from({ length: 12 }, (_, index) => `00:${String(index).padStart(2, "0")} fala`).join("\n"),
+          source: "model_observed",
+          momentRole: "opening",
+          whyItMatters: "não persistir",
+          chapterHint: "tension",
+        },
+      ],
+      creatorIntentAnchor: null,
+    };
+
+    const result = parseVideoNarrativeGeminiResponse(JSON.stringify(raw));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.analysis.evidenceAnchors?.speechQuotes).toEqual([]);
+    expect(result.analysis.evidenceAnchors?.sceneAnchors).toEqual([]);
+    expect(result.issues.map((item) => item.code)).toContain("invalid_evidence_anchors");
   });
 
   it("não retorna raw response", () => {

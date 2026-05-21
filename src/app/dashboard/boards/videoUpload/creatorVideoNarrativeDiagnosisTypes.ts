@@ -43,7 +43,7 @@ export interface CreatorVideoNarrativeDiagnosisSpeechQuoteAnchor {
 
 export interface CreatorVideoNarrativeDiagnosisSceneAnchor {
   description: string;
-  source: "derived_scene";
+  source: "model_observed" | "derived_scene";
   momentRole:
     | "opening"
     | "conflict"

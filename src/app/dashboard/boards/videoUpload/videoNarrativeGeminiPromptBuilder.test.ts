@@ -29,6 +29,7 @@ describe("videoNarrativeGeminiPromptBuilder", () => {
     const prompt = buildVideoNarrativeGeminiPrompt(input());
     expect(prompt.responseSchemaInstruction).toContain("mainNarrative");
     expect(prompt.responseSchemaInstruction).toContain("nextActions");
+    expect(prompt.responseSchemaInstruction).toContain("evidenceAnchors");
     expect(prompt.systemInstruction).toContain("JSON válido e estrito");
   });
 
@@ -55,6 +56,27 @@ describe("videoNarrativeGeminiPromptBuilder", () => {
     const prompt = buildVideoNarrativeGeminiPrompt(input());
     expect(prompt.userInstruction).not.toContain("temporary/video-narrative");
     expect(prompt.userInstruction).not.toContain("objectKey");
+    expect(prompt.userInstruction).not.toContain("uploadSessionId");
+  });
+
+  it("pede falas curtas reais sem transcrição e sem inventar fala", () => {
+    const prompt = buildVideoNarrativeGeminiPrompt(input());
+    const content = `${prompt.userInstruction}\n${prompt.responseSchemaInstruction}`;
+
+    expect(content).toContain("falas curtas realmente ditas");
+    expect(content).toContain("Não invente falas");
+    expect(content).toContain("Não transcreva o vídeo");
+    expect(content).toContain("retorne speechQuotes como array vazio");
+  });
+
+  it("pede cenas especificas sem timestamp técnico ou storage metadata", () => {
+    const prompt = buildVideoNarrativeGeminiPrompt(input());
+    const content = `${prompt.systemInstruction}\n${prompt.userInstruction}\n${prompt.responseSchemaInstruction}`;
+
+    expect(content).toContain("cenas ou momentos observados");
+    expect(content).toContain("sem timestamp técnico");
+    expect(content).toContain("Não inclua transcript");
+    expect(content).toContain("metadata de upload/storage");
   });
 
   it("inclui instruções contra promessa de viralização/marca", () => {

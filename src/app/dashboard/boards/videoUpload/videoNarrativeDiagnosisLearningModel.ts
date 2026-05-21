@@ -2,6 +2,7 @@ import {
   sanitizeVideoNarrativeAnalysisText,
   type VideoNarrativeAnalysis,
 } from "./videoNarrativeAnalysisTypes";
+import type { CreatorVideoNarrativeEvidenceAnchors } from "./creatorVideoNarrativeDiagnosisTypes";
 import type { PostCreationVideoSeed } from "./videoNarrativePostCreationSeed";
 
 export type VideoNarrativeDiagnosisAccessLevel = "free" | "premium" | "instagram_optimized";
@@ -153,6 +154,7 @@ export interface VideoNarrativeStrategicDiagnosis {
     matchingFormats: string[];
     locked: boolean;
   };
+  evidenceAnchors?: CreatorVideoNarrativeEvidenceAnchors;
   createdAt: string | null;
 }
 
@@ -594,6 +596,7 @@ export function buildVideoNarrativeStrategicDiagnosis(
     }),
     creatorSignals: extractVideoNarrativeCreatorSignals(input),
     instagramComparison,
+    evidenceAnchors: input.analysis.evidenceAnchors,
     createdAt: input.analysis.createdAt ?? input.seed.createdAt ?? null,
   };
 }

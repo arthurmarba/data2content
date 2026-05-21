@@ -50,6 +50,7 @@ export function mapGeminiAnalysisToStrategicProfileSnapshot(params: {
         source,
         promptVersion: params.promptVersion,
         adapterVersion: "mm65_gemini_snapshot_adapter_v1",
+        ...(params.analysis.evidenceAnchors ? { evidenceAnchors: params.analysis.evidenceAnchors } : {}),
       },
     },
   };

@@ -38,6 +38,41 @@ O que não faz:
 - não salva vídeo, thumbnail, signed URL, objectKey, raw response ou transcrição longa;
 - não altera upload, cleanup, billing/Stripe, NextAuth, MediaKitView, Comunidade, DashboardShell, BoardShell, sidebar ou matches reais.
 
+### MM87 — Structured Provider Parser Evidence Anchors
+
+Status: concluído.
+
+Arquivos principais:
+
+- `MM87_STRUCTURED_PROVIDER_PARSER_EVIDENCE_ANCHORS.md`
+- `videoNarrativeGeminiPromptBuilder.ts`
+- `videoNarrativeGeminiResponseParser.ts`
+- `videoNarrativeGeminiProvider.ts`
+- `videoNarrativeGeminiSnapshotMapper.ts`
+- `geminiVideoNarrativePrompt.ts`
+- `geminiVideoNarrativeSchema.ts`
+- `videoNarrativeAnalysisTypes.ts`
+- `videoNarrativeAiProviderTypes.ts`
+- `videoNarrativeDiagnosisLearningModel.ts`
+- `creatorVideoNarrativeDiagnosisMapper.ts`
+
+O que faz:
+
+- ensina o prompt/schema/parser do provider a produzir anchors estruturados;
+- aceita falas reais curtas como `creator_spoken` apenas quando o parser recebeu fala observada;
+- aceita cenas `model_observed`/`derived_scene` sem timestamp técnico ou metadata de storage;
+- preserva `creatorIntentAnchor` com objetivo declarado e interpretação estratégica;
+- mantém compatibilidade quando `evidenceAnchors` não vier na resposta;
+- limpa anchors inválidos sem derrubar a análise inteira;
+- faz o mapper priorizar anchors reais antes do fallback `ai_suggested`.
+
+O que não faz:
+
+- não abre endpoint real para usuários comuns;
+- não remove allowlist/admin-dev;
+- não altera usage limits, upload, cleanup, billing/Stripe, NextAuth, MediaKitView, Comunidade, DashboardShell, BoardShell ou sidebar;
+- não salva vídeo, thumbnail, signed URL, upload URL, objectKey, localPath, storageProviderPath, raw response ou transcrição longa.
+
 ### MM74 — Video Reading Document Foundation
 
 Status: concluído.
