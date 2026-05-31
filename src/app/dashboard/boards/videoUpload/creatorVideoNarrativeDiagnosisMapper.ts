@@ -5,8 +5,15 @@ import type {
   CreatorVideoNarrativeDiagnosisInput,
   CreatorVideoNarrativeDiagnosisSource,
   CreatorVideoNarrativeDiagnosisVideoMetadata,
+  VideoNarrativeContentContext,
+  VideoNarrativeCoherence,
 } from "./creatorVideoNarrativeDiagnosisTypes";
 import { sanitizeCreatorVideoNarrativeDiagnosisInput } from "./creatorVideoNarrativeDiagnosisSanitizer";
+import {
+  buildData2ContentNarrativeContract,
+  compactD2CNextExperiment,
+  compactD2CTension,
+} from "./data2contentNarrativeContract";
 import type { VideoNarrativeStrategicDiagnosis } from "./videoNarrativeDiagnosisLearningModel";
 import type { VideoNarrativeEvolvingDiagnosis } from "./videoNarrativeEvolvingDiagnosisContract";
 import type { VideoNarrativeDiagnosisPresentation } from "./videoNarrativeDiagnosisPresentationModel";
@@ -245,9 +252,20 @@ function mapProfileContribution(params: {
 
 function safeRememberedAs(params: CreatorVideoNarrativeDiagnosisMapperParams): string {
   const fromPresentation = params.presentation.priorityCards.find((card) => card.id === "main-reading")?.body;
+  const contract = buildData2ContentNarrativeContract({
+    videoSubject: params.strategicDiagnosis.whatVideoCommunicates,
+    mainNarrative: params.strategicDiagnosis.mainNarrative,
+    whatVideoCommunicates: params.strategicDiagnosis.whatVideoCommunicates,
+    strategicReading: params.strategicDiagnosis.strategicReading,
+    strength: params.strategicDiagnosis.strength,
+    attentionPoint: params.strategicDiagnosis.weakness,
+    recommendedAdjustment: params.strategicDiagnosis.recommendedAdjustment,
+    creatorSignals: params.strategicDiagnosis.creatorSignals.map((signal) => signal.value),
+    brandTerritories: params.strategicDiagnosis.brandPotential.territories,
+  });
   const narrative = firstText([
-    params.strategicDiagnosis.mainNarrative,
-    params.strategicDiagnosis.whatVideoCommunicates,
+    contract.videoSubject,
+    contract.centralNarrativeCandidate,
     fromPresentation,
   ], "");
 
@@ -367,12 +385,36 @@ export function mapVideoNarrativeDiagnosisToCreatorVideoNarrativeDiagnosisInput(
   const presentation = params.presentation;
   const seed = params.seed;
   const territories = commercialTerritories({ strategicDiagnosis: strategic, evolvingDiagnosis: evolving });
+  const narrativeContract = buildData2ContentNarrativeContract({
+    videoSubject: strategic.whatVideoCommunicates,
+    mainNarrative: strategic.mainNarrative,
+    whatVideoCommunicates: strategic.whatVideoCommunicates,
+    creatorIntent: strategic.creatorIntent,
+    strategicReading: strategic.strategicReading,
+    strength: strategic.strength,
+    attentionPoint: strategic.weakness,
+    recommendedAdjustment: strategic.recommendedAdjustment,
+    suggestedHook: strategic.suggestedHook,
+    creatorSignals: strategic.creatorSignals.map((signal) => signal.value),
+    brandTerritories: territories,
+    nextActions: strategic.nextActions.map((action) => action.description).filter((value): value is string => Boolean(value)),
+  });
   const primaryAdjustment = firstText(
-    [strategic.recommendedAdjustment, presentation.priorityCards.find((card) => card.id === "primary-adjustment")?.body],
+    [
+      narrativeContract.tension,
+      compactD2CTension([strategic.recommendedAdjustment, presentation.priorityCards.find((card) => card.id === "primary-adjustment")?.body]),
+    ],
     "Deixar mais claro o que a pessoa deve perceber nos primeiros segundos.",
   );
   const nextExperiment = firstText(
-    [strategic.nextActions[0]?.description, seed?.blueprintDraft.whatToPost, evolving.nextSignalsToUnlock[0]?.action],
+    [
+      narrativeContract.nextExperiment,
+      compactD2CNextExperiment([
+        strategic.nextActions[0]?.description,
+        seed?.blueprintDraft.whatToPost,
+        evolving.nextSignalsToUnlock[0]?.action,
+      ]),
+    ],
     "Testar uma abertura mais direta e comparar a resposta em novas leituras.",
   );
   const profileContribution = mapProfileContribution({
@@ -390,13 +432,13 @@ export function mapVideoNarrativeDiagnosisToCreatorVideoNarrativeDiagnosisInput(
     creatorGoal: clean(params.creatorGoal, "Entender o que este video revela estrategicamente."),
     selectedGoalOption: clean(params.selectedGoalOption, "strategic_reading"),
     videoReading: {
-      title: shortText(firstText([strategic.mainNarrative, presentation.hero.title], "Leitura estrategica do video"), 140),
+      title: shortText(firstText([narrativeContract.centralNarrativeCandidate, presentation.hero.title], "Leitura estrategica do video"), 140),
       rememberedAs,
-      summary: firstText([strategic.whatVideoCommunicates, presentation.priorityCards[0]?.body], "Este video traz uma leitura inicial para o mapa estrategico."),
-      whatVideoReveals: firstText([evolving.profileImpact.summary, strategic.strength], "Este video revela um sinal inicial sobre a narrativa do creator."),
-      mainNarrative: firstText([strategic.mainNarrative, seed?.detectedNarrative], "Narrativa em formacao."),
+      summary: firstText([narrativeContract.strategicThesis, strategic.whatVideoCommunicates, presentation.priorityCards[0]?.body], "Este video traz uma leitura inicial para o mapa estrategico."),
+      whatVideoReveals: firstText([narrativeContract.creatorPointOfView, evolving.profileImpact.summary, strategic.strength], "Este video revela um sinal inicial sobre a narrativa do creator."),
+      mainNarrative: firstText([narrativeContract.centralNarrativeCandidate, strategic.mainNarrative, seed?.detectedNarrative], "Narrativa em formacao."),
       creatorIntent: firstText([strategic.creatorIntent, params.creatorGoal], "Entender a direcao estrategica deste video."),
-      dominantInsight: firstText([strategic.strategicReading, strategic.strength], "A leitura principal ainda precisa de mais contexto para ganhar peso."),
+      dominantInsight: firstText([narrativeContract.strategicThesis, strategic.strategicReading, strategic.strength], "A leitura principal ainda precisa de mais contexto para ganhar peso."),
     },
     speechReading: {
       summary: firstText([strategic.suggestedHook, seed?.scriptDirection.opening], FALLBACK.speechLimited),
@@ -408,10 +450,27 @@ export function mapVideoNarrativeDiagnosisToCreatorVideoNarrativeDiagnosisInput(
       suggestedClosing: firstText([seed?.scriptDirection.closing], "Fechar com um proximo passo claro para a audiencia."),
     },
     productionReading: {
-      summary: FALLBACK.productionLimited,
-      framing: "Sem leitura especifica suficiente de enquadramento nesta camada estruturada.",
-      lighting: "Sem leitura especifica suficiente de luz nesta camada estruturada.",
-      audio: "Sem leitura especifica suficiente de audio nesta camada estruturada.",
+      // summary: derived from weakness/adjustment (captures what needs improvement) instead of the
+      // old hardcoded generic string so the Execução card shows real per-reading text.
+      summary: firstText(
+        [strategic.weakness, strategic.recommendedAdjustment, strategic.whatVideoCommunicates],
+        FALLBACK.productionLimited,
+      ),
+      // framing: scene descriptions imply visual composition choices
+      framing: firstText(
+        [strategic.blueprint.scenes[0], seed?.blueprintDraft.scenes[0], strategic.blueprint.whatToPost, seed?.blueprintDraft.whatToPost],
+        "O enquadramento segue a narrativa detectada; confirmar composicao em novas leituras.",
+      ),
+      // lighting: strength captures what's working well visually (includes lighting/visual quality)
+      lighting: firstText(
+        [strategic.strength],
+        "A iluminacao nao tem leitura especifica; o que funciona neste video apoia a narrativa visual.",
+      ),
+      // audio: script tone/opening delivery is the closest proxy for audio quality
+      audio: firstText(
+        [strategic.scriptDirection.tone, seed?.scriptDirection.tone, strategic.scriptDirection.opening],
+        "O audio nao tem leitura isolada; o ritmo de fala segue o tom narrativo detectado.",
+      ),
       editingRhythm: firstText([seed?.blueprintDraft.howItShouldWork], "O ritmo de edicao ainda precisa ser observado em mais detalhes."),
       firstFrame: firstText([strategic.suggestedHook], "O primeiro frame deve antecipar melhor a promessa do video."),
       visualClarity: firstText([strategic.whatVideoCommunicates], "A clareza visual ainda precisa ser confirmada por leitura de producao mais completa."),
@@ -434,7 +493,7 @@ export function mapVideoNarrativeDiagnosisToCreatorVideoNarrativeDiagnosisInput(
     strategicRecommendation: {
       mainAdjustment: primaryAdjustment,
       nextExperiment,
-      whatToRepeat: firstText([strategic.strength, strategic.mainNarrative], "Repetir o sinal mais claro que este video ja comunica."),
+      whatToRepeat: firstText([narrativeContract.centralNarrativeCandidate, strategic.strength, strategic.mainNarrative], "Repetir o sinal mais claro que este video ja comunica."),
       whatToAvoid: firstText([strategic.weakness], "Evitar transformar uma leitura isolada em conclusao geral do Perfil."),
       successSignal: "Observar se o mesmo sinal aparece de novo em proximas leituras e respostas da audiencia.",
     },
@@ -446,6 +505,8 @@ export function mapVideoNarrativeDiagnosisToCreatorVideoNarrativeDiagnosisInput(
       rememberedAs,
       profileContribution,
     }),
+    ...(strategic.contentContext ? { contentContext: strategic.contentContext as VideoNarrativeContentContext } : {}),
+    ...(strategic.narrativeCoherence ? { narrativeCoherence: strategic.narrativeCoherence as VideoNarrativeCoherence } : {}),
     schemaVersion: "creator_video_narrative_diagnosis_v1",
   };
 
@@ -466,6 +527,8 @@ export function mapVideoNarrativeDiagnosisToCreatorVideoNarrativeDiagnosisInput(
     strategicRecommendation: sanitized.strategicRecommendation,
     profileContribution: sanitized.profileContribution,
     evidenceAnchors: sanitized.evidenceAnchors,
+    ...(sanitized.contentContext ? { contentContext: sanitized.contentContext } : {}),
+    ...(sanitized.narrativeCoherence ? { narrativeCoherence: sanitized.narrativeCoherence } : {}),
     schemaVersion: sanitized.schemaVersion,
   };
 }

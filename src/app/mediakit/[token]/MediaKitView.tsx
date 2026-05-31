@@ -1645,6 +1645,7 @@ export default function MediaKitView({
   demographics,
   engagementTrend,
   showOwnerCtas = false,
+  showOwnerSettingsShortcut = true,
   belowAffiliateSlot,
   compactPadding = false,
   compactBoardPreview = false,
@@ -3250,7 +3251,7 @@ const resolvedGlassCardBaseClass = isBoardEmbedded
     return (
       <GlobalTimePeriodProvider>
         <div className="px-4 pb-6 pt-3 relative">
-          {showOwnerCtas && !isPrintMode && (
+          {showOwnerCtas && showOwnerSettingsShortcut && !isPrintMode && (
             <Link
               href="/settings"
               className="absolute right-6 top-6 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-zinc-600 shadow-sm ring-1 ring-zinc-200/50 backdrop-blur-sm transition hover:bg-white hover:text-zinc-900"
@@ -3682,7 +3683,7 @@ const resolvedGlassCardBaseClass = isBoardEmbedded
         style={{ background: resolvedRootBackground }}
       >
         <div id="media-kit-content" className={`${mainContainerClass} relative`}>
-          {showOwnerCtas && !isPrintMode && (
+          {showOwnerCtas && showOwnerSettingsShortcut && !isPrintMode && (
             <Link
               href="/settings"
               className="absolute right-4 top-4 z-10 hidden h-11 w-11 items-center justify-center rounded-full bg-white/80 text-zinc-600 shadow-sm ring-1 ring-zinc-200/50 backdrop-blur-sm transition hover:bg-white hover:text-zinc-900 lg:flex"

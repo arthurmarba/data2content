@@ -24,6 +24,7 @@ import { startInstagramReconnect } from '@/app/lib/instagram/client/startInstagr
 import { canonicalizeCategoryValues } from '@/app/lib/classification';
 import { canonicalizeV2CategoryValues } from '@/app/lib/classificationV2';
 import { canonicalizeV25CategoryValues } from '@/app/lib/classificationV2_5';
+import { MOBILE_PROFILE_ROUTE } from '../boards/videoUpload/mobileStrategicProfileRoutes';
 
 type Summary = any;
 type VideoListItem = any;
@@ -39,14 +40,28 @@ function MediaKitBoardShell({
   children,
   contentClassName = '',
   mobileAppView = false,
+  showProfileCloseButton = false,
+  onCloseProfile,
 }: {
   children: React.ReactNode;
   contentClassName?: string;
   mobileAppView?: boolean;
+  showProfileCloseButton?: boolean;
+  onCloseProfile?: () => void;
 }) {
   const dedicatedDesktopWidthClassName = 'lg:max-w-[1640px]';
   return (
     <main className="mx-auto flex h-full min-h-0 w-full flex-col bg-[radial-gradient(120%_36%_at_50%_0%,rgba(255,255,255,0.95),rgba(243,244,246,0.98)_52%,rgba(243,244,246,1)_100%)] px-0 lg:bg-none lg:px-8 lg:pb-5 lg:pt-[2.75rem]">
+      {mobileAppView && showProfileCloseButton ? (
+        <button
+          type="button"
+          aria-label="Fechar Mídia Kit e voltar ao Perfil"
+          onClick={onCloseProfile}
+          className="fixed right-4 top-[calc(env(safe-area-inset-top,0px)+0.875rem)] z-[120] flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-700 shadow-[0_8px_22px_rgba(15,23,42,0.12)] transition active:scale-95 lg:hidden"
+        >
+          <FaTimes className="h-3.5 w-3.5" aria-hidden="true" />
+        </button>
+      ) : null}
       <div className="relative mx-auto flex h-full min-h-0 w-full max-w-[1640px] flex-col overflow-hidden">
         <Board
           title="Mídia Kit"
@@ -284,11 +299,13 @@ export function SelfMediaKitContent({
   compactBoardPreview,
   publicUrlForCopy,
   premiumAccess,
+  showOwnerSettingsShortcut = true,
   onPublicUrlChange,
 }: {
   userId: string; fallbackName?: string | null; fallbackEmail?: string | null; fallbackImage?: string | null;
   compactPadding?: boolean; compactBoardPreview?: boolean; publicUrlForCopy?: string | null;
   premiumAccess?: MediaKitPremiumAccessConfig;
+  showOwnerSettingsShortcut?: boolean;
   onPublicUrlChange?: (nextUrl: string | null) => void;
 }) {
   const [loading, setLoading] = useState(true);
@@ -655,6 +672,7 @@ export function SelfMediaKitContent({
         publicUrlForCopy={publicUrlForCopy || undefined}
         mediaKitSlug={user.mediaKitSlug ?? undefined}
         premiumAccess={premiumAccess}
+        showOwnerSettingsShortcut={showOwnerSettingsShortcut}
         pricing={pricing}
         onClearPricing={handleClearPricing}
         pricingPublished={pricingPublished}
@@ -778,9 +796,17 @@ export default function MediaKitSelfServePage() {
   // Lógica do Modal de Pagamento
   const communityModalShownRef = useRef(false);
   const showIgConnectSuccess = sp.get("instagramLinked") === "true";
+  const shouldUseProfileReturnChrome =
+    isBoardMobileViewport && sp.get("from") === "mobile-strategic-profile";
+  const handleCloseToProfile = useCallback(() => {
+    router.replace(MOBILE_PROFILE_ROUTE);
+  }, [router]);
 
   const billingStatus = useBillingStatus();
   const sessionPlanStatusRaw = (session?.user as any)?.planStatus;
+  const sessionInstagramConnected = Boolean(
+    (session?.user as any)?.instagramConnected || (session?.user as any)?.isInstagramConnected
+  );
   const normalizedSessionPlanStatus = useMemo(
     () => normalizePlanStatus(sessionPlanStatusRaw),
     [sessionPlanStatusRaw]
@@ -796,7 +822,12 @@ export default function MediaKitSelfServePage() {
   const billingInstagramConnected = Boolean(billingStatus.instagram?.connected);
   const instagramConnected = billingStatus.hasResolvedOnce
     ? billingInstagramConnected
-    : billingInstagramConnected || Boolean((session?.user as any)?.instagramConnected);
+    : billingInstagramConnected || sessionInstagramConnected;
+  const instagramAccessResolutionPending =
+    status === 'authenticated' &&
+    billingStatus.isLoading &&
+    !billingStatus.hasResolvedOnce &&
+    !sessionInstagramConnected;
   const categoriesCtaLabel = "Ver categorias do meu perfil (Assinar Plano Pro)";
   const categoriesSubtitle = INSTAGRAM_READ_ONLY_COPY;
   const handleUpgrade = useCallback(() => {
@@ -820,8 +851,8 @@ export default function MediaKitSelfServePage() {
   useHeaderSetup(
     {
       variant: 'compact',
-      showSidebarToggle: true,
-      showUserMenu: true,
+      showSidebarToggle: !shouldUseProfileReturnChrome,
+      showUserMenu: !shouldUseProfileReturnChrome,
       hideBrandLogoOnMobile: true,
       sticky: true,
       mobileDocked: false,
@@ -831,7 +862,7 @@ export default function MediaKitSelfServePage() {
       cta: undefined,
       condensedOnScroll: false,
     },
-    []
+    [shouldUseProfileReturnChrome]
   );
 
   useEffect(() => {
@@ -908,15 +939,38 @@ export default function MediaKitSelfServePage() {
 
   if (status === 'loading') {
     return (
-      <MediaKitBoardShell contentClassName="p-5" mobileAppView={isBoardMobileViewport}>
+      <MediaKitBoardShell
+        contentClassName="p-5"
+        mobileAppView={isBoardMobileViewport}
+        showProfileCloseButton={shouldUseProfileReturnChrome}
+        onCloseProfile={handleCloseToProfile}
+      >
         <div className="dashboard-empty-state flex min-h-[240px] items-center justify-center px-6 text-sm text-zinc-500">Carregando…</div>
       </MediaKitBoardShell>
     );
   }
   if (status === 'unauthenticated') {
     return (
-      <MediaKitBoardShell contentClassName="bg-[linear-gradient(180deg,#fafafa_0%,#f5f5f5_100%)]" mobileAppView={isBoardMobileViewport}>
+      <MediaKitBoardShell
+        contentClassName="bg-[linear-gradient(180deg,#fafafa_0%,#f5f5f5_100%)]"
+        mobileAppView={isBoardMobileViewport}
+        showProfileCloseButton={shouldUseProfileReturnChrome}
+        onCloseProfile={handleCloseToProfile}
+      >
         <MediaKitConversionSection />
+      </MediaKitBoardShell>
+    );
+  }
+
+  if (instagramAccessResolutionPending) {
+    return (
+      <MediaKitBoardShell
+        contentClassName="p-5"
+        mobileAppView={isBoardMobileViewport}
+        showProfileCloseButton={shouldUseProfileReturnChrome}
+        onCloseProfile={handleCloseToProfile}
+      >
+        <MediaKitSkeleton compactPadding={isBoardMobileViewport} compactBoardPreview={isBoardMobileViewport} />
       </MediaKitBoardShell>
     );
   }
@@ -924,7 +978,12 @@ export default function MediaKitSelfServePage() {
   // ===== IG não conectado → redireciona para Onboarding =====
   if (!instagramConnected) {
     return (
-      <MediaKitBoardShell contentClassName="bg-[linear-gradient(180deg,#fafafa_0%,#f5f5f5_100%)]" mobileAppView={isBoardMobileViewport}>
+      <MediaKitBoardShell
+        contentClassName="bg-[linear-gradient(180deg,#fafafa_0%,#f5f5f5_100%)]"
+        mobileAppView={isBoardMobileViewport}
+        showProfileCloseButton={shouldUseProfileReturnChrome}
+        onCloseProfile={handleCloseToProfile}
+      >
         <MediaKitConversionSection />
       </MediaKitBoardShell>
     );
@@ -932,7 +991,12 @@ export default function MediaKitSelfServePage() {
 
   if (!hasPremiumAccess) {
     return (
-      <MediaKitBoardShell contentClassName="bg-[linear-gradient(180deg,#fafafa_0%,#f5f5f5_100%)]" mobileAppView={isBoardMobileViewport}>
+      <MediaKitBoardShell
+        contentClassName="bg-[linear-gradient(180deg,#fafafa_0%,#f5f5f5_100%)]"
+        mobileAppView={isBoardMobileViewport}
+        showProfileCloseButton={shouldUseProfileReturnChrome}
+        onCloseProfile={handleCloseToProfile}
+      >
         <MediaKitConversionSection />
       </MediaKitBoardShell>
     );
@@ -944,7 +1008,11 @@ export default function MediaKitSelfServePage() {
       {/* 🔥 Removido DiscoverBillingGate e qualquer CTA de assinatura aqui.
           O CTA vive apenas dentro do MediaKitView para evitar duplicação. */}
 
-      <MediaKitBoardShell mobileAppView={isBoardMobileViewport}>
+      <MediaKitBoardShell
+        mobileAppView={isBoardMobileViewport}
+        showProfileCloseButton={shouldUseProfileReturnChrome}
+        onCloseProfile={handleCloseToProfile}
+      >
         <>
           {error ? (
             <div className="px-4 pt-4 sm:px-5">
@@ -963,6 +1031,7 @@ export default function MediaKitSelfServePage() {
             publicUrlForCopy={url}
             onPublicUrlChange={setUrl}
             premiumAccess={premiumAccessConfig}
+            showOwnerSettingsShortcut={!shouldUseProfileReturnChrome}
           />
         </>
       </MediaKitBoardShell>

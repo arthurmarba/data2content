@@ -49,6 +49,7 @@ export function NarrativeMapReadingPreview({ fixture }: { fixture: NarrativeMapR
           presentation={fixture.presentation}
           statusText={fixture.creator.status}
           snapshotReview={fixture.synthesisSnapshotWrite}
+          profileSynthesisStatus={fixture.synthesisSnapshotWrite?.synthesisStatus ?? null}
           internalReview
         />
       </div>

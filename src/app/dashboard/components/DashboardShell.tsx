@@ -2,12 +2,13 @@
 
 import React, { useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSidebarViewport } from "./sidebar/hooks";
 import InstagramReconnectBanner from "./InstagramReconnectBanner";
 import TrialBanner from "./TrialBanner";
 import ChunkLoadRecovery from "./ChunkLoadRecovery";
 import { SidebarProvider, useSidebar } from "../context/SidebarContext";
+import { MOBILE_PROFILE_ROUTE } from "../boards/videoUpload/mobileStrategicProfileRoutes";
 import {
   HeaderProvider,
   useHeaderConfig,
@@ -15,6 +16,41 @@ import {
   type HeaderConfig,
   type HeaderVariant,
 } from "../context/HeaderContext";
+
+const MOBILE_STRATEGIC_PROFILE_PREVIEW_ROUTE = "/dashboard/boards/mobile-strategic-profile-preview";
+const MOBILE_DASHBOARD_ENTRY_PATHS = new Set(["/", "/dashboard", "/dashboard/home"]);
+
+export function isMobileStrategicProfileRoute(pathname?: string | null) {
+  if (!pathname) return false;
+  return (
+    pathname === MOBILE_PROFILE_ROUTE ||
+    pathname.startsWith(`${MOBILE_PROFILE_ROUTE}/`) ||
+    pathname === MOBILE_STRATEGIC_PROFILE_PREVIEW_ROUTE ||
+    pathname.startsWith(`${MOBILE_STRATEGIC_PROFILE_PREVIEW_ROUTE}/`)
+  );
+}
+
+export function shouldRenderDashboardMobileBottomNav({
+  isPrintMode,
+  isGuidedFlow,
+  isMobile,
+  isMobileStrategicProfileAppEnabled,
+  pathname,
+}: {
+  isPrintMode: boolean;
+  isGuidedFlow: boolean;
+  isMobile: boolean;
+  isMobileStrategicProfileAppEnabled: boolean;
+  pathname?: string | null;
+}) {
+  if (isPrintMode || isGuidedFlow || !isMobile) return false;
+  if (isMobileStrategicProfileAppEnabled && isMobileStrategicProfileRoute(pathname)) return false;
+  return true;
+}
+
+export function isMobileDashboardEntryRoute(pathname?: string | null) {
+  return MOBILE_DASHBOARD_ENTRY_PATHS.has(pathname || "");
+}
 
 const SidebarNav = dynamic(() => import("./SidebarNav"), {
   loading: () => null,
@@ -78,14 +114,17 @@ export default function DashboardShell({ children }: DashboardShellProps) {
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
   const { isCollapsed, toggleSidebar } = useSidebar();
-  const { isMobile } = useSidebarViewport();
+  const { mounted, isMobile } = useSidebarViewport();
   const { config: activeHeaderConfig } = useHeaderConfig();
   const [activationWidgetReady, setActivationWidgetReady] = React.useState(false);
   const overlayIgnoreUntilRef = React.useRef(0);
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const printParam = searchParams?.get("print");
   const isPrintMode = printParam === "1" || printParam === "true";
+  const isMobileStrategicProfileAppEnabled =
+    process.env.NEXT_PUBLIC_MOBILE_STRATEGIC_PROFILE_ENABLED === "1";
 
   const matchPath = (base: string) => pathname === base || pathname.startsWith(`${base}/`);
 
@@ -104,7 +143,38 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   const isOpen = !isCollapsed;
   const hasPageOverride = isMediaKitPage || isPlannerPage || isDiscover;
-  const shouldShowGlobalBanners = !isChatPage && !isPrintMode && !isCalendarHub;
+  const isMobileStrategicProfileSurface = isMobileStrategicProfileRoute(pathname);
+  const isMobileStrategicProfileMediaKitReturn =
+    isMediaKitPage && searchParams?.get("from") === "mobile-strategic-profile";
+  const shouldRedirectMobileDashboardEntryPath =
+    isMobileStrategicProfileAppEnabled &&
+    !isPrintMode &&
+    searchParams?.get("board") !== "post-creation" &&
+    isMobileDashboardEntryRoute(pathname);
+  const shouldRedirectMobileDashboardEntryClient =
+    shouldRedirectMobileDashboardEntryPath && mounted && isMobile;
+  const shouldUseMobileStrategicProfileShell =
+    mounted && isMobile && isMobileStrategicProfileAppEnabled && isMobileStrategicProfileSurface;
+  const shouldShowMobileBottomNav =
+    !isMobileStrategicProfileMediaKitReturn &&
+    shouldRenderDashboardMobileBottomNav({
+      isPrintMode,
+      isGuidedFlow,
+      isMobile,
+      isMobileStrategicProfileAppEnabled,
+      pathname,
+    });
+  const shouldShowGlobalBanners =
+    !isChatPage &&
+    !isPrintMode &&
+    !isCalendarHub &&
+    !shouldUseMobileStrategicProfileShell &&
+    !isMobileStrategicProfileMediaKitReturn;
+
+  useEffect(() => {
+    if (!shouldRedirectMobileDashboardEntryClient) return;
+    router.replace(MOBILE_PROFILE_ROUTE);
+  }, [router, shouldRedirectMobileDashboardEntryClient]);
 
   React.useEffect(() => {
     if (isOpen) {
@@ -189,6 +259,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   const mainScrollClass = isPrintMode
     ? "overflow-visible"
+    : shouldUseMobileStrategicProfileShell
+      ? "overflow-y-auto flex min-h-0 flex-col"
     : "overflow-hidden flex min-h-0 flex-col";
   const headerOffsetRequested = Boolean(
     activeHeaderConfig.mobileTitle ||
@@ -211,11 +283,17 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const shellClassName = "flex flex-col w-full min-h-0";
   const shellStyle = isPrintMode ? undefined : { height: "100dvh", minHeight: "100dvh" };
   const contentBottomPaddingClass =
-    isDiscover && isMobile
+    shouldUseMobileStrategicProfileShell || isMobileStrategicProfileMediaKitReturn
+      ? "pb-0"
+      : isDiscover && isMobile
       ? "pb-[calc(env(safe-area-inset-bottom,0px)+4.75rem)]"
       : "pb-[calc(env(safe-area-inset-bottom,0px)+4.75rem)] sm:pb-5 lg:pb-4";
 
-  return (
+  if (shouldRedirectMobileDashboardEntryClient) {
+    return <MobileDashboardEntryRedirectFallback />;
+  }
+
+  const shell = (
     <>
       {!isGuidedFlow && !isPrintMode && (
         <SidebarNav isCollapsed={isCollapsed} onToggle={() => toggleSidebar()} />
@@ -254,10 +332,35 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
             )}
           </div>
         </main>
-        {!isPrintMode && activationWidgetReady ? <ActivationPendingWidget /> : null}
-        {!isPrintMode && !isGuidedFlow && isMobile ? <MobileBottomNav /> : null}
+        {!isPrintMode &&
+        activationWidgetReady &&
+        !shouldUseMobileStrategicProfileShell &&
+        !isMobileStrategicProfileMediaKitReturn ? (
+          <ActivationPendingWidget />
+        ) : null}
+        {shouldShowMobileBottomNav ? <MobileBottomNav /> : null}
         <ChunkLoadRecovery />
       </div>
     </>
+  );
+
+  if (shouldRedirectMobileDashboardEntryPath) {
+    return (
+      <>
+        <div className="hidden lg:block">{shell}</div>
+        <MobileDashboardEntryRedirectFallback className="lg:hidden" />
+      </>
+    );
+  }
+
+  return shell;
+}
+
+function MobileDashboardEntryRedirectFallback({ className = "" }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={`dashboard-skin min-h-[100dvh] w-full bg-[#f4f4f8] ${className}`}
+    />
   );
 }

@@ -1,6 +1,9 @@
+import { createHmac, randomUUID } from "crypto";
+
 import { resolveTemporaryStorageProviderConfig } from "./videoNarrativeTemporaryStorageProviderConfig";
 import {
   createVideoNarrativeSignedUploadSession,
+  createVideoNarrativeTemporaryStorageObjectKey,
   type VideoNarrativeTemporaryStorageSignedUrlSigner,
 } from "./videoNarrativeTemporaryStorageSignedUrlProvider";
 import {
@@ -20,6 +23,10 @@ type CreateProviderOptions = {
   uploadSessionEnabled?: boolean;
   signedUrlSigner?: VideoNarrativeTemporaryStorageSignedUrlSigner | null;
 };
+
+function isLocalDiscardUploadEnabled(env: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env): boolean {
+  return env.NODE_ENV !== "production" && env.VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED === "1";
+}
 
 function disabledIssue(message = "Storage temporário desativado nesta fase."): VideoNarrativeTemporaryStorageProviderConfigIssue {
   return {
@@ -41,6 +48,43 @@ function withoutDuplicateIssues(
   });
 }
 
+function signLocalDiscardUpload(params: {
+  sessionId: string;
+  expiresAt: string;
+  sizeBytes: number;
+  mimeType: string;
+  env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
+}): string {
+  const env = params.env ?? process.env;
+  const secret = env.NEXTAUTH_SECRET?.trim() || "local-discard-upload-dev-secret";
+  return createHmac("sha256", secret)
+    .update(`${params.sessionId}.${params.expiresAt}.${params.sizeBytes}.${params.mimeType}`)
+    .digest("hex");
+}
+
+function buildLocalDiscardUploadUrl(params: {
+  input: VideoNarrativeTemporaryStorageCreateSessionInput;
+  sessionId: string;
+  expiresAt: string;
+  env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
+}): string {
+  const env = params.env ?? process.env;
+  const baseUrl = env.NEXTAUTH_URL?.trim() || "http://localhost:3000";
+  const url = new URL("/api/dev/mobile-strategic-profile/discard-upload", baseUrl);
+  url.searchParams.set("sessionId", params.sessionId);
+  url.searchParams.set("expiresAt", params.expiresAt);
+  url.searchParams.set("sizeBytes", String(params.input.sizeBytes));
+  url.searchParams.set("mimeType", params.input.mimeType);
+  url.searchParams.set("signature", signLocalDiscardUpload({
+    sessionId: params.sessionId,
+    expiresAt: params.expiresAt,
+    sizeBytes: params.input.sizeBytes,
+    mimeType: params.input.mimeType,
+    env,
+  }));
+  return url.toString();
+}
+
 function buildDisabledProvider(params: {
   config: VideoNarrativeTemporaryStorageProviderConfig;
   issues: VideoNarrativeTemporaryStorageProviderConfigIssue[];
@@ -56,6 +100,54 @@ function buildDisabledProvider(params: {
         providerMode: params.config.mode,
         storageProvider: params.config.providerName,
         issues: withoutDuplicateIssues(params.issues.length > 0 ? params.issues : [disabledIssue()]),
+      };
+    },
+  };
+}
+
+function buildLocalDiscardUploadProvider(params: {
+  config: VideoNarrativeTemporaryStorageProviderConfig;
+  issues: VideoNarrativeTemporaryStorageProviderConfigIssue[];
+  env?: NodeJS.ProcessEnv | Record<string, string | undefined>;
+}): VideoNarrativeTemporaryStorageProvider {
+  return {
+    mode: "real",
+    providerName: "local_mock",
+    createUploadSession(input: VideoNarrativeTemporaryStorageCreateSessionInput): VideoNarrativeTemporaryStorageCreateSessionResult {
+      const now = input.nowIso ? new Date(input.nowIso) : new Date();
+      const nowMs = Number.isNaN(now.getTime()) ? Date.now() : now.getTime();
+      const sessionId = `video-temp-upload-session-local-${randomUUID()}`;
+      const expiresAt = new Date(nowMs + params.config.signedUrlTtlSeconds * 1000).toISOString();
+      const objectKey = createVideoNarrativeTemporaryStorageObjectKey(input, sessionId);
+
+      return {
+        ok: true,
+        status: "signed_upload_session_created",
+        providerMode: "real",
+        storageProvider: "cloudflare_r2",
+        uploadSession: {
+          id: sessionId,
+          providerMode: "real",
+          storageProvider: "cloudflare_r2",
+          uploadUrl: buildLocalDiscardUploadUrl({
+            input,
+            sessionId,
+            expiresAt,
+            env: params.env,
+          }),
+          method: "PUT",
+          expiresAt,
+          signedUrlTtlSeconds: params.config.signedUrlTtlSeconds,
+          retentionTtlMinutes: params.config.retentionTtlMinutes,
+          headers: {
+            "Content-Type": input.mimeType,
+          },
+          objectKey,
+          shouldDeleteAfterAnalysis: true,
+          shouldPersistVideo: false,
+          shouldPersistThumbnail: false,
+        },
+        issues: params.issues.length > 0 ? withoutDuplicateIssues(params.issues) : undefined,
       };
     },
   };
@@ -130,11 +222,23 @@ export function createVideoNarrativeTemporaryStorageProvider(
 
   const hasBlocker = resolved.issues.some((issue) => issue.severity === "blocker");
   const isPlannedProvider = PLANNED_TEMPORARY_STORAGE_PROVIDER_MODES.includes(resolved.config.mode);
+  const localDiscardUploadEnabled = isLocalDiscardUploadEnabled(options.env);
 
   if (hasBlocker) {
     return {
       ...resolved,
       provider: buildDisabledProvider({ config: resolved.config, issues: resolved.issues }),
+    };
+  }
+
+  if (resolved.config.uploadSessionEnabled && localDiscardUploadEnabled) {
+    return {
+      ...resolved,
+      provider: buildLocalDiscardUploadProvider({
+        config: resolved.config,
+        issues: resolved.issues,
+        env: options.env,
+      }),
     };
   }
 

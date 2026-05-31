@@ -11,6 +11,10 @@ import {
 } from "./videoNarrativeGeminiProviderConfig";
 import { runVideoNarrativeGeminiProvider, type VideoNarrativeGeminiClientAdapter } from "./videoNarrativeGeminiProvider";
 import { buildRealProviderDiagnosisArtifacts } from "./videoNarrativeRealAnalysisDiagnosisPipeline";
+import {
+  buildVideoNarrativeDiagnosisQuiz,
+  type VideoNarrativeDiagnosisQuizResult,
+} from "./videoNarrativeDiagnosisQuizBuilder";
 import type { VideoNarrativeRealAnalysisPayload } from "./videoNarrativeRealAnalysisTypes";
 import {
   assertCanRunVideoNarrativeRealAnalysis,
@@ -45,6 +49,7 @@ export type VideoNarrativeRealAnalysisOrchestratorResult =
       cleanupAttempted: boolean;
       usageLimitChecked: boolean;
       allowlistGatePassed: boolean;
+      adaptiveQuiz: VideoNarrativeDiagnosisQuizResult;
       cleanupWarning?: string;
     }
   | {
@@ -65,6 +70,16 @@ export type VideoNarrativeRealAnalysisOrchestratorDeps = {
   env?: EnvLike;
   requestId?: string;
   now?: () => Date;
+  /** Pre-fetched Instagram metrics for prompt context. Omit to skip. */
+  instagramMetrics?: import("./videoNarrativeAiProviderTypes").VideoNarrativeInstagramMetricsSummary | null;
+  /** Narrative labels already confirmed for this creator, used to help Gemini detect confirmations vs. deviations. */
+  knownNarratives?: string[] | null;
+  /** Life-asset combinations confirmed across prior readings — fed back to Gemini for the coherence verdict. */
+  confirmedLifeAssets?: Array<{ label: string; evidenceCount: number }> | null;
+  /** The single top-performing asset pattern derived from confirmedLifeAssets. */
+  topPerformingPattern?: string | null;
+  /** Creator's answers to adaptive quiz questions from recent confirmation steps. */
+  pastCreatorAnswers?: Array<{ questionText: string; answerValue: string }> | null;
   geminiConfig?: VideoNarrativeGeminiProviderConfig;
   geminiClient?: VideoNarrativeGeminiClientAdapter | null;
   runProvider?: (params: {
@@ -74,6 +89,7 @@ export type VideoNarrativeRealAnalysisOrchestratorDeps = {
     config?: VideoNarrativeGeminiProviderConfig;
     client?: VideoNarrativeGeminiClientAdapter | null;
   }) => Promise<VideoNarrativeAiProviderResult>;
+  evaluateAllowlist?: typeof evaluateVideoNarrativeGeminiAllowlist;
   saveReading?: typeof saveCreatorVideoNarrativeDiagnosisFromStructuredAnalysis;
   runSynthesisSnapshotWrite?: typeof runControlledVideoReadingSynthesisSnapshotWrite;
   assertCanRunRealAnalysis?: typeof assertCanRunVideoNarrativeRealAnalysis;
@@ -234,7 +250,8 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     });
   }
 
-  const allowlist = evaluateVideoNarrativeGeminiAllowlist({ user: params.user, env });
+  const evaluateAllowlist = deps.evaluateAllowlist ?? evaluateVideoNarrativeGeminiAllowlist;
+  const allowlist = evaluateAllowlist({ user: params.user, env });
   if (!allowlist.ok) {
     return safeFailure({
       status: "blocked",
@@ -327,6 +344,13 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
   }
 
   const runProvider = deps.runProvider ?? runVideoNarrativeGeminiProvider;
+  let cleanupWarning: string | undefined;
+  let cleanupAttempted = false;
+  const attemptCleanup = async (reason: "analysis_completed" | "analysis_failed") => {
+    cleanupAttempted = Boolean(deps.cleanupTemporaryUpload);
+    cleanupWarning = await tryCleanup({ deps, payload: params.payload, reason });
+  };
+
   const geminiClient =
     "geminiClient" in deps
       ? deps.geminiClient ?? null
@@ -356,7 +380,12 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
         displayName: params.user.name ?? undefined,
         instagramConnected: Boolean(params.user.instagramConnected || params.user.isInstagramConnected),
         premiumAccess: params.user.planStatus === "active",
+        knownNarratives: deps.knownNarratives ?? null,
+        confirmedLifeAssets: deps.confirmedLifeAssets ?? null,
+        topPerformingPattern: deps.topPerformingPattern ?? null,
+        pastCreatorAnswers: deps.pastCreatorAnswers ?? null,
       },
+      instagramMetrics: deps.instagramMetrics ?? undefined,
       promptVersion: configResult.config.promptVersion,
       requestId: deps.requestId ?? `real-analysis-${now.getTime()}`,
     },
@@ -368,9 +397,15 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
   });
 
   if (!providerResult.ok || !providerResult.analysis) {
-    const cleanupWarning = await tryCleanup({ deps, payload: params.payload, reason: "analysis_failed" });
+    await attemptCleanup("analysis_failed");
     const providerIssueCode = providerResult.issues?.[0]?.code;
     const safeProviderIssueCode = providerIssueCode && [
+      "empty_response",
+      "invalid_json",
+      "missing_object",
+      "missing_required_fields",
+      "invalid_required_string",
+      "invalid_required_array",
       "gemini_timeout",
       "gemini_invalid_response",
       "provider_invalid_response",
@@ -391,7 +426,7 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
       ),
       safeIssueCode: safeProviderIssueCode,
       evidenceAnchorsUsed: false,
-      cleanupAttempted: Boolean(deps.cleanupTemporaryUpload),
+      cleanupAttempted,
       usageLimitChecked,
       allowlistGatePassed: true,
       cleanupWarning,
@@ -399,18 +434,47 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
   }
 
   const evidenceAnchorsUsed = hasEvidenceAnchors(providerResult.analysis);
+  if (!evidenceAnchorsUsed) {
+    await attemptCleanup("analysis_failed");
+    if (usageAttemptRecorded) {
+      await recordFailureSafely({
+        deps,
+        userId: params.user.id,
+        reason: "video_evidence_missing",
+        now,
+      });
+    }
+    return safeFailure({
+      message: getVideoNarrativeRealAnalysisUserFacingMessage("video_evidence_missing"),
+      safeIssueCode: "video_evidence_missing",
+      evidenceAnchorsUsed: false,
+      cleanupAttempted,
+      usageLimitChecked,
+      allowlistGatePassed: true,
+      cleanupWarning,
+    });
+  }
+
+  const accessLevel = params.user.planStatus === "active" ? "premium" : "free";
+  const instagramConnected = Boolean(params.user.instagramConnected || params.user.isInstagramConnected);
   const artifacts = buildRealProviderDiagnosisArtifacts({
     analysisId: `real-video-narrative-${params.payload.uploadSessionId}`,
     providerAnalysis: providerResult.analysis,
     creatorGoal: params.payload.creatorGoal,
     selectedGoalOption: params.payload.selectedGoalOption,
-    accessLevel: params.user.planStatus === "active" ? "premium" : "free",
-    instagramConnected: Boolean(params.user.instagramConnected || params.user.isInstagramConnected),
+    accessLevel,
+    instagramConnected,
     createdAt,
   });
+  const adaptiveQuiz = buildVideoNarrativeDiagnosisQuiz({
+    analysis: artifacts.analysis,
+    seed: artifacts.seed,
+    diagnosis: artifacts.strategicDiagnosis,
+    creatorQuestion: params.payload.creatorGoal,
+    accessLevel,
+    existingSignals: artifacts.strategicDiagnosis.creatorSignals,
+  });
 
-  const cleanupWarning = await tryCleanup({ deps, payload: params.payload, reason: "analysis_completed" });
-  const cleanupAttempted = Boolean(deps.cleanupTemporaryUpload);
   const saveReading = deps.saveReading ?? saveCreatorVideoNarrativeDiagnosisFromStructuredAnalysis;
   let videoReadingPersistence = skippedReading("persist_reading_disabled");
   let synthesisSnapshotWrite = skippedSnapshot("synthesis_write_disabled");
@@ -502,6 +566,8 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     }
   }
 
+  await attemptCleanup("analysis_completed");
+
   return {
     ok: true,
     realAnalysis: true,
@@ -512,6 +578,7 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     cleanupAttempted,
     usageLimitChecked,
     allowlistGatePassed: true,
+    adaptiveQuiz,
     cleanupWarning,
   };
 }

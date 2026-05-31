@@ -3,6 +3,7 @@ import {
   resolveVideoNarrativeTemporaryStorageInput,
   deleteVideoNarrativeTemporaryStorageObject,
 } from "./videoNarrativeTemporaryStorageRuntimeAdapter";
+import { writeLocalVideoNarrativeTemporaryUpload } from "./videoNarrativeLocalTemporaryUploadStore";
 
 describe("videoNarrativeTemporaryStorageRuntimeAdapter", () => {
   const baseEnv = {
@@ -106,6 +107,43 @@ describe("videoNarrativeTemporaryStorageRuntimeAdapter", () => {
         expect(res.geminiInput.mimeType).toBe("video/mp4");
         expect(res.safeDebugSummary.provider).toBe("cloudflare_r2");
       }
+    });
+
+    it("retorna bytes do upload temporário local em desenvolvimento", async () => {
+      const sessionId = "video-temp-upload-session-local-runtime-test";
+      await writeLocalVideoNarrativeTemporaryUpload({
+        sessionId,
+        mimeType: "video/mp4",
+        bytes: Buffer.from([7, 8, 9]),
+      });
+
+      const res = await resolveVideoNarrativeTemporaryStorageInput({
+        input: {
+          uploadSessionId: sessionId,
+          objectKey: `temporary/video-narrative/hash/${sessionId}.mp4`,
+          mimeType: "video/mp4",
+          sizeBytes: 3,
+        },
+        env: {
+          NODE_ENV: "development",
+          VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED: "1",
+          VIDEO_NARRATIVE_TEMP_UPLOAD_MAX_MB: "100",
+        },
+      });
+
+      expect(res.ok).toBe(true);
+      if (res.ok) {
+        expect(Array.from(res.geminiInput.bytes ?? [])).toEqual([7, 8, 9]);
+        expect(res.safeDebugSummary.provider).toBe("local_temp");
+      }
+
+      await deleteVideoNarrativeTemporaryStorageObject({
+        objectKey: `temporary/video-narrative/hash/${sessionId}.mp4`,
+        env: {
+          NODE_ENV: "development",
+          VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED: "1",
+        },
+      });
     });
 
     it("retorna download_failed quando S3Client lanca erro", async () => {

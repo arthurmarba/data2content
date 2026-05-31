@@ -1,6 +1,9 @@
 import {
+  getNarrativeMapAccessLevelForUser,
   getNarrativeMapAccessAction,
   getNarrativeMapStatusCardContent,
+  hasNarrativeMapPremiumAccess,
+  isNarrativeMapAdminUser,
   resolveNarrativeMapAccessState,
   sanitizeInternalReturnTo,
 } from "./narrativeMapAccessState";
@@ -44,6 +47,13 @@ describe("narrativeMapAccessState", () => {
   it("Pagamento pendente e ação necessária têm estados próprios", () => {
     expect(resolveNarrativeMapAccessState({ needsCheckout: true, readingQuota: { usedTotal: 0 } })).toBe("payment_pending");
     expect(resolveNarrativeMapAccessState({ needsPaymentAction: true, readingQuota: { usedTotal: 0 } })).toBe("payment_action_needed");
+    expect(resolveNarrativeMapAccessState({ needsBilling: true, readingQuota: { usedTotal: 0 } })).toBe("free_unused");
+    expect(resolveNarrativeMapAccessState({
+      needsBilling: true,
+      hasPremiumAccess: true,
+      instagram: { connected: true },
+      readingQuota: { usedTotal: 0, usedThisMonth: 0 },
+    })).toBe("pro_instagram_connected");
   });
 
   it("Admin recebe acesso sem loading indevido", () => {
@@ -52,6 +62,18 @@ describe("narrativeMapAccessState", () => {
       needsCheckout: true,
       readingQuota: { usedTotal: 99, usedThisMonth: 99 },
     })).toBe("admin");
+  });
+
+  it("normaliza acesso admin/dev e status premium manual", () => {
+    expect(isNarrativeMapAdminUser({ role: "ADMIN" })).toBe(true);
+    expect(isNarrativeMapAdminUser({ isDev: true })).toBe(true);
+    expect(hasNarrativeMapPremiumAccess({ role: "admin", planStatus: "inactive" })).toBe(true);
+    expect(hasNarrativeMapPremiumAccess({ planStatus: "active" })).toBe(true);
+    expect(hasNarrativeMapPremiumAccess({ planStatus: "non_renewing" })).toBe(true);
+    expect(getNarrativeMapAccessLevelForUser({
+      planStatus: "active",
+      instagramConnected: true,
+    })).toBe("instagram_optimized");
   });
 
   it("sanitiza returnTo interno e rejeita externo", () => {

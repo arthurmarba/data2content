@@ -37,6 +37,12 @@ function getCreatorHandle(creator: LandingCreatorHighlight) {
   return username.startsWith("@") ? username : `@${username}`;
 }
 
+function getInitials(name?: string | null) {
+  const parts = (name || "D2C").trim().split(/\s+/).filter(Boolean);
+  const initials = parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
+  return initials || "D2C";
+}
+
 function CreatorMediaKitCard({
   creator,
   compactView = false,
@@ -52,19 +58,20 @@ function CreatorMediaKitCard({
   const creatorHandle = getCreatorHandle(creator);
   const creatorTag = pickCreatorTag(creator);
   const hasMediaKit = Boolean(mediaKitHref);
+  const canRenderAvatarImage = Boolean(creator.avatarUrl && creator.hasAvatarImage !== false);
 
   const cardBody = (
     <article
-      className={`group flex h-full flex-col overflow-hidden rounded-[1.2rem] border border-zinc-200/80 bg-white transition hover:border-zinc-300 hover:shadow-[0_14px_34px_rgba(24,24,27,0.08)] ${
-        hasMediaKit ? "cursor-pointer" : "opacity-85"
-      } ${
-        compactView ? "w-[124px] min-w-[124px]" : "min-h-[214px]"
-      }`}
+      className={`group flex h-full flex-col overflow-hidden transition-all duration-200 ${
+        compactView
+          ? "w-[124px] min-w-[124px] rounded-[20px] bg-white shadow-[0_4px_14px_rgba(0,0,0,0.04)] hover:shadow-[0_12px_28px_rgba(15,23,42,0.08)] active:scale-[0.97]"
+          : "rounded-[1.2rem] border border-zinc-200/80 bg-white hover:border-zinc-300 hover:shadow-[0_14px_34px_rgba(24,24,27,0.08)] min-h-[214px]"
+      } ${hasMediaKit ? "cursor-pointer" : "opacity-85"}`}
     >
       <div className="relative aspect-[1/1.08] overflow-hidden bg-zinc-100">
-        {creator.avatarUrl ? (
+        {canRenderAvatarImage ? (
           <Image
-            src={creator.avatarUrl}
+            src={creator.avatarUrl!}
             alt={creatorName}
             fill
             sizes={compactView ? "124px" : "(min-width: 1024px) 180px, 154px"}
@@ -73,12 +80,18 @@ function CreatorMediaKitCard({
             loading={priority ? "eager" : "lazy"}
             priority={priority}
           />
+        ) : compactView ? (
+          <div className="flex h-full w-full items-center justify-center bg-indigo-50/60">
+            <div className="flex items-center justify-center rounded-full bg-white shadow-sm ring-2 ring-white/80" style={{ width: 44, height: 44 }}>
+              <span className="text-[14px] font-bold text-indigo-500">{getInitials(creatorName)}</span>
+            </div>
+          </div>
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-[linear-gradient(180deg,rgba(244,244,245,1),rgba(228,228,231,1))]">
             <UserAvatar
               name={creatorName}
               src={undefined}
-              size={compactView ? 52 : 60}
+              size={60}
               className="ring-2 ring-white/80"
             />
           </div>
@@ -121,15 +134,17 @@ export default function DiscoverCreatorsBoardContent({
   loading = false,
   error = null,
   compactView = false,
+  includeCreatorsWithoutAvatar = false,
 }: {
   creators: LandingCreatorHighlight[];
   loading?: boolean;
   error?: string | null;
   compactView?: boolean;
+  includeCreatorsWithoutAvatar?: boolean;
 }) {
   const displayCreators = React.useMemo(
-    () => creators.filter((creator) => creator.hasAvatarImage !== false),
-    [creators],
+    () => includeCreatorsWithoutAvatar ? creators : creators.filter((creator) => creator.hasAvatarImage !== false),
+    [creators, includeCreatorsWithoutAvatar],
   );
   const rails = React.useMemo(() => buildCuratedCreatorRails(displayCreators), [displayCreators]);
 

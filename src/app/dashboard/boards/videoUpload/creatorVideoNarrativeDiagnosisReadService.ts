@@ -12,6 +12,8 @@ import type {
   CreatorVideoNarrativeDiagnosisStatus,
   CreatorVideoNarrativeDiagnosisStrategicRecommendation,
   CreatorVideoNarrativeDiagnosisVideoReading,
+  VideoNarrativeContentContext,
+  VideoNarrativeCoherence,
 } from "./creatorVideoNarrativeDiagnosisTypes";
 
 export interface CreatorVideoNarrativeDiagnosisSafeReading {
@@ -25,6 +27,18 @@ export interface CreatorVideoNarrativeDiagnosisSafeReading {
   strategicRecommendation: CreatorVideoNarrativeDiagnosisStrategicRecommendation;
   profileContribution: CreatorVideoNarrativeDiagnosisProfileContribution;
   evidenceAnchors?: CreatorVideoNarrativeEvidenceAnchors;
+  /** Structured life-asset dimensions extracted from watching the video. */
+  contentContext?: VideoNarrativeContentContext;
+  /** Coherence verdict against the creator's confirmed top-performing pattern. */
+  narrativeCoherence?: VideoNarrativeCoherence;
+  /** Creator's answers to the adaptive quiz shown on the confirmation step. */
+  confirmationQuizAnswers?: Array<{
+    questionId: string;
+    questionText: string;
+    answerId: string;
+    answerValue: string;
+    answeredAt?: Date;
+  }>;
   safetyFlags: CreatorVideoNarrativeDiagnosisSafetyFlags;
   createdAt?: Date;
   updatedAt?: Date;
@@ -78,6 +92,9 @@ export function mapCreatorVideoNarrativeDiagnosisToSafeReading(
     strategicRecommendation: doc.strategicRecommendation,
     profileContribution: doc.profileContribution,
     evidenceAnchors: doc.evidenceAnchors,
+    contentContext: (doc as unknown as { contentContext?: VideoNarrativeContentContext }).contentContext,
+    narrativeCoherence: (doc as unknown as { narrativeCoherence?: VideoNarrativeCoherence }).narrativeCoherence,
+    confirmationQuizAnswers: (doc as unknown as { confirmationQuizAnswers?: CreatorVideoNarrativeDiagnosisSafeReading["confirmationQuizAnswers"] }).confirmationQuizAnswers,
     safetyFlags: doc.safetyFlags,
     createdAt: asDate(doc.createdAt),
     updatedAt: asDate(doc.updatedAt),
@@ -97,6 +114,9 @@ function queryProjection() {
     strategicRecommendation: 1,
     profileContribution: 1,
     evidenceAnchors: 1,
+    contentContext: 1,
+    narrativeCoherence: 1,
+    confirmationQuizAnswers: 1,
     safetyFlags: 1,
     "videoMetadata.analyzedAt": 1,
     createdAt: 1,

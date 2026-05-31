@@ -92,6 +92,19 @@ describe('MediaKitView ownership visibility', () => {
     expect(screen.queryByTestId('affiliate-card')).not.toBeInTheDocument();
   });
 
+  it('hides owner settings shortcut when rendered as Perfil mobile subview', () => {
+    (useSession as jest.Mock).mockReturnValue({ data: { user: { _id: 'user1' } } });
+    render(
+      <MediaKitView
+        {...baseProps}
+        showOwnerCtas={true}
+        showOwnerSettingsShortcut={false}
+        compactBoardPreview
+      />
+    );
+    expect(screen.queryByRole('link', { name: 'Configurações' })).not.toBeInTheDocument();
+  });
+
   it('hides locked premium teasers for public viewers', () => {
     (useSession as jest.Mock).mockReturnValue({ data: null });
     render(
@@ -113,7 +126,7 @@ describe('MediaKitView ownership visibility', () => {
         showOwnerCtas={true}
       />
     );
-    expect(screen.getByText(/Ative o modo Pro para ver formato, contexto, intenção, narrativa, prova e modo comercial que mais puxam crescimento/i)).toBeInTheDocument();
+    expect(screen.getByText(/Ative o Plano Pro para ver formato, contexto, intenção, narrativa, prova e modo comercial que mais puxam crescimento/i)).toBeInTheDocument();
   });
 
   it('renders V2 and V2.5 performance signals in the media kit view', () => {

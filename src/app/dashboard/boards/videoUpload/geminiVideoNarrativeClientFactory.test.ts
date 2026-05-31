@@ -10,6 +10,7 @@ import {
 import {
   DEFAULT_GEMINI_VIDEO_NARRATIVE_MODEL,
   createGeminiVideoNarrativeClient,
+  createVideoNarrativeGeminiClientAdapter,
 } from "./geminiVideoNarrativeClientFactory";
 
 jest.mock("@google/genai", () => ({
@@ -177,6 +178,51 @@ describe("geminiVideoNarrativeClientFactory", () => {
     });
 
     expect(generateContent).toHaveBeenCalledWith(expect.objectContaining({ model: "gemini-custom" }));
+  });
+
+  it("adapter server-side pede JSON nativo para reduzir resposta inválida", async () => {
+    const client = createVideoNarrativeGeminiClientAdapter({
+      apiKey: "secret-key",
+      model: "gemini-custom",
+    }).client!;
+
+    await client.generateContent({
+      systemInstruction: "sistema",
+      userInstruction: "usuário",
+      responseSchemaInstruction: "json",
+      model: "gemini-runtime",
+      maxOutputTokens: 3000,
+      videoInput: {
+        mimeType: "video/mp4",
+        bytes: Buffer.from("fake-video"),
+        source: "temporary_storage",
+      },
+    });
+
+    expect(generateContent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "gemini-runtime",
+        config: expect.objectContaining({
+          responseMimeType: "application/json",
+          responseJsonSchema: expect.objectContaining({
+            required: expect.arrayContaining(["mainNarrative", "contentContext", "narrativeCoherence", "evidenceAnchors"]),
+            properties: expect.objectContaining({
+              contentContext: expect.objectContaining({
+                required: expect.arrayContaining(["setting", "lifeSignals", "productionStyle"]),
+              }),
+              narrativeCoherence: expect.objectContaining({
+                required: expect.arrayContaining(["verdict", "alignedAssets", "newAssets"]),
+              }),
+              evidenceAnchors: expect.objectContaining({
+                required: expect.arrayContaining(["speechQuotes", "sceneAnchors", "creatorIntentAnchor"]),
+              }),
+            }),
+          }),
+          maxOutputTokens: 3000,
+          systemInstruction: "sistema",
+        }),
+      }),
+    );
   });
 
   it("does not expose the api key in issues or generated text", () => {

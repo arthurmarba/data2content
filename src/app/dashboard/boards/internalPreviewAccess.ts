@@ -5,7 +5,17 @@ export type InternalPreviewUser = {
   email?: string | null;
 };
 
-export function canAccessInternalPreview(user: InternalPreviewUser | null | undefined): boolean {
+export function canAccessInternalPreview(
+  user: InternalPreviewUser | null | undefined,
+  env: { NODE_ENV?: string; MOBILE_STRATEGIC_PROFILE_LOCAL_PREVIEW_BYPASS?: string } = process.env,
+): boolean {
+  // Local dev bypass: allow unauthenticated access when explicitly enabled
+  if (
+    env.NODE_ENV !== "production" &&
+    env.MOBILE_STRATEGIC_PROFILE_LOCAL_PREVIEW_BYPASS === "1"
+  ) {
+    return true;
+  }
   if (!user) return false;
   if (user.isAdmin === true || user.isDev === true) return true;
 

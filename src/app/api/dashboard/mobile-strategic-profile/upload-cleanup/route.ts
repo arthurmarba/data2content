@@ -96,6 +96,14 @@ export async function POST(request: Request) {
       }
     }
 
+    if (validation.payload.reason === "analysis_failed") {
+      return NextResponse.json({
+        ok: true,
+        status: "cleanup_deferred",
+        message: "Cleanup temporário adiado para permitir nova tentativa da análise.",
+      });
+    }
+
     if (validation.payload.objectKey) {
       const deleted = await deleteVideoNarrativeTemporaryStorageObject({
         objectKey: validation.payload.objectKey,

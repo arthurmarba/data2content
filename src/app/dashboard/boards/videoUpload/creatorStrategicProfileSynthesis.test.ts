@@ -81,7 +81,7 @@ describe("creatorStrategicProfileSynthesis", () => {
     });
 
     expect(synthesis.mainNarrative).toBeNull();
-    expect(serialized(synthesis.testedNarratives)).toContain("desvio criativo");
+    expect(serialized(synthesis.testedNarratives)).toContain("nova direção");
   });
 
   it("commercial_signal gera território comercial sem match real", () => {
@@ -125,7 +125,40 @@ describe("creatorStrategicProfileSynthesis", () => {
     });
 
     expect(synthesis.nextStrategicMove?.label).toBeTruthy();
-    expect(synthesis.nextStrategicMove?.description).toContain("3 vídeos");
+    expect(synthesis.nextStrategicMove?.description).toContain("3 leituras");
+  });
+
+  it("com varias leituras, nao pede mais duas quando o problema e separar tema de narrativa", () => {
+    const badBunnyReading =
+      "O criador analisa a performance de Bad Bunny no Super Bowl como uma estrategia de negocio, destacando a independencia do artista, a propriedade intelectual e o impacto cultural para construcao de comunidade leal e global.";
+    const base = buildCreatorStrategicProfileSynthesisReadingsFixture("first_reading")[0]!;
+    const readings = Array.from({ length: 6 }, (_, index) => ({
+      ...base,
+      diagnosisId: `bad-bunny-${index + 1}`,
+      videoReading: {
+        ...base.videoReading,
+        title: badBunnyReading,
+        summary: `Esse video comunica uma direcao de conteudo ligada a ${badBunnyReading}`,
+        whatVideoReveals: `Esse video comunica uma direcao de conteudo ligada a ${badBunnyReading}`,
+        mainNarrative: badBunnyReading,
+        dominantInsight: `Pelo video, a leitura principal aponta para ${badBunnyReading}`,
+      },
+      strategicRecommendation: {
+        ...base.strategicRecommendation,
+        mainAdjustment: `A narrativa nao explicita qual eixo pertence ao creator ${index + 1}.`,
+        nextExperiment: "Refinar a abertura antes de transformar o video em roteiro.",
+        whatToRepeat: badBunnyReading,
+      },
+    }));
+
+    const synthesis = buildCreatorStrategicProfileSynthesis({ readings });
+    const text = serialized(synthesis);
+
+    expect(synthesis.nextStrategicMove?.label).toBe("Separar tema de narrativa");
+    expect(synthesis.nextStrategicMove?.label).not.toBe("Criar mais duas leituras");
+    expect(synthesis.testedNarratives[0]?.label).toBe("Autonomia criativa como negocio cultural");
+    expect(text).not.toContain("o criador analisa");
+    expect(text).not.toContain("esse video comunica uma direcao");
   });
 
   it("não usa termos proibidos", () => {
@@ -152,5 +185,73 @@ describe("creatorStrategicProfileSynthesis", () => {
     const source = fs.readFileSync(path.join(__dirname, "creatorStrategicProfileSynthesis.ts"), "utf8");
 
     expect(source).not.toMatch(/connectToDatabase|from ["']mongoose["']|@google\/genai|@aws-sdk|api\/|CreatorStrategicProfileSnapshot|createCreatorVideoNarrativeDiagnosis|fetch\(/);
+  });
+
+  it("strengths ficam vazios quando todas as leituras são needs_more_samples", () => {
+    const readings = buildCreatorStrategicProfileSynthesisReadingsFixture("three_related_readings").map((reading) => ({
+      ...reading,
+      profileContribution: {
+        ...reading.profileContribution,
+        type: "needs_more_samples" as const,
+      },
+    }));
+
+    const synthesis = buildCreatorStrategicProfileSynthesis({ readings });
+
+    expect(synthesis.strengths).toHaveLength(0);
+  });
+
+  it("tensionBuckets nunca contém texto de suggestedOpening", () => {
+    const base = buildCreatorStrategicProfileSynthesisReadingsFixture("three_related_readings")[0]!;
+    const OPENING_TEXT = "Abre com a frase: 'Você sabia que...'";
+    const readings = Array.from({ length: 3 }, (_, i) => ({
+      ...base,
+      diagnosisId: `reading-${i + 1}`,
+      speechReading: {
+        ...base.speechReading,
+        suggestedOpening: OPENING_TEXT,
+        openingRead: OPENING_TEXT,
+      },
+    }));
+
+    const synthesis = buildCreatorStrategicProfileSynthesis({ readings });
+    const text = serialized(synthesis.recurringTensions);
+
+    expect(text).not.toContain("abre com a frase");
+  });
+
+  it("6 leituras com mesmo nextExperiment geram 1 experimento contextual, não 1 com evidenceCount=6", () => {
+    const base = buildCreatorStrategicProfileSynthesisReadingsFixture("first_reading")[0]!;
+    const readings = Array.from({ length: 6 }, (_, i) => ({
+      ...base,
+      diagnosisId: `reading-${i + 1}`,
+      profileContribution: {
+        ...base.profileContribution,
+        type: "opens_new_hypothesis" as const,
+      },
+      strategicRecommendation: {
+        ...base.strategicRecommendation,
+        nextExperiment: "Refinar a abertura antes de transformar o video em roteiro.",
+      },
+    }));
+
+    const synthesis = buildCreatorStrategicProfileSynthesis({ readings });
+
+    expect(synthesis.tacticalExperiments.length).toBeLessThanOrEqual(3);
+    expect(synthesis.tacticalExperiments[0]?.summary).not.toContain("Refinar a abertura");
+  });
+
+  it("dominantTone reflete o emotionalRegister mais frequente", () => {
+    const base = buildCreatorStrategicProfileSynthesisReadingsFixture("three_related_readings")[0]!;
+    const readings = [
+      { ...base, diagnosisId: "r1", contentContext: { ...base.contentContext, emotionalRegister: "reflexivo" } },
+      { ...base, diagnosisId: "r2", contentContext: { ...base.contentContext, emotionalRegister: "reflexivo" } },
+      { ...base, diagnosisId: "r3", contentContext: { ...base.contentContext, emotionalRegister: "direto" } },
+    ];
+
+    const synthesis = buildCreatorStrategicProfileSynthesis({ readings });
+
+    expect(synthesis.dominantTone).toBe("reflexivo");
+    expect(synthesis.toneSignals.length).toBeGreaterThan(0);
   });
 });

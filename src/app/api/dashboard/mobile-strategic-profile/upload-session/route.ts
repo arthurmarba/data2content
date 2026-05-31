@@ -7,12 +7,15 @@ import {
   isRealUploadEnabled,
 } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadFeatureFlag";
 import { validateTemporaryUploadInput } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadValidation";
-import { evaluateVideoNarrativeSignedUploadAllowlist } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageAllowlist";
 import { createVideoNarrativeTemporaryStorageProvider } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageProviderFactory";
 import { createServerSideSignedUploadUrlSigner } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageSignedUrlProvider";
 import { assertCanStartNarrativeMapReading } from "@/app/dashboard/boards/videoUpload/narrativeMapReadingQuotaService";
 import { ensurePlannerAccess } from "@/app/lib/planGuard";
-import { hasPlanPremiumAccess } from "@/utils/planStatus";
+import {
+  hasNarrativeMapInstagramConnection,
+  hasNarrativeMapPremiumAccess,
+  isNarrativeMapAdminUser,
+} from "@/app/dashboard/boards/videoUpload/narrativeMapAccessState";
 
 const SIGNED_URL_KEYWORDS = ["signature=", "expires=", "token=", "policy="];
 const BASE64_INDICATOR = "base64";
@@ -30,11 +33,8 @@ type MobileStrategicProfileSession = {
 } | null;
 
 async function resolveNarrativeMapUploadAccess(sessionUser: NonNullable<MobileStrategicProfileSession>["user"]) {
-  const isAdmin =
-    Boolean(sessionUser?.isAdmin || sessionUser?.isDev) ||
-    sessionUser?.role === "admin" ||
-    sessionUser?.role === "dev";
-  let hasPremiumAccess = hasPlanPremiumAccess(sessionUser?.planStatus ?? null);
+  const isAdmin = isNarrativeMapAdminUser(sessionUser);
+  let hasPremiumAccess = hasNarrativeMapPremiumAccess(sessionUser);
 
   if (!hasPremiumAccess && sessionUser?.id) {
     const planAccess = await ensurePlannerAccess({
@@ -45,18 +45,31 @@ async function resolveNarrativeMapUploadAccess(sessionUser: NonNullable<MobileSt
       forceReload: true,
       routePath: "/api/dashboard/mobile-strategic-profile/upload-session",
     });
-    hasPremiumAccess = Boolean(planAccess.ok && hasPlanPremiumAccess(planAccess.normalizedStatus));
+    hasPremiumAccess = Boolean(planAccess.ok && planAccess.normalizedStatus);
   }
 
   return {
     isAdmin,
-    hasPremiumAccess,
-    hasFullReportAccess: hasPremiumAccess,
+    hasPremiumAccess: isAdmin || hasPremiumAccess,
+    hasFullReportAccess: isAdmin || hasPremiumAccess,
     instagram: {
-      connected: Boolean(sessionUser?.instagramConnected || sessionUser?.isInstagramConnected),
+      connected: hasNarrativeMapInstagramConnection(sessionUser),
       needsReconnect: false,
     },
   };
+}
+
+function isLocalDiscardUploadEnabled(): boolean {
+  return process.env.NODE_ENV !== "production" && process.env.VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED === "1";
+}
+
+function resolveRequestOrigin(request: Request): string {
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const host = request.headers.get("host")?.trim();
+  if (host) {
+    return `${forwardedProto || new URL(request.url).protocol.replace(":", "")}://${host}`;
+  }
+  return new URL(request.url).origin;
 }
 
 export async function GET() {
@@ -238,29 +251,24 @@ export async function POST(request: Request) {
       );
     }
 
+    const localDiscardUploadEnabled = isLocalDiscardUploadEnabled();
     const realUploadEnabled = isRealUploadEnabled();
 
-    if (realUploadEnabled) {
-      const allowlist = evaluateVideoNarrativeSignedUploadAllowlist({
-        user: session.user,
-      });
-      if (!allowlist.ok) {
-        return NextResponse.json(
-          {
-            ok: false,
-            status: "disabled",
-            reason: "temporary_storage_disabled",
-            providerMode: "disabled",
-            storageProvider: "none",
-            issues: allowlist.issues,
-          },
-          { status: 403 },
-        );
-      }
-    }
-
+    const requestOrigin = resolveRequestOrigin(request);
+    const storageEnv = localDiscardUploadEnabled
+      ? {
+          ...process.env,
+          NEXTAUTH_URL: requestOrigin,
+        }
+      : realUploadEnabled && accessDecision.ok
+        ? {
+            ...process.env,
+            VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED: "1",
+          }
+        : process.env;
     const storageFactory = createVideoNarrativeTemporaryStorageProvider({
-      realUploadEnabled,
+      env: storageEnv,
+      realUploadEnabled: localDiscardUploadEnabled ? false : realUploadEnabled,
       uploadSessionEnabled: true,
       signedUrlSigner: createServerSideSignedUploadUrlSigner(),
     });

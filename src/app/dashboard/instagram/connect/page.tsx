@@ -77,14 +77,24 @@ export default function InstagramPreConnectPage() {
     requestedNextTarget === "calculator" ||
     requestedNextTarget === "chat" ||
     requestedNextTarget === "instagram-connection" ||
+    requestedNextTarget === "narrative-map" ||
     requestedNextTarget === "planner" ||
     requestedNextTarget === "post-creation" ||
     requestedNextTarget === "campaigns"
       ? requestedNextTarget
       : "media-kit";
   const isPostCreationFlow = nextTarget === "post-creation";
-  const backTarget = isPostCreationFlow ? "/calendar" : "/dashboard?intent=instagram";
-  const connectLabel = isPostCreationFlow ? "Autorizar e voltar ao board" : "Autorizar Instagram pela Meta";
+  const isNarrativeMapFlow = nextTarget === "narrative-map";
+  const backTarget = isPostCreationFlow
+    ? "/calendar"
+    : nextTarget === "narrative-map"
+      ? "/dashboard/boards/mobile-strategic-profile"
+      : "/dashboard?intent=instagram";
+  const connectLabel = isPostCreationFlow
+    ? "Autorizar e voltar ao board"
+    : isNarrativeMapFlow
+      ? "Conectar e voltar ao mapa"
+      : "Autorizar Instagram pela Meta";
   const loadingLabel = "Abrindo Meta…";
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -310,6 +320,8 @@ export default function InstagramPreConnectPage() {
       <p className="text-gray-600 mt-2">
         {isPostCreationFlow
           ? "Autorize pela Meta para liberar a análise e a pauta de teste. Não publicamos nada."
+          : isNarrativeMapFlow
+          ? "Autorize pela Meta para a D2C ler sinais das suas postagens e voltar ao seu mapa. Não publicamos nada."
           : "Autorize pela Meta para validar sua conta com segurança. Não publicamos nada."}
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
@@ -323,7 +335,7 @@ export default function InstagramPreConnectPage() {
         </span>
         {!isPostCreationFlow && (
           <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700">
-            Retorno automático
+            {isNarrativeMapFlow ? "Volta para o mapa" : "Retorno automático"}
           </span>
         )}
       </div>
@@ -340,7 +352,7 @@ export default function InstagramPreConnectPage() {
           onClick={() => router.push(backTarget)}
           className="inline-flex items-center px-4 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
         >
-          {isPostCreationFlow ? "Voltar ao board" : "Conectar depois"}
+          {isPostCreationFlow ? "Voltar ao board" : isNarrativeMapFlow ? "Voltar ao mapa" : "Conectar depois"}
         </button>
         <button
           onClick={showAuthorizationDetails}
@@ -355,6 +367,11 @@ export default function InstagramPreConnectPage() {
         {isPostCreationFlow && (
           <p className="mt-2 text-sm text-slate-500">
             Após autorizar, você retorna ao board para continuar de onde parou.
+          </p>
+        )}
+        {isNarrativeMapFlow && (
+          <p className="mt-2 text-sm text-slate-500">
+            Após autorizar, você retorna ao mapa para continuar de onde parou.
           </p>
         )}
       </section>

@@ -11,7 +11,7 @@ export type VideoNarrativeGeminiAllowlistUser = {
 };
 
 export type VideoNarrativeGeminiAllowlistResult =
-  | { ok: true; reason: "admin_dev_user" | "email_allowlist" | "user_id_allowlist" }
+  | { ok: true; reason: "admin_dev_user" | "email_allowlist" | "user_id_allowlist" | "narrative_map_entitlement" }
   | { ok: false; issues: VideoNarrativeAiIssue[] };
 
 function parseList(value: string | undefined): string[] {

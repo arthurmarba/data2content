@@ -19,6 +19,7 @@ type NextTarget =
   | "chat"
   | "media-kit"
   | "instagram-connection"
+  | "narrative-map"
   | "planner"
   | "post-creation"
   | "campaigns";
@@ -249,18 +250,22 @@ function consumeStoredReturnTo(): string | null {
   }
 }
 
-function buildNextUrl(nextTargetRaw: string | null): string {
+export function buildNextUrl(nextTargetRaw: string | null): string {
   const storedReturnTo = consumeStoredReturnTo();
   const nextTarget = (nextTargetRaw || "").toLowerCase() as NextTarget;
   if (storedReturnTo) {
-    if (nextTarget === "post-creation") {
+    if (nextTarget === "post-creation" || nextTarget === "narrative-map") {
       try {
         const target = new URL(storedReturnTo, window.location.origin);
         target.searchParams.set("instagramLinked", "true");
-        target.searchParams.set("postCreationConnected", "1");
+        if (nextTarget === "post-creation") {
+          target.searchParams.set("postCreationConnected", "1");
+        }
         return `${target.pathname}${target.search}${target.hash}`;
       } catch {
-        return "/calendar?instagramLinked=true&postCreationConnected=1";
+        return nextTarget === "post-creation"
+          ? "/calendar?instagramLinked=true&postCreationConnected=1"
+          : "/dashboard/boards/mobile-strategic-profile?instagramLinked=true";
       }
     }
     return storedReturnTo;
@@ -279,6 +284,8 @@ function buildNextUrl(nextTargetRaw: string | null): string {
       return "/campaigns?instagramLinked=true";
     case "instagram-connection":
       return "/dashboard/instagram-connection?instagramLinked=true";
+    case "narrative-map":
+      return "/dashboard/boards/mobile-strategic-profile?instagramLinked=true";
     case "chat":
     default:
       return "/dashboard/chat?instagramLinked=true";

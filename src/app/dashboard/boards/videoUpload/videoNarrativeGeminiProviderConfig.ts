@@ -12,12 +12,12 @@ export type VideoNarrativeGeminiProviderConfig = {
 
 type EnvLike = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
-const DEFAULT_TIMEOUT_MS = 12_000;
+const DEFAULT_TIMEOUT_MS = 90_000;
 const MIN_TIMEOUT_MS = 1_000;
-const MAX_TIMEOUT_MS = 30_000;
-const DEFAULT_MAX_OUTPUT_TOKENS = 1800;
+const MAX_TIMEOUT_MS = 180_000;
+const DEFAULT_MAX_OUTPUT_TOKENS = 4096;
 const MIN_MAX_OUTPUT_TOKENS = 256;
-const MAX_MAX_OUTPUT_TOKENS = 4096;
+const MAX_MAX_OUTPUT_TOKENS = 8192;
 const DEFAULT_PROMPT_VERSION = "video_narrative_gemini_mm65_v1";
 
 function parseBoolean(value: string | undefined): boolean {

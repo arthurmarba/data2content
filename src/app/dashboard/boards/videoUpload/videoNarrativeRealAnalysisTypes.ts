@@ -38,6 +38,7 @@ const FORBIDDEN_KEYS = [
 
 const ALLOWED_GOAL_OPTIONS: VideoNarrativeAiProviderGoalOption[] = [
   "authority",
+  "authority_build",
   "retention",
   "format_test",
   "sponsored_content",

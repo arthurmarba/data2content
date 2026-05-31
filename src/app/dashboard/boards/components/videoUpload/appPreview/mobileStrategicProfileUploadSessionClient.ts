@@ -68,6 +68,8 @@ export async function requestUploadSession(
       }
     );
 
+    const data = typeof response.json === "function" ? await response.json().catch(() => null) : null;
+
     if (response.status === 401) {
       return {
         ok: false,
@@ -76,21 +78,22 @@ export async function requestUploadSession(
       };
     }
 
-    if (response.status === 403) {
-      return {
-        ok: false,
-        status: "disabled",
-        message: "Acesso proibido. A API de sessão temporária de upload está inativa.",
-      };
-    }
-
-    const data = await response.json();
     if (!response.ok) {
+      const issues = Array.isArray(data?.issues) ? data.issues : [];
+      const blockerIssue = issues.find(
+        (issue: { message?: unknown; severity?: unknown }) => issue.severity === "blocker" && typeof issue.message === "string",
+      );
+      const blockerMessage = typeof blockerIssue?.message === "string" ? blockerIssue.message : null;
       return {
         ok: false,
-        status: "disabled",
-        issues: data.issues || [],
-        message: data.message || "Não foi possível validar o vídeo agora.",
+        status: typeof data?.status === "string" ? data.status : "disabled",
+        issues,
+        message:
+          (typeof data?.message === "string" && data.message) ||
+          blockerMessage ||
+          (response.status === 403
+            ? "Acesso proibido. A API de sessão temporária de upload está inativa."
+            : "Não foi possível validar o vídeo agora."),
       };
     }
 

@@ -6,6 +6,7 @@ import { getCategoryById } from '@/app/lib/classification';
 import { getV2CategoryById } from '@/app/lib/classificationV2';
 import { getV25CategoryById } from '@/app/lib/classificationV2_5';
 import { generateThemes as generateThemesAI } from '@/app/lib/planner/ai';
+import { PAUTAS_PER_SLOT } from '@/app/lib/planner/constants';
 
 type SlotThemesResult = { keyword: string; themes: string[] };
 type ThemeRetrievalSelection = Partial<BlockCategorySelection>;
@@ -339,7 +340,7 @@ function composeThemes(keyword: string, cats: PlannerCategories): string[] {
 
   // Não impõe prefixo obrigatório pelo keyword; apenas garante que muitas ideias contenham o termo
   const out = Array.from(themes);
-  return Array.from(new Set(out)).slice(0, 5);
+  return Array.from(new Set(out)).slice(0, PAUTAS_PER_SLOT);
 }
 
 // ---------- Fallback de keyword a partir das categorias ----------
@@ -517,9 +518,9 @@ async function computeThemesForSlot(
     const styleHints = buildThemeStyleHints(categories);
     const mode = (process.env.PLANNER_THEMES_MODE || 'flex').toLowerCase();
     const startWithKeyword = mode === 'strict'; // flex = false (padrão), strict = true
-    const aiThemes = await generateThemesAI({ keyword, categories, sourceCaptions: caps, count: 5, startWithKeyword, styleHints });
+    const aiThemes = await generateThemesAI({ keyword, categories, sourceCaptions: caps, count: PAUTAS_PER_SLOT, startWithKeyword, styleHints });
     if (Array.isArray(aiThemes) && aiThemes.length) {
-      const uniq = Array.from(new Set(aiThemes.map(t => t.trim()).filter(Boolean))).slice(0, 5);
+      const uniq = Array.from(new Set(aiThemes.map(t => t.trim()).filter(Boolean))).slice(0, PAUTAS_PER_SLOT);
       if (uniq.length >= 3) return { keyword, themes: uniq };
     }
   } catch { /* fallback abaixo */ }

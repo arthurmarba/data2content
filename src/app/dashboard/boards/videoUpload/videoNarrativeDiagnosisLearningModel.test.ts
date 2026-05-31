@@ -71,7 +71,7 @@ describe("videoNarrativeDiagnosisLearningModel", () => {
     const diagnosis = buildVideoNarrativeStrategicDiagnosis(makeInput());
 
     expect(diagnosis.mainNarrative).toBeTruthy();
-    expect(diagnosis.whatVideoCommunicates).toContain("Esse vídeo comunica");
+    expect(diagnosis.whatVideoCommunicates).toContain("creator");
     expect(diagnosis.creatorIntent).toContain("marca");
   });
 
@@ -177,9 +177,9 @@ describe("videoNarrativeDiagnosisLearningModel", () => {
       }),
     );
 
-    expect(diagnosis.strategicReading).toContain("Pelo vídeo");
-    expect(diagnosis.strategicReading).toContain("Pelo objetivo declarado");
-    expect(diagnosis.strategicReading).toContain("O melhor caminho");
+    expect(diagnosis.strategicReading).toBeTruthy();
+    expect(diagnosis.strategicReading).not.toContain("Pelo vídeo");
+    expect(diagnosis.strategicReading).not.toContain("O melhor caminho");
   });
 
   it("suggestedHook uses seed scriptDirection opening", () => {

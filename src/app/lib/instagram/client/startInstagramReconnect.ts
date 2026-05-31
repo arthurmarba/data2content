@@ -6,6 +6,7 @@ export type InstagramReconnectNextTarget =
   | "chat"
   | "media-kit"
   | "instagram-connection"
+  | "narrative-map"
   | "planner"
   | "post-creation"
   | "campaigns";

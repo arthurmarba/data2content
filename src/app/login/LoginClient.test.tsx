@@ -1,5 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { signIn } from "next-auth/react";
 import LoginClient from "./LoginClient";
+import { LEGAL_CONSENT_COOKIE_NAME } from "@/lib/auth/legalConsent";
 
 let currentSearchParams = new URLSearchParams();
 
@@ -11,28 +13,49 @@ jest.mock("next-auth/react", () => ({
   signIn: jest.fn(),
 }));
 
+const signInMock = signIn as jest.Mock;
+
 describe("LoginClient", () => {
   beforeEach(() => {
     currentSearchParams = new URLSearchParams();
+    signInMock.mockClear();
+    signInMock.mockResolvedValue(undefined);
+    (window as any).gtag = jest.fn();
+    document.cookie = `${LEGAL_CONSENT_COOKIE_NAME}=; Max-Age=0; Path=/`;
   });
 
   it("renders default copy without callbackUrl", () => {
     render(<LoginClient />);
 
-    expect(screen.getByText("Continue na plataforma")).toBeInTheDocument();
+    expect(screen.getByText("Entre na sua conta")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Continuar com Google/ })).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 
   it("renders strategic profile copy from callbackUrl", () => {
     currentSearchParams = new URLSearchParams({
-      callbackUrl: "/dashboard/boards/mobile-strategic-profile-preview",
+      callbackUrl: "/dashboard/boards/mobile-strategic-profile",
     });
 
     render(<LoginClient />);
 
-    expect(screen.getByText("Perfil Estratégico")).toBeInTheDocument();
-    expect(screen.getByText("Crie seu Perfil Estratégico")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Entrar e criar perfil/ })).toBeInTheDocument();
+    expect(screen.getByText("Data2Content")).toBeInTheDocument();
+    expect(screen.getByText("Comece seu mapa narrativo")).toBeInTheDocument();
+    expect(screen.getByText("Você volta direto para a análise.")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Continuar com Google/ })).toBeInTheDocument();
+  });
+
+  it("renders strategic profile copy from login intent", () => {
+    currentSearchParams = new URLSearchParams({
+      callbackUrl: "/dashboard/boards/mobile-strategic-profile",
+      intent: "strategic_profile",
+    });
+
+    render(<LoginClient />);
+
+    expect(screen.getByText("Data2Content")).toBeInTheDocument();
+    expect(screen.getByText("Comece seu mapa narrativo")).toBeInTheDocument();
+    expect(screen.queryByText(/crédito gratuito/i)).not.toBeInTheDocument();
   });
 
   it("renders analyze video copy from callbackUrl intent", () => {
@@ -43,7 +66,30 @@ describe("LoginClient", () => {
     render(<LoginClient />);
 
     expect(screen.getByText("Análise narrativa")).toBeInTheDocument();
-    expect(screen.getByText("Entre para analisar seu primeiro vídeo")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Entrar e analisar vídeo/ })).toBeInTheDocument();
+    expect(screen.getByText("Continue sua análise")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Continuar com Google/ })).toBeInTheDocument();
+  });
+
+  it("shows legal acceptance copy without a checkbox", () => {
+    render(<LoginClient />);
+
+    expect(screen.getByText(/Ao continuar, você aceita os/)).toBeInTheDocument();
+    expect(screen.getByText("Termos")).toBeInTheDocument();
+    expect(screen.getByText("Política de Privacidade")).toBeInTheDocument();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+
+  it("records legal acceptance when continuing with Google", () => {
+    currentSearchParams = new URLSearchParams({
+      callbackUrl: "/dashboard/boards/mobile-strategic-profile",
+    });
+
+    render(<LoginClient />);
+    fireEvent.click(screen.getByRole("button", { name: /Continuar com Google/ }));
+
+    expect(signInMock).toHaveBeenCalledWith("google", {
+      callbackUrl: "/dashboard/boards/mobile-strategic-profile",
+    });
+    expect(document.cookie).toContain(`${LEGAL_CONSENT_COOKIE_NAME}=1`);
   });
 });

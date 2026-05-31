@@ -34,6 +34,7 @@ async function run() {
         // CORREÇÃO FINAL: Envolve os dados na estrutura correta que o schema espera.
         demographics: {
           follower_demographics: data.follower_demographics,
+          engaged_audience_demographics: data.engaged_audience_demographics,
         },
       });
 

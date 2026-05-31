@@ -39,6 +39,34 @@ function hasExpired(expiresAt: string): boolean {
   return !Number.isFinite(expiresMs) || expiresMs <= Date.now();
 }
 
+function isLocalDiscardUploadUrlAllowed(url: URL): boolean {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED === "1" &&
+    url.protocol === "http:" &&
+    (url.hostname === "localhost" || url.hostname === "127.0.0.1") &&
+    url.pathname === "/api/dev/mobile-strategic-profile/discard-upload"
+  );
+}
+
+function parseUploadUrl(uploadUrl: string): URL | null {
+  try {
+    if (typeof window !== "undefined") {
+      return new URL(uploadUrl, window.location.href);
+    }
+    return new URL(uploadUrl);
+  } catch {
+    return null;
+  }
+}
+
+function resolveFetchUploadUrl(uploadUrl: string, parsedUrl: URL): string {
+  if (isLocalDiscardUploadUrlAllowed(parsedUrl)) {
+    return `${parsedUrl.pathname}${parsedUrl.search}`;
+  }
+  return uploadUrl;
+}
+
 function sanitizeHeaders(headers: Record<string, string>): Record<string, string> | null {
   const safeHeaders: Record<string, string> = {};
 
@@ -61,13 +89,13 @@ export async function uploadVideoToTemporarySignedUrl(
   }
 
   let parsedUrl: URL;
-  try {
-    parsedUrl = new URL(input.uploadUrl);
-  } catch {
+  const maybeParsedUrl = parseUploadUrl(input.uploadUrl);
+  if (!maybeParsedUrl) {
     return invalidSignedSession();
   }
+  parsedUrl = maybeParsedUrl;
 
-  if (parsedUrl.protocol !== "https:") {
+  if (parsedUrl.protocol !== "https:" && !isLocalDiscardUploadUrlAllowed(parsedUrl)) {
     return invalidSignedSession();
   }
 
@@ -89,7 +117,7 @@ export async function uploadVideoToTemporarySignedUrl(
   }
 
   try {
-    const response = await fetch(input.uploadUrl, {
+    const response = await fetch(resolveFetchUploadUrl(input.uploadUrl, parsedUrl), {
       method: "PUT",
       headers,
       body: input.file,
@@ -97,6 +125,17 @@ export async function uploadVideoToTemporarySignedUrl(
     });
 
     if (response.ok) {
+      if (
+        isLocalDiscardUploadUrlAllowed(parsedUrl) &&
+        response.headers?.get("x-d2c-local-temp-upload") !== "stored"
+      ) {
+        return {
+          ok: false,
+          status: "failed",
+          errorMessage: HUMAN_UPLOAD_ERROR,
+        };
+      }
+
       return {
         ok: true,
         status: "uploaded",

@@ -151,6 +151,14 @@ export interface IMetric extends Document {
   rawData: unknown[];
   stats: IMetricStats;
   isPubli: boolean;
+  /**
+   * Life assets visible/used in this post, promoted from the Gemini video analysis
+   * (VideoNarrativeDiagnosis.contentContext) when the creator declares publishIntent='yes'.
+   * Labels: setting (e.g. "casa"), socialPresence (e.g. "solo"), lifeSignals (e.g. "rotina de fim de semana").
+   * Populated by the publish-intent route; used by audienceInsightsService to compute
+   * "Asset×resultado" — which life asset drives the most recognition.
+   */
+  lifeAssets?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -458,6 +466,8 @@ const metricSchema = new Schema<IMetric>(
     rawData: { type: Array, default: [] },
     stats: { type: Schema.Types.Mixed, default: { total_interactions: 0, engagement: 0 } },
     isPubli: { type: Boolean, default: false, index: true },
+    // Life assets promoted from VideoNarrativeDiagnosis.contentContext on publishIntent='yes'.
+    lifeAssets: { type: [String], default: undefined },
   },
   { timestamps: true }
 );

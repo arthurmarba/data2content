@@ -11,6 +11,7 @@ import {
 } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadFeatureFlag";
 import { isVideoNarrativeRealAnalysisE2EEnabled } from "@/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisFeatureFlag";
 import { runVideoNarrativeRealAnalysisOrchestrator } from "@/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisOrchestrator";
+import { deleteLocalVideoNarrativeTemporaryUpload } from "@/app/dashboard/boards/videoUpload/videoNarrativeLocalTemporaryUploadStore";
 
 jest.mock("next-auth/next", () => ({
   getServerSession: jest.fn(),
@@ -37,8 +38,29 @@ jest.mock("@/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisOrchestr
   runVideoNarrativeRealAnalysisOrchestrator: jest.fn(),
 }));
 
+jest.mock("@/app/dashboard/boards/videoUpload/videoNarrativeLocalTemporaryUploadStore", () => {
+  const actual = jest.requireActual("@/app/dashboard/boards/videoUpload/videoNarrativeLocalTemporaryUploadStore");
+  return {
+    ...actual,
+    deleteLocalVideoNarrativeTemporaryUpload: jest.fn(),
+  };
+});
+
+jest.mock("@/app/lib/planGuard", () => ({
+  ensurePlannerAccess: jest.fn(),
+}));
+
+jest.mock("@/app/dashboard/boards/videoUpload/narrativeMapReadingQuotaService", () => ({
+  assertCanStartNarrativeMapReading: jest.fn(),
+}));
+
 const getServerSession = require("next-auth/next").getServerSession as jest.Mock;
 const runOrchestrator = runVideoNarrativeRealAnalysisOrchestrator as jest.Mock;
+const deleteLocalUpload = deleteLocalVideoNarrativeTemporaryUpload as jest.Mock;
+const ensurePlannerAccess = require("@/app/lib/planGuard").ensurePlannerAccess as jest.Mock;
+const assertCanStartNarrativeMapReading =
+  require("@/app/dashboard/boards/videoUpload/narrativeMapReadingQuotaService")
+    .assertCanStartNarrativeMapReading as jest.Mock;
 
 const validPayload = {
   uploadSessionId: "video-temp-upload-session-abc_123",
@@ -81,16 +103,31 @@ describe("POST /api/dashboard/mobile-strategic-profile/analyze-real", () => {
     (getServerSession as jest.Mock).mockResolvedValue({
       user: { id: "usr_admin", email: "admin@example.com", role: "admin", planStatus: "active" },
     });
+    ensurePlannerAccess.mockResolvedValue({ ok: true, normalizedStatus: null, source: "database" });
+    assertCanStartNarrativeMapReading.mockResolvedValue({
+      ok: true,
+      state: "admin",
+      quota: { monthKey: "2026-05", usedTotal: 0, usedThisMonth: 0, freeTotalLimit: 1, proMonthlyLimit: 10 },
+      message: "Leitura disponível.",
+    });
     runOrchestrator.mockResolvedValue({
       ok: true,
       realAnalysis: true,
       source: "gemini_real_allowlist",
-      videoReadingPersistence: { attempted: false, saved: false, skippedReason: "persist_reading_disabled" },
-      synthesisSnapshotWrite: { attempted: false, written: false, skippedReason: "synthesis_write_disabled" },
+      videoReadingPersistence: { attempted: true, saved: true, diagnosisId: "diagnosis-real-1" },
+      synthesisSnapshotWrite: {
+        attempted: true,
+        written: true,
+        synthesisStatus: "first_reading",
+        analyzedReadingsCount: 1,
+        snapshotId: "snapshot-1",
+        updatedAt: "2026-05-19T20:00:00.000Z",
+      },
       evidenceAnchorsUsed: true,
       cleanupAttempted: true,
       usageLimitChecked: true,
       allowlistGatePassed: true,
+      adaptiveQuiz: { questions: [], reasons: [], suggestedNextStep: "build_diagnosis" },
     });
   });
 
@@ -120,6 +157,22 @@ describe("POST /api/dashboard/mobile-strategic-profile/analyze-real", () => {
       const res = await POST(createRequest({ ...validPayload, [forbidden]: "x" }));
       expect(res.status).toBe(400);
     }
+  });
+
+  it("bloqueia análise real quando o crédito gratuito já foi usado", async () => {
+    assertCanStartNarrativeMapReading.mockResolvedValue({
+      ok: false,
+      state: "free_preview_used",
+      quota: { monthKey: "2026-05", usedTotal: 1, usedThisMonth: 1, freeTotalLimit: 1, proMonthlyLimit: 10 },
+      message: "Limite de leituras indisponível.",
+    });
+
+    const res = await POST(createRequest(validPayload));
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body.reason).toBe("reading_quota_unavailable");
+    expect(body.accessState).toBe("free_preview_used");
+    expect(runOrchestrator).not.toHaveBeenCalled();
   });
 
   it("bloqueia payload grande demais", async () => {
@@ -158,11 +211,15 @@ describe("POST /api/dashboard/mobile-strategic-profile/analyze-real", () => {
     const body = await res.json();
     expect(body.ok).toBe(true);
     expect(body.source).toBeUndefined();
-    expect(body.snapshot).toBeUndefined();
+    expect(body.snapshot).toEqual({
+      diagnosisSummary: "Primeira análise registrada. Seu Perfil estratégico começou a se formar.",
+      unlockedSignals: [],
+      opportunities: [],
+    });
     expect(body.videoReadingPersistence).toEqual({
-      attempted: false,
-      saved: false,
-      skippedReason: "persist_reading_disabled",
+      attempted: true,
+      saved: true,
+      diagnosisId: "diagnosis-real-1",
     });
     expect(body.e2eBetaAudit).toEqual({
       realAnalysis: true,
@@ -177,8 +234,161 @@ describe("POST /api/dashboard/mobile-strategic-profile/analyze-real", () => {
           uploadSessionId: validPayload.uploadSessionId,
           temporaryUpload: expect.objectContaining({ mimeType: "video/mp4" }),
         }),
+        deps: expect.objectContaining({
+          evaluateAllowlist: expect.any(Function),
+          assertCanRunRealAnalysis: expect.any(Function),
+        }),
       }),
     );
+  });
+
+  it("não retorna sucesso quando o provider não trouxe evidências do vídeo", async () => {
+    runOrchestrator.mockResolvedValueOnce({
+      ok: true,
+      realAnalysis: true,
+      source: "gemini_real_allowlist",
+      videoReadingPersistence: { attempted: true, saved: true, diagnosisId: "diagnosis-real-1" },
+      synthesisSnapshotWrite: { attempted: true, written: true },
+      evidenceAnchorsUsed: false,
+      cleanupAttempted: false,
+      usageLimitChecked: true,
+      allowlistGatePassed: true,
+      adaptiveQuiz: { questions: [], reasons: [], suggestedNextStep: "build_diagnosis" },
+    });
+
+    const res = await POST(createRequest(validPayload));
+
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.ok).toBe(false);
+    expect(body.code).toBe("video_evidence_missing");
+  });
+
+  it("não retorna sucesso quando a leitura real não foi salva", async () => {
+    runOrchestrator.mockResolvedValueOnce({
+      ok: true,
+      realAnalysis: true,
+      source: "gemini_real_allowlist",
+      videoReadingPersistence: { attempted: true, saved: false, errorCode: "save_failed" },
+      synthesisSnapshotWrite: { attempted: false, written: false, skippedReason: "saved_reading_not_found" },
+      evidenceAnchorsUsed: true,
+      cleanupAttempted: false,
+      usageLimitChecked: true,
+      allowlistGatePassed: true,
+      adaptiveQuiz: { questions: [], reasons: [], suggestedNextStep: "build_diagnosis" },
+    });
+
+    const res = await POST(createRequest(validPayload));
+
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.ok).toBe(false);
+    expect(body.code).toBe("reading_not_saved");
+  });
+
+  it("não retorna sucesso quando a síntese do Perfil não foi escrita", async () => {
+    runOrchestrator.mockResolvedValueOnce({
+      ok: true,
+      realAnalysis: true,
+      source: "gemini_real_allowlist",
+      videoReadingPersistence: { attempted: true, saved: true, diagnosisId: "diagnosis-real-1" },
+      synthesisSnapshotWrite: { attempted: true, written: false, skippedReason: "synthesis_snapshot_write_failed" },
+      evidenceAnchorsUsed: true,
+      cleanupAttempted: false,
+      usageLimitChecked: true,
+      allowlistGatePassed: true,
+      adaptiveQuiz: { questions: [], reasons: [], suggestedNextStep: "build_diagnosis" },
+    });
+
+    const res = await POST(createRequest(validPayload));
+
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.ok).toBe(false);
+    expect(body.code).toBe("profile_synthesis_not_written");
+  });
+
+  it("repassa planStatus active revalidado do DB para o orquestrador", async () => {
+    (getServerSession as jest.Mock).mockResolvedValue({
+      user: { id: "usr_manual", email: "manual@example.com", role: "user", planStatus: "inactive" },
+    });
+    ensurePlannerAccess.mockResolvedValue({ ok: true, normalizedStatus: "active", source: "database" });
+    assertCanStartNarrativeMapReading.mockResolvedValue({
+      ok: true,
+      state: "pro_needs_instagram",
+      quota: { monthKey: "2026-05", usedTotal: 1, usedThisMonth: 0, freeTotalLimit: 1, proMonthlyLimit: 10 },
+      message: "Leitura disponível.",
+    });
+
+    const res = await POST(createRequest(validPayload));
+
+    expect(res.status).toBe(200);
+    expect(ensurePlannerAccess).toHaveBeenCalledWith(expect.objectContaining({
+      forceReload: true,
+      userId: "usr_manual",
+    }));
+    expect(runOrchestrator).toHaveBeenCalledWith(expect.objectContaining({
+      user: expect.objectContaining({ planStatus: "active" }),
+    }));
+  });
+
+  it("localhost com upload temporário local bypassa cota beta e marca usuário como dev apenas no orquestrador", async () => {
+    process.env.VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED = "1";
+    const localPayload = {
+      ...validPayload,
+      uploadSessionId: "video-temp-upload-session-local-abc_123",
+      temporaryUpload: {
+        ...validPayload.temporaryUpload,
+        objectKey: "temporary/video-narrative/0123456789abcdef/video-temp-upload-session-local-abc_123.mp4",
+      },
+    };
+
+    const res = await POST(createRequest(localPayload));
+    expect(res.status).toBe(200);
+    expect(runOrchestrator).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user: expect.objectContaining({ isDev: true }),
+        deps: expect.objectContaining({
+          assertCanRunRealAnalysis: expect.any(Function),
+          recordUsageAttempt: expect.any(Function),
+          recordUsageSuccess: expect.any(Function),
+          recordUsageFailure: expect.any(Function),
+        }),
+      }),
+    );
+    delete process.env.VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED;
+  });
+
+  it("localhost preserva upload temporário local quando a análise falha para permitir retry", async () => {
+    process.env.VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED = "1";
+    const localPayload = {
+      ...validPayload,
+      uploadSessionId: "video-temp-upload-session-local-abc_123",
+      temporaryUpload: {
+        ...validPayload.temporaryUpload,
+        objectKey: "temporary/video-narrative/0123456789abcdef/video-temp-upload-session-local-abc_123.mp4",
+      },
+    };
+
+    const res = await POST(createRequest(localPayload));
+    expect(res.status).toBe(200);
+    const cleanupTemporaryUpload = runOrchestrator.mock.calls[0][0].deps.cleanupTemporaryUpload;
+
+    await cleanupTemporaryUpload({
+      uploadSessionId: localPayload.uploadSessionId,
+      objectKey: localPayload.temporaryUpload.objectKey,
+      reason: "analysis_failed",
+    });
+    expect(deleteLocalUpload).not.toHaveBeenCalled();
+
+    await cleanupTemporaryUpload({
+      uploadSessionId: localPayload.uploadSessionId,
+      objectKey: localPayload.temporaryUpload.objectKey,
+      reason: "analysis_completed",
+    });
+    expect(deleteLocalUpload).toHaveBeenCalledWith({ sessionId: localPayload.uploadSessionId });
+
+    delete process.env.VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED;
   });
 });
 

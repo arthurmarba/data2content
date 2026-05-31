@@ -13,6 +13,7 @@ Status: implementado.
 Arquivos principais:
 
 - `MM91_CLOSED_BETA_ACTIVATION_TELEMETRY_SMOKE.md`
+- `MM91_LOCALHOST_MOBILE_TESTING.md`
 - `mobileNarrativeTelemetry.ts`
 - `mobileClosedBetaSmokeScenarios.ts`
 - `../components/videoUpload/appPreview/MobileClosedBetaSmokeHarness.tsx`
@@ -27,6 +28,7 @@ O que faz:
 - registra follow-through de `postCheckoutIntent` para `connect_instagram` e `join_community`;
 - simplifica mensagens de leituras perto do limite e em 10/10;
 - adiciona smoke harness interno/admin-dev no preview mobile sem chamar Gemini, storage ou upload real automaticamente.
+- documenta o teste local visual com `local_mock`, upload local de descarte e a flag dev-only `MOBILE_STRATEGIC_PROFILE_LOCAL_PREVIEW_BYPASS=1`, que exige usuario autenticado e nao funciona em producao.
 
 O que não faz:
 

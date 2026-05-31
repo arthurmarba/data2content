@@ -142,6 +142,31 @@ describe("mobileStrategicProfileUploadSessionClient", () => {
     expect(res.message).toContain("Acesso proibido");
   });
 
+  it("preserva a mensagem de limite quando a API bloqueia por quota", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: jest.fn().mockResolvedValue({
+        ok: false,
+        status: "disabled",
+        reason: "reading_quota_unavailable",
+        issues: [
+          {
+            code: "reading_quota_unavailable",
+            message: "Limite de leituras indisponível.",
+            severity: "blocker",
+          },
+        ],
+      }),
+    });
+
+    const res = await requestUploadSession(validPayload);
+
+    expect(res.ok).toBe(false);
+    expect(res.issues?.[0].code).toBe("reading_quota_unavailable");
+    expect(res.message).toBe("Limite de leituras indisponível.");
+  });
+
   it("trata erros de validação retornando issues", async () => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: false,

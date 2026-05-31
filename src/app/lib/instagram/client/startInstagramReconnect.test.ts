@@ -48,6 +48,23 @@ describe("startInstagramReconnect", () => {
     );
   });
 
+  it("starts narrative map reconnect flow without falling back to media kit", async () => {
+    (global as any).fetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({ flowId: "igrc_profile_123" }),
+    });
+
+    await startInstagramReconnect({
+      nextTarget: "narrative-map",
+      source: "mobile_profile",
+    });
+
+    expect(mockSignIn).toHaveBeenCalledWith("facebook", {
+      callbackUrl:
+        "/dashboard/instagram/connecting?instagramLinked=true&next=narrative-map&flowId=igrc_profile_123",
+    });
+  });
+
   it("throws and tracks failure when start endpoint returns non-ok", async () => {
     (global as any).fetch.mockResolvedValue({
       ok: false,

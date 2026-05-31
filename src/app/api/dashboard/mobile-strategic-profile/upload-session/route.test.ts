@@ -162,20 +162,59 @@ describe("POST /api/dashboard/mobile-strategic-profile/upload-session", () => {
     expect(body.accessState).toBe("free_preview_used");
   });
 
-  it("POST bloqueia provider real / storage real se allowlist estiver desligada", async () => {
+  it("POST revalida planStatus active direto do DB antes de aplicar gate de assinatura", async () => {
+    (getServerSession as jest.Mock).mockResolvedValue({
+      user: { id: "usr_manual", email: "manual@example.com", role: "user", planStatus: "inactive" },
+    });
+    ensurePlannerAccess.mockResolvedValue({ ok: true, normalizedStatus: "active", source: "database" });
+
+    const res = await POST(createRequest("POST", validBasePayload));
+
+    expect(res.status).toBe(200);
+    expect(ensurePlannerAccess).toHaveBeenCalledWith(expect.objectContaining({
+      forceReload: true,
+      userId: "usr_manual",
+    }));
+    expect(assertCanStartNarrativeMapReading).toHaveBeenCalledWith(expect.objectContaining({
+      access: expect.objectContaining({
+        hasPremiumAccess: true,
+        hasFullReportAccess: true,
+      }),
+    }));
+  });
+
+  it("POST trata admin como acesso interno sem depender do Stripe", async () => {
+    (getServerSession as jest.Mock).mockResolvedValue({
+      user: { id: "usr_admin", email: "admin@example.com", role: "admin", planStatus: "inactive" },
+    });
+
+    const res = await POST(createRequest("POST", validBasePayload));
+
+    expect(res.status).toBe(200);
+    expect(ensurePlannerAccess).not.toHaveBeenCalled();
+    expect(assertCanStartNarrativeMapReading).toHaveBeenCalledWith(expect.objectContaining({
+      access: expect.objectContaining({
+        isAdmin: true,
+        hasPremiumAccess: true,
+      }),
+    }));
+  });
+
+  it("POST retorna erro seguro quando upload real está ativo sem provider real configurado", async () => {
     (isRealUploadEnabled as jest.Mock).mockReturnValue(true);
 
     const res = await POST(createRequest("POST", validBasePayload));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.ok).toBe(false);
     expect(body.status).toBe("disabled");
-    expect(body.issues.some((issue: any) => issue.code === "signed_upload_allowlist_disabled")).toBe(true);
+    expect(body.issues.some((issue: any) => issue.code === "valid_real_storage_provider_required")).toBe(true);
   });
 
-  it("POST bloqueia usuário não allowlisted quando upload real está ativo", async () => {
+  it("POST permite upload real para usuário comum com leitura gratuita disponível sem allowlist de usuário", async () => {
+    const signer = jest.fn().mockReturnValue({ uploadUrl: "https://signed.example.test/upload?signature=test" });
+    createServerSideSignedUploadUrlSigner.mockReturnValue(signer);
     (isRealUploadEnabled as jest.Mock).mockReturnValue(true);
-    process.env.VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED = "1";
     process.env.VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER = "r2";
     process.env.VIDEO_NARRATIVE_TEMP_STORAGE_BUCKET = "temporary-video";
     process.env.VIDEO_NARRATIVE_TEMP_STORAGE_REGION = "auto";
@@ -185,10 +224,37 @@ describe("POST /api/dashboard/mobile-strategic-profile/upload-session", () => {
     });
 
     const res = await POST(createRequest("POST", validBasePayload));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.issues.some((issue: any) => issue.code === "signed_upload_user_not_allowed")).toBe(true);
+    expect(body.ok).toBe(true);
+    expect(body.status).toBe("signed_upload_session_created");
+    expect(body.uploadSession.uploadUrl).toContain("https://signed.example.test/upload");
     expect(JSON.stringify(body)).not.toContain("common@example.com");
+  });
+
+  it("POST em localhost usa upload local de descarte sem exigir allowlist real", async () => {
+    (isRealUploadEnabled as jest.Mock).mockReturnValue(true);
+    process.env.VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED = "1";
+    process.env.VIDEO_NARRATIVE_SIGNED_UPLOAD_ALLOWLIST_ENABLED = "1";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER = "cloudflare_r2";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_BUCKET = "temporary-video";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_REGION = "auto";
+    process.env.VIDEO_NARRATIVE_TEMP_STORAGE_ENDPOINT = "https://r2.example.test";
+    (getServerSession as jest.Mock).mockResolvedValue({
+      user: { id: "usr_common", email: "common@example.com", role: "creator" },
+    });
+
+    const res = await POST(new NextRequest("http://127.0.0.1:3101/api/dashboard/mobile-strategic-profile/upload-session", {
+      method: "POST",
+      body: JSON.stringify(validBasePayload),
+      headers: { "content-type": "application/json", host: "127.0.0.1:3101" },
+    }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(body.status).toBe("signed_upload_session_created");
+    expect(body.uploadSession.uploadUrl).toContain("http://127.0.0.1:3101/api/dev/mobile-strategic-profile/discard-upload");
+    expect(createServerSideSignedUploadUrlSigner).toHaveBeenCalled();
   });
 
   it("POST bloqueia payload inválido antes do provider real", async () => {

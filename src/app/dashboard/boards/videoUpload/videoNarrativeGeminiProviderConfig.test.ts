@@ -28,13 +28,30 @@ describe("videoNarrativeGeminiProviderConfig", () => {
   it("timeout default é seguro", () => {
     const result = resolveVideoNarrativeGeminiProviderConfig({});
     expect(result.config.timeoutMs).toBeGreaterThanOrEqual(1000);
-    expect(result.config.timeoutMs).toBeLessThanOrEqual(30000);
+    expect(result.config.timeoutMs).toBeLessThanOrEqual(180000);
+  });
+
+  it("timeout default comporta análise real de vídeo", () => {
+    const result = resolveVideoNarrativeGeminiProviderConfig({});
+    expect(result.config.timeoutMs).toBe(90000);
+  });
+
+  it("permite timeout maior para vídeos reais sem passar do limite seguro", () => {
+    const result = resolveVideoNarrativeGeminiProviderConfig({
+      VIDEO_NARRATIVE_GEMINI_TIMEOUT_MS: "180000",
+    });
+    expect(result.config.timeoutMs).toBe(180000);
   });
 
   it("max output tokens default é seguro", () => {
     const result = resolveVideoNarrativeGeminiProviderConfig({});
     expect(result.config.maxOutputTokens).toBeGreaterThanOrEqual(256);
-    expect(result.config.maxOutputTokens).toBeLessThanOrEqual(4096);
+    expect(result.config.maxOutputTokens).toBeLessThanOrEqual(8192);
+  });
+
+  it("max output tokens default comporta o JSON do diagnóstico", () => {
+    const result = resolveVideoNarrativeGeminiProviderConfig({});
+    expect(result.config.maxOutputTokens).toBe(4096);
   });
 
   it("não expõe API key em issues", () => {

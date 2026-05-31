@@ -5,6 +5,24 @@ import { fireEvent, render, screen, within } from "@testing-library/react";
 import { NarrativeMapMobileShell } from "./NarrativeMapMobileShell";
 import { buildNarrativeMapReadingPreviewFixture } from "./buildNarrativeMapReadingPreviewFixture";
 
+const mockRouterRefresh = jest.fn();
+const mockRouterPush = jest.fn();
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({
+    refresh: mockRouterRefresh,
+    push: mockRouterPush,
+  }),
+}));
+
+jest.mock("@/app/dashboard/settings/DeleteAccountSection", () => {
+  const ReactForMock = require("react");
+  return {
+    __esModule: true,
+    default: () => ReactForMock.createElement("button", { type: "button" }, "Excluir minha conta"),
+  };
+});
+
 function renderShell(
   state = "narrative_map_three_related_readings",
   internalReview = false,
@@ -45,10 +63,10 @@ describe("NarrativeMapMobileShell", () => {
     expect(screen.getByRole("tab", { name: "Oportunidades" })).toBeInTheDocument();
   });
 
-  it("Perfil mostra hero Seu mapa narrativo e capitulos do view model", () => {
+  it("Perfil mostra identidade e capitulos do view model", () => {
     renderShell();
 
-    expect(screen.getByText("Seu mapa narrativo")).toBeInTheDocument();
+    expect(screen.getByText("Lívia Linhares")).toBeInTheDocument();
     expect(screen.getByText("Seu padrão")).toBeInTheDocument();
     expect(screen.getByText("Sua tensão")).toBeInTheDocument();
     expect(screen.getByText("Seu movimento")).toBeInTheDocument();
@@ -59,10 +77,10 @@ describe("NarrativeMapMobileShell", () => {
     renderShell();
 
     fireEvent.click(screen.getByRole("tab", { name: "Leituras" }));
-    expect(screen.getByText("Leituras documentadas")).toBeInTheDocument();
-    expect(screen.getAllByRole("button", { name: "Ver leitura" }).length).toBeGreaterThan(0);
+    expect(screen.getByText("Suas leituras")).toBeInTheDocument();
+    expect(screen.getAllByText("Vídeo sobre humor cotidiano com identificação rápida").length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getAllByRole("button", { name: "Ver leitura" })[0]);
+    fireEvent.click(screen.getAllByText("Vídeo sobre humor cotidiano com identificação rápida")[0]);
     const dialog = screen.getByRole("dialog", { name: "Vídeo sobre humor cotidiano com identificação rápida" });
     expect(within(dialog).getByText("Contribuição")).toBeInTheDocument();
     expect(within(dialog).queryByText(/objectKey|signedUrl|uploadUrl|thumbnailUrl|localPath|storageProviderPath/)).not.toBeInTheDocument();
@@ -73,7 +91,7 @@ describe("NarrativeMapMobileShell", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Leituras" }));
 
-    expect(screen.getByText("Nenhuma leitura documentada ainda")).toBeInTheDocument();
+    expect(screen.getByText("Envie seu primeiro vídeo")).toBeInTheDocument();
   });
 
   it("Oportunidades mostra territorios e fit narrativo sem match real", () => {
@@ -81,16 +99,18 @@ describe("NarrativeMapMobileShell", () => {
 
     fireEvent.click(screen.getByRole("tab", { name: "Oportunidades" }));
 
-    expect(screen.getAllByText("Territórios em formação").length).toBeGreaterThan(0);
-    expect(renderedText(container)).toContain("fit narrativo");
+    expect(screen.getByText("Territórios de marca")).toBeInTheDocument();
+    expect(renderedText(container)).toContain("tipo de collab possível");
     expect(renderedText(container)).not.toContain("match real");
   });
 
   it("CTA principal e secundaria seguem a hierarquia esperada", () => {
-    renderShell();
+    renderShell("narrative_map_three_related_readings", false, {
+      accessState: "pro_needs_instagram",
+    });
 
-    expect(screen.getByRole("button", { name: "Nova leitura" })).toHaveAttribute("data-priority", "primary");
-    expect(screen.getByRole("button", { name: "Ler diagnóstico completo" })).toHaveAttribute("data-priority", "secondary");
+    expect(screen.getByRole("button", { name: "Conectar Instagram" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Nova leitura" })).toBeInTheDocument();
   });
 
   it("Status Card MM90 mostra pro sem Instagram sem bloquear nova leitura", () => {
@@ -117,15 +137,81 @@ describe("NarrativeMapMobileShell", () => {
       frameMode: "app",
     });
 
-    expect(container.firstElementChild).toHaveClass("max-w-md");
+    expect(container.firstElementChild).toHaveClass("bg-white");
     expect(container.firstElementChild).not.toHaveClass("rounded-[2rem]");
     expect(container.firstElementChild).not.toHaveClass("bg-zinc-950");
+  });
+
+  it("frameMode app renderiza bottom nav com Perfil, + e Comunidade", () => {
+    renderShell("narrative_map_three_related_readings", false, {
+      frameMode: "app",
+    });
+
+    const nav = screen.getByLabelText("Navegação principal");
+    expect(within(nav).getByText("Perfil")).toBeInTheDocument();
+    expect(within(nav).getByText("+")).toBeInTheDocument();
+    expect(within(nav).getByText("Comunidade")).toBeInTheDocument();
+  });
+
+  it("botão central + dispara nova leitura", () => {
+    const onPrimary = jest.fn();
+    renderShell("narrative_map_three_related_readings", false, {
+      frameMode: "app",
+      onPrimaryAccessAction: onPrimary,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Nova leitura" }));
+
+    expect(onPrimary).toHaveBeenCalledTimes(1);
+  });
+
+  it("botão de configurações abre menu de conta com ações diretas", () => {
+    renderShell("narrative_map_three_related_readings", false, {
+      frameMode: "app",
+      userInfo: {
+        name: "Arthur Marba",
+        email: "arthur@example.com",
+        plan: "Pro",
+      },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Configurações da conta" }));
+
+    expect(screen.getByRole("dialog", { name: "Conta e preferências" })).toBeInTheDocument();
+    expect(screen.getByText("Arthur Marba")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Configurações" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Conexão Instagram" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Gerenciar assinatura" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Suporte por email" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Programa de Afiliados" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Política de Privacidade" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Termos e Condições" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Excluir minha conta" })).toBeInTheDocument();
+  });
+
+  it("badge Pro fica junto ao nome, fora da linha de ações do Mídia Kit", () => {
+    renderShell("narrative_map_three_related_readings", false, {
+      frameMode: "app",
+    });
+
+    expect(within(screen.getByLabelText("Identidade do Perfil")).getByText("Pro")).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Ações do Perfil")).queryByText("Pro")).not.toBeInTheDocument();
+  });
+
+  it("usa foto do Instagram no avatar do Perfil quando disponível", () => {
+    const { container } = renderShell("narrative_map_three_related_readings", false, {
+      frameMode: "app",
+      profileImageUrl: "https://cdninstagram.com/avatar.jpg",
+    });
+
+    const avatar = container.querySelector('img[src="https://cdninstagram.com/avatar.jpg"]');
+    expect(avatar).toBeInTheDocument();
   });
 
   it("Ler diagnostico completo abre leitura completa sob demanda", () => {
     renderShell();
 
-    fireEvent.click(screen.getByRole("button", { name: "Ler diagnóstico completo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver diagnóstico completo" }));
 
     expect(screen.getByRole("dialog", { name: "Diagnóstico completo" })).toBeInTheDocument();
   });

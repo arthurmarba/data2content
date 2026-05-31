@@ -369,6 +369,73 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
     );
   });
 
+  it("bloqueia sucesso quando a IA não devolve evidências do vídeo", async () => {
+    const cleanupTemporaryUpload = jest.fn().mockResolvedValue(undefined);
+    const result = await runVideoNarrativeRealAnalysisOrchestrator({
+      payload,
+      user,
+      deps: {
+        env,
+        runProvider: jest.fn().mockResolvedValue({
+          ok: true,
+          provider: "gemini",
+          mode: "ready",
+          promptVersion: "v1",
+          analysis: {
+            ...geminiVideoNarrativeResponseFixture,
+            evidenceAnchors: {
+              speechQuotes: [],
+              sceneAnchors: [],
+              creatorIntentAnchor: null,
+              profilePatternAnchors: [],
+              instagramAnchors: [],
+            },
+          },
+        }),
+        cleanupTemporaryUpload,
+        ...usageDeps,
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.safeIssueCode).toBe("video_evidence_missing");
+      expect(result.evidenceAnchorsUsed).toBe(false);
+    }
+    expect(cleanupTemporaryUpload).toHaveBeenCalledWith(expect.objectContaining({ reason: "analysis_failed" }));
+    expect(usageDeps.recordUsageFailure).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "video_evidence_missing" }),
+    );
+  });
+
+  it("resposta não-JSON do provider vira erro de diagnóstico inválido", async () => {
+    const cleanupTemporaryUpload = jest.fn().mockResolvedValue(undefined);
+    const result = await runVideoNarrativeRealAnalysisOrchestrator({
+      payload,
+      user,
+      deps: {
+        env,
+        runProvider: jest.fn().mockResolvedValue({
+          ok: false,
+          provider: "gemini",
+          mode: "failed",
+          promptVersion: "v1",
+          issues: [{ code: "invalid_json", severity: "blocker", message: "raw response was not JSON" }],
+        }),
+        cleanupTemporaryUpload,
+        ...usageDeps,
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toBe("Não conseguimos transformar a análise em um diagnóstico válido.");
+    expect(JSON.stringify(result)).not.toContain("raw response was not JSON");
+    expect(cleanupTemporaryUpload).toHaveBeenCalledWith(expect.objectContaining({ reason: "analysis_failed" }));
+    expect(usageDeps.recordUsageFailure).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "invalid_json" }),
+    );
+  });
+
   it("erro de snapshot guardado não vaza stack trace", async () => {
     const result = await runVideoNarrativeRealAnalysisOrchestrator({
       payload: { ...payload, persistReading: true, persistSynthesisSnapshot: true },
@@ -406,5 +473,33 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
     expect(usageDeps.recordUsageFailure).toHaveBeenCalledWith(
       expect.objectContaining({ reason: "synthesis_snapshot_write_failed" }),
     );
+  });
+
+  it("não limpa upload temporário como concluído se a leitura não for salva", async () => {
+    const cleanupTemporaryUpload = jest.fn().mockResolvedValue(undefined);
+    const result = await runVideoNarrativeRealAnalysisOrchestrator({
+      payload: { ...payload, persistReading: true, persistSynthesisSnapshot: true },
+      user,
+      deps: {
+        env,
+        runProvider: jest.fn().mockResolvedValue({
+          ok: true,
+          provider: "gemini",
+          mode: "ready",
+          promptVersion: "v1",
+          analysis: geminiVideoNarrativeResponseFixture,
+        }),
+        saveReading: jest.fn().mockResolvedValue({
+          ok: false,
+          errorCode: "diagnosis_persistence_failed",
+          message: "Nao foi possivel salvar a leitura documentada deste video agora.",
+        }),
+        cleanupTemporaryUpload,
+        ...usageDeps,
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    expect(cleanupTemporaryUpload).not.toHaveBeenCalledWith(expect.objectContaining({ reason: "analysis_completed" }));
   });
 });

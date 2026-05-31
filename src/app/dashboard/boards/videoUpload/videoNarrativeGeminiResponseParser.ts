@@ -1,4 +1,9 @@
-import type { VideoNarrativeAiAnalysis, VideoNarrativeAiIssue } from "./videoNarrativeAiProviderTypes";
+import type {
+  VideoNarrativeAiAnalysis,
+  VideoNarrativeAiIssue,
+  VideoNarrativeContentContext,
+  VideoNarrativeCoherence,
+} from "./videoNarrativeAiProviderTypes";
 import type { CreatorVideoNarrativeEvidenceAnchors } from "./creatorVideoNarrativeDiagnosisTypes";
 
 const REQUIRED_FIELDS: Array<keyof VideoNarrativeAiAnalysis> = [
@@ -73,6 +78,80 @@ const STORAGE_FIELD_PATTERN = /\b(?:objectKey|signedUrl|uploadUrl|thumbnailUrl|l
 const VALID_QUOTE_ROLES = new Set(["hook", "promise", "turning_point", "closing", "example", "context", "other"]);
 const VALID_MOMENT_ROLES = new Set(["opening", "conflict", "turning_point", "visual_signal", "pacing_signal", "production_signal", "other"]);
 const VALID_CHAPTER_HINTS = new Set(["pattern", "tension", "movement", "territory", "video_reveal", "profile_impact", "opportunities"]);
+const VALID_COHERENCE_VERDICTS = new Set(["confirms_top_pattern", "experiment", "deviation", "first_reading", "unknown"]);
+
+const FIELD_ALIASES: Record<keyof VideoNarrativeAiAnalysis, string[]> = {
+  mainNarrative: ["main_narrative", "narrativaPrincipal", "narrativa_principal", "narrative", "narrativa"],
+  whatVideoCommunicates: ["what_video_communicates", "videoMessage", "mensagemDoVideo", "oQueOVideoComunica"],
+  creatorIntention: ["creator_intention", "creatorIntent", "intencaoDoCreator", "intençãoDoCreator", "intencao"],
+  strategicReading: ["strategic_reading", "leituraEstrategica", "leitura_estrategica", "diagnosis", "diagnostico"],
+  strengthPoint: ["strength_point", "strength", "pontoDeForca", "ponto_de_forca", "forca"],
+  attentionPoint: ["attention_point", "attention", "pontoDeAtencao", "ponto_de_atencao", "atencao"],
+  recommendedAdjustment: ["recommended_adjustment", "adjustment", "calibragem", "ajusteRecomendado", "ajuste_recomendado"],
+  suggestedHook: ["suggested_hook", "hook", "ganchoSugerido", "gancho_sugerido", "gancho"],
+  commercialPotential: ["commercial_potential", "commercialFit", "territorioComercial", "potencialComercial"],
+  nextActions: ["next_actions", "nextSteps", "proximosSinais", "proximasAcoes", "próximasAções"],
+  creatorSignals: ["creator_signals", "signals", "sinaisDoCreator", "sinais_do_creator", "sinais"],
+  brandTerritories: ["brand_territories", "territories", "territoriosDeMarca", "territorios_de_marca", "territorios"],
+  collabOpportunities: ["collab_opportunities", "collabs", "oportunidadesDeCollab", "oportunidades_de_collab"],
+  evidenceAnchors: ["evidence_anchors", "evidence", "anchors", "evidencias", "evidências"],
+  contentContext: ["content_context", "contextoDoConteudo", "contexto_do_conteudo"],
+  narrativeCoherence: ["narrative_coherence", "coerenciaNarrativa", "coerênciaNarrativa", "coerencia_narrativa"],
+};
+
+const SHORT_STRING_MAX = 120;
+
+function readOptionalShortString(value: unknown): string | null {
+  const text = readNestedText(value);
+  if (!text) return null;
+  const sanitized = sanitizeText(text).slice(0, SHORT_STRING_MAX).trim();
+  return sanitized || null;
+}
+
+function readShortStringArray(value: unknown, maxItems = 6): string[] {
+  if (typeof value === "string") {
+    return value
+      .split(/\n+|;|•|- /)
+      .map((s) => sanitizeText(s).slice(0, SHORT_STRING_MAX).trim())
+      .filter(Boolean)
+      .slice(0, maxItems);
+  }
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(readNestedText)
+    .filter((item): item is string => typeof item === "string")
+    .map((s) => sanitizeText(s).slice(0, SHORT_STRING_MAX).trim())
+    .filter(Boolean)
+    .slice(0, maxItems);
+}
+
+/** Parse optional contentContext — returns undefined if missing or invalid, never throws. */
+function readContentContext(raw: Record<string, unknown>): VideoNarrativeContentContext | undefined {
+  const value = readAliasedField(raw, "contentContext");
+  if (!isRecord(value)) return undefined;
+  return {
+    setting: readOptionalShortString(value.setting),
+    socialPresence: readOptionalShortString(value.socialPresence),
+    emotionalRegister: readOptionalShortString(value.emotionalRegister),
+    humorStyle: readOptionalShortString(value.humorStyle),
+    energyLevel: readOptionalShortString(value.energyLevel),
+    lifeSignals: readShortStringArray(value.lifeSignals),
+    productionStyle: readOptionalShortString(value.productionStyle),
+  };
+}
+
+/** Parse optional narrativeCoherence — returns undefined if missing or invalid, never throws. */
+function readNarrativeCoherence(raw: Record<string, unknown>): VideoNarrativeCoherence | undefined {
+  const value = readAliasedField(raw, "narrativeCoherence");
+  if (!isRecord(value)) return undefined;
+  return {
+    verdict: readEnum(value.verdict, VALID_COHERENCE_VERDICTS, "unknown") as VideoNarrativeCoherence["verdict"],
+    topPattern: readOptionalShortString(value.topPattern),
+    reasoning: typeof value.reasoning === "string" ? sanitizeText(value.reasoning) || null : null,
+    alignedAssets: readShortStringArray(value.alignedAssets, 5),
+    newAssets: readShortStringArray(value.newAssets, 5),
+  };
+}
 
 export type VideoNarrativeGeminiResponseParseResult =
   | { ok: true; analysis: VideoNarrativeAiAnalysis; issues: VideoNarrativeAiIssue[] }
@@ -88,8 +167,76 @@ function stripCodeFences(rawText: string): string {
   return fenced?.[1]?.trim() ?? trimmed;
 }
 
+function extractJsonObjectCandidate(rawText: string): string {
+  const stripped = stripCodeFences(rawText);
+  if (stripped.startsWith("{") && stripped.endsWith("}")) return stripped;
+
+  const looseFence = stripped.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (looseFence?.[1]) return looseFence[1].trim();
+
+  const start = stripped.indexOf("{");
+  if (start === -1) return stripped;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < stripped.length; index += 1) {
+    const char = stripped[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+    if (char === "\"") {
+      inString = true;
+      continue;
+    }
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return stripped.slice(start, index + 1);
+    }
+  }
+
+  return stripped;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readAliasedField(raw: Record<string, unknown>, field: keyof VideoNarrativeAiAnalysis): unknown {
+  if (field in raw) return raw[field];
+  for (const alias of FIELD_ALIASES[field] ?? []) {
+    if (alias in raw) return raw[alias];
+  }
+  return undefined;
+}
+
+function readNestedText(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const nested = readNestedText(item);
+      if (nested) return nested;
+    }
+    return null;
+  }
+  if (!isRecord(value)) return null;
+  for (const key of ["text", "value", "summary", "description", "reading", "signal", "label", "title", "territory"]) {
+    const nested = readNestedText(value[key]);
+    if (nested) return nested;
+  }
+  return null;
 }
 
 function containsForbiddenPayload(value: unknown): "signed_url" | "api_key" | "raw_transcript" | null {
@@ -236,19 +383,42 @@ function readEvidenceAnchors(value: unknown): {
 }
 
 function readRequiredString(raw: Record<string, unknown>, field: keyof VideoNarrativeAiAnalysis): string | null {
-  const value = raw[field];
-  if (typeof value !== "string" || !value.trim()) return null;
-  return sanitizeText(value);
+  const value = readNestedText(readAliasedField(raw, field));
+  if (!value?.trim()) return null;
+  const maxLength = field === "mainNarrative" ? 90 : MAX_STRING_LENGTH;
+  return truncate(sanitizeText(value), maxLength);
 }
 
 function readStringArray(raw: Record<string, unknown>, field: keyof VideoNarrativeAiAnalysis): string[] | null {
-  const value = raw[field];
+  const value = readAliasedField(raw, field);
+  if (typeof value === "string") {
+    const items = value
+      .split(/\n+|;|•|- /)
+      .map(sanitizeText)
+      .filter(Boolean)
+      .slice(0, MAX_ARRAY_ITEMS);
+    return items.length > 0 ? items : [];
+  }
   if (!Array.isArray(value)) return null;
   return value
+    .map(readNestedText)
     .filter((item): item is string => typeof item === "string")
-    .map(sanitizeText)
+    .map((item) => sanitizeText(item))
     .filter(Boolean)
     .slice(0, MAX_ARRAY_ITEMS);
+}
+
+function hasRequiredFieldCandidate(value: Record<string, unknown>): boolean {
+  return REQUIRED_FIELDS.some((field) => readAliasedField(value, field) !== undefined);
+}
+
+function unwrapAnalysisObject(parsed: Record<string, unknown>): Record<string, unknown> {
+  if (hasRequiredFieldCandidate(parsed)) return parsed;
+  for (const key of ["analysis", "diagnosis", "diagnóstico", "diagnostico", "result", "data", "reading", "leitura"]) {
+    const nested = parsed[key];
+    if (isRecord(nested) && hasRequiredFieldCandidate(nested)) return nested;
+  }
+  return parsed;
 }
 
 export function parseVideoNarrativeGeminiResponse(rawText: string): VideoNarrativeGeminiResponseParseResult {
@@ -258,40 +428,53 @@ export function parseVideoNarrativeGeminiResponse(rawText: string): VideoNarrati
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(stripCodeFences(rawText));
+    parsed = JSON.parse(extractJsonObjectCandidate(rawText));
   } catch {
     return { ok: false, issues: [issue("invalid_json", "Resposta do provider multimodal não é JSON válido.")] };
+  }
+
+  if (Array.isArray(parsed)) {
+    parsed = parsed.find(isRecord) ?? parsed;
   }
 
   if (!isRecord(parsed)) {
     return { ok: false, issues: [issue("missing_object", "Resposta do provider multimodal não contém objeto estruturado.")] };
   }
 
-  const forbidden = containsForbiddenPayload(parsed);
+  const root = unwrapAnalysisObject(parsed);
+  const forbidden = containsForbiddenPayload(root);
   if (forbidden) {
     return { ok: false, issues: [issue(forbidden, "Resposta do provider multimodal contém dado inseguro.")] };
   }
 
-  const missing = REQUIRED_FIELDS.filter((field) => !(field in parsed));
+  const missing = REQUIRED_FIELDS.filter((field) => readAliasedField(root, field) === undefined);
   if (missing.length > 0) {
     return { ok: false, issues: [issue("missing_required_fields", "Resposta do provider multimodal está incompleta.")] };
   }
 
   const strings = Object.fromEntries(
-    STRING_FIELDS.map((field) => [field, readRequiredString(parsed, field)]),
+    STRING_FIELDS.map((field) => [field, readRequiredString(root, field)]),
   ) as Record<(typeof STRING_FIELDS)[number], string | null>;
   if (Object.values(strings).some((value) => !value)) {
     return { ok: false, issues: [issue("invalid_required_string", "Resposta do provider multimodal tem campos textuais inválidos.")] };
   }
 
-  const arrays = Object.fromEntries(ARRAY_FIELDS.map((field) => [field, readStringArray(parsed, field)])) as Record<
+  const arrays = Object.fromEntries(ARRAY_FIELDS.map((field) => [field, readStringArray(root, field)])) as Record<
     (typeof ARRAY_FIELDS)[number],
     string[] | null
   >;
   if (Object.values(arrays).some((value) => !value)) {
     return { ok: false, issues: [issue("invalid_required_array", "Resposta do provider multimodal tem listas inválidas.")] };
   }
-  const evidenceAnchors = readEvidenceAnchors(parsed.evidenceAnchors);
+  const evidenceAnchors = readEvidenceAnchors(
+    readAliasedField(root, "evidenceAnchors") ?? {
+      speechQuotes: root.speechQuotes,
+      sceneAnchors: root.sceneAnchors,
+      creatorIntentAnchor: root.creatorIntentAnchor,
+    },
+  );
+  const contentContext = readContentContext(root);
+  const narrativeCoherence = readNarrativeCoherence(root);
 
   return {
     ok: true,
@@ -310,6 +493,8 @@ export function parseVideoNarrativeGeminiResponse(rawText: string): VideoNarrati
       brandTerritories: arrays.brandTerritories!,
       collabOpportunities: arrays.collabOpportunities!,
       ...(evidenceAnchors.anchors ? { evidenceAnchors: evidenceAnchors.anchors } : {}),
+      ...(contentContext ? { contentContext } : {}),
+      ...(narrativeCoherence ? { narrativeCoherence } : {}),
     },
     issues: evidenceAnchors.issues,
   };

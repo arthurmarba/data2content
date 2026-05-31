@@ -106,6 +106,10 @@ export type VideoNarrativeAnalysis = {
   brandMatch: VideoNarrativeBrandMatch;
   evidence: VideoNarrativeEvidence;
   evidenceAnchors?: CreatorVideoNarrativeEvidenceAnchors;
+  /** Structured life-asset dimensions extracted from watching the video. */
+  contentContext?: VideoNarrativeContentContext;
+  /** Coherence verdict against the creator's confirmed top-performing pattern. */
+  narrativeCoherence?: VideoNarrativeCoherence;
   profileSignals: VideoNarrativeProfileSignal[];
   confidence: VideoNarrativeConfidence;
   createdAt: string | null;
@@ -229,4 +233,9 @@ export function sanitizeVideoNarrativeAnalysisText(value: string): string {
     .replace(/comprovado/gi, "observado")
     .trim();
 }
-import type { CreatorVideoNarrativeEvidenceAnchors } from "./creatorVideoNarrativeDiagnosisTypes";
+import type {
+  CreatorVideoNarrativeEvidenceAnchors,
+  VideoNarrativeContentContext,
+  VideoNarrativeCoherence,
+} from "./creatorVideoNarrativeDiagnosisTypes";
+export type { VideoNarrativeContentContext, VideoNarrativeCoherence };

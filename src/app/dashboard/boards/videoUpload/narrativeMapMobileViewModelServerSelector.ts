@@ -17,6 +17,8 @@ import {
   type NarrativeMapMobileTabId,
   type NarrativeMapMobileViewModel,
 } from "./narrativeMapMobileViewModel";
+import { buildBrandMatchesFromSynthesis } from "./brandMatchingMobileService";
+import type { BrandNarrativeMatchResult } from "@/app/lib/brands/brandNarrativeMatchTypes";
 
 export interface BuildNarrativeMapMobileViewModelFromReadingsParams {
   userId: string;
@@ -36,6 +38,7 @@ export interface NarrativeMapMobileViewModelServerSelectorDeps {
   buildReadingPresentation?: typeof buildCreatorNarrativeMapReadingPresentation;
   buildViewModel?: typeof buildNarrativeMapMobileViewModel;
   buildProfileSynthesis?: typeof buildCreatorStrategicProfileSynthesis;
+  buildBrandMatches?: typeof buildBrandMatchesFromSynthesis;
 }
 
 export interface NarrativeMapMobileViewModelServerSelectorResult {
@@ -43,6 +46,7 @@ export interface NarrativeMapMobileViewModelServerSelectorResult {
   currentReading: CreatorVideoNarrativeDiagnosisSafeReading | null;
   currentPresentation: CreatorNarrativeMapReadingPresentation;
   profileSynthesis: CreatorStrategicProfileSynthesis;
+  brandMatches: BrandNarrativeMatchResult[];
 }
 
 function sortReadings(
@@ -155,6 +159,7 @@ export async function buildNarrativeMapMobileViewModelFromReadings(
   const buildReadingPresentation = deps.buildReadingPresentation ?? buildCreatorNarrativeMapReadingPresentation;
   const buildViewModel = deps.buildViewModel ?? buildNarrativeMapMobileViewModel;
   const buildProfileSynthesis = deps.buildProfileSynthesis ?? buildCreatorStrategicProfileSynthesis;
+  const buildBrandMatchesFn = deps.buildBrandMatches ?? buildBrandMatchesFromSynthesis;
   const queriedReadings = params.readings ?? await listRecentReadings({
     userId: params.userId,
     limit: params.recentLimit,
@@ -176,6 +181,8 @@ export async function buildNarrativeMapMobileViewModelFromReadings(
     instagramConnected: params.instagramConnected,
     analyzedVideosCount: readings.length,
   });
+  // Brand matching is non-fatal: errors return [] and never block the view model render
+  const brandMatches = await buildBrandMatchesFn(profileSynthesis).catch(() => []);
   const viewModel = buildViewModel({
     displayName: params.displayName,
     displayHandle: params.displayHandle,
@@ -186,6 +193,7 @@ export async function buildNarrativeMapMobileViewModelFromReadings(
     instagramConnected: params.instagramConnected,
     mediaKitAvailable: params.mediaKitAvailable,
     activeTab: params.activeTab,
+    brandMatches: brandMatches.length > 0 ? brandMatches : null,
   });
 
   return {
@@ -193,5 +201,6 @@ export async function buildNarrativeMapMobileViewModelFromReadings(
     currentReading,
     currentPresentation,
     profileSynthesis,
+    brandMatches,
   };
 }

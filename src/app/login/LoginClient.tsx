@@ -5,7 +5,6 @@ import { signIn } from "next-auth/react";
 import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
-import ButtonPrimary from "@/app/landing/components/ButtonPrimary";
 import {
   LEGAL_CONSENT_COOKIE_MAX_AGE_SECONDS,
   LEGAL_CONSENT_COOKIE_NAME,
@@ -15,30 +14,22 @@ import { resolveIntentCopy } from "./loginIntentCopy";
 function LoginComponent() {
   const searchParams = useSearchParams();
   const callbackUrlFromParams = searchParams.get("callbackUrl");
+  const intentFromParams = searchParams.get("intent");
   const loginError = searchParams.get("error");
   const [isLoading, setIsLoading] = useState(false);
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [showConsentError, setShowConsentError] = useState(false);
   const copy = useMemo(
-    () => resolveIntentCopy(callbackUrlFromParams),
-    [callbackUrlFromParams]
+    () => resolveIntentCopy(callbackUrlFromParams, intentFromParams),
+    [callbackUrlFromParams, intentFromParams]
   );
   const consentRequired = loginError === "TermsConsentRequired";
 
   const handleGoogleSignIn = () => {
-    if (consentRequired && !termsAccepted) {
-      setShowConsentError(true);
-      return;
-    }
-
     setIsLoading(true);
-    if (consentRequired) {
-      const secureFlag =
-        typeof window !== "undefined" && window.location.protocol === "https:"
-          ? "; Secure"
-          : "";
-      document.cookie = `${LEGAL_CONSENT_COOKIE_NAME}=1; Max-Age=${LEGAL_CONSENT_COOKIE_MAX_AGE_SECONDS}; Path=/; SameSite=Lax${secureFlag}`;
-    }
+    const secureFlag =
+      typeof window !== "undefined" && window.location.protocol === "https:"
+        ? "; Secure"
+        : "";
+    document.cookie = `${LEGAL_CONSENT_COOKIE_NAME}=1; Max-Age=${LEGAL_CONSENT_COOKIE_MAX_AGE_SECONDS}; Path=/; SameSite=Lax${secureFlag}`;
 
     void signIn("google", {
       callbackUrl: callbackUrlFromParams || MAIN_DASHBOARD_ROUTE,
@@ -48,108 +39,38 @@ function LoginComponent() {
   };
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#0A0F1A] px-4 py-12">
-      {/* Premium Dark Background with Glowing Orbs */}
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#101827] px-5 pb-10 pt-12">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] h-[500px] w-[500px] rounded-full bg-brand-primary/10 blur-[120px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] h-[500px] w-[500px] rounded-full bg-brand-accent/10 blur-[120px]" />
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-soft-light" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-18%,rgba(236,72,153,0.30),rgba(16,24,39,0)_50%),linear-gradient(180deg,#1e0e26_0%,#101827_55%,#0D1726_100%)]" />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.08] mix-blend-soft-light" />
       </div>
 
-      <div className="relative z-10 w-full max-w-sm overflow-hidden rounded-[2.5rem] border border-white/10 bg-white/[0.03] p-8 shadow-2xl backdrop-blur-2xl">
-        {/* Subtle top light effect */}
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-
-        <div className="mb-10 text-center">
-          <div className="inline-flex mb-6 rounded-full border border-brand-primary/20 bg-brand-primary/5 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-brand-primary">
+      <div className="relative z-10 w-full max-w-sm px-1 py-8">
+        <div className="mb-9 text-center">
+          <div className="mb-8 text-xl font-black tracking-tight text-brand-primary">
             {copy.badge}
           </div>
-          <h1 className="text-3xl font-black tracking-tight text-white">
+          <h1 className="mx-auto max-w-[18rem] text-[2.15rem] font-bold leading-[1.05] tracking-tight text-slate-100">
             {copy.title}
           </h1>
-          <p className="mt-4 text-[13px] font-medium leading-relaxed text-slate-400">
+          <p className="mx-auto mt-5 max-w-[18.5rem] text-sm font-medium leading-relaxed text-slate-300">
             {copy.description}
           </p>
         </div>
 
         {consentRequired ? (
           <div className="mb-5 rounded-2xl border border-amber-400/25 bg-amber-300/10 px-4 py-3 text-[12px] leading-relaxed text-amber-100">
-            Para continuar com Google, aceite os Termos e a Política de Privacidade antes do login.
+            Continue com Google para registrar o aceite dos Termos e da Política de Privacidade.
           </div>
         ) : null}
 
-        {consentRequired ? (
-          <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.04] p-4 text-[12px] leading-relaxed text-slate-300">
-            <label className="flex cursor-pointer items-start gap-3">
-              <input
-                type="checkbox"
-                checked={termsAccepted}
-                onChange={(event) => {
-                  setTermsAccepted(event.target.checked);
-                  if (event.target.checked) {
-                    setShowConsentError(false);
-                  }
-                }}
-                className="mt-0.5 h-4 w-4 rounded border-white/20 bg-transparent text-brand-primary focus:ring-brand-primary"
-              />
-              <span>
-                Li e concordo com os{" "}
-                <Link
-                  href="/termos-e-condicoes"
-                  target="_blank"
-                  className="font-semibold text-white underline decoration-white/30 underline-offset-4 transition hover:text-brand-primary"
-                >
-                  Termos e Condições
-                </Link>{" "}
-                e com a{" "}
-                <Link
-                  href="/politica-de-privacidade"
-                  target="_blank"
-                  className="font-semibold text-white underline decoration-white/30 underline-offset-4 transition hover:text-brand-primary"
-                >
-                  Política de Privacidade
-                </Link>
-                .
-              </span>
-            </label>
-            {showConsentError ? (
-              <p className="mt-3 text-[11px] font-semibold text-rose-300">
-                Você precisa aceitar os termos para continuar com Google.
-              </p>
-            ) : null}
-          </div>
-        ) : (
-          <p className="mb-6 text-center text-[12px] leading-relaxed text-slate-400">
-            Ao continuar, você poderá revisar os{" "}
-            <Link
-              href="/termos-e-condicoes"
-              target="_blank"
-              className="font-semibold text-white underline decoration-white/30 underline-offset-4 transition hover:text-brand-primary"
-            >
-              Termos e Condições
-            </Link>{" "}
-            e a{" "}
-            <Link
-              href="/politica-de-privacidade"
-              target="_blank"
-              className="font-semibold text-white underline decoration-white/30 underline-offset-4 transition hover:text-brand-primary"
-            >
-              Política de Privacidade
-            </Link>
-            .
-          </p>
-        )}
-
-        <div className="relative group">
-          <div className="absolute -inset-0.5 rounded-2xl bg-gradient-to-r from-brand-primary/50 to-brand-accent/50 opacity-30 blur-sm group-hover:opacity-75 transition duration-500"></div>
-          <ButtonPrimary
+        <div className="mx-auto w-full max-w-[19.5rem]">
+          <button
             onClick={handleGoogleSignIn}
             disabled={isLoading}
-            size="lg"
-            variant="brand"
-            className="relative w-full rounded-2xl !bg-white px-6 py-5 text-base font-bold !text-slate-900 shadow-xl transition-all hover:!bg-white hover:!text-slate-900 hover:scale-[1.01] active:scale-[0.98]"
+            className="inline-flex w-full appearance-none items-center justify-center overflow-hidden rounded-full border-0 bg-white px-6 py-5 text-base font-bold text-slate-950 shadow-[0_16px_42px_rgba(3,7,18,0.34)] outline-none transition-all hover:bg-white hover:scale-[1.01] focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101827] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
           >
-            <span className="inline-flex items-center justify-center gap-3">
+            <span className="inline-flex items-center justify-center gap-3 whitespace-nowrap">
               {!isLoading && (
                 <svg
                   className="h-5 w-5"
@@ -186,19 +107,53 @@ function LoginComponent() {
               )}
               {isLoading ? "Entrando..." : copy.buttonLabel}
             </span>
-          </ButtonPrimary>
+          </button>
         </div>
 
-        <div className="mt-8 flex flex-col gap-2">
-          <p className="text-center text-[10px] font-bold uppercase tracking-widest text-slate-500">
-            {copy.footer}
+        <p className="mt-5 text-center text-[12px] font-semibold leading-relaxed text-slate-300">
+          {copy.footer}
+        </p>
+
+        <p className="mx-auto mt-2 max-w-[18rem] text-center text-[12px] leading-relaxed text-slate-400">
+          Ao continuar, você aceita os{" "}
+          <Link
+            href="/termos-e-condicoes"
+            target="_blank"
+            className="font-semibold text-white underline decoration-white/30 underline-offset-4 transition hover:text-white"
+          >
+            Termos
+          </Link>{" "}
+          e a{" "}
+          <Link
+            href="/politica-de-privacidade"
+            target="_blank"
+            className="font-semibold text-white underline decoration-white/30 underline-offset-4 transition hover:text-white"
+          >
+            Política de Privacidade
+          </Link>
+          .
+        </p>
+
+        {/* ── Feature preview — anchors the bottom, sets expectations ── */}
+        <div className="mx-auto mt-10 w-full max-w-[19.5rem]">
+          <p className="mb-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+            O que você vai descobrir
           </p>
-          {consentRequired ? (
-            <p className="text-center text-[11px] leading-relaxed text-slate-500">
-              O aceite é registrado quando você continua com Google.
-            </p>
-          ) : null}
-          <div className="h-px w-full bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+          <div className="flex flex-wrap justify-center gap-2">
+            {[
+              "Sua narrativa central",
+              "Territórios com legitimidade",
+              "Próximas pautas do mapa",
+              "Tom e formato ideal",
+            ].map((label) => (
+              <span
+                key={label}
+                className="rounded-full border border-white/[0.15] bg-white/[0.06] px-3 py-1.5 text-[12px] font-medium text-slate-300"
+              >
+                {label}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </div>

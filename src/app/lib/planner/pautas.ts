@@ -6,6 +6,7 @@ import { logger } from '@/app/lib/logger';
 import type { PlannerCategories, PlannerFormat } from '@/types/planner';
 import { getBlockSampleCaptions, type BlockCategorySelection } from '@/utils/getBlockSampleCaptions';
 import { generatePautaIdeas, type GeneratedPautaIdea } from '@/app/lib/planner/ai';
+import { PAUTAS_PER_SLOT, PAUTA_AI_OVERGENERATION } from '@/app/lib/planner/constants';
 
 export type SlotPautasResult = {
   keyword: string;
@@ -281,7 +282,7 @@ export async function getPautasForSlot(params: {
   themeKeyword: string;
   count?: number;
 }): Promise<SlotPautasResult> {
-  const count = 5;
+  const count = PAUTAS_PER_SLOT;
   const themeKeyword = params.themeKeyword.trim() || 'tema';
   const branchSummary = buildBranchSummary(
     params.categories,
@@ -311,7 +312,7 @@ export async function getPautasForSlot(params: {
     sourceCaptions: captions,
     branchSummary,
     editorialGuidance,
-    count: 10,
+    count: PAUTA_AI_OVERGENERATION,
   });
 
   console.log('[getPautasForSlot] AI Result count:', aiPautas.length);

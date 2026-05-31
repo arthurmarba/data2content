@@ -10,8 +10,21 @@ export function NarrativeMapReadingChapterModal({
   if (!chapter) return null;
 
   return (
-    <div className="absolute inset-0 z-20 flex items-end bg-zinc-950/35 px-3 pb-3" role="dialog" aria-modal="true" aria-label={chapter.title}>
-      <section className="max-h-[88%] w-full overflow-y-auto rounded-[1.75rem] bg-white p-5 shadow-2xl">
+    <div
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/35 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] pt-8"
+      role="presentation"
+      onClick={onClose}
+    >
+      <section
+        className="max-h-[min(88dvh,760px)] w-full max-w-md overflow-y-auto rounded-[1.75rem] bg-white p-5 shadow-2xl animate-in slide-in-from-bottom duration-300"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="chapter-modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex justify-center" aria-hidden="true">
+          <div className="h-1 w-10 rounded-full bg-zinc-200" />
+        </div>
         <div className="flex items-start justify-between gap-4">
           <div>
             {chapter.badgeLabel ? (
@@ -19,15 +32,17 @@ export function NarrativeMapReadingChapterModal({
                 {chapter.badgeLabel}
               </span>
             ) : null}
-            <h2 className="mt-3 text-xl font-semibold text-zinc-950">{chapter.title}</h2>
+            <h2 id="chapter-modal-title" className="mt-3 text-xl font-semibold text-zinc-950">{chapter.title}</h2>
           </div>
           <button
             type="button"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-zinc-200 bg-white text-sm font-semibold text-zinc-700"
+            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-zinc-100 text-zinc-500"
             onClick={onClose}
             aria-label="Fechar capítulo"
           >
-            ×
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+            </svg>
           </button>
         </div>
 
@@ -40,7 +55,7 @@ export function NarrativeMapReadingChapterModal({
             <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Onde isso aparece</h3>
             <ul className="mt-2 grid gap-2">
               {chapter.evidence.map((item) => (
-                <li key={item} className="rounded-2xl border border-zinc-100 bg-white px-3 py-2 text-sm leading-5 text-zinc-700">
+                <li key={item} className="rounded-2xl bg-zinc-50 px-3 py-2 text-sm leading-5 text-zinc-700">
                   {item}
                 </li>
               ))}

@@ -762,8 +762,15 @@ function deriveFallbackV2Fields(
   };
 }
 
-export function buildClassificationOpenAiPayload(description: string, model: string) {
-  const systemPrompt = `
+// ── Prompt caching ───────────────────────────────────────────────────────────
+// As regras + o catálogo de categorias são 100% ESTÁTICOS (derivados de arrays
+// fixos). Montamos esse bloco UMA vez, no nível do módulo, e o usamos como system
+// prompt fixo. Como ele é idêntico em toda chamada e fica no PREFIXO, a OpenAI o
+// cacheia automaticamente (prompts ≥1024 tokens) e cobra ~50% no input cacheado.
+// A única parte variável (a descrição do post) vai no user prompt, ao final.
+// Antes, o catálogo vinha DEPOIS da descrição no user prompt → o prefixo divergia
+// logo no início e nada era cacheado.
+const CLASSIFICATION_RULES = `
 Você é um especialista em análise de conteúdo de mídias sociais. Sua tarefa é analisar a descrição de um post, incluindo hashtags, e classificá-lo em ONZE dimensões.
 
 REGRAS CRÍTICAS:
@@ -794,36 +801,31 @@ Retorne exatamente este formato:
   "stance": [],
   "proofStyle": [],
   "commercialMode": []
-}
-  `.trim();
+}`.trim();
 
-  const userPrompt = `**Descrição:**\n"${description}"\n\n**Categorias:**\nFormato: ${buildCategoryDescriptions(
-    formatCategories
-  )}\nProposta: ${buildCategoryDescriptions(
-    proposalCategories
-  )}\nContexto: ${buildCategoryDescriptions(
-    contextCategories
-  )}\nTom: ${buildCategoryDescriptions(
-    toneCategories
-  )}\nReferências: ${buildCategoryDescriptions(
-    referenceCategories
-  )}\nIntento Estratégico: ${buildCategoryDescriptions(
-    contentIntentCategories
-  )}\nForma Narrativa: ${buildCategoryDescriptions(
-    narrativeFormCategories
-  )}\nSinais de Conteúdo: ${buildCategoryDescriptions(
-    contentSignalCategories
-  )}\nPostura: ${buildCategoryDescriptions(
-    stanceCategories
-  )}\nTipo de Prova: ${buildCategoryDescriptions(
-    proofStyleCategories
-  )}\nModo Comercial: ${buildCategoryDescriptions(commercialModeCategories)}`;
+// Catálogo estático (montado uma vez no load do módulo).
+const CLASSIFICATION_CATEGORY_BLOCK = `**Categorias:**
+Formato: ${buildCategoryDescriptions(formatCategories)}
+Proposta: ${buildCategoryDescriptions(proposalCategories)}
+Contexto: ${buildCategoryDescriptions(contextCategories)}
+Tom: ${buildCategoryDescriptions(toneCategories)}
+Referências: ${buildCategoryDescriptions(referenceCategories)}
+Intento Estratégico: ${buildCategoryDescriptions(contentIntentCategories)}
+Forma Narrativa: ${buildCategoryDescriptions(narrativeFormCategories)}
+Sinais de Conteúdo: ${buildCategoryDescriptions(contentSignalCategories)}
+Postura: ${buildCategoryDescriptions(stanceCategories)}
+Tipo de Prova: ${buildCategoryDescriptions(proofStyleCategories)}
+Modo Comercial: ${buildCategoryDescriptions(commercialModeCategories)}`;
 
+// System prompt fixo = regras + catálogo. Prefixo idêntico em toda chamada → cacheável.
+const CLASSIFICATION_SYSTEM_PROMPT = `${CLASSIFICATION_RULES}\n\n${CLASSIFICATION_CATEGORY_BLOCK}`;
+
+export function buildClassificationOpenAiPayload(description: string, model: string) {
   return {
     model,
     messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userPrompt },
+      { role: "system", content: CLASSIFICATION_SYSTEM_PROMPT },
+      { role: "user", content: `**Descrição:**\n"${description}"` },
     ],
     response_format: { type: "json_object" },
   };

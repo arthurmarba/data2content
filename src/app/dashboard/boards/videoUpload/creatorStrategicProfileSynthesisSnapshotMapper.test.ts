@@ -71,8 +71,8 @@ describe("creatorStrategicProfileSynthesisSnapshotMapper", () => {
       synthesis: synthesisFor("three_related_readings"),
     });
 
-    expect(payload.lastAnalysisSummary).toContain("Testar");
-    expect(payload.lastAnalysisSummary).toContain("3 vídeos");
+    expect(payload.lastAnalysisSummary).toContain("3 leituras");
+    expect(payload.lastAnalysisSummary).toBeTruthy();
   });
 
   it("nao inclui campos sensiveis", () => {

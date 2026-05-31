@@ -62,6 +62,12 @@ describe("loginIntentCopy", () => {
     );
   });
 
+  it("mobile strategic profile path uses strategic profile copy", () => {
+    expect(resolveIntentCopy("/dashboard/boards/mobile-strategic-profile")).toEqual(
+      STRATEGIC_PROFILE_LOGIN_INTENT_COPY,
+    );
+  });
+
   it("strategic-profile path uses strategic profile copy", () => {
     expect(resolveIntentCopy("/strategic-profile")).toEqual(STRATEGIC_PROFILE_LOGIN_INTENT_COPY);
   });
@@ -90,6 +96,23 @@ describe("loginIntentCopy", () => {
 
   it("intent=strategic_profile uses strategic profile copy", () => {
     expect(resolveIntentCopy("/dashboard?intent=strategic_profile")).toEqual(STRATEGIC_PROFILE_LOGIN_INTENT_COPY);
+  });
+
+  it("login intent=strategic_profile uses strategic profile copy", () => {
+    expect(resolveIntentCopy("/dashboard/boards/mobile-strategic-profile", "strategic_profile")).toEqual(
+      STRATEGIC_PROFILE_LOGIN_INTENT_COPY,
+    );
+  });
+
+  it("strategic profile login copy explains the first diagnostic action", () => {
+    expect(STRATEGIC_PROFILE_LOGIN_INTENT_COPY).toMatchObject({
+      badge: "Data2Content",
+      title: "Comece seu mapa narrativo",
+      buttonLabel: "Continuar com Google",
+    });
+    expect(STRATEGIC_PROFILE_LOGIN_INTENT_COPY.description).toContain("revela sobre sua narrativa");
+    expect(STRATEGIC_PROFILE_LOGIN_INTENT_COPY.description).not.toContain("crédito");
+    expect(STRATEGIC_PROFILE_LOGIN_INTENT_COPY.footer).toContain("volta direto para o mapa narrativo");
   });
 
   it("intent=analyze_video uses analyze video copy", () => {

@@ -8,6 +8,7 @@ export type VideoNarrativeRealAnalysisUserFacingErrorCode =
   | "gemini_timeout"
   | "gemini_provider_unavailable"
   | "gemini_invalid_response"
+  | "video_evidence_missing"
   | "snapshot_save_failed"
   | "cleanup_warning"
   | "unknown_error";
@@ -22,6 +23,7 @@ const USER_FACING_ERROR_MESSAGES: Record<VideoNarrativeRealAnalysisUserFacingErr
   gemini_timeout: "A análise demorou mais que o esperado. Tente novamente em alguns minutos.",
   gemini_provider_unavailable: "A análise real está temporariamente indisponível.",
   gemini_invalid_response: "Não conseguimos transformar a análise em um diagnóstico válido.",
+  video_evidence_missing: "Não conseguimos encontrar evidências suficientes no vídeo. Tente enviar o vídeo novamente ou escolha outro conteúdo.",
   snapshot_save_failed: "A análise foi concluída, mas não conseguimos atualizar seu Perfil Estratégico agora.",
   cleanup_warning: "A análise foi concluída, mas a limpeza temporária ainda precisa ser confirmada.",
   unknown_error: "Não foi possível concluir a análise real agora.",
@@ -44,9 +46,16 @@ const ISSUE_CODE_MAP: Record<string, VideoNarrativeRealAnalysisUserFacingErrorCo
   download_failed: "storage_download_failed",
   gemini_provider_disabled: "gemini_provider_unavailable",
   gemini_provider_failed: "gemini_provider_unavailable",
+  empty_response: "gemini_invalid_response",
+  invalid_json: "gemini_invalid_response",
+  missing_object: "gemini_invalid_response",
+  missing_required_fields: "gemini_invalid_response",
+  invalid_required_string: "gemini_invalid_response",
+  invalid_required_array: "gemini_invalid_response",
   gemini_timeout: "gemini_timeout",
   gemini_invalid_response: "gemini_invalid_response",
   provider_invalid_response: "gemini_invalid_response",
+  video_evidence_missing: "video_evidence_missing",
   snapshot_upsert_failed: "snapshot_save_failed",
   snapshot_save_failed: "snapshot_save_failed",
   cleanup_warning: "cleanup_warning",

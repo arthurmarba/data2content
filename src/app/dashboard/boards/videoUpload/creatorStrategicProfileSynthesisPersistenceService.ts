@@ -10,6 +10,7 @@ import type {
   MobileStrategicProfileSnapshotPayload,
 } from "./mobileStrategicProfileSnapshotTypes";
 import { upsertStrategicProfileSnapshot, validateSnapshotPayload } from "./mobileStrategicProfileSnapshotService";
+import { reproposeConfirmationsIfSynthesisChanged } from "./mapConfirmationReproposalService";
 
 export type CreatorStrategicProfileSynthesisPersistenceMode = "dry_run" | "write";
 
@@ -129,6 +130,11 @@ export async function persistCreatorStrategicProfileSynthesis(
       source: CREATOR_PROFILE_SYNTHESIS_SNAPSHOT_SOURCE,
       lastAnalyzedAt: new Date(params.synthesis.generatedAt),
     } satisfies CreatorStrategicProfileSnapshotInput);
+
+    // Side effect: check whether the new synthesis diverges from what the creator
+    // previously confirmed and, if so, reset those dimensions to "pending" so the
+    // map can re-propose. Non-fatal — failures here never block persistence.
+    void reproposeConfirmationsIfSynthesisChanged(result.userId, params.synthesis);
 
     return {
       ok: true,

@@ -48,19 +48,38 @@ const CRONS = [
     method: 'POST',
     body: '[BILLING_EXPIRE_TRIALS] Marcar trials expirados como inativos',
   },
-  {
-    id: 'whatsapp-tips-4x-week',
-    destination: 'https://data2content.ai/api/whatsapp/sendTips',
-    cron: '0 14 * * 1,3,5,0',
-    method: 'POST',
-    body: '[WHATSAPP_TIPS] Enviar dicas semanais (Seg, Qua, Sex, Dom)',
-  },
+  // [DESATIVADO] whatsapp-tips-4x-week: dicas baseadas em métricas de performance.
+  // Removido por conflito com a filosofia do produto — 1 mensagem/semana via mapa-whatsapp-weekly.
   {
     id: 'instagram-refresh-data-2x-day',
     destination: 'https://data2content.ai/api/cron/refresh-instagram-data',
     cron: '0 */12 * * *',
     method: 'POST',
     body: '[INSTAGRAM_REFRESH] Atualizar dados e renovar tokens próximos do vencimento',
+  },
+  // ── Narrative Map crons ─────────────────────────────────────────────────────
+  {
+    id: 'narrative-weekly-map-summary',
+    destination: 'https://data2content.ai/api/cron/weekly-map-summary',
+    cron: '0 11 * * 1', // Segunda 08:00 BRT (UTC-3)
+    method: 'POST',
+    body: '[NARRATIVE_MAP_SUMMARY] Gerar resumo semanal do mapa para criadores',
+  },
+  {
+    id: 'narrative-regenerate-content-ideas',
+    destination: 'https://data2content.ai/api/cron/regenerate-content-ideas',
+    cron: '0 12 * * 1', // Segunda 09:00 BRT — após weekly-map-summary
+    method: 'POST',
+    body: '[NARRATIVE_IDEAS] Regenerar pautas frescas para criadores Pro com mapa confirmado',
+  },
+  // [DESATIVADO] narrative-whatsapp-weekly-newsletter: newsletter Gemini baseada no sistema de mapa legado.
+  // Substituída por mapa-whatsapp-weekly (MapaSeed + GPT) — 1 mensagem única por semana.
+  {
+    id: 'mapa-whatsapp-weekly',
+    destination: 'https://data2content.ai/api/cron/weekly-mapa-whatsapp',
+    cron: '30 12 * * 1', // Segunda 09:30 BRT — após pautas regeneradas (09:00); única mensagem da semana
+    method: 'POST',
+    body: '[MAPA_WHATSAPP] Mensagem semanal do mapa narrativo — única mensagem WhatsApp da semana',
   },
 ] as const;
 

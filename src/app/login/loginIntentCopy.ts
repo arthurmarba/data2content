@@ -7,28 +7,27 @@ export type LoginIntentCopy = {
 };
 
 export const DEFAULT_LOGIN_INTENT_COPY: LoginIntentCopy = {
-  badge: "Entrar com Google",
-  title: "Continue na plataforma",
-  description:
-    "Entre com sua conta Google para acessar seus boards, salvar progresso e continuar sua jornada na Data2Content.",
+  badge: "Data2Content",
+  title: "Entre na sua conta",
+  description: "Continue seu mapa narrativo e seus próximos passos.",
   buttonLabel: "Continuar com Google",
-  footer: "Sua conta conecta ferramentas, histórico e próximos passos em um só lugar.",
+  footer: "Assim que entrar, a D2C retoma de onde você parou.",
 };
 
 export const STRATEGIC_PROFILE_LOGIN_INTENT_COPY: LoginIntentCopy = {
-  badge: "Perfil Estratégico",
-  title: "Crie seu Perfil Estratégico",
-  description: "Entre com Google para começar seu diagnóstico como creator.",
-  buttonLabel: "Entrar com Google",
-  footer: "Depois do login, você volta para o Perfil e pode analisar seu primeiro vídeo.",
+  badge: "Data2Content",
+  title: "Comece seu mapa narrativo",
+  description: "Entre para entender o que seu conteúdo já revela sobre sua narrativa.",
+  buttonLabel: "Continuar com Google",
+  footer: "Assim que entrar, a D2C começa a mapear seu conteúdo.",
 };
 
 export const ANALYZE_VIDEO_LOGIN_INTENT_COPY: LoginIntentCopy = {
   badge: "Análise narrativa",
-  title: "Entre para analisar seu primeiro vídeo",
-  description: "Use sua conta Google para salvar essa primeira leitura no seu Perfil Estratégico.",
-  buttonLabel: "Entrar e analisar vídeo",
-  footer: "A análise atualiza seu Perfil. Ela não cria uma galeria pública de vídeos.",
+  title: "Continue sua análise",
+  description: "Entre para conectar a leitura do conteúdo ao seu mapa narrativo.",
+  buttonLabel: "Continuar com Google",
+  footer: "Assim que entrar, a leitura continua de onde parou.",
 };
 
 function normalizeCallbackUrl(rawCallbackUrl: string): URL | null {
@@ -50,7 +49,29 @@ function normalizeCallbackUrl(rawCallbackUrl: string): URL | null {
   }
 }
 
-export function resolveIntentCopy(rawCallbackUrl: string | null): LoginIntentCopy {
+function resolveExplicitIntent(rawIntent: string | null | undefined): LoginIntentCopy | null {
+  const intent = rawIntent?.trim().toLowerCase() ?? "";
+
+  if (intent === "analyze_video") {
+    return ANALYZE_VIDEO_LOGIN_INTENT_COPY;
+  }
+
+  if (intent === "strategic_profile") {
+    return STRATEGIC_PROFILE_LOGIN_INTENT_COPY;
+  }
+
+  return null;
+}
+
+export function resolveIntentCopy(
+  rawCallbackUrl: string | null,
+  rawIntent?: string | null
+): LoginIntentCopy {
+  const explicitIntentCopy = resolveExplicitIntent(rawIntent);
+  if (explicitIntentCopy) {
+    return explicitIntentCopy;
+  }
+
   if (!rawCallbackUrl) {
     return DEFAULT_LOGIN_INTENT_COPY;
   }
@@ -63,12 +84,9 @@ export function resolveIntentCopy(rawCallbackUrl: string | null): LoginIntentCop
   const path = normalizedUrl.pathname.toLowerCase();
   const intent = normalizedUrl.searchParams.get("intent")?.trim().toLowerCase() ?? "";
 
-  if (intent === "analyze_video") {
-    return ANALYZE_VIDEO_LOGIN_INTENT_COPY;
-  }
-
-  if (intent === "strategic_profile") {
-    return STRATEGIC_PROFILE_LOGIN_INTENT_COPY;
+  const callbackIntentCopy = resolveExplicitIntent(intent);
+  if (callbackIntentCopy) {
+    return callbackIntentCopy;
   }
 
   if (
@@ -81,6 +99,7 @@ export function resolveIntentCopy(rawCallbackUrl: string | null): LoginIntentCop
 
   if (
     path.includes("/dashboard/boards/mobile-strategic-profile-preview") ||
+    path.includes("/dashboard/boards/mobile-strategic-profile") ||
     path.includes("/strategic-profile") ||
     path.includes("/mobile-profile") ||
     path.includes("/profile")
@@ -95,7 +114,7 @@ export function resolveIntentCopy(rawCallbackUrl: string | null): LoginIntentCop
       description:
         "Use sua conta Google para retomar a precificação e seguir para a assinatura do Plano Pro quando necessário.",
       buttonLabel: "Entrar e continuar",
-      footer: "Depois do login, você volta para a calculadora sem perder a intenção original.",
+      footer: "Assim que entrar, a calculadora retoma do ponto em que você estava.",
     };
   }
 
@@ -106,7 +125,7 @@ export function resolveIntentCopy(rawCallbackUrl: string | null): LoginIntentCop
       description:
         "A conta Google guarda seu progresso e permite seguir para a assinatura e conexão do Instagram no momento certo.",
       buttonLabel: "Entrar e continuar",
-      footer: "Seu retorno continua do ponto em que você parou.",
+      footer: "Assim que entrar, o Mídia Kit continua do ponto em que você parou.",
     };
   }
 
@@ -117,7 +136,7 @@ export function resolveIntentCopy(rawCallbackUrl: string | null): LoginIntentCop
       description:
         "Faça login com Google para acessar seu board, salvar progresso e continuar o fluxo de assinatura quando a funcionalidade for premium.",
       buttonLabel: "Entrar e continuar",
-      footer: "Depois do login, a plataforma retoma a etapa correta para liberar o recurso.",
+      footer: "Assim que entrar, o board retoma a etapa certa.",
     };
   }
 
@@ -128,7 +147,7 @@ export function resolveIntentCopy(rawCallbackUrl: string | null): LoginIntentCop
       description:
         "Sua conta Google é necessária para gerenciar CRM, publis e negociações, com assinatura ativada quando o recurso exigir acesso Pro.",
       buttonLabel: "Entrar e continuar",
-      footer: "Login primeiro, assinatura quando necessário, sempre no mesmo fluxo.",
+      footer: "Assim que entrar, você retoma de onde parou.",
     };
   }
 
@@ -139,7 +158,7 @@ export function resolveIntentCopy(rawCallbackUrl: string | null): LoginIntentCop
       description:
         "Faça login com Google para acessar a comunidade e seguir para a mentoria ou para os próximos passos de ativação quando necessário.",
       buttonLabel: "Entrar e continuar",
-      footer: "Sessões gratuitas e premium seguem a partir desta mesma conta.",
+      footer: "Assim que entrar, a comunidade e suas sessões ficam acessíveis.",
     };
   }
 

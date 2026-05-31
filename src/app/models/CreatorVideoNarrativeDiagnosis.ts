@@ -11,6 +11,8 @@ import type {
   CreatorVideoNarrativeDiagnosisStrategicRecommendation,
   CreatorVideoNarrativeDiagnosisVideoMetadata,
   CreatorVideoNarrativeDiagnosisVideoReading,
+  VideoNarrativeContentContext,
+  VideoNarrativeCoherence,
 } from "@/app/dashboard/boards/videoUpload/creatorVideoNarrativeDiagnosisTypes";
 
 export interface ICreatorVideoNarrativeDiagnosis extends Document {
@@ -28,7 +30,25 @@ export interface ICreatorVideoNarrativeDiagnosis extends Document {
   strategicRecommendation: CreatorVideoNarrativeDiagnosisStrategicRecommendation;
   profileContribution: CreatorVideoNarrativeDiagnosisProfileContribution;
   evidenceAnchors?: CreatorVideoNarrativeEvidenceAnchors;
+  /** Structured life-asset dimensions extracted by Gemini from watching the video. */
+  contentContext?: VideoNarrativeContentContext;
+  /** Coherence verdict against the creator's confirmed top-performing narrative pattern. */
+  narrativeCoherence?: VideoNarrativeCoherence;
+  /** Creator's answers to the adaptive quiz shown on the confirmation step. */
+  confirmationQuizAnswers?: Array<{
+    questionId: string;
+    questionText: string;
+    answerId: string;
+    answerValue: string;
+    answeredAt: Date;
+  }>;
   safetyFlags: CreatorVideoNarrativeDiagnosisSafetyFlags;
+  /**
+   * Creator's declared publication intent after the Raio X analysis.
+   * Only "yes" diagnoses feed the narrative map with full weight.
+   * Null = pre-feature (legacy readings, treated as full weight for backwards compat).
+   */
+  publishIntent?: "yes" | "no" | "unsure" | null;
   schemaVersion: "creator_video_narrative_diagnosis_v1";
   createdAt: Date;
   updatedAt: Date;
@@ -42,6 +62,7 @@ const VideoMetadataSchema = new Schema<CreatorVideoNarrativeDiagnosisVideoMetada
     originalFileNameSanitized: { type: String },
     uploadedAt: { type: Date },
     analyzedAt: { type: Date },
+    thumbnailUrl: { type: String, default: null },
   },
   { _id: false, strict: true },
 );
@@ -258,6 +279,17 @@ const CreatorVideoNarrativeDiagnosisSchema = new Schema<ICreatorVideoNarrativeDi
     strategicRecommendation: { type: StrategicRecommendationSchema, required: true },
     profileContribution: { type: ProfileContributionSchema, required: true },
     evidenceAnchors: { type: EvidenceAnchorsSchema, required: false },
+    // Flexible nested objects — stored as Mixed so schema evolution is additive
+    // without requiring a migration. Fields are validated at the application layer.
+    contentContext: { type: Schema.Types.Mixed, required: false, default: undefined },
+    narrativeCoherence: { type: Schema.Types.Mixed, required: false, default: undefined },
+    confirmationQuizAnswers: { type: [Schema.Types.Mixed], required: false, default: undefined },
+    publishIntent: {
+      type: String,
+      enum: ["yes", "no", "unsure", null],
+      default: null,
+      required: false,
+    },
     safetyFlags: { type: SafetyFlagsSchema, required: true },
     schemaVersion: {
       type: String,

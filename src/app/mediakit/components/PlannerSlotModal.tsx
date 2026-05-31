@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { prefillInspirationCache } from '../utils/inspirationCache';
 import { setCachedThemes } from '../utils/plannerThemesCache';
 import { getPlannerSlotPresentation } from './plannerSlotPresentation';
+import { PAUTAS_PER_SLOT, SELF_INSPIRATIONS_LIMIT, COMMUNITY_INSPIRATIONS_LIMIT } from '@/app/lib/planner/constants';
 
 const DiscoverVideoModal = dynamic(() => import('@/app/discover/components/DiscoverVideoModal'), {
   ssr: false,
@@ -563,7 +564,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
           blockStartHour: slot.blockStartHour,
           format,
           categories: slot.categories || {},
-          limit: 8,
+          limit: SELF_INSPIRATIONS_LIMIT,
         }),
       });
       if (!res.ok) throw new Error('Falha ao buscar conteúdos');
@@ -638,7 +639,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
           tone: slot.categories?.tone,
           script: description || slot.scriptShort || '',
           themeKeyword: effectiveTheme,
-          limit: 12,
+          limit: COMMUNITY_INSPIRATIONS_LIMIT,
         }),
       });
       if (!res.ok) throw new Error('Falha ao buscar conteúdos da comunidade');
@@ -905,7 +906,7 @@ export const PlannerSlotModal: React.FC<PlannerSlotModalProps> = ({
                 </div>
               ) : themesLocal.length > 0 ? (
                 <div className="grid gap-2">
-                  {themesLocal.slice(0, 4).map((t, i) => {
+                  {themesLocal.slice(0, PAUTAS_PER_SLOT).map((t, i) => {
                     const isSelected = normalizeThemeText(selectedThemeForSave) === normalizeThemeText(t);
                     return (
                       <button

@@ -109,6 +109,16 @@ const nextConfig = {
     },
   },
 
+  webpack(config) {
+    config.resolve = config.resolve || {};
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      bufferutil: false,
+      'utf-8-validate': false,
+    };
+    return config;
+  },
+
   async redirects() {
     return [
       {

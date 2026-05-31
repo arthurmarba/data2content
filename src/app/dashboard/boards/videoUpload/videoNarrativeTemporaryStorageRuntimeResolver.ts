@@ -1,3 +1,8 @@
+import {
+  isLocalVideoNarrativeTemporaryUploadEnabled,
+  isLocalVideoNarrativeUploadSessionId,
+} from "./videoNarrativeLocalTemporaryUploadStore";
+
 export type VideoNarrativeTemporaryStorageRuntimeResolverStatus =
   | "ready"
   | "missing_storage_adapter"
@@ -27,6 +32,18 @@ export function resolveVideoNarrativeTemporaryStorageObject(
   input: VideoNarrativeTemporaryStorageRuntimeResolverInput,
   env: NodeJS.ProcessEnv | Record<string, string | undefined> = process.env
 ): VideoNarrativeTemporaryStorageRuntimeResolverResult {
+  if (
+    isLocalVideoNarrativeTemporaryUploadEnabled(env) &&
+    isLocalVideoNarrativeUploadSessionId(input.uploadSessionId)
+  ) {
+    return {
+      ok: true,
+      status: "ready",
+      safeMessage: "Ready",
+      issues: [],
+    };
+  }
+
   const provider = env.VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER;
 
   if (!provider || provider === "disabled" || provider === "none" || provider === "local_mock") {

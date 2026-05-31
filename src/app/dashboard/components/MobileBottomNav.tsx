@@ -10,9 +10,16 @@ import {
   TrendingUp,
   DollarSign,
   PenLine,
-  LayoutGrid
+  LayoutGrid,
+  Activity,
+  FileText,
 } from "lucide-react";
 import { UserAvatar } from "@/app/components/UserAvatar";
+import {
+  MOBILE_COMMUNITY_ROUTE,
+  MOBILE_MEDIA_KIT_ROUTE,
+  MOBILE_PROFILE_ROUTE,
+} from "../boards/videoUpload/mobileStrategicProfileRoutes";
 
 type MobileBottomNavItem = {
   key: string;
@@ -23,7 +30,33 @@ type MobileBottomNavItem = {
   isAvatar?: boolean;
 };
 
-const navItems: MobileBottomNavItem[] = [
+const mobileStrategicProfileNavItems: MobileBottomNavItem[] = [
+  {
+    key: "diagnostico",
+    label: "Diagnóstico",
+    icon: Activity,
+    href: MOBILE_PROFILE_ROUTE,
+    match: (p: string) =>
+      p.startsWith(MOBILE_PROFILE_ROUTE) ||
+      p.startsWith("/dashboard/boards/mobile-strategic-profile-preview"),
+  },
+  {
+    key: "community",
+    label: "Comunidade",
+    icon: UsersRound,
+    href: MOBILE_COMMUNITY_ROUTE,
+    match: (p: string) => p.startsWith(MOBILE_COMMUNITY_ROUTE) || p.startsWith("/dashboard/discover"),
+  },
+  {
+    key: "media-kit",
+    label: "Mídia Kit",
+    icon: FileText,
+    href: MOBILE_MEDIA_KIT_ROUTE,
+    match: (p: string) => p.startsWith(MOBILE_MEDIA_KIT_ROUTE) || p.startsWith("/media-kit"),
+  },
+];
+
+const legacyNavItems: MobileBottomNavItem[] = [
   {
     key: "home",
     label: "Comunidade",
@@ -67,6 +100,11 @@ export default function MobileBottomNav() {
   const searchParams = useSearchParams();
   const { data: session } = useSession();
   const user = session?.user as any;
+  const isMobileStrategicProfileAppEnabled =
+    process.env.NEXT_PUBLIC_MOBILE_STRATEGIC_PROFILE_ENABLED === "1";
+  const navItems = isMobileStrategicProfileAppEnabled
+    ? mobileStrategicProfileNavItems
+    : legacyNavItems;
 
   // Ocultar em fluxos guiados ou print
   const isGuidedFlow = pathname === "/dashboard/instagram";
@@ -74,7 +112,7 @@ export default function MobileBottomNav() {
   if (isGuidedFlow || isPrintMode) return null;
 
   return (
-    <nav data-mobile-bottom-nav="true" className="fixed bottom-0 left-0 right-0 z-[200] flex h-[calc(env(safe-area-inset-bottom,0px)+4.75rem)] items-start justify-around border-t border-zinc-100 bg-white px-1.5 pb-[env(safe-area-inset-bottom,0px)] pt-3 shadow-[0_-12px_45px_rgba(0,0,0,0.08)] lg:hidden">
+    <nav data-mobile-bottom-nav="true" className="fixed bottom-0 left-0 right-0 z-[200] flex h-[calc(env(safe-area-inset-bottom,0px)+4.5rem)] items-start justify-center border-t border-zinc-100 bg-white px-3 pb-[env(safe-area-inset-bottom,0px)] pt-2.5 shadow-[0_-10px_32px_rgba(15,23,42,0.08)] lg:hidden">
       {navItems.map((item) => {
         const isActive = item.match(pathname || "");
         const Icon = item.icon;
@@ -89,28 +127,28 @@ export default function MobileBottomNav() {
           >
             <div
               className={`flex h-7 w-7 items-center justify-center transition-transform duration-200 ${
-                isActive ? "-translate-y-px scale-[1.08]" : "translate-y-0 scale-100"
+                isActive ? "-translate-y-0.5" : "translate-y-0"
               }`}
             >
               {item.isAvatar ? (
                 <div
-                  className={`relative rounded-full p-0.5 transition-all duration-200 ${
+                  className={`relative rounded-full transition-all duration-200 ${
                     isActive 
-                      ? "ring-2 ring-[#F6007B] ring-offset-2 ring-offset-white" 
+                      ? "ring-1 ring-[#F6007B] ring-offset-2 ring-offset-white" 
                       : "ring-1 ring-zinc-300"
                   }`}
                 >
                   <UserAvatar 
                     src={user?.image} 
                     name={user?.name || "Usuário"} 
-                    size={23} 
-                    className="h-[23px] w-[23px]" 
+                    size={24} 
+                    className="h-6 w-6" 
                   />
                 </div>
               ) : (
                 <Icon 
-                  strokeWidth={isActive ? 2.35 : 1.9} 
-                  className={`h-[23px] w-[23px] transition-all duration-200 ${isActive ? "drop-shadow-[0_0_10px_rgba(246,0,123,0.25)]" : ""}`} 
+                  strokeWidth={isActive ? 2.25 : 1.9} 
+                  className="h-[23px] w-[23px] transition-all duration-200" 
                 />
               )}
             </div>

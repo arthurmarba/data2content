@@ -6,6 +6,7 @@ import { getServerSession } from "next-auth";
 import { redirect, notFound } from "next/navigation";
 import { getStrategicProfileSnapshotByUserId } from "../videoUpload/mobileStrategicProfileSnapshotService";
 import { buildNarrativeMapMobileViewModelFromReadings } from "../videoUpload/narrativeMapMobileViewModelServerSelector";
+import { getNarrativeMapReadingQuotaForUser } from "../videoUpload/narrativeMapReadingQuotaService";
 
 // Mock das dependências externas
 jest.mock("next-auth", () => ({
@@ -37,6 +38,10 @@ jest.mock("../videoUpload/narrativeMapMobileViewModelServerSelector", () => ({
   buildNarrativeMapMobileViewModelFromReadings: jest.fn(),
 }));
 
+jest.mock("../videoUpload/narrativeMapReadingQuotaService", () => ({
+  getNarrativeMapReadingQuotaForUser: jest.fn(),
+}));
+
 // Mock do componente MobileStrategicProfileRealShellClient
 jest.mock(
   "../components/videoUpload/appPreview/MobileStrategicProfileRealShellClient",
@@ -61,6 +66,13 @@ describe("MobileStrategicProfilePage Rota Real", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     (getStrategicProfileSnapshotByUserId as jest.Mock).mockResolvedValue(null);
+    (getNarrativeMapReadingQuotaForUser as jest.Mock).mockResolvedValue({
+      monthKey: "2026-05",
+      usedTotal: 0,
+      usedThisMonth: 0,
+      freeTotalLimit: 1,
+      proMonthlyLimit: 10,
+    });
     (buildNarrativeMapMobileViewModelFromReadings as jest.Mock).mockResolvedValue({
       viewModel: { id: "narrative-map-test" },
       currentPresentation: { id: "presentation-test" },
@@ -175,7 +187,7 @@ describe("MobileStrategicProfilePage Rota Real", () => {
       userId: "665f0f2c8a0b7d1f2c3a4b5c",
       displayName: "Arthur Teste",
       displayHandle: "@arthur.test",
-      accessLevel: "premium",
+      accessLevel: "instagram_optimized",
       instagramConnected: true,
     }));
     expect(screen.getByTestId("real-profile-client-wrapper")).toHaveAttribute("data-hasnarrativemap", "true");

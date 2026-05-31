@@ -1,7 +1,10 @@
 import {
   sanitizeVideoNarrativeAnalysisText,
   type VideoNarrativeAnalysis,
+  type VideoNarrativeContentContext,
+  type VideoNarrativeCoherence,
 } from "./videoNarrativeAnalysisTypes";
+import { buildData2ContentNarrativeContract } from "./data2contentNarrativeContract";
 import type { CreatorVideoNarrativeEvidenceAnchors } from "./creatorVideoNarrativeDiagnosisTypes";
 import type { PostCreationVideoSeed } from "./videoNarrativePostCreationSeed";
 
@@ -155,6 +158,10 @@ export interface VideoNarrativeStrategicDiagnosis {
     locked: boolean;
   };
   evidenceAnchors?: CreatorVideoNarrativeEvidenceAnchors;
+  /** Structured life-asset dimensions extracted from watching the video. */
+  contentContext?: VideoNarrativeContentContext;
+  /** Coherence verdict against the creator's confirmed top-performing pattern. */
+  narrativeCoherence?: VideoNarrativeCoherence;
   createdAt: string | null;
 }
 
@@ -550,7 +557,7 @@ export function extractVideoNarrativeCreatorSignals(
 export function buildVideoNarrativeStrategicDiagnosis(
   input: VideoNarrativeDiagnosisInput,
 ): VideoNarrativeStrategicDiagnosis {
-  const mainNarrative = getMainNarrative(input);
+  const rawMainNarrative = getMainNarrative(input);
   const creatorIntent = getCreatorIntent(input);
   const strength = firstUseful(input.analysis.diagnosis.strengths);
   const weakness = firstUseful(input.analysis.diagnosis.weaknesses);
@@ -560,6 +567,36 @@ export function buildVideoNarrativeStrategicDiagnosis(
       ? recommendedAdjustment
       : firstUseful([input.seed.scriptDirection.opening, input.analysis.hook.detected]);
   const brandPotential = buildBrandPotential(input);
+  const hasNarrativeContractInput = Boolean(firstUseful([
+    rawMainNarrative,
+    input.analysis.summary,
+    input.analysis.d2cClassification.context,
+    input.analysis.blueprintSuggestion.whyThisPath,
+    strength,
+    weakness,
+    recommendedAdjustment,
+    input.analysis.profileSignals[0]?.value,
+    input.analysis.spokenTopics[0],
+    brandPotential.territories[0],
+  ]));
+  const narrativeContract = hasNarrativeContractInput ? buildData2ContentNarrativeContract({
+    videoSubject: input.analysis.d2cClassification.context ?? input.analysis.summary,
+    mainNarrative: rawMainNarrative,
+    whatVideoCommunicates: input.analysis.summary ?? input.analysis.d2cClassification.context,
+    creatorIntent,
+    strategicReading: input.analysis.blueprintSuggestion.whyThisPath ?? input.seed.strategicDiagnosis,
+    strength,
+    attentionPoint: weakness,
+    recommendedAdjustment,
+    suggestedHook,
+    creatorSignals: [
+      ...input.analysis.spokenTopics,
+      ...input.analysis.profileSignals.map((signal) => signal.value),
+    ],
+    brandTerritories: brandPotential.territories,
+    nextActions: input.analysis.blueprintSuggestion.scenes,
+  }) : null;
+  const mainNarrative = cleanText(narrativeContract?.centralNarrativeCandidate ?? rawMainNarrative);
   const blueprint = buildBlueprint(input);
   const instagramComparison = buildInstagramComparison(input, mainNarrative);
   const scriptUnlocked = input.accessLevel !== "free";
@@ -568,17 +605,17 @@ export function buildVideoNarrativeStrategicDiagnosis(
     id: `video-narrative-diagnosis-${input.analysis.id}`,
     accessLevel: input.accessLevel,
     mainNarrative,
-    whatVideoCommunicates: getWhatVideoCommunicates(mainNarrative, input),
+    whatVideoCommunicates: cleanText(narrativeContract?.creatorPointOfView ?? getWhatVideoCommunicates(mainNarrative, input)),
     creatorIntent,
-    strategicReading: getStrategicReading({
+    strategicReading: cleanText(narrativeContract?.strategicThesis ?? getStrategicReading({
       mainNarrative,
       creatorIntent,
       input,
       recommendedAdjustment,
-    }),
+    })),
     strength,
     weakness,
-    recommendedAdjustment,
+    recommendedAdjustment: cleanText(narrativeContract?.tension ?? recommendedAdjustment),
     suggestedHook,
     brandPotential,
     blueprint,
@@ -597,6 +634,8 @@ export function buildVideoNarrativeStrategicDiagnosis(
     creatorSignals: extractVideoNarrativeCreatorSignals(input),
     instagramComparison,
     evidenceAnchors: input.analysis.evidenceAnchors,
+    ...(input.analysis.contentContext ? { contentContext: input.analysis.contentContext } : {}),
+    ...(input.analysis.narrativeCoherence ? { narrativeCoherence: input.analysis.narrativeCoherence } : {}),
     createdAt: input.analysis.createdAt ?? input.seed.createdAt ?? null,
   };
 }

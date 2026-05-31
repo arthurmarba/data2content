@@ -9,6 +9,7 @@ import type {
   BrandNarrativeMatchLevel,
   BrandNarrativeMatchResult,
 } from '@/app/lib/brands/brandNarrativeMatchTypes';
+import { BRAND_NARRATIVE_SEED } from '@/app/lib/brands/brandNarrativeSeed';
 
 export const BRAND_NARRATIVE_MATCH_DISCLAIMER =
   'Marca sugerida por possível match narrativo. Isso não indica relação comercial, ação em andamento ou registro formal da marca na Data2Content.';
@@ -1498,13 +1499,36 @@ export function normalizeBrandNarrativeMatchLimit(limit: unknown): number {
   return clamp(Math.floor(parsed), 1, MAX_MATCH_LIMIT);
 }
 
+function seedItemsAsBrandLike(): BrandNarrativeProfileLike[] {
+  return BRAND_NARRATIVE_SEED.map((item, i) => ({
+    _id: `seed-${i}-${item.brandName.toLowerCase().replace(/\s+/g, '-')}` as unknown as IBrandNarrativeProfile['_id'],
+    brandName: item.brandName,
+    slug: item.brandName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+    category: item.category,
+    subcategories: item.subcategories,
+    territories: item.territories,
+    contexts: item.contexts,
+    narrativeForms: item.narrativeForms,
+    contentIntents: item.contentIntents,
+    contentSignals: item.contentSignals,
+    tones: item.tones,
+    proofStyles: item.proofStyles,
+    commercialModes: item.commercialModes,
+    products: item.products,
+    campaignKeywords: item.campaignKeywords,
+    avoidContexts: item.avoidContexts,
+    insertionIdeas: item.insertionIdeas,
+    confidenceScore: item.confidenceScore,
+  }));
+}
+
 export async function matchBrandsForNarrative(
   input: BrandNarrativeMatchInput
 ): Promise<BrandNarrativeMatchResult[]> {
   const limit = normalizeBrandNarrativeMatchLimit(input.limit);
   await connectToDatabase();
 
-  const brands = await BrandNarrativeProfile.find({
+  const dbBrands = await BrandNarrativeProfile.find({
     archivedAt: { $exists: false },
     validationStatus: 'validated',
     status: { $in: ['observed_external', 'human_validated', 'ai_generated', 'brand_registered'] },
@@ -1513,6 +1537,9 @@ export async function matchBrandsForNarrative(
       'brandName slug category subcategories territories contexts narrativeForms contentIntents contentSignals tones proofStyles commercialModes products campaignKeywords avoidContexts insertionIdeas confidenceScore'
     )
     .lean<BrandNarrativeProfileLike[]>();
+
+  // Fall back to in-memory seed when the collection is empty (e.g. local dev without seeded data)
+  const brands = dbBrands.length > 0 ? dbBrands : seedItemsAsBrandLike();
 
   return rankBrandNarrativeMatches(brands, input, limit);
 }

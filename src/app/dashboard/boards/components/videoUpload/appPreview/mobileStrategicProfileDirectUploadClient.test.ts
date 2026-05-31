@@ -33,6 +33,92 @@ describe("mobileStrategicProfileDirectUploadClient", () => {
     expect(res.status).toBe("invalid_signed_session");
   });
 
+  it("permite URL HTTP localhost somente para upload local de descarte em desenvolvimento", async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED = "1";
+    Object.defineProperty(process.env, "NODE_ENV", {
+      value: "development",
+      configurable: true,
+    });
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: (name: string) => (name === "x-d2c-local-temp-upload" ? "stored" : null) },
+    });
+
+    const res = await uploadVideoToTemporarySignedUrl(validInput({
+      uploadUrl: "http://localhost:3000/api/dev/mobile-strategic-profile/discard-upload?signature=test",
+    }));
+
+    expect(res.status).toBe("uploaded");
+    expect(global.fetch).toHaveBeenCalled();
+    delete process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED;
+    Object.defineProperty(process.env, "NODE_ENV", {
+      value: originalNodeEnv,
+      configurable: true,
+    });
+  });
+
+  it("usa URL relativa para upload local e evita CORS entre localhost e 127.0.0.1", async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    const originalWindow = global.window;
+    process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED = "1";
+    Object.defineProperty(process.env, "NODE_ENV", {
+      value: "development",
+      configurable: true,
+    });
+    Object.defineProperty(global, "window", {
+      value: { location: { href: "http://127.0.0.1:3000/dashboard" } },
+      configurable: true,
+    });
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: (name: string) => (name === "x-d2c-local-temp-upload" ? "stored" : null) },
+    });
+
+    const res = await uploadVideoToTemporarySignedUrl(validInput({
+      uploadUrl: "http://localhost:3000/api/dev/mobile-strategic-profile/discard-upload?sessionId=local&signature=test",
+    }));
+
+    expect(res.status).toBe("uploaded");
+    expect(global.fetch).toHaveBeenCalledWith(
+      "/api/dev/mobile-strategic-profile/discard-upload?sessionId=local&signature=test",
+      expect.objectContaining({ method: "PUT" }),
+    );
+    delete process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED;
+    Object.defineProperty(process.env, "NODE_ENV", {
+      value: originalNodeEnv,
+      configurable: true,
+    });
+    Object.defineProperty(global, "window", {
+      value: originalWindow,
+      configurable: true,
+    });
+  });
+
+  it("rejeita upload local antigo que retorna 2xx sem confirmação de arquivo gravado", async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED = "1";
+    Object.defineProperty(process.env, "NODE_ENV", {
+      value: "development",
+      configurable: true,
+    });
+    (global.fetch as jest.Mock).mockResolvedValue({ ok: true, status: 204, headers: { get: () => null } });
+
+    const res = await uploadVideoToTemporarySignedUrl(validInput({
+      uploadUrl: "http://localhost:3000/api/dev/mobile-strategic-profile/discard-upload?signature=test",
+    }));
+
+    expect(res.ok).toBe(false);
+    expect(res.status).toBe("failed");
+    delete process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED;
+    Object.defineProperty(process.env, "NODE_ENV", {
+      value: originalNodeEnv,
+      configurable: true,
+    });
+  });
+
   it("rejeita sessão expirada", async () => {
     const res = await uploadVideoToTemporarySignedUrl(validInput({ expiresAt: "2020-01-01T00:00:00.000Z" }));
     expect(res.status).toBe("expired");

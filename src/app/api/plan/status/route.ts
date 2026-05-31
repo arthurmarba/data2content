@@ -178,6 +178,12 @@ function isInactiveLike(v: unknown): boolean {
   );
 }
 
+function isAdminLikeBillingUser(user: any): boolean {
+  if (user?.isAdmin === true || user?.isDev === true) return true;
+  const role = typeof user?.role === "string" ? user.role.trim().toLowerCase() : "";
+  return role === "admin" || role === "dev";
+}
+
 function toDate(value: unknown): Date | null {
   if (!value) return null;
   if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
@@ -337,7 +343,8 @@ function buildPlanStatusPayload(user: any, options: BuildOptions = {}): {
   }
 
   const planMeta = getPlanAccessMeta(normalizedStatus, cancelAtPeriodEnd);
-  const hasPremiumAccess = planMeta.hasPremiumAccess;
+  const adminAccess = isAdminLikeBillingUser(user);
+  const hasPremiumAccess = adminAccess || planMeta.hasPremiumAccess;
   const isGracePeriod = planMeta.isGracePeriod || false;
 
   let uiStatus: UiPlanStatus | null =
@@ -365,7 +372,7 @@ function buildPlanStatusPayload(user: any, options: BuildOptions = {}): {
       normalizedStatus: planMeta.normalizedStatus,
       hasPremiumAccess,
       isGracePeriod,
-      needsBilling: planMeta.needsBilling,
+      needsBilling: adminAccess ? false : planMeta.needsBilling,
     },
   };
 
@@ -411,6 +418,9 @@ function buildSessionFallbackUser(session: any) {
     stripePriceId: sessionUser.stripePriceId ?? null,
     planExpiresAt: toDate(sessionUser.planExpiresAt),
     cancelAtPeriodEnd: Boolean(sessionUser.cancelAtPeriodEnd),
+    role: sessionUser.role ?? null,
+    isAdmin: sessionUser.isAdmin ?? null,
+    isDev: sessionUser.isDev ?? null,
     proTrialStatus: sessionUser.proTrialStatus ?? null,
     proTrialActivatedAt: toDate(sessionUser.proTrialActivatedAt),
     proTrialExpiresAt: toDate(sessionUser.proTrialExpiresAt),
@@ -504,10 +514,21 @@ export async function GET(req: Request) {
 
   const respondFromDb = () => respondWithPayload(user);
 
-  // Fast-path mais seguro: permite auto-healing quando DB está "inactive-like"
+  // Trust explicit DB/admin access before consulting Stripe. This preserves manual
+  // admin grants and direct DB activations that intentionally do not have Stripe metadata.
   const hasStripeCustomer = Boolean((user as any).stripeCustomerId);
   const hasDbIntervalAndStatus = Boolean((user as any).planInterval && (user as any).planStatus);
   const dbStatusRaw = (user as any).planStatus ?? null;
+  const dbPlanMeta = getPlanAccessMeta(dbStatusRaw, Boolean((user as any).cancelAtPeriodEnd));
+  const hasStripeSubscription = Boolean((user as any).stripeSubscriptionId);
+  const hasManualDbPremiumGrant =
+    dbPlanMeta.hasPremiumAccess &&
+    (!hasStripeCustomer || !hasStripeSubscription || !(user as any).planInterval);
+
+  if (isAdminLikeBillingUser(user) || hasManualDbPremiumGrant) {
+    return respondFromDb();
+  }
+
   if (!force) {
     if (hasDbIntervalAndStatus) {
       // Se não temos customer no Stripe, não tem o que buscar

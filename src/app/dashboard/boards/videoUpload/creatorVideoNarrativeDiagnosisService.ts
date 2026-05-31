@@ -52,6 +52,30 @@ export async function createCreatorVideoNarrativeDiagnosis(
   return mapDiagnosisDoc(createdDoc);
 }
 
+export async function appendConfirmationQuizAnswer(params: {
+  userId: string;
+  diagnosisId: string;
+  answer: {
+    questionId: string;
+    questionText: string;
+    answerId: string;
+    answerValue: string;
+  };
+}): Promise<{ ok: boolean }> {
+  assertValidUserId(params.userId);
+  if (!params.diagnosisId?.trim()) throw new Error("DiagnosisId inválido");
+
+  await connectToDatabase();
+
+  const result = await CreatorVideoNarrativeDiagnosis.findOneAndUpdate(
+    { userId: new Types.ObjectId(params.userId), diagnosisId: params.diagnosisId.trim() },
+    { $push: { confirmationQuizAnswers: { ...params.answer, answeredAt: new Date() } } },
+    { new: false },
+  ).lean();
+
+  return { ok: result != null };
+}
+
 export async function getCreatorVideoNarrativeDiagnosisByUserAndDiagnosisId(params: {
   userId: string;
   diagnosisId: string;

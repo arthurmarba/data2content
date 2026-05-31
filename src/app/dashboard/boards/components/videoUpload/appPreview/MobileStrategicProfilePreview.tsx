@@ -23,7 +23,10 @@ import {
   MOBILE_STRATEGIC_PROFILE_PREVIEW_STATES,
   type MobileStrategicProfilePreviewFixtureState,
 } from "./buildMobileStrategicProfilePreviewFixture";
-import { MobileStrategicProfileAnalyzeFlow } from "./MobileStrategicProfileAnalyzeFlow";
+import {
+  MobileStrategicProfileAnalyzeFlow,
+  type MobileStrategicProfileAnalyzeResult,
+} from "./MobileStrategicProfileAnalyzeFlow";
 import { MobileClosedBetaSmokeHarness } from "./MobileClosedBetaSmokeHarness";
 import { MobileStrategicProfileMediaKitModal } from "./MobileStrategicProfileMediaKitModal";
 import type {
@@ -41,7 +44,7 @@ type MobileStrategicProfilePreviewProps = {
   isRealShell?: boolean;
   onSubmitAnalysis?: (payload: {
     creatorGoal: string;
-    selectedGoalOption: "authority" | "retention" | "format_test" | "sponsored_content";
+    selectedGoalOption: "authority" | "authority_build" | "retention" | "format_test" | "sponsored_content";
     quickAnswers?: Array<{ id: string; value: string }>;
     mockScenario?: string;
     consentTextVersion?: string;
@@ -52,7 +55,7 @@ type MobileStrategicProfilePreviewProps = {
       sizeBytes: number;
       uploadedAt?: string;
     };
-  }) => Promise<void>;
+  }) => Promise<MobileStrategicProfileAnalyzeResult | void>;
   onCreateUploadSession?: (payload: UploadSessionPayload) => Promise<UploadSessionResponse>;
   onUploadToTemporarySignedUrl?: (
     input: MobileStrategicProfileDirectUploadInput,
@@ -65,6 +68,10 @@ type MobileStrategicProfilePreviewProps = {
     uploadSessionId: string;
     objectKey?: string;
     reason: "analysis_completed" | "analysis_failed" | "user_cancelled" | "expired";
+  }) => Promise<void>;
+  onSubmitConfirmationAnswer?: (payload: {
+    diagnosisId: string;
+    answer: { questionId: string; questionText: string; answerId: string; answerValue: string };
   }) => Promise<void>;
 };
 
@@ -448,6 +455,7 @@ export function MobileStrategicProfilePreview({
   accessState: accessStateProp,
   readingQuota,
   onCleanupTemporaryUpload,
+  onSubmitConfirmationAnswer,
 }: MobileStrategicProfilePreviewProps) {
   const [mediaKitModalOpen, setMediaKitModalOpen] = useState(false);
   const [analyzeFlowOpen, setAnalyzeFlowOpen] = useState(false);
@@ -619,6 +627,7 @@ export function MobileStrategicProfilePreview({
               onUploadToTemporarySignedUrl={onUploadToTemporarySignedUrl}
               enableRealAnalysis={enableRealAnalysis}
               onCleanupTemporaryUpload={onCleanupTemporaryUpload}
+              onSubmitConfirmationAnswer={onSubmitConfirmationAnswer}
             />
           </div>
         </div>

@@ -4,6 +4,8 @@ import type {
   CreatorVideoNarrativeDiagnosisInput,
   CreatorVideoNarrativeDiagnosisSafetyFlags,
   CreatorVideoNarrativeDiagnosisVideoMetadata,
+  VideoNarrativeContentContext,
+  VideoNarrativeCoherence,
 } from "./creatorVideoNarrativeDiagnosisTypes";
 
 const MAX_TEXT_FIELD_LENGTH = 4000;
@@ -454,6 +456,10 @@ export function sanitizeCreatorVideoNarrativeDiagnosisInput(
       profileImpactPreview: text(profileContribution.profileImpactPreview, "profileContribution.profileImpactPreview"),
     },
     ...(evidenceAnchors ? { evidenceAnchors } : {}),
+    // contentContext and narrativeCoherence are safe AI-extracted metadata (no storage refs,
+    // no raw transcripts) — pass through as-is after the outer sanitize pass.
+    ...(input.contentContext ? { contentContext: input.contentContext as VideoNarrativeContentContext } : {}),
+    ...(input.narrativeCoherence ? { narrativeCoherence: input.narrativeCoherence as VideoNarrativeCoherence } : {}),
     safetyFlags: createSafetyFlags(sanitized),
     schemaVersion: "creator_video_narrative_diagnosis_v1",
   };

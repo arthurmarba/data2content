@@ -134,7 +134,7 @@ function StageBody({ preview }: VideoNarrativeAppPreviewProps) {
   const { flowState, quiz, diagnosis } = preview;
 
   if (flowState.copy.loadingMessages.length > 0) {
-    return <VideoNarrativeLoadingBlock title="Processando etapa" messages={flowState.copy.loadingMessages} />;
+    return <VideoNarrativeLoadingBlock title="Sintonizando seu momento..." messages={flowState.copy.loadingMessages} />;
   }
 
   if (flowState.stage === "adaptive_quiz") {

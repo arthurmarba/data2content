@@ -1,13 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
+import useInstagramStatus from "@/app/hooks/useInstagramStatus";
 import { buildMobileStrategicProfileRealShellInput } from "./buildMobileStrategicProfileRealShellInput";
 import { buildMobileStrategicProfile, type MobileStrategicProfile } from "../../../videoUpload/mobileStrategicProfileMapping";
 import { buildMobileStrategicProfileExistingDataAdapter } from "../../../videoUpload/mobileStrategicProfileExistingDataAdapter";
 import { buildMobileStrategicProfileFromSnapshot } from "../../../videoUpload/mobileStrategicProfileSnapshotMapping";
 import { MobileStrategicProfilePreview } from "./MobileStrategicProfilePreview";
 import { NarrativeMapMobileShell } from "./NarrativeMapMobileShell";
-import { MobileStrategicProfileAnalyzeFlow } from "./MobileStrategicProfileAnalyzeFlow";
+import {
+  MobileStrategicProfileAnalyzeFlow,
+  type MobileStrategicProfileAnalyzeContextQuestion,
+  type MobileStrategicProfileAnalyzeResult,
+  type MobileStrategicProfileAnalyzeFlowCompleteResult,
+} from "./MobileStrategicProfileAnalyzeFlow";
+import { fetchAnalysisConfirmationDataFromReading } from "./mobileStrategicProfileAnalysisConfirmationClient";
 import { fetchHomeSummaryCached } from "../../../../home/homeSummaryClient";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { openPaywallModal } from "@/utils/paywallModal";
@@ -17,7 +26,11 @@ import type { CreatorNarrativeMapReadingPresentation } from "../../../videoUploa
 import type { NarrativeMapMobileViewModel } from "../../../videoUpload/narrativeMapMobileViewModel";
 import {
   getNarrativeMapAccessAction,
+  getNarrativeMapAccessLevelForUser,
   getNarrativeMapStatusCardContent,
+  hasNarrativeMapInstagramConnection,
+  hasNarrativeMapPremiumAccess,
+  isNarrativeMapAdminUser,
   normalizeNarrativeMapReadingQuotaSnapshot,
   resolveNarrativeMapAccessState,
   type NarrativeMapReadingQuotaSnapshot,
@@ -46,6 +59,32 @@ interface MobileStrategicProfileRealShellClientProps {
   internalSnapshotReview?: boolean;
 }
 
+function normalizeProfileImageCandidate(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed === "null" || trimmed === "undefined") return null;
+  return trimmed;
+}
+
+function resolveSessionInstagramProfileImage(sessionUser: any): string | null {
+  const accounts = Array.isArray(sessionUser?.availableIgAccounts)
+    ? sessionUser.availableIgAccounts
+    : [];
+  const accountId = normalizeProfileImageCandidate(sessionUser?.instagramAccountId);
+  const matchingAccount = accountId
+    ? accounts.find((account: any) => account?.igAccountId === accountId)
+    : null;
+
+  return (
+    normalizeProfileImageCandidate(matchingAccount?.profile_picture_url) ||
+    normalizeProfileImageCandidate(sessionUser?.profile_picture_url) ||
+    normalizeProfileImageCandidate(sessionUser?.instagram?.profile_picture_url) ||
+    normalizeProfileImageCandidate(sessionUser?.instagram?.profilePictureUrl) ||
+    normalizeProfileImageCandidate(accounts.find((account: any) => account?.profile_picture_url)?.profile_picture_url) ||
+    normalizeProfileImageCandidate(sessionUser?.image)
+  );
+}
+
 export function MobileStrategicProfileRealShellClient({
   session,
   stateQuery,
@@ -56,26 +95,29 @@ export function MobileStrategicProfileRealShellClient({
   initialReadingQuota,
   internalSnapshotReview,
 }: MobileStrategicProfileRealShellClientProps) {
+  const router = useRouter();
   const realAnalysisEnabled = process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED === "1";
   const billing = useBillingStatus();
   const quota = normalizeNarrativeMapReadingQuotaSnapshot(initialReadingQuota);
   const sessionUser = session?.user as any;
-  const isPro = billing.hasResolvedOnce ? billing.hasPremiumAccess : sessionUser?.planStatus === "active";
+  const instagramStatus = useInstagramStatus(Boolean(session?.user));
+  const sessionHasPremiumAccess = hasNarrativeMapPremiumAccess(sessionUser);
+  const sessionIsAdmin = isNarrativeMapAdminUser(sessionUser);
+  const isPro = billing.hasResolvedOnce ? billing.hasPremiumAccess : sessionHasPremiumAccess;
   const instagramConnected = Boolean(
     (billing.instagram?.connected && !billing.instagram?.needsReconnect) ||
-    sessionUser?.instagramConnected ||
-    sessionUser?.isInstagramConnected,
+    hasNarrativeMapInstagramConnection(sessionUser),
   );
   const accessState = resolveNarrativeMapAccessState({
     hasPremiumAccess: isPro,
-    hasFullReportAccess: billing.hasResolvedOnce ? billing.hasFullReportAccess : sessionUser?.planStatus === "active",
+    hasFullReportAccess: billing.hasResolvedOnce ? billing.hasFullReportAccess : sessionHasPremiumAccess,
     needsCheckout: billing.needsCheckout,
     needsPaymentAction: billing.needsPaymentAction,
     needsBilling: billing.needsBilling,
     needsPaymentUpdate: billing.needsPaymentUpdate,
-    isAdmin: billing.isAdminViewer || sessionUser?.role === "admin" || sessionUser?.isAdmin || sessionUser?.isDev,
+    isAdmin: billing.isAdminViewer || sessionIsAdmin,
     instagram: billing.instagram ?? {
-      connected: Boolean(sessionUser?.instagramConnected || sessionUser?.isInstagramConnected),
+      connected: hasNarrativeMapInstagramConnection(sessionUser),
       needsReconnect: false,
     },
     readingQuota: quota,
@@ -88,6 +130,9 @@ export function MobileStrategicProfileRealShellClient({
     quotaUsedThisMonth: quota.usedThisMonth,
     quotaLimit: quota.proMonthlyLimit,
   }), [accessState, instagramConnected, isPro, quota.proMonthlyLimit, quota.usedThisMonth]);
+  const profileImageUrl =
+    normalizeProfileImageCandidate(instagramStatus.status?.profilePictureUrl) ||
+    resolveSessionInstagramProfileImage(sessionUser);
 
   // 1. Calcular o perfil inicial (Session-only, snapshot ou fixture via stateQuery)
   const [profile, setProfile] = useState<MobileStrategicProfile>(() => {
@@ -108,7 +153,7 @@ export function MobileStrategicProfileRealShellClient({
         planStatus: session.user.planStatus,
       } : null,
       snapshotPayload: initialSnapshotPayload || null,
-      accessLevel: session?.user?.planStatus === "active" ? "premium" : "free",
+      accessLevel: getNarrativeMapAccessLevelForUser(session?.user as any),
     });
     return buildMobileStrategicProfile(input);
   });
@@ -116,7 +161,36 @@ export function MobileStrategicProfileRealShellClient({
   const [isHydrating, setIsHydrating] = useState(false);
   const [mapAnalyzeFlowOpen, setMapAnalyzeFlowOpen] = useState(false);
   const [mapAccessMessage, setMapAccessMessage] = useState<string | null>(null);
+  const [mapAccessMessageVariant, setMapAccessMessageVariant] = useState<"default" | "warning">("default");
   const [mapProfileUpdated, setMapProfileUpdated] = useState(false);
+  const [latestReadingThumbnail, setLatestReadingThumbnail] = useState<string | null>(null);
+  const [localThumbnailsByDiagnosisId, setLocalThumbnailsByDiagnosisId] = useState<Record<string, string>>({});
+  const hasNarrativeMapShell = Boolean(initialNarrativeMapViewModel && initialNarrativeMapPresentation);
+
+  // Load persisted thumbnails from localStorage on mount
+  useEffect(() => {
+    try {
+      const map: Record<string, string> = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key?.startsWith("d2c_thumb_")) {
+          const diagnosisId = key.slice("d2c_thumb_".length);
+          const value = localStorage.getItem(key);
+          if (diagnosisId && value) map[diagnosisId] = value;
+        }
+      }
+      if (Object.keys(map).length > 0) setLocalThumbnailsByDiagnosisId(map);
+    } catch {
+      // localStorage unavailable (SSR, private mode, etc.)
+    }
+  }, []);
+
+  // Auto-dismiss access toast after 4 seconds
+  useEffect(() => {
+    if (!mapAccessMessage) return;
+    const timer = setTimeout(() => setMapAccessMessage(null), 4000);
+    return () => clearTimeout(timer);
+  }, [mapAccessMessage]);
 
   useEffect(() => {
     trackMobileNarrativeEvent("mobile_profile_viewed", telemetryContext);
@@ -205,9 +279,44 @@ export function MobileStrategicProfileRealShellClient({
     };
   }, [session, stateQuery, initialSnapshotPayload]);
 
+  const normalizeAdaptiveQuizQuestions = useCallback((adaptiveQuiz: any): MobileStrategicProfileAnalyzeContextQuestion[] => {
+    const questions = Array.isArray(adaptiveQuiz?.questions) ? adaptiveQuiz.questions : [];
+    return questions
+      .map((question: any): MobileStrategicProfileAnalyzeContextQuestion | null => {
+        const id = typeof question?.id === "string" ? question.id : typeof question?.key === "string" ? question.key : "";
+        const title = typeof question?.title === "string" ? question.title.trim() : "";
+        const options = Array.isArray(question?.options)
+          ? question.options
+              .map((option: any) => {
+                const optionId = typeof option?.id === "string" ? option.id : "";
+                const label = typeof option?.label === "string" ? option.label.trim() : "";
+                if (!optionId || !label) return null;
+                return {
+                  id: optionId,
+                  label,
+                  value: typeof option?.learningSignalValue === "string" && option.learningSignalValue.trim()
+                    ? option.learningSignalValue.trim()
+                    : label,
+                  recommended: Boolean(option?.recommended),
+                };
+              })
+              .filter(Boolean)
+          : [];
+        if (!id || !title || options.length === 0) return null;
+        return {
+          id,
+          question: title,
+          helper: typeof question?.helper === "string" ? question.helper : null,
+          options,
+        };
+      })
+      .filter(Boolean)
+      .slice(0, 4) as MobileStrategicProfileAnalyzeContextQuestion[];
+  }, []);
+
   const handleAnalysisSubmit = useCallback(async (payload: {
     creatorGoal: string;
-    selectedGoalOption: "authority" | "retention" | "format_test" | "sponsored_content";
+    selectedGoalOption: "authority" | "authority_build" | "retention" | "format_test" | "sponsored_content";
     quickAnswers?: Array<{ id: string; value: string }>;
     mockScenario?: string;
     consentTextVersion?: string;
@@ -218,7 +327,17 @@ export function MobileStrategicProfileRealShellClient({
       sizeBytes: number;
       uploadedAt?: string;
     };
-  }) => {
+  }): Promise<MobileStrategicProfileAnalyzeResult> => {
+    if (realAnalysisEnabled && !payload.temporaryUpload?.uploadSessionId) {
+      trackMobileNarrativeEvent("mobile_analysis_failed", {
+        ...telemetryContext,
+        selectedGoalOption: payload.selectedGoalOption,
+        analysisMode: "real_gated",
+        safeErrorCode: "temporary_upload_required",
+      });
+      throw new Error("Envie o vídeo antes de iniciar a leitura real.");
+    }
+
     const shouldUseRealAnalysis =
       realAnalysisEnabled &&
       Boolean(payload.temporaryUpload?.uploadSessionId);
@@ -239,12 +358,16 @@ export function MobileStrategicProfileRealShellClient({
           selectedGoalOption: payload.selectedGoalOption,
           quickAnswers: payload.quickAnswers,
           consentTextVersion: payload.consentTextVersion || "mobile_strategic_profile_temporary_video_v1",
+          persistReading: true,
+          persistSynthesisSnapshot: true,
         }
       : {
           creatorGoal: payload.creatorGoal,
           selectedGoalOption: payload.selectedGoalOption,
           quickAnswers: payload.quickAnswers,
           mockScenario: payload.mockScenario,
+          persistReading: true,
+          persistSynthesisSnapshot: true,
         };
 
     trackMobileNarrativeEvent("mobile_analysis_submitted", {
@@ -342,11 +465,33 @@ export function MobileStrategicProfileRealShellClient({
           planStatus: session.user.planStatus,
         } : null,
         snapshotPayload: data.snapshot,
-        accessLevel: session?.user?.planStatus === "active" ? "premium" : "free",
+        accessLevel: getNarrativeMapAccessLevelForUser(session?.user as any),
       });
       setProfile(buildMobileStrategicProfile(input));
+      if (hasNarrativeMapShell) {
+        router.refresh();
+      }
+    } else if (shouldUseRealAnalysis || hasNarrativeMapShell) {
+      router.refresh();
     }
-  }, [session, realAnalysisEnabled, telemetryContext]);
+    // Build confirmation highlights from snapshot fields
+    const snap = data?.snapshot;
+    const savedDiagnosisId = data?.videoReadingPersistence?.diagnosisId ?? null;
+    const readingConfirmationData = await fetchAnalysisConfirmationDataFromReading(savedDiagnosisId);
+    const confirmationData = readingConfirmationData ?? (snap
+      ? {
+          diagnosisSummary: snap.diagnosisSummary ?? null,
+          unlockedSignals: Array.isArray(snap.unlockedSignals) ? snap.unlockedSignals.slice(0, 2) : [],
+          opportunities: Array.isArray(snap.opportunities) ? snap.opportunities.slice(0, 1) : [],
+        }
+      : null);
+
+    return {
+      contextQuestions: normalizeAdaptiveQuizQuestions(data?.adaptiveQuiz),
+      savedDiagnosisId,
+      confirmationData,
+    };
+  }, [hasNarrativeMapShell, normalizeAdaptiveQuizQuestions, router, session, realAnalysisEnabled, telemetryContext]);
 
   const handleCleanupTemporaryUpload = useCallback(async (payload: {
     uploadSessionId: string;
@@ -367,6 +512,21 @@ export function MobileStrategicProfileRealShellClient({
 
     if (!response.ok) {
       throw new Error("Cleanup temporário não foi confirmado.");
+    }
+  }, []);
+
+  const handleConfirmationAnswer = useCallback(async (payload: {
+    diagnosisId: string;
+    answer: { questionId: string; questionText: string; answerId: string; answerValue: string };
+  }) => {
+    try {
+      await fetch(`/api/dashboard/mobile-strategic-profile/reading/${payload.diagnosisId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ answer: payload.answer }),
+      });
+    } catch {
+      // fire-and-forget — falha silenciosa para não bloquear o criador
     }
   }, []);
 
@@ -423,7 +583,20 @@ export function MobileStrategicProfileRealShellClient({
         actionType: "start_reading",
         safeErrorCode: "pro_quota_reached",
       });
+      setMapAccessMessageVariant("default");
       setMapAccessMessage("Você usou suas 10 leituras deste mês. Seu Perfil continua disponível.");
+      return;
+    }
+    if (accessState === "payment_pending") {
+      setMapAccessMessageVariant("warning");
+      setMapAccessMessage("Pagamento pendente. Conclua o pagamento para manter as leituras.");
+      openProfilePaywall();
+      return;
+    }
+    if (accessState === "payment_action_needed") {
+      setMapAccessMessageVariant("warning");
+      setMapAccessMessage("Ação necessária no pagamento. Atualize para não perder o Perfil.");
+      openProfilePaywall();
       return;
     }
     trackMobileNarrativeEvent("mobile_upload_gate_checked", {
@@ -503,65 +676,93 @@ export function MobileStrategicProfileRealShellClient({
     return response;
   }, [telemetryContext]);
 
-  const handleMapAnalyzeComplete = useCallback(() => {
+  const handleMapAnalyzeComplete = useCallback((result?: MobileStrategicProfileAnalyzeFlowCompleteResult) => {
     setMapAnalyzeFlowOpen(false);
     setMapProfileUpdated(true);
-  }, []);
+    if (result?.thumbnailDataUrl) {
+      setLatestReadingThumbnail(result.thumbnailDataUrl);
+      // Persist thumbnail to localStorage so it survives page refreshes
+      if (result.savedDiagnosisId) {
+        try {
+          localStorage.setItem(`d2c_thumb_${result.savedDiagnosisId}`, result.thumbnailDataUrl);
+          setLocalThumbnailsByDiagnosisId((prev) => ({
+            ...prev,
+            [result.savedDiagnosisId!]: result.thumbnailDataUrl!,
+          }));
+        } catch {
+          // localStorage may be unavailable or full — non-fatal
+        }
+      }
+    }
+    router.refresh();
+  }, [router]);
 
   return (
     <div className="relative">
       {isHydrating && (
         <div
-          className="absolute right-4 top-4 z-50 flex items-center gap-1.5 rounded-full bg-zinc-900/90 px-3 py-1.5 text-[10px] font-medium text-white shadow-sm backdrop-blur-sm transition-opacity duration-300 pointer-events-none animate-pulse"
+          className="sr-only"
           id="hydration-indicator"
+          aria-live="polite"
         >
-          <svg className="animate-spin h-3 w-3 text-sky-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-          </svg>
-          <span>Atualizando dados do Perfil...</span>
+          <span>Sintonizando seu Perfil...</span>
         </div>
       )}
       {initialNarrativeMapViewModel && initialNarrativeMapPresentation ? (
-        <main className="min-h-screen bg-[#f7f7f4] text-zinc-950">
-          <div className="mx-auto grid w-full max-w-md gap-5">
-            <NarrativeMapMobileShell
-              viewModel={initialNarrativeMapViewModel}
-              presentation={initialNarrativeMapPresentation}
-              snapshotReview={initialSynthesisSnapshotWrite}
-              internalReview={internalSnapshotReview}
-              accessState={accessState}
-              readingQuota={quota}
-              onPrimaryAccessAction={handleMapPrimaryAccessAction}
-              onSecondaryAccessAction={handleMapSecondaryAccessAction}
-              onOpenMediaKit={() => {
-                trackMobileNarrativeEvent("mobile_mediakit_action_clicked", {
-                  ...telemetryContext,
-                  actionLabel: "Abrir Mídia Kit",
-                  actionType: "open_media_kit",
-                });
-                window.location.href = MOBILE_MEDIA_KIT_ROUTE;
-              }}
-              profileUpdateNotice={mapProfileUpdated}
-              frameMode="app"
-            />
-            {mapAccessMessage ? (
-              <p className="mx-auto max-w-sm rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm font-semibold text-zinc-950">
-                {mapAccessMessage}
-              </p>
-            ) : null}
-            <MobileStrategicProfileAnalyzeFlow
-              open={mapAnalyzeFlowOpen}
-              onClose={() => setMapAnalyzeFlowOpen(false)}
-              onComplete={handleMapAnalyzeComplete}
-              onSubmitAnalysis={handleAnalysisSubmit}
-              onCreateUploadSession={handleCreateUploadSession}
-              onUploadToTemporarySignedUrl={handleUploadToTemporarySignedUrl}
-              enableRealAnalysis={realAnalysisEnabled}
-              onCleanupTemporaryUpload={handleCleanupTemporaryUpload}
-            />
-          </div>
-        </main>
+        /* New full-screen shell — the component itself owns the h-dvh layout */
+        <>
+          <NarrativeMapMobileShell
+            viewModel={initialNarrativeMapViewModel}
+            presentation={initialNarrativeMapPresentation}
+            snapshotReview={initialSynthesisSnapshotWrite}
+            internalReview={internalSnapshotReview}
+            accessState={accessState}
+            readingQuota={quota}
+            onPrimaryAccessAction={handleMapPrimaryAccessAction}
+            onSecondaryAccessAction={handleMapSecondaryAccessAction}
+            onOpenMediaKit={() => {
+              trackMobileNarrativeEvent("mobile_mediakit_action_clicked", {
+                ...telemetryContext,
+                actionLabel: "Abrir Mídia Kit",
+                actionType: "open_media_kit",
+              });
+              router.push(`${MOBILE_MEDIA_KIT_ROUTE}?from=mobile-strategic-profile`);
+            }}
+            profileUpdateNotice={mapProfileUpdated}
+            profileSynthesisStatus={initialSynthesisSnapshotWrite?.synthesisStatus ?? null}
+            newestReadingThumbnail={latestReadingThumbnail}
+            localThumbnailsByDiagnosisId={localThumbnailsByDiagnosisId}
+            profileImageUrl={profileImageUrl}
+            userInfo={{
+              name: sessionUser?.name ?? null,
+              email: sessionUser?.email ?? null,
+              plan: isPro ? "Pro" : "Free",
+            }}
+            onSignOut={() => signOut({ callbackUrl: "/" })}
+            frameMode="app"
+          />
+          {/* Access message toast — floats above the bottom nav */}
+          {mapAccessMessage ? (
+            <p className={`fixed bottom-24 left-1/2 z-[200] w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-2xl px-4 py-3 text-sm font-semibold shadow-lg ${
+              mapAccessMessageVariant === "warning"
+                ? "bg-amber-600 text-white"
+                : "bg-zinc-950 text-white"
+            }`}>
+              {mapAccessMessage}
+            </p>
+          ) : null}
+          <MobileStrategicProfileAnalyzeFlow
+            open={mapAnalyzeFlowOpen}
+            onClose={() => setMapAnalyzeFlowOpen(false)}
+            onComplete={handleMapAnalyzeComplete}
+            onSubmitAnalysis={handleAnalysisSubmit}
+            onCreateUploadSession={handleCreateUploadSession}
+            onUploadToTemporarySignedUrl={handleUploadToTemporarySignedUrl}
+            enableRealAnalysis={realAnalysisEnabled}
+            onCleanupTemporaryUpload={handleCleanupTemporaryUpload}
+            onSubmitConfirmationAnswer={handleConfirmationAnswer}
+          />
+        </>
       ) : (
         <MobileStrategicProfilePreview
           profile={profile}
@@ -571,6 +772,7 @@ export function MobileStrategicProfileRealShellClient({
           onUploadToTemporarySignedUrl={handleUploadToTemporarySignedUrl}
           enableRealAnalysis={realAnalysisEnabled}
           onCleanupTemporaryUpload={handleCleanupTemporaryUpload}
+          onSubmitConfirmationAnswer={handleConfirmationAnswer}
           accessState={accessState}
           readingQuota={quota}
         />

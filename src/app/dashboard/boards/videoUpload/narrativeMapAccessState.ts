@@ -1,3 +1,5 @@
+import { hasPlanPremiumAccess } from "@/utils/planStatus";
+
 export type NarrativeMapAccessState =
   | "free_unused"
   | "free_preview_used"
@@ -56,8 +58,45 @@ export interface NarrativeMapStatusCardContent {
   secondaryLabel?: string | null;
 }
 
+export interface NarrativeMapAccessUser {
+  role?: string | null;
+  isAdmin?: boolean | null;
+  isDev?: boolean | null;
+  planStatus?: string | null;
+  cancelAtPeriodEnd?: boolean | null;
+  instagramConnected?: boolean | null;
+  isInstagramConnected?: boolean | null;
+}
+
 function normalizeCount(value: number | null | undefined): number {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.trunc(value) : 0;
+}
+
+export function isNarrativeMapAdminUser(user: NarrativeMapAccessUser | null | undefined): boolean {
+  if (!user) return false;
+  if (user.isAdmin === true || user.isDev === true) return true;
+
+  const normalizedRole = typeof user.role === "string" ? user.role.trim().toLowerCase() : "";
+  return normalizedRole === "admin" || normalizedRole === "dev";
+}
+
+export function hasNarrativeMapPremiumAccess(user: NarrativeMapAccessUser | null | undefined): boolean {
+  if (!user) return false;
+  return isNarrativeMapAdminUser(user) || hasPlanPremiumAccess(user.planStatus, user.cancelAtPeriodEnd);
+}
+
+export function hasNarrativeMapInstagramConnection(user: NarrativeMapAccessUser | null | undefined): boolean {
+  return Boolean(user?.instagramConnected || user?.isInstagramConnected);
+}
+
+export function getNarrativeMapAccessLevelForUser(
+  user: NarrativeMapAccessUser | null | undefined,
+): "instagram_optimized" | "premium" | "free" {
+  const hasPremium = hasNarrativeMapPremiumAccess(user);
+  const instagramConnected = hasNarrativeMapInstagramConnection(user);
+  if (hasPremium && instagramConnected) return "instagram_optimized";
+  if (hasPremium) return "premium";
+  return "free";
 }
 
 export function getCurrentNarrativeMapMonthKey(now = new Date()): string {
@@ -97,13 +136,11 @@ export function resolveNarrativeMapAccessState(
 ): NarrativeMapAccessState {
   if (input.isAdmin) return "admin";
 
-  if (input.needsCheckout) return "payment_pending";
-  if (input.needsPaymentAction || input.needsPaymentUpdate || input.needsBilling) {
-    return "payment_action_needed";
-  }
-
   const quota = normalizeNarrativeMapReadingQuotaSnapshot(input.readingQuota);
   const hasPro = Boolean(input.hasPremiumAccess || input.hasFullReportAccess);
+
+  if (input.needsCheckout) return "payment_pending";
+  if (input.needsPaymentAction || input.needsPaymentUpdate) return "payment_action_needed";
 
   if (!hasPro) {
     return quota.usedTotal >= quota.freeTotalLimit ? "free_preview_used" : "free_unused";

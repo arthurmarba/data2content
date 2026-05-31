@@ -144,19 +144,19 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
     ],
   },
   narrative_map: {
-    title: "Desbloqueie seu Perfil vivo",
-    subtitle: "A leitura gratuita mostra o que a D2C percebeu neste vídeo.",
+    title: "Continue construindo seu Perfil",
+    subtitle: "Você usou sua leitura gratuita. No Pro, você faz até 10 leituras por mês e a D2C mapeia seus padrões narrativos ao longo do tempo.",
     bullets: [
       "Até 10 leituras estratégicas por mês",
-      "Perfil vivo com padrões e hipóteses",
-      "Conexão com Instagram",
-      "Consultorias em grupo",
+      "Perfil vivo com padrões, hipóteses e tensões",
+      "Dados reais do Instagram integrados ao diagnóstico",
+      "Consultorias em grupo e suporte pelo WhatsApp",
     ],
-    ctaLabel: "Assinar Pro e conectar Instagram",
+    ctaLabel: "Ativar Pro",
     steps: [
       "Ative sua assinatura",
-      "Conecte seu Instagram",
-      "Volte para o Perfil",
+      "Retorne ao Perfil",
+      "Continue suas leituras",
     ],
   },
   mentoria: {
@@ -1002,6 +1002,11 @@ export default function BillingSubscribeModal({
 
             {/* Benefícios */}
             <div className="px-6 sm:px-8 py-6">
+              {hasPremiumAccess && !billingStatusLoading && !billingStatusError && (
+                <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">
+                  Você já tem o Pro ativo. Se algo não está funcionando, tente recarregar a página.
+                </div>
+              )}
               {!!error && (
                 <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-600">
                   <p>{error}</p>

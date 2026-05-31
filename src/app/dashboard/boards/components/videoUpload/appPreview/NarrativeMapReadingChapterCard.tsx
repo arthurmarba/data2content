@@ -1,11 +1,20 @@
 import type { CreatorNarrativeMapReadingChapter } from "../../../videoUpload/creatorNarrativeMapReadingChapters";
 
+const TONE_STRIP: Record<string, string> = {
+  mirror: "bg-stone-500",
+  attention: "bg-amber-600",
+  action: "bg-zinc-950",
+  opportunity: "bg-emerald-600",
+  neutral: "bg-zinc-400",
+};
+
+// All tones use a uniform neutral border — the tone strip provides the color signal.
 const TONE_CLASS: Record<CreatorNarrativeMapReadingChapter["tone"], string> = {
-  mirror: "border-zinc-200 bg-white",
-  attention: "border-amber-100 bg-white",
-  action: "border-zinc-200 bg-white",
-  opportunity: "border-emerald-100 bg-white",
-  neutral: "border-zinc-200 bg-white",
+  mirror: "border-zinc-100/80 bg-white",
+  attention: "border-zinc-100/80 bg-white",
+  action: "border-zinc-100/80 bg-white",
+  opportunity: "border-zinc-100/80 bg-white",
+  neutral: "border-zinc-100/80 bg-white",
 };
 
 const ACTION_TONE_CLASS: Record<CreatorNarrativeMapReadingChapter["tone"], string> = {
@@ -24,7 +33,8 @@ export function NarrativeMapReadingChapterCard({
   onOpen: (chapter: CreatorNarrativeMapReadingChapter) => void;
 }) {
   return (
-    <article className={`rounded-[1.25rem] border p-4 shadow-sm ${TONE_CLASS[chapter.tone]}`}>
+    <article className={`relative rounded-[1.25rem] border p-4 pl-[22px] shadow-[0_2px_10px_rgba(9,9,11,0.06)] ${TONE_CLASS[chapter.tone]}`}>
+      <div className={`absolute bottom-3.5 left-0 top-3.5 w-[5px] rounded-full ${TONE_STRIP[chapter.tone] ?? TONE_STRIP["neutral"]}`} aria-hidden="true" />
       <div className="flex items-start justify-between gap-3">
         <h3 className="text-sm font-semibold text-zinc-950">{chapter.title}</h3>
         {chapter.badgeLabel ? (

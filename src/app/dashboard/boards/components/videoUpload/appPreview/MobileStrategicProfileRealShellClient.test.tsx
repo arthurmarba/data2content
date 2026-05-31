@@ -8,6 +8,10 @@ import { buildNarrativeMapReadingPreviewFixture } from "./buildNarrativeMapReadi
 import { trackMobileNarrativeEvent } from "../../../videoUpload/mobileNarrativeTelemetry";
 
 // Mock das dependências
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: jest.fn() }),
+}));
+
 jest.mock("../../../../home/homeSummaryClient", () => ({
   fetchHomeSummaryCached: jest.fn(),
 }));
@@ -142,6 +146,7 @@ describe("MobileStrategicProfileRealShellClient", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED;
+    delete process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED;
     (requestUploadSession as jest.Mock).mockResolvedValue({ ok: true, status: "mock_session_created" });
     (uploadVideoToTemporarySignedUrl as jest.Mock).mockResolvedValue({ ok: true, status: "uploaded" });
   });
@@ -164,7 +169,7 @@ describe("MobileStrategicProfileRealShellClient", () => {
     expect(screen.getByTestId("profile-display-name").textContent).toBe("Arthur Teste");
     expect(screen.getByTestId("profile-subscription").textContent).toBe("inactive");
     expect(screen.getByTestId("profile-instagram-connected").textContent).toBe("false");
-    expect(screen.getByText("Atualizando dados do Perfil...")).toBeInTheDocument();
+    expect(screen.getByText("Sintonizando seu Perfil...")).toBeInTheDocument();
 
     // 2. Confirma que a busca foi disparada
     expect(fetchHomeSummaryCached).toHaveBeenCalledWith("all");
@@ -196,7 +201,7 @@ describe("MobileStrategicProfileRealShellClient", () => {
 
     expect(screen.getByTestId("profile-display-name").textContent).toBe("Arthur Teste");
     expect(screen.getByTestId("profile-subscription").textContent).toBe("inactive");
-    expect(screen.queryByText("Atualizando dados do Perfil...")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sintonizando seu Perfil...")).not.toBeInTheDocument();
 
     console.error = originalConsoleError;
   });
@@ -230,7 +235,7 @@ describe("MobileStrategicProfileRealShellClient", () => {
 
     expect(screen.getByTestId("profile-mediakit-state").textContent).toBe("available");
     expect(screen.getByTestId("profile-mediakit-href").textContent).toBe("https://d2c.com/mediakit/arthur");
-    expect(screen.queryByText("Atualizando dados do Perfil...")).not.toBeInTheDocument();
+    expect(screen.queryByText("Sintonizando seu Perfil...")).not.toBeInTheDocument();
   });
 
   it("hidrata status premium a partir do plano ativo do summary", async () => {
@@ -393,7 +398,12 @@ describe("MobileStrategicProfileRealShellClient", () => {
       "/api/dashboard/mobile-strategic-profile/analyze",
       expect.objectContaining({
         method: "POST",
-        body: JSON.stringify({ creatorGoal: "test", selectedGoalOption: "authority" }),
+        body: JSON.stringify({
+          creatorGoal: "test",
+          selectedGoalOption: "authority",
+          persistReading: true,
+          persistSynthesisSnapshot: true,
+        }),
       })
     );
 
@@ -465,10 +475,51 @@ describe("MobileStrategicProfileRealShellClient", () => {
     expect(realCall).toBeTruthy();
     const body = String(realCall?.[1]?.body);
     expect(body).toContain("video-temp-upload-session-abc_123");
+    expect(body).toContain("\"persistReading\":true");
+    expect(body).toContain("\"persistSynthesisSnapshot\":true");
     expect(body).not.toContain("uploadUrl");
     expect(body).not.toContain("signedUrl");
     expect(body).not.toContain("base64");
     expect(body).not.toContain("File");
+
+    globalFetchSpy.mockRestore();
+  });
+
+  it("localhost com upload local temporário chama analyze-real para a IA ler o vídeo", async () => {
+    process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED = "1";
+    process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED = "1";
+    (fetchHomeSummaryCached as jest.Mock).mockResolvedValue(null);
+    const globalFetchSpy = jest.spyOn(global, "fetch").mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        ok: true,
+        snapshotUpdated: true,
+        videoReadingPersistence: { attempted: true, saved: true },
+        synthesisSnapshotWrite: { attempted: true, written: true },
+      }),
+    } as any);
+
+    render(
+      <MobileStrategicProfileRealShellClient
+        session={mockSession}
+        stateQuery={null}
+      />
+    );
+
+    expect(screen.getByTestId("real-analysis-enabled").textContent).toBe("true");
+
+    await act(async () => {
+      screen.getByTestId("trigger-real-analysis-submit").click();
+    });
+
+    const realCall = globalFetchSpy.mock.calls.find(([url]) => url === "/api/dashboard/mobile-strategic-profile/analyze-real");
+    expect(realCall).toBeTruthy();
+    const body = String(realCall?.[1]?.body);
+    expect(body).toContain("\"persistReading\":true");
+    expect(body).toContain("\"persistSynthesisSnapshot\":true");
+    expect(body).toContain("video-temp-upload-session-abc_123");
+    expect(body).not.toContain("uploadUrl");
+    expect(body).not.toContain("signedUrl");
 
     globalFetchSpy.mockRestore();
   });

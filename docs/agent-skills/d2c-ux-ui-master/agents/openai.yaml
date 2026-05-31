@@ -1,0 +1,4 @@
+interface:
+  display_name: "D2C UX/UI Master"
+  short_description: "UX/UI premium para experiencias Data2Content"
+  default_prompt: "Use $d2c-ux-ui-master to design, implement, or review Data2Content interfaces with calm, premium, emotionally supportive UX."

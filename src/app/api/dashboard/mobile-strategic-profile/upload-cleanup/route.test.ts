@@ -7,6 +7,7 @@ import {
   isRealUploadEnabled,
   isTemporaryUploadSessionEnabled,
 } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadFeatureFlag";
+import { deleteVideoNarrativeTemporaryStorageObject } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageRuntimeAdapter";
 import fs from "fs";
 import path from "path";
 
@@ -27,7 +28,12 @@ jest.mock("@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadFeatu
   isRealUploadEnabled: jest.fn(),
 }));
 
+jest.mock("@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageRuntimeAdapter", () => ({
+  deleteVideoNarrativeTemporaryStorageObject: jest.fn().mockResolvedValue(false),
+}));
+
 const getServerSession = require("next-auth/next").getServerSession as jest.Mock;
+const deleteTemporaryStorageObject = deleteVideoNarrativeTemporaryStorageObject as jest.Mock;
 const ROUTE_SOURCE_PATH = path.join(__dirname, "route.ts");
 const originalEnv = process.env;
 
@@ -102,6 +108,20 @@ describe("POST /api/dashboard/mobile-strategic-profile/upload-cleanup", () => {
     const body = await res.json();
     expect(body.ok).toBe(true);
     expect(["cleanup_queued", "cleanup_not_configured"]).toContain(body.status);
+  });
+
+  it("adia cleanup em analysis_failed para permitir retry com o mesmo upload", async () => {
+    const res = await POST(createRequest({ ...validPayload, reason: "analysis_failed" }));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+
+    expect(body).toEqual(
+      expect.objectContaining({
+        ok: true,
+        status: "cleanup_deferred",
+      }),
+    );
+    expect(deleteTemporaryStorageObject).not.toHaveBeenCalled();
   });
 
   it("não retorna secrets nem URL assinada", async () => {

@@ -38,7 +38,7 @@ export type MobileNarrativeTelemetryPayload = {
   quotaUsedThisMonth?: number;
   quotaLimit?: number;
   quotaRemaining?: number;
-  selectedGoalOption?: "authority" | "retention" | "format_test" | "sponsored_content";
+  selectedGoalOption?: "authority" | "authority_build" | "retention" | "format_test" | "sponsored_content";
   actionLabel?: string;
   actionType?: string;
   paywallContext?: string;
@@ -69,6 +69,7 @@ const ACCESS_STATES: NarrativeMapAccessState[] = [
 
 const GOAL_OPTIONS: Array<NonNullable<MobileNarrativeTelemetryPayload["selectedGoalOption"]>> = [
   "authority",
+  "authority_build",
   "retention",
   "format_test",
   "sponsored_content",

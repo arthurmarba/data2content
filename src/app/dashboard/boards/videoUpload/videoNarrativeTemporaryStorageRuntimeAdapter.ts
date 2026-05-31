@@ -1,4 +1,11 @@
 import { S3Client, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import {
+  deleteLocalVideoNarrativeTemporaryUpload,
+  extractLocalVideoNarrativeUploadSessionIdFromObjectKey,
+  isLocalVideoNarrativeTemporaryUploadEnabled,
+  isLocalVideoNarrativeUploadSessionId,
+  readLocalVideoNarrativeTemporaryUpload,
+} from "./videoNarrativeLocalTemporaryUploadStore";
 
 export type VideoNarrativeTemporaryStorageRuntimeAdapterInput = {
   uploadSessionId: string;
@@ -44,6 +51,71 @@ export async function resolveVideoNarrativeTemporaryStorageInput(params: {
   s3Client?: S3Client;
 }): Promise<VideoNarrativeTemporaryStorageRuntimeAdapterResult> {
   const env = params.env ?? process.env;
+
+  if (!params.input.objectKey) {
+    return {
+      ok: false,
+      status: "object_not_found",
+      safeMessage: "Referência de vídeo ausente.",
+      issues: [{ code: "empty_object_key", message: "Object key is empty." }],
+    };
+  }
+
+  const allowedTypes = ["video/mp4", "video/quicktime", "video/webm"];
+  if (!allowedTypes.includes(params.input.mimeType)) {
+    return {
+      ok: false,
+      status: "unsupported_mime_type",
+      safeMessage: "Formato de vídeo não suportado.",
+      issues: [{ code: "invalid_mime_type", message: "MimeType not allowed." }],
+    };
+  }
+
+  const maxMbStr = env.VIDEO_NARRATIVE_TEMP_UPLOAD_MAX_MB || "100";
+  const maxBytes = parseInt(maxMbStr, 10) * 1024 * 1024;
+  if (params.input.sizeBytes > maxBytes) {
+    return {
+      ok: false,
+      status: "object_too_large",
+      safeMessage: "Vídeo excede o tamanho permitido.",
+      issues: [{ code: "exceeds_max_size", message: "Size exceeds max MB." }],
+    };
+  }
+
+  if (
+    isLocalVideoNarrativeTemporaryUploadEnabled(env) &&
+    isLocalVideoNarrativeUploadSessionId(params.input.uploadSessionId)
+  ) {
+    const bytes = await readLocalVideoNarrativeTemporaryUpload({
+      sessionId: params.input.uploadSessionId,
+      mimeType: params.input.mimeType,
+    });
+
+    if (!bytes) {
+      return {
+        ok: false,
+        status: "object_not_found",
+        safeMessage: "Arquivo temporário local não encontrado.",
+        issues: [{ code: "local_temp_upload_not_found", message: "Local temporary upload file was not found." }],
+      };
+    }
+
+    return {
+      ok: true,
+      status: "ready",
+      geminiInput: {
+        mimeType: params.input.mimeType,
+        bytes,
+        source: "temporary_storage",
+      },
+      safeDebugSummary: {
+        mimeType: params.input.mimeType,
+        sizeBytes: params.input.sizeBytes,
+        provider: "local_temp",
+      },
+    };
+  }
+
   const provider = env.VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER;
 
   if (!provider || provider === "disabled" || provider === "none" || provider === "local_mock") {
@@ -76,36 +148,6 @@ export async function resolveVideoNarrativeTemporaryStorageInput(params: {
       status: "provider_not_configured",
       safeMessage: "O serviço de storage temporário não está configurado.",
       issues: [{ code: "missing_credentials", message: "Storage credentials missing." }],
-    };
-  }
-
-  if (!params.input.objectKey) {
-    return {
-      ok: false,
-      status: "object_not_found",
-      safeMessage: "Referência de vídeo ausente.",
-      issues: [{ code: "empty_object_key", message: "Object key is empty." }],
-    };
-  }
-
-  const allowedTypes = ["video/mp4", "video/quicktime", "video/webm"];
-  if (!allowedTypes.includes(params.input.mimeType)) {
-    return {
-      ok: false,
-      status: "unsupported_mime_type",
-      safeMessage: "Formato de vídeo não suportado.",
-      issues: [{ code: "invalid_mime_type", message: "MimeType not allowed." }],
-    };
-  }
-
-  const maxMbStr = env.VIDEO_NARRATIVE_TEMP_UPLOAD_MAX_MB || "100";
-  const maxBytes = parseInt(maxMbStr, 10) * 1024 * 1024;
-  if (params.input.sizeBytes > maxBytes) {
-    return {
-      ok: false,
-      status: "object_too_large",
-      safeMessage: "Vídeo excede o tamanho permitido.",
-      issues: [{ code: "exceeds_max_size", message: "Size exceeds max MB." }],
     };
   }
 
@@ -164,6 +206,11 @@ export async function deleteVideoNarrativeTemporaryStorageObject(params: {
   s3Client?: S3Client;
 }): Promise<boolean> {
   const env = params.env ?? process.env;
+  const localSessionId = extractLocalVideoNarrativeUploadSessionIdFromObjectKey(params.objectKey);
+  if (isLocalVideoNarrativeTemporaryUploadEnabled(env) && localSessionId) {
+    return deleteLocalVideoNarrativeTemporaryUpload({ sessionId: localSessionId });
+  }
+
   const provider = env.VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER;
 
   if (!provider || provider === "disabled" || provider === "none" || provider === "local_mock") {

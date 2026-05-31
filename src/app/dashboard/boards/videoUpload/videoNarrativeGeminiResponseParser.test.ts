@@ -19,6 +19,79 @@ describe("videoNarrativeGeminiResponseParser", () => {
     expect(result.ok).toBe(true);
   });
 
+  it("extrai JSON quando o provider envolve a resposta em texto curto", () => {
+    const result = parseVideoNarrativeGeminiResponse(`Leitura estruturada:\n${geminiVideoNarrativeRawJsonFixture}`);
+    expect(result.ok).toBe(true);
+  });
+
+  it("aceita objeto analysis aninhado quando o provider cria wrapper", () => {
+    const result = parseVideoNarrativeGeminiResponse(JSON.stringify({
+      analysis: JSON.parse(geminiVideoNarrativeRawJsonFixture),
+    }));
+    expect(result.ok).toBe(true);
+  });
+
+  it("aceita array com um objeto de análise", () => {
+    const result = parseVideoNarrativeGeminiResponse(JSON.stringify([
+      JSON.parse(geminiVideoNarrativeRawJsonFixture),
+    ]));
+    expect(result.ok).toBe(true);
+  });
+
+  it("aceita aliases comuns de campos quando o provider varia a nomenclatura", () => {
+    const raw = JSON.parse(geminiVideoNarrativeRawJsonFixture);
+    const aliased = {
+      main_narrative: raw.mainNarrative,
+      what_video_communicates: raw.whatVideoCommunicates,
+      creator_intention: raw.creatorIntention,
+      strategic_reading: raw.strategicReading,
+      strength_point: raw.strengthPoint,
+      attention_point: raw.attentionPoint,
+      recommended_adjustment: raw.recommendedAdjustment,
+      suggested_hook: raw.suggestedHook,
+      commercial_potential: raw.commercialPotential,
+      next_actions: raw.nextActions,
+      creator_signals: raw.creatorSignals,
+      brand_territories: raw.brandTerritories,
+      collab_opportunities: raw.collabOpportunities,
+      evidence_anchors: raw.evidenceAnchors,
+    };
+
+    const result = parseVideoNarrativeGeminiResponse(JSON.stringify(aliased));
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.analysis.mainNarrative).toBe(raw.mainNarrative);
+      expect(result.analysis.evidenceAnchors?.sceneAnchors[0].description).toContain("rotina simples");
+    }
+  });
+
+  it("normaliza listas obrigatórias quando o provider retorna string única", () => {
+    const raw = JSON.parse(geminiVideoNarrativeRawJsonFixture);
+    raw.nextActions = "Acompanhar se a promessa aparece mais cedo nos próximos conteúdos.";
+
+    const result = parseVideoNarrativeGeminiResponse(JSON.stringify(raw));
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.analysis.nextActions).toEqual([
+        "Acompanhar se a promessa aparece mais cedo nos próximos conteúdos.",
+      ]);
+    }
+  });
+
+  it("normaliza listas obrigatórias quando o provider retorna objetos", () => {
+    const raw = JSON.parse(geminiVideoNarrativeRawJsonFixture);
+    raw.creatorSignals = [{ signal: "Bastidor como prova" }, { label: "Autoridade acessível" }];
+
+    const result = parseVideoNarrativeGeminiResponse(JSON.stringify(raw));
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.analysis.creatorSignals).toEqual(["Bastidor como prova", "Autoridade acessível"]);
+    }
+  });
+
   it("rejeita JSON inválido", () => {
     const result = parseVideoNarrativeGeminiResponse("{");
     expect(result.ok).toBe(false);

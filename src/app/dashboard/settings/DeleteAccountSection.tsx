@@ -5,6 +5,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useSession, signOut } from "next-auth/react";
 import toast from "react-hot-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import { Trash2 } from "lucide-react";
 
 type SessionUser = {
   planStatus?: string | null;
@@ -39,7 +40,11 @@ type BillingStatus = {
   lastPaymentError: any | null;
 } | null;
 
-export default function DeleteAccountSection() {
+type DeleteAccountSectionProps = {
+  onManageSubscription?: () => void;
+};
+
+export default function DeleteAccountSection({ onManageSubscription }: DeleteAccountSectionProps = {}) {
   const { data: session } = useSession();
   const user = (session?.user as SessionUser) || {};
 
@@ -135,6 +140,10 @@ export default function DeleteAccountSection() {
 
   const scrollToManage = () => {
     setShowBlocked(false);
+    if (onManageSubscription) {
+      onManageSubscription();
+      return;
+    }
     const el = document.getElementById("subscription-management-title");
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     else window.location.href = "/dashboard/settings#subscription-management-title";
@@ -187,7 +196,7 @@ export default function DeleteAccountSection() {
   return (
     <section id="delete-account" className="space-y-4">
       <h3 className="flex items-center gap-2 text-[15px] font-semibold text-[#A72B3C]">
-        <span aria-hidden>🗑️</span>
+        <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
         Excluir conta
       </h3>
 
@@ -219,7 +228,7 @@ export default function DeleteAccountSection() {
         className="inline-flex w-full items-center justify-center gap-2 rounded-[8px] border border-[#D62E5E] bg-white px-4 py-2.5 text-[14px] font-semibold text-[#D62E5E] transition hover:bg-[#FFE7EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D62E5E]"
         onClick={handleClick}
       >
-        <span aria-hidden>🗑️</span>
+        <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
         Excluir minha conta
       </button>
 

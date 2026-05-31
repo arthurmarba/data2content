@@ -9,6 +9,7 @@ import UserModel from '@/app/models/User';
 import PubliCalculation from '@/app/models/PubliCalculation';
 import MediaKitPackage from '@/app/models/MediaKitPackage';
 import AccountInsightModel from '@/app/models/AccountInsight';
+import { resolveFreshInstagramAvatar } from '@/app/lib/instagram/resolveFreshAvatar';
 import { logMediaKitAccess } from '@/lib/logMediaKitAccess';
 import { getClientIpFromHeaders } from '@/utils/getClientIp';
 import { resolveMediaKitToken } from '@/app/lib/mediakit/slugService';
@@ -263,6 +264,20 @@ export default async function MediaKitPage(
   const user = await UserModel.findById(resolvedToken.userId).lean();
   if (!user) {
     notFound();
+  }
+
+  // Avatar do IG expira (~4,5 dias). Refresh sob demanda no render público (best-effort,
+  // nunca quebra a página). Mantém a foto válida no mídia kit mesmo se o criador não
+  // abriu o dashboard recentemente. A página é force-dynamic, então dispara a cada view.
+  const freshAvatar = await resolveFreshInstagramAvatar({
+    userId: (user as any)._id,
+    currentImage: (user as any).image ?? (user as any).profile_picture_url ?? null,
+    instagramAccountId: (user as any).instagramAccountId ?? null,
+    instagramAccessToken: (user as any).instagramAccessToken ?? null,
+  });
+  if (freshAvatar) {
+    (user as any).image = freshAvatar;
+    (user as any).profile_picture_url = freshAvatar;
   }
 
   const latestInsight = await AccountInsightModel.findOne({

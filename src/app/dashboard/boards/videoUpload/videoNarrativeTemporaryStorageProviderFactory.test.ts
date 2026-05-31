@@ -40,6 +40,54 @@ describe("videoNarrativeTemporaryStorageProviderFactory", () => {
     expect(session.status).toBe("mock_session_created");
   });
 
+  it("returns local discard upload session when local discard upload is enabled", async () => {
+    const result = createVideoNarrativeTemporaryStorageProvider({
+      env: {
+        NODE_ENV: "development",
+        NEXTAUTH_URL: "http://localhost:3000",
+        NEXTAUTH_SECRET: "test-secret",
+        VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED: "1",
+        VIDEO_NARRATIVE_TEMP_UPLOAD_SESSION_ENABLED: "1",
+        VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "local_mock",
+      },
+    });
+    const session = await result.provider.createUploadSession(validInput);
+
+    expect(result.provider.mode).toBe("real");
+    expect(session.ok).toBe(true);
+    if (session.ok) {
+      expect(session.status).toBe("signed_upload_session_created");
+      expect(session.uploadSession.uploadUrl).toContain("http://localhost:3000/api/dev/mobile-strategic-profile/discard-upload");
+      expect(session.uploadSession.shouldPersistVideo).toBe(false);
+      expect(session.uploadSession.shouldPersistThumbnail).toBe(false);
+    }
+  });
+
+  it("local discard upload overrides planned real provider config in development", async () => {
+    const result = createVideoNarrativeTemporaryStorageProvider({
+      env: {
+        NODE_ENV: "development",
+        NEXTAUTH_URL: "http://127.0.0.1:3101",
+        NEXTAUTH_SECRET: "test-secret",
+        VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED: "1",
+        VIDEO_NARRATIVE_TEMP_UPLOAD_SESSION_ENABLED: "1",
+        VIDEO_NARRATIVE_TEMP_STORAGE_PROVIDER: "cloudflare_r2",
+      },
+      realUploadEnabled: false,
+      uploadSessionEnabled: true,
+    });
+    const session = await result.provider.createUploadSession(validInput);
+
+    expect(result.config.mode).toBe("r2_planned");
+    expect(result.provider.mode).toBe("real");
+    expect(session.ok).toBe(true);
+    if (session.ok) {
+      expect(session.status).toBe("signed_upload_session_created");
+      expect(session.uploadSession.uploadUrl).toContain("http://127.0.0.1:3101/api/dev/mobile-strategic-profile/discard-upload");
+      expect(session.uploadSession.uploadUrl).toContain("signature=");
+    }
+  });
+
   it.each([
     ["cloudflare_r2", "r2_planned"],
     ["aws_s3", "s3_planned"],

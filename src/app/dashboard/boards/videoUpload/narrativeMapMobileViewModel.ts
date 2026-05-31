@@ -6,6 +6,7 @@ import type {
   CreatorStrategicProfileSynthesis,
   CreatorStrategicProfileSynthesisSignal,
 } from "./creatorStrategicProfileSynthesis";
+import type { BrandNarrativeMatchResult } from "@/app/lib/brands/brandNarrativeMatchTypes";
 
 export type NarrativeMapMobileTabId = "profile" | "readings" | "opportunities";
 
@@ -35,10 +36,16 @@ export interface NarrativeMapMobileReadingItem {
   diagnosisId: string;
   rememberedAs: string;
   dateLabel: string;
+  /** ISO timestamp — used by Diagnóstico shell for relative date rendering */
+  createdAt?: string | null;
   contributionLabel: string;
+  /** Raw contribution type — used by Diagnóstico cards to derive tone strip and specific labels */
+  contributionType?: string | null;
   profileImpactPreview: string;
   statusLabel: string;
   action: NarrativeMapMobileAction;
+  /** Thumbnail URL for the reading. Set client-side from localStorage (persisted after analysis). May also be populated from DB in future. */
+  thumbnailUrl?: string | null;
 }
 
 export interface NarrativeMapMobileOpportunityItem {
@@ -49,6 +56,12 @@ export interface NarrativeMapMobileOpportunityItem {
   badgeLabel?: string | null;
   action?: NarrativeMapMobileAction | null;
   locked?: boolean;
+  // Rich brand match fields — present only when brand matching is connected (Fase C/D)
+  brandCategory?: string[];
+  matchedSignals?: string[];
+  rationale?: string | null;
+  insertionAngle?: string | null;
+  suggestedDeliverables?: string[];
 }
 
 export interface NarrativeMapMobileViewModel {
@@ -120,6 +133,8 @@ export interface BuildNarrativeMapMobileViewModelInput {
   instagramConnected?: boolean;
   mediaKitAvailable?: boolean;
   activeTab?: NarrativeMapMobileTabId;
+  /** Real brand matches from brandNarrativeMatcher — replaces raw commercialTerritories in opportunities tab */
+  brandMatches?: BrandNarrativeMatchResult[] | null;
 }
 
 const SAFE_TEXT_REPLACEMENTS: Array<[RegExp, string]> = [
@@ -285,6 +300,33 @@ function profileChaptersFromSynthesis(
 
 function buildOpportunities(input: BuildNarrativeMapMobileViewModelInput): NarrativeMapMobileOpportunityItem[] {
   if (input.profileSynthesis) {
+    // When real brand matches are available, use them instead of raw synthesis commercialTerritories
+    if (input.brandMatches && input.brandMatches.length > 0) {
+      const brandItems = input.brandMatches.map((match, index): NarrativeMapMobileOpportunityItem => ({
+        id: `brand-match-${index}-${match.brandId}`,
+        title: match.brandName,
+        preview: cleanText(match.rationale, "Fit narrativo possível com base no perfil."),
+        type: "brand_territory",
+        badgeLabel: match.category[0] ?? null,
+        action: null,
+        brandCategory: match.category,
+        matchedSignals: match.matchedSignals,
+        rationale: match.rationale,
+        insertionAngle: match.insertionAngle,
+        suggestedDeliverables: match.suggestedDeliverables,
+      }));
+      const collabItems = input.profileSynthesis.collabTerritories.map((territory, index): NarrativeMapMobileOpportunityItem => ({
+        id: `synthesis-collab-${index}`,
+        title: cleanText(territory.label, "Tipo de collab possível"),
+        preview: cleanText(territory.summary, "Tipo de collab possível, ainda sem parceria real."),
+        type: "collab_type",
+        badgeLabel: `${territory.evidenceCount} sinais`,
+        action: null,
+      }));
+      return [...brandItems, ...collabItems];
+    }
+
+    // Fallback: synthesis-only (no brand matching or < signals_emerging)
     const commercialItems = input.profileSynthesis.commercialTerritories.map((territory, index): NarrativeMapMobileOpportunityItem => ({
       id: `synthesis-commercial-${index}`,
       title: cleanText(territory.label, "Território em formação"),
@@ -423,6 +465,10 @@ export function buildNarrativeMapMobileViewModel(
         rememberedAs: cleanText(reading.rememberedAs, "Vídeo analisado"),
         dateLabel: dateLabel(reading.createdAt),
         contributionLabel: contributionLabel(reading.profileContribution.type),
+        contributionType: reading.profileContribution.type,
+        createdAt: reading.createdAt instanceof Date
+          ? reading.createdAt.toISOString()
+          : reading.createdAt ?? null,
         profileImpactPreview: cleanText(
           reading.profileContribution.profileImpactPreview,
           "Sinal em observação para leituras futuras.",

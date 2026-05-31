@@ -163,6 +163,7 @@ export interface MediaKitViewProps {
   demographics: DemographicsData | null;
   engagementTrend?: EngagementTrendData | null;
   showOwnerCtas?: boolean;
+  showOwnerSettingsShortcut?: boolean;
   // Slot extra: renderiza abaixo do bloco de afiliado (quando for o dono)
   belowAffiliateSlot?: React.ReactNode;
   // Reduz padding superior quando usado no dashboard

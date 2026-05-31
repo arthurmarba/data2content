@@ -23,6 +23,22 @@ export const P90_MULT = 1.45 as const;
 export const TARGET_SUGGESTIONS_MIN = 3 as const;
 export const TARGET_SUGGESTIONS_MAX = 5 as const;
 
+// --- Geração por slot (criação coerente) ---
+// Decisão de produto: o criador vê um número fixo e calmo de pautas por slot —
+// não um gerador que infla a cada clique. "Gerar novas ideias" SUBSTITUI a lista,
+// não acumula. Mais coerência > mais volume.
+//
+// Pautas/ideias mostradas por slot. Mantido baixo de propósito: o criador deve
+// conseguir ler todas e sentir qual conversa com o mapa, sem ansiedade de volume.
+export const PAUTAS_PER_SLOT = 5 as const;
+// A IA gera um excedente e cortamos para PAUTAS_PER_SLOT, garantindo qualidade
+// após dedupe/filtro. É um buffer de qualidade, não uma oferta ao criador.
+export const PAUTA_AI_OVERGENERATION = 10 as const;
+// Inspirações a partir do próprio conteúdo do criador (referência, não pauta).
+export const SELF_INSPIRATIONS_LIMIT = 8 as const;
+// Inspirações da comunidade (outros criadores) exibidas no card.
+export const COMMUNITY_INSPIRATIONS_LIMIT = 12 as const;
+
 // Temperatura da amostragem para TESTE (softmax)
 export const TEST_SAMPLING_TEMPERATURE = 0.9 as const;
 
