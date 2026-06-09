@@ -2158,6 +2158,9 @@ export function NarrativeMapMobileShell({
               imageUrl: profileImageUrl ?? null,
               plan: userInfo?.plan ?? null,
             }}
+            isPro={isPro}
+            instagramConnected={isInstagramConnected}
+            onUpgrade={() => { setAccountMenuOpen(false); router.push("/dashboard/billing"); }}
             onClose={() => setAccountMenuOpen(false)}
             onOpenMediaKit={() => {
               setAccountMenuOpen(false);
