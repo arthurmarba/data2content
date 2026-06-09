@@ -162,13 +162,11 @@ function LoginComponent() {
           </Link>.
         </p>
 
-      </div>{/* /hero */}
-
-      {/* Prova social — ancorada no rodapé (mt-auto) para aterrar a tela em
-          qualquer altura, em vez de flutuar no centro com o hero. */}
-      {creators.length > 0 && (
-        <div className="mx-auto mt-auto w-full max-w-sm px-1 pt-10">
-          <div className="flex flex-col items-center gap-3">
+        {/* Prova social — parte do bloco hero, não rodapé. mt-10 fixo
+            mantém ela visualmente colada ao conteúdo em qualquer tela. */}
+        {creators.length > 0 && (
+          <div className="mt-10">
+            <div className="flex flex-col items-center gap-3">
             {/* Avatares sobrepostos */}
             <div className="flex items-center">
               {creators.filter(c => !c.hidden).slice(0, 5).map((creator, i) => (
@@ -211,9 +209,11 @@ function LoginComponent() {
               </span>{" "}
               {creatorCount === 1 ? "já começou" : "já começaram"} seu mapa
             </p>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+      </div>{/* /hero */}
     </div>
   );
 }
