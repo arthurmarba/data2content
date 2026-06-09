@@ -101,7 +101,9 @@ export function OnboardingValueBlock({ whyYouCreate, className = "" }: Onboardin
 
   return (
     <div className={className}>
-      {/* Card de valor — prova social legível + faixa em destaque */}
+      {/* Card de valor — prova social + faixa em destaque + metodologia dentro.
+          Footnote integrado ao card: elimina o parágrafo solto antes do CTA
+          que quebrava o ritmo de leitura → ação. */}
       <div className="rounded-2xl bg-zinc-50 px-5 py-4 ring-1 ring-zinc-100">
         <p className="text-[13px] leading-relaxed text-zinc-600">{lead}</p>
 
@@ -111,9 +113,12 @@ export function OnboardingValueBlock({ whyYouCreate, className = "" }: Onboardin
         <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-500">
           por 1 Reels + combo de Stories, com marcas de porte médio.
         </p>
-      </div>
 
-      <p className="mt-3 text-[11px] leading-relaxed text-zinc-400">{footnote}</p>
+        {/* Metodologia — dentro do card, menor e mais discreta */}
+        <p className="mt-3 border-t border-zinc-100 pt-3 text-[10.5px] leading-relaxed text-zinc-400">
+          {footnote}
+        </p>
+      </div>
     </div>
   );
 }

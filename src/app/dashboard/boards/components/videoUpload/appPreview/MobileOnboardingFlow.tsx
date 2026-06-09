@@ -598,33 +598,43 @@ function FirstSignalScreen({
     >
       {/* my-auto: centraliza quando há espaço, scrollável quando não há */}
       <div className="my-auto flex w-full max-w-sm flex-col items-center">
-      <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <circle cx="12" cy="12" r="9" stroke="#52525b" strokeWidth="1.8" />
-          <circle cx="12" cy="12" r="4" fill="#52525b" />
-        </svg>
-      </div>
+        {/* Ícone com a cor de narrativa do produto (orange-500 = HC.narrative) —
+            sinaliza "momento de revelação narrativa", não tela de loading. */}
+        <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-orange-50">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" stroke="#f97316" strokeWidth="1.8" />
+            <circle cx="12" cy="12" r="4" fill="#f97316" />
+          </svg>
+        </div>
 
-      <h2
-        ref={headingRef}
-        tabIndex={-1}
-        className="mb-2 text-center text-[1.6rem] font-bold leading-snug tracking-tight text-zinc-950 focus:outline-none"
-      >
-        {isSeedSignal ? "Aqui está o rascunho do seu mapa" : "Seu mapa começa assim"}
-      </h2>
-      <p className="mb-8 text-center text-[13px] font-medium leading-relaxed text-zinc-500">
-        {subtitle}
-      </p>
-
-      {/* Signal card — Decisão 3: badge "Hipótese inicial" para seeds.
-          Mantido PURO (só narrativa) — o valor de publi nunca entra aqui. */}
-      <div className="w-full rounded-[24px] bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-black/[0.03]">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 mb-2">
-          {isSeedSignal ? "Hipótese inicial" : "Sinal narrativo"}
+        <h2
+          ref={headingRef}
+          tabIndex={-1}
+          className="mb-2 text-center text-[1.6rem] font-bold leading-snug tracking-tight text-zinc-950 focus:outline-none"
+        >
+          {isSeedSignal ? "Aqui está o rascunho do seu mapa" : "Seu mapa começa assim"}
+        </h2>
+        {/* Subtitle: uma frase — a parte "Construído só com as suas respostas"
+            é contexto óbvio neste ponto da jornada, não nova informação. */}
+        <p className="mb-8 text-center text-[13px] font-medium leading-relaxed text-zinc-500">
+          {!isSeedSignal
+            ? "Este é o primeiro sinal que encontramos no que você já criou."
+            : isFreeUnused
+              ? "No Pro, a D2C aprofunda esse mapa com seus vídeos e Instagram."
+              : "A primeira leitura de um vídeo seu vai revelar muito mais."}
         </p>
-        <p className="text-[18px] font-bold leading-snug text-zinc-950 mb-2">{signal.label}</p>
-        <p className="text-[13px] leading-relaxed text-zinc-500">{signal.summary}</p>
-      </div>
+
+        {/* Signal card — Decisão 3: badge "Hipótese inicial" para seeds.
+            Mantido PURO (só narrativa) — o valor de publi nunca entra aqui.
+            summary com line-clamp-3: a label é o headline, o body é apoio —
+            não precisa caber tudo para criar o aha moment. */}
+        <div className="w-full rounded-[24px] bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-black/[0.03]">
+          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 mb-2">
+            {isSeedSignal ? "Hipótese inicial" : "Sinal narrativo"}
+          </p>
+          <p className="text-[18px] font-bold leading-snug text-zinc-950 mb-2">{signal.label}</p>
+          <p className="line-clamp-3 text-[13px] leading-relaxed text-zinc-500">{signal.summary}</p>
+        </div>
 
       {isFreeUnused && onSubscribe ? (
         // Caminho free_unused: a hipótese convive com o valor de publi (destaque
