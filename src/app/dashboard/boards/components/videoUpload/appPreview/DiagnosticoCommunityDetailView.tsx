@@ -47,13 +47,6 @@ export function DiagnosticoCommunityDetailView({
     >
       <CommunityJoinCard isPro={isPro} onUpgrade={onUpgrade} />
 
-      <div className="mt-1 px-1">
-        <h3 className="text-[14px] font-semibold text-zinc-700">Criadores da D2C</h3>
-        <p className="mt-0.5 text-[12px] text-zinc-400">
-          Conheça quem já constrói o mapa narrativo na plataforma.
-        </p>
-      </div>
-
       {/* Diretório visível para todos — matchedSlugs vazio (sem personalização aqui). */}
       <CreatorDirectorySection directory={creatorDirectory} matchedSlugs={new Set()} />
     </DiagnosticoCategoryDetailView>
@@ -63,10 +56,10 @@ export function DiagnosticoCommunityDetailView({
 /* ── Join card — gated by plan ───────────────────────────────────────────── */
 
 function CommunityJoinCard({ isPro, onUpgrade }: { isPro: boolean; onUpgrade?: () => void }) {
-  const titleText = "Comunidade no WhatsApp";
+  const titleText = "Os criadores que você vê aqui se falam.";
   const descText = isPro
-    ? "Troque com outros criadores e acompanhe collabs em formação."
-    : "Assine o Pro para entrar no grupo e trocar com outros criadores.";
+    ? "Você está dentro. Troque sobre narrativa, mapa e criação com a comunidade."
+    : "Assine o Pro para entrar no grupo deles no WhatsApp.";
 
   const ctaLabel = isPro ? "Entrar na comunidade" : "Assinar para entrar";
 

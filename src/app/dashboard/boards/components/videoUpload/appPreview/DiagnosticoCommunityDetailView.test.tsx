@@ -50,7 +50,8 @@ describe("DiagnosticoCommunityDetailView", () => {
     // O diretório agrupa por nicho — o grupo "Lifestyle" prova que o criador
     // foi renderizado mesmo para usuário FREE (prova social no topo do funil).
     expect(screen.getByText("Lifestyle")).toBeInTheDocument();
-    expect(screen.getByText("Criadores da D2C")).toBeInTheDocument();
+    // Card âncora: o título conecta o card à lista abaixo
+    expect(screen.getByText("Os criadores que você vê aqui se falam.")).toBeInTheDocument();
   });
 
   it("FREE: oferece assinar (sem link de WhatsApp) e dispara onUpgrade", () => {
