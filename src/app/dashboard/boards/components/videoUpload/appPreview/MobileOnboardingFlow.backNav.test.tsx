@@ -5,19 +5,20 @@
  * Q3 (propósito, opcional) aparece após Q2 — o avanço exige ação explícita
  * ("Continuar" ou "Pular por enquanto"). A tela "welcome" foi eliminada.
  * Os steps visíveis são `["questions", "first_signal"]` +
- * opcionalmente `"instagram_invite"` (não conectado) ou `"paywall"` (free_unused).
+ * opcionalmente `"instagram_invite"` (não-free, sem Instagram).
+ * free_unused converte na PRÓPRIA tela `first_signal` (valor de publi + assinar),
+ * sem step de paywall separado.
  *
  * BACK_TARGET (fonte da navegação para trás):
  *   questions          → (entrada, sem voltar)
  *   first_signal       → questions
  *   instagram_invite   → first_signal
- *   paywall            → first_signal
  *
  * Garante que:
  *   1. `questions` é a entrada e NÃO exibe botão Voltar.
  *   2. `first_signal` → Voltar retorna para `questions`.
  *   3. `instagram_invite` → Voltar retorna para `first_signal`.
- *   4. `paywall` → Voltar retorna para `first_signal`.
+ *   4. free_unused: `first_signal` mostra o CTA de conversão; Voltar → `questions`.
  *   5. Ao voltar de `first_signal` para `questions`, Q1, Q2 e Q3 preservados.
  */
 import React from "react";
@@ -77,7 +78,7 @@ const SIGNAL = { label: "Sinal de teste", summary: "Resumo do sinal de teste." }
 const QUESTIONS_HEADING = "O que define o que você cria?";
 const FIRST_SIGNAL_HEADING = "Seu mapa começa assim";
 const INSTAGRAM_HEADING = "Seu Instagram já tem os sinais que o mapa precisa.";
-const PAYWALL_CTA = "Explorar grátis primeiro";
+const FREE_CONVERSION_CTA = "Assinar e aprofundar meu mapa →";
 
 describe("MobileOnboardingFlow — navegação para trás (novo fluxo)", () => {
   beforeEach(() => {
@@ -127,20 +128,21 @@ describe("MobileOnboardingFlow — navegação para trás (novo fluxo)", () => {
     expect(screen.getByText(FIRST_SIGNAL_HEADING)).toBeInTheDocument();
   });
 
-  it("paywall: Voltar retorna para first_signal", () => {
+  it("free_unused: first_signal mostra o CTA de conversão e Voltar retorna para questions", () => {
     render(
       <MobileOnboardingFlow
         {...baseProps}
         accessState="free_unused"
         instagramConnected={false}
         firstSignal={SIGNAL}
-        initialStep="paywall"
+        initialStep="first_signal"
       />,
     );
-    expect(screen.getByText(PAYWALL_CTA)).toBeInTheDocument();
+    // A própria tela do rascunho carrega o valor + CTA de assinar (sem step extra).
+    expect(screen.getByText(FREE_CONVERSION_CTA)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Voltar" }));
-    expect(screen.getByText(FIRST_SIGNAL_HEADING)).toBeInTheDocument();
+    expect(screen.getByText(QUESTIONS_HEADING)).toBeInTheDocument();
   });
 
   it("first_signal → questions preserva as seleções de Q1, Q2 e propósito digitado", () => {

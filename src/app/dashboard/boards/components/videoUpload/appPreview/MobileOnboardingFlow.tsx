@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { MOBILE_INSTAGRAM_CONNECT_ROUTE } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
 import { openPaywallModal } from "@/utils/paywallModal";
 import { MOBILE_PROFILE_ROUTE } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
-import { OnboardingPaywallModal } from "./OnboardingPaywallModal";
+import { OnboardingValueBlock } from "./OnboardingValueBlock";
 import { SAFE_TOP } from "./diagnosticoTokens";
 import type { NarrativeMapAccessState } from "@/app/dashboard/boards/videoUpload/narrativeMapAccessState";
 
@@ -34,7 +34,6 @@ export type OnboardingStep =
   | "calibrating"
   | "first_signal"
   | "instagram_invite"   // CTA de Instagram pós first_signal — novo
-  | "paywall"            // Tela de conversão Pro — exibida para free_unused antes de fechar
   // Legacy: aceitos via initialStep para retomada após redirect OAuth
   | "instagram"
   | "question_1"
@@ -142,8 +141,8 @@ function buildSeedSignal({
 /**
  * Telas visíveis do fluxo, na ordem, para o usuário atual.
  *
- * Fluxo exclusivo: instagram_invite e paywall são mutuamente exclusivos.
- *   - free_unused        → paywall (o post-checkout já conecta o Instagram)
+ *   - free_unused        → first_signal É a tela de conversão (valor + assinar);
+ *                          não há step extra, a hipótese e o CTA Pro convivem nela.
  *   - não-free, sem IG   → instagram_invite
  *   - conectado/pago     → encerra após first_signal
  *
@@ -154,8 +153,7 @@ function getVisibleSteps(
   accessState: NarrativeMapAccessState,
 ): OnboardingStep[] {
   const steps: OnboardingStep[] = ["questions", "first_signal"];
-  if (accessState === "free_unused") steps.push("paywall");
-  else if (!instagramConnected) steps.push("instagram_invite");
+  if (accessState !== "free_unused" && !instagramConnected) steps.push("instagram_invite");
   return steps;
 }
 
@@ -181,7 +179,6 @@ async function readSeedSignalFromResponse(response: Response): Promise<FirstSign
 const BACK_TARGET: Partial<Record<OnboardingStep, OnboardingStep>> = {
   first_signal: "questions",
   instagram_invite: "first_signal",
-  paywall: "first_signal",
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -211,11 +208,6 @@ export function MobileOnboardingFlow({
   // há propósito declarado). Tem prioridade sobre o buildSeedSignal determinístico,
   // mas cede ao firstSignal detectado (Instagram/vídeos), que é o sinal mais forte.
   const [aiSeedSignal, setAiSeedSignal] = useState<FirstSignal | null>(null);
-  /**
-   * Guarda intenção de abrir upload enquanto o paywall está sendo exibido.
-   * Usado pelo step "paywall" para retomar o fluxo de upload após decisão.
-   */
-  const [pendingUpload, setPendingUpload] = useState(false);
 
   // Reset on close
   useEffect(() => {
@@ -227,7 +219,6 @@ export function MobileOnboardingFlow({
       setAiSeedSignal(null);
       setIsSaving(false);
       setCalibrationError(false);
-      setPendingUpload(false);
     }
   }, [open]);
 
@@ -286,15 +277,6 @@ export function MobileOnboardingFlow({
   }, [firstSignal, whyYouCreate, desiredFeeling, creatorPurpose]);
 
   const completeOnboarding = useCallback((openUpload = false) => {
-    // Para criadores free_unused: exibir paywall como último step antes de fechar.
-    // O paywall captura o contexto narrativo do criador e apresenta o argumento
-    // de conversão com social proof. Só após a escolha no paywall chamamos onComplete.
-    if (accessState === "free_unused" && step !== "paywall") {
-      setPendingUpload(openUpload);
-      setStep("paywall");
-      return;
-    }
-
     const answers: OnboardingAnswers = {
       whyYouCreate,
       desiredFeeling,
@@ -305,10 +287,13 @@ export function MobileOnboardingFlow({
       // Pequeno delay para o onboarding fechar antes de abrir o upload
       setTimeout(() => onRequestUpload(), 300);
     }
-  }, [accessState, step, whyYouCreate, desiredFeeling, creatorPurpose, onComplete, onRequestUpload]);
+  }, [whyYouCreate, desiredFeeling, creatorPurpose, onComplete, onRequestUpload]);
 
-  /** Criador clicou "Assinar agora" no paywall — fecha o onboarding e abre Stripe. */
-  const handlePaywallSubscribe = useCallback(async () => {
+  /**
+   * free_unused clicou "Assinar e aprofundar meu mapa" na própria tela do rascunho —
+   * fecha o onboarding e abre o checkout (Stripe). O post-checkout conecta o Instagram.
+   */
+  const handleSubscribe = useCallback(() => {
     const answers: OnboardingAnswers = {
       whyYouCreate,
       desiredFeeling,
@@ -317,30 +302,22 @@ export function MobileOnboardingFlow({
     onComplete(answers);
     openPaywallModal({
       context: "onboarding",
-      source: "onboarding_paywall_screen",
+      source: "onboarding_first_signal_value",
       returnTo: MOBILE_PROFILE_ROUTE,
       postCheckoutIntent: "connect_instagram",
     });
   }, [whyYouCreate, desiredFeeling, creatorPurpose, onComplete]);
 
-  /** Criador clicou "Explorar grátis primeiro" — fecha o onboarding sem abrir Stripe. */
-  const handlePaywallExploreFree = useCallback(() => {
-    const answers: OnboardingAnswers = {
-      whyYouCreate,
-      desiredFeeling,
-      ...(creatorPurpose ? { creatorPurpose } : {}),
-    };
-    onComplete(answers);
-    if (pendingUpload && onRequestUpload) {
-      setTimeout(() => onRequestUpload(), 300);
-    }
-  }, [whyYouCreate, desiredFeeling, creatorPurpose, onComplete, pendingUpload, onRequestUpload]);
+  /** free_unused clicou "Explorar o mapa primeiro" — fecha o onboarding sem abrir Stripe. */
+  const handleExploreFree = useCallback(() => {
+    completeOnboarding(false);
+  }, [completeOnboarding]);
 
   const handleFirstSignalResponse = useCallback(
     () => {
-      // Fluxo exclusivo (3b): free_unused vai direto ao paywall (o post-checkout
-      // já conecta o Instagram). Só usuários NÃO-free e sem IG veem o convite.
-      // completeOnboarding() roteia free_unused → paywall; demais → encerra.
+      // Só usuários NÃO-free e sem IG veem o convite de Instagram após a hipótese.
+      // free_unused converte na própria tela do rascunho (handleSubscribe / handleExploreFree),
+      // então não passa por aqui no caminho primário.
       if (accessState !== "free_unused" && !instagramConnected) {
         setStep("instagram_invite");
       } else {
@@ -448,6 +425,10 @@ export function MobileOnboardingFlow({
                 signal={firstSignal ?? aiSeedSignal ?? buildSeedSignal({ whyYouCreate, desiredFeeling })}
                 onRespond={handleFirstSignalResponse}
                 onUpload={onRequestUpload ? () => completeOnboarding(true) : undefined}
+                isFreeUnused={accessState === "free_unused"}
+                whyYouCreate={whyYouCreate}
+                onSubscribe={handleSubscribe}
+                onExploreFree={handleExploreFree}
               />
             )}
             {step === "instagram_invite" && (
@@ -460,14 +441,6 @@ export function MobileOnboardingFlow({
                   }
                 }}
                 onSkip={() => completeOnboarding(false)}
-              />
-            )}
-            {step === "paywall" && (
-              <OnboardingPaywallModal
-                open={true}
-                whyYouCreate={whyYouCreate}
-                onSubscribeNow={handlePaywallSubscribe}
-                onExploreFree={handlePaywallExploreFree}
               />
             )}
           </motion.div>
@@ -555,10 +528,22 @@ function FirstSignalScreen({
   signal,
   onRespond,
   onUpload,
+  isFreeUnused = false,
+  whyYouCreate,
+  onSubscribe,
+  onExploreFree,
 }: {
   signal: FirstSignal;
   onRespond: () => void;
   onUpload?: () => void;
+  /** free_unused: a tela do rascunho É o momento de conversão (valor + assinar). */
+  isFreeUnused?: boolean;
+  /** Identidade narrativa (Q1) — contextualiza o valor de publi exibido. */
+  whyYouCreate?: string;
+  /** free_unused: "Assinar e aprofundar meu mapa" → checkout. */
+  onSubscribe?: () => void;
+  /** free_unused: "Explorar o mapa primeiro" → segue grátis. */
+  onExploreFree?: () => void;
 }) {
   const isSeedSignal = signal.source === "seed";
   const [confirmed, setConfirmed] = useState(false);
@@ -591,6 +576,14 @@ function FirstSignalScreen({
     onUpload?.();
   };
 
+  // Subtítulo honesto: free não envia vídeo (CTA leva ao checkout), então a
+  // promessa "a primeira leitura de um vídeo…" sai e entra a ponte rascunho→Pro.
+  const subtitle = !isSeedSignal
+    ? "Este é o primeiro sinal que encontramos no que você já criou."
+    : isFreeUnused
+      ? "Construído só com as suas respostas. No Pro, a D2C lê seus vídeos e seu Instagram e aprofunda esse mapa."
+      : "A primeira leitura de um vídeo seu vai revelar muito mais.";
+
   return (
     <div
       className="flex min-h-full flex-col items-center bg-[#F2F2F7] px-5"
@@ -616,12 +609,11 @@ function FirstSignalScreen({
         {isSeedSignal ? "Aqui está o rascunho do seu mapa" : "Seu mapa começa assim"}
       </h2>
       <p className="mb-8 text-center text-[13px] font-medium leading-relaxed text-zinc-500">
-        {isSeedSignal
-          ? "A primeira leitura de um vídeo seu vai revelar muito mais."
-          : "Este é o primeiro sinal que encontramos no que você já criou."}
+        {subtitle}
       </p>
 
-      {/* Signal card — Decisão 3: badge "Hipótese inicial" para seeds */}
+      {/* Signal card — Decisão 3: badge "Hipótese inicial" para seeds.
+          Mantido PURO (só narrativa) — o valor de publi nunca entra aqui. */}
       <div className="w-full rounded-[24px] bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-black/[0.03]">
         <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 mb-2">
           {isSeedSignal ? "Hipótese inicial" : "Sinal narrativo"}
@@ -630,7 +622,32 @@ function FirstSignalScreen({
         <p className="text-[13px] leading-relaxed text-zinc-500">{signal.summary}</p>
       </div>
 
-      {confirmed ? (
+      {isFreeUnused && onSubscribe ? (
+        // Caminho free_unused: a hipótese convive com o valor de publi (destaque
+        // forte) e o CTA honesto de assinar. Sem bait-and-switch, sem tela extra.
+        <div className="mt-6 w-full flex flex-col items-stretch">
+          <OnboardingValueBlock whyYouCreate={whyYouCreate} />
+
+          <button
+            type="button"
+            onClick={onSubscribe}
+            className="mt-6 w-full rounded-full bg-zinc-950 px-6 py-4 text-sm font-semibold text-white transition-colors active:bg-zinc-800"
+          >
+            Assinar e aprofundar meu mapa →
+          </button>
+          <button
+            type="button"
+            onClick={onExploreFree}
+            className="mt-3 w-full text-[13px] font-medium text-zinc-400 underline-offset-2 hover:underline"
+          >
+            Explorar o mapa primeiro
+          </button>
+
+          <p className="mt-5 text-center text-[12px] leading-relaxed text-zinc-400">
+            A assinatura não pula etapas — só aprofunda o que você descobre.
+          </p>
+        </div>
+      ) : confirmed ? (
         // role="status" anuncia a confirmação para leitores de tela sem mover o foco.
         <p role="status" className="mt-8 text-[14px] font-semibold text-zinc-950">
           {FIRST_SIGNAL_CONFIRMATION}
