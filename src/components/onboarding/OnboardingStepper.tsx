@@ -1,3 +1,8 @@
+/**
+ * @deprecated Componente legado — não está em uso ativo.
+ * Usa sistema de cores (green-600, blue-600, gray-400) incompatível com o design system zinc.
+ * Substituir por componente baseado em zinc caso necessite de um stepper.
+ */
 "use client";
 
 import React from "react";

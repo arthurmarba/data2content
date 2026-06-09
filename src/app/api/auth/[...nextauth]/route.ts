@@ -51,9 +51,6 @@ import {
   normalizeInstagramReconnectFlowId,
 } from "@/app/lib/instagram/reconnectFlow";
 import {
-  COMMUNITY_INSPIRATION_TERMS_VERSION,
-  hasCurrentLegalAcceptance,
-  LEGAL_CONSENT_COOKIE_NAME,
   PRIVACY_POLICY_VERSION,
   SERVICE_TERMS_VERSION,
 } from "@/lib/auth/legalConsent";
@@ -868,8 +865,6 @@ const authOptionsConfig = {
         let dbUserRecord: IUser | null = null;
         let isNewUser = false;
         const cookieStore = cookies();
-        const hasLegalConsentCookie =
-          cookieStore.get(LEGAL_CONSENT_COOKIE_NAME)?.value === "1";
 
         if (provider === "facebook") {
           const linkTokenFromCookie = cookieStore.get(FACEBOOK_LINK_COOKIE_NAME)?.value;
@@ -1182,10 +1177,6 @@ const authOptionsConfig = {
           if (!dbUserRecord && currentEmailFromProvider) {
             const userByEmail = await DbUser.findOne({ email: currentEmailFromProvider }).exec();
             if (userByEmail) {
-              if (!hasCurrentLegalAcceptance(userByEmail) && !hasLegalConsentCookie) {
-                logger.warn(`${TAG_SIGNIN} [Google] Vinculação bloqueada por ausência de aceite legal explícito para email=${currentEmailFromProvider}.`);
-                return buildTermsConsentRequiredRedirect(cookieStore);
-              }
               logger.info(`${TAG_SIGNIN} [Google] Usuário existente ${userByEmail._id} por email. Vinculando Google ID ${providerAccountId}.`);
               dbUserRecord = userByEmail;
               dbUserRecord.provider = provider;
@@ -1207,14 +1198,9 @@ const authOptionsConfig = {
               logger.error(`${TAG_SIGNIN} [Google] Email ausente ao CRIAR novo utilizador Google.`);
               return false;
             }
-            if (!hasLegalConsentCookie) {
-              logger.warn(`${TAG_SIGNIN} [Google] Tentativa de criar usuário sem aceite explícito dos termos.`);
-              return buildTermsConsentRequiredRedirect(cookieStore);
-            }
             logger.info(`${TAG_SIGNIN} [Google] Criando NOVO utilizador para ${currentEmailFromProvider}…`);
 
             const finalNameForNewUser = nameFromProvider?.trim() || currentEmailFromProvider.split("@")[0];
-            const acceptedAt = new Date();
 
             const newUserInDb = new DbUser({
               name: finalNameForNewUser,
@@ -1226,13 +1212,13 @@ const authOptionsConfig = {
               role: "user",
               isNewUserForOnboarding: true,
               onboardingCompletedAt: null,
-              serviceTermsAcceptedAt: acceptedAt,
-              serviceTermsVersion: SERVICE_TERMS_VERSION,
-              privacyPolicyAcceptedAt: acceptedAt,
-              privacyPolicyVersion: PRIVACY_POLICY_VERSION,
+              serviceTermsAcceptedAt: null,
+              serviceTermsVersion: null,
+              privacyPolicyAcceptedAt: null,
+              privacyPolicyVersion: null,
               communityInspirationOptIn: false,
               communityInspirationOptInDate: null,
-              communityInspirationTermsVersion: COMMUNITY_INSPIRATION_TERMS_VERSION,
+              communityInspirationTermsVersion: null,
               isInstagramConnected: false,
               planStatus: "inactive",
             });
@@ -1241,22 +1227,6 @@ const authOptionsConfig = {
             logger.info(`${TAG_SIGNIN} [Google] Novo utilizador _id='${dbUserRecord._id}'. AffiliateCode: ${dbUserRecord.affiliateCode}`);
           }
 
-          if (
-            dbUserRecord &&
-            !hasCurrentLegalAcceptance(dbUserRecord) &&
-            !hasLegalConsentCookie
-          ) {
-            logger.warn(`${TAG_SIGNIN} [Google] Login bloqueado por ausência de aceite legal explícito para userId=${dbUserRecord._id}.`);
-            return buildTermsConsentRequiredRedirect(cookieStore);
-          }
-
-          if (dbUserRecord && hasLegalConsentCookie) {
-            const acceptedAt = new Date();
-            if (applyRecordedLegalAcceptance(dbUserRecord, acceptedAt)) {
-              await dbUserRecord.save();
-            }
-            cookieStore.delete(LEGAL_CONSENT_COOKIE_NAME);
-          }
         }
 
         if (dbUserRecord) {

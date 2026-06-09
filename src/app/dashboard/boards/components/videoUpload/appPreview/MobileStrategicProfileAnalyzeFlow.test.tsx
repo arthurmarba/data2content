@@ -37,24 +37,23 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("renders intro step", () => {
+  it("renders upload step", () => {
     renderFlow();
 
-    expect(screen.getByRole("dialog", { name: "Reconhecendo seu momento" })).toBeInTheDocument();
-    expect(screen.getByText("Traga um vídeo seu para colocarmos no espelho. A D2C percebe os padrões que você constrói ali e reflete sua identidade com novos sinais.")).toBeInTheDocument();
-  });
-
-  it("advances to upload", () => {
-    renderFlow();
-    continueFlow();
-
+    expect(screen.getByRole("dialog", { name: "Traga seu vídeo" })).toBeInTheDocument();
     expect(screen.getByText("Vídeo acolhido e pronto")).toBeInTheDocument();
     expect(screen.getByText("Prossiga para definir sua dúvida e ver seu espelho refletir sua voz.")).toBeInTheDocument();
   });
 
-  it("advances to creator goal and allows selection", () => {
+  it("advances to creator goal from fallback upload", () => {
     renderFlow();
     continueFlow();
+
+    expect(screen.getByText("O que quer desvendar?")).toBeInTheDocument();
+  });
+
+  it("advances to creator goal and allows selection", () => {
+    renderFlow();
     continueFlow();
 
     expect(screen.getByText("O que quer desvendar?")).toBeInTheDocument();
@@ -83,7 +82,6 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     renderFlow(onSubmit);
     continueFlow();
     continueFlow();
-    continueFlow();
 
     expect(screen.getByRole("dialog", { name: "Percebendo seus padrões" })).toBeInTheDocument();
     await waitFor(() => {
@@ -103,7 +101,6 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     renderFlow(onSubmit);
     continueFlow();
     continueFlow();
-    continueFlow();
 
     expect(screen.getByRole("dialog", { name: "Percebendo seus padrões" })).toBeInTheDocument();
     await waitFor(() => {
@@ -117,7 +114,6 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     const onSubmit = jest.fn().mockResolvedValue(undefined);
     renderFlow(onSubmit);
 
-    continueFlow(); // intro -> upload
     continueFlow(); // upload -> creator_goal
     fireEvent.change(screen.getByPlaceholderText("Ex: por que esse vídeo prendeu atenção?"), {
       target: { value: "Por que esse vídeo prendeu atenção?" },
@@ -153,7 +149,6 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       />,
     );
 
-    continueFlow(); // intro -> upload
     continueFlow(); // upload -> creator_goal
     continueFlow(); // creator_goal -> processing
 
@@ -175,7 +170,6 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
 
     const { onComplete } = renderFlow(onSubmit);
 
-    continueFlow(); // intro -> upload
     continueFlow(); // upload -> creator_goal
     continueFlow(); // creator_goal -> processing
 
@@ -261,7 +255,6 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
           onComplete={jest.fn()}
         />
       );
-      fireEvent.click(screen.getByRole("button", { name: "Começar" }));
       expect(screen.getByText("Vídeo acolhido e pronto")).toBeInTheDocument();
       expect(screen.queryByText("Selecionar vídeo")).not.toBeInTheDocument();
     });
@@ -276,8 +269,6 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
           onCreateUploadSession={onCreateSession}
         />
       );
-      fireEvent.click(screen.getByRole("button", { name: "Começar" }));
-
       expect(screen.getByText("Selecionar vídeo")).toBeInTheDocument();
       expect(screen.queryByRole("img")).not.toBeInTheDocument();
       expect(container.querySelector("video")).not.toBeInTheDocument();
@@ -297,8 +288,6 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
           onCreateUploadSession={onCreateSession}
         />
       );
-
-      fireEvent.click(screen.getByRole("button", { name: "Começar" }));
 
       // Seleciona o arquivo
       const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
@@ -355,8 +344,6 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
         />
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "Começar" }));
-
       // Seleciona o arquivo
       const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
       fireEvent.change(fileInput, { target: { files: [fileMock] } });
@@ -390,7 +377,6 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
         />
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "Começar" }));
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
       fireEvent.click(screen.getByRole("checkbox"));
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
@@ -443,7 +429,6 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
         />
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "Começar" }));
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
       fireEvent.click(screen.getByRole("checkbox"));
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
@@ -484,7 +469,6 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
         />
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "Começar" }));
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
       fireEvent.click(screen.getByRole("checkbox"));
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
@@ -512,7 +496,6 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
         />
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "Começar" }));
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
       fireEvent.click(screen.getByRole("checkbox"));
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
@@ -558,7 +541,6 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
         />
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "Começar" }));
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
       fireEvent.click(screen.getByRole("checkbox"));
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
@@ -604,7 +586,6 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
         />
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "Começar" }));
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
       fireEvent.click(screen.getByRole("checkbox"));
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
@@ -667,7 +648,6 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
         />
       );
 
-      fireEvent.click(screen.getByRole("button", { name: "Começar" }));
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
       fireEvent.click(screen.getByRole("checkbox"));
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
@@ -700,8 +680,6 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
           onCreateUploadSession={jest.fn()}
         />
       );
-      fireEvent.click(screen.getByRole("button", { name: "Começar" }));
-
       const text = document.body.textContent?.toLowerCase() ?? "";
       expect(text).not.toContain("histórico de vídeos");
       expect(text).not.toContain("vídeos salvos");

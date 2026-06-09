@@ -4,6 +4,7 @@ import {
 } from "./creatorStrategicProfileSynthesis";
 import {
   listRecentCreatorVideoNarrativeDiagnosesForUser,
+  readingFeedsNarrativeMap,
   type CreatorVideoNarrativeDiagnosisSafeReading,
 } from "./creatorVideoNarrativeDiagnosisReadService";
 import {
@@ -90,8 +91,11 @@ export async function runControlledVideoReadingSynthesisSnapshotWrite(
       });
     }
 
+    // The persisted synthesis reflects only readings that feed the map:
+    // readings declared "no" are excluded (binary publishIntent product rule).
+    const synthesisReadings = readings.filter(readingFeedsNarrativeMap);
     const buildSynthesis = deps.buildSynthesis ?? buildCreatorStrategicProfileSynthesis;
-    const synthesis = buildSynthesis({ readings });
+    const synthesis = buildSynthesis({ readings: synthesisReadings });
 
     if (synthesis.status === "empty") {
       return skipped({

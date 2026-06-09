@@ -9,7 +9,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
  * Updates the creator's onboarding answers.
  * Accepts partial updates — only provided fields are overwritten.
  *
- * Body: { whyYouCreate?: string | null; desiredFeeling?: string | null; contentLimit?: string | null }
+ * Body: { whyYouCreate?: string | null; desiredFeeling?: string | null; contentLimit?: string | null; creatorPurpose?: string | null }
  */
 export async function PATCH(request: Request) {
   const authOptions = await resolveAuthOptions();
@@ -29,7 +29,8 @@ export async function PATCH(request: Request) {
     body = {};
   }
 
-  // Only accept the three known fields; coerce empty strings to null
+  // Accept the four known fields; coerce empty strings to null.
+  // creatorPurpose is limited to 150 chars (mirrors the onboarding validation).
   const patch: Record<string, string | null> = {};
   for (const field of ["whyYouCreate", "desiredFeeling", "contentLimit"] as const) {
     if (field in body) {
@@ -37,6 +38,13 @@ export async function PATCH(request: Request) {
       patch[`onboardingAnswers.${field}`] =
         typeof val === "string" && val.trim().length > 0 ? val.trim() : null;
     }
+  }
+  if ("creatorPurpose" in body) {
+    const val = body.creatorPurpose;
+    patch["onboardingAnswers.creatorPurpose"] =
+      typeof val === "string" && val.trim().length > 0
+        ? val.trim().slice(0, 150)
+        : null;
   }
 
   if (Object.keys(patch).length === 0) {

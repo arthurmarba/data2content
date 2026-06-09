@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { X } from "lucide-react";
 import type { ContentIdeaListItem } from "@/app/dashboard/boards/videoUpload/contentIdeasReadService";
+import { DiagnosticoCloseButton } from "./DiagnosticoCloseButton";
 
 interface Props {
   idea: ContentIdeaListItem;
@@ -19,7 +19,7 @@ export function DiagnosticoIdeaDetailSheet({ idea, onClose }: Props) {
       <section
         role="dialog"
         aria-modal="true"
-        aria-label="Roteiro"
+        aria-label="Pauta"
         className="max-h-[calc(100dvh-env(safe-area-inset-top,0px)-1.75rem)] w-full max-w-md overflow-y-auto rounded-[1.5rem] border border-zinc-200 bg-white shadow-[0_28px_80px_rgba(24,24,27,0.18)] animate-in slide-in-from-bottom duration-300"
         onClick={(e) => e.stopPropagation()}
       >
@@ -39,14 +39,9 @@ export function DiagnosticoIdeaDetailSheet({ idea, onClose }: Props) {
               {idea.title}
             </h2>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fechar"
-            className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition active:scale-95 hover:bg-zinc-200 hover:text-zinc-800"
-          >
-            <X className="h-4 w-4" strokeWidth={2} />
-          </button>
+          <div className="mt-0.5 shrink-0">
+            <DiagnosticoCloseButton onClose={onClose} edgeAlign />
+          </div>
         </div>
 
         {/* Divider */}

@@ -32,6 +32,15 @@ describe("videoNarrativeRealAnalysisUserFacingErrors", () => {
     expect(getVideoNarrativeRealAnalysisUserFacingMessage("download_failed")).toBe(
       "Não conseguimos ler o vídeo temporário agora. Tente novamente em alguns minutos.",
     );
+    expect(resolveVideoNarrativeRealAnalysisUserFacingErrorCode("gemini_file_upload_failed")).toBe(
+      "storage_not_ready",
+    );
+    expect(resolveVideoNarrativeRealAnalysisUserFacingErrorCode("gemini_file_permission_denied")).toBe(
+      "gemini_provider_unavailable",
+    );
+    expect(resolveVideoNarrativeRealAnalysisUserFacingErrorCode("gemini_permission_denied")).toBe(
+      "gemini_provider_unavailable",
+    );
     expect(getVideoNarrativeRealAnalysisUserFacingMessage("unknown-provider-stack")).toBe(
       "Não foi possível concluir a análise real agora.",
     );

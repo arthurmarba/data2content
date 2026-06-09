@@ -25,6 +25,7 @@ import {
 import {
   getVideoNarrativeRealAnalysisUserFacingMessage,
 } from "./videoNarrativeRealAnalysisUserFacingErrors";
+import { logger } from "@/app/lib/logger";
 import { resolveVideoNarrativeTemporaryStorageObject } from "./videoNarrativeTemporaryStorageRuntimeResolver";
 import { resolveVideoNarrativeTemporaryStorageInput } from "./videoNarrativeTemporaryStorageRuntimeAdapter";
 import {
@@ -37,6 +38,23 @@ import {
 } from "./creatorVideoNarrativeMockSynthesisSnapshotWriteOrchestrator";
 
 type EnvLike = NodeJS.ProcessEnv | Record<string, string | undefined>;
+
+const REAL_ANALYSIS_BUG_INDICATOR = "MOBILE_STRATEGIC_PROFILE_REAL_ANALYSIS_BUG";
+
+function logRealAnalysisOrchestratorBugEvent(params: {
+  event: string;
+  requestId?: string;
+  userId?: string | null;
+  meta?: Record<string, unknown>;
+}) {
+  logger.warn(`[${REAL_ANALYSIS_BUG_INDICATOR}] ${params.event}`, {
+    bugIndicator: REAL_ANALYSIS_BUG_INDICATOR,
+    component: "videoNarrativeRealAnalysisOrchestrator",
+    requestId: params.requestId,
+    userId: params.userId ?? undefined,
+    ...(params.meta ?? {}),
+  });
+}
 
 export type VideoNarrativeRealAnalysisOrchestratorResult =
   | {
@@ -88,6 +106,7 @@ export type VideoNarrativeRealAnalysisOrchestratorDeps = {
     env?: EnvLike;
     config?: VideoNarrativeGeminiProviderConfig;
     client?: VideoNarrativeGeminiClientAdapter | null;
+    skipAllowlist?: boolean;
   }) => Promise<VideoNarrativeAiProviderResult>;
   evaluateAllowlist?: typeof evaluateVideoNarrativeGeminiAllowlist;
   saveReading?: typeof saveCreatorVideoNarrativeDiagnosisFromStructuredAnalysis;
@@ -243,6 +262,16 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
   const blocker = configResult.issues.find((issue) => issue.severity === "blocker");
 
   if (!configResult.config.enabled || blocker) {
+    logRealAnalysisOrchestratorBugEvent({
+      event: "orchestrator_provider_config_blocked",
+      requestId: deps.requestId,
+      userId: params.user.id,
+      meta: {
+        blockerCode: blocker?.code,
+        providerEnabled: configResult.config.enabled,
+        issueCodes: configResult.issues.map((issue) => issue.code),
+      },
+    });
     return safeFailure({
       status: "blocked",
       message: "Análise real indisponível nesta configuração.",
@@ -253,6 +282,12 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
   const evaluateAllowlist = deps.evaluateAllowlist ?? evaluateVideoNarrativeGeminiAllowlist;
   const allowlist = evaluateAllowlist({ user: params.user, env });
   if (!allowlist.ok) {
+    logRealAnalysisOrchestratorBugEvent({
+      event: "orchestrator_allowlist_blocked",
+      requestId: deps.requestId,
+      userId: params.user.id,
+      meta: { issueCodes: allowlist.issues.map((issue) => issue.code) },
+    });
     return safeFailure({
       status: "blocked",
       message: "Análise real indisponível para este usuário.",
@@ -298,6 +333,11 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
       usageAttemptRecorded = true;
     }
   } catch {
+    logRealAnalysisOrchestratorBugEvent({
+      event: "orchestrator_usage_check_failed",
+      requestId: deps.requestId,
+      userId: params.user.id,
+    });
     return safeFailure({
       status: "failed",
       message: getVideoNarrativeRealAnalysisUserFacingMessage("unknown_error"),
@@ -312,6 +352,12 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
   });
 
   if (!storageResolver.ok) {
+    logRealAnalysisOrchestratorBugEvent({
+      event: "orchestrator_storage_resolver_blocked",
+      requestId: deps.requestId,
+      userId: params.user.id,
+      meta: { status: storageResolver.status },
+    });
     if (usageAttemptRecorded) {
       await recordFailureSafely({ deps, userId: params.user.id, reason: storageResolver.status, now });
     }
@@ -333,6 +379,12 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
   });
 
   if (!storageInputResult.ok) {
+    logRealAnalysisOrchestratorBugEvent({
+      event: "orchestrator_storage_input_failed",
+      requestId: deps.requestId,
+      userId: params.user.id,
+      meta: { status: storageInputResult.status },
+    });
     if (usageAttemptRecorded) {
       await recordFailureSafely({ deps, userId: params.user.id, reason: storageInputResult.status, now });
     }
@@ -394,6 +446,7 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     config: configResult.config,
     client: geminiClient,
     videoInput: storageInputResult.geminiInput,
+    skipAllowlist: true,
   });
 
   if (!providerResult.ok || !providerResult.analysis) {
@@ -408,10 +461,31 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
       "invalid_required_array",
       "gemini_timeout",
       "gemini_invalid_response",
+      "gemini_permission_denied",
+      "gemini_file_upload_failed",
+      "gemini_file_permission_denied",
+      "gemini_file_processing_failed",
+      "gemini_file_processing_timeout",
+      "gemini_file_uri_missing",
       "provider_invalid_response",
     ].includes(providerIssueCode)
       ? providerIssueCode
       : "gemini_provider_failed";
+    logRealAnalysisOrchestratorBugEvent({
+      event: "orchestrator_provider_failed",
+      requestId: deps.requestId,
+      userId: params.user.id,
+      meta: {
+        providerMode: providerResult.mode,
+        providerIssueCode,
+        safeProviderIssueCode,
+        providerIssueCodes: providerResult.issues?.map((issue) => issue.code) ?? [],
+        providerTimingMs: providerResult.timingMs,
+        providerSafeDebugSummary: providerResult.safeDebugSummary,
+        cleanupAttempted,
+        cleanupWarning,
+      },
+    });
     if (usageAttemptRecorded) {
       await recordFailureSafely({
         deps,
@@ -436,6 +510,17 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
   const evidenceAnchorsUsed = hasEvidenceAnchors(providerResult.analysis);
   if (!evidenceAnchorsUsed) {
     await attemptCleanup("analysis_failed");
+    logRealAnalysisOrchestratorBugEvent({
+      event: "orchestrator_video_evidence_missing",
+      requestId: deps.requestId,
+      userId: params.user.id,
+      meta: {
+        providerMode: providerResult.mode,
+        providerTimingMs: providerResult.timingMs,
+        cleanupAttempted,
+        cleanupWarning,
+      },
+    });
     if (usageAttemptRecorded) {
       await recordFailureSafely({
         deps,

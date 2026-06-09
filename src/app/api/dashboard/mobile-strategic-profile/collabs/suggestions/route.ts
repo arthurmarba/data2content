@@ -70,8 +70,9 @@ function buildNarrativeFitReason(
   },
 ): string {
   const { narrativeConfirmed, territoriesConfirmed, narrativeLabel, primaryTerritoryLabel } = opts;
-  const shortNarrative = narrativeLabel ? `"${narrativeLabel}"` : null;
-  const shortTerritory = primaryTerritoryLabel ? `"${primaryTerritoryLabel}"` : null;
+  // Sem aspas de delimitação — num card calmo elas leem como aspas irônicas.
+  const shortNarrative = narrativeLabel ? narrativeLabel : null;
+  const shortTerritory = primaryTerritoryLabel ? primaryTerritoryLabel : null;
 
   if (creator.matchedTheme) {
     if (territoriesConfirmed && shortTerritory) {
@@ -83,23 +84,23 @@ function buildNarrativeFitReason(
     return "Tema parecido com o território narrativo das suas leituras.";
   }
 
+  // Fallback (path Instagram) — NUNCA expor vocabulário de performance/alcance/audiência
+  // ao criador. Mesmo quando o match veio de sinais de Instagram, a razão exibida é
+  // sempre narrativa (decisão consolidada: fit narrativo, não performance).
   switch (creator.matchType) {
     case "HIGH_REACH":
-      return shortNarrative && narrativeConfirmed
-        ? `Bom alcance para ampliar pautas em ${shortNarrative}.`
-        : "Bom alcance médio para amplificar uma pauta em conjunto.";
     case "AUDIENCE_SCALE":
       return shortNarrative && narrativeConfirmed
-        ? `Audiência maior — potencial de distribuição para a narrativa ${shortNarrative}.`
-        : "Audiência maior para uma collab com ganho de distribuição.";
+        ? `Narrativa que conversa com ${shortNarrative}.`
+        : "Narrativa próxima da sua — espaço para uma collab que soma.";
     case "CONSISTENT":
       return shortTerritory && territoriesConfirmed
-        ? `Performance consistente — bom para collabs contínuas em ${shortTerritory}.`
-        : "Performance consistente em recortes parecidos.";
+        ? `Cria de forma constante em temas próximos ao território ${shortTerritory}.`
+        : "Cria de forma constante em temas próximos aos seus.";
     case "HIGH_ENGAGEMENT":
       return territoriesConfirmed
-        ? `Alta resposta de audiência — alinha com o tom e território do seu mapa confirmado.`
-        : "Boa resposta média da audiência em posts recentes.";
+        ? `O jeito de comunicar conversa com o tom do seu mapa.`
+        : "O jeito de comunicar tem afinidade com o seu.";
     default:
       return shortNarrative && narrativeConfirmed
         ? `Alinhado com a narrativa confirmada: ${shortNarrative}.`
@@ -165,6 +166,14 @@ export async function POST(request: Request) {
     const territoriesConfirmed = mapConfirmations?.territories === "confirmed";
     const narrativeLabel = cleanText(body?.narrativeLabel);
 
+    // Territórios confirmados do viewer — usados no ranking, na razão de fit e no
+    // "ponto de encontro" (terreno comum). Parseados uma vez para os dois paths.
+    const viewerTerritoryLabels: string[] = Array.isArray(body?.collabTerritories)
+      ? (body.collabTerritories as unknown[])
+          .map((t) => (typeof t === "string" ? t : (t as { label?: unknown } | null)?.label))
+          .filter((x): x is string => typeof x === "string" && x.trim().length > 0)
+      : [];
+
     // ── Fase C: Narrative-map path (preferred, no Instagram required) ──────────
     //
     // When both narrative + territories are confirmed, try matching other creators
@@ -175,6 +184,7 @@ export async function POST(request: Request) {
         session.user.id,
         narrativeLabel,
         limit,
+        viewerTerritoryLabels,
       );
 
       if (narrativeResult.ok && narrativeResult.matches.length > 0) {
@@ -224,6 +234,9 @@ export async function POST(request: Request) {
         narrativeLabel,
         primaryTerritoryLabel,
       }),
+      // Ponto de encontro (path Instagram): quando o criador casou pelo TEMA do
+      // viewer (matchedTheme), o terreno comum é o próprio território primário dele.
+      sharedSignal: creator.matchedTheme && primaryTerritoryLabel ? primaryTerritoryLabel : null,
     }));
 
     return NextResponse.json({

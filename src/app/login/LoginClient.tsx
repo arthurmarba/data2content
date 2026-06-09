@@ -4,12 +4,16 @@ import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useMemo, useState } from "react";
-import {
-  LEGAL_CONSENT_COOKIE_MAX_AGE_SECONDS,
-  LEGAL_CONSENT_COOKIE_NAME,
-} from "@/lib/auth/legalConsent";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { resolveIntentCopy } from "./loginIntentCopy";
+
+interface CommunityCreator {
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+  hasAvatarImage?: boolean;
+  hidden?: boolean;
+}
 
 function LoginComponent() {
   const searchParams = useSearchParams();
@@ -17,6 +21,21 @@ function LoginComponent() {
   const intentFromParams = searchParams.get("intent");
   const loginError = searchParams.get("error");
   const [isLoading, setIsLoading] = useState(false);
+  const [creators, setCreators] = useState<CommunityCreator[]>([]);
+  const [creatorCount, setCreatorCount] = useState(0);
+
+  useEffect(() => {
+    fetch("/api/landing/community-stats")
+      .then((r) => r.json())
+      .then((data) => {
+        const ranking: CommunityCreator[] = data?.ranking ?? [];
+        const withAvatar = ranking.filter((c) => Boolean(c.avatarUrl));
+        setCreators(withAvatar.slice(0, 6));
+        setCreatorCount(data?.metrics?.totalSubscribers ?? data?.metrics?.activeCreators ?? withAvatar.length);
+      })
+      .catch(() => {});
+  }, []);
+
   const copy = useMemo(
     () => resolveIntentCopy(callbackUrlFromParams, intentFromParams),
     [callbackUrlFromParams, intentFromParams]
@@ -25,12 +44,6 @@ function LoginComponent() {
 
   const handleGoogleSignIn = () => {
     setIsLoading(true);
-    const secureFlag =
-      typeof window !== "undefined" && window.location.protocol === "https:"
-        ? "; Secure"
-        : "";
-    document.cookie = `${LEGAL_CONSENT_COOKIE_NAME}=1; Max-Age=${LEGAL_CONSENT_COOKIE_MAX_AGE_SECONDS}; Path=/; SameSite=Lax${secureFlag}`;
-
     void signIn("google", {
       callbackUrl: callbackUrlFromParams || MAIN_DASHBOARD_ROUTE,
     }).catch(() => {
@@ -39,27 +52,38 @@ function LoginComponent() {
   };
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-[#101827] px-5 pb-10 pt-12">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-18%,rgba(236,72,153,0.30),rgba(16,24,39,0)_50%),linear-gradient(180deg,#1e0e26_0%,#101827_55%,#0D1726_100%)]" />
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-[0.08] mix-blend-soft-light" />
-      </div>
+    <div className="flex h-[100dvh] flex-col items-center justify-center overflow-hidden bg-white px-5 pb-16">
+      <div className="w-full max-w-sm px-1">
 
-      <div className="relative z-10 w-full max-w-sm px-1 py-8">
-        <div className="mb-9 text-center">
-          <div className="mb-8 text-xl font-black tracking-tight text-brand-primary">
+        {/* Logo D2C em preto */}
+        <div className="flex justify-center">
+          <img
+            src="/images/Colorido-Simbolo.png"
+            alt="Data2Content"
+            style={{ filter: "brightness(0)", width: "120px", height: "auto", marginBottom: "-12px" }}
+            aria-hidden="true"
+          />
+        </div>
+
+        <div className="mb-5 text-center">
+          {/* Badge */}
+          <div className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-zinc-400">
             {copy.badge}
           </div>
-          <h1 className="mx-auto max-w-[18rem] text-[2.15rem] font-bold leading-[1.05] tracking-tight text-slate-100">
+          {/* Título — text-balance para distribuição equilibrada das linhas */}
+          <h1
+            className="mx-auto max-w-[16rem] text-[1.85rem] font-bold leading-[1.08] tracking-tight text-zinc-950"
+            style={{ textWrap: "balance" } as React.CSSProperties}
+          >
             {copy.title}
           </h1>
-          <p className="mx-auto mt-5 max-w-[18.5rem] text-sm font-medium leading-relaxed text-slate-300">
+          <p className="mx-auto mt-3 max-w-[17rem] text-[13px] font-medium leading-relaxed text-zinc-500">
             {copy.description}
           </p>
         </div>
 
         {consentRequired ? (
-          <div className="mb-5 rounded-2xl border border-amber-400/25 bg-amber-300/10 px-4 py-3 text-[12px] leading-relaxed text-amber-100">
+          <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] leading-relaxed text-amber-700">
             Continue com Google para registrar o aceite dos Termos e da Política de Privacidade.
           </div>
         ) : null}
@@ -68,7 +92,8 @@ function LoginComponent() {
           <button
             onClick={handleGoogleSignIn}
             disabled={isLoading}
-            className="inline-flex w-full appearance-none items-center justify-center overflow-hidden rounded-full border-0 bg-white px-6 py-5 text-base font-bold text-slate-950 shadow-[0_16px_42px_rgba(3,7,18,0.34)] outline-none transition-all hover:bg-white hover:scale-[1.01] focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-[#101827] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+            aria-label={isLoading ? "Entrando..." : copy.buttonLabel}
+            className="inline-flex w-full appearance-none items-center justify-center overflow-hidden rounded-full border border-zinc-200 bg-zinc-50 px-6 py-4 text-sm font-semibold text-zinc-950 shadow-sm outline-none transition-all hover:bg-zinc-100 hover:scale-[1.01] focus-visible:ring-2 focus-visible:ring-zinc-950/20 focus-visible:ring-offset-2 focus-visible:ring-offset-white active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
           >
             <span className="inline-flex items-center justify-center gap-3 whitespace-nowrap">
               {!isLoading && (
@@ -110,51 +135,69 @@ function LoginComponent() {
           </button>
         </div>
 
-        <p className="mt-5 text-center text-[12px] font-semibold leading-relaxed text-slate-300">
-          {copy.footer}
-        </p>
+        {copy.footer ? (
+          <p className="mt-5 text-center text-[12px] font-medium leading-relaxed text-zinc-600">
+            {copy.footer}
+          </p>
+        ) : null}
 
-        <p className="mx-auto mt-2 max-w-[18rem] text-center text-[12px] leading-relaxed text-slate-400">
+        {/* Legal — compacto, uma linha */}
+        <p className={`mx-auto text-center text-[10px] leading-relaxed text-zinc-400/70 ${copy.footer ? "mt-2" : "mt-4"}`}>
           Ao continuar, você aceita os{" "}
-          <Link
-            href="/termos-e-condicoes"
-            target="_blank"
-            className="font-semibold text-white underline decoration-white/30 underline-offset-4 transition hover:text-white"
-          >
+          <Link href="/termos-e-condicoes" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-zinc-600">
             Termos
           </Link>{" "}
           e a{" "}
-          <Link
-            href="/politica-de-privacidade"
-            target="_blank"
-            className="font-semibold text-white underline decoration-white/30 underline-offset-4 transition hover:text-white"
-          >
+          <Link href="/politica-de-privacidade" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-zinc-600">
             Política de Privacidade
-          </Link>
-          .
+          </Link>.
         </p>
 
-        {/* ── Feature preview — anchors the bottom, sets expectations ── */}
-        <div className="mx-auto mt-10 w-full max-w-[19.5rem]">
-          <p className="mb-3 text-center text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-            O que você vai descobrir
-          </p>
-          <div className="flex flex-wrap justify-center gap-2">
-            {[
-              "Sua narrativa central",
-              "Territórios com legitimidade",
-              "Próximas pautas do mapa",
-              "Tom e formato ideal",
-            ].map((label) => (
-              <span
-                key={label}
-                className="rounded-full border border-white/[0.15] bg-white/[0.06] px-3 py-1.5 text-[12px] font-medium text-slate-300"
-              >
-                {label}
-              </span>
-            ))}
+        {/* Prova social — criadores reais da comunidade */}
+        {creators.length > 0 && (
+          <div className="mx-auto mt-7 flex flex-col items-center gap-3">
+            {/* Avatares sobrepostos */}
+            <div className="flex items-center">
+              {creators.filter(c => !c.hidden).slice(0, 5).map((creator, i) => (
+                <div
+                  key={creator.id}
+                  className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border-2 border-white bg-zinc-200"
+                  style={{ marginLeft: i === 0 ? 0 : -10, zIndex: creators.length - i }}
+                >
+                  {creator.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={creator.avatarUrl}
+                      alt={creator.name}
+                      className="h-full w-full object-cover"
+                      referrerPolicy="no-referrer"
+                      onError={() => setCreators(prev =>
+                        prev.map(c => c.id === creator.id ? { ...c, hidden: true } : c)
+                      )}
+                    />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center text-[11px] font-bold text-zinc-500">
+                      {creator.name.charAt(0)}
+                    </span>
+                  )}
+                </div>
+              ))}
+              {creatorCount > 5 && (
+                <div
+                  className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-white bg-zinc-100 text-[10px] font-bold text-zinc-500"
+                  style={{ marginLeft: -10, zIndex: 0 }}
+                >
+                  +{creatorCount - 5}
+                </div>
+              )}
+            </div>
+            {/* Label */}
+            <p className="text-center text-[11px] font-medium leading-snug text-zinc-400">
+              Criadores que já encontraram seu mapa
+            </p>
           </div>
-        </div>
+        )}
+
       </div>
     </div>
   );

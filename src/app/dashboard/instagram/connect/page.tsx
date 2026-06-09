@@ -3,6 +3,7 @@
 import React, { useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { ArrowLeft, ArrowRight, ChevronDown, Instagram } from "lucide-react";
 import {
   mapNextAuthErrorToReconnectCode,
   reconnectErrorMessageForCode,
@@ -12,59 +13,12 @@ import {
   type InstagramReconnectNextTarget,
 } from "@/app/lib/instagram/client/startInstagramReconnect";
 
-type StepStatus = "complete" | "active" | "pending";
-
-type StepDefinition = {
-  label: string;
-  status: StepStatus;
-};
-
 type QuickItem = {
   title: string;
   description: string;
   faqHref?: string;
   essential?: boolean;
 };
-
-function StepRail({ steps }: { steps: StepDefinition[] }) {
-  return (
-    <ol
-      className="grid grid-cols-2 gap-2 sm:grid-cols-4"
-      aria-label="Etapas da conexão"
-    >
-      {steps.map((step, idx) => {
-        const badgeClass =
-          step.status === "complete"
-            ? "bg-emerald-100 text-emerald-700 border-emerald-200"
-            : step.status === "active"
-            ? "bg-blue-100 text-blue-700 border-blue-200"
-            : "bg-gray-100 text-gray-500 border-gray-200";
-
-        const labelClass =
-          step.status === "active"
-            ? "text-gray-900"
-            : step.status === "complete"
-            ? "text-emerald-700"
-            : "text-gray-500";
-
-        return (
-          <li
-            key={step.label}
-            className="flex min-w-0 items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 sm:p-3"
-          >
-            <span
-              className={`inline-flex h-7 w-7 items-center justify-center rounded-full border text-xs font-semibold ${badgeClass}`}
-              aria-hidden
-            >
-              {idx + 1}
-            </span>
-            <span className={`text-sm font-medium ${labelClass}`}>{step.label}</span>
-          </li>
-        );
-      })}
-    </ol>
-  );
-}
 
 export default function InstagramPreConnectPage() {
   const router = useRouter();
@@ -136,14 +90,7 @@ export default function InstagramPreConnectPage() {
         "Sugestões de conteúdo",
       ]
     : [];
-  const steps: StepDefinition[] = [
-    { label: "Preparar", status: "active" },
-    { label: "Autorizar", status: "pending" },
-    { label: "Escolher conta", status: "pending" },
-    { label: isPostCreationFlow ? "Voltar ao board" : "Concluir", status: "pending" },
-  ];
   const essentialChecklist = quickChecklist.filter((item) => item.essential);
-  const optionalChecklist = quickChecklist.filter((item) => !item.essential);
 
   const oauthErrorCode = mapNextAuthErrorToReconnectCode(
     searchParams.get("error"),
@@ -182,6 +129,43 @@ export default function InstagramPreConnectPage() {
       setLoading(false);
     }
   };
+
+  const connectCopy = (() => {
+    switch (nextTarget) {
+      case "narrative-map":
+        return {
+          title: "Traga seus posts para o mapa",
+          subtitle:
+            "Lemos o que você já publica para alimentar seu mapa. Sem publicações.",
+          backLabel: "Voltar ao mapa",
+          cta: "Conectar e voltar ao mapa",
+        };
+      case "calculator":
+        return {
+          title: "Conecte para calcular seus valores",
+          subtitle:
+            "Usamos suas métricas reais para sugerir faixas de preço justas. Nada é postado por nós.",
+          backLabel: "Voltar",
+          cta: "Conectar Instagram",
+        };
+      case "planner":
+        return {
+          title: "Conecte para gerar suas pautas",
+          subtitle:
+            "Lemos o que você já publica para criar ideias na sua voz. Nada é postado por nós.",
+          backLabel: "Voltar",
+          cta: "Conectar Instagram",
+        };
+      default:
+        return {
+          title: "Conecte seu Instagram",
+          subtitle:
+            "Conectamos com a Meta para ler suas métricas com segurança. Nada é postado por nós.",
+          backLabel: "Voltar",
+          cta: "Conectar Instagram",
+        };
+    }
+  })();
 
   if (isPostCreationFlow) {
     return (
@@ -315,280 +299,126 @@ export default function InstagramPreConnectPage() {
   }
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-8 pb-36 sm:pb-8">
-      <h1 className="text-2xl font-semibold text-gray-900">Conectar Instagram</h1>
-      <p className="text-gray-600 mt-2">
-        {isPostCreationFlow
-          ? "Autorize pela Meta para liberar a análise e a pauta de teste. Não publicamos nada."
-          : isNarrativeMapFlow
-          ? "Autorize pela Meta para a D2C ler sinais das suas postagens e voltar ao seu mapa. Não publicamos nada."
-          : "Autorize pela Meta para validar sua conta com segurança. Não publicamos nada."}
-      </p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {isPostCreationFlow && (
-          <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700">
-            Teste inicial
-          </span>
-        )}
-        <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700">
-          Somente leitura
-        </span>
-        {!isPostCreationFlow && (
-          <span className="inline-flex items-center rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700">
-            {isNarrativeMapFlow ? "Volta para o mapa" : "Retorno automático"}
-          </span>
-        )}
-      </div>
-
-      <div className="mt-5 hidden sm:flex gap-3 flex-wrap">
+    <main
+      className="min-h-[100dvh] bg-[#F4F4F8]"
+      style={{ paddingTop: "env(safe-area-inset-top,0px)" }}
+    >
+      {/* Header */}
+      <header className="sticky top-0 z-10 flex items-center gap-3 bg-[#F4F4F8]/95 px-4 pb-3 pt-3 backdrop-blur-sm">
         <button
-          onClick={startConnect}
-          disabled={loading || status === "loading"}
-          className={`inline-flex items-center px-4 py-2 rounded-md text-white ${loading ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"}`}
-        >
-          {loading ? loadingLabel : connectLabel}
-        </button>
-        <button
+          type="button"
+          aria-label={connectCopy.backLabel}
           onClick={() => router.push(backTarget)}
-          className="inline-flex items-center px-4 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white text-zinc-600 shadow-sm transition active:scale-95"
         >
-          {isPostCreationFlow ? "Voltar ao board" : isNarrativeMapFlow ? "Voltar ao mapa" : "Conectar depois"}
+          <ArrowLeft className="h-4 w-4" strokeWidth={2} />
         </button>
-        <button
-          onClick={showAuthorizationDetails}
-          className="inline-flex items-center px-4 py-2 rounded-md border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
-        >
-          Ver detalhes
-        </button>
-      </div>
+        <span className="text-[15px] font-semibold text-zinc-700">{connectCopy.backLabel}</span>
+      </header>
 
-      <section className="mt-6">
-        <StepRail steps={steps} />
-        {isPostCreationFlow && (
-          <p className="mt-2 text-sm text-slate-500">
-            Após autorizar, você retorna ao board para continuar de onde parou.
-          </p>
-        )}
-        {isNarrativeMapFlow && (
-          <p className="mt-2 text-sm text-slate-500">
-            Após autorizar, você retorna ao mapa para continuar de onde parou.
-          </p>
-        )}
-      </section>
+      <div className="mx-auto flex max-w-md flex-col gap-3 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+2rem)] pt-4">
 
-      <section className="mt-5 border-y border-slate-200 py-4">
-        <h2 className="text-sm font-semibold text-slate-900">
-          {isPostCreationFlow ? "Incluído no teste" : "Como funciona"}
-        </h2>
-        {isPostCreationFlow ? (
-          <ul className="mt-3 grid gap-3 text-sm text-slate-700 sm:grid-cols-3">
-            {trialValueItems.map((item) => (
-              <li key={item} className="border-t border-slate-200 pt-3 font-medium first:border-t-0 first:pt-0 sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0 sm:first:border-l-0 sm:first:pl-0">
-                {item}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <ol className="mt-2 grid gap-2 text-sm text-blue-900 sm:grid-cols-2">
-            <li>1. Validamos seus pré-requisitos.</li>
-            <li>2. Você autoriza pela Meta (Página + Business, se solicitado).</li>
-            <li>3. Escolhe a conta IG correta (se houver mais de uma).</li>
-            <li>4. Finalizamos e você volta ao dashboard já conectado.</li>
-          </ol>
-        )}
-      </section>
-
-      {!isPostCreationFlow && (
-        <section ref={generalDetailsRef} className="mt-6 grid gap-4 lg:grid-cols-[1.25fr_.95fr]">
-          <div className="space-y-4">
-            <div className="p-4 bg-white rounded-lg border border-gray-200">
-              <h2 className="font-medium text-gray-900">Essencial antes de continuar</h2>
-              <ul className="mt-3 space-y-3">
-                {essentialChecklist.map((item) => (
-                  <li key={item.title} className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-                    <p className="text-sm font-medium text-slate-900">{item.title}</p>
-                    <p className="mt-0.5 text-xs text-slate-600">{item.description}</p>
-                    {item.faqHref && (
-                      <a className="mt-1 inline-block text-xs font-medium underline text-blue-700 hover:text-blue-800" href={item.faqHref}>
-                        Ver passo a passo
-                      </a>
-                    )}
-                  </li>
-                ))}
-              </ul>
-
-              {optionalChecklist.length > 0 && (
-                <details className="mt-3 rounded-md border border-slate-200 bg-white px-3 py-2">
-                  <summary className="cursor-pointer text-xs font-semibold text-slate-700">
-                    Ver checagens adicionais (opcional)
-                  </summary>
-                  <ul className="mt-2 space-y-2">
-                    {optionalChecklist.map((item) => (
-                      <li key={item.title} className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2">
-                        <p className="text-sm font-medium text-slate-900">{item.title}</p>
-                        <p className="mt-0.5 text-xs text-slate-600">{item.description}</p>
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-            </div>
-
-            <div className="p-4 bg-white rounded-lg border border-gray-200">
-              <h2 className="font-medium text-gray-900">O que você normalmente seleciona na Meta</h2>
-              <ol className="mt-2 space-y-2 text-sm text-gray-700">
-                <li>1. Página da Meta/Facebook que administra o Instagram.</li>
-                <li>2. Portfólio empresarial (Business Manager), quando exibido.</li>
-                <li>3. Conta Instagram profissional vinculada à Página.</li>
-              </ol>
-              <p className="mt-2 text-xs text-slate-500">
-                Se algum desses itens não aparecer, a conta IG pode não ser encontrada no passo final.
-              </p>
-            </div>
-
-            <details className="p-4 bg-white rounded-lg border border-gray-200">
-              <summary className="cursor-pointer font-medium text-gray-900">
-                Ver permissões solicitadas pela Meta
-              </summary>
-              <p className="mt-2 text-sm text-gray-600">
-                Todas as permissões são usadas para leitura de dados do Instagram profissional.
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                {permissionsRequested.map((permission) => (
-                  <span
-                    key={permission}
-                    className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700"
-                  >
-                    {permission}
-                  </span>
-                ))}
-              </div>
-            </details>
+        {/* Card principal */}
+        <div className="rounded-[24px] bg-white px-6 py-7 shadow-[0_1px_4px_rgba(28,28,30,0.08)]">
+          {/* Ícone */}
+          <div className="flex h-14 w-14 items-center justify-center rounded-[18px] bg-gradient-to-br from-[#F58529] via-[#DD2A7B] to-[#8134AF] shadow-[0_4px_14px_rgba(221,42,123,0.35)]">
+            <Instagram className="h-7 w-7 text-white" strokeWidth={1.8} />
           </div>
 
-          <aside className="space-y-4">
-            <details className="p-4 bg-white rounded-lg border border-gray-200" open>
-              <summary className="cursor-pointer font-medium text-gray-900">
-                Se algo falhar, como você será guiado
-              </summary>
-              <ol className="mt-2 space-y-2 text-sm text-gray-700">
-                <li>1. Exibimos o código do erro de conexão.</li>
-                <li>2. Mostramos ações práticas para resolver.</li>
-                <li>3. Direcionamos para o FAQ no ponto exato do problema.</li>
-              </ol>
-            </details>
+          {/* Título + subtítulo */}
+          <h1 className="mt-5 text-[22px] font-bold tracking-tight text-zinc-950">
+            {connectCopy.title}
+          </h1>
+          <p className="mt-2 text-[14px] leading-relaxed text-zinc-500">
+            {connectCopy.subtitle}
+          </p>
 
-            <div className="p-4 bg-white rounded-lg border border-gray-200">
-              <h2 className="font-medium text-gray-900">Segurança</h2>
-              <p className="text-sm text-gray-700 mt-2">
-                Plataforma credenciada pela Meta, com acesso de leitura às métricas.
+          {/* Trust signals */}
+          <div className="mt-5 space-y-2">
+            {["Somente leitura", "Não publicamos nada"].map((item) => (
+              <p key={item} className="flex items-center gap-2 text-[13px] text-zinc-500">
+                <span className="font-semibold text-emerald-500">✓</span>
+                {item}
               </p>
-              <p className="text-xs text-gray-500 mt-2">
-                Quer detalhes?{" "}
-                <a href="/dashboard/instagram/faq" className="underline text-blue-700 hover:text-blue-800">
-                  Veja o FAQ
-                </a>.
-              </p>
+            ))}
+          </div>
+
+          {/* Erro */}
+          {displayError && (
+            <div
+              className="mt-5 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+              aria-live="polite"
+            >
+              <p className="font-semibold">Não conseguimos abrir a autorização.</p>
+              <p className="mt-1">{displayError}</p>
             </div>
-          </aside>
-        </section>
-      )}
+          )}
 
-      {isPostCreationFlow && (
-        <details ref={postCreationDetailsRef} className="mt-5 rounded-lg border border-slate-200 bg-white/70 p-4">
-          <summary className="cursor-pointer text-sm font-medium text-slate-900">
-            Detalhes da autorização
+          {/* CTA — dentro do card */}
+          <button
+            onClick={startConnect}
+            disabled={loading || status === "loading"}
+            className="mt-6 flex min-h-[52px] w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#D62E5E] to-[#9326A6] px-6 text-[15px] font-semibold text-white shadow-sm transition hover:opacity-95 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading ? loadingLabel : connectCopy.cta}
+            {!loading && <ArrowRight className="h-4 w-4" strokeWidth={2} />}
+          </button>
+        </div>
+
+        {/* Requisitos e permissões — colapsado, separado */}
+        <details className="group rounded-[20px] bg-white shadow-[0_1px_4px_rgba(28,28,30,0.06)]">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-4 text-[14px] font-semibold text-zinc-700 marker:hidden">
+            Requisitos e permissões
+            <ChevronDown
+              className="h-4 w-4 text-zinc-400 transition group-open:rotate-180"
+              strokeWidth={2}
+            />
           </summary>
-          <div className="mt-4 grid gap-5 lg:grid-cols-[1.15fr_.85fr]">
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-sm font-semibold text-gray-900">Antes de autorizar</h2>
-                <ul className="mt-3 space-y-3">
-                  {essentialChecklist.map((item) => (
-                    <li key={item.title} className="border-t border-slate-200 pt-3 first:border-t-0 first:pt-0">
-                      <p className="text-sm font-medium text-slate-900">{item.title}</p>
-                      <p className="mt-0.5 text-xs text-slate-600">{item.description}</p>
-                      {item.faqHref && (
-                        <a className="mt-1 inline-block text-xs font-medium underline text-blue-700 hover:text-blue-800" href={item.faqHref}>
-                          Ver passo a passo
-                        </a>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <h2 className="text-sm font-semibold text-gray-900">Na Meta</h2>
-                <ol className="mt-2 space-y-2 text-sm text-gray-700">
-                  <li>1. Escolha a Página vinculada ao Instagram.</li>
-                  <li>2. Confirme o Business, se aparecer.</li>
-                  <li>3. Selecione a conta Instagram correta.</li>
-                </ol>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <h2 className="text-sm font-semibold text-gray-900">Permissões</h2>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {permissionsRequested.map((permission) => (
-                    <span
-                      key={permission}
-                      className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700"
+          <div className="border-t border-zinc-100 px-5 pb-5 pt-4">
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">
+              Para sua conta aparecer
+            </p>
+            <ul className="mt-3 space-y-3">
+              {essentialChecklist.map((item) => (
+                <li key={item.title}>
+                  <p className="text-[13px] font-medium text-zinc-800">{item.title}</p>
+                  <p className="mt-0.5 text-[12px] leading-relaxed text-zinc-500">
+                    {item.description}
+                  </p>
+                  {item.faqHref && (
+                    <a
+                      href={item.faqHref}
+                      className="mt-1 inline-block text-[12px] font-semibold text-brand-primary underline underline-offset-2"
                     >
-                      {permission}
-                    </span>
-                  ))}
-                </div>
-              </div>
+                      Ver passo a passo
+                    </a>
+                  )}
+                </li>
+              ))}
+            </ul>
 
-              <div>
-                <h2 className="text-sm font-semibold text-gray-900">Ajuda</h2>
-                <p className="mt-2 text-sm text-gray-700">
-                  Se a conta não aparecer, mostramos o motivo e o próximo passo.
-                </p>
-                <a href="/dashboard/instagram/faq" className="mt-2 inline-block text-sm font-medium underline text-blue-700 hover:text-blue-800">
-                  Abrir FAQ do Instagram
-                </a>
-              </div>
+            <p className="mt-5 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">
+              Permissões de leitura
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {permissionsRequested.map((permission) => (
+                <span
+                  key={permission}
+                  className="rounded-full bg-zinc-100 px-2.5 py-1 text-[12px] font-medium text-zinc-600"
+                >
+                  {permission}
+                </span>
+              ))}
             </div>
+
+            <a
+              href="/dashboard/instagram/faq"
+              className="mt-4 inline-block text-[12px] font-semibold text-brand-primary underline underline-offset-2"
+            >
+              Abrir FAQ do Instagram
+            </a>
           </div>
         </details>
-      )}
-
-      {displayError && (
-        <div className="mt-4 p-3 rounded bg-red-50 text-red-700 border border-red-200 text-sm" aria-live="polite">
-          <p className="font-medium">Não foi possível iniciar a conexão.</p>
-          <p className="mt-1">{displayError}</p>
-        </div>
-      )}
-
-      <div
-        className="fixed inset-x-0 z-30 border-t border-slate-200 bg-white/95 p-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur sm:hidden"
-        style={{ bottom: "var(--cookie-consent-offset, 0px)" }}
-      >
-        <button
-          onClick={startConnect}
-          disabled={loading || status === "loading"}
-          className={`w-full rounded-md px-4 py-2.5 text-sm font-medium text-white ${loading ? "bg-blue-400" : "bg-blue-600 hover:bg-blue-700"}`}
-        >
-          {loading ? loadingLabel : connectLabel}
-        </button>
-        <div className="mt-2 flex gap-2">
-          <button
-            onClick={() => router.push(backTarget)}
-            className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50"
-          >
-            {isPostCreationFlow ? "Voltar ao board" : "Conectar depois"}
-          </button>
-          <button
-            onClick={showAuthorizationDetails}
-            className="flex-1 rounded-md border border-gray-300 px-3 py-2 text-sm text-gray-700 bg-white hover:bg-gray-50"
-          >
-            Detalhes
-          </button>
-        </div>
       </div>
     </main>
   );

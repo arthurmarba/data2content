@@ -34,6 +34,7 @@ const TOP_CREATORS_LIMIT = Math.max(
 const TOP_CATEGORIES_LIMIT = 4;
 const FALLBACK_METRICS: LandingCommunityMetrics = {
   activeCreators: 130,
+  totalSubscribers: 60,
   combinedFollowers: 2_400_000,
   totalPostsAnalyzed: 42_000,
   postsLast30Days: 1_200,
@@ -197,6 +198,9 @@ async function buildCommunityMetrics(params: {
 
   const activeCreators = activeUsers.length;
   const combinedFollowers = activeUsers.reduce((sum, user) => sum + (user.followers_count ?? 0), 0);
+  const totalSubscribers = await UserModel.countDocuments({
+    stripeSubscriptionId: { $exists: true, $ne: null },
+  }).exec();
   const newMembersLast7Days = activeUsers.filter((user) => {
     const joinedAt = user.communityInspirationOptInDate;
     return joinedAt ? joinedAt >= recentEntriesSince : false;
@@ -205,6 +209,7 @@ async function buildCommunityMetrics(params: {
   if (activeCreatorIds.length === 0) {
     return {
       activeCreators,
+      totalSubscribers,
       combinedFollowers,
       totalPostsAnalyzed: 0,
       postsLast30Days: 0,
@@ -370,6 +375,7 @@ async function buildCommunityMetrics(params: {
 
   return {
     activeCreators,
+    totalSubscribers,
     combinedFollowers,
     totalPostsAnalyzed,
     postsLast30Days: last30Summary.postCount,

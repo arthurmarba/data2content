@@ -10,6 +10,7 @@ export type CategoryId =
   | "instagram"
   | "brands"
   | "collabs"
+  | "community"
   | "readings"
   | "ideas";
 
@@ -88,6 +89,17 @@ function VideoIcon() {
   );
 }
 
+function CommunityIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="9" cy="7" r="3" stroke="white" strokeWidth="1.8" />
+      <path d="M2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1" stroke="white" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="18" cy="8" r="2.2" stroke="white" strokeWidth="1.6" />
+      <path d="M17 14a5 5 0 0 1 5 5v1" stroke="white" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function IdeasIcon() {
   return (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -146,12 +158,21 @@ export const CATEGORY_META: Record<CategoryId, CategoryMeta> = {
   },
   collabs: {
     id: "collabs",
-    title: "Collabs Indicadas",
-    category: "Collabs Indicadas",
+    title: "Collabs",
+    category: "Collabs",
     shortCategory: "Collabs",
-    iconBg: HC.hypothesis.bg,
-    catColor: HC.hypothesis.text,
+    iconBg: "bg-blue-600",
+    catColor: "text-blue-700",
     icon: <CollabIcon />,
+  },
+  community: {
+    id: "community",
+    title: "Comunidade",
+    category: "Comunidade",
+    shortCategory: "Comunidade",
+    iconBg: "bg-teal-600",
+    catColor: "text-teal-700",
+    icon: <CommunityIcon />,
   },
   readings: {
     id: "readings",

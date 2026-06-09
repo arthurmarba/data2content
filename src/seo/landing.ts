@@ -3,16 +3,21 @@ import faqItems from "@/data/faq";
 
 const SITE_URL = "https://data2content.ai";
 const HOME_SHARE_LOGO_URL = `${SITE_URL}/images/Colorido-Simbolo.png`;
-const HOME_SHARE_TEXT =
-  "Data2Content: A agência estratégica consultiva que te ajuda a criar conteúdo para atrair marcas, gerar vendas e te conecta com grandes criadores para crescerem juntos";
+
+// OG title: ≤60 chars — aparece em negrito no preview do WhatsApp/social
+const OG_TITLE = "Data2Content — Entenda o que seu conteúdo diz sobre você";
+
+// OG description: ≤160 chars — aparece como texto abaixo do título
+const OG_DESCRIPTION =
+  "Descubra o que está funcionando, receba ideias prontas para postar e encontre criadores para crescer junto.";
 
 export const landingMetadata: Metadata = {
-  title: HOME_SHARE_TEXT,
-  description: HOME_SHARE_TEXT,
+  title: OG_TITLE,
+  description: OG_DESCRIPTION,
   alternates: { canonical: `${SITE_URL}/` },
   openGraph: {
-    title: HOME_SHARE_TEXT,
-    description: HOME_SHARE_TEXT,
+    title: OG_TITLE,
+    description: OG_DESCRIPTION,
     url: SITE_URL,
     type: "website",
     siteName: "Data2Content",
@@ -29,8 +34,8 @@ export const landingMetadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     creator: "@data2content",
-    title: HOME_SHARE_TEXT,
-    description: HOME_SHARE_TEXT,
+    title: OG_TITLE,
+    description: OG_DESCRIPTION,
     images: [HOME_SHARE_LOGO_URL],
   }
 };

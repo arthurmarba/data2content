@@ -157,6 +157,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     mounted && isMobile && isMobileStrategicProfileAppEnabled && isMobileStrategicProfileSurface;
   const shouldShowMobileBottomNav =
     !isMobileStrategicProfileMediaKitReturn &&
+    !isBillingPage &&
     shouldRenderDashboardMobileBottomNav({
       isPrintMode,
       isGuidedFlow,
@@ -169,7 +170,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     !isPrintMode &&
     !isCalendarHub &&
     !shouldUseMobileStrategicProfileShell &&
-    !isMobileStrategicProfileMediaKitReturn;
+    !isMobileStrategicProfileMediaKitReturn &&
+    !isBillingPage &&
+    !isGuidedFlow;
 
   useEffect(() => {
     if (!shouldRedirectMobileDashboardEntryClient) return;
@@ -259,9 +262,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   const mainScrollClass = isPrintMode
     ? "overflow-visible"
-    : shouldUseMobileStrategicProfileShell
+    : shouldUseMobileStrategicProfileShell || ((isBillingPage || isSettingsPage || isGuidedFlow) && isMobile)
       ? "overflow-y-auto flex min-h-0 flex-col"
-    : "overflow-hidden flex min-h-0 flex-col";
+      : "overflow-hidden flex min-h-0 flex-col";
   const headerOffsetRequested = Boolean(
     activeHeaderConfig.mobileTitle ||
       activeHeaderConfig.mobileSubtitle ||
@@ -335,7 +338,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         {!isPrintMode &&
         activationWidgetReady &&
         !shouldUseMobileStrategicProfileShell &&
-        !isMobileStrategicProfileMediaKitReturn ? (
+        !isMobileStrategicProfileMediaKitReturn &&
+        !isBillingPage &&
+        !isGuidedFlow ? (
           <ActivationPendingWidget />
         ) : null}
         {shouldShowMobileBottomNav ? <MobileBottomNav /> : null}

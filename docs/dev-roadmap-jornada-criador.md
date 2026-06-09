@@ -715,5 +715,128 @@ Fase 2 (mapa consolidado)
 
 ---
 
-*Documento técnico — Data2Content, maio 2026.*
+## MapaSeed — Enriquecimento Progressivo (jun 2026) ✅
+
+> Trabalho separado das fases 1A–4 acima. Fecha os gaps do card "Seu Mapa"
+> identificados em diagnóstico de produto (jun/2026): Instagram não enriquecia o
+> MapaSeed, `publishIntent` não filtrava a síntese, e vídeos publicados não
+> retroalimentavam o mapa seed.
+
+### Decisão de produto incorporada — publishIntent binário
+
+`publishIntent` (declaração de publicação pós-leitura) é agora **binário**: apenas
+`"yes"` ou `"no"`. O terceiro estado `"unsure"` foi removido de modelo, rota e UI.
+
+| publishIntent | Efeito na síntese / mapa |
+|---|---|
+| `"yes"` | Inclui com peso pleno |
+| `null` (legado, sem declaração) | Inclui com peso pleno (compatibilidade retroativa) |
+| `"no"` | **Excluído** da síntese e do snapshot do mapa |
+
+Predicado canônico: `readingFeedsNarrativeMap(reading)` em
+`creatorVideoNarrativeDiagnosisReadService.ts`. Todos os pontos de síntese usam
+este predicado — nunca duplicar a regra.
+
+---
+
+### Fase M1 — Instagram → MapaSeed ✅
+
+**Gatilho:** conexão do Instagram (via worker QStash `refresh-instagram-user`).
+
+**O que faz:** após `triggerDataRefresh` bem-sucedido, chama
+`enrichMapaSeedWithInstagram(userId)` que analisa os 30 posts mais recentes e
+cruza com o MapaSeed via LLM (intensity high). Throttle de 12h para evitar
+re-processamento em reconexões rápidas. Guard: só roda se MapaSeed existe.
+
+**Arquivos:**
+- `src/app/lib/mapaSeed/enrichMapaSeedForUser.ts` — orquestração non-fatal
+- `src/app/api/worker/refresh-instagram-user/route.ts` — chamada adicionada
+
+---
+
+### Fase M2 — publishIntent filtra a síntese ✅
+
+**O que faz:** leituras marcadas `"no"` são excluídas da síntese exibida no
+"Seu Mapa" e do snapshot persistido. O histórico de "Leituras" preserva todos os
+vídeos analisados (filtro atua apenas no input da síntese, não na query).
+
+**Arquivos modificados:**
+- `creatorVideoNarrativeDiagnosisReadService.ts` — campo `publishIntent` na projeção/tipo + `readingFeedsNarrativeMap`
+- `narrativeMapMobileViewModelServerSelector.ts` — síntese recebe `synthesisReadings = readings.filter(readingFeedsNarrativeMap)`
+- `creatorVideoNarrativeMockSynthesisSnapshotWriteOrchestrator.ts` — snapshot persistido também filtra
+- `MobileStrategicProfileAnalyzeFlow.tsx` — botão "Ainda não sei" removido; UI agora tem apenas "Sim" / "Não"
+- `publish-intent/route.ts`, `CreatorVideoNarrativeDiagnosis.ts`, `DiagnosticoRealShellClient.tsx`, `narrativeCollabMatchingService.ts` — tipos atualizados para enum binário
+
+---
+
+### Fase M3 — "Não" → re-síntese imediata ✅
+
+**Gatilho:** `PATCH /diagnosis/[id]/publish-intent` com `publishIntent: "no"`.
+
+**O que faz:** após salvar o intent, chama
+`runControlledVideoReadingSynthesisSnapshotWrite` com o mesmo `diagnosisId`.
+O snapshot é regravado excluindo a leitura — o próximo load do "Seu Mapa" já
+reflete a exclusão sem cache stale. Non-fatal.
+
+**Arquivo:** `publish-intent/route.ts` — bloco `if (publishIntent === "no")` adicionado.
+
+---
+
+### Fase M4 — Vídeos publicados → MapaSeed ✅
+
+**Gatilho:** `PATCH /diagnosis/[id]/publish-intent` com `publishIntent: "yes"`.
+
+**Fluxo:**
+```
+"yes" declarado
+    ↓ (non-blocking)
+enqueueMapaVideoEnrichment → QStash job { userId }
+    ↓ async
+/api/worker/enrich-mapa-video
+    → enrichMapaSeedWithVideoForUser
+        → leituras publicadas (readingFeedsNarrativeMap)
+        → buildCreatorStrategicProfileSynthesis
+        → enrichMapaWithVideoReadings (LLM cross-reference, intensity high)
+        → MapaSeed.maturidade = "video_enriched", fonte += "video"
+```
+
+**Arquivos criados:**
+- `src/app/lib/mapaSeed/enrichMapaWithVideoReadings.ts` — cross-reference LLM
+- `src/app/lib/mapaSeed/enrichMapaSeedWithVideoForUser.ts` — orquestração non-fatal
+- `src/app/lib/mapaSeed/enqueueMapaVideoEnrichment.ts` — publisher QStash
+- `src/app/api/worker/enrich-mapa-video/route.ts` — worker QStash (verifica assinatura)
+
+**Config de deploy necessária:** variável de ambiente `MAPA_VIDEO_ENRICH_WORKER_URL`
+apontando para `/api/worker/enrich-mapa-video`. Reutiliza `QSTASH_TOKEN` e as
+signing keys já existentes. Sem a env var, o enqueue é no-op gracioso.
+
+**Relação com Fase 2b:** a Fase 2b deferida (integração dos campos
+`Metric.theme/context/tone` nos cards do mapa) continua deferida — ela é uma
+camada de display sobre o Stream B de métricas, ortogonal ao enriquecimento do
+MapaSeed implementado aqui.
+
+---
+
+### Resumo de arquivos — Fases M1–M4
+
+| Arquivo | Tipo | Fases |
+|---|---|---|
+| `enrichMapaSeedForUser.ts` | [BE] novo | M1 |
+| `enrichMapaWithVideoReadings.ts` | [BE] novo | M4 |
+| `enrichMapaSeedWithVideoForUser.ts` | [BE] novo | M4 |
+| `enqueueMapaVideoEnrichment.ts` | [BE] novo | M4 |
+| `enrich-mapa-video/route.ts` | [BE] novo | M4 |
+| `refresh-instagram-user/route.ts` | [BE] alterado | M1 |
+| `publish-intent/route.ts` | [BE] alterado | M2, M3, M4 |
+| `creatorVideoNarrativeDiagnosisReadService.ts` | [BE] alterado | M2 |
+| `narrativeMapMobileViewModelServerSelector.ts` | [BE] alterado | M2 |
+| `creatorVideoNarrativeMockSynthesisSnapshotWriteOrchestrator.ts` | [BE] alterado | M2 |
+| `CreatorVideoNarrativeDiagnosis.ts` (model) | [DB] alterado | M2 |
+| `MobileStrategicProfileAnalyzeFlow.tsx` | [FE] alterado | M2 |
+| `DiagnosticoRealShellClient.tsx` | [FE] alterado | M2 |
+| `narrativeCollabMatchingService.ts` | [BE] alterado | M2 |
+
+---
+
+*Documento técnico — Data2Content, maio/jun 2026.*
 *Atualizar a cada fase concluída ou decisão de produto tomada.*

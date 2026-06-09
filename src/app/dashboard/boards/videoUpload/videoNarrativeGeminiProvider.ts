@@ -63,6 +63,21 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   });
 }
 
+function getExternalErrorStatus(error: unknown): number | null {
+  const status = (error as { status?: unknown } | null)?.status;
+  return typeof status === "number" ? status : null;
+}
+
+function getExternalErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isPermissionDeniedProviderError(error: unknown): boolean {
+  const status = getExternalErrorStatus(error);
+  const message = getExternalErrorMessage(error);
+  return status === 401 || status === 403 || /PERMISSION_DENIED|dunning|billing/i.test(message);
+}
+
 export async function runVideoNarrativeGeminiProvider(params: {
   input: VideoNarrativeAiProviderInput;
   user: VideoNarrativeGeminiAllowlistUser;
@@ -75,6 +90,7 @@ export async function runVideoNarrativeGeminiProvider(params: {
     uri?: string;
     source: "temporary_storage";
   };
+  skipAllowlist?: boolean;
 }): Promise<VideoNarrativeAiProviderResult> {
   const startedAt = Date.now();
   const resolved = params.config
@@ -91,16 +107,18 @@ export async function runVideoNarrativeGeminiProvider(params: {
     });
   }
 
-  const allowlist = evaluateVideoNarrativeGeminiAllowlist({
-    user: params.user,
-    env: params.env,
-  });
-  if (!allowlist.ok) {
-    return disabledResult({
-      promptVersion,
-      issues: allowlist.issues,
-      timingMs: Date.now() - startedAt,
+  if (!params.skipAllowlist) {
+    const allowlist = evaluateVideoNarrativeGeminiAllowlist({
+      user: params.user,
+      env: params.env,
     });
+    if (!allowlist.ok) {
+      return disabledResult({
+        promptVersion,
+        issues: allowlist.issues,
+        timingMs: Date.now() - startedAt,
+      });
+    }
   }
 
   if (!params.client) {
@@ -156,7 +174,13 @@ export async function runVideoNarrativeGeminiProvider(params: {
       timingMs: Date.now() - startedAt,
     };
   } catch (error) {
-    const code = error instanceof Error && error.message === "provider_timeout" ? "gemini_timeout" : "gemini_external_error";
+    const code = error instanceof Error && error.message === "provider_timeout"
+      ? "gemini_timeout"
+      : error instanceof Error && error.message.startsWith("gemini_file_")
+        ? error.message
+        : isPermissionDeniedProviderError(error)
+          ? "gemini_permission_denied"
+          : "gemini_external_error";
     return disabledResult({
       promptVersion,
       mode: "failed",

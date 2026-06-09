@@ -40,7 +40,7 @@ export async function enforceCurrentLegalAcceptance(callbackUrl: string) {
   if (!hasCurrentLegalAcceptance(user)) {
     const resolvedCallbackUrl = resolveLegalAcceptanceCallbackUrl(callbackUrl);
     redirect(
-      `/login?error=TermsConsentRequired&callbackUrl=${encodeURIComponent(resolvedCallbackUrl)}`
+      `/aceite-de-termos?callbackUrl=${encodeURIComponent(resolvedCallbackUrl)}`
     );
   }
 }

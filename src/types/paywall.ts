@@ -8,7 +8,8 @@ export type PaywallContext =
   | "media_kit"
   | "publis"
   | "planning"
-  | "whatsapp";
+  | "whatsapp"
+  | "onboarding";
 
 export type PaywallEventDetail = {
   context?: PaywallContext | null;

@@ -11,6 +11,20 @@ jest.mock("./videoNarrativeTemporaryStorageRuntimeAdapter", () => ({
   resolveVideoNarrativeTemporaryStorageInput: jest.fn(),
 }));
 
+jest.mock("@/app/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
+const logger = require("@/app/lib/logger").logger as {
+  info: jest.Mock;
+  warn: jest.Mock;
+  error: jest.Mock;
+};
+
 const env = {
   VIDEO_NARRATIVE_GEMINI_PROVIDER_ENABLED: "true",
   VIDEO_NARRATIVE_GEMINI_ALLOWLIST_ENABLED: "1",
@@ -231,6 +245,7 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
           temporaryUpload: expect.objectContaining({ uploadSessionId: payload.uploadSessionId }),
           requestId: "req-test",
         }),
+        skipAllowlist: true,
       }),
     );
     expect(saveReading).not.toHaveBeenCalled();
@@ -366,6 +381,49 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
     expect(cleanupTemporaryUpload).toHaveBeenCalledWith(expect.objectContaining({ reason: "analysis_failed" }));
     expect(usageDeps.recordUsageFailure).toHaveBeenCalledWith(
       expect.objectContaining({ reason: "gemini_provider_failed" }),
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining("orchestrator_provider_failed"),
+      expect.objectContaining({
+        bugIndicator: "MOBILE_STRATEGIC_PROFILE_REAL_ANALYSIS_BUG",
+        component: "videoNarrativeRealAnalysisOrchestrator",
+        providerIssueCode: "external_secret_error",
+        safeProviderIssueCode: "gemini_provider_failed",
+      }),
+    );
+  });
+
+  it("preserva código seguro quando o provider nega permissão", async () => {
+    const cleanupTemporaryUpload = jest.fn().mockResolvedValue(undefined);
+    const result = await runVideoNarrativeRealAnalysisOrchestrator({
+      payload,
+      user,
+      deps: {
+        env,
+        runProvider: jest.fn().mockResolvedValue({
+          ok: false,
+          provider: "gemini",
+          mode: "failed",
+          promptVersion: "v1",
+          issues: [{ code: "gemini_file_permission_denied", severity: "blocker", message: "Provider indisponível" }],
+        }),
+        cleanupTemporaryUpload,
+        ...usageDeps,
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.safeIssueCode).toBe("gemini_file_permission_denied");
+    expect(result.message).toBe("A análise real está temporariamente indisponível.");
+    expect(usageDeps.recordUsageFailure).toHaveBeenCalledWith(
+      expect.objectContaining({ reason: "gemini_file_permission_denied" }),
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining("orchestrator_provider_failed"),
+      expect.objectContaining({
+        providerIssueCode: "gemini_file_permission_denied",
+        safeProviderIssueCode: "gemini_file_permission_denied",
+      }),
     );
   });
 

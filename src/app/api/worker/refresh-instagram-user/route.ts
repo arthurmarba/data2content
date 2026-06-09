@@ -3,9 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Receiver } from "@upstash/qstash"; // Importa o Receiver QStash
 import { logger } from '@/app/lib/logger';
 // ATUALIZADO para o novo módulo
-import { triggerDataRefresh } from '@/app/lib/instagram'; 
+import { triggerDataRefresh } from '@/app/lib/instagram';
 import mongoose from 'mongoose'; // Para validar ObjectId
 import { invalidateDashboardHomeSummaryCache } from '@/app/lib/cache/dashboardCache';
+import { enrichMapaSeedWithInstagram } from '@/app/lib/mapaSeed/enrichMapaSeedForUser';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic'; // Garante execução dinâmica
@@ -96,6 +97,11 @@ export async function POST(request: NextRequest) {
     if (refreshResult.success) {
         invalidateDashboardHomeSummaryCache(userId);
         logger.info(`${TAG} Atualização de dados para User ${userId} concluída com sucesso. Mensagem: ${refreshResult.message}`);
+
+        // Enriquece o MapaSeed com os posts recentes do Instagram.
+        // Non-fatal: nunca bloqueia a resposta do worker.
+        await enrichMapaSeedWithInstagram(userId);
+
         return NextResponse.json({ success: true, message: refreshResult.message, details: refreshResult.details }, { status: 200 });
     } else {
         logger.error(`${TAG} Falha na atualização de dados (triggerDataRefresh) para User ${userId}. Mensagem: ${refreshResult.message}`, refreshResult.details ? { details: refreshResult.details } : {});

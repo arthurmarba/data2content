@@ -193,7 +193,7 @@ export async function POST(request: Request) {
     const { default: UserModel } = await import("@/app/models/User");
     const userDoc = await UserModel.findById(userId).select("onboardingAnswers").lean();
     const onboardingAnswers = ((userDoc as any)?.onboardingAnswers ?? null) as
-      | { whyYouCreate?: string | null; desiredFeeling?: string | null; contentLimit?: string | null }
+      | { whyYouCreate?: string | null; desiredFeeling?: string | null; contentLimit?: string | null; creatorPurpose?: string | null }
       | null;
 
     const recentDismissedTitles = await listRecentDismissedTitles(userId, 10);
@@ -225,6 +225,7 @@ export async function POST(request: Request) {
             whyYouCreate: onboardingAnswers.whyYouCreate ?? null,
             desiredFeeling: onboardingAnswers.desiredFeeling ?? null,
             contentLimit: onboardingAnswers.contentLimit ?? null,
+            creatorPurpose: onboardingAnswers.creatorPurpose ?? null,
           }
         : null,
       recentDismissedTitles,

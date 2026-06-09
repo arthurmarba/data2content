@@ -7,25 +7,25 @@ export type LoginIntentCopy = {
 };
 
 export const DEFAULT_LOGIN_INTENT_COPY: LoginIntentCopy = {
-  badge: "Data2Content",
-  title: "Entre na sua conta",
-  description: "Continue seu mapa narrativo e seus próximos passos.",
+  badge: "Bem-vindo de volta",
+  title: "Seu mapa está esperando",
+  description: "Retome de onde você parou.",
   buttonLabel: "Continuar com Google",
-  footer: "Assim que entrar, a D2C retoma de onde você parou.",
+  footer: "",
 };
 
 export const STRATEGIC_PROFILE_LOGIN_INTENT_COPY: LoginIntentCopy = {
-  badge: "Data2Content",
-  title: "Comece seu mapa narrativo",
-  description: "Entre para entender o que seu conteúdo já revela sobre sua narrativa.",
+  badge: "Seu mapa começa aqui",
+  title: "Entenda o que seu conteúdo diz sobre você",
+  description: "Descubra o que está funcionando, receba ideias prontas para postar e encontre criadores para crescer junto.",
   buttonLabel: "Continuar com Google",
-  footer: "Assim que entrar, a D2C começa a mapear seu conteúdo.",
+  footer: "Assim que entrar, seu perfil começa a tomar forma.",
 };
 
 export const ANALYZE_VIDEO_LOGIN_INTENT_COPY: LoginIntentCopy = {
-  badge: "Análise narrativa",
+  badge: "Análise do seu conteúdo",
   title: "Continue sua análise",
-  description: "Entre para conectar a leitura do conteúdo ao seu mapa narrativo.",
+  description: "Entre para ver o que este vídeo diz sobre o seu conteúdo.",
   buttonLabel: "Continuar com Google",
   footer: "Assim que entrar, a leitura continua de onde parou.",
 };
@@ -109,11 +109,10 @@ export function resolveIntentCopy(
 
   if (path.includes("/calculator")) {
     return {
-      badge: "Calculadora Pro",
-      title: "Entre para continuar na calculadora",
-      description:
-        "Use sua conta Google para retomar a precificação e seguir para a assinatura do Plano Pro quando necessário.",
-      buttonLabel: "Entrar e continuar",
+      badge: "Precificação",
+      title: "Precifique com base no seu perfil",
+      description: "Seus dados reais fazem o número fazer sentido para você.",
+      buttonLabel: "Continuar com Google",
       footer: "Assim que entrar, a calculadora retoma do ponto em que você estava.",
     };
   }
@@ -121,10 +120,9 @@ export function resolveIntentCopy(
   if (path.includes("/media-kit") || path.includes("/mediakit")) {
     return {
       badge: "Mídia Kit",
-      title: "Entre para continuar no Mídia Kit",
-      description:
-        "A conta Google guarda seu progresso e permite seguir para a assinatura e conexão do Instagram no momento certo.",
-      buttonLabel: "Entrar e continuar",
+      title: "Gere seu mídia kit com dados reais",
+      description: "Seus dados de Instagram conectados geram um kit pronto para marcas.",
+      buttonLabel: "Continuar com Google",
       footer: "Assim que entrar, o Mídia Kit continua do ponto em que você parou.",
     };
   }
@@ -132,21 +130,19 @@ export function resolveIntentCopy(
   if (path.includes("/planning") || path.includes("/calendar")) {
     return {
       badge: "Planejamento",
-      title: "Entre para continuar no board",
-      description:
-        "Faça login com Google para acessar seu board, salvar progresso e continuar o fluxo de assinatura quando a funcionalidade for premium.",
-      buttonLabel: "Entrar e continuar",
-      footer: "Assim que entrar, o board retoma a etapa certa.",
+      title: "Continue organizando seus próximos conteúdos",
+      description: "Seus próximos conteúdos ficam salvos e ligados ao seu mapa.",
+      buttonLabel: "Continuar com Google",
+      footer: "Assim que entrar, o planejamento retoma de onde você parou.",
     };
   }
 
   if (path.includes("/campaigns") || path.includes("/publis") || path.includes("/proposals")) {
     return {
-      badge: "Campanhas e CRM",
-      title: "Entre para continuar nas campanhas",
-      description:
-        "Sua conta Google é necessária para gerenciar CRM, publis e negociações, com assinatura ativada quando o recurso exigir acesso Pro.",
-      buttonLabel: "Entrar e continuar",
+      badge: "Parcerias",
+      title: "Gerencie suas parcerias e publis",
+      description: "Suas propostas e publis em um só lugar, ligadas ao seu perfil.",
+      buttonLabel: "Continuar com Google",
       footer: "Assim que entrar, você retoma de onde parou.",
     };
   }
@@ -154,11 +150,10 @@ export function resolveIntentCopy(
   if (path.includes("/discover") || path.includes("/community")) {
     return {
       badge: "Comunidade",
-      title: "Entre para continuar na comunidade",
-      description:
-        "Faça login com Google para acessar a comunidade e seguir para a mentoria ou para os próximos passos de ativação quando necessário.",
-      buttonLabel: "Entrar e continuar",
-      footer: "Assim que entrar, a comunidade e suas sessões ficam acessíveis.",
+      title: "Encontre criadores para crescer junto",
+      description: "Criadores que falam sobre temas parecidos com os seus, em um só lugar.",
+      buttonLabel: "Continuar com Google",
+      footer: "Assim que entrar, os criadores indicados ficam visíveis.",
     };
   }
 

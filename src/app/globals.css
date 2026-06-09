@@ -768,6 +768,12 @@ a {
 }
 
 @layer utilities {
+  /* Respiro padrão abaixo do notch para headers full-screen.
+     DEVE casar com a constante SAFE_TOP em diagnosticoTokens.ts. */
+  .pt-safe-top {
+    padding-top: calc(var(--sat, 0px) + 12px);
+  }
+
   .safe-area-pb {
     padding-bottom: calc(var(--sab, 0px) + 1rem);
   }

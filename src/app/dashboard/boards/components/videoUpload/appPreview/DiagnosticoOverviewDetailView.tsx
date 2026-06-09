@@ -208,6 +208,7 @@ const ONBOARDING_LABELS: Record<keyof DiagnosticoOnboardingAnswers, string> = {
   whyYouCreate: "Por que você cria conteúdo?",
   desiredFeeling: "Que sensação quer gerar no seu público?",
   contentLimit: "O que você não quer que seu conteúdo seja?",
+  creatorPurpose: "Seu propósito como criador",
 };
 
 function OnboardingAnswersCard({ answers }: { answers: DiagnosticoOnboardingAnswers }) {

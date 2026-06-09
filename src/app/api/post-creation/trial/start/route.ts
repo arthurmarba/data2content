@@ -8,7 +8,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import { serializePostCreationTrial } from "@/app/lib/postCreationTrial/access";
 import UserModel from "@/app/models/User";
 import {
-  COMMUNITY_INSPIRATION_TERMS_VERSION,
+  COMMUNITY_INSPIRATION_VERSION,
   PRIVACY_POLICY_VERSION,
   SERVICE_TERMS_VERSION,
 } from "@/lib/auth/legalConsent";
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
     privacyPolicyVersion: PRIVACY_POLICY_VERSION,
     communityInspirationOptIn: false,
     communityInspirationOptInDate: null,
-    communityInspirationTermsVersion: COMMUNITY_INSPIRATION_TERMS_VERSION,
+    communityInspirationTermsVersion: COMMUNITY_INSPIRATION_VERSION,
     isInstagramConnected: false,
   });
 

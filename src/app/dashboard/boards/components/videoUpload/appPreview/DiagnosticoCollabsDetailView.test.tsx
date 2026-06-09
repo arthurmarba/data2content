@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { DiagnosticoCollabsDetailView } from "./DiagnosticoCollabsDetailView";
 import { buildDiagnosticoPageDataFixture } from "./diagnosticoTestFixtures";
 import type { LandingCreatorHighlight } from "@/types/landing";
@@ -50,6 +50,24 @@ function makeSynthesis() {
 }
 
 describe("DiagnosticoCollabsDetailView", () => {
+  it("opens the gated Community flow from the header action", () => {
+    const onOpenCommunity = jest.fn();
+    render(
+      <DiagnosticoCollabsDetailView
+        synthesis={makeSynthesis()}
+        instagramConnected
+        suggestionsState={{ status: "ready", items: [] }}
+        creatorDirectory={{ status: "ready", creators: [] }}
+        onOpenCommunity={onOpenCommunity}
+        onClose={jest.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Comunidade" }));
+    expect(onOpenCommunity).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("link", { name: "Acessar comunidade no WhatsApp" })).not.toBeInTheDocument();
+  });
+
   it("renders suggested collabs before the D2C creator directory", () => {
     const { container } = render(
       <DiagnosticoCollabsDetailView

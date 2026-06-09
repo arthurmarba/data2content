@@ -42,9 +42,11 @@ type BillingStatus = {
 
 type DeleteAccountSectionProps = {
   onManageSubscription?: () => void;
+  /** Oculta o heading interno "Excluir conta" quando já existe um título externo. */
+  hideHeading?: boolean;
 };
 
-export default function DeleteAccountSection({ onManageSubscription }: DeleteAccountSectionProps = {}) {
+export default function DeleteAccountSection({ onManageSubscription, hideHeading = false }: DeleteAccountSectionProps = {}) {
   const { data: session } = useSession();
   const user = (session?.user as SessionUser) || {};
 
@@ -195,10 +197,12 @@ export default function DeleteAccountSection({ onManageSubscription }: DeleteAcc
 
   return (
     <section id="delete-account" className="space-y-4">
-      <h3 className="flex items-center gap-2 text-[15px] font-semibold text-[#A72B3C]">
-        <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
-        Excluir conta
-      </h3>
+      {!hideHeading && (
+        <h3 className="flex items-center gap-2 text-[15px] font-semibold text-[#A72B3C]">
+          <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
+          Excluir conta
+        </h3>
+      )}
 
       {/* Informação quando a renovação já está agendada */}
       {isScheduledForCancellation && (

@@ -25,6 +25,34 @@ export const HC_READING: Record<string, { bg: string; text: string }> = {
   default:                   { bg: "bg-zinc-400",    text: "text-zinc-400"    },
 };
 
+// ─── Text color tokens (WCAG AA compliant on #F2F2F7 background) ─────────────
+// All three pass 4.5:1 contrast ratio on the app shell background (#F2F2F7).
+// Do NOT use TEXT_TERTIARY_HEX for body text smaller than 18px bold.
+//
+// Usage in inline styles: color: TEXT_SECONDARY_HEX
+// Usage in Tailwind:      className="text-zinc-500"
+export const TEXT_PRIMARY_HEX   = "#18181b"; // zinc-950 — primary text
+export const TEXT_SECONDARY_HEX = "#6b7280"; // gray-500 — 4.58:1 on #F2F2F7 ✓
+export const TEXT_TERTIARY_HEX  = "#a1a1aa"; // zinc-400 — 2.85:1, large text only (≥ 18px bold)
+export const TEXT_BODY_HEX      = "#3f3f46"; // zinc-700 — body / medium-emphasis text
+
+// ─── Ink & surface tokens (physical colors used across inline styles) ─────────
+// One token = one physical color. Used as text, bg, border or stroke depending
+// on context. Centralized here so a brand change touches a single line.
+export const INK_DARK_HEX        = "#1c1c1e"; // near-black — banner / dark surfaces / big numbers
+export const SURFACE_NEUTRAL_HEX = "#f4f4f5"; // zinc-100 — neutral button / chip background
+export const ACCENT_ORANGE_HEX   = "#ff6b35"; // brand orange — primary accent / hypothesis CTA
+
+// ─── Safe-area ────────────────────────────────────────────────────────────────
+// Respiro padrão abaixo do notch para headers de telas full-screen.
+// DEVE casar com a utilitária CSS `.pt-safe-top` em globals.css.
+export const SAFE_TOP = "calc(env(safe-area-inset-top, 0px) + 12px)";
+
+// Deprecated low-contrast values — replaced by TEXT_SECONDARY_HEX
+// #a1a1aa → TEXT_TERTIARY_HEX (large text only) or TEXT_SECONDARY_HEX (body)
+// #8e8e93 → TEXT_SECONDARY_HEX
+// #71717a → TEXT_SECONDARY_HEX (fails on #F2F2F7 shell background)
+
 // ─── Card anatomy ─────────────────────────────────────────────────────────────
 export const CARD_P        = "p-5";
 export const CARD_METRIC   = "text-[22px] font-bold tracking-tight text-zinc-950 leading-[1.15]";

@@ -15,6 +15,7 @@ export type MobileStrategicProfileDirectUploadResult = {
 };
 
 const HUMAN_UPLOAD_ERROR = "Não foi possível enviar o vídeo agora.";
+const MAX_UPLOAD_ATTEMPTS = 2;
 const DANGEROUS_HEADERS = new Set([
   "authorization",
   "cookie",
@@ -67,6 +68,14 @@ function resolveFetchUploadUrl(uploadUrl: string, parsedUrl: URL): string {
   return uploadUrl;
 }
 
+function uploadResponseCanBeRetried(response: Response): boolean {
+  return response.status >= 500 || response.status === 408 || response.status === 429;
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function sanitizeHeaders(headers: Record<string, string>): Record<string, string> | null {
   const safeHeaders: Record<string, string> = {};
 
@@ -116,44 +125,66 @@ export async function uploadVideoToTemporarySignedUrl(
     return invalidSignedSession();
   }
 
-  try {
-    const response = await fetch(resolveFetchUploadUrl(input.uploadUrl, parsedUrl), {
-      method: "PUT",
-      headers,
-      body: input.file,
-      credentials: "omit",
-    });
+  const fetchUploadUrl = resolveFetchUploadUrl(input.uploadUrl, parsedUrl);
 
-    if (response.ok) {
-      if (
-        isLocalDiscardUploadUrlAllowed(parsedUrl) &&
-        response.headers?.get("x-d2c-local-temp-upload") !== "stored"
-      ) {
-        return {
-          ok: false,
-          status: "failed",
-          errorMessage: HUMAN_UPLOAD_ERROR,
-        };
-      }
-
+  for (let attempt = 1; attempt <= MAX_UPLOAD_ATTEMPTS; attempt++) {
+    if (hasExpired(input.expiresAt)) {
       return {
-        ok: true,
-        status: "uploaded",
-        uploadedAt: new Date().toISOString(),
-        bytesSent: input.file.size,
+        ok: false,
+        status: "expired",
+        errorMessage: "A sessão temporária expirou. Tente enviar o vídeo novamente.",
       };
     }
 
-    return {
-      ok: false,
-      status: "failed",
-      errorMessage: HUMAN_UPLOAD_ERROR,
-    };
-  } catch {
-    return {
-      ok: false,
-      status: "failed",
-      errorMessage: HUMAN_UPLOAD_ERROR,
-    };
+    try {
+      const response = await fetch(fetchUploadUrl, {
+        method: "PUT",
+        headers,
+        body: input.file,
+        credentials: "omit",
+      });
+
+      if (response.ok) {
+        if (
+          isLocalDiscardUploadUrlAllowed(parsedUrl) &&
+          response.headers?.get("x-d2c-local-temp-upload") !== "stored"
+        ) {
+          return {
+            ok: false,
+            status: "failed",
+            errorMessage: HUMAN_UPLOAD_ERROR,
+          };
+        }
+
+        return {
+          ok: true,
+          status: "uploaded",
+          uploadedAt: new Date().toISOString(),
+          bytesSent: input.file.size,
+        };
+      }
+
+      if (attempt < MAX_UPLOAD_ATTEMPTS && uploadResponseCanBeRetried(response)) {
+        await delay(350 * attempt);
+        continue;
+      }
+
+      return {
+        ok: false,
+        status: "failed",
+        errorMessage: HUMAN_UPLOAD_ERROR,
+      };
+    } catch {
+      if (attempt < MAX_UPLOAD_ATTEMPTS) {
+        await delay(350 * attempt);
+        continue;
+      }
+    }
   }
+
+  return {
+    ok: false,
+    status: "failed",
+    errorMessage: HUMAN_UPLOAD_ERROR,
+  };
 }

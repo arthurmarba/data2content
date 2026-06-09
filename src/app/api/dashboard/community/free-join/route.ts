@@ -7,7 +7,7 @@ import { invalidateDashboardHomeSummaryCache } from "@/app/lib/cache/dashboardCa
 import { logger } from "@/app/lib/logger";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import UserModel from "@/app/models/User";
-import { COMMUNITY_INSPIRATION_TERMS_VERSION } from "@/lib/auth/legalConsent";
+import { COMMUNITY_INSPIRATION_VERSION } from "@/lib/auth/legalConsent";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,7 +37,7 @@ export async function GET() {
         $set: {
           communityInspirationOptIn: true,
           communityInspirationOptInDate: joinedAt,
-          communityInspirationTermsVersion: COMMUNITY_INSPIRATION_TERMS_VERSION,
+          communityInspirationTermsVersion: COMMUNITY_INSPIRATION_VERSION,
         },
       }
     );

@@ -64,6 +64,8 @@ export interface ContentIdeasMapContext {
     whyYouCreate: string | null;
     desiredFeeling: string | null;
     contentLimit: string | null;
+    /** Declaração de propósito livre — o "norte" do criador (sinal mais forte). */
+    creatorPurpose?: string | null;
   } | null;
   /** Previously dismissed idea titles — to avoid re-suggesting */
   recentDismissedTitles: string[];
@@ -229,6 +231,11 @@ export function buildContentIdeasPrompt(
     ? [
         "",
         "Intenção declarada no onboarding:",
+        // O propósito é a âncora narrativa: quando existe, prevalece sobre os
+        // demais sinais de intenção para decidir o que é coerente propor.
+        context.onboardingAnswers.creatorPurpose
+          ? `  - PROPÓSITO (norte do criador — priorize sobre os demais sinais): ${context.onboardingAnswers.creatorPurpose}`
+          : null,
         context.onboardingAnswers.whyYouCreate
           ? `  - Por que cria: ${context.onboardingAnswers.whyYouCreate}`
           : null,

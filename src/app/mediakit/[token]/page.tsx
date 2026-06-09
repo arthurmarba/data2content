@@ -294,6 +294,10 @@ export default async function MediaKitPage(
   const isPrintMode = Array.isArray(printParam)
     ? printParam.includes('1') || printParam.includes('true')
     : printParam === '1' || printParam === 'true';
+  const embeddedParam = searchParams?.embedded;
+  const isEmbedded = Array.isArray(embeddedParam)
+    ? embeddedParam.includes('1') || embeddedParam.includes('true')
+    : embeddedParam === '1' || embeddedParam === 'true';
   if (!isPrintMode) {
     const ip = getClientIpFromHeaders(reqHeaders, req);
     const referer = reqHeaders.get('referer') || undefined;
@@ -453,6 +457,35 @@ export default async function MediaKitPage(
     }))
     : [];
 
+  const mediaKitView = (
+    <MediaKitView
+      user={plainUser}
+      summary={summary}
+      videos={compatibleVideos}
+      kpis={kpis}
+      demographics={demographics}
+      engagementTrend={engagementTrend}
+      showOwnerCtas={false}
+      compactPadding
+      compactBoardPreview
+      mediaKitSlug={resolvedToken.canonicalSlug}
+      premiumAccess={premiumAccessConfig}
+      pricing={pricingPublished ? pricing : null}
+      pricingPublished={pricingPublished}
+      packages={normalizedPackages}
+    />
+  );
+
+  if (isEmbedded) {
+    return (
+      <main className="mx-auto flex min-h-screen w-full flex-col px-0">
+        <div className="relative mx-auto flex w-full max-w-[640px] flex-col overflow-hidden">
+          {mediaKitView}
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="mx-auto flex min-h-screen w-full flex-col px-0 sm:px-6 lg:px-8">
       <div className="relative mx-auto flex w-full max-w-[640px] flex-col overflow-hidden">
@@ -465,22 +498,7 @@ export default async function MediaKitPage(
           contentClassName="bg-white"
           titleClassName="text-zinc-950"
         >
-          <MediaKitView
-            user={plainUser}
-            summary={summary}
-            videos={compatibleVideos}
-            kpis={kpis}
-            demographics={demographics}
-            engagementTrend={engagementTrend}
-            showOwnerCtas={false}
-            compactPadding
-            compactBoardPreview
-            mediaKitSlug={resolvedToken.canonicalSlug}
-            premiumAccess={premiumAccessConfig}
-            pricing={pricingPublished ? pricing : null}
-            pricingPublished={pricingPublished}
-            packages={normalizedPackages}
-          />
+          {mediaKitView}
         </Board>
       </div>
     </main>

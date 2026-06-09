@@ -9,6 +9,7 @@ import {
 } from "@google/genai";
 import {
   DEFAULT_GEMINI_VIDEO_NARRATIVE_MODEL,
+  GEMINI_INLINE_VIDEO_BYTES_LIMIT,
   createGeminiVideoNarrativeClient,
   createVideoNarrativeGeminiClientAdapter,
 } from "./geminiVideoNarrativeClientFactory";
@@ -21,6 +22,9 @@ jest.mock("@google/genai", () => ({
 }));
 
 const generateContent = jest.fn();
+const uploadFile = jest.fn();
+const getFile = jest.fn();
+const deleteFile = jest.fn();
 const mockedGoogleGenAI = GoogleGenAI as jest.MockedClass<typeof GoogleGenAI>;
 const mockedCreateUserContent = createUserContent as jest.MockedFunction<typeof createUserContent>;
 const mockedCreatePartFromUri = createPartFromUri as jest.MockedFunction<typeof createPartFromUri>;
@@ -53,10 +57,28 @@ function buildClient(model?: string) {
 beforeEach(() => {
   jest.clearAllMocks();
   generateContent.mockResolvedValue({ text: "texto útil" });
+  uploadFile.mockResolvedValue({
+    name: "files/video-real",
+    uri: "https://generativelanguage.googleapis.com/v1beta/files/video-real",
+    mimeType: "video/mp4",
+    state: "ACTIVE",
+  });
+  getFile.mockResolvedValue({
+    name: "files/video-real",
+    uri: "https://generativelanguage.googleapis.com/v1beta/files/video-real",
+    mimeType: "video/mp4",
+    state: "ACTIVE",
+  });
+  deleteFile.mockResolvedValue({});
   mockedGoogleGenAI.mockImplementation(
     () =>
       ({
         models: { generateContent },
+        files: {
+          upload: uploadFile,
+          get: getFile,
+          delete: deleteFile,
+        },
       }) as unknown as GoogleGenAI,
   );
 });
@@ -99,6 +121,19 @@ describe("geminiVideoNarrativeClientFactory", () => {
         }),
       }),
     );
+  });
+
+  it("mantém MIME QuickTime do browser no formato aceito pelo Gemini", async () => {
+    const client = buildClient();
+    await client.generateContent({
+      systemInstruction: "sistema",
+      userInstruction: "usuário",
+      responseFormatInstruction: "json",
+      videoUri: "gs://bucket/video.mov",
+      mimeType: "video/quicktime",
+    });
+
+    expect(mockedCreatePartFromUri).toHaveBeenCalledWith("gs://bucket/video.mov", "video/quicktime");
   });
 
   it("uses inline data when inlineVideoBase64 is provided", async () => {
@@ -222,6 +257,111 @@ describe("geminiVideoNarrativeClientFactory", () => {
           systemInstruction: "sistema",
         }),
       }),
+    );
+  });
+
+  it("adapter server-side usa File API para vídeo grande em vez de inline base64", async () => {
+    uploadFile.mockResolvedValueOnce({
+      name: "files/video-real",
+      uri: "https://generativelanguage.googleapis.com/v1beta/files/video-real",
+      mimeType: "video/quicktime",
+      state: "ACTIVE",
+    });
+    const client = createVideoNarrativeGeminiClientAdapter({
+      apiKey: "secret-key",
+      model: "gemini-custom",
+    }).client!;
+
+    await client.generateContent({
+      systemInstruction: "sistema",
+      userInstruction: "usuário",
+      responseSchemaInstruction: "json",
+      model: "gemini-runtime",
+      maxOutputTokens: 3000,
+      videoInput: {
+        mimeType: "video/quicktime",
+        bytes: Buffer.alloc(GEMINI_INLINE_VIDEO_BYTES_LIMIT + 1, 1),
+        source: "temporary_storage",
+      },
+    });
+
+    expect(uploadFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        file: expect.stringMatching(/d2c-gemini-video-.+\.mov$/),
+        config: { mimeType: "video/quicktime" },
+      }),
+    );
+    expect(mockedCreatePartFromBase64).not.toHaveBeenCalled();
+    expect(mockedCreatePartFromUri).toHaveBeenCalledWith(
+      "https://generativelanguage.googleapis.com/v1beta/files/video-real",
+      "video/quicktime",
+    );
+    expect(deleteFile).toHaveBeenCalledWith({ name: "files/video-real" });
+  });
+
+  it("adapter server-side classifica bloqueio de permissão da File API", async () => {
+    const permissionError = Object.assign(
+      new Error('{"error":{"status":"PERMISSION_DENIED","message":"Lightning dunning decision is deny"}}'),
+      { status: 403 },
+    );
+    uploadFile.mockRejectedValueOnce(permissionError);
+    const client = createVideoNarrativeGeminiClientAdapter({
+      apiKey: "secret-key",
+      model: "gemini-custom",
+    }).client!;
+
+    await expect(
+      client.generateContent({
+        systemInstruction: "sistema",
+        userInstruction: "usuário",
+        responseSchemaInstruction: "json",
+        model: "gemini-runtime",
+        maxOutputTokens: 3000,
+        videoInput: {
+          mimeType: "video/quicktime",
+          bytes: Buffer.alloc(GEMINI_INLINE_VIDEO_BYTES_LIMIT + 1, 1),
+          source: "temporary_storage",
+        },
+      }),
+    ).rejects.toThrow("gemini_file_permission_denied");
+
+    expect(deleteFile).not.toHaveBeenCalled();
+  });
+
+  it("adapter server-side aguarda vídeo enviado ficar ativo antes de chamar modelo", async () => {
+    uploadFile.mockResolvedValueOnce({
+      name: "files/video-processing",
+      mimeType: "video/mp4",
+      state: "PROCESSING",
+    });
+    getFile.mockResolvedValueOnce({
+      name: "files/video-processing",
+      uri: "https://generativelanguage.googleapis.com/v1beta/files/video-processing",
+      mimeType: "video/mp4",
+      state: "ACTIVE",
+    });
+    const client = createVideoNarrativeGeminiClientAdapter({
+      apiKey: "secret-key",
+      model: "gemini-custom",
+    }).client!;
+
+    await client.generateContent({
+      systemInstruction: "sistema",
+      userInstruction: "usuário",
+      responseSchemaInstruction: "json",
+      model: "gemini-runtime",
+      maxOutputTokens: 3000,
+      videoInput: {
+        mimeType: "video/mp4",
+        bytes: Buffer.alloc(GEMINI_INLINE_VIDEO_BYTES_LIMIT + 1, 1),
+        source: "temporary_storage",
+      },
+    });
+
+    expect(getFile).toHaveBeenCalledWith({ name: "files/video-processing" });
+    expect(mockedCreatePartFromUri).toHaveBeenCalledWith(
+      "https://generativelanguage.googleapis.com/v1beta/files/video-processing",
+      "video/mp4",
     );
   });
 

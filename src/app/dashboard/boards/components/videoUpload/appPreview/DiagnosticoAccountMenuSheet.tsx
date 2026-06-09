@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import {
   CreditCard,
   ChevronRight,
+  Compass,
   FileText,
   Handshake,
   Instagram,
@@ -18,26 +19,44 @@ import DeleteAccountSection from "@/app/dashboard/settings/DeleteAccountSection"
 
 interface Props {
   userInfo: DiagnosticoUserInfo;
+  /** Drives the "Plano" section: Free → "Assinar Pro"; Pro → "Minha assinatura". */
+  isPro: boolean;
+  /** Drives the Instagram item status dot + label. */
+  instagramConnected: boolean;
   onClose: () => void;
   onOpenMediaKit: () => void;
   onOpenCommunity: () => void;
   onOpenInstagramConnection: () => void;
   onOpenBilling: () => void;
+  /** Called when a Free user taps "Assinar Pro" — opens the paywall. */
+  onUpgrade: () => void;
   onOpenAffiliates: () => void;
   onContactSupport?: () => void;
   onSignOut: () => void;
+  /** Fase 2 — abre a pesquisa de perfil para completar o mapa. */
+  onOpenSurvey?: () => void;
+  /** Fase 4 — abre a tela "Meu Norte" para editar o propósito do criador. */
+  onOpenNorte?: () => void;
+  /** Fase 4 — indica se o propósito ainda não foi declarado (ponto laranja). */
+  hasPurpose?: boolean;
 }
 
 export function DiagnosticoAccountMenuSheet({
   userInfo,
+  isPro,
+  instagramConnected,
   onClose,
   onOpenMediaKit,
   onOpenCommunity,
   onOpenInstagramConnection,
   onOpenBilling,
+  onUpgrade,
   onOpenAffiliates,
   onContactSupport,
   onSignOut,
+  onOpenSurvey,
+  onOpenNorte,
+  hasPurpose = false,
 }: Props) {
   const plan = userInfo.plan || "Free";
   const handleContactSupport = () => {
@@ -95,13 +114,38 @@ export function DiagnosticoAccountMenuSheet({
         </div>
 
         <AccountMenuSection title="Perfil">
+          {userInfo.mapProfileIncomplete && onOpenSurvey && (
+            <AccountMenuAction
+              label="Completar meu perfil"
+              onClick={() => { onClose(); onOpenSurvey(); }}
+              icon={<span className="flex h-4 w-4 items-center justify-center"><span className="h-2 w-2 rounded-full bg-orange-500" /></span>}
+              emphasis
+            />
+          )}
+          {onOpenNorte && (
+            <AccountMenuAction
+              label="Meu Norte"
+              onClick={() => { onClose(); onOpenNorte(); }}
+              icon={<Compass className="h-4 w-4" strokeWidth={1.9} />}
+              statusDot={hasPurpose ? undefined : "orange"}
+            />
+          )}
           <AccountMenuAction label="Mídia Kit" onClick={onOpenMediaKit} icon={<MediaKitIcon />} />
           <AccountMenuAction label="Comunidade" onClick={onOpenCommunity} icon={<UsersRound className="h-4 w-4" strokeWidth={1.9} />} />
-          <AccountMenuAction label="Conexão Instagram" onClick={onOpenInstagramConnection} icon={<Instagram className="h-4 w-4" strokeWidth={1.9} />} />
+          <AccountMenuAction
+            label={instagramConnected ? "Instagram conectado" : "Conectar Instagram"}
+            onClick={onOpenInstagramConnection}
+            icon={<Instagram className="h-4 w-4" strokeWidth={1.9} />}
+            statusDot={instagramConnected ? "green" : "orange"}
+          />
         </AccountMenuSection>
 
         <AccountMenuSection title="Plano">
-          <AccountMenuAction label="Gerenciar assinatura" onClick={onOpenBilling} icon={<CreditCard className="h-4 w-4" strokeWidth={1.9} />} />
+          {isPro ? (
+            <AccountMenuAction label="Minha assinatura" onClick={onOpenBilling} icon={<CreditCard className="h-4 w-4" strokeWidth={1.9} />} />
+          ) : (
+            <AccountMenuAction label="Assinar Pro" onClick={onUpgrade} icon={<CreditCard className="h-4 w-4" strokeWidth={1.9} />} emphasis />
+          )}
         </AccountMenuSection>
 
         <AccountMenuSection title="Suporte">
@@ -168,21 +212,38 @@ function AccountMenuAction({
   label,
   icon,
   onClick,
+  statusDot,
+  emphasis = false,
 }: {
   label: string;
   icon: ReactNode;
   onClick: () => void;
+  /** Optional status indicator dot rendered before the chevron. */
+  statusDot?: "green" | "orange";
+  /** Primary action styling (amber accent) — used for "Assinar Pro". */
+  emphasis?: boolean;
 }) {
+  const iconClass = emphasis
+    ? "flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-700"
+    : "flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600";
+  const labelClass = emphasis
+    ? "min-w-0 flex-1 truncate text-amber-800"
+    : "min-w-0 flex-1 truncate";
+
   return (
     <button
       type="button"
       onClick={onClick}
       className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-[14px] font-semibold text-zinc-800 hover:bg-zinc-50"
     >
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span className={iconClass}>{icon}</span>
+      <span className={labelClass}>{label}</span>
+      {statusDot ? (
+        <span
+          className={`h-2 w-2 shrink-0 rounded-full ${statusDot === "green" ? "bg-emerald-500" : "bg-amber-500"}`}
+          aria-hidden="true"
+        />
+      ) : null}
       <ChevronRight className="h-3.5 w-3.5 shrink-0 text-zinc-300" strokeWidth={2} aria-hidden="true" />
     </button>
   );

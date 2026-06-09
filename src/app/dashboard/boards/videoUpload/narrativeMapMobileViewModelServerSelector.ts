@@ -5,6 +5,7 @@ import {
 } from "./creatorNarrativeMapReadingChapters";
 import {
   listRecentCreatorVideoNarrativeDiagnosesForUser,
+  readingFeedsNarrativeMap,
   type CreatorVideoNarrativeDiagnosisSafeReading,
 } from "./creatorVideoNarrativeDiagnosisReadService";
 import {
@@ -165,13 +166,17 @@ export async function buildNarrativeMapMobileViewModelFromReadings(
     limit: params.recentLimit,
   });
   const readings = sortReadings(queriedReadings).filter((reading) => reading.userId === params.userId);
+  // The narrative map / synthesis reflects only what the creator chooses to
+  // publish: readings declared "no" are excluded. The full `readings` array is
+  // still used for the current presentation and the readings history.
+  const synthesisReadings = readings.filter(readingFeedsNarrativeMap);
   const currentReading =
     (params.diagnosisId
       ? readings.find((reading) => reading.diagnosisId === params.diagnosisId)
       : readings[0]) ?? null;
   const presentationSource = currentReading ?? buildEmptyReading(params.userId);
   const profileSynthesis = buildProfileSynthesis({
-    readings,
+    readings: synthesisReadings,
     accessLevel: params.accessLevel,
     instagramConnected: params.instagramConnected,
   });

@@ -6,6 +6,7 @@ import {
   getCreatorVideoNarrativeDiagnosisForUser,
   listRecentCreatorVideoNarrativeDiagnosesForUser,
   mapCreatorVideoNarrativeDiagnosisToSafeReading,
+  readingFeedsNarrativeMap,
 } from "./creatorVideoNarrativeDiagnosisReadService";
 
 jest.mock("@/app/lib/mongoose", () => ({
@@ -146,5 +147,20 @@ describe("creatorVideoNarrativeDiagnosisReadService", () => {
     await listRecentCreatorVideoNarrativeDiagnosesForUser({ userId, limit: 99 });
 
     expect(chain.limit).toHaveBeenCalledWith(12);
+  });
+
+  describe("readingFeedsNarrativeMap (contrato binário do publishIntent)", () => {
+    it("exclui apenas leituras 'no'", () => {
+      expect(readingFeedsNarrativeMap({ publishIntent: "no" })).toBe(false);
+    });
+
+    it("inclui 'yes'", () => {
+      expect(readingFeedsNarrativeMap({ publishIntent: "yes" })).toBe(true);
+    });
+
+    it("inclui leituras legadas (null/undefined) com peso pleno", () => {
+      expect(readingFeedsNarrativeMap({ publishIntent: null })).toBe(true);
+      expect(readingFeedsNarrativeMap({})).toBe(true);
+    });
   });
 });

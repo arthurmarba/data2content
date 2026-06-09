@@ -674,7 +674,7 @@ describe("MobileStrategicProfileRealShellClient", () => {
     globalFetchSpy.mockRestore();
   });
 
-  it("MM85 - renderiza shell real Mapa | Leituras | Oportunidades quando view model narrativo vem do servidor", async () => {
+  it("MM85 - renderiza shell real do diagnóstico quando view model narrativo vem do servidor", async () => {
     (fetchHomeSummaryCached as jest.Mock).mockResolvedValue(null);
     const fixture = buildNarrativeMapReadingPreviewFixture({ state: "narrative_map_three_related_readings" });
 
@@ -687,10 +687,10 @@ describe("MobileStrategicProfileRealShellClient", () => {
       />
     );
 
-    expect(screen.getByRole("tab", { name: "Mapa" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Leituras" })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "Oportunidades" })).toBeInTheDocument();
-    expect(screen.getByText("Seu mapa narrativo")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Resumo" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enviar vídeo" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Nova análise" })).toBeInTheDocument();
+    expect(screen.getByText("Suas Análises")).toBeInTheDocument();
 
     await act(async () => {
       await Promise.resolve();

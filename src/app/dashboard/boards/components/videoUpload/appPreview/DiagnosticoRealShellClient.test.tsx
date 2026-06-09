@@ -47,6 +47,11 @@ jest.mock("./MobileStrategicProfileAnalyzeFlow", () => ({
   },
 }));
 
+jest.mock("./MobileCalculatorWizard", () => ({
+  MobileCalculatorWizard: (props: any) =>
+    props.open ? <div role="dialog" aria-label="Resultado sugerido">Calculadora aberta</div> : null,
+}));
+
 jest.mock("./useReadingDetail", () => ({
   useReadingDetail: () => ({
     state: { status: "idle" },
@@ -62,17 +67,20 @@ jest.mock("./DiagnosticoPage", () => ({
     onOpenReading,
     onOpenAccountMenu,
     onOpenDiagnosis,
+    onOpenCalculator,
   }: {
     onNewReading: () => void;
     onOpenReading: (id: string) => void;
     onOpenAccountMenu?: () => void;
     onOpenDiagnosis?: () => void;
+    onOpenCalculator?: () => void;
   }) => (
     <div>
       <button onClick={onNewReading} data-testid="trigger-new-reading">Nova Leitura</button>
       <button onClick={() => onOpenReading("diag-test")} data-testid="trigger-open-reading">Ver Leitura</button>
       <button onClick={onOpenAccountMenu} data-testid="trigger-account-menu">Conta</button>
       <button onClick={onOpenDiagnosis} data-testid="trigger-diagnosis-overview">Diagnóstico</button>
+      <button onClick={onOpenCalculator} data-testid="trigger-calculator">Calculadora</button>
     </div>
   ),
 }));
@@ -112,8 +120,9 @@ describe("DiagnosticoRealShellClient", () => {
     expect(screen.queryByRole("button", { name: "Configurações" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Mídia Kit" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Comunidade" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Conexão Instagram" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Gerenciar assinatura" })).toBeInTheDocument();
+    // U5: rótulos contextuais — fixture é Free + Instagram não conectado.
+    expect(screen.getByRole("button", { name: "Conectar Instagram" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Assinar Pro" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Suporte por email" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Programa de Afiliados" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Excluir minha conta" })).toBeInTheDocument();
@@ -235,6 +244,56 @@ describe("DiagnosticoRealShellClient", () => {
     fireEvent.click(screen.getByTestId("trigger-new-reading"));
     expect(screen.getByTestId("analyze-flow")).toBeInTheDocument();
     expect(openPaywallModal).not.toHaveBeenCalled();
+  });
+
+  it("opens paywall from the calculator CTA for non-Pro users", () => {
+    render(
+      <DiagnosticoRealShellClient
+        data={buildDiagnosticoPageDataFixture({
+          userInfo: {
+            ...buildDiagnosticoPageDataFixture().userInfo,
+            plan: "Free",
+          },
+        })}
+        onAnalyzeAction={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("trigger-calculator"));
+
+    expect(openPaywallModal).toHaveBeenCalledWith(
+      expect.objectContaining({ context: "calculator", source: "mobile_profile_calculator" }),
+    );
+  });
+
+  it("opens the calculator wizard for Pro users", () => {
+    const fetchSpy = jest.spyOn(global, "fetch").mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/calculator/latest") {
+        return Promise.resolve(new Response(JSON.stringify({ error: "Nenhum cálculo encontrado." }), { status: 404 }));
+      }
+      return Promise.resolve(new Response(null, { status: 204 }));
+    });
+
+    render(
+      <DiagnosticoRealShellClient
+        data={buildDiagnosticoPageDataFixture({
+          userInfo: {
+            ...buildDiagnosticoPageDataFixture().userInfo,
+            plan: "Pro",
+          },
+        })}
+        onAnalyzeAction={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("trigger-calculator"));
+
+    expect(screen.getByRole("dialog", { name: "Resultado sugerido" })).toBeInTheDocument();
+    expect(openPaywallModal).not.toHaveBeenCalledWith(
+      expect.objectContaining({ source: "mobile_profile_calculator" }),
+    );
+    fetchSpy.mockRestore();
   });
 
   it("shows a map-focused Instagram return notice when instagramLinked=true", () => {

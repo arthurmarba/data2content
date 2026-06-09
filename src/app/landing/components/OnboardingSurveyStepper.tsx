@@ -183,24 +183,6 @@ const pricingFears = [
   { value: "outro", label: "Outro" },
 ] as const;
 
-const platformReasons = [
-  { value: "metricas", label: "Entender melhor minhas métricas" },
-  { value: "media-kit", label: "Criar/atualizar meu media kit" },
-  { value: "planejar", label: "Planejar conteúdo com IA" },
-  { value: "negociar", label: "Negociação com marcas" },
-  { value: "mentorias", label: "Suporte em reuniões/mentorias semanais" },
-  { value: "posicionamento-marcas", label: "Posicionar minha marca para marcas via conteúdo" },
-  { value: "oportunidades", label: "Receber oportunidades de campanha" },
-  { value: "outro", label: "Outro" },
-] as const;
-
-const nextPlatforms = [
-  { value: "tiktok", label: "TikTok" },
-  { value: "youtube", label: "YouTube" },
-  { value: "outra", label: "Outra" },
-  { value: "nenhuma", label: "Nenhuma no momento" },
-] as const;
-
 function MetricPill({ label, value }: { label: string; value: string }) {
   return (
     <div className="inline-flex items-center gap-2 rounded-full bg-white/70 px-4 py-2 text-sm font-semibold text-brand-dark shadow-sm ring-1 ring-white/60 backdrop-blur">
@@ -383,16 +365,9 @@ function validateStep(stepId: SurveyStepId, data: CreatorProfileExtended): Surve
     }
   }
 
-  if (stepId === "support") {
-    if (!data.mainPlatformReasons.length) errors.mainPlatformReasons = "Escolha pelo menos um motivo para usar a plataforma.";
-    if (data.mainPlatformReasons.length > 2) errors.mainPlatformReasons = "Escolha no máximo 2 motivos.";
-    if (data.mainPlatformReasons.includes("outro") && !data.reasonOther) {
-      errors.reasonOther = "Descreva seu motivo.";
-    }
-    if (!data.nextPlatform.length) errors.nextPlatform = "Escolha a próxima plataforma prioritária.";
-    if (data.nextPlatform.length > 2) errors.nextPlatform = "Escolha no máximo 2 plataformas.";
-    if (!data.dailyExpectation) errors.dailyExpectation = "Conte o que espera que a plataforma faça por você.";
-  }
+  // Fase 4 — etapa "support" virou revisão final; não coleta mais campos de
+  // pesquisa de produto (mainPlatformReasons, nextPlatform, dailyExpectation).
+  // Sem validação: o criador só revisa e envia.
 
   return errors;
 }
@@ -640,23 +615,6 @@ function AnswerSummary({ data }: { data: CreatorProfileExtended }) {
           <span className="text-brand-text-secondary">Focando em construir antes de cobrar</span>
         )}
       </div>
-      <div className="flex flex-col gap-1">
-        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-primary">Suporte</span>
-        <span>
-          Motivos:{" "}
-          {data.mainPlatformReasons.length
-            ? data.mainPlatformReasons
-                .map((reason) => platformReasons.find((p) => p.value === reason)?.label ?? reason)
-                .join(", ")
-            : "—"}
-        </span>
-        <span className="text-brand-text-secondary">
-          Próximas plataformas:{" "}
-          {data.nextPlatform.length
-            ? data.nextPlatform.map((p) => nextPlatforms.find((n) => n.value === p)?.label ?? p).join(", ")
-            : "—"}
-        </span>
-      </div>
     </div>
   );
 }
@@ -729,25 +687,6 @@ export default function OnboardingSurveyStepper({ metrics, onSaved }: Onboarding
     pricingFear: value === "nunca-sem-interesse" ? null : prev.pricingFear,
     pricingFearOther: value === "nunca-sem-interesse" ? "" : prev.pricingFearOther,
   };
-      persist(nextProfile);
-      return nextProfile;
-    });
-  };
-
-  const togglePlatformReason = (value: PlatformReason) => {
-    setProfile((prev) => {
-      const already = prev.mainPlatformReasons.includes(value);
-      let nextReasons: PlatformReason[] = already
-        ? prev.mainPlatformReasons.filter((r) => r !== value)
-        : [...prev.mainPlatformReasons, value];
-      if (!already && nextReasons.length > 2) {
-        nextReasons = nextReasons.slice(0, 2);
-      }
-      const nextProfile: CreatorProfileExtended = {
-        ...prev,
-        mainPlatformReasons: nextReasons,
-        reasonOther: nextReasons.includes("outro") ? prev.reasonOther : "",
-      };
       persist(nextProfile);
       return nextProfile;
     });
@@ -1191,60 +1130,7 @@ export default function OnboardingSurveyStepper({ metrics, onSaved }: Onboarding
       case "support":
         return (
           <div className="space-y-14 sm:space-y-16">
-            <SectionLabel title="Como vamos te ajudar" description="Personalização de UX, IA e notificações." />
-
-            <QuestionBlock title="Qual foi o principal motivo pra você criar conta aqui?" description="Escolha até 2." index={15}>
-              <div className="flex flex-wrap gap-3">
-                {platformReasons.map((option) => (
-                  <Chip
-                    key={option.value}
-                    label={option.label}
-                    selected={profile.mainPlatformReasons.includes(option.value)}
-                    onToggle={() => togglePlatformReason(option.value)}
-                  />
-                ))}
-              </div>
-              {profile.mainPlatformReasons.includes("outro") ? (
-                <InputField
-                  label=""
-                  value={profile.reasonOther ?? ""}
-                  onChange={(value) => updateField("reasonOther", value)}
-                  placeholder="Descreva em uma frase"
-                  error={errors.reasonOther}
-                  optional
-                />
-              ) : null}
-              {errors.mainPlatformReasons ? (
-                <p className="text-xs font-medium text-brand-primary">{errors.mainPlatformReasons}</p>
-              ) : null}
-            </QuestionBlock>
-
-            <QuestionBlock title="No dia a dia, o que você espera que a plataforma faça por você?" index={16}>
-              <InputField
-                label=""
-                value={profile.dailyExpectation}
-                onChange={(value) => updateField("dailyExpectation", value)}
-                placeholder="Ex.: puxar roteiros semanais, avisar sobre campanhas, revisar propostas..."
-                error={errors.dailyExpectation}
-                maxLength={180}
-                multiline
-              />
-            </QuestionBlock>
-
-            <QuestionBlock title="Além do Instagram, quais plataformas você mais pretende priorizar?" description="Escolha até 2." index={17}>
-              <div className="flex flex-wrap gap-3">
-                {nextPlatforms.map((option) => (
-                  <Chip
-                    key={option.value}
-                    label={option.label}
-                    selected={profile.nextPlatform.includes(option.value)}
-                    onToggle={() => toggleArrayField("nextPlatform", option.value, 2)}
-                  />
-                ))}
-              </div>
-              {errors.nextPlatform ? <p className="text-xs font-medium text-brand-primary">{errors.nextPlatform}</p> : null}
-            </QuestionBlock>
-
+            <SectionLabel title="Revise seu perfil" description="Confira o que você compartilhou antes de finalizar." />
             <AnswerSummary data={profile} />
           </div>
         );

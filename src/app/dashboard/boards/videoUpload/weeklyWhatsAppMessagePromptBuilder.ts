@@ -43,6 +43,8 @@ export interface WhatsAppSeedContext {
   narrativeLabel: string | null;
   territoriesLabels: string[];
   whyCreate: string | null;
+  /** Declaração de propósito livre — o norte do criador (sinal mais forte). */
+  creatorPurpose?: string | null;
 }
 
 export interface WhatsAppGrowingMatureContext {
@@ -53,6 +55,8 @@ export interface WhatsAppGrowingMatureContext {
   territoriesLabels: string[];
   confirmedAssets: string[];
   toneLabel: string | null;
+  /** Declaração de propósito livre — o norte do criador (sinal mais forte). */
+  creatorPurpose?: string | null;
   /** Active/saved pautas — AI must use their titles verbatim, never invent new ones. */
   activeIdeas: Array<{
     title: string;
@@ -101,6 +105,10 @@ export function buildSeedPrompt(ctx: WhatsAppSeedContext): {
   }
   if (ctx.territoriesLabels.length > 0) {
     lines.push(`Territórios detectados: ${ctx.territoriesLabels.slice(0, 2).join(", ")}`);
+  }
+  // Propósito é o norte — ancore a mensagem nele quando existir.
+  if (ctx.creatorPurpose) {
+    lines.push(`Propósito do criador (norte): "${ctx.creatorPurpose}"`);
   }
   if (ctx.whyCreate) {
     lines.push(`Por que o criador cria: "${ctx.whyCreate}"`);
@@ -158,6 +166,8 @@ export function buildGrowingMaturePrompt(ctx: WhatsAppGrowingMatureContext): {
       : "";
 
   const lines: string[] = [];
+  // Propósito é o norte — ancore a mensagem nele quando existir.
+  if (ctx.creatorPurpose) lines.push(`Propósito do criador (norte): "${ctx.creatorPurpose}"`);
   lines.push(`Narrativa confirmada: "${ctx.narrativeLabel}"`);
   lines.push(
     `Territórios: ${ctx.territoriesLabels.slice(0, 3).join(", ")}`,

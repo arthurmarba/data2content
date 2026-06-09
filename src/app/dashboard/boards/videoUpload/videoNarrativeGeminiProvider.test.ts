@@ -120,6 +120,39 @@ describe("videoNarrativeGeminiProvider", () => {
     expect(JSON.stringify(result)).not.toContain("secret stack");
   });
 
+  it("erro conhecido da File API mantém código seguro para diagnóstico", async () => {
+    const client: VideoNarrativeGeminiClientAdapter = {
+      generateContent: jest.fn().mockRejectedValue(new Error("gemini_file_upload_failed")),
+    };
+    const result = await runVideoNarrativeGeminiProvider({
+      input: input(),
+      user: { id: "usr_123", role: "admin" },
+      env: enabledEnv,
+      client,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.issues?.[0].code).toBe("gemini_file_upload_failed");
+  });
+
+  it("bloqueio de permissão do provider mantém código seguro para diagnóstico", async () => {
+    const permissionError = Object.assign(
+      new Error('{"error":{"status":"PERMISSION_DENIED","message":"Lightning dunning decision is deny"}}'),
+      { status: 403 },
+    );
+    const client: VideoNarrativeGeminiClientAdapter = {
+      generateContent: jest.fn().mockRejectedValue(permissionError),
+    };
+    const result = await runVideoNarrativeGeminiProvider({
+      input: input(),
+      user: { id: "usr_123", role: "admin" },
+      env: enabledEnv,
+      client,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.issues?.[0].code).toBe("gemini_permission_denied");
+    expect(JSON.stringify(result)).not.toContain("dunning");
+  });
+
   it("resposta inválida vira erro seguro", async () => {
     const result = await runVideoNarrativeGeminiProvider({
       input: input(),
@@ -142,6 +175,19 @@ describe("videoNarrativeGeminiProvider", () => {
     expect(result.ok).toBe(false);
     expect(result.issues?.[0].code).toBe("gemini_user_not_allowed");
     expect(client.generateContent).not.toHaveBeenCalled();
+  });
+
+  it("permite pular allowlist quando o orquestrador real já autorizou o acesso", async () => {
+    const client = clientReturning(geminiVideoNarrativeRawJsonFixture);
+    const result = await runVideoNarrativeGeminiProvider({
+      input: input(),
+      user: { id: "usr_common", role: "creator" },
+      env: enabledEnv,
+      client,
+      skipAllowlist: true,
+    });
+    expect(result.ok).toBe(true);
+    expect(client.generateContent).toHaveBeenCalled();
   });
 
   it("não importa provider em client component", () => {

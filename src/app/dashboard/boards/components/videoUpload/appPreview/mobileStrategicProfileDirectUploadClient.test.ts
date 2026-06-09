@@ -186,6 +186,18 @@ describe("mobileStrategicProfileDirectUploadClient", () => {
     expect(res.errorMessage).not.toContain("signed.example.test");
   });
 
+  it("repete erro transitório de upload antes de falhar para o usuário", async () => {
+    (global.fetch as jest.Mock)
+      .mockRejectedValueOnce(new Error("network down"))
+      .mockResolvedValueOnce({ ok: true, status: 200 });
+
+    const res = await uploadVideoToTemporarySignedUrl(validInput());
+
+    expect(res.ok).toBe(true);
+    expect(res.status).toBe("uploaded");
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
   it("não usa FileReader, object URL ou storage local", () => {
     const source = fs.readFileSync(SOURCE_PATH, "utf8");
 

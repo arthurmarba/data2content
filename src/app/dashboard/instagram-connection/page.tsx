@@ -5,16 +5,15 @@ import Image from "next/image";
 import { FaInstagram, FaCheckCircle, FaExclamationTriangle } from "react-icons/fa";
 import useInstagramStatus from "@/app/hooks/useInstagramStatus";
 import { useToast } from "@/app/components/ui/ToastA11yProvider";
-import { useRouter } from "next/navigation";
 import { startInstagramReconnect } from "@/app/lib/instagram/client/startInstagramReconnect";
 
 export default function InstagramConnectionPage() {
     const { status, isLoading, error, refetch } = useInstagramStatus(true);
     const [isConnecting, setIsConnecting] = useState(false);
     const [isDisconnecting, setIsDisconnecting] = useState(false);
+    const [confirmingDisconnect, setConfirmingDisconnect] = useState(false);
     const [connectError, setConnectError] = useState<string | null>(null);
     const { toast } = useToast();
-    const router = useRouter();
 
     const handleReconnect = async () => {
         setIsConnecting(true);
@@ -32,9 +31,7 @@ export default function InstagramConnectionPage() {
     };
 
     const handleDisconnect = async () => {
-        if (!window.confirm("Tem certeza que deseja desconectar sua conta do Instagram?")) {
-            return;
-        }
+        setConfirmingDisconnect(false);
         setIsDisconnecting(true);
         try {
             const res = await fetch("/api/instagram/disconnect", { method: "POST" });
@@ -74,11 +71,11 @@ export default function InstagramConnectionPage() {
             <div className="dashboard-page-shell flex min-h-screen items-center justify-center py-6">
                 <div className="w-full max-w-md space-y-6">
 
-                {/* Header Minimalista */}
+                {/* Header */}
                 <div className="text-center">
-                    <h1 className="text-2xl font-bold text-gray-900">Conexão Instagram</h1>
+                    <h1 className="text-2xl font-bold text-gray-900">Seu Instagram</h1>
                     <p className="mt-2 text-sm text-gray-500">
-                        Gerencie a integração com sua conta profissional.
+                        Veja e gerencie como sua conta está conectada ao seu mapa.
                     </p>
                 </div>
 
@@ -131,21 +128,43 @@ export default function InstagramConnectionPage() {
                             )}
 
                             <div className="mt-8 flex w-full flex-col gap-3">
-                                <button
-                                    onClick={handleReconnect}
-                                    disabled={isConnecting || isDisconnecting}
-                                    className="flex w-full items-center justify-center rounded-xl bg-[#D62E5E] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#b91d4a] disabled:opacity-50"
-                                >
-                                    {isConnecting ? "Conectando..." : isConnected ? "Atualizar Permissões" : "Reconectar Agora"}
-                                </button>
-
-                                {isConnected && (
+                                {!isConnected && (
                                     <button
-                                        onClick={handleDisconnect}
+                                        onClick={handleReconnect}
+                                        disabled={isConnecting || isDisconnecting}
+                                        className="flex w-full items-center justify-center rounded-xl bg-[#D62E5E] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#b91d4a] disabled:opacity-50"
+                                    >
+                                        {isConnecting ? "Conectando..." : "Reconectar Agora"}
+                                    </button>
+                                )}
+
+                                {confirmingDisconnect ? (
+                                    <div className="flex flex-col items-center gap-2.5">
+                                        <p className="text-sm text-gray-600">Desconectar sua conta do Instagram?</p>
+                                        <div className="flex w-full gap-2">
+                                            <button
+                                                onClick={handleDisconnect}
+                                                disabled={isDisconnecting}
+                                                className="flex flex-1 items-center justify-center rounded-xl bg-red-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-600 disabled:opacity-50"
+                                            >
+                                                {isDisconnecting ? "Desconectando..." : "Sim, desconectar"}
+                                            </button>
+                                            <button
+                                                onClick={() => setConfirmingDisconnect(false)}
+                                                disabled={isDisconnecting}
+                                                className="flex flex-1 items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+                                            >
+                                                Cancelar
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => setConfirmingDisconnect(true)}
                                         disabled={isDisconnecting || isConnecting}
                                         className="flex w-full items-center justify-center rounded-xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
                                     >
-                                        {isDisconnecting ? "Desconectando..." : "Desconectar Conta"}
+                                        Desconectar Conta
                                     </button>
                                 )}
                             </div>
@@ -157,12 +176,16 @@ export default function InstagramConnectionPage() {
                                 <FaInstagram className="h-8 w-8 text-[#D62E5E]" />
                             </div>
 
-                            <h2 className="text-lg font-semibold text-gray-900">Conectar Conta</h2>
+                            <h2 className="text-lg font-semibold text-gray-900">Conectar seu Instagram</h2>
                             <p className="mt-2 text-sm text-gray-500">
-                                Vincule sua conta profissional do Instagram para acessar métricas e insights exclusivos.
+                                Conecte para que seus posts enriqueçam o seu mapa automaticamente.
                             </p>
 
-                            <div className="mt-8 w-full">
+                            <p className="mt-5 text-xs text-gray-400 max-w-xs">
+                                Você precisa de uma conta Profissional do Instagram (Criador ou Comercial) vinculada a uma Página do Facebook.
+                            </p>
+
+                            <div className="mt-4 w-full">
                                 <button
                                     onClick={handleReconnect}
                                     disabled={isConnecting}
@@ -171,19 +194,8 @@ export default function InstagramConnectionPage() {
                                     {isConnecting ? "Iniciando..." : "Conectar com Facebook"}
                                 </button>
                             </div>
-
-                            <p className="mt-4 text-xs text-gray-400">
-                                Requer conta Profissional ou Criador vinculada a uma Página do Facebook.
-                            </p>
                         </div>
                     )}
-                </div>
-
-                {/* Footer / Ajuda */}
-                <div className="text-center">
-                    <a href="/dashboard/instagram/faq" className="text-xs font-medium text-gray-400 hover:text-gray-600 hover:underline">
-                        Precisa de ajuda com a conexão?
-                    </a>
                 </div>
 
                 {/* Toast de Erro */}

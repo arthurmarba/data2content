@@ -20,6 +20,7 @@
 import { Types } from "mongoose";
 import { GoogleGenAI, createUserContent } from "@google/genai";
 import { connectToDatabase } from "@/app/lib/mongoose";
+import { rankByComplementarity, findSharedLabel, findDistinctLabels } from "./collabComplementarity";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
 const CANDIDATE_POOL_SIZE = 10; // Busca mais candidatos do que o limite para filtrar
@@ -38,6 +39,10 @@ export interface NarrativeCollabMatch {
   suggestedNarrativeLabel: string;
   /** Razão de fit gerada por Gemini */
   narrativeFitReason: string;
+  /** Ponto de encontro: território confirmado do viewer que o candidato também toca. */
+  sharedSignal: string | null;
+  /** Territórios DELE que o viewer não tem — o ângulo novo que a collab traz. */
+  distinctSignals: string[];
   narrativeMatch: true;
 }
 
@@ -64,17 +69,22 @@ function readApiKey(): string | null {
 async function generateNarrativeFitReason(
   viewerNarrative: string,
   candidateNarrative: string,
+  viewerTerritoryLabels: string[] = [],
 ): Promise<string> {
   const apiKey = readApiKey();
   if (!apiKey) return `Narrativa compatível com o seu mapa.`;
+
+  const territoriesLine = viewerTerritoryLabels.length > 0
+    ? `\nTerritórios confirmados do Criador A: ${viewerTerritoryLabels.slice(0, 4).join(", ")}`
+    : "";
 
   const prompt = `\
 Você é o companheiro narrativo da Data2Content.
 Em 1 frase curta (máximo 110 caracteres), explique por que estas duas narrativas fazem sentido como collab.
 Foque em como elas se COMPLEMENTAM — não copiam, mas se somam. Tom calmo e específico.
-Nunca use: "engajamento", "alcance", "algoritmo", "seguidores".
+Nunca use: "engajamento", "alcance", "algoritmo", "seguidores", "performance", "audiência".
 
-Criador A (perfil base): "${viewerNarrative}"
+Criador A (perfil base): "${viewerNarrative}"${territoriesLine}
 Criador B (sugestão): "${candidateNarrative}"
 
 Responda apenas com a frase, sem pontuação no final.`;
@@ -128,6 +138,7 @@ export async function findNarrativeCollabMatches(
   viewerUserId: string,
   viewerNarrativeLabel: string,
   limit = 1,
+  viewerTerritoryLabels: string[] = [],
 ): Promise<NarrativeCollabMatchingResult> {
   if (!viewerUserId || !Types.ObjectId.isValid(viewerUserId)) {
     return { ok: false, matches: [], reason: "db_error" };
@@ -183,7 +194,7 @@ export async function findNarrativeCollabMatches(
       _id: Types.ObjectId;
       userId: Types.ObjectId;
       videoReading: { title: string; summary: string; mainNarrative: string };
-      publishIntent: "yes" | "no" | "unsure" | null;
+      publishIntent: "yes" | "no" | null;
     }>([
       {
         $match: {
@@ -212,6 +223,7 @@ export async function findNarrativeCollabMatches(
       reading: (typeof bestReadings)[0];
     }> = [];
 
+    // Avalia TODO o pool elegível (não corta cedo) para poder ranquear de verdade.
     for (const candidate of candidates) {
       const userId = candidate.userId.toString();
       const user = userMap.get(userId);
@@ -219,16 +231,53 @@ export async function findNarrativeCollabMatches(
       if (user && reading) {
         eligible.push({ userId, user, reading });
       }
-      if (eligible.length >= limit * 2) break; // pool 2x para gerar fit reason
     }
 
     if (eligible.length === 0) {
       return { ok: true, matches: [], reason: "no_candidates" };
     }
 
-    // 4. Gerar matches com fit reason (limitado ao `limit` solicitado)
-    const selected = eligible.slice(0, limit);
+    // 4. Ranking por COMPLEMENTARIDADE narrativa (não mais "os primeiros da lista").
+    //    Ordena por terreno comum + ângulo distinto entre o mapa do viewer e a
+    //    narrativa do candidato. Determinístico — o Gemini só entra na razão de fit.
+    const viewerTexts = [viewerNarrativeLabel, ...viewerTerritoryLabels];
+    const ranked = rankByComplementarity(
+      viewerTexts,
+      eligible,
+      (e) => e.reading.videoReading.mainNarrative ?? "",
+    );
+
+    // 5. Gerar matches com fit reason (limitado ao `limit` solicitado)
+    const selected = ranked.slice(0, limit);
     const matches: NarrativeCollabMatch[] = [];
+
+    // Territórios confirmados de cada candidato — lidos do SNAPSHOT da síntese
+    // (fonte barata, não reconstrói). Usados para "o que ela traz de novo".
+    const candidateTerritoriesById = new Map<string, string[]>();
+    try {
+      const { default: CreatorStrategicProfileSnapshot } = await import(
+        "@/app/models/CreatorStrategicProfileSnapshot"
+      );
+      const selectedIds = selected.map((e) => e.user._id);
+      const snaps = await CreatorStrategicProfileSnapshot.find({ userId: { $in: selectedIds } })
+        .select("userId snapshotJson")
+        .lean<Array<{ userId: Types.ObjectId; snapshotJson: string }>>();
+      for (const snap of snaps) {
+        try {
+          const parsed = JSON.parse(snap.snapshotJson) as { narrativeTerritories?: Array<{ label?: unknown }> };
+          const labels = Array.isArray(parsed?.narrativeTerritories)
+            ? parsed.narrativeTerritories
+                .map((t) => (typeof t?.label === "string" ? t.label : null))
+                .filter((l): l is string => !!l)
+            : [];
+          candidateTerritoriesById.set(String(snap.userId), labels);
+        } catch {
+          /* snapshot inválido — ignora, "o que ela traz" só não aparece */
+        }
+      }
+    } catch (err) {
+      console.warn("[narrativeCollabMatching] snapshot fetch failed (non-fatal):", err);
+    }
 
     for (const { user, reading } of selected) {
       const candidateNarrative = reading.videoReading.mainNarrative?.trim() ?? "";
@@ -237,10 +286,17 @@ export async function findNarrativeCollabMatches(
       const narrativeFitReason = await generateNarrativeFitReason(
         viewerNarrativeLabel,
         candidateNarrative || "conteúdo criativo",
+        viewerTerritoryLabels,
       );
 
       const handle = (user as any).username ?? (user as any).instagramUsername ?? null;
       const avatarUrl = user.image ?? null;
+
+      // Ponto de encontro: território confirmado do viewer que este candidato também toca.
+      const sharedSignal = findSharedLabel(viewerTerritoryLabels, candidateNarrative);
+      // O que ela traz de novo: territórios dela que o viewer não tem.
+      const herTerritories = candidateTerritoriesById.get(user._id.toString()) ?? [];
+      const distinctSignals = findDistinctLabels(viewerTerritoryLabels, herTerritories, 3);
 
       matches.push({
         id: user._id.toString(),
@@ -251,6 +307,8 @@ export async function findNarrativeCollabMatches(
         narrativeExample,
         suggestedNarrativeLabel: candidateNarrative,
         narrativeFitReason,
+        sharedSignal,
+        distinctSignals,
         narrativeMatch: true,
       });
     }

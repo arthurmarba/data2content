@@ -45,10 +45,11 @@ export interface ICreatorVideoNarrativeDiagnosis extends Document {
   safetyFlags: CreatorVideoNarrativeDiagnosisSafetyFlags;
   /**
    * Creator's declared publication intent after the Raio X analysis.
-   * Only "yes" diagnoses feed the narrative map with full weight.
+   * Binary by product decision: "yes" or "no" only (no "unsure").
+   * Only "yes" diagnoses feed the narrative map; "no" is excluded.
    * Null = pre-feature (legacy readings, treated as full weight for backwards compat).
    */
-  publishIntent?: "yes" | "no" | "unsure" | null;
+  publishIntent?: "yes" | "no" | null;
   schemaVersion: "creator_video_narrative_diagnosis_v1";
   createdAt: Date;
   updatedAt: Date;
@@ -286,7 +287,7 @@ const CreatorVideoNarrativeDiagnosisSchema = new Schema<ICreatorVideoNarrativeDi
     confirmationQuizAnswers: { type: [Schema.Types.Mixed], required: false, default: undefined },
     publishIntent: {
       type: String,
-      enum: ["yes", "no", "unsure", null],
+      enum: ["yes", "no", null],
       default: null,
       required: false,
     },

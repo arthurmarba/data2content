@@ -29,7 +29,7 @@ export async function DELETE() {
  * first analysis.
  *
  * Body:
- *   { whyYouCreate: string; desiredFeeling: string; contentLimit?: string }
+ *   { whyYouCreate: string; desiredFeeling: string; contentLimit?: string; creatorPurpose?: string }
  */
 export async function POST(request: Request) {
   if (!isMobileStrategicProfileEnabled()) {
@@ -66,13 +66,35 @@ export async function POST(request: Request) {
           whyYouCreate: parsed.whyYouCreate,
           desiredFeeling: parsed.desiredFeeling,
           contentLimit: parsed.contentLimit ?? null,
+          creatorPurpose: parsed.creatorPurpose ?? null,
         },
         onboardingCompletedAt: new Date(),
         isNewUserForOnboarding: false,
       },
     });
 
-    return NextResponse.json({ ok: true });
+    // Fase 3 — preview enriquecido do mapa.
+    // Quando o criador declara um propósito (Q3), a IA interpreta os 3 sinais
+    // e gera a hipótese de narrativa central mostrada no step first_signal.
+    // Best-effort: a persistência acima já sucedeu — uma falha aqui NÃO deve
+    // bloquear o onboarding. O client cai no fallback determinístico (buildSeedSignal).
+    let seedSignal: { label: string; summary: string } | null = null;
+    if (parsed.creatorPurpose) {
+      try {
+        const { generateOnboardingSeedSignal } = await import(
+          "@/app/lib/mapaSeed/generateOnboardingSeedSignal"
+        );
+        seedSignal = await generateOnboardingSeedSignal({
+          whyYouCreate: parsed.whyYouCreate,
+          desiredFeeling: parsed.desiredFeeling,
+          creatorPurpose: parsed.creatorPurpose,
+        });
+      } catch (genErr) {
+        console.warn("[onboarding] Falha ao gerar seed signal (não-fatal):", genErr);
+      }
+    }
+
+    return NextResponse.json({ ok: true, seedSignal });
   } catch (err) {
     console.error("[onboarding] Erro ao salvar respostas:", err);
     return NextResponse.json({ message: "Não foi possível salvar as respostas." }, { status: 500 });
@@ -82,6 +104,14 @@ export async function POST(request: Request) {
 // ─── Input validation ─────────────────────────────────────────────────────────
 
 const WHY_OPTIONS = [
+  // Valores atuais — identidade narrativa
+  "ensino_conhecimento",
+  "conto_historias",
+  "entretenimento",
+  "inspiro_acao",
+  // Legacy — mantidos para compatibilidade com sessões antigas
+  "compartilho_aprendizado",
+  "ensino_habilidade",
   "expressao_pessoal",
   "construir_audiencia",
   "gerar_renda",
@@ -98,7 +128,7 @@ const FEELING_OPTIONS = [
 ] as const;
 
 type ParseResult =
-  | { ok: true; whyYouCreate: string; desiredFeeling: string; contentLimit?: string }
+  | { ok: true; whyYouCreate: string; desiredFeeling: string; contentLimit?: string; creatorPurpose?: string }
   | { ok: false; error: string };
 
 function parseBody(body: unknown): ParseResult {
@@ -127,10 +157,17 @@ function parseBody(body: unknown): ParseResult {
       ? b.contentLimit.trim().slice(0, 300)
       : undefined;
 
+  // Declaração de propósito — opcional, máx 150 chars (campo livre do criador).
+  const creatorPurpose =
+    typeof b.creatorPurpose === "string" && b.creatorPurpose.trim()
+      ? b.creatorPurpose.trim().slice(0, 150)
+      : undefined;
+
   return {
     ok: true,
     whyYouCreate: b.whyYouCreate,
     desiredFeeling: b.desiredFeeling,
     contentLimit,
+    creatorPurpose,
   };
 }

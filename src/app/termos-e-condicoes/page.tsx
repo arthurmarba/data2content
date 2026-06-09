@@ -22,7 +22,7 @@ export default function TermsAndConditionsPage() {
 
           <div className="prose prose-lg max-w-none text-gray-700">
             <p className="mb-4 text-sm">
-              <strong>Última Atualização:</strong> 10 de Maio de 2025
+              <strong>Última Atualização:</strong> 3 de junho de 2026
             </p>
             <p className="mb-4">
               Bem-vindo(a) ao Data2Content! Estes Termos e Condições de Uso (&quot;Termos&quot;) regem o seu acesso e uso da plataforma Data2Content (&quot;Serviço&quot;, &quot;Plataforma&quot;), oferecida por <strong>Mobi Media Produtores de Conteúdo LTDA</strong> (&quot;nós&quot;, &quot;nosso&quot;). Ao criar uma conta ou utilizar o Serviço, você (&quot;utilizador&quot;, &quot;você&quot;) concorda em cumprir estes Termos e nossa <a href="/politica-de-privacidade" className="text-brand-pink hover:underline">Política de Privacidade</a>, que faz parte integrante deste acordo. Se não concordar com qualquer parte destes Termos, não utilize o Serviço.
@@ -74,10 +74,10 @@ export default function TermsAndConditionsPage() {
 
             <h2 className="text-2xl font-semibold text-gray-800 mt-10 mb-5 border-t border-gray-200 pt-6">5. Comunidade de Inspiração Data2Content</h2>
             <p className="mb-2">
-              A Comunidade de Inspiração é uma funcionalidade central, onde posts públicos dos usuários são exibidos para outros criadores como exemplos inspiradores.
+              A Comunidade de Inspiração é uma funcionalidade <strong>opcional</strong> onde posts públicos dos usuários são exibidos para outros criadores como exemplos inspiradores.
             </p>
             <ul className="list-disc list-inside mb-6 space-y-3 pl-2">
-              <li><strong>Participação Automática:</strong> Ao aceitar estes Termos, você participa automaticamente. Para não participar, exclua sua conta.</li>
+              <li><strong>Participação Opcional:</strong> A Comunidade de Inspiração é uma funcionalidade separada e opcional do serviço principal. Você pode optar por participar durante o cadastro ou ativar/desativar sua participação a qualquer momento nas configurações do seu perfil, sem afetar o acesso às demais funcionalidades da Plataforma.</li>
               <li><strong>Dados Compartilhados:</strong>
                 <ul className="list-circle list-inside mt-2 mb-2 pl-4">
                   <li>Link direto ao post no Instagram.</li>
@@ -90,7 +90,7 @@ export default function TermsAndConditionsPage() {
               <li><strong>Identificação:</strong> Nome de usuário e perfil acessível ao clicar no link.</li>
               <li><strong>Privacidade:</strong> Métricas numéricas individuais NUNCA são compartilhadas.</li>
               <li><strong>Objetivo:</strong> Fomentar criatividade e aprendizado colaborativo.</li>
-              <li><strong>Controle:</strong> Participação condicionada ao uso do serviço; exclusão de conta é única forma de opt-out.</li>
+              <li><strong>Controle e Revogação:</strong> Seu consentimento para participação na Comunidade é independente da aceitação destes Termos gerais. Você pode revogar esse consentimento a qualquer momento nas configurações do perfil, sem necessidade de excluir sua conta, em conformidade com o Art. 8º, §5º e Art. 18, IX da LGPD.</li>
             </ul>
 
             <h2 className="text-2xl font-semibold text-gray-800 mt-10 mb-5 border-t border-gray-200 pt-6">6. Propriedade Intelectual</h2>

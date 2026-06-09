@@ -31,6 +31,12 @@ export interface CreatorVideoNarrativeDiagnosisSafeReading {
   contentContext?: VideoNarrativeContentContext;
   /** Coherence verdict against the creator's confirmed top-performing pattern. */
   narrativeCoherence?: VideoNarrativeCoherence;
+  /**
+   * Creator's declared publication intent. Binary: "yes" or "no".
+   * Null = legacy reading (pre-feature), treated as full weight.
+   * Only "yes" and null feed the narrative map; "no" is excluded.
+   */
+  publishIntent?: "yes" | "no" | null;
   /** Creator's answers to the adaptive quiz shown on the confirmation step. */
   confirmationQuizAnswers?: Array<{
     questionId: string;
@@ -48,6 +54,22 @@ export interface CreatorVideoNarrativeDiagnosisSafeReading {
 export interface ListCreatorVideoNarrativeDiagnosesForUserParams {
   userId: string;
   limit?: number;
+}
+
+/**
+ * Whether a reading should feed the narrative map / strategic synthesis.
+ *
+ * Product rule (binary publishIntent): the map reflects only what the creator
+ * chooses to publish. Readings declared "no" are excluded. "yes" and legacy
+ * readings without a declared intent (null) feed the map with full weight.
+ *
+ * Note: this gates the SYNTHESIS only — the readings history ("Leituras")
+ * still shows every analysis the creator ran, regardless of publish intent.
+ */
+export function readingFeedsNarrativeMap(
+  reading: Pick<CreatorVideoNarrativeDiagnosisSafeReading, "publishIntent">,
+): boolean {
+  return reading.publishIntent !== "no";
 }
 
 export interface GetCreatorVideoNarrativeDiagnosisForUserParams {
@@ -94,6 +116,7 @@ export function mapCreatorVideoNarrativeDiagnosisToSafeReading(
     evidenceAnchors: doc.evidenceAnchors,
     contentContext: (doc as unknown as { contentContext?: VideoNarrativeContentContext }).contentContext,
     narrativeCoherence: (doc as unknown as { narrativeCoherence?: VideoNarrativeCoherence }).narrativeCoherence,
+    publishIntent: (doc as unknown as { publishIntent?: "yes" | "no" | null }).publishIntent ?? null,
     confirmationQuizAnswers: (doc as unknown as { confirmationQuizAnswers?: CreatorVideoNarrativeDiagnosisSafeReading["confirmationQuizAnswers"] }).confirmationQuizAnswers,
     safetyFlags: doc.safetyFlags,
     createdAt: asDate(doc.createdAt),
@@ -116,6 +139,7 @@ function queryProjection() {
     evidenceAnchors: 1,
     contentContext: 1,
     narrativeCoherence: 1,
+    publishIntent: 1,
     confirmationQuizAnswers: 1,
     safetyFlags: 1,
     "videoMetadata.analyzedAt": 1,

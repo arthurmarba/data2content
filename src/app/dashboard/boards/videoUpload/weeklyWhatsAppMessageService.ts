@@ -192,7 +192,7 @@ export async function generateWeeklyWhatsAppMessageForUser(
       whatsappVerified?: boolean;
       whatsappOptOut?: boolean;
       weeklyWhatsAppSentAt?: Date | null;
-      onboardingAnswers?: { whyYouCreate?: string | null } | null;
+      onboardingAnswers?: { whyYouCreate?: string | null; creatorPurpose?: string | null } | null;
       planStatus?: string;
       role?: string;
       cancelAtPeriodEnd?: boolean;
@@ -267,6 +267,7 @@ export async function generateWeeklyWhatsAppMessageForUser(
       narrativeLabel,
       territoriesLabels,
       whyCreate: userDoc.onboardingAnswers?.whyYouCreate ?? null,
+      creatorPurpose: userDoc.onboardingAnswers?.creatorPurpose ?? null,
     });
     generatedBody = await callGemini(system, user);
   } else {
@@ -310,6 +311,7 @@ export async function generateWeeklyWhatsAppMessageForUser(
       territoriesLabels,
       confirmedAssets,
       toneLabel,
+      creatorPurpose: userDoc.onboardingAnswers?.creatorPurpose ?? null,
       activeIdeas: activeIdeas.map((i) => ({
         title: i.title,
         hook: i.hook,

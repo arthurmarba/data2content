@@ -11,6 +11,7 @@ export type MobileNarrativeTelemetryEventName =
   | "mobile_upload_session_created"
   | "mobile_video_upload_completed"
   | "mobile_analysis_submitted"
+  | "mobile_analysis_retry_succeeded"
   | "mobile_analysis_succeeded"
   | "mobile_analysis_failed"
   | "mobile_reading_saved"
@@ -49,6 +50,7 @@ export type MobileNarrativeTelemetryPayload = {
   allowlistGatePassed?: boolean;
   readingSaved?: boolean;
   synthesisWritten?: boolean;
+  retryAttempts?: number;
 };
 
 export type MobileNarrativeTelemetryProvider = (
@@ -166,6 +168,8 @@ export function sanitizeMobileNarrativeTelemetryPayload(
   if (readingSaved !== undefined) result.readingSaved = readingSaved;
   const synthesisWritten = safeBoolean(source.synthesisWritten);
   if (synthesisWritten !== undefined) result.synthesisWritten = synthesisWritten;
+  const retryAttempts = safeNumber(source.retryAttempts);
+  if (retryAttempts !== undefined) result.retryAttempts = retryAttempts;
 
   return {
     eventName: safeShortString(source.eventName) as MobileNarrativeTelemetryEventName | undefined,

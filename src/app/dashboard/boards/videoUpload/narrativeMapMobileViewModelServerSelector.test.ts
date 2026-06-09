@@ -207,6 +207,62 @@ describe("narrativeMapMobileViewModelServerSelector", () => {
     expect(result.viewModel.safetyNote).toBe("A D2C guarda a leitura estratégica, não o vídeo.");
   });
 
+  describe("filtro publishIntent (binário)", () => {
+    it("exclui leitura 'no' da síntese mas mantém no histórico de Leituras", async () => {
+      const base = buildCreatorStrategicProfileSynthesisReadingsFixture("three_related_readings");
+      // Marca a leitura mais recente (reading-pattern-1) como 'não vou publicar'.
+      const readings = base.map((r, i) =>
+        i === 0 ? { ...r, publishIntent: "no" as const } : r,
+      );
+
+      const result = await buildNarrativeMapMobileViewModelFromReadings({
+        userId,
+        displayName: "Lívia",
+        readings,
+      });
+
+      // Síntese: só 2 das 3 leituras alimentam o mapa.
+      expect(result.profileSynthesis.analyzedReadingsCount).toBe(2);
+      // Histórico: todas as 3 leituras continuam visíveis.
+      expect(result.viewModel.readings.items).toHaveLength(3);
+      // Presentation: a leitura 'no' mais recente ainda é exibida como leitura atual.
+      expect(result.currentReading?.diagnosisId).toBe("reading-pattern-1");
+    });
+
+    it("zera a síntese quando todas as leituras são 'no', preservando o histórico", async () => {
+      const readings = buildCreatorStrategicProfileSynthesisReadingsFixture(
+        "three_related_readings",
+      ).map((r) => ({ ...r, publishIntent: "no" as const }));
+
+      const result = await buildNarrativeMapMobileViewModelFromReadings({
+        userId,
+        displayName: "Lívia",
+        readings,
+      });
+
+      expect(result.profileSynthesis.analyzedReadingsCount).toBe(0);
+      expect(result.profileSynthesis.status).toBe("empty");
+      // Histórico intacto — o criador ainda vê que analisou esses vídeos.
+      expect(result.viewModel.readings.items).toHaveLength(3);
+    });
+
+    it("'yes' e leituras legadas (null) alimentam a síntese com peso pleno", async () => {
+      const base = buildCreatorStrategicProfileSynthesisReadingsFixture("two_related_readings");
+      const readings = [
+        { ...base[0], publishIntent: "yes" as const },
+        { ...base[1], publishIntent: null }, // legado: sem intent declarado
+      ];
+
+      const result = await buildNarrativeMapMobileViewModelFromReadings({
+        userId,
+        displayName: "Lívia",
+        readings,
+      });
+
+      expect(result.profileSynthesis.analyzedReadingsCount).toBe(2);
+    });
+  });
+
   it("não importa SDKs, endpoints, client components, Snapshot ou Mongoose direto", () => {
     const source = fs.readFileSync(path.join(__dirname, "narrativeMapMobileViewModelServerSelector.ts"), "utf8");
 

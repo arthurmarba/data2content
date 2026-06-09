@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { MOBILE_INSTAGRAM_CONNECT_ROUTE } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
 import { openPaywallModal } from "@/utils/paywallModal";
 import { MOBILE_PROFILE_ROUTE } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
 import { OnboardingPaywallModal } from "./OnboardingPaywallModal";
+import { SAFE_TOP } from "./diagnosticoTokens";
 import type { NarrativeMapAccessState } from "@/app/dashboard/boards/videoUpload/narrativeMapAccessState";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -13,18 +15,37 @@ export type OnboardingAnswers = {
   whyYouCreate: string;
   desiredFeeling: string;
   contentLimit?: string;
+  /**
+   * Declaração de propósito livre — "para quem cria / o que quer que eles sintam".
+   * Coletada no Q3 do onboarding (opcional). Alimenta a geração do mapa (Fase 3).
+   */
+  creatorPurpose?: string;
+  // Mapa seed — 5 perguntas adicionadas na Fase 1
+  niches?: string[];
+  brandTerritories?: string;
+  mainGoal3m?: string;
+  mainPains?: string[];
+  dreamBrands?: string;
 };
 
-type OnboardingStep =
+export type OnboardingStep =
   | "welcome"
+  | "questions"          // Q1+Q2 fusionados — novo fluxo otimizado
+  | "calibrating"
+  | "first_signal"
+  | "instagram_invite"   // CTA de Instagram pós first_signal — novo
+  | "paywall"            // Tela de conversão Pro — exibida para free_unused antes de fechar
+  // Legacy: aceitos via initialStep para retomada após redirect OAuth
   | "instagram"
   | "question_1"
   | "question_2"
   | "question_3"
-  | "calibrating"
-  | "first_signal";
-
-const QUESTION_STEPS: OnboardingStep[] = ["question_1", "question_2", "question_3"];
+  // Mapa seed: mantidos no tipo mas removidos do fluxo principal (acessíveis via gear)
+  | "map_q1"
+  | "map_q2"
+  | "map_q3"
+  | "map_q4"
+  | "map_q5";
 
 interface FirstSignal {
   label: string;
@@ -38,26 +59,54 @@ interface Props {
   accessState: NarrativeMapAccessState;
   /** Leading narrative signal from synthesis — shown at first_signal step if present. */
   firstSignal?: FirstSignal | null;
+  /**
+   * O3 — step de retomada após redirect do Instagram.
+   * Quando definido, o onboarding inicia neste step em vez de "welcome",
+   * evitando que o criador tenha de clicar "Começar" de novo.
+   */
+  initialStep?: OnboardingStep;
+  /**
+   * O3 — callback que o shell usa para salvar o step atual em sessionStorage
+   * antes de navegar para o fluxo de conexão do Instagram.
+   * Se omitido, cai no comportamento legado (window.location.href).
+   */
+  onConnectInstagram?: () => void;
   onComplete: (answers: OnboardingAnswers) => void;
+  /** Decisão 2 — abre o upload de vídeo direto após o criador escolher "Enviar meu primeiro vídeo" no first_signal. */
+  onRequestUpload?: () => void;
 }
 
 // ─── Option data ──────────────────────────────────────────────────────────────
 
+type OptionItem = { value: string; label: string };
+
+// Decisão 1 — Q1 agora mapeia identidade narrativa (o QUE cria), não motivação (POR QUE cria).
+// Isso alimenta diretamente Etapas 2-3 da jornada D2C (Narrativa Central + Territórios).
 const WHY_OPTIONS = [
-  { value: "expressao_pessoal", label: "Expressão pessoal" },
-  { value: "construir_audiencia", label: "Construir uma audiência" },
-  { value: "gerar_renda", label: "Gerar renda" },
-  { value: "construir_autoridade", label: "Construir autoridade" },
-  { value: "explorar_criatividade", label: "Explorar criatividade" },
+  { value: "ensino_conhecimento", label: "Ensino ou compartilho conhecimento" },
+  { value: "conto_historias",     label: "Conto histórias da minha vida" },
+  { value: "entretenimento",      label: "Entretenimento e humor" },
+  { value: "inspiro_acao",        label: "Inspiro a agir ou mudar algo" },
 ] as const;
 
 const FEELING_OPTIONS = [
   { value: "inspirado", label: "Inspirado" },
   { value: "informado", label: "Informado" },
-  { value: "entendido", label: "Entendido" },
+  { value: "entendido", label: "Compreendido" },
   { value: "entretido", label: "Entretido" },
   { value: "motivado", label: "Motivado a agir" },
 ] as const;
+
+// Mapa de label narrativo e estilo para o seed signal
+const WHY_TO_NARRATIVE: Record<string, { label: string; style: string }> = {
+  ensino_conhecimento: { label: "Criação a partir do que você aprende e ensina",    style: "conteúdo educativo" },
+  conto_historias:     { label: "Conteúdo construído a partir da sua vida",          style: "conteúdo pessoal" },
+  entretenimento:      { label: "Entretenimento como linguagem",                     style: "conteúdo de entretenimento" },
+  inspiro_acao:        { label: "Criação com intenção de mover pessoas",             style: "conteúdo motivacional" },
+  // Legacy — mantidos para usuários com respostas antigas
+  compartilho_aprendizado: { label: "Criação a partir do que você aprende e ensina", style: "conteúdo educativo" },
+  ensino_habilidade:       { label: "Criação a partir do que você aprende e ensina", style: "tutoriais e conteúdo técnico" },
+};
 
 function findOptionLabel(options: readonly OptionItem[], value: string): string | null {
   return options.find((option) => option.value === value)?.label ?? null;
@@ -70,26 +119,70 @@ function lowerFirst(value: string): string {
 function buildSeedSignal({
   whyYouCreate,
   desiredFeeling,
-  contentLimit,
-}: OnboardingAnswers): FirstSignal {
-  const whyLabel = findOptionLabel(WHY_OPTIONS, whyYouCreate);
+}: Pick<OnboardingAnswers, "whyYouCreate" | "desiredFeeling">): FirstSignal {
+  const narrative = WHY_TO_NARRATIVE[whyYouCreate];
   const feelingLabel = findOptionLabel(FEELING_OPTIONS, desiredFeeling);
-  const label = whyLabel
-    ? `${whyLabel} como ponto de partida`
-    : "Seu mapa começa pelas suas respostas";
-  const feelingCopy = feelingLabel
-    ? `para fazer a audiência se sentir ${lowerFirst(feelingLabel)}`
-    : "e construir uma relação mais clara com a audiência";
-  const limitCopy = contentLimit
-    ? ` Também vamos respeitar o limite que você marcou: ${contentLimit}.`
+  const label = narrative?.label ?? "Seu território ainda está sendo mapeado";
+
+  // Fase 4 — sentimento de Q2 é a dimensão central da hipótese, não um apêndice.
+  // Estrutura: O QUÊ você cria (label) + POR QUÊ / intenção (feeling) + próximo passo.
+  const feelingSentence = feelingLabel
+    ? `A intenção por trás: que cada pessoa que assiste saia ${lowerFirst(feelingLabel)}.`
     : "";
 
-  return {
-    label,
-    summary: `Por enquanto, a D2C entende que seu conteúdo parte de ${lowerFirst(whyLabel ?? "uma direção própria")} ${feelingCopy}.${limitCopy}`,
-    source: "seed",
-  };
+  const summary = feelingSentence
+    ? `Hipótese construída a partir das suas respostas. ${feelingSentence} Seu primeiro vídeo vai revelar muito mais.`
+    : "Hipótese construída a partir das suas respostas. Seu primeiro vídeo vai revelar muito mais sobre o seu mapa.";
+
+  return { label, summary, source: "seed" };
 }
+
+// ─── Flow orientation (Fase 3b) ───────────────────────────────────────────────
+
+/**
+ * Telas visíveis do fluxo, na ordem, para o usuário atual.
+ *
+ * Fluxo exclusivo: instagram_invite e paywall são mutuamente exclusivos.
+ *   - free_unused        → paywall (o post-checkout já conecta o Instagram)
+ *   - não-free, sem IG   → instagram_invite
+ *   - conectado/pago     → encerra após first_signal
+ *
+ * `calibrating` é estado de loading — não conta como etapa de progresso.
+ */
+function getVisibleSteps(
+  instagramConnected: boolean,
+  accessState: NarrativeMapAccessState,
+): OnboardingStep[] {
+  const steps: OnboardingStep[] = ["questions", "first_signal"];
+  if (accessState === "free_unused") steps.push("paywall");
+  else if (!instagramConnected) steps.push("instagram_invite");
+  return steps;
+}
+
+/**
+ * Lê o seedSignal enriquecido pela IA do corpo da resposta de /onboarding.
+ * Best-effort: qualquer formato inesperado (sem .json, JSON inválido, campos
+ * faltando) resulta em null → o client cai no buildSeedSignal determinístico.
+ */
+async function readSeedSignalFromResponse(response: Response): Promise<FirstSignal | null> {
+  try {
+    if (typeof response.json !== "function") return null;
+    const data = (await response.json()) as { seedSignal?: unknown } | null;
+    const seed = data?.seedSignal as { label?: unknown; summary?: unknown } | null | undefined;
+    if (!seed || typeof seed.label !== "string" || typeof seed.summary !== "string") return null;
+    if (!seed.label.trim() || !seed.summary.trim()) return null;
+    return { label: seed.label, summary: seed.summary, source: "seed" };
+  } catch {
+    return null;
+  }
+}
+
+/** Para qual step o botão "voltar" leva. Ausência = sem voltar (entrada/loading). */
+const BACK_TARGET: Partial<Record<OnboardingStep, OnboardingStep>> = {
+  first_signal: "questions",
+  instagram_invite: "first_signal",
+  paywall: "first_signal",
+};
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -98,338 +191,287 @@ export function MobileOnboardingFlow({
   instagramConnected,
   accessState,
   firstSignal,
+  initialStep,
+  onConnectInstagram,
   onComplete,
+  onRequestUpload,
 }: Props) {
-  const [step, setStep] = useState<OnboardingStep>("welcome");
+  // Steps legacy + "welcome" mapeados para "questions" — welcome eliminado do fluxo.
+  const resolveInitialStep = (s?: OnboardingStep): OnboardingStep => {
+    if (!s || s === "welcome" || s === "question_1" || s === "question_2" || s === "question_3" || s === "instagram") return "questions";
+    return s;
+  };
+  const [step, setStep] = useState<OnboardingStep>(resolveInitialStep(initialStep));
   const [whyYouCreate, setWhyYouCreate] = useState("");
   const [desiredFeeling, setDesiredFeeling] = useState("");
-  const [contentLimit, setContentLimit] = useState("");
+  const [creatorPurpose, setCreatorPurpose] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const [firstSignalResponse, setFirstSignalResponse] = useState<string | null>(null);
-  const [showPaywallModal, setShowPaywallModal] = useState(false);
+  const [calibrationError, setCalibrationError] = useState(false);
+  // Fase 3 — sinal seed enriquecido pela IA (gerado a partir de Q1+Q2+Q3 quando
+  // há propósito declarado). Tem prioridade sobre o buildSeedSignal determinístico,
+  // mas cede ao firstSignal detectado (Instagram/vídeos), que é o sinal mais forte.
+  const [aiSeedSignal, setAiSeedSignal] = useState<FirstSignal | null>(null);
+  /**
+   * Guarda intenção de abrir upload enquanto o paywall está sendo exibido.
+   * Usado pelo step "paywall" para retomar o fluxo de upload após decisão.
+   */
+  const [pendingUpload, setPendingUpload] = useState(false);
 
   // Reset on close
   useEffect(() => {
     if (!open) {
-      setStep("welcome");
+      setStep("questions");
       setWhyYouCreate("");
       setDesiredFeeling("");
-      setContentLimit("");
+      setCreatorPurpose("");
+      setAiSeedSignal(null);
       setIsSaving(false);
-      setFirstSignalResponse(null);
-      setShowPaywallModal(false);
+      setCalibrationError(false);
+      setPendingUpload(false);
     }
   }, [open]);
 
-  const saveAndCalibrate = useCallback(async () => {
-    setStep("calibrating");
-    setIsSaving(true);
+  // Bug 1 fix: recebe `feelingValue` como parâmetro para evitar race condition
+  // com setState async — o closure de `desiredFeeling` ficaria stale quando
+  // chamado imediatamente após `setDesiredFeeling(v)`.
+  // `purposeValue` segue o mesmo padrão para `creatorPurpose`.
+  const saveAndCalibrate = useCallback(async (feelingValue?: string, purposeValue?: string) => {
+    const feeling = feelingValue ?? desiredFeeling;
+    const purpose = purposeValue !== undefined ? purposeValue : creatorPurpose;
 
-    try {
-      await fetch("/api/dashboard/mobile-strategic-profile/onboarding", {
+    if (firstSignal) {
+      void fetch("/api/dashboard/mobile-strategic-profile/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           whyYouCreate,
-          desiredFeeling,
-          contentLimit: contentLimit.trim() || undefined,
+          desiredFeeling: feeling,
+          ...(purpose ? { creatorPurpose: purpose } : {}),
         }),
-      });
-    } catch {
-      // Non-fatal — onboarding state saved locally, will retry on next visit
+      }).catch(() => { /* não-fatal */ });
+      setStep("first_signal");
+      return;
     }
 
-    // Show calibrating for at least 2s for UX feel
-    await new Promise((r) => setTimeout(r, 2000));
-    setIsSaving(false);
+    setStep("calibrating");
+    setIsSaving(true);
+    setCalibrationError(false);
 
-    setStep("first_signal");
-  }, [whyYouCreate, desiredFeeling, contentLimit]);
+    try {
+      const [response] = await Promise.all([
+        fetch("/api/dashboard/mobile-strategic-profile/onboarding", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            whyYouCreate,
+            desiredFeeling: feeling,
+            ...(purpose ? { creatorPurpose: purpose } : {}),
+          }),
+        }),
+        new Promise<void>((r) => setTimeout(r, 1200)),
+      ]);
 
-  const handleFirstSignalResponse = useCallback(
-    (response: "yes" | "almost" | "no") => {
-      setFirstSignalResponse(response);
-      const answers = { whyYouCreate, desiredFeeling, contentLimit: contentLimit.trim() || undefined };
+      if (!response.ok) throw new Error(`Onboarding API error: ${response.status}`);
 
-      // Show paywall modal to free users who haven't used their reading yet
-      if (accessState === "free_unused") {
-        onComplete(answers);
-        setShowPaywallModal(true);
-        return;
-      }
+      // Fase 3 — se a API devolveu um sinal enriquecido pela IA, usa-o no
+      // first_signal. Caso contrário, o render cai no buildSeedSignal.
+      setAiSeedSignal(await readSeedSignalFromResponse(response));
 
-      onComplete(answers);
-    },
-    [whyYouCreate, desiredFeeling, contentLimit, accessState, onComplete],
-  );
+      setIsSaving(false);
+      setStep("first_signal");
+    } catch {
+      setIsSaving(false);
+      setCalibrationError(true);
+    }
+  }, [firstSignal, whyYouCreate, desiredFeeling, creatorPurpose]);
 
-  const handlePaywallSubscribeNow = useCallback(async () => {
-    // Trigger the standard paywall modal flow for subscription
+  const completeOnboarding = useCallback((openUpload = false) => {
+    // Para criadores free_unused: exibir paywall como último step antes de fechar.
+    // O paywall captura o contexto narrativo do criador e apresenta o argumento
+    // de conversão com social proof. Só após a escolha no paywall chamamos onComplete.
+    if (accessState === "free_unused" && step !== "paywall") {
+      setPendingUpload(openUpload);
+      setStep("paywall");
+      return;
+    }
+
+    const answers: OnboardingAnswers = {
+      whyYouCreate,
+      desiredFeeling,
+      ...(creatorPurpose ? { creatorPurpose } : {}),
+    };
+    onComplete(answers);
+    if (openUpload && onRequestUpload) {
+      // Pequeno delay para o onboarding fechar antes de abrir o upload
+      setTimeout(() => onRequestUpload(), 300);
+    }
+  }, [accessState, step, whyYouCreate, desiredFeeling, creatorPurpose, onComplete, onRequestUpload]);
+
+  /** Criador clicou "Assinar agora" no paywall — fecha o onboarding e abre Stripe. */
+  const handlePaywallSubscribe = useCallback(async () => {
+    const answers: OnboardingAnswers = {
+      whyYouCreate,
+      desiredFeeling,
+      ...(creatorPurpose ? { creatorPurpose } : {}),
+    };
+    onComplete(answers);
     openPaywallModal({
-      context: "narrative_map",
-      source: "onboarding_entry",
+      context: "onboarding",
+      source: "onboarding_paywall_screen",
       returnTo: MOBILE_PROFILE_ROUTE,
       postCheckoutIntent: "connect_instagram",
     });
-  }, []);
+  }, [whyYouCreate, desiredFeeling, creatorPurpose, onComplete]);
 
+  /** Criador clicou "Explorar grátis primeiro" — fecha o onboarding sem abrir Stripe. */
   const handlePaywallExploreFree = useCallback(() => {
-    // User chose to explore free tier — close the modal and keep onboarding open
-    setShowPaywallModal(false);
-  }, []);
+    const answers: OnboardingAnswers = {
+      whyYouCreate,
+      desiredFeeling,
+      ...(creatorPurpose ? { creatorPurpose } : {}),
+    };
+    onComplete(answers);
+    if (pendingUpload && onRequestUpload) {
+      setTimeout(() => onRequestUpload(), 300);
+    }
+  }, [whyYouCreate, desiredFeeling, creatorPurpose, onComplete, pendingUpload, onRequestUpload]);
+
+  const handleFirstSignalResponse = useCallback(
+    () => {
+      // Fluxo exclusivo (3b): free_unused vai direto ao paywall (o post-checkout
+      // já conecta o Instagram). Só usuários NÃO-free e sem IG veem o convite.
+      // completeOnboarding() roteia free_unused → paywall; demais → encerra.
+      if (accessState !== "free_unused" && !instagramConnected) {
+        setStep("instagram_invite");
+      } else {
+        completeOnboarding();
+      }
+    },
+    [accessState, instagramConnected, completeOnboarding],
+  );
+
+  // ── Orientação de fluxo (3b): progresso + navegação de volta ──
+  const visibleSteps = useMemo(
+    () => getVisibleSteps(instagramConnected, accessState),
+    [instagramConnected, accessState],
+  );
+  const progressFraction = useMemo(() => {
+    // calibrating é loading — congela na posição de "questions" até first_signal.
+    const effective: OnboardingStep = step === "calibrating" ? "questions" : step;
+    const idx = visibleSteps.indexOf(effective);
+    return idx < 0 ? 0 : (idx + 1) / visibleSteps.length;
+  }, [step, visibleSteps]);
+
+  const canGoBack = Boolean(BACK_TARGET[step]);
+  const handleBack = useCallback(() => {
+    const target = BACK_TARGET[step];
+    if (target) setStep(target);
+  }, [step]);
 
   if (!open) return null;
 
   return (
-    <>
-      <div className="fixed inset-0 z-[270] flex flex-col bg-white">
-        <div className="flex-1 overflow-y-auto">
-        {step === "welcome" && (
-          <WelcomeScreen onNext={() => setStep(instagramConnected ? "question_1" : "instagram")} />
-        )}
-        {step === "instagram" && (
-          <InstagramScreen
-            onConnect={() => {
-              window.location.href = MOBILE_INSTAGRAM_CONNECT_ROUTE;
-            }}
-            onSkip={() => setStep("question_1")}
-          />
-        )}
-        {step === "question_1" && (
-          <QuestionScreen
-            questionNumber={1}
-            question="Por que você cria conteúdo?"
-            options={WHY_OPTIONS}
-            selected={whyYouCreate}
-            onSelect={setWhyYouCreate}
-            onNext={() => setStep("question_2")}
-          />
-        )}
-        {step === "question_2" && (
-          <QuestionScreen
-            questionNumber={2}
-            question="O que você quer que alguém sinta depois de ver seu conteúdo?"
-            options={FEELING_OPTIONS}
-            selected={desiredFeeling}
-            onSelect={setDesiredFeeling}
-            onNext={() => setStep("question_3")}
-          />
-        )}
-        {step === "question_3" && (
-          <LimitScreen
-            value={contentLimit}
-            onChange={setContentLimit}
-            onNext={saveAndCalibrate}
-            saving={isSaving}
-          />
-        )}
-        {step === "calibrating" && <CalibratingScreen />}
-        {step === "first_signal" && (
-          <FirstSignalScreen
-            signal={firstSignal ?? buildSeedSignal({
-              whyYouCreate,
-              desiredFeeling,
-              contentLimit: contentLimit.trim() || undefined,
-            })}
-            response={firstSignalResponse}
-            onRespond={handleFirstSignalResponse}
-          />
-        )}
-        </div>
-      </div>
-
-      <OnboardingPaywallModal
-        open={showPaywallModal}
-        onSubscribeNow={handlePaywallSubscribeNow}
-        onExploreFree={handlePaywallExploreFree}
-      />
-    </>
-  );
-}
-
-// ─── Screen: Welcome ──────────────────────────────────────────────────────────
-
-function WelcomeScreen({ onNext }: { onNext: () => void }) {
-  return (
-    <div className="flex min-h-dvh flex-col items-center justify-center px-8 pb-16 pt-20 text-center">
-      {/* Map icon */}
-      <div className="mb-8 flex h-16 w-16 items-center justify-center rounded-full bg-orange-50">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <circle cx="12" cy="12" r="9" stroke="#f97316" strokeWidth="1.8" />
-          <circle cx="12" cy="12" r="4" fill="#f97316" />
-        </svg>
-      </div>
-
-      <h1 className="mb-3 text-[26px] font-bold leading-tight tracking-tight text-zinc-950">
-        Descubra a identidade do seu conteúdo.
-      </h1>
-      <p className="mb-12 text-[15px] leading-relaxed text-zinc-500">
-        A D2C percebe seus padrões reais de criação — não o que você preenche em formulários.
-      </p>
-
-      <button
-        type="button"
-        onClick={onNext}
-        className="w-full max-w-xs rounded-full bg-zinc-950 px-6 py-4 text-[15px] font-semibold text-white transition-colors active:bg-zinc-800"
+    <div className="fixed inset-0 z-[270] flex flex-col bg-white">
+      {/* Chrome do shell — safe-area + voltar + progresso (sempre presente) */}
+      <header
+        className="shrink-0"
+        style={{ paddingTop: SAFE_TOP }}
       >
-        Começar
-      </button>
-    </div>
-  );
-}
-
-// ─── Screen: Instagram ────────────────────────────────────────────────────────
-
-function InstagramScreen({ onConnect, onSkip }: { onConnect: () => void; onSkip: () => void }) {
-  return (
-    <div className="flex min-h-dvh flex-col items-center justify-center px-8 pb-16 pt-20 text-center">
-      <div className="mb-8 flex h-16 w-16 items-center justify-center rounded-full bg-sky-50">
-        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <rect x="2" y="2" width="20" height="20" rx="5" stroke="#0ea5e9" strokeWidth="1.8" />
-          <circle cx="12" cy="12" r="4" stroke="#0ea5e9" strokeWidth="1.8" />
-          <circle cx="17.5" cy="6.5" r="1" fill="#0ea5e9" />
-        </svg>
-      </div>
-
-      <h2 className="mb-3 text-[22px] font-bold leading-tight tracking-tight text-zinc-950">
-        Traga seu Instagram para o espelho
-      </h2>
-      <p className="mb-2 text-[15px] leading-relaxed text-zinc-500">
-        Suas postagens revelam seus padrões silenciosamente — nosso espelho reconhece seus caminhos sem esforço.
-      </p>
-
-      <button
-        type="button"
-        onClick={onConnect}
-        className="mt-8 w-full max-w-xs rounded-full bg-zinc-950 px-6 py-4 text-[15px] font-semibold text-white transition-colors active:bg-zinc-800"
-      >
-        Conectar agora
-      </button>
-
-      <button
-        type="button"
-        onClick={onSkip}
-        className="mt-3 w-full max-w-xs rounded-full border border-zinc-200 px-6 py-4 text-[15px] font-semibold text-zinc-600 transition-colors active:bg-zinc-50"
-      >
-        Fazer isso depois
-      </button>
-
-      <p className="mt-6 max-w-xs text-[12px] leading-relaxed text-zinc-400">
-        Você volta para continuar o mapa. Sem Instagram, ele cresce com os vídeos que você trouxer.
-      </p>
-    </div>
-  );
-}
-
-// ─── Screen: Question (options) ───────────────────────────────────────────────
-
-type OptionItem = { value: string; label: string };
-
-function QuestionScreen({
-  questionNumber,
-  question,
-  options,
-  selected,
-  onSelect,
-  onNext,
-}: {
-  questionNumber: 1 | 2;
-  question: string;
-  options: readonly OptionItem[];
-  selected: string;
-  onSelect: (v: string) => void;
-  onNext: () => void;
-}) {
-  return (
-    <div className="flex min-h-dvh flex-col px-5 pb-10 pt-16">
-      {/* Progress dots */}
-      <ProgressDots current={questionNumber} total={3} />
-
-      <h2 className="mb-8 mt-6 text-[22px] font-bold leading-tight tracking-tight text-zinc-950">
-        {question}
-      </h2>
-
-      <div className="flex flex-col gap-3">
-        {options.map((opt) => (
-          <button
-            key={opt.value}
-            type="button"
-            onClick={() => onSelect(opt.value)}
-            className={`w-full rounded-2xl border px-4 py-3.5 text-left text-[15px] font-medium transition-colors ${
-              selected === opt.value
-                ? "border-zinc-950 bg-zinc-950 text-white"
-                : "border-zinc-200 bg-white text-zinc-800 active:bg-zinc-50"
-            }`}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-auto pt-8">
-        <button
-          type="button"
-          onClick={onNext}
-          disabled={!selected}
-          className="w-full rounded-full bg-zinc-950 px-6 py-4 text-[15px] font-semibold text-white transition-opacity disabled:opacity-30 active:bg-zinc-800"
-        >
-          Continuar
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─── Screen: Question 3 (free text) ──────────────────────────────────────────
-
-function LimitScreen({
-  value,
-  onChange,
-  onNext,
-  saving,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  onNext: () => void;
-  saving: boolean;
-}) {
-  return (
-    <div className="flex min-h-dvh flex-col px-5 pb-10 pt-16">
-      <ProgressDots current={3} total={3} />
-
-      <h2 className="mb-2 mt-6 text-[22px] font-bold leading-tight tracking-tight text-zinc-950">
-        Tem algum território que você prefere manter fora do seu espelho?
-      </h2>
-      <p className="mb-6 text-[14px] text-zinc-400">Opcional — campo livre, pode deixar em branco.</p>
-
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="Ex: política, vida privada, religião…"
-        maxLength={300}
-        rows={3}
-        className="w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-[15px] text-zinc-800 outline-none transition focus:border-zinc-400 placeholder:text-zinc-400"
-      />
-
-      <div className="mt-auto pt-8">
-        <button
-          type="button"
-          onClick={onNext}
-          disabled={saving}
-          className="flex w-full items-center justify-center gap-2 rounded-full bg-zinc-950 px-6 py-4 text-[15px] font-semibold text-white transition-opacity disabled:opacity-50 active:bg-zinc-800"
-        >
-          {saving ? (
-            <>
-              <svg className="h-4 w-4 animate-spin text-white/70" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+        <div className="flex h-11 items-center px-2">
+          {canGoBack ? (
+            <button
+              type="button"
+              onClick={handleBack}
+              aria-label="Voltar"
+              className="flex h-11 w-11 items-center justify-center rounded-full text-zinc-950 transition-opacity duration-150 active:opacity-50"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M15.5 19l-7-7 7-7" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              Salvando…
-            </>
+            </button>
           ) : (
-            "Finalizar"
+            <div className="h-11 w-11" />
           )}
-        </button>
+        </div>
+        {/* Barra de progresso ambiente — 2px, preenche por fração */}
+        <div
+          className="h-[2px] w-full bg-zinc-100"
+          role="progressbar"
+          aria-label="Progresso do onboarding"
+          aria-valuenow={Math.round(progressFraction * 100)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
+          <motion.div
+            className="h-full bg-zinc-900"
+            initial={false}
+            animate={{ width: `${Math.round(progressFraction * 100)}%` }}
+            transition={{ duration: 0.4, ease: "easeInOut" }}
+          />
+        </div>
+      </header>
+
+      {/* Área de conteúdo — cross-fade entre steps */}
+      <div className="relative flex-1 overflow-hidden">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={step}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.22, ease: "easeInOut" }}
+            className="absolute inset-0 overflow-y-auto"
+          >
+            {step === "questions" && (
+              <CombinedQuestionsScreen
+                whyYouCreate={whyYouCreate}
+                onSelectWhy={setWhyYouCreate}
+                desiredFeeling={desiredFeeling}
+                onSelectFeeling={setDesiredFeeling}
+                creatorPurpose={creatorPurpose}
+                onSetCreatorPurpose={setCreatorPurpose}
+                onSubmit={(feeling, purpose) => {
+                  setCreatorPurpose(purpose);
+                  saveAndCalibrate(feeling, purpose);
+                }}
+              />
+            )}
+            {step === "calibrating" && (
+              // Retry sem argumento: saveAndCalibrate cai no fallback de `desiredFeeling`.
+              // (Passar a ref direta injetaria o evento de clique como feelingValue,
+              //  quebrando o JSON.stringify do body com refs circulares.)
+              <CalibratingScreen isError={calibrationError} onRetry={() => saveAndCalibrate()} />
+            )}
+            {step === "first_signal" && (
+              <FirstSignalScreen
+                // Prioridade: sinal detectado (Instagram/vídeos) > seed da IA (Q1+Q2+Q3) > determinístico.
+                signal={firstSignal ?? aiSeedSignal ?? buildSeedSignal({ whyYouCreate, desiredFeeling })}
+                onRespond={handleFirstSignalResponse}
+                onUpload={onRequestUpload ? () => completeOnboarding(true) : undefined}
+              />
+            )}
+            {step === "instagram_invite" && (
+              <InstagramInviteScreen
+                onConnect={() => {
+                  if (onConnectInstagram) {
+                    onConnectInstagram();
+                  } else {
+                    window.location.href = MOBILE_INSTAGRAM_CONNECT_ROUTE;
+                  }
+                }}
+                onSkip={() => completeOnboarding(false)}
+              />
+            )}
+            {step === "paywall" && (
+              <OnboardingPaywallModal
+                open={true}
+                whyYouCreate={whyYouCreate}
+                onSubscribeNow={handlePaywallSubscribe}
+                onExploreFree={handlePaywallExploreFree}
+              />
+            )}
+          </motion.div>
+        </AnimatePresence>
       </div>
     </div>
   );
@@ -437,162 +479,443 @@ function LimitScreen({
 
 // ─── Screen: Calibrating ─────────────────────────────────────────────────────
 
-function CalibratingScreen() {
-  return (
-    <div className="flex min-h-dvh flex-col items-center justify-center px-8 text-center">
-      <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100">
-        <svg className="h-6 w-6 animate-spin text-zinc-400" viewBox="0 0 24 24" fill="none">
-          <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
-          <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-        </svg>
+function CalibratingScreen({
+  isError = false,
+  onRetry,
+}: {
+  isError?: boolean;
+  onRetry?: () => void;
+}) {
+  // safe-area-top agora é chrome do shell (3b). Aqui só padding de respiro +
+  // safe-area no fundo. my-auto centraliza com fallback scrollável (anti-clipping).
+  const safeStyle: React.CSSProperties = {
+    paddingTop:    "1rem",
+    paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 2rem)",
+  };
+
+  if (isError) {
+    return (
+      <div className="flex min-h-full flex-col px-8 text-center" style={safeStyle}>
+        <div className="my-auto flex flex-col items-center">
+          <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" stroke="#ef4444" strokeWidth="1.8" />
+              <path d="M12 8v4M12 16h.01" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" />
+            </svg>
+          </div>
+          <p className="text-[16px] font-medium text-zinc-700">Suas respostas estão aqui.</p>
+          <p className="mt-2 text-[13px] text-zinc-400">Não conseguimos conectar agora. Tente de novo.</p>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="mt-8 rounded-full bg-zinc-950 px-6 py-4 text-[15px] font-semibold text-white transition-colors active:bg-zinc-800"
+            >
+              Tentar de novo
+            </button>
+          )}
+        </div>
       </div>
-      <p className="text-[16px] font-medium text-zinc-700">Sintonizando seu espelho…</p>
-      <p className="mt-2 text-[13px] text-zinc-400">Um momento.</p>
+    );
+  }
+
+  return (
+    <div className="flex min-h-full flex-col px-8 text-center" style={safeStyle}>
+      <div className="my-auto flex flex-col items-center" role="status" aria-live="polite">
+        <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100">
+          <svg className="h-6 w-6 animate-spin text-zinc-400" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+            <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+          </svg>
+        </div>
+        <p className="text-[16px] font-medium text-zinc-700">Construindo seu mapa…</p>
+        <p className="mt-2 text-[13px] text-zinc-400">Um momento.</p>
+      </div>
     </div>
   );
 }
 
 // ─── Screen: First Signal ─────────────────────────────────────────────────────
 
+/**
+ * O4 — Sub-fluxo de refinamento simplificado.
+ *
+ * Antes: "Quase"/"Não é isso" → chips (Tema/Tom/Intenção/Momento) + campo
+ * de texto que eram coletados mas nunca persistidos → ilusão de coleta.
+ *
+ * Agora: a única ação é confirmar e seguir. O mapa aprende com as leituras
+ * reais, não com o meta-feedback do onboarding.
+ *
+ * Fase 3a — caminhos "almost"/"no" eram código morto (nunca disparados).
+ * Reduzido a uma confirmação única.
+ */
+const FIRST_SIGNAL_CONFIRMATION = "Registrado ✓ — mapa atualizado.";
+
 function FirstSignalScreen({
   signal,
-  response,
   onRespond,
+  onUpload,
 }: {
   signal: FirstSignal;
-  response: string | null;
-  onRespond: (r: "yes" | "almost" | "no") => void;
+  onRespond: () => void;
+  onUpload?: () => void;
 }) {
   const isSeedSignal = signal.source === "seed";
-  const [activePrompt, setActivePrompt] = useState<"almost" | "no" | "yes" | null>(null);
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [textValue, setTextValue] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const respondTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Fase 4 — foco automático no heading ao montar o step.
+  useEffect(() => { headingRef.current?.focus(); }, []);
+
+  // Cancela o onRespond agendado se a tela desmontar antes dos 700ms —
+  // ex.: usuário aperta "voltar" durante a confirmação. Sem isso, o timer
+  // dispararia e jogaria o usuário pra frente, anulando o voltar.
+  useEffect(() => {
+    return () => {
+      if (respondTimer.current) clearTimeout(respondTimer.current);
+    };
+  }, []);
+
+  const handleExplore = () => {
+    setConfirmed(true);
+    respondTimer.current = setTimeout(() => onRespond(), 700);
+  };
+
+  const handleUpload = () => {
+    // Bug 2 fix: NÃO chama onRespond — isso evita o double-complete.
+    // onUpload já encapsula completeOnboarding(true), que fecha o onboarding
+    // e dispara o upload. onRespond ficaria de fora para não chamar
+    // completeOnboarding uma segunda vez.
+    setConfirmed(true);
+    onUpload?.();
+  };
 
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center px-5 pb-16 pt-16">
-      <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-orange-50">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <circle cx="12" cy="12" r="9" stroke="#f97316" strokeWidth="1.8" />
-          <circle cx="12" cy="12" r="4" fill="#f97316" />
+    <div
+      className="flex min-h-full flex-col items-center bg-[#F2F2F7] px-5"
+      style={{
+        paddingTop:    "1.5rem",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4rem)",
+      }}
+    >
+      {/* my-auto: centraliza quando há espaço, scrollável quando não há */}
+      <div className="my-auto flex w-full max-w-sm flex-col items-center">
+      <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-white">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" stroke="#52525b" strokeWidth="1.8" />
+          <circle cx="12" cy="12" r="4" fill="#52525b" />
         </svg>
       </div>
 
-      <h2 className="mb-2 text-center text-[20px] font-bold leading-snug tracking-tight text-zinc-950">
-        Seu mapa começa assim
+      <h2
+        ref={headingRef}
+        tabIndex={-1}
+        className="mb-2 text-center text-[1.6rem] font-bold leading-snug tracking-tight text-zinc-950 focus:outline-none"
+      >
+        {isSeedSignal ? "Aqui está o rascunho do seu mapa" : "Seu mapa começa assim"}
       </h2>
-      <p className="mb-8 text-center text-[14px] leading-relaxed text-zinc-500">
+      <p className="mb-8 text-center text-[13px] font-medium leading-relaxed text-zinc-500">
         {isSeedSignal
-          ? "Este é o primeiro rascunho a partir das suas respostas."
+          ? "A primeira leitura de um vídeo seu vai revelar muito mais."
           : "Este é o primeiro sinal que encontramos no que você já criou."}
       </p>
 
-      {/* Signal card */}
+      {/* Signal card — Decisão 3: badge "Hipótese inicial" para seeds */}
       <div className="w-full rounded-[24px] bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-black/[0.03]">
-        <p className="text-[10px] font-bold uppercase tracking-[1px] text-orange-400 mb-2">
-          {isSeedSignal ? "Ponto de partida" : "Sinal narrativo"}
+        <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 mb-2">
+          {isSeedSignal ? "Hipótese inicial" : "Sinal narrativo"}
         </p>
         <p className="text-[18px] font-bold leading-snug text-zinc-950 mb-2">{signal.label}</p>
         <p className="text-[13px] leading-relaxed text-zinc-500">{signal.summary}</p>
       </div>
 
-      {/* Confirmation */}
-      <p className="mt-8 mb-4 text-[14px] font-medium text-zinc-500">Isso representa você agora?</p>
-
-      {submitted || response ? (
-        <p className="text-[14px] font-semibold text-teal-600">
-          {(submitted ? activePrompt : response) === "yes" 
-            ? "Registrado ✓ — mapa atualizado." 
-            : "Entendido. Vamos recalibrar seu mapa a partir disso."}
+      {confirmed ? (
+        // role="status" anuncia a confirmação para leitores de tela sem mover o foco.
+        <p role="status" className="mt-8 text-[14px] font-semibold text-zinc-950">
+          {FIRST_SIGNAL_CONFIRMATION}
         </p>
-      ) : activePrompt && activePrompt !== "yes" ? (
-        <div className="flex w-full flex-col gap-3">
-          <p className="text-center text-[14px] font-semibold text-zinc-800">
-            O que ficou fora?
-          </p>
-          <div className="flex flex-wrap justify-center gap-2">
-            {["Tema", "Tom", "Intenção", "Meu momento de vida"].map((opt) => (
-              <button
-                key={opt}
-                type="button"
-                onClick={() => setSelectedOption(opt)}
-                className={`rounded-full px-3 py-2 text-[13px] font-medium transition-colors ${
-                  selectedOption === opt
-                    ? "bg-amber-100 text-amber-800"
-                    : "bg-zinc-100 text-zinc-600 active:bg-zinc-200"
-                }`}
-              >
-                {opt}
-              </button>
-            ))}
-          </div>
-          <input
-            type="text"
-            placeholder="Escreva em uma frase (opcional)"
-            value={textValue}
-            onChange={(e) => setTextValue(e.target.value)}
-            className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-[14px] text-zinc-800 placeholder:text-zinc-400 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400"
-          />
-          <button
-            type="button"
-            disabled={!selectedOption && !textValue.trim()}
-            onClick={() => {
-              setSubmitted(true);
-              setTimeout(() => {
-                onRespond(activePrompt as "almost" | "no");
-              }, 1500);
-            }}
-            className="mt-2 w-full rounded-full bg-zinc-950 px-4 py-3 text-[14px] font-semibold text-white transition-opacity disabled:opacity-30 active:bg-zinc-800"
-          >
-            Enviar
-          </button>
-        </div>
       ) : (
-        <div className="flex w-full gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setSubmitted(true);
-              setActivePrompt("yes");
-              setTimeout(() => onRespond("yes"), 1500);
-            }}
-            className="flex-1 rounded-full bg-teal-50 px-3 py-3 text-[13px] font-semibold text-teal-700 transition-colors active:bg-teal-100"
-          >
-            Sim ✓
-          </button>
-          <button
-            type="button"
-            onClick={() => setActivePrompt("almost")}
-            className="flex-1 rounded-full bg-amber-50 px-3 py-3 text-[13px] font-semibold text-amber-700 transition-colors active:bg-amber-100"
-          >
-            Quase
-          </button>
-          <button
-            type="button"
-            onClick={() => setActivePrompt("no")}
-            className="flex-1 rounded-full bg-zinc-100 px-3 py-3 text-[13px] font-semibold text-zinc-600 transition-colors active:bg-zinc-200"
-          >
-            Não é isso
-          </button>
+        <div className="mt-8 w-full max-w-[19.5rem] flex flex-col gap-3">
+          {isSeedSignal && onUpload ? (
+            <>
+              <button
+                type="button"
+                onClick={handleUpload}
+                className="w-full rounded-full bg-zinc-950 px-6 py-4 text-sm font-semibold text-white transition-colors active:bg-zinc-800"
+              >
+                Enviar meu primeiro vídeo →
+              </button>
+              <button
+                type="button"
+                onClick={handleExplore}
+                className="w-full text-[13px] font-medium text-zinc-400 underline-offset-2 hover:underline"
+              >
+                Explorar o mapa primeiro
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={handleExplore}
+              className="w-full rounded-full bg-zinc-950 px-6 py-4 text-sm font-semibold text-white transition-colors active:bg-zinc-800"
+            >
+              Ver meu mapa →
+            </button>
+          )}
         </div>
       )}
+      </div>{/* /my-auto */}
     </div>
   );
 }
 
-// ─── Progress dots ────────────────────────────────────────────────────────────
+// ─── Screen: Combined Q1+Q2+Q3 ───────────────────────────────────────────────
 
-function ProgressDots({ current, total }: { current: number; total: number }) {
+/**
+ * Tela de perguntas fundida — Q1 (identidade), Q2 (sentimento), Q3 (propósito).
+ *
+ * Q1 sempre visível → Q2 aparece após Q1 → Q3 aparece após Q2.
+ * Q3 é opcional: o criador pode pular sem punição.
+ * O avanço para a calibração só ocorre via "Continuar" ou "Pular por enquanto"
+ * no Q3 (via callback `onSubmit`), não por auto-advance — o campo de texto
+ * precisa de tempo para ser preenchido.
+ */
+function CombinedQuestionsScreen({
+  whyYouCreate,
+  onSelectWhy,
+  desiredFeeling,
+  onSelectFeeling,
+  creatorPurpose,
+  onSetCreatorPurpose,
+  onSubmit,
+}: {
+  whyYouCreate: string;
+  onSelectWhy: (v: string) => void;
+  desiredFeeling: string;
+  onSelectFeeling: (v: string) => void;
+  creatorPurpose: string;
+  onSetCreatorPurpose: (v: string) => void;
+  /** Chamado quando o criador confirma ou pula Q3. Recebe feeling e purpose (vazio se pulado). */
+  onSubmit: (feeling: string, purpose: string) => void;
+}) {
+  const q1HeadingRef = useRef<HTMLHeadingElement>(null);
+  const q2Ref = useRef<HTMLDivElement>(null);
+  const q3Ref = useRef<HTMLDivElement>(null);
+
+  // Foco automático no heading de Q1 ao montar o step (acessibilidade).
+  useEffect(() => { q1HeadingRef.current?.focus(); }, []);
+
+  // Auto-scroll para Q2 quando aparece — garante visibilidade em iPhones pequenos.
+  useEffect(() => {
+    if (whyYouCreate && q2Ref.current) {
+      setTimeout(() => {
+        q2Ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 320); // após a animação de entrada (300ms)
+    }
+  }, [whyYouCreate]);
+
+  // Auto-scroll para Q3 quando aparece.
+  useEffect(() => {
+    if (desiredFeeling && q3Ref.current) {
+      setTimeout(() => {
+        q3Ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 320);
+    }
+  }, [desiredFeeling]);
+
   return (
-    <div className="flex items-center justify-center gap-2" aria-label={`Passo ${current} de ${total}`}>
-      {Array.from({ length: total }, (_, i) => (
-        <span
-          key={i}
-          className={`h-2 w-2 rounded-full transition-colors ${
-            i + 1 === current ? "bg-zinc-950" : i + 1 < current ? "bg-zinc-300" : "bg-zinc-200"
-          }`}
-        />
-      ))}
+    <div className="flex min-h-full flex-col bg-white px-5 pb-10 pt-4">
+      <div className="mx-auto w-full max-w-sm">
+        {/* Header — logo (progresso agora é chrome do shell) */}
+        <div className="mb-6">
+          <img
+            src="/images/Colorido-Simbolo.png"
+            alt="Data2Content"
+            style={{ filter: "brightness(0)", width: "44px", height: "auto" }}
+            aria-hidden="true"
+          />
+        </div>
+
+        {/* Q1 — identidade narrativa */}
+        <h2
+          ref={q1HeadingRef}
+          tabIndex={-1}
+          className="mb-4 text-[1.5rem] font-bold leading-tight tracking-tight text-zinc-950 focus:outline-none"
+        >
+          O que define o que você cria?
+        </h2>
+        <div className="flex flex-col gap-2.5">
+          {WHY_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => onSelectWhy(opt.value)}
+              className={`w-full rounded-2xl border px-4 py-3.5 text-left text-[15px] font-medium transition-colors ${
+                whyYouCreate === opt.value
+                  ? "border-zinc-950 bg-zinc-950 text-white"
+                  : "border-zinc-200 bg-white text-zinc-800 active:bg-zinc-50"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Q2 — aparece após Q1 (motion real) + auto-scroll */}
+        {whyYouCreate && (
+          <motion.div
+            ref={q2Ref}
+            className="mt-8"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
+            <h2 className="mb-4 text-[1.5rem] font-bold leading-tight tracking-tight text-zinc-950">
+              Que sentimento quer deixar em quem assiste?
+            </h2>
+            <div className="flex flex-col gap-2.5">
+              {FEELING_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => onSelectFeeling(opt.value)}
+                  className={`w-full rounded-2xl border px-4 py-3.5 text-left text-[15px] font-medium transition-colors ${
+                    desiredFeeling === opt.value
+                      ? "border-zinc-950 bg-zinc-950 text-white"
+                      : "border-zinc-200 bg-white text-zinc-800 active:bg-zinc-50"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
+        {/* Q3 — propósito, aparece após Q2 (opcional) */}
+        {desiredFeeling && (
+          <motion.div
+            ref={q3Ref}
+            className="mt-8"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+          >
+            <h2 className="mb-1 text-[1.5rem] font-bold leading-tight tracking-tight text-zinc-950">
+              Para quem você cria?
+            </h2>
+            <p className="mb-4 text-[13px] leading-relaxed text-zinc-400">
+              Em uma frase. Quanto mais específico, mais preciso seu mapa.
+            </p>
+            <textarea
+              value={creatorPurpose}
+              onChange={(e) => onSetCreatorPurpose(e.target.value.slice(0, 150))}
+              placeholder="ex: quero encorajar mães sem tempo a se cuidarem"
+              rows={3}
+              className="w-full resize-none rounded-2xl border border-zinc-200 bg-white px-4 py-3.5 text-[15px] text-zinc-800 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none"
+            />
+            {/* Contador de caracteres — aparece a partir de 100 para não ser distrativo */}
+            {creatorPurpose.length >= 100 && (
+              <p className="mt-1 text-right text-[11px] text-zinc-300">
+                {creatorPurpose.length}/150
+              </p>
+            )}
+            <div className="mt-4 flex flex-col gap-3 pb-4">
+              <button
+                type="button"
+                onClick={() => onSubmit(desiredFeeling, creatorPurpose)}
+                className="w-full rounded-full bg-zinc-950 px-6 py-4 text-[15px] font-semibold text-white transition-colors active:bg-zinc-800"
+              >
+                Continuar →
+              </button>
+              <button
+                type="button"
+                onClick={() => onSubmit(desiredFeeling, "")}
+                className="w-full text-[13px] font-medium text-zinc-400 underline-offset-2 hover:underline"
+              >
+                Pular por enquanto
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </div>
     </div>
   );
 }
+
+// ─── Screen: Instagram Invite (pós first_signal) ──────────────────────────────
+
+function InstagramInviteScreen({
+  onConnect,
+  onSkip,
+}: {
+  onConnect: () => void;
+  onSkip: () => void;
+}) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  // Fase 4 — foco automático no heading ao montar o step.
+  useEffect(() => { headingRef.current?.focus(); }, []);
+
+  return (
+    <div
+      className="flex min-h-full flex-col items-center bg-white px-5"
+      style={{
+        paddingTop:    "1.5rem",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4rem)",
+      }}
+    >
+      <div className="my-auto w-full max-w-sm px-1 text-center">
+        <div className="mb-6 flex justify-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <rect x="2" y="2" width="20" height="20" rx="5" stroke="#52525b" strokeWidth="1.8" />
+              <circle cx="12" cy="12" r="4" stroke="#52525b" strokeWidth="1.8" />
+              <circle cx="17.5" cy="6.5" r="1" fill="#52525b" />
+            </svg>
+          </div>
+        </div>
+
+        <div className="mb-6">
+          {/*
+            Fase 4 — unificação de voz.
+            Antes: "Quer que eu leia o que você já postou?" — 1ª pessoa da plataforma,
+            inconsistente com o tom neutro/2ª pessoa de todos os outros steps.
+            Agora: neutra, mantém o mesmo arco semântico (sinais do que já foi publicado
+            enriquecem o mapa) e reusa o vocabulário da plataforma ("sinais", "mapa").
+          */}
+          <h2
+            ref={headingRef}
+            tabIndex={-1}
+            className="mb-3 text-[1.85rem] font-bold leading-[1.08] tracking-tight text-zinc-950 focus:outline-none"
+            style={{ textWrap: "balance" } as React.CSSProperties}
+          >
+            Seu Instagram já tem os sinais que o mapa precisa.
+          </h2>
+          <p className="mx-auto max-w-[17rem] text-[13px] font-medium leading-relaxed text-zinc-500">
+            Publicações, formatos e engajamento viram sinais narrativos para o seu mapa. Você conecta quando quiser.
+          </p>
+        </div>
+
+        <div className="mx-auto w-full max-w-[19.5rem]">
+          <button
+            type="button"
+            onClick={onConnect}
+            className="w-full rounded-full bg-zinc-950 px-6 py-4 text-sm font-semibold text-white transition-colors active:bg-zinc-800"
+          >
+            Conectar Instagram
+          </button>
+          <button
+            type="button"
+            onClick={onSkip}
+            className="mt-4 w-full text-[13px] font-medium text-zinc-400 underline-offset-2 hover:underline"
+          >
+            Agora não
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+

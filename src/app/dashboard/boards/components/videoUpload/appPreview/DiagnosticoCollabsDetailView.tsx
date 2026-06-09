@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 import type { CreatorStrategicProfileSynthesis } from "@/app/dashboard/boards/videoUpload/creatorStrategicProfileSynthesis";
 import type {
   DiagnosticoCollabSuggestion,
@@ -12,7 +13,20 @@ import { DiagnosticoCategoryDetailView } from "./DiagnosticoCategoryDetailView";
 import { DiagnosticoDetailEmptyState } from "./DiagnosticoDetailEmptyState";
 import { DiagnosticoCardShell, DiagCardHeader } from "./DiagnosticoCardShell";
 import { CATEGORY_META } from "./DiagnosticoCategoryMeta";
-import { HC, CARD_P } from "./diagnosticoTokens";
+import { CARD_P } from "./diagnosticoTokens";
+
+/** Botão no canto direito do header — abre a tela de Comunidade, onde o paywall protege o grupo. */
+function CommunityHeaderButton({ onClick }: { onClick?: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex h-9 items-center justify-center rounded-full bg-[#18181b] px-4 text-[12px] font-bold text-white transition-transform duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/60"
+    >
+      Entrar no Grupo
+    </button>
+  );
+}
 
 interface Props {
   synthesis: CreatorStrategicProfileSynthesis;
@@ -22,8 +36,14 @@ interface Props {
   onConnectInstagram?: () => void;
   /** Called when a free-tier user taps "Ver criadores compatíveis" — opens paywall. */
   onUpgrade?: () => void;
+  /** Opens the gated Community detail; the detail decides Pro vs paywall before exposing WhatsApp. */
+  onOpenCommunity?: () => void;
   onNewReading?: () => void;
   onClose: () => void;
+  /** Slide index to open the carousel at (used when clicking a specific creator from the summary card). */
+  initialIndex?: number;
+  /** Opens a creator's media kit inline instead of in a new tab. */
+  onOpenCreatorMediaKit?: (slug: string) => void;
 }
 
 const EMPTY_SUGGESTIONS: DiagnosticoCollabSuggestionsState = {
@@ -45,17 +65,23 @@ export function DiagnosticoCollabsDetailView({
   creatorDirectory = EMPTY_DIRECTORY,
   onConnectInstagram,
   onUpgrade,
+  onOpenCommunity,
   onNewReading,
   onClose,
+  initialIndex = 0,
+  onOpenCreatorMediaKit,
 }: Props) {
   const meta = CATEGORY_META.collabs;
-  const hasFormats = s.collabTerritories.length > 0;
-
-  // Fase C: "upgrade_required" is distinct from "blocked" (no Instagram).
-  // upgrade_required = free tier blocked by plan; blocked = Instagram not connected.
   const isUpgradeRequired = suggestionsState.status === "upgrade_required";
   const instagramRequired =
     !isUpgradeRequired && (!instagramConnected || suggestionsState.status === "blocked");
+
+  // Slugs dos creators curados — usados para destacá-los no diretório da comunidade.
+  const matchedSlugs = new Set(
+    suggestionsState.items
+      .map((i) => i.mediaKitSlug)
+      .filter((s): s is string => Boolean(s)),
+  );
 
   return (
     <DiagnosticoCategoryDetailView
@@ -63,6 +89,7 @@ export function DiagnosticoCollabsDetailView({
       iconBg={meta.iconBg}
       iconSlot={meta.icon}
       onClose={onClose}
+      actionSlot={<CommunityHeaderButton onClick={onOpenCommunity} />}
     >
       {isUpgradeRequired ? (
         <UpgradeRequiredCard onUpgrade={onUpgrade} />
@@ -72,12 +99,12 @@ export function DiagnosticoCollabsDetailView({
         <SuggestedCollabsSection
           state={suggestionsState}
           onNewReading={onNewReading}
+          initialIndex={initialIndex}
+          onOpenCreatorMediaKit={onOpenCreatorMediaKit}
         />
       )}
 
-      {hasFormats && <CollabFormatsCard synthesis={s} />}
-
-      <CreatorDirectorySection directory={creatorDirectory} />
+      <CreatorDirectorySection directory={creatorDirectory} matchedSlugs={matchedSlugs} onOpenCreatorMediaKit={onOpenCreatorMediaKit} />
     </DiagnosticoCategoryDetailView>
   );
 }
@@ -89,10 +116,10 @@ function UpgradeRequiredCard({ onUpgrade }: { onUpgrade?: () => void }) {
     <DiagnosticoCardShell>
       <div className="flex flex-col gap-4 p-6">
         <DiagCardHeader
-          iconBg={HC.hypothesis.bg}
+          iconBg="bg-teal-600"
           iconSlot={<CollabIcon />}
-          category="Collabs indicadas"
-          catColor={HC.hypothesis.text}
+          category="Indicadas pra você"
+          catColor="text-teal-700"
         />
         <div>
           <p className="text-[24px] font-bold leading-[1.1] tracking-tight text-zinc-950">
@@ -123,10 +150,10 @@ function InstagramRequiredCard({ onConnectInstagram }: { onConnectInstagram?: ()
     <DiagnosticoCardShell>
       <div className="flex flex-col gap-4 p-6">
         <DiagCardHeader
-          iconBg={HC.hypothesis.bg}
+          iconBg="bg-teal-600"
           iconSlot={<CollabIcon />}
-          category="Collabs indicadas"
-          catColor={HC.hypothesis.text}
+          category="Indicadas pra você"
+          catColor="text-teal-700"
         />
         <div>
           <p className="text-[24px] font-bold leading-[1.1] tracking-tight text-zinc-950">
@@ -140,7 +167,7 @@ function InstagramRequiredCard({ onConnectInstagram }: { onConnectInstagram?: ()
           <button
             type="button"
             onClick={onConnectInstagram}
-            className="mt-2 inline-flex w-full items-center justify-center rounded-full border border-indigo-500 bg-white py-3 text-[14px] font-semibold text-indigo-600 active:bg-indigo-50"
+            className="mt-2 inline-flex w-full items-center justify-center rounded-full border border-teal-500 bg-white py-3 text-[14px] font-semibold text-teal-700 active:bg-teal-50"
           >
             Conectar Instagram
           </button>
@@ -155,19 +182,23 @@ function InstagramRequiredCard({ onConnectInstagram }: { onConnectInstagram?: ()
 function SuggestedCollabsSection({
   state,
   onNewReading,
+  initialIndex,
+  onOpenCreatorMediaKit,
 }: {
   state: DiagnosticoCollabSuggestionsState;
   onNewReading?: () => void;
+  initialIndex: number;
+  onOpenCreatorMediaKit?: (slug: string) => void;
 }) {
   if (state.status === "loading" || state.status === "idle") {
     return (
       <DiagnosticoCardShell>
         <div className={CARD_P}>
           <DiagCardHeader
-            iconBg={HC.hypothesis.bg}
+            iconBg="bg-teal-600"
             iconSlot={<CollabIcon />}
-            category="Collabs indicadas"
-            catColor={HC.hypothesis.text}
+            category="Indicadas pra você"
+            catColor="text-teal-700"
           />
           <div className="mt-4 flex flex-col gap-4">
             {Array.from({ length: 3 }).map((_, index) => (
@@ -188,8 +219,8 @@ function SuggestedCollabsSection({
   if (state.status === "error") {
     return (
       <DiagnosticoDetailEmptyState
-        iconBg="bg-indigo-50"
-        iconSlot={<CollabIcon stroke="#6366f1" size={24} />}
+        iconBg="bg-teal-50"
+        iconSlot={<CollabIcon stroke="#0d9488" size={24} />}
         title="Não consegui carregar os matches"
         description={state.error || "As collabs dependem da leitura do Instagram. Tente novamente."}
         ctaLabel={onNewReading ? "Analisar vídeo" : undefined}
@@ -201,8 +232,8 @@ function SuggestedCollabsSection({
   if (!state.items.length) {
     return (
       <DiagnosticoDetailEmptyState
-        iconBg="bg-indigo-50"
-        iconSlot={<CollabIcon stroke="#6366f1" size={24} />}
+        iconBg="bg-teal-50"
+        iconSlot={<CollabIcon stroke="#0d9488" size={24} />}
         title="Collabs aparecem com mais leituras"
         description="A D2C identifica criadores com narrativa compatível depois de detectar consistência no seu conteúdo — geralmente a partir da 3ª análise."
         ctaLabel="Analisar vídeo"
@@ -211,202 +242,225 @@ function SuggestedCollabsSection({
     );
   }
 
-  return <SuggestedCollabsCard items={state.items} />;
+  return <SuggestedCollabsCarousel items={state.items} initialIndex={initialIndex} onOpenCreatorMediaKit={onOpenCreatorMediaKit} />;
 }
 
-/**
- * Calm Edition creator cards — one per creator, breathing room.
- * Removed: #N rank badges, aggressive black "Mídia kit" pill.
- * Added: pipe-separated metrics, subtle text-link CTA, soft hierarchy.
- */
-function SuggestedCollabsCard({ items }: { items: DiagnosticoCollabSuggestion[] }) {
-  return (
-    <DiagnosticoCardShell>
-      <div className={CARD_P}>
-        <DiagCardHeader
-          iconBg={HC.hypothesis.bg}
-          iconSlot={<CollabIcon />}
-          category="Collabs indicadas"
-          catColor={HC.hypothesis.text}
-        />
-        <p className="text-[20px] font-bold leading-tight tracking-tight text-zinc-950">
-          Criadores com fit narrativo
-        </p>
-        <p className="mt-1 text-[13px] text-zinc-500">
-          Baseado nas suas leituras + Instagram
-        </p>
+/* ── Hero carousel — Netflix featured banner style ───────────────────── */
 
-        <div className="mt-5 flex flex-col">
-          {items.map((creator, i) => (
-            <CollabCreatorRow key={creator.id} creator={creator} isFirst={i === 0} />
-          ))}
+function SuggestedCollabsCarousel({
+  items,
+  initialIndex,
+  onOpenCreatorMediaKit,
+}: {
+  items: DiagnosticoCollabSuggestion[];
+  initialIndex: number;
+  onOpenCreatorMediaKit?: (slug: string) => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(Math.min(initialIndex, items.length - 1));
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || initialIndex <= 0) return;
+    el.scrollLeft = el.clientWidth * Math.min(initialIndex, items.length - 1);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleScroll() {
+    const el = scrollRef.current;
+    if (!el) return;
+    const idx = Math.round(el.scrollLeft / el.clientWidth);
+    setActiveIndex(Math.max(0, Math.min(idx, items.length - 1)));
+  }
+
+  function scrollTo(i: number) {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ left: el.clientWidth * i, behavior: "smooth" });
+  }
+
+  return (
+    <div
+      ref={scrollRef}
+      onScroll={handleScroll}
+      className="flex overflow-x-auto snap-x snap-mandatory overscroll-x-contain"
+      style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+      aria-label={`Carrossel de collabs, ${activeIndex + 1} de ${items.length}`}
+    >
+      {items.map((creator, i) => (
+        <div key={creator.id} className="w-full flex-shrink-0 snap-center snap-always">
+          <CollabCreatorSlide
+            creator={creator}
+            position={i + 1}
+            total={items.length}
+            isActive={i === activeIndex}
+            onDotClick={scrollTo}
+            onOpenCreatorMediaKit={onOpenCreatorMediaKit}
+          />
         </div>
-      </div>
-    </DiagnosticoCardShell>
+      ))}
+    </div>
   );
 }
 
-function CollabCreatorRow({
+/* ── Hero slide — foto full-bleed + gradient + conteúdo sobreposto ───── */
+
+function CollabCreatorSlide({
   creator,
-  isFirst,
+  position,
+  total,
+  onDotClick,
+  onOpenCreatorMediaKit,
 }: {
   creator: DiagnosticoCollabSuggestion;
-  isFirst: boolean;
+  position: number;
+  total: number;
+  isActive: boolean;
+  onDotClick: (i: number) => void;
+  onOpenCreatorMediaKit?: (slug: string) => void;
 }) {
   const handle = creator.username
     ? creator.username.startsWith("@")
       ? creator.username
       : `@${creator.username}`
     : null;
-  const matchLabel = getMatchLabel(creator);
   const avatarUrl = getStableCreatorAvatarUrl(creator);
   const hasMediaKit = Boolean(creator.mediaKitSlug);
-  // Fase C: narrative match path hides audience metrics
-  const isNarrativeMatch = Boolean(creator.narrativeMatch);
+  const fitReason = creator.narrativeFitReason ?? getMatchLabel(creator);
+  const sharedChip = creator.sharedSignal;
 
   return (
-    <div
-      className={`flex flex-col gap-3 py-5 ${isFirst ? "pt-0" : "border-t border-zinc-100/80"}`}
-    >
-      {/* Top row: avatar + identity */}
-      <div className="flex items-center gap-3.5">
-        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-full bg-indigo-50">
-          {avatarUrl ? (
-            <Image src={avatarUrl} alt={creator.name} fill sizes="56px" className="object-cover" />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-[15px] font-semibold text-indigo-500">
-              {getInitials(creator.name)}
-            </div>
-          )}
+    <div className="relative h-[248px] w-full overflow-hidden rounded-3xl bg-zinc-800 ring-1 ring-black/[0.06]">
+
+      {/* Foto de fundo full-bleed */}
+      {avatarUrl ? (
+        <Image
+          src={avatarUrl}
+          alt={creator.name ?? ""}
+          fill
+          sizes="100vw"
+          className="object-cover object-top"
+          priority
+        />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-[32px] font-bold text-zinc-500">
+          {getInitials(creator.name)}
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-[17px] font-semibold leading-tight text-zinc-950">
+      )}
+
+      {/* Gradient: escuro embaixo, transparente no topo */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+
+      {/* Badge top-left + contador top-right */}
+      <div className="absolute inset-x-0 top-0 flex items-center justify-between px-4 pt-4">
+        <span className="inline-flex items-center gap-1 rounded-full bg-teal-500/90 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-sm">
+          ✦ Match narrativo
+        </span>
+        {total > 1 && (
+          <span className="rounded-full bg-black/40 px-2.5 py-1 text-[11px] font-semibold text-white/80 backdrop-blur-sm">
+            {position} / {total}
+          </span>
+        )}
+      </div>
+
+      {/* Conteúdo inferior sobreposto */}
+      <div className="absolute inset-x-0 bottom-0 flex flex-col gap-3 px-5 pb-4">
+
+        {/* Nome + handle */}
+        <div>
+          <p className="text-[22px] font-bold leading-tight tracking-tight text-white">
             {creator.name}
           </p>
           {handle && (
-            <p className="mt-0.5 truncate text-[13px] text-zinc-400">{handle}</p>
+            <p className="mt-0.5 text-[12px] text-white/55">{handle}</p>
+          )}
+        </div>
+
+        {/* Fit reason */}
+        <p className="text-[13px] italic leading-snug text-white/80 line-clamp-2">
+          "{fitReason}"
+        </p>
+
+        {/* Chip de encontro — glassmorphism */}
+        {sharedChip && (
+          <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-white/25 bg-white/15 px-3 py-1 text-[11.5px] font-medium text-white backdrop-blur-sm">
+            <span aria-hidden="true">⊕</span> {sharedChip}
+          </span>
+        )}
+
+        {/* Linha inferior: CTA + dots */}
+        <div className="flex items-center justify-between pt-1">
+          {hasMediaKit ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (!creator.mediaKitSlug) return;
+                if (onOpenCreatorMediaKit) {
+                  onOpenCreatorMediaKit(creator.mediaKitSlug);
+                } else {
+                  window.open(`/mediakit/${creator.mediaKitSlug}`, "_blank", "noopener,noreferrer");
+                }
+              }}
+              className="inline-flex items-center rounded-full bg-white px-4 py-2 text-[13px] font-semibold text-zinc-900 active:opacity-80"
+              aria-label={`Abrir mídia kit de ${creator.name}`}
+            >
+              Ver Mídia Kit →
+            </button>
+          ) : (
+            <span />
+          )}
+
+          {/* Dots de paginação dentro do card */}
+          {total > 1 && (
+            <div className="flex items-center gap-1.5">
+              {Array.from({ length: total }).map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  aria-label={`Ir para criador ${i + 1}`}
+                  onClick={() => onDotClick(i)}
+                  className={`h-1.5 rounded-full transition-all duration-200 ${
+                    i === position - 1
+                      ? "w-5 bg-white"
+                      : "w-1.5 bg-white/40"
+                  }`}
+                />
+              ))}
+            </div>
           )}
         </div>
       </div>
-
-      {/* Fit reason — narrative match uses AI reason; Instagram path uses matchLabel */}
-      <p className="text-[14px] leading-relaxed text-zinc-700 line-clamp-2">
-        {creator.narrativeFitReason ?? matchLabel}
-      </p>
-
-      {/* Narrative example — only for narrative match path (Fase C) */}
-      {isNarrativeMatch && creator.narrativeExample && (
-        <p className="text-[12.5px] leading-snug text-zinc-500 line-clamp-2 italic">
-          {creator.narrativeExample}
-        </p>
-      )}
-
-      {/* Bottom row — narrative match: média kit link only; Instagram: metrics + link */}
-      {isNarrativeMatch ? (
-        hasMediaKit && (
-          <div className="pt-1">
-            <a
-              href={`/mediakit/${creator.mediaKitSlug}`}
-              target="_blank"
-              rel="noreferrer"
-              className="text-[13px] font-semibold text-indigo-600 no-underline active:opacity-70"
-              aria-label={`Abrir mídia kit de ${creator.name}`}
-            >
-              Ver Mídia Kit →
-            </a>
-          </div>
-        )
-      ) : (
-        <div className="flex items-center justify-between gap-3 pt-1">
-          <p className="text-[12px] text-zinc-500">
-            <span className="font-semibold text-zinc-700">{formatCompactMetric(creator.avgReach)}</span> alcance
-            <span className="mx-1.5 text-zinc-300">·</span>
-            <span className="font-semibold text-zinc-700">{formatCompactMetric(creator.avgInteractions)}</span> interações
-          </p>
-          {hasMediaKit && (
-            <a
-              href={`/mediakit/${creator.mediaKitSlug}`}
-              target="_blank"
-              rel="noreferrer"
-              className="shrink-0 text-[13px] font-semibold text-indigo-600 no-underline active:opacity-70"
-              aria-label={`Abrir mídia kit de ${creator.name}`}
-            >
-              Ver Mídia Kit →
-            </a>
-          )}
-        </div>
-      )}
     </div>
-  );
-}
-
-/* ── Collab formats card ─────────────────────────────────────────────── */
-
-function CollabFormatsCard({ synthesis: s }: { synthesis: CreatorStrategicProfileSynthesis }) {
-  return (
-    <DiagnosticoCardShell>
-      <div className={CARD_P}>
-        <DiagCardHeader
-          iconBg={HC.hypothesis.bg}
-          iconSlot={<CollabIcon />}
-          category="Formatos de collab"
-          catColor={HC.hypothesis.text}
-        />
-        <p className="text-[20px] font-bold leading-tight tracking-tight text-zinc-950">
-          {s.collabTerritories.length === 1 ? "1 formato sugerido" : `${s.collabTerritories.length} formatos sugeridos`}
-        </p>
-        <p className="mt-1 text-[13px] text-zinc-500">
-          Derivados da leitura comercial dos seus vídeos
-        </p>
-
-        <ul className="mt-5 flex flex-col gap-4">
-          {s.collabTerritories.map((t) => (
-            <li key={t.label} className="flex items-start gap-3">
-              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-indigo-500" />
-              <div className="min-w-0 flex-1">
-                <p className="text-[15px] font-semibold leading-snug text-zinc-900">{t.label}</p>
-                {t.summary !== t.label && (
-                  <p className="mt-1 text-[13px] leading-snug text-zinc-500">{t.summary}</p>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </DiagnosticoCardShell>
   );
 }
 
 /* ── Community directory ─────────────────────────────────────────────── */
 
-function CreatorDirectorySection({ directory }: { directory: DiagnosticoCreatorDirectoryState }) {
+export function CreatorDirectorySection({
+  directory,
+  matchedSlugs,
+  onOpenCreatorMediaKit,
+}: {
+  directory: DiagnosticoCreatorDirectoryState;
+  matchedSlugs: Set<string>;
+  onOpenCreatorMediaKit?: (slug: string) => void;
+}) {
   if (directory.status === "loading" || directory.status === "idle") {
     return (
-      <section className="flex flex-col gap-3 mt-2">
-        <DirectoryHeader />
-        <DiagnosticoCardShell>
-          <div className={CARD_P}>
-            <div className="flex animate-pulse flex-col gap-3">
-              <div className="h-3 w-32 rounded-full bg-zinc-100" />
-              <div className="flex gap-3 overflow-hidden">
-                {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="flex flex-col items-center gap-1.5">
-                    <div className="h-16 w-16 rounded-2xl bg-zinc-100" />
-                    <div className="h-2 w-12 rounded-full bg-zinc-100" />
-                  </div>
-                ))}
-              </div>
-            </div>
+      <section className="flex flex-col gap-4 mt-5">
+        <div className="-mx-5 overflow-hidden">
+          <div className="flex gap-2.5 px-5">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="h-[140px] w-[100px] shrink-0 animate-pulse rounded-2xl bg-zinc-200" />
+            ))}
           </div>
-        </DiagnosticoCardShell>
+        </div>
       </section>
     );
   }
 
   if (directory.status === "error" || directory.creators.length === 0) {
     return (
-      <section className="flex flex-col gap-3 mt-2">
-        <DirectoryHeader />
+      <section className="mt-5">
         <DiagnosticoDetailEmptyState
           iconBg="bg-zinc-100"
           iconSlot={
@@ -415,58 +469,56 @@ function CreatorDirectorySection({ directory }: { directory: DiagnosticoCreatorD
               <path d="M3 21v-1a6 6 0 0 1 6-6" stroke="#a1a1aa" strokeWidth="1.8" strokeLinecap="round" />
             </svg>
           }
-          title="Diretório indisponível"
+          title="Comunidade indisponível"
           description={directory.error || "Não foi possível carregar os criadores agora."}
         />
       </section>
     );
   }
 
-  const groups = groupCreatorsByNiche(directory.creators);
+  // Remove creators já exibidos no carrossel — evita duplicação hero + diretório.
+  const unmatched = directory.creators.filter(
+    (c) => !c.mediaKitSlug || !matchedSlugs.has(c.mediaKitSlug),
+  );
+  const groups = groupCreatorsByNiche(unmatched);
 
   return (
-    <section className="flex flex-col gap-5 mt-2">
-      <DirectoryHeader subtitle={`${directory.creators.length} criadores em diversos nichos`} />
+    <section className="flex flex-col gap-7 mt-6">
       {groups.map(([niche, creators]) => (
-        <DirectoryGroup key={niche} niche={niche} creators={creators} />
+        <DirectoryGroup key={niche} niche={niche} creators={creators} matchedSlugs={matchedSlugs} onOpenCreatorMediaKit={onOpenCreatorMediaKit} />
       ))}
     </section>
-  );
-}
-
-function DirectoryHeader({ subtitle }: { subtitle?: string }) {
-  return (
-    <div className="px-1">
-      <p className="text-[12px] font-medium text-zinc-400">Comunidade</p>
-      <h2 className="mt-0.5 text-[22px] font-bold tracking-tight text-zinc-950">
-        Criadores D2C
-      </h2>
-      {subtitle && (
-        <p className="mt-1 text-[13px] text-zinc-500">{subtitle}</p>
-      )}
-    </div>
   );
 }
 
 function DirectoryGroup({
   niche,
   creators,
+  matchedSlugs,
+  onOpenCreatorMediaKit,
 }: {
   niche: string;
   creators: LandingCreatorHighlight[];
+  matchedSlugs: Set<string>;
+  onOpenCreatorMediaKit?: (slug: string) => void;
 }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-baseline justify-between px-1">
-        <h3 className="text-[16px] font-semibold text-zinc-900">{niche}</h3>
-        <span className="text-[12px] text-zinc-500">
+        <h3 className="text-[15px] font-bold text-zinc-900">{niche}</h3>
+        <span className="text-[11px] text-zinc-400">
           {creators.length} {creators.length === 1 ? "criador" : "criadores"}
         </span>
       </div>
       <div className="-mx-5 overflow-x-auto overscroll-x-contain">
-        <div className="flex gap-3 px-5 pb-1">
+        <div className="flex gap-2.5 px-5 pb-1">
           {creators.map((creator) => (
-            <DirectoryCreatorCard key={creator.id} creator={creator} />
+            <DirectoryCreatorCard
+              key={creator.id}
+              creator={creator}
+              isMatched={Boolean(creator.mediaKitSlug && matchedSlugs.has(creator.mediaKitSlug))}
+              onOpenCreatorMediaKit={onOpenCreatorMediaKit}
+            />
           ))}
         </div>
       </div>
@@ -474,62 +526,94 @@ function DirectoryGroup({
   );
 }
 
-function DirectoryCreatorCard({ creator }: { creator: LandingCreatorHighlight }) {
+/* Poster estilo Netflix — foto tall, gradient inferior, texto sobreposto */
+function DirectoryCreatorCard({
+  creator,
+  isMatched,
+  onOpenCreatorMediaKit,
+}: {
+  creator: LandingCreatorHighlight;
+  isMatched: boolean;
+  onOpenCreatorMediaKit?: (slug: string) => void;
+}) {
+  // Primeiro nome — cabe melhor em cards estreitos que o @handle truncado
+  const firstName = creator.name.split(/\s+/)[0] ?? creator.name;
+  const followers = formatCompactMetric(creator.followers);
   const handle = creator.username
     ? creator.username.startsWith("@")
       ? creator.username
       : `@${creator.username}`
-    : creator.name;
-  const followers = formatCompactMetric(creator.followers);
+    : null;
   const avatarUrl = getStableLandingCreatorAvatarUrl(creator);
 
-  const Wrapper = creator.mediaKitSlug ? "a" : "div";
-  const wrapperProps = creator.mediaKitSlug
-    ? {
-        href: `/mediakit/${creator.mediaKitSlug}`,
-        target: "_blank" as const,
-        rel: "noreferrer",
-        "aria-label": `Abrir mídia kit de ${creator.name}`,
+  const handleClick = creator.mediaKitSlug
+    ? () => {
+        if (onOpenCreatorMediaKit) {
+          onOpenCreatorMediaKit(creator.mediaKitSlug!);
+        } else {
+          window.open(`/mediakit/${creator.mediaKitSlug}`, "_blank", "noopener,noreferrer");
+        }
       }
-    : {};
+    : undefined;
 
   return (
-    <Wrapper
-      {...wrapperProps}
-      className="flex w-[112px] shrink-0 flex-col items-center gap-2 no-underline active:opacity-80"
+    <div
+      role={handleClick ? "button" : undefined}
+      tabIndex={handleClick ? 0 : undefined}
+      onClick={handleClick}
+      onKeyDown={handleClick ? (e) => { if (e.key === "Enter" || e.key === " ") handleClick(); } : undefined}
+      aria-label={handleClick ? `Abrir mídia kit de ${creator.name}` : undefined}
+      className="relative h-[148px] w-[104px] shrink-0 overflow-hidden rounded-2xl bg-zinc-800 active:opacity-90"
+      style={{ cursor: handleClick ? "pointer" : "default" }}
     >
-      <div className="relative h-[80px] w-[80px] shrink-0 overflow-hidden rounded-3xl bg-indigo-50 shadow-[0_4px_12px_rgba(0,0,0,0.06)]">
-        {avatarUrl ? (
-          <Image src={avatarUrl} alt={creator.name} fill sizes="80px" className="object-cover" />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center text-[18px] font-semibold text-indigo-500">
-            {getInitials(creator.name)}
-          </div>
+      {/* Foto de fundo — fill */}
+      {avatarUrl ? (
+        <Image src={avatarUrl} alt={creator.name} fill sizes="104px" className="object-cover" />
+      ) : (
+        // Placeholder escuro — mantém visual dark coerente com as fotos ao redor
+        <div className="flex h-full w-full items-center justify-center text-[22px] font-bold text-zinc-300">
+          {getInitials(creator.name)}
+        </div>
+      )}
+
+      {/* Gradient inferior — texto legível sobre qualquer foto */}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-2.5 pb-3 pt-10">
+        <p className="truncate text-[13px] font-bold leading-tight text-white">
+          {firstName}
+        </p>
+        {handle && (
+          <p className="mt-0.5 truncate text-[10px] leading-tight text-white/55">{handle}</p>
         )}
-      </div>
-      <div className="flex w-full flex-col items-center text-center">
-        <p className="w-full truncate text-[12px] font-semibold text-zinc-900">{handle}</p>
         {followers !== "—" && (
-          <p className="mt-0.5 text-[11px] text-zinc-500">{followers} seguidores</p>
+          <p className="mt-0.5 text-[10px] font-medium text-white/75">{followers} seg.</p>
         )}
       </div>
-    </Wrapper>
+
+      {/* Badge de match — anel + chip teal */}
+      {isMatched && (
+        <>
+          <div className="absolute inset-0 rounded-2xl ring-2 ring-teal-400 ring-inset pointer-events-none" />
+          <span className="absolute top-1.5 right-1.5 flex items-center justify-center rounded-full bg-teal-500 px-1.5 py-0.5 text-[9px] font-bold text-white shadow-sm">
+            ✦
+          </span>
+        </>
+      )}
+    </div>
   );
 }
 
 /* ── Helpers ─────────────────────────────────────────────────────────── */
 
 function getMatchLabel(creator: DiagnosticoCollabSuggestion) {
-  if (creator.matchedTheme) return "Tema parecido com o território narrativo desta leitura.";
+  if (creator.matchedTheme) return "Tema parecido com o território narrativo das suas leituras.";
   switch (creator.matchType) {
     case "HIGH_REACH":
-      return "Bom alcance médio para amplificar uma pauta em conjunto.";
     case "AUDIENCE_SCALE":
-      return "Audiência maior para uma collab com ganho de distribuição.";
+      return "Narrativa próxima da sua — espaço para uma collab que soma.";
     case "CONSISTENT":
-      return "Performance consistente em recortes parecidos.";
+      return "Cria de forma constante em temas próximos aos seus.";
     case "HIGH_ENGAGEMENT":
-      return "Boa resposta média da audiência em posts recentes.";
+      return "O jeito de comunicar tem afinidade com o seu.";
     default:
       return "Sinal de afinidade com a sua narrativa atual.";
   }
@@ -567,7 +651,6 @@ function getStableLandingCreatorAvatarUrl(creator: LandingCreatorHighlight) {
   return creator.avatarUrl || null;
 }
 
-/** Groups creators by their primary niche; falls back to "Outros". */
 function groupCreatorsByNiche(creators: LandingCreatorHighlight[]): [string, LandingCreatorHighlight[]][] {
   const buckets = new Map<string, LandingCreatorHighlight[]>();
   for (const c of creators) {
@@ -576,7 +659,6 @@ function groupCreatorsByNiche(creators: LandingCreatorHighlight[]): [string, Lan
     list.push(c);
     buckets.set(niche, list);
   }
-  // Sort: larger groups first, "Outros" always last
   return [...buckets.entries()].sort((a, b) => {
     if (a[0] === "Outros") return 1;
     if (b[0] === "Outros") return -1;

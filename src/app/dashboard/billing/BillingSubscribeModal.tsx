@@ -43,14 +43,14 @@ type APIRawPrice = {
 // cache simples em escopo de módulo para reabrir o modal sem re-buscar sempre
 let pricesCache: PricesShape | null = null;
 
-// 🎯 Narrativa focada: ferramentas de execução (roteiros/review) + alertas no WhatsApp
+// 🎯 Proposta de valor central do Pro — usada pelo contexto "default"
 const FEATURES: string[] = [
-  "Análise de Perfil avançada (Audiência, Timing e Formatos Ideais)",
-  "Roteiros gerados por IA e vinculados aos seus conteúdos publicados",
-  "Negociação assistida por IA e CRM para gerenciar suas campanhas",
-  "Mídia Kit auditado com vitrine exclusiva no Marketplace Destaque",
-  "Mentorias semanais ao vivo e suporte diagnóstico pelo WhatsApp",
-  "Modelo transparente: Você paga apenas a assinatura, com 0% de comissão",
+  "Entenda o que está funcionando no seu conteúdo — e o que te diferencia",
+  "Ideias de pauta prontas, na sua voz — direto no WhatsApp",
+  "Criadores indicados para collab com base no que você fala",
+  "Comunidade e reuniões semanais com outros criadores",
+  "Dados do Instagram integrados ao diagnóstico",
+  "Mídia Kit com vitrine no Marketplace",
 ];
 
 type PaywallCopy = {
@@ -63,14 +63,13 @@ type PaywallCopy = {
 
 const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
   default: {
-    title: "Ativar Consultoria Estratégica (D2C)",
-    subtitle:
-      "Acesso ao Motor IA para narrativa, revisões semanais em grupo e radar de talentos Destaque.",
+    title: "Entenda o que seu conteúdo diz sobre você.",
+    subtitle: "Ideias prontas, criadores para collab e clareza sobre o que funciona — tudo junto.",
     bullets: FEATURES,
-    ctaLabel: "Ativar Acesso VIP",
+    ctaLabel: "Assinar Pro",
   },
   reply_email: {
-    title: "IA de Negociação (CRM)",
+    title: "IA de Negociação",
     subtitle: "Analise propostas em segundos e receba recomendações estratégicas para fechar mais contratos.",
     bullets: [
       "Playbook de resposta baseada em métricas reais",
@@ -85,7 +84,7 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
     ],
   },
   ai_analysis: {
-    title: "IA de Negociação (CRM)",
+    title: "IA de Negociação",
     subtitle: "Analise propostas em segundos e receba recomendações estratégicas para fechar mais contratos.",
     bullets: [
       "Playbook de resposta baseada em métricas reais",
@@ -100,13 +99,13 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
     ],
   },
   calculator: {
-    title: "Precificação Inteligente (Radar Destaque)",
+    title: "Precificação Estratégica",
     subtitle: "Valores calibrados para atrair as marcas que você realmente quer.",
     bullets: [
       "Faixas estratégicas (Justo, Influencer e Premium)",
       "Multiplicadores auditados pelo time D2C",
     ],
-    ctaLabel: "Ativar Acesso VIP",
+    ctaLabel: "Assinar Pro",
     steps: [
       "Ative sua assinatura",
       "Conecte seu Instagram",
@@ -114,14 +113,14 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
     ],
   },
   media_kit: {
-    title: "Mídia Kit Profissional (IA)",
+    title: "Mídia Kit Profissional",
     subtitle: "Gere seu link único com métricas auditadas e sincronizadas automaticamente.",
     bullets: [
       "Dados reais do Instagram (Alcance, Engajamento, etc)",
       "Sugestões de faixas de preço baseadas em performance",
       "Vitrine exclusiva no Marketplace Destaque",
     ],
-    ctaLabel: "Ativar Acesso VIP",
+    ctaLabel: "Assinar Pro",
     steps: [
       "Ative sua assinatura",
       "Conecte seu Instagram",
@@ -129,82 +128,89 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
     ],
   },
   publis: {
-    title: "Biblioteca de Publis (IA)",
+    title: "Biblioteca de Publis",
     subtitle: "Organize suas parcerias e compartilhe métricas ao vivo com marcas.",
     bullets: [
       "Histórico completo de conteúdos publicitários",
       "Compartilhamento de resultados via link",
       "Filtros inteligentes por desempenho e data",
     ],
-    ctaLabel: "Ativar Acesso VIP",
+    ctaLabel: "Assinar Pro",
     steps: [
       "Ative sua assinatura",
       "Conecte seu Instagram",
       "Volte para liberar suas publis",
     ],
   },
-  narrative_map: {
-    title: "Continue construindo seu Perfil",
-    subtitle: "Você usou sua leitura gratuita. No Pro, você faz até 10 leituras por mês e a D2C mapeia seus padrões narrativos ao longo do tempo.",
+  onboarding: {
+    title: "Seu mapa começou.",
+    subtitle: "Ideias prontas, criadores para collab e clareza sobre o que funciona.",
     bullets: [
-      "Até 10 leituras estratégicas por mês",
-      "Perfil vivo com padrões, hipóteses e tensões",
-      "Dados reais do Instagram integrados ao diagnóstico",
-      "Consultorias em grupo e suporte pelo WhatsApp",
+      "Entenda o que está funcionando no seu conteúdo — e o que te diferencia",
+      "Ideias de pauta prontas, na sua voz — direto no WhatsApp",
+      "Criadores indicados para collab com base no que você fala",
+      "Comunidade e reuniões semanais com outros criadores",
+    ],
+    ctaLabel: "Assinar agora",
+  },
+  narrative_map: {
+    title: "Seu mapa está tomando forma.",
+    subtitle: "Ideias prontas, criadores para collab e clareza sobre o que funciona.",
+    bullets: [
+      "Entenda o que está funcionando no seu conteúdo — e o que te diferencia",
+      "Ideias de pauta prontas, na sua voz — direto no WhatsApp",
+      "Criadores indicados para collab com base no que você fala",
+      "Comunidade e reuniões semanais com outros criadores",
     ],
     ctaLabel: "Ativar Pro",
-    steps: [
-      "Ative sua assinatura",
-      "Retorne ao Perfil",
-      "Continue suas leituras",
-    ],
   },
   mentoria: {
-    title: "Entre na consultoria da D2C",
+    title: "Entre na comunidade D2C.",
     subtitle:
-      "No Plano Pro, você entra no Grupo VIP e participa das consultorias em grupo, além de liberar o Perfil vivo com 10 leituras por mês e Instagram conectado.",
+      "Reuniões semanais, networking com criadores que falam a mesma língua que você e ideias prontas que chegam pelo WhatsApp.",
     bullets: [
-      "Grupo VIP da D2C",
-      "Consultorias em grupo",
-      "Perfil vivo com 10 leituras por mês",
-      "Instagram conectado",
+      "Reuniões semanais com outros criadores",
+      "Criadores indicados para collab com base no que você fala",
+      "Entenda o que está funcionando no seu conteúdo — e o que te diferencia",
+      "Ideias de pauta prontas, na sua voz — direto no WhatsApp",
     ],
     ctaLabel: "Assinar Pro e entrar",
     steps: [
       "Ative sua assinatura",
-      "Entre no grupo VIP",
-      "Acesse a agenda de mentorias",
+      "Entre no grupo da comunidade",
+      "Acesse a agenda de reuniões",
     ],
   },
   planning: {
-    title: "Criação Inteligente & Análise de Perfil",
+    title: "Ideias prontas para postar — sem partir do zero.",
     subtitle:
-      "Desbloqueie o poder da Inteligência Artificial para gerar roteiros avançados e acesse dados reais da sua audiência conectando seu Instagram.",
+      "Cada pauta é criada a partir do que você já posta, na sua voz. E chega pelo WhatsApp quando faz sentido postar.",
     bullets: [
-      "Roteiros criados por IA com base em tendências do seu nicho",
-      "Sincronização imediata com os conteúdos já publicados",
-      "Análise do seu timing ideal e audiência exclusiva",
+      "Ideias geradas a partir do que você já posta",
+      "Pautas entregues pelo WhatsApp no momento certo",
+      "Dados reais do Instagram para calibrar timing e formato",
     ],
-    ctaLabel: "Ativar Acesso VIP",
+    ctaLabel: "Assinar Pro",
     steps: [
       "Ative sua assinatura",
       "Conecte seu Instagram",
-      "Volte para acessar Planner Inteligente",
+      "Receba suas primeiras pautas pelo WhatsApp",
     ],
   },
   whatsapp: {
-    title: "Execução Assistida (WhatsApp)",
-    subtitle: "Alertas táticos para você nunca perder o timing da sua narrativa.",
+    title: "Seu conteúdo chega até você.",
+    subtitle:
+      "Uma mensagem por semana com ideias prontas para postar, criadores disponíveis para collab e o que está surgindo no seu perfil.",
     bullets: [
-      "Alertas de pautas, reuniões e oportunidades",
-      "Diagnóstico contínuo do Instagram pela IA",
-      "Acesso rápido às notas de revisão",
+      "Ideias de pauta prontas na sua voz, toda semana",
+      "Criador disponível para collab quando fizer sentido",
+      "O que está surgindo no seu conteúdo para você validar",
     ],
-    ctaLabel: "Ativar Acesso VIP",
+    ctaLabel: "Assinar Pro",
     steps: [
       "Ative sua assinatura",
       "Conecte seu Instagram",
-      "Volte para liberar seus Alertas",
+      "Receba seu primeiro resumo semanal",
     ],
   },
 };
@@ -767,7 +773,6 @@ export default function BillingSubscribeModal({
                 className="rounded-full p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
                 onClick={closeModal}
                 aria-label="Fechar"
-                data-autofocus="true"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -819,7 +824,6 @@ export default function BillingSubscribeModal({
                 className="rounded-full p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
                 onClick={closeModal}
                 aria-label="Fechar"
-                data-autofocus="true"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -864,103 +868,81 @@ export default function BillingSubscribeModal({
       >
         <div
           ref={dialogRef}
-          className="w-full max-w-lg overflow-hidden rounded-[2rem] border border-zinc-200/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.98))] text-zinc-950 shadow-[0_24px_70px_rgba(15,23,42,0.16)] animate-[fadeIn_160ms_ease-out] flex flex-col max-h-[92vh] sm:max-h-[90vh]"
+          className="w-full max-w-lg overflow-hidden rounded-[2rem] border border-zinc-200/80 bg-white text-zinc-950 shadow-[0_24px_70px_rgba(15,23,42,0.16)] animate-[fadeIn_160ms_ease-out] flex flex-col max-h-[92vh] sm:max-h-[90vh]"
           tabIndex={-1}
         >
           {/* Header sticky */}
           <div className="sticky top-0 z-10 bg-white">
-            <div className="border-b border-zinc-200/80">
-              <div className="flex items-start gap-4 p-6 sm:p-7">
-                <div className="shrink-0 rounded-[1.1rem] bg-brand-primary/8 p-3 ring-1 ring-inset ring-brand-primary/12">
-                  <Crown className="w-5 h-5 text-brand-primary" />
-                </div>
-                <div className="flex-1">
-                  <div className="mb-2 flex items-center gap-2">
-                    <span className="inline-flex items-center rounded-full bg-brand-primary/5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-brand-primary ring-1 ring-inset ring-brand-primary/10">
-                      Plano Pro
-                    </span>
-                  </div>
-                  <h2 id="subscribe-modal-title" className="text-[1.55rem] sm:text-[1.75rem] font-black tracking-tight leading-[1.02] text-zinc-950">
-                    {paywallCopy.title}
-                  </h2>
-                  <p className="mt-2 max-w-[25rem] text-sm leading-6 text-zinc-500">
-                    {paywallCopy.subtitle}
-                  </p>
+            <div className="px-6 pb-5 pt-5">
+              {/* Badge + fechar */}
+              <div className="flex items-center justify-between gap-3 mb-4">
+                <div className="flex items-center gap-1.5">
+                  <Crown className="w-3.5 h-3.5 text-brand-primary" />
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-primary">
+                    Plano Pro
+                  </span>
                 </div>
                 <button
                   onClick={closeModal}
                   aria-label="Fechar"
-                  className="rounded-full p-2 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-900"
-                  data-autofocus="true"
+                  className="rounded-full p-1.5 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-700"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </button>
               </div>
+              {/* Título + subtítulo */}
+              <h2 id="subscribe-modal-title" className="text-2xl font-bold tracking-tight leading-[1.1] text-zinc-950">
+                {paywallCopy.title}
+              </h2>
+              <p className="mt-2 text-[13px] leading-[1.55] text-zinc-500">
+                {paywallCopy.subtitle}
+              </p>
             </div>
           </div>
 
           <div className="dashboard-scrollbar flex-1 overflow-y-auto">
-            {/* Seletores */}
-            <div className="px-6 sm:px-8 pt-6">
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                <div className="inline-flex rounded-[1.1rem] border border-zinc-200 bg-zinc-50 p-1">
+            {/* Zona de preço */}
+            <div className="px-6 pb-6 pt-2">
+              <div className="flex items-baseline gap-1.5">
+                <div className="text-[2.75rem] font-black leading-none tracking-tight text-zinc-950">
+                  {period === "annual" ? formatMoney(monthlyEquivalent) : formatMoney(activePrice)}
+                </div>
+                <span className="text-sm font-medium text-zinc-400">/mês</span>
+              </div>
+
+              {period === "annual" && (
+                <div className="mt-1.5 text-[12px] text-zinc-400">
+                  cobrado anualmente · <span className="font-semibold text-zinc-500">{formatMoney(activePrice)}/ano</span>
+                </div>
+              )}
+
+              {/* Seletores — período + moeda na mesma linha */}
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <div className="inline-flex rounded-xl border border-zinc-200/80 bg-white shadow-sm p-1">
                   <button
                     onClick={() => setPeriod("monthly")}
-                    className={`rounded-[0.9rem] px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] transition-all ${period === "monthly" ? "bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-200/80" : "text-zinc-500 hover:text-zinc-900"}`}
+                    className={`rounded-lg px-4 py-1.5 text-xs font-bold uppercase tracking-[0.14em] transition-all ${period === "monthly" ? "bg-zinc-950 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900"}`}
                     disabled={loadingRedirect}
                   >
                     Mensal
                   </button>
                   <button
                     onClick={() => setPeriod("annual")}
-                    className={`rounded-[0.9rem] px-4 py-2 text-xs font-bold uppercase tracking-[0.14em] transition-all ${period === "annual" ? "bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-200/80" : "text-zinc-500 hover:text-zinc-900"}`}
+                    className={`rounded-lg px-4 py-1.5 text-xs font-bold uppercase tracking-[0.14em] transition-all ${period === "annual" ? "bg-zinc-950 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900"}`}
                     disabled={loadingRedirect}
                   >
-                    Anual {savingsPct > 0 && <span className="ml-1 text-brand-primary">-{savingsPct}%</span>}
+                    Anual {savingsPct > 0 && <span className={`ml-1 ${period === "annual" ? "text-pink-300" : "text-brand-primary"}`}>-{savingsPct}%</span>}
                   </button>
                 </div>
 
-                <div className="inline-flex rounded-[1.1rem] border border-zinc-200 bg-zinc-50 p-1">
-                  <button
-                    onClick={() => setCurrency("brl")}
-                    className={`rounded-[0.9rem] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] transition-all ${currency === "brl" ? "bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-200/80" : "text-zinc-500 hover:text-zinc-900"}`}
-                    disabled={loadingRedirect}
-                  >
-                    BRL
-                  </button>
-                  <button
-                    onClick={() => setCurrency("usd")}
-                    className={`rounded-[0.9rem] px-3 py-2 text-[10px] font-bold uppercase tracking-[0.14em] transition-all ${currency === "usd" ? "bg-white text-zinc-950 shadow-sm ring-1 ring-zinc-200/80" : "text-zinc-500 hover:text-zinc-900"}`}
-                    disabled={loadingRedirect}
-                  >
-                    USD
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Preço */}
-            <div className="px-6 sm:px-8 pt-5 text-center sm:text-left">
-              <div className="border-t border-zinc-100 pt-5">
-                <div className="flex items-end gap-2 justify-center sm:justify-start">
-                  <div className="text-4xl font-black leading-none tracking-tighter text-zinc-950">
-                    {formatMoney(activePrice)}
-                  </div>
-                  <span className="mb-1 text-sm font-semibold text-zinc-500">
-                    /{period === "monthly" ? "mês" : "ano"}
-                  </span>
-                </div>
-
-                {period === "annual" && (
-                  <div className="mt-2 text-xs font-medium text-zinc-500">
-                    Equivale a <span className="font-semibold text-zinc-900">{formatMoney(monthlyEquivalent)}</span>/mês no plano anual.
-                  </div>
-                )}
-
-                <div className="mt-3 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400 sm:justify-start">
-                  <Check className="h-3 w-3 text-brand-primary" />
-                  Cancele quando quiser
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrency(currency === "brl" ? "usd" : "brl")}
+                  disabled={loadingRedirect}
+                  className="text-xs text-zinc-400 underline-offset-2 transition-colors hover:text-zinc-600 hover:underline disabled:opacity-50"
+                >
+                  {currency === "brl" ? "Ver em USD" : "Ver em BRL"}
+                </button>
               </div>
             </div>
 
@@ -985,7 +967,7 @@ export default function BillingSubscribeModal({
                     {stepItems.map((step, index) => (
                       <li
                         key={step}
-                        className="rounded-[1rem] bg-zinc-50 px-3.5 py-3"
+                        className="rounded-2xl bg-zinc-50 px-3.5 py-3"
                       >
                         <div className="flex items-start gap-3">
                           <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-[11px] font-bold text-white">
@@ -1001,7 +983,10 @@ export default function BillingSubscribeModal({
             ) : null}
 
             {/* Benefícios */}
-            <div className="px-6 sm:px-8 py-6">
+            <div className="px-6 pb-6 pt-2">
+              <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
+                Incluído no Pro
+              </p>
               {hasPremiumAccess && !billingStatusLoading && !billingStatusError && (
                 <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">
                   Você já tem o Pro ativo. Se algo não está funcionando, tente recarregar a página.
@@ -1018,13 +1003,13 @@ export default function BillingSubscribeModal({
                 </div>
               )}
 
-              <ul className="grid grid-cols-1 gap-0 border-t border-zinc-100">
+              <ul className="grid grid-cols-1 gap-3">
                 {bulletItems.map((feat) => (
-                  <li key={feat} className="flex items-start gap-3 border-b border-zinc-100 px-0 py-3 text-sm transition-all">
-                    <span className="mt-0.5 inline-flex h-6 w-6 items-center justify-center rounded-lg bg-brand-primary/8">
-                      <Check className="h-4 w-4 text-brand-primary" />
+                  <li key={feat} className="flex items-start gap-3">
+                    <span className="mt-0.5 shrink-0 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-primary/10">
+                      <Check className="h-3 w-3 text-brand-primary" strokeWidth={2.5} />
                     </span>
-                    <span className="font-medium text-zinc-700">{feat}</span>
+                    <span className="text-[13px] leading-[1.5] text-zinc-700">{feat}</span>
                   </li>
                 ))}
               </ul>
@@ -1032,13 +1017,14 @@ export default function BillingSubscribeModal({
           </div>
 
           {/* Rodapé sticky */}
-          <div className="sticky bottom-0 z-10 border-t border-zinc-200/80 bg-white">
-            <div className="px-6 sm:px-8 pb-6 pt-5">
+          <div className="sticky bottom-0 z-10 bg-white">
+            <div className="px-6 pb-6 pt-4">
               <button
                 type="button"
                 onClick={() => handleSubscribe()}
                 disabled={loadingRedirect || billingStatusLoading || sessionStatus === "loading" || shouldBlockSubscribe}
-                className="group/btn inline-flex w-full items-center justify-center rounded-[1.15rem] bg-zinc-950 px-6 py-4 text-sm font-bold uppercase tracking-[0.18em] text-white transition-all hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+                className="group/btn inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[#D62E5E] to-[#9326A6] px-6 py-[14px] text-[15px] font-semibold text-white transition-all hover:opacity-95 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                data-autofocus="true"
               >
                 {loadingRedirect ? (
                   <>
@@ -1056,6 +1042,21 @@ export default function BillingSubscribeModal({
               <p className="mt-3 text-center text-[11px] text-zinc-400">
                 Pagamento seguro. Cancele quando quiser.
               </p>
+
+              {/* CTA secundário: apenas no contexto onboarding.
+                  Nomeado pelo benefício ("Explorar grátis primeiro"),
+                  nunca "Fechar" ou "Pular" — conforme regra do produto. */}
+              {effectiveContext === "onboarding" && (
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  disabled={loadingRedirect}
+                  className="mt-3 flex w-full items-center justify-between rounded-2xl border border-zinc-200 px-6 py-4 text-zinc-800 transition-colors disabled:opacity-50 active:bg-zinc-50"
+                >
+                  <p className="text-[14px] font-semibold">Explorar grátis primeiro</p>
+                  <ArrowRight className="h-4 w-4 text-zinc-400" />
+                </button>
+              )}
             </div>
           </div>
         </div>

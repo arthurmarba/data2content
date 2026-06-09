@@ -1,7 +1,7 @@
 "use client";
 
-import { X } from "lucide-react";
 import WhatsAppConnectInline from "@/app/dashboard/WhatsAppConnectInline";
+import { DiagnosticoCloseButton } from "./DiagnosticoCloseButton";
 
 interface Props {
   onClose: () => void;
@@ -30,20 +30,13 @@ export function DiagnosticoWhatsAppSheet({ onClose }: Props) {
         <div className="flex items-center justify-between gap-3 px-5 pb-4 pt-2">
           <div className="min-w-0 flex-1">
             <p className="text-[15px] font-semibold tracking-tight text-zinc-950">
-              Receber roteiros no WhatsApp
+              Receber pautas no WhatsApp
             </p>
             <p className="mt-0.5 text-[12px] text-zinc-400">
-              Vincule seu número para receber seus roteiros semanais.
+              Vincule seu número para receber suas pautas semanais.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Fechar"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition active:scale-95 hover:bg-zinc-200 hover:text-zinc-800"
-          >
-            <X className="h-4 w-4" strokeWidth={2} />
-          </button>
+          <DiagnosticoCloseButton onClose={onClose} edgeAlign />
         </div>
 
         {/* Conteúdo — WhatsAppConnectInline */}

@@ -127,3 +127,39 @@ describe("buildContentIdeasPrompt — campo resonanceNote", () => {
     expect(itemSchema.required).not.toContain("resonanceNote");
   });
 });
+
+describe("buildContentIdeasPrompt — propósito do criador (Fase 5)", () => {
+  it("inclui o propósito com destaque de prioridade quando declarado", () => {
+    const { userInstruction } = buildContentIdeasPrompt({
+      context: baseContext({
+        onboardingAnswers: {
+          whyYouCreate: "conto_historias",
+          desiredFeeling: "inspirado",
+          contentLimit: null,
+          creatorPurpose: "encorajar mães sem tempo a se cuidarem",
+        },
+      }),
+      count: 3,
+    });
+    expect(userInstruction).toContain("PROPÓSITO");
+    expect(userInstruction).toContain("priorize sobre os demais sinais");
+    expect(userInstruction).toContain("encorajar mães sem tempo a se cuidarem");
+  });
+
+  it("não imprime a linha de propósito quando ausente", () => {
+    const { userInstruction } = buildContentIdeasPrompt({
+      context: baseContext({
+        onboardingAnswers: {
+          whyYouCreate: "conto_historias",
+          desiredFeeling: "inspirado",
+          contentLimit: null,
+          creatorPurpose: null,
+        },
+      }),
+      count: 3,
+    });
+    expect(userInstruction).not.toContain("PROPÓSITO");
+    // os demais sinais de intenção continuam presentes
+    expect(userInstruction).toContain("Por que cria:");
+  });
+});

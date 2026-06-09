@@ -85,6 +85,36 @@ describe("creatorVideoNarrativeMockSynthesisSnapshotWriteOrchestrator", () => {
     }));
   });
 
+  it("exclui leituras 'no' da síntese persistida (filtro publishIntent)", async () => {
+    // 3 leituras recorrentes; uma marcada como 'não vou publicar'.
+    const withNo = readings("three_related_readings").map((r, i) =>
+      i === 1 ? { ...r, publishIntent: "no" as const } : r,
+    );
+    const persistSynthesisSnapshot = jest.fn().mockResolvedValue({
+      ok: true,
+      mode: "write",
+      userId: USER_ID,
+      synthesisVersion: "creator_profile_synthesis_snapshot_v1",
+      synthesisStatus: "signals_emerging",
+      analyzedReadingsCount: 2,
+      updatedAt: "2026-05-20T00:00:00.000Z",
+    });
+
+    await runControlledVideoReadingSynthesisSnapshotWrite(
+      {
+        userId: USER_ID,
+        savedDiagnosisId: "reading-pattern-1",
+        enableSnapshotWrite: true,
+        source: "mock_internal",
+      },
+      // Usa o buildSynthesis real (default) para exercitar o filtro end-to-end.
+      { listReadingsForUser: jest.fn().mockResolvedValue(withNo), persistSynthesisSnapshot },
+    );
+
+    const synthesisArg = persistSynthesisSnapshot.mock.calls[0][0].synthesis;
+    expect(synthesisArg.analyzedReadingsCount).toBe(2);
+  });
+
   it("retorna skipped quando nao ha leitura salva", async () => {
     const result = await runControlledVideoReadingSynthesisSnapshotWrite({
       userId: USER_ID,

@@ -10,15 +10,20 @@ import type {
 } from "./mobileStrategicProfileDirectUploadClient";
 
 const STEPS = [
-  "intro",
   "upload",
   "creator_goal",
   "processing",
   "confirmation",
-  "publish_intent",
 ] as const;
 
+// Steps visíveis ao criador no contador — processing é automático, não conta.
+const VISIBLE_STEPS = ["upload", "creator_goal", "confirmation"] as const;
+
 type AnalyzeFlowStep = (typeof STEPS)[number];
+
+function visibleStepIndex(step: AnalyzeFlowStep): number {
+  return (VISIBLE_STEPS as readonly string[]).indexOf(step);
+}
 export type MobileStrategicProfileAnalyzeContextOption = {
   id: string;
   label: string;
@@ -52,7 +57,7 @@ export type MobileStrategicProfileAnalyzeFlowCompleteResult = {
   /** The saved diagnosis ID — matches the reading in the refreshed server view. */
   savedDiagnosisId?: string | null;
   /** Creator's declared publication intent for this video. */
-  publishIntent?: "yes" | "no" | "unsure" | null;
+  publishIntent?: "yes" | "no" | null;
 };
 
 type MobileStrategicProfileAnalyzeFlowProps = {
@@ -93,7 +98,7 @@ type MobileStrategicProfileAnalyzeFlowProps = {
    * Called when the creator declares their publication intent for this video.
    * Fire-and-forget from the component — errors are non-fatal.
    */
-  onPublishIntentSubmit?: (diagnosisId: string, intent: "yes" | "no" | "unsure") => Promise<void>;
+  onPublishIntentSubmit?: (diagnosisId: string, intent: "yes" | "no") => Promise<void>;
 };
 
 function nextStep(current: AnalyzeFlowStep): AnalyzeFlowStep {
@@ -223,8 +228,8 @@ export function MobileStrategicProfileAnalyzeFlow({
   completionSecondaryAction = "another_video",
   onCompletionUpgrade,
 }: MobileStrategicProfileAnalyzeFlowProps) {
-  const [step, setStep] = useState<AnalyzeFlowStep>("intro");
-  const [publishIntent, setPublishIntent] = useState<"yes" | "no" | "unsure" | null>(null);
+  const [step, setStep] = useState<AnalyzeFlowStep>("upload");
+  const [publishIntent, setPublishIntent] = useState<"yes" | "no" | null>(null);
   const [selectedOption, setSelectedOption] = useState<"authority" | "authority_build" | "retention" | "format_test" | "sponsored_content">("authority");
   const [creatorGoal, setCreatorGoal] = useState("");
   const [confirmationQuestion, setConfirmationQuestion] = useState<MobileStrategicProfileAnalyzeContextQuestion | null>(null);
@@ -255,9 +260,21 @@ export function MobileStrategicProfileAnalyzeFlow({
     uploadedAt?: string;
   } | null>(null);
 
+  const requestTemporaryUploadCleanup = (
+    reason: "analysis_completed" | "analysis_failed" | "user_cancelled" | "expired",
+  ) => {
+    if (!temporaryUploadForCleanup || !onCleanupTemporaryUpload) return;
+    onCleanupTemporaryUpload({
+      ...temporaryUploadForCleanup,
+      reason,
+    }).catch(() => {
+      console.warn("Cleanup temporário não foi confirmado.");
+    });
+  };
+
   useEffect(() => {
     if (!open) {
-      setStep("intro");
+      setStep("upload");
       setErrorMsg(null);
       setIsSubmitting(false);
       setSelectedFile(null);
@@ -460,9 +477,18 @@ export function MobileStrategicProfileAnalyzeFlow({
     setStep((current) => nextStep(current));
   };
 
-  const resetFlow = () => {
-    setStep("intro");
+  const resetFlow = (
+    cleanupReason?: "analysis_completed" | "analysis_failed" | "user_cancelled" | "expired",
+  ) => {
+    if (cleanupReason) {
+      requestTemporaryUploadCleanup(cleanupReason);
+    }
+    setStep("upload");
     setErrorMsg(null);
+    setSelectedFile(null);
+    setConsentAccepted(false);
+    setValidationStatus("idle");
+    setFileValidationError(null);
     setUploadSessionValidated(false);
     setTemporaryUploadForCleanup(null);
     setTemporaryUploadForAnalysis(null);
@@ -478,7 +504,7 @@ export function MobileStrategicProfileAnalyzeFlow({
   };
 
   const close = () => {
-    resetFlow();
+    resetFlow("user_cancelled");
     onClose();
   };
 
@@ -511,6 +537,15 @@ export function MobileStrategicProfileAnalyzeFlow({
     setValidationStatus("idle");
     setFileValidationError(null);
     setUploadSessionValidated(false);
+    setTemporaryUploadForCleanup(null);
+    setTemporaryUploadForAnalysis(null);
+    setCreatorGoal("");
+    setSelectedOption("authority");
+    setConfirmationQuestion(null);
+    setConfirmationAnswer(null);
+    setSavedDiagnosisId(null);
+    setConfirmationData(null);
+    setPublishIntent(null);
   };
 
   const currentStepIndex = stepIndex(step);
@@ -535,21 +570,19 @@ export function MobileStrategicProfileAnalyzeFlow({
         <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-zinc-200" aria-hidden="true" />
         <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase text-zinc-500">
-            Etapa {currentStepIndex + 1} de {STEPS.length}
-          </p>
+          {step !== "processing" && (
+            <p className="text-xs font-semibold uppercase text-zinc-500">
+              Etapa {visibleStepIndex(step) + 1} de {VISIBLE_STEPS.length}
+            </p>
+          )}
           <h2 id="mobile-strategic-profile-analyze-flow-title" className="mt-1 text-xl font-semibold text-zinc-950">
-            {step === "intro"
-              ? "Reconhecendo seu momento"
-              : step === "upload"
-                ? "Traga seu vídeo"
-                : step === "creator_goal"
-                  ? "O que quer desvendar?"
-                  : step === "processing"
-                    ? "Percebendo seus padrões"
-                    : step === "publish_intent"
-                      ? "Vai publicar este vídeo?"
-                      : "Seu espelho está pronto"}
+            {step === "upload"
+              ? "Traga seu vídeo"
+              : step === "creator_goal"
+                ? "O que quer desvendar?"
+                : step === "processing"
+                  ? "Percebendo seus padrões"
+                  : "Seu espelho está pronto"}
           </h2>
         </div>
         <button
@@ -565,29 +598,17 @@ export function MobileStrategicProfileAnalyzeFlow({
         </button>
         </div>
 
-        <div className="mt-4 grid grid-cols-6 gap-1" aria-hidden="true">
-        {STEPS.map((item, index) => (
-          <span
-            key={item}
-            className={index <= currentStepIndex ? "h-1.5 rounded-full bg-zinc-950" : "h-1.5 rounded-full bg-zinc-200"}
-          />
-        ))}
+        <div className="mt-4 grid grid-cols-3 gap-1" aria-hidden="true">
+          {VISIBLE_STEPS.map((item, index) => {
+            const vIdx = visibleStepIndex(step);
+            const filled = step === "processing" ? index <= 1 : index <= vIdx;
+            return (
+              <span key={item} className={filled ? "h-1.5 rounded-full bg-zinc-950" : "h-1.5 rounded-full bg-zinc-200"} />
+            );
+          })}
         </div>
 
         <div className="mt-4">
-        {step === "intro" ? (
-          <div>
-            <p className="text-sm leading-6 text-zinc-600">
-              Traga um vídeo seu para colocarmos no espelho. A D2C percebe os padrões que você constrói ali e reflete sua identidade com novos sinais.
-            </p>
-            <div className="mt-5 rounded-[1.5rem] border border-zinc-200 bg-[#f7f7f4] p-4">
-              <p className="text-sm font-semibold text-zinc-950">Seu Perfil é o espelho do seu conteúdo</p>
-              <p className="mt-1 text-sm leading-6 text-zinc-600">
-                Cada vídeo traz sua voz, sua pergunta dá o foco e o resultado revela quem você é para você mesmo.
-              </p>
-            </div>
-          </div>
-        ) : null}
 
         {step === "upload" ? (
           onCreateUploadSession ? (
@@ -605,6 +626,7 @@ export function MobileStrategicProfileAnalyzeFlow({
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) {
+                    requestTemporaryUploadCleanup("user_cancelled");
                     setSelectedFile(file);
                     setConsentAccepted(false);
                     setValidationStatus("idle");
@@ -696,12 +718,15 @@ export function MobileStrategicProfileAnalyzeFlow({
                     type="button"
                     className="shrink-0 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700"
                     onClick={() => {
+                      requestTemporaryUploadCleanup("user_cancelled");
                       setSelectedFile(null);
                       setConsentAccepted(false);
                       setValidationStatus("idle");
                       setFileValidationError(null);
                       setUploadSessionValidated(false);
                       setThumbnailDataUrl(null);
+                      setTemporaryUploadForCleanup(null);
+                      setTemporaryUploadForAnalysis(null);
                     }}
                   >
                     Trocar vídeo
@@ -726,21 +751,15 @@ export function MobileStrategicProfileAnalyzeFlow({
                 Vídeo acolhido e pronto
               </p>
             ) : null}
-            <p className="text-sm leading-6 text-zinc-600">Escreva o que quer entender, ou escolha um ponto de partida.</p>
-            <textarea
-              value={creatorGoal}
-              onChange={(event) => setCreatorGoal(event.target.value)}
-              placeholder="Ex: por que esse vídeo prendeu atenção?"
-              className="mt-3 min-h-[92px] w-full resize-none rounded-2xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-950 outline-none transition focus:border-zinc-950"
-            />
-            <div className="mt-3 grid grid-cols-2 gap-2">
+            {/* Botões primeiro — escolha concreta, sem pressão de campo em branco */}
+            <div className="flex flex-col gap-2">
               {goalOptions.map((opt) => {
                 const isSelected = selectedOption === opt.value;
                 return (
                   <button
                     key={`${opt.value}-${opt.label}`}
                     type="button"
-                    className={`rounded-2xl border px-3 py-3 text-left text-sm font-semibold transition-all duration-200 ${
+                    className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-all duration-200 ${
                       isSelected
                         ? "border-zinc-950 bg-zinc-950 text-white shadow-sm"
                         : "border-zinc-200 bg-[#f7f7f4] text-zinc-800 hover:border-zinc-300"
@@ -757,6 +776,14 @@ export function MobileStrategicProfileAnalyzeFlow({
                 );
               })}
             </div>
+            {/* Textarea opcional abaixo */}
+            <p className="mt-4 text-xs text-zinc-400">Quer refinar a pergunta? Escreva abaixo.</p>
+            <textarea
+              value={creatorGoal}
+              onChange={(event) => setCreatorGoal(event.target.value)}
+              placeholder="Ex: por que esse vídeo prendeu atenção?"
+              className="mt-2 min-h-[72px] w-full resize-none rounded-2xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-950 outline-none transition focus:border-zinc-950"
+            />
           </div>
         ) : null}
 
@@ -858,7 +885,6 @@ export function MobileStrategicProfileAnalyzeFlow({
               </div>
             )}
 
-            {/* publish_intent content is in its own block below */}
             {confirmationQuestion ? (
               <div className="mt-4 rounded-2xl border border-zinc-200 bg-[#f7f7f4] p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Uma pergunta sobre esta leitura</p>
@@ -898,46 +924,40 @@ export function MobileStrategicProfileAnalyzeFlow({
                 </div>
               </div>
             ) : null}
-          </div>
-        ) : null}
 
-        {step === "publish_intent" ? (
-          <div>
-            <p className="text-sm leading-6 text-zinc-600">
-              Só os vídeos que você publica fazem parte do seu mapa narrativo.
-            </p>
-            <div className="mt-4 grid gap-2">
-              {(
-                [
-                  { intent: "yes", label: "Sim, vou publicar", description: "Este vídeo vai para o meu mapa." },
-                  { intent: "no", label: "Não vou publicar", description: "Era um rascunho ou não representa quem sou." },
-                  { intent: "unsure", label: "Ainda não sei", description: "Vou decidir depois." },
-                ] as const
-              ).map(({ intent, label, description }) => {
-                const isSelected = publishIntent === intent;
-                return (
-                  <button
-                    key={intent}
-                    type="button"
-                    className={`w-full rounded-2xl border px-4 py-3 text-left transition-all duration-150 ${
-                      isSelected
-                        ? "border-zinc-950 bg-zinc-950 text-white"
-                        : "border-zinc-200 bg-[#f7f7f4] text-zinc-800 hover:border-zinc-300"
-                    }`}
-                    onClick={() => {
-                      setPublishIntent(intent);
-                      if (savedDiagnosisId && onPublishIntentSubmit) {
-                        onPublishIntentSubmit(savedDiagnosisId, intent).catch(() => {});
-                      }
-                    }}
-                  >
-                    <p className="text-sm font-semibold">{label}</p>
-                    <p className={`mt-0.5 text-xs leading-[1.5] ${isSelected ? "text-white/70" : "text-zinc-500"}`}>
-                      {description}
-                    </p>
-                  </button>
-                );
-              })}
+            {/* Publish intent — integrado na confirmação, fire-and-forget */}
+            <div className="mt-4 rounded-2xl border border-zinc-100 bg-[#f7f7f4] p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Vai publicar este vídeo?</p>
+              <p className="mt-0.5 text-xs text-zinc-400">Só os vídeos publicados entram no seu mapa narrativo.</p>
+              <div className="mt-3 flex gap-2">
+                {(
+                  [
+                    { intent: "yes", label: "Sim" },
+                    { intent: "no", label: "Não" },
+                  ] as const
+                ).map(({ intent, label }) => {
+                  const isSelected = publishIntent === intent;
+                  return (
+                    <button
+                      key={intent}
+                      type="button"
+                      className={`flex-1 rounded-full border px-2 py-2 text-xs font-semibold transition-all duration-150 ${
+                        isSelected
+                          ? "border-zinc-950 bg-zinc-950 text-white"
+                          : "border-zinc-200 bg-white text-zinc-700"
+                      }`}
+                      onClick={() => {
+                        setPublishIntent(intent);
+                        if (savedDiagnosisId && onPublishIntentSubmit) {
+                          onPublishIntentSubmit(savedDiagnosisId, intent).catch(() => {});
+                        }
+                      }}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         ) : null}
@@ -945,28 +965,7 @@ export function MobileStrategicProfileAnalyzeFlow({
 
         <div className="mt-5 flex gap-2">
         {step === "confirmation" ? (
-          <div className="flex w-full gap-2">
-            <button
-              type="button"
-              className={completionSecondaryAction === "upgrade"
-                ? "w-3/5 rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 transition-colors"
-                : "w-2/3 rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 transition-colors"}
-              onClick={() => setStep("publish_intent")}
-            >
-              Continuar
-            </button>
-            <button
-              type="button"
-              className={completionSecondaryAction === "upgrade"
-                ? "w-2/5 rounded-full border border-zinc-300 bg-white px-3 py-2.5 text-xs font-semibold text-zinc-800 hover:bg-zinc-50 transition-colors"
-                : "w-1/3 rounded-full border border-zinc-300 bg-white px-3 py-2.5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 transition-colors"}
-              onClick={handleConfirmationSecondaryAction}
-            >
-              {completionSecondaryAction === "upgrade" ? "Continuar com Pro" : "Outro vídeo"}
-            </button>
-          </div>
-        ) : step === "publish_intent" ? (
-          <div className="flex w-full gap-2">
+          <div className="flex w-full flex-col gap-2">
             <button
               type="button"
               className="w-full rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 transition-colors"
@@ -974,6 +973,15 @@ export function MobileStrategicProfileAnalyzeFlow({
             >
               Ver leitura no Perfil
             </button>
+            {completionSecondaryAction === "upgrade" ? (
+              <button
+                type="button"
+                className="w-full rounded-full border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 transition-colors"
+                onClick={() => { complete(); onCompletionUpgrade?.(); }}
+              >
+                Continuar com Pro
+              </button>
+            ) : null}
           </div>
         ) : step === "processing" && errorMsg ? (
           <div className="flex w-full gap-2">
@@ -1003,7 +1011,7 @@ export function MobileStrategicProfileAnalyzeFlow({
             onClick={handleContinue}
             disabled={isContinueDisabled}
           >
-            {step === "intro" ? "Começar" : "Continuar"}
+            Continuar
           </button>
         )}
         </div>

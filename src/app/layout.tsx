@@ -22,9 +22,9 @@ const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: "Data2Content: Gestão de Carreira IA para Criadores",
+  title: "Data2Content — Entenda o que seu conteúdo diz sobre você",
   description:
-    "Impulsione sua carreira de criador com insights de IA via WhatsApp, gestão estratégica e oportunidades exclusivas. Vire afiliado e comece a ganhar.",
+    "Descubra o que está funcionando, receba ideias prontas para postar e encontre criadores para crescer junto.",
 };
 
 export default async function RootLayout({

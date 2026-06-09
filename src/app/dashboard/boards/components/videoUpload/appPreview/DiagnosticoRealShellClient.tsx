@@ -10,8 +10,8 @@ import type {
 } from "@/app/dashboard/boards/videoUpload/diagnosticoPageData";
 import { resolveDiagnosticoLeadingNarrativeSignal } from "@/app/dashboard/boards/videoUpload/diagnosticoNarrativeSignals";
 import { openPaywallModal } from "@/utils/paywallModal";
+import { startInstagramReconnect } from "@/app/lib/instagram/client/startInstagramReconnect";
 import {
-  MOBILE_COMMUNITY_ROUTE,
   MOBILE_INSTAGRAM_CONNECT_ROUTE,
   MOBILE_MEDIA_KIT_ROUTE,
   MOBILE_PROFILE_ROUTE,
@@ -19,18 +19,23 @@ import {
 } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
 import { requestUploadSession } from "./mobileStrategicProfileUploadSessionClient";
 import { uploadVideoToTemporarySignedUrl } from "./mobileStrategicProfileDirectUploadClient";
+import { postMobileStrategicProfileAnalysisJson } from "./mobileStrategicProfileAnalysisSubmitClient";
 import {
   MobileStrategicProfileAnalyzeFlow,
   type MobileStrategicProfileAnalyzeResult,
   type MobileStrategicProfileAnalyzeFlowCompleteResult,
 } from "./MobileStrategicProfileAnalyzeFlow";
+import {
+  MobileCalculatorWizard,
+  type MobileCalculatorResult,
+} from "./MobileCalculatorWizard";
 import { fetchAnalysisConfirmationDataFromReading } from "./mobileStrategicProfileAnalysisConfirmationClient";
 import { DiagnosticoPage } from "./DiagnosticoPage";
 import { ReadingDetailView } from "./ReadingDetailView";
 import { useReadingDetail } from "./useReadingDetail";
 import type { CategoryId } from "./DiagnosticoCategoryMeta";
 import { DiagnosticoNarrativeDetailView } from "./DiagnosticoNarrativeDetailView";
-import { MobileOnboardingFlow } from "./MobileOnboardingFlow";
+import { MobileOnboardingFlow, type OnboardingStep } from "./MobileOnboardingFlow";
 import type {
   ConfirmationState,
   ConfirmationResponse,
@@ -41,13 +46,17 @@ import { DiagnosticoExecutionDetailView } from "./DiagnosticoExecutionDetailView
 import { DiagnosticoInstagramDetailView } from "./DiagnosticoInstagramDetailView";
 import { DiagnosticoBrandsDetailView } from "./DiagnosticoBrandsDetailView";
 import { DiagnosticoCollabsDetailView } from "./DiagnosticoCollabsDetailView";
+import { DiagnosticoCommunityDetailView } from "./DiagnosticoCommunityDetailView";
 import { DiagnosticoReadingsDetailView } from "./DiagnosticoReadingsDetailView";
 import { DiagnosticoIdeasDetailView } from "./DiagnosticoIdeasDetailView";
 import { DiagnosticoAccountMenuSheet } from "./DiagnosticoAccountMenuSheet";
+import { DiagnosticoNorteView } from "./DiagnosticoNorteView";
 import { DiagnosticoWhatsAppSheet } from "./DiagnosticoWhatsAppSheet";
 import { DiagnosticoIdeaDetailSheet } from "./DiagnosticoIdeaDetailSheet";
 import { DiagnosticoOverviewDetailView } from "./DiagnosticoOverviewDetailView";
+import { MediaKitSheet } from "./MediaKitSheet";
 import { getNarrativeMapAccessAction } from "@/app/dashboard/boards/videoUpload/narrativeMapAccessState";
+import SurveyModal from "@/app/dashboard/home/minimal/SurveyModal";
 
 const REAL_ANALYSIS_ENABLED =
   process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED === "1";
@@ -131,9 +140,19 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   const [openCategory, setOpenCategory] = useState<CategoryId | null>(null);
   const [diagnosisOverviewOpen, setDiagnosisOverviewOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [surveyOpen, setSurveyOpen] = useState(false);
+  const [norteOpen, setNorteOpen] = useState(false);
+  // Propósito local — reflete saves em DiagnosticoNorteView sem router.refresh().
+  const [localPurpose, setLocalPurpose] = useState<string | null>(
+    data.onboardingAnswers?.creatorPurpose ?? null,
+  );
   const [whatsAppSheetOpen, setWhatsAppSheetOpen] = useState(false);
+  const [calculatorWizardOpen, setCalculatorWizardOpen] = useState(false);
+  const [latestCalculation, setLatestCalculation] = useState<MobileCalculatorResult | null>(null);
   const [openIdeaId, setOpenIdeaId] = useState<string | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(data.needsOnboarding);
+  // O3: step de retomada após conectar Instagram durante o onboarding.
+  const [onboardingInitialStep, setOnboardingInitialStep] = useState<OnboardingStep | null>(null);
   const [collabSuggestions, setCollabSuggestions] = useState<DiagnosticoCollabSuggestionsState>({
     status: "idle",
     items: [],
@@ -219,19 +238,20 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     data.synthesis.analyzedReadingsCount > 0 &&
     localMapConfirmations.narrative === "confirmed" &&
     localMapConfirmations.territories === "confirmed";
-  /**
-   * Opens the REAL media kit in a new tab.
-   * - Preferred: public /mediakit/[mediaKitSlug] view (foto, métricas, demografia)
-   * - Fallback: /dashboard/media-kit (authenticated route) when slug not provisioned yet.
-   * Removed the previous "MobileStrategicProfileMediaKitModal" mock.
-   */
+  const [mediaKitSheetSlug, setMediaKitSheetSlug] = useState<string | null>(null);
+
   const handleOpenMediaKit = useCallback(() => {
     const slug = data.userInfo.mediaKitSlug?.trim();
-    const url = slug ? `/mediakit/${encodeURIComponent(slug)}` : MOBILE_MEDIA_KIT_ROUTE;
-    if (typeof window !== "undefined") {
-      window.open(url, "_blank", "noopener,noreferrer");
+    if (slug) {
+      setMediaKitSheetSlug(slug);
+    } else {
+      router.push(MOBILE_MEDIA_KIT_ROUTE);
     }
-  }, [data.userInfo.mediaKitSlug]);
+  }, [data.userInfo.mediaKitSlug, router]);
+
+  const handleOpenCreatorMediaKit = useCallback((slug: string) => {
+    setMediaKitSheetSlug(slug);
+  }, []);
   const closeAccountMenu = useCallback(() => {
     setAccountMenuOpen(false);
   }, []);
@@ -239,18 +259,75 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     setAccountMenuOpen(false);
     handleOpenMediaKit();
   }, [handleOpenMediaKit]);
+  const handleOpenCalculator = useCallback(() => {
+    if (data.userInfo.plan !== "Pro") {
+      openPaywallModal({
+        context: "calculator",
+        source: "mobile_profile_calculator",
+        returnTo: MOBILE_PROFILE_ROUTE,
+        postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
+      });
+      return;
+    }
+    setCalculatorWizardOpen(true);
+  }, [data.instagramConnected, data.userInfo.plan]);
   const handleOpenAccountCommunity = useCallback(() => {
+    // Abre a Comunidade DENTRO do shell (não sai para outra rota) —
+    // o usuário mantém o contexto do produto.
     setAccountMenuOpen(false);
-    router.push(MOBILE_COMMUNITY_ROUTE);
-  }, [router]);
+    setOpenCategory("community");
+  }, []);
+
+  const handleOpenWhatsAppGroup = useCallback(() => {
+    if (data.userInfo.plan === "Pro") {
+      window.open("https://chat.whatsapp.com/BAeBQZ8zuhQJOxXXJJaTnH", "_blank", "noopener,noreferrer");
+    } else {
+      openPaywallModal({
+        context: "narrative_map",
+        source: "mobile_profile_whatsapp_community",
+        returnTo: MOBILE_PROFILE_ROUTE,
+        postCheckoutIntent: "join_community",
+      });
+    }
+  }, [data.userInfo.plan]);
   const handleOpenAccountInstagramConnection = useCallback(() => {
+    // Rota de conexão que retorna ao mapa após conectar.
     setAccountMenuOpen(false);
-    router.push("/dashboard/instagram-connection");
+    router.push(MOBILE_INSTAGRAM_CONNECT_ROUTE);
+  }, [router]);
+
+  // O3: conectar Instagram durante o onboarding — vai direto ao OAuth,
+  // sem passar pela página de pré-conexão (redundante com a InstagramScreen).
+  // Fallback para a rota de pré-conexão caso o OAuth falhe ao iniciar.
+  const handleOnboardingConnectInstagram = useCallback(async () => {
+    try {
+      sessionStorage.setItem("d2c_onboarding_resume_step", "question_1");
+    } catch {
+      // sessionStorage indisponível — fallback gracioso.
+    }
+    try {
+      await startInstagramReconnect({
+        nextTarget: "narrative-map",
+        source: "onboarding_instagram_screen",
+      });
+    } catch {
+      router.push(MOBILE_INSTAGRAM_CONNECT_ROUTE);
+    }
   }, [router]);
   const handleOpenAccountBilling = useCallback(() => {
     setAccountMenuOpen(false);
     router.push("/dashboard/billing");
   }, [router]);
+  const handleAccountUpgrade = useCallback(() => {
+    setAccountMenuOpen(false);
+    openPaywallModal({
+      context: "narrative_map",
+      source: "account_menu_upgrade",
+      returnTo: MOBILE_PROFILE_ROUTE,
+      // Se ainda não conectou o Instagram, encadeia a conexão após o checkout.
+      postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
+    });
+  }, [data.instagramConnected]);
   const handleOpenAccountAffiliates = useCallback(() => {
     setAccountMenuOpen(false);
     router.push("/afiliados");
@@ -293,6 +370,33 @@ export function DiagnosticoRealShellClient({ data }: Props) {
       method: "POST",
     }).catch(() => { /* non-fatal */ });
   }, []);
+
+  useEffect(() => {
+    if (data.userInfo.plan !== "Pro") {
+      setLatestCalculation(null);
+      return;
+    }
+
+    let cancelled = false;
+    void fetch("/api/calculator/latest", { cache: "no-store" })
+      .then(async (response) => {
+        if (response.status === 404) return null;
+        if (!response.ok) return null;
+        return response.json() as Promise<MobileCalculatorResult>;
+      })
+      .then((calculation) => {
+        if (!cancelled && calculation) {
+          setLatestCalculation(calculation);
+        }
+      })
+      .catch(() => {
+        // Non-fatal: the card keeps the first-calculation CTA.
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [data.userInfo.plan]);
 
   // Extracted so the user can also retry manually from the card.
   const triggerGenerateIdeas = useCallback(async () => {
@@ -386,13 +490,41 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   }, []);
 
   // Detect ?instagramLinked=true → show a map-focused return notice (fires at most once per mount)
+  // O3: também lê d2c_onboarding_resume_step para retomar o onboarding no
+  // step correto quando o criador voltou de conectar Instagram durante o flow.
   useEffect(() => {
     if (!handledInstagramLinked.current && searchParams.get("instagramLinked") === "true") {
       handledInstagramLinked.current = true;
       setShowInstagramConnectedNotice(true);
+
+      // O3: se o criador veio do onboarding, retoma no step salvo.
+      try {
+        const savedStep = sessionStorage.getItem("d2c_onboarding_resume_step") as OnboardingStep | null;
+        if (savedStep) {
+          setOnboardingInitialStep(savedStep);
+          sessionStorage.removeItem("d2c_onboarding_resume_step");
+        }
+      } catch {
+        // sessionStorage indisponível — onboarding reinicia do welcome sem problema.
+      }
+
       // Remove the param from the URL without triggering a navigation
       const next = new URL(window.location.href);
       next.searchParams.delete("instagramLinked");
+      router.replace(next.pathname + (next.search || ""), { scroll: false });
+    }
+  }, [searchParams, router]);
+
+  // Detect ?openCommunity=1 → auto-open the Community detail after post-checkout redirect.
+  // The billing/success page appends this param when postCheckoutIntent === "join_community",
+  // so the new subscriber lands directly inside the community view.
+  const handledOpenCommunity = useRef(false);
+  useEffect(() => {
+    if (!handledOpenCommunity.current && searchParams.get("openCommunity") === "1") {
+      handledOpenCommunity.current = true;
+      setOpenCategory("community");
+      const next = new URL(window.location.href);
+      next.searchParams.delete("openCommunity");
       router.replace(next.pathname + (next.search || ""), { scroll: false });
     }
   }, [searchParams, router]);
@@ -540,10 +672,19 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   }, []);
 
   useEffect(() => {
-    if (openCategory === "collabs" && isMapReadyForExpansion) {
+    // Collabs: diretório carrega junto do matching (exige mapa pronto).
+    // Comunidade: diretório é prova social aberta — carrega para qualquer usuário.
+    // Stories Row: carrega no mount para exibir prova social no header.
+    if (openCategory === "community" || (openCategory === "collabs" && isMapReadyForExpansion)) {
       void loadCreatorDirectory();
     }
   }, [isMapReadyForExpansion, loadCreatorDirectory, openCategory]);
+
+  useEffect(() => {
+    // Carrega o diretório no mount para a CreatorStoriesRow no header.
+    void loadCreatorDirectory();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleNewReading = useCallback(() => {
     setAccessMessage(null);
@@ -647,13 +788,10 @@ export function DiagnosticoRealShellClient({ data }: Props) {
             persistSynthesisSnapshot: true,
           };
 
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+      const { response, data: responseData } = await postMobileStrategicProfileAnalysisJson({
+        endpoint,
+        body,
       });
-
-      const responseData = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(responseData?.message ?? "Erro ao analisar vídeo.");
       }
@@ -700,7 +838,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   );
 
   const handlePublishIntentSubmit = useCallback(
-    async (diagnosisId: string, intent: "yes" | "no" | "unsure") => {
+    async (diagnosisId: string, intent: "yes" | "no") => {
       try {
         await fetch(
           `/api/dashboard/mobile-strategic-profile/diagnosis/${encodeURIComponent(diagnosisId)}/publish-intent`,
@@ -896,6 +1034,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
         <DiagnosticoPage
           data={hydratedData}
           collabSuggestions={collabSuggestions}
+          creatorDirectory={creatorDirectory}
           onNewReading={handleNewReading}
           onOpenReading={handleOpenReading}
           onConnectInstagram={() => router.push(MOBILE_INSTAGRAM_CONNECT_ROUTE)}
@@ -906,8 +1045,12 @@ export function DiagnosticoRealShellClient({ data }: Props) {
             postCheckoutIntent: "connect_instagram",
           })}
           onOpenCategory={handleOpenCategory}
+          onOpenCommunity={handleOpenAccountCommunity}
+          onOpenWhatsAppGroup={handleOpenWhatsAppGroup}
           onOpenMediaKit={handleOpenMediaKit}
+          onOpenCreatorMediaKit={handleOpenCreatorMediaKit}
           onOpenAccountMenu={() => setAccountMenuOpen(true)}
+          onOpenSurvey={() => setSurveyOpen(true)}
           onOpenDiagnosis={handleOpenDiagnosisOverview}
           narrativeConfirmationState={narrativeConfirmationState}
           onConfirmNarrative={handleConfirmNarrative}
@@ -923,6 +1066,8 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           onRetryGenerateIdeas={triggerGenerateIdeas}
           onOpenIdea={(id) => setOpenIdeaId(id)}
           onConnectWhatsApp={() => setWhatsAppSheetOpen(true)}
+          latestCalculation={latestCalculation}
+          onOpenCalculator={handleOpenCalculator}
         />
       </div>
 
@@ -937,19 +1082,46 @@ export function DiagnosticoRealShellClient({ data }: Props) {
         <DiagnosticoWhatsAppSheet onClose={() => setWhatsAppSheetOpen(false)} />
       ) : null}
 
+      {mediaKitSheetSlug ? (
+        <MediaKitSheet slug={mediaKitSheetSlug} onClose={() => setMediaKitSheetSlug(null)} />
+      ) : null}
+
       {accountMenuOpen ? (
         <DiagnosticoAccountMenuSheet
           userInfo={hydratedData.userInfo}
+          isPro={hydratedData.userInfo.plan === "Pro"}
+          instagramConnected={hydratedData.instagramConnected}
           onClose={closeAccountMenu}
           onOpenMediaKit={handleOpenAccountMediaKit}
           onOpenCommunity={handleOpenAccountCommunity}
           onOpenInstagramConnection={handleOpenAccountInstagramConnection}
           onOpenBilling={handleOpenAccountBilling}
+          onUpgrade={handleAccountUpgrade}
           onOpenAffiliates={handleOpenAccountAffiliates}
           onContactSupport={handleContactSupport}
           onSignOut={handleAccountSignOut}
+          onOpenSurvey={() => setSurveyOpen(true)}
+          onOpenNorte={() => setNorteOpen(true)}
+          hasPurpose={Boolean(localPurpose)}
         />
       ) : null}
+
+      <SurveyModal
+        open={surveyOpen}
+        onClose={() => setSurveyOpen(false)}
+        onSaved={() => {
+          setSurveyOpen(false);
+          router.refresh();
+        }}
+      />
+
+      {norteOpen && (
+        <DiagnosticoNorteView
+          initialPurpose={localPurpose}
+          onClose={() => setNorteOpen(false)}
+          onSaved={(newPurpose) => setLocalPurpose(newPurpose)}
+        />
+      )}
 
       {diagnosisOverviewOpen ? (
         <DiagnosticoOverviewDetailView
@@ -1032,7 +1204,24 @@ export function DiagnosticoRealShellClient({ data }: Props) {
             source: "collabs_upgrade_teaser",
             returnTo: MOBILE_PROFILE_ROUTE,
           })}
+          onOpenCommunity={handleOpenAccountCommunity}
+          onOpenCreatorMediaKit={handleOpenCreatorMediaKit}
           onNewReading={handleNewReading}
+          onClose={() => setOpenCategory(null)}
+        />
+      )}
+      {openCategory === "community" && (
+        <DiagnosticoCommunityDetailView
+          creatorDirectory={creatorDirectory}
+          isPro={hydratedData.userInfo.plan === "Pro"}
+          onUpgrade={() => openPaywallModal({
+            context: "narrative_map",
+            source: "community_join_upsell",
+            // Após assinar, volta ao perfil com ?openCommunity=1 para auto-abrir
+            // o detail de Comunidade — o novo assinante entra sem fricção.
+            returnTo: `${MOBILE_PROFILE_ROUTE}?openCommunity=1`,
+            postCheckoutIntent: "join_community",
+          })}
           onClose={() => setOpenCategory(null)}
         />
       )}
@@ -1074,6 +1263,24 @@ export function DiagnosticoRealShellClient({ data }: Props) {
         onCompletionUpgrade={handleCompletionUpgrade}
       />
 
+      <MobileCalculatorWizard
+        open={calculatorWizardOpen}
+        onClose={() => setCalculatorWizardOpen(false)}
+        latestCalculation={latestCalculation}
+        suggestedReach={hydratedData.instagramMetrics?.avgReachPerPost ?? null}
+        onSaved={(calculation) => {
+          setLatestCalculation(calculation);
+        }}
+        showPricingIntro={hydratedData.userInfo.pricingProfileIncomplete ?? false}
+        onSavePricingProfile={(payload) => {
+          void fetch("/api/dashboard/mobile-strategic-profile/pricing-profile", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          }).catch(() => { /* não-fatal: o criador segue para a calculadora */ });
+        }}
+      />
+
       {/* Access message toast */}
       {accessMessage && (
         <div
@@ -1085,7 +1292,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
             <span>{accessMessage}</span>
             <button
               onClick={() => setAccessMessage(null)}
-              className="shrink-0 text-white/50 hover:text-white leading-none text-[18px]"
+              className="shrink-0 flex h-11 w-11 items-center justify-center text-white/50 hover:text-white leading-none text-[18px] -mr-2"
               aria-label="Fechar"
             >
               ×
@@ -1182,8 +1389,13 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           const leading = resolveDiagnosticoLeadingNarrativeSignal(hydratedData.synthesis);
           return leading ? { label: leading.label, summary: leading.summary } : null;
         })()}
+        // O3: retomada após conectar Instagram — pula a tela de boas-vindas.
+        initialStep={onboardingInitialStep ?? undefined}
+        onConnectInstagram={handleOnboardingConnectInstagram}
+        onRequestUpload={() => setAnalyzeFlowOpen(true)}
         onComplete={() => {
           setOnboardingOpen(false);
+          setOnboardingInitialStep(null);
           // Refresh server data so the shell reflects the updated onboarding state
           router.refresh();
         }}

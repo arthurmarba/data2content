@@ -30,7 +30,7 @@ export async function DELETE() {
  *
  * Body:
  *   {
- *     publishIntent: "yes" | "no" | "unsure",
+ *     publishIntent: "yes" | "no",
  *     instagramMediaId?: string   // optional: when provided with publishIntent='yes',
  *                                 // promotes the diagnosis contentContext as lifeAssets
  *                                 // on the corresponding Metric document.
@@ -59,11 +59,11 @@ export async function PATCH(
   }
 
   // Parse body
-  let publishIntent: "yes" | "no" | "unsure" | undefined;
+  let publishIntent: "yes" | "no" | undefined;
   let instagramMediaId: string | undefined;
   try {
     const body = await request.json().catch(() => ({}));
-    if (body?.publishIntent === "yes" || body?.publishIntent === "no" || body?.publishIntent === "unsure") {
+    if (body?.publishIntent === "yes" || body?.publishIntent === "no") {
       publishIntent = body.publishIntent;
     }
     if (typeof body?.instagramMediaId === "string" && body.instagramMediaId.trim()) {
@@ -75,7 +75,7 @@ export async function PATCH(
 
   if (!publishIntent) {
     return NextResponse.json(
-      { message: "publishIntent deve ser 'yes', 'no' ou 'unsure'." },
+      { message: "publishIntent deve ser 'yes' ou 'no'." },
       { status: 400 },
     );
   }
@@ -132,6 +132,44 @@ export async function PATCH(
         // Non-fatal: lifeAssets promotion failed — log and continue.
         // The publishIntent was already saved; the asset link can be retried later.
         console.error("[publish-intent] lifeAssets promotion failed:", promotionErr);
+      }
+    }
+
+    // When the creator declares "yes" (will publish), enqueue a background job
+    // that enriches the MapaSeed from the synthesis of their published video
+    // readings. This is an LLM cross-reference (~seconds), so it runs async via
+    // QStash to avoid adding latency to this fire-and-forget call.
+    // Non-fatal + graceful no-op if QStash isn't configured (e.g. local dev).
+    if (publishIntent === "yes") {
+      try {
+        const { enqueueMapaVideoEnrichment } = await import(
+          "@/app/lib/mapaSeed/enqueueMapaVideoEnrichment"
+        );
+        await enqueueMapaVideoEnrichment(userId);
+      } catch (enqueueErr) {
+        console.error("[publish-intent] enqueue enriquecimento de vídeo failed (non-fatal):", enqueueErr);
+      }
+    }
+
+    // When the creator declares "no", re-run the synthesis snapshot so the map
+    // immediately reflects the exclusion. The Phase 2 readingFeedsNarrativeMap
+    // filter already excludes "no" readings — this just persists the updated
+    // snapshot synchronously so the next page load sees the correct map.
+    // Non-fatal: a failure here means the map will self-correct on the next
+    // video analysis or page load that triggers a snapshot write.
+    if (publishIntent === "no") {
+      try {
+        const { runControlledVideoReadingSynthesisSnapshotWrite } = await import(
+          "@/app/dashboard/boards/videoUpload/creatorVideoNarrativeMockSynthesisSnapshotWriteOrchestrator"
+        );
+        await runControlledVideoReadingSynthesisSnapshotWrite({
+          userId,
+          savedDiagnosisId: diagnosisId,
+          enableSnapshotWrite: true,
+          source: "real_internal",
+        });
+      } catch (resynErr) {
+        console.error("[publish-intent] re-síntese failed (non-fatal):", resynErr);
       }
     }
 

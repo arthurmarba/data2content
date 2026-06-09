@@ -9,14 +9,12 @@ import {
   FaFacebook,
   FaInstagram,
   FaSpinner,
-  FaUnlink,
   FaExclamationCircle,
   FaCheckCircle,
   FaLock,
   FaKey,
   FaClock,
   FaExclamationTriangle,
-  FaInfoCircle,
   FaTimes,
 } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
@@ -78,7 +76,7 @@ function getDisplayErrorForCode(code: InstagramReconnectErrorCode): DisplayError
     case IG_RECONNECT_ERROR_CODES.NO_FACEBOOK_PAGE:
       return {
         message:
-          "Nenhuma Página do Facebook foi encontrada para esta conta. Crie/assuma uma Página e tente novamente.",
+          "Sua conta do Instagram precisa estar vinculada a uma Página do Facebook. Faça isso no app do Facebook e tente novamente.",
         type: "no_ig_account",
         icon: FaExclamationTriangle,
         colorClasses: "text-yellow-700 bg-yellow-50 border-yellow-300",
@@ -86,7 +84,7 @@ function getDisplayErrorForCode(code: InstagramReconnectErrorCode): DisplayError
     case IG_RECONNECT_ERROR_CODES.NO_BUSINESS_ACCESS:
       return {
         message:
-          "A Meta não retornou acesso ao Business. Reconecte e aprove as permissões para Página e Portfólio.",
+          "Faltou uma permissão durante a conexão. Reconecte e aprove tudo que for solicitado.",
         type: "permission",
         icon: FaLock,
         colorClasses: "text-yellow-700 bg-yellow-50 border-yellow-300",
@@ -94,7 +92,7 @@ function getDisplayErrorForCode(code: InstagramReconnectErrorCode): DisplayError
     case IG_RECONNECT_ERROR_CODES.NO_LINKED_IG_ACCOUNT:
       return {
         message:
-          "Sua Página foi encontrada, mas não há Instagram profissional vinculado a ela. Faça o vínculo e reconecte.",
+          "Sua conta do Instagram precisa estar no modo Profissional. Vincule-a a uma Página do Facebook e reconecte.",
         type: "no_ig_account",
         icon: FaExclamationTriangle,
         colorClasses: "text-yellow-700 bg-yellow-50 border-yellow-300",
@@ -102,7 +100,7 @@ function getDisplayErrorForCode(code: InstagramReconnectErrorCode): DisplayError
     case IG_RECONNECT_ERROR_CODES.NO_IG_ACCOUNT:
       return {
         message:
-          "Nenhuma conta Instagram profissional (Comercial ou Criador de Conteúdo) foi encontrada vinculada à sua conta do Facebook.",
+          "Sua conta do Instagram precisa estar no modo Profissional (Criador ou Comercial). Mude nas configurações do Instagram e reconecte.",
         type: "no_ig_account",
         icon: FaExclamationTriangle,
         colorClasses: "text-yellow-700 bg-yellow-50 border-yellow-300",
@@ -110,7 +108,7 @@ function getDisplayErrorForCode(code: InstagramReconnectErrorCode): DisplayError
     case IG_RECONNECT_ERROR_CODES.PERMISSION_DENIED:
       return {
         message:
-          "Permissão necessária não concedida pelo Facebook. Por favor, reconecte e aprove todas as permissões solicitadas.",
+          "Faltou uma permissão durante a conexão. Reconecte e aprove tudo que for solicitado.",
         type: "permission",
         icon: FaLock,
         colorClasses: "text-yellow-700 bg-yellow-50 border-yellow-300",
@@ -118,7 +116,7 @@ function getDisplayErrorForCode(code: InstagramReconnectErrorCode): DisplayError
     case IG_RECONNECT_ERROR_CODES.ACCOUNT_RESTRICTED:
       return {
         message:
-          "A Meta restringiu temporariamente esta conta por segurança. Conclua a verificação no Instagram/Facebook e tente novamente mais tarde.",
+          "Sua conta está com acesso temporariamente restrito. Conclua a verificação no app do Instagram e tente novamente.",
         type: "permission",
         icon: FaClock,
         colorClasses: "text-yellow-700 bg-yellow-50 border-yellow-300",
@@ -127,21 +125,21 @@ function getDisplayErrorForCode(code: InstagramReconnectErrorCode): DisplayError
     case IG_RECONNECT_ERROR_CODES.LINK_TOKEN_INVALID:
       return {
         message:
-          "Sua sessão com o Facebook/Instagram expirou ou é inválida. Por favor, conecte novamente.",
+          "Sua conexão expirou. Reconecte para continuar.",
         type: "token",
         icon: FaKey,
         colorClasses: "text-orange-600 bg-orange-50 border-orange-300",
       };
     case IG_RECONNECT_ERROR_CODES.INVALID_IG_ACCOUNT_SELECTION:
       return {
-        message: "A conta escolhida não está entre as contas autorizadas. Refaça a conexão e selecione novamente.",
+        message: "Esta conta não foi autorizada. Reconecte e selecione a conta correta.",
         type: "account_selection",
         icon: FaExclamationCircle,
         colorClasses: "text-red-600 bg-red-50 border-red-200",
       };
     case IG_RECONNECT_ERROR_CODES.FACEBOOK_ALREADY_LINKED:
       return {
-        message: "Esta conta do Facebook já está vinculada a outro usuário da plataforma.",
+        message: "Esta conta do Facebook já está em uso por outro criador na plataforma.",
         type: "general_backend",
         icon: FaExclamationTriangle,
         colorClasses: "text-red-600 bg-red-50 border-red-200",
@@ -298,7 +296,7 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
       )
         return {
           message:
-            "Nenhuma conta Instagram profissional (Comercial ou Criador de Conteúdo) foi encontrada vinculada à sua conta do Facebook.",
+            "Sua conta do Instagram precisa estar no modo Profissional (Criador ou Comercial). Mude nas configurações do Instagram e reconecte.",
           type: "no_ig_account",
           icon: FaExclamationTriangle,
           colorClasses: "text-yellow-700 bg-yellow-50 border-yellow-300",
@@ -311,7 +309,7 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
       )
         return {
           message:
-            "Permissão necessária não concedida pelo Facebook. Por favor, reconecte e aprove todas as permissões solicitadas.",
+            "Faltou uma permissão durante a conexão. Reconecte e aprove tudo que for solicitado.",
           type: "permission",
           icon: FaLock,
           colorClasses: "text-yellow-700 bg-yellow-50 border-yellow-300",
@@ -324,14 +322,14 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
       )
         return {
           message:
-            "Sua sessão com o Facebook/Instagram expirou ou é inválida. Por favor, conecte novamente.",
+            "Sua conexão expirou. Reconecte para continuar.",
           type: "token",
           icon: FaKey,
           colorClasses: "text-orange-600 bg-orange-50 border-orange-300",
         };
       if (errorMsg.includes("Usuário não identificado"))
         return {
-          message: "Você precisa estar logado na plataforma antes de conectar o Instagram.",
+          message: "Você precisa estar logado antes de conectar o Instagram.",
           type: "local_linking",
           icon: FaExclamationCircle,
           colorClasses: "text-red-600 bg-red-50 border-red-200",
@@ -339,7 +337,7 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
 
       // genérico
       return {
-        message: `Erro na conexão/sincronização: ${errorMsg}`,
+        message: "Algo deu errado na conexão. Tente reconectar.",
         type: "general_backend",
         icon: FaExclamationTriangle,
         colorClasses: "text-red-600 bg-red-50 border-red-200",
@@ -462,9 +460,9 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
     : "N/A";
 
   // CTA principal
-  let mainButtonText = "Iniciar Mapeamento de Perfil";
+  let mainButtonText = "Conectar com Facebook";
   let mainButtonIcon = <FaFacebook className="w-5 h-5" />;
-  let mainButtonStyles = "bg-[#141C2F] hover:bg-slate-800 text-white rounded-xl shadow-xl border border-white/10";
+  let mainButtonStyles = "bg-zinc-950 hover:bg-black text-white rounded-xl";
   let mainButtonDisabled =
     !canAccessFeatures ||
     isLinking ||
@@ -481,7 +479,7 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
     currentDisplayError.type !== "no_ig_account"
   ) {
     mainButtonText = "Tentar Novamente com Facebook";
-    mainButtonStyles = "bg-yellow-500 hover:bg-yellow-600 text-white";
+    mainButtonStyles = "bg-amber-500 hover:bg-amber-600 text-white rounded-xl";
   }
 
   // Modal: foco inicial e ESC para fechar
@@ -628,20 +626,10 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
     <>
       {renderAccountSelectorModal()}
       <motion.section initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }}>
-        <h2 className="text-xl font-black text-slate-900 tracking-tight mb-5 ml-1 flex items-center gap-2">
-          Mapeamento de Perfil
-          <span className="bg-brand-primary/10 text-brand-primary text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full">
-            Motor IA
-          </span>
+        <h2 className="text-xl font-black text-slate-900 tracking-tight mb-5 ml-1">
+          Instagram
         </h2>
-        <div className="bg-[#0A0F1A] p-6 sm:p-8 rounded-3xl shadow-2xl relative overflow-hidden border border-white/5">
-          {/* Scanning Animation Background */}
-          {!isEffectivelyInstagramConnected && (
-            <div className="absolute inset-0 pointer-events-none opacity-20">
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full border border-brand-primary/20 animate-ping" />
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] rounded-full border border-brand-primary/30 animate-[ping_3s_linear_infinite]" />
-            </div>
-          )}
+        <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-sm ring-1 ring-zinc-200 relative overflow-hidden">
           <AnimatePresence>
             {showSuccessToastFromCard && (
               <motion.div
@@ -659,16 +647,19 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="relative">
-                <div className="absolute inset-0 bg-brand-primary/20 blur-xl rounded-full" />
-                <FaInstagram className="w-12 h-12 text-white relative z-10" aria-hidden />
+              <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-pink-50">
+                <FaInstagram className="w-6 h-6 text-[#D62E5E]" aria-hidden />
               </div>
               <div>
-                <h3 className="font-black text-xl text-white tracking-tight">Análise de Narrativa</h3>
-                <p className="text-sm text-slate-400 mt-1 max-w-[280px]">
+                <h3 className="font-bold text-lg text-zinc-950 tracking-tight">
                   {isEffectivelyInstagramConnected
-                    ? `IA mapeando dados de: @${user?.instagramUsername || user?.instagramAccountId || "Conta Vinculada"}`
-                    : "A IA precisa escanear seu perfil para gerar o diagnóstico e a pauta da próxima reunião."}
+                    ? `@${user?.instagramUsername || "conta conectada"}`
+                    : "Seus posts já dizem muito sobre você"}
+                </h3>
+                <p className="text-sm text-zinc-500 mt-1 max-w-[280px]">
+                  {isEffectivelyInstagramConnected
+                    ? "Novos vídeos serão lidos automaticamente e adicionados ao seu mapa."
+                    : "Conecte para que a D2C leia os sinais que seus vídeos já carregam — e adicione ao seu mapa."}
                 </p>
               </div>
             </div>
@@ -679,7 +670,7 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
                   <motion.span
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="flex items-center gap-1.5 text-sm text-green-700 bg-green-100 px-3 py-1.5 rounded-full border border-green-300 font-medium"
+                    className="flex items-center gap-1.5 text-sm text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 font-medium"
                     aria-live="polite"
                   >
                     <FaCheckCircle aria-hidden /> Conectado
@@ -687,10 +678,10 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
                   <button
                     onClick={handleDisconnectInstagram}
                     disabled={isDisconnecting}
-                    className="px-4 py-1.5 bg-red-100 text-red-700 text-xs font-semibold rounded-md hover:bg-red-200 border border-red-300 flex items-center justify-center gap-1.5 disabled:opacity-70 disabled:cursor-wait transition-colors duration-150"
+                    className="text-xs text-zinc-400 hover:text-zinc-600 underline-offset-2 hover:underline disabled:opacity-50 disabled:cursor-wait transition-colors flex items-center gap-1"
                     aria-label="Desconectar conta do Instagram"
                   >
-                    {isDisconnecting ? <FaSpinner className="animate-spin w-3 h-3" aria-hidden /> : <FaUnlink className="w-3 h-3" aria-hidden />}
+                    {isDisconnecting && <FaSpinner className="animate-spin w-3 h-3" aria-hidden />}
                     {isDisconnecting ? "Desconectando..." : "Desconectar"}
                   </button>
                 </div>
@@ -709,11 +700,9 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
                     {mainButtonIcon}
                     {mainButtonText}
                   </button>
-                  <div className="mt-2 max-w-xs text-center sm:text-right">
-                    <span className="inline-flex items-center gap-1 text-[11px] text-gray-500 justify-center sm:justify-end">
-                      <FaLock className="h-3 w-3" aria-hidden />
-                      Só leitura • Não publicamos por você • Revogue quando quiser
-                    </span>
+                  <div className="mt-3 flex flex-col items-center sm:items-end gap-0.5">
+                    <span className="text-[11px] text-zinc-400">Só leitura — não publicamos por você</span>
+                    <span className="text-[11px] text-zinc-400">Revogue quando quiser</span>
                   </div>
                 </div>
               )}
@@ -736,38 +725,10 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
           </AnimatePresence>
 
           {isEffectivelyInstagramConnected && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              className="mt-4 text-xs text-gray-600 border-t pt-3"
-            >
-              <div className="flex items-center gap-2">
-                <FaInfoCircle className="text-blue-500" aria-hidden />
-                <span>Última tentativa de sincronização: {formattedLastSyncAttempt}.</span>
-                {user?.lastInstagramSyncSuccess === true && (
-                  <FaCheckCircle className="text-green-500" title="Sucesso na sincronização" aria-hidden />
-                )}
-                {user?.lastInstagramSyncSuccess === false && (
-                  <FaExclamationCircle className="text-red-500" title="Falha na sincronização" aria-hidden />
-                )}
-                {user?.lastInstagramSyncSuccess === null && user?.lastInstagramSyncAttempt && (
-                  <FaClock className="text-gray-500" title="Status da sincronização desconhecido ou pendente" aria-hidden />
-                )}
-              </div>
-              {user?.lastInstagramSyncSuccess === false && !currentDisplayError && (
-                <p className="mt-1 text-red-600">
-                  Houve uma falha na última sincronização. Se o problema persistir, tente desconectar e reconectar sua conta.
-                </p>
-              )}
-            </motion.div>
+            <p className="text-xs text-zinc-400 mt-5 border-t border-zinc-100 pt-4">
+              Seus vídeos publicados são lidos automaticamente. Os insights serão discutidos na próxima reunião.
+            </p>
           )}
-
-          <p className={`text-xs text-slate-500 mt-6 ${isEffectivelyInstagramConnected ? "" : "border-t border-white/5 pt-5"}`}>
-            {isEffectivelyInstagramConnected
-              ? "Mapeamento em tempo real ativado. Os insights da IA serão discutidos na próxima reunião de Terça/Quinta."
-              : "Conexão criptografada (SSL). Seus dados são usados exclusivamente para extração de métricas de performance e sugestão estratégica de conteúdo."}
-          </p>
         </div>
       </motion.section>
     </>

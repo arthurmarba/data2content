@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
+import { randomUUID } from "node:crypto";
 import { resolveAuthOptions } from "@/app/api/auth/resolveAuthOptions";
+import { logger } from "@/app/lib/logger";
 import { isMobileStrategicProfileEnabled } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileFeatureFlag";
 import {
   isRealUploadEnabled,
@@ -49,8 +51,46 @@ type MobileStrategicProfileRealAnalysisUser = NonNullable<
   NonNullable<MobileStrategicProfileRealAnalysisSession>["user"]
 >;
 
+const REAL_ANALYSIS_ROUTE_PATH = "/api/dashboard/mobile-strategic-profile/analyze-real";
+const REAL_ANALYSIS_BUG_INDICATOR = "MOBILE_STRATEGIC_PROFILE_REAL_ANALYSIS_BUG";
+
 function safeResponseCode(code: string | undefined): string | undefined {
   return code?.replace(/gemini/gi, "provider");
+}
+
+function logRealAnalysisBugEvent(params: {
+  level?: "info" | "warn" | "error";
+  event: string;
+  requestId: string;
+  userId?: string | null;
+  meta?: Record<string, unknown>;
+}) {
+  const message = `[${REAL_ANALYSIS_BUG_INDICATOR}] ${params.event}`;
+  const meta = {
+    bugIndicator: REAL_ANALYSIS_BUG_INDICATOR,
+    routePath: REAL_ANALYSIS_ROUTE_PATH,
+    requestId: params.requestId,
+    userId: params.userId ?? undefined,
+    ...(params.meta ?? {}),
+  };
+
+  if (params.level === "error") {
+    logger.error(message, meta);
+    return;
+  }
+  if (params.level === "info") {
+    logger.info(message, meta);
+    return;
+  }
+  logger.warn(message, meta);
+}
+
+function withBugDebug<T extends Record<string, unknown>>(body: T, requestId: string) {
+  return {
+    ...body,
+    requestId,
+    bugIndicator: REAL_ANALYSIS_BUG_INDICATOR,
+  };
 }
 
 function buildLocalRealAnalysisUsagePolicy(sizeBytes: number) {
@@ -160,31 +200,61 @@ export async function DELETE() {
 }
 
 export async function POST(request: Request) {
+  const requestId = `msp-real-${randomUUID()}`;
   try {
+    const featureFlags = {
+      mobileStrategicProfileEnabled: isMobileStrategicProfileEnabled(),
+      temporaryUploadSessionEnabled: isTemporaryUploadSessionEnabled(),
+      realUploadEnabled: isRealUploadEnabled(),
+      realAnalysisE2EEnabled: isVideoNarrativeRealAnalysisE2EEnabled(),
+    };
+
+    logRealAnalysisBugEvent({
+      level: "info",
+      event: "route_started",
+      requestId,
+      meta: { featureFlags },
+    });
+
     if (
-      !isMobileStrategicProfileEnabled() ||
-      !isTemporaryUploadSessionEnabled() ||
-      !isRealUploadEnabled() ||
-      !isVideoNarrativeRealAnalysisE2EEnabled()
+      !featureFlags.mobileStrategicProfileEnabled ||
+      !featureFlags.temporaryUploadSessionEnabled ||
+      !featureFlags.realUploadEnabled ||
+      !featureFlags.realAnalysisE2EEnabled
     ) {
+      logRealAnalysisBugEvent({
+        event: "route_blocked_by_feature_flag",
+        requestId,
+        meta: { featureFlags },
+      });
       return NextResponse.json(
-        { message: "Análise real de vídeo indisponível nesta configuração." },
+        withBugDebug({ message: "Análise real de vídeo indisponível nesta configuração." }, requestId),
         { status: 403 },
       );
     }
 
     const session = (await getServerSession(await resolveAuthOptions())) as MobileStrategicProfileRealAnalysisSession;
     if (!session?.user?.id) {
+      logRealAnalysisBugEvent({
+        event: "route_blocked_by_missing_session",
+        requestId,
+      });
       return NextResponse.json(
-        { message: "Acesso não autorizado: sessão não identificada." },
+        withBugDebug({ message: "Acesso não autorizado: sessão não identificada." }, requestId),
         { status: 401 },
       );
     }
 
     const contentType = request.headers.get("content-type") || "";
     if (!contentType.toLowerCase().includes("application/json")) {
+      logRealAnalysisBugEvent({
+        event: "route_blocked_by_content_type",
+        requestId,
+        userId: session.user.id,
+        meta: { contentType: contentType.slice(0, 80) },
+      });
       return NextResponse.json(
-        { message: "Content-type inválido: deve ser application/json." },
+        withBugDebug({ message: "Content-type inválido: deve ser application/json." }, requestId),
         { status: 400 },
       );
     }
@@ -193,12 +263,29 @@ export async function POST(request: Request) {
     try {
       body = await request.json();
     } catch {
-      return NextResponse.json({ message: "Payload inválido: formato JSON corrompido." }, { status: 400 });
+      logRealAnalysisBugEvent({
+        event: "route_blocked_by_invalid_json",
+        requestId,
+        userId: session.user.id,
+      });
+      return NextResponse.json(
+        withBugDebug({ message: "Payload inválido: formato JSON corrompido." }, requestId),
+        { status: 400 },
+      );
     }
 
     const validation = validateVideoNarrativeRealAnalysisPayload(body);
     if (!validation.ok) {
-      return NextResponse.json({ ok: false, message: validation.message, code: validation.code }, { status: 400 });
+      logRealAnalysisBugEvent({
+        event: "route_blocked_by_payload_validation",
+        requestId,
+        userId: session.user.id,
+        meta: { code: validation.code },
+      });
+      return NextResponse.json(
+        withBugDebug({ ok: false, message: validation.message, code: validation.code }, requestId),
+        { status: 400 },
+      );
     }
 
     const localRealAnalysisEnabled =
@@ -211,14 +298,24 @@ export async function POST(request: Request) {
     });
 
     if (!accessDecision.ok) {
+      logRealAnalysisBugEvent({
+        event: "route_blocked_by_narrative_quota",
+        requestId,
+        userId: session.user.id,
+        meta: {
+          accessState: accessDecision.state,
+          usedTotal: accessDecision.quota.usedTotal,
+          usedThisMonth: accessDecision.quota.usedThisMonth,
+        },
+      });
       return NextResponse.json(
-        {
+        withBugDebug({
           ok: false,
           reason: "reading_quota_unavailable",
           accessState: accessDecision.state,
           quota: accessDecision.quota,
           message: accessDecision.message,
-        },
+        }, requestId),
         { status: 403 },
       );
     }
@@ -340,6 +437,7 @@ export async function POST(request: Request) {
           }
         : analysisUser,
       deps: {
+        requestId,
         env: localEnv,
         instagramMetrics,
         knownNarratives: knownNarratives.length > 0 ? knownNarratives : null,
@@ -381,8 +479,40 @@ export async function POST(request: Request) {
 
     if (!result.ok) {
       const status = result.status === "blocked" ? 403 : 502;
+      logRealAnalysisBugEvent({
+        event: "route_orchestrator_failed",
+        requestId,
+        userId: session.user.id,
+        meta: {
+          httpStatus: status,
+          safeIssueCode: result.safeIssueCode,
+          responseCode: safeResponseCode(result.safeIssueCode),
+          localRealAnalysisEnabled,
+          uploadMimeType: validation.payload.temporaryUpload?.mimeType,
+          uploadSizeBytes: validation.payload.temporaryUpload?.sizeBytes,
+          evidenceAnchorsUsed: Boolean(result.evidenceAnchorsUsed),
+          cleanupAttempted: Boolean(result.cleanupAttempted),
+          usageLimitChecked: Boolean(result.usageLimitChecked),
+          allowlistGatePassed: Boolean(result.allowlistGatePassed),
+          readingPersistence: result.videoReadingPersistence
+            ? {
+                attempted: result.videoReadingPersistence.attempted,
+                saved: result.videoReadingPersistence.saved,
+                skippedReason: result.videoReadingPersistence.skippedReason,
+                errorCode: result.videoReadingPersistence.errorCode,
+              }
+            : undefined,
+          synthesisSnapshotWrite: result.synthesisSnapshotWrite
+            ? {
+                attempted: result.synthesisSnapshotWrite.attempted,
+                written: result.synthesisSnapshotWrite.written,
+                skippedReason: result.synthesisSnapshotWrite.skippedReason,
+              }
+            : undefined,
+        },
+      });
       return NextResponse.json(
-        {
+        withBugDebug({
           ok: false,
           message: result.message,
           code: safeResponseCode(result.safeIssueCode),
@@ -396,7 +526,7 @@ export async function POST(request: Request) {
             allowlistGatePassed: Boolean(result.allowlistGatePassed),
           },
           cleanupWarning: result.cleanupWarning,
-        },
+        }, requestId),
         { status },
       );
     }
@@ -410,8 +540,18 @@ export async function POST(request: Request) {
     };
 
     if (!result.evidenceAnchorsUsed) {
+      logRealAnalysisBugEvent({
+        event: "route_video_evidence_missing",
+        requestId,
+        userId: session.user.id,
+        meta: {
+          localRealAnalysisEnabled,
+          uploadMimeType: validation.payload.temporaryUpload?.mimeType,
+          uploadSizeBytes: validation.payload.temporaryUpload?.sizeBytes,
+        },
+      });
       return NextResponse.json(
-        {
+        withBugDebug({
           ok: false,
           message: "Não conseguimos encontrar evidências suficientes no vídeo. Tente enviar o vídeo novamente ou escolha outro conteúdo.",
           code: "video_evidence_missing",
@@ -419,14 +559,29 @@ export async function POST(request: Request) {
           synthesisSnapshotWrite: result.synthesisSnapshotWrite,
           e2eBetaAudit,
           cleanupWarning: result.cleanupWarning,
-        },
+        }, requestId),
         { status: 502 },
       );
     }
 
     if (realAnalysisPayload.persistReading === true && !result.videoReadingPersistence?.saved) {
+      logRealAnalysisBugEvent({
+        event: "route_reading_not_saved",
+        requestId,
+        userId: session.user.id,
+        meta: {
+          readingPersistence: result.videoReadingPersistence
+            ? {
+                attempted: result.videoReadingPersistence.attempted,
+                saved: result.videoReadingPersistence.saved,
+                skippedReason: result.videoReadingPersistence.skippedReason,
+                errorCode: result.videoReadingPersistence.errorCode,
+              }
+            : undefined,
+        },
+      });
       return NextResponse.json(
-        {
+        withBugDebug({
           ok: false,
           message: "A leitura foi gerada, mas não foi salva no Perfil. Tente novamente.",
           code: "reading_not_saved",
@@ -434,14 +589,28 @@ export async function POST(request: Request) {
           synthesisSnapshotWrite: result.synthesisSnapshotWrite,
           e2eBetaAudit,
           cleanupWarning: result.cleanupWarning,
-        },
+        }, requestId),
         { status: 502 },
       );
     }
 
     if (realAnalysisPayload.persistSynthesisSnapshot === true && !result.synthesisSnapshotWrite?.written) {
+      logRealAnalysisBugEvent({
+        event: "route_synthesis_not_written",
+        requestId,
+        userId: session.user.id,
+        meta: {
+          synthesisSnapshotWrite: result.synthesisSnapshotWrite
+            ? {
+                attempted: result.synthesisSnapshotWrite.attempted,
+                written: result.synthesisSnapshotWrite.written,
+                skippedReason: result.synthesisSnapshotWrite.skippedReason,
+              }
+            : undefined,
+        },
+      });
       return NextResponse.json(
-        {
+        withBugDebug({
           ok: false,
           message: "A leitura foi salva, mas o Perfil não foi atualizado agora. Tente novamente em alguns minutos.",
           code: "profile_synthesis_not_written",
@@ -449,7 +618,7 @@ export async function POST(request: Request) {
           synthesisSnapshotWrite: result.synthesisSnapshotWrite,
           e2eBetaAudit,
           cleanupWarning: result.cleanupWarning,
-        },
+        }, requestId),
         { status: 502 },
       );
     }
@@ -479,6 +648,18 @@ export async function POST(request: Request) {
           }
         : null;
 
+    logRealAnalysisBugEvent({
+      level: "info",
+      event: "route_succeeded",
+      requestId,
+      userId: session.user.id,
+      meta: {
+        diagnosisId: result.videoReadingPersistence?.diagnosisId,
+        synthesisStatus: synthStatus,
+        analyzedReadingsCount: readingCount,
+      },
+    });
+
     return NextResponse.json({
       ok: true,
       snapshot,
@@ -488,9 +669,17 @@ export async function POST(request: Request) {
       adaptiveQuiz: result.adaptiveQuiz,
       cleanupWarning: result.cleanupWarning,
     });
-  } catch {
+  } catch (error) {
+    logRealAnalysisBugEvent({
+      level: "error",
+      event: "route_exception",
+      requestId,
+      meta: {
+        errorName: error instanceof Error ? error.name : typeof error,
+      },
+    });
     return NextResponse.json(
-      { message: "Ocorreu um erro ao processar a análise real do diagnóstico." },
+      withBugDebug({ message: "Ocorreu um erro ao processar a análise real do diagnóstico." }, requestId),
       { status: 500 },
     );
   }

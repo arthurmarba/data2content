@@ -19,16 +19,14 @@ import { useState, useCallback } from "react";
 import { X } from "lucide-react";
 import type { AudienceInsights } from "@/app/dashboard/boards/videoUpload/audienceInsightsService";
 
-// Tokens alinhados ao DiagnosticoPage (mesmo radius e shadow dos demais cards).
+// Tokens alinhados ao card "Roteiros", com acento verde para Audiência.
 const CARD_RADIUS = 20;
-const CARD_SHADOW = "0 1px 4px rgba(28,28,30,0.08), 0 0 0 0.5px rgba(28,28,30,0.04)";
-// Identidade VERDE da Audiência (pessoas/comunidade/crescimento), inspirada no
-// código de cor por categoria do Apple Saúde: card quase-branco, cor mora no
-// ícone e nos acentos. Verde dá a distância máxima do violeta dos "Roteiros" e
-// fica na mesma faixa de leveza de "Seu Mapa" (#fffaf7) e "Roteiros" (#f7f5ff).
-const CARD_BG = "#f1faf5";
-// Acento da Audiência (verde-600) — ícone, chevron, divisórias e modais.
-const CARD_ACCENT = "#16a34a";
+const CARD_BG = "#f6fbf7";
+const CARD_SHADOW = "0 1px 6px rgba(16,185,129,0.10), 0 0 0 0.5px rgba(16,185,129,0.08)";
+const CARD_ACCENT = "#10b981";
+const CARD_TEXT = "#14532d";
+const CARD_DIVIDER = "rgba(16,185,129,0.10)";
+const CARD_DIVIDER_SOFT = "rgba(16,185,129,0.08)";
 
 // ─── Copy layer ────────────────────────────────────────────────────────────────
 // Cada função traduz um campo de AudienceInsights em texto humano.
@@ -478,7 +476,7 @@ export function AudienceInsightsCard({ insights, instagramConnected, onReviewTer
           borderRadius: CARD_RADIUS,
           background: CARD_BG,
           boxShadow: CARD_SHADOW,
-          padding: "18px 22px",
+          padding: "18px 22px 22px",
           display: "flex",
           flexDirection: "column",
           gap: 0,
@@ -491,7 +489,7 @@ export function AudienceInsightsCard({ insights, instagramConnected, onReviewTer
               display: "flex", alignItems: "center", justifyContent: "center",
               width: 38, height: 38, borderRadius: "50%",
               background: CARD_ACCENT,
-              boxShadow: "0 2px 8px rgba(22,163,74,0.30)",
+              boxShadow: "0 2px 8px rgba(16,185,129,0.30)",
               flexShrink: 0,
             }}
             aria-hidden="true"
@@ -504,7 +502,7 @@ export function AudienceInsightsCard({ insights, instagramConnected, onReviewTer
         </div>
 
         {/* Seções */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 0, margin: "4px -22px 0" }}>
           {visibleRows.map((row, i) => (
             <InsightRow
               key={row.key}
@@ -516,14 +514,11 @@ export function AudienceInsightsCard({ insights, instagramConnected, onReviewTer
         </div>
 
         {/* Atribuição */}
-        <p style={{ fontSize: 10, color: "#a1a1aa", margin: "12px 0 0", letterSpacing: 0.1 }}>
-          via Instagram · {periodLabel}
-        </p>
-        {periodLabel !== "últimos 90 dias" && (
-          <p style={{ fontSize: 9, color: "#c4c4cc", margin: "2px 0 0", letterSpacing: 0.1 }}>
-            janela ampliada pra captar mais dos seus posts
+        <div style={{ margin: "0 -22px", padding: "9px 22px 4px" }}>
+          <p style={{ fontSize: 11, color: "#a1a1aa", margin: 0, letterSpacing: 0.1 }}>
+            via Instagram · {periodLabel}
           </p>
-        )}
+        </div>
       </div>
 
       {/* ── Modais ── */}
@@ -735,20 +730,22 @@ function InsightRow({
       type="button"
       onClick={onClick}
       style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
+        display: "flex", alignItems: "center",
         gap: 10,
         width: "100%",
         background: "transparent", border: "none",
-        borderTop: isFirst ? "none" : "1px solid rgba(22,163,74,0.14)",
-        padding: "14px 0",
+        borderTop: isFirst ? "none" : `1px solid ${CARD_DIVIDER_SOFT}`,
+        padding: "14px 22px",
         cursor: "pointer", textAlign: "left", fontFamily: "inherit",
       }}
     >
       {/* Sem rótulo técnico — a frase humana carrega sozinha. */}
-      <p style={{ margin: 0, flex: 1, minWidth: 0, fontSize: 14, color: "#27272a", lineHeight: 1.45, fontWeight: 500 }}>
+      <p style={{ margin: 0, flex: 1, minWidth: 0, fontSize: 13, color: CARD_TEXT, lineHeight: 1.4, fontWeight: 500, letterSpacing: -0.1 }}>
         {headline}
       </p>
-      <span style={{ color: CARD_ACCENT, fontSize: 16, opacity: 0.55, flexShrink: 0 }}>›</span>
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ flexShrink: 0, color: CARD_ACCENT, opacity: 0.5 }}>
+        <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
     </button>
   );
 }
@@ -896,5 +893,73 @@ function AudienceIcon() {
       <circle cx="17" cy="9" r="2.5" stroke="white" strokeWidth="1.6" />
       <path d="M19.5 19c0-2.5-1.1-4.5-3.5-5" stroke="white" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
+  );
+}
+
+/**
+ * Empty-state da Audiência para quem ainda não conectou o Instagram.
+ *
+ * O card cheio (AudienceInsightsCard) precisa de dados do Instagram e por isso
+ * some quando não há conexão. Em vez de a seção desaparecer, este empty-state
+ * mantém a presença do card e oferece o próximo passo claro: conectar o
+ * Instagram. Tom calmo, sem pressão de performance.
+ */
+export function AudienceConnectPrompt({
+  onConnectInstagram,
+}: {
+  onConnectInstagram?: () => void;
+}) {
+  return (
+    <div
+      style={{
+        borderRadius: CARD_RADIUS,
+        background: CARD_BG,
+        boxShadow: CARD_SHADOW,
+        padding: "18px 22px 22px",
+        display: "flex",
+        flexDirection: "column",
+        gap: 0,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+        <span
+          style={{
+            display: "flex", alignItems: "center", justifyContent: "center",
+            width: 38, height: 38, borderRadius: "50%",
+            background: CARD_ACCENT,
+            boxShadow: "0 2px 8px rgba(16,185,129,0.30)",
+            flexShrink: 0,
+          }}
+          aria-hidden="true"
+        >
+          <AudienceIcon />
+        </span>
+        <span style={{ fontSize: 15, fontWeight: 700, color: "#18181b", letterSpacing: -0.3 }}>
+          Sua Audiência
+        </span>
+      </div>
+
+      <p style={{ fontSize: 16, fontWeight: 600, color: "#3f3f46", margin: 0, lineHeight: 1.45 }}>
+        O que a sua audiência reconhece em você.
+      </p>
+      <p style={{ fontSize: 14, color: "#a1a1aa", margin: "6px 0 16px", lineHeight: 1.5 }}>
+        Conecte o Instagram para a D2C revelar sinais que o seu perfil sozinho não mostra.
+      </p>
+
+      <button
+        type="button"
+        onClick={onConnectInstagram}
+        style={{
+          alignSelf: "flex-start",
+          display: "inline-flex", alignItems: "center", gap: 7,
+          borderRadius: 999, padding: "10px 18px",
+          background: "transparent", color: "#18181b",
+          fontSize: 13, fontWeight: 600, fontFamily: "inherit",
+          border: "1.5px solid #18181b", cursor: "pointer",
+        }}
+      >
+        Conectar Instagram
+      </button>
+    </div>
   );
 }

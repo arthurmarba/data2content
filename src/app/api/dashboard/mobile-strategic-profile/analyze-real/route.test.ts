@@ -38,6 +38,14 @@ jest.mock("@/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisOrchestr
   runVideoNarrativeRealAnalysisOrchestrator: jest.fn(),
 }));
 
+jest.mock("@/app/lib/logger", () => ({
+  logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+  },
+}));
+
 jest.mock("@/app/dashboard/boards/videoUpload/videoNarrativeLocalTemporaryUploadStore", () => {
   const actual = jest.requireActual("@/app/dashboard/boards/videoUpload/videoNarrativeLocalTemporaryUploadStore");
   return {
@@ -57,6 +65,11 @@ jest.mock("@/app/dashboard/boards/videoUpload/narrativeMapReadingQuotaService", 
 const getServerSession = require("next-auth/next").getServerSession as jest.Mock;
 const runOrchestrator = runVideoNarrativeRealAnalysisOrchestrator as jest.Mock;
 const deleteLocalUpload = deleteLocalVideoNarrativeTemporaryUpload as jest.Mock;
+const logger = require("@/app/lib/logger").logger as {
+  info: jest.Mock;
+  warn: jest.Mock;
+  error: jest.Mock;
+};
 const ensurePlannerAccess = require("@/app/lib/planGuard").ensurePlannerAccess as jest.Mock;
 const assertCanStartNarrativeMapReading =
   require("@/app/dashboard/boards/videoUpload/narrativeMapReadingQuotaService")
@@ -203,6 +216,15 @@ describe("POST /api/dashboard/mobile-strategic-profile/analyze-real", () => {
     expect(JSON.stringify(body)).not.toContain("admin@example.com");
     expect(JSON.stringify(body)).not.toContain("temporary/video-narrative");
     expect(JSON.stringify(body)).not.toContain("gemini");
+    expect(body.bugIndicator).toBe("MOBILE_STRATEGIC_PROFILE_REAL_ANALYSIS_BUG");
+    expect(body.requestId).toEqual(expect.stringContaining("msp-real-"));
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining("route_orchestrator_failed"),
+      expect.objectContaining({
+        bugIndicator: "MOBILE_STRATEGIC_PROFILE_REAL_ANALYSIS_BUG",
+        responseCode: "provider_user_not_allowed",
+      }),
+    );
   });
 
   it("retorna snapshot seguro no sucesso", async () => {

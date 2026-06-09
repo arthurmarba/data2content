@@ -11,7 +11,7 @@ describe("landingMetadata", () => {
   it("preenche campos de twitter summary_large_image", () => {
     expect(landingMetadata.twitter?.card).toBe("summary_large_image");
     expect(landingMetadata.twitter?.title).toContain("Data2Content");
-    expect(landingMetadata.twitter?.description).toContain("agência estratégica consultiva");
+    expect(landingMetadata.twitter?.description).toContain("Descubra o que está funcionando");
     expect(Array.isArray(landingMetadata.twitter?.images)).toBe(true);
   });
 });

@@ -266,17 +266,18 @@ Um `deviation` confirmado como intencional que performa bem → plataforma pergu
 
 **Declaração de publicação — o que alimenta o mapa:**
 
-Ao final de cada análise, o criador responde uma pergunta:
+Ao final de cada análise, o criador responde uma pergunta binária:
 > *"Você vai publicar este vídeo?"*
-> [Sim, vou postar] [Não vou publicar] [Ainda não sei]
+> [Sim] [Não]
 
 | Resposta | Efeito no mapa |
 |---|---|
-| Sim, vou postar | Sinal confirmado — alimenta o mapa com peso pleno |
-| Não vou publicar | Sinal descartado — não alimenta o mapa |
-| Ainda não sei | Sinal em espera — não alimenta até nova confirmação |
+| Sim | Sinal confirmado — alimenta o mapa com peso pleno; dispara enriquecimento do MapaSeed (async) |
+| Não | Sinal descartado — excluído da síntese; snapshot do mapa é regravado imediatamente |
 
-**Por quê:** a identidade de um criador é o que ele escolhe publicar — não o que experimenta em rascunho. Um vídeo que nunca vai ao ar não representa quem ele é. Mesmo que o vídeo seja avaliado como incoerente, se o criador decide publicá-lo (exploração intencional), o mapa aprende com ele.
+**Por quê:** a identidade de um criador é o que ele escolhe publicar — não o que experimenta em rascunho. A declaração é binária: ou vai ao ar ou não. Um vídeo que nunca vai ao ar não representa quem ele é. Mesmo que o vídeo seja avaliado como incoerente, se o criador decide publicá-lo (exploração intencional), o mapa aprende com ele.
+
+> *Implementado jun/2026 — ver `dev-roadmap-jornada-criador.md`, seção "MapaSeed — Enriquecimento Progressivo".*
 
 ---
 
@@ -489,6 +490,23 @@ Usar sempre: `mapa` · `narrativa central` · `territórios` · `assets` · `tom
 
 ---
 
+## Decisões de Produto Consolidadas (jun 2026)
+
+### publishIntent — Declaração binária
+A declaração de publicação pós-leitura de vídeo é **binária**: apenas "Sim" / "Não". Não existe "Ainda não sei". O mapa reflete apenas o que o criador escolhe publicar:
+- **"Sim"** → alimenta a síntese + dispara enriquecimento do MapaSeed (async)
+- **"Não"** → excluído da síntese; snapshot do mapa atualizado imediatamente
+
+### MapaSeed — Enriquecimento progressivo
+O mapa seed cresce por três fontes, nesta ordem:
+1. `"seed"` — onboarding declarativo
+2. `"instagram_enriched"` — análise dos posts ao conectar Instagram (QStash)
+3. `"video_enriched"` — cross-reference com síntese dos vídeos publicados (QStash, ao declarar "sim")
+
+A progressão é automática e silenciosa — o criador não precisa fazer nada além de conectar o Instagram e declarar se vai publicar cada vídeo.
+
+---
+
 ## O Que Nunca Fazer
 
 | Nunca | Em vez disso |
@@ -509,19 +527,25 @@ Usar sempre: `mapa` · `narrativa central` · `territórios` · `assets` · `tom
 
 ## Estado Atual do Produto vs. Visão
 
+*Atualizado jun/2026 — ver `dev-roadmap-jornada-criador.md` para detalhes técnicos.*
+
 | Etapa | Status hoje |
 |---|---|
-| 1 — Onboarding guiado | ❌ Não existe — apenas login Gmail |
-| 2 — Narrativa por emergência | ⚠️ A IA propõe, mas sem confirmação formal no mapa |
-| 3 — Territórios | ❌ Não existe |
+| 1 — Onboarding guiado | ✅ Implementado (Fase 1B) |
+| 2 — Narrativa por emergência | ✅ Proposta pela IA + confirmação persistida no mapa |
+| 3 — Territórios | ✅ Confirmação persistida no mapa |
 | 4 — Adjacentes | ❌ Não existe |
-| 5 — Assets acumulados | ⚠️ A IA detecta (contentContext), mas o mapa não acumula visivelmente |
-| 6 — Tom | ❌ Não existe como escolha confirmada |
-| 7 — Formatos por fit | ⚠️ Existe via Instagram, mas não conectado à narrativa |
-| 8 — Coerência | ✅ É o coração do fluxo atual |
-| 9 a 12 | ❌ Não existem |
+| 5 — Assets acumulados | ⚠️ IA detecta e acumula; display parcial |
+| 6 — Tom | ✅ Confirmação persistida no mapa |
+| 7 — Formatos por fit | ⚠️ Existe via Instagram, mas não totalmente conectado à narrativa confirmada |
+| 8 — Coerência (Stream A) | ✅ Coração do fluxo; `publishIntent` binário implementado |
+| 8 — MapaSeed ← Stream A/B | ✅ MapaSeed enriquecido por Instagram (pós-conexão) e por vídeos publicados (async QStash) |
+| 9 — Criação | ✅ Pautas geradas do mapa (Pro) |
+| 10 — Collabs | ⚠️ Infra parcial (matching narrativo existe, sem mecanismo de convite) |
+| 11 — Monetização | ❌ Não existe |
+| 12 — OS Diário | ⚠️ WhatsApp semanal implementado; recorrência ativa |
 
-O produto hoje opera na etapa 8 sem as etapas 1 a 7 construídas. As leituras existem — mas o criador não tem mapa para confrontar.
+O produto opera nas etapas 1–9 com gaps nas etapas 4, 10 e 11. O mapa agora aprende progressivamente: onboarding → Instagram → vídeos publicados.
 
 ---
 
@@ -684,4 +708,5 @@ Fase 1A backend   →   Fase 1B   →   Fase 2   →   Fase 3   →   Fase 4
 ---
 
 *Documento gerado a partir de debate estratégico de produto — Data2Content, maio 2026.*
-*Última atualização: maio 2026 — decisões adicionadas: declaração de publicação pós-Raio X (Stream A), motor de recorrência WhatsApp semanal com IA, card de collab com exemplo narrativo, paywall com dois perfis de entrada, funil WhatsApp → plataforma.*
+*Atualização mai 2026: declaração de publicação pós-Raio X (Stream A), motor de recorrência WhatsApp semanal com IA, card de collab com exemplo narrativo, paywall com dois perfis de entrada, funil WhatsApp → plataforma.*
+*Atualização jun 2026: publishIntent virou binário (Sim/Não, sem "Ainda não sei"); MapaSeed enriquecimento progressivo implementado (Instagram + vídeos publicados); tabela "Estado Atual" atualizada.*

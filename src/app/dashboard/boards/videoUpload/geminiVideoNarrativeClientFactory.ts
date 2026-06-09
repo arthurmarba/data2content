@@ -5,6 +5,10 @@ import {
   createPartFromUri,
   createUserContent,
 } from "@google/genai";
+import { randomUUID } from "node:crypto";
+import { writeFile, unlink } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 
 import { GeminiVideoNarrativeClient } from "./geminiVideoNarrativeProvider";
 import type { VideoNarrativeGeminiClientAdapter } from "./videoNarrativeGeminiProvider";
@@ -21,6 +25,101 @@ export type GeminiVideoNarrativeClientFactoryResult = {
 };
 
 export const DEFAULT_GEMINI_VIDEO_NARRATIVE_MODEL = "gemini-3-flash-preview";
+export const GEMINI_INLINE_VIDEO_BYTES_LIMIT = 18 * 1024 * 1024;
+const GEMINI_FILE_PROCESSING_MAX_POLLS = 45;
+const GEMINI_FILE_PROCESSING_POLL_MS = 1000;
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function extensionForMimeType(mimeType: string): string {
+  if (mimeType === "video/quicktime" || mimeType === "video/mov") return "mov";
+  if (mimeType === "video/webm") return "webm";
+  return "mp4";
+}
+
+function normalizeGeminiVideoMimeType(mimeType: string | null | undefined): string {
+  const normalized = mimeType?.toLowerCase();
+  if (normalized === "video/quicktime" || normalized === "video/mov") return "video/quicktime";
+  if (normalized === "video/webm") return "video/webm";
+  if (normalized === "video/mp4") return "video/mp4";
+  return "video/mp4";
+}
+
+function getExternalErrorStatus(error: unknown): number | null {
+  const status = (error as { status?: unknown } | null)?.status;
+  return typeof status === "number" ? status : null;
+}
+
+function getExternalErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function isPermissionDeniedProviderError(error: unknown): boolean {
+  const status = getExternalErrorStatus(error);
+  const message = getExternalErrorMessage(error);
+  return status === 401 || status === 403 || /PERMISSION_DENIED|dunning|billing/i.test(message);
+}
+
+async function waitForGeminiFileReady(
+  ai: GoogleGenAI,
+  file: { name?: string; uri?: string; mimeType?: string; state?: string; error?: unknown },
+): Promise<{ name?: string; uri?: string; mimeType?: string }> {
+  if (!file.name && file.uri) return file;
+  if (file.state === "FAILED") throw new Error("gemini_file_processing_failed");
+  if (file.state !== "PROCESSING" && file.uri) return file;
+  if (!file.name) throw new Error("gemini_file_uri_missing");
+
+  let current = file;
+  for (let poll = 0; poll < GEMINI_FILE_PROCESSING_MAX_POLLS; poll++) {
+    if (poll > 0) {
+      await delay(GEMINI_FILE_PROCESSING_POLL_MS);
+    }
+    current = await ai.files.get({ name: file.name });
+    if (current.state === "FAILED") throw new Error("gemini_file_processing_failed");
+    if (current.state !== "PROCESSING" && current.uri) return current;
+  }
+
+  throw new Error("gemini_file_processing_timeout");
+}
+
+async function uploadBytesToGeminiFile(params: {
+  ai: GoogleGenAI;
+  bytes: Uint8Array | Buffer;
+  mimeType: string;
+}): Promise<{ name?: string; uri: string; mimeType: string }> {
+  const mimeType = normalizeGeminiVideoMimeType(params.mimeType);
+  const tempPath = path.join(
+    os.tmpdir(),
+    `d2c-gemini-video-${randomUUID()}.${extensionForMimeType(mimeType)}`,
+  );
+
+  try {
+    await writeFile(tempPath, Buffer.from(params.bytes));
+    const uploaded = await params.ai.files.upload({
+      file: tempPath,
+      config: { mimeType },
+    });
+    const ready = await waitForGeminiFileReady(params.ai, uploaded);
+    if (!ready.uri) throw new Error("gemini_file_uri_missing");
+    return {
+      name: ready.name ?? uploaded.name,
+      uri: ready.uri,
+      mimeType: normalizeGeminiVideoMimeType(ready.mimeType ?? mimeType),
+    };
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("gemini_file_")) {
+      throw error;
+    }
+    if (isPermissionDeniedProviderError(error)) {
+      throw new Error("gemini_file_permission_denied");
+    }
+    throw new Error("gemini_file_upload_failed");
+  } finally {
+    await unlink(tempPath).catch(() => undefined);
+  }
+}
 
 const shortStringSchema = { type: "string", maxLength: 260 };
 const narrativeLabelStringSchema = { type: "string", maxLength: 80 };
@@ -222,9 +321,9 @@ export function createGeminiVideoNarrativeClient(
         const parts: Array<string | Part> = [userInstruction, responseFormatInstruction];
 
         if (videoUri) {
-          parts.push(createPartFromUri(videoUri, mimeType ?? "video/mp4"));
+          parts.push(createPartFromUri(videoUri, normalizeGeminiVideoMimeType(mimeType)));
         } else if (inlineVideoBase64) {
-          parts.push(createPartFromBase64(inlineVideoBase64, mimeType ?? "video/mp4"));
+          parts.push(createPartFromBase64(inlineVideoBase64, normalizeGeminiVideoMimeType(mimeType)));
         }
 
         const response = await ai.models.generateContent({
@@ -272,25 +371,44 @@ export function createVideoNarrativeGeminiClientAdapter(
         videoInput,
       }) {
         const parts: Array<string | Part> = [userInstruction, responseSchemaInstruction];
+        let uploadedGeminiFileName: string | undefined;
 
-        if (videoInput?.uri) {
-          parts.push(createPartFromUri(videoInput.uri, videoInput.mimeType));
-        } else if (videoInput?.bytes) {
-          parts.push(createPartFromBase64(Buffer.from(videoInput.bytes).toString("base64"), videoInput.mimeType));
+        try {
+          if (videoInput?.uri) {
+            parts.push(createPartFromUri(videoInput.uri, normalizeGeminiVideoMimeType(videoInput.mimeType)));
+          } else if (videoInput?.bytes) {
+            const bytes = Buffer.from(videoInput.bytes);
+            const mimeType = normalizeGeminiVideoMimeType(videoInput.mimeType);
+            if (bytes.byteLength > GEMINI_INLINE_VIDEO_BYTES_LIMIT) {
+              const uploaded = await uploadBytesToGeminiFile({
+                ai,
+                bytes,
+                mimeType,
+              });
+              uploadedGeminiFileName = uploaded.name;
+              parts.push(createPartFromUri(uploaded.uri, uploaded.mimeType));
+            } else {
+              parts.push(createPartFromBase64(bytes.toString("base64"), mimeType));
+            }
+          }
+
+          const response = await ai.models.generateContent({
+            model: model || fallbackModel,
+            contents: createUserContent(parts),
+            config: {
+              systemInstruction,
+              maxOutputTokens,
+              responseMimeType: "application/json",
+              responseJsonSchema: videoNarrativeResponseJsonSchema,
+            },
+          });
+
+          return { text: response.text ?? null };
+        } finally {
+          if (uploadedGeminiFileName) {
+            await ai.files.delete({ name: uploadedGeminiFileName }).catch(() => undefined);
+          }
         }
-
-        const response = await ai.models.generateContent({
-          model: model || fallbackModel,
-          contents: createUserContent(parts),
-          config: {
-            systemInstruction,
-            maxOutputTokens,
-            responseMimeType: "application/json",
-            responseJsonSchema: videoNarrativeResponseJsonSchema,
-          },
-        });
-
-        return { text: response.text ?? null };
       },
     },
   };

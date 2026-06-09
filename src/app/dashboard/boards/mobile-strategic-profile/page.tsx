@@ -261,15 +261,24 @@ export default async function MobileStrategicProfilePage({
           contentIdeas,
           contentIdeasReadiness,
           audienceInsights: audienceInsights ?? null,
-          userInfo: {
-            name: effectiveUserForAccess?.name ?? null,
-            email: effectiveUserForAccess?.email ?? null,
-            handle: effectiveUserForAccess?.instagramUsername ?? null,
-            imageUrl: resolvedAvatarUrl,
-            plan: hasPremiumAccess ? "Pro" : "Free",
-            mediaKitSlug,
-            whatsappLinked: !!(effectiveUserForAccess as any).whatsappPhone && !!(effectiveUserForAccess as any).whatsappVerified,
-          },
+          userInfo: (() => {
+            const profile = (effectiveUserForAccess as any).creatorProfileExtended ?? {};
+            const hasNiches = Array.isArray(profile.niches) && profile.niches.length > 0;
+            const hasGoal = Boolean(profile.mainGoal3m);
+            const mapProfileIncomplete = !hasNiches || !hasGoal;
+            const pricingProfileIncomplete = !profile.hasDoneSponsoredPosts;
+            return {
+              name: effectiveUserForAccess?.name ?? null,
+              email: effectiveUserForAccess?.email ?? null,
+              handle: effectiveUserForAccess?.instagramUsername ?? null,
+              imageUrl: resolvedAvatarUrl,
+              plan: hasPremiumAccess ? "Pro" : "Free",
+              mediaKitSlug,
+              whatsappLinked: !!(effectiveUserForAccess as any).whatsappPhone && !!(effectiveUserForAccess as any).whatsappVerified,
+              mapProfileIncomplete,
+              pricingProfileIncomplete,
+            };
+          })(),
           onboardingAnswers: (() => {
             const oa = (effectiveUserForAccess as any).onboardingAnswers;
             if (!oa) return null;
@@ -277,6 +286,7 @@ export default async function MobileStrategicProfilePage({
               whyYouCreate: oa.whyYouCreate ?? null,
               desiredFeeling: oa.desiredFeeling ?? null,
               contentLimit: oa.contentLimit ?? null,
+              creatorPurpose: oa.creatorPurpose ?? null,
             };
           })(),
           weeklyMapSummary: (effectiveUserForAccess as any).weeklyMapSummary ?? null,

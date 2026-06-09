@@ -1,8 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { signIn } from "next-auth/react";
 import LoginClient from "./LoginClient";
-import { LEGAL_CONSENT_COOKIE_NAME } from "@/lib/auth/legalConsent";
-
 let currentSearchParams = new URLSearchParams();
 
 jest.mock("next/navigation", () => ({
@@ -21,7 +19,6 @@ describe("LoginClient", () => {
     signInMock.mockClear();
     signInMock.mockResolvedValue(undefined);
     (window as any).gtag = jest.fn();
-    document.cookie = `${LEGAL_CONSENT_COOKIE_NAME}=; Max-Age=0; Path=/`;
   });
 
   it("renders default copy without callbackUrl", () => {
@@ -79,7 +76,7 @@ describe("LoginClient", () => {
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 
-  it("records legal acceptance when continuing with Google", () => {
+  it("calls signIn with Google when continuing", () => {
     currentSearchParams = new URLSearchParams({
       callbackUrl: "/dashboard/boards/mobile-strategic-profile",
     });
@@ -90,6 +87,5 @@ describe("LoginClient", () => {
     expect(signInMock).toHaveBeenCalledWith("google", {
       callbackUrl: "/dashboard/boards/mobile-strategic-profile",
     });
-    expect(document.cookie).toContain(`${LEGAL_CONSENT_COOKIE_NAME}=1`);
   });
 });

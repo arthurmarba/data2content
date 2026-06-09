@@ -1,5 +1,6 @@
 export interface LandingCommunityMetrics {
   activeCreators: number;
+  totalSubscribers: number;
   combinedFollowers: number;
   totalPostsAnalyzed: number;
   postsLast30Days: number;

@@ -21,6 +21,17 @@ export interface DiagnosticoUserInfo {
   mediaKitSlug?: string | null;
   /** True when the user has a verified WhatsApp number linked — enables alert CTA in PautasCard. */
   whatsappLinked?: boolean;
+  /**
+   * Fase 2 — true quando o perfil do mapa seed está incompleto (campos-chave do
+   * creatorProfileExtended ainda não preenchidos). Aciona badge na engrenagem.
+   */
+  mapProfileIncomplete?: boolean;
+  /**
+   * Fase 3 — true quando o criador ainda não respondeu o contexto de pricing
+   * (creatorProfileExtended.hasDoneSponsoredPosts vazio). Aciona o intro
+   * opcional na primeira abertura da Calculadora.
+   */
+  pricingProfileIncomplete?: boolean;
 }
 
 /**
@@ -31,6 +42,8 @@ export interface DiagnosticoOnboardingAnswers {
   whyYouCreate: string | null;
   desiredFeeling: string | null;
   contentLimit: string | null;
+  /** Declaração de propósito livre — "para quem cria / o que quer que eles sintam". */
+  creatorPurpose: string | null;
 }
 
 export interface DiagnosticoCollabSuggestion {
@@ -57,6 +70,13 @@ export interface DiagnosticoCollabSuggestion {
    * Falls back to generic matchType labels in the UI when absent.
    */
   narrativeFitReason?: string | null;
+  /**
+   * Ponto de encontro: território confirmado do viewer que o criador sugerido
+   * também toca. Terreno comum concreto da collab (justificativa narrativa).
+   */
+  sharedSignal?: string | null;
+  /** Territórios do criador sugerido que o viewer não tem — o ângulo novo da collab. */
+  distinctSignals?: string[];
   /**
    * Fase C — texto do conteúdo mais narrativamente representativo do criador sugerido.
    * Derivado do título + resumo da leitura com publishIntent="yes" mais recente.

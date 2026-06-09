@@ -70,6 +70,7 @@ export async function generateWeeklyMapSummaryForUser(
       whyYouCreate?: string | null;
       desiredFeeling?: string | null;
       contentLimit?: string | null;
+      creatorPurpose?: string | null;
     } | null;
     weeklyMapSummaryGeneratedAt?: Date | null;
     plan?: string;
@@ -116,6 +117,7 @@ export async function generateWeeklyMapSummaryForUser(
   if (confirmations?.tone === "confirmed") confirmedDims.push("tom");
   const ideaTitles = recentIdeas.map((i) => `"${i.title}" (${i.suggestedFormat})`).join(", ");
   const whyCreate = userDoc.onboardingAnswers?.whyYouCreate ?? null;
+  const creatorPurpose = userDoc.onboardingAnswers?.creatorPurpose ?? null;
 
   const prompt = buildPrompt({
     creatorName: userDoc.name ?? null,
@@ -126,6 +128,7 @@ export async function generateWeeklyMapSummaryForUser(
     confirmedDims,
     ideaTitles,
     whyCreate,
+    creatorPurpose,
   });
 
   try {
@@ -176,12 +179,15 @@ function buildPrompt(ctx: {
   confirmedDims: string[];
   ideaTitles: string;
   whyCreate: string | null;
+  creatorPurpose: string | null;
 }): string {
   const lines: string[] = [];
 
   lines.push(`Mapa do criador${ctx.creatorName ? ` ${ctx.creatorName}` : ""} esta semana:`);
   lines.push(`- Análises acumuladas: ${ctx.readingCount}`);
 
+  // O propósito declarado é o norte — ancore o resumo nele quando existir.
+  if (ctx.creatorPurpose) lines.push(`- Propósito do criador (norte): "${ctx.creatorPurpose}"`);
   if (ctx.narrative) lines.push(`- Narrativa central detectada: "${ctx.narrative}"`);
   if (ctx.territories) lines.push(`- Territórios: ${ctx.territories}`);
   if (ctx.confirmedDims.length > 0)

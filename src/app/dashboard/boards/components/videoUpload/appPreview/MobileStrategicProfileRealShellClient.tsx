@@ -22,6 +22,7 @@ import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { openPaywallModal } from "@/utils/paywallModal";
 import { requestUploadSession } from "./mobileStrategicProfileUploadSessionClient";
 import { uploadVideoToTemporarySignedUrl } from "./mobileStrategicProfileDirectUploadClient";
+import { postMobileStrategicProfileAnalysisJson } from "./mobileStrategicProfileAnalysisSubmitClient";
 import type { CreatorNarrativeMapReadingPresentation } from "../../../videoUpload/creatorNarrativeMapReadingChapters";
 import type { NarrativeMapMobileViewModel } from "../../../videoUpload/narrativeMapMobileViewModel";
 import {
@@ -379,15 +380,19 @@ export function MobileStrategicProfileRealShellClient({
     let data: any = null;
     let failureTracked = false;
     try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestPayload),
+      const { response, data: responseData, attempts } = await postMobileStrategicProfileAnalysisJson({
+        endpoint,
+        body: requestPayload,
       });
-
-      data = await response.json().catch(() => ({}));
+      data = responseData;
+      if (attempts > 1) {
+        trackMobileNarrativeEvent("mobile_analysis_retry_succeeded", {
+          ...telemetryContext,
+          selectedGoalOption: payload.selectedGoalOption,
+          analysisMode,
+          retryAttempts: attempts,
+        });
+      }
       const persistence = data?.videoReadingPersistence;
       const synthesis = data?.synthesisSnapshotWrite;
       const allowlistGatePassed = Boolean(data?.e2eBetaAudit?.allowlistGatePassed);

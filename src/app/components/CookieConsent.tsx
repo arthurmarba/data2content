@@ -3,7 +3,25 @@
 import React, { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 
+const COOKIE_NAME = "cookie_consent";
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 ano
 const COOKIE_CONSENT_OFFSET_VAR = "--cookie-consent-offset";
+
+function getConsentCookie(): string | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith(`${COOKIE_NAME}=`));
+  return match ? (match.split("=")[1] ?? null) : null;
+}
+
+function writeConsentCookie(value: "granted" | "denied") {
+  const secure =
+    typeof window !== "undefined" && window.location.protocol === "https:"
+      ? "; Secure"
+      : "";
+  document.cookie = `${COOKIE_NAME}=${value}; Max-Age=${COOKIE_MAX_AGE}; Path=/; SameSite=Lax${secure}`;
+}
 
 const CookieConsent: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -17,8 +35,7 @@ const CookieConsent: React.FC = () => {
       pathname?.startsWith("/dashboard/discover"));
 
   useEffect(() => {
-    const consent = localStorage.getItem("cookie_consent");
-    if (!consent) {
+    if (!getConsentCookie()) {
       setIsVisible(true);
     }
   }, []);
@@ -51,49 +68,89 @@ const CookieConsent: React.FC = () => {
     };
   }, [isVisible]);
 
-  const acceptCookies = () => {
-    localStorage.setItem("cookie_consent", "granted");
-    (window as any).gtag?.("consent", "update", {
-      ad_storage: "granted",
-      analytics_storage: "granted",
-    });
+  const dismiss = () => {
     document.documentElement.style.removeProperty(COOKIE_CONSENT_OFFSET_VAR);
     setIsVisible(false);
   };
 
-  // On the login page the sign-in action already implies consent (legal text is shown inline).
-  // Showing the banner there competes with the only CTA on the screen.
+  const acceptCookies = () => {
+    writeConsentCookie("granted");
+    (window as any).gtag?.("consent", "update", {
+      ad_storage: "granted",
+      analytics_storage: "granted",
+    });
+    dismiss();
+  };
+
+  const declineCookies = () => {
+    writeConsentCookie("denied");
+    (window as any).gtag?.("consent", "update", {
+      ad_storage: "denied",
+      analytics_storage: "denied",
+    });
+    dismiss();
+  };
+
+  // No login page, the sign-in action already surfaces the legal text inline.
   if (!isVisible || isLoginPage) return null;
+
+  if (isMobileStrategicProfileApp) {
+    return (
+      <div
+        ref={bannerRef}
+        className="fixed left-3 right-3 z-[180] flex items-center justify-between gap-3 rounded-2xl border border-zinc-800 bg-zinc-950 px-3 py-3 text-sm leading-5 text-white shadow-[0_12px_36px_rgba(15,23,42,0.28)] sm:left-6 sm:right-6"
+        style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 5rem)" }}
+      >
+        <span className="min-w-0 flex-1 text-zinc-300">
+          Usamos cookies de analytics para melhorar a experiência. Aceita?
+        </span>
+        <div className="flex shrink-0 gap-2">
+          <button
+            onClick={declineCookies}
+            className="rounded-full border border-zinc-700 px-3 py-1.5 text-xs font-semibold text-zinc-400 transition hover:bg-zinc-800"
+          >
+            Recusar
+          </button>
+          <button
+            onClick={acceptCookies}
+            className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-zinc-950"
+          >
+            Aceitar
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
       ref={bannerRef}
-      className={
-        isMobileStrategicProfileApp
-          ? "fixed left-3 right-3 z-[180] flex items-center justify-between gap-3 rounded-2xl border border-zinc-800 bg-zinc-950 px-3 py-3 text-sm leading-5 text-white shadow-[0_12px_36px_rgba(15,23,42,0.28)] sm:left-6 sm:right-6"
-          : isLoginPage
-            ? "fixed bottom-3 left-3 right-3 z-50 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-[#07111f]/72 px-3 py-2 text-[11px] leading-4 text-slate-300 shadow-[0_12px_32px_rgba(0,0,0,0.2)] backdrop-blur sm:left-1/2 sm:right-auto sm:w-[min(21rem,calc(100vw-2rem))] sm:-translate-x-1/2"
-          : "fixed bottom-0 left-0 right-0 z-50 bg-brand-dark text-brand-light p-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-      }
-      style={isMobileStrategicProfileApp ? { bottom: "calc(env(safe-area-inset-bottom, 0px) + 5rem)" } : undefined}
+      className="fixed bottom-0 left-0 right-0 z-50 bg-brand-dark text-brand-light p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
     >
-      <span className={isMobileStrategicProfileApp || isLoginPage ? "min-w-0 flex-1" : undefined}>
-        {isLoginPage
-          ? "Usamos cookies para melhorar sua experiência."
-          : "Utilizamos cookies para melhorar sua experiência. Aceita o uso de cookies?"}
+      <span className="text-sm leading-relaxed">
+        Utilizamos cookies essenciais para o funcionamento da plataforma e, com a sua autorização, cookies de analytics para melhorar a sua experiência.{" "}
+        <a
+          href="/politica-de-privacidade"
+          className="underline opacity-80 hover:opacity-100"
+        >
+          Saiba mais
+        </a>
+        .
       </span>
-      <button
-        onClick={acceptCookies}
-        className={
-          isMobileStrategicProfileApp
-            ? "shrink-0 rounded-full bg-white px-4 py-2 text-sm font-semibold text-zinc-950"
-            : isLoginPage
-              ? "shrink-0 rounded-full border border-white/10 bg-white/[0.07] px-3 py-1.5 text-[11px] font-semibold text-slate-100 transition hover:bg-white/12"
-            : "bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded"
-        }
-      >
-        Aceitar
-      </button>
+      <div className="flex shrink-0 gap-2">
+        <button
+          onClick={declineCookies}
+          className="border border-white/30 text-white px-4 py-2 rounded text-sm hover:bg-white/10 transition"
+        >
+          Recusar não-essenciais
+        </button>
+        <button
+          onClick={acceptCookies}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded text-sm transition"
+        >
+          Aceitar
+        </button>
+      </div>
     </div>
   );
 };

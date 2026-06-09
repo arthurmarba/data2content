@@ -27,6 +27,7 @@ const ALLOWED_CONTEXTS: PaywallContext[] = [
   "publis",
   "planning",
   "whatsapp",
+  "onboarding",
 ];
 
 export default function PaywallModalProvider() {

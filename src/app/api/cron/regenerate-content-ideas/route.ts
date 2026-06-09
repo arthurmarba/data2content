@@ -73,7 +73,7 @@ async function regenerateIdeasIfStale(userId: string): Promise<RegenerateResult>
       .select("name onboardingAnswers planStatus role cancelAtPeriodEnd isAdmin isDev")
       .lean<{
         name?: string;
-        onboardingAnswers?: { whyYouCreate?: string; desiredFeeling?: string; contentLimit?: string } | null;
+        onboardingAnswers?: { whyYouCreate?: string; desiredFeeling?: string; contentLimit?: string; creatorPurpose?: string } | null;
         planStatus?: string;
         role?: string;
         cancelAtPeriodEnd?: boolean;
@@ -140,6 +140,7 @@ async function regenerateIdeasIfStale(userId: string): Promise<RegenerateResult>
       whyYouCreate?: string | null;
       desiredFeeling?: string | null;
       contentLimit?: string | null;
+      creatorPurpose?: string | null;
     } | null;
 
     const recentDismissedTitles = await listRecentDismissedTitles(userId, 10);
@@ -168,6 +169,7 @@ async function regenerateIdeasIfStale(userId: string): Promise<RegenerateResult>
             whyYouCreate: onboardingAnswers.whyYouCreate ?? null,
             desiredFeeling: onboardingAnswers.desiredFeeling ?? null,
             contentLimit: onboardingAnswers.contentLimit ?? null,
+            creatorPurpose: onboardingAnswers.creatorPurpose ?? null,
           }
         : null,
       recentDismissedTitles,
