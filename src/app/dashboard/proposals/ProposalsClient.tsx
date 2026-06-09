@@ -637,11 +637,11 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
     (source: string, context: PaywallContext) => {
       const normalizedPlan = billingStatus.normalizedStatus ?? billingStatus.planStatus ?? null;
       const telemetryContext =
-        context === 'default' || context === 'narrative_map'
+        context === 'default' || context === 'narrative_map' || context === 'onboarding'
           ? 'other'
           : context === 'whatsapp'
             ? 'whatsapp_ai'
-            : context;
+            : context as Exclude<typeof context, 'default' | 'narrative_map' | 'onboarding' | 'whatsapp'>;
       track('pro_feature_upgrade_clicked', {
         feature: 'proposals_reply',
         source,
