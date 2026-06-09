@@ -46,3 +46,6 @@ next-env.d.ts
 
 
 keys/
+
+# Claude Code local state
+.claude/
