@@ -50,7 +50,7 @@ export async function POST(request: Request) {
 
   const authOptions = await resolveAuthOptions();
   const session = await getServerSession(authOptions);
-  const sessionUser = session?.user as any;
+  const sessionUser = (session as any)?.user;
   const userId: string | undefined = sessionUser?.id;
 
   if (!userId) {
@@ -79,7 +79,7 @@ export async function POST(request: Request) {
   }
 
   // ── Return existing pending candidates (avoid re-detection) ───────────────
-  const existingPending = (mapConfirmations.adjacentNarratives ?? []).filter(
+  const existingPending = (mapConfirmations?.adjacentNarratives ?? []).filter(
     (a) => a.state === "pending",
   );
   if (existingPending.length > 0) {
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
   }
 
   // ── Collect existing labels (all states) to avoid re-proposing ───────────
-  const existingAdjacentLabels = (mapConfirmations.adjacentNarratives ?? []).map(
+  const existingAdjacentLabels = (mapConfirmations?.adjacentNarratives ?? []).map(
     (a) => a.label,
   );
 

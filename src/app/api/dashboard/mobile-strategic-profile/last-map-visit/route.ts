@@ -33,7 +33,7 @@ export async function POST() {
 
   const authOptions = await resolveAuthOptions();
   const session = await getServerSession(authOptions);
-  const userId = (session?.user as any)?.id as string | undefined;
+  const userId = (session as any)?.user?.id as string | undefined;
 
   if (!userId) {
     return NextResponse.json({ message: "Não autenticado." }, { status: 401 });

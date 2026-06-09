@@ -14,7 +14,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 export async function PATCH(request: Request) {
   const authOptions = await resolveAuthOptions();
   const session = await getServerSession(authOptions);
-  const sessionUser = session?.user as any;
+  const sessionUser = (session as any)?.user;
   const userId: string | undefined = sessionUser?.id;
 
   if (!userId) {
