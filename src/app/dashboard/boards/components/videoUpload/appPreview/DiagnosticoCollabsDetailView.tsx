@@ -377,7 +377,7 @@ function CollabCreatorSlide({
 
         {/* Fit reason */}
         <p className="text-[13px] italic leading-snug text-white/80 line-clamp-2">
-          "{fitReason}"
+          &ldquo;{fitReason}&rdquo;
         </p>
 
         {/* Chip de encontro — glassmorphism */}
