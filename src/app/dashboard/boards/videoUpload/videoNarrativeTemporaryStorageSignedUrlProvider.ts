@@ -1,4 +1,6 @@
 import { createHash, randomUUID } from "crypto";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import type {
   VideoNarrativeTemporaryStorageCreateSessionInput,
@@ -142,5 +144,29 @@ export async function createVideoNarrativeSignedUploadSession(params: {
 }
 
 export function createServerSideSignedUploadUrlSigner(): VideoNarrativeTemporaryStorageSignedUrlSigner | null {
-  return null;
+  const endpoint = process.env.VIDEO_NARRATIVE_TEMP_STORAGE_ENDPOINT;
+  const region = process.env.VIDEO_NARRATIVE_TEMP_STORAGE_REGION ?? "auto";
+  const bucket = process.env.VIDEO_NARRATIVE_TEMP_STORAGE_BUCKET;
+  const accessKeyId = process.env.VIDEO_NARRATIVE_TEMP_STORAGE_ACCESS_KEY_ID;
+  const secretAccessKey = process.env.VIDEO_NARRATIVE_TEMP_STORAGE_SECRET_ACCESS_KEY;
+
+  if (!endpoint || !bucket || !accessKeyId || !secretAccessKey) {
+    return null;
+  }
+
+  const client = new S3Client({
+    region,
+    endpoint,
+    credentials: { accessKeyId, secretAccessKey },
+  });
+
+  return async ({ objectKey, mimeType, signedUrlTtlSeconds }) => {
+    const command = new PutObjectCommand({
+      Bucket: bucket,
+      Key: objectKey,
+      ContentType: mimeType,
+    });
+    const uploadUrl = await getSignedUrl(client, command, { expiresIn: signedUrlTtlSeconds });
+    return { uploadUrl };
+  };
 }
