@@ -146,6 +146,12 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   const [localPurpose, setLocalPurpose] = useState<string | null>(
     data.onboardingAnswers?.creatorPurpose ?? null,
   );
+  // Sincroniza o state quando o servidor retorna dados novos (ex.: router.refresh()
+  // pós-onboarding). useState não reinicializa em re-renders, então o propósito
+  // salvo no Q3 do onboarding só aparecia depois de recarregar a página.
+  useEffect(() => {
+    setLocalPurpose(data.onboardingAnswers?.creatorPurpose ?? null);
+  }, [data.onboardingAnswers?.creatorPurpose]);
   const [whatsAppSheetOpen, setWhatsAppSheetOpen] = useState(false);
   const [calculatorWizardOpen, setCalculatorWizardOpen] = useState(false);
   const [latestCalculation, setLatestCalculation] = useState<MobileCalculatorResult | null>(null);
