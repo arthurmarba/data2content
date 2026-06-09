@@ -23,8 +23,10 @@ export type VideoNarrativeGeminiClientAdapter = {
       mimeType: string;
       bytes?: Uint8Array | Buffer;
       uri?: string;
+      filePath?: string;
       source: "temporary_storage";
     };
+    signal?: AbortSignal;
   }): Promise<{ text: string | null }>;
 };
 
@@ -47,10 +49,19 @@ function disabledResult(params: {
   };
 }
 
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+function withTimeout<T>(
+  run: (signal: AbortSignal) => Promise<T>,
+  timeoutMs: number,
+): Promise<T> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("provider_timeout")), timeoutMs);
-    promise.then(
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      // Abort the in-flight request so we stop waiting on it instead of leaving
+      // it running in the background until the Lambda is reclaimed.
+      controller.abort();
+      reject(new Error("provider_timeout"));
+    }, timeoutMs);
+    run(controller.signal).then(
       (value) => {
         clearTimeout(timer);
         resolve(value);
@@ -88,6 +99,7 @@ export async function runVideoNarrativeGeminiProvider(params: {
     mimeType: string;
     bytes?: Uint8Array | Buffer;
     uri?: string;
+    filePath?: string;
     source: "temporary_storage";
   };
   skipAllowlist?: boolean;
@@ -142,14 +154,16 @@ export async function runVideoNarrativeGeminiProvider(params: {
       promptVersion,
     });
     const response = await withTimeout(
-      params.client.generateContent({
-        systemInstruction: prompt.systemInstruction,
-        userInstruction: prompt.userInstruction,
-        responseSchemaInstruction: prompt.responseSchemaInstruction,
-        model: resolved.config.model!,
-        maxOutputTokens: resolved.config.maxOutputTokens,
-        videoInput: params.videoInput,
-      }),
+      (signal) =>
+        params.client!.generateContent({
+          systemInstruction: prompt.systemInstruction,
+          userInstruction: prompt.userInstruction,
+          responseSchemaInstruction: prompt.responseSchemaInstruction,
+          model: resolved.config.model!,
+          maxOutputTokens: resolved.config.maxOutputTokens,
+          videoInput: params.videoInput,
+          signal,
+        }),
       resolved.config.timeoutMs,
     );
     const parsed = parseVideoNarrativeGeminiResponse(response.text ?? "");

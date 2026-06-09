@@ -823,7 +823,10 @@ export function DiagnosticoRealShellClient({ data }: Props) {
         body,
       });
       if (!response.ok) {
-        throw new Error(responseData?.message ?? "Erro ao analisar vídeo.");
+        const analysisError = new Error(responseData?.message ?? "Erro ao analisar vídeo.");
+        // Surfaced by the flow to decide whether to offer "Tentar novamente".
+        (analysisError as Error & { retryable?: boolean }).retryable = responseData?.retryable;
+        throw analysisError;
       }
 
       const snap = responseData?.snapshot;

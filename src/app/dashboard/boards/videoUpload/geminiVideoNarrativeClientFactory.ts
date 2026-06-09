@@ -12,6 +12,7 @@ import path from "node:path";
 
 import { GeminiVideoNarrativeClient } from "./geminiVideoNarrativeProvider";
 import type { VideoNarrativeGeminiClientAdapter } from "./videoNarrativeGeminiProvider";
+import { GEMINI_INLINE_VIDEO_BYTES_LIMIT } from "./videoNarrativeGeminiInlineLimit";
 
 export type GeminiVideoNarrativeClientFactoryOptions = {
   apiKey: string;
@@ -24,8 +25,9 @@ export type GeminiVideoNarrativeClientFactoryResult = {
   issue: string | null;
 };
 
-export const DEFAULT_GEMINI_VIDEO_NARRATIVE_MODEL = "gemini-3-flash-preview";
-export const GEMINI_INLINE_VIDEO_BYTES_LIMIT = 18 * 1024 * 1024;
+export const DEFAULT_GEMINI_VIDEO_NARRATIVE_MODEL = "gemini-2.5-flash";
+// Re-exported for backwards compatibility; defined in a dependency-free module.
+export { GEMINI_INLINE_VIDEO_BYTES_LIMIT };
 const GEMINI_FILE_PROCESSING_MAX_POLLS = 45;
 const GEMINI_FILE_PROCESSING_POLL_MS = 1000;
 
@@ -84,21 +86,15 @@ async function waitForGeminiFileReady(
   throw new Error("gemini_file_processing_timeout");
 }
 
-async function uploadBytesToGeminiFile(params: {
+async function uploadGeminiFileFromPath(params: {
   ai: GoogleGenAI;
-  bytes: Uint8Array | Buffer;
+  filePath: string;
   mimeType: string;
 }): Promise<{ name?: string; uri: string; mimeType: string }> {
   const mimeType = normalizeGeminiVideoMimeType(params.mimeType);
-  const tempPath = path.join(
-    os.tmpdir(),
-    `d2c-gemini-video-${randomUUID()}.${extensionForMimeType(mimeType)}`,
-  );
-
   try {
-    await writeFile(tempPath, Buffer.from(params.bytes));
     const uploaded = await params.ai.files.upload({
-      file: tempPath,
+      file: params.filePath,
       config: { mimeType },
     });
     const ready = await waitForGeminiFileReady(params.ai, uploaded);
@@ -116,6 +112,24 @@ async function uploadBytesToGeminiFile(params: {
       throw new Error("gemini_file_permission_denied");
     }
     throw new Error("gemini_file_upload_failed");
+  }
+}
+
+async function uploadBytesToGeminiFile(params: {
+  ai: GoogleGenAI;
+  bytes: Uint8Array | Buffer;
+  mimeType: string;
+}): Promise<{ name?: string; uri: string; mimeType: string }> {
+  const mimeType = normalizeGeminiVideoMimeType(params.mimeType);
+  const tempPath = path.join(
+    os.tmpdir(),
+    `d2c-gemini-video-${randomUUID()}.${extensionForMimeType(mimeType)}`,
+  );
+
+  try {
+    // writeFile accepts Uint8Array | Buffer directly — no Buffer.from copy needed.
+    await writeFile(tempPath, params.bytes);
+    return await uploadGeminiFileFromPath({ ai: params.ai, filePath: tempPath, mimeType });
   } finally {
     await unlink(tempPath).catch(() => undefined);
   }
@@ -369,6 +383,7 @@ export function createVideoNarrativeGeminiClientAdapter(
         model,
         maxOutputTokens,
         videoInput,
+        signal,
       }) {
         const parts: Array<string | Part> = [userInstruction, responseSchemaInstruction];
         let uploadedGeminiFileName: string | undefined;
@@ -376,6 +391,16 @@ export function createVideoNarrativeGeminiClientAdapter(
         try {
           if (videoInput?.uri) {
             parts.push(createPartFromUri(videoInput.uri, normalizeGeminiVideoMimeType(videoInput.mimeType)));
+          } else if (videoInput?.filePath) {
+            // Large video already streamed to a temp file by the storage adapter —
+            // upload straight from disk, never buffering it in memory.
+            const uploaded = await uploadGeminiFileFromPath({
+              ai,
+              filePath: videoInput.filePath,
+              mimeType: normalizeGeminiVideoMimeType(videoInput.mimeType),
+            });
+            uploadedGeminiFileName = uploaded.name;
+            parts.push(createPartFromUri(uploaded.uri, uploaded.mimeType));
           } else if (videoInput?.bytes) {
             const bytes = Buffer.from(videoInput.bytes);
             const mimeType = normalizeGeminiVideoMimeType(videoInput.mimeType);
@@ -400,11 +425,16 @@ export function createVideoNarrativeGeminiClientAdapter(
               maxOutputTokens,
               responseMimeType: "application/json",
               responseJsonSchema: videoNarrativeResponseJsonSchema,
+              ...(signal ? { abortSignal: signal } : {}),
             },
           });
 
           return { text: response.text ?? null };
         } finally {
+          // Temp file owned by the storage adapter — clean it up once uploaded.
+          if (videoInput?.filePath) {
+            await unlink(videoInput.filePath).catch(() => undefined);
+          }
           if (uploadedGeminiFileName) {
             await ai.files.delete({ name: uploadedGeminiFileName }).catch(() => undefined);
           }

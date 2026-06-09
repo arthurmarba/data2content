@@ -109,6 +109,34 @@ describe("videoNarrativeTemporaryStorageRuntimeAdapter", () => {
       }
     });
 
+    it("streama para um arquivo temporário quando o vídeo excede o limite inline", async () => {
+      const { Readable } = await import("node:stream");
+      const { readFile, unlink } = await import("node:fs/promises");
+      const payload = Buffer.from("conteudo-de-video-grande");
+      const fakeS3Client = {
+        send: jest.fn().mockResolvedValue({
+          Body: Readable.from([payload]),
+        }),
+      } as unknown as S3Client;
+
+      const res = await resolveVideoNarrativeTemporaryStorageInput({
+        input: { ...baseInput, sizeBytes: 30 * 1024 * 1024 }, // 30MB > 14MB inline limit
+        env: baseEnv,
+        s3Client: fakeS3Client,
+      });
+
+      expect(res.ok).toBe(true);
+      if (res.ok) {
+        expect(res.status).toBe("ready");
+        expect(res.geminiInput.bytes).toBeUndefined();
+        expect(res.geminiInput.filePath).toEqual(expect.stringContaining("d2c-r2-video-"));
+        // O arquivo foi escrito com o conteúdo streamado do R2.
+        const written = await readFile(res.geminiInput.filePath!);
+        expect(written.equals(payload)).toBe(true);
+        await unlink(res.geminiInput.filePath!).catch(() => undefined);
+      }
+    });
+
     it("retorna bytes do upload temporário local em desenvolvimento", async () => {
       const sessionId = "video-temp-upload-session-local-runtime-test";
       await writeLocalVideoNarrativeTemporaryUpload({

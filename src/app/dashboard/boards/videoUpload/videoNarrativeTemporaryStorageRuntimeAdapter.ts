@@ -1,4 +1,11 @@
 import { S3Client, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { createWriteStream } from "node:fs";
+import { unlink } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import {
   deleteLocalVideoNarrativeTemporaryUpload,
   extractLocalVideoNarrativeUploadSessionIdFromObjectKey,
@@ -6,6 +13,38 @@ import {
   isLocalVideoNarrativeUploadSessionId,
   readLocalVideoNarrativeTemporaryUpload,
 } from "./videoNarrativeLocalTemporaryUploadStore";
+import { GEMINI_INLINE_VIDEO_BYTES_LIMIT } from "./videoNarrativeGeminiInlineLimit";
+
+// Reuse one S3 client per credential set across warm Lambda invocations instead of
+// constructing a fresh client (and its connection pool) on every request.
+const s3ClientCache = new Map<string, S3Client>();
+
+function getCachedS3Client(params: {
+  endpoint?: string;
+  region: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+}): S3Client {
+  const cacheKey = `${params.endpoint ?? ""}|${params.region}|${params.accessKeyId}`;
+  const existing = s3ClientCache.get(cacheKey);
+  if (existing) return existing;
+  const client = new S3Client({
+    region: params.region,
+    endpoint: params.endpoint || undefined,
+    credentials: {
+      accessKeyId: params.accessKeyId,
+      secretAccessKey: params.secretAccessKey,
+    },
+  });
+  s3ClientCache.set(cacheKey, client);
+  return client;
+}
+
+function extensionForMimeType(mimeType: string): string {
+  if (mimeType === "video/quicktime") return "mov";
+  if (mimeType === "video/webm") return "webm";
+  return "mp4";
+}
 
 export type VideoNarrativeTemporaryStorageRuntimeAdapterInput = {
   uploadSessionId: string;
@@ -22,6 +61,7 @@ export type VideoNarrativeTemporaryStorageRuntimeAdapterResult =
         mimeType: string;
         bytes?: Uint8Array | Buffer;
         uri?: string;
+        filePath?: string;
         source: "temporary_storage";
       };
       safeDebugSummary: {
@@ -154,14 +194,7 @@ export async function resolveVideoNarrativeTemporaryStorageInput(params: {
   try {
     const s3 =
       params.s3Client ??
-      new S3Client({
-        region,
-        endpoint: endpoint || undefined,
-        credentials: {
-          accessKeyId,
-          secretAccessKey,
-        },
-      });
+      getCachedS3Client({ endpoint, region, accessKeyId, secretAccessKey });
 
     const getCommand = new GetObjectCommand({
       Bucket: bucket,
@@ -172,6 +205,38 @@ export async function resolveVideoNarrativeTemporaryStorageInput(params: {
 
     if (!getRes.Body) {
       throw new Error("Empty body returned from storage.");
+    }
+
+    // Videos that exceed the inline base64 limit go to Gemini via the Files API,
+    // which reads from a file path. Stream R2 → temp file directly so the full
+    // video never sits in Lambda memory as a Buffer. Smaller videos stay in memory
+    // (they need the bytes for the inline base64 part anyway).
+    if (params.input.sizeBytes > GEMINI_INLINE_VIDEO_BYTES_LIMIT) {
+      const filePath = path.join(
+        os.tmpdir(),
+        `d2c-r2-video-${randomUUID()}.${extensionForMimeType(params.input.mimeType)}`,
+      );
+      try {
+        await pipeline(getRes.Body as Readable, createWriteStream(filePath));
+      } catch (streamError) {
+        await unlink(filePath).catch(() => undefined);
+        throw streamError;
+      }
+
+      return {
+        ok: true,
+        status: "ready",
+        geminiInput: {
+          mimeType: params.input.mimeType,
+          filePath,
+          source: "temporary_storage",
+        },
+        safeDebugSummary: {
+          mimeType: params.input.mimeType,
+          sizeBytes: params.input.sizeBytes,
+          provider,
+        },
+      };
     }
 
     const bytes = await getRes.Body.transformToByteArray();
@@ -234,14 +299,7 @@ export async function deleteVideoNarrativeTemporaryStorageObject(params: {
   try {
     const s3 =
       params.s3Client ??
-      new S3Client({
-        region,
-        endpoint: endpoint || undefined,
-        credentials: {
-          accessKeyId,
-          secretAccessKey,
-        },
-      });
+      getCachedS3Client({ endpoint, region, accessKeyId, secretAccessKey });
 
     const command = new DeleteObjectCommand({
       Bucket: bucket,

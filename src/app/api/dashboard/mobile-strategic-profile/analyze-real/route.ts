@@ -61,6 +61,28 @@ function safeResponseCode(code: string | undefined): string | undefined {
   return code?.replace(/gemini/gi, "provider");
 }
 
+// Failures the creator cannot resolve by pressing "Tentar novamente" — provider
+// access/config problems, unsupported input, etc. The client uses this to drop the
+// retry CTA instead of inviting a doomed retry.
+const NON_RETRYABLE_ANALYSIS_CODES = new Set([
+  "gemini_provider_disabled",
+  "gemini_allowlist_required",
+  "gemini_api_key_missing",
+  "gemini_model_missing",
+  "gemini_permission_denied",
+  "gemini_file_permission_denied",
+  "provider_not_configured",
+  "missing_credentials",
+  "unsupported_provider",
+  "missing_storage_adapter",
+  "unsupported_mime_type",
+  "object_too_large",
+]);
+
+function isRetryableAnalysisFailure(safeIssueCode: string | undefined): boolean {
+  return !safeIssueCode || !NON_RETRYABLE_ANALYSIS_CODES.has(safeIssueCode);
+}
+
 function logRealAnalysisBugEvent(params: {
   level?: "info" | "warn" | "error";
   event: string;
@@ -522,6 +544,7 @@ export async function POST(request: Request) {
           ok: false,
           message: result.message,
           code: safeResponseCode(result.safeIssueCode),
+          retryable: isRetryableAnalysisFailure(result.safeIssueCode),
           videoReadingPersistence: result.videoReadingPersistence,
           synthesisSnapshotWrite: result.synthesisSnapshotWrite,
           e2eBetaAudit: {

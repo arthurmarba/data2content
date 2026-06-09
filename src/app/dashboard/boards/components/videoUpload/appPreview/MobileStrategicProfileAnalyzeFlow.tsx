@@ -249,6 +249,9 @@ export function MobileStrategicProfileAnalyzeFlow({
   const [confirmationAnswer, setConfirmationAnswer] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  // When the backend marks a failure as non-retryable (provider access/config),
+  // we drop the "Tentar novamente" CTA instead of inviting a doomed retry.
+  const [errorRetryable, setErrorRetryable] = useState(true);
   const [submitAttempt, setSubmitAttempt] = useState(0);
   const [savedDiagnosisId, setSavedDiagnosisId] = useState<string | null>(null);
   const [confirmationData, setConfirmationData] = useState<MobileStrategicProfileAnalyzeConfirmationData | null>(null);
@@ -377,6 +380,7 @@ export function MobileStrategicProfileAnalyzeFlow({
           }
           if (active) {
             setIsSubmitting(false);
+            setErrorRetryable(err?.retryable !== false);
             setErrorMsg(err.message || "Ocorreu um erro no processamento do diagnóstico.");
           }
         }
@@ -1006,26 +1010,37 @@ export function MobileStrategicProfileAnalyzeFlow({
             ) : null}
           </div>
         ) : step === "processing" && errorMsg ? (
-          <div className="flex w-full gap-2">
+          errorRetryable ? (
+            <div className="flex w-full gap-2">
+              <button
+                type="button"
+                className="w-1/2 rounded-full border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 transition-colors"
+                onClick={close}
+              >
+                Fechar
+              </button>
+              <button
+                type="button"
+                className="w-1/2 rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 transition-colors"
+                onClick={() => {
+                  setErrorMsg(null);
+                  setErrorRetryable(true);
+                  setSubmitAttempt((prev) => prev + 1);
+                  setStep("processing");
+                }}
+              >
+                Tentar novamente
+              </button>
+            </div>
+          ) : (
             <button
               type="button"
-              className="w-1/2 rounded-full border border-zinc-300 bg-white px-4 py-2.5 text-sm font-semibold text-zinc-800 hover:bg-zinc-50 transition-colors"
+              className="w-full rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 transition-colors"
               onClick={close}
             >
               Fechar
             </button>
-            <button
-              type="button"
-              className="w-1/2 rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 transition-colors"
-              onClick={() => {
-                setErrorMsg(null);
-                setSubmitAttempt((prev) => prev + 1);
-                setStep("processing");
-              }}
-            >
-              Tentar novamente
-            </button>
-          </div>
+          )
         ) : (
           <button
             type="button"
