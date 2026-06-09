@@ -83,7 +83,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     continueFlow();
     continueFlow();
 
-    expect(screen.getByRole("dialog", { name: "Percebendo seus padrões" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Lendo seu vídeo" })).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByText("Seu espelho está pronto")).toBeInTheDocument();
     });
@@ -102,7 +102,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     continueFlow();
     continueFlow();
 
-    expect(screen.getByRole("dialog", { name: "Percebendo seus padrões" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Lendo seu vídeo" })).toBeInTheDocument();
     await waitFor(() => {
       expect(screen.getByRole("dialog", { name: "Seu espelho está pronto" })).toBeInTheDocument();
     });
@@ -121,7 +121,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     fireEvent.click(screen.getByRole("button", { name: "Checar coerência com o meu mapa" }));
     continueFlow(); // creator_goal -> processing
 
-    expect(screen.getByRole("dialog", { name: "Percebendo seus padrões" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Lendo seu vídeo" })).toBeInTheDocument();
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({
         creatorGoal: "Por que esse vídeo prendeu atenção?",
@@ -272,7 +272,6 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       expect(screen.getByText("Selecionar vídeo")).toBeInTheDocument();
       expect(screen.queryByRole("img")).not.toBeInTheDocument();
       expect(container.querySelector("video")).not.toBeInTheDocument();
-      expect(screen.getByText("Escolha seu vídeo para refletir.")).toBeInTheDocument();
     });
 
     it("selecionar arquivo e interagir com consentimento e validação da API", async () => {

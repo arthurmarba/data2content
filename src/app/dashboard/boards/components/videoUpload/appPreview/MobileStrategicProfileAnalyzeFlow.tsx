@@ -594,20 +594,22 @@ export function MobileStrategicProfileAnalyzeFlow({
               : step === "creator_goal"
                 ? "O que quer desvendar?"
                 : step === "processing"
-                  ? "Percebendo seus padrões"
+                  ? "Lendo seu vídeo"
                   : "Seu espelho está pronto"}
           </h2>
         </div>
         <button
           type="button"
           aria-label="Fechar fluxo de análise"
-          className="grid h-8 w-8 place-items-center rounded-full bg-zinc-100 text-zinc-500 hover:bg-zinc-200 transition-colors"
+          className="-m-1.5 grid h-11 w-11 place-items-center rounded-full text-zinc-500 transition-colors disabled:opacity-50"
           onClick={close}
           disabled={isSubmitting}
         >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-          </svg>
+          <span className="grid h-8 w-8 place-items-center rounded-full bg-zinc-100 hover:bg-zinc-200 transition-colors">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+            </svg>
+          </span>
         </button>
         </div>
 
@@ -658,9 +660,6 @@ export function MobileStrategicProfileAnalyzeFlow({
               <p className="text-sm leading-6 text-zinc-600 mb-4">
                 Escolha um post recente, um conteúdo de que você se orgulha ou uma ideia que quer ver refletida.
               </p>
-              {!selectedFile ? (
-                <p className="mb-3 text-xs font-semibold text-zinc-500">Escolha seu vídeo para refletir.</p>
-              ) : null}
 
               <input
                 type="file"
@@ -738,18 +737,6 @@ export function MobileStrategicProfileAnalyzeFlow({
               {validationStatus === "uploading" ? (
                 <p className="mt-3 text-xs font-medium text-sky-600">
                   Conectando ao espelho...
-                </p>
-              ) : null}
-
-              {validationStatus === "validated" ? (
-                <p className="mt-3 text-xs font-semibold text-emerald-600">
-                  Vídeo acolhido e pronto
-                </p>
-              ) : null}
-
-              {validationStatus === "uploaded" ? (
-                <p className="mt-3 text-xs font-semibold text-emerald-600">
-                  Vídeo acolhido e pronto
                 </p>
               ) : null}
 
@@ -838,14 +825,7 @@ export function MobileStrategicProfileAnalyzeFlow({
               </div>
             ) : (
               <div>
-                <div className="flex items-center gap-3">
-                  <svg className="h-5 w-5 animate-spin text-white/60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  <p className="text-sm font-semibold">Percebendo seus padrões</p>
-                </div>
-                <div className="mt-4 grid gap-3">
+                <div className="grid gap-3">
                   {(
                     [
                       { label: "Estudando sua voz", threshold: 0 },
