@@ -39,6 +39,7 @@ interface NarrativeRangeResponse {
   avgFollowers: number | null;
   label: string | null;
   sample: number;
+  scope: "narrative" | "platform" | null;
   source: "dynamic" | "insufficient";
 }
 
@@ -77,24 +78,42 @@ export function OnboardingValueBlock({ whyYouCreate, className = "" }: Onboardin
   const max = isDynamic ? dynamic!.max! : fallback.max;
   const label = (isDynamic ? dynamic!.label : null) ?? fallback.label;
 
+  // Frase de prova social que APRESENTA o número (legível, não rodapé):
+  // "criadores [da narrativa / da D2C] com ~X seguidores fecham nesta faixa".
+  // Coorte real sempre que possível — o escopo ajusta o sujeito da frase.
+  const hasRealCohort = isDynamic && dynamic!.avgFollowers != null;
+  const isNarrativeScope = dynamic?.scope === "narrative";
+  const followersPhrase = hasRealCohort
+    ? `cerca de ${formatThousands(dynamic!.avgFollowers!)} seguidores`
+    : "10 a 50 mil seguidores";
+  const subject = hasRealCohort && isNarrativeScope ? `de ${label}` : "da D2C";
+
+  const lead = hasRealCohort
+    ? `Criadores ${subject} com ${followersPhrase} fecham nesta faixa:`
+    : `Criadores de ${label} com ${followersPhrase} costumam fechar nesta faixa:`;
+
+  // Metodologia (de onde vem o número) — aí sim, rodapé discreto.
+  const footnote = !hasRealCohort
+    ? `Estimativa da calculadora da D2C. Quando ela lê o seu Instagram, calcula o seu número exato.`
+    : isNarrativeScope
+      ? `Baseado em ${dynamic!.sample} criadores da mesma narrativa na D2C. O valor exato sai quando a D2C lê o seu Instagram.`
+      : `Baseado em ${dynamic!.sample} criadores da D2C. O valor exato sai quando a D2C lê o seu Instagram.`;
+
   return (
     <div className={className}>
-      {/* Card de valor — faixa, destaque forte */}
+      {/* Card de valor — prova social legível + faixa em destaque */}
       <div className="rounded-2xl bg-zinc-50 px-5 py-4 ring-1 ring-zinc-100">
-        <p className="text-[24px] font-bold leading-none tracking-tight text-zinc-950">
+        <p className="text-[13px] leading-relaxed text-zinc-600">{lead}</p>
+
+        <p className="mt-2 text-[24px] font-bold leading-none tracking-tight text-zinc-950">
           {formatBRL(min)} <span className="text-zinc-400">–</span> {formatBRL(max)}
         </p>
         <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-500">
-          por 1 Reels + combo de Stories, para uma marca média
-          <sup className="ml-0.5 text-[10px]">¹</sup>
+          por 1 Reels + combo de Stories, com marcas de porte médio.
         </p>
       </div>
 
-      <p className="mt-3 text-[11px] leading-relaxed text-zinc-300">
-        {isDynamic && dynamic!.avgFollowers != null
-          ? `¹ Faixa de ${dynamic!.sample} criadores de ${label} com ~${formatThousands(dynamic!.avgFollowers)} seguidores na D2C. O valor exato aparece quando a D2C lê o seu Instagram.`
-          : `¹ Estimativa para criadores de ${label} com 10–50 mil seguidores, pela calculadora de publi da D2C. O valor exato aparece quando a D2C lê o seu Instagram.`}
-      </p>
+      <p className="mt-3 text-[11px] leading-relaxed text-zinc-400">{footnote}</p>
     </div>
   );
 }
