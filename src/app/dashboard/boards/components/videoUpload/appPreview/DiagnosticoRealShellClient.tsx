@@ -1423,10 +1423,16 @@ export function DiagnosticoRealShellClient({ data }: Props) {
         initialStep={onboardingInitialStep ?? undefined}
         onConnectInstagram={handleOnboardingConnectInstagram}
         onRequestUpload={() => setAnalyzeFlowOpen(true)}
-        onComplete={() => {
+        onComplete={(answers) => {
           setOnboardingOpen(false);
           setOnboardingInitialStep(null);
-          // Refresh server data so the shell reflects the updated onboarding state
+          // Atualiza localPurpose imediatamente com o valor do onboarding —
+          // sem depender do router.refresh() completar antes do usuário
+          // abrir "Meu Norte". O useEffect de sync serve de fallback para
+          // sessões futuras (fresh load após onboarding em outra sessão).
+          if (answers?.creatorPurpose !== undefined) {
+            setLocalPurpose(answers.creatorPurpose || null);
+          }
           router.refresh();
         }}
       />
