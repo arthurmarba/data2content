@@ -1328,10 +1328,10 @@ function QuickActionsBar({
         }}
       >
         <div style={{
-          width: 60, height: 60, borderRadius: 9999, flexShrink: 0,
+          width: 50, height: 50, borderRadius: 9999, flexShrink: 0,
           background: INK_DARK_HEX, color: "#fff",
           display: "grid", placeItems: "center",
-          fontSize: 16, fontWeight: 700, letterSpacing: -0.2,
+          fontSize: 14, fontWeight: 700, letterSpacing: -0.2,
           overflow: "hidden",
           boxShadow: "0 1px 3px rgba(28,28,30,0.18)",
         }}>
@@ -1458,9 +1458,9 @@ function CreatorStoriesRow({
             }}
           >
             {/* Avatar sem ring, com badge de collab se aplicável */}
-            <div style={{ position: "relative", width: 66, height: 66, flexShrink: 0 }}>
+            <div style={{ position: "relative", width: 56, height: 56, flexShrink: 0 }}>
               <div style={{
-                width: 66, height: 66, borderRadius: 9999,
+                width: 56, height: 56, borderRadius: 9999,
                 overflow: "hidden", background: SURFACE_NEUTRAL_HEX,
                 border: "1.5px solid rgba(0,0,0,0.08)",
                 display: "grid", placeItems: "center",
@@ -1474,7 +1474,7 @@ function CreatorStoriesRow({
                     style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                   />
                 ) : (
-                  <span style={{ fontSize: 15, fontWeight: 800, color: TEXT_BODY_HEX, letterSpacing: -0.2 }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: TEXT_BODY_HEX, letterSpacing: -0.2 }}>
                     {collabInitials(creator.name)}
                   </span>
                 )}
@@ -1496,7 +1496,7 @@ function CreatorStoriesRow({
             </div>
             <span style={{
               fontSize: 11, fontWeight: 600, color: TEXT_BODY_HEX,
-              maxWidth: 66, textAlign: "center",
+              maxWidth: 56, textAlign: "center",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>
               {creator.name.split(" ")[0]}
@@ -1517,12 +1517,12 @@ function CreatorStoriesRow({
         }}
       >
         <div style={{
-          width: 66, height: 66, borderRadius: 9999,
+          width: 56, height: 56, borderRadius: 9999,
           background: "white",
           display: "grid", placeItems: "center",
           border: `1.5px solid ${TEXT_PRIMARY_HEX}`,
         }}>
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle cx="11" cy="11" r="7" stroke={TEXT_PRIMARY_HEX} strokeWidth="1.8"/>
             <path d="M16.5 16.5L21 21" stroke={TEXT_PRIMARY_HEX} strokeWidth="1.8" strokeLinecap="round"/>
             <path d="M11 8v6M8 11h6" stroke={TEXT_PRIMARY_HEX} strokeWidth="1.8" strokeLinecap="round"/>
@@ -1530,7 +1530,7 @@ function CreatorStoriesRow({
         </div>
         <span style={{
           fontSize: 11, fontWeight: 600, color: TEXT_BODY_HEX,
-          maxWidth: 66, textAlign: "center",
+          maxWidth: 56, textAlign: "center",
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>
           Descobrir
@@ -1728,32 +1728,40 @@ function ContextualOnboardingBanner({
 
   return (
     <section style={{ padding: "10px 18px 0" }}>
-      <button
-        type="button"
-        onClick={onAction}
+      <div
         style={{
-          width: "100%", textAlign: "left", cursor: "pointer",
-          fontFamily: "inherit", padding: "15px 17px",
+          padding: "16px 18px",
           borderRadius: 18, background: INK_DARK_HEX, color: "#fff",
-          border: "none", boxShadow: "0 10px 28px -12px rgba(9,9,11,0.4)",
-          display: "flex", alignItems: "center", gap: 12,
+          boxShadow: "0 10px 28px -12px rgba(9,9,11,0.4)",
+          display: "flex", flexDirection: "column",
         }}
       >
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 16, fontWeight: 700, margin: 0, letterSpacing: -0.3, lineHeight: 1.2 }}>
-            {cfg.title}
-          </p>
-          <p style={{ fontSize: 12, lineHeight: 1.4, color: "rgba(255,255,255,0.6)", margin: "4px 0 0" }}>
-            {cfg.desc}
-          </p>
-        </div>
-        <span style={{
-          fontSize: 13, fontWeight: 700, color: "#fff", flexShrink: 0,
-          background: "rgba(255,255,255,0.12)", borderRadius: 999, padding: "8px 14px",
+        <p style={{
+          fontSize: 11, fontWeight: 700, letterSpacing: 0.6,
+          textTransform: "uppercase", color: "rgba(255,255,255,0.5)",
+          margin: "0 0 8px",
         }}>
+          {cfg.label}
+        </p>
+        <p style={{ fontSize: 17, fontWeight: 700, margin: 0, letterSpacing: -0.3, lineHeight: 1.2 }}>
+          {cfg.title}
+        </p>
+        <p style={{ fontSize: 12, lineHeight: 1.4, color: "rgba(255,255,255,0.65)", margin: "5px 0 14px" }}>
+          {cfg.desc}
+        </p>
+        <button
+          type="button"
+          onClick={onAction}
+          style={{
+            alignSelf: "flex-start", cursor: "pointer", fontFamily: "inherit",
+            fontSize: 13, fontWeight: 700, color: INK_DARK_HEX,
+            background: "#fff", borderRadius: 999, padding: "9px 18px",
+            border: "none",
+          }}
+        >
           {cfg.cta}
-        </span>
-      </button>
+        </button>
+      </div>
     </section>
   );
 }
@@ -2043,21 +2051,13 @@ export function DiagnosticoPage({
       {/* ── SCROLLABLE CONTENT ───────────────────────────────────────────── */}
       <div>
 
-        {/* ── Contextual onboarding banner — CTA dominante, primeiro no scroll ── */}
-        <ContextualOnboardingBanner
-          state={onboardingBannerState}
-          readingCount={readingCount}
-          quotaLimit={quotaLimit}
-          onAction={onboardingBannerAction}
-        />
-
         {/* ── Stories row ──────────────────────────────────────────────────── */}
         {creatorDirectory?.status === "ready" && creatorDirectory.creators.length > 0 && (
           <div style={{ paddingTop: 10, paddingBottom: 12 }}>
             <CreatorStoriesRow
               creators={creatorDirectory.creators}
               collabSuggestedIds={new Set(collabItems.map((i) => i.id))}
-              onDiscoverCollabs={() => onOpenCategory?.("collabs")}
+              onDiscoverCollabs={onOpenCommunity}
               onOpenCreatorMediaKit={onOpenCreatorMediaKit}
             />
           </div>

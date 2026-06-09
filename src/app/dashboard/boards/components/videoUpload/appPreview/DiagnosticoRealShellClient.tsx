@@ -241,13 +241,17 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   const [mediaKitSheetSlug, setMediaKitSheetSlug] = useState<string | null>(null);
 
   const handleOpenMediaKit = useCallback(() => {
+    if (!data.instagramConnected) {
+      router.push(MOBILE_INSTAGRAM_CONNECT_ROUTE);
+      return;
+    }
     const slug = data.userInfo.mediaKitSlug?.trim();
     if (slug) {
       setMediaKitSheetSlug(slug);
     } else {
       router.push(MOBILE_MEDIA_KIT_ROUTE);
     }
-  }, [data.userInfo.mediaKitSlug, router]);
+  }, [data.instagramConnected, data.userInfo.mediaKitSlug, router]);
 
   const handleOpenCreatorMediaKit = useCallback((slug: string) => {
     setMediaKitSheetSlug(slug);
