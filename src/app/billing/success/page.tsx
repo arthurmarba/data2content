@@ -1,7 +1,7 @@
 // src/app/billing/success/page.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { track } from "@/lib/track";
@@ -59,12 +59,27 @@ export default function BillingSuccessPage() {
   const { update } = useSession();
   const router = useRouter();
 
-  // ✅ Atualiza a sessão apenas UMA vez (mesmo em StrictMode) e sem refresh em loop
+  // "activating" enquanto resolvemos o redirect; "settled" só quando o usuário
+  // de fato PERMANECE aqui (sem redirect). Evita o flash de conteúdo desktop
+  // (/calendar, post-analysis) antes do redirect — especialmente no fluxo mobile,
+  // onde quase todo mundo é encaminhado para conectar Instagram ou voltar ao mapa.
+  const [phase, setPhase] = useState<"activating" | "settled">("activating");
+  // Guarda o trabalho async dentro desta instância (cobre o double-invoke do
+  // StrictMode sem depender do sessionStorage para o estado de UI).
+  const startedRef = useRef(false);
+
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (startedRef.current) return;
+    startedRef.current = true;
 
     const onceKey = sid ? `billing-success:${sid}` : "billing-success";
-    if (sessionStorage.getItem(onceKey)) return; // já rodou
+    if (sessionStorage.getItem(onceKey)) {
+      // Reload/revisita com o mesmo session_id — o trabalho já rodou numa visita
+      // anterior. Nenhum redirect vai disparar daqui, então mostra a confirmação.
+      setPhase("settled");
+      return;
+    }
     sessionStorage.setItem(onceKey, "1");
 
     (async () => {
@@ -163,42 +178,61 @@ export default function BillingSuccessPage() {
 
         if (redirectHref) {
           router.push(redirectHref);
+          // Mantém o estado "activating" (spinner) até a navegação concluir —
+          // não revela a confirmação desktop por baixo do redirect.
           return;
         }
         // Não precisa chamar router.refresh() aqui. Ao navegar, o server já refaz o fetch.
+        setPhase("settled");
       } catch {
-        // ignora erros; não bloqueia a tela
+        // Erro não bloqueia a tela: revela a confirmação (a assinatura já foi
+        // ativada no Stripe; o usuário não fica preso num spinner).
+        setPhase("settled");
       }
     })();
   // dependemos só do sid para a chave de "uma vez"
   }, [sid, update, router]);
 
+  // Estado de transição — mostrado enquanto resolvemos para onde encaminhar.
+  // Calmo e neutro: a esmagadora maioria dos usuários é redirecionada (conectar
+  // Instagram / voltar ao mapa), então este é o que eles realmente veem.
+  if (phase === "activating") {
+    return (
+      <main
+        className="flex min-h-[100dvh] flex-col items-center justify-center bg-white px-6 text-center"
+        role="status"
+        aria-live="polite"
+      >
+        <svg className="h-7 w-7 animate-spin text-zinc-300" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+          <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+        </svg>
+        <p className="mt-5 text-[15px] font-medium text-zinc-700">Ativando seu Pro…</p>
+        <p className="mt-1 text-[13px] text-zinc-400">Um momento.</p>
+      </main>
+    );
+  }
+
+  // Confirmação — só renderiza quando o usuário PERMANECE aqui (sem redirect).
   return (
-    <div className="mx-auto max-w-xl p-6">
-      <h1 className="mb-2 text-2xl font-semibold">Tudo certo!</h1>
-      <p className="text-gray-700">
-        Sua assinatura do Plano Pro foi ativada com sucesso. Você já tem acesso total a todos os
-        recursos.
-      </p>
-      <p className="mt-2 text-gray-600">
-        Precisa de algo? Você pode ajustar ou cancelar a assinatura a qualquer momento em{" "}
-        <span className="font-medium">Configurações &gt; Billing</span>.
-      </p>
-
-      {sid && (
-        <p className="mt-3 text-xs text-gray-400">
-          ID da sessão: <span className="font-mono">{sid}</span>
-        </p>
-      )}
-
-      <div className="mt-5 flex flex-wrap gap-2">
-        <a className="inline-block rounded-xl bg-black px-4 py-2 text-white" href="/calendar">
-          Abrir Criação de Post
-        </a>
-        <a className="inline-block rounded-xl border border-gray-300 px-4 py-2 text-gray-800" href="/dashboard/post-analysis">
-          Abrir Review de Post
-        </a>
+    <main className="flex min-h-[100dvh] flex-col items-center justify-center bg-white px-6 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5 12.5l4 4 10-10" stroke="#10b981" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
       </div>
-    </div>
+
+      <h1 className="mt-5 text-[1.6rem] font-bold tracking-tight text-zinc-950">Seu Pro está ativo</h1>
+      <p className="mt-2 max-w-xs text-[14px] leading-relaxed text-zinc-500">
+        Tudo liberado. Você pode ajustar ou cancelar quando quiser em Configurações.
+      </p>
+
+      <a
+        href="/dashboard/boards/mobile-strategic-profile"
+        className="mt-8 inline-flex items-center justify-center rounded-full bg-zinc-950 px-7 py-3.5 text-[15px] font-semibold text-white transition-colors active:bg-zinc-800"
+      >
+        Ir para o meu mapa
+      </a>
+    </main>
   );
 }
