@@ -906,8 +906,11 @@ function AudienceIcon() {
  */
 export function AudienceConnectPrompt({
   onConnectInstagram,
+  isPro = true,
 }: {
   onConnectInstagram?: () => void;
+  /** Free users veem a versão "vem com o Pro"; Pro veem o convite direto de conexão. */
+  isPro?: boolean;
 }) {
   return (
     <div
@@ -943,7 +946,9 @@ export function AudienceConnectPrompt({
         O que a sua audiência reconhece em você.
       </p>
       <p style={{ fontSize: 14, color: "#a1a1aa", margin: "6px 0 16px", lineHeight: 1.5 }}>
-        Conecte o Instagram para a D2C revelar sinais que o seu perfil sozinho não mostra.
+        {isPro
+          ? "Conecte o Instagram para a D2C revelar sinais que o seu perfil sozinho não mostra."
+          : "No Pro, a D2C lê sua grade do Instagram e revela sinais que o seu perfil sozinho não mostra."}
       </p>
 
       <button
@@ -958,7 +963,7 @@ export function AudienceConnectPrompt({
           border: "1.5px solid #18181b", cursor: "pointer",
         }}
       >
-        Conectar Instagram
+        {isPro ? "Conectar Instagram" : "Conhecer o Pro"}
       </button>
     </div>
   );

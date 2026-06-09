@@ -1352,7 +1352,7 @@ function QuickActionsBar({
             Mídia Kit
           </span>
           <span style={{ display: "block", fontSize: 11, color: instagramConnected ? TEXT_PRIMARY_HEX : TEXT_SECONDARY_HEX, marginTop: 0 }}>
-            {instagramConnected ? "Pronto para marcas" : "Conecte o Instagram"}
+            {!isPro ? "Incluído no Pro" : instagramConnected ? "Pronto para marcas" : "Conecte o Instagram"}
           </span>
         </div>
         <svg style={{ flexShrink: 0, color: TEXT_BODY_HEX }} width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -2133,7 +2133,7 @@ export function DiagnosticoPage({
                 }
               />
             ) : (
-              <AudienceConnectPrompt onConnectInstagram={onConnectInstagram} />
+              <AudienceConnectPrompt onConnectInstagram={onConnectInstagram} isPro={isPro} />
             )}
           </div>
         )}

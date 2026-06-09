@@ -136,7 +136,7 @@ export function DiagnosticoAccountMenuSheet({
             label={instagramConnected ? "Instagram conectado" : "Conectar Instagram"}
             onClick={onOpenInstagramConnection}
             icon={<Instagram className="h-4 w-4" strokeWidth={1.9} />}
-            statusDot={instagramConnected ? "green" : "orange"}
+            statusDot={instagramConnected ? "green" : isPro ? "orange" : undefined}
           />
         </AccountMenuSection>
 
