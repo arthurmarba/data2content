@@ -84,16 +84,27 @@ export async function requestUploadSession(
         (issue: { message?: unknown; severity?: unknown }) => issue.severity === "blocker" && typeof issue.message === "string",
       );
       const blockerMessage = typeof blockerIssue?.message === "string" ? blockerIssue.message : null;
+
+      // 403 sem "blocker" = infra/flag de upload indisponível (não é algo que o
+      // criador resolve). Não vaza a mensagem técnica do servidor ("Acesso
+      // proibido: API ... desativada") — entrega um aviso calmo e acionável.
+      if (response.status === 403 && !blockerMessage) {
+        return {
+          ok: false,
+          status: typeof data?.status === "string" ? data.status : "disabled",
+          issues,
+          message: "O envio de vídeos está indisponível no momento. Tente novamente em instantes.",
+        };
+      }
+
       return {
         ok: false,
         status: typeof data?.status === "string" ? data.status : "disabled",
         issues,
         message:
-          (typeof data?.message === "string" && data.message) ||
           blockerMessage ||
-          (response.status === 403
-            ? "Acesso proibido. A API de sessão temporária de upload está inativa."
-            : "Não foi possível validar o vídeo agora."),
+          (typeof data?.message === "string" && data.message) ||
+          "Não foi possível validar o vídeo agora.",
       };
     }
 

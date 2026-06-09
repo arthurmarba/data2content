@@ -139,7 +139,8 @@ describe("mobileStrategicProfileUploadSessionClient", () => {
 
     const res = await requestUploadSession(validPayload);
     expect(res.ok).toBe(false);
-    expect(res.message).toContain("Acesso proibido");
+    expect(res.message).toBe("O envio de vídeos está indisponível no momento. Tente novamente em instantes.");
+    expect(res.message).not.toContain("Acesso proibido");
   });
 
   it("preserva a mensagem de limite quando a API bloqueia por quota", async () => {
