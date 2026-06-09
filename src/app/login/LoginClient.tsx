@@ -70,18 +70,22 @@ function LoginComponent() {
         </div>
 
         <div className="mb-5 text-center">
-          {/* Badge */}
-          <div className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-zinc-400">
+          {/* Badge — mb-2 (era mb-3, recalibrado para o H1 maior) */}
+          <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-zinc-400">
             {copy.badge}
           </div>
-          {/* Título — text-balance para distribuição equilibrada das linhas */}
+          {/* Título — text-balance + leading apertado = quebra limpa em 3 linhas */}
           <h1
             className="mx-auto max-w-[19rem] text-[2.5rem] font-bold leading-[1.06] tracking-tight text-zinc-950"
             style={{ textWrap: "balance" } as React.CSSProperties}
           >
             {copy.title}
           </h1>
-          <p className="mx-auto mt-3 max-w-[17rem] text-[13px] font-medium leading-relaxed text-zinc-500">
+          {/* Descrição — max-w alinhado ao título; text-balance evita linhas órfãs */}
+          <p
+            className="mx-auto mt-3 max-w-[19rem] text-[13px] font-medium leading-relaxed text-zinc-500"
+            style={{ textWrap: "balance" } as React.CSSProperties}
+          >
             {copy.description}
           </p>
         </div>
@@ -140,7 +144,7 @@ function LoginComponent() {
         </div>
 
         {copy.footer ? (
-          <p className="mt-5 text-center text-[12px] font-medium leading-relaxed text-zinc-600">
+          <p className="mt-5 text-center text-[12px] font-medium leading-relaxed text-zinc-400">
             {copy.footer}
           </p>
         ) : null}
