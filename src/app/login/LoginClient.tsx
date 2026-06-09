@@ -54,12 +54,13 @@ function LoginComponent() {
 
   return (
     <div
-      className="flex min-h-[100dvh] flex-col items-center px-5 py-[8dvh]"
+      className="flex min-h-[100dvh] flex-col items-center px-5 pt-[7dvh] pb-[11dvh]"
       style={{ backgroundImage: BRAND_ATMOSPHERE_BG }}
     >
-      {/* flex-1 + justify-center = centralização vertical real em qualquer
-          altura de tela. No SE o bloco fica suspenso no centro; no Pro Max
-          a aurora preenche o espaço acima e abaixo. */}
+      {/* flex-1 + justify-center centraliza o bloco no espaço disponível.
+          O padding assimétrico (pb > pt) dá o viés de optical centering:
+          o bloco sobe ~2dvh acima do centro geométrico — quanto mais alta
+          a tela, maior o lift (corrige o "levemente baixo" no Pro Max). */}
       <div className="flex w-full flex-1 max-w-sm flex-col items-center justify-center px-1">
 
         {/* Logo D2C em preto */}
