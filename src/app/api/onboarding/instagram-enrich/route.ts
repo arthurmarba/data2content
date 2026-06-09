@@ -31,7 +31,6 @@ export async function POST() {
   // Auth
   const authOptions = await resolveAuthOptions();
   const session = await getServerSession(authOptions);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const userId = (session as any)?.user?.id as string | undefined;
 
   if (!userId) {

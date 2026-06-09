@@ -1597,7 +1597,6 @@ function CollabsSummaryCard({
         overflowX: avatarSlots.length > 3 ? "auto" : "visible",
         paddingBottom: 2,
         scrollbarWidth: "none",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         WebkitOverflowScrolling: "touch" as any,
       }}>
         {avatarSlots.map((creator, index) => {
