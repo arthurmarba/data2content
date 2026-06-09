@@ -52,7 +52,16 @@ function LoginComponent() {
   };
 
   return (
-    <div className="flex min-h-[100dvh] flex-col items-center bg-white px-5 pb-10 pt-[10dvh]">
+    <div
+      className="flex min-h-[100dvh] flex-col items-center bg-white px-5 pb-10 pt-[10dvh]"
+      style={{
+        // Profundidade: glow levíssimo de marca atrás da logo + gradiente
+        // neutro do topo. Invisível até reparar — mata a sensação de vazio
+        // em telas altas sem adicionar conteúdo.
+        backgroundImage:
+          "radial-gradient(70% 32% at 50% 13%, rgba(16,185,129,0.07), rgba(16,185,129,0) 70%), radial-gradient(120% 55% at 50% 0%, #f5f6f8 0%, #ffffff 58%)",
+      }}
+    >
       <div className="w-full max-w-sm px-1">
 
         {/* Logo D2C em preto */}
@@ -93,7 +102,7 @@ function LoginComponent() {
             onClick={handleGoogleSignIn}
             disabled={isLoading}
             aria-label={isLoading ? "Entrando..." : copy.buttonLabel}
-            className="inline-flex w-full appearance-none items-center justify-center overflow-hidden rounded-full border border-zinc-200 bg-zinc-50 px-6 py-4 text-sm font-semibold text-zinc-950 shadow-sm outline-none transition-all hover:bg-zinc-100 hover:scale-[1.01] focus-visible:ring-2 focus-visible:ring-zinc-950/20 focus-visible:ring-offset-2 focus-visible:ring-offset-white active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
+            className="inline-flex w-full appearance-none items-center justify-center overflow-hidden rounded-full bg-zinc-950 px-6 py-4 text-sm font-semibold text-white shadow-[0_10px_30px_rgba(15,23,42,0.20)] outline-none transition-all hover:bg-zinc-800 hover:scale-[1.01] focus-visible:ring-2 focus-visible:ring-zinc-950/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white active:scale-[0.98] disabled:pointer-events-none disabled:opacity-60"
           >
             <span className="inline-flex items-center justify-center gap-3 whitespace-nowrap">
               {!isLoading && (
@@ -195,9 +204,12 @@ function LoginComponent() {
                 </div>
               )}
             </div>
-            {/* Label */}
-            <p className="text-center text-[11px] font-medium leading-snug text-zinc-400">
-              Criadores que já encontraram seu mapa
+            {/* Label — o número real é o protagonista (prova de solidez) */}
+            <p className="text-center text-[12.5px] leading-snug text-zinc-500">
+              <span className="font-bold text-zinc-900">
+                {creatorCount} {creatorCount === 1 ? "criador" : "criadores"}
+              </span>{" "}
+              {creatorCount === 1 ? "já começou" : "já começaram"} seu mapa
             </p>
           </div>
         </div>
