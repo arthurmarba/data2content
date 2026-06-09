@@ -3,6 +3,9 @@ import { getServerSession } from "next-auth/next";
 import { randomUUID } from "node:crypto";
 import { resolveAuthOptions } from "@/app/api/auth/resolveAuthOptions";
 import { logger } from "@/app/lib/logger";
+
+// Gemini video analysis can take up to ~3 min: download from R2 + upload to Gemini + inference.
+export const maxDuration = 300;
 import { isMobileStrategicProfileEnabled } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileFeatureFlag";
 import {
   isRealUploadEnabled,
