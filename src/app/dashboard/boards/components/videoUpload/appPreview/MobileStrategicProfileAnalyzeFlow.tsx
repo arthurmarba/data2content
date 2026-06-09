@@ -99,6 +99,18 @@ type MobileStrategicProfileAnalyzeFlowProps = {
    * Fire-and-forget from the component — errors are non-fatal.
    */
   onPublishIntentSubmit?: (diagnosisId: string, intent: "yes" | "no") => Promise<void>;
+  /**
+   * Resumo de cota de leituras, exibido no passo de upload. `null`/ausente esconde o
+   * contador (ex.: admin com leituras ilimitadas). Free mostra a leitura-presente;
+   * Pro mostra "X de N este mês". O tom é informativo e calmo — nunca alarme de escassez.
+   */
+  readingsSummary?: {
+    isPro: boolean;
+    /** Leituras já usadas (free: total; pro: no mês). */
+    used: number;
+    /** Limite do plano (free: 1; pro: 10). */
+    limit: number;
+  } | null;
 };
 
 function nextStep(current: AnalyzeFlowStep): AnalyzeFlowStep {
@@ -227,6 +239,7 @@ export function MobileStrategicProfileAnalyzeFlow({
   onPublishIntentSubmit,
   completionSecondaryAction = "another_video",
   onCompletionUpgrade,
+  readingsSummary,
 }: MobileStrategicProfileAnalyzeFlowProps) {
   const [step, setStep] = useState<AnalyzeFlowStep>("upload");
   const [publishIntent, setPublishIntent] = useState<"yes" | "no" | null>(null);
@@ -613,6 +626,35 @@ export function MobileStrategicProfileAnalyzeFlow({
         {step === "upload" ? (
           onCreateUploadSession ? (
             <div>
+              {readingsSummary ? (
+                readingsSummary.isPro ? (
+                  <div className="mb-4 rounded-2xl bg-[#f7f7f4] px-3.5 py-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-zinc-700">Leituras este mês</span>
+                      <span className="text-xs font-semibold text-zinc-500">
+                        {readingsSummary.used} de {readingsSummary.limit}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex gap-1" aria-hidden="true">
+                      {Array.from({ length: readingsSummary.limit }).map((_, i) => (
+                        <span
+                          key={i}
+                          className={`h-1.5 flex-1 rounded-full ${i < readingsSummary.used ? "bg-zinc-800" : "bg-zinc-200"}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mb-4 flex items-center gap-2.5 rounded-2xl bg-[#f7f7f4] px-3.5 py-3">
+                    <span className="shrink-0 rounded-full bg-zinc-900 px-2.5 py-1 text-[11px] font-semibold text-white">
+                      Grátis
+                    </span>
+                    <span className="text-xs font-medium text-zinc-600">
+                      Sua primeira leitura é por nossa conta.
+                    </span>
+                  </div>
+                )
+              ) : null}
               <p className="text-sm leading-6 text-zinc-600 mb-4">
                 Escolha um post recente, um conteúdo de que você se orgulha ou uma ideia que quer ver refletida.
               </p>

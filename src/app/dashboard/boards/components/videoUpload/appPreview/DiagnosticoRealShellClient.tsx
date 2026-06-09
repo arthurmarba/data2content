@@ -1291,6 +1291,16 @@ export function DiagnosticoRealShellClient({ data }: Props) {
         onPublishIntentSubmit={handlePublishIntentSubmit}
         completionSecondaryAction={data.accessState === "free_unused" ? "upgrade" : "another_video"}
         onCompletionUpgrade={handleCompletionUpgrade}
+        readingsSummary={(() => {
+          const st = hydratedData.accessState;
+          // Admin = leituras ilimitadas → sem contador.
+          if (st === "admin") return null;
+          const q = hydratedData.readingQuota;
+          const isProPlan = st != null && !["free_unused", "free_preview_used"].includes(st);
+          return isProPlan
+            ? { isPro: true, used: q?.usedThisMonth ?? 0, limit: q?.proMonthlyLimit ?? 10 }
+            : { isPro: false, used: q?.usedTotal ?? 0, limit: q?.freeTotalLimit ?? 1 };
+        })()}
       />
 
       <MobileCalculatorWizard

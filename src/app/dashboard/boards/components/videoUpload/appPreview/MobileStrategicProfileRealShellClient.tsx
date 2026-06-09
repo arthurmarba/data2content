@@ -766,6 +766,13 @@ export function MobileStrategicProfileRealShellClient({
             enableRealAnalysis={realAnalysisEnabled}
             onCleanupTemporaryUpload={handleCleanupTemporaryUpload}
             onSubmitConfirmationAnswer={handleConfirmationAnswer}
+            readingsSummary={
+              accessState === "admin"
+                ? null
+                : accessState != null && !["free_unused", "free_preview_used"].includes(accessState)
+                  ? { isPro: true, used: quota.usedThisMonth, limit: quota.proMonthlyLimit }
+                  : { isPro: false, used: quota.usedTotal, limit: quota.freeTotalLimit }
+            }
           />
         </>
       ) : (
