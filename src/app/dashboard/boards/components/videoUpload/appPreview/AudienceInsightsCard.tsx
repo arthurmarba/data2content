@@ -907,10 +907,13 @@ function AudienceIcon() {
 export function AudienceConnectPrompt({
   onConnectInstagram,
   isPro = true,
+  pending = false,
 }: {
   onConnectInstagram?: () => void;
   /** Free users veem a versão "vem com o Pro"; Pro veem o convite direto de conexão. */
   isPro?: boolean;
+  /** Instagram já conectado, mas os sinais ainda estão sendo processados. */
+  pending?: boolean;
 }) {
   return (
     <div
@@ -943,28 +946,49 @@ export function AudienceConnectPrompt({
       </div>
 
       <p style={{ fontSize: 16, fontWeight: 600, color: "#3f3f46", margin: 0, lineHeight: 1.45 }}>
-        O que a sua audiência reconhece em você.
+        {pending ? "Instagram conectado." : "O que a sua audiência reconhece em você."}
       </p>
       <p style={{ fontSize: 14, color: "#a1a1aa", margin: "6px 0 16px", lineHeight: 1.5 }}>
-        {isPro
+        {pending
+          ? "A D2C está lendo sua grade — os sinais da sua audiência aparecem aqui em instantes."
+          : isPro
           ? "Conecte o Instagram para a D2C revelar sinais que o seu perfil sozinho não mostra."
           : "No Pro, a D2C lê sua grade do Instagram e revela sinais que o seu perfil sozinho não mostra."}
       </p>
 
-      <button
-        type="button"
-        onClick={onConnectInstagram}
-        style={{
-          alignSelf: "flex-start",
-          display: "inline-flex", alignItems: "center", gap: 7,
-          borderRadius: 999, padding: "10px 18px",
-          background: "transparent", color: "#18181b",
-          fontSize: 13, fontWeight: 600, fontFamily: "inherit",
-          border: "1.5px solid #18181b", cursor: "pointer",
-        }}
-      >
-        {isPro ? "Conectar Instagram" : "Conhecer o Pro"}
-      </button>
+      {pending ? (
+        <p
+          style={{
+            alignSelf: "flex-start",
+            display: "inline-flex", alignItems: "center", gap: 8,
+            margin: 0, fontSize: 13, fontWeight: 600, color: "#71717a",
+          }}
+        >
+          <span
+            style={{
+              width: 7, height: 7, borderRadius: "50%",
+              background: CARD_ACCENT, flexShrink: 0,
+            }}
+            aria-hidden="true"
+          />
+          Processando seus sinais…
+        </p>
+      ) : (
+        <button
+          type="button"
+          onClick={onConnectInstagram}
+          style={{
+            alignSelf: "flex-start",
+            display: "inline-flex", alignItems: "center", gap: 7,
+            borderRadius: 999, padding: "10px 18px",
+            background: "transparent", color: "#18181b",
+            fontSize: 13, fontWeight: 600, fontFamily: "inherit",
+            border: "1.5px solid #18181b", cursor: "pointer",
+          }}
+        >
+          {isPro ? "Conectar Instagram" : "Conhecer o Pro"}
+        </button>
+      )}
     </div>
   );
 }

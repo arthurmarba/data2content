@@ -2122,21 +2122,22 @@ export function DiagnosticoPage({
         </div>
 
         {/* ── Sua Audiência card ───────────────────────────────────────────── */}
-        {(!instagramConnected || data.audienceInsights) && (
-          <div style={{ padding: "14px 18px 0" }}>
-            {instagramConnected && data.audienceInsights ? (
-              <AudienceInsightsCard
-                insights={data.audienceInsights}
-                instagramConnected={instagramConnected}
-                onReviewTerritories={() =>
-                  document.getElementById("diagnostico-mapa")?.scrollIntoView({ behavior: "smooth", block: "start" })
-                }
-              />
-            ) : (
-              <AudienceConnectPrompt onConnectInstagram={onConnectInstagram} isPro={isPro} />
-            )}
-          </div>
-        )}
+        {/* 3 estados: não conectado (convite) · conectado sem dados (processando) · conectado com dados (insights) */}
+        <div style={{ padding: "14px 18px 0" }}>
+          {!instagramConnected ? (
+            <AudienceConnectPrompt onConnectInstagram={onConnectInstagram} isPro={isPro} />
+          ) : data.audienceInsights ? (
+            <AudienceInsightsCard
+              insights={data.audienceInsights}
+              instagramConnected={instagramConnected}
+              onReviewTerritories={() =>
+                document.getElementById("diagnostico-mapa")?.scrollIntoView({ behavior: "smooth", block: "start" })
+              }
+            />
+          ) : (
+            <AudienceConnectPrompt pending />
+          )}
+        </div>
 
         {/* ── Expansão — só aparece quando há match real de marcas ────────── */}
         {isMapReadyForExpansion && hasBrandMatch && (
