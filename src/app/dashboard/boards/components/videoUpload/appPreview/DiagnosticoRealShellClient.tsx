@@ -240,7 +240,28 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     localMapConfirmations.territories === "confirmed";
   const [mediaKitSheetSlug, setMediaKitSheetSlug] = useState<string | null>(null);
 
+  const handleConnectInstagram = useCallback(() => {
+    if (data.userInfo.plan !== "Pro") {
+      openPaywallModal({
+        context: "narrative_map",
+        source: "mobile_profile_instagram_connect",
+        returnTo: MOBILE_PROFILE_ROUTE,
+        postCheckoutIntent: "connect_instagram",
+      });
+      return;
+    }
+    router.push(MOBILE_INSTAGRAM_CONNECT_ROUTE);
+  }, [data.userInfo.plan, router]);
+
   const handleOpenMediaKit = useCallback(() => {
+    if (data.userInfo.plan !== "Pro") {
+      openPaywallModal({
+        context: "media_kit",
+        source: "mobile_profile_media_kit",
+        returnTo: MOBILE_PROFILE_ROUTE,
+      });
+      return;
+    }
     if (!data.instagramConnected) {
       router.push(MOBILE_INSTAGRAM_CONNECT_ROUTE);
       return;
@@ -251,7 +272,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     } else {
       router.push(MOBILE_MEDIA_KIT_ROUTE);
     }
-  }, [data.instagramConnected, data.userInfo.mediaKitSlug, router]);
+  }, [data.userInfo.plan, data.instagramConnected, data.userInfo.mediaKitSlug, router]);
 
   const handleOpenCreatorMediaKit = useCallback((slug: string) => {
     setMediaKitSheetSlug(slug);
@@ -295,10 +316,9 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     }
   }, [data.userInfo.plan]);
   const handleOpenAccountInstagramConnection = useCallback(() => {
-    // Rota de conexão que retorna ao mapa após conectar.
     setAccountMenuOpen(false);
-    router.push(MOBILE_INSTAGRAM_CONNECT_ROUTE);
-  }, [router]);
+    handleConnectInstagram();
+  }, [handleConnectInstagram]);
 
   // O3: conectar Instagram durante o onboarding — vai direto ao OAuth,
   // sem passar pela página de pré-conexão (redundante com a InstagramScreen).
@@ -1041,7 +1061,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           creatorDirectory={creatorDirectory}
           onNewReading={handleNewReading}
           onOpenReading={handleOpenReading}
-          onConnectInstagram={() => router.push(MOBILE_INSTAGRAM_CONNECT_ROUTE)}
+          onConnectInstagram={handleConnectInstagram}
           onUpgrade={() => openPaywallModal({
             context: "narrative_map",
             source: "mobile_profile_empty_state",
@@ -1183,7 +1203,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           instagramMetrics={hydratedData.instagramMetrics}
           instagramConnected={hydratedData.instagramConnected}
           mainNarrativeLabel={hydratedData.mainNarrativeLabel}
-          onConnectInstagram={() => router.push(MOBILE_INSTAGRAM_CONNECT_ROUTE)}
+          onConnectInstagram={handleConnectInstagram}
           onClose={() => setOpenCategory(null)}
         />
       )}
@@ -1202,7 +1222,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           instagramConnected={hydratedData.instagramConnected}
           suggestionsState={collabSuggestions}
           creatorDirectory={creatorDirectory}
-          onConnectInstagram={() => router.push(MOBILE_INSTAGRAM_CONNECT_ROUTE)}
+          onConnectInstagram={handleConnectInstagram}
           onUpgrade={() => openPaywallModal({
             context: "narrative_map",
             source: "collabs_upgrade_teaser",

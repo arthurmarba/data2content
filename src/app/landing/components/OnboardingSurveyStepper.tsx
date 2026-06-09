@@ -463,15 +463,15 @@ function QuestionBlock({
 }) {
   return (
     <div className="space-y-8 border-b border-brand-glass pb-10 last:border-0 sm:space-y-9">
-      <div className="flex items-start gap-4 sm:gap-5">
-        <span className="mt-[2px] flex h-7 w-7 items-center justify-center rounded-full bg-brand-primary/10 text-xs font-bold text-brand-primary">
+      <div className="flex items-start gap-3 sm:gap-5">
+        <span className="mt-[2px] flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-brand-primary/10 text-xs font-bold text-brand-primary sm:h-7 sm:w-7">
           {index}
         </span>
-        <div className="flex-1 space-y-3">
-          <div className="flex items-start gap-3 text-lg font-semibold leading-snug text-brand-dark">
-            <p className="flex-1">{title}</p>
+        <div className="flex-1 min-w-0 space-y-2 sm:space-y-3">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <p className="text-base font-semibold leading-snug text-brand-dark sm:text-lg">{title}</p>
             {required ? (
-              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-text-secondary">
+              <span className="shrink-0 whitespace-nowrap text-[10px] font-semibold uppercase tracking-[0.12em] text-brand-text-secondary sm:text-[11px]">
                 Obrigatório
               </span>
             ) : null}
