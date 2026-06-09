@@ -76,7 +76,7 @@ function LoginComponent() {
           </div>
           {/* Título — text-balance para distribuição equilibrada das linhas */}
           <h1
-            className="mx-auto max-w-[16rem] text-[1.85rem] font-bold leading-[1.08] tracking-tight text-zinc-950"
+            className="mx-auto max-w-[19rem] text-[2.5rem] font-bold leading-[1.06] tracking-tight text-zinc-950"
             style={{ textWrap: "balance" } as React.CSSProperties}
           >
             {copy.title}
