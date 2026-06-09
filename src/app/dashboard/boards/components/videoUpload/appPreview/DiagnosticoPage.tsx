@@ -1271,7 +1271,8 @@ function QuickActionsBar({
 
   // Avatar responsivo: Pro Max / Pro (≥393px) usa 56px para acompanhar o
   // crescimento do CreatorStoriesRow; telas menores mantêm 50px.
-  const kitAvatarSize = typeof window !== "undefined" && window.innerWidth >= 393 ? 56 : 50;
+  // kit/row ratio mantido em ~0.893 (igual ao baseline 50/56 das telas menores)
+  const kitAvatarSize = typeof window !== "undefined" && window.innerWidth >= 393 ? 62 : 50;
 
   const rowStyle: React.CSSProperties = {
     display: "flex", alignItems: "center", gap: 10,
@@ -1432,7 +1433,8 @@ function CreatorStoriesRow({
 
   // Avatares responsivos: Pro Max / Pro (≥393px) usa 64px para preencher
   // o row sem gap excessivo; telas menores mantêm 56px.
-  const avatarSize = typeof window !== "undefined" && window.innerWidth >= 393 ? 64 : 56;
+  // row: 70px no Pro Max/Pro → 5×70=350px em 398px de content = 12px de gap (natural)
+  const avatarSize = typeof window !== "undefined" && window.innerWidth >= 393 ? 70 : 56;
   const labelMaxWidth = avatarSize;
 
   const handleAvatarClick = (slug: string | null | undefined) => {
