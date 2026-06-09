@@ -725,7 +725,7 @@ function CombinedQuestionsScreen({
   }, [desiredFeeling]);
 
   return (
-    <div className="flex min-h-full flex-col bg-white px-5 pb-10 pt-4">
+    <div className="flex min-h-full flex-col bg-white px-5 pt-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 5rem)" }}>
       <div className="mx-auto w-full max-w-sm">
         {/* Header — logo (progresso agora é chrome do shell) */}
         <div className="mb-6">
