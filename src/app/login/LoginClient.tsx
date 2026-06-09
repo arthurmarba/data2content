@@ -52,7 +52,7 @@ function LoginComponent() {
   };
 
   return (
-    <div className="flex h-[100dvh] flex-col items-center justify-center overflow-hidden bg-white px-5 pb-16">
+    <div className="flex min-h-[100dvh] flex-col items-center bg-white px-5 pb-10 pt-[10dvh]">
       <div className="w-full max-w-sm px-1">
 
         {/* Logo D2C em preto */}
@@ -153,9 +153,13 @@ function LoginComponent() {
           </Link>.
         </p>
 
-        {/* Prova social — criadores reais da comunidade */}
-        {creators.length > 0 && (
-          <div className="mx-auto mt-7 flex flex-col items-center gap-3">
+      </div>{/* /hero */}
+
+      {/* Prova social — ancorada no rodapé (mt-auto) para aterrar a tela em
+          qualquer altura, em vez de flutuar no centro com o hero. */}
+      {creators.length > 0 && (
+        <div className="mx-auto mt-auto w-full max-w-sm px-1 pt-10">
+          <div className="flex flex-col items-center gap-3">
             {/* Avatares sobrepostos */}
             <div className="flex items-center">
               {creators.filter(c => !c.hidden).slice(0, 5).map((creator, i) => (
@@ -196,9 +200,8 @@ function LoginComponent() {
               Criadores que já encontraram seu mapa
             </p>
           </div>
-        )}
-
-      </div>
+        </div>
+      )}
     </div>
   );
 }

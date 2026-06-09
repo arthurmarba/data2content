@@ -17,9 +17,9 @@ export const DEFAULT_LOGIN_INTENT_COPY: LoginIntentCopy = {
 export const STRATEGIC_PROFILE_LOGIN_INTENT_COPY: LoginIntentCopy = {
   badge: "Seu mapa começa aqui",
   title: "Entenda o que seu conteúdo diz sobre você",
-  description: "Descubra o que está funcionando, receba ideias prontas para postar e encontre criadores para crescer junto.",
+  description: "A D2C lê o que você já cria e revela a narrativa que conecta tudo — com pautas e collabs que nascem dela.",
   buttonLabel: "Continuar com Google",
-  footer: "Assim que entrar, seu perfil começa a tomar forma.",
+  footer: "Assim que entrar, seu mapa começa a tomar forma.",
 };
 
 export const ANALYZE_VIDEO_LOGIN_INTENT_COPY: LoginIntentCopy = {

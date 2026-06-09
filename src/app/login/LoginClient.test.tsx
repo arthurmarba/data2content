@@ -24,7 +24,7 @@ describe("LoginClient", () => {
   it("renders default copy without callbackUrl", () => {
     render(<LoginClient />);
 
-    expect(screen.getByText("Entre na sua conta")).toBeInTheDocument();
+    expect(screen.getByText("Seu mapa está esperando")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Continuar com Google/ })).toBeInTheDocument();
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
@@ -36,9 +36,8 @@ describe("LoginClient", () => {
 
     render(<LoginClient />);
 
-    expect(screen.getByText("Data2Content")).toBeInTheDocument();
-    expect(screen.getByText("Comece seu mapa narrativo")).toBeInTheDocument();
-    expect(screen.getByText("Você volta direto para a análise.")).toBeInTheDocument();
+    expect(screen.getByText("Seu mapa começa aqui")).toBeInTheDocument();
+    expect(screen.getByText("Entenda o que seu conteúdo diz sobre você")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Continuar com Google/ })).toBeInTheDocument();
   });
 
@@ -50,8 +49,8 @@ describe("LoginClient", () => {
 
     render(<LoginClient />);
 
-    expect(screen.getByText("Data2Content")).toBeInTheDocument();
-    expect(screen.getByText("Comece seu mapa narrativo")).toBeInTheDocument();
+    expect(screen.getByText("Seu mapa começa aqui")).toBeInTheDocument();
+    expect(screen.getByText("Entenda o que seu conteúdo diz sobre você")).toBeInTheDocument();
     expect(screen.queryByText(/crédito gratuito/i)).not.toBeInTheDocument();
   });
 
@@ -62,7 +61,7 @@ describe("LoginClient", () => {
 
     render(<LoginClient />);
 
-    expect(screen.getByText("Análise narrativa")).toBeInTheDocument();
+    expect(screen.getByText("Análise do seu conteúdo")).toBeInTheDocument();
     expect(screen.getByText("Continue sua análise")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Continuar com Google/ })).toBeInTheDocument();
   });
