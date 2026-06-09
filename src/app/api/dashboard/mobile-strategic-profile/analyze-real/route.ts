@@ -459,11 +459,14 @@ export async function POST(request: Request) {
               tier: entitlementPolicy.tier,
               policy: entitlementPolicy,
             }),
-        recordUsageAttempt: localRealAnalysisEnabled
-          ? async ({ userId, now }) => buildLocalRealAnalysisUsageSnapshot(userId, now ?? new Date())
-          : undefined,
-        recordUsageSuccess: localRealAnalysisEnabled ? async () => undefined : undefined,
-        recordUsageFailure: localRealAnalysisEnabled ? async () => undefined : undefined,
+        // Legacy usage collection (creator_video_narrative_real_analysis_usage) is NOT
+        // the source of truth for quota — assertCanStartNarrativeMapReading counts saved
+        // diagnoses instead. Keep these as in-memory no-ops so a redundant Mongo write
+        // can never throw and block the whole analysis.
+        recordUsageAttempt: async ({ userId, now }) =>
+          buildLocalRealAnalysisUsageSnapshot(userId, now ?? new Date()),
+        recordUsageSuccess: async () => undefined,
+        recordUsageFailure: async () => undefined,
         cleanupTemporaryUpload: async ({ uploadSessionId, objectKey, reason }) => {
           const cleanupValidation = validateVideoNarrativeTemporaryUploadCleanupPayload({
             uploadSessionId,
