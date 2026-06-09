@@ -1269,6 +1269,10 @@ function QuickActionsBar({
   const [avatarFailed, setAvatarFailed] = useState(false);
   const showAvatar = Boolean(userImageUrl) && !avatarFailed;
 
+  // Avatar responsivo: Pro Max / Pro (≥393px) usa 56px para acompanhar o
+  // crescimento do CreatorStoriesRow; telas menores mantêm 50px.
+  const kitAvatarSize = typeof window !== "undefined" && window.innerWidth >= 393 ? 56 : 50;
+
   const rowStyle: React.CSSProperties = {
     display: "flex", alignItems: "center", gap: 10,
     padding: "13px 14px",
@@ -1328,7 +1332,7 @@ function QuickActionsBar({
         }}
       >
         <div style={{
-          width: 50, height: 50, borderRadius: 9999, flexShrink: 0,
+          width: kitAvatarSize, height: kitAvatarSize, borderRadius: 9999, flexShrink: 0,
           background: INK_DARK_HEX, color: "#fff",
           display: "grid", placeItems: "center",
           fontSize: 14, fontWeight: 700, letterSpacing: -0.2,
@@ -1426,6 +1430,11 @@ function CreatorStoriesRow({
     .sort((a, b) => (b.followers ?? 0) - (a.followers ?? 0))
     .slice(0, 4);
 
+  // Avatares responsivos: Pro Max / Pro (≥393px) usa 64px para preencher
+  // o row sem gap excessivo; telas menores mantêm 56px.
+  const avatarSize = typeof window !== "undefined" && window.innerWidth >= 393 ? 64 : 56;
+  const labelMaxWidth = avatarSize;
+
   const handleAvatarClick = (slug: string | null | undefined) => {
     if (!slug) return;
     if (onOpenCreatorMediaKit) {
@@ -1458,9 +1467,9 @@ function CreatorStoriesRow({
             }}
           >
             {/* Avatar sem ring, com badge de collab se aplicável */}
-            <div style={{ position: "relative", width: 56, height: 56, flexShrink: 0 }}>
+            <div style={{ position: "relative", width: avatarSize, height: avatarSize, flexShrink: 0 }}>
               <div style={{
-                width: 56, height: 56, borderRadius: 9999,
+                width: avatarSize, height: avatarSize, borderRadius: 9999,
                 overflow: "hidden", background: SURFACE_NEUTRAL_HEX,
                 border: "1.5px solid rgba(0,0,0,0.08)",
                 display: "grid", placeItems: "center",
@@ -1496,7 +1505,7 @@ function CreatorStoriesRow({
             </div>
             <span style={{
               fontSize: 11, fontWeight: 600, color: TEXT_BODY_HEX,
-              maxWidth: 56, textAlign: "center",
+              maxWidth: labelMaxWidth, textAlign: "center",
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>
               {creator.name.split(" ")[0]}
@@ -1517,7 +1526,7 @@ function CreatorStoriesRow({
         }}
       >
         <div style={{
-          width: 56, height: 56, borderRadius: 9999,
+          width: avatarSize, height: avatarSize, borderRadius: 9999,
           background: "white",
           display: "grid", placeItems: "center",
           border: `1.5px solid ${TEXT_PRIMARY_HEX}`,
@@ -1530,7 +1539,7 @@ function CreatorStoriesRow({
         </div>
         <span style={{
           fontSize: 11, fontWeight: 600, color: TEXT_BODY_HEX,
-          maxWidth: 56, textAlign: "center",
+          maxWidth: labelMaxWidth, textAlign: "center",
           overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
         }}>
           Descobrir
