@@ -54,10 +54,13 @@ function LoginComponent() {
 
   return (
     <div
-      className="flex min-h-[100dvh] flex-col items-center bg-white px-5 pb-10 pt-[10dvh]"
+      className="flex min-h-[100dvh] flex-col items-center px-5 py-[8dvh]"
       style={{ backgroundImage: BRAND_ATMOSPHERE_BG }}
     >
-      <div className="w-full max-w-sm px-1">
+      {/* flex-1 + justify-center = centralização vertical real em qualquer
+          altura de tela. No SE o bloco fica suspenso no centro; no Pro Max
+          a aurora preenche o espaço acima e abaixo. */}
+      <div className="flex w-full flex-1 max-w-sm flex-col items-center justify-center px-1">
 
         {/* Logo D2C em preto */}
         <div className="flex justify-center">
