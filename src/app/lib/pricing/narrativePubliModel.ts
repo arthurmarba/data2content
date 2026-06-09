@@ -68,7 +68,7 @@ export function resolveNarrativeDef(whyYouCreate?: string | null): NarrativeDef 
 export function equivalentNarrativeKeys(whyYouCreate?: string | null): string[] {
   const def = resolveNarrativeDef(whyYouCreate);
   if (def.group === "default") return [];
-  return Object.keys(NARRATIVE_DEFS).filter((key) => NARRATIVE_DEFS[key].group === def.group);
+  return Object.keys(NARRATIVE_DEFS).filter((key) => NARRATIVE_DEFS[key]?.group === def.group);
 }
 
 /** Arredonda para a dezena mais próxima — deixa o número limpo na faixa. */

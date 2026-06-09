@@ -52,7 +52,8 @@ const INSUFFICIENT: NarrativePubliStats = {
 function percentile(sortedAsc: number[], p: number): number {
   if (sortedAsc.length === 0) return 0;
   const idx = Math.round((p / 100) * (sortedAsc.length - 1));
-  return sortedAsc[Math.min(Math.max(idx, 0), sortedAsc.length - 1)];
+  const clamped = Math.min(Math.max(idx, 0), sortedAsc.length - 1);
+  return sortedAsc[clamped] ?? 0;
 }
 
 export async function fetchNarrativePubliStats(whyYouCreate: string): Promise<NarrativePubliStats> {
