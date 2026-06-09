@@ -24,6 +24,7 @@ import { getLandingPrimaryCtaLabel } from "./landing/copy";
 
 const FALLBACK_METRICS = {
   activeCreators: 130,
+  totalSubscribers: 60,
   combinedFollowers: 2_400_000,
   totalPostsAnalyzed: 42_000,
   postsLast30Days: 1_200,
