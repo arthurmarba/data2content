@@ -7,6 +7,7 @@ import { openPaywallModal } from "@/utils/paywallModal";
 import { MOBILE_PROFILE_ROUTE } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
 import { OnboardingValueBlock } from "./OnboardingValueBlock";
 import { SAFE_TOP } from "./diagnosticoTokens";
+import { BRAND_ATMOSPHERE_BG } from "@/app/lib/brandAtmosphere";
 import type { NarrativeMapAccessState } from "@/app/dashboard/boards/videoUpload/narrativeMapAccessState";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -348,7 +349,10 @@ export function MobileOnboardingFlow({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[270] flex flex-col bg-white">
+    <div
+      className="fixed inset-0 z-[270] flex flex-col"
+      style={{ backgroundImage: BRAND_ATMOSPHERE_BG }}
+    >
       {/* Chrome do shell — safe-area + voltar + progresso (sempre presente) */}
       <header
         className="shrink-0"
@@ -586,7 +590,7 @@ function FirstSignalScreen({
 
   return (
     <div
-      className="flex min-h-full flex-col items-center bg-[#F2F2F7] px-5"
+      className="flex min-h-full flex-col items-center px-5"
       style={{
         paddingTop:    "1.5rem",
         paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4rem)",
@@ -594,7 +598,7 @@ function FirstSignalScreen({
     >
       {/* my-auto: centraliza quando há espaço, scrollável quando não há */}
       <div className="my-auto flex w-full max-w-sm flex-col items-center">
-      <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-white">
+      <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="12" r="9" stroke="#52525b" strokeWidth="1.8" />
           <circle cx="12" cy="12" r="4" fill="#52525b" />
@@ -742,7 +746,7 @@ function CombinedQuestionsScreen({
   }, [desiredFeeling]);
 
   return (
-    <div className="flex min-h-full flex-col bg-white px-5 pt-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 5rem)" }}>
+    <div className="flex min-h-full flex-col px-5 pt-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 5rem)" }}>
       <div className="mx-auto w-full max-w-sm">
         {/* Header — logo (progresso agora é chrome do shell) */}
         <div className="mb-6">
@@ -877,7 +881,7 @@ function InstagramInviteScreen({
 
   return (
     <div
-      className="flex min-h-full flex-col items-center bg-white px-5"
+      className="flex min-h-full flex-col items-center px-5"
       style={{
         paddingTop:    "1.5rem",
         paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4rem)",

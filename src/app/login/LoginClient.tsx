@@ -6,6 +6,7 @@ import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { resolveIntentCopy } from "./loginIntentCopy";
+import { BRAND_ATMOSPHERE_BG } from "@/app/lib/brandAtmosphere";
 
 interface CommunityCreator {
   id: string;
@@ -54,27 +55,7 @@ function LoginComponent() {
   return (
     <div
       className="flex min-h-[100dvh] flex-col items-center bg-white px-5 pb-10 pt-[10dvh]"
-      style={{
-        // Atmosfera de marca. Topo: sussurro emerald atrás da logo. Rodapé:
-        // "aurora" com as 3 cores dos pilares do produto — narrativa/mapa
-        // (laranja), pautas (verde), audiência (azul) — subindo do fundo.
-        // O conteúdo vive na zona branca limpa do topo; o vazio das telas
-        // altas vira o canvas onde a marca respira (e um preview discreto
-        // das cores que o criador vai encontrar dentro do produto).
-        // Invisível até reparar — mesma lógica do glow original.
-        backgroundImage: [
-          // Topo — sussurro de marca atrás da logo
-          "radial-gradient(70% 26% at 50% 12%, rgba(16,185,129,0.05), rgba(16,185,129,0) 70%)",
-          // Rodapé esquerdo — narrativa / mapa (orange-500)
-          "radial-gradient(58% 40% at 16% 100%, rgba(249,115,22,0.09), rgba(249,115,22,0) 72%)",
-          // Rodapé direito — audiência / Instagram (sky-500)
-          "radial-gradient(58% 40% at 84% 100%, rgba(14,165,233,0.09), rgba(14,165,233,0) 72%)",
-          // Rodapé centro — pautas / próximo passo (emerald-500), âncora
-          "radial-gradient(72% 46% at 50% 106%, rgba(16,185,129,0.11), rgba(16,185,129,0) 70%)",
-          // Base neutra — mantém a zona de conteúdo branca e legível
-          "radial-gradient(120% 48% at 50% 0%, #f6f7f9 0%, #ffffff 44%)",
-        ].join(", "),
-      }}
+      style={{ backgroundImage: BRAND_ATMOSPHERE_BG }}
     >
       <div className="w-full max-w-sm px-1">
 
