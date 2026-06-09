@@ -951,6 +951,7 @@ function PautasCard({
   onOpenIdea,
   whatsappLinked = false,
   onConnectWhatsApp,
+  onUpgrade,
 }: {
   contentIdeas: DiagnosticoPageData["contentIdeas"];
   contentIdeasReadiness: DiagnosticoPageData["contentIdeasReadiness"];
@@ -962,6 +963,7 @@ function PautasCard({
   onOpenIdea?: (ideaId: string) => void;
   whatsappLinked?: boolean;
   onConnectWhatsApp?: () => void;
+  onUpgrade?: () => void;
 }) {
   // O card sempre renderiza — em estados sem dados mostra um teaser.
 
@@ -1082,7 +1084,7 @@ function PautasCard({
             : isGeneratingIdeas
             ? "Gerando..."
             : (contentIdeasReadiness.premiumRequired || ideaGenerationBlocker === "premium_required")
-            ? "Disponível no plano Pro"
+            ? null
             : ideaGenerationBlocker === "quota_exceeded"
             ? "Cota deste mês esgotada"
             : ideaGenerationBlocker === "map_incomplete"
@@ -1187,10 +1189,28 @@ function PautasCard({
           </div>
         </>
       ) : (contentIdeasReadiness.premiumRequired || ideaGenerationBlocker === "premium_required") ? (
-        /* Estado C: plano não cobre */
-        <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, margin: 0, lineHeight: 1.5 }}>
-          Disponível no plano Pro.
-        </p>
+        /* Estado C: plano não cobre — copy com valor + CTA */
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, margin: 0, lineHeight: 1.5 }}>
+            Cada vídeo analisado gera pautas coerentes com o seu mapa — temas que só fazem sentido para quem você é.
+          </p>
+          {onUpgrade && (
+            <button
+              type="button"
+              onClick={onUpgrade}
+              style={{
+                alignSelf: "flex-start",
+                borderRadius: 999, padding: "7px 16px",
+                background: "#18181b", color: "#fff",
+                fontSize: 12, fontWeight: 600,
+                border: "none", cursor: "pointer",
+                fontFamily: "inherit", letterSpacing: -0.1,
+              }}
+            >
+              Ser Pro
+            </button>
+          )}
+        </div>
       ) : ideaGenerationBlocker === "quota_exceeded" ? (
         /* Estado D-quota: cota esgotada */
         <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, margin: 0, lineHeight: 1.5 }}>
@@ -1312,7 +1332,7 @@ function QuickActionsBar({
   };
 
   const calculatorDisplay: CalculatorDisplay = (() => {
-    if (!isPro) return { type: "empty", text: "Desbloqueie sua tabela de preços" };
+    if (!isPro) return { type: "empty", text: "Saiba quanto cobrar de uma publi" };
     return buildCalculatorDisplay(latestCalculation);
   })();
 
@@ -2129,6 +2149,7 @@ export function DiagnosticoPage({
             onOpenIdea={onOpenIdea}
             whatsappLinked={whatsappLinked}
             onConnectWhatsApp={onConnectWhatsApp}
+            onUpgrade={onUpgrade}
           />
         </div>
 
