@@ -9,28 +9,25 @@
  * Called by: /api/cron/weekly-map-summary
  */
 
-import OpenAI from "openai";
 import { Types } from "mongoose";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { getMapConfirmationsSnapshot } from "./mapConfirmationsService";
 import CreatorContentIdea from "@/app/models/CreatorContentIdea";
+import { llmGenerate } from "@/app/lib/llm";
 
-const openai =
-  process.env.NODE_ENV === "test"
-    ? ({
-        chat: {
-          completions: {
-            create: async () => ({
-              choices: [{ message: { content: "" } }],
-            }),
-          },
-        },
-      } as unknown as OpenAI)
-    : new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY!,
-        baseURL: process.env.OPENAI_BASE_URL || "https://api.openai.com/v1",
-      });
+// Migrado para o núcleo provider-agnóstico (Fase 2 — ver docs/llm-provider-migration-plan.md).
+// Usa o mesmo escopo do mapa ("MAPA"): se LLM_PROVIDER_MAPA=gemini, este resumo
+// também passa a Gemini Flash, com OpenAI como fallback. Sem a flag, segue gpt-4o-mini.
+const LLM_SCOPE = "MAPA";
+
+const SYSTEM_PROMPT =
+  "Você é o espelho narrativo do criador dentro da plataforma Data2Content. " +
+  "Seu tom é calmo, direto e reconhecedor — nunca pressiona, nunca usa linguagem de métricas ou growth hack. " +
+  "Fale em português brasileiro, na segunda pessoa (você). " +
+  "Escreva um parágrafo curto (3-4 frases) que reflita o que o mapa do criador revela esta semana. " +
+  "Não use bullet points, não liste números de postagens, não use 'engajamento', 'alcance' ou 'algoritmo'. " +
+  "Termine com uma frase que oriente o próximo passo de conteúdo de forma calma.";
 
 /** Minimum gap between generations: 6 days in ms */
 const MIN_GENERATION_INTERVAL_MS = 6 * 24 * 60 * 60 * 1000;
@@ -132,26 +129,18 @@ export async function generateWeeklyMapSummaryForUser(
   });
 
   try {
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.6,
-      max_tokens: 160,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Você é o espelho narrativo do criador dentro da plataforma Data2Content. " +
-            "Seu tom é calmo, direto e reconhecedor — nunca pressiona, nunca usa linguagem de métricas ou growth hack. " +
-            "Fale em português brasileiro, na segunda pessoa (você). " +
-            "Escreva um parágrafo curto (3-4 frases) que reflita o que o mapa do criador revela esta semana. " +
-            "Não use bullet points, não liste números de postagens, não use 'engajamento', 'alcance' ou 'algoritmo'. " +
-            "Termine com uma frase que oriente o próximo passo de conteúdo de forma calma.",
-        },
-        { role: "user", content: prompt },
-      ],
-    });
+    const { text: raw } = await llmGenerate(
+      {
+        prompt,
+        system: SYSTEM_PROMPT,
+        model: "gpt-4o-mini",
+        temperature: 0.6,
+        maxTokens: 160,
+      },
+      { scope: LLM_SCOPE },
+    );
 
-    const text = response.choices[0]?.message?.content?.trim();
+    const text = raw.trim();
     if (!text) return { ok: false, skipped: "generation_failed" };
 
     await User.findByIdAndUpdate(userId, {
@@ -163,7 +152,7 @@ export async function generateWeeklyMapSummaryForUser(
 
     return { ok: true, summary: text };
   } catch (err) {
-    console.error("[weeklyMapSummary] GPT-4o-mini error:", err);
+    console.error("[weeklyMapSummary] LLM error:", err);
     return { ok: false, skipped: "generation_failed" };
   }
 }
