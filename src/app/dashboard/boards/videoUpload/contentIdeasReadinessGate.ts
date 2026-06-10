@@ -57,11 +57,14 @@ export function evaluateContentIdeasReadiness(
     return { ready: true, missingDimensions: [], nextStep: null };
   }
 
+  // Tanto o Instagram (enriquecimento visual do mapa) quanto uma leitura de vídeo
+  // alimentam narrativa e territórios — o Instagram é o caminho mais rico e de
+  // menor fricção, então lidera a sugestão.
   let nextStep: string;
   if (missing.includes("narrative_not_confirmed")) {
-    nextStep = "Analise um vídeo para o mapa detectar sua narrativa e liberar as pautas.";
+    nextStep = "Conecte seu Instagram ou analise um vídeo para o mapa revelar sua narrativa e liberar as pautas.";
   } else {
-    nextStep = "Analise mais um vídeo para o mapa detectar seus territórios e liberar as pautas.";
+    nextStep = "Conecte seu Instagram ou analise um vídeo para o mapa mapear seus territórios e liberar as pautas.";
   }
 
   return { ready: false, missingDimensions: missing, nextStep };

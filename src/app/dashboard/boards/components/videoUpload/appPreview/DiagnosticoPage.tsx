@@ -948,6 +948,8 @@ function PautasCard({
   ideaQuotaResetAt = null,
   onRetryGenerateIdeas,
   onNewReading,
+  onConnectInstagram,
+  instagramConnected = false,
   onOpenIdea,
   whatsappLinked = false,
   onConnectWhatsApp,
@@ -960,11 +962,22 @@ function PautasCard({
   ideaQuotaResetAt?: string | null;
   onRetryGenerateIdeas?: () => void;
   onNewReading?: () => void;
+  onConnectInstagram?: () => void;
+  instagramConnected?: boolean;
   onOpenIdea?: (ideaId: string) => void;
   whatsappLinked?: boolean;
   onConnectWhatsApp?: () => void;
   onUpgrade?: () => void;
 }) {
+  // Fase 2C/2D — quando o Instagram não está conectado, ele é o caminho mais rico
+  // e de menor fricção para enriquecer o mapa e liberar as pautas (sem exigir
+  // leitura de vídeo). O CTA primário do mapa-vazio passa a ser conectar o IG.
+  const primeiraAcao =
+    !instagramConnected && onConnectInstagram
+      ? { onClick: onConnectInstagram, label: "Conectar Instagram" }
+      : onNewReading
+        ? { onClick: onNewReading, label: "Primeira análise" }
+        : null;
   // O card sempre renderiza — em estados sem dados mostra um teaser.
 
   // ── Ação inline com o título (slot direito do CardRowHeader) ─────────────────
@@ -977,12 +990,13 @@ function PautasCard({
   );
 
   const headerAction: React.ReactNode = (() => {
-    // map_incomplete → próximo passo: analisar vídeo
-    if (ideaGenerationBlocker === "map_incomplete" && onNewReading) {
+    // map_incomplete → próximo passo: enriquecer o mapa. Sem Instagram, conectá-lo
+    // é o caminho mais rico/menos fricção; conectado, o próximo passo é um vídeo.
+    if (ideaGenerationBlocker === "map_incomplete" && primeiraAcao) {
       return (
         <button
           type="button"
-          onClick={onNewReading}
+          onClick={primeiraAcao.onClick}
           style={{
             display: "inline-flex", alignItems: "center", gap: 5,
             borderRadius: 999, padding: "5px 11px",
@@ -995,7 +1009,7 @@ function PautasCard({
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
-          Analisar novo vídeo
+          {primeiraAcao.label === "Conectar Instagram" ? "Conectar Instagram" : "Analisar novo vídeo"}
         </button>
       );
     }
@@ -1236,12 +1250,14 @@ function PautasCard({
             Pautas baseadas no que você cria.
           </p>
           <p style={{ fontSize: 14, color: TEXT_SECONDARY_HEX, margin: "6px 0 16px", lineHeight: 1.5 }}>
-            Analise seus primeiros vídeos para a D2C gerar pautas a partir do seu mapa.
+            {!instagramConnected
+              ? "Conecte seu Instagram para a D2C ler o que você já publica e gerar pautas a partir do seu mapa."
+              : "Analise seus primeiros vídeos para a D2C gerar pautas a partir do seu mapa."}
           </p>
-          {onNewReading && (
+          {primeiraAcao && (
             <button
               type="button"
-              onClick={onNewReading}
+              onClick={primeiraAcao.onClick}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 7,
                 borderRadius: 999, padding: "10px 18px",
@@ -1253,7 +1269,7 @@ function PautasCard({
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-              Primeira análise
+              {primeiraAcao.label}
             </button>
           )}
         </>
@@ -2146,6 +2162,8 @@ export function DiagnosticoPage({
             ideaQuotaResetAt={ideaQuotaResetAt}
             onRetryGenerateIdeas={onRetryGenerateIdeas}
             onNewReading={onNewReading}
+            onConnectInstagram={onConnectInstagram}
+            instagramConnected={instagramConnected}
             onOpenIdea={onOpenIdea}
             whatsappLinked={whatsappLinked}
             onConnectWhatsApp={onConnectWhatsApp}
