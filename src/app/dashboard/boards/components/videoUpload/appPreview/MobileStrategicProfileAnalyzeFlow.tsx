@@ -250,6 +250,15 @@ const COHERENCE_VERDICT_LABEL: Record<NarrativeCoherenceVerdict, string | null> 
   unknown: null,
 };
 
+// Cor do marcador do veredito — informa o tipo de coerência sem precisar de caixa.
+const COHERENCE_VERDICT_DOT: Record<NarrativeCoherenceVerdict, string> = {
+  confirms_top_pattern: "bg-emerald-500",
+  experiment: "bg-sky-500",
+  deviation: "bg-amber-500",
+  first_reading: "bg-zinc-400",
+  unknown: "bg-zinc-300",
+};
+
 export function MobileStrategicProfileAnalyzeFlow({
   open,
   onClose,
@@ -884,35 +893,42 @@ export function MobileStrategicProfileAnalyzeFlow({
                 <img src={thumbnailDataUrl} alt="" className="w-full object-cover opacity-80" style={{ aspectRatio: "16/9", maxHeight: 120 }} aria-hidden="true" />
               </div>
             ) : null}
+            {/* Leitura plana: seções separadas por hairline + hierarquia de fonte,
+                sem card-dentro-de-card. O único elemento "contido" é o botão. */}
+
+            {/* Hero — a resposta à pergunta do criador, o maior peso visual da tela. */}
             {confirmationData?.directAnswer ? (
-              <div className="mb-4 rounded-[1.5rem] border border-zinc-200 bg-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+              <div>
+                <p className="text-xs leading-snug text-zinc-400">
                   {creatorGoal.trim() || "Sua pergunta"}
                 </p>
-                <p className="mt-2 text-sm leading-6 text-zinc-800">{confirmationData.directAnswer}</p>
+                <p className="mt-1.5 text-lg font-medium leading-snug text-zinc-900">
+                  {confirmationData.directAnswer}
+                </p>
               </div>
             ) : null}
-            {/* Bloco 2 — o que mudou no mapa: resumo + veredito de coerência juntos.
-                Os sinais detalhados vivem na leitura completa, no Perfil. */}
-            <div className="rounded-[1.5rem] border border-emerald-100 bg-emerald-50 p-4">
-              <p className="text-sm font-semibold text-zinc-950">Esse vídeo deixou seu mapa mais claro.</p>
-              <p className="mt-2 text-sm leading-6 text-zinc-600">
+
+            {/* O que mudou no mapa — resumo + veredito como linha com marcador, sem caixa. */}
+            <div className={confirmationData?.directAnswer ? "mt-5 border-t border-zinc-100 pt-5" : ""}>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">No seu mapa</p>
+              <p className="mt-1.5 text-sm leading-6 text-zinc-600">
                 {confirmationData?.diagnosisSummary
                   ? confirmationData.diagnosisSummary
                   : "Abra a leitura para ver o que este vídeo confirma, tensiona ou abre no seu mapa."}
               </p>
               {confirmationData?.coherenceVerdict &&
               COHERENCE_VERDICT_LABEL[confirmationData.coherenceVerdict] ? (
-                <p className="mt-3 rounded-xl bg-white px-3 py-2 text-xs font-medium leading-5 text-zinc-700">
+                <p className="mt-2.5 flex items-start gap-2 text-sm font-medium leading-6 text-zinc-800">
+                  <span className={`mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full ${COHERENCE_VERDICT_DOT[confirmationData.coherenceVerdict]}`} />
                   {COHERENCE_VERDICT_LABEL[confirmationData.coherenceVerdict]}
                 </p>
               ) : null}
             </div>
 
             {confirmationQuestion ? (
-              <div className="mt-4 rounded-2xl border border-zinc-200 bg-[#f7f7f4] p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Uma pergunta sobre esta leitura</p>
-                <p className="mt-2 text-sm font-semibold text-zinc-800">{confirmationQuestion.question}</p>
+              <div className="mt-5 border-t border-zinc-100 pt-5">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Uma pergunta sobre esta leitura</p>
+                <p className="mt-1.5 text-sm font-medium text-zinc-800">{confirmationQuestion.question}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {confirmationQuestion.options.map((option) => {
                     const optionValue = option.value ?? option.label;
@@ -949,10 +965,10 @@ export function MobileStrategicProfileAnalyzeFlow({
               </div>
             ) : null}
 
-            {/* Publish intent — integrado na confirmação, fire-and-forget */}
-            <div className="mt-4 rounded-2xl border border-zinc-100 bg-[#f7f7f4] p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Vai publicar este vídeo?</p>
-              <p className="mt-0.5 text-xs text-zinc-400">Só os vídeos publicados entram no seu mapa narrativo.</p>
+            {/* Vai publicar? — a decisão. Os botões carregam o peso de ação. */}
+            <div className="mt-5 border-t border-zinc-100 pt-5">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Vai publicar este vídeo?</p>
+              <p className="mt-0.5 text-xs text-zinc-400">Só os vídeos publicados entram no seu mapa.</p>
               <div className="mt-3 flex gap-2">
                 {(
                   [
