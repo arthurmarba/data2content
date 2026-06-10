@@ -128,6 +128,10 @@ export default async function MobileStrategicProfilePage({
               lastMapVisitAt: (userDoc as any).lastMapVisitAt ?? null,
               isNewUserForOnboarding: (userDoc as any).isNewUserForOnboarding ?? sessionUser?.isNewUserForOnboarding,
               onboardingCompletedAt: (userDoc as any).onboardingCompletedAt ?? null,
+              // Selecionados na query acima, mas precisam ser carregados explicitamente
+              // aqui — senão a leitura abaixo cai no sessionUser (token), que não os tem.
+              onboardingAnswers: (userDoc as any).onboardingAnswers ?? null,
+              weeklyMapSummary: (userDoc as any).weeklyMapSummary ?? null,
             };
           }
         } catch (err) {
