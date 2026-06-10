@@ -3,26 +3,15 @@
 // ATUALIZADO: vNext_SummaryPrompt - Otimizado o prompt na função generateConversationSummary.
 // ATUALIZADO: vNext_ExpertiseInference - Adicionada função inferUserExpertiseLevel.
 
-import OpenAI from 'openai';
 import type { ChatCompletionMessageParam } from 'openai/resources/chat/completions';
 import { logger } from './logger';
+import { llmGenerate } from '@/app/lib/llm';
 import type { UserExpertiseLevel } from '@/app/models/User';
 
-const openai =
-  process.env.NODE_ENV === 'test'
-    ? ({
-        chat: {
-          completions: {
-            create: async () => ({
-              choices: [{ message: { content: '' } }],
-            }),
-          },
-        },
-      } as unknown as OpenAI)
-    : new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY!,
-        baseURL: process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1',
-      });
+// Migrado para o núcleo provider-agnóstico (Fase 2 — ver docs/llm-provider-migration-plan.md).
+// O client OpenAI duplicado foi removido; o provider é escolhido por LLM_PROVIDER_AI
+// (default seguro = OpenAI, preservando modelo/temperatura/max_tokens atuais).
+const LLM_SCOPE = 'AI';
 
 const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
 const DEFAULT_TEMP = Number(process.env.OPENAI_TEMP) || 0.7;
@@ -55,22 +44,18 @@ export async function callOpenAIForQuestion(
     const temperature = options?.temperature ?? DEFAULT_TEMP;
     const max_tokens  = options?.max_tokens  ?? DEFAULT_MAX_TOKENS;
 
-    logger.debug(`${fnTag} Chamando OpenAI. Modelo: ${model}, Temp: ${temperature}, MaxTokens: ${max_tokens}. Prompt (início): "${prompt.substring(0,100)}..."`);
+    logger.debug(`${fnTag} Chamando LLM. Modelo: ${model}, Temp: ${temperature}, MaxTokens: ${max_tokens}. Prompt (início): "${prompt.substring(0,100)}..."`);
 
-    const completion = await openai.chat.completions.create({
-      model,
-      temperature,
-      max_tokens,
-      messages:    [{ role: 'user', content: prompt }], 
-    });
-
-    const firstChoice = completion.choices?.[0];
-    const responseText = firstChoice?.message?.content?.trim() ?? '';
-    logger.debug(`${fnTag} Resposta da OpenAI recebida (início): "${responseText.substring(0,100)}..."`);
+    const { text } = await llmGenerate(
+      { prompt, model, temperature, maxTokens: max_tokens },
+      { scope: LLM_SCOPE },
+    );
+    const responseText = text.trim();
+    logger.debug(`${fnTag} Resposta do LLM recebida (início): "${responseText.substring(0,100)}..."`);
     return responseText;
   } catch (error: unknown) {
-    logger.error(`${fnTag} Erro ao chamar OpenAI:`, error);
-    return ''; 
+    logger.error(`${fnTag} Erro ao chamar LLM:`, error);
+    return '';
   }
 }
 
