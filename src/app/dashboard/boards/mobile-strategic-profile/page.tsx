@@ -16,6 +16,7 @@ import { buildBrandMatchesFromConfirmedMap } from "../videoUpload/brandMatchingM
 import { resolveMapEvolutionStatus } from "../videoUpload/mapEvolutionStatusResolver";
 import { listContentIdeasForUser } from "../videoUpload/contentIdeasReadService";
 import { evaluateContentIdeasReadiness } from "../videoUpload/contentIdeasReadinessGate";
+import { getMapaSeedReadinessSource } from "../videoUpload/mapaSeedReadinessSource";
 import { buildAudienceInsights } from "../videoUpload/audienceInsightsService";
 import { resolveFreshInstagramAvatar } from "@/app/lib/instagram/resolveFreshAvatar";
 import {
@@ -189,8 +190,12 @@ export default async function MobileStrategicProfilePage({
         // creators who filled in their map via onboarding (MapaSeed) but never went
         // through the confirmation UX flow should not be blocked.
         const synthesis = selectorResult.profileSynthesis;
-        const synthesisHasNarrative = !!(synthesis.mainNarrative?.label);
-        const synthesisHasTerritories = (synthesis.narrativeTerritories?.length ?? 0) > 0;
+        // Fase 2C — o MapaSeed (onboarding + Instagram) também é fonte de
+        // narrativa/territórios para a prontidão das pautas, ao lado da síntese de
+        // vídeo. Mantém o card de pautas coerente com o gate da rota de geração.
+        const mapaSeedSource = await getMapaSeedReadinessSource(userId);
+        const synthesisHasNarrative = !!(synthesis.mainNarrative?.label) || mapaSeedSource.hasNarrative;
+        const synthesisHasTerritories = (synthesis.narrativeTerritories?.length ?? 0) > 0 || mapaSeedSource.hasTerritories;
         const contentIdeasReadiness = (!hasPremiumAccess && !isInternalAdmin)
           ? {
               ready: false as const,

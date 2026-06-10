@@ -5,6 +5,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import { isMobileStrategicProfileEnabled } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileFeatureFlag";
 import { getMapConfirmationsSnapshot } from "@/app/dashboard/boards/videoUpload/mapConfirmationsService";
 import { evaluateContentIdeasReadiness } from "@/app/dashboard/boards/videoUpload/contentIdeasReadinessGate";
+import { getMapaSeedReadinessSource } from "@/app/dashboard/boards/videoUpload/mapaSeedReadinessSource";
 import { generateContentIdeas } from "@/app/dashboard/boards/videoUpload/contentIdeasGenerationService";
 import { checkContentIdeasQuota } from "@/app/dashboard/boards/videoUpload/contentIdeasGenerationQuota";
 import { listRecentDismissedTitles } from "@/app/dashboard/boards/videoUpload/contentIdeasReadService";
@@ -151,8 +152,13 @@ export async function POST(request: Request) {
     // ── Map readiness gate (V2) ──────────────────────────────────────────────
     // Accepts synthesis data as fallback for explicit confirmations.
     const mapConfirmations = await getMapConfirmationsSnapshot(userId);
-    const synthesisHasNarrative = !!(synthesis.mainNarrative?.label);
-    const synthesisHasTerritories = (synthesis.narrativeTerritories?.length ?? 0) > 0;
+    // Fase 2C — o MapaSeed (onboarding + enriquecimento de Instagram/vídeo) é fonte
+    // de narrativa/territórios ao lado da síntese de vídeo. Destrava pautas a partir
+    // do mapa que o criador já tem, sem forçar uma 2ª leitura. Best-effort: sem
+    // MapaSeed, cai no comportamento anterior (só síntese de vídeo).
+    const mapaSeedSource = await getMapaSeedReadinessSource(userId);
+    const synthesisHasNarrative = !!(synthesis.mainNarrative?.label) || mapaSeedSource.hasNarrative;
+    const synthesisHasTerritories = (synthesis.narrativeTerritories?.length ?? 0) > 0 || mapaSeedSource.hasTerritories;
     const readiness = evaluateContentIdeasReadiness(mapConfirmations, synthesisHasNarrative, synthesisHasTerritories);
     if (!readiness.ready) {
       return NextResponse.json(
@@ -174,6 +180,7 @@ export async function POST(request: Request) {
     const narrativeLabel =
       synthesis.mainNarrative?.label ??
       synthesis.testedNarratives?.[0]?.label ??
+      mapaSeedSource.narrativeLabel ??
       null;
     const narrativeSummary =
       synthesis.mainNarrative?.summary ??
@@ -209,15 +216,21 @@ export async function POST(request: Request) {
       territories: (() => {
         const all = synthesis.narrativeTerritories.slice(0, 5);
         const real = all.filter((t) => !isPlaceholderTerritory(t.label));
-        return (real.length > 0 ? real : all).map((t) => ({
+        const fromSynthesis = (real.length > 0 ? real : all).map((t) => ({
           label: t.label,
           summary: t.summary ?? null,
         }));
+        if (fromSynthesis.length > 0) return fromSynthesis;
+        // Fase 2C — sem territórios na síntese de vídeo, usa os do MapaSeed
+        // (onboarding/Instagram) para alimentar o prompt.
+        return mapaSeedSource.territories
+          .slice(0, 5)
+          .map((label) => ({ label, summary: null }));
       })(),
       confirmedAssets: synthesis.confirmedLifeAssets
         .filter((a) => a.evidenceCount >= 2)
         .map((a) => a.label),
-      tone: synthesis.dominantTone ?? null,
+      tone: synthesis.dominantTone ?? mapaSeedSource.tone ?? null,
       topPerformingPattern: synthesis.topPerformingPattern ?? null,
       pastCreatorAnswers: [],
       onboardingAnswers: onboardingAnswers
