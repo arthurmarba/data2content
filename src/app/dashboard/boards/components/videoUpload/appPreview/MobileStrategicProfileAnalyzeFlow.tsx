@@ -658,21 +658,12 @@ export function MobileStrategicProfileAnalyzeFlow({
             <div>
               {readingsSummary ? (
                 readingsSummary.isPro ? (
-                  <div className="mb-4 rounded-2xl bg-[#f7f7f4] px-3.5 py-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-zinc-700">Leituras este mês</span>
-                      <span className="text-xs font-semibold text-zinc-500">
-                        {readingsSummary.used} de {readingsSummary.limit}
-                      </span>
-                    </div>
-                    <div className="mt-2 flex gap-1" aria-hidden="true">
-                      {Array.from({ length: readingsSummary.limit }).map((_, i) => (
-                        <span
-                          key={i}
-                          className={`h-1.5 flex-1 rounded-full ${i < readingsSummary.used ? "bg-zinc-800" : "bg-zinc-200"}`}
-                        />
-                      ))}
-                    </div>
+                  // Número discreto, sem pip-meter de cota — informa sem comunicar escassez.
+                  <div className="mb-4 flex items-center justify-between rounded-2xl bg-[#f7f7f4] px-3.5 py-3">
+                    <span className="text-xs font-semibold text-zinc-700">Leituras este mês</span>
+                    <span className="text-xs font-medium text-zinc-500">
+                      {readingsSummary.used} de {readingsSummary.limit}
+                    </span>
                   </div>
                 ) : (
                   <div className="mb-4 flex items-center gap-2.5 rounded-2xl bg-[#f7f7f4] px-3.5 py-3">
@@ -680,7 +671,9 @@ export function MobileStrategicProfileAnalyzeFlow({
                       Grátis
                     </span>
                     <span className="text-xs font-medium text-zinc-600">
-                      Sua primeira leitura é por nossa conta.
+                      {readingsSummary.used < readingsSummary.limit
+                        ? "Sua primeira leitura é por nossa conta."
+                        : "Você já usou sua leitura grátis."}
                     </span>
                   </div>
                 )
