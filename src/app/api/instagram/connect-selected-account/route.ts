@@ -23,6 +23,7 @@ import {
   markPostCreationTrialInstagramConnected,
 } from "@/app/lib/postCreationTrial/access";
 import { recordPostCreationFunnelEvent } from "@/app/lib/postCreationTrial/events";
+import { enqueueInstagramRefresh } from "@/app/lib/instagram/enqueueInstagramRefresh";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -307,6 +308,11 @@ export async function POST(request: NextRequest) {
       logger.info(
         `${TAG} telemetry ig_account_connected userId=${userId} flowId=${reconnectFlowId}`,
       );
+      // Fase 2B — dispara o refresh/enriquecimento do Instagram já na conexão,
+      // para que o mapa enriqueça com a leitura visual do Gemini de imediato em
+      // vez de esperar a cron. O publish ao QStash é rápido; o enriquecimento em
+      // si roda async no worker. Best-effort: nunca bloqueia/quebra a conexão.
+      await enqueueInstagramRefresh(userId);
       return NextResponse.json(
         {
           success: true,
