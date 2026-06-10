@@ -141,6 +141,11 @@ describe("POST /api/dashboard/mobile-strategic-profile/analyze-real", () => {
       usageLimitChecked: true,
       allowlistGatePassed: true,
       adaptiveQuiz: { questions: [], reasons: [], suggestedNextStep: "build_diagnosis" },
+      confirmation: {
+        directAnswer: "Esse formato vale repetir: o gancho funciona melhor quando você fala direto pra câmera.",
+        coherenceVerdict: "confirms_top_pattern",
+        coherenceReasoning: "Mantém o padrão de cultura pop como negócio.",
+      },
     });
   });
 
@@ -237,6 +242,9 @@ describe("POST /api/dashboard/mobile-strategic-profile/analyze-real", () => {
       diagnosisSummary: "Primeira análise registrada. Seu Perfil estratégico começou a se formar.",
       unlockedSignals: [],
       opportunities: [],
+      directAnswer: "Esse formato vale repetir: o gancho funciona melhor quando você fala direto pra câmera.",
+      coherenceVerdict: "confirms_top_pattern",
+      coherenceReasoning: "Mantém o padrão de cultura pop como negócio.",
     });
     expect(body.videoReadingPersistence).toEqual({
       attempted: true,

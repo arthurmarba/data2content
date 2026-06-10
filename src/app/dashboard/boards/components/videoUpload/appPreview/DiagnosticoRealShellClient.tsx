@@ -832,20 +832,40 @@ export function DiagnosticoRealShellClient({ data }: Props) {
       const snap = responseData?.snapshot;
       const savedDiagnosisId = responseData?.videoReadingPersistence?.diagnosisId ?? null;
       const readingConfirmationData = await fetchAnalysisConfirmationDataFromReading(savedDiagnosisId);
+      const baseConfirmationData = readingConfirmationData ?? (snap
+        ? {
+            diagnosisSummary: snap.diagnosisSummary ?? null,
+            unlockedSignals: Array.isArray(snap.unlockedSignals)
+              ? snap.unlockedSignals.slice(0, 2)
+              : [],
+            opportunities: Array.isArray(snap.opportunities)
+              ? snap.opportunities.slice(0, 1)
+              : [],
+          }
+        : null);
+      // directAnswer + coherence verdict come only from the route snapshot, so merge
+      // them in regardless of which base source we used.
+      const confirmationData = baseConfirmationData
+        ? {
+            ...baseConfirmationData,
+            directAnswer: snap?.directAnswer ?? null,
+            coherenceVerdict: snap?.coherenceVerdict ?? null,
+            coherenceReasoning: snap?.coherenceReasoning ?? null,
+          }
+        : snap?.directAnswer || snap?.coherenceVerdict
+          ? {
+              diagnosisSummary: null,
+              unlockedSignals: [],
+              opportunities: [],
+              directAnswer: snap?.directAnswer ?? null,
+              coherenceVerdict: snap?.coherenceVerdict ?? null,
+              coherenceReasoning: snap?.coherenceReasoning ?? null,
+            }
+          : null;
       return {
         contextQuestions: [],
         savedDiagnosisId,
-        confirmationData: readingConfirmationData ?? (snap
-          ? {
-              diagnosisSummary: snap.diagnosisSummary ?? null,
-              unlockedSignals: Array.isArray(snap.unlockedSignals)
-                ? snap.unlockedSignals.slice(0, 2)
-                : [],
-              opportunities: Array.isArray(snap.opportunities)
-                ? snap.opportunities.slice(0, 1)
-                : [],
-            }
-          : null),
+        confirmationData,
       };
     },
     [],

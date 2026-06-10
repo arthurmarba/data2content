@@ -674,6 +674,11 @@ export async function POST(request: Request) {
                 : `${readingCount}ª análise registrada. ${synthStatusLabel[synthStatus] ?? "Perfil em construção"}.`,
             unlockedSignals: [],
             opportunities: [],
+            // Direct answer to the creator's question + coherence verdict, surfaced on
+            // the confirmation step. Not persisted — tied to this upload's question.
+            directAnswer: result.confirmation?.directAnswer ?? null,
+            coherenceVerdict: result.confirmation?.coherenceVerdict ?? null,
+            coherenceReasoning: result.confirmation?.coherenceReasoning ?? null,
           }
         : null;
 

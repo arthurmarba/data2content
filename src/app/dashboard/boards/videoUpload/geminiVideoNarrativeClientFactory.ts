@@ -151,6 +151,7 @@ const videoNarrativeResponseJsonSchema = {
   type: "object",
   additionalProperties: false,
   required: [
+    "directAnswer",
     "mainNarrative",
     "whatVideoCommunicates",
     "creatorIntention",
@@ -169,6 +170,7 @@ const videoNarrativeResponseJsonSchema = {
     "evidenceAnchors",
   ],
   propertyOrdering: [
+    "directAnswer",
     "mainNarrative",
     "whatVideoCommunicates",
     "creatorIntention",
@@ -187,6 +189,7 @@ const videoNarrativeResponseJsonSchema = {
     "evidenceAnchors",
   ],
   properties: {
+    directAnswer: shortStringSchema,
     mainNarrative: narrativeLabelStringSchema,
     whatVideoCommunicates: shortStringSchema,
     creatorIntention: shortStringSchema,

@@ -57,7 +57,8 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     continueFlow();
 
     expect(screen.getByText("O que quer desvendar?")).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("Ex: por que esse vídeo prendeu atenção?")).toBeInTheDocument();
+    // Placeholder agora é dinâmico: reflete a pergunta da opção selecionada (default: narrativa).
+    expect(screen.getByPlaceholderText("O que esse vídeo revela sobre minha narrativa?")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Fortalecer meu ponto de vista" })).toBeInTheDocument();
     
     const sponsoredBtn = screen.getByRole("button", { name: "Explorar um território novo" });
@@ -115,7 +116,8 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     renderFlow(onSubmit);
 
     continueFlow(); // upload -> creator_goal
-    fireEvent.change(screen.getByPlaceholderText("Ex: por que esse vídeo prendeu atenção?"), {
+    // Placeholder dinâmico da opção default (narrativa) antes de trocar a lente.
+    fireEvent.change(screen.getByPlaceholderText("O que esse vídeo revela sobre minha narrativa?"), {
       target: { value: "Por que esse vídeo prendeu atenção?" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Checar coerência com o meu mapa" }));

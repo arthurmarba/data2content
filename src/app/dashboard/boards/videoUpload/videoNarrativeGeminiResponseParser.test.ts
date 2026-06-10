@@ -14,6 +14,23 @@ describe("videoNarrativeGeminiResponseParser", () => {
     }
   });
 
+  it("captura directAnswer quando presente", () => {
+    const raw = { ...JSON.parse(geminiVideoNarrativeRawJsonFixture), directAnswer: "Esse formato vale repetir: o gancho direto sustentou a atenção." };
+    const result = parseVideoNarrativeGeminiResponse(JSON.stringify(raw));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.analysis.directAnswer).toContain("Esse formato vale repetir");
+    }
+  });
+
+  it("não quebra quando directAnswer está ausente (resposta antiga)", () => {
+    const result = parseVideoNarrativeGeminiResponse(geminiVideoNarrativeRawJsonFixture);
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.analysis.directAnswer).toBeUndefined();
+    }
+  });
+
   it("remove code fences se necessário", () => {
     const result = parseVideoNarrativeGeminiResponse(`\`\`\`json\n${geminiVideoNarrativeRawJsonFixture}\n\`\`\``);
     expect(result.ok).toBe(true);

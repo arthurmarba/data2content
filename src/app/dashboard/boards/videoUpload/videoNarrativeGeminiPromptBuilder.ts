@@ -7,7 +7,44 @@ export type VideoNarrativeGeminiPrompt = {
   promptVersion: string;
 };
 
+// Maps the internal (legacy) goal-option enum to the human lens the creator actually
+// chose in the app, plus what the reading should emphasise for that lens. The raw enum
+// values ("retention", "sponsored_content") do NOT match their current labels and must
+// never reach the model as-is — they would mislead the analysis.
+const GOAL_LENS: Record<string, { label: string; emphasis: string }> = {
+  authority: {
+    label: "entender minha narrativa",
+    emphasis: "o que este vídeo revela sobre a narrativa e o ponto de vista do creator.",
+  },
+  retention: {
+    label: "checar coerência com o meu mapa",
+    emphasis: "se este vídeo confirma, tensiona ou desvia do que o creator vem construindo.",
+  },
+  format_test: {
+    label: "testar um formato diferente",
+    emphasis: "se este formato vale repetir no perfil e o que ele acrescenta à narrativa.",
+  },
+  sponsored_content: {
+    label: "explorar um território novo",
+    emphasis: "que território de conteúdo este vídeo abre e com que legitimidade o creator pode ocupá-lo.",
+  },
+  authority_build: {
+    label: "fortalecer meu ponto de vista",
+    emphasis: "como este vídeo reforça (ou dilui) o ponto de vista recorrente do creator.",
+  },
+};
+
+function describeGoalLens(option: string): { label: string; emphasis: string } {
+  return (
+    GOAL_LENS[option] ?? {
+      label: "entender minha narrativa",
+      emphasis: "o que este vídeo revela sobre a narrativa do creator.",
+    }
+  );
+}
+
 const schemaExample = {
+  directAnswer: "string — resposta curta, direta e observacional à pergunta/objetivo do creator (campo 'Objetivo do creator'); 1 a 2 frases; responda exatamente o que ele perguntou, sem imperativos",
   mainNarrative: "string — rótulo de 2 a 6 palavras sobre o ponto de vista do creator, não o assunto do vídeo. Ex: Cultura pop como negócio",
   whatVideoCommunicates: "string — o que o vídeo revela sobre o mapa/narrativa do creator, não um resumo do tema",
   creatorIntention: "string — intenção percebida ou declarada do creator",
@@ -141,7 +178,9 @@ export function buildVideoNarrativeGeminiPrompt(input: VideoNarrativeAiProviderI
       `promptVersion: ${input.promptVersion}`,
       `requestId: ${safeString(input.requestId)}`,
       `Objetivo do creator: ${safeString(input.creatorGoal)}`,
-      `Opção selecionada: ${input.selectedGoalOption}`,
+      `Lente escolhida pelo creator: ${describeGoalLens(input.selectedGoalOption).label}.`,
+      `Ao ler o vídeo, priorize: ${describeGoalLens(input.selectedGoalOption).emphasis}`,
+      "Em directAnswer, responda diretamente ao 'Objetivo do creator' acima, ancorado no que aparece no vídeo — é a resposta que o creator espera ler primeiro.",
       "Respostas rápidas:",
       formatQuickAnswers(input),
       "Contexto do Perfil Estratégico:",
@@ -238,6 +277,7 @@ export function buildVideoNarrativeGeminiPrompt(input: VideoNarrativeAiProviderI
     responseSchemaInstruction: [
       "Retorne exatamente um objeto JSON com este schema:",
       JSON.stringify(schemaExample, null, 2),
+      "directAnswer é OBRIGATÓRIO: responda diretamente à pergunta/objetivo do creator em 1 a 2 frases, ancorado no vídeo, em tom observacional (sem 'faça', 'poste', 'ajuste'). Não repita mainNarrative nem strategicReading.",
       "Todas as strings devem ser curtas. Arrays devem ter no máximo 5 itens.",
       "mainNarrative deve ter no máximo 80 caracteres e não pode começar com 'O criador', 'A creator', 'Esse vídeo', 'Este vídeo' ou 'Pelo vídeo'.",
       "Nunca use o assunto do vídeo como narrativa central. Exemplo ruim: 'O criador analisa a performance de Bad Bunny no Super Bowl'. Exemplo bom: 'Autonomia criativa como negócio cultural'.",

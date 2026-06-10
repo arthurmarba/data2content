@@ -39,6 +39,21 @@ describe("videoNarrativeGeminiPromptBuilder", () => {
     expect(prompt.userInstruction).toContain("represents_current_phase");
   });
 
+  it("traduz a lente escolhida em vez de vazar o enum interno cru", () => {
+    // 'sponsored_content' significa "explorar um território novo" no app — o enum cru
+    // enganaria o modelo (sugeriria conteúdo patrocinado).
+    const prompt = buildVideoNarrativeGeminiPrompt(input({ selectedGoalOption: "sponsored_content" }));
+    expect(prompt.userInstruction).not.toContain("sponsored_content");
+    expect(prompt.userInstruction).toContain("explorar um território novo");
+    expect(prompt.userInstruction).toContain("território de conteúdo");
+  });
+
+  it("pede directAnswer ancorado no objetivo do creator", () => {
+    const prompt = buildVideoNarrativeGeminiPrompt(input());
+    expect(prompt.responseSchemaInstruction).toContain("directAnswer");
+    expect(prompt.userInstruction).toContain("directAnswer");
+  });
+
   it("não inclui email", () => {
     const prompt = buildVideoNarrativeGeminiPrompt(input({ profileContext: { displayName: "Creator creator@example.com" } }));
     expect(prompt.userInstruction).not.toContain("email");

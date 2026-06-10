@@ -77,6 +77,8 @@ export type VideoNarrativeAiIssue = {
 };
 
 export type VideoNarrativeAiAnalysis = {
+  /** Direct, observational answer to the creator's stated question/goal for this upload. */
+  directAnswer?: string;
   mainNarrative: string;
   whatVideoCommunicates: string;
   creatorIntention: string;

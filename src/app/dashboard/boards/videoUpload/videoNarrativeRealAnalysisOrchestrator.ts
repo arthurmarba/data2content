@@ -1,6 +1,7 @@
 import type {
   VideoNarrativeAiProviderInput,
   VideoNarrativeAiProviderResult,
+  VideoNarrativeCoherence,
 } from "./videoNarrativeAiProviderTypes";
 import type { VideoNarrativeReadingPersistenceSummary, VideoNarrativeSynthesisSnapshotWriteSummary } from "./videoNarrativeSafeResponseBuilder";
 import type { VideoNarrativeGeminiAllowlistUser } from "./videoNarrativeGeminiAllowlist";
@@ -68,6 +69,12 @@ export type VideoNarrativeRealAnalysisOrchestratorResult =
       usageLimitChecked: boolean;
       allowlistGatePassed: boolean;
       adaptiveQuiz: VideoNarrativeDiagnosisQuizResult;
+      /** Highlights surfaced on the post-analysis confirmation step (not persisted). */
+      confirmation?: {
+        directAnswer?: string | null;
+        coherenceVerdict?: VideoNarrativeCoherence["verdict"] | null;
+        coherenceReasoning?: string | null;
+      };
       cleanupWarning?: string;
     }
   | {
@@ -653,6 +660,7 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
 
   await attemptCleanup("analysis_completed");
 
+  const coherence = providerResult.analysis.narrativeCoherence;
   return {
     ok: true,
     realAnalysis: true,
@@ -664,6 +672,11 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     usageLimitChecked,
     allowlistGatePassed: true,
     adaptiveQuiz,
+    confirmation: {
+      directAnswer: providerResult.analysis.directAnswer ?? null,
+      coherenceVerdict: coherence?.verdict ?? null,
+      coherenceReasoning: coherence?.reasoning ?? null,
+    },
     cleanupWarning,
   };
 }

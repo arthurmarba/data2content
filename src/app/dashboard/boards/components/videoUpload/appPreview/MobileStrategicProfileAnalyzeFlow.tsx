@@ -38,10 +38,22 @@ export type MobileStrategicProfileAnalyzeContextQuestion = {
   options: MobileStrategicProfileAnalyzeContextOption[];
 };
 
+export type NarrativeCoherenceVerdict =
+  | "confirms_top_pattern"
+  | "experiment"
+  | "deviation"
+  | "first_reading"
+  | "unknown";
+
 export type MobileStrategicProfileAnalyzeConfirmationData = {
   diagnosisSummary?: string | null;
   unlockedSignals?: string[];
   opportunities?: string[];
+  /** Direct, observational answer to the creator's question for this upload. */
+  directAnswer?: string | null;
+  /** Coherence verdict of this video against the creator's established pattern. */
+  coherenceVerdict?: NarrativeCoherenceVerdict | null;
+  coherenceReasoning?: string | null;
 };
 
 export type MobileStrategicProfileAnalyzeResult = {
@@ -225,6 +237,16 @@ const goalOptions = [
   },
 ];
 
+
+// Friendly, calm reading of the coherence verdict — shown right before the publish
+// decision so it becomes an informed choice, not a blind data-collection checkbox.
+const COHERENCE_VERDICT_LABEL: Record<NarrativeCoherenceVerdict, string | null> = {
+  confirms_top_pattern: "Esse vídeo confirma seu padrão principal.",
+  experiment: "Esse vídeo é um experimento dentro da sua identidade.",
+  deviation: "Esse vídeo desvia do seu padrão atual.",
+  first_reading: "Primeira leitura — seu padrão ainda está se formando.",
+  unknown: null,
+};
 
 export function MobileStrategicProfileAnalyzeFlow({
   open,
@@ -797,24 +819,19 @@ export function MobileStrategicProfileAnalyzeFlow({
                         ? "border-zinc-950 bg-zinc-950 text-white shadow-sm"
                         : "border-zinc-200 bg-[#f7f7f4] text-zinc-800 hover:border-zinc-300"
                     }`}
-                    onClick={() => {
-                      setSelectedOption(opt.value);
-                      if (!creatorGoal.trim()) {
-                        setCreatorGoal(opt.defaultQuestion);
-                      }
-                    }}
+                    onClick={() => setSelectedOption(opt.value)}
                   >
                     {opt.label}
                   </button>
                 );
               })}
             </div>
-            {/* Textarea opcional abaixo */}
-            <p className="mt-4 text-xs text-zinc-400">Quer refinar a pergunta? Escreva abaixo.</p>
+            {/* Refino opcional — não duplica a opção; só captura uma pergunta mais específica. */}
+            <p className="mt-4 text-xs text-zinc-400">Tem uma pergunta mais específica? (opcional)</p>
             <textarea
               value={creatorGoal}
               onChange={(event) => setCreatorGoal(event.target.value)}
-              placeholder="Ex: por que esse vídeo prendeu atenção?"
+              placeholder={goalOptions.find((option) => option.value === selectedOption)?.defaultQuestion ?? "Ex: por que esse vídeo prendeu atenção?"}
               className="mt-2 min-h-[72px] w-full resize-none rounded-2xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-950 outline-none transition focus:border-zinc-950"
             />
           </div>
@@ -870,6 +887,14 @@ export function MobileStrategicProfileAnalyzeFlow({
             {thumbnailDataUrl ? (
               <div className="-mx-5 -mt-1 mb-4 overflow-hidden">
                 <img src={thumbnailDataUrl} alt="" className="w-full object-cover opacity-80" style={{ aspectRatio: "16/9", maxHeight: 120 }} aria-hidden="true" />
+              </div>
+            ) : null}
+            {confirmationData?.directAnswer ? (
+              <div className="mb-4 rounded-[1.5rem] border border-zinc-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  {creatorGoal.trim() || "Sua pergunta"}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-zinc-800">{confirmationData.directAnswer}</p>
               </div>
             ) : null}
             <div className="rounded-[1.5rem] border border-emerald-100 bg-emerald-50 p-4">
@@ -953,6 +978,12 @@ export function MobileStrategicProfileAnalyzeFlow({
 
             {/* Publish intent — integrado na confirmação, fire-and-forget */}
             <div className="mt-4 rounded-2xl border border-zinc-100 bg-[#f7f7f4] p-4">
+              {confirmationData?.coherenceVerdict &&
+              COHERENCE_VERDICT_LABEL[confirmationData.coherenceVerdict] ? (
+                <p className="mb-3 rounded-xl bg-white px-3 py-2 text-xs font-medium leading-5 text-zinc-700 shadow-[0_1px_2px_rgba(9,9,11,0.04)]">
+                  {COHERENCE_VERDICT_LABEL[confirmationData.coherenceVerdict]}
+                </p>
+              ) : null}
               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Vai publicar este vídeo?</p>
               <p className="mt-0.5 text-xs text-zinc-400">Só os vídeos publicados entram no seu mapa narrativo.</p>
               <div className="mt-3 flex gap-2">

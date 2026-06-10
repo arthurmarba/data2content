@@ -81,6 +81,7 @@ const VALID_CHAPTER_HINTS = new Set(["pattern", "tension", "movement", "territor
 const VALID_COHERENCE_VERDICTS = new Set(["confirms_top_pattern", "experiment", "deviation", "first_reading", "unknown"]);
 
 const FIELD_ALIASES: Record<keyof VideoNarrativeAiAnalysis, string[]> = {
+  directAnswer: ["direct_answer", "respostaDireta", "resposta_direta", "answer", "resposta"],
   mainNarrative: ["main_narrative", "narrativaPrincipal", "narrativa_principal", "narrative", "narrativa"],
   whatVideoCommunicates: ["what_video_communicates", "videoMessage", "mensagemDoVideo", "oQueOVideoComunica"],
   creatorIntention: ["creator_intention", "creatorIntent", "intencaoDoCreator", "intençãoDoCreator", "intencao"],
@@ -476,9 +477,15 @@ export function parseVideoNarrativeGeminiResponse(rawText: string): VideoNarrati
   const contentContext = readContentContext(root);
   const narrativeCoherence = readNarrativeCoherence(root);
 
+  // Optional: direct answer to the creator's question. Absent in older responses,
+  // so it never blocks parsing — just truncated/sanitised when present.
+  const directAnswerRaw = readNestedText(readAliasedField(root, "directAnswer"));
+  const directAnswer = directAnswerRaw?.trim() ? truncate(sanitizeText(directAnswerRaw), 280) : undefined;
+
   return {
     ok: true,
     analysis: {
+      ...(directAnswer ? { directAnswer } : {}),
       mainNarrative: strings.mainNarrative!,
       whatVideoCommunicates: strings.whatVideoCommunicates!,
       creatorIntention: strings.creatorIntention!,
