@@ -98,7 +98,10 @@ const MapaDataSchema = new Schema<IMapaData>(
     territorios:            { type: [String], default: [] },
     narrativas_adjacentes:  { type: [String], default: [] },
     assets:                 { type: [String], default: [] },
-    tom:                    { type: String, required: true },
+    // tom não é cravado no estágio "seed" (onboarding leve só dá a narrativa).
+    // Enriquecimento de Instagram/vídeo preenche depois. Default "" em vez de
+    // required para permitir o MapaSeed nascer no onboarding (Fase 2A).
+    tom:                    { type: String, default: "" },
     formatos:               { type: [String], default: [] },
     maturidade: {
       type: String,
@@ -142,9 +145,12 @@ const MapaSeedSchema = new Schema<IMapaSeed>(
       unique: true,
       index: true,
     },
+    // Opcional: o onboarding vivo (mobile) coleta um conjunto de respostas mais
+    // enxuto e não preenche os 7 campos ricos deste sub-schema. O MapaSeed pode
+    // nascer só com a narrativa-semente (Fase 2A); as respostas vivem em User.
     onboardingAnswers: {
       type: OnboardingAnswersSchema,
-      required: true,
+      default: null,
     },
     mapa: {
       type: MapaDataSchema,

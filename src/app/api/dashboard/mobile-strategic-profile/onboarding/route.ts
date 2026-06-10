@@ -94,6 +94,30 @@ export async function POST(request: Request) {
       }
     }
 
+    // Fase 2A — semeia o MapaSeed a partir da hipótese de narrativa do onboarding,
+    // para que ele EXISTA e possa ser enriquecido depois (Instagram/vídeo). Sem
+    // isso, o enriquecimento de Instagram desiste na primeira linha (sem MapaSeed)
+    // e a coleção fica vazia. Best-effort: nunca bloqueia o onboarding. Só cria se
+    // ainda não houver mapa — não sobrescreve um mapa já enriquecido.
+    if (seedSignal?.label) {
+      try {
+        const { default: MapaSeedModel } = await import("@/app/models/MapaSeed");
+        const exists = await MapaSeedModel.exists({ userId });
+        if (!exists) {
+          await MapaSeedModel.create({
+            userId,
+            mapa: {
+              narrativa_central: seedSignal.label,
+              maturidade: "seed",
+              fonte: ["onboarding_declarativo"],
+            },
+          });
+        }
+      } catch (seedErr) {
+        console.warn("[onboarding] Falha ao semear MapaSeed (não-fatal):", seedErr);
+      }
+    }
+
     return NextResponse.json({ ok: true, seedSignal });
   } catch (err) {
     console.error("[onboarding] Erro ao salvar respostas:", err);
