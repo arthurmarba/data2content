@@ -31,6 +31,18 @@ function resolveModel(_intensity: LlmIntensity, override?: string): string {
   return process.env.GEMINI_MAPA_MODEL || "gemini-2.5-flash";
 }
 
+// gemini-2.5-flash é um modelo "thinking": os tokens de raciocínio consomem o
+// maxOutputTokens, podendo TRUNCAR a saída em JSONs grandes (ex.: o mapa).
+// Para nossas tarefas (extração/síntese estruturada, não raciocínio aberto)
+// desligamos o thinking por padrão → orçamento de saída previsível, mais rápido
+// e mais barato. Ajustável por env (-1 = automático/ligado; 0 = desligado).
+function resolveThinkingBudget(): number {
+  const raw = process.env.GEMINI_THINKING_BUDGET;
+  if (raw == null || raw.trim() === "") return 0;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
 export const geminiProvider: LlmProvider = {
   name: "gemini",
 
@@ -54,6 +66,8 @@ export const geminiProvider: LlmProvider = {
 
     logger.debug(`${TAG} model=${model} intensity=${intensity} json=${!!params.json}`);
 
+    const thinkingBudget = resolveThinkingBudget();
+
     const response = await genAI.models.generateContent({
       model,
       contents: createUserContent([{ text: params.prompt }]),
@@ -61,6 +75,8 @@ export const geminiProvider: LlmProvider = {
         ...(params.system ? { systemInstruction: params.system } : {}),
         temperature,
         maxOutputTokens,
+        // Desliga (ou ajusta) o thinking para não consumir o orçamento de saída.
+        ...(thinkingBudget >= 0 ? { thinkingConfig: { thinkingBudget } } : {}),
         ...(params.json || params.jsonSchema ? { responseMimeType: "application/json" } : {}),
         ...(params.jsonSchema ? { responseSchema: params.jsonSchema } : {}),
       },
