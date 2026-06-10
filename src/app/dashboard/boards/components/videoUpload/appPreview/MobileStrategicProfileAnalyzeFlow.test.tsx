@@ -25,7 +25,7 @@ function continueFlow() {
     screen.queryByRole("button", { name: "Continuar" }) ||
     screen.queryByRole("button", { name: "Começar" }) ||
     screen.queryByRole("button", { name: "Gerar leitura" }) ||
-    screen.queryByRole("button", { name: "Ver leitura no Perfil" });
+    screen.queryByRole("button", { name: "Ver sua leitura completa" });
   if (!button) throw new Error("Flow continuation button not found");
   fireEvent.click(button);
 }
@@ -42,21 +42,21 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
 
     expect(screen.getByRole("dialog", { name: "Traga seu vídeo" })).toBeInTheDocument();
     expect(screen.getByText("Vídeo acolhido e pronto")).toBeInTheDocument();
-    expect(screen.getByText("Prossiga para definir sua dúvida e ver seu espelho refletir sua voz.")).toBeInTheDocument();
+    expect(screen.getByText("Prossiga para definir sua pergunta e ver o que muda no seu mapa.")).toBeInTheDocument();
   });
 
   it("advances to creator goal from fallback upload", () => {
     renderFlow();
     continueFlow();
 
-    expect(screen.getByText("O que quer desvendar?")).toBeInTheDocument();
+    expect(screen.getByText("O que você quer ler neste vídeo?")).toBeInTheDocument();
   });
 
   it("advances to creator goal and allows selection", () => {
     renderFlow();
     continueFlow();
 
-    expect(screen.getByText("O que quer desvendar?")).toBeInTheDocument();
+    expect(screen.getByText("O que você quer ler neste vídeo?")).toBeInTheDocument();
     // Placeholder agora é dinâmico: reflete a pergunta da opção selecionada (default: narrativa).
     expect(screen.getByPlaceholderText("O que esse vídeo revela sobre minha narrativa?")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Fortalecer meu ponto de vista" })).toBeInTheDocument();
@@ -86,7 +86,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
 
     expect(screen.getByRole("dialog", { name: "Lendo seu vídeo" })).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByText("Seu espelho está pronto")).toBeInTheDocument();
+      expect(screen.getByText("Sua leitura está pronta")).toBeInTheDocument();
     });
     expect(screen.getByText("Como você quer que a abertura desse vídeo funcione?")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Quero sugestão" })).toBeInTheDocument();
@@ -105,7 +105,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
 
     expect(screen.getByRole("dialog", { name: "Lendo seu vídeo" })).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByRole("dialog", { name: "Seu espelho está pronto" })).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Sua leitura está pronta" })).toBeInTheDocument();
     });
     expect(screen.queryByText("Uma pergunta sobre esta leitura")).not.toBeInTheDocument();
     expect(onSubmit).toHaveBeenCalledTimes(1);
@@ -132,7 +132,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("dialog", { name: "Seu espelho está pronto" })).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Sua leitura está pronta" })).toBeInTheDocument();
     });
   });
 
@@ -155,7 +155,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     continueFlow(); // creator_goal -> processing
 
     await waitFor(() => {
-      expect(screen.getByRole("dialog", { name: "Seu espelho está pronto" })).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Sua leitura está pronta" })).toBeInTheDocument();
     });
 
     expect(screen.queryByRole("button", { name: "Outro vídeo" })).not.toBeInTheDocument();
@@ -185,9 +185,9 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     fireEvent.click(retryBtn);
 
     await waitFor(() => {
-      expect(screen.getByRole("dialog", { name: "Seu espelho está pronto" })).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Sua leitura está pronta" })).toBeInTheDocument();
     });
-    const completeBtn = screen.getByRole("button", { name: "Ver leitura no Perfil" });
+    const completeBtn = screen.getByRole("button", { name: "Ver sua leitura completa" });
     fireEvent.click(completeBtn);
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
@@ -326,7 +326,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       // Valida que seguiu para objetivo/perguntas (Creator Goal)
       await waitFor(() => {
         expect(screen.getByText("Vídeo acolhido e pronto")).toBeInTheDocument();
-        expect(screen.getByText("O que quer desvendar?")).toBeInTheDocument();
+        expect(screen.getByText("O que você quer ler neste vídeo?")).toBeInTheDocument();
       });
     });
 
@@ -359,7 +359,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       await waitFor(() => {
         expect(screen.getByText(/O tamanho do vídeo excede o limite/i)).toBeInTheDocument();
       });
-      expect(screen.queryByText("O que quer desvendar?")).not.toBeInTheDocument();
+      expect(screen.queryByText("O que você quer ler neste vídeo?")).not.toBeInTheDocument();
     });
 
     it("finaliza a leitura depois da validacao de upload metadata", async () => {
@@ -383,7 +383,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       await waitFor(() => {
-        expect(screen.getByText("O que quer desvendar?")).toBeInTheDocument();
+        expect(screen.getByText("O que você quer ler neste vídeo?")).toBeInTheDocument();
       });
 
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
@@ -435,7 +435,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       await waitFor(() => {
-        expect(screen.getByText("Conectando ao espelho...")).toBeInTheDocument();
+        expect(screen.getByText("Conectando ao seu mapa...")).toBeInTheDocument();
       });
       expect(onDirectUpload).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -450,7 +450,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
 
       await waitFor(() => {
         expect(screen.getByText("Vídeo acolhido e pronto")).toBeInTheDocument();
-        expect(screen.getByText("O que quer desvendar?")).toBeInTheDocument();
+        expect(screen.getByText("O que você quer ler neste vídeo?")).toBeInTheDocument();
       });
     });
 
@@ -475,7 +475,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       await waitFor(() => {
-        expect(screen.getByText("O que quer desvendar?")).toBeInTheDocument();
+        expect(screen.getByText("O que você quer ler neste vídeo?")).toBeInTheDocument();
       });
       expect(onDirectUpload).not.toHaveBeenCalled();
     });
@@ -504,7 +504,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       await waitFor(() => {
         expect(screen.getByText("Não conseguimos preparar o vídeo para leitura real agora.")).toBeInTheDocument();
       });
-      expect(screen.queryByText("O que quer desvendar?")).not.toBeInTheDocument();
+      expect(screen.queryByText("O que você quer ler neste vídeo?")).not.toBeInTheDocument();
       expect(onSubmit).not.toHaveBeenCalled();
     });
 
@@ -549,7 +549,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       await waitFor(() => {
         expect(screen.getByText("Não foi possível enviar o vídeo agora.")).toBeInTheDocument();
       });
-      expect(screen.queryByText("O que quer desvendar?")).not.toBeInTheDocument();
+      expect(screen.queryByText("O que você quer ler neste vídeo?")).not.toBeInTheDocument();
     });
 
     it("cleanup failure não quebra análise mock nem envia uploadUrl/objectKey para análise", async () => {
@@ -592,12 +592,12 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       await waitFor(() => {
-        expect(screen.getByText("O que quer desvendar?")).toBeInTheDocument();
+        expect(screen.getByText("O que você quer ler neste vídeo?")).toBeInTheDocument();
       });
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       await waitFor(() => {
-        expect(screen.getByRole("dialog", { name: "Seu espelho está pronto" })).toBeInTheDocument();
+        expect(screen.getByRole("dialog", { name: "Sua leitura está pronta" })).toBeInTheDocument();
         expect(onSubmit).toHaveBeenCalled();
       });
       expect(onCleanup).toHaveBeenCalledWith(
@@ -654,12 +654,12 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       await waitFor(() => {
-        expect(screen.getByText("O que quer desvendar?")).toBeInTheDocument();
+        expect(screen.getByText("O que você quer ler neste vídeo?")).toBeInTheDocument();
       });
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       await waitFor(() => {
-        expect(screen.getByRole("dialog", { name: "Seu espelho está pronto" })).toBeInTheDocument();
+        expect(screen.getByRole("dialog", { name: "Sua leitura está pronta" })).toBeInTheDocument();
         expect(onSubmit).toHaveBeenCalled();
       });
 

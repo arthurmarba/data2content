@@ -209,6 +209,8 @@ function getUploadSessionErrorMessage(response?: UploadSessionResponse) {
   return response?.message || "Não foi possível validar o vídeo agora.";
 }
 
+// Ordem em gradiente: do mais íntimo (narrativa/ponto de vista) ao mais externo
+// (território/formato). O default (authority) permanece em primeiro.
 const goalOptions = [
   {
     label: "Entender minha narrativa",
@@ -216,14 +218,14 @@ const goalOptions = [
     defaultQuestion: "O que esse vídeo revela sobre minha narrativa?",
   },
   {
+    label: "Fortalecer meu ponto de vista",
+    value: "authority_build" as const,
+    defaultQuestion: "Como esse vídeo reforça o meu ponto de vista?",
+  },
+  {
     label: "Checar coerência com o meu mapa",
     value: "retention" as const,
     defaultQuestion: "Esse vídeo é coerente com o que venho construindo?",
-  },
-  {
-    label: "Testar um formato diferente",
-    value: "format_test" as const,
-    defaultQuestion: "Esse formato vale repetir no meu Perfil?",
   },
   {
     label: "Explorar um território novo",
@@ -231,9 +233,9 @@ const goalOptions = [
     defaultQuestion: "Que território de conteúdo esse vídeo abre para mim?",
   },
   {
-    label: "Fortalecer meu ponto de vista",
-    value: "authority_build" as const,
-    defaultQuestion: "Como esse vídeo reforça o meu ponto de vista?",
+    label: "Testar um formato diferente",
+    value: "format_test" as const,
+    defaultQuestion: "Esse formato vale repetir no meu Perfil?",
   },
 ];
 
@@ -618,10 +620,10 @@ export function MobileStrategicProfileAnalyzeFlow({
             {step === "upload"
               ? "Traga seu vídeo"
               : step === "creator_goal"
-                ? "O que quer desvendar?"
+                ? "O que você quer ler neste vídeo?"
                 : step === "processing"
                   ? "Lendo seu vídeo"
-                  : "Seu espelho está pronto"}
+                  : "Sua leitura está pronta"}
           </h2>
         </div>
         <button
@@ -762,7 +764,7 @@ export function MobileStrategicProfileAnalyzeFlow({
 
               {validationStatus === "uploading" ? (
                 <p className="mt-3 text-xs font-medium text-sky-600">
-                  Conectando ao espelho...
+                  Conectando ao seu mapa...
                 </p>
               ) : null}
 
@@ -793,7 +795,7 @@ export function MobileStrategicProfileAnalyzeFlow({
             <div className="rounded-[1.5rem] border border-dashed border-zinc-300 bg-[#f7f7f4] p-4">
               <p className="text-sm font-semibold text-zinc-950">Vídeo acolhido e pronto</p>
               <p className="mt-2 text-sm leading-6 text-zinc-600">
-                Prossiga para definir sua dúvida e ver seu espelho refletir sua voz.
+                Prossiga para definir sua pergunta e ver o que muda no seu mapa.
               </p>
             </div>
           )
@@ -851,7 +853,7 @@ export function MobileStrategicProfileAnalyzeFlow({
                     [
                       { label: "Estudando sua voz", threshold: 0 },
                       { label: "Percebendo seus padrões", threshold: 1 },
-                      { label: "Ajustando seu espelho", threshold: 2 },
+                      { label: "Atualizando seu mapa", threshold: 2 },
                     ] as const
                   ).map((stage, idx) => {
                     const isDone = processingStage > stage.threshold;
@@ -897,6 +899,8 @@ export function MobileStrategicProfileAnalyzeFlow({
                 <p className="mt-2 text-sm leading-6 text-zinc-800">{confirmationData.directAnswer}</p>
               </div>
             ) : null}
+            {/* Bloco 2 — o que mudou no mapa: resumo + veredito de coerência juntos.
+                Os sinais detalhados vivem na leitura completa, no Perfil. */}
             <div className="rounded-[1.5rem] border border-emerald-100 bg-emerald-50 p-4">
               <p className="text-sm font-semibold text-zinc-950">Esse vídeo deixou seu mapa mais claro.</p>
               <p className="mt-2 text-sm leading-6 text-zinc-600">
@@ -904,37 +908,13 @@ export function MobileStrategicProfileAnalyzeFlow({
                   ? confirmationData.diagnosisSummary
                   : "Abra a leitura para ver o que este vídeo confirma, tensiona ou abre no seu mapa."}
               </p>
-            </div>
-            {((confirmationData?.unlockedSignals?.length ?? 0) > 0 || (confirmationData?.opportunities?.length ?? 0) > 0) ? (
-              <div className="mt-4 rounded-[1.5rem] bg-[#f7f7f4] p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">O que este vídeo mostrou</p>
-                <div className="mt-3 grid gap-2">
-                  {confirmationData?.unlockedSignals?.map((signal) => (
-                    <div key={signal} className="flex items-start gap-2.5 rounded-[14px] bg-white p-3 shadow-[0_1px_2px_rgba(9,9,11,0.04)]">
-                      <span className="mt-0.5 shrink-0 rounded-full bg-zinc-100 px-2 py-0.5 text-[10.5px] font-semibold text-zinc-600">
-                        Sinal
-                      </span>
-                      <p className="text-xs leading-[1.55] text-zinc-700">{signal}</p>
-                    </div>
-                  ))}
-                  {confirmationData?.opportunities?.map((opp) => (
-                    <div key={opp} className="flex items-start gap-2.5 rounded-[14px] bg-white p-3 shadow-[0_1px_2px_rgba(9,9,11,0.04)]">
-                      <span className="mt-0.5 shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[10.5px] font-semibold text-emerald-700">
-                        Sinal novo
-                      </span>
-                      <p className="text-xs leading-[1.55] text-zinc-700">{opp}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="mt-4 rounded-[1.5rem] bg-[#f7f7f4] p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Próximo passo</p>
-                <p className="mt-2 text-xs leading-[1.6] text-zinc-600">
-                  Veja seu perfil para encontrar a leitura do seu momento dividida em capítulos.
+              {confirmationData?.coherenceVerdict &&
+              COHERENCE_VERDICT_LABEL[confirmationData.coherenceVerdict] ? (
+                <p className="mt-3 rounded-xl bg-white px-3 py-2 text-xs font-medium leading-5 text-zinc-700">
+                  {COHERENCE_VERDICT_LABEL[confirmationData.coherenceVerdict]}
                 </p>
-              </div>
-            )}
+              ) : null}
+            </div>
 
             {confirmationQuestion ? (
               <div className="mt-4 rounded-2xl border border-zinc-200 bg-[#f7f7f4] p-4">
@@ -978,12 +958,6 @@ export function MobileStrategicProfileAnalyzeFlow({
 
             {/* Publish intent — integrado na confirmação, fire-and-forget */}
             <div className="mt-4 rounded-2xl border border-zinc-100 bg-[#f7f7f4] p-4">
-              {confirmationData?.coherenceVerdict &&
-              COHERENCE_VERDICT_LABEL[confirmationData.coherenceVerdict] ? (
-                <p className="mb-3 rounded-xl bg-white px-3 py-2 text-xs font-medium leading-5 text-zinc-700 shadow-[0_1px_2px_rgba(9,9,11,0.04)]">
-                  {COHERENCE_VERDICT_LABEL[confirmationData.coherenceVerdict]}
-                </p>
-              ) : null}
               <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Vai publicar este vídeo?</p>
               <p className="mt-0.5 text-xs text-zinc-400">Só os vídeos publicados entram no seu mapa narrativo.</p>
               <div className="mt-3 flex gap-2">
@@ -1028,7 +1002,7 @@ export function MobileStrategicProfileAnalyzeFlow({
               className="w-full rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 transition-colors"
               onClick={complete}
             >
-              Ver leitura no Perfil
+              Ver sua leitura completa
             </button>
             {completionSecondaryAction === "upgrade" ? (
               <button
