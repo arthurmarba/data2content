@@ -18,6 +18,7 @@ import {
   readingFeedsNarrativeMap,
 } from "@/app/dashboard/boards/videoUpload/creatorVideoNarrativeDiagnosisReadService";
 import { buildCreatorStrategicProfileSynthesis } from "@/app/dashboard/boards/videoUpload/creatorStrategicProfileSynthesis";
+import { getMapConfirmationsSnapshot } from "@/app/dashboard/boards/videoUpload/mapConfirmationsService";
 import { enrichMapaWithVideoReadings } from "./enrichMapaWithVideoReadings";
 
 const TAG = "[enrichMapaSeedWithVideoForUser]";
@@ -52,9 +53,17 @@ export async function enrichMapaSeedWithVideoForUser(userId: string): Promise<vo
       return;
     }
 
-    const mapaEnriquecido = await enrichMapaWithVideoReadings(mapaDoc.mapa, synthesis);
+    // Estabilidade do núcleo (G3): mesmo o vídeo respeita narrativa/tom confirmados.
+    const confirmations = await getMapConfirmationsSnapshot(userId).catch(() => null);
+    const locks = {
+      narrativeLocked: confirmations?.narrative === "confirmed",
+      toneLocked: confirmations?.tone === "confirmed",
+    };
+
+    const mapaEnriquecido = await enrichMapaWithVideoReadings(mapaDoc.mapa, synthesis, locks);
 
     mapaDoc.mapa = mapaEnriquecido;
+    mapaDoc.videoEnrichedAt = new Date();
     await mapaDoc.save();
 
     logger.info(

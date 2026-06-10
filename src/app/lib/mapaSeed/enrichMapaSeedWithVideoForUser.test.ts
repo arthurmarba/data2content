@@ -42,6 +42,11 @@ jest.mock("./enrichMapaWithVideoReadings", () => ({
   enrichMapaWithVideoReadings: (...args: unknown[]) => mockEnrichVideo(...args),
 }));
 
+const mockGetConfirmations = jest.fn().mockResolvedValue(null);
+jest.mock("@/app/dashboard/boards/videoUpload/mapConfirmationsService", () => ({
+  getMapConfirmationsSnapshot: (...args: unknown[]) => mockGetConfirmations(...args),
+}));
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function makeMapaDoc(overrides?: object) {
@@ -64,6 +69,7 @@ const enrichedMapa = { maturidade: "video_enriched", narrativa_central: "refinad
 describe("enrichMapaSeedWithVideoForUser", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetConfirmations.mockResolvedValue(null);
   });
 
   it("enriquece e salva quando há leituras publicadas e síntese válida", async () => {
@@ -81,8 +87,25 @@ describe("enrichMapaSeedWithVideoForUser", () => {
     expect(mockEnrichVideo).toHaveBeenCalledWith(
       expect.objectContaining({ maturidade: "instagram_enriched" }),
       richSynthesis,
+      expect.objectContaining({ narrativeLocked: false, toneLocked: false }),
     );
     expect(mockMapaSave).toHaveBeenCalledTimes(1);
+  });
+
+  it("deriva locks das confirmações (tom confirmado → toneLocked)", async () => {
+    mockMapaFindOne.mockResolvedValue(makeMapaDoc());
+    mockListReadings.mockResolvedValue([yesReading]);
+    mockBuildSynthesis.mockReturnValue(richSynthesis);
+    mockEnrichVideo.mockResolvedValue(enrichedMapa);
+    mockGetConfirmations.mockResolvedValue({ narrative: "pending", tone: "confirmed" });
+
+    await enrichMapaSeedWithVideoForUser("user123");
+
+    expect(mockEnrichVideo).toHaveBeenCalledWith(
+      expect.anything(),
+      richSynthesis,
+      expect.objectContaining({ narrativeLocked: false, toneLocked: true }),
+    );
   });
 
   it("exclui leituras 'no' antes de construir a síntese", async () => {

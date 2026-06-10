@@ -40,6 +40,19 @@ jest.mock("./enrichMapaWithInstagram", () => ({
   enrichMapaWithInstagram: (...args: unknown[]) => mockEnrichMapa(...args),
 }));
 
+const mockMetricLean = jest.fn().mockResolvedValue([]);
+jest.mock("@/app/models/Metric", () => ({
+  __esModule: true,
+  default: {
+    find: () => ({ select: () => ({ lean: (...args: unknown[]) => mockMetricLean(...args) }) }),
+  },
+}));
+
+const mockGetConfirmations = jest.fn().mockResolvedValue(null);
+jest.mock("@/app/dashboard/boards/videoUpload/mapConfirmationsService", () => ({
+  getMapConfirmationsSnapshot: (...args: unknown[]) => mockGetConfirmations(...args),
+}));
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function makeMapaDoc(overrides?: object) {
@@ -61,6 +74,7 @@ const fakeConnection = { accessToken: "token", accountId: "ig123" };
 describe("enrichMapaSeedWithInstagram", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockGetConfirmations.mockResolvedValue(null);
   });
 
   it("enriquece e salva quando todos os dados estão disponíveis", async () => {
@@ -72,12 +86,33 @@ describe("enrichMapaSeedWithInstagram", () => {
 
     await enrichMapaSeedWithInstagram("user123");
 
-    expect(mockAnalyzePosts).toHaveBeenCalledWith(fakePosts);
+    expect(mockAnalyzePosts).toHaveBeenCalledWith(
+      fakePosts,
+      expect.objectContaining({ resonanceByMediaId: expect.any(Map) }),
+    );
     expect(mockEnrichMapa).toHaveBeenCalledWith(
       expect.objectContaining({ maturidade: "seed" }),
       fakePadroes,
+      expect.objectContaining({ narrativeLocked: false, toneLocked: false }),
     );
     expect(mockMapaSave).toHaveBeenCalledTimes(1);
+  });
+
+  it("deriva locks das confirmações do criador (narrativa confirmada → narrativeLocked)", async () => {
+    mockMapaFindOne.mockResolvedValue(makeMapaDoc());
+    mockGetConnectionDetails.mockResolvedValue(fakeConnection);
+    mockFetchMedia.mockResolvedValue({ success: true, data: fakePosts });
+    mockAnalyzePosts.mockResolvedValue(fakePadroes);
+    mockEnrichMapa.mockResolvedValue(fakeMapaEnriquecido);
+    mockGetConfirmations.mockResolvedValue({ narrative: "confirmed", tone: "pending" });
+
+    await enrichMapaSeedWithInstagram("user123");
+
+    expect(mockEnrichMapa).toHaveBeenCalledWith(
+      expect.anything(),
+      fakePadroes,
+      expect.objectContaining({ narrativeLocked: true, toneLocked: false }),
+    );
   });
 
   it("não faz nada se MapaSeed não existe", async () => {
@@ -131,10 +166,11 @@ describe("enrichMapaSeedWithInstagram", () => {
     expect(mockMapaSave).not.toHaveBeenCalled();
   });
 
-  it("ignora throttle e re-enriquece se maturidade ainda é seed (independente de tempo)", async () => {
-    // Mapa recém atualizado mas ainda seed — deve enriquecer
+  it("re-enriquece quando nunca houve enriquecimento por Instagram (instagramEnrichedAt ausente)", async () => {
+    // Sem instagramEnrichedAt — mesmo que o vídeo tenha bumped updatedAt/maturidade,
+    // o stream de Instagram deve rodar.
     mockMapaFindOne.mockResolvedValue(
-      makeMapaDoc({ updatedAt: new Date(), mapa: { maturidade: "seed" } }),
+      makeMapaDoc({ updatedAt: new Date(), mapa: { maturidade: "video_enriched" } }),
     );
     mockGetConnectionDetails.mockResolvedValue(fakeConnection);
     mockFetchMedia.mockResolvedValue({ success: true, data: fakePosts });
@@ -146,11 +182,26 @@ describe("enrichMapaSeedWithInstagram", () => {
     expect(mockMapaSave).toHaveBeenCalledTimes(1);
   });
 
-  it("aplica throttle: ignora re-enriquecimento se já é instagram_enriched e atualizado há menos de 12h", async () => {
+  it("carimba instagramEnrichedAt ao salvar", async () => {
+    const doc = makeMapaDoc();
+    mockMapaFindOne.mockResolvedValue(doc);
+    mockGetConnectionDetails.mockResolvedValue(fakeConnection);
+    mockFetchMedia.mockResolvedValue({ success: true, data: fakePosts });
+    mockAnalyzePosts.mockResolvedValue(fakePadroes);
+    mockEnrichMapa.mockResolvedValue(fakeMapaEnriquecido);
+
+    await enrichMapaSeedWithInstagram("user123");
+
+    expect((doc as { instagramEnrichedAt?: Date }).instagramEnrichedAt).toBeInstanceOf(Date);
+  });
+
+  it("aplica throttle por fonte: ignora se instagramEnrichedAt < 12h (mesmo após enriquecimento por vídeo)", async () => {
     mockMapaFindOne.mockResolvedValue(
       makeMapaDoc({
-        updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2h atrás
-        mapa: { maturidade: "instagram_enriched" },
+        // Vídeo mexeu no doc agora, mas o IG rodou há 2h — deve respeitar o próprio timestamp.
+        updatedAt: new Date(),
+        mapa: { maturidade: "video_enriched" },
+        instagramEnrichedAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2h atrás
       }),
     );
 

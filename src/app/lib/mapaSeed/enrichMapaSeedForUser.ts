@@ -10,6 +10,8 @@ import { fetchInstagramMedia } from "@/app/lib/instagram/api/fetchers";
 import { analyzeInstagramPosts } from "./analyzeInstagramPosts";
 import { enrichMapaWithInstagram } from "./enrichMapaWithInstagram";
 import MapaSeedModel from "@/app/models/MapaSeed";
+import MetricModel from "@/app/models/Metric";
+import { getMapConfirmationsSnapshot } from "@/app/dashboard/boards/videoUpload/mapConfirmationsService";
 import { connectToDatabase } from "@/app/lib/mongoose";
 
 const TAG = "[enrichMapaSeedForUser]";
@@ -28,13 +30,16 @@ export async function enrichMapaSeedWithInstagram(userId: string): Promise<void>
       return;
     }
 
-    // Throttle: evitar re-enriquecimento se já foi feito recentemente
-    const updatedAt: Date | undefined = mapaDoc.updatedAt instanceof Date ? mapaDoc.updatedAt : undefined;
-    if (updatedAt && mapaDoc.mapa.maturidade === "instagram_enriched") {
-      const horasSinceUpdate = (Date.now() - updatedAt.getTime()) / (1000 * 60 * 60);
-      if (horasSinceUpdate < MIN_HOURS_BETWEEN_ENRICHMENTS) {
+    // Throttle por fonte: usa o timestamp dedicado do Instagram, não `maturidade`
+    // nem `updatedAt` (que o stream de vídeo também mexe). Se nunca foi enriquecido
+    // por IG (`instagramEnrichedAt` ausente), sempre roda.
+    const instagramEnrichedAt: Date | undefined =
+      mapaDoc.instagramEnrichedAt instanceof Date ? mapaDoc.instagramEnrichedAt : undefined;
+    if (instagramEnrichedAt) {
+      const horasSinceEnrichment = (Date.now() - instagramEnrichedAt.getTime()) / (1000 * 60 * 60);
+      if (horasSinceEnrichment < MIN_HOURS_BETWEEN_ENRICHMENTS) {
         logger.info(
-          `${TAG} MapaSeed já enriquecido há ${horasSinceUpdate.toFixed(1)}h para userId=${userId} — ignorado.`,
+          `${TAG} MapaSeed já enriquecido por Instagram há ${horasSinceEnrichment.toFixed(1)}h para userId=${userId} — ignorado.`,
         );
         return;
       }
@@ -57,10 +62,29 @@ export async function enrichMapaSeedWithInstagram(userId: string): Promise<void>
     const posts = mediaResult.data.slice(0, MAX_POSTS);
     logger.info(`${TAG} ${posts.length} posts recuperados para userId=${userId}.`);
 
-    const padroes = await analyzeInstagramPosts(posts);
-    const mapaEnriquecido = await enrichMapaWithInstagram(mapaDoc.mapa, padroes);
+    // Ressonância (saves+shares) por post — usada só internamente para priorizar
+    // quais thumbnails recebem leitura visual no Gemini. Non-fatal: sem isso, a
+    // seleção visual cai para recência.
+    const resonanceByMediaId = await buildResonanceMap(
+      userId,
+      posts.map((p) => p.id).filter(Boolean),
+    );
+
+    const padroes = await analyzeInstagramPosts(posts, { resonanceByMediaId });
+
+    // Estabilidade do núcleo (G3): se o criador já confirmou narrativa/tom, o IG
+    // não sobrescreve. Non-fatal — sem confirmações, locks ficam falsos (comportamento
+    // anterior: IG enriquece livremente o núcleo ainda não confirmado).
+    const confirmations = await getMapConfirmationsSnapshot(userId).catch(() => null);
+    const locks = {
+      narrativeLocked: confirmations?.narrative === "confirmed",
+      toneLocked: confirmations?.tone === "confirmed",
+    };
+
+    const mapaEnriquecido = await enrichMapaWithInstagram(mapaDoc.mapa, padroes, locks);
 
     mapaDoc.mapa = mapaEnriquecido;
+    mapaDoc.instagramEnrichedAt = new Date();
     await mapaDoc.save();
 
     logger.info(
@@ -70,4 +94,35 @@ export async function enrichMapaSeedWithInstagram(userId: string): Promise<void>
     // Non-fatal: nunca quebra o caller
     logger.warn(`${TAG} Falha ao enriquecer MapaSeed para userId=${userId} (ignorada):`, err);
   }
+}
+
+/**
+ * Monta um mapa instagramMediaId → (saves + shares) a partir dos Metric docs já
+ * salvos por triggerDataRefresh. Non-fatal: qualquer falha devolve mapa vazio,
+ * e a leitura visual cai para seleção por recência.
+ */
+async function buildResonanceMap(
+  userId: string,
+  mediaIds: string[],
+): Promise<Map<string, number>> {
+  const resonance = new Map<string, number>();
+  if (mediaIds.length === 0) return resonance;
+  try {
+    const metrics = await MetricModel.find({
+      user: userId,
+      instagramMediaId: { $in: mediaIds },
+    })
+      .select("instagramMediaId stats.saved stats.shares")
+      .lean();
+
+    for (const m of metrics as Array<{ instagramMediaId?: string | null; stats?: { saved?: number; shares?: number } }>) {
+      if (!m.instagramMediaId) continue;
+      const saved = typeof m.stats?.saved === "number" ? m.stats.saved : 0;
+      const shares = typeof m.stats?.shares === "number" ? m.stats.shares : 0;
+      resonance.set(m.instagramMediaId, saved + shares);
+    }
+  } catch (err) {
+    logger.warn(`${TAG} Falha ao montar mapa de ressonância (ignorada):`, err);
+  }
+  return resonance;
 }

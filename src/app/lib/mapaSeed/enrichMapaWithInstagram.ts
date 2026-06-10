@@ -1,12 +1,15 @@
 // src/app/lib/mapaSeed/enrichMapaWithInstagram.ts
 // Cruza os padrões do Instagram com o mapa seed declarativo
 // e gera um mapa enriquecido mais fiel ao criador real.
-// Modelo: gpt-4o · intensity: high
+// Modelo: OpenAI gpt-4o (via callClaudeJSON, nome legado) · intensity: high
 
 import { callClaudeJSON } from "@/app/lib/claudeService";
 import { logger } from "@/app/lib/logger";
 import type { IMapaData, MapaFonte } from "@/app/models/MapaSeed";
 import type { InstagramPatterns } from "./analyzeInstagramPosts";
+import { applyCoreStabilityLocks, type CoreStabilityLocks } from "./coreStabilityLocks";
+
+export type { CoreStabilityLocks } from "./coreStabilityLocks";
 
 // ─── Prompt ───────────────────────────────────────────────────────────────────
 
@@ -73,7 +76,8 @@ Formato esperado:
 
 export async function enrichMapaWithInstagram(
   mapaAtual: IMapaData,
-  patterns: InstagramPatterns
+  patterns: InstagramPatterns,
+  locks?: CoreStabilityLocks,
 ): Promise<IMapaData> {
   const TAG = "[mapaSeed][enrichMapaWithInstagram]";
 
@@ -114,16 +118,27 @@ export async function enrichMapaWithInstagram(
     throw new Error("Mapa enriquecido gerado sem campos obrigatórios.");
   }
 
+  // Núcleo travado (G3): se o criador já confirmou narrativa/tom, o Instagram não
+  // sobrescreve — mantém o confirmado e registra a divergência como observação calma.
+  const { narrativaFinal, tomFinal, observacoes } = applyCoreStabilityLocks({
+    mapaAtual,
+    proposedNarrativa: raw.narrativa_central,
+    proposedTom: raw.tom,
+    baseObservacoes: raw.observacoes ?? [],
+    locks,
+    source: { narrativePrefix: "Seu Instagram sugere", tonePhrase: "no Instagram" },
+  });
+
   const mapaEnriquecido: IMapaData = {
-    narrativa_central:     raw.narrativa_central,
+    narrativa_central:     narrativaFinal,
     territorios:           raw.territorios           ?? mapaAtual.territorios,
     narrativas_adjacentes: raw.narrativas_adjacentes ?? mapaAtual.narrativas_adjacentes,
     assets:                raw.assets                ?? mapaAtual.assets,
-    tom:                   raw.tom,
+    tom:                   tomFinal,
     formatos:              raw.formatos              ?? mapaAtual.formatos,
     maturidade:            "instagram_enriched",
     fonte:                 ([...new Set([...mapaAtual.fonte, "instagram"])] as MapaFonte[]),
-    observacoes:           raw.observacoes           ?? [],
+    observacoes:           observacoes.slice(0, 3),
     amostragem_instagram:  patterns.amostragem,
   };
 

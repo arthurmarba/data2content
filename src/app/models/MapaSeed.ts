@@ -66,6 +66,13 @@ export interface IMapaSeed extends Document {
   onboardingAnswers: IOnboardingAnswers;
   mapa: IMapaData;
   leituraInaugural?: ILeituraInaugural;
+  /**
+   * Timestamps de enriquecimento por fonte. Desacoplam o throttle de cada stream
+   * (Instagram × vídeo) — antes ambos disputavam `mapa.maturidade` + `updatedAt`,
+   * fazendo o throttle de um falhar quando o outro rodava.
+   */
+  instagramEnrichedAt?: Date | null;
+  videoEnrichedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -147,6 +154,9 @@ const MapaSeedSchema = new Schema<IMapaSeed>(
       type: LeituraInauguralSchema,
       default: null,
     },
+    // Throttle por fonte — ver IMapaSeed.
+    instagramEnrichedAt: { type: Date, default: null },
+    videoEnrichedAt:     { type: Date, default: null },
   },
   {
     timestamps: true,

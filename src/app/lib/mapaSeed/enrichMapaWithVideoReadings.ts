@@ -8,6 +8,7 @@ import { callClaudeJSON } from "@/app/lib/claudeService";
 import { logger } from "@/app/lib/logger";
 import type { IMapaData, MapaFonte } from "@/app/models/MapaSeed";
 import type { CreatorStrategicProfileSynthesis } from "@/app/dashboard/boards/videoUpload/creatorStrategicProfileSynthesis";
+import { applyCoreStabilityLocks, type CoreStabilityLocks } from "./coreStabilityLocks";
 
 // ─── Resumo compacto e seguro da síntese ───────────────────────────────────────
 
@@ -111,6 +112,7 @@ Formato esperado:
 export async function enrichMapaWithVideoReadings(
   mapaAtual: IMapaData,
   synthesis: CreatorStrategicProfileSynthesis,
+  locks?: CoreStabilityLocks,
 ): Promise<IMapaData> {
   const TAG = "[mapaSeed][enrichMapaWithVideoReadings]";
 
@@ -147,16 +149,27 @@ export async function enrichMapaWithVideoReadings(
     throw new Error("Mapa enriquecido (vídeo) gerado sem campos obrigatórios.");
   }
 
+  // Núcleo travado (G3): mesmo o vídeo (fonte mais autoritativa) respeita o que o
+  // criador confirmou — mantém o confirmado e registra a divergência como observação.
+  const { narrativaFinal, tomFinal, observacoes } = applyCoreStabilityLocks({
+    mapaAtual,
+    proposedNarrativa: raw.narrativa_central,
+    proposedTom: raw.tom,
+    baseObservacoes: raw.observacoes ?? [],
+    locks,
+    source: { narrativePrefix: "Seus vídeos sugerem", tonePhrase: "nos vídeos" },
+  });
+
   const mapaEnriquecido: IMapaData = {
-    narrativa_central:     raw.narrativa_central,
+    narrativa_central:     narrativaFinal,
     territorios:           raw.territorios           ?? mapaAtual.territorios,
     narrativas_adjacentes: raw.narrativas_adjacentes ?? mapaAtual.narrativas_adjacentes,
     assets:                raw.assets                ?? mapaAtual.assets,
-    tom:                   raw.tom,
+    tom:                   tomFinal,
     formatos:              raw.formatos              ?? mapaAtual.formatos,
     maturidade:            "video_enriched",
     fonte:                 ([...new Set([...mapaAtual.fonte, "video"])] as MapaFonte[]),
-    observacoes:           raw.observacoes           ?? [],
+    observacoes:           observacoes.slice(0, 3),
     amostragem_instagram:  mapaAtual.amostragem_instagram,
   };
 

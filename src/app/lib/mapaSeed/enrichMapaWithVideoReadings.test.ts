@@ -151,4 +151,36 @@ describe("enrichMapaWithVideoReadings", () => {
     expect(result.assets).toEqual(mapa.assets);
     expect(result.formatos).toEqual(mapa.formatos);
   });
+
+  it("narrativeLocked: mantém a narrativa confirmada e registra divergência dos vídeos", async () => {
+    mockCallClaude.mockResolvedValue({
+      narrativa_central: "narrativa refinada pelos vídeos",
+      tom: "reflexivo",
+      observacoes: [],
+    });
+
+    const result = await enrichMapaWithVideoReadings(makeMapa(), makeSynthesis(), {
+      narrativeLocked: true,
+      toneLocked: false,
+    });
+
+    expect(result.narrativa_central).toBe("narrativa declarada");
+    expect(result.observacoes?.some((o) => o.includes("Seus vídeos sugerem"))).toBe(true);
+  });
+
+  it("toneLocked: mantém o tom confirmado e registra divergência dos vídeos", async () => {
+    mockCallClaude.mockResolvedValue({
+      narrativa_central: "narrativa declarada",
+      tom: "acelerado",
+      observacoes: [],
+    });
+
+    const result = await enrichMapaWithVideoReadings(makeMapa(), makeSynthesis(), {
+      narrativeLocked: false,
+      toneLocked: true,
+    });
+
+    expect(result.tom).toBe("reflexivo");
+    expect(result.observacoes?.some((o) => o.includes("nos vídeos"))).toBe(true);
+  });
 });
