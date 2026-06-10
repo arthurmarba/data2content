@@ -2,11 +2,11 @@
 // Gera pautas a partir do mapa narrativo do criador.
 //
 // Intensidade por maturidade:
-//   seed               → gpt-4o · medium → 3 pautas simples e diretas
-//   instagram_enriched → gpt-4o · high   → pautas conectadas a assets e territórios reais
-//   video_enriched     → gpt-4o · high   → idem, com referência ao histórico de vídeo
+//   seed               → medium → 3 pautas simples e diretas
+//   instagram_enriched → high   → pautas conectadas a assets e territórios reais
+//   video_enriched     → high   → idem, com referência ao histórico de vídeo
 //
-// Saída: array de pautas compatíveis com ICreatorContentIdea (source: "gpt4o_v1")
+// Provider selecionado por LLM_PROVIDER_MAPA (default: OpenAI, Gemini via flag).
 
 import crypto from "node:crypto";
 import { callClaudeJSON } from "@/app/lib/claudeService";
@@ -155,7 +155,8 @@ export async function generatePautasFromMapa(
     throw new Error("Geração de pautas retornou resultado inválido.");
   }
 
-  const modelVersion = `gpt4o_v1_${mapa.maturidade}`;
+  const providerScope = process.env.LLM_PROVIDER_MAPA || process.env.LLM_PROVIDER || "openai";
+  const modelVersion = `${providerScope}_v1_${mapa.maturidade}`;
 
   const pautas: PautaGerada[] = raw
     .filter((p) => p.title && p.angle && p.hook && p.territory)
