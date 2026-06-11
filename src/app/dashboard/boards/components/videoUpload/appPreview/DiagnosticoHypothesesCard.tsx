@@ -11,10 +11,16 @@ interface Props {
   hypotheses: Signal[];
   /** Labels already endorsed by the creator — pre-loaded from mapConfirmations. */
   endorsedHypotheses?: string[];
+  /** Labels the creator rejected ("Não faz sentido") — never shown here. */
+  dismissedHypotheses?: string[];
 }
 
-export function DiagnosticoHypothesesCard({ hypotheses, endorsedHypotheses = [] }: Props) {
-  const refinedHypotheses = refineDiagnosticoSignals(hypotheses, "hypothesis");
+export function DiagnosticoHypothesesCard({ hypotheses, endorsedHypotheses = [], dismissedHypotheses = [] }: Props) {
+  // A rejected hypothesis is a settled decision — keep it out of "EM OBSERVAÇÃO"
+  // so it never re-surfaces here after the creator dismissed it on the map card.
+  const dismissedSet = new Set(dismissedHypotheses.map((l) => l.trim().toLowerCase()));
+  const visibleHypotheses = hypotheses.filter((h) => !dismissedSet.has(h.label.trim().toLowerCase()));
+  const refinedHypotheses = refineDiagnosticoSignals(visibleHypotheses, "hypothesis");
   const endorsedHypothesesKey = endorsedHypotheses.join("\u0000");
   const [endorsed, setEndorsed] = useState<Set<string>>(new Set(endorsedHypotheses));
   const [pending, setPending] = useState<Set<string>>(new Set());

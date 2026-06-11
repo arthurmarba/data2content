@@ -49,6 +49,12 @@ export interface ICreatorMapConfirmations extends Document {
    */
   endorsedHypotheses: string[];
   /**
+   * Labels of hypotheses the creator explicitly rejected ("Não faz sentido").
+   * Persisted so a rejected hypothesis never re-surfaces on refresh, and so it
+   * can feed future AI prompts as a negative signal (mirror of endorsedHypotheses).
+   */
+  dismissedHypotheses: string[];
+  /**
    * Formats the creator explicitly confirmed as their preferred content formats.
    * Subset of ["Reels", "Carrossel", "Story", "Foto", "Vídeo longo"].
    */
@@ -155,6 +161,10 @@ const CreatorMapConfirmationsSchema = new Schema<ICreatorMapConfirmations>(
       default: [],
     },
     endorsedHypotheses: {
+      type: [String],
+      default: [],
+    },
+    dismissedHypotheses: {
       type: [String],
       default: [],
     },

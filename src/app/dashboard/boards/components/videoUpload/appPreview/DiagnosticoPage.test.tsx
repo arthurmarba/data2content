@@ -168,6 +168,7 @@ describe("DiagnosticoPage", () => {
           tone: "pending",
           assetConfirmations: [],
           endorsedHypotheses: [],
+          dismissedHypotheses: [],
           confirmedFormats: [],
           adjacentNarratives: [],
         },

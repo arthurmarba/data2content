@@ -26,6 +26,8 @@ export type MapConfirmationsSnapshot = {
   assetConfirmations: Array<{ label: string; state: MapDimensionConfirmationState }>;
   /** Labels of hypotheses the creator endorsed via "Faz sentido para mim". */
   endorsedHypotheses: string[];
+  /** Labels of hypotheses the creator rejected via "Não faz sentido" — never re-surface. */
+  dismissedHypotheses: string[];
   /** Formats the creator confirmed as preferred (subset of ALLOWED_FORMATS). */
   confirmedFormats: string[];
   /**
@@ -77,6 +79,7 @@ export async function getMapConfirmationsSnapshot(
         state: a.state ?? "pending",
       })),
       endorsedHypotheses: doc.endorsedHypotheses ?? [],
+      dismissedHypotheses: doc.dismissedHypotheses ?? [],
       confirmedFormats: doc.confirmedFormats ?? [],
       adjacentNarratives: (doc.adjacentNarratives ?? []).map((a) => ({
         label: a.label,

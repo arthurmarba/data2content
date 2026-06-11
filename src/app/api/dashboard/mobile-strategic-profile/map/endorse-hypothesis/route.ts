@@ -8,10 +8,16 @@ import { Types } from "mongoose";
 /**
  * POST /api/dashboard/mobile-strategic-profile/map/endorse-hypothesis
  *
- * Records the creator's endorsement ("Faz sentido para mim") for a hypothesis.
- * Idempotent — endorsing the same label twice is a no-op.
+ * Records the creator's decision on a hypothesis:
+ *   action "endorse" (default) → "Faz sentido"     → endorsedHypotheses
+ *   action "dismiss"           → "Não faz sentido"  → dismissedHypotheses
  *
- * Body: { label: string }
+ * Idempotent and mutually exclusive: endorsing pulls the label from the
+ * dismissed list and vice-versa, so the creator can change their mind.
+ * Persisting the dismissal is what keeps a rejected hypothesis from
+ * re-surfacing on every page refresh.
+ *
+ * Body: { label: string; action?: "endorse" | "dismiss" }
  */
 export async function POST(request: Request) {
   const authOptions = await resolveAuthOptions();
@@ -24,10 +30,14 @@ export async function POST(request: Request) {
   }
 
   let label: string | undefined;
+  let action: "endorse" | "dismiss" = "endorse";
   try {
     const raw = await request.json().catch(() => ({}));
     if (raw && typeof raw.label === "string" && raw.label.trim().length > 0) {
       label = raw.label.trim();
+    }
+    if (raw && raw.action === "dismiss") {
+      action = "dismiss";
     }
   } catch {
     // ignore
@@ -37,16 +47,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Campo 'label' obrigatório." }, { status: 400 });
   }
 
+  // Mutually exclusive: a decision moves the label into one list and out of the
+  // other, so a creator who changes their mind isn't stuck in both.
+  const update =
+    action === "dismiss"
+      ? { $addToSet: { dismissedHypotheses: label }, $pull: { endorsedHypotheses: label } }
+      : { $addToSet: { endorsedHypotheses: label }, $pull: { dismissedHypotheses: label } };
+
   try {
     await connectToDatabase();
     await CreatorMapConfirmations.findOneAndUpdate(
       { userId: new Types.ObjectId(userId) },
-      { $addToSet: { endorsedHypotheses: label } },
+      update,
       { upsert: true, new: true },
     );
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[endorse-hypothesis] Erro:", err);
-    return NextResponse.json({ message: "Erro ao registrar endorsement." }, { status: 500 });
+    return NextResponse.json({ message: "Erro ao registrar decisão." }, { status: 500 });
   }
 }

@@ -217,6 +217,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
       tone: "pending" as const,
       assetConfirmations: [],
       endorsedHypotheses: [],
+      dismissedHypotheses: [],
       confirmedFormats: [],
       adjacentNarratives: [],
     };
@@ -1285,6 +1286,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           onConfirmAsset={handleConfirmAsset}
           assetConfirmations={assetConfirmations}
           endorsedHypotheses={hydratedData.mapConfirmations?.endorsedHypotheses ?? []}
+          dismissedHypotheses={hydratedData.mapConfirmations?.dismissedHypotheses ?? []}
           adjacentNarrativesFromMap={hydratedData.mapConfirmations?.adjacentNarratives ?? []}
           onDetectAdjacents={handleDetectAdjacents}
           onConfirmAdjacent={handleConfirmAdjacent}

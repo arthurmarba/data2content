@@ -37,6 +37,8 @@ interface Props {
   assetConfirmations?: Map<string, "confirmed" | "dismissed">;
   /** Labels of hypotheses already endorsed by the creator. */
   endorsedHypotheses?: string[];
+  /** Labels of hypotheses the creator rejected ("Não faz sentido") — filtered out. */
+  dismissedHypotheses?: string[];
   // ── Etapa 4: adjacent narratives ────────────────────────────────────────────
   /** All adjacent narratives from mapConfirmations (pending / confirmed / dismissed). */
   adjacentNarrativesFromMap?: Array<{
@@ -68,6 +70,7 @@ export function DiagnosticoNarrativeDetailView({
   onConfirmAsset,
   assetConfirmations,
   endorsedHypotheses,
+  dismissedHypotheses,
   adjacentNarrativesFromMap,
   onDetectAdjacents,
   onConfirmAdjacent,
@@ -263,6 +266,7 @@ export function DiagnosticoNarrativeDetailView({
                 : s.testedNarratives
             }
             endorsedHypotheses={endorsedHypotheses}
+            dismissedHypotheses={dismissedHypotheses}
           />
 
           {/* Tone and life context fingerprint — etapa 5+6: how the creator communicates */}

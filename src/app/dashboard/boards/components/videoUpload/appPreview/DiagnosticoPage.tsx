@@ -341,6 +341,7 @@ function MapaCard({
   onConfirmAsset,
   assetConfirmations,
   endorsedHypotheses,
+  dismissedHypotheses = [],
   adjacentNarrativesFromMap,
   hasReadings,
   onNewReading,
@@ -359,6 +360,8 @@ function MapaCard({
   onConfirmAsset?: (assetLabel: string, response: AssetConfirmationResponse) => void;
   assetConfirmations?: Map<string, "confirmed" | "dismissed">;
   endorsedHypotheses: string[];
+  /** Labels the creator rejected via "Não faz sentido" — filtered out, never re-asked. */
+  dismissedHypotheses?: string[];
   /** Etapa 4: adjacent narratives from mapConfirmations (all states). */
   adjacentNarrativesFromMap?: Array<{ label: string; state: "pending" | "confirmed" | "dismissed"; source: "detected" | "manual" }>;
   hasReadings: boolean;
@@ -399,8 +402,14 @@ function MapaCard({
     filteredTerritories.length >= 1;
 
   // ── Hypothesis enrichment ──────────────────────────────────────────────────
+  // A hypothesis ("narrativa em teste") is asked once. The creator's decision —
+  // "Faz sentido" or "Não faz sentido" — is persisted server-side so the question
+  // never re-surfaces on refresh. Both lists are decisions; only a hypothesis with
+  // no decision yet stays pending. Optimistic local sets cover the request window.
   const endorsedKey = endorsedHypotheses.join("\0");
+  const dismissedKey = dismissedHypotheses.join("\0");
   const [endorsedLocal, setEndorsedLocal] = useState<Set<string>>(new Set(endorsedHypotheses));
+  const [dismissedLocal, setDismissedLocal] = useState<Set<string>>(new Set(dismissedHypotheses));
   const [hypothesisPendingSet, setHypothesisPendingSet] = useState<Set<string>>(new Set());
 
   useEffect(() => {
@@ -408,26 +417,38 @@ function MapaCard({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [endorsedKey]);
 
+  useEffect(() => {
+    setDismissedLocal(new Set(dismissedHypotheses));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dismissedKey]);
+
   const filteredHypotheses = leadingNarrative
     ? s.testedNarratives.filter(
         (h) => h.label.trim().toLowerCase() !== leadingNarrative.label.trim().toLowerCase()
       )
     : s.testedNarratives;
-  const pendingHypothesis = filteredHypotheses.find((h) => !endorsedLocal.has(h.label)) ?? null;
+  const pendingHypothesis =
+    filteredHypotheses.find(
+      (h) => !endorsedLocal.has(h.label) && !dismissedLocal.has(h.label),
+    ) ?? null;
 
-  async function handleEndorseHypothesis(label: string) {
-    if (endorsedLocal.has(label) || hypothesisPendingSet.has(label)) return;
+  async function decideHypothesis(label: string, action: "endorse" | "dismiss") {
+    if (endorsedLocal.has(label) || dismissedLocal.has(label) || hypothesisPendingSet.has(label)) return;
     setHypothesisPendingSet((p) => new Set(p).add(label));
+    // Optimistic: hide the row immediately; reconcile on failure.
+    if (action === "endorse") setEndorsedLocal((e) => new Set(e).add(label));
+    else setDismissedLocal((d) => new Set(d).add(label));
     try {
       const res = await fetch("/api/dashboard/mobile-strategic-profile/map/endorse-hypothesis", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label }),
+        body: JSON.stringify({ label, action }),
       });
-      if (!res.ok) throw new Error("endorse_failed");
-      setEndorsedLocal((e) => new Set(e).add(label));
+      if (!res.ok) throw new Error("decide_failed");
     } catch {
-      // non-fatal
+      // Roll back the optimistic hide so the creator can try again.
+      if (action === "endorse") setEndorsedLocal((e) => { const n = new Set(e); n.delete(label); return n; });
+      else setDismissedLocal((d) => { const n = new Set(d); n.delete(label); return n; });
     } finally {
       setHypothesisPendingSet((p) => { const n = new Set(p); n.delete(label); return n; });
     }
@@ -645,8 +666,9 @@ function MapaCard({
               disabled={hypothesisPendingSet.has(pendingHypothesis.label)}
               primaryLabel={hypothesisPendingSet.has(pendingHypothesis.label) ? "Salvando…" : "Faz sentido"}
               primaryColor={ACCENT_ORANGE_HEX}
-              onPrimary={() => handleEndorseHypothesis(pendingHypothesis.label)}
-              onTertiary={() => setEndorsedLocal((e) => new Set(e).add(pendingHypothesis.label))}
+              tertiaryLabel="Não faz sentido"
+              onPrimary={() => decideHypothesis(pendingHypothesis.label, "endorse")}
+              onTertiary={() => decideHypothesis(pendingHypothesis.label, "dismiss")}
             />
           )}
         </div>
@@ -2159,6 +2181,7 @@ export function DiagnosticoPage({
             onConfirmAsset={onConfirmAsset}
             assetConfirmations={assetConfirmations}
             endorsedHypotheses={mapConfirmations?.endorsedHypotheses ?? []}
+            dismissedHypotheses={mapConfirmations?.dismissedHypotheses ?? []}
             adjacentNarrativesFromMap={mapConfirmations?.adjacentNarratives}
             hasReadings={hasReadings}
             onNewReading={onNewReading}

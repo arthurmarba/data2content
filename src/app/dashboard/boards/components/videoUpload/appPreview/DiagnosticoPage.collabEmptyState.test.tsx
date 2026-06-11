@@ -24,6 +24,7 @@ const confirmedMapConfirmations = {
   assetConfirmations: [],
   confirmedFormats: [],
   endorsedHypotheses: [],
+  dismissedHypotheses: [],
   adjacentNarratives: [],
 };
 
