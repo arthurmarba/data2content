@@ -604,6 +604,15 @@ export function DiagnosticoRealShellClient({ data }: Props) {
       handledInstagramLinked.current = true;
       setShowInstagramConnectedNotice(true);
 
+      // Dispara o enriquecimento do MapaSeed imediatamente — sem depender do
+      // worker QStash, que pode não estar configurado em todos os ambientes.
+      // Após conclusão, router.refresh() atualiza o card "Seu Mapa" com os
+      // territórios/assets/tom vindos do Instagram. Non-fatal: o cron periódico
+      // ainda cobre o usuário se esta chamada falhar.
+      fetch("/api/onboarding/instagram-enrich", { method: "POST" })
+        .then(() => router.refresh())
+        .catch(() => {});
+
       // O3: se o criador veio do onboarding, retoma no step salvo.
       try {
         const savedStep = sessionStorage.getItem("d2c_onboarding_resume_step") as OnboardingStep | null;

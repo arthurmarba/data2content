@@ -13,6 +13,9 @@
 //   { mapa: IMapaData, padroes: InstagramPatterns, jaConectado: boolean }
 
 import { NextResponse } from "next/server";
+
+export const runtime = "nodejs";
+export const maxDuration = 60;
 import { getServerSession } from "next-auth/next";
 import { resolveAuthOptions } from "@/app/api/auth/resolveAuthOptions";
 import { connectToDatabase } from "@/app/lib/mongoose";
