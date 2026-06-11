@@ -64,6 +64,17 @@ const DEFAULT_MODEL = "gemini-2.5-flash";
 const DEFAULT_COUNT = 3;
 const MAX_COUNT = 6;
 
+// Orçamento de "thinking" do Gemini. Para extração estruturada (não raciocínio
+// aberto) desligamos por padrão (0) → saída previsível, sem consumir o teto de
+// tokens com cadeia de pensamento. Espelha o núcleo LLM (geminiProvider).
+// Ajustável por GEMINI_THINKING_BUDGET (-1 = automático/ligado; 0 = desligado).
+function resolveThinkingBudget(): number {
+  const raw = process.env.GEMINI_THINKING_BUDGET;
+  if (raw == null || raw.trim() === "") return 0;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
 function readApiKey(): string | null {
   return (
     process.env.GOOGLE_GEMINI_API_KEY?.trim() ||
@@ -259,6 +270,14 @@ export async function generateContentIdeas(
         responseMimeType: "application/json",
         responseJsonSchema: CONTENT_IDEAS_RESPONSE_JSON_SCHEMA,
         maxOutputTokens: 6000,
+        // gemini-2.5-flash é um modelo "thinking": sem este teto, os tokens de
+        // raciocínio consomem o maxOutputTokens e o JSON sai truncado/vazio →
+        // parseGeminiJson null → invalid_gemini_response (500). Extração estruturada
+        // não precisa de chain-of-thought. Mesma proteção do núcleo LLM do mapa
+        // (geminiProvider). Ajustável por GEMINI_THINKING_BUDGET (-1 = automático).
+        ...(resolveThinkingBudget() >= 0
+          ? { thinkingConfig: { thinkingBudget: resolveThinkingBudget() } }
+          : {}),
       },
     });
     rawText = response.text ?? null;
