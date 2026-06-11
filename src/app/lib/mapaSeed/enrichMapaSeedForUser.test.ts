@@ -247,8 +247,8 @@ describe("enrichMapaSeedWithInstagram", () => {
     await expect(enrichMapaSeedWithInstagram("user123")).resolves.toBeUndefined();
   });
 
-  it("limita posts a 30 mesmo quando mais são retornados", async () => {
-    const manyPosts = Array.from({ length: 50 }, (_, i) => ({ id: String(i) }));
+  it("limita posts ao alvo (60) mesmo quando mais são retornados", async () => {
+    const manyPosts = Array.from({ length: 80 }, (_, i) => ({ id: String(i) }));
     mockMapaFindOne.mockResolvedValue(makeMapaDoc());
     mockGetConnectionDetails.mockResolvedValue(fakeConnection);
     mockFetchMedia.mockResolvedValue({ success: true, data: manyPosts });
@@ -258,6 +258,46 @@ describe("enrichMapaSeedWithInstagram", () => {
     await enrichMapaSeedWithInstagram("user123");
 
     const calledWith = mockAnalyzePosts.mock.calls[0][0];
-    expect(calledWith).toHaveLength(30);
+    expect(calledWith).toHaveLength(60);
+  });
+
+  it("pagina via nextPageUrl até atingir o alvo de posts", async () => {
+    const page1 = Array.from({ length: 25 }, (_, i) => ({ id: `p1-${i}` }));
+    const page2 = Array.from({ length: 25 }, (_, i) => ({ id: `p2-${i}` }));
+    const page3 = Array.from({ length: 25 }, (_, i) => ({ id: `p3-${i}` }));
+    mockMapaFindOne.mockResolvedValue(makeMapaDoc());
+    mockGetConnectionDetails.mockResolvedValue(fakeConnection);
+    // Página 1 e 2 oferecem próxima página; o loop deve seguir até juntar ≥60.
+    mockFetchMedia
+      .mockResolvedValueOnce({ success: true, data: page1, nextPageUrl: "url-2" })
+      .mockResolvedValueOnce({ success: true, data: page2, nextPageUrl: "url-3" })
+      .mockResolvedValueOnce({ success: true, data: page3, nextPageUrl: "url-4" });
+    mockAnalyzePosts.mockResolvedValue(fakePadroes);
+    mockEnrichMapa.mockResolvedValue(fakeMapaEnriquecido);
+
+    await enrichMapaSeedWithInstagram("user123");
+
+    // 3 páginas: 25+25+25=75 coletados, fatiado ao alvo de 60.
+    expect(mockFetchMedia).toHaveBeenCalledTimes(3);
+    expect(mockFetchMedia.mock.calls[1][2]).toBe("url-2");
+    expect(mockFetchMedia.mock.calls[2][2]).toBe("url-3");
+    expect(mockAnalyzePosts.mock.calls[0][0]).toHaveLength(60);
+  });
+
+  it("para a paginação se uma página seguinte falhar (best-effort)", async () => {
+    const page1 = Array.from({ length: 25 }, (_, i) => ({ id: `p1-${i}` }));
+    mockMapaFindOne.mockResolvedValue(makeMapaDoc());
+    mockGetConnectionDetails.mockResolvedValue(fakeConnection);
+    mockFetchMedia
+      .mockResolvedValueOnce({ success: true, data: page1, nextPageUrl: "url-2" })
+      .mockResolvedValueOnce({ success: false, error: "boom" });
+    mockAnalyzePosts.mockResolvedValue(fakePadroes);
+    mockEnrichMapa.mockResolvedValue(fakeMapaEnriquecido);
+
+    await enrichMapaSeedWithInstagram("user123");
+
+    // Segue com os 25 da primeira página em vez de abortar.
+    expect(mockAnalyzePosts.mock.calls[0][0]).toHaveLength(25);
+    expect(mockMapaSave).toHaveBeenCalledTimes(1);
   });
 });

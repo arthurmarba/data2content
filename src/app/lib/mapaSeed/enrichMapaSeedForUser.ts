@@ -15,7 +15,14 @@ import { getMapConfirmationsSnapshot } from "@/app/dashboard/boards/videoUpload/
 import { connectToDatabase } from "@/app/lib/mongoose";
 
 const TAG = "[enrichMapaSeedForUser]";
-const MAX_POSTS = 30;
+// Alvo de posts para a análise narrativa. A API do IG devolve em ordem
+// cronológica reversa, ~25 por página; paginamos até este alvo para dar ao
+// Gemini uma amostra mais representativa da narrativa do criador (e não só o
+// recorte mais recente, que pode ser atípico). Sem filtro de data — isso
+// machucaria quem posta pouco. A leitura visual cara segue limitada (12 thumbs).
+const TARGET_POSTS = 60;
+// Teto de páginas para limitar latência do enriquecimento on-connect (60 ÷ 25 ≈ 3).
+const MAX_MEDIA_PAGES = 3;
 // Só re-enriquece se o mapa foi criado/atualizado há mais de X horas,
 // evitando re-processamento desnecessário em reconexões rápidas.
 const MIN_HOURS_BETWEEN_ENRICHMENTS = 12;
@@ -58,16 +65,33 @@ export async function enrichMapaSeedWithInstagram(userId: string): Promise<void>
       return;
     }
 
-    const mediaResult = await fetchInstagramMedia(igConnection.accountId, igConnection.accessToken);
-    if (!mediaResult.success || !mediaResult.data?.length) {
+    const firstPage = await fetchInstagramMedia(igConnection.accountId, igConnection.accessToken);
+    if (!firstPage.success || !firstPage.data?.length) {
       logger.warn(
-        `${TAG} Sem posts para userId=${userId}: ${mediaResult.error ?? "lista vazia"} — enriquecimento ignorado.`,
+        `${TAG} Sem posts para userId=${userId}: ${firstPage.error ?? "lista vazia"} — enriquecimento ignorado.`,
       );
       return;
     }
 
-    const posts = mediaResult.data.slice(0, MAX_POSTS);
-    logger.info(`${TAG} ${posts.length} posts recuperados para userId=${userId}.`);
+    // Pagina até TARGET_POSTS (ou esgotar páginas/teto) para uma amostra mais rica.
+    // Best-effort: se uma página seguinte falhar, segue com o que já coletou.
+    const collected = [...firstPage.data];
+    let nextPageUrl = firstPage.nextPageUrl ?? null;
+    let pages = 1;
+    while (collected.length < TARGET_POSTS && nextPageUrl && pages < MAX_MEDIA_PAGES) {
+      const page = await fetchInstagramMedia(
+        igConnection.accountId,
+        igConnection.accessToken,
+        nextPageUrl,
+      );
+      if (!page.success || !page.data?.length) break;
+      collected.push(...page.data);
+      nextPageUrl = page.nextPageUrl ?? null;
+      pages += 1;
+    }
+
+    const posts = collected.slice(0, TARGET_POSTS);
+    logger.info(`${TAG} ${posts.length} posts recuperados (${pages} página(s)) para userId=${userId}.`);
 
     // Ressonância (saves+shares) por post — usada só internamente para priorizar
     // quais thumbnails recebem leitura visual no Gemini. Non-fatal: sem isso, a

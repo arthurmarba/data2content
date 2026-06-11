@@ -61,9 +61,9 @@ describe("preparePostSummaries", () => {
     expect(out[0]?.hashtags).toEqual(["#vida", "#foco"]);
   });
 
-  it("limita a 30 posts", () => {
-    const many: InstagramMedia[] = Array.from({ length: 50 }, (_, i) => ({ id: String(i), media_type: "IMAGE" }));
-    expect(preparePostSummaries(many)).toHaveLength(30);
+  it("limita a 60 posts", () => {
+    const many: InstagramMedia[] = Array.from({ length: 80 }, (_, i) => ({ id: String(i), media_type: "IMAGE" }));
+    expect(preparePostSummaries(many)).toHaveLength(60);
   });
 });
 

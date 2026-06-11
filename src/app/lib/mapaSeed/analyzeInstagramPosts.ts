@@ -54,7 +54,10 @@ export interface AnalyzeInstagramPostsOptions {
 
 // ─── Constantes ─────────────────────────────────────────────────────────────────
 
-const MAX_POSTS = 30;
+// Teto de legendas enviadas à IA para detectar padrões. Subido de 30→60 para
+// acompanhar a amostra paginada do enriquecimento: mais legendas = narrativa mais
+// representativa. Texto é barato; a leitura visual (cara) segue limitada abaixo.
+const MAX_POSTS = 60;
 const DEFAULT_MAX_VISUAL_POSTS = 12;
 const GEMINI_VISUAL_MODEL = "gemini-2.5-flash";
 /** Acima disso, pula a imagem (thumbnails do IG são pequenas; isso é só guarda). */
