@@ -950,7 +950,7 @@ function PautasCard({
   onNewReading,
   onConnectInstagram,
   instagramConnected = false,
-  instagramJustLinked = false,
+  instagramEnrichmentPending = false,
   onOpenIdea,
   whatsappLinked = false,
   onConnectWhatsApp,
@@ -965,7 +965,7 @@ function PautasCard({
   onNewReading?: () => void;
   onConnectInstagram?: () => void;
   instagramConnected?: boolean;
-  instagramJustLinked?: boolean;
+  instagramEnrichmentPending?: boolean;
   onOpenIdea?: (ideaId: string) => void;
   whatsappLinked?: boolean;
   onConnectWhatsApp?: () => void;
@@ -975,12 +975,10 @@ function PautasCard({
   // e de menor fricção para enriquecer o mapa e liberar as pautas (sem exigir
   // leitura de vídeo). O CTA primário do mapa-vazio passa a ser conectar o IG.
   //
-  // Quando o usuário acabou de conectar o Instagram (instagramJustLinked), o enriquecimento
-  // roda async via QStash. Enquanto o MapaSeed não é enriquecido, o gate falha, mas
-  // não faz sentido pedir vídeo — o correto é mostrar "processando".
-  const instagramEnrichmentPending =
-    instagramJustLinked && instagramConnected && !contentIdeasReadiness.ready;
-
+  // Quando o usuário acabou de conectar o Instagram, o enriquecimento roda async via
+  // QStash; enquanto o MapaSeed não é enriquecido, o gate falha, mas não faz sentido
+  // pedir vídeo — mostramos "processando" e suprimimos o CTA. O shell calcula
+  // instagramEnrichmentPending (inclui o limite de espera do polling).
   const primeiraAcao = instagramEnrichmentPending
     ? null
     : !instagramConnected && onConnectInstagram
@@ -1870,10 +1868,11 @@ interface Props {
   onOpenCreatorMediaKit?: (slug: string) => void;
   /** Fase 2 — abre a pesquisa de perfil a partir do menu de configurações. */
   onOpenSurvey?: () => void;
-  /** True quando a página foi carregada logo após o usuário conectar o Instagram. Usado
-   *  para mostrar estado "processando" no card de pautas enquanto o enriquecimento async
-   *  do MapaSeed ainda não terminou (o QStash worker pode levar alguns segundos). */
-  instagramJustLinked?: boolean;
+  /** True enquanto o enriquecimento assíncrono do MapaSeed (disparado ao conectar o
+   *  Instagram) ainda está em curso e vale a pena esperar. O shell calcula isso a partir
+   *  do polling pós-conexão; quando true, o card de pautas mostra "processando" em vez de
+   *  pedir um vídeo. */
+  instagramEnrichmentPending?: boolean;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -1909,7 +1908,7 @@ export function DiagnosticoPage({
   onOpenCalculator,
   onOpenCreatorMediaKit,
   onOpenSurvey,
-  instagramJustLinked = false,
+  instagramEnrichmentPending = false,
 }: Props) {
   const {
     synthesis: s,
@@ -2181,7 +2180,7 @@ export function DiagnosticoPage({
             onNewReading={onNewReading}
             onConnectInstagram={onConnectInstagram}
             instagramConnected={instagramConnected}
-            instagramJustLinked={instagramJustLinked}
+            instagramEnrichmentPending={instagramEnrichmentPending}
             onOpenIdea={onOpenIdea}
             whatsappLinked={whatsappLinked}
             onConnectWhatsApp={onConnectWhatsApp}

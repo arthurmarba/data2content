@@ -509,7 +509,10 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     }
   }, [router]);
 
-  // Auto-disparo no mount quando mapa está pronto e sem pautas ou pautas velhas (>7 dias).
+  // Auto-disparo quando o mapa fica pronto e não há pautas (ou estão velhas >7 dias).
+  // Reativo a `ready`/contagem: além do mount, dispara quando a prontidão vira true
+  // após um router.refresh() — ex.: o enriquecimento assíncrono do Instagram concluiu
+  // e o polling abaixo trouxe dados frescos. O ref garante disparo único.
   useEffect(() => {
     const ready = data.contentIdeasReadiness.ready;
     const noIdeas = data.contentIdeas.length === 0;
@@ -522,8 +525,43 @@ export function DiagnosticoRealShellClient({ data }: Props) {
       autoGenerateTriggeredRef.current = true;
       void triggerGenerateIdeas();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [data.contentIdeasReadiness.ready, data.contentIdeas.length, triggerGenerateIdeas]);
+
+  // Polling pós-conexão de Instagram. O enriquecimento do MapaSeed (sync de dados +
+  // leitura visual do Gemini) roda async no worker QStash e leva alguns segundos.
+  // O hard-reload pós-conexão chega antes disso, então a prontidão das pautas ainda
+  // é falsa no mount. Re-busca os dados do servidor em intervalos para que, assim que
+  // o mapa for enriquecido, o auto-disparo acima gere as pautas — sem o criador
+  // precisar recarregar. Limitado no tempo; para assim que ficar pronto ou surgir pauta.
+  const MAX_IG_POLL_ATTEMPTS = 12; // ~120s @ 10s
+  const [igPollTick, setIgPollTick] = useState(0);
+  useEffect(() => {
+    if (!instagramJustLinked || !data.instagramConnected) return;
+    if (data.contentIdeasReadiness.ready || data.contentIdeas.length > 0) return;
+    if (igPollTick >= MAX_IG_POLL_ATTEMPTS) return;
+    const timer = setTimeout(() => {
+      setIgPollTick((t) => t + 1);
+      router.refresh();
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [
+    instagramJustLinked,
+    data.instagramConnected,
+    data.contentIdeasReadiness.ready,
+    data.contentIdeas.length,
+    igPollTick,
+    router,
+  ]);
+
+  // O card de pautas mostra "processando" só enquanto vale a pena esperar: acabou de
+  // conectar o IG, ainda não está pronto e o polling não esgotou. Quando esgota (ex.:
+  // amostragem de Instagram insuficiente), volta ao teaser normal oferecendo o vídeo.
+  const instagramEnrichmentPending =
+    instagramJustLinked &&
+    data.instagramConnected &&
+    !data.contentIdeasReadiness.ready &&
+    data.contentIdeas.length === 0 &&
+    igPollTick < MAX_IG_POLL_ATTEMPTS;
 
   // Detect ?instagramLinked=true → show a map-focused return notice (fires at most once per mount)
   // O3: também lê d2c_onboarding_resume_step para retomar o onboarding no
@@ -1123,7 +1161,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           ideaGenerationBlocker={ideaGenerationBlocker}
           ideaQuotaResetAt={ideaQuotaResetAt}
           onRetryGenerateIdeas={triggerGenerateIdeas}
-          instagramJustLinked={instagramJustLinked}
+          instagramEnrichmentPending={instagramEnrichmentPending}
           onOpenIdea={(id) => setOpenIdeaId(id)}
           onConnectWhatsApp={() => setWhatsAppSheetOpen(true)}
           latestCalculation={latestCalculation}
