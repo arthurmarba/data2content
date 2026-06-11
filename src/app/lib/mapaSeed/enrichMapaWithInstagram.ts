@@ -38,6 +38,14 @@ Gere o mapa enriquecido com os seguintes campos:
 - territorios: combine os declarados com os temas recorrentes reais.
   Remova o que não aparece em nenhuma fonte. Adicione o que aparece
   no Instagram mas não foi declarado. Máx. 5 territórios.
+  IMPORTANTE: cada território deve ser específico e ancorado na
+  narrativa_central deste criador. Evite rótulos genéricos de cultura ou
+  entretenimento que poderiam descrever qualquer artista ou músico (ex:
+  'negócio cultural', 'carreira artística' sozinhos são ambíguos demais).
+  Se o criador fala sobre IA para criadores de conteúdo, o território deve
+  deixar claro o contexto: 'carreira de criador digital com IA', não
+  'consultoria em carreiras artísticas'. O rótulo deve responder: quem é
+  ESTE criador especificamente?
 
 - narrativas_adjacentes: extensões coerentes que aparecem nas bordas
   do conteúdo ou da vida — ainda não são o foco principal.

@@ -222,10 +222,18 @@ export async function POST(request: Request) {
         }));
         if (fromSynthesis.length > 0) return fromSynthesis;
         // Fase 2C — sem territórios na síntese de vídeo, usa os do MapaSeed
-        // (onboarding/Instagram) para alimentar o prompt.
+        // (onboarding/Instagram) para alimentar o prompt. Injeta summary
+        // ancorando cada território na narrativa central: sem isso, o LLM
+        // interpreta rótulos ambíguos (ex: "carreira artística") de forma
+        // genérica (músico/ator) em vez de específica (criador digital com IA).
         return mapaSeedSource.territories
           .slice(0, 5)
-          .map((label) => ({ label, summary: null }));
+          .map((label) => ({
+            label,
+            summary: narrativeLabel
+              ? `Ângulo de "${narrativeLabel}" relacionado a: ${label.toLowerCase()}.`
+              : null,
+          }));
       })(),
       confirmedAssets: synthesis.confirmedLifeAssets
         .filter((a) => a.evidenceCount >= 2)
