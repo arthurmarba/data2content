@@ -354,15 +354,13 @@ export default function InstagramConnectingPage() {
       }
       redirectTimeoutRef.current = setTimeout(() => {
         if (typeof window !== "undefined") {
-          const target = new URL(targetUrl, window.location.origin);
-          const expected = `${target.pathname}${target.search}`;
-          router.replace(targetUrl);
-          redirectFallbackTimeoutRef.current = setTimeout(() => {
-            const current = `${window.location.pathname}${window.location.search}`;
-            if (current !== expected) {
-              window.location.assign(expected);
-            }
-          }, 300);
+          // Hard reload via window.location.replace para garantir que o Next.js
+          // busque dados frescos do servidor (bypassa o router cache do App Router).
+          // Crítico após conectar Instagram: isInstagramConnected muda no DB e o
+          // RSC payload em cache ainda reflete o estado antigo (sem dados de audiência,
+          // shell desatualizado). router.replace() usaria o cache; window.location
+          // força um round-trip completo ao servidor.
+          window.location.replace(targetUrl);
           return;
         }
         router.replace(targetUrl);

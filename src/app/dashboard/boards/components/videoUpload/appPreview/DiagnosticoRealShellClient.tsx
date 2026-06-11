@@ -137,6 +137,12 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   const [accessMessage, setAccessMessage] = useState<string | null>(null);
   const [localThumbnails, setLocalThumbnails] = useState<Record<string, string>>({});
   const [showInstagramConnectedNotice, setShowInstagramConnectedNotice] = useState(false);
+  // True quando a página foi carregada após a conexão do Instagram (via ?instagramLinked=true).
+  // Usado para mostrar estado "processando" no card de pautas enquanto o enriquecimento
+  // assíncrono ainda não terminou. Inicializa do URL para capturar o hard-reload.
+  const [instagramJustLinked] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("instagramLinked") === "true",
+  );
   const [openCategory, setOpenCategory] = useState<CategoryId | null>(null);
   const [diagnosisOverviewOpen, setDiagnosisOverviewOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -1117,6 +1123,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           ideaGenerationBlocker={ideaGenerationBlocker}
           ideaQuotaResetAt={ideaQuotaResetAt}
           onRetryGenerateIdeas={triggerGenerateIdeas}
+          instagramJustLinked={instagramJustLinked}
           onOpenIdea={(id) => setOpenIdeaId(id)}
           onConnectWhatsApp={() => setWhatsAppSheetOpen(true)}
           latestCalculation={latestCalculation}

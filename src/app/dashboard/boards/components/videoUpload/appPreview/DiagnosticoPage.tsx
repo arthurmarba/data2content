@@ -950,6 +950,7 @@ function PautasCard({
   onNewReading,
   onConnectInstagram,
   instagramConnected = false,
+  instagramJustLinked = false,
   onOpenIdea,
   whatsappLinked = false,
   onConnectWhatsApp,
@@ -964,6 +965,7 @@ function PautasCard({
   onNewReading?: () => void;
   onConnectInstagram?: () => void;
   instagramConnected?: boolean;
+  instagramJustLinked?: boolean;
   onOpenIdea?: (ideaId: string) => void;
   whatsappLinked?: boolean;
   onConnectWhatsApp?: () => void;
@@ -972,8 +974,16 @@ function PautasCard({
   // Fase 2C/2D — quando o Instagram não está conectado, ele é o caminho mais rico
   // e de menor fricção para enriquecer o mapa e liberar as pautas (sem exigir
   // leitura de vídeo). O CTA primário do mapa-vazio passa a ser conectar o IG.
-  const primeiraAcao =
-    !instagramConnected && onConnectInstagram
+  //
+  // Quando o usuário acabou de conectar o Instagram (instagramJustLinked), o enriquecimento
+  // roda async via QStash. Enquanto o MapaSeed não é enriquecido, o gate falha, mas
+  // não faz sentido pedir vídeo — o correto é mostrar "processando".
+  const instagramEnrichmentPending =
+    instagramJustLinked && instagramConnected && !contentIdeasReadiness.ready;
+
+  const primeiraAcao = instagramEnrichmentPending
+    ? null
+    : !instagramConnected && onConnectInstagram
       ? { onClick: onConnectInstagram, label: "Conectar Instagram" }
       : onNewReading
         ? { onClick: onNewReading, label: "Primeira análise" }
@@ -1250,9 +1260,11 @@ function PautasCard({
             Pautas baseadas no que você cria.
           </p>
           <p style={{ fontSize: 14, color: TEXT_SECONDARY_HEX, margin: "6px 0 16px", lineHeight: 1.5 }}>
-            {!instagramConnected
-              ? "Conecte seu Instagram para a D2C ler o que você já publica e gerar pautas a partir do seu mapa."
-              : "Analise seus primeiros vídeos para a D2C gerar pautas a partir do seu mapa."}
+            {instagramEnrichmentPending
+              ? "Seu Instagram está sendo analisado. As pautas aparecem aqui assim que a D2C mapear seus padrões."
+              : !instagramConnected
+                ? "Conecte seu Instagram para a D2C ler o que você já publica e gerar pautas a partir do seu mapa."
+                : "Analise seus primeiros vídeos para a D2C gerar pautas a partir do seu mapa."}
           </p>
           {primeiraAcao && (
             <button
@@ -1858,6 +1870,10 @@ interface Props {
   onOpenCreatorMediaKit?: (slug: string) => void;
   /** Fase 2 — abre a pesquisa de perfil a partir do menu de configurações. */
   onOpenSurvey?: () => void;
+  /** True quando a página foi carregada logo após o usuário conectar o Instagram. Usado
+   *  para mostrar estado "processando" no card de pautas enquanto o enriquecimento async
+   *  do MapaSeed ainda não terminou (o QStash worker pode levar alguns segundos). */
+  instagramJustLinked?: boolean;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
@@ -1893,6 +1909,7 @@ export function DiagnosticoPage({
   onOpenCalculator,
   onOpenCreatorMediaKit,
   onOpenSurvey,
+  instagramJustLinked = false,
 }: Props) {
   const {
     synthesis: s,
@@ -2164,6 +2181,7 @@ export function DiagnosticoPage({
             onNewReading={onNewReading}
             onConnectInstagram={onConnectInstagram}
             instagramConnected={instagramConnected}
+            instagramJustLinked={instagramJustLinked}
             onOpenIdea={onOpenIdea}
             whatsappLinked={whatsappLinked}
             onConnectWhatsApp={onConnectWhatsApp}
