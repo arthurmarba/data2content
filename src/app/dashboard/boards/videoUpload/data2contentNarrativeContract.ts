@@ -177,10 +177,18 @@ function compactLooseLabel(value: string): string | null {
   if (cluster) return cluster;
 
   const firstClause = stripped.split(/[.;:]/)[0]?.trim() ?? stripped;
-  if (words(firstClause).length <= 8 && firstClause.length <= 72 && !isLowValueText(firstClause)) {
+  // Frase limpa e gramatical → preserva inteira (o caller aplica limitSentence
+  // para o corte final em ~90 chars). Antes, qualquer frase com >8 palavras ou
+  // >72 chars caía na extração de palavras-chave abaixo, que removia artigos e
+  // preposições ("a", "e", "para") e quebrava a concordância — ex.: a narrativa
+  // do MapaSeed "Ajuda criadores a usar IA e estratégias para produzir conteúdo"
+  // virava o salada "Ajuda criadores usar estratégias produzir conteúdo".
+  if (!isLowValueText(firstClause)) {
     return firstClause;
   }
 
+  // Último recurso para texto ruidoso/sem pontuação clara: extrai os eixos
+  // principais. Aceitável aqui porque já não é uma frase aproveitável.
   const meaningful = words(firstClause)
     .map((word) => word.replace(/[^\p{L}\p{N}-]/gu, ""))
     .filter((word) => word.length >= 4 && !STOPWORDS.has(normalize(word)))
