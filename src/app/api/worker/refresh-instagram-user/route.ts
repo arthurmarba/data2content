@@ -10,6 +10,13 @@ import { enrichMapaSeedWithInstagram } from '@/app/lib/mapaSeed/enrichMapaSeedFo
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic'; // Garante execução dinâmica
+// O worker encadeia triggerDataRefresh (sync completo) + enrichMapaSeedWithInstagram
+// (paginação do IG + leitura visual Gemini multimodal, ~30s). Sem isto, o default
+// da Vercel (~15s) mata a função no meio do enriquecimento: o refresh termina e
+// grava métricas, mas o MapaSeed nunca persiste — exatamente o sintoma de pautas/
+// mapa que não aparecem após conectar o Instagram. 300s é a mesma folga das demais
+// rotas pesadas de IA (analyze-real, crons).
+export const maxDuration = 300;
 
 // --- INICIALIZAÇÃO DO QSTASH RECEIVER ---
 const currentSigningKey = process.env.QSTASH_CURRENT_SIGNING_KEY;
