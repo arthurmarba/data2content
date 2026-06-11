@@ -242,6 +242,20 @@ export default async function MobileStrategicProfilePage({
         const mergedSynthesis = mergeMapaSeedIntoSynthesis(selectorResult.profileSynthesis, mapaSeedForMerge);
         const leadingNarrative = resolveDiagnosticoLeadingNarrativeSignal(mergedSynthesis);
 
+        // Pautas desatualizadas: o mapa foi enriquecido (Instagram/vídeo) DEPOIS da
+        // última pauta gerada → elas refletem um mapa mais "magro". O shell usa isto
+        // para auto-regenerar uma vez. Sinal por timestamp (não por hash) porque há
+        // dois geradores de pautas com funções de hash distintas — comparar hash daria
+        // falso-positivo permanente. Dispara só uma vez: a nova pauta fica mais recente
+        // que o enriquecimento.
+        const lastEnrichedAt = mapaSeedSource.lastEnrichedAt;
+        const latestIdeaAt = contentIdeas[0]?.generatedAt ? new Date(contentIdeas[0].generatedAt) : null;
+        const contentIdeasMapStale =
+          contentIdeas.length > 0 &&
+          !!lastEnrichedAt &&
+          !!latestIdeaAt &&
+          lastEnrichedAt.getTime() > latestIdeaAt.getTime();
+
         // Detect first-time users who need the guided onboarding flow.
         // Only triggers when both flags are set — preserves existing users.
         const needsOnboarding =
@@ -277,6 +291,7 @@ export default async function MobileStrategicProfilePage({
           ),
           contentIdeas,
           contentIdeasReadiness,
+          contentIdeasMapStale,
           audienceInsights: audienceInsights ?? null,
           userInfo: (() => {
             const profile = (effectiveUserForAccess as any).creatorProfileExtended ?? {};

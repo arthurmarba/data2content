@@ -167,6 +167,16 @@ export interface DiagnosticoPageData {
    */
   contentIdeasReadiness: ContentIdeasReadiness;
   /**
+   * True quando o mapa foi enriquecido (Instagram/vídeo) DEPOIS da última pauta
+   * gerada — ou seja, as pautas atuais foram feitas a partir de um mapa mais
+   * "magro". O shell usa isto para auto-regenerar uma vez, mantendo as pautas
+   * coerentes com o mapa atual. Sinal baseado em timestamp de enriquecimento
+   * (não em hash) para ser imune aos dois geradores de pautas, que usam funções
+   * de hash distintas. Dispara só uma vez por enriquecimento: a nova pauta fica
+   * mais recente que o timestamp, então não há loop.
+   */
+  contentIdeasMapStale?: boolean;
+  /**
    * Creator's onboarding answers — shown + editable in the Diagnóstico Overview detail view.
    * Null when the creator hasn't completed onboarding yet.
    */

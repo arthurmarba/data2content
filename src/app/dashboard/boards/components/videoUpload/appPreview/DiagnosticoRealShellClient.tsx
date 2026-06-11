@@ -509,10 +509,11 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     }
   }, [router]);
 
-  // Auto-disparo quando o mapa fica pronto e não há pautas (ou estão velhas >7 dias).
-  // Reativo a `ready`/contagem: além do mount, dispara quando a prontidão vira true
-  // após um router.refresh() — ex.: o enriquecimento assíncrono do Instagram concluiu
-  // e o polling abaixo trouxe dados frescos. O ref garante disparo único.
+  // Auto-disparo quando o mapa fica pronto e não há pautas (ou estão velhas >7 dias,
+  // ou o mapa foi enriquecido depois da última pauta). Reativo a `ready`/contagem:
+  // além do mount, dispara quando a prontidão vira true após um router.refresh() —
+  // ex.: o enriquecimento assíncrono do Instagram concluiu e o polling abaixo trouxe
+  // dados frescos. O ref garante disparo único por mount.
   useEffect(() => {
     const ready = data.contentIdeasReadiness.ready;
     const noIdeas = data.contentIdeas.length === 0;
@@ -521,11 +522,21 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     const isStale = latestIdea
       ? Date.now() - new Date(latestIdea.generatedAt).getTime() > SEVEN_DAYS_MS
       : false;
-    if (ready && (noIdeas || isStale) && !autoGenerateTriggeredRef.current) {
+    // Mapa enriquecido (Instagram/vídeo) após a última pauta → regenera uma vez para
+    // refletir narrativa/territórios novos. Computado no servidor por timestamp; uma
+    // vez regenerado, a nova pauta fica mais recente que o enriquecimento e o flag
+    // volta a false, sem loop.
+    const mapStale = data.contentIdeasMapStale === true;
+    if (ready && (noIdeas || isStale || mapStale) && !autoGenerateTriggeredRef.current) {
       autoGenerateTriggeredRef.current = true;
       void triggerGenerateIdeas();
     }
-  }, [data.contentIdeasReadiness.ready, data.contentIdeas.length, triggerGenerateIdeas]);
+  }, [
+    data.contentIdeasReadiness.ready,
+    data.contentIdeas.length,
+    data.contentIdeasMapStale,
+    triggerGenerateIdeas,
+  ]);
 
   // Polling pós-conexão de Instagram. O enriquecimento do MapaSeed (sync de dados +
   // leitura visual do Gemini) roda async no worker QStash e leva alguns segundos.
@@ -535,10 +546,30 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   // precisar recarregar. Limitado no tempo; para assim que ficar pronto ou surgir pauta.
   const MAX_IG_POLL_ATTEMPTS = 12; // ~120s @ 10s
   const [igPollTick, setIgPollTick] = useState(0);
+  // Captura, uma vez, se já havia pautas no momento em que o IG foi conectado.
+  // Define o que o polling espera: sem pautas → espera elas surgirem (auto-disparo
+  // pós-enriquecimento); com pautas → espera o enriquecimento tornar o mapa "stale"
+  // (mapStale), quando o auto-disparo regenera a partir do mapa novo.
+  const hadIdeasAtLinkRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (instagramJustLinked && hadIdeasAtLinkRef.current === null) {
+      hadIdeasAtLinkRef.current = data.contentIdeas.length > 0;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [instagramJustLinked]);
+  // Latch: uma vez que o servidor reporta o mapa enriquecido após a última pauta,
+  // o enriquecimento foi detectado — o auto-disparo cuida da regeneração.
+  const staleSeenRef = useRef(false);
+  useEffect(() => {
+    if (data.contentIdeasMapStale) staleSeenRef.current = true;
+  }, [data.contentIdeasMapStale]);
   useEffect(() => {
     if (!instagramJustLinked || !data.instagramConnected) return;
-    if (data.contentIdeasReadiness.ready || data.contentIdeas.length > 0) return;
     if (igPollTick >= MAX_IG_POLL_ATTEMPTS) return;
+    const settled = hadIdeasAtLinkRef.current === true
+      ? staleSeenRef.current
+      : data.contentIdeasReadiness.ready || data.contentIdeas.length > 0;
+    if (settled) return;
     const timer = setTimeout(() => {
       setIgPollTick((t) => t + 1);
       router.refresh();
@@ -549,6 +580,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     data.instagramConnected,
     data.contentIdeasReadiness.ready,
     data.contentIdeas.length,
+    data.contentIdeasMapStale,
     igPollTick,
     router,
   ]);

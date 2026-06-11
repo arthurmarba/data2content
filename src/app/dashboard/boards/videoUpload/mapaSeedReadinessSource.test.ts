@@ -29,6 +29,7 @@ describe("getMapaSeedReadinessSource", () => {
       hasTerritories: false,
       territories: [],
       tone: null,
+      lastEnrichedAt: null,
     });
   });
 
@@ -75,6 +76,25 @@ describe("getMapaSeedReadinessSource", () => {
       hasTerritories: false,
       territories: [],
       tone: null,
+      lastEnrichedAt: null,
     });
+  });
+
+  it("expõe o enriquecimento mais recente (max de Instagram e vídeo)", async () => {
+    const igAt = new Date("2026-06-01T10:00:00.000Z");
+    const videoAt = new Date("2026-06-05T10:00:00.000Z");
+    mockMapaDoc({
+      mapa: { narrativa_central: "X", territorios: ["T"], tom: "Y" },
+      instagramEnrichedAt: igAt,
+      videoEnrichedAt: videoAt,
+    });
+    const r = await getMapaSeedReadinessSource("u1");
+    expect(r.lastEnrichedAt).toEqual(videoAt); // vídeo é o mais recente
+  });
+
+  it("lastEnrichedAt é null quando o mapa nunca foi enriquecido", async () => {
+    mockMapaDoc({ mapa: { narrativa_central: "X", territorios: ["T"], tom: "Y" } });
+    const r = await getMapaSeedReadinessSource("u1");
+    expect(r.lastEnrichedAt).toBeNull();
   });
 });
