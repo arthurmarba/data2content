@@ -200,8 +200,10 @@ export function MobileOnboardingFlow({
     return s;
   };
   const [step, setStep] = useState<OnboardingStep>(resolveInitialStep(initialStep));
-  const [whyYouCreate, setWhyYouCreate] = useState("");
-  const [desiredFeeling, setDesiredFeeling] = useState("");
+  // Q1 e Q2 (múltipla escolha) foram removidos da UI — mantidos com valores padrão
+  // para compatibilidade com o backend (que ainda valida esses campos).
+  const [whyYouCreate] = useState("ensino_conhecimento");
+  const [desiredFeeling] = useState("inspirado");
   const [creatorPurpose, setCreatorPurpose] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [calibrationError, setCalibrationError] = useState(false);
@@ -214,8 +216,6 @@ export function MobileOnboardingFlow({
   useEffect(() => {
     if (!open) {
       setStep("questions");
-      setWhyYouCreate("");
-      setDesiredFeeling("");
       setCreatorPurpose("");
       setAiSeedSignal(null);
       setIsSaving(false);
@@ -223,12 +223,9 @@ export function MobileOnboardingFlow({
     }
   }, [open]);
 
-  // Bug 1 fix: recebe `feelingValue` como parâmetro para evitar race condition
-  // com setState async — o closure de `desiredFeeling` ficaria stale quando
-  // chamado imediatamente após `setDesiredFeeling(v)`.
-  // `purposeValue` segue o mesmo padrão para `creatorPurpose`.
-  const saveAndCalibrate = useCallback(async (feelingValue?: string, purposeValue?: string) => {
-    const feeling = feelingValue ?? desiredFeeling;
+  // `purposeValue` evita race condition com setState async — o closure de
+  // `creatorPurpose` ficaria stale quando chamado imediatamente após setCreatorPurpose.
+  const saveAndCalibrate = useCallback(async (purposeValue?: string) => {
     const purpose = purposeValue !== undefined ? purposeValue : creatorPurpose;
 
     if (firstSignal) {
@@ -237,7 +234,7 @@ export function MobileOnboardingFlow({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           whyYouCreate,
-          desiredFeeling: feeling,
+          desiredFeeling,
           ...(purpose ? { creatorPurpose: purpose } : {}),
         }),
       }).catch(() => { /* não-fatal */ });
@@ -256,7 +253,7 @@ export function MobileOnboardingFlow({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             whyYouCreate,
-            desiredFeeling: feeling,
+            desiredFeeling,
             ...(purpose ? { creatorPurpose: purpose } : {}),
           }),
         }),
@@ -405,15 +402,11 @@ export function MobileOnboardingFlow({
           >
             {step === "questions" && (
               <CombinedQuestionsScreen
-                whyYouCreate={whyYouCreate}
-                onSelectWhy={setWhyYouCreate}
-                desiredFeeling={desiredFeeling}
-                onSelectFeeling={setDesiredFeeling}
                 creatorPurpose={creatorPurpose}
                 onSetCreatorPurpose={setCreatorPurpose}
-                onSubmit={(feeling, purpose) => {
+                onSubmit={(purpose) => {
                   setCreatorPurpose(purpose);
-                  saveAndCalibrate(feeling, purpose);
+                  saveAndCalibrate(purpose);
                 }}
               />
             )}
@@ -701,65 +694,39 @@ function FirstSignalScreen({
   );
 }
 
-// ─── Screen: Combined Q1+Q2+Q3 ───────────────────────────────────────────────
+// ─── Screen: Pergunta única — Por que você cria conteúdo? ────────────────────
 
-/**
- * Tela de perguntas fundida — Q1 (identidade), Q2 (sentimento), Q3 (propósito).
- *
- * Q1 sempre visível → Q2 aparece após Q1 → Q3 aparece após Q2.
- * Q3 é opcional: o criador pode pular sem punição.
- * O avanço para a calibração só ocorre via "Continuar" ou "Pular por enquanto"
- * no Q3 (via callback `onSubmit`), não por auto-advance — o campo de texto
- * precisa de tempo para ser preenchido.
- */
+const PURPOSE_EXAMPLES = [
+  "Ensino finanças para quem nunca teve educação financeira.",
+  "Inspiro mulheres a se reconectarem consigo mesmas depois dos filhos.",
+  "Conto histórias do cotidiano que fazem as pessoas rirem e se identificarem.",
+] as const;
+
 function CombinedQuestionsScreen({
-  whyYouCreate,
-  onSelectWhy,
-  desiredFeeling,
-  onSelectFeeling,
   creatorPurpose,
   onSetCreatorPurpose,
   onSubmit,
 }: {
-  whyYouCreate: string;
-  onSelectWhy: (v: string) => void;
-  desiredFeeling: string;
-  onSelectFeeling: (v: string) => void;
   creatorPurpose: string;
   onSetCreatorPurpose: (v: string) => void;
-  /** Chamado quando o criador confirma ou pula Q3. Recebe feeling e purpose (vazio se pulado). */
-  onSubmit: (feeling: string, purpose: string) => void;
+  onSubmit: (purpose: string) => void;
 }) {
-  const q1HeadingRef = useRef<HTMLHeadingElement>(null);
-  const q2Ref = useRef<HTMLDivElement>(null);
-  const q3Ref = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Foco automático no heading de Q1 ao montar o step (acessibilidade).
-  useEffect(() => { q1HeadingRef.current?.focus(); }, []);
+  // Foco automático no heading ao montar (acessibilidade).
+  useEffect(() => { headingRef.current?.focus(); }, []);
 
-  // Auto-scroll para Q2 quando aparece — garante visibilidade em iPhones pequenos.
-  useEffect(() => {
-    if (whyYouCreate && q2Ref.current) {
-      setTimeout(() => {
-        q2Ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 320); // após a animação de entrada (300ms)
-    }
-  }, [whyYouCreate]);
-
-  // Auto-scroll para Q3 quando aparece.
-  useEffect(() => {
-    if (desiredFeeling && q3Ref.current) {
-      setTimeout(() => {
-        q3Ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 320);
-    }
-  }, [desiredFeeling]);
+  const canSubmit = creatorPurpose.trim().length > 0;
 
   return (
-    <div className="flex min-h-full flex-col px-5 pt-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 5rem)" }}>
+    <div
+      className="flex min-h-full flex-col px-5 pt-4"
+      style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 5rem)" }}
+    >
       <div className="mx-auto w-full max-w-sm">
-        {/* Header — logo (progresso agora é chrome do shell) */}
-        <div className="mb-6">
+        {/* Logo */}
+        <div className="mb-8">
           <img
             src="/images/Colorido-Simbolo.png"
             alt="Data2Content"
@@ -768,108 +735,71 @@ function CombinedQuestionsScreen({
           />
         </div>
 
-        {/* Q1 — identidade narrativa */}
+        {/* Pergunta principal */}
         <h2
-          ref={q1HeadingRef}
+          ref={headingRef}
           tabIndex={-1}
-          className="mb-4 text-[1.5rem] font-bold leading-tight tracking-tight text-zinc-950 focus:outline-none"
+          className="mb-2 text-[1.5rem] font-bold leading-tight tracking-tight text-zinc-950 focus:outline-none"
         >
-          O que define o que você cria?
+          Por que você cria conteúdo?
         </h2>
-        <div className="flex flex-col gap-2.5">
-          {WHY_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => onSelectWhy(opt.value)}
-              className={`w-full rounded-2xl border px-4 py-3.5 text-left text-[15px] font-medium transition-colors ${
-                whyYouCreate === opt.value
-                  ? "border-zinc-950 bg-zinc-950 text-white"
-                  : "border-zinc-200 bg-white text-zinc-800 active:bg-zinc-50"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+        <p className="mb-6 text-[13px] leading-relaxed text-zinc-400">
+          Com suas próprias palavras — quanto mais específico, mais preciso seu mapa.
+        </p>
+
+        {/* Exemplos */}
+        <div className="mb-5 rounded-2xl bg-zinc-50 px-4 py-4">
+          <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
+            exemplos
+          </p>
+          <ul className="flex flex-col gap-2.5">
+            {PURPOSE_EXAMPLES.map((ex) => (
+              <li
+                key={ex}
+                className="flex items-start gap-2 text-[13px] leading-relaxed text-zinc-500"
+              >
+                <span className="mt-[3px] shrink-0 text-zinc-300" aria-hidden="true">›</span>
+                <span
+                  className="cursor-pointer underline-offset-2 hover:text-zinc-700 hover:underline"
+                  onClick={() => { onSetCreatorPurpose(ex); textareaRef.current?.focus(); }}
+                >
+                  {ex}
+                </span>
+              </li>
+            ))}
+          </ul>
         </div>
 
-        {/* Q2 — aparece após Q1 (motion real) + auto-scroll */}
-        {whyYouCreate && (
-          <motion.div
-            ref={q2Ref}
-            className="mt-8"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
-          >
-            <h2 className="mb-4 text-[1.5rem] font-bold leading-tight tracking-tight text-zinc-950">
-              Que sentimento quer deixar em quem assiste?
-            </h2>
-            <div className="flex flex-col gap-2.5">
-              {FEELING_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => onSelectFeeling(opt.value)}
-                  className={`w-full rounded-2xl border px-4 py-3.5 text-left text-[15px] font-medium transition-colors ${
-                    desiredFeeling === opt.value
-                      ? "border-zinc-950 bg-zinc-950 text-white"
-                      : "border-zinc-200 bg-white text-zinc-800 active:bg-zinc-50"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </motion.div>
+        {/* Campo livre */}
+        <textarea
+          ref={textareaRef}
+          value={creatorPurpose}
+          onChange={(e) => onSetCreatorPurpose(e.target.value.slice(0, 150))}
+          placeholder="Escreva aqui…"
+          rows={3}
+          className="w-full resize-none rounded-2xl border border-zinc-200 bg-white px-4 py-3.5 text-[15px] text-zinc-800 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none"
+        />
+        {creatorPurpose.length >= 100 && (
+          <p className="mt-1 text-right text-[11px] text-zinc-300">
+            {creatorPurpose.length}/150
+          </p>
         )}
 
-        {/* Q3 — propósito, aparece após Q2 (opcional) */}
-        {desiredFeeling && (
-          <motion.div
-            ref={q3Ref}
-            className="mt-8"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, ease: "easeOut" }}
+        {/* CTA */}
+        <div className="mt-5 flex flex-col gap-3 pb-4">
+          <button
+            type="button"
+            onClick={() => onSubmit(creatorPurpose)}
+            disabled={!canSubmit}
+            className={`w-full rounded-full px-6 py-4 text-[15px] font-semibold text-white transition-colors ${
+              canSubmit
+                ? "bg-zinc-950 active:bg-zinc-800"
+                : "bg-zinc-200 text-zinc-400"
+            }`}
           >
-            <h2 className="mb-1 text-[1.5rem] font-bold leading-tight tracking-tight text-zinc-950">
-              Para quem você cria?
-            </h2>
-            <p className="mb-4 text-[13px] leading-relaxed text-zinc-400">
-              Em uma frase. Quanto mais específico, mais preciso seu mapa.
-            </p>
-            <textarea
-              value={creatorPurpose}
-              onChange={(e) => onSetCreatorPurpose(e.target.value.slice(0, 150))}
-              placeholder="ex: quero encorajar mães sem tempo a se cuidarem"
-              rows={3}
-              className="w-full resize-none rounded-2xl border border-zinc-200 bg-white px-4 py-3.5 text-[15px] text-zinc-800 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none"
-            />
-            {/* Contador de caracteres — aparece a partir de 100 para não ser distrativo */}
-            {creatorPurpose.length >= 100 && (
-              <p className="mt-1 text-right text-[11px] text-zinc-300">
-                {creatorPurpose.length}/150
-              </p>
-            )}
-            <div className="mt-4 flex flex-col gap-3 pb-4">
-              <button
-                type="button"
-                onClick={() => onSubmit(desiredFeeling, creatorPurpose)}
-                className="w-full rounded-full bg-zinc-950 px-6 py-4 text-[15px] font-semibold text-white transition-colors active:bg-zinc-800"
-              >
-                Continuar →
-              </button>
-              <button
-                type="button"
-                onClick={() => onSubmit(desiredFeeling, "")}
-                className="w-full text-[13px] font-medium text-zinc-400 underline-offset-2 hover:underline"
-              >
-                Pular por enquanto
-              </button>
-            </div>
-          </motion.div>
-        )}
+            Continuar →
+          </button>
+        </div>
       </div>
     </div>
   );
