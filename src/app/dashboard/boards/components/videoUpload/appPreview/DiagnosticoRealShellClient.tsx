@@ -1154,7 +1154,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     <div
       className="fixed inset-0 flex flex-col overflow-hidden"
       style={{
-        background: "#ffffff",
+        background: "linear-gradient(180deg, #fff8f5 0%, #ffffff 18%)",
       }}
     >
       <div
