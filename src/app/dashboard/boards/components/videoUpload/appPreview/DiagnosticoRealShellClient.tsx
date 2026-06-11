@@ -1154,7 +1154,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     <div
       className="fixed inset-0 flex flex-col overflow-hidden"
       style={{
-        background: "#f2f2f7",
+        background: "#ffffff",
       }}
     >
       <div
