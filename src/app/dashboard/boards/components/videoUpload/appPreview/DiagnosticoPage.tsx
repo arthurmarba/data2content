@@ -549,8 +549,12 @@ function MapaCard({
     </svg>
   );
 
-  // ── Header row: "Aprimorar" aparece só quando já há leituras. Antes disso,
-  // o CTA de primeira análise fica abaixo do texto do empty state.
+  // ── Header row: "Aprimorar" aparece sempre que o mapa já tem conteúdo —
+  // por leitura de vídeo OU por MapaSeed (onboarding/Instagram). Sem isso, um
+  // criador que preencheu o onboarding (mapa cheio, mas sem vídeo) ficava sem
+  // porta para subir vídeo e enriquecer: o card travava. No empty state real
+  // (sem nada), o CTA de primeira análise fica no corpo do card, não aqui.
+  const showHeaderUploadCta = hasReadings || hasAnything;
   const MapaHeader = (
     <CardRowHeader
       iconBg={ACCENT_ORANGE_HEX}
@@ -562,7 +566,7 @@ function MapaCard({
       }
       title="Seu Mapa"
       subtitle={null}
-      action={hasReadings ? (
+      action={showHeaderUploadCta ? (
         <button
           type="button"
           onClick={onNewReading}
