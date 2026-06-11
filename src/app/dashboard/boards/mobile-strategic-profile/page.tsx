@@ -17,6 +17,7 @@ import { resolveMapEvolutionStatus } from "../videoUpload/mapEvolutionStatusReso
 import { listContentIdeasForUser } from "../videoUpload/contentIdeasReadService";
 import { evaluateContentIdeasReadiness } from "../videoUpload/contentIdeasReadinessGate";
 import { getMapaSeedReadinessSource } from "../videoUpload/mapaSeedReadinessSource";
+import { loadMapaSeedForSynthesisMerge, mergeMapaSeedIntoSynthesis } from "../videoUpload/mapaSeedSynthesisMerge";
 import { buildAudienceInsights } from "../videoUpload/audienceInsightsService";
 import { resolveFreshInstagramAvatar } from "@/app/lib/instagram/resolveFreshAvatar";
 import {
@@ -232,7 +233,14 @@ export default async function MobileStrategicProfilePage({
           instagram: { connected: isInstagramConnected },
           readingQuota: initialReadingQuota,
         });
-        const leadingNarrative = resolveDiagnosticoLeadingNarrativeSignal(selectorResult.profileSynthesis);
+        // Sem prioridade de fonte: o MapaSeed (onboarding + Instagram) alimenta o
+        // card "Seu Mapa" igual ao vídeo. Funde narrativa/territórios/tom/assets na
+        // síntese que o card renderiza — assim quem conecta o Instagram (sem subir
+        // vídeo) vê o mapa, não só as pautas. Gate e brand matching seguem na síntese
+        // crua (já tratam o MapaSeed à parte / marcas não devem mudar de comportamento).
+        const mapaSeedForMerge = await loadMapaSeedForSynthesisMerge(userId).catch(() => null);
+        const mergedSynthesis = mergeMapaSeedIntoSynthesis(selectorResult.profileSynthesis, mapaSeedForMerge);
+        const leadingNarrative = resolveDiagnosticoLeadingNarrativeSignal(mergedSynthesis);
 
         // Detect first-time users who need the guided onboarding flow.
         // Only triggers when both flags are set — preserves existing users.
@@ -250,11 +258,11 @@ export default async function MobileStrategicProfilePage({
         });
 
         diagnosticoPageData = {
-          synthesis: selectorResult.profileSynthesis,
+          synthesis: mergedSynthesis,
           instagramMetrics,
           readings: selectorResult.viewModel.readings.items,
           mainNarrativeLabel: leadingNarrative?.label ?? null,
-          profileSynthesisStatus: selectorResult.profileSynthesis.status,
+          profileSynthesisStatus: mergedSynthesis.status,
           accessState,
           readingQuota: initialReadingQuota,
           instagramConnected: isInstagramConnected,
@@ -264,7 +272,7 @@ export default async function MobileStrategicProfilePage({
           needsOnboarding,
           streamBSignalsSummary,
           mapEvolutionStatus: resolveMapEvolutionStatus(
-            selectorResult.profileSynthesis.status,
+            mergedSynthesis.status,
             mapConfirmations,
           ),
           contentIdeas,
