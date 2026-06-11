@@ -94,7 +94,10 @@ const OnboardingAnswersSchema = new Schema<IOnboardingAnswers>(
 
 const MapaDataSchema = new Schema<IMapaData>(
   {
-    narrativa_central:      { type: String, required: true },
+    // Pode nascer vazia quando o MapaSeed é auto-criado no enriquecimento de
+    // Instagram (usuário conecta o IG sem ter MapaSeed): a própria análise do
+    // Instagram preenche a narrativa logo em seguida. Default "" em vez de required.
+    narrativa_central:      { type: String, default: "" },
     territorios:            { type: [String], default: [] },
     narrativas_adjacentes:  { type: [String], default: [] },
     assets:                 { type: [String], default: [] },

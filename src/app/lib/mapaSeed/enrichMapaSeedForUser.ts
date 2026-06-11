@@ -24,10 +24,17 @@ export async function enrichMapaSeedWithInstagram(userId: string): Promise<void>
   try {
     await connectToDatabase();
 
-    const mapaDoc = await MapaSeedModel.findOne({ userId });
+    // Auto-cura: se o usuário ainda não tem MapaSeed (ex.: onboardou antes da
+    // criação automática, ou nunca declarou propósito), cria um seed vazio para
+    // que a própria análise do Instagram preencha narrativa/territórios/tom logo
+    // abaixo. Remove a dependência do backfill para o caminho de Instagram.
+    let mapaDoc = await MapaSeedModel.findOne({ userId });
     if (!mapaDoc) {
-      logger.info(`${TAG} Sem MapaSeed para userId=${userId} — enriquecimento ignorado.`);
-      return;
+      mapaDoc = await MapaSeedModel.create({
+        userId,
+        mapa: { maturidade: "seed", fonte: ["instagram"] },
+      });
+      logger.info(`${TAG} MapaSeed ausente — criado seed vazio para enriquecer via Instagram. userId=${userId}`);
     }
 
     // Throttle por fonte: usa o timestamp dedicado do Instagram, não `maturidade`

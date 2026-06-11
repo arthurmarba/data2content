@@ -14,9 +14,13 @@ jest.mock("@/app/lib/logger", () => ({
 
 const mockMapaSave = jest.fn().mockResolvedValue(undefined);
 const mockMapaFindOne = jest.fn();
+const mockMapaCreate = jest.fn();
 jest.mock("@/app/models/MapaSeed", () => ({
   __esModule: true,
-  default: { findOne: (...args: unknown[]) => mockMapaFindOne(...args) },
+  default: {
+    findOne: (...args: unknown[]) => mockMapaFindOne(...args),
+    create: (...args: unknown[]) => mockMapaCreate(...args),
+  },
 }));
 
 const mockGetConnectionDetails = jest.fn();
@@ -115,13 +119,27 @@ describe("enrichMapaSeedWithInstagram", () => {
     );
   });
 
-  it("não faz nada se MapaSeed não existe", async () => {
+  it("auto-cria um MapaSeed-semente e segue o enriquecimento quando não existe", async () => {
     mockMapaFindOne.mockResolvedValue(null);
+    mockMapaCreate.mockResolvedValue(
+      makeMapaDoc({ mapa: { maturidade: "seed", narrativa_central: "" } }),
+    );
+    mockGetConnectionDetails.mockResolvedValue(fakeConnection);
+    mockFetchMedia.mockResolvedValue({ success: true, data: fakePosts });
+    mockAnalyzePosts.mockResolvedValue(fakePadroes);
+    mockEnrichMapa.mockResolvedValue(fakeMapaEnriquecido);
 
     await enrichMapaSeedWithInstagram("user123");
 
-    expect(mockGetConnectionDetails).not.toHaveBeenCalled();
-    expect(mockMapaSave).not.toHaveBeenCalled();
+    // Auto-cura: cria o seed vazio com fonte instagram e prossegue até o enrich/save.
+    expect(mockMapaCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user123",
+        mapa: expect.objectContaining({ maturidade: "seed", fonte: ["instagram"] }),
+      }),
+    );
+    expect(mockAnalyzePosts).toHaveBeenCalled();
+    expect(mockMapaSave).toHaveBeenCalledTimes(1);
   });
 
   it("não faz nada se Instagram não está conectado", async () => {
