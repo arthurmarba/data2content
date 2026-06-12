@@ -458,14 +458,14 @@ function CombinedQuestionsScreen({
         <textarea
           ref={textareaRef}
           value={creatorPurpose}
-          onChange={(e) => onSetCreatorPurpose(e.target.value.slice(0, 150))}
+          onChange={(e) => onSetCreatorPurpose(e.target.value.slice(0, 400))}
           placeholder="Escreva aqui…"
           rows={3}
           className="w-full resize-none rounded-2xl border border-zinc-200 bg-white px-4 py-3.5 text-[15px] text-zinc-800 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none"
         />
-        {creatorPurpose.length >= 100 && (
+        {creatorPurpose.length >= 300 && (
           <p className="mt-1 text-right text-[11px] text-zinc-300">
-            {creatorPurpose.length}/150
+            {creatorPurpose.length}/400
           </p>
         )}
 
