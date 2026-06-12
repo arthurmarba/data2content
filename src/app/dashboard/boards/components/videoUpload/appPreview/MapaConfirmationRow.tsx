@@ -4,9 +4,16 @@ import {
   TEXT_PRIMARY_HEX,
   TEXT_SECONDARY_HEX,
   TEXT_BODY_HEX,
-  SURFACE_NEUTRAL_HEX,
   ACCENT_ORANGE_HEX,
 } from "./diagnosticoTokens";
+
+// ─── Warm palette — keeps the confirmation row native to the (cream) Mapa card ─
+// The widget used to drop a cold gray box (#f8f8f8 + zinc buttons) into a warm
+// card. These tints derive from the brand orange so calibration reads calm and
+// card-native, not like a survey form.
+const WARM_SURFACE = "#fff3ea";              // box background — soft cream tint
+const WARM_BORDER  = "rgba(255,107,53,0.16)"; // box border
+const WARM_OUTLINE = "rgba(255,107,53,0.28)"; // secondary/tertiary button border
 
 /**
  * MapaConfirmationRow — unified confirmation widget for the Mapa card.
@@ -107,12 +114,9 @@ export function MapaConfirmationRow({
   const resolvedTertiary = tertiaryLabel ?? labels.t;
 
   // ── Primary button colour ─────────────────────────────────────────────────
-  const defaultPrimaryBg = {
-    "3way":       TEXT_PRIMARY_HEX,
-    "3way-asset": TEXT_PRIMARY_HEX,
-    "2way":       ACCENT_ORANGE_HEX,
-  }[variant];
-  const resolvedPrimaryBg = primaryColor ?? defaultPrimaryBg;
+  // Every "primary" is the brand orange — matches the card's chips/accents and
+  // gives a single, consistent affirmative across all variants.
+  const resolvedPrimaryBg = primaryColor ?? ACCENT_ORANGE_HEX;
 
   // ── Font size: 3way uses 13px, asset/2way use 12px ───────────────────────
   const fontSize = variant === "3way" ? 13 : 12;
@@ -122,9 +126,9 @@ export function MapaConfirmationRow({
       style={{
         marginTop: 10,
         padding: "12px 14px",
-        borderRadius: 12,
-        background: "#f8f8f8",
-        border: "1px solid #f0f0f0",
+        borderRadius: 14,
+        background: WARM_SURFACE,
+        border: `1px solid ${WARM_BORDER}`,
       }}
     >
       {/* ── Label (optional small category line) ────────────────────── */}
@@ -178,6 +182,7 @@ export function MapaConfirmationRow({
         </button>
 
         {/* Secondary — Quase / Às vezes (not in 2way) */}
+        {/* Warm outline, shared with tertiary — one calm family, no gray fills. */}
         {resolvedSecond && onSecondary && (
           <button
             type="button"
@@ -186,10 +191,10 @@ export function MapaConfirmationRow({
             style={{
               ...BTN_BASE,
               flex: variant === "3way" ? 1 : undefined,
-              background: variant === "3way" ? "#fff" : SURFACE_NEUTRAL_HEX,
+              background: "#fff",
               color: TEXT_BODY_HEX,
               fontSize,
-              border: variant === "3way" ? "1px solid #d4d4d8" : "none",
+              border: `1px solid ${WARM_OUTLINE}`,
               opacity,
             }}
           >
@@ -198,6 +203,7 @@ export function MapaConfirmationRow({
         )}
 
         {/* Tertiary — Não é isso / Não / Pular */}
+        {/* Same warm outline as secondary; only the text is more muted. */}
         {resolvedTertiary && onTertiary && (
           <button
             type="button"
@@ -206,9 +212,10 @@ export function MapaConfirmationRow({
             style={{
               ...BTN_BASE,
               flex: variant === "3way" ? 1 : undefined,
-              background: SURFACE_NEUTRAL_HEX,
+              background: "#fff",
               color: TEXT_SECONDARY_HEX,
               fontSize,
+              border: `1px solid ${WARM_OUTLINE}`,
               opacity,
             }}
           >
