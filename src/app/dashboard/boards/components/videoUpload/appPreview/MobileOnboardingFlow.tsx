@@ -3,9 +3,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MOBILE_INSTAGRAM_CONNECT_ROUTE } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
-import { openPaywallModal } from "@/utils/paywallModal";
-import { MOBILE_PROFILE_ROUTE } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
-import { OnboardingValueBlock } from "./OnboardingValueBlock";
 import { SAFE_TOP } from "./diagnosticoTokens";
 import { BRAND_ATMOSPHERE_BG } from "@/app/lib/brandAtmosphere";
 import type { NarrativeMapAccessState } from "@/app/dashboard/boards/videoUpload/narrativeMapAccessState";
@@ -78,74 +75,14 @@ interface Props {
 
 // ─── Option data ──────────────────────────────────────────────────────────────
 
-type OptionItem = { value: string; label: string };
-
-// Decisão 1 — Q1 agora mapeia identidade narrativa (o QUE cria), não motivação (POR QUE cria).
-// Isso alimenta diretamente Etapas 2-3 da jornada D2C (Narrativa Central + Territórios).
-const WHY_OPTIONS = [
-  { value: "ensino_conhecimento", label: "Ensino ou compartilho conhecimento" },
-  { value: "conto_historias",     label: "Conto histórias da minha vida" },
-  { value: "entretenimento",      label: "Entretenimento e humor" },
-  { value: "inspiro_acao",        label: "Inspiro a agir ou mudar algo" },
-] as const;
-
-const FEELING_OPTIONS = [
-  { value: "inspirado", label: "Inspirado" },
-  { value: "informado", label: "Informado" },
-  { value: "entendido", label: "Compreendido" },
-  { value: "entretido", label: "Entretido" },
-  { value: "motivado", label: "Motivado a agir" },
-] as const;
-
-// Mapa de label narrativo e estilo para o seed signal
-const WHY_TO_NARRATIVE: Record<string, { label: string; style: string }> = {
-  ensino_conhecimento: { label: "Criação a partir do que você aprende e ensina",    style: "conteúdo educativo" },
-  conto_historias:     { label: "Conteúdo construído a partir da sua vida",          style: "conteúdo pessoal" },
-  entretenimento:      { label: "Entretenimento como linguagem",                     style: "conteúdo de entretenimento" },
-  inspiro_acao:        { label: "Criação com intenção de mover pessoas",             style: "conteúdo motivacional" },
-  // Legacy — mantidos para usuários com respostas antigas
-  compartilho_aprendizado: { label: "Criação a partir do que você aprende e ensina", style: "conteúdo educativo" },
-  ensino_habilidade:       { label: "Criação a partir do que você aprende e ensina", style: "tutoriais e conteúdo técnico" },
-};
-
-function findOptionLabel(options: readonly OptionItem[], value: string): string | null {
-  return options.find((option) => option.value === value)?.label ?? null;
-}
-
-function lowerFirst(value: string): string {
-  return value ? `${value.slice(0, 1).toLowerCase()}${value.slice(1)}` : value;
-}
-
-function buildSeedSignal({
-  whyYouCreate,
-  desiredFeeling,
-}: Pick<OnboardingAnswers, "whyYouCreate" | "desiredFeeling">): FirstSignal {
-  const narrative = WHY_TO_NARRATIVE[whyYouCreate];
-  const feelingLabel = findOptionLabel(FEELING_OPTIONS, desiredFeeling);
-  const label = narrative?.label ?? "Seu território ainda está sendo mapeado";
-
-  // Fase 4 — sentimento de Q2 é a dimensão central da hipótese, não um apêndice.
-  // Estrutura: O QUÊ você cria (label) + POR QUÊ / intenção (feeling) + próximo passo.
-  const feelingSentence = feelingLabel
-    ? `A intenção por trás: que cada pessoa que assiste saia ${lowerFirst(feelingLabel)}.`
-    : "";
-
-  const summary = feelingSentence
-    ? `Hipótese construída a partir das suas respostas. ${feelingSentence} Seu primeiro vídeo vai revelar muito mais.`
-    : "Hipótese construída a partir das suas respostas. Seu primeiro vídeo vai revelar muito mais sobre o seu mapa.";
-
-  return { label, summary, source: "seed" };
-}
 
 // ─── Flow orientation (Fase 3b) ───────────────────────────────────────────────
 
 /**
  * Telas visíveis do fluxo, na ordem, para o usuário atual.
  *
- *   - free_unused        → first_signal É a tela de conversão (valor + assinar);
- *                          não há step extra, a hipótese e o CTA Pro convivem nela.
- *   - não-free, sem IG   → instagram_invite
- *   - conectado/pago     → encerra após first_signal
+ *   - não-free, sem IG   → instagram_invite após questions
+ *   - demais             → encerra direto após questions
  *
  * `calibrating` é estado de loading — não conta como etapa de progresso.
  */
@@ -153,33 +90,15 @@ function getVisibleSteps(
   instagramConnected: boolean,
   accessState: NarrativeMapAccessState,
 ): OnboardingStep[] {
-  const steps: OnboardingStep[] = ["questions", "first_signal"];
+  const steps: OnboardingStep[] = ["questions"];
   if (accessState !== "free_unused" && !instagramConnected) steps.push("instagram_invite");
   return steps;
 }
 
-/**
- * Lê o seedSignal enriquecido pela IA do corpo da resposta de /onboarding.
- * Best-effort: qualquer formato inesperado (sem .json, JSON inválido, campos
- * faltando) resulta em null → o client cai no buildSeedSignal determinístico.
- */
-async function readSeedSignalFromResponse(response: Response): Promise<FirstSignal | null> {
-  try {
-    if (typeof response.json !== "function") return null;
-    const data = (await response.json()) as { seedSignal?: unknown } | null;
-    const seed = data?.seedSignal as { label?: unknown; summary?: unknown } | null | undefined;
-    if (!seed || typeof seed.label !== "string" || typeof seed.summary !== "string") return null;
-    if (!seed.label.trim() || !seed.summary.trim()) return null;
-    return { label: seed.label, summary: seed.summary, source: "seed" };
-  } catch {
-    return null;
-  }
-}
 
 /** Para qual step o botão "voltar" leva. Ausência = sem voltar (entrada/loading). */
 const BACK_TARGET: Partial<Record<OnboardingStep, OnboardingStep>> = {
-  first_signal: "questions",
-  instagram_invite: "first_signal",
+  instagram_invite: "questions",
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -207,21 +126,39 @@ export function MobileOnboardingFlow({
   const [creatorPurpose, setCreatorPurpose] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [calibrationError, setCalibrationError] = useState(false);
-  // Fase 3 — sinal seed enriquecido pela IA (gerado a partir de Q1+Q2+Q3 quando
-  // há propósito declarado). Tem prioridade sobre o buildSeedSignal determinístico,
-  // mas cede ao firstSignal detectado (Instagram/vídeos), que é o sinal mais forte.
-  const [aiSeedSignal, setAiSeedSignal] = useState<FirstSignal | null>(null);
 
   // Reset on close
   useEffect(() => {
     if (!open) {
       setStep("questions");
       setCreatorPurpose("");
-      setAiSeedSignal(null);
       setIsSaving(false);
       setCalibrationError(false);
     }
   }, [open]);
+
+  const completeOnboarding = useCallback((openUpload = false) => {
+    const answers: OnboardingAnswers = {
+      whyYouCreate,
+      desiredFeeling,
+      ...(creatorPurpose ? { creatorPurpose } : {}),
+    };
+    onComplete(answers);
+    if (openUpload && onRequestUpload) {
+      setTimeout(() => onRequestUpload(), 300);
+    }
+  }, [whyYouCreate, desiredFeeling, creatorPurpose, onComplete, onRequestUpload]);
+
+  // Determine the step that follows calibration (or direct submit when firstSignal
+  // is already present). Non-free users without Instagram see the instagram_invite;
+  // everyone else completes the onboarding immediately.
+  const advanceAfterSave = useCallback(() => {
+    if (accessState !== "free_unused" && !instagramConnected) {
+      setStep("instagram_invite");
+    } else {
+      completeOnboarding();
+    }
+  }, [accessState, instagramConnected, completeOnboarding]);
 
   // `purposeValue` evita race condition com setState async — o closure de
   // `creatorPurpose` ficaria stale quando chamado imediatamente após setCreatorPurpose.
@@ -229,6 +166,7 @@ export function MobileOnboardingFlow({
     const purpose = purposeValue !== undefined ? purposeValue : creatorPurpose;
 
     if (firstSignal) {
+      // Map signal already detected (IG/videos) — fire-and-forget save and advance.
       void fetch("/api/dashboard/mobile-strategic-profile/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -238,7 +176,7 @@ export function MobileOnboardingFlow({
           ...(purpose ? { creatorPurpose: purpose } : {}),
         }),
       }).catch(() => { /* não-fatal */ });
-      setStep("first_signal");
+      advanceAfterSave();
       return;
     }
 
@@ -262,68 +200,13 @@ export function MobileOnboardingFlow({
 
       if (!response.ok) throw new Error(`Onboarding API error: ${response.status}`);
 
-      // Fase 3 — se a API devolveu um sinal enriquecido pela IA, usa-o no
-      // first_signal. Caso contrário, o render cai no buildSeedSignal.
-      setAiSeedSignal(await readSeedSignalFromResponse(response));
-
       setIsSaving(false);
-      setStep("first_signal");
+      advanceAfterSave();
     } catch {
       setIsSaving(false);
       setCalibrationError(true);
     }
-  }, [firstSignal, whyYouCreate, desiredFeeling, creatorPurpose]);
-
-  const completeOnboarding = useCallback((openUpload = false) => {
-    const answers: OnboardingAnswers = {
-      whyYouCreate,
-      desiredFeeling,
-      ...(creatorPurpose ? { creatorPurpose } : {}),
-    };
-    onComplete(answers);
-    if (openUpload && onRequestUpload) {
-      // Pequeno delay para o onboarding fechar antes de abrir o upload
-      setTimeout(() => onRequestUpload(), 300);
-    }
-  }, [whyYouCreate, desiredFeeling, creatorPurpose, onComplete, onRequestUpload]);
-
-  /**
-   * free_unused clicou "Assinar e aprofundar meu mapa" na própria tela do rascunho —
-   * fecha o onboarding e abre o checkout (Stripe). O post-checkout conecta o Instagram.
-   */
-  const handleSubscribe = useCallback(() => {
-    const answers: OnboardingAnswers = {
-      whyYouCreate,
-      desiredFeeling,
-      ...(creatorPurpose ? { creatorPurpose } : {}),
-    };
-    onComplete(answers);
-    openPaywallModal({
-      context: "onboarding",
-      source: "onboarding_first_signal_value",
-      returnTo: MOBILE_PROFILE_ROUTE,
-      postCheckoutIntent: "connect_instagram",
-    });
-  }, [whyYouCreate, desiredFeeling, creatorPurpose, onComplete]);
-
-  /** free_unused clicou "Explorar o mapa primeiro" — fecha o onboarding sem abrir Stripe. */
-  const handleExploreFree = useCallback(() => {
-    completeOnboarding(false);
-  }, [completeOnboarding]);
-
-  const handleFirstSignalResponse = useCallback(
-    () => {
-      // Só usuários NÃO-free e sem IG veem o convite de Instagram após a hipótese.
-      // free_unused converte na própria tela do rascunho (handleSubscribe / handleExploreFree),
-      // então não passa por aqui no caminho primário.
-      if (accessState !== "free_unused" && !instagramConnected) {
-        setStep("instagram_invite");
-      } else {
-        completeOnboarding();
-      }
-    },
-    [accessState, instagramConnected, completeOnboarding],
-  );
+  }, [firstSignal, whyYouCreate, desiredFeeling, creatorPurpose, advanceAfterSave]);
 
   // ── Orientação de fluxo (3b): progresso + navegação de volta ──
   const visibleSteps = useMemo(
@@ -416,18 +299,6 @@ export function MobileOnboardingFlow({
               //  quebrando o JSON.stringify do body com refs circulares.)
               <CalibratingScreen isError={calibrationError} onRetry={() => saveAndCalibrate()} />
             )}
-            {step === "first_signal" && (
-              <FirstSignalScreen
-                // Prioridade: sinal detectado (Instagram/vídeos) > seed da IA (Q1+Q2+Q3) > determinístico.
-                signal={firstSignal ?? aiSeedSignal ?? buildSeedSignal({ whyYouCreate, desiredFeeling })}
-                onRespond={handleFirstSignalResponse}
-                onUpload={onRequestUpload ? () => completeOnboarding(true) : undefined}
-                isFreeUnused={accessState === "free_unused"}
-                whyYouCreate={whyYouCreate}
-                onSubscribe={handleSubscribe}
-                onExploreFree={handleExploreFree}
-              />
-            )}
             {step === "instagram_invite" && (
               <InstagramInviteScreen
                 onConnect={() => {
@@ -505,194 +376,7 @@ function CalibratingScreen({
   );
 }
 
-// ─── Screen: First Signal ─────────────────────────────────────────────────────
 
-/**
- * O4 — Sub-fluxo de refinamento simplificado.
- *
- * Antes: "Quase"/"Não é isso" → chips (Tema/Tom/Intenção/Momento) + campo
- * de texto que eram coletados mas nunca persistidos → ilusão de coleta.
- *
- * Agora: a única ação é confirmar e seguir. O mapa aprende com as leituras
- * reais, não com o meta-feedback do onboarding.
- *
- * Fase 3a — caminhos "almost"/"no" eram código morto (nunca disparados).
- * Reduzido a uma confirmação única.
- */
-const FIRST_SIGNAL_CONFIRMATION = "Registrado ✓ — mapa atualizado.";
-
-function FirstSignalScreen({
-  signal,
-  onRespond,
-  onUpload,
-  isFreeUnused = false,
-  whyYouCreate,
-  onSubscribe,
-  onExploreFree,
-}: {
-  signal: FirstSignal;
-  onRespond: () => void;
-  onUpload?: () => void;
-  /** free_unused: a tela do rascunho É o momento de conversão (valor + assinar). */
-  isFreeUnused?: boolean;
-  /** Identidade narrativa (Q1) — contextualiza o valor de publi exibido. */
-  whyYouCreate?: string;
-  /** free_unused: "Assinar e aprofundar meu mapa" → checkout. */
-  onSubscribe?: () => void;
-  /** free_unused: "Explorar o mapa primeiro" → segue grátis. */
-  onExploreFree?: () => void;
-}) {
-  const isSeedSignal = signal.source === "seed";
-  const [confirmed, setConfirmed] = useState(false);
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  const respondTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Fase 4 — foco automático no heading ao montar o step.
-  useEffect(() => { headingRef.current?.focus(); }, []);
-
-  // Cancela o onRespond agendado se a tela desmontar antes dos 700ms —
-  // ex.: usuário aperta "voltar" durante a confirmação. Sem isso, o timer
-  // dispararia e jogaria o usuário pra frente, anulando o voltar.
-  useEffect(() => {
-    return () => {
-      if (respondTimer.current) clearTimeout(respondTimer.current);
-    };
-  }, []);
-
-  const handleExplore = () => {
-    setConfirmed(true);
-    respondTimer.current = setTimeout(() => onRespond(), 700);
-  };
-
-  const handleUpload = () => {
-    // Bug 2 fix: NÃO chama onRespond — isso evita o double-complete.
-    // onUpload já encapsula completeOnboarding(true), que fecha o onboarding
-    // e dispara o upload. onRespond ficaria de fora para não chamar
-    // completeOnboarding uma segunda vez.
-    setConfirmed(true);
-    onUpload?.();
-  };
-
-  // Subtítulo honesto: free não envia vídeo (CTA leva ao checkout), então a
-  // promessa "a primeira leitura de um vídeo…" sai e entra a ponte rascunho→Pro.
-  const subtitle = !isSeedSignal
-    ? "Este é o primeiro sinal que encontramos no que você já criou."
-    : isFreeUnused
-      ? "Construído só com as suas respostas. No Pro, a D2C lê seus vídeos e seu Instagram e aprofunda esse mapa."
-      : "A primeira leitura de um vídeo seu vai revelar muito mais.";
-
-  return (
-    <div
-      className="flex min-h-full flex-col items-center px-5"
-      style={{
-        paddingTop:    "1.5rem",
-        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 4rem)",
-      }}
-    >
-      {/* my-auto: centraliza quando há espaço, scrollável quando não há */}
-      <div className="my-auto flex w-full max-w-sm flex-col items-center">
-        {/* Ícone com a cor de narrativa do produto (orange-500 = HC.narrative) —
-            sinaliza "momento de revelação narrativa", não tela de loading. */}
-        <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-orange-50">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="12" cy="12" r="9" stroke="#f97316" strokeWidth="1.8" />
-            <circle cx="12" cy="12" r="4" fill="#f97316" />
-          </svg>
-        </div>
-
-        <h2
-          ref={headingRef}
-          tabIndex={-1}
-          className="mb-2 text-center text-[1.6rem] font-bold leading-snug tracking-tight text-zinc-950 focus:outline-none"
-        >
-          {isSeedSignal ? "Aqui está o rascunho do seu mapa" : "Seu mapa começa assim"}
-        </h2>
-        {/* Subtitle: uma frase — a parte "Construído só com as suas respostas"
-            é contexto óbvio neste ponto da jornada, não nova informação. */}
-        <p className="mb-8 text-center text-[13px] font-medium leading-relaxed text-zinc-500">
-          {!isSeedSignal
-            ? "Este é o primeiro sinal que encontramos no que você já criou."
-            : isFreeUnused
-              ? "No Pro, a D2C aprofunda esse mapa com seus vídeos e Instagram."
-              : "A primeira leitura de um vídeo seu vai revelar muito mais."}
-        </p>
-
-        {/* Signal card — Decisão 3: badge "Hipótese inicial" para seeds.
-            Mantido PURO (só narrativa) — o valor de publi nunca entra aqui.
-            summary com line-clamp-3: a label é o headline, o body é apoio —
-            não precisa caber tudo para criar o aha moment. */}
-        <div className="w-full rounded-[24px] bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.06)] ring-1 ring-black/[0.03]">
-          <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 mb-2">
-            {isSeedSignal ? "Hipótese inicial" : "Sinal narrativo"}
-          </p>
-          <p className="text-[18px] font-bold leading-snug text-zinc-950 mb-2">{signal.label}</p>
-          <p className="line-clamp-3 text-[13px] leading-relaxed text-zinc-500">{signal.summary}</p>
-        </div>
-
-      {isFreeUnused && onSubscribe ? (
-        // Caminho free_unused: a hipótese convive com o valor de publi (destaque
-        // forte) e o CTA honesto de assinar. Sem bait-and-switch, sem tela extra.
-        <div className="mt-6 w-full flex flex-col items-stretch">
-          <OnboardingValueBlock whyYouCreate={whyYouCreate} />
-
-          <button
-            type="button"
-            onClick={onSubscribe}
-            className="mt-6 w-full rounded-full bg-zinc-950 px-6 py-4 text-sm font-semibold text-white transition-colors active:bg-zinc-800"
-          >
-            Assinar e aprofundar meu mapa →
-          </button>
-          <button
-            type="button"
-            onClick={onExploreFree}
-            className="mt-3 w-full text-[13px] font-medium text-zinc-400 underline-offset-2 hover:underline"
-          >
-            Explorar o mapa primeiro
-          </button>
-
-          <p className="mt-5 text-center text-[12px] leading-relaxed text-zinc-400">
-            A assinatura não pula etapas — só aprofunda o que você descobre.
-          </p>
-        </div>
-      ) : confirmed ? (
-        // role="status" anuncia a confirmação para leitores de tela sem mover o foco.
-        <p role="status" className="mt-8 text-[14px] font-semibold text-zinc-950">
-          {FIRST_SIGNAL_CONFIRMATION}
-        </p>
-      ) : (
-        <div className="mt-8 w-full max-w-[19.5rem] flex flex-col gap-3">
-          {isSeedSignal && onUpload ? (
-            <>
-              <button
-                type="button"
-                onClick={handleUpload}
-                className="w-full rounded-full bg-zinc-950 px-6 py-4 text-sm font-semibold text-white transition-colors active:bg-zinc-800"
-              >
-                Enviar meu primeiro vídeo →
-              </button>
-              <button
-                type="button"
-                onClick={handleExplore}
-                className="w-full text-[13px] font-medium text-zinc-400 underline-offset-2 hover:underline"
-              >
-                Explorar o mapa primeiro
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={handleExplore}
-              className="w-full rounded-full bg-zinc-950 px-6 py-4 text-sm font-semibold text-white transition-colors active:bg-zinc-800"
-            >
-              Ver meu mapa →
-            </button>
-          )}
-        </div>
-      )}
-      </div>{/* /my-auto */}
-    </div>
-  );
-}
 
 // ─── Screen: Pergunta única — Por que você cria conteúdo? ────────────────────
 
