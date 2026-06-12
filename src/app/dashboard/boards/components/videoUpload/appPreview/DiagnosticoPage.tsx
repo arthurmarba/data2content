@@ -1127,27 +1127,11 @@ function MapaCard({
             </svg>
           }
         >
-          <div style={{ marginBottom: 12 }}>
-            <p style={{ fontSize: 11, fontWeight: 600, color: TEXT_SECONDARY_HEX, margin: "0 0 6px", letterSpacing: 0.2, textTransform: "uppercase" }}>
-              Tom de voz
-            </p>
-            <EditableTomField
-              value={mapaSeed.tom ?? null}
-              onSet={(v) => onMapSeedMutate("tom", "set", v)}
-              suggestions={TOM_SUGGESTIONS}
-            />
-          </div>
-          <div>
-            <p style={{ fontSize: 11, fontWeight: 600, color: TEXT_SECONDARY_HEX, margin: "0 0 6px", letterSpacing: 0.2, textTransform: "uppercase" }}>
-              Formatos
-            </p>
-            <EditableMapaChips
-              items={mapaSeed.formatos ?? []}
-              section="formatos"
-              onMutate={onMapSeedMutate}
-              suggestions={FORMATO_SUGGESTIONS}
-            />
-          </div>
+          <EditableTomField
+            value={mapaSeed.tom ?? null}
+            onSet={(v) => onMapSeedMutate("tom", "set", v)}
+            suggestions={TOM_SUGGESTIONS}
+          />
         </MapaSection>
       ) : (toneChips.length > 0 || formatoChips.length > 0 || activePending === "tone") ? (
         <MapaSection
