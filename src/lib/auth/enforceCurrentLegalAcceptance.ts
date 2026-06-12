@@ -5,7 +5,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import DbUser from "@/app/models/User";
-import { hasCurrentLegalAcceptance } from "@/lib/auth/legalConsent";
+import {
+  hasCurrentLegalAcceptance,
+  hasRecordedLegalAcceptance,
+  SERVICE_TERMS_VERSION,
+  PRIVACY_POLICY_VERSION,
+} from "@/lib/auth/legalConsent";
 
 const CURRENT_PATH_HEADER = "x-d2c-current-path";
 
@@ -38,6 +43,19 @@ export async function enforceCurrentLegalAcceptance(callbackUrl: string) {
     .lean();
 
   if (!hasCurrentLegalAcceptance(user)) {
+    if (!hasRecordedLegalAcceptance(user)) {
+      // Novo usuário: consentimento implícito dado na landing page ("Ao continuar, você aceita...")
+      const now = new Date();
+      await DbUser.findByIdAndUpdate(userId, {
+        serviceTermsAcceptedAt: now,
+        serviceTermsVersion: SERVICE_TERMS_VERSION,
+        privacyPolicyAcceptedAt: now,
+        privacyPolicyVersion: PRIVACY_POLICY_VERSION,
+      });
+      return;
+    }
+
+    // Usuário existente com versão desatualizada → mostrar "O que mudou"
     const resolvedCallbackUrl = resolveLegalAcceptanceCallbackUrl(callbackUrl);
     redirect(
       `/aceite-de-termos?callbackUrl=${encodeURIComponent(resolvedCallbackUrl)}`

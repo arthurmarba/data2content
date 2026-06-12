@@ -6,7 +6,6 @@ import DbUser from "@/app/models/User";
 import {
   SERVICE_TERMS_VERSION,
   PRIVACY_POLICY_VERSION,
-  COMMUNITY_INSPIRATION_VERSION,
 } from "@/lib/auth/legalConsent";
 
 export async function POST(req: Request) {
@@ -17,7 +16,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { acceptTerms?: boolean; communityOptIn?: boolean };
+  let body: { acceptTerms?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -34,18 +33,12 @@ export async function POST(req: Request) {
   await connectToDatabase();
 
   const now = new Date();
-  const communityOptIn = Boolean(body.communityOptIn);
 
   await DbUser.findByIdAndUpdate(userId, {
     serviceTermsAcceptedAt: now,
     serviceTermsVersion: SERVICE_TERMS_VERSION,
     privacyPolicyAcceptedAt: now,
     privacyPolicyVersion: PRIVACY_POLICY_VERSION,
-    communityInspirationOptIn: communityOptIn,
-    communityInspirationOptInDate: communityOptIn ? now : null,
-    communityInspirationTermsVersion: communityOptIn
-      ? COMMUNITY_INSPIRATION_VERSION
-      : null,
   });
 
   return NextResponse.json({ ok: true });

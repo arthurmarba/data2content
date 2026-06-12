@@ -23,7 +23,6 @@ const TermsAcceptanceStep: React.FC<TermsAcceptanceStepProps> = ({
 }) => {
   const router = useRouter();
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const [communityOptIn, setCommunityOptIn] = useState(false);
   const [showError, setShowError] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -41,7 +40,7 @@ const TermsAcceptanceStep: React.FC<TermsAcceptanceStepProps> = ({
       const res = await fetch("/api/auth/accept-terms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ acceptTerms: true, communityOptIn }),
+        body: JSON.stringify({ acceptTerms: true }),
       });
 
       if (!res.ok) {
@@ -155,27 +154,6 @@ const TermsAcceptanceStep: React.FC<TermsAcceptanceStepProps> = ({
             )}
           </div>
 
-          {/* Checkbox opcional — Comunidade */}
-          <div className="px-5 py-4">
-            <label htmlFor="communityOptIn" className="flex items-start gap-3 cursor-pointer">
-              <input
-                id="communityOptIn"
-                type="checkbox"
-                checked={communityOptIn}
-                onChange={(e) => setCommunityOptIn(e.target.checked)}
-                className="mt-0.5 h-5 w-5 shrink-0 rounded border-zinc-300 text-brand-pink focus:ring-brand-pink"
-              />
-              <span className="text-[13px] text-zinc-700 leading-snug">
-                <span className="font-semibold">Participar da Comunidade de Inspiração</span>{" "}
-                <span className="text-zinc-400">(opcional)</span>
-                <br />
-                <span className="text-[11px] text-zinc-400">
-                  Seus posts públicos podem aparecer como exemplos para outros criadores.
-                  Você pode sair nas configurações a qualquer momento.
-                </span>
-              </span>
-            </label>
-          </div>
         </div>
 
         {/* Erro servidor */}

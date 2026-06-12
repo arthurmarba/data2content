@@ -74,24 +74,48 @@ function LoginComponent() {
         </div>
 
         <div className="mb-5 text-center">
-          {/* Badge — mb-2 (era mb-3, recalibrado para o H1 maior) */}
-          <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-zinc-400">
-            {copy.badge}
-          </div>
-          {/* Título — text-balance + leading apertado = quebra limpa em 3 linhas */}
+          {copy.badge ? (
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-zinc-400">
+              {copy.badge}
+            </div>
+          ) : null}
           <h1
             className="mx-auto max-w-[19rem] text-[2.5rem] font-bold leading-[1.06] tracking-tight text-zinc-950"
             style={{ textWrap: "balance" } as React.CSSProperties}
           >
-            {copy.title}
+            {(() => {
+              const words = copy.title.split(" ");
+              const last = words.pop();
+              return (
+                <>
+                  {words.join(" ")}{" "}
+                  <span>{last}</span>
+                </>
+              );
+            })()}
           </h1>
-          {/* Descrição — max-w alinhado ao título; text-balance evita linhas órfãs */}
           <p
-            className="mx-auto mt-3 max-w-[19rem] text-[13px] font-medium leading-relaxed text-zinc-500"
+            className="mx-auto mt-3 max-w-[18rem] text-[13px] font-medium leading-relaxed text-zinc-500"
             style={{ textWrap: "balance" } as React.CSSProperties}
           >
             {copy.description}
           </p>
+        </div>
+
+        <div className="mb-5 flex flex-wrap items-center justify-center gap-2">
+          {[
+            { icon: "✦", label: "Pautas semanais", iconClass: "text-brand-primary" },
+            { icon: "↗", label: "Collabs", iconClass: "text-brand-accent" },
+            { icon: "◆", label: "Comunidade ativa", iconClass: "text-brand-sun-dark" },
+          ].map(({ icon, label, iconClass }) => (
+            <span
+              key={label}
+              className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-[11px] font-semibold text-zinc-700 shadow-sm"
+            >
+              <span className={iconClass}>{icon}</span>
+              {label}
+            </span>
+          ))}
         </div>
 
         {consentRequired ? (
@@ -165,53 +189,49 @@ function LoginComponent() {
           </Link>.
         </p>
 
-        {/* Prova social — parte do bloco hero, não rodapé. mt-10 fixo
-            mantém ela visualmente colada ao conteúdo em qualquer tela. */}
         {creators.length > 0 && (
-          <div className="mt-10">
+          <div className="mt-8 w-full">
             <div className="flex flex-col items-center gap-3">
-            {/* Avatares sobrepostos */}
-            <div className="flex items-center">
-              {creators.filter(c => !c.hidden).slice(0, 5).map((creator, i) => (
-                <div
-                  key={creator.id}
-                  className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border-2 border-white bg-zinc-200"
-                  style={{ marginLeft: i === 0 ? 0 : -10, zIndex: creators.length - i }}
-                >
-                  {creator.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={creator.avatarUrl}
-                      alt={creator.name}
-                      className="h-full w-full object-cover"
-                      referrerPolicy="no-referrer"
-                      onError={() => setCreators(prev =>
-                        prev.map(c => c.id === creator.id ? { ...c, hidden: true } : c)
-                      )}
-                    />
-                  ) : (
-                    <span className="flex h-full w-full items-center justify-center text-[11px] font-bold text-zinc-500">
-                      {creator.name.charAt(0)}
-                    </span>
-                  )}
-                </div>
-              ))}
-              {creatorCount > 5 && (
-                <div
-                  className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-white bg-zinc-100 text-[10px] font-bold text-zinc-500"
-                  style={{ marginLeft: -10, zIndex: 0 }}
-                >
-                  +{creatorCount - 5}
-                </div>
-              )}
-            </div>
-            {/* Label — o número real é o protagonista (prova de solidez) */}
-            <p className="text-center text-[12.5px] leading-snug text-zinc-500">
-              <span className="font-bold text-zinc-900">
-                {creatorCount} {creatorCount === 1 ? "criador" : "criadores"}
-              </span>{" "}
-              {creatorCount === 1 ? "já começou" : "já começaram"} seu mapa
-            </p>
+              <div className="flex items-center">
+                {creators.filter(c => !c.hidden).slice(0, 5).map((creator, i) => (
+                  <div
+                    key={creator.id}
+                    className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border-2 border-white bg-zinc-200"
+                    style={{ marginLeft: i === 0 ? 0 : -10, zIndex: creators.length - i }}
+                  >
+                    {creator.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={creator.avatarUrl}
+                        alt={creator.name}
+                        className="h-full w-full object-cover"
+                        referrerPolicy="no-referrer"
+                        onError={() => setCreators(prev =>
+                          prev.map(c => c.id === creator.id ? { ...c, hidden: true } : c)
+                        )}
+                      />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-[11px] font-bold text-zinc-500">
+                        {creator.name.charAt(0)}
+                      </span>
+                    )}
+                  </div>
+                ))}
+                {creatorCount > 5 && (
+                  <div
+                    className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-white bg-zinc-100 text-[10px] font-bold text-zinc-500"
+                    style={{ marginLeft: -10, zIndex: 0 }}
+                  >
+                    +{creatorCount - 5}
+                  </div>
+                )}
+              </div>
+              <p className="text-center text-[12.5px] leading-snug text-zinc-500">
+                Somos uma comunidade de{" "}
+                <span className="font-bold text-zinc-900">
+                  {creatorCount} {creatorCount === 1 ? "criador" : "criadores"}
+                </span>
+              </p>
             </div>
           </div>
         )}
