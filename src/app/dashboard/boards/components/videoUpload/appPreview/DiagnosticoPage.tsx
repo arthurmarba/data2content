@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
+import type { IMapaData } from "@/app/models/MapaSeed";
 import type {
   DiagnosticoCollabSuggestionsState,
   DiagnosticoCreatorDirectoryState,
@@ -223,6 +224,300 @@ function MapaChips({ chips, chipBg, chipColor, chipBorder }: { chips: string[]; 
   );
 }
 
+/**
+ * Editable chip strip for MapaSeed sections.
+ * Chips from `seedItems` show a × button. Seeds not yet in `synthItems` are shown
+ * with a slightly lighter style so the creator can distinguish confirmed from new.
+ * A small + row lets the creator type a new item (max 60 chars).
+ */
+function EditableMapaChips({
+  items,
+  chipBg = "#ffe4c4",
+  chipColor = "#9a3412",
+  section,
+  onMutate,
+  maxItems = 6,
+  suggestions = [],
+}: {
+  items: string[];
+  chipBg?: string;
+  chipColor?: string;
+  section: string;
+  onMutate: (section: string, op: "add" | "remove", value: string) => void;
+  maxItems?: number;
+  /** Quick-add suggestions — render as outline chips for items not yet present. */
+  suggestions?: string[];
+}) {
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (adding) inputRef.current?.focus();
+  }, [adding]);
+
+  function submitAdd() {
+    const trimmed = draft.trim();
+    if (trimmed && !items.some((v) => v.toLowerCase() === trimmed.toLowerCase())) {
+      onMutate(section, "add", trimmed);
+    }
+    setDraft("");
+    setAdding(false);
+  }
+
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2, alignItems: "center" }}>
+      {items.map((chip) => (
+        <span
+          key={chip}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            borderRadius: 999, background: chipBg, color: chipColor,
+            fontSize: 13, fontWeight: 500, padding: "5px 8px 5px 13px", letterSpacing: -0.1,
+          }}
+        >
+          {chip}
+          <button
+            type="button"
+            aria-label={`Remover ${chip}`}
+            onClick={() => onMutate(section, "remove", chip)}
+            style={{
+              display: "grid", placeItems: "center",
+              width: 18, height: 18, borderRadius: 999,
+              background: "rgba(0,0,0,0.12)", border: "none",
+              cursor: "pointer", color: chipColor, flexShrink: 0,
+              padding: 0,
+            }}
+          >
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
+              <path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+            </svg>
+          </button>
+        </span>
+      ))}
+
+      {/* Add new item */}
+      {items.length < maxItems && (
+        adding ? (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <input
+              ref={inputRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value.slice(0, 60))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submitAdd();
+                if (e.key === "Escape") { setDraft(""); setAdding(false); }
+              }}
+              placeholder="novo item"
+              style={{
+                fontSize: 13, fontWeight: 500, padding: "5px 10px",
+                borderRadius: 999, border: `1.5px solid ${chipBg}`,
+                color: chipColor, background: "transparent",
+                outline: "none", width: 110, fontFamily: "inherit",
+              }}
+            />
+            <button
+              type="button"
+              onClick={submitAdd}
+              style={{
+                fontSize: 12, fontWeight: 600, padding: "5px 10px",
+                borderRadius: 999, background: chipBg, color: chipColor,
+                border: "none", cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              Ok
+            </button>
+            <button
+              type="button"
+              onClick={() => { setDraft(""); setAdding(false); }}
+              style={{
+                fontSize: 12, fontWeight: 600, padding: "5px 10px",
+                borderRadius: 999, background: "transparent", color: TEXT_SECONDARY_HEX,
+                border: "none", cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              ×
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            aria-label="Adicionar item"
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              borderRadius: 999, padding: "5px 12px",
+              background: "transparent", color: TEXT_SECONDARY_HEX,
+              border: `1.5px dashed rgba(0,0,0,0.15)`,
+              fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+              <path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            Adicionar
+          </button>
+        )
+      )}
+
+      {/* Sugestões de toque rápido — só as que ainda não foram adicionadas */}
+      {items.length < maxItems &&
+        suggestions
+          .filter((sug) => !items.some((v) => v.toLowerCase() === sug.toLowerCase()))
+          .map((sug) => (
+            <button
+              key={`sug-${sug}`}
+              type="button"
+              onClick={() => onMutate(section, "add", sug)}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 3,
+                borderRadius: 999, padding: "5px 11px",
+                background: "transparent", color: chipColor,
+                border: `1.5px solid ${chipBg}`, opacity: 0.85,
+                fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+                <path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+              {sug}
+            </button>
+          ))}
+    </div>
+  );
+}
+
+// ─── EditableTomField — tom de voz (scalar), single-select + custom ───────────
+
+/**
+ * Tom de voz é um campo escalar (uma escolha por vez), diferente dos chips de
+ * array. Mostra sugestões tocáveis; a que casa com o tom atual fica destacada.
+ * Um tom custom (frase vinda da síntese/onboarding) aparece como chip ativo
+ * antes das sugestões. "Outro…" abre um input livre.
+ */
+function EditableTomField({
+  value,
+  onSet,
+  suggestions,
+  chipBg = "#ffe4c4",
+  chipColor = "#9a3412",
+}: {
+  value: string | null;
+  onSet: (v: string) => void;
+  suggestions: string[];
+  chipBg?: string;
+  chipColor?: string;
+}) {
+  const [customOpen, setCustomOpen] = useState(false);
+  const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (customOpen) inputRef.current?.focus();
+  }, [customOpen]);
+
+  const current = (value ?? "").trim();
+  const norm = current.toLowerCase();
+  const isCustom = current !== "" && !suggestions.some((s) => s.toLowerCase() === norm);
+
+  const activeStyle: React.CSSProperties = {
+    display: "inline-flex", alignItems: "center",
+    borderRadius: 999, background: chipBg, color: chipColor,
+    fontSize: 13, fontWeight: 600, padding: "5px 13px", letterSpacing: -0.1,
+    border: `1.5px solid ${chipBg}`, cursor: "default", fontFamily: "inherit",
+  };
+  const outlineStyle: React.CSSProperties = {
+    display: "inline-flex", alignItems: "center",
+    borderRadius: 999, background: "transparent", color: chipColor,
+    fontSize: 13, fontWeight: 500, padding: "5px 13px", letterSpacing: -0.1,
+    border: `1.5px solid ${chipBg}`, opacity: 0.85, cursor: "pointer", fontFamily: "inherit",
+  };
+
+  function submitCustom() {
+    const t = draft.trim();
+    if (t) onSet(t.slice(0, 80));
+    setDraft("");
+    setCustomOpen(false);
+  }
+
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2, alignItems: "center" }}>
+      {isCustom && <span style={activeStyle}>{current}</span>}
+
+      {suggestions.map((s) => {
+        const active = s.toLowerCase() === norm;
+        return (
+          <button
+            key={s}
+            type="button"
+            onClick={() => { if (!active) onSet(s); }}
+            style={active ? activeStyle : outlineStyle}
+          >
+            {s}
+          </button>
+        );
+      })}
+
+      {customOpen ? (
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value.slice(0, 80))}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submitCustom();
+              if (e.key === "Escape") { setDraft(""); setCustomOpen(false); }
+            }}
+            placeholder="seu tom"
+            style={{
+              fontSize: 13, fontWeight: 500, padding: "5px 10px",
+              borderRadius: 999, border: `1.5px solid ${chipBg}`,
+              color: chipColor, background: "transparent",
+              outline: "none", width: 130, fontFamily: "inherit",
+            }}
+          />
+          <button
+            type="button"
+            onClick={submitCustom}
+            style={{
+              fontSize: 12, fontWeight: 600, padding: "5px 10px",
+              borderRadius: 999, background: chipBg, color: chipColor,
+              border: "none", cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
+            Ok
+          </button>
+          <button
+            type="button"
+            onClick={() => { setDraft(""); setCustomOpen(false); }}
+            style={{
+              fontSize: 12, fontWeight: 600, padding: "5px 10px",
+              borderRadius: 999, background: "transparent", color: TEXT_SECONDARY_HEX,
+              border: "none", cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
+            ×
+          </button>
+        </span>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setCustomOpen(true)}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 4,
+            borderRadius: 999, padding: "5px 12px",
+            background: "transparent", color: TEXT_SECONDARY_HEX,
+            border: `1.5px dashed rgba(0,0,0,0.15)`,
+            fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
+          }}
+        >
+          Outro…
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ─── Mapa display helpers ────────────────────────────────────────────────────
 
 /** Truncate a label to maxLen chars at a word boundary, appending "…" if needed. */
@@ -327,6 +622,18 @@ function CardRowHeader({
   );
 }
 
+// ─── Sugestões pré-prontas para Tom + Formatos (Como cria) ───────────────────
+// Vocabulário calmo, sem jargão de growth. Servem de ponto de partida tocável —
+// o criador pode escolher, ignorar ou escrever o próprio.
+const TOM_SUGGESTIONS = [
+  "Direto", "Reflexivo", "Íntimo", "Bem-humorado",
+  "Técnico", "Inspirador", "Provocativo", "Acolhedor",
+];
+const FORMATO_SUGGESTIONS = [
+  "Reels", "Carrossel", "Stories", "Vídeo longo",
+  "Tutorial", "Bastidores", "Live",
+];
+
 // ─── MapaCard ─────────────────────────────────────────────────────────────────
 
 function MapaCard({
@@ -348,6 +655,8 @@ function MapaCard({
   onOpenNarrative,
   mapEvolutionStatus,
   lastReadingAt = null,
+  mapaSeed = null,
+  onMapSeedMutate,
 }: {
   synthesis: DiagnosticoPageData["synthesis"];
   leadingNarrative: ReturnType<typeof resolveDiagnosticoLeadingNarrativeSignal>;
@@ -371,6 +680,10 @@ function MapaCard({
   mapEvolutionStatus?: string | null;
   /** ISO string of the most recent reading — used for freshness label in footer. */
   lastReadingAt?: string | null;
+  /** Full MapaSeed — source of truth for editable chips. */
+  mapaSeed?: IMapaData | null;
+  /** Mutate a MapaSeed section (add/remove arrays, set scalars). Caller owns optimistic + persist. */
+  onMapSeedMutate?: (section: string, op: "add" | "remove" | "set", value: string) => void;
 }) {
   // ── Confirmation priority: narrative → tone → territories ──
   // Meta-label patterns generated by the AI that should never surface to the creator.
@@ -692,7 +1005,13 @@ function MapaCard({
           </svg>
         }
       >
-        {filteredTerritories.length > 0 ? (
+        {mapaSeed && onMapSeedMutate ? (
+          <EditableMapaChips
+            items={mapaSeed.territorios.length > 0 ? mapaSeed.territorios : filteredTerritories.map((t) => t.label)}
+            section="territorios"
+            onMutate={onMapSeedMutate}
+          />
+        ) : filteredTerritories.length > 0 ? (
           <MapaChips
             chips={filteredTerritories.map((t) => t.label)}
             chipBg="#ffe4c4"
@@ -711,6 +1030,31 @@ function MapaCard({
           />
         )}
       </MapaSection>
+
+      {/* ── Temas — situações concretas do MapaSeed (editável) ───────────── */}
+      {(mapaSeed && onMapSeedMutate && (mapaSeed.temas.length > 0 || true)) && (
+        <MapaSection
+          labelColor="#c96a00"
+          label="Temas"
+          icon={
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <rect x="2" y="2" width="10" height="10" rx="2" stroke="currentColor" strokeWidth="1.5"/>
+              <path d="M5 5h4M5 7h3M5 9h2" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+            </svg>
+          }
+        >
+          <EditableMapaChips
+            items={mapaSeed.temas}
+            section="temas"
+            onMutate={onMapSeedMutate}
+          />
+          {mapaSeed.temas.length === 0 && (
+            <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, margin: "0 0 2px", fontStyle: "italic" }}>
+              Adicione situações concretas que viram pauta.
+            </p>
+          )}
+        </MapaSection>
+      )}
 
       {/* ── Você também fala sobre (etapa 4) — read-only overview ─────────── */}
       {/* Full detection/confirmation/add flow lives in DiagnosticoNarrativeDetailView. */}
@@ -740,7 +1084,13 @@ function MapaCard({
           </svg>
         }
       >
-        {confirmedAssetsDeduped.length > 0 ? (
+        {mapaSeed && onMapSeedMutate ? (
+          <EditableMapaChips
+            items={mapaSeed.assets.length > 0 ? mapaSeed.assets : confirmedAssetsDeduped.map((a) => a.label)}
+            section="assets"
+            onMutate={onMapSeedMutate}
+          />
+        ) : confirmedAssetsDeduped.length > 0 ? (
           <MapaChips
             chips={confirmedAssetsDeduped.map((a) => a.label)}
             chipBg="#ffe4c4"
@@ -762,8 +1112,44 @@ function MapaCard({
         )}
       </MapaSection>
 
-      {/* ── Tom + Formatos — merged into single "COMO CRIA" section ─────── */}
-      {(toneChips.length > 0 || formatoChips.length > 0 || activePending === "tone") && (
+      {/* ── Tom + Formatos — "Como cria" ──────────────────────────────── */}
+      {/* Editável a partir do MapaSeed (onboarding/IG): tom de voz (escalar,
+          single-select) + formatos (array), ambos com sugestões tocáveis.
+          Renderiza mesmo vazio para o criador preencher. Fallback read-only
+          para o path antigo sem MapaSeed. */}
+      {(mapaSeed && onMapSeedMutate) ? (
+        <MapaSection
+          labelColor="#c96a00"
+          label="Como cria"
+          icon={
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path d="M9.5 2l2.5 2.5-7 7H2.5V9l7-7z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          }
+        >
+          <div style={{ marginBottom: 12 }}>
+            <p style={{ fontSize: 11, fontWeight: 600, color: TEXT_SECONDARY_HEX, margin: "0 0 6px", letterSpacing: 0.2, textTransform: "uppercase" }}>
+              Tom de voz
+            </p>
+            <EditableTomField
+              value={mapaSeed.tom ?? null}
+              onSet={(v) => onMapSeedMutate("tom", "set", v)}
+              suggestions={TOM_SUGGESTIONS}
+            />
+          </div>
+          <div>
+            <p style={{ fontSize: 11, fontWeight: 600, color: TEXT_SECONDARY_HEX, margin: "0 0 6px", letterSpacing: 0.2, textTransform: "uppercase" }}>
+              Formatos
+            </p>
+            <EditableMapaChips
+              items={mapaSeed.formatos ?? []}
+              section="formatos"
+              onMutate={onMapSeedMutate}
+              suggestions={FORMATO_SUGGESTIONS}
+            />
+          </div>
+        </MapaSection>
+      ) : (toneChips.length > 0 || formatoChips.length > 0 || activePending === "tone") ? (
         <MapaSection
           labelColor="#c96a00"
           label="Como cria"
@@ -788,7 +1174,7 @@ function MapaCard({
             />
           )}
         </MapaSection>
-      )}
+      ) : null}
 
       {MapaFooter}
     </div>
@@ -981,6 +1367,7 @@ function PautasCard({
   whatsappLinked = false,
   onConnectWhatsApp,
   onUpgrade,
+  isPro = false,
 }: {
   contentIdeas: DiagnosticoPageData["contentIdeas"];
   contentIdeasReadiness: DiagnosticoPageData["contentIdeasReadiness"];
@@ -996,6 +1383,8 @@ function PautasCard({
   whatsappLinked?: boolean;
   onConnectWhatsApp?: () => void;
   onUpgrade?: () => void;
+  /** True quando o criador é Pro — controla o CTA de conversão na cota esgotada. */
+  isPro?: boolean;
 }) {
   // Fase 2C/2D — quando o Instagram não está conectado, ele é o caminho mais rico
   // e de menor fricção para enriquecer o mapa e liberar as pautas (sem exigir
@@ -1260,12 +1649,34 @@ function PautasCard({
           )}
         </div>
       ) : ideaGenerationBlocker === "quota_exceeded" ? (
-        /* Estado D-quota: cota esgotada */
-        <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, margin: 0, lineHeight: 1.5 }}>
-          {ideaQuotaResetAt
-            ? `Pautas deste mês esgotadas. Novas disponíveis em ${new Date(ideaQuotaResetAt).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}.`
-            : "Pautas deste mês esgotadas. Novas disponíveis no próximo mês."}
-        </p>
+        /* Estado D-quota: cota esgotada. Para o free, este é o momento natural de
+           conversão — o mapa já provou valor gerando pautas. Mostra o caminho Pro
+           (mais pautas/mês) sem pressão; o Pro vê só a data de reset. */
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, margin: 0, lineHeight: 1.5 }}>
+            {!isPro
+              ? "Você usou suas pautas grátis deste mês. Criadores Pro geram até 30 pautas por mês a partir do mesmo mapa."
+              : ideaQuotaResetAt
+                ? `Pautas deste mês esgotadas. Novas disponíveis em ${new Date(ideaQuotaResetAt).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}.`
+                : "Pautas deste mês esgotadas. Novas disponíveis no próximo mês."}
+          </p>
+          {!isPro && onUpgrade && (
+            <button
+              type="button"
+              onClick={onUpgrade}
+              style={{
+                alignSelf: "flex-start",
+                borderRadius: 999, padding: "7px 16px",
+                background: "#18181b", color: "#fff",
+                fontSize: 12, fontWeight: 600,
+                border: "none", cursor: "pointer",
+                fontFamily: "inherit", letterSpacing: -0.1,
+              }}
+            >
+              Ser Pro
+            </button>
+          )}
+        </div>
       ) : ideaGenerationBlocker === "map_incomplete" ? (
         /* Estado D-map: header + action button resolvem — sem body */
         null
@@ -1956,6 +2367,41 @@ export function DiagnosticoPage({
   const displayStatus = mapEvolutionStatus ?? profileSynthesisStatus ?? "";
   const whatsappLinked = userInfo.whatsappLinked ?? false;
 
+  // ── Editable MapaSeed chips (optimistic) ───────────────────────────────────
+  const [mapaSeedLocal, setMapaSeedLocal] = useState<IMapaData | null>(data.mapaSeed ?? null);
+  useEffect(() => { setMapaSeedLocal(data.mapaSeed ?? null); }, [data.mapaSeed]);
+
+  async function handleMapSeedMutate(section: string, op: "add" | "remove" | "set", value: string) {
+    // Optimistic: update local state immediately
+    setMapaSeedLocal((prev) => {
+      if (!prev) return prev;
+      const clone = { ...prev } as Record<string, unknown>;
+      if (op === "set") {
+        // Scalar sections (tom, narrativa_central) — replace the value outright.
+        clone[section] = value.slice(0, 200);
+        return clone as unknown as IMapaData;
+      }
+      const arr = Array.isArray(clone[section]) ? [...(clone[section] as string[])] : [];
+      if (op === "add") {
+        if (!arr.some((v) => v.toLowerCase() === value.toLowerCase())) arr.push(value);
+        clone[section] = arr.slice(0, 8);
+      } else {
+        clone[section] = arr.filter((v) => v.toLowerCase().trim() !== value.toLowerCase().trim());
+      }
+      return clone as unknown as IMapaData;
+    });
+
+    try {
+      await fetch("/api/dashboard/mobile-strategic-profile/map-seed", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section, op, value }),
+      });
+    } catch {
+      // non-fatal — optimistic state is already applied; refresh will reconcile
+    }
+  }
+
   const hasReadings = readings.length > 0;
   const hasSynthesis = s.status !== "empty" && s.analyzedReadingsCount > 0;
   const isMapReadyForExpansion =
@@ -2192,6 +2638,8 @@ export function DiagnosticoPage({
             onOpenNarrative={() => onOpenCategory?.("narrative")}
             mapEvolutionStatus={mapEvolutionStatus}
             lastReadingAt={readings[0]?.createdAt ?? null}
+            mapaSeed={mapaSeedLocal}
+            onMapSeedMutate={handleMapSeedMutate}
           />
         </div>
 
@@ -2212,6 +2660,7 @@ export function DiagnosticoPage({
             whatsappLinked={whatsappLinked}
             onConnectWhatsApp={onConnectWhatsApp}
             onUpgrade={onUpgrade}
+            isPro={isPro}
           />
         </div>
 

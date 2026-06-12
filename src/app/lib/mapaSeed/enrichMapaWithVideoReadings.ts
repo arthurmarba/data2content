@@ -132,6 +132,7 @@ export async function enrichMapaWithVideoReadings(
     IMapaData,
     | "narrativa_central"
     | "territorios"
+    | "temas"
     | "narrativas_adjacentes"
     | "assets"
     | "tom"
@@ -163,6 +164,7 @@ export async function enrichMapaWithVideoReadings(
   const mapaEnriquecido: IMapaData = {
     narrativa_central:     narrativaFinal,
     territorios:           raw.territorios           ?? mapaAtual.territorios,
+    temas:                 raw.temas                 ?? mapaAtual.temas ?? [],
     narrativas_adjacentes: raw.narrativas_adjacentes ?? mapaAtual.narrativas_adjacentes,
     assets:                raw.assets                ?? mapaAtual.assets,
     tom:                   tomFinal,

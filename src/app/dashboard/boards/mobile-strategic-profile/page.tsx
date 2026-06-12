@@ -197,14 +197,7 @@ export default async function MobileStrategicProfilePage({
         const mapaSeedSource = await getMapaSeedReadinessSource(userId);
         const synthesisHasNarrative = !!(synthesis.mainNarrative?.label) || mapaSeedSource.hasNarrative;
         const synthesisHasTerritories = (synthesis.narrativeTerritories?.length ?? 0) > 0 || mapaSeedSource.hasTerritories;
-        const contentIdeasReadiness = (!hasPremiumAccess && !isInternalAdmin)
-          ? {
-              ready: false as const,
-              missingDimensions: [] as ReturnType<typeof evaluateContentIdeasReadiness>["missingDimensions"],
-              nextStep: null,
-              premiumRequired: true as const,
-            }
-          : evaluateContentIdeasReadiness(mapConfirmations, synthesisHasNarrative, synthesisHasTerritories);
+        const contentIdeasReadiness = evaluateContentIdeasReadiness(mapConfirmations, synthesisHasNarrative, synthesisHasTerritories);
 
         // Brand matching — uses confirmed map as primary signal when narrative is confirmed;
         // falls back to synthesis-based matching for creators who haven't confirmed yet.
@@ -238,7 +231,16 @@ export default async function MobileStrategicProfilePage({
         // síntese que o card renderiza — assim quem conecta o Instagram (sem subir
         // vídeo) vê o mapa, não só as pautas. Gate e brand matching seguem na síntese
         // crua (já tratam o MapaSeed à parte / marcas não devem mudar de comportamento).
-        const mapaSeedForMerge = await loadMapaSeedForSynthesisMerge(userId).catch(() => null);
+        const [mapaSeedForMerge, fullMapaSeedDoc] = await Promise.all([
+          loadMapaSeedForSynthesisMerge(userId).catch(() => null),
+          (async () => {
+            try {
+              const { default: MapaSeedModelImport } = await import("@/app/models/MapaSeed");
+              const doc = await MapaSeedModelImport.findOne({ userId }).select("mapa").lean<{ mapa?: any } | null>();
+              return (doc?.mapa ?? null) as import("@/app/models/MapaSeed").IMapaData | null;
+            } catch { return null; }
+          })(),
+        ]);
         const mergedSynthesis = mergeMapaSeedIntoSynthesis(selectorResult.profileSynthesis, mapaSeedForMerge);
         const leadingNarrative = resolveDiagnosticoLeadingNarrativeSignal(mergedSynthesis);
 
@@ -293,6 +295,7 @@ export default async function MobileStrategicProfilePage({
           contentIdeasReadiness,
           contentIdeasMapStale,
           audienceInsights: audienceInsights ?? null,
+          mapaSeed: fullMapaSeedDoc,
           userInfo: (() => {
             const profile = (effectiveUserForAccess as any).creatorProfileExtended ?? {};
             const hasNiches = Array.isArray(profile.niches) && profile.niches.length > 0;

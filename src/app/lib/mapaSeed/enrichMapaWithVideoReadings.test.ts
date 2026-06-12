@@ -22,6 +22,7 @@ function makeMapa(overrides?: Partial<IMapaData>): IMapaData {
   return {
     narrativa_central: "narrativa declarada",
     territorios: ["t1"],
+    temas: [],
     narrativas_adjacentes: ["adj1"],
     assets: ["a1"],
     tom: "reflexivo",

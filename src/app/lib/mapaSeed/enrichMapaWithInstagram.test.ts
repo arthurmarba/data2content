@@ -17,6 +17,7 @@ function makeMapa(over?: Partial<IMapaData>): IMapaData {
   return {
     narrativa_central: "quem constrói devagar e com intenção",
     territorios: ["produtividade"],
+    temas: [],
     narrativas_adjacentes: [],
     assets: ["home office"],
     tom: "calmo e reflexivo",

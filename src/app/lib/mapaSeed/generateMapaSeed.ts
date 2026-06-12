@@ -71,6 +71,7 @@ export async function generateMapaSeed(
     IMapaData,
     | "narrativa_central"
     | "territorios"
+    | "temas"
     | "narrativas_adjacentes"
     | "assets"
     | "tom"
@@ -92,6 +93,7 @@ export async function generateMapaSeed(
   const mapa: IMapaData = {
     narrativa_central:     raw.narrativa_central,
     territorios:           raw.territorios           ?? [],
+    temas:                 raw.temas                 ?? [],
     narrativas_adjacentes: raw.narrativas_adjacentes ?? [],
     assets:                raw.assets                ?? [],
     tom:                   raw.tom,

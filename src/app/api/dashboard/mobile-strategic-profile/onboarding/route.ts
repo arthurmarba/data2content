@@ -75,10 +75,10 @@ export async function POST(request: Request) {
 
     // Fase 3 — preview enriquecido do mapa.
     // Quando o criador declara um propósito (Q3), a IA interpreta os 3 sinais
-    // e gera a hipótese de narrativa central mostrada no step first_signal.
+    // e extrai narrativa, territórios, temas e assets (primeiro mapa completo).
     // Best-effort: a persistência acima já sucedeu — uma falha aqui NÃO deve
     // bloquear o onboarding. O client cai no fallback determinístico (buildSeedSignal).
-    let seedSignal: { label: string; summary: string } | null = null;
+    let seedSignal: import("@/app/lib/mapaSeed/generateOnboardingSeedSignal").OnboardingSeedSignal | null = null;
     if (parsed.creatorPurpose) {
       try {
         const { generateOnboardingSeedSignal } = await import(
@@ -108,6 +108,9 @@ export async function POST(request: Request) {
             userId,
             mapa: {
               narrativa_central: seedSignal.label,
+              territorios:       seedSignal.territorios ?? [],
+              temas:             seedSignal.temas        ?? [],
+              assets:            seedSignal.assets       ?? [],
               maturidade: "seed",
               fonte: ["onboarding_declarativo"],
             },

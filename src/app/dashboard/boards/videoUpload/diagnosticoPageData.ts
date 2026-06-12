@@ -1,6 +1,7 @@
 import type { CreatorStrategicProfileSynthesis } from "./creatorStrategicProfileSynthesis";
 import type { InstagramMetricsSummary } from "./instagramMetricsSummaryService";
 import type { NarrativeMapAccessState, NarrativeMapReadingQuotaSnapshot } from "./narrativeMapAccessState";
+import type { IMapaData } from "@/app/models/MapaSeed";
 import type { NarrativeMapMobileReadingItem } from "./narrativeMapMobileViewModel";
 import type { LandingCreatorHighlight } from "@/types/landing";
 import type { BrandNarrativeMatchResult } from "@/app/lib/brands/brandNarrativeMatchTypes";
@@ -193,4 +194,10 @@ export interface DiagnosticoPageData {
    * Null when not yet generated or feature not enabled.
    */
   weeklyMapSummary?: string | null;
+  /**
+   * Full MapaSeed data — source of truth for the editable "Seu Mapa" chips.
+   * Contains narrativa_central, territorios, temas, assets, etc. as stored/confirmed
+   * by the creator (via onboarding + enrichment). Null when no seed exists yet.
+   */
+  mapaSeed?: IMapaData | null;
 }

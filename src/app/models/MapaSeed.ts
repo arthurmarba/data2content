@@ -39,6 +39,7 @@ export interface IOnboardingAnswers {
 export interface IMapaData {
   narrativa_central: string;
   territorios: string[];
+  temas: string[];
   narrativas_adjacentes: string[];
   assets: string[];
   tom: string;
@@ -99,6 +100,7 @@ const MapaDataSchema = new Schema<IMapaData>(
     // Instagram preenche a narrativa logo em seguida. Default "" em vez de required.
     narrativa_central:      { type: String, default: "" },
     territorios:            { type: [String], default: [] },
+    temas:                  { type: [String], default: [] },
     narrativas_adjacentes:  { type: [String], default: [] },
     assets:                 { type: [String], default: [] },
     // tom não é cravado no estágio "seed" (onboarding leve só dá a narrativa).

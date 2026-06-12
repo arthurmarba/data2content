@@ -30,6 +30,12 @@ export interface OnboardingSeedSignal {
   label: string;
   /** 1–2 frases que expandem a hipótese, em linguagem de espelho. */
   summary: string;
+  /** Assuntos com os quais o criador tem legitimidade (extraídos do propósito). */
+  territorios: string[];
+  /** Situações concretas recorrentes detectadas no propósito. */
+  temas: string[];
+  /** Elementos de vida mencionados (profissão, família, rotina, etc.). */
+  assets: string[];
 }
 
 // ─── Mapas de rótulo (código → humano) ────────────────────────────────────────
@@ -63,8 +69,8 @@ function buildPrompt(input: OnboardingSeedSignalInput): string {
 
   return `Você é um sistema de mapeamento narrativo para criadores de conteúdo.
 
-A partir de três sinais declarados por um criador no onboarding, sintetize uma
-HIPÓTESE INICIAL da narrativa central dele — um espelho de quem ele é como
+A partir de três sinais declarados por um criador no onboarding, sintetize a
+HIPÓTESE INICIAL do mapa narrativo dele — um espelho de quem ele é como
 criador, não uma análise de performance.
 
 Sinais declarados:
@@ -73,30 +79,47 @@ Sinais declarados:
 [3] Propósito (declaração livre, nas palavras do criador): "${purpose}"
 
 O propósito [3] é o sinal MAIS IMPORTANTE. Use-o para derivar uma narrativa
-central específica e pessoal — não genérica. Por exemplo, se o propósito fala
-em cuidar de si e dos outros enquanto equilibra maternidade, medicina e
-movimento, a narrativa central é sobre autocuidado e equilíbrio — não apenas
-"histórias inspiradoras de vida".
+central específica e pessoal — não genérica. Por exemplo:
+  • Propósito "equilibrar maternidade, medicina e movimento" → narrativa sobre
+    autocuidado e equilíbrio, territórios [saúde feminina, maternidade real],
+    temas [rotina com filhos, corpo pós-parto], assets [carreira médica, experiência de mãe].
 
-Gere:
+Gere os seguintes campos:
 
-- label: uma frase curta (máx. 12 palavras) que captura a narrativa central.
+- label: frase curta (máx. 12 palavras) que captura a narrativa central.
   Deve refletir claramente o PROPÓSITO declarado, não só a identidade genérica.
-  Sem aspas, sem ponto final, sem o nome do criador.
+  Sem aspas, sem ponto final.
 
 - summary: 1 a 2 frases (máx. 40 palavras) que expandem a hipótese em linguagem
   de espelho — calma, sem jargão de crescimento, sem métricas. Termine indicando
-  que a primeira leitura de um vídeo (ou o Instagram conectado) vai revelar muito
-  mais. Não use "poste mais", "algoritmo" ou "engajamento".
+  que a primeira leitura de um vídeo vai revelar muito mais.
+  Não use "poste mais", "algoritmo" ou "engajamento".
+
+- territorios: lista de 2 a 4 assuntos que o criador pode ocupar com
+  legitimidade, derivados do propósito. Específicos e ancorados na narrativa
+  — não rótulos genéricos como "cultura" ou "entretenimento".
+
+- temas: lista de 2 a 4 situações concretas e recorrentes detectadas no propósito
+  — os momentos reais de vida que viram pauta.
+
+- assets: lista de 1 a 3 elementos concretos da vida do criador (profissão,
+  papel familiar, rotina, experiência vivida) mencionados ou fortemente
+  implicados no propósito.
 
 Regras:
 - Responda em português do Brasil.
 - Não invente fatos que não estejam nos sinais.
-- Se o propósito for vago, reflita a vagueza — não preencha com suposições.
+- Se o propósito for vago, as listas podem ter menos itens — não preencha com suposições.
 - Retorne APENAS JSON válido, sem markdown nem explicação.
 
 Formato esperado:
-{ "label": "string", "summary": "string" }`;
+{
+  "label": "string",
+  "summary": "string",
+  "territorios": ["string"],
+  "temas": ["string"],
+  "assets": ["string"]
+}`;
 }
 
 // ─── Função principal ─────────────────────────────────────────────────────────
@@ -122,7 +145,7 @@ export async function generateOnboardingSeedSignal(
   try {
     const raw = await callClaudeJSON<Partial<OnboardingSeedSignal>>(buildPrompt(input), {
       intensity: "medium",
-      maxTokens: 400,
+      maxTokens: 600,
     });
 
     const label = typeof raw.label === "string" ? raw.label.trim() : "";
@@ -133,8 +156,18 @@ export async function generateOnboardingSeedSignal(
       return null;
     }
 
-    logger.info(`${TAG} Sinal seed gerado: "${label}"`);
-    return { label, summary };
+    const territorios = Array.isArray(raw.territorios)
+      ? raw.territorios.filter((t): t is string => typeof t === "string" && t.trim() !== "")
+      : [];
+    const temas = Array.isArray(raw.temas)
+      ? raw.temas.filter((t): t is string => typeof t === "string" && t.trim() !== "")
+      : [];
+    const assets = Array.isArray(raw.assets)
+      ? raw.assets.filter((a): a is string => typeof a === "string" && a.trim() !== "")
+      : [];
+
+    logger.info(`${TAG} Sinal seed gerado: "${label}" (${territorios.length} territórios, ${temas.length} temas, ${assets.length} assets)`);
+    return { label, summary, territorios, temas, assets };
   } catch (err) {
     logger.warn(`${TAG} Falha ao gerar sinal seed (fallback determinístico):`, err);
     return null;

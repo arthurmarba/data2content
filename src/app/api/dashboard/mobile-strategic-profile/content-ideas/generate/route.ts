@@ -40,7 +40,9 @@ export async function DELETE() {
  * POST /api/dashboard/mobile-strategic-profile/content-ideas/generate
  *
  * Generates pautas (content ideas) from the creator's confirmed map.
- * Requires narrative + territories confirmed and premium access.
+ * Requires narrative + territories (confirmed or detected via MapaSeed/synthesis).
+ * Free for all tiers — capped by the monthly quota (free: 3 batches/mês,
+ * pro: 30, admin: ∞). Pro/admin can request larger batches; free is capped at 3.
  *
  * Body:
  *   { count?: number; focusedTerritory?: string; focusedFormat?: string }
@@ -73,10 +75,11 @@ export async function POST(request: Request) {
   const focusedTerritory = typeof body.focusedTerritory === "string" ? body.focusedTerritory.trim() : null;
   const focusedFormat = typeof body.focusedFormat === "string" ? body.focusedFormat.trim() : null;
 
-  // ── Access gate: premium or admin only ────────────────────────────────────
+  // ── Tier resolution (no hard gate — controls batch size + quota) ──────────
   // Read access fields fresh from DB so direct DB activations and stale JWTs
-  // don't block legitimate users (mirrors what the page's DIAGNOSTICO_V2_ENABLED
-  // path does when building DiagnosticoPageData).
+  // reflect the real tier (mirrors what the page's DIAGNOSTICO_V2_ENABLED path
+  // does when building DiagnosticoPageData). Pautas are free for all tiers;
+  // tier only affects the per-batch cap and the monthly quota below.
   let effectiveUser = sessionUser;
   try {
     await connectToDatabase();
@@ -100,12 +103,9 @@ export async function POST(request: Request) {
   const isAdmin = isNarrativeMapAdminUser(effectiveUser);
   const hasPremium = hasNarrativeMapPremiumAccess(effectiveUser);
   console.log(`[content-ideas:generate] userId=${userId} isAdmin=${isAdmin} hasPremium=${hasPremium} planStatus=${effectiveUser?.planStatus}`);
-  if (!isAdmin && !hasPremium) {
-    return NextResponse.json(
-      { message: "Pautas estão disponíveis para criadores Pro.", reason: "premium_required" },
-      { status: 403 },
-    );
-  }
+
+  // Free users are capped at 3 ideas/batch; monthly quota enforced below.
+  const effectiveCount = (isAdmin || hasPremium) ? count : Math.min(count, 3);
 
   // ── Monthly quota gate ─────────────────────────────────────────────────────
   // Bypass APENAS em desenvolvimento local: permite regenerar à vontade no
@@ -278,11 +278,11 @@ export async function POST(request: Request) {
       console.warn("[content-ideas:generate] audience resonance skipped (non-fatal):", err);
     }
 
-    console.log(`[content-ideas:generate] territories=[${context.territories.map(t => t.label).join(", ")}] count=${count}`);
+    console.log(`[content-ideas:generate] territories=[${context.territories.map(t => t.label).join(", ")}] count=${effectiveCount}`);
     const result = await generateContentIdeas({
       userId,
       context,
-      count,
+      count: effectiveCount,
       focusedTerritory,
       focusedFormat,
     });
