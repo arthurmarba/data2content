@@ -40,8 +40,6 @@ export interface OnboardingSeedSignalInput {
 export interface OnboardingSeedSignal {
   /** Narrativa central — o fio condutor (a intenção), não um assunto. */
   label: string;
-  /** 1 frase de espelho que devolve ao criador o que foi entendido da narrativa. */
-  summary: string;
   /** Territórios — assuntos que o criador ocupa com legitimidade. */
   territorios: string[];
   /** Temas — situações concretas e recorrentes dentro dos territórios. */
@@ -95,11 +93,6 @@ ASSETS (assets)
   É a FONTE da legitimidade, não o assunto em si.
   Ex.: o asset "carreira médica" sustenta o território "saúde feminina".
 
-SUMMARY (summary)
-  1 frase de espelho — calma, na 2ª pessoa, devolvendo ao criador o que você
-  entendeu da narrativa central dele. Sem métricas, sem jargão de crescimento.
-  Nunca use "poste mais", "algoritmo" ou "engajamento".
-
 Regras:
 - Responda em português do Brasil.
 - A declaração é a única fonte. Se for vaga, gere MENOS itens — não preencha
@@ -111,7 +104,6 @@ Regras:
 Formato esperado:
 {
   "label": "string",
-  "summary": "string",
   "territorios": ["string"],
   "temas": ["string"],
   "assets": ["string"]
@@ -145,9 +137,8 @@ export async function generateOnboardingSeedSignal(
     });
 
     const label = typeof raw.label === "string" ? raw.label.trim() : "";
-    const summary = typeof raw.summary === "string" ? raw.summary.trim() : "";
 
-    if (!label || !summary) {
+    if (!label) {
       logger.warn(`${TAG} IA retornou sinal incompleto:`, raw);
       return null;
     }
@@ -163,7 +154,7 @@ export async function generateOnboardingSeedSignal(
       : [];
 
     logger.info(`${TAG} Mapa seed gerado: "${label}" (${territorios.length} territórios, ${temas.length} temas, ${assets.length} assets)`);
-    return { label, summary, territorios, temas, assets };
+    return { label, territorios, temas, assets };
   } catch (err) {
     logger.warn(`${TAG} Falha ao gerar mapa seed (não-fatal):`, err);
     return null;

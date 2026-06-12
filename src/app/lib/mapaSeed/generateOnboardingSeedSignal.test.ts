@@ -6,7 +6,7 @@
 //   1. Sem propósito → retorna null sem chamar a IA.
 //   2. Com propósito → o prompt é centrado SOMENTE no propósito (não injeta
 //      whyYouCreate/desiredFeeling, que são valores fixos herdados).
-//   3. IA retorna mapa válido → { label, summary, territorios, temas, assets }.
+//   3. IA retorna mapa válido → { label, territorios, temas, assets }.
 //   4. IA retorna mapa incompleto → null.
 //   5. IA lança erro → null (best-effort, não propaga).
 
@@ -29,7 +29,6 @@ const BASE = {
 
 const FULL_SIGNAL = {
   label: "Autocuidado como narrativa para mães em movimento",
-  summary: "Você cria a partir do equilíbrio entre cuidar de si e dos outros.",
   territorios: ["maternidade real", "saúde feminina"],
   temas: ["rotina de autocuidado com pouco tempo", "culpa materna"],
   assets: ["experiência de mãe"],
@@ -68,10 +67,9 @@ describe("generateOnboardingSeedSignal", () => {
     expect(result).toEqual(FULL_SIGNAL);
   });
 
-  it("filtra itens vazios e trima label/summary", async () => {
+  it("filtra itens vazios e trima label", async () => {
     mockCallClaude.mockResolvedValue({
       label: "  Narrativa X  ",
-      summary: "  Resumo Y.  ",
       territorios: ["a", "", "  "],
       temas: [],
       assets: ["asset 1", 42],
@@ -79,15 +77,14 @@ describe("generateOnboardingSeedSignal", () => {
     const result = await generateOnboardingSeedSignal(BASE);
     expect(result).toEqual({
       label: "Narrativa X",
-      summary: "Resumo Y.",
       territorios: ["a"],
       temas: [],
       assets: ["asset 1"],
     });
   });
 
-  it("mapa incompleto (sem summary) → null", async () => {
-    mockCallClaude.mockResolvedValue({ label: "só label", territorios: ["x"] });
+  it("mapa incompleto (sem label) → null", async () => {
+    mockCallClaude.mockResolvedValue({ territorios: ["x"] });
     const result = await generateOnboardingSeedSignal(BASE);
     expect(result).toBeNull();
   });
