@@ -39,12 +39,14 @@ export async function PATCH(request: Request) {
         typeof val === "string" && val.trim().length > 0 ? val.trim() : null;
     }
   }
+  let creatorPurposeValue: string | null | undefined;
   if ("creatorPurpose" in body) {
     const val = body.creatorPurpose;
-    patch["onboardingAnswers.creatorPurpose"] =
+    creatorPurposeValue =
       typeof val === "string" && val.trim().length > 0
-        ? val.trim().slice(0, 150)
+        ? val.trim().slice(0, 400)
         : null;
+    patch["onboardingAnswers.creatorPurpose"] = creatorPurposeValue;
   }
 
   if (Object.keys(patch).length === 0) {
@@ -55,6 +57,15 @@ export async function PATCH(request: Request) {
     await connectToDatabase();
     const { default: UserModel } = await import("@/app/models/User");
     await UserModel.findByIdAndUpdate(userId, { $set: patch });
+
+    // Quando o criador declara o propósito aqui (Meu Norte ou propósito inline do
+    // card), semeia o MapaSeed igual ao onboarding vivo — para que ele exista e
+    // possa ser enriquecido por Instagram/vídeo. Best-effort, não bloqueia o save.
+    if (creatorPurposeValue) {
+      const { seedMapaSeedFromPurpose } = await import("@/app/lib/mapaSeed/seedMapaSeedFromPurpose");
+      await seedMapaSeedFromPurpose(userId, creatorPurposeValue);
+    }
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[onboarding-answers:patch] Erro:", err);

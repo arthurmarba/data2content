@@ -1157,6 +1157,14 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     mainNarrativeLabel: data.mainNarrativeLabel ?? leadingNarrative?.label ?? null,
     mapConfirmations: localMapConfirmations,
     brandMapConfirmed: data.brandMapConfirmed || isMapReadyForExpansion,
+    // Reflete o propósito salvo localmente (Meu Norte) sem esperar router.refresh —
+    // faz o prompt "Defina seu norte" sumir assim que o criador salva.
+    onboardingAnswers: {
+      whyYouCreate: data.onboardingAnswers?.whyYouCreate ?? null,
+      desiredFeeling: data.onboardingAnswers?.desiredFeeling ?? null,
+      contentLimit: data.onboardingAnswers?.contentLimit ?? null,
+      creatorPurpose: localPurpose,
+    },
   };
 
   return (
@@ -1190,6 +1198,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           onOpenCreatorMediaKit={handleOpenCreatorMediaKit}
           onOpenAccountMenu={() => setAccountMenuOpen(true)}
           onOpenSurvey={() => setSurveyOpen(true)}
+          onOpenNorte={() => setNorteOpen(true)}
           onOpenDiagnosis={handleOpenDiagnosisOverview}
           narrativeConfirmationState={narrativeConfirmationState}
           onConfirmNarrative={handleConfirmNarrative}

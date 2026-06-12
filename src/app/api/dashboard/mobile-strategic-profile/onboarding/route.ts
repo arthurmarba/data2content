@@ -73,53 +73,13 @@ export async function POST(request: Request) {
       },
     });
 
-    // Fase 3 — preview enriquecido do mapa.
-    // Quando o criador declara um propósito (Q3), a IA interpreta os 3 sinais
-    // e extrai narrativa, territórios, temas e assets (primeiro mapa completo).
-    // Best-effort: a persistência acima já sucedeu — uma falha aqui NÃO deve
-    // bloquear o onboarding. O client cai no fallback determinístico (buildSeedSignal).
-    let seedSignal: import("@/app/lib/mapaSeed/generateOnboardingSeedSignal").OnboardingSeedSignal | null = null;
-    if (parsed.creatorPurpose) {
-      try {
-        const { generateOnboardingSeedSignal } = await import(
-          "@/app/lib/mapaSeed/generateOnboardingSeedSignal"
-        );
-        seedSignal = await generateOnboardingSeedSignal({
-          whyYouCreate: parsed.whyYouCreate,
-          desiredFeeling: parsed.desiredFeeling,
-          creatorPurpose: parsed.creatorPurpose,
-        });
-      } catch (genErr) {
-        console.warn("[onboarding] Falha ao gerar seed signal (não-fatal):", genErr);
-      }
-    }
-
-    // Fase 2A — semeia o MapaSeed a partir da hipótese de narrativa do onboarding,
-    // para que ele EXISTA e possa ser enriquecido depois (Instagram/vídeo). Sem
-    // isso, o enriquecimento de Instagram desiste na primeira linha (sem MapaSeed)
-    // e a coleção fica vazia. Best-effort: nunca bloqueia o onboarding. Só cria se
-    // ainda não houver mapa — não sobrescreve um mapa já enriquecido.
-    if (seedSignal?.label) {
-      try {
-        const { default: MapaSeedModel } = await import("@/app/models/MapaSeed");
-        const exists = await MapaSeedModel.exists({ userId });
-        if (!exists) {
-          await MapaSeedModel.create({
-            userId,
-            mapa: {
-              narrativa_central: seedSignal.label,
-              territorios:       seedSignal.territorios ?? [],
-              temas:             seedSignal.temas        ?? [],
-              assets:            seedSignal.assets       ?? [],
-              maturidade: "seed",
-              fonte: ["onboarding_declarativo"],
-            },
-          });
-        }
-      } catch (seedErr) {
-        console.warn("[onboarding] Falha ao semear MapaSeed (não-fatal):", seedErr);
-      }
-    }
+    // Fase 3 — preview enriquecido do mapa + Fase 2A — semeia o MapaSeed a partir
+    // da hipótese de narrativa, para que ele EXISTA e possa ser enriquecido depois
+    // (Instagram/vídeo). Mesma lógica reutilizada por "Meu Norte"/propósito inline.
+    // Best-effort: a persistência acima já sucedeu — uma falha aqui NÃO bloqueia o
+    // onboarding. Só cria se ainda não houver mapa (não sobrescreve um enriquecido).
+    const { seedMapaSeedFromPurpose } = await import("@/app/lib/mapaSeed/seedMapaSeedFromPurpose");
+    const seedSignal = await seedMapaSeedFromPurpose(userId, parsed.creatorPurpose ?? null);
 
     return NextResponse.json({ ok: true, seedSignal });
   } catch (err) {
@@ -184,10 +144,10 @@ function parseBody(body: unknown): ParseResult {
       ? b.contentLimit.trim().slice(0, 300)
       : undefined;
 
-  // Declaração de propósito — opcional, máx 150 chars (campo livre do criador).
+  // Declaração de propósito — opcional, máx 400 chars (campo livre do criador).
   const creatorPurpose =
     typeof b.creatorPurpose === "string" && b.creatorPurpose.trim()
-      ? b.creatorPurpose.trim().slice(0, 150)
+      ? b.creatorPurpose.trim().slice(0, 400)
       : undefined;
 
   return {
