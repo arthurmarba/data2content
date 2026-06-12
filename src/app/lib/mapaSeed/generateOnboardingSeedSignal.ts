@@ -38,13 +38,13 @@ export interface OnboardingSeedSignalInput {
 }
 
 export interface OnboardingSeedSignal {
-  /** Narrativa central — o fio condutor (a intenção), não um assunto. */
+  /** Narrativa central — o fio condutor (intenção ou movimento humano), não um assunto. */
   label: string;
-  /** Territórios — assuntos que o criador ocupa com legitimidade. */
+  /** Territórios — assuntos/nichos (substantivos) que o criador ocupa com legitimidade. */
   territorios: string[];
-  /** Temas — situações concretas e recorrentes dentro dos territórios. */
+  /** Temas — cenas concretas e recorrentes dentro de um território. */
   temas: string[];
-  /** Assets — elementos reais da vida que sustentam a legitimidade dos territórios. */
+  /** Assets de vida — elementos reais da vida (papéis, relações, trajetória) que alimentam os temas. */
   assets: string[];
 }
 
@@ -66,39 +66,66 @@ O que o criador escreveu:
 Extraia os campos abaixo, respeitando rigorosamente a definição de cada camada.
 A distinção entre as camadas é o que torna o mapa preciso.
 
+A cadeia, num único exemplo do começo ao fim:
+    Narrativa "sair do piloto automático"
+      → Território "paternidade"
+        → Tema "sair do escritório a tempo de ver os filhos acordados"
+          → Asset de vida "casado, pai de dois"
+Mais adiante, os TEMAS se cruzam com os ASSETS e com os interesses da AUDIÊNCIA
+para virar pautas de conteúdo. Por isso temas e assets precisam ser CONCRETOS —
+cenas e elementos reais da vida, não conceitos abstratos.
+
 NARRATIVA CENTRAL (label)
-  O fio condutor — a INTENÇÃO que dá identidade a tudo que o criador faz.
-  É o "para quê", não o assunto. NUNCA confunda narrativa com território.
-  Ex.: "ensino finanças para quem nunca teve acesso"
-       → narrativa: "Democratizar o conhecimento financeiro"
-       (e NÃO "Finanças pessoais", que é um território).
+  O fio condutor — a INTENÇÃO ou o MOVIMENTO HUMANO que dá identidade a tudo
+  que o criador faz. É o "para quê" / o lugar de onde ele fala — não o assunto.
+  Pode ser uma MISSÃO ("democratizar o conhecimento financeiro") OU uma
+  TENSÃO / JORNADA DE VIDA ("sair do piloto automático", "se reconstruir depois
+  de uma virada"). NUNCA confunda narrativa com território (o assunto).
+  Ex.: "sair do piloto automático" é a narrativa; "paternidade" é o território
+       onde ela ganha palco.
   Frase curta (máx. 12 palavras). Sem aspas, sem ponto final.
 
 TERRITÓRIOS (territorios)
-  Assuntos que o criador pode ocupar com LEGITIMIDADE — e a legitimidade vem
-  de algo real na vida dele (um asset). 2 a 4 itens, específicos e ancorados
-  na narrativa. Nada de rótulos genéricos ("cultura", "lifestyle", "dicas").
+  Os ASSUNTOS (nichos) que o criador ocupa com LEGITIMIDADE. Pense:
+  "se isso fosse um nicho de conteúdo, qual seria?".
+  • FORMA: substantivo / sintagma nominal curto (1 a 3 palavras). É uma ÁREA
+    DE ASSUNTO — nunca um objetivo, processo ou ação.
+    Bons territórios: "paternidade", "finanças pessoais", "saúde feminina".
+  • NUNCA comece com verbo. "Encontrar a narrativa", "Monetizar conteúdo",
+    "Transformar paixão em lucro" são OBJETIVOS/AÇÕES — isso é narrativa ou
+    tema, NÃO território. Se um candidato for uma meta ou ação, reduza ao
+    assunto-raiz:
+      "Encontrar a narrativa pessoal"        → "Narrativa pessoal"
+      "Monetização de conteúdo com publicidade" → "Publicidade e marcas"
+  • Nada de rótulos genéricos ("cultura", "lifestyle", "dicas").
+  • 2 a 4 itens, ancorados na narrativa. A legitimidade vem de algo real na
+    vida do criador (um asset).
   Respeite uma identidade que abrange mais de um assunto — não force um nicho
   único se o propósito sugere mais de um território.
 
 TEMAS (temas)
-  Situações concretas e recorrentes DENTRO dos territórios — os momentos reais
-  de vida que viram pauta. 2 a 4 itens. Mais específicos que um território.
-  Ex.: dentro do território "maternidade real", um tema é
-       "rotina de autocuidado com pouco tempo".
+  CENAS concretas e recorrentes DENTRO de um território — momentos reais da
+  vida que dariam um vídeo. Não é um sub-assunto abstrato; é uma situação
+  específica, quase filmável. 2 a 4 itens.
+  Ex.: no território "paternidade", um tema é
+       "sair do escritório a tempo de ver os filhos acordados".
 
-ASSETS (assets)
-  Elementos reais da vida que SUSTENTAM a legitimidade dos territórios:
-  profissão, papel familiar, formação, experiência vivida. 1 a 3 itens.
-  É a FONTE da legitimidade, não o assunto em si.
-  Ex.: o asset "carreira médica" sustenta o território "saúde feminina".
+ASSETS DE VIDA (assets)
+  ELEMENTOS REAIS da vida do criador que viram matéria-prima de conteúdo —
+  o que existe DE FATO na vida dele e pode ser cruzado com os temas:
+    papéis e relações (casado, pai de dois, filho de imigrantes),
+    trajetória (ex-corporativo, autodidata, mudou de carreira),
+    contexto (mora no interior, trabalha de casa), experiências vividas.
+  1 a 3 itens. NÃO é o assunto nem uma credencial abstrata — é vida concreta.
+  Ex.: "casado" e "pai de dois" alimentam temas do território "paternidade".
 
 Regras:
 - Responda em português do Brasil.
 - A declaração é a única fonte. Se for vaga, gere MENOS itens — não preencha
   com suposições para "completar" o mapa.
 - Coerência hierárquica obrigatória: os territórios derivam da narrativa; os
-  temas vivem dentro dos territórios; os assets sustentam os territórios.
+  temas são cenas dentro dos territórios; os assets são elementos da vida real
+  do criador que alimentam os temas.
 - Retorne APENAS JSON válido, sem markdown nem explicação.
 
 Formato esperado:
