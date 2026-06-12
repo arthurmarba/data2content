@@ -1,12 +1,13 @@
 // src/app/lib/mapaSeed/generateOnboardingSeedSignal.test.ts
 //
-// Fase 3 — geração do sinal seed do onboarding (preview do mapa).
+// Geração do mapa seed do onboarding a partir da declaração de propósito.
 //
 // Garante que:
-//   1. Sem propósito (Q3) → retorna null sem chamar a IA (fallback determinístico).
-//   2. Com propósito → chama a IA e o prompt contém os 3 sinais + a declaração.
-//   3. IA retorna sinal válido → { label, summary } trimados.
-//   4. IA retorna sinal incompleto → null.
+//   1. Sem propósito → retorna null sem chamar a IA.
+//   2. Com propósito → o prompt é centrado SOMENTE no propósito (não injeta
+//      whyYouCreate/desiredFeeling, que são valores fixos herdados).
+//   3. IA retorna mapa válido → { label, summary, territorios, temas, assets }.
+//   4. IA retorna mapa incompleto → null.
 //   5. IA lança erro → null (best-effort, não propaga).
 
 import { generateOnboardingSeedSignal } from "./generateOnboardingSeedSignal";
@@ -26,6 +27,14 @@ const BASE = {
   creatorPurpose: "quero encorajar mães sem tempo a se cuidarem",
 };
 
+const FULL_SIGNAL = {
+  label: "Autocuidado como narrativa para mães em movimento",
+  summary: "Você cria a partir do equilíbrio entre cuidar de si e dos outros.",
+  territorios: ["maternidade real", "saúde feminina"],
+  temas: ["rotina de autocuidado com pouco tempo", "culpa materna"],
+  assets: ["experiência de mãe"],
+};
+
 describe("generateOnboardingSeedSignal", () => {
   beforeEach(() => jest.clearAllMocks());
 
@@ -41,35 +50,44 @@ describe("generateOnboardingSeedSignal", () => {
     expect(mockCallClaude).not.toHaveBeenCalled();
   });
 
-  it("com propósito → chama a IA com prompt contendo os 3 sinais", async () => {
-    mockCallClaude.mockResolvedValue({
-      label: "Autocuidado como narrativa para mães em movimento",
-      summary: "Você cria a partir do equilíbrio entre cuidar de si e dos outros.",
-    });
+  it("com propósito → o prompt é centrado no propósito, sem injetar why/feeling", async () => {
+    mockCallClaude.mockResolvedValue(FULL_SIGNAL);
 
     const result = await generateOnboardingSeedSignal(BASE);
 
     expect(mockCallClaude).toHaveBeenCalledTimes(1);
     const prompt = mockCallClaude.mock.calls[0][0] as string;
-    // O prompt deve traduzir os códigos para linguagem natural e conter o propósito.
-    expect(prompt).toContain("Conta histórias da própria vida"); // Q1 traduzido
-    expect(prompt).toContain("inspirada");                         // Q2 traduzido
-    expect(prompt).toContain(BASE.creatorPurpose);                 // Q3 literal
+    // O propósito é a única fonte de verdade.
+    expect(prompt).toContain(BASE.creatorPurpose);
+    // A hierarquia do produto deve estar explícita no prompt.
+    expect(prompt).toContain("Narrativa central → Territórios → Temas → Assets");
+    // whyYouCreate/desiredFeeling NÃO devem vazar para o prompt (são fixos, não declarados).
+    expect(prompt).not.toContain("Conta histórias da própria vida");
+    expect(prompt).not.toContain("inspirada");
 
+    expect(result).toEqual(FULL_SIGNAL);
+  });
+
+  it("filtra itens vazios e trima label/summary", async () => {
+    mockCallClaude.mockResolvedValue({
+      label: "  Narrativa X  ",
+      summary: "  Resumo Y.  ",
+      territorios: ["a", "", "  "],
+      temas: [],
+      assets: ["asset 1", 42],
+    });
+    const result = await generateOnboardingSeedSignal(BASE);
     expect(result).toEqual({
-      label: "Autocuidado como narrativa para mães em movimento",
-      summary: "Você cria a partir do equilíbrio entre cuidar de si e dos outros.",
+      label: "Narrativa X",
+      summary: "Resumo Y.",
+      territorios: ["a"],
+      temas: [],
+      assets: ["asset 1"],
     });
   });
 
-  it("trima label e summary retornados pela IA", async () => {
-    mockCallClaude.mockResolvedValue({ label: "  Narrativa X  ", summary: "  Resumo Y.  " });
-    const result = await generateOnboardingSeedSignal(BASE);
-    expect(result).toEqual({ label: "Narrativa X", summary: "Resumo Y." });
-  });
-
-  it("sinal incompleto (sem summary) → null", async () => {
-    mockCallClaude.mockResolvedValue({ label: "só label" });
+  it("mapa incompleto (sem summary) → null", async () => {
+    mockCallClaude.mockResolvedValue({ label: "só label", territorios: ["x"] });
     const result = await generateOnboardingSeedSignal(BASE);
     expect(result).toBeNull();
   });

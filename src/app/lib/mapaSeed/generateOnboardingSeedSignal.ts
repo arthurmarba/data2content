@@ -1,14 +1,21 @@
 // src/app/lib/mapaSeed/generateOnboardingSeedSignal.ts
-// Fase 3 — gera o sinal seed do onboarding (preview do mapa) a partir das
-// respostas Q1 (identidade), Q2 (sentimento) e Q3 (declaração de propósito).
 //
-// Este é o "espelho" mostrado no step first_signal do onboarding mobile para
-// criadores que ainda não têm sinais do Instagram/vídeos. Quando o criador
-// declara um propósito (Q3), a IA INTERPRETA esse propósito para derivar uma
-// narrativa central específica — algo que o fallback determinístico
-// (buildSeedSignal, lookup table) não consegue.
+// Interpreta a declaração de propósito do onboarding (texto livre: "por que você
+// cria conteúdo?") e extrai o primeiro rascunho do mapa narrativo do criador,
+// na hierarquia do produto: Narrativa central → Territórios → Temas → Assets.
 //
-// Sem propósito → este serviço não é chamado (o client usa buildSeedSignal).
+// O output alimenta diretamente o MapaSeed (rota /onboarding cria o documento com
+// narrativa_central/territorios/temas/assets). É o primeiro mapa do criador, antes
+// de qualquer enriquecimento por Instagram ou vídeo.
+//
+// IMPORTANTE: o onboarding atual é uma ÚNICA pergunta livre — a declaração de
+// propósito. Os campos whyYouCreate/desiredFeeling são valores fixos herdados do
+// fluxo antigo de múltipla escolha (sempre "ensino_conhecimento"/"inspirado"), NÃO
+// escolhas do criador. Por isso a IA interpreta SOMENTE o propósito: injetar aqueles
+// códigos como se fossem declarados enviesava o mapa (puxava tudo para "ensino").
+//
+// Best-effort: retorna null em qualquer falha (sem propósito, IA indisponível, JSON
+// inválido) para nunca bloquear o onboarding.
 // Modelo: gpt-4o (claudeService · intensity medium).
 
 import { callClaudeJSON } from "@/app/lib/claudeService";
@@ -17,99 +24,88 @@ import { logger } from "@/app/lib/logger";
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
 export interface OnboardingSeedSignalInput {
-  /** Código de identidade narrativa (Q1) — ex: "conto_historias". */
-  whyYouCreate: string;
-  /** Código do sentimento desejado (Q2) — ex: "inspirado". */
-  desiredFeeling: string;
-  /** Declaração de propósito livre (Q3) — texto do criador. */
+  /**
+   * @deprecated Não é mais interpretado. Valor fixo herdado do onboarding antigo
+   * de múltipla escolha. Mantido por compatibilidade de assinatura com o caller.
+   */
+  whyYouCreate?: string;
+  /**
+   * @deprecated Não é mais interpretado. Valor fixo herdado do onboarding antigo.
+   */
+  desiredFeeling?: string;
+  /** Declaração de propósito livre — a ÚNICA fonte de verdade do mapa seed. */
   creatorPurpose: string;
 }
 
 export interface OnboardingSeedSignal {
-  /** Frase curta de narrativa central — hipótese inicial do mapa. */
+  /** Narrativa central — o fio condutor (a intenção), não um assunto. */
   label: string;
-  /** 1–2 frases que expandem a hipótese, em linguagem de espelho. */
+  /** 1 frase de espelho que devolve ao criador o que foi entendido da narrativa. */
   summary: string;
-  /** Assuntos com os quais o criador tem legitimidade (extraídos do propósito). */
+  /** Territórios — assuntos que o criador ocupa com legitimidade. */
   territorios: string[];
-  /** Situações concretas recorrentes detectadas no propósito. */
+  /** Temas — situações concretas e recorrentes dentro dos territórios. */
   temas: string[];
-  /** Elementos de vida mencionados (profissão, família, rotina, etc.). */
+  /** Assets — elementos reais da vida que sustentam a legitimidade dos territórios. */
   assets: string[];
 }
 
-// ─── Mapas de rótulo (código → humano) ────────────────────────────────────────
-// Espelham WHY_OPTIONS / FEELING_OPTIONS do MobileOnboardingFlow. Mantidos aqui
-// para que o prompt receba linguagem natural, não códigos internos.
-
-const WHY_LABELS: Record<string, string> = {
-  ensino_conhecimento: "Ensina ou compartilha conhecimento",
-  conto_historias:     "Conta histórias da própria vida",
-  entretenimento:      "Entretém com humor e leveza",
-  inspiro_acao:        "Inspira as pessoas a agir ou mudar algo",
-  // Legacy
-  compartilho_aprendizado: "Compartilha o que aprende",
-  ensino_habilidade:       "Ensina uma habilidade",
-};
-
-const FEELING_LABELS: Record<string, string> = {
-  inspirado: "inspirada",
-  informado: "informada",
-  entendido: "compreendida",
-  entretido: "entretida",
-  motivado:  "motivada a agir",
-};
-
 // ─── Prompt ───────────────────────────────────────────────────────────────────
 
-function buildPrompt(input: OnboardingSeedSignalInput): string {
-  const whyLabel = WHY_LABELS[input.whyYouCreate] ?? input.whyYouCreate;
-  const feelingLabel = FEELING_LABELS[input.desiredFeeling] ?? input.desiredFeeling;
-  const purpose = input.creatorPurpose.trim();
+function buildPrompt(purpose: string): string {
+  return `Você é o sistema de mapeamento narrativo da Data2Content.
 
-  return `Você é um sistema de mapeamento narrativo para criadores de conteúdo.
+Um criador acabou de escrever, com as próprias palavras, por que cria conteúdo.
+Essa declaração é a ÚNICA fonte de verdade — não invente nada que não esteja
+nela ou fortemente implícito nela. Transforme-a no primeiro rascunho do mapa
+narrativo dele, seguindo a hierarquia do produto:
 
-A partir de três sinais declarados por um criador no onboarding, sintetize a
-HIPÓTESE INICIAL do mapa narrativo dele — um espelho de quem ele é como
-criador, não uma análise de performance.
+    Narrativa central → Territórios → Temas → Assets
 
-Sinais declarados:
-[1] Identidade — o que define o que ele cria: ${whyLabel}
-[2] Sentimento que quer deixar em quem assiste: que a pessoa saia ${feelingLabel}
-[3] Propósito (declaração livre, nas palavras do criador): "${purpose}"
+O que o criador escreveu:
+"${purpose}"
 
-O propósito [3] é o sinal MAIS IMPORTANTE. Use-o para derivar uma narrativa
-central específica e pessoal — não genérica. Por exemplo:
-  • Propósito "equilibrar maternidade, medicina e movimento" → narrativa sobre
-    autocuidado e equilíbrio, territórios [saúde feminina, maternidade real],
-    temas [rotina com filhos, corpo pós-parto], assets [carreira médica, experiência de mãe].
+Extraia os campos abaixo, respeitando rigorosamente a definição de cada camada.
+A distinção entre as camadas é o que torna o mapa preciso.
 
-Gere os seguintes campos:
+NARRATIVA CENTRAL (label)
+  O fio condutor — a INTENÇÃO que dá identidade a tudo que o criador faz.
+  É o "para quê", não o assunto. NUNCA confunda narrativa com território.
+  Ex.: "ensino finanças para quem nunca teve acesso"
+       → narrativa: "Democratizar o conhecimento financeiro"
+       (e NÃO "Finanças pessoais", que é um território).
+  Frase curta (máx. 12 palavras). Sem aspas, sem ponto final.
 
-- label: frase curta (máx. 12 palavras) que captura a narrativa central.
-  Deve refletir claramente o PROPÓSITO declarado, não só a identidade genérica.
-  Sem aspas, sem ponto final.
+TERRITÓRIOS (territorios)
+  Assuntos que o criador pode ocupar com LEGITIMIDADE — e a legitimidade vem
+  de algo real na vida dele (um asset). 2 a 4 itens, específicos e ancorados
+  na narrativa. Nada de rótulos genéricos ("cultura", "lifestyle", "dicas").
+  Respeite uma identidade que abrange mais de um assunto — não force um nicho
+  único se o propósito sugere mais de um território.
 
-- summary: 1 a 2 frases (máx. 40 palavras) que expandem a hipótese em linguagem
-  de espelho — calma, sem jargão de crescimento, sem métricas. Termine indicando
-  que a primeira leitura de um vídeo vai revelar muito mais.
-  Não use "poste mais", "algoritmo" ou "engajamento".
+TEMAS (temas)
+  Situações concretas e recorrentes DENTRO dos territórios — os momentos reais
+  de vida que viram pauta. 2 a 4 itens. Mais específicos que um território.
+  Ex.: dentro do território "maternidade real", um tema é
+       "rotina de autocuidado com pouco tempo".
 
-- territorios: lista de 2 a 4 assuntos que o criador pode ocupar com
-  legitimidade, derivados do propósito. Específicos e ancorados na narrativa
-  — não rótulos genéricos como "cultura" ou "entretenimento".
+ASSETS (assets)
+  Elementos reais da vida que SUSTENTAM a legitimidade dos territórios:
+  profissão, papel familiar, formação, experiência vivida. 1 a 3 itens.
+  É a FONTE da legitimidade, não o assunto em si.
+  Ex.: o asset "carreira médica" sustenta o território "saúde feminina".
 
-- temas: lista de 2 a 4 situações concretas e recorrentes detectadas no propósito
-  — os momentos reais de vida que viram pauta.
-
-- assets: lista de 1 a 3 elementos concretos da vida do criador (profissão,
-  papel familiar, rotina, experiência vivida) mencionados ou fortemente
-  implicados no propósito.
+SUMMARY (summary)
+  1 frase de espelho — calma, na 2ª pessoa, devolvendo ao criador o que você
+  entendeu da narrativa central dele. Sem métricas, sem jargão de crescimento.
+  Nunca use "poste mais", "algoritmo" ou "engajamento".
 
 Regras:
 - Responda em português do Brasil.
-- Não invente fatos que não estejam nos sinais.
-- Se o propósito for vago, as listas podem ter menos itens — não preencha com suposições.
+- A declaração é a única fonte. Se for vaga, gere MENOS itens — não preencha
+  com suposições para "completar" o mapa.
+- Coerência hierárquica obrigatória: os territórios derivam da narrativa; os
+  temas vivem dentro dos territórios; os assets sustentam os territórios.
 - Retorne APENAS JSON válido, sem markdown nem explicação.
 
 Formato esperado:
@@ -125,25 +121,25 @@ Formato esperado:
 // ─── Função principal ─────────────────────────────────────────────────────────
 
 /**
- * Gera o sinal seed do onboarding via IA. Best-effort: retorna null em qualquer
- * falha (validação, IA indisponível, JSON inválido) para que o chamador caia no
- * fallback determinístico sem bloquear o fluxo do criador.
+ * Gera o mapa seed do onboarding via IA a partir da declaração de propósito.
+ * Best-effort: retorna null em qualquer falha para que o onboarding nunca trave.
  *
- * Só deve ser chamado quando há um propósito declarado (Q3). Sem propósito,
- * o ganho sobre o fallback determinístico não justifica a latência/custo.
+ * Só deve ser chamado quando há um propósito declarado. Sem propósito, não há o
+ * que interpretar e o MapaSeed não é semeado nesta etapa.
  */
 export async function generateOnboardingSeedSignal(
   input: OnboardingSeedSignalInput,
 ): Promise<OnboardingSeedSignal | null> {
   const TAG = "[mapaSeed][generateOnboardingSeedSignal]";
 
-  if (!input.creatorPurpose?.trim()) {
-    // Sem propósito não há o que interpretar — fallback determinístico no client.
+  const purpose = input.creatorPurpose?.trim();
+  if (!purpose) {
+    // Sem propósito não há o que interpretar.
     return null;
   }
 
   try {
-    const raw = await callClaudeJSON<Partial<OnboardingSeedSignal>>(buildPrompt(input), {
+    const raw = await callClaudeJSON<Partial<OnboardingSeedSignal>>(buildPrompt(purpose), {
       intensity: "medium",
       maxTokens: 600,
     });
@@ -166,10 +162,10 @@ export async function generateOnboardingSeedSignal(
       ? raw.assets.filter((a): a is string => typeof a === "string" && a.trim() !== "")
       : [];
 
-    logger.info(`${TAG} Sinal seed gerado: "${label}" (${territorios.length} territórios, ${temas.length} temas, ${assets.length} assets)`);
+    logger.info(`${TAG} Mapa seed gerado: "${label}" (${territorios.length} territórios, ${temas.length} temas, ${assets.length} assets)`);
     return { label, summary, territorios, temas, assets };
   } catch (err) {
-    logger.warn(`${TAG} Falha ao gerar sinal seed (fallback determinístico):`, err);
+    logger.warn(`${TAG} Falha ao gerar mapa seed (não-fatal):`, err);
     return null;
   }
 }
