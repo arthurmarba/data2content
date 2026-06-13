@@ -791,10 +791,15 @@ function MapaCard({
     : null;
 
   // ── Narrative ──
+  // Quando há MapaSeed (card editável), a narrativa exibida é a do próprio mapa —
+  // completa, sem o compactador de síntese (que truncava com "…") e consistente
+  // com os chips logo abaixo, que também leem do MapaSeed. Sem MapaSeed, cai na
+  // narrativa refinada da síntese de vídeo.
   const narrativaCopy = leadingNarrative
     ? refineDiagnosticoSignal(leadingNarrative, "narrative")
     : null;
-  const narrativaLabel = narrativaCopy?.label ?? null;
+  const mapaSeedNarrative = mapaSeed?.narrativa_central?.trim() || null;
+  const narrativaLabel = mapaSeedNarrative ?? narrativaCopy?.label ?? null;
 
   // ── Assets: todos os sinais detectados, sem threshold de evidência ──
   const confirmedAssets = s.confirmedLifeAssets;

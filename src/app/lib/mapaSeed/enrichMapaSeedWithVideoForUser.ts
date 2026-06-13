@@ -60,7 +60,12 @@ export async function enrichMapaSeedWithVideoForUser(userId: string): Promise<vo
       toneLocked: confirmations?.tone === "confirmed",
     };
 
-    const mapaEnriquecido = await enrichMapaWithVideoReadings(mapaDoc.mapa, synthesis, locks);
+    const mapaEnriquecido = await enrichMapaWithVideoReadings(
+      mapaDoc.mapa,
+      synthesis,
+      locks,
+      mapaDoc.editedSections,
+    );
 
     mapaDoc.mapa = mapaEnriquecido;
     mapaDoc.videoEnrichedAt = new Date();

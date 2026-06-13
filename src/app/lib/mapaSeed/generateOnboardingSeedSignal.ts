@@ -20,6 +20,7 @@
 
 import { callClaudeJSON } from "@/app/lib/claudeService";
 import { logger } from "@/app/lib/logger";
+import { MAPA_LAYERS_GUIDE, MAPA_COERENCIA_RULE } from "./mapaLayersGuide";
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
@@ -64,68 +65,18 @@ O que o criador escreveu:
 "${purpose}"
 
 Extraia os campos abaixo, respeitando rigorosamente a definição de cada camada.
-A distinção entre as camadas é o que torna o mapa preciso.
+A distinção entre as camadas é o que torna o mapa preciso. Aqui, como o criador
+fala dele mesmo, a narrativa já tende a sair na 1ª pessoa — preserve isso.
 
-A cadeia, num único exemplo do começo ao fim:
-    Narrativa "sair do piloto automático"
-      → Território "paternidade"
-        → Tema "sair do escritório a tempo de ver os filhos acordados"
-          → Asset de vida "casado, pai de dois"
-Mais adiante, os TEMAS se cruzam com os ASSETS e com os interesses da AUDIÊNCIA
-para virar pautas de conteúdo. Por isso temas e assets precisam ser CONCRETOS —
-cenas e elementos reais da vida, não conceitos abstratos.
+${MAPA_LAYERS_GUIDE}
 
-NARRATIVA CENTRAL (label)
-  O fio condutor — a INTENÇÃO ou o MOVIMENTO HUMANO que dá identidade a tudo
-  que o criador faz. É o "para quê" / o lugar de onde ele fala — não o assunto.
-  Pode ser uma MISSÃO ("democratizar o conhecimento financeiro") OU uma
-  TENSÃO / JORNADA DE VIDA ("sair do piloto automático", "se reconstruir depois
-  de uma virada"). NUNCA confunda narrativa com território (o assunto).
-  Ex.: "sair do piloto automático" é a narrativa; "paternidade" é o território
-       onde ela ganha palco.
-  Frase curta (máx. 12 palavras). Sem aspas, sem ponto final.
-
-TERRITÓRIOS (territorios)
-  Os ASSUNTOS (nichos) que o criador ocupa com LEGITIMIDADE. Pense:
-  "se isso fosse um nicho de conteúdo, qual seria?".
-  • FORMA: substantivo / sintagma nominal curto (1 a 3 palavras). É uma ÁREA
-    DE ASSUNTO — nunca um objetivo, processo ou ação.
-    Bons territórios: "paternidade", "finanças pessoais", "saúde feminina".
-  • NUNCA comece com verbo. "Encontrar a narrativa", "Monetizar conteúdo",
-    "Transformar paixão em lucro" são OBJETIVOS/AÇÕES — isso é narrativa ou
-    tema, NÃO território. Se um candidato for uma meta ou ação, reduza ao
-    assunto-raiz:
-      "Encontrar a narrativa pessoal"        → "Narrativa pessoal"
-      "Monetização de conteúdo com publicidade" → "Publicidade e marcas"
-  • Nada de rótulos genéricos ("cultura", "lifestyle", "dicas").
-  • 2 a 4 itens, ancorados na narrativa. A legitimidade vem de algo real na
-    vida do criador (um asset).
-  Respeite uma identidade que abrange mais de um assunto — não force um nicho
-  único se o propósito sugere mais de um território.
-
-TEMAS (temas)
-  CENAS concretas e recorrentes DENTRO de um território — momentos reais da
-  vida que dariam um vídeo. Não é um sub-assunto abstrato; é uma situação
-  específica, quase filmável. 2 a 4 itens.
-  Ex.: no território "paternidade", um tema é
-       "sair do escritório a tempo de ver os filhos acordados".
-
-ASSETS DE VIDA (assets)
-  ELEMENTOS REAIS da vida do criador que viram matéria-prima de conteúdo —
-  o que existe DE FATO na vida dele e pode ser cruzado com os temas:
-    papéis e relações (casado, pai de dois, filho de imigrantes),
-    trajetória (ex-corporativo, autodidata, mudou de carreira),
-    contexto (mora no interior, trabalha de casa), experiências vividas.
-  1 a 3 itens. NÃO é o assunto nem uma credencial abstrata — é vida concreta.
-  Ex.: "casado" e "pai de dois" alimentam temas do território "paternidade".
+No formato de saída, a NARRATIVA CENTRAL vai no campo "label".
 
 Regras:
 - Responda em português do Brasil.
 - A declaração é a única fonte. Se for vaga, gere MENOS itens — não preencha
   com suposições para "completar" o mapa.
-- Coerência hierárquica obrigatória: os territórios derivam da narrativa; os
-  temas são cenas dentro dos territórios; os assets são elementos da vida real
-  do criador que alimentam os temas.
+- ${MAPA_COERENCIA_RULE}
 - Retorne APENAS JSON válido, sem markdown nem explicação.
 
 Formato esperado:

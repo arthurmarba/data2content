@@ -70,3 +70,34 @@ export function applyCoreStabilityLocks(params: {
 
   return { narrativaFinal, tomFinal, observacoes };
 }
+
+// ─── Locks de seção de array editada pelo criador ─────────────────────────────
+//
+// Estende a filosofia do núcleo para os chips: territorios/temas/assets que o
+// criador EDITOU manualmente (via PATCH no card) não são sobrescritos pelo
+// enriquecimento. A fonte propõe; quem editou, manda. Quais seções foram
+// editadas vem de MapaSeed.editedSections (marcado no PATCH manual).
+
+export const LOCKABLE_ARRAY_SECTIONS = ["territorios", "temas", "assets"] as const;
+export type LockableArraySection = (typeof LOCKABLE_ARRAY_SECTIONS)[number];
+
+/**
+ * Para cada seção de array travável: se o criador a editou, mantém o array atual
+ * (curado por ele); senão, usa o proposto pela fonte (com fallback ao atual
+ * quando a fonte não propõe nada).
+ */
+export function applyEditedArrayLocks(params: {
+  mapaAtual: Pick<IMapaData, LockableArraySection>;
+  proposed: Partial<Pick<IMapaData, LockableArraySection>>;
+  editedSections: string[] | undefined;
+}): Pick<IMapaData, LockableArraySection> {
+  const { mapaAtual, proposed, editedSections } = params;
+  const edited = new Set(editedSections ?? []);
+  const out = {} as Pick<IMapaData, LockableArraySection>;
+  for (const section of LOCKABLE_ARRAY_SECTIONS) {
+    out[section] = edited.has(section)
+      ? (mapaAtual[section] ?? [])
+      : (proposed[section] ?? mapaAtual[section] ?? []);
+  }
+  return out;
+}

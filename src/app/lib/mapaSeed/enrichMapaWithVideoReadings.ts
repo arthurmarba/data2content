@@ -8,7 +8,12 @@ import { callClaudeJSON } from "@/app/lib/claudeService";
 import { logger } from "@/app/lib/logger";
 import type { IMapaData, MapaFonte } from "@/app/models/MapaSeed";
 import type { CreatorStrategicProfileSynthesis } from "@/app/dashboard/boards/videoUpload/creatorStrategicProfileSynthesis";
-import { applyCoreStabilityLocks, type CoreStabilityLocks } from "./coreStabilityLocks";
+import {
+  applyCoreStabilityLocks,
+  applyEditedArrayLocks,
+  type CoreStabilityLocks,
+} from "./coreStabilityLocks";
+import { MAPA_LAYERS_GUIDE, MAPA_COERENCIA_RULE } from "./mapaLayersGuide";
 
 // ─── Resumo compacto e seguro da síntese ───────────────────────────────────────
 
@@ -56,7 +61,9 @@ Você tem dois conjuntos de dados sobre o mesmo criador:
 
 Sua tarefa é cruzar os dois e gerar um mapa enriquecido mais fiel ao criador
 real. A síntese de vídeo tem peso forte: representa o que o criador decidiu
-levar ao público, não o que apenas declarou.
+levar ao público, não o que apenas declarou. Atenção: a síntese descreve o
+CONTEÚDO dos vídeos; a narrativa que você gera é sobre QUEM ELE É — não copie a
+descrição do conteúdo para a narrativa.
 
 Mapa atual:
 ${JSON.stringify(mapa, null, 2)}
@@ -64,34 +71,36 @@ ${JSON.stringify(mapa, null, 2)}
 Síntese dos vídeos publicados (comportamento intencional):
 ${JSON.stringify(digest, null, 2)}
 
-Gere o mapa enriquecido com os seguintes campos:
+Respeite rigorosamente a definição de cada camada — é o que torna o mapa preciso.
 
-- narrativa_central: se a síntese de vídeo confirma o mapa atual, mantenha. Se
-  revela algo mais específico ou diferente com confiança média/alta, atualize.
-  Se a confiança da narrativa de vídeo for baixa, prefira o mapa atual.
-  Máx. 20 palavras.
+${MAPA_LAYERS_GUIDE}
 
-- territorios: combine os do mapa atual com os territórios narrativos dos vídeos.
-  Remova o que não aparece em nenhuma fonte. Máx. 5 territórios.
+Gere o mapa enriquecido com os campos abaixo, seguindo o gabarito acima:
 
-- narrativas_adjacentes: extensões coerentes que aparecem nas bordas — mantenha
-  as existentes e adicione se os padrões de vídeo sugerirem uma direção nova.
-
-- assets: combine os do mapa atual com os assets recorrentes dos vídeos.
-
-- tom: se o tom do mapa e o tom dominante dos vídeos divergirem, use o tom dos
-  vídeos (comportamento real). Registre a divergência em "observacoes".
-
+- narrativa_central: a IDENTIDADE do dono da conta (missão ou tensão de vida).
+  Se a síntese confirma o mapa, mantenha. Se revela algo mais específico com
+  confiança média/alta, atualize — SEMPRE como identidade da pessoa, nunca como
+  descrição do que os vídeos falam, nunca em 3ª pessoa sobre "criadores". Se a
+  confiança da narrativa de vídeo for baixa, prefira o mapa atual.
+- territorios: substantivos curtos e objetivos (1-3 palavras), sem sufixo de
+  público. Combine os do mapa com os territórios dos vídeos; remova o que não
+  aparece em nenhuma fonte. 2 a 4 itens.
+- temas: o cruzamento território × narrativa — cenas concretas, não ecos do
+  assunto. Derive das situações recorrentes nos vídeos. 2 a 4 itens.
+- narrativas_adjacentes: extensões coerentes nas bordas — mantenha as existentes
+  e adicione se os vídeos sugerirem direção nova.
+- assets: combine os do mapa com os assets recorrentes dos vídeos. Curtos.
+- tom: se o tom do mapa e o dos vídeos divergirem, use o dos vídeos e registre em
+  "observacoes".
 - formatos: mantenha os formatos do mapa atual (a síntese de vídeo não os altera).
-
-- observacoes: lista de divergências relevantes entre o declarado e o real nos
-  vídeos. Máx. 2 observações. Linguagem calma e descritiva, sem julgamento.
-  Deixe vazio [] se não houver divergência relevante.
+- observacoes: divergências relevantes. Máx. 2. Linguagem calma, sem julgamento.
+  Vazio [] se não houver.
 
 Regras:
 - Não invente informações que não existam em nenhuma das fontes.
 - Se os vídeos confirmam o mapa atual, mantenha o mapa atual.
 - Se houver poucas leituras analisadas, seja conservador nas conclusões.
+- ${MAPA_COERENCIA_RULE}
 
 Retorne apenas JSON válido. Sem explicação adicional.
 
@@ -99,6 +108,7 @@ Formato esperado:
 {
   "narrativa_central": "string",
   "territorios": ["string"],
+  "temas": ["string"],
   "narrativas_adjacentes": ["string"],
   "assets": ["string"],
   "tom": "string",
@@ -113,6 +123,7 @@ export async function enrichMapaWithVideoReadings(
   mapaAtual: IMapaData,
   synthesis: CreatorStrategicProfileSynthesis,
   locks?: CoreStabilityLocks,
+  editedSections?: string[],
 ): Promise<IMapaData> {
   const TAG = "[mapaSeed][enrichMapaWithVideoReadings]";
 
@@ -161,12 +172,19 @@ export async function enrichMapaWithVideoReadings(
     source: { narrativePrefix: "Seus vídeos sugerem", tonePhrase: "nos vídeos" },
   });
 
+  // Seções editadas pelo criador (territorios/temas/assets) não são sobrescritas.
+  const lockedArrays = applyEditedArrayLocks({
+    mapaAtual,
+    proposed: { territorios: raw.territorios, temas: raw.temas, assets: raw.assets },
+    editedSections,
+  });
+
   const mapaEnriquecido: IMapaData = {
     narrativa_central:     narrativaFinal,
-    territorios:           raw.territorios           ?? mapaAtual.territorios,
-    temas:                 raw.temas                 ?? mapaAtual.temas ?? [],
+    territorios:           lockedArrays.territorios,
+    temas:                 lockedArrays.temas,
     narrativas_adjacentes: raw.narrativas_adjacentes ?? mapaAtual.narrativas_adjacentes,
-    assets:                raw.assets                ?? mapaAtual.assets,
+    assets:                lockedArrays.assets,
     tom:                   tomFinal,
     formatos:              raw.formatos              ?? mapaAtual.formatos,
     maturidade:            "video_enriched",

@@ -30,6 +30,9 @@ const ARRAY_SECTIONS = [
 
 const SCALAR_SECTIONS = ["narrativa_central", "tom"] as const;
 
+// Seções cujo conteúdo curado manualmente o enriquecimento deve preservar.
+const LOCKABLE_SECTIONS = ["territorios", "temas", "assets"] as const;
+
 const ALL_SECTIONS = [...ARRAY_SECTIONS, ...SCALAR_SECTIONS] as const;
 
 type ArraySection  = (typeof ARRAY_SECTIONS)[number];
@@ -116,6 +119,14 @@ export async function PATCH(request: Request) {
         mapa[section] = arr.filter(
           (v) => v.toLowerCase().trim() !== value.toLowerCase().trim(),
         );
+      }
+
+      // Marca a seção como editada manualmente — o enriquecimento (Instagram/
+      // vídeo) não vai sobrescrever o que o criador curou. Ver applyEditedArrayLocks.
+      if (LOCKABLE_SECTIONS.includes(section as (typeof LOCKABLE_SECTIONS)[number])) {
+        const edited = new Set(Array.isArray(doc.editedSections) ? doc.editedSections : []);
+        edited.add(section);
+        doc.editedSections = [...edited];
       }
     }
 

@@ -29,6 +29,7 @@
  *   npx tsx scripts/backfillActiveMapaSeed.ts --apply         # aplica (chama IA + grava)
  *   npx tsx scripts/backfillActiveMapaSeed.ts --email=x@y.com # um usuário (ignora filtro de plano)
  *   npx tsx scripts/backfillActiveMapaSeed.ts --apply --limit=50
+ *   npx tsx scripts/backfillActiveMapaSeed.ts --apply --force      # fura o throttle (re-enriquece com prompts novos)
  *
  * ATENÇÃO: usa connectToDatabase() (a conexão padrão do app, MONGODB_URI). Rode
  * com a URI de PRODUÇÃO para backfillar produção. Em --apply, faz chamadas de IA
@@ -40,6 +41,9 @@ config({ path: ".env.local" });
 const APPLY = process.argv.includes("--apply");
 const EMAIL = process.argv.find((a) => a.startsWith("--email="))?.split("=")[1] ?? null;
 const LIMIT = Number(process.argv.find((a) => a.startsWith("--limit="))?.split("=")[1] ?? "0") || 0;
+// --force: zera os timestamps de enriquecimento (instagram/video) antes de rodar,
+// furando o throttle de 12h. Necessário para re-enriquecer com prompts atualizados.
+const FORCE = process.argv.includes("--force");
 
 async function main() {
   const { connectToDatabase } = await import("../src/app/lib/mongoose");
@@ -107,6 +111,14 @@ async function main() {
     }
 
     // ── APPLY ────────────────────────────────────────────────────────────────
+    // --force: limpa o throttle por fonte para reprocessar com os prompts novos.
+    if (FORCE) {
+      await MapaSeedModel.updateOne(
+        { userId: (u as any)._id },
+        { $set: { instagramEnrichedAt: null, videoEnrichedAt: null } },
+      );
+    }
+
     if (willIG) {
       try {
         await enrichMapaSeedWithInstagram(userId);

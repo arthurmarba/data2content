@@ -112,7 +112,12 @@ export async function enrichMapaSeedWithInstagram(userId: string): Promise<void>
       toneLocked: confirmations?.tone === "confirmed",
     };
 
-    const mapaEnriquecido = await enrichMapaWithInstagram(mapaDoc.mapa, padroes, locks);
+    const mapaEnriquecido = await enrichMapaWithInstagram(
+      mapaDoc.mapa,
+      padroes,
+      locks,
+      mapaDoc.editedSections,
+    );
 
     mapaDoc.mapa = mapaEnriquecido;
     mapaDoc.instagramEnrichedAt = new Date();

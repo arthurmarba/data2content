@@ -7,64 +7,64 @@ import { callClaudeJSON } from "@/app/lib/claudeService";
 import { logger } from "@/app/lib/logger";
 import type { IMapaData, MapaFonte } from "@/app/models/MapaSeed";
 import type { InstagramPatterns } from "./analyzeInstagramPosts";
-import { applyCoreStabilityLocks, type CoreStabilityLocks } from "./coreStabilityLocks";
+import {
+  applyCoreStabilityLocks,
+  applyEditedArrayLocks,
+  type CoreStabilityLocks,
+} from "./coreStabilityLocks";
+import { MAPA_LAYERS_GUIDE, MAPA_COERENCIA_RULE } from "./mapaLayersGuide";
 
 export type { CoreStabilityLocks } from "./coreStabilityLocks";
 
 // ─── Prompt ───────────────────────────────────────────────────────────────────
 
 function buildPrompt(mapa: IMapaData, patterns: InstagramPatterns): string {
-  return `Você é um sistema de mapeamento narrativo para criadores de conteúdo.
+  return `Você é o sistema de mapeamento narrativo da Data2Content.
 
-Você tem dois conjuntos de dados sobre o mesmo criador:
-1. O mapa seed — o que ele declarou sobre si mesmo no onboarding
-2. Os padrões do Instagram — o que ele realmente publica
+Você tem dois conjuntos de dados sobre o MESMO criador (o dono desta conta):
+1. O mapa atual — o que ele declarou sobre si no onboarding
+2. Os padrões do Instagram — o que ele realmente publica (MATÉRIA-PRIMA: pistas
+   do que ele é, NÃO a narrativa pronta)
 
-Sua tarefa é cruzar os dois e gerar um mapa enriquecido mais fiel
-ao criador real do que cada fonte sozinha.
+Sua tarefa é cruzar os dois e gerar um mapa enriquecido mais fiel ao criador
+real. Atenção: os padrões do Instagram descrevem o CONTEÚDO; a narrativa que
+você gera é sobre QUEM ELE É. Não copie a descrição do conteúdo para a narrativa.
 
-Mapa seed (onboarding declarativo):
+Mapa atual (onboarding declarativo):
 ${JSON.stringify(mapa, null, 2)}
 
 Padrões do Instagram (comportamento real):
 ${JSON.stringify(patterns, null, 2)}
 
-Gere o mapa enriquecido com os seguintes campos:
+Respeite rigorosamente a definição de cada camada — é o que torna o mapa preciso.
 
-- narrativa_central: revise se necessário. Se o Instagram confirma a
-  declaração, mantenha. Se revela algo mais específico ou diferente, atualize.
-  Máx. 20 palavras.
+${MAPA_LAYERS_GUIDE}
 
-- territorios: combine os declarados com os temas recorrentes reais.
-  Remova o que não aparece em nenhuma fonte. Adicione o que aparece
-  no Instagram mas não foi declarado. Máx. 5 territórios.
-  IMPORTANTE: cada território deve ser específico e ancorado na
-  narrativa_central deste criador. Evite rótulos genéricos de cultura ou
-  entretenimento que poderiam descrever qualquer artista ou músico (ex:
-  'negócio cultural', 'carreira artística' sozinhos são ambíguos demais).
-  Se o criador fala sobre IA para criadores de conteúdo, o território deve
-  deixar claro o contexto: 'carreira de criador digital com IA', não
-  'consultoria em carreiras artísticas'. O rótulo deve responder: quem é
-  ESTE criador especificamente?
+Gere o mapa enriquecido com os campos abaixo, seguindo o gabarito acima:
 
-- narrativas_adjacentes: extensões coerentes que aparecem nas bordas
-  do conteúdo ou da vida — ainda não são o foco principal.
-
-- assets: combine os declarados com os identificados no Instagram.
-
-- tom: se o tom declarado e o tom real divergirem, use o tom real.
-  Registre a divergência em "observacoes" se relevante.
-
+- narrativa_central: a IDENTIDADE do dono da conta (missão ou tensão de vida).
+  Se o Instagram confirma a declaração, mantenha. Se revela algo mais específico,
+  atualize — mas SEMPRE como identidade da pessoa, nunca como descrição do que
+  os posts falam, nunca em 3ª pessoa sobre "criadores".
+- territorios: substantivos curtos e objetivos (1-3 palavras), sem sufixo de
+  público. Combine os declarados com os temas recorrentes reais; remova o que não
+  aparece em nenhuma fonte. 2 a 4 itens.
+- temas: o cruzamento território × narrativa — cenas concretas, não ecos do
+  assunto. Derive das situações que aparecem no conteúdo. 2 a 4 itens.
+- narrativas_adjacentes: extensões coerentes nas bordas — ainda não são o foco.
+- assets: combine os declarados com os identificados no Instagram. Elementos
+  concretos da vida, curtos.
+- tom: se o tom declarado e o real divergirem, use o tom real e registre em
+  "observacoes".
 - formatos: combine declarados com os realmente usados.
-
-- observacoes: lista de divergências relevantes entre o declarado e o real.
-  Máx. 2 observações. Use linguagem calma e descritiva, sem julgamento.
-  Deixe vazio [] se não houver divergência relevante.
+- observacoes: divergências relevantes entre o declarado e o real. Máx. 2.
+  Linguagem calma, sem julgamento. Vazio [] se não houver.
 
 Regras:
 - Não invente informações que não existam em nenhuma das fontes.
-- Se o Instagram confirma o mapa seed, mantenha o mapa seed.
-- Se a amostragem for baixa, seja conservador nas conclusões.
+- Se o Instagram confirma o mapa, mantenha o mapa.
+- Se a amostragem for baixa, seja conservador.
+- ${MAPA_COERENCIA_RULE}
 
 Retorne apenas JSON válido. Sem explicação adicional.
 
@@ -72,6 +72,7 @@ Formato esperado:
 {
   "narrativa_central": "string",
   "territorios": ["string"],
+  "temas": ["string"],
   "narrativas_adjacentes": ["string"],
   "assets": ["string"],
   "tom": "string",
@@ -86,6 +87,7 @@ export async function enrichMapaWithInstagram(
   mapaAtual: IMapaData,
   patterns: InstagramPatterns,
   locks?: CoreStabilityLocks,
+  editedSections?: string[],
 ): Promise<IMapaData> {
   const TAG = "[mapaSeed][enrichMapaWithInstagram]";
 
@@ -138,12 +140,19 @@ export async function enrichMapaWithInstagram(
     source: { narrativePrefix: "Seu Instagram sugere", tonePhrase: "no Instagram" },
   });
 
+  // Seções editadas pelo criador (territorios/temas/assets) não são sobrescritas.
+  const lockedArrays = applyEditedArrayLocks({
+    mapaAtual,
+    proposed: { territorios: raw.territorios, temas: raw.temas, assets: raw.assets },
+    editedSections,
+  });
+
   const mapaEnriquecido: IMapaData = {
     narrativa_central:     narrativaFinal,
-    territorios:           raw.territorios           ?? mapaAtual.territorios,
-    temas:                 raw.temas                 ?? mapaAtual.temas ?? [],
+    territorios:           lockedArrays.territorios,
+    temas:                 lockedArrays.temas,
     narrativas_adjacentes: raw.narrativas_adjacentes ?? mapaAtual.narrativas_adjacentes,
-    assets:                raw.assets                ?? mapaAtual.assets,
+    assets:                lockedArrays.assets,
     tom:                   tomFinal,
     formatos:              raw.formatos              ?? mapaAtual.formatos,
     maturidade:            "instagram_enriched",

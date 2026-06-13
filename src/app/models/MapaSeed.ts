@@ -75,6 +75,12 @@ export interface IMapaSeed extends Document {
    */
   instagramEnrichedAt?: Date | null;
   videoEnrichedAt?: Date | null;
+  /**
+   * Seções de array (territorios/temas/assets) que o criador EDITOU manualmente
+   * no card. O enriquecimento (Instagram/vídeo) não sobrescreve estas — quem
+   * editou, manda. Ver applyEditedArrayLocks.
+   */
+  editedSections?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -169,6 +175,8 @@ const MapaSeedSchema = new Schema<IMapaSeed>(
     // Throttle por fonte — ver IMapaSeed.
     instagramEnrichedAt: { type: Date, default: null },
     videoEnrichedAt:     { type: Date, default: null },
+    // Seções editadas manualmente — protegidas do enriquecimento. Ver IMapaSeed.
+    editedSections:      { type: [String], default: [] },
   },
   {
     timestamps: true,
