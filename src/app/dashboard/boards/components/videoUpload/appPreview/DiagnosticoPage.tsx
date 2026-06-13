@@ -2715,7 +2715,13 @@ export function DiagnosticoPage({
         <div style={{ padding: "14px 18px 0" }}>
           {!instagramConnected ? (
             <AudienceConnectPrompt onConnectInstagram={onConnectInstagram} isPro={isPro} />
-          ) : data.audienceInsights ? (
+          ) : data.audienceInsights?.hasAny ? (
+            // `hasAny` (não só a existência do objeto): buildAudienceInsights
+            // SEMPRE retorna um objeto truthy (EMPTY_INSIGHTS no catch ou quando
+            // ainda não há sinal). Checar só a existência levava o pai a montar o
+            // AudienceInsightsCard, que internamente faz `if (!hasAny) return null`
+            // → a seção sumia. Com hasAny, o caso "conectado sem dados" cai no
+            // estado "Processando" e o card nunca desaparece.
             <AudienceInsightsCard
               insights={data.audienceInsights}
               instagramConnected={instagramConnected}
