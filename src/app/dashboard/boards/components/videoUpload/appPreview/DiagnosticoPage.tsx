@@ -425,7 +425,7 @@ function classifyLifeAsset(label: string): LifeAssetGroup {
 const ASSET_GROUP_META: { key: LifeAssetGroup; label: string }[] = [
   { key: "cenario", label: "Cenários" },
   { key: "objeto", label: "Objetos de cena" },
-  { key: "vida", label: "Assets de vida" },
+  { key: "vida", label: "Sua vida real" },
 ];
 
 function groupLifeAssets(items: string[]): Record<LifeAssetGroup, string[]> {
@@ -606,7 +606,7 @@ function MapaAssetsGrouped({
 
   if (visible.length === 0) {
     return (
-      <MapaSection labelColor="#c96a00" label="Assets de vida" icon={<LifeAssetGroupIcon group="vida" />}>
+      <MapaSection labelColor="#c96a00" label="Sua vida real" icon={<LifeAssetGroupIcon group="vida" />}>
         {editable && onMutate ? (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2, alignItems: "center" }}>
             <AssetAddControl onMutate={onMutate} />
@@ -1405,7 +1405,7 @@ function MapaCard({
       {(mapaSeed && onMapSeedMutate && (mapaSeed.temas.length > 0 || true)) && (
         <MapaSection
           labelColor="#c96a00"
-          label="Temas"
+          label="Situações reais"
           icon={
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
               <rect x="2" y="2" width="10" height="10" rx="2" stroke="currentColor" strokeWidth="1.5"/>
