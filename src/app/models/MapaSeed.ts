@@ -3,6 +3,7 @@
 // e enriquecido progressivamente por Instagram e vídeos.
 
 import mongoose, { Schema, Document, Model, Types } from "mongoose";
+import { sanitizeChipArray } from "@/app/lib/mapaSeed/normalizeChipLabel";
 
 // ─── Tipos públicos ───────────────────────────────────────────────────────────
 
@@ -174,6 +175,28 @@ const MapaSeedSchema = new Schema<IMapaSeed>(
     collection: "mapasseed",
   }
 );
+
+// ─── Hooks ────────────────────────────────────────────────────────────────────
+
+// Normaliza os rótulos de chip do mapa em TODA escrita via documento (.save() /
+// .create()) — cobre os caminhos de IA: criação da seed, enriquecimento de
+// Instagram e de vídeo, todos persistem por mapaDoc.save(). Quebra rótulos que a
+// IA empacota com exemplos entre parênteses (ex: "Cenários externos (praia,
+// metrô)") em vários chips curtos, garantindo que cada chip caiba em uma linha.
+//
+// Observação: o PATCH manual (/map-seed, $addToSet/$pull) NÃO passa por aqui — e
+// é o comportamento desejado: o valor é digitado pelo criador (já curto) e o
+// "remover" precisa casar exatamente com o que está gravado.
+MapaSeedSchema.pre("save", function (next) {
+  const mapa = this.mapa as IMapaData | undefined;
+  if (mapa) {
+    mapa.territorios = sanitizeChipArray(mapa.territorios);
+    mapa.temas = sanitizeChipArray(mapa.temas);
+    mapa.assets = sanitizeChipArray(mapa.assets);
+    mapa.narrativas_adjacentes = sanitizeChipArray(mapa.narrativas_adjacentes);
+  }
+  next();
+});
 
 // ─── Model export ─────────────────────────────────────────────────────────────
 
