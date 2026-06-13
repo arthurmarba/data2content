@@ -390,6 +390,266 @@ function EditableMapaChips({
   );
 }
 
+// ─── Assets de vida: agrupamento para leitura (display only) ───────────────────
+//
+// No modelo e na geração de pautas, `assets` continua um POOL FLAT único — esta
+// classificação existe só para LEITURA do mapa. O criador olhava ~20 chips
+// indistintos ("A esposa" ao lado de "Microfones" e "Praia"). Agrupamos em três
+// leituras: cenários (lugares), objetos de cena (equipamentos/ferramentas) e o
+// núcleo de assets de vida (pessoas, relações, contexto). Léxico curado; o que
+// não casa cai em "vida" (o residual nunca some). Edição e add seguem na lista
+// flat — um item novo se reclassifica sozinho ao aparecer.
+
+const ASSET_OBJ_KEYWORDS = [
+  "microfone", "camera", "equipamento", "caderno", "caneta", "tela", "interface",
+  "software", "aplicativo", "ferramenta", "computador", "celular", "notebook",
+  "laptop", "tripe", "lente", "iluminacao", "headset", "fone", "teclado",
+  "monitor", "gadget", "drone", "estabilizador",
+];
+const ASSET_CENARIO_KEYWORDS = [
+  "casa", "praia", "escritorio", "metro", "area verde", "areas verdes",
+  "restaurante", "ambiente", "domestico", "cenario", "bastidor", "externo",
+  "interno", "rua", "estudio", "quarto", "cozinha", "sala", "parque", "cidade",
+  "natureza", "ar livre", "campo", "praca", "academia", "carro", "viagem", "local",
+];
+
+type LifeAssetGroup = "cenario" | "objeto" | "vida";
+
+function classifyLifeAsset(label: string): LifeAssetGroup {
+  const s = label.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "");
+  if (ASSET_OBJ_KEYWORDS.some((k) => s.includes(k))) return "objeto";
+  if (ASSET_CENARIO_KEYWORDS.some((k) => s.includes(k))) return "cenario";
+  return "vida";
+}
+
+const ASSET_GROUP_META: { key: LifeAssetGroup; label: string }[] = [
+  { key: "cenario", label: "Cenários" },
+  { key: "objeto", label: "Objetos de cena" },
+  { key: "vida", label: "Assets de vida" },
+];
+
+function groupLifeAssets(items: string[]): Record<LifeAssetGroup, string[]> {
+  const groups: Record<LifeAssetGroup, string[]> = { cenario: [], objeto: [], vida: [] };
+  for (const it of items) groups[classifyLifeAsset(it)].push(it);
+  return groups;
+}
+
+function LifeAssetGroupIcon({ group }: { group: LifeAssetGroup }) {
+  if (group === "cenario") {
+    // pin de lugar
+    return (
+      <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+        <path d="M7 1.5c2.2 0 4 1.8 4 4 0 2.8-4 7-4 7s-4-4.2-4-7c0-2.2 1.8-4 4-4z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+        <circle cx="7" cy="5.5" r="1.4" stroke="currentColor" strokeWidth="1.3"/>
+      </svg>
+    );
+  }
+  if (group === "objeto") {
+    // câmera / equipamento
+    return (
+      <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+        <rect x="1.5" y="4" width="11" height="7.5" rx="1.5" stroke="currentColor" strokeWidth="1.4"/>
+        <path d="M5 4l1-1.5h2L9 4" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round"/>
+        <circle cx="7" cy="7.75" r="2" stroke="currentColor" strokeWidth="1.3"/>
+      </svg>
+    );
+  }
+  // vida — sol/asterisco (igual ao ícone original de assets)
+  return (
+    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+      <circle cx="7" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
+      <path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.93 2.93l1.06 1.06M10.01 10.01l1.06 1.06M2.93 11.07l1.06-1.06M10.01 3.99l1.06-1.06" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+    </svg>
+  );
+}
+
+const ASSET_CHIP_BG = "#ffe4c4";
+const ASSET_CHIP_COLOR = "#9a3412";
+
+function RemovableAssetChip({ chip, onRemove }: { chip: string; onRemove: () => void }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 4,
+        borderRadius: 999, background: ASSET_CHIP_BG, color: ASSET_CHIP_COLOR,
+        fontSize: 13, fontWeight: 500, padding: "5px 8px 5px 13px", letterSpacing: -0.1,
+        maxWidth: "100%", overflow: "hidden",
+      }}
+    >
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+        {chip}
+      </span>
+      <button
+        type="button"
+        aria-label={`Remover ${chip}`}
+        onClick={onRemove}
+        style={{
+          display: "grid", placeItems: "center",
+          width: 18, height: 18, borderRadius: 999,
+          background: "rgba(0,0,0,0.12)", border: "none",
+          cursor: "pointer", color: ASSET_CHIP_COLOR, flexShrink: 0, padding: 0,
+        }}
+      >
+        <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
+          <path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+        </svg>
+      </button>
+    </span>
+  );
+}
+
+/** Add control compartilhado — sempre acrescenta ao pool flat de assets. */
+function AssetAddControl({
+  onMutate,
+  disabled = false,
+}: {
+  onMutate: (section: string, op: "add" | "remove" | "set", value: string) => void;
+  disabled?: boolean;
+}) {
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (adding) inputRef.current?.focus();
+  }, [adding]);
+
+  function submit() {
+    const t = draft.trim();
+    if (t) onMutate("assets", "add", t.slice(0, 60));
+    setDraft("");
+    setAdding(false);
+  }
+
+  if (disabled) return null;
+
+  return adding ? (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+      <input
+        ref={inputRef}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value.slice(0, 60))}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") submit();
+          if (e.key === "Escape") { setDraft(""); setAdding(false); }
+        }}
+        placeholder="novo asset"
+        style={{
+          fontSize: 13, fontWeight: 500, padding: "5px 10px",
+          borderRadius: 999, border: `1.5px solid ${ASSET_CHIP_BG}`,
+          color: ASSET_CHIP_COLOR, background: "transparent",
+          outline: "none", width: 120, fontFamily: "inherit",
+        }}
+      />
+      <button
+        type="button"
+        onClick={submit}
+        style={{
+          fontSize: 12, fontWeight: 600, padding: "5px 10px",
+          borderRadius: 999, background: ASSET_CHIP_BG, color: ASSET_CHIP_COLOR,
+          border: "none", cursor: "pointer", fontFamily: "inherit",
+        }}
+      >
+        Ok
+      </button>
+      <button
+        type="button"
+        onClick={() => { setDraft(""); setAdding(false); }}
+        style={{
+          fontSize: 12, fontWeight: 600, padding: "5px 10px",
+          borderRadius: 999, background: "transparent", color: TEXT_SECONDARY_HEX,
+          border: "none", cursor: "pointer", fontFamily: "inherit",
+        }}
+      >
+        ×
+      </button>
+    </span>
+  ) : (
+    <button
+      type="button"
+      onClick={() => setAdding(true)}
+      aria-label="Adicionar asset"
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 4,
+        borderRadius: 999, padding: "5px 12px",
+        background: "transparent", color: TEXT_SECONDARY_HEX,
+        border: `1.5px dashed rgba(0,0,0,0.15)`,
+        fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
+      }}
+    >
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true">
+        <path d="M5 1v8M1 5h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+      </svg>
+      Adicionar
+    </button>
+  );
+}
+
+/**
+ * Renderiza os assets em até 3 sub-seções de leitura (cenários / objetos /
+ * núcleo de vida). Só grupos com itens aparecem. Em modo editável, cada chip tem
+ * × e há um único "Adicionar" ao fim — o item novo cai no pool flat e se
+ * reclassifica. Sem itens: uma única seção "Assets de vida" com add ou
+ * "Emergindo...".
+ */
+function MapaAssetsGrouped({
+  items,
+  editable,
+  onMutate,
+}: {
+  items: string[];
+  editable: boolean;
+  onMutate?: (section: string, op: "add" | "remove" | "set", value: string) => void;
+}) {
+  const groups = groupLifeAssets(items);
+  const visible = ASSET_GROUP_META.filter((g) => groups[g.key].length > 0);
+
+  if (visible.length === 0) {
+    return (
+      <MapaSection labelColor="#c96a00" label="Assets de vida" icon={<LifeAssetGroupIcon group="vida" />}>
+        {editable && onMutate ? (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2, alignItems: "center" }}>
+            <AssetAddControl onMutate={onMutate} />
+          </div>
+        ) : (
+          <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, margin: 0, fontStyle: "italic" }}>Emergindo...</p>
+        )}
+      </MapaSection>
+    );
+  }
+
+  return (
+    <>
+      {visible.map((g, idx) => (
+        <MapaSection key={g.key} labelColor="#c96a00" label={g.label} icon={<LifeAssetGroupIcon group={g.key} />}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2, alignItems: "center" }}>
+            {groups[g.key].map((chip) =>
+              editable && onMutate ? (
+                <RemovableAssetChip key={chip} chip={chip} onRemove={() => onMutate("assets", "remove", chip)} />
+              ) : (
+                <span
+                  key={chip}
+                  style={{
+                    borderRadius: 999, background: ASSET_CHIP_BG, color: ASSET_CHIP_COLOR,
+                    fontSize: 13, fontWeight: 500, padding: "5px 13px", letterSpacing: -0.1,
+                    maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  }}
+                >
+                  {chip}
+                </span>
+              ),
+            )}
+            {/* Um único add, na última seção visível — cai no pool flat */}
+            {editable && onMutate && idx === visible.length - 1 && items.length < 24 && (
+              <AssetAddControl onMutate={onMutate} />
+            )}
+          </div>
+        </MapaSection>
+      ))}
+    </>
+  );
+}
+
 // ─── EditableTomField — tom de voz (multi-chip) ───────────────────────────────
 
 /**
@@ -1183,33 +1443,18 @@ function MapaCard({
         </MapaSection>
       )}
 
-      {/* ── Assets ────────────────────────────────────── */}
-      <MapaSection
-        labelColor="#c96a00"
-        label="Assets de vida"
-        icon={
-          <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <circle cx="7" cy="7" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
-            <path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.93 2.93l1.06 1.06M10.01 10.01l1.06 1.06M2.93 11.07l1.06-1.06M10.01 3.99l1.06-1.06" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
-          </svg>
+      {/* ── Assets de vida (agrupados para leitura: cenários, objetos, núcleo) ── */}
+      <MapaAssetsGrouped
+        items={
+          mapaSeed && onMapSeedMutate
+            ? (mapaSeed.assets.length > 0 ? mapaSeed.assets : confirmedAssetsDeduped.map((a) => a.label))
+            : confirmedAssetsDeduped.map((a) => a.label)
         }
-      >
-        {mapaSeed && onMapSeedMutate ? (
-          <EditableMapaChips
-            items={mapaSeed.assets.length > 0 ? mapaSeed.assets : confirmedAssetsDeduped.map((a) => a.label)}
-            section="assets"
-            onMutate={onMapSeedMutate}
-          />
-        ) : confirmedAssetsDeduped.length > 0 ? (
-          <MapaChips
-            chips={confirmedAssetsDeduped.map((a) => a.label)}
-            chipBg="#ffe4c4"
-            chipColor="#9a3412"
-          />
-        ) : (
-          <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, margin: 0, fontStyle: "italic" }}>Emergindo...</p>
-        )}
-        {activePending === "asset" && pendingAsset != null && onConfirmAsset != null && (
+        editable={!!(mapaSeed && onMapSeedMutate)}
+        onMutate={mapaSeed && onMapSeedMutate ? onMapSeedMutate : undefined}
+      />
+      {activePending === "asset" && pendingAsset != null && onConfirmAsset != null && (
+        <div style={{ paddingBottom: 16 }}>
           <MapaConfirmationRow
             variant="3way-asset"
             label="Faz parte da sua vida?"
@@ -1219,8 +1464,8 @@ function MapaCard({
             onSecondary={() => onConfirmAsset(pendingAsset.label, "occasional")}
             onTertiary={() => onConfirmAsset(pendingAsset.label, "no")}
           />
-        )}
-      </MapaSection>
+        </div>
+      )}
 
       {/* ── Tom + Formatos — "Como cria" ──────────────────────────────── */}
       {/* Editável a partir do MapaSeed (onboarding/IG): tom de voz (escalar,
