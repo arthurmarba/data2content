@@ -12,7 +12,7 @@ import {
   applyEditedArrayLocks,
   type CoreStabilityLocks,
 } from "./coreStabilityLocks";
-import { MAPA_LAYERS_GUIDE, MAPA_COERENCIA_RULE } from "./mapaLayersGuide";
+import { MAPA_LAYERS_GUIDE, MAPA_COERENCIA_RULE, MAPA_TOM_RULE } from "./mapaLayersGuide";
 
 export type { CoreStabilityLocks } from "./coreStabilityLocks";
 
@@ -54,8 +54,8 @@ Gere o mapa enriquecido com os campos abaixo, seguindo o gabarito acima:
 - narrativas_adjacentes: extensões coerentes nas bordas — ainda não são o foco.
 - assets: combine os declarados com os identificados no Instagram. Elementos
   concretos da vida, curtos.
-- tom: se o tom declarado e o real divergirem, use o tom real e registre em
-  "observacoes".
+- tom: ${MAPA_TOM_RULE} Se o tom declarado e o real divergirem, use o tom real e
+  registre a divergência em "observacoes".
 - formatos: combine declarados com os realmente usados.
 - observacoes: divergências relevantes entre o declarado e o real. Máx. 2.
   Linguagem calma, sem julgamento. Vazio [] se não houver.

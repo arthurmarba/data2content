@@ -13,7 +13,7 @@ import {
   applyEditedArrayLocks,
   type CoreStabilityLocks,
 } from "./coreStabilityLocks";
-import { MAPA_LAYERS_GUIDE, MAPA_COERENCIA_RULE } from "./mapaLayersGuide";
+import { MAPA_LAYERS_GUIDE, MAPA_COERENCIA_RULE, MAPA_TOM_RULE } from "./mapaLayersGuide";
 
 // ─── Resumo compacto e seguro da síntese ───────────────────────────────────────
 
@@ -90,8 +90,8 @@ Gere o mapa enriquecido com os campos abaixo, seguindo o gabarito acima:
 - narrativas_adjacentes: extensões coerentes nas bordas — mantenha as existentes
   e adicione se os vídeos sugerirem direção nova.
 - assets: combine os do mapa com os assets recorrentes dos vídeos. Curtos.
-- tom: se o tom do mapa e o dos vídeos divergirem, use o dos vídeos e registre em
-  "observacoes".
+- tom: ${MAPA_TOM_RULE} Se o tom do mapa e o dos vídeos divergirem, use o dos
+  vídeos e registre a divergência em "observacoes".
 - formatos: mantenha os formatos do mapa atual (a síntese de vídeo não os altera).
 - observacoes: divergências relevantes. Máx. 2. Linguagem calma, sem julgamento.
   Vazio [] se não houver.

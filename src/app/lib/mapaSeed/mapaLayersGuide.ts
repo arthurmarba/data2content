@@ -81,3 +81,14 @@ ASSETS DE VIDA
 export const MAPA_COERENCIA_RULE = `Coerência hierárquica obrigatória: a narrativa é a identidade do criador; os
 territórios derivam dela; os temas são o cruzamento território × narrativa
 (cenas, não ecos); os assets são elementos da vida real que alimentam os temas.`;
+
+/**
+ * Regra de FORMA do tom — compartilhada pelos três geradores.
+ *
+ * O tom é renderizado como CHIPS no card ("Como cria"), não como parágrafo. Antes
+ * a IA produzia uma frase descritiva ("Didático, com foco em estratégias e
+ * insights sobre o universo digital, intercalado com momentos pessoais e humor
+ * leve") que estourava o card e repetia o contexto que territórios/temas já dão.
+ * Esta regra força descritores objetivos e curtos, separados por vírgula.
+ */
+export const MAPA_TOM_RULE = `de 1 a 3 descritores objetivos e curtos do JEITO de falar (reflexivo, técnico, íntimo, direto, irônico, provocativo, acolhedor…), SEPARADOS POR VÍRGULA, cada um com no máximo 3 palavras (ex.: "Didático e analítico, Humor leve"). É só o jeito de comunicar — NUNCA o conteúdo, nunca o contexto de territórios/temas/assuntos (eles já contextualizam o mapa). Nunca uma frase corrida; sem ponto final. Errado: "Didático, com foco em estratégias e insights sobre o universo digital, intercalado com momentos pessoais e humor leve". Certo: "Didático e analítico, Humor leve".`;

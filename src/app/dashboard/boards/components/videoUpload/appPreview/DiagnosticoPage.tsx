@@ -390,13 +390,29 @@ function EditableMapaChips({
   );
 }
 
-// ─── EditableTomField — tom de voz (scalar), single-select + custom ───────────
+// ─── EditableTomField — tom de voz (multi-chip) ───────────────────────────────
 
 /**
- * Tom de voz é um campo escalar (uma escolha por vez), diferente dos chips de
- * array. Mostra sugestões tocáveis; a que casa com o tom atual fica destacada.
- * Um tom custom (frase vinda da síntese/onboarding) aparece como chip ativo
- * antes das sugestões. "Outro…" abre um input livre.
+ * Quebra o `tom` (string comma-separated vinda da IA) em chips objetivos.
+ * A IA emite "Didático e analítico, Humor leve" → ["Didático e analítico",
+ * "Humor leve"]. Tolerante a ponto-e-vírgula e a dados antigos verbosos (que
+ * caem em poucos fragmentos longos — truncados no chip, não estouram o card).
+ */
+function splitToneChips(tom: string | null | undefined): string[] {
+  if (!tom) return [];
+  return tom
+    .split(/[,;]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0)
+    .filter((s, i, arr) => arr.findIndex((x) => x.toLowerCase() === s.toLowerCase()) === i)
+    .slice(0, 4);
+}
+
+/**
+ * O tom é renderizado como CHIPS curtos (não como frase corrida). No modelo
+ * `tom` continua sendo uma string escalar — esta UI a trata como lista
+ * comma-separated: cada mutação recompõe a string e persiste via onSet ("set").
+ * Sugestões tocáveis adicionam um chip; o × remove; "Outro…" abre input livre.
  */
 function EditableTomField({
   value,
@@ -404,12 +420,14 @@ function EditableTomField({
   suggestions,
   chipBg = "#ffe4c4",
   chipColor = "#9a3412",
+  maxItems = 4,
 }: {
   value: string | null;
   onSet: (v: string) => void;
   suggestions: string[];
   chipBg?: string;
   chipColor?: string;
+  maxItems?: number;
 }) {
   const [customOpen, setCustomOpen] = useState(false);
   const [draft, setDraft] = useState("");
@@ -419,103 +437,136 @@ function EditableTomField({
     if (customOpen) inputRef.current?.focus();
   }, [customOpen]);
 
-  const current = (value ?? "").trim();
-  const norm = current.toLowerCase();
-  const isCustom = current !== "" && !suggestions.some((s) => s.toLowerCase() === norm);
+  const items = splitToneChips(value);
+  const has = (v: string) => items.some((it) => it.toLowerCase() === v.toLowerCase());
 
-  const activeStyle: React.CSSProperties = {
-    display: "inline-flex", alignItems: "center",
-    borderRadius: 999, background: chipBg, color: chipColor,
-    fontSize: 13, fontWeight: 600, padding: "5px 13px", letterSpacing: -0.1,
-    border: `1.5px solid ${chipBg}`, cursor: "default", fontFamily: "inherit",
+  // Toda mutação recompõe a string comma-separated e persiste via "set".
+  const commit = (next: string[]) => onSet(next.join(", "));
+  const addItem = (v: string) => {
+    const t = v.trim();
+    if (t && !has(t) && items.length < maxItems) commit([...items, t]);
   };
-  const outlineStyle: React.CSSProperties = {
-    display: "inline-flex", alignItems: "center",
-    borderRadius: 999, background: "transparent", color: chipColor,
-    fontSize: 13, fontWeight: 500, padding: "5px 13px", letterSpacing: -0.1,
-    border: `1.5px solid ${chipBg}`, opacity: 0.85, cursor: "pointer", fontFamily: "inherit",
-  };
+  const removeItem = (v: string) =>
+    commit(items.filter((it) => it.toLowerCase() !== v.toLowerCase()));
 
   function submitCustom() {
-    const t = draft.trim();
-    if (t) onSet(t.slice(0, 80));
+    addItem(draft.slice(0, 40));
     setDraft("");
     setCustomOpen(false);
   }
 
+  // Sugestões ainda não escolhidas — atalho tocável para adicionar.
+  const openSuggestions = suggestions.filter((s) => !has(s));
+
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2, alignItems: "center" }}>
-      {isCustom && <span style={activeStyle}>{current}</span>}
-
-      {suggestions.map((s) => {
-        const active = s.toLowerCase() === norm;
-        return (
-          <button
-            key={s}
-            type="button"
-            onClick={() => { if (!active) onSet(s); }}
-            style={active ? activeStyle : outlineStyle}
-          >
-            {s}
-          </button>
-        );
-      })}
-
-      {customOpen ? (
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-          <input
-            ref={inputRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value.slice(0, 80))}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") submitCustom();
-              if (e.key === "Escape") { setDraft(""); setCustomOpen(false); }
-            }}
-            placeholder="seu tom"
-            style={{
-              fontSize: 13, fontWeight: 500, padding: "5px 10px",
-              borderRadius: 999, border: `1.5px solid ${chipBg}`,
-              color: chipColor, background: "transparent",
-              outline: "none", width: 130, fontFamily: "inherit",
-            }}
-          />
-          <button
-            type="button"
-            onClick={submitCustom}
-            style={{
-              fontSize: 12, fontWeight: 600, padding: "5px 10px",
-              borderRadius: 999, background: chipBg, color: chipColor,
-              border: "none", cursor: "pointer", fontFamily: "inherit",
-            }}
-          >
-            Ok
-          </button>
-          <button
-            type="button"
-            onClick={() => { setDraft(""); setCustomOpen(false); }}
-            style={{
-              fontSize: 12, fontWeight: 600, padding: "5px 10px",
-              borderRadius: 999, background: "transparent", color: TEXT_SECONDARY_HEX,
-              border: "none", cursor: "pointer", fontFamily: "inherit",
-            }}
-          >
-            ×
-          </button>
-        </span>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setCustomOpen(true)}
+      {/* Chips ativos (com × para remover) */}
+      {items.map((chip) => (
+        <span
+          key={chip}
           style={{
             display: "inline-flex", alignItems: "center", gap: 4,
-            borderRadius: 999, padding: "5px 12px",
-            background: "transparent", color: TEXT_SECONDARY_HEX,
-            border: `1.5px dashed rgba(0,0,0,0.15)`,
-            fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
+            borderRadius: 999, background: chipBg, color: chipColor,
+            fontSize: 13, fontWeight: 500, padding: "5px 8px 5px 13px", letterSpacing: -0.1,
+            maxWidth: "100%", overflow: "hidden",
           }}
         >
-          Outro…
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+            {chip}
+          </span>
+          <button
+            type="button"
+            aria-label={`Remover ${chip}`}
+            onClick={() => removeItem(chip)}
+            style={{
+              display: "grid", placeItems: "center",
+              width: 18, height: 18, borderRadius: 999,
+              background: "rgba(0,0,0,0.12)", border: "none",
+              cursor: "pointer", color: chipColor, flexShrink: 0, padding: 0,
+            }}
+          >
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
+              <path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+            </svg>
+          </button>
+        </span>
+      ))}
+
+      {/* Sugestões disponíveis (outline) */}
+      {items.length < maxItems && openSuggestions.map((s) => (
+        <button
+          key={s}
+          type="button"
+          onClick={() => addItem(s)}
+          style={{
+            display: "inline-flex", alignItems: "center",
+            borderRadius: 999, background: "transparent", color: chipColor,
+            fontSize: 13, fontWeight: 500, padding: "5px 13px", letterSpacing: -0.1,
+            border: `1.5px solid ${chipBg}`, opacity: 0.85, cursor: "pointer", fontFamily: "inherit",
+          }}
+        >
+          {s}
         </button>
+      ))}
+
+      {/* Adicionar custom */}
+      {items.length < maxItems && (
+        customOpen ? (
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+            <input
+              ref={inputRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value.slice(0, 40))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submitCustom();
+                if (e.key === "Escape") { setDraft(""); setCustomOpen(false); }
+              }}
+              placeholder="seu tom"
+              style={{
+                fontSize: 13, fontWeight: 500, padding: "5px 10px",
+                borderRadius: 999, border: `1.5px solid ${chipBg}`,
+                color: chipColor, background: "transparent",
+                outline: "none", width: 110, fontFamily: "inherit",
+              }}
+            />
+            <button
+              type="button"
+              onClick={submitCustom}
+              style={{
+                fontSize: 12, fontWeight: 600, padding: "5px 10px",
+                borderRadius: 999, background: chipBg, color: chipColor,
+                border: "none", cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              Ok
+            </button>
+            <button
+              type="button"
+              onClick={() => { setDraft(""); setCustomOpen(false); }}
+              style={{
+                fontSize: 12, fontWeight: 600, padding: "5px 10px",
+                borderRadius: 999, background: "transparent", color: TEXT_SECONDARY_HEX,
+                border: "none", cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              ×
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setCustomOpen(true)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 4,
+              borderRadius: 999, padding: "5px 12px",
+              background: "transparent", color: TEXT_SECONDARY_HEX,
+              border: `1.5px dashed rgba(0,0,0,0.15)`,
+              fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
+            {items.length === 0 ? "Outro…" : "+ Adicionar"}
+          </button>
+        )
       )}
     </div>
   );

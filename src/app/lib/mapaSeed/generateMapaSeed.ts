@@ -5,6 +5,7 @@
 import { callClaudeJSON } from "@/app/lib/claudeService";
 import type { IOnboardingAnswers, IMapaData } from "@/app/models/MapaSeed";
 import { logger } from "@/app/lib/logger";
+import { MAPA_TOM_RULE } from "./mapaLayersGuide";
 
 // ─── Prompt ───────────────────────────────────────────────────────────────────
 
@@ -38,8 +39,7 @@ Gere um mapa seed com os seguintes campos:
 - assets: lista de 1 a 3 elementos concretos da vida do criador
   que podem virar conteúdo.
 
-- tom: uma frase curta que descreve como o criador quer falar
-  (ex: "direto e técnico, sem didatismo forçado").
+- tom: ${MAPA_TOM_RULE}
 
 - formatos: lista dos formatos que o criador se sente à vontade
   para criar.
