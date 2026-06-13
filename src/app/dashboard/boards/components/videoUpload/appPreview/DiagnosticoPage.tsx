@@ -1467,7 +1467,7 @@ function MapaCard({
         </div>
       )}
 
-      {/* ── Tom + Formatos — "Como cria" ──────────────────────────────── */}
+      {/* ── Tom + Formatos — "Como você fala" ────────────────────────── */}
       {/* Editável a partir do MapaSeed (onboarding/IG): tom de voz (escalar,
           single-select) + formatos (array), ambos com sugestões tocáveis.
           Renderiza mesmo vazio para o criador preencher. Fallback read-only
@@ -1475,7 +1475,7 @@ function MapaCard({
       {(mapaSeed && onMapSeedMutate) ? (
         <MapaSection
           labelColor="#c96a00"
-          label="Como cria"
+          label="Como você fala"
           icon={
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
               <path d="M9.5 2l2.5 2.5-7 7H2.5V9l7-7z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -1491,7 +1491,7 @@ function MapaCard({
       ) : (toneChips.length > 0 || formatoChips.length > 0 || activePending === "tone") ? (
         <MapaSection
           labelColor="#c96a00"
-          label="Como cria"
+          label="Como você fala"
           icon={
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
               <path d="M9.5 2l2.5 2.5-7 7H2.5V9l7-7z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
