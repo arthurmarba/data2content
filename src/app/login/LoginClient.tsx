@@ -118,6 +118,53 @@ function LoginComponent() {
           ))}
         </div>
 
+        {creators.length > 0 && (
+          <div className="mb-5 w-full">
+            <div className="flex flex-col items-center gap-3">
+              <div className="flex items-center">
+                {creators.filter(c => !c.hidden).slice(0, 5).map((creator, i) => (
+                  <div
+                    key={creator.id}
+                    className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border-2 border-white bg-zinc-200"
+                    style={{ marginLeft: i === 0 ? 0 : -10, zIndex: creators.length - i }}
+                  >
+                    {creator.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={creator.avatarUrl}
+                        alt={creator.name}
+                        className="h-full w-full object-cover"
+                        referrerPolicy="no-referrer"
+                        onError={() => setCreators(prev =>
+                          prev.map(c => c.id === creator.id ? { ...c, hidden: true } : c)
+                        )}
+                      />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center text-[11px] font-bold text-zinc-500">
+                        {creator.name.charAt(0)}
+                      </span>
+                    )}
+                  </div>
+                ))}
+                {creatorCount > 5 && (
+                  <div
+                    className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-white bg-zinc-100 text-[10px] font-bold text-zinc-500"
+                    style={{ marginLeft: -10, zIndex: 0 }}
+                  >
+                    +{creatorCount - 5}
+                  </div>
+                )}
+              </div>
+              <p className="text-center text-[12.5px] leading-snug text-zinc-500">
+                Somos uma comunidade de{" "}
+                <span className="font-bold text-zinc-900">
+                  {creatorCount} {creatorCount === 1 ? "criador" : "criadores"}
+                </span>
+              </p>
+            </div>
+          </div>
+        )}
+
         {consentRequired ? (
           <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] leading-relaxed text-amber-700">
             Continue com Google para registrar o aceite dos Termos e da Política de Privacidade.
@@ -189,52 +236,6 @@ function LoginComponent() {
           </Link>.
         </p>
 
-        {creators.length > 0 && (
-          <div className="mt-8 w-full">
-            <div className="flex flex-col items-center gap-3">
-              <div className="flex items-center">
-                {creators.filter(c => !c.hidden).slice(0, 5).map((creator, i) => (
-                  <div
-                    key={creator.id}
-                    className="relative h-9 w-9 shrink-0 overflow-hidden rounded-full border-2 border-white bg-zinc-200"
-                    style={{ marginLeft: i === 0 ? 0 : -10, zIndex: creators.length - i }}
-                  >
-                    {creator.avatarUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={creator.avatarUrl}
-                        alt={creator.name}
-                        className="h-full w-full object-cover"
-                        referrerPolicy="no-referrer"
-                        onError={() => setCreators(prev =>
-                          prev.map(c => c.id === creator.id ? { ...c, hidden: true } : c)
-                        )}
-                      />
-                    ) : (
-                      <span className="flex h-full w-full items-center justify-center text-[11px] font-bold text-zinc-500">
-                        {creator.name.charAt(0)}
-                      </span>
-                    )}
-                  </div>
-                ))}
-                {creatorCount > 5 && (
-                  <div
-                    className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-white bg-zinc-100 text-[10px] font-bold text-zinc-500"
-                    style={{ marginLeft: -10, zIndex: 0 }}
-                  >
-                    +{creatorCount - 5}
-                  </div>
-                )}
-              </div>
-              <p className="text-center text-[12.5px] leading-snug text-zinc-500">
-                Somos uma comunidade de{" "}
-                <span className="font-bold text-zinc-900">
-                  {creatorCount} {creatorCount === 1 ? "criador" : "criadores"}
-                </span>
-              </p>
-            </div>
-          </div>
-        )}
 
       </div>{/* /hero */}
     </div>
