@@ -274,10 +274,12 @@ function EditableMapaChips({
             display: "inline-flex", alignItems: "center", gap: 4,
             borderRadius: 999, background: chipBg, color: chipColor,
             fontSize: 13, fontWeight: 500, padding: "5px 8px 5px 13px", letterSpacing: -0.1,
-            whiteSpace: "nowrap",
+            maxWidth: "100%", overflow: "hidden",
           }}
         >
-          {chip}
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+            {chip}
+          </span>
           <button
             type="button"
             aria-label={`Remover ${chip}`}
