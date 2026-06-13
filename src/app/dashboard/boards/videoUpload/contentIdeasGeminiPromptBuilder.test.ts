@@ -78,6 +78,34 @@ describe("buildContentIdeasPrompt — bloco de audiência", () => {
   });
 });
 
+describe("buildContentIdeasPrompt — bloco de temas (camada-cena)", () => {
+  it("NÃO inclui o bloco de cenas quando confirmedThemes é ausente", () => {
+    const { userInstruction } = buildContentIdeasPrompt({ context: baseContext(), count: 3 });
+    expect(userInstruction).not.toContain("camada-tema");
+  });
+
+  it("lista as cenas confirmadas e as marca como ponto de partida", () => {
+    const { userInstruction } = buildContentIdeasPrompt({
+      context: baseContext({
+        confirmedThemes: ["Gravar sozinho no quarto às 2h", "Refazer o vídeo 5 vezes"],
+      }),
+      count: 3,
+    });
+    expect(userInstruction).toContain("Gravar sozinho no quarto às 2h");
+    expect(userInstruction).toContain("PONTOS DE PARTIDA");
+    // proíbe copiar o tema literal no título
+    expect(userInstruction).toContain("NUNCA copie a frase do tema literalmente no título");
+  });
+
+  it("ignora cenas vazias/em branco", () => {
+    const { userInstruction } = buildContentIdeasPrompt({
+      context: baseContext({ confirmedThemes: ["  ", ""] }),
+      count: 3,
+    });
+    expect(userInstruction).not.toContain("camada-tema");
+  });
+});
+
 describe("buildContentIdeasPrompt — blindagens de conteúdo", () => {
   it("proíbe a palavra 'pauta' nos campos visíveis ao criador", () => {
     const { systemInstruction } = buildContentIdeasPrompt({ context: baseContext(), count: 3 });

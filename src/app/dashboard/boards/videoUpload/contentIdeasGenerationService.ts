@@ -88,6 +88,7 @@ function hashMapContext(context: ContentIdeasMapContext): string {
     narrative: context.narrative.label,
     territories: context.territories.map((t) => t.label).sort(),
     assets: [...context.confirmedAssets].sort(),
+    themes: [...(context.confirmedThemes ?? [])].sort(),
     tone: context.tone,
   });
   return crypto.createHash("sha256").update(stableInput).digest("hex").slice(0, 32);

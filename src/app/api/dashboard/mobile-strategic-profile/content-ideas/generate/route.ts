@@ -235,9 +235,18 @@ export async function POST(request: Request) {
               : null,
           }));
       })(),
-      confirmedAssets: synthesis.confirmedLifeAssets
-        .filter((a) => a.evidenceCount >= 2)
-        .map((a) => a.label),
+      // Assets: prioriza os confirmados pela síntese de vídeo (evidência ≥2).
+      // Quando vazios (criador de Instagram/onboarding, sem vídeo), cai para os
+      // assets do MapaSeed — a camada mais concreta do mapa, que antes nunca
+      // chegava ao gerador para esses criadores.
+      confirmedAssets: (() => {
+        const fromVideo = synthesis.confirmedLifeAssets
+          .filter((a) => a.evidenceCount >= 2)
+          .map((a) => a.label);
+        return fromVideo.length > 0 ? fromVideo : mapaSeedSource.assets.slice(0, 12);
+      })(),
+      // Temas confirmados/editados no card (camada-cena) — pontos de partida do roteiro.
+      confirmedThemes: mapaSeedSource.temas.slice(0, 8),
       tone: synthesis.dominantTone ?? mapaSeedSource.tone ?? null,
       topPerformingPattern: synthesis.topPerformingPattern ?? null,
       pastCreatorAnswers: [],

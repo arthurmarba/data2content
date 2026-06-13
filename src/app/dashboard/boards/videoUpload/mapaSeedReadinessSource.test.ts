@@ -29,6 +29,8 @@ describe("getMapaSeedReadinessSource", () => {
       hasTerritories: false,
       territories: [],
       tone: null,
+      assets: [],
+      temas: [],
       lastEnrichedAt: null,
     });
   });
@@ -42,11 +44,13 @@ describe("getMapaSeedReadinessSource", () => {
     expect(r.tone).toBeNull();
   });
 
-  it("MapaSeed enriquecido (Instagram) → narrativa + territórios + tom", async () => {
+  it("MapaSeed enriquecido (Instagram) → narrativa + territórios + tom + assets + temas", async () => {
     mockMapaDoc({
       mapa: {
         narrativa_central: "Autocuidado e equilíbrio",
         territorios: ["Receitas práticas", "  ", "Mitos nutricionais"],
+        temas: ["Cozinhar depois de um dia exausto", "  ", "Montar a marmita da semana"],
+        assets: ["Praia", "Metrô", "  "],
         tom: "Acolhedor e direto",
       },
     });
@@ -56,6 +60,18 @@ describe("getMapaSeedReadinessSource", () => {
     expect(r.territories).toEqual(["Receitas práticas", "Mitos nutricionais"]);
     expect(r.hasTerritories).toBe(true);
     expect(r.tone).toBe("Acolhedor e direto");
+    // assets e temas chegam limpos (sem chips em branco)
+    expect(r.assets).toEqual(["Praia", "Metrô"]);
+    expect(r.temas).toEqual(["Cozinhar depois de um dia exausto", "Montar a marmita da semana"]);
+  });
+
+  it("MapaSeed sem assets/temas → arrays vazios (não quebra)", async () => {
+    mockMapaDoc({
+      mapa: { narrativa_central: "X", territorios: ["T"], tom: "Y" },
+    });
+    const r = await getMapaSeedReadinessSource("u1");
+    expect(r.assets).toEqual([]);
+    expect(r.temas).toEqual([]);
   });
 
   it("narrativa só com espaços → não conta", async () => {
@@ -76,6 +92,8 @@ describe("getMapaSeedReadinessSource", () => {
       hasTerritories: false,
       territories: [],
       tone: null,
+      assets: [],
+      temas: [],
       lastEnrichedAt: null,
     });
   });

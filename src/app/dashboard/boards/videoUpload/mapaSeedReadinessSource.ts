@@ -18,6 +18,19 @@ export interface MapaSeedReadinessSource {
   territories: string[];
   tone: string | null;
   /**
+   * Assets de vida confirmados/editados no card "Seu Mapa" (ex.: praia, metrô,
+   * consultórios). Camada mais concreta da cadeia — é o que torna a pauta
+   * insubstituível. Para o criador de Instagram (sem síntese de vídeo) esta é a
+   * ÚNICA fonte de assets que chega ao gerador de pautas.
+   */
+  assets: string[];
+  /**
+   * Temas confirmados/editados — a camada-cena (território × narrativa, quase
+   * filmável). Alimenta os pontos de partida do roteiro: o gerador usa o tema
+   * que o criador já tem em vez de reconstruí-lo do zero.
+   */
+  temas: string[];
+  /**
    * Momento do enriquecimento mais recente do mapa (max de instagramEnrichedAt e
    * videoEnrichedAt). Null quando o mapa ainda não foi enriquecido por nenhuma
    * fonte. Usado para detectar pautas desatualizadas: se o mapa foi enriquecido
@@ -32,8 +45,17 @@ const EMPTY: MapaSeedReadinessSource = {
   hasTerritories: false,
   territories: [],
   tone: null,
+  assets: [],
+  temas: [],
   lastEnrichedAt: null,
 };
+
+/** Filtra um array de chips do MapaSeed para strings não-vazias. */
+function cleanChips(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+    : [];
+}
 
 function maxDate(a: Date | null, b: Date | null): Date | null {
   if (!a) return b;
@@ -46,11 +68,13 @@ export async function getMapaSeedReadinessSource(
 ): Promise<MapaSeedReadinessSource> {
   try {
     const doc = await MapaSeedModel.findOne({ userId })
-      .select("mapa.narrativa_central mapa.territorios mapa.tom instagramEnrichedAt videoEnrichedAt")
+      .select("mapa.narrativa_central mapa.territorios mapa.temas mapa.assets mapa.tom instagramEnrichedAt videoEnrichedAt")
       .lean<{
         mapa?: {
           narrativa_central?: string | null;
           territorios?: string[] | null;
+          temas?: string[] | null;
+          assets?: string[] | null;
           tom?: string | null;
         } | null;
         instagramEnrichedAt?: Date | null;
@@ -64,11 +88,9 @@ export async function getMapaSeedReadinessSource(
       typeof mapa.narrativa_central === "string" && mapa.narrativa_central.trim()
         ? mapa.narrativa_central.trim()
         : null;
-    const territories = Array.isArray(mapa.territorios)
-      ? mapa.territorios.filter(
-          (t): t is string => typeof t === "string" && t.trim().length > 0,
-        )
-      : [];
+    const territories = cleanChips(mapa.territorios);
+    const assets = cleanChips(mapa.assets);
+    const temas = cleanChips(mapa.temas);
     const tone =
       typeof mapa.tom === "string" && mapa.tom.trim() ? mapa.tom.trim() : null;
 
@@ -81,6 +103,8 @@ export async function getMapaSeedReadinessSource(
       hasTerritories: territories.length > 0,
       territories,
       tone,
+      assets,
+      temas,
       lastEnrichedAt: maxDate(instagramEnrichedAt, videoEnrichedAt),
     };
   } catch {

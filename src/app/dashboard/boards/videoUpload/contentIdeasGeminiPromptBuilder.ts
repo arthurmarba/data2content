@@ -53,6 +53,14 @@ export interface ContentIdeasMapContext {
   territories: Array<{ label: string; summary?: string | null }>;
   /** Confirmed life assets — what's recurring in their actual life */
   confirmedAssets: string[];
+  /**
+   * Confirmed themes (camada-cena: território × narrativa, quase filmável).
+   * Vêm do MapaSeed (onboarding/Instagram) já confirmados/editados pelo criador.
+   * São PONTOS DE PARTIDA do roteiro — o gerador ancora as pautas nas cenas que
+   * o criador já tem em vez de reconstruir a camada-tema do zero. Opcional:
+   * quando ausente, a geração se comporta como antes.
+   */
+  confirmedThemes?: string[];
   /** Confirmed tone of communication (optional but enriching) */
   tone: string | null;
   /** Top-performing context pattern (e.g. "manhã + filhos + reflexivo") */
@@ -266,6 +274,21 @@ export function buildContentIdeasPrompt(
         ].join("\n")
       : "";
 
+  const themesBlock = (() => {
+    const temas = (context.confirmedThemes ?? []).filter((t) => t && t.trim());
+    if (temas.length === 0) return "";
+    return [
+      "",
+      "Cenas que o criador JÁ confirmou (camada-tema — cada uma é território × narrativa, quase filmável):",
+      ...temas.slice(0, 8).map((t) => `  - ${t}`),
+      "Estas cenas são PONTOS DE PARTIDA reais — ancore ao menos parte das pautas nelas",
+      "em vez de inventar situações novas do zero. Uma cena confirmada já carrega o cruzamento",
+      "certo (assunto + identidade); seu trabalho é transformá-la em título + hook + roteiro,",
+      "não substituí-la por outra. NUNCA copie a frase do tema literalmente no título: ela é o",
+      "ponto de partida interno, não a legenda do vídeo.",
+    ].join("\n");
+  })();
+
   const audienceResonanceBlock = (() => {
     const r = context.audienceResonance;
     if (!r) return "";
@@ -341,6 +364,7 @@ export function buildContentIdeasPrompt(
     context.topPerformingPattern
       ? `Padrão de contexto mais frequente: ${context.topPerformingPattern}`
       : "Sem padrão de contexto dominante ainda.",
+    themesBlock,
     pastAnswersBlock,
     onboardingBlock,
     dismissedBlock,
