@@ -68,7 +68,7 @@ function LoginComponent() {
           <img
             src="/images/Colorido-Simbolo.png"
             alt="Data2Content"
-            style={{ filter: "brightness(0)", width: "120px", height: "auto", marginBottom: "-12px" }}
+            style={{ filter: "brightness(0)", width: "160px", height: "auto", marginBottom: "-12px" }}
             aria-hidden="true"
           />
         </div>
