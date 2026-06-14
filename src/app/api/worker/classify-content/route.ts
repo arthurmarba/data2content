@@ -28,6 +28,22 @@ const OPENAI_CLASSIFICATION_MODEL =
 
 export const runtime = "nodejs";
 
+// As signing keys são SEPARADAS do QSTASH_TOKEN: o token publica a tarefa, as
+// signing keys verificam a entrega aqui no worker. Se faltarem (erro comum: configurar
+// só o QSTASH_TOKEN), TODA entrega vira 401 "Invalid signature" e nenhuma métrica é
+// classificada — o card "Sua Audiência" fica preso em "Processando" para sempre, sem
+// erro visível. Logamos explicitamente para que essa falha de config seja diagnosticável.
+const QSTASH_SIGNING_KEYS_PRESENT = Boolean(
+    process.env.QSTASH_CURRENT_SIGNING_KEY && process.env.QSTASH_NEXT_SIGNING_KEY,
+);
+if (!QSTASH_SIGNING_KEYS_PRESENT) {
+    logger.error(
+        "[classify-content] QSTASH_CURRENT_SIGNING_KEY/QSTASH_NEXT_SIGNING_KEY ausentes — " +
+        "a verificação de assinatura vai rejeitar TODA entrega (401) e a classificação de " +
+        "conteúdo não vai rodar. Configure as duas signing keys do QStash em produção.",
+    );
+}
+
 const receiver = new Receiver({
     currentSigningKey: process.env.QSTASH_CURRENT_SIGNING_KEY!,
     nextSigningKey: process.env.QSTASH_NEXT_SIGNING_KEY!,
@@ -269,6 +285,11 @@ async function handlerLogic(request: NextRequest): Promise<NextResponse> { // Ad
 export const POST = async (request: NextRequest) => {
     const TAG_POST = '[Worker Classify POST v5.0.1]';
     try {
+        if (!QSTASH_SIGNING_KEYS_PRESENT) {
+            // Sinaliza a causa real (config ausente) em vez de mascarar como assinatura inválida.
+            logger.error(`${TAG_POST} Signing keys do QStash ausentes — classificação desabilitada por config.`);
+            return new NextResponse("QStash signing keys not configured", { status: 500 });
+        }
         const signature = request.headers.get("upstash-signature");
         if (!signature) {
             logger.error(`${TAG_POST} Erro: Header 'upstash-signature' ausente.`);
