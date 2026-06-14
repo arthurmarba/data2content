@@ -144,6 +144,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("instagramLinked") === "true",
   );
   const [openCategory, setOpenCategory] = useState<CategoryId | null>(null);
+  const pendingPublishIntentRef = useRef<Promise<void> | null>(null);
   const [diagnosisOverviewOpen, setDiagnosisOverviewOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [surveyOpen, setSurveyOpen] = useState(false);
@@ -958,7 +959,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   );
 
   const handleAnalyzeComplete = useCallback(
-    (result?: MobileStrategicProfileAnalyzeFlowCompleteResult) => {
+    async (result?: MobileStrategicProfileAnalyzeFlowCompleteResult) => {
       setAnalyzeFlowOpen(false);
       if (result?.thumbnailDataUrl && result.savedDiagnosisId) {
         try {
@@ -971,6 +972,13 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           // localStorage unavailable — non-fatal
         }
       }
+      // Await any in-flight publishIntent PATCH before refreshing. The PATCH now
+      // runs map enrichment synchronously (~2-5s), so waiting here ensures
+      // router.refresh() loads the updated MapaSeed rather than the stale one.
+      if (pendingPublishIntentRef.current) {
+        await pendingPublishIntentRef.current.catch(() => {});
+        pendingPublishIntentRef.current = null;
+      }
       router.refresh();
     },
     [router],
@@ -978,18 +986,16 @@ export function DiagnosticoRealShellClient({ data }: Props) {
 
   const handlePublishIntentSubmit = useCallback(
     async (diagnosisId: string, intent: "yes" | "no") => {
-      try {
-        await fetch(
-          `/api/dashboard/mobile-strategic-profile/diagnosis/${encodeURIComponent(diagnosisId)}/publish-intent`,
-          {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ publishIntent: intent }),
-          },
-        );
-      } catch {
-        // Non-fatal — the map will treat this reading as legacy (full weight)
-      }
+      const promise = fetch(
+        `/api/dashboard/mobile-strategic-profile/diagnosis/${encodeURIComponent(diagnosisId)}/publish-intent`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ publishIntent: intent }),
+        },
+      ).then(() => {}).catch(() => {});
+      pendingPublishIntentRef.current = promise;
+      return promise;
     },
     [],
   );

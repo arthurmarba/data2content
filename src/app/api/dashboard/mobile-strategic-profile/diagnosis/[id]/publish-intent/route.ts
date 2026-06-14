@@ -135,19 +135,20 @@ export async function PATCH(
       }
     }
 
-    // When the creator declares "yes" (will publish), enqueue a background job
-    // that enriches the MapaSeed from the synthesis of their published video
-    // readings. This is an LLM cross-reference (~seconds), so it runs async via
-    // QStash to avoid adding latency to this fire-and-forget call.
-    // Non-fatal + graceful no-op if QStash isn't configured (e.g. local dev).
+    // When the creator declares "yes" (will publish), enrich the MapaSeed
+    // synchronously so the next router.refresh() on the client sees the updated
+    // map immediately. QStash was the original mechanism but MAPA_VIDEO_ENRICH_WORKER_URL
+    // was never propagated to production, silently no-oping every time.
+    // Running it here (synchronous, ~2-5s LLM call) is non-fatal and guarantees
+    // the card updates on the same page refresh.
     if (publishIntent === "yes") {
       try {
-        const { enqueueMapaVideoEnrichment } = await import(
-          "@/app/lib/mapaSeed/enqueueMapaVideoEnrichment"
+        const { enrichMapaSeedWithVideoForUser } = await import(
+          "@/app/lib/mapaSeed/enrichMapaSeedWithVideoForUser"
         );
-        await enqueueMapaVideoEnrichment(userId);
-      } catch (enqueueErr) {
-        console.error("[publish-intent] enqueue enriquecimento de vídeo failed (non-fatal):", enqueueErr);
+        await enrichMapaSeedWithVideoForUser(userId);
+      } catch (enrichErr) {
+        console.error("[publish-intent] enriquecimento de vídeo failed (non-fatal):", enrichErr);
       }
     }
 
