@@ -1,29 +1,42 @@
 import { splitChipLabel, sanitizeChipArray } from "./normalizeChipLabel";
 
 describe("splitChipLabel", () => {
-  it("quebra exemplos empacotados em vários chips curtos", () => {
+  it("dropa o cabeçalho de cena genérico e mantém só os específicos", () => {
     expect(splitChipLabel("Cenários externos (praia, metrô, áreas verdes)")).toEqual([
-      "Cenários externos",
       "Praia",
       "Metrô",
       "Áreas verdes",
     ]);
   });
 
-  it("capitaliza a primeira letra de cada exemplo, inclusive acentuada", () => {
+  it("dropa 'Equipamentos' (cabeçalho) e capitaliza os específicos, inclusive acentuados", () => {
     expect(splitChipLabel("Equipamentos de gravação (câmeras, microfones)")).toEqual([
-      "Equipamentos de gravação",
       "Câmeras",
       "Microfones",
     ]);
+  });
+
+  it("preserva o núcleo quando NÃO é cabeçalho de cena (territórios/temas)", () => {
+    expect(splitChipLabel("Família (esposa, filhos)")).toEqual(["Família", "Esposa", "Filhos"]);
   });
 
   it("mantém intacto parêntese sem vírgula (nome/especificação é sinal)", () => {
     expect(splitChipLabel("A esposa (Lívia Linhares)")).toEqual(["A esposa (Lívia Linhares)"]);
   });
 
+  it("dropa cabeçalho de cena genérico isolado (sem específicos)", () => {
+    expect(splitChipLabel("Cenários externos")).toEqual([]);
+    expect(splitChipLabel("Cenários internos")).toEqual([]);
+    expect(splitChipLabel("Objetos de cena")).toEqual([]);
+    expect(splitChipLabel("Internos")).toEqual([]);
+  });
+
+  it("NÃO dropa temas/territórios que só começam com 'objeto'/'cenário'", () => {
+    expect(splitChipLabel("Objeto de desejo")).toEqual(["Objeto de desejo"]);
+    expect(splitChipLabel("Cenário do crime")).toEqual(["Cenário do crime"]);
+  });
+
   it("devolve rótulo simples sem alteração (idempotente)", () => {
-    expect(splitChipLabel("Cenários externos")).toEqual(["Cenários externos"]);
     expect(splitChipLabel("Chihuahua")).toEqual(["Chihuahua"]);
   });
 
@@ -42,7 +55,7 @@ describe("splitChipLabel", () => {
 });
 
 describe("sanitizeChipArray", () => {
-  it("achata rótulos empacotados e dedupa entre itens", () => {
+  it("achata rótulos empacotados, dropa cabeçalhos de cena e dedupa entre itens", () => {
     expect(
       sanitizeChipArray([
         "Cenários externos (praia, metrô)",
@@ -50,10 +63,8 @@ describe("sanitizeChipArray", () => {
         "Equipamentos de gravação (câmeras, microfones)",
       ]),
     ).toEqual([
-      "Cenários externos",
       "Praia",
       "Metrô",
-      "Equipamentos de gravação",
       "Câmeras",
       "Microfones",
     ]);

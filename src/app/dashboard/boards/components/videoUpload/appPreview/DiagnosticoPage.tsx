@@ -621,7 +621,7 @@ function MapaAssetsGrouped({
 
   return (
     <>
-      {visible.map((g, idx) => (
+      {visible.map((g) => (
         <MapaSection key={g.key} labelColor="#c96a00" label={g.label} icon={<LifeAssetGroupIcon group={g.key} />}>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2, alignItems: "center" }}>
             {groups[g.key].map((chip) =>
@@ -640,8 +640,10 @@ function MapaAssetsGrouped({
                 </span>
               ),
             )}
-            {/* Um único add, na última seção visível — cai no pool flat */}
-            {editable && onMutate && idx === visible.length - 1 && items.length < 24 && (
+            {/* Add em CADA seção — o item cai no pool flat e se reclassifica
+                sozinho. Antes ficava só na última seção, o que dava a impressão
+                de que Cenários/Objetos não aceitavam novos chips. */}
+            {editable && onMutate && items.length < 24 && (
               <AssetAddControl onMutate={onMutate} />
             )}
           </div>

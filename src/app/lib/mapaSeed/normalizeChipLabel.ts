@@ -4,10 +4,17 @@
 //
 // Princípio: um chip é um RÓTULO, não uma descrição — deve caber em uma linha.
 // Quando a IA empacota exemplos entre parênteses como uma lista separada por
-// vírgula, o rótulo gigante é quebrado em vários chips curtos:
+// vírgula, o rótulo gigante é quebrado em vários chips curtos. E quando o núcleo
+// é um CABEÇALHO DE CATEGORIA genérico ("Cenários externos", "Objetos de cena"),
+// ele é descartado — o criador quer o item ESPECÍFICO, não a categoria:
 //
 //   "Cenários externos (praia, metrô, áreas verdes)"
-//     → ["Cenários externos", "Praia", "Metrô", "Áreas verdes"]
+//     → ["Praia", "Metrô", "Áreas verdes"]
+//
+// Núcleos que NÃO são categoria de cena são preservados (mais específicos por
+// si só), p.ex. em territórios/temas:
+//
+//   "Família (esposa, filhos)" → ["Família", "Esposa", "Filhos"]
 //
 // Parênteses SEM vírgula são sinal (um nome ou especificação única), não uma
 // lista de exemplos — ficam intactos:
@@ -23,6 +30,28 @@ function capitalizeFirst(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
+function normalizeForMatch(text: string): string {
+  return text.toLowerCase().normalize("NFD").replace(/\p{Diacritic}/gu, "").trim();
+}
+
+// Substantivos de categoria de CENA que a IA usa como cabeçalho de lista. Como
+// NÚCLEO de uma enumeração ("Cenários externos (praia, metrô)") o cabeçalho é só
+// um rótulo de grupo — dropado em favor dos específicos. Prefixo é seguro aqui
+// porque a própria enumeração já sinaliza que o núcleo é uma categoria.
+const SCENE_HEADER_PREFIX =
+  /^(cenarios?|locac\w+|objetos?|equipamentos?|ferramentas?|enquadramentos?)\b/;
+const BARE_QUALIFIER = /^(externos?|internos?)$/;
+
+// Como chip ISOLADO, só dropamos por match EXATO de cabeçalho genérico — evita
+// nukear temas/territórios legítimos como "Objeto de desejo" ou "Cenário do crime".
+const BARE_SCENE_HEADER =
+  /^(cenarios?( (externos?|internos?|diversos?|recorrentes?|variados?))?|objetos? de cena|externos?|internos?)$/;
+
+function coreIsSceneHeader(core: string): boolean {
+  const s = normalizeForMatch(core);
+  return SCENE_HEADER_PREFIX.test(s) || BARE_QUALIFIER.test(s);
+}
+
 /**
  * Quebra um único rótulo (possivelmente verboso) em um ou mais chips curtos.
  * Retorna [] para entrada vazia.
@@ -34,7 +63,11 @@ export function splitChipLabel(raw: string): string[] {
   // Parêntese FINAL cujo conteúdo é uma enumeração (contém vírgula).
   // [^()]* evita capturar parênteses aninhados.
   const match = label.match(/^(.*?)\s*\(([^()]*,[^()]*)\)\s*$/u);
-  if (!match) return [label];
+  if (!match) {
+    // Cabeçalho de categoria genérico, isolado e sem específicos — não é chip
+    // postável ("Cenários externos", "Objetos de cena", "Internos"). Sai do mapa.
+    return BARE_SCENE_HEADER.test(normalizeForMatch(label)) ? [] : [label];
+  }
 
   const core = (match[1] ?? "").trim();
   const examples = (match[2] ?? "")
@@ -42,7 +75,9 @@ export function splitChipLabel(raw: string): string[] {
     .map((part) => capitalizeFirst(part.trim()))
     .filter(Boolean);
 
-  const out = [core, ...examples].filter(Boolean);
+  // Núcleo que é cabeçalho de cena ("Cenários externos") é descartado; só os
+  // específicos viram chip. Núcleo comum ("Família") é preservado.
+  const out = (coreIsSceneHeader(core) ? examples : [core, ...examples]).filter(Boolean);
 
   // Dedupe case-insensitive preservando a ordem.
   const seen = new Set<string>();
