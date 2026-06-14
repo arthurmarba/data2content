@@ -271,13 +271,13 @@ function EditableMapaChips({
         <span
           key={chip}
           style={{
-            display: "inline-flex", alignItems: "center", gap: 4,
-            borderRadius: 999, background: chipBg, color: chipColor,
+            display: "inline-flex", alignItems: "flex-start", gap: 4,
+            borderRadius: 12, background: chipBg, color: chipColor,
             fontSize: 13, fontWeight: 500, padding: "5px 8px 5px 13px", letterSpacing: -0.1,
-            maxWidth: "100%", overflow: "hidden",
+            maxWidth: "100%",
           }}
         >
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+          <span style={{ flex: 1, minWidth: 0, lineHeight: "18px" }}>
             {chip}
           </span>
           <button
@@ -289,7 +289,7 @@ function EditableMapaChips({
               width: 18, height: 18, borderRadius: 999,
               background: "rgba(0,0,0,0.12)", border: "none",
               cursor: "pointer", color: chipColor, flexShrink: 0,
-              padding: 0,
+              padding: 0, marginTop: 0,
             }}
           >
             <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
@@ -470,13 +470,13 @@ function RemovableAssetChip({ chip, onRemove }: { chip: string; onRemove: () => 
   return (
     <span
       style={{
-        display: "inline-flex", alignItems: "center", gap: 4,
-        borderRadius: 999, background: ASSET_CHIP_BG, color: ASSET_CHIP_COLOR,
+        display: "inline-flex", alignItems: "flex-start", gap: 4,
+        borderRadius: 12, background: ASSET_CHIP_BG, color: ASSET_CHIP_COLOR,
         fontSize: 13, fontWeight: 500, padding: "5px 8px 5px 13px", letterSpacing: -0.1,
-        maxWidth: "100%", overflow: "hidden",
+        maxWidth: "100%",
       }}
     >
-      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+      <span style={{ flex: 1, minWidth: 0, lineHeight: "18px" }}>
         {chip}
       </span>
       <button
@@ -725,13 +725,13 @@ function EditableTomField({
         <span
           key={chip}
           style={{
-            display: "inline-flex", alignItems: "center", gap: 4,
-            borderRadius: 999, background: chipBg, color: chipColor,
+            display: "inline-flex", alignItems: "flex-start", gap: 4,
+            borderRadius: 12, background: chipBg, color: chipColor,
             fontSize: 13, fontWeight: 500, padding: "5px 8px 5px 13px", letterSpacing: -0.1,
-            maxWidth: "100%", overflow: "hidden",
+            maxWidth: "100%",
           }}
         >
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0 }}>
+          <span style={{ flex: 1, minWidth: 0, lineHeight: "18px" }}>
             {chip}
           </span>
           <button
@@ -1927,10 +1927,14 @@ function PautasCard({
                 {isGeneratingIdeas ? "Buscando pautas…" : `Geradas hoje · ${new Date(contentIdeas[0].generatedAt).toLocaleDateString("pt-BR", { day: "numeric", month: "short" })}`}
               </p>
             ) : <span />}
-            {onRetryGenerateIdeas && !isGeneratingIdeas && (
+            {/* "Trocar por novas" regenera pautas frescas do mapa — recurso Pro.
+                Free vê o botão (gancho de upsell) mas o clique abre o paywall em
+                vez de gerar. O retry pós-falha (estado "failed", acima) segue livre:
+                recuperar de um erro não é gerar pautas novas. */}
+            {!isGeneratingIdeas && (isPro ? onRetryGenerateIdeas : onUpgrade) && (
               <button
                 type="button"
-                onClick={onRetryGenerateIdeas}
+                onClick={isPro ? onRetryGenerateIdeas : onUpgrade}
                 style={{
                   background: "none", border: "none", cursor: "pointer",
                   fontSize: 11, fontWeight: 600, color: "#7c3aed",
