@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
-import type { IMapaData } from "@/app/models/MapaSeed";
+import type { IMapaData, AssetGroupOverride } from "@/app/models/MapaSeed";
 import type {
   DiagnosticoCollabSuggestionsState,
   DiagnosticoCreatorDirectoryState,
@@ -429,9 +429,19 @@ const ASSET_GROUP_META: { key: LifeAssetGroup; label: string }[] = [
   { key: "vida", label: "Sua vida real" },
 ];
 
-function groupLifeAssets(items: string[]): Record<LifeAssetGroup, string[]> {
+function groupLifeAssets(
+  items: string[],
+  overrides?: AssetGroupOverride[] | null,
+): Record<LifeAssetGroup, string[]> {
   const groups: Record<LifeAssetGroup, string[]> = { cenario: [], objeto: [], vida: [] };
-  for (const it of items) groups[classifyLifeAsset(it)].push(it);
+  // Override explícito (asset adicionado manualmente numa seção) vence a heurística
+  // de palavra-chave — assim "Feira livre" adicionado em Cenários fica em Cenários.
+  const overrideMap = new Map<string, LifeAssetGroup>();
+  for (const o of overrides ?? []) overrideMap.set(o.label.toLowerCase().trim(), o.group);
+  for (const it of items) {
+    const group = overrideMap.get(it.toLowerCase().trim()) ?? classifyLifeAsset(it);
+    groups[group].push(it);
+  }
   return groups;
 }
 
@@ -499,12 +509,16 @@ function RemovableAssetChip({ chip, onRemove }: { chip: string; onRemove: () => 
   );
 }
 
-/** Add control compartilhado — sempre acrescenta ao pool flat de assets. */
+/** Add control compartilhado — acrescenta ao pool flat de assets, fixando o grupo
+ *  da seção em que foi adicionado (para o item não pular de seção). */
 function AssetAddControl({
   onMutate,
+  group,
   disabled = false,
 }: {
-  onMutate: (section: string, op: "add" | "remove" | "set", value: string) => void;
+  onMutate: (section: string, op: "add" | "remove" | "set", value: string, group?: LifeAssetGroup) => void;
+  /** Grupo da seção onde este controle vive — gravado como override no add. */
+  group: LifeAssetGroup;
   disabled?: boolean;
 }) {
   const [adding, setAdding] = useState(false);
@@ -517,7 +531,7 @@ function AssetAddControl({
 
   function submit() {
     const t = draft.trim();
-    if (t) onMutate("assets", "add", t.slice(0, 60));
+    if (t) onMutate("assets", "add", t.slice(0, 60), group);
     setDraft("");
     setAdding(false);
   }
@@ -589,20 +603,22 @@ function AssetAddControl({
 /**
  * Renderiza os assets em até 3 sub-seções de leitura (cenários / objetos /
  * núcleo de vida). Só grupos com itens aparecem. Em modo editável, cada chip tem
- * × e há um único "Adicionar" ao fim — o item novo cai no pool flat e se
- * reclassifica. Sem itens: uma única seção "Assets de vida" com add ou
- * "Emergindo...".
+ * × e CADA seção tem seu "Adicionar" — o item entra no pool flat com o grupo da
+ * seção gravado (override), então não pula de seção. Sem itens: uma única seção
+ * "Sua vida real" com add ou "Emergindo...".
  */
 function MapaAssetsGrouped({
   items,
   editable,
   onMutate,
+  assetGroups,
 }: {
   items: string[];
   editable: boolean;
-  onMutate?: (section: string, op: "add" | "remove" | "set", value: string) => void;
+  onMutate?: (section: string, op: "add" | "remove" | "set", value: string, group?: LifeAssetGroup) => void;
+  assetGroups?: AssetGroupOverride[] | null;
 }) {
-  const groups = groupLifeAssets(items);
+  const groups = groupLifeAssets(items, assetGroups);
   const visible = ASSET_GROUP_META.filter((g) => groups[g.key].length > 0);
 
   if (visible.length === 0) {
@@ -610,7 +626,7 @@ function MapaAssetsGrouped({
       <MapaSection labelColor="#c96a00" label="Sua vida real" icon={<LifeAssetGroupIcon group="vida" />}>
         {editable && onMutate ? (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2, alignItems: "center" }}>
-            <AssetAddControl onMutate={onMutate} />
+            <AssetAddControl onMutate={onMutate} group="vida" />
           </div>
         ) : (
           <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, margin: 0, fontStyle: "italic" }}>Emergindo...</p>
@@ -640,11 +656,10 @@ function MapaAssetsGrouped({
                 </span>
               ),
             )}
-            {/* Add em CADA seção — o item cai no pool flat e se reclassifica
-                sozinho. Antes ficava só na última seção, o que dava a impressão
-                de que Cenários/Objetos não aceitavam novos chips. */}
+            {/* Add em CADA seção — o item entra no pool flat gravando o grupo desta
+                seção como override, então fica aqui em vez de ser reclassificado. */}
             {editable && onMutate && items.length < 24 && (
-              <AssetAddControl onMutate={onMutate} />
+              <AssetAddControl onMutate={onMutate} group={g.key} />
             )}
           </div>
         </MapaSection>
@@ -1002,7 +1017,7 @@ function MapaCard({
   /** Full MapaSeed — source of truth for editable chips. */
   mapaSeed?: IMapaData | null;
   /** Mutate a MapaSeed section (add/remove arrays, set scalars). Caller owns optimistic + persist. */
-  onMapSeedMutate?: (section: string, op: "add" | "remove" | "set", value: string) => void;
+  onMapSeedMutate?: (section: string, op: "add" | "remove" | "set", value: string, group?: LifeAssetGroup) => void;
   /** Whether the creator has declared a purpose (creatorPurpose). Drives the "define seu norte" prompt. */
   hasPurpose?: boolean;
   /** Opens "Meu Norte" to declare/edit the purpose. */
@@ -1455,6 +1470,7 @@ function MapaCard({
         }
         editable={!!(mapaSeed && onMapSeedMutate)}
         onMutate={mapaSeed && onMapSeedMutate ? onMapSeedMutate : undefined}
+        assetGroups={mapaSeed?.assetGroups}
       />
       {activePending === "asset" && pendingAsset != null && onConfirmAsset != null && (
         <div style={{ paddingBottom: 16 }}>
@@ -2755,7 +2771,12 @@ export function DiagnosticoPage({
   const [mapaSeedLocal, setMapaSeedLocal] = useState<IMapaData | null>(data.mapaSeed ?? null);
   useEffect(() => { setMapaSeedLocal(data.mapaSeed ?? null); }, [data.mapaSeed]);
 
-  async function handleMapSeedMutate(section: string, op: "add" | "remove" | "set", value: string) {
+  async function handleMapSeedMutate(
+    section: string,
+    op: "add" | "remove" | "set",
+    value: string,
+    group?: LifeAssetGroup,
+  ) {
     // Optimistic: update local state immediately
     setMapaSeedLocal((prev) => {
       if (!prev) return prev;
@@ -2772,6 +2793,15 @@ export function DiagnosticoPage({
       } else {
         clone[section] = arr.filter((v) => v.toLowerCase().trim() !== value.toLowerCase().trim());
       }
+      // Espelha o override de grupo no estado local (mesma regra do servidor) para
+      // o asset cair na seção certa imediatamente, sem esperar o refresh.
+      if (section === "assets") {
+        const key = value.toLowerCase().trim();
+        const groups = (Array.isArray(clone.assetGroups) ? clone.assetGroups : []) as AssetGroupOverride[];
+        const without = groups.filter((g) => g.label.toLowerCase().trim() !== key);
+        clone.assetGroups =
+          op === "add" && group ? [...without, { label: value, group }] : without;
+      }
       return clone as unknown as IMapaData;
     });
 
@@ -2779,7 +2809,7 @@ export function DiagnosticoPage({
       await fetch("/api/dashboard/mobile-strategic-profile/map-seed", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ section, op, value }),
+        body: JSON.stringify({ section, op, value, ...(group ? { group } : {}) }),
       });
     } catch {
       // non-fatal — optimistic state is already applied; refresh will reconcile

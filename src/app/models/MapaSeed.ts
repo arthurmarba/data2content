@@ -37,12 +37,28 @@ export interface IOnboardingAnswers {
 
 // ─── Estrutura do Mapa ────────────────────────────────────────────────────────
 
+/**
+ * Grupo de LEITURA de um asset no card "Seu Mapa". `assets` é um POOL FLAT (a
+ * geração de pautas consome a lista crua); este agrupamento é só display. A IA não
+ * grava grupo — o card o infere por palavra-chave. Mas um asset ADICIONADO
+ * manualmente numa seção específica (ex.: "Feira livre" em Cenários) grava aqui o
+ * grupo escolhido, para não ser reclassificado pela heurística e pular de seção.
+ */
+export type LifeAssetGroupKey = "cenario" | "objeto" | "vida";
+
+export interface AssetGroupOverride {
+  label: string;
+  group: LifeAssetGroupKey;
+}
+
 export interface IMapaData {
   narrativa_central: string;
   territorios: string[];
   temas: string[];
   narrativas_adjacentes: string[];
   assets: string[];
+  /** Overrides de grupo por asset adicionado manualmente. Ver AssetGroupOverride. */
+  assetGroups?: AssetGroupOverride[];
   tom: string;
   formatos: string[];
   maturidade: MapaMaturidade;
@@ -110,6 +126,21 @@ const MapaDataSchema = new Schema<IMapaData>(
     temas:                  { type: [String], default: [] },
     narrativas_adjacentes:  { type: [String], default: [] },
     assets:                 { type: [String], default: [] },
+    // Override de grupo por asset adicionado manualmente (display do card). Array
+    // de {label, group} — não Map/objeto — para o label ser VALOR e não nome de
+    // campo (MongoDB proíbe "." em nome de campo; labels têm pontos/acentos).
+    assetGroups: {
+      type: [
+        new Schema<AssetGroupOverride>(
+          {
+            label: { type: String, required: true },
+            group: { type: String, enum: ["cenario", "objeto", "vida"], required: true },
+          },
+          { _id: false },
+        ),
+      ],
+      default: undefined,
+    },
     // tom não é cravado no estágio "seed" (onboarding leve só dá a narrativa).
     // Enriquecimento de Instagram/vídeo preenche depois. Default "" em vez de
     // required para permitir o MapaSeed nascer no onboarding (Fase 2A).

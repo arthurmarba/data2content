@@ -5,11 +5,14 @@
  * a scalar section. The caller applies an optimistic update and calls
  * router.refresh() after to get the merged synthesis.
  *
- * Body: { section, op, value }
+ * Body: { section, op, value, group? }
  *   section: "narrativa_central" | "tom" | "territorios" | "temas" | "assets"
  *            | "narrativas_adjacentes" | "formatos"
  *   op:      "set" (scalars) | "add" | "remove" (arrays)
  *   value:   string — new value (set/add) or item to delete (remove)
+ *   group?:  "cenario" | "objeto" | "vida" — só para section "assets". Fixa o grupo
+ *            de leitura do asset adicionado manualmente (evita reclassificação por
+ *            palavra-chave). Persistido em mapa.assetGroups.
  */
 
 import { NextResponse } from "next/server";
@@ -29,6 +32,9 @@ const ARRAY_SECTIONS = [
 ] as const;
 
 const SCALAR_SECTIONS = ["narrativa_central", "tom"] as const;
+
+const ASSET_GROUPS = ["cenario", "objeto", "vida"] as const;
+type AssetGroup = (typeof ASSET_GROUPS)[number];
 
 // Seções cujo conteúdo curado manualmente o enriquecimento deve preservar.
 const LOCKABLE_SECTIONS = ["territorios", "temas", "assets"] as const;
@@ -96,7 +102,7 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ message: "Mapa não encontrado." }, { status: 404 });
     }
 
-    const { section, op, value } = parsed;
+    const { section, op, value, group } = parsed;
     const mapa = doc.mapa as unknown as Record<string, unknown>;
 
     if (SCALAR_SECTIONS.includes(section as ScalarSection)) {
@@ -114,11 +120,27 @@ export async function PATCH(request: Request) {
           arr.push(trimmed);
         }
         mapa[section] = arr;
+        // Asset adicionado numa seção específica grava o grupo escolhido, para a
+        // leitura não reclassificá-lo por palavra-chave. Upsert por label.
+        if (section === "assets" && group && trimmed) {
+          mapa.assetGroups = upsertAssetGroup(
+            mapa.assetGroups as { label: string; group: string }[] | undefined,
+            trimmed,
+            group,
+          );
+        }
       } else {
         // remove
         mapa[section] = arr.filter(
           (v) => v.toLowerCase().trim() !== value.toLowerCase().trim(),
         );
+        // Remover o asset também descarta seu override de grupo.
+        if (section === "assets") {
+          mapa.assetGroups = dropAssetGroup(
+            mapa.assetGroups as { label: string; group: string }[] | undefined,
+            value,
+          );
+        }
       }
 
       // Marca a seção como editada manualmente — o enriquecimento (Instagram/
@@ -143,9 +165,44 @@ export async function PATCH(request: Request) {
   }
 }
 
+// ─── assetGroups helpers ──────────────────────────────────────────────────────
+
+type AssetGroupEntry = { label: string; group: string };
+
+/** Insere/atualiza o grupo de um asset por label (case-insensitive). */
+export function upsertAssetGroup(
+  current: AssetGroupEntry[] | undefined,
+  label: string,
+  group: AssetGroup,
+): AssetGroupEntry[] {
+  const key = label.toLowerCase().trim();
+  const next = (Array.isArray(current) ? current : []).filter(
+    (e) => e.label.toLowerCase().trim() !== key,
+  );
+  next.push({ label, group });
+  return next;
+}
+
+/** Remove o override de grupo de um asset por label (case-insensitive). */
+export function dropAssetGroup(
+  current: AssetGroupEntry[] | undefined,
+  label: string,
+): AssetGroupEntry[] | undefined {
+  if (!Array.isArray(current) || current.length === 0) return current;
+  const key = label.toLowerCase().trim();
+  const next = current.filter((e) => e.label.toLowerCase().trim() !== key);
+  return next.length > 0 ? next : undefined;
+}
+
 // ─── Input validation ─────────────────────────────────────────────────────────
 
-type ParseOk  = { ok: true; section: Section; op: "set" | "add" | "remove"; value: string };
+type ParseOk  = {
+  ok: true;
+  section: Section;
+  op: "set" | "add" | "remove";
+  value: string;
+  group?: AssetGroup;
+};
 type ParseErr = { ok: false; error: string };
 
 function parseBody(body: unknown): ParseOk | ParseErr {
@@ -185,5 +242,14 @@ function parseBody(body: unknown): ParseOk | ParseErr {
     return { ok: false, error: "value é obrigatório e não pode ser vazio." };
   }
 
-  return { ok: true, section, op, value: b.value.trim() };
+  // group é opcional e só vale para "assets"; ignorado nas demais seções.
+  let group: AssetGroup | undefined;
+  if (b.group !== undefined && b.group !== null) {
+    if (section !== "assets" || !ASSET_GROUPS.includes(b.group as AssetGroup)) {
+      return { ok: false, error: `group deve ser um de: ${ASSET_GROUPS.join(", ")} (apenas para "assets").` };
+    }
+    group = b.group as AssetGroup;
+  }
+
+  return { ok: true, section, op, value: b.value.trim(), group };
 }
