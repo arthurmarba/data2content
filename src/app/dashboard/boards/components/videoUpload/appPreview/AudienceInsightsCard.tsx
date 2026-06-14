@@ -950,7 +950,7 @@ export function AudienceConnectPrompt({
       </p>
       <p style={{ fontSize: 14, color: "#a1a1aa", margin: "6px 0 16px", lineHeight: 1.5 }}>
         {pending
-          ? "A D2C está lendo sua grade — os sinais da sua audiência aparecem aqui em instantes."
+          ? "A D2C está lendo seus posts um a um para revelar o que sua audiência reconhece em você. Os primeiros sinais aparecem conforme a leitura avança — pode levar algumas horas."
           : isPro
           ? "Conecte o Instagram para a D2C revelar sinais que o seu perfil sozinho não mostra."
           : "No Pro, a D2C lê sua grade do Instagram e revela sinais que o seu perfil sozinho não mostra."}

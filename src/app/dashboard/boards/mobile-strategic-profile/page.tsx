@@ -180,7 +180,13 @@ export default async function MobileStrategicProfilePage({
             ? buildAudienceInsights(userId, {
                 confirmedTerritoryLabels: (selectorResult.profileSynthesis.narrativeTerritories ?? [])
                   .map((t) => t.label),
-              }).catch(() => null)
+              }).catch((err) => {
+                // Não engolir em silêncio: uma exceção aqui é indistinguível, na UI, de
+                // "ainda processando" — o card fica preso em "Processando seus sinais".
+                // Logar para diferenciar quebra de processamento legítimo.
+                console.error("[mobile-strategic-profile] buildAudienceInsights falhou:", err);
+                return null;
+              })
             : Promise.resolve(null),
         ]);
         // Pautas are Pro-only. For non-premium users, mark as not ready with the
