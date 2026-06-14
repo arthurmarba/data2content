@@ -1811,11 +1811,13 @@ function PautasCard({
           </span>
         );
       }
-      if (onConnectWhatsApp) {
+      // Alertas no WhatsApp são Pro: free vê "Receber" mas o clique abre o paywall.
+      const onReceber = isPro ? onConnectWhatsApp : onUpgrade;
+      if (onReceber) {
         return (
           <button
             type="button"
-            onClick={onConnectWhatsApp}
+            onClick={onReceber}
             style={{
               display: "inline-flex", alignItems: "center", gap: 5,
               borderRadius: 999, padding: "6px 14px",
