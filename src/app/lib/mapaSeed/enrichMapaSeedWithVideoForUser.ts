@@ -28,10 +28,19 @@ export async function enrichMapaSeedWithVideoForUser(userId: string): Promise<vo
   try {
     await connectToDatabase();
 
-    const mapaDoc = await MapaSeedModel.findOne({ userId });
+    // Auto-cura: se o usuário ainda não tem MapaSeed (ex.: onboardou sem declarar
+    // propósito, ou o seeding declarativo falhou), cria um seed vazio para que a
+    // leitura de vídeo possa preencher narrativa/territórios/temas/assets/tom logo
+    // abaixo. Espelha o caminho de Instagram (enrichMapaSeedWithInstagram) e remove
+    // a dependência de o criador ter passado pelo seeding declarativo antes de
+    // subir o primeiro vídeo — garantindo que o vídeo sempre aprimore o mapa.
+    let mapaDoc = await MapaSeedModel.findOne({ userId });
     if (!mapaDoc) {
-      logger.info(`${TAG} Sem MapaSeed para userId=${userId} — enriquecimento de vídeo ignorado.`);
-      return;
+      mapaDoc = await MapaSeedModel.create({
+        userId,
+        mapa: { maturidade: "seed", fonte: ["video"] },
+      });
+      logger.info(`${TAG} MapaSeed ausente — criado seed vazio para enriquecer via vídeo. userId=${userId}`);
     }
 
     // Só as leituras que o criador escolheu publicar alimentam o mapa

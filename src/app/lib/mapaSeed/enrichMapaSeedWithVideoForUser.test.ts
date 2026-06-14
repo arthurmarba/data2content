@@ -14,9 +14,13 @@ jest.mock("@/app/lib/logger", () => ({
 
 const mockMapaSave = jest.fn().mockResolvedValue(undefined);
 const mockMapaFindOne = jest.fn();
+const mockMapaCreate = jest.fn();
 jest.mock("@/app/models/MapaSeed", () => ({
   __esModule: true,
-  default: { findOne: (...args: unknown[]) => mockMapaFindOne(...args) },
+  default: {
+    findOne: (...args: unknown[]) => mockMapaFindOne(...args),
+    create: (...args: unknown[]) => mockMapaCreate(...args),
+  },
 }));
 
 // Mantém o readingFeedsNarrativeMap real (predicado puro), mocka só a query.
@@ -124,13 +128,25 @@ describe("enrichMapaSeedWithVideoForUser", () => {
     });
   });
 
-  it("não faz nada se MapaSeed não existe", async () => {
+  it("auto-cura: cria seed vazio e enriquece quando MapaSeed não existe", async () => {
     mockMapaFindOne.mockResolvedValue(null);
+    mockMapaCreate.mockResolvedValue(makeMapaDoc({ mapa: { maturidade: "seed", fonte: ["video"] } }));
+    mockListReadings.mockResolvedValue([yesReading]);
+    mockBuildSynthesis.mockReturnValue(richSynthesis);
+    mockEnrichVideo.mockResolvedValue(enrichedMapa);
 
     await enrichMapaSeedWithVideoForUser("user123");
 
-    expect(mockListReadings).not.toHaveBeenCalled();
-    expect(mockMapaSave).not.toHaveBeenCalled();
+    // Seed vazio criado a partir do vídeo, e o pipeline de enriquecimento roda.
+    expect(mockMapaCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user123",
+        mapa: expect.objectContaining({ maturidade: "seed", fonte: ["video"] }),
+      }),
+    );
+    expect(mockListReadings).toHaveBeenCalled();
+    expect(mockEnrichVideo).toHaveBeenCalled();
+    expect(mockMapaSave).toHaveBeenCalledTimes(1);
   });
 
   it("não faz nada se não há leituras publicadas (todas 'no')", async () => {
