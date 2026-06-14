@@ -116,7 +116,6 @@ export async function enrichMapaSeedWithInstagram(userId: string): Promise<void>
       mapaDoc.mapa,
       padroes,
       locks,
-      mapaDoc.editedSections,
     );
 
     mapaDoc.mapa = mapaEnriquecido;

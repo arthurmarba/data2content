@@ -98,7 +98,6 @@ describe("enrichMapaSeedWithInstagram", () => {
       expect.objectContaining({ maturidade: "seed" }),
       fakePadroes,
       expect.objectContaining({ narrativeLocked: false, toneLocked: false }),
-      undefined,
     );
     expect(mockMapaSave).toHaveBeenCalledTimes(1);
   });
@@ -117,7 +116,6 @@ describe("enrichMapaSeedWithInstagram", () => {
       expect.anything(),
       fakePadroes,
       expect.objectContaining({ narrativeLocked: true, toneLocked: false }),
-      undefined,
     );
   });
 

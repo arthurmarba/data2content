@@ -10,10 +10,10 @@ import type { IMapaData, MapaFonte } from "@/app/models/MapaSeed";
 import type { CreatorStrategicProfileSynthesis } from "@/app/dashboard/boards/videoUpload/creatorStrategicProfileSynthesis";
 import {
   applyCoreStabilityLocks,
-  applyEditedArrayLocks,
+  mergeEnrichmentArrays,
   type CoreStabilityLocks,
 } from "./coreStabilityLocks";
-import { MAPA_LAYERS_GUIDE, MAPA_COERENCIA_RULE, MAPA_TOM_RULE } from "./mapaLayersGuide";
+import { MAPA_LAYERS_GUIDE, MAPA_COERENCIA_RULE, MAPA_TOM_RULE, MAPA_PRESERVATION_RULE } from "./mapaLayersGuide";
 
 // ─── Resumo compacto e seguro da síntese ───────────────────────────────────────
 
@@ -75,6 +75,8 @@ Respeite rigorosamente a definição de cada camada — é o que torna o mapa pr
 
 ${MAPA_LAYERS_GUIDE}
 
+${MAPA_PRESERVATION_RULE}
+
 Gere o mapa enriquecido com os campos abaixo, seguindo o gabarito acima:
 
 - narrativa_central: a IDENTIDADE do dono da conta (missão ou tensão de vida).
@@ -83,16 +85,17 @@ Gere o mapa enriquecido com os campos abaixo, seguindo o gabarito acima:
   descrição do que os vídeos falam, nunca em 3ª pessoa sobre "criadores". Se a
   confiança da narrativa de vídeo for baixa, prefira o mapa atual.
 - territorios: substantivos curtos e objetivos (1-3 palavras), sem sufixo de
-  público. Combine os do mapa com os territórios dos vídeos; remova o que não
-  aparece em nenhuma fonte. 2 a 4 itens.
+  público. Mantenha TODOS os do mapa e acrescente os novos territórios que os
+  vídeos revelarem.
 - temas: o cruzamento território × narrativa — cenas concretas, não ecos do
-  assunto. Derive das situações recorrentes nos vídeos. 2 a 4 itens.
+  assunto. Mantenha os do mapa e derive novos das situações recorrentes nos vídeos.
 - narrativas_adjacentes: extensões coerentes nas bordas — mantenha as existentes
   e adicione se os vídeos sugerirem direção nova.
-- assets: combine os do mapa com os assets recorrentes dos vídeos. Curtos.
+- assets: mantenha TODOS os do mapa e acrescente os assets recorrentes dos vídeos
+  que ainda não estejam lá. Curtos.
 - tom: ${MAPA_TOM_RULE} Se o tom do mapa e o dos vídeos divergirem, use o dos
   vídeos e registre a divergência em "observacoes".
-- formatos: mantenha os formatos do mapa atual (a síntese de vídeo não os altera).
+- formatos: mantenha os do mapa e acrescente os que os vídeos revelarem.
 - observacoes: divergências relevantes. Máx. 2. Linguagem calma, sem julgamento.
   Vazio [] se não houver.
 
@@ -123,7 +126,6 @@ export async function enrichMapaWithVideoReadings(
   mapaAtual: IMapaData,
   synthesis: CreatorStrategicProfileSynthesis,
   locks?: CoreStabilityLocks,
-  editedSections?: string[],
 ): Promise<IMapaData> {
   const TAG = "[mapaSeed][enrichMapaWithVideoReadings]";
 
@@ -172,25 +174,35 @@ export async function enrichMapaWithVideoReadings(
     source: { narrativePrefix: "Seus vídeos sugerem", tonePhrase: "nos vídeos" },
   });
 
-  // Seções editadas pelo criador (territorios/temas/assets) não são sobrescritas.
-  const lockedArrays = applyEditedArrayLocks({
+  // Invariante: união, nunca substituição. Chips existentes sobrevivem; o vídeo só
+  // adiciona novos; o que o criador removeu (dismissedChips) não ressuscita.
+  const merged = mergeEnrichmentArrays({
     mapaAtual,
-    proposed: { territorios: raw.territorios, temas: raw.temas, assets: raw.assets },
-    editedSections,
+    proposed: {
+      territorios:           raw.territorios,
+      temas:                 raw.temas,
+      narrativas_adjacentes: raw.narrativas_adjacentes,
+      assets:                raw.assets,
+      formatos:              raw.formatos,
+    },
+    dismissed: mapaAtual.dismissedChips,
   });
 
   const mapaEnriquecido: IMapaData = {
     narrativa_central:     narrativaFinal,
-    territorios:           lockedArrays.territorios,
-    temas:                 lockedArrays.temas,
-    narrativas_adjacentes: raw.narrativas_adjacentes ?? mapaAtual.narrativas_adjacentes,
-    assets:                lockedArrays.assets,
+    territorios:           merged.territorios,
+    temas:                 merged.temas,
+    narrativas_adjacentes: merged.narrativas_adjacentes,
+    assets:                merged.assets,
     tom:                   tomFinal,
-    formatos:              raw.formatos              ?? mapaAtual.formatos,
+    formatos:              merged.formatos,
     maturidade:            "video_enriched",
     fonte:                 ([...new Set([...mapaAtual.fonte, "video"])] as MapaFonte[]),
     observacoes:           observacoes.slice(0, 3),
     amostragem_instagram:  mapaAtual.amostragem_instagram,
+    // Preserva metadados do criador que o LLM não produz.
+    assetGroups:           mapaAtual.assetGroups,
+    dismissedChips:        mapaAtual.dismissedChips,
   };
 
   logger.info(`${TAG} Mapa enriquecido com vídeo: "${mapaEnriquecido.narrativa_central}"`);

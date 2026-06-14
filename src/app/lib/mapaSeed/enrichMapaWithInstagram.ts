@@ -9,10 +9,10 @@ import type { IMapaData, MapaFonte } from "@/app/models/MapaSeed";
 import type { InstagramPatterns } from "./analyzeInstagramPosts";
 import {
   applyCoreStabilityLocks,
-  applyEditedArrayLocks,
+  mergeEnrichmentArrays,
   type CoreStabilityLocks,
 } from "./coreStabilityLocks";
-import { MAPA_LAYERS_GUIDE, MAPA_COERENCIA_RULE, MAPA_TOM_RULE } from "./mapaLayersGuide";
+import { MAPA_LAYERS_GUIDE, MAPA_COERENCIA_RULE, MAPA_TOM_RULE, MAPA_PRESERVATION_RULE } from "./mapaLayersGuide";
 
 export type { CoreStabilityLocks } from "./coreStabilityLocks";
 
@@ -40,6 +40,8 @@ Respeite rigorosamente a definição de cada camada — é o que torna o mapa pr
 
 ${MAPA_LAYERS_GUIDE}
 
+${MAPA_PRESERVATION_RULE}
+
 Gere o mapa enriquecido com os campos abaixo, seguindo o gabarito acima:
 
 - narrativa_central: a IDENTIDADE do dono da conta (missão ou tensão de vida).
@@ -47,16 +49,17 @@ Gere o mapa enriquecido com os campos abaixo, seguindo o gabarito acima:
   atualize — mas SEMPRE como identidade da pessoa, nunca como descrição do que
   os posts falam, nunca em 3ª pessoa sobre "criadores".
 - territorios: substantivos curtos e objetivos (1-3 palavras), sem sufixo de
-  público. Combine os declarados com os temas recorrentes reais; remova o que não
-  aparece em nenhuma fonte. 2 a 4 itens.
+  público. Mantenha TODOS os declarados e acrescente os temas recorrentes reais
+  que ainda não estejam lá.
 - temas: o cruzamento território × narrativa — cenas concretas, não ecos do
-  assunto. Derive das situações que aparecem no conteúdo. 2 a 4 itens.
-- narrativas_adjacentes: extensões coerentes nas bordas — ainda não são o foco.
-- assets: combine os declarados com os identificados no Instagram. Elementos
-  concretos da vida, curtos.
+  assunto. Mantenha os do mapa e derive novos das situações que aparecem no conteúdo.
+- narrativas_adjacentes: extensões coerentes nas bordas — mantenha as existentes
+  e adicione se o Instagram sugerir direção nova.
+- assets: mantenha TODOS os declarados e acrescente os identificados no Instagram
+  que ainda não estejam lá. Elementos concretos da vida, curtos.
 - tom: ${MAPA_TOM_RULE} Se o tom declarado e o real divergirem, use o tom real e
   registre a divergência em "observacoes".
-- formatos: combine declarados com os realmente usados.
+- formatos: mantenha os declarados e acrescente os realmente usados.
 - observacoes: divergências relevantes entre o declarado e o real. Máx. 2.
   Linguagem calma, sem julgamento. Vazio [] se não houver.
 
@@ -87,7 +90,6 @@ export async function enrichMapaWithInstagram(
   mapaAtual: IMapaData,
   patterns: InstagramPatterns,
   locks?: CoreStabilityLocks,
-  editedSections?: string[],
 ): Promise<IMapaData> {
   const TAG = "[mapaSeed][enrichMapaWithInstagram]";
 
@@ -140,25 +142,35 @@ export async function enrichMapaWithInstagram(
     source: { narrativePrefix: "Seu Instagram sugere", tonePhrase: "no Instagram" },
   });
 
-  // Seções editadas pelo criador (territorios/temas/assets) não são sobrescritas.
-  const lockedArrays = applyEditedArrayLocks({
+  // Invariante: união, nunca substituição. Chips existentes sobrevivem; o Instagram
+  // só adiciona novos; o que o criador removeu (dismissedChips) não ressuscita.
+  const merged = mergeEnrichmentArrays({
     mapaAtual,
-    proposed: { territorios: raw.territorios, temas: raw.temas, assets: raw.assets },
-    editedSections,
+    proposed: {
+      territorios:           raw.territorios,
+      temas:                 raw.temas,
+      narrativas_adjacentes: raw.narrativas_adjacentes,
+      assets:                raw.assets,
+      formatos:              raw.formatos,
+    },
+    dismissed: mapaAtual.dismissedChips,
   });
 
   const mapaEnriquecido: IMapaData = {
     narrativa_central:     narrativaFinal,
-    territorios:           lockedArrays.territorios,
-    temas:                 lockedArrays.temas,
-    narrativas_adjacentes: raw.narrativas_adjacentes ?? mapaAtual.narrativas_adjacentes,
-    assets:                lockedArrays.assets,
+    territorios:           merged.territorios,
+    temas:                 merged.temas,
+    narrativas_adjacentes: merged.narrativas_adjacentes,
+    assets:                merged.assets,
     tom:                   tomFinal,
-    formatos:              raw.formatos              ?? mapaAtual.formatos,
+    formatos:              merged.formatos,
     maturidade:            "instagram_enriched",
     fonte:                 ([...new Set([...mapaAtual.fonte, "instagram"])] as MapaFonte[]),
     observacoes:           observacoes.slice(0, 3),
     amostragem_instagram:  patterns.amostragem,
+    // Preserva metadados do criador que o LLM não produz.
+    assetGroups:           mapaAtual.assetGroups,
+    dismissedChips:        mapaAtual.dismissedChips,
   };
 
   logger.info(`${TAG} Mapa enriquecido: "${mapaEnriquecido.narrativa_central}"`);

@@ -73,7 +73,6 @@ export async function enrichMapaSeedWithVideoForUser(userId: string): Promise<vo
       mapaDoc.mapa,
       synthesis,
       locks,
-      mapaDoc.editedSections,
     );
 
     mapaDoc.mapa = mapaEnriquecido;

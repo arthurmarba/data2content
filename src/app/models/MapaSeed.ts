@@ -51,6 +51,16 @@ export interface AssetGroupOverride {
   group: LifeAssetGroupKey;
 }
 
+/**
+ * Chip que o criador REMOVEU manualmente de uma seção de array. Tombstone: o
+ * enriquecimento (Instagram/vídeo) não ressuscita o que o criador apagou — só o
+ * criador controla a deleção. Limpo quando ele re-adiciona o mesmo chip.
+ */
+export interface DismissedChip {
+  section: string;
+  label: string;
+}
+
 export interface IMapaData {
   narrativa_central: string;
   territorios: string[];
@@ -59,6 +69,8 @@ export interface IMapaData {
   assets: string[];
   /** Overrides de grupo por asset adicionado manualmente. Ver AssetGroupOverride. */
   assetGroups?: AssetGroupOverride[];
+  /** Chips removidos pelo criador — o enriquecimento não os ressuscita. Ver DismissedChip. */
+  dismissedChips?: DismissedChip[];
   tom: string;
   formatos: string[];
   maturidade: MapaMaturidade;
@@ -135,6 +147,19 @@ const MapaDataSchema = new Schema<IMapaData>(
           {
             label: { type: String, required: true },
             group: { type: String, enum: ["cenario", "objeto", "vida"], required: true },
+          },
+          { _id: false },
+        ),
+      ],
+      default: undefined,
+    },
+    // Tombstones de chips removidos pelo criador — o enriquecimento não ressuscita.
+    dismissedChips: {
+      type: [
+        new Schema<DismissedChip>(
+          {
+            section: { type: String, required: true },
+            label: { type: String, required: true },
           },
           { _id: false },
         ),

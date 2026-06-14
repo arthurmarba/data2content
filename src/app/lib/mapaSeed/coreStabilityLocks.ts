@@ -71,33 +71,78 @@ export function applyCoreStabilityLocks(params: {
   return { narrativaFinal, tomFinal, observacoes };
 }
 
-// ─── Locks de seção de array editada pelo criador ─────────────────────────────
+// ─── Merge de enriquecimento: união, nunca substituição ───────────────────────
 //
-// Estende a filosofia do núcleo para os chips: territorios/temas/assets que o
-// criador EDITOU manualmente (via PATCH no card) não são sobrescritos pelo
-// enriquecimento. A fonte propõe; quem editou, manda. Quais seções foram
-// editadas vem de MapaSeed.editedSections (marcado no PATCH manual).
+// Invariante central do mapa (data2content): UM CHIP INSERIDO NUNCA É EXCLUÍDO
+// pelo enriquecimento — só o criador remove um chip. O enriquecimento (Instagram/
+// vídeo) só pode REFINAR (a redação, no prompt) ou ADICIONAR chips novos. Logo o
+// merge é UNIÃO (existentes ∪ propostos), nunca substituição:
+//   - todo chip existente sobrevive (ordem preservada);
+//   - propostos que repetem um existente são ignorados (o existente — possivelmente
+//     curado pelo criador — vence; o refino de redação fica a cargo do prompt);
+//   - propostos que o criador REMOVEU (tombstones) não ressuscitam;
+//   - o cap limita apenas ADIÇÕES — existentes acima do cap nunca caem.
+// Substitui a antiga trava binária por seção (`applyEditedArrayLocks`), que ou
+// congelava a seção inteira (bloqueando crescimento) ou a substituía (apagando
+// chips silenciosamente) — ambos violavam a invariante.
 
-export const LOCKABLE_ARRAY_SECTIONS = ["territorios", "temas", "assets"] as const;
-export type LockableArraySection = (typeof LOCKABLE_ARRAY_SECTIONS)[number];
+export const ENRICHABLE_ARRAY_SECTIONS = [
+  "territorios",
+  "temas",
+  "narrativas_adjacentes",
+  "assets",
+  "formatos",
+] as const;
+export type EnrichableArraySection = (typeof ENRICHABLE_ARRAY_SECTIONS)[number];
 
-/**
- * Para cada seção de array travável: se o criador a editou, mantém o array atual
- * (curado por ele); senão, usa o proposto pela fonte (com fallback ao atual
- * quando a fonte não propõe nada).
- */
-export function applyEditedArrayLocks(params: {
-  mapaAtual: Pick<IMapaData, LockableArraySection>;
-  proposed: Partial<Pick<IMapaData, LockableArraySection>>;
-  editedSections: string[] | undefined;
-}): Pick<IMapaData, LockableArraySection> {
-  const { mapaAtual, proposed, editedSections } = params;
-  const edited = new Set(editedSections ?? []);
-  const out = {} as Pick<IMapaData, LockableArraySection>;
-  for (const section of LOCKABLE_ARRAY_SECTIONS) {
-    out[section] = edited.has(section)
-      ? (mapaAtual[section] ?? [])
-      : (proposed[section] ?? mapaAtual[section] ?? []);
+// Cap de ADIÇÕES por seção. Mantém o mapa enxuto (UI calma) sem nunca remover
+// chips existentes — se já houver mais que o cap, todos são preservados.
+const ADDITION_CAPS: Record<EnrichableArraySection, number> = {
+  territorios: 6,
+  temas: 6,
+  narrativas_adjacentes: 4,
+  assets: 8,
+  formatos: 6,
+};
+
+function normalizeChip(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export interface DismissedChipRef {
+  section: string;
+  label: string;
+}
+
+export function mergeEnrichmentArrays(params: {
+  mapaAtual: Pick<IMapaData, EnrichableArraySection>;
+  proposed: Partial<Pick<IMapaData, EnrichableArraySection>>;
+  dismissed?: DismissedChipRef[] | null;
+}): Pick<IMapaData, EnrichableArraySection> {
+  const { mapaAtual, proposed, dismissed } = params;
+  const out = {} as Pick<IMapaData, EnrichableArraySection>;
+
+  for (const section of ENRICHABLE_ARRAY_SECTIONS) {
+    const existing = (mapaAtual[section] ?? []).filter(Boolean);
+    const result = [...existing]; // existentes NUNCA caem
+    const seen = new Set(result.map(normalizeChip));
+    const tombstoned = new Set(
+      (dismissed ?? [])
+        .filter((d) => d.section === section)
+        .map((d) => normalizeChip(d.label)),
+    );
+    const cap = ADDITION_CAPS[section];
+
+    for (const candidate of (proposed[section] ?? []).filter(Boolean)) {
+      const key = normalizeChip(candidate);
+      if (seen.has(key)) continue;     // já existe (refino/dup) → existente vence
+      if (tombstoned.has(key)) continue; // removido pelo criador → não ressuscita
+      if (result.length >= cap) break;   // cap limita só ADIÇÕES
+      result.push(candidate);
+      seen.add(key);
+    }
+    out[section] = result;
   }
+
   return out;
 }

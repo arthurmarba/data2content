@@ -1,6 +1,6 @@
 // src/app/lib/mapaSeed/coreStabilityLocks.test.ts
 
-import { applyCoreStabilityLocks, applyEditedArrayLocks } from "./coreStabilityLocks";
+import { applyCoreStabilityLocks, mergeEnrichmentArrays } from "./coreStabilityLocks";
 
 const source = { narrativePrefix: "Seu Instagram sugere", tonePhrase: "no Instagram" };
 const mapaAtual = { narrativa_central: "quem constrói devagar", tom: "calmo" };
@@ -50,53 +50,63 @@ describe("applyCoreStabilityLocks", () => {
   });
 });
 
-describe("applyEditedArrayLocks", () => {
+describe("mergeEnrichmentArrays", () => {
   const mapaArrays = {
     territorios: ["paternidade", "carreira"],
     temas: ["sair do trabalho pra ver a família"],
+    narrativas_adjacentes: [],
     assets: ["casado", "pai de dois"],
-  };
-  const proposed = {
-    territorios: ["publicidade", "ia"],
-    temas: ["gravando no escritório"],
-    assets: ["ex-corporativo"],
+    formatos: ["reels"],
   };
 
-  it("sem seções editadas: usa tudo o que a fonte propõe", () => {
-    const r = applyEditedArrayLocks({ mapaAtual: mapaArrays, proposed, editedSections: [] });
-    expect(r.territorios).toEqual(["publicidade", "ia"]);
-    expect(r.temas).toEqual(["gravando no escritório"]);
-    expect(r.assets).toEqual(["ex-corporativo"]);
+  it("união: mantém TODOS os existentes e acrescenta os novos propostos", () => {
+    const r = mergeEnrichmentArrays({
+      mapaAtual: mapaArrays,
+      proposed: {
+        territorios: ["publicidade", "ia"],
+        temas: ["gravando no escritório"],
+        assets: ["ex-corporativo"],
+      },
+    });
+    expect(r.territorios).toEqual(["paternidade", "carreira", "publicidade", "ia"]);
+    expect(r.temas).toEqual(["sair do trabalho pra ver a família", "gravando no escritório"]);
+    expect(r.assets).toEqual(["casado", "pai de dois", "ex-corporativo"]);
   });
 
-  it("mantém apenas a seção editada; as outras recebem o proposto", () => {
-    const r = applyEditedArrayLocks({
+  it("NUNCA remove um existente, mesmo que a fonte não o proponha", () => {
+    const r = mergeEnrichmentArrays({
       mapaAtual: mapaArrays,
-      proposed,
-      editedSections: ["territorios"],
+      proposed: { territorios: ["ia"] }, // não cita paternidade/carreira
     });
-    expect(r.territorios).toEqual(["paternidade", "carreira"]); // travado
-    expect(r.temas).toEqual(["gravando no escritório"]); // livre
-    expect(r.assets).toEqual(["ex-corporativo"]); // livre
+    expect(r.territorios).toEqual(["paternidade", "carreira", "ia"]);
   });
 
-  it("trava várias seções de uma vez", () => {
-    const r = applyEditedArrayLocks({
+  it("refino/duplicata (case/espaço): o existente vence, sem duplicar", () => {
+    const r = mergeEnrichmentArrays({
       mapaAtual: mapaArrays,
-      proposed,
-      editedSections: ["territorios", "temas", "assets"],
+      proposed: { territorios: ["  PATERNIDADE ", "ia"] },
     });
-    expect(r).toEqual(mapaArrays);
+    expect(r.territorios).toEqual(["paternidade", "carreira", "ia"]);
   });
 
-  it("fallback ao atual quando a fonte não propõe a seção", () => {
-    const r = applyEditedArrayLocks({
+  it("não ressuscita um chip que o criador removeu (tombstone)", () => {
+    const r = mergeEnrichmentArrays({
       mapaAtual: mapaArrays,
-      proposed: { temas: ["nova cena"] },
-      editedSections: [],
+      proposed: { assets: ["solteiro", "ex-corporativo"] },
+      dismissed: [{ section: "assets", label: "Solteiro" }],
     });
-    expect(r.territorios).toEqual(["paternidade", "carreira"]); // proposta ausente → atual
-    expect(r.temas).toEqual(["nova cena"]);
-    expect(r.assets).toEqual(["casado", "pai de dois"]);
+    expect(r.assets).toEqual(["casado", "pai de dois", "ex-corporativo"]);
+  });
+
+  it("cap limita só ADIÇÕES; existentes acima do cap são preservados", () => {
+    const cheio = {
+      ...mapaArrays,
+      narrativas_adjacentes: ["a", "b", "c", "d", "e"], // já acima do cap (4)
+    };
+    const r = mergeEnrichmentArrays({
+      mapaAtual: cheio,
+      proposed: { narrativas_adjacentes: ["f"] },
+    });
+    expect(r.narrativas_adjacentes).toEqual(["a", "b", "c", "d", "e"]); // nada some, nada entra
   });
 });

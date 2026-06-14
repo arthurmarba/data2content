@@ -120,6 +120,13 @@ export async function PATCH(request: Request) {
           arr.push(trimmed);
         }
         mapa[section] = arr;
+        // Re-adicionar um chip antes removido limpa seu tombstone — o criador
+        // mudou de ideia, o enriquecimento volta a poder reforçá-lo.
+        mapa.dismissedChips = dropDismissedChip(
+          mapa.dismissedChips as DismissedEntry[] | undefined,
+          section,
+          trimmed,
+        );
         // Asset adicionado numa seção específica grava o grupo escolhido, para a
         // leitura não reclassificá-lo por palavra-chave. Upsert por label.
         if (section === "assets" && group && trimmed) {
@@ -133,6 +140,13 @@ export async function PATCH(request: Request) {
         // remove
         mapa[section] = arr.filter(
           (v) => v.toLowerCase().trim() !== value.toLowerCase().trim(),
+        );
+        // Tombstone: o enriquecimento (Instagram/vídeo) não ressuscita o que o
+        // criador removeu — só o criador controla a deleção.
+        mapa.dismissedChips = addDismissedChip(
+          mapa.dismissedChips as DismissedEntry[] | undefined,
+          section,
+          value,
         );
         // Remover o asset também descarta seu override de grupo.
         if (section === "assets") {
@@ -191,6 +205,41 @@ export function dropAssetGroup(
   if (!Array.isArray(current) || current.length === 0) return current;
   const key = label.toLowerCase().trim();
   const next = current.filter((e) => e.label.toLowerCase().trim() !== key);
+  return next.length > 0 ? next : undefined;
+}
+
+// ─── dismissedChips (tombstones) helpers ──────────────────────────────────────
+
+type DismissedEntry = { section: string; label: string };
+
+// Teto de segurança — tombstones antigos não crescem sem limite.
+const MAX_DISMISSED = 100;
+
+/** Registra um chip removido pelo criador (dedupe por section+label). */
+export function addDismissedChip(
+  current: DismissedEntry[] | undefined,
+  section: string,
+  label: string,
+): DismissedEntry[] {
+  const key = label.toLowerCase().trim();
+  const next = (Array.isArray(current) ? current : []).filter(
+    (e) => !(e.section === section && e.label.toLowerCase().trim() === key),
+  );
+  next.push({ section, label });
+  return next.slice(-MAX_DISMISSED);
+}
+
+/** Limpa o tombstone de um chip (criador re-adicionou). */
+export function dropDismissedChip(
+  current: DismissedEntry[] | undefined,
+  section: string,
+  label: string,
+): DismissedEntry[] | undefined {
+  if (!Array.isArray(current) || current.length === 0) return current;
+  const key = label.toLowerCase().trim();
+  const next = current.filter(
+    (e) => !(e.section === section && e.label.toLowerCase().trim() === key),
+  );
   return next.length > 0 ? next : undefined;
 }
 

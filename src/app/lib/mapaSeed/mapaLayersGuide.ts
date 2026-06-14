@@ -83,6 +83,24 @@ territórios derivam dela; os temas são o cruzamento território × narrativa
 (cenas, não ecos); os assets são elementos da vida real que alimentam os temas.`;
 
 /**
+ * Regra de PRESERVAÇÃO — compartilhada pelos enrichers (Instagram e vídeo).
+ *
+ * Invariante do produto: o mapa é do criador. O enriquecimento NUNCA remove um
+ * chip — só o criador remove. A fonte apenas REFINA (a redação) ou ADICIONA. Isso
+ * mantém o mapa estável e confiável (reduz a ansiedade de "vão apagar o que é meu")
+ * e ainda assim crescendo. O código aplica isto como invariante dura (união); esta
+ * regra alinha o LLM para que ele não tente cortar nem duplicar.
+ */
+export const MAPA_PRESERVATION_RULE = `PRESERVAÇÃO (regra inviolável): o mapa atual pertence ao criador. Você NUNCA
+remove um chip existente de nenhuma camada (territórios, temas, narrativas
+adjacentes, assets, formatos) — só o criador remove. Seu papel é apenas:
+1) MANTER cada chip existente exatamente como está;
+2) ADICIONAR chips genuinamente novos que a fonte revele.
+Refino é só de redação: se a fonte traz o MESMO conceito de um chip que já existe
+(ainda que com outras palavras), NÃO crie um chip novo nem o reescreva — mantenha
+o existente. Só adicione quando for de fato um conceito novo.`;
+
+/**
  * Regra de FORMA do tom — compartilhada pelos três geradores.
  *
  * O tom é renderizado como CHIPS no card ("Como cria"), não como parágrafo. Antes
