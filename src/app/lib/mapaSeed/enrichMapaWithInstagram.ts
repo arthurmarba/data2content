@@ -13,6 +13,7 @@ import {
   type CoreStabilityLocks,
 } from "./coreStabilityLocks";
 import { MAPA_LAYERS_GUIDE, MAPA_COERENCIA_RULE, MAPA_TOM_RULE, MAPA_PRESERVATION_RULE } from "./mapaLayersGuide";
+import { dedupeNewChipsAgainstExisting } from "./semanticChipDedup";
 
 export type { CoreStabilityLocks } from "./coreStabilityLocks";
 
@@ -142,17 +143,31 @@ export async function enrichMapaWithInstagram(
     source: { narrativePrefix: "Seu Instagram sugere", tonePhrase: "no Instagram" },
   });
 
-  // Invariante: união, nunca substituição. Chips existentes sobrevivem; o Instagram
-  // só adiciona novos; o que o criador removeu (dismissedChips) não ressuscita.
-  const merged = mergeEnrichmentArrays({
-    mapaAtual,
-    proposed: {
+  // Fase 2 — dedup SEMÂNTICO: descarta candidatos que são o mesmo conceito de um
+  // chip existente, ainda que com outras palavras ("A esposa Lívia" ≈ "Esposa").
+  // Non-fatal: em falha, devolve os candidatos crus (a união por string é a rede).
+  const dedupedCandidates = await dedupeNewChipsAgainstExisting(
+    {
+      territorios:           mapaAtual.territorios,
+      temas:                 mapaAtual.temas,
+      narrativas_adjacentes: mapaAtual.narrativas_adjacentes,
+      assets:                mapaAtual.assets,
+      formatos:              mapaAtual.formatos,
+    },
+    {
       territorios:           raw.territorios,
       temas:                 raw.temas,
       narrativas_adjacentes: raw.narrativas_adjacentes,
       assets:                raw.assets,
       formatos:              raw.formatos,
     },
+  );
+
+  // Invariante: união, nunca substituição. Chips existentes sobrevivem; o Instagram
+  // só adiciona novos; o que o criador removeu (dismissedChips) não ressuscita.
+  const merged = mergeEnrichmentArrays({
+    mapaAtual,
+    proposed: dedupedCandidates,
     dismissed: mapaAtual.dismissedChips,
   });
 
