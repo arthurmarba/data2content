@@ -59,14 +59,18 @@ type PaywallCopy = {
   bullets: string[];
   ctaLabel: string;
   steps?: string[];
+  /** Frase curta de ancoragem mostrada logo abaixo do preço — traduz o custo em
+   *  algo concreto pro criador (ex.: "uma publi paga meses"). Opcional. */
+  priceAnchor?: string;
 };
 
 const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
   default: {
-    title: "Entenda o que seu conteúdo diz sobre você.",
-    subtitle: "Ideias prontas, criadores para collab e clareza sobre o que funciona — tudo junto.",
+    title: "Você não está mais criando sozinho.",
+    subtitle: "Pautas prontas na sua voz, criadores para collab e clareza sobre o que funciona — seu parceiro de conteúdo, todo dia.",
     bullets: FEATURES,
     ctaLabel: "Assinar Pro",
+    priceAnchor: "Menos que o preço de uma publi — por mês inteiro de parceria.",
   },
   reply_email: {
     title: "IA de Negociação",
@@ -106,6 +110,7 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
       "Multiplicadores auditados pelo time D2C",
     ],
     ctaLabel: "Assinar Pro",
+    priceAnchor: "Uma única publi no preço certo paga meses de assinatura.",
     steps: [
       "Ative sua assinatura",
       "Conecte seu Instagram",
@@ -182,15 +187,16 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
     ],
   },
   planning: {
-    title: "Ideias prontas para postar — sem partir do zero.",
+    title: "Nunca mais trave no \"o que eu posto hoje?\"",
     subtitle:
-      "Cada pauta é criada a partir do que você já posta, na sua voz. E chega pelo WhatsApp quando faz sentido postar.",
+      "Cada pauta nasce do que você já posta, na sua voz. Você abre o app e já tem o próximo conteúdo esperando — sem partir do zero.",
     bullets: [
       "Ideias geradas a partir do que você já posta",
       "Pautas entregues pelo WhatsApp no momento certo",
       "Dados reais do Instagram para calibrar timing e formato",
     ],
     ctaLabel: "Assinar Pro",
+    priceAnchor: "Menos que o preço de uma publi — por um mês inteiro de pautas.",
     steps: [
       "Ative sua assinatura",
       "Conecte seu Instagram",
@@ -200,13 +206,14 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
   whatsapp: {
     title: "Seu conteúdo chega até você.",
     subtitle:
-      "Uma mensagem por semana com ideias prontas para postar, criadores disponíveis para collab e o que está surgindo no seu perfil.",
+      "Uma mensagem por semana com pautas prontas na sua voz, criadores para collab e o que está surgindo no seu perfil. Você não precisa lembrar de voltar — a gente te chama.",
     bullets: [
       "Ideias de pauta prontas na sua voz, toda semana",
       "Criador disponível para collab quando fizer sentido",
       "O que está surgindo no seu conteúdo para você validar",
     ],
     ctaLabel: "Assinar Pro",
+    priceAnchor: "Menos que o preço de uma publi — por um mês inteiro de parceria.",
     steps: [
       "Ative sua assinatura",
       "Conecte seu Instagram",
@@ -277,7 +284,13 @@ export default function BillingSubscribeModal({
   // mas mantendo os "steps" específicos para guiar o usuário no funil atual.
   const contextCopy = PAYWALL_COPY[effectiveContext] ?? PAYWALL_COPY.default;
   const paywallCopy = contextCopy;
-  const bulletItems = contextCopy.bullets;
+  const isContextSpecific = effectiveContext !== "default";
+  // Hero = o motivo de o criador estar aqui (bullets do contexto). Stack = o valor
+  // completo do Pro, sempre visível para justificar a cobrança recorrente. No
+  // contexto "default" os bullets já SÃO o stack completo, então não há hero.
+  const heroBullets = isContextSpecific ? contextCopy.bullets : [];
+  const stackBullets = FEATURES;
+  const priceAnchor = contextCopy.priceAnchor ?? null;
   const stepItems = useMemo(() => {
     let items = Array.isArray(contextCopy.steps) ? [...contextCopy.steps] : [];
     if (sessionStatus === "unauthenticated" && items.length > 0) {
@@ -916,6 +929,14 @@ export default function BillingSubscribeModal({
                 </div>
               )}
 
+              {/* Âncora de preço — traduz o custo em algo concreto pro criador.
+                  Condicionada ao contexto (ex.: na calculadora, "uma publi paga meses"). */}
+              {priceAnchor && (
+                <p className="mt-2 text-[12.5px] font-medium leading-snug text-zinc-600">
+                  {priceAnchor}
+                </p>
+              )}
+
               {/* Seletores — período + moeda na mesma linha */}
               <div className="mt-4 flex items-center justify-between gap-3">
                 <div className="inline-flex rounded-xl border border-zinc-200/80 bg-white shadow-sm p-1">
@@ -946,8 +967,63 @@ export default function BillingSubscribeModal({
               </div>
             </div>
 
+            {/* Benefícios — primeiro o valor, depois a logística ("Como funciona").
+                Vender antes de pedir esforço. */}
+            <div className="px-6 pb-6 pt-2">
+              {hasPremiumAccess && !billingStatusLoading && !billingStatusError && (
+                <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">
+                  Você já tem o Pro ativo. Se algo não está funcionando, tente recarregar a página.
+                </div>
+              )}
+              {!!error && (
+                <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-600">
+                  <p>{error}</p>
+                  {errorAction && (
+                    <Link href={errorAction.href} className="mt-2 inline-flex border-b border-red-400">
+                      {errorAction.label}
+                    </Link>
+                  )}
+                </div>
+              )}
+
+              {/* Herói — o motivo de o criador ter clicado, em destaque tingido.
+                  Só aparece em contextos específicos (não no "default"). */}
+              {heroBullets.length > 0 && (
+                <div className="mb-5 rounded-2xl border border-brand-primary/15 bg-brand-primary/[0.04] px-4 py-4">
+                  <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-brand-primary">
+                    O que você desbloqueia
+                  </p>
+                  <ul className="grid grid-cols-1 gap-2.5">
+                    {heroBullets.map((feat) => (
+                      <li key={feat} className="flex items-start gap-3">
+                        <span className="mt-0.5 shrink-0 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-primary/15">
+                          <Check className="h-3 w-3 text-brand-primary" strokeWidth={2.5} />
+                        </span>
+                        <span className="text-[13px] font-medium leading-[1.5] text-zinc-800">{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Stack completo do Pro — sempre visível para justificar a recorrência. */}
+              <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
+                {heroBullets.length > 0 ? "E tudo do Pro" : "Incluído no Pro"}
+              </p>
+              <ul className="grid grid-cols-1 gap-3">
+                {stackBullets.map((feat) => (
+                  <li key={feat} className="flex items-start gap-3">
+                    <span className="mt-0.5 shrink-0 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-primary/10">
+                      <Check className="h-3 w-3 text-brand-primary" strokeWidth={2.5} />
+                    </span>
+                    <span className="text-[13px] leading-[1.5] text-zinc-700">{feat}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
             {stepItems.length ? (
-              <div className="px-6 sm:px-8 pt-5">
+              <div className="px-6 sm:px-8 pb-2">
                 <div className="border-t border-zinc-100 pt-5">
                   <div className="flex items-center gap-2">
                     <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-brand-primary/8">
@@ -981,39 +1057,6 @@ export default function BillingSubscribeModal({
                 </div>
               </div>
             ) : null}
-
-            {/* Benefícios */}
-            <div className="px-6 pb-6 pt-2">
-              <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
-                Incluído no Pro
-              </p>
-              {hasPremiumAccess && !billingStatusLoading && !billingStatusError && (
-                <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">
-                  Você já tem o Pro ativo. Se algo não está funcionando, tente recarregar a página.
-                </div>
-              )}
-              {!!error && (
-                <div className="mb-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-xs font-semibold text-red-600">
-                  <p>{error}</p>
-                  {errorAction && (
-                    <Link href={errorAction.href} className="mt-2 inline-flex border-b border-red-400">
-                      {errorAction.label}
-                    </Link>
-                  )}
-                </div>
-              )}
-
-              <ul className="grid grid-cols-1 gap-3">
-                {bulletItems.map((feat) => (
-                  <li key={feat} className="flex items-start gap-3">
-                    <span className="mt-0.5 shrink-0 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-primary/10">
-                      <Check className="h-3 w-3 text-brand-primary" strokeWidth={2.5} />
-                    </span>
-                    <span className="text-[13px] leading-[1.5] text-zinc-700">{feat}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
           </div>
 
           {/* Rodapé sticky */}

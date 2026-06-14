@@ -1191,9 +1191,12 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           onNewReading={handleNewReading}
           onOpenReading={handleOpenReading}
           onConnectInstagram={handleConnectInstagram}
-          onUpgrade={() => openPaywallModal({
-            context: "narrative_map",
-            source: "mobile_profile_empty_state",
+          onUpgrade={(ctx) => openPaywallModal({
+            // Cada superfície do card passa seu próprio contexto (ex.: "whatsapp",
+            // "planning") para condicionar a copy do modal. Sem contexto válido cai
+            // no mapa narrativo. O typeof guarda contra um evento de clique vazar aqui.
+            context: typeof ctx === "string" ? ctx : "narrative_map",
+            source: typeof ctx === "string" ? `mobile_profile_${ctx}` : "mobile_profile_empty_state",
             returnTo: MOBILE_PROFILE_ROUTE,
             postCheckoutIntent: "connect_instagram",
           })}

@@ -30,6 +30,7 @@ import type {
   ConfirmationState,
 } from "./diagnosticoConfirmationTypes";
 import type { AssetConfirmationResponse } from "./diagnosticoConfirmationTypes";
+import type { PaywallContext } from "@/types/paywall";
 
 // ─── Design tokens ──────────────────────────────────────────────────────────
 
@@ -1721,7 +1722,9 @@ function PautasCard({
   onOpenIdea?: (ideaId: string) => void;
   whatsappLinked?: boolean;
   onConnectWhatsApp?: () => void;
-  onUpgrade?: () => void;
+  /** Abre o paywall. O contexto opcional condiciona a copy do modal por superfície
+   *  (ex.: "planning" para pautas, "whatsapp" para alertas). Sem contexto cai no padrão. */
+  onUpgrade?: (context?: PaywallContext) => void;
   /** True quando o criador é Pro — controla o CTA de conversão na cota esgotada. */
   isPro?: boolean;
 }) {
@@ -1811,13 +1814,14 @@ function PautasCard({
           </span>
         );
       }
-      // Alertas no WhatsApp são Pro: free vê "Receber" mas o clique abre o paywall.
+      // Alertas no WhatsApp são Pro: free vê "Receber" mas o clique abre o paywall
+      // no contexto "whatsapp" (copy sob medida: "Seu conteúdo chega até você").
       const onReceber = isPro ? onConnectWhatsApp : onUpgrade;
       if (onReceber) {
         return (
           <button
             type="button"
-            onClick={onReceber}
+            onClick={() => (isPro ? onConnectWhatsApp?.() : onUpgrade?.("whatsapp"))}
             style={{
               display: "inline-flex", alignItems: "center", gap: 5,
               borderRadius: 999, padding: "6px 14px",
@@ -1936,7 +1940,7 @@ function PautasCard({
             {!isGeneratingIdeas && (isPro ? onRetryGenerateIdeas : onUpgrade) && (
               <button
                 type="button"
-                onClick={isPro ? onRetryGenerateIdeas : onUpgrade}
+                onClick={isPro ? onRetryGenerateIdeas : () => onUpgrade?.("planning")}
                 style={{
                   background: "none", border: "none", cursor: "pointer",
                   fontSize: 11, fontWeight: 600, color: "#7c3aed",
@@ -1979,7 +1983,7 @@ function PautasCard({
           {onUpgrade && (
             <button
               type="button"
-              onClick={onUpgrade}
+              onClick={() => onUpgrade?.("planning")}
               style={{
                 alignSelf: "flex-start",
                 borderRadius: 999, padding: "7px 16px",
@@ -2008,7 +2012,7 @@ function PautasCard({
           {!isPro && onUpgrade && (
             <button
               type="button"
-              onClick={onUpgrade}
+              onClick={() => onUpgrade?.("planning")}
               style={{
                 alignSelf: "flex-start",
                 borderRadius: 999, padding: "7px 16px",
@@ -2651,7 +2655,7 @@ interface Props {
   onOpenMediaKit?: () => void;
   onOpenAccountMenu?: () => void;
   onOpenDiagnosis?: () => void;
-  onUpgrade?: () => void;
+  onUpgrade?: (context?: PaywallContext) => void;
   narrativeConfirmationState?: ConfirmationState;
   onConfirmNarrative?: (response: ConfirmationResponse) => void;
   territoriesConfirmationState?: ConfirmationState;
