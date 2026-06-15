@@ -264,6 +264,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   // Buscado lazy ao abrir a aba Collabs; re-busca quando o conjunto de pautas muda
   // (ex.: "gerar novas pautas"). Non-fatal: falha → cards aparecem como pauta-only.
   const [pautaCollabs, setPautaCollabs] = useState<Map<string, NarrativeCollabMatch | null>>(new Map());
+  const [pautaCollabsLoading, setPautaCollabsLoading] = useState(false);
   const pautaCollabsSigRef = useRef<string>("");
   useEffect(() => {
     if (activeTab !== "collabs") return;
@@ -279,6 +280,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     pautaCollabsSigRef.current = sig;
 
     let cancelled = false;
+    setPautaCollabsLoading(true);
     (async () => {
       try {
         const res = await fetch("/api/dashboard/mobile-strategic-profile/collabs/per-pauta", {
@@ -295,6 +297,8 @@ export function DiagnosticoRealShellClient({ data }: Props) {
         }
       } catch {
         // non-fatal
+      } finally {
+        if (!cancelled) setPautaCollabsLoading(false);
       }
     })();
     return () => {
@@ -1246,6 +1250,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
             isGeneratingIdeas={isGeneratingIdeas}
             ideaGenerationBlocker={ideaGenerationBlocker}
             pautaCollabs={pautaCollabs}
+            pautaCollabsLoading={pautaCollabsLoading}
             onOpenIdea={(id) => setOpenIdeaId(id)}
             onOpenCommunity={handleOpenAccountCommunity}
             onOpenCreatorMediaKit={handleOpenCreatorMediaKit}

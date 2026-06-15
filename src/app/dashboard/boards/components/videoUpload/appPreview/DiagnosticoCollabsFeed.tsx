@@ -42,6 +42,8 @@ interface Props {
   ideaGenerationBlocker?: "premium_required" | "quota_exceeded" | "map_incomplete" | "failed" | null;
   /** Criador compatível por pauta (id da pauta → match). Ausente/null = sem collab. */
   pautaCollabs?: Map<string, NarrativeCollabMatch | null>;
+  /** True enquanto o match por-pauta está sendo buscado — mostra skeleton no card. */
+  pautaCollabsLoading?: boolean;
   onOpenIdea?: (id: string) => void;
   onOpenCommunity?: () => void;
   onOpenCreatorMediaKit?: (slug: string) => void;
@@ -151,14 +153,31 @@ function CollabCreatorRow({
   );
 }
 
+function CollabRowSkeleton() {
+  return (
+    <div style={{ marginTop: 14, borderTop: "1px solid rgba(0,0,0,0.07)", paddingTop: 12 }}>
+      <style>{`@keyframes d2c-collab-pulse{0%,100%{opacity:.5}50%{opacity:.2}}`}</style>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ width: 38, height: 38, borderRadius: 9999, background: "#ece9f6", flexShrink: 0, animation: "d2c-collab-pulse 1.1s ease-in-out infinite" }} />
+        <div style={{ flex: 1, display: "grid", gap: 6 }}>
+          <div style={{ height: 11, width: "45%", borderRadius: 6, background: "#ece9f6", animation: "d2c-collab-pulse 1.1s ease-in-out infinite" }} />
+          <div style={{ height: 10, width: "80%", borderRadius: 6, background: "#f0eef7", animation: "d2c-collab-pulse 1.25s ease-in-out infinite" }} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function PautaCard({
   pauta,
   collab,
+  loading = false,
   onOpenIdea,
   onOpenCreatorMediaKit,
 }: {
   pauta: ContentIdeaListItem;
   collab?: NarrativeCollabMatch | null;
+  loading?: boolean;
   onOpenIdea?: (id: string) => void;
   onOpenCreatorMediaKit?: (slug: string) => void;
 }) {
@@ -191,8 +210,13 @@ function PautaCard({
             </p>
           ) : null}
         </button>
-        {/* Criador compatível pelo território da pauta — só quando há match real. */}
-        {collab ? <CollabCreatorRow collab={collab} onOpenCreatorMediaKit={onOpenCreatorMediaKit} /> : null}
+        {/* Criador compatível pelo território da pauta. Enquanto busca, skeleton;
+            depois, só aparece quando há match real (null = pauta-only, sem placeholder). */}
+        {collab ? (
+          <CollabCreatorRow collab={collab} onOpenCreatorMediaKit={onOpenCreatorMediaKit} />
+        ) : loading ? (
+          <CollabRowSkeleton />
+        ) : null}
       </div>
     </DiagnosticoCardShell>
   );
@@ -236,6 +260,7 @@ export function DiagnosticoCollabsFeed({
   isGeneratingIdeas,
   ideaGenerationBlocker,
   pautaCollabs,
+  pautaCollabsLoading,
   onOpenIdea,
   onOpenCommunity,
   onOpenCreatorMediaKit,
@@ -271,6 +296,7 @@ export function DiagnosticoCollabsFeed({
                 key={pauta.id}
                 pauta={pauta}
                 collab={pautaCollabs?.get(pauta.id) ?? null}
+                loading={pautaCollabsLoading}
                 onOpenIdea={onOpenIdea}
                 onOpenCreatorMediaKit={onOpenCreatorMediaKit}
               />
