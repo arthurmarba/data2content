@@ -27,6 +27,7 @@ import type {
 import { z } from 'zod';
 import { logger } from '@/app/lib/logger';
 import { functionSchemas, functionExecutors } from './aiFunctions';
+import { selectFunctionsForIntent } from './aiOrchestratorFunctionScope';
 import { getSystemPrompt } from '@/app/lib/promptSystemFC';
 import { IUser, AlertDetails } from '@/app/models/User'; // AlertDetails importado
 // Carrega stateService de forma segura em testes (evita Upstash/Redis)
@@ -2294,7 +2295,14 @@ export async function askLLMWithEnrichedContext(
                     logger.info(`${turnTag} Funções filtradas para intent 'general': removido 'fetchCommunityInspirations'.`);
                 }
             }
-            requestPayload.functions = filteredFunctions;
+            // 1.1b — para intents de dados estreitos, expõe só as funções que aquele
+            // tipo de pergunta usa (env-gated, default OFF). Intents abertos e o subset
+            // desligado passam intactos. Aplica-se DEPOIS da filtragem de comunidade.
+            const scopedFunctions = selectFunctionsForIntent(currentIntent, filteredFunctions);
+            if (scopedFunctions.length !== filteredFunctions.length) {
+                logger.info(`${turnTag} Subset de funções por intent '${currentIntent}': ${filteredFunctions.length} → ${scopedFunctions.length}.`);
+            }
+            requestPayload.functions = scopedFunctions;
             requestPayload.function_call = 'auto';
         }
 
