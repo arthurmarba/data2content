@@ -9,6 +9,7 @@ import type { ContentIdeaListItem } from "@/app/dashboard/boards/videoUpload/con
 import type {
   DiagnosticoCreatorDirectoryState,
 } from "@/app/dashboard/boards/videoUpload/diagnosticoPageData";
+import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
 import type { PaywallContext } from "@/types/paywall";
 import { CreatorStoriesRow } from "./DiagnosticoPage";
 import { DiagnosticoCardShell } from "./DiagnosticoCardShell";
@@ -39,6 +40,8 @@ interface Props {
   isGeneratingIdeas: boolean;
   /** "map_incomplete" => sem mapa (estado travado que devolve ao Perfil). */
   ideaGenerationBlocker?: "premium_required" | "quota_exceeded" | "map_incomplete" | "failed" | null;
+  /** Criador compatível por pauta (id da pauta → match). Ausente/null = sem collab. */
+  pautaCollabs?: Map<string, NarrativeCollabMatch | null>;
   onOpenIdea?: (id: string) => void;
   onOpenCommunity?: () => void;
   onOpenCreatorMediaKit?: (slug: string) => void;
@@ -94,34 +97,102 @@ function FeedHeader({
   );
 }
 
-function PautaCard({ pauta, onOpenIdea }: { pauta: ContentIdeaListItem; onOpenIdea?: (id: string) => void }) {
+function CollabCreatorRow({
+  collab,
+  onOpenCreatorMediaKit,
+}: {
+  collab: NarrativeCollabMatch;
+  onOpenCreatorMediaKit?: (slug: string) => void;
+}) {
+  const initials = (collab.name || "?").trim().slice(0, 1).toUpperCase();
+  const open = collab.mediaKitSlug && onOpenCreatorMediaKit
+    ? () => onOpenCreatorMediaKit(collab.mediaKitSlug!)
+    : undefined;
+  return (
+    // Sem métricas de audiência — só fit narrativo (decisão de produto).
+    <div style={{ marginTop: 14, borderTop: "1px solid rgba(0,0,0,0.07)", paddingTop: 12 }}>
+      <span style={{
+        display: "inline-block", fontSize: 10, fontWeight: 800, letterSpacing: 0.6,
+        textTransform: "uppercase", color: "#7c3aed", marginBottom: 8,
+      }}>
+        Collab sugerida
+      </span>
+      <button
+        type="button"
+        onClick={open}
+        disabled={!open}
+        style={{
+          display: "flex", alignItems: "center", gap: 10, width: "100%",
+          background: "none", border: "none", padding: 0, textAlign: "left",
+          cursor: open ? "pointer" : "default", fontFamily: "inherit",
+        }}
+      >
+        <div style={{
+          width: 38, height: 38, borderRadius: 9999, flexShrink: 0, overflow: "hidden",
+          background: "#18181b", color: "#fff", display: "grid", placeItems: "center",
+          fontSize: 14, fontWeight: 700,
+        }}>
+          {collab.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={collab.avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} referrerPolicy="no-referrer" />
+          ) : initials}
+        </div>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <span style={{ display: "block", fontSize: 14, fontWeight: 700, color: TEXT_PRIMARY_HEX, letterSpacing: -0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {collab.name}
+          </span>
+          <span style={{ display: "block", fontSize: 12, color: TEXT_BODY_HEX, lineHeight: 1.35, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {collab.narrativeFitReason}
+          </span>
+        </div>
+        {open ? <span style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, flexShrink: 0 }}>Ver ›</span> : null}
+      </button>
+    </div>
+  );
+}
+
+function PautaCard({
+  pauta,
+  collab,
+  onOpenIdea,
+  onOpenCreatorMediaKit,
+}: {
+  pauta: ContentIdeaListItem;
+  collab?: NarrativeCollabMatch | null;
+  onOpenIdea?: (id: string) => void;
+  onOpenCreatorMediaKit?: (slug: string) => void;
+}) {
   const snippet = pauta.angle?.trim() || pauta.hook?.trim() || pauta.whyItFits?.trim() || "";
   return (
-    <DiagnosticoCardShell
-      onClick={onOpenIdea ? () => onOpenIdea(pauta.id) : undefined}
-      className="border border-zinc-900/80"
-    >
+    <DiagnosticoCardShell className="border border-zinc-900/80">
       <div style={{ padding: "16px 18px" }}>
-        {pauta.territory ? (
-          <span style={{
-            display: "inline-block", fontSize: 11, fontWeight: 700, letterSpacing: 0.2,
-            textTransform: "uppercase", color: TEXT_SECONDARY_HEX, marginBottom: 8,
-          }}>
-            {pauta.territory}
-          </span>
-        ) : null}
-        <p style={{ fontSize: 16, fontWeight: 700, color: TEXT_PRIMARY_HEX, letterSpacing: -0.3, lineHeight: 1.3, margin: 0 }}>
-          {pauta.title}
-        </p>
-        {snippet ? (
-          <p style={{
-            fontSize: 13, color: TEXT_BODY_HEX, lineHeight: 1.45, margin: "6px 0 0",
-            display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
-          }}>
-            {snippet}
+        <button
+          type="button"
+          onClick={onOpenIdea ? () => onOpenIdea(pauta.id) : undefined}
+          style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: 0, cursor: onOpenIdea ? "pointer" : "default", fontFamily: "inherit" }}
+        >
+          {pauta.territory ? (
+            <span style={{
+              display: "inline-block", fontSize: 11, fontWeight: 700, letterSpacing: 0.2,
+              textTransform: "uppercase", color: TEXT_SECONDARY_HEX, marginBottom: 8,
+            }}>
+              {pauta.territory}
+            </span>
+          ) : null}
+          <p style={{ fontSize: 16, fontWeight: 700, color: TEXT_PRIMARY_HEX, letterSpacing: -0.3, lineHeight: 1.3, margin: 0 }}>
+            {pauta.title}
           </p>
-        ) : null}
-        {/* M1.3: criador compatível embutido aqui quando houver match por território. */}
+          {snippet ? (
+            <p style={{
+              fontSize: 13, color: TEXT_BODY_HEX, lineHeight: 1.45, margin: "6px 0 0",
+              display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+            }}>
+              {snippet}
+            </p>
+          ) : null}
+        </button>
+        {/* Criador compatível pelo território da pauta — só quando há match real. */}
+        {collab ? <CollabCreatorRow collab={collab} onOpenCreatorMediaKit={onOpenCreatorMediaKit} /> : null}
       </div>
     </DiagnosticoCardShell>
   );
@@ -164,6 +235,7 @@ export function DiagnosticoCollabsFeed({
   whatsappLinked,
   isGeneratingIdeas,
   ideaGenerationBlocker,
+  pautaCollabs,
   onOpenIdea,
   onOpenCommunity,
   onOpenCreatorMediaKit,
@@ -195,7 +267,13 @@ export function DiagnosticoCollabsFeed({
         <>
           <div style={{ padding: "8px 18px 0", display: "grid", gap: 12 }}>
             {pautas.map((pauta) => (
-              <PautaCard key={pauta.id} pauta={pauta} onOpenIdea={onOpenIdea} />
+              <PautaCard
+                key={pauta.id}
+                pauta={pauta}
+                collab={pautaCollabs?.get(pauta.id) ?? null}
+                onOpenIdea={onOpenIdea}
+                onOpenCreatorMediaKit={onOpenCreatorMediaKit}
+              />
             ))}
           </div>
           <div style={{ padding: "18px 18px 0", display: "flex", justifyContent: "center" }}>

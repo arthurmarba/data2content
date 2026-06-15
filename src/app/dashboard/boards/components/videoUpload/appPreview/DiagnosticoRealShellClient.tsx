@@ -33,6 +33,7 @@ import { fetchAnalysisConfirmationDataFromReading } from "./mobileStrategicProfi
 import { DiagnosticoPage } from "./DiagnosticoPage";
 import { DiagnosticoTabBar, type DiagnosticoTab } from "./DiagnosticoTabBar";
 import { DiagnosticoCollabsFeed } from "./DiagnosticoCollabsFeed";
+import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
 import { ReadingDetailView } from "./ReadingDetailView";
 import { useReadingDetail } from "./useReadingDetail";
 import type { CategoryId } from "./DiagnosticoCategoryMeta";
@@ -258,6 +259,48 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     localMapConfirmations.narrative === "confirmed" &&
     localMapConfirmations.territories === "confirmed";
   const [mediaKitSheetSlug, setMediaKitSheetSlug] = useState<string | null>(null);
+
+  // M1.3 — match de collab por pauta (criador compatível pelo território da pauta).
+  // Buscado lazy ao abrir a aba Collabs; re-busca quando o conjunto de pautas muda
+  // (ex.: "gerar novas pautas"). Non-fatal: falha → cards aparecem como pauta-only.
+  const [pautaCollabs, setPautaCollabs] = useState<Map<string, NarrativeCollabMatch | null>>(new Map());
+  const pautaCollabsSigRef = useRef<string>("");
+  useEffect(() => {
+    if (activeTab !== "collabs") return;
+    if (data.userInfo.plan !== "Pro") return;
+    const pautas =
+      localContentIdeas.length >= data.contentIdeas.length ? localContentIdeas : data.contentIdeas;
+    if (pautas.length === 0) return;
+    const narrativeLabel =
+      data.mainNarrativeLabel ?? resolveDiagnosticoLeadingNarrativeSignal(data.synthesis)?.label ?? null;
+    if (!narrativeLabel) return;
+    const sig = pautas.map((p) => p.id).join(",");
+    if (pautaCollabsSigRef.current === sig) return;
+    pautaCollabsSigRef.current = sig;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/dashboard/mobile-strategic-profile/collabs/per-pauta", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            narrativeLabel,
+            pautas: pautas.map((p) => ({ id: p.id, territory: p.territory, title: p.title })),
+          }),
+        });
+        const json = await res.json().catch(() => null);
+        if (!cancelled && json?.ok && json.matches) {
+          setPautaCollabs(new Map(Object.entries(json.matches)));
+        }
+      } catch {
+        // non-fatal
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, data.userInfo.plan, data.mainNarrativeLabel, data.synthesis, data.contentIdeas, localContentIdeas]);
 
   const handleConnectInstagram = useCallback(() => {
     if (data.userInfo.plan !== "Pro") {
@@ -1202,6 +1245,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
             whatsappLinked={hydratedData.userInfo.whatsappLinked ?? false}
             isGeneratingIdeas={isGeneratingIdeas}
             ideaGenerationBlocker={ideaGenerationBlocker}
+            pautaCollabs={pautaCollabs}
             onOpenIdea={(id) => setOpenIdeaId(id)}
             onOpenCommunity={handleOpenAccountCommunity}
             onOpenCreatorMediaKit={handleOpenCreatorMediaKit}
