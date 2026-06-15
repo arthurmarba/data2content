@@ -47,7 +47,9 @@ type Section       = (typeof ALL_SECTIONS)[number];
 
 const MAX_ITEMS: Record<ArraySection, number> = {
   territorios:           6,
-  temas:                 6,
+  // Situações reais é a camada que vira pauta — o criador naturalmente tem
+  // muitas; cap generoso para o "Adicionar" não sumir após poucos itens.
+  temas:                 20,
   assets:                6,
   narrativas_adjacentes: 4,
   formatos:              6,

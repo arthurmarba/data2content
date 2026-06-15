@@ -1435,6 +1435,7 @@ function MapaCard({
             items={mapaSeed.temas}
             section="temas"
             onMutate={onMapSeedMutate}
+            maxItems={20}
           />
           {mapaSeed.temas.length === 0 && (
             <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, margin: "0 0 2px", fontStyle: "italic" }}>
