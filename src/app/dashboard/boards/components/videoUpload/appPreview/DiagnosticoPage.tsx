@@ -1534,6 +1534,20 @@ function MapaCard({
         </MapaSection>
       ) : null}
 
+      {s.warnings.length > 0 && (
+        <div style={{ borderTop: "1px solid rgba(0,0,0,0.06)", margin: "16px -22px 0", padding: "12px 22px 4px", display: "flex", alignItems: "flex-start", gap: 8 }}>
+          <div style={{ flexShrink: 0, width: 16, height: 16, borderRadius: 9999, background: "rgba(0,0,0,0.08)", display: "grid", placeItems: "center", marginTop: 1 }}>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" stroke={TEXT_SECONDARY_HEX} strokeWidth="2.2" />
+              <path d="M12 8v4M12 16h.01" stroke={TEXT_SECONDARY_HEX} strokeWidth="2.2" strokeLinecap="round" />
+            </svg>
+          </div>
+          <p style={{ fontSize: 12, color: TEXT_SECONDARY_HEX, margin: 0, lineHeight: 1.5 }}>
+            {s.warnings.map((w) => w.message).join(" · ")}
+          </p>
+        </div>
+      )}
+
       {MapaFooter}
     </div>
   );
@@ -3011,13 +3025,6 @@ export function DiagnosticoPage({
           latestCalculation={latestCalculation}
           onOpenCalculator={onOpenCalculator}
         />
-
-        {/* ── Warnings ────────────────────────────────────────────────────── */}
-        {hasSynthesis && s.warnings.length > 0 && (
-          <div style={{ padding: "14px 18px 0" }}>
-            <DiagnosticoWarningCard warnings={s.warnings} />
-          </div>
-        )}
 
         {/* ── Seu Mapa card ─────────────────────────────────────────────────── */}
         <div id="diagnostico-mapa" style={{ padding: "14px 18px 0", scrollMarginTop: 14 }}>
