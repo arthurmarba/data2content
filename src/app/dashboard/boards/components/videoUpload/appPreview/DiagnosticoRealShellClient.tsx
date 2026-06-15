@@ -272,8 +272,14 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     const pautas =
       localContentIdeas.length >= data.contentIdeas.length ? localContentIdeas : data.contentIdeas;
     if (pautas.length === 0) return;
+    // Narrativa: a do MapaSeed é a fonte de verdade do card (onboarding/IG). A
+    // síntese de vídeo entra só como fallback — sem ela, usuários de mapa-sem-vídeo
+    // ficavam com narrativeLabel null e o fetch nunca disparava (collab não surgia).
     const narrativeLabel =
-      data.mainNarrativeLabel ?? resolveDiagnosticoLeadingNarrativeSignal(data.synthesis)?.label ?? null;
+      data.mapaSeed?.narrativa_central?.trim() ||
+      data.mainNarrativeLabel ||
+      resolveDiagnosticoLeadingNarrativeSignal(data.synthesis)?.label ||
+      null;
     if (!narrativeLabel) return;
     const sig = pautas.map((p) => p.id).join(",");
     if (pautaCollabsSigRef.current === sig) return;
@@ -304,7 +310,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, data.userInfo.plan, data.mainNarrativeLabel, data.synthesis, data.contentIdeas, localContentIdeas]);
+  }, [activeTab, data.userInfo.plan, data.mapaSeed, data.mainNarrativeLabel, data.synthesis, data.contentIdeas, localContentIdeas]);
 
   const handleConnectInstagram = useCallback(() => {
     if (data.userInfo.plan !== "Pro") {
