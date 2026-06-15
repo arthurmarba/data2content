@@ -3000,18 +3000,6 @@ export function DiagnosticoPage({
       {/* ── SCROLLABLE CONTENT ───────────────────────────────────────────── */}
       <div>
 
-        {/* ── Stories row ──────────────────────────────────────────────────── */}
-        {creatorDirectory?.status === "ready" && creatorDirectory.creators.length > 0 && (
-          <div style={{ paddingTop: 10, paddingBottom: 12 }}>
-            <CreatorStoriesRow
-              creators={creatorDirectory.creators}
-              collabSuggestedIds={new Set(collabItems.map((i) => i.id))}
-              onDiscoverCollabs={onOpenCommunity}
-              onOpenCreatorMediaKit={onOpenCreatorMediaKit}
-            />
-          </div>
-        )}
-
         {/* ── Quick actions: Consultoria + Mídia Kit (compact bar) ──────────── */}
         <QuickActionsBar
           isPro={isPro}
@@ -3056,27 +3044,6 @@ export function DiagnosticoPage({
             onMapSeedMutate={handleMapSeedMutate}
             hasPurpose={Boolean(data.onboardingAnswers?.creatorPurpose)}
             onOpenNorte={onOpenNorte}
-          />
-        </div>
-
-        {/* ── Pautas card ───────────────────────────────────────────────────── */}
-        <div style={{ padding: "14px 18px 0" }}>
-          <PautasCard
-            contentIdeas={contentIdeas}
-            contentIdeasReadiness={contentIdeasReadiness}
-            isGeneratingIdeas={isGeneratingIdeas}
-            ideaGenerationBlocker={ideaGenerationBlocker}
-            ideaQuotaResetAt={ideaQuotaResetAt}
-            onRetryGenerateIdeas={onRetryGenerateIdeas}
-            onNewReading={onNewReading}
-            onConnectInstagram={onConnectInstagram}
-            instagramConnected={instagramConnected}
-            instagramEnrichmentPending={instagramEnrichmentPending}
-            onOpenIdea={onOpenIdea}
-            whatsappLinked={whatsappLinked}
-            onConnectWhatsApp={onConnectWhatsApp}
-            onUpgrade={onUpgrade}
-            isPro={isPro}
           />
         </div>
 
