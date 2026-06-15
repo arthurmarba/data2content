@@ -30,10 +30,25 @@ export interface LlmCallOptions {
   scope?: string;
 }
 
+/**
+ * Default de provider por escopo, quando nenhum env (`LLM_PROVIDER_<SCOPE>` nem
+ * `LLM_PROVIDER`) está setado. O escopo MAPA é gemini-first: o Gemini Flash é
+ * bem mais barato que gpt-4o para as tarefas do mapaSeed (extração/síntese
+ * estruturada), e o fallback para OpenAI continua automático — se a chave Gemini
+ * faltar, `geminiProvider.available()` é false e a ordem cai em OpenAI sozinha.
+ * Demais escopos seguem o default seguro (OpenAI primário).
+ */
+const SCOPE_DEFAULT_PROVIDER: Record<string, LlmProviderName> = {
+  MAPA: "gemini",
+};
+
 /** Resolve a ordem de tentativa [primário, fallback] a partir do env. */
 export function resolveProviderOrder(scope?: string): LlmProviderName[] {
   const scoped = scope ? process.env[`LLM_PROVIDER_${scope}`] : undefined;
-  const pref = (scoped || process.env.LLM_PROVIDER || "openai").trim().toLowerCase();
+  const scopeDefault = scope ? SCOPE_DEFAULT_PROVIDER[scope] : undefined;
+  const pref = (scoped || process.env.LLM_PROVIDER || scopeDefault || "openai")
+    .trim()
+    .toLowerCase();
   return pref === "gemini" ? ["gemini", "openai"] : ["openai", "gemini"];
 }
 

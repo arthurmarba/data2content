@@ -37,10 +37,21 @@ afterAll(() => {
 });
 
 describe("resolveProviderOrder", () => {
-  it("default: openai primário", () => {
+  it("default do escopo MAPA: gemini primário (Flash mais barato p/ mapaSeed)", () => {
     delete process.env.LLM_PROVIDER;
     delete process.env.LLM_PROVIDER_MAPA;
-    expect(resolveProviderOrder("MAPA")).toEqual(["openai", "gemini"]);
+    expect(resolveProviderOrder("MAPA")).toEqual(["gemini", "openai"]);
+  });
+
+  it("default de escopo sem override específico: openai primário", () => {
+    delete process.env.LLM_PROVIDER;
+    delete process.env.LLM_PROVIDER_AI;
+    expect(resolveProviderOrder("AI")).toEqual(["openai", "gemini"]);
+  });
+
+  it("default sem escopo: openai primário", () => {
+    delete process.env.LLM_PROVIDER;
+    expect(resolveProviderOrder()).toEqual(["openai", "gemini"]);
   });
 
   it("LLM_PROVIDER_MAPA=gemini → gemini primário", () => {
