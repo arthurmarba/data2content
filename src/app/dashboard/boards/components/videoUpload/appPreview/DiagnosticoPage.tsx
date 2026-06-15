@@ -2295,7 +2295,7 @@ function QuickActionsBar({
 
 // ─── Creator Stories Row — prova social estilo Instagram ─────────────────────
 
-function CreatorStoriesRow({
+export function CreatorStoriesRow({
   creators,
   collabSuggestedIds,
   onDiscoverCollabs,

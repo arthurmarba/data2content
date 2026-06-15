@@ -31,6 +31,8 @@ import {
 } from "./MobileCalculatorWizard";
 import { fetchAnalysisConfirmationDataFromReading } from "./mobileStrategicProfileAnalysisConfirmationClient";
 import { DiagnosticoPage } from "./DiagnosticoPage";
+import { DiagnosticoTabBar, type DiagnosticoTab } from "./DiagnosticoTabBar";
+import { DiagnosticoCollabsFeed } from "./DiagnosticoCollabsFeed";
 import { ReadingDetailView } from "./ReadingDetailView";
 import { useReadingDetail } from "./useReadingDetail";
 import type { CategoryId } from "./DiagnosticoCategoryMeta";
@@ -134,6 +136,9 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [analyzeFlowOpen, setAnalyzeFlowOpen] = useState(false);
+  // Aba ativa da tab bar mobile (Perfil/Collabs). "+" não é aba — abre o upload.
+  // Default "perfil": usuário novo/sem mapa cai no Perfil.
+  const [activeTab, setActiveTab] = useState<DiagnosticoTab>("perfil");
   const [accessMessage, setAccessMessage] = useState<string | null>(null);
   const [localThumbnails, setLocalThumbnails] = useState<Record<string, string>>({});
   const [showInstagramConnectedNotice, setShowInstagramConnectedNotice] = useState(false);
@@ -1182,8 +1187,35 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     >
       <div
         className="flex-1 overflow-y-auto overscroll-contain"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1.25rem)" }}
+        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)" }}
       >
+        {activeTab === "collabs" ? (
+          <DiagnosticoCollabsFeed
+            pautas={effectiveContentIdeas}
+            creatorDirectory={creatorDirectory}
+            collabSuggestedIds={new Set(
+              collabSuggestions?.status === "ready"
+                ? collabSuggestions.items.map((i) => i.id)
+                : [],
+            )}
+            isPro={hydratedData.userInfo.plan === "Pro"}
+            whatsappLinked={hydratedData.userInfo.whatsappLinked ?? false}
+            isGeneratingIdeas={isGeneratingIdeas}
+            ideaGenerationBlocker={ideaGenerationBlocker}
+            onOpenIdea={(id) => setOpenIdeaId(id)}
+            onOpenCommunity={handleOpenAccountCommunity}
+            onOpenCreatorMediaKit={handleOpenCreatorMediaKit}
+            onConnectWhatsApp={() => setWhatsAppSheetOpen(true)}
+            onUpgrade={(ctx) => openPaywallModal({
+              context: typeof ctx === "string" ? ctx : "narrative_map",
+              source: typeof ctx === "string" ? `mobile_collabs_${ctx}` : "mobile_collabs",
+              returnTo: MOBILE_PROFILE_ROUTE,
+              postCheckoutIntent: "connect_instagram",
+            })}
+            onGenerate={triggerGenerateIdeas}
+            onBackToPerfil={() => setActiveTab("perfil")}
+          />
+        ) : (
         <DiagnosticoPage
           data={hydratedData}
           collabSuggestions={collabSuggestions}
@@ -1227,7 +1259,17 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           latestCalculation={latestCalculation}
           onOpenCalculator={handleOpenCalculator}
         />
+        )}
       </div>
+
+      {/* Tab bar mobile — abaixo da camada de overlays (z-50), que a cobrem. O "+"
+          abre o upload via handleNewReading (mesma lógica de acesso do card). */}
+      <DiagnosticoTabBar
+        activeTab={activeTab}
+        onSelectPerfil={() => setActiveTab("perfil")}
+        onSelectCollabs={() => setActiveTab("collabs")}
+        onPressPlus={handleNewReading}
+      />
 
       {openIdeaId && (() => {
         const idea = hydratedData.contentIdeas.find((i) => i.id === openIdeaId);
