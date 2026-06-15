@@ -368,6 +368,21 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     }
     setCalculatorWizardOpen(true);
   }, [data.instagramConnected, data.userInfo.plan]);
+
+  // Abrir a pauta (roteiro completo + por que o criador é ideal pra collab) é Pro.
+  // Free vê o card (título + direcional) como teaser; o tap abre o paywall.
+  const handleOpenIdea = useCallback((id: string) => {
+    if (data.userInfo.plan !== "Pro") {
+      openPaywallModal({
+        context: "planning",
+        source: "mobile_idea_open",
+        returnTo: MOBILE_PROFILE_ROUTE,
+        postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
+      });
+      return;
+    }
+    setOpenIdeaId(id);
+  }, [data.instagramConnected, data.userInfo.plan]);
   const handleOpenAccountCommunity = useCallback(() => {
     // Abre a Comunidade DENTRO do shell (não sai para outra rota) —
     // o usuário mantém o contexto do produto.
@@ -1257,7 +1272,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
             ideaGenerationBlocker={ideaGenerationBlocker}
             pautaCollabs={pautaCollabs}
             pautaCollabsLoading={pautaCollabsLoading}
-            onOpenIdea={(id) => setOpenIdeaId(id)}
+            onOpenIdea={handleOpenIdea}
             onOpenCommunity={handleOpenAccountCommunity}
             onOpenCreatorMediaKit={handleOpenCreatorMediaKit}
             onConnectWhatsApp={() => setWhatsAppSheetOpen(true)}
@@ -1309,7 +1324,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           ideaQuotaResetAt={ideaQuotaResetAt}
           onRetryGenerateIdeas={triggerGenerateIdeas}
           instagramEnrichmentPending={instagramEnrichmentPending}
-          onOpenIdea={(id) => setOpenIdeaId(id)}
+          onOpenIdea={handleOpenIdea}
           onConnectWhatsApp={() => setWhatsAppSheetOpen(true)}
           latestCalculation={latestCalculation}
           onOpenCalculator={handleOpenCalculator}
@@ -1510,7 +1525,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           ideas={hydratedData.contentIdeas}
           readiness={hydratedData.contentIdeasReadiness}
           onClose={() => setOpenCategory(null)}
-          onOpenIdea={(id) => setOpenIdeaId(id)}
+          onOpenIdea={handleOpenIdea}
         />
       )}
 
