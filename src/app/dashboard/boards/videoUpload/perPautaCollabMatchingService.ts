@@ -16,7 +16,7 @@ import {
   generateCollabContext,
   type NarrativeCollabMatch,
 } from "./narrativeCollabMatchingService";
-import { rankByComplementarity } from "./collabComplementarity";
+import { significantWords, complementarityScore, buildViewerTokens } from "./collabComplementarity";
 
 export interface PautaForMatch {
   id: string;
@@ -28,6 +28,32 @@ const DEFAULT_GEMINI_CALL_CAP = 4;
 
 function normalizeTerritory(t: string): string {
   return t.trim().toLowerCase();
+}
+
+/**
+ * Relevância de um candidato AO TERRITÓRIO da pauta (sinal primário do match).
+ * Coerência > cobertura: o criador só é "ideal pra essa pauta" se o mapa DELE
+ * toca esse território — não basta a narrativa dele parecer com a do viewer.
+ *   - território do candidato que compartilha palavra com o território da pauta: peso alto
+ *   - narrativa do candidato que menciona o território: peso médio
+ * Zero = sem sobreposição real → não casa (a pauta fica null, sem placeholder).
+ */
+function territoryRelevance(
+  pautaTerritory: string,
+  candidateTerritories: string[],
+  candidateNarrative: string,
+): number {
+  const terrWords = new Set(significantWords(pautaTerritory));
+  if (terrWords.size === 0) return 0;
+
+  let score = 0;
+  for (const ct of candidateTerritories) {
+    const shared = significantWords(ct).filter((w) => terrWords.has(w)).length;
+    if (shared > 0) score += 3 * shared;
+  }
+  const narrShared = significantWords(candidateNarrative).filter((w) => terrWords.has(w)).length;
+  score += narrShared;
+  return score;
 }
 
 /** Fit reason barato (sem LLM) — usado após estourar o teto de chamadas Gemini. */
@@ -78,15 +104,28 @@ export async function matchCollabsForPautas(
   const excludeIds = new Set<string>();
   let geminiCalls = 0;
 
+  const viewerTokens = buildViewerTokens([narrativeLabel]);
+
   for (const { label, ids } of territories) {
-    // Ranqueia o MESMO pool pelo território desta pauta; pega o melhor ainda não usado.
-    const ranked = rankByComplementarity(
-      [narrativeLabel, label],
-      poolResult.pool,
-      (e) => e.reading.videoReading.mainNarrative ?? "",
-    );
-    const eligible = ranked.find((e) => !excludeIds.has(e.userId));
-    if (!eligible) continue; // sem candidato livre → pautas deste território ficam null
+    // Ranqueia por RELEVÂNCIA AO TERRITÓRIO da pauta (primário). Empate: quem tem
+    // narrativa mais complementar à do viewer (a "química" entre os mapas). Só
+    // entram candidatos com sobreposição REAL com o território — relevância > 0.
+    const scored = poolResult.pool
+      .filter((e) => !excludeIds.has(e.userId))
+      .map((e) => {
+        const candTerr = poolResult.candidateTerritoriesById.get(e.userId) ?? [];
+        const candNarr = e.reading.videoReading.mainNarrative ?? "";
+        return {
+          e,
+          rel: territoryRelevance(label, candTerr, candNarr),
+          chem: complementarityScore(viewerTokens, candNarr),
+        };
+      })
+      .filter((x) => x.rel > 0) // sem laço real com o território → fora (coerência)
+      .sort((a, b) => (b.rel - a.rel) || (b.chem - a.chem));
+
+    const eligible = scored[0]?.e;
+    if (!eligible) continue; // território sem criador que o cubra de verdade → null
 
     excludeIds.add(eligible.userId);
 
