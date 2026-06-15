@@ -543,6 +543,9 @@ export function buildContentIdeasPrompt(
   const responseSchemaInstruction = [
     "Responda exclusivamente em JSON válido conforme o schema abaixo.",
     "Nenhum campo fora do schema. Nenhum comentário. Nenhum markdown.",
+    // Defesa contra acentos mutilados: o modelo às vezes escapa 'ç' como \\u00e7 e
+    // perde a barra, gravando '00e7' literal. Exigir UTF-8 puro evita isso.
+    "Escreva acentos como caracteres UTF-8 literais (ç, ã, õ, á, é, í, ó, ú, â, ê, ô). NUNCA use escapes \\uXXXX nem códigos numéricos para letras acentuadas.",
     "",
     JSON.stringify(ideaJsonSchema, null, 2),
   ].join("\n");

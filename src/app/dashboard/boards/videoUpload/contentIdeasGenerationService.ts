@@ -20,7 +20,7 @@ import {
   CONTENT_IDEAS_RESPONSE_JSON_SCHEMA,
   type ContentIdeasMapContext,
 } from "./contentIdeasGeminiPromptBuilder";
-import { stripIronicQuotes } from "./contentIdeasTextHygiene";
+import { cleanIdeaText } from "./contentIdeasTextHygiene";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -195,16 +195,16 @@ function sanitizeIdea(
       : null;
 
   return {
-    title: stripIronicQuotes(title),
-    angle,
-    hook: stripIronicQuotes(hook),
+    title: cleanIdeaText(title),
+    angle: cleanIdeaText(angle),
+    hook: cleanIdeaText(hook),
     territory: matchedTerritory,
     assets,
     suggestedFormat,
-    whyItFits: stripIronicQuotes(whyItFits),
-    scriptPoints: scriptPoints.map(stripIronicQuotes),
-    scriptClosing: scriptClosing ? stripIronicQuotes(scriptClosing) : null,
-    resonanceNote: resonanceNote ? stripIronicQuotes(resonanceNote) : null,
+    whyItFits: cleanIdeaText(whyItFits),
+    scriptPoints: scriptPoints.map(cleanIdeaText),
+    scriptClosing: scriptClosing ? cleanIdeaText(scriptClosing) : null,
+    resonanceNote: resonanceNote ? cleanIdeaText(resonanceNote) : null,
   };
 }
 

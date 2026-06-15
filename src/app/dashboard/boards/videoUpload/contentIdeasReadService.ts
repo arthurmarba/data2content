@@ -9,6 +9,7 @@ import CreatorContentIdea, {
   type ICreatorContentIdea,
   type CreatorContentIdeaStatus,
 } from "@/app/models/CreatorContentIdea";
+import { cleanIdeaText } from "./contentIdeasTextHygiene";
 
 export interface ContentIdeaListItem {
   id: string;
@@ -51,17 +52,19 @@ export async function listContentIdeasForUser(userId: string): Promise<ContentId
 
     return docs.map((d) => ({
       id: d._id.toString(),
-      title: d.title,
-      angle: d.angle,
-      hook: d.hook,
+      // Conserta acentos mutilados pelo gerador ("cabe00e7a" → "cabeça") nas pautas
+      // JÁ gravadas — sem migração. Pautas novas já saem limpas do sanitize.
+      title: cleanIdeaText(d.title),
+      angle: cleanIdeaText(d.angle),
+      hook: cleanIdeaText(d.hook),
       territory: d.territory,
       assets: d.assets,
       suggestedFormat: d.suggestedFormat,
       tone: d.tone,
-      whyItFits: d.whyItFits,
-      scriptPoints: d.scriptPoints ?? [],
-      scriptClosing: d.scriptClosing ?? null,
-      resonanceNote: d.resonanceNote ?? null,
+      whyItFits: cleanIdeaText(d.whyItFits),
+      scriptPoints: (d.scriptPoints ?? []).map(cleanIdeaText),
+      scriptClosing: d.scriptClosing ? cleanIdeaText(d.scriptClosing) : null,
+      resonanceNote: d.resonanceNote ? cleanIdeaText(d.resonanceNote) : null,
       status: d.status,
       generatedAt: d.generatedAt.toISOString(),
       scheduledFor: d.scheduledFor ? d.scheduledFor.toISOString() : null,
