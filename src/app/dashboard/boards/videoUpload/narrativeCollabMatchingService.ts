@@ -347,6 +347,106 @@ Responda apenas com o JSON, sem cercas de código.`;
 
 export { generateNarrativeFitReason };
 
+// ─── Atribuição semântica por território (1 chamada Gemini para todo o lote) ────
+
+export interface CollabCandidateForLLM {
+  id: string;
+  name: string;
+  narrative: string;
+  territories: string[];
+}
+
+export interface CollabAssignment {
+  /** id do candidato escolhido, ou null se nenhum tem laço real com o território. */
+  candidateId: string | null;
+  fitReason: string;
+  recordingIdea: string | null;
+}
+
+/**
+ * Numa ÚNICA chamada Gemini, atribui a cada território de pauta o criador cujo
+ * mapa permite uma collab LEGÍTIMA sobre aquele tema — e já devolve a razão de
+ * fit + a ideia de gravação. Semântico (pega "empreendedorismo" ↔ "Negócios"),
+ * mas instruído a retornar null quando não há laço real (coerência > cobertura).
+ *
+ * Retorna Map<territórioNormalizado, CollabAssignment>. Non-fatal: em falta de
+ * chave/erro/JSON inválido devolve Map vazio → o chamador cai no determinístico.
+ * Guarda contra alucinação: o chamador valida que o candidateId existe no pool.
+ */
+export async function assignCollabsByTerritory(params: {
+  viewerNarrative: string;
+  territories: string[];
+  candidates: CollabCandidateForLLM[];
+}): Promise<Map<string, CollabAssignment>> {
+  const out = new Map<string, CollabAssignment>();
+  const { viewerNarrative, territories, candidates } = params;
+  if (territories.length === 0 || candidates.length === 0) return out;
+
+  const apiKey = readApiKey();
+  if (!apiKey) return out;
+
+  const prompt = `\
+Você é o estrategista de collabs da Data2Content.
+Para CADA território de pauta abaixo, escolha o ÚNICO criador cujo mapa permite uma collab LEGÍTIMA sobre aquele tema — alguém que genuinamente já vive/fala daquilo. Entenda o SENTIDO (ex.: "empreendedorismo" combina com "Negócios criativos"), não só a palavra igual.
+Se NENHUM criador tem ligação real com o território, devolva candidateId null — é melhor não sugerir do que forçar uma collab que não faz sentido.
+Evite repetir o mesmo criador em territórios diferentes, a menos que ele seja claramente o único que faz sentido.
+Tom calmo e específico. Nunca use: "engajamento", "alcance", "algoritmo", "seguidores", "performance", "audiência".
+
+Criador base (perfil do viewer): "${viewerNarrative}"
+
+Territórios de pauta:
+${territories.map((t, i) => `${i + 1}. ${t}`).join("\n")}
+
+Criadores disponíveis:
+${candidates.map((c) => `[${c.id}] ${c.name} — narrativa: "${c.narrative}" — territórios: ${c.territories.join(", ")}`).join("\n")}
+
+Responda APENAS com JSON, sem cercas de código:
+{
+  "assignments": [
+    {
+      "territory": "<texto EXATO do território da lista>",
+      "candidateId": "<id entre colchetes, ou null>",
+      "fitReason": "<1 frase ≤110 chars: por que combinam como collab nesse território>",
+      "recordingIdea": "<1 frase ≤130 chars: como gravariam esse conteúdo juntos, concreto>"
+    }
+  ]
+}`;
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: createUserContent([prompt]),
+      // thinkingBudget 0: o "pensamento" do 2.5-flash consome maxOutputTokens e
+      // truncava o JSON (finishReason MAX_TOKENS). Desligado + budget folgado.
+      config: {
+        maxOutputTokens: 1536,
+        temperature: 0.5,
+        responseMimeType: "application/json",
+        thinkingConfig: { thinkingBudget: 0 },
+      },
+    });
+    const text = response.text?.trim();
+    if (!text) return out;
+
+    const parsed = JSON.parse(text) as { assignments?: Array<Record<string, unknown>> };
+    if (!Array.isArray(parsed?.assignments)) return out;
+
+    for (const a of parsed.assignments) {
+      const territory = typeof a.territory === "string" ? a.territory.trim() : "";
+      if (!territory) continue;
+      const candidateId = typeof a.candidateId === "string" && a.candidateId.trim() ? a.candidateId.trim() : null;
+      const fitReason = typeof a.fitReason === "string" && a.fitReason.trim().length > 5 ? a.fitReason.trim() : "";
+      const recordingIdea = typeof a.recordingIdea === "string" && a.recordingIdea.trim().length > 5 ? a.recordingIdea.trim() : null;
+      out.set(territory.toLowerCase(), { candidateId, fitReason, recordingIdea });
+    }
+  } catch {
+    // Non-fatal → o chamador usa o ranking determinístico.
+  }
+
+  return out;
+}
+
 // ─── Main export ──────────────────────────────────────────────────────────────
 
 /**

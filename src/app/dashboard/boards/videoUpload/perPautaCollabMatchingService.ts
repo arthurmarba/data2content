@@ -3,18 +3,22 @@
 // M1.2 da aba Collabs — casa, para cada pauta, um criador compatível pelo
 // TERRITÓRIO daquela pauta (collab = mapas compatíveis postando juntos).
 //
-// Reusa o pool de candidatos de narrativeCollabMatchingService (1 fan-out ao Mongo)
-// e ranqueia por território. Custo controlado:
-//   - dedup por território (chama o ranker 1× por território único);
-//   - excludeIds: o mesmo criador não se repete entre cards;
-//   - teto de chamadas Gemini (fit reason); estourado o teto, usa fallback barato.
+// Sinal de match (coerência > cobertura):
+//   1) SEMÂNTICO — 1 única chamada Gemini (assignCollabsByTerritory) julga, para
+//      todos os territórios de uma vez, qual criador tem laço REAL com cada tema
+//      (entende sentido: "empreendedorismo" ↔ "Negócios"), e já devolve a razão
+//      de fit + a ideia de gravação. Território sem fit → null (sem placeholder).
+//   2) DETERMINÍSTICO (fallback) — sobreposição de palavra do território, quando
+//      o Gemini não roda (sem chave/erro) ou não endereça um território.
+//   - excludeIds: o mesmo criador não se repete entre cards.
 // Non-fatal: qualquer falha devolve null para as pautas afetadas (sem placeholder).
 
 import {
   buildNarrativeCandidatePool,
   buildMatchFromCandidate,
-  generateCollabContext,
+  assignCollabsByTerritory,
   type NarrativeCollabMatch,
+  type CollabAssignment,
 } from "./narrativeCollabMatchingService";
 import { significantWords, complementarityScore, buildViewerTokens } from "./collabComplementarity";
 
@@ -23,8 +27,6 @@ export interface PautaForMatch {
   territory: string;
   title?: string;
 }
-
-const DEFAULT_GEMINI_CALL_CAP = 4;
 
 function normalizeTerritory(t: string): string {
   return t.trim().toLowerCase();
@@ -100,54 +102,73 @@ export async function matchCollabsForPautas(
   }
   const territories = [...territoryToPautaIds.values()].sort((a, b) => b.ids.length - a.ids.length);
 
-  const cap = options?.geminiCallCap ?? DEFAULT_GEMINI_CALL_CAP;
   const excludeIds = new Set<string>();
-  let geminiCalls = 0;
-
   const viewerTokens = buildViewerTokens([narrativeLabel]);
+  const poolById = new Map(poolResult.pool.map((e) => [e.userId, e]));
+
+  // ── 1) Atribuição semântica (1 chamada Gemini para todo o lote). ──────────────
+  // `geminiCallCap <= 0` desliga o LLM (testes / modo barato) → só determinístico.
+  const allowLLM = (options?.geminiCallCap ?? 1) > 0;
+  let llmAssignments = new Map<string, CollabAssignment>();
+  if (allowLLM) {
+    llmAssignments = await assignCollabsByTerritory({
+      viewerNarrative: narrativeLabel,
+      territories: territories.map((t) => t.label),
+      candidates: poolResult.pool.map((e) => ({
+        id: e.userId,
+        name: e.user.name ?? "Criador",
+        narrative: e.reading.videoReading.mainNarrative ?? "",
+        territories: poolResult.candidateTerritoriesById.get(e.userId) ?? [],
+      })),
+    });
+  }
 
   for (const { label, ids } of territories) {
-    // Ranqueia por RELEVÂNCIA AO TERRITÓRIO da pauta (primário). Empate: quem tem
-    // narrativa mais complementar à do viewer (a "química" entre os mapas). Só
-    // entram candidatos com sobreposição REAL com o território — relevância > 0.
-    const scored = poolResult.pool
-      .filter((e) => !excludeIds.has(e.userId))
-      .map((e) => {
-        const candTerr = poolResult.candidateTerritoriesById.get(e.userId) ?? [];
-        const candNarr = e.reading.videoReading.mainNarrative ?? "";
-        return {
-          e,
-          rel: territoryRelevance(label, candTerr, candNarr),
-          chem: complementarityScore(viewerTokens, candNarr),
-        };
-      })
-      .filter((x) => x.rel > 0) // sem laço real com o território → fora (coerência)
-      .sort((a, b) => (b.rel - a.rel) || (b.chem - a.chem));
+    let eligible: typeof poolResult.pool[number] | undefined;
+    let fitReason = fallbackFitReason(label);
+    let recordingIdea: string | null = fallbackRecordingIdea(label);
 
-    const eligible = scored[0]?.e;
+    // Verdict do Gemini para este território (semântico, primário).
+    const assignment = llmAssignments.get(label.toLowerCase());
+    if (assignment?.candidateId) {
+      const cand = poolById.get(assignment.candidateId);
+      if (cand && !excludeIds.has(cand.userId)) {
+        eligible = cand;
+        if (assignment.fitReason) fitReason = assignment.fitReason;
+        recordingIdea = assignment.recordingIdea ?? fallbackRecordingIdea(label);
+      }
+    }
+
+    // O Gemini disse explicitamente "sem fit" (candidateId null) → respeita: null.
+    // Sem fallback determinístico, senão reintroduziríamos o match literal que ele rejeitou.
+    const llmSaidNull = !!assignment && assignment.candidateId === null;
+
+    // ── 2) Fallback determinístico — LLM não rodou, não endereçou, ou escolheu
+    // alguém indisponível. Sobreposição de palavra do território (coerente). ──────
+    if (!eligible && !llmSaidNull) {
+      const best = poolResult.pool
+        .filter((e) => !excludeIds.has(e.userId))
+        .map((e) => {
+          const candTerr = poolResult.candidateTerritoriesById.get(e.userId) ?? [];
+          const candNarr = e.reading.videoReading.mainNarrative ?? "";
+          return {
+            e,
+            rel: territoryRelevance(label, candTerr, candNarr),
+            chem: complementarityScore(viewerTokens, candNarr),
+          };
+        })
+        .filter((x) => x.rel > 0) // sem laço real com o território → fora (coerência)
+        .sort((a, b) => (b.rel - a.rel) || (b.chem - a.chem))[0]?.e;
+      if (best) {
+        eligible = best;
+        fitReason = fallbackFitReason(label);
+        recordingIdea = fallbackRecordingIdea(label);
+      }
+    }
+
     if (!eligible) continue; // território sem criador que o cubra de verdade → null
 
     excludeIds.add(eligible.userId);
-
-    const candidateNarrative = eligible.reading.videoReading.mainNarrative?.trim() ?? "";
-    let fitReason: string;
-    let recordingIdea: string | null;
-    if (geminiCalls < cap) {
-      // 1 chamada Gemini devolve fit reason + ideia de gravação (custo flat).
-      const ctx = await generateCollabContext(
-        narrativeLabel,
-        candidateNarrative || "conteúdo criativo",
-        label,
-        fallbackFitReason(label),
-      );
-      fitReason = ctx.fitReason;
-      recordingIdea = ctx.recordingIdea ?? fallbackRecordingIdea(label);
-      geminiCalls += 1;
-    } else {
-      fitReason = fallbackFitReason(label);
-      recordingIdea = fallbackRecordingIdea(label);
-    }
-
     const match = buildMatchFromCandidate(eligible, [label], poolResult.candidateTerritoriesById, fitReason, recordingIdea);
     for (const id of ids) result.set(id, match);
   }
