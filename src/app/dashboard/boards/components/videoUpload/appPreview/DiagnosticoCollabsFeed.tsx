@@ -47,6 +47,8 @@ interface Props {
   /** True enquanto o match por-pauta está sendo buscado — mostra skeleton no card. */
   pautaCollabsLoading?: boolean;
   onOpenIdea?: (id: string) => void;
+  /** Salva/dessalva a pauta (status saved↔active). Pauta salva resiste à geração. */
+  onToggleSave?: (id: string) => void;
   onOpenCommunity?: () => void;
   onOpenCreatorMediaKit?: (slug: string) => void;
   onConnectWhatsApp?: () => void;
@@ -72,7 +74,7 @@ function FeedHeader({
           fontWeight: 700, color: INK_DARK_HEX, margin: 0,
           letterSpacing: -0.5, lineHeight: 1.1,
         }}>
-          Ideias de Post
+          Collabs
         </h1>
       </div>
       {/* Alertas no WhatsApp — Pro. Free vê o botão; o clique abre o paywall. */}
@@ -230,12 +232,21 @@ function CollabRowSkeleton() {
   );
 }
 
+function BookmarkIcon({ filled }: { filled: boolean }) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill={filled ? "currentColor" : "none"} aria-hidden="true">
+      <path d="M6 4.5A1.5 1.5 0 0 1 7.5 3h9A1.5 1.5 0 0 1 18 4.5V21l-6-3.5L6 21V4.5z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function PautaCard({
   pauta,
   collab,
   loading = false,
   isPro,
   onOpenIdea,
+  onToggleSave,
   onOpenCreatorMediaKit,
   onUpgrade,
 }: {
@@ -244,19 +255,38 @@ function PautaCard({
   loading?: boolean;
   isPro: boolean;
   onOpenIdea?: (id: string) => void;
+  onToggleSave?: (id: string) => void;
   onOpenCreatorMediaKit?: (slug: string) => void;
   onUpgrade?: (context?: PaywallContext) => void;
 }) {
   const snippet = pauta.angle?.trim() || pauta.hook?.trim() || pauta.whyItFits?.trim() || "";
+  const isSaved = pauta.status === "saved";
   return (
     // Linguagem de elevação (raio 20 + sombra com hairline), igual a Seu Mapa /
     // Sua Audiência — sem borda dura. Coerente com os cards de conteúdo do app.
     <div style={{ borderRadius: CARD_RADIUS, background: "#fff", boxShadow: CARD_SHADOW, overflow: "hidden" }}>
-      <div style={{ padding: "16px 18px" }}>
+      <div style={{ padding: "16px 18px", position: "relative" }}>
+        {onToggleSave ? (
+          <button
+            type="button"
+            onClick={() => onToggleSave(pauta.id)}
+            aria-label={isSaved ? "Remover dos salvos" : "Salvar pauta"}
+            aria-pressed={isSaved}
+            style={{
+              position: "absolute", top: 12, right: 12, zIndex: 1,
+              display: "grid", placeItems: "center", width: 34, height: 34,
+              borderRadius: 999, border: "none", cursor: "pointer", padding: 0,
+              background: isSaved ? "#fef0e8" : "transparent",
+              color: isSaved ? "#c2410c" : TEXT_SECONDARY_HEX, fontFamily: "inherit",
+            }}
+          >
+            <BookmarkIcon filled={isSaved} />
+          </button>
+        ) : null}
         <button
           type="button"
           onClick={onOpenIdea ? () => onOpenIdea(pauta.id) : undefined}
-          style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: 0, cursor: onOpenIdea ? "pointer" : "default", fontFamily: "inherit" }}
+          style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: 0, paddingRight: onToggleSave ? 36 : 0, cursor: onOpenIdea ? "pointer" : "default", fontFamily: "inherit" }}
         >
           {pauta.territory ? (
             <span style={{
@@ -333,6 +363,7 @@ export function DiagnosticoCollabsFeed({
   pautaCollabs,
   pautaCollabsLoading,
   onOpenIdea,
+  onToggleSave,
   onOpenCommunity,
   onOpenCreatorMediaKit,
   onConnectWhatsApp,
@@ -342,6 +373,11 @@ export function DiagnosticoCollabsFeed({
 }: Props) {
   const hasPautas = pautas.length > 0;
   const mapless = ideaGenerationBlocker === "map_incomplete";
+  // Pautas salvas ficam ancoradas no topo — não somem de vista quando o criador
+  // gera novas pautas. Sort estável preserva a ordem dentro de cada grupo.
+  const orderedPautas = [...pautas].sort(
+    (a, b) => (a.status === "saved" ? 0 : 1) - (b.status === "saved" ? 0 : 1),
+  );
 
   return (
     <div>
@@ -365,7 +401,7 @@ export function DiagnosticoCollabsFeed({
       {hasPautas ? (
         <>
           <div style={{ padding: "14px 18px 0", display: "grid", gap: 12 }}>
-            {pautas.map((pauta) => (
+            {orderedPautas.map((pauta) => (
               <PautaCard
                 key={pauta.id}
                 pauta={pauta}
@@ -373,6 +409,7 @@ export function DiagnosticoCollabsFeed({
                 loading={pautaCollabsLoading}
                 isPro={isPro}
                 onOpenIdea={onOpenIdea}
+                onToggleSave={onToggleSave}
                 onOpenCreatorMediaKit={onOpenCreatorMediaKit}
                 onUpgrade={onUpgrade}
               />

@@ -238,7 +238,6 @@ function EditableMapaChips({
   chipColor = "#9a3412",
   section,
   onMutate,
-  maxItems = 6,
   suggestions = [],
 }: {
   items: string[];
@@ -246,7 +245,6 @@ function EditableMapaChips({
   chipColor?: string;
   section: string;
   onMutate: (section: string, op: "add" | "remove", value: string) => void;
-  maxItems?: number;
   /** Quick-add suggestions — render as outline chips for items not yet present. */
   suggestions?: string[];
 }) {
@@ -302,7 +300,7 @@ function EditableMapaChips({
       ))}
 
       {/* Add new item */}
-      {items.length < maxItems && (
+      {(
         adding ? (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
             <input
@@ -366,8 +364,7 @@ function EditableMapaChips({
       )}
 
       {/* Sugestões de toque rápido — só as que ainda não foram adicionadas */}
-      {items.length < maxItems &&
-        suggestions
+      {suggestions
           .filter((sug) => !items.some((v) => v.toLowerCase() === sug.toLowerCase()))
           .map((sug) => (
             <button
@@ -699,14 +696,12 @@ function EditableTomField({
   suggestions,
   chipBg = "#ffe4c4",
   chipColor = "#9a3412",
-  maxItems = 4,
 }: {
   value: string | null;
   onSet: (v: string) => void;
   suggestions: string[];
   chipBg?: string;
   chipColor?: string;
-  maxItems?: number;
 }) {
   const [customOpen, setCustomOpen] = useState(false);
   const [draft, setDraft] = useState("");
@@ -723,7 +718,7 @@ function EditableTomField({
   const commit = (next: string[]) => onSet(next.join(", "));
   const addItem = (v: string) => {
     const t = v.trim();
-    if (t && !has(t) && items.length < maxItems) commit([...items, t]);
+    if (t && !has(t)) commit([...items, t]);
   };
   const removeItem = (v: string) =>
     commit(items.filter((it) => it.toLowerCase() !== v.toLowerCase()));
@@ -772,7 +767,7 @@ function EditableTomField({
       ))}
 
       {/* Sugestões disponíveis (outline) */}
-      {items.length < maxItems && openSuggestions.map((s) => (
+      {openSuggestions.map((s) => (
         <button
           key={s}
           type="button"
@@ -789,7 +784,7 @@ function EditableTomField({
       ))}
 
       {/* Adicionar custom */}
-      {items.length < maxItems && (
+      {(
         customOpen ? (
           <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
             <input
@@ -1436,7 +1431,6 @@ function MapaCard({
             items={mapaSeed.temas}
             section="temas"
             onMutate={onMapSeedMutate}
-            maxItems={20}
           />
           {mapaSeed.temas.length === 0 && (
             <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, margin: "0 0 2px", fontStyle: "italic" }}>
@@ -2804,7 +2798,7 @@ export function DiagnosticoPage({
       const arr = Array.isArray(clone[section]) ? [...(clone[section] as string[])] : [];
       if (op === "add") {
         if (!arr.some((v) => v.toLowerCase() === value.toLowerCase())) arr.push(value);
-        clone[section] = arr.slice(0, 8);
+        clone[section] = arr;
       } else {
         clone[section] = arr.filter((v) => v.toLowerCase().trim() !== value.toLowerCase().trim());
       }

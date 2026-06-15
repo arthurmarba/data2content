@@ -46,13 +46,11 @@ type ScalarSection = (typeof SCALAR_SECTIONS)[number];
 type Section       = (typeof ALL_SECTIONS)[number];
 
 const MAX_ITEMS: Record<ArraySection, number> = {
-  territorios:           6,
-  // Situações reais é a camada que vira pauta — o criador naturalmente tem
-  // muitas; cap generoso para o "Adicionar" não sumir após poucos itens.
-  temas:                 20,
-  assets:                6,
-  narrativas_adjacentes: 4,
-  formatos:              6,
+  territorios:           100,
+  temas:                 100,
+  assets:                100,
+  narrativas_adjacentes: 100,
+  formatos:              100,
 };
 
 // ─── Route handlers ───────────────────────────────────────────────────────────

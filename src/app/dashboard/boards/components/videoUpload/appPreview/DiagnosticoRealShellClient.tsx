@@ -285,7 +285,10 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     if (pautaCollabsSigRef.current === sig) return;
     pautaCollabsSigRef.current = sig;
 
-    let cancelled = false;
+    // O loading é gateado pela assinatura vigente (não por um flag `cancelled`):
+    // se este effect re-roda e cai no early-return acima, o request em voo ainda
+    // resolve o loading — antes, o cleanup marcava `cancelled` e o `finally` pulava
+    // o `setLoading(false)`, deixando o skeleton preso ao gerar novas pautas.
     setPautaCollabsLoading(true);
     (async () => {
       try {
@@ -298,18 +301,17 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           }),
         });
         const json = await res.json().catch(() => null);
-        if (!cancelled && json?.ok && json.matches) {
+        // Descarta resultado obsoleto: outra geração já trocou a assinatura.
+        if (pautaCollabsSigRef.current !== sig) return;
+        if (json?.ok && json.matches) {
           setPautaCollabs(new Map(Object.entries(json.matches)));
         }
       } catch {
         // non-fatal
       } finally {
-        if (!cancelled) setPautaCollabsLoading(false);
+        if (pautaCollabsSigRef.current === sig) setPautaCollabsLoading(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
   }, [activeTab, data.userInfo.plan, data.mapaSeed, data.mainNarrativeLabel, data.synthesis, data.contentIdeas, localContentIdeas]);
 
   const handleConnectInstagram = useCallback(() => {
@@ -383,6 +385,47 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     }
     setOpenIdeaId(id);
   }, [data.instagramConnected, data.userInfo.plan]);
+
+  // Salvar/dessalvar uma pauta. Pauta salva sobrevive à geração de novas pautas
+  // (o servidor só supersede as `active`); aqui refletimos isso otimistamente e
+  // persistimos via PATCH. Falha de rede reverte o estado local.
+  const handleToggleSavePauta = useCallback((id: string) => {
+    if (data.userInfo.plan !== "Pro") {
+      openPaywallModal({
+        context: "planning",
+        source: "mobile_idea_save",
+        returnTo: MOBILE_PROFILE_ROUTE,
+        postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
+      });
+      return;
+    }
+    let nextStatus: "saved" | "active" = "saved";
+    setLocalContentIdeas((prev) =>
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        nextStatus = p.status === "saved" ? "active" : "saved";
+        return { ...p, status: nextStatus };
+      }),
+    );
+    void (async () => {
+      try {
+        const res = await fetch(`/api/dashboard/mobile-strategic-profile/content-ideas/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: nextStatus }),
+        });
+        if (!res.ok) throw new Error(String(res.status));
+      } catch {
+        // Reverte o otimismo se o servidor recusou.
+        setLocalContentIdeas((prev) =>
+          prev.map((p) =>
+            p.id === id ? { ...p, status: nextStatus === "saved" ? "active" : "saved" } : p,
+          ),
+        );
+      }
+    })();
+  }, [data.instagramConnected, data.userInfo.plan]);
+
   const handleOpenAccountCommunity = useCallback(() => {
     // Abre a Comunidade DENTRO do shell (não sai para outra rota) —
     // o usuário mantém o contexto do produto.
@@ -560,7 +603,15 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           status: "active" as const,
           scheduledFor: null,
         }));
-        setLocalContentIdeas((prev) => [...newIdeas, ...prev]);
+        // Espelha o servidor: a leva nova entra como `active`; as pautas SALVAS
+        // que o criador guardou permanecem (o servidor só supersede `active`).
+        // As `active` anteriores saem — viraram `superseded` lá. Assim o card
+        // mostra a leva fresca + as salvas, sem acumular pautas velhas localmente.
+        setLocalContentIdeas((prev) => {
+          const newIds = new Set(newIdeas.map((i) => i.id));
+          const keptSaved = prev.filter((p) => p.status === "saved" && !newIds.has(p.id));
+          return [...newIdeas, ...keptSaved];
+        });
         console.log("[d2c:pautas] localContentIdeas atualizado ✓");
         // Use startTransition so the local state update renders BEFORE the
         // router refresh re-fetches server data.  Without this, the Suspense
@@ -1273,6 +1324,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
             pautaCollabs={pautaCollabs}
             pautaCollabsLoading={pautaCollabsLoading}
             onOpenIdea={handleOpenIdea}
+            onToggleSave={handleToggleSavePauta}
             onOpenCommunity={handleOpenAccountCommunity}
             onOpenCreatorMediaKit={handleOpenCreatorMediaKit}
             onConnectWhatsApp={() => setWhatsAppSheetOpen(true)}
@@ -1401,7 +1453,18 @@ export function DiagnosticoRealShellClient({ data }: Props) {
         <DiagnosticoNorteView
           initialPurpose={localPurpose}
           onClose={() => setNorteOpen(false)}
-          onSaved={(newPurpose) => setLocalPurpose(newPurpose)}
+          onSaved={(newPurpose) => {
+            setLocalPurpose(newPurpose);
+            // Declarar o propósito SEMEIA o MapaSeed no servidor (seedMapaSeedFromPurpose,
+            // já concluído quando o PATCH responde). O card "Seu Mapa" renderiza esse
+            // mapaSeed — sem re-buscar, ele só apareceria após um reload manual (parecia
+            // erro). O refresh em transition re-busca o mapa semeado mantendo a UI atual
+            // visível (sem flash de Suspense); o DiagnosticoPage re-sincroniza via
+            // useEffect([data.mapaSeed]).
+            startTransition(() => {
+              router.refresh();
+            });
+          }}
         />
       )}
 
