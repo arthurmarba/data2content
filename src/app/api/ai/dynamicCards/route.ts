@@ -89,7 +89,7 @@ Observação:
        4. Chamada Chat Completion
     -------------------------------------------------- */
     const { choices } = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: process.env.OPENAI_MODEL || "gpt-4o-mini",
       temperature: 0.3,
       max_tokens: 1500,
       messages: [{ role: "user", content: prompt }],

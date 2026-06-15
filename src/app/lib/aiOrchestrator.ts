@@ -65,7 +65,7 @@ const openai =
             dangerouslyAllowBrowser: true,
         });
 const MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-const QUICK_ACK_MODEL = process.env.OPENAI_QUICK_ACK_MODEL || 'gpt-3.5-turbo';
+const QUICK_ACK_MODEL = process.env.OPENAI_QUICK_ACK_MODEL || 'gpt-4o-mini';
 const TEMP = Number(process.env.OPENAI_TEMP) || 0.7;
 const QUICK_ACK_TEMP = Number(process.env.OPENAI_QUICK_ACK_TEMP) || 0.8;
 const TOKENS = Number(process.env.OPENAI_MAXTOK) || 1400;

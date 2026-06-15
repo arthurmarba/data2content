@@ -45,12 +45,12 @@ export const GROWTH_ANALYSIS_PERIOD_LONG_TERM_MONTHS = Number(process.env.GROWTH
 
 // --- Constantes para Memória de Curto Prazo (Proposta 2.1.3) ---
 export const SHORT_TERM_CONTEXT_VALIDITY_MINUTES = Number(process.env.SHORT_TERM_CONTEXT_VALIDITY_MINUTES) || 5;
-export const CONTEXT_EXTRACTION_MODEL = process.env.CONTEXT_EXTRACTION_MODEL || 'gpt-3.5-turbo';
+export const CONTEXT_EXTRACTION_MODEL = process.env.CONTEXT_EXTRACTION_MODEL || 'gpt-4o-mini';
 export const CONTEXT_EXTRACTION_TEMP = Number(process.env.CONTEXT_EXTRACTION_TEMP) || 0.2;
 export const CONTEXT_EXTRACTION_MAX_TOKENS = Number(process.env.CONTEXT_EXTRACTION_MAX_TOKENS) || 150;
 
 // --- Constantes para Perguntas Instigantes (userMessageHandler.ts) ---
-export const INSTIGATING_QUESTION_MODEL = process.env.INSTIGATING_QUESTION_MODEL || 'gpt-3.5-turbo';
+export const INSTIGATING_QUESTION_MODEL = process.env.INSTIGATING_QUESTION_MODEL || 'gpt-4o-mini';
 export const INSTIGATING_QUESTION_TEMP = Number(process.env.INSTIGATING_QUESTION_TEMP) || 0.7;
 export const INSTIGATING_QUESTION_MAX_TOKENS = Number(process.env.INSTIGATING_QUESTION_MAX_TOKENS) || 80;
 

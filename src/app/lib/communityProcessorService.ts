@@ -33,7 +33,7 @@ import {
 
 // Configuração do cliente OpenAI
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-const SUMMARY_MODEL = process.env.OPENAI_SUMMARY_MODEL || 'gpt-3.5-turbo';
+const SUMMARY_MODEL = process.env.OPENAI_SUMMARY_MODEL || 'gpt-4o-mini';
 const SUMMARY_MAX_TOKENS = 100;
 const SUMMARY_TEMPERATURE = 0.5;
 

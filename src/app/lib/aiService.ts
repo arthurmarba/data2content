@@ -13,17 +13,19 @@ import type { UserExpertiseLevel } from '@/app/models/User';
 // (default seguro = OpenAI, preservando modelo/temperatura/max_tokens atuais).
 const LLM_SCOPE = 'AI';
 
-const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-3.5-turbo';
+// gpt-4o-mini substitui gpt-3.5-turbo como default: é mais barato no input e no
+// output E mais capaz. Ainda configurável por env para qualquer ajuste futuro.
+const DEFAULT_MODEL = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 const DEFAULT_TEMP = Number(process.env.OPENAI_TEMP) || 0.7;
 const DEFAULT_MAX_TOKENS = Number(process.env.OPENAI_MAXTOK) || 500;
 
 // Modelo e parâmetros para sumarização
-const SUMMARY_MODEL = process.env.OPENAI_SUMMARY_MODEL || 'gpt-3.5-turbo';
-const SUMMARY_TEMP = 0.3; 
+const SUMMARY_MODEL = process.env.OPENAI_SUMMARY_MODEL || 'gpt-4o-mini';
+const SUMMARY_TEMP = 0.3;
 const SUMMARY_MAX_TOKENS = 180;
 
 // Modelo e parâmetros para inferência de nível de expertise
-const EXPERTISE_INFERENCE_MODEL = process.env.OPENAI_CLASSIFICATION_MODEL || 'gpt-3.5-turbo';
+const EXPERTISE_INFERENCE_MODEL = process.env.OPENAI_CLASSIFICATION_MODEL || 'gpt-4o-mini';
 const EXPERTISE_INFERENCE_TEMP = 0.1; 
 const EXPERTISE_INFERENCE_MAX_TOKENS = 10;
 
