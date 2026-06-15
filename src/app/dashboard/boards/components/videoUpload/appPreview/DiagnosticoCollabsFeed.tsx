@@ -119,7 +119,9 @@ function CollabCreatorRow({
     : undefined;
   return (
     // Sem métricas de audiência — só fit narrativo (decisão de produto).
-    <div style={{ marginTop: 14, borderTop: "1px solid rgba(0,0,0,0.07)", paddingTop: 12 }}>
+    // Separação interna < gap entre cards: o divisor do collab não pode competir
+    // com a fronteira do card (senão o olho agrupa este bloco com o card vizinho).
+    <div style={{ marginTop: 12, borderTop: "1px solid rgba(0,0,0,0.05)", paddingTop: 12 }}>
       <span style={{
         display: "inline-block", fontSize: 10, fontWeight: 800, letterSpacing: 0.6,
         textTransform: "uppercase", color: "#7c3aed", marginBottom: 8,
@@ -192,7 +194,7 @@ function CollabTeaser({ onUpgrade }: { onUpgrade?: (context?: PaywallContext) =>
       type="button"
       onClick={() => onUpgrade?.("narrative_map")}
       style={{
-        marginTop: 14, borderTop: "1px solid rgba(0,0,0,0.07)", paddingTop: 12,
+        marginTop: 12, borderTop: "1px solid rgba(0,0,0,0.05)", paddingTop: 12,
         display: "flex", alignItems: "center", gap: 10, width: "100%",
         background: "none", border: "none", textAlign: "left", cursor: "pointer", fontFamily: "inherit",
       }}
@@ -219,7 +221,7 @@ function CollabTeaser({ onUpgrade }: { onUpgrade?: (context?: PaywallContext) =>
 
 function CollabRowSkeleton() {
   return (
-    <div style={{ marginTop: 14, borderTop: "1px solid rgba(0,0,0,0.07)", paddingTop: 12 }}>
+    <div style={{ marginTop: 12, borderTop: "1px solid rgba(0,0,0,0.05)", paddingTop: 12 }}>
       <style>{`@keyframes d2c-collab-pulse{0%,100%{opacity:.5}50%{opacity:.2}}`}</style>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ width: 38, height: 38, borderRadius: 9999, background: "#ece9f6", flexShrink: 0, animation: "d2c-collab-pulse 1.1s ease-in-out infinite" }} />
@@ -289,15 +291,17 @@ function PautaCard({
           style={{ display: "block", width: "100%", textAlign: "left", background: "none", border: "none", padding: 0, paddingRight: onToggleSave ? 36 : 0, cursor: onOpenIdea ? "pointer" : "default", fontFamily: "inherit" }}
         >
           {pauta.territory ? (
+            // Linha de contexto discreta (não um "header" uppercase) — o título é o
+            // herói do card. Peso 600/cinza/sem caixa-alta deixa o título liderar.
             <span style={{
-              display: "block", maxWidth: "100%", fontSize: 11, fontWeight: 700, letterSpacing: 0.2,
-              textTransform: "uppercase", color: TEXT_SECONDARY_HEX, marginBottom: 8,
+              display: "block", maxWidth: "100%", fontSize: 12, fontWeight: 600, letterSpacing: 0,
+              color: TEXT_SECONDARY_HEX, marginBottom: 5,
               overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>
               {pauta.territory}
             </span>
           ) : null}
-          <p style={{ fontSize: 16, fontWeight: 700, color: TEXT_PRIMARY_HEX, letterSpacing: -0.3, lineHeight: 1.3, margin: 0 }}>
+          <p style={{ fontSize: 17, fontWeight: 700, color: TEXT_PRIMARY_HEX, letterSpacing: -0.3, lineHeight: 1.3, margin: 0 }}>
             {pauta.title}
           </p>
           {snippet ? (
@@ -400,7 +404,7 @@ export function DiagnosticoCollabsFeed({
 
       {hasPautas ? (
         <>
-          <div style={{ padding: "14px 18px 0", display: "grid", gap: 12 }}>
+          <div style={{ padding: "14px 18px 0", display: "grid", gap: 18 }}>
             {orderedPautas.map((pauta) => (
               <PautaCard
                 key={pauta.id}
