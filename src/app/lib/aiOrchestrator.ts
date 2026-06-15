@@ -2240,7 +2240,23 @@ export async function askLLMWithEnrichedContext(
             messages: currentMsgs,
         };
 
-        const isLightweightIntent = currentIntent === 'social_query' || currentIntent === 'meta_query_personal' || currentIntent === 'generate_proactive_alert';
+        // Intents que NÃO precisam de function calling: turnos puramente
+        // conversacionais, de captura de memória/preferência ou de recusa. Não
+        // buscam métrica nenhuma — enviar os ~15k tokens de schemas de função
+        // neles é desperdício puro. (Confirmar/negar ação pendente fica DE FORA:
+        // a confirmação pode levar o modelo a chamar uma ferramenta no mesmo turno.)
+        const NO_FUNCTION_INTENTS = new Set([
+            'social_query',
+            'meta_query_personal',
+            'generate_proactive_alert',
+            'greeting',
+            'proactive_script_reject',
+            'user_stated_preference',
+            'user_shared_goal',
+            'user_mentioned_key_fact',
+            'user_requests_memory_update',
+        ]);
+        const isLightweightIntent = NO_FUNCTION_INTENTS.has(currentIntent);
 
         if (isLightweightIntent) {
             logger.info(`${turnTag} Intenção '${currentIntent}' é leve.Function calling desabilitado.`);
