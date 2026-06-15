@@ -4,11 +4,11 @@ import { matchCollabsForPautas } from "./perPautaCollabMatchingService";
 
 const mockBuildPool = jest.fn();
 const mockBuildMatch = jest.fn();
-const mockFitReason = jest.fn();
+const mockCollabContext = jest.fn();
 jest.mock("./narrativeCollabMatchingService", () => ({
   buildNarrativeCandidatePool: (...a: unknown[]) => mockBuildPool(...a),
   buildMatchFromCandidate: (...a: unknown[]) => mockBuildMatch(...a),
-  generateNarrativeFitReason: (...a: unknown[]) => mockFitReason(...a),
+  generateCollabContext: (...a: unknown[]) => mockCollabContext(...a),
 }));
 
 // Ranker determinístico: devolve o pool na ordem (o melhor é o primeiro livre).
@@ -22,11 +22,12 @@ function poolEntry(userId: string) {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockFitReason.mockResolvedValue("GEMINI_FIT");
-  // buildMatch ecoa o id do candidato + o fitReason recebido, para asserts.
-  mockBuildMatch.mockImplementation((eligible: any, _labels: unknown, _terr: unknown, fit: string) => ({
+  mockCollabContext.mockResolvedValue({ fitReason: "GEMINI_FIT", recordingIdea: "GEMINI_REC" });
+  // buildMatch ecoa o id do candidato + o fitReason/recordingIdea recebidos, para asserts.
+  mockBuildMatch.mockImplementation((eligible: any, _labels: unknown, _terr: unknown, fit: string, rec?: string) => ({
     id: eligible.userId,
     narrativeFitReason: fit,
+    collabRecordingIdea: rec ?? null,
   }));
 });
 
@@ -82,7 +83,7 @@ describe("matchCollabsForPautas", () => {
       "narrativa",
       { geminiCallCap: 1 },
     );
-    expect(mockFitReason).toHaveBeenCalledTimes(1); // só 1 chamada Gemini
+    expect(mockCollabContext).toHaveBeenCalledTimes(1); // só 1 chamada Gemini
     expect(r.get("p1")?.narrativeFitReason).toBe("GEMINI_FIT");
     expect(r.get("p2")?.narrativeFitReason).toContain("B"); // fallback derivado do território
     expect(r.get("p3")?.narrativeFitReason).toContain("C");

@@ -39,6 +39,8 @@ export interface NarrativeCollabMatch {
   suggestedNarrativeLabel: string;
   /** Razão de fit gerada por Gemini */
   narrativeFitReason: string;
+  /** Como o conteúdo seria gravado a dois (1 frase). Opcional — só no fluxo por-pauta. */
+  collabRecordingIdea?: string | null;
   /** Ponto de encontro: território confirmado do viewer que o candidato também toca. */
   sharedSignal: string | null;
   /** Territórios DELE que o viewer não tem — o ângulo novo que a collab traz. */
@@ -258,6 +260,7 @@ export function buildMatchFromCandidate(
   viewerTerritoryLabels: string[],
   candidateTerritoriesById: Map<string, string[]>,
   narrativeFitReason: string,
+  collabRecordingIdea?: string | null,
 ): NarrativeCollabMatch {
   const { user, reading } = eligible;
   const candidateNarrative = reading.videoReading.mainNarrative?.trim() ?? "";
@@ -273,10 +276,68 @@ export function buildMatchFromCandidate(
     narrativeExample: buildNarrativeExample(reading),
     suggestedNarrativeLabel: candidateNarrative,
     narrativeFitReason,
+    collabRecordingIdea: collabRecordingIdea ?? null,
     sharedSignal: findSharedLabel(viewerTerritoryLabels, candidateNarrative),
     distinctSignals: findDistinctLabels(viewerTerritoryLabels, herTerritories, 3),
     narrativeMatch: true,
   };
+}
+
+/**
+ * Gera, numa única chamada Gemini, a razão de fit E uma ideia curta de como o
+ * conteúdo seria gravado a dois. Usado no fluxo por-pauta (alimenta o modal da
+ * pauta). Non-fatal: cai no fallback recebido se o Gemini falhar.
+ */
+export async function generateCollabContext(
+  viewerNarrative: string,
+  candidateNarrative: string,
+  territoryLabel: string,
+  fallbackFitReason: string,
+): Promise<{ fitReason: string; recordingIdea: string | null }> {
+  const apiKey = readApiKey();
+  if (!apiKey) return { fitReason: fallbackFitReason, recordingIdea: null };
+
+  const territoriesLine = territoryLabel
+    ? `\nTerritório da pauta: ${territoryLabel}`
+    : "";
+
+  const prompt = `\
+Você é o companheiro narrativo da Data2Content.
+Duas criadoras com narrativas compatíveis vão postar juntas (collab). Responda em JSON:
+{
+  "fitReason": "1 frase curta (máx 110 caracteres) — por que estas narrativas se COMPLEMENTAM como collab",
+  "recordingIdea": "1 frase curta (máx 130 caracteres) — como elas gravariam esse conteúdo JUNTAS, de forma concreta e prática"
+}
+Tom calmo e específico. Nunca use: "engajamento", "alcance", "algoritmo", "seguidores", "performance", "audiência".
+
+Criador A (perfil base): "${viewerNarrative}"${territoriesLine}
+Criador B (sugestão): "${candidateNarrative}"
+
+Responda apenas com o JSON, sem cercas de código.`;
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: createUserContent([prompt]),
+      config: { maxOutputTokens: 160, temperature: 0.6, responseMimeType: "application/json" },
+    });
+    const text = response.text?.trim();
+    if (text) {
+      const parsed = JSON.parse(text) as { fitReason?: unknown; recordingIdea?: unknown };
+      const fitReason = typeof parsed.fitReason === "string" && parsed.fitReason.trim().length > 5
+        ? parsed.fitReason.trim()
+        : fallbackFitReason;
+      const recordingIdea = typeof parsed.recordingIdea === "string" && parsed.recordingIdea.trim().length > 5
+        ? parsed.recordingIdea.trim()
+        : null;
+      return { fitReason, recordingIdea };
+    }
+  } catch {
+    // Non-fatal
+  }
+
+  return { fitReason: fallbackFitReason, recordingIdea: null };
 }
 
 export { generateNarrativeFitReason };

@@ -17,6 +17,7 @@ import {
   TEXT_PRIMARY_HEX,
   TEXT_SECONDARY_HEX,
   TEXT_BODY_HEX,
+  INK_DARK_HEX,
   SAFE_TOP,
 } from "./diagnosticoTokens";
 
@@ -61,14 +62,17 @@ function FeedHeader({
   onUpgrade,
 }: Pick<Props, "isPro" | "whatsappLinked" | "onConnectWhatsApp" | "onUpgrade">) {
   return (
-    <div style={{ padding: "10px 18px 4px", display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 12 }}>
-      <div style={{ minWidth: 0 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: TEXT_PRIMARY_HEX, letterSpacing: -0.5, margin: 0, lineHeight: 1.1 }}>
-          Collabs
+    // Hero alinhado ao header do Perfil ("Olá, nome"): mesma família, peso e clamp.
+    <div style={{ padding: "22px 20px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <h1 style={{
+          fontFamily: '"Poppins", -apple-system, "SF Pro Display", sans-serif',
+          fontSize: "clamp(28px, 10.7vw, 40px)",
+          fontWeight: 700, color: INK_DARK_HEX, margin: 0,
+          letterSpacing: -0.5, lineHeight: 1.1,
+        }}>
+          Ideias de Post
         </h1>
-        <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, margin: "4px 0 0", lineHeight: 1.4 }}>
-          Pautas do seu mapa e criadores pra postar junto.
-        </p>
       </div>
       {/* Alertas no WhatsApp — Pro. Free vê o botão; o clique abre o paywall. */}
       {whatsappLinked ? (
@@ -153,7 +157,31 @@ function CollabCreatorRow({
   );
 }
 
-// Teaser Pro pro free — onde estaria a collab, mostra que existe um criador
+// Avatar "misterioso" — silhueta sob blur, sugere uma pessoa real sem revelá-la.
+// Genérico de propósito: não roda o match (zero custo Gemini para o free).
+function MysteryAvatar({ size = 40 }: { size?: number }) {
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: 9999, flexShrink: 0, position: "relative",
+      overflow: "hidden", background: "linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)",
+      display: "grid", placeItems: "center",
+    }}>
+      {/* Silhueta de pessoa, levemente desfocada */}
+      <svg width={size} height={size} viewBox="0 0 40 40" aria-hidden="true" style={{ filter: "blur(1.5px)", opacity: 0.55 }}>
+        <circle cx="20" cy="15" r="7" fill="#7c3aed" />
+        <path d="M6 36c0-7.7 6.3-13 14-13s14 5.3 14 13z" fill="#7c3aed" />
+      </svg>
+      {/* "?" sobreposto */}
+      <span style={{
+        position: "absolute", inset: 0, display: "grid", placeItems: "center",
+        fontSize: size * 0.42, fontWeight: 800, color: "#fff",
+        textShadow: "0 1px 2px rgba(76,29,149,0.45)",
+      }}>?</span>
+    </div>
+  );
+}
+
+// Teaser Pro pro free — onde estaria a collab, mostra um criador "misterioso"
 // compatível, sem rodar o match (zero custo Gemini). Tap abre o paywall.
 function CollabTeaser({ onUpgrade }: { onUpgrade?: (context?: PaywallContext) => void }) {
   return (
@@ -166,23 +194,22 @@ function CollabTeaser({ onUpgrade }: { onUpgrade?: (context?: PaywallContext) =>
         background: "none", border: "none", textAlign: "left", cursor: "pointer", fontFamily: "inherit",
       }}
     >
-      <div style={{
-        width: 38, height: 38, borderRadius: 9999, flexShrink: 0,
-        background: "#f4f0ff", color: "#7c3aed", display: "grid", placeItems: "center",
-      }}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="1.8" />
-          <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        </svg>
-      </div>
+      <MysteryAvatar size={40} />
       <div style={{ minWidth: 0, flex: 1 }}>
         <span style={{ display: "block", fontSize: 13, fontWeight: 700, color: TEXT_PRIMARY_HEX, letterSpacing: -0.2 }}>
-          Tem um criador compatível pra essa pauta
+          Um criador combina com essa pauta
         </span>
         <span style={{ display: "block", fontSize: 12, color: "#7c3aed", fontWeight: 600, marginTop: 1 }}>
-          Veja a collab no Pro →
+          Descubra quem no Pro →
         </span>
       </div>
+      <span style={{
+        flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 4,
+        borderRadius: 999, padding: "6px 12px", background: "#7c3aed", color: "#fff",
+        fontSize: 12, fontWeight: 700,
+      }}>
+        Revelar
+      </span>
     </button>
   );
 }
@@ -313,12 +340,15 @@ export function DiagnosticoCollabsFeed({
   const mapless = ideaGenerationBlocker === "map_incomplete";
 
   return (
-    <div style={{ paddingTop: SAFE_TOP }}>
-      <FeedHeader isPro={isPro} whatsappLinked={whatsappLinked} onConnectWhatsApp={onConnectWhatsApp} onUpgrade={onUpgrade} />
+    <div>
+      {/* Header — mesmo fundo unificado do Perfil */}
+      <div style={{ background: "linear-gradient(180deg, #fff8f5 0%, #ffffff 100%)", paddingTop: SAFE_TOP, paddingBottom: 6 }}>
+        <FeedHeader isPro={isPro} whatsappLinked={whatsappLinked} onConnectWhatsApp={onConnectWhatsApp} onUpgrade={onUpgrade} />
+      </div>
 
       {/* Stories row + lupa (já trazem "Descobrir criadores" → comunidade) */}
       {creatorDirectory?.status === "ready" && creatorDirectory.creators.length > 0 && (
-        <div style={{ paddingTop: 12, paddingBottom: 6 }}>
+        <div style={{ paddingTop: 14, paddingBottom: 4 }}>
           <CreatorStoriesRow
             creators={creatorDirectory.creators}
             collabSuggestedIds={collabSuggestedIds}
@@ -330,7 +360,7 @@ export function DiagnosticoCollabsFeed({
 
       {hasPautas ? (
         <>
-          <div style={{ padding: "8px 18px 0", display: "grid", gap: 12 }}>
+          <div style={{ padding: "14px 18px 0", display: "grid", gap: 12 }}>
             {pautas.map((pauta) => (
               <PautaCard
                 key={pauta.id}

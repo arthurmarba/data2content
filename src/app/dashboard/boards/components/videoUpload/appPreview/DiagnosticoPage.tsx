@@ -2325,10 +2325,9 @@ export function CreatorStoriesRow({
     .sort((a, b) => (b.followers ?? 0) - (a.followers ?? 0))
     .slice(0, 4);
 
-  // Avatares responsivos: Pro Max / Pro (≥393px) usa 64px para preencher
-  // o row sem gap excessivo; telas menores mantêm 56px.
-  // row: 70px no Pro Max/Pro → 5×70=350px em 398px de content = 12px de gap (natural)
-  const avatarSize = typeof window !== "undefined" && window.innerWidth >= 393 ? 70 : 56;
+  // Avatares responsivos: Pro Max / Pro (≥393px) usa 76px para preencher
+  // o row sem gap excessivo; telas menores usam 62px.
+  const avatarSize = typeof window !== "undefined" && window.innerWidth >= 393 ? 76 : 62;
   const labelMaxWidth = avatarSize;
 
   const handleAvatarClick = (slug: string | null | undefined) => {

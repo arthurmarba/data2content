@@ -1323,7 +1323,19 @@ export function DiagnosticoRealShellClient({ data }: Props) {
       {openIdeaId && (() => {
         const idea = hydratedData.contentIdeas.find((i) => i.id === openIdeaId);
         return idea ? (
-          <DiagnosticoIdeaDetailSheet idea={idea} onClose={() => setOpenIdeaId(null)} />
+          <DiagnosticoIdeaDetailSheet
+            idea={idea}
+            collab={pautaCollabs.get(openIdeaId) ?? null}
+            isPro={hydratedData.userInfo.plan === "Pro"}
+            onOpenCreatorMediaKit={handleOpenCreatorMediaKit}
+            onUpgrade={() => openPaywallModal({
+              context: "narrative_map",
+              source: "mobile_idea_collab",
+              returnTo: MOBILE_PROFILE_ROUTE,
+              postCheckoutIntent: "connect_instagram",
+            })}
+            onClose={() => setOpenIdeaId(null)}
+          />
         ) : null;
       })()}
 

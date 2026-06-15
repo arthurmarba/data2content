@@ -13,7 +13,7 @@
 import {
   buildNarrativeCandidatePool,
   buildMatchFromCandidate,
-  generateNarrativeFitReason,
+  generateCollabContext,
   type NarrativeCollabMatch,
 } from "./narrativeCollabMatchingService";
 import { rankByComplementarity } from "./collabComplementarity";
@@ -34,6 +34,14 @@ function normalizeTerritory(t: string): string {
 function fallbackFitReason(territory: string): string {
   const t = territory.trim();
   return t ? `Conecta com ${t} no seu mapa.` : "Narrativa complementar ao seu mapa.";
+}
+
+/** Ideia de gravação barata (sem LLM) — fallback após o teto. */
+function fallbackRecordingIdea(territory: string): string {
+  const t = territory.trim();
+  return t
+    ? `Gravem um diálogo sobre ${t} — cada uma trazendo o seu ângulo.`
+    : "Gravem um diálogo onde cada uma traz o seu ângulo da narrativa.";
 }
 
 /**
@@ -84,14 +92,24 @@ export async function matchCollabsForPautas(
 
     const candidateNarrative = eligible.reading.videoReading.mainNarrative?.trim() ?? "";
     let fitReason: string;
+    let recordingIdea: string | null;
     if (geminiCalls < cap) {
-      fitReason = await generateNarrativeFitReason(narrativeLabel, candidateNarrative || "conteúdo criativo", [label]);
+      // 1 chamada Gemini devolve fit reason + ideia de gravação (custo flat).
+      const ctx = await generateCollabContext(
+        narrativeLabel,
+        candidateNarrative || "conteúdo criativo",
+        label,
+        fallbackFitReason(label),
+      );
+      fitReason = ctx.fitReason;
+      recordingIdea = ctx.recordingIdea ?? fallbackRecordingIdea(label);
       geminiCalls += 1;
     } else {
       fitReason = fallbackFitReason(label);
+      recordingIdea = fallbackRecordingIdea(label);
     }
 
-    const match = buildMatchFromCandidate(eligible, [label], poolResult.candidateTerritoriesById, fitReason);
+    const match = buildMatchFromCandidate(eligible, [label], poolResult.candidateTerritoriesById, fitReason, recordingIdea);
     for (const id of ids) result.set(id, match);
   }
 
