@@ -21,6 +21,7 @@ import {
   normalizeClassificationResponse,
   type ClassificationResult,
 } from "@/app/lib/classificationRuntime";
+import { getCachedClassification, setCachedClassification } from "@/app/lib/classificationCache";
 import mongoose from "mongoose";
 
 const OPENAI_CLASSIFICATION_MODEL =
@@ -111,6 +112,15 @@ async function classifyContent(description: string): Promise<ClassificationResul
     if (!description || description.trim() === '') {
         return getEmptyClassificationResult();
     }
+
+    // Cache de descrições idênticas — poupa a chamada à OpenAI em reposts/legendas
+    // repetidas. Miss ou cache off cai no comportamento normal (degradação graciosa).
+    const cached = await getCachedClassification(description, OPENAI_CLASSIFICATION_MODEL);
+    if (cached) {
+        logger.info(`${TAG} Cache HIT — classificação reaproveitada sem chamar a OpenAI.`);
+        return cached;
+    }
+
     const payload = buildClassificationOpenAiPayload(description, OPENAI_CLASSIFICATION_MODEL);
     
     const apiKey = process.env.OPENAI_API_KEY; 
@@ -143,6 +153,8 @@ async function classifyContent(description: string): Promise<ClassificationResul
         const parsedJson = JSON.parse(content);
         const normalizedResult = normalizeClassificationResponse(parsedJson);
         logger.info(`${TAG} Classificação recebida e normalizada: ${JSON.stringify(normalizedResult)}`);
+        // Memoiza para descrições idênticas futuras (não-bloqueante para o resultado).
+        await setCachedClassification(description, OPENAI_CLASSIFICATION_MODEL, normalizedResult);
         return normalizedResult;
     } else {
         throw new Error("A resposta da OpenAI não continha os dados de classificação esperados.");
