@@ -153,6 +153,40 @@ function CollabCreatorRow({
   );
 }
 
+// Teaser Pro pro free — onde estaria a collab, mostra que existe um criador
+// compatível, sem rodar o match (zero custo Gemini). Tap abre o paywall.
+function CollabTeaser({ onUpgrade }: { onUpgrade?: (context?: PaywallContext) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onUpgrade?.("narrative_map")}
+      style={{
+        marginTop: 14, borderTop: "1px solid rgba(0,0,0,0.07)", paddingTop: 12,
+        display: "flex", alignItems: "center", gap: 10, width: "100%",
+        background: "none", border: "none", textAlign: "left", cursor: "pointer", fontFamily: "inherit",
+      }}
+    >
+      <div style={{
+        width: 38, height: 38, borderRadius: 9999, flexShrink: 0,
+        background: "#f4f0ff", color: "#7c3aed", display: "grid", placeItems: "center",
+      }}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <rect x="5" y="11" width="14" height="9" rx="2" stroke="currentColor" strokeWidth="1.8" />
+          <path d="M8 11V8a4 4 0 0 1 8 0v3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      </div>
+      <div style={{ minWidth: 0, flex: 1 }}>
+        <span style={{ display: "block", fontSize: 13, fontWeight: 700, color: TEXT_PRIMARY_HEX, letterSpacing: -0.2 }}>
+          Tem um criador compatível pra essa pauta
+        </span>
+        <span style={{ display: "block", fontSize: 12, color: "#7c3aed", fontWeight: 600, marginTop: 1 }}>
+          Veja a collab no Pro →
+        </span>
+      </div>
+    </button>
+  );
+}
+
 function CollabRowSkeleton() {
   return (
     <div style={{ marginTop: 14, borderTop: "1px solid rgba(0,0,0,0.07)", paddingTop: 12 }}>
@@ -172,14 +206,18 @@ function PautaCard({
   pauta,
   collab,
   loading = false,
+  isPro,
   onOpenIdea,
   onOpenCreatorMediaKit,
+  onUpgrade,
 }: {
   pauta: ContentIdeaListItem;
   collab?: NarrativeCollabMatch | null;
   loading?: boolean;
+  isPro: boolean;
   onOpenIdea?: (id: string) => void;
   onOpenCreatorMediaKit?: (slug: string) => void;
+  onUpgrade?: (context?: PaywallContext) => void;
 }) {
   const snippet = pauta.angle?.trim() || pauta.hook?.trim() || pauta.whyItFits?.trim() || "";
   return (
@@ -210,12 +248,14 @@ function PautaCard({
             </p>
           ) : null}
         </button>
-        {/* Criador compatível pelo território da pauta. Enquanto busca, skeleton;
-            depois, só aparece quando há match real (null = pauta-only, sem placeholder). */}
+        {/* Criador compatível pelo território da pauta. Pro: match real (ou skeleton
+            enquanto busca; null = pauta-only, sem placeholder). Free: teaser Pro. */}
         {collab ? (
           <CollabCreatorRow collab={collab} onOpenCreatorMediaKit={onOpenCreatorMediaKit} />
         ) : loading ? (
           <CollabRowSkeleton />
+        ) : !isPro ? (
+          <CollabTeaser onUpgrade={onUpgrade} />
         ) : null}
       </div>
     </DiagnosticoCardShell>
@@ -297,8 +337,10 @@ export function DiagnosticoCollabsFeed({
                 pauta={pauta}
                 collab={pautaCollabs?.get(pauta.id) ?? null}
                 loading={pautaCollabsLoading}
+                isPro={isPro}
                 onOpenIdea={onOpenIdea}
                 onOpenCreatorMediaKit={onOpenCreatorMediaKit}
+                onUpgrade={onUpgrade}
               />
             ))}
           </div>
