@@ -43,6 +43,13 @@ export const INK_DARK_HEX        = "#1c1c1e"; // near-black — banner / dark su
 export const SURFACE_NEUTRAL_HEX = "#f4f4f5"; // zinc-100 — neutral button / chip background
 export const ACCENT_ORANGE_HEX   = "#ff6b35"; // brand orange — primary accent / hypothesis CTA
 
+// ─── Card de conteúdo (linguagem de "elevação") ────────────────────────────────
+// Padrão dos cards de conteúdo do app (Seu Mapa, Sua Audiência, pautas): raio
+// moderado + sombra suave com hairline embutido (o `0 0 0 0.5px` faz a borda
+// fininha). SEM borda dura — a elevação é o único sinal de recorte.
+export const CARD_RADIUS = 20;
+export const CARD_SHADOW = "0 1px 4px rgba(28,28,30,0.08), 0 0 0 0.5px rgba(28,28,30,0.04)";
+
 // ─── Safe-area ────────────────────────────────────────────────────────────────
 // Respiro padrão abaixo do notch para headers de telas full-screen.
 // DEVE casar com a utilitária CSS `.pt-safe-top` em globals.css.

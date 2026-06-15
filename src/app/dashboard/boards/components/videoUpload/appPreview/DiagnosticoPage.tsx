@@ -20,6 +20,8 @@ import {
   SURFACE_NEUTRAL_HEX,
   ACCENT_ORANGE_HEX,
   SAFE_TOP,
+  CARD_RADIUS,
+  CARD_SHADOW,
 } from "./diagnosticoTokens";
 import type { CategoryId } from "./DiagnosticoCategoryMeta";
 import {
@@ -36,9 +38,8 @@ import type { PaywallContext } from "@/types/paywall";
 
 const SOLID_BG = "#ffffff";
 
-// Unified card shell tokens
-const CARD_RADIUS = 20;
-const CARD_SHADOW = "0 1px 4px rgba(28,28,30,0.08), 0 0 0 0.5px rgba(28,28,30,0.04)";
+// Card shell tokens — CARD_RADIUS / CARD_SHADOW agora vivem em diagnosticoTokens
+// (linguagem de elevação compartilhada com a aba Collabs).
 
 const CAT: Record<string, { label: string; color: string; text: string; bg: string }> = {
   diagnostico: { label: "Diagnóstico",        color: "#ff6b35", text: "#ff6b35", bg: "#ffe7d6" },

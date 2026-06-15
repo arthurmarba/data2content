@@ -12,13 +12,14 @@ import type {
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
 import type { PaywallContext } from "@/types/paywall";
 import { CreatorStoriesRow } from "./DiagnosticoPage";
-import { DiagnosticoCardShell } from "./DiagnosticoCardShell";
 import {
   TEXT_PRIMARY_HEX,
   TEXT_SECONDARY_HEX,
   TEXT_BODY_HEX,
   INK_DARK_HEX,
   SAFE_TOP,
+  CARD_RADIUS,
+  CARD_SHADOW,
 } from "./diagnosticoTokens";
 
 const WA_GREEN = "#25D366";
@@ -248,7 +249,9 @@ function PautaCard({
 }) {
   const snippet = pauta.angle?.trim() || pauta.hook?.trim() || pauta.whyItFits?.trim() || "";
   return (
-    <DiagnosticoCardShell className="border border-zinc-900/80">
+    // Linguagem de elevação (raio 20 + sombra com hairline), igual a Seu Mapa /
+    // Sua Audiência — sem borda dura. Coerente com os cards de conteúdo do app.
+    <div style={{ borderRadius: CARD_RADIUS, background: "#fff", boxShadow: CARD_SHADOW, overflow: "hidden" }}>
       <div style={{ padding: "16px 18px" }}>
         <button
           type="button"
@@ -257,8 +260,9 @@ function PautaCard({
         >
           {pauta.territory ? (
             <span style={{
-              display: "inline-block", fontSize: 11, fontWeight: 700, letterSpacing: 0.2,
+              display: "block", maxWidth: "100%", fontSize: 11, fontWeight: 700, letterSpacing: 0.2,
               textTransform: "uppercase", color: TEXT_SECONDARY_HEX, marginBottom: 8,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             }}>
               {pauta.territory}
             </span>
@@ -285,7 +289,7 @@ function PautaCard({
           <CollabTeaser onUpgrade={onUpgrade} />
         ) : null}
       </div>
-    </DiagnosticoCardShell>
+    </div>
   );
 }
 
