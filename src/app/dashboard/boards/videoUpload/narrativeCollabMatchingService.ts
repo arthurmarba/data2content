@@ -23,7 +23,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import { rankByComplementarity, findSharedLabel, findDistinctLabels } from "./collabComplementarity";
 
 const GEMINI_MODEL = "gemini-2.5-flash";
-const CANDIDATE_POOL_SIZE = 10; // Busca mais candidatos do que o limite para filtrar
+const CANDIDATE_POOL_SIZE = 30; // Pool amplo p/ o matcher por-pauta dedupar por território
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -152,9 +152,16 @@ export interface NarrativeCandidatePool {
 }
 
 /**
- * Busca UMA vez todos os candidatos elegíveis (mapa confirmado + diagnóstico) e
- * seus territórios. Caro (várias queries Mongo); por isso é compartilhado entre o
- * matcher single-shot e o matcher por-pauta (que ranqueia o mesmo pool N vezes).
+ * Busca UMA vez todos os candidatos elegíveis a collab e seus territórios. Caro
+ * (várias queries Mongo); por isso é compartilhado entre o matcher single-shot e
+ * o matcher por-pauta (que ranqueia o mesmo pool N vezes).
+ *
+ * Fonte do pool = **MapaSeed** (a base viva de criadores: narrativa + territórios
+ * vindos de onboarding/Instagram/vídeo). O caminho antigo (CreatorMapConfirmations
+ * confirmado + diagnóstico de vídeo) cobria quase ninguém real — a base de mapas
+ * confirmados estava vazia/órfã. Quando o candidato TAMBÉM tem leitura de vídeo
+ * completa, ela enriquece o exemplo narrativo; senão, sintetizamos do MapaSeed.
+ *
  * Retorna `null` em erro de DB; pool vazio quando não há candidatos.
  */
 export async function buildNarrativeCandidatePool(
@@ -165,19 +172,18 @@ export async function buildNarrativeCandidatePool(
   try {
     await connectToDatabase();
 
-    const { default: CreatorMapConfirmations } = await import("@/app/models/CreatorMapConfirmations");
-    const candidates = await CreatorMapConfirmations.find({
-      "narrative.state": "confirmed",
-      "territories.state": "confirmed",
+    const { default: MapaSeed } = await import("@/app/models/MapaSeed");
+    const seeds = await MapaSeed.find({
+      "mapa.narrativa_central": { $exists: true, $ne: "" },
       userId: { $ne: new Types.ObjectId(viewerUserId) },
     })
-      .select("userId")
+      .select("userId mapa.narrativa_central mapa.territorios mapa.temas")
       .limit(CANDIDATE_POOL_SIZE)
-      .lean<Array<{ userId: Types.ObjectId }>>();
+      .lean<Array<{ userId: Types.ObjectId; mapa: { narrativa_central?: string; territorios?: string[]; temas?: string[] } }>>();
 
-    if (candidates.length === 0) return { pool: [], candidateTerritoriesById: new Map() };
+    if (seeds.length === 0) return { pool: [], candidateTerritoriesById: new Map() };
 
-    const candidateIds = candidates.map((c) => c.userId);
+    const candidateIds = seeds.map((s) => s.userId);
 
     const { default: UserModel } = await import("@/app/models/User");
     const { default: CreatorVideoNarrativeDiagnosis } = await import(
@@ -189,6 +195,7 @@ export async function buildNarrativeCandidatePool(
       .lean<Array<EligibleCandidate["user"]>>();
     const userMap = new Map(users.map((u) => [u._id.toString(), u]));
 
+    // Leitura de vídeo é OPCIONAL agora — só enriquece o exemplo quando existe.
     const bestReadings = await CreatorVideoNarrativeDiagnosis.aggregate<EligibleCandidate["reading"]>([
       {
         $match: {
@@ -210,37 +217,35 @@ export async function buildNarrativeCandidatePool(
     const readingMap = new Map(bestReadings.map((r) => [r.userId.toString(), r]));
 
     const pool: EligibleCandidate[] = [];
-    for (const candidate of candidates) {
-      const userId = candidate.userId.toString();
-      const user = userMap.get(userId);
-      const reading = readingMap.get(userId);
-      if (user && reading) pool.push({ userId, user, reading });
-    }
-
-    // Territórios confirmados de TODOS os elegíveis (barato — ≤10 ids).
     const candidateTerritoriesById = new Map<string, string[]>();
-    try {
-      const { default: CreatorStrategicProfileSnapshot } = await import(
-        "@/app/models/CreatorStrategicProfileSnapshot"
-      );
-      const snaps = await CreatorStrategicProfileSnapshot.find({ userId: { $in: pool.map((e) => e.user._id) } })
-        .select("userId snapshotJson")
-        .lean<Array<{ userId: Types.ObjectId; snapshotJson: string }>>();
-      for (const snap of snaps) {
-        try {
-          const parsed = JSON.parse(snap.snapshotJson) as { narrativeTerritories?: Array<{ label?: unknown }> };
-          const labels = Array.isArray(parsed?.narrativeTerritories)
-            ? parsed.narrativeTerritories
-                .map((t) => (typeof t?.label === "string" ? t.label : null))
-                .filter((l): l is string => !!l)
-            : [];
-          candidateTerritoriesById.set(String(snap.userId), labels);
-        } catch {
-          /* snapshot inválido — ignora */
-        }
-      }
-    } catch (err) {
-      console.warn("[narrativeCollabMatching] snapshot fetch failed (non-fatal):", err);
+    for (const seed of seeds) {
+      const userId = seed.userId.toString();
+      const user = userMap.get(userId);
+      if (!user) continue; // precisa de User real (nome/avatar/mídia kit)
+
+      const narrativa = seed.mapa?.narrativa_central?.trim() ?? "";
+      if (!narrativa) continue;
+
+      const territorios = Array.isArray(seed.mapa?.territorios)
+        ? seed.mapa.territorios.filter((t): t is string => typeof t === "string" && t.trim().length > 0)
+        : [];
+      if (territorios.length === 0) continue; // sem território não casa por-pauta
+
+      candidateTerritoriesById.set(userId, territorios);
+
+      // Vídeo enriquece; sem ele, sintetiza a "reading" a partir do MapaSeed.
+      const videoReading = readingMap.get(userId);
+      const reading: EligibleCandidate["reading"] = videoReading ?? {
+        userId: seed.userId,
+        videoReading: {
+          title: "",
+          summary: (seed.mapa?.temas?.find((t) => typeof t === "string" && t.trim()) ?? narrativa),
+          mainNarrative: narrativa,
+        },
+        publishIntent: null,
+      };
+
+      pool.push({ userId, user, reading });
     }
 
     return { pool, candidateTerritoriesById };
