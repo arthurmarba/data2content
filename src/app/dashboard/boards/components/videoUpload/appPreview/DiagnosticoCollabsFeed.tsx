@@ -23,13 +23,14 @@ import {
 
 const WA_GREEN = "#25D366";
 
-// Fundo pêssego-cream do feed (mesma família quente do header e do card Seu Mapa
-// no Perfil): dá contraste de superfície aos cards brancos — cada um vira um objeto
-// delimitado (resolve o branco-sobre-branco) — sem sair da temperatura quente da
-// identidade. Um cinza-neutro separaria, mas faria o Collabs parecer outro app.
-const FEED_BG = "#F7ECE3";
-// Sombra um pouco mais firme que o token compartilhado — eleva o card contra o
-// novo fundo neutro, tornando a borda card↔card inconfundível ao escanear.
+// Página branca (igual ao Perfil), e os cards usam o off-white quente do card
+// "Seu Mapa" (#fffaf7) — mesma identidade. A separação dos cards empilhados vem
+// do tom quente do card sobre o branco + a sombra firme abaixo (a sombra não é
+// "cor": preserva a aparência do Seu Mapa e evita o branco-sobre-branco).
+const FEED_BG = "#ffffff";
+const CARD_BG = "#fffaf7"; // mesmo do card Seu Mapa (DiagnosticoPage)
+// Sombra um pouco mais firme que o token compartilhado — eleva o card empilhado
+// contra a página branca, tornando a borda card↔card inconfundível ao escanear.
 const FEED_CARD_SHADOW =
   "0 1px 2px rgba(28,28,30,0.06), 0 6px 16px rgba(28,28,30,0.07), 0 0 0 0.5px rgba(28,28,30,0.05)";
 
@@ -275,7 +276,7 @@ function PautaCard({
   return (
     // Linguagem de elevação (raio 20 + sombra com hairline), igual a Seu Mapa /
     // Sua Audiência — sem borda dura. Coerente com os cards de conteúdo do app.
-    <div style={{ borderRadius: CARD_RADIUS, background: "#fff", boxShadow: FEED_CARD_SHADOW, overflow: "hidden" }}>
+    <div style={{ borderRadius: CARD_RADIUS, background: CARD_BG, boxShadow: FEED_CARD_SHADOW, overflow: "hidden" }}>
       <div style={{ padding: "16px 18px", position: "relative" }}>
         {onToggleSave ? (
           <button
