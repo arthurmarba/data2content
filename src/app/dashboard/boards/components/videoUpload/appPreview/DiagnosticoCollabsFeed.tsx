@@ -19,10 +19,17 @@ import {
   INK_DARK_HEX,
   SAFE_TOP,
   CARD_RADIUS,
-  CARD_SHADOW,
 } from "./diagnosticoTokens";
 
 const WA_GREEN = "#25D366";
+
+// Fundo warm-neutral do feed: dá contraste de superfície aos cards brancos para
+// que cada um seja lido como um objeto delimitado (resolve o branco-sobre-branco).
+const FEED_BG = "#EFEAE4";
+// Sombra um pouco mais firme que o token compartilhado — eleva o card contra o
+// novo fundo neutro, tornando a borda card↔card inconfundível ao escanear.
+const FEED_CARD_SHADOW =
+  "0 1px 2px rgba(28,28,30,0.06), 0 6px 16px rgba(28,28,30,0.07), 0 0 0 0.5px rgba(28,28,30,0.05)";
 
 function WhatsAppIcon({ color = "currentColor" }: { color?: string }) {
   return (
@@ -266,7 +273,7 @@ function PautaCard({
   return (
     // Linguagem de elevação (raio 20 + sombra com hairline), igual a Seu Mapa /
     // Sua Audiência — sem borda dura. Coerente com os cards de conteúdo do app.
-    <div style={{ borderRadius: CARD_RADIUS, background: "#fff", boxShadow: CARD_SHADOW, overflow: "hidden" }}>
+    <div style={{ borderRadius: CARD_RADIUS, background: "#fff", boxShadow: FEED_CARD_SHADOW, overflow: "hidden" }}>
       <div style={{ padding: "16px 18px", position: "relative" }}>
         {onToggleSave ? (
           <button
@@ -384,9 +391,12 @@ export function DiagnosticoCollabsFeed({
   );
 
   return (
-    <div>
-      {/* Header — mesmo fundo unificado do Perfil */}
-      <div style={{ background: "linear-gradient(180deg, #fff8f5 0%, #ffffff 100%)", paddingTop: SAFE_TOP, paddingBottom: 6 }}>
+    // Superfície de fundo neutra (warm gray) atrás dos cards: o card branco passa a
+    // ser um objeto NITIDAMENTE delimitado contra o fundo — antes era branco-sobre-
+    // branco e a borda entre um card e o de baixo sumia, embaralhando a leitura.
+    <div style={{ background: FEED_BG, minHeight: "100%" }}>
+      {/* Header — o gradiente quente termina na cor do feed (sem emenda visível). */}
+      <div style={{ background: `linear-gradient(180deg, #fff8f5 0%, ${FEED_BG} 100%)`, paddingTop: SAFE_TOP, paddingBottom: 6 }}>
         <FeedHeader isPro={isPro} whatsappLinked={whatsappLinked} onConnectWhatsApp={onConnectWhatsApp} onUpgrade={onUpgrade} />
       </div>
 
@@ -404,7 +414,7 @@ export function DiagnosticoCollabsFeed({
 
       {hasPautas ? (
         <>
-          <div style={{ padding: "14px 18px 0", display: "grid", gap: 18 }}>
+          <div style={{ padding: "16px 16px 0", display: "grid", gap: 14 }}>
             {orderedPautas.map((pauta) => (
               <PautaCard
                 key={pauta.id}
