@@ -20,7 +20,7 @@ export async function GET() {
 
   const authOptions = await resolveAuthOptions();
   const session = await getServerSession(authOptions);
-  const userId: string | undefined = (session?.user as { id?: string } | undefined)?.id;
+  const userId: string | undefined = (session as any)?.user?.id;
 
   if (!userId) {
     return NextResponse.json({ message: "Não autenticado." }, { status: 401 });

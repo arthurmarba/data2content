@@ -55,25 +55,6 @@ export default function CollabsPinnedBoard({
   const [generating, setGenerating] = React.useState(false);
   const narrativeRef = React.useRef<string>("");
 
-  // Busca pautas + narrativa, e então casa um criador por pauta (território).
-  const loadAll = React.useCallback(async () => {
-    if (!userId) return;
-    try {
-      const [ideasRes, summaryRes] = await Promise.all([
-        fetch(IDEAS_API, { cache: "no-store" }),
-        fetch(SUMMARY_API, { cache: "no-store" }),
-      ]);
-      const ideasJson = ideasRes.ok ? await ideasRes.json() : null;
-      const summaryJson = summaryRes.ok ? await summaryRes.json() : null;
-      const nextPautas: ContentIdeaListItem[] = ideasJson?.ideas ?? [];
-      narrativeRef.current = summaryJson?.summary?.narrative ?? "";
-      setPautas(nextPautas);
-      void matchCollabs(nextPautas);
-    } catch {
-      /* silencioso — o board não derruba a central */
-    }
-  }, [userId]);
-
   const matchCollabs = React.useCallback(async (forPautas: ContentIdeaListItem[]) => {
     const narrative = narrativeRef.current;
     if (!narrative.trim() || forPautas.length === 0) {
@@ -98,6 +79,25 @@ export default function CollabsPinnedBoard({
       setCollabsLoading(false);
     }
   }, []);
+
+  // Busca pautas + narrativa, e então casa um criador por pauta (território).
+  const loadAll = React.useCallback(async () => {
+    if (!userId) return;
+    try {
+      const [ideasRes, summaryRes] = await Promise.all([
+        fetch(IDEAS_API, { cache: "no-store" }),
+        fetch(SUMMARY_API, { cache: "no-store" }),
+      ]);
+      const ideasJson = ideasRes.ok ? await ideasRes.json() : null;
+      const summaryJson = summaryRes.ok ? await summaryRes.json() : null;
+      const nextPautas: ContentIdeaListItem[] = ideasJson?.ideas ?? [];
+      narrativeRef.current = summaryJson?.summary?.narrative ?? "";
+      setPautas(nextPautas);
+      void matchCollabs(nextPautas);
+    } catch {
+      /* silencioso — o board não derruba a central */
+    }
+  }, [userId, matchCollabs]);
 
   React.useEffect(() => {
     void loadAll();
