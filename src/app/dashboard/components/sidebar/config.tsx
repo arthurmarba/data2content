@@ -112,7 +112,7 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         key: "strategic-map",
         label: "Seu Mapa",
         tooltip: "Sua narrativa, territórios e assets — o coração do seu conteúdo",
-        href: "/dashboard/home?highlight=strategic-map",
+        href: "/dashboard/strategic-map",
         icon: ICONS.strategicMap,
       },
       {
@@ -120,7 +120,7 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         key: "collabs",
         label: "Collabs",
         tooltip: "Pautas do seu mapa com criadores compatíveis pra postar junto",
-        href: "/dashboard/home?highlight=collabs",
+        href: "/dashboard/collabs",
         icon: ICONS.collabs,
       },
       {
