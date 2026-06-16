@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 
 import PinnedBoardsHub from "../boards/PinnedBoardsHub";
-import type { PinnableBoardId } from "../boards/boardRegistry";
+import { isPinnableBoardId, type PinnableBoardId } from "../boards/boardRegistry";
 import { usePinnedBoardsEnabled } from "../boards/usePinnedBoards";
 
 const CampaignsBoard = dynamic(() => import("@/app/(dashboard)/campaigns/CampaignsBoard"), {
@@ -148,7 +148,8 @@ export default function HomeDesktopBoards() {
     (session?.user as { planStatus?: string | null } | undefined)?.planStatus ?? null;
   const sessionAffiliateCode =
     (session?.user as { affiliateCode?: string | null } | undefined)?.affiliateCode ?? null;
-  const { orderedPinnedBoards } = usePinnedBoardsEnabled(sessionUserId, true);
+  const { orderedPinnedBoards, isPinned, pinBoard, hydrated: pinsHydrated } =
+    usePinnedBoardsEnabled(sessionUserId, true);
   const searchParams = useSearchParams();
   const highlightBoardId = searchParams?.get("highlight");
 
@@ -156,10 +157,16 @@ export default function HomeDesktopBoards() {
 
   React.useEffect(() => {
     if (!highlightBoardId) return undefined;
+    // Acessar via sidebar deve sempre revelar o board: se o usuário o havia
+    // despinado, o highlight o traz de volta à central (a sidebar é o controle
+    // de "pinar ou não"). Boards fixos já estão sempre presentes.
+    if (pinsHydrated && isPinnableBoardId(highlightBoardId) && !isPinned(highlightBoardId)) {
+      pinBoard(highlightBoardId);
+    }
     setActiveHighlight(highlightBoardId);
     const timer = setTimeout(() => setActiveHighlight(null), 5000);
     return () => clearTimeout(timer);
-  }, [highlightBoardId]);
+  }, [highlightBoardId, pinsHydrated, isPinned, pinBoard]);
 
   const compactCampaignViewer = React.useMemo(
     () => ({

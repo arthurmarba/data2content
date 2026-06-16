@@ -1,5 +1,7 @@
 import {
   HomeIcon as HomeIconOutline,
+  MapIcon as MapIconOutline,
+  UsersIcon as UsersIconOutline,
   RectangleGroupIcon as RectangleGroupIconOutline,
   SparklesIcon as SparklesIconOutline,
   ChatBubbleLeftRightIcon as ChatBubbleLeftRightIconOutline,
@@ -18,6 +20,8 @@ import {
 } from "@heroicons/react/24/outline";
 import {
   HomeIcon as HomeIconSolid,
+  MapIcon as MapIconSolid,
+  UsersIcon as UsersIconSolid,
   RectangleGroupIcon as RectangleGroupIconSolid,
   SparklesIcon as SparklesIconSolid,
   ChatBubbleLeftRightIcon as ChatBubbleLeftRightIconSolid,
@@ -64,6 +68,8 @@ const iconSet = (outline: SidebarIconComponent, solid: SidebarIconComponent): Si
 
 const ICONS = {
   dashboard: iconSet(HomeIconOutline, HomeIconSolid),
+  strategicMap: iconSet(MapIconOutline, MapIconSolid),
+  collabs: iconSet(UsersIconOutline, UsersIconSolid),
   mediaKit: iconSet(RectangleGroupIconOutline, RectangleGroupIconSolid),
   pro: iconSet(SparklesIconOutline, SparklesIconSolid),
   planningChat: iconSet(ChatBubbleLeftRightIconOutline, ChatBubbleLeftRightIconSolid),
@@ -100,6 +106,22 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         href: "/",
         icon: ICONS.dashboard,
         exact: true,
+      },
+      {
+        type: "item",
+        key: "strategic-map",
+        label: "Seu Mapa",
+        tooltip: "Sua narrativa, territórios e assets — o coração do seu conteúdo",
+        href: "/dashboard/home?highlight=strategic-map",
+        icon: ICONS.strategicMap,
+      },
+      {
+        type: "item",
+        key: "collabs",
+        label: "Collabs",
+        tooltip: "Pautas do seu mapa com criadores compatíveis pra postar junto",
+        href: "/dashboard/home?highlight=collabs",
+        icon: ICONS.collabs,
       },
       {
         type: "item",
