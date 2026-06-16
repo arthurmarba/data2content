@@ -2,6 +2,7 @@
 
 export type PinnableBoardId =
   | "strategic-map"
+  | "collabs"
   | "campaigns"
   | "discover"
   | "profile-analysis"
@@ -23,6 +24,12 @@ export const PINNABLE_BOARD_REGISTRY: Record<PinnableBoardId, PinnableBoardConfi
     route: "/dashboard/boards/mobile-strategic-profile",
     defaultPinned: true,
     fixedPinned: true,
+  },
+  collabs: {
+    id: "collabs",
+    title: "Collabs",
+    route: "/dashboard/boards/mobile-strategic-profile",
+    defaultPinned: true,
   },
   campaigns: {
     id: "campaigns",

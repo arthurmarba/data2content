@@ -39,6 +39,11 @@ const StrategicMapPinnedBoard = dynamic(() => import("../boards/StrategicMapPinn
   loading: () => null,
 });
 
+const CollabsPinnedBoard = dynamic(() => import("../boards/CollabsPinnedBoard"), {
+  ssr: false,
+  loading: () => null,
+});
+
 const BOARD_IDLE_DELAYS_MS = [0, 0, 750, 1450, 2200];
 
 function BoardLoadingShell() {
@@ -184,6 +189,13 @@ export default function HomeDesktopBoards() {
             <StrategicMapPinnedBoard
               showTitleMarker={false}
               isHighlighted={activeHighlight === "strategic-map"}
+            />
+          );
+        case "collabs":
+          return (
+            <CollabsPinnedBoard
+              showTitleMarker={false}
+              isHighlighted={activeHighlight === "collabs"}
             />
           );
         case "campaigns":
