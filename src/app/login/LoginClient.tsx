@@ -106,7 +106,7 @@ function LoginComponent() {
           {[
             { icon: "✦", label: "Pautas semanais", iconClass: "text-brand-primary" },
             { icon: "↗", label: "Collabs", iconClass: "text-brand-accent" },
-            { icon: "◆", label: "Comunidade ativa", iconClass: "text-brand-sun-dark" },
+            { icon: "◆", label: "Reunião ao vivo", iconClass: "text-brand-sun-dark" },
           ].map(({ icon, label, iconClass }) => (
             <span
               key={label}

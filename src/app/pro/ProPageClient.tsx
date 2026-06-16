@@ -36,9 +36,9 @@ type ProPageClientProps = {
 };
 
 const HERO_COPY = {
-  title: "Plano Pro: IA + mentorias para negociar direto com marcas.",
+  title: "Plano Pro: você não cria conteúdo sozinho.",
   subtitle:
-    "Mídia kit auditado, mentorias semanais e negociação assistida para negociar direto com marcas.",
+    "Reunião semanal da comunidade, IA estrategista e negociação assistida para negociar direto com marcas — tudo numa assinatura só.",
   helper: "Assinatura fixa, sem comissão, com autonomia total.",
 };
 
@@ -59,8 +59,8 @@ const BENEFITS = [
     icon: <Sparkles className="h-6 w-6" />,
   },
   {
-    title: "Mentorias + alertas no WhatsApp",
-    description: "Acompanhamento semanal e alertas para manter consistência.",
+    title: "Reunião semanal da comunidade",
+    description: "Análise de conteúdo e estratégia de imagem ao vivo, em grupo — você não cria sozinho.",
     icon: <MessageCircle className="h-6 w-6" />,
   },
 ];
@@ -87,9 +87,9 @@ const FAQS = [
       "Seu perfil ganha destaque e mais visibilidade para marcas que buscam creators auditados.",
   },
   {
-    question: "Roteiros e review de post substituem as mentorias?",
+    question: "Roteiros e review de post substituem a reunião da comunidade?",
     answer:
-      "Não. Roteiros e review aceleram a execução do conteúdo; as mentorias fazem o direcionamento estratégico da sua carreira.",
+      "Não. Roteiros e review aceleram a execução do conteúdo; a reunião semanal é onde a comunidade lê conteúdo junto e ajusta a estratégia de imagem de cada um.",
   },
   {
     question: "Como são feitas as cobranças?",
@@ -102,9 +102,9 @@ const FAQS = [
       "Não. O Plano Pro é por assinatura fixa: você mantém 100% dos cachês e negocia direto com as marcas, sem exclusividade.",
   },
   {
-    question: "O que entra nas mentorias semanais?",
+    question: "O que entra na reunião semanal da comunidade?",
     answer:
-      "Ajustes de posicionamento, pitch, pricing e revisão de deals. É um espaço para dúvidas táticas e acompanhamento contínuo.",
+      "A comunidade se reúne ao vivo para ler conteúdo junto: o que está conectando com a narrativa de cada um e como ajustar a estratégia de imagem. É um espaço de análise coletiva, não de palestra.",
   },
   {
     question: "Quando o acesso Pro é liberado?",
@@ -341,7 +341,7 @@ export default function ProPageClient({
             <div className="mx-auto max-w-xl rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-900 shadow-sm">
               <p className="font-semibold">Plano Pro ativo ✅</p>
               <p className="mt-1 text-emerald-800">
-                Acesse Meus Roteiros, Review de Post, mentorias e negociação assistida sempre que precisar.
+                Acesse Meus Roteiros, Review de Post, a reunião da comunidade e negociação assistida sempre que precisar.
               </p>
             </div>
           )}
@@ -479,7 +479,7 @@ export default function ProPageClient({
                           <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
                             <Check className="h-3.5 w-3.5" />
                           </div>
-                          <span>Mentorias semanais e alertas no WhatsApp.</span>
+                          <span>Reunião semanal da comunidade e alertas no WhatsApp.</span>
                         </li>
                         <li className="flex items-start gap-3 text-sm text-slate-600">
                           <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
@@ -551,7 +551,7 @@ export default function ProPageClient({
               Pronto para acelerar seus roteiros e fechar sua próxima campanha?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-base text-slate-600">
-              Ative o Plano Pro para liberar mídia kit auditado, mentorias e negociação assistida.
+              Ative o Plano Pro para liberar mídia kit auditado, a reunião da comunidade e negociação assistida.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
               {!needsPaymentAction ? (

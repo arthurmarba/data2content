@@ -45,11 +45,10 @@ let pricesCache: PricesShape | null = null;
 
 // 🎯 Proposta de valor central do Pro — usada pelo contexto "default"
 const FEATURES: string[] = [
-  "Entenda o que está funcionando no seu conteúdo — e o que te diferencia",
-  "Ideias de pauta prontas, na sua voz — direto no WhatsApp",
-  "Criadores indicados para collab com base no que você fala",
-  "Comunidade e reuniões semanais com outros criadores",
-  "Dados do Instagram integrados ao diagnóstico",
+  "Clareza sobre o que funciona — com dados reais do Instagram",
+  "Pautas prontas na sua voz, no WhatsApp",
+  "Criadores indicados pra collab com a sua narrativa",
+  "Reunião semanal da comunidade, ao vivo",
   "Mídia Kit com vitrine no Marketplace",
 ];
 
@@ -66,8 +65,8 @@ type PaywallCopy = {
 
 const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
   default: {
-    title: "Você não está mais criando sozinho.",
-    subtitle: "Pautas prontas na sua voz, criadores para collab e clareza sobre o que funciona — seu parceiro de conteúdo, todo dia.",
+    title: "Você não está mais criando conteúdo sozinho.",
+    subtitle: "Pautas na sua voz, collabs e uma comunidade toda semana. Seu parceiro de conteúdo, todo dia.",
     bullets: FEATURES,
     ctaLabel: "Assinar Pro",
     priceAnchor: "Menos que o preço de uma publi — por mês inteiro de parceria.",
@@ -151,10 +150,10 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
     title: "Seu mapa começou.",
     subtitle: "Ideias prontas, criadores para collab e clareza sobre o que funciona.",
     bullets: [
-      "Entenda o que está funcionando no seu conteúdo — e o que te diferencia",
-      "Ideias de pauta prontas, na sua voz — direto no WhatsApp",
-      "Criadores indicados para collab com base no que você fala",
-      "Comunidade e reuniões semanais com outros criadores",
+      "Clareza sobre o que funciona — com dados reais do Instagram",
+      "Pautas prontas na sua voz, no WhatsApp",
+      "Criadores indicados pra collab com a sua narrativa",
+      "Reunião semanal da comunidade, ao vivo",
     ],
     ctaLabel: "Assinar agora",
   },
@@ -162,28 +161,28 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
     title: "Seu mapa está tomando forma.",
     subtitle: "Ideias prontas, criadores para collab e clareza sobre o que funciona.",
     bullets: [
-      "Entenda o que está funcionando no seu conteúdo — e o que te diferencia",
-      "Ideias de pauta prontas, na sua voz — direto no WhatsApp",
-      "Criadores indicados para collab com base no que você fala",
-      "Comunidade e reuniões semanais com outros criadores",
+      "Clareza sobre o que funciona — com dados reais do Instagram",
+      "Pautas prontas na sua voz, no WhatsApp",
+      "Criadores indicados pra collab com a sua narrativa",
+      "Reunião semanal da comunidade, ao vivo",
     ],
     ctaLabel: "Ativar Pro",
   },
   mentoria: {
-    title: "Entre na comunidade D2C.",
+    title: "Você não cria sozinho.",
     subtitle:
-      "Reuniões semanais, networking com criadores que falam a mesma língua que você e ideias prontas que chegam pelo WhatsApp.",
+      "Toda semana a comunidade se reúne ao vivo pra ler conteúdo junto e ajustar a estratégia de imagem de cada um — e as pautas chegam pelo WhatsApp.",
     bullets: [
-      "Reuniões semanais com outros criadores",
-      "Criadores indicados para collab com base no que você fala",
-      "Entenda o que está funcionando no seu conteúdo — e o que te diferencia",
-      "Ideias de pauta prontas, na sua voz — direto no WhatsApp",
+      "Reunião semanal da comunidade, ao vivo",
+      "Criadores indicados pra collab com a sua narrativa",
+      "Clareza sobre o que funciona — com dados reais do Instagram",
+      "Pautas prontas na sua voz, no WhatsApp",
     ],
     ctaLabel: "Assinar Pro e entrar",
     steps: [
       "Ative sua assinatura",
-      "Entre no grupo da comunidade",
-      "Acesse a agenda de reuniões",
+      "Entre na comunidade",
+      "Acesse a agenda da reunião semanal",
     ],
   },
   planning: {
@@ -221,29 +220,6 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
     ],
   },
 };
-
-const FREE_VS_PRO_ROWS = [
-  {
-    feature: "Dados Reais e Análise Profunda via Instagram",
-    free: false,
-    pro: true,
-  },
-  {
-    feature: "Criação Flexível e Roteiros Inteligentes (Com IA)",
-    free: false,
-    pro: true,
-  },
-  {
-    feature: "Mídia Kit Auditado e Calculadora de Preços Justa",
-    free: false,
-    pro: true,
-  },
-  {
-    feature: "Mentorias Semanais e Acesso VIP à Comunidade",
-    free: false,
-    pro: true,
-  },
-];
 
 export default function BillingSubscribeModal({
   open,
@@ -289,7 +265,10 @@ export default function BillingSubscribeModal({
   // completo do Pro, sempre visível para justificar a cobrança recorrente. No
   // contexto "default" os bullets já SÃO o stack completo, então não há hero.
   const heroBullets = isContextSpecific ? contextCopy.bullets : [];
-  const stackBullets = FEATURES;
+  // Stack = valor completo do Pro, mas sem repetir o que já está no hero do
+  // contexto (menos texto, zero duplicação). Contextos cujos bullets não saem
+  // das FEATURES mantêm o stack completo.
+  const stackBullets = FEATURES.filter((feat) => !heroBullets.includes(feat));
   const priceAnchor = contextCopy.priceAnchor ?? null;
   const stepItems = useMemo(() => {
     let items = Array.isArray(contextCopy.steps) ? [...contextCopy.steps] : [];
@@ -1006,20 +985,25 @@ export default function BillingSubscribeModal({
                 </div>
               )}
 
-              {/* Stack completo do Pro — sempre visível para justificar a recorrência. */}
-              <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
-                {heroBullets.length > 0 ? "E tudo do Pro" : "Incluído no Pro"}
-              </p>
-              <ul className="grid grid-cols-1 gap-3">
-                {stackBullets.map((feat) => (
-                  <li key={feat} className="flex items-start gap-3">
-                    <span className="mt-0.5 shrink-0 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-primary/10">
-                      <Check className="h-3 w-3 text-brand-primary" strokeWidth={2.5} />
-                    </span>
-                    <span className="text-[13px] leading-[1.5] text-zinc-700">{feat}</span>
-                  </li>
-                ))}
-              </ul>
+              {/* Stack do Pro — o que ainda não apareceu no hero, para justificar a
+                  recorrência sem repetir texto. */}
+              {stackBullets.length > 0 && (
+                <>
+                  <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
+                    {heroBullets.length > 0 ? "E também no Pro" : "Incluído no Pro"}
+                  </p>
+                  <ul className="grid grid-cols-1 gap-3">
+                    {stackBullets.map((feat) => (
+                      <li key={feat} className="flex items-start gap-3">
+                        <span className="mt-0.5 shrink-0 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-primary/10">
+                          <Check className="h-3 w-3 text-brand-primary" strokeWidth={2.5} />
+                        </span>
+                        <span className="text-[13px] leading-[1.5] text-zinc-700">{feat}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
             </div>
 
             {stepItems.length ? (

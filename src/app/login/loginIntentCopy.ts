@@ -17,7 +17,7 @@ export const DEFAULT_LOGIN_INTENT_COPY: LoginIntentCopy = {
 export const STRATEGIC_PROFILE_LOGIN_INTENT_COPY: LoginIntentCopy = {
   badge: "",
   title: "Você não está mais só criando conteúdo",
-  description: "A D2C te ajuda com pautas e collabs que fazem sentido para a sua narrativa.",
+  description: "Pautas e collabs que fazem sentido pra sua narrativa — e uma comunidade que se reúne toda semana pra ler conteúdo junto.",
   buttonLabel: "Continuar com Google",
   footer: "",
 };

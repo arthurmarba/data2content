@@ -25,6 +25,22 @@ type ProFeatureSection = {
 
 const PRO_FEATURE_SECTIONS: ProFeatureSection[] = [
   {
+    title: 'Você não cria sozinho',
+    items: [
+      {
+        title: 'Reunião semanal da comunidade',
+        description: 'Toda semana a comunidade se reúne ao vivo pra ler conteúdo junto — o que está funcionando e como ajustar sua estratégia de imagem.',
+      },
+      {
+        title: 'Descoberta da Comunidade',
+        description:
+          'Biblioteca viva com referências de criadores, ideias e leituras frescas da base do Plano Pro.',
+        linkLabel: 'Explorar descoberta',
+        href: '/dashboard/discover',
+      },
+    ],
+  },
+  {
     title: 'IA para negociar com marcas',
     items: [
       {
@@ -35,14 +51,10 @@ const PRO_FEATURE_SECTIONS: ProFeatureSection[] = [
         title: 'Respostas prontas em 1 clique',
         description: 'E-mails e mensagens profissionais com variáveis dinâmicas para acelerar o follow-up.',
       },
-      {
-        title: 'Mentorias semanais do Grupo VIP',
-        description: 'Hotseats ao vivo combinando leituras da IA com especialistas humanos para ajustar sua estratégia.',
-      },
     ],
   },
   {
-    title: 'Planejamento e descoberta desbloqueados',
+    title: 'Planejamento desbloqueado',
     items: [
       {
         title: 'Planejamento Pro',
@@ -50,13 +62,6 @@ const PRO_FEATURE_SECTIONS: ProFeatureSection[] = [
           'Slots com IA, previsões de alcance e alertas no WhatsApp para executar com foco diariamente.',
         linkLabel: 'Ver planner',
         href: '/dashboard/planning',
-      },
-      {
-        title: 'Descoberta da Comunidade',
-        description:
-          'Biblioteca viva com benchmarks de creators, ideias e tendências exclusivas da base do Plano Pro.',
-        linkLabel: 'Explorar descoberta',
-        href: '/dashboard/discover',
       },
     ],
   },
@@ -243,10 +248,10 @@ export default function SubscribeModal({ open, onClose, prices }: Props) {
         </button>
         <div className="p-6 text-center flex-shrink-0"> {/* Adicionado flex-shrink-0 para o header não encolher */}
             <h2 id="subscribe-title" className="text-2xl font-bold text-gray-900">
-                Receba Alertas e Oportunidades Diárias no seu WhatsApp
+                Você não está mais criando conteúdo sozinho
             </h2>
             <p className="text-gray-600 mt-2">
-                Ative o Plano Pro e transforme sua IA em um estrategista de conteúdo proativo.
+                Ative o Plano Pro: reunião semanal da comunidade, IA estrategista e alertas no seu WhatsApp.
             </p>
             <p className="text-xs text-gray-500 mt-1">
                 Intermediários ficam com 10%–30% de comissão e pedem exclusividade; aqui você paga só a assinatura e mantém 100% das publis.

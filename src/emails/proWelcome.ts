@@ -26,7 +26,7 @@ export function proWelcomeEmail({
   const subject = "Desbloqueie sua primeira resposta com IA hoje";
 
   const steps = [
-    "Entre no Grupo VIP e participe das reuniões de mentoria ao vivo.",
+    "Entre na comunidade e participe da reunião semanal ao vivo de análise de conteúdo.",
     "Abra uma proposta e peça a faixa justa recomendada pelo Mobi.",
     "Use o texto sugerido e envie o e-mail pela própria plataforma em 1 clique.",
     "Visite o Planner Pro para descobrir tendências e agendar slots com IA.",
@@ -37,14 +37,14 @@ export function proWelcomeEmail({
     "",
     `Sua ${intervalLabel} da Data2Content está ativa. A partir de agora o Plano Pro cuida da negociação, precificação e planejamento com você.`,
     "",
-    "Seu acesso ao Grupo VIP está liberado. Entre agora:",
+    "Você não cria mais sozinho. Seu acesso à comunidade está liberado. Entre agora:",
     whatsappGroupUrl,
     "",
     "Comece com estes passos rápidos:",
     ...steps.map((step) => `- ${step}`),
     "",
-    `• Grupo VIP (WhatsApp): ${whatsappGroupUrl}`,
-    `• Comunidade & Reuniões: ${communityUrl}`,
+    `• Comunidade (WhatsApp): ${whatsappGroupUrl}`,
+    `• Agenda da reunião semanal: ${communityUrl}`,
     `• Abrir Campanhas com IA: ${campaignsUrl}`,
     `• Acessar o Planner Pro: ${plannerUrl}`,
     "",
@@ -59,10 +59,10 @@ export function proWelcomeEmail({
     <p>${greeting}</p>
     <p>Sua <strong>${intervalLabel}</strong> da Data2Content está ativa. A partir de agora o Plano Pro cuida da negociação, da faixa justa e do planejamento junto com você.</p>
     <div style="margin:20px 0;padding:16px 20px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;">
-      <p style="margin:0 0 10px;font-weight:700;color:#15803d;">🟢 Seu acesso ao Grupo VIP está liberado</p>
-      <p style="margin:0 0 14px;color:#166534;font-size:14px;">Participe das reuniões de mentoria ao vivo e conecte-se com outros criadores Pro.</p>
+      <p style="margin:0 0 10px;font-weight:700;color:#15803d;">🟢 Você não cria sozinho — seu acesso à comunidade está liberado</p>
+      <p style="margin:0 0 14px;color:#166534;font-size:14px;">Participe da reunião semanal ao vivo de análise de conteúdo e estratégia de imagem, junto com outros criadores Pro.</p>
       <a href="${whatsappGroupUrl}" style="display:inline-block;padding:11px 20px;background:#25D366;color:#fff;border-radius:999px;font-weight:700;text-decoration:none;font-size:14px;">
-        Entrar no Grupo VIP (WhatsApp)
+        Acessar comunidade (WhatsApp)
       </a>
     </div>
     <p>Comece com estes passos rápidos:</p>
@@ -78,7 +78,7 @@ export function proWelcomeEmail({
       </a>
     </p>
     <p style="margin-top:16px;">
-      Explore a <a href="${communityUrl}" style="color:#0f172a;font-weight:600;">Comunidade &amp; Reuniões</a> para agenda de mentorias ao vivo.
+      Veja a <a href="${communityUrl}" style="color:#0f172a;font-weight:600;">agenda da reunião semanal</a> da comunidade ao vivo.
     </p>
     <p style="margin-top:8px;">Precisa ajustar a forma de pagamento ou recuperar recibos? Visite o <a href="${billingUrl}" style="color:#0f172a;font-weight:600;">painel de Billing</a>.</p>
     <p style="margin-top:20px;">Bons fechamentos!<br/>Equipe Data2Content</p>

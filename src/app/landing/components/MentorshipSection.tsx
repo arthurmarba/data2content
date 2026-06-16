@@ -17,18 +17,18 @@ type MentorshipPhoto = {
 const photos: MentorshipPhoto[] = [
   {
     src: "/images/WhatsApp Image 2025-07-07 at 14.00.20.png",
-    alt: "Mentoria Data2Content com creators ao vivo",
-    caption: "Mentoria com 25 criadores ao vivo",
+    alt: "Reunião da comunidade Data2Content com creators ao vivo",
+    caption: "Reunião da comunidade ao vivo",
   },
   {
     src: "/images/WhatsApp Image 2025-07-07 at 14.00.21 (1).png",
     alt: "Trocas da comunidade Data2Content",
-    caption: "Feedback coletivo e referências da semana",
+    caption: "Leitura de conteúdo em grupo",
   },
   {
     src: "/images/WhatsApp Image 2025-07-07 at 14.00.21 (3).png",
-    alt: "Criadores compartilhando resultados na comunidade Data2Content",
-    caption: "Resultados compartilhados na comunidade",
+    alt: "Criadores ajustando estratégia de imagem na comunidade Data2Content",
+    caption: "Estratégia de imagem, criador a criador",
   },
 ];
 
@@ -39,19 +39,19 @@ const MentorshipSection: React.FC<MentorshipSectionProps> = ({ onCta }) => {
         <div className="grid gap-10 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] md:items-center">
           <div className="space-y-6 text-[#1F1A1C]">
             <p className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-[#EC4899]">
-              Mentoria e comunidade
+              Comunidade
             </p>
             <h2 className="text-2xl font-extrabold md:text-[2rem]">
-              Mentorias que conectam creators a dados e convites reais.
+              Você não está mais criando conteúdo sozinho.
             </h2>
             <p className="text-base text-[#6B4E57]">
-              Toda segunda às 19h criadores e marcas exploram o que funcionou, refinam portfólios e definem o próximo passo com apoio da Mobi.
+              Toda semana a comunidade se reúne ao vivo pra ler conteúdo junto — analisar o que está funcionando e ajustar a estratégia de imagem de cada criador.
             </p>
             <div className="grid gap-4 sm:grid-cols-3">
               {[
-                { icon: "🎯", title: "Hotseats", text: "Feedback direto com especialistas." },
-                { icon: "🧠", title: "Referências", text: "Arquivos com cases frescos da comunidade." },
-                { icon: "🚨", title: "Alertas Mobi", text: "Sinais de quando postar ou negociar." },
+                { icon: "🎬", title: "Análise de conteúdo", text: "A comunidade lê seus posts e aponta o que conecta com sua narrativa." },
+                { icon: "🪞", title: "Estratégia de imagem", text: "Como você quer ser visto — ajustado em grupo, criador a criador." },
+                { icon: "🤝", title: "Referências da semana", text: "Cases frescos e ideias que nascem da própria comunidade." },
               ].map((item) => (
                 <article
                   key={item.title}
@@ -68,7 +68,7 @@ const MentorshipSection: React.FC<MentorshipSectionProps> = ({ onCta }) => {
               onClick={onCta}
               className="inline-flex items-center justify-center rounded-2xl bg-[#F6007B] px-6 py-3 text-sm font-semibold text-white shadow-[0_20px_45px_rgba(246,0,123,0.22)] transition hover:bg-[#D10068]"
             >
-              Entrar na próxima mentoria
+              Participar da comunidade
             </button>
           </div>
 
