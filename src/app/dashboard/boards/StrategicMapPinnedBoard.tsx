@@ -1,55 +1,61 @@
 "use client";
 
 import React from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
-import Board from "@/app/dashboard/components/Board";
-import type { StrategicMapSummary } from "@/app/lib/strategicMap/loadStrategicMapSummary";
+import { MapaCard } from "@/app/dashboard/boards/components/videoUpload/appPreview/DiagnosticoPage";
+import { resolveDiagnosticoLeadingNarrativeSignal } from "@/app/dashboard/boards/videoUpload/diagnosticoNarrativeSignals";
+import type { StrategicMapFull } from "@/app/lib/strategicMap/loadStrategicMapFull";
+import type { IMapaData, AssetGroupOverride } from "@/app/models/MapaSeed";
 
 const FULL_MAP_ROUTE = "/dashboard/boards/mobile-strategic-profile";
+const FULL_API = "/api/dashboard/strategic-map/full";
+const MAP_SEED_API = "/api/dashboard/mobile-strategic-profile/map-seed";
 
-// Tons da identidade "Seu Mapa" (Perfil mobile): card off-white quente + chips âmbar.
-const CARD_BG = "#fffaf7";
-const CHIP_BG = "#fef3c7";
-const CHIP_TEXT = "#b45309";
-const EYEBROW = "#d97706";
-
-type FetchState =
-  | { status: "loading" }
-  | { status: "ready"; summary: StrategicMapSummary }
-  | { status: "error" };
+type LifeAssetGroup = "cenario" | "objeto" | "vida";
+type LoadState = "loading" | "error" | "ready";
 
 /**
- * Board "Seu Mapa" (vitrine / leitura) na central de controle do desktop.
- * Mostra narrativa + territórios + assets do mapa; clicar abre a experiência
- * completa. Read-only neste passo — a edição vem numa fase posterior.
+ * Board "Seu Mapa" na central de controle do desktop. Renderiza o MESMO MapaCard
+ * do mobile (paridade total — seções, chips editáveis com ×/+Adicionar, header com
+ * Aprimorar), alimentado pela cozinha completa (GET strategic-map/full) e com a
+ * edição persistida via PATCH map-seed (otimista, igual ao mobile). Sem wrapper
+ * <Board>: o MapaCard já traz o próprio card.
  */
 export default function StrategicMapPinnedBoard({
-  showTitleMarker = true,
   isHighlighted = false,
 }: {
   showTitleMarker?: boolean;
   isHighlighted?: boolean;
 }) {
   const { data: session } = useSession();
+  const router = useRouter();
   const userId = session?.user?.id ?? null;
-  const [state, setState] = React.useState<FetchState>({ status: "loading" });
+
+  const [state, setState] = React.useState<LoadState>("loading");
+  const [full, setFull] = React.useState<StrategicMapFull | null>(null);
+  const [mapaSeedLocal, setMapaSeedLocal] = React.useState<IMapaData | null>(null);
 
   React.useEffect(() => {
     if (!userId) return;
     let cancelled = false;
-    setState({ status: "loading" });
+    setState("loading");
     (async () => {
       try {
-        const res = await fetch("/api/dashboard/strategic-map/summary", { cache: "no-store" });
+        const res = await fetch(FULL_API, { cache: "no-store" });
         if (!res.ok) throw new Error(String(res.status));
-        const json = (await res.json()) as { ok?: boolean; summary?: StrategicMapSummary };
+        const json = (await res.json()) as { ok?: boolean; full?: StrategicMapFull | null };
         if (cancelled) return;
-        if (json?.ok && json.summary) setState({ status: "ready", summary: json.summary });
-        else setState({ status: "error" });
+        if (json?.ok && json.full) {
+          setFull(json.full);
+          setMapaSeedLocal(json.full.mapaSeed ?? null);
+          setState("ready");
+        } else {
+          setState("error");
+        }
       } catch {
-        if (!cancelled) setState({ status: "error" });
+        if (!cancelled) setState("error");
       }
     })();
     return () => {
@@ -57,107 +63,92 @@ export default function StrategicMapPinnedBoard({
     };
   }, [userId]);
 
-  return (
-    <Board
-      title="Seu Mapa"
-      showTitleMarker={showTitleMarker}
-      titleMarkerVariant="chip"
-      variant="card"
-      showChevron={false}
-      showOptions={false}
-      contentClassName="bg-white"
-      titleClassName="text-zinc-950"
-      isHighlighted={isHighlighted}
-    >
-      <div style={{ borderRadius: 16, background: CARD_BG, padding: "16px 18px" }}>
-        {state.status === "loading" ? (
-          <MapSkeleton />
-        ) : state.status === "error" || !state.summary.hasMap ? (
-          <EmptyMap />
-        ) : (
-          <MapContent summary={state.summary} />
-        )}
-      </div>
-    </Board>
+  // Edição do mapa — otimista local + PATCH map-seed (replica handleMapSeedMutate
+  // do DiagnosticoPage; o refresh do servidor reconcilia).
+  const handleMapSeedMutate = React.useCallback(
+    (section: string, op: "add" | "remove" | "set", value: string, group?: LifeAssetGroup) => {
+      setMapaSeedLocal((prev) => {
+        if (!prev) return prev;
+        const clone = { ...prev } as Record<string, unknown>;
+        if (op === "set") {
+          clone[section] = value.slice(0, 200);
+          return clone as unknown as IMapaData;
+        }
+        const arr = Array.isArray(clone[section]) ? [...(clone[section] as string[])] : [];
+        if (op === "add") {
+          if (!arr.some((v) => v.toLowerCase() === value.toLowerCase())) arr.push(value);
+          clone[section] = arr;
+        } else {
+          clone[section] = arr.filter((v) => v.toLowerCase().trim() !== value.toLowerCase().trim());
+        }
+        if (section === "assets") {
+          const key = value.toLowerCase().trim();
+          const groups = (Array.isArray(clone.assetGroups) ? clone.assetGroups : []) as AssetGroupOverride[];
+          const without = groups.filter((g) => g.label.toLowerCase().trim() !== key);
+          clone.assetGroups = op === "add" && group ? [...without, { label: value, group }] : without;
+        }
+        return clone as unknown as IMapaData;
+      });
+      void fetch(MAP_SEED_API, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section, op, value, ...(group ? { group } : {}) }),
+      }).catch(() => {
+        /* non-fatal — otimismo já aplicado; refresh reconcilia */
+      });
+    },
+    [],
   );
-}
 
-function MapContent({ summary }: { summary: StrategicMapSummary }) {
+  const goFull = React.useCallback(() => router.push(FULL_MAP_ROUTE), [router]);
+
+  const ring = isHighlighted ? "ring-2 ring-orange-300 rounded-[20px]" : "";
+
   return (
-    <div>
-      {summary.narrative ? (
-        <p style={{ fontSize: 18, fontWeight: 700, color: "#18181b", lineHeight: 1.3, letterSpacing: -0.3, margin: "0 0 14px" }}>
-          {summary.narrative}
-        </p>
-      ) : null}
-
-      {summary.territories.length > 0 ? (
-        <ChipGroup label="Assuntos" items={summary.territories} />
-      ) : null}
-
-      {summary.assets.length > 0 ? (
-        <div style={{ marginTop: 12 }}>
-          <ChipGroup label="Assets de vida" items={summary.assets} />
-        </div>
-      ) : null}
-
-      <Link
-        href={FULL_MAP_ROUTE}
-        style={{
-          display: "inline-flex", alignItems: "center", gap: 6, marginTop: 16,
-          fontSize: 13, fontWeight: 600, color: "#18181b", textDecoration: "none",
-        }}
-      >
-        Abrir mapa completo
-        <span aria-hidden="true">→</span>
-      </Link>
+    <div className={`dashboard-scrollbar h-full overflow-y-auto ${ring}`}>
+      {state === "loading" ? (
+        <MapSkeleton />
+      ) : state === "error" || !full ? (
+        <EmptyMap onMount={goFull} />
+      ) : (
+        <MapaCard
+          synthesis={full.synthesis}
+          leadingNarrative={resolveDiagnosticoLeadingNarrativeSignal(full.synthesis)}
+          mapaSeed={mapaSeedLocal}
+          onMapSeedMutate={handleMapSeedMutate}
+          endorsedHypotheses={full.endorsedHypotheses}
+          dismissedHypotheses={full.dismissedHypotheses}
+          adjacentNarrativesFromMap={full.adjacentNarratives as never}
+          hasReadings={full.hasReadings}
+          onNewReading={goFull}
+          onOpenNarrative={goFull}
+          onOpenNorte={goFull}
+          mapEvolutionStatus={full.mapEvolutionStatus}
+          lastReadingAt={full.lastReadingAt}
+          hasPurpose={full.hasPurpose}
+        />
+      )}
     </div>
   );
 }
 
-function ChipGroup({ label, items }: { label: string; items: string[] }) {
+function EmptyMap({ onMount }: { onMount: () => void }) {
   return (
-    <div>
-      <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.4, color: EYEBROW, margin: "0 0 7px" }}>
-        {label.toUpperCase()}
-      </p>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-        {items.map((it) => (
-          <span
-            key={it}
-            style={{
-              fontSize: 12, padding: "4px 11px", borderRadius: 999,
-              background: CHIP_BG, color: CHIP_TEXT,
-            }}
-          >
-            {it}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function EmptyMap() {
-  return (
-    <div style={{ padding: "8px 0" }}>
-      <p style={{ fontSize: 14, fontWeight: 600, color: "#18181b", margin: "0 0 6px" }}>
-        Seu mapa ainda não está montado
-      </p>
+    <div style={{ borderRadius: 20, background: "#fffaf7", padding: "20px 18px" }}>
+      <p style={{ fontSize: 15, fontWeight: 700, color: "#18181b", margin: "0 0 6px" }}>Seu Mapa</p>
       <p style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.45, margin: "0 0 14px" }}>
-        Monte o mapa e sua narrativa, territórios e assets aparecem aqui — base das suas pautas e collabs.
+        Monte seu mapa e sua narrativa, territórios e assets aparecem aqui.
       </p>
-      <Link
-        href={FULL_MAP_ROUTE}
+      <button
+        type="button"
+        onClick={onMount}
         style={{
-          display: "inline-flex", alignItems: "center", gap: 6,
           fontSize: 13, fontWeight: 600, color: "#fff", background: "#18181b",
-          borderRadius: 999, padding: "9px 16px", textDecoration: "none",
+          borderRadius: 999, padding: "9px 16px", border: "none", cursor: "pointer",
         }}
       >
-        Montar meu mapa
-        <span aria-hidden="true">→</span>
-      </Link>
+        Montar meu mapa →
+      </button>
     </div>
   );
 }
@@ -165,14 +156,14 @@ function EmptyMap() {
 function MapSkeleton() {
   const pulse = { background: "#f1ede9", borderRadius: 8, animation: "d2c-map-pulse 1.1s ease-in-out infinite" } as const;
   return (
-    <div>
+    <div style={{ borderRadius: 20, background: "#fffaf7", padding: "18px" }}>
       <style>{`@keyframes d2c-map-pulse{0%,100%{opacity:1}50%{opacity:.55}}`}</style>
-      <div style={{ ...pulse, height: 18, width: "90%", marginBottom: 8 }} />
-      <div style={{ ...pulse, height: 18, width: "70%", marginBottom: 16 }} />
-      <div style={{ display: "flex", gap: 6 }}>
-        <div style={{ ...pulse, height: 24, width: 90, borderRadius: 999 }} />
-        <div style={{ ...pulse, height: 24, width: 70, borderRadius: 999 }} />
-        <div style={{ ...pulse, height: 24, width: 100, borderRadius: 999 }} />
+      <div style={{ ...pulse, height: 18, width: "85%", marginBottom: 8 }} />
+      <div style={{ ...pulse, height: 18, width: "65%", marginBottom: 16 }} />
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+        {[90, 70, 100, 80].map((w, i) => (
+          <div key={i} style={{ ...pulse, height: 24, width: w, borderRadius: 999 }} />
+        ))}
       </div>
     </div>
   );

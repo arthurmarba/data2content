@@ -964,7 +964,7 @@ const FORMATO_SUGGESTIONS = [
 
 // ─── MapaCard ─────────────────────────────────────────────────────────────────
 
-function MapaCard({
+export function MapaCard({
   synthesis: s,
   leadingNarrative,
   narrativeConfirmationState,
