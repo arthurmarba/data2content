@@ -5,6 +5,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { isMobileStrategicProfileEnabled } from "../videoUpload/mobileStrategicProfileFeatureFlag";
 import { MobileStrategicProfileRealShellClient } from "../components/videoUpload/appPreview/MobileStrategicProfileRealShellClient";
 import { DiagnosticoRealShellClient } from "../components/videoUpload/appPreview/DiagnosticoRealShellClient";
+import DesktopRedirectGuard from "./DesktopRedirectGuard";
 import { getStrategicProfileSnapshotByUserId } from "../videoUpload/mobileStrategicProfileSnapshotService";
 import { buildNarrativeMapMobileViewModelFromReadings } from "../videoUpload/narrativeMapMobileViewModelServerSelector";
 import { resolveDiagnosticoLeadingNarrativeSignal } from "../videoUpload/diagnosticoNarrativeSignals";
@@ -343,6 +344,7 @@ export default async function MobileStrategicProfilePage({
   if (DIAGNOSTICO_V2_ENABLED && diagnosticoPageData) {
     return (
       <Suspense fallback={<div className="fixed inset-0 bg-zinc-50" />}>
+        <DesktopRedirectGuard />
         <DiagnosticoRealShellClient
           data={diagnosticoPageData}
           onAnalyzeAction={null}
@@ -352,13 +354,16 @@ export default async function MobileStrategicProfilePage({
   }
 
   return (
-    <MobileStrategicProfileRealShellClient
-      session={session}
-      stateQuery={stateQuery}
-      initialSnapshotPayload={initialSnapshotPayload}
-      initialNarrativeMapViewModel={initialNarrativeMapViewModel}
-      initialNarrativeMapPresentation={initialNarrativeMapPresentation}
-      initialReadingQuota={initialReadingQuota}
-    />
+    <>
+      <DesktopRedirectGuard />
+      <MobileStrategicProfileRealShellClient
+        session={session}
+        stateQuery={stateQuery}
+        initialSnapshotPayload={initialSnapshotPayload}
+        initialNarrativeMapViewModel={initialNarrativeMapViewModel}
+        initialNarrativeMapPresentation={initialNarrativeMapPresentation}
+        initialReadingQuota={initialReadingQuota}
+      />
+    </>
   );
 }
