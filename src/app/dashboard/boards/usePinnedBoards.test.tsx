@@ -34,6 +34,7 @@ describe("usePinnedBoards", () => {
     expect(
       sanitizePinnedBoardIds(["media-kit", "discover", "campaigns", "discover", "invalid"]),
     ).toEqual([
+      "strategic-map",
       "campaigns",
       "discover",
       "media-kit",
@@ -63,18 +64,18 @@ describe("usePinnedBoards", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("pins")).toHaveTextContent(
-        "campaigns,discover,profile-analysis,media-kit,post-creation",
+        "strategic-map,campaigns,discover,profile-analysis,media-kit,post-creation",
       );
     });
 
     expect(window.localStorage.getItem("dashboard:pinned-boards:v1:user-1")).toBe(
-      JSON.stringify(["campaigns", "discover", "profile-analysis", "media-kit", "post-creation"]),
+      JSON.stringify(["strategic-map", "campaigns", "discover", "profile-analysis", "media-kit", "post-creation"]),
     );
 
     fireEvent.click(screen.getByRole("button", { name: "unpin-discover" }));
 
     await waitFor(() => {
-      expect(screen.getByTestId("pins")).toHaveTextContent("campaigns,discover,profile-analysis,media-kit");
+      expect(screen.getByTestId("pins")).toHaveTextContent("strategic-map,campaigns,discover,profile-analysis,media-kit");
     });
   });
 });

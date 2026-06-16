@@ -34,6 +34,11 @@ const PlanningChartsPage = dynamic(() => import("../planning/PlanningChartsPage"
   loading: () => null,
 });
 
+const StrategicMapPinnedBoard = dynamic(() => import("../boards/StrategicMapPinnedBoard"), {
+  ssr: false,
+  loading: () => null,
+});
+
 const BOARD_IDLE_DELAYS_MS = [0, 0, 750, 1450, 2200];
 
 function BoardLoadingShell() {
@@ -174,6 +179,13 @@ export default function HomeDesktopBoards() {
   const renderPinnedBoard = React.useCallback(
     (boardId: PinnableBoardId) => {
       switch (boardId) {
+        case "strategic-map":
+          return (
+            <StrategicMapPinnedBoard
+              showTitleMarker={false}
+              isHighlighted={activeHighlight === "strategic-map"}
+            />
+          );
         case "campaigns":
           return (
             <CampaignsBoard

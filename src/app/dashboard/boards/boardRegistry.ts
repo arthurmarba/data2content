@@ -1,6 +1,7 @@
 "use client";
 
 export type PinnableBoardId =
+  | "strategic-map"
   | "campaigns"
   | "discover"
   | "profile-analysis"
@@ -16,6 +17,13 @@ export type PinnableBoardConfig = {
 };
 
 export const PINNABLE_BOARD_REGISTRY: Record<PinnableBoardId, PinnableBoardConfig> = {
+  "strategic-map": {
+    id: "strategic-map",
+    title: "Seu Mapa",
+    route: "/dashboard/boards/mobile-strategic-profile",
+    defaultPinned: true,
+    fixedPinned: true,
+  },
   campaigns: {
     id: "campaigns",
     title: "Campanhas",
