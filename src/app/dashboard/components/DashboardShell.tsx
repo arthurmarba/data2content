@@ -176,6 +176,14 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!shouldRedirectMobileDashboardEntryClient) return;
+    // `isMobile` começa `true` por default e só é corrigido após medir (o effect
+    // de medição depende de `mounted`). Há um render onde mounted=true mas isMobile
+    // ainda é o default true — no desktop isso dispararia um redirect espúrio para
+    // a rota mobile (e, com o guard de desktop da rota mobile, um loop). Revalida a
+    // largura ao vivo aqui: no desktop (≥1024px) nunca redireciona.
+    if (typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches) {
+      return;
+    }
     router.replace(MOBILE_PROFILE_ROUTE);
   }, [router, shouldRedirectMobileDashboardEntryClient]);
 
