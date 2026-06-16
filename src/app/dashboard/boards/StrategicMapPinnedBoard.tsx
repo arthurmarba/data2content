@@ -8,10 +8,16 @@ import { MapaCard } from "@/app/dashboard/boards/components/videoUpload/appPrevi
 import { resolveDiagnosticoLeadingNarrativeSignal } from "@/app/dashboard/boards/videoUpload/diagnosticoNarrativeSignals";
 import type { StrategicMapFull } from "@/app/lib/strategicMap/loadStrategicMapFull";
 import type { IMapaData, AssetGroupOverride } from "@/app/models/MapaSeed";
+import type {
+  ConfirmationState,
+  ConfirmationResponse,
+  AssetConfirmationResponse,
+} from "@/app/dashboard/boards/components/videoUpload/appPreview/diagnosticoConfirmationTypes";
 
 const FULL_MAP_ROUTE = "/dashboard/boards/mobile-strategic-profile";
 const FULL_API = "/api/dashboard/strategic-map/full";
 const MAP_SEED_API = "/api/dashboard/mobile-strategic-profile/map-seed";
+const CONFIRM_API = "/api/dashboard/mobile-strategic-profile/confirm-map-dimension";
 
 type LifeAssetGroup = "cenario" | "objeto" | "vida";
 type LoadState = "loading" | "error" | "ready";
@@ -37,6 +43,12 @@ export default function StrategicMapPinnedBoard({
   const [full, setFull] = React.useState<StrategicMapFull | null>(null);
   const [mapaSeedLocal, setMapaSeedLocal] = React.useState<IMapaData | null>(null);
 
+  // Estados de confirmação por dimensão (otimistas; init quando full carrega).
+  const [narrativeState, setNarrativeState] = React.useState<ConfirmationState>("pending");
+  const [territoriesState, setTerritoriesState] = React.useState<ConfirmationState>("pending");
+  const [toneState, setToneState] = React.useState<ConfirmationState>("pending");
+  const [assetConfirmations, setAssetConfirmations] = React.useState<Map<string, "confirmed" | "dismissed">>(new Map());
+
   React.useEffect(() => {
     if (!userId) return;
     let cancelled = false;
@@ -50,6 +62,14 @@ export default function StrategicMapPinnedBoard({
         if (json?.ok && json.full) {
           setFull(json.full);
           setMapaSeedLocal(json.full.mapaSeed ?? null);
+          setNarrativeState(json.full.narrativeState);
+          setTerritoriesState(json.full.territoriesState);
+          setToneState(json.full.toneState);
+          const m = new Map<string, "confirmed" | "dismissed">();
+          for (const a of json.full.assetConfirmations) {
+            if (a.state === "confirmed" || a.state === "dismissed") m.set(a.label, a.state);
+          }
+          setAssetConfirmations(m);
           setState("ready");
         } else {
           setState("error");
@@ -62,6 +82,40 @@ export default function StrategicMapPinnedBoard({
       cancelled = true;
     };
   }, [userId]);
+
+  // Confirmação por dimensão — otimista local + PATCH confirm-map-dimension
+  // (replica os callbacks da shell mobile; falha é silenciosa, UX nunca bloqueia).
+  const patchConfirmation = React.useCallback((body: Record<string, string>) => {
+    void fetch(CONFIRM_API, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).catch(() => {});
+  }, []);
+
+  const handleConfirmNarrative = React.useCallback((r: ConfirmationResponse) => {
+    setNarrativeState(r === "no" ? "dismissed" : "confirmed");
+    patchConfirmation({ dimension: "narrative", response: r });
+  }, [patchConfirmation]);
+
+  const handleConfirmTerritories = React.useCallback((r: ConfirmationResponse) => {
+    setTerritoriesState(r === "no" ? "dismissed" : "confirmed");
+    patchConfirmation({ dimension: "territories", response: r });
+  }, [patchConfirmation]);
+
+  const handleConfirmTone = React.useCallback((r: ConfirmationResponse) => {
+    setToneState(r === "no" ? "dismissed" : "confirmed");
+    patchConfirmation({ dimension: "tone", response: r });
+  }, [patchConfirmation]);
+
+  const handleConfirmAsset = React.useCallback((assetLabel: string, r: AssetConfirmationResponse) => {
+    setAssetConfirmations((prev) => {
+      const next = new Map(prev);
+      next.set(assetLabel, r === "no" ? "dismissed" : "confirmed");
+      return next;
+    });
+    patchConfirmation({ dimension: "asset", response: r, assetLabel });
+  }, [patchConfirmation]);
 
   // Edição do mapa — otimista local + PATCH map-seed (replica handleMapSeedMutate
   // do DiagnosticoPage; o refresh do servidor reconcilia).
@@ -116,6 +170,14 @@ export default function StrategicMapPinnedBoard({
           leadingNarrative={resolveDiagnosticoLeadingNarrativeSignal(full.synthesis)}
           mapaSeed={mapaSeedLocal}
           onMapSeedMutate={handleMapSeedMutate}
+          narrativeConfirmationState={narrativeState}
+          onConfirmNarrative={handleConfirmNarrative}
+          territoriesConfirmationState={territoriesState}
+          onConfirmTerritories={handleConfirmTerritories}
+          toneConfirmationState={toneState}
+          onConfirmTone={handleConfirmTone}
+          onConfirmAsset={handleConfirmAsset}
+          assetConfirmations={assetConfirmations}
           endorsedHypotheses={full.endorsedHypotheses}
           dismissedHypotheses={full.dismissedHypotheses}
           adjacentNarrativesFromMap={full.adjacentNarratives as never}

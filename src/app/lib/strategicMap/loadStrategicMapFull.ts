@@ -21,12 +21,19 @@ import {
 import type { CreatorStrategicProfileSynthesis } from "@/app/dashboard/boards/videoUpload/creatorStrategicProfileSynthesis";
 import type { IMapaData } from "@/app/models/MapaSeed";
 
+type ConfirmState = "pending" | "confirmed" | "dismissed";
+
 export interface StrategicMapFull {
   synthesis: CreatorStrategicProfileSynthesis;
   mapaSeed: IMapaData | null;
   endorsedHypotheses: string[];
   dismissedHypotheses: string[];
   adjacentNarratives: NonNullable<Awaited<ReturnType<typeof getMapConfirmationsSnapshot>>>["adjacentNarratives"] | [];
+  /** Estados de confirmação por dimensão (default "pending" quando sem snapshot). */
+  narrativeState: ConfirmState;
+  territoriesState: ConfirmState;
+  toneState: ConfirmState;
+  assetConfirmations: Array<{ label: string; state: ConfirmState }>;
   mapEvolutionStatus: string | null;
   hasReadings: boolean;
   hasPurpose: boolean;
@@ -78,6 +85,10 @@ export async function loadStrategicMapFull(userId: string): Promise<StrategicMap
       endorsedHypotheses: mapConfirmations?.endorsedHypotheses ?? [],
       dismissedHypotheses: mapConfirmations?.dismissedHypotheses ?? [],
       adjacentNarratives: mapConfirmations?.adjacentNarratives ?? [],
+      narrativeState: mapConfirmations?.narrative ?? "pending",
+      territoriesState: mapConfirmations?.territories ?? "pending",
+      toneState: mapConfirmations?.tone ?? "pending",
+      assetConfirmations: mapConfirmations?.assetConfirmations ?? [],
       mapEvolutionStatus,
       hasReadings,
       hasPurpose,
