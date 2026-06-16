@@ -23,9 +23,11 @@ import {
 
 const WA_GREEN = "#25D366";
 
-// Fundo warm-neutral do feed: dá contraste de superfície aos cards brancos para
-// que cada um seja lido como um objeto delimitado (resolve o branco-sobre-branco).
-const FEED_BG = "#EFEAE4";
+// Fundo pêssego-cream do feed (mesma família quente do header e do card Seu Mapa
+// no Perfil): dá contraste de superfície aos cards brancos — cada um vira um objeto
+// delimitado (resolve o branco-sobre-branco) — sem sair da temperatura quente da
+// identidade. Um cinza-neutro separaria, mas faria o Collabs parecer outro app.
+const FEED_BG = "#F7ECE3";
 // Sombra um pouco mais firme que o token compartilhado — eleva o card contra o
 // novo fundo neutro, tornando a borda card↔card inconfundível ao escanear.
 const FEED_CARD_SHADOW =
