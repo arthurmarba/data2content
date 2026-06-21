@@ -8,6 +8,7 @@
 // quando o Gemini de fato roda (nunca em teste, pois o core faz short-circuit).
 
 import { logger } from "@/app/lib/logger";
+import { logGeminiUsage } from "./geminiUsageLog";
 import {
   type LlmGenerateParams,
   type LlmIntensity,
@@ -81,6 +82,8 @@ export const geminiProvider: LlmProvider = {
         ...(params.jsonSchema ? { responseSchema: params.jsonSchema } : {}),
       },
     });
+
+    logGeminiUsage("mapa", model, response);
 
     const text = (response.text ?? "").trim();
     return { text, provider: "gemini" as const, model };

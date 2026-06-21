@@ -13,6 +13,7 @@ import path from "node:path";
 import { GeminiVideoNarrativeClient } from "./geminiVideoNarrativeProvider";
 import type { VideoNarrativeGeminiClientAdapter } from "./videoNarrativeGeminiProvider";
 import { GEMINI_INLINE_VIDEO_BYTES_LIMIT } from "./videoNarrativeGeminiInlineLimit";
+import { logGeminiUsage } from "@/app/lib/llm/geminiUsageLog";
 
 export type GeminiVideoNarrativeClientFactoryOptions = {
   apiKey: string;
@@ -349,6 +350,8 @@ export function createGeminiVideoNarrativeClient(
           config: { systemInstruction },
         });
 
+        logGeminiUsage("video", model, response);
+
         return {
           text: response.text ?? null,
         };
@@ -431,6 +434,8 @@ export function createVideoNarrativeGeminiClientAdapter(
               ...(signal ? { abortSignal: signal } : {}),
             },
           });
+
+          logGeminiUsage("video", model || fallbackModel, response);
 
           return { text: response.text ?? null };
         } finally {

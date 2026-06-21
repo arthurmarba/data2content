@@ -15,6 +15,7 @@
 import { GoogleGenAI, createUserContent, createPartFromBase64, type Part } from "@google/genai";
 import { callClaudeJSON } from "@/app/lib/claudeService";
 import { logger } from "@/app/lib/logger";
+import { logGeminiUsage } from "@/app/lib/llm/geminiUsageLog";
 import type { InstagramMedia } from "@/app/lib/instagram/types";
 
 const TAG = "[mapaSeed][analyzeInstagramPosts]";
@@ -59,7 +60,9 @@ export interface AnalyzeInstagramPostsOptions {
 // representativa. Texto é barato; a leitura visual (cara) segue limitada abaixo.
 const MAX_POSTS = 60;
 const DEFAULT_MAX_VISUAL_POSTS = 12;
-const GEMINI_VISUAL_MODEL = "gemini-2.5-flash";
+// Configurável por env (GEMINI_INSTAGRAM_MODEL) para A/B de modelo — esta é
+// extração estruturada, candidata a gemini-2.5-flash-lite. Default histórico.
+const GEMINI_VISUAL_MODEL = process.env.GEMINI_INSTAGRAM_MODEL || "gemini-2.5-flash";
 /** Acima disso, pula a imagem (thumbnails do IG são pequenas; isso é só guarda). */
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const IMAGE_FETCH_TIMEOUT_MS = 8000;
@@ -311,6 +314,8 @@ async function analyzeWithGeminiMultimodal(
       temperature: 0.2,
     },
   });
+
+  logGeminiUsage("instagram", GEMINI_VISUAL_MODEL, response);
 
   const text = response.text;
   if (!text) return null;
