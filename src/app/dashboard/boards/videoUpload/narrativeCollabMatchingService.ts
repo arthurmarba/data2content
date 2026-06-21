@@ -21,8 +21,11 @@ import { Types } from "mongoose";
 import { GoogleGenAI, createUserContent } from "@google/genai";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { rankByComplementarity, findSharedLabel, findDistinctLabels } from "./collabComplementarity";
+import { logGeminiUsage } from "@/app/lib/llm/geminiUsageLog";
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+// Configurável por env (GEMINI_COLLAB_MODEL) para A/B de modelo — candidato a
+// gemini-2.5-flash-lite. Default idêntico ao histórico.
+const GEMINI_MODEL = process.env.GEMINI_COLLAB_MODEL || "gemini-2.5-flash";
 const CANDIDATE_POOL_SIZE = 30; // Pool amplo p/ o matcher por-pauta dedupar por território
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -98,6 +101,7 @@ Responda apenas com a frase, sem pontuação no final.`;
       contents: createUserContent([prompt]),
       config: { maxOutputTokens: 80, temperature: 0.6 },
     });
+    logGeminiUsage("collab", GEMINI_MODEL, response);
     const text = response.text?.trim();
     if (text && text.length > 5) return text;
   } catch {
@@ -327,6 +331,7 @@ Responda apenas com o JSON, sem cercas de código.`;
       contents: createUserContent([prompt]),
       config: { maxOutputTokens: 160, temperature: 0.6, responseMimeType: "application/json" },
     });
+    logGeminiUsage("collab", GEMINI_MODEL, response);
     const text = response.text?.trim();
     if (text) {
       const parsed = JSON.parse(text) as { fitReason?: unknown; recordingIdea?: unknown };
@@ -426,6 +431,7 @@ Responda APENAS com JSON, sem cercas de código:
         thinkingConfig: { thinkingBudget: 0 },
       },
     });
+    logGeminiUsage("collab", GEMINI_MODEL, response);
     const text = response.text?.trim();
     if (!text) return out;
 

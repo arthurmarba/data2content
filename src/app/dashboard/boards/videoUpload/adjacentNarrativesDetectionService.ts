@@ -12,6 +12,7 @@
  */
 
 import { GoogleGenAI, createUserContent } from "@google/genai";
+import { logGeminiUsage } from "@/app/lib/llm/geminiUsageLog";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -49,7 +50,8 @@ export interface DetectAdjacentNarrativesParams {
 
 // ─── Implementation ───────────────────────────────────────────────────────────
 
-const MODEL = "gemini-2.0-flash";
+// Já no 2.0-flash (barato); configurável por env (GEMINI_ADJACENT_MODEL).
+const MODEL = process.env.GEMINI_ADJACENT_MODEL || "gemini-2.0-flash";
 const MIN_READINGS = 3;
 const MAX_CANDIDATES = 3;
 
@@ -166,6 +168,8 @@ export async function detectAdjacentNarratives(
         temperature: 0.4,
       },
     });
+
+    logGeminiUsage("adjacent", MODEL, response);
 
     const raw = response.text?.trim() ?? "";
     let parsed: { candidates: AdjacentNarrativeCandidate[] };

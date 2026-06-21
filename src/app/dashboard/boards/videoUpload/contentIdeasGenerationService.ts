@@ -21,6 +21,7 @@ import {
   type ContentIdeasMapContext,
 } from "./contentIdeasGeminiPromptBuilder";
 import { cleanIdeaText } from "./contentIdeasTextHygiene";
+import { logGeminiUsage } from "@/app/lib/llm/geminiUsageLog";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -60,7 +61,10 @@ export interface GenerateContentIdeasParams {
 
 // ─── Implementation ───────────────────────────────────────────────────────────
 
-const DEFAULT_MODEL = "gemini-2.5-flash";
+// Modelo da geração de pautas. Configurável por env (GEMINI_PAUTAS_MODEL) para
+// permitir A/B de modelo — ex.: gemini-2.5-flash-lite (output ~6× mais barato)
+// nesta extração estruturada — sem deploy. Default idêntico ao histórico.
+const DEFAULT_MODEL = process.env.GEMINI_PAUTAS_MODEL || "gemini-2.5-flash";
 const DEFAULT_COUNT = 3;
 const MAX_COUNT = 6;
 
@@ -281,6 +285,7 @@ export async function generateContentIdeas(
           : {}),
       },
     });
+    logGeminiUsage("pautas", DEFAULT_MODEL, response);
     rawText = response.text ?? null;
   } catch (err) {
     console.error("[contentIdeas] Gemini call failed:", err);

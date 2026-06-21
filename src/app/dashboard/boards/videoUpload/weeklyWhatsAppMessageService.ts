@@ -36,6 +36,7 @@ import {
   hasNarrativeMapPremiumAccess,
 } from "./narrativeMapAccessState";
 import { getMapConfirmationsSnapshot } from "./mapConfirmationsService";
+import { logGeminiUsage } from "@/app/lib/llm/geminiUsageLog";
 import { buildNarrativeMapMobileViewModelFromReadings } from "./narrativeMapMobileViewModelServerSelector";
 import {
   WHATSAPP_SYSTEM_PROMPT,
@@ -47,7 +48,9 @@ import {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+// Configurável por env (GEMINI_WHATSAPP_MODEL) para A/B de modelo — candidato a
+// gemini-2.5-flash-lite. Default idêntico ao histórico.
+const GEMINI_MODEL = process.env.GEMINI_WHATSAPP_MODEL || "gemini-2.5-flash";
 
 /** 6 days — same cadence as idea freshness and weekly summary. */
 const MIN_SEND_INTERVAL_MS = 6 * 24 * 60 * 60 * 1000;
@@ -136,6 +139,7 @@ async function callGemini(system: string, user: string): Promise<string | null> 
         temperature: 0.65,
       },
     });
+    logGeminiUsage("whatsapp", GEMINI_MODEL, response);
     const text = response.text?.trim();
     return text || null;
   } catch (err) {
