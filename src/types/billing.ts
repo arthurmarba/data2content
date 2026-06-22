@@ -91,6 +91,30 @@ export function cancellationReasonLabel(code: string): string {
 }
 
 /**
+ * Mapeia o `cancellation_details.feedback` nativo do Stripe (preenchido pelo
+ * Customer Portal) para os nossos códigos estáveis de motivo.
+ * https://docs.stripe.com/api/subscriptions/object#subscription_object-cancellation_details-feedback
+ */
+const STRIPE_FEEDBACK_TO_CODE: Record<string, CancellationReasonCode> = {
+  too_expensive: "price_too_high",
+  unused: "not_enough_usage",
+  missing_features: "missing_features",
+  switched_service: "found_alternative",
+  too_complex: "hard_to_use",
+  customer_service: "poor_support",
+  low_quality: "too_many_bugs",
+  other: "other",
+};
+
+/** Converte o feedback do Stripe Customer Portal num código nosso (ou null). */
+export function cancellationReasonFromStripeFeedback(
+  feedback: unknown
+): CancellationReasonCode | null {
+  if (typeof feedback !== "string") return null;
+  return STRIPE_FEEDBACK_TO_CODE[feedback] ?? null;
+}
+
+/**
  * Normaliza uma lista de motivos vinda do cliente para códigos estáveis.
  * Aceita códigos novos e labels legados (compat retroativa).
  */

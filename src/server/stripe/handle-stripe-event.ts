@@ -22,6 +22,10 @@ import {
   sendSubscriptionCanceledEmail,
   sendPaymentReceiptEmail,
 } from "@/app/lib/emailService";
+import {
+  normalizeCancellationReasons,
+  cancellationReasonFromStripeFeedback,
+} from "@/types/billing";
 
 const HOLD_DAYS = Number(process.env.AFFILIATE_HOLD_DAYS ?? "7");
 const DEFAULT_RETRY_ATTEMPTS = 2;
@@ -330,6 +334,48 @@ function isLikelyPlanChangePaymentPending(
     prevUserStatus === "non_renewing";
 
   return Boolean(createdRecent && pendingPI && wasGoodBefore);
+}
+
+/* ----------------- Captura de motivo de cancelamento ----------------- */
+
+/**
+ * Extrai o motivo de cancelamento de uma assinatura do Stripe.
+ * Prioriza a metadata definida pelo nosso próprio fluxo (códigos estáveis);
+ * cai para o `cancellation_details.feedback` nativo do Customer Portal.
+ */
+function extractCancellationFeedbackFromStripe(sub: Stripe.Subscription): {
+  reasonCodes: string[];
+  comment: string | null;
+} {
+  const details: any = (sub as any).cancellation_details ?? {};
+  const metadata: any = (sub as any).metadata ?? {};
+
+  // 1) Códigos do nosso fluxo (metadata) — códigos novos ou labels legados
+  const metaRaw: string[] =
+    typeof metadata.cancellation_reason_codes === "string"
+      ? metadata.cancellation_reason_codes.split(",")
+      : typeof metadata.cancellation_reasons === "string"
+        ? metadata.cancellation_reasons.split(",").map((s: string) => s.trim())
+        : [];
+  let reasonCodes = normalizeCancellationReasons(metaRaw);
+
+  // 2) Fallback: feedback nativo do Customer Portal
+  if (reasonCodes.length === 0) {
+    const fromPortal = cancellationReasonFromStripeFeedback(details.feedback);
+    if (fromPortal) reasonCodes = [fromPortal];
+  }
+
+  const rawComment =
+    (typeof details.comment === "string" && details.comment.trim()
+      ? details.comment.trim()
+      : typeof metadata.cancellation_comment === "string" && metadata.cancellation_comment.trim()
+        ? metadata.cancellation_comment.trim()
+        : null);
+
+  return {
+    reasonCodes,
+    comment: rawComment ? rawComment.substring(0, 500) : null,
+  };
 }
 
 /* ----------------------------- Handler ----------------------------- */
@@ -1065,6 +1111,28 @@ export async function handleStripeEvent(event: Stripe.Event) {
       (user as any).currentPeriodEnd = (user as any).planExpiresAt;
       (user as any).lastSubscriptionEventId = event.id;
       (user as any).lastStripeEventAt = eventCreatedDate(event) ?? new Date();
+
+      // Fase 2: captura o motivo via webhook (cobre cancelamentos pelo Customer
+      // Portal, onde nosso modal não roda). Só preenche se ainda não houver
+      // feedback persistido (não sobrescreve o do fluxo self-service).
+      if (!(user as any).cancellationFeedback) {
+        const fb = extractCancellationFeedbackFromStripe(sub);
+        if (fb.reasonCodes.length > 0 || fb.comment) {
+          const interval = sub.items?.data?.[0]?.price?.recurring?.interval;
+          const canceledAtSec = (sub as any).canceled_at;
+          (user as any).cancellationFeedback = {
+            reasonCodes: fb.reasonCodes,
+            comment: fb.comment,
+            canceledAt:
+              typeof canceledAtSec === "number"
+                ? new Date(canceledAtSec * 1000)
+                : eventCreatedDate(event) ?? new Date(),
+            subscriptionId: sub.id,
+            planInterval: interval === "month" || interval === "year" ? interval : null,
+            source: "portal",
+          };
+        }
+      }
 
       await markEventIfNew(user, event.id);
 
