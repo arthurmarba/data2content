@@ -17,6 +17,7 @@ import {
   PencilSquareIcon,
   MegaphoneIcon,
   RectangleStackIcon,
+  PresentationChartBarIcon,
 } from '@heroicons/react/24/outline';
 
 // --- Itens do Menu ---
@@ -28,6 +29,11 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
+  {
+    label: 'Uso da Plataforma',
+    href: '/admin/platform-usage',
+    icon: PresentationChartBarIcon,
+  },
   {
     label: 'Painel Criadores',
     href: '/admin/creator-dashboard',
