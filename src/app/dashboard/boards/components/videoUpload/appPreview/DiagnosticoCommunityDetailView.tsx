@@ -5,7 +5,7 @@ import { DiagnosticoCategoryDetailView } from "./DiagnosticoCategoryDetailView";
 import { CreatorDirectorySection } from "./DiagnosticoCollabsDetailView";
 import { CATEGORY_META } from "./DiagnosticoCategoryMeta";
 
-const WHATSAPP_COMMUNITY_URL = "https://chat.whatsapp.com/BAeBQZ8zuhQJOxXXJJaTnH";
+const WHATSAPP_COMMUNITY_URL = "https://chat.whatsapp.com/CKTT84ZHEouKyXoDxIJI4c?mode=gi_t";
 
 const EMPTY_DIRECTORY: DiagnosticoCreatorDirectoryState = {
   status: "idle",
