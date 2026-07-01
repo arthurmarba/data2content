@@ -16,6 +16,7 @@ import { GoogleGenAI, createUserContent, createPartFromBase64, type Part } from 
 import { callClaudeJSON } from "@/app/lib/claudeService";
 import { logger } from "@/app/lib/logger";
 import { logGeminiUsage } from "@/app/lib/llm/geminiUsageLog";
+import { runShadowComparison } from "@/app/lib/llm/geminiShadowCompare";
 import type { InstagramMedia } from "@/app/lib/instagram/types";
 
 const TAG = "[mapaSeed][analyzeInstagramPosts]";
@@ -63,6 +64,10 @@ const DEFAULT_MAX_VISUAL_POSTS = 12;
 // Configurável por env (GEMINI_INSTAGRAM_MODEL) para A/B de modelo — esta é
 // extração estruturada, candidata a gemini-2.5-flash-lite. Default histórico.
 const GEMINI_VISUAL_MODEL = process.env.GEMINI_INSTAGRAM_MODEL || "gemini-2.5-flash";
+// Teste de qualidade shadow (Onda B): se setada, roda o modelo candidato em
+// paralelo com o MESMO input e grava a comparação. Só liga o experimento;
+// o usuário sempre recebe a saída do GEMINI_VISUAL_MODEL. Ex.: "gemini-2.5-flash-lite".
+const GEMINI_INSTAGRAM_SHADOW_MODEL = process.env.GEMINI_INSTAGRAM_SHADOW_MODEL?.trim() || null;
 /** Acima disso, pula a imagem (thumbnails do IG são pequenas; isso é só guarda). */
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const IMAGE_FETCH_TIMEOUT_MS = 8000;
@@ -303,25 +308,42 @@ async function analyzeWithGeminiMultimodal(
     parts.push(part);
   }
 
+  const visualConfig = {
+    systemInstruction: SYSTEM_INSTRUCTION,
+    responseMimeType: "application/json",
+    responseSchema: RESPONSE_SCHEMA,
+    temperature: 0.2,
+    // thinkingBudget 0: extração estruturada determinística (schema fixo,
+    // temp 0.2) não se beneficia do raciocínio interno. Medição real mostrou
+    // ~188k thoughtsTokens vs 33k de output — 5,7× a resposta, cobrados à
+    // taxa de output. Desligar corta ~30% do custo do Gemini mobile sem
+    // afetar a leitura visual.
+    thinkingConfig: { thinkingBudget: 0 },
+  };
+
   const genAI = new GoogleGenAI({ apiKey });
   const response = await genAI.models.generateContent({
     model: GEMINI_VISUAL_MODEL,
     contents: createUserContent(parts),
-    config: {
-      systemInstruction: SYSTEM_INSTRUCTION,
-      responseMimeType: "application/json",
-      responseSchema: RESPONSE_SCHEMA,
-      temperature: 0.2,
-      // thinkingBudget 0: extração estruturada determinística (schema fixo,
-      // temp 0.2) não se beneficia do raciocínio interno. Medição real mostrou
-      // ~188k thoughtsTokens vs 33k de output — 5,7× a resposta, cobrados à
-      // taxa de output. Desligar corta ~30% do custo do Gemini mobile sem
-      // afetar a leitura visual.
-      thinkingConfig: { thinkingBudget: 0 },
-    },
+    config: visualConfig,
   });
 
   logGeminiUsage("instagram", GEMINI_VISUAL_MODEL, response);
+
+  // Teste de qualidade shadow (Onda B): mesmo input no modelo candidato,
+  // fire-and-forget. Não bloqueia nem altera o que o usuário recebe.
+  if (GEMINI_INSTAGRAM_SHADOW_MODEL && GEMINI_INSTAGRAM_SHADOW_MODEL !== GEMINI_VISUAL_MODEL) {
+    void runShadowComparison({
+      tag: "instagram",
+      apiKey,
+      parts,
+      config: visualConfig,
+      primaryModel: GEMINI_VISUAL_MODEL,
+      shadowModel: GEMINI_INSTAGRAM_SHADOW_MODEL,
+      primaryResponse: response,
+      sampleSize: imageParts.length,
+    });
+  }
 
   const text = response.text;
   if (!text) return null;
