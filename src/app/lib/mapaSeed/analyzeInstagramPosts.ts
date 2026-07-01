@@ -312,6 +312,12 @@ async function analyzeWithGeminiMultimodal(
       responseMimeType: "application/json",
       responseSchema: RESPONSE_SCHEMA,
       temperature: 0.2,
+      // thinkingBudget 0: extração estruturada determinística (schema fixo,
+      // temp 0.2) não se beneficia do raciocínio interno. Medição real mostrou
+      // ~188k thoughtsTokens vs 33k de output — 5,7× a resposta, cobrados à
+      // taxa de output. Desligar corta ~30% do custo do Gemini mobile sem
+      // afetar a leitura visual.
+      thinkingConfig: { thinkingBudget: 0 },
     },
   });
 
