@@ -1,24 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+import { CANCELLATION_REASONS } from '@/types/billing';
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onConfirm: (data: { reasons: string[]; comment: string }) => void;
+  onConfirm: (data: { reasonCodes: string[]; comment: string }) => void;
   currentPeriodEnd?: string | null;
 }
-
-const REASONS = [
-  'Preço muito alto',
-  'Não uso o suficiente',
-  'Falta de funcionalidades',
-  'Encontrei outra solução',
-  'Dificuldade de uso',
-  'Suporte insatisfatório',
-  'Muitos erros / Bugs',
-  'Mudança de estratégia',
-  'Projeto temporário / Sazonal',
-  'Outro',
-];
 
 export default function CancelSubscriptionModal({
   open,
@@ -77,18 +65,18 @@ export default function CancelSubscriptionModal({
             Selecione um ou mais motivos:
           </p>
           <div className="space-y-2">
-            {REASONS.map((reason) => (
+            {CANCELLATION_REASONS.map(({ code, label }) => (
               <label
-                key={reason}
+                key={code}
                 className="flex items-start gap-2 text-sm text-gray-700 cursor-pointer"
               >
                 <input
                   type="checkbox"
                   className="mt-1 h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
-                  checked={selectedReasons.includes(reason)}
-                  onChange={() => toggleReason(reason)}
+                  checked={selectedReasons.includes(code)}
+                  onChange={() => toggleReason(code)}
                 />
-                <span>{reason}</span>
+                <span>{label}</span>
               </label>
             ))}
           </div>
@@ -114,7 +102,7 @@ export default function CancelSubscriptionModal({
             Manter assinatura
           </button>
           <button
-            onClick={() => onConfirm({ reasons: selectedReasons, comment })}
+            onClick={() => onConfirm({ reasonCodes: selectedReasons, comment })}
             disabled={!isValid}
             className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1"
           >

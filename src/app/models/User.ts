@@ -361,6 +361,14 @@ export interface IUser extends Document {
   planInterval?: 'month' | 'year';
   currentPeriodEnd?: Date | null;
   cancelAtPeriodEnd?: boolean;
+  cancellationFeedback?: {
+    reasonCodes: string[];
+    comment?: string | null;
+    canceledAt: Date;
+    subscriptionId?: string | null;
+    planInterval?: 'month' | 'year' | null;
+    source: 'self_service' | 'portal' | 'agency';
+  } | null;
   currency?: string;
   lastProcessedEventId?: string;
   lastStripeEventAt?: Date | null;
@@ -750,6 +758,21 @@ const userSchema = new Schema<IUser>(
       paymentId: { type: String },
       status: { type: String },
       statusDetail: { type: String },
+    },
+    cancellationFeedback: {
+      type: {
+        reasonCodes: { type: [String], default: [] },
+        comment: { type: String, default: null },
+        canceledAt: { type: Date },
+        subscriptionId: { type: String, default: null },
+        planInterval: { type: String, enum: ['month', 'year', null], default: null },
+        source: {
+          type: String,
+          enum: ['self_service', 'portal', 'agency'],
+          default: 'self_service',
+        },
+      },
+      default: null,
     },
     lastProcessedPaymentId: { type: String, default: null, index: true },
     serviceTermsAcceptedAt: { type: Date, default: null },
