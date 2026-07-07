@@ -2684,8 +2684,14 @@ const resolvedGlassCardBaseClass = isBoardEmbedded
     setIsPdfGenerating(true);
     let failureTracked = false;
     try {
-      const downloadUrl = `/api/mediakit/${slugForPdf}/pdf`;
-      const response = await fetch(downloadUrl, { method: 'GET' });
+      const downloadUrl = `/api/mediakit/${encodeURIComponent(slugForPdf)}/pdf?t=${Date.now()}`;
+      const response = await fetch(downloadUrl, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
       if (!response.ok) {
         let errorMessage = 'Não foi possível gerar o PDF agora. Tente novamente em instantes.';
         try {

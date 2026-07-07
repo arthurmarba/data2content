@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, act } from '@testing-library/react';
 import MediaKitView from './MediaKitView';
 import { useSession } from 'next-auth/react';
 
@@ -119,6 +119,37 @@ describe('MediaKitView ownership visibility', () => {
     expect(screen.getByRole('button', { name: /Salvar PDF/i })).toBeInTheDocument();
   });
 
+  it('requests a fresh uncached PDF export URL', async () => {
+    const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(123456789);
+    const fetchMock = jest.fn(() => new Promise(() => {}));
+    global.fetch = fetchMock as any;
+    (useSession as jest.Mock).mockReturnValue({ data: { user: { _id: 'user1' } } });
+
+    render(
+      <MediaKitView
+        {...baseProps}
+        showOwnerCtas={true}
+        showOwnerSettingsShortcut={false}
+        compactBoardPreview
+        mediaKitSlug="owner-kit"
+      />
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /Salvar PDF/i }));
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith('/api/mediakit/owner-kit/pdf?t=123456789', {
+      method: 'GET',
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+      },
+    });
+
+    nowSpy.mockRestore();
+  });
+
   it('hides locked premium teasers for public viewers', () => {
     (useSession as jest.Mock).mockReturnValue({ data: null });
     render(
@@ -235,8 +266,6 @@ describe('MediaKitView ownership visibility', () => {
       value: true,
       configurable: true,
     });
-
-    const { fireEvent, act } = await import('@testing-library/react');
 
     render(
       <MediaKitView
