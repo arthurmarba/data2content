@@ -227,12 +227,14 @@ export async function GET(
 
     const normalizedPackages = Array.isArray(packages)
       ? packages.map((pkg: any) => ({
-          ...pkg,
           _id: pkg?._id?.toString?.() ?? pkg?._id,
           id: pkg?._id?.toString?.() ?? pkg?.id,
+          name: typeof pkg?.name === 'string' ? pkg.name : '',
           deliverables: Array.isArray(pkg?.deliverables) ? pkg.deliverables : [],
           price: typeof pkg?.price === 'number' ? pkg.price : 0,
           currency: pkg?.currency || 'BRL',
+          description: typeof pkg?.description === 'string' ? pkg.description : undefined,
+          type: pkg?.type === 'ai_generated' ? 'ai_generated' : 'manual',
           createdAt: pkg?.createdAt ? new Date(pkg.createdAt).toISOString() : undefined,
           updatedAt: pkg?.updatedAt ? new Date(pkg.updatedAt).toISOString() : undefined,
         }))

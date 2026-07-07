@@ -52,6 +52,11 @@ const getCacheFilePath = (key: string) => {
 
 const CACHE_BACKEND = (process.env.MEDIA_KIT_PDF_CACHE || 'mongo').toLowerCase();
 const DEFAULT_CHROMIUM_ARGS = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'];
+type ChromiumLaunchAttempt = {
+  label: string;
+  executablePath?: string;
+  args?: string[];
+};
 
 const resolveChromiumArgs = () => {
   const extraArgs = (process.env.PLAYWRIGHT_EXTRA_ARGS || '')
@@ -110,6 +115,39 @@ const resolveExecutableCandidates = () => {
   ).filter((candidate) => existsSync(candidate));
 };
 
+const shouldUseServerlessChromium = () =>
+  process.platform === 'linux' &&
+  Boolean(
+    process.env.VERCEL ||
+      process.env.AWS_LAMBDA_FUNCTION_NAME ||
+      process.env.AWS_EXECUTION_ENV ||
+      process.env.MEDIA_KIT_PDF_USE_SERVERLESS_CHROMIUM === '1'
+  );
+
+const resolveServerlessChromiumAttempt = async (baseArgs: string[]): Promise<ChromiumLaunchAttempt | null> => {
+  if (!shouldUseServerlessChromium()) return null;
+
+  try {
+    const chromiumModule = await import('@sparticuz/chromium');
+    const serverlessChromium = chromiumModule.default;
+    const executablePath = await serverlessChromium.executablePath();
+    const args = Array.from(new Set([...serverlessChromium.args, ...baseArgs]));
+
+    return {
+      label: 'serverless-chromium',
+      executablePath,
+      args,
+    };
+  } catch (error) {
+    logger.warn(
+      `[media-kit-pdf] Falha ao preparar Chromium serverless: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+    return null;
+  }
+};
+
 const isMissingBrowserBinaryError = (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error ?? '');
   return (
@@ -126,7 +164,11 @@ const readCachedPdf = async (cacheKey: string, cacheFile: string) => {
         .select('data contentType')
         .lean();
       if (record?.data) {
-        return { buffer: record.data as Buffer, contentType: record.contentType || 'application/pdf' };
+        const buffer = normalizeCachedPdfBuffer(record.data);
+        if (buffer?.byteLength) {
+          return { buffer, contentType: record.contentType || 'application/pdf' };
+        }
+        logger.warn('[media-kit-pdf] Cache Mongo encontrado, mas sem bytes válidos. Regenerando PDF.');
       }
     } catch (error) {
       logger.warn('[media-kit-pdf] Falha ao ler cache Mongo, fallback local', error as Error);
@@ -180,11 +222,38 @@ const toPdfResponse = (buffer: Buffer, filename: string) => {
   return new NextResponse(body, { status: 200, headers });
 };
 
+const normalizeCachedPdfBuffer = (value: unknown): Buffer | null => {
+  if (Buffer.isBuffer(value)) return value;
+  if (value instanceof Uint8Array) return Buffer.from(value);
+
+  const maybeBuffer = value as
+    | {
+        buffer?: unknown;
+        value?: unknown;
+        data?: unknown;
+      }
+    | null
+    | undefined;
+
+  if (!maybeBuffer || typeof maybeBuffer !== 'object') return null;
+
+  if (Buffer.isBuffer(maybeBuffer.buffer)) return maybeBuffer.buffer;
+  if (maybeBuffer.buffer instanceof Uint8Array) return Buffer.from(maybeBuffer.buffer);
+  if (maybeBuffer.buffer instanceof ArrayBuffer) return Buffer.from(maybeBuffer.buffer);
+  if (Buffer.isBuffer(maybeBuffer.value)) return maybeBuffer.value;
+  if (maybeBuffer.value instanceof Uint8Array) return Buffer.from(maybeBuffer.value);
+  if (Array.isArray(maybeBuffer.data)) return Buffer.from(maybeBuffer.data);
+
+  return null;
+};
+
 async function generatePdf(url: string) {
   ensureLocalPlaywrightBrowsersPath();
   const { chromium } = await import('playwright');
   const chromiumArgs = resolveChromiumArgs();
-  const launchAttempts: Array<{ label: string; executablePath?: string }> = [
+  const serverlessAttempt = await resolveServerlessChromiumAttempt(chromiumArgs);
+  const launchAttempts: ChromiumLaunchAttempt[] = [
+    ...(serverlessAttempt ? [serverlessAttempt] : []),
     { label: 'playwright-managed' },
     ...resolveExecutableCandidates().map((candidate) => ({
       label: `executable:${candidate}`,
@@ -198,7 +267,7 @@ async function generatePdf(url: string) {
     try {
       browser = await chromium.launch({
         headless: true,
-        args: chromiumArgs,
+        args: attempt.args ?? chromiumArgs,
         ...(attempt.executablePath ? { executablePath: attempt.executablePath } : {}),
       });
       break;
@@ -224,9 +293,11 @@ async function generatePdf(url: string) {
 
   const page = await context.newPage();
   try {
-    // Usamos 'load' em vez de 'networkidle' para evitar timeouts causados por rastreadores
-    // ou conexões persistentes que não impedem a renderização visual.
-    await page.goto(url, { waitUntil: 'load', timeout: 60_000 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
+
+    // Recursos externos podem demorar ou manter conexões abertas. Esperamos um pouco por
+    // estabilidade, mas não deixamos isso bloquear a exportação inteira.
+    await page.waitForLoadState('networkidle', { timeout: 12_000 }).catch(() => undefined);
 
     // Forçamos o modo 'screen' para garantir que o layout mobile/visual seja mantido
     await page.emulateMedia({ media: 'screen' });

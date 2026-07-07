@@ -271,7 +271,7 @@ const PublicProposalForm = ({
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [utmSnapshot, setUtmSnapshot] = useState<UtmContext | null>(utmContext ?? null);
-  const [isPackagesExpanded, setIsPackagesExpanded] = useState(false);
+  const [isPackagesExpanded, setIsPackagesExpanded] = useState(true);
 
   useEffect(() => {
     setUtmSnapshot(utmContext ?? null);
@@ -281,13 +281,12 @@ const PublicProposalForm = ({
   const handleSelectPackage = (pkg: MediaKitPackage) => {
     setForm(prev => ({
       ...prev,
-      deliverables: pkg.deliverables.join(', '),
+      deliverables: pkg.deliverables.join('\n'),
       budgetIntent: 'provided',
       budget: pkg.price.toString(),
       currency: pkg.currency || 'BRL',
       campaignDescription: prev.campaignDescription ? prev.campaignDescription : `Interesse no pacote: ${pkg.name}`,
     }));
-    setIsPackagesExpanded(false);
   };
 
   const pricingChips = useMemo(() => {
@@ -533,8 +532,8 @@ const PublicProposalForm = ({
               className="flex w-full items-center justify-between px-3 py-2 text-left"
             >
               <div>
-                <p className={formLabelClass}>Investimento sugerido (opcional)</p>
-                <p className={formHelperTextClass}>Selecione um pacote para preencher automaticamente.</p>
+                <p className={formLabelClass}>Pacotes disponíveis</p>
+                <p className={formHelperTextClass}>Confira tudo que está incluído e selecione um pacote.</p>
               </div>
               <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600">
                 {isPackagesExpanded ? 'Ocultar pacotes' : 'Ver pacotes'}
@@ -542,23 +541,36 @@ const PublicProposalForm = ({
               </span>
             </button>
             {isPackagesExpanded ? (
-              <div className="space-y-1.5 border-t border-slate-200/70 px-2.5 py-2.5">
+              <div className="space-y-2.5 border-t border-slate-200/70 px-2.5 py-2.5">
                 {packages.map((pkg) => (
                   <button
                     key={pkg._id || pkg.name}
                     type="button"
                     onClick={() => handleSelectPackage(pkg)}
-                    className="flex w-full items-center justify-between gap-2 rounded-xl border border-white/60 bg-white px-3 py-2 text-left transition hover:border-[#6E1F93]/40 hover:bg-white"
+                    className="flex w-full flex-col gap-3 rounded-xl border border-white/60 bg-white px-3 py-3 text-left transition hover:border-[#6E1F93]/40 hover:bg-white"
                   >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-slate-900">{pkg.name}</p>
-                      {pkg.deliverables.length > 0 ? (
-                        <p className="truncate text-xs text-slate-500">{pkg.deliverables.slice(0, 2).join(' · ')}</p>
-                      ) : null}
+                    <div className="flex w-full items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="break-words text-sm font-semibold text-slate-900">{pkg.name}</p>
+                        {pkg.description ? (
+                          <p className="mt-1 break-words text-xs leading-relaxed text-slate-500">{pkg.description}</p>
+                        ) : null}
+                      </div>
+                      <span className="shrink-0 text-xs font-bold text-[#6E1F93]">
+                        {formatCurrencyLabel(pkg.price)}
+                      </span>
                     </div>
-                    <span className="shrink-0 text-xs font-bold text-[#6E1F93]">
-                      {formatCurrencyLabel(pkg.price)}
-                    </span>
+                    {pkg.deliverables.length > 0 ? (
+                      <ul className="w-full space-y-1.5">
+                        {pkg.deliverables.map((item, index) => (
+                          <li key={`${pkg._id || pkg.name}-form-deliverable-${index}`} className="flex items-start gap-2 text-xs leading-relaxed text-slate-600">
+                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#6E1F93]/40" />
+                            <span className="min-w-0 break-words">{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    <span className="text-xs font-semibold text-[#6E1F93]">Usar este pacote</span>
                   </button>
                 ))}
               </div>
@@ -2155,9 +2167,9 @@ const resolvedGlassCardBaseClass = isBoardEmbedded
   }, [heroBio, user]);
   const preferredIgAvatar = useMemo(() => pickAvailableIgAvatar(user), [user]);
   const avatarApiUrl = useMemo(() => {
-    if (!mediaKitSlug) return null;
+    if (isPrintMode || !mediaKitSlug) return null;
     return `/api/mediakit/${mediaKitSlug}/avatar`;
-  }, [mediaKitSlug]);
+  }, [isPrintMode, mediaKitSlug]);
   const prefersProviderFallback = !((user as any)?.isInstagramConnected || (user as any)?.instagramAccountId);
   const heroAvatarUrl = useMemo(() => {
     return (
@@ -2393,7 +2405,7 @@ const resolvedGlassCardBaseClass = isBoardEmbedded
 
   const categorySummaryViewedRef = useRef(false);
   const categoryRankingsEnabled =
-    Boolean(user?._id) && !shouldHidePremiumSections && !shouldLockPremiumSections;
+    !isPrintMode && Boolean(user?._id) && !shouldHidePremiumSections && !shouldLockPremiumSections;
   const { data: categoryRankingsData, loading: categoryRankingsLoading } = useCategoryRankings(
     user?._id ? String(user._id) : null,
     categoryRankingsEnabled
@@ -3327,6 +3339,15 @@ const resolvedGlassCardBaseClass = isBoardEmbedded
                       <Share2 className="h-4 w-4" />
                       Copiar link
                     </button>
+                    <button
+                      type="button"
+                      onClick={handlePdfExport}
+                      disabled={isPdfGenerating}
+                      className="dashboard-type-control inline-flex min-h-[2.25rem] items-center justify-center gap-1.5 rounded-full px-3 py-1.5 text-zinc-500 transition hover:text-zinc-700 disabled:cursor-wait disabled:opacity-60"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      {isPdfGenerating ? 'Gerando PDF...' : 'Salvar PDF'}
+                    </button>
                     {showOwnerCtas ? (
                       <button
                         type="button"
@@ -3345,6 +3366,16 @@ const resolvedGlassCardBaseClass = isBoardEmbedded
 
                   {hasCopiedLink ? (
                     <p className="dashboard-type-meta mt-2 text-zinc-400">Link copiado.</p>
+                  ) : pdfError ? (
+                    <p className="dashboard-type-meta mt-2 text-red-600">{pdfError}</p>
+                  ) : isPdfGenerating ? (
+                    <p className="dashboard-type-meta mt-2 text-zinc-400">
+                      Gerando o PDF, isso pode levar alguns segundos.
+                    </p>
+                  ) : isMobile ? (
+                    <p className="dashboard-type-meta mt-2 text-zinc-400">
+                      No mobile, o PDF pode abrir em uma nova aba para download.
+                    </p>
                   ) : showOwnerCtas && !resolvedMediaKitSlug ? (
                     <p className="dashboard-type-meta mt-2 text-zinc-400">
                       {isResolvingOwnerSlug
@@ -3632,7 +3663,7 @@ const resolvedGlassCardBaseClass = isBoardEmbedded
                 <div className="mt-3.5 rounded-[1.05rem] border border-zinc-100/70 bg-zinc-50/52 px-2.5 py-2.5">
                   <div className="space-y-0">
                     {packages.length > 0
-                      ? packages.slice(0, 2).map((pkg, index) => (
+                      ? packages.map((pkg, index) => (
                           <div key={pkg._id || pkg.name} className={`${index > 0 ? 'border-t border-zinc-100/70' : ''} py-2.5`}>
                             <div className="flex items-start gap-3.5">
                               <span className="dashboard-type-control inline-flex h-5.5 w-5.5 shrink-0 items-center justify-center rounded-full bg-amber-50 text-amber-700">
@@ -3644,11 +3675,23 @@ const resolvedGlassCardBaseClass = isBoardEmbedded
                                     <p className="dashboard-type-item-title line-clamp-2 pr-2 leading-snug text-zinc-900">
                                       {pkg.name}
                                     </p>
-                                    <p className="dashboard-type-meta mt-1.5 leading-relaxed text-zinc-500">
-                                      {pkg.deliverables.length > 0
-                                        ? `${pkg.deliverables.length} entregável${pkg.deliverables.length === 1 ? '' : 'eis'}${pkg.deliverables[0] ? ` • ${pkg.deliverables[0]}` : ''}`
-                                        : pkg.description || 'Pacote pronto para apresentar a marcas.'}
-                                    </p>
+                                    {pkg.deliverables.length > 0 ? (
+                                      <ul className="mt-2 space-y-1.5">
+                                        {pkg.deliverables.map((item, deliverableIndex) => (
+                                          <li
+                                            key={`${pkg._id || pkg.name}-compact-deliverable-${deliverableIndex}`}
+                                            className="flex items-start gap-2 text-[11px] leading-relaxed text-zinc-500"
+                                          >
+                                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400/70" />
+                                            <span className="min-w-0 break-words">{item}</span>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    ) : (
+                                      <p className="dashboard-type-meta mt-1.5 leading-relaxed text-zinc-500">
+                                        {pkg.description || 'Pacote pronto para apresentar a marcas.'}
+                                      </p>
+                                    )}
                                   </div>
                                   <span className="dashboard-type-body shrink-0 tabular-nums font-medium text-zinc-700">
                                     {formatCurrencyLabel(pkg.price)}
@@ -3933,7 +3976,7 @@ const resolvedGlassCardBaseClass = isBoardEmbedded
                             </div>
                             {pkg.deliverables.length > 0 && (
                               <ul className="mt-3 space-y-1.5">
-                                {pkg.deliverables.slice(0, 4).map((item, i) => (
+                                {pkg.deliverables.map((item, i) => (
                                   <li key={i} className="flex items-start gap-2 text-sm text-zinc-600">
                                     <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#6E1F93]/40" />
                                     <span className="min-w-0 break-words">{item}</span>

@@ -67,6 +67,7 @@
     "@headlessui/react": "^2.2.2",
     "@heroicons/react": "^2.2.0",
     "@sentry/nextjs": "^10.0.0",
+    "@sparticuz/chromium": "^148.0.0",
     "@stripe/react-stripe-js": "2.9.0",
     "@stripe/stripe-js": "4.0.0",
     "@tailwindcss/aspect-ratio": "^0.4.2",

@@ -105,6 +105,20 @@ describe('MediaKitView ownership visibility', () => {
     expect(screen.queryByRole('link', { name: 'Configurações' })).not.toBeInTheDocument();
   });
 
+  it('shows PDF export in compact owner view', () => {
+    (useSession as jest.Mock).mockReturnValue({ data: { user: { _id: 'user1' } } });
+    render(
+      <MediaKitView
+        {...baseProps}
+        showOwnerCtas={true}
+        showOwnerSettingsShortcut={false}
+        compactBoardPreview
+        mediaKitSlug="owner-kit"
+      />
+    );
+    expect(screen.getByRole('button', { name: /Salvar PDF/i })).toBeInTheDocument();
+  });
+
   it('hides locked premium teasers for public viewers', () => {
     (useSession as jest.Mock).mockReturnValue({ data: null });
     render(
@@ -234,6 +248,7 @@ describe('MediaKitView ownership visibility', () => {
     );
 
     const copyBtn = screen.getByRole('button', { name: /Copiar link/i });
+    expect(screen.getByRole('button', { name: /Salvar PDF/i })).toBeInTheDocument();
     await act(async () => {
       fireEvent.click(copyBtn);
     });

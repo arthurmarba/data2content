@@ -29,6 +29,7 @@ import {
   PerformanceSummary,
   KpiComparison,
   DemographicsData,
+  MediaKitPackage as MediaKitPackageView,
   MediaKitPremiumAccessConfig,
 } from '@/types/mediakit';
 import { isPlanActiveLike } from '@/utils/planStatus';
@@ -266,18 +267,32 @@ export default async function MediaKitPage(
     notFound();
   }
 
+  const reqHeaders = headers();
+  const printParam = searchParams?.print;
+  const isPrintMode = Array.isArray(printParam)
+    ? printParam.includes('1') || printParam.includes('true')
+    : printParam === '1' || printParam === 'true';
+  const embeddedParam = searchParams?.embedded;
+  const isEmbedded = Array.isArray(embeddedParam)
+    ? embeddedParam.includes('1') || embeddedParam.includes('true')
+    : embeddedParam === '1' || embeddedParam === 'true';
+
   // Avatar do IG expira (~4,5 dias). Refresh sob demanda no render público (best-effort,
   // nunca quebra a página). Mantém a foto válida no mídia kit mesmo se o criador não
   // abriu o dashboard recentemente. A página é force-dynamic, então dispara a cada view.
-  const freshAvatar = await resolveFreshInstagramAvatar({
-    userId: (user as any)._id,
-    currentImage: (user as any).image ?? (user as any).profile_picture_url ?? null,
-    instagramAccountId: (user as any).instagramAccountId ?? null,
-    instagramAccessToken: (user as any).instagramAccessToken ?? null,
-  });
-  if (freshAvatar) {
-    (user as any).image = freshAvatar;
-    (user as any).profile_picture_url = freshAvatar;
+  // No modo PDF, evitar qualquer escrita em User.updatedAt; isso invalidava o cache
+  // da exportação enquanto o PDF estava sendo gerado.
+  if (!isPrintMode) {
+    const freshAvatar = await resolveFreshInstagramAvatar({
+      userId: (user as any)._id,
+      currentImage: (user as any).image ?? (user as any).profile_picture_url ?? null,
+      instagramAccountId: (user as any).instagramAccountId ?? null,
+      instagramAccessToken: (user as any).instagramAccessToken ?? null,
+    });
+    if (freshAvatar) {
+      (user as any).image = freshAvatar;
+      (user as any).profile_picture_url = freshAvatar;
+    }
   }
 
   const latestInsight = await AccountInsightModel.findOne({
@@ -289,15 +304,6 @@ export default async function MediaKitPage(
     .lean();
   const insightAvatar = normalizeProfileCandidate(latestInsight?.accountDetails?.profile_picture_url ?? null);
 
-  const reqHeaders = headers();
-  const printParam = searchParams?.print;
-  const isPrintMode = Array.isArray(printParam)
-    ? printParam.includes('1') || printParam.includes('true')
-    : printParam === '1' || printParam === 'true';
-  const embeddedParam = searchParams?.embedded;
-  const isEmbedded = Array.isArray(embeddedParam)
-    ? embeddedParam.includes('1') || embeddedParam.includes('true')
-    : embeddedParam === '1' || embeddedParam === 'true';
   if (!isPrintMode) {
     const ip = getClientIpFromHeaders(reqHeaders, req);
     const referer = reqHeaders.get('referer') || undefined;
@@ -305,10 +311,10 @@ export default async function MediaKitPage(
   }
 
   // Determina se o visitante é o dono para controlar o banner institucional
-  const authOptions = await loadAuthOptions();
-  const session = await getServerSession(authOptions as any);
-  const sessionUserId = (session as any)?.user?.id;
-  const isOwner = sessionUserId && String(sessionUserId) === String((user as any)._id);
+  const sessionUserId = isPrintMode
+    ? null
+    : ((await getServerSession((await loadAuthOptions()) as any)) as any)?.user?.id;
+  const isOwner = Boolean(sessionUserId && String(sessionUserId) === String((user as any)._id));
 
   const proto = reqHeaders.get('x-forwarded-proto') || 'http';
   const host = reqHeaders.get('host') || 'localhost:3000';
@@ -444,14 +450,18 @@ export default async function MediaKitPage(
     : null;
   const pricingPublished = Boolean((plainUser as any)?.mediaKitPricingPublished);
 
-  const normalizedPackages = Array.isArray(packages)
+  const normalizedPackages: MediaKitPackageView[] = Array.isArray(packages)
     ? packages.map((pkg: any) => ({
-      ...pkg,
       _id: pkg?._id?.toString?.() ?? pkg?._id,
       id: pkg?._id?.toString?.() ?? pkg?.id,
-      deliverables: Array.isArray(pkg?.deliverables) ? pkg.deliverables : [],
+      name: typeof pkg?.name === 'string' ? pkg.name : '',
+      deliverables: Array.isArray(pkg?.deliverables)
+        ? pkg.deliverables.filter((item: unknown): item is string => typeof item === 'string')
+        : [],
       price: typeof pkg?.price === 'number' ? pkg.price : 0,
       currency: pkg?.currency || 'BRL',
+      description: typeof pkg?.description === 'string' ? pkg.description : undefined,
+      type: pkg?.type === 'ai_generated' ? 'ai_generated' : 'manual',
       createdAt: pkg?.createdAt ? new Date(pkg.createdAt).toISOString() : undefined,
       updatedAt: pkg?.updatedAt ? new Date(pkg.updatedAt).toISOString() : undefined,
     }))
