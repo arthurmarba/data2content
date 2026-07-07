@@ -1,0 +1,9 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "src/app/api/mediakit/[token]/pdf/route.ts": {
+      "memory": 3009,
+      "maxDuration": 60
+    }
+  }
+}
