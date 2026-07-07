@@ -1,0 +1,217 @@
+{
+  "data": "2026-07-01",
+  "angulo": "perfil",
+  "criadores": [
+    {
+      "userId": "69c2632117a1957aa63a18f0",
+      "nome": "Amanda Magalhaes",
+      "handle": "@aamandamag",
+      "narrativaCentral": "Uma atleta que treina sério e não esconde o apetite pelo resto da vida",
+      "territorios": [
+        "Corrida e treino",
+        "Gastronomia",
+        "Humor cotidiano",
+        "Vida com cães"
+      ],
+      "assets": [
+        "esteira",
+        "cachorros dálmatas",
+        "treinos",
+        "ambientes de academia e corrida ao ar livre",
+        "pratos de comida e sobremesas"
+      ]
+    }
+  ],
+  "titulo": "Amanda Magalhaes — o equilíbrio dela não é dieta, é rir comendo bolo",
+  "slides": [
+    {
+      "n": 1,
+      "batida": "gancho",
+      "layout": "cover",
+      "imagem": {
+        "fonte": "profile_picture",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-07-01-novo/assets/profile_picture-84450a0ba4.jpg",
+        "userId": "69c2632117a1957aa63a18f0",
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-07-01-novo/assets/profile_picture-84450a0ba4.jpg"
+      },
+      "headline": "Quase 45 mil pessoas. Um surto e um bolo de cenoura.",
+      "corpo": "O mapa da @aamandamag, lido pela Data2Content."
+    },
+    {
+      "n": 2,
+      "batida": "quem-e",
+      "layout": "two-column",
+      "imagem": {
+        "fonte": "profile_picture",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-07-01-novo/assets/profile_picture-crop2.jpg",
+        "userId": "69c2632117a1957aa63a18f0",
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-07-01-novo/assets/profile_picture-crop2.jpg"
+      },
+      "headline": "Treina sério, come sem pedir desculpa — e ainda acha graça em tudo isso",
+      "corpo": "Amanda Magalhaes (@aamandamag) mostra a esteira e a academia como qualquer atleta, mas nunca esconde o resto: o bolo que virou top 1, o passeio com os dálmatas, o humor cru do dia a dia. Não tem parte que fica de fora."
+    },
+    {
+      "n": 3,
+      "batida": "tensao",
+      "layout": "respiro",
+      "fundo": "dark",
+      "stat": "45 mil",
+      "statLabel": "interações somando um vídeo de surto e um de bolo de cenoura — nenhum deles sobre treino."
+    },
+    {
+      "n": 4,
+      "batida": "twist",
+      "layout": "reasoning",
+      "headline": "O equilíbrio dela não é dieta. É rir enquanto come o bolo.",
+      "corpo": "O mapa da D2C mostra a cadeia por trás:",
+      "cadeia": [
+        "NARRATIVA: Uma atleta que treina sério e não esconde o apetite pelo resto da vida",
+        "TERRITÓRIO: Corrida e treino · Gastronomia · Humor cotidiano · Vida com cães",
+        "TEMA: O instante em que a disciplina do treino esbarra na vontade de comer sem culpa",
+        "PAUTA: Reel onde ela ri do próprio exagero — no treino ou na mesa, tanto faz"
+      ]
+    },
+    {
+      "n": 5,
+      "batida": "twist",
+      "layout": "full-bleed-text",
+      "artePrompt": "Empty modern kitchen countertop at morning, a slice of carrot cake on a plate next to a pair of running shoes and a water bottle, soft natural window light, cinematic editorial photography, desaturated warm tones, soft film grain, absolutely no people, no text, no words, no letters, no signage, no watermark",
+      "headline": "Por que um vídeo de bolo de cenoura viraliza tanto quanto um de treino?",
+      "corpo": "É o que a D2C lê no mapa dela: nenhum dos dois é o produto. O produto é ela não fingir que só faz uma coisa. Quem treina todo santo dia também quer bolo — e ela é a prova de que dá pra querer as duas coisas ao mesmo tempo, sem embromar ninguém.",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-07-01-novo/assets/art-05.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-07-01-novo/assets/art-05.png"
+      }
+    },
+    {
+      "n": 6,
+      "batida": "prova",
+      "layout": "video-proof",
+      "stat": "23,9 mil",
+      "headline": "Vocês estão em surto assim como eu????!!!!!",
+      "corpo": "<b>A leitura:</b> ela solta o desespero em letra maiúscula e ponto de exclamação — sem editar, sem suavizar. 23,9 mil pessoas reconheceram o próprio surto no dela. O território de humor dela não é piada pronta: é a reação crua no calor da hora, e é isso que faz a pessoa se ver ali e comentar.",
+      "imagem": {
+        "fonte": "thumbnail",
+        "postId": "18024745412651837",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-07-01-novo/assets/poster-06.jpg",
+        "userId": "69c2632117a1957aa63a18f0",
+        "video": {
+          "mediaId": "18024745412651837",
+          "userId": "69c2632117a1957aa63a18f0",
+          "inicio": 0,
+          "duracao": 60,
+          "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-07-01-novo/assets/video-06.mp4"
+        },
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-07-01-novo/assets/poster-06.jpg"
+      }
+    },
+    {
+      "n": 7,
+      "batida": "prova",
+      "layout": "video-proof",
+      "stat": "20,9 mil",
+      "headline": "Jesus amado. Top 1 bolo de cenoura que já comi.",
+      "corpo": "<b>A leitura:</b> ela treina todo dia — e não faz questão nenhuma de esconder que também vive pra esse bolo. 20,9 mil pessoas curtiram porque o vídeo não vende disciplina o tempo todo: vende também o prazer de comer bem, sem culpa e sem pedir desculpa por isso.",
+      "imagem": {
+        "fonte": "thumbnail",
+        "postId": "17865019908566031",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-07-01-novo/assets/poster-07.jpg",
+        "userId": "69c2632117a1957aa63a18f0",
+        "video": {
+          "mediaId": "17865019908566031",
+          "userId": "69c2632117a1957aa63a18f0",
+          "inicio": 0,
+          "duracao": 60,
+          "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-07-01-novo/assets/video-07.mp4"
+        },
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-07-01-novo/assets/poster-07.jpg"
+      }
+    },
+    {
+      "n": 8,
+      "batida": "payoff",
+      "layout": "full-bleed-text",
+      "kicker": "O VALOR",
+      "artePrompt": "Empty artisan bakery counter, a slice of carrot cake on a marble surface, soft warm morning light, cinematic editorial photography, desaturated warm tones, soft film grain, absolutely no people, no text, no words, no letters, no signage, no watermark",
+      "headline": "Todo vídeo que viraliza esconde um conflito real. E conflito real é uma porta aberta pra uma marca.",
+      "corpo": "Quando 20,9 mil pessoas sentiram o mesmo dilema dela na primeira mordida do bolo, uma marca de doce já estava esperando do outro lado. Só precisava bater.",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-07-01-novo/assets/art-08.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-07-01-novo/assets/art-08.png"
+      }
+    },
+    {
+      "n": 9,
+      "batida": "payoff",
+      "layout": "reasoning",
+      "kicker": "O VALOR",
+      "headline": "O conflito que o vídeo dela já prova — e o que uma marca pode fazer com isso.",
+      "corpo": "Lido do reel de 20,9 mil interações — ela provando o bolo de cenoura da @matranchesi:",
+      "cadeia": [
+        "CONTEÚDO: Reel provando o bolo de cenoura da @matranchesi, reação genuína de surpresa — 20,9 mil interações",
+        "CONFLITO: A dúvida de quem treina todo dia ao ver aquele doce — 'eu mereço isso hoje?'",
+        "A MARCA RESOLVE: Uma doceria artesanal ou marca de sobremesa 'sem culpa' entra como cúmplice, não como vilã da dieta",
+        "COMO ENTRA: No instante em que ela morde o bolo e não esconde o prazer — a marca aparece como parte do prêmio, não do pecado"
+      ]
+    },
+    {
+      "n": 10,
+      "batida": "payoff",
+      "layout": "pauta-card",
+      "kicker": "O VALOR",
+      "headline": "Treinou hoje. Merece o bolo.",
+      "ficha": [
+        {
+          "rotulo": "A CENA",
+          "texto": "Amanda provando o bolo de cenoura da @matranchesi ao vivo, reação espontânea de surpresa e prazer, sem economizar elogio"
+        },
+        {
+          "rotulo": "A MARCA APARECE",
+          "texto": "Uma doceria artesanal ou marca de sobremesa 'sem culpa' entra no CTA: 'treinou hoje? aproveita sem culpa' — sem interromper a cena"
+        },
+        {
+          "rotulo": "POR QUE NÃO QUEBRA",
+          "texto": "O território dela já mistura treino e comida sem hierarquia — a marca entra como parte natural da rotina, não como publi forçada"
+        },
+        {
+          "rotulo": "O TOM",
+          "texto": "Leve, sem culpa, celebrando o prazer — nunca linguagem de dieta ou restrição"
+        },
+        {
+          "rotulo": "O FORMATO",
+          "texto": "Reel de degustação de 20–30 segundos, reação espontânea, no mesmo estilo do conteúdo orgânico que já viralizou"
+        }
+      ]
+    },
+    {
+      "n": 11,
+      "batida": "payoff",
+      "layout": "respiro",
+      "fundo": "paper",
+      "headline": "O que nenhuma marca compra é o que ela nunca precisou fingir.",
+      "corpo": "A credibilidade de quem treina e come o bolo, sem esconder nenhum dos dois."
+    },
+    {
+      "n": 12,
+      "batida": "convite",
+      "layout": "cta",
+      "headline": "Você também treina sério e ainda quer o bolo?",
+      "corpo": "A Amanda transformou esse conflito real em collab. A Data2Content lê o seu mapa e te mostra pra quais marcas você já é a resposta.",
+      "lista": [
+        "Seu <b>mapa narrativo</b> — a estrutura por trás do que você cria",
+        "<b>Pautas de publi</b> nascidas do seu conteúdo real",
+        "<b>Collabs</b> com criadores que ocupam o mesmo território",
+        "<b>Reuniões semanais da comunidade</b> — você não cria sozinho"
+      ]
+    }
+  ],
+  "caption": "Quase 45 mil pessoas. Um vídeo de surto e um de bolo de cenoura — nenhum deles sobre treino.\n\nA @aamandamag treina todo santo dia, mas nunca esconde o resto: o bolo que virou top 1, os dálmatas, o humor cru do dia a dia. Ela não vende só disciplina. Vende as duas coisas ao mesmo tempo, sem pedir desculpa por nenhuma.\n\nA Data2Content leu o mapa dela: o equilíbrio não é a dieta perfeita. É rir comendo o bolo.\n\nArrasta.\n\n💬 Comenta MAPA que a gente te mostra como a Data2Content lê o seu.\n\n#corrida #bemestar #vidasaudavel #data2content",
+  "manychat": {
+    "keyword": "MAPA",
+    "dm": "Oi! Vi o post da Amanda e quero entender meu mapa narrativo também 👉 data2content.com.br/signup?utm_source=instagram&utm_medium=direct&utm_campaign=amandamagalhaes-julho2026"
+  }
+}

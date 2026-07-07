@@ -1,0 +1,161 @@
+{
+  "data": "2026-06-18",
+  "angulo": "perfil",
+  "criadores": [
+    {
+      "userId": "6928a987b1fcb2d066847fe8",
+      "nome": "Débora Broch Machado",
+      "handle": "@deborabroch",
+      "narrativaCentral": "A mãe que diz em voz alta os medos e amores que toda mãe sente e cala",
+      "territorios": [
+        "Maternidade real",
+        "Fé",
+        "O tempo passando"
+      ],
+      "assets": [
+        "Duas filhas pré-adolescentes",
+        "A casa de verdade, não a do feed"
+      ]
+    }
+  ],
+  "titulo": "Débora Broch — o que toda mãe sente e não diz",
+  "slides": [
+    {
+      "n": 1,
+      "batida": "gancho",
+      "layout": "cover",
+      "headline": "O conteúdo da Débora <i>não é sobre</i> as filhas.",
+      "corpo": "O que 250 mil mães enxergaram no feed dela.",
+      "imagem": {
+        "fonte": "profile_picture",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-debora/assets/profile_picture-e8ad0a0572.jpg",
+        "userId": "6928a987b1fcb2d066847fe8",
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-debora/assets/profile_picture-e8ad0a0572.jpg"
+      }
+    },
+    {
+      "n": 2,
+      "batida": "quem-e",
+      "layout": "two-column",
+      "headline": "Mãe de duas. E de um feed que diz o que mãe cala.",
+      "corpo": "<b>Débora Broch</b> é mãe de duas meninas pré-adolescentes. Filma a maternidade pelo avesso — não a bagunça pela piada, mas o medo, a saudade que vem antes da hora, o amor que aperta.\n\nNada de maternidade de revista. O que ela mostra é o que se sente por dentro.",
+      "imagem": {
+        "fonte": "profile_picture",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-debora/assets/profile_picture-e8ad0a0572.jpg",
+        "userId": "6928a987b1fcb2d066847fe8",
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-debora/assets/profile_picture-e8ad0a0572.jpg"
+      }
+    },
+    {
+      "n": 3,
+      "batida": "tensao",
+      "layout": "text-only",
+      "headline": "Existem milhares de vídeos de \"rotina de mãe\". Por que <i>os dela</i> fazem outra mãe parar e comentar \"sou eu\"?",
+      "corpo": "A resposta não está na edição, nem no horário do post. Está em algo que ela tem coragem de dizer — e quase ninguém diz."
+    },
+    {
+      "n": 4,
+      "batida": "revelacao",
+      "layout": "full-bleed-text",
+      "headline": "Não é sobre as filhas. É sobre o tempo que ela tem <i>medo</i> de não viver com elas.",
+      "corpo": "",
+      "artePrompt": "Editorial magazine portrait of a Brazilian mother in her late thirties watching her daughters from a doorway at golden hour, soft bittersweet expression, tender and pensive, cinematic warm low-key lighting, deep soft shadows, muted film tones, 35mm grain, intimate documentary feel, vertical composition",
+      "arteRef": "https://scontent-iad3-1.xx.fbcdn.net/v/t51.82787-15/658665029_18586951156027259_6085159407955789161_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=7d201b&_nc_ohc=DcnIlpSn-jsQ7kNvwEoOcku&_nc_oc=AdqLDUbBtwrLBcFipnwTKy3ompG7YPZwPdHkXUFaC1NtlrN9PVCYc-fa8xQ95HMVyOA&_nc_zt=23&_nc_ht=scontent-iad3-1.xx&edm=AL-3X8kEAAAA&_nc_gid=WYSib1AhxAATXZV04bOcxg&oh=00_Af_FpJ4npFdf0ru9nEqkZKXyqee6ZGWYEyYJ7hByQ6ii9g&oe=6A39A49D",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-debora/assets/art-04.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-debora/assets/art-04.png"
+      }
+    },
+    {
+      "n": 5,
+      "batida": "twist",
+      "layout": "reasoning",
+      "headline": "O que a Data2Content leu no mapa dela",
+      "corpo": "A narrativa não é \"humor de mãe\". É um sentimento que ela dá nome — e que se repete em cada vídeo que toca:",
+      "cadeia": [
+        "NARRATIVA: \"Não sou só eu que sinto isso\" — dar voz ao medo e ao amor que toda mãe engole",
+        "TERRITÓRIO: Maternidade real, o lado emocional que ninguém posta",
+        "TEMA: O tempo passando — filhas virando mulheres, os medos silenciosos da mãe",
+        "PAUTA: \"Coisas que eu tenho medo\" · \"agora tenho duas melhores amigas\""
+      ]
+    },
+    {
+      "n": 6,
+      "batida": "porque",
+      "layout": "text-only",
+      "headline": "Por isso uma mãe assiste e responde <i>\"sou eu\"</i>.",
+      "corpo": "Quando a Débora confessa um medo que ninguém admite em voz alta, milhares de mães se reconhecem no comentário.\n\nO assunto não são as filhas dela. É o que <b>você</b> sente e nunca disse."
+    },
+    {
+      "n": 7,
+      "batida": "prova",
+      "layout": "video-proof",
+      "headline": "\"Coisas que eu tenho medo…\"",
+      "stat": "842",
+      "statLabel": "comentários",
+      "corpo": "<b>A leitura:</b> ela diz em voz alta o medo que toda mãe engole. E 842 mães responderam a mesma coisa — eu também.",
+      "imagem": {
+        "fonte": "thumbnail",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-debora/assets/poster-07.jpg",
+        "userId": "6928a987b1fcb2d066847fe8",
+        "video": {
+          "mediaId": "18132592108534743",
+          "userId": "6928a987b1fcb2d066847fe8",
+          "inicio": 0,
+          "duracao": 90,
+          "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-debora/assets/video-07.mp4"
+        },
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-debora/assets/poster-07.jpg"
+      }
+    },
+    {
+      "n": 8,
+      "batida": "prova",
+      "layout": "video-proof",
+      "headline": "\"Agora eu tenho duas melhores amigas.\"",
+      "stat": "391 mil",
+      "statLabel": "views",
+      "corpo": "<b>A leitura:</b> o tempo que ela tem medo de perder é o mesmo que ela celebra. 8 mil mães compartilharam — porque é a vida delas também.",
+      "imagem": {
+        "fonte": "thumbnail",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-debora/assets/poster-08.jpg",
+        "userId": "6928a987b1fcb2d066847fe8",
+        "video": {
+          "mediaId": "17939021526148906",
+          "userId": "6928a987b1fcb2d066847fe8",
+          "inicio": 0,
+          "duracao": 90,
+          "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-debora/assets/video-08.mp4"
+        },
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-debora/assets/poster-08.jpg"
+      }
+    },
+    {
+      "n": 9,
+      "batida": "payoff",
+      "layout": "text-only",
+      "headline": "Ela não emociona por mostrar as filhas. Emociona por dizer o que toda mãe <i>sente e cala</i>.",
+      "corpo": "E coragem de sentir em voz alta, no feed de quem se acha sozinha, é a coisa mais rara que existe."
+    },
+    {
+      "n": 10,
+      "batida": "convite",
+      "layout": "cta",
+      "headline": "Os medos da Débora viraram o alívio de milhares de mães.",
+      "corpo": "Tinha uma estrutura ali — ela só não via de dentro. Todo conteúdo que conecta tem esse mapa escondido. A Data2Content lê o seu com você.",
+      "lista": [
+        "<b>Seu mapa</b>: a narrativa que explica por que seu conteúdo conecta",
+        "<b>Pautas</b> que nascem da sua vida real, não de tendência",
+        "<b>Collabs</b> com criadores que combinam com você",
+        "<b>Reuniões semanais</b> — você não cria sozinha"
+      ]
+    }
+  ],
+  "caption": "O conteúdo da @deborabroch parece humor de mãe cansada. Não é.\n\nQuando ela confessa \"coisas que eu tenho medo\", 842 mães respondem a mesma coisa nos comentários: sou eu. O assunto nunca foram as filhas — é o medo, a saudade que vem antes da hora, o amor que aperta. Tudo que toda mãe sente e quase ninguém diz em voz alta. A Data2Content leu o mapa dela, e o que emociona não é a rotina. É a coragem de sentir em público.\n\nArrasta e vê as provas.\n\n💬 Comenta MAPA que a gente te mostra como a Data2Content lê o seu.\n\n#maternidadereal #maededuas #criadorasdeconteudo #data2content",
+  "manychat": {
+    "keyword": "MAPA",
+    "dm": "Oi! Vi que você comentou MAPA 💜 A Data2Content lê a estrutura escondida do seu conteúdo — a narrativa que explica por que ele conecta — e te entrega pautas que nascem da sua vida real. Monta o seu mapa aqui: https://data2content.ai/signup?utm_source=instagram&utm_medium=carousel&utm_campaign=galeano_debora"
+  }
+}

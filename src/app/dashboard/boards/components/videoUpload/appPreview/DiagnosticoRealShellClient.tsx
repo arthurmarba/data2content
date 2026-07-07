@@ -33,6 +33,8 @@ import { fetchAnalysisConfirmationDataFromReading } from "./mobileStrategicProfi
 import { DiagnosticoPage } from "./DiagnosticoPage";
 import { DiagnosticoTabBar, type DiagnosticoTab } from "./DiagnosticoTabBar";
 import { DiagnosticoCollabsFeed } from "./DiagnosticoCollabsFeed";
+import type { CollabStackDecision } from "./DiagnosticoCollabStack";
+import { DiagnosticoCollabMatchOverlay } from "./DiagnosticoCollabMatchOverlay";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
 import { ReadingDetailView } from "./ReadingDetailView";
 import { useReadingDetail } from "./useReadingDetail";
@@ -314,6 +316,109 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     })();
   }, [activeTab, data.userInfo.plan, data.mapaSeed, data.mainNarrativeLabel, data.synthesis, data.contentIdeas, localContentIdeas]);
 
+  // Pilha de swipe — decisões persistidas server-side (interesse paralelo:
+  // match = os dois toparam; ver /api/.../collabs/interest). O estado local é
+  // otimista — o gesto responde na hora e o POST confirma atrás. Free nunca
+  // persiste (o coração abre paywall; só o "não agora" local do card mistério).
+  const [collabDecisions, setCollabDecisions] = useState<Map<string, CollabStackDecision>>(new Map());
+  const [confirmedMatches, setConfirmedMatches] = useState<Array<{ pautaId: string; collab: NarrativeCollabMatch }>>([]);
+  const [openMatch, setOpenMatch] = useState<{ pautaId: string; variant: "celebration" | "revisit" } | null>(null);
+
+  // Hidratação: ao abrir a aba Collabs (Pro), carrega decisões pendentes e
+  // matches confirmados — inclusive os que casaram enquanto o app estava fechado.
+  const collabStateLoadedRef = useRef(false);
+  useEffect(() => {
+    if (activeTab !== "collabs") return;
+    if (data.userInfo.plan !== "Pro") return;
+    if (collabStateLoadedRef.current) return;
+    collabStateLoadedRef.current = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/dashboard/mobile-strategic-profile/collabs/interest");
+        const json = await res.json().catch(() => null);
+        if (json?.ok) {
+          if (Array.isArray(json.decisions)) {
+            setCollabDecisions((prev) => {
+              const next = new Map(prev);
+              for (const d of json.decisions) {
+                if (typeof d?.pautaId === "string" && (d.decision === "interested" || d.decision === "dismissed")) {
+                  next.set(d.pautaId, d.decision);
+                }
+              }
+              return next;
+            });
+          }
+          if (Array.isArray(json.matches)) {
+            setConfirmedMatches(json.matches);
+            // Match ao voltar: casou enquanto o app estava fechado e o criador
+            // ainda não viu a festa (isNew). Dispara a comemoração pro primeiro
+            // e marca todos como vistos — toca UMA vez, nunca a cada abertura.
+            const fresh = json.matches.filter((m: { isNew?: boolean }) => m?.isNew);
+            if (fresh.length > 0) {
+              setOpenMatch({ pautaId: fresh[0].pautaId, variant: "celebration" });
+              const ids = fresh.map((m: { pautaId: string }) => m.pautaId);
+              void fetch("/api/dashboard/mobile-strategic-profile/collabs/interest", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ celebratedPautaIds: ids }),
+              }).catch(() => {});
+            }
+          }
+        }
+      } catch {
+        // non-fatal — a pilha funciona sem hidratação; persiste no próximo gesto
+      }
+    })();
+  }, [activeTab, data.userInfo.plan]);
+
+  const handleCollabDecision = useCallback((pautaId: string, decision: CollabStackDecision) => {
+    // Otimista: o card voa na hora, o servidor confirma atrás.
+    setCollabDecisions((prev) => {
+      const next = new Map(prev);
+      next.set(pautaId, decision);
+      return next;
+    });
+
+    // Persistência exige o contexto do match (parceiro + snapshot da pauta).
+    // Sem match real (free/mistério) não há o que persistir — decisão fica local.
+    if (data.userInfo.plan !== "Pro") return;
+    const collab = pautaCollabs.get(pautaId);
+    if (!collab) return;
+    const pautasNow = localContentIdeas.length >= data.contentIdeas.length ? localContentIdeas : data.contentIdeas;
+    const pauta = pautasNow.find((p) => p.id === pautaId);
+    if (!pauta) return;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/dashboard/mobile-strategic-profile/collabs/interest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pautaId,
+            pautaTitle: pauta.title,
+            territory: pauta.territory,
+            partnerId: collab.id,
+            fitReason: collab.narrativeFitReason,
+            sharedSignal: collab.sharedSignal,
+            recordingIdea: collab.collabRecordingIdea,
+            collabMode: collab.collabMode,
+            decision,
+          }),
+        });
+        const json = await res.json().catch(() => null);
+        // O outro lado já tinha topado — match! Comemoração ganha, não fabricada.
+        if (json?.ok && json.matched && json.match) {
+          setConfirmedMatches((prev) =>
+            prev.some((m) => m.pautaId === pautaId) ? prev : [...prev, { pautaId, collab: json.match }],
+          );
+          setOpenMatch({ pautaId, variant: "celebration" });
+        }
+      } catch {
+        // non-fatal — otimista fica; a hidratação da próxima visita reconcilia
+      }
+    })();
+  }, [data.userInfo.plan, data.contentIdeas, localContentIdeas, pautaCollabs]);
+
   const handleConnectInstagram = useCallback(() => {
     if (data.userInfo.plan !== "Pro") {
       openPaywallModal({
@@ -553,17 +658,22 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   }, [data.userInfo.plan]);
 
   // Extracted so the user can also retry manually from the card.
-  const triggerGenerateIdeas = useCallback(async () => {
+  // `focusedTerritory` (opcional) semeia a geração a partir de um território —
+  // usado pela ação "Gerar pautas de {território}" do card "Sua Audiência".
+  const triggerGenerateIdeas = useCallback(async (focusedTerritory?: string) => {
+    // Guarda: onRetryGenerateIdeas é usado como onClick em vários lugares, então o 1º
+    // argumento pode ser um MouseEvent. Só tratamos como território se for string.
+    const territory = typeof focusedTerritory === "string" && focusedTerritory.trim() ? focusedTerritory.trim() : null;
     if (generatingRef.current) return;
     generatingRef.current = true;
     setIsGeneratingIdeas(true);
     setIdeaGenerationBlocker(null);
-    console.log("[d2c:pautas] → iniciando geração");
+    console.log("[d2c:pautas] → iniciando geração", territory ? `(território: ${territory})` : "");
     try {
       const res = await fetch("/api/dashboard/mobile-strategic-profile/content-ideas/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify(territory ? { focusedTerritory: territory } : {}),
       });
       console.log("[d2c:pautas] ← resposta status:", res.status);
       if (!res.ok) {
@@ -1306,7 +1416,18 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     >
       <div
         className="flex-1 overflow-y-auto overscroll-contain"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)" }}
+        style={{
+          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)",
+          // Fundo branco explícito: essa faixa reservada (paddingBottom, ~1rem
+          // maior que a altura real da DiagnosticoTabBar de propósito — é
+          // respiro visual antes da tab bar) hoje mostra branco só porque o
+          // gradiente acima já resolveu pra #ffffff bem antes de chegar aqui.
+          // Isso é uma dependência implícita e frágil: se algum dia o
+          // gradiente mudar (parar mais peachy, por mais tempo), essa faixa
+          // reaparece com a cor errada, sem nenhum aviso. Fundo explícito
+          // remove essa dependência — a faixa é sempre branca, ponto.
+          background: "#ffffff",
+        }}
       >
         {activeTab === "collabs" ? (
           <DiagnosticoCollabsFeed
@@ -1323,6 +1444,10 @@ export function DiagnosticoRealShellClient({ data }: Props) {
             ideaGenerationBlocker={ideaGenerationBlocker}
             pautaCollabs={pautaCollabs}
             pautaCollabsLoading={pautaCollabsLoading}
+            collabDecisions={collabDecisions}
+            onCollabDecision={handleCollabDecision}
+            confirmedMatches={confirmedMatches}
+            onOpenMatch={(pautaId) => setOpenMatch({ pautaId, variant: "revisit" })}
             onOpenIdea={handleOpenIdea}
             onToggleSave={handleToggleSavePauta}
             onOpenCommunity={handleOpenAccountCommunity}
@@ -1375,6 +1500,12 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           ideaGenerationBlocker={ideaGenerationBlocker}
           ideaQuotaResetAt={ideaQuotaResetAt}
           onRetryGenerateIdeas={triggerGenerateIdeas}
+          onGeneratePautasForTerritory={(territoryLabel) => {
+            // Ponte leitura → criação: semeia a geração pelo território e leva o
+            // criador à aba Collabs, onde as pautas frescas aparecem (com o loading).
+            void triggerGenerateIdeas(territoryLabel);
+            setActiveTab("collabs");
+          }}
           instagramEnrichmentPending={instagramEnrichmentPending}
           onOpenIdea={handleOpenIdea}
           onConnectWhatsApp={() => setWhatsAppSheetOpen(true)}
@@ -1395,11 +1526,23 @@ export function DiagnosticoRealShellClient({ data }: Props) {
 
       {openIdeaId && (() => {
         const idea = hydratedData.contentIdeas.find((i) => i.id === openIdeaId);
-        return idea ? (
+        if (!idea) return null;
+        // Decisão da pilha dentro da ficha — mesma ação, lugar diferente. Só pra
+        // match real (Pro): no free a decisão fica na pilha (coração = paywall).
+        const ideaCollab = pautaCollabs.get(openIdeaId) ?? null;
+        const ideaMatched = confirmedMatches.some((m) => m.pautaId === openIdeaId);
+        const ideaDecision = collabDecisions.get(openIdeaId);
+        return (
           <DiagnosticoIdeaDetailSheet
             idea={idea}
-            collab={pautaCollabs.get(openIdeaId) ?? null}
+            collab={ideaCollab}
             isPro={hydratedData.userInfo.plan === "Pro"}
+            decisionPending={Boolean(ideaCollab) && !ideaDecision && !ideaMatched}
+            onDecide={(decision) => {
+              handleCollabDecision(openIdeaId, decision);
+              setOpenIdeaId(null);
+            }}
+            awaitingOtherSide={Boolean(ideaCollab) && ideaDecision === "interested" && !ideaMatched}
             onOpenCreatorMediaKit={handleOpenCreatorMediaKit}
             onUpgrade={() => openPaywallModal({
               context: "narrative_map",
@@ -1408,6 +1551,27 @@ export function DiagnosticoRealShellClient({ data }: Props) {
               postCheckoutIntent: "connect_instagram",
             })}
             onClose={() => setOpenIdeaId(null)}
+          />
+        );
+      })()}
+
+      {/* Tela do match — comemoração no momento do match; revisit ao voltar por
+          Combinadas ou pelo status no card. */}
+      {openMatch && (() => {
+        const match = confirmedMatches.find((m) => m.pautaId === openMatch.pautaId);
+        const pauta = hydratedData.contentIdeas.find((i) => i.id === openMatch.pautaId);
+        return match && pauta ? (
+          <DiagnosticoCollabMatchOverlay
+            pauta={pauta}
+            collab={match.collab}
+            viewerName={hydratedData.userInfo.name ?? "Você"}
+            viewerAvatarUrl={hydratedData.userInfo.imageUrl}
+            variant={openMatch.variant}
+            onOpenIdea={(id) => {
+              setOpenMatch(null);
+              handleOpenIdea(id);
+            }}
+            onClose={() => setOpenMatch(null)}
           />
         ) : null;
       })()}

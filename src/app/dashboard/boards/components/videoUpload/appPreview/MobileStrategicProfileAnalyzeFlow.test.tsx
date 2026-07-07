@@ -40,99 +40,96 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
   it("renders upload step", () => {
     renderFlow();
 
-    expect(screen.getByRole("dialog", { name: "Traga seu vídeo" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Traga o vídeo que está na dúvida" })).toBeInTheDocument();
     expect(screen.getByText("Vídeo acolhido e pronto")).toBeInTheDocument();
-    expect(screen.getByText("Prossiga para definir sua pergunta e ver o que muda no seu mapa.")).toBeInTheDocument();
+    expect(screen.getByText("Prossiga para a leitura e descubra se vale postar.")).toBeInTheDocument();
   });
 
-  it("advances to creator goal from fallback upload", () => {
+  it("vai direto do upload para a leitura, sem passo de lente", () => {
     renderFlow();
     continueFlow();
 
-    expect(screen.getByText("O que você quer ler neste vídeo?")).toBeInTheDocument();
+    // O antigo passo "O que você quer ler neste vídeo?" não existe mais.
+    expect(screen.queryByText("O que você quer ler neste vídeo?")).not.toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Lendo seu vídeo" })).toBeInTheDocument();
   });
 
-  it("advances to creator goal and allows selection", () => {
-    renderFlow();
-    continueFlow();
-
-    expect(screen.getByText("O que você quer ler neste vídeo?")).toBeInTheDocument();
-    // Placeholder agora é dinâmico: reflete a pergunta da opção selecionada (default: narrativa).
-    expect(screen.getByPlaceholderText("O que esse vídeo revela sobre minha narrativa?")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Fortalecer meu ponto de vista" })).toBeInTheDocument();
-    
-    const sponsoredBtn = screen.getByRole("button", { name: "Explorar um território novo" });
-    fireEvent.click(sponsoredBtn);
-    expect(sponsoredBtn).toHaveClass("bg-zinc-950 text-white");
-  });
-
-  it("mostra pergunta de confirmação depois da leitura quando a API retorna contexto", async () => {
+  it("mostra o veredito de 3 eixos (narrativa, audiência, marca) na leitura pronta", async () => {
     const onSubmit = jest.fn().mockResolvedValue({
-      contextQuestions: [
-        {
-          id: "video-narrative-quiz-hook_direction",
-          question: "Como você quer que a abertura desse vídeo funcione?",
-          helper: "A leitura encontrou uma lacuna de gancho.",
-          options: [
-            { id: "direct", label: "Mais direta", value: "direct_hook" },
-            { id: "suggestion", label: "Quero sugestão", value: "needs_hook_suggestion", recommended: true },
-          ],
-        },
-      ],
+      confirmationData: {
+        diagnosisSummary: "Primeira análise registrada.",
+        directAnswer: "Esse vídeo conversa com o que você vem construindo.",
+        coherenceVerdict: "confirms_top_pattern",
+        coherenceReasoning: "Confirma seu padrão de bastidores.",
+        audienceCoherence: { verdict: "aligned", reading: "Fala com quem já te acompanha." },
+        brandCoherence: { verdict: "tension", reading: "Abre um território ainda difuso." },
+      },
     });
     renderFlow(onSubmit);
-    continueFlow();
     continueFlow();
 
     expect(screen.getByRole("dialog", { name: "Lendo seu vídeo" })).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByText("Sua leitura está pronta")).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Vale postar?" })).toBeInTheDocument();
     });
-    expect(screen.getByText("Como você quer que a abertura desse vídeo funcione?")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Quero sugestão" })).toBeInTheDocument();
-    expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        selectedGoalOption: "authority",
-      }),
-    );
-  });
 
-  it("vai direto para análise quando não há pergunta de confirmação", async () => {
-    const onSubmit = jest.fn().mockResolvedValue(undefined);
-    renderFlow(onSubmit);
-    continueFlow();
-    continueFlow();
-
-    expect(screen.getByRole("dialog", { name: "Lendo seu vídeo" })).toBeInTheDocument();
-    await waitFor(() => {
-      expect(screen.getByRole("dialog", { name: "Sua leitura está pronta" })).toBeInTheDocument();
-    });
+    expect(screen.getByText("Coerência com o seu mapa")).toBeInTheDocument();
+    expect(screen.getByText("Narrativa")).toBeInTheDocument();
+    expect(screen.getByText("Audiência")).toBeInTheDocument();
+    expect(screen.getByText("Marca")).toBeInTheDocument();
+    expect(screen.getByText("Confirma seu padrão de bastidores.")).toBeInTheDocument();
+    expect(screen.getByText("Fala com quem já te acompanha.")).toBeInTheDocument();
+    expect(screen.getByText("Abre um território ainda difuso.")).toBeInTheDocument();
+    // A survey pós-leitura foi removida — o modal tem função única.
     expect(screen.queryByText("Uma pergunta sobre esta leitura")).not.toBeInTheDocument();
-    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ selectedGoalOption: "retention" }),
+    );
   });
 
-  it("chama onSubmitAnalysis com pergunta e objetivo antes de avançar para sucesso", async () => {
+  it("registra a intenção de publicação e mostra o retorno calmo", async () => {
+    const onPublishIntentSubmit = jest.fn().mockResolvedValue(undefined);
+    const onSubmit = jest.fn().mockResolvedValue({
+      savedDiagnosisId: "diag-1",
+      confirmationData: { directAnswer: "Leitura pronta." },
+    });
+    render(
+      <MobileStrategicProfileAnalyzeFlow
+        open
+        onClose={jest.fn()}
+        onComplete={jest.fn()}
+        onSubmitAnalysis={onSubmit}
+        onPublishIntentSubmit={onPublishIntentSubmit}
+      />
+    );
+    continueFlow();
+
+    await waitFor(() => {
+      expect(screen.getByRole("dialog", { name: "Vale postar?" })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Vou postar" }));
+    expect(onPublishIntentSubmit).toHaveBeenCalledWith("diag-1", "yes");
+    expect(screen.getByText("Boa — seu mapa vai aprender com esse vídeo.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Não vou" }));
+    expect(onPublishIntentSubmit).toHaveBeenCalledWith("diag-1", "no");
+    expect(screen.getByText("Fechado. Esse fica só entre nós — não entra no mapa.")).toBeInTheDocument();
+  });
+
+  it("vai direto para a leitura com a lente fixa 'retention'", async () => {
     const onSubmit = jest.fn().mockResolvedValue(undefined);
     renderFlow(onSubmit);
 
-    continueFlow(); // upload -> creator_goal
-    // Placeholder dinâmico da opção default (narrativa) antes de trocar a lente.
-    fireEvent.change(screen.getByPlaceholderText("O que esse vídeo revela sobre minha narrativa?"), {
-      target: { value: "Por que esse vídeo prendeu atenção?" },
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Checar coerência com o meu mapa" }));
-    continueFlow(); // creator_goal -> processing
+    continueFlow(); // upload -> processing
 
     expect(screen.getByRole("dialog", { name: "Lendo seu vídeo" })).toBeInTheDocument();
     expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        creatorGoal: "Por que esse vídeo prendeu atenção?",
-        selectedGoalOption: "retention",
-      })
+      expect.objectContaining({ selectedGoalOption: "retention" })
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("dialog", { name: "Sua leitura está pronta" })).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Vale postar?" })).toBeInTheDocument();
     });
   });
 
@@ -151,11 +148,10 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       />,
     );
 
-    continueFlow(); // upload -> creator_goal
-    continueFlow(); // creator_goal -> processing
+    continueFlow(); // upload -> processing
 
     await waitFor(() => {
-      expect(screen.getByRole("dialog", { name: "Sua leitura está pronta" })).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Vale postar?" })).toBeInTheDocument();
     });
 
     expect(screen.queryByRole("button", { name: "Outro vídeo" })).not.toBeInTheDocument();
@@ -172,8 +168,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
 
     const { onComplete } = renderFlow(onSubmit);
 
-    continueFlow(); // upload -> creator_goal
-    continueFlow(); // creator_goal -> processing
+    continueFlow(); // upload -> processing
 
     await waitFor(() => {
       expect(screen.getByText("Erro na análise")).toBeInTheDocument();
@@ -185,7 +180,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     fireEvent.click(retryBtn);
 
     await waitFor(() => {
-      expect(screen.getByRole("dialog", { name: "Sua leitura está pronta" })).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Vale postar?" })).toBeInTheDocument();
     });
     const completeBtn = screen.getByRole("button", { name: "Ver sua leitura completa" });
     fireEvent.click(completeBtn);
@@ -276,7 +271,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       expect(container.querySelector("video")).not.toBeInTheDocument();
     });
 
-    it("selecionar arquivo e interagir com consentimento e validação da API", async () => {
+    it("selecionar arquivo mostra o campo de contexto opcional e segue para a leitura", async () => {
       const onCreateSession = jest.fn().mockResolvedValue({
         ok: true,
         status: "mock_session_created",
@@ -297,6 +292,8 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
 
       expect(screen.getByText("vlog.mp4")).toBeInTheDocument();
       expect(screen.getByText(/video\/mp4/i)).toBeInTheDocument();
+      // Campo de contexto opcional substitui o antigo passo de lente.
+      expect(screen.getByText("Quer me contar algo sobre esse vídeo? (opcional)")).toBeInTheDocument();
 
       // Sem consentimento aceito, a chamada não é feita
       const continueBtn = screen.getByRole("button", { name: "Continuar" });
@@ -323,10 +320,37 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
         });
       });
 
-      // Valida que seguiu para objetivo/perguntas (Creator Goal)
+      // Segue direto para a leitura (processing), sem passo de lente.
       await waitFor(() => {
-        expect(screen.getByText("Vídeo acolhido e pronto")).toBeInTheDocument();
-        expect(screen.getByText("O que você quer ler neste vídeo?")).toBeInTheDocument();
+        expect(screen.getByRole("dialog", { name: "Lendo seu vídeo" })).toBeInTheDocument();
+      });
+      expect(screen.queryByText("O que você quer ler neste vídeo?")).not.toBeInTheDocument();
+    });
+
+    it("envia o contexto opcional digitado como creatorGoal", async () => {
+      const onCreateSession = jest.fn().mockResolvedValue({ ok: true, status: "mock_session_created" });
+      const onSubmit = jest.fn().mockResolvedValue(undefined);
+      const { container } = render(
+        <MobileStrategicProfileAnalyzeFlow
+          open
+          onClose={jest.fn()}
+          onComplete={jest.fn()}
+          onCreateUploadSession={onCreateSession}
+          onSubmitAnalysis={onSubmit}
+        />
+      );
+
+      fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
+      fireEvent.change(screen.getByPlaceholderText("Ex: gravei no impulso e fiquei na dúvida se posto."), {
+        target: { value: "Gravei sem planejar." },
+      });
+      fireEvent.click(screen.getByRole("checkbox"));
+      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+      await waitFor(() => {
+        expect(onSubmit).toHaveBeenCalledWith(
+          expect.objectContaining({ creatorGoal: "Gravei sem planejar.", selectedGoalOption: "retention" })
+        );
       });
     });
 
@@ -359,7 +383,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       await waitFor(() => {
         expect(screen.getByText(/O tamanho do vídeo excede o limite/i)).toBeInTheDocument();
       });
-      expect(screen.queryByText("O que você quer ler neste vídeo?")).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog", { name: "Lendo seu vídeo" })).not.toBeInTheDocument();
     });
 
     it("finaliza a leitura depois da validacao de upload metadata", async () => {
@@ -383,15 +407,9 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       await waitFor(() => {
-        expect(screen.getByText("O que você quer ler neste vídeo?")).toBeInTheDocument();
-      });
-
-      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
-
-      await waitFor(() => {
         expect(onSubmit).toHaveBeenCalledWith(
           expect.objectContaining({
-            selectedGoalOption: "authority",
+            selectedGoalOption: "retention",
           })
         );
       });
@@ -449,8 +467,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       resolveUpload({ ok: true, status: "uploaded", uploadedAt: "2026-05-19T00:00:00.000Z", bytesSent: fileMock.size });
 
       await waitFor(() => {
-        expect(screen.getByText("Vídeo acolhido e pronto")).toBeInTheDocument();
-        expect(screen.getByText("O que você quer ler neste vídeo?")).toBeInTheDocument();
+        expect(screen.getByRole("dialog", { name: "Lendo seu vídeo" })).toBeInTheDocument();
       });
     });
 
@@ -475,7 +492,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       await waitFor(() => {
-        expect(screen.getByText("O que você quer ler neste vídeo?")).toBeInTheDocument();
+        expect(screen.getByRole("dialog", { name: "Lendo seu vídeo" })).toBeInTheDocument();
       });
       expect(onDirectUpload).not.toHaveBeenCalled();
     });
@@ -504,7 +521,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       await waitFor(() => {
         expect(screen.getByText("Não conseguimos preparar o vídeo para leitura real agora.")).toBeInTheDocument();
       });
-      expect(screen.queryByText("O que você quer ler neste vídeo?")).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog", { name: "Lendo seu vídeo" })).not.toBeInTheDocument();
       expect(onSubmit).not.toHaveBeenCalled();
     });
 
@@ -549,7 +566,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       await waitFor(() => {
         expect(screen.getByText("Não foi possível enviar o vídeo agora.")).toBeInTheDocument();
       });
-      expect(screen.queryByText("O que você quer ler neste vídeo?")).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog", { name: "Lendo seu vídeo" })).not.toBeInTheDocument();
     });
 
     it("cleanup failure não quebra análise mock nem envia uploadUrl/objectKey para análise", async () => {
@@ -592,12 +609,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       await waitFor(() => {
-        expect(screen.getByText("O que você quer ler neste vídeo?")).toBeInTheDocument();
-      });
-      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
-
-      await waitFor(() => {
-        expect(screen.getByRole("dialog", { name: "Sua leitura está pronta" })).toBeInTheDocument();
+        expect(screen.getByRole("dialog", { name: "Vale postar?" })).toBeInTheDocument();
         expect(onSubmit).toHaveBeenCalled();
       });
       expect(onCleanup).toHaveBeenCalledWith(
@@ -654,12 +666,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       await waitFor(() => {
-        expect(screen.getByText("O que você quer ler neste vídeo?")).toBeInTheDocument();
-      });
-      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
-
-      await waitFor(() => {
-        expect(screen.getByRole("dialog", { name: "Sua leitura está pronta" })).toBeInTheDocument();
+        expect(screen.getByRole("dialog", { name: "Vale postar?" })).toBeInTheDocument();
         expect(onSubmit).toHaveBeenCalled();
       });
 

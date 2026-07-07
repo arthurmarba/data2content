@@ -17,8 +17,11 @@ import {
   buildNarrativeCandidatePool,
   buildMatchFromCandidate,
   assignCollabsByTerritory,
+  fetchCreatorLocation,
+  computeCollabMode,
   type NarrativeCollabMatch,
   type CollabAssignment,
+  type CollabMode,
 } from "./narrativeCollabMatchingService";
 import { significantWords, complementarityScore, buildViewerTokens } from "./collabComplementarity";
 
@@ -64,12 +67,19 @@ function fallbackFitReason(territory: string): string {
   return t ? `Conecta com ${t} no seu mapa.` : "Narrativa complementar ao seu mapa.";
 }
 
-/** Ideia de gravação barata (sem LLM) — fallback após o teto. */
-function fallbackRecordingIdea(territory: string): string {
+/** Ideia de gravação barata (sem LLM) — fallback após o teto. Respeita a
+ * distância: remoto nunca sugere se encontrar. */
+function fallbackRecordingIdea(territory: string, mode: CollabMode): string {
   const t = territory.trim();
+  if (mode === "presencial") {
+    return t
+      ? `Gravem juntos um diálogo sobre ${t} — cada um trazendo o seu ângulo.`
+      : "Gravem juntos um diálogo onde cada um traz o seu ângulo da narrativa.";
+  }
+  // Remoto: revezamento (funciona à distância).
   return t
-    ? `Gravem um diálogo sobre ${t} — cada uma trazendo o seu ângulo.`
-    : "Gravem um diálogo onde cada uma traz o seu ângulo da narrativa.";
+    ? `Façam um vídeo em revezamento sobre ${t}: cada um grava a sua parte, a edição junta.`
+    : "Façam um vídeo em revezamento: cada um grava a sua parte e a edição junta os dois.";
 }
 
 /**
@@ -88,7 +98,10 @@ export async function matchCollabsForPautas(
   const withTerritory = pautas.filter((p) => p.territory && p.territory.trim());
   if (withTerritory.length === 0 || !narrativeLabel?.trim()) return result;
 
-  const poolResult = await buildNarrativeCandidatePool(viewerUserId);
+  const [poolResult, viewerLocation] = await Promise.all([
+    buildNarrativeCandidatePool(viewerUserId),
+    fetchCreatorLocation(viewerUserId),
+  ]);
   if (!poolResult || poolResult.pool.length === 0) return result;
 
   // Dedup por território → lista de pautaIds. Ordena por frequência (território
@@ -113,12 +126,14 @@ export async function matchCollabsForPautas(
   if (allowLLM) {
     llmAssignments = await assignCollabsByTerritory({
       viewerNarrative: narrativeLabel,
+      viewerCity: viewerLocation?.city ?? null,
       territories: territories.map((t) => t.label),
       candidates: poolResult.pool.map((e) => ({
         id: e.userId,
         name: e.user.name ?? "Criador",
         narrative: e.reading.videoReading.mainNarrative ?? "",
         territories: poolResult.candidateTerritoriesById.get(e.userId) ?? [],
+        city: e.user.location?.city ?? null,
       })),
     });
   }
@@ -126,7 +141,9 @@ export async function matchCollabsForPautas(
   for (const { label, ids } of territories) {
     let eligible: typeof poolResult.pool[number] | undefined;
     let fitReason = fallbackFitReason(label);
-    let recordingIdea: string | null = fallbackRecordingIdea(label);
+    // recordingIdea depende do MODO (presencial/remoto), que só se sabe depois de
+    // escolher o candidato — resolvido no fim, quando temos eligible + mode.
+    let llmRecordingIdea: string | null = null;
 
     // Verdict do Gemini para este território (semântico, primário).
     const assignment = llmAssignments.get(label.toLowerCase());
@@ -135,7 +152,7 @@ export async function matchCollabsForPautas(
       if (cand && !excludeIds.has(cand.userId)) {
         eligible = cand;
         if (assignment.fitReason) fitReason = assignment.fitReason;
-        recordingIdea = assignment.recordingIdea ?? fallbackRecordingIdea(label);
+        llmRecordingIdea = assignment.recordingIdea ?? null;
       }
     }
 
@@ -162,14 +179,20 @@ export async function matchCollabsForPautas(
       if (best) {
         eligible = best;
         fitReason = fallbackFitReason(label);
-        recordingIdea = fallbackRecordingIdea(label);
+        llmRecordingIdea = null; // determinístico não gera ideia — cai no fallback ciente de modo
       }
     }
 
     if (!eligible) continue; // território sem criador que o cubra de verdade → null
 
+    // Presencial só se os dois moram na mesma cidade — senão remoto (formato à
+    // distância). O modo vai pro match E garante que o fallback nunca peça
+    // encontro presencial pra quem mora longe.
+    const collabMode = computeCollabMode(viewerLocation, eligible.user.location);
+    const recordingIdea = llmRecordingIdea ?? fallbackRecordingIdea(label, collabMode);
+
     excludeIds.add(eligible.userId);
-    const match = buildMatchFromCandidate(eligible, [label], poolResult.candidateTerritoriesById, fitReason, recordingIdea);
+    const match = buildMatchFromCandidate(eligible, [label], poolResult.candidateTerritoriesById, fitReason, recordingIdea, collabMode);
     for (const id of ids) result.set(id, match);
   }
 

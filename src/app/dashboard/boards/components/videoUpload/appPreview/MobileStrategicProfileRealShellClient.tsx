@@ -498,6 +498,8 @@ export function MobileStrategicProfileRealShellClient({
           directAnswer: snap?.directAnswer ?? null,
           coherenceVerdict: snap?.coherenceVerdict ?? null,
           coherenceReasoning: snap?.coherenceReasoning ?? null,
+          audienceCoherence: snap?.audienceCoherence ?? null,
+          brandCoherence: snap?.brandCoherence ?? null,
         }
       : snap?.directAnswer || snap?.coherenceVerdict
         ? {
@@ -507,6 +509,8 @@ export function MobileStrategicProfileRealShellClient({
             directAnswer: snap?.directAnswer ?? null,
             coherenceVerdict: snap?.coherenceVerdict ?? null,
             coherenceReasoning: snap?.coherenceReasoning ?? null,
+            audienceCoherence: snap?.audienceCoherence ?? null,
+            brandCoherence: snap?.brandCoherence ?? null,
           }
         : null;
 

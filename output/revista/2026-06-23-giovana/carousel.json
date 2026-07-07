@@ -1,0 +1,215 @@
+{
+  "data": "2026-06-23",
+  "angulo": "perfil",
+  "criadores": [
+    {
+      "userId": "692af4efad52a8e5718fc248",
+      "nome": "Giovanna Antiorio",
+      "handle": "@giantiorio",
+      "narrativaCentral": "Encontrar o equilíbrio da vida com humor e autoironia",
+      "territorios": [
+        "Humor cotidiano",
+        "Vida a dois",
+        "Culinária caseira",
+        "Rotina fitness"
+      ],
+      "assets": [
+        "Ambientes domésticos",
+        "Marido",
+        "Cozinha",
+        "Academias e pistas de corrida"
+      ]
+    }
+  ],
+  "titulo": "A Giovanna parou de fingir — e 516 mil pessoas chegaram",
+  "slides": [
+    {
+      "n": 1,
+      "batida": "gancho",
+      "layout": "cover",
+      "imagem": {
+        "fonte": "profile_picture",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-giovana/assets/profile_picture-82dc027d92.jpg",
+        "userId": "692af4efad52a8e5718fc248",
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-giovana/assets/profile_picture-82dc027d92.jpg"
+      },
+      "headline": "Sem roteiro, sem filtro — e com o público na palma da mão.",
+      "corpo": "O mapa da @giantiorio, lido pela Data2Content."
+    },
+    {
+      "n": 2,
+      "batida": "quem-e",
+      "layout": "two-column",
+      "imagem": {
+        "fonte": "profile_picture",
+        "url": "https://scontent-iad6-1.xx.fbcdn.net/v/t51.82787-15/671169719_18582703099010683_1778780179928271863_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=7d201b&_nc_ohc=NNwIkj2bCe4Q7kNvwE-0g3Y&_nc_oc=Ado7h0yPSGMjYVzTctVuThitvHoIK7-YvRTCtn9G9VkL01vL4xEfVEoCYVCX24A87-o&_nc_zt=23&_nc_ht=scontent-iad6-1.xx&edm=AL-3X8kEAAAA&_nc_gid=HbdMHK2XYoEWe_xQ-1IgHA&oh=00_Af-aQ5UJii8sfHZm-tB_O925x_z23X0BGWkcBYkqeOG5WQ&oe=6A41A190",
+        "userId": "692af4efad52a8e5718fc248"
+      },
+      "headline": "Corre, cozinha em casa, viaja — e ri de tudo isso sem forçar nada",
+      "corpo": "Giovanna Antiorio (@giantiorio) faz conteúdo do dia a dia como ele é: mostra o treino quando vai bem e quando vai mal, cozinha de verdade em casa, viaja com o marido e sempre acha o lado engraçado no meio. Não tem personagem. Só ela."
+    },
+    {
+      "n": 3,
+      "batida": "tensao",
+      "layout": "respiro",
+      "fundo": "dark",
+      "stat": "516 mil",
+      "statLabel": "interações num vídeo sobre não querer aparecer demais."
+    },
+    {
+      "n": 4,
+      "batida": "twist",
+      "layout": "reasoning",
+      "headline": "A Giovanna não tem uma fórmula. Ela tem uma maneira de ser.",
+      "corpo": "O mapa da D2C mostra a cadeia por trás:",
+      "cadeia": [
+        "NARRATIVA: Encontrar o equilíbrio da vida com humor e autoironia",
+        "TERRITÓRIO: Humor cotidiano · Vida a dois · Culinária caseira · Rotina fitness",
+        "TEMA: O instante em que a rotina esbarra na realidade — e ela ri antes de qualquer um",
+        "PAUTA: Reel que captura um segundo que todo mundo já viveu mas ninguém filmou"
+      ]
+    },
+    {
+      "n": 5,
+      "batida": "twist",
+      "layout": "full-bleed-text",
+      "artePrompt": "Empty running track at dusk, long shadows, lonely bench with sneakers beside it, moody cinematic lighting, desaturated warm tones, soft film grain, absolutely no people, no text, no words, no letters, no signage, no watermark",
+      "headline": "O vídeo que fez 516 mil não tem produção. Tem um segundo de verdade.",
+      "corpo": "É o que a D2C enxerga no mapa dela: ela não busca o momento perfeito. Ela filma o momento real — o treino que foi perrengue, a viagem que terminou na esteira de bagagem, a felicidade que não precisa de plateia. E é aí que as pessoas param.",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-giovana/assets/art-05.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-giovana/assets/art-05.png"
+      }
+    },
+    {
+      "n": 6,
+      "batida": "prova",
+      "layout": "video-proof",
+      "stat": "516 mil",
+      "headline": "Deixa baixo. Tem gente que não precisa saber que a gente é feliz no simples.",
+      "corpo": "<b>A leitura:</b> ela não está gritando pro mundo que é feliz. Está falando baixo — e 516 mil pessoas quiseram entrar nessa conversa. É o território dela: a felicidade que não pede plateia, que por isso mesmo pede compartilhamento. Quem assiste não curte. Manda pra alguém.",
+      "imagem": {
+        "fonte": "thumbnail",
+        "postId": "18074960042240558",
+        "url": "https://scontent-iad6-1.cdninstagram.com/v/t51.71878-15/682717836_1441147254691489_1924899932680963402_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=102&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=qkL-4wUfyDsQ7kNvwHZCUFx&_nc_oc=Ado6DAt_vMan7wcwnxPKzbtWDxXOWBoNwi9y8aiCBc8nN83ouCJeUlxXVzEr9B2tRcI&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=9MwjumJOIFLPxYluyXYq3g&_nc_tpa=Q5bMBQHswxQG8rT4smw8Y8EFGAFzkhUcYtCdIChPX0APfqSqY_0SDSE3DpNC4JYLoPmOGPYqh2LejRmuhQ&oh=00_Af_w5eBIYnggRDuH_XjZysHcEeGWldC1XBo15yE0YRbJkg&oe=6A41852E",
+        "userId": "692af4efad52a8e5718fc248",
+        "video": {
+          "mediaId": "18074960042240558",
+          "userId": "692af4efad52a8e5718fc248",
+          "inicio": 0,
+          "duracao": 60,
+          "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-giovana/assets/video-06.mp4"
+        },
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-giovana/assets/poster-06.jpg"
+      }
+    },
+    {
+      "n": 7,
+      "batida": "prova",
+      "layout": "video-proof",
+      "stat": "443 mil",
+      "headline": "É galera… acabou o milho, acabou a pipoca.",
+      "corpo": "<b>A leitura:</b> ela está na esteira de bagagem do JFK assistindo as malas chegarem. 'Acabou o milho, acabou a pipoca' — a expressão de quando uma coisa boa termina. 443 mil pessoas sentiram aquela tristeza específica de quem acabou de voltar. Quando o conteúdo captura um sentimento universal no segundo exato em que ele acontece, ele vai pra frente.",
+      "imagem": {
+        "fonte": "thumbnail",
+        "postId": "18334282615170303",
+        "url": "https://scontent-iad3-2.cdninstagram.com/v/t51.71878-15/657528644_3465310806950840_5206847956449191812_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=103&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=jYpck-IBZTkQ7kNvwGvWN5S&_nc_oc=AdrBfkjXOVbpp1SwSB7dRKou68RjvZDqOctm4o6_Gf_-CJCdlpgptpEu1RIG4dW12JA&_nc_zt=23&_nc_ht=scontent-iad3-2.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=FQ0HZx6THhHs0-T3kH-Pzg&_nc_tpa=Q5bMBQFFhg9OebiVr3hbWRQDDwjd9Kl7ueVZN49PZ4DzHIR4d5rI9HchYifxwoOFiap68uXnV4Te9HcIMQ&oh=00_Af82NZDP52o1cHF0ZTW8OdizWTbE0qF8slmiK9AlaxFt6Q&oe=6A41A737",
+        "userId": "692af4efad52a8e5718fc248",
+        "video": {
+          "mediaId": "18334282615170303",
+          "userId": "692af4efad52a8e5718fc248",
+          "inicio": 0,
+          "duracao": 60,
+          "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-giovana/assets/video-07.mp4"
+        },
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-giovana/assets/poster-07.jpg"
+      }
+    },
+    {
+      "n": 8,
+      "batida": "payoff",
+      "layout": "full-bleed-text",
+      "kicker": "O VALOR",
+      "artePrompt": "Empty airport terminal at night, baggage carousel conveyor belt with no luggage, moody cinematic lighting, desaturated warm tones, soft film grain, absolutely no people, no text, no words, no letters, no signage, no watermark",
+      "headline": "Todo reel que viraliza esconde um conflito real. E conflito real é uma porta aberta pra uma marca.",
+      "corpo": "Quando 443 mil pessoas sentiram o fim daquela viagem na esteira do JFK, uma marca de viagem já estava esperando do outro lado. Só precisava bater.",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-giovana/assets/art-08.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-giovana/assets/art-08.png"
+      }
+    },
+    {
+      "n": 9,
+      "batida": "payoff",
+      "layout": "reasoning",
+      "kicker": "O VALOR",
+      "headline": "O conflito que os vídeos dela já provam — e o que uma marca pode fazer com isso.",
+      "corpo": "Lido do reel de 443 mil interações — ela na esteira de bagagem, voltando de Nova York:",
+      "cadeia": [
+        "CONTEÚDO: Reel na esteira do JFK voltando de NYC: a expressão 'acabou o milho, acabou a pipoca' para dizer que a viagem acabou — 443 mil interações",
+        "CONFLITO: Aquela tristeza específica de assistir as malas chegarem e saber que acabou — quem viajou sabe exatamente como dói",
+        "A MARCA RESOLVE: Uma marca de viagem, milhas ou hospedagem entra como cúmplice: 'a próxima já pode começar'",
+        "COMO ENTRA: Aparece no momento natural do reel — ela sentindo o fim, a marca sendo a ponte entre uma viagem e a próxima"
+      ]
+    },
+    {
+      "n": 10,
+      "batida": "payoff",
+      "layout": "pauta-card",
+      "kicker": "O VALOR",
+      "headline": "A viagem acabou. A marca já está pensando na próxima.",
+      "ficha": [
+        {
+          "rotulo": "A CENA",
+          "texto": "Giovanna na esteira de bagagem do JFK, olhando as malas chegarem com o olhar de quem não quer ir embora — câmera na mão, sem roteiro"
+        },
+        {
+          "rotulo": "A MARCA APARECE",
+          "texto": "Uma marca de viagem, programa de milhas ou hospedagem aparece no CTA final: 'e a próxima, você já começou a planejar?' — sem interromper o sentimento"
+        },
+        {
+          "rotulo": "POR QUE NÃO QUEBRA",
+          "texto": "O conflito 'quero ficar, preciso voltar' é o território nativo dela em viagens — a marca entra como cúmplice do sentimento, não como anúncio de passagem"
+        },
+        {
+          "rotulo": "O TOM",
+          "texto": "Nostálgico, leve, sem vender diretamente — a marca compartilha o sentimento antes de sugerir qualquer coisa, respeitando a voz dela"
+        },
+        {
+          "rotulo": "O FORMATO",
+          "texto": "Reel espontâneo de 30–45 segundos no aeroporto, câmera na mão — o mesmo estilo do conteúdo orgânico que levou 443 mil pessoas a pararem"
+        }
+      ]
+    },
+    {
+      "n": 11,
+      "batida": "payoff",
+      "layout": "respiro",
+      "fundo": "paper",
+      "headline": "O que nenhuma marca compra é o que ela nunca precisou construir.",
+      "corpo": "A credibilidade de quem nunca fingiu ter tudo sob controle."
+    },
+    {
+      "n": 12,
+      "batida": "convite",
+      "layout": "cta",
+      "headline": "Você também já desistiu de parecer perfeito hoje?",
+      "corpo": "A Giovanna transformou isso em narrativa. A Data2Content lê esse mapa pra você — e te mostra pra quais marcas você já é a resposta.",
+      "lista": [
+        "Seu <b>mapa narrativo</b> — a estrutura por trás do que você cria",
+        "<b>Pautas de publi</b> nascidas do seu conteúdo real",
+        "<b>Collabs</b> com criadores que ocupam o mesmo território",
+        "<b>Reuniões semanais da comunidade</b> — você não cria sozinho"
+      ]
+    }
+  ],
+  "caption": "Na esteira de bagagem do JFK, olhando as malas chegarem. 'Acabou o milho, acabou a pipoca.' 443 mil pessoas pararam porque já sentiram exatamente isso.\n\nA @giantiorio não tem roteiro nem filtro — ela filma o treino que foi perrengue, a viagem que terminou cedo demais, a felicidade que não precisa de plateia. E é por isso que o público não curte: manda pra alguém.\n\nA Data2Content leu o mapa dela. E o que está lá dentro explica cada um desses números.\n\nArrasta.\n\n💬 Comenta MAPA que a gente te mostra como a Data2Content lê o seu.\n\n#criadoradeconteudo #humor #viagens #data2content #vidaadois",
+  "manychat": {
+    "keyword": "MAPA",
+    "dm": "Oi! Vi o post da Giovanna e quero entender meu mapa narrativo também 👉 data2content.com.br/signup?utm_source=instagram&utm_medium=direct&utm_campaign=giantiorio-junho2026"
+  }
+}

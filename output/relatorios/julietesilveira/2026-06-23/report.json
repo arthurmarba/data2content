@@ -1,0 +1,97 @@
+{
+  "data": "2026-06-23",
+  "periodo": { "de": "2026-06-17", "ate": "2026-06-23" },
+  "criador": {
+    "userId": "69e8f96564be9f1592a5ca6e",
+    "nome": "Juliete Silveira",
+    "handle": "@julietesilveira",
+    "profilePictureUrl": "https://scontent-iad6-1.xx.fbcdn.net/v/t51.82787-15/687842356_18584604064001581_8288653583026288733_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=7d201b&_nc_ohc=8fekUGRgJUEQ7kNvwEEFD5o&_nc_oc=AdoCcJ-1PAnQDrJz27ofxLJd1C5it1RTiVmXrcVxdyjYmYdhNa8DFklrtiEsudpXst8&_nc_zt=23&_nc_ht=scontent-iad6-1.xx&edm=AL-3X8kEAAAA&_nc_gid=ZOxu-yo9tYKxij2Pi_yLnQ&oh=00_Af_zeLQf2LX4EDv_im7Bp16Q59tkm0CB8DO4GQmoKWUVLQ&oe=6A3DBC7F",
+    "narrativaCentral": "Uma estudante de medicina que navega a maternidade e a vida adulta com humor e ironia",
+    "territorios": ["Maternidade", "Estudo de medicina", "Humor cotidiano", "Autoconhecimento", "Relacionamentos", "Saúde mental"],
+    "tom": "Casual e direto, humor autodepreciativo, reflexões sinceras"
+  },
+  "resumoSemana": "Semana mais curta — 3 reels, mas todos dentro da sua narrativa. O destaque foi a 'maquete escolar' (maternidade + humor afiado): foi o que mais compartilharam, porque toda mãe se viu ali. Seus dois territórios mais fortes — medicina e maternidade — apareceram separados; o ouro está em cruzar os dois com o seu sarcasmo, que é o seu lugar mais raro.",
+  "avaliacoes": [
+    {
+      "postId": "17874797049614486",
+      "postLink": "https://www.instagram.com/reel/DZqolRihKrM/",
+      "postDate": "2026-06-17",
+      "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.71878-15/723942020_1806770756953214_2496920179743488151_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=109&ccb=7-5&_nc_sid=18de74&_nc_ohc=SV9HlluRDPsQ7kNvwHAUVKt&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&oh=00_Af9rro0AeosyoK1iCzguG_K0FEU2BiMmScqxdApXlXsl3w&oe=6A3D9E4E",
+      "oQueEra": "Estudo de medicina · história real da UPA · tom reflexivo · Reel",
+      "narrativa": "verde",
+      "audiencia": "amarelo",
+      "marca": "amarelo",
+      "stat": { "valor": "curtido", "label": "mas pouco compartilhado" },
+      "funcionou": "Coração da sua narrativa: a estudante de medicina que sente o peso do real. Sincero e bem escrito — gerou respeito (muitas curtidas pro alcance).",
+      "enfraqueceu": "Texto longo e sério, sem o seu humor pra carregar — a audiência curtiu, mas compartilhou pouco. Faltou um respiro irônico no meio.",
+      "veredito": "repetir"
+    },
+    {
+      "postId": "18097021520236160",
+      "postLink": "https://www.instagram.com/reel/DZtUB50BMqV/",
+      "postDate": "2026-06-18",
+      "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/726321536_18594846457001581_3154758807983025841_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=106&ccb=7-5&_nc_sid=18de74&_nc_ohc=F95t-JFrpJEQ7kNvwE-xhl_&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&oh=00_Af8MjXdCoZ9Vclgt-JvJNPcr9TiTprXHiD19pF2Vh03EQQ&oe=6A3DB35F",
+      "oQueEra": "Maternidade · 'o golpe da maquete escolar' · humor + sarcasmo · Reel",
+      "narrativa": "verde",
+      "audiencia": "verde",
+      "marca": "amarelo",
+      "stat": { "valor": "o + compartilhado", "label": "da semana" },
+      "funcionou": "Maternidade real com o seu sarcasmo afiado — 'a maquete que a mãe faz' é universal. Toda mãe se reconheceu e mandou pro grupo (25 shares, 35 comentários).",
+      "enfraqueceu": "Quase nada. É o seu formato campeão — vale virar série de 'perrengues da escola'.",
+      "veredito": "repetir"
+    },
+    {
+      "postId": "18323461297277723",
+      "postLink": "https://www.instagram.com/reel/DZyhBOzNmZW/",
+      "postDate": "2026-06-20",
+      "thumbnailUrl": "https://scontent-iad3-2.cdninstagram.com/v/t51.82787-15/727178393_18595500847001581_1822603476221550410_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=111&ccb=7-5&_nc_sid=18de74&_nc_ohc=QkJ19uYh5kUQ7kNvwEwBNMW&_nc_zt=23&_nc_ht=scontent-iad3-2.cdninstagram.com&edm=AM6HXa8EAAAA&oh=00_Af_ZcxNf9_-Jo5lM5aH4CzFcXYvvzI3Oj1nIdl0IkDkYew&oe=6A3DB43E",
+      "oQueEra": "Saúde mental · 'a vida da mulher é um eterno já que eu tô em pé' · tom humorístico · Reel",
+      "narrativa": "verde",
+      "audiencia": "amarelo",
+      "marca": "amarelo",
+      "stat": { "valor": "abaixo", "label": "do seu humor de maternidade" },
+      "funcionou": "Tema riquíssimo: a carga mental invisível da mulher. Toca maternidade, autoconhecimento e saúde mental de uma vez.",
+      "enfraqueceu": "Formato de lista falada ('já que... já que...') cansa antes do fim. A ideia é ótima, mas pediu uma cena encenada em vez de narração.",
+      "veredito": "ajustar"
+    }
+  ],
+  "audiencia": {
+    "resumo": "Sua audiência ri e compartilha quando você nomeia a sobrecarga invisível da mãe — a maquete escolar foi pro grupo das mães na hora. Quando você fala de medicina com sinceridade, ela curte e respeita, mas compartilha menos. O seu lugar mais raro (e mais seu) é o cruzamento: a mãe que também é estudante de medicina.",
+    "itens": [
+      { "dimensao": "Maternidade com humor/sarcasmo", "sinal": "alto", "nota": "'a maquete da escola' foi direto pro grupo das mães" },
+      { "dimensao": "Medicina com sinceridade", "sinal": "medio", "nota": "curtem e respeitam, mas compartilham menos" },
+      { "dimensao": "Carga mental / saúde mental", "sinal": "medio", "nota": "tema forte, mas o formato de lista falada viajou pouco" }
+    ]
+  },
+  "facaMais": [
+    "Maternidade real com o seu sarcasmo — a 'maquete escolar' provou: quando você nomeia o perrengue invisível da mãe, ela compartilha na hora.",
+    "O cruzamento medicina + maternidade — esse é o seu lugar, que quase ninguém ocupa. Use as duas lentes juntas numa mesma história.",
+    "Encenar em vez de narrar: cenas curtas valem mais que listas faladas, mesmo quando a ideia é ótima."
+  ],
+  "facaMenos": [
+    "Reflexão de medicina em texto longo e sério sem o seu humor: é sincera e bonita, mas sozinha viaja pouco — intercale com ironia.",
+    "Listas faladas ('já que eu tô em pé, já que...'): a ideia é forte, mas o formato cansa antes do fim. Encurte ou transforme em cena."
+  ],
+  "plano": [
+    {
+      "titulo": "O que ninguém te conta sobre estudar medicina sendo mãe (a real sem filtro)",
+      "porque": "O cruzamento medicina + maternidade é o seu diferencial mais raro e quase não foi explorado esta semana — junta seus dois territórios mais fortes.",
+      "mira": "narrativa+audiencia"
+    },
+    {
+      "titulo": "O golpe da maquete escolar — Parte 2: os perrengues que toda mãe conhece",
+      "porque": "Foi o post mais compartilhado da semana; a audiência se reconheceu e pediu mais. Vira quadro recorrente.",
+      "mira": "narrativa+audiencia"
+    },
+    {
+      "titulo": "Plantão, prova e filho doente no mesmo dia: como eu (não) dou conta",
+      "porque": "Carga mental e saúde mental renderam pouco em formato de lista; encenado vira humor que a audiência compartilha.",
+      "mira": "narrativa+audiencia"
+    },
+    {
+      "titulo": "Coisas que a UPA me ensinou que a faculdade nunca ensinaria",
+      "porque": "Transforma a reflexão séria de medicina (que viajou pouco) num formato serial mais leve, mantendo a sinceridade que é sua.",
+      "mira": "narrativa"
+    }
+  ]
+}

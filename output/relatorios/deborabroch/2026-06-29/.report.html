@@ -1,0 +1,318 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;0,900;1,600;1,700&family=Poppins:wght@300;400;500;600;700&display=swap');
+  @page { size: A4; margin: 0; }
+  :root {
+    --paper:#f6f6fa; --card:#fff; --ink:#1a1426; --muted:#7c798c; --hair:#e6e4ee;
+    --serif:'Playfair Display',serif; --accent:#6c2db5;
+  }
+  * { box-sizing:border-box; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  body { margin:0; font-family:'Poppins',system-ui,sans-serif; color:var(--ink); background:var(--paper); }
+  .page { width:210mm; height:290mm; padding:18mm 16mm; page-break-after:always; overflow:hidden; }
+  .content { padding:16mm 16mm 0; }
+
+  /* Capa — foto + narrativa em destaque */
+  .cover { display:flex; flex-direction:column; }
+  .cover-hero { text-align:center; flex:1 1 auto; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:8mm 0; }
+  .avatar { width:60px; height:60px; flex:0 0 60px; border-radius:50%; background-size:cover; background-position:center; background-color:#ece9f3; border:2px solid #fff; box-shadow:0 0 0 1px var(--hair); }
+  .avatar--lg { width:132px; height:132px; flex:0 0 132px; border:4px solid #fff; box-shadow:0 0 0 1px var(--hair), 0 10px 30px rgba(26,20,38,.10); margin-bottom:26px; }
+  .avatar--ini { display:flex; align-items:center; justify-content:center; font-family:var(--serif); font-weight:700; color:var(--accent); }
+  .avatar.avatar--lg.avatar--ini { font-size:50px; }
+  .cover-eyebrow { font-size:11px; letter-spacing:.24em; text-transform:uppercase; color:var(--accent); font-weight:700; }
+  .cover-creator { margin-top:6px; font-size:13.5px; color:var(--muted); letter-spacing:.04em; }
+  .cover-orn { width:34px; height:2px; background:var(--accent); border-radius:2px; margin:22px 0 6px; opacity:.55; }
+  .cover-narr-hero { font-family:var(--serif); font-weight:800; font-size:44px; line-height:1.14; margin:14px 0 0; max-width:19ch; color:var(--ink); }
+  .cover-period { margin-top:18px; font-size:12px; color:var(--muted); letter-spacing:.14em; text-transform:uppercase; }
+  .cover-regua { margin-top:22px; font-size:12.5px; color:var(--muted); letter-spacing:.01em; background:var(--card); border:1px solid var(--hair); border-radius:24px; padding:9px 20px; box-shadow:0 1px 2px rgba(26,20,38,.04); }
+  .cover-regua b { font-weight:700; }
+  .numeros { display:flex; margin:0; border:1px solid var(--hair); border-radius:14px; overflow:hidden; background:var(--card); box-shadow:0 2px 8px rgba(26,20,38,.06); }
+  .num-cell { flex:1; padding:18px 12px; text-align:center; border-right:1px solid var(--hair); display:flex; flex-direction:column; justify-content:center; }
+  .num-cell:last-child { border-right:0; }
+  .num-valor { font-family:var(--serif); font-weight:800; font-size:29px; line-height:1.05; color:var(--ink); }
+  .num-valor--txt { font-size:18px; line-height:1.15; }
+  .num-label { margin-top:6px; font-size:10px; letter-spacing:.08em; color:var(--muted); text-transform:uppercase; }
+  .cover-resumo { margin-top:20px; padding-top:18px; border-top:1px solid var(--hair); font-size:15px; line-height:1.62; color:#3a362d; }
+
+  /* Atos */
+  .act { display:flex; align-items:baseline; gap:12px; margin:4px 0 22px; padding-bottom:8px; border-bottom:2px solid var(--ink); page-break-after:avoid; }
+  .act:not(:first-child) { margin-top:40px; }
+  .act-n { font-family:var(--serif); font-style:italic; font-weight:700; font-size:14px; color:var(--accent); }
+  .act-t { font-family:var(--serif); font-weight:800; font-size:21px; }
+  .act-sub { margin-left:auto; font-size:11px; color:var(--muted); letter-spacing:.03em; }
+
+  /* Blocos */
+  .block { margin-bottom:30px; }
+  .block:last-of-type { margin-bottom:0; }
+  .aud-grid, .faca-grid { page-break-inside:avoid; }
+  .kicker { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); font-weight:700; margin-bottom:6px; page-break-after:avoid; }
+  .section-title { font-family:var(--serif); font-weight:800; font-size:23px; margin:0 0 6px; page-break-after:avoid; }
+  .block-lead { font-family:var(--serif); font-size:18px; line-height:1.45; margin:0 0 18px; color:#2a2435; page-break-after:avoid; }
+  .block-foot { font-size:11px; color:var(--muted); margin-top:12px; }
+
+  /* Post cards — lista, um por linha */
+  .post-list { display:flex; flex-direction:column; gap:14px; }
+  .post-card { display:flex; gap:20px; background:var(--card); border:1px solid var(--hair); border-radius:14px; padding:18px 22px; box-shadow:0 1px 3px rgba(26,20,38,.05); page-break-inside:avoid; break-inside:avoid; }
+  .pc-thumb { width:98px; height:122px; flex:0 0 98px; border-radius:10px; background-size:cover; background-position:center; background-color:#ece9f3; box-shadow:0 1px 3px rgba(26,20,38,.06); }
+  .pc-thumb--empty { background:repeating-linear-gradient(45deg,#ece9f3,#ece9f3 8px,#f3f1f8 8px,#f3f1f8 16px); box-shadow:none; }
+  .pc-body { flex:1; min-width:0; }
+  .pc-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:3px; }
+  .pc-date { font-size:11px; color:var(--muted); letter-spacing:.06em; font-weight:500; white-space:nowrap; }
+  .pc-veredito { flex:0 0 auto; font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--vc); border:1.4px solid var(--vc); border-radius:20px; padding:2px 12px; white-space:nowrap; }
+  .pc-oque { font-size:12.5px; line-height:1.45; color:var(--muted); margin:0 0 11px; }
+  .pc-seal { display:flex; align-items:center; gap:16px; margin-bottom:12px; padding-bottom:13px; border-bottom:1px solid var(--hair); }
+  .mini-venn { width:54px; height:42px; flex:0 0 54px; }
+  .seal-cap { display:flex; flex-wrap:wrap; gap:5px 18px; }
+  .sc-item { font-size:12px; font-weight:600; }
+  .sc-sym { color:var(--ink); font-weight:800; margin-left:2px; }
+  .pc-stat { display:inline-block; font-size:12px; line-height:1.45; color:#3a362d; background:#f7f3fc; border:1px solid #ebe1f7; border-radius:7px; padding:4px 11px; margin-bottom:11px; }
+  .pc-stat b { color:var(--accent); font-weight:700; }
+  .pc-line { font-size:13px; line-height:1.55; margin-bottom:7px; color:#3a362d; }
+  .pc-line:last-child { margin-bottom:0; }
+  .pc-line b { color:var(--ink); }
+  .pc-up b { color:#2e7d52; } .pc-down b { color:#b5462f; }
+
+  /* Recap (cobrança) */
+  .recap { background:#f3f0fa; border:1px solid #e3d9f5; border-radius:12px; padding:18px 20px; box-shadow:0 1px 2px rgba(26,20,38,.04); }
+  .recap-head { font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--accent); font-weight:700; margin-bottom:8px; }
+  .recap-delta { font-family:var(--serif); font-size:16px; line-height:1.45; margin:0 0 12px; color:#2a2435; }
+  .cmp-list { list-style:none; margin:0; padding:0; }
+  .cmp-list li { display:grid; grid-template-columns:18px 1fr; gap:8px; align-items:baseline; padding:8px 0; border-bottom:1px solid #e3d9f5; }
+  .cmp-list li:last-child { border-bottom:0; }
+  .cmp-mark { font-weight:800; font-size:14px; }
+  .cmp-item { font-size:13px; font-weight:600; }
+  .cmp-nota { grid-column:2; font-size:11.5px; color:var(--muted); }
+
+  /* Audiência */
+  .aud-grid { display:flex; flex-direction:column; gap:14px; }
+  .aud-row { display:grid; grid-template-columns:150px 90px 1fr; align-items:start; gap:14px; }
+  .aud-dim { font-size:12.5px; font-weight:600; line-height:1.35; }
+  .aud-bw { display:block; padding-top:4px; }
+  .aud-bar { display:block; width:100%; height:8px; background:var(--hair); border-radius:6px; overflow:hidden; }
+  .aud-fill { display:block; height:100%; background:var(--accent); border-radius:6px; }
+  .aud-nota { font-size:11.5px; line-height:1.4; color:var(--muted); padding-top:1px; }
+
+  /* Faça mais / menos */
+  .faca-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .faca { border-radius:12px; padding:16px 18px; box-shadow:0 1px 2px rgba(26,20,38,.04); }
+  .faca--mais { background:#eaf5ee; border:1px solid #cbe6d5; }
+  .faca--menos { background:#fbecea; border:1px solid #f1d3cd; }
+  .faca-head { font-weight:700; font-size:14px; margin-bottom:10px; }
+  .faca ul { margin:0; padding-left:18px; } .faca li { font-size:13px; line-height:1.55; margin-bottom:8px; }
+  .faca li:last-child { margin-bottom:0; }
+
+  /* Plano */
+  .plano-grid { display:flex; flex-direction:column; gap:13px; }
+  .plano-card { background:var(--card); border:1px solid var(--hair); border-left:3px solid var(--accent); border-radius:12px; padding:14px 16px; box-shadow:0 1px 2px rgba(26,20,38,.04); page-break-inside:avoid; }
+  .plano-titulo { font-family:var(--serif); font-weight:700; font-size:17px; line-height:1.3; }
+  .plano-porque { font-size:12.5px; color:var(--muted); margin:4px 0 6px; line-height:1.45; }
+  .plano-mira { display:inline-block; font-size:10.5px; font-weight:600; letter-spacing:.04em; color:var(--accent); background:#f0e9fa; border-radius:20px; padding:2px 10px; }
+
+  .footer { margin-top:26px; padding:12px 0 0; border-top:1px solid var(--hair); font-size:10px; color:var(--muted); display:flex; justify-content:space-between; letter-spacing:.04em; }
+</style></head>
+<body>
+  <!-- CAPA — foto + narrativa em destaque; abre o Ato 1 -->
+  <div class="page cover">
+    <div class="cover-hero">
+      <div class="avatar avatar--lg" style="background-image:url('file:///Users/arthurmarba/d2c-frontend/output/relatorios/deborabroch/2026-06-29/.assets/perfil.jpg')"></div>
+      <div class="cover-eyebrow">Relatório semanal · Conteúdo do seu jeito</div>
+      <div class="cover-creator">Débora Broch Machado · @deborabroch</div>
+      <div class="cover-orn"></div>
+      <h1 class="cover-narr-hero">“Uma mãe que encontra força e propósito na jornada da maternidade”</h1>
+      <div class="cover-period">2026-06-24 → 2026-06-30</div>
+      <div class="cover-regua">A régua da semana —
+    <b style="color:#C9603F">Narrativa</b> ·
+    <b style="color:#2F6F8F">Audiência</b> ·
+    <b style="color:#4E8D5B">Marcas</b>. A narrativa é a âncora.</div>
+    </div>
+    <div class="numeros"><div class="num-cell"><div class="num-valor">5</div><div class="num-label">posts na semana</div></div><div class="num-cell"><div class="num-valor">1 de 5</div><div class="num-label">no ponto-ouro</div></div><div class="num-cell"><div class="num-valor num-valor--txt">Humor de maternidade real (a cena da sua rotina)</div><div class="num-label">território mais forte</div></div></div>
+    <div class="cover-resumo">Uma semana com um dado impossível de ignorar: o humor que nasce da sua rotina de mãe real gerou 10 mil shares num único post — e a publi do dia seguinte gerou zero. A semana inteira cabe nessa diferença.</div>
+  </div>
+
+  <div class="content">
+    <!-- ATO 1 — SUA SEMANA -->
+    <div class="act"><span class="act-n">Ato 1</span><span class="act-t">Sua semana</span><span class="act-sub">o que você publicou e como aterrissou</span></div>
+    <section class="block">
+      <div class="kicker">Conteúdo a conteúdo</div><h2 class="section-title">O que você publicou</h2><p class="block-lead">Cada post plotado nos três círculos. Cor = qual círculo; preenchido = acertou.</p>
+      
+      <div class="post-list"><div class="post-card">
+    <div class="pc-thumb" style="background-image:url('file:///Users/arthurmarba/d2c-frontend/output/relatorios/deborabroch/2026-06-29/.assets/post-01.jpg')"></div>
+    <div class="pc-body">
+      <div class="pc-head">
+        <span class="pc-date">2026-06-25</span>
+        <span class="pc-veredito" style="--vc:#2e7d52">Repetir</span>
+      </div>
+      <div class="pc-oque">Maternidade · acordar cedo com filhas · humor cênico · Reel</div>
+      <div class="pc-seal"><svg viewBox="0 0 72 56" class="mini-venn" role="img" aria-label="posição do post nos três círculos">
+    <circle cx="36" cy="18" r="16" fill="#C9603F" fill-opacity="0.85" stroke="#C9603F" stroke-width="1.5"/>
+    <circle cx="26" cy="36" r="16" fill="#2F6F8F" fill-opacity="0.85" stroke="#2F6F8F" stroke-width="1.5"/>
+    <circle cx="46" cy="36" r="16" fill="#4E8D5B" fill-opacity="0.85" stroke="#4E8D5B" stroke-width="1.5"/>
+  </svg><div class="seal-cap">
+    <span class="sc-item"><span style="color:#C9603F">Narrativa</span> <b class="sc-sym">✓</b></span>
+    <span class="sc-item"><span style="color:#2F6F8F">Audiência</span> <b class="sc-sym">✓</b></span>
+    <span class="sc-item"><span style="color:#4E8D5B">Marca</span> <b class="sc-sym">✓</b></span>
+  </div></div>
+      <div class="pc-stat"><b>13× mais shares</b> que o 2º maior da semana — 10.262 no total</div>
+      <div class="pc-line pc-up"><b>Funcionou.</b> A piada nasce de dentro da sua rotina — a mãe que achava que acordar cedo acabaria com a faculdade e descobriu que as filhas vieram pra garantir. É universal, é seu, é irresistível de mandar pra frente. Ponto-ouro perfeito.</div>
+      <div class="pc-line pc-down"><b>Enfraqueceu.</b> Quase nada. O risco único é ele virar uma fórmula que você usa todo dia — a força está na especificidade da cena real, não no formato.</div>
+    </div>
+  </div><div class="post-card">
+    <div class="pc-thumb" style="background-image:url('file:///Users/arthurmarba/d2c-frontend/output/relatorios/deborabroch/2026-06-29/.assets/post-02.jpg')"></div>
+    <div class="pc-body">
+      <div class="pc-head">
+        <span class="pc-date">2026-06-26</span>
+        <span class="pc-veredito" style="--vc:#b5462f">Não repetir</span>
+      </div>
+      <div class="pc-oque">Publi SHEIN · código de cupom · tom promocional · Reel</div>
+      <div class="pc-seal"><svg viewBox="0 0 72 56" class="mini-venn" role="img" aria-label="posição do post nos três círculos">
+    <circle cx="36" cy="18" r="16" fill="#C9603F" fill-opacity="0.07" stroke="#C9603F" stroke-width="1.5"/>
+    <circle cx="26" cy="36" r="16" fill="#2F6F8F" fill-opacity="0.07" stroke="#2F6F8F" stroke-width="1.5"/>
+    <circle cx="46" cy="36" r="16" fill="#4E8D5B" fill-opacity="0.4" stroke="#4E8D5B" stroke-width="1.5"/>
+  </svg><div class="seal-cap">
+    <span class="sc-item"><span style="color:#C9603F">Narrativa</span> <b class="sc-sym">✕</b></span>
+    <span class="sc-item"><span style="color:#2F6F8F">Audiência</span> <b class="sc-sym">✕</b></span>
+    <span class="sc-item"><span style="color:#4E8D5B">Marca</span> <b class="sc-sym">~</b></span>
+  </div></div>
+      <div class="pc-stat"><b>0 shares · 0 saves</b> publicada no dia seguinte ao viral de 684 mil views</div>
+      <div class="pc-line pc-up"><b>Funcionou.</b> Cumpriu o contrato comercial.</div>
+      <div class="pc-line pc-down"><b>Enfraqueceu.</b> SHEIN é fast fashion sem nenhum fit com maternidade, fé ou bem-estar — os três pilares da sua audiência. Sem saves, sem shares: a audiência viu o código de cupom e passou. Exatamente o 'facaMenos' da semana passada — e foi repetido.</div>
+    </div>
+  </div><div class="post-card">
+    <div class="pc-thumb" style="background-image:url('file:///Users/arthurmarba/d2c-frontend/output/relatorios/deborabroch/2026-06-29/.assets/post-03.jpg')"></div>
+    <div class="pc-body">
+      <div class="pc-head">
+        <span class="pc-date">2026-06-27</span>
+        <span class="pc-veredito" style="--vc:#c79a2e">Ajustar</span>
+      </div>
+      <div class="pc-oque">Humor · desafio de casal · sem maternidade · Reel</div>
+      <div class="pc-seal"><svg viewBox="0 0 72 56" class="mini-venn" role="img" aria-label="posição do post nos três círculos">
+    <circle cx="36" cy="18" r="16" fill="#C9603F" fill-opacity="0.4" stroke="#C9603F" stroke-width="1.5"/>
+    <circle cx="26" cy="36" r="16" fill="#2F6F8F" fill-opacity="0.4" stroke="#2F6F8F" stroke-width="1.5"/>
+    <circle cx="46" cy="36" r="16" fill="#4E8D5B" fill-opacity="0.07" stroke="#4E8D5B" stroke-width="1.5"/>
+  </svg><div class="seal-cap">
+    <span class="sc-item"><span style="color:#C9603F">Narrativa</span> <b class="sc-sym">~</b></span>
+    <span class="sc-item"><span style="color:#2F6F8F">Audiência</span> <b class="sc-sym">~</b></span>
+    <span class="sc-item"><span style="color:#4E8D5B">Marca</span> <b class="sc-sym">✕</b></span>
+  </div></div>
+      <div class="pc-stat"><b>40× menos shares</b> que o humor de maternidade de dois dias antes</div>
+      <div class="pc-line pc-up"><b>Funcionou.</b> Circulou um pouco — o humor de casal tem apelo. 33 comentários mostram que gerou conversa.</div>
+      <div class="pc-line pc-down"><b>Enfraqueceu.</b> Humor sem a sua história dentro: casal genérico sem maternidade, sem fé, sem a Débora de verdade. É o 'automático' — qualquer conta poderia ter postado. O dado confirma: 27 shares vs 10.262 quando é sua.</div>
+    </div>
+  </div><div class="post-card">
+    <div class="pc-thumb pc-thumb--empty"></div>
+    <div class="pc-body">
+      <div class="pc-head">
+        <span class="pc-date">2026-06-28</span>
+        <span class="pc-veredito" style="--vc:#c79a2e">Ajustar</span>
+      </div>
+      <div class="pc-oque">Fé · batismo da filha · tom inspiracional · Reel</div>
+      <div class="pc-seal"><svg viewBox="0 0 72 56" class="mini-venn" role="img" aria-label="posição do post nos três círculos">
+    <circle cx="36" cy="18" r="16" fill="#C9603F" fill-opacity="0.85" stroke="#C9603F" stroke-width="1.5"/>
+    <circle cx="26" cy="36" r="16" fill="#2F6F8F" fill-opacity="0.4" stroke="#2F6F8F" stroke-width="1.5"/>
+    <circle cx="46" cy="36" r="16" fill="#4E8D5B" fill-opacity="0.4" stroke="#4E8D5B" stroke-width="1.5"/>
+  </svg><div class="seal-cap">
+    <span class="sc-item"><span style="color:#C9603F">Narrativa</span> <b class="sc-sym">✓</b></span>
+    <span class="sc-item"><span style="color:#2F6F8F">Audiência</span> <b class="sc-sym">~</b></span>
+    <span class="sc-item"><span style="color:#4E8D5B">Marca</span> <b class="sc-sym">~</b></span>
+  </div></div>
+      <div class="pc-stat"><b>3× mais comentários</b> que o desafio de casal — a audiência ficou, não mandou pra frente</div>
+      <div class="pc-line pc-up"><b>Funcionou.</b> Fé + maternidade juntas: dois territórios centrais seus em um momento real e bonito. Os comentários foram emocionais — a audiência sentiu. É genuinamente seu.</div>
+      <div class="pc-line pc-down"><b>Enfraqueceu.</b> O conteúdo ficou dentro do nicho íntimo: 4 saves e 10 shares mostram que tocou quem já te ama, mas não viajou. Faltou o gancho que abre a porta para quem ainda não te conhece — a tensão antes da entrega emocional.</div>
+    </div>
+  </div><div class="post-card">
+    <div class="pc-thumb" style="background-image:url('file:///Users/arthurmarba/d2c-frontend/output/relatorios/deborabroch/2026-06-29/.assets/post-05.jpg')"></div>
+    <div class="pc-body">
+      <div class="pc-head">
+        <span class="pc-date">2026-06-29</span>
+        <span class="pc-veredito" style="--vc:#c79a2e">Ajustar</span>
+      </div>
+      <div class="pc-oque">Copa do Mundo · humor de cotidiano familiar · Reel</div>
+      <div class="pc-seal"><svg viewBox="0 0 72 56" class="mini-venn" role="img" aria-label="posição do post nos três círculos">
+    <circle cx="36" cy="18" r="16" fill="#C9603F" fill-opacity="0.4" stroke="#C9603F" stroke-width="1.5"/>
+    <circle cx="26" cy="36" r="16" fill="#2F6F8F" fill-opacity="0.85" stroke="#2F6F8F" stroke-width="1.5"/>
+    <circle cx="46" cy="36" r="16" fill="#4E8D5B" fill-opacity="0.4" stroke="#4E8D5B" stroke-width="1.5"/>
+  </svg><div class="seal-cap">
+    <span class="sc-item"><span style="color:#C9603F">Narrativa</span> <b class="sc-sym">~</b></span>
+    <span class="sc-item"><span style="color:#2F6F8F">Audiência</span> <b class="sc-sym">✓</b></span>
+    <span class="sc-item"><span style="color:#4E8D5B">Marca</span> <b class="sc-sym">~</b></span>
+  </div></div>
+      <div class="pc-stat"><b>424 shares</b> — timing da Copa ajudou; 2º maior da semana</div>
+      <div class="pc-line pc-up"><b>Funcionou.</b> O timing com a Copa 2026 foi inteligente — a cena dos vizinhos gritando é cotidiano compartilhado, viajou bem. Humor com situação real funciona.</div>
+      <div class="pc-line pc-down"><b>Enfraqueceu.</b> Não tem a Débora dentro: qualquer pessoa no Brasil poderia ter postado isso. O humor da Copa não carrega a sua maternidade, a sua fé, nem o que é só seu. Circula mas não constrói.</div>
+    </div>
+  </div></div>
+    </section>
+
+    <!-- ATO 2 — O QUE ISSO DIZ -->
+    <div class="act"><span class="act-n">Ato 2</span><span class="act-t">O que isso diz</span><span class="act-sub">a leitura da semana</span></div>
+    <section class="block">
+    <div class="kicker">A demanda</div><h2 class="section-title">O que sua audiência está pedindo</h2><p class="block-lead">Quando o humor nasce da sua rotina de mãe — do acordar cedo com filhas, do perrengue que só quem vive entende — a audiência manda pra todo mundo sem pensar. Quando é de fora da sua vida (fast fashion, meme de Copa), ela vê e passa. A diferença não é formato, é origem.</p>
+    <div class="aud-grid"><div class="aud-row">
+        <span class="aud-dim">Humor de maternidade real (a cena da sua rotina)</span>
+        <span class="aud-bw"><span class="aud-bar"><span class="aud-fill" style="width:100%"></span></span></span>
+        <span class="aud-nota">10.262 shares — a audiência reconhece a si mesma e manda pra frente</span>
+      </div><div class="aud-row">
+        <span class="aud-dim">Humor de cotidiano com timing (Copa, inverno)</span>
+        <span class="aud-bw"><span class="aud-bar"><span class="aud-fill" style="width:60%"></span></span></span>
+        <span class="aud-nota">424 shares — circula pelo momento, mas sem a sua assinatura</span>
+      </div><div class="aud-row">
+        <span class="aud-dim">Fé + maternidade íntima</span>
+        <span class="aud-bw"><span class="aud-bar"><span class="aud-fill" style="width:60%"></span></span></span>
+        <span class="aud-nota">comentários emocionais; salva menos porque é para quem já te conhece</span>
+      </div><div class="aud-row">
+        <span class="aud-dim">Publi sem fit narrativo</span>
+        <span class="aud-bw"><span class="aud-bar"><span class="aud-fill" style="width:28%"></span></span></span>
+        <span class="aud-nota">0 shares, 0 saves — a audiência não responde quando não é você</span>
+      </div></div>
+    <p class="block-foot">Lido por <b>salvamentos e compartilhamentos</b> — pedido real, não alcance.</p>
+  </section>
+    <section class="block recap">
+    <div class="recap-head">↺ Desde a última conversa</div>
+    <p class="recap-delta">Semana passada o conselho era: maternidade real no seu humor, publi útil no tom de bem-estar. Esta semana você acertou em cheio no humor — 10 mil shares provam a tese. Mas a publi da SHEIN foi o exato erro que foi pedido pra evitar. O desafio agora é manter o padrão do humor E escolher melhores parceiros comerciais.</p>
+    <ul class="cmp-list"><li><span class="cmp-mark" style="color:#b5462f">✕</span>
+        <span class="cmp-item">O dia em que decidi parar de trabalhar fora — e o que ninguém te conta sobre o 'depois'</span>
+        <span class="cmp-nota">Não foi ao ar. É o post de propósito mais forte que você tem a contar — e ainda está esperando.</span></li><li><span class="cmp-mark" style="color:#c79a2e">~</span>
+        <span class="cmp-item">Tem dias que a fé é a única coisa que me faz levantar — sem filtro</span>
+        <span class="cmp-nota">O batismo da filha tocou fé, mas era sobre ela, não sobre você. A versão sobre a sua própria fé ainda não foi feita.</span></li><li><span class="cmp-mark" style="color:#b5462f">✕</span>
+        <span class="cmp-item">Autocuidado de mãe real: os 10 minutos que tenho antes de todo mundo acordar</span>
+        <span class="cmp-nota">Não publicado. Esse post é o cruzamento perfeito de bem-estar + maternidade + humor — ainda está em aberto.</span></li><li><span class="cmp-mark" style="color:#b5462f">✕</span>
+        <span class="cmp-item">Minhas filhas pré-adolescentes me ensinaram isso (e eu não esperava chorar)</span>
+        <span class="cmp-nota">Não foi ao ar. O material das filhas está aí — o batismo mostrou que você tem história pra contar.</span></li></ul>
+  </section>
+    <section class="block">
+    <div class="kicker">O veredito</div><h2 class="section-title">Faça mais, faça menos</h2>
+    <div class="faca-grid">
+      <div class="faca faca--mais"><div class="faca-head">✅ Faça mais</div><ul><li>Humor que nasce da cena real da sua rotina de mãe — 'achei que acordar cedo acabaria com a faculdade, mas aí tive filhas' é o modelo. A fórmula é: expectativa + virada da maternidade. É o que é só seu e é o que mais viaja.</li><li>Timing com sua vida: quando uma situação coletiva (inverno, Copa, volta às aulas) passa pela sua lente de mãe, ela vira sua — e aí circula com a sua assinatura, não como meme genérico.</li><li>Conteúdo de fé + maternidade com gancho — o batismo da filha é material precioso. O que faltou foi o gancho de entrada que abre a porta pra quem ainda não te conhece.</li></ul></div>
+      <div class="faca faca--menos"><div class="faca-head">⛔ Faça menos</div><ul><li>Publi em formato catálogo sem fit narrativo — SHEIN com código de cupom é o exemplo claro. 0 shares, 0 saves, no dia seguinte ao maior viral da semana. Quando a publi não é você, a audiência passa. Busque parceiros que entram pela maternidade, bem-estar ou fé.</li><li>Humor de casal ou de meme sem a sua história dentro — circula pouco e não constrói nada que seja seu. Se for postar humor de casal, que seja com a ótica de mãe: o marido + as filhas + a cena real da sua casa.</li></ul></div>
+    </div>
+  </section>
+
+    <!-- ATO 3 — SEU PLANO -->
+    <div class="act"><span class="act-n">Ato 3</span><span class="act-t">Seu plano</span><span class="act-sub">para a próxima semana</span></div>
+    <section class="block">
+    <div class="kicker">O caminho</div><h2 class="section-title">Seu plano para a próxima semana</h2>
+    <div class="plano-grid"><div class="plano-card">
+        <div class="plano-titulo">Antes das filhas, eu achava que [X]. Depois das filhas, [Y] — continuação da série</div>
+        <div class="plano-porque">O post das 5h de manhã virou viral com esse formato. Não é uma coincidência — é uma série. Cada expectativa que a maternidade virou de cabeça pra baixo é um episódio.</div>
+        <div class="plano-mira">narrativa + audiência</div>
+      </div><div class="plano-card">
+        <div class="plano-titulo">O dia em que decidi parar de trabalhar fora — e o que ninguém te conta sobre o 'depois'</div>
+        <div class="plano-porque">Prometido duas semanas consecutivas e ainda não entregue. É o post de propósito mais alto da sua narrativa. A audiência que te acompanha por causa do humor vai ficar porque se reconhece nessa decisão.</div>
+        <div class="plano-mira">narrativa + audiência</div>
+      </div><div class="plano-card">
+        <div class="plano-titulo">Os 10 minutos antes de todo mundo acordar (minha versão real de autocuidado)</div>
+        <div class="plano-porque">Cruzamento de bem-estar + maternidade + humor que a audiência salva, não só compartilha. Formato certo para atrair marcas de bem-estar com fit real.</div>
+        <div class="plano-mira">narrativa + audiência</div>
+      </div><div class="plano-card">
+        <div class="plano-titulo">O que o batismo da minha filha me ensinou que eu mesma ainda precisava aprender</div>
+        <div class="plano-porque">O post do batismo mostrou que fé + maternidade emociona. Esta versão inverte a lente: a filha ensina a mãe. Com gancho, vira história que a audiência manda pra frente.</div>
+        <div class="plano-mira">narrativa + audiência</div>
+      </div><div class="plano-card">
+        <div class="plano-titulo">Publi de marca de bem-estar integrada na cena real da rotina (formato @verdinatural)</div>
+        <div class="plano-porque">A única publi que funcionou na conta foi quando o produto entrou dentro da narrativa de bem-estar como parte da rotina real. Esse é o modelo para parceiros comerciais.</div>
+        <div class="plano-mira">narrativa + marca</div>
+      </div></div>
+  </section>
+
+    <div class="footer"><span>Galileia · análise Data2Content · Débora Broch Machado</span><span>2026-06-30</span></div>
+  </div>
+</body></html>

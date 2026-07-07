@@ -34,7 +34,7 @@ export default function PinnedBoardsHub({
       >
         <div
           className={`
-            flex h-full items-stretch gap-8 px-4 pb-4 pt-4 sm:px-6 lg:gap-10 lg:px-8 lg:pb-5 lg:pt-11
+            flex h-full items-stretch gap-8 px-4 pb-4 pt-4 sm:px-6 lg:gap-10 lg:px-8 lg:pb-5 lg:pt-2
             ${hasSingleBoard ? "min-w-0 justify-center" : "min-w-max"}
             ${railClassName}
           `}

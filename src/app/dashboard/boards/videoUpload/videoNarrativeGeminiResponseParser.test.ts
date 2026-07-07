@@ -31,6 +31,34 @@ describe("videoNarrativeGeminiResponseParser", () => {
     }
   });
 
+  it("captura os eixos de audiência e marca do veredito 'vale postar?'", () => {
+    const raw = {
+      ...JSON.parse(geminiVideoNarrativeRawJsonFixture),
+      audienceCoherence: { verdict: "aligned", reading: "Fala com quem já te acompanha." },
+      brandCoherence: { verdict: "tension", reading: "Abre um território ainda difuso." },
+    };
+    const result = parseVideoNarrativeGeminiResponse(JSON.stringify(raw));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.analysis.audienceCoherence).toEqual({ verdict: "aligned", reading: "Fala com quem já te acompanha." });
+      expect(result.analysis.brandCoherence).toEqual({ verdict: "tension", reading: "Abre um território ainda difuso." });
+    }
+  });
+
+  it("degrada verdict inválido de eixo para 'unknown' e não quebra quando ausente", () => {
+    const withBadVerdict = {
+      ...JSON.parse(geminiVideoNarrativeRawJsonFixture),
+      audienceCoherence: { verdict: "muito_alinhado", reading: "x" },
+    };
+    const result = parseVideoNarrativeGeminiResponse(JSON.stringify(withBadVerdict));
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.analysis.audienceCoherence?.verdict).toBe("unknown");
+      // brandCoherence ausente permanece undefined (resposta antiga não quebra).
+      expect(result.analysis.brandCoherence).toBeUndefined();
+    }
+  });
+
   it("remove code fences se necessário", () => {
     const result = parseVideoNarrativeGeminiResponse(`\`\`\`json\n${geminiVideoNarrativeRawJsonFixture}\n\`\`\``);
     expect(result.ok).toBe(true);

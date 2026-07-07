@@ -1,4 +1,3 @@
-import nodemailer from 'nodemailer';
 import { logger } from '@/app/lib/logger';
 import { guestMigrationNotice } from '@/emails/guestMigrationNotice';
 import { instagramReconnectNotice } from '@/emails/instagramReconnectNotice';
@@ -12,26 +11,54 @@ import { proposalReceivedEmail, ProposalReceivedEmailParams } from '@/emails/pro
 import { campaignBriefConfirmation, CampaignBriefConfirmationParams } from '@/emails/campaignBriefConfirmation';
 import { proposalUpgradePromptEmail, ProposalUpgradePromptParams } from '@/emails/proposalUpgradePrompt';
 
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST,
-  port: Number(process.env.EMAIL_PORT) || 587,
-  secure: false,
-  auth: process.env.EMAIL_USER && process.env.EMAIL_PASS ? {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS,
-  } : undefined,
-});
+const FROM = process.env.EMAIL_FROM || 'Data2Content <no-reply@data2content.ai>';
+
+async function sendMail({
+  to,
+  subject,
+  text,
+  html,
+  replyTo,
+}: {
+  to: string;
+  subject: string;
+  text: string;
+  html: string;
+  replyTo?: string;
+}) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error('RESEND_API_KEY não configurada');
+  }
+
+  const body: Record<string, unknown> = {
+    from: FROM,
+    to: [to],
+    subject,
+    text,
+    html,
+  };
+  if (replyTo) body.reply_to = [replyTo];
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const detail = await res.json().catch(() => ({}));
+    throw new Error(`Resend erro ${res.status}: ${(detail as any)?.message ?? res.statusText}`);
+  }
+}
 
 export async function sendGuestMigrationEmail(to: string, expiresAt: Date) {
   const template = guestMigrationNotice(expiresAt);
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'no-reply@data2content.ai',
-      to,
-      subject: template.subject,
-      text: template.text,
-      html: template.html,
-    });
+    await sendMail({ to, subject: template.subject, text: template.text, html: template.html });
     logger.info(`[emailService] Aviso de migração enviado para ${to}`);
   } catch (err) {
     logger.error('[emailService] Falha ao enviar email de migração', err);
@@ -44,13 +71,7 @@ export async function sendInstagramReconnectEmail(
 ) {
   const template = instagramReconnectNotice(params);
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'no-reply@data2content.ai',
-      to,
-      subject: template.subject,
-      text: template.text,
-      html: template.html,
-    });
+    await sendMail({ to, subject: template.subject, text: template.text, html: template.html });
     logger.info(`[emailService] Aviso de reconexão Instagram enviado para ${to}`);
   } catch (err) {
     logger.error('[emailService] Falha ao enviar email de reconexão Instagram', err);
@@ -59,17 +80,11 @@ export async function sendInstagramReconnectEmail(
 
 export async function sendProWelcomeEmail(
   to: string,
-  params: { name?: string | null; planInterval?: "month" | "year" | null }
+  params: { name?: string | null; planInterval?: 'month' | 'year' | null }
 ) {
   const template = proWelcomeEmail(params);
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'no-reply@data2content.ai',
-      to,
-      subject: template.subject,
-      text: template.text,
-      html: template.html,
-    });
+    await sendMail({ to, subject: template.subject, text: template.text, html: template.html });
     logger.info(`[emailService] Boas-vindas Plano Pro enviada para ${to}`);
   } catch (err) {
     logger.error('[emailService] Falha ao enviar boas-vindas Plano Pro', err);
@@ -88,13 +103,7 @@ export async function sendPaymentFailureEmail(
 ) {
   const template = paymentFailureEmail(params);
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'no-reply@data2content.ai',
-      to,
-      subject: template.subject,
-      text: template.text,
-      html: template.html,
-    });
+    await sendMail({ to, subject: template.subject, text: template.text, html: template.html });
     logger.info(`[emailService] E-mail de falha de pagamento enviado para ${to}`);
   } catch (err) {
     logger.error('[emailService] Falha ao enviar dunning email', err);
@@ -107,13 +116,7 @@ export async function sendSubscriptionCanceledEmail(
 ) {
   const template = subscriptionCanceledEmail(params);
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'no-reply@data2content.ai',
-      to,
-      subject: template.subject,
-      text: template.text,
-      html: template.html,
-    });
+    await sendMail({ to, subject: template.subject, text: template.text, html: template.html });
     logger.info(`[emailService] Confirmação de cancelamento enviada para ${to}`);
   } catch (err) {
     logger.error('[emailService] Falha ao enviar confirmação de cancelamento', err);
@@ -134,50 +137,32 @@ export async function sendPaymentReceiptEmail(
 ) {
   const template = paymentReceiptEmail(params);
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'no-reply@data2content.ai',
-      to,
-      subject: template.subject,
-      text: template.text,
-      html: template.html,
-    });
+    await sendMail({ to, subject: template.subject, text: template.text, html: template.html });
     logger.info(`[emailService] Recibo de pagamento enviado para ${to}`);
   } catch (err) {
     logger.error('[emailService] Falha ao enviar recibo de pagamento', err);
   }
 }
 
-export async function sendVipInviteEmail(
-  to: string,
-  params: { name?: string | null }
-) {
+export async function sendVipInviteEmail(to: string, params: { name?: string | null }) {
   const template = vipInviteEmail(params);
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'no-reply@data2content.ai',
-      to,
-      subject: template.subject,
-      text: template.text,
-      html: template.html,
-    });
+    await sendMail({ to, subject: template.subject, text: template.text, html: template.html });
     logger.info(`[emailService] Email de convite para o Grupo VIP enviado para ${to}`);
   } catch (err) {
     logger.error('[emailService] Falha ao enviar email de convite para o Grupo VIP', err);
   }
 }
 
-export async function sendProposalReplyEmail(
-  to: string,
-  params: ProposalReplyEmailParams
-) {
+export async function sendProposalReplyEmail(to: string, params: ProposalReplyEmailParams) {
   const template = proposalReplyEmail(params);
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'no-reply@data2content.ai',
+    await sendMail({
       to,
       subject: template.subject,
       text: template.text,
       html: template.html,
+      replyTo: to,
     });
     logger.info(`[emailService] Resposta de proposta enviada para ${to}`);
   } catch (err) {
@@ -186,19 +171,10 @@ export async function sendProposalReplyEmail(
   }
 }
 
-export async function sendProposalReceivedEmail(
-  to: string,
-  params: ProposalReceivedEmailParams
-) {
+export async function sendProposalReceivedEmail(to: string, params: ProposalReceivedEmailParams) {
   const template = proposalReceivedEmail(params);
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'no-reply@data2content.ai',
-      to,
-      subject: template.subject,
-      text: template.text,
-      html: template.html,
-    });
+    await sendMail({ to, subject: template.subject, text: template.text, html: template.html });
     logger.info(`[emailService] Notificação de proposta recebida enviada para ${to}`);
   } catch (err) {
     logger.error('[emailService] Falha ao enviar notificação de proposta recebida', err);
@@ -212,13 +188,7 @@ export async function sendCampaignBriefConfirmationEmail(
 ) {
   const template = campaignBriefConfirmation(params);
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'no-reply@data2content.ai',
-      to,
-      subject: template.subject,
-      text: template.text,
-      html: template.html,
-    });
+    await sendMail({ to, subject: template.subject, text: template.text, html: template.html });
     logger.info(`[emailService] Confirmação de briefing enviada para ${to}`);
   } catch (err) {
     logger.error('[emailService] Falha ao enviar confirmação de briefing', err);
@@ -232,13 +202,7 @@ export async function sendProposalUpgradePromptEmail(
 ) {
   const template = proposalUpgradePromptEmail(params);
   try {
-    await transporter.sendMail({
-      from: process.env.EMAIL_FROM || 'no-reply@data2content.ai',
-      to,
-      subject: template.subject,
-      text: template.text,
-      html: template.html,
-    });
+    await sendMail({ to, subject: template.subject, text: template.text, html: template.html });
     logger.info(`[emailService] Upsell de proposta enviado para ${to}`);
   } catch (err) {
     logger.error('[emailService] Falha ao enviar upsell de proposta', err);

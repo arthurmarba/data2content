@@ -1,0 +1,139 @@
+{
+  "data": "2026-06-22",
+  "periodo": {
+    "de": "2026-06-16",
+    "ate": "2026-06-22"
+  },
+  "criador": {
+    "userId": "sample",
+    "nome": "Marina Couto",
+    "handle": "@marinacouto",
+    "profilePictureUrl": "https://i.pravatar.cc/240?img=47",
+    "narrativaCentral": "Uma arquiteta tentando provar que casa boa não é casa cara",
+    "territorios": [
+      "Reforma de baixo custo",
+      "Vida em apê alugado",
+      "Bastidores do canteiro"
+    ],
+    "tom": "direto, com humor seco"
+  },
+  "resumoSemana": "Semana de 3 posts: o território de reforma barata continua sendo o seu centro de gravidade — foi onde a audiência mais salvou. O post de parceria com a loja de tintas destoou da voz e a audiência sentiu.",
+  "avaliacoes": [
+    {
+      "postId": "p1",
+      "postLink": "https://instagram.com/p/p1",
+      "postDate": "2026-06-17",
+      "thumbnailUrl": "https://picsum.photos/seed/arch1/400/500",
+      "oQueEra": "Reforma de baixo custo · apê alugado · tom direto · Reel",
+      "narrativa": "verde",
+      "audiencia": "verde",
+      "marca": "amarelo",
+      "stat": {
+        "valor": "7×",
+        "label": "mais salvo que a parceria"
+      },
+      "funcionou": "Abriu com o orçamento real na tela — a promessa 'casa boa não é cara' virou prova em 5 segundos.",
+      "enfraqueceu": "Faltou um fechamento que convidasse a salvar; ainda assim salvaram muito.",
+      "veredito": "repetir"
+    },
+    {
+      "postId": "p2",
+      "postLink": "https://instagram.com/p/p2",
+      "postDate": "2026-06-19",
+      "thumbnailUrl": "https://picsum.photos/seed/arch2/400/500",
+      "oQueEra": "Parceria loja de tintas · tom institucional · Reel",
+      "narrativa": "vermelho",
+      "audiencia": "vermelho",
+      "marca": "verde",
+      "stat": {
+        "valor": "abaixo",
+        "label": "da sua média"
+      },
+      "funcionou": "A marca apareceu de forma clara — bom para a loja.",
+      "enfraqueceu": "Virou comercial: sumiu o humor seco e o orçamento real. A audiência passou batido.",
+      "veredito": "nao-repetir"
+    },
+    {
+      "postId": "p3",
+      "postLink": "https://instagram.com/p/p3",
+      "postDate": "2026-06-21",
+      "thumbnailUrl": "https://picsum.photos/seed/arch3/400/500",
+      "oQueEra": "Bastidores do canteiro · tom direto · carrossel",
+      "narrativa": "verde",
+      "audiencia": "amarelo",
+      "marca": "amarelo",
+      "stat": {
+        "valor": "+compart.",
+        "label": "que salvamentos"
+      },
+      "funcionou": "Mostrou o erro de obra sem filtro — coerente com 'arquiteta de verdade'.",
+      "enfraqueceu": "Carrossel longo demais; o ponto chegou só no slide 7.",
+      "veredito": "ajustar"
+    }
+  ],
+  "audiencia": {
+    "resumo": "Sua audiência está te pedindo mais reforma barata mostrada com número real, no seu tom direto — é onde ela salva e compartilha.",
+    "itens": [
+      {
+        "dimensao": "Reforma de baixo custo",
+        "sinal": "alto",
+        "nota": "salvamentos concentrados aqui"
+      },
+      {
+        "dimensao": "Bastidores do canteiro",
+        "sinal": "medio",
+        "nota": "compartilham, mas salvam menos"
+      },
+      {
+        "dimensao": "Conteúdo de parceria",
+        "sinal": "baixo",
+        "nota": "engajamento despencou"
+      }
+    ]
+  },
+  "facaMais": [
+    "Reels de reforma abrindo com o orçamento real na tela (foi o seu centro: narrativa + audiência).",
+    "Manter o humor seco — é o que separa você de catálogo de loja."
+  ],
+  "facaMenos": [
+    "Parcerias no formato institucional: agradam a marca e perdem a audiência (zona única).",
+    "Carrosséis longos que demoram a chegar no ponto."
+  ],
+  "plano": [
+    {
+      "titulo": "O banheiro que reformei com R$ 800 e o que eu faria diferente",
+      "porque": "Reforma de baixo custo é o território que a audiência mais pede e onde sua narrativa é mais forte.",
+      "mira": "centro"
+    },
+    {
+      "titulo": "Como eu apresentaria a loja de tintas SEM virar comercial",
+      "porque": "Recupera o fit de marca dentro da voz — corrige o post que destoou.",
+      "mira": "narrativa+marca"
+    },
+    {
+      "titulo": "O erro de obra que ninguém posta (e quase me custou caro)",
+      "porque": "Bastidores geram compartilhamento; com gancho mais curto vira salvamento também.",
+      "mira": "narrativa+audiencia"
+    }
+  ],
+  "comparativo": {
+    "delta": "Você cumpriu o combinado de abrir com orçamento real — e foi exatamente o post da semana. O que pedi pra cortar (formato institucional) voltou no post da loja.",
+    "prometido": [
+      {
+        "item": "Abrir reels com o número real na tela",
+        "cumpriu": "sim",
+        "nota": "rendeu o post mais salvo da semana"
+      },
+      {
+        "item": "Cortar o tom institucional em parcerias",
+        "cumpriu": "nao",
+        "nota": "voltou no post da loja de tintas"
+      },
+      {
+        "item": "Encurtar os carrosséis",
+        "cumpriu": "parcial",
+        "nota": "ainda chegou ao ponto só no slide 7"
+      }
+    ]
+  }
+}

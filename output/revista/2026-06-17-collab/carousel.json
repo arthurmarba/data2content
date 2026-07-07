@@ -1,0 +1,167 @@
+{
+  "data": "2026-06-17",
+  "angulo": "collab",
+  "criadores": [
+    {
+      "userId": "6915f7b673a3eaa80606bb6b",
+      "nome": "Mariana Souza",
+      "handle": "@bymari.as",
+      "narrativaCentral": "Um corredor que encara a realidade da jornada esportiva",
+      "territorios": [
+        "Corrida de rua",
+        "Preparação esportiva",
+        "Bem-estar no esporte",
+        "Equipamentos de corrida",
+        "Saúde mental",
+        "Superação pessoal"
+      ],
+      "assets": [
+        "Tênis de corrida",
+        "Relógio esportivo",
+        "Parques e ruas urbanas",
+        "Roupas esportivas",
+        "Amigos e treinadores",
+        "Pistas de corrida"
+      ]
+    },
+    {
+      "userId": "69b198ba4711f2b19db6d893",
+      "nome": "William Yeh",
+      "handle": "@melhor.correr",
+      "narrativaCentral": "Um corredor que inspira superação e equilíbrio familiar",
+      "territorios": [
+        "Corrida",
+        "Saúde e bem-estar",
+        "Vida familiar",
+        "Equipamentos esportivos",
+        "Motivação e reflexões",
+        "Futebol"
+      ],
+      "assets": [
+        "Tênis de corrida",
+        "Relógio esportivo",
+        "Momentos familiares",
+        "Treinos ao ar livre",
+        "Eventos de corrida",
+        "Vestuário de corrida"
+      ]
+    }
+  ],
+  "titulo": "Duas narrativas, uma largada: Mariana e William na Data2Content",
+  "slides": [
+    {
+      "n": 1,
+      "batida": "gancho",
+      "layout": "cover",
+      "headline": "Seis da manhã. Ela verifica o pace. Ele beija os filhos e sai.",
+      "corpo": "",
+      "imagem": {
+        "fonte": "profile_picture",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-collab/assets/profile_picture-bc6cf34ffe.jpg",
+        "userId": "6915f7b673a3eaa80606bb6b",
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-collab/assets/profile_picture-bc6cf34ffe.jpg"
+      }
+    },
+    {
+      "n": 2,
+      "batida": "quem-e",
+      "layout": "two-column",
+      "headline": "Mariana Souza não é influencer de corrida. É cronista.",
+      "corpo": "Ela posta sobre o <b>pace ruim</b>, a prova que não saiu como planejado, o tênis que prometia voar e só machucou. O feed da @bymari.as é um diário honesto de quem treina de verdade — <b>humor seco</b>, autocrítica sem drama, <b>realismo</b> que viraliza porque ninguém mais tem coragem de postar assim.",
+      "imagem": {
+        "fonte": "profile_picture",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-collab/assets/profile_picture-bc6cf34ffe.jpg",
+        "userId": "6915f7b673a3eaa80606bb6b",
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-collab/assets/profile_picture-bc6cf34ffe.jpg"
+      }
+    },
+    {
+      "n": 3,
+      "batida": "quem-e",
+      "layout": "two-column",
+      "headline": "William Yeh tem 613 mil interações num vídeo de aniversário de casamento.",
+      "corpo": "Sem prova. Sem tempo de prova. O reel mais assistido do <b>@melhor.correr</b> não tem pace, tênis nem treino — é ele, os <b>13 anos de bodas de linho</b>, e a mulher ao lado. Quando ele posta sobre corrida, você sente que ele está correndo de volta pra casa.",
+      "imagem": {
+        "fonte": "profile_picture",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-collab/assets/profile_picture-249943806b.jpg",
+        "userId": "69b198ba4711f2b19db6d893",
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-collab/assets/profile_picture-249943806b.jpg"
+      }
+    },
+    {
+      "n": 4,
+      "batida": "tensao",
+      "layout": "text-only",
+      "headline": "Os dois ocupam o mesmo território.\nMas estão indo pra lugares completamente diferentes.",
+      "corpo": "",
+      "artePrompt": "Pre-dawn urban running track, fog on the pavement, two lanes of light diverging — one side warm amber, one side cool blue. Editorial atmosphere, heavy film grain, no people, abstract impression of two paths splitting. Magazine editorial aesthetic."
+    },
+    {
+      "n": 5,
+      "batida": "twist",
+      "layout": "reasoning",
+      "headline": "A Data2Content mapeou os dois. A leitura não é a mesma.",
+      "corpo": "Mariana → narrativa: <b>um corredor que encara a realidade da jornada</b> → território: <b>corrida de rua</b> → pauta: <i>a prova que não saiu como o plano previa</i>\n\nWilliam → narrativa: <b>um corredor que inspira equilíbrio familiar</b> → território: <b>corrida + vida familiar</b> → pauta: <i>correr para estar presente em casa</i>\n\nO território se cruza. As narrativas não. É exatamente por isso que eles se completam.",
+      "imagem": {
+        "fonte": "none",
+        "url": "",
+        "userId": ""
+      }
+    },
+    {
+      "n": 6,
+      "batida": "prova",
+      "layout": "video-proof",
+      "stat": "121 mil interações",
+      "headline": "<i>Quem fizer me marca que eu quero ver.</i>",
+      "corpo": "<b>A leitura:</b> não é tutorial de corrida — é uma concessão deliberada ao processo. Ela divide o que aprende porque sabe que ninguém tem as respostas. Realismo como cumplicidade. Isso É a narrativa dela.",
+      "imagem": {
+        "fonte": "none",
+        "url": null
+      }
+    },
+    {
+      "n": 7,
+      "batida": "prova",
+      "layout": "video-proof",
+      "stat": "613 mil interações",
+      "headline": "<i>O melhor sempre foi ter você do meu lado.</i>",
+      "corpo": "<b>A leitura:</b> o vídeo mais assistido de um perfil de corrida não tem corrida. Tem família. A D2C leu isso no mapa — a narrativa dele passa pela corrida, mas chega em casa.",
+      "imagem": {
+        "fonte": "none",
+        "url": null
+      }
+    },
+    {
+      "n": 8,
+      "batida": "payoff",
+      "layout": "text-only",
+      "headline": "Correr junto não é sobre ritmo.\nÉ sobre o que você carrega até a chegada.",
+      "corpo": "Um fit narrativo de verdade não nasce de dois criadores que postam a mesma coisa — nasce de dois criadores cujas histórias se completam. O que falta em um, aparece no outro.",
+      "artePrompt": "Two runners at dawn on a city bridge, silhouettes only from behind, one looking down at watch, one looking at the horizon. Editorial grain, warm backlight breaking through fog, sense of shared motion toward different destinations. No faces visible. Magazine editorial style."
+    },
+    {
+      "n": 9,
+      "batida": "convite",
+      "layout": "cta",
+      "headline": "Você corre. Mas sabe por quê?",
+      "corpo": "A Data2Content lê a narrativa por trás do seu conteúdo — e encontra quem complementa a história que você já conta.",
+      "lista": [
+        "<b>Mapa narrativo</b> do seu conteúdo",
+        "Pautas que nascem do que você vive",
+        "<b>Collabs</b> com criadores que fazem sentido pro seu mapa",
+        "Reuniões semanais — você não cria sozinho"
+      ],
+      "imagem": {
+        "fonte": "none",
+        "url": "",
+        "userId": ""
+      }
+    }
+  ],
+  "caption": "Seis da manhã. Ela verifica o pace. Ele beija os filhos e sai.\n\nOs dois são corredores. Os dois estão na Data2Content. Mas a D2C leu os mapas — e as histórias deles não são a mesma.\n\n@bymari.as corre pela realidade. @melhor.correr corre pra estar de volta em casa.\n\nUm fit narrativo de verdade não nasce de dois criadores que postam a mesma coisa. Nasce de dois que se completam.\n\n💬 Comenta MAPA que a gente te mostra como a Data2Content lê o seu.\n\n#corridaderua #criadores #data2content #collab #corridacomproposito",
+  "manychat": {
+    "keyword": "MAPA",
+    "dm": "Oi! Vi o post sobre o @bymari.as e o @melhor.correr e quero ver como a Data2Content lê o meu mapa. Acessa aqui e começa grátis: https://data2content.com.br/?utm_source=instagram&utm_medium=manychat&utm_campaign=revista-collab-20260617"
+  }
+}

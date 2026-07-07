@@ -1,0 +1,115 @@
+{
+  "data": "2026-06-16",
+  "angulo": "perfil",
+  "criadores": [
+    {
+      "userId": "sample",
+      "nome": "Marina Costa",
+      "handle": "@marinacria",
+      "narrativaCentral": "Uma mulher tentando desacelerar num mundo que pede pressa",
+      "territorios": [
+        "Maternidade",
+        "Trabalho remoto",
+        "Saúde mental"
+      ],
+      "assets": [
+        "Mãe de um",
+        "Home office",
+        "Mora no interior"
+      ]
+    }
+  ],
+  "titulo": "Marina e a arte de desacelerar",
+  "slides": [
+    {
+      "n": 1,
+      "batida": "gancho",
+      "layout": "cover",
+      "headline": "Seria <i>Marina</i> a criadora que entendeu algo que ninguém viu?",
+      "imagem": {
+        "fonte": "profile_picture",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/_sample/assets/profile_picture-043a9132ac.jpg",
+        "userId": "sample",
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/_sample/assets/profile_picture-043a9132ac.jpg"
+      }
+    },
+    {
+      "n": 2,
+      "batida": "quem-e",
+      "layout": "two-column",
+      "headline": "Marina Costa cria sobre maternidade — mas não do jeito que você imagina.",
+      "corpo": "Há dois anos, ela trocou São Paulo pelo interior e começou a postar sobre <b>desacelerar</b>.\n\nO que parecia um diário virou uma das vozes mais ouvidas sobre <b>trabalho remoto com filhos</b>.",
+      "imagem": {
+        "fonte": "profile_picture",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/_sample/assets/profile_picture-aa93722bc0.jpg",
+        "userId": "sample",
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/_sample/assets/profile_picture-aa93722bc0.jpg"
+      }
+    },
+    {
+      "n": 3,
+      "batida": "tensao",
+      "layout": "full-bleed-text",
+      "headline": "Mas tem uma coisa que não dá pra explicar só com sorte.",
+      "corpo": "Por que <b>justamente</b> os vídeos dela sobre cansaço viralizam — e os de dica genérica não?",
+      "artePrompt": "sitting quietly by a large window at dawn, holding a cup of coffee, looking outside, the calm pause before a busy day, contemplative and unhurried",
+      "arteRef": "file:///Users/arthurmarba/d2c-frontend/output/revista/_sample/assets/profile_picture-043a9132ac.jpg",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/_sample/assets/art-03.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/_sample/assets/art-03.png"
+      }
+    },
+    {
+      "n": 4,
+      "batida": "twist",
+      "layout": "reasoning",
+      "headline": "A Data2Content leu o mapa dela. E achou o fio condutor.",
+      "corpo": "A narrativa central não é \"maternidade\". É <b>uma mulher tentando desacelerar num mundo que pede pressa</b>.",
+      "cadeia": [
+        "Narrativa: desacelerar",
+        "Território: maternidade real",
+        "Pauta: \"o dia que larguei o celular pra ver meu filho dormir\""
+      ]
+    },
+    {
+      "n": 5,
+      "batida": "prova",
+      "layout": "list",
+      "headline": "Veja nos posts dela:",
+      "lista": [
+        "\"Parei de responder e-mail depois das 18h\" — 12 mil saves",
+        "\"Mudei pro interior e ninguém entendeu\" — 8 mil compartilhamentos",
+        "\"Trabalhar com um filho do lado não é fofo\" — viral"
+      ],
+      "corpo": "Nenhum é dica. Todos são a mesma narrativa, vivida em situações diferentes."
+    },
+    {
+      "n": 6,
+      "batida": "payoff",
+      "layout": "full-bleed-text",
+      "headline": "Não é sobre postar mais. É sobre saber quem você é com o conteúdo.",
+      "corpo": "Marina não acertou por acaso. Ela tem um <b>mapa</b> — e ele explica o que funciona antes de ela gravar.",
+      "artePrompt": "a single winding path through tall grass at golden hour, leading toward the horizon, a sense of direction and clarity, warm cinematic light",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/_sample/assets/art-06.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/_sample/assets/art-06.png"
+      }
+    },
+    {
+      "n": 7,
+      "batida": "convite",
+      "layout": "cta",
+      "headline": "Quer que a Data2Content leia o seu mapa?",
+      "corpo": "A gente lê a sua narrativa, seus territórios, e te mostra as pautas que só você poderia fazer."
+    }
+  ],
+  "caption": "Marina Costa (@marinacria) parecia só mais uma mãe postando rotina. Até a Data2Content ler o mapa dela. 💬 Comenta MAPA que a gente te mostra como lê o seu.",
+  "manychat": {
+    "keyword": "MAPA",
+    "dm": "Oi! Que bom que pediu 👋 Aqui é onde a Data2Content lê o seu mapa de criador: https://data2content.com/signup?utm_source=manychat&utm_campaign=revista"
+  }
+}

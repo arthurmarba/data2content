@@ -16,6 +16,7 @@ import { validateVideoNarrativeRealAnalysisPayload } from "@/app/dashboard/board
 import { runVideoNarrativeRealAnalysisOrchestrator } from "@/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisOrchestrator";
 import { validateVideoNarrativeTemporaryUploadCleanupPayload } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadCleanupTypes";
 import { buildInstagramMetricsSummary } from "@/app/dashboard/boards/videoUpload/instagramMetricsSummaryService";
+import { buildAudienceContextSummary } from "@/app/dashboard/boards/videoUpload/audienceContextSummaryService";
 import { listRecentCreatorVideoNarrativeDiagnosesForUser } from "@/app/dashboard/boards/videoUpload/creatorVideoNarrativeDiagnosisReadService";
 import type { VideoNarrativeInstagramMetricsSummary } from "@/app/dashboard/boards/videoUpload/videoNarrativeAiProviderTypes";
 import {
@@ -347,9 +348,10 @@ export async function POST(request: Request) {
 
     // Fetch Instagram metrics + recent readings in parallel to enrich the Gemini prompt.
     // Both are non-blocking: failures degrade gracefully (null / empty array).
-    const [rawInstagramMetrics, recentReadings] = await Promise.all([
+    const [rawInstagramMetrics, recentReadings, audienceContext] = await Promise.all([
       buildInstagramMetricsSummary(session.user.id).catch(() => null),
       listRecentCreatorVideoNarrativeDiagnosesForUser({ userId: session.user.id, limit: 4 }).catch(() => []),
+      buildAudienceContextSummary(session.user.id).catch(() => null),
     ]);
 
     // Map the rich InstagramMetricsSummary to the provider-facing type, including
@@ -469,6 +471,7 @@ export async function POST(request: Request) {
         confirmedLifeAssets: confirmedLifeAssets.length > 0 ? confirmedLifeAssets : null,
         topPerformingPattern: topPerformingPattern || null,
         pastCreatorAnswers: pastCreatorAnswers.length > 0 ? pastCreatorAnswers : null,
+        audienceContext,
         evaluateAllowlist: () => ({ ok: true, reason: "narrative_map_entitlement" }),
         assertCanRunRealAnalysis: localRealAnalysisEnabled
           ? async () => ({
@@ -679,6 +682,8 @@ export async function POST(request: Request) {
             directAnswer: result.confirmation?.directAnswer ?? null,
             coherenceVerdict: result.confirmation?.coherenceVerdict ?? null,
             coherenceReasoning: result.confirmation?.coherenceReasoning ?? null,
+            audienceCoherence: result.confirmation?.audienceCoherence ?? null,
+            brandCoherence: result.confirmation?.brandCoherence ?? null,
           }
         : null;
 

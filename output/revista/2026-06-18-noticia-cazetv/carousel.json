@@ -1,0 +1,112 @@
+{
+  "data": "2026-06-18",
+  "angulo": "noticias",
+  "criadores": [],
+  "titulo": "O SINAL — CazéTV: a audiência se apega à mesa",
+  "fonte": "Fonte: CazéTV / Goal · jun/2026",
+  "slides": [
+    {
+      "n": 1,
+      "batida": "gancho",
+      "layout": "cover",
+      "kicker": "O CASO · CAZÉTV",
+      "coverHeadline": "bottom",
+      "coverTone": "light",
+      "coverScrim": "band",
+      "headline": "O segredo da CazéTV não é o jogo. É a <i>mesa</i>.",
+      "corpo": "",
+      "imagem": {
+        "fonte": "none",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-noticia-cazetv/assets/cover-casimiro.jpg",
+        "credito": "Foto: CazéTV"
+      }
+    },
+    {
+      "n": 2,
+      "batida": "quem-e",
+      "layout": "photo-top",
+      "kicker": "O CONTEXTO",
+      "headline": "Eles não desligam quando o apito final toca.",
+      "corpo": "Enquanto a TV tradicional corta pra propaganda, a CazéTV emenda pré-jogo, pós-jogo e o <b>Roda de Bobo</b> — um quadro de brincadeiras entre os próprios comentaristas.\n\nA transmissão deixa de ser o jogo e vira um <b>encontro</b>.",
+      "imagem": {
+        "fonte": "none",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-noticia-cazetv/_scout/02-casimiro-copa.jpg",
+        "credito": "Foto: Goal"
+      }
+    },
+    {
+      "n": 3,
+      "batida": "quem-e",
+      "layout": "two-column",
+      "kicker": "O CONTEXTO",
+      "headline": "E o público fica.",
+      "corpo": "O pós-jogo passa de <b>meio milhão</b> de visualizações. Em vez de trocar de canal quando o jogo acaba, a audiência espera a resenha começar.\n\nO fim da partida virou o começo do conteúdo.",
+      "imagem": {
+        "fonte": "none",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-noticia-cazetv/_scout/06-goal-b.jpeg",
+        "credito": "Foto: Goal"
+      }
+    },
+    {
+      "n": 4,
+      "batida": "twist",
+      "layout": "full-bleed-text",
+      "kicker": "A LEITURA · DATA2CONTENT",
+      "headline": "A audiência não se apega a um craque. Se apega à <i>relação</i> entre eles.",
+      "corpo": "A internet se acostumou com o criador que fala sozinho.\n\nMas os fenômenos mais fortes de hoje nascem de <b>grupos</b> — e do que existe entre as pessoas neles.",
+      "imagem": {
+        "fonte": "none",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-noticia-cazetv/_scout/03-narrador-lff.jpg",
+        "credito": "Foto: Goal"
+      }
+    },
+    {
+      "n": 5,
+      "batida": "twist",
+      "layout": "text-only",
+      "kicker": "A LEITURA · DATA2CONTENT",
+      "headline": "A graça não está na fala isolada.",
+      "corpo": "Está em como um provoca, como o outro rebate, como a piada volta três minutos depois.\n\nA audiência acompanha pessoas — mas se apega ao que existe <b>entre</b> elas."
+    },
+    {
+      "n": 6,
+      "batida": "porque",
+      "layout": "two-column",
+      "kicker": "POR QUE IMPORTA",
+      "headline": "Pra você, a lição não é \"monte uma mesa de TV\".",
+      "corpo": "É que a sua narrativa pode incluir <b>outras pessoas</b>.\n\nCollab não é truque de alcance — é <b>território compartilhado</b>. A relação real que a câmera capta é o que a audiência volta pra ver.",
+      "imagem": {
+        "fonte": "none",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-noticia-cazetv/_scout/01-equipe-jogo.jpg",
+        "credito": "Foto: Goal"
+      }
+    },
+    {
+      "n": 7,
+      "batida": "payoff",
+      "layout": "text-only",
+      "kicker": "O QUE FAZER",
+      "headline": "Procure a sua <i>mesa</i>.",
+      "corpo": "Não precisa de estúdio nem de Copa do Mundo. Precisa de uma relação verdadeira — um amigo, um parceiro de cena — que combine com a sua narrativa.\n\nO resto, a recorrência faz."
+    },
+    {
+      "n": 8,
+      "batida": "convite",
+      "layout": "cta",
+      "kicker": "PARTICIPE",
+      "headline": "A CazéTV transformou relação em audiência. Com quem a <i>sua</i> narrativa combina?",
+      "corpo": "A Data2Content lê o seu mapa e encontra criadores com território em comum — collabs que fazem sentido pra quem você é, não pra perseguir número.",
+      "lista": [
+        "<b>Seu mapa</b>: a narrativa que te define",
+        "<b>Collabs</b> por território compartilhado, não por alcance",
+        "<b>Pautas</b> que nascem da sua vida real",
+        "<b>Reuniões semanais</b> — você não cria sozinho"
+      ]
+    }
+  ],
+  "caption": "O segredo da CazéTV não é o jogo. É a mesa.\n\nEnquanto a TV corta pra propaganda, a CazéTV emenda pós-jogo, Roda de Bobo e a resenha entre os comentaristas — e o público fica. Aqui está o sinal: a audiência não se apega a um craque, se apega à RELAÇÃO entre eles. Como um provoca o outro, como a piada volta depois. A internet se acostumou com o criador solo, mas os fenômenos de hoje nascem de grupos.\n\nPra você, a lição não é montar uma mesa de TV. É que collab não é truque de alcance — é território compartilhado. Procure a sua mesa.\n\n💬 Comenta MAPA que a gente te mostra com quem a sua narrativa combina.\n\n#creatoreconomy #cazetv #collab #data2content",
+  "manychat": {
+    "keyword": "MAPA",
+    "dm": "Oi! Vi que você comentou MAPA 💜 A Data2Content lê o seu mapa e encontra criadores com território narrativo em comum — collabs que fazem sentido pra quem você é. Monta o seu aqui: https://data2content.ai/signup?utm_source=instagram&utm_medium=carousel&utm_campaign=osinal_cazetv"
+  }
+}

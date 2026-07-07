@@ -48,7 +48,38 @@ export interface NarrativeCollabMatch {
   sharedSignal: string | null;
   /** Territórios DELE que o viewer não tem — o ângulo novo que a collab traz. */
   distinctSignals: string[];
+  /**
+   * Como gravar dada a distância: "presencial" só quando os dois moram na MESMA
+   * cidade; "remoto" quando moram longe OU a localização é desconhecida (nunca
+   * assume que dá pra se encontrar). null = não computado (fluxo single-shot).
+   */
+  collabMode?: CollabMode | null;
   narrativeMatch: true;
+}
+
+export type CollabMode = "presencial" | "remoto";
+
+export interface CreatorLocation {
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+}
+
+function normalizeCity(s?: string | null): string {
+  return (s ?? "").normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase().trim();
+}
+
+/**
+ * Presencial só quando há certeza de mesma cidade. Cidades diferentes OU
+ * desconhecidas → "remoto": um formato remoto nunca é impossível (funciona
+ * mesmo se por acaso estiverem perto), enquanto sugerir presencial pra quem
+ * mora longe é inútil. Honestidade sobre a distância > otimismo.
+ */
+export function computeCollabMode(a?: CreatorLocation | null, b?: CreatorLocation | null): CollabMode {
+  const ca = normalizeCity(a?.city);
+  const cb = normalizeCity(b?.city);
+  if (ca && cb && ca === cb) return "presencial";
+  return "remoto";
 }
 
 export interface NarrativeCollabMatchingResult {
@@ -141,6 +172,8 @@ export interface EligibleCandidate {
     email?: string | null;
     image?: string | null;
     mediaKitSlug?: string | null;
+    /** Cidade/estado do criador — usado pra saber se dá pra gravar presencial. */
+    location?: CreatorLocation | null;
   };
   reading: {
     userId: Types.ObjectId;
@@ -195,7 +228,7 @@ export async function buildNarrativeCandidatePool(
     );
 
     const users = await UserModel.find({ _id: { $in: candidateIds } })
-      .select("_id name email image mediaKitSlug")
+      .select("_id name email image mediaKitSlug location")
       .lean<Array<EligibleCandidate["user"]>>();
     const userMap = new Map(users.map((u) => [u._id.toString(), u]));
 
@@ -259,6 +292,19 @@ export async function buildNarrativeCandidatePool(
   }
 }
 
+/** Localização do viewer — pra saber, no matcher, quem mora perto de quem. */
+export async function fetchCreatorLocation(userId: string): Promise<CreatorLocation | null> {
+  if (!userId || !Types.ObjectId.isValid(userId)) return null;
+  try {
+    await connectToDatabase();
+    const { default: UserModel } = await import("@/app/models/User");
+    const doc = await UserModel.findById(userId).select("location").lean<{ location?: CreatorLocation } | null>();
+    return doc?.location ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Monta um NarrativeCollabMatch a partir de um candidato elegível. O fit reason é
  * INJETADO (o chamador decide se vem do Gemini ou de um fallback barato), para que
@@ -270,6 +316,7 @@ export function buildMatchFromCandidate(
   candidateTerritoriesById: Map<string, string[]>,
   narrativeFitReason: string,
   collabRecordingIdea?: string | null,
+  collabMode?: CollabMode | null,
 ): NarrativeCollabMatch {
   const { user, reading } = eligible;
   const candidateNarrative = reading.videoReading.mainNarrative?.trim() ?? "";
@@ -288,6 +335,7 @@ export function buildMatchFromCandidate(
     collabRecordingIdea: collabRecordingIdea ?? null,
     sharedSignal: findSharedLabel(viewerTerritoryLabels, candidateNarrative),
     distinctSignals: findDistinctLabels(viewerTerritoryLabels, herTerritories, 3),
+    collabMode: collabMode ?? null,
     narrativeMatch: true,
   };
 }
@@ -359,6 +407,8 @@ export interface CollabCandidateForLLM {
   name: string;
   narrative: string;
   territories: string[];
+  /** Cidade do candidato — pro "como gravar" respeitar a distância. */
+  city?: string | null;
 }
 
 export interface CollabAssignment {
@@ -382,13 +432,17 @@ export async function assignCollabsByTerritory(params: {
   viewerNarrative: string;
   territories: string[];
   candidates: CollabCandidateForLLM[];
+  /** Cidade do viewer — comparada com a do candidato pro "como gravar". */
+  viewerCity?: string | null;
 }): Promise<Map<string, CollabAssignment>> {
   const out = new Map<string, CollabAssignment>();
-  const { viewerNarrative, territories, candidates } = params;
+  const { viewerNarrative, territories, candidates, viewerCity } = params;
   if (territories.length === 0 || candidates.length === 0) return out;
 
   const apiKey = readApiKey();
   if (!apiKey) return out;
+
+  const viewerCityLabel = viewerCity?.trim() || "desconhecida";
 
   const prompt = `\
 Você é o estrategista de collabs da Data2Content.
@@ -397,13 +451,19 @@ Se NENHUM criador tem ligação real com o território, devolva candidateId null
 Evite repetir o mesmo criador em territórios diferentes, a menos que ele seja claramente o único que faz sentido.
 Tom calmo e específico. Nunca use: "engajamento", "alcance", "algoritmo", "seguidores", "performance", "audiência".
 
-Criador base (perfil do viewer): "${viewerNarrative}"
+fitReason — NÃO seja genérico. Nomeie DUAS coisas: (1) o que os dois JÁ tocam nesse território (o chão comum) e (2) o ângulo que SÓ o outro criador traz e o viewer não tem. A collab vale porque SOMA os dois lados. Ex.: "Vocês dois falam de paternidade; ela traz a camada de finanças da casa que você não cobre."
+
+recordingIdea — SEJA HONESTO SOBRE A DISTÂNCIA. Compare as cidades:
+  • MESMA cidade → podem gravar PRESENCIAL (no mesmo espaço, um dia juntos).
+  • Cidades DIFERENTES ou desconhecida → o conteúdo é REMOTO. Sugira um formato que funcione à distância, escolhendo o que melhor cabe na pauta: revezamento/dueto (cada um filma sua parte, edição junta), chamada de vídeo / split-screen, resposta-reação (um reage ao clipe do outro), ou estafeta (um começa a ideia, o outro completa no vídeo dele). NUNCA sugira se encontrar pessoalmente quando moram longe.
+
+Criador base (viewer) — narrativa: "${viewerNarrative}" — cidade: ${viewerCityLabel}
 
 Territórios de pauta:
 ${territories.map((t, i) => `${i + 1}. ${t}`).join("\n")}
 
 Criadores disponíveis:
-${candidates.map((c) => `[${c.id}] ${c.name} — narrativa: "${c.narrative}" — territórios: ${c.territories.join(", ")}`).join("\n")}
+${candidates.map((c) => `[${c.id}] ${c.name} — narrativa: "${c.narrative}" — territórios: ${c.territories.join(", ")} — cidade: ${c.city?.trim() || "desconhecida"}`).join("\n")}
 
 Responda APENAS com JSON, sem cercas de código:
 {
@@ -411,8 +471,8 @@ Responda APENAS com JSON, sem cercas de código:
     {
       "territory": "<texto EXATO do território da lista>",
       "candidateId": "<id entre colchetes, ou null>",
-      "fitReason": "<1 frase ≤110 chars: por que combinam como collab nesse território>",
-      "recordingIdea": "<1 frase ≤130 chars: como gravariam esse conteúdo juntos, concreto>"
+      "fitReason": "<≤170 chars: o chão comum + o ângulo que SÓ o outro traz>",
+      "recordingIdea": "<≤150 chars: como gravam juntos, RESPEITANDO a distância entre as cidades>"
     }
   ]
 }`;

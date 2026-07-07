@@ -2,6 +2,7 @@ import type {
   VideoNarrativeAiProviderInput,
   VideoNarrativeAiProviderResult,
   VideoNarrativeCoherence,
+  VideoNarrativeAxisCoherence,
 } from "./videoNarrativeAiProviderTypes";
 import type { VideoNarrativeReadingPersistenceSummary, VideoNarrativeSynthesisSnapshotWriteSummary } from "./videoNarrativeSafeResponseBuilder";
 import type { VideoNarrativeGeminiAllowlistUser } from "./videoNarrativeGeminiAllowlist";
@@ -74,6 +75,10 @@ export type VideoNarrativeRealAnalysisOrchestratorResult =
         directAnswer?: string | null;
         coherenceVerdict?: VideoNarrativeCoherence["verdict"] | null;
         coherenceReasoning?: string | null;
+        /** Eixo audiência do veredito "vale postar?". */
+        audienceCoherence?: VideoNarrativeAxisCoherence | null;
+        /** Eixo marca do veredito "vale postar?". */
+        brandCoherence?: VideoNarrativeAxisCoherence | null;
       };
       cleanupWarning?: string;
     }
@@ -105,6 +110,8 @@ export type VideoNarrativeRealAnalysisOrchestratorDeps = {
   topPerformingPattern?: string | null;
   /** Creator's answers to adaptive quiz questions from recent confirmation steps. */
   pastCreatorAnswers?: Array<{ questionText: string; answerValue: string }> | null;
+  /** Real audience composition (demographics), used to anchor the audiência axis of the verdict. */
+  audienceContext?: import("./videoNarrativeAiProviderTypes").VideoNarrativeAudienceContextSummary | null;
   geminiConfig?: VideoNarrativeGeminiProviderConfig;
   geminiClient?: VideoNarrativeGeminiClientAdapter | null;
   runProvider?: (params: {
@@ -443,6 +450,7 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
         confirmedLifeAssets: deps.confirmedLifeAssets ?? null,
         topPerformingPattern: deps.topPerformingPattern ?? null,
         pastCreatorAnswers: deps.pastCreatorAnswers ?? null,
+        audienceContext: deps.audienceContext ?? null,
       },
       instagramMetrics: deps.instagramMetrics ?? undefined,
       promptVersion: configResult.config.promptVersion,
@@ -676,6 +684,8 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
       directAnswer: providerResult.analysis.directAnswer ?? null,
       coherenceVerdict: coherence?.verdict ?? null,
       coherenceReasoning: coherence?.reasoning ?? null,
+      audienceCoherence: providerResult.analysis.audienceCoherence ?? null,
+      brandCoherence: providerResult.analysis.brandCoherence ?? null,
     },
     cleanupWarning,
   };

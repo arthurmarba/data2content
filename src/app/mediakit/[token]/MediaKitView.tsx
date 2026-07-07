@@ -228,6 +228,7 @@ interface ProposalFormState {
   campaignTitle: string;
   campaignDescription: string;
   deliverables: string;
+  referenceLinks: string;
   budgetIntent: 'provided' | 'requested';
   budget: string;
   currency: string;
@@ -261,6 +262,7 @@ const PublicProposalForm = ({
     campaignTitle: '',
     campaignDescription: '',
     deliverables: '',
+    referenceLinks: '',
     budgetIntent: 'provided',
     budget: '',
     currency: 'BRL',
@@ -337,6 +339,7 @@ const PublicProposalForm = ({
       campaignTitle: '',
       campaignDescription: '',
       deliverables: '',
+      referenceLinks: '',
       budgetIntent: 'provided',
       budget: '',
       currency: 'BRL',
@@ -368,6 +371,11 @@ const PublicProposalForm = ({
     if (form.campaignDescription.trim()) payload.campaignDescription = form.campaignDescription.trim();
     if (deliverables.length) payload.deliverables = deliverables;
     if (form.budgetIntent === 'provided' && form.budget.trim()) payload.budget = form.budget.trim();
+    const referenceLinks = form.referenceLinks
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    if (referenceLinks.length) payload.referenceLinks = referenceLinks;
     if (form.currency.trim()) payload.currency = form.currency.trim().toUpperCase();
 
     const utmPayload = utmSnapshot;
@@ -703,6 +711,20 @@ const PublicProposalForm = ({
               rows={3}
               className={formInputClass}
             />
+          </div>
+          <div>
+            <label htmlFor={`${formId}-reference-links`} className={formLabelClass}>
+              Links de referência (opcional)
+            </label>
+            <textarea
+              id={`${formId}-reference-links`}
+              value={form.referenceLinks}
+              onChange={handleChange('referenceLinks')}
+              placeholder="Cole até 3 links, um por linha"
+              rows={2}
+              className={formInputClass}
+            />
+            <p className={formHelperTextClass}>Exemplos de conteúdo, tom ou estilo da marca.</p>
           </div>
         </div>
       </section>
@@ -2417,14 +2439,15 @@ const resolvedGlassCardBaseClass = isBoardEmbedded
     return parsedSlugFromPublicUrl;
   }, [mediaKitSlug, parsedSlugFromPublicUrl, runtimeMediaKitSlug, user]);
   const resolvedShareUrl = useMemo(() => {
-    if (!showOwnerCtas) {
-      return publicUrlForCopy || (typeof window !== 'undefined' ? window.location.href : '');
+    if (publicUrlForCopy) return publicUrlForCopy;
+    if (resolvedMediaKitSlug) {
+      const origin = resolveAppOrigin();
+      if (origin) {
+        return `${origin}/mediakit/${resolvedMediaKitSlug}`;
+      }
     }
-    if (!resolvedMediaKitSlug) return '';
-    const origin = resolveAppOrigin();
-    if (!origin) return '';
-    return `${origin}/mediakit/${resolvedMediaKitSlug}`;
-  }, [publicUrlForCopy, resolvedMediaKitSlug, showOwnerCtas]);
+    return typeof window !== 'undefined' ? window.location.href : '';
+  }, [publicUrlForCopy, resolvedMediaKitSlug]);
   const shareDisabledForOwner = Boolean(showOwnerCtas && isResolvingOwnerSlug);
   const heroDescriptor = useMemo(() => {
     const candidates = [

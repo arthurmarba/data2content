@@ -48,6 +48,35 @@ describe("videoNarrativeGeminiPromptBuilder", () => {
     expect(prompt.userInstruction).toContain("território de conteúdo");
   });
 
+  it("ancora o eixo audiência na demografia real quando presente", () => {
+    const prompt = buildVideoNarrativeGeminiPrompt(
+      input({
+        profileContext: {
+          displayName: "Creator Teste",
+          instagramConnected: true,
+          audienceContext: {
+            topGender: "mulheres",
+            topGenderPct: 62,
+            topAgeRange: "25-34",
+            topAgeRangePct: 41,
+            topLocations: ["São Paulo", "Rio de Janeiro"],
+          },
+        },
+      }),
+    );
+    expect(prompt.userInstruction).toContain("Audiência real do perfil");
+    expect(prompt.userInstruction).toContain("mulheres (62%)");
+    expect(prompt.userInstruction).toContain("25-34 (41%)");
+    expect(prompt.userInstruction).toContain("São Paulo, Rio de Janeiro");
+    expect(prompt.userInstruction).toContain("âncora do eixo audienceCoherence");
+  });
+
+  it("orienta audienceCoherence=unknown quando não há demografia", () => {
+    const prompt = buildVideoNarrativeGeminiPrompt(input());
+    expect(prompt.userInstruction).toContain("Sem dados demográficos de audiência");
+    expect(prompt.userInstruction).toContain("verdict=unknown");
+  });
+
   it("pede directAnswer ancorado no objetivo do creator", () => {
     const prompt = buildVideoNarrativeGeminiPrompt(input());
     expect(prompt.responseSchemaInstruction).toContain("directAnswer");

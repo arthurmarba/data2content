@@ -11,13 +11,14 @@ import type {
 
 const STEPS = [
   "upload",
-  "creator_goal",
   "processing",
   "confirmation",
 ] as const;
 
 // Steps visíveis ao criador no contador — processing é automático, não conta.
-const VISIBLE_STEPS = ["upload", "creator_goal", "confirmation"] as const;
+// A pergunta-lente deixou de ser um passo: o modal tem função única ("vale postar?"),
+// então o contexto do criador virou um campo opcional dentro do próprio upload.
+const VISIBLE_STEPS = ["upload", "confirmation"] as const;
 
 type AnalyzeFlowStep = (typeof STEPS)[number];
 
@@ -45,15 +46,27 @@ export type NarrativeCoherenceVerdict =
   | "first_reading"
   | "unknown";
 
+/** Verdict for the non-narrative axes (audiência, marca) of the "vale postar?" screen. */
+export type AxisVerdict = "aligned" | "tension" | "off" | "unknown";
+
+export type AxisCoherence = {
+  verdict: AxisVerdict;
+  reading: string | null;
+};
+
 export type MobileStrategicProfileAnalyzeConfirmationData = {
   diagnosisSummary?: string | null;
   unlockedSignals?: string[];
   opportunities?: string[];
   /** Direct, observational answer to the creator's question for this upload. */
   directAnswer?: string | null;
-  /** Coherence verdict of this video against the creator's established pattern. */
+  /** Coherence verdict of this video against the creator's established pattern (eixo narrativa). */
   coherenceVerdict?: NarrativeCoherenceVerdict | null;
   coherenceReasoning?: string | null;
+  /** Does this video speak to who watches the creator? (eixo audiência) */
+  audienceCoherence?: AxisCoherence | null;
+  /** Does this video open/sustain a coherent commercial territory? (eixo marca) */
+  brandCoherence?: AxisCoherence | null;
 };
 
 export type MobileStrategicProfileAnalyzeResult = {
@@ -259,6 +272,66 @@ const COHERENCE_VERDICT_DOT: Record<NarrativeCoherenceVerdict, string> = {
   unknown: "bg-zinc-300",
 };
 
+// ─── Veredito de 3 eixos ("vale postar?") ────────────────────────────────────
+// Eixos não-narrativos (audiência, marca). "off" é observação calma — um sinal, não
+// reprovação — por isso rose-400 (suave), nunca vermelho de erro.
+const AXIS_DOT: Record<AxisVerdict, string> = {
+  aligned: "bg-emerald-500",
+  tension: "bg-amber-500",
+  off: "bg-rose-400",
+  unknown: "bg-zinc-300",
+};
+
+// Leitura de fallback quando a IA não devolve uma frase para o eixo.
+const AXIS_VERDICT_FALLBACK: Record<AxisVerdict, string> = {
+  aligned: "Conversa com este eixo.",
+  tension: "Conversa em parte, com uma ressalva.",
+  off: "Ainda não conversa com este eixo.",
+  unknown: "Sem base suficiente para avaliar ainda.",
+};
+
+// Mapeia o veredito narrativo (enum próprio, mais rico) para a cor de marcador do
+// eixo narrativa, reaproveitando as cores do padrão de coerência já existente.
+const NARRATIVE_AXIS_DOT: Record<NarrativeCoherenceVerdict, string> = COHERENCE_VERDICT_DOT;
+
+type VerdictAxis = { key: string; label: string; dot: string; reading: string };
+
+// Monta as 3 linhas do veredito a partir do confirmationData. Sempre retorna as 3
+// (audiência/marca degradam para "unknown" quando a IA não avaliou), para o criador
+// ler as três lentes que pesam antes de postar: narrativa, audiência e marca.
+function buildVerdictAxes(data: MobileStrategicProfileAnalyzeConfirmationData | null): VerdictAxis[] {
+  const axes: VerdictAxis[] = [];
+
+  const nv = data?.coherenceVerdict ?? null;
+  const narrativeReading =
+    (data?.coherenceReasoning?.trim() || (nv ? COHERENCE_VERDICT_LABEL[nv] : null)) ??
+    "Sem base suficiente para avaliar ainda.";
+  axes.push({
+    key: "narrativa",
+    label: "Narrativa",
+    dot: nv ? NARRATIVE_AXIS_DOT[nv] : "bg-zinc-300",
+    reading: narrativeReading,
+  });
+
+  const audience = data?.audienceCoherence ?? null;
+  axes.push({
+    key: "audiencia",
+    label: "Audiência",
+    dot: AXIS_DOT[audience?.verdict ?? "unknown"],
+    reading: audience?.reading?.trim() || AXIS_VERDICT_FALLBACK[audience?.verdict ?? "unknown"],
+  });
+
+  const brand = data?.brandCoherence ?? null;
+  axes.push({
+    key: "marca",
+    label: "Marca",
+    dot: AXIS_DOT[brand?.verdict ?? "unknown"],
+    reading: brand?.reading?.trim() || AXIS_VERDICT_FALLBACK[brand?.verdict ?? "unknown"],
+  });
+
+  return axes;
+}
+
 export function MobileStrategicProfileAnalyzeFlow({
   open,
   onClose,
@@ -268,7 +341,6 @@ export function MobileStrategicProfileAnalyzeFlow({
   onUploadToTemporarySignedUrl,
   enableRealAnalysis = false,
   onCleanupTemporaryUpload,
-  onSubmitConfirmationAnswer,
   onPublishIntentSubmit,
   completionSecondaryAction = "another_video",
   onCompletionUpgrade,
@@ -276,10 +348,11 @@ export function MobileStrategicProfileAnalyzeFlow({
 }: MobileStrategicProfileAnalyzeFlowProps) {
   const [step, setStep] = useState<AnalyzeFlowStep>("upload");
   const [publishIntent, setPublishIntent] = useState<"yes" | "no" | null>(null);
-  const [selectedOption, setSelectedOption] = useState<"authority" | "authority_build" | "retention" | "format_test" | "sponsored_content">("authority");
+  // Lente fixa do modal: "checar coerência com o meu mapa" (retention). O criador não
+  // escolhe mais a lente — a pergunta é sempre "vale postar?". O campo opcional de
+  // contexto refina a pergunta específica, sem trocar a lente.
+  const [selectedOption, setSelectedOption] = useState<"authority" | "authority_build" | "retention" | "format_test" | "sponsored_content">("retention");
   const [creatorGoal, setCreatorGoal] = useState("");
-  const [confirmationQuestion, setConfirmationQuestion] = useState<MobileStrategicProfileAnalyzeContextQuestion | null>(null);
-  const [confirmationAnswer, setConfirmationAnswer] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   // When the backend marks a failure as non-retryable (provider access/config),
@@ -335,9 +408,7 @@ export function MobileStrategicProfileAnalyzeFlow({
       setTemporaryUploadForCleanup(null);
       setTemporaryUploadForAnalysis(null);
       setCreatorGoal("");
-      setSelectedOption("authority");
-      setConfirmationQuestion(null);
-      setConfirmationAnswer(null);
+      setSelectedOption("retention");
       setProcessingStage(0);
       setConfirmationData(null);
     }
@@ -393,9 +464,6 @@ export function MobileStrategicProfileAnalyzeFlow({
             }
             if (result?.confirmationData) {
               setConfirmationData(result.confirmationData);
-            }
-            if (result?.contextQuestions?.[0]) {
-              setConfirmationQuestion(result.contextQuestions[0]);
             }
             setIsSubmitting(false);
             setStep("confirmation");
@@ -471,7 +539,7 @@ export function MobileStrategicProfileAnalyzeFlow({
           }
           setValidationStatus("validated");
           setUploadSessionValidated(true);
-          setStep("creator_goal");
+          setStep("processing");
         } else if (res.ok && res.status === "signed_upload_session_created") {
           const session = res.uploadSession;
           if (!session?.uploadUrl || session.method !== "PUT" || !session.headers || !session.expiresAt) {
@@ -513,7 +581,7 @@ export function MobileStrategicProfileAnalyzeFlow({
           });
           setValidationStatus("uploaded");
           setUploadSessionValidated(true);
-          setStep("creator_goal");
+          setStep("processing");
         } else {
           setValidationStatus("error");
           setFileValidationError(getUploadSessionErrorMessage(res));
@@ -543,9 +611,7 @@ export function MobileStrategicProfileAnalyzeFlow({
     setTemporaryUploadForCleanup(null);
     setTemporaryUploadForAnalysis(null);
     setCreatorGoal("");
-    setSelectedOption("authority");
-    setConfirmationQuestion(null);
-    setConfirmationAnswer(null);
+    setSelectedOption("retention");
     setThumbnailDataUrl(null);
     setSavedDiagnosisId(null);
     setConfirmationData(null);
@@ -590,9 +656,7 @@ export function MobileStrategicProfileAnalyzeFlow({
     setTemporaryUploadForCleanup(null);
     setTemporaryUploadForAnalysis(null);
     setCreatorGoal("");
-    setSelectedOption("authority");
-    setConfirmationQuestion(null);
-    setConfirmationAnswer(null);
+    setSelectedOption("retention");
     setSavedDiagnosisId(null);
     setConfirmationData(null);
     setPublishIntent(null);
@@ -627,12 +691,10 @@ export function MobileStrategicProfileAnalyzeFlow({
           )}
           <h2 id="mobile-strategic-profile-analyze-flow-title" className="mt-1 text-xl font-semibold text-zinc-950">
             {step === "upload"
-              ? "Traga seu vídeo"
-              : step === "creator_goal"
-                ? "O que você quer ler neste vídeo?"
-                : step === "processing"
-                  ? "Lendo seu vídeo"
-                  : "Sua leitura está pronta"}
+              ? "Traga o vídeo que está na dúvida"
+              : step === "processing"
+                ? "Lendo seu vídeo"
+                : "Vale postar?"}
           </h2>
         </div>
         <button
@@ -650,10 +712,12 @@ export function MobileStrategicProfileAnalyzeFlow({
         </button>
         </div>
 
-        <div className="mt-4 grid grid-cols-3 gap-1" aria-hidden="true">
+        <div className="mt-4 grid grid-cols-2 gap-1" aria-hidden="true">
           {VISIBLE_STEPS.map((item, index) => {
             const vIdx = visibleStepIndex(step);
-            const filled = step === "processing" ? index <= 1 : index <= vIdx;
+            // Durante o processing (entre os dois passos visíveis), mantém só o
+            // primeiro preenchido; na confirmação, ambos.
+            const filled = step === "processing" ? index === 0 : index <= vIdx;
             return (
               <span key={item} className={filled ? "h-1.5 rounded-full bg-zinc-950" : "h-1.5 rounded-full bg-zinc-200"} />
             );
@@ -758,6 +822,25 @@ export function MobileStrategicProfileAnalyzeFlow({
                 </div>
               ) : null}
 
+              {/* Contexto opcional — substitui o antigo passo de "lente". Uma linha, sem
+                  pressão; refina a pergunta que a leitura responde, sem trocar a função
+                  única do modal ("vale postar?"). */}
+              {selectedFile ? (
+                <div className="mt-4">
+                  <label htmlFor="video-context-input" className="text-xs text-zinc-400">
+                    Quer me contar algo sobre esse vídeo? (opcional)
+                  </label>
+                  <input
+                    id="video-context-input"
+                    type="text"
+                    value={creatorGoal}
+                    onChange={(event) => setCreatorGoal(event.target.value)}
+                    placeholder="Ex: gravei no impulso e fiquei na dúvida se posto."
+                    className="mt-1.5 w-full rounded-2xl border border-zinc-200 bg-white px-3 py-2.5 text-sm text-zinc-950 outline-none transition focus:border-zinc-950"
+                  />
+                </div>
+              ) : null}
+
               {validationStatus === "validating" ? (
                 <p className="mt-3 text-xs font-medium text-sky-600">
                   Acolhendo seu vídeo...
@@ -797,48 +880,10 @@ export function MobileStrategicProfileAnalyzeFlow({
             <div className="rounded-[1.5rem] border border-dashed border-zinc-300 bg-[#f7f7f4] p-4">
               <p className="text-sm font-semibold text-zinc-950">Vídeo acolhido e pronto</p>
               <p className="mt-2 text-sm leading-6 text-zinc-600">
-                Prossiga para definir sua pergunta e ver o que muda no seu mapa.
+                Prossiga para a leitura e descubra se vale postar.
               </p>
             </div>
           )
-        ) : null}
-
-        {step === "creator_goal" ? (
-          <div>
-            {uploadSessionValidated ? (
-              <p className="mb-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700">
-                Vídeo acolhido e pronto
-              </p>
-            ) : null}
-            {/* Botões primeiro — escolha concreta, sem pressão de campo em branco */}
-            <div className="flex flex-col gap-2">
-              {goalOptions.map((opt) => {
-                const isSelected = selectedOption === opt.value;
-                return (
-                  <button
-                    key={`${opt.value}-${opt.label}`}
-                    type="button"
-                    className={`rounded-2xl border px-4 py-3 text-left text-sm font-semibold transition-all duration-200 ${
-                      isSelected
-                        ? "border-zinc-950 bg-zinc-950 text-white shadow-sm"
-                        : "border-zinc-200 bg-[#f7f7f4] text-zinc-800 hover:border-zinc-300"
-                    }`}
-                    onClick={() => setSelectedOption(opt.value)}
-                  >
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
-            {/* Refino opcional — não duplica a opção; só captura uma pergunta mais específica. */}
-            <p className="mt-4 text-xs text-zinc-400">Tem uma pergunta mais específica? (opcional)</p>
-            <textarea
-              value={creatorGoal}
-              onChange={(event) => setCreatorGoal(event.target.value)}
-              placeholder={goalOptions.find((option) => option.value === selectedOption)?.defaultQuestion ?? "Ex: por que esse vídeo prendeu atenção?"}
-              className="mt-2 min-h-[72px] w-full resize-none rounded-2xl border border-zinc-200 bg-white px-3 py-3 text-sm text-zinc-950 outline-none transition focus:border-zinc-950"
-            />
-          </div>
         ) : null}
 
         {step === "processing" ? (
@@ -908,72 +953,35 @@ export function MobileStrategicProfileAnalyzeFlow({
               </div>
             ) : null}
 
-            {/* O que mudou no mapa — resumo + veredito como linha com marcador, sem caixa. */}
+            {/* Veredito de coerência — as 3 lentes que pesam antes de postar.
+                Linhas com marcador, sem caixa, sem nota. "off" é observação, não reprovação. */}
             <div className={confirmationData?.directAnswer ? "mt-5 border-t border-zinc-100 pt-5" : ""}>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">No seu mapa</p>
-              <p className="mt-1.5 text-sm leading-6 text-zinc-600">
-                {confirmationData?.diagnosisSummary
-                  ? confirmationData.diagnosisSummary
-                  : "Abra a leitura para ver o que este vídeo confirma, tensiona ou abre no seu mapa."}
-              </p>
-              {confirmationData?.coherenceVerdict &&
-              COHERENCE_VERDICT_LABEL[confirmationData.coherenceVerdict] ? (
-                <p className="mt-2.5 flex items-start gap-2 text-sm font-medium leading-6 text-zinc-800">
-                  <span className={`mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full ${COHERENCE_VERDICT_DOT[confirmationData.coherenceVerdict]}`} />
-                  {COHERENCE_VERDICT_LABEL[confirmationData.coherenceVerdict]}
-                </p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Coerência com o seu mapa</p>
+              <div className="mt-3 flex flex-col gap-3">
+                {buildVerdictAxes(confirmationData ?? null).map((axis) => (
+                  <div key={axis.key} className="flex items-start gap-2.5">
+                    <span className={`mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full ${axis.dot}`} />
+                    <div>
+                      <p className="text-sm font-semibold text-zinc-900">{axis.label}</p>
+                      <p className="mt-0.5 text-sm leading-6 text-zinc-600">{axis.reading}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {confirmationData?.diagnosisSummary ? (
+                <p className="mt-3.5 text-xs leading-5 text-zinc-400">{confirmationData.diagnosisSummary}</p>
               ) : null}
             </div>
 
-            {confirmationQuestion ? (
-              <div className="mt-5 border-t border-zinc-100 pt-5">
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Uma pergunta sobre esta leitura</p>
-                <p className="mt-1.5 text-sm font-medium text-zinc-800">{confirmationQuestion.question}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {confirmationQuestion.options.map((option) => {
-                    const optionValue = option.value ?? option.label;
-                    const isSelected = confirmationAnswer === optionValue;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        className={
-                          isSelected
-                            ? "rounded-full bg-zinc-950 px-3 py-2 text-xs font-semibold text-white"
-                            : "rounded-full border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-700"
-                        }
-                        onClick={() => {
-                          setConfirmationAnswer(optionValue);
-                          if (savedDiagnosisId && onSubmitConfirmationAnswer && confirmationQuestion) {
-                            onSubmitConfirmationAnswer({
-                              diagnosisId: savedDiagnosisId,
-                              answer: {
-                                questionId: confirmationQuestion.id,
-                                questionText: confirmationQuestion.question,
-                                answerId: option.id,
-                                answerValue: optionValue,
-                              },
-                            }).catch(() => {});
-                          }
-                        }}
-                      >
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-
-            {/* Vai publicar? — a decisão. Os botões carregam o peso de ação. */}
+            {/* A decisão — o fecho natural do veredito. A leitura é da IA; a escolha é do criador. */}
             <div className="mt-5 border-t border-zinc-100 pt-5">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Vai publicar este vídeo?</p>
-              <p className="mt-0.5 text-xs text-zinc-400">Só os vídeos publicados entram no seu mapa.</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Você decide</p>
+              <p className="mt-0.5 text-xs text-zinc-400">A leitura é minha; a decisão é sua. Só o que você publica entra no seu mapa.</p>
               <div className="mt-3 flex gap-2">
                 {(
                   [
-                    { intent: "yes", label: "Sim" },
-                    { intent: "no", label: "Não" },
+                    { intent: "yes", label: "Vou postar" },
+                    { intent: "no", label: "Não vou" },
                   ] as const
                 ).map(({ intent, label }) => {
                   const isSelected = publishIntent === intent;
@@ -998,6 +1006,11 @@ export function MobileStrategicProfileAnalyzeFlow({
                   );
                 })}
               </div>
+              {publishIntent === "yes" ? (
+                <p className="mt-2.5 text-xs leading-5 text-emerald-700">Boa — seu mapa vai aprender com esse vídeo.</p>
+              ) : publishIntent === "no" ? (
+                <p className="mt-2.5 text-xs leading-5 text-zinc-500">Fechado. Esse fica só entre nós — não entra no mapa.</p>
+              ) : null}
             </div>
           </div>
         ) : null}

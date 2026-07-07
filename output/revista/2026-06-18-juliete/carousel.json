@@ -1,0 +1,125 @@
+{
+  "data": "2026-06-18",
+  "angulo": "perfil",
+  "criadores": [
+    { "userId": "69e8f96564be9f1592a5ca6e", "nome": "Juliete Silveira", "handle": "@julietesilveira",
+      "narrativaCentral": "A amiga leal e espirituosa que transforma o peso da vida adulta em humor que cuida",
+      "territorios": ["Amizade e lealdade", "Maternidade", "Humor cotidiano", "Medicina"],
+      "assets": ["As amigas", "Os filhos", "A rotina de medicina", "A memória do pai"] }
+  ],
+  "titulo": "Juliete Silveira — o humor como jeito de cuidar (moderno)",
+  "slides": [
+    {
+      "n": 1, "batida": "gancho", "layout": "cover",
+      "headline": "Por que a internet inteira queria a Juliete <i>de amiga</i>?",
+      "corpo": "Estudante de medicina, mãe — e a amiga mais leal da internet.",
+      "imagem": { "fonte": "profile_picture", "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-juliete/assets/profile_picture-a92fb9ebc8.jpg", "userId": "69e8f96564be9f1592a5ca6e" }
+    },
+    {
+      "n": 2, "batida": "quem-e", "layout": "two-column",
+      "headline": "Estudante de medicina, mãe, e a amiga que aparece na hora exata.",
+      "corpo": "<b>Juliete Silveira</b> estuda medicina e cria os filhos entre um plantão e outro. Posta com um humor afiado — e com um coração que aparece em cada piada.",
+      "imagem": { "fonte": "profile_picture", "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-juliete/assets/profile_picture-a92fb9ebc8.jpg", "userId": "69e8f96564be9f1592a5ca6e" }
+    },
+    {
+      "n": 3, "batida": "tensao", "layout": "respiro", "fundo": "dark", "kicker": "A questão",
+      "headline": "Por que é <i>ela</i> que todo mundo manda pra amiga?", "escala": 92
+    },
+    {
+      "n": 4, "batida": "revelacao", "layout": "respiro", "fundo": "dark", "kicker": "A leitura",
+      "sup": "O humor da Juliete não é piada.",
+      "headline": "É <i>jeito de cuidar</i>.", "escala": 138,
+      "corpo": "A resposta não estava na piada. Estava no que existe por trás dela."
+    },
+    {
+      "n": 5, "batida": "twist", "layout": "reasoning", "kicker": "A leitura · data2content",
+      "headline": "O que a Data2Content leu no mapa dela",
+      "corpo": "Não é \"humor de mãe cansada\". É uma mulher que cuida de quem ama — e faz a gente rir junto:",
+      "cadeia": [
+        "NARRATIVA: \"Eu protejo quem eu amo\" — e transformo o cuidado em piada",
+        "TERRITÓRIO: Amizade, maternidade e a rotina de quem estuda medicina",
+        "TEMA: Lealdade, a vida adulta que pesa, a saudade",
+        "PAUTA: \"Mexeu com minha amiga? Já era\""
+      ]
+    },
+    {
+      "n": 6, "batida": "porque", "layout": "respiro", "fundo": "paper", "kicker": "Por que funciona",
+      "headline": "Um <i>\"já era\"</i> dela é uma declaração de lealdade.", "escala": 78,
+      "corpo": "Ela defende a amiga com humor, sem brigar com ninguém. Aí milhares se reconhecem e mandam o vídeo pra quem sempre fica do lado delas. No fundo, todo mundo queria uma amiga assim."
+    },
+    {
+      "n": 7, "batida": "prova", "layout": "respiro", "fundo": "dark",
+      "stat": "61,8 mil", "statLabel": "compartilhamentos",
+      "corpo": "\"Mexeu com minha amiga? Já era.\" — 61 mil mandaram pra quem ficaria do lado delas."
+    },
+    {
+      "n": 8, "batida": "prova", "layout": "video-proof", "kicker": "As evidências",
+      "headline": "\"Mexeu com minha amiga? Já era.\"",
+      "corpo": "<b>A leitura:</b> 61 mil compartilhamentos não acontecem porque o vídeo é engraçado. Acontecem porque a pessoa assiste e pensa em alguém. Esse reel toca no território mais forte da Juliete — lealdade — e quem manda não está curtindo: está fazendo uma declaração pra amiga. Quando o conteúdo ativa esse sentimento, o algoritmo não precisa de empurrão.",
+      "imagem": {
+        "fonte": "thumbnail", "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-juliete/assets/poster-07.jpg", "userId": "69e8f96564be9f1592a5ca6e",
+        "video": { "mediaId": "18111951595652209", "userId": "69e8f96564be9f1592a5ca6e", "inicio": 0, "duracao": 60, "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-juliete/assets/video-07.mp4" }
+      }
+    },
+    {
+      "n": 9, "batida": "prova", "layout": "video-proof", "kicker": "As evidências",
+      "headline": "\"Virei mãe — e meu carnaval acaba às 19h.\"",
+      "stat": "2,1 mi", "statLabel": "views",
+      "corpo": "<b>A leitura:</b> ela não está reclamando da maternidade — está nomeando uma perda real com humor. 2,1 milhões viram porque qualquer mãe entende o que é abrir mão da versão que dançava até o sol nascer. O mapa diz que o território da Juliete é a vida adulta que pesa. Quando ela nomeia esse peso com leveza, o engajamento explode. Não é coincidência — é a narrativa central dela funcionando exatamente como o mapa previu.",
+      "imagem": {
+        "fonte": "thumbnail", "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-juliete/assets/poster-08.jpg", "userId": "69e8f96564be9f1592a5ca6e",
+        "video": { "mediaId": "18555726709025273", "userId": "69e8f96564be9f1592a5ca6e", "inicio": 0, "duracao": 60, "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-juliete/assets/video-08.mp4" }
+      }
+    },
+    {
+      "n": 10, "batida": "payoff", "layout": "respiro", "fundo": "paper", "kicker": "O que fica",
+      "sup": "Quando o humor abre espaço pra verdade…",
+      "headline": "<i>\"5 anos sem você, painho.\"</i>",
+      "corpo": "430 mil pessoas choram junto. Essa verdade não se finge.", "escala": 96
+    },
+    {
+      "n": 11, "batida": "porque", "layout": "respiro", "fundo": "dark", "kicker": "O valor",
+      "headline": "E é aí que entra a <i>marca certa</i>.", "escala": 84,
+      "corpo": "Os vídeos dela sempre mostram uma situação real — um aperto, uma virada, uma saudade. É nessa situação que uma marca pode aparecer pra ajudar. Não como propaganda. Como parte da cena."
+    },
+    {
+      "n": 12, "batida": "porque", "layout": "reasoning", "kicker": "O valor",
+      "headline": "Veja no reel de 2 milhões: o conflito já está lá.",
+      "corpo": "O vídeo não é só piada. Ele mostra uma mudança que toda mãe vive — e dá pra ver na hora qual marca caberia ali:",
+      "cadeia": [
+        "O REEL: \"Virei mãe — e meu carnaval acaba às 19h\"",
+        "O CONFLITO: saudade da versão que dançava até o sol nascer",
+        "A MARCA CERTA: maquiagem prática e acessível (uma Ruby Rose da vida)",
+        "O ENCAIXE: o produto que a faz se sentir ela em 5 minutos"
+      ]
+    },
+    {
+      "n": 13, "batida": "porque", "layout": "pauta-card", "kicker": "O valor",
+      "headline": "Pronta em 5 minutos — a mãe que ainda quer se arrumar.",
+      "ficha": [
+        { "rotulo": "A cena", "texto": "Juliete se arrumando correndo entre uma tarefa e outra. Filho batendo na porta, ela rindo do próprio caos. A câmera mostra o que qualquer mãe já viveu." },
+        { "rotulo": "Onde a marca entra", "texto": "A maquiagem resolve os 5 minutos. Ela usa de verdade, mostra o resultado no espelho e faz a piada que já faria. Sem script, sem pausa pra publi." },
+        { "rotulo": "A fala dela", "texto": "\"Maquiagem de mãe boa é a que aguenta choro de criança e ainda tá no rosto às 19h.\"" },
+        { "rotulo": "Por que não quebra o feed", "texto": "É o vídeo que ela faria mesmo sem a marca. O produto entra numa cena que já existia — e é isso que faz o público acreditar." },
+        { "rotulo": "O que a marca ganha", "texto": "Aparecer no território de maternidade real da Juliete, onde 2,1 milhões já provaram que a audiência confia nela." }
+      ]
+    },
+    {
+      "n": 14, "batida": "convite", "layout": "respiro", "fundo": "accent",
+      "headline": "Ser você e faturar não são opostos.", "escala": 90
+    },
+    {
+      "n": 15, "batida": "convite", "layout": "cta",
+      "headline": "A Juliete fatura sem deixar de ser ela. E <i>você</i>?",
+      "corpo": "A Data2Content acha, nos seus vídeos, o assunto que só você sabe contar — e te conecta com marcas que combinam com isso, sem mudar o seu jeito de postar.",
+      "lista": [
+        "<b>Seu mapa</b>: o que faz o seu conteúdo conectar",
+        "<b>Marcas</b> que combinam com você, não com o seu número",
+        "<b>Ideias de publi</b> que não destoam do seu feed",
+        "<b>Reuniões semanais</b> — você não cria sozinho"
+      ]
+    }
+  ],
+  "caption": "Parece só humor de mãe cansada. É muito mais.\n\n@julietesilveira é estudante de medicina, mãe e a amiga que defende a gente na hora exata. A Data2Content leu o mapa dela: o humor nunca foi piada solta — é o jeito mais bonito de cuidar. E é exatamente esse mapa que mostra com quais marcas ela encaixa, sem deixar de ser ela.\n\nArrasta e vê.\n\n💬 Comenta MAPA que a gente te mostra como a Data2Content lê o seu.\n\n#amizade #maternidade #humor #estudantedemedicina #data2content",
+  "manychat": { "keyword": "MAPA", "dm": "Oi! Vi que você comentou MAPA 💜 A Data2Content lê a estrutura escondida do seu conteúdo e te mostra as marcas que encaixam na sua narrativa. Monta o seu mapa aqui: https://data2content.ai/signup?utm_source=instagram&utm_medium=carousel&utm_campaign=galeano_juliete" }
+}

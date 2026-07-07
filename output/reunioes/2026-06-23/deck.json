@@ -1,0 +1,782 @@
+{
+  "reuniao": {
+    "data": "2026-06-23",
+    "titulo": "A semana entre a Copa e o anúncio — e a voz de cada um falando mais alto",
+    "participantes": [
+      "@laurarosapersonal",
+      "@kele_diass",
+      "@aamandamag",
+      "@fran.calheira",
+      "@deborabroch",
+      "@rafacustodio"
+    ]
+  },
+  "criadores": [
+    {
+      "userId": "69fde448fdd8be7eb99ddb48",
+      "nome": "Laura Rosa",
+      "handle": "@laurarosapersonal",
+      "profilePictureUrl": "https://scontent-iad3-2.xx.fbcdn.net/v/t51.82787-15/582797728_18492495625077144_6872024266189190732_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=7d201b&_nc_ohc=kIylU84OXhAQ7kNvwF1pKpE&_nc_oc=Ado3FWnT5-Jm5vzuQ8BqBgfF6czcHflmEs4YUIxfObH73tgneznFITT5dU--3AQT4Kg&_nc_zt=23&_nc_ht=scontent-iad3-2.xx&edm=AL-3X8kEAAAA&_nc_gid=ELm-wpsMeg1KAyeU5M6zQw&oh=00_Af9wislGYdtD0JVraiNb__qFINg_QJRwlTcuP_SIMinMCQ&oe=6A404668",
+      "narrativaCentral": "uma mulher que inspira a transformação do corpo em casa",
+      "territorios": [
+        "emagrecimento feminino",
+        "treino em casa",
+        "saúde hormonal",
+        "comunidade de apoio"
+      ],
+      "numeros": [
+        {
+          "valor": "41",
+          "label": "posts"
+        },
+        {
+          "valor": "3.238",
+          "label": "+ salvo (pico)"
+        },
+        {
+          "valor": "hormonal",
+          "label": "território forte"
+        }
+      ],
+      "reel": {
+        "postId": "18083414477549054",
+        "posterUrl": "https://scontent.cdninstagram.com/v/t51.71878-15/726621217_1711324329903319_3199826051074711071_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=106&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=JpLB-neF-ksQ7kNvwHOCec2&_nc_oc=AdptGMdZsRpr3bGn8L3glbX6YGSi7_Gn-zHroIwZUjmNASmdTKbVLC5D1hd-G4Qmh9N_iNc-_cWWUJhoifeTcDtO&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=5Oxzq0Bw9V5A_JMsYGE1pw&_nc_tpa=Q5bMBQG8ymdxxlhZ4rwedDD7DZuDiwEPFGOD1BnZRGOeKTMUM5al4__VSaK3biXNBS8pQr6_FJHegV9HPw&oh=00_Af_hMneUndh_PGWApmh8t9OTTwSZhQwv7QNA3Oxg7z9x3Q&oe=6A4080FD"
+      },
+      "pontoForte": {
+        "texto": "O vídeo mais emocional da semana foi, de longe, o mais salvo.",
+        "evidencia": "O 'cansada de começar na segunda e desistir na quinta' teve 3.238 pessoas salvando pra ver depois. Elas guardam a história da virada, não o anúncio.",
+        "postId": "18083414477549054",
+        "stat": {
+          "valor": "3.238",
+          "label": "salvamentos"
+        },
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "verde",
+          "marca": "amarelo"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.71878-15/726621217_1711324329903319_3199826051074711071_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=106&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=JpLB-neF-ksQ7kNvwHOCec2&_nc_oc=AdptGMdZsRpr3bGn8L3glbX6YGSi7_Gn-zHroIwZUjmNASmdTKbVLC5D1hd-G4Qmh9N_iNc-_cWWUJhoifeTcDtO&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=5Oxzq0Bw9V5A_JMsYGE1pw&_nc_tpa=Q5bMBQG8ymdxxlhZ4rwedDD7DZuDiwEPFGOD1BnZRGOeKTMUM5al4__VSaK3biXNBS8pQr6_FJHegV9HPw&oh=00_Af_hMneUndh_PGWApmh8t9OTTwSZhQwv7QNA3Oxg7z9x3Q&oe=6A4080FD"
+      },
+      "pontoAjustar": {
+        "texto": "Os vários reels de oferta quase iguais não tiveram nenhum salvamento.",
+        "evidencia": "Os 'comenta QUERO' repetidos no mesmo dia ficaram zerados. Tanto anúncio junto faz a transformação sumir.",
+        "postId": "17888062047395271",
+        "selos": {
+          "narrativa": "amarelo",
+          "audiencia": "vermelho",
+          "marca": "verde"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.71878-15/724672982_1280482367221259_8152110183126231995_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=106&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=Kmkzed0xLG0Q7kNvwEHOceP&_nc_oc=AdpYjgT6nL9uUAEpCo8xLAVrWMiuwl757DjpDhtGc7qVBOajq2CPFmtQraVQkeyo_UI2d13drmBOZMyvncgTgpVu&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=dEsSzMcZAvg7tTzlnMIM_Q&_nc_tpa=Q5bMBQF785FLSmlgRM46uJPYdt1Zp4BSxQwOedzgN6gq_RUh-GCbsiGzeV9PdwX69T_NAHqFxRG0IcPDMQ&oh=00_Af8JXBGjiTGZDL47vaPzUfVNMYFf7T8M4nyiQEbQfiUieg&oe=6A409923"
+      },
+      "ganchoMarca": {
+        "categoria": "marca de nutrição/suplemento pensada pra rotina de treino feminino",
+        "exemplo": "uma linha de whey ou colágeno feminino",
+        "porque": "ela já mostra a rotina de treino em casa todo dia"
+      },
+      "audienciaPede": "As pessoas querem ver os bastidores da transformação e a comunidade — é isso que elas salvam. O anúncio puro, não.",
+      "falaSugerida": "Como manter a transformação visível sem afogar o perfil em reels de oferta iguais.",
+      "grafico": {
+        "posts": [
+          {
+            "rotulo": "17/06",
+            "saves": 1673,
+            "shares": 894
+          },
+          {
+            "rotulo": "18/06",
+            "saves": 5311,
+            "shares": 1522
+          },
+          {
+            "rotulo": "19/06",
+            "saves": 407,
+            "shares": 130
+          },
+          {
+            "rotulo": "20/06",
+            "saves": 685,
+            "shares": 280
+          },
+          {
+            "rotulo": "21/06",
+            "saves": 304,
+            "shares": 85
+          },
+          {
+            "rotulo": "22/06",
+            "saves": 1244,
+            "shares": 547
+          }
+        ]
+      },
+      "proximosPassos": {
+        "lacuna": "a história real da transformação sumiu no meio de tanta oferta",
+        "pautas": [
+          {
+            "titulo": "O dia 1 de quem desiste na quinta",
+            "porque": "mostrar a história real de uma aluna, em vez de mais um anúncio"
+          },
+          {
+            "titulo": "Por que treino hormonal? a explicação que falta",
+            "porque": "ensinar sobre treino hormonal em vez de só vender"
+          },
+          {
+            "titulo": "Um treino em casa comigo, sem edição",
+            "porque": "a rotina real dela treinando — prova o que ela promete"
+          }
+        ]
+      },
+      "coerencia": {
+        "status": "automatico",
+        "resumo": "Ela postou muito sobre treino, mas quase tudo virou anúncio — a história de transformação ficou de lado."
+      }
+    },
+    {
+      "userId": "69966703d6f277ae2019f4f3",
+      "nome": "Kele Diass",
+      "handle": "@kele_diass",
+      "profilePictureUrl": "https://scontent-iad3-2.xx.fbcdn.net/v/t51.82787-15/612421496_18313548283302046_5650905388263349747_n.jpg?_nc_cat=105&ccb=1-7&_nc_sid=7d201b&_nc_ohc=Xj9Je_rb1bsQ7kNvwH7HF82&_nc_oc=AdqhZesvCnm8SRJY64ED_NQvzwFPqMIBCPVWmlvoiHxkGPw7M1GnKLGVPY1qzGlYVKw&_nc_zt=23&_nc_ht=scontent-iad3-2.xx&edm=AL-3X8kEAAAA&_nc_gid=vnd77OUogtgmqknoMXZPSg&oh=00_Af8AfbGWdcVxa-MKe7TGGvh7OgehLDL4wLVshLtkdDv3-w&oe=6A403B89",
+      "narrativaCentral": "inspirar uma vida autêntica e com propósito",
+      "territorios": [
+        "futebol e patriotismo",
+        "vida familiar",
+        "cuidados pessoais",
+        "fé e motivação"
+      ],
+      "numeros": [
+        {
+          "valor": "22",
+          "label": "posts"
+        },
+        {
+          "valor": "1.122",
+          "label": "comentários (pico)"
+        },
+        {
+          "valor": "futebol",
+          "label": "território forte"
+        }
+      ],
+      "reel": {
+        "postId": "17897981982327370",
+        "posterUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/726516723_18336305995302046_1201879748923992637_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=104&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=qWSrFYs-3XMQ7kNvwGTB-yr&_nc_oc=Adqk1B3gteSj-56E8zlUbbfjrZxn8qt1XHPVsMvgie1QY2wcs71kFLI7C7sQSK6X8C7S4Z6fky4sQSr2_J_oFBU_&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=0dGYhY8IYLq-SCYHfMDIpA&_nc_tpa=Q5bMBQHJ3-gdiR27TPlAw6L5d7Y2QfZSz3LUek0jDVmyHP4d54XYNc3T6YYxFKJb7iMwgpWm_5CJuaLZfA&oh=00_Af8QkZMx6piq6EtWZHiqw4zKUwtoIMZjr_opurYvtx4Dhg&oe=6A407C51"
+      },
+      "pontoForte": {
+        "texto": "A pergunta sobre a Copa bombou nos comentários.",
+        "evidencia": "'Se você pudesse trazer um de volta pra jogar' teve 1.122 comentários e 117 compartilhamentos. Quando ela faz uma pergunta, as pessoas respondem em peso.",
+        "postId": "17897981982327370",
+        "stat": {
+          "valor": "1.122",
+          "label": "comentários"
+        },
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "verde",
+          "marca": "amarelo"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/726516723_18336305995302046_1201879748923992637_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=104&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=qWSrFYs-3XMQ7kNvwGTB-yr&_nc_oc=Adqk1B3gteSj-56E8zlUbbfjrZxn8qt1XHPVsMvgie1QY2wcs71kFLI7C7sQSK6X8C7S4Z6fky4sQSr2_J_oFBU_&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=0dGYhY8IYLq-SCYHfMDIpA&_nc_tpa=Q5bMBQHJ3-gdiR27TPlAw6L5d7Y2QfZSz3LUek0jDVmyHP4d54XYNc3T6YYxFKJb7iMwgpWm_5CJuaLZfA&oh=00_Af8QkZMx6piq6EtWZHiqw4zKUwtoIMZjr_opurYvtx4Dhg&oe=6A407C51"
+      },
+      "pontoAjustar": {
+        "texto": "As publis avulsas (óculos, finanças) não combinaram com o clima da semana.",
+        "evidencia": "Os reels de propaganda engajaram bem menos que os da Copa — entraram sem se conectar com o que estava empolgando o público.",
+        "postId": "18074772746325409",
+        "selos": {
+          "narrativa": "amarelo",
+          "audiencia": "vermelho",
+          "marca": "vermelho"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.71878-15/726373088_1274072471226661_1419495080807490780_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=106&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=oTxfdSunAoQQ7kNvwFuTRQt&_nc_oc=AdqBd4YpSUbO94onsD3ETMGBNDyM3qGiSw7e6LjiCHHmBsYKD5thkKot7R9tu89ZaWzHmBcQAHZ7kkiD0zCkLQ0E&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=sEmKfb-CoblqcaMkbFmLmA&_nc_tpa=Q5bMBQFxxPGdK_4pwm9W3weSTZK967z5DJ_AIHJ6O6u_YED0Cj5WiSSPEO6h0oHqizx6AJF-heUaGBCuDw&oh=00_Af_kNFG58kAATTvr55E6Y9YWS4dEE1CRdCZGCiQu1A9QRw&oe=6A409A7B"
+      },
+      "ganchoMarca": {
+        "categoria": "marca de beleza/cuidados com cara de brasilidade pro dia a dia",
+        "exemplo": "uma marca de maquiagem nacional",
+        "porque": "ela já vive o ritual de torcer em família"
+      },
+      "audienciaPede": "As pessoas adoram ser chamadas pra opinar sobre o Brasil; o lado de propósito e fé pega mais quando entra junto com essa emoção.",
+      "falaSugerida": "A Copa abriu uma janela de engajamento enorme — como puxar isso pro propósito sem perder a leveza?",
+      "grafico": {
+        "posts": [
+          {
+            "rotulo": "17/06",
+            "saves": 7,
+            "shares": 4
+          },
+          {
+            "rotulo": "18/06",
+            "saves": 22,
+            "shares": 117
+          },
+          {
+            "rotulo": "19/06",
+            "saves": 4,
+            "shares": 28
+          },
+          {
+            "rotulo": "20/06",
+            "saves": 8,
+            "shares": 8
+          },
+          {
+            "rotulo": "22/06",
+            "saves": 16,
+            "shares": 19
+          }
+        ]
+      },
+      "proximosPassos": {
+        "lacuna": "o propósito e a fé ficaram soltos da empolgação da Copa",
+        "pautas": [
+          {
+            "titulo": "O que a Copa me ensinou sobre torcer pela própria vida",
+            "porque": "junta futebol e propósito, os dois lados fortes dela"
+          },
+          {
+            "titulo": "Nosso ritual de domingo de jogo em família",
+            "porque": "mostra a família junta assistindo ao jogo — vida de verdade"
+          },
+          {
+            "titulo": "Make da torcedora em 5 minutos",
+            "porque": "beleza colada no momento que está movendo o público"
+          }
+        ]
+      },
+      "coerencia": {
+        "status": "parcial",
+        "resumo": "A Copa puxou quase tudo pro futebol; o lado de propósito e fé, que é a cara dela, quase não apareceu."
+      }
+    },
+    {
+      "userId": "69c2632117a1957aa63a18f0",
+      "nome": "Amanda Magalhães",
+      "handle": "@aamandamag",
+      "profilePictureUrl": "https://scontent-iad6-1.xx.fbcdn.net/v/t51.82787-15/719548024_18005988086930274_1623980784926647323_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=7d201b&_nc_ohc=l1MxsnazFtwQ7kNvwF0Phwb&_nc_oc=Adq1xEKk4FOF5nN2Y5uamxIDsiSa5ZpbCl06jogyWb_hHNvbSLWdfKBVvWu3mg-NInc&_nc_zt=23&_nc_ht=scontent-iad6-1.xx&edm=AL-3X8kEAAAA&_nc_gid=GVXm_tGe4BmeRAlXQytLhg&oh=00_Af8FJHf3yFIdyHBbnRDR7DNP8bo4Cjy1FNYjDbcka4HqAQ&oe=6A404ED7",
+      "narrativaCentral": "uma atleta que encontra equilíbrio e humor na jornada de bem-estar",
+      "territorios": [
+        "corrida e treino",
+        "bem-estar físico",
+        "gastronomia saudável",
+        "vida com cães"
+      ],
+      "numeros": [
+        {
+          "valor": "17",
+          "label": "posts"
+        },
+        {
+          "valor": "30",
+          "label": "+ compart. (pico)"
+        },
+        {
+          "valor": "gastronomia",
+          "label": "território forte"
+        }
+      ],
+      "reel": {
+        "postId": "17930246058340498",
+        "posterUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/722702900_18006611027930274_331062921868004828_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=104&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=T7xe5V34bEIQ7kNvwFw1rdf&_nc_oc=Adq1pTy8_8vWo2gHwK_bezttunaODADqCbVXNmXS0w_Gx5A8dubj2BUgGLvUBcvnXxSFGoBZCfh_PNtIU6n2DsXM&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=MbVcVERcUyWMzVGRtqT8-g&_nc_tpa=Q5bMBQGLhVkSmVbXwEe_JvNL3MWSVSJneyJhArUw4EqoaFJ0COrACEIz6amPH7_R6Z6b6Ps3fJUXT0yuvA&oh=00_Af9iKyDdZc0qcGZh9PM91M85xo5I49p0vDPobrcQR732jQ&oe=6A40902B"
+      },
+      "pontoForte": {
+        "texto": "O vídeo provando doces foi o mais compartilhado.",
+        "evidencia": "Bolo, palha italiana e cookies: 30 compartilhamentos. A comida gostosa com humor é o que as pessoas mandam pra frente.",
+        "postId": "17930246058340498",
+        "stat": {
+          "valor": "5×",
+          "label": "mais share que a média"
+        },
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "amarelo",
+          "marca": "amarelo"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/722702900_18006611027930274_331062921868004828_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=104&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=T7xe5V34bEIQ7kNvwFw1rdf&_nc_oc=Adq1pTy8_8vWo2gHwK_bezttunaODADqCbVXNmXS0w_Gx5A8dubj2BUgGLvUBcvnXxSFGoBZCfh_PNtIU6n2DsXM&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=MbVcVERcUyWMzVGRtqT8-g&_nc_tpa=Q5bMBQGLhVkSmVbXwEe_JvNL3MWSVSJneyJhArUw4EqoaFJ0COrACEIz6amPH7_R6Z6b6Ps3fJUXT0yuvA&oh=00_Af9iKyDdZc0qcGZh9PM91M85xo5I49p0vDPobrcQR732jQ&oe=6A40902B"
+      },
+      "pontoAjustar": {
+        "texto": "A semana ficou espalhada e as publis de produto não engataram.",
+        "evidencia": "Anti-frizz, pomada, whey: pouca reação. Propaganda solta, sem o humor e a rotina que são a cara dela.",
+        "postId": "18128987989555003",
+        "selos": {
+          "narrativa": "vermelho",
+          "audiencia": "vermelho",
+          "marca": "amarelo"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.71878-15/722384141_1693297978378410_2264485400342776047_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=109&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=LIXbJhrfLo4Q7kNvwGOrxOv&_nc_oc=AdosiDll7GA85OytHJUjITNMFvUD5pVmRNDgkZ9u4w3DvWN4a6Ryx36hkvwiHQEV6c3fd-BSFX2fbyynq_CVFRS0&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=yGdb7J4_E_eDPgqp9xANew&_nc_tpa=Q5bMBQEzPcmA8mvNecyiEn_yOpaMubIuWGusnLVybld_qFeylacgyyFlZPhEe4rLoWZzVgZ6E4fuL855PQ&oh=00_Af9SMq4JYJSDhcMOrnENAufnh7VJp1U1KGkKT38dsnwA0w&oe=6A407766"
+      },
+      "ganchoMarca": {
+        "categoria": "marca de nutrição esportiva com tom leve, sem culpa",
+        "exemplo": "uma linha de whey ou snack fit",
+        "porque": "ela já fala de comida e treino de um jeito leve"
+      },
+      "audienciaPede": "O humor do dia a dia de atleta (e os cachorros) — as pessoas querem a Amanda de verdade, não o catálogo de produtos.",
+      "falaSugerida": "A semana foi dispersa — escolher 1 território (humor + treino) e aprofundar em vez de pulverizar.",
+      "grafico": {
+        "posts": [
+          {
+            "rotulo": "17/06",
+            "saves": 24,
+            "shares": 6
+          },
+          {
+            "rotulo": "19/06",
+            "saves": 0,
+            "shares": 0
+          },
+          {
+            "rotulo": "20/06",
+            "saves": 18,
+            "shares": 47
+          },
+          {
+            "rotulo": "21/06",
+            "saves": 13,
+            "shares": 6
+          },
+          {
+            "rotulo": "22/06",
+            "saves": 7,
+            "shares": 1
+          }
+        ]
+      },
+      "proximosPassos": {
+        "lacuna": "faltou um assunto puxando a semana — o humor com treino",
+        "pautas": [
+          {
+            "titulo": "Treino de terça vs. a vontade de comer bolo",
+            "porque": "junta humor, treino e comida — o que faltou na semana"
+          },
+          {
+            "titulo": "Meu cão sabota meu treino: um dia real",
+            "porque": "cachorro e humor, o tipo de vídeo que as pessoas compartilham"
+          },
+          {
+            "titulo": "Comer e pensar: a relação real de uma atleta com comida",
+            "porque": "papo honesto sobre comida — já tinha funcionado antes"
+          }
+        ]
+      },
+      "coerencia": {
+        "status": "parcial",
+        "resumo": "Semana espalhada em publis avulsas — o jeito dela de juntar humor e treino quase não apareceu."
+      }
+    },
+    {
+      "userId": "69d94b48352e9de576da8f53",
+      "nome": "Francyne Calheira",
+      "handle": "@fran.calheira",
+      "profilePictureUrl": "https://scontent-iad3-2.xx.fbcdn.net/v/t51.2885-15/433450498_726182276328895_634708176387869181_n.jpg?_nc_cat=111&ccb=1-7&_nc_sid=7d201b&_nc_ohc=KRyCyZs6QO8Q7kNvwGZLFbL&_nc_oc=AdpmfGT-Rhadt1R49G_CRGvgoXU2yayXxpwwD5HO4TIVsdCCRvH3lcD1SYwyX48-R5U&_nc_zt=23&_nc_ht=scontent-iad3-2.xx&edm=AL-3X8kEAAAA&oh=00_Af8Hl2P2jLrm2PDRiqCfHkWGeaTp2KL8DZYxfWnEhKPvMQ&oe=6A405467",
+      "narrativaCentral": "uma guia de estilo que democratiza a moda acessível e inteligente",
+      "territorios": [
+        "moda acessível",
+        "estilo pessoal",
+        "compras inteligentes",
+        "marcas populares"
+      ],
+      "numeros": [
+        {
+          "valor": "14",
+          "label": "posts"
+        },
+        {
+          "valor": "146",
+          "label": "+ compart. (pico)"
+        },
+        {
+          "valor": "moda acessível",
+          "label": "território forte"
+        }
+      ],
+      "reel": {
+        "postId": "17932177890298487",
+        "posterUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/729710544_18092190158370028_8906520467797579640_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=106&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzIifQ%3D%3D&_nc_ohc=tR17s69sSkcQ7kNvwEwrz1r&_nc_oc=Adqe7gxHvoprc7N0WWcaHubLru4Co_NQ2GLqU-LCn4_g4y2GmmTN3Ja7GYKO7E3u5m7UyiBKpdRBoMf9WrVVJrCr&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=l0BloTZ4xaNbhMCyO5mSoA&_nc_tpa=Q5bMBQHJrqdMqvOJR_5Vp6nU86-dyeYKPRJGAz_d5TWT0L2qbQiXtazQmtSzcvHjNWoG3ghTVSxH2R0yGA&oh=00_Af9j1U7JoUmIpK0PAxky5kxmfs7sbbEQqvq1gEFRsZFgMw&oe=6A40796D"
+      },
+      "pontoForte": {
+        "texto": "O 'entrei na Renner, Riachuelo e C&A' bombou em comentários e compartilhamentos.",
+        "evidencia": "187 comentários e 127 compartilhamentos. Garimpar o que vale nas lojas populares é exatamente o que ela promete.",
+        "postId": "17932177890298487",
+        "stat": {
+          "valor": "187",
+          "label": "comentários"
+        },
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "verde",
+          "marca": "verde"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/729710544_18092190158370028_8906520467797579640_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=106&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzIifQ%3D%3D&_nc_ohc=tR17s69sSkcQ7kNvwEwrz1r&_nc_oc=Adqe7gxHvoprc7N0WWcaHubLru4Co_NQ2GLqU-LCn4_g4y2GmmTN3Ja7GYKO7E3u5m7UyiBKpdRBoMf9WrVVJrCr&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=l0BloTZ4xaNbhMCyO5mSoA&_nc_tpa=Q5bMBQHJrqdMqvOJR_5Vp6nU86-dyeYKPRJGAz_d5TWT0L2qbQiXtazQmtSzcvHjNWoG3ghTVSxH2R0yGA&oh=00_Af9j1U7JoUmIpK0PAxky5kxmfs7sbbEQqvq1gEFRsZFgMw&oe=6A40796D"
+      },
+      "pontoAjustar": {
+        "texto": "Repostar a mesma peça com 'comenta QUERO' não engajou nada.",
+        "evidencia": "Reels repetidos do mesmo look ficaram zerados — a fórmula do cupom cansa e some no meio do resto.",
+        "postId": "18004713653929941",
+        "selos": {
+          "narrativa": "amarelo",
+          "audiencia": "vermelho",
+          "marca": "verde"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/729359776_18092064509370028_6635976600669008853_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=103&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=H_EMI8g4tVEQ7kNvwFloftN&_nc_oc=AdoyGy4EZ8Z5FCGPW8L0ZOz74z7HL_fgglmocdKGrjci8Zy9ZoMDe-mCoRaIXZ1vA9N_cHVkD-vmqhTcK6NAs2Z-&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=kzUHUfeeH2aLwlKirXy3dw&_nc_tpa=Q5bMBQFyAP9satWvQXCE4Z3TizHIe-J2bSOw6uGoaRxb7RE1KzmMX_Lz-DqUoFBp4avRi4IGcdbpiK0V3w&oh=00_Af-pnAJh-TQm_NHqg7qs2iBwmT5BfYz_MJf_HNofzE02gw&oe=6A408E9D"
+      },
+      "ganchoMarca": {
+        "categoria": "varejo de moda popular ou app de comparação de preço",
+        "exemplo": "uma rede de fast fashion nacional",
+        "porque": "ela já faz a curadoria honesta de loja popular"
+      },
+      "audienciaPede": "As pessoas querem a opinião dela — o que vale e o que não vale a pena —, não o cupom repetido.",
+      "falaSugerida": "A curadoria de loja é o ativo — como variar o formato sem cair na repetição do cupom?",
+      "grafico": {
+        "posts": [
+          {
+            "rotulo": "17/06",
+            "saves": 7,
+            "shares": 83
+          },
+          {
+            "rotulo": "18/06",
+            "saves": 39,
+            "shares": 154
+          },
+          {
+            "rotulo": "19/06",
+            "saves": 5,
+            "shares": 68
+          },
+          {
+            "rotulo": "20/06",
+            "saves": 56,
+            "shares": 202
+          },
+          {
+            "rotulo": "21/06",
+            "saves": 23,
+            "shares": 128
+          },
+          {
+            "rotulo": "22/06",
+            "saves": 13,
+            "shares": 146
+          }
+        ]
+      },
+      "proximosPassos": {
+        "lacuna": "a fórmula do cupom cansou; a opinião honesta é o forte dela",
+        "pautas": [
+          {
+            "titulo": "O que não vale a pena na Renner esse mês",
+            "porque": "compras espertas pelo avesso — a honestidade que diferencia"
+          },
+          {
+            "titulo": "7 peças, 15 looks: guarda-roupa cápsula barato",
+            "porque": "estilo com pouca grana, no formato que já deu certo"
+          },
+          {
+            "titulo": "Provador honesto: o que ficou ruim em mim",
+            "porque": "estilo real, sem vitrine — quebra a repetição do cupom"
+          }
+        ]
+      },
+      "coerencia": {
+        "status": "parcial",
+        "resumo": "Mostrar o que vale a pena nas lojas populares é a cara dela, mas repetir a fórmula do cupom começou a cansar."
+      }
+    },
+    {
+      "userId": "6928a987b1fcb2d066847fe8",
+      "nome": "Débora Broch",
+      "handle": "@deborabroch",
+      "profilePictureUrl": "https://scontent-iad6-1.xx.fbcdn.net/v/t51.82787-15/726782122_18599887036027259_1102063131962382649_n.jpg?_nc_cat=102&ccb=1-7&_nc_sid=7d201b&_nc_ohc=zj7RindmmekQ7kNvwF8p6iT&_nc_oc=Adq7ZwD-Ve4pfa0iwFj0lvqiqLO1QUgsDHjQ3U8RgiKCCAOBvmvUTI4x38jzCOGULuc&_nc_zt=23&_nc_ht=scontent-iad6-1.xx&edm=AL-3X8kEAAAA&_nc_gid=VlzNpqBNCQxWFkQ9DGo9Tg&oh=00_Af_CFLeH8gKVTKHo8ibSgxsu3qNwJ0q8PJ77qQusidgaaQ&oe=6A405F38",
+      "narrativaCentral": "uma mãe que encontra força e propósito na jornada da maternidade",
+      "territorios": [
+        "maternidade real",
+        "humor do caos",
+        "fé e bem-estar",
+        "autocuidado"
+      ],
+      "numeros": [
+        {
+          "valor": "10",
+          "label": "posts"
+        },
+        {
+          "valor": "40",
+          "label": "+ compart. (pico)"
+        },
+        {
+          "valor": "humor",
+          "label": "território forte"
+        }
+      ],
+      "reel": {
+        "postId": "18072610298678072",
+        "posterUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/728469157_18600425599027259_4907947950744357741_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=106&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=9hvlBjqMX9UQ7kNvwFy-PML&_nc_oc=Adp6ek7XGBsb2p-B_L4mOQKzC6fpDXDqlM9mU4CmEanbiiqUoATr8CWFY9NTTD108b9OBmoCgXLblAAZSA9MebW9&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=W4llv5M1BvakdV48pB7nbA&_nc_tpa=Q5bMBQEke6K-ebqgfXWW-o3VbpPiy0pPaUuA38QW174BnIYuKUfwUq3zBiGhS2BmZe6Nvhgnlns34o-Blw&oh=00_Af-87PJq2xwLDFbPyObxsApv9_0ybpPbPFUHJanhqXXHDA&oe=6A4074A8"
+      },
+      "pontoForte": {
+        "texto": "O humor do casal 35+ foi o mais compartilhado e comentado.",
+        "evidencia": "'35+ não recomendo fazerem isso': 40 compartilhamentos e 42 comentários. O humor do caos é o que as pessoas reconhecem e mandam pra amiga.",
+        "postId": "18072610298678072",
+        "stat": {
+          "valor": "40",
+          "label": "compartilhamentos"
+        },
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "verde",
+          "marca": "amarelo"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/728469157_18600425599027259_4907947950744357741_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=106&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=9hvlBjqMX9UQ7kNvwFy-PML&_nc_oc=Adp6ek7XGBsb2p-B_L4mOQKzC6fpDXDqlM9mU4CmEanbiiqUoATr8CWFY9NTTD108b9OBmoCgXLblAAZSA9MebW9&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=W4llv5M1BvakdV48pB7nbA&_nc_tpa=Q5bMBQEke6K-ebqgfXWW-o3VbpPiy0pPaUuA38QW174BnIYuKUfwUq3zBiGhS2BmZe6Nvhgnlns34o-Blw&oh=00_Af-87PJq2xwLDFbPyObxsApv9_0ybpPbPFUHJanhqXXHDA&oe=6A4074A8"
+      },
+      "pontoAjustar": {
+        "texto": "O desafio de marca (SHEIN) entrou meio sem graça e esfriou.",
+        "evidencia": "Saiu do humor e da vulnerabilidade pro modo catálogo — engajou menos. A publi pede o jeito dela, não o roteiro da marca.",
+        "postId": "18565689862071332",
+        "selos": {
+          "narrativa": "amarelo",
+          "audiencia": "amarelo",
+          "marca": "verde"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/729838693_18601175677027259_9145308826062934543_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=111&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=jowrMW1_cC4Q7kNvwHBOJWy&_nc_oc=Adpsb1L4fSFXGiIsUR8HLiBNjgJOZugzJsdb4rdgbsaY-ZnXfm4mj3bbdA4fBf9J5SsVaRy0bFKPTQ7DUkaONmGI&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=1skBtIvDGFTQrPW-1A8mOQ&_nc_tpa=Q5bMBQGJLD5ACGlw5qQPH3Kef1oABhj_VE4URK3dqLN5fQq7wwV8yN2VC4xMY52S4UDrAUkQ7JClyNcm4Q&oh=00_Af-OXAocwwC4KbZt-RwW_gBIeP1tHA43aoL2eZ7fRQ8AnA&oe=6A4092B6"
+      },
+      "ganchoMarca": {
+        "categoria": "marca de produto pra rotina de mãe real (casa/autocuidado acessível)",
+        "exemplo": "uma marca de autocuidado de farmácia",
+        "porque": "ela já mostra a rotina caótica de mãe com humor"
+      },
+      "audienciaPede": "O humor da maternidade real e os assuntos de vida (como 'parar de trabalhar fora') — é o que mais conecta.",
+      "falaSugerida": "A 'parte 2: decisão de parar de trabalhar fora' é território de ouro — vale puxar a conversa pra isso.",
+      "grafico": {
+        "posts": [
+          {
+            "rotulo": "17/06",
+            "saves": 4,
+            "shares": 4
+          },
+          {
+            "rotulo": "18/06",
+            "saves": 3,
+            "shares": 25
+          },
+          {
+            "rotulo": "19/06",
+            "saves": 12,
+            "shares": 4
+          },
+          {
+            "rotulo": "20/06",
+            "saves": 14,
+            "shares": 42
+          },
+          {
+            "rotulo": "21/06",
+            "saves": 4,
+            "shares": 4
+          },
+          {
+            "rotulo": "22/06",
+            "saves": 15,
+            "shares": 24
+          },
+          {
+            "rotulo": "23/06",
+            "saves": 1,
+            "shares": 1
+          }
+        ]
+      },
+      "proximosPassos": {
+        "lacuna": "a decisão de parar de trabalhar fora rendeu e merece ir mais fundo",
+        "pautas": [
+          {
+            "titulo": "O medo de parar de trabalhar fora que ninguém conta",
+            "porque": "vida real de mãe — um assunto forte dela"
+          },
+          {
+            "titulo": "O caos das 7h: filhos, escola e eu sem café",
+            "porque": "humor do caos, a rotina onde ela mais brilha"
+          },
+          {
+            "titulo": "Autocuidado de mãe real: o que cabe em 10 minutos",
+            "porque": "um assunto (autocuidado) que quase não apareceu na semana"
+          }
+        ]
+      },
+      "coerencia": {
+        "status": "no-mapa",
+        "resumo": "Bem na dela: o humor da maternidade real dominou a semana; só a publi mais sem graça destoou."
+      }
+    },
+    {
+      "userId": "6928899e2619c0d8776dd508",
+      "nome": "Rafaella Custódio",
+      "handle": "@rafacustodio",
+      "profilePictureUrl": "https://scontent-iad6-1.xx.fbcdn.net/v/t51.82787-15/696498489_18375029599200403_2590844252546833082_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=7d201b&_nc_ohc=EtN6BFZsLA4Q7kNvwEuyGOK&_nc_oc=AdoZjP0nAguYmp6CqO3CVvl172JmKdR_GEyGMfELAJOkmzrBoZguUNvgxbzRk86pVlU&_nc_zt=23&_nc_ht=scontent-iad6-1.xx&edm=AL-3X8kEAAAA&_nc_gid=h6zPhIqAiD1eUQbhZ7HMjw&oh=00_Af8fvS62gJz3vPz29uhUUaZeAMdjjihgotBS7aNc_jnLhA&oe=6A4058F0",
+      "narrativaCentral": "uma observadora curiosa que encontra humor e significado no cotidiano",
+      "territorios": [
+        "vida em Blumenau",
+        "humor cotidiano",
+        "consumo local",
+        "fofocas e notícias"
+      ],
+      "numeros": [
+        {
+          "valor": "6",
+          "label": "posts"
+        },
+        {
+          "valor": "77",
+          "label": "+ compart. (pico)"
+        },
+        {
+          "valor": "Blumenau",
+          "label": "território forte"
+        }
+      ],
+      "reel": {
+        "postId": "18596970394050545",
+        "posterUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/729088792_18380476873200403_5076743670286377248_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=108&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=dpL97iLEopEQ7kNvwFjZ4i4&_nc_oc=AdofhpL0wbpw3NN91bSPeLvTkf7dvRtM-lTugaaaISMrP9va3km3y0E7iz4bG6W3SY-sZ68DsExUB1-pyDhHnoTy&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=69RE-ODGR1vUK1ys0t4HLg&_nc_tpa=Q5bMBQH0S_Zgiba3OcSGOzdx5GX8RjODG5PQ1ohyDtE-aw94EbeuTlkxmvBQafhMZiQKotl-fZOa-RsQgA&oh=00_Af-ZmInu3gDAy78wzxDAnU9i4i328eq4PmeqSDNk8FcywQ&oe=6A406FBF"
+      },
+      "pontoForte": {
+        "texto": "As 'fofocas do interior' foram o vídeo mais compartilhado.",
+        "evidencia": "77 compartilhamentos e 45 comentários. O humor bem regional de Blumenau é o que as pessoas mandam pro grupo.",
+        "postId": "18596970394050545",
+        "stat": {
+          "valor": "77",
+          "label": "compartilhamentos"
+        },
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "verde",
+          "marca": "amarelo"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/729088792_18380476873200403_5076743670286377248_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=108&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=dpL97iLEopEQ7kNvwFjZ4i4&_nc_oc=AdofhpL0wbpw3NN91bSPeLvTkf7dvRtM-lTugaaaISMrP9va3km3y0E7iz4bG6W3SY-sZ68DsExUB1-pyDhHnoTy&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=69RE-ODGR1vUK1ys0t4HLg&_nc_tpa=Q5bMBQH0S_Zgiba3OcSGOzdx5GX8RjODG5PQ1ohyDtE-aw94EbeuTlkxmvBQafhMZiQKotl-fZOa-RsQgA&oh=00_Af-ZmInu3gDAy78wzxDAnU9i4i328eq4PmeqSDNk8FcywQ&oe=6A406FBF"
+      },
+      "pontoAjustar": {
+        "texto": "O conteúdo mais genérico (parceria, Copa) rendeu menos.",
+        "evidencia": "Quando sai do jeito blumenauense pro assunto amplo, a reação cai — o regional é o que diferencia ela.",
+        "postId": "18096075200337782",
+        "selos": {
+          "narrativa": "amarelo",
+          "audiencia": "amarelo",
+          "marca": "amarelo"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/727242997_18380677147200403_1981750118818259148_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=102&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=PKiHLaODKPIQ7kNvwHRmLIa&_nc_oc=AdqiOKu7sXDro-jOghsuou3J605XtsuKWdJEQ4tcDbN-xY4zQX-gdBzVKz1zO7i7HL2gCI7wSdTSDnSQ3RIkEIVE&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=tJ71xHw7qdC9l71mBKkxYA&_nc_tpa=Q5bMBQFiUq4UOxITWgjCnvy44SUTKAW9sPaKHisWA6KBhydbk_9aDHmMKkRG3a9r2Juz9fhx_7LMvxb6SA&oh=00_Af-frpzQRNmcD6Q20XAKbCgbMLip4ZKatQu_HSrSHB9xCA&oe=6A409279"
+      },
+      "ganchoMarca": {
+        "categoria": "marca/comércio regional catarinense ou de casa e decoração",
+        "exemplo": "um negócio local de Blumenau",
+        "porque": "ela encarna o orgulho de ser de Blumenau"
+      },
+      "audienciaPede": "As pessoas querem mais do mundo de Blumenau — o jeito catarinense de ver a vida, não só a fofoca.",
+      "falaSugerida": "O regional é o ativo dela — explorar mais 'coisas de Blumenau/SC' e menos assunto amplo.",
+      "grafico": {
+        "posts": [
+          {
+            "rotulo": "17/06",
+            "saves": 1,
+            "shares": 3
+          },
+          {
+            "rotulo": "18/06",
+            "saves": 8,
+            "shares": 7
+          },
+          {
+            "rotulo": "19/06",
+            "saves": 2,
+            "shares": 9
+          },
+          {
+            "rotulo": "20/06",
+            "saves": 9,
+            "shares": 77
+          },
+          {
+            "rotulo": "21/06",
+            "saves": 3,
+            "shares": 4
+          },
+          {
+            "rotulo": "22/06",
+            "saves": 4,
+            "shares": 27
+          }
+        ]
+      },
+      "proximosPassos": {
+        "lacuna": "casa/decoração e comércio local quase não apareceram",
+        "pautas": [
+          {
+            "titulo": "As coisas que só existem em Blumenau (parte 2)",
+            "porque": "o assunto que mais viralizou na semana"
+          },
+          {
+            "titulo": "O gosto de decoração que SC tem e ninguém assume",
+            "porque": "casa e decoração, que ficou parado, com o jeito regional"
+          },
+          {
+            "titulo": "Comércio local que eu defendo de olhos fechados",
+            "porque": "comércio local, outro assunto dela que ficou de fora"
+          }
+        ]
+      },
+      "coerencia": {
+        "status": "no-mapa",
+        "resumo": "Bem no centro da dela — o humor sobre Blumenau é exatamente a voz dela."
+      }
+    }
+  ],
+  "collabs": [
+    {
+      "a": "@laurarosapersonal",
+      "b": "@aamandamag",
+      "territorioComum": "treino feminino, corpo real",
+      "porque": "a Laura traz o método sério da transformação; a Amanda traz o humor e a leveza do treino — uma equilibra a outra.",
+      "pautaIdeia": "A Amanda topa seguir o plano de treino em casa da Laura por uma semana e mostra a real — incluindo o dia que bateu a preguiça.",
+      "comoGravar": "Cada uma grava na sua casa: a Laura manda o plano em vídeo, a Amanda filma a execução e a reação honesta. Um editor junta em tela dividida (o sério x o bem-humorado). Vira 2 reels — cada uma posta no seu perfil marcando a outra, no mesmo dia.",
+      "aTraz": "o método sério da transformação do corpo em casa",
+      "bTraz": "o humor e a leveza pra mostrar a real do treino",
+      "gravarPassos": [
+        "A Laura grava o plano de treino em casa, do jeito dela, e manda pra Amanda",
+        "A Amanda filma a execução durante a semana — inclusive a preguiça e os perrengues",
+        "Um editor junta as duas em tela dividida: o método de um lado, a reação bem-humorada do outro",
+        "Vira 2 reels: cada uma posta no seu perfil no mesmo dia, marcando a outra"
+      ],
+      "porQueFunciona": "A Laura ganha leveza e prova social; a Amanda ganha autoridade no treino. As duas audiências se cruzam."
+    },
+    {
+      "a": "@deborabroch",
+      "b": "@rafacustodio",
+      "territorioComum": "humor do cotidiano",
+      "porque": "as duas riem da vida real — uma do caos da maternidade, outra da fofoca de interior; o mesmo olhar afiado pro dia a dia.",
+      "pautaIdeia": "As duas reagem à mesma cena do dia a dia (ex.: o grupo de mães/vizinhos no WhatsApp) — uma pela ótica da maternidade, a outra pela fofoca de interior.",
+      "comoGravar": "Combinem o tema e o áudio. Cada uma grava a sua versão em casa e postam em dueto/resposta no mesmo dia — o público compara os dois humores. Zero deslocamento.",
+      "aTraz": "o humor do caos da maternidade real",
+      "bTraz": "o olhar afiado da fofoca de interior",
+      "gravarPassos": [
+        "Escolham juntas uma cena do dia a dia e um áudio/trend em comum",
+        "Cada uma grava a sua versão em casa, do seu jeito",
+        "Postam em dueto/resposta no mesmo dia — uma puxando a outra",
+        "O público compara os dois humores e marca as amigas nos comentários"
+      ],
+      "porQueFunciona": "Mesmo olhar afiado pro cotidiano, dois sotaços diferentes — a graça está na comparação."
+    },
+    {
+      "a": "@kele_diass",
+      "b": "@fran.calheira",
+      "territorioComum": "se montar pro dia a dia, sem gastar muito",
+      "porque": "a Kele traz a brasilidade e a beleza; a Francyne, a moda acessível — juntas montam o visual real da torcedora.",
+      "pautaIdeia": "O look de torcida que cabe no bolso: a Francyne monta a roupa de loja popular, a Kele faz a make de torcedora — do básico ao pronto.",
+      "comoGravar": "Passa-bastão: a Francyne grava a montagem do look e termina dizendo 'agora a make com a @kele'; a Kele começa o vídeo dela exatamente daí. Um editor emenda os dois numa sequência só — ou cada uma posta a sua parte marcando a outra.",
+      "aTraz": "a make e a brasilidade da torcedora",
+      "bTraz": "a montagem do look de loja popular que cabe no bolso",
+      "gravarPassos": [
+        "A Francyne grava a montagem do look com peças de loja popular",
+        "No fim, ela passa o bastão: 'agora a make, com a @kele'",
+        "A Kele começa o vídeo dela exatamente daí e finaliza a transformação",
+        "Um editor emenda os dois numa sequência só — ou cada uma posta a sua parte marcando a outra"
+      ],
+      "porQueFunciona": "Juntas entregam a torcedora pronta do zero — beleza + moda acessível, dois públicos somados."
+    }
+  ],
+  "fechamento": {
+    "fioComum": "Duas forças puxaram a semana inteira — a Copa e a pressão de vender. E em cada criador o padrão foi o mesmo: funcionou quando a voz de cada um falou mais alto, e esfriou quando o conteúdo virou genérico.",
+    "lembreteComunidade": "Toda terça a gente lê a semana juntos. No meio do barulho, é mais fácil enxergar a própria voz quando tem gente do lado — você não cria sozinho."
+  }
+}

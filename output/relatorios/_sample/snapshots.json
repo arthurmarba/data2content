@@ -1,0 +1,39 @@
+[
+  {
+    "data": "2026-06-22",
+    "narrativaCentral": "Uma arquiteta tentando provar que casa boa não é casa cara",
+    "territoriosOcupados": [
+      "Reforma de baixo custo",
+      "Vida em apê alugado",
+      "Bastidores do canteiro"
+    ],
+    "audienciaPede": "Sua audiência está te pedindo mais reforma barata mostrada com número real, no seu tom direto — é onde ela salva e compartilha.",
+    "facaMais": [
+      "Reels de reforma abrindo com o orçamento real na tela (foi o seu centro: narrativa + audiência).",
+      "Manter o humor seco — é o que separa você de catálogo de loja."
+    ],
+    "facaMenos": [
+      "Parcerias no formato institucional: agradam a marca e perdem a audiência (zona única).",
+      "Carrosséis longos que demoram a chegar no ponto."
+    ],
+    "planoPrometido": [
+      "O banheiro que reformei com R$ 800 e o que eu faria diferente",
+      "Como eu apresentaria a loja de tintas SEM virar comercial",
+      "O erro de obra que ninguém posta (e quase me custou caro)"
+    ],
+    "vereditos": [
+      {
+        "postId": "p1",
+        "veredito": "repetir"
+      },
+      {
+        "postId": "p2",
+        "veredito": "nao-repetir"
+      },
+      {
+        "postId": "p3",
+        "veredito": "ajustar"
+      }
+    ]
+  }
+]

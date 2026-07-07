@@ -18,6 +18,9 @@
 import { useState, useCallback } from "react";
 import { X } from "lucide-react";
 import type { AudienceInsights } from "@/app/dashboard/boards/videoUpload/audienceInsightsService";
+// Valor puro vem do módulo client-safe — importar de audienceInsightsService
+// arrastaria winston/mongoose (só-de-servidor) pro bundle do cliente.
+import { territoryLabelsMatch } from "@/app/dashboard/boards/videoUpload/audienceTerritoryLabels";
 
 // Tokens alinhados ao card "Roteiros", com acento verde para Audiência.
 const CARD_RADIUS = 20;
@@ -213,6 +216,15 @@ function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+// Magnitude relativa em linguagem humana (empréstimo da Galileia: nunca número cru).
+// Só devolve frase quando o destaque é material; senão null (a espinha omite).
+function liftPhrase(x: number): string | null {
+  if (x >= 3) return "o triplo do resto";
+  if (x >= 2) return "o dobro do resto";
+  if (x >= 1.5) return "bem mais que o resto";
+  return null;
+}
+
 // Rótulo "bonito" para chips/comparações: humaniza (tira barra técnica) + capitaliza.
 // "Tecnologia/Digital" → "Tecnologia"; "neutro/descritivo" → "Neutro".
 function prettyLabel(s: string): string {
@@ -394,9 +406,17 @@ interface Props {
    * virar "poste mais", pressão de performance).
    */
   onReviewTerritories?: () => void;
+  /**
+   * Fase 1 (parceria) — quando fornecido, as linhas de TERRITÓRIO ganham a ação
+   * "Gerar pautas de {território} →", que puxa o criador da leitura (Etapa 3) para
+   * a criação (Etapa 9). Recebe o rótulo cru do território para semear a geração
+   * (`focusedTerritory`). Só território vira pauta — ritmo/demografia não recebem
+   * ação (seriam pressão de performance / o "óbvio" que o Instagram já mostra).
+   */
+  onGeneratePautasForTerritory?: (territoryLabel: string) => void;
 }
 
-export function AudienceInsightsCard({ insights, instagramConnected, onReviewTerritories }: Props) {
+export function AudienceInsightsCard({ insights, instagramConnected, onReviewTerritories, onGeneratePautasForTerritory }: Props) {
   const [openModal, setOpenModal] = useState<ModalType>(null);
   const closeModal = useCallback(() => setOpenModal(null), []);
 
@@ -405,68 +425,117 @@ export function AudienceInsightsCard({ insights, instagramConnected, onReviewTer
   const { orphanTerritory, resonantTone, formatInversion, resonantIntent, territoryDivergence, resonantTerritory, risingTerritory, combo, resonantNarrativeForm, resonantStance, engagedDivergence, demographics, rhythm, attention, propagation, topLifeAsset } = insights;
   const periodLabel = insights.periodLabel ?? "últimos 90 dias";
 
-  // Ordem por VALOR narrativo (todas as que têm sinal aparecem — sem cap):
-  //   território/audiência (mais único ao D2C) → expressão (quem você é) →
-  //   comportamento → cena de vida → demografia (o "óbvio", âncora por último).
-  // Cada linha = rótulo de DIMENSÃO + headline humano. A 1ª não recebe borda-topo.
-  const rows: { key: Exclude<ModalType, null>; dimension: string; headline: string }[] = [];
-  // ── Combo cirúrgico (mais específico) primeiro ──
-  if (combo) {
-    rows.push({ key: "combo", dimension: "MOMENTO CERTO", headline: comboCardHeadline(combo) });
-  }
-  // ── Território + audiência ──
-  if (territoryDivergence) {
-    rows.push({ key: "divergence", dimension: "TERRITÓRIO", headline: divergenceCardHeadline(territoryDivergence.audienceLabel) });
-  }
-  if (orphanTerritory) {
-    rows.push({ key: "orphan", dimension: "TERRITÓRIO", headline: orphanCardHeadline(orphanTerritory.label) });
-  }
-  if (resonantTerritory) {
-    rows.push({ key: "resonantTerritory", dimension: "TERRITÓRIO", headline: resonantTerritoryCardHeadline(resonantTerritory.label) });
-  }
-  if (risingTerritory) {
-    rows.push({ key: "rising", dimension: "EM ASCENSÃO", headline: risingCardHeadline(risingTerritory.label) });
-  }
-  if (engagedDivergence) {
-    rows.push({ key: "engagedDivergence", dimension: "QUEM ENGAJA", headline: engagedDivergenceCardHeadline(engagedDivergence) });
-  }
-  // ── Expressão (quem você é) ──
-  if (resonantTone) {
-    rows.push({ key: "tone", dimension: "TOM", headline: toneCardHeadline(resonantTone.label) });
-  }
-  if (resonantIntent) {
-    rows.push({ key: "intent", dimension: "INTENÇÃO", headline: intentCardHeadline(resonantIntent.label) });
-  }
-  if (resonantNarrativeForm) {
-    rows.push({ key: "narrativeForm", dimension: "FORMA NARRATIVA", headline: narrativeFormCardHeadline(resonantNarrativeForm.label) });
-  }
-  if (resonantStance) {
-    rows.push({ key: "stance", dimension: "POSTURA", headline: stanceCardHeadline(resonantStance.label) });
-  }
-  // ── Comportamento ──
-  if (formatInversion) {
-    rows.push({ key: "format", dimension: "FORMATO", headline: formatInversionCardHeadline(formatInversion.savesLeaderLabel) });
-  }
-  if (rhythm) {
-    rows.push({ key: "rhythm", dimension: "RITMO", headline: rhythmCardHeadline(rhythm.label, rhythm.signal) });
-  }
-  if (attention) {
-    rows.push({ key: "attention", dimension: "ATENÇÃO", headline: attentionCardHeadline(attention.label) });
-  }
-  if (propagation) {
-    rows.push({ key: "propagation", dimension: "PROPAGAÇÃO", headline: propagationCardHeadline(propagation.label) });
-  }
-  if (topLifeAsset) {
-    rows.push({ key: "lifeAsset", dimension: "CENA DE VIDA", headline: lifeAssetCardHeadline(topLifeAsset.label) });
-  }
-  // ── Âncora (o óbvio, por último) ──
-  if (demographics) {
-    rows.push({ key: "demographics", dimension: "QUEM TE ACOMPANHA", headline: demographicsCardHeadline(demographics) });
+  // ── Montagem em 3 camadas: TERRITÓRIO (vira pauta) · VOZ (fundida) · o resto ──
+  // O card deixou de ser um espelho longo (lista sem cap) para virar uma ponte
+  // da leitura (Etapa 3) → criação (Etapa 9). Regras:
+  //   • hard cap de 3 linhas na FACE — sem "ver mais" (parede de dashboard).
+  //   • território prioriza a face (é o que vira pauta); demografia/ritmo/atenção/
+  //     propagação/formato saem da face (são o "óbvio" que o Instagram já mostra).
+  //   • a VOZ (tom/intenção/forma/postura) colapsa numa linha só — a mais forte —
+  //     evitando 4 headlines quase idênticas.
+  type Row = {
+    key: Exclude<ModalType, null>;
+    dimension: string;
+    headline: string;
+    /** Rótulo cru do território — presente só nas linhas que viram pauta. */
+    territoryLabel?: string;
+    /**
+     * Empréstimo da Galileia (ponto-ouro): OURO = a audiência guarda por algo que
+     * JÁ está no mapa → faça mais (gerar pautas). A NOMEAR = guarda por algo FORA do
+     * mapa → não é "faça mais" cego; é uma pergunta (é você, ou é o automático?).
+     */
+    anchor?: "ouro" | "nomear";
+    /** Fase C-lite: o reconhecimento desse território vem crescendo → selo "▲ crescendo". */
+    rising?: boolean;
+  };
+
+  // Ponto-ouro: um território é OURO se casa com algum território confirmado no mapa.
+  const inMap = (label: string) => insights.confirmedTerritoryLabels.some((m) => territoryLabelsMatch(label, m));
+  const anchorOf = (label: string): "ouro" | "nomear" => (inMap(label) ? "ouro" : "nomear");
+  // Movimento (C-lite): o território em ascensão, casado de forma fuzzy — decora
+  // QUALQUER linha desse assunto, não só a família "risingTerritory".
+  const isRising = (label: string) =>
+    !!insights.risingTerritoryLabel && territoryLabelsMatch(label, insights.risingTerritoryLabel);
+
+  // Territórios, em ordem de valor narrativo (divergência mapa↔audiência = jóia do D2C).
+  const territoryRows: Row[] = [];
+  // Divergência é, por definição, fora do mapa (o detector já garante o não-match).
+  if (territoryDivergence) territoryRows.push({ key: "divergence", dimension: "TERRITÓRIO", headline: divergenceCardHeadline(territoryDivergence.audienceLabel), territoryLabel: territoryDivergence.audienceLabel, anchor: "nomear", rising: isRising(territoryDivergence.audienceLabel) });
+  if (combo) territoryRows.push({ key: "combo", dimension: "MOMENTO CERTO", headline: comboCardHeadline(combo), territoryLabel: combo.territoryLabel, anchor: anchorOf(combo.territoryLabel), rising: isRising(combo.territoryLabel) });
+  if (orphanTerritory) territoryRows.push({ key: "orphan", dimension: "TERRITÓRIO", headline: orphanCardHeadline(orphanTerritory.label), territoryLabel: orphanTerritory.label, anchor: anchorOf(orphanTerritory.label), rising: isRising(orphanTerritory.label) });
+  if (resonantTerritory) territoryRows.push({ key: "resonantTerritory", dimension: "TERRITÓRIO", headline: resonantTerritoryCardHeadline(resonantTerritory.label), territoryLabel: resonantTerritory.label, anchor: anchorOf(resonantTerritory.label), rising: isRising(resonantTerritory.label) });
+  if (risingTerritory) territoryRows.push({ key: "rising", dimension: "EM ASCENSÃO", headline: risingCardHeadline(risingTerritory.label), territoryLabel: risingTerritory.label, anchor: anchorOf(risingTerritory.label), rising: true });
+
+  // Dedup de território: nunca duas linhas sobre o MESMO assunto (a mais forte fica).
+  const dedupedTerritoryRows: Row[] = [];
+  const seenTerritory = new Set<string>();
+  for (const r of territoryRows) {
+    const k = r.territoryLabel ? humanizeLabel(r.territoryLabel) : r.key;
+    if (seenTerritory.has(k)) continue;
+    seenTerritory.add(k);
+    dedupedTerritoryRows.push(r);
   }
 
-  // Sem cap: toda família com sinal confiável aparece (a dedup já evita repetição
-  // de território, e o piso de confiança de cada família evita ruído).
-  const visibleRows = rows;
+  // Voz: colapsa o cluster de expressão na dimensão mais forte (maior média de saves).
+  const voiceCandidates = [
+    resonantTone && { key: "tone" as const, label: resonantTone.label, avg: resonantTone.avgSaves, headline: toneCardHeadline(resonantTone.label) },
+    resonantIntent && { key: "intent" as const, label: resonantIntent.label, avg: resonantIntent.avgSaves, headline: intentCardHeadline(resonantIntent.label) },
+    resonantNarrativeForm && { key: "narrativeForm" as const, label: resonantNarrativeForm.label, avg: resonantNarrativeForm.avgSaves, headline: narrativeFormCardHeadline(resonantNarrativeForm.label) },
+    resonantStance && { key: "stance" as const, label: resonantStance.label, avg: resonantStance.avgSaves, headline: stanceCardHeadline(resonantStance.label) },
+  ].filter(Boolean) as Array<{ key: Exclude<ModalType, null>; label: string; avg: number; headline: string }>;
+  const topVoice = voiceCandidates.sort((a, b) => b.avg - a.avg)[0] ?? null;
+  const voiceRow: Row | null = topVoice
+    ? { key: topVoice.key, dimension: "SUA VOZ", headline: topVoice.headline }
+    : null;
+
+  // O resto (fora da face por padrão — só entram se sobrar slot no cap de 3):
+  // cena de vida → comportamento → âncoras demográficas. Ordem por valor narrativo.
+  const restRows: Row[] = [];
+  if (topLifeAsset) restRows.push({ key: "lifeAsset", dimension: "CENA DE VIDA", headline: lifeAssetCardHeadline(topLifeAsset.label) });
+  if (formatInversion) restRows.push({ key: "format", dimension: "FORMATO", headline: formatInversionCardHeadline(formatInversion.savesLeaderLabel) });
+  if (attention) restRows.push({ key: "attention", dimension: "ATENÇÃO", headline: attentionCardHeadline(attention.label) });
+  if (propagation) restRows.push({ key: "propagation", dimension: "PROPAGAÇÃO", headline: propagationCardHeadline(propagation.label) });
+  if (rhythm) restRows.push({ key: "rhythm", dimension: "RITMO", headline: rhythmCardHeadline(rhythm.label, rhythm.signal) });
+  if (engagedDivergence) restRows.push({ key: "engagedDivergence", dimension: "QUEM ENGAJA", headline: engagedDivergenceCardHeadline(engagedDivergence) });
+  if (demographics) restRows.push({ key: "demographics", dimension: "QUEM TE ACOMPANHA", headline: demographicsCardHeadline(demographics) });
+
+  // Face: melhor território → voz → (movimento primeiro) → o resto, até 3 linhas.
+  const MAX_FACE_ROWS = 3;
+  const face: Row[] = [];
+  if (dedupedTerritoryRows[0]) face.push(dedupedTerritoryRows[0]);
+  if (voiceRow) face.push(voiceRow);
+  // C-lite: quem VOLTA precisa ver o que mudou — um território em ascensão sobe no
+  // preenchimento (fica garantido no top 3), mesmo que não seja o mais forte.
+  const fillCandidates = [...dedupedTerritoryRows.slice(1), ...restRows]
+    .sort((a, b) => Number(!!b.rising) - Number(!!a.rising));
+  for (const r of fillCandidates) {
+    if (face.length >= MAX_FACE_ROWS) break;
+    face.push(r);
+  }
+  const visibleRows = face.slice(0, MAX_FACE_ROWS);
+
+  // Espinha: leitura de 1 segundo — o território mais guardado + magnitude relativa
+  // (empréstimo da Galileia: "stat sempre relativo") + o TOM. Usa `topTerritory` (o
+  // assunto nº1 em saves) como âncora; cai para o 1º território exibido se faltar.
+  // O complemento usa o TOM especificamente (só o tom é um "jeito de falar" — forma
+  // narrativa/postura/intenção não encaixam em "no seu tom ___"). O verbo ("guardam")
+  // evita colidir com a headline de divergência ("reconhecem por…").
+  const spineTerritory = insights.topTerritory?.label ?? dedupedTerritoryRows[0]?.territoryLabel ?? null;
+  const spineLiftText = insights.topTerritory ? liftPhrase(insights.topTerritory.saveLift) : null;
+  const spineTone = resonantTone?.label ?? null;
+  const spine: React.ReactNode = spineTerritory ? (
+    <>
+      O que elas mais guardam de você:{" "}
+      <strong style={{ fontWeight: 700 }}>{territoryNoun(spineTerritory)}</strong>
+      {spineLiftText ? <> — {spineLiftText}</> : null}
+      {spineTone ? (
+        <>
+          {spineLiftText ? "," : " —"} no seu tom <strong style={{ fontWeight: 700 }}>{humanizeLabel(spineTone)}</strong>
+        </>
+      ) : null}
+      .
+    </>
+  ) : null;
 
   return (
     <>
@@ -501,16 +570,46 @@ export function AudienceInsightsCard({ insights, instagramConnected, onReviewTer
           </span>
         </div>
 
+        {/* Espinha — reconhecimento em uma frase (o "óbvio-para-ela" antes das linhas) */}
+        {spine && (
+          <p style={{ margin: "0 0 4px", fontSize: 14, lineHeight: 1.45, color: CARD_TEXT, fontWeight: 500, letterSpacing: -0.1 }}>
+            {spine}
+          </p>
+        )}
+
         {/* Seções */}
         <div style={{ display: "flex", flexDirection: "column", gap: 0, margin: "4px -22px 0" }}>
-          {visibleRows.map((row, i) => (
-            <InsightRow
-              key={row.key}
-              headline={row.headline}
-              onClick={() => setOpenModal(row.key)}
-              isFirst={i === 0}
-            />
-          ))}
+          {visibleRows.map((row, i) => {
+            // Ponto-ouro → ação: OURO puxa pautas (faça mais); A NOMEAR devolve a
+            // pergunta ao criador (é você?) via revisão do mapa. Só território age.
+            let action: RowAction | undefined;
+            if (row.territoryLabel && row.anchor === "ouro" && onGeneratePautasForTerritory) {
+              const label = row.territoryLabel;
+              action = {
+                note: "No centro do seu mapa",
+                tone: "ouro",
+                label: `Gerar pautas de ${territoryNoun(label)} →`,
+                onClick: () => onGeneratePautasForTerritory(label),
+              };
+            } else if (row.territoryLabel && row.anchor === "nomear" && onReviewTerritories) {
+              action = {
+                note: "Ainda fora do seu mapa",
+                tone: "nomear",
+                label: "Isso faz parte de você? Revisar →",
+                onClick: onReviewTerritories,
+              };
+            }
+            return (
+              <InsightRow
+                key={row.key}
+                headline={row.headline}
+                onClick={() => setOpenModal(row.key)}
+                isFirst={i === 0}
+                action={action}
+                rising={row.rising}
+              />
+            );
+          })}
         </div>
 
         {/* Atribuição */}
@@ -716,37 +815,100 @@ export function AudienceInsightsCard({ insights, instagramConnected, onReviewTer
 
 // ─── InsightRow ──────────────────────────────────────────────────────────────
 
+/** Ação de parceria de uma linha, com o veredito do ponto-ouro (ouro/nomear). */
+type RowAction = {
+  /** Micro-veredito acima do CTA: "No centro do seu mapa" / "Ainda fora do seu mapa". */
+  note?: string;
+  /** Ouro = faça mais (verde/pleno); nomear = pergunta ao criador (calmo/neutro). */
+  tone: "ouro" | "nomear";
+  label: string;
+  onClick: () => void;
+};
+
 function InsightRow({
   headline,
   onClick,
   isFirst,
+  action,
+  rising = false,
 }: {
   headline: string;
   onClick: () => void;
   isFirst: boolean;
+  /** Fase 1 + ponto-ouro — ação de parceria roteada pelo veredito narrativo. */
+  action?: RowAction;
+  /** Fase C-lite — território cujo reconhecimento vem crescendo (selo de movimento). */
+  rising?: boolean;
 }) {
+  // Julgamento = cor (empréstimo da Galileia): ouro pleno no acento; nomear neutro.
+  const isOuro = action?.tone === "ouro";
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <div
       style={{
-        display: "flex", alignItems: "center",
-        gap: 10,
-        width: "100%",
-        background: "transparent", border: "none",
         borderTop: isFirst ? "none" : `1px solid ${CARD_DIVIDER_SOFT}`,
         padding: "14px 22px",
-        cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+        display: "flex", flexDirection: "column", gap: 8,
       }}
     >
-      {/* Sem rótulo técnico — a frase humana carrega sozinha. */}
-      <p style={{ margin: 0, flex: 1, minWidth: 0, fontSize: 13, color: CARD_TEXT, lineHeight: 1.4, fontWeight: 500, letterSpacing: -0.1 }}>
-        {headline}
-      </p>
-      <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ flexShrink: 0, color: CARD_ACCENT, opacity: 0.5 }}>
-        <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-      </svg>
-    </button>
+      {/* Selo de movimento (C-lite) — o que quem volta vê primeiro. */}
+      {rising && (
+        <span
+          style={{
+            alignSelf: "flex-start",
+            display: "inline-flex", alignItems: "center", gap: 4,
+            borderRadius: 999, padding: "2px 8px",
+            background: "rgba(16,185,129,0.12)",
+            fontSize: 10.5, fontWeight: 700, letterSpacing: 0.2, color: CARD_ACCENT,
+            textTransform: "uppercase",
+          }}
+        >
+          ▲ Crescendo
+        </span>
+      )}
+
+      {/* Headline (abre a profundidade no modal) */}
+      <button
+        type="button"
+        onClick={onClick}
+        style={{
+          display: "flex", alignItems: "center", gap: 10, width: "100%",
+          background: "transparent", border: "none", padding: 0,
+          cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+        }}
+      >
+        {/* Sem rótulo técnico — a frase humana carrega sozinha. */}
+        <p style={{ margin: 0, flex: 1, minWidth: 0, fontSize: 13, color: CARD_TEXT, lineHeight: 1.4, fontWeight: 500, letterSpacing: -0.1 }}>
+          {headline}
+        </p>
+        <svg width="13" height="13" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ flexShrink: 0, color: CARD_ACCENT, opacity: 0.5 }}>
+          <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+
+      {/* Ação de parceria — só território, roteada pelo veredito do ponto-ouro. */}
+      {action && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {action.note && (
+            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.1, color: isOuro ? CARD_ACCENT : "#a1a1aa" }}>
+              {action.note}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={action.onClick}
+            style={{
+              alignSelf: "flex-start",
+              background: "transparent", border: "none", padding: 0,
+              cursor: "pointer", fontFamily: "inherit",
+              fontSize: 12.5, fontWeight: 700, letterSpacing: -0.1,
+              color: isOuro ? CARD_ACCENT : "#52525b",
+            }}
+          >
+            {action.label}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

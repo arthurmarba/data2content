@@ -1,0 +1,155 @@
+{
+  "data": "2026-06-23",
+  "angulo": "perfil",
+  "criadores": [
+    {
+      "userId": "69fde448fdd8be7eb99ddb48",
+      "nome": "Laura Rosa",
+      "handle": "@laurarosapersonal",
+      "narrativaCentral": "Nenhuma mulher treina sozinha — a companhia diária como método",
+      "territorios": [
+        "Treino em casa",
+        "Emagrecimento feminino",
+        "Comunidade de apoio",
+        "Saúde hormonal"
+      ],
+      "assets": [
+        "Treinos em casa",
+        "Pesinhos",
+        "Sala",
+        "Comunidade de apoio",
+        "Suporte diário"
+      ]
+    }
+  ],
+  "titulo": "Laura Rosa — a personal que nunca deixa você treinar sozinha",
+  "slides": [
+    {
+      "n": 1,
+      "batida": "gancho",
+      "layout": "cover",
+      "imagem": {
+        "fonte": "profile_picture",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-novo/assets/profile_picture-1928983223.jpg",
+        "userId": "69fde448fdd8be7eb99ddb48",
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-novo/assets/profile_picture-1928983223.jpg"
+      },
+      "headline": "Eu, você e um pesinho.",
+      "corpo": "A frase que a @laurarosapersonal repete em todo treino — e o mapa que explica por que funciona."
+    },
+    {
+      "n": 2,
+      "batida": "quem-e",
+      "layout": "two-column",
+      "imagem": {
+        "fonte": "profile_picture",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-novo/assets/profile_picture-1928983223.jpg",
+        "userId": "69fde448fdd8be7eb99ddb48",
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-novo/assets/profile_picture-1928983223.jpg"
+      },
+      "headline": "<b>Personal trainer</b> que treina mulheres dentro de casa — com o pesinho que elas já têm na sala",
+      "corpo": "Laura Rosa (@laurarosapersonal) ensina treino feminino em casa: nada de academia, nada de equipamento caro. Um tapete, um pesinho e ela do outro lado da tela, todo dia. O recado é sempre o mesmo — você não precisa começar sozinha."
+    },
+    {
+      "n": 3,
+      "batida": "tensao",
+      "layout": "respiro",
+      "fundo": "dark",
+      "stat": "93 mil",
+      "statLabel": "interações num treino que cabe numa sala de apartamento."
+    },
+    {
+      "n": 4,
+      "batida": "twist",
+      "layout": "reasoning",
+      "headline": "O segredo dela não é o treino. É a palavra que vem antes de cada treino: 'nós'.",
+      "corpo": "O mapa da D2C mostra a cadeia por trás:",
+      "cadeia": [
+        "NARRATIVA: Nenhuma mulher treina sozinha — a companhia diária como método",
+        "TERRITÓRIO: Treino em casa · Emagrecimento feminino · Comunidade de apoio",
+        "TEMA: O 'eu, você e um pesinho' — ela se coloca AO LADO, nunca à frente",
+        "PAUTA: Reel onde ela treina junto, em casa, com o mesmo pesinho que a seguidora tem na mão"
+      ]
+    },
+    {
+      "n": 5,
+      "batida": "twist",
+      "layout": "full-bleed-text",
+      "artePrompt": "Empty bright living room at morning, a single small dumbbell resting on a yoga mat on the floor, soft natural window light, cozy home atmosphere, cinematic editorial photography, desaturated warm tones, soft film grain, absolutely no people, no text, no words, no letters, no signage, no watermark",
+      "headline": "Por que um treino sem produção bate um vídeo de academia cheio de equipamento?",
+      "corpo": "É o que a D2C lê no mapa dela: as pessoas não param pelo exercício — param pela companhia. Quando ela diz 'eu, você', a mulher do outro lado não vê uma treinadora cobrando. Vê alguém que vai estar ali amanhã de novo. O pesinho é o mesmo. A diferença é não estar sozinha.",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-novo/assets/art-05.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-novo/assets/art-05.png"
+      }
+    },
+    {
+      "n": 6,
+      "batida": "prova",
+      "layout": "video-proof",
+      "stat": "93 mil",
+      "headline": "Se você deseja um resultado em 30 dias, comece hoje — comigo.",
+      "corpo": "<b>A leitura:</b> repare que ela nunca manda você fazer. Ela faz JUNTO. 93 mil interações porque o convite não é uma ordem — é uma mão estendida. A mulher que assiste não sente cobrança, sente companhia. E companhia, diferente de cobrança, faz a pessoa voltar amanhã.",
+      "imagem": {
+        "fonte": "none",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-novo/assets/poster-06.jpg",
+        "video": {
+          "mediaId": "18341310397234323",
+          "userId": "69fde448fdd8be7eb99ddb48",
+          "inicio": 0,
+          "duracao": 60,
+          "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-novo/assets/video-06.mp4"
+        },
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-novo/assets/poster-06.jpg"
+      }
+    },
+    {
+      "n": 7,
+      "batida": "prova",
+      "layout": "video-proof",
+      "stat": "31 mil",
+      "headline": "Só um treino pensado para mulher trabalha tanta coisa ao mesmo tempo.",
+      "corpo": "<b>A leitura:</b> aqui ela troca o 'nós' por um 'nós mulheres'. 31 mil interações porque ela não está falando para qualquer um — está falando para quem vive o mesmo corpo, a mesma rotina, a mesma falta de tempo. Quando o conteúdo reconhece exatamente quem está do outro lado, a pessoa salva, manda pra amiga e volta.",
+      "imagem": {
+        "fonte": "none",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-novo/assets/poster-07.jpg",
+        "video": {
+          "mediaId": "18100507885918529",
+          "userId": "69fde448fdd8be7eb99ddb48",
+          "inicio": 0,
+          "duracao": 60,
+          "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-novo/assets/video-07.mp4"
+        },
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-23-novo/assets/poster-07.jpg"
+      }
+    },
+    {
+      "n": 8,
+      "batida": "payoff",
+      "layout": "respiro",
+      "fundo": "paper",
+      "headline": "Ela não vende um corpo. Vende uma presença que aparece todo dia.",
+      "corpo": "E é por isso que funciona quando tanta promessa de transformação não funciona."
+    },
+    {
+      "n": 9,
+      "batida": "convite",
+      "layout": "cta",
+      "headline": "O que a Laura faz por mil mulheres, a D2C faz pelo seu conteúdo.",
+      "corpo": "Ela descobriu que o método dela é a companhia. A Data2Content lê o seu mapa e te mostra qual é o seu — e você também para de criar sozinho.",
+      "lista": [
+        "Seu <b>mapa narrativo</b> — o fio que explica por que seu conteúdo funciona",
+        "<b>Pautas</b> que nascem do que só você tem a dizer",
+        "<b>Collabs</b> com criadores que ocupam o mesmo território",
+        "<b>Reuniões semanais da comunidade</b> — você não cria sozinho"
+      ]
+    }
+  ],
+  "caption": "'Eu, você e um pesinho.' É assim que a @laurarosapersonal abre quase todo treino. E é aí que está o segredo dela.\n\nUm treino em casa, sem academia, sem equipamento caro. 93 mil pessoas pararam não pelo exercício — mas porque ela nunca diz 'você faz'. Ela diz 'nós fazemos'. Não é uma treinadora cobrando. É uma presença que aparece todo dia.\n\nA Data2Content leu o mapa dela: o método não é o treino. É a companhia. E é exatamente isso que faz uma mulher voltar amanhã.\n\nArrasta.\n\n💬 Comenta MAPA que a gente te mostra como a Data2Content lê o seu.\n\n#treinoemcasa #personaltrainer #treinofeminino #data2content",
+  "manychat": {
+    "keyword": "MAPA",
+    "dm": "Oi! Vi o post da Laura e quero entender meu mapa narrativo também 👉 data2content.com.br/signup?utm_source=instagram&utm_medium=direct&utm_campaign=laurarosa-junho2026"
+  }
+}

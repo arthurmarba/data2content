@@ -1,0 +1,190 @@
+{
+  "data": "2026-06-17",
+  "angulo": "perfil",
+  "criadores": [
+    {
+      "userId": "68cb6f2898487c4179ad4f2f",
+      "nome": "Ronaldo Fonseca Jr",
+      "handle": "@ronaldofonsecajr",
+      "narrativaCentral": "Um pai que busca equilíbrio e propósito na jornada da vida",
+      "territorios": [
+        "Paternidade",
+        "Bem-estar",
+        "Autoconhecimento",
+        "Carreira",
+        "Esporte",
+        "Viagens"
+      ],
+      "assets": [
+        "O criador e sua filha",
+        "Praias e paisagens naturais",
+        "Medalhas de corrida",
+        "Ambientes de escritório",
+        "Livros e momentos de leitura",
+        "Cavaquinho",
+        "Ambiente doméstico",
+        "Esposa"
+      ]
+    }
+  ],
+  "titulo": "Ronaldo: a corrida que não é sobre correr (com as provas em vídeo)",
+  "slides": [
+    {
+      "n": 1,
+      "batida": "gancho",
+      "layout": "cover",
+      "headline": "Um Reel dele tem quase 1 milhão de interações. A história real é outra.",
+      "imagem": {
+        "fonte": "video",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17/assets/poster-01.jpg",
+        "userId": "68cb6f2898487c4179ad4f2f",
+        "video": {
+          "mediaId": "18072415622386809",
+          "userId": "68cb6f2898487c4179ad4f2f",
+          "inicio": 0,
+          "duracao": 90,
+          "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-06-17/assets/video-01.mp4"
+        },
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17/assets/poster-01.jpg"
+      }
+    },
+    {
+      "n": 2,
+      "batida": "quem-e",
+      "layout": "two-column",
+      "headline": "Ronaldo corre. Mas o que ele persegue não tem linha de chegada.",
+      "corpo": "Pai, corredor, marido. Ele posta sobre <b>sair do trabalho a tempo</b> de viver a vida que importa — e milhões de pessoas se reconhecem nisso.",
+      "imagem": {
+        "fonte": "profile_picture",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17/assets/profile_picture-61b397214e.jpg",
+        "userId": "68cb6f2898487c4179ad4f2f",
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17/assets/profile_picture-61b397214e.jpg"
+      }
+    },
+    {
+      "n": 3,
+      "batida": "tensao",
+      "layout": "full-bleed-text",
+      "headline": "Por que isso emociona mais que qualquer dica de produtividade?",
+      "corpo": "Não é o tênis. Não é a praia. É o convite a <b>largar tudo e correr pro que importa</b>.",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17/assets/art-03.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17/assets/art-03.png"
+      }
+    },
+    {
+      "n": 4,
+      "batida": "twist",
+      "layout": "reasoning",
+      "headline": "A Data2Content leu o mapa do Ronaldo. E achou o fio.",
+      "corpo": "Não é “paternidade”. Nem “corrida”. É <b>um pai saindo do automático</b> — e tudo que ele posta orbita isso.",
+      "cadeia": [
+        "Narrativa: um pai em busca de equilíbrio e propósito",
+        "Território: paternidade + esporte",
+        "Pauta: sair do escritório a tempo de viver a vida"
+      ],
+      "imagem": {
+        "fonte": "none",
+        "url": null
+      }
+    },
+    {
+      "n": 5,
+      "batida": "prova",
+      "layout": "text-only",
+      "headline": "Três vídeos. A mesma história, vivida diferente.",
+      "corpo": "Repare: nenhum é dica. Cada um é a narrativa dele respirando de um jeito novo. Aperta o play.",
+      "imagem": {
+        "fonte": "none",
+        "url": null
+      }
+    },
+    {
+      "n": 6,
+      "batida": "prova",
+      "layout": "video-proof",
+      "stat": "140 mil",
+      "headline": "“Você tem alguém que mostra que te ama o tempo todo, com pequenas surpresas?”",
+      "corpo": "<b>A leitura:</b> presença não é grande gesto. É o detalhe diário — e é nisso que a audiência se reconhece.",
+      "imagem": {
+        "fonte": "video",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17/assets/poster-06.jpg",
+        "userId": "68cb6f2898487c4179ad4f2f",
+        "video": {
+          "mediaId": "17992093043684828",
+          "userId": "68cb6f2898487c4179ad4f2f",
+          "inicio": 0,
+          "duracao": 90,
+          "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-06-17/assets/video-06.mp4"
+        },
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17/assets/poster-06.jpg"
+      }
+    },
+    {
+      "n": 7,
+      "batida": "prova",
+      "layout": "video-proof",
+      "stat": "419 mil",
+      "headline": "“Corri muito pra ganhar esses abraços.”",
+      "corpo": "<b>A leitura:</b> o esforço nunca é sobre a medalha. É sobre quem te espera na chegada.",
+      "imagem": {
+        "fonte": "video",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17/assets/poster-07.jpg",
+        "userId": "68cb6f2898487c4179ad4f2f",
+        "video": {
+          "mediaId": "18327183805247276",
+          "userId": "68cb6f2898487c4179ad4f2f",
+          "inicio": 0,
+          "duracao": 90,
+          "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-06-17/assets/video-07.mp4"
+        },
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17/assets/poster-07.jpg"
+      }
+    },
+    {
+      "n": 8,
+      "batida": "prova",
+      "layout": "video-proof",
+      "stat": "90 mil",
+      "headline": "“Ter filho transforma. Mas muita gente decide no automático.”",
+      "corpo": "<b>A leitura:</b> aqui ele diz a tese em voz alta. Viver no automático é o inimigo — o mapa inteiro numa frase.",
+      "imagem": {
+        "fonte": "video",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17/assets/poster-08.jpg",
+        "userId": "68cb6f2898487c4179ad4f2f",
+        "video": {
+          "mediaId": "18048897005502064",
+          "userId": "68cb6f2898487c4179ad4f2f",
+          "inicio": 0,
+          "duracao": 90,
+          "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-06-17/assets/video-08.mp4"
+        },
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17/assets/poster-08.jpg"
+      }
+    },
+    {
+      "n": 9,
+      "batida": "convite",
+      "layout": "cta",
+      "headline": "Ronaldo achou o fio dele. E o seu?",
+      "corpo": "A mesma leitura que revelou a história dele existe pro seu conteúdo:",
+      "imagem": {
+        "fonte": "none",
+        "url": null
+      },
+      "lista": [
+        "Seu <b>mapa</b> de criador: narrativa, territórios e tom",
+        "<b>Pautas</b> que nascem do seu mapa — não de tendência",
+        "<b>Collabs</b> com criadores que combinam com a sua história",
+        "<b>Reuniões semanais</b> com a comunidade"
+      ]
+    }
+  ],
+  "caption": "Ronaldo Fonseca (@ronaldofonsecajr) tem um Reel com quase 1 milhão de interações. Mas quando a Data2Content leu o mapa dele, o que apareceu não foi “corrida” nem “paternidade” — foi um pai saindo do automático em busca de equilíbrio e propósito. Arrasta e vê os vídeos que provam: é sempre a mesma história, vivida diferente. 💬 Comenta MAPA que a gente lê o seu.",
+  "manychat": {
+    "keyword": "MAPA",
+    "dm": "Oi! Que bom que você pediu 👋 É aqui que a Data2Content lê o seu mapa de criador e te mostra suas pautas: https://data2content.com/signup?utm_source=manychat&utm_campaign=revista_ronaldo"
+  }
+}

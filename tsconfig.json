@@ -57,6 +57,9 @@
     "**/dist/*",
     "**/.next/*",
     "**/out/*",
+    "scripts/relatorio/**/*",
+    "scripts/reuniao/**/*",
+    "scripts/revista/**/*",
     "src/tests/**/*",
     "playwright/**/*"
   ]

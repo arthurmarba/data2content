@@ -75,7 +75,7 @@ export default function HomeClientPage() {
       {shouldUseSingleDiscoverBoard ? (
         <SingleBoardHomeFrame
           boardWidthClassName={boardWidthClassName}
-          itemClassName="lg:-mt-[2.75rem] lg:h-[calc(100%+2.75rem)]"
+          itemClassName="lg:-mt-[0.5rem] lg:h-[calc(100%+0.5rem)]"
         >
           <DiscoverBoard mobileAppView showTitleMarker={false} />
         </SingleBoardHomeFrame>

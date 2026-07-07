@@ -1,0 +1,184 @@
+{
+  "data": "2026-06-17",
+  "angulo": "perfil",
+  "criadores": [
+    {
+      "userId": "69fdfdc25176d14449f9d596",
+      "nome": "Giulianna Palumbo",
+      "handle": "@giuliannapalumbo",
+      "narrativaCentral": "Uma observadora da cultura pop que decifra o comportamento humano",
+      "territorios": [
+        "Comportamento humano",
+        "Cultura pop",
+        "Novelas",
+        "Reality shows",
+        "Sociedade",
+        "Séries e filmes"
+      ],
+      "assets": [
+        "A própria criadora",
+        "Livro físico da autora",
+        "Telas de novelas e reality shows",
+        "Sofá e estante domésticos",
+        "Tom irônico e analítico"
+      ]
+    }
+  ],
+  "titulo": "Giulianna Palumbo: a novela era o pretexto",
+  "slides": [
+    {
+      "n": 1,
+      "batida": "gancho",
+      "layout": "cover",
+      "headline": "\"Gente, ela falou comigo, eu juro.\"",
+      "corpo": "",
+      "imagem": {
+        "fonte": "thumbnail",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-giulianna/assets/poster-01.jpg",
+        "userId": "69fdfdc25176d14449f9d596",
+        "video": {
+          "mediaId": "17871944505458558",
+          "userId": "69fdfdc25176d14449f9d596",
+          "inicio": 0,
+          "duracao": 90,
+          "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-giulianna/assets/video-01.mp4"
+        },
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-giulianna/assets/poster-01.jpg"
+      }
+    },
+    {
+      "n": 2,
+      "batida": "quem-e",
+      "layout": "two-column",
+      "headline": "Giulianna Palumbo analisa novelas, BBBs e séries. E tem 331 mil motivos para não parar.",
+      "corpo": "Ela escreveu um <b>livro</b>. Virou referência em análise de reality show no mesmo ano. Não como comentarista de fofoca — como alguém que usa a ficção pra dissecar o <b>comportamento humano</b> de verdade.",
+      "imagem": {
+        "fonte": "profile_picture",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-giulianna/assets/profile_picture-240d8e40d2.jpg",
+        "userId": "69fdfdc25176d14449f9d596",
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-giulianna/assets/profile_picture-240d8e40d2.jpg"
+      }
+    },
+    {
+      "n": 3,
+      "batida": "tensao",
+      "layout": "full-bleed-text",
+      "headline": "Mas se fosse só comentar TV bem, qualquer fã de horário nobre teria 331 mil interações.",
+      "corpo": "",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-giulianna/assets/art-03.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-giulianna/assets/art-03.png"
+      },
+      "artePrompt": "A woman sitting at a desk in a dimly lit room, a television glow reflecting on her face as she takes handwritten notes in an open notebook, analytical and introspective atmosphere, moody editorial magazine aesthetic, film grain texture, high contrast, sophisticated literary publication style",
+      "arteRef": "https://scontent-iad3-1.xx.fbcdn.net/v/t51.82787-15/671251887_18574998067018915_9116929095278977381_n.jpg?_nc_cat=108&ccb=1-7&_nc_sid=7d201b&_nc_eui2=AeFOXcagMWwHJsNe9ToSeEmbp7CiK9FyKaKnsKIr0XIporV0yCGMNE6oqIEiVQqFKvjVJtGZkakVa4nSB2xQyAbf&_nc_ohc=vjwbzwJJxPMQ7kNvwG0Nh4h&_nc_oc=AdonapGz5pNAtDBnKAaJ4fea3nLw2H8jifS2rvbBAIG4Gv2Y0_98YfMkeUcg5xtpg0E&_nc_zt=23&_nc_ht=scontent-iad3-1.xx&edm=AL-3X8kEAAAA&_nc_gid=nMhEkRpHAoT13Sq8aHsOYg&oh=00_Af8kIYyViHK4ab0Tm8J87x54HcHCowDPG-azZGZdAfvzig&oe=6A37C92C"
+    },
+    {
+      "n": 4,
+      "batida": "twist",
+      "layout": "reasoning",
+      "headline": "A novela é o formato. O comportamento humano é o conteúdo.",
+      "corpo": "Quando a D2C mapeou, o que apareceu não foi 'cultura pop' — foi alguém que usa a ficção como <b>laboratório de análise comportamental</b>. A trama é o veículo. Decifrar o ser humano é a narrativa.",
+      "cadeia": [
+        "Narrativa: uma observadora que decifra comportamento através da ficção",
+        "Território: comportamento humano + cultura pop",
+        "Pauta: por que tal personagem nos afeta — e o que isso diz sobre a gente"
+      ],
+      "imagem": {
+        "fonte": "none",
+        "url": null
+      }
+    },
+    {
+      "n": 5,
+      "batida": "prova",
+      "layout": "full-bleed-text",
+      "headline": "Três posts. A mesma dissecção, três objetos diferentes.",
+      "corpo": "Repare: não é fofoca. Cada um usa um pedaço da cultura pop como espelho do comportamento real.",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-giulianna/assets/art-05.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-giulianna/assets/art-05.png"
+      },
+      "artePrompt": "Abstract editorial concept of three overlapping circular magnifying glasses over blurred text fragments and TV static, sophisticated literary magazine aesthetic, film grain, moody high-contrast lighting, no faces, intellectual publication style"
+    },
+    {
+      "n": 6,
+      "batida": "prova",
+      "layout": "two-column",
+      "headline": "\"Dona Josefa é a líder do esquema? E como o bebê foi parar na casa da Arminda?\"",
+      "corpo": "185 mil interações. Novela <b>Três Graças</b>. <b>A leitura:</b> não é spoiler — é análise de como o poder se oculta numa trama. Quem acompanha sai sentindo que entendeu a vida, não só a ficção.",
+      "imagem": {
+        "fonte": "thumbnail",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-giulianna/assets/poster-06.jpg",
+        "userId": "69fdfdc25176d14449f9d596",
+        "video": {
+          "mediaId": "17875880484520367",
+          "userId": "69fdfdc25176d14449f9d596",
+          "inicio": 0,
+          "duracao": 90,
+          "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-giulianna/assets/video-06.mp4"
+        },
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-giulianna/assets/poster-06.jpg"
+      }
+    },
+    {
+      "n": 7,
+      "batida": "prova",
+      "layout": "two-column",
+      "headline": "\"EXPOSED da Ana Paula: o lado que ela não quer que você veja.\"",
+      "corpo": "151 mil interações. BBB26. <b>A leitura:</b> ela não torce por participante — ela expõe a <b>psicologia do jogador</b>. O espectador sai sabendo mais sobre si mesmo do que sobre o jogo.",
+      "imagem": {
+        "fonte": "thumbnail",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-giulianna/assets/poster-07.jpg",
+        "userId": "69fdfdc25176d14449f9d596",
+        "video": {
+          "mediaId": "18094289021079532",
+          "userId": "69fdfdc25176d14449f9d596",
+          "inicio": 0,
+          "duracao": 90,
+          "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-giulianna/assets/video-07.mp4"
+        },
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-giulianna/assets/poster-07.jpg"
+      }
+    },
+    {
+      "n": 8,
+      "batida": "payoff",
+      "layout": "full-bleed-text",
+      "headline": "A novela era o pretexto. A vida era o tema.",
+      "corpo": "O que a D2C lê no mapa dela: o conteúdo que parece entretenimento esconde uma <b>chave de leitura do mundo</b>. Quando você encontra sua narrativa central, começa a criar de um lugar que nenhum algoritmo replica.",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-giulianna/assets/art-08.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-17-giulianna/assets/art-08.png"
+      },
+      "artePrompt": "Abstract editorial illustration of a television screen dissolving into open pages of a book, symbolic and philosophical, high-contrast dramatic lighting, intellectual literary magazine aesthetic, film grain, no faces, warm amber and deep black tones"
+    },
+    {
+      "n": 9,
+      "batida": "convite",
+      "layout": "cta",
+      "headline": "Ela usa a ficção como laboratório. Qual é a sua lente?",
+      "corpo": "A D2C encontrou o que estava por baixo do conteúdo da Giulianna. Faz o mesmo para o seu:",
+      "imagem": {
+        "fonte": "none",
+        "url": null
+      },
+      "lista": [
+        "Seu <b>mapa</b>: narrativa central, territórios e tom do seu conteúdo",
+        "<b>Pautas</b> que nascem de quem você realmente é — não de tendência",
+        "<b>Collabs</b> com criadores que completam a sua história",
+        "<b>Comunidade</b> com reuniões semanais — você não cria sozinho"
+      ]
+    }
+  ],
+  "caption": "Giulianna Palumbo (@giuliannapalumbo) tem 331 mil interações num único reel. Mas quando a Data2Content leu o mapa dela, não apareceu 'novela' nem 'BBB' — apareceu alguém que usa a ficção como laboratório para decifrar o comportamento humano. A novela é o pretexto. A vida é o tema. Arrasta e vê as provas.\n\n💬 Comenta MAPA que a gente te mostra como a Data2Content lê o seu.\n\n#datacontent #criadores #instagram #culturapop #comportamentohumano",
+  "manychat": {
+    "keyword": "MAPA",
+    "dm": "Oi! Que bom que você pediu 👋 É aqui que a Data2Content lê o seu mapa de criador e te mostra suas pautas: https://data2content.com/signup?utm_source=manychat&utm_campaign=revista_giulianna"
+  }
+}

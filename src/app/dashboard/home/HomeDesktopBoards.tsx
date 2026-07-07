@@ -262,7 +262,7 @@ export default function HomeDesktopBoards() {
     "w-[min(415px,calc(100vw-28px))] lg:w-[450px] xl:w-[470px]";
   const homeRailPrimaryItemClassName =
     "w-[min(760px,calc(100vw-28px))] lg:w-[min(760px,55vw)] xl:w-[min(840px,58vw)]";
-  const homeRailItemClassName = "lg:-mt-[2.75rem] lg:h-[calc(100%+2.75rem)]";
+  const homeRailItemClassName = "lg:-mt-[0.5rem] lg:h-[calc(100%+0.5rem)]";
   const homeRailClassName = "items-start";
   const homeRailRestItemClassName = "self-start";
   const homeRailFirstItemClassName =

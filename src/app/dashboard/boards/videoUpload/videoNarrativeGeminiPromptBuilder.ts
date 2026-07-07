@@ -74,6 +74,14 @@ const schemaExample = {
     alignedAssets: ["string — assets confirmados que aparecem neste video"],
     newAssets: ["string — potenciais novos assets detectados, ainda sem confirmacao"],
   },
+  audienceCoherence: {
+    verdict: "aligned | tension | off | unknown",
+    reading: "string curta e observacional — se o video fala com quem assiste este creator e com o que a audiencia costuma pedir; unknown+null quando nao ha base de audiencia para avaliar",
+  },
+  brandCoherence: {
+    verdict: "aligned | tension | off | unknown",
+    reading: "string curta e observacional — se o video abre ou sustenta um territorio comercial coerente com o mapa; sem promessa de resultado ou 'alto potencial'",
+  },
   evidenceAnchors: {
     speechQuotes: [
       {
@@ -131,6 +139,24 @@ function formatInstagramMetrics(input: VideoNarrativeAiProviderInput): string {
     lines.push(`- Tendência de intenção: ${dir} de ${Math.abs(Math.round(m.intentDelta * 100))}% vs. período anterior`);
   }
 
+  return lines.join("\n");
+}
+
+function formatAudienceContext(input: VideoNarrativeAiProviderInput): string {
+  const a = input.profileContext?.audienceContext;
+  if (!a) return "";
+
+  const lines: string[] = ["Audiência real do perfil (composição de quem segue/engaja):"];
+  if (a.topGender) {
+    lines.push(`- Predominância de gênero: ${a.topGender}${a.topGenderPct != null ? ` (${a.topGenderPct}%)` : ""}`);
+  }
+  if (a.topAgeRange) {
+    lines.push(`- Faixa etária principal: ${a.topAgeRange}${a.topAgeRangePct != null ? ` (${a.topAgeRangePct}%)` : ""}`);
+  }
+  if (a.topLocations && a.topLocations.length > 0) {
+    lines.push(`- Concentração geográfica: ${a.topLocations.join(", ")}`);
+  }
+  if (lines.length === 1) return "";
   return lines.join("\n");
 }
 
@@ -203,6 +229,20 @@ export function buildVideoNarrativeGeminiPrompt(input: VideoNarrativeAiProviderI
           "Não referencie métricas, alcance, engajamento ou formatos do perfil. Analise apenas o vídeo enviado.",
         ];
       })(),
+      // Audiência real (demografia). Quando presente, é a âncora do eixo audienceCoherence.
+      ...(() => {
+        const audienceBlock = formatAudienceContext(input);
+        if (audienceBlock) {
+          return [
+            audienceBlock,
+            "Use isso como âncora do eixo audienceCoherence: avalie se o vídeo fala com essa audiência real; não invente outros dados demográficos.",
+          ];
+        }
+        return [
+          "Sem dados demográficos de audiência para este perfil.",
+          "Para audienceCoherence, se não houver sinal claro de para quem o vídeo fala, use verdict=unknown — não presuma a audiência.",
+        ];
+      })(),
       "Metadados seguros do vídeo temporário:",
       videoMetadata,
       `- hasTemporaryUpload: ${hasTemporaryUpload}`,
@@ -263,6 +303,13 @@ export function buildVideoNarrativeGeminiPrompt(input: VideoNarrativeAiProviderI
       "- Se o vídeo diverge claramente dos assets confirmados: verdict=deviation.",
       "- topPattern: o padrão que serviu de referência (ou null).",
       "- alignedAssets: assets confirmados que aparecem neste vídeo; newAssets: atributos novos detectados.",
+      "audienceCoherence (OBRIGATÓRIO — eixo audiência): o vídeo fala com quem já assiste este creator e com o que essa audiência costuma pedir? Ancore no bloco 'Audiência real do perfil' acima quando ele existir.",
+      "- aligned: conversa claramente com a audiência do creator; tension: conversa em parte, com uma ressalva; off: não conversa com quem o segue hoje.",
+      "- unknown com reading=null quando não há dados de audiência nem sinais suficientes para avaliar — nunca invente alinhamento de audiência.",
+      "- reading: 1 frase observacional; não prometa alcance, engajamento ou performance.",
+      "brandCoherence (OBRIGATÓRIO — eixo marca): o vídeo abre ou sustenta um território comercial coerente com o mapa do creator?",
+      "- aligned: abre/sustenta um território de fit narrativo com marcas; tension: fit parcial ou ainda difuso; off: não abre território comercial coerente; unknown quando não há base para avaliar.",
+      "- reading: 1 frase como área de fit narrativo — evite 'alto potencial', 'grande fit' ou promessa de resultado comercial.",
       "Evidence anchors (OBRIGATÓRIO — não retorne arrays vazios):",
       "- Forneça pelo menos 1 sceneAnchor descrevendo um momento concreto observado no vídeo.",
       "- Extraia até 4 falas curtas realmente ditas pelo creator que sustentem a leitura estratégica.",
@@ -284,7 +331,10 @@ export function buildVideoNarrativeGeminiPrompt(input: VideoNarrativeAiProviderI
       "whatVideoCommunicates e strategicReading não podem repetir o mesmo texto de mainNarrative.",
       "contentContext é OBRIGATÓRIO; lifeSignals pode ser [] se nenhum sinal claro for observado.",
       "narrativeCoherence é OBRIGATÓRIO; verdict deve ser um dos valores válidos.",
-      "Valores aceitos em verdict: confirms_top_pattern, experiment, deviation, first_reading, unknown.",
+      "Valores aceitos em narrativeCoherence.verdict: confirms_top_pattern, experiment, deviation, first_reading, unknown.",
+      "audienceCoherence e brandCoherence são OBRIGATÓRIOS; cada um com verdict e reading.",
+      "Valores aceitos em audienceCoherence.verdict e brandCoherence.verdict: aligned, tension, off, unknown.",
+      "reading de audienceCoherence e brandCoherence deve ter no máximo 120 caracteres, tom observacional, sem imperativo e sem linguagem de performance.",
       "evidenceAnchors é OBRIGATÓRIO; sceneAnchors deve ter no mínimo 1 item descrevendo um momento concreto do vídeo; speechQuotes pode ser [].",
       "Valores aceitos em quoteRole: hook, promise, turning_point, closing, example, context, other.",
       "Valores aceitos em momentRole: opening, conflict, turning_point, visual_signal, pacing_signal, production_signal, other.",

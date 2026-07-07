@@ -39,6 +39,26 @@ export type VideoNarrativeCoherence = {
   newAssets: string[];
 };
 
+// ─── Posting verdict — coherence of this video across the three axes the creator
+// weighs before publishing: narrativa (narrativeCoherence, above), audiência and
+// marca. The two axes below are lighter than narrativeCoherence: a verdict plus a
+// one-line observational reading, enough for the "vale postar?" decision screen.
+// "unknown" degrades gracefully when there isn't enough signal to judge an axis
+// (e.g. no audience data yet) — never invent an alignment.
+
+export type VideoNarrativeAxisVerdict =
+  | "aligned"   // conversa com este eixo
+  | "tension"   // conversa em parte, com uma ressalva
+  | "off"       // não conversa com este eixo
+  | "unknown";  // sem base suficiente para avaliar
+
+/** Coherence of the video against a single non-narrative axis (audiência or marca). */
+export type VideoNarrativeAxisCoherence = {
+  verdict: VideoNarrativeAxisVerdict;
+  /** One-line observational reading of the axis; null when not evaluated. */
+  reading: string | null;
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type CreatorVideoNarrativeDiagnosisStatus = "draft" | "completed" | "failed" | "discarded";

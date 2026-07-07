@@ -3,6 +3,7 @@ import type {
   VideoNarrativeAiIssue,
   VideoNarrativeContentContext,
   VideoNarrativeCoherence,
+  VideoNarrativeAxisCoherence,
 } from "./videoNarrativeAiProviderTypes";
 import type { CreatorVideoNarrativeEvidenceAnchors } from "./creatorVideoNarrativeDiagnosisTypes";
 
@@ -79,6 +80,7 @@ const VALID_QUOTE_ROLES = new Set(["hook", "promise", "turning_point", "closing"
 const VALID_MOMENT_ROLES = new Set(["opening", "conflict", "turning_point", "visual_signal", "pacing_signal", "production_signal", "other"]);
 const VALID_CHAPTER_HINTS = new Set(["pattern", "tension", "movement", "territory", "video_reveal", "profile_impact", "opportunities"]);
 const VALID_COHERENCE_VERDICTS = new Set(["confirms_top_pattern", "experiment", "deviation", "first_reading", "unknown"]);
+const VALID_AXIS_VERDICTS = new Set(["aligned", "tension", "off", "unknown"]);
 
 const FIELD_ALIASES: Record<keyof VideoNarrativeAiAnalysis, string[]> = {
   directAnswer: ["direct_answer", "respostaDireta", "resposta_direta", "answer", "resposta"],
@@ -98,6 +100,8 @@ const FIELD_ALIASES: Record<keyof VideoNarrativeAiAnalysis, string[]> = {
   evidenceAnchors: ["evidence_anchors", "evidence", "anchors", "evidencias", "evidências"],
   contentContext: ["content_context", "contextoDoConteudo", "contexto_do_conteudo"],
   narrativeCoherence: ["narrative_coherence", "coerenciaNarrativa", "coerênciaNarrativa", "coerencia_narrativa"],
+  audienceCoherence: ["audience_coherence", "coerenciaAudiencia", "coerênciaAudiência", "coerencia_audiencia"],
+  brandCoherence: ["brand_coherence", "coerenciaMarca", "coerênciaMarca", "coerencia_marca"],
 };
 
 const SHORT_STRING_MAX = 120;
@@ -151,6 +155,19 @@ function readNarrativeCoherence(raw: Record<string, unknown>): VideoNarrativeCoh
     reasoning: typeof value.reasoning === "string" ? sanitizeText(value.reasoning) || null : null,
     alignedAssets: readShortStringArray(value.alignedAssets, 5),
     newAssets: readShortStringArray(value.newAssets, 5),
+  };
+}
+
+/** Parse an optional non-narrative axis (audience/brand) — returns undefined if missing/invalid. */
+function readAxisCoherence(
+  raw: Record<string, unknown>,
+  field: "audienceCoherence" | "brandCoherence",
+): VideoNarrativeAxisCoherence | undefined {
+  const value = readAliasedField(raw, field);
+  if (!isRecord(value)) return undefined;
+  return {
+    verdict: readEnum(value.verdict, VALID_AXIS_VERDICTS, "unknown") as VideoNarrativeAxisCoherence["verdict"],
+    reading: readOptionalShortString(value.reading),
   };
 }
 
@@ -476,6 +493,8 @@ export function parseVideoNarrativeGeminiResponse(rawText: string): VideoNarrati
   );
   const contentContext = readContentContext(root);
   const narrativeCoherence = readNarrativeCoherence(root);
+  const audienceCoherence = readAxisCoherence(root, "audienceCoherence");
+  const brandCoherence = readAxisCoherence(root, "brandCoherence");
 
   // Optional: direct answer to the creator's question. Absent in older responses,
   // so it never blocks parsing — just truncated/sanitised when present.
@@ -502,6 +521,8 @@ export function parseVideoNarrativeGeminiResponse(rawText: string): VideoNarrati
       ...(evidenceAnchors.anchors ? { evidenceAnchors: evidenceAnchors.anchors } : {}),
       ...(contentContext ? { contentContext } : {}),
       ...(narrativeCoherence ? { narrativeCoherence } : {}),
+      ...(audienceCoherence ? { audienceCoherence } : {}),
+      ...(brandCoherence ? { brandCoherence } : {}),
     },
     issues: evidenceAnchors.issues,
   };

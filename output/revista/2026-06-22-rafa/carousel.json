@@ -1,0 +1,245 @@
+{
+  "data": "2026-06-22",
+  "angulo": "perfil",
+  "criadores": [
+    {
+      "userId": "6928899e2619c0d8776dd508",
+      "nome": "Rafaella Custódio",
+      "handle": "@rafacustodio",
+      "narrativaCentral": "A observadora de Blumenau que transforma o pertencimento à cidade em humor que faz todo mundo se reconhecer",
+      "territorios": [
+        "Vida em Blumenau",
+        "Humor cotidiano",
+        "Casa e decoração",
+        "Consumo local"
+      ],
+      "assets": [
+        "A própria criadora",
+        "As ruas de Blumenau",
+        "A casa",
+        "O marido",
+        "As manias da cidade"
+      ]
+    }
+  ],
+  "titulo": "Rafaella Custódio — o humor como reconhecimento de uma cidade inteira",
+  "slides": [
+    {
+      "n": 1,
+      "batida": "gancho",
+      "layout": "cover",
+      "headline": "A Rafa fala em voz alta o que todo <i>blumenauense</i> pensa baixinho.",
+      "corpo": "Criadora de Blumenau, tradutora das manias da cidade.",
+      "imagem": {
+        "fonte": "profile_picture",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-22-rafa/assets/profile_picture-c778e11ba9.jpg",
+        "userId": "6928899e2619c0d8776dd508",
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-22-rafa/assets/profile_picture-c778e11ba9.jpg"
+      }
+    },
+    {
+      "n": 2,
+      "batida": "quem-e",
+      "layout": "two-column",
+      "headline": "De Blumenau, ela faz piada do que ninguém repara.",
+      "corpo": "<b>Rafaella Custódio</b> aponta a câmera pra uma rua qualquer, um costume bobo, uma fofoca da cidade — e acha graça no que todo mundo vive e não comenta. O humor dela é o do dia a dia, contado por quem mora ali.",
+      "imagem": {
+        "fonte": "profile_picture",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-22-rafa/assets/profile_picture-c778e11ba9.jpg",
+        "userId": "6928899e2619c0d8776dd508",
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-22-rafa/assets/profile_picture-c778e11ba9.jpg"
+      }
+    },
+    {
+      "n": 3,
+      "batida": "tensao",
+      "layout": "full-bleed-text",
+      "kicker": "A questão",
+      "headline": "Não é a cidade que viraliza. É o jeito dela de mostrar a cidade.",
+      "corpo": "E esse jeito tem um nome.",
+      "artePrompt": "A quiet empty cobblestone street in a small Brazilian-German town, half-timbered colonial houses, soft golden hour light, warm nostalgic atmosphere, cinematic shallow depth of field, absolutely no people, no text, no signage, no lettering, no watermark, photographic, fine film grain, muted earthy tones",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-22-rafa/assets/art-03.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-22-rafa/assets/art-03.png"
+      }
+    },
+    {
+      "n": 4,
+      "batida": "twist",
+      "layout": "reasoning",
+      "kicker": "A leitura · data2content",
+      "headline": "O humor da Rafa não é piada. É reconhecimento.",
+      "corpo": "Quando ela mostra uma mania de Blumenau, a cidade inteira pensa \"sou eu\". O mapa dela mostra como isso funciona:",
+      "cadeia": [
+        "NARRATIVA: Eu mostro o que só quem mora aqui repara — e todo mundo se reconhece",
+        "TERRITÓRIO: Vida em Blumenau e o humor das pequenas manias do dia a dia",
+        "TEMA: Os costumes, as fofocas e os perrengues que a cidade compartilha",
+        "PAUTA: \"Vocês também têm essa impressão?\" — a pergunta que vira espelho"
+      ]
+    },
+    {
+      "n": 5,
+      "batida": "porque",
+      "layout": "respiro",
+      "fundo": "paper",
+      "kicker": "Por que funciona",
+      "headline": "\"Sou só eu que reparo nisso?\" — e a cidade toda responde que não.",
+      "escala": 74,
+      "corpo": "É isso que faz a pessoa marcar a amiga, o marido, o vizinho. Não é só engraçado: é a sensação de que alguém finalmente falou o que você sempre pensou. Por isso o vídeo não para de circular."
+    },
+    {
+      "n": 6,
+      "batida": "prova",
+      "layout": "video-proof",
+      "kicker": "As evidências",
+      "headline": "\"Vocês também têm essa impressão?\"",
+      "stat": "92,7 mil",
+      "statLabel": "interações",
+      "corpo": "<b>A leitura:</b> esse reel sobre uma mania da região passou de 92 mil interações, muito acima da média dela. Não viralizou por ser engraçado — viralizou porque cada pessoa do Vale do Itajaí se viu ali e mandou pra outra que ia concordar. Quando a Rafa nomeia um detalhe que só os locais reconhecem, o vídeo vira conversa entre vizinhos. É a narrativa dela funcionando exatamente como o mapa aponta.",
+      "imagem": {
+        "fonte": "none",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-22-rafa/assets/poster-06.jpg",
+        "video": {
+          "mediaId": "18555126004018933",
+          "userId": "6928899e2619c0d8776dd508",
+          "inicio": 0,
+          "duracao": 60,
+          "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-06-22-rafa/assets/video-06.mp4"
+        },
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-22-rafa/assets/poster-06.jpg"
+      }
+    },
+    {
+      "n": 7,
+      "batida": "prova",
+      "layout": "respiro",
+      "fundo": "dark",
+      "stat": "92,7 mil",
+      "statLabel": "pessoas se reconheceram",
+      "corpo": "Uma observação sobre Blumenau que a cidade inteira fez questão de compartilhar."
+    },
+    {
+      "n": 8,
+      "batida": "prova",
+      "layout": "video-proof",
+      "kicker": "As evidências",
+      "headline": "\"Costume de todo blumenauense, não é?\"",
+      "stat": "7,1 mil",
+      "statLabel": "interações",
+      "corpo": "<b>A leitura:</b> de novo o mesmo fio. Ela aponta um hábito que todo mundo da cidade tem e ninguém percebe, e o reconhecimento puxa o compartilhamento. Repare que não é a maior produção nem a piada mais elaborada — é a mais exata. O mapa da Rafa mostra que a força dela não está em inventar, e sim em traduzir o que a cidade já sente.",
+      "imagem": {
+        "fonte": "none",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-22-rafa/assets/poster-08.jpg",
+        "video": {
+          "mediaId": "18084350711280746",
+          "userId": "6928899e2619c0d8776dd508",
+          "inicio": 0,
+          "duracao": 60,
+          "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-06-22-rafa/assets/video-08.mp4"
+        },
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-22-rafa/assets/poster-08.jpg"
+      }
+    },
+    {
+      "n": 9,
+      "batida": "payoff",
+      "layout": "full-bleed-text",
+      "kicker": "O que fica",
+      "headline": "Ela não fala <i>para</i> Blumenau. Ela fala <i>como</i> Blumenau.",
+      "corpo": "E é por isso que, quando a Rafa indica alguma coisa, a cidade escuta como quem escuta uma amiga.",
+      "artePrompt": "Wide elevated view of a small Brazilian-German town nestled in green hills at golden hour, red-tiled rooftops, half-timbered houses, warm soft light blanketing the whole town, peaceful community feeling, absolutely no people, no text, no signage, no lettering, no watermark, photographic, cinematic, fine film grain, muted warm tones",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-22-rafa/assets/art-09.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-22-rafa/assets/art-09.png"
+      }
+    },
+    {
+      "n": 10,
+      "batida": "porque",
+      "layout": "full-bleed-text",
+      "kicker": "O valor",
+      "headline": "E é aí que entra a <i>marca certa</i>.",
+      "corpo": "Os vídeos da Rafa sempre mostram um pedaço real da vida em Blumenau. É nesse pedaço que uma marca local pode aparecer — não como anúncio, mas como mais uma dica de quem mora ali.",
+      "artePrompt": "A cozy lived-in kitchen counter in a small-town Brazilian home, moka coffee pot, ceramic cups, fresh bread, soft natural window light, warm intimate domestic atmosphere, absolutely no people, no text, no signage, no lettering, no watermark, photographic still life, fine film grain, muted earthy tones",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-22-rafa/assets/art-10.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-22-rafa/assets/art-10.png"
+      }
+    },
+    {
+      "n": 11,
+      "batida": "porque",
+      "layout": "reasoning",
+      "kicker": "O valor",
+      "headline": "No reel de 27 mil, a publi já mostrou como funciona.",
+      "corpo": "Ela gravava um publi de travesseiro, a renda pegou no olho dela e ela fez piada. O erro virou o vídeo. Veja a cadeia:",
+      "cadeia": [
+        "O REEL: \"Não acertei na cara dele — foi a renda do travesseiro\" (a publi que virou piada)",
+        "O CONFLITO: a marca quer aparecer, mas o público foge de propaganda engessada",
+        "A MARCA CERTA: cama, mesa e banho — os produtos do dia a dia da casa dela",
+        "O ENCAIXE: o produto entra na cena real, com o erro e a risada que ninguém roteiriza"
+      ]
+    },
+    {
+      "n": 12,
+      "batida": "porque",
+      "layout": "pauta-card",
+      "kicker": "O valor",
+      "headline": "A dica que soa como recado de amiga, não como anúncio.",
+      "ficha": [
+        {
+          "rotulo": "A cena",
+          "texto": "Rafa em casa, mexendo na cozinha ou arrumando a sala, comenta um produto que ela usa de verdade no dia a dia — com a naturalidade de quem mostra pra uma amiga."
+        },
+        {
+          "rotulo": "Onde a marca entra",
+          "texto": "Um item de casa, de mercado ou de uma loja local de Blumenau aparece no meio da rotina, sem corte pro \"modo publi\". A recomendação nasce dentro do vídeo que ela já faria."
+        },
+        {
+          "rotulo": "A fala dela",
+          "texto": "\"Gente, descobri isso aqui em Blumenau e precisava mostrar pra vocês.\""
+        },
+        {
+          "rotulo": "Por que não quebra o feed",
+          "texto": "O público dela confia como confia numa vizinha. A marca pega emprestada essa confiança — desde que respeite o tom leve e real dela."
+        },
+        {
+          "rotulo": "O que a marca ganha",
+          "texto": "Entrar na conversa de uma cidade inteira pela voz de quem ela já escuta todo dia."
+        }
+      ]
+    },
+    {
+      "n": 13,
+      "batida": "convite",
+      "layout": "respiro",
+      "fundo": "accent",
+      "headline": "Ser de Blumenau virou o maior <i>ativo</i> dela.",
+      "escala": 86
+    },
+    {
+      "n": 14,
+      "batida": "convite",
+      "layout": "cta",
+      "headline": "A Rafa fez do lugar dela a força dela. E <i>você</i>?",
+      "corpo": "A Data2Content acha, nos seus vídeos, o assunto que só você sabe contar do seu jeito — e te conecta com marcas que combinam com isso, sem mudar a sua voz.",
+      "lista": [
+        "<b>Seu mapa</b>: o que faz as pessoas se reconhecerem em você",
+        "<b>Marcas</b> que combinam com a sua história, não com o seu número",
+        "<b>Ideias de publi</b> que nascem do conteúdo que você já faz",
+        "<b>Reuniões semanais</b> — você não cria sozinho"
+      ]
+    }
+  ],
+  "caption": "Parece só humor de cidade pequena. É reconhecimento.\n\n@rafacustodio é de Blumenau e faz piada do que todo mundo da cidade vive e não comenta — uma rua, uma mania, uma fofoca. A Data2Content leu o mapa dela: o humor nunca foi só piada, é a cidade inteira se vendo no espelho. E é esse mesmo mapa que mostra com quais marcas ela encaixa, sem perder o tom de quem fala como vizinha.\n\nArrasta e vê.\n\n💬 Comenta MAPA que a gente te mostra como a Data2Content lê o seu.\n\n#blumenau #valedoitajai #humor #criadoradeconteudo #data2content",
+  "manychat": {
+    "keyword": "MAPA",
+    "dm": "Oi! Vi que você comentou MAPA 💜 A Data2Content lê a estrutura escondida do seu conteúdo e te mostra as marcas que encaixam na sua narrativa. Monta o seu mapa aqui: https://data2content.ai/signup?utm_source=instagram&utm_medium=carousel&utm_campaign=galeano_rafa"
+  }
+}

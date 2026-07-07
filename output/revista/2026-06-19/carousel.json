@@ -1,0 +1,157 @@
+{
+  "data": "2026-06-19",
+  "angulo": "perfil",
+  "criadores": [
+    {
+      "userId": "69f16823f50c3226a7cd980c",
+      "nome": "Aline Bergamini",
+      "handle": "@alinebergamini",
+      "narrativaCentral": "Adulta que não cabe no papel de adulta responsável — usa o humor como âncora, não como fuga",
+      "territorios": [
+        "Maternidade",
+        "Humor",
+        "Vida adulta",
+        "Relacionamentos"
+      ],
+      "assets": [
+        "Filhos",
+        "Marido",
+        "Casa",
+        "Situações cotidianas do caos doméstico"
+      ]
+    }
+  ],
+  "titulo": "O problema sou eu — como Aline Bergamini virou espelho de 261 mil pessoas",
+  "slides": [
+    {
+      "n": 1,
+      "batida": "gancho",
+      "layout": "cover",
+      "headline": "Mãe, esposa, adulta — e a <i>coragem</i> de rir do próprio caos.",
+      "corpo": "Num reel de 30 segundos, 261 mil pessoas se reconheceram nela.",
+      "imagem": {
+        "fonte": "profile_picture",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-19/assets/profile_picture-10459187dc.jpg",
+        "userId": "69f16823f50c3226a7cd980c",
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-19/assets/profile_picture-10459187dc.jpg"
+      }
+    },
+    {
+      "n": 2,
+      "batida": "quem-e",
+      "layout": "two-column",
+      "headline": "Aline Bergamini cria sobre o caos que a maioria não admite.",
+      "corpo": "<b>Mãe</b>, esposa, <b>criadora de conteúdo</b> — Aline Bergamini levou <b>261 mil interações</b> num reel de menos de um minuto. A legenda dizia: <i>'Me segue se vc tb não causa problema. Mas é o problema.'</i>\n\nO público foi. Em peso.",
+      "imagem": {
+        "fonte": "profile_picture",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-19/assets/profile_picture-10459187dc.jpg",
+        "userId": "69f16823f50c3226a7cd980c",
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-19/assets/profile_picture-10459187dc.jpg"
+      }
+    },
+    {
+      "n": 3,
+      "batida": "tensao",
+      "layout": "text-only",
+      "headline": "Pra quem passa o feed: conteúdo de mãe.\nPra quem lê o mapa: <i>outra coisa completamente.</i>",
+      "corpo": "Tem um padrão nos vídeos dela que não é sobre maternidade. É sobre <b>assumir a própria bagunça em voz alta</b>. O humor não é só o estilo — é o jeito dela dizer a verdade sem que pese. E é por isso que o público não só ri: fica."
+    },
+    {
+      "n": 4,
+      "batida": "revelacao",
+      "layout": "full-bleed-text",
+      "headline": "A história dela não é sobre ser <i>mãe.</i>\nÉ sobre ser a adulta que ninguém se sente pronta pra ser — e <i>rir disso antes que doa.</i>",
+      "corpo": "",
+      "artePrompt": "Editorial magazine portrait of a Brazilian woman standing in her home, warm afternoon light filtering through a window, slightly chaotic domestic background with everyday objects scattered around, she looks directly at the camera with a candid half-smile, honest and relaxed gaze, shallow depth of field, 35mm film grain, intimate editorial photography style, vertical 9:16 composition, warm amber tones",
+      "arteRef": "https://scontent-iad6-1.xx.fbcdn.net/v/t51.82787-15/723238697_18588687001014203_2098137841824920687_n.jpg?_nc_cat=107&ccb=1-7&_nc_sid=7d201b&_nc_ohc=v0-WbA52fFEQ7kNvwFWk8rs&_nc_oc=AdqSPVR__TORKpxutgRy83oEceLrbTUU1lQHwwAfZqcD-RvlDFXHzDR--6kf4XZ0M_Y&_nc_zt=23&_nc_ht=scontent-iad6-1.xx&edm=AL-3X8kEAAAA&_nc_gid=egdgemSThAgShYwNBGPHDg&oh=00_Af9nJnCNP7xgYBKGOHC5FCedVlrGBTf2fmi4k12S92S4NQ&oe=6A3AE89E",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-19/assets/art-04.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-19/assets/art-04.png"
+      }
+    },
+    {
+      "n": 5,
+      "batida": "twist",
+      "layout": "reasoning",
+      "headline": "O mapa da Aline, lido pela Data2Content",
+      "corpo": "Não é 'conteúdo de mãe'. O mapa mostra a cadeia por trás:",
+      "cadeia": [
+        "NARRATIVA: \"Adulta que não cabe no papel de adulta\" — e usa o humor pra sobreviver",
+        "TERRITÓRIO: Maternidade · Vida adulta · Humor",
+        "TEMA: A imperfeição assumida, o caos doméstico, os perrengues do dia a dia",
+        "PAUTA: 'Sou o problema' · 'O caos sou eu' · 'Só piora daqui pra frente'"
+      ]
+    },
+    {
+      "n": 6,
+      "batida": "porque",
+      "layout": "text-only",
+      "headline": "É por isso que um reel de 30 segundos vira <i>261 mil pessoas se reconhecendo.</i>",
+      "corpo": "Quando ela brinca que é <i>'o problema'</i>, ninguém sente pena — <b>todo mundo se reconhece</b>. Não é simpatia. É espelho.\n\nQuando alguém põe em palavras o caos que você vive em silêncio, deixa de ser entretenimento e vira <b>alívio</b>. É esse alívio que faz quem assiste virar quem fica."
+    },
+    {
+      "n": 7,
+      "batida": "prova",
+      "layout": "video-proof",
+      "headline": "\"Me segue se vc tb não causa problema… Mas é o problema.\"",
+      "stat": "261 mil",
+      "statLabel": "interações",
+      "corpo": "<b>A leitura:</b> ela não conforta de cima pra baixo — se põe no mesmo barco que o público. Não ensina nada: divide o caos. E a gente confia mais em quem admite a bagunça do que em quem finge ter tudo sob controle. Por isso o público não só assiste — responde.",
+      "imagem": {
+        "fonte": "thumbnail",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-19/assets/poster-07.jpg",
+        "userId": "69f16823f50c3226a7cd980c",
+        "video": {
+          "mediaId": "18043007723545986",
+          "userId": "69f16823f50c3226a7cd980c",
+          "inicio": 0,
+          "duracao": 60,
+          "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-06-19/assets/video-07.mp4"
+        },
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-19/assets/poster-07.jpg"
+      }
+    },
+    {
+      "n": 8,
+      "batida": "prova",
+      "layout": "video-proof",
+      "headline": "\"Se identificou? então vc claramente precisa me seguir pq só piora.\"",
+      "stat": "39 mil",
+      "statLabel": "interações",
+      "corpo": "<b>A leitura:</b> ninguém a segue porque ela é perfeita. Segue porque ela admite que não é — e isso vira um clube. O humor aqui não é piada solta: é o que transforma o <i>'eu também'</i> em <b>pertencer</b>.",
+      "imagem": {
+        "fonte": "thumbnail",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-19/assets/poster-08.jpg",
+        "userId": "69f16823f50c3226a7cd980c",
+        "video": {
+          "mediaId": "17880114960480063",
+          "userId": "69f16823f50c3226a7cd980c",
+          "inicio": 0,
+          "duracao": 60,
+          "localVideo": "/Users/arthurmarba/d2c-frontend/output/revista/2026-06-19/assets/video-08.mp4"
+        },
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-19/assets/poster-08.jpg"
+      }
+    },
+    {
+      "n": 9,
+      "batida": "convite",
+      "layout": "cta",
+      "headline": "O caos da Aline tem <i>estrutura.</i> O seu também.",
+      "corpo": "O conteúdo que conecta de verdade sempre tem um mapa escondido. A Data2Content lê o seu com você — e te mostra o fio que você ainda não nomeou.",
+      "lista": [
+        "<b>Seu mapa</b>: a narrativa que explica por que seu conteúdo conecta",
+        "<b>Pautas</b> que nascem da sua vida real, não de tendência",
+        "<b>Collabs</b> com criadores que combinam com você",
+        "<b>Reuniões semanais</b> — você não cria sozinho"
+      ]
+    }
+  ],
+  "caption": "Parece conteúdo de mãe. É muito mais.\n\n@alinebergamini levou 261 mil interações num reel de 30 segundos. A legenda: 'Me segue se vc tb não causa problema. Mas é o problema.' O público foi. Em peso.\n\nA Data2Content leu o mapa dela: o humor da Aline não é sobre maternidade — é sobre a adulta que não cabe no papel de adulta responsável, e transforma o caos em espelho de todo mundo.\n\nArrasta e vê as provas.\n\n💬 Comenta MAPA que a gente te mostra como a Data2Content lê o seu.\n\n#maternidade #humor #vidaadulta #criadores #data2content",
+  "manychat": {
+    "keyword": "MAPA",
+    "dm": "Oi! Vi que você comentou MAPA 💜 A Data2Content lê a estrutura escondida do seu conteúdo — a narrativa que explica por que ele conecta — e te entrega pautas que nascem da sua vida real. Monta o seu mapa aqui: https://data2content.ai/signup?utm_source=instagram&utm_medium=carousel&utm_campaign=galeano_aline"
+  }
+}

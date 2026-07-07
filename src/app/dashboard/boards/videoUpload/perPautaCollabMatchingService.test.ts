@@ -8,15 +8,27 @@ import { matchCollabsForPautas } from "./perPautaCollabMatchingService";
 const mockBuildPool = jest.fn();
 const mockBuildMatch = jest.fn();
 const mockAssign = jest.fn();
+const mockFetchLocation = jest.fn();
 jest.mock("./narrativeCollabMatchingService", () => ({
   buildNarrativeCandidatePool: (...a: unknown[]) => mockBuildPool(...a),
   buildMatchFromCandidate: (...a: unknown[]) => mockBuildMatch(...a),
   assignCollabsByTerritory: (...a: unknown[]) => mockAssign(...a),
+  fetchCreatorLocation: (...a: unknown[]) => mockFetchLocation(...a),
+  // Réplica pura da lógica real: mesma cidade → presencial, senão remoto.
+  computeCollabMode: (a: { city?: string | null } | null, b: { city?: string | null } | null) => {
+    const norm = (s?: string | null) => (s ?? "").toLowerCase().trim();
+    return norm(a?.city) && norm(a?.city) === norm(b?.city) ? "presencial" : "remoto";
+  },
 }));
 
 /** Candidato com territórios reais (o que dá relevância ao match por-pauta). */
-function poolEntry(userId: string, territories: string[]) {
-  return { userId, user: { _id: userId, name: userId }, reading: { videoReading: { mainNarrative: `narrativa de ${userId}` } }, territories };
+function poolEntry(userId: string, territories: string[], city?: string) {
+  return {
+    userId,
+    user: { _id: userId, name: userId, location: city ? { city } : null },
+    reading: { videoReading: { mainNarrative: `narrativa de ${userId}` } },
+    territories,
+  };
 }
 function poolOf(...entries: Array<ReturnType<typeof poolEntry>>) {
   return {
@@ -28,10 +40,12 @@ function poolOf(...entries: Array<ReturnType<typeof poolEntry>>) {
 beforeEach(() => {
   jest.clearAllMocks();
   mockAssign.mockResolvedValue(new Map()); // por padrão: LLM "não opina" → determinístico
-  mockBuildMatch.mockImplementation((eligible: any, _labels: unknown, _terr: unknown, fit: string, rec?: string) => ({
+  mockFetchLocation.mockResolvedValue(null); // viewer sem cidade por padrão → remoto
+  mockBuildMatch.mockImplementation((eligible: any, _labels: unknown, _terr: unknown, fit: string, rec?: string, mode?: string) => ({
     id: eligible.userId,
     narrativeFitReason: fit,
     collabRecordingIdea: rec ?? null,
+    collabMode: mode ?? null,
   }));
 });
 
@@ -134,5 +148,42 @@ describe("matchCollabsForPautas — guardas", () => {
     mockBuildPool.mockResolvedValue(null);
     const r = await matchCollabsForPautas("viewer", [{ id: "p1", territory: "Paternidade" }], "narrativa");
     expect(r.get("p1")).toBeNull();
+  });
+});
+
+describe("matchCollabsForPautas — distância (presencial × remoto)", () => {
+  it("mesma cidade → collabMode presencial e o fallback sugere gravar juntos", async () => {
+    mockFetchLocation.mockResolvedValue({ city: "São Paulo" });
+    mockBuildPool.mockResolvedValue(poolOf(poolEntry("c1", ["Paternidade"], "São Paulo")));
+    const r = await matchCollabsForPautas("viewer", [{ id: "p1", territory: "Paternidade" }], "narrativa", { geminiCallCap: 0 });
+    const m = r.get("p1");
+    expect(m?.collabMode).toBe("presencial");
+    expect(m?.collabRecordingIdea).toMatch(/juntos/i);
+  });
+
+  it("cidades diferentes → remoto; o fallback nunca pede encontro presencial", async () => {
+    mockFetchLocation.mockResolvedValue({ city: "São Paulo" });
+    mockBuildPool.mockResolvedValue(poolOf(poolEntry("c1", ["Paternidade"], "Recife")));
+    const r = await matchCollabsForPautas("viewer", [{ id: "p1", territory: "Paternidade" }], "narrativa", { geminiCallCap: 0 });
+    const m = r.get("p1");
+    expect(m?.collabMode).toBe("remoto");
+    expect(m?.collabRecordingIdea).toMatch(/revezamento/i);
+    expect(m?.collabRecordingIdea).not.toMatch(/juntos/i);
+  });
+
+  it("localização desconhecida → remoto (nunca assume que podem se encontrar)", async () => {
+    mockFetchLocation.mockResolvedValue(null);
+    mockBuildPool.mockResolvedValue(poolOf(poolEntry("c1", ["Paternidade"]))); // sem cidade
+    const r = await matchCollabsForPautas("viewer", [{ id: "p1", territory: "Paternidade" }], "narrativa", { geminiCallCap: 0 });
+    expect(r.get("p1")?.collabMode).toBe("remoto");
+  });
+
+  it("passa a cidade do viewer e dos candidatos pro prompt do Gemini", async () => {
+    mockFetchLocation.mockResolvedValue({ city: "Curitiba" });
+    mockBuildPool.mockResolvedValue(poolOf(poolEntry("c1", ["Paternidade"], "Belo Horizonte")));
+    await matchCollabsForPautas("viewer", [{ id: "p1", territory: "Paternidade" }], "narrativa");
+    const arg = mockAssign.mock.calls[0][0];
+    expect(arg.viewerCity).toBe("Curitiba");
+    expect(arg.candidates[0].city).toBe("Belo Horizonte");
   });
 });

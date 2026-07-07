@@ -1,0 +1,1642 @@
+//@version=6
+strategy(
+     "Crypto Cycle Backtest - V10.5 Regime Smart Cycle",
+     overlay=true,
+     max_labels_count=500,
+     initial_capital=10000,
+     default_qty_type=strategy.percent_of_equity,
+     default_qty_value=100,
+     pyramiding=0,
+     commission_type=strategy.commission.percent,
+     commission_value=0.1,
+     process_orders_on_close=true
+)
+
+// =====================================================
+// V10.5 REGIME SMART CYCLE
+// Long-only:
+// COMPRAR = abre posição
+// VENDER = fecha posição
+//
+// Atualização central:
+// 1) Regime adaptativo: BULL, RANGE, BEAR.
+// 2) Compra por score de confluência, evitando "barato por estar caindo".
+// 3) Venda menos precoce em BULL e mais defensiva em BEAR/RANGE.
+// 4) Stop por invalidação do setup + trailing ATR inteligente.
+// =====================================================
+
+// =====================================================
+// INPUTS PRINCIPAIS
+// =====================================================
+src = input.source(close, "Preço")
+
+macroBias = input.string("Neutro", "Filtro macro manual", options=["Positivo", "Neutro", "Negativo"])
+contextTf = input.timeframe("D", "Timeframe de contexto")
+
+emaLen = input.int(21, "EMA curta")
+smaLen = input.int(50, "SMA tendência")
+
+rsiLen = input.int(14, "RSI")
+rsiMaLen = input.int(9, "Média do RSI")
+
+showStatus = input.bool(true, "Mostrar dash mínimo")
+showLabels = input.bool(true, "Mostrar bolhas no gráfico")
+showAlertLabels = input.bool(true, "Mostrar bolhas de ALERTA")
+showExhaustionLabels = input.bool(true, "Mostrar bolhas de EXAUSTÃO")
+
+// =====================================================
+// PERFIL ADAPTATIVO
+// =====================================================
+atrLen = input.int(14, "ATR")
+baseTolerancePct = input.float(1.2, "Tolerância base S/R (%)", minval=0.1, maxval=10.0)
+atrToleranceMult = input.float(1.25, "Multiplicador ATR na tolerância", minval=0.1, maxval=5.0)
+maxTolerancePct = input.float(6.0, "Tolerância máxima (%)", minval=1.0, maxval=20.0)
+
+highVolAtrPct = input.float(4.0, "ATR% para ativo muito volátil", minval=0.5, maxval=20.0)
+lowVolAtrPct = input.float(1.8, "ATR% para ativo pouco volátil", minval=0.1, maxval=10.0)
+
+allowTrendReentry = input.bool(true, "Permitir recompra em pullback de tendência")
+allowDynamicSR = input.bool(true, "Usar suporte/resistência dinâmicos")
+allowPivotSR = input.bool(true, "Usar pivôs confirmados")
+
+// =====================================================
+// CAPITULAÇÃO / EXAUSTÃO
+// =====================================================
+enableExhaustionSupportBuy = input.bool(true, "Detectar candle de exaustão em suporte")
+exhaustionEntryMode = input.string("Confirmado", "Entrada por exaustão", options=["Confirmado", "Agressivo", "Ambos"])
+
+panicAtrMult = input.float(1.15, "Candle vermelho mínimo em ATR", minval=0.2, maxval=5.0)
+minPanicBodyPct = input.float(55.0, "Corpo mínimo do candle vermelho (%)", minval=10.0, maxval=95.0)
+panicRsiBuffer = input.float(4.0, "Folga RSI para capitulação", minval=0.0, maxval=20.0)
+
+minExhaustionLowerWickPct = input.float(18.0, "Pavio inferior mínimo exaustão (%)", minval=0.0, maxval=80.0)
+minCloseOffLowPct = input.float(28.0, "Fechamento acima da mínima (%)", minval=0.0, maxval=90.0)
+
+exhaustionConfirmBars = input.int(8, "Barras para confirmar exaustão", minval=1, maxval=50)
+panicRecoveryPct = input.float(45.0, "Recuperação do candle de pânico (%)", minval=10.0, maxval=100.0)
+
+cancelIfBreaksPanicLow = input.bool(true, "Cancelar exaustão se perder mínima")
+requireRsiRecoveryForExhaustion = input.bool(true, "Exigir RSI recuperando na exaustão")
+requireHistForExhaustionConfirm = input.bool(false, "Exigir histograma melhorando na exaustão")
+
+// =====================================================
+// CICLO RSI
+// =====================================================
+enableFastSupportBuy = input.bool(true, "Compra rápida em suporte após RSI baixo")
+enableFastResistanceSell = input.bool(true, "Venda rápida em resistência após RSI alto")
+
+buyCycleLookback = input.int(24, "Barras para lembrar RSI fraco", minval=3, maxval=150)
+sellCycleLookback = input.int(24, "Barras para lembrar RSI forte", minval=3, maxval=150)
+
+maxBarsAfterWeakForFastBuy = input.int(18, "Máximo de barras após RSI fraco para compra rápida", minval=1, maxval=100)
+maxBarsAfterHotForFastSell = input.int(18, "Máximo de barras após RSI alto para venda rápida", minval=1, maxval=100)
+
+minRsiForFastSupportBuy = input.float(31.0, "RSI mínimo compra rápida suporte", minval=20.0, maxval=50.0)
+minRiseFromSupportLowPct = input.float(0.8, "Alta mínima desde fundo do alerta (%)", minval=0.0, maxval=10.0)
+
+requireSupportReaction = input.bool(true, "Exigir reação no suporte")
+requireHistForFastBuy = input.bool(false, "Exigir histograma melhorando na compra rápida")
+
+// =====================================================
+// FILTRO ANTI PRIMEIRO REPIQUE
+// =====================================================
+requireMatureBuy = input.bool(true, "Exigir compra madura fora do suporte")
+requireMatureSell = input.bool(true, "Exigir venda madura fora da resistência")
+
+minBarsAfterWeakRsi = input.int(10, "Mínimo de barras após RSI fraco", minval=0, maxval=100)
+minBarsAfterBuyArm = input.int(6, "Mínimo de barras após alerta compra", minval=0, maxval=100)
+
+structureBreakLen = input.int(10, "Rompimento de estrutura compra", minval=2, maxval=50)
+sellStructureBreakLen = input.int(8, "Perda de estrutura venda", minval=2, maxval=50)
+
+minRsiForMatureBuy = input.float(38.0, "RSI mínimo para compra madura", minval=20.0, maxval=60.0)
+minRiseFromArmLowPct = input.float(2.5, "Alta mínima desde fundo armado (%)", minval=0.0, maxval=20.0)
+
+requireEmaReclaimOrBreakout = input.bool(true, "Exigir EMA recuperada ou rompimento")
+
+minBarsBetweenTrades = input.int(8, "Mínimo de barras entre trades", minval=0, maxval=150)
+
+allowEarlyExtremeBuy = input.bool(false, "Permitir compra extrema sem maturação")
+allowEarlyExtremeSell = input.bool(false, "Permitir venda extrema sem maturação")
+
+// =====================================================
+// RSI
+// =====================================================
+rsiExtremeBuy = input.float(24.0, "RSI compra extrema", minval=5.0, maxval=40.0)
+rsiBuyAlert = input.float(32.0, "RSI alerta compra", minval=10.0, maxval=45.0)
+
+rsiReversalMin = input.float(30.0, "RSI reversão mínimo", minval=10.0, maxval=55.0)
+rsiReversalMax = input.float(50.0, "RSI reversão máximo", minval=30.0, maxval=65.0)
+
+rsiPullbackMin = input.float(35.0, "RSI mínimo pullback", minval=20.0, maxval=55.0)
+rsiPullbackMax = input.float(58.0, "RSI máximo pullback", minval=40.0, maxval=75.0)
+
+rsiSellAlert = input.float(65.0, "RSI alerta venda", minval=50.0, maxval=90.0)
+rsiStrongSell = input.float(72.0, "RSI venda forte", minval=55.0, maxval=95.0)
+
+dailyRsiBuyContext = input.float(40.0, "RSI diário contexto compra", minval=10.0, maxval=55.0)
+dailyRsiSellContext = input.float(62.0, "RSI diário contexto venda", minval=45.0, maxval=90.0)
+
+buyAlertExpiresDays = input.int(12, "Validade alerta compra em dias", minval=1)
+sellAlertExpiresDays = input.int(8, "Validade alerta venda em dias", minval=1)
+
+confirmBreakoutLen = input.int(3, "Confirmação por rompimento curto", minval=1, maxval=10)
+
+// =====================================================
+// SUPORTE E RESISTÊNCIA DINÂMICOS
+// =====================================================
+localFastSR = input.int(30, "S/R local curto", minval=10)
+localMidSR = input.int(60, "S/R local médio", minval=20)
+
+contextFastSR = input.int(30, "S/R contexto curto", minval=10)
+contextMidSR = input.int(60, "S/R contexto médio", minval=20)
+contextMacroSR = input.int(120, "S/R contexto macro", minval=50)
+
+pivotLen = input.int(5, "Pivô confirmado", minval=2, maxval=20)
+
+// =====================================================
+// ZONAS MANUAIS OPCIONAIS
+// =====================================================
+useManualZones = input.bool(false, "Usar zonas manuais opcionais")
+
+support1Low = input.float(0.0, "Suporte 1 mínimo")
+support1High = input.float(0.0, "Suporte 1 máximo")
+
+support2Low = input.float(0.0, "Suporte 2 mínimo")
+support2High = input.float(0.0, "Suporte 2 máximo")
+
+resistance1Low = input.float(0.0, "Resistência 1 mínimo")
+resistance1High = input.float(0.0, "Resistência 1 máximo")
+
+resistance2Low = input.float(0.0, "Resistência 2 mínimo")
+resistance2High = input.float(0.0, "Resistência 2 máximo")
+
+// =====================================================
+// REGRAS DE VENDA
+// =====================================================
+minBounceToSellPct = input.float(8.0, "Alta mínima desde compra para vender (%)", minval=0.0)
+givebackPct = input.float(6.0, "Devolução do topo para vender (%)", minval=0.0)
+
+requireResistanceForGiveback = input.bool(true, "Exigir resistência/RSI para venda por devolução")
+
+// =====================================================
+// REGIME ADAPTATIVO / ASSERTIVIDADE
+// =====================================================
+enableRegimeFilter = input.bool(true, "Usar regime adaptativo BULL/RANGE/BEAR")
+regimeSlopeLen = input.int(5, "Inclinação regime (barras contexto)", minval=2, maxval=50)
+minRegimeSlopePct = input.float(0.6, "Inclinação mínima regime (%)", minval=0.0, maxval=10.0)
+
+useScoreConfirmation = input.bool(true, "Usar score de confirmação")
+
+minBuyScoreBull = input.int(5, "Score mínimo compra BULL", minval=1, maxval=10)
+minBuyScoreRange = input.int(6, "Score mínimo compra RANGE", minval=1, maxval=10)
+minBuyScoreBear = input.int(7, "Score mínimo compra BEAR", minval=1, maxval=10)
+
+minSellScoreBull = input.int(7, "Score mínimo venda BULL", minval=1, maxval=10)
+minSellScoreRange = input.int(5, "Score mínimo venda RANGE", minval=1, maxval=10)
+minSellScoreBear = input.int(4, "Score mínimo venda BEAR", minval=1, maxval=10)
+
+confirmBullSellWithStructure = input.bool(true, "No BULL vender só com perda/rejeição forte")
+requireBearBuyCapitulation = input.bool(true, "No BEAR exigir capitulação ou score máximo para comprar")
+
+// =====================================================
+// GESTÃO DE RISCO OPCIONAL
+// =====================================================
+useStopLoss = input.bool(false, "Usar stop loss")
+stopLossPct = input.float(8.0, "Stop loss (%)", minval=0.1)
+
+useTakeProfit = input.bool(false, "Usar take profit")
+takeProfitPct = input.float(20.0, "Take profit (%)", minval=0.1)
+
+useSetupInvalidationStop = input.bool(true, "Usar stop por invalidação do setup")
+setupStopAtrMult = input.float(1.2, "ATR abaixo da mínima do setup", minval=0.1, maxval=10.0)
+setupStopMaxPct = input.float(9.0, "Stop máximo por invalidação (%)", minval=1.0, maxval=50.0)
+
+useSmartTrailingStop = input.bool(true, "Usar trailing ATR inteligente")
+trailStartsAfterProfitPct = input.float(8.0, "Ativar trailing após lucro (%)", minval=0.0, maxval=100.0)
+trailAtrMultBull = input.float(3.0, "Trailing ATR BULL", minval=0.1, maxval=10.0)
+trailAtrMultRange = input.float(2.2, "Trailing ATR RANGE", minval=0.1, maxval=10.0)
+trailAtrMultBear = input.float(1.6, "Trailing ATR BEAR", minval=0.1, maxval=10.0)
+
+// =====================================================
+// AJUSTE POR FILTRO MACRO MANUAL
+// =====================================================
+buyBiasAdjust =
+     macroBias == "Positivo" ? 2.0 :
+     macroBias == "Negativo" ? -2.0 :
+     0.0
+
+sellBiasAdjust =
+     macroBias == "Positivo" ? 3.0 :
+     macroBias == "Negativo" ? -3.0 :
+     0.0
+
+adjRsiBuyAlert = rsiBuyAlert + buyBiasAdjust
+adjRsiExtremeBuy = rsiExtremeBuy + buyBiasAdjust
+
+adjRsiSellAlert = rsiSellAlert + sellBiasAdjust
+adjRsiStrongSell = rsiStrongSell + sellBiasAdjust
+
+// =====================================================
+// CONVERSÃO DE DIAS PARA BARRAS DO GRÁFICO
+// =====================================================
+tfSeconds = timeframe.in_seconds(timeframe.period)
+
+barsPerDay =
+     not na(tfSeconds) and tfSeconds > 0 ?
+     int(math.max(1, math.round(86400.0 / tfSeconds))) :
+     1
+
+buyAlertExpiresBars = buyAlertExpiresDays * barsPerDay
+sellAlertExpiresBars = sellAlertExpiresDays * barsPerDay
+
+// =====================================================
+// FUNÇÕES
+// =====================================================
+f_clamp(_value, _min, _max) =>
+    math.max(_min, math.min(_max, _value))
+
+f_maxNonNa(_a, _b) =>
+    na(_a) ? _b : na(_b) ? _a : math.max(_a, _b)
+
+f_touchSupport(_low, _close, _level, _tolPct) =>
+    not na(_level) and _level > 0 and _low <= _level * (1 + _tolPct / 100) and _close >= _level * (1 - _tolPct / 100)
+
+f_touchResistance(_high, _close, _level, _tolPct) =>
+    not na(_level) and _level > 0 and _high >= _level * (1 - _tolPct / 100) and _close <= _level * (1 + _tolPct / 100)
+
+f_touchSupportZone(_low, _close, _zoneLow, _zoneHigh, _tolPct) =>
+    _valid = _zoneLow > 0 and _zoneHigh > 0 and _zoneHigh > _zoneLow
+    _min = _zoneLow * (1 - _tolPct / 100)
+    _max = _zoneHigh * (1 + _tolPct / 100)
+    _valid and _low <= _max and _close >= _min
+
+f_touchResistanceZone(_high, _close, _zoneLow, _zoneHigh, _tolPct) =>
+    _valid = _zoneLow > 0 and _zoneHigh > 0 and _zoneHigh > _zoneLow
+    _min = _zoneLow * (1 - _tolPct / 100)
+    _max = _zoneHigh * (1 + _tolPct / 100)
+    _valid and _high >= _min and _close <= _max
+
+// =====================================================
+// INDICADORES DO GRÁFICO ATUAL
+// =====================================================
+emaFast = ta.ema(src, emaLen)
+smaTrend = ta.sma(src, smaLen)
+
+rsi = ta.rsi(src, rsiLen)
+rsiMa = ta.sma(rsi, rsiMaLen)
+
+rsiBullCross = ta.crossover(rsi, rsiMa)
+rsiBearCross = ta.crossunder(rsi, rsiMa)
+
+rsiAboveMa = rsi > rsiMa
+rsiBelowMa = rsi < rsiMa
+
+[macdLine, signalLine, hist] = ta.macd(src, 12, 26, 9)
+
+atr = ta.atr(atrLen)
+atrPct = close > 0 ? (atr / close) * 100 : 0.0
+
+adaptiveTolerancePctRaw = baseTolerancePct + atrPct * atrToleranceMult
+adaptiveTolerancePct = f_clamp(adaptiveTolerancePctRaw, baseTolerancePct, maxTolerancePct)
+
+isHighVol = atrPct >= highVolAtrPct
+isLowVol = atrPct <= lowVolAtrPct
+
+effectiveGivebackPct =
+     isHighVol ? givebackPct * 1.35 :
+     isLowVol ? givebackPct * 0.85 :
+     givebackPct
+
+// =====================================================
+// INDICADORES DO CONTEXTO
+// =====================================================
+ctxClose = request.security(syminfo.tickerid, contextTf, close, barmerge.gaps_off, barmerge.lookahead_off)
+ctxEma = request.security(syminfo.tickerid, contextTf, ta.ema(close, emaLen), barmerge.gaps_off, barmerge.lookahead_off)
+ctxSma = request.security(syminfo.tickerid, contextTf, ta.sma(close, smaLen), barmerge.gaps_off, barmerge.lookahead_off)
+ctxEmaSlopePct = request.security(syminfo.tickerid, contextTf, ta.ema(close, emaLen)[regimeSlopeLen] > 0 ? ((ta.ema(close, emaLen) - ta.ema(close, emaLen)[regimeSlopeLen]) / ta.ema(close, emaLen)[regimeSlopeLen]) * 100 : 0.0, barmerge.gaps_off, barmerge.lookahead_off)
+
+ctxRsi = request.security(syminfo.tickerid, contextTf, ta.rsi(close, rsiLen), barmerge.gaps_off, barmerge.lookahead_off)
+
+ctxFastSupport = request.security(syminfo.tickerid, contextTf, ta.lowest(low[1], contextFastSR), barmerge.gaps_off, barmerge.lookahead_off)
+ctxMidSupport = request.security(syminfo.tickerid, contextTf, ta.lowest(low[1], contextMidSR), barmerge.gaps_off, barmerge.lookahead_off)
+ctxMacroSupport = request.security(syminfo.tickerid, contextTf, ta.lowest(low[1], contextMacroSR), barmerge.gaps_off, barmerge.lookahead_off)
+
+ctxFastResistance = request.security(syminfo.tickerid, contextTf, ta.highest(high[1], contextFastSR), barmerge.gaps_off, barmerge.lookahead_off)
+ctxMidResistance = request.security(syminfo.tickerid, contextTf, ta.highest(high[1], contextMidSR), barmerge.gaps_off, barmerge.lookahead_off)
+ctxMacroResistance = request.security(syminfo.tickerid, contextTf, ta.highest(high[1], contextMacroSR), barmerge.gaps_off, barmerge.lookahead_off)
+
+// =====================================================
+// SUPORTE / RESISTÊNCIA LOCAL
+// =====================================================
+localFastSupport = ta.lowest(low[1], localFastSR)
+localMidSupport = ta.lowest(low[1], localMidSR)
+
+localFastResistance = ta.highest(high[1], localFastSR)
+localMidResistance = ta.highest(high[1], localMidSR)
+
+// =====================================================
+// PIVÔS CONFIRMADOS
+// =====================================================
+pivotLow = ta.pivotlow(low, pivotLen, pivotLen)
+pivotHigh = ta.pivothigh(high, pivotLen, pivotLen)
+
+lastPivotLow = ta.valuewhen(not na(pivotLow), pivotLow, 0)
+lastPivotHigh = ta.valuewhen(not na(pivotHigh), pivotHigh, 0)
+
+// =====================================================
+// ZONAS MANUAIS OPCIONAIS
+// =====================================================
+manualSupport =
+     useManualZones and (
+         f_touchSupportZone(low, close, support1Low, support1High, adaptiveTolerancePct) or
+         f_touchSupportZone(low, close, support2Low, support2High, adaptiveTolerancePct)
+     )
+
+manualResistance =
+     useManualZones and (
+         f_touchResistanceZone(high, close, resistance1Low, resistance1High, adaptiveTolerancePct) or
+         f_touchResistanceZone(high, close, resistance2Low, resistance2High, adaptiveTolerancePct)
+     )
+
+// =====================================================
+// SUPORTE DINÂMICO
+// =====================================================
+contextSupport =
+     allowDynamicSR and (
+         f_touchSupport(low, close, ctxFastSupport, adaptiveTolerancePct) or
+         f_touchSupport(low, close, ctxMidSupport, adaptiveTolerancePct) or
+         f_touchSupport(low, close, ctxMacroSupport, adaptiveTolerancePct)
+     )
+
+localSupport =
+     allowDynamicSR and (
+         f_touchSupport(low, close, localFastSupport, adaptiveTolerancePct) or
+         f_touchSupport(low, close, localMidSupport, adaptiveTolerancePct)
+     )
+
+pivotSupport =
+     allowPivotSR and
+     f_touchSupport(low, close, lastPivotLow, adaptiveTolerancePct)
+
+nearSupport =
+     manualSupport or
+     contextSupport or
+     localSupport or
+     pivotSupport
+
+// =====================================================
+// RESISTÊNCIA DINÂMICA
+// =====================================================
+contextResistance =
+     allowDynamicSR and (
+         f_touchResistance(high, close, ctxFastResistance, adaptiveTolerancePct) or
+         f_touchResistance(high, close, ctxMidResistance, adaptiveTolerancePct) or
+         f_touchResistance(high, close, ctxMacroResistance, adaptiveTolerancePct)
+     )
+
+localResistance =
+     allowDynamicSR and (
+         f_touchResistance(high, close, localFastResistance, adaptiveTolerancePct) or
+         f_touchResistance(high, close, localMidResistance, adaptiveTolerancePct)
+     )
+
+pivotResistance =
+     allowPivotSR and
+     f_touchResistance(high, close, lastPivotHigh, adaptiveTolerancePct)
+
+nearResistanceCore =
+     manualResistance or
+     contextResistance or
+     localResistance or
+     pivotResistance
+
+// =====================================================
+// CANDLE / PRICE ACTION
+// =====================================================
+candleRange = high - low
+bodyAbs = math.abs(close - open)
+redBody = math.max(open - close, 0.0)
+
+bodyPct =
+     candleRange != 0 ?
+     (bodyAbs / candleRange) * 100 :
+     0.0
+
+upperWickPct =
+     candleRange != 0 ?
+     ((high - math.max(open, close)) / candleRange) * 100 :
+     0.0
+
+lowerWickPct =
+     candleRange != 0 ?
+     ((math.min(open, close) - low) / candleRange) * 100 :
+     0.0
+
+closeOffLowPct =
+     candleRange != 0 ?
+     ((close - low) / candleRange) * 100 :
+     0.0
+
+bullishRejection =
+     lowerWickPct >= 35 and
+     close > open
+
+bearishRejection =
+     upperWickPct >= 30 and
+     close < open
+
+weakTopClose =
+     candleRange != 0 and
+     close <= low + candleRange * 0.55
+
+strongBearishCandle =
+     close < open and
+     close < close[1]
+
+strongBullishCandle =
+     close > open and
+     close > close[1]
+
+priceStoppedFalling =
+     low > ta.lowest(low[1], 5) and
+     close > close[1]
+
+priceBreakoutShort =
+     close > ta.highest(high[1], confirmBreakoutLen)
+
+priceStructureBreak =
+     close > ta.highest(high[1], structureBreakLen)
+
+priceStructureLoss =
+     close < ta.lowest(low[1], sellStructureBreakLen)
+
+emaReclaim =
+     close > emaFast and close[1] <= emaFast[1]
+
+emaRecovered =
+     close > emaFast and close[1] > emaFast[1]
+
+priceWeakening =
+     close < close[1] or
+     close < low[1] or
+     bearishRejection or
+     weakTopClose
+
+supportReaction =
+     bullishRejection or
+     close > open or
+     closeOffLowPct >= 60 or
+     priceStoppedFalling
+
+resistanceReaction =
+     bearishRejection or
+     close < open or
+     closeOffLowPct <= 45 or
+     priceWeakening
+
+// =====================================================
+// MOMENTUM
+// =====================================================
+rsiTurningUp = rsi > rsi[1]
+rsiTurningDown = rsi < rsi[1]
+
+histImproving = hist > hist[1]
+histWeakening = hist < hist[1]
+
+rsiWasWeakRecently =
+     ta.lowest(rsi, buyCycleLookback) <= adjRsiBuyAlert + 4
+
+rsiWasOversoldRecently =
+     ta.lowest(rsi, buyCycleLookback) <= adjRsiBuyAlert
+
+rsiWasBelowMaRecently =
+     ta.lowest(rsi - rsiMa, buyCycleLookback) < 0
+
+rsiInReversalZone =
+     rsi >= rsiReversalMin and
+     rsi <= rsiReversalMax
+
+rsiWasHotRecently =
+     ta.highest(rsi, sellCycleLookback) >= adjRsiSellAlert
+
+rsiWasAboveMaRecently =
+     ta.highest(rsi - rsiMa, sellCycleLookback) > 0
+
+barsSinceWeakRsi = ta.barssince(rsi <= adjRsiBuyAlert)
+barsSinceHotRsi = ta.barssince(rsi >= adjRsiSellAlert)
+
+lowCycleActive =
+     not na(barsSinceWeakRsi) and
+     (
+         na(barsSinceHotRsi) or
+         barsSinceWeakRsi < barsSinceHotRsi
+     )
+
+hotCycleActive =
+     not na(barsSinceHotRsi) and
+     (
+         na(barsSinceWeakRsi) or
+         barsSinceHotRsi < barsSinceWeakRsi
+     )
+
+weakRsiMature =
+     not na(barsSinceWeakRsi) and
+     barsSinceWeakRsi >= minBarsAfterWeakRsi
+
+fastBuyWindowOk =
+     not na(barsSinceWeakRsi) and
+     barsSinceWeakRsi <= maxBarsAfterWeakForFastBuy
+
+fastSellWindowOk =
+     not na(barsSinceHotRsi) and
+     barsSinceHotRsi <= maxBarsAfterHotForFastSell
+
+ctxRsiWeak =
+     ctxRsi <= dailyRsiBuyContext
+
+ctxRsiHot =
+     ctxRsi >= dailyRsiSellContext
+
+trendUp =
+     close > smaTrend and
+     emaFast > smaTrend
+
+trendDown =
+     close < smaTrend and
+     emaFast < smaTrend
+
+ctxTrendUp =
+     ctxClose > ctxSma and
+     ctxEma > ctxSma
+
+ctxTrendDown =
+     ctxClose < ctxSma and
+     ctxEma < ctxSma
+
+trendHealthy =
+     trendUp or ctxTrendUp
+
+trendBreaking =
+     trendDown or ctxTrendDown
+
+emaSlopePct =
+     not na(emaFast[regimeSlopeLen]) and emaFast[regimeSlopeLen] > 0 ?
+     ((emaFast - emaFast[regimeSlopeLen]) / emaFast[regimeSlopeLen]) * 100 :
+     0.0
+
+regimeBull =
+     enableRegimeFilter and
+     close > smaTrend and
+     emaFast > smaTrend and
+     ctxClose > ctxSma and
+     ctxEma > ctxSma and
+     emaSlopePct >= -minRegimeSlopePct and
+     ctxEmaSlopePct >= -minRegimeSlopePct
+
+regimeBear =
+     enableRegimeFilter and
+     close < smaTrend and
+     emaFast < smaTrend and
+     ctxClose < ctxSma and
+     ctxEma < ctxSma and
+     emaSlopePct <= minRegimeSlopePct and
+     ctxEmaSlopePct <= minRegimeSlopePct
+
+regimeRange =
+     enableRegimeFilter and
+     not regimeBull and
+     not regimeBear
+
+bullMode =
+     enableRegimeFilter ? regimeBull : trendHealthy
+
+bearMode =
+     enableRegimeFilter ? regimeBear : trendBreaking
+
+rangeMode =
+     enableRegimeFilter ? regimeRange : not bullMode and not bearMode
+
+marketRegime =
+     bullMode ? "BULL" :
+     bearMode ? "BEAR" :
+     rangeMode ? "RANGE" :
+     "NEUTRO"
+
+buyScoreThreshold =
+     bearMode ? minBuyScoreBear :
+     bullMode ? minBuyScoreBull :
+     minBuyScoreRange
+
+sellScoreThreshold =
+     bearMode ? minSellScoreBear :
+     bullMode ? minSellScoreBull :
+     minSellScoreRange
+
+fallingKnife =
+     low < low[1] and
+     close < close[1] and
+     hist < hist[1] and
+     rsi <= rsi[1]
+
+// =====================================================
+// ESTADO DA STRATEGY
+// =====================================================
+canBuy = strategy.position_size == 0
+canSell = strategy.position_size > 0
+
+var bool buyArmed = false
+var bool sellArmed = false
+var bool buyResetOk = true
+
+var bool exhaustionArmed = false
+var int exhaustionArmBar = na
+var float exhaustionLow = na
+var float exhaustionHigh = na
+var float exhaustionMid = na
+var float exhaustionMinRsi = na
+
+var int buyArmBar = na
+var int sellArmBar = na
+var int lastTradeBar = na
+
+var float buyArmLow = na
+var float buyArmMinRsi = na
+var float sellArmHigh = na
+var float sellArmMaxRsi = na
+
+var float cycleLow = na
+var float cycleHigh = na
+var float tradeSetupLow = na
+
+enoughBarsAfterTrade =
+     na(lastTradeBar) or
+     bar_index - lastTradeBar >= minBarsBetweenTrades
+
+if strategy.position_size > 0
+    cycleLow := na(cycleLow) ? low : math.min(cycleLow, low)
+    cycleHigh := na(cycleHigh) ? high : math.max(cycleHigh, high)
+
+bounceFromCycleLow =
+     not na(cycleLow) and cycleLow > 0 ?
+     ((high - cycleLow) / cycleLow) * 100 :
+     0.0
+
+givebackFromCycleHigh =
+     not na(cycleHigh) and cycleHigh > 0 ?
+     ((cycleHigh - close) / cycleHigh) * 100 :
+     0.0
+
+// =====================================================
+// RESET APÓS VENDA
+// =====================================================
+afterSellResetCondition =
+     rsi <= adjRsiBuyAlert or
+     rsiBelowMa or
+     nearSupport
+
+if canBuy and not buyResetOk and afterSellResetCondition
+    buyResetOk := true
+
+// =====================================================
+// DETECÇÃO DE CAPITULAÇÃO EM SUPORTE
+// =====================================================
+bigRedCandle =
+     close < open and
+     redBody >= atr * panicAtrMult and
+     bodyPct >= minPanicBodyPct
+
+panicSupportCandle =
+     enableExhaustionSupportBuy and
+     canBuy and
+     nearSupport and
+     lowCycleActive and
+     bigRedCandle and
+     rsi <= adjRsiBuyAlert + panicRsiBuffer
+
+exhaustionReactionCandle =
+     panicSupportCandle and
+     lowerWickPct >= minExhaustionLowerWickPct and
+     closeOffLowPct >= minCloseOffLowPct
+
+exhaustionSameBarBuy =
+     enableExhaustionSupportBuy and
+     (exhaustionEntryMode == "Agressivo" or exhaustionEntryMode == "Ambos") and
+     canBuy and
+     buyResetOk and
+     enoughBarsAfterTrade and
+     exhaustionReactionCandle and
+     (
+         not requireRsiRecoveryForExhaustion or
+         rsiTurningUp or
+         rsiBullCross or
+         rsi > rsi[1]
+     ) and
+     (
+         not requireHistForExhaustionConfirm or
+         histImproving
+     )
+
+exhaustionStillValid =
+     exhaustionArmed and
+     not na(exhaustionArmBar) and
+     bar_index > exhaustionArmBar and
+     bar_index - exhaustionArmBar <= exhaustionConfirmBars and
+     (
+         not cancelIfBreaksPanicLow or
+         low >= exhaustionLow * (1 - adaptiveTolerancePct / 100)
+     )
+
+exhaustionPriceRecovered =
+     exhaustionStillValid and
+     (
+         close >= exhaustionMid or
+         close > exhaustionHigh or
+         priceStoppedFalling or
+         priceBreakoutShort
+     )
+
+exhaustionRsiRecovered =
+     not requireRsiRecoveryForExhaustion or
+     (
+         rsi > exhaustionMinRsi and
+         (
+             rsiTurningUp or
+             rsiBullCross or
+             rsiAboveMa
+         )
+     )
+
+exhaustionConfirmedBuy =
+     enableExhaustionSupportBuy and
+     (exhaustionEntryMode == "Confirmado" or exhaustionEntryMode == "Ambos") and
+     canBuy and
+     buyResetOk and
+     enoughBarsAfterTrade and
+     exhaustionStillValid and
+     exhaustionPriceRecovered and
+     exhaustionRsiRecovered and
+     (
+         not requireHistForExhaustionConfirm or
+         histImproving
+     )
+
+// =====================================================
+// CONTEXTOS DE COMPRA
+// =====================================================
+pullbackToEma =
+     low <= emaFast * (1 + adaptiveTolerancePct / 100) and
+     close >= emaFast * (1 - adaptiveTolerancePct / 200)
+
+pullbackRsiOk =
+     rsi >= rsiPullbackMin and
+     rsi <= rsiPullbackMax
+
+buyCycleContext =
+     nearSupport and (
+         ctxRsiWeak or
+         rsi <= adjRsiBuyAlert or
+         rsiWasWeakRecently and rsiInReversalZone
+     )
+
+trendPullbackContext =
+     allowTrendReentry and
+     trendHealthy and
+     pullbackToEma and
+     pullbackRsiOk and
+     rsiWasBelowMaRecently
+
+buySetup =
+     canBuy and
+     enoughBarsAfterTrade and
+     buyResetOk and
+     (
+         buyCycleContext or
+         trendPullbackContext or
+         lowCycleActive or
+         panicSupportCandle
+     )
+
+buyAlertNow =
+     buySetup and
+     not buyArmed and
+     barstate.isconfirmed
+
+if buyArmed
+    buyArmLow := na(buyArmLow) ? low : math.min(buyArmLow, low)
+    buyArmMinRsi := na(buyArmMinRsi) ? rsi : math.min(buyArmMinRsi, rsi)
+
+buyAlertExpired =
+     buyArmed and
+     not na(buyArmBar) and
+     bar_index - buyArmBar > buyAlertExpiresBars
+
+// =====================================================
+// CONFIRMAÇÃO DE COMPRA RÁPIDA EM SUPORTE
+// =====================================================
+barsAfterBuyArm =
+     not na(buyArmBar) ?
+     bar_index - buyArmBar :
+     na
+
+buyArmMature =
+     not na(barsAfterBuyArm) and
+     barsAfterBuyArm >= minBarsAfterBuyArm
+
+riseFromArmLowFastOk =
+     not na(buyArmLow) and
+     buyArmLow > 0 and
+     close >= buyArmLow * (1 + minRiseFromSupportLowPct / 100)
+
+fastSupportBuyRsiOk =
+     rsi >= minRsiForFastSupportBuy and
+     (
+         rsiBullCross or
+         rsiAboveMa and rsiTurningUp
+     )
+
+fastSupportBuyPriceOk =
+     not requireSupportReaction or
+     supportReaction or
+     priceBreakoutShort
+
+fastSupportBuyHistOk =
+     not requireHistForFastBuy or
+     histImproving
+
+fastSupportBuy =
+     enableFastSupportBuy and
+     canBuy and
+     buyResetOk and
+     enoughBarsAfterTrade and
+     nearSupport and
+     lowCycleActive and
+     fastBuyWindowOk and
+     rsiWasOversoldRecently and
+     fastSupportBuyRsiOk and
+     fastSupportBuyPriceOk and
+     fastSupportBuyHistOk and
+     riseFromArmLowFastOk and
+     not fallingKnife
+
+// =====================================================
+// CONFIRMAÇÃO DE COMPRA MADURA
+// =====================================================
+riseFromArmLowOk =
+     not na(buyArmLow) and
+     buyArmLow > 0 and
+     close >= buyArmLow * (1 + minRiseFromArmLowPct / 100)
+
+rsiBullCrossMature =
+     rsiBullCross and
+     rsi >= minRsiForMatureBuy and
+     weakRsiMature
+
+rsiBullRegimeMature =
+     rsiAboveMa and
+     rsi >= minRsiForMatureBuy and
+     weakRsiMature and
+     rsiTurningUp
+
+buyRsiConfirm =
+     requireMatureBuy ?
+     (
+         rsiBullCrossMature or
+         rsiBullRegimeMature
+     ) :
+     (
+         rsiBullCross or
+         rsiAboveMa and rsiTurningUp
+     )
+
+buyStructureConfirm =
+     requireEmaReclaimOrBreakout ?
+     (
+         priceStructureBreak or
+         emaReclaim or
+         emaRecovered
+     ) :
+     (
+         priceStructureBreak or
+         emaReclaim or
+         emaRecovered or
+         priceStoppedFalling or
+         bullishRejection
+     )
+
+buyPriceConfirm =
+     buyStructureConfirm and
+     riseFromArmLowOk
+
+buyStructureScoreOk =
+     priceStructureBreak or
+     emaReclaim or
+     emaRecovered or
+     priceStoppedFalling or
+     bullishRejection
+
+buyScore =
+     (nearSupport ? 1 : 0) +
+     (rsiWasOversoldRecently ? 1 : 0) +
+     (rsiBullCross or rsiAboveMa and rsiTurningUp ? 1 : 0) +
+     (buyStructureScoreOk ? 1 : 0) +
+     (histImproving ? 1 : 0) +
+     (supportReaction or bullishRejection ? 1 : 0) +
+     (ctxRsiWeak ? 1 : 0) +
+     (trendHealthy and pullbackToEma ? 1 : 0) +
+     (not fallingKnife ? 1 : 0)
+
+buyScoreOk =
+     not useScoreConfirmation or
+     buyScore >= buyScoreThreshold
+
+bearBuyAllowed =
+     not bearMode or
+     not requireBearBuyCapitulation or
+     exhaustionSameBarBuy or
+     exhaustionConfirmedBuy or
+     (
+         nearSupport and
+         buyScore >= minBuyScoreBear and
+         priceStructureBreak
+     )
+
+cycleBuyConfirmed =
+     canBuy and
+     buyArmed and
+     enoughBarsAfterTrade and
+     buyResetOk and
+     buyArmMature and
+     buyRsiConfirm and
+     (
+         rsiWasOversoldRecently or
+         rsiWasWeakRecently or
+         ctxRsiWeak or
+         nearSupport
+     ) and
+     buyPriceConfirm and
+     histImproving and
+     buyScoreOk and
+     bearBuyAllowed and
+     not fallingKnife
+
+trendPullbackBuyConfirmed =
+     allowTrendReentry and
+     canBuy and
+     buyArmed and
+     enoughBarsAfterTrade and
+     buyResetOk and
+     trendHealthy and
+     pullbackToEma and
+     pullbackRsiOk and
+     rsiWasBelowMaRecently and
+     buyArmMature and
+     buyRsiConfirm and
+     buyPriceConfirm and
+     (
+         histImproving or
+         priceStoppedFalling or
+         bullishRejection
+     ) and
+     buyScoreOk and
+     not bearMode and
+     not fallingKnife
+
+extremeBuyConfirmed =
+     allowEarlyExtremeBuy and
+     canBuy and
+     enoughBarsAfterTrade and
+     buyResetOk and
+     nearSupport and
+     rsi <= adjRsiExtremeBuy and
+     bullishRejection and
+     histImproving and
+     buyScoreOk and
+     bearBuyAllowed and
+     not fallingKnife
+
+rawBuySignal =
+     exhaustionSameBarBuy or
+     exhaustionConfirmedBuy or
+     (fastSupportBuy and buyScoreOk and bearBuyAllowed) or
+     cycleBuyConfirmed or
+     trendPullbackBuyConfirmed or
+     extremeBuyConfirmed
+
+// =====================================================
+// CONTEXTOS DE VENDA
+// =====================================================
+sellContextNormal =
+     nearResistanceCore and (
+         ctxRsiHot or
+         rsi >= adjRsiSellAlert or
+         bounceFromCycleLow >= minBounceToSellPct and rsi >= 50
+     )
+
+sellContextMomentum =
+     canSell and
+     bounceFromCycleLow >= minBounceToSellPct and
+     rsiWasHotRecently and
+     rsiWasAboveMaRecently
+
+sellSetup =
+     canSell and
+     enoughBarsAfterTrade and
+     (
+         sellContextNormal or
+         sellContextMomentum or
+         hotCycleActive
+     )
+
+sellAlertNow =
+     sellSetup and
+     not sellArmed and
+     barstate.isconfirmed
+
+if sellArmed
+    sellArmHigh := na(sellArmHigh) ? high : math.max(sellArmHigh, high)
+    sellArmMaxRsi := na(sellArmMaxRsi) ? rsi : math.max(sellArmMaxRsi, rsi)
+
+sellAlertExpired =
+     sellArmed and
+     not na(sellArmBar) and
+     bar_index - sellArmBar > sellAlertExpiresBars
+
+// =====================================================
+// CONFIRMAÇÃO DE VENDA RÁPIDA EM RESISTÊNCIA
+// =====================================================
+fastResistanceSellRsiOk =
+     rsiBearCross or
+     rsiBelowMa and rsiTurningDown
+
+fastResistanceSellPriceOk =
+     resistanceReaction or
+     priceStructureLoss or
+     histWeakening
+
+fastResistanceSell =
+     enableFastResistanceSell and
+     canSell and
+     enoughBarsAfterTrade and
+     nearResistanceCore and
+     hotCycleActive and
+     fastSellWindowOk and
+     rsiWasHotRecently and
+     fastResistanceSellRsiOk and
+     fastResistanceSellPriceOk
+
+// =====================================================
+// CONFIRMAÇÃO DE VENDA MADURA
+// =====================================================
+sellRsiConfirm =
+     requireMatureSell ?
+     (
+         rsiBearCross or
+         rsiBelowMa and rsiTurningDown
+     ) :
+     (
+         rsiBearCross or
+         rsiBelowMa or
+         rsiTurningDown
+     )
+
+sellPriceConfirm =
+     priceWeakening or
+     bearishRejection or
+     weakTopClose or
+     strongBearishCandle or
+     priceStructureLoss
+
+sellMomentumConfirm =
+     histWeakening or
+     givebackFromCycleHigh >= effectiveGivebackPct
+
+sellScore =
+     (nearResistanceCore ? 1 : 0) +
+     (rsiWasHotRecently or rsi >= adjRsiSellAlert ? 1 : 0) +
+     (rsiBearCross or rsiBelowMa and rsiTurningDown ? 1 : 0) +
+     (sellPriceConfirm ? 1 : 0) +
+     (histWeakening ? 1 : 0) +
+     (givebackFromCycleHigh >= effectiveGivebackPct ? 1 : 0) +
+     (priceStructureLoss ? 1 : 0) +
+     (trendBreaking ? 1 : 0) +
+     (bounceFromCycleLow >= minBounceToSellPct ? 1 : 0)
+
+sellScoreOk =
+     not useScoreConfirmation or
+     sellScore >= sellScoreThreshold
+
+bullSellStructureOk =
+     not bullMode or
+     not confirmBullSellWithStructure or
+     priceStructureLoss or
+     close < emaFast or
+     bearishRejection and upperWickPct >= 40 or
+     givebackFromCycleHigh >= effectiveGivebackPct * 1.25 or
+     trendBreaking
+
+cycleSellConfirmed =
+     canSell and
+     sellArmed and
+     enoughBarsAfterTrade and
+     not na(sellArmBar) and
+     bar_index > sellArmBar and
+     sellRsiConfirm and
+     (
+         rsiWasHotRecently or
+         ctxRsiHot or
+         nearResistanceCore
+     ) and
+     sellPriceConfirm and
+     sellMomentumConfirm and
+     sellScoreOk and
+     bullSellStructureOk
+
+extremeSellConfirmed =
+     allowEarlyExtremeSell and
+     canSell and
+     enoughBarsAfterTrade and
+     nearResistanceCore and
+     rsi >= adjRsiStrongSell and
+     sellPriceConfirm and
+     histWeakening and
+     bullSellStructureOk
+
+givebackFilterOk =
+     not requireResistanceForGiveback or
+     nearResistanceCore or
+     rsiWasHotRecently or
+     trendBreaking
+
+givebackSellConfirmed =
+     canSell and
+     enoughBarsAfterTrade and
+     bounceFromCycleLow >= minBounceToSellPct and
+     givebackFromCycleHigh >= effectiveGivebackPct and
+     close < emaFast and
+     histWeakening and
+     sellPriceConfirm and
+     givebackFilterOk and
+     (
+         not requireMatureSell or
+         rsiBearCross or
+         rsiBelowMa and rsiTurningDown
+     ) and
+     sellScoreOk and
+     bullSellStructureOk
+
+trendFailureSell =
+     canSell and
+     enoughBarsAfterTrade and
+     bounceFromCycleLow >= minBounceToSellPct and
+     close < smaTrend and
+     emaFast < smaTrend and
+     histWeakening and
+     rsiBelowMa and
+     (
+         not useScoreConfirmation or
+         sellScore >= minSellScoreBear
+     )
+
+rawSellSignal =
+     (fastResistanceSell and sellScoreOk and bullSellStructureOk) or
+     cycleSellConfirmed or
+     extremeSellConfirmed or
+     givebackSellConfirmed or
+     trendFailureSell
+
+// =====================================================
+// SINAIS FINAIS
+// =====================================================
+buySignal =
+     rawBuySignal and
+     barstate.isconfirmed
+
+sellSignal =
+     rawSellSignal and
+     barstate.isconfirmed
+
+buySetupLowForTrade =
+     not na(exhaustionLow) and (exhaustionConfirmedBuy or exhaustionSameBarBuy) ?
+     math.min(exhaustionLow, low) :
+     not na(buyArmLow) ?
+     math.min(buyArmLow, low) :
+     low
+
+alertSignal =
+     not buySignal and
+     not sellSignal and
+     (buyAlertNow or sellAlertNow or panicSupportCandle)
+
+alertIsBuy =
+     alertSignal and (buyAlertNow or panicSupportCandle)
+
+alertIsSell =
+     alertSignal and sellAlertNow
+
+alertIsExhaustion =
+     alertSignal and panicSupportCandle
+
+// =====================================================
+// ORDENS DA STRATEGY
+// =====================================================
+if buySignal
+    strategy.entry("COMPRAR", strategy.long)
+
+if sellSignal
+    strategy.close("COMPRAR")
+
+if strategy.position_size > 0
+    avgPrice = strategy.position_avg_price
+
+    fixedStopPrice =
+         useStopLoss ?
+         avgPrice * (1 - stopLossPct / 100) :
+         na
+
+    setupInvalidationStop =
+         useSetupInvalidationStop and not na(tradeSetupLow) and tradeSetupLow > 0 ?
+         math.max(tradeSetupLow - atr * setupStopAtrMult, avgPrice * (1 - setupStopMaxPct / 100)) :
+         na
+
+    tradeRunupPct =
+         not na(cycleHigh) and avgPrice > 0 ?
+         ((cycleHigh - avgPrice) / avgPrice) * 100 :
+         0.0
+
+    smartTrailMult =
+         bullMode ? trailAtrMultBull :
+         bearMode ? trailAtrMultBear :
+         trailAtrMultRange
+
+    smartTrailStop =
+         useSmartTrailingStop and not na(cycleHigh) and tradeRunupPct >= trailStartsAfterProfitPct ?
+         cycleHigh - atr * smartTrailMult :
+         na
+
+    activeStopPrice =
+         f_maxNonNa(
+             f_maxNonNa(fixedStopPrice, setupInvalidationStop),
+             smartTrailStop
+         )
+
+    takePrice =
+         useTakeProfit ?
+         avgPrice * (1 + takeProfitPct / 100) :
+         na
+
+    if not na(activeStopPrice) or not na(takePrice)
+        strategy.exit(
+             "Gestão de risco",
+             from_entry="COMPRAR",
+             stop=activeStopPrice,
+             limit=takePrice
+        )
+
+riskExitOccurred =
+     strategy.position_size == 0 and
+     strategy.position_size[1] > 0 and
+     not sellSignal
+
+// =====================================================
+// ATUALIZA MÁQUINA DE ESTADO
+// =====================================================
+if buySignal
+    buyArmed := false
+    sellArmed := false
+    exhaustionArmed := false
+    buyArmBar := na
+    sellArmBar := na
+    exhaustionArmBar := na
+    buyArmLow := na
+    buyArmMinRsi := na
+    sellArmHigh := na
+    sellArmMaxRsi := na
+    exhaustionLow := na
+    exhaustionHigh := na
+    exhaustionMid := na
+    exhaustionMinRsi := na
+    cycleLow := low
+    cycleHigh := high
+    tradeSetupLow := buySetupLowForTrade
+    lastTradeBar := bar_index
+
+else if sellSignal
+    buyArmed := false
+    sellArmed := false
+    exhaustionArmed := false
+    buyResetOk := false
+    buyArmBar := na
+    sellArmBar := na
+    exhaustionArmBar := na
+    buyArmLow := na
+    buyArmMinRsi := na
+    sellArmHigh := na
+    sellArmMaxRsi := na
+    exhaustionLow := na
+    exhaustionHigh := na
+    exhaustionMid := na
+    exhaustionMinRsi := na
+    cycleLow := na
+    cycleHigh := na
+    tradeSetupLow := na
+    lastTradeBar := bar_index
+
+else if riskExitOccurred
+    buyArmed := false
+    sellArmed := false
+    exhaustionArmed := false
+    buyResetOk := false
+    buyArmBar := na
+    sellArmBar := na
+    exhaustionArmBar := na
+    buyArmLow := na
+    buyArmMinRsi := na
+    sellArmHigh := na
+    sellArmMaxRsi := na
+    exhaustionLow := na
+    exhaustionHigh := na
+    exhaustionMid := na
+    exhaustionMinRsi := na
+    cycleLow := na
+    cycleHigh := na
+    tradeSetupLow := na
+    lastTradeBar := bar_index
+
+else
+    if buyAlertNow
+        buyArmed := true
+        buyArmBar := bar_index
+        buyArmLow := low
+        buyArmMinRsi := rsi
+
+    if panicSupportCandle
+        buyArmed := true
+        buyArmBar := na(buyArmBar) ? bar_index : buyArmBar
+        buyArmLow := na(buyArmLow) ? low : math.min(buyArmLow, low)
+        buyArmMinRsi := na(buyArmMinRsi) ? rsi : math.min(buyArmMinRsi, rsi)
+
+        exhaustionArmed := true
+        exhaustionArmBar := bar_index
+        exhaustionLow := low
+        exhaustionHigh := high
+        exhaustionMid := low + (high - low) * (panicRecoveryPct / 100)
+        exhaustionMinRsi := rsi
+
+    if sellAlertNow
+        sellArmed := true
+        sellArmBar := bar_index
+        sellArmHigh := high
+        sellArmMaxRsi := rsi
+
+    exhaustionExpired =
+         exhaustionArmed and
+         not na(exhaustionArmBar) and
+         bar_index - exhaustionArmBar > exhaustionConfirmBars
+
+    exhaustionInvalid =
+         exhaustionArmed and
+         cancelIfBreaksPanicLow and
+         not na(exhaustionLow) and
+         low < exhaustionLow * (1 - adaptiveTolerancePct / 100)
+
+    if exhaustionExpired or exhaustionInvalid
+        exhaustionArmed := false
+        exhaustionArmBar := na
+        exhaustionLow := na
+        exhaustionHigh := na
+        exhaustionMid := na
+        exhaustionMinRsi := na
+
+    if buyAlertExpired
+        buyArmed := false
+        buyArmBar := na
+        buyArmLow := na
+        buyArmMinRsi := na
+
+    if sellAlertExpired
+        sellArmed := false
+        sellArmBar := na
+        sellArmHigh := na
+        sellArmMaxRsi := na
+
+// =====================================================
+// ESTATÍSTICAS DO BACKTEST
+// =====================================================
+closedTrades = strategy.closedtrades
+winTrades = strategy.wintrades
+lossTrades = strategy.losstrades
+
+winRate =
+     closedTrades > 0 ?
+     (winTrades / closedTrades) * 100 :
+     na
+
+lossRate =
+     closedTrades > 0 ?
+     (lossTrades / closedTrades) * 100 :
+     na
+
+netProfit = strategy.netprofit
+netProfitPct = strategy.initial_capital != 0 ? (strategy.netprofit / strategy.initial_capital) * 100 : na
+
+profitFactor = strategy.grossloss != 0 ? strategy.grossprofit / math.abs(strategy.grossloss) : na
+
+// =====================================================
+// STATUS DO DASH
+// =====================================================
+volText =
+     isHighVol ? "ALTA" :
+     isLowVol ? "BAIXA" :
+     "MEDIA"
+
+rsiRegime =
+     rsiBullCross ? "RSI VIROU ALTA" :
+     rsiBearCross ? "RSI VIROU BAIXA" :
+     rsiAboveMa ? "RSI ALTA" :
+     rsiBelowMa ? "RSI BAIXA" :
+     "RSI NEUTRO"
+
+cycleText =
+     lowCycleActive ? "CICLO: BAIXO -> TOPO" :
+     hotCycleActive ? "CICLO: ALTO -> FUNDO" :
+     "CICLO: NEUTRO"
+
+exhaustionText =
+     panicSupportCandle ? "CAPITULACAO" :
+     exhaustionConfirmedBuy ? "EXAUSTAO OK" :
+     exhaustionArmed ? "EXAUSTAO ARMADA" :
+     "SEM EXAUSTAO"
+
+buyMaturityText =
+     exhaustionSameBarBuy ? "EXAUSTAO AGRESSIVA" :
+     exhaustionConfirmedBuy ? "EXAUSTAO CONFIRMADA" :
+     fastSupportBuy ? "SUPORTE RAPIDO" :
+     not buyArmed ? "SEM ALERTA" :
+     not buyArmMature ? "MATURANDO" :
+     not buyRsiConfirm ? "AGUARDA RSI" :
+     not buyPriceConfirm ? "AGUARDA PRECO" :
+     "PRONTO"
+
+biasText =
+     buySignal ? "COMPRA" :
+     sellSignal ? "VENDA" :
+     exhaustionArmed ? "EXAUSTAO ARMADA" :
+     buyArmed or buyAlertNow ? "COMPRA ARMADA" :
+     sellArmed or sellAlertNow ? "VENDA ARMADA" :
+     strategy.position_size > 0 ? "BUSCANDO VENDA" :
+     "BUSCANDO COMPRA"
+
+zoneText =
+     nearResistanceCore ? "RESISTENCIA" :
+     nearSupport ? "SUPORTE" :
+     trendHealthy ? "TENDENCIA" :
+     "NEUTRA"
+
+currentAction =
+     buySignal ? "COMPRAR" :
+     sellSignal ? "VENDER" :
+     exhaustionArmed ? "ALERTA COMPRA" :
+     buyArmed or buyAlertNow ? "ALERTA COMPRA" :
+     sellArmed or sellAlertNow ? "ALERTA VENDA" :
+     "ESPERAR"
+
+currentColor =
+     currentAction == "COMPRAR" ? color.new(color.green, 0) :
+     currentAction == "VENDER" ? color.new(color.red, 0) :
+     currentAction == "ALERTA COMPRA" ? color.new(color.yellow, 0) :
+     currentAction == "ALERTA VENDA" ? color.new(color.yellow, 0) :
+     color.new(color.gray, 35)
+
+textColor =
+     currentAction == "ALERTA COMPRA" or currentAction == "ALERTA VENDA" ?
+     color.black :
+     color.white
+
+// =====================================================
+// ÚLTIMA AÇÃO
+// =====================================================
+var string lastSignalText = "NENHUM"
+var color lastSignalColor = color.new(color.gray, 35)
+
+if buySignal
+    lastSignalText := "COMPRAR"
+    lastSignalColor := color.new(color.green, 0)
+
+if sellSignal
+    lastSignalText := "VENDER"
+    lastSignalColor := color.new(color.red, 0)
+
+if alertSignal
+    lastSignalText := alertIsExhaustion ? "EXAUSTAO" : alertIsBuy ? "ALERTA COMPRA" : "ALERTA VENDA"
+    lastSignalColor := color.new(color.yellow, 0)
+
+// =====================================================
+// BOLHAS NO GRÁFICO
+// =====================================================
+if showLabels and showExhaustionLabels and alertIsExhaustion
+    label.new(
+         x=bar_index,
+         y=low,
+         text="EXAUSTÃO",
+         style=label.style_label_up,
+         color=color.new(color.yellow, 0),
+         textcolor=color.black,
+         size=size.small
+    )
+
+if showLabels and showAlertLabels and alertSignal and alertIsBuy and not alertIsExhaustion
+    label.new(
+         x=bar_index,
+         y=low,
+         text="ALERTA",
+         style=label.style_label_up,
+         color=color.new(color.yellow, 0),
+         textcolor=color.black,
+         size=size.small
+    )
+
+if showLabels and showAlertLabels and alertSignal and alertIsSell
+    label.new(
+         x=bar_index,
+         y=high,
+         text="ALERTA",
+         style=label.style_label_down,
+         color=color.new(color.yellow, 0),
+         textcolor=color.black,
+         size=size.small
+    )
+
+if showLabels and buySignal
+    label.new(
+         x=bar_index,
+         y=low,
+         text="COMPRAR",
+         style=label.style_label_up,
+         color=color.new(color.green, 0),
+         textcolor=color.white,
+         size=size.small
+    )
+
+if showLabels and sellSignal
+    label.new(
+         x=bar_index,
+         y=high,
+         text="VENDER",
+         style=label.style_label_down,
+         color=color.new(color.red, 0),
+         textcolor=color.white,
+         size=size.small
+    )
+
+// =====================================================
+// DASH BACKTEST
+// =====================================================
+var table statusTable = table.new(position.top_right, 1, 12)
+
+if showStatus and barstate.islast
+    table.cell(statusTable, 0, 0, "AGORA: " + currentAction, bgcolor=currentColor, text_color=textColor, text_size=size.normal)
+    table.cell(statusTable, 0, 1, rsiRegime + " | " + cycleText, bgcolor=lastSignalColor, text_color=lastSignalText == "ALERTA COMPRA" or lastSignalText == "ALERTA VENDA" or lastSignalText == "EXAUSTAO" ? color.black : color.white, text_size=size.small)
+    table.cell(statusTable, 0, 2, "EXAUSTAO: " + exhaustionText, bgcolor=color.new(color.gray, 75), text_color=color.white, text_size=size.small)
+    table.cell(statusTable, 0, 3, "VIÉS: " + biasText + " | COMPRA: " + buyMaturityText, bgcolor=color.new(color.gray, 75), text_color=color.white, text_size=size.small)
+    table.cell(statusTable, 0, 4, "REGIME: " + marketRegime + " | ZONA: " + zoneText + " | RESET: " + (buyResetOk ? "OK" : "AGUARDANDO"), bgcolor=color.new(color.gray, 75), text_color=color.white, text_size=size.small)
+    table.cell(statusTable, 0, 5, "SCORE C/V: " + str.tostring(buyScore) + "/" + str.tostring(buyScoreThreshold) + " | " + str.tostring(sellScore) + "/" + str.tostring(sellScoreThreshold), bgcolor=color.new(color.gray, 75), text_color=color.white, text_size=size.small)
+    table.cell(statusTable, 0, 6, "RSI FRACO: " + str.tostring(barsSinceWeakRsi) + " | RSI FORTE: " + str.tostring(barsSinceHotRsi), bgcolor=color.new(color.gray, 75), text_color=color.white, text_size=size.small)
+    table.cell(statusTable, 0, 7, "RSI: " + str.tostring(rsi, "#.0") + " | MA: " + str.tostring(rsiMa, "#.0") + " | D: " + str.tostring(ctxRsi, "#.0"), bgcolor=color.new(color.gray, 75), text_color=color.white, text_size=size.small)
+    table.cell(statusTable, 0, 8, "VOL: " + volText + " | ATR%: " + str.tostring(atrPct, "#.0") + " | TOL: " + str.tostring(adaptiveTolerancePct, "#.0") + "%", bgcolor=color.new(color.gray, 80), text_color=color.white, text_size=size.small)
+    table.cell(statusTable, 0, 9, "TRADES: " + str.tostring(closedTrades) + " | ACERTOS: " + str.tostring(winTrades) + " | ERROS: " + str.tostring(lossTrades), bgcolor=color.new(color.gray, 80), text_color=color.white, text_size=size.small)
+    table.cell(statusTable, 0, 10, "WIN RATE: " + str.tostring(winRate, "#.0") + "% | ERRO: " + str.tostring(lossRate, "#.0") + "%", bgcolor=color.new(color.gray, 80), text_color=color.white, text_size=size.small)
+    table.cell(statusTable, 0, 11, "LUCRO: " + str.tostring(netProfitPct, "#.0") + "% | PF: " + str.tostring(profitFactor, "#.00"), bgcolor=netProfit >= 0 ? color.new(color.green, 20) : color.new(color.red, 20), text_color=color.white, text_size=size.small)
+
+// =====================================================
+// ALERTAS TRADINGVIEW
+// =====================================================
+alertcondition(
+     alertSignal and alertIsBuy,
+     title="ALERTA COMPRA",
+     message="ALERTA de possível COMPRA em {{ticker}} no preço {{close}}."
+)
+
+alertcondition(
+     alertIsExhaustion,
+     title="EXAUSTAO EM SUPORTE",
+     message="Candle de exaustão em suporte detectado em {{ticker}} no preço {{close}}."
+)
+
+alertcondition(
+     alertSignal and alertIsSell,
+     title="ALERTA VENDA",
+     message="ALERTA de possível VENDA em {{ticker}} no preço {{close}}."
+)
+
+alertcondition(
+     buySignal,
+     title="COMPRAR",
+     message="Sinal de COMPRAR em {{ticker}} no preço {{close}}."
+)
+
+alertcondition(
+     sellSignal,
+     title="VENDER",
+     message="Sinal de VENDER em {{ticker}} no preço {{close}}."
+)

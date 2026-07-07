@@ -1,0 +1,172 @@
+{
+  "data": "2026-06-18",
+  "angulo": "noticias",
+  "criadores": [],
+  "titulo": "O SINAL — TV vs Digital: a virada é de canais pra pessoas",
+  "fonte": "Fontes: Cenp-Meios · IAB Brasil · Goldman Sachs · 2025",
+  "slides": [
+    {
+      "n": 1,
+      "batida": "gancho",
+      "layout": "cover",
+      "kicker": "A MUDANÇA · MÍDIA",
+      "coverHeadline": "bottom",
+      "coverTone": "light",
+      "coverScrim": "strong",
+      "headline": "A TV perdeu. Mas quem ganhou não foi <i>\"o digital\"</i>.",
+      "corpo": "Pela primeira vez, a publicidade digital passou a TV em verba. Só que o dinheiro foi parar num lugar que nenhum comercial anunciou.",
+      "artePrompt": "an old vintage television set glowing with soft blue static light in a dark, empty living room at night, melancholic and nostalgic, faint dust floating in the light beam, wide cinematic shot, deep shadows",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-noticia-tv-vs-digital/assets/art-01.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-noticia-tv-vs-digital/assets/art-01.png"
+      }
+    },
+    {
+      "n": 2,
+      "batida": "quem-e",
+      "layout": "stat-card",
+      "kicker": "O CONTEXTO",
+      "stat": "R$ 42,7 bi",
+      "statLabel": "em publicidade digital · Brasil 2025",
+      "headline": "Pela primeira vez, o digital passou a TV aberta.",
+      "corpo": "O investimento em mídia digital cresceu 12,7% em um ano e ultrapassou a televisão aberta em verba publicitária. Não foi um susto pontual: é o segundo maior salto da série histórica. A TV ainda fatura alto — mas parou de crescer enquanto o digital dispara.",
+      "fonte": "IAB Brasil · 2025",
+      "artePrompt": "abstract macro close-up of a glowing smartphone screen in the dark, soft bokeh of golden and cold-blue digital light particles, money-like shimmer, cinematic, deep black background",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-noticia-tv-vs-digital/assets/art-02.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-noticia-tv-vs-digital/assets/art-02.png"
+      }
+    },
+    {
+      "n": 3,
+      "batida": "quem-e",
+      "layout": "comparison",
+      "kicker": "O CONTEXTO",
+      "headline": "A virada, em quatro anos.",
+      "comparacao": {
+        "esquerda": {
+          "rotulo": "TV",
+          "tendencia": "down",
+          "barra": 37,
+          "itens": [
+            "<b>50%</b> da verba em 2022",
+            "<b>37,1%</b> em 2025",
+            "Audiência que troca de canal"
+          ]
+        },
+        "direita": {
+          "rotulo": "Digital",
+          "tendencia": "up",
+          "barra": 36,
+          "itens": [
+            "<b>27,6%</b> em 2022",
+            "<b>36,5%</b> em 2025",
+            "Audiência que escolhe quem assistir"
+          ]
+        }
+      },
+      "fonte": "Cenp-Meios · 2025"
+    },
+    {
+      "n": 4,
+      "batida": "twist",
+      "layout": "full-bleed-text",
+      "kicker": "A LEITURA · DATA2CONTENT",
+      "headline": "Mas \"TV vs digital\" é a pergunta errada.",
+      "corpo": "A audiência não trocou de tela — trocou de <b>vínculo</b>. Antes, ela ligava num canal e assistia ao que viesse. Hoje, ela abre um app e escolhe <b>uma pessoa</b> pra acompanhar.\n\nO que mudou não foi o meio. Foi de quem a gente quer ouvir: saímos de <b>canais</b> e fomos parar em <b>pessoas</b>.",
+      "artePrompt": "a smartphone mounted on a small tripod with a softbox ring light glowing warmly in a dark room, no person present, intimate solo-creator setup, cinematic shallow depth of field, moody",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-noticia-tv-vs-digital/assets/art-04.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-noticia-tv-vs-digital/assets/art-04.png"
+      }
+    },
+    {
+      "n": 5,
+      "batida": "twist",
+      "layout": "diagram",
+      "kicker": "A LEITURA · DATA2CONTENT",
+      "headline": "Pra onde o dinheiro foi de verdade.",
+      "fluxo": [
+        "A verba sai da grade da TV",
+        "Entra nas plataformas digitais",
+        "E procura quem segura a atenção: o criador",
+        "O criador vira a nova mídia"
+      ],
+      "corpo": "A marca não está comprando \"o digital\" como um bloco. Está atrás de quem já tem a atenção que ela perdeu — e isso tem nome e rosto.",
+      "fonte": "Leitura Data2Content"
+    },
+    {
+      "n": 6,
+      "batida": "porque",
+      "layout": "stat-card",
+      "kicker": "O NÚMERO",
+      "stat": "+67%",
+      "statLabel": "de criadores no Brasil em um ano",
+      "headline": "O país virou uma nação de criadores.",
+      "corpo": "O número de influenciadores saltou de 1,2 milhão para 2 milhões entre 2024 e 2025. Cada um carrega uma audiência pequena, fiel e própria — exatamente o que a TV nunca conseguiu entregar: atenção com endereço.",
+      "fonte": "Levantamento de mercado · 2025",
+      "artePrompt": "dozens of small glowing phone screens scattered and floating in deep darkness like a constellation of warm lights, abstract, vast, cinematic depth",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-noticia-tv-vs-digital/assets/art-06.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-noticia-tv-vs-digital/assets/art-06.png"
+      }
+    },
+    {
+      "n": 7,
+      "batida": "porque",
+      "layout": "full-bleed-text",
+      "kicker": "POR QUE IMPORTA",
+      "headline": "E a marca não compra mais audiência. Compra <i>encaixe</i>.",
+      "corpo": "<b>69% dos CMOs</b> dizem que hoje priorizam resultado de negócio — venda, conversão — acima de alcance. A conta deixou de ser \"quantos te veem\" e passou a ser \"quem te vê, e por quê\".\n\nTradução: não é quem tem mais seguidores que fatura. É quem <b>combina</b> com a marca certa.",
+      "artePrompt": "a single empty director's chair under a warm theatrical spotlight on a dark, vacant stage, waiting, cinematic, dramatic shadows",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-noticia-tv-vs-digital/assets/art-07.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-noticia-tv-vs-digital/assets/art-07.png"
+      }
+    },
+    {
+      "n": 8,
+      "batida": "payoff",
+      "layout": "full-bleed-text",
+      "kicker": "O QUE FAZER",
+      "headline": "Pare de perseguir número. Cuide do <i>encaixe</i>.",
+      "corpo": "O dinheiro está indo pra quem tem uma narrativa clara — porque é nela que a marca certa se reconhece e a audiência certa se fideliza.\n\nVocê não precisa de milhões. Precisa de um mapa nítido de quem você é. <b>Seu mapa vale mais que o seu alcance.</b>",
+      "artePrompt": "soft morning light through a window falling on a wooden desk with an open notebook and a smartphone, calm and hopeful still life, editorial, warm tones",
+      "imagem": {
+        "fonte": "generated",
+        "url": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-noticia-tv-vs-digital/assets/art-08.png",
+        "userId": null,
+        "localUrl": "file:///Users/arthurmarba/d2c-frontend/output/revista/2026-06-18-noticia-tv-vs-digital/assets/art-08.png"
+      }
+    },
+    {
+      "n": 9,
+      "batida": "convite",
+      "layout": "cta",
+      "kicker": "PARTICIPE",
+      "headline": "A marca quer encaixe. A Data2Content acha as que encaixam no <i>seu</i> mapa.",
+      "corpo": "A gente lê a sua narrativa e conecta com marcas e projetos que combinam com quem você é — monetização por fit, não por leilão de audiência.",
+      "lista": [
+        "<b>Seu mapa</b>: a narrativa que a marca certa reconhece",
+        "<b>Marcas por fit</b>, não por número de seguidor",
+        "<b>Pautas</b> que nascem da sua vida real",
+        "<b>Reuniões semanais</b> — você não cria sozinho"
+      ]
+    }
+  ],
+  "caption": "A TV perdeu. Mas quem ganhou não foi \"o digital\".\n\nEm 2025, pela primeira vez, a publicidade digital passou a TV aberta (R$ 42,7 bi, +12,7%). Só que o debate \"TV vs digital\" é a pergunta errada: a audiência não trocou de tela, trocou de vínculo — migrou de canais para PESSOAS. O número de criadores no Brasil saltou 67% em um ano. E 69% dos CMOs já priorizam resultado, não alcance. Tradução: a marca não compra mais audiência, compra encaixe. Não é quem tem mais seguidores que fatura — é quem combina com a marca certa.\n\nSeu mapa vale mais que o seu alcance.\n\n💬 Comenta MAPA que a gente te mostra as marcas que encaixam no seu.\n\n#creatoreconomy #publicidade #marketingdeinfluencia #data2content",
+  "manychat": {
+    "keyword": "MAPA",
+    "dm": "Oi! Vi que você comentou MAPA 💜 A Data2Content lê a sua narrativa e conecta com marcas que combinam com quem você é — monetização por fit, não por alcance. Monta o seu mapa aqui: https://data2content.ai/signup?utm_source=instagram&utm_medium=carousel&utm_campaign=osinal_tvdigital"
+  }
+}

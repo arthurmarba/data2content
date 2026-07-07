@@ -35,6 +35,10 @@ import { buildRhythmInsights, type RhythmPost } from "./audienceRhythmInsights";
 import { buildAttentionInsight, buildPropagationInsight } from "./audienceAttentionInsights";
 import MetricModel from "@/app/models/Metric";
 import { contextCategories } from "@/app/lib/classification";
+// Utilitários puros de label — extraídos p/ módulo client-safe (sem winston/mongoose).
+// Re-export de territoryLabelsMatch mantém compatível quem importa daqui.
+import { normalizeLabel, territoryLabelsMatch } from "./audienceTerritoryLabels";
+export { territoryLabelsMatch };
 
 // ─── Confiança ──────────────────────────────────────────────────────────────
 // Piso absoluto: nº mínimo de posts numa categoria para confiarmos na média.
@@ -248,6 +252,24 @@ export interface AudienceInsights {
   topLifeAsset: LifeAssetInsight | null;
   /** Rótulo da janela efetivamente usada (adaptativa): "últimos 90 dias" | "últimos 12 meses" | "todo o período". */
   periodLabel: string;
+  /**
+   * Empréstimo da Galileia (ponto-ouro): os territórios REAIS confirmados no mapa
+   * (placeholders removidos). A UI cruza cada insight de território com esta lista
+   * para julgar se é OURO (dentro do mapa → faça mais) ou A NOMEAR (fora → é você?).
+   */
+  confirmedTerritoryLabels: string[];
+  /**
+   * O território que a audiência MAIS guarda (top saves), com sua magnitude relativa
+   * (`saveLift`: 2.0 = o dobro da média dos demais). Alimenta a espinha do card.
+   */
+  topTerritory: { label: string; saveLift: number } | null;
+  /**
+   * Fase C-lite (movimento): rótulo do território cujo reconhecimento vem CRESCENDO
+   * na janela — exposto CRU (antes do dedup que suprime a linha `risingTerritory`).
+   * A UI decora QUALQUER linha desse território com o selo "▲ crescendo", mesmo
+   * quando ele aparece via divergência/órfão/reconhecimento. Null se nada cresce.
+   */
+  risingTerritoryLabel: string | null;
   hasAny: boolean;
 }
 
@@ -268,6 +290,9 @@ const EMPTY_INSIGHTS: AudienceInsights = {
   topLifeAsset: null,
   engagedDivergence: null,
   periodLabel: "últimos 90 dias",
+  confirmedTerritoryLabels: [],
+  topTerritory: null,
+  risingTerritoryLabel: null,
   demographics: null,
   hasAny: false,
 };
@@ -357,19 +382,17 @@ function round(n: number): number {
 }
 
 /**
- * Normaliza um label para comparação fuzzy: minúsculas, sem acentos, sem pontuação.
- * "Bastidor e processo" → "bastidor e processo"
- * "bastidor, processo e pauta" → "bastidor processo e pauta"
+ * Magnitude relativa (empréstimo da Galileia: "stat sempre RELATIVO, nunca número
+ * cru"). Quanto o vencedor supera a MÉDIA dos demais grupos confiáveis. 2.0 = o dobro.
+ * Retorna 1 quando não há base de comparação (não superestima com amostra única).
  */
-function normalizeLabel(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .replace(/[^a-z0-9\s]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
+function computeLift(winner: AverageResult, list: AverageResult[]): number {
+  const rest = confident(list).filter((r) => normalizeLabel(r.name) !== normalizeLabel(winner.name));
+  if (rest.length === 0) return 1;
+  const mean = rest.reduce((a, r) => a + r.value, 0) / rest.length;
+  return mean > 0 ? winner.value / mean : 1;
 }
+
 
 // ─── Rollup pai↔filho de context (granularidade) ──────────────────────────────
 // A árvore de context tem 2 níveis e o classificador grava em níveis inconsistentes
@@ -596,19 +619,6 @@ function pickComboInsight(
   return best;
 }
 
-/**
- * Verifica se dois labels de território se sobrepõem o suficiente para serem
- * considerados "o mesmo" — sem exigir match exato (classificações podem variar levemente).
- */
-function territoryLabelsMatch(a: string, b: string): boolean {
-  const na = normalizeLabel(a);
-  const nb = normalizeLabel(b);
-  if (na === nb) return true;
-  // Verifica se a primeira palavra significativa (≥4 chars) é comum
-  const wordsA = na.split(" ").filter((w) => w.length >= 4);
-  const wordsB = new Set(nb.split(" ").filter((w) => w.length >= 4));
-  return wordsA.some((w) => wordsB.has(w));
-}
 
 /**
  * Detecta divergência entre o que o mapa confirma como principal e
@@ -823,6 +833,10 @@ export async function buildAudienceInsights(
     // contra um território REAL confirmado pelo criador.
     const realTerritories = confirmedTerritoryLabels.filter((l) => !isPlaceholderTerritory(l));
     const topAudienceContext = pickTopMeaningful(byContextSaves);
+    // Território mais guardado + magnitude relativa (alimenta a espinha do card).
+    const topTerritory = topAudienceContext
+      ? { label: topAudienceContext.name, saveLift: round(computeLift(topAudienceContext, byContextSaves)) }
+      : null;
     const territoryDivergence =
       topAudienceContext && realTerritories.length > 0
         ? detectTerritoryDivergence(topAudienceContext.name, realTerritories)
@@ -965,6 +979,9 @@ export async function buildAudienceInsights(
       topLifeAsset,
       engagedDivergence,
       periodLabel,
+      confirmedTerritoryLabels: realTerritories,
+      topTerritory,
+      risingTerritoryLabel: risingRaw?.label ?? null,
       // hasAny = true quando há QUALQUER sinal real sobre a audiência.
       // Os insights não-óbvios (ritmo/atenção/propagação/reconhecimento×mapa) têm
       // prioridade e aparecem primeiro. A demografia é a ÂNCORA: garante que o card

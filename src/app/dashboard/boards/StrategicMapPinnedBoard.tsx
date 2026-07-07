@@ -4,6 +4,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 
+import Board from "@/app/dashboard/components/Board";
 import { MapaCard } from "@/app/dashboard/boards/components/videoUpload/appPreview/DiagnosticoPage";
 import { resolveDiagnosticoLeadingNarrativeSignal } from "@/app/dashboard/boards/videoUpload/diagnosticoNarrativeSignals";
 import type { StrategicMapFull } from "@/app/lib/strategicMap/loadStrategicMapFull";
@@ -30,6 +31,7 @@ type LoadState = "loading" | "error" | "ready";
  * <Board>: o MapaCard já traz o próprio card.
  */
 export default function StrategicMapPinnedBoard({
+  showTitleMarker = true,
   isHighlighted = false,
 }: {
   showTitleMarker?: boolean;
@@ -156,10 +158,18 @@ export default function StrategicMapPinnedBoard({
 
   const goFull = React.useCallback(() => router.push(FULL_MAP_ROUTE), [router]);
 
-  const ring = isHighlighted ? "ring-2 ring-orange-300 rounded-[20px]" : "";
-
   return (
-    <div className={`dashboard-scrollbar h-full overflow-y-auto ${ring}`}>
+    <Board
+      title="Seu Mapa"
+      showTitleMarker={showTitleMarker}
+      titleMarkerVariant="chip"
+      variant="card"
+      showChevron={false}
+      showOptions={false}
+      contentClassName="bg-[#fffaf7] p-5 h-full flex flex-col"
+      titleClassName="text-zinc-950"
+      isHighlighted={isHighlighted}
+    >
       {state === "loading" ? (
         <MapSkeleton />
       ) : state === "error" || !full ? (
@@ -188,16 +198,16 @@ export default function StrategicMapPinnedBoard({
           mapEvolutionStatus={full.mapEvolutionStatus}
           lastReadingAt={full.lastReadingAt}
           hasPurpose={full.hasPurpose}
+          noShell
         />
       )}
-    </div>
+    </Board>
   );
 }
 
 function EmptyMap({ onMount }: { onMount: () => void }) {
   return (
-    <div style={{ borderRadius: 20, background: "#fffaf7", padding: "20px 18px" }}>
-      <p style={{ fontSize: 15, fontWeight: 700, color: "#18181b", margin: "0 0 6px" }}>Seu Mapa</p>
+    <div style={{ padding: "8px 0" }}>
       <p style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.45, margin: "0 0 14px" }}>
         Monte seu mapa e sua narrativa, territórios e assets aparecem aqui.
       </p>
@@ -216,9 +226,9 @@ function EmptyMap({ onMount }: { onMount: () => void }) {
 }
 
 function MapSkeleton() {
-  const pulse = { background: "#f1ede9", borderRadius: 8, animation: "d2c-map-pulse 1.1s ease-in-out infinite" } as const;
+  const pulse = { background: "#e5e5e7", borderRadius: 8, animation: "d2c-map-pulse 1.1s ease-in-out infinite" } as const;
   return (
-    <div style={{ borderRadius: 20, background: "#fffaf7", padding: "18px" }}>
+    <div style={{ padding: "8px 0" }}>
       <style>{`@keyframes d2c-map-pulse{0%,100%{opacity:1}50%{opacity:.55}}`}</style>
       <div style={{ ...pulse, height: 18, width: "85%", marginBottom: 8 }} />
       <div style={{ ...pulse, height: 18, width: "65%", marginBottom: 16 }} />

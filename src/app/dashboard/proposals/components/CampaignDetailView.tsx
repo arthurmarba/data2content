@@ -274,9 +274,11 @@ export default function CampaignDetailView({
                 ? deliverables.join(", ")
                 : `${deliverables.slice(0, 2).join(", ")} +${deliverables.length - 2}`;
     const summaryItems = [
+        proposal.contactName ? { label: "Contato", value: proposal.contactName } : null,
+        proposal.contactWhatsapp ? { label: "WhatsApp", value: proposal.contactWhatsapp } : null,
         { label: "Recebida", value: formatDate(proposal.createdAt) },
         { label: "Entregas", value: deliverablesPreview },
-    ];
+    ].filter((item): item is { label: string; value: string } => item !== null);
     const summaryPreview = [
         formatDate(proposal.createdAt),
         deliverables.length > 0 ? `${deliverables.length} entrega${deliverables.length > 1 ? "s" : ""}` : null,
@@ -291,9 +293,10 @@ export default function CampaignDetailView({
         .filter(Boolean)
         .join(" • ");
     const heroMetaItems = [
+        proposal.contactName || null,
         responseEmail,
         deliverables.length > 0 ? `${deliverables.length} item${deliverables.length > 1 ? "s" : ""}` : "Sem entregas",
-    ];
+    ].filter((item): item is string => item !== null);
     const heroMetaDate = formatDate(proposal.createdAt);
     const shouldShowAssetsSection = campaignLinksLoading || campaignLinks.length > 0 || Boolean(campaignLinksError);
     const shouldShowPricingSection =
@@ -301,7 +304,7 @@ export default function CampaignDetailView({
         proposal.budget !== null ||
         typeof proposal.creatorProposedBudget === "number" ||
         budgetInput.trim().length > 0;
-    const hasSummaryExtras = Boolean(proposal.contactWhatsapp) || referenceLinks.length > 0;
+    const hasSummaryExtras = referenceLinks.length > 0;
     const aiPreview = !canInteract && !isBillingLoading
         ? "IA no plano"
         : hasAnalysis

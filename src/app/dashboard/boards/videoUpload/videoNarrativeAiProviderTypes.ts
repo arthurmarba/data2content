@@ -3,9 +3,10 @@ import type {
   CreatorVideoNarrativeEvidenceAnchors,
   VideoNarrativeContentContext,
   VideoNarrativeCoherence,
+  VideoNarrativeAxisCoherence,
 } from "./creatorVideoNarrativeDiagnosisTypes";
 
-export type { VideoNarrativeContentContext, VideoNarrativeCoherence };
+export type { VideoNarrativeContentContext, VideoNarrativeCoherence, VideoNarrativeAxisCoherence };
 
 /**
  * Aggregated Instagram metrics summary built from the creator's stored Metric
@@ -31,6 +32,26 @@ export type VideoNarrativeInstagramMetricsSummary = {
   reachDelta?: number | null;
   engagementDelta?: number | null;
   intentDelta?: number | null;
+};
+
+/**
+ * Compact, real audience signal derived from the creator's demographic snapshot.
+ * Injected into the prompt so the "audiência" axis of the "vale postar?" verdict is
+ * anchored in who actually follows/engages — not only what the AI infers from the video.
+ * Fragile source (depends on an Instagram demographic snapshot); null when unavailable,
+ * which lets the model return audienceCoherence.verdict = "unknown".
+ */
+export type VideoNarrativeAudienceContextSummary = {
+  /** Dominant audience gender, already localised (e.g. "mulheres"). */
+  topGender?: string | null;
+  /** Share (0–100) of the dominant gender. */
+  topGenderPct?: number | null;
+  /** Dominant age bracket, e.g. "25-34". */
+  topAgeRange?: string | null;
+  /** Share (0–100) of the dominant age bracket. */
+  topAgeRangePct?: number | null;
+  /** Most concentrated audience locations (cities, or countries as fallback). */
+  topLocations?: string[];
 };
 
 export type VideoNarrativeAiProviderGoalOption =
@@ -63,6 +84,8 @@ export type VideoNarrativeAiProviderInput = {
     topPerformingPattern?: string | null;
     /** Creator's answers to adaptive quiz questions from recent confirmation steps. Used to contextualise intent and preference. */
     pastCreatorAnswers?: Array<{ questionText: string; answerValue: string }> | null;
+    /** Real audience composition (demographics), used to anchor the audiência axis of the verdict. */
+    audienceContext?: VideoNarrativeAudienceContextSummary | null;
   };
   /** Real Instagram metrics from the creator's stored analytics. Optional — omitted for mock/free flows. */
   instagramMetrics?: VideoNarrativeInstagramMetricsSummary | null;
@@ -95,8 +118,12 @@ export type VideoNarrativeAiAnalysis = {
   evidenceAnchors?: CreatorVideoNarrativeEvidenceAnchors;
   /** Structured life-asset dimensions extracted by watching the video. */
   contentContext?: VideoNarrativeContentContext;
-  /** Coherence verdict: does this video align with the creator's top-performing narrative pattern? */
+  /** Coherence verdict: does this video align with the creator's top-performing narrative pattern? (eixo narrativa) */
   narrativeCoherence?: VideoNarrativeCoherence;
+  /** Does this video speak to who actually watches the creator / what the audience asks for? (eixo audiência) */
+  audienceCoherence?: VideoNarrativeAxisCoherence;
+  /** Does this video open or sustain a coherent commercial territory? (eixo marca) */
+  brandCoherence?: VideoNarrativeAxisCoherence;
 };
 
 export type VideoNarrativeAiProviderResult = {

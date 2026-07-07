@@ -208,4 +208,36 @@ describe('MediaKitView ownership visibility', () => {
     expect(screen.getAllByText('Review').length).toBeGreaterThan(0);
     expect(screen.getByText('Melhor dia')).toBeInTheDocument();
   });
+
+  it('copies the correct public media kit URL when clicking Copiar link', async () => {
+    (useSession as jest.Mock).mockReturnValue({ data: null });
+    const writeTextMock = jest.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, {
+      clipboard: {
+        writeText: writeTextMock,
+      },
+    });
+    Object.defineProperty(window, 'isSecureContext', {
+      value: true,
+      configurable: true,
+    });
+
+    const { fireEvent, act } = await import('@testing-library/react');
+
+    render(
+      <MediaKitView
+        {...baseProps}
+        showOwnerCtas={false}
+        mediaKitSlug="test-slug-123"
+        compactBoardPreview
+      />
+    );
+
+    const copyBtn = screen.getByRole('button', { name: /Copiar link/i });
+    await act(async () => {
+      fireEvent.click(copyBtn);
+    });
+
+    expect(writeTextMock).toHaveBeenCalledWith('http://localhost/mediakit/test-slug-123');
+  });
 });

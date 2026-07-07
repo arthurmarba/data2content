@@ -1,0 +1,82 @@
+[
+  {
+    "data": "2026-06-17",
+    "userId": "68cb6f2898487c4179ad4f2f",
+    "nome": "Ronaldo Fonseca Jr",
+    "headline": "Um Reel dele tem quase 1 milhão de interações. A história real é outra.",
+    "arquetipo": "numero-vira-virada",
+    "nota": "NÃO repetir esta fôrma — evitar abrir por número de interações + 'a história real é outra'."
+  },
+  {
+    "data": "2026-06-17",
+    "userId": "6915f7b673a3eaa80606bb6b+69b198ba4711f2b19db6d893",
+    "nome": "Mariana Souza + William Yeh",
+    "headline": "Seis da manhã. Ela verifica o pace. Ele beija os filhos e sai.",
+    "arquetipo": "cena-in-media-res",
+    "nota": "Collab de dois corredores. Cena imediata que mostra os dois sem nomeá-los. Não repetir abertura por cena-dupla nos próximos posts."
+  },
+  {
+    "data": "2026-06-17",
+    "userId": "69fdfdc25176d14449f9d596",
+    "nome": "Giulianna Palumbo",
+    "headline": "\"Gente, ela falou comigo, eu juro.\"",
+    "arquetipo": "citacao-real-do-criador",
+    "nota": "Frase do reel mais viral dela (331K interações) usada como manchete. Não repetir abertura por citação direta do criador nos próximos posts."
+  },
+  {
+    "data": "2026-06-18",
+    "userId": "6928a987b1fcb2d066847fe8",
+    "nome": "Débora Broch Machado",
+    "headline": "O conteúdo da Débora não é sobre as filhas.",
+    "arquetipo": "afirmacao-contraintuitiva",
+    "nota": "Negação que promete o twist (não é sobre X). Primeiro post no novo arco de 3 atos (revelação → mapa → por que funciona). Não repetir abertura por negação/afirmação contraintuitiva nos próximos posts."
+  },
+  {
+    "data": "2026-06-18",
+    "userId": "69e8f96564be9f1592a5ca6e",
+    "nome": "Juliete Silveira",
+    "headline": "Por que a internet inteira queria a Juliete de amiga?",
+    "arquetipo": "pergunta",
+    "nota": "Pergunta que promete a revelação (o humor dela é jeito de cuidar). Tese QUENTE e lisonjeira (lealdade/amor), não fria. Lição: o post serve ao ego do criador — nunca enquadrar como 'frio/clínico' nem usar jargão de internet. Não repetir abertura por pergunta nos próximos posts."
+  },
+  {
+    "data": "2026-06-19",
+    "userId": "69f16823f50c3226a7cd980c",
+    "nome": "Aline Bergamini",
+    "headline": "Mãe, esposa, adulta — e a coragem de rir do próprio caos.",
+    "arquetipo": "justaposta",
+    "nota": "Justaposição em FRASE ÚNICA (vírgulas+travessão), não staccato. CRÍTICO: a capa CELEBRA o criador (coragem/dom), nunca o rotula — versão anterior (\"o problema que ela assume ser\") atacava o ego e ela não reposta. A piada self-deprecating dela vive no MIOLO, atribuída à voz dela. Não repetir justaposição nos próximos posts."
+  },
+  {
+    "data": "2026-06-22",
+    "userId": "6928899e2619c0d8776dd508",
+    "nome": "Rafaella Custódio",
+    "headline": "A Rafa fala em voz alta o que todo blumenauense pensa baixinho.",
+    "arquetipo": "detalhe-ancora",
+    "nota": "Ancorada no pertencimento a Blumenau (lugar específico). Narrativa = humor como reconhecimento de uma cidade. Primeiro post com IA reativada (3 slides full-bleed atmosféricos) + arco fundido de 14 slides. Lição: Nano Banana renderiza falso-texto no rodapé mesmo com no-text no prompt → cortar bottom ~200px + gradiente escuro. NÃO usar arteRef pra gerar a pessoa (identidade não fica fiel) — preferir cena sem gente. Não repetir abertura ancorada em lugar nos próximos posts."
+  },
+  {
+    "data": "2026-06-23",
+    "userId": "692af4efad52a8e5718fc248",
+    "nome": "Giovanna Antiorio",
+    "headline": "Eu também já tentei ter tudo sob controle.",
+    "arquetipo": "confissao-1a-pessoa",
+    "nota": "Confissão da perspectiva do leitor que se projeta na criadora. A capa celebra (ela encontrou liberdade ao largar o controle), não rotula. Narrativa = viraliza quando deixa passar, não quando tenta. Primeiro uso do arquétipo confissão — não repetir nos próximos posts."
+  },
+  {
+    "data": "2026-06-23",
+    "userId": "69fde448fdd8be7eb99ddb48",
+    "nome": "Laura Rosa",
+    "headline": "Eu, você e um pesinho.",
+    "arquetipo": "citacao-real-do-criador",
+    "nota": "Frase-assinatura real dela como manchete. Twist: o método NÃO é o treino, é a companhia (o \"nós\"). Criadora de nicho coach/emagrecimento — reframe deliberado p/ companhia/comunidade (alinha com \"você não cria sozinho\"), NÃO amplificar diet-culture/corpo. Paleta de 8 arquétipos toda rodada, reusei a mais antiga (citação 06-17). Guardrails Giovanna aplicados: label \"personal\" é explícito (handle+conteúdo), territórios concisos. Não repetir citação nos próximos posts."
+  },
+  {
+    "data": "2026-07-01",
+    "userId": "69c2632117a1957aa63a18f0",
+    "nome": "Amanda Magalhaes",
+    "headline": "Quase 45 mil pessoas. Um surto e um bolo de cenoura.",
+    "arquetipo": "numero-vira-sentido",
+    "nota": "Primeiro uso do arquétipo 'número que vira sentido' (soma de dois posts orgânicos, não o post de maior interação — esse era publi de seguro e foi descartado como prova pra não misturar anúncio com conteúdo orgânico). Twist: o equilíbrio dela não é dieta, é rir comendo o bolo — atleta que não esconde o apetite. Guardrail aplicado: descrição do post 'surto' era ambígua (sem contexto do vídeo) — copy ficou genérica/segura em vez de inventar o que o surto significava. Slide 2 reusa o único retrato limpo disponível mas com crop/zoom diferente da capa (regra de não repetir foto idêntica em slides adjacentes). Não repetir número-vira-sentido nos próximos posts."
+  }
+]
