@@ -52,8 +52,14 @@ const getCacheFilePath = (key: string) => {
 };
 
 const CACHE_BACKEND = (process.env.MEDIA_KIT_PDF_CACHE || 'mongo').toLowerCase();
-const shouldUseDirectPdfRenderer = () =>
-  shouldUseServerlessChromium() && process.env.MEDIA_KIT_PDF_RENDERER !== 'browser';
+const PDF_CACHE_VERSION = 'visual-html-v3';
+const resolvePdfRenderer = () => {
+  const configured = (process.env.MEDIA_KIT_PDF_RENDERER || '').trim().toLowerCase();
+  if (configured === 'browser' || configured === 'browser-page' || configured === 'visual' || configured === 'direct') {
+    return configured;
+  }
+  return shouldUseServerlessChromium() ? 'visual' : 'browser-page';
+};
 
 type MediaKitPdfUser = {
   _id?: unknown;
@@ -87,6 +93,44 @@ type MediaKitPdfPricing = {
   } | null;
   cpmApplied?: number | null;
   createdAt?: Date | string | null;
+} | null;
+
+type MediaKitPdfTopPost = {
+  _id?: string | null;
+  caption?: string | null;
+  description?: string | null;
+  postDate?: string | Date | null;
+  thumbnailUrl?: string | null;
+  thumbnail_url?: string | null;
+  coverUrl?: string | null;
+  cover_url?: string | null;
+  previewImageUrl?: string | null;
+  preview_image_url?: string | null;
+  stats?: {
+    views?: number | null;
+    reach?: number | null;
+    likes?: number | null;
+    comments?: number | null;
+  } | null;
+  derivedStats?: {
+    views?: number | null;
+    engagementRate?: number | null;
+  } | null;
+};
+
+type MediaKitPdfDemographics = {
+  follower_demographics?: {
+    gender?: Record<string, number>;
+    age?: Record<string, number>;
+    city?: Record<string, number>;
+    country?: Record<string, number>;
+  };
+  engaged_audience_demographics?: {
+    gender?: Record<string, number>;
+    age?: Record<string, number>;
+    city?: Record<string, number>;
+    country?: Record<string, number>;
+  };
 } | null;
 
 const DEFAULT_CHROMIUM_ARGS = [
@@ -310,6 +354,20 @@ const normalizeText = (value: unknown, fallback = '') => {
   return trimmed || fallback;
 };
 
+const escapeHtml = (value: unknown) =>
+  normalizeText(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+
+const truncateText = (value: unknown, maxLength: number) => {
+  const text = normalizeText(value);
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, Math.max(0, maxLength - 1)).trim()}...`;
+};
+
 const formatNumber = (value?: number | null) => {
   if (typeof value !== 'number' || !Number.isFinite(value)) return null;
   return new Intl.NumberFormat('pt-BR').format(value);
@@ -322,6 +380,626 @@ const formatCurrency = (value?: number | null, currency = 'BRL') => {
     currency: currency || 'BRL',
     maximumFractionDigits: 0,
   }).format(value);
+};
+
+const formatCompactNumber = (value?: number | null) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  return new Intl.NumberFormat('pt-BR', {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  }).format(value);
+};
+
+const formatDateLabel = (value?: string | Date | null) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return null;
+  return new Intl.DateTimeFormat('pt-BR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(date);
+};
+
+const normalizeImageUrl = (post: MediaKitPdfTopPost) => {
+  const candidates = [
+    post.thumbnailUrl,
+    post.thumbnail_url,
+    post.coverUrl,
+    post.cover_url,
+    post.previewImageUrl,
+    post.preview_image_url,
+  ];
+  return candidates.find((candidate) => typeof candidate === 'string' && candidate.trim())?.trim() || null;
+};
+
+const getTopPostViews = (post: MediaKitPdfTopPost) => {
+  const derived = post.derivedStats?.views;
+  const views = post.stats?.views;
+  const reach = post.stats?.reach;
+  if (typeof derived === 'number' && Number.isFinite(derived) && derived > 0) return derived;
+  if (typeof views === 'number' && Number.isFinite(views) && views > 0) return views;
+  if (typeof reach === 'number' && Number.isFinite(reach) && reach > 0) return reach;
+  return null;
+};
+
+const normalizePercentage = (value: number) => {
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  if (value <= 1) return value * 100;
+  return value;
+};
+
+const demographicLabelMap: Record<string, string> = {
+  female: 'Feminino',
+  f: 'Feminino',
+  male: 'Masculino',
+  m: 'Masculino',
+  u: 'Nao informado',
+  unknown: 'Nao informado',
+  other: 'Outro',
+};
+
+const buildDemographicRows = (source?: Record<string, number> | null, maxItems = 4) => {
+  if (!source) return [];
+  const entries = Object.entries(source)
+    .map(([rawLabel, rawValue]) => ({
+      rawLabel,
+      rawValue: Number(rawValue),
+    }))
+    .filter((item) => Number.isFinite(item.rawValue) && item.rawValue > 0);
+  const total = entries.reduce((sum, item) => sum + item.rawValue, 0);
+  const shouldNormalizeByTotal = total > 100 || entries.some((item) => item.rawValue > 100);
+
+  return entries
+    .map(({ rawLabel, rawValue }) => ({
+      label: demographicLabelMap[rawLabel.toLowerCase()] || rawLabel,
+      percentage: shouldNormalizeByTotal && total > 0 ? (rawValue / total) * 100 : normalizePercentage(rawValue),
+    }))
+    .filter((item) => item.percentage > 0)
+    .sort((a, b) => b.percentage - a.percentage)
+    .slice(0, maxItems);
+};
+
+const fetchJsonWithTimeout = async <T,>(url: string, timeoutMs = 6000): Promise<T | null> => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { cache: 'no-store', signal: controller.signal });
+    if (!response.ok) return null;
+    return (await response.json()) as T;
+  } catch (error) {
+    logger.warn(
+      `[media-kit-pdf] Falha ao buscar dados auxiliares (${url}): ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
+const fetchPdfTopPosts = async (origin: string, userId: string) => {
+  const data = await fetchJsonWithTimeout<{ posts?: MediaKitPdfTopPost[] }>(
+    `${origin}/api/v1/users/${encodeURIComponent(userId)}/videos/list?sortBy=views&limit=4`
+  );
+  return Array.isArray(data?.posts) ? data.posts : [];
+};
+
+const fetchPdfDemographics = async (origin: string, userId: string) =>
+  fetchJsonWithTimeout<MediaKitPdfDemographics>(
+    `${origin}/api/demographics/${encodeURIComponent(userId)}`,
+  );
+
+const renderMetricCard = (label: string, value: string | null, helper?: string | null) => {
+  if (!value) return '';
+  return `
+    <div class="metric-card">
+      <div class="metric-label">${escapeHtml(label)}</div>
+      <div class="metric-value">${escapeHtml(value)}</div>
+      ${helper ? `<div class="metric-helper">${escapeHtml(helper)}</div>` : ''}
+    </div>
+  `;
+};
+
+const renderPackageCards = (packages: MediaKitPdfPackage[], pricing: MediaKitPdfPricing, pricingPublished?: boolean | null) => {
+  if (packages.length > 0) {
+    return packages
+      .map((pkg, index) => {
+        const deliverables = Array.isArray(pkg.deliverables)
+          ? pkg.deliverables.map((item) => normalizeText(item)).filter(Boolean)
+          : [];
+        return `
+          <article class="card investment-card">
+            <div class="investment-index">${index + 1}</div>
+            <div class="investment-body">
+              <div class="investment-topline">
+                <h3>${escapeHtml(pkg.name || `Pacote ${index + 1}`)}</h3>
+                <strong>${escapeHtml(formatCurrency(pkg.price ?? null, pkg.currency || 'BRL') || '')}</strong>
+              </div>
+              ${
+                deliverables.length
+                  ? `<ul class="deliverables">${deliverables.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`
+                  : `<p class="muted">${escapeHtml(pkg.description || 'Pacote pronto para apresentar a marcas.')}</p>`
+              }
+              ${pkg.description && deliverables.length ? `<p class="package-note">${escapeHtml(pkg.description)}</p>` : ''}
+            </div>
+          </article>
+        `;
+      })
+      .join('');
+  }
+
+  if (pricingPublished && pricing?.result) {
+    const items = [
+      ['Estratégico', pricing.result.estrategico],
+      ['Justo', pricing.result.justo],
+      ['Premium', pricing.result.premium],
+    ];
+    return items
+      .map(([label, value], index) => {
+        const formatted = formatCurrency(value as number | null);
+        if (!formatted) return '';
+        return `
+          <article class="card investment-card">
+            <div class="investment-index">${index + 1}</div>
+            <div class="investment-body">
+              <div class="investment-topline">
+                <h3>${escapeHtml(label)}</h3>
+                <strong>${escapeHtml(formatted)}</strong>
+              </div>
+              <p class="muted">Referência para negociação com a marca.</p>
+            </div>
+          </article>
+        `;
+      })
+      .join('');
+  }
+
+  return '<div class="empty-card">Nenhum pacote comercial publicado para este mídia kit.</div>';
+};
+
+const renderTopPosts = (posts: MediaKitPdfTopPost[]) => {
+  if (!posts.length) return '';
+  return `
+    <section class="section">
+      <div class="section-title-row">
+        <span class="section-icon indigo">↗</span>
+        <div>
+          <h2>Conteúdo em destaque</h2>
+          <p>Top posts recentes por visualizações.</p>
+        </div>
+      </div>
+      <div class="top-post-grid">
+        ${posts
+          .slice(0, 4)
+          .map((post, index) => {
+            const imageUrl = normalizeImageUrl(post);
+            const title = truncateText(post.caption || post.description || 'Conteúdo em destaque', 96);
+            const views = getTopPostViews(post);
+            const engagement =
+              typeof post.derivedStats?.engagementRate === 'number' && Number.isFinite(post.derivedStats.engagementRate)
+                ? `${post.derivedStats.engagementRate.toFixed(post.derivedStats.engagementRate >= 10 ? 1 : 2).replace('.', ',')}% ER`
+                : null;
+            return `
+              <article class="card post-card">
+                <div class="post-thumb">
+                  ${
+                    imageUrl ? `<img src="${escapeHtml(imageUrl)}" alt="" />` : '<span>Sem capa</span>'
+                  }
+                  <b>${index + 1}</b>
+                </div>
+                <div class="post-copy">
+                  <h3>${escapeHtml(title)}</h3>
+                  <div class="post-meta">
+                    ${formatDateLabel(post.postDate) ? `<span>${escapeHtml(formatDateLabel(post.postDate))}</span>` : ''}
+                    ${views ? `<strong>${escapeHtml(formatCompactNumber(views) || '')} views</strong>` : ''}
+                    ${engagement ? `<span>${escapeHtml(engagement)}</span>` : ''}
+                  </div>
+                </div>
+              </article>
+            `;
+          })
+          .join('')}
+      </div>
+    </section>
+  `;
+};
+
+const renderDemographicBlock = (title: string, rows: Array<{ label: string; percentage: number }>, tone: 'green' | 'pink') => {
+  if (!rows.length) return '';
+  return `
+    <article class="card demographic-card">
+      <h3>${escapeHtml(title)}</h3>
+      <div class="bar-list">
+        ${rows
+          .map(
+            (row) => `
+              <div class="bar-row">
+                <div class="bar-label">
+                  <span>${escapeHtml(row.label)}</span>
+                  <strong>${Math.round(row.percentage)}%</strong>
+                </div>
+                <div class="bar-track">
+                  <div class="bar-fill ${tone}" style="width:${Math.min(row.percentage, 100)}%"></div>
+                </div>
+              </div>
+            `,
+          )
+          .join('')}
+      </div>
+    </article>
+  `;
+};
+
+const buildVisualPdfHtml = ({
+  canonicalSlug,
+  origin,
+  user,
+  packages,
+  pricing,
+  topPosts,
+  demographics,
+}: {
+  canonicalSlug: string;
+  origin: string;
+  user: MediaKitPdfUser;
+  packages: MediaKitPdfPackage[];
+  pricing: MediaKitPdfPricing;
+  topPosts: MediaKitPdfTopPost[];
+  demographics: MediaKitPdfDemographics;
+}) => {
+  const displayName = normalizeText(user.mediaKitDisplayName, normalizeText(user.name, 'Criador'));
+  const username = normalizeText(user.username, canonicalSlug).replace(/^@/, '');
+  const avatarUrl = `${origin}/api/mediakit/${encodeURIComponent(canonicalSlug)}/avatar`;
+  const bio = normalizeText(user.biography);
+  const followers = formatNumber(user.followers_count);
+  const posts = formatNumber(user.media_count);
+  const reach = pricing?.metrics?.reach ? formatNumber(pricing.metrics.reach) : null;
+  const engagement =
+    typeof pricing?.metrics?.engagement === 'number' && Number.isFinite(pricing.metrics.engagement)
+      ? `${pricing.metrics.engagement.toFixed(2).replace('.', ',')}%`
+      : null;
+  const followerDemo = demographics?.follower_demographics || demographics?.engaged_audience_demographics || {};
+  const genderRows = buildDemographicRows(followerDemo.gender, 3);
+  const ageRows = buildDemographicRows(followerDemo.age, 4);
+  const cityRows = buildDemographicRows(followerDemo.city, 4);
+
+  const metricsHtml = [
+    renderMetricCard('Seguidores', followers, 'audiencia conectada'),
+    renderMetricCard('Publicações', posts, 'conteúdos analisados'),
+    renderMetricCard('Alcance médio', reach, 'referência comercial'),
+    renderMetricCard('Engajamento', engagement, 'média do perfil'),
+  ].join('');
+
+  return `<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <base href="${escapeHtml(origin)}/" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mídia Kit - ${escapeHtml(displayName)}</title>
+  <style>
+    @page { size: A4; margin: 0; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #f4f4f5;
+      color: #18181b;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .sheet {
+      width: 794px;
+      min-height: 1123px;
+      margin: 0 auto;
+      padding: 28px;
+      background: linear-gradient(180deg, #fafafa 0%, #f4f4f5 100%);
+    }
+    .hero {
+      display: flex;
+      gap: 24px;
+      align-items: flex-start;
+      padding: 24px;
+      border-radius: 28px;
+      border: 1px solid rgba(228, 228, 231, 0.9);
+      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,250,250,0.95));
+      box-shadow: 0 18px 44px rgba(24, 24, 27, 0.08);
+      break-inside: avoid;
+    }
+    .avatar {
+      width: 92px;
+      height: 92px;
+      flex: 0 0 auto;
+      border-radius: 999px;
+      padding: 5px;
+      background: #fff;
+      border: 1px solid #f4f4f5;
+      overflow: hidden;
+    }
+    .avatar img { width: 100%; height: 100%; border-radius: 999px; object-fit: cover; display: block; }
+    .eyebrow {
+      margin: 0 0 6px;
+      color: #d62e5e;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+    h1, h2, h3, p { margin: 0; }
+    h1 { font-size: 34px; line-height: 1.04; letter-spacing: 0; color: #111113; }
+    .handle { margin-top: 6px; color: #71717a; font-size: 14px; font-weight: 600; }
+    .bio { margin-top: 14px; color: #52525b; font-size: 14px; line-height: 1.55; max-width: 520px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+    .chip {
+      border-radius: 999px;
+      padding: 7px 11px;
+      background: #fdf2f8;
+      color: #db2777;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .chip.secondary { background: #fff; color: #52525b; border: 1px solid #e4e4e7; }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 18px;
+      break-inside: avoid;
+    }
+    .metric-card, .card {
+      border-radius: 22px;
+      border: 1px solid rgba(228, 228, 231, 0.88);
+      background: rgba(255, 255, 255, 0.92);
+      box-shadow: 0 14px 34px rgba(24, 24, 27, 0.06);
+    }
+    .metric-card {
+      min-height: 104px;
+      padding: 17px;
+      background-image: radial-gradient(circle at top right, rgba(214, 46, 94, 0.09), transparent 44%);
+      break-inside: avoid;
+    }
+    .metric-label {
+      color: #71717a;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .metric-value {
+      margin-top: 16px;
+      color: #111113;
+      font-size: 24px;
+      line-height: 1.05;
+      font-weight: 850;
+    }
+    .metric-helper {
+      margin-top: 7px;
+      color: #a1a1aa;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .section { margin-top: 24px; break-inside: avoid; }
+    .demographics-section { break-before: page; padding-top: 28px; }
+    .section-title-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 13px;
+    }
+    .section-title-row h2 { font-size: 18px; line-height: 1.15; color: #18181b; }
+    .section-title-row p { margin-top: 3px; color: #71717a; font-size: 12px; }
+    .section-icon {
+      width: 32px;
+      height: 32px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      font-weight: 900;
+    }
+    .section-icon.amber { background: #fffbeb; color: #d97706; border: 1px solid #fef3c7; }
+    .section-icon.indigo { background: #eef2ff; color: #6366f1; border: 1px solid #e0e7ff; }
+    .section-icon.green { background: #ecfdf5; color: #059669; border: 1px solid #d1fae5; }
+    .investment-list { display: grid; gap: 10px; }
+    .investment-card {
+      display: flex;
+      gap: 14px;
+      padding: 16px;
+      break-inside: avoid;
+    }
+    .investment-index {
+      width: 27px;
+      height: 27px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex: 0 0 auto;
+      background: #fffbeb;
+      color: #b45309;
+      font-size: 12px;
+      font-weight: 850;
+    }
+    .investment-body { min-width: 0; flex: 1; }
+    .investment-topline {
+      display: flex;
+      gap: 16px;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    .investment-topline h3 { font-size: 15px; line-height: 1.25; color: #18181b; }
+    .investment-topline strong {
+      white-space: nowrap;
+      color: #6e1f93;
+      font-size: 17px;
+      line-height: 1.2;
+    }
+    .deliverables {
+      margin: 10px 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 6px;
+    }
+    .deliverables li {
+      position: relative;
+      padding-left: 16px;
+      color: #52525b;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .deliverables li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 8px;
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: #f59e0b;
+      opacity: 0.75;
+    }
+    .muted, .package-note { color: #71717a; font-size: 12px; line-height: 1.45; }
+    .package-note { margin-top: 10px; padding-top: 10px; border-top: 1px solid #f4f4f5; }
+    .empty-card {
+      border-radius: 22px;
+      border: 1px dashed #d4d4d8;
+      background: rgba(255,255,255,0.76);
+      padding: 22px;
+      color: #71717a;
+      font-size: 13px;
+      text-align: center;
+      break-inside: avoid;
+    }
+    .top-post-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .post-card {
+      display: flex;
+      gap: 13px;
+      padding: 12px;
+      min-height: 112px;
+      break-inside: avoid;
+    }
+    .post-thumb {
+      position: relative;
+      width: 72px;
+      height: 92px;
+      flex: 0 0 auto;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #f4f4f5;
+      border: 1px solid #f1f1f2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #a1a1aa;
+      font-size: 10px;
+      font-weight: 700;
+    }
+    .post-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .post-thumb b {
+      position: absolute;
+      top: 7px;
+      left: 7px;
+      width: 22px;
+      height: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.94);
+      color: #4f46e5;
+      font-size: 11px;
+    }
+    .post-copy { min-width: 0; flex: 1; padding-top: 3px; }
+    .post-copy h3 { font-size: 13px; line-height: 1.3; color: #18181b; }
+    .post-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; align-items: center; }
+    .post-meta span, .post-meta strong {
+      font-size: 10px;
+      line-height: 1;
+      border-radius: 999px;
+      padding: 5px 7px;
+      background: #f4f4f5;
+      color: #71717a;
+      font-weight: 700;
+    }
+    .post-meta strong { color: #18181b; background: #e4e4e7; }
+    .demographic-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .demographic-card { padding: 16px; break-inside: avoid; }
+    .demographic-card h3 { font-size: 14px; color: #18181b; margin-bottom: 13px; }
+    .bar-list { display: grid; gap: 13px; }
+    .bar-label { display: flex; justify-content: space-between; gap: 10px; font-size: 11px; color: #52525b; }
+    .bar-label strong { color: #18181b; }
+    .bar-track { margin-top: 6px; height: 6px; border-radius: 999px; background: #e4e4e7; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 999px; }
+    .bar-fill.green { background: linear-gradient(90deg, #10b981, #34d399); }
+    .bar-fill.pink { background: linear-gradient(90deg, #d62e5e, #f97316); }
+    .footer {
+      margin-top: 22px;
+      color: #a1a1aa;
+      font-size: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <main class="sheet">
+    <section class="hero">
+      <div class="avatar"><img src="${escapeHtml(avatarUrl)}" alt="" /></div>
+      <div>
+        <p class="eyebrow">Mídia Kit</p>
+        <h1>${escapeHtml(displayName)}</h1>
+        <p class="handle">@${escapeHtml(username)}</p>
+        ${bio ? `<p class="bio">${escapeHtml(bio)}</p>` : ''}
+        <div class="chips">
+          <span class="chip">Parceiro Data2Content</span>
+          ${followers ? `<span class="chip secondary">${escapeHtml(followers)} seguidores</span>` : ''}
+          ${posts ? `<span class="chip secondary">${escapeHtml(posts)} publicações</span>` : ''}
+        </div>
+      </div>
+    </section>
+
+    ${metricsHtml ? `<section class="metrics">${metricsHtml}</section>` : ''}
+
+    <section class="section">
+      <div class="section-title-row">
+        <span class="section-icon amber">★</span>
+        <div>
+          <h2>Investimento sugerido</h2>
+          <p>Pacotes comerciais e entregáveis para marcas.</p>
+        </div>
+      </div>
+      <div class="investment-list">
+        ${renderPackageCards(packages, pricing, user.mediaKitPricingPublished)}
+      </div>
+    </section>
+
+    ${renderTopPosts(topPosts)}
+
+    ${
+      genderRows.length || ageRows.length || cityRows.length
+        ? `<section class="section demographics-section">
+            <div class="section-title-row">
+              <span class="section-icon green">◎</span>
+              <div>
+                <h2>Audiência & Demografia</h2>
+                <p>Recortes principais do público.</p>
+              </div>
+            </div>
+            <div class="demographic-grid">
+              ${renderDemographicBlock('Gênero', genderRows, 'green')}
+              ${renderDemographicBlock('Idade', ageRows, 'pink')}
+              ${renderDemographicBlock('Cidades', cityRows, 'green')}
+            </div>
+          </section>`
+        : ''
+    }
+
+    <div class="footer">Data2Content - Mídia Kit - ${escapeHtml(canonicalSlug)}</div>
+  </main>
+</body>
+</html>`;
 };
 
 async function generateDirectPdf({
@@ -447,7 +1125,7 @@ async function generateDirectPdf({
   return Buffer.from(doc.output('arraybuffer'));
 }
 
-async function generatePdf(url: string) {
+async function launchPdfBrowser() {
   ensureLocalPlaywrightBrowsersPath();
   const { chromium } = await import('playwright');
   const chromiumArgs = resolveChromiumArgs();
@@ -484,6 +1162,12 @@ async function generatePdf(url: string) {
   if (!browser) {
     throw launchError instanceof Error ? launchError : new Error('Falha ao iniciar o navegador de exportação de PDF.');
   }
+
+  return browser;
+}
+
+async function generatePdf(url: string) {
+  const browser = await launchPdfBrowser();
 
   const context = await browser.newContext({
     viewport: { width: 900, height: 1270 },
@@ -522,6 +1206,64 @@ async function generatePdf(url: string) {
       format: 'A4',
       printBackground: true,
       margin: { top: '14mm', bottom: '14mm', left: '12mm', right: '12mm' },
+    });
+  } finally {
+    await page.close().catch(() => undefined);
+    await context.close().catch(() => undefined);
+    await browser.close().catch(() => undefined);
+  }
+}
+
+async function generateVisualPdf(html: string) {
+  const browser = await launchPdfBrowser();
+  const context = await browser.newContext({
+    viewport: { width: 794, height: 1123 },
+    deviceScaleFactor: 1,
+    locale: 'pt-BR',
+  });
+
+  const page = await context.newPage();
+  try {
+    await page.route('**/*', async (route) => {
+      const resourceType = route.request().resourceType();
+      if (
+        resourceType === 'script' ||
+        resourceType === 'font' ||
+        resourceType === 'media' ||
+        resourceType === 'websocket' ||
+        resourceType === 'eventsource'
+      ) {
+        await route.abort();
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 45_000 });
+    await page.emulateMedia({ media: 'screen' });
+    await page.evaluate(() => (document as any).fonts?.ready ?? Promise.resolve());
+    await page
+      .evaluate(async () => {
+        const images = Array.from(document.images);
+        await Promise.all(
+          images.map(
+            (image) =>
+              image.complete ||
+              new Promise<void>((resolve) => {
+                image.onload = () => resolve();
+                image.onerror = () => resolve();
+              })
+          )
+        );
+      })
+      .catch(() => undefined);
+    await page.waitForLoadState('networkidle', { timeout: 4_000 }).catch(() => undefined);
+    await page.waitForTimeout(300);
+
+    return await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      margin: { top: '0mm', bottom: '0mm', left: '0mm', right: '0mm' },
     });
   } finally {
     await page.close().catch(() => undefined);
@@ -577,8 +1319,11 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
     }
     return latest;
   }, null);
+  const renderer = resolvePdfRenderer();
 
   const versionKey = buildCacheKey(canonicalSlug, [
+    PDF_CACHE_VERSION,
+    `renderer:${renderer}`,
     user.updatedAt ? new Date(user.updatedAt).toISOString() : null,
     latestPricing?.updatedAt ? new Date(latestPricing.updatedAt).toISOString() : null,
     latestPackage?.updatedAt ? new Date(latestPackage.updatedAt).toISOString() : null,
@@ -592,10 +1337,10 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
   }
 
   const origin = resolveAppOrigin(req);
-  const targetUrl = `${origin}/mediakit/${canonicalSlug}?print=1`;
+  let targetUrl: string | null = null;
 
   try {
-    if (shouldUseDirectPdfRenderer()) {
+    if (renderer === 'direct') {
       logger.debug(`[media-kit-pdf] Gerando PDF direto para ${canonicalSlug}`);
       const pdfBuffer = await generateDirectPdf({
         canonicalSlug,
@@ -607,10 +1352,32 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
       return toPdfResponse(pdfBuffer, `media-kit-${canonicalSlug}.pdf`);
     }
 
+    if (renderer === 'visual') {
+      logger.debug(`[media-kit-pdf] Gerando PDF visual leve para ${canonicalSlug}`);
+      const userId = String(user._id);
+      const [topPosts, demographics] = await Promise.all([
+        fetchPdfTopPosts(origin, userId),
+        fetchPdfDemographics(origin, userId),
+      ]);
+      const html = buildVisualPdfHtml({
+        canonicalSlug,
+        origin,
+        user: user as MediaKitPdfUser,
+        packages: packages as MediaKitPdfPackage[],
+        pricing: latestPricing as MediaKitPdfPricing,
+        topPosts,
+        demographics,
+      });
+      const pdfBuffer = Buffer.from(await generateVisualPdf(html));
+      await writeCachedPdf(versionKey, cacheDir, cacheFile, pdfBuffer);
+      return toPdfResponse(pdfBuffer, `media-kit-${canonicalSlug}.pdf`);
+    }
+
+    targetUrl = `${origin}/mediakit/${canonicalSlug}?print=1`;
     logger.debug(`[media-kit-pdf] Iniciando geração para ${targetUrl} (origin: ${origin})`);
-    const pdfBuffer = await generatePdf(targetUrl);
-    await writeCachedPdf(versionKey, cacheDir, cacheFile, pdfBuffer as Buffer);
-    return toPdfResponse(pdfBuffer as Buffer, `media-kit-${canonicalSlug}.pdf`);
+    const pdfBuffer = Buffer.from(await generatePdf(targetUrl));
+    await writeCachedPdf(versionKey, cacheDir, cacheFile, pdfBuffer);
+    return toPdfResponse(pdfBuffer, `media-kit-${canonicalSlug}.pdf`);
   } catch (error) {
     const missingBrowserBinary = isMissingBrowserBinaryError(error);
     logger.error('[media-kit-pdf] Falha ao gerar PDF', {
@@ -618,6 +1385,7 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
       stack: (error as Error).stack,
       targetUrl,
       origin,
+      renderer,
       missingBrowserBinary,
       playwrightBrowsersPath: process.env.PLAYWRIGHT_BROWSERS_PATH || null,
       chromiumBin: process.env.PLAYWRIGHT_CHROMIUM_BIN || process.env.PLAYWRIGHT_EXECUTABLE_PATH || process.env.CHROME_BIN || null,
