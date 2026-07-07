@@ -52,7 +52,7 @@ const getCacheFilePath = (key: string) => {
 };
 
 const CACHE_BACKEND = (process.env.MEDIA_KIT_PDF_CACHE || 'mongo').toLowerCase();
-const PDF_CACHE_VERSION = 'visual-html-v4';
+const PDF_CACHE_VERSION = 'visual-html-v5';
 const resolvePdfRenderer = () => {
   const configured = (process.env.MEDIA_KIT_PDF_RENDERER || '').trim().toLowerCase();
   if (configured === 'browser' || configured === 'browser-page' || configured === 'visual' || configured === 'direct') {
@@ -695,7 +695,7 @@ const buildVisualPdfHtml = ({
       min-height: 1123px;
       margin: 0 auto;
       padding: 28px;
-      background: linear-gradient(180deg, #fafafa 0%, #f4f4f5 100%);
+      background: #f6f7f8;
     }
     .hero {
       display: flex;
@@ -703,9 +703,8 @@ const buildVisualPdfHtml = ({
       align-items: flex-start;
       padding: 24px;
       border-radius: 28px;
-      border: 1px solid rgba(228, 228, 231, 0.9);
-      background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(250,250,250,0.95));
-      box-shadow: 0 18px 44px rgba(24, 24, 27, 0.08);
+      border: 1px solid #e4e4e7;
+      background: #ffffff;
       break-inside: avoid;
     }
     .avatar {
@@ -750,14 +749,12 @@ const buildVisualPdfHtml = ({
     }
     .metric-card, .card {
       border-radius: 22px;
-      border: 1px solid rgba(228, 228, 231, 0.88);
-      background: rgba(255, 255, 255, 0.92);
-      box-shadow: 0 14px 34px rgba(24, 24, 27, 0.06);
+      border: 1px solid #e4e4e7;
+      background: #ffffff;
     }
     .metric-card {
       min-height: 104px;
       padding: 17px;
-      background-image: radial-gradient(circle at top right, rgba(214, 46, 94, 0.09), transparent 44%);
       break-inside: avoid;
     }
     .metric-label {
@@ -897,14 +894,13 @@ const buildVisualPdfHtml = ({
       height: 6px;
       border-radius: 999px;
       background: #f59e0b;
-      opacity: 0.75;
     }
     .muted, .package-note { color: #71717a; font-size: 12px; line-height: 1.45; }
     .package-note { margin-top: 10px; padding-top: 10px; border-top: 1px solid #f4f4f5; }
     .empty-card {
       border-radius: 22px;
       border: 1px dashed #d4d4d8;
-      background: rgba(255,255,255,0.76);
+      background: #ffffff;
       padding: 22px;
       color: #71717a;
       font-size: 13px;
@@ -946,7 +942,7 @@ const buildVisualPdfHtml = ({
       align-items: center;
       justify-content: center;
       border-radius: 999px;
-      background: rgba(255,255,255,0.94);
+      background: #ffffff;
       color: #4f46e5;
       font-size: 11px;
     }
@@ -971,8 +967,8 @@ const buildVisualPdfHtml = ({
     .bar-label strong { color: #18181b; }
     .bar-track { margin-top: 6px; height: 6px; border-radius: 999px; background: #e4e4e7; overflow: hidden; }
     .bar-fill { height: 100%; border-radius: 999px; }
-    .bar-fill.green { background: linear-gradient(90deg, #10b981, #34d399); }
-    .bar-fill.pink { background: linear-gradient(90deg, #d62e5e, #f97316); }
+    .bar-fill.green { background: #10b981; }
+    .bar-fill.pink { background: #f97316; }
     .footer {
       margin-top: 22px;
       color: #a1a1aa;
