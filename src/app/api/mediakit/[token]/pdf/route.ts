@@ -52,7 +52,7 @@ const getCacheFilePath = (key: string) => {
 };
 
 const CACHE_BACKEND = (process.env.MEDIA_KIT_PDF_CACHE || 'mongo').toLowerCase();
-const PDF_CACHE_VERSION = 'visual-html-v3';
+const PDF_CACHE_VERSION = 'visual-html-v4';
 const resolvePdfRenderer = () => {
   const configured = (process.env.MEDIA_KIT_PDF_RENDERER || '').trim().toLowerCase();
   if (configured === 'browser' || configured === 'browser-page' || configured === 'visual' || configured === 'direct') {
@@ -564,7 +564,7 @@ const renderTopPosts = (posts: MediaKitPdfTopPost[]) => {
   return `
     <section class="section">
       <div class="section-title-row">
-        <span class="section-icon indigo">↗</span>
+        <span class="section-icon indigo" aria-hidden="true"></span>
         <div>
           <h2>Conteúdo em destaque</h2>
           <p>Top posts recentes por visualizações.</p>
@@ -791,6 +791,7 @@ const buildVisualPdfHtml = ({
     .section-title-row h2 { font-size: 18px; line-height: 1.15; color: #18181b; }
     .section-title-row p { margin-top: 3px; color: #71717a; font-size: 12px; }
     .section-icon {
+      position: relative;
       width: 32px;
       height: 32px;
       display: inline-flex;
@@ -802,6 +803,43 @@ const buildVisualPdfHtml = ({
     .section-icon.amber { background: #fffbeb; color: #d97706; border: 1px solid #fef3c7; }
     .section-icon.indigo { background: #eef2ff; color: #6366f1; border: 1px solid #e0e7ff; }
     .section-icon.green { background: #ecfdf5; color: #059669; border: 1px solid #d1fae5; }
+    .section-icon::before, .section-icon::after { content: ""; display: block; }
+    .section-icon.amber::before {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      background: currentColor;
+      transform: rotate(45deg);
+    }
+    .section-icon.indigo::before {
+      width: 14px;
+      height: 14px;
+      border-top: 3px solid currentColor;
+      border-right: 3px solid currentColor;
+      border-radius: 2px;
+      transform: rotate(-45deg);
+    }
+    .section-icon.indigo::after {
+      position: absolute;
+      width: 15px;
+      height: 3px;
+      border-radius: 999px;
+      background: currentColor;
+      transform: rotate(-45deg);
+    }
+    .section-icon.green::before {
+      width: 15px;
+      height: 15px;
+      border-radius: 999px;
+      border: 3px solid currentColor;
+    }
+    .section-icon.green::after {
+      position: absolute;
+      width: 5px;
+      height: 5px;
+      border-radius: 999px;
+      background: currentColor;
+    }
     .investment-list { display: grid; gap: 10px; }
     .investment-card {
       display: flex;
@@ -964,7 +1002,7 @@ const buildVisualPdfHtml = ({
 
     <section class="section">
       <div class="section-title-row">
-        <span class="section-icon amber">★</span>
+        <span class="section-icon amber" aria-hidden="true"></span>
         <div>
           <h2>Investimento sugerido</h2>
           <p>Pacotes comerciais e entregáveis para marcas.</p>
@@ -981,7 +1019,7 @@ const buildVisualPdfHtml = ({
       genderRows.length || ageRows.length || cityRows.length
         ? `<section class="section demographics-section">
             <div class="section-title-row">
-              <span class="section-icon green">◎</span>
+              <span class="section-icon green" aria-hidden="true"></span>
               <div>
                 <h2>Audiência & Demografia</h2>
                 <p>Recortes principais do público.</p>
