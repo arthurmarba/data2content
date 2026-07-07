@@ -12,6 +12,27 @@ import { campaignBriefConfirmation, CampaignBriefConfirmationParams } from '@/em
 import { proposalUpgradePromptEmail, ProposalUpgradePromptParams } from '@/emails/proposalUpgradePrompt';
 
 const FROM = process.env.EMAIL_FROM || 'Data2Content <no-reply@data2content.ai>';
+const SENDER_DOMAIN = process.env.EMAIL_SENDER_DOMAIN || 'data2content.ai';
+
+function slugifyLocalPart(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s.]/g, '')
+    .trim()
+    .replace(/\s+/g, '.')
+    .replace(/\.{2,}/g, '.')
+    .replace(/^\.|\.$/g, '');
+}
+
+function buildCreatorFrom(creatorName?: string | null): string {
+  const trimmed = creatorName?.trim();
+  if (!trimmed) return FROM;
+  const localPart = slugifyLocalPart(trimmed);
+  if (!localPart) return FROM;
+  return `${trimmed} <${localPart}@${SENDER_DOMAIN}>`;
+}
 
 async function sendMail({
   to,
@@ -19,12 +40,14 @@ async function sendMail({
   text,
   html,
   replyTo,
+  from,
 }: {
   to: string;
   subject: string;
   text: string;
   html: string;
   replyTo?: string;
+  from?: string;
 }) {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
@@ -32,7 +55,7 @@ async function sendMail({
   }
 
   const body: Record<string, unknown> = {
-    from: FROM,
+    from: from || FROM,
     to: [to],
     subject,
     text,
@@ -162,7 +185,8 @@ export async function sendProposalReplyEmail(to: string, params: ProposalReplyEm
       subject: template.subject,
       text: template.text,
       html: template.html,
-      replyTo: to,
+      from: buildCreatorFrom(params.creatorName),
+      replyTo: params.creatorEmail || to,
     });
     logger.info(`[emailService] Resposta de proposta enviada para ${to}`);
   } catch (err) {

@@ -189,6 +189,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     await sendProposalReplyEmail(toEmail, {
       creatorName: session.user.name ?? undefined,
       creatorHandle: session.user.instagramUsername ?? undefined,
+      creatorEmail: session.user.email ?? undefined,
       brandName: proposal.brandName,
       campaignTitle: proposal.campaignTitle,
       emailBody: emailTextRaw,

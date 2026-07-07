@@ -4,6 +4,7 @@ import { ptBR } from 'date-fns/locale';
 export interface ProposalReplyEmailParams {
   creatorName?: string | null;
   creatorHandle?: string | null;
+  creatorEmail?: string | null;
   brandName: string;
   campaignTitle?: string | null;
   emailBody: string;
