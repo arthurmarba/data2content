@@ -52,6 +52,43 @@ const getCacheFilePath = (key: string) => {
 };
 
 const CACHE_BACKEND = (process.env.MEDIA_KIT_PDF_CACHE || 'mongo').toLowerCase();
+const shouldUseDirectPdfRenderer = () =>
+  shouldUseServerlessChromium() && process.env.MEDIA_KIT_PDF_RENDERER !== 'browser';
+
+type MediaKitPdfUser = {
+  _id?: unknown;
+  name?: string | null;
+  mediaKitDisplayName?: string | null;
+  username?: string | null;
+  biography?: string | null;
+  followers_count?: number | null;
+  media_count?: number | null;
+  mediaKitSlug?: string | null;
+  mediaKitPricingPublished?: boolean | null;
+};
+
+type MediaKitPdfPackage = {
+  name?: string | null;
+  price?: number | null;
+  currency?: string | null;
+  deliverables?: string[] | null;
+  description?: string | null;
+};
+
+type MediaKitPdfPricing = {
+  result?: {
+    estrategico?: number | null;
+    justo?: number | null;
+    premium?: number | null;
+  } | null;
+  metrics?: {
+    reach?: number | null;
+    engagement?: number | null;
+  } | null;
+  cpmApplied?: number | null;
+  createdAt?: Date | string | null;
+} | null;
+
 const DEFAULT_CHROMIUM_ARGS = [
   '--no-sandbox',
   '--disable-setuid-sandbox',
@@ -267,6 +304,149 @@ const normalizeCachedPdfBuffer = (value: unknown): Buffer | null => {
   return null;
 };
 
+const normalizeText = (value: unknown, fallback = '') => {
+  if (typeof value !== 'string') return fallback;
+  const trimmed = value.replace(/\s+/g, ' ').trim();
+  return trimmed || fallback;
+};
+
+const formatNumber = (value?: number | null) => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  return new Intl.NumberFormat('pt-BR').format(value);
+};
+
+const formatCurrency = (value?: number | null, currency = 'BRL') => {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return null;
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: currency || 'BRL',
+    maximumFractionDigits: 0,
+  }).format(value);
+};
+
+async function generateDirectPdf({
+  canonicalSlug,
+  user,
+  packages,
+  pricing,
+}: {
+  canonicalSlug: string;
+  user: MediaKitPdfUser;
+  packages: MediaKitPdfPackage[];
+  pricing: MediaKitPdfPricing;
+}) {
+  const { jsPDF } = await import('jspdf');
+  const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const marginX = 16;
+  const maxWidth = pageWidth - marginX * 2;
+  let y = 18;
+
+  const addPageIfNeeded = (needed = 10) => {
+    if (y + needed <= pageHeight - 16) return;
+    doc.addPage();
+    y = 18;
+  };
+
+  const write = (text: string, options?: { size?: number; style?: 'normal' | 'bold'; gap?: number }) => {
+    const size = options?.size ?? 10;
+    const gap = options?.gap ?? 5;
+    doc.setFont('helvetica', options?.style ?? 'normal');
+    doc.setFontSize(size);
+    const lines = doc.splitTextToSize(text, maxWidth);
+    addPageIfNeeded(lines.length * gap + 4);
+    doc.text(lines, marginX, y);
+    y += lines.length * gap;
+  };
+
+  const section = (title: string) => {
+    y += 4;
+    addPageIfNeeded(14);
+    doc.setDrawColor(226, 232, 240);
+    doc.line(marginX, y, pageWidth - marginX, y);
+    y += 8;
+    write(title, { size: 13, style: 'bold', gap: 6 });
+    y += 2;
+  };
+
+  const displayName = normalizeText(user.mediaKitDisplayName, normalizeText(user.name, 'Criador'));
+  const username = normalizeText(user.username, canonicalSlug);
+  const bio = normalizeText(user.biography);
+
+  doc.setTextColor(24, 24, 27);
+  write('Mídia Kit', { size: 20, style: 'bold', gap: 8 });
+  write(displayName, { size: 16, style: 'bold', gap: 7 });
+  write(`@${username.replace(/^@/, '')}`, { size: 11, gap: 5 });
+  if (bio) {
+    y += 3;
+    write(bio, { size: 10, gap: 5 });
+  }
+
+  const followers = formatNumber(user.followers_count);
+  const posts = formatNumber(user.media_count);
+  const metrics = [followers ? `${followers} seguidores` : null, posts ? `${posts} publicações` : null].filter(Boolean);
+  if (metrics.length) {
+    y += 3;
+    write(metrics.join(' • '), { size: 10, style: 'bold', gap: 5 });
+  }
+
+  if (user.mediaKitPricingPublished && pricing?.result) {
+    section('Referências de valor');
+    const values = [
+      ['Estratégico', pricing.result.estrategico],
+      ['Justo', pricing.result.justo],
+      ['Premium', pricing.result.premium],
+    ];
+    values.forEach(([label, value]) => {
+      const formatted = formatCurrency(value as number | null);
+      if (formatted) write(`${label}: ${formatted}`, { size: 11, style: label === 'Justo' ? 'bold' : 'normal', gap: 6 });
+    });
+    const reach = formatNumber(pricing.metrics?.reach ?? null);
+    const engagement =
+      typeof pricing.metrics?.engagement === 'number' && Number.isFinite(pricing.metrics.engagement)
+        ? `${pricing.metrics.engagement.toFixed(2).replace('.', ',')}%`
+        : null;
+    const cpm = formatCurrency(pricing.cpmApplied ?? null);
+    const pricingMetrics = [reach ? `Alcance médio: ${reach}` : null, engagement ? `Engajamento: ${engagement}` : null, cpm ? `CPM aplicado: ${cpm}` : null].filter(Boolean);
+    if (pricingMetrics.length) {
+      y += 2;
+      write(pricingMetrics.join(' • '), { size: 9, gap: 4 });
+    }
+  }
+
+  section('Pacotes comerciais');
+  if (packages.length === 0) {
+    write('Nenhum pacote comercial publicado para este mídia kit.', { size: 10, gap: 5 });
+  } else {
+    packages.forEach((pkg, index) => {
+      const name = normalizeText(pkg.name, `Pacote ${index + 1}`);
+      const price = formatCurrency(pkg.price ?? null, pkg.currency || 'BRL');
+      addPageIfNeeded(20);
+      write(`${index + 1}. ${name}${price ? ` — ${price}` : ''}`, { size: 12, style: 'bold', gap: 6 });
+      const description = normalizeText(pkg.description);
+      if (description) write(description, { size: 9, gap: 4 });
+      const deliverables = Array.isArray(pkg.deliverables) ? pkg.deliverables.map((item) => normalizeText(item)).filter(Boolean) : [];
+      deliverables.forEach((item) => write(`• ${item}`, { size: 10, gap: 5 }));
+      y += 3;
+    });
+  }
+
+  section('Observação');
+  write('Valores e entregáveis servem como referência principal para negociação com a marca.', { size: 10, gap: 5 });
+
+  const pageCount = doc.getNumberOfPages();
+  for (let page = 1; page <= pageCount; page += 1) {
+    doc.setPage(page);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(113, 113, 122);
+    doc.text(`Data2Content • media-kit-${canonicalSlug}.pdf • página ${page}/${pageCount}`, marginX, pageHeight - 8);
+  }
+
+  return Buffer.from(doc.output('arraybuffer'));
+}
+
 async function generatePdf(url: string) {
   ensureLocalPlaywrightBrowsersPath();
   const { chromium } = await import('playwright');
@@ -373,17 +553,30 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
   }
 
   const user = await User.findById(resolvedToken.userId)
-    .select('_id mediaKitSlug updatedAt mediaKitPricingPublished')
+    .select('_id name mediaKitDisplayName username biography followers_count media_count mediaKitSlug updatedAt mediaKitPricingPublished')
     .lean();
   if (!user?._id || !user.mediaKitSlug) {
     return NextResponse.json({ error: 'Media Kit não encontrado.' }, { status: 404 });
   }
   const canonicalSlug = String(user.mediaKitSlug);
 
-  const [latestPricing, latestPackage] = (await Promise.all([
-    PubliCalculation.findOne({ userId: user._id }).sort({ updatedAt: -1 }).select('updatedAt').lean(),
-    MediaKitPackage.findOne({ userId: user._id }).sort({ updatedAt: -1 }).select('updatedAt').lean(),
-  ])) as Array<{ updatedAt?: Date } | null>;
+  const [latestPricing, packages] = (await Promise.all([
+    PubliCalculation.findOne({ userId: user._id }).sort({ updatedAt: -1 }).select('updatedAt result metrics cpmApplied createdAt').lean(),
+    MediaKitPackage.find({ userId: user._id })
+      .sort({ order: 1, createdAt: 1 })
+      .select('name price currency deliverables description updatedAt')
+      .lean(),
+  ])) as [
+    (MediaKitPdfPricing & { updatedAt?: Date }) | null,
+    Array<MediaKitPdfPackage & { updatedAt?: Date }>,
+  ];
+  const latestPackage = packages.reduce<{ updatedAt?: Date } | null>((latest, pkg) => {
+    if (!pkg?.updatedAt) return latest;
+    if (!latest?.updatedAt || new Date(pkg.updatedAt).getTime() > new Date(latest.updatedAt).getTime()) {
+      return { updatedAt: pkg.updatedAt };
+    }
+    return latest;
+  }, null);
 
   const versionKey = buildCacheKey(canonicalSlug, [
     user.updatedAt ? new Date(user.updatedAt).toISOString() : null,
@@ -402,6 +595,18 @@ export async function GET(req: NextRequest, { params }: { params: { token: strin
   const targetUrl = `${origin}/mediakit/${canonicalSlug}?print=1`;
 
   try {
+    if (shouldUseDirectPdfRenderer()) {
+      logger.debug(`[media-kit-pdf] Gerando PDF direto para ${canonicalSlug}`);
+      const pdfBuffer = await generateDirectPdf({
+        canonicalSlug,
+        user: user as MediaKitPdfUser,
+        packages: packages as MediaKitPdfPackage[],
+        pricing: latestPricing as MediaKitPdfPricing,
+      });
+      await writeCachedPdf(versionKey, cacheDir, cacheFile, pdfBuffer);
+      return toPdfResponse(pdfBuffer, `media-kit-${canonicalSlug}.pdf`);
+    }
+
     logger.debug(`[media-kit-pdf] Iniciando geração para ${targetUrl} (origin: ${origin})`);
     const pdfBuffer = await generatePdf(targetUrl);
     await writeCachedPdf(versionKey, cacheDir, cacheFile, pdfBuffer as Buffer);
