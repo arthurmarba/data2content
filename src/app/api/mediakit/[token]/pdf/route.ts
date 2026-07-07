@@ -17,6 +17,7 @@ import { resolveMediaKitToken } from '@/app/lib/mediakit/slugService';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 const CACHE_TTL_MS = 30 * 60 * 1000;
 const limiter = rateLimit({
@@ -51,7 +52,26 @@ const getCacheFilePath = (key: string) => {
 };
 
 const CACHE_BACKEND = (process.env.MEDIA_KIT_PDF_CACHE || 'mongo').toLowerCase();
-const DEFAULT_CHROMIUM_ARGS = ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'];
+const DEFAULT_CHROMIUM_ARGS = [
+  '--no-sandbox',
+  '--disable-setuid-sandbox',
+  '--disable-dev-shm-usage',
+  '--disable-gpu',
+  '--disable-software-rasterizer',
+  '--disable-extensions',
+  '--disable-default-apps',
+  '--disable-background-networking',
+  '--disable-background-timer-throttling',
+  '--disable-renderer-backgrounding',
+  '--disable-sync',
+  '--disable-translate',
+  '--hide-scrollbars',
+  '--mute-audio',
+  '--no-first-run',
+  '--no-zygote',
+  '--single-process',
+  '--js-flags=--max-old-space-size=128',
+];
 type ChromiumLaunchAttempt = {
   label: string;
   executablePath?: string;
@@ -286,13 +306,23 @@ async function generatePdf(url: string) {
   }
 
   const context = await browser.newContext({
-    viewport: { width: 1200, height: 1600 },
-    deviceScaleFactor: 2,
+    viewport: { width: 900, height: 1270 },
+    deviceScaleFactor: 1,
     locale: 'pt-BR',
   });
 
   const page = await context.newPage();
   try {
+    await page.route('**/*', async (route) => {
+      const request = route.request();
+      const resourceType = request.resourceType();
+      if (resourceType === 'media' || resourceType === 'websocket' || resourceType === 'eventsource') {
+        await route.abort();
+        return;
+      }
+      await route.continue();
+    });
+
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
 
     // Recursos externos podem demorar ou manter conexões abertas. Esperamos um pouco por
