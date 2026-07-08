@@ -1689,6 +1689,33 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
     />
   ) : null;
 
+  const detailLoadingView = (
+    <div className="flex h-full min-h-0 flex-col bg-transparent">
+      <header className="sticky top-0 z-20 shrink-0 border-b border-zinc-100 bg-white/95 px-3 py-2 backdrop-blur-md">
+        <div className="mx-auto flex w-full max-w-[42rem] items-center gap-2.5">
+          <div className="h-8 w-8 shrink-0 animate-pulse rounded-full bg-zinc-100" />
+          <div className="h-3 w-40 animate-pulse rounded-full bg-zinc-200" />
+        </div>
+      </header>
+      <main className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
+        <div className="mx-auto w-full max-w-[42rem] space-y-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="h-3 w-24 animate-pulse rounded-full bg-zinc-200" />
+            <div className="h-4 w-20 animate-pulse rounded-full bg-zinc-200" />
+          </div>
+          <div className="h-5 w-3/4 animate-pulse rounded-full bg-zinc-200" />
+          <div className="space-y-2 border-t border-zinc-100 pt-4">
+            <div className="h-3 w-16 animate-pulse rounded-full bg-zinc-200" />
+            <div className="h-3 w-full animate-pulse rounded-full bg-zinc-100" />
+            <div className="h-3 w-5/6 animate-pulse rounded-full bg-zinc-100" />
+            <div className="h-3 w-2/3 animate-pulse rounded-full bg-zinc-100" />
+          </div>
+          <div className="h-40 w-full animate-pulse rounded-2xl bg-zinc-100" />
+        </div>
+      </main>
+    </div>
+  );
+
   const sortedProposals = useMemo(
     () =>
       [...proposals].sort((a, b) => {
@@ -1720,8 +1747,13 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
     sessionStatus === 'loading' || isBillingLoading || isCopyingProposalFormLink;
   const shouldUseSplitLayout = !compactView && !isMobile && sortedProposals.length > 0;
 
-  if ((compactView || isMobile) && currentStep !== 'inbox' && detailView) {
-    return detailView;
+  if ((compactView || isMobile) && currentStep !== 'inbox') {
+    if (detailView) {
+      return detailView;
+    }
+    if (detailLoading) {
+      return detailLoadingView;
+    }
   }
 
   const hasProposals = sortedProposals.length > 0;
@@ -1911,7 +1943,9 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
           compactView ? (
             <div className="space-y-0">
               {visiblePipelineGroups.map((group) => {
-                const compactVisibleItems = group.items.slice(0, group.key === 'incoming' ? 2 : 1);
+                const isExpanded = expandedSections[group.key];
+                const collapsedCount = group.key === 'incoming' ? 2 : 1;
+                const compactVisibleItems = isExpanded ? group.items : group.items.slice(0, collapsedCount);
                 const stageVisual = COMPACT_PIPELINE_LIST_VISUALS[group.key];
 
                 return (
@@ -1999,10 +2033,21 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
                           );
                         })}
 
-                        {group.items.length > compactVisibleItems.length ? (
-                          <p className={`dashboard-muted-label px-3 ${stageVisual.summaryClassName}`}>
-                            +{group.items.length - compactVisibleItems.length} {group.items.length - compactVisibleItems.length === 1 ? 'campanha' : 'campanhas'} nesta etapa
-                          </p>
+                        {group.items.length > collapsedCount ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setExpandedSections((prev) => ({ ...prev, [group.key]: !prev[group.key] }))
+                            }
+                            className={`dashboard-muted-label inline-flex items-center gap-1 rounded-full px-3 py-1 transition hover:text-zinc-700 ${stageVisual.summaryClassName}`}
+                          >
+                            {isExpanded
+                              ? 'Mostrar menos'
+                              : `+${group.items.length - collapsedCount} ${group.items.length - collapsedCount === 1 ? 'campanha' : 'campanhas'} nesta etapa`}
+                            <ChevronDown
+                              className={`h-3.5 w-3.5 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                            />
+                          </button>
                         ) : null}
                       </div>
                     )}
@@ -2136,11 +2181,13 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
     <div className={`bg-transparent ${compactView ? "pb-6" : "pb-10"}`}>
       <div className={compactView ? "px-1 py-1" : "px-2 py-1"}>
         {shouldUseSplitLayout ? (
-          <div className="grid min-h-[calc(100vh-17rem)] gap-5 xl:grid-cols-[minmax(0,540px)_minmax(0,1fr)]">
+          <div className="grid min-h-[calc(100vh-17rem)] gap-5 lg:grid-cols-[minmax(0,440px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,520px)_minmax(0,1fr)]">
             <div className="min-w-0">{listContent}</div>
             <div className="dashboard-panel min-h-0 overflow-hidden">
               {detailView ? (
                 detailView
+              ) : detailLoading ? (
+                detailLoadingView
               ) : (
                 <div className="flex h-full min-h-[560px] flex-col items-center justify-center px-8 text-center">
                   <p className="dashboard-muted-label text-zinc-400">Detalhe da campanha</p>

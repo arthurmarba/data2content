@@ -9,7 +9,6 @@ import {
     ChevronUp,
     Link2,
     ArrowRight,
-    X,
 } from "lucide-react";
 import {
     ProposalDetail,
@@ -242,7 +241,6 @@ export default function CampaignDetailView({
     onUpdateLinkStatus,
 }: CampaignDetailViewProps) {
     const [isAssetsExpanded, setIsAssetsExpanded] = useState(false);
-    const [isDetailsOpen, setIsDetailsOpen] = useState(false);
     const [isReplyComposerFocused, setIsReplyComposerFocused] = useState(false);
     const [isIntentMenuOpen, setIsIntentMenuOpen] = useState(false);
     const [isSummaryExtrasOpen, setIsSummaryExtrasOpen] = useState(false);
@@ -267,17 +265,11 @@ export default function CampaignDetailView({
             : "Não informado";
     const summaryDescription = proposal.campaignDescription?.trim() || "";
     const hasSummaryDescription = Boolean(summaryDescription);
-    const deliverablesPreview =
-        deliverables.length === 0
-            ? "Não informado"
-            : deliverables.length <= 2
-                ? deliverables.join(", ")
-                : `${deliverables.slice(0, 2).join(", ")} +${deliverables.length - 2}`;
     const summaryItems = [
         proposal.contactName ? { label: "Contato", value: proposal.contactName } : null,
+        proposal.contactEmail ? { label: "Email", value: proposal.contactEmail } : null,
         proposal.contactWhatsapp ? { label: "WhatsApp", value: proposal.contactWhatsapp } : null,
         { label: "Recebida", value: formatDate(proposal.createdAt) },
-        { label: "Entregas", value: deliverablesPreview },
     ].filter((item): item is { label: string; value: string } => item !== null);
     const summaryPreview = [
         formatDate(proposal.createdAt),
@@ -397,8 +389,8 @@ export default function CampaignDetailView({
         setIsIntentMenuOpen(false);
     };
 
-    const detailsModalContent = shouldShowSupportingSections ? (
-        <div className="mx-auto w-full max-w-[36rem] divide-y divide-zinc-100">
+    const campaignBriefingSections = shouldShowSupportingSections ? (
+        <div className="mx-auto w-full max-w-[42rem] divide-y divide-zinc-100">
             {!isFocusMode && shouldShowPricingSection ? (
                 <section className="py-4 first:pt-0 last:pb-0">
                     <div className="min-w-0">
@@ -453,6 +445,21 @@ export default function CampaignDetailView({
                             <p className="mt-1 break-words text-sm leading-6 text-zinc-700">{summaryDescription}</p>
                         </div>
                     ) : null}
+                    <div>
+                        <p className="dashboard-muted-label">Entregas</p>
+                        {deliverables.length > 0 ? (
+                            <ul className="mt-1.5 space-y-1.5">
+                                {deliverables.map((item, index) => (
+                                    <li key={`${item}-${index}`} className="flex gap-2 text-sm leading-6 text-zinc-700">
+                                        <span className="mt-[0.5rem] h-1 w-1 shrink-0 rounded-full bg-zinc-300" aria-hidden="true" />
+                                        <span className="min-w-0 break-words">{item}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="mt-1 text-sm text-zinc-500">Não informado</p>
+                        )}
+                    </div>
                     <div className="space-y-3">
                         {summaryItems.map((item) => (
                             <div key={item.label} className="min-w-0">
@@ -728,19 +735,7 @@ export default function CampaignDetailView({
                                 </p>
                             </div>
 
-                            <div className={isFocusMode ? "hidden" : compactView ? "hidden" : "hidden sm:flex sm:items-center sm:gap-2"}>
-                                {shouldShowSupportingSections ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsDetailsOpen((current) => !current)}
-                                        className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-500 transition hover:border-zinc-300 hover:text-zinc-900"
-                                        aria-label={isDetailsOpen ? "Ocultar detalhes da campanha" : "Ver detalhes da campanha"}
-                                        title={isDetailsOpen ? "Ocultar detalhes da campanha" : "Ver detalhes da campanha"}
-                                    >
-                                        <span>Detalhes</span>
-                                        {isDetailsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                    </button>
-                                ) : null}
+                            <div className={isFocusMode ? "hidden" : "hidden sm:flex sm:items-center sm:gap-2"}>
                                 <div className="relative">
                                     <select
                                         value={selectedFunnelStatus}
@@ -770,18 +765,6 @@ export default function CampaignDetailView({
                                     </select>
                                     <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400" size={14} />
                                 </div>
-                                {shouldShowSupportingSections ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsDetailsOpen((current) => !current)}
-                                        className="inline-flex shrink-0 items-center gap-1 rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-500 transition hover:border-zinc-300 hover:text-zinc-900"
-                                        aria-label={isDetailsOpen ? "Ocultar detalhes da campanha" : "Ver detalhes da campanha"}
-                                        title={isDetailsOpen ? "Ocultar detalhes da campanha" : "Ver detalhes da campanha"}
-                                    >
-                                        <span>Detalhes</span>
-                                        {isDetailsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                    </button>
-                                ) : null}
                             </div>
                         )}
                     </div>
@@ -829,316 +812,9 @@ export default function CampaignDetailView({
                                 </div>
                             </section>
                         ) : null}
-                        {false && shouldShowSupportingSections && isDetailsOpen && (
-                            <div className="order-2 divide-y divide-zinc-100">
-                        {!isFocusMode && shouldShowPricingSection && (
-                        <section className="py-4 first:pt-0 last:pb-0">
-                            <div className="flex w-full items-center justify-between gap-3 text-left">
-                                <div className="min-w-0">
-                                    <p className="text-sm font-semibold tracking-[-0.02em] text-zinc-950">Valores</p>
-                                    <p className="mt-1 line-clamp-1 text-sm text-zinc-500">{pricingSummary}</p>
-                                </div>
-                            </div>
-                            <div className="pt-3">
-                                <div className="space-y-3">
-                                    <div aria-label={`Valor da marca: ${receivedBudgetLabel}`}>
-                                        <p className="dashboard-muted-label">Valor da marca</p>
-                                        <p className="mt-1 text-sm font-medium text-zinc-900">{receivedBudgetLabel}</p>
-                                    </div>
-                                    <div aria-label={`Seu último valor: ${proposedBudgetLabel}`}>
-                                        <p className="dashboard-muted-label">Seu valor</p>
-                                        <p className="mt-1 text-sm font-medium text-zinc-900">{proposedBudgetLabel}</p>
-                                    </div>
-                                </div>
-                                <div className="mt-3 space-y-2">
-                                    <input
-                                        value={budgetInput}
-                                        onChange={(e) => onBudgetInputChange(e.target.value)}
-                                        placeholder={`Ex.: ${proposal.currency === 'BRL' ? '5000' : '1000'}`}
-                                        className="dashboard-select w-full rounded-[0.95rem] px-3 py-2 text-sm text-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-100"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={onSaveBudget}
-                                        disabled={budgetSaving}
-                                        className="dashboard-secondary-button inline-flex items-center justify-center rounded-[1rem] px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-                                    >
-                                        {budgetSaving ? "Salvando..." : "Salvar valor"}
-                                    </button>
-                                </div>
-                            </div>
-                        </section>
-                        )}
-
-                        <section className={`py-4 ${!isFocusMode && shouldShowPricingSection ? "" : "first:pt-0"} last:pb-0`}>
-                            <div className="flex w-full items-start justify-between gap-3 text-left">
-                                <div className="min-w-0">
-                                    <p className="text-sm font-semibold tracking-[-0.02em] text-zinc-950">Briefing</p>
-                                    <p className="mt-1 line-clamp-1 text-sm leading-6 text-zinc-500">
-                                        {summaryPreview || "Sem contexto adicional."}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="space-y-4 pt-3">
-                                {hasSummaryDescription ? (
-                                    <div>
-                                        <p className="dashboard-muted-label">Descrição</p>
-                                        <p className="mt-1 break-words text-sm leading-6 text-zinc-700">{summaryDescription}</p>
-                                    </div>
-                                ) : null}
-                                <div className="space-y-3">
-                                    {summaryItems.map((item) => (
-                                        <div key={item.label} className="min-w-0">
-                                            <p className="dashboard-muted-label">{item.label}</p>
-                                            <p className="mt-1 break-words text-sm font-medium text-zinc-800">{item.value}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                                {hasSummaryExtras ? (
-                                    <div className="border-t border-zinc-100 pt-4">
-                                        <button
-                                            type="button"
-                                            onClick={() => setIsSummaryExtrasOpen((current) => !current)}
-                                            className="inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500 transition hover:text-zinc-900"
-                                        >
-                                            {isSummaryExtrasOpen ? "Ocultar extras" : "Ver mais"}
-                                            {isSummaryExtrasOpen ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                                        </button>
-
-                                        {isSummaryExtrasOpen ? (
-                                            <div className="mt-4 space-y-4">
-                                                {proposal.contactWhatsapp ? (
-                                                    <div>
-                                                        <p className="dashboard-muted-label">WhatsApp</p>
-                                                        <p className="mt-1 text-sm text-zinc-800">{proposal.contactWhatsapp}</p>
-                                                    </div>
-                                                ) : null}
-                                                {referenceLinks.length > 0 && (
-                                                    <div className="space-y-2">
-                                                        <p className="dashboard-muted-label">Referências</p>
-                                                        <div className="space-y-1.5">
-                                                            {referenceLinks.map((link) => (
-                                                                <a
-                                                                    key={link}
-                                                                    href={link}
-                                                                    target="_blank"
-                                                                    rel="noreferrer"
-                                                                    className="inline-flex max-w-full items-center gap-1.5 text-xs font-semibold text-pink-600 hover:underline"
-                                                                >
-                                                                    <ExternalLink size={12} />
-                                                                    <span className="truncate">{link}</span>
-                                                                </a>
-                                                            ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ) : null}
-                                    </div>
-                                ) : null}
-                            </div>
-                        </section>
-
-                        {shouldShowAssetsSection && (
-                        <section className="py-4 last:pb-0">
-                            <button
-                                type="button"
-                                onClick={handleToggleAssetsExpanded}
-                                className="flex w-full items-center justify-between gap-3 text-left"
-                            >
-                                <div className="min-w-0">
-                                    <p className="text-sm font-semibold tracking-[-0.02em] text-zinc-950">Ativos da campanha</p>
-                                    <p className="mt-1 text-sm text-zinc-500">
-                                        {campaignLinks.length === 0 ? "Nenhum ativo vinculado." : `${campaignLinks.length} ativo${campaignLinks.length > 1 ? "s" : ""} vinculado${campaignLinks.length > 1 ? "s" : ""}.`}
-                                    </p>
-                                </div>
-                                <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-500">
-                                    {isAssetsExpanded ? "Fechar" : "Abrir"}
-                                    {isAssetsExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-                                </span>
-                            </button>
-
-                            {isAssetsExpanded && (
-                                <div className="pt-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setIsAssetPickerOpen((current) => !current)}
-                                        className="dashboard-secondary-button inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-xs font-semibold"
-                                    >
-                                        <Link2 size={13} />
-                                        {isAssetPickerOpen ? "Fechar adição" : "Adicionar ativo"}
-                                    </button>
-                                </div>
-                            )}
-
-                            {isAssetsExpanded && (campaignLinksError || linkableError) && (
-                                <div className="pt-2">
-                                    {campaignLinksError && <p className="text-xs text-rose-500">{campaignLinksError}</p>}
-                                    {linkableError && <p className="text-xs text-amber-600">{linkableError}</p>}
-                                </div>
-                            )}
-
-                            {isAssetsExpanded && isAssetPickerOpen && (
-                                <div className="space-y-2 pt-3">
-                                    <div className="dashboard-segmented grid grid-cols-2 gap-1 rounded-full p-1">
-                                        <button
-                                            type="button"
-                                            onClick={() => setAssetPickerType('script')}
-                                            className={`rounded-full px-2 py-1.5 text-xs font-semibold transition ${assetPickerType === 'script'
-                                                ? 'bg-white text-zinc-900 shadow-sm'
-                                                : 'text-zinc-500 hover:text-zinc-800'
-                                                }`}
-                                        >
-                                            Roteiros
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={() => setAssetPickerType('publi')}
-                                            className={`rounded-full px-2 py-1.5 text-xs font-semibold transition ${assetPickerType === 'publi'
-                                                ? 'bg-white text-zinc-900 shadow-sm'
-                                                : 'text-zinc-500 hover:text-zinc-800'
-                                                }`}
-                                        >
-                                            Publis
-                                        </button>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <select
-                                            value={assetPickerType === 'script' ? selectedScriptToLink : selectedPubliToLink}
-                                            onChange={(event) => {
-                                                if (assetPickerType === 'script') {
-                                                    setSelectedScriptToLink(event.target.value);
-                                                    return;
-                                                }
-                                                setSelectedPubliToLink(event.target.value);
-                                            }}
-                                            disabled={
-                                                linkableLoading ||
-                                                linkMutating ||
-                                                (assetPickerType === 'script'
-                                                    ? availableScripts.length === 0
-                                                    : availablePublis.length === 0)
-                                            }
-                                            className="dashboard-select w-full rounded-[1rem] px-3 py-2 text-sm text-zinc-700 disabled:cursor-not-allowed disabled:bg-zinc-100"
-                                        >
-                                            {assetPickerType === 'script'
-                                                ? availableScripts.length === 0
-                                                    ? <option value="">Sem roteiros disponíveis</option>
-                                                    : availableScripts.map((item) => (
-                                                        <option key={item.id} value={item.id}>{item.title}</option>
-                                                    ))
-                                                : availablePublis.length === 0
-                                                    ? <option value="">Sem publis disponíveis</option>
-                                                    : availablePublis.map((item) => (
-                                                        <option key={item.id} value={item.id}>
-                                                            {item.description || item.theme || "Publi sem descrição"}
-                                                        </option>
-                                                    ))}
-                                        </select>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                void handleLinkSelectedAsset();
-                                            }}
-                                            disabled={
-                                                linkMutating ||
-                                                linkableLoading ||
-                                                (assetPickerType === 'script' ? !selectedScriptToLink : !selectedPubliToLink)
-                                            }
-                                            className="dashboard-primary-button inline-flex items-center justify-center rounded-[1rem] px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-                                        >
-                                            {linkMutating &&
-                                                activeLinkMutationId === (assetPickerType === 'script' ? selectedScriptToLink : selectedPubliToLink)
-                                                ? "Vinculando..."
-                                                : "Vincular"}
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {isAssetsExpanded && (
-                                <div className="pt-3">
-                                    {campaignLinksLoading ? (
-                                        <p className="text-xs text-zinc-400">Carregando ativos...</p>
-                                    ) : campaignLinks.length === 0 ? (
-                                        <p className="text-xs text-zinc-400">Sem ativos.</p>
-                                    ) : (
-                                        <div className="divide-y divide-zinc-100">
-                                        {campaignLinks.map((link) => (
-                                            <div key={link.id} className="py-3 first:pt-0 last:pb-0">
-                                                <div className="space-y-2">
-                                                    <div className="min-w-0">
-                                                        <span className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${getLinkTheme(link).typePillClass}`}>
-                                                            {link.entityType === 'script' ? 'Roteiro' : 'Publi'}
-                                                        </span>
-                                                        <p className="mt-1 truncate text-sm font-semibold text-zinc-900">
-                                                            {link.entity?.title || "Item removido"}
-                                                        </p>
-                                                        {link.entity?.subtitle ? (
-                                                            <p className="mt-1 line-clamp-1 text-xs text-zinc-500">{link.entity.subtitle}</p>
-                                                        ) : null}
-                                                        {link.entity?.detailUrl ? (
-                                                            <div className="mt-2 flex flex-wrap items-center gap-2">
-                                                                <a
-                                                                    href={
-                                                                        link.entityType === 'script'
-                                                                            ? appendQueryParam(
-                                                                                appendQueryParam(link.entity.detailUrl, "scriptId", link.entityId),
-                                                                                "proposalId",
-                                                                                proposal.id
-                                                                            )
-                                                                            : appendQueryParam(link.entity.detailUrl, "proposalId", proposal.id)
-                                                                    }
-                                                                    className="inline-flex text-xs font-semibold text-pink-600 hover:underline"
-                                                                >
-                                                                    Abrir
-                                                                </a>
-                                                            </div>
-                                                        ) : null}
-                                                    </div>
-                                                    <div className="pt-1">
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                void onUnlinkEntity(link.id);
-                                                            }}
-                                                            disabled={linkMutating}
-                                                            className="text-xs font-semibold text-zinc-500 transition hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
-                                                        >
-                                                            Remover
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                                {link.entityType === 'script' && (
-                                                    <select
-                                                        value={link.scriptApprovalStatus || "draft"}
-                                                        onChange={(event) => {
-                                                            void onUpdateLinkStatus(
-                                                                link.id,
-                                                                event.target.value as CampaignLinkScriptApprovalStatus
-                                                            );
-                                                        }}
-                                                        disabled={linkMutating}
-                                                        className={`mt-2 w-full rounded-full border px-2.5 py-1.5 text-xs font-medium outline-none transition focus:ring-2 disabled:cursor-not-allowed disabled:bg-zinc-100 ${SCRIPT_APPROVAL_THEME[link.scriptApprovalStatus || "draft"].selectClass}`}
-                                                    >
-                                                        {SCRIPT_APPROVAL_OPTIONS.map((option) => (
-                                                            <option key={option.value} value={option.value}>
-                                                                {option.label}
-                                                            </option>
-                                                        ))}
-                                                    </select>
-                                                )}
-                                            </div>
-                                        ))}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </section>
-                        )}
-                            </div>
-                        )}
+                        {campaignBriefingSections ? (
+                            <div className="order-1">{campaignBriefingSections}</div>
+                        ) : null}
 
                         <div
                             ref={negotiationCardRef}
@@ -1314,35 +990,6 @@ export default function CampaignDetailView({
                     </button>
                 </div>
             </div>
-
-            {isDetailsOpen && detailsModalContent ? (
-                <div className="fixed inset-0 z-40 flex items-end justify-center bg-zinc-950/24 px-3 pb-3 pt-16 backdrop-blur-[2px] sm:items-center sm:px-6 sm:py-8">
-                    <div
-                        className="absolute inset-0"
-                        onClick={() => setIsDetailsOpen(false)}
-                        aria-hidden="true"
-                    />
-                    <div className="relative z-10 flex max-h-[min(82vh,760px)] w-full max-w-2xl flex-col overflow-hidden rounded-[1.5rem] border border-zinc-200/80 bg-white shadow-[0_24px_80px_rgba(15,23,42,0.14)]">
-                        <div className="flex items-center justify-between gap-3 border-b border-zinc-100 px-4 py-3 sm:px-5">
-                            <div className="min-w-0">
-                                <p className="dashboard-muted-label">Detalhes da campanha</p>
-                                <p className="mt-1 text-base font-semibold tracking-[-0.02em] text-zinc-950">Contexto complementar</p>
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => setIsDetailsOpen(false)}
-                                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-500 transition hover:border-zinc-300 hover:text-zinc-900"
-                                aria-label="Fechar detalhes da campanha"
-                            >
-                                <X size={16} />
-                            </button>
-                        </div>
-                        <div className="overflow-y-auto px-4 py-4 sm:px-5">
-                            {detailsModalContent}
-                        </div>
-                    </div>
-                </div>
-            ) : null}
         </div>
     );
 }

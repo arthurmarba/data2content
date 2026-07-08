@@ -324,6 +324,12 @@ test('pro user can generate analysis in summary mode and update reply draft', as
 
   fireEvent.click(await screen.findByText('Campanha Plano Pro'));
 
+  // O briefing da campanha (o que a marca pediu) precisa ficar visível no detalhe,
+  // sem depender de abrir um modal escondido.
+  expect(await screen.findByText('Entregas')).toBeInTheDocument();
+  expect(screen.getByText('Reel')).toBeInTheDocument();
+  expect(screen.getByText('Detalhes da campanha')).toBeInTheDocument();
+
   const analyzeButton = await screen.findByRole('button', {
     name: /Gerar/i,
   });
