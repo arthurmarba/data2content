@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { DiagnosticoCloseButton } from "./DiagnosticoCloseButton";
 import { SAFE_TOP } from "./diagnosticoTokens";
@@ -222,6 +222,7 @@ function BooleanChoice({ label, value, onChange }: { label: string; value: boole
 }
 
 export function MobileCalculatorWizard({ open, onClose, onSaved, latestCalculation, suggestedReach }: MobileCalculatorWizardProps) {
+  const wasOpenRef = useRef(false);
   const [step, setStep] = useState<WizardStep>(0);
   const [quantities, setQuantities] = useState<Record<FormatKey, number>>(DEFAULT_QUANTITIES);
   const [brandSize, setBrandSize] = useState<BrandSize>("media");
@@ -260,7 +261,14 @@ export function MobileCalculatorWizard({ open, onClose, onSaved, latestCalculati
   };
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      wasOpenRef.current = false;
+      return;
+    }
+    // Salvar um cálculo atualiza `latestCalculation` no pai. A inicialização deve
+    // acontecer apenas ao abrir o modal, nunca ao receber esse novo histórico.
+    if (wasOpenRef.current) return;
+    wasOpenRef.current = true;
     const params = latestCalculation?.params;
     setStep(0);
     setError(null);

@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { MobileCalculatorWizard } from "./MobileCalculatorWizard";
+import { useState } from "react";
+import { MobileCalculatorWizard, type MobileCalculatorResult } from "./MobileCalculatorWizard";
 
 const onClose = jest.fn();
 const onSaved = jest.fn();
@@ -74,5 +75,29 @@ describe("MobileCalculatorWizard", () => {
     expect(screen.getByText(/Seu valor habitual foi considerado/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Voltar para a etapa anterior" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Concluir" })).toBeInTheDocument();
+  });
+
+  it("mantém o resultado aberto quando o pai atualiza o último cálculo salvo", async () => {
+    function StatefulWizard() {
+      const [latestCalculation, setLatestCalculation] = useState<MobileCalculatorResult | null>(null);
+      return (
+        <MobileCalculatorWizard
+          open
+          onClose={onClose}
+          onSaved={setLatestCalculation}
+          latestCalculation={latestCalculation}
+          suggestedReach={12400}
+        />
+      );
+    }
+
+    render(<StatefulWizard />);
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver meu valor" }));
+
+    expect(await screen.findByText("Mínimo")).toBeInTheDocument();
+    expect(screen.getByText("Etapa 3 de 3")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Concluir" })).toBeInTheDocument();
+    expect(screen.queryByText("Seu valor habitual")).not.toBeInTheDocument();
   });
 });
