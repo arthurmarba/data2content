@@ -621,6 +621,35 @@ describe('runPubliCalculator', () => {
     expect(result.result.justo).toBe(140);
   });
 
+  it('does not apply the personal reference when the creator opts out for a proposal', async () => {
+    const result = await runPubliCalculator({
+      user: {
+        ...user,
+        creatorProfileExtended: {
+          pricingReference: {
+            valueBRL: 280,
+            scope: 'reel_organico_padrao',
+            confirmedAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+      } as any,
+      brandRiskEnabled: false,
+      personalReferenceOptedOut: true,
+      params: {
+        format: 'reels',
+        exclusivity: 'nenhuma',
+        usageRights: 'organico',
+        complexity: 'simples',
+        authority: 'padrao',
+        seasonality: 'normal',
+      },
+    });
+
+    expect(result.personalReference).toMatchObject({ applied: false, reason: 'creator_opted_out', referenceValueBRL: 280 });
+    expect(result.result.justo).toBe(140);
+  });
+
   it('gives linked real deals precedence over the personal reference', async () => {
     resolvePricingCalibrationForUser.mockResolvedValueOnce({
       factorRaw: 1.1,

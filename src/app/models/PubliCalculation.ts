@@ -39,6 +39,7 @@ export interface IPubliCalculationParams {
   imageRisk?: 'baixo' | 'medio' | 'alto' | string;
   strategicGain?: 'baixo' | 'medio' | 'alto' | string;
   contentModel?: 'publicidade_perfil' | 'ugc_whitelabel' | string;
+  usePersonalReference?: boolean;
   allowStrategicWaiver?: boolean;
   complexity: string;
   authority: string;
@@ -210,6 +211,7 @@ const PubliCalculationSchema = new Schema<IPubliCalculation>(
       imageRisk: { type: String, trim: true, default: 'medio' },
       strategicGain: { type: String, trim: true, default: 'baixo' },
       contentModel: { type: String, trim: true, default: 'publicidade_perfil' },
+      usePersonalReference: { type: Boolean, default: true },
       allowStrategicWaiver: { type: Boolean, default: false },
       complexity: { type: String, required: true, trim: true },
       authority: { type: String, required: true, trim: true },

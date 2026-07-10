@@ -56,6 +56,7 @@ interface CalculatorPayload {
   imageRisk?: string;
   strategicGain?: string;
   contentModel?: string;
+  usePersonalReference?: boolean;
   allowStrategicWaiver?: boolean;
   complexity?: string;
   authority?: string;
@@ -128,6 +129,7 @@ export async function POST(request: NextRequest) {
     imageRisk,
     strategicGain,
     contentModel,
+    usePersonalReference,
     allowStrategicWaiver,
     complexity,
     authority,
@@ -194,6 +196,9 @@ export async function POST(request: NextRequest) {
       : 'publicidade_perfil';
   const normalizedAllowStrategicWaiver =
     brandRiskV1Enabled && typeof allowStrategicWaiver === 'boolean' ? allowStrategicWaiver : false;
+  if (usePersonalReference !== undefined && typeof usePersonalReference !== 'boolean') {
+    return NextResponse.json({ error: 'Parâmetro de histórico de preço inválido.' }, { status: 400 });
+  }
 
   if (
     brandRiskV1Enabled &&
@@ -259,6 +264,7 @@ export async function POST(request: NextRequest) {
     imageRisk: normalizedImageRisk as CalculatorParamsInput['imageRisk'],
     strategicGain: normalizedStrategicGain as CalculatorParamsInput['strategicGain'],
     contentModel: normalizedContentModel as CalculatorParamsInput['contentModel'],
+    usePersonalReference: usePersonalReference !== false,
     allowStrategicWaiver: normalizedAllowStrategicWaiver,
     complexity: complexity as CalculatorParamsInput['complexity'],
     authority: authority as CalculatorParamsInput['authority'],
@@ -288,6 +294,7 @@ export async function POST(request: NextRequest) {
       brandRiskEnabled: brandRiskV1Enabled,
       calibrationEnabled: calibrationV1Enabled,
       personalReferenceEnabled: personalReferenceV1Enabled,
+      personalReferenceOptedOut: usePersonalReference === false,
     });
 
     const calculation = await PubliCalculation.create({
@@ -330,6 +337,7 @@ export async function POST(request: NextRequest) {
           imageRisk: calculation.params?.imageRisk ?? 'medio',
           strategicGain: calculation.params?.strategicGain ?? 'baixo',
           contentModel: calculation.params?.contentModel ?? 'publicidade_perfil',
+          usePersonalReference: calculation.params?.usePersonalReference ?? true,
           allowStrategicWaiver: calculation.params?.allowStrategicWaiver ?? false,
           complexity: calculation.params?.complexity,
           authority: calculation.params?.authority,
@@ -339,6 +347,10 @@ export async function POST(request: NextRequest) {
           reach: calculationPayload.metrics.reach,
           engagement: calculationPayload.metrics.engagement,
           profileSegment: calculationPayload.metrics.profileSegment,
+          reachSampleSize: calculationPayload.metrics.reachSampleSize,
+          reachMethod: calculationPayload.metrics.reachMethod,
+          reachConfidence: calculationPayload.metrics.reachConfidence,
+          reachFollowerAlert: calculationPayload.metrics.reachFollowerAlert,
         },
         avgTicket: calculationPayload.avgTicket,
         totalDeals: calculationPayload.totalDeals,

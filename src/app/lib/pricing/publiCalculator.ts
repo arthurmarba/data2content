@@ -60,6 +60,7 @@ export type CalculatorParams = {
   imageRisk: ImageRisk;
   strategicGain: StrategicGain;
   contentModel: ContentModel;
+  usePersonalReference: boolean;
   allowStrategicWaiver: boolean;
   complexity: 'simples' | 'roteiro' | 'profissional';
   authority: 'padrao' | 'ascensao' | 'autoridade' | 'celebridade';
@@ -81,6 +82,7 @@ export type CalculatorParamsInput = {
   imageRisk?: CalculatorParams['imageRisk'];
   strategicGain?: CalculatorParams['strategicGain'];
   contentModel?: CalculatorParams['contentModel'];
+  usePersonalReference?: boolean;
   allowStrategicWaiver?: boolean;
   complexity: CalculatorParams['complexity'];
   authority: CalculatorParams['authority'];
@@ -136,7 +138,7 @@ export type PubliCalculatorResult = {
   personalReference: {
     enabled: boolean;
     applied: boolean;
-    reason: 'not_configured' | 'expired' | 'creator_calibrated' | 'feature_disabled' | 'applied';
+    reason: 'not_configured' | 'expired' | 'creator_calibrated' | 'creator_opted_out' | 'feature_disabled' | 'applied';
     referenceValueBRL: number | null;
     referenceAgeDays: number | null;
     canonicalJusto: number | null;
@@ -463,6 +465,7 @@ export function normalizeCalculatorParams(input: CalculatorParamsInput): Normali
     imageRisk,
     strategicGain,
     contentModel,
+    usePersonalReference: input.usePersonalReference !== false,
     allowStrategicWaiver: Boolean(input.allowStrategicWaiver),
     complexity,
     authority,
@@ -488,6 +491,7 @@ type PubliCalculatorInput = {
   brandRiskEnabled?: boolean;
   calibrationEnabled?: boolean;
   personalReferenceEnabled?: boolean;
+  personalReferenceOptedOut?: boolean;
 };
 
 export async function runPubliCalculator(input: PubliCalculatorInput): Promise<PubliCalculatorResult> {
@@ -495,6 +499,7 @@ export async function runPubliCalculator(input: PubliCalculatorInput): Promise<P
   const brandRiskEnabled = input.brandRiskEnabled ?? true;
   const calibrationEnabled = input.calibrationEnabled ?? false;
   const personalReferenceEnabled = input.personalReferenceEnabled ?? true;
+  const personalReferenceOptedOut = input.personalReferenceOptedOut ?? false;
 
   const periodDays =
     Number.isFinite(input.periodDays) && (input.periodDays as number) > 0
@@ -640,7 +645,9 @@ export async function runPubliCalculator(input: PubliCalculatorInput): Promise<P
   let personalReferenceFactorApplied: number | null = null;
   let valorJusto = algorithmicJusto;
 
-  if (!personalReferenceEnabled) {
+  if (personalReferenceOptedOut) {
+    personalReferenceReason = 'creator_opted_out';
+  } else if (!personalReferenceEnabled) {
     personalReferenceReason = 'feature_disabled';
   } else if (!personalReference) {
     personalReferenceReason = 'not_configured';

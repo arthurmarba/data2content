@@ -100,7 +100,7 @@ type PersonalPricingReference = {
 type CalculationPersonalReference = {
   enabled: boolean;
   applied: boolean;
-  reason: "not_configured" | "expired" | "creator_calibrated" | "feature_disabled" | "applied";
+  reason: "not_configured" | "expired" | "creator_calibrated" | "creator_opted_out" | "feature_disabled" | "applied";
   referenceValueBRL: number | null;
   referenceAgeDays: number | null;
   canonicalJusto: number | null;
@@ -1220,7 +1220,7 @@ export default function CalculatorClient({
           enabled: typeof (parsed as any)?.personalReference?.enabled === "boolean" ? (parsed as any).personalReference.enabled : false,
           applied: typeof (parsed as any)?.personalReference?.applied === "boolean" ? (parsed as any).personalReference.applied : false,
           reason:
-            ["not_configured", "expired", "creator_calibrated", "feature_disabled", "applied"].includes((parsed as any)?.personalReference?.reason)
+            ["not_configured", "expired", "creator_calibrated", "creator_opted_out", "feature_disabled", "applied"].includes((parsed as any)?.personalReference?.reason)
               ? (parsed as any).personalReference.reason
               : "not_configured",
           referenceValueBRL: typeof (parsed as any)?.personalReference?.referenceValueBRL === "number" ? (parsed as any).personalReference.referenceValueBRL : null,
@@ -1529,6 +1529,7 @@ export default function CalculatorClient({
     not_configured: "não informada",
     expired: "aguarda sua reconfirmação",
     creator_calibrated: "substituída por negócios reais suficientes",
+    creator_opted_out: "não usada nesta proposta",
     feature_disabled: "temporariamente desativada",
   };
   const compactFormatOptions = compactView

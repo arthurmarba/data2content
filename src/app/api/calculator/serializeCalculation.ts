@@ -209,6 +209,10 @@ export function serializeCalculation(calculation: any) {
       imageRisk: sanitizeImageRisk(calculation?.params?.imageRisk),
       strategicGain: sanitizeStrategicGain(calculation?.params?.strategicGain),
       contentModel: sanitizeContentModel(calculation?.params?.contentModel),
+      usePersonalReference:
+        typeof calculation?.params?.usePersonalReference === 'boolean'
+          ? calculation.params.usePersonalReference
+          : true,
       allowStrategicWaiver:
         typeof calculation?.params?.allowStrategicWaiver === 'boolean'
           ? calculation.params.allowStrategicWaiver
