@@ -28,7 +28,6 @@ import { ensurePlannerAccess } from '@/app/lib/planGuard';
 import { logger } from '@/app/lib/logger';
 import { isPricingCalibrationV1Enabled, isPricingPersonalReferenceV1Enabled } from '@/app/lib/pricing/featureFlag';
 import { serializeCalculation } from '@/app/api/calculator/serializeCalculation';
-import { logUsageEvent } from '@/app/lib/dataService/usageEventService';
 import { hasAdminRole, resolveTargetCalculatorUser } from '@/app/api/calculator/access';
 
 export const runtime = 'nodejs';
@@ -305,8 +304,6 @@ export async function POST(request: NextRequest) {
       avgTicket: calculationPayload.avgTicket ?? undefined,
       totalDeals: calculationPayload.totalDeals,
     });
-
-    logUsageEvent(effectiveUserId, 'publi_calculated', 'publi');
 
     return NextResponse.json(
       {
