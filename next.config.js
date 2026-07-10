@@ -104,6 +104,9 @@ const nextConfig = {
 
   // Mantido do seu arquivo
   experimental: {
+    // O bundle contém dependências pesadas de vídeo/PDF. Limitar o paralelismo evita que
+    // vários minificadores disputem memória durante a build em máquinas menores.
+    cpus: 1,
     serverActions: true,
     serverComponentsExternalPackages: ['@sparticuz/chromium'],
     outputFileTracingIncludes: {

@@ -5,6 +5,12 @@ import { fetchAndPrepareReportData, getAdDealInsights } from '@/app/lib/dataServ
 import { resolveSegmentCpm } from '@/app/lib/cpmBySegment';
 import { logger } from '@/app/lib/logger';
 import { resolvePricingCalibrationForUser, type CalibrationConfidenceBand, type CalibrationLinkQuality } from '@/app/lib/pricing/calibrationService';
+import { resolvePricingMetrics, type PricingReachConfidence, type PricingReachMethod } from '@/app/lib/pricing/pricingMetrics';
+import {
+  isPersonalPricingReferenceExpired,
+  personalPricingReferenceAgeDays,
+  sanitizePersonalPricingReference,
+} from '@/app/lib/pricing/personalPricingReference';
 
 export const VALID_FORMATS = new Set(['post', 'reels', 'stories', 'pacote', 'evento']);
 export const VALID_EXCLUSIVITIES = new Set(['nenhuma', '7d', '15d', '30d', '90d', '180d', '365d']);
@@ -98,6 +104,10 @@ export type PubliCalculatorResult = {
     reach: number;
     engagement: number;
     profileSegment: string;
+    reachSampleSize: number;
+    reachMethod: PricingReachMethod;
+    reachConfidence: PricingReachConfidence;
+    reachFollowerAlert: boolean;
   };
   params: CalculatorParams;
   result: {
@@ -122,6 +132,19 @@ export type PubliCalculatorResult = {
     windowDaysCreator: number;
     lowConfidenceRangeExpanded: boolean;
     linkQuality: CalibrationLinkQuality;
+  };
+  personalReference: {
+    enabled: boolean;
+    applied: boolean;
+    reason: 'not_configured' | 'expired' | 'creator_calibrated' | 'feature_disabled' | 'applied';
+    referenceValueBRL: number | null;
+    referenceAgeDays: number | null;
+    canonicalJusto: number | null;
+    factorRaw: number | null;
+    factorApplied: number | null;
+    weightApplied: number;
+    baseJusto: number;
+    adjustedJusto: number;
   };
   avgTicket: number | null;
   totalDeals: number;
@@ -464,31 +487,39 @@ type PubliCalculatorInput = {
   explanationPrefix?: string;
   brandRiskEnabled?: boolean;
   calibrationEnabled?: boolean;
+  personalReferenceEnabled?: boolean;
 };
 
 export async function runPubliCalculator(input: PubliCalculatorInput): Promise<PubliCalculatorResult> {
   const params = normalizeCalculatorParams(input.params);
   const brandRiskEnabled = input.brandRiskEnabled ?? true;
   const calibrationEnabled = input.calibrationEnabled ?? false;
+  const personalReferenceEnabled = input.personalReferenceEnabled ?? true;
 
   const periodDays =
     Number.isFinite(input.periodDays) && (input.periodDays as number) > 0
       ? Math.min(input.periodDays as number, 365)
       : 90;
   const sinceDate = subDays(new Date(), periodDays);
+  const pricingMetricsSinceDate = subDays(new Date(), 90);
   const userId = String((input.user as any)?._id || (input.user as any)?.id || 'unknown');
 
-  const [{ enrichedReport }, adDealInsights] = await Promise.all([
+  const [{ enrichedReport }, adDealInsights, pricingMetrics] = await Promise.all([
     fetchAndPrepareReportData({ user: input.user, analysisSinceDate: sinceDate }),
     getAdDealInsights(userId, periodDays <= 30 ? 'last30d' : periodDays <= 90 ? 'last90d' : 'all').catch((err) => {
       logger.error('[publiCalculator] Falha ao buscar insights de AdDeals', err);
       return null;
     }),
+    resolvePricingMetrics({
+      userId,
+      sinceDate: pricingMetricsSinceDate,
+      followers: typeof (input.user as any)?.followers_count === 'number' ? (input.user as any).followers_count : null,
+    }),
   ]);
 
   const profileSegment = enrichedReport.profileSegment || 'default';
   const overallStats = (enrichedReport.overallStats ?? {}) as Record<string, unknown>;
-  const reachAvgRaw = typeof overallStats.avgReach === 'number' ? overallStats.avgReach : 0;
+  const reachAvgRaw = pricingMetrics.reach;
   const engagementRateRaw =
     typeof overallStats.avgEngagementRate === 'number'
       ? overallStats.avgEngagementRate
@@ -581,13 +612,49 @@ export async function runPubliCalculator(input: PubliCalculatorInput): Promise<P
   const scaledContentJusto = roundCurrency(contentJusto * calibrationFactorApplied);
   const scaledEventPresenceJusto = roundCurrency(eventPresenceJusto * calibrationFactorApplied);
   const scaledCoverageJusto = roundCurrency(coverageJusto * calibrationFactorApplied);
-  const valorJusto = roundCurrency(scaledContentJusto + scaledEventPresenceJusto + scaledCoverageJusto);
+  const algorithmicJusto = roundCurrency(scaledContentJusto + scaledEventPresenceJusto + scaledCoverageJusto);
   const confidenceBand: CalibrationConfidenceBand = calibrationEnabled
     ? calibrationSnapshot?.confidenceBand ?? 'baixa'
     : 'alta';
   const lowConfidenceRangeExpanded = calibrationEnabled && confidenceBand !== 'alta';
   const strategicMultiplier = confidenceBand === 'alta' ? 0.75 : confidenceBand === 'media' ? 0.7 : 0.65;
   const premiumMultiplier = confidenceBand === 'alta' ? 1.4 : confidenceBand === 'media' ? 1.5 : 1.6;
+
+  const personalReference = sanitizePersonalPricingReference((input.user as any)?.creatorProfileExtended?.pricingReference);
+  const referenceAgeDays = personalReference ? personalPricingReferenceAgeDays(personalReference) : null;
+  const canonicalBrandRiskMultiplier = brandRiskEnabled
+    ? multiplicadores.brandSize.media * multiplicadores.imageRisk.medio * multiplicadores.strategicGain.baixo * multiplicadores.contentModel.publicidade_perfil
+    : 1;
+  const canonicalCommonMultiplier =
+    canonicalBrandRiskMultiplier *
+    multiplicadores.complexidade.simples *
+    multiplicadores.autoridade[params.authority] *
+    engagementFactor;
+  const canonicalJusto = roundCurrency(
+    valorBase * canonicalCommonMultiplier * multiplicadores.formato.reels * calibrationFactorApplied
+  );
+  const creatorCalibrationAvailable = calibrationEnabled && (calibrationSnapshot?.creatorSampleSize ?? 0) >= 10;
+  let personalReferenceReason: PubliCalculatorResult['personalReference']['reason'] = 'not_configured';
+  let personalReferenceApplied = false;
+  let personalReferenceFactorRaw: number | null = null;
+  let personalReferenceFactorApplied: number | null = null;
+  let valorJusto = algorithmicJusto;
+
+  if (!personalReferenceEnabled) {
+    personalReferenceReason = 'feature_disabled';
+  } else if (!personalReference) {
+    personalReferenceReason = 'not_configured';
+  } else if (isPersonalPricingReferenceExpired(personalReference)) {
+    personalReferenceReason = 'expired';
+  } else if (creatorCalibrationAvailable) {
+    personalReferenceReason = 'creator_calibrated';
+  } else if (canonicalJusto > 0) {
+    personalReferenceFactorRaw = personalReference.valueBRL / canonicalJusto;
+    personalReferenceFactorApplied = Math.min(1.8, Math.max(0.6, personalReferenceFactorRaw));
+    valorJusto = roundCurrency(algorithmicJusto * (0.7 + personalReferenceFactorApplied * 0.3));
+    personalReferenceReason = 'applied';
+    personalReferenceApplied = true;
+  }
 
   const strategicWaiverApplied =
     brandRiskEnabled &&
@@ -613,7 +680,7 @@ export async function runPubliCalculator(input: PubliCalculatorInput): Promise<P
 
   const explanationParts = [
     `CPM base aplicado: R$ ${cpmValue.toFixed(2)}.`,
-    `Alcance medio considerado: ${reachAvg.toLocaleString('pt-BR')} pessoas.`,
+    `Alcance para precificacao: ${reachAvg.toLocaleString('pt-BR')} pessoas (${pricingMetrics.method === 'trimmed_mean' ? 'media aparada' : 'mediana'} de ${pricingMetrics.sampleSize} conteudos).`,
     `Fator de engajamento: ${engagementFactor.toFixed(2)}x.`,
     `Exclusividade (${params.exclusivity}): ${multiplicadores.exclusividade[params.exclusivity].toFixed(2)}x.`,
     `Uso de imagem (${params.usageRights}): ${multiplicadores.usoImagem[params.usageRights].toFixed(2)}x.`,
@@ -634,6 +701,15 @@ export async function runPubliCalculator(input: PubliCalculatorInput): Promise<P
       : 'Calibracao desativada: fator neutro 1.00x.',
     calibrationSnapshot
       ? `Confianca da calibracao: ${(calibrationSnapshot.confidence * 100).toFixed(1)}% (${calibrationSnapshot.confidenceBand}). Amostras segmento/creator: ${calibrationSnapshot.segmentSampleSize}/${calibrationSnapshot.creatorSampleSize}.`
+      : null,
+    personalReference
+      ? `Referencia pessoal para Reel organico: R$ ${personalReference.valueBRL.toFixed(2)} (${referenceAgeDays} dias).`
+      : 'Referencia pessoal: nao informada.',
+    personalReferenceApplied
+      ? `Referencia pessoal aplicada com fator ${personalReferenceFactorApplied?.toFixed(2)}x e peso de 30%.`
+      : `Referencia pessoal nao aplicada: ${personalReferenceReason}.`,
+    pricingMetrics.reachFollowerAlert
+      ? 'Alerta: o alcance tipico supera quatro vezes a base de seguidores; confirme que esse desempenho e recorrente.'
       : null,
     lowConfidenceRangeExpanded
       ? `Faixa expandida por confianca ${confidenceBand}: estrategico ${strategicMultiplier.toFixed(2)}x e premium ${premiumMultiplier.toFixed(2)}x.`
@@ -674,6 +750,10 @@ export async function runPubliCalculator(input: PubliCalculatorInput): Promise<P
       reach: reachAvg,
       engagement: roundCurrency(engagementPercent),
       profileSegment,
+      reachSampleSize: pricingMetrics.sampleSize,
+      reachMethod: pricingMetrics.method,
+      reachConfidence: pricingMetrics.confidence,
+      reachFollowerAlert: pricingMetrics.reachFollowerAlert,
     },
     params: {
       ...params,
@@ -715,6 +795,19 @@ export async function runPubliCalculator(input: PubliCalculatorInput): Promise<P
       windowDaysCreator: calibrationSnapshot?.windowDaysCreator ?? 365,
       lowConfidenceRangeExpanded,
       linkQuality: calibrationSnapshot?.linkQuality ?? 'low',
+    },
+    personalReference: {
+      enabled: personalReferenceEnabled,
+      applied: personalReferenceApplied,
+      reason: personalReferenceReason,
+      referenceValueBRL: personalReference?.valueBRL ?? null,
+      referenceAgeDays,
+      canonicalJusto: personalReference ? canonicalJusto : null,
+      factorRaw: personalReferenceFactorRaw === null ? null : roundCurrency(personalReferenceFactorRaw),
+      factorApplied: personalReferenceFactorApplied === null ? null : roundCurrency(personalReferenceFactorApplied),
+      weightApplied: personalReferenceApplied ? 0.3 : 0,
+      baseJusto: algorithmicJusto,
+      adjustedJusto: valorJusto,
     },
     avgTicket: avgTicketValue,
     totalDeals,

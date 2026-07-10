@@ -6,6 +6,10 @@ export interface IPubliCalculationMetrics {
   reach?: number;
   engagement?: number;
   profileSegment?: string;
+  reachSampleSize?: number;
+  reachMethod?: 'trimmed_mean' | 'median' | string;
+  reachConfidence?: 'alta' | 'baixa' | string;
+  reachFollowerAlert?: boolean;
 }
 
 export interface IPubliCalculationFormatQuantities {
@@ -75,6 +79,20 @@ export interface IPubliCalculationCalibration {
   linkQuality?: 'high' | 'mixed' | 'low' | string;
 }
 
+export interface IPubliCalculationPersonalReference {
+  enabled?: boolean;
+  applied?: boolean;
+  reason?: string;
+  referenceValueBRL?: number | null;
+  referenceAgeDays?: number | null;
+  canonicalJusto?: number | null;
+  factorRaw?: number | null;
+  factorApplied?: number | null;
+  weightApplied?: number;
+  baseJusto?: number;
+  adjustedJusto?: number;
+}
+
 export interface IPubliCalculation extends Document {
   userId: Types.ObjectId;
   createdAt: Date;
@@ -83,6 +101,7 @@ export interface IPubliCalculation extends Document {
   result: IPubliCalculationResult;
   breakdown?: IPubliCalculationBreakdown;
   calibration?: IPubliCalculationCalibration;
+  personalReference?: IPubliCalculationPersonalReference;
   cpmApplied: number;
   cpmSource?: 'seed' | 'dynamic';
   explanation?: string;
@@ -142,6 +161,23 @@ const calibrationSchema = new Schema<IPubliCalculationCalibration>(
   { _id: false }
 );
 
+const personalReferenceSchema = new Schema<IPubliCalculationPersonalReference>(
+  {
+    enabled: { type: Boolean, default: false },
+    applied: { type: Boolean, default: false },
+    reason: { type: String, trim: true },
+    referenceValueBRL: { type: Number, default: null },
+    referenceAgeDays: { type: Number, default: null },
+    canonicalJusto: { type: Number, default: null },
+    factorRaw: { type: Number, default: null },
+    factorApplied: { type: Number, default: null },
+    weightApplied: { type: Number, default: 0 },
+    baseJusto: { type: Number },
+    adjustedJusto: { type: Number },
+  },
+  { _id: false }
+);
+
 const PubliCalculationSchema = new Schema<IPubliCalculation>(
   {
     userId: {
@@ -154,6 +190,10 @@ const PubliCalculationSchema = new Schema<IPubliCalculation>(
       reach: { type: Number },
       engagement: { type: Number },
       profileSegment: { type: String, trim: true },
+      reachSampleSize: { type: Number },
+      reachMethod: { type: String, trim: true },
+      reachConfidence: { type: String, trim: true },
+      reachFollowerAlert: { type: Boolean, default: false },
     },
     params: {
       format: { type: String, required: true, trim: true },
@@ -185,6 +225,9 @@ const PubliCalculationSchema = new Schema<IPubliCalculation>(
     },
     calibration: {
       type: calibrationSchema,
+    },
+    personalReference: {
+      type: personalReferenceSchema,
     },
     cpmApplied: {
       type: Number,

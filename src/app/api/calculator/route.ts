@@ -26,8 +26,9 @@ import {
 } from '@/app/lib/pricing/publiCalculator';
 import { ensurePlannerAccess } from '@/app/lib/planGuard';
 import { logger } from '@/app/lib/logger';
-import { isPricingCalibrationV1Enabled } from '@/app/lib/pricing/featureFlag';
+import { isPricingCalibrationV1Enabled, isPricingPersonalReferenceV1Enabled } from '@/app/lib/pricing/featureFlag';
 import { serializeCalculation } from '@/app/api/calculator/serializeCalculation';
+import { logUsageEvent } from '@/app/lib/dataService/usageEventService';
 import { hasAdminRole, resolveTargetCalculatorUser } from '@/app/api/calculator/access';
 
 export const runtime = 'nodejs';
@@ -269,7 +270,10 @@ export async function POST(request: NextRequest) {
 
   try {
     await connectToDatabase();
-    const calibrationV1Enabled = await isPricingCalibrationV1Enabled();
+    const [calibrationV1Enabled, personalReferenceV1Enabled] = await Promise.all([
+      isPricingCalibrationV1Enabled(),
+      isPricingPersonalReferenceV1Enabled(),
+    ]);
 
     const effectiveUserId = effectiveUserResolution.userId;
     const user = (await UserModel.findById(effectiveUserId).lean()) as IUser | null;
@@ -284,6 +288,7 @@ export async function POST(request: NextRequest) {
       explanationPrefix: payload.explanation,
       brandRiskEnabled: brandRiskV1Enabled,
       calibrationEnabled: calibrationV1Enabled,
+      personalReferenceEnabled: personalReferenceV1Enabled,
     });
 
     const calculation = await PubliCalculation.create({
@@ -293,12 +298,15 @@ export async function POST(request: NextRequest) {
       result: calculationPayload.result,
       breakdown: calculationPayload.breakdown,
       calibration: calculationPayload.calibration,
+      personalReference: calculationPayload.personalReference,
       cpmApplied: calculationPayload.cpmApplied,
       cpmSource: calculationPayload.cpmSource,
       explanation: calculationPayload.explanation || undefined,
       avgTicket: calculationPayload.avgTicket ?? undefined,
       totalDeals: calculationPayload.totalDeals,
     });
+
+    logUsageEvent(effectiveUserId, 'publi_calculated', 'publi');
 
     return NextResponse.json(
       {
@@ -309,6 +317,7 @@ export async function POST(request: NextRequest) {
         cpm: calculationPayload.cpmApplied,
         cpmSource: calculationPayload.cpmSource,
         calibration: calculationPayload.calibration,
+        personalReference: calculationPayload.personalReference,
         params: {
           format: calculation.params?.format,
           deliveryType: calculation.params?.deliveryType,

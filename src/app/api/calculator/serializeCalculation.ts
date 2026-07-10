@@ -146,6 +146,29 @@ const sanitizeCalibration = (value: any) => ({
   linkQuality: sanitizeLinkQuality(value?.linkQuality),
 });
 
+const sanitizePersonalReferenceReason = (value: unknown) =>
+  value === 'not_configured' ||
+  value === 'expired' ||
+  value === 'creator_calibrated' ||
+  value === 'feature_disabled' ||
+  value === 'applied'
+    ? value
+    : 'not_configured';
+
+const sanitizePersonalReference = (value: any) => ({
+  enabled: typeof value?.enabled === 'boolean' ? value.enabled : false,
+  applied: typeof value?.applied === 'boolean' ? value.applied : false,
+  reason: sanitizePersonalReferenceReason(value?.reason),
+  referenceValueBRL: serializeNumber(value?.referenceValueBRL),
+  referenceAgeDays: serializeNumber(value?.referenceAgeDays),
+  canonicalJusto: serializeNumber(value?.canonicalJusto),
+  factorRaw: serializeNumber(value?.factorRaw),
+  factorApplied: serializeNumber(value?.factorApplied),
+  weightApplied: serializeNumber(value?.weightApplied) ?? 0,
+  baseJusto: serializeNumber(value?.baseJusto) ?? 0,
+  adjustedJusto: serializeNumber(value?.adjustedJusto) ?? 0,
+});
+
 export function serializeCalculation(calculation: any) {
   const deliveryType = sanitizeDeliveryType(calculation?.params?.deliveryType, calculation?.params?.format);
   const formatQuantities = sanitizeFormatQuantities(
@@ -170,6 +193,7 @@ export function serializeCalculation(calculation: any) {
     cpm: serializeNumber(calculation?.cpmApplied) ?? 0,
     cpmSource: calculation?.cpmSource ?? 'dynamic',
     calibration: sanitizeCalibration(calculation?.calibration),
+    personalReference: sanitizePersonalReference(calculation?.personalReference),
     params: {
       format,
       deliveryType,
@@ -197,6 +221,10 @@ export function serializeCalculation(calculation: any) {
       reach: serializeNumber(calculation?.metrics?.reach) ?? 0,
       engagement: serializeNumber(calculation?.metrics?.engagement) ?? 0,
       profileSegment: calculation?.metrics?.profileSegment ?? 'default',
+      reachSampleSize: serializeNumber(calculation?.metrics?.reachSampleSize) ?? 0,
+      reachMethod: calculation?.metrics?.reachMethod === 'trimmed_mean' ? 'trimmed_mean' : 'median',
+      reachConfidence: calculation?.metrics?.reachConfidence === 'alta' ? 'alta' : 'baixa',
+      reachFollowerAlert: typeof calculation?.metrics?.reachFollowerAlert === 'boolean' ? calculation.metrics.reachFollowerAlert : false,
     },
     avgTicket: serializeNumber(calculation?.avgTicket),
     totalDeals: typeof calculation?.totalDeals === 'number' ? calculation.totalDeals : 0,

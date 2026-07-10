@@ -12,6 +12,7 @@ import {
   type PlanStatus,
 } from '@/types/enums';
 import { PRO_TRIAL_STATES, type ProTrialState } from "@/types/billing";
+import { PERSONAL_PRICING_REFERENCE_SCOPE, type PersonalPricingReference } from '@/app/lib/pricing/personalPricingReference';
 
 // --- INTERFACES ---
 export interface IPeakSharesDetails {
@@ -266,6 +267,7 @@ export interface ICreatorProfileExtended {
   nextPlatform: NextPlatform[];
   learningStyles: LearningStyle[];
   notificationPref: NotificationPref[];
+  pricingReference?: PersonalPricingReference | null;
   updatedAt?: Date;
   adminNotes?: string;
 }
@@ -443,6 +445,10 @@ export interface IUser extends Document {
   isNewUserForOnboarding?: boolean;
   onboardingCompletedAt?: Date | null;
   lastMapVisitAt?: Date | null;
+  /** Last time the user completed an authentication flow (NextAuth signIn/signUp). */
+  lastLoginAt?: Date | null;
+  /** Last time the user had an authenticated session touched (throttled heartbeat, ~1x/day). */
+  lastActiveAt?: Date | null;
   onboardingAnswers?: {
     whyYouCreate?: string | null;
     desiredFeeling?: string | null;
@@ -534,6 +540,16 @@ const AvailableInstagramAccountSchema = new Schema<IAvailableInstagramAccount>({
   username: { type: String },
   profile_picture_url: { type: String },
 }, { _id: false });
+
+const PersonalPricingReferenceSchema = new Schema<PersonalPricingReference>(
+  {
+    valueBRL: { type: Number, min: 0.01, max: 100000, required: true },
+    scope: { type: String, enum: [PERSONAL_PRICING_REFERENCE_SCOPE], required: true },
+    confirmedAt: { type: Date, required: true },
+    updatedAt: { type: Date, required: true },
+  },
+  { _id: false }
+);
 
 const UserPreferencesSchema = new Schema<IUserPreferences>({/*...*/ }, {/*...*/ });
 const UserLongTermGoalSchema = new Schema<IUserLongTermGoal>({/*...*/ }, {/*...*/ });
@@ -768,6 +784,8 @@ const userSchema = new Schema<IUser>(
      * Used to compute Stream B notifications ("X posts analisados desde sua última visita").
      */
     lastMapVisitAt: { type: Date, default: null },
+    lastLoginAt: { type: Date, default: null, index: true },
+    lastActiveAt: { type: Date, default: null, index: true },
     onboardingAnswers: {
       type: new Schema(
         {
@@ -829,6 +847,7 @@ const userSchema = new Schema<IUser>(
         default: null
       },
       pricingMethod: { type: String, enum: ['chute', 'seguidores', 'esforco', 'agencia', 'calculadora', null], default: null },
+      pricingReference: { type: PersonalPricingReferenceSchema, default: null },
       pricingFear: { type: String, enum: ['caro', 'barato', 'justificar', 'amador', 'outro', null], default: null },
       pricingFearOther: { type: String, default: "" },
       mainPlatformReasons: {

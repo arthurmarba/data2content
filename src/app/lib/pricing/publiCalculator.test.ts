@@ -20,6 +20,10 @@ jest.mock('@/app/lib/pricing/calibrationService', () => ({
   resolvePricingCalibrationForUser: jest.fn(),
 }));
 
+jest.mock('@/app/lib/pricing/pricingMetrics', () => ({
+  resolvePricingMetrics: jest.fn(),
+}));
+
 const { fetchAndPrepareReportData, getAdDealInsights } = jest.requireMock('@/app/lib/dataService') as {
   fetchAndPrepareReportData: jest.Mock;
   getAdDealInsights: jest.Mock;
@@ -31,6 +35,10 @@ const { resolveSegmentCpm } = jest.requireMock('@/app/lib/cpmBySegment') as {
 
 const { resolvePricingCalibrationForUser } = jest.requireMock('@/app/lib/pricing/calibrationService') as {
   resolvePricingCalibrationForUser: jest.Mock;
+};
+
+const { resolvePricingMetrics } = jest.requireMock('@/app/lib/pricing/pricingMetrics') as {
+  resolvePricingMetrics: jest.Mock;
 };
 
 describe('runPubliCalculator', () => {
@@ -59,6 +67,13 @@ describe('runPubliCalculator', () => {
       mad: 0,
       windowDaysSegment: 180,
       windowDaysCreator: 365,
+    });
+    resolvePricingMetrics.mockResolvedValue({
+      reach: 10000,
+      sampleSize: 6,
+      method: 'trimmed_mean',
+      confidence: 'alta',
+      reachFollowerAlert: false,
     });
   });
 
@@ -539,5 +554,111 @@ describe('runPubliCalculator', () => {
     expect(result.result.estrategico).toBe(0);
     expect(result.result.justo).toBeGreaterThan(0);
     expect(result.result.premium).toBeGreaterThan(0);
+  });
+
+  it('blends a current personal Reel reference with a capped factor', async () => {
+    const result = await runPubliCalculator({
+      user: {
+        ...user,
+        creatorProfileExtended: {
+          pricingReference: {
+            valueBRL: 280,
+            scope: 'reel_organico_padrao',
+            confirmedAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+      } as any,
+      brandRiskEnabled: false,
+      params: {
+        format: 'reels',
+        exclusivity: 'nenhuma',
+        usageRights: 'organico',
+        complexity: 'simples',
+        authority: 'padrao',
+        seasonality: 'normal',
+      },
+    });
+
+    expect(result.personalReference).toMatchObject({
+      applied: true,
+      reason: 'applied',
+      factorRaw: 2,
+      factorApplied: 1.8,
+      weightApplied: 0.3,
+      baseJusto: 140,
+      adjustedJusto: 173.6,
+    });
+    expect(result.result.justo).toBe(173.6);
+  });
+
+  it('does not apply an expired personal reference', async () => {
+    const result = await runPubliCalculator({
+      user: {
+        ...user,
+        creatorProfileExtended: {
+          pricingReference: {
+            valueBRL: 280,
+            scope: 'reel_organico_padrao',
+            confirmedAt: new Date(Date.now() - 91 * 86_400_000),
+            updatedAt: new Date(Date.now() - 91 * 86_400_000),
+          },
+        },
+      } as any,
+      brandRiskEnabled: false,
+      params: {
+        format: 'reels',
+        exclusivity: 'nenhuma',
+        usageRights: 'organico',
+        complexity: 'simples',
+        authority: 'padrao',
+        seasonality: 'normal',
+      },
+    });
+
+    expect(result.personalReference.applied).toBe(false);
+    expect(result.personalReference.reason).toBe('expired');
+    expect(result.result.justo).toBe(140);
+  });
+
+  it('gives linked real deals precedence over the personal reference', async () => {
+    resolvePricingCalibrationForUser.mockResolvedValueOnce({
+      factorRaw: 1.1,
+      confidence: 0.82,
+      confidenceBand: 'alta',
+      segmentSampleSize: 30,
+      creatorSampleSize: 10,
+      manualLinkRate: 0.8,
+      linkQuality: 'high',
+      mad: 0.03,
+      windowDaysSegment: 180,
+      windowDaysCreator: 365,
+    });
+    const result = await runPubliCalculator({
+      user: {
+        ...user,
+        creatorProfileExtended: {
+          pricingReference: {
+            valueBRL: 280,
+            scope: 'reel_organico_padrao',
+            confirmedAt: new Date(),
+            updatedAt: new Date(),
+          },
+        },
+      } as any,
+      brandRiskEnabled: false,
+      calibrationEnabled: true,
+      params: {
+        format: 'reels',
+        exclusivity: 'nenhuma',
+        usageRights: 'organico',
+        complexity: 'simples',
+        authority: 'padrao',
+        seasonality: 'normal',
+      },
+    });
+
+    expect(result.personalReference).toMatchObject({ applied: false, reason: 'creator_calibrated', baseJusto: 154 });
+    expect(result.result.justo).toBe(154);
   });
 });

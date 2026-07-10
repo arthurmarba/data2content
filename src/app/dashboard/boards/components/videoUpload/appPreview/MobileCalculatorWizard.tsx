@@ -5,6 +5,15 @@ import type { ReactNode } from "react";
 import { DiagnosticoCloseButton } from "./DiagnosticoCloseButton";
 import { SAFE_TOP } from "./diagnosticoTokens";
 
+type PersonalReferenceReason = "not_configured" | "expired" | "creator_calibrated" | "feature_disabled" | "applied";
+
+type PersonalPricingReference = {
+  valueBRL: number;
+  scope?: "reel_organico_padrao";
+  confirmedAt?: string;
+  updatedAt?: string;
+};
+
 export type MobileCalculatorResult = {
   estrategico: number;
   justo: number;
@@ -13,6 +22,17 @@ export type MobileCalculatorResult = {
   cpm?: number;
   cpmSource?: string;
   calibration?: Record<string, unknown>;
+  personalReference?: {
+    enabled?: boolean;
+    applied?: boolean;
+    reason?: PersonalReferenceReason;
+    referenceValueBRL?: number | null;
+    referenceAgeDays?: number | null;
+    factorApplied?: number | null;
+    weightApplied?: number;
+    baseJusto?: number;
+    adjustedJusto?: number;
+  };
   params?: {
     format?: string;
     deliveryType?: string;
@@ -41,6 +61,10 @@ export type MobileCalculatorResult = {
     reach?: number;
     engagement?: number;
     profileSegment?: string;
+    reachSampleSize?: number;
+    reachMethod?: "trimmed_mean" | "median" | string;
+    reachConfidence?: "alta" | "baixa" | string;
+    reachFollowerAlert?: boolean;
   };
   avgTicket?: number | null;
   totalDeals?: number;
@@ -50,7 +74,14 @@ export type MobileCalculatorResult = {
 };
 
 type FormatKey = "reels" | "post" | "stories";
-type WizardStep = 0 | 1 | 2 | 3;
+type WizardStep = 0 | 1 | 2;
+type BrandSize = "pequena" | "media" | "grande";
+type Level = "baixo" | "medio" | "alto";
+type Exclusivity = "nenhuma" | "7d" | "15d" | "30d" | "90d";
+type UsageRights = "organico" | "midiapaga" | "global";
+type MediaDuration = "7d" | "15d" | "30d" | "90d";
+type ContentModel = "publicidade_perfil" | "ugc_whitelabel";
+type CalculationQuantities = NonNullable<NonNullable<MobileCalculatorResult["params"]>["formatQuantities"]>;
 
 type MobileCalculatorWizardProps = {
   open: boolean;
@@ -58,33 +89,25 @@ type MobileCalculatorWizardProps = {
   onSaved: (calculation: MobileCalculatorResult) => void;
   latestCalculation?: MobileCalculatorResult | null;
   suggestedReach?: number | null;
-  /** Fase 3 — exibe o intro de contexto de pricing antes do wizard (1ª abertura). */
+  /** Mantido para compatibilidade com o shell; o intro não bloqueia mais este fluxo. */
   showPricingIntro?: boolean;
-  /** Fase 3 — salva as respostas do intro de pricing. */
+  /** Mantido para compatibilidade com o shell; o intro não bloqueia mais este fluxo. */
   onSavePricingProfile?: (data: { hasDoneSponsoredPosts?: string; pricingFear?: string }) => void;
 };
 
-const MONETIZATION_OPTIONS = [
-  { value: "varias", label: "Sim, com frequência" },
-  { value: "poucas", label: "Já fiz algumas" },
-  { value: "nunca-quero", label: "Nunca, mas quero começar" },
-  { value: "nunca-sem-interesse", label: "Nunca, e sem pressa" },
-] as const;
-
-const PRICING_FEAR_OPTIONS = [
-  { value: "caro", label: "Cobrar caro demais" },
-  { value: "barato", label: "Cobrar barato demais" },
-  { value: "justificar", label: "Não saber justificar o preço" },
-  { value: "amador", label: "Parecer amador" },
-] as const;
+const DEFAULT_QUANTITIES: Record<FormatKey, number> = { reels: 1, post: 0, stories: 0 };
+const formatLabels: Record<FormatKey, string> = { reels: "Reels", post: "Post", stories: "Stories" };
+const formatOrder: FormatKey[] = ["reels", "stories", "post"];
+const wizardSteps: WizardStep[] = [0, 1, 2];
+const stepCopy: Record<WizardStep, { title: string }> = {
+  0: { title: "Entrega" },
+  1: { title: "Condições da parceria" },
+  2: { title: "Valor sugerido" },
+};
 
 const formatCurrency = (value: number | null | undefined) =>
   typeof value === "number" && Number.isFinite(value)
-    ? new Intl.NumberFormat("pt-BR", {
-        style: "currency",
-        currency: "BRL",
-        maximumFractionDigits: 0,
-      }).format(value)
+    ? new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 }).format(value)
     : "—";
 
 const formatNumber = (value: number | null | undefined) =>
@@ -92,75 +115,53 @@ const formatNumber = (value: number | null | undefined) =>
     ? new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(value)
     : null;
 
-const formatLabels: Record<FormatKey, string> = {
-  reels: "Reels",
-  post: "Post",
-  stories: "Stories",
-};
-
-const formatOrder: FormatKey[] = ["reels", "stories", "post"];
-const wizardSteps: WizardStep[] = [0, 1, 2, 3];
-const stepCopy: Record<WizardStep, { title: string }> = {
-  0: { title: "Pacote" },
-  1: { title: "Uso pela marca" },
-  2: { title: "Contexto comercial" },
-  3: { title: "Resultado" },
-};
+const formatPercentage = (value: number) => `${value > 0 ? "+" : ""}${Math.round(value)}%`;
 
 function deriveFormat(quantities: Record<FormatKey, number>) {
-  const active = Object.entries(quantities).filter(([, qty]) => qty > 0);
+  const active = Object.entries(quantities).filter(([, quantity]) => quantity > 0);
   if (active.length === 1 && active[0]?.[1] === 1) return active[0][0];
   return "pacote";
 }
 
 function buildDeliverablesLabel(quantities: Record<FormatKey, number>) {
   const parts = formatOrder
-    .map((key) => {
-      const qty = quantities[key];
-      return qty > 0 ? `${qty} ${formatLabels[key]}` : null;
-    })
+    .map((key) => (quantities[key] > 0 ? `${quantities[key]} ${formatLabels[key]}` : null))
     .filter(Boolean);
-  return parts.length > 0 ? parts.join(" + ") : "Nenhuma entrega";
+  return parts.length > 0 ? parts.join(" · ") : "Nenhuma entrega";
 }
 
-const labelForUsageRights = (value: "organico" | "midiapaga" | "global") => {
+function parseCurrencyInput(value: string) {
+  const sanitized = value.replace(/[^\d,.-]/g, "");
+  const normalized = sanitized.includes(",")
+    ? sanitized.replace(/\./g, "").replace(",", ".")
+    : sanitized;
+  return Number(normalized);
+}
+
+function isOption<T extends string>(value: unknown, options: readonly T[]): value is T {
+  return typeof value === "string" && (options as readonly string[]).includes(value);
+}
+
+function normalizedQuantities(value: CalculationQuantities | undefined): Record<FormatKey, number> {
+  return {
+    reels: typeof value?.reels === "number" && value.reels >= 0 ? Math.min(20, value.reels) : DEFAULT_QUANTITIES.reels,
+    post: typeof value?.post === "number" && value.post >= 0 ? Math.min(20, value.post) : DEFAULT_QUANTITIES.post,
+    stories: typeof value?.stories === "number" && value.stories >= 0 ? Math.min(20, value.stories) : DEFAULT_QUANTITIES.stories,
+  };
+}
+
+function labelForUsageRights(value: UsageRights) {
   if (value === "midiapaga") return "Mídia paga";
   if (value === "global") return "Uso global";
   return "Orgânico";
-};
+}
 
-const labelForExclusivity = (value: "nenhuma" | "7d" | "15d" | "30d" | "90d") =>
-  value === "nenhuma" ? "Sem exclusividade" : `Exclusivo ${value}`;
-
-const labelForBrandSize = (value: "pequena" | "media" | "grande") => {
-  if (value === "pequena") return "Marca pequena";
-  if (value === "grande") return "Marca grande";
-  return "Marca média";
-};
-
-const labelForStrategicGain = (value: "baixo" | "medio" | "alto") => {
-  if (value === "alto") return "Ganho alto";
-  if (value === "medio") return "Ganho médio";
-  return "Ganho baixo";
-};
-
-function WizardSection({
-  label,
-  helper,
-  children,
-}: {
-  label: string;
-  helper?: string;
-  children: ReactNode;
-}) {
+function WizardSection({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="border-t border-zinc-100 pt-4 first:border-t-0 first:pt-0">
-      <div className="mb-2">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">{label}</p>
-        {helper ? <p className="mt-1 text-[11px] leading-4 text-zinc-500">{helper}</p> : null}
-      </div>
+    <section className="border-t border-zinc-100 pt-3.5 first:border-t-0 first:pt-0">
+      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">{label}</p>
       {children}
-    </div>
+    </section>
   );
 }
 
@@ -168,21 +169,24 @@ function SegmentedChoice<T extends string>({
   options,
   value,
   onChange,
+  disabled = false,
 }: {
   options: Array<{ value: T; label: string }>;
   value: T;
   onChange: (value: T) => void;
+  disabled?: boolean;
 }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className={`flex flex-wrap gap-1.5 ${disabled ? "opacity-45" : ""}`}>
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
+          disabled={disabled}
           className={
             value === option.value
-              ? "rounded-full bg-zinc-950 px-3.5 py-1.5 text-xs font-semibold text-white"
-              : "rounded-full border border-zinc-200 bg-white px-3.5 py-1.5 text-xs font-semibold text-zinc-700"
+              ? "rounded-full bg-zinc-950 px-3 py-1.5 text-xs font-semibold text-white transition-colors disabled:cursor-not-allowed"
+              : "rounded-full border border-zinc-200 bg-white px-3 py-1.5 text-xs font-semibold text-zinc-700 transition-colors active:bg-zinc-50 disabled:cursor-not-allowed"
           }
           onClick={() => onChange(option.value)}
         >
@@ -193,197 +197,151 @@ function SegmentedChoice<T extends string>({
   );
 }
 
-function ToggleTile({
-  selected,
-  title,
-  detail,
-  onClick,
-}: {
-  selected: boolean;
-  title: string;
-  detail: string;
-  onClick: () => void;
-}) {
+function BooleanChoice({ label, value, onChange }: { label: string; value: boolean; onChange: (value: boolean) => void }) {
   return (
-    <button
-      type="button"
-      aria-pressed={selected}
-      className={
-        selected
-          ? "rounded-[14px] border border-zinc-950 bg-zinc-950 px-3.5 py-2.5 text-left text-white"
-          : "rounded-[14px] border border-zinc-200 bg-white px-3.5 py-2.5 text-left text-zinc-800"
-      }
-      onClick={onClick}
-    >
-      <span className="flex items-center justify-between gap-3 text-[13px] font-semibold">
-        {title}
-        <span className={selected ? "rounded-full bg-white/15 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white/75" : "rounded-full bg-zinc-100 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-zinc-400"}>
-          {selected ? "Ligado" : "Inativo"}
-        </span>
-      </span>
-      <span className={selected ? "mt-0.5 block text-[11px] text-white/60" : "mt-0.5 block text-[11px] text-zinc-500"}>
-        {detail}
-      </span>
-    </button>
+    <div className="flex min-h-10 items-center justify-between gap-3">
+      <p className="text-[13px] font-medium text-zinc-800">{label}</p>
+      <div className="flex rounded-full border border-zinc-200 p-0.5">
+        <button
+          type="button"
+          onClick={() => onChange(false)}
+          className={!value ? "rounded-full bg-zinc-950 px-3 py-1 text-[11px] font-semibold text-white" : "rounded-full px-3 py-1 text-[11px] font-semibold text-zinc-500"}
+        >
+          Não
+        </button>
+        <button
+          type="button"
+          onClick={() => onChange(true)}
+          className={value ? "rounded-full bg-zinc-950 px-3 py-1 text-[11px] font-semibold text-white" : "rounded-full px-3 py-1 text-[11px] font-semibold text-zinc-500"}
+        >
+          Sim
+        </button>
+      </div>
+    </div>
   );
 }
 
-export function MobileCalculatorWizard({
-  open,
-  onClose,
-  onSaved,
-  latestCalculation,
-  suggestedReach,
-  showPricingIntro = false,
-  onSavePricingProfile,
-}: MobileCalculatorWizardProps) {
-  const [showingIntro, setShowingIntro] = useState(false);
-  const [introMonetization, setIntroMonetization] = useState<string>("");
-  const [introFear, setIntroFear] = useState<string>("");
+export function MobileCalculatorWizard({ open, onClose, onSaved, latestCalculation, suggestedReach }: MobileCalculatorWizardProps) {
   const [step, setStep] = useState<WizardStep>(0);
-  const [quantities, setQuantities] = useState<Record<FormatKey, number>>({
-    reels: 1,
-    post: 0,
-    stories: 3,
-  });
-  const [brandSize, setBrandSize] = useState<"pequena" | "media" | "grande">("media");
-  const [imageRisk, setImageRisk] = useState<"baixo" | "medio" | "alto">("medio");
-  const [strategicGain, setStrategicGain] = useState<"baixo" | "medio" | "alto">("baixo");
-  const [exclusivity, setExclusivity] = useState<"nenhuma" | "7d" | "15d" | "30d" | "90d">("nenhuma");
-  const [usageRights, setUsageRights] = useState<"organico" | "midiapaga" | "global">("organico");
-  const [paidMediaDuration, setPaidMediaDuration] = useState<"7d" | "15d" | "30d" | "90d">("30d");
+  const [quantities, setQuantities] = useState<Record<FormatKey, number>>(DEFAULT_QUANTITIES);
+  const [brandSize, setBrandSize] = useState<BrandSize>("media");
+  const [imageRisk, setImageRisk] = useState<Level>("medio");
+  const [strategicGain, setStrategicGain] = useState<Level>("baixo");
+  const [exclusivity, setExclusivity] = useState<Exclusivity>("nenhuma");
+  const [usageRights, setUsageRights] = useState<UsageRights>("organico");
+  const [paidMediaDuration, setPaidMediaDuration] = useState<MediaDuration>("30d");
   const [repostTikTok, setRepostTikTok] = useState(false);
   const [instagramCollab, setInstagramCollab] = useState(false);
-  const [contentModel, setContentModel] = useState<"publicidade_perfil" | "ugc_whitelabel">("publicidade_perfil");
+  const [contentModel, setContentModel] = useState<ContentModel>("publicidade_perfil");
   const [result, setResult] = useState<MobileCalculatorResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [personalReference, setPersonalReference] = useState<PersonalPricingReference | null>(null);
+  const [referenceValue, setReferenceValue] = useState("");
+  const [referenceError, setReferenceError] = useState<string | null>(null);
+  const [isSavingReference, setIsSavingReference] = useState(false);
+
+  const loadPersonalReference = async () => {
+    try {
+      const response = await fetch("/api/calculator/personal-reference", { cache: "no-store" });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || "Não foi possível carregar seu valor habitual.");
+      const reference = payload?.reference;
+      if (typeof reference?.valueBRL === "number") {
+        setPersonalReference(reference as PersonalPricingReference);
+        setReferenceValue(String(reference.valueBRL));
+      } else {
+        setPersonalReference(null);
+        setReferenceValue("");
+      }
+    } catch (loadError) {
+      setReferenceError(loadError instanceof Error ? loadError.message : "Não foi possível carregar seu valor habitual.");
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
+    const params = latestCalculation?.params;
     setStep(0);
     setError(null);
     setResult(null);
     setIsSubmitting(false);
-    // Fase 3 — intro de pricing só na 1ª abertura e se não foi dispensado nesta sessão.
-    let dismissed = false;
-    try {
-      dismissed = sessionStorage.getItem("d2c_pricing_intro_dismissed") === "1";
-    } catch {
-      // sessionStorage indisponível — segue mostrando o intro se aplicável.
-    }
-    setShowingIntro(showPricingIntro && !dismissed);
-    setIntroMonetization("");
-    setIntroFear("");
-  }, [open, showPricingIntro]);
+    setReferenceError(null);
+    setPersonalReference(null);
+    setReferenceValue("");
+    setQuantities(normalizedQuantities(params?.formatQuantities));
+    setBrandSize(isOption(params?.brandSize, ["pequena", "media", "grande"] as const) ? params.brandSize : "media");
+    setImageRisk(isOption(params?.imageRisk, ["baixo", "medio", "alto"] as const) ? params.imageRisk : "medio");
+    setStrategicGain(isOption(params?.strategicGain, ["baixo", "medio", "alto"] as const) ? params.strategicGain : "baixo");
+    setExclusivity(isOption(params?.exclusivity, ["nenhuma", "7d", "15d", "30d", "90d"] as const) ? params.exclusivity : "nenhuma");
+    setUsageRights(isOption(params?.usageRights, ["organico", "midiapaga", "global"] as const) ? params.usageRights : "organico");
+    setPaidMediaDuration(isOption(params?.paidMediaDuration, ["7d", "15d", "30d", "90d"] as const) ? params.paidMediaDuration : "30d");
+    setRepostTikTok(Boolean(params?.repostTikTok));
+    setInstagramCollab(Boolean(params?.instagramCollab));
+    setContentModel(isOption(params?.contentModel, ["publicidade_perfil", "ugc_whitelabel"] as const) ? params.contentModel : "publicidade_perfil");
+    void loadPersonalReference();
+  }, [open, latestCalculation]);
 
-  const hasDeliverables = useMemo(
-    () => Object.values(quantities).some((qty) => qty > 0),
-    [quantities],
-  );
+  const hasDeliverables = useMemo(() => Object.values(quantities).some((quantity) => quantity > 0), [quantities]);
+  const visibleResult = result ?? latestCalculation;
+  const reachLabel = formatNumber(result?.metrics?.reach) ?? formatNumber(latestCalculation?.metrics?.reach) ?? formatNumber(suggestedReach);
+  const hasCalculatedThisSession = result !== null;
+  const currentStepCopy = stepCopy[step];
 
   if (!open) return null;
 
-  const dismissIntro = () => {
-    try {
-      sessionStorage.setItem("d2c_pricing_intro_dismissed", "1");
-    } catch {
-      // ignore
-    }
-    setShowingIntro(false);
-  };
-
-  const finishIntro = () => {
-    if (introMonetization || introFear) {
-      onSavePricingProfile?.({
-        hasDoneSponsoredPosts: introMonetization || undefined,
-        pricingFear: introFear || undefined,
-      });
-    }
-    dismissIntro();
-  };
-
-  if (showingIntro) {
-    return (
-      <div className="fixed inset-0 z-[260] flex flex-col bg-white" style={{ paddingTop: SAFE_TOP }}>
-        <div className="flex shrink-0 items-center justify-between px-5 pt-4 pb-2">
-          <p className="text-[11px] font-semibold uppercase tracking-widest text-zinc-400">
-            Antes de calcular
-          </p>
-          <DiagnosticoCloseButton onClose={onClose} edgeAlign />
-        </div>
-
-        <div className="flex-1 overflow-y-auto px-5 pb-8 pt-4">
-          <h2 className="mb-2 text-[1.5rem] font-bold leading-tight tracking-tight text-zinc-950" style={{ textWrap: "balance" } as React.CSSProperties}>
-            Duas perguntas rápidas sobre publis
-          </h2>
-          <p className="mb-7 text-[13px] font-medium leading-relaxed text-zinc-500">
-            Ajuda o seu mapa a calibrar as sugestões de valor. Pode pular.
-          </p>
-
-          <p className="mb-3 text-[14px] font-semibold text-zinc-800">Você já fez publi paga?</p>
-          <div className="mb-7 flex flex-col gap-2.5">
-            {MONETIZATION_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setIntroMonetization(opt.value)}
-                className={`w-full rounded-2xl border px-4 py-3 text-left text-[14px] font-medium transition-colors ${
-                  introMonetization === opt.value
-                    ? "border-zinc-950 bg-zinc-950 text-white"
-                    : "border-zinc-200 bg-white text-zinc-800 active:bg-zinc-50"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-
-          <p className="mb-3 text-[14px] font-semibold text-zinc-800">Qual seu maior receio ao cobrar?</p>
-          <div className="flex flex-col gap-2.5">
-            {PRICING_FEAR_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setIntroFear(opt.value)}
-                className={`w-full rounded-2xl border px-4 py-3 text-left text-[14px] font-medium transition-colors ${
-                  introFear === opt.value
-                    ? "border-zinc-950 bg-zinc-950 text-white"
-                    : "border-zinc-200 bg-white text-zinc-800 active:bg-zinc-50"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="shrink-0 border-t border-zinc-100 px-5 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pt-3">
-          <button
-            type="button"
-            onClick={finishIntro}
-            className="w-full rounded-full bg-zinc-950 px-6 py-4 text-sm font-semibold text-white transition-colors active:bg-zinc-800"
-          >
-            {introMonetization || introFear ? "Continuar para a calculadora" : "Pular e calcular"}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   const updateQuantity = (key: FormatKey, delta: number) => {
-    setQuantities((prev) => ({
-      ...prev,
-      [key]: Math.min(20, Math.max(0, prev[key] + delta)),
-    }));
+    setQuantities((previous) => ({ ...previous, [key]: Math.min(20, Math.max(0, previous[key] + delta)) }));
+  };
+
+  const savePersonalReference = async () => {
+    const valueBRL = parseCurrencyInput(referenceValue);
+    if (!Number.isFinite(valueBRL) || valueBRL <= 0 || valueBRL > 100000) {
+      setReferenceError("Informe um valor entre R$ 0,01 e R$ 100.000.");
+      return;
+    }
+    setIsSavingReference(true);
+    setReferenceError(null);
+    try {
+      const response = await fetch("/api/calculator/personal-reference", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ valueBRL }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || typeof payload?.reference?.valueBRL !== "number") {
+        throw new Error(payload?.error || "Não foi possível salvar seu valor habitual.");
+      }
+      setPersonalReference(payload.reference as PersonalPricingReference);
+      setReferenceValue(String(payload.reference.valueBRL));
+    } catch (saveError) {
+      setReferenceError(saveError instanceof Error ? saveError.message : "Não foi possível salvar seu valor habitual.");
+    } finally {
+      setIsSavingReference(false);
+    }
+  };
+
+  const removePersonalReference = async () => {
+    setIsSavingReference(true);
+    setReferenceError(null);
+    try {
+      const response = await fetch("/api/calculator/personal-reference", { method: "DELETE" });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || "Não foi possível remover seu valor habitual.");
+      setPersonalReference(null);
+      setReferenceValue("");
+    } catch (removeError) {
+      setReferenceError(removeError instanceof Error ? removeError.message : "Não foi possível remover seu valor habitual.");
+    } finally {
+      setIsSavingReference(false);
+    }
   };
 
   const submitCalculation = async () => {
     if (!hasDeliverables || isSubmitting) return;
     setIsSubmitting(true);
     setError(null);
-    setStep(3);
-
+    setStep(2);
     try {
       const response = await fetch("/api/calculator", {
         method: "POST",
@@ -412,52 +370,37 @@ export function MobileCalculatorWizard({
         }),
       });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        throw new Error(payload?.error || "Não foi possível calcular agora.");
-      }
-      if (
-        typeof payload?.justo !== "number" ||
-        typeof payload?.estrategico !== "number" ||
-        typeof payload?.premium !== "number"
-      ) {
+      if (!response.ok) throw new Error(payload?.error || "Não foi possível calcular agora.");
+      if (typeof payload?.justo !== "number" || typeof payload?.estrategico !== "number" || typeof payload?.premium !== "number") {
         throw new Error("Resposta inválida da calculadora.");
       }
       const saved = payload as MobileCalculatorResult;
       setResult(saved);
       onSaved(saved);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível calcular agora.");
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "Não foi possível calcular agora.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const close = () => {
-    if (isSubmitting) return;
-    onClose();
+    if (!isSubmitting) onClose();
   };
 
-  const reachLabel =
-    formatNumber(result?.metrics?.reach) ??
-    formatNumber(latestCalculation?.metrics?.reach) ??
-    formatNumber(suggestedReach);
-  const visibleResult = result ?? latestCalculation;
-  const currentStepCopy = stepCopy[step];
-  const usageSummaryLabel =
-    usageRights === "organico" ? "Orgânico" : `${labelForUsageRights(usageRights)} ${paidMediaDuration}`;
-  const usageDetail =
-    usageRights === "organico"
-      ? "Uso pela marca sem mídia paga."
-      : usageRights === "midiapaga"
-        ? "Permite impulsionar por um período."
-        : "Uso ampliado de imagem e campanha.";
-  const resultChips = [
-    usageSummaryLabel,
-    labelForBrandSize(brandSize),
-    labelForExclusivity(exclusivity),
-    labelForStrategicGain(strategicGain),
-    contentModel === "ugc_whitelabel" ? "UGC" : null,
-  ].filter(Boolean).slice(0, 5) as string[];
+  const resultReference = visibleResult?.personalReference;
+  const referenceImpact =
+    resultReference?.applied && typeof resultReference.baseJusto === "number" && resultReference.baseJusto > 0 && typeof resultReference.adjustedJusto === "number"
+      ? ((resultReference.adjustedJusto / resultReference.baseJusto) - 1) * 100
+      : null;
+  const referenceReason: Record<PersonalReferenceReason, string> = {
+    applied: "Seu valor habitual foi considerado neste cálculo.",
+    expired: "Seu valor habitual precisa ser confirmado novamente para influenciar o cálculo.",
+    creator_calibrated: "Usamos seus fechamentos reais, que já são uma referência mais confiável.",
+    feature_disabled: "Seu valor habitual não está ativo nesta sugestão.",
+    not_configured: "Você ainda não informou um valor habitual.",
+  };
+  const methodLabel = visibleResult?.metrics?.reachMethod === "trimmed_mean" ? "média aparada" : visibleResult?.metrics?.reachMethod === "median" ? "mediana" : null;
 
   return (
     <div className="fixed inset-0 z-[260] flex items-end justify-center bg-zinc-950/35 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] pt-8">
@@ -465,273 +408,139 @@ export function MobileCalculatorWizard({
         role="dialog"
         aria-modal="true"
         aria-labelledby="mobile-calculator-wizard-title"
-        className="flex max-h-[min(76dvh,640px)] w-full max-w-md flex-col overflow-hidden rounded-[1.5rem] border border-zinc-200 bg-white shadow-2xl animate-in slide-in-from-bottom duration-300"
+        className="flex max-h-[min(88dvh,700px)] w-full max-w-md flex-col overflow-hidden rounded-[1.5rem] border border-zinc-200 bg-white shadow-2xl animate-in slide-in-from-bottom duration-300"
       >
-        <div className="shrink-0 px-5 pb-4 pt-3.5">
+        <header className="shrink-0 px-5 pb-3.5 pt-3.5">
           <div className="mx-auto mb-3 h-1 w-7 rounded-full bg-zinc-200" aria-hidden="true" />
           <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
-                Etapa {step + 1} de {wizardSteps.length}
-              </p>
-              <h2 id="mobile-calculator-wizard-title" className="mt-0.5 text-[18px] font-bold leading-tight text-zinc-950">
-                {currentStepCopy.title}
-              </h2>
-            </div>
-            <DiagnosticoCloseButton
-              onClose={close}
-              ariaLabel="Fechar calculadora"
-              disabled={isSubmitting}
-              edgeAlign
-            />
-          </div>
-
-          <div className="mt-3 grid grid-cols-4 gap-1" aria-hidden="true">
-            {wizardSteps.map((index) => (
-              <span key={index} className={index <= step ? "h-1 rounded-full bg-zinc-950" : "h-1 rounded-full bg-zinc-200"} />
-            ))}
-          </div>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-2">
-          {step === 0 ? (
-            <div className="grid gap-2.5">
-              <div className="rounded-[14px] border border-zinc-200 bg-white px-3.5 py-2.5">
-                <div className="flex items-center justify-between gap-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">Alcance médio</p>
-                  <p className="text-[13px] font-bold text-zinc-950">
-                    {reachLabel ? `${reachLabel} pessoas` : "Métricas do perfil"}
-                  </p>
-                </div>
-              </div>
-              {formatOrder.map((key) => (
-                <div key={key} className="flex min-h-11 items-center justify-between gap-3 rounded-[14px] border border-zinc-200 bg-white px-3.5 py-2">
-                  <div>
-                    <p className="text-[13px] font-semibold text-zinc-900">{formatLabels[key]}</p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <button
-                      type="button"
-                      aria-label={`Remover ${formatLabels[key]}`}
-                      className="grid h-7 w-7 place-items-center rounded-full border border-zinc-200 bg-white text-xs text-zinc-600 disabled:opacity-40"
-                      onClick={() => updateQuantity(key, -1)}
-                      disabled={quantities[key] === 0}
-                    >
-                      -
-                    </button>
-                    <span className="w-4 text-center text-[13px] font-semibold text-zinc-950">{quantities[key]}</span>
-                    <button
-                      type="button"
-                      aria-label={`Adicionar ${formatLabels[key]}`}
-                      className="grid h-7 w-7 place-items-center rounded-full bg-zinc-950 text-xs text-white shadow-[0_8px_18px_rgba(24,24,27,0.14)]"
-                      onClick={() => updateQuantity(key, 1)}
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-              ))}
-              {!hasDeliverables ? (
-                <p className="text-xs font-medium text-red-600">Selecione pelo menos uma entrega.</p>
+            <div className="flex min-w-0 items-start gap-2.5">
+              {step > 0 ? (
+                <button
+                  type="button"
+                  aria-label="Voltar para a etapa anterior"
+                  onClick={() => setStep((previous) => (previous - 1) as WizardStep)}
+                  disabled={isSubmitting}
+                  className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full border border-zinc-200 text-base leading-none text-zinc-700 disabled:opacity-40"
+                >
+                  ←
+                </button>
               ) : null}
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">Etapa {step + 1} de {wizardSteps.length}</p>
+                <h2 id="mobile-calculator-wizard-title" className="mt-0.5 text-[18px] font-bold leading-tight text-zinc-950">{currentStepCopy.title}</h2>
+              </div>
+            </div>
+            <DiagnosticoCloseButton onClose={close} ariaLabel="Fechar calculadora" disabled={isSubmitting} edgeAlign />
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-1" aria-hidden="true">
+            {wizardSteps.map((index) => <span key={index} className={index <= step ? "h-1 rounded-full bg-zinc-950" : "h-1 rounded-full bg-zinc-200"} />)}
+          </div>
+        </header>
+
+        <main className="min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-1">
+          {step === 0 ? (
+            <div className="grid gap-3.5">
+              <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+                <p className="text-[11px] font-medium text-zinc-500">Alcance usado no cálculo</p>
+                <p className="text-[13px] font-bold text-zinc-950">{reachLabel ? `${reachLabel} pessoas` : "Métricas do perfil"}</p>
+              </div>
+              <div className="divide-y divide-zinc-100 border-y border-zinc-100">
+                {formatOrder.map((key) => (
+                  <div key={key} className="flex min-h-12 items-center justify-between gap-3 py-2">
+                    <p className="text-[14px] font-semibold text-zinc-900">{formatLabels[key]}</p>
+                    <div className="flex items-center gap-3">
+                      <button type="button" aria-label={`Remover ${formatLabels[key]}`} className="grid h-7 w-7 place-items-center rounded-full border border-zinc-200 text-xs text-zinc-600 disabled:opacity-40" onClick={() => updateQuantity(key, -1)} disabled={quantities[key] === 0}>−</button>
+                      <span className="w-4 text-center text-[13px] font-semibold text-zinc-950">{quantities[key]}</span>
+                      <button type="button" aria-label={`Adicionar ${formatLabels[key]}`} className="grid h-7 w-7 place-items-center rounded-full bg-zinc-950 text-xs text-white shadow-[0_8px_18px_rgba(24,24,27,0.14)]" onClick={() => updateQuantity(key, 1)}>+</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {!hasDeliverables ? <p className="text-xs font-medium text-red-600">Selecione pelo menos uma entrega.</p> : null}
+              <WizardSection label="Seu valor habitual">
+                <p className="mb-3 text-[12px] leading-5 text-zinc-500">Quanto você normalmente fecha por um Reel orgânico padrão? É opcional.</p>
+                <div className="flex items-center gap-2">
+                  <label className="flex min-w-0 flex-1 items-center rounded-xl border border-zinc-200 bg-white px-3 focus-within:border-zinc-950">
+                    <span className="mr-1 text-[13px] font-semibold text-zinc-500">R$</span>
+                    <input aria-label="Valor habitual por Reel orgânico" inputMode="decimal" placeholder="Ex.: 1.500" value={referenceValue} onChange={(event) => setReferenceValue(event.target.value)} className="h-10 min-w-0 flex-1 bg-transparent text-[14px] font-semibold text-zinc-950 outline-none placeholder:font-normal placeholder:text-zinc-400" />
+                  </label>
+                  <button type="button" onClick={savePersonalReference} disabled={isSavingReference || !referenceValue.trim()} className="h-10 rounded-full bg-zinc-950 px-4 text-[12px] font-semibold text-white disabled:opacity-40">
+                    {isSavingReference ? "Salvando" : personalReference ? "Salvar" : "Adicionar"}
+                  </button>
+                </div>
+                {personalReference ? (
+                  <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-zinc-500">
+                    <span>Confirmado {personalReference.confirmedAt ? new Date(personalReference.confirmedAt).toLocaleDateString("pt-BR") : "recentemente"}.</span>
+                    <button type="button" onClick={removePersonalReference} disabled={isSavingReference} className="font-semibold text-zinc-700 underline underline-offset-2 disabled:opacity-40">Remover</button>
+                  </div>
+                ) : null}
+                {referenceError ? <p className="mt-2 text-[11px] font-medium text-red-600">{referenceError}</p> : null}
+              </WizardSection>
             </div>
           ) : null}
 
           {step === 1 ? (
-            <div className="grid gap-3">
-              <WizardSection label="Uso de imagem">
-                <SegmentedChoice
-                  value={usageRights}
-                  onChange={setUsageRights}
-                  options={[
-                    { value: "organico", label: "Orgânico" },
-                    { value: "midiapaga", label: "Mídia paga" },
-                    { value: "global", label: "Uso global" },
-                  ]}
-                />
-                <p className="mt-2 text-xs leading-4 text-zinc-500">{usageDetail}</p>
-                {usageRights !== "organico" ? (
-                  <div className="mt-3 border-t border-zinc-100 pt-3">
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">Impulsionamento</p>
-                    <SegmentedChoice
-                      value={paidMediaDuration}
-                      onChange={setPaidMediaDuration}
-                      options={[
-                        { value: "7d", label: "7d" },
-                        { value: "15d", label: "15d" },
-                        { value: "30d", label: "30d" },
-                        { value: "90d", label: "90d" },
-                      ]}
-                    />
-                  </div>
-                ) : null}
+            <div className="grid gap-3.5">
+              <p className="text-[12px] leading-5 text-zinc-500">Esses itens ajustam seu valor sugerido.</p>
+              <WizardSection label="Uso pela marca">
+                <SegmentedChoice value={usageRights} onChange={setUsageRights} options={[{ value: "organico", label: "Orgânico" }, { value: "midiapaga", label: "Mídia paga" }, { value: "global", label: "Uso global" }]} />
+                <div className="mt-3">
+                  <div className="mb-2 flex items-center justify-between gap-3"><p className="text-[11px] font-medium text-zinc-600">Duração de uso</p>{usageRights === "organico" ? <span className="text-[10px] text-zinc-400">Só para mídia paga ou global</span> : null}</div>
+                  <SegmentedChoice value={paidMediaDuration} onChange={setPaidMediaDuration} disabled={usageRights === "organico"} options={[{ value: "7d", label: "7 dias" }, { value: "15d", label: "15 dias" }, { value: "30d", label: "30 dias" }, { value: "90d", label: "90 dias" }]} />
+                </div>
               </WizardSection>
               <WizardSection label="Exclusividade">
-                <SegmentedChoice
-                  value={exclusivity}
-                  onChange={setExclusivity}
-                  options={[
-                    { value: "nenhuma", label: "Sem" },
-                    { value: "15d", label: "15 dias" },
-                    { value: "30d", label: "30 dias" },
-                    { value: "90d", label: "90 dias" },
-                  ]}
-                />
+                <SegmentedChoice value={exclusivity} onChange={setExclusivity} options={[{ value: "nenhuma", label: "Sem" }, { value: "7d", label: "7 dias" }, { value: "15d", label: "15 dias" }, { value: "30d", label: "30 dias" }, { value: "90d", label: "90 dias" }]} />
               </WizardSection>
-              <div className="grid grid-cols-2 gap-2 border-t border-zinc-100 pt-4">
-                <ToggleTile
-                  selected={instagramCollab}
-                  title="Collab"
-                  detail="Instagram"
-                  onClick={() => setInstagramCollab((value) => !value)}
-                />
-                <ToggleTile
-                  selected={repostTikTok}
-                  title="TikTok"
-                  detail="Repost"
-                  onClick={() => setRepostTikTok((value) => !value)}
-                />
-              </div>
+              <WizardSection label="Distribuição">
+                <div className="divide-y divide-zinc-100">
+                  <BooleanChoice label="Collab no Instagram" value={instagramCollab} onChange={setInstagramCollab} />
+                  <BooleanChoice label="Repost no TikTok" value={repostTikTok} onChange={setRepostTikTok} />
+                  <BooleanChoice label="UGC para perfil da marca" value={contentModel === "ugc_whitelabel"} onChange={(value) => setContentModel(value ? "ugc_whitelabel" : "publicidade_perfil")} />
+                </div>
+              </WizardSection>
+              <WizardSection label="Contexto">
+                <div className="grid gap-3">
+                  <div><p className="mb-2 text-[11px] font-medium text-zinc-600">Porte da marca</p><SegmentedChoice value={brandSize} onChange={setBrandSize} options={[{ value: "pequena", label: "Pequena" }, { value: "media", label: "Média" }, { value: "grande", label: "Grande" }]} /></div>
+                  <div><p className="mb-2 text-[11px] font-medium text-zinc-600">Risco de imagem</p><SegmentedChoice value={imageRisk} onChange={setImageRisk} options={[{ value: "baixo", label: "Baixo" }, { value: "medio", label: "Médio" }, { value: "alto", label: "Alto" }]} /></div>
+                  <div><p className="mb-2 text-[11px] font-medium text-zinc-600">Ganho estratégico</p><SegmentedChoice value={strategicGain} onChange={setStrategicGain} options={[{ value: "baixo", label: "Baixo" }, { value: "medio", label: "Médio" }, { value: "alto", label: "Alto" }]} /></div>
+                </div>
+              </WizardSection>
             </div>
           ) : null}
 
           {step === 2 ? (
-            <div className="grid gap-3">
-              <WizardSection label="Porte da marca">
-                <SegmentedChoice
-                  value={brandSize}
-                  onChange={setBrandSize}
-                  options={[
-                    { value: "pequena", label: "Pequena" },
-                    { value: "media", label: "Média" },
-                    { value: "grande", label: "Grande" },
-                  ]}
-                />
-              </WizardSection>
-              <WizardSection label="Risco de imagem">
-                <SegmentedChoice
-                  value={imageRisk}
-                  onChange={setImageRisk}
-                  options={[
-                    { value: "baixo", label: "Baixo" },
-                    { value: "medio", label: "Médio" },
-                    { value: "alto", label: "Alto" },
-                  ]}
-                />
-              </WizardSection>
-              <WizardSection label="Ganho estratégico">
-                <SegmentedChoice
-                  value={strategicGain}
-                  onChange={setStrategicGain}
-                  options={[
-                    { value: "baixo", label: "Baixo" },
-                    { value: "medio", label: "Médio" },
-                    { value: "alto", label: "Alto" },
-                  ]}
-                />
-              </WizardSection>
-              <ToggleTile
-                selected={contentModel === "ugc_whitelabel"}
-                title="UGC"
-                detail="Entrega fora do perfil"
-                onClick={() =>
-                  setContentModel((value) =>
-                    value === "ugc_whitelabel" ? "publicidade_perfil" : "ugc_whitelabel",
-                  )
-                }
-              />
-            </div>
-          ) : null}
-
-          {step === 3 ? (
             <div>
               {isSubmitting ? (
-                <div className="rounded-[1.5rem] bg-zinc-950 p-5 text-white">
-                  <div className="flex items-center gap-3">
-                    <svg className="h-5 w-5 animate-spin text-white/60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    <p className="text-sm font-semibold">Calculando sua faixa</p>
-                  </div>
+                <div className="bg-zinc-950 px-5 py-6 text-white">
+                  <div className="flex items-center gap-3"><svg className="h-5 w-5 animate-spin text-white/60" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" /></svg><p className="text-sm font-semibold">Calculando sua faixa</p></div>
                   <p className="mt-3 text-sm leading-6 text-white/55">Combinando métricas, escopo e contexto comercial.</p>
                 </div>
               ) : error ? (
-                <div className="rounded-[1.5rem] border border-red-100 bg-red-50 p-4">
-                  <p className="text-sm font-semibold text-red-700">Não foi possível calcular</p>
-                  <p className="mt-2 text-sm leading-6 text-red-600">{error}</p>
-                </div>
+                <div className="border border-red-100 bg-red-50 p-4"><p className="text-sm font-semibold text-red-700">Não foi possível calcular</p><p className="mt-2 text-sm leading-6 text-red-600">{error}</p></div>
               ) : visibleResult ? (
                 <div>
-                  <div className="rounded-[1.5rem] bg-zinc-950 p-5 text-white">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-white/45">Valor sugerido</p>
-                    <p className="mt-1 text-3xl font-semibold">{formatCurrency(visibleResult.justo)}</p>
-                    <p className="mt-1 text-sm font-semibold text-white/70">{buildDeliverablesLabel(quantities)}</p>
-                    <div className="mt-4 flex flex-wrap gap-1.5">
-                      {resultChips.map((chip) => (
-                        <span key={chip} className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-semibold text-white/70">
-                          {chip}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <div className="rounded-2xl border border-zinc-100 bg-white p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Estratégico</p>
-                      <p className="mt-1 text-lg font-semibold text-zinc-950">{formatCurrency(visibleResult.estrategico)}</p>
-                    </div>
-                    <div className="rounded-2xl border border-zinc-100 bg-white p-4">
-                      <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Premium</p>
-                      <p className="mt-1 text-lg font-semibold text-zinc-950">{formatCurrency(visibleResult.premium)}</p>
-                    </div>
+                  <p className="text-[12px] font-medium text-zinc-500">Para {buildDeliverablesLabel(quantities)} · {labelForUsageRights(usageRights)} · marca {brandSize}</p>
+                  <div className="mt-5 border-y border-zinc-100 py-4"><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">Mínimo</p><p className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">{formatCurrency(visibleResult.estrategico)}</p></div>
+                  <div className="bg-zinc-950 px-5 py-5 text-white"><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-white/50">Justo</p><p className="mt-1 text-3xl font-semibold tracking-tight">{formatCurrency(visibleResult.justo)}</p><p className="mt-1 text-[12px] font-medium text-white/65">Valor recomendado</p></div>
+                  <div className="border-b border-zinc-100 py-4"><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">Máximo</p><p className="mt-1 text-2xl font-semibold tracking-tight text-zinc-950">{formatCurrency(visibleResult.premium)}</p></div>
+                  <div className="mt-4 grid gap-2 border-t border-zinc-100 pt-3 text-[11px] leading-5 text-zinc-500">
+                    {reachLabel ? <p>Alcance considerado: <span className="font-semibold text-zinc-700">{reachLabel} pessoas</span>{methodLabel ? ` · ${methodLabel}` : ""}{visibleResult.metrics?.reachSampleSize ? ` · ${visibleResult.metrics.reachSampleSize} conteúdos` : ""}.</p> : null}
+                    {visibleResult.metrics?.reachConfidence === "baixa" ? <p className="text-amber-700">A amostra de alcance ainda é pequena; sincronize ou publique mais conteúdos para aumentar a confiança.</p> : null}
+                    {visibleResult.metrics?.reachFollowerAlert ? <p className="text-amber-700">Seu alcance típico está bem acima dos seguidores. Confirme se ele continua consistente.</p> : null}
+                    {resultReference ? <p>{referenceReason[resultReference.reason ?? "not_configured"]}{referenceImpact !== null ? ` Impacto: ${formatPercentage(referenceImpact)}.` : ""}</p> : null}
                   </div>
                 </div>
               ) : null}
             </div>
           ) : null}
-        </div>
+        </main>
 
-        <div className="shrink-0 bg-white px-5 pb-5 pt-1.5">
-          <div className="flex gap-2">
-          {step > 0 && step < 3 ? (
-            <button
-              type="button"
-              className="h-10 rounded-full border border-zinc-200 px-4 text-[13px] font-semibold text-zinc-700"
-              onClick={() => setStep((prev) => Math.max(0, prev - 1) as WizardStep)}
-            >
-              Voltar
-            </button>
-          ) : null}
-          {step < 2 ? (
-            <button
-              type="button"
-              className="h-10 flex-1 rounded-full bg-zinc-950 px-4 text-[13px] font-semibold text-white disabled:opacity-40"
-              onClick={() => setStep((prev) => Math.min(2, prev + 1) as WizardStep)}
-              disabled={step === 0 && !hasDeliverables}
-            >
-              Continuar
-            </button>
-          ) : step === 2 ? (
-            <button
-              type="button"
-              className="h-10 flex-1 rounded-full bg-zinc-950 px-4 text-[13px] font-semibold text-white disabled:opacity-40"
-              onClick={submitCalculation}
-              disabled={!hasDeliverables || isSubmitting}
-            >
-              Calcular valor
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="h-10 flex-1 rounded-full bg-zinc-950 px-4 text-[13px] font-semibold text-white disabled:opacity-40"
-              onClick={error ? submitCalculation : close}
-              disabled={isSubmitting}
-            >
-              {error ? "Tentar de novo" : "Concluir"}
-            </button>
-          )}
-          </div>
-        </div>
+        <footer className="shrink-0 border-t border-zinc-100 bg-white px-5 pb-5 pt-3">
+          {step === 0 ? <button type="button" className="h-11 w-full rounded-full bg-zinc-950 px-5 text-[13px] font-semibold text-white disabled:opacity-40" onClick={() => setStep(1)} disabled={!hasDeliverables}>Continuar</button> : null}
+          {step === 1 ? <button type="button" className="h-11 w-full rounded-full bg-zinc-950 px-5 text-[13px] font-semibold text-white disabled:opacity-40" onClick={submitCalculation} disabled={!hasDeliverables || isSubmitting}>{hasCalculatedThisSession ? "Atualizar valor" : "Ver meu valor"}</button> : null}
+          {step === 2 ? <button type="button" className="h-11 w-full rounded-full bg-zinc-950 px-5 text-[13px] font-semibold text-white disabled:opacity-40" onClick={error ? submitCalculation : close} disabled={isSubmitting}>{error ? "Tentar de novo" : "Concluir"}</button> : null}
+        </footer>
       </section>
     </div>
   );

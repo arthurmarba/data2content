@@ -90,6 +90,27 @@ type CalculationCalibration = {
   linkQuality: "high" | "mixed" | "low";
 };
 
+type PersonalPricingReference = {
+  valueBRL: number;
+  scope: "reel_organico_padrao";
+  confirmedAt: string;
+  updatedAt: string;
+};
+
+type CalculationPersonalReference = {
+  enabled: boolean;
+  applied: boolean;
+  reason: "not_configured" | "expired" | "creator_calibrated" | "feature_disabled" | "applied";
+  referenceValueBRL: number | null;
+  referenceAgeDays: number | null;
+  canonicalJusto: number | null;
+  factorRaw: number | null;
+  factorApplied: number | null;
+  weightApplied: number;
+  baseJusto: number;
+  adjustedJusto: number;
+};
+
 type CalculationResult = {
   estrategico: number;
   justo: number;
@@ -97,11 +118,16 @@ type CalculationResult = {
   cpm: number;
   breakdown: CalculationBreakdown;
   calibration: CalculationCalibration;
+  personalReference: CalculationPersonalReference;
   params: CalculatorParams;
   metrics: {
     reach: number;
     engagement: number;
     profileSegment: string;
+    reachSampleSize: number;
+    reachMethod: "trimmed_mean" | "median";
+    reachConfidence: "alta" | "baixa";
+    reachFollowerAlert: boolean;
   };
   avgTicket: number | null;
   totalDeals: number;
@@ -533,6 +559,9 @@ export default function CalculatorClient({
   });
   const [isCalculating, setIsCalculating] = useState(false);
   const [calculation, setCalculation] = useState<CalculationResult | null>(null);
+  const [personalPricingReference, setPersonalPricingReference] = useState<PersonalPricingReference | null>(null);
+  const [personalPricingReferenceValue, setPersonalPricingReferenceValue] = useState("");
+  const [isSavingPersonalPricingReference, setIsSavingPersonalPricingReference] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const resultsSectionRef = useRef<HTMLDivElement | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Record<CollapsibleSectionKey, boolean>>(() => ({
@@ -963,6 +992,85 @@ export default function CalculatorClient({
     return parsed.toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
   };
 
+  const savePersonalPricingReference = async () => {
+    const valueBRL = Number(personalPricingReferenceValue.replace(',', '.'));
+    if (!Number.isFinite(valueBRL) || valueBRL <= 0 || valueBRL > 100000) {
+      toast({
+        variant: 'error',
+        title: 'Valor inválido',
+        description: 'Informe um valor entre R$ 0,01 e R$ 100.000,00.',
+      });
+      return;
+    }
+
+    setIsSavingPersonalPricingReference(true);
+    try {
+      const response = await fetch('/api/calculator/personal-reference', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ valueBRL }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || typeof payload?.reference?.valueBRL !== 'number') {
+        throw new Error(payload?.error || 'Não foi possível salvar a referência.');
+      }
+      setPersonalPricingReference(payload.reference as PersonalPricingReference);
+      setPersonalPricingReferenceValue(String(payload.reference.valueBRL));
+      toast({ variant: 'success', title: 'Referência salva', description: 'Ela será considerada nos próximos cálculos elegíveis.' });
+    } catch (error) {
+      toast({
+        variant: 'error',
+        title: 'Não foi possível salvar',
+        description: error instanceof Error ? error.message : 'Tente novamente.',
+      });
+    } finally {
+      setIsSavingPersonalPricingReference(false);
+    }
+  };
+
+  const loadPersonalPricingReference = async () => {
+    setIsSavingPersonalPricingReference(true);
+    try {
+      const response = await fetch('/api/calculator/personal-reference', { cache: 'no-store' });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || 'Não foi possível carregar a referência.');
+      const reference = payload?.reference;
+      if (typeof reference?.valueBRL !== 'number') {
+        toast({ variant: 'info', title: 'Nenhuma referência salva', description: 'Você ainda não informou um valor habitual para Reel orgânico.' });
+        return;
+      }
+      setPersonalPricingReference(reference as PersonalPricingReference);
+      setPersonalPricingReferenceValue(String(reference.valueBRL));
+    } catch (error) {
+      toast({
+        variant: 'error',
+        title: 'Não foi possível carregar',
+        description: error instanceof Error ? error.message : 'Tente novamente.',
+      });
+    } finally {
+      setIsSavingPersonalPricingReference(false);
+    }
+  };
+
+  const removePersonalPricingReference = async () => {
+    setIsSavingPersonalPricingReference(true);
+    try {
+      const response = await fetch('/api/calculator/personal-reference', { method: 'DELETE' });
+      if (!response.ok) throw new Error('Não foi possível remover a referência.');
+      setPersonalPricingReference(null);
+      setPersonalPricingReferenceValue('');
+      toast({ variant: 'success', title: 'Referência removida', description: 'Os próximos cálculos voltarão a usar apenas as métricas e o escopo.' });
+    } catch (error) {
+      toast({
+        variant: 'error',
+        title: 'Não foi possível remover',
+        description: error instanceof Error ? error.message : 'Tente novamente.',
+      });
+    } finally {
+      setIsSavingPersonalPricingReference(false);
+    }
+  };
+
   const callCalculator = async () => {
     setIsCalculating(true);
     setError(null);
@@ -1108,11 +1216,31 @@ export default function CalculatorClient({
               ? (parsed as any).calibration.linkQuality
               : "low",
         },
+        personalReference: {
+          enabled: typeof (parsed as any)?.personalReference?.enabled === "boolean" ? (parsed as any).personalReference.enabled : false,
+          applied: typeof (parsed as any)?.personalReference?.applied === "boolean" ? (parsed as any).personalReference.applied : false,
+          reason:
+            ["not_configured", "expired", "creator_calibrated", "feature_disabled", "applied"].includes((parsed as any)?.personalReference?.reason)
+              ? (parsed as any).personalReference.reason
+              : "not_configured",
+          referenceValueBRL: typeof (parsed as any)?.personalReference?.referenceValueBRL === "number" ? (parsed as any).personalReference.referenceValueBRL : null,
+          referenceAgeDays: typeof (parsed as any)?.personalReference?.referenceAgeDays === "number" ? (parsed as any).personalReference.referenceAgeDays : null,
+          canonicalJusto: typeof (parsed as any)?.personalReference?.canonicalJusto === "number" ? (parsed as any).personalReference.canonicalJusto : null,
+          factorRaw: typeof (parsed as any)?.personalReference?.factorRaw === "number" ? (parsed as any).personalReference.factorRaw : null,
+          factorApplied: typeof (parsed as any)?.personalReference?.factorApplied === "number" ? (parsed as any).personalReference.factorApplied : null,
+          weightApplied: typeof (parsed as any)?.personalReference?.weightApplied === "number" ? (parsed as any).personalReference.weightApplied : 0,
+          baseJusto: typeof (parsed as any)?.personalReference?.baseJusto === "number" ? (parsed as any).personalReference.baseJusto : parsed.justo,
+          adjustedJusto: typeof (parsed as any)?.personalReference?.adjustedJusto === "number" ? (parsed as any).personalReference.adjustedJusto : parsed.justo,
+        },
         params: sanitizedParams,
         metrics: {
           reach: parsed.metrics?.reach ?? 0,
           engagement: parsed.metrics?.engagement ?? 0,
           profileSegment: parsed.metrics?.profileSegment ?? "default",
+          reachSampleSize: typeof parsed.metrics?.reachSampleSize === "number" ? parsed.metrics.reachSampleSize : 0,
+          reachMethod: parsed.metrics?.reachMethod === "trimmed_mean" ? "trimmed_mean" : "median",
+          reachConfidence: parsed.metrics?.reachConfidence === "alta" ? "alta" : "baixa",
+          reachFollowerAlert: Boolean(parsed.metrics?.reachFollowerAlert),
         },
         avgTicket: typeof parsed.avgTicket === "number" ? parsed.avgTicket : null,
         totalDeals: typeof parsed.totalDeals === "number" ? parsed.totalDeals : 0,
@@ -1392,6 +1520,17 @@ export default function CalculatorClient({
     : [];
   const visibleMultiplierTags = activeMultiplierTags.slice(0, 6);
   const hiddenMultiplierCount = Math.max(0, activeMultiplierTags.length - visibleMultiplierTags.length);
+  const personalReferenceReviewDue = Boolean(
+    personalPricingReference &&
+    Date.now() - new Date(personalPricingReference.confirmedAt).getTime() > 90 * 24 * 60 * 60 * 1000
+  );
+  const personalReferenceReasonLabel: Record<CalculationPersonalReference["reason"], string> = {
+    applied: "aplicada ao valor sugerido",
+    not_configured: "não informada",
+    expired: "aguarda sua reconfirmação",
+    creator_calibrated: "substituída por negócios reais suficientes",
+    feature_disabled: "temporariamente desativada",
+  };
   const compactFormatOptions = compactView
     ? FORMAT_OPTIONS.map((option) => ({
         ...option,
@@ -2411,6 +2550,74 @@ export default function CalculatorClient({
             )}
           </div>
 
+          {!isActingOnBehalf ? (
+            <section className={compactView ? "border-t border-zinc-100/75 pt-4" : "rounded-[1.2rem] border border-zinc-200 bg-zinc-50/70 p-4"} aria-labelledby="personal-pricing-reference-title">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 id="personal-pricing-reference-title" className="text-sm font-semibold text-zinc-900">Sua referência de mercado</h2>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-600">
+                    Quanto você normalmente fecha por um Reel orgânico padrão? É opcional e ajusta a sugestão com peso limitado.
+                  </p>
+                </div>
+                {personalPricingReference ? (
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${personalReferenceReviewDue ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>
+                    {personalReferenceReviewDue ? "Revisão necessária" : "Ativa"}
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={loadPersonalPricingReference}
+                    disabled={isSavingPersonalPricingReference}
+                    className="text-xs font-semibold text-zinc-600 underline underline-offset-4 hover:text-zinc-900 disabled:opacity-60"
+                  >
+                    Ver referência salva
+                  </button>
+                )}
+              </div>
+              <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
+                <label className="flex-1 text-xs font-semibold text-zinc-700" htmlFor="personal-pricing-reference-value">
+                  Valor habitual (R$)
+                  <input
+                    id="personal-pricing-reference-value"
+                    type="number"
+                    inputMode="decimal"
+                    min="0.01"
+                    max="100000"
+                    step="0.01"
+                    value={personalPricingReferenceValue}
+                    onChange={(event) => setPersonalPricingReferenceValue(event.target.value)}
+                    disabled={isSavingPersonalPricingReference}
+                    className="mt-1 block w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium text-zinc-900 outline-none transition focus:border-zinc-500 focus:ring-2 focus:ring-zinc-200 disabled:cursor-not-allowed disabled:opacity-70"
+                    placeholder="Ex.: 850"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={savePersonalPricingReference}
+                  disabled={isSavingPersonalPricingReference || !personalPricingReferenceValue.trim()}
+                  className="rounded-xl border border-zinc-900 bg-zinc-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isSavingPersonalPricingReference ? "Salvando..." : personalPricingReference ? "Atualizar" : "Salvar"}
+                </button>
+                {personalPricingReference ? (
+                  <button
+                    type="button"
+                    onClick={removePersonalPricingReference}
+                    disabled={isSavingPersonalPricingReference}
+                    className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Remover
+                  </button>
+                ) : null}
+              </div>
+              {personalPricingReference ? (
+                <p className="mt-2 text-xs text-zinc-500">
+                  Salva em {formatDateTime(personalPricingReference.confirmedAt)}. {personalReferenceReviewDue ? "Confirme o valor para que volte a influenciar a sugestão." : "A referência expira para revisão em 90 dias."}
+                </p>
+              ) : null}
+            </section>
+          ) : null}
+
           {error && (
             <div className="rounded-[1.2rem] border border-red-200/80 bg-red-50/90 px-4 py-3 text-sm text-red-700 shadow-[0_16px_30px_rgba(239,68,68,0.08)]">
               {error}
@@ -2740,6 +2947,14 @@ export default function CalculatorClient({
                         </ul>
                       </div>
                       <p className={`${compactView ? "mt-2 dashboard-type-meta" : "mt-2 text-xs"} text-zinc-500`}>
+                        Alcance calculado por {calculation.metrics.reachMethod === "trimmed_mean" ? "média aparada" : "mediana"} de {calculation.metrics.reachSampleSize} conteúdos recentes.
+                      </p>
+                      {calculation.metrics.reachFollowerAlert ? (
+                        <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
+                          O alcance típico é mais de 4× sua base de seguidores. Confirme que esse desempenho é recorrente antes de negociar.
+                        </p>
+                      ) : null}
+                      <p className={`${compactView ? "mt-2 dashboard-type-meta" : "mt-2 text-xs"} text-zinc-500`}>
                         {calculation.params.usageRights === "organico"
                           ? "Sem mídia paga, o uso fica restrito ao orgânico."
                           : "Impulsionamento cobre todas as plataformas envolvidas durante o prazo contratado."}
@@ -2777,6 +2992,20 @@ export default function CalculatorClient({
                               Faixa estratégico/premium ampliada por baixa confiança para reduzir risco de subprecificação.
                             </p>
                           ) : null}
+                        </div>
+                      ) : null}
+                      {calculation.personalReference.referenceValueBRL !== null ? (
+                        <div className={`space-y-1.5 ${compactView ? "border-t border-zinc-100 pt-3" : "mt-3 rounded-[1rem] border border-zinc-200 bg-white p-2.5"}`}>
+                          <p className="text-xs font-semibold uppercase tracking-wide text-zinc-600">Referência pessoal</p>
+                          <p className="text-xs text-zinc-700">
+                            Reel orgânico habitual: <span className="font-semibold text-zinc-900">{formatCurrency(calculation.personalReference.referenceValueBRL)}</span>
+                          </p>
+                          <p className="text-xs text-zinc-600">
+                            {personalReferenceReasonLabel[calculation.personalReference.reason]}
+                            {calculation.personalReference.applied && calculation.personalReference.factorApplied !== null
+                              ? ` · impacto de ${formatPercent((calculation.personalReference.adjustedJusto / calculation.personalReference.baseJusto - 1) * 100)}.`
+                              : "."}
+                          </p>
                         </div>
                       ) : null}
                       {brandRiskV1Enabled && strategicWaiverApplied ? (

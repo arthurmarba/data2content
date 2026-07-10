@@ -7,6 +7,10 @@ import { logger } from "@/app/lib/logger";
 import * as stateService from "@/app/lib/stateService";
 import { SUMMARY_GENERATION_INTERVAL } from "@/app/lib/constants";
 import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from "@/app/lib/mongoTransient";
+import {
+  sanitizePersonalPricingReference,
+  type PersonalPricingReference,
+} from '@/app/lib/pricing/personalPricingReference';
 
 const TAG = "[api/creator/profile-extended]";
 
@@ -34,6 +38,7 @@ const BASE_PROFILE: ICreatorProfileExtended = {
   nextPlatform: [],
   learningStyles: [],
   notificationPref: [],
+  pricingReference: null,
   updatedAt: undefined,
 };
 
@@ -99,6 +104,10 @@ function sanitizeProfile(
     2,
   ) as ICreatorProfileExtended["notificationPref"];
   const shouldRefreshUpdatedAt = payload && payload !== existing;
+  const rawPricingReference = payload && Object.prototype.hasOwnProperty.call(payload, 'pricingReference')
+    ? payload.pricingReference
+    : base.pricingReference;
+  const pricingReference = rawPricingReference === null ? null : sanitizePersonalPricingReference(rawPricingReference);
 
   const profile: ICreatorProfileExtended = {
     ...BASE_PROFILE,
@@ -119,6 +128,7 @@ function sanitizeProfile(
     learningStyles,
     nextPlatform: nextPlatformArr,
     notificationPref: notificationPrefArr,
+    pricingReference: pricingReference as PersonalPricingReference | null,
     avgPriceRange: monetizes ? payload?.avgPriceRange ?? base.avgPriceRange ?? null : null,
     bundlePriceRange,
     pricingMethod: monetizes ? payload?.pricingMethod ?? base.pricingMethod ?? null : null,
@@ -176,6 +186,12 @@ export async function PATCH(req: Request) {
     body = (await req.json()) as Partial<ICreatorProfileExtended>;
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  if (Object.prototype.hasOwnProperty.call(body, 'pricingReference') && body.pricingReference !== null) {
+    if (!sanitizePersonalPricingReference(body.pricingReference)) {
+      return NextResponse.json({ error: "Invalid pricing reference" }, { status: 400 });
+    }
   }
 
   try {
