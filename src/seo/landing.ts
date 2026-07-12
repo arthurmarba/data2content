@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import faqItems from "@/data/faq";
+import { LANDING_FAQ_ITEMS } from "@/app/landing/faqData";
 
 const SITE_URL = "https://data2content.ai";
 const HOME_SHARE_LOGO_URL = `${SITE_URL}/images/Colorido-Simbolo.png`;
@@ -83,12 +83,12 @@ export const landingOrganizationJsonLd = {
 export const landingFaqJsonLd = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
-  mainEntity: faqItems.map((item) => ({
+  mainEntity: LANDING_FAQ_ITEMS.map((item) => ({
     "@type": "Question",
-    name: item.q,
+    name: item.question,
     acceptedAnswer: {
       "@type": "Answer",
-      text: item.a,
+      text: item.answer,
     },
   })),
 };

@@ -37,31 +37,31 @@ const MOBILE_VALUE_PILLARS: MobileValuePillar[] = [
     id: "positioning",
     icon: "✦",
     title: "Reunião de Roteiro",
-    description: "Toda terça, 19h, para revisar se seu roteiro esta no caminho certo.",
+    description: "Toda terça, às 19h, revisamos seu roteiro ao vivo antes de você gravar.",
   },
   {
     id: "direction",
     icon: "↗",
     title: "Reunião de Conteúdo",
-    description: "Toda quinta, 19h, para revisar sua edição, captação e conteúdo.",
+    description: "Toda quinta, às 19h, feedback de edição, captação e narrativa do que você publicou.",
   },
   {
     id: "opportunities",
     icon: "◆",
     title: "Banco de Talentos",
-    description: "Nossos criadores são avalidados para representação comercial pela Destaque;",
+    description: "Criadores da D2C são avaliados para representação comercial pela Agência Destaque.",
   },
   {
     id: "platform",
     icon: "⚡",
     title: "Nossa Plataforma",
-    description: "Diagnósticos de conteúdo por IA, ferramentas para organizar seu planejamento e notificações de revisão de conteúdo/roteiro.",
+    description: "Diagnóstico de conteúdo por IA, planejamento organizado e lembretes de revisão de roteiro.",
   },
   {
     id: "networking",
     icon: "🤝",
     title: "Networking Ativo",
-    description: "Conexão com outros criadores para crescer juntos com collab.",
+    description: "Conexão com outros criadores para crescer junto em collabs.",
   },
 ];
 
@@ -136,7 +136,7 @@ const HeroValuePillarCard: React.FC<{ pillar: MobileValuePillar; index: number }
         {pillar.icon}
       </span>
       <div>
-        <h2 className="text-[0.96rem] font-black leading-[1.1] text-brand-dark md:text-[1.05rem]">{pillar.title}</h2>
+        <h3 className="text-[0.96rem] font-black leading-[1.1] text-brand-dark md:text-[1.05rem]">{pillar.title}</h3>
         <p className="mt-1.5 text-[12px] leading-[1.55] text-slate-600 md:text-[13px] md:leading-[1.65]">{pillar.description}</p>
       </div>
     </div>
@@ -283,13 +283,13 @@ const HeroModern: React.FC<HeroModernProps> = ({ onCreatorCta, isAuthenticated =
                 data-testid="hero-mobile-subtitle"
                 className="mx-auto block max-w-[18.2rem] text-[14px] leading-[1.58] tracking-[-0.012em] text-slate-600 sm:hidden"
               >
-                Estratégia para você focar na criação. Pare de caçar marcas e{" "}
-                <span className="font-bold text-slate-900">comece a ser encontrado pela oportunidade ideal.</span>
+                Mentorias semanais, revisão por IA e um banco de talentos.{" "}
+                <span className="font-bold text-slate-900">Pare de caçar marcas: seja encontrado pela oportunidade certa.</span>
               </span>
               <span className="hidden sm:inline">
-                Focamos na estratégia para você focar em criar. Não se desvalorize indo atrás de marcas.{" "}
+                Cuidamos da estratégia para você focar em criar: mentorias semanais, revisão de conteúdo por IA e um banco de talentos.{" "}
                 <span className="font-bold text-slate-700">
-                  Se posicione para que a oportunidade ideal venha ate a sua narrativa.
+                  Pare de caçar marcas — posicione-se para que a oportunidade certa encontre a sua narrativa.
                 </span>
               </span>
             </motion.p>

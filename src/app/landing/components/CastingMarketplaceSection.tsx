@@ -451,6 +451,18 @@ export default function CastingMarketplaceSection({
                     </div>
                 ) : (
                     <>
+                        <header className="mx-auto mb-6 mt-2 max-w-3xl text-center md:mb-8">
+                            <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 shadow-sm">
+                                Banco de Talentos
+                            </span>
+                            <h2 className="mt-5 text-3xl font-black leading-[1.05] tracking-tight text-brand-dark md:text-5xl">
+                                Criadores prontos para a sua{" "}
+                                <span className="bg-gradient-to-r from-brand-primary to-brand-accent bg-clip-text text-transparent">próxima campanha.</span>
+                            </h2>
+                            <p className="mx-auto mt-3 max-w-[52ch] text-[15px] font-medium leading-[1.6] text-slate-500">
+                                Explore por nicho, seguidores e performance real — métricas auditadas direto da API oficial do Instagram.
+                            </p>
+                        </header>
                         <div
                             data-testid="marketplace-filter-bar"
                             className="sticky top-[calc(var(--landing-header-h,4.5rem)+4px)] z-30 mb-5 rounded-[1.25rem] border border-slate-100 bg-white/95 p-2 shadow-[0_18px_40px_rgba(20,33,61,0.08)] backdrop-blur-2xl md:mb-7 md:rounded-[1.75rem] md:p-4"
@@ -830,7 +842,7 @@ function CastingRankCard({
         >
             <div className="relative p-2 sm:p-3">
                 <div className="flex items-center justify-between">
-                    <p className="max-w-full truncate rounded-full bg-slate-100/90 px-2 py-1 text-[8px] font-bold tracking-[-0.01em] text-[#6F7890] sm:bg-transparent sm:px-0 sm:py-0 sm:text-[11px]">@{creator.username || creator.name || "Criador"}</p>
+                    <p className="max-w-full truncate rounded-full bg-slate-100/90 px-2 py-1 text-[8px] font-bold tracking-[-0.01em] text-[#6F7890] sm:bg-transparent sm:px-0 sm:py-0 sm:text-[11px]">@{(creator.username || creator.name || "Criador").replace(/^@+/, "")}</p>
                 </div>
 
                 <div>

@@ -125,7 +125,7 @@ const PlanCard = ({
         )}
 
         <div className="mb-8 sm:mb-10" style={{ transform: "translateZ(50px)" }}>
-          <h3 className={`text-[1.65rem] font-black tracking-tight ${isPro ? "text-brand-primary" : "text-brand-dark"} sm:text-2xl`}>
+          <h3 className={`text-[1.65rem] font-black tracking-tight ${isPro ? "pr-28 text-brand-primary sm:pr-32" : "text-brand-dark"} sm:text-2xl`}>
             {title}
           </h3>
           <div className="mt-4 flex items-baseline gap-1 sm:mt-6">
@@ -174,7 +174,7 @@ const PlanCard = ({
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span>
               </div>
               <span className="text-[10px] font-black uppercase tracking-[0.12em] text-rose-600 sm:text-[10px] sm:tracking-[0.2em]">
-                Só restam 4 vagas p/ mentoria de Terça
+                Turmas de mentoria com vagas limitadas
               </span>
             </div>
           )}
@@ -225,20 +225,29 @@ export default function PlansComparisonSection({
             isPro
             description="Mentorias estratégicas e tecnologia para acelerar sua representação comercial."
             features={[
-              "3 Mentorias Semanais de Conteúdo e Roteiro",
-              "Anotações Inteligentes d2c",
-              "Calculadora de Precificação Comercial",
-              "Radar de Faturamento p/ Representação",
-              "Mídia Kit Auditado em Tempo Real"
+              "Mentorias semanais ao vivo de roteiro e conteúdo",
+              "Diagnóstico de conteúdo por IA",
+              "Anotações inteligentes das mentorias",
+              "Calculadora de precificação de publis",
+              "Radar de faturamento para representação",
+              "Mídia kit auditado em tempo real"
             ]}
             ctaText={primaryCtaLabel}
             onCta={onCreateAccount}
-            note="Valor sofre reajuste nos próximos meses."
+            note="Preço de lançamento · sem fidelidade, cancele quando quiser"
           />
         </div>
 
         <p className="mt-7 text-center text-[13px] font-semibold leading-relaxed text-slate-400 sm:mt-12 sm:text-sm sm:font-bold">
-          Você foca 100% na criação e nós te direcionamos. <button className="text-brand-primary hover:underline underline-offset-4">Fale no WhatsApp se tiver dúvidas →</button>
+          Você foca 100% na criação e nós te direcionamos.{" "}
+          <a
+            href={`https://wa.me/552120380975?text=${encodeURIComponent("Olá! Tenho uma dúvida sobre o plano consultivo da Data2Content.")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-brand-primary underline-offset-4 hover:underline"
+          >
+            Fale no WhatsApp se tiver dúvidas →
+          </a>
         </p>
       </div>
       <style jsx global>{`
