@@ -17,8 +17,11 @@ import { redirectToGoogleConsentLogin } from "@/lib/auth/googleLogin";
 
 import LandingHeader from "./landing/components/LandingHeader";
 import HeroModern from "./landing/components/HeroModern";
+import MethodSection from "./landing/components/MethodSection";
 import CastingMarketplaceSection from "./landing/components/CastingMarketplaceSection";
 import PlansComparisonSection from "./landing/components/PlansComparisonSection";
+import LandingFaqSection from "./landing/components/LandingFaqSection";
+import ClosingCtaSection from "./landing/components/ClosingCtaSection";
 import MobileStickyCta from "./landing/components/MobileStickyCta";
 import { getLandingPrimaryCtaLabel } from "./landing/copy";
 
@@ -545,8 +548,17 @@ export default function LandingPageClient() {
           categories={categories}
         />
 
+        <MethodSection />
+
         <PlansComparisonSection
           onCreateAccount={handleCreatorCta}
+          isAuthenticated={isAuthenticated}
+        />
+
+        <LandingFaqSection />
+
+        <ClosingCtaSection
+          onPrimaryCta={handleCreatorCta}
           isAuthenticated={isAuthenticated}
         />
       </main>
@@ -611,7 +623,7 @@ export default function LandingPageClient() {
       <MobileStickyCta
         label={getLandingPrimaryCtaLabel(isAuthenticated)}
         onClick={handleCreatorCta}
-        description="Consultoria e direcao estrategica toda semana."
+        description="Consultoria e direção estratégica toda semana."
         scrollOffset={180}
         showAfterTargetId="planos"
         intersectionThreshold={0.15}
