@@ -18,13 +18,6 @@ interface LandingHeaderProps {
   onCreatorCta?: () => void;
 }
 
-const NAV_LINKS = [
-  { label: 'Comunidade', href: '#galeria' },
-  { label: 'Como funciona', href: '#como-funciona' },
-  { label: 'Planos', href: '#planos' },
-  { label: 'FAQ', href: '#faq' },
-];
-
 export default function LandingHeader({
   showLoginButton = false,
   onCreatorCta,
@@ -165,17 +158,6 @@ export default function LandingHeader({
         </Link>
         <div className="flex items-center gap-3 md:gap-3.5">
           <nav className="hidden items-center gap-2 md:flex">
-            <div className="mr-3 flex items-center gap-1 lg:mr-5 lg:gap-2">
-              {NAV_LINKS.map((item) => (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  className="rounded-full px-2.5 py-1.5 text-[0.88rem] font-semibold text-slate-600 transition-colors hover:bg-slate-50 hover:text-brand-dark lg:px-3"
-                >
-                  {item.label}
-                </a>
-              ))}
-            </div>
             <div className="flex items-center gap-2">
               {shouldShowLoginAction ? (
                 <ButtonPrimary
@@ -237,19 +219,6 @@ export default function LandingHeader({
       {isMenuOpen && (
         <div className="fixed inset-x-4 top-[calc(var(--landing-header-h,4.5rem)+0.75rem)] z-[60] max-h-[calc(100vh-var(--landing-header-h,4.5rem)-1.5rem)] overflow-y-auto rounded-[1.65rem] border border-[#E7EBF6] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(250,251,255,0.98))] shadow-[0_18px_38px_rgba(15,23,42,0.12)] md:hidden">
           <nav id="mobile-menu" className="flex flex-col p-2.5">
-            <div className="mb-1 flex flex-col">
-              {NAV_LINKS.map((item) => (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setIsMenuOpen(false)}
-                  className="rounded-[1rem] px-4 py-3 text-sm font-semibold text-brand-dark transition-colors hover:bg-slate-50"
-                >
-                  {item.label}
-                </a>
-              ))}
-            </div>
-            <div className="mb-1 h-px bg-slate-100" aria-hidden="true" />
             {shouldShowLoginAction ? (
               <ButtonPrimary
                 onClick={() => {
