@@ -388,7 +388,7 @@ function buildTiles(
       bigNumber: true,
       timestamp: lastDate && latestReading ? readingTimestampLabel(latestReading.createdAt) : undefined,
       visual: showSparkline ? (
-        <MiniBarChart data={sparklineData} accent="#52525b" width={84} height={44} />
+        <MiniBarChart data={sparklineData} accent="var(--ds-color-text-secondary)" width={84} height={44} />
       ) : undefined,
     });
   }

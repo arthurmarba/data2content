@@ -4,6 +4,8 @@ import { useState, useCallback } from "react";
 import type { ContentIdeaListItem } from "@/app/dashboard/boards/videoUpload/contentIdeasReadService";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
 import { DiagnosticoCloseButton } from "./DiagnosticoCloseButton";
+import { CollabModeBadge } from "./CollabModeBadge";
+import { color, shadow } from "@/design-system";
 
 interface Props {
   idea: ContentIdeaListItem;
@@ -28,7 +30,7 @@ interface Props {
 export function DiagnosticoIdeaDetailSheet({ idea, collab, isPro = false, decisionPending = false, onDecide, awaitingOtherSide = false, onOpenCreatorMediaKit, onUpgrade, onClose }: Props) {
   return (
     <div
-      className="fixed inset-0 z-[270] flex items-end bg-zinc-950/40 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] pt-[calc(env(safe-area-inset-top,0px)+1rem)]"
+      className="fixed inset-0 z-[270] flex items-end justify-center ds-scrim"
       role="presentation"
       onClick={onClose}
     >
@@ -36,22 +38,22 @@ export function DiagnosticoIdeaDetailSheet({ idea, collab, isPro = false, decisi
         role="dialog"
         aria-modal="true"
         aria-label="Pauta"
-        className="max-h-[calc(100dvh-env(safe-area-inset-top,0px)-1.75rem)] w-full max-w-md overflow-y-auto rounded-[1.5rem] border border-zinc-200 bg-white shadow-[0_28px_80px_rgba(24,24,27,0.18)] animate-in slide-in-from-bottom duration-300"
+        className="ds-sheet ds-enter-sheet"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Handle */}
         <div className="mb-2 flex justify-center pt-4" aria-hidden="true">
-          <div className="h-1 w-10 rounded-full bg-zinc-200" />
+          <div className="ds-sheet__handle !m-0" />
         </div>
 
         {/* Header */}
         <div className="flex items-start justify-between gap-3 px-6 pt-4 pb-5">
           <div className="min-w-0 flex-1">
             {/* Formato como badge/pill */}
-            <span className="inline-flex items-center rounded-full bg-violet-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.7px] text-violet-700 mb-2 whitespace-nowrap">
+            <span className="ds-badge mb-2 whitespace-nowrap uppercase tracking-[0.07em]">
               {idea.suggestedFormat}
             </span>
-            <h2 className="text-[19px] font-bold tracking-tight text-zinc-950 leading-snug">
+            <h2 className="font-display text-[1.55rem] font-bold tracking-[-0.035em] text-zinc-950 leading-[1.05]">
               {idea.title}
             </h2>
           </div>
@@ -177,13 +179,13 @@ export function DiagnosticoIdeaDetailSheet({ idea, collab, isPro = false, decisi
               className="grid h-12 w-12 place-items-center rounded-full border-[1.5px] border-zinc-200 bg-white"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M6 6l12 12M18 6L6 18" stroke="#a1a1aa" strokeWidth="2.2" strokeLinecap="round" />
+                <path d="M6 6l12 12M18 6L6 18" stroke="var(--ds-color-text-muted)" strokeWidth="2.2" strokeLinecap="round" />
               </svg>
             </button>
             <button
               type="button"
               onClick={() => onDecide("interested")}
-              className="inline-flex h-12 items-center gap-2 rounded-full bg-violet-600 px-6 text-[14px] font-bold text-white shadow-[0_6px_18px_rgba(124,58,237,0.35)] transition-transform duration-150 active:scale-[0.97]"
+                className="ds-button ds-button--primary"
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path d="M12 20.3l-7.1-6.8a4.6 4.6 0 0 1 0-6.7 5 5 0 0 1 6.9 0l.2.2.2-.2a5 5 0 0 1 6.9 0 4.6 4.6 0 0 1 0 6.7L12 20.3z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
@@ -221,7 +223,7 @@ function CollabContextBlock({
     // deck: uma pessoa merece peso próprio, sem virar caixa-dentro-de-caixa.
     <div
       className="rounded-2xl bg-violet-50/60 px-5 py-4"
-      style={{ boxShadow: "0 2px 8px rgba(124,58,237,0.10), 0 14px 32px rgba(124,58,237,0.16)" }}
+      style={{ boxShadow: shadow.raised }}
     >
       <p className="mb-3 text-[10px] font-bold uppercase tracking-[0.8px] text-violet-700">
         Collab pra essa pauta
@@ -273,7 +275,10 @@ function CollabContextBlock({
         )}
 
         <div>
-          <p className="text-[11px] font-bold tracking-tight text-zinc-500 uppercase">Por que {collab.name.split(" ")[0]} combina</p>
+          {/* Mesmo tratamento de rótulo do resto da ficha ("O roteiro",
+              "Ponto em comum") — antes cada seção do bloco de collab tinha
+              uma tipografia própria e o conjunto lia como remendos. */}
+          <p className="text-[10px] font-bold uppercase tracking-[0.8px] text-zinc-400">Por que {collab.name.split(" ")[0]} combina</p>
           <p className="mt-1 text-[14px] leading-relaxed text-zinc-700">{collab.narrativeFitReason}</p>
         </div>
       </div>
@@ -282,26 +287,8 @@ function CollabContextBlock({
       {collab.collabRecordingIdea ? (
         <div className="mt-3.5 border-t border-violet-100 pt-3.5">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-[11px] font-bold tracking-tight text-zinc-500">Como gravar essa collab</p>
-            {collab.collabMode === "presencial" && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.5px] text-zinc-600">
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
-                  <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z" />
-                  <circle cx="12" cy="10" r="2" />
-                </svg>
-                Presencial · mesma cidade
-              </span>
-            )}
-            {collab.collabMode === "remoto" && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2 py-0.5 text-[9.5px] font-bold uppercase tracking-[0.5px] text-zinc-600">
-                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0">
-                  <path d="M5 12a7 7 0 0 1 14 0" />
-                  <path d="M8.5 12a3.5 3.5 0 0 1 7 0" />
-                  <circle cx="12" cy="12" r="1" fill="currentColor" />
-                </svg>
-                À distância
-              </span>
-            )}
+            <p className="text-[10px] font-bold uppercase tracking-[0.8px] text-zinc-400">Como gravar essa collab</p>
+            {collab.collabMode ? <CollabModeBadge mode={collab.collabMode} /> : null}
           </div>
           <p className="mt-1 text-[14px] leading-relaxed text-zinc-700">{collab.collabRecordingIdea}</p>
         </div>
@@ -316,11 +303,11 @@ function CollabContextTeaser({ onUpgrade }: { onUpgrade?: () => void }) {
       type="button"
       onClick={onUpgrade}
       className="flex w-full items-center gap-3 rounded-2xl bg-violet-50/60 px-5 py-4 text-left"
-      style={{ boxShadow: "0 2px 8px rgba(124,58,237,0.10), 0 14px 32px rgba(124,58,237,0.16)" }}
+      style={{ boxShadow: shadow.raised }}
     >
       <div
         className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full"
-        style={{ background: "linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%)" }}
+        style={{ background: `linear-gradient(135deg, ${color.brandSoft}, ${color.brand})` }}
       >
         <span className="text-[18px] font-extrabold text-white" style={{ textShadow: "0 1px 2px rgba(76,29,149,0.45)" }}>?</span>
       </div>

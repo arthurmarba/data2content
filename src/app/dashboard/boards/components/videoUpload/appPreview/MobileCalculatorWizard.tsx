@@ -339,7 +339,7 @@ export function MobileCalculatorWizard({ open, onClose, onSaved, latestCalculati
           repostTikTok, instagramCollab, brandSize, imageRisk, strategicGain, contentModel,
           usePersonalReference: historyChoice === "use", allowStrategicWaiver: false,
           complexity: "simples", authority: "padrao", seasonality: "normal", periodDays: 90,
-          explanation: "Calculadora mobile do Mapa Estratégico.",
+          explanation: "Calculadora mobile do Mapa Estratégico.", source: "mobile_board",
         }),
       });
       const payload = await response.json().catch(() => ({}));
@@ -372,18 +372,18 @@ export function MobileCalculatorWizard({ open, onClose, onSaved, latestCalculati
   const methodLabel = visibleResult?.metrics?.reachMethod === "trimmed_mean" ? "média aparada" : visibleResult?.metrics?.reachMethod === "median" ? "mediana" : null;
 
   return (
-    <div className="fixed inset-0 z-[260] flex items-end justify-center bg-zinc-950/35 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] pt-8">
-      <section role="dialog" aria-modal="true" aria-labelledby="mobile-calculator-wizard-title" className="flex max-h-[min(88dvh,700px)] w-full max-w-md flex-col overflow-hidden rounded-[1.5rem] border border-zinc-200 bg-white shadow-2xl animate-in slide-in-from-bottom duration-300">
+    <div className="fixed inset-0 z-[260] flex items-end justify-center ds-scrim">
+      <section role="dialog" aria-modal="true" aria-labelledby="mobile-calculator-wizard-title" className="ds-sheet ds-enter-sheet flex max-h-[min(92dvh,740px)] flex-col overflow-hidden">
         <header className="shrink-0 px-5 pb-3.5 pt-3.5">
-          <div className="mx-auto mb-3 h-1 w-7 rounded-full bg-zinc-200" aria-hidden="true" />
+          <div className="ds-sheet__handle !mt-0 mb-3" aria-hidden="true" />
           <div className="flex items-start justify-between gap-4">
             <div className="flex min-w-0 items-start gap-2.5">
               {step > 0 ? <button type="button" aria-label="Voltar para a etapa anterior" onClick={() => setStep((previous) => (previous - 1) as WizardStep)} disabled={isSubmitting} className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full border border-zinc-200 text-base leading-none text-zinc-700 disabled:opacity-40">←</button> : null}
-              <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">Etapa {step + 1} de {wizardSteps.length}</p><h2 id="mobile-calculator-wizard-title" className="mt-0.5 text-[18px] font-bold leading-tight text-zinc-950">{currentStepCopy.title}</h2></div>
+              <div className="min-w-0"><p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500">Etapa {step + 1} de {wizardSteps.length}</p><h2 id="mobile-calculator-wizard-title" className="mt-0.5 font-display text-[1.45rem] font-bold leading-[1.05] tracking-[-0.03em] text-zinc-950">{currentStepCopy.title}</h2></div>
             </div>
             <DiagnosticoCloseButton onClose={close} ariaLabel="Fechar calculadora" disabled={isSubmitting} edgeAlign />
           </div>
-          <div className="mt-3 grid grid-cols-5 gap-1" aria-hidden="true">{wizardSteps.map((index) => <span key={index} className={index <= step ? "h-1 rounded-full bg-zinc-950" : "h-1 rounded-full bg-zinc-200"} />)}</div>
+          <div className="mt-3 grid grid-cols-5 gap-1" aria-hidden="true">{wizardSteps.map((index) => <span key={index} className={index <= step ? "h-1 rounded-full bg-[var(--ds-color-brand)]" : "h-1 rounded-full bg-zinc-200"} />)}</div>
         </header>
 
         <main className="min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-1">
@@ -422,9 +422,9 @@ export function MobileCalculatorWizard({ open, onClose, onSaved, latestCalculati
         </main>
 
         <footer className="shrink-0 border-t border-zinc-100 bg-white px-5 pb-5 pt-3">
-          {step < 3 ? <button type="button" className="h-11 w-full rounded-full bg-zinc-950 px-5 text-[13px] font-semibold text-white disabled:opacity-40" onClick={() => setStep((previous) => (previous + 1) as WizardStep)} disabled={step === 0 && !hasDeliverables}>Continuar</button> : null}
-          {step === 3 ? <button type="button" className="h-11 w-full rounded-full bg-zinc-950 px-5 text-[13px] font-semibold text-white disabled:opacity-40" onClick={submitCalculation} disabled={!hasDeliverables || !canUseHistory || isSubmitting}>Ver meu valor</button> : null}
-          {step === 4 ? <button type="button" className="h-11 w-full rounded-full bg-zinc-950 px-5 text-[13px] font-semibold text-white disabled:opacity-40" onClick={error ? submitCalculation : close} disabled={isSubmitting}>{error ? "Tentar de novo" : "Concluir"}</button> : null}
+          {step < 3 ? <button type="button" className="ds-button ds-button--primary ds-button--block" onClick={() => setStep((previous) => (previous + 1) as WizardStep)} disabled={step === 0 && !hasDeliverables}>Continuar</button> : null}
+          {step === 3 ? <button type="button" className="ds-button ds-button--primary ds-button--block" onClick={submitCalculation} disabled={!hasDeliverables || !canUseHistory || isSubmitting}>Ver meu valor</button> : null}
+          {step === 4 ? <button type="button" className="ds-button ds-button--primary ds-button--block" onClick={error ? submitCalculation : close} disabled={isSubmitting}>{error ? "Tentar de novo" : "Concluir"}</button> : null}
         </footer>
       </section>
     </div>

@@ -28,6 +28,7 @@ export function canRedeem(
   if (statusCur && curNorm !== statusCur) return false;
   const curSummary = summary.byCurrency?.[curNorm];
   if (!curSummary) return false;
+  if (curSummary.reconciliationStatus !== 'reconciled') return false;
   const min = curSummary.minRedeemCents ?? 0;
   return curSummary.availableCents >= min && curSummary.debtCents === 0;
 }
@@ -37,7 +38,8 @@ export type RedeemBlockReason =
   | 'payouts_disabled'
   | 'currency_mismatch'
   | 'below_min'
-  | 'has_debt';
+  | 'has_debt'
+  | 'ledger_out_of_sync';
 
 export function getRedeemBlockReason(
   status: AffiliateStatus | undefined,
@@ -54,6 +56,7 @@ export function getRedeemBlockReason(
   if (statusCur && curNorm !== statusCur) return 'currency_mismatch';
   const curSummary = summary.byCurrency?.[curNorm];
   if (!curSummary) return null;
+  if (curSummary.reconciliationStatus !== 'reconciled') return 'ledger_out_of_sync';
   if (curSummary.debtCents > 0) return 'has_debt';
   const min = curSummary.minRedeemCents ?? 0;
   if (curSummary.availableCents < min) return 'below_min';

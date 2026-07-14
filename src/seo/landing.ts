@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
-import faqItems from "@/data/faq";
+import { LANDING_PLAN_PRICE_AMOUNT } from "@/app/landing/copy";
 
 const SITE_URL = "https://data2content.ai";
 const HOME_SHARE_LOGO_URL = `${SITE_URL}/images/Colorido-Simbolo.png`;
 
 // OG title: ≤60 chars — aparece em negrito no preview do WhatsApp/social
-const OG_TITLE = "Data2Content — Entenda o que seu conteúdo diz sobre você";
+const OG_TITLE = "Data2Content — Pautas com a sua cara";
 
 // OG description: ≤160 chars — aparece como texto abaixo do título
 const OG_DESCRIPTION =
-  "Descubra o que está funcionando, receba ideias prontas para postar e encontre criadores para crescer junto.";
+  "Descubra sua narrativa, receba pautas personalizadas e encontre creators para collabs que dão match.";
 
 export const landingMetadata: Metadata = {
   title: OG_TITLE,
@@ -57,11 +57,11 @@ export const landingProductJsonLd = {
   "@type": "SoftwareApplication",
   name: "data2content",
   description:
-    "Analise seus posts, organize sua rotina e apareça para marcas com IA. Crie seu mídia kit e receba propostas no mesmo lugar.",
+    "Consultoria de conteúdo com IA para descobrir sua narrativa, criar pautas personalizadas, encontrar collabs e crescer como negócio.",
   applicationCategory: "MarketingApplication",
   offers: {
     "@type": "Offer",
-    price: "0",
+    price: LANDING_PLAN_PRICE_AMOUNT,
     priceCurrency: "BRL",
   },
 };
@@ -78,17 +78,4 @@ export const landingOrganizationJsonLd = {
     "https://twitter.com/data2content",
     "https://www.instagram.com/data2content",
   ],
-};
-
-export const landingFaqJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  mainEntity: faqItems.map((item) => ({
-    "@type": "Question",
-    name: item.q,
-    acceptedAnswer: {
-      "@type": "Answer",
-      text: item.a,
-    },
-  })),
 };

@@ -168,6 +168,7 @@ const videoNarrativeResponseJsonSchema = {
     "collabOpportunities",
     "contentContext",
     "narrativeCoherence",
+    "contentPotentialScan",
     "evidenceAnchors",
   ],
   propertyOrdering: [
@@ -187,6 +188,7 @@ const videoNarrativeResponseJsonSchema = {
     "collabOpportunities",
     "contentContext",
     "narrativeCoherence",
+    "contentPotentialScan",
     "evidenceAnchors",
   ],
   properties: {
@@ -239,6 +241,80 @@ const videoNarrativeResponseJsonSchema = {
         reasoning: nullableShortStringSchema,
         alignedAssets: shortStringArraySchema(),
         newAssets: shortStringArraySchema(),
+      },
+    },
+    contentPotentialScan: {
+      type: "object",
+      additionalProperties: false,
+      required: [
+        "band",
+        "confidence",
+        "basis",
+        "objective",
+        "historyPostsAnalyzed",
+        "dimensions",
+        "watchedMoments",
+        "practicalDirection",
+        "highestImpactAdjustment",
+        "disclaimer",
+      ],
+      properties: {
+        band: { type: "string", enum: ["strong", "promising_with_adjustment", "uncertain", "weak_signals"] },
+        confidence: { type: "string", enum: ["low", "medium", "high"] },
+        basis: { type: "string", enum: ["video_only", "creator_history"] },
+        objective: { type: "string", enum: ["attention", "sharing", "positioning", "complete_reading"] },
+        historyPostsAnalyzed: { type: "integer", minimum: 0 },
+        dimensions: {
+          type: "object",
+          additionalProperties: false,
+          required: ["openingClarity", "attentionArchitecture", "shareImpulse", "promiseDelivery", "narrativeFit"],
+          properties: Object.fromEntries(
+            [
+              ["openingClarity", "0-3s"],
+              ["attentionArchitecture", "0-10s"],
+              ["shareImpulse", "full_video"],
+              ["promiseDelivery", "full_video"],
+              ["narrativeFit", "creator_history"],
+            ].map(([key, window]) => [key, {
+              type: "object",
+              additionalProperties: false,
+              required: ["status", "evidence", "adjustment", "window"],
+              properties: {
+                status: { type: "string", enum: ["strong", "mixed", "weak", "unknown"] },
+                evidence: shortStringSchema,
+                adjustment: nullableShortStringSchema,
+                window: { type: "string", enum: [window] },
+              },
+            }]),
+          ),
+        },
+        watchedMoments: {
+          type: "array",
+          minItems: 2,
+          maxItems: 3,
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["moment", "observation", "impact"],
+            properties: {
+              moment: { type: "string", enum: ["opening", "development", "closing"] },
+              observation: shortStringSchema,
+              impact: shortStringSchema,
+            },
+          },
+        },
+        practicalDirection: {
+          type: "object",
+          additionalProperties: false,
+          required: ["title", "action", "example"],
+          properties: {
+            title: shortStringSchema,
+            action: { type: "string", maxLength: 320 },
+            example: nullableShortStringSchema,
+          },
+        },
+        highestImpactAdjustment: shortStringSchema,
+        disclaimer: shortStringSchema,
       },
     },
     evidenceAnchors: {

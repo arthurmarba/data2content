@@ -40,9 +40,9 @@ jest.mock(
   }),
 );
 
-const mockEnqueueVideo = jest.fn().mockResolvedValue(undefined);
-jest.mock("@/app/lib/mapaSeed/enqueueMapaVideoEnrichment", () => ({
-  enqueueMapaVideoEnrichment: (...args: unknown[]) => mockEnqueueVideo(...args),
+const mockEnrichVideo = jest.fn().mockResolvedValue(undefined);
+jest.mock("@/app/lib/mapaSeed/enrichMapaSeedWithVideoForUser", () => ({
+  enrichMapaSeedWithVideoForUser: (...args: unknown[]) => mockEnrichVideo(...args),
 }));
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -109,7 +109,7 @@ describe("PATCH /diagnosis/[id]/publish-intent", () => {
     expect(body.message).toMatch(/'yes' ou 'no'/);
   });
 
-  it("salva publishIntent='yes' e retorna ok, SEM re-síntese, COM enqueue de vídeo", async () => {
+  it("salva publishIntent='yes' e retorna ok, SEM re-síntese, COM enriquecimento de vídeo", async () => {
     authenticatedSession();
 
     const res = await PATCH(makeRequest({ publishIntent: "yes" }), makeParams());
@@ -118,20 +118,44 @@ describe("PATCH /diagnosis/[id]/publish-intent", () => {
     expect(res.status).toBe(200);
     expect(body).toEqual({ ok: true, publishIntent: "yes" });
     expect(mockRunSynthesis).not.toHaveBeenCalled();
-    expect(mockEnqueueVideo).toHaveBeenCalledWith("665f0f2c8a0b7d1f2c3a4b5c");
+    expect(mockEnrichVideo).toHaveBeenCalledWith("665f0f2c8a0b7d1f2c3a4b5c");
+    expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ diagnosisId: "diag-abc" }),
+      expect.objectContaining({
+        $set: expect.objectContaining({ publishIntent: "yes", publishDecisionAt: expect.any(Date) }),
+      }),
+      { new: true },
+    );
   });
 
-  it("declarar 'no' NÃO enfileira enriquecimento de vídeo", async () => {
+  it("vincula o media ID quando ele já está disponível", async () => {
+    authenticatedSession();
+
+    await PATCH(
+      makeRequest({ publishIntent: "yes", instagramMediaId: "ig-media-123" }),
+      makeParams(),
+    );
+
+    expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({
+        $set: expect.objectContaining({ linkedInstagramMediaId: "ig-media-123" }),
+      }),
+      { new: true },
+    );
+  });
+
+  it("declarar 'no' NÃO executa enriquecimento de vídeo", async () => {
     authenticatedSession();
 
     await PATCH(makeRequest({ publishIntent: "no" }), makeParams());
 
-    expect(mockEnqueueVideo).not.toHaveBeenCalled();
+    expect(mockEnrichVideo).not.toHaveBeenCalled();
   });
 
-  it("enqueue de vídeo é non-fatal: retorna 200 mesmo se falhar", async () => {
+  it("enriquecimento de vídeo é non-fatal: retorna 200 mesmo se falhar", async () => {
     authenticatedSession();
-    mockEnqueueVideo.mockRejectedValueOnce(new Error("QStash fora do ar"));
+    mockEnrichVideo.mockRejectedValueOnce(new Error("serviço fora do ar"));
 
     const res = await PATCH(makeRequest({ publishIntent: "yes" }), makeParams());
     const body = await res.json();

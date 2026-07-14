@@ -65,7 +65,7 @@ export function MobileStrategicProfileMediaKitModal({
 
         <p className="mt-3 text-sm leading-6 text-zinc-600">{description}</p>
 
-        <div className="mt-5 rounded-[1.5rem] border border-zinc-200 bg-[#f7f7f4] p-4">
+        <div className="mt-5 rounded-[1.5rem] border border-zinc-200 bg-[var(--ds-color-neutral)] p-4">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <h3 className="truncate text-base font-semibold text-zinc-950">{identity.displayName}</h3>

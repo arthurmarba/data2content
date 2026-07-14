@@ -13,7 +13,7 @@ describe("videoNarrativeTemporaryStorageRuntimeAdapter", () => {
     VIDEO_NARRATIVE_TEMP_STORAGE_BUCKET: "d2c-temp",
     VIDEO_NARRATIVE_TEMP_STORAGE_ACCESS_KEY_ID: "key",
     VIDEO_NARRATIVE_TEMP_STORAGE_SECRET_ACCESS_KEY: "secret",
-    VIDEO_NARRATIVE_TEMP_UPLOAD_MAX_MB: "100",
+    VIDEO_NARRATIVE_TEMP_UPLOAD_MAX_MB: "300",
   };
 
   const baseInput = {
@@ -74,13 +74,59 @@ describe("videoNarrativeTemporaryStorageRuntimeAdapter", () => {
 
     it("rejeita sizeBytes acima do limite", async () => {
       const res = await resolveVideoNarrativeTemporaryStorageInput({
-        input: { ...baseInput, sizeBytes: 200 * 1024 * 1024 }, // 200MB
+        input: { ...baseInput, sizeBytes: 350 * 1024 * 1024 }, // 350MB
         env: baseEnv,
       });
       expect(res.ok).toBe(false);
       if (!res.ok) {
         expect(res.status).toBe("object_too_large");
         expect(res.issues[0].code).toBe("exceeds_max_size");
+      }
+    });
+
+    it("rejeita o ContentLength real acima de 300MB antes de baixar o body", async () => {
+      const transformToByteArray = jest.fn();
+      const fakeS3Client = {
+        send: jest.fn().mockResolvedValue({
+          ContentLength: 300 * 1024 * 1024 + 1,
+          Body: { transformToByteArray },
+        }),
+      } as unknown as S3Client;
+
+      const res = await resolveVideoNarrativeTemporaryStorageInput({
+        input: { ...baseInput, sizeBytes: 1024 },
+        env: baseEnv,
+        s3Client: fakeS3Client,
+      });
+
+      expect(res).toEqual(expect.objectContaining({ ok: false, status: "object_too_large" }));
+      expect(transformToByteArray).not.toHaveBeenCalled();
+    });
+
+    it("aceita e streama vídeo acima de 100MB quando o limite central permite 300MB", async () => {
+      const { Readable } = await import("node:stream");
+      const { readFile, unlink } = await import("node:fs/promises");
+      const payload = Buffer.from("conteudo-simulado-de-video-145mb");
+      const fakeS3Client = {
+        send: jest.fn().mockResolvedValue({
+          Body: Readable.from([payload]),
+        }),
+      } as unknown as S3Client;
+
+      const res = await resolveVideoNarrativeTemporaryStorageInput({
+        input: { ...baseInput, sizeBytes: 145 * 1024 * 1024 },
+        env: baseEnv,
+        s3Client: fakeS3Client,
+      });
+
+      expect(res.ok).toBe(true);
+      if (res.ok) {
+        expect(res.status).toBe("ready");
+        expect(res.geminiInput.bytes).toBeUndefined();
+        expect(res.geminiInput.filePath).toEqual(expect.stringContaining("d2c-r2-video-"));
+        const written = await readFile(res.geminiInput.filePath!);
+        expect(written.equals(payload)).toBe(true);
+        await unlink(res.geminiInput.filePath!).catch(() => undefined);
       }
     });
 

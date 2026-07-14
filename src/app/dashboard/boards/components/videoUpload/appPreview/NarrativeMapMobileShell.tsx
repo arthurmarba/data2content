@@ -17,21 +17,23 @@ import {
 import {
   MOBILE_COMMUNITY_ROUTE,
 } from "../../../videoUpload/mobileStrategicProfileRoutes";
+import { color, font, shadow } from "@/design-system";
+import { d2cFontVariables } from "@/app/fonts/d2cFonts";
 
 // ─── Design tokens ─────────────────────────────────────────────────────────
 
-const GRADIENT_BG = "linear-gradient(180deg, #fed7aa 0%, #fbcfe8 60%, #e9d5ff 100%)";
-const SOLID_BG = "#f2f2f7";
+const GRADIENT_BG = `linear-gradient(180deg, ${color.paper} 0%, ${color.neutral} 100%)`;
+const SOLID_BG = color.paper;
 
 const CATEGORY_MAP = {
-  diagnostico: { label: "Diagnóstico",         color: "#ff6b35", bg: "#ffe7d6" },
-  foco:        { label: "Foco Estratégico",     color: "#34c759", bg: "#d5f5dd" },
-  narrativa:   { label: "Sua Narrativa",        color: "#ff9500", bg: "#ffeac4" },
-  execucao:    { label: "Como Você Executa",    color: "#af52de", bg: "#ecd6f8" },
-  instagram:   { label: "Instagram",            color: "#5e5ce6", bg: "#dbdaf9" },
-  marcas:      { label: "Marcas Recomendadas",  color: "#5856d6", bg: "#dad8f6" },
-  collabs:     { label: "Collabs Indicadas",    color: "#ff2d55", bg: "#ffcfd8" },
-  analises:    { label: "Suas Análises",        color: "#48484a", bg: "#e5e5ea" },
+  diagnostico: { label: "Diagnóstico",          color: color.ink,     bg: color.neutral },
+  foco:        { label: "Foco Estratégico",     color: color.success, bg: color.successSoft },
+  narrativa:   { label: "Sua Narrativa",        color: color.brand,   bg: color.brandSoft },
+  execucao:    { label: "Como Você Executa",    color: color.ink,     bg: color.neutral },
+  instagram:   { label: "Instagram",            color: color.map,     bg: color.warningSoft },
+  marcas:      { label: "Marcas Recomendadas",  color: color.ink,     bg: color.neutral },
+  collabs:     { label: "Collabs Indicadas",    color: color.brand,   bg: color.brandSoft },
+  analises:    { label: "Suas Análises",        color: color.ink,     bg: color.neutral },
 } as const;
 
 type CategoryKey = keyof typeof CATEGORY_MAP;
@@ -132,14 +134,14 @@ function GlyphPlay({ size = 14 }: { size?: number }) {
 
 function GlyphChevronRight() {
   return (
-    <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ color: "#c7c7cc" }}>
+    <svg width="11" height="11" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ color: "var(--ds-color-line-strong)" }}>
       <path d="M5 3l4 4-4 4" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
 function GlyphProfile({ active }: { active: boolean }) {
-  const c = active ? "#09090b" : "#71717a";
+  const c = active ? "var(--ds-color-ink)" : "var(--ds-color-text-secondary)";
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
       <circle cx="11" cy="7.5" r="3.5" stroke={c} strokeWidth="1.6" fill={active ? c : "none"} />
@@ -149,7 +151,7 @@ function GlyphProfile({ active }: { active: boolean }) {
 }
 
 function GlyphCommunity({ active }: { active: boolean }) {
-  const c = active ? "#09090b" : "#71717a";
+  const c = active ? "var(--ds-color-ink)" : "var(--ds-color-text-secondary)";
   return (
     <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden="true">
       <circle cx="7" cy="8" r="2.8" stroke={c} strokeWidth="1.6" fill={active ? c : "none"} />
@@ -173,12 +175,12 @@ function HealthCard({
   const baseStyle: React.CSSProperties = {
     width: "100%",
     textAlign: "left",
-    fontFamily: "inherit",
+    fontFamily: font.sans,
     padding: "20px 22px 22px",
     borderRadius: 22,
-    background: "#ffffff",
-    border: "none",
-    boxShadow: "0 1px 1px rgba(28,28,30,0.04), 0 4px 16px -8px rgba(9,9,11,0.1)",
+    background: color.surface,
+    border: `1px solid ${color.line}`,
+    boxShadow: shadow.raised,
     display: "flex",
     flexDirection: "column",
     minHeight: 136,
@@ -225,7 +227,7 @@ function CardHeader({ category, time, label }: { category: string; time?: string
       <CategoryLabel category={category} label={label} />
       <span style={{ display: "inline-flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
         {time ? (
-          <span style={{ fontSize: 13, color: "#8e8e93", fontWeight: 400, letterSpacing: -0.1 }}>
+          <span style={{ fontSize: 13, color: "var(--ds-color-text-muted)", fontWeight: 400, letterSpacing: -0.1 }}>
             {time}
           </span>
         ) : null}
@@ -247,7 +249,7 @@ function SectionTitle({ title, action, onAction }: { title: string; action?: str
         gap: 10,
       }}
     >
-      <h2 style={{ fontSize: 22, fontWeight: 700, color: "#1c1c1e", margin: 0, letterSpacing: -0.55 }}>
+      <h2 style={{ fontSize: 22, fontWeight: 700, color: "var(--ds-color-ink)", margin: 0, letterSpacing: -0.55 }}>
         {title}
       </h2>
       {action && onAction ? (
@@ -258,7 +260,7 @@ function SectionTitle({ title, action, onAction }: { title: string; action?: str
             background: "transparent",
             border: "none",
             padding: 0,
-            color: "#007aff",
+            color: "var(--ds-color-brand)",
             fontSize: 17,
             fontWeight: 400,
             cursor: "pointer",
@@ -293,7 +295,7 @@ function OpportunityDetailSheet({
   const cta = OPPORTUNITY_CTA[item.type] ?? { label: "Ver mais", href: "/" };
   return (
     <div
-      className="fixed inset-0 z-[80] flex items-end bg-black/35 px-2 pb-2 pt-8"
+      className="fixed inset-0 z-[80] flex items-end justify-center ds-scrim"
       role="presentation"
       onClick={onClose}
     >
@@ -301,11 +303,11 @@ function OpportunityDetailSheet({
         role="dialog"
         aria-modal="true"
         aria-labelledby="opportunity-sheet-title"
-        className="max-h-[88dvh] w-full overflow-y-auto rounded-[1.75rem] bg-white px-5 pb-7 pt-4 shadow-2xl animate-in slide-in-from-bottom duration-300"
+        className="ds-sheet ds-enter-sheet px-5 pb-7 pt-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex justify-center">
-          <div className="h-1 w-10 rounded-full bg-zinc-200" />
+          <div className="ds-sheet__handle !m-0" />
         </div>
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
@@ -314,7 +316,7 @@ function OpportunityDetailSheet({
                 {item.badgeLabel}
               </span>
             ) : null}
-            <h3 id="opportunity-sheet-title" className="mt-2 text-[19px] font-semibold leading-[1.2] tracking-tight text-zinc-950">
+            <h3 id="opportunity-sheet-title" className="mt-2 font-display text-[1.5rem] font-bold leading-[1.05] tracking-[-0.035em] text-zinc-950">
               {item.title}
             </h3>
           </div>
@@ -382,7 +384,7 @@ function ReadingDetailModal({
   if (!reading) return null;
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end bg-black/35 px-2 pb-2 pt-8"
+      className="fixed inset-0 z-[60] flex items-end justify-center ds-scrim"
       role="presentation"
       onClick={onClose}
     >
@@ -390,18 +392,18 @@ function ReadingDetailModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="reading-detail-title"
-        className="max-h-[88dvh] w-full overflow-y-auto rounded-[1.75rem] bg-white px-5 pb-7 pt-4 shadow-2xl animate-in slide-in-from-bottom duration-300"
+        className="ds-sheet ds-enter-sheet px-5 pb-7 pt-4"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex justify-center">
-          <div className="h-1 w-10 rounded-full bg-zinc-200" />
+          <div className="ds-sheet__handle !m-0" />
         </div>
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-[10.5px] font-bold uppercase tracking-widest text-zinc-400">
               {reading.dateLabel}
             </p>
-            <h3 id="reading-detail-title" className="mt-1 text-[19px] font-semibold leading-[1.2] tracking-tight text-zinc-950">
+            <h3 id="reading-detail-title" className="mt-1 font-display text-[1.5rem] font-bold leading-[1.05] tracking-[-0.035em] text-zinc-950">
               {reading.rememberedAs}
             </h3>
           </div>
@@ -445,7 +447,7 @@ function GhostLine({ width }: { width: string }) {
       style={{
         height: 9,
         borderRadius: 4,
-        background: "#ededec",
+        background: "var(--ds-color-neutral)",
         width,
       }}
     />
@@ -629,11 +631,11 @@ export function NarrativeMapMobileShell({
     <div
       className={
         appFrame
-          ? "relative h-dvh w-full overflow-hidden"
-          : "relative mx-auto w-full max-w-sm overflow-hidden rounded-[2rem] border border-zinc-200 bg-zinc-950 p-2 shadow-xl"
+          ? `d2c-mobile-app ${d2cFontVariables} relative h-dvh w-full overflow-hidden`
+          : `d2c-mobile-app ${d2cFontVariables} relative mx-auto w-full max-w-sm overflow-hidden rounded-[2rem] border border-zinc-200 bg-zinc-950 p-2 shadow-xl`
       }
       style={{
-        fontFamily: '-apple-system, "SF Pro Display", "SF Pro Text", Inter, system-ui, sans-serif',
+        fontFamily: font.sans,
         WebkitFontSmoothing: "antialiased",
         background: appFrame ? SOLID_BG : undefined,
       } as React.CSSProperties}
@@ -713,7 +715,7 @@ export function NarrativeMapMobileShell({
                   borderRadius: 9999,
                   flexShrink: 0,
                   background: "rgba(255,255,255,0.9)",
-                  color: "#27272a",
+                  color: "var(--ds-color-text)",
                   border: "1px solid rgba(255,255,255,0.6)",
                   backdropFilter: "blur(10px) saturate(180%)",
                   WebkitBackdropFilter: "blur(10px) saturate(180%)",
@@ -737,8 +739,8 @@ export function NarrativeMapMobileShell({
                   height: 38,
                   borderRadius: 9999,
                   flexShrink: 0,
-                  background: "#1c1c1e",
-                  color: "#fff",
+                  background: "var(--ds-color-ink)",
+                  color: "var(--ds-color-on-brand)",
                   border: "2px solid rgba(255,255,255,0.7)",
                   cursor: "pointer",
                   display: "grid",
@@ -771,7 +773,7 @@ export function NarrativeMapMobileShell({
                 style={{
                   fontSize: 22,
                   fontWeight: 700,
-                  color: "#1c1c1e",
+                  color: "var(--ds-color-ink)",
                   margin: 0,
                   letterSpacing: -0.4,
                   lineHeight: 1.15,
@@ -782,7 +784,7 @@ export function NarrativeMapMobileShell({
               <p
                 style={{
                   fontSize: 16,
-                  color: "#3a3a3c",
+                  color: "var(--ds-color-text-secondary)",
                   margin: "5px 0 0",
                   fontWeight: 400,
                   letterSpacing: -0.2,
@@ -814,8 +816,8 @@ export function NarrativeMapMobileShell({
                   height: 40,
                   borderRadius: 9999,
                   flexShrink: 0,
-                  background: "#1c1c1e",
-                  color: "#fff",
+                  background: "var(--ds-color-ink)",
+                  color: "var(--ds-color-on-brand)",
                   display: "grid",
                   placeItems: "center",
                   fontWeight: 600,
@@ -842,7 +844,7 @@ export function NarrativeMapMobileShell({
                   style={{
                     fontSize: 15,
                     fontWeight: 600,
-                    color: "#1c1c1e",
+                    color: "var(--ds-color-ink)",
                     margin: 0,
                     letterSpacing: -0.25,
                     whiteSpace: "nowrap",
@@ -855,7 +857,7 @@ export function NarrativeMapMobileShell({
                 <p
                   style={{
                     fontSize: 12.5,
-                    color: "#3a3a3c",
+                    color: "var(--ds-color-text-secondary)",
                     margin: "1px 0 0",
                     letterSpacing: -0.1,
                     fontWeight: 400,
@@ -864,7 +866,7 @@ export function NarrativeMapMobileShell({
                   {viewModel.profileHeader.displayHandle}
                   {hasReadings ? (
                     <>
-                      <span style={{ margin: "0 5px", color: "#8e8e93" }}>·</span>
+                      <span style={{ margin: "0 5px", color: "var(--ds-color-text-muted)" }}>·</span>
                       <span style={{ fontWeight: 500 }}>
                         {readingsCount} análise{numericReadingsCount !== 1 ? "s" : ""}
                       </span>
@@ -903,8 +905,8 @@ export function NarrativeMapMobileShell({
                   style={{
                     padding: 16,
                     borderRadius: 20,
-                    background: "#1c1c1e",
-                    color: "#fff",
+                    background: "var(--ds-color-ink)",
+                    color: "var(--ds-color-on-brand)",
                   }}
                 >
                   <p
@@ -923,7 +925,7 @@ export function NarrativeMapMobileShell({
                     style={{
                       fontSize: 18,
                       fontWeight: 700,
-                      color: "#fff",
+                      color: "var(--ds-color-on-brand)",
                       margin: "6px 0 0",
                       letterSpacing: -0.4,
                     }}
@@ -949,8 +951,8 @@ export function NarrativeMapMobileShell({
                       gap: 8,
                       padding: "10px 18px",
                       borderRadius: 11,
-                      background: "#fff",
-                      color: "#1c1c1e",
+                      background: "var(--ds-color-surface)",
+                      color: "var(--ds-color-ink)",
                       border: "none",
                       fontSize: 13.5,
                       fontWeight: 600,
@@ -978,11 +980,11 @@ export function NarrativeMapMobileShell({
                     background:
                       accessState === "payment_pending" || accessState === "pro_quota_reached"
                         ? "#fffbeb"
-                        : "#fff",
+                        : "var(--ds-color-surface)",
                     border: `1px solid ${
                       accessState === "payment_pending" || accessState === "pro_quota_reached"
                         ? "#fef3c7"
-                        : "#f4f4f5"
+                        : "var(--ds-color-neutral)"
                     }`,
                     boxShadow: "0 2px 8px rgba(9,9,11,0.05)",
                   }}
@@ -991,7 +993,7 @@ export function NarrativeMapMobileShell({
                     style={{
                       fontSize: 13.5,
                       fontWeight: 600,
-                      color: "#09090b",
+                      color: "var(--ds-color-ink)",
                       margin: 0,
                       letterSpacing: -0.2,
                     }}
@@ -1002,7 +1004,7 @@ export function NarrativeMapMobileShell({
                     style={{
                       fontSize: 12,
                       lineHeight: 1.5,
-                      color: "#52525b",
+                      color: "var(--ds-color-text-secondary)",
                       margin: "4px 0 0",
                     }}
                   >
@@ -1016,8 +1018,8 @@ export function NarrativeMapMobileShell({
                         height: 34,
                         padding: "0 16px",
                         borderRadius: 9999,
-                        background: "#09090b",
-                        color: "#fff",
+                        background: "var(--ds-color-ink)",
+                        color: "var(--ds-color-on-brand)",
                         border: "none",
                         fontSize: 12.5,
                         fontWeight: 600,
@@ -1035,9 +1037,9 @@ export function NarrativeMapMobileShell({
                           height: 34,
                           padding: "0 16px",
                           borderRadius: 9999,
-                          background: "#fff",
-                          color: "#09090b",
-                          border: "1px solid #e4e4e7",
+                          background: "var(--ds-color-surface)",
+                          color: "var(--ds-color-ink)",
+                          border: "1px solid var(--ds-color-line)",
                           fontSize: 12.5,
                           fontWeight: 600,
                           cursor: "pointer",
@@ -1082,7 +1084,7 @@ export function NarrativeMapMobileShell({
                       borderRadius: 12,
                       flexShrink: 0,
                       background: "linear-gradient(135deg, #fbbf24 0%, #ec4899 50%, #8b5cf6 100%)",
-                      color: "#fff",
+                      color: "var(--ds-color-on-brand)",
                       display: "grid",
                       placeItems: "center",
                     }}
@@ -1098,7 +1100,7 @@ export function NarrativeMapMobileShell({
                       style={{
                         fontSize: 13.5,
                         fontWeight: 600,
-                        color: "#27272a",
+                        color: "var(--ds-color-text)",
                         margin: 0,
                         letterSpacing: -0.1,
                       }}
@@ -1108,7 +1110,7 @@ export function NarrativeMapMobileShell({
                     <p
                       style={{
                         fontSize: 11.5,
-                        color: "#71717a",
+                        color: "var(--ds-color-text-secondary)",
                         margin: "2px 0 0",
                         lineHeight: 1.4,
                       }}
@@ -1122,7 +1124,7 @@ export function NarrativeMapMobileShell({
                     viewBox="0 0 14 14"
                     fill="none"
                     aria-hidden="true"
-                    style={{ color: "#a1a1aa" }}
+                    style={{ color: "var(--ds-color-text-muted)" }}
                   >
                     <path
                       d="M5 3l4 4-4 4"
@@ -1157,7 +1159,7 @@ export function NarrativeMapMobileShell({
                       borderRadius: 9999,
                       flexShrink: 0,
                       background: "#059669",
-                      color: "#fff",
+                      color: "var(--ds-color-on-brand)",
                       display: "grid",
                       placeItems: "center",
                     }}
@@ -1198,7 +1200,7 @@ export function NarrativeMapMobileShell({
                       style={{
                         fontSize: 21,
                         fontWeight: 700,
-                        color: hasReadings ? "#1c1c1e" : "#a1a1aa",
+                        color: hasReadings ? "var(--ds-color-ink)" : "var(--ds-color-text-muted)",
                         margin: 0,
                         letterSpacing: -0.5,
                         lineHeight: 1.15,
@@ -1211,7 +1213,7 @@ export function NarrativeMapMobileShell({
                     <p
                       style={{
                         fontSize: 14,
-                        color: "#8e8e93",
+                        color: "var(--ds-color-text-muted)",
                         margin: "6px 0 0",
                         fontWeight: 400,
                         letterSpacing: -0.1,
@@ -1227,7 +1229,7 @@ export function NarrativeMapMobileShell({
                     <Ring
                       size={56}
                       pct={hasReadings ? numericReadingsCount / Math.max(adminLimit, 10) : 0}
-                      color="#ff6b35"
+                      color="var(--ds-color-map)"
                       track="#ffe7d6"
                       strokeW={4.5}
                     />
@@ -1239,7 +1241,7 @@ export function NarrativeMapMobileShell({
                         placeItems: "center",
                         fontSize: 19,
                         fontWeight: 700,
-                        color: hasReadings ? "#ff6b35" : "#e5e5ea",
+                        color: hasReadings ? "var(--ds-color-map)" : "var(--ds-color-line)",
                         letterSpacing: -0.4,
                         fontVariantNumeric: "tabular-nums",
                       }}
@@ -1274,7 +1276,7 @@ export function NarrativeMapMobileShell({
                           style={{
                             fontSize: 19,
                             fontWeight: 700,
-                            color: "#1c1c1e",
+                            color: "var(--ds-color-ink)",
                             margin: 0,
                             letterSpacing: -0.45,
                             lineHeight: 1.2,
@@ -1286,7 +1288,7 @@ export function NarrativeMapMobileShell({
                           <p
                             style={{
                               fontSize: 14,
-                              color: "#8e8e93",
+                              color: "var(--ds-color-text-muted)",
                               margin: "6px 0 0",
                               fontWeight: 400,
                               letterSpacing: -0.1,
@@ -1328,7 +1330,7 @@ export function NarrativeMapMobileShell({
                         style={{
                           fontSize: 19,
                           fontWeight: 700,
-                          color: "#c7c7cc",
+                          color: "var(--ds-color-line-strong)",
                           margin: 0,
                           letterSpacing: -0.45,
                           lineHeight: 1.2,
@@ -1367,7 +1369,7 @@ export function NarrativeMapMobileShell({
                         style={{
                           fontSize: 19,
                           fontWeight: 700,
-                          color: "#1c1c1e",
+                          color: "var(--ds-color-ink)",
                           margin: 0,
                           letterSpacing: -0.45,
                         }}
@@ -1377,7 +1379,7 @@ export function NarrativeMapMobileShell({
                       <p
                         style={{
                           fontSize: 14,
-                          color: "#8e8e93",
+                          color: "var(--ds-color-text-muted)",
                           margin: "6px 0 0",
                           fontWeight: 400,
                           letterSpacing: -0.1,
@@ -1391,7 +1393,7 @@ export function NarrativeMapMobileShell({
                         {precisionItems[0]?.preview ?? "Instagram sincronizado com o Perfil"}
                       </p>
                     </div>
-                    <SparkBars values={[3, 5, 4, 8, 18]} color="#5e5ce6" faint="#d6d4f7" />
+                    <SparkBars values={[3, 5, 4, 8, 18]} color="var(--ds-color-brand)" faint="#d6d4f7" />
                   </div>
                 </HealthCard>
               ) : (
@@ -1410,7 +1412,7 @@ export function NarrativeMapMobileShell({
                       style={{
                         fontSize: 19,
                         fontWeight: 700,
-                        color: "#1c1c1e",
+                        color: "var(--ds-color-ink)",
                         margin: 0,
                         letterSpacing: -0.45,
                       }}
@@ -1420,7 +1422,7 @@ export function NarrativeMapMobileShell({
                     <p
                       style={{
                         fontSize: 14,
-                        color: "#8e8e93",
+                        color: "var(--ds-color-text-muted)",
                         margin: "6px 0 0",
                         fontWeight: 400,
                         letterSpacing: -0.1,
@@ -1462,7 +1464,7 @@ export function NarrativeMapMobileShell({
                         style={{
                           fontSize: 28,
                           fontWeight: 700,
-                          color: "#1c1c1e",
+                          color: "var(--ds-color-ink)",
                           letterSpacing: -0.7,
                           lineHeight: 1.1,
                         }}
@@ -1472,7 +1474,7 @@ export function NarrativeMapMobileShell({
                       <span
                         style={{
                           fontSize: 14,
-                          color: "#8e8e93",
+                          color: "var(--ds-color-text-muted)",
                           fontWeight: 400,
                           letterSpacing: -0.1,
                         }}
@@ -1511,7 +1513,7 @@ export function NarrativeMapMobileShell({
                         fontFamily: "inherit",
                         padding: 0,
                         borderRadius: 18,
-                        background: "#fff",
+                        background: "var(--ds-color-surface)",
                         border: "none",
                         boxShadow: "0 1px 2px rgba(9,9,11,0.04)",
                         overflow: "hidden",
@@ -1542,8 +1544,8 @@ export function NarrativeMapMobileShell({
                               height: 40,
                               borderRadius: 11,
                               flexShrink: 0,
-                              background: "#1c1c1e",
-                              color: "#fff",
+                              background: "var(--ds-color-ink)",
+                              color: "var(--ds-color-on-brand)",
                               display: "grid",
                               placeItems: "center",
                             }}
@@ -1558,7 +1560,7 @@ export function NarrativeMapMobileShell({
                               fontWeight: 700,
                               letterSpacing: 0.6,
                               textTransform: "uppercase",
-                              color: "#a1a1aa",
+                              color: "var(--ds-color-text-muted)",
                               margin: 0,
                             }}
                           >
@@ -1568,7 +1570,7 @@ export function NarrativeMapMobileShell({
                             style={{
                               fontSize: 13.5,
                               fontWeight: 600,
-                              color: "#1c1c1e",
+                              color: "var(--ds-color-ink)",
                               margin: "3px 0 0",
                               letterSpacing: -0.1,
                               lineHeight: 1.3,
@@ -1579,7 +1581,7 @@ export function NarrativeMapMobileShell({
                           <p
                             style={{
                               fontSize: 12,
-                              color: "#8e8e93",
+                              color: "var(--ds-color-text-muted)",
                               margin: "4px 0 0",
                               lineHeight: 1.5,
                             }}
@@ -1603,7 +1605,7 @@ export function NarrativeMapMobileShell({
                       border: "none",
                       fontSize: 13,
                       fontWeight: 600,
-                      color: "#007aff",
+                      color: "var(--ds-color-brand)",
                       cursor: "pointer",
                       fontFamily: "inherit",
                       letterSpacing: -0.1,
@@ -1636,7 +1638,7 @@ export function NarrativeMapMobileShell({
                         style={{
                           fontSize: 19,
                           fontWeight: 700,
-                          color: "#1c1c1e",
+                          color: "var(--ds-color-ink)",
                           margin: 0,
                           letterSpacing: -0.45,
                           lineHeight: 1.2,
@@ -1647,7 +1649,7 @@ export function NarrativeMapMobileShell({
                       <p
                         style={{
                           fontSize: 14,
-                          color: "#8e8e93",
+                          color: "var(--ds-color-text-muted)",
                           margin: "6px 0 0",
                           fontWeight: 400,
                           letterSpacing: -0.1,
@@ -1679,7 +1681,7 @@ export function NarrativeMapMobileShell({
                       style={{
                         fontSize: 19,
                         fontWeight: 700,
-                        color: "#c7c7cc",
+                        color: "var(--ds-color-line-strong)",
                         margin: 0,
                         letterSpacing: -0.45,
                         lineHeight: 1.2,
@@ -1690,7 +1692,7 @@ export function NarrativeMapMobileShell({
                     <p
                       style={{
                         fontSize: 14,
-                        color: "#c7c7cc",
+                        color: "var(--ds-color-line-strong)",
                         margin: "6px 0 0",
                         fontWeight: 400,
                         letterSpacing: -0.1,
@@ -1727,7 +1729,7 @@ export function NarrativeMapMobileShell({
                         style={{
                           fontSize: 19,
                           fontWeight: 700,
-                          color: "#1c1c1e",
+                          color: "var(--ds-color-ink)",
                           margin: 0,
                           letterSpacing: -0.45,
                           lineHeight: 1.2,
@@ -1738,7 +1740,7 @@ export function NarrativeMapMobileShell({
                       <p
                         style={{
                           fontSize: 14,
-                          color: "#8e8e93",
+                          color: "var(--ds-color-text-muted)",
                           margin: "6px 0 0",
                           fontWeight: 400,
                           letterSpacing: -0.1,
@@ -1770,7 +1772,7 @@ export function NarrativeMapMobileShell({
                       style={{
                         fontSize: 19,
                         fontWeight: 700,
-                        color: "#c7c7cc",
+                        color: "var(--ds-color-line-strong)",
                         margin: 0,
                         letterSpacing: -0.45,
                         lineHeight: 1.2,
@@ -1781,7 +1783,7 @@ export function NarrativeMapMobileShell({
                     <p
                       style={{
                         fontSize: 14,
-                        color: "#c7c7cc",
+                        color: "var(--ds-color-line-strong)",
                         margin: "6px 0 0",
                         fontWeight: 400,
                         letterSpacing: -0.1,
@@ -1812,7 +1814,7 @@ export function NarrativeMapMobileShell({
                   fontFamily: "inherit",
                   padding: "16px 18px",
                   borderRadius: 20,
-                  background: "#fff",
+                  background: "var(--ds-color-surface)",
                   border: "none",
                   boxShadow: "0 1px 1px rgba(28,28,30,0.04)",
                   display: "flex",
@@ -1826,8 +1828,8 @@ export function NarrativeMapMobileShell({
                     height: 38,
                     borderRadius: 11,
                     flexShrink: 0,
-                    background: "#5856d6",
-                    color: "#fff",
+                    background: "var(--ds-color-brand)",
+                    color: "var(--ds-color-on-brand)",
                     display: "grid",
                     placeItems: "center",
                     boxShadow: "0 2px 4px rgba(88,86,214,0.22)",
@@ -1847,7 +1849,7 @@ export function NarrativeMapMobileShell({
                     style={{
                       fontSize: 15,
                       fontWeight: 600,
-                      color: "#1c1c1e",
+                      color: "var(--ds-color-ink)",
                       margin: 0,
                       letterSpacing: -0.25,
                     }}
@@ -1857,7 +1859,7 @@ export function NarrativeMapMobileShell({
                   <p
                     style={{
                       fontSize: 13,
-                      color: "#8e8e93",
+                      color: "var(--ds-color-text-muted)",
                       margin: "2px 0 0",
                       letterSpacing: -0.1,
                       lineHeight: 1.35,
@@ -1894,8 +1896,8 @@ export function NarrativeMapMobileShell({
                   gap: 12,
                   padding: "16px 18px",
                   borderRadius: 20,
-                  background: "#1c1c1e",
-                  color: "#fff",
+                  background: "var(--ds-color-ink)",
+                  color: "var(--ds-color-on-brand)",
                   boxShadow: "0 8px 24px -10px rgba(28,28,30,0.4)",
                 }}
               >
@@ -1906,7 +1908,7 @@ export function NarrativeMapMobileShell({
                     borderRadius: 11,
                     flexShrink: 0,
                     background: "rgba(255,255,255,0.1)",
-                    color: "#fff",
+                    color: "var(--ds-color-on-brand)",
                     display: "grid",
                     placeItems: "center",
                     border: "1px solid rgba(255,255,255,0.12)",
@@ -1934,7 +1936,7 @@ export function NarrativeMapMobileShell({
                     style={{
                       fontSize: 15,
                       fontWeight: 600,
-                      color: "#fff",
+                      color: "var(--ds-color-on-brand)",
                       margin: 0,
                       letterSpacing: -0.25,
                     }}
@@ -1958,8 +1960,8 @@ export function NarrativeMapMobileShell({
                     padding: "6px 12px",
                     borderRadius: 9999,
                     flexShrink: 0,
-                    background: "#fff",
-                    color: "#1c1c1e",
+                    background: "var(--ds-color-surface)",
+                    color: "var(--ds-color-ink)",
                     fontSize: 12.5,
                     fontWeight: 600,
                     letterSpacing: -0.1,
@@ -1976,12 +1978,12 @@ export function NarrativeMapMobileShell({
                 style={{
                   margin: "0 18px 20px",
                   borderRadius: 16,
-                  background: "#fff",
+                  background: "var(--ds-color-surface)",
                   padding: "10px 14px",
                   fontSize: 12,
                   fontWeight: 500,
                   lineHeight: 1.55,
-                  color: "#8e8e93",
+                  color: "var(--ds-color-text-muted)",
                 }}
               >
                 {presentation.safetyNote}
@@ -2012,7 +2014,7 @@ export function NarrativeMapMobileShell({
               background: "rgba(255,255,255,0.94)",
               backdropFilter: "blur(20px) saturate(180%)",
               WebkitBackdropFilter: "blur(20px) saturate(180%)",
-              borderTop: "1px solid #f1f1f1",
+              borderTop: "1px solid var(--ds-color-line)",
               height: "calc(env(safe-area-inset-bottom, 0px) + 4.75rem)",
             }}
             aria-label="Navegação principal"
@@ -2040,7 +2042,7 @@ export function NarrativeMapMobileShell({
                 style={{
                   fontSize: 10,
                   fontWeight: 700,
-                  color: "#09090b",
+                  color: "var(--ds-color-ink)",
                   lineHeight: 1,
                 }}
               >
@@ -2072,10 +2074,10 @@ export function NarrativeMapMobileShell({
                   width: 32,
                   height: 26,
                   borderRadius: 8,
-                  border: "1.5px solid #09090b",
+                  border: "1.5px solid var(--ds-color-ink)",
                   display: "grid",
                   placeItems: "center",
-                  color: "#09090b",
+                  color: "var(--ds-color-ink)",
                 }}
               >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -2104,7 +2106,7 @@ export function NarrativeMapMobileShell({
                 style={{
                   fontSize: 10,
                   fontWeight: 600,
-                  color: "#71717a",
+                  color: "var(--ds-color-text-secondary)",
                   lineHeight: 1,
                 }}
               >
@@ -2136,11 +2138,11 @@ export function NarrativeMapMobileShell({
               transform: "translateX(-50%)",
               zIndex: 160,
               borderRadius: 16,
-              background: "#09090b",
+              background: "var(--ds-color-ink)",
               padding: "10px 16px",
               fontSize: 14,
               fontWeight: 600,
-              color: "#fff",
+              color: "var(--ds-color-on-brand)",
               boxShadow: "0 4px 24px rgba(9,9,11,0.3)",
             }}
           >

@@ -28,6 +28,7 @@ const CookieConsent: React.FC = () => {
   const bannerRef = useRef<HTMLDivElement | null>(null);
   const pathname = usePathname();
   const isLoginPage = pathname?.startsWith("/login");
+  const isLandingPage = pathname === "/" || pathname === "/landing";
   const isMobileStrategicProfileApp =
     process.env.NEXT_PUBLIC_MOBILE_STRATEGIC_PROFILE_ENABLED === "1" &&
     (pathname?.startsWith("/dashboard/boards/mobile-strategic-profile") ||
@@ -71,6 +72,7 @@ const CookieConsent: React.FC = () => {
   const dismiss = () => {
     document.documentElement.style.removeProperty(COOKIE_CONSENT_OFFSET_VAR);
     setIsVisible(false);
+    window.dispatchEvent(new Event("d2c-cookie-consent-change"));
   };
 
   const acceptCookies = () => {
@@ -117,6 +119,20 @@ const CookieConsent: React.FC = () => {
           >
             Aceitar
           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (isLandingPage) {
+    return (
+      <div ref={bannerRef} className="d2c-cookie-consent" role="region" aria-label="Preferências de cookies">
+        <p>
+          Usamos cookies para entender como a landing funciona. <a href="/politica-de-privacidade">Saiba mais</a>
+        </p>
+        <div>
+          <button onClick={declineCookies}>Só essenciais</button>
+          <button onClick={acceptCookies}>Aceitar</button>
         </div>
       </div>
     );

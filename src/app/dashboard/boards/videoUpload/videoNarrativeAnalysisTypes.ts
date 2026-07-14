@@ -110,6 +110,7 @@ export type VideoNarrativeAnalysis = {
   contentContext?: VideoNarrativeContentContext;
   /** Coherence verdict against the creator's confirmed top-performing pattern. */
   narrativeCoherence?: VideoNarrativeCoherence;
+  contentPotentialScan?: import("./videoNarrativeContentPotentialScan").VideoNarrativeContentPotentialScan;
   profileSignals: VideoNarrativeProfileSignal[];
   confidence: VideoNarrativeConfidence;
   createdAt: string | null;

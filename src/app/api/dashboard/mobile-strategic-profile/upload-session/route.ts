@@ -16,6 +16,7 @@ import {
   hasNarrativeMapPremiumAccess,
   isNarrativeMapAdminUser,
 } from "@/app/dashboard/boards/videoUpload/narrativeMapAccessState";
+import { logUsageEvent } from "@/app/lib/dataService/usageEventService";
 
 const SIGNED_URL_KEYWORDS = ["signature=", "expires=", "token=", "policy="];
 const BASE64_INDICATOR = "base64";
@@ -287,6 +288,8 @@ export async function POST(request: Request) {
       const hasBlocker = providerResult.issues.some((issue) => issue.severity === "blocker");
       return NextResponse.json(providerResult, { status: hasBlocker ? 400 : 200 });
     }
+
+    logUsageEvent(session.user.id, "video_upload_started", "video", { platform: "mobile" });
 
     return NextResponse.json(providerResult);
 

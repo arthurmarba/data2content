@@ -2,7 +2,7 @@ export type UploadSessionPayload = {
   fileName: string;
   mimeType: string;
   sizeBytes: number;
-  durationSeconds: null;
+  durationSeconds: number | null;
   userConsentAccepted: boolean;
   consentTextVersion: string;
   source: "mobile_strategic_profile";
@@ -33,12 +33,13 @@ export type UploadSessionResponse = {
 export function buildUploadSessionPayloadFromFile(
   file: Pick<File, "name" | "type" | "size">,
   userConsentAccepted: boolean,
+  durationSeconds: number | null = null,
 ): UploadSessionPayload {
   return {
     fileName: file.name,
     mimeType: file.type,
     sizeBytes: file.size,
-    durationSeconds: null,
+    durationSeconds,
     userConsentAccepted,
     consentTextVersion: "video_narrative_upload_consent_v1",
     source: "mobile_strategic_profile",

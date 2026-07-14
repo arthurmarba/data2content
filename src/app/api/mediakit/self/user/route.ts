@@ -11,6 +11,7 @@ import {
   ensureUniqueMediaKitSlug,
   updateMediaKitSlugWithAlias,
 } from '@/app/lib/mediakit/slugService';
+import { logUsageEvent } from '@/app/lib/dataService/usageEventService';
 
 export const runtime = 'nodejs';
 
@@ -126,7 +127,7 @@ function serializeUser(doc: any, resolvedAvatar?: string | null) {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const session = (await getServerSession(authOptions as any)) as
     | { user?: { id?: string | null } }
     | null
@@ -136,6 +137,9 @@ export async function GET() {
   if (!userId) {
     return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
   }
+
+  const platform = new URL(request.url).searchParams.get('platform') === 'mobile' ? 'mobile' : 'desktop';
+  logUsageEvent(userId, 'media_kit_opened', 'mediakit', { platform });
 
   await connectToDatabase();
   const user = await User.findById(userId)

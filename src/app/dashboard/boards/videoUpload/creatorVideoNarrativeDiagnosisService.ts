@@ -1,5 +1,6 @@
 import { connectToDatabase } from "@/app/lib/mongoose";
 import CreatorVideoNarrativeDiagnosis from "@/app/models/CreatorVideoNarrativeDiagnosis";
+import { logUsageEvent } from "@/app/lib/dataService/usageEventService";
 import { Types } from "mongoose";
 import { sanitizeCreatorVideoNarrativeDiagnosisInput } from "./creatorVideoNarrativeDiagnosisSanitizer";
 import type {
@@ -28,6 +29,10 @@ function mapDiagnosisDoc(doc: any): CreatorVideoNarrativeDiagnosisDocument {
     commercialReading: doc.commercialReading,
     strategicRecommendation: doc.strategicRecommendation,
     profileContribution: doc.profileContribution,
+    evidenceAnchors: doc.evidenceAnchors,
+    contentContext: doc.contentContext,
+    narrativeCoherence: doc.narrativeCoherence,
+    contentPotentialScan: doc.contentPotentialScan,
     safetyFlags: doc.safetyFlags,
     schemaVersion: doc.schemaVersion,
     createdAt: doc.createdAt,
@@ -48,6 +53,8 @@ export async function createCreatorVideoNarrativeDiagnosis(
     ...sanitized,
     userId: new Types.ObjectId(sanitized.userId),
   });
+
+  logUsageEvent(sanitized.userId, "video_diagnosis_created", "video", { platform: "mobile" });
 
   return mapDiagnosisDoc(createdDoc);
 }

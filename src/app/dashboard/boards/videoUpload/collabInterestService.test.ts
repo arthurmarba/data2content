@@ -74,7 +74,41 @@ describe("registerCollabDecision", () => {
     // "como gravar" + modo persistem no snapshot — precisam sobreviver pro pós-match.
     expect(ownUpdate.$set).toHaveProperty("recordingIdea");
     expect(ownUpdate.$set).toHaveProperty("collabMode");
+    // Território normalizado gravado (lowercase, sem acento) — base do match por tema.
+    expect(ownUpdate.$set.pautaTerritoryNorm).toBe("paternidade");
+    // O recíproco é buscado EXIGINDO o mesmo território normalizado.
+    const [recipQuery] = mockFindOneAndUpdate.mock.calls[1];
+    expect(recipQuery).toMatchObject({
+      user: expect.anything(),
+      partner: expect.anything(),
+      decision: "interested",
+      matchedAt: null,
+      pautaTerritoryNorm: "paternidade",
+    });
     expect(mockSendWhatsApp).not.toHaveBeenCalled();
+  });
+
+  it("sem território: registra mas NÃO busca recíproco (não casa temas diferentes)", async () => {
+    mockFindOneAndUpdate.mockResolvedValueOnce({ _id: new Types.ObjectId(), pautaTitle: "x" });
+
+    const result = await registerCollabDecision({ ...baseInput, pautaTerritory: "" });
+
+    expect(result).toEqual({ ok: true, matched: false, match: null });
+    // Só o upsert próprio rodou — nenhuma busca de recíproco.
+    expect(mockFindOneAndUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("recíproco em território DIFERENTE não casa (query não encontra)", async () => {
+    // O mock do recíproco devolve null porque a query filtra por pautaTerritoryNorm.
+    mockFindOneAndUpdate
+      .mockResolvedValueOnce({ _id: new Types.ObjectId(), pautaTitle: baseInput.pautaTitle })
+      .mockResolvedValueOnce(null); // sem recíproco no MESMO território
+
+    const result = await registerCollabDecision({ ...baseInput, pautaTerritory: "Trabalho" });
+
+    expect(result.matched).toBe(false);
+    const [recipQuery] = mockFindOneAndUpdate.mock.calls[1];
+    expect(recipQuery.pautaTerritoryNorm).toBe("trabalho");
   });
 
   it("com recíproco vigente: casa os dois, notifica os dois lados e devolve o parceiro", async () => {

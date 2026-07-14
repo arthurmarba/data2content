@@ -178,9 +178,9 @@ function EmptyStateShell({
 function InstagramGlyph() {
   return (
     <svg width="36" height="36" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="2" y="2" width="20" height="20" rx="5" stroke="#71717a" strokeWidth="1.7" />
-      <circle cx="12" cy="12" r="4" stroke="#71717a" strokeWidth="1.7" />
-      <circle cx="17.5" cy="6.5" r="1" fill="#71717a" />
+      <rect x="2" y="2" width="20" height="20" rx="5" stroke="var(--ds-color-text-secondary)" strokeWidth="1.7" />
+      <circle cx="12" cy="12" r="4" stroke="var(--ds-color-text-secondary)" strokeWidth="1.7" />
+      <circle cx="17.5" cy="6.5" r="1" fill="var(--ds-color-text-secondary)" />
     </svg>
   );
 }
@@ -188,8 +188,8 @@ function InstagramGlyph() {
 function LimitGlyph() {
   return (
     <svg width="34" height="34" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <circle cx="12" cy="12" r="10" stroke="#71717a" strokeWidth="1.7" />
-      <path d="M12 8v4M12 16h.01" stroke="#71717a" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="12" cy="12" r="10" stroke="var(--ds-color-text-secondary)" strokeWidth="1.7" />
+      <path d="M12 8v4M12 16h.01" stroke="var(--ds-color-text-secondary)" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
@@ -199,7 +199,7 @@ function PulseGlyph() {
     <svg width="40" height="40" viewBox="0 0 40 40" fill="none" aria-hidden="true">
       <path
         d="M4 22h6l4.5-14 5 18 4.5-10.5L27 22h9"
-        stroke="#09090b"
+        stroke="var(--ds-color-ink)"
         strokeWidth="2.2"
         strokeLinecap="round"
         strokeLinejoin="round"

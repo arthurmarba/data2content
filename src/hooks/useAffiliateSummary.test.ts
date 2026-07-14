@@ -6,8 +6,8 @@ describe('canRedeem', () => {
   const status: AffiliateStatus = { payoutsEnabled: true, defaultCurrency: 'BRL' } as any;
   const summary: AffiliateSummary = {
     byCurrency: {
-      BRL: { availableCents: 10000, pendingCents: 0, debtCents: 0, nextMatureAt: null, minRedeemCents: 5000 },
-      USD: { availableCents: 0, pendingCents: 0, debtCents: 0, nextMatureAt: null, minRedeemCents: 0 },
+      BRL: { availableCents: 10000, storedAvailableCents: 10000, reconciliationStatus: 'reconciled', pendingCents: 0, debtCents: 0, nextMatureAt: null, minRedeemCents: 5000 },
+      USD: { availableCents: 0, storedAvailableCents: 0, reconciliationStatus: 'reconciled', pendingCents: 0, debtCents: 0, nextMatureAt: null, minRedeemCents: 0 },
     },
   };
 
@@ -35,6 +35,16 @@ describe('canRedeem', () => {
 
   test('blocks when currency mismatch', () => {
     expect(canRedeem(status, summary, 'USD')).toBe(false);
+  });
+
+  test('blocks when the materialized balance diverges from the ledger', () => {
+    const s: AffiliateSummary = {
+      byCurrency: {
+        ...summary.byCurrency,
+        BRL: { ...summary.byCurrency.BRL, storedAvailableCents: 999999, reconciliationStatus: 'mismatch' },
+      },
+    };
+    expect(canRedeem(status, s, 'BRL')).toBe(false);
   });
 });
 

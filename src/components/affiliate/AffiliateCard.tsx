@@ -213,6 +213,13 @@ export default function AffiliateCard() {
         message: `Existe uma pendência de ${fmt(debtCents, primaryCur)} antes de liberar novos pagamentos.`,
       };
     }
+    if (reason === 'ledger_out_of_sync') {
+      return {
+        tone: 'danger' as const,
+        title: 'Saldo em conferência',
+        message: 'Identificamos uma divergência no saldo. O resgate fica bloqueado até a conferência ser concluída.',
+      };
+    }
     if (reason === 'below_min') {
       const missing = Math.max(0, minRedeem - availableCents);
       return {

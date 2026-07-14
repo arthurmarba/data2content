@@ -62,7 +62,7 @@ describe("VideoNarrativeTemporaryUploadValidation Tests", () => {
   it("rejeita arquivo acima do limite", () => {
     const res = validateTemporaryUploadInput({
       ...validBaseInput,
-      sizeBytes: 200 * 1024 * 1024, // 200MB, excede 100MB
+      sizeBytes: 400 * 1024 * 1024, // 400MB, excede 300MB
     });
     expect(res.ok).toBe(false);
     expect(res.issues.some((i) => i.code === "file_too_large")).toBe(true);
@@ -71,7 +71,7 @@ describe("VideoNarrativeTemporaryUploadValidation Tests", () => {
   it("rejeita duração acima do limite", () => {
     const res = validateTemporaryUploadInput({
       ...validBaseInput,
-      durationSeconds: 600, // 10 minutos, excede 5
+      durationSeconds: 600, // 10 minutos, excede o limite de 90s
     });
     expect(res.ok).toBe(false);
     expect(res.issues.some((i) => i.code === "duration_too_long")).toBe(true);

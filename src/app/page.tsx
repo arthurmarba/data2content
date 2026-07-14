@@ -1,11 +1,14 @@
 import { redirect } from "next/navigation";
 
-import DashboardRootClient from "./DashboardRootClient";
+import { fetchCastingCreators } from "@/app/lib/landing/castingService";
+import { fetchLandingProofMetrics } from "@/app/lib/landing/landingProofService";
+import { fetchLandingCommunityShowcase } from "@/app/lib/landing/communityShowcaseService";
+import { NarrativeLandingPage } from "@/app/landing/NarrativeLandingPage";
+import { selectLandingCreatorProofs } from "@/app/landing/narrativeData";
 import {
   landingJsonLd,
   landingProductJsonLd,
   landingMetadata,
-  landingFaqJsonLd,
   landingOrganizationJsonLd,
 } from "@/seo/landing";
 
@@ -16,7 +19,7 @@ type HomePageProps = {
   searchParams?: Record<string, string | string[] | undefined>;
 };
 
-export default function HomePage({ searchParams = {} }: HomePageProps) {
+export default async function HomePage({ searchParams = {} }: HomePageProps) {
   const query = new URLSearchParams();
   Object.entries(searchParams).forEach(([key, value]) => {
     if (typeof value === "string") query.set(key, value);
@@ -29,6 +32,13 @@ export default function HomePage({ searchParams = {} }: HomePageProps) {
     redirect(queryString ? `/calendar?${queryString}` : "/calendar");
   }
 
+  const [casting, proofMetrics, communityCreators] = await Promise.all([
+    fetchCastingCreators({ mode: "featured", limit: 8 }).catch(() => ({ creators: [], total: 0 })),
+    fetchLandingProofMetrics().catch(() => null),
+    fetchLandingCommunityShowcase().catch(() => []),
+  ]);
+  const creators = selectLandingCreatorProofs(casting.creators, 8);
+
   return (
     <>
       {/* Os scripts LD+JSON são melhor renderizados no Server Component raiz */}
@@ -38,12 +48,11 @@ export default function HomePage({ searchParams = {} }: HomePageProps) {
           __html: JSON.stringify([
             landingJsonLd,
             landingProductJsonLd,
-            landingFaqJsonLd,
             landingOrganizationJsonLd,
           ]),
         }}
       />
-      <DashboardRootClient />
+      <NarrativeLandingPage creators={creators} proofMetrics={proofMetrics} communityCreators={communityCreators} />
     </>
   );
 }

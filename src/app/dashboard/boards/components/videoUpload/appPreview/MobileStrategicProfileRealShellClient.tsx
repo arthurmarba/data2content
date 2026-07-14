@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { signOut } from "next-auth/react";
+import { d2cFontVariables } from "@/app/fonts/d2cFonts";
 import useInstagramStatus from "@/app/hooks/useInstagramStatus";
 import { buildMobileStrategicProfileRealShellInput } from "./buildMobileStrategicProfileRealShellInput";
 import { buildMobileStrategicProfile, type MobileStrategicProfile } from "../../../videoUpload/mobileStrategicProfileMapping";
@@ -326,6 +327,7 @@ export function MobileStrategicProfileRealShellClient({
       objectKey?: string;
       mimeType: string;
       sizeBytes: number;
+      durationSeconds?: number;
       uploadedAt?: string;
     };
   }): Promise<MobileStrategicProfileAnalyzeResult> => {
@@ -353,6 +355,7 @@ export function MobileStrategicProfileRealShellClient({
             objectKey: payload.temporaryUpload!.objectKey,
             mimeType: payload.temporaryUpload!.mimeType,
             sizeBytes: payload.temporaryUpload!.sizeBytes,
+            durationSeconds: payload.temporaryUpload!.durationSeconds,
             uploadedAt: payload.temporaryUpload!.uploadedAt,
           },
           creatorGoal: payload.creatorGoal,
@@ -500,8 +503,9 @@ export function MobileStrategicProfileRealShellClient({
           coherenceReasoning: snap?.coherenceReasoning ?? null,
           audienceCoherence: snap?.audienceCoherence ?? null,
           brandCoherence: snap?.brandCoherence ?? null,
+          contentPotentialScan: snap?.contentPotentialScan ?? null,
         }
-      : snap?.directAnswer || snap?.coherenceVerdict
+      : snap?.directAnswer || snap?.coherenceVerdict || snap?.contentPotentialScan
         ? {
             diagnosisSummary: null,
             unlockedSignals: [],
@@ -511,6 +515,7 @@ export function MobileStrategicProfileRealShellClient({
             coherenceReasoning: snap?.coherenceReasoning ?? null,
             audienceCoherence: snap?.audienceCoherence ?? null,
             brandCoherence: snap?.brandCoherence ?? null,
+            contentPotentialScan: snap?.contentPotentialScan ?? null,
           }
         : null;
 
@@ -725,8 +730,39 @@ export function MobileStrategicProfileRealShellClient({
     router.refresh();
   }, [router]);
 
+  const handlePublishIntentSubmit = useCallback(async (diagnosisId: string, intent: "yes" | "no") => {
+    await fetch(`/api/dashboard/mobile-strategic-profile/diagnosis/${encodeURIComponent(diagnosisId)}/publish-intent`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ publishIntent: intent }),
+    }).then(() => {}).catch(() => {});
+  }, []);
+
+  const handleContentPotentialFeedbackSubmit = useCallback(async (diagnosisId: string, feedback: {
+    target: "overall" | "evidence" | "direction";
+    value: "helpful" | "not_in_video" | "wrong_intent";
+    moment?: "opening" | "development" | "closing";
+  }) => {
+    await fetch(`/api/dashboard/mobile-strategic-profile/diagnosis/${encodeURIComponent(diagnosisId)}/content-potential-feedback`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(feedback),
+    }).then(() => {}).catch(() => {});
+  }, []);
+
+  const handleScanReportInteraction = useCallback((event: "copy_suggestion" | "adjustment_marked" | "rescan_started" | "feedback_submitted" | "publish_decision", actionType?: string) => {
+    const eventNames = {
+      copy_suggestion: "mobile_scan_suggestion_copied",
+      adjustment_marked: "mobile_scan_adjustment_marked",
+      rescan_started: "mobile_scan_rescan_started",
+      feedback_submitted: "mobile_scan_feedback_submitted",
+      publish_decision: "mobile_scan_publish_decision",
+    } as const;
+    trackMobileNarrativeEvent(eventNames[event], { ...telemetryContext, actionType });
+  }, [telemetryContext]);
+
   return (
-    <div className="relative">
+    <div className={`d2c-mobile-app relative ${d2cFontVariables}`}>
       {isHydrating && (
         <div
           className="sr-only"
@@ -789,6 +825,9 @@ export function MobileStrategicProfileRealShellClient({
             enableRealAnalysis={realAnalysisEnabled}
             onCleanupTemporaryUpload={handleCleanupTemporaryUpload}
             onSubmitConfirmationAnswer={handleConfirmationAnswer}
+            onPublishIntentSubmit={handlePublishIntentSubmit}
+            onContentPotentialFeedbackSubmit={handleContentPotentialFeedbackSubmit}
+            onReportInteraction={handleScanReportInteraction}
             readingsSummary={
               accessState === "admin"
                 ? null

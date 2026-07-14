@@ -14,6 +14,7 @@ import type {
   VideoNarrativeContentContext,
   VideoNarrativeCoherence,
 } from "@/app/dashboard/boards/videoUpload/creatorVideoNarrativeDiagnosisTypes";
+import type { VideoNarrativeContentPotentialScan } from "@/app/dashboard/boards/videoUpload/videoNarrativeContentPotentialScan";
 
 export interface ICreatorVideoNarrativeDiagnosis extends Document {
   userId: Types.ObjectId;
@@ -34,6 +35,13 @@ export interface ICreatorVideoNarrativeDiagnosis extends Document {
   contentContext?: VideoNarrativeContentContext;
   /** Coherence verdict against the creator's confirmed top-performing narrative pattern. */
   narrativeCoherence?: VideoNarrativeCoherence;
+  contentPotentialScan?: VideoNarrativeContentPotentialScan;
+  contentPotentialFeedback?: Array<{
+    target: "overall" | "evidence" | "direction";
+    value: "helpful" | "not_in_video" | "wrong_intent";
+    moment?: "opening" | "development" | "closing";
+    createdAt: Date;
+  }>;
   /** Creator's answers to the adaptive quiz shown on the confirmation step. */
   confirmationQuizAnswers?: Array<{
     questionId: string;
@@ -50,6 +58,18 @@ export interface ICreatorVideoNarrativeDiagnosis extends Document {
    * Null = pre-feature (legacy readings, treated as full weight for backwards compat).
    */
   publishIntent?: "yes" | "no" | null;
+  publishDecisionAt?: Date;
+  linkedInstagramMediaId?: string;
+  performanceOutcome?: {
+    reach?: number | null;
+    views?: number | null;
+    watchTimeSeconds?: number | null;
+    shares?: number | null;
+    saves?: number | null;
+    relativeReach?: number | null;
+    relativeIntent?: number | null;
+    capturedAt: Date;
+  };
   schemaVersion: "creator_video_narrative_diagnosis_v1";
   createdAt: Date;
   updatedAt: Date;
@@ -284,6 +304,8 @@ const CreatorVideoNarrativeDiagnosisSchema = new Schema<ICreatorVideoNarrativeDi
     // without requiring a migration. Fields are validated at the application layer.
     contentContext: { type: Schema.Types.Mixed, required: false, default: undefined },
     narrativeCoherence: { type: Schema.Types.Mixed, required: false, default: undefined },
+    contentPotentialScan: { type: Schema.Types.Mixed, required: false, default: undefined },
+    contentPotentialFeedback: { type: [Schema.Types.Mixed], required: false, default: undefined },
     confirmationQuizAnswers: { type: [Schema.Types.Mixed], required: false, default: undefined },
     publishIntent: {
       type: String,
@@ -291,6 +313,9 @@ const CreatorVideoNarrativeDiagnosisSchema = new Schema<ICreatorVideoNarrativeDi
       default: null,
       required: false,
     },
+    publishDecisionAt: { type: Date, required: false, default: undefined },
+    linkedInstagramMediaId: { type: String, required: false, default: undefined, index: true },
+    performanceOutcome: { type: Schema.Types.Mixed, required: false, default: undefined },
     safetyFlags: { type: SafetyFlagsSchema, required: true },
     schemaVersion: {
       type: String,

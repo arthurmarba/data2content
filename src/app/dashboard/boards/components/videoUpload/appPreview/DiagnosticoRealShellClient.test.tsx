@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { DiagnosticoRealShellClient } from "./DiagnosticoRealShellClient";
 import { buildDiagnosticoPageDataFixture } from "./diagnosticoTestFixtures";
 import { openPaywallModal } from "@/utils/paywallModal";
@@ -343,5 +343,98 @@ describe("DiagnosticoRealShellClient", () => {
     expect(screen.getByRole("status")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /fechar/i }));
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("só revela o deck depois que sugestões e estado persistido chegam, em qualquer ordem", async () => {
+    let resolveMatches!: (response: Response) => void;
+    let resolveInterest!: (response: Response) => void;
+    const matchesPromise = new Promise<Response>((resolve) => { resolveMatches = resolve; });
+    const interestPromise = new Promise<Response>((resolve) => { resolveInterest = resolve; });
+    const fetchSpy = jest.spyOn(global, "fetch").mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/api/dashboard/mobile-strategic-profile/collabs/per-pauta") return matchesPromise;
+      if (url === "/api/dashboard/mobile-strategic-profile/collabs/interest") return interestPromise;
+      if (url === "/api/calculator/latest") {
+        return Promise.resolve(new Response(JSON.stringify({}), { status: 404 }));
+      }
+      if (url === "/api/dashboard/mobile-strategic-profile/collabs/suggestions") {
+        return Promise.resolve(new Response(JSON.stringify({ items: [] }), { status: 200 }));
+      }
+      return Promise.resolve(new Response(null, { status: 204 }));
+    });
+    const base = buildDiagnosticoPageDataFixture();
+    render(
+      <DiagnosticoRealShellClient
+        data={buildDiagnosticoPageDataFixture({
+          userInfo: { ...base.userInfo, plan: "Pro" },
+          mapConfirmations: {
+            narrative: "confirmed",
+            territories: "confirmed",
+            tone: "pending",
+            assetConfirmations: [],
+            endorsedHypotheses: [],
+            dismissedHypotheses: [],
+            confirmedFormats: [],
+            adjacentNarratives: [],
+          },
+          contentIdeas: [{
+            id: "pauta-a",
+            title: "Pauta estável",
+            angle: "Ângulo",
+            territory: "Humor",
+            assets: [],
+            hook: "Uma abertura estável",
+            suggestedFormat: "Reel",
+            tone: null,
+            whyItFits: "Combina com o mapa",
+            scriptPoints: [],
+            scriptClosing: null,
+            resonanceNote: null,
+            status: "active",
+            generatedAt: "2026-07-14T00:00:00.000Z",
+            scheduledFor: null,
+          }],
+        })}
+        onAnalyzeAction={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Collabs" }));
+    expect(screen.getByRole("status", { name: "Preparando suas collabs" })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: /Pauta estável/ })).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveInterest(new Response(JSON.stringify({ ok: true, decisions: [], matches: [] }), { status: 200 }));
+      await Promise.resolve();
+    });
+    expect(screen.getByRole("status", { name: "Preparando suas collabs" })).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: /Pauta estável/ })).not.toBeInTheDocument();
+
+    await act(async () => {
+      resolveMatches(new Response(JSON.stringify({
+        ok: true,
+        matches: {
+          "pauta-a": {
+            id: "creator-marina",
+            name: "Marina",
+            username: "marina",
+            avatarUrl: null,
+            mediaKitSlug: "marina",
+            narrativeExample: "Exemplo",
+            suggestedNarrativeLabel: "Humor humano",
+            narrativeFitReason: "Complementa a pauta sem repetir sua voz",
+            sharedSignal: "Humor",
+            distinctSignals: ["Rotina"],
+            narrativeMatch: true,
+          },
+        },
+      }), { status: 200 }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByRole("group", { name: "Collab pra pauta: Pauta estável" })).toBeInTheDocument();
+    });
+    expect(screen.queryByRole("status", { name: "Preparando suas collabs" })).not.toBeInTheDocument();
+    fetchSpy.mockRestore();
   });
 });

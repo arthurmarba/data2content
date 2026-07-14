@@ -23,6 +23,13 @@ export async function DELETE() {
 
 const VALID_STATUSES: CreatorContentIdeaStatus[] = ["active", "saved", "dismissed", "posted"];
 
+function storageUnavailableMessage(status: CreatorContentIdeaStatus): string {
+  if (status === "active") return "Não foi possível remover a pauta agora.";
+  if (status === "dismissed") return "Não foi possível descartar a pauta agora.";
+  if (status === "posted") return "Não foi possível marcar a pauta como postada agora.";
+  return "Não foi possível salvar a pauta agora.";
+}
+
 /**
  * PATCH /api/dashboard/mobile-strategic-profile/content-ideas/[id]
  *
@@ -66,6 +73,12 @@ export async function PATCH(
     }
     const result = await updateContentIdeaStatus(userId, ideaId, status as CreatorContentIdeaStatus);
     if (!result.ok) {
+      if (result.error === "storage_unavailable") {
+        return NextResponse.json(
+          { message: storageUnavailableMessage(status as CreatorContentIdeaStatus), reason: "storage_unavailable" },
+          { status: 503 },
+        );
+      }
       return NextResponse.json({ message: "Pauta não encontrada." }, { status: 404 });
     }
   }

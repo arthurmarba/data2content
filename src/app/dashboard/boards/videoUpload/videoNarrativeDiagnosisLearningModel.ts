@@ -162,6 +162,7 @@ export interface VideoNarrativeStrategicDiagnosis {
   contentContext?: VideoNarrativeContentContext;
   /** Coherence verdict against the creator's confirmed top-performing pattern. */
   narrativeCoherence?: VideoNarrativeCoherence;
+  contentPotentialScan?: import("./videoNarrativeContentPotentialScan").VideoNarrativeContentPotentialScan;
   createdAt: string | null;
 }
 
@@ -636,6 +637,7 @@ export function buildVideoNarrativeStrategicDiagnosis(
     evidenceAnchors: input.analysis.evidenceAnchors,
     ...(input.analysis.contentContext ? { contentContext: input.analysis.contentContext } : {}),
     ...(input.analysis.narrativeCoherence ? { narrativeCoherence: input.analysis.narrativeCoherence } : {}),
+    ...(input.analysis.contentPotentialScan ? { contentPotentialScan: input.analysis.contentPotentialScan } : {}),
     createdAt: input.analysis.createdAt ?? input.seed.createdAt ?? null,
   };
 }

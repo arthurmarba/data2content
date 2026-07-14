@@ -29,6 +29,7 @@ import { logger } from '@/app/lib/logger';
 import { isPricingCalibrationV1Enabled, isPricingPersonalReferenceV1Enabled } from '@/app/lib/pricing/featureFlag';
 import { serializeCalculation } from '@/app/api/calculator/serializeCalculation';
 import { hasAdminRole, resolveTargetCalculatorUser } from '@/app/api/calculator/access';
+import { logUsageEvent } from '@/app/lib/dataService/usageEventService';
 
 export const runtime = 'nodejs';
 
@@ -64,6 +65,7 @@ interface CalculatorPayload {
   periodDays?: number;
   explanation?: string;
   targetUserId?: string;
+  source?: string;
 }
 
 const isIntegerLike = (value: unknown): boolean => {
@@ -310,6 +312,10 @@ export async function POST(request: NextRequest) {
       explanation: calculationPayload.explanation || undefined,
       avgTicket: calculationPayload.avgTicket ?? undefined,
       totalDeals: calculationPayload.totalDeals,
+    });
+
+    logUsageEvent(effectiveUserId, 'publi_calculated', 'publi', {
+      platform: payload.source === 'mobile_board' ? 'mobile' : 'desktop',
     });
 
     return NextResponse.json(

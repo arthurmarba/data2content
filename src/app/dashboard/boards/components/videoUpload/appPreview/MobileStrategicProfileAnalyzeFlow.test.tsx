@@ -6,6 +6,40 @@ import { MobileStrategicProfileAnalyzeFlow } from "./MobileStrategicProfileAnaly
 const SOURCE_PATH = path.join(__dirname, "MobileStrategicProfileAnalyzeFlow.tsx");
 const UPLOAD_CLIENT_SOURCE_PATH = path.join(__dirname, "mobileStrategicProfileUploadSessionClient.ts");
 
+const potentialScanFixture = {
+  band: "promising_with_adjustment" as const,
+  confidence: "medium" as const,
+  basis: "video_only" as const,
+  objective: "complete_reading" as const,
+  historyPostsAnalyzed: 0,
+  dimensions: {
+    openingClarity: { status: "mixed" as const, evidence: "O tema aparece, mas depende do áudio.", adjustment: "Escrever o gancho na tela.", window: "0-3s" as const },
+    attentionArchitecture: { status: "strong" as const, evidence: "Há progressão visual.", adjustment: null, window: "0-10s" as const },
+    shareImpulse: { status: "mixed" as const, evidence: "A utilidade está implícita.", adjustment: "Fechar com uma síntese útil.", window: "full_video" as const },
+    promiseDelivery: { status: "strong" as const, evidence: "A promessa é entregue.", adjustment: null, window: "full_video" as const },
+    narrativeFit: { status: "strong" as const, evidence: "Conversa com o mapa.", adjustment: null, window: "creator_history" as const },
+  },
+  watchedMoments: [
+    {
+      moment: "opening" as const,
+      observation: "Você apresenta a dúvida principal na fala, mas ela não aparece em texto.",
+      impact: "Sem som, a promessa fica implícita.",
+    },
+    {
+      moment: "development" as const,
+      observation: "A mudança de enquadramento acompanha a explicação.",
+      impact: "A virada visual deixa a progressão mais clara.",
+    },
+  ],
+  practicalDirection: {
+    title: "Leve a dúvida para o primeiro frame",
+    action: "Mantenha a fala e escreva a pergunta principal na primeira cena.",
+    example: "Sua ideia trava antes de virar pauta?",
+  },
+  highestImpactAdjustment: "Escrever o gancho na primeira cena.",
+  disclaimer: "Leitura estrutural do vídeo — não é garantia de alcance.",
+};
+
 function renderFlow(onSubmitAnalysis?: any) {
   const onClose = jest.fn();
   const onComplete = jest.fn();
@@ -40,7 +74,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
   it("renders upload step", () => {
     renderFlow();
 
-    expect(screen.getByRole("dialog", { name: "Traga o vídeo que está na dúvida" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Raio X do conteúdo" })).toBeInTheDocument();
     expect(screen.getByText("Vídeo acolhido e pronto")).toBeInTheDocument();
     expect(screen.getByText("Prossiga para a leitura e descubra se vale postar.")).toBeInTheDocument();
   });
@@ -51,7 +85,23 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
 
     // O antigo passo "O que você quer ler neste vídeo?" não existe mais.
     expect(screen.queryByText("O que você quer ler neste vídeo?")).not.toBeInTheDocument();
-    expect(screen.getByRole("dialog", { name: "Lendo seu vídeo" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Escaneando seu vídeo" })).toBeInTheDocument();
+  });
+
+  it("abre o resultado no topo mesmo quando o upload estava rolado", async () => {
+    const onSubmit = jest.fn().mockResolvedValue({
+      confirmationData: { contentPotentialScan: potentialScanFixture },
+    });
+    renderFlow(onSubmit);
+    const uploadDialog = screen.getByRole("dialog", { name: "Raio X do conteúdo" });
+    uploadDialog.scrollTop = 320;
+
+    continueFlow();
+
+    await waitFor(() => {
+      const resultDialog = screen.getByRole("dialog", { name: "Seu Raio X" });
+      expect(resultDialog.scrollTop).toBe(0);
+    });
   });
 
   it("mostra o veredito de 3 eixos (narrativa, audiência, marca) na leitura pronta", async () => {
@@ -63,14 +113,15 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
         coherenceReasoning: "Confirma seu padrão de bastidores.",
         audienceCoherence: { verdict: "aligned", reading: "Fala com quem já te acompanha." },
         brandCoherence: { verdict: "tension", reading: "Abre um território ainda difuso." },
+        contentPotentialScan: potentialScanFixture,
       },
     });
     renderFlow(onSubmit);
     continueFlow();
 
-    expect(screen.getByRole("dialog", { name: "Lendo seu vídeo" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Escaneando seu vídeo" })).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByRole("dialog", { name: "Vale postar?" })).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Seu Raio X" })).toBeInTheDocument();
     });
 
     expect(screen.getByText("Coerência com o seu mapa")).toBeInTheDocument();
@@ -80,6 +131,13 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     expect(screen.getByText("Confirma seu padrão de bastidores.")).toBeInTheDocument();
     expect(screen.getByText("Fala com quem já te acompanha.")).toBeInTheDocument();
     expect(screen.getByText("Abre um território ainda difuso.")).toBeInTheDocument();
+    expect(screen.getByText("Vale postar depois de um ajuste.")).toBeInTheDocument();
+    expect(screen.getByText("Análise baseada em 2 momentos do vídeo")).toBeInTheDocument();
+    expect(screen.getByText("Na abertura")).toBeInTheDocument();
+    expect(screen.getByText("Você apresenta a dúvida principal na fala, mas ela não aparece em texto.")).toBeInTheDocument();
+    expect(screen.getByText("Faça isto antes de postar")).toBeInTheDocument();
+    expect(screen.getByText("Leve a dúvida para o primeiro frame")).toBeInTheDocument();
+    expect(screen.getByText(/Sua ideia trava antes de virar pauta\?/)).toBeInTheDocument();
     // A survey pós-leitura foi removida — o modal tem função única.
     expect(screen.queryByText("Uma pergunta sobre esta leitura")).not.toBeInTheDocument();
     expect(onSubmit).toHaveBeenCalledWith(
@@ -105,16 +163,48 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     continueFlow();
 
     await waitFor(() => {
-      expect(screen.getByRole("dialog", { name: "Vale postar?" })).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Seu Raio X" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "Vou postar" }));
+    fireEvent.click(screen.getByRole("button", { name: /Vou postar assim/ }));
     expect(onPublishIntentSubmit).toHaveBeenCalledWith("diag-1", "yes");
     expect(screen.getByText("Boa — seu mapa vai aprender com esse vídeo.")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "Não vou" }));
+    fireEvent.click(screen.getByRole("button", { name: /Não vou postar/ }));
     expect(onPublishIntentSubmit).toHaveBeenCalledWith("diag-1", "no");
     expect(screen.getByText("Fechado. Esse fica só entre nós — não entra no mapa.")).toBeInTheDocument();
+  });
+
+  it("transforma a recomendação em uma ação copiável e registra a correção do usuário", async () => {
+    const onReportInteraction = jest.fn();
+    const onFeedback = jest.fn().mockResolvedValue(undefined);
+    const onSubmit = jest.fn().mockResolvedValue({
+      savedDiagnosisId: "diag-2",
+      confirmationData: { directAnswer: "A ideia funciona com um ajuste.", contentPotentialScan: potentialScanFixture },
+    });
+    render(
+      <MobileStrategicProfileAnalyzeFlow
+        open
+        onClose={jest.fn()}
+        onComplete={jest.fn()}
+        onSubmitAnalysis={onSubmit}
+        onReportInteraction={onReportInteraction}
+        onContentPotentialFeedbackSubmit={onFeedback}
+      />
+    );
+    continueFlow();
+    await screen.findByRole("dialog", { name: "Seu Raio X" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Copiar sugestão" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Texto copiado" })).toBeInTheDocument());
+    expect(onReportInteraction).toHaveBeenCalledWith("copy_suggestion", "practical_direction");
+
+    fireEvent.click(screen.getByRole("button", { name: "Marcar como ajustado" }));
+    expect(screen.getByRole("button", { name: "Escanear versão ajustada" })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Não entendeu a intenção" }));
+    expect(onFeedback).toHaveBeenCalledWith("diag-2", { target: "overall", value: "wrong_intent" });
+    expect(screen.getByText("Obrigado. Sua correção foi registrada.")).toBeInTheDocument();
   });
 
   it("vai direto para a leitura com a lente fixa 'retention'", async () => {
@@ -123,13 +213,13 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
 
     continueFlow(); // upload -> processing
 
-    expect(screen.getByRole("dialog", { name: "Lendo seu vídeo" })).toBeInTheDocument();
+    expect(screen.getByRole("dialog", { name: "Escaneando seu vídeo" })).toBeInTheDocument();
     expect(onSubmit).toHaveBeenCalledWith(
       expect.objectContaining({ selectedGoalOption: "retention" })
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("dialog", { name: "Vale postar?" })).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Seu Raio X" })).toBeInTheDocument();
     });
   });
 
@@ -151,7 +241,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     continueFlow(); // upload -> processing
 
     await waitFor(() => {
-      expect(screen.getByRole("dialog", { name: "Vale postar?" })).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Seu Raio X" })).toBeInTheDocument();
     });
 
     expect(screen.queryByRole("button", { name: "Outro vídeo" })).not.toBeInTheDocument();
@@ -180,7 +270,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     fireEvent.click(retryBtn);
 
     await waitFor(() => {
-      expect(screen.getByRole("dialog", { name: "Vale postar?" })).toBeInTheDocument();
+      expect(screen.getByRole("dialog", { name: "Seu Raio X" })).toBeInTheDocument();
     });
     const completeBtn = screen.getByRole("button", { name: "Ver sua leitura completa" });
     fireEvent.click(completeBtn);
@@ -266,7 +356,8 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
           onCreateUploadSession={onCreateSession}
         />
       );
-      expect(screen.getByText("Selecionar vídeo")).toBeInTheDocument();
+      expect(screen.getByText("Escolher vídeo para escanear")).toBeInTheDocument();
+      expect(screen.getByText("Escolher vídeo para escanear").closest("label")).toHaveClass("ds-upload-dropzone");
       expect(screen.queryByRole("img")).not.toBeInTheDocument();
       expect(container.querySelector("video")).not.toBeInTheDocument();
     });
@@ -322,7 +413,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
 
       // Segue direto para a leitura (processing), sem passo de lente.
       await waitFor(() => {
-        expect(screen.getByRole("dialog", { name: "Lendo seu vídeo" })).toBeInTheDocument();
+        expect(screen.getByRole("dialog", { name: "Escaneando seu vídeo" })).toBeInTheDocument();
       });
       expect(screen.queryByText("O que você quer ler neste vídeo?")).not.toBeInTheDocument();
     });
@@ -383,7 +474,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       await waitFor(() => {
         expect(screen.getByText(/O tamanho do vídeo excede o limite/i)).toBeInTheDocument();
       });
-      expect(screen.queryByRole("dialog", { name: "Lendo seu vídeo" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog", { name: "Escaneando seu vídeo" })).not.toBeInTheDocument();
     });
 
     it("finaliza a leitura depois da validacao de upload metadata", async () => {
@@ -467,7 +558,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       resolveUpload({ ok: true, status: "uploaded", uploadedAt: "2026-05-19T00:00:00.000Z", bytesSent: fileMock.size });
 
       await waitFor(() => {
-        expect(screen.getByRole("dialog", { name: "Lendo seu vídeo" })).toBeInTheDocument();
+        expect(screen.getByRole("dialog", { name: "Escaneando seu vídeo" })).toBeInTheDocument();
       });
     });
 
@@ -492,7 +583,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       await waitFor(() => {
-        expect(screen.getByRole("dialog", { name: "Lendo seu vídeo" })).toBeInTheDocument();
+        expect(screen.getByRole("dialog", { name: "Escaneando seu vídeo" })).toBeInTheDocument();
       });
       expect(onDirectUpload).not.toHaveBeenCalled();
     });
@@ -521,7 +612,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       await waitFor(() => {
         expect(screen.getByText("Não conseguimos preparar o vídeo para leitura real agora.")).toBeInTheDocument();
       });
-      expect(screen.queryByRole("dialog", { name: "Lendo seu vídeo" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog", { name: "Escaneando seu vídeo" })).not.toBeInTheDocument();
       expect(onSubmit).not.toHaveBeenCalled();
     });
 
@@ -566,7 +657,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       await waitFor(() => {
         expect(screen.getByText("Não foi possível enviar o vídeo agora.")).toBeInTheDocument();
       });
-      expect(screen.queryByRole("dialog", { name: "Lendo seu vídeo" })).not.toBeInTheDocument();
+      expect(screen.queryByRole("dialog", { name: "Escaneando seu vídeo" })).not.toBeInTheDocument();
     });
 
     it("cleanup failure não quebra análise mock nem envia uploadUrl/objectKey para análise", async () => {
@@ -609,7 +700,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       await waitFor(() => {
-        expect(screen.getByRole("dialog", { name: "Vale postar?" })).toBeInTheDocument();
+        expect(screen.getByRole("dialog", { name: "Seu Raio X" })).toBeInTheDocument();
         expect(onSubmit).toHaveBeenCalled();
       });
       expect(onCleanup).toHaveBeenCalledWith(
@@ -666,7 +757,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
 
       await waitFor(() => {
-        expect(screen.getByRole("dialog", { name: "Vale postar?" })).toBeInTheDocument();
+        expect(screen.getByRole("dialog", { name: "Seu Raio X" })).toBeInTheDocument();
         expect(onSubmit).toHaveBeenCalled();
       });
 

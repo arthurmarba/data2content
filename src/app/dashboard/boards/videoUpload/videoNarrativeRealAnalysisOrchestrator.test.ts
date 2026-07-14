@@ -39,6 +39,7 @@ const payload = {
     objectKey: "temporary/video-narrative/0123456789abcdef/video-temp-upload-session-abc_123.mp4",
     mimeType: "video/mp4",
     sizeBytes: 1024,
+    durationSeconds: 30,
     uploadedAt: "2026-05-19T20:00:00.000Z",
   },
   creatorGoal: "Quero ganhar autoridade.",
@@ -71,6 +72,10 @@ const usageDeps = {
   recordUsageAttempt: jest.fn().mockResolvedValue(undefined),
   recordUsageSuccess: jest.fn().mockResolvedValue(undefined),
   recordUsageFailure: jest.fn().mockResolvedValue(undefined),
+  probeMedia: jest.fn().mockResolvedValue({
+    ok: true,
+    metadata: { sizeBytes: 1024, durationSeconds: 30, mimeType: "video/mp4" },
+  }),
 };
 
 describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
@@ -110,6 +115,10 @@ describe("runVideoNarrativeRealAnalysisOrchestrator", () => {
     usageDeps.recordUsageAttempt.mockResolvedValue(undefined);
     usageDeps.recordUsageSuccess.mockResolvedValue(undefined);
     usageDeps.recordUsageFailure.mockResolvedValue(undefined);
+    usageDeps.probeMedia.mockResolvedValue({
+      ok: true,
+      metadata: { sizeBytes: 1024, durationSeconds: 30, mimeType: "video/mp4" },
+    });
   });
 
   afterEach(() => {

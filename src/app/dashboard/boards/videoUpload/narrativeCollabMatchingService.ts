@@ -20,13 +20,18 @@
 import { Types } from "mongoose";
 import { GoogleGenAI, createUserContent } from "@google/genai";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import { rankByComplementarity, findSharedLabel, findDistinctLabels } from "./collabComplementarity";
+import { rankByComplementarity, findSharedLabel, findDistinctLabels, significantWords, buildViewerTokens } from "./collabComplementarity";
 import { logGeminiUsage } from "@/app/lib/llm/geminiUsageLog";
 
 // Configurável por env (GEMINI_COLLAB_MODEL) para A/B de modelo — candidato a
 // gemini-2.5-flash-lite. Default idêntico ao histórico.
 const GEMINI_MODEL = process.env.GEMINI_COLLAB_MODEL || "gemini-2.5-flash";
-const CANDIDATE_POOL_SIZE = 30; // Pool amplo p/ o matcher por-pauta dedupar por território
+const CANDIDATE_POOL_SIZE = 30; // Pool final (após ranking) — o matcher por-pauta dedupa por território
+// Quantos seeds VARRER antes de rankear. Maior que o pool final: dá ao ranker
+// uma escolha real (os mais compatíveis com o viewer), em vez de "os primeiros
+// 30 que o Mongo devolveu". Também melhora a SIMETRIA do match — um par
+// genuinamente compatível tende a cair no top-30 dos DOIS lados.
+const CANDIDATE_SCAN_SIZE = 150;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -210,12 +215,23 @@ export async function buildNarrativeCandidatePool(
     await connectToDatabase();
 
     const { default: MapaSeed } = await import("@/app/models/MapaSeed");
+
+    // Mapa do PRÓPRIO viewer — base do ranking de relevância abaixo.
+    const viewerSeed = await MapaSeed.findOne({ userId: new Types.ObjectId(viewerUserId) })
+      .select("mapa.narrativa_central mapa.territorios")
+      .lean<{ mapa?: { narrativa_central?: string; territorios?: string[] } } | null>();
+    const viewerTokens = buildViewerTokens([
+      viewerSeed?.mapa?.narrativa_central ?? "",
+      ...((viewerSeed?.mapa?.territorios ?? []).filter((t): t is string => typeof t === "string")),
+    ]);
+
+    // Varre um pool AMPLO (não só os primeiros 30) para o ranking ter escolha.
     const seeds = await MapaSeed.find({
       "mapa.narrativa_central": { $exists: true, $ne: "" },
       userId: { $ne: new Types.ObjectId(viewerUserId) },
     })
       .select("userId mapa.narrativa_central mapa.territorios mapa.temas")
-      .limit(CANDIDATE_POOL_SIZE)
+      .limit(CANDIDATE_SCAN_SIZE)
       .lean<Array<{ userId: Types.ObjectId; mapa: { narrativa_central?: string; territorios?: string[]; temas?: string[] } }>>();
 
     if (seeds.length === 0) return { pool: [], candidateTerritoriesById: new Map() };
@@ -285,7 +301,29 @@ export async function buildNarrativeCandidatePool(
       pool.push({ userId, user, reading });
     }
 
-    return { pool, candidateTerritoriesById };
+    // Rankeia por relevância ao viewer (sobreposição de palavras significativas
+    // entre narrativa+territórios dos dois) e corta no pool final. Empate mantém
+    // a ordem original (estável). Sem tokens do viewer (mapa vazio), o score é 0
+    // pra todos → cai no comportamento antigo (primeiros N). O objetivo é DUPLO:
+    // qualidade (casa com os mais compatíveis) e simetria (um par compatível
+    // sobe no ranking dos dois lados, então ambos se veem).
+    const relevance = (entry: EligibleCandidate): number => {
+      if (viewerTokens.size === 0) return 0;
+      const text = [
+        entry.reading.videoReading.mainNarrative ?? "",
+        ...(candidateTerritoriesById.get(entry.userId) ?? []),
+      ].join(" ");
+      return significantWords(text).filter((w) => viewerTokens.has(w)).length;
+    };
+    const ranked = pool
+      .map((entry, i) => ({ entry, i, score: relevance(entry) }))
+      .sort((a, b) => (b.score - a.score) || (a.i - b.i))
+      .slice(0, CANDIDATE_POOL_SIZE)
+      .map((x) => x.entry);
+
+    // candidateTerritoriesById pode ter entradas fora do top-N; deixamos como
+    // está (é um lookup por id, os ids extras são inofensivos e não vazam).
+    return { pool: ranked, candidateTerritoriesById };
   } catch (err) {
     console.error("[narrativeCollabMatching] buildNarrativeCandidatePool erro:", err);
     return null;

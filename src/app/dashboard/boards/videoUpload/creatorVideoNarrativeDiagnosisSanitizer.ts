@@ -7,6 +7,7 @@ import type {
   VideoNarrativeContentContext,
   VideoNarrativeCoherence,
 } from "./creatorVideoNarrativeDiagnosisTypes";
+import { sanitizeVideoNarrativeContentPotentialScan } from "./videoNarrativeContentPotentialScan";
 
 const MAX_TEXT_FIELD_LENGTH = 4000;
 const MAX_ARRAY_ITEM_LENGTH = 1000;
@@ -460,6 +461,9 @@ export function sanitizeCreatorVideoNarrativeDiagnosisInput(
     // no raw transcripts) — pass through as-is after the outer sanitize pass.
     ...(input.contentContext ? { contentContext: input.contentContext as VideoNarrativeContentContext } : {}),
     ...(input.narrativeCoherence ? { narrativeCoherence: input.narrativeCoherence as VideoNarrativeCoherence } : {}),
+    ...(input.contentPotentialScan
+      ? { contentPotentialScan: sanitizeVideoNarrativeContentPotentialScan(input.contentPotentialScan) }
+      : {}),
     safetyFlags: createSafetyFlags(sanitized),
     schemaVersion: "creator_video_narrative_diagnosis_v1",
   };

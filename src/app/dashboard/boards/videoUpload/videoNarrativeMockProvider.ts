@@ -4,6 +4,7 @@ import {
   createEmptyVideoNarrativeAnalysis,
   sanitizeVideoNarrativeAnalysisText,
 } from "./videoNarrativeAnalysisTypes";
+import type { VideoNarrativeContentPotentialScan } from "./videoNarrativeContentPotentialScan";
 
 export type VideoNarrativeMockProviderScenario =
   | "skincare_routine"
@@ -26,6 +27,104 @@ export type VideoNarrativeMockProviderOptions = {
 };
 
 const fallbackId = "mock-video-narrative-analysis";
+
+function buildMockContentPotentialScan(
+  scenario: VideoNarrativeMockProviderScenario,
+): VideoNarrativeContentPotentialScan {
+  const isWeakOpening = scenario === "weak_hook";
+  const isUnclear = scenario === "unclear_content";
+  const isShareable = scenario === "brand_potential" || scenario === "collab_potential" || scenario === "ad_adaptation";
+  const dimension = (
+    status: "strong" | "mixed" | "weak" | "unknown",
+    evidence: string,
+    adjustment: string | null,
+    window: "0-3s" | "0-10s" | "full_video" | "creator_history",
+  ) => ({ status, evidence: clean(evidence), adjustment: adjustment ? clean(adjustment) : null, window });
+
+  return {
+    band: isUnclear ? "uncertain" : isWeakOpening ? "weak_signals" : "promising_with_adjustment",
+    confidence: isUnclear ? "low" : "medium",
+    basis: "video_only",
+    objective: "complete_reading",
+    historyPostsAnalyzed: 0,
+    dimensions: {
+      openingClarity: isUnclear
+        ? dimension("unknown", "Não há evidência suficiente da abertura.", null, "0-3s")
+        : isWeakOpening
+          ? dimension("weak", "O assunto principal só aparece depois da contextualização.", "Trazer a tensão principal para os 3 primeiros segundos e reforçá-la em texto.", "0-3s")
+          : dimension("mixed", "O assunto é reconhecível no início, mas pode ficar mais explícito sem som.", "Escrever a promessa principal na primeira cena.", "0-3s"),
+      attentionArchitecture: isUnclear
+        ? dimension("unknown", "Não há evidência suficiente de ritmo.", null, "0-10s")
+        : dimension("mixed", "Há progressão nos primeiros 10 segundos, com espaço para uma virada visual mais clara.", "Antecipar um corte, gesto ou mudança de enquadramento.", "0-10s"),
+      shareImpulse: isUnclear
+        ? dimension("unknown", "Não há evidência suficiente de utilidade compartilhável.", null, "full_video")
+        : isShareable
+          ? dimension("strong", "A pauta oferece uma ideia útil para levar a outra pessoa.", null, "full_video")
+          : dimension("mixed", "Existe utilidade, mas o motivo para enviar a alguém ainda está implícito.", "Fechar com uma síntese que a audiência queira encaminhar.", "full_video"),
+      promiseDelivery: isUnclear
+        ? dimension("unknown", "Não foi possível confrontar promessa e entrega.", null, "full_video")
+        : dimension("mixed", "O vídeo entrega o tema proposto, mas o fechamento pode materializar melhor o ganho.", "Transformar o final em uma conclusão prática.", "full_video"),
+      narrativeFit: isUnclear
+        ? dimension("unknown", "Sem contexto suficiente para comparar com o mapa.", null, "creator_history")
+        : dimension("strong", "O formato conversa com os territórios narrativos identificados no perfil.", null, "creator_history"),
+    },
+    watchedMoments: isUnclear
+      ? [
+          {
+            moment: "opening",
+            observation: "A abertura não oferece imagem ou fala nítida o bastante para identificar a promessa.",
+            impact: "Sem uma evidência legível, a leitura da entrada permanece inconclusiva.",
+          },
+          {
+            moment: "development",
+            observation: "O material disponível não permite confirmar uma progressão visual ou verbal.",
+            impact: "Não há base suficiente para apontar onde a atenção ganha ou perde força.",
+          },
+        ]
+      : [
+          {
+            moment: "opening",
+            observation: isWeakOpening
+              ? "Você começa contextualizando a situação antes de revelar a tensão principal."
+              : "A primeira cena apresenta o tema pela fala, mas a promessa ainda não aparece escrita.",
+            impact: isWeakOpening
+              ? "A pessoa precisa esperar para entender por que vale continuar."
+              : "Sem som, o assunto é reconhecível, mas o ganho do vídeo fica implícito.",
+          },
+          {
+            moment: "development",
+            observation: "A explicação avança com uma mudança de enquadramento nos primeiros 10 segundos.",
+            impact: "A virada visual ajuda a sinalizar que a ideia está progredindo.",
+          },
+          {
+            moment: "closing",
+            observation: "O fechamento retoma o tema, mas deixa a conclusão prática apenas na fala.",
+            impact: "A utilidade existe, porém ainda não vira uma síntese fácil de guardar ou enviar.",
+          },
+        ],
+    practicalDirection: isUnclear
+      ? {
+          title: "Dê ao scan uma abertura mais legível",
+          action: "Use uma versão em que a primeira cena, a fala e o texto estejam nítidos para a análise.",
+          example: null,
+        }
+      : isWeakOpening
+        ? {
+            title: "Abra pela tensão que hoje aparece depois",
+            action: "Corte a contextualização inicial e leve a dúvida central para o primeiro frame, também em texto.",
+            example: "A sua ideia trava antes mesmo de virar pauta?",
+          }
+        : {
+            title: "Torne a promessa visível na primeira cena",
+            action: "Mantenha a fala atual e acrescente no primeiro frame uma frase curta com o ganho que o vídeo entrega.",
+            example: "Como transformar uma ideia solta em uma pauta clara",
+          },
+    highestImpactAdjustment: isWeakOpening
+      ? clean("Trazer a tensão principal para os 3 primeiros segundos e reforçá-la em texto.")
+      : clean("Tornar a promessa legível sem som já na primeira cena."),
+    disclaimer: clean("Leitura estrutural do vídeo — não é garantia de alcance."),
+  };
+}
 
 function clean(value: string): string {
   return sanitizeVideoNarrativeAnalysisText(value);
@@ -311,7 +410,10 @@ export function runVideoNarrativeMockProvider(params: {
 }): VideoNarrativeAnalysis {
   const scenario = params.options?.scenario ?? "skincare_routine";
   const confidence = params.options?.confidence ?? (scenario === "unclear_content" ? "low" : "medium");
-  return buildScenario(params.input, scenario, confidence);
+  return {
+    ...buildScenario(params.input, scenario, confidence),
+    contentPotentialScan: buildMockContentPotentialScan(scenario),
+  };
 }
 
 export function runVideoNarrativeMockProviderBatch(params: {

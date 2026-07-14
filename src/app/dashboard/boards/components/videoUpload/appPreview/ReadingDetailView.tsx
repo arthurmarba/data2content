@@ -130,7 +130,7 @@ export function ReadingDetailView({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col bg-zinc-50 overflow-hidden"
+      className="ds-screen fixed inset-0 z-50 flex flex-col overflow-hidden"
       style={{ paddingTop: SAFE_TOP }}
     >
       {/* Nav bar padrão */}

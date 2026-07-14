@@ -232,6 +232,30 @@ describe("POST /api/dashboard/mobile-strategic-profile/analyze-real", () => {
     );
   });
 
+  it("retorna 413 quando o vídeo excede o limite de análise", async () => {
+    runOrchestrator.mockResolvedValue({
+      ok: false,
+      status: "failed",
+      message: "O vídeo excede o tamanho máximo permitido para análise.",
+      safeIssueCode: "object_too_large",
+    });
+
+    const res = await POST(createRequest(validPayload));
+
+    expect(res.status).toBe(413);
+    const body = await res.json();
+    expect(body.ok).toBe(false);
+    expect(body.code).toBe("object_too_large");
+    expect(body.retryable).toBe(false);
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining("route_orchestrator_failed"),
+      expect.objectContaining({
+        httpStatus: 413,
+        responseCode: "object_too_large",
+      }),
+    );
+  });
+
   it("retorna snapshot seguro no sucesso", async () => {
     const res = await POST(createRequest(validPayload));
     expect(res.status).toBe(200);
@@ -245,6 +269,9 @@ describe("POST /api/dashboard/mobile-strategic-profile/analyze-real", () => {
       directAnswer: "Esse formato vale repetir: o gancho funciona melhor quando você fala direto pra câmera.",
       coherenceVerdict: "confirms_top_pattern",
       coherenceReasoning: "Mantém o padrão de cultura pop como negócio.",
+      audienceCoherence: null,
+      brandCoherence: null,
+      contentPotentialScan: null,
     });
     expect(body.videoReadingPersistence).toEqual({
       attempted: true,

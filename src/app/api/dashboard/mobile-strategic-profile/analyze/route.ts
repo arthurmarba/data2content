@@ -399,7 +399,12 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       snapshotUpdated: true,
-      snapshot: upserted.snapshot,
+      snapshot: {
+        ...upserted.snapshot,
+        // Scan is attached to the response for immediate UI feedback. The
+        // durable learning record lives in CreatorVideoNarrativeDiagnosis.
+        contentPotentialScan: analysis.contentPotentialScan ?? null,
+      },
       videoReadingPersistence,
       synthesisSnapshotWrite,
       adaptiveQuiz,

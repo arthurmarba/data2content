@@ -29,6 +29,7 @@ import CollabInterest, {
 import UserModel from "@/app/models/User";
 import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
 import { logger } from "@/app/lib/logger";
+import { cleanIdeaText } from "./contentIdeasTextHygiene";
 import type { NarrativeCollabMatch } from "./narrativeCollabMatchingService";
 
 const TAG = "[collabInterestService]";
@@ -116,7 +117,29 @@ function daysFromNow(days: number): Date {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 }
 
-/** Aviso calmo no match — um por lado, falha silenciosa (nunca derruba o match). */
+/**
+ * Normaliza o território pro casamento recíproco: lowercase, sem acento, trim.
+ * "Paternidade" e "paternidade " casam; "" vira "" (sem território → não casa).
+ */
+function normalizeTerritory(t?: string | null): string {
+  return (t ?? "")
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * Aviso calmo no match — um por lado, falha silenciosa (nunca derruba o match).
+ *
+ * LIMITAÇÃO conhecida (decisão de ops pendente): usa free-text
+ * (`sendWhatsAppMessage`), que a Meta só entrega DENTRO da janela de 24h desde
+ * a última mensagem do criador pro número. Um match com quem não falou nas
+ * últimas 24h NÃO recebe o aviso. Pra entrega garantida (proativa fora da
+ * janela) é preciso um TEMPLATE aprovado no Meta Business e trocar por
+ * `sendTemplateMessage` (já existe em whatsappService.ts). Criar/aprovar o
+ * template é tarefa no painel da Meta — não dá pra fazer só no código.
+ */
 async function notifyMatchedPair(
   a: { user: PartnerUserLean; pautaTitle: string; partnerName: string },
   b: { user: PartnerUserLean; pautaTitle: string; partnerName: string },
@@ -157,6 +180,8 @@ export async function registerCollabDecision(
   const userOid = new Types.ObjectId(userId);
   const partnerOid = new Types.ObjectId(partnerId);
   const now = new Date();
+  const pautaTitle = cleanIdeaText(input.pautaTitle);
+  const territoryNorm = normalizeTerritory(input.pautaTerritory);
 
   // 1. Upsert da própria decisão (idempotente por user+pauta; re-swipe sobrescreve).
   //    matchedAt não é tocado aqui — um doc já casado não volta a "pendente".
@@ -167,8 +192,9 @@ export async function registerCollabDecision(
       $set: {
         partner: partnerOid,
         decision,
-        pautaTitle: input.pautaTitle,
+        pautaTitle,
         pautaTerritory: input.pautaTerritory ?? null,
+        pautaTerritoryNorm: territoryNorm,
         fitReason: input.fitReason ?? null,
         sharedSignal: input.sharedSignal ?? null,
         recordingIdea: input.recordingIdea ?? null,
@@ -184,13 +210,23 @@ export async function registerCollabDecision(
     return { ok: true, matched: false, match: null };
   }
 
+  // Sem território não há como exigir "mesmo tema" — não casa (fica aguardando).
+  // Na prática toda pauta tem território (o matcher é por-território), mas isto
+  // protege contra dado incompleto casar dois lados em temas diferentes.
+  if (!territoryNorm) {
+    return { ok: true, matched: false, match: null };
+  }
+
   // 2. Reivindica o recíproco vigente (atômico — ver nota de concorrência no topo).
+  //    Agora exige MESMO território: os dois só casam quando toparam o mesmo tema
+  //    — a collab fica óbvia e coerente (gravam sobre a mesma coisa).
   const reciprocal = await CollabInterest.findOneAndUpdate(
     {
       user: partnerOid,
       partner: userOid,
       decision: "interested",
       matchedAt: null,
+      pautaTerritoryNorm: territoryNorm,
       $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
     },
     { $set: { matchedAt: now }, $unset: { expiresAt: 1 } },
@@ -202,13 +238,31 @@ export async function registerCollabDecision(
     return { ok: true, matched: false, match: null };
   }
 
-  // 3. Casou — o próprio doc também vira match, deixa de expirar E já nasce
-  //    celebrado: quem topou por último (este request) vê a festa ao vivo, então
-  //    não deve revê-la na próxima visita. O outro doc fica sem celebratedAt.
+  // 3. UMA ideia de gravação pros DOIS lados. Cada lado gerou a sua ("como
+  //    gravar juntos") ao topar — no mesmo território, mas com texto possivelmente
+  //    diferente. A collab é uma coisa só: escolhemos uma (a de quem topou
+  //    primeiro = o doc recíproco; fallback pro deste lado) e gravamos nos dois
+  //    docs, pra ambos verem exatamente a mesma orientação. O modo (presencial/
+  //    remoto) já é simétrico (mesma checagem de cidade), então basta um.
+  const sharedRecordingIdea = reciprocal.recordingIdea ?? own.recordingIdea ?? null;
+  const sharedMode = own.collabMode ?? reciprocal.collabMode ?? null;
+
+  // O próprio doc também vira match, deixa de expirar E já nasce celebrado: quem
+  // topou por último (este request) vê a festa ao vivo, então não deve revê-la na
+  // próxima visita. O outro doc fica sem celebratedAt.
   await CollabInterest.updateOne(
     { _id: own._id },
-    { $set: { matchedAt: now, celebratedAt: now }, $unset: { expiresAt: 1 } },
+    { $set: { matchedAt: now, celebratedAt: now, recordingIdea: sharedRecordingIdea, collabMode: sharedMode }, $unset: { expiresAt: 1 } },
   );
+  // Recíproco recebe a MESMA ideia/modo (o dele pode ter sido escolhido, mas
+  // reescrever é idempotente e garante consistência se o fallback entrou).
+  await CollabInterest.updateOne(
+    { _id: reciprocal._id },
+    { $set: { recordingIdea: sharedRecordingIdea, collabMode: sharedMode } },
+  );
+  // Reflete no objeto em memória pro payload de retorno deste lado.
+  own.recordingIdea = sharedRecordingIdea;
+  own.collabMode = sharedMode;
 
   // 4. Perfis pros payloads + aviso.
   const [viewer, partner] = await Promise.all([
@@ -223,8 +277,8 @@ export async function registerCollabDecision(
 
   if (viewer) {
     await notifyMatchedPair(
-      { user: viewer, pautaTitle: own.pautaTitle, partnerName: partner.name ?? "outro criador" },
-      { user: partner, pautaTitle: reciprocal.pautaTitle, partnerName: viewer.name ?? "outro criador" },
+      { user: viewer, pautaTitle: cleanIdeaText(own.pautaTitle), partnerName: partner.name ?? "outro criador" },
+      { user: partner, pautaTitle: cleanIdeaText(reciprocal.pautaTitle), partnerName: viewer.name ?? "outro criador" },
     );
   }
 

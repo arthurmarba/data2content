@@ -1,3 +1,5 @@
+import type { VideoNarrativeContentPotentialScan } from "./videoNarrativeContentPotentialScan";
+
 // ─── Video content context extracted by the AI from watching the video ──────────
 // Structured dimensions that describe the life assets visible in each upload.
 // Accumulates across readings to identify the creator's confirmed narrative assets.
@@ -233,6 +235,8 @@ export interface CreatorVideoNarrativeDiagnosisInput {
   contentContext?: VideoNarrativeContentContext;
   /** Whether this video is coherent with the creator's confirmed top-performing pattern. */
   narrativeCoherence?: VideoNarrativeCoherence;
+  /** Safe structured Raio X result persisted without raw media. */
+  contentPotentialScan?: VideoNarrativeContentPotentialScan;
   schemaVersion?: "creator_video_narrative_diagnosis_v1";
 }
 

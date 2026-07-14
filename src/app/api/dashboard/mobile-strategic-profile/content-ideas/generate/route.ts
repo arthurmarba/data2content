@@ -203,7 +203,9 @@ export async function POST(request: Request) {
       | { whyYouCreate?: string | null; desiredFeeling?: string | null; contentLimit?: string | null; creatorPurpose?: string | null }
       | null;
 
-    const recentDismissedTitles = await listRecentDismissedTitles(userId, 10);
+    // 25 (não 10): descartes antigos que caíam da janela voltavam como
+    // quase-duplicatas. 25 cobre bem mais histórico sem inchar o prompt.
+    const recentDismissedTitles = await listRecentDismissedTitles(userId, 25);
 
     const context: ContentIdeasMapContext = {
       narrative: {

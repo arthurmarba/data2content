@@ -55,6 +55,7 @@ import {
   SERVICE_TERMS_VERSION,
 } from "@/lib/auth/legalConsent";
 import { serializePostCreationTrial, type SerializedPostCreationTrial } from "@/app/lib/postCreationTrial/access";
+import { logUsageEvent } from "@/app/lib/dataService/usageEventService";
 
 // --- AUGMENT NEXT-AUTH TYPES ---
 declare module "next-auth" {
@@ -519,6 +520,49 @@ function ensureStringId(v: unknown): string | null {
   if (!v) return null;
   const s = String(v);
   return s && s !== "undefined" ? s : null;
+}
+
+/**
+ * Atualiza lastActiveAt no máximo 1x/dia por usuário (fire-and-forget).
+ * Aproveita o ciclo de revalidação de sessão (cache-miss, ~1x/min) sem gerar
+ * um write por usuário a cada requisição.
+ */
+function touchLastActiveAt(userId: unknown): void {
+  const id = ensureStringId(userId);
+  if (!id || !Types.ObjectId.isValid(id)) return;
+
+  void (async () => {
+    try {
+      await connectToDatabase();
+      const startOfToday = new Date();
+      startOfToday.setUTCHours(0, 0, 0, 0);
+      await DbUser.updateOne(
+        { _id: id, $or: [{ lastActiveAt: { $exists: false } }, { lastActiveAt: { $lt: startOfToday } }] },
+        { $set: { lastActiveAt: new Date() } }
+      ).exec();
+    } catch (error) {
+      logger.warn("[NextAuth touchLastActiveAt] Falha ao atualizar lastActiveAt.", error);
+    }
+  })();
+}
+
+/**
+ * Grava lastLoginAt + evento de sessão (fire-and-forget). Nunca lança —
+ * telemetria não pode impactar o fluxo de autenticação.
+ */
+function recordLoginTelemetry(userId: unknown): void {
+  const id = ensureStringId(userId);
+  if (!id || !Types.ObjectId.isValid(id)) return;
+
+  void (async () => {
+    try {
+      await connectToDatabase();
+      await DbUser.updateOne({ _id: id }, { $set: { lastLoginAt: new Date() } }).exec();
+      logUsageEvent(id, "session_start", "session");
+    } catch (error) {
+      logger.warn("[NextAuth recordLoginTelemetry] Falha ao gravar telemetria de login.", error);
+    }
+  })();
 }
 
 function resolveReconnectErrorCode(
@@ -1328,6 +1372,8 @@ const authOptionsConfig = {
         if (typeof token.postCreationTrial === "undefined") token.postCreationTrial = null;
 
       if ((trigger === "signIn" || trigger === "signUp") && userFromSignIn) {
+        recordLoginTelemetry((userFromSignIn as any).id);
+
         token.id = (userFromSignIn as any).id;
         token.sub = (userFromSignIn as any).id;
         token.name = userFromSignIn.name;
@@ -1773,6 +1819,7 @@ const authOptionsConfig = {
         );
 
         if (dbUserCheck && session.user) {
+          touchLastActiveAt(token.id);
           logger.info(`${TAG_SESSION} Revalidando sessão com dados do DB para User ID: ${token.id}. DB planStatus: ${dbUserCheck.planStatus}.`);
           const snapshot: SessionRevalidationSnapshot = {
             planStatus: dbUserCheck.planStatus ?? session.user.planStatus ?? null,

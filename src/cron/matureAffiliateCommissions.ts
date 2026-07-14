@@ -2,6 +2,7 @@ import { connectToDatabase } from '@/app/lib/mongoose';
 import { getErrorMessage, isTransientMongoError, withMongoTransientRetry } from '@/app/lib/mongoTransient';
 import User from '@/app/models/User';
 import { logger } from '@/app/lib/logger';
+import { logAffiliateEvent, metrics } from '@/app/lib/telemetry';
 import {
   MATURATION_BATCH_USERS,
   MATURATION_MAX_ENTRIES_PER_USER,
@@ -106,18 +107,31 @@ export async function matureAffiliateCommissions(
             return User.updateOne(
               {
                 _id: u._id,
-                'commissionLog._id': e._id,
-                'commissionLog.status': 'pending',
-                'commissionLog.availableAt': { $lte: nowUtc },
+                commissionLog: {
+                  $elemMatch: {
+                    _id: e._id,
+                    status: 'pending',
+                    availableAt: { $lte: nowUtc },
+                  },
+                },
               },
               {
                 $set: {
-                  'commissionLog.$.status': 'available',
-                  'commissionLog.$.maturedAt': nowUtc,
-                  'commissionLog.$.updatedAt': nowUtc,
+                  'commissionLog.$[entry].status': 'available',
+                  'commissionLog.$[entry].maturedAt': nowUtc,
+                  'commissionLog.$[entry].updatedAt': nowUtc,
                 },
                 $inc: { [`affiliateBalances.${e.currency}`]: e.amountCents },
-              }
+              },
+              {
+                arrayFilters: [
+                  {
+                    'entry._id': e._id,
+                    'entry.status': 'pending',
+                    'entry.availableAt': { $lte: nowUtc },
+                  },
+                ],
+              },
             );
           },
           {
@@ -182,7 +196,7 @@ export async function matureAffiliateCommissions(
     }
   );
 
-  return {
+  const result = {
     ok: true,
     dryRun,
     window: nowUtc.toISOString(),
@@ -193,6 +207,27 @@ export async function matureAffiliateCommissions(
     durationMs: Date.now() - start,
     hasMore: remaining > 0,
   };
+
+  metrics.affiliates_mature_promoted_total.inc({ dryRun: String(dryRun) }, promotedCount);
+  metrics.affiliates_mature_run_duration_ms.observe({ dryRun: String(dryRun) }, result.durationMs);
+  metrics.affiliates_pending_count.set({}, remaining);
+  logAffiliateEvent('affiliate_maturation_completed', {
+    promotedCount,
+    processedUsers,
+    remainingDueEntries: remaining,
+    errors,
+    durationMs: result.durationMs,
+    hasMore: result.hasMore,
+  });
+  if (remaining > 0 || errors > 0) {
+    logger.warn(`${TAG} attention_required`, {
+      remainingDueEntries: remaining,
+      errors,
+      durationMs: result.durationMs,
+    });
+  }
+
+  return result;
 }
 
 export default matureAffiliateCommissions;

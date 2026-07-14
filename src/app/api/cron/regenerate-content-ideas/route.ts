@@ -143,7 +143,9 @@ async function regenerateIdeasIfStale(userId: string): Promise<RegenerateResult>
       creatorPurpose?: string | null;
     } | null;
 
-    const recentDismissedTitles = await listRecentDismissedTitles(userId, 10);
+    // 25 (não 10): descartes antigos que caíam da janela voltavam como
+    // quase-duplicatas. Alinhado com a rota de geração sob demanda.
+    const recentDismissedTitles = await listRecentDismissedTitles(userId, 25);
 
     const context: ContentIdeasMapContext = {
       narrative: {

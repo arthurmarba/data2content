@@ -172,7 +172,7 @@ export function MapaConfirmationRow({
             ...BTN_BASE,
             flex: variant === "3way" ? 1 : undefined,
             background: resolvedPrimaryBg,
-            color: "#fff",
+            color: "var(--ds-color-on-brand)",
             fontSize,
             fontWeight: 700,
             opacity,
@@ -191,7 +191,7 @@ export function MapaConfirmationRow({
             style={{
               ...BTN_BASE,
               flex: variant === "3way" ? 1 : undefined,
-              background: "#fff",
+              background: "var(--ds-color-surface)",
               color: TEXT_BODY_HEX,
               fontSize,
               border: `1px solid ${WARM_OUTLINE}`,
@@ -212,7 +212,7 @@ export function MapaConfirmationRow({
             style={{
               ...BTN_BASE,
               flex: variant === "3way" ? 1 : undefined,
-              background: "#fff",
+              background: "var(--ds-color-surface)",
               color: TEXT_SECONDARY_HEX,
               fontSize,
               border: `1px solid ${WARM_OUTLINE}`,

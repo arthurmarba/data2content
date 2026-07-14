@@ -91,6 +91,21 @@ describe('POST /api/affiliate/redeem', () => {
     expect(body.code).toBe('has_debt');
   });
 
+  it('blocks transfers when the materialized balance diverges from the ledger', async () => {
+    (User as any).findById.mockResolvedValueOnce({
+      _id: 'u1',
+      affiliateBalances: new Map([['brl', 999999]]),
+      affiliateDebtByCurrency: new Map(),
+      paymentInfo: { stripeAccountId: 'acct1' },
+      commissionLog: [{ _id: 'entry1', type: 'commission', status: 'available', currency: 'brl', amountCents: 2000 }],
+    });
+    const res = await POST(mockRequest());
+    const body = await res.json();
+    expect(res.status).toBe(409);
+    expect(body.code).toBe('ledger_out_of_sync');
+    expect((stripe as any).transfers.create).not.toHaveBeenCalled();
+  });
+
   it('returns ok true on success', async () => {
     const res = await POST(mockRequest());
     const body = await res.json();

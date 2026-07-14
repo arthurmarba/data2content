@@ -2,6 +2,8 @@ import type { ConnectStatus } from './connect';
 
 export type CurrencySummary = {
   availableCents: number;
+  storedAvailableCents: number;
+  reconciliationStatus: 'reconciled' | 'mismatch';
   pendingCents: number;
   debtCents: number;
   nextMatureAt: string | null;

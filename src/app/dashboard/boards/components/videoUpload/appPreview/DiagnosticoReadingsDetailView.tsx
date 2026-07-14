@@ -44,7 +44,7 @@ export function DiagnosticoReadingsDetailView({
         <DiagnosticoDetailEmptyState
           iconSlot={
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M15 10l4.553-2.069A1 1 0 0 1 21 8.82v6.36a1 1 0 0 1-1.447.89L15 14M3 8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z" stroke="#71717a" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M15 10l4.553-2.069A1 1 0 0 1 21 8.82v6.36a1 1 0 0 1-1.447.89L15 14M3 8a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8z" stroke="var(--ds-color-text-secondary)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           }
           title="Nenhuma análise ainda"

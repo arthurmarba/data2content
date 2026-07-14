@@ -137,14 +137,14 @@ export async function updateContentIdeaStatus(
   userId: string,
   ideaId: string,
   status: CreatorContentIdeaStatus,
-): Promise<{ ok: boolean }> {
+): Promise<{ ok: boolean; error?: "not_found" | "storage_unavailable" | "unknown" }> {
   if (
     !userId ||
     !Types.ObjectId.isValid(userId) ||
     !ideaId ||
     !Types.ObjectId.isValid(ideaId)
   ) {
-    return { ok: false };
+    return { ok: false, error: "not_found" };
   }
 
   try {
@@ -153,9 +153,20 @@ export async function updateContentIdeaStatus(
       { _id: new Types.ObjectId(ideaId), userId: new Types.ObjectId(userId) },
       { $set: { status } },
     );
-    return { ok: result != null };
+    return result != null ? { ok: true } : { ok: false, error: "not_found" };
   } catch (err) {
     console.error("[contentIdeas:update] Erro:", err);
-    return { ok: false };
+    return { ok: false, error: isMongoStorageUnavailableError(err) ? "storage_unavailable" : "unknown" };
   }
+}
+
+function isMongoStorageUnavailableError(err: unknown): boolean {
+  const anyErr = err as { code?: unknown; codeName?: unknown; message?: unknown };
+  const message = typeof anyErr?.message === "string" ? anyErr.message : "";
+  const codeName = typeof anyErr?.codeName === "string" ? anyErr.codeName : "";
+  return (
+    anyErr?.code === 8000 ||
+    codeName === "AtlasError" ||
+    /over your space quota|writes are blocked|storage quota/i.test(message)
+  );
 }

@@ -15,6 +15,7 @@ import type {
   VideoNarrativeContentContext,
   VideoNarrativeCoherence,
 } from "./creatorVideoNarrativeDiagnosisTypes";
+import type { VideoNarrativeContentPotentialScan } from "./videoNarrativeContentPotentialScan";
 
 export interface CreatorVideoNarrativeDiagnosisSafeReading {
   userId: string;
@@ -31,6 +32,7 @@ export interface CreatorVideoNarrativeDiagnosisSafeReading {
   contentContext?: VideoNarrativeContentContext;
   /** Coherence verdict against the creator's confirmed top-performing pattern. */
   narrativeCoherence?: VideoNarrativeCoherence;
+  contentPotentialScan?: VideoNarrativeContentPotentialScan;
   /**
    * Creator's declared publication intent. Binary: "yes" or "no".
    * Null = legacy reading (pre-feature), treated as full weight.
@@ -116,6 +118,7 @@ export function mapCreatorVideoNarrativeDiagnosisToSafeReading(
     evidenceAnchors: doc.evidenceAnchors,
     contentContext: (doc as unknown as { contentContext?: VideoNarrativeContentContext }).contentContext,
     narrativeCoherence: (doc as unknown as { narrativeCoherence?: VideoNarrativeCoherence }).narrativeCoherence,
+    contentPotentialScan: (doc as unknown as { contentPotentialScan?: VideoNarrativeContentPotentialScan }).contentPotentialScan,
     publishIntent: (doc as unknown as { publishIntent?: "yes" | "no" | null }).publishIntent ?? null,
     confirmationQuizAnswers: (doc as unknown as { confirmationQuizAnswers?: CreatorVideoNarrativeDiagnosisSafeReading["confirmationQuizAnswers"] }).confirmationQuizAnswers,
     safetyFlags: doc.safetyFlags,
@@ -139,6 +142,7 @@ function queryProjection() {
     evidenceAnchors: 1,
     contentContext: 1,
     narrativeCoherence: 1,
+    contentPotentialScan: 1,
     publishIntent: 1,
     confirmationQuizAnswers: 1,
     safetyFlags: 1,

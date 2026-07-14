@@ -95,8 +95,8 @@ export function DiagnosticoReadingCard({
             ) : (
               <div className="flex h-full items-center justify-center">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <circle cx="12" cy="12" r="10" stroke="#d4d4d8" strokeWidth="1.5" />
-                  <polygon points="10,8 17,12 10,16" fill="#a1a1aa" />
+                  <circle cx="12" cy="12" r="10" stroke="var(--ds-color-line)" strokeWidth="1.5" />
+                  <polygon points="10,8 17,12 10,16" fill="var(--ds-color-text-muted)" />
                 </svg>
               </div>
             )}

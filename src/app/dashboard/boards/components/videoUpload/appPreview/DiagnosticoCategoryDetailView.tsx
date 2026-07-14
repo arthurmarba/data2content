@@ -34,7 +34,7 @@ export function DiagnosticoCategoryDetailView({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[#F2F2F7] animate-in slide-in-from-right duration-300"
+      className="ds-screen fixed inset-0 z-50 flex flex-col overflow-hidden animate-in slide-in-from-right duration-300"
       style={{ paddingTop: SAFE_TOP }}
       role="dialog"
       aria-modal="true"

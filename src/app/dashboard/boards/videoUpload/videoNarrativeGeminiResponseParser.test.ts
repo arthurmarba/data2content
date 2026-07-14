@@ -45,6 +45,48 @@ describe("videoNarrativeGeminiResponseParser", () => {
     }
   });
 
+  it("preserva os momentos assistidos e a direção prática do Raio X", () => {
+    const raw = {
+      ...JSON.parse(geminiVideoNarrativeRawJsonFixture),
+      contentPotentialScan: {
+        band: "promising_with_adjustment",
+        confidence: "medium",
+        basis: "video_only",
+        objective: "complete_reading",
+        historyPostsAnalyzed: 0,
+        dimensions: {
+          openingClarity: { status: "mixed", evidence: "A pergunta só aparece na fala.", adjustment: "Escrever a pergunta.", window: "0-3s" },
+          attentionArchitecture: { status: "strong", evidence: "Há progressão visual.", adjustment: null, window: "0-10s" },
+          shareImpulse: { status: "mixed", evidence: "A síntese está implícita.", adjustment: null, window: "full_video" },
+          promiseDelivery: { status: "strong", evidence: "O fechamento entrega a solução.", adjustment: null, window: "full_video" },
+          narrativeFit: { status: "strong", evidence: "Conversa com o mapa.", adjustment: null, window: "creator_history" },
+        },
+        watchedMoments: [
+          { moment: "opening", observation: "Você mostra o rascunho antes da pergunta.", impact: "A tensão demora a ficar clara." },
+          { moment: "closing", observation: "A pauta pronta aparece na tela.", impact: "A entrega fica comprovada." },
+        ],
+        practicalDirection: {
+          title: "Antecipe a pergunta",
+          action: "Leve a dúvida principal para o primeiro frame em texto.",
+          example: "Sua ideia trava antes de virar pauta?",
+        },
+        highestImpactAdjustment: "Antecipar a pergunta.",
+        disclaimer: "Leitura estrutural, sem garantia de alcance.",
+      },
+    };
+    const result = parseVideoNarrativeGeminiResponse(JSON.stringify(raw));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.analysis.contentPotentialScan?.watchedMoments?.[0]).toEqual(expect.objectContaining({
+      moment: "opening",
+      observation: expect.stringContaining("rascunho"),
+    }));
+    expect(result.analysis.contentPotentialScan?.practicalDirection).toEqual(expect.objectContaining({
+      title: "Antecipe a pergunta",
+      example: "Sua ideia trava antes de virar pauta?",
+    }));
+  });
+
   it("degrada verdict inválido de eixo para 'unknown' e não quebra quando ausente", () => {
     const withBadVerdict = {
       ...JSON.parse(geminiVideoNarrativeRawJsonFixture),

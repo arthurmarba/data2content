@@ -9,18 +9,34 @@ interface MauPoint { month: string; mau: number; avgDau: number }
 interface WeekPoint { _id: { year: number; week: number }; total: number; uniqueUsers: number }
 interface MkMonth  { _id: { year: number; month: number }; acessos: number; visitantesUnicos: number }
 interface Creator  { name: string; username: string | null; planStatus: string; followers: number | null; visitantesUnicos: number; acessosTotais: number }
+interface ToolStat { eventName: string; total: number; uniqueUsers: number; mobileTotal: number; mobileUniqueUsers: number }
 interface Data {
   generatedAt: string
   users: { total: number; planDist: PlanItem[] }
-  activity: { avgDau30: number; peakDau: number; mau30: number; mauByMonth: MauPoint[] }
+  activity: { avgDau30: number; peakDau: number; mau30: number; mauByMonth: MauPoint[]; dauLogin: number; mauLogin30d: number }
   features: {
     pautas: { total30d: number; users30d: number; byWeek: WeekPoint[] }
     publi:  { total: number; total30d: number; users30d: number }
     video:  { total30d: number }
     mapa:   { total: number; confirmations30d: number }
+    byTool: ToolStat[]
   }
   mediakit: { humanTotal: number; human30d: number; byMonth: MkMonth[]; ranking: Creator[] }
 }
+
+const TOOL_LABELS: Record<string, string> = {
+  publi_calculated: 'Calculadora de publi',
+  media_kit_opened: 'Mídia kit (aberto pelo criador)',
+  pauta_created: 'Pautas geradas',
+  map_dimension_confirmed: 'Confirmações no mapa',
+  video_upload_started: 'Vídeo — upload iniciado',
+  video_diagnosis_created: 'Vídeo — diagnóstico concluído',
+  collab_swiped: 'Collabs — swipe',
+  collab_matched: 'Collabs — match',
+  chat_session_started: 'Chat — sessão iniciada',
+  session_start: 'Login',
+};
+function toolLabel(eventName: string) { return TOOL_LABELS[eventName] ?? eventName; }
 
 /* ── helpers ── */
 const PLAN_COLORS: Record<string, string> = {
@@ -156,14 +172,19 @@ export default function PlatformUsagePage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <KpiCard label="Usuários cadastrados" value={num(d.users.total)} sub="desde o lançamento" />
             <KpiCard label="Pagantes ativos" value={activeCount} sub={`${((activeCount / d.users.total) * 100).toFixed(1)}% de conversão`} color="text-green-700" />
-            <KpiCard label="MAU — mês atual" value={d.activity.mau30} sub="usuários únicos ativos" color="text-indigo-700" />
-            <KpiCard label="DAU médio (30d)" value={d.activity.avgDau30} sub={`pico: ${d.activity.peakDau} usuários/dia`} />
+            <KpiCard label="MAU — mês atual (ação)" value={d.activity.mau30} sub="usuários únicos com ação registrada" color="text-indigo-700" />
+            <KpiCard label="DAU médio (30d, ação)" value={d.activity.avgDau30} sub={`pico: ${d.activity.peakDau} usuários/dia`} />
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <KpiCard label="DAU — hoje (login)" value={num(d.activity.dauLogin)} sub="sessão autenticada nas últimas 24h" color="text-sky-700" />
+            <KpiCard label="MAU — 30d (login)" value={num(d.activity.mauLogin30d)} sub="sessão autenticada nos últimos 30d" color="text-sky-700" />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* MAU por mês */}
             <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4">MAU mensal (últimos 4 meses)</h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-4">MAU mensal por ação (últimos 4 meses)</h3>
               <BarChart
                 data={d.activity.mauByMonth.slice(-4)}
                 labelFn={(d: unknown) => (d as MauPoint).month.slice(5)}
@@ -187,8 +208,8 @@ export default function PlatformUsagePage() {
             </div>
           </div>
 
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
-            <strong>Nota:</strong> DAU/MAU são proxies — contam ações registradas (pautas, publi, mapa, vídeo, chat). Usuários que só navegaram sem interagir não aparecem.
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-600">
+            <strong>Nota:</strong> &ldquo;Ação&rdquo; conta eventos reais gravados no log de uso (pautas, publi, mapa, vídeo, chat, sessão). &ldquo;Login&rdquo; conta sessões autenticadas — mais amplo, mas só reflete dados a partir do deploy desta instrumentação; o histórico anterior não existe.
           </div>
         </div>
       )}
@@ -221,6 +242,39 @@ export default function PlatformUsagePage() {
                 valueFn={(d: unknown) => (d as WeekPoint).uniqueUsers}
                 color="bg-indigo-400"
               />
+            </div>
+          </div>
+
+          {/* Por ferramenta */}
+          <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-700 mb-1">Uso por ferramenta (30d)</h3>
+            <p className="text-xs text-gray-400 mb-4">Eventos reais gravados no log de uso. &ldquo;Mobile&rdquo; = disparado a partir do board mobile (Mapa/Collabs/Vídeo/Mídia Kit/Calculadora); eventos sem essa tag ainda não distinguem plataforma.</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs uppercase tracking-wide text-gray-400 border-b border-gray-100">
+                    <th className="pb-2 text-left">Ferramenta</th>
+                    <th className="pb-2 text-right">Eventos (30d)</th>
+                    <th className="pb-2 text-right">Criadores únicos</th>
+                    <th className="pb-2 text-right">% mobile</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.features.byTool.map(t => (
+                    <tr key={t.eventName} className="border-b border-gray-50 hover:bg-gray-50">
+                      <td className="py-2 font-medium text-gray-800">{toolLabel(t.eventName)}</td>
+                      <td className="py-2 text-right">{num(t.total)}</td>
+                      <td className="py-2 text-right text-indigo-700 font-semibold">{num(t.uniqueUsers)}</td>
+                      <td className="py-2 text-right text-gray-500">
+                        {t.total > 0 ? `${Math.round((t.mobileTotal / t.total) * 100)}%` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                  {d.features.byTool.length === 0 && (
+                    <tr><td colSpan={4} className="py-4 text-center text-gray-400">Sem eventos nos últimos 30 dias.</td></tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

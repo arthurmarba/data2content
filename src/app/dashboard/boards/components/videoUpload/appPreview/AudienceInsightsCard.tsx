@@ -22,14 +22,14 @@ import type { AudienceInsights } from "@/app/dashboard/boards/videoUpload/audien
 // arrastaria winston/mongoose (só-de-servidor) pro bundle do cliente.
 import { territoryLabelsMatch } from "@/app/dashboard/boards/videoUpload/audienceTerritoryLabels";
 
-// Tokens alinhados ao card "Roteiros", com acento verde para Audiência.
-const CARD_RADIUS = 20;
-const CARD_BG = "#f6fbf7";
-const CARD_SHADOW = "0 1px 6px rgba(16,185,129,0.10), 0 0 0 0.5px rgba(16,185,129,0.08)";
-const CARD_ACCENT = "#10b981";
-const CARD_TEXT = "#14532d";
-const CARD_DIVIDER = "rgba(16,185,129,0.10)";
-const CARD_DIVIDER_SOFT = "rgba(16,185,129,0.08)";
+// A Audiência pertence ao mesmo workspace do Perfil; verde fica reservado a sucesso.
+const CARD_RADIUS = 24;
+const CARD_BG = "var(--ds-color-surface)";
+const CARD_SHADOW = "0 1px 2px rgba(18,16,20,0.03), 0 10px 28px rgba(18,16,20,0.045)";
+const CARD_ACCENT = "var(--ds-color-brand)";
+const CARD_TEXT = "var(--ds-color-ink)";
+const CARD_DIVIDER = "var(--ds-color-line)";
+const CARD_DIVIDER_SOFT = "var(--ds-color-line)";
 
 // ─── Copy layer ────────────────────────────────────────────────────────────────
 // Cada função traduz um campo de AudienceInsights em texto humano.
@@ -545,7 +545,8 @@ export function AudienceInsightsCard({ insights, instagramConnected, onReviewTer
           borderRadius: CARD_RADIUS,
           background: CARD_BG,
           boxShadow: CARD_SHADOW,
-          padding: "18px 22px 22px",
+          border: "1px solid var(--ds-color-line)",
+          padding: "20px 22px 18px",
           display: "flex",
           flexDirection: "column",
           gap: 0,
@@ -558,14 +559,14 @@ export function AudienceInsightsCard({ insights, instagramConnected, onReviewTer
               display: "flex", alignItems: "center", justifyContent: "center",
               width: 38, height: 38, borderRadius: "50%",
               background: CARD_ACCENT,
-              boxShadow: "0 2px 8px rgba(16,185,129,0.30)",
+              boxShadow: "0 8px 22px rgba(250,22,91,0.16)",
               flexShrink: 0,
             }}
             aria-hidden="true"
           >
             <AudienceIcon />
           </span>
-          <span style={{ fontSize: 15, fontWeight: 700, color: "#18181b", letterSpacing: -0.3 }}>
+          <span style={{ fontFamily: "var(--ds-font-display)", fontSize: 19, fontWeight: 700, color: "var(--ds-color-ink)", letterSpacing: -0.55, lineHeight: 1.05 }}>
             Sua Audiência
           </span>
         </div>
@@ -614,7 +615,7 @@ export function AudienceInsightsCard({ insights, instagramConnected, onReviewTer
 
         {/* Atribuição */}
         <div style={{ margin: "0 -22px", padding: "9px 22px 4px" }}>
-          <p style={{ fontSize: 11, color: "#a1a1aa", margin: 0, letterSpacing: 0.1 }}>
+          <p style={{ fontSize: 11, color: "var(--ds-color-text-muted)", margin: 0, letterSpacing: 0.1 }}>
             via Instagram · {periodLabel}
           </p>
         </div>
@@ -697,13 +698,13 @@ export function AudienceInsightsCard({ insights, instagramConnected, onReviewTer
       {openModal === "divergence" && territoryDivergence && (
         <AudienceModal title="O que a audiência vê" onClose={closeModal} periodLabel={periodLabel}>
           <div className="flex items-stretch gap-3">
-            <div className="flex-1 rounded-2xl bg-zinc-50 px-4 py-3 text-center">
+            <div className="flex-1 rounded-2xl bg-[var(--ds-color-neutral)] px-4 py-3 text-center">
               <p className="text-[10px] font-bold uppercase tracking-[0.7px] text-zinc-400 mb-1">Seu mapa</p>
               <p className="text-[13px] font-semibold leading-snug text-zinc-700 break-words">{capitalize(territoryDivergence.mapLabel)}</p>
             </div>
-            <div className="flex-1 rounded-2xl bg-green-50 px-4 py-3 text-center">
-              <p className="text-[10px] font-bold uppercase tracking-[0.7px] text-green-600 mb-1">Audiência salva</p>
-              <p className="text-[13px] font-semibold leading-snug text-green-800 break-words">{prettyLabel(territoryDivergence.audienceLabel)}</p>
+            <div className="flex-1 rounded-2xl bg-[var(--ds-color-brand-soft)] px-4 py-3 text-center">
+              <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.7px] text-[var(--ds-color-brand-strong)]">Audiência salva</p>
+              <p className="text-[13px] font-semibold leading-snug text-[var(--ds-color-ink)] break-words">{prettyLabel(territoryDivergence.audienceLabel)}</p>
             </div>
           </div>
           <ModalBody>{divergenceModalBody(territoryDivergence.audienceLabel, territoryDivergence.mapLabel)}</ModalBody>
@@ -777,9 +778,9 @@ export function AudienceInsightsCard({ insights, instagramConnected, onReviewTer
                 {capitalize(engagedValueLabel(engagedDivergence.dimension, engagedDivergence.followerLabel))}
               </p>
             </div>
-            <div className="flex-1 rounded-2xl bg-green-50 px-4 py-3 text-center">
-              <p className="text-[10px] font-bold uppercase tracking-[0.7px] text-green-600 mb-1">Quem mais engaja</p>
-              <p className="text-[13px] font-semibold leading-snug text-green-800 break-words">
+            <div className="flex-1 rounded-2xl bg-[var(--ds-color-brand-soft)] px-4 py-3 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-[0.7px] text-[var(--ds-color-brand-strong)] mb-1">Quem mais engaja</p>
+              <p className="text-[13px] font-semibold leading-snug text-[var(--ds-color-ink)] break-words">
                 {capitalize(engagedValueLabel(engagedDivergence.dimension, engagedDivergence.engagedLabel))}
               </p>
             </div>
@@ -857,7 +858,7 @@ function InsightRow({
             alignSelf: "flex-start",
             display: "inline-flex", alignItems: "center", gap: 4,
             borderRadius: 999, padding: "2px 8px",
-            background: "rgba(16,185,129,0.12)",
+            background: "rgba(250,22,91,0.12)",
             fontSize: 10.5, fontWeight: 700, letterSpacing: 0.2, color: CARD_ACCENT,
             textTransform: "uppercase",
           }}
@@ -889,7 +890,7 @@ function InsightRow({
       {action && (
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {action.note && (
-            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.1, color: isOuro ? CARD_ACCENT : "#a1a1aa" }}>
+            <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 0.1, color: isOuro ? CARD_ACCENT : "var(--ds-color-text-muted)" }}>
               {action.note}
             </span>
           )}
@@ -901,7 +902,7 @@ function InsightRow({
               background: "transparent", border: "none", padding: 0,
               cursor: "pointer", fontFamily: "inherit",
               fontSize: 12.5, fontWeight: 700, letterSpacing: -0.1,
-              color: isOuro ? CARD_ACCENT : "#52525b",
+              color: isOuro ? CARD_ACCENT : "var(--ds-color-text-secondary)",
             }}
           >
             {action.label}
@@ -927,7 +928,7 @@ function AudienceModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-[270] flex items-end bg-zinc-950/40 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]"
+      className="fixed inset-0 z-[270] flex items-end justify-center ds-scrim"
       role="presentation"
       onClick={onClose}
     >
@@ -935,17 +936,17 @@ function AudienceModal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="w-full max-w-md overflow-y-auto rounded-[1.5rem] border border-zinc-200 bg-white shadow-[0_28px_80px_rgba(24,24,27,0.18)] animate-in slide-in-from-bottom duration-300"
+        className="ds-sheet ds-enter-sheet"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Handle */}
         <div className="mb-2 flex justify-center pt-4" aria-hidden="true">
-          <div className="h-1 w-10 rounded-full bg-zinc-200" />
+          <div className="ds-sheet__handle !m-0" />
         </div>
 
         {/* Header */}
         <div className="flex items-center justify-between gap-3 px-6 pt-2 pb-4">
-          <h2 className="text-[18px] font-bold tracking-tight text-zinc-950">
+          <h2 className="font-display text-[1.5rem] font-bold tracking-[-0.035em] text-zinc-950">
             {title}
           </h2>
           <button
@@ -977,7 +978,7 @@ function AudienceModal({
 
 function ModalChip({ label }: { label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-[12px] font-semibold text-green-700">
+    <span className="inline-flex items-center rounded-full bg-[var(--ds-color-brand-soft)] px-3 py-1 text-[12px] font-semibold text-[var(--ds-color-brand-strong)]">
       {label}
     </span>
   );
@@ -1000,15 +1001,15 @@ function ModalReviewMapCta({ onClick }: { onClick: () => void }) {
       className="mt-1 flex w-full items-center justify-between gap-3 border-t border-zinc-100 pt-4 text-left transition active:opacity-70"
     >
       <span className="text-[13px] text-zinc-500">Esse ângulo faz parte do seu mapa?</span>
-      <span className="whitespace-nowrap text-[13px] font-semibold text-green-700">Revisar territórios →</span>
+      <span className="whitespace-nowrap text-[13px] font-semibold text-[var(--ds-color-brand-strong)]">Revisar territórios →</span>
     </button>
   );
 }
 
 function ModalReflection({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl bg-green-50 px-5 py-4">
-      <p className="text-[13.5px] italic leading-relaxed text-green-900">
+    <div className="rounded-2xl bg-[var(--ds-color-brand-soft)] px-5 py-4">
+      <p className="text-[13.5px] italic leading-relaxed text-[var(--ds-color-ink)]">
         {children}
       </p>
     </div>
@@ -1037,9 +1038,9 @@ function FormatInversionVisual({
         <p className="text-[10px] font-bold uppercase tracking-[0.7px] text-sky-500 mb-1">Alcance</p>
         <p className="text-[14px] font-bold text-sky-900">{capitalize(reachLabel)}</p>
       </div>
-      <div className="flex-1 rounded-2xl bg-green-50 px-4 py-3 text-center">
-        <p className="text-[10px] font-bold uppercase tracking-[0.7px] text-green-600 mb-1">Reconhecimento</p>
-        <p className="text-[14px] font-bold text-green-900">{capitalize(savesLabel)}</p>
+      <div className="flex-1 rounded-2xl bg-[var(--ds-color-brand-soft)] px-4 py-3 text-center">
+        <p className="text-[10px] font-bold uppercase tracking-[0.7px] text-[var(--ds-color-brand-strong)] mb-1">Reconhecimento</p>
+        <p className="text-[14px] font-bold text-[var(--ds-color-ink)]">{capitalize(savesLabel)}</p>
       </div>
     </div>
   );
@@ -1083,7 +1084,8 @@ export function AudienceConnectPrompt({
         borderRadius: CARD_RADIUS,
         background: CARD_BG,
         boxShadow: CARD_SHADOW,
-        padding: "18px 22px 22px",
+        border: "1px solid var(--ds-color-line)",
+        padding: "20px 22px 22px",
         display: "flex",
         flexDirection: "column",
         gap: 0,
@@ -1095,22 +1097,22 @@ export function AudienceConnectPrompt({
             display: "flex", alignItems: "center", justifyContent: "center",
             width: 38, height: 38, borderRadius: "50%",
             background: CARD_ACCENT,
-            boxShadow: "0 2px 8px rgba(16,185,129,0.30)",
+            boxShadow: "0 8px 22px rgba(250,22,91,0.16)",
             flexShrink: 0,
           }}
           aria-hidden="true"
         >
           <AudienceIcon />
         </span>
-        <span style={{ fontSize: 15, fontWeight: 700, color: "#18181b", letterSpacing: -0.3 }}>
+        <span style={{ fontFamily: "var(--ds-font-display)", fontSize: 19, fontWeight: 700, color: "var(--ds-color-ink)", letterSpacing: -0.55, lineHeight: 1.05 }}>
           Sua Audiência
         </span>
       </div>
 
-      <p style={{ fontSize: 16, fontWeight: 600, color: "#3f3f46", margin: 0, lineHeight: 1.45 }}>
+      <p style={{ fontSize: 16, fontWeight: 650, color: "var(--ds-color-ink)", margin: 0, lineHeight: 1.4 }}>
         {pending ? "Instagram conectado." : "O que a sua audiência reconhece em você."}
       </p>
-      <p style={{ fontSize: 14, color: "#a1a1aa", margin: "6px 0 16px", lineHeight: 1.5 }}>
+      <p style={{ fontSize: 14, color: "var(--ds-color-text-muted)", margin: "6px 0 16px", lineHeight: 1.5 }}>
         {pending
           ? "A D2C está lendo seus posts um a um para revelar o que sua audiência reconhece em você. Os primeiros sinais aparecem conforme a leitura avança — pode levar algumas horas."
           : isPro
@@ -1123,7 +1125,7 @@ export function AudienceConnectPrompt({
           style={{
             alignSelf: "flex-start",
             display: "inline-flex", alignItems: "center", gap: 8,
-            margin: 0, fontSize: 13, fontWeight: 600, color: "#71717a",
+            margin: 0, fontSize: 13, fontWeight: 600, color: "var(--ds-color-text-secondary)",
           }}
         >
           <span
@@ -1143,9 +1145,9 @@ export function AudienceConnectPrompt({
             alignSelf: "flex-start",
             display: "inline-flex", alignItems: "center", gap: 7,
             borderRadius: 999, padding: "10px 18px",
-            background: "transparent", color: "#18181b",
-            fontSize: 13, fontWeight: 600, fontFamily: "inherit",
-            border: "1.5px solid #18181b", cursor: "pointer",
+            background: "var(--ds-color-brand-soft)", color: "var(--ds-color-brand-strong)",
+            fontSize: 13, fontWeight: 720, fontFamily: "inherit",
+            border: "1px solid rgba(250,22,91,0.2)", cursor: "pointer",
           }}
         >
           {isPro ? "Conectar Instagram" : "Conhecer o Pro"}

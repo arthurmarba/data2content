@@ -119,6 +119,92 @@ describe('MediaKitView ownership visibility', () => {
     expect(screen.getByRole('button', { name: /Salvar PDF/i })).toBeInTheDocument();
   });
 
+  it('lets the owner hide or delete calculated pricing in the compact mobile view', () => {
+    (useSession as jest.Mock).mockReturnValue({ data: { user: { _id: 'user1' } } });
+    const onTogglePricingPublish = jest.fn();
+    const onClearPricing = jest.fn();
+
+    render(
+      <MediaKitView
+        {...baseProps}
+        showOwnerCtas
+        compactBoardPreview
+        pricing={{ estrategico: 1200, justo: 1500, premium: 1900, cpm: 25 }}
+        pricingPublished
+        onTogglePricingPublish={onTogglePricingPublish}
+        onClearPricing={onClearPricing}
+      />
+    );
+
+    expect(screen.getByText('Publicado')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar do Mídia Kit' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Excluir valores' }));
+
+    expect(onTogglePricingPublish).toHaveBeenCalledWith(false);
+    expect(onClearPricing).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not expose owner pricing controls to visitors', () => {
+    (useSession as jest.Mock).mockReturnValue({ data: null });
+
+    render(
+      <MediaKitView
+        {...baseProps}
+        compactBoardPreview
+        pricing={{ estrategico: 1200, justo: 1500, premium: 1900, cpm: 25 }}
+        pricingPublished
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: 'Ocultar do Mídia Kit' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Excluir valores' })).not.toBeInTheDocument();
+  });
+
+  it('does not mix calculated pricing controls with commercial packages', () => {
+    (useSession as jest.Mock).mockReturnValue({ data: { user: { _id: 'user1' } } });
+
+    render(
+      <MediaKitView
+        {...baseProps}
+        showOwnerCtas
+        compactBoardPreview
+        pricing={{ estrategico: 1200, justo: 1500, premium: 1900, cpm: 25 }}
+        pricingPublished
+        onTogglePricingPublish={jest.fn()}
+        onClearPricing={jest.fn()}
+        packages={[
+          {
+            _id: 'package-1',
+            name: 'Pacote Reel',
+            price: 2500,
+            currency: 'BRL',
+            deliverables: ['1 Reel'],
+          },
+        ]}
+      />
+    );
+
+    expect(screen.getByText('Pacote Reel')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Ocultar do Mídia Kit' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Excluir valores' })).not.toBeInTheDocument();
+  });
+
+  it('keeps pricing operation feedback visible after calculated values are deleted', () => {
+    (useSession as jest.Mock).mockReturnValue({ data: { user: { _id: 'user1' } } });
+
+    render(
+      <MediaKitView
+        {...baseProps}
+        showOwnerCtas
+        compactBoardPreview
+        pricing={null}
+        pricingFeedback={{ tone: 'success', message: 'Valores excluídos do seu Mídia Kit.' }}
+      />
+    );
+
+    expect(screen.getByRole('status')).toHaveTextContent('Valores excluídos do seu Mídia Kit.');
+  });
+
   it('requests a fresh uncached PDF export URL', async () => {
     const nowSpy = jest.spyOn(Date, 'now').mockReturnValue(123456789);
     const fetchMock = jest.fn(() => new Promise(() => {}));

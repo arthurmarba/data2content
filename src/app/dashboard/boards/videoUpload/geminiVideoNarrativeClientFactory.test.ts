@@ -240,13 +240,22 @@ describe("geminiVideoNarrativeClientFactory", () => {
         config: expect.objectContaining({
           responseMimeType: "application/json",
           responseJsonSchema: expect.objectContaining({
-            required: expect.arrayContaining(["mainNarrative", "contentContext", "narrativeCoherence", "evidenceAnchors"]),
+            required: expect.arrayContaining(["mainNarrative", "contentContext", "narrativeCoherence", "contentPotentialScan", "evidenceAnchors"]),
             properties: expect.objectContaining({
               contentContext: expect.objectContaining({
                 required: expect.arrayContaining(["setting", "lifeSignals", "productionStyle"]),
               }),
               narrativeCoherence: expect.objectContaining({
                 required: expect.arrayContaining(["verdict", "alignedAssets", "newAssets"]),
+              }),
+              contentPotentialScan: expect.objectContaining({
+                required: expect.arrayContaining(["dimensions", "watchedMoments", "practicalDirection"]),
+                properties: expect.objectContaining({
+                  watchedMoments: expect.objectContaining({ minItems: 2, maxItems: 3 }),
+                  practicalDirection: expect.objectContaining({
+                    required: expect.arrayContaining(["title", "action", "example"]),
+                  }),
+                }),
               }),
               evidenceAnchors: expect.objectContaining({
                 required: expect.arrayContaining(["speechQuotes", "sceneAnchors", "creatorIntentAnchor"]),
