@@ -198,13 +198,15 @@ function FeedHeader({
 }) {
   return (
     // Hero em Bricolage (creator-studio) — piloto do design system da landing.
-    <div style={{ padding: "22px 20px 14px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+    // Compacto de propósito: nesta tela o header é coadjuvante do deck — cada
+    // pt gasto aqui é pt tirado do card (que é a experiência inteira da aba).
+    <div style={{ padding: "12px 20px 6px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
       {/* O contador do marcador "pulsa" quando um card cai na mochila. */}
       <style>{`@keyframes d2c-pocket-pop{0%{transform:scale(1)}40%{transform:scale(1.45)}100%{transform:scale(1)}}`}</style>
       <div style={{ minWidth: 0, flex: 1 }}>
         <h1 style={{
           fontFamily: CS_FONT_DISPLAY,
-          fontSize: "clamp(28px, 10.7vw, 40px)",
+          fontSize: "clamp(26px, 8.5vw, 33px)",
           fontWeight: 700, color: CS_INK_HEX, margin: 0,
           letterSpacing: CS_DISPLAY_TRACKING, lineHeight: 1.1,
         }}>
@@ -1054,7 +1056,11 @@ export function DiagnosticoCollabsFeed({
               abaixo do tamanho do conteúdo quando o espaço aperta, em vez de
               estourar o container pai. */}
           {showDeckArea ? (
-            <div style={{ padding: "16px 20px 8px", flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+            // flex-start (não center): o card cola logo abaixo do header e a
+            // sobra de telas altas cai TODA embaixo, entre o rodapé do card e
+            // a tab bar — centralizar dividia essa sobra em dois vãos e
+            // deixava o card "boiando" no meio da tela, longe do topo.
+            <div style={{ padding: "10px 20px 8px", flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "flex-start" }}>
               {bootstrapPending ? (
                 <StackSkeleton />
               ) : bootstrapFailed ? (
