@@ -285,6 +285,47 @@ export function MetaChip({ label, tone = "violet" }: { label: string; tone?: "vi
   );
 }
 
+// Bloco de teaser da frente do card — borda rosa + eyebrow + texto com clamp.
+// Mesma peça pro "Por que é ideal", "Como gravar", "Abre com" e "No roteiro":
+// um idioma visual só, com hierarquia única (eyebrow 10 / corpo 14 / 1.5).
+// tallOnly esconde o bloco em telas baixas (< 760px de altura) via a classe
+// d2c-tall-only — os teasers extras preenchem o card em telas normais/altas
+// sem espremer o iPhone SE (lá o essencial continua: título + zona principal).
+function TeaserBlock({
+  label,
+  text,
+  lines,
+  italic = false,
+  tallOnly = false,
+  marginTop = 14,
+}: {
+  label: string;
+  text: string;
+  lines: number;
+  italic?: boolean;
+  tallOnly?: boolean;
+  marginTop?: number;
+}) {
+  return (
+    <div
+      className={tallOnly ? "d2c-tall-only" : undefined}
+      style={{ marginTop, borderLeft: `2.5px solid ${COLLAB_TINT_LINE}`, paddingLeft: 12 }}
+    >
+      <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: CS_BRAND_STRONG_HEX }}>
+        {label}
+      </span>
+      <p style={{
+        fontSize: 14, fontStyle: italic ? "italic" : "normal", color: TEXT_BODY_HEX, lineHeight: 1.5, margin: "4px 0 0",
+        letterSpacing: 0, wordSpacing: "normal", textAlign: "left", whiteSpace: "normal",
+        overflowWrap: "normal", wordBreak: "normal", hyphens: "none",
+        display: "-webkit-box", WebkitLineClamp: lines, WebkitBoxOrient: "vertical", overflow: "hidden",
+      }}>
+        {text}
+      </p>
+    </div>
+  );
+}
+
 function StackCardBody({ item }: { item: CollabStackItem }) {
   const { kind, pauta, collab } = item;
   const initials = (collab?.name || "?").trim().slice(0, 1).toUpperCase();
@@ -308,9 +349,27 @@ function StackCardBody({ item }: { item: CollabStackItem }) {
       {kind !== "pauta" ? (
         <CollabPill label={kind === "collab" ? "collab" : "collab escondida"} />
       ) : null}
-      {kind !== "collab" && pauta.territory ? (
-        <div style={{ marginBottom: 14 }}>
-          <MetaChip label={pauta.territory} />
+      {kind !== "collab" && (pauta.territory || pauta.suggestedFormat) ? (
+        // Meta row: território (chip) + formato/tom como texto discreto ao
+        // lado — dado secundário que ajuda a decidir ("é um Reel falado")
+        // sem competir com o chip. minWidth:0 deixa o chip encolher com
+        // ellipsis antes de empurrar o formato pra fora.
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+          {/* Prioridade: o território (chip) fica inteiro e é o formato/tom
+              que encolhe com ellipsis quando a linha aperta — o território é
+              o dado que decide o fit narrativo; formato é complemento. O teto
+              de 75% no chip é a rede pra territórios excepcionalmente longos. */}
+          {pauta.territory ? (
+            <span style={{ flexShrink: 0, minWidth: 0, maxWidth: pauta.suggestedFormat ? "75%" : "100%" }}>
+              <MetaChip label={pauta.territory} />
+            </span>
+          ) : null}
+          {pauta.suggestedFormat ? (
+            <span style={{ fontSize: 11.5, color: TEXT_SECONDARY_HEX, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {pauta.suggestedFormat}
+              {pauta.tone ? ` · tom ${pauta.tone}` : ""}
+            </span>
+          ) : null}
         </div>
       ) : null}
       <p
@@ -357,7 +416,7 @@ function StackCardBody({ item }: { item: CollabStackItem }) {
         // importante (o motivo do fit), obrigando o flip só pra entender quem
         // é a pessoa e por quê. O roteiro completo do porquê continua no verso.
         <>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 18 }}>
             <div
               style={{
                 // Responsivo à altura como o título — em telas baixas, título
@@ -375,32 +434,29 @@ function StackCardBody({ item }: { item: CollabStackItem }) {
               <StableCreatorPhoto avatarUrl={collab.avatarUrl} initials={initials} />
             </div>
             <div style={{ minWidth: 0 }}>
-              <span style={{ display: "block", fontSize: 17, fontWeight: 700, color: CS_INK_HEX, letterSpacing: -0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              <span style={{ display: "block", fontSize: 18, fontWeight: 700, color: CS_INK_HEX, letterSpacing: -0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {collab.name}
               </span>
-              {collab.username ? (
-                <span style={{ display: "block", fontSize: 12.5, color: CS_MUTED }}>
-                  @{collab.username}
+              {/* Handle + modo de gravação numa linha só — "como seria essa
+                  collab" (presencial/remoto) responde-se de relance, sem
+                  precisar virar o card (o selo completo continua no verso). */}
+              {collab.username || collab.collabMode ? (
+                <span style={{ display: "block", fontSize: 12.5, color: CS_MUTED, marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {[collab.username ? `@${collab.username}` : null, collab.collabMode === "presencial" ? "Presencial" : collab.collabMode === "remoto" ? "Remoto" : null]
+                    .filter(Boolean)
+                    .join(" · ")}
                 </span>
               ) : null}
             </div>
           </div>
+          {/* 3 linhas: com o teto de 560 o card tem altura pro teaser respirar
+              — 2 linhas deixavam um vão morto antes do rodapé. O roteiro
+              completo do porquê continua no verso, sem clamp. */}
           {collab.narrativeFitReason ? (
-            <div style={{ marginTop: 8, borderLeft: `2.5px solid ${COLLAB_TINT_LINE}`, paddingLeft: 12 }}>
-              <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: CS_BRAND_STRONG_HEX }}>
-                Por que é ideal
-              </span>
-              {/* 3 linhas: com o teto de 560 o card tem altura pro teaser
-                  respirar — 2 linhas deixavam um vão morto antes do rodapé.
-                  O roteiro completo do porquê continua no verso, sem clamp. */}
-              <p style={{
-                fontSize: 13.5, color: TEXT_BODY_HEX, lineHeight: 1.45, margin: "4px 0 0",
-                textAlign: "left", whiteSpace: "normal", overflowWrap: "normal", wordBreak: "normal", hyphens: "none",
-                display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
-              }}>
-                {collab.narrativeFitReason}
-              </p>
-            </div>
+            <TeaserBlock label="Por que é ideal" text={collab.narrativeFitReason} lines={3} />
+          ) : null}
+          {collab.collabRecordingIdea ? (
+            <TeaserBlock label="Como gravar" text={collab.collabRecordingIdea} lines={2} tallOnly />
           ) : null}
         </>
       ) : kind === "mystery" ? (
@@ -415,23 +471,19 @@ function StackCardBody({ item }: { item: CollabStackItem }) {
             </span>
           </div>
         </div>
-      ) : hook ? (
+      ) : (
         // ZONA da pauta solo: o gancho como teaser — a informação que mais
-        // ajuda a decidir. O roteiro completo continua no verso.
-        <div style={{ marginTop: 16, borderLeft: `2.5px solid ${COLLAB_TINT_LINE}`, paddingLeft: 12 }}>
-          <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: CS_BRAND_STRONG_HEX }}>
-            Abre com
-          </span>
-          <p style={{
-            fontSize: 13.5, fontStyle: "italic", color: TEXT_BODY_HEX, lineHeight: 1.45, margin: "4px 0 0",
-            letterSpacing: 0, wordSpacing: "normal", textAlign: "left", whiteSpace: "normal",
-            overflowWrap: "normal", wordBreak: "normal", hyphens: "none",
-            display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden",
-          }}>
-            &ldquo;{hook}&rdquo;
-          </p>
-        </div>
-      ) : null}
+        // ajuda a decidir — e, em telas altas, o primeiro passo do roteiro
+        // como segundo teaser (o roteiro completo continua no verso).
+        <>
+          {hook ? (
+            <TeaserBlock label="Abre com" text={`“${hook}”`} lines={4} italic marginTop={18} />
+          ) : null}
+          {kind === "pauta" && pauta.scriptPoints[0] ? (
+            <TeaserBlock label="No roteiro" text={pauta.scriptPoints[0]} lines={2} tallOnly />
+          ) : null}
+        </>
+      )}
     </div>
   );
 }
@@ -677,6 +729,10 @@ export function DiagnosticoCollabStack({
           espaço disponível — a sobra vira margem AO REDOR, não vazio DENTRO.
           perspective habilita o flip 3D do toque. */}
       <div style={{ position: "relative", flex: "1 1 auto", minHeight: 0, perspective: 1200 }}>
+        {/* Teasers extras (Como gravar / No roteiro) só entram quando a tela
+            tem altura pra eles — em telas baixas (iPhone SE, 667px) o card
+            fica com o essencial e nada é espremido ou cortado. */}
+        <style>{`.d2c-tall-only{display:none}@media (min-height:760px){.d2c-tall-only{display:block}}`}</style>
         {/* Cards de trás — promovem com spring quando o topo sai. */}
         {behind.map((item, i) => (
           <motion.div
@@ -795,7 +851,7 @@ export function DiagnosticoCollabStack({
               >
                 <XIcon size={21} />
               </button>
-              <span style={{ fontSize: 11, fontWeight: 600, color: TEXT_SECONDARY_HEX }}>{negativeLabel}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: TEXT_SECONDARY_HEX }}>{negativeLabel}</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
               <button
@@ -810,7 +866,7 @@ export function DiagnosticoCollabStack({
               >
                 <HeartIcon size={24} />
               </button>
-              <span style={{ fontSize: 11, fontWeight: 600, color: COLLAB_ACCENT }}>{positiveLabel}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: COLLAB_ACCENT }}>{positiveLabel}</span>
             </div>
           </div>
         </motion.div>
