@@ -82,12 +82,14 @@ const SWIPE_CONFIRM_VELOCITY = 600;
  * justifyContent:center interno — então o espaço sobrando cai como respiro
  * normal depois da zona e antes do rodapé, não como vão vazio no meio (isso já
  * foi resolvido na anatomia única do card). Por isso o teto pode ficar
- * generoso: 480px usa bem o espaço em telas normais/altas (iPhone padrão
- * ~812px tinha 155px de vão total sobrando com o teto antigo de 380) sem
- * esticar até a tela inteira. Em telas baixas o flex:1 ainda encolhe abaixo
- * disso — o teto só entra quando SOBRA espaço, nunca quando falta.
+ * generoso: com o header compacto e o deck ancorado no topo, um iPhone padrão
+ * (844pt) oferece ~620px entre header e tab bar — 560px deixa o card dominar
+ * a tela com uma margem honesta embaixo, sem esticar até a tela inteira.
+ * O conteúdo cresce junto (teasers com mais linhas, rodapé maior), então o
+ * teto maior não reabre o vão interno. Em telas baixas o flex:1 ainda encolhe
+ * abaixo disso — o teto só entra quando SOBRA espaço, nunca quando falta.
  */
-const CARD_MAX_HEIGHT = 510;
+const CARD_MAX_HEIGHT = 560;
 
 // ─── Ícones (stroke style do app) ─────────────────────────────────────────────
 
@@ -296,7 +298,7 @@ function StackCardBody({ item }: { item: CollabStackItem }) {
     // DEPOIS da zona, antes do rodapé — lugar normal de respiro num card, em vez
     // de um buraco no meio. Antes disso tudo era centralizado, e cada carta do
     // baralho tinha um ritmo diferente conforme o tamanho do título.
-    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "22px 22px 14px" }}>
+    <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", padding: "24px 24px 16px" }}>
       {/* O selo "collab" mantém o padrão visual entre os tipos de card — só
           encurtado (era "collab pra essa pauta"), pra gastar menos altura. O
           chip de TERRITÓRIO some no card de collab: a foto+nome+porquê já
@@ -388,13 +390,13 @@ function StackCardBody({ item }: { item: CollabStackItem }) {
               <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: CS_BRAND_STRONG_HEX }}>
                 Por que é ideal
               </span>
-              {/* 2 linhas (não 3): o teaser precisa sobrar espaço pra caber
-                  no card inteiro (chip+título+avatar+rodapé); o roteiro
-                  completo do porquê continua no verso, sem clamp. */}
+              {/* 3 linhas: com o teto de 560 o card tem altura pro teaser
+                  respirar — 2 linhas deixavam um vão morto antes do rodapé.
+                  O roteiro completo do porquê continua no verso, sem clamp. */}
               <p style={{
                 fontSize: 13.5, color: TEXT_BODY_HEX, lineHeight: 1.45, margin: "4px 0 0",
                 textAlign: "left", whiteSpace: "normal", overflowWrap: "normal", wordBreak: "normal", hyphens: "none",
-                display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
+                display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
               }}>
                 {collab.narrativeFitReason}
               </p>
@@ -424,7 +426,7 @@ function StackCardBody({ item }: { item: CollabStackItem }) {
             fontSize: 13.5, fontStyle: "italic", color: TEXT_BODY_HEX, lineHeight: 1.45, margin: "4px 0 0",
             letterSpacing: 0, wordSpacing: "normal", textAlign: "left", whiteSpace: "normal",
             overflowWrap: "normal", wordBreak: "normal", hyphens: "none",
-            display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden",
+            display: "-webkit-box", WebkitLineClamp: 4, WebkitBoxOrient: "vertical", overflow: "hidden",
           }}>
             &ldquo;{hook}&rdquo;
           </p>
@@ -769,42 +771,46 @@ export function DiagnosticoCollabStack({
 
           {/* Rodapé de decisão — dentro do cartão. stopPropagation no pointer
               impede o clique de iniciar drag ou contar como toque-de-virar. */}
+          {/* Botões maiores (56/62) e mais respiro vertical: num card de 560
+              o rodapé antigo (50/54, 22px de padding total) ficava mirrado e
+              o vão sobrava logo acima dele; o rodapé maior absorve parte da
+              altura extra e melhora o alvo de toque das duas decisões. */}
           <div
             style={{
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 40,
-              padding: "10px 0 12px", borderTop: "0.5px solid rgba(28,28,30,0.06)",
+              display: "flex", alignItems: "center", justifyContent: "center", gap: 48,
+              padding: "14px 0 16px", borderTop: "0.5px solid rgba(28,28,30,0.06)",
             }}
             onPointerDownCapture={(e) => e.stopPropagation()}
           >
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); pressButton(-1); }}
                 aria-label="Não é pra mim"
                 style={{
-                  width: 50, height: 50, borderRadius: 9999, background: "var(--ds-color-surface)",
+                  width: 56, height: 56, borderRadius: 9999, background: "var(--ds-color-surface)",
                   border: "1.5px solid var(--ds-color-line)", display: "grid", placeItems: "center",
                   cursor: "pointer", fontFamily: "inherit",
                 }}
               >
-                <XIcon size={19} />
+                <XIcon size={21} />
               </button>
-              <span style={{ fontSize: 10, fontWeight: 600, color: TEXT_SECONDARY_HEX }}>{negativeLabel}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: TEXT_SECONDARY_HEX }}>{negativeLabel}</span>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); pressButton(1); }}
                 aria-label={isCollabTop ? "Quero fazer essa collab" : "Quero gravar essa pauta"}
                 style={{
-                  width: 54, height: 54, borderRadius: 9999, background: COLLAB_ACCENT,
+                  width: 62, height: 62, borderRadius: 9999, background: COLLAB_ACCENT,
                   border: "none", display: "grid", placeItems: "center", cursor: "pointer",
                   boxShadow: "0 6px 18px rgba(250,22,91,0.32)", fontFamily: "inherit",
                 }}
               >
-                <HeartIcon size={21} />
+                <HeartIcon size={24} />
               </button>
-              <span style={{ fontSize: 10, fontWeight: 600, color: COLLAB_ACCENT }}>{positiveLabel}</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: COLLAB_ACCENT }}>{positiveLabel}</span>
             </div>
           </div>
         </motion.div>
