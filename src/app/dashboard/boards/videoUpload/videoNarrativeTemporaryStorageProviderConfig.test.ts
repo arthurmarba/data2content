@@ -60,7 +60,7 @@ describe("videoNarrativeTemporaryStorageProviderConfig", () => {
       env: { VIDEO_NARRATIVE_TEMP_UPLOAD_MAX_MB: "99999" },
     });
 
-    expect(result.config.maxFileSizeBytes).toBe(100 * 1024 * 1024);
+    expect(result.config.maxFileSizeBytes).toBe(300 * 1024 * 1024);
     expect(result.issues.some((issue) => issue.code === "invalid_max_upload_mb")).toBe(true);
   });
 
@@ -81,7 +81,7 @@ describe("videoNarrativeTemporaryStorageProviderConfig", () => {
       env: { VIDEO_NARRATIVE_TEMP_SIGNED_URL_TTL_SECONDS: "30" },
     });
 
-    expect(result.config.signedUrlTtlSeconds).toBe(300);
+    expect(result.config.signedUrlTtlSeconds).toBe(900);
     expect(result.issues.some((issue) => issue.code === "invalid_signed_url_ttl_seconds")).toBe(true);
   });
 
@@ -90,7 +90,7 @@ describe("videoNarrativeTemporaryStorageProviderConfig", () => {
       env: { VIDEO_NARRATIVE_TEMP_SIGNED_URL_TTL_SECONDS: "9999" },
     });
 
-    expect(result.config.signedUrlTtlSeconds).toBe(300);
+    expect(result.config.signedUrlTtlSeconds).toBe(900);
     expect(result.issues.some((issue) => issue.code === "invalid_signed_url_ttl_seconds")).toBe(true);
   });
 

@@ -6,6 +6,11 @@ import type {
   VideoNarrativeAxisCoherence,
 } from "./videoNarrativeAiProviderTypes";
 import type { CreatorVideoNarrativeEvidenceAnchors } from "./creatorVideoNarrativeDiagnosisTypes";
+import type {
+  VideoNarrativeContentPotentialScan,
+  VideoNarrativePotentialDimension,
+} from "./videoNarrativeContentPotentialScan";
+import { sanitizeVideoNarrativeContentPotentialScan } from "./videoNarrativeContentPotentialScan";
 
 const REQUIRED_FIELDS: Array<keyof VideoNarrativeAiAnalysis> = [
   "mainNarrative",
@@ -102,15 +107,20 @@ const FIELD_ALIASES: Record<keyof VideoNarrativeAiAnalysis, string[]> = {
   narrativeCoherence: ["narrative_coherence", "coerenciaNarrativa", "coerênciaNarrativa", "coerencia_narrativa"],
   audienceCoherence: ["audience_coherence", "coerenciaAudiencia", "coerênciaAudiência", "coerencia_audiencia"],
   brandCoherence: ["brand_coherence", "coerenciaMarca", "coerênciaMarca", "coerencia_marca"],
+  contentPotentialScan: ["content_potential_scan", "raioX", "raio_x", "potentialScan"],
 };
 
 const SHORT_STRING_MAX = 120;
 
-function readOptionalShortString(value: unknown): string | null {
+function readOptionalBoundedString(value: unknown, maxLength: number): string | null {
   const text = readNestedText(value);
   if (!text) return null;
-  const sanitized = sanitizeText(text).slice(0, SHORT_STRING_MAX).trim();
+  const sanitized = sanitizeText(text).slice(0, maxLength).trim();
   return sanitized || null;
+}
+
+function readOptionalShortString(value: unknown): string | null {
+  return readOptionalBoundedString(value, SHORT_STRING_MAX);
 }
 
 function readShortStringArray(value: unknown, maxItems = 6): string[] {
@@ -169,6 +179,73 @@ function readAxisCoherence(
     verdict: readEnum(value.verdict, VALID_AXIS_VERDICTS, "unknown") as VideoNarrativeAxisCoherence["verdict"],
     reading: readOptionalShortString(value.reading),
   };
+}
+
+function readPotentialDimension(
+  value: unknown,
+  fallbackWindow: VideoNarrativePotentialDimension["window"],
+): VideoNarrativePotentialDimension {
+  if (!isRecord(value)) {
+    return {
+      status: "unknown",
+      evidence: "Sem evidência suficiente para esta dimensão.",
+      adjustment: null,
+      window: fallbackWindow,
+    };
+  }
+  const status = readEnum(value.status, new Set(["strong", "mixed", "weak", "unknown"]), "unknown") as VideoNarrativePotentialDimension["status"];
+  const window = readEnum(value.window, new Set(["0-3s", "0-10s", "full_video", "creator_history"]), fallbackWindow) as VideoNarrativePotentialDimension["window"];
+  return {
+    status,
+    evidence: readOptionalShortString(value.evidence) ?? "Sem evidência suficiente para esta dimensão.",
+    adjustment: readOptionalShortString(value.adjustment),
+    window,
+  };
+}
+
+function readContentPotentialScan(raw: Record<string, unknown>): VideoNarrativeContentPotentialScan | undefined {
+  const value = readAliasedField(raw, "contentPotentialScan");
+  if (!isRecord(value) || !isRecord(value.dimensions)) return undefined;
+  const dimensions = value.dimensions;
+  const watchedMoments = (Array.isArray(value.watchedMoments) ? value.watchedMoments : [])
+    .slice(0, 3)
+    .map((item) => {
+      if (!isRecord(item)) return null;
+      const observation = readOptionalBoundedString(item.observation, 220);
+      const impact = readOptionalBoundedString(item.impact, 220);
+      if (!observation || !impact) return null;
+      return {
+        moment: readEnum(item.moment, new Set(["opening", "development", "closing"]), "development") as "opening" | "development" | "closing",
+        observation,
+        impact,
+      };
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item));
+  const practicalDirection = isRecord(value.practicalDirection)
+    ? {
+        title: readOptionalBoundedString(value.practicalDirection.title, 140) ?? "",
+        action: readOptionalBoundedString(value.practicalDirection.action, 320) ?? "",
+        example: readOptionalBoundedString(value.practicalDirection.example, 220),
+      }
+    : undefined;
+  return sanitizeVideoNarrativeContentPotentialScan({
+    band: readEnum(value.band, new Set(["strong", "promising_with_adjustment", "uncertain", "weak_signals"]), "uncertain") as VideoNarrativeContentPotentialScan["band"],
+    confidence: readEnum(value.confidence, new Set(["low", "medium", "high"]), "low") as VideoNarrativeContentPotentialScan["confidence"],
+    basis: value.basis === "creator_history" ? "creator_history" : "video_only",
+    objective: readEnum(value.objective, new Set(["attention", "sharing", "positioning", "complete_reading"]), "complete_reading") as VideoNarrativeContentPotentialScan["objective"],
+    historyPostsAnalyzed: typeof value.historyPostsAnalyzed === "number" ? value.historyPostsAnalyzed : 0,
+    dimensions: {
+      openingClarity: readPotentialDimension(dimensions.openingClarity, "0-3s"),
+      attentionArchitecture: readPotentialDimension(dimensions.attentionArchitecture, "0-10s"),
+      shareImpulse: readPotentialDimension(dimensions.shareImpulse, "full_video"),
+      promiseDelivery: readPotentialDimension(dimensions.promiseDelivery, "full_video"),
+      narrativeFit: readPotentialDimension(dimensions.narrativeFit, "creator_history"),
+    },
+    ...(watchedMoments.length > 0 ? { watchedMoments } : {}),
+    ...(practicalDirection?.title && practicalDirection.action ? { practicalDirection } : {}),
+    highestImpactAdjustment: readOptionalShortString(value.highestImpactAdjustment) ?? "",
+    disclaimer: readOptionalShortString(value.disclaimer) ?? "",
+  });
 }
 
 export type VideoNarrativeGeminiResponseParseResult =
@@ -495,6 +572,7 @@ export function parseVideoNarrativeGeminiResponse(rawText: string): VideoNarrati
   const narrativeCoherence = readNarrativeCoherence(root);
   const audienceCoherence = readAxisCoherence(root, "audienceCoherence");
   const brandCoherence = readAxisCoherence(root, "brandCoherence");
+  const contentPotentialScan = readContentPotentialScan(root);
 
   // Optional: direct answer to the creator's question. Absent in older responses,
   // so it never blocks parsing — just truncated/sanitised when present.
@@ -523,6 +601,7 @@ export function parseVideoNarrativeGeminiResponse(rawText: string): VideoNarrati
       ...(narrativeCoherence ? { narrativeCoherence } : {}),
       ...(audienceCoherence ? { audienceCoherence } : {}),
       ...(brandCoherence ? { brandCoherence } : {}),
+      ...(contentPotentialScan ? { contentPotentialScan } : {}),
     },
     issues: evidenceAnchors.issues,
   };

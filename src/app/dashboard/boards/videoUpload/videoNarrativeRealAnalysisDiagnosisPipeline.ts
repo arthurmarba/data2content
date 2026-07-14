@@ -103,6 +103,7 @@ export function mapRealProviderAnalysisToVideoNarrativeAnalysis(params: {
     evidenceAnchors: params.analysis.evidenceAnchors,
     ...(params.analysis.contentContext ? { contentContext: params.analysis.contentContext } : {}),
     ...(params.analysis.narrativeCoherence ? { narrativeCoherence: params.analysis.narrativeCoherence } : {}),
+    ...(params.analysis.contentPotentialScan ? { contentPotentialScan: params.analysis.contentPotentialScan } : {}),
     profileSignals: cleanList(params.analysis.creatorSignals).map((value) => ({
       type: "positioning_signal",
       value,

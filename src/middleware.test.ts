@@ -44,7 +44,7 @@ describe('mobile strategic profile entry redirect', () => {
   });
 
   it('identifies only dashboard entry paths as mobile app entry points', () => {
-    expect(isMobileDashboardEntryPath('/')).toBe(true);
+    expect(isMobileDashboardEntryPath('/')).toBe(false);
     expect(isMobileDashboardEntryPath('/dashboard')).toBe(true);
     expect(isMobileDashboardEntryPath('/dashboard/home')).toBe(true);
     expect(isMobileDashboardEntryPath('/dashboard/boards/mobile-strategic-profile')).toBe(false);
@@ -56,7 +56,7 @@ describe('mobile strategic profile entry redirect', () => {
     expect(isMobileRequestSignal(desktopHeaders)).toBe(false);
   });
 
-  it('redirects enabled mobile entry requests before the legacy app can render', () => {
+  it('keeps the public landing at the root on mobile', () => {
     expect(
       shouldRedirectMobileDashboardEntry({
         appEnabled: true,
@@ -64,8 +64,10 @@ describe('mobile strategic profile entry redirect', () => {
         pathname: '/',
         searchParams: new URLSearchParams(),
       }),
-    ).toBe(true);
+    ).toBe(false);
+  });
 
+  it('redirects enabled mobile dashboard entries before the legacy app can render', () => {
     expect(
       shouldRedirectMobileDashboardEntry({
         appEnabled: true,
@@ -90,7 +92,7 @@ describe('mobile strategic profile entry redirect', () => {
       shouldRedirectMobileDashboardEntry({
         appEnabled: true,
         headers: iphoneHeaders,
-        pathname: '/',
+        pathname: '/dashboard',
         searchParams: new URLSearchParams('print=true'),
       }),
     ).toBe(false);
@@ -108,7 +110,7 @@ describe('mobile strategic profile entry redirect', () => {
   it('returns a temporary redirect to the real mobile app route', async () => {
     process.env.NEXT_PUBLIC_MOBILE_STRATEGIC_PROFILE_ENABLED = '1';
     const res = await middleware(
-      createRequest('/?ref=abc123', {
+      createRequest('/dashboard?ref=abc123', {
         'user-agent':
           'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Mobile/15E148',
       }),

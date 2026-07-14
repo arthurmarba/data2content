@@ -178,6 +178,11 @@ export interface MediaKitViewProps {
   packages?: MediaKitPackage[];
   pricingPublished?: boolean;
   onTogglePricingPublish?: (nextPublished: boolean) => void;
+  pricingActionPending?: 'visibility' | 'delete' | null;
+  pricingFeedback?: {
+    tone: 'success' | 'error';
+    message: string;
+  } | null;
   onEditName?: () => void;
 }
 

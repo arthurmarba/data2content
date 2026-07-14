@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { AppHeader } from "@/design-system";
 
 interface Props {
   /** Título da tela, à esquerda, ao lado do botão voltar. */
@@ -23,30 +24,5 @@ interface Props {
  * a cargo de cada tela (ou do wrapper), pois bg/scroll variam.
  */
 export function DiagnosticoNavHeader({ title, onBack, actionSlot }: Props) {
-  return (
-    <div className="flex h-[60px] shrink-0 items-center gap-1.5 px-4">
-      <button
-        type="button"
-        onClick={onBack}
-        className="flex h-11 w-11 shrink-0 items-center justify-start text-zinc-950 transition-opacity duration-150 active:opacity-50 focus-visible:outline-none"
-        aria-label="Voltar"
-      >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-          <path
-            d="M15.5 19l-7-7 7-7"
-            stroke="currentColor"
-            strokeWidth="2.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-
-      <p className="truncate text-[18px] font-bold tracking-tight text-zinc-950">{title}</p>
-
-      {actionSlot && (
-        <div className="ml-auto flex shrink-0 items-center">{actionSlot}</div>
-      )}
-    </div>
-  );
+  return <AppHeader title={title} onBack={onBack} action={actionSlot} className="h-[60px] shrink-0" />;
 }

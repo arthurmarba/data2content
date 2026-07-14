@@ -92,7 +92,15 @@ export async function PATCH(
         diagnosisId,
         userId: new Types.ObjectId(userId),
       },
-      { $set: { publishIntent } },
+      {
+        $set: {
+          publishIntent,
+          publishDecisionAt: new Date(),
+          ...(publishIntent === "yes" && instagramMediaId
+            ? { linkedInstagramMediaId: instagramMediaId }
+            : {}),
+        },
+      },
       { new: true },
     ).lean();
 

@@ -5,6 +5,7 @@ import type {
   VideoNarrativeCoherence,
   VideoNarrativeAxisCoherence,
 } from "./creatorVideoNarrativeDiagnosisTypes";
+import type { VideoNarrativeContentPotentialScan } from "./videoNarrativeContentPotentialScan";
 
 export type { VideoNarrativeContentContext, VideoNarrativeCoherence, VideoNarrativeAxisCoherence };
 
@@ -71,6 +72,8 @@ export type VideoNarrativeAiProviderInput = {
     objectKey?: string;
     mimeType: string;
     sizeBytes: number;
+    durationSeconds?: number;
+    earlyVisualChanges?: number | null;
   };
   profileContext?: {
     displayName?: string;
@@ -124,6 +127,8 @@ export type VideoNarrativeAiAnalysis = {
   audienceCoherence?: VideoNarrativeAxisCoherence;
   /** Does this video open or sustain a coherent commercial territory? (eixo marca) */
   brandCoherence?: VideoNarrativeAxisCoherence;
+  /** Structured pre-publication scan. The server recalibrates band/confidence. */
+  contentPotentialScan?: VideoNarrativeContentPotentialScan;
 };
 
 export type VideoNarrativeAiProviderResult = {

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { X, Crown, Check, ArrowRight, Loader2 } from "lucide-react";
+import { X, Check, ArrowRight, Loader2 } from "lucide-react";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import type { PaywallContext } from "@/types/paywall";
 import { track } from "@/lib/track";
@@ -13,6 +13,7 @@ import { redirectToGoogleConsentLogin } from "@/lib/auth/googleLogin";
 import { buildCheckoutUrl } from "@/app/lib/checkoutRedirect";
 import { mapSubscribeError } from "@/app/lib/billing/errors";
 import { useBodyScrollLock } from "@/lib/a11y";
+import { d2cFontVariables } from "@/app/fonts/d2cFonts";
 import {
   PAYWALL_AUTOSTART_PARAM,
   PAYWALL_CONTEXT_PARAM,
@@ -256,29 +257,12 @@ export default function BillingSubscribeModal({
   const refetchBillingStatus = billingStatus.refetch;
   const effectiveContext = context ?? "default";
   
-  // O modal deve ser uniforme mostrando todo o valor do plano Pro (D2C)
-  // mas mantendo os "steps" específicos para guiar o usuário no funil atual.
+  // O modal responde ao motivo que o abriu; o stack completo não compete com a decisão.
   const contextCopy = PAYWALL_COPY[effectiveContext] ?? PAYWALL_COPY.default;
   const paywallCopy = contextCopy;
-  const isContextSpecific = effectiveContext !== "default";
-  // Hero = o motivo de o criador estar aqui (bullets do contexto). Stack = o valor
-  // completo do Pro, sempre visível para justificar a cobrança recorrente. No
-  // contexto "default" os bullets já SÃO o stack completo, então não há hero.
-  const heroBullets = isContextSpecific ? contextCopy.bullets : [];
-  // Stack = valor completo do Pro, mas sem repetir o que já está no hero do
-  // contexto (menos texto, zero duplicação). Contextos cujos bullets não saem
-  // das FEATURES mantêm o stack completo.
-  const stackBullets = FEATURES.filter((feat) => !heroBullets.includes(feat));
+  const valueBullets = (contextCopy.bullets.length > 0 ? contextCopy.bullets : FEATURES).slice(0, 3);
   const priceAnchor = contextCopy.priceAnchor ?? null;
-  const stepItems = useMemo(() => {
-    let items = Array.isArray(contextCopy.steps) ? [...contextCopy.steps] : [];
-    if (sessionStatus === "unauthenticated" && items.length > 0) {
-      items = ["Faça Login com Google", ...items];
-    }
-    return items;
-  }, [contextCopy.steps, sessionStatus]);
   const primaryCtaLabel = contextCopy.ctaLabel || "Assinar e continuar";
-  const isDefaultContext = effectiveContext === "default";
   const shouldBlockSubscribe =
     !billingStatusError && (hasPremiumAccess || needsPaymentAction);
   const didRefetchRef = useRef(false);
@@ -741,7 +725,7 @@ export default function BillingSubscribeModal({
   if (loading && !prices && !error) {
     return (
       <div
-        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm px-3 sm:px-4 py-4 overflow-y-auto"
+        className={`d2c-mobile-app ${d2cFontVariables} fixed inset-0 z-[200] flex items-end justify-center ds-scrim overflow-y-auto px-0 pb-0 sm:items-center sm:px-4 sm:py-4`}
         role="dialog"
         aria-modal="true"
         aria-label="Carregando preços"
@@ -749,20 +733,15 @@ export default function BillingSubscribeModal({
       >
         <div
           ref={dialogRef}
-          className="w-full max-w-lg rounded-3xl bg-white shadow-2xl ring-1 ring-gray-200/80 overflow-hidden animate-[fadeIn_160ms_ease-out] flex flex-col max-h-[92vh] sm:max-h-[90vh]"
+          className="ds-paywall animate-[fadeIn_160ms_ease-out] flex flex-col"
           tabIndex={-1}
         >
           {/* Header sticky */}
-          <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-gray-200">
+          <div className="sticky top-0 z-10 border-b border-[var(--ds-color-line)] bg-[var(--ds-color-surface)]">
             <div className="flex items-center justify-between px-5 sm:px-6 py-4">
-              <div className="flex items-center gap-2">
-                <span className="rounded-lg bg-pink-100 p-2">
-                  <Crown className="w-5 h-5 text-pink-600" />
-                </span>
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900">Assinar Data2Content</h2>
-              </div>
+              <h2 className="font-display text-xl font-bold tracking-[-0.035em] text-zinc-950">Preparando seu Pro</h2>
               <button
-                className="rounded-full p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                className="ds-icon-button !h-11 !w-11"
                 onClick={closeModal}
                 aria-label="Fechar"
               >
@@ -772,13 +751,13 @@ export default function BillingSubscribeModal({
           </div>
 
           <div className="dashboard-scrollbar flex-1 overflow-y-auto px-5 sm:px-6 py-5 space-y-4">
-            <div className="h-8 w-40 rounded-lg bg-gray-100 relative overflow-hidden">
-              <span className="absolute inset-0 animate-[shimmer_1.2s_infinite] bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+            <div className="relative h-8 w-40 overflow-hidden rounded-lg bg-[var(--ds-color-neutral)]">
+              <span className="absolute inset-0 animate-[shimmer_1.2s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent" />
             </div>
-            <div className="h-10 w-full rounded-xl bg-gray-100 relative overflow-hidden" />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="h-12 rounded-xl bg-gray-100 relative overflow-hidden" />
-              <div className="h-12 rounded-xl bg-gray-100 relative overflow-hidden" />
+            <div className="relative h-10 w-full rounded-xl bg-[var(--ds-color-neutral)]" />
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="relative h-12 rounded-xl bg-[var(--ds-color-neutral)]" />
+              <div className="relative h-12 rounded-xl bg-[var(--ds-color-neutral)]" />
             </div>
           </div>
         </div>
@@ -795,7 +774,7 @@ export default function BillingSubscribeModal({
   if (error && !prices) {
     return (
       <div
-        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm px-3 sm:px-4 py-4 overflow-y-auto"
+        className={`d2c-mobile-app ${d2cFontVariables} fixed inset-0 z-[200] flex items-end justify-center ds-scrim overflow-y-auto px-0 pb-0 sm:items-center sm:px-4 sm:py-4`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="billing-error-title"
@@ -803,17 +782,17 @@ export default function BillingSubscribeModal({
       >
         <div
           ref={dialogRef}
-          className="w-full max-w-lg rounded-2xl bg-white shadow-2xl ring-1 ring-gray-200 overflow-hidden animate-[fadeIn_160ms_ease-out] flex flex-col max-h-[92vh] sm:max-h-[90vh]"
+          className="ds-paywall animate-[fadeIn_160ms_ease-out] flex flex-col"
           tabIndex={-1}
         >
           {/* Header sticky com X sempre visível */}
-          <div className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-gray-200">
+          <div className="sticky top-0 z-10 border-b border-[var(--ds-color-line)] bg-[var(--ds-color-surface)]">
             <div className="flex items-center justify-between px-5 sm:px-6 py-4">
-              <h2 id="billing-error-title" className="text-lg sm:text-xl font-bold text-gray-900">
-                Assinar Data2Content
+              <h2 id="billing-error-title" className="font-display text-xl font-bold tracking-[-0.035em] text-zinc-950">
+                Não foi possível carregar o Pro
               </h2>
               <button
-                className="rounded-full p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                className="ds-icon-button !h-11 !w-11"
                 onClick={closeModal}
                 aria-label="Fechar"
               >
@@ -827,13 +806,13 @@ export default function BillingSubscribeModal({
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button
                 onClick={() => void loadPrices()}
-                className="inline-flex items-center justify-center rounded-md bg-gray-900 hover:bg-gray-800 px-5 py-2.5 text-sm font-semibold text-white"
+                className="ds-button ds-button--primary"
               >
                 Tentar novamente
               </button>
               <button
                 onClick={closeModal}
-                className="inline-flex items-center justify-center rounded-md border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-800 hover:bg-gray-50"
+                className="ds-button ds-button--quiet"
               >
                 Cancelar
               </button>
@@ -852,7 +831,7 @@ export default function BillingSubscribeModal({
   if (prices) {
     return (
       <div
-        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm px-3 sm:px-4 py-4 overflow-y-auto"
+        className={`d2c-mobile-app ${d2cFontVariables} fixed inset-0 z-[200] flex items-end justify-center ds-scrim overflow-y-auto px-0 pb-0 sm:items-center sm:px-4 sm:py-4`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="subscribe-modal-title"
@@ -860,30 +839,25 @@ export default function BillingSubscribeModal({
       >
         <div
           ref={dialogRef}
-          className="w-full max-w-lg overflow-hidden rounded-[2rem] border border-zinc-200/80 bg-white text-zinc-950 shadow-[0_24px_70px_rgba(15,23,42,0.16)] animate-[fadeIn_160ms_ease-out] flex flex-col max-h-[92vh] sm:max-h-[90vh]"
+          className="ds-paywall animate-[fadeIn_180ms_ease-out] flex flex-col"
           tabIndex={-1}
         >
           {/* Header sticky */}
-          <div className="sticky top-0 z-10 bg-white">
+          <div className="sticky top-0 z-10 bg-[var(--ds-color-surface)]">
             <div className="px-6 pb-5 pt-5">
               {/* Badge + fechar */}
               <div className="flex items-center justify-between gap-3 mb-4">
-                <div className="flex items-center gap-1.5">
-                  <Crown className="w-3.5 h-3.5 text-brand-primary" />
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-brand-primary">
-                    Plano Pro
-                  </span>
-                </div>
+                <span className="ds-eyebrow">Data2Content Pro</span>
                 <button
                   onClick={closeModal}
                   aria-label="Fechar"
-                  className="rounded-full p-1.5 text-zinc-400 transition-all hover:bg-zinc-100 hover:text-zinc-700"
+                  className="ds-icon-button !h-11 !w-11"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="h-4 w-4" />
                 </button>
               </div>
               {/* Título + subtítulo */}
-              <h2 id="subscribe-modal-title" className="text-2xl font-bold tracking-tight leading-[1.1] text-zinc-950">
+              <h2 id="subscribe-modal-title" className="font-display text-[2.1rem] font-bold tracking-[-0.05em] leading-[0.96] text-zinc-950">
                 {paywallCopy.title}
               </h2>
               <p className="mt-2 text-[13px] leading-[1.55] text-zinc-500">
@@ -894,9 +868,9 @@ export default function BillingSubscribeModal({
 
           <div className="dashboard-scrollbar flex-1 overflow-y-auto">
             {/* Zona de preço */}
-            <div className="px-6 pb-6 pt-2">
+            <div className="px-6 pb-5 pt-1">
               <div className="flex items-baseline gap-1.5">
-                <div className="text-[2.75rem] font-black leading-none tracking-tight text-zinc-950">
+                <div className="font-display text-[3rem] font-bold leading-none tracking-[-0.055em] text-zinc-950">
                   {period === "annual" ? formatMoney(monthlyEquivalent) : formatMoney(activePrice)}
                 </div>
                 <span className="text-sm font-medium text-zinc-400">/mês</span>
@@ -917,21 +891,25 @@ export default function BillingSubscribeModal({
               )}
 
               {/* Seletores — período + moeda na mesma linha */}
-              <div className="mt-4 flex items-center justify-between gap-3">
-                <div className="inline-flex rounded-xl border border-zinc-200/80 bg-white shadow-sm p-1">
+              <div className="mt-5 flex items-center justify-between gap-3">
+                <div className="ds-paywall__toggle">
                   <button
+                    type="button"
                     onClick={() => setPeriod("monthly")}
-                    className={`rounded-lg px-4 py-1.5 text-xs font-bold uppercase tracking-[0.14em] transition-all ${period === "monthly" ? "bg-zinc-950 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900"}`}
+                    className="ds-paywall__toggle-option"
+                    aria-pressed={period === "monthly"}
                     disabled={loadingRedirect}
                   >
                     Mensal
                   </button>
                   <button
+                    type="button"
                     onClick={() => setPeriod("annual")}
-                    className={`rounded-lg px-4 py-1.5 text-xs font-bold uppercase tracking-[0.14em] transition-all ${period === "annual" ? "bg-zinc-950 text-white shadow-sm" : "text-zinc-500 hover:text-zinc-900"}`}
+                    className="ds-paywall__toggle-option"
+                    aria-pressed={period === "annual"}
                     disabled={loadingRedirect}
                   >
-                    Anual {savingsPct > 0 && <span className={`ml-1 ${period === "annual" ? "text-pink-300" : "text-brand-primary"}`}>-{savingsPct}%</span>}
+                    Anual {savingsPct > 0 && <span className="ml-1 text-[var(--ds-color-brand-strong)]">-{savingsPct}%</span>}
                   </button>
                 </div>
 
@@ -939,15 +917,14 @@ export default function BillingSubscribeModal({
                   type="button"
                   onClick={() => setCurrency(currency === "brl" ? "usd" : "brl")}
                   disabled={loadingRedirect}
-                  className="text-xs text-zinc-400 underline-offset-2 transition-colors hover:text-zinc-600 hover:underline disabled:opacity-50"
+                  className="min-h-11 text-xs font-semibold text-[var(--ds-color-brand-strong)] underline-offset-2 transition-colors hover:underline disabled:opacity-50"
                 >
                   {currency === "brl" ? "Ver em USD" : "Ver em BRL"}
                 </button>
               </div>
             </div>
 
-            {/* Benefícios — primeiro o valor, depois a logística ("Como funciona").
-                Vender antes de pedir esforço. */}
+            {/* Três razões contextuais — uma decisão, sem catálogo de features. */}
             <div className="px-6 pb-6 pt-2">
               {hasPremiumAccess && !billingStatusLoading && !billingStatusError && (
                 <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">
@@ -965,92 +942,28 @@ export default function BillingSubscribeModal({
                 </div>
               )}
 
-              {/* Herói — o motivo de o criador ter clicado, em destaque tingido.
-                  Só aparece em contextos específicos (não no "default"). */}
-              {heroBullets.length > 0 && (
-                <div className="mb-5 rounded-2xl border border-brand-primary/15 bg-brand-primary/[0.04] px-4 py-4">
-                  <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.16em] text-brand-primary">
-                    O que você desbloqueia
-                  </p>
-                  <ul className="grid grid-cols-1 gap-2.5">
-                    {heroBullets.map((feat) => (
-                      <li key={feat} className="flex items-start gap-3">
-                        <span className="mt-0.5 shrink-0 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-primary/15">
-                          <Check className="h-3 w-3 text-brand-primary" strokeWidth={2.5} />
-                        </span>
-                        <span className="text-[13px] font-medium leading-[1.5] text-zinc-800">{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Stack do Pro — o que ainda não apareceu no hero, para justificar a
-                  recorrência sem repetir texto. */}
-              {stackBullets.length > 0 && (
-                <>
-                  <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-400">
-                    {heroBullets.length > 0 ? "E também no Pro" : "Incluído no Pro"}
-                  </p>
-                  <ul className="grid grid-cols-1 gap-3">
-                    {stackBullets.map((feat) => (
-                      <li key={feat} className="flex items-start gap-3">
-                        <span className="mt-0.5 shrink-0 inline-flex h-5 w-5 items-center justify-center rounded-full bg-brand-primary/10">
-                          <Check className="h-3 w-3 text-brand-primary" strokeWidth={2.5} />
-                        </span>
-                        <span className="text-[13px] leading-[1.5] text-zinc-700">{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </>
-              )}
-            </div>
-
-            {stepItems.length ? (
-              <div className="px-6 sm:px-8 pb-2">
-                <div className="border-t border-zinc-100 pt-5">
-                  <div className="flex items-center gap-2">
-                    <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-brand-primary/8">
-                      <ArrowRight className="h-3.5 w-3.5 text-brand-primary" aria-hidden />
+              <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--ds-color-brand-strong)]">Incluído no Pro</p>
+              <ul className="grid gap-3">
+                {valueBullets.map((feat) => (
+                  <li key={feat} className="flex items-start gap-3 border-b border-[var(--ds-color-line)] pb-3 last:border-0 last:pb-0">
+                    <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--ds-color-brand-soft)]">
+                      <Check className="h-3.5 w-3.5 text-[var(--ds-color-brand-strong)]" strokeWidth={2.5} />
                     </span>
-                    <div>
-                      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-primary">
-                        Como funciona
-                      </p>
-                      <p className="mt-0.5 text-xs text-zinc-500">
-                        Você continua do ponto em que parou.
-                      </p>
-                    </div>
-                  </div>
-
-                  <ol className={`mt-4 grid gap-2.5 ${stepItems.length === 4 ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
-                    {stepItems.map((step, index) => (
-                      <li
-                        key={step}
-                        className="rounded-2xl bg-zinc-50 px-3.5 py-3"
-                      >
-                        <div className="flex items-start gap-3">
-                          <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-[11px] font-bold text-white">
-                            {index + 1}
-                          </span>
-                          <p className="text-sm font-medium leading-5 text-zinc-700">{step}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-              </div>
-            ) : null}
+                    <span className="text-[13px] font-medium leading-[1.5] text-zinc-800">{feat}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
 
           {/* Rodapé sticky */}
-          <div className="sticky bottom-0 z-10 bg-white">
+          <div className="sticky bottom-0 z-10 border-t border-[var(--ds-color-line)] bg-[var(--ds-color-surface)]">
             <div className="px-6 pb-6 pt-4">
               <button
                 type="button"
                 onClick={() => handleSubscribe()}
                 disabled={loadingRedirect || billingStatusLoading || sessionStatus === "loading" || shouldBlockSubscribe}
-                className="group/btn inline-flex w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[#D62E5E] to-[#9326A6] px-6 py-[14px] text-[15px] font-semibold text-white transition-all hover:opacity-95 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                className="ds-button ds-button--primary ds-button--block group/btn"
                 data-autofocus="true"
               >
                 {loadingRedirect ? (
@@ -1078,7 +991,7 @@ export default function BillingSubscribeModal({
                   type="button"
                   onClick={closeModal}
                   disabled={loadingRedirect}
-                  className="mt-3 flex w-full items-center justify-between rounded-2xl border border-zinc-200 px-6 py-4 text-zinc-800 transition-colors disabled:opacity-50 active:bg-zinc-50"
+                  className="ds-button ds-button--ghost ds-button--block mt-2"
                 >
                   <p className="text-[14px] font-semibold">Explorar grátis primeiro</p>
                   <ArrowRight className="h-4 w-4 text-zinc-400" />

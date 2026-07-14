@@ -15,6 +15,16 @@ export interface LandingCommunityMetrics {
   interactionsAllTime: number;
 }
 
+export interface LandingProofMetrics {
+  contentAnalyzed: number;
+  viewsAnalyzed: number;
+  interactionsAnalyzed: number;
+  recentContentAnalyzed: number;
+  recentViews: number;
+  recentInteractions: number;
+  calculatedAt: string;
+}
+
 export interface LandingNextMentorship {
   isoDate: string;
   display: string;

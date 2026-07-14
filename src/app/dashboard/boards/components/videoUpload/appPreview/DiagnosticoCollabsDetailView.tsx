@@ -21,7 +21,7 @@ function CommunityHeaderButton({ onClick }: { onClick?: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex h-9 items-center justify-center rounded-full bg-[#18181b] px-4 text-[12px] font-bold text-white transition-transform duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/60"
+      className="inline-flex h-9 items-center justify-center rounded-full bg-[var(--ds-color-ink)] px-4 text-[12px] font-bold text-white transition-transform duration-200 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500/60"
     >
       Entrar no Grupo
     </button>
@@ -465,8 +465,8 @@ export function CreatorDirectorySection({
           iconBg="bg-zinc-100"
           iconSlot={
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <circle cx="9" cy="8" r="3" stroke="#a1a1aa" strokeWidth="1.8" />
-              <path d="M3 21v-1a6 6 0 0 1 6-6" stroke="#a1a1aa" strokeWidth="1.8" strokeLinecap="round" />
+              <circle cx="9" cy="8" r="3" stroke="var(--ds-color-text-muted)" strokeWidth="1.8" />
+              <path d="M3 21v-1a6 6 0 0 1 6-6" stroke="var(--ds-color-text-muted)" strokeWidth="1.8" strokeLinecap="round" />
             </svg>
           }
           title="Comunidade indisponível"

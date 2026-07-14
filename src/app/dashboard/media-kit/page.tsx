@@ -317,6 +317,11 @@ export function SelfMediaKitContent({
   const [ownerProfile, setOwnerProfile] = useState<any | null>(null);
   const [pricing, setPricing] = useState<MediaKitPricing | null>(null);
   const [pricingPublished, setPricingPublished] = useState(false);
+  const [pricingActionPending, setPricingActionPending] = useState<'visibility' | 'delete' | null>(null);
+  const [pricingFeedback, setPricingFeedback] = useState<{
+    tone: 'success' | 'error';
+    message: string;
+  } | null>(null);
   const [packages, setPackages] = useState<MediaKitPackage[]>([]);
   const [nameInput, setNameInput] = useState('');
   const [savingName, setSavingName] = useState(false);
@@ -348,6 +353,8 @@ export function SelfMediaKitContent({
       setDemographics(null);
       setPricing(null);
       setPricingPublished(false);
+      setPricingActionPending(null);
+      setPricingFeedback(null);
       setPackages([]);
       const videosListUrl = compactBoardPreview
         ? `/api/v1/users/${userId}/videos/list?sortBy=views&limit=10&surface=board`
@@ -357,7 +364,7 @@ export function SelfMediaKitContent({
         safeFetch(`/api/v1/users/${userId}/highlights/performance-summary`),
         safeFetch(videosListUrl),
         safeFetch(`/api/v1/users/${userId}/trends/reach-engagement?timePeriod=last_30_days&granularity=daily`),
-        safeFetch(`/api/mediakit/self/user`),
+        safeFetch(`/api/mediakit/self/user${compactBoardPreview ? '?platform=mobile' : ''}`),
       ]);
 
       if (cancelled) return;
@@ -624,36 +631,61 @@ export function SelfMediaKitContent({
       return;
     }
 
+    setPricingActionPending('delete');
+    setPricingFeedback(null);
     try {
       const resPricing = await fetch('/api/mediakit/self/pricing', { method: 'DELETE' });
+      const payload = await resPricing.json().catch(() => ({}));
 
-      if (resPricing.ok) {
-        setPricing(null);
-        setPricingPublished(false);
-      } else {
-        console.error('Falha ao limpar pricing');
+      if (!resPricing.ok) {
+        throw new Error(payload?.error || 'Não foi possível excluir os valores.');
       }
-    } catch (e) {
+
+      setPricing(null);
+      setPricingPublished(false);
+      setPricingFeedback({ tone: 'success', message: 'Valores excluídos do seu Mídia Kit.' });
+    } catch (e: any) {
       console.error('Erro ao limpar pricing', e);
+      setPricingFeedback({
+        tone: 'error',
+        message: e?.message || 'Não foi possível excluir os valores. Tente novamente.',
+      });
+    } finally {
+      setPricingActionPending(null);
     }
   };
 
   const handleTogglePricingPublish = async (nextPublished: boolean) => {
+    setPricingActionPending('visibility');
+    setPricingFeedback(null);
     try {
       const res = await fetch('/api/mediakit/self/pricing', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ published: nextPublished }),
       });
+      const payload = await res.json().catch(() => ({}));
 
       if (!res.ok) {
-        console.error('Falha ao atualizar publicação do pricing');
-        return;
+        throw new Error(payload?.error || 'Não foi possível atualizar a exibição dos valores.');
       }
 
-      setPricingPublished(nextPublished);
-    } catch (e) {
+      const published = Boolean(payload?.published ?? nextPublished);
+      setPricingPublished(published);
+      setPricingFeedback({
+        tone: 'success',
+        message: published
+          ? 'Valores exibidos no Mídia Kit público.'
+          : 'Valores ocultados do Mídia Kit público.',
+      });
+    } catch (e: any) {
       console.error('Erro ao atualizar publicação do pricing', e);
+      setPricingFeedback({
+        tone: 'error',
+        message: e?.message || 'Não foi possível atualizar a exibição dos valores. Tente novamente.',
+      });
+    } finally {
+      setPricingActionPending(null);
     }
   };
 
@@ -677,6 +709,8 @@ export function SelfMediaKitContent({
         onClearPricing={handleClearPricing}
         pricingPublished={pricingPublished}
         onTogglePricingPublish={handleTogglePricingPublish}
+        pricingActionPending={pricingActionPending}
+        pricingFeedback={pricingFeedback}
         packages={packages}
         onEditName={() => setShowNameModal(true)}
       />

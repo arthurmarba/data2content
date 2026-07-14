@@ -12,8 +12,7 @@ interface Props {
 /**
  * DiagnosticoCloseButton — botão "×" padrão dos modais/sheets da experiência V2.
  *
- * Área de toque 44×44 (iOS/Android HIG) com círculo visual de 36px (bg-zinc-100),
- * mesmo padrão usado na engrenagem do header. Glyph "×" canônico.
+ * Área de toque 44×44 com a superfície quiet do creator-studio.
  */
 export function DiagnosticoCloseButton({
   onClose,
@@ -27,9 +26,9 @@ export function DiagnosticoCloseButton({
       onClick={onClose}
       disabled={disabled}
       aria-label={ariaLabel}
-      className={`flex h-11 w-11 shrink-0 items-center justify-center bg-transparent ${edgeAlign ? "-mr-1.5" : ""}`}
+      className={`ds-icon-button ${edgeAlign ? "-mr-1.5" : ""}`}
     >
-      <span className="grid h-9 w-9 place-items-center rounded-full bg-zinc-100 text-zinc-500 transition active:scale-95 hover:bg-zinc-200 hover:text-zinc-800">
+      <span className="grid place-items-center text-zinc-500">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
         </svg>

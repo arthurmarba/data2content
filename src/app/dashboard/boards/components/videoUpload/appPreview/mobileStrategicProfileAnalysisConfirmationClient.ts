@@ -5,6 +5,7 @@ import {
 } from "@/app/dashboard/boards/videoUpload/data2contentNarrativeContract";
 
 type ReadingConfirmationPayload = {
+  contentPotentialScan?: MobileStrategicProfileAnalyzeConfirmationData["contentPotentialScan"];
   videoReading?: {
     summary?: string | null;
     whatVideoReveals?: string | null;
@@ -57,12 +58,13 @@ export function buildAnalysisConfirmationDataFromReading(
     territory ? `Território em observação: ${territory}` : null,
   ], 1);
 
-  if (!summary && unlockedSignals.length === 0 && opportunities.length === 0) return null;
+  if (!summary && unlockedSignals.length === 0 && opportunities.length === 0 && !reading.contentPotentialScan) return null;
 
   return {
     diagnosisSummary: summary,
     unlockedSignals,
     opportunities,
+    contentPotentialScan: reading.contentPotentialScan ?? null,
   };
 }
 

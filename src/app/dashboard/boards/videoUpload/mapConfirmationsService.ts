@@ -15,6 +15,7 @@ import type {
   AdjacentNarrativeResponse,
   AdjacentNarrativeSource,
 } from "@/app/models/CreatorMapConfirmations";
+import { logUsageEvent } from "@/app/lib/dataService/usageEventService";
 import { Types } from "mongoose";
 
 // ─── Public shape used by DiagnosticoPageData ─────────────────────────────────
@@ -142,6 +143,8 @@ export async function confirmMapDimension(
       { upsert: true },
     );
 
+    logUsageEvent(userId, "map_dimension_confirmed", "mapa", { dimension: "asset", platform: "mobile" });
+
     return { ok: true, state: assetState };
   }
 
@@ -161,6 +164,8 @@ export async function confirmMapDimension(
     },
     { upsert: true, new: true },
   );
+
+  logUsageEvent(userId, "map_dimension_confirmed", "mapa", { dimension: params.dimension, platform: "mobile" });
 
   return { ok: true, state: dimensionState };
 }

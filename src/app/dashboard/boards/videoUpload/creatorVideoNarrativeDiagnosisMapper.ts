@@ -8,6 +8,7 @@ import type {
   VideoNarrativeContentContext,
   VideoNarrativeCoherence,
 } from "./creatorVideoNarrativeDiagnosisTypes";
+import type { VideoNarrativeContentPotentialScan } from "./videoNarrativeContentPotentialScan";
 import { sanitizeCreatorVideoNarrativeDiagnosisInput } from "./creatorVideoNarrativeDiagnosisSanitizer";
 import {
   buildData2ContentNarrativeContract,
@@ -507,6 +508,7 @@ export function mapVideoNarrativeDiagnosisToCreatorVideoNarrativeDiagnosisInput(
     }),
     ...(strategic.contentContext ? { contentContext: strategic.contentContext as VideoNarrativeContentContext } : {}),
     ...(strategic.narrativeCoherence ? { narrativeCoherence: strategic.narrativeCoherence as VideoNarrativeCoherence } : {}),
+    ...(strategic.contentPotentialScan ? { contentPotentialScan: strategic.contentPotentialScan as VideoNarrativeContentPotentialScan } : {}),
     schemaVersion: "creator_video_narrative_diagnosis_v1",
   };
 
@@ -529,6 +531,7 @@ export function mapVideoNarrativeDiagnosisToCreatorVideoNarrativeDiagnosisInput(
     evidenceAnchors: sanitized.evidenceAnchors,
     ...(sanitized.contentContext ? { contentContext: sanitized.contentContext } : {}),
     ...(sanitized.narrativeCoherence ? { narrativeCoherence: sanitized.narrativeCoherence } : {}),
+    ...(sanitized.contentPotentialScan ? { contentPotentialScan: sanitized.contentPotentialScan } : {}),
     schemaVersion: sanitized.schemaVersion,
   };
 }

@@ -10,6 +10,7 @@ import {
   markEventIfNew,
   ensureInvoiceIdempotent,
   ensureSubscriptionFirstTime,
+  ensureBuyerFirstCommission,
   calcCommissionCents,
   addDays,
 } from "./webhook-helpers";
@@ -162,10 +163,26 @@ function isSubscriptionMismatch(
 /* ---------------------- Helpers de extração ---------------------- */
 
 // Extrai subscriptionId do Invoice (compat Basil: string ou objeto)
-function getSubscriptionIdFromInvoice(invoice: Stripe.Invoice): string | null {
+export function getSubscriptionIdFromInvoice(invoice: Stripe.Invoice): string | null {
   const sub: unknown = (invoice as any)?.subscription;
-  if (!sub) return null;
-  return typeof sub === "string" ? sub : (sub as any)?.id ?? null;
+  if (sub) return typeof sub === "string" ? sub : (sub as any)?.id ?? null;
+
+  const parentSubscription = (invoice as any)?.parent?.subscription_details?.subscription;
+  if (parentSubscription) {
+    return typeof parentSubscription === "string" ? parentSubscription : parentSubscription?.id ?? null;
+  }
+
+  for (const line of (invoice as any)?.lines?.data || []) {
+    const lineSubscription =
+      line?.subscription ||
+      line?.parent?.subscription_item_details?.subscription ||
+      line?.parent?.license_fee_subscription_details?.subscription;
+    if (lineSubscription) {
+      return typeof lineSubscription === "string" ? lineSubscription : lineSubscription?.id ?? null;
+    }
+  }
+
+  return null;
 }
 
 // Coage para "month" | "year" | undefined
@@ -563,17 +580,20 @@ export async function handleStripeEvent(event: Stripe.Event) {
         const code = (user as any).affiliateUsed || invoice.metadata?.affiliateCode;
         if (code) {
           const owner = await User.findOne({ affiliateCode: code });
-          if (owner && String(owner._id) !== String(user._id)) {
+          if (owner && String(owner._id) !== String(user._id) && !(user as any).affiliateFirstCommissionAt) {
             const okInvoice = await ensureInvoiceIdempotent(
               invoice.id!,
               String(owner._id)
             );
             const subId2 = getSubscriptionIdFromInvoice(invoice);
-            const okSub = subId2
+            const okBuyer = okInvoice
+              ? await ensureBuyerFirstCommission(String(user._id), String(owner._id), invoice.id!)
+              : false;
+            const okSub = okBuyer && subId2
               ? await ensureSubscriptionFirstTime(subId2, String(owner._id))
-              : true;
+              : okBuyer;
 
-            if (okInvoice && okSub) {
+            if (okInvoice && okBuyer && okSub) {
               const amountCents = calcCommissionCents(invoice);
               if (amountCents > 0) {
                 (user as any).affiliateFirstCommissionAt = new Date();

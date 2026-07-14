@@ -1691,6 +1691,8 @@ export default function MediaKitView({
   packages = [],
   pricingPublished = false,
   onTogglePricingPublish,
+  pricingActionPending = null,
+  pricingFeedback = null,
   onEditName,
 }: MediaKitViewProps) {
   const isPublicView = !showOwnerCtas;
@@ -3654,16 +3656,25 @@ const resolvedGlassCardBaseClass = isBoardEmbedded
 
             {(packages.length > 0 || pricingCards.length > 0) ? (
               <div className="border-t border-zinc-100/80 pt-4">
-                <div className="flex items-center gap-2.5">
+                <div className="flex items-start gap-2.5">
                   <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[0.85rem] bg-amber-50 text-amber-600 ring-1 ring-amber-100/90">
                     <Bookmark className="h-4 w-4" />
                   </span>
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="dashboard-type-section-title text-zinc-950">Investimento sugerido</p>
                     {compactInvestmentMeta ? (
                       <p className="dashboard-type-meta mt-1 text-zinc-500">{compactInvestmentMeta}</p>
                     ) : null}
                   </div>
+                  {showOwnerCtas && packages.length === 0 && pricingCards.length > 0 ? (
+                    <span
+                      className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.12em] ${
+                        pricingPublished ? 'bg-pink-50 text-pink-600' : 'bg-zinc-100 text-zinc-500'
+                      }`}
+                    >
+                      {pricingPublished ? 'Publicado' : 'Oculto'}
+                    </span>
+                  ) : null}
                 </div>
 
                 <div className="mt-3.5 rounded-[1.05rem] border border-zinc-100/70 bg-zinc-50/52 px-2.5 py-2.5">
@@ -3733,6 +3744,48 @@ const resolvedGlassCardBaseClass = isBoardEmbedded
                         ))}
                   </div>
                 </div>
+
+                {showOwnerCtas && packages.length === 0 && pricingCards.length > 0 ? (
+                  <div className="mt-3 flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handlePricingPublishChange(!pricingPublished)}
+                      disabled={!onTogglePricingPublish || pricingActionPending !== null}
+                      className="dashboard-type-control inline-flex min-h-11 w-full items-center justify-center rounded-full bg-zinc-900 px-4 py-2.5 text-center font-semibold text-white transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-60"
+                    >
+                      {pricingActionPending === 'visibility'
+                        ? 'Atualizando...'
+                        : pricingPublished
+                          ? 'Ocultar do Mídia Kit'
+                          : 'Exibir no Mídia Kit'}
+                    </button>
+                    {onClearPricing ? (
+                      <button
+                        type="button"
+                        onClick={onClearPricing}
+                        disabled={pricingActionPending !== null}
+                        className="dashboard-type-control inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2.5 text-center font-semibold text-red-700 transition active:scale-[0.99] disabled:cursor-wait disabled:opacity-60"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        {pricingActionPending === 'delete' ? 'Excluindo...' : 'Excluir valores'}
+                      </button>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+
+            {showOwnerCtas && pricingFeedback ? (
+              <div
+                role={pricingFeedback.tone === 'error' ? 'alert' : 'status'}
+                aria-live="polite"
+                className={`rounded-[1.05rem] border px-3.5 py-3 text-sm font-medium ${
+                  pricingFeedback.tone === 'error'
+                    ? 'border-red-200 bg-red-50 text-red-700'
+                    : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                }`}
+              >
+                {pricingFeedback.message}
               </div>
             ) : null}
 

@@ -24,7 +24,12 @@ export type MobileNarrativeTelemetryEventName =
   | "mobile_instagram_connect_clicked"
   | "mobile_mediakit_action_clicked"
   | "mobile_community_action_clicked"
-  | "mobile_quota_reached_seen";
+  | "mobile_quota_reached_seen"
+  | "mobile_scan_suggestion_copied"
+  | "mobile_scan_adjustment_marked"
+  | "mobile_scan_rescan_started"
+  | "mobile_scan_feedback_submitted"
+  | "mobile_scan_publish_decision";
 
 export type MobileNarrativeAnalysisMode = "mock" | "real_gated";
 export type MobileNarrativeGateResult = "allowed" | "blocked";

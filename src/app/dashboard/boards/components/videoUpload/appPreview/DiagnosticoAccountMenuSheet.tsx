@@ -70,7 +70,7 @@ export function DiagnosticoAccountMenuSheet({
 
   return (
     <div
-      className="fixed inset-0 z-[260] flex items-end bg-zinc-950/35 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)] pt-[calc(env(safe-area-inset-top,0px)+1rem)]"
+      className="fixed inset-0 z-[260] flex items-end justify-center ds-scrim"
       role="presentation"
       onClick={onClose}
     >
@@ -78,16 +78,16 @@ export function DiagnosticoAccountMenuSheet({
         role="dialog"
         aria-modal="true"
         aria-label="Conta e preferências"
-        className="max-h-[calc(100dvh-env(safe-area-inset-top,0px)-1.75rem)] w-full max-w-md overflow-y-auto rounded-[1.5rem] border border-zinc-200 bg-white shadow-[0_28px_80px_rgba(24,24,27,0.18)] animate-in slide-in-from-bottom duration-300"
+        className="ds-sheet ds-enter-sheet"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-2 flex justify-center pt-3" aria-hidden="true">
-          <div className="h-1 w-10 rounded-full bg-zinc-200" />
+          <div className="ds-sheet__handle !m-0" />
         </div>
 
         <div className="flex items-center justify-between gap-3 px-5 pb-4 pt-2">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[15px] font-semibold tracking-tight text-zinc-950">
+            <p className="truncate font-display text-[1.25rem] font-bold tracking-[-0.03em] text-zinc-950">
               {userInfo.name ?? "Sua conta"}
             </p>
             {userInfo.email ? (
@@ -224,10 +224,10 @@ function AccountMenuAction({
   emphasis?: boolean;
 }) {
   const iconClass = emphasis
-    ? "flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 text-amber-700"
+    ? "flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--ds-color-brand-soft)] text-[var(--ds-color-brand-strong)]"
     : "flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600";
   const labelClass = emphasis
-    ? "min-w-0 flex-1 truncate text-amber-800"
+    ? "min-w-0 flex-1 truncate text-[var(--ds-color-brand-strong)]"
     : "min-w-0 flex-1 truncate";
 
   return (

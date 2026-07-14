@@ -6,7 +6,7 @@ const AFFILIATE_CODE_REGEX = /^[A-Z0-9_-]{3,32}$/i;
 const MEDIA_KIT_PATH_REGEX = /^\/mediakit\/([^/]+)$/i;
 const CURRENT_PATH_HEADER = "x-d2c-current-path";
 const MOBILE_PROFILE_ROUTE = "/dashboard/boards/mobile-strategic-profile";
-const MOBILE_DASHBOARD_ENTRY_PATHS = new Set(["/", "/dashboard", "/dashboard/home"]);
+const MOBILE_DASHBOARD_ENTRY_PATHS = new Set(["/dashboard", "/dashboard/home"]);
 const MOBILE_USER_AGENT_REGEX =
   /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i;
 

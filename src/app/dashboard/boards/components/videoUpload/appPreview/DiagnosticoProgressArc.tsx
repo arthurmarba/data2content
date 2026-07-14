@@ -113,7 +113,7 @@ export function DiagnosticoProgressArc({
               dominantBaseline="central"
               fontSize="23"
               fontWeight="700"
-              fill="#09090b"
+              fill="var(--ds-color-ink)"
             >
               {readingCount}
             </text>

@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { MOBILE_INSTAGRAM_CONNECT_ROUTE } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
 import { SAFE_TOP } from "./diagnosticoTokens";
-import { BRAND_ATMOSPHERE_BG } from "@/app/lib/brandAtmosphere";
 import type { NarrativeMapAccessState } from "@/app/dashboard/boards/videoUpload/narrativeMapAccessState";
+import { color, font } from "@/design-system";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -230,8 +230,8 @@ export function MobileOnboardingFlow({
 
   return (
     <div
-      className="fixed inset-0 z-[270] flex flex-col"
-      style={{ backgroundImage: BRAND_ATMOSPHERE_BG }}
+      className="ds-screen fixed inset-0 z-[270] flex flex-col"
+      style={{ background: color.paper }}
     >
       {/* Chrome do shell — safe-area + voltar + progresso (sempre presente) */}
       <header
@@ -256,7 +256,8 @@ export function MobileOnboardingFlow({
         </div>
         {/* Barra de progresso ambiente — 2px, preenche por fração */}
         <div
-          className="h-[2px] w-full bg-zinc-100"
+          className="h-[2px] w-full"
+          style={{ background: color.line }}
           role="progressbar"
           aria-label="Progresso do onboarding"
           aria-valuenow={Math.round(progressFraction * 100)}
@@ -264,7 +265,8 @@ export function MobileOnboardingFlow({
           aria-valuemax={100}
         >
           <motion.div
-            className="h-full bg-zinc-900"
+            className="h-full"
+            style={{ background: color.brand }}
             initial={false}
             animate={{ width: `${Math.round(progressFraction * 100)}%` }}
             transition={{ duration: 0.4, ease: "easeInOut" }}
@@ -344,13 +346,13 @@ function CalibratingScreen({
               <path d="M12 8v4M12 16h.01" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </div>
-          <p className="text-[16px] font-medium text-zinc-700">Suas respostas estão aqui.</p>
+          <p className="font-display text-[1.35rem] font-bold leading-tight text-zinc-700">Suas respostas estão aqui.</p>
           <p className="mt-2 text-[13px] text-zinc-400">Não conseguimos conectar agora. Tente de novo.</p>
           {onRetry && (
             <button
               type="button"
               onClick={onRetry}
-              className="mt-8 rounded-full bg-zinc-950 px-6 py-4 text-[15px] font-semibold text-white transition-colors active:bg-zinc-800"
+              className="ds-button ds-button--primary mt-8"
             >
               Tentar de novo
             </button>
@@ -369,7 +371,7 @@ function CalibratingScreen({
             <path className="opacity-80" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
           </svg>
         </div>
-        <p className="text-[16px] font-medium text-zinc-700">Construindo seu mapa…</p>
+        <p className="font-display text-[1.35rem] font-bold leading-tight text-zinc-700">Construindo seu mapa…</p>
         <p className="mt-2 text-[13px] text-zinc-400">Um momento.</p>
       </div>
     </div>
@@ -414,7 +416,7 @@ function CombinedQuestionsScreen({
           <img
             src="/images/Colorido-Simbolo.png"
             alt="Data2Content"
-            style={{ filter: "brightness(0)", width: "44px", height: "auto" }}
+            style={{ filter: "brightness(0)", width: "40px", height: "auto" }}
             aria-hidden="true"
           />
         </div>
@@ -423,7 +425,7 @@ function CombinedQuestionsScreen({
         <h2
           ref={headingRef}
           tabIndex={-1}
-          className="mb-2 text-[1.5rem] font-bold leading-tight tracking-tight text-zinc-950 focus:outline-none"
+          className="mb-2 font-display text-[2.15rem] font-bold leading-[0.98] tracking-[-0.045em] text-zinc-950 focus:outline-none"
         >
           Por que você cria conteúdo?
         </h2>
@@ -432,7 +434,7 @@ function CombinedQuestionsScreen({
         </p>
 
         {/* Exemplos */}
-        <div className="mb-5 rounded-2xl bg-zinc-50 px-4 py-4">
+        <div className="mb-5 border-y border-[var(--ds-color-line)] py-4">
           <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-zinc-400">
             exemplos
           </p>
@@ -461,7 +463,7 @@ function CombinedQuestionsScreen({
           onChange={(e) => onSetCreatorPurpose(e.target.value.slice(0, 400))}
           placeholder="Escreva aqui…"
           rows={3}
-          className="w-full resize-none rounded-2xl border border-zinc-200 bg-white px-4 py-3.5 text-[15px] text-zinc-800 placeholder:text-zinc-400 focus:border-zinc-400 focus:outline-none"
+          className="ds-field min-h-[7rem] resize-none"
         />
         {creatorPurpose.length >= 300 && (
           <p className="mt-1 text-right text-[11px] text-zinc-300">
@@ -475,11 +477,7 @@ function CombinedQuestionsScreen({
             type="button"
             onClick={() => onSubmit(creatorPurpose)}
             disabled={!canSubmit}
-            className={`w-full rounded-full px-6 py-4 text-[15px] font-semibold text-white transition-colors ${
-              canSubmit
-                ? "bg-zinc-950 active:bg-zinc-800"
-                : "bg-zinc-200 text-zinc-400"
-            }`}
+            className="ds-button ds-button--primary ds-button--block"
           >
             Continuar →
           </button>
@@ -515,9 +513,9 @@ function InstagramInviteScreen({
         <div className="mb-6 flex justify-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <rect x="2" y="2" width="20" height="20" rx="5" stroke="#52525b" strokeWidth="1.8" />
-              <circle cx="12" cy="12" r="4" stroke="#52525b" strokeWidth="1.8" />
-              <circle cx="17.5" cy="6.5" r="1" fill="#52525b" />
+              <rect x="2" y="2" width="20" height="20" rx="5" stroke="var(--ds-color-text-secondary)" strokeWidth="1.8" />
+              <circle cx="12" cy="12" r="4" stroke="var(--ds-color-text-secondary)" strokeWidth="1.8" />
+              <circle cx="17.5" cy="6.5" r="1" fill="var(--ds-color-text-secondary)" />
             </svg>
           </div>
         </div>
@@ -533,8 +531,8 @@ function InstagramInviteScreen({
           <h2
             ref={headingRef}
             tabIndex={-1}
-            className="mb-3 text-[1.85rem] font-bold leading-[1.08] tracking-tight text-zinc-950 focus:outline-none"
-            style={{ textWrap: "balance" } as React.CSSProperties}
+            className="mb-3 font-display text-[2.2rem] font-bold leading-[0.98] tracking-[-0.045em] text-zinc-950 focus:outline-none"
+            style={{ textWrap: "balance", fontFamily: font.display } as React.CSSProperties}
           >
             Seu Instagram já tem os sinais que o mapa precisa.
           </h2>
@@ -547,14 +545,14 @@ function InstagramInviteScreen({
           <button
             type="button"
             onClick={onConnect}
-            className="w-full rounded-full bg-zinc-950 px-6 py-4 text-sm font-semibold text-white transition-colors active:bg-zinc-800"
+            className="ds-button ds-button--primary ds-button--block"
           >
             Conectar Instagram
           </button>
           <button
             type="button"
             onClick={onSkip}
-            className="mt-4 w-full text-[13px] font-medium text-zinc-400 underline-offset-2 hover:underline"
+            className="ds-button ds-button--ghost ds-button--block mt-2"
           >
             Agora não
           </button>
@@ -563,4 +561,3 @@ function InstagramInviteScreen({
     </div>
   );
 }
-

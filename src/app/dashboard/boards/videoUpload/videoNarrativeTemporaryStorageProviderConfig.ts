@@ -103,6 +103,22 @@ function readBoundedInteger(params: {
   return Math.round(parsed * (params.multiplier ?? 1));
 }
 
+export function resolveTemporaryStorageMaxFileSizeBytes(
+  env: EnvLike = process.env,
+  issues: VideoNarrativeTemporaryStorageProviderConfigIssue[] = [],
+): number {
+  return readBoundedInteger({
+    raw: env.VIDEO_NARRATIVE_TEMP_UPLOAD_MAX_MB,
+    fallback: DEFAULT_TEMPORARY_STORAGE_PROVIDER_CONFIG.maxFileSizeBytes,
+    min: MIN_ALLOWED_UPLOAD_MB,
+    max: MAX_ALLOWED_UPLOAD_MB,
+    code: "invalid_max_upload_mb",
+    label: "Tamanho máximo de upload",
+    multiplier: 1024 * 1024,
+    issues,
+  });
+}
+
 export function resolveTemporaryStorageProviderConfig(
   options: ResolveConfigOptions = {},
 ): {
@@ -121,16 +137,7 @@ export function resolveTemporaryStorageProviderConfig(
     signedUploadAllowlistEnabled,
   );
 
-  const maxFileSizeBytes = readBoundedInteger({
-    raw: env.VIDEO_NARRATIVE_TEMP_UPLOAD_MAX_MB,
-    fallback: DEFAULT_TEMPORARY_STORAGE_PROVIDER_CONFIG.maxFileSizeBytes,
-    min: MIN_ALLOWED_UPLOAD_MB,
-    max: MAX_ALLOWED_UPLOAD_MB,
-    code: "invalid_max_upload_mb",
-    label: "Tamanho máximo de upload",
-    multiplier: 1024 * 1024,
-    issues,
-  });
+  const maxFileSizeBytes = resolveTemporaryStorageMaxFileSizeBytes(env, issues);
 
   const retentionTtlMinutes = readBoundedInteger({
     raw: env.VIDEO_NARRATIVE_TEMP_UPLOAD_TTL_MINUTES,

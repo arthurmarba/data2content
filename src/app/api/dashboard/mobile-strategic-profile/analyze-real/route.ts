@@ -16,6 +16,7 @@ import { validateVideoNarrativeRealAnalysisPayload } from "@/app/dashboard/board
 import { runVideoNarrativeRealAnalysisOrchestrator } from "@/app/dashboard/boards/videoUpload/videoNarrativeRealAnalysisOrchestrator";
 import { validateVideoNarrativeTemporaryUploadCleanupPayload } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadCleanupTypes";
 import { buildInstagramMetricsSummary } from "@/app/dashboard/boards/videoUpload/instagramMetricsSummaryService";
+import { buildContentPotentialCalibrationHistory } from "@/app/dashboard/boards/videoUpload/contentPotentialHistoryService";
 import { buildAudienceContextSummary } from "@/app/dashboard/boards/videoUpload/audienceContextSummaryService";
 import { listRecentCreatorVideoNarrativeDiagnosesForUser } from "@/app/dashboard/boards/videoUpload/creatorVideoNarrativeDiagnosisReadService";
 import type { VideoNarrativeInstagramMetricsSummary } from "@/app/dashboard/boards/videoUpload/videoNarrativeAiProviderTypes";
@@ -82,6 +83,16 @@ const NON_RETRYABLE_ANALYSIS_CODES = new Set([
 
 function isRetryableAnalysisFailure(safeIssueCode: string | undefined): boolean {
   return !safeIssueCode || !NON_RETRYABLE_ANALYSIS_CODES.has(safeIssueCode);
+}
+
+function resolveAnalysisFailureHttpStatus(params: {
+  status: "blocked" | "failed";
+  safeIssueCode?: string;
+}): number {
+  if (params.safeIssueCode === "object_too_large") return 413;
+  if (params.safeIssueCode === "unsupported_mime_type") return 415;
+  if (params.safeIssueCode === "object_not_found") return 404;
+  return params.status === "blocked" ? 403 : 502;
 }
 
 function logRealAnalysisBugEvent(params: {
@@ -348,10 +359,11 @@ export async function POST(request: Request) {
 
     // Fetch Instagram metrics + recent readings in parallel to enrich the Gemini prompt.
     // Both are non-blocking: failures degrade gracefully (null / empty array).
-    const [rawInstagramMetrics, recentReadings, audienceContext] = await Promise.all([
+    const [rawInstagramMetrics, recentReadings, audienceContext, contentPotentialHistory] = await Promise.all([
       buildInstagramMetricsSummary(session.user.id).catch(() => null),
       listRecentCreatorVideoNarrativeDiagnosesForUser({ userId: session.user.id, limit: 4 }).catch(() => []),
       buildAudienceContextSummary(session.user.id).catch(() => null),
+      buildContentPotentialCalibrationHistory(session.user.id).catch(() => ({ outcomesLinked: 0, bandOutcomes: {} })),
     ]);
 
     // Map the rich InstagramMetricsSummary to the provider-facing type, including
@@ -410,7 +422,12 @@ export async function POST(request: Request) {
         .slice(0, 5)
         .map(([label, evidenceCount]) => ({ label, evidenceCount }));
     })();
-    const topPerformingPattern = confirmedLifeAssets[0]?.label ?? null;
+    // Prefer a pattern backed by real connection signals (saves + shares).
+    // Frequency of prior readings remains a fallback, never the definition of performance.
+    const topPerformingPattern =
+      rawInstagramMetrics?.territoryResonance?.[0]?.label ??
+      confirmedLifeAssets[0]?.label ??
+      null;
 
     // Collect confirmation quiz answers from recent readings, deduplicating by
     // questionId (most recent reading wins). This gives Gemini a direct signal
@@ -472,6 +489,7 @@ export async function POST(request: Request) {
         topPerformingPattern: topPerformingPattern || null,
         pastCreatorAnswers: pastCreatorAnswers.length > 0 ? pastCreatorAnswers : null,
         audienceContext,
+        contentPotentialHistory,
         evaluateAllowlist: () => ({ ok: true, reason: "narrative_map_entitlement" }),
         assertCanRunRealAnalysis: localRealAnalysisEnabled
           ? async () => ({
@@ -509,7 +527,10 @@ export async function POST(request: Request) {
     });
 
     if (!result.ok) {
-      const status = result.status === "blocked" ? 403 : 502;
+      const status = resolveAnalysisFailureHttpStatus({
+        status: result.status,
+        safeIssueCode: result.safeIssueCode,
+      });
       logRealAnalysisBugEvent({
         event: "route_orchestrator_failed",
         requestId,
@@ -684,6 +705,7 @@ export async function POST(request: Request) {
             coherenceReasoning: result.confirmation?.coherenceReasoning ?? null,
             audienceCoherence: result.confirmation?.audienceCoherence ?? null,
             brandCoherence: result.confirmation?.brandCoherence ?? null,
+            contentPotentialScan: result.confirmation?.contentPotentialScan ?? null,
           }
         : null;
 

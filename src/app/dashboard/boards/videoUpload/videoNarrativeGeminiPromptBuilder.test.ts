@@ -30,6 +30,8 @@ describe("videoNarrativeGeminiPromptBuilder", () => {
     expect(prompt.responseSchemaInstruction).toContain("mainNarrative");
     expect(prompt.responseSchemaInstruction).toContain("nextActions");
     expect(prompt.responseSchemaInstruction).toContain("evidenceAnchors");
+    expect(prompt.responseSchemaInstruction).toContain("watchedMoments");
+    expect(prompt.responseSchemaInstruction).toContain("practicalDirection");
     expect(prompt.systemInstruction).toContain("JSON válido e estrito");
   });
 
@@ -121,6 +123,16 @@ describe("videoNarrativeGeminiPromptBuilder", () => {
     expect(content).toContain("sem timestamp técnico");
     expect(content).toContain("Não inclua transcript");
     expect(content).toContain("metadata de upload/storage");
+  });
+
+  it("exige prova contextual de que assistiu ao vídeo e uma direção aplicável", () => {
+    const prompt = buildVideoNarrativeGeminiPrompt(input());
+    const content = `${prompt.systemInstruction}\n${prompt.userInstruction}\n${prompt.responseSchemaInstruction}`;
+
+    expect(content).toContain("deve provar que o vídeo foi assistido");
+    expect(content).toContain("2 a 3 watchedMoments");
+    expect(content).toContain("uma única mudança prioritária para ESTE vídeo");
+    expect(content).toContain("nunca apresentada como fala real");
   });
 
   it("inclui instruções contra promessa de viralização/marca", () => {

@@ -36,6 +36,7 @@
     "test:demographics": "tsx --env-file=.env.local ./scripts/testDemographics.ts",
     "backfill:demographics": "tsx --env-file=.env.local ./scripts/backfillDemographicSnapshots.ts",
     "migrate-affiliates": "tsx --env-file=.env.local ./scripts/migrate-affiliates.ts",
+    "repair:affiliate-ledger": "tsx --env-file=.env.local ./scripts/repairAffiliateLedger.ts",
     "update:cpm-seed": "tsx --env-file=.env.local ./src/scripts/updateCpmSeed.ts",
     "schedule:crons": "tsx src/scripts/scheduleCrons.ts",
     "qa:listen": "bash qa/stripe-listen.sh",
@@ -58,7 +59,8 @@
     "sales:tutorial:auth": "tsx --env-file=.env.local ./scripts/createTutorialStorageState.ts",
     "video:narrative:real-run": "tsx --env-file=.env.local ./scripts/video-narrative-real-run.ts",
     "smoke:types": "tsc -p tsconfig.smoke.json",
-    "compliance:whatsapp": "node scripts/compliance-whatsapp.mjs"
+    "compliance:whatsapp": "node scripts/compliance-whatsapp.mjs",
+    "design-system:audit": "node scripts/audit-mobile-design-system.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1050.0",

@@ -35,6 +35,13 @@ export interface ICollabInterest extends Document {
   pautaId: string;
   pautaTitle: string;
   pautaTerritory: string | null;
+  /**
+   * Território normalizado (lowercase, sem acento) — usado no match recíproco:
+   * os dois só casam quando toparam o MESMO tema. Guardar normalizado permite
+   * o casamento atômico no findOneAndUpdate (comparar acento/caixa em query
+   * Mongo seria inviável).
+   */
+  pautaTerritoryNorm: string | null;
   /** Snapshot do fit no momento do "quero fazer" — o texto que convenceu. */
   fitReason: string | null;
   sharedSignal: string | null;
@@ -68,6 +75,7 @@ const CollabInterestSchema = new Schema<ICollabInterest>(
     pautaId: { type: String, required: true },
     pautaTitle: { type: String, required: true },
     pautaTerritory: { type: String, default: null },
+    pautaTerritoryNorm: { type: String, default: null },
     fitReason: { type: String, default: null },
     sharedSignal: { type: String, default: null },
     recordingIdea: { type: String, default: null },
@@ -82,8 +90,10 @@ const CollabInterestSchema = new Schema<ICollabInterest>(
 
 // Uma decisão por (criador, pauta) — o swipe é idempotente; re-decidir sobrescreve.
 CollabInterestSchema.index({ user: 1, pautaId: 1 }, { unique: true });
-// Busca do recíproco: "o parceiro já topou comigo?" + hidratação por criador.
-CollabInterestSchema.index({ partner: 1, user: 1, decision: 1, matchedAt: 1 });
+// Busca do recíproco: "o parceiro já topou comigo NO MESMO território?" +
+// hidratação por criador. pautaTerritoryNorm entra no índice porque o match
+// agora exige mesmo tema dos dois lados.
+CollabInterestSchema.index({ partner: 1, user: 1, decision: 1, matchedAt: 1, pautaTerritoryNorm: 1 });
 CollabInterestSchema.index({ user: 1, matchedAt: 1 });
 // TTL — o Mongo apaga o doc quando expiresAt passa; docs sem expiresAt ficam.
 CollabInterestSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });

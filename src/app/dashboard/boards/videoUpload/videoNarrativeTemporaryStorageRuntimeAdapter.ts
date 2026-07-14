@@ -1,6 +1,6 @@
 import { S3Client, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { createWriteStream } from "node:fs";
-import { unlink } from "node:fs/promises";
+import { stat, unlink } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -14,6 +14,7 @@ import {
   readLocalVideoNarrativeTemporaryUpload,
 } from "./videoNarrativeLocalTemporaryUploadStore";
 import { GEMINI_INLINE_VIDEO_BYTES_LIMIT } from "./videoNarrativeGeminiInlineLimit";
+import { resolveTemporaryStorageMaxFileSizeBytes } from "./videoNarrativeTemporaryStorageProviderConfig";
 
 // Reuse one S3 client per credential set across warm Lambda invocations instead of
 // constructing a fresh client (and its connection pool) on every request.
@@ -111,8 +112,7 @@ export async function resolveVideoNarrativeTemporaryStorageInput(params: {
     };
   }
 
-  const maxMbStr = env.VIDEO_NARRATIVE_TEMP_UPLOAD_MAX_MB || "100";
-  const maxBytes = parseInt(maxMbStr, 10) * 1024 * 1024;
+  const maxBytes = resolveTemporaryStorageMaxFileSizeBytes(env);
   if (params.input.sizeBytes > maxBytes) {
     return {
       ok: false,
@@ -140,6 +140,15 @@ export async function resolveVideoNarrativeTemporaryStorageInput(params: {
       };
     }
 
+    if (bytes.byteLength > maxBytes) {
+      return {
+        ok: false,
+        status: "object_too_large",
+        safeMessage: "Vídeo excede o tamanho permitido.",
+        issues: [{ code: "actual_size_exceeds_max", message: "Stored object exceeds max MB." }],
+      };
+    }
+
     return {
       ok: true,
       status: "ready",
@@ -150,7 +159,7 @@ export async function resolveVideoNarrativeTemporaryStorageInput(params: {
       },
       safeDebugSummary: {
         mimeType: params.input.mimeType,
-        sizeBytes: params.input.sizeBytes,
+        sizeBytes: bytes.byteLength,
         provider: "local_temp",
       },
     };
@@ -207,11 +216,28 @@ export async function resolveVideoNarrativeTemporaryStorageInput(params: {
       throw new Error("Empty body returned from storage.");
     }
 
+    // Never trust only the client-declared size. S3/R2 ContentLength is checked
+    // before deciding whether to buffer the object, preventing a spoofed small
+    // payload from pulling a >300 MiB video into server memory.
+    const storageSizeBytes =
+      typeof getRes.ContentLength === "number" && Number.isFinite(getRes.ContentLength)
+        ? getRes.ContentLength
+        : params.input.sizeBytes;
+
+    if (storageSizeBytes > maxBytes) {
+      return {
+        ok: false,
+        status: "object_too_large",
+        safeMessage: "Vídeo excede o tamanho permitido.",
+        issues: [{ code: "actual_size_exceeds_max", message: "Stored object exceeds max MB." }],
+      };
+    }
+
     // Videos that exceed the inline base64 limit go to Gemini via the Files API,
     // which reads from a file path. Stream R2 → temp file directly so the full
     // video never sits in Lambda memory as a Buffer. Smaller videos stay in memory
     // (they need the bytes for the inline base64 part anyway).
-    if (params.input.sizeBytes > GEMINI_INLINE_VIDEO_BYTES_LIMIT) {
+    if (storageSizeBytes > GEMINI_INLINE_VIDEO_BYTES_LIMIT) {
       const filePath = path.join(
         os.tmpdir(),
         `d2c-r2-video-${randomUUID()}.${extensionForMimeType(params.input.mimeType)}`,
@@ -221,6 +247,17 @@ export async function resolveVideoNarrativeTemporaryStorageInput(params: {
       } catch (streamError) {
         await unlink(filePath).catch(() => undefined);
         throw streamError;
+      }
+
+      const downloadedSizeBytes = (await stat(filePath)).size;
+      if (downloadedSizeBytes > maxBytes) {
+        await unlink(filePath).catch(() => undefined);
+        return {
+          ok: false,
+          status: "object_too_large",
+          safeMessage: "Vídeo excede o tamanho permitido.",
+          issues: [{ code: "downloaded_size_exceeds_max", message: "Downloaded object exceeds max MB." }],
+        };
       }
 
       return {
@@ -233,13 +270,22 @@ export async function resolveVideoNarrativeTemporaryStorageInput(params: {
         },
         safeDebugSummary: {
           mimeType: params.input.mimeType,
-          sizeBytes: params.input.sizeBytes,
+          sizeBytes: downloadedSizeBytes,
           provider,
         },
       };
     }
 
     const bytes = await getRes.Body.transformToByteArray();
+
+    if (bytes.byteLength > maxBytes) {
+      return {
+        ok: false,
+        status: "object_too_large",
+        safeMessage: "Vídeo excede o tamanho permitido.",
+        issues: [{ code: "downloaded_size_exceeds_max", message: "Downloaded object exceeds max MB." }],
+      };
+    }
 
     return {
       ok: true,
@@ -251,7 +297,7 @@ export async function resolveVideoNarrativeTemporaryStorageInput(params: {
       },
       safeDebugSummary: {
         mimeType: params.input.mimeType,
-        sizeBytes: params.input.sizeBytes,
+        sizeBytes: bytes.byteLength,
         provider,
       },
     };

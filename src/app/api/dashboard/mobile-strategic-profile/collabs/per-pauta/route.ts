@@ -7,6 +7,11 @@ import {
   matchCollabsForPautas,
   type PautaForMatch,
 } from "@/app/dashboard/boards/videoUpload/perPautaCollabMatchingService";
+import {
+  computePerPautaCacheKey,
+  getCachedPerPautaMatches,
+  setCachedPerPautaMatches,
+} from "@/app/dashboard/boards/videoUpload/perPautaCollabCache";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
 
 export const runtime = "nodejs";
@@ -62,6 +67,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, matches: {} });
     }
 
+    // Cache por (criador + conjunto de pautas + narrativa): dá estabilidade
+    // (mesmo parceiro entre reloads) e corta a chamada Gemini. Nova geração
+    // muda o hash → cache novo; TTL cobre o resto.
+    const cacheKey = computePerPautaCacheKey(pautas, narrativeLabel);
+    const cached = await getCachedPerPautaMatches(session.user.id, cacheKey);
+    if (cached) {
+      return NextResponse.json({ ok: true, matches: cached, cached: true });
+    }
+
     const matchMap = await matchCollabsForPautas(session.user.id, pautas, narrativeLabel);
 
     // Serializa Map → Record para o JSON (só pautas com match real).
@@ -69,6 +83,8 @@ export async function POST(request: Request) {
     for (const [pautaId, match] of matchMap.entries()) {
       if (match) matches[pautaId] = match;
     }
+
+    await setCachedPerPautaMatches(session.user.id, cacheKey, matches);
 
     return NextResponse.json({ ok: true, matches });
   } catch (err) {

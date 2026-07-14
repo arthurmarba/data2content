@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import User from '@/app/models/User';
+import { normalizedBalanceMap, summarizeAffiliateLedger } from '@/server/affiliate/ledger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -13,18 +14,6 @@ const MIN_BY_CUR: Record<string, number> = {
 };
 const minRedeemFor = (cur: string) =>
   MIN_BY_CUR[cur] ?? Number(process.env.AFFILIATE_MIN_REDEEM_DEFAULT ?? 5000);
-
-// ✅ correção aqui
-function normalize(
-  obj?: Record<string, number | undefined> | null
-): Record<string, number> {
-  const out: Record<string, number> = {};
-  if (!obj) return out;
-  for (const [k, v] of Object.entries(obj)) {
-    out[k.toUpperCase()] = v ?? 0;
-  }
-  return out;
-}
 
 export async function GET() {
   const session = (await getServerSession(authOptions)) as any;
@@ -40,43 +29,32 @@ export async function GET() {
     return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
   }
 
-  const balances = normalize(Object.fromEntries(user.affiliateBalances || []));
-  const debt = normalize(Object.fromEntries(user.affiliateDebtByCurrency || []));
+  const balances = normalizedBalanceMap(user.affiliateBalances);
+  const debt = normalizedBalanceMap(user.affiliateDebtByCurrency);
   const commissions = user.commissionLog || [];
+  const ledger = summarizeAffiliateLedger(commissions, new Date());
 
   const currencies = new Set<string>([
     ...Object.keys(balances),
-    ...commissions.map((c: any) => String(c.currency).toUpperCase()),
+    ...Object.keys(ledger),
     ...Object.keys(debt),
   ]);
 
-  const now = Date.now();
   const byCurrency: Record<string, any> = {};
 
   currencies.forEach((cur) => {
-    const availableCents = balances[cur] ?? 0;
-    const pendingItems = commissions.filter(
-      (c: any) => String(c.currency).toUpperCase() === cur && c.status === 'pending'
-    );
-    const pendingCents = pendingItems.reduce(
-      (sum: number, i: any) => sum + (i.amountCents || 0),
-      0
-    );
-    const next = pendingItems
-      .map((i: any) => i.availableAt)
-      .filter((d: any) => d && new Date(d).getTime() > now)
-      .reduce<number | null>((acc, d: any) => {
-        const t = new Date(d).getTime();
-        return acc === null || t < acc ? t : acc;
-      }, null);
-    const nextMatureAt = next ? new Date(next).toISOString() : null;
+    const ledgerSummary = ledger[cur] || { availableCents: 0, pendingCents: 0, nextMatureAt: null };
+    const storedAvailableCents = balances[cur] ?? 0;
     const debtCents = debt[cur] ?? 0;
 
     byCurrency[cur] = {
-      availableCents,
-      pendingCents,
+      availableCents: ledgerSummary.availableCents,
+      storedAvailableCents,
+      reconciliationStatus:
+        storedAvailableCents === ledgerSummary.availableCents ? 'reconciled' : 'mismatch',
+      pendingCents: ledgerSummary.pendingCents,
       debtCents,
-      nextMatureAt,
+      nextMatureAt: ledgerSummary.nextMatureAt,
       minRedeemCents: minRedeemFor(cur),
     };
   });

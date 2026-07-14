@@ -103,12 +103,26 @@ describe("videoNarrativeTemporaryStorageSignedUrlProvider", () => {
     );
   });
 
-  it("does not import storage/model SDKs, DB clients, or perform upload", () => {
+  it("returns a safe disabled response when the signer cannot prepare storage", async () => {
+    const signer = jest.fn().mockRejectedValue(new Error("Access Denied"));
+    const result = await createVideoNarrativeSignedUploadSession({ config, input, signer });
+
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe("disabled");
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({
+        code: "temporary_storage_preflight_failed",
+        severity: "blocker",
+      }),
+    );
+    expect(JSON.stringify(result)).not.toContain("Access Denied");
+    expect(JSON.stringify(result)).not.toContain("signed.example.test");
+  });
+
+  it("keeps the signer server-side and does not import model SDKs, DB clients, or fetch", () => {
     const source = fs.readFileSync(SOURCE_PATH, "utf8");
 
     for (const forbidden of [
-      "aws-sdk",
-      "@aws-sdk",
       "@google-cloud/storage",
       "cloudinary",
       "openai",

@@ -77,7 +77,7 @@ export function DiagnosticoNorteView({ initialPurpose, onClose, onSaved }: Props
 
   return (
     <div
-      className="fixed inset-0 z-[300] flex flex-col bg-white"
+      className="ds-screen fixed inset-0 z-[300] flex flex-col"
       style={{ paddingTop: SAFE_TOP }}
     >
       <DiagnosticoNavHeader
@@ -99,7 +99,7 @@ export function DiagnosticoNorteView({ initialPurpose, onClose, onSaved }: Props
           <p className="mb-1 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">
             Propósito
           </p>
-          <h2 className="mb-2 text-[1.35rem] font-bold leading-snug tracking-tight text-zinc-950">
+          <h2 className="mb-2 font-display text-[1.75rem] font-bold leading-[1.05] tracking-[-0.035em] text-zinc-950">
             Para quem você cria?
           </h2>
           <p className="mb-6 text-[13px] leading-relaxed text-zinc-500">
@@ -118,7 +118,7 @@ export function DiagnosticoNorteView({ initialPurpose, onClose, onSaved }: Props
               }}
               placeholder="ex: quero encorajar mães sem tempo a se cuidarem"
               rows={4}
-              className="w-full resize-none rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-4 text-[15px] leading-relaxed text-zinc-800 placeholder:text-zinc-400 focus:border-zinc-400 focus:bg-white focus:outline-none transition-colors"
+              className="ds-field min-h-[8rem] resize-none"
             />
             {/* Contador de caracteres — visível ao se aproximar do limite */}
             {value.length >= 300 && (

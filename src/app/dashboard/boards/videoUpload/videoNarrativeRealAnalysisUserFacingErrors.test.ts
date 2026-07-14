@@ -11,6 +11,7 @@ describe("videoNarrativeRealAnalysisUserFacingErrors", () => {
     expect(messages.usage_limit_reached).toContain("limite");
     expect(messages.beta_access_required).toContain("beta fechado");
     expect(messages.storage_download_failed).toContain("vídeo");
+    expect(messages.video_too_large).toContain("tamanho máximo");
     expect(messages.gemini_timeout).toContain("demorou");
     expect(messages.cleanup_warning).toContain("limpeza");
   });
@@ -40,6 +41,9 @@ describe("videoNarrativeRealAnalysisUserFacingErrors", () => {
     );
     expect(resolveVideoNarrativeRealAnalysisUserFacingErrorCode("gemini_permission_denied")).toBe(
       "gemini_provider_unavailable",
+    );
+    expect(resolveVideoNarrativeRealAnalysisUserFacingErrorCode("object_too_large")).toBe(
+      "video_too_large",
     );
     expect(getVideoNarrativeRealAnalysisUserFacingMessage("unknown-provider-stack")).toBe(
       "Não foi possível concluir a análise real agora.",

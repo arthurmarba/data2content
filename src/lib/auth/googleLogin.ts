@@ -20,3 +20,46 @@ export function redirectToGoogleConsentLogin(
   if (typeof window === "undefined") return;
   window.location.assign(buildGoogleConsentLoginUrl(callbackUrl));
 }
+
+export async function submitGoogleSignInFallback(
+  callbackUrl: string = MAIN_DASHBOARD_ROUTE,
+) {
+  if (typeof window === "undefined") return;
+
+  const normalizedCallbackUrl =
+    typeof callbackUrl === "string" && callbackUrl.trim().length > 0
+      ? callbackUrl
+      : MAIN_DASHBOARD_ROUTE;
+  const response = await fetch("/api/auth/csrf", {
+    credentials: "same-origin",
+    headers: { Accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Unable to prepare Google sign-in (${response.status})`);
+  }
+
+  const payload = await response.json() as { csrfToken?: string };
+  if (!payload.csrfToken) {
+    throw new Error("Unable to prepare Google sign-in (missing CSRF token)");
+  }
+
+  const form = document.createElement("form");
+  form.method = "post";
+  form.action = "/api/auth/signin/google";
+  form.hidden = true;
+
+  for (const [name, value] of Object.entries({
+    csrfToken: payload.csrfToken,
+    callbackUrl: normalizedCallbackUrl,
+  })) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  }
+
+  document.body.appendChild(form);
+  form.submit();
+}

@@ -45,7 +45,7 @@ export function MediaKitSheet({ slug, onClose }: MediaKitSheetProps) {
 
   return (
     <div
-      className="fixed inset-0 z-[300] flex flex-col bg-white"
+      className="ds-screen fixed inset-0 z-[300] flex flex-col"
       style={{ paddingTop: SAFE_TOP }}
     >
       {/* Header padrão */}
@@ -128,7 +128,7 @@ function ErrorState({ onRetry, slug }: { onRetry: () => void; slug: string }) {
       <button
         type="button"
         onClick={onRetry}
-        className="mt-2 rounded-full bg-zinc-950 px-5 py-2.5 text-[13px] font-semibold text-white active:opacity-80"
+        className="ds-button ds-button--primary mt-2"
       >
         Tentar novamente
       </button>

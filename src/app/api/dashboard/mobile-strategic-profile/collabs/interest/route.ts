@@ -8,6 +8,7 @@ import {
   getCollabInterestState,
   markMatchesCelebrated,
 } from "@/app/dashboard/boards/videoUpload/collabInterestService";
+import { logUsageEvent } from "@/app/lib/dataService/usageEventService";
 
 // Swipe de collab — POST registra "quero fazer"/"não agora" e responde se casou
 // (interesse paralelo: match = os dois toparam). GET hidrata decisões + matches
@@ -81,6 +82,12 @@ export async function POST(request: Request) {
     if (!result.ok) {
       return NextResponse.json({ ok: false, error: result.error ?? "Failed" }, { status: 400 });
     }
+
+    logUsageEvent(auth.userId, "collab_swiped", "collabs", { platform: "mobile", decision });
+    if (result.matched) {
+      logUsageEvent(auth.userId, "collab_matched", "collabs", { platform: "mobile", partnerId });
+    }
+
     return NextResponse.json({ ok: true, matched: result.matched, match: result.match });
   } catch (err) {
     console.error("[mobile-strategic-profile/collabs/interest] POST error:", err);

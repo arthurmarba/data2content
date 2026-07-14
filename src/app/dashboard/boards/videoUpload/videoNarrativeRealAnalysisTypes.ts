@@ -6,6 +6,7 @@ export type VideoNarrativeRealAnalysisPayload = {
     objectKey?: string;
     mimeType: string;
     sizeBytes: number;
+    durationSeconds?: number;
     uploadedAt?: string;
   };
   creatorGoal: string;
@@ -155,8 +156,18 @@ export function validateVideoNarrativeRealAnalysisPayload(
   }
 
   const sizeBytes = typeof body.temporaryUpload.sizeBytes === "number" ? body.temporaryUpload.sizeBytes : 0;
-  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0 || sizeBytes > 100 * 1024 * 1024) {
+  if (!Number.isFinite(sizeBytes) || sizeBytes <= 0 || sizeBytes > 300 * 1024 * 1024) {
     return { ok: false, code: "invalid_size_bytes", message: "Tamanho do vídeo inválido." };
+  }
+
+  const durationSeconds = typeof body.temporaryUpload.durationSeconds === "number"
+    ? body.temporaryUpload.durationSeconds
+    : undefined;
+  if (
+    durationSeconds !== undefined &&
+    (!Number.isFinite(durationSeconds) || durationSeconds <= 0 || durationSeconds > 90)
+  ) {
+    return { ok: false, code: "invalid_duration_seconds", message: "Duração do vídeo inválida." };
   }
 
   const uploadedAt = typeof body.temporaryUpload.uploadedAt === "string" ? body.temporaryUpload.uploadedAt : undefined;
@@ -169,6 +180,7 @@ export function validateVideoNarrativeRealAnalysisPayload(
         ...(objectKey ? { objectKey } : {}),
         mimeType,
         sizeBytes,
+        ...(durationSeconds !== undefined ? { durationSeconds } : {}),
         ...(uploadedAt ? { uploadedAt } : {}),
       },
       creatorGoal: creatorGoal.slice(0, 500),

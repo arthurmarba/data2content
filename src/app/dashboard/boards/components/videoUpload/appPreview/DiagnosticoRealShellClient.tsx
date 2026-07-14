@@ -9,6 +9,8 @@ import type {
   DiagnosticoPageData,
 } from "@/app/dashboard/boards/videoUpload/diagnosticoPageData";
 import { resolveDiagnosticoLeadingNarrativeSignal } from "@/app/dashboard/boards/videoUpload/diagnosticoNarrativeSignals";
+import { d2cFontVariables } from "@/app/fonts/d2cFonts";
+import { COMMUNITY_WHATSAPP_URL } from "@/app/lib/communityLinks";
 import { openPaywallModal } from "@/utils/paywallModal";
 import { startInstagramReconnect } from "@/app/lib/instagram/client/startInstagramReconnect";
 import {
@@ -32,7 +34,12 @@ import {
 import { fetchAnalysisConfirmationDataFromReading } from "./mobileStrategicProfileAnalysisConfirmationClient";
 import { DiagnosticoPage } from "./DiagnosticoPage";
 import { DiagnosticoTabBar, type DiagnosticoTab } from "./DiagnosticoTabBar";
-import { DiagnosticoCollabsFeed } from "./DiagnosticoCollabsFeed";
+import {
+  DiagnosticoCollabsFeed,
+  type CollabsBootstrapStatus,
+  type PautaActionKind,
+  type PautaActionState,
+} from "./DiagnosticoCollabsFeed";
 import type { CollabStackDecision } from "./DiagnosticoCollabStack";
 import { DiagnosticoCollabMatchOverlay } from "./DiagnosticoCollabMatchOverlay";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
@@ -61,6 +68,13 @@ import { DiagnosticoIdeaDetailSheet } from "./DiagnosticoIdeaDetailSheet";
 import { DiagnosticoOverviewDetailView } from "./DiagnosticoOverviewDetailView";
 import { MediaKitSheet } from "./MediaKitSheet";
 import { getNarrativeMapAccessAction } from "@/app/dashboard/boards/videoUpload/narrativeMapAccessState";
+import { trackMobileNarrativeEvent, type MobileNarrativeTelemetryEventName } from "@/app/dashboard/boards/videoUpload/mobileNarrativeTelemetry";
+import {
+  contentIdeaLocalDecisionStorageKey,
+  forgetContentIdeaLocalDecision,
+  readContentIdeaLocalDecisions,
+  rememberContentIdeaLocalDecision,
+} from "@/app/dashboard/boards/videoUpload/contentIdeaLocalDecisions";
 import SurveyModal from "@/app/dashboard/home/minimal/SurveyModal";
 
 const REAL_ANALYSIS_ENABLED =
@@ -187,6 +201,17 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   const [localContentIdeas, setLocalContentIdeas] = useState<DiagnosticoPageData["contentIdeas"]>(
     data.contentIdeas,
   );
+  const localPautaDecisionStorageKey = useMemo(
+    () => contentIdeaLocalDecisionStorageKey(data.userInfo.email ?? data.userInfo.handle),
+    [data.userInfo.email, data.userInfo.handle],
+  );
+  const serverContentIdeasSignature = data.contentIdeas
+    .map((idea) => `${idea.id}:${idea.status}:${idea.title}:${idea.hook ?? ""}`)
+    .join("|");
+  useEffect(() => {
+    setLocalContentIdeas(data.contentIdeas);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverContentIdeasSignature]);
   const [isGeneratingIdeas, setIsGeneratingIdeas] = useState(false);
   const [ideaGenerationBlocker, setIdeaGenerationBlocker] = useState<
     "premium_required" | "quota_exceeded" | "map_incomplete" | "failed" | null
@@ -262,162 +287,286 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     localMapConfirmations.territories === "confirmed";
   const [mediaKitSheetSlug, setMediaKitSheetSlug] = useState<string | null>(null);
 
-  // M1.3 — match de collab por pauta (criador compatível pelo território da pauta).
-  // Buscado lazy ao abrir a aba Collabs; re-busca quando o conjunto de pautas muda
-  // (ex.: "gerar novas pautas"). Non-fatal: falha → cards aparecem como pauta-only.
+  // A entrada em Collabs é uma transação visual: sugestões por pauta, decisões
+  // anteriores, matches confirmados e decisões locais precisam chegar ANTES de
+  // qualquer card real aparecer. Expor cada fonte separadamente fazia o mesmo
+  // espaço trocar de pauta → collab → match, parecendo um bug.
   const [pautaCollabs, setPautaCollabs] = useState<Map<string, NarrativeCollabMatch | null>>(new Map());
-  const [pautaCollabsLoading, setPautaCollabsLoading] = useState(false);
-  const pautaCollabsSigRef = useRef<string>("");
-  useEffect(() => {
-    if (activeTab !== "collabs") return;
-    if (data.userInfo.plan !== "Pro") return;
-    const pautas =
-      localContentIdeas.length >= data.contentIdeas.length ? localContentIdeas : data.contentIdeas;
-    if (pautas.length === 0) return;
-    // Narrativa: a do MapaSeed é a fonte de verdade do card (onboarding/IG). A
-    // síntese de vídeo entra só como fallback — sem ela, usuários de mapa-sem-vídeo
-    // ficavam com narrativeLabel null e o fetch nunca disparava (collab não surgia).
-    const narrativeLabel =
+  const [collabDecisions, setCollabDecisions] = useState<Map<string, CollabStackDecision>>(new Map());
+  const [pautaActionStates, setPautaActionStates] = useState<Map<string, PautaActionState>>(new Map());
+  const pautaActionInFlightRef = useRef<Set<string>>(new Set());
+  const [confirmedMatches, setConfirmedMatches] = useState<Array<{ pautaId: string; collab: NarrativeCollabMatch }>>([]);
+  const [openMatch, setOpenMatch] = useState<{ pautaId: string; variant: "celebration" | "revisit" } | null>(null);
+  const [collabsBootstrap, setCollabsBootstrap] = useState<{
+    status: CollabsBootstrapStatus;
+    signature: string | null;
+    error: string | null;
+  }>({ status: "idle", signature: null, error: null });
+  const [collabsBootstrapRetry, setCollabsBootstrapRetry] = useState(0);
+  const collabsReadySignatureRef = useRef("");
+  const collabsBootstrapRequestRef = useRef(0);
+
+  const collabsPautas = useMemo(
+    () => (localContentIdeas.length >= data.contentIdeas.length ? localContentIdeas : data.contentIdeas),
+    [data.contentIdeas, localContentIdeas],
+  );
+  const collabsNarrativeLabel = useMemo(
+    () =>
       data.mapaSeed?.narrativa_central?.trim() ||
       data.mainNarrativeLabel ||
       resolveDiagnosticoLeadingNarrativeSignal(data.synthesis)?.label ||
-      null;
-    if (!narrativeLabel) return;
-    const sig = pautas.map((p) => p.id).join(",");
-    if (pautaCollabsSigRef.current === sig) return;
-    pautaCollabsSigRef.current = sig;
+      null,
+    [data.mainNarrativeLabel, data.mapaSeed, data.synthesis],
+  );
+  const collabsInputSignature = useMemo(
+    () => JSON.stringify({
+      version: 2,
+      plan: data.userInfo.plan,
+      narrativeLabel: collabsNarrativeLabel,
+      pautas: collabsPautas.map((p) => ({
+        id: p.id,
+        territory: p.territory,
+        title: p.title,
+      })),
+    }),
+    [collabsNarrativeLabel, collabsPautas, data.userInfo.plan],
+  );
+  const effectiveCollabsBootstrapStatus: CollabsBootstrapStatus =
+    collabsBootstrap.signature === collabsInputSignature
+      ? collabsBootstrap.status
+      : "loading";
 
-    // O loading é gateado pela assinatura vigente (não por um flag `cancelled`):
-    // se este effect re-roda e cai no early-return acima, o request em voo ainda
-    // resolve o loading — antes, o cleanup marcava `cancelled` e o `finally` pulava
-    // o `setLoading(false)`, deixando o skeleton preso ao gerar novas pautas.
-    setPautaCollabsLoading(true);
-    (async () => {
-      try {
-        const res = await fetch("/api/dashboard/mobile-strategic-profile/collabs/per-pauta", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            narrativeLabel,
-            pautas: pautas.map((p) => ({ id: p.id, territory: p.territory, title: p.title })),
-          }),
-        });
-        const json = await res.json().catch(() => null);
-        // Descarta resultado obsoleto: outra geração já trocou a assinatura.
-        if (pautaCollabsSigRef.current !== sig) return;
-        if (json?.ok && json.matches) {
-          setPautaCollabs(new Map(Object.entries(json.matches)));
-        }
-      } catch {
-        // non-fatal
-      } finally {
-        if (pautaCollabsSigRef.current === sig) setPautaCollabsLoading(false);
-      }
-    })();
-  }, [activeTab, data.userInfo.plan, data.mapaSeed, data.mainNarrativeLabel, data.synthesis, data.contentIdeas, localContentIdeas]);
-
-  // Pilha de swipe — decisões persistidas server-side (interesse paralelo:
-  // match = os dois toparam; ver /api/.../collabs/interest). O estado local é
-  // otimista — o gesto responde na hora e o POST confirma atrás. Free nunca
-  // persiste (o coração abre paywall; só o "não agora" local do card mistério).
-  const [collabDecisions, setCollabDecisions] = useState<Map<string, CollabStackDecision>>(new Map());
-  const [confirmedMatches, setConfirmedMatches] = useState<Array<{ pautaId: string; collab: NarrativeCollabMatch }>>([]);
-  const [openMatch, setOpenMatch] = useState<{ pautaId: string; variant: "celebration" | "revisit" } | null>(null);
-
-  // Hidratação: ao abrir a aba Collabs (Pro), carrega decisões pendentes e
-  // matches confirmados — inclusive os que casaram enquanto o app estava fechado.
-  const collabStateLoadedRef = useRef(false);
   useEffect(() => {
     if (activeTab !== "collabs") return;
-    if (data.userInfo.plan !== "Pro") return;
-    if (collabStateLoadedRef.current) return;
-    collabStateLoadedRef.current = true;
-    (async () => {
+    if (collabsReadySignatureRef.current === collabsInputSignature) return;
+
+    const requestId = ++collabsBootstrapRequestRef.current;
+    const controller = new AbortController();
+    const localDecisions = readContentIdeaLocalDecisions(localPautaDecisionStorageKey);
+
+    setCollabsBootstrap({ status: "loading", signature: collabsInputSignature, error: null });
+
+    const commitLocalDecisions = () => {
+      if (localDecisions.size === 0) return;
+      setPautaActionStates((prev) => {
+        const next = new Map(prev);
+        for (const [id, kind] of localDecisions.entries()) {
+          if (!next.has(id)) next.set(id, { kind, phase: "confirmed" });
+        }
+        return next;
+      });
+    };
+
+    const commitReady = () => {
+      collabsReadySignatureRef.current = collabsInputSignature;
+      setCollabsBootstrap({ status: "ready", signature: collabsInputSignature, error: null });
+    };
+
+    // Free não consulta identidades reais, mas ainda respeita a transição única
+    // loading → ready para não hidratar decisões locais depois do primeiro card.
+    if (data.userInfo.plan !== "Pro") {
+      commitLocalDecisions();
+      setPautaCollabs(new Map());
+      setCollabDecisions(new Map());
+      setConfirmedMatches([]);
+      commitReady();
+      return () => controller.abort();
+    }
+
+    if (collabsPautas.length === 0) {
+      commitLocalDecisions();
+      setPautaCollabs(new Map());
+      setCollabDecisions(new Map());
+      setConfirmedMatches([]);
+      commitReady();
+      return () => controller.abort();
+    }
+
+    if (!collabsNarrativeLabel) {
+      setCollabsBootstrap({
+        status: "error",
+        signature: collabsInputSignature,
+        error: "Confirme sua narrativa no Perfil antes de preparar esta rodada.",
+      });
+      return () => controller.abort();
+    }
+
+    void (async () => {
       try {
-        const res = await fetch("/api/dashboard/mobile-strategic-profile/collabs/interest");
-        const json = await res.json().catch(() => null);
-        if (json?.ok) {
-          if (Array.isArray(json.decisions)) {
-            setCollabDecisions((prev) => {
-              const next = new Map(prev);
-              for (const d of json.decisions) {
-                if (typeof d?.pautaId === "string" && (d.decision === "interested" || d.decision === "dismissed")) {
-                  next.set(d.pautaId, d.decision);
-                }
-              }
-              return next;
-            });
-          }
-          if (Array.isArray(json.matches)) {
-            setConfirmedMatches(json.matches);
-            // Match ao voltar: casou enquanto o app estava fechado e o criador
-            // ainda não viu a festa (isNew). Dispara a comemoração pro primeiro
-            // e marca todos como vistos — toca UMA vez, nunca a cada abertura.
-            const fresh = json.matches.filter((m: { isNew?: boolean }) => m?.isNew);
-            if (fresh.length > 0) {
-              setOpenMatch({ pautaId: fresh[0].pautaId, variant: "celebration" });
-              const ids = fresh.map((m: { pautaId: string }) => m.pautaId);
-              void fetch("/api/dashboard/mobile-strategic-profile/collabs/interest", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ celebratedPautaIds: ids }),
-              }).catch(() => {});
+        const [matchesResponse, interestResponse] = await Promise.all([
+          fetch("/api/dashboard/mobile-strategic-profile/collabs/per-pauta", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              narrativeLabel: collabsNarrativeLabel,
+              pautas: collabsPautas.map((p) => ({ id: p.id, territory: p.territory, title: p.title })),
+            }),
+            signal: controller.signal,
+          }),
+          fetch("/api/dashboard/mobile-strategic-profile/collabs/interest", {
+            signal: controller.signal,
+          }),
+        ]);
+        const [matchesJson, interestJson] = await Promise.all([
+          matchesResponse.json().catch(() => null),
+          interestResponse.json().catch(() => null),
+        ]);
+        if (controller.signal.aborted || collabsBootstrapRequestRef.current !== requestId) return;
+        if (!matchesResponse.ok || !matchesJson?.ok) throw new Error("matches_unavailable");
+        if (!interestResponse.ok || !interestJson?.ok) throw new Error("interest_unavailable");
+
+        const nextDecisions = new Map<string, CollabStackDecision>();
+        if (Array.isArray(interestJson.decisions)) {
+          for (const decision of interestJson.decisions) {
+            if (
+              typeof decision?.pautaId === "string" &&
+              (decision.decision === "interested" || decision.decision === "dismissed")
+            ) {
+              nextDecisions.set(decision.pautaId, decision.decision);
             }
           }
         }
-      } catch {
-        // non-fatal — a pilha funciona sem hidratação; persiste no próximo gesto
+        const nextMatches = Array.isArray(interestJson.matches) ? interestJson.matches : [];
+        const freshMatches = nextMatches.filter((match: { isNew?: boolean }) => match?.isNew);
+
+        // React 18 agrupa estes updates do mesmo ciclo assíncrono. O status
+        // `ready` só entra junto do snapshot completo, produzindo uma revelação.
+        commitLocalDecisions();
+        setPautaCollabs(new Map(Object.entries(matchesJson.matches ?? {})));
+        setCollabDecisions(nextDecisions);
+        setConfirmedMatches(nextMatches);
+        if (freshMatches.length > 0) {
+          setOpenMatch({ pautaId: freshMatches[0].pautaId, variant: "celebration" });
+        }
+        commitReady();
+
+        if (freshMatches.length > 0) {
+          const celebratedPautaIds = freshMatches.map((match: { pautaId: string }) => match.pautaId);
+          void fetch("/api/dashboard/mobile-strategic-profile/collabs/interest", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ celebratedPautaIds }),
+          }).catch(() => {});
+        }
+      } catch (error) {
+        if (controller.signal.aborted || collabsBootstrapRequestRef.current !== requestId) return;
+        setCollabsBootstrap({
+          status: "error",
+          signature: collabsInputSignature,
+          error: "Não foi possível sincronizar sugestões e matches. Tente novamente.",
+        });
       }
     })();
-  }, [activeTab, data.userInfo.plan]);
 
-  const handleCollabDecision = useCallback((pautaId: string, decision: CollabStackDecision) => {
-    // Otimista: o card voa na hora, o servidor confirma atrás.
+    return () => controller.abort();
+  }, [
+    activeTab,
+    collabsBootstrapRetry,
+    collabsInputSignature,
+    collabsNarrativeLabel,
+    collabsPautas,
+    data.userInfo.plan,
+    localPautaDecisionStorageKey,
+  ]);
+
+  const handleRetryCollabsBootstrap = useCallback(() => {
+    collabsReadySignatureRef.current = "";
+    setCollabsBootstrapRetry((value) => value + 1);
+  }, []);
+
+  const setLocalIdeaStatus = useCallback((
+    id: string,
+    status: DiagnosticoPageData["contentIdeas"][number]["status"],
+  ) => {
+    setLocalContentIdeas((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, status } : p)),
+    );
+  }, []);
+
+  const setPautaAction = useCallback((id: string, state: PautaActionState) => {
+    setPautaActionStates((prev) => {
+      const next = new Map(prev);
+      next.set(id, state);
+      return next;
+    });
+  }, []);
+
+  const clearPautaAction = useCallback((id: string) => {
+    setPautaActionStates((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Map(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
+
+  const actionErrorMessage = useCallback((kind: PautaActionKind, reason?: string) => {
+    if (kind === "collab-interest") return "Não foi possível registrar a collab agora. Tente novamente.";
+    if (kind === "dismiss") return "Descartada nesta sessão. Não consegui sincronizar; se recarregar, ela pode voltar.";
+    if (kind === "unsave") return "Removida da lista. Não consegui sincronizar; se recarregar, ela pode voltar.";
+    if (reason === "storage_unavailable") return "Não foi possível salvar agora. Tente novamente.";
+    return "Não foi possível salvar agora. Tente novamente.";
+  }, []);
+
+  const persistPautaStatus = useCallback(async (
+    id: string,
+    status: DiagnosticoPageData["contentIdeas"][number]["status"],
+  ) => {
+    const res = await fetch(`/api/dashboard/mobile-strategic-profile/content-ideas/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({})) as { reason?: string; message?: string };
+      const err = new Error(body.message ?? String(res.status)) as Error & { reason?: string };
+      err.reason = body.reason;
+      throw err;
+    }
+  }, []);
+
+  const findCurrentPauta = useCallback((pautaId: string) => {
+    const pautasNow = localContentIdeas.length >= data.contentIdeas.length ? localContentIdeas : data.contentIdeas;
+    return pautasNow.find((p) => p.id === pautaId) ?? null;
+  }, [data.contentIdeas, localContentIdeas]);
+
+  const registerCollabInterest = useCallback(async (pautaId: string) => {
+    const collab = pautaCollabs.get(pautaId);
+    const pauta = findCurrentPauta(pautaId);
+    if (!collab || !pauta) throw new Error("missing_collab_context");
+
+    const res = await fetch("/api/dashboard/mobile-strategic-profile/collabs/interest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        pautaId,
+        pautaTitle: pauta.title,
+        territory: pauta.territory,
+        partnerId: collab.id,
+        fitReason: collab.narrativeFitReason,
+        sharedSignal: collab.sharedSignal,
+        recordingIdea: collab.collabRecordingIdea,
+        collabMode: collab.collabMode,
+        decision: "interested",
+      }),
+    });
+    if (!res.ok) throw new Error(String(res.status));
+    const json = await res.json().catch(() => null);
+    if (!json?.ok) throw new Error("collab_interest_failed");
+
     setCollabDecisions((prev) => {
       const next = new Map(prev);
-      next.set(pautaId, decision);
+      next.set(pautaId, "interested");
       return next;
     });
 
-    // Persistência exige o contexto do match (parceiro + snapshot da pauta).
-    // Sem match real (free/mistério) não há o que persistir — decisão fica local.
-    if (data.userInfo.plan !== "Pro") return;
-    const collab = pautaCollabs.get(pautaId);
-    if (!collab) return;
-    const pautasNow = localContentIdeas.length >= data.contentIdeas.length ? localContentIdeas : data.contentIdeas;
-    const pauta = pautasNow.find((p) => p.id === pautaId);
-    if (!pauta) return;
-
-    (async () => {
-      try {
-        const res = await fetch("/api/dashboard/mobile-strategic-profile/collabs/interest", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            pautaId,
-            pautaTitle: pauta.title,
-            territory: pauta.territory,
-            partnerId: collab.id,
-            fitReason: collab.narrativeFitReason,
-            sharedSignal: collab.sharedSignal,
-            recordingIdea: collab.collabRecordingIdea,
-            collabMode: collab.collabMode,
-            decision,
-          }),
-        });
-        const json = await res.json().catch(() => null);
-        // O outro lado já tinha topado — match! Comemoração ganha, não fabricada.
-        if (json?.ok && json.matched && json.match) {
-          setConfirmedMatches((prev) =>
-            prev.some((m) => m.pautaId === pautaId) ? prev : [...prev, { pautaId, collab: json.match }],
-          );
-          setOpenMatch({ pautaId, variant: "celebration" });
-        }
-      } catch {
-        // non-fatal — otimista fica; a hidratação da próxima visita reconcilia
-      }
-    })();
-  }, [data.userInfo.plan, data.contentIdeas, localContentIdeas, pautaCollabs]);
+    if (json.matched && json.match) {
+      setConfirmedMatches((prev) =>
+        prev.some((m) => m.pautaId === pautaId) ? prev : [...prev, { pautaId, collab: json.match }],
+      );
+      setOpenMatch({ pautaId, variant: "celebration" });
+    }
+  }, [findCurrentPauta, pautaCollabs]);
 
   const handleConnectInstagram = useCallback(() => {
     if (data.userInfo.plan !== "Pro") {
@@ -491,10 +640,19 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     setOpenIdeaId(id);
   }, [data.instagramConnected, data.userInfo.plan]);
 
-  // Salvar/dessalvar uma pauta. Pauta salva sobrevive à geração de novas pautas
-  // (o servidor só supersede as `active`); aqui refletimos isso otimistamente e
-  // persistimos via PATCH. Falha de rede reverte o estado local.
-  const handleToggleSavePauta = useCallback((id: string) => {
+  const beginPautaAction = useCallback((id: string) => {
+    if (pautaActionInFlightRef.current.has(id)) return false;
+    pautaActionInFlightRef.current.add(id);
+    return true;
+  }, []);
+
+  const finishPautaAction = useCallback((id: string) => {
+    pautaActionInFlightRef.current.delete(id);
+  }, []);
+
+  // Salvar explicitamente: usado no deck. Falha não recoloca a pauta no deck;
+  // ela fica na estante da sessão como "não sincronizada" com retry.
+  const handleSavePauta = useCallback((id: string) => {
     if (data.userInfo.plan !== "Pro") {
       openPaywallModal({
         context: "planning",
@@ -504,32 +662,162 @@ export function DiagnosticoRealShellClient({ data }: Props) {
       });
       return;
     }
-    let nextStatus: "saved" | "active" = "saved";
-    setLocalContentIdeas((prev) =>
-      prev.map((p) => {
-        if (p.id !== id) return p;
-        nextStatus = p.status === "saved" ? "active" : "saved";
-        return { ...p, status: nextStatus };
-      }),
-    );
+    if (!beginPautaAction(id)) return;
+    forgetContentIdeaLocalDecision(localPautaDecisionStorageKey, id);
+    setLocalIdeaStatus(id, "saved");
+    setPautaAction(id, { kind: "save", phase: "pending" });
     void (async () => {
       try {
-        const res = await fetch(`/api/dashboard/mobile-strategic-profile/content-ideas/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: nextStatus }),
+        await persistPautaStatus(id, "saved");
+        clearPautaAction(id);
+      } catch (err) {
+        setPautaAction(id, {
+          kind: "save",
+          phase: "failed",
+          message: actionErrorMessage("save", (err as { reason?: string })?.reason),
         });
-        if (!res.ok) throw new Error(String(res.status));
-      } catch {
-        // Reverte o otimismo se o servidor recusou.
-        setLocalContentIdeas((prev) =>
-          prev.map((p) =>
-            p.id === id ? { ...p, status: nextStatus === "saved" ? "active" : "saved" } : p,
-          ),
-        );
+      } finally {
+        finishPautaAction(id);
       }
     })();
-  }, [data.instagramConnected, data.userInfo.plan]);
+  }, [
+    actionErrorMessage,
+    beginPautaAction,
+    clearPautaAction,
+    data.instagramConnected,
+    data.userInfo.plan,
+    finishPautaAction,
+    localPautaDecisionStorageKey,
+    persistPautaStatus,
+    setLocalIdeaStatus,
+    setPautaAction,
+  ]);
+
+  // Remover da estante explicitamente: decisão final do usuário, não volta ao deck.
+  const handleUnsavePauta = useCallback((id: string) => {
+    if (!beginPautaAction(id)) return;
+    rememberContentIdeaLocalDecision(localPautaDecisionStorageKey, id, "unsave");
+    setLocalIdeaStatus(id, "dismissed");
+    setPautaAction(id, { kind: "unsave", phase: "confirmed" });
+    void (async () => {
+      try {
+        await persistPautaStatus(id, "dismissed");
+        setPautaAction(id, { kind: "unsave", phase: "confirmed" });
+      } catch {
+        setPautaAction(id, { kind: "unsave", phase: "confirmed" });
+      } finally {
+        finishPautaAction(id);
+      }
+    })();
+  }, [
+    beginPautaAction,
+    finishPautaAction,
+    localPautaDecisionStorageKey,
+    persistPautaStatus,
+    setLocalIdeaStatus,
+    setPautaAction,
+  ]);
+
+  // Rejeitar uma pauta no deck = descarte PERMANENTE (status "dismissed"). O read
+  // service filtra "dismissed", então ela nunca mais é lida — não volta no reload
+  // nem numa geração futura. Rejeitar é livre (sem paywall); só salvar/gerar é Pro.
+  const handleDismissPauta = useCallback((id: string) => {
+    if (!beginPautaAction(id)) return;
+    rememberContentIdeaLocalDecision(localPautaDecisionStorageKey, id, "dismiss");
+    setLocalIdeaStatus(id, "dismissed");
+    setPautaAction(id, { kind: "dismiss", phase: "confirmed" });
+    void (async () => {
+      try {
+        await persistPautaStatus(id, "dismissed");
+        clearPautaAction(id);
+      } catch {
+        setPautaAction(id, { kind: "dismiss", phase: "confirmed" });
+      } finally {
+        finishPautaAction(id);
+      }
+    })();
+  }, [
+    beginPautaAction,
+    clearPautaAction,
+    finishPautaAction,
+    localPautaDecisionStorageKey,
+    persistPautaStatus,
+    setLocalIdeaStatus,
+    setPautaAction,
+  ]);
+
+  const handleAcceptCollabPauta = useCallback((id: string) => {
+    if (data.userInfo.plan !== "Pro") {
+      openPaywallModal({
+        context: "narrative_map",
+        source: "mobile_collabs_accept",
+        returnTo: MOBILE_PROFILE_ROUTE,
+        postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
+      });
+      return;
+    }
+    if (!beginPautaAction(id)) return;
+    forgetContentIdeaLocalDecision(localPautaDecisionStorageKey, id);
+    setLocalIdeaStatus(id, "saved");
+    setPautaAction(id, { kind: "save", phase: "pending" });
+    void (async () => {
+      try {
+        const pauta = findCurrentPauta(id);
+        if (pauta?.status !== "saved") {
+          await persistPautaStatus(id, "saved");
+        }
+      } catch (err) {
+        setPautaAction(id, {
+          kind: "save",
+          phase: "failed",
+          message: actionErrorMessage("save", (err as { reason?: string })?.reason),
+        });
+        finishPautaAction(id);
+        return;
+      }
+
+      setPautaAction(id, { kind: "collab-interest", phase: "pending" });
+      try {
+        await registerCollabInterest(id);
+        clearPautaAction(id);
+      } catch {
+        setPautaAction(id, {
+          kind: "collab-interest",
+          phase: "failed",
+          message: actionErrorMessage("collab-interest"),
+        });
+      } finally {
+        finishPautaAction(id);
+      }
+    })();
+  }, [
+    actionErrorMessage,
+    beginPautaAction,
+    clearPautaAction,
+    data.instagramConnected,
+    data.userInfo.plan,
+    findCurrentPauta,
+    finishPautaAction,
+    localPautaDecisionStorageKey,
+    persistPautaStatus,
+    registerCollabInterest,
+    setLocalIdeaStatus,
+    setPautaAction,
+  ]);
+
+  const handleRetryPautaAction = useCallback((id: string) => {
+    const state = pautaActionStates.get(id);
+    if (!state) return;
+    if (state.kind === "save") {
+      handleSavePauta(id);
+    } else if (state.kind === "unsave") {
+      handleUnsavePauta(id);
+    } else if (state.kind === "dismiss") {
+      handleDismissPauta(id);
+    } else {
+      handleAcceptCollabPauta(id);
+    }
+  }, [handleAcceptCollabPauta, handleDismissPauta, handleSavePauta, handleUnsavePauta, pautaActionStates]);
 
   const handleOpenAccountCommunity = useCallback(() => {
     // Abre a Comunidade DENTRO do shell (não sai para outra rota) —
@@ -538,18 +826,28 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     setOpenCategory("community");
   }, []);
 
-  const handleOpenWhatsAppGroup = useCallback(() => {
+  // Grupo da comunidade no WhatsApp — Pro entra direto; free vê o paywall.
+  // `source` distingue a superfície de origem na telemetria do paywall.
+  const openWhatsAppCommunity = useCallback((source: string) => {
     if (data.userInfo.plan === "Pro") {
-      window.open("https://chat.whatsapp.com/BAeBQZ8zuhQJOxXXJJaTnH", "_blank", "noopener,noreferrer");
+      window.open(COMMUNITY_WHATSAPP_URL, "_blank", "noopener,noreferrer");
     } else {
       openPaywallModal({
         context: "narrative_map",
-        source: "mobile_profile_whatsapp_community",
+        source,
         returnTo: MOBILE_PROFILE_ROUTE,
         postCheckoutIntent: "join_community",
       });
     }
   }, [data.userInfo.plan]);
+  const handleOpenWhatsAppGroup = useCallback(
+    () => openWhatsAppCommunity("mobile_profile_whatsapp_community"),
+    [openWhatsAppCommunity],
+  );
+  const handleOpenCollabsWhatsAppCommunity = useCallback(
+    () => openWhatsAppCommunity("mobile_collabs_whatsapp_community"),
+    [openWhatsAppCommunity],
+  );
   const handleOpenAccountInstagramConnection = useCallback(() => {
     setAccountMenuOpen(false);
     handleConnectInstagram();
@@ -1032,7 +1330,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   }, [isMapReadyForExpansion, loadCreatorDirectory, openCategory]);
 
   useEffect(() => {
-    // Carrega o diretório no mount para a CreatorStoriesRow no header.
+    // Carrega o diretório no mount — alimenta as detail views de Comunidade e Collabs.
     void loadCreatorDirectory();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -1100,6 +1398,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
         objectKey?: string;
         mimeType: string;
         sizeBytes: number;
+        durationSeconds?: number;
         uploadedAt?: string;
       };
     }): Promise<MobileStrategicProfileAnalyzeResult> => {
@@ -1119,6 +1418,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
               objectKey: payload.temporaryUpload!.objectKey,
               mimeType: payload.temporaryUpload!.mimeType,
               sizeBytes: payload.temporaryUpload!.sizeBytes,
+              durationSeconds: payload.temporaryUpload!.durationSeconds,
               uploadedAt: payload.temporaryUpload!.uploadedAt,
             },
             creatorGoal: payload.creatorGoal,
@@ -1172,8 +1472,9 @@ export function DiagnosticoRealShellClient({ data }: Props) {
             directAnswer: snap?.directAnswer ?? null,
             coherenceVerdict: snap?.coherenceVerdict ?? null,
             coherenceReasoning: snap?.coherenceReasoning ?? null,
+            contentPotentialScan: snap?.contentPotentialScan ?? null,
           }
-        : snap?.directAnswer || snap?.coherenceVerdict
+        : snap?.directAnswer || snap?.coherenceVerdict || snap?.contentPotentialScan
           ? {
               diagnosisSummary: null,
               unlockedSignals: [],
@@ -1181,6 +1482,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
               directAnswer: snap?.directAnswer ?? null,
               coherenceVerdict: snap?.coherenceVerdict ?? null,
               coherenceReasoning: snap?.coherenceReasoning ?? null,
+              contentPotentialScan: snap?.contentPotentialScan ?? null,
             }
           : null;
       return {
@@ -1233,6 +1535,35 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     },
     [],
   );
+
+  const handleContentPotentialFeedbackSubmit = useCallback(
+    async (diagnosisId: string, feedback: {
+      target: "overall" | "evidence" | "direction";
+      value: "helpful" | "not_in_video" | "wrong_intent";
+      moment?: "opening" | "development" | "closing";
+    }) => {
+      await fetch(
+        `/api/dashboard/mobile-strategic-profile/diagnosis/${encodeURIComponent(diagnosisId)}/content-potential-feedback`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(feedback),
+        },
+      ).then(() => {}).catch(() => {});
+    },
+    [],
+  );
+
+  const handleScanReportInteraction = useCallback((event: "copy_suggestion" | "adjustment_marked" | "rescan_started" | "feedback_submitted" | "publish_decision", actionType?: string) => {
+    const eventNames: Record<typeof event, MobileNarrativeTelemetryEventName> = {
+      copy_suggestion: "mobile_scan_suggestion_copied",
+      adjustment_marked: "mobile_scan_adjustment_marked",
+      rescan_started: "mobile_scan_rescan_started",
+      feedback_submitted: "mobile_scan_feedback_submitted",
+      publish_decision: "mobile_scan_publish_decision",
+    };
+    trackMobileNarrativeEvent(eventNames[event], { route: MOBILE_PROFILE_ROUTE, actionType });
+  }, []);
 
   const handleCompletionUpgrade = useCallback(() => {
     setAnalyzeFlowOpen(false);
@@ -1409,9 +1740,9 @@ export function DiagnosticoRealShellClient({ data }: Props) {
 
   return (
     <div
-      className="fixed inset-0 flex flex-col overflow-hidden"
+      className={`d2c-mobile-app fixed inset-0 flex flex-col overflow-hidden ${d2cFontVariables}`}
       style={{
-        background: "linear-gradient(180deg, #fff8f5 0%, #ffffff 18%)",
+        background: "var(--ds-color-paper)",
       }}
     >
       <div
@@ -1426,32 +1757,32 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           // gradiente mudar (parar mais peachy, por mais tempo), essa faixa
           // reaparece com a cor errada, sem nenhum aviso. Fundo explícito
           // remove essa dependência — a faixa é sempre branca, ponto.
-          background: "#ffffff",
+          background: "var(--ds-color-paper)",
         }}
       >
         {activeTab === "collabs" ? (
           <DiagnosticoCollabsFeed
             pautas={effectiveContentIdeas}
-            creatorDirectory={creatorDirectory}
-            collabSuggestedIds={new Set(
-              collabSuggestions?.status === "ready"
-                ? collabSuggestions.items.map((i) => i.id)
-                : [],
-            )}
             isPro={hydratedData.userInfo.plan === "Pro"}
             whatsappLinked={hydratedData.userInfo.whatsappLinked ?? false}
             isGeneratingIdeas={isGeneratingIdeas}
             ideaGenerationBlocker={ideaGenerationBlocker}
             pautaCollabs={pautaCollabs}
-            pautaCollabsLoading={pautaCollabsLoading}
+            pautaCollabsLoading={effectiveCollabsBootstrapStatus === "loading"}
+            bootstrapStatus={effectiveCollabsBootstrapStatus}
+            bootstrapError={collabsBootstrap.error}
+            onRetryBootstrap={handleRetryCollabsBootstrap}
             collabDecisions={collabDecisions}
-            onCollabDecision={handleCollabDecision}
+            pautaActionStates={pautaActionStates}
+            onRetryPautaAction={handleRetryPautaAction}
             confirmedMatches={confirmedMatches}
             onOpenMatch={(pautaId) => setOpenMatch({ pautaId, variant: "revisit" })}
             onOpenIdea={handleOpenIdea}
-            onToggleSave={handleToggleSavePauta}
-            onOpenCommunity={handleOpenAccountCommunity}
-            onOpenCreatorMediaKit={handleOpenCreatorMediaKit}
+            onSavePauta={handleSavePauta}
+            onUnsavePauta={handleUnsavePauta}
+            onAcceptCollabPauta={handleAcceptCollabPauta}
+            onDismissPauta={handleDismissPauta}
+            onOpenWhatsAppCommunity={handleOpenCollabsWhatsAppCommunity}
             onConnectWhatsApp={() => setWhatsAppSheetOpen(true)}
             onUpgrade={(ctx) => openPaywallModal({
               context: typeof ctx === "string" ? ctx : "narrative_map",
@@ -1539,7 +1870,11 @@ export function DiagnosticoRealShellClient({ data }: Props) {
             isPro={hydratedData.userInfo.plan === "Pro"}
             decisionPending={Boolean(ideaCollab) && !ideaDecision && !ideaMatched}
             onDecide={(decision) => {
-              handleCollabDecision(openIdeaId, decision);
+              if (decision === "interested") {
+                handleAcceptCollabPauta(openIdeaId);
+              } else {
+                handleDismissPauta(openIdeaId);
+              }
               setOpenIdeaId(null);
             }}
             awaitingOtherSide={Boolean(ideaCollab) && ideaDecision === "interested" && !ideaMatched}
@@ -1769,6 +2104,8 @@ export function DiagnosticoRealShellClient({ data }: Props) {
         enableRealAnalysis={REAL_ANALYSIS_ENABLED}
         onCleanupTemporaryUpload={handleCleanupUpload}
         onPublishIntentSubmit={handlePublishIntentSubmit}
+        onContentPotentialFeedbackSubmit={handleContentPotentialFeedbackSubmit}
+        onReportInteraction={handleScanReportInteraction}
         completionSecondaryAction={data.accessState === "free_unused" ? "upgrade" : "another_video"}
         onCompletionUpgrade={handleCompletionUpgrade}
         readingsSummary={(() => {

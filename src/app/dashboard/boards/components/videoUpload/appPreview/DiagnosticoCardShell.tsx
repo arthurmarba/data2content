@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
 
-const BASE =
-  "w-full overflow-hidden rounded-[32px] bg-white shadow-[0_1px_2px_rgba(15,23,42,0.025),0_18px_42px_rgba(15,23,42,0.04)] ring-1 ring-black/[0.025]";
+const BASE = "ds-surface ds-surface--raised w-full overflow-hidden";
 
-/** Apple Health-style white card */
+/** Creator-studio interactive surface. */
 export function DiagnosticoCardShell({
   children,
   onClick,
@@ -18,7 +17,7 @@ export function DiagnosticoCardShell({
       <button
         type="button"
         onClick={onClick}
-        className={`${BASE} ${className} text-left transition-transform duration-200 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/60`}
+        className={`${BASE} ${className} text-left transition-transform duration-200 active:scale-[0.985] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ds-color-brand)]/40`}
       >
         {children}
       </button>
@@ -27,7 +26,7 @@ export function DiagnosticoCardShell({
   return <div className={`${BASE} ${className}`}>{children}</div>;
 }
 
-/** Apple Health card header row ─────────────────────────────────────────────
+/** Creator-studio card header row ───────────────────────────────────────────
  *
  *  [■ icon bubble] [CATEGORY label]          [timestamp]  [›]
  */

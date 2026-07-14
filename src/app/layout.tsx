@@ -3,6 +3,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import "./globals.css";
+import "@/design-system/tokens.css";
 
 // NextAuth (SSR)
 import { getServerSession } from "next-auth/next";

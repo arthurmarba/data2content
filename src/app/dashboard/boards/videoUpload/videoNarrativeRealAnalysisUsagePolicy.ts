@@ -47,7 +47,7 @@ export type VideoNarrativeRealAnalysisUsageDecision =
       message: string;
     };
 
-const DEFAULT_MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024;
+const DEFAULT_MAX_FILE_SIZE_BYTES = 300 * 1024 * 1024;
 
 function parseBoolean(value: string | undefined): boolean {
   return value === "1" || value === "true";

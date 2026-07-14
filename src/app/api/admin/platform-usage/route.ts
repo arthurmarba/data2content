@@ -27,38 +27,24 @@ export async function GET() {
     { $sort: { total: -1 } },
   ]).toArray();
 
-  // --- Atividade (proxy composto últimos 90d) ---
-  const activitySources = [
-    { col: 'creatorcontentideas',           user: 'userId', date: 'createdAt' },
-    { col: 'publicalculations',             user: 'userId', date: 'createdAt' },
-    { col: 'chat_sessions',                 user: 'userId', date: 'lastActivityAt' },
-    { col: 'threads',                       user: 'userId', date: 'lastActivityAt' },
-    { col: 'post_creation_funnel_events',   user: 'userId', date: 'createdAt' },
-    { col: 'creatormapconfirmations',       user: 'userId', date: 'createdAt' },
-    { col: 'creatorvideonarrativediagnoses',user: 'userId', date: 'createdAt' },
-  ];
-
-  const events: { userId: string; date: string }[] = [];
-  for (const s of activitySources) {
-    const docs = await db.collection(s.col).find(
-      { [s.date]: { $gte: d90 } },
-      { projection: { [s.user]: 1, [s.date]: 1, _id: 0 } },
-    ).toArray();
-    for (const d of docs) {
-      const uid = d[s.user];
-      const dt  = d[s.date];
-      if (uid && dt) events.push({ userId: uid.toString(), date: new Date(dt).toISOString().slice(0, 10) });
-    }
-  }
+  // --- Atividade (log canônico de eventos — usage_events) ---
+  const usageEvents = await db.collection('usage_events').find(
+    { createdAt: { $gte: d90 } },
+    { projection: { userId: 1, createdAt: 1, _id: 0 } },
+  ).toArray();
 
   const byDay: Record<string, Set<string>> = {};
   const byMonth: Record<string, Set<string>> = {};
-  for (const e of events) {
-    if (!byDay[e.date]) byDay[e.date] = new Set();
-    byDay[e.date]!.add(e.userId);
-    const m = e.date.slice(0, 7);
+  for (const e of usageEvents) {
+    const uid = e.userId?.toString();
+    const dt  = e.createdAt;
+    if (!uid || !dt) continue;
+    const day = new Date(dt).toISOString().slice(0, 10);
+    if (!byDay[day]) byDay[day] = new Set();
+    byDay[day]!.add(uid);
+    const m = day.slice(0, 7);
     if (!byMonth[m]) byMonth[m] = new Set();
-    byMonth[m].add(e.userId);
+    byMonth[m].add(uid);
   }
 
   const mauByMonth = Object.entries(byMonth)
@@ -79,6 +65,13 @@ export async function GET() {
   const peakDau    = dauValues.length ? Math.max(...dauValues) : 0;
   const curMonthKey = new Date(now.getTime() - 5 * 24 * 3600 * 1000).toISOString().slice(0, 7);
   const mau30      = byMonth[curMonthKey]?.size ?? 0;
+
+  // --- DAU/MAU por login (users.lastActiveAt) — complementa a visão por ação.
+  // lastActiveAt guarda só o valor mais recente por usuário, então serve para
+  // janelas "até agora" (hoje / últimos 30d), não para reconstruir meses passados.
+  const d1 = new Date(now.getTime() - 24 * 3600 * 1000);
+  const dauLogin      = await db.collection('users').countDocuments({ lastActiveAt: { $gte: d1 } });
+  const mauLogin30d   = await db.collection('users').countDocuments({ lastActiveAt: { $gte: d30 } });
 
   // --- Features ---
   const pautas30d      = await db.collection('creatorcontentideas').countDocuments({ createdAt: { $gte: d30 } });
@@ -103,6 +96,21 @@ export async function GET() {
   const uploads30d = await db.collection('creatorvideonarrativediagnoses').countDocuments({ createdAt: { $gte: d30 } });
   const mapaTotal  = await db.collection('mapasseed').countDocuments();
   const confirma30d = await db.collection('creatormapconfirmations').countDocuments({ createdAt: { $gte: d30 } });
+
+  // --- Por ferramenta (log canônico, 30d) — leitura refinada por tool/plataforma ---
+  const toolStats = await db.collection('usage_events').aggregate([
+    { $match: { createdAt: { $gte: d30 } } },
+    { $group: {
+        _id: '$eventName',
+        total: { $sum: 1 },
+        users: { $addToSet: '$userId' },
+        mobileTotal: { $sum: { $cond: [{ $eq: ['$metadata.platform', 'mobile'] }, 1, 0] } },
+        mobileUsers: { $addToSet: { $cond: [{ $eq: ['$metadata.platform', 'mobile'] }, '$userId', '$$REMOVE'] } },
+    }},
+    { $addFields: { uniqueUsers: { $size: '$users' }, mobileUniqueUsers: { $size: '$mobileUsers' } } },
+    { $project: { users: 0, mobileUsers: 0 } },
+    { $sort: { total: -1 } },
+  ]).toArray();
 
   // --- Mídia Kit ---
   const mkBotPattern = /^(unknown|69\.171\.|157\.240\.|173\.252\.|31\.13\.)/;
@@ -162,12 +170,19 @@ export async function GET() {
   return NextResponse.json({
     generatedAt: now.toISOString(),
     users: { total: totalUsers, planDist },
-    activity: { avgDau30, peakDau, mau30, mauByMonth },
+    activity: { avgDau30, peakDau, mau30, mauByMonth, dauLogin, mauLogin30d },
     features: {
       pautas: { total30d: pautas30d, users30d: pautasUsers30d, byWeek: pautasByWeek },
       publi:  { total: publiTotal, total30d: publi30d, users30d: publiUsers30d },
       video:  { total30d: uploads30d },
       mapa:   { total: mapaTotal, confirmations30d: confirma30d },
+      byTool: toolStats.map(t => ({
+        eventName: t._id as string,
+        total: t.total as number,
+        uniqueUsers: t.uniqueUsers as number,
+        mobileTotal: t.mobileTotal as number,
+        mobileUniqueUsers: t.mobileUniqueUsers as number,
+      })),
     },
     mediakit: {
       humanTotal: mkHumanTotal,

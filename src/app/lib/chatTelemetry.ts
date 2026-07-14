@@ -7,6 +7,7 @@ import ChatSessionFeedbackModel from "@/app/models/ChatSessionFeedback";
 import ChatSessionReviewModel from "@/app/models/ChatSessionReview";
 import { logger } from "@/app/lib/logger";
 import { FEEDBACK_REASON_CODES } from "@/app/lib/feedbackReasons";
+import { logUsageEvent } from "@/app/lib/dataService/usageEventService";
 
 const INACTIVITY_MS = 20 * 60 * 1000; // 20 minutos
 const NEGATIVE_REASON_CODES = FEEDBACK_REASON_CODES;
@@ -159,6 +160,8 @@ export async function ensureChatSession(input: EnsureSessionInput): Promise<ICha
     startedAt: new Date(),
     lastActivityAt: new Date(),
   };
+
+  logUsageEvent(input.userId, "chat_session_started", "chat");
 
   return ChatSessionModel.create(createPayload);
 }

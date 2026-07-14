@@ -21,7 +21,7 @@ export function NarrativeMapReadingFullDiagnosisModal({
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex justify-center bg-[#f7f7f4]"
+      className="fixed inset-0 z-[100] flex justify-center bg-[var(--ds-color-neutral)]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="full-diagnosis-title"

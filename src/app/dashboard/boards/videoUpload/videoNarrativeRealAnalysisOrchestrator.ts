@@ -31,6 +31,15 @@ import { logger } from "@/app/lib/logger";
 import { resolveVideoNarrativeTemporaryStorageObject } from "./videoNarrativeTemporaryStorageRuntimeResolver";
 import { resolveVideoNarrativeTemporaryStorageInput } from "./videoNarrativeTemporaryStorageRuntimeAdapter";
 import {
+  probeVideoNarrativeMedia,
+  type VideoNarrativeMediaProbeResult,
+} from "./videoNarrativeMediaProbe";
+import {
+  buildFallbackVideoNarrativeContentPotentialScan,
+  calibrateVideoNarrativeContentPotentialScan,
+  contextualizeVideoNarrativeContentPotentialScan,
+} from "./videoNarrativeContentPotentialScan";
+import {
   saveCreatorVideoNarrativeDiagnosisFromStructuredAnalysis,
   type SaveCreatorVideoNarrativeDiagnosisResult,
 } from "./creatorVideoNarrativeDiagnosisSaveOrchestrator";
@@ -79,6 +88,7 @@ export type VideoNarrativeRealAnalysisOrchestratorResult =
         audienceCoherence?: VideoNarrativeAxisCoherence | null;
         /** Eixo marca do veredito "vale postar?". */
         brandCoherence?: VideoNarrativeAxisCoherence | null;
+        contentPotentialScan?: import("./videoNarrativeContentPotentialScan").VideoNarrativeContentPotentialScan | null;
       };
       cleanupWarning?: string;
     }
@@ -112,6 +122,7 @@ export type VideoNarrativeRealAnalysisOrchestratorDeps = {
   pastCreatorAnswers?: Array<{ questionText: string; answerValue: string }> | null;
   /** Real audience composition (demographics), used to anchor the audiência axis of the verdict. */
   audienceContext?: import("./videoNarrativeAiProviderTypes").VideoNarrativeAudienceContextSummary | null;
+  contentPotentialHistory?: import("./contentPotentialHistoryService").ContentPotentialCalibrationHistory | null;
   geminiConfig?: VideoNarrativeGeminiProviderConfig;
   geminiClient?: VideoNarrativeGeminiClientAdapter | null;
   runProvider?: (params: {
@@ -134,6 +145,11 @@ export type VideoNarrativeRealAnalysisOrchestratorDeps = {
     objectKey?: string;
     reason: "analysis_completed" | "analysis_failed";
   }) => Promise<void>;
+  probeMedia?: (input: {
+    mimeType: string;
+    bytes?: Uint8Array | Buffer;
+    filePath?: string;
+  }) => Promise<VideoNarrativeMediaProbeResult>;
 };
 
 function safeFailure(params: {
@@ -334,7 +350,7 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     ) {
       return safeFailure({
         status: "blocked",
-        message: getVideoNarrativeRealAnalysisUserFacingMessage("storage_not_ready"),
+        message: getVideoNarrativeRealAnalysisUserFacingMessage("object_too_large"),
         safeIssueCode: "object_too_large",
       });
     }
@@ -358,6 +374,13 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
       safeIssueCode: "usage_check_failed",
     });
   }
+
+  let cleanupWarning: string | undefined;
+  let cleanupAttempted = false;
+  const attemptCleanup = async (reason: "analysis_completed" | "analysis_failed") => {
+    cleanupAttempted = Boolean(deps.cleanupTemporaryUpload);
+    cleanupWarning = await tryCleanup({ deps, payload: params.payload, reason });
+  };
 
   const storageResolver = resolveVideoNarrativeTemporaryStorageObject({
     uploadSessionId: params.payload.uploadSessionId,
@@ -409,13 +432,28 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     });
   }
 
+  const mediaProbe = await (deps.probeMedia ?? probeVideoNarrativeMedia)({
+    mimeType: storageInputResult.geminiInput.mimeType,
+    bytes: storageInputResult.geminiInput.bytes,
+    filePath: storageInputResult.geminiInput.filePath,
+  });
+  if (!mediaProbe.ok) {
+    await attemptCleanup("analysis_failed");
+    if (usageAttemptRecorded) {
+      await recordFailureSafely({ deps, userId: params.user.id, reason: mediaProbe.code, now });
+    }
+    return safeFailure({
+      status: "blocked",
+      message: getVideoNarrativeRealAnalysisUserFacingMessage(mediaProbe.code),
+      safeIssueCode: mediaProbe.code,
+      cleanupAttempted,
+      usageLimitChecked,
+      allowlistGatePassed: true,
+      cleanupWarning,
+    });
+  }
+
   const runProvider = deps.runProvider ?? runVideoNarrativeGeminiProvider;
-  let cleanupWarning: string | undefined;
-  let cleanupAttempted = false;
-  const attemptCleanup = async (reason: "analysis_completed" | "analysis_failed") => {
-    cleanupAttempted = Boolean(deps.cleanupTemporaryUpload);
-    cleanupWarning = await tryCleanup({ deps, payload: params.payload, reason });
-  };
 
   const geminiClient =
     "geminiClient" in deps
@@ -440,7 +478,9 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
         uploadSessionId: params.payload.uploadSessionId,
         objectKey: params.payload.temporaryUpload?.objectKey,
         mimeType: params.payload.temporaryUpload?.mimeType ?? "video/mp4",
-        sizeBytes: params.payload.temporaryUpload?.sizeBytes ?? 0,
+        sizeBytes: mediaProbe.metadata.sizeBytes,
+        durationSeconds: mediaProbe.metadata.durationSeconds,
+        earlyVisualChanges: mediaProbe.metadata.earlyVisualChanges,
       },
       profileContext: {
         displayName: params.user.name ?? undefined,
@@ -555,6 +595,25 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     });
   }
 
+  const rawContentPotentialScan = providerResult.analysis.contentPotentialScan ??
+    buildFallbackVideoNarrativeContentPotentialScan({
+      selectedGoalOption: params.payload.selectedGoalOption,
+      adjustment: providerResult.analysis.recommendedAdjustment,
+    });
+  const calibratedContentPotentialScan = calibrateVideoNarrativeContentPotentialScan({
+    scan: rawContentPotentialScan,
+    selectedGoalOption: params.payload.selectedGoalOption,
+    postsAnalyzed: deps.instagramMetrics?.postsAnalyzed ?? 0,
+    historyCalibration: deps.contentPotentialHistory,
+  });
+  const contentPotentialScan = contextualizeVideoNarrativeContentPotentialScan({
+    scan: calibratedContentPotentialScan,
+    evidenceAnchors: providerResult.analysis.evidenceAnchors,
+    suggestedHook: providerResult.analysis.suggestedHook,
+    nextActions: providerResult.analysis.nextActions,
+  });
+  providerResult.analysis.contentPotentialScan = contentPotentialScan;
+
   const accessLevel = params.user.planStatus === "active" ? "premium" : "free";
   const instagramConnected = Boolean(params.user.instagramConnected || params.user.isInstagramConnected);
   const artifacts = buildRealProviderDiagnosisArtifacts({
@@ -587,7 +646,8 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
       selectedGoalOption: params.payload.selectedGoalOption,
       safeVideoMetadata: {
         mimeType: params.payload.temporaryUpload?.mimeType,
-        sizeBytes: params.payload.temporaryUpload?.sizeBytes,
+        sizeBytes: mediaProbe.metadata.sizeBytes,
+        durationSeconds: mediaProbe.metadata.durationSeconds,
         uploadedAt: params.payload.temporaryUpload?.uploadedAt ? new Date(params.payload.temporaryUpload.uploadedAt) : undefined,
         analyzedAt: now,
       },
@@ -686,6 +746,7 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
       coherenceReasoning: coherence?.reasoning ?? null,
       audienceCoherence: providerResult.analysis.audienceCoherence ?? null,
       brandCoherence: providerResult.analysis.brandCoherence ?? null,
+      contentPotentialScan,
     },
     cleanupWarning,
   };

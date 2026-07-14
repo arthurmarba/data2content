@@ -5,6 +5,9 @@ export type VideoNarrativeRealAnalysisUserFacingErrorCode =
   | "storage_not_ready"
   | "storage_object_not_found"
   | "storage_download_failed"
+  | "video_too_large"
+  | "video_too_long"
+  | "invalid_media"
   | "gemini_timeout"
   | "gemini_provider_unavailable"
   | "gemini_invalid_response"
@@ -20,6 +23,9 @@ const USER_FACING_ERROR_MESSAGES: Record<VideoNarrativeRealAnalysisUserFacingErr
   storage_not_ready: "Não conseguimos preparar o vídeo temporário para análise agora.",
   storage_object_not_found: "Não encontramos o vídeo temporário enviado. Tente enviar novamente.",
   storage_download_failed: "Não conseguimos ler o vídeo temporário agora. Tente novamente em alguns minutos.",
+  video_too_large: "O vídeo excede o tamanho máximo permitido para análise.",
+  video_too_long: "Analisamos vídeos de até 90 segundos. Escolha um conteúdo mais curto.",
+  invalid_media: "Não conseguimos confirmar o formato e a duração do vídeo. Escolha outro arquivo.",
   gemini_timeout: "A análise demorou mais que o esperado. Tente novamente em alguns minutos.",
   gemini_provider_unavailable: "A análise real está temporariamente indisponível.",
   gemini_invalid_response: "Não conseguimos transformar a análise em um diagnóstico válido.",
@@ -41,7 +47,11 @@ const ISSUE_CODE_MAP: Record<string, VideoNarrativeRealAnalysisUserFacingErrorCo
   provider_not_configured: "storage_not_ready",
   missing_storage_adapter: "storage_not_ready",
   object_not_found: "storage_object_not_found",
-  object_too_large: "storage_not_ready",
+  object_too_large: "video_too_large",
+  video_too_long: "video_too_long",
+  invalid_duration_seconds: "video_too_long",
+  invalid_media: "invalid_media",
+  media_probe_unavailable: "invalid_media",
   unsupported_mime_type: "storage_not_ready",
   download_failed: "storage_download_failed",
   gemini_provider_disabled: "gemini_provider_unavailable",

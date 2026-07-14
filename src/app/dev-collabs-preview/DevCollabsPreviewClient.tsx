@@ -8,8 +8,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ContentIdeaListItem } from "@/app/dashboard/boards/videoUpload/contentIdeasReadService";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
-import type { DiagnosticoCreatorDirectoryState } from "@/app/dashboard/boards/videoUpload/diagnosticoPageData";
 import { DiagnosticoCollabsFeed } from "@/app/dashboard/boards/components/videoUpload/appPreview/DiagnosticoCollabsFeed";
+import type { PautaActionState } from "@/app/dashboard/boards/components/videoUpload/appPreview/DiagnosticoCollabsFeed";
 import { DiagnosticoIdeaDetailSheet } from "@/app/dashboard/boards/components/videoUpload/appPreview/DiagnosticoIdeaDetailSheet";
 import { DiagnosticoCollabMatchOverlay } from "@/app/dashboard/boards/components/videoUpload/appPreview/DiagnosticoCollabMatchOverlay";
 import type { CollabStackDecision } from "@/app/dashboard/boards/components/videoUpload/appPreview/DiagnosticoCollabStack";
@@ -17,6 +17,7 @@ import type { CollabStackDecision } from "@/app/dashboard/boards/components/vide
 // container do shell de produção pra denunciar overlap de verdade, não só
 // "parecer" a tela real.
 import { DiagnosticoTabBar } from "@/app/dashboard/boards/components/videoUpload/appPreview/DiagnosticoTabBar";
+import { d2cFontVariables } from "@/app/fonts/d2cFonts";
 
 function pauta(id: string, o: Partial<ContentIdeaListItem>): ContentIdeaListItem {
   return {
@@ -46,7 +47,13 @@ const PAUTAS: ContentIdeaListItem[] = [
   pauta("p1", { title: "O dia que meu filho perguntou se eu precisava trabalhar" }),
   pauta("p2", { title: "Aprendi a proteger o jantar como reunião importante", territory: "Rotina" }),
   pauta("p3", { title: "Por que parei de responder e-mail depois das 18h", territory: "Trabalho" }),
-  pauta("p4", { title: "Os livros que li pra sair do automático", territory: "Leitura" }),
+  // Território longo de propósito — regressão do chip truncando ("Cultura pop
+  // como nego...") reportada em produção; mantém a checagem visual viva.
+  pauta("p4", {
+    title: "A verdade sobre como a IA mudou o jeito que eu trabalho",
+    territory: "Cultura pop como negócio",
+    hook: "Muita gente vê a inteligência artificial como uma ameaça, mas pra mim, foi o meu melhor parceiro de trabalho.",
+  }),
   pauta("p5", { title: "Trabalhei 10 anos no automático. O que eu perdi?", territory: "Reflexão" }),
   pauta("p6", { title: "Já combinada — vídeo com o Théo sobre rotina", territory: "Rotina" }),
 ];
@@ -54,7 +61,9 @@ const PAUTAS: ContentIdeaListItem[] = [
 const MATCHES = new Map<string, NarrativeCollabMatch | null>([
   ["p1", match("Marina Braga", {
     collabMode: "remoto",
-    narrativeFitReason: "Cruza a visão financeira familiar dela com seu pilar de paternidade ativa.",
+    // Longo de propósito — pior caso combinado com o título mais longo do
+    // fixture (regressão de espaçamento/clipping em tela baixa).
+    narrativeFitReason: "Ela cruza a visão financeira familiar dela com o seu pilar de paternidade ativa, trazendo o ângulo do dinheiro em casa que você ainda não cobre nos seus vídeos.",
     collabRecordingIdea: "Vocês gravam em formato remoto de reação, onde cada um comenta o planejamento do outro via split-screen.",
     sharedSignal: "Paternidade",
     distinctSignals: ["Finanças", "Planejamento"]
@@ -84,22 +93,11 @@ const MATCHES = new Map<string, NarrativeCollabMatch | null>([
   })],
 ]);
 
-const AVATAR = "https://placehold.co/160x160/e4e4e7/71717a?text=%20";
-
-const DIRECTORY: DiagnosticoCreatorDirectoryState = {
-  status: "ready",
-  creators: [
-    { id: "c-marina", name: "Marina Braga", username: "marinabraga", avatarUrl: AVATAR, hasAvatarImage: true, followers: 42000, totalInteractions: 0, postCount: 0, avgInteractionsPerPost: 0, avgReachPerPost: 0, rank: 1 },
-    { id: "c-theo", name: "Théo Pires", username: "theopires", avatarUrl: AVATAR, hasAvatarImage: true, followers: 38000, totalInteractions: 0, postCount: 0, avgInteractionsPerPost: 0, avgReachPerPost: 0, rank: 2 },
-    { id: "c-joao", name: "João Reis", username: "joaoreis", avatarUrl: AVATAR, hasAvatarImage: true, followers: 31000, totalInteractions: 0, postCount: 0, avgInteractionsPerPost: 0, avgReachPerPost: 0, rank: 3 },
-    { id: "c-livia", name: "Lívia Linhares", username: "livialinhares", avatarUrl: AVATAR, hasAvatarImage: true, followers: 29000, totalInteractions: 0, postCount: 0, avgInteractionsPerPost: 0, avgReachPerPost: 0, rank: 4 },
-  ],
-};
-
 export function DevCollabsPreviewClient() {
   const [decisions, setDecisions] = useState<Map<string, CollabStackDecision>>(new Map());
-  // p6 começa salva e combinada — mostra a estante com selo desde o load.
-  const [savedIds, setSavedIds] = useState<Set<string>>(new Set(["p6"]));
+  const [actionStates, setActionStates] = useState<Map<string, PautaActionState>>(new Map());
+  // p5 começa salva comum para validar remoção; p6 começa salva e combinada.
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set(["p5", "p6"]));
   const [confirmed, setConfirmed] = useState<Array<{ pautaId: string; collab: NarrativeCollabMatch }>>([
     {
       pautaId: "p6",
@@ -112,6 +110,8 @@ export function DevCollabsPreviewClient() {
       })
     },
   ]);
+  // Rejeitadas = descarte permanente (status "dismissed"), como no shell real.
+  const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [openIdeaId, setOpenIdeaId] = useState<string | null>(null);
   const [openMatch, setOpenMatch] = useState<{ pautaId: string; variant: "celebration" | "revisit" } | null>(null);
 
@@ -123,27 +123,50 @@ export function DevCollabsPreviewClient() {
     return () => clearTimeout(t);
   }, []);
 
-  // Status "saved" derivado — o deck manda pauta pra estante ao salvar.
+  // Status derivado — salvas → "saved" (estante); rejeitadas → "dismissed" (somem).
   const pautasWithStatus = useMemo(
-    () => PAUTAS.map((p) => (savedIds.has(p.id) ? { ...p, status: "saved" as const } : p)),
-    [savedIds],
+    () => PAUTAS.map((p) =>
+      dismissedIds.has(p.id) ? { ...p, status: "dismissed" as const }
+        : savedIds.has(p.id) ? { ...p, status: "saved" as const }
+        : p,
+    ),
+    [savedIds, dismissedIds],
   );
   const pautaById = useMemo(() => new Map(pautasWithStatus.map((p) => [p.id, p])), [pautasWithStatus]);
 
-  const toggleSave = (id: string) => {
+  const savePauta = (id: string) => {
+    setActionStates((prev) => {
+      const next = new Map(prev);
+      next.delete(id);
+      return next;
+    });
     setSavedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      next.add(id);
       return next;
     });
   };
 
-  const decide = (pautaId: string, decision: CollabStackDecision) => {
-    setDecisions((prev) => new Map(prev).set(pautaId, decision));
+  const unsavePauta = (id: string) => {
+    setSavedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+    setActionStates((prev) => new Map(prev).set(id, { kind: "unsave", phase: "confirmed" }));
+  };
+
+  const dismissPauta = (id: string) => {
+    setDismissedIds((prev) => new Set(prev).add(id));
+    setActionStates((prev) => new Map(prev).set(id, { kind: "dismiss", phase: "confirmed" }));
+  };
+
+  const acceptCollabPauta = (pautaId: string) => {
+    savePauta(pautaId);
+    setDecisions((prev) => new Map(prev).set(pautaId, "interested"));
     // Simula o match mútuo: "quero fazer" na p1 dispara a comemoração — no real
     // isso vem da resposta do POST /collabs/interest (matched=true).
-    if (decision === "interested" && pautaId === "p1") {
+    if (pautaId === "p1") {
       const collab = MATCHES.get("p1")!;
       setConfirmed((prev) => [...prev, { pautaId, collab }]);
       setTimeout(() => setOpenMatch({ pautaId, variant: "celebration" }), 260);
@@ -164,8 +187,8 @@ export function DevCollabsPreviewClient() {
     // último irmão. Sem isso, o preview não denuncia overlap real — só "parece"
     // a tela, sem ser a mesma estrutura de espaço.
     <div
-      className="fixed inset-0 flex flex-col overflow-hidden"
-      style={{ maxWidth: 420, margin: "0 auto", background: "linear-gradient(180deg, #fff8f5 0%, #ffffff 18%)" }}
+      className={`d2c-mobile-app fixed inset-0 flex flex-col overflow-hidden ${d2cFontVariables}`}
+      style={{ maxWidth: 420, margin: "0 auto", background: "var(--ds-color-paper)" }}
     >
       <div
         className="flex-1 overflow-y-auto overscroll-contain"
@@ -173,18 +196,20 @@ export function DevCollabsPreviewClient() {
       >
         <DiagnosticoCollabsFeed
           pautas={pautasWithStatus}
-          creatorDirectory={DIRECTORY}
           isPro
           whatsappLinked
           isGeneratingIdeas={false}
           pautaCollabs={MATCHES}
           collabDecisions={decisions}
-          onCollabDecision={decide}
           confirmedMatches={confirmed}
+          pautaActionStates={actionStates}
           onOpenMatch={(pautaId) => setOpenMatch({ pautaId, variant: "revisit" })}
           onOpenIdea={setOpenIdeaId}
-          onToggleSave={toggleSave}
-          onOpenCommunity={() => alert("abriria Comunidade")}
+          onSavePauta={savePauta}
+          onUnsavePauta={unsavePauta}
+          onAcceptCollabPauta={acceptCollabPauta}
+          onDismissPauta={dismissPauta}
+          onOpenWhatsAppCommunity={() => alert("abriria o grupo do WhatsApp")}
           onGenerate={() => {}}
           onUpgrade={() => alert("paywall")}
         />
@@ -203,7 +228,11 @@ export function DevCollabsPreviewClient() {
           collab={openIdeaCollab}
           isPro
           decisionPending={Boolean(openIdeaCollab) && !openIdeaDecision && !openIdeaMatched}
-          onDecide={(d) => { decide(openIdeaId!, d); setOpenIdeaId(null); }}
+          onDecide={(d) => {
+            if (d === "interested") acceptCollabPauta(openIdeaId!);
+            else dismissPauta(openIdeaId!);
+            setOpenIdeaId(null);
+          }}
           awaitingOtherSide={Boolean(openIdeaCollab) && openIdeaDecision === "interested" && !openIdeaMatched}
           onClose={() => setOpenIdeaId(null)}
         />

@@ -12,9 +12,12 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import type { ContentIdeaListItem } from "@/app/dashboard/boards/videoUpload/contentIdeasReadService";
+import { cleanIdeaText } from "@/app/dashboard/boards/videoUpload/contentIdeasTextHygiene";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
+import { CollabModeBadge } from "./CollabModeBadge";
+import { color, font, shadow } from "@/design-system";
 
-const INK = "#18181b";
+const INK = color.ink;
 
 function SparkleIcon({ size = 26 }: { size?: number }) {
   return (
@@ -32,7 +35,7 @@ function Avatar({
   name,
   avatarUrl,
   size = 72,
-  ring = "#7c3aed",
+  ring = color.brand,
 }: {
   name: string;
   avatarUrl?: string | null;
@@ -43,8 +46,10 @@ function Avatar({
   return (
     <div
       style={{
+        // Mesmo fundo de iniciais dos avatares do deck/ficha/gavetas (var(--ds-color-ink))
+        // — uma pele só pro "criador sem foto" em toda a experiência.
         width: size, height: size, borderRadius: 9999, overflow: "hidden", flexShrink: 0,
-        background: "#3f3f46", color: "#fff", display: "grid", placeItems: "center",
+        background: color.ink, color: color.paper, display: "grid", placeItems: "center",
         fontSize: size * 0.36, fontWeight: 700,
         border: `3px solid ${ring}`,
         boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
@@ -78,6 +83,7 @@ export function DiagnosticoCollabMatchOverlay({
   const reduceMotion = useReducedMotion();
   const celebrate = variant === "celebration" && !reduceMotion;
   const firstName = (collab.name || "").trim().split(" ")[0] || collab.name;
+  const pautaTitle = cleanIdeaText(pauta.title);
   const instagramUrl = collab.username
     ? `https://instagram.com/${collab.username.replace(/^@+/, "")}`
     : null;
@@ -100,8 +106,7 @@ export function DiagnosticoCollabMatchOverlay({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: celebrate ? 0.3 : 0.15 }}
-      className="fixed inset-0 z-[290] flex items-center justify-center px-6"
-      style={{ background: "rgba(12,12,14,0.55)" }}
+      className="fixed inset-0 z-[290] flex items-center justify-center px-6 ds-scrim"
       onClick={onClose}
     >
       <motion.section
@@ -113,18 +118,18 @@ export function DiagnosticoCollabMatchOverlay({
           width: "100%", maxWidth: 380, borderRadius: 28, background: INK,
           position: "relative", overflow: "hidden", textAlign: "center",
           padding: "40px 26px 26px",
-          boxShadow: "0 32px 90px rgba(0,0,0,0.45)",
+          boxShadow: shadow.overlay,
         }}
       >
         {/* Blobs de cor — quietos, sem gradiente berrante */}
-        <div aria-hidden="true" style={{ position: "absolute", top: -28, left: -24, width: 110, height: 110, borderRadius: 9999, background: "#7c3aed", opacity: 0.32 }} />
-        <div aria-hidden="true" style={{ position: "absolute", bottom: -36, right: -28, width: 140, height: 140, borderRadius: 9999, background: "#f0997b", opacity: 0.26 }} />
+        <div aria-hidden="true" style={{ position: "absolute", top: -28, left: -24, width: 110, height: 110, borderRadius: 9999, background: color.brand, opacity: 0.34 }} />
+        <div aria-hidden="true" style={{ position: "absolute", bottom: -36, right: -28, width: 140, height: 140, borderRadius: 9999, background: color.map, opacity: 0.24 }} />
 
         <div style={{ position: "relative" }}>
           {/* Avatares se encontrando */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
             <motion.div {...springIn(-80)} style={{ zIndex: 1, marginRight: -14 }}>
-              <Avatar name={viewerName} avatarUrl={viewerAvatarUrl} ring="#f0997b" />
+              <Avatar name={viewerName} avatarUrl={viewerAvatarUrl} ring={color.map} />
             </motion.div>
             <motion.div
               initial={celebrate ? { scale: 0, rotate: -30 } : { opacity: 0 }}
@@ -135,7 +140,7 @@ export function DiagnosticoCollabMatchOverlay({
               <SparkleIcon />
             </motion.div>
             <motion.div {...springIn(80)} style={{ zIndex: 1, marginLeft: -14 }}>
-              <Avatar name={collab.name} avatarUrl={collab.avatarUrl} ring="#7c3aed" />
+              <Avatar name={collab.name} avatarUrl={collab.avatarUrl} ring={color.brand} />
             </motion.div>
           </div>
 
@@ -144,14 +149,14 @@ export function DiagnosticoCollabMatchOverlay({
             animate={{ opacity: 1, y: 0 }}
             transition={celebrate ? { delay: 0.5, duration: 0.3 } : { duration: 0.18 }}
           >
-            <p style={{ fontSize: 22, fontWeight: 800, color: "#fff", letterSpacing: -0.4, margin: "14px 0 0" }}>
+            <p style={{ fontFamily: font.display, fontSize: 28, fontWeight: 700, color: color.paper, letterSpacing: "-0.04em", margin: "14px 0 0" }}>
               É um match
             </p>
-            <p style={{ fontSize: 14, color: "#d4d4d8", margin: "6px 0 0", lineHeight: 1.45 }}>
+            <p style={{ fontSize: 14, color: "var(--ds-color-line)", margin: "6px 0 0", lineHeight: 1.45 }}>
               Você e {firstName}, pela mesma pauta
             </p>
-            <p style={{ fontSize: 13, color: "#a1a1aa", fontStyle: "italic", margin: "10px 0 0", lineHeight: 1.45 }}>
-              &ldquo;{pauta.title}&rdquo;
+            <p style={{ fontSize: 13, color: "var(--ds-color-text-muted)", fontStyle: "italic", margin: "10px 0 0", lineHeight: 1.45 }}>
+              &ldquo;{pautaTitle}&rdquo;
             </p>
 
             {collab.collabRecordingIdea ? (
@@ -166,30 +171,13 @@ export function DiagnosticoCollabMatchOverlay({
                 }}
               >
                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: "#a1a1aa", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: "var(--ds-color-text-muted)", textTransform: "uppercase", letterSpacing: 0.5 }}>
                     Como gravar
                   </span>
-                  {collab.collabMode === "presencial" && (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, borderRadius: 4, background: "rgba(255,255,255,0.1)", padding: "2px 6px", fontSize: 9, fontWeight: 700, color: "#fff", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M12 2a8 8 0 0 0-8 8c0 5.25 8 12 8 12s8-6.75 8-12a8 8 0 0 0-8-8z" />
-                        <circle cx="12" cy="10" r="2" />
-                      </svg>
-                      Presencial
-                    </span>
-                  )}
-                  {collab.collabMode === "remoto" && (
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, borderRadius: 4, background: "rgba(255,255,255,0.1)", padding: "2px 6px", fontSize: 9, fontWeight: 700, color: "#fff", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                      <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M5 12a7 7 0 0 1 14 0" />
-                        <path d="M8.5 12a3.5 3.5 0 0 1 7 0" />
-                        <circle cx="12" cy="12" r="1" fill="currentColor" />
-                      </svg>
-                      À distância
-                    </span>
-                  )}
+                  {/* Peça compartilhada com a ficha — mesma copy nos dois lugares. */}
+                  {collab.collabMode ? <CollabModeBadge mode={collab.collabMode} surface="dark" /> : null}
                 </div>
-                <p style={{ fontSize: 13, color: "#e4e4e7", lineHeight: 1.45, margin: 0 }}>
+                <p style={{ fontSize: 13, color: "var(--ds-color-line)", lineHeight: 1.45, margin: 0 }}>
                   {collab.collabMode === "presencial" && "Vocês estão na mesma cidade — o caminho é "}
                   {collab.collabMode === "remoto" && "Vocês moram longe — o caminho é "}
                   {!collab.collabMode && "O caminho é "}
@@ -207,7 +195,7 @@ export function DiagnosticoCollabMatchOverlay({
                   style={{
                     display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
                     width: "100%", padding: "13px 16px", borderRadius: 999,
-                    background: "#fff", color: INK, fontSize: 14, fontWeight: 700,
+                    background: color.brand, color: "var(--ds-color-on-brand)", fontSize: 14, fontWeight: 700,
                     textDecoration: "none",
                   }}
                 >
@@ -219,7 +207,7 @@ export function DiagnosticoCollabMatchOverlay({
                 onClick={() => onOpenIdea?.(pauta.id)}
                 style={{
                   width: "100%", padding: "11px 16px", borderRadius: 999,
-                  background: "transparent", color: "#d4d4d8", fontSize: 13, fontWeight: 600,
+                  background: "transparent", color: "var(--ds-color-line)", fontSize: 13, fontWeight: 600,
                   border: "1px solid rgba(255,255,255,0.22)", cursor: "pointer", fontFamily: "inherit",
                 }}
               >
@@ -230,7 +218,7 @@ export function DiagnosticoCollabMatchOverlay({
                 onClick={onClose}
                 style={{
                   width: "100%", padding: "8px", borderRadius: 999, background: "none",
-                  color: "#71717a", fontSize: 12.5, fontWeight: 600, border: "none",
+                  color: "var(--ds-color-text-secondary)", fontSize: 12.5, fontWeight: 600, border: "none",
                   cursor: "pointer", fontFamily: "inherit",
                 }}
               >

@@ -22,6 +22,7 @@ jest.mock('@/server/stripe/webhook-helpers', () => ({
   markEventIfNew: jest.fn(async () => true),
   ensureInvoiceIdempotent: jest.fn(async () => true),
   ensureSubscriptionFirstTime: jest.fn(async () => true),
+  ensureBuyerFirstCommission: jest.fn(async () => true),
   calcCommissionCents: jest.fn(() => 4500),
   addDays: jest.fn(() => new Date('2026-03-15T00:00:00.000Z')),
 }));
@@ -88,9 +89,12 @@ function buildEvent() {
 describe('handleStripeEvent affiliate commissions', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    (webhookHelpers.ensureInvoiceIdempotent as any).mockResolvedValue(true);
+    (webhookHelpers.ensureSubscriptionFirstTime as any).mockResolvedValue(true);
+    (webhookHelpers.ensureBuyerFirstCommission as any).mockResolvedValue(true);
   });
 
-  test('creates a pending 50% commission only on the first paid invoice of the subscription', async () => {
+  test('creates a pending 50% commission only on the first paid invoice of the indicated creator', async () => {
     const buyer = buildBuyer();
     const owner = buildOwner();
 
@@ -101,6 +105,7 @@ describe('handleStripeEvent affiliate commissions', () => {
 
     expect(webhookHelpers.ensureInvoiceIdempotent).toHaveBeenCalledWith('in_1', 'owner1');
     expect(webhookHelpers.ensureSubscriptionFirstTime).toHaveBeenCalledWith('sub_1', 'owner1');
+    expect(webhookHelpers.ensureBuyerFirstCommission).toHaveBeenCalledWith('buyer1', 'owner1', 'in_1');
     expect(owner.commissionLog).toHaveLength(1);
     expect(owner.commissionLog[0]).toMatchObject({
       type: 'commission',
@@ -115,17 +120,46 @@ describe('handleStripeEvent affiliate commissions', () => {
     expect(owner.save).toHaveBeenCalled();
   });
 
-  test('does not create a second commission when the same subscription has already consumed the first invoice rule', async () => {
+  test('does not create a second commission when the creator has already consumed the first invoice rule', async () => {
     const buyer = buildBuyer();
     const owner = buildOwner();
 
     (webhookHelpers.findUserByCustomerId as any).mockResolvedValue(buyer);
     (User as any).findOne.mockResolvedValue(owner);
-    (webhookHelpers.ensureSubscriptionFirstTime as any).mockResolvedValue(false);
+    (webhookHelpers.ensureBuyerFirstCommission as any).mockResolvedValue(false);
 
     await handleStripeEvent(buildEvent() as any);
 
     expect(owner.commissionLog).toHaveLength(0);
     expect(owner.save).not.toHaveBeenCalled();
+  });
+
+  test('extracts the Stripe Basil subscription from parent details', async () => {
+    const buyer = buildBuyer();
+    const owner = buildOwner();
+    const event = buildEvent();
+    (event.data.object as any).subscription = null;
+    (event.data.object as any).parent = {
+      subscription_details: { subscription: 'sub_basil_1' },
+    };
+
+    (webhookHelpers.findUserByCustomerId as any).mockResolvedValue(buyer);
+    (User as any).findOne.mockResolvedValue(owner);
+
+    await handleStripeEvent(event as any);
+
+    expect(webhookHelpers.ensureSubscriptionFirstTime).toHaveBeenCalledWith('sub_basil_1', 'owner1');
+    expect(owner.commissionLog[0]).toMatchObject({ subscriptionId: 'sub_basil_1' });
+  });
+
+  test('does not commission a renewal when the buyer already has a first commission timestamp', async () => {
+    const buyer = buildBuyer();
+    buyer.affiliateFirstCommissionAt = new Date('2026-01-01T00:00:00.000Z');
+    (webhookHelpers.findUserByCustomerId as any).mockResolvedValue(buyer);
+    (User as any).findOne.mockResolvedValue(buildOwner());
+
+    await handleStripeEvent(buildEvent() as any);
+
+    expect(webhookHelpers.ensureInvoiceIdempotent).not.toHaveBeenCalled();
   });
 });

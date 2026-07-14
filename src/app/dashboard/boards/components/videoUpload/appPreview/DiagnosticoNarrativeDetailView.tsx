@@ -342,7 +342,7 @@ function AdjacentNarrativesSection({
 
   const cardStyle: React.CSSProperties = {
     borderRadius: 16,
-    background: "#fff",
+    background: "var(--ds-color-surface)",
     boxShadow: "0 1px 4px rgba(28,28,30,0.08), 0 0 0 0.5px rgba(28,28,30,0.04)",
     padding: "18px 20px 18px",
     marginTop: 12,
@@ -379,7 +379,7 @@ function AdjacentNarrativesSection({
           <p style={{ fontSize: 11, color: PURPLE, margin: "0 0 4px", letterSpacing: 0.1 }}>
             Isso é um outro lado do que você cria?
           </p>
-          <p style={{ fontSize: 14, fontWeight: 600, color: "#18181b", margin: "0 0 10px", lineHeight: 1.35 }}>
+          <p style={{ fontSize: 14, fontWeight: 600, color: "var(--ds-color-ink)", margin: "0 0 10px", lineHeight: 1.35 }}>
             {label}
           </p>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -389,7 +389,7 @@ function AdjacentNarrativesSection({
               onClick={() => onConfirm(label, "yes")}
               style={{
                 borderRadius: 999, padding: "6px 16px",
-                background: PURPLE, color: "#fff",
+                background: PURPLE, color: "var(--ds-color-on-brand)",
                 fontSize: 12, fontWeight: 700, border: "none",
                 cursor: adjacentPendingSet.has(label) ? "default" : "pointer",
                 fontFamily: "inherit",
@@ -419,7 +419,7 @@ function AdjacentNarrativesSection({
               onClick={() => onConfirm(label, "no")}
               style={{
                 borderRadius: 999, padding: "6px 16px",
-                background: "#f4f4f5", color: "#71717a",
+                background: "var(--ds-color-neutral)", color: "var(--ds-color-text-secondary)",
                 fontSize: 12, fontWeight: 600, border: "none",
                 cursor: adjacentPendingSet.has(label) ? "default" : "pointer",
                 fontFamily: "inherit",
@@ -430,7 +430,7 @@ function AdjacentNarrativesSection({
             </button>
           </div>
           {pendingAdjacents.length > 1 && (
-            <p style={{ fontSize: 11, color: "#a1a1aa", margin: "6px 0 0" }}>
+            <p style={{ fontSize: 11, color: "var(--ds-color-text-muted)", margin: "6px 0 0" }}>
               +{pendingAdjacents.length - 1} para responder depois
             </p>
           )}
@@ -442,7 +442,7 @@ function AdjacentNarrativesSection({
         <div>
           {prereqsMet ? (
             <>
-              <p style={{ fontSize: 13, color: "#71717a", margin: "0 0 12px", lineHeight: 1.5 }}>
+              <p style={{ fontSize: 13, color: "var(--ds-color-text-secondary)", margin: "0 0 12px", lineHeight: 1.5 }}>
                 Sua narrativa tem outros ângulos além dos assuntos que você ocupa. Quer descobrir?
               </p>
               {showDetectTrigger && (
@@ -469,7 +469,7 @@ function AdjacentNarrativesSection({
               )}
             </>
           ) : (
-            <p style={{ fontSize: 13, color: "#a1a1aa", margin: 0, lineHeight: 1.5, fontStyle: "italic" }}>
+            <p style={{ fontSize: 13, color: "var(--ds-color-text-muted)", margin: 0, lineHeight: 1.5, fontStyle: "italic" }}>
               Confirme sua narrativa e territórios para descobrir ângulos adjacentes.
             </p>
           )}
@@ -508,7 +508,7 @@ function AdjacentNarrativesSection({
             maxLength={80}
             style={{
               flex: 1, borderRadius: 999, padding: "6px 14px",
-              border: "1px solid #e4e4e7", background: "#fafafa",
+              border: "1px solid var(--ds-color-line)", background: "#fafafa",
               fontSize: 13, color: "#3f3f46", fontFamily: "inherit",
               outline: "none",
             }}
@@ -519,8 +519,8 @@ function AdjacentNarrativesSection({
             disabled={!adjacentAddInput.trim() || adjacentAddPending}
             style={{
               borderRadius: 999, padding: "6px 14px",
-              background: adjacentAddInput.trim() ? PURPLE : "#e4e4e7",
-              color: adjacentAddInput.trim() ? "#fff" : "#a1a1aa",
+              background: adjacentAddInput.trim() ? PURPLE : "var(--ds-color-line)",
+              color: adjacentAddInput.trim() ? "#fff" : "var(--ds-color-text-muted)",
               fontSize: 13, fontWeight: 600, border: "none",
               cursor: adjacentAddInput.trim() && !adjacentAddPending ? "pointer" : "default",
               fontFamily: "inherit",

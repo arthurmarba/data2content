@@ -22,6 +22,13 @@ import {
   SAFE_TOP,
   CARD_RADIUS,
   CARD_SHADOW,
+  CS_BRAND_HEX,
+  CS_BRAND_STRONG_HEX,
+  CS_FONT_DISPLAY,
+  CS_INK_HEX,
+  CS_MAP_ACCENT_HEX,
+  CS_NEUTRAL_HEX,
+  CS_PAPER_HEX,
 } from "./diagnosticoTokens";
 import type { CategoryId } from "./DiagnosticoCategoryMeta";
 import {
@@ -36,18 +43,18 @@ import type { PaywallContext } from "@/types/paywall";
 
 // ─── Design tokens ──────────────────────────────────────────────────────────
 
-const SOLID_BG = "#ffffff";
+const SOLID_BG = CS_PAPER_HEX;
 
 // Card shell tokens — CARD_RADIUS / CARD_SHADOW agora vivem em diagnosticoTokens
 // (linguagem de elevação compartilhada com a aba Collabs).
 
 const CAT: Record<string, { label: string; color: string; text: string; bg: string }> = {
-  diagnostico: { label: "Diagnóstico",        color: "#ff6b35", text: "#ff6b35", bg: "#ffe7d6" },
-  narrativa:   { label: "Sua Narrativa",       color: "#ff9500", text: "#e07d00", bg: "#ffeac4" },
-  instagram:   { label: "Instagram",           color: "#5e5ce6", text: "#4a48d8", bg: "#dbdaf9" },
-  marcas:      { label: "Marcas Recomendadas", color: "#5856d6", text: "#4644c8", bg: "#dad8f6" },
-  collabs:     { label: "Collabs Indicadas",   color: "#ff2d55", text: "#e91e47", bg: "#ffcfd8" },
-  pautas:      { label: "Próximas Pautas",     color: "#f59e0b", text: "#d97706", bg: "#fef3c7" },
+  diagnostico: { label: "Diagnóstico",         color: CS_INK_HEX,        text: CS_INK_HEX,          bg: CS_NEUTRAL_HEX },
+  narrativa:   { label: "Sua Narrativa",       color: CS_BRAND_HEX,      text: CS_BRAND_STRONG_HEX, bg: "var(--ds-color-brand-soft)" },
+  instagram:   { label: "Instagram",           color: CS_MAP_ACCENT_HEX, text: CS_MAP_ACCENT_HEX,   bg: "var(--ds-color-warning-soft)" },
+  marcas:      { label: "Marcas Recomendadas", color: CS_INK_HEX,        text: CS_INK_HEX,          bg: CS_NEUTRAL_HEX },
+  collabs:     { label: "Collabs Indicadas",   color: CS_BRAND_HEX,      text: CS_BRAND_STRONG_HEX, bg: "var(--ds-color-brand-soft)" },
+  pautas:      { label: "Próximas Pautas",     color: CS_MAP_ACCENT_HEX, text: CS_MAP_ACCENT_HEX,   bg: "var(--ds-color-warning-soft)" },
 };
 
 const EVOLUTION_TITLE: Record<string, string> = {
@@ -63,7 +70,7 @@ function CategoryIcon({ category, size = 20 }: { category: string; size?: number
   const cat = CAT[category] ?? CAT["diagnostico"]!;
   const isIg = category === "instagram";
   const bg = isIg
-    ? "linear-gradient(135deg, #fbbf24 0%, #ec4899 45%, #8b5cf6 100%)"
+    ? `linear-gradient(135deg, ${CS_MAP_ACCENT_HEX}, ${CS_BRAND_HEX})`
     : cat.color;
   const s = size * 0.55;
   const sw = size * 0.6;
@@ -109,7 +116,7 @@ function CategoryIcon({ category, size = 20 }: { category: string; size?: number
     <span style={{
       display: "inline-grid", placeItems: "center",
       width: size, height: size, borderRadius: 9999,
-      background: bg, color: "#fff", flexShrink: 0,
+      background: bg, color: "var(--ds-color-on-brand)", flexShrink: 0,
       boxShadow: `0 1px 2px ${cat.color}33`,
     }}>
       {glyphs[category] ?? glyphs["diagnostico"]}
@@ -125,8 +132,8 @@ function CardShell({ children, onClick, minHeight: minH, bg, variant = "outlined
     width: "100%", textAlign: "left", fontFamily: "inherit",
     padding: "18px 22px 22px", borderRadius: CARD_RADIUS,
     minHeight: minH ?? 130,
-    background: isOutlined ? "#ffffff" : (bg ?? "#fff"),
-    border: isOutlined ? "1.5px solid #71717a" : "none",
+    background: isOutlined ? "var(--ds-color-surface)" : (bg ?? "var(--ds-color-surface)"),
+    border: isOutlined ? "1.5px solid var(--ds-color-text-secondary)" : "none",
     boxShadow: isOutlined ? "none" : CARD_SHADOW,
     display: "flex", flexDirection: "column", cursor: onClick ? "pointer" : "default",
     overflow: "hidden",
@@ -184,7 +191,7 @@ function MapaSection({
     <div style={{
       paddingTop: isFirst ? 0 : 16,
       paddingBottom: 16,
-      borderTop: isFirst ? "none" : "1px solid rgba(0,0,0,0.05)",
+      borderTop: isFirst ? "none" : "1px solid var(--ds-color-line)",
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 5, margin: "0 0 9px" }}>
         {icon && (
@@ -193,7 +200,7 @@ function MapaSection({
           </span>
         )}
         <p style={{
-          fontSize: 11, fontWeight: 700, letterSpacing: 0.7,
+          fontSize: 10, fontWeight: 750, letterSpacing: 0.8,
           textTransform: "uppercase", color: labelColor,
           margin: 0,
         }}>
@@ -213,8 +220,8 @@ function MapaChips({ chips, chipBg, chipColor, chipBorder }: { chips: string[]; 
         <span
           key={chip}
           style={{
-            borderRadius: 999, background: chipBg ?? SURFACE_NEUTRAL_HEX, color: chipColor ?? TEXT_BODY_HEX,
-            fontSize: 13, fontWeight: 500, padding: "5px 13px", letterSpacing: -0.1,
+            borderRadius: 999, background: chipBg ?? "var(--ds-color-neutral)", color: chipColor ?? TEXT_BODY_HEX,
+            fontSize: 12, fontWeight: 650, padding: "7px 12px", letterSpacing: -0.05,
             maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
             border: chipBorder ? `1.5px solid ${chipBorder}` : "none",
           }}
@@ -234,8 +241,8 @@ function MapaChips({ chips, chipBg, chipColor, chipBorder }: { chips: string[]; 
  */
 function EditableMapaChips({
   items,
-  chipBg = "#ffe4c4",
-  chipColor = "#9a3412",
+  chipBg = "var(--ds-color-neutral)",
+  chipColor = "var(--ds-color-text-secondary)",
   section,
   onMutate,
   suggestions = [],
@@ -272,8 +279,9 @@ function EditableMapaChips({
           key={chip}
           style={{
             display: "inline-flex", alignItems: "flex-start", gap: 4,
-            borderRadius: 12, background: chipBg, color: chipColor,
-            fontSize: 13, fontWeight: 500, padding: "5px 8px 5px 13px", letterSpacing: -0.1,
+            borderRadius: 999, background: chipBg, color: chipColor,
+            border: "1px solid var(--ds-color-line)",
+            fontSize: 12, fontWeight: 650, padding: "6px 8px 6px 12px", letterSpacing: -0.05,
             maxWidth: "100%",
           }}
         >
@@ -287,7 +295,7 @@ function EditableMapaChips({
             style={{
               display: "grid", placeItems: "center",
               width: 18, height: 18, borderRadius: 999,
-              background: "rgba(0,0,0,0.12)", border: "none",
+              background: "var(--ds-color-line)", border: "none",
               cursor: "pointer", color: chipColor, flexShrink: 0,
               padding: 0, marginTop: 0,
             }}
@@ -472,8 +480,8 @@ function LifeAssetGroupIcon({ group }: { group: LifeAssetGroup }) {
   );
 }
 
-const ASSET_CHIP_BG = "#ffe4c4";
-const ASSET_CHIP_COLOR = "#9a3412";
+const ASSET_CHIP_BG = "var(--ds-color-neutral)";
+const ASSET_CHIP_COLOR = "var(--ds-color-text-secondary)";
 
 function RemovableAssetChip({ chip, onRemove }: { chip: string; onRemove: () => void }) {
   return (
@@ -621,7 +629,7 @@ function MapaAssetsGrouped({
 
   if (visible.length === 0) {
     return (
-      <MapaSection labelColor="#c96a00" label="Sua vida real" icon={<LifeAssetGroupIcon group="vida" />}>
+      <MapaSection labelColor="var(--ds-color-brand-strong)" label="Sua vida real" icon={<LifeAssetGroupIcon group="vida" />}>
         {editable && onMutate ? (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2, alignItems: "center" }}>
             <AssetAddControl onMutate={onMutate} group="vida" />
@@ -636,7 +644,7 @@ function MapaAssetsGrouped({
   return (
     <>
       {visible.map((g) => (
-        <MapaSection key={g.key} labelColor="#c96a00" label={g.label} icon={<LifeAssetGroupIcon group={g.key} />}>
+        <MapaSection key={g.key} labelColor="var(--ds-color-brand-strong)" label={g.label} icon={<LifeAssetGroupIcon group={g.key} />}>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 2, alignItems: "center" }}>
             {groups[g.key].map((chip) =>
               editable && onMutate ? (
@@ -694,8 +702,8 @@ function EditableTomField({
   value,
   onSet,
   suggestions,
-  chipBg = "#ffe4c4",
-  chipColor = "#9a3412",
+  chipBg = "var(--ds-color-neutral)",
+  chipColor = "var(--ds-color-text-secondary)",
 }: {
   value: string | null;
   onSet: (v: string) => void;
@@ -899,10 +907,10 @@ function fmtReach(n: number): string {
   return `~${n}`;
 }
 
-// ─── CardRowHeader — identidade visual Apple Health para cada card ─────────────
+// ─── CardRowHeader — cabeçalho editorial do Creator Studio ────────────────────
 
 /**
- * Header reutilizável estilo Apple Saúde:
+ * Header reutilizável do workspace:
  * [● círculo colorido]  Título bold
  *                       subtítulo cinza
  *
@@ -926,17 +934,15 @@ function CardRowHeader({
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: noBottomMargin ? 0 : 16 }}>
       <div style={{
-        width: 38, height: 38, borderRadius: 9999,
-        background: iconBg, color: "#fff",
+        width: 40, height: 40, borderRadius: 9999,
+        background: iconBg, color: "var(--ds-color-on-brand)",
         display: "grid", placeItems: "center", flexShrink: 0,
-        boxShadow: iconBg.startsWith("linear-gradient") || iconBg.startsWith("radial-gradient")
-          ? "0 2px 8px rgba(139,92,246,0.30)"
-          : `0 2px 8px ${iconBg}55`,
+        boxShadow: "0 8px 22px rgba(250,22,91,0.16)",
       }}>
         {icon}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 15, fontWeight: 700, color: TEXT_PRIMARY_HEX, margin: 0, letterSpacing: -0.3 }}>
+        <p style={{ fontFamily: CS_FONT_DISPLAY, fontSize: 19, fontWeight: 700, color: TEXT_PRIMARY_HEX, margin: 0, letterSpacing: -0.55, lineHeight: 1.05 }}>
           {title}
         </p>
         {subtitle ? (
@@ -1185,9 +1191,10 @@ export function MapaCard({
       }
     : {
         borderRadius: CARD_RADIUS,
-        background: "#fffaf7",
-        boxShadow: CARD_SHADOW,
-        padding: "18px 22px 4px",
+        background: "var(--ds-color-surface)",
+        border: "1px solid var(--ds-color-line)",
+        boxShadow: "0 1px 2px rgba(18,16,20,0.03), 0 10px 28px rgba(18,16,20,0.045)",
+        padding: "20px 22px 4px",
       };
 
   // ── Footer: "N análises · Status" ──────────────────────────────────────────
@@ -1218,7 +1225,7 @@ export function MapaCard({
   const showHeaderUploadCta = hasReadings || hasAnything;
   const MapaHeader = (
     <CardRowHeader
-      iconBg={ACCENT_ORANGE_HEX}
+      iconBg={CS_BRAND_HEX}
       icon={
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2.2"/>
@@ -1233,10 +1240,10 @@ export function MapaCard({
           onClick={onNewReading}
           style={{
             display: "inline-flex", alignItems: "center", gap: 5,
-            borderRadius: 999, padding: "6px 14px",
-            background: "transparent", color: TEXT_BODY_HEX,
-            fontSize: 12, fontWeight: 600,
-            border: `1.5px solid ${TEXT_BODY_HEX}`,
+            minHeight: 40, borderRadius: 999, padding: "7px 13px",
+            background: "var(--ds-color-brand-soft)", color: CS_BRAND_STRONG_HEX,
+            fontSize: 12, fontWeight: 720,
+            border: "1px solid rgba(250,22,91,0.2)",
             cursor: "pointer", fontFamily: "inherit",
             boxShadow: "none",
           }}
@@ -1261,13 +1268,13 @@ export function MapaCard({
         display: "flex", alignItems: "center", gap: 10, width: "100%",
         textAlign: "left", marginTop: 14,
         borderRadius: 14, padding: "12px 14px",
-        background: "#fff3ea", border: "1px solid rgba(255,107,53,0.16)",
+        background: "var(--ds-color-brand-soft)", border: "1px solid rgba(250,22,91,0.16)",
         cursor: "pointer", fontFamily: "inherit",
       }}
     >
       <span style={{
         width: 30, height: 30, borderRadius: 999, flexShrink: 0,
-        background: "#ffe4c4", color: "#9a3412",
+        background: CS_BRAND_HEX, color: "var(--ds-color-on-brand)",
         display: "grid", placeItems: "center",
       }}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -1282,7 +1289,7 @@ export function MapaCard({
           Por que você cria? Isso ancora todo o mapa.
         </span>
       </span>
-      <span style={{ color: "#9a3412", flexShrink: 0 }} aria-hidden="true">
+      <span style={{ color: CS_BRAND_STRONG_HEX, flexShrink: 0 }} aria-hidden="true">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
           <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
@@ -1356,7 +1363,7 @@ export function MapaCard({
       {/* ── Narrativa — primeira seção do mapa, sem borda lateral ── */}
       {narrativaLabel ? (
         <div style={{ marginTop: 20, marginBottom: 16 }}>
-          <p style={{ fontSize: 22, fontWeight: 700, color: TEXT_PRIMARY_HEX, margin: 0, lineHeight: 1.3, letterSpacing: -0.5 }}>
+          <p style={{ fontFamily: CS_FONT_DISPLAY, fontSize: 24, fontWeight: 700, color: TEXT_PRIMARY_HEX, margin: 0, lineHeight: 1.12, letterSpacing: -0.7 }}>
             {narrativaLabel}
           </p>
           {activePending === "narrative" && (
@@ -1383,14 +1390,14 @@ export function MapaCard({
           )}
         </div>
       ) : (
-        <MapaSection labelColor="#c96a00" label="Narrativa" isFirst>
+        <MapaSection labelColor="var(--ds-color-brand-strong)" label="Narrativa" isFirst>
           <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, margin: 0, fontStyle: "italic" }}>Emergindo...</p>
         </MapaSection>
       )}
 
       {/* ── Assuntos ──────────────────────────────────── */}
       <MapaSection
-        labelColor="#c96a00"
+        labelColor="var(--ds-color-brand-strong)"
         label="Assuntos"
         icon={
           <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -1407,8 +1414,8 @@ export function MapaCard({
         ) : filteredTerritories.length > 0 ? (
           <MapaChips
             chips={filteredTerritories.map((t) => t.label)}
-            chipBg="#ffe4c4"
-            chipColor="#9a3412"
+            chipBg="var(--ds-color-neutral)"
+            chipColor="var(--ds-color-text-secondary)"
           />
         ) : (
           <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, margin: 0, fontStyle: "italic" }}>Emergindo...</p>
@@ -1427,7 +1434,7 @@ export function MapaCard({
       {/* ── Temas — situações concretas do MapaSeed (editável) ───────────── */}
       {(mapaSeed && onMapSeedMutate && (mapaSeed.temas.length > 0 || true)) && (
         <MapaSection
-          labelColor="#c96a00"
+          labelColor="var(--ds-color-brand-strong)"
           label="Situações reais"
           icon={
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -1453,7 +1460,7 @@ export function MapaCard({
       {/* Full detection/confirmation/add flow lives in DiagnosticoNarrativeDetailView. */}
       {confirmedAdjacents.length > 0 && (
         <MapaSection
-          labelColor="#7c3aed"
+          labelColor="var(--ds-color-brand-strong)"
           label="Você também fala sobre"
           icon={
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -1462,7 +1469,7 @@ export function MapaCard({
             </svg>
           }
         >
-          <MapaChips chips={confirmedAdjacents} chipBg="#ffe4c4" chipColor="#9a3412" />
+          <MapaChips chips={confirmedAdjacents} chipBg="var(--ds-color-neutral)" chipColor="var(--ds-color-text-secondary)" />
         </MapaSection>
       )}
 
@@ -1482,7 +1489,7 @@ export function MapaCard({
           <MapaConfirmationRow
             variant="3way-asset"
             label="Faz parte da sua vida?"
-            labelColor="#52b88a"
+            labelColor="var(--ds-color-success)"
             title={pendingAsset.label}
             onPrimary={() => onConfirmAsset(pendingAsset.label, "yes")}
             onSecondary={() => onConfirmAsset(pendingAsset.label, "occasional")}
@@ -1498,7 +1505,7 @@ export function MapaCard({
           para o path antigo sem MapaSeed. */}
       {(mapaSeed && onMapSeedMutate) ? (
         <MapaSection
-          labelColor="#c96a00"
+          labelColor="var(--ds-color-brand-strong)"
           label="Como você fala"
           icon={
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -1514,7 +1521,7 @@ export function MapaCard({
         </MapaSection>
       ) : (toneChips.length > 0 || formatoChips.length > 0 || activePending === "tone") ? (
         <MapaSection
-          labelColor="#c96a00"
+          labelColor="var(--ds-color-brand-strong)"
           label="Como você fala"
           icon={
             <svg width="12" height="12" viewBox="0 0 14 14" fill="none" aria-hidden="true">
@@ -1523,7 +1530,7 @@ export function MapaCard({
           }
         >
           {(toneChips.length > 0 || formatoChips.length > 0) ? (
-            <MapaChips chips={[...toneChips, ...formatoChips]} chipBg="#ffe4c4" chipColor="#9a3412" />
+            <MapaChips chips={[...toneChips, ...formatoChips]} chipBg="var(--ds-color-neutral)" chipColor="var(--ds-color-text-secondary)" />
           ) : (
             <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, margin: 0, fontStyle: "italic" }}>Emergindo...</p>
           )}
@@ -1582,7 +1589,7 @@ function RaioXCard({
   return (
     <div style={{
       borderRadius: CARD_RADIUS,
-      background: "#fff",
+      background: "var(--ds-color-surface)",
       boxShadow: CARD_SHADOW,
       padding: "22px 22px 24px",
     }}>
@@ -1609,7 +1616,7 @@ function RaioXCard({
           onClick={onNewReading}
           style={{
             flex: 1, borderRadius: 14, padding: "13px 14px",
-            background: TEXT_PRIMARY_HEX, color: "#fff",
+            background: TEXT_PRIMARY_HEX, color: "var(--ds-color-on-brand)",
             fontSize: 13, fontWeight: 700, border: "none",
             cursor: "pointer", fontFamily: "inherit",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
@@ -1980,7 +1987,7 @@ function PautasCard({
                 onClick={isPro ? onRetryGenerateIdeas : () => onUpgrade?.("planning")}
                 style={{
                   background: "none", border: "none", cursor: "pointer",
-                  fontSize: 11, fontWeight: 600, color: "#7c3aed",
+                  fontSize: 11, fontWeight: 600, color: "var(--ds-color-brand-strong)",
                   fontFamily: "inherit", padding: 0,
                 }}
               >
@@ -2024,7 +2031,7 @@ function PautasCard({
               style={{
                 alignSelf: "flex-start",
                 borderRadius: 999, padding: "7px 16px",
-                background: "#18181b", color: "#fff",
+                background: "var(--ds-color-ink)", color: "var(--ds-color-on-brand)",
                 fontSize: 12, fontWeight: 600,
                 border: "none", cursor: "pointer",
                 fontFamily: "inherit", letterSpacing: -0.1,
@@ -2053,7 +2060,7 @@ function PautasCard({
               style={{
                 alignSelf: "flex-start",
                 borderRadius: 999, padding: "7px 16px",
-                background: "#18181b", color: "#fff",
+                background: "var(--ds-color-ink)", color: "var(--ds-color-on-brand)",
                 fontSize: 12, fontWeight: 600,
                 border: "none", cursor: "pointer",
                 fontFamily: "inherit", letterSpacing: -0.1,
@@ -2138,9 +2145,7 @@ function QuickActionsBar({
   const [avatarFailed, setAvatarFailed] = useState(false);
   const showAvatar = Boolean(userImageUrl) && !avatarFailed;
 
-  // Avatar responsivo: Pro Max / Pro (≥393px) usa 56px para acompanhar o
-  // crescimento do CreatorStoriesRow; telas menores mantêm 50px.
-  // kit/row ratio mantido em ~0.893 (igual ao baseline 50/56 das telas menores)
+  // Avatar responsivo: Pro Max / Pro (≥393px) usa 62px; telas menores, 50px.
   const kitAvatarSize = typeof window !== "undefined" && window.innerWidth >= 393 ? 62 : 50;
 
   const rowStyle: React.CSSProperties = {
@@ -2187,6 +2192,7 @@ function QuickActionsBar({
 
   return (
     <div style={{ padding: "0 18px 14px" }}>
+      <div className="ds-editorial-panel" style={{ borderRadius: 18 }}>
       {/* Card 1 — Mídia Kit */}
       <button
         type="button"
@@ -2195,15 +2201,16 @@ function QuickActionsBar({
           display: "flex", alignItems: "center", gap: 10,
           padding: "13px 14px",
           width: "100%",
-          background: "white", border: `1.5px solid ${TEXT_PRIMARY_HEX}`,
-          borderRadius: 14, cursor: "pointer",
+          background: "transparent", border: "none",
+          borderBottom: "1px solid var(--ds-color-line)",
+          borderRadius: 0, cursor: "pointer",
           fontFamily: "inherit", textAlign: "left",
-          marginBottom: 12,
+          marginBottom: 0,
         }}
       >
         <div style={{
           width: kitAvatarSize, height: kitAvatarSize, borderRadius: 9999, flexShrink: 0,
-          background: INK_DARK_HEX, color: "#fff",
+          background: CS_BRAND_HEX, color: "var(--ds-color-on-brand)",
           display: "grid", placeItems: "center",
           fontSize: 14, fontWeight: 700, letterSpacing: -0.2,
           overflow: "hidden",
@@ -2246,9 +2253,9 @@ function QuickActionsBar({
           display: "flex", alignItems: "center", gap: 12,
           padding: calculatorDisplay.type === "empty" ? "14px" : "13px 14px 14px",
           width: "100%",
-          background: "white",
-          border: `1.5px solid ${TEXT_PRIMARY_HEX}`,
-          borderRadius: 14, cursor: "pointer",
+          background: "transparent",
+          border: "none",
+          borderRadius: 0, cursor: "pointer",
           fontFamily: "inherit", textAlign: "left",
         }}
       >
@@ -2256,7 +2263,7 @@ function QuickActionsBar({
           <>
             <div style={{
               width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-              background: "#f0f0f0", color: TEXT_PRIMARY_HEX,
+              background: "var(--ds-color-brand-soft)", color: CS_BRAND_STRONG_HEX,
               display: "grid", placeItems: "center",
             }}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -2308,143 +2315,7 @@ function QuickActionsBar({
           </>
         )}
       </button>
-    </div>
-  );
-}
-
-// ─── Creator Stories Row — prova social estilo Instagram ─────────────────────
-
-export function CreatorStoriesRow({
-  creators,
-  collabSuggestedIds,
-  onDiscoverCollabs,
-  onOpenCreatorMediaKit,
-}: {
-  creators: import("@/types/landing").LandingCreatorHighlight[];
-  collabSuggestedIds?: Set<string>;
-  onDiscoverCollabs?: () => void;
-  onOpenCreatorMediaKit?: (slug: string) => void;
-}) {
-  const sorted = [...creators]
-    .filter((c) => c.hasAvatarImage === true && Boolean(c.avatarUrl))
-    .sort((a, b) => (b.followers ?? 0) - (a.followers ?? 0))
-    .slice(0, 4);
-
-  // Avatares responsivos: Pro Max / Pro (≥393px) usa 76px para preencher
-  // o row sem gap excessivo; telas menores usam 62px.
-  const avatarSize = typeof window !== "undefined" && window.innerWidth >= 393 ? 76 : 62;
-  const labelMaxWidth = avatarSize;
-
-  const handleAvatarClick = (slug: string | null | undefined) => {
-    if (!slug) return;
-    if (onOpenCreatorMediaKit) {
-      onOpenCreatorMediaKit(slug);
-    } else {
-      window.location.href = `/mediakit/${encodeURIComponent(slug)}`;
-    }
-  };
-
-  return (
-    <div style={{
-      display: "flex", gap: 0, paddingBottom: 4,
-      paddingLeft: 16, paddingRight: 16,
-      justifyContent: "space-between",
-    }}>
-      {sorted.map((creator) => {
-        const isCollabSuggested = collabSuggestedIds?.has(creator.id) ?? false;
-        return (
-          <button
-            key={creator.id}
-            type="button"
-            onClick={() => handleAvatarClick(creator.mediaKitSlug)}
-            disabled={!creator.mediaKitSlug}
-            style={{
-              flexShrink: 0, display: "flex", flexDirection: "column",
-              alignItems: "center", gap: 6,
-              background: "none", border: "none",
-              cursor: creator.mediaKitSlug ? "pointer" : "default",
-              fontFamily: "inherit", padding: 0,
-            }}
-          >
-            {/* Avatar sem ring, com badge de collab se aplicável */}
-            <div style={{ position: "relative", width: avatarSize, height: avatarSize, flexShrink: 0 }}>
-              <div style={{
-                width: avatarSize, height: avatarSize, borderRadius: 9999,
-                overflow: "hidden", background: SURFACE_NEUTRAL_HEX,
-                border: "1.5px solid rgba(0,0,0,0.08)",
-                display: "grid", placeItems: "center",
-              }}>
-                {creator.avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={creator.avatarUrl}
-                    alt=""
-                    referrerPolicy="no-referrer"
-                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                  />
-                ) : (
-                  <span style={{ fontSize: 13, fontWeight: 800, color: TEXT_BODY_HEX, letterSpacing: -0.2 }}>
-                    {collabInitials(creator.name)}
-                  </span>
-                )}
-              </div>
-              {/* Badge de collab sugerida */}
-              {isCollabSuggested && (
-                <div style={{
-                  position: "absolute", bottom: 1, right: 1,
-                  width: 18, height: 18, borderRadius: 9999,
-                  background: "#0ea5e9",
-                  border: "2px solid white",
-                  display: "grid", placeItems: "center",
-                }}>
-                  <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-                    <path d="M5 1l1.2 2.4L9 4l-2 1.95.47 2.75L5 7.4l-2.47 1.3L3 5.95 1 4l2.8-.6L5 1z" fill="white"/>
-                  </svg>
-                </div>
-              )}
-            </div>
-            <span style={{
-              fontSize: 11, fontWeight: 600, color: TEXT_BODY_HEX,
-              maxWidth: labelMaxWidth, textAlign: "center",
-              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            }}>
-              {creator.name.split(" ")[0]}
-            </span>
-          </button>
-        );
-      })}
-
-      {/* CTA — Descobrir criadores */}
-      <button
-        type="button"
-        onClick={onDiscoverCollabs}
-        style={{
-          flexShrink: 0, display: "flex", flexDirection: "column",
-          alignItems: "center", gap: 6,
-          background: "none", border: "none", cursor: "pointer",
-          fontFamily: "inherit", padding: 0,
-        }}
-      >
-        <div style={{
-          width: avatarSize, height: avatarSize, borderRadius: 9999,
-          background: "white",
-          display: "grid", placeItems: "center",
-          border: `1.5px solid ${TEXT_PRIMARY_HEX}`,
-        }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <circle cx="11" cy="11" r="7" stroke={TEXT_PRIMARY_HEX} strokeWidth="1.8"/>
-            <path d="M16.5 16.5L21 21" stroke={TEXT_PRIMARY_HEX} strokeWidth="1.8" strokeLinecap="round"/>
-            <path d="M11 8v6M8 11h6" stroke={TEXT_PRIMARY_HEX} strokeWidth="1.8" strokeLinecap="round"/>
-          </svg>
-        </div>
-        <span style={{
-          fontSize: 11, fontWeight: 600, color: TEXT_BODY_HEX,
-          maxWidth: labelMaxWidth, textAlign: "center",
-          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-        }}>
-          Descobrir
-        </span>
-      </button>
+      </div>
     </div>
   );
 }
@@ -2526,7 +2397,7 @@ function CollabsSummaryCard({
               <div style={{
                 width: 76, height: 76, borderRadius: 9999, overflow: "hidden",
                 position: "relative", flexShrink: 0,
-                background: creator ? bg : "linear-gradient(135deg, #f4f4f5 0%, #e4e4e7 100%)",
+                background: creator ? bg : "linear-gradient(135deg, var(--ds-color-neutral) 0%, var(--ds-color-line) 100%)",
                 display: "grid", placeItems: "center",
                 boxShadow: creator
                   ? "0 1px 6px rgba(28,28,30,0.12)"
@@ -2557,7 +2428,7 @@ function CollabsSummaryCard({
                       }}>
                         <span style={{
                           width: 22, height: 22, borderRadius: 9999,
-                          background: "rgba(24,24,27,0.72)", color: "#fff",
+                          background: "rgba(24,24,27,0.72)", color: "var(--ds-color-on-brand)",
                           display: "grid", placeItems: "center",
                         }}>
                           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -2640,7 +2511,7 @@ function ContextualOnboardingBanner({
       <div
         style={{
           padding: "16px 18px",
-          borderRadius: 18, background: INK_DARK_HEX, color: "#fff",
+          borderRadius: 18, background: INK_DARK_HEX, color: "var(--ds-color-on-brand)",
           boxShadow: "0 10px 28px -12px rgba(9,9,11,0.4)",
           display: "flex", flexDirection: "column",
         }}
@@ -2664,7 +2535,7 @@ function ContextualOnboardingBanner({
           style={{
             alignSelf: "flex-start", cursor: "pointer", fontFamily: "inherit",
             fontSize: 13, fontWeight: 700, color: INK_DARK_HEX,
-            background: "#fff", borderRadius: 999, padding: "9px 18px",
+            background: "var(--ds-color-surface)", borderRadius: 999, padding: "9px 18px",
             border: "none",
           }}
         >
@@ -2942,10 +2813,10 @@ export function DiagnosticoPage({
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div style={{ background: SOLID_BG, minHeight: "100vh" }}>
+    <div className="ds-screen" style={{ background: SOLID_BG, minHeight: "100vh" }}>
       {/* ── HEADER — fundo unificado com a página ───────────────────────── */}
       <div style={{
-        background: "linear-gradient(180deg, #fff8f5 0%, #ffffff 100%)",
+        background: CS_PAPER_HEX,
         paddingTop: SAFE_TOP,
         paddingBottom: 12,
       }}>
@@ -2955,11 +2826,11 @@ export function DiagnosticoPage({
             {/* Greeting — hero da tela */}
             <div style={{ minWidth: 0, flex: 1 }}>
               <h1 style={{
-                fontFamily: '"Poppins", -apple-system, "SF Pro Display", sans-serif',
+                fontFamily: CS_FONT_DISPLAY,
                 // clamp: mínimo 28px para nomes longos, ideal 10.7vw (~40px em 375px), máximo 40px
                 fontSize: "clamp(28px, 10.7vw, 40px)",
                 fontWeight: 700, color: INK_DARK_HEX, margin: 0,
-                letterSpacing: -0.5, lineHeight: 1.1,
+                letterSpacing: "-0.045em", lineHeight: 0.98,
               }}>
                 {greeting}
               </h1>
@@ -2987,13 +2858,13 @@ export function DiagnosticoPage({
                     border: "none", cursor: "pointer", fontFamily: "inherit",
                     display: "grid", placeItems: "center",
                     marginRight: -4,
-                    color: "#ffffff",
+                    color: CS_PAPER_HEX,
                   }}
                 >
                   <span style={{
                     width: 36, height: 36, borderRadius: 9999,
-                    background: TEXT_PRIMARY_HEX,
-                    boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+                    background: CS_BRAND_HEX,
+                    boxShadow: "0 8px 22px rgba(250,22,91,0.22)",
                     display: "grid", placeItems: "center",
                     flexShrink: 0,
                   }}>
@@ -3008,7 +2879,7 @@ export function DiagnosticoPage({
                   <div style={{
                     position: "absolute", top: -2, right: -2,
                     width: 10, height: 10, borderRadius: 9999,
-                    background: "#f97316", border: "2px solid white",
+                    background: CS_MAP_ACCENT_HEX, border: `2px solid ${CS_PAPER_HEX}`,
                     pointerEvents: "none",
                   }} aria-hidden="true" />
                 )}
@@ -3092,7 +2963,7 @@ export function DiagnosticoPage({
           <>
             <SectionTitle title="Expansão" />
             <div style={{ padding: "0 18px", display: "grid", gap: 16 }}>
-              <CardShell variant="filled" bg="#ebe9fe" onClick={() => onOpenCategory?.("brands")}>
+              <CardShell variant="filled" bg="var(--ds-color-brand-soft)" onClick={() => onOpenCategory?.("brands")}>
                 <CardHeader cat="marcas" />
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", marginTop: 14 }}>
                   <p style={{

@@ -348,7 +348,7 @@ function DiagnosisRing({
 }) {
   return (
     <svg width="92" height="92" viewBox="0 0 92 92" aria-hidden="true" className="shrink-0">
-      <circle cx={RING_CX} cy={RING_CY} r={RING_R} fill="none" stroke="#f4f4f5" strokeWidth="9" />
+      <circle cx={RING_CX} cy={RING_CY} r={RING_R} fill="none" stroke="var(--ds-color-neutral)" strokeWidth="9" />
       {value > 0 ? (
         <circle
           cx={RING_CX}
@@ -362,10 +362,10 @@ function DiagnosisRing({
           transform={`rotate(-90 ${RING_CX} ${RING_CY})`}
         />
       ) : null}
-      <text x={RING_CX} y="43" textAnchor="middle" dominantBaseline="central" fontSize="28" fontWeight="700" fill="#09090b">
+      <text x={RING_CX} y="43" textAnchor="middle" dominantBaseline="central" fontSize="28" fontWeight="700" fill="var(--ds-color-ink)">
         {value}
       </text>
-      <text x={RING_CX} y="62" textAnchor="middle" dominantBaseline="central" fontSize="10" fontWeight="600" fill="#a1a1aa">
+      <text x={RING_CX} y="62" textAnchor="middle" dominantBaseline="central" fontSize="10" fontWeight="600" fill="var(--ds-color-text-muted)">
         de {target}
       </text>
     </svg>

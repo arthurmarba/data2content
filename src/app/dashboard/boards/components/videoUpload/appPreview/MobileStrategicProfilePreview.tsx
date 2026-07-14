@@ -158,7 +158,7 @@ function AuthGate({ profile, isRealShell }: { profile: MobileStrategicProfile; i
   const gate = profile.authGate;
 
   return (
-    <section className={isRealShell ? "min-h-screen bg-[#f7f7f4] text-zinc-950" : "min-h-screen bg-zinc-100 px-4 py-6 text-zinc-950"}>
+    <section className={isRealShell ? "min-h-screen bg-[var(--ds-color-neutral)] text-zinc-950" : "min-h-screen bg-zinc-100 px-4 py-6 text-zinc-950"}>
       <div className={isRealShell ? "mx-auto grid w-full max-w-md gap-5" : "mx-auto grid max-w-5xl gap-5"}>
         {!isRealShell ? (
           <header className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm">
@@ -170,8 +170,8 @@ function AuthGate({ profile, isRealShell }: { profile: MobileStrategicProfile; i
           </header>
         ) : null}
 
-        <div className={isRealShell ? "mx-auto w-full max-w-md bg-[#f7f7f4]" : "mx-auto w-full max-w-sm rounded-[2rem] border border-zinc-200 bg-zinc-950 p-2 shadow-xl"}>
-          <div className={isRealShell ? "min-h-screen bg-[#f7f7f4] px-5 py-5" : "min-h-[680px] rounded-[1.5rem] bg-[#f7f7f4] px-5 py-5"}>
+        <div className={isRealShell ? "mx-auto w-full max-w-md bg-[var(--ds-color-neutral)]" : "mx-auto w-full max-w-sm rounded-[2rem] border border-zinc-200 bg-zinc-950 p-2 shadow-xl"}>
+          <div className={isRealShell ? "min-h-screen bg-[var(--ds-color-neutral)] px-5 py-5" : "min-h-[680px] rounded-[1.5rem] bg-[var(--ds-color-neutral)] px-5 py-5"}>
             <div className="flex items-center justify-between">
               <span className="text-sm font-semibold text-zinc-950">Perfil Estratégico</span>
               <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-zinc-600 shadow-sm">D2C</span>
@@ -230,7 +230,7 @@ function ProfileHeader({
         <span className="rounded-full bg-zinc-950 px-3 py-1 text-xs font-semibold text-white shadow-sm">D2C</span>
       </div>
 
-      <div className="mt-5 rounded-[1.75rem] bg-[#f7f7f4] p-4">
+      <div className="mt-5 rounded-[1.75rem] bg-[var(--ds-color-neutral)] p-4">
         <div className="flex items-start gap-4">
           <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full bg-zinc-950 text-xl font-semibold text-white shadow-lg shadow-zinc-950/15">
             {identity.userImage ? <span>{initials}</span> : initials}

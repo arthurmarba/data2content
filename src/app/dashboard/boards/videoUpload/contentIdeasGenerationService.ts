@@ -21,7 +21,9 @@ import {
   type ContentIdeasMapContext,
 } from "./contentIdeasGeminiPromptBuilder";
 import { cleanIdeaText } from "./contentIdeasTextHygiene";
+import { filterNearDuplicateTitles } from "./contentIdeasTitleDedup";
 import { logGeminiUsage } from "@/app/lib/llm/geminiUsageLog";
+import { logUsageEvent } from "@/app/lib/dataService/usageEventService";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
@@ -235,25 +237,27 @@ export async function generateContentIdeas(
 
   // The card shows a single, stable batch of fresh pautas. When the creator asks
   // for new ones, this batch is REPLACED — not accumulated. To make "Gerar novos"
-  // actually feel new, we feed the current active titles into the avoid-list so
-  // the model doesn't re-suggest near-duplicates of what's already on screen.
-  let currentActiveTitles: string[] = [];
+  // actually feel new, we feed EVERY title the creator still "has" into the
+  // avoid-list: active (on screen agora), saved (na estante) e posted (já foi ao
+  // ar). Sem saved/posted, o modelo podia recriar um tema quase idêntico ao que o
+  // criador já aceitou — reaparecer o que ele guardou. Dismissed vem via context.
+  let liveTitles: string[] = [];
   try {
     await connectToDatabase();
-    const activeDocs = await CreatorContentIdea.find({
+    const liveDocs = await CreatorContentIdea.find({
       userId: new Types.ObjectId(params.userId),
-      status: "active",
+      status: { $in: ["active", "saved", "posted"] },
     })
       .select("title")
       .lean<Array<{ title: string }>>();
-    currentActiveTitles = activeDocs.map((d) => d.title).filter(Boolean);
+    liveTitles = liveDocs.map((d) => d.title).filter(Boolean);
   } catch (err) {
     // Non-fatal: freshness is best-effort. Generation still proceeds.
-    console.warn("[contentIdeas:generate] failed to read active titles for avoid-list:", err);
+    console.warn("[contentIdeas:generate] failed to read live titles for avoid-list:", err);
   }
 
   const avoidTitles = Array.from(
-    new Set([...(params.context.recentDismissedTitles ?? []), ...currentActiveTitles]),
+    new Set([...(params.context.recentDismissedTitles ?? []), ...liveTitles]),
   );
 
   const prompt = buildContentIdeasPrompt({
@@ -329,14 +333,28 @@ export async function generateContentIdeas(
     };
   }
 
+  // ── Dedup semântico ───────────────────────────────────────────────────────
+  // Rede de segurança contra rephrase: a avoid-list do prompt é uma instrução
+  // leve — o modelo pode reescrever um tema que o criador já tem com outras
+  // palavras. Corta os títulos novos que se sobrepõem demais aos que ele já viu
+  // (avoidTitles = dismissed + live) e entre si. Se sobrar ao menos 1, seguimos
+  // com o que restou (não re-chamamos o Gemini — evita loop/custo).
+  const deduped = filterNearDuplicateTitles(sanitized, avoidTitles, (idea) => idea.title);
+  const finalIdeas = deduped.length > 0 ? deduped : sanitized;
+  if (deduped.length < sanitized.length) {
+    console.log("[contentIdeas:generate] dedup semântico cortou", sanitized.length - deduped.length, "quase-duplicata(s).");
+  }
+
   // ── Persist ───────────────────────────────────────────────────────────────
   try {
     await connectToDatabase();
     const mapContextHash = hashMapContext(params.context);
     const generatedAt = new Date();
 
+    logUsageEvent(params.userId, "pauta_created", "pautas", { count: finalIdeas.length, platform: "mobile" });
+
     const docs = await CreatorContentIdea.insertMany(
-      sanitized.map((idea) => ({
+      finalIdeas.map((idea) => ({
         userId: new Types.ObjectId(params.userId),
         status: "active",
         source: "gemini_v1",

@@ -20,7 +20,7 @@ describe("videoNarrativeTemporaryStorageProviderTypes", () => {
   });
 
   it("keeps the default signed URL TTL short", () => {
-    expect(DEFAULT_TEMPORARY_STORAGE_PROVIDER_CONFIG.signedUrlTtlSeconds).toBeLessThanOrEqual(300);
+    expect(DEFAULT_TEMPORARY_STORAGE_PROVIDER_CONFIG.signedUrlTtlSeconds).toBeLessThanOrEqual(900);
   });
 
   it("lists only planned real provider modes", () => {

@@ -82,6 +82,32 @@ const schemaExample = {
     verdict: "aligned | tension | off | unknown",
     reading: "string curta e observacional — se o video abre ou sustenta um territorio comercial coerente com o mapa; sem promessa de resultado ou 'alto potencial'",
   },
+  contentPotentialScan: {
+    band: "uncertain — provisório; o servidor recalibra",
+    confidence: "low | medium | high",
+    basis: "video_only | creator_history",
+    objective: "attention | sharing | positioning | complete_reading",
+    historyPostsAnalyzed: 0,
+    dimensions: {
+      openingClarity: { status: "strong | mixed | weak | unknown", evidence: "string", adjustment: "string ou null", window: "0-3s" },
+      attentionArchitecture: { status: "strong | mixed | weak | unknown", evidence: "string", adjustment: "string ou null", window: "0-10s" },
+      shareImpulse: { status: "strong | mixed | weak | unknown", evidence: "string", adjustment: "string ou null", window: "full_video" },
+      promiseDelivery: { status: "strong | mixed | weak | unknown", evidence: "string", adjustment: "string ou null", window: "full_video" },
+      narrativeFit: { status: "strong | mixed | weak | unknown", evidence: "string", adjustment: "string ou null", window: "creator_history" },
+    },
+    watchedMoments: [
+      { moment: "opening", observation: "string — cena, ação, texto visível ou fala curta realmente observada", impact: "string — efeito deste momento na leitura" },
+      { moment: "development", observation: "string — evidência específica do desenvolvimento", impact: "string — efeito deste momento na leitura" },
+      { moment: "closing", observation: "string — evidência específica do fechamento", impact: "string — efeito deste momento na leitura" },
+    ],
+    practicalDirection: {
+      title: "string — uma direção curta e específica para este vídeo",
+      action: "string — como aplicar a mudança no corte, texto, ordem, imagem ou fala deste vídeo",
+      example: "string — texto na tela, abertura ou fechamento pronto para usar; null quando não couber",
+    },
+    highestImpactAdjustment: "string — uma única mudança específica e ancorada no vídeo",
+    disclaimer: "string curta sem promessa de performance",
+  },
   evidenceAnchors: {
     speechQuotes: [
       {
@@ -181,6 +207,8 @@ export function buildVideoNarrativeGeminiPrompt(input: VideoNarrativeAiProviderI
     ? [
         `- mimeType: ${safeString(input.temporaryUpload.mimeType)}`,
         `- sizeBytes: ${input.temporaryUpload.sizeBytes}`,
+        `- duração verificada: ${input.temporaryUpload.durationSeconds ?? "não informada"} segundos`,
+        `- mudanças visuais detectadas nos primeiros 10 s: ${input.temporaryUpload.earlyVisualChanges ?? "não disponível"}`,
       ].join("\n")
     : "- Sem upload temporário informado.";
 
@@ -195,10 +223,11 @@ export function buildVideoNarrativeGeminiPrompt(input: VideoNarrativeAiProviderI
       "Não retorne conteúdo privado bruto, transcrição longa, URL, signed URL, token, API key ou identificador de storage.",
       "Não retorne transcrição completa, timestamps técnicos, nome de arquivo, objectKey, uploadUrl, signedUrl, localPath ou storageProviderPath.",
       "Não mencione o nome do provedor de IA na resposta.",
-      "Tom obrigatório: escreva como um analista que relata o que observou no vídeo — nunca como um consultor que prescreve tarefas ao creator.",
-      "Evite imperativos diretos ao creator: 'faça', 'ajuste', 'mostre', 'poste', 'troque', 'melhore' não devem aparecer nos campos de análise.",
+      "Tom obrigatório: nos campos de análise, escreva como um analista que relata o que observou no vídeo. practicalDirection é a única exceção operacional: ali, traduza a leitura em uma mudança concreta e aplicável.",
+      "Evite imperativos diretos ao creator nos campos de análise: 'faça', 'ajuste', 'mostre', 'poste', 'troque', 'melhore' não devem aparecer. Em practicalDirection, use linguagem de ação específica sem tom de ordem ou promessa.",
       "Em recommendedAdjustment e attentionPoint: descreva o que a narrativa não explicita ou onde o sinal fica mais vago — use frases como 'a narrativa não deixa claro X' ou 'o sinal de Y aparece de forma difusa'.",
       "Evite linguagem de performance: 'alto potencial', 'grande fit', 'vai engajar', 'performa bem', 'ideal para marcas' não devem aparecer.",
+      "O Raio X estima sinais estruturais relativos ao vídeo e ao histórico do creator; nunca prevê resultado garantido.",
     ].join("\n"),
     userInstruction: [
       `promptVersion: ${input.promptVersion}`,
@@ -310,6 +339,19 @@ export function buildVideoNarrativeGeminiPrompt(input: VideoNarrativeAiProviderI
       "brandCoherence (OBRIGATÓRIO — eixo marca): o vídeo abre ou sustenta um território comercial coerente com o mapa do creator?",
       "- aligned: abre/sustenta um território de fit narrativo com marcas; tension: fit parcial ou ainda difuso; off: não abre território comercial coerente; unknown quando não há base para avaliar.",
       "- reading: 1 frase como área de fit narrativo — evite 'alto potencial', 'grande fit' ou promessa de resultado comercial.",
+      "contentPotentialScan (OBRIGATÓRIO — Raio X antes de publicar):",
+      "- openingClarity: assista mentalmente aos primeiros 3 segundos SEM SOM. Diga se texto, imagem e ação deixam assunto ou promessa reconhecíveis. Depois considere o áudio apenas como evidência complementar.",
+      "- attentionArchitecture: observe os primeiros 10 segundos. Considere cortes, zoom, texto, gesto, deslocamento e progressão; não reprove automaticamente um plano estável quando a fala ou a tensão sustentam atenção.",
+      "- shareImpulse: identifique o motivo concreto para alguém enviar o conteúdo: utilidade, identificação, emoção, surpresa ou relevância social. Use weak/unknown quando nenhum motivo aparece.",
+      "- promiseDelivery: verifique se o desenvolvimento e o final entregam a promessa aberta no início.",
+      "- narrativeFit: compare o vídeo com narrativas, audiência e padrões do creator; use unknown quando não houver histórico suficiente.",
+      "- Cada dimensão deve citar uma evidência observada no vídeo e, quando necessário, um único ajuste específico.",
+      "- watchedMoments é OBRIGATÓRIO e deve conter de 2 a 3 momentos distribuídos entre abertura, desenvolvimento e fechamento.",
+      "- Cada watchedMoment deve provar que o vídeo foi assistido: descreva uma ação, cena, texto visível ou fala curta realmente presente. Feedback genérico é inválido.",
+      "- observation descreve somente o que foi visto ou ouvido; impact explica o efeito daquele momento sobre clareza, atenção, compartilhamento, entrega ou aderência narrativa.",
+      "- practicalDirection é OBRIGATÓRIO e traz uma única mudança prioritária para ESTE vídeo. action deve dizer onde e como aplicá-la no corte, texto, ordem, imagem ou fala.",
+      "- practicalDirection.example deve ser uma sugestão pronta para usar, nunca apresentada como fala real do vídeo. Use null quando um exemplo textual não fizer sentido.",
+      "- band/confidence/basis são provisórios e serão recalibrados pelo servidor. Não use números, percentuais ou promessa de alcance.",
       "Evidence anchors (OBRIGATÓRIO — não retorne arrays vazios):",
       "- Forneça pelo menos 1 sceneAnchor descrevendo um momento concreto observado no vídeo.",
       "- Extraia até 4 falas curtas realmente ditas pelo creator que sustentem a leitura estratégica.",
@@ -333,6 +375,7 @@ export function buildVideoNarrativeGeminiPrompt(input: VideoNarrativeAiProviderI
       "narrativeCoherence é OBRIGATÓRIO; verdict deve ser um dos valores válidos.",
       "Valores aceitos em narrativeCoherence.verdict: confirms_top_pattern, experiment, deviation, first_reading, unknown.",
       "audienceCoherence e brandCoherence são OBRIGATÓRIOS; cada um com verdict e reading.",
+      "contentPotentialScan é OBRIGATÓRIO e deve conter exatamente as cinco dimensões estruturadas, 2 a 3 watchedMoments e practicalDirection.",
       "Valores aceitos em audienceCoherence.verdict e brandCoherence.verdict: aligned, tension, off, unknown.",
       "reading de audienceCoherence e brandCoherence deve ter no máximo 120 caracteres, tom observacional, sem imperativo e sem linguagem de performance.",
       "evidenceAnchors é OBRIGATÓRIO; sceneAnchors deve ter no mínimo 1 item descrevendo um momento concreto do vídeo; speechQuotes pode ser [].",

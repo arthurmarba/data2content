@@ -4,7 +4,7 @@ import { writeLocalVideoNarrativeTemporaryUpload } from "@/app/dashboard/boards/
 
 export const runtime = "nodejs";
 
-const MAX_LOCAL_UPLOAD_BYTES = 100 * 1024 * 1024;
+const MAX_LOCAL_UPLOAD_BYTES = 300 * 1024 * 1024;
 
 function isEnabled(): boolean {
   return process.env.NODE_ENV !== "production" && process.env.VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED === "1";

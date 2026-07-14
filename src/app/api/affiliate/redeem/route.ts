@@ -5,6 +5,7 @@ import User from '@/app/models/User';
 import Redemption from '@/app/models/Redemption';
 import { stripe } from '@/app/lib/stripe';
 import type { Types } from 'mongoose';
+import { normalizedBalanceMap, summarizeAffiliateLedger } from '@/server/affiliate/ledger';
 
 export const runtime = 'nodejs';
 
@@ -67,16 +68,25 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: false, code: 'needs_onboarding', message: 'Conecte/atualize sua conta Stripe.' }, { status: 400 });
       }
 
-      const balances: Map<string, number> = user.affiliateBalances || new Map();
-      const available = balances.get(cur) ?? 0;
-      const debts: Map<string, number> = user.affiliateDebtByCurrency || new Map();
-      const debt = debts.get(cur) ?? 0;
+      const currencyKey = cur.toLowerCase();
+      const balances = normalizedBalanceMap(user.affiliateBalances);
+      const debts = normalizedBalanceMap(user.affiliateDebtByCurrency);
+      const ledger = summarizeAffiliateLedger(user.commissionLog || []);
+      const available = ledger[cur]?.availableCents ?? 0;
+      const storedAvailable = balances[cur] ?? 0;
+      const debt = debts[cur] ?? 0;
       const minRedeem = Number(
         process.env[`AFFILIATE_MIN_REDEEM_${cur}`] ?? process.env.AFFILIATE_MIN_REDEEM_DEFAULT ?? 0,
       );
 
       if (debt > 0) {
         return NextResponse.json({ ok: false, code: 'has_debt', message: 'Há dívida nesta moeda.' }, { status: 400 });
+      }
+      if (storedAvailable !== available) {
+        return NextResponse.json(
+          { ok: false, code: 'ledger_out_of_sync', message: 'Saldo em conferência. Tente novamente após a reconciliação.' },
+          { status: 409 },
+        );
       }
       if (available <= 0) {
         return NextResponse.json({ ok: false, code: 'no_funds', message: 'Sem saldo disponível.' }, { status: 400 });
@@ -124,7 +134,7 @@ export async function POST(req: NextRequest) {
         if (accumulated >= amount) break;
       }
 
-      if (payoutEntryIds.length === 0 || accumulated < amount) {
+      if (payoutEntryIds.length === 0 || accumulated !== amount) {
         return NextResponse.json(
           {
             ok: false,
@@ -144,8 +154,8 @@ export async function POST(req: NextRequest) {
       } as any);
 
       const upd = await User.updateOne(
-        { _id: user._id, [`affiliateBalances.${cur}`]: { $gte: amount } },
-        { $inc: { [`affiliateBalances.${cur}`]: -amount } },
+        { _id: user._id, [`affiliateBalances.${currencyKey}`]: { $gte: amount } },
+        { $inc: { [`affiliateBalances.${currencyKey}`]: -amount } },
       );
       if (upd.modifiedCount === 0) {
         await Redemption.updateOne({ _id: redemption._id }, { $set: { status: 'rejected', reasonCode: 'race_condition' } });
@@ -189,7 +199,7 @@ export async function POST(req: NextRequest) {
       } catch (err: any) {
         await User.updateOne(
           { _id: user._id },
-          { $inc: { [`affiliateBalances.${cur}`]: amount } },
+          { $inc: { [`affiliateBalances.${currencyKey}`]: amount } },
         );
         await Redemption.updateOne(
           { _id: redemption._id },

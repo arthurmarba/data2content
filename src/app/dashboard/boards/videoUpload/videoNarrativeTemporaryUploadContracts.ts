@@ -64,11 +64,11 @@ export type VideoNarrativeTemporaryUploadValidationResult = {
 /**
  * Política padrão inicial e segura (Default Policy).
  * Justificativas de Produto:
- * - maxFileSizeBytes (100MB): Suficiente para a esmagadora maioria de vídeos curtos
- *   comprimidos gravados em celulares (Reels/Shorts/TikToks), evitando o upload de
+ * - maxFileSizeBytes (300MB): Cobre vídeos curtos em alta resolução (Reels/Shorts/TikToks
+ *   gravados em 1080p/4K) sem exigir compressão prévia, evitando ainda assim o upload de
  *   arquivos brutos gigantescos de câmera que geram sobrecarga de rede e custos elevados.
- * - maxDurationSeconds (300 segundos / 5 minutos): Cobre o limite máximo do Shorts/Reels,
- *   garantindo o escopo no formato de microconteúdo.
+ * - maxDurationSeconds (90 segundos): Limite real de análise da plataforma — só
+ *   processamos microconteúdo de até 90s. Vídeos mais longos são recusados.
  * - acceptedMimeTypes: Cobre os codecs e empacotamentos mais comuns no ecossistema web/mobile.
  * - retentionTtlMinutes (60 minutos): Tempo curto que permite o processamento
  *   completo da IA mesmo em cenários de fila sem deixar arquivos acumulados permanentemente.
@@ -77,8 +77,8 @@ export type VideoNarrativeTemporaryUploadValidationResult = {
  *   por default até a ativação explícita de feature flags.
  */
 export const DEFAULT_TEMPORARY_UPLOAD_POLICY: VideoNarrativeTemporaryUploadPolicy = {
-  maxFileSizeBytes: 100 * 1024 * 1024, // 100MB
-  maxDurationSeconds: 300,             // 5 minutos
+  maxFileSizeBytes: 300 * 1024 * 1024, // 300MB
+  maxDurationSeconds: 90,              // limite real de análise da plataforma
   acceptedMimeTypes: ["video/mp4", "video/quicktime", "video/webm"],
   acceptedExtensions: [".mp4", ".mov", ".webm"],
   retentionTtlMinutes: 60,             // 1 hora

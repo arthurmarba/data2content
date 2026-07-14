@@ -335,7 +335,7 @@ describe("POST /api/dashboard/mobile-strategic-profile/upload-session", () => {
   });
 
   it("POST bloqueia arquivo acima do limite", async () => {
-    const res = await POST(createRequest("POST", { ...validBasePayload, sizeBytes: 150 * 1024 * 1024 }));
+    const res = await POST(createRequest("POST", { ...validBasePayload, sizeBytes: 350 * 1024 * 1024 }));
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.issues.some((i: any) => i.code === "file_too_large")).toBe(true);

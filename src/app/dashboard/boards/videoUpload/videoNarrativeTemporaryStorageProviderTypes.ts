@@ -118,9 +118,11 @@ export const DEFAULT_TEMPORARY_STORAGE_PROVIDER_CONFIG: VideoNarrativeTemporaryS
   realUploadEnabled: false,
   uploadSessionEnabled: false,
   signedUploadAllowlistEnabled: false,
-  maxFileSizeBytes: 100 * 1024 * 1024,
+  maxFileSizeBytes: 300 * 1024 * 1024,
   retentionTtlMinutes: 60,
-  signedUrlTtlSeconds: 300,
+  // 15 min (o máximo permitido): dá folga para concluir o PUT direto de arquivos
+  // grandes (até 300MB) em conexões móveis antes da URL assinada expirar.
+  signedUrlTtlSeconds: 900,
 };
 
 export const PLANNED_TEMPORARY_STORAGE_PROVIDER_MODES: VideoNarrativeTemporaryStorageProviderMode[] = [
