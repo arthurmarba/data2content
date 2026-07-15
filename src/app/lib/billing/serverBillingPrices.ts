@@ -22,8 +22,8 @@ function normalizeRecurringInterval(
 }
 
 function fallbackPriceFor(plan: BillingPlan, currency: BillingCurrency): BillingPriceResponseItem {
-  const fallbackUsdMonthly = Number(process.env.MONTHLY_PLAN_PRICE_USD ?? 9.9);
-  const fallbackUsdAnnual = Number(process.env.ANNUAL_PLAN_YEAR_PRICE_USD ?? 99);
+  const fallbackUsdMonthly = Number(process.env.MONTHLY_PLAN_PRICE_USD ?? 19.4);
+  const fallbackUsdAnnual = Number(process.env.ANNUAL_PLAN_YEAR_PRICE_USD ?? 179);
 
   if (currency === "BRL") {
     if (plan === "monthly") {

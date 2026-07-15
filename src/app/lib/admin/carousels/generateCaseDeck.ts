@@ -125,7 +125,7 @@ export function generateCaseDeck(source: CarouselCaseSource): CarouselCaseDeck {
       type: "cta",
       eyebrow: "Entre na D2C",
       headline: "Descubra isso no seu perfil",
-      body: "Entenda o que postar, quando postar e receba consultorias da D2C por apenas R$49,90/mês.",
+      body: "Entenda o que postar, quando postar e receba consultorias da D2C por apenas R$97,00/mês.",
     },
   ];
 

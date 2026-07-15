@@ -221,7 +221,7 @@ export default function PlansComparisonSection({
         <div className="mx-auto grid w-full max-w-3xl gap-5 sm:gap-6">
           <PlanCard
             title="Plano Consultivo"
-            price="R$ 49,90"
+            price="R$ 97,00"
             isPro
             description="Mentorias estratégicas e tecnologia para acelerar sua representação comercial."
             features={[
