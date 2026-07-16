@@ -3997,7 +3997,7 @@ function CtaSlide({
                     lineHeight: typography.priceLineHeight,
                   })}
                 >
-                  R$49,90/mês
+                  R$97,00/mês
                 </p>
                 <p
                   className={surfaceTheme.textSecondaryClass}

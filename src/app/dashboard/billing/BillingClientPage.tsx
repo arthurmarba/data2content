@@ -30,7 +30,7 @@ export default function BillingClientPage({ initialAffiliateCode = "" }: Props) 
     <div className="mx-auto max-w-2xl rounded-2xl border p-6">
       <h1 className="text-2xl font-semibold mb-1">Plano Data2Content</h1>
       <p className="text-3xl font-extrabold mb-6">
-        R$49,90 <span className="text-base font-normal">/mês</span>
+        R$97,00 <span className="text-base font-normal">/mês</span>
       </p>
 
       <label className="block text-sm font-medium mb-1">
