@@ -30,11 +30,16 @@ import {
 } from "framer-motion";
 import type { ContentIdeaListItem } from "@/app/dashboard/boards/videoUpload/contentIdeasReadService";
 import { cleanIdeaText } from "@/app/dashboard/boards/videoUpload/contentIdeasTextHygiene";
+import {
+  contentIdeaMapAnchorLabel,
+  resolveContentIdeaMapAnchors,
+  selectContentIdeaCardAnchors,
+  type ContentIdeaMapAnchorKind,
+} from "@/app/dashboard/boards/videoUpload/contentIdeaMapAnchors";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
 import {
   TEXT_PRIMARY_HEX,
   TEXT_SECONDARY_HEX,
-  TEXT_BODY_HEX,
   CS_BRAND_HEX,
   CS_BRAND_STRONG_HEX,
   CS_INK_HEX,
@@ -65,7 +70,6 @@ function stackItemIdentity(item: CollabStackItem | null) {
 // Acento do prêmio (collab) = brand creator-studio; tintas derivadas do rosa.
 const COLLAB_ACCENT = CS_BRAND_HEX;
 const COLLAB_TINT_BG = "#ffeef3";     // fundo de pill/ícone (rosa quase-branco)
-const COLLAB_TINT_LINE = "#ffd9e4";   // borda esquerda dos teasers
 // O card senta DIRETO na página (sem palco) — a elevação é a sombra dele.
 const CARD_BG = "var(--ds-color-surface)";
 const STACK_CARD_SHADOW =
@@ -210,6 +214,18 @@ function CollabPill({ label }: { label: string }) {
   );
 }
 
+function PautaEyebrow() {
+  return (
+    <span style={{
+      display: "block", alignSelf: "flex-start", marginBottom: 13, paddingRight: 96,
+      color: CS_BRAND_STRONG_HEX, fontSize: 10, fontWeight: 800,
+      letterSpacing: 0.72, textTransform: "uppercase",
+    }}>
+      Pauta para você
+    </span>
+  );
+}
+
 function StableCreatorPhoto({ avatarUrl, initials }: { avatarUrl: string | null; initials: string }) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -285,52 +301,106 @@ export function MetaChip({ label, tone = "violet" }: { label: string; tone?: "vi
   );
 }
 
-// Bloco de teaser da frente do card — borda rosa + eyebrow + texto com clamp.
-// Mesma peça pro "Por que é ideal", "Como gravar", "Abre com" e "No roteiro":
-// um idioma visual só, com hierarquia única (eyebrow 10 / corpo 14 / 1.5).
-// tallOnly esconde o bloco em telas baixas (< 760px de altura) via a classe
-// d2c-tall-only — os teasers extras preenchem o card em telas normais/altas
-// sem espremer o iPhone SE (lá o essencial continua: título + zona principal).
-function TeaserBlock({
-  label,
-  text,
-  lines,
-  italic = false,
-  tallOnly = false,
-  marginTop = 14,
-}: {
-  label: string;
-  text: string;
-  lines: number;
-  italic?: boolean;
-  tallOnly?: boolean;
-  marginTop?: number;
-}) {
+function MapAnchorIcon({ kind }: { kind: ContentIdeaMapAnchorKind }) {
+  if (kind === "subject") {
+    return <path d="M5 8.5h10M5 13.5h10M9 4l-2 14M15 4l-2 14" />;
+  }
+  if (kind === "situation") {
+    return <><rect x="4" y="4" width="12" height="12" rx="3" /><path d="M7 8h6M7 12h4" /></>;
+  }
+  if (kind === "scene") {
+    return <><path d="M4 16l4-4 3 3 3-3 2 2" /><circle cx="8" cy="8" r="2" /></>;
+  }
+  return <><path d="M5 8.5h10M5 12.5h7" /><path d="M7 16.5l-2 2v-4" /></>;
+}
+
+function MapAnchorBand({ pauta, reduceMotion }: { pauta: ContentIdeaListItem; reduceMotion: boolean }) {
+  const anchors = selectContentIdeaCardAnchors(resolveContentIdeaMapAnchors({
+    mapAnchors: pauta.mapAnchors,
+    territory: pauta.territory,
+    assets: pauta.assets,
+    tone: pauta.tone,
+  }));
+  if (anchors.length === 0) return null;
+
   return (
-    <div
-      className={tallOnly ? "d2c-tall-only" : undefined}
-      style={{ marginTop, borderLeft: `2.5px solid ${COLLAB_TINT_LINE}`, paddingLeft: 12 }}
-    >
-      <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: CS_BRAND_STRONG_HEX }}>
-        {label}
-      </span>
-      <p style={{
-        fontSize: 14, fontStyle: italic ? "italic" : "normal", color: TEXT_BODY_HEX, lineHeight: 1.5, margin: "4px 0 0",
-        letterSpacing: 0, wordSpacing: "normal", textAlign: "left", whiteSpace: "normal",
-        overflowWrap: "normal", wordBreak: "normal", hyphens: "none",
-        display: "-webkit-box", WebkitLineClamp: lines, WebkitBoxOrient: "vertical", overflow: "hidden",
-      }}>
-        {text}
-      </p>
+    <div style={{ marginTop: 20, paddingTop: 15, borderTop: "1px solid rgba(28,28,30,0.08)" }}>
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 10 }}>
+        <span style={{
+          color: CS_BRAND_STRONG_HEX, fontSize: 10, fontWeight: 800,
+          letterSpacing: 0.7, textTransform: "uppercase",
+        }}>
+          Do seu mapa
+        </span>
+        {pauta.suggestedFormat ? (
+          <span style={{
+            minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            color: CS_MUTED, fontSize: 10.5, fontWeight: 650,
+          }}>
+            {pauta.suggestedFormat}
+          </span>
+        ) : null}
+      </div>
+      <motion.div
+        className="d2c-map-anchor-grid"
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: {},
+          visible: { transition: { staggerChildren: reduceMotion ? 0 : 0.045, delayChildren: reduceMotion ? 0 : 0.08 } },
+        }}
+        style={{
+          display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+          alignContent: "flex-start", gap: 7, overflow: "hidden",
+        }}
+      >
+        {anchors.map((anchor) => (
+          <motion.span
+            className="d2c-map-anchor-token"
+            key={`${anchor.kind}:${anchor.label}`}
+            variants={{
+              hidden: { opacity: 0, y: 5, scale: 0.97 },
+              visible: { opacity: 1, y: 0, scale: 1 },
+            }}
+            transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 360, damping: 28 }}
+            title={`${contentIdeaMapAnchorLabel(anchor.kind)}: ${anchor.label}`}
+            style={{
+              display: "grid", gridTemplateColumns: "21px minmax(0, 1fr)", alignItems: "center", gap: 7,
+              minWidth: 0, borderRadius: 12, padding: "7px 9px 7px 7px",
+              background: CS_NEUTRAL_HEX, color: CS_INK_HEX,
+              fontSize: 11.25, fontWeight: 650, lineHeight: 1.05,
+            }}
+          >
+            <span style={{
+              display: "inline-grid", placeItems: "center", width: 21, height: 21,
+              flexShrink: 0, borderRadius: 999, background: "rgba(250,22,91,0.10)", color: CS_BRAND_STRONG_HEX,
+            }} aria-hidden="true">
+              <svg width="11" height="11" viewBox="0 0 20 20" fill="none">
+                <g stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                  <MapAnchorIcon kind={anchor.kind} />
+                </g>
+              </svg>
+            </span>
+            <span style={{ display: "block", minWidth: 0 }}>
+              <span style={{ display: "block", color: TEXT_SECONDARY_HEX, fontSize: 8.5, fontWeight: 800, letterSpacing: 0.25, textTransform: "uppercase", whiteSpace: "nowrap" }}>
+                {contentIdeaMapAnchorLabel(anchor.kind)}
+              </span>
+              <span className="d2c-map-anchor-value" style={{ minWidth: 0, marginTop: 3, overflow: "hidden", textOverflow: "ellipsis" }}>
+                {anchor.label}
+              </span>
+            </span>
+          </motion.span>
+        ))}
+      </motion.div>
     </div>
   );
 }
 
 function StackCardBody({ item }: { item: CollabStackItem }) {
   const { kind, pauta, collab } = item;
+  const reduceMotion = useReducedMotion();
   const initials = (collab?.name || "?").trim().slice(0, 1).toUpperCase();
   const title = cleanIdeaText(pauta.title);
-  const hook = pauta.hook ? cleanIdeaText(pauta.hook).trim() : "";
   return (
     // Anatomia única: META (chips) → TÍTULO (herói) → ZONA (gancho ou pessoa),
     // todos ANCORADOS no topo, colados como um bloco só (marginTop fixo entre
@@ -348,30 +418,7 @@ function StackCardBody({ item }: { item: CollabStackItem }) {
           lá ele ainda é o único contexto narrativo disponível. */}
       {kind !== "pauta" ? (
         <CollabPill label={kind === "collab" ? "collab" : "collab escondida"} />
-      ) : null}
-      {kind !== "collab" && (pauta.territory || pauta.suggestedFormat) ? (
-        // Meta row: território (chip) + formato/tom como texto discreto ao
-        // lado — dado secundário que ajuda a decidir ("é um Reel falado")
-        // sem competir com o chip. minWidth:0 deixa o chip encolher com
-        // ellipsis antes de empurrar o formato pra fora.
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
-          {/* Prioridade: o território (chip) fica inteiro e é o formato/tom
-              que encolhe com ellipsis quando a linha aperta — o território é
-              o dado que decide o fit narrativo; formato é complemento. O teto
-              de 75% no chip é a rede pra territórios excepcionalmente longos. */}
-          {pauta.territory ? (
-            <span style={{ flexShrink: 0, minWidth: 0, maxWidth: pauta.suggestedFormat ? "75%" : "100%" }}>
-              <MetaChip label={pauta.territory} />
-            </span>
-          ) : null}
-          {pauta.suggestedFormat ? (
-            <span style={{ fontSize: 11.5, color: TEXT_SECONDARY_HEX, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {pauta.suggestedFormat}
-              {pauta.tone ? ` · tom ${pauta.tone}` : ""}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
+      ) : <PautaEyebrow />}
       <p
         style={{
           // Título domina o card (linguagem flashcard): grande, responsivo à
@@ -409,12 +456,9 @@ function StackCardBody({ item }: { item: CollabStackItem }) {
       </p>
 
       {kind === "collab" && collab ? (
-        // ZONA da collab: a PESSOA em destaque (avatar grande — é quem o
-        // criador vai conhecer) + o porquê como teaser, no mesmo idioma visual
-        // do "Abre com" da pauta solo. Antes só tinha nome pequeno + "toque
-        // pra ver por quê" — a frente do card escondia exatamente o dado mais
-        // importante (o motivo do fit), obrigando o flip só pra entender quem
-        // é a pessoa e por quê. O roteiro completo do porquê continua no verso.
+        // A pessoa continua sendo o prêmio visual da collab; o porquê e o
+        // roteiro ficam no detalhe. A frente mostra somente o encontro entre
+        // pessoa, ideia e as âncoras do mapa.
         <>
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 18 }}>
             <div
@@ -449,40 +493,25 @@ function StackCardBody({ item }: { item: CollabStackItem }) {
               ) : null}
             </div>
           </div>
-          {/* 3 linhas: com o teto de 560 o card tem altura pro teaser respirar
-              — 2 linhas deixavam um vão morto antes do rodapé. O roteiro
-              completo do porquê continua no verso, sem clamp. */}
-          {collab.narrativeFitReason ? (
-            <TeaserBlock label="Por que é ideal" text={collab.narrativeFitReason} lines={3} />
-          ) : null}
-          {collab.collabRecordingIdea ? (
-            <TeaserBlock label="Como gravar" text={collab.collabRecordingIdea} lines={2} tallOnly />
-          ) : null}
+          <MapAnchorBand pauta={pauta} reduceMotion={!!reduceMotion} />
         </>
       ) : kind === "mystery" ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 11, marginTop: 16 }}>
-          <MysteryAvatar size={44} />
-          <div style={{ minWidth: 0 }}>
-            <span style={{ display: "block", fontSize: 13.5, fontWeight: 700, color: TEXT_PRIMARY_HEX }}>
-              Um criador combina com essa pauta
-            </span>
-            <span style={{ display: "block", fontSize: 12, fontWeight: 600, color: COLLAB_ACCENT }}>
-              Descubra quem no Pro →
-            </span>
-          </div>
-        </div>
-      ) : (
-        // ZONA da pauta solo: o gancho como teaser — a informação que mais
-        // ajuda a decidir — e, em telas altas, o primeiro passo do roteiro
-        // como segundo teaser (o roteiro completo continua no verso).
         <>
-          {hook ? (
-            <TeaserBlock label="Abre com" text={`“${hook}”`} lines={4} italic marginTop={18} />
-          ) : null}
-          {kind === "pauta" && pauta.scriptPoints[0] ? (
-            <TeaserBlock label="No roteiro" text={pauta.scriptPoints[0]} lines={2} tallOnly />
-          ) : null}
+          <MapAnchorBand pauta={pauta} reduceMotion={!!reduceMotion} />
+          <div style={{ display: "flex", alignItems: "center", gap: 11, marginTop: 18 }}>
+            <MysteryAvatar size={44} />
+            <div style={{ minWidth: 0 }}>
+              <span style={{ display: "block", fontSize: 13.5, fontWeight: 700, color: TEXT_PRIMARY_HEX }}>
+                Um criador combina com essa pauta
+              </span>
+              <span style={{ display: "block", fontSize: 12, fontWeight: 600, color: COLLAB_ACCENT }}>
+                Descubra quem no Pro →
+              </span>
+            </div>
+          </div>
         </>
+      ) : (
+        <MapAnchorBand pauta={pauta} reduceMotion={!!reduceMotion} />
       )}
     </div>
   );
@@ -732,7 +761,18 @@ export function DiagnosticoCollabStack({
         {/* Teasers extras (Como gravar / No roteiro) só entram quando a tela
             tem altura pra eles — em telas baixas (iPhone SE, 667px) o card
             fica com o essencial e nada é espremido ou cortado. */}
-        <style>{`.d2c-tall-only{display:none}@media (min-height:760px){.d2c-tall-only{display:block}}`}</style>
+        <style>{`
+          .d2c-tall-only{display:none}
+          .d2c-map-anchor-grid{max-height:100px}
+          .d2c-map-anchor-token{min-height:44px}
+          .d2c-map-anchor-value{display:block;white-space:nowrap}
+          @media (min-height:760px){
+            .d2c-tall-only{display:block}
+            .d2c-map-anchor-grid{max-height:118px}
+            .d2c-map-anchor-token{min-height:54px}
+            .d2c-map-anchor-value{display:-webkit-box;white-space:normal;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.15}
+          }
+        `}</style>
         {/* Cards de trás — promovem com spring quando o topo sai. */}
         {behind.map((item, i) => (
           <motion.div

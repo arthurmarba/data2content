@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document, models, Types } from "mongoose";
+import type { ContentIdeaCollabBlueprint } from "@/app/dashboard/boards/videoUpload/contentIdeaBlueprint";
 
 /**
  * CollabInterest — a decisão de swipe de um criador sobre uma collab sugerida.
@@ -48,6 +49,8 @@ export interface ICollabInterest extends Document {
   /** Como gravar juntos (respeitando a distância) — sobrevive ao match, que é
    * quando o criador mais precisa dessa orientação ("casamos, e agora?"). */
   recordingIdea: string | null;
+  /** Storyboard compartilhado da versão a dois. */
+  collabBlueprint: ContentIdeaCollabBlueprint | null;
   /** "presencial" (mesma cidade) | "remoto" (longe/desconhecido). */
   collabMode: "presencial" | "remoto" | null;
 
@@ -79,6 +82,7 @@ const CollabInterestSchema = new Schema<ICollabInterest>(
     fitReason: { type: String, default: null },
     sharedSignal: { type: String, default: null },
     recordingIdea: { type: String, default: null },
+    collabBlueprint: { type: Schema.Types.Mixed, default: null },
     collabMode: { type: String, enum: ["presencial", "remoto", null], default: null },
 
     matchedAt: { type: Date, default: null },

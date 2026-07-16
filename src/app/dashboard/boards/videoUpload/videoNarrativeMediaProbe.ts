@@ -1,5 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { stat, unlink, writeFile } from "node:fs/promises";
+import { access, stat, unlink, writeFile } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -69,9 +70,18 @@ export function validateVideoNarrativeVerifiedMediaMetadata(params: {
 async function readMediaSignalsWithFfmpeg(filePath: string): Promise<{
   durationSeconds: number | null;
   earlyVisualChanges: number | null;
+  probeAvailable: boolean;
 }> {
   const executable = ffmpegPath;
-  if (!executable) return { durationSeconds: null, earlyVisualChanges: null };
+  if (!executable) {
+    return { durationSeconds: null, earlyVisualChanges: null, probeAvailable: false };
+  }
+
+  try {
+    await access(executable, fsConstants.X_OK);
+  } catch {
+    return { durationSeconds: null, earlyVisualChanges: null, probeAvailable: false };
+  }
 
   return new Promise((resolve) => {
     const child = spawn(
@@ -93,7 +103,11 @@ async function readMediaSignalsWithFfmpeg(filePath: string): Promise<{
     ) as ChildProcess;
     let stderr = "";
     let settled = false;
-    const finish = (value: { durationSeconds: number | null; earlyVisualChanges: number | null }) => {
+    const finish = (value: {
+      durationSeconds: number | null;
+      earlyVisualChanges: number | null;
+      probeAvailable: boolean;
+    }) => {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
@@ -102,16 +116,21 @@ async function readMediaSignalsWithFfmpeg(filePath: string): Promise<{
     child.stderr?.on("data", (chunk: Buffer) => {
       if (stderr.length < 32_000) stderr += String(chunk);
     });
-    child.once("error", () => finish({ durationSeconds: null, earlyVisualChanges: null }));
+    child.once("error", () => finish({
+      durationSeconds: null,
+      earlyVisualChanges: null,
+      probeAvailable: false,
+    }));
     child.once("close", (code: number | null) => finish({
       durationSeconds: parseDurationSeconds(stderr),
       earlyVisualChanges: code === 0
         ? (stderr.match(/showinfo[^\n]*\bn:\s*\d+/g) ?? []).length
         : null,
+      probeAvailable: true,
     }));
     const timeout = setTimeout(() => {
       child.kill("SIGKILL");
-      finish({ durationSeconds: null, earlyVisualChanges: null });
+      finish({ durationSeconds: null, earlyVisualChanges: null, probeAvailable: true });
     }, 15_000);
   });
 }
@@ -149,12 +168,12 @@ export async function probeVideoNarrativeMedia(
 
     const mediaSignals = probePath
       ? await readMediaSignalsWithFfmpeg(probePath)
-      : { durationSeconds: null, earlyVisualChanges: null };
+      : { durationSeconds: null, earlyVisualChanges: null, probeAvailable: false };
     const durationSeconds = mediaSignals.durationSeconds;
     if (durationSeconds === null) {
       return {
         ok: false,
-        code: ffmpegPath ? "invalid_media" : "media_probe_unavailable",
+        code: mediaSignals.probeAvailable ? "invalid_media" : "media_probe_unavailable",
         message: "Não foi possível confirmar a duração do vídeo.",
       };
     }

@@ -10,6 +10,14 @@ import CreatorContentIdea, {
   type CreatorContentIdeaStatus,
 } from "@/app/models/CreatorContentIdea";
 import { cleanIdeaText } from "./contentIdeasTextHygiene";
+import {
+  sanitizeContentIdeaScriptBlueprint,
+  type ContentIdeaScriptBlueprint,
+} from "./contentIdeaBlueprint";
+import {
+  resolveContentIdeaMapAnchors,
+  type ContentIdeaMapAnchor,
+} from "./contentIdeaMapAnchors";
 
 export interface ContentIdeaListItem {
   id: string;
@@ -21,10 +29,14 @@ export interface ContentIdeaListItem {
   suggestedFormat: string;
   tone: string | null;
   whyItFits: string;
+  /** Evidências rastreáveis do "Seu mapa" usadas para compor esta pauta. */
+  mapAnchors?: ContentIdeaMapAnchor[];
   /** Script directional: 2-3 ordered scene points for the video */
   scriptPoints: string[];
   /** Suggested video closing — question, invitation, or final insight */
   scriptClosing: string | null;
+  /** Storyboard visual V2; null em pautas legadas. */
+  scriptBlueprint?: ContentIdeaScriptBlueprint | null;
   /** Audience match — why this is what people most keep from the creator (null when none) */
   resonanceNote: string | null;
   status: CreatorContentIdeaStatus;
@@ -50,7 +62,9 @@ export async function listContentIdeasForUser(userId: string): Promise<ContentId
       .limit(30)
       .lean<ICreatorContentIdea[]>();
 
-    return docs.map((d) => ({
+    return docs.map((d) => {
+      const blueprint = sanitizeContentIdeaScriptBlueprint(d.scriptBlueprint, d.assets ?? []);
+      return ({
       id: d._id.toString(),
       // Conserta acentos mutilados pelo gerador ("cabe00e7a" → "cabeça") nas pautas
       // JÁ gravadas — sem migração. Pautas novas já saem limpas do sanitize.
@@ -62,13 +76,34 @@ export async function listContentIdeasForUser(userId: string): Promise<ContentId
       suggestedFormat: d.suggestedFormat,
       tone: d.tone,
       whyItFits: cleanIdeaText(d.whyItFits),
+      mapAnchors: resolveContentIdeaMapAnchors({
+        mapAnchors: d.mapAnchors,
+        territory: d.territory,
+        assets: d.assets,
+        tone: d.tone,
+      }),
       scriptPoints: (d.scriptPoints ?? []).map(cleanIdeaText),
       scriptClosing: d.scriptClosing ? cleanIdeaText(d.scriptClosing) : null,
+      scriptBlueprint: blueprint
+        ? {
+            ...blueprint,
+            visualPremise: cleanIdeaText(blueprint.visualPremise),
+            scenes: blueprint.scenes.map((scene) => ({
+              ...scene,
+              visual: cleanIdeaText(scene.visual),
+              spokenIntent: cleanIdeaText(scene.spokenIntent),
+              onScreenText: scene.onScreenText ? cleanIdeaText(scene.onScreenText) : null,
+              shot: scene.shot ? cleanIdeaText(scene.shot) : null,
+            })),
+            recordingChecklist: blueprint.recordingChecklist.map(cleanIdeaText),
+          }
+        : null,
       resonanceNote: d.resonanceNote ? cleanIdeaText(d.resonanceNote) : null,
       status: d.status,
       generatedAt: d.generatedAt.toISOString(),
       scheduledFor: d.scheduledFor ? d.scheduledFor.toISOString() : null,
-    }));
+      });
+    });
   } catch (err) {
     console.error("[contentIdeas:read] Erro silencioso:", err);
     return [];

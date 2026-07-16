@@ -31,6 +31,7 @@ import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
 import { logger } from "@/app/lib/logger";
 import { cleanIdeaText } from "./contentIdeasTextHygiene";
 import type { NarrativeCollabMatch } from "./narrativeCollabMatchingService";
+import type { ContentIdeaCollabBlueprint } from "./contentIdeaBlueprint";
 
 const TAG = "[collabInterestService]";
 
@@ -47,6 +48,7 @@ export interface RegisterCollabDecisionInput {
   sharedSignal?: string | null;
   /** Como gravar juntos (ciente de distância) — sobrevive pro pós-match. */
   recordingIdea?: string | null;
+  collabBlueprint?: ContentIdeaCollabBlueprint | null;
   collabMode?: "presencial" | "remoto" | null;
   decision: CollabInterestDecision;
 }
@@ -90,7 +92,7 @@ const PARTNER_FIELDS = "_id name username instagramUsername image mediaKitSlug w
 /** Monta o parceiro no shape NarrativeCollabMatch que a UI de match já consome. */
 function buildMatchPayload(
   user: PartnerUserLean,
-  interest: Pick<ICollabInterest, "fitReason" | "sharedSignal" | "recordingIdea" | "collabMode">,
+  interest: Pick<ICollabInterest, "fitReason" | "sharedSignal" | "recordingIdea" | "collabBlueprint" | "collabMode">,
 ): NarrativeCollabMatch {
   const handle = user.username ?? user.instagramUsername ?? null;
   return {
@@ -106,6 +108,7 @@ function buildMatchPayload(
     narrativeFitReason: interest.fitReason ?? "",
     // Sobrevive ao match: "como gravar juntos" é o que o criador precisa AGORA.
     collabRecordingIdea: interest.recordingIdea ?? null,
+    collabBlueprint: interest.collabBlueprint ?? null,
     collabMode: interest.collabMode ?? null,
     sharedSignal: interest.sharedSignal ?? null,
     distinctSignals: [],
@@ -198,6 +201,7 @@ export async function registerCollabDecision(
         fitReason: input.fitReason ?? null,
         sharedSignal: input.sharedSignal ?? null,
         recordingIdea: input.recordingIdea ?? null,
+        collabBlueprint: input.collabBlueprint ?? null,
         collabMode: input.collabMode ?? null,
         expiresAt: daysFromNow(ttlDays),
       },
@@ -245,6 +249,7 @@ export async function registerCollabDecision(
   //    docs, pra ambos verem exatamente a mesma orientação. O modo (presencial/
   //    remoto) já é simétrico (mesma checagem de cidade), então basta um.
   const sharedRecordingIdea = reciprocal.recordingIdea ?? own.recordingIdea ?? null;
+  const sharedCollabBlueprint = reciprocal.collabBlueprint ?? own.collabBlueprint ?? null;
   const sharedMode = own.collabMode ?? reciprocal.collabMode ?? null;
 
   // O próprio doc também vira match, deixa de expirar E já nasce celebrado: quem
@@ -252,16 +257,17 @@ export async function registerCollabDecision(
   // próxima visita. O outro doc fica sem celebratedAt.
   await CollabInterest.updateOne(
     { _id: own._id },
-    { $set: { matchedAt: now, celebratedAt: now, recordingIdea: sharedRecordingIdea, collabMode: sharedMode }, $unset: { expiresAt: 1 } },
+    { $set: { matchedAt: now, celebratedAt: now, recordingIdea: sharedRecordingIdea, collabBlueprint: sharedCollabBlueprint, collabMode: sharedMode }, $unset: { expiresAt: 1 } },
   );
   // Recíproco recebe a MESMA ideia/modo (o dele pode ter sido escolhido, mas
   // reescrever é idempotente e garante consistência se o fallback entrou).
   await CollabInterest.updateOne(
     { _id: reciprocal._id },
-    { $set: { recordingIdea: sharedRecordingIdea, collabMode: sharedMode } },
+    { $set: { recordingIdea: sharedRecordingIdea, collabBlueprint: sharedCollabBlueprint, collabMode: sharedMode } },
   );
   // Reflete no objeto em memória pro payload de retorno deste lado.
   own.recordingIdea = sharedRecordingIdea;
+  own.collabBlueprint = sharedCollabBlueprint;
   own.collabMode = sharedMode;
 
   // 4. Perfis pros payloads + aviso.

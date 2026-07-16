@@ -62,12 +62,17 @@ async function main() {
   const deck: DeckData = JSON.parse(await fs.readFile(deckAbs, "utf-8"));
   const ctx: MeetingContext = JSON.parse(await fs.readFile(ctxPath, "utf-8"));
   const byHandle = new Map<string, ParticipanteSemana>();
-  for (const p of ctx.participantes) if (p.handle) byHandle.set(norm(p.handle), p);
+  const byNome = new Map<string, ParticipanteSemana>();
+  for (const p of ctx.participantes) {
+    if (p.handle) byHandle.set(norm(p.handle), p);
+    if (p.nome) byNome.set(norm(p.nome), p);
+  }
 
   let hidratados = 0;
   const semContexto: string[] = [];
   for (const c of deck.criadores) {
-    const p = byHandle.get(norm(c.handle));
+    // Criadores sem Instagram conectado não têm handle — casam por nome (resolvido via --names).
+    const p = byHandle.get(norm(c.handle)) ?? byNome.get(norm(c.handle)) ?? byNome.get(norm(c.nome));
     if (!p || !p.encontrado) {
       semContexto.push(c.handle ?? c.nome);
       continue;

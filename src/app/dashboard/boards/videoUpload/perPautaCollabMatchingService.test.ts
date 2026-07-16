@@ -12,7 +12,7 @@ const mockFetchLocation = jest.fn();
 jest.mock("./narrativeCollabMatchingService", () => ({
   buildNarrativeCandidatePool: (...a: unknown[]) => mockBuildPool(...a),
   buildMatchFromCandidate: (...a: unknown[]) => mockBuildMatch(...a),
-  assignCollabsByTerritory: (...a: unknown[]) => mockAssign(...a),
+  assignCollabsByPauta: (...a: unknown[]) => mockAssign(...a),
   fetchCreatorLocation: (...a: unknown[]) => mockFetchLocation(...a),
   // Réplica pura da lógica real: mesma cidade → presencial, senão remoto.
   computeCollabMode: (a: { city?: string | null } | null, b: { city?: string | null } | null) => {
@@ -41,16 +41,17 @@ beforeEach(() => {
   jest.clearAllMocks();
   mockAssign.mockResolvedValue(new Map()); // por padrão: LLM "não opina" → determinístico
   mockFetchLocation.mockResolvedValue(null); // viewer sem cidade por padrão → remoto
-  mockBuildMatch.mockImplementation((eligible: any, _labels: unknown, _terr: unknown, fit: string, rec?: string, mode?: string) => ({
+  mockBuildMatch.mockImplementation((eligible: any, _labels: unknown, _terr: unknown, fit: string, rec?: string, mode?: string, blueprint?: unknown) => ({
     id: eligible.userId,
     narrativeFitReason: fit,
     collabRecordingIdea: rec ?? null,
     collabMode: mode ?? null,
+    collabBlueprint: blueprint ?? null,
   }));
 });
 
 describe("matchCollabsForPautas — fallback determinístico (LLM não opina)", () => {
-  it("dedup por território: pautas do mesmo território compartilham o match", async () => {
+  it("gera decisões por pauta mesmo quando o território se repete", async () => {
     mockBuildPool.mockResolvedValue(poolOf(
       poolEntry("c1", ["Paternidade", "Carreira"]),
       poolEntry("c2", ["Paternidade", "Carreira"]),
@@ -62,8 +63,8 @@ describe("matchCollabsForPautas — fallback determinístico (LLM não opina)", 
     ], "minha narrativa");
 
     expect(r.get("p1")?.id).toBe("c1");
-    expect(r.get("p2")?.id).toBe("c1");
-    expect(r.get("p3")?.id).toBe("c2"); // excludeIds
+    expect(r.get("p2")?.id).toBe("c2");
+    expect(r.get("p3")).toBeNull();
   });
 
   it("excludeIds: não repete o mesmo criador entre territórios", async () => {
@@ -95,7 +96,7 @@ describe("matchCollabsForPautas — fallback determinístico (LLM não opina)", 
     expect(r.get("p1")).toBeNull();
   });
 
-  it("geminiCallCap 0 desliga o LLM → não chama assignCollabsByTerritory", async () => {
+  it("geminiCallCap 0 desliga o LLM → não chama assignCollabsByPauta", async () => {
     mockBuildPool.mockResolvedValue(poolOf(poolEntry("c1", ["Paternidade"])));
     const r = await matchCollabsForPautas("viewer", [{ id: "p1", territory: "Paternidade" }], "narrativa", { geminiCallCap: 0 });
     expect(mockAssign).not.toHaveBeenCalled();
@@ -110,7 +111,7 @@ describe("matchCollabsForPautas — atribuição semântica (Gemini)", () => {
       poolEntry("c2", ["Empreendedorismo"]), // word-overlap NÃO casaria "Negócios"
     ));
     mockAssign.mockResolvedValue(new Map([
-      ["negócios criativos", { candidateId: "c2", fitReason: "LLM_FIT", recordingIdea: "LLM_REC" }],
+      ["p1", { candidateId: "c2", fitReason: "LLM_FIT", recordingIdea: "LLM_REC" }],
     ]));
     const r = await matchCollabsForPautas("viewer", [{ id: "p1", territory: "Negócios criativos" }], "narrativa");
     expect(r.get("p1")?.id).toBe("c2"); // semântico: empreendedorismo ↔ negócios
@@ -121,7 +122,7 @@ describe("matchCollabsForPautas — atribuição semântica (Gemini)", () => {
   it("LLM diz null → respeita (null), mesmo com word-overlap disponível", async () => {
     mockBuildPool.mockResolvedValue(poolOf(poolEntry("c1", ["Paternidade"])));
     mockAssign.mockResolvedValue(new Map([
-      ["paternidade", { candidateId: null, fitReason: "", recordingIdea: null }],
+      ["p1", { candidateId: null, fitReason: "", recordingIdea: null }],
     ]));
     const r = await matchCollabsForPautas("viewer", [{ id: "p1", territory: "Paternidade" }], "narrativa");
     expect(r.get("p1")).toBeNull();
@@ -130,7 +131,7 @@ describe("matchCollabsForPautas — atribuição semântica (Gemini)", () => {
   it("LLM alucina id inexistente → cai no determinístico", async () => {
     mockBuildPool.mockResolvedValue(poolOf(poolEntry("c1", ["Paternidade"])));
     mockAssign.mockResolvedValue(new Map([
-      ["paternidade", { candidateId: "FANTASMA", fitReason: "x", recordingIdea: null }],
+      ["p1", { candidateId: "FANTASMA", fitReason: "x", recordingIdea: null }],
     ]));
     const r = await matchCollabsForPautas("viewer", [{ id: "p1", territory: "Paternidade" }], "narrativa");
     expect(r.get("p1")?.id).toBe("c1"); // fallback determinístico recupera
@@ -185,5 +186,31 @@ describe("matchCollabsForPautas — distância (presencial × remoto)", () => {
     const arg = mockAssign.mock.calls[0][0];
     expect(arg.viewerCity).toBe("Curitiba");
     expect(arg.candidates[0].city).toBe("Belo Horizonte");
+  });
+
+  it("envia título, hook e storyboard da pauta para a direção de collab", async () => {
+    mockBuildPool.mockResolvedValue(poolOf(poolEntry("c1", ["Paternidade"], "Recife")));
+    await matchCollabsForPautas("viewer", [{
+      id: "p1",
+      territory: "Paternidade",
+      title: "A conversa que evitei com meu filho",
+      hook: "Eu achei que estava protegendo ele",
+      scriptBlueprint: {
+        version: 2,
+        visualPremise: "Uma conversa atravessa dois ambientes",
+        estimatedDurationSeconds: 40,
+        scenes: [
+          { beat: "abertura", visual: "mesa vazia", spokenIntent: "abrir a tensão", onScreenText: null, shot: "detalhe", asset: null, durationSeconds: 5 },
+          { beat: "fechamento", visual: "volta ao rosto", spokenIntent: "fechar a descoberta", onScreenText: null, shot: "próximo", asset: null, durationSeconds: 8 },
+        ],
+        recordingChecklist: [],
+      },
+    }], "narrativa");
+    expect(mockAssign.mock.calls[0][0].pautas[0]).toMatchObject({
+      id: "p1",
+      title: "A conversa que evitei com meu filho",
+      hook: "Eu achei que estava protegendo ele",
+    });
+    expect(mockAssign.mock.calls[0][0].pautas[0].scriptBlueprint.visualPremise).toContain("dois ambientes");
   });
 });

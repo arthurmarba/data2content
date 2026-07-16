@@ -50,11 +50,37 @@ function formatData(iso: string): string {
   return `${Number(m[3])} de ${MESES[Number(m[2]) - 1] ?? ""}`;
 }
 
+/** O mapa guarda território com case livre ("Maternidade" ao lado de "cotidiano")
+ *  — normaliza pra Title Case só na exibição, sem alterar o dado de origem. */
+function tituleCase(s: string): string {
+  return s.replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
 function chips(arr: string[], n = 3): string {
   return arr
     .slice(0, n)
-    .map((t) => `<span class="chip">${esc(t)}</span>`)
+    .map((t) => `<span class="chip">${esc(tituleCase(t))}</span>`)
     .join("");
+}
+
+/** Agrupa uma lista em linhas de tamanho parecido (nunca uma linha órfã sozinha
+ *  no fim) — ex.: 11 itens com maxPorLinha=6 vira [6,5], não [6,5] deslocado. */
+function linhasBalanceadas<T>(itens: T[], maxPorLinha: number): T[][] {
+  const n = itens.length;
+  if (n <= maxPorLinha) return [itens];
+  const linhas = Math.ceil(n / maxPorLinha);
+  const porLinha = Math.ceil(n / linhas);
+  const out: T[][] = [];
+  for (let i = 0; i < n; i += porLinha) out.push(itens.slice(i, i + porLinha));
+  return out;
+}
+
+/** Cresce um bloco de conteúdo (via zoom) quando o texto é curto — o slide sempre
+ *  ocupa a altura toda, sem sobra vazia embaixo. Nunca encolhe abaixo de 1×. */
+function escalaPorConteudo(blocos: (string | null | undefined)[], refChars = 480, max = 1.3): number {
+  const n = blocos.filter(Boolean).join(" ").replace(/<[^>]+>/g, "").length;
+  if (n <= 0) return 1;
+  return Math.round(Math.min(max, Math.max(1, refChars / n)) * 100) / 100;
 }
 
 function statPill(p: Ponto): string {
@@ -121,8 +147,9 @@ const CSS = `
   .cover-title { font-family:var(--serif); font-weight:800; font-size:58px; line-height:1.1; text-align:center;
     margin:14px auto 6px; max-width:22ch; }
   .cover-period { text-align:center; font-size:15px; color:var(--muted); letter-spacing:.05em; margin-bottom:34px; }
-  .roster { display:flex; flex-wrap:wrap; justify-content:center; gap:22px 30px; max-width:980px; margin:0 auto; }
-  .roster--lg { gap:30px 48px; }
+  .roster { display:flex; flex-direction:column; align-items:center; gap:22px; max-width:1120px; margin:0 auto; }
+  .roster-linha { display:flex; flex-wrap:nowrap; justify-content:center; gap:22px 30px; }
+  .roster--lg .roster-linha { gap:30px 48px; }
   .person { display:flex; flex-direction:column; align-items:center; width:120px; }
   .person .avatar { width:74px; height:74px; }
   .roster--lg .person .avatar { width:104px; height:104px; }
@@ -179,7 +206,8 @@ const CSS = `
   .pauta-p { color:var(--muted); }
 
   /* Constelação da comunidade */
-  .const-grid { display:flex; flex-wrap:wrap; justify-content:center; gap:18px 22px; margin-top:18px; }
+  .const-grid { display:flex; flex-direction:column; align-items:center; gap:18px; margin-top:18px; }
+  .const-linha { display:flex; flex-wrap:nowrap; justify-content:center; gap:18px 22px; }
   .const-node { width:200px; background:var(--card); border:1px solid var(--hair); border-radius:14px; padding:14px 16px; display:flex; flex-direction:column; align-items:center; text-align:center; }
   .const-node .avatar { width:60px; height:60px; }
   .const-name { margin-top:8px; font-size:14px; font-weight:600; }
@@ -205,8 +233,13 @@ const CSS = `
   .pt-head { display:flex; align-items:center; gap:12px; margin-bottom:7px; }
   .pt-head .stat { margin-left:auto; font-size:14px; }
   .venn { width:46px; height:35px; flex:0 0 46px; }
+  .mv-legenda { font-size:9px; color:var(--muted); display:flex; gap:6px; margin-top:2px; }
   .pt-texto { font-family:var(--serif); font-weight:700; font-size:21px; line-height:1.3; }
   .pt-evid { font-size:13.5px; color:var(--muted); line-height:1.5; margin-top:7px; }
+  /* Card único do "sem sinal esta semana" — maior que um pt normal, pra não sobrar vazio. */
+  .pt--semsinal { padding:34px 40px; }
+  .pt--semsinal .pt-label { font-size:14px; }
+  .pt--semsinal .pt-texto { font-size:26px; margin-top:8px; }
 
   /* Corpo do Tempo B — hierarquia clara: lead leve → card-herói → rodapé fino. */
   .crB { flex:1; display:flex; flex-direction:column; gap:22px; justify-content:center; max-width:1040px; }
@@ -277,7 +310,7 @@ const CSS = `
   .slide--dark .r-kicker { color:#e6b8a6; }
   .slide--accent .r-kicker { color:rgba(255,255,255,.82); }
   .slide--paper .r-kicker { color:var(--accent); }
-  .r-title { font-family:var(--serif); font-weight:800; font-size:52px; line-height:1.16; max-width:20ch; }
+  .r-title { font-family:var(--serif); font-weight:800; font-size:52px; line-height:1.32; letter-spacing:-0.01em; max-width:20ch; }
   .slide--dark .r-title, .slide--accent .r-title { color:#fbf7f4; }
   .slide--paper .r-title { color:var(--ink); }
   .r-sub { margin-top:22px; font-size:17px; line-height:1.6; max-width:44ch; }
@@ -298,10 +331,21 @@ function shell(inner: string): string {
   return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><style>${CSS}</style></head><body>${inner}</body></html>`;
 }
 
+/** Rótulo minúsculo junto do mini-Venn, lembrando o que os círculos significam —
+ *  só na primeira ocorrência (ponto forte) do slide, pra não duplicar no ajustar. */
+function miniVennLegendaInline(): string {
+  return `<div class="mv-legenda">
+    <span style="color:${CIRC.narrativa}">●</span> Narrativa
+    <span style="color:${CIRC.audiencia}">●</span> Audiência
+    <span style="color:${CIRC.marca}">●</span> Marca
+  </div>`;
+}
+
 function ponto(p: Ponto, kind: "forte" | "ajustar"): string {
   const label = kind === "forte" ? "Ponto forte" : "Ponto a ajustar";
   return `<div class="pt pt--${kind}">
     <div class="pt-head"><span class="pt-label">${label}</span>${miniVenn(p)}${statPill(p)}</div>
+    ${kind === "forte" ? miniVennLegendaInline() : ""}
     <div class="pt-texto">${rich(p.texto)}</div>
     <div class="pt-evid">${rich(p.evidencia)}</div>
   </div>`;
@@ -322,18 +366,17 @@ function videoWindow(c: CriadorSlide): string {
 export function coverSlide(d: DeckData): string {
   const ps = d.criadores;
   const big = ps.length <= 6;
-  const people = ps
-    .map(
-      (c) => `<div class="person">${avatar(c.nome, c.profilePictureUrl)}
+  const pessoa = (c: CriadorSlide) => `<div class="person">${avatar(c.nome, c.profilePictureUrl)}
         <div class="person-name">${esc(c.nome)}</div>
-        ${c.handle ? `<div class="person-handle">${esc(c.handle)}</div>` : ""}</div>`,
-    )
+        ${c.handle ? `<div class="person-handle">${esc(c.handle)}</div>` : ""}</div>`;
+  const linhas = linhasBalanceadas(ps, 6)
+    .map((linha) => `<div class="roster-linha">${linha.map(pessoa).join("")}</div>`)
     .join("");
   return shell(`<div class="slide cover">
     <div class="eyebrow">Reunião da comunidade · Conteúdo do nosso jeito</div>
     <h1 class="cover-title">${esc(d.reuniao.titulo)}</h1>
     <div class="cover-period">${esc(formatData(d.reuniao.data))} · ${ps.length} criador${ps.length === 1 ? "" : "es"}</div>
-    <div class="roster ${big ? "roster--lg" : ""}">${people}</div>
+    <div class="roster ${big ? "roster--lg" : ""}">${linhas}</div>
   </div>`);
 }
 
@@ -364,17 +407,21 @@ export function criadorSlideA(c: CriadorSlide, idx: number, total: number): stri
     : `<div class="cr-narr">Mapa ainda sem narrativa central definida.</div>`;
   const coer = coerenciaBanner(c);
   const verdict = c.semSinal
-    ? `<div class="pt pt--ajustar"><div class="pt-label" style="color:var(--ajustar)">Sem sinal esta semana</div>
-        <div class="pt-texto" style="font-size:17px">Nenhum post no período — partimos do mapa.</div></div>`
+    ? `<div class="pt pt--ajustar pt--semsinal"><div class="pt-label" style="color:var(--ajustar)">Sem sinal esta semana</div>
+        <div class="pt-texto">Nenhum post no período — partimos do mapa.</div></div>`
     : `${coer}${ponto(c.pontoForte, "forte")}${ponto(c.pontoAjustar, "ajustar")}`;
   const temReel = !!(c.reel && c.reel.postId);
+  // Handle às vezes vem preenchido com o próprio nome (criador sem @ real, ex.: sem Instagram
+  // conectado) — mostrar os dois empilhados parece duplicidade/bug, não informação nova.
+  const normaliza = (s: string) => s.toLowerCase().replace(/^dra?\.?\s+/, "").replace(/[^a-z0-9]/g, "");
+  const handleRedundante = !c.handle || normaliza(c.handle) === normaliza(c.nome);
   return shell(`<div class="slide">
     ${crHead(c, idx, total, "A semana")}
     <div class="cr ${temReel ? "cr--reel" : ""}">
       <div class="cr-id">
         ${avatar(c.nome, c.profilePictureUrl)}
         <div class="cr-name">${esc(c.nome)}</div>
-        ${c.handle ? `<div class="cr-handle">${esc(c.handle)}</div>` : ""}
+        ${handleRedundante ? "" : `<div class="cr-handle">${esc(c.handle)}</div>`}
         ${narr}
         <div class="cr-terr">${chips(c.territorios)}</div>
         ${numerosStrip(c)}
@@ -411,9 +458,12 @@ export function criadorSlideB(c: CriadorSlide, idx: number, total: number): stri
   const comparativo = c.comparativo
     ? `<div class="comp">↺ <span class="comp-lab">Desde a última:</span> ${rich(c.comparativo)}</div>`
     : "";
+  // Conteúdo curto (poucas pautas, sem comparativo) deixava muito vazio embaixo —
+  // cresce o bloco todo (zoom, mantém as proporções) até preencher melhor o slide.
+  const zoom = escalaPorConteudo([audiencia, passos, marca, comparativo]);
   return shell(`<div class="slide">
     ${crHead(c, idx, total, "O que vem")}
-    <div class="crB">
+    <div class="crB" style="zoom:${zoom}">
       ${audiencia}
       ${passos}
       ${marca}
@@ -446,6 +496,9 @@ export function collabSlide(c: CollabSugerida, idx: number, total: number, criad
     : c.comoGravar
       ? `<div class="cx-grava-txt">${rich(c.comoGravar)}</div>`
       : "";
+  // Poucos passos (3, sem texto longo) sobrava vazio no card direito — cresce
+  // proporcionalmente ao conteúdo, igual ao Tempo B.
+  const zoom = escalaPorConteudo([passos], 420, 1.25);
   return shell(`<div class="slide">
     <div class="head">
       <span class="idx">Collab ${idx} / ${total}</span>
@@ -458,7 +511,7 @@ export function collabSlide(c: CollabSugerida, idx: number, total: number, criad
         <div class="cx-pauta">${rich(c.pautaIdeia)}</div>
         ${c.porQueFunciona ? `<div class="cx-pq"><b>Por que funciona pros dois:</b> ${rich(c.porQueFunciona)}</div>` : ""}
       </div>
-      <div class="cx-right">
+      <div class="cx-right" style="zoom:${zoom}">
         <div class="cx-grava-lab">🎥 Como gravar à distância</div>
         <div class="cx-grava-sub">A maioria não mora na mesma cidade — então funciona assim:</div>
         ${passos}
@@ -471,20 +524,19 @@ export function collabSlide(c: CollabSugerida, idx: number, total: number, criad
  *  Só o MAPA de territórios (os pares detalhados vivem no slide de Collabs). */
 export function constelacaoSlide(d: DeckData): string {
   if (d.criadores.length === 0) return "";
-  const nodes = d.criadores
-    .map(
-      (c) => `<div class="const-node">
+  const node = (c: CriadorSlide) => `<div class="const-node">
         ${avatar(c.nome, c.profilePictureUrl)}
         <div class="const-name">${esc(c.nome)}</div>
         <div class="const-terr">${chips(c.territorios, 2)}</div>
-      </div>`,
-    )
+      </div>`;
+  const linhas = linhasBalanceadas(d.criadores, 5)
+    .map((linha) => `<div class="const-linha">${linha.map(node).join("")}</div>`)
     .join("");
   return shell(`<div class="slide">
     <div class="eyebrow">A comunidade da semana</div>
     <h2 class="sec-title">Quem ocupa qual território</h2>
     <div class="sec-lead">Vendo o mapa de todos juntos, as pontes aparecem — você não cria sozinho.</div>
-    <div class="const-grid">${nodes}</div>
+    <div class="const-grid">${linhas}</div>
   </div>`);
 }
 

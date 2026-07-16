@@ -12,7 +12,7 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import PerPautaCollabCache, { PER_PAUTA_COLLAB_CACHE_TTL_HOURS } from "@/app/models/PerPautaCollabCache";
 import type { PautaForMatch } from "./perPautaCollabMatchingService";
 
-const PER_PAUTA_MATCHER_CACHE_VERSION = 2;
+const PER_PAUTA_MATCHER_CACHE_VERSION = 3;
 
 /** Hash estável do input do matcher — ordena as pautas pra ser ordem-independente. */
 export function computePerPautaCacheKey(pautas: PautaForMatch[], narrativeLabel: string): string {
@@ -21,6 +21,10 @@ export function computePerPautaCacheKey(pautas: PautaForMatch[], narrativeLabel:
       id: p.id,
       territory: (p.territory ?? "").trim().toLowerCase(),
       title: (p.title ?? "").replace(/\s+/g, " ").trim().toLowerCase(),
+      angle: (p.angle ?? "").replace(/\s+/g, " ").trim().toLowerCase(),
+      hook: (p.hook ?? "").replace(/\s+/g, " ").trim().toLowerCase(),
+      suggestedFormat: (p.suggestedFormat ?? "").trim().toLowerCase(),
+      scriptBlueprint: p.scriptBlueprint ?? null,
     }))
     .sort();
   const stable = JSON.stringify({

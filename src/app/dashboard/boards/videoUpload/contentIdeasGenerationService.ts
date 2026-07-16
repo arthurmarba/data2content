@@ -18,10 +18,21 @@ import type { ICreatorContentIdea } from "@/app/models/CreatorContentIdea";
 import {
   buildContentIdeasPrompt,
   CONTENT_IDEAS_RESPONSE_JSON_SCHEMA,
+  CONTENT_IDEA_CREATIVE_MODES,
+  type ContentIdeaCreativeMode,
   type ContentIdeasMapContext,
 } from "./contentIdeasGeminiPromptBuilder";
 import { cleanIdeaText } from "./contentIdeasTextHygiene";
-import { filterNearDuplicateTitles } from "./contentIdeasTitleDedup";
+import { selectDiverseContentIdeas } from "./contentIdeasBatchDiversity";
+import {
+  sanitizeContentIdeaScriptBlueprint,
+  type ContentIdeaScriptBlueprint,
+} from "./contentIdeaBlueprint";
+import {
+  resolveContentIdeaMapAnchors,
+  sanitizeGeneratedContentIdeaMapAnchors,
+  type ContentIdeaMapAnchor,
+} from "./contentIdeaMapAnchors";
 import { logGeminiUsage } from "@/app/lib/llm/geminiUsageLog";
 import { logUsageEvent } from "@/app/lib/dataService/usageEventService";
 
@@ -46,6 +57,10 @@ export interface ContentIdeasGenerationResult {
     suggestedFormat: string;
     tone: string | null;
     whyItFits: string;
+    mapAnchors: ContentIdeaMapAnchor[];
+    scriptPoints: string[];
+    scriptClosing: string | null;
+    scriptBlueprint: ContentIdeaScriptBlueprint | null;
     resonanceNote: string | null;
     generatedAt: string;
   }>;
@@ -124,8 +139,7 @@ function parseGeminiJson(text: string | null): { ideas: Array<Record<string, unk
 
 function sanitizeIdea(
   raw: Record<string, unknown>,
-  allowedTerritories: string[],
-  allowedAssets: string[],
+  context: ContentIdeasMapContext,
 ): {
   title: string;
   angle: string;
@@ -134,10 +148,15 @@ function sanitizeIdea(
   assets: string[];
   suggestedFormat: string;
   whyItFits: string;
+  mapAnchors: ContentIdeaMapAnchor[];
   scriptPoints: string[];
   scriptClosing: string | null;
+  scriptBlueprint: ContentIdeaScriptBlueprint | null;
   resonanceNote: string | null;
+  creativeMode: ContentIdeaCreativeMode;
 } | null {
+  const allowedTerritories = context.territories.map((territory) => territory.label);
+  const allowedAssets = context.confirmedAssets;
   const title = typeof raw.title === "string" ? raw.title.trim().slice(0, 160) : null;
   const angle = typeof raw.angle === "string" ? raw.angle.trim().slice(0, 400) : null;
   const hook = typeof raw.hook === "string" ? raw.hook.trim().slice(0, 220) : null;
@@ -146,8 +165,11 @@ function sanitizeIdea(
     ? raw.suggestedFormat.trim().slice(0, 60)
     : null;
   const whyItFits = typeof raw.whyItFits === "string" ? raw.whyItFits.trim().slice(0, 400) : null;
+  const creativeMode = typeof raw.creativeMode === "string" && CONTENT_IDEA_CREATIVE_MODES.includes(raw.creativeMode as ContentIdeaCreativeMode)
+    ? raw.creativeMode as ContentIdeaCreativeMode
+    : null;
 
-  if (!title || !angle || !hook || !rawTerritory || !suggestedFormat || !whyItFits) {
+  if (!title || !angle || !hook || !rawTerritory || !suggestedFormat || !whyItFits || !creativeMode) {
     return null;
   }
 
@@ -193,12 +215,38 @@ function sanitizeIdea(
     typeof raw.scriptClosing === "string" && raw.scriptClosing.trim()
       ? raw.scriptClosing.trim().slice(0, 160)
       : null;
+  const sanitizedBlueprint = sanitizeContentIdeaScriptBlueprint(raw.scriptBlueprint, allowedAssets);
+  const scriptBlueprint = sanitizedBlueprint
+    ? {
+        ...sanitizedBlueprint,
+        visualPremise: cleanIdeaText(sanitizedBlueprint.visualPremise),
+        scenes: sanitizedBlueprint.scenes.map((scene) => ({
+          ...scene,
+          visual: cleanIdeaText(scene.visual),
+          spokenIntent: cleanIdeaText(scene.spokenIntent),
+          onScreenText: scene.onScreenText ? cleanIdeaText(scene.onScreenText) : null,
+          shot: scene.shot ? cleanIdeaText(scene.shot) : null,
+        })),
+        recordingChecklist: sanitizedBlueprint.recordingChecklist.map(cleanIdeaText),
+      }
+    : null;
 
   // Audience match — enrichment, never drops an idea if absent.
   const resonanceNote =
     typeof raw.resonanceNote === "string" && raw.resonanceNote.trim()
       ? raw.resonanceNote.trim().slice(0, 200)
       : null;
+  const mapAnchors = resolveContentIdeaMapAnchors({
+    mapAnchors: sanitizeGeneratedContentIdeaMapAnchors(raw.mapAnchors, {
+      territories: allowedTerritories,
+      themes: context.confirmedThemes ?? [],
+      assets: allowedAssets,
+      tone: context.tone,
+    }),
+    territory: matchedTerritory,
+    assets,
+    tone: context.tone,
+  });
 
   return {
     title: cleanIdeaText(title),
@@ -208,9 +256,12 @@ function sanitizeIdea(
     assets,
     suggestedFormat,
     whyItFits: cleanIdeaText(whyItFits),
+    mapAnchors,
     scriptPoints: scriptPoints.map(cleanIdeaText),
     scriptClosing: scriptClosing ? cleanIdeaText(scriptClosing) : null,
+    scriptBlueprint,
     resonanceNote: resonanceNote ? cleanIdeaText(resonanceNote) : null,
+    creativeMode,
   };
 }
 
@@ -234,6 +285,10 @@ export async function generateContentIdeas(
   }
 
   const count = Math.max(1, Math.min(params.count ?? DEFAULT_COUNT, MAX_COUNT));
+  // Geramos candidatos extras e entregamos apenas os que formam uma rodada
+  // diversa. Na leva padrão de 3 cards, por exemplo, o modelo cria 6 caminhos
+  // antes de o seletor escolher os 3 menos parecidos entre si.
+  const candidateCount = Math.min(MAX_COUNT, Math.max(count + 2, count * 2));
 
   // The card shows a single, stable batch of fresh pautas. When the creator asks
   // for new ones, this batch is REPLACED — not accumulated. To make "Gerar novos"
@@ -262,7 +317,7 @@ export async function generateContentIdeas(
 
   const prompt = buildContentIdeasPrompt({
     context: { ...params.context, recentDismissedTitles: avoidTitles },
-    count,
+    count: candidateCount,
     focusedTerritory: params.focusedTerritory ?? null,
     focusedFormat: params.focusedFormat ?? null,
   });
@@ -278,7 +333,7 @@ export async function generateContentIdeas(
         systemInstruction: prompt.systemInstruction,
         responseMimeType: "application/json",
         responseJsonSchema: CONTENT_IDEAS_RESPONSE_JSON_SCHEMA,
-        maxOutputTokens: 6000,
+        maxOutputTokens: 10000,
         // gemini-2.5-flash é um modelo "thinking": sem este teto, os tokens de
         // raciocínio consomem o maxOutputTokens e o JSON sai truncado/vazio →
         // parseGeminiJson null → invalid_gemini_response (500). Extração estruturada
@@ -316,7 +371,7 @@ export async function generateContentIdeas(
   console.log("[contentIdeas:generate] Gemini returned", parsed.ideas.length, "raw ideas. allowedTerritories:", allowedTerritories);
   const sanitized = parsed.ideas
     .map((raw) => {
-      const result = sanitizeIdea(raw, allowedTerritories, allowedAssets);
+      const result = sanitizeIdea(raw, params.context);
       if (!result) {
         console.warn("[contentIdeas:generate] sanitizeIdea dropped idea — territory:", (raw as any).territory, "| title:", (raw as any).title);
       }
@@ -333,16 +388,27 @@ export async function generateContentIdeas(
     };
   }
 
-  // ── Dedup semântico ───────────────────────────────────────────────────────
-  // Rede de segurança contra rephrase: a avoid-list do prompt é uma instrução
-  // leve — o modelo pode reescrever um tema que o criador já tem com outras
-  // palavras. Corta os títulos novos que se sobrepõem demais aos que ele já viu
-  // (avoidTitles = dismissed + live) e entre si. Se sobrar ao menos 1, seguimos
-  // com o que restou (não re-chamamos o Gemini — evita loop/custo).
-  const deduped = filterNearDuplicateTitles(sanitized, avoidTitles, (idea) => idea.title);
-  const finalIdeas = deduped.length > 0 ? deduped : sanitized;
-  if (deduped.length < sanitized.length) {
-    console.log("[contentIdeas:generate] dedup semântico cortou", sanitized.length - deduped.length, "quase-duplicata(s).");
+  // ── Composição diversa da rodada ──────────────────────────────────────────
+  // Não basta trocar palavras no título: a rodada alterna gesto criativo,
+  // território, cena/asset e formato. Rephrases vistos não voltam como fallback.
+  const finalIdeas = selectDiverseContentIdeas(sanitized, avoidTitles, count);
+  if (finalIdeas.length < count) {
+    console.log(
+      "[contentIdeas:generate] diversidade limitou a rodada a",
+      finalIdeas.length,
+      "de",
+      count,
+      "ideias; candidatos gerados:",
+      sanitized.length,
+    );
+  }
+
+  if (finalIdeas.length === 0) {
+    return {
+      ok: false,
+      errorCode: "invalid_gemini_response",
+      message: "Não conseguimos gerar ideias suficientemente diferentes agora. Tente novamente.",
+    };
   }
 
   // ── Persist ───────────────────────────────────────────────────────────────
@@ -366,8 +432,10 @@ export async function generateContentIdeas(
         suggestedFormat: idea.suggestedFormat,
         tone: params.context.tone,
         whyItFits: idea.whyItFits,
+        mapAnchors: idea.mapAnchors,
         scriptPoints: idea.scriptPoints,
         scriptClosing: idea.scriptClosing,
+        scriptBlueprint: idea.scriptBlueprint,
         resonanceNote: idea.resonanceNote,
         mapContextHash,
         modelVersion: DEFAULT_MODEL,
@@ -401,8 +469,15 @@ export async function generateContentIdeas(
         suggestedFormat: d.suggestedFormat,
         tone: d.tone,
         whyItFits: d.whyItFits,
+        mapAnchors: resolveContentIdeaMapAnchors({
+          mapAnchors: d.mapAnchors,
+          territory: d.territory,
+          assets: d.assets,
+          tone: d.tone,
+        }),
         scriptPoints: d.scriptPoints ?? [],
         scriptClosing: d.scriptClosing ?? null,
+        scriptBlueprint: d.scriptBlueprint ?? null,
         resonanceNote: d.resonanceNote ?? null,
         generatedAt: d.generatedAt.toISOString(),
       })),

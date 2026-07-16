@@ -13,6 +13,7 @@ import {
   setCachedPerPautaMatches,
 } from "@/app/dashboard/boards/videoUpload/perPautaCollabCache";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
+import { sanitizeContentIdeaScriptBlueprint } from "@/app/dashboard/boards/videoUpload/contentIdeaBlueprint";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,7 +29,15 @@ function parsePautas(value: unknown): PautaForMatch[] {
     const id = typeof r.id === "string" ? r.id : null;
     const territory = typeof r.territory === "string" ? r.territory : "";
     if (!id) continue;
-    out.push({ id, territory, title: typeof r.title === "string" ? r.title : undefined });
+    out.push({
+      id,
+      territory,
+      title: typeof r.title === "string" ? r.title : undefined,
+      angle: typeof r.angle === "string" ? r.angle : undefined,
+      hook: typeof r.hook === "string" ? r.hook : undefined,
+      suggestedFormat: typeof r.suggestedFormat === "string" ? r.suggestedFormat : undefined,
+      scriptBlueprint: sanitizeContentIdeaScriptBlueprint(r.scriptBlueprint),
+    });
   }
   return out;
 }

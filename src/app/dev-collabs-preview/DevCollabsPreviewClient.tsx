@@ -21,10 +21,15 @@ import { d2cFontVariables } from "@/app/fonts/d2cFonts";
 
 function pauta(id: string, o: Partial<ContentIdeaListItem>): ContentIdeaListItem {
   return {
-    id, title: "Pauta", angle: "", territory: "Paternidade", assets: [],
+    id, title: "Pauta", angle: "", territory: "Paternidade", assets: ["Mesa de trabalho"],
     hook: "Ontem meu filho perguntou uma coisa que me travou por uns segundos.",
     suggestedFormat: "Reel falado", tone: "reflexivo",
     whyItFits: "Você fala de trabalho e presença — esse é o nervo exposto.",
+    mapAnchors: [
+      { kind: "situation", source: "themes", label: "Tentando encerrar o expediente no horário" },
+      { kind: "scene", source: "assets", label: "Mesa de trabalho" },
+      { kind: "voice", source: "tone", label: "reflexivo" },
+    ],
     scriptPoints: ["Abre com a pergunta do filho", "Conta o que passou na cabeça", "Fecha com a decisão que tomou"],
     scriptClosing: "E você, já parou pra pensar no que o automático te custou?",
     resonanceNote: null, status: "active", generatedAt: "2026-07-01T00:00:00.000Z", scheduledFor: null,

@@ -73,6 +73,7 @@ describe("registerCollabDecision", () => {
     expect(ownUpdate.$set.expiresAt).toBeInstanceOf(Date);
     // "como gravar" + modo persistem no snapshot — precisam sobreviver pro pós-match.
     expect(ownUpdate.$set).toHaveProperty("recordingIdea");
+    expect(ownUpdate.$set).toHaveProperty("collabBlueprint");
     expect(ownUpdate.$set).toHaveProperty("collabMode");
     // Território normalizado gravado (lowercase, sem acento) — base do match por tema.
     expect(ownUpdate.$set.pautaTerritoryNorm).toBe("paternidade");

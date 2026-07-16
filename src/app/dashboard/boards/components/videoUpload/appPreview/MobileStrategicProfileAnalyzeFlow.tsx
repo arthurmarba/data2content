@@ -171,11 +171,6 @@ function stepIndex(step: AnalyzeFlowStep): number {
   return STEPS.indexOf(step);
 }
 
-const formatSize = (bytes: number) => {
-  const mb = bytes / (1024 * 1024);
-  return `${mb.toFixed(2)} MB`;
-};
-
 async function extractVideoThumbnail(file: File): Promise<string | null> {
   return new Promise((resolve) => {
     if (typeof URL.createObjectURL !== "function" || typeof URL.revokeObjectURL !== "function") {
@@ -252,12 +247,6 @@ async function extractVideoDurationSeconds(file: File): Promise<number | null> {
     video.src = url;
   });
 }
-
-const sanitizeVisibleFileName = (fileName: string) => {
-  const normalized = fileName.replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, " ").trim();
-  if (normalized.length <= 44) return normalized || "video";
-  return `${normalized.slice(0, 28)}...${normalized.slice(-12)}`;
-};
 
 function getUploadSessionErrorMessage(response?: UploadSessionResponse) {
   const blockerCode = response?.issues?.find((issue) => issue.severity === "blocker")?.code;
@@ -416,13 +405,6 @@ function buildVerdictAxes(data: MobileStrategicProfileAnalyzeConfirmationData | 
   return axes;
 }
 
-const SCAN_GOALS = [
-  { value: "retention" as const, label: "Leitura completa" },
-  { value: "format_test" as const, label: "Atenção" },
-  { value: "sponsored_content" as const, label: "Compartilhar" },
-  { value: "authority_build" as const, label: "Posicionamento" },
-];
-
 const WATCHED_MOMENT_LABELS = {
   opening: "Na abertura",
   development: "No desenvolvimento",
@@ -443,14 +425,12 @@ export function MobileStrategicProfileAnalyzeFlow({
   onReportInteraction,
   completionSecondaryAction = "another_video",
   onCompletionUpgrade,
-  readingsSummary,
 }: MobileStrategicProfileAnalyzeFlowProps) {
   const sheetRef = useRef<HTMLElement | null>(null);
   const [step, setStep] = useState<AnalyzeFlowStep>("upload");
   const [publishIntent, setPublishIntent] = useState<"yes" | "no" | null>(null);
   // Lente fixa do modal: "checar coerência com o meu mapa" (retention). O criador não
-  // escolhe mais a lente — a pergunta é sempre "vale postar?". O campo opcional de
-  // contexto refina a pergunta específica, sem trocar a lente.
+  // escolhe mais a lente — a pergunta é sempre "vale postar?".
   const [selectedOption, setSelectedOption] = useState<"authority" | "authority_build" | "retention" | "format_test" | "sponsored_content">("retention");
   const [creatorGoal, setCreatorGoal] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -472,7 +452,6 @@ export function MobileStrategicProfileAnalyzeFlow({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [videoDurationSeconds, setVideoDurationSeconds] = useState<number | null>(null);
   const [thumbnailDataUrl, setThumbnailDataUrl] = useState<string | null>(null);
-  const [consentAccepted, setConsentAccepted] = useState(false);
   const [validationStatus, setValidationStatus] = useState<"idle" | "validating" | "uploading" | "validated" | "uploaded" | "error">("idle");
   const [fileValidationError, setFileValidationError] = useState<string | null>(null);
   const [uploadSessionValidated, setUploadSessionValidated] = useState(false);
@@ -509,7 +488,6 @@ export function MobileStrategicProfileAnalyzeFlow({
       setSelectedFile(null);
       setVideoDurationSeconds(null);
       setThumbnailDataUrl(null);
-      setConsentAccepted(false);
       setValidationStatus("idle");
       setFileValidationError(null);
       setUploadSessionValidated(false);
@@ -646,10 +624,6 @@ export function MobileStrategicProfileAnalyzeFlow({
         setFileValidationError("Arquivo muito grande. Escolha um vídeo de até 300 MB.");
         return;
       }
-      if (!consentAccepted) {
-        setFileValidationError("Aceite o consentimento para continuar.");
-        return;
-      }
       // Barra vídeos longos antes de gastar o upload, usando a duração medida
       // na seleção (metadata carrega em milissegundos). Se ela não resolveu a
       // tempo (null), seguimos e deixamos o servidor aplicar o limite de 90s.
@@ -742,7 +716,6 @@ export function MobileStrategicProfileAnalyzeFlow({
     setErrorMsg(null);
     setSelectedFile(null);
     setVideoDurationSeconds(null);
-    setConsentAccepted(false);
     setValidationStatus("idle");
     setFileValidationError(null);
     setUploadSessionValidated(false);
@@ -793,7 +766,6 @@ export function MobileStrategicProfileAnalyzeFlow({
     setStep("upload");
     setSelectedFile(null);
     setVideoDurationSeconds(null);
-    setConsentAccepted(false);
     setValidationStatus("idle");
     setFileValidationError(null);
     setUploadSessionValidated(false);
@@ -835,7 +807,6 @@ export function MobileStrategicProfileAnalyzeFlow({
     setStep("upload");
     setSelectedFile(null);
     setVideoDurationSeconds(null);
-    setConsentAccepted(false);
     setValidationStatus("idle");
     setFileValidationError(null);
     setUploadSessionValidated(false);
@@ -881,6 +852,7 @@ export function MobileStrategicProfileAnalyzeFlow({
     isSubmitting ||
     validationStatus === "validating" ||
     validationStatus === "uploading" ||
+    (step === "upload" && Boolean(onCreateUploadSession) && !selectedFile) ||
     (step === "upload" &&
       onCreateUploadSession &&
       (validationStatus === "validated" || validationStatus === "uploaded"));
@@ -942,32 +914,6 @@ export function MobileStrategicProfileAnalyzeFlow({
         {step === "upload" ? (
           onCreateUploadSession ? (
             <div>
-              {readingsSummary ? (
-                readingsSummary.isPro ? (
-                  // Número discreto, sem pip-meter de cota — informa sem comunicar escassez.
-                  <div className="mb-4 flex items-center justify-between border-b border-[var(--ds-color-line)] pb-3">
-                    <span className="text-xs font-semibold text-zinc-700">Leituras no mês</span>
-                    <span className="text-xs font-medium text-zinc-500">
-                      {readingsSummary.used} de {readingsSummary.limit}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="mb-4 flex items-center gap-2.5 border-b border-[var(--ds-color-line)] pb-3">
-                    <span className="ds-badge ds-badge--neutral shrink-0">
-                      Grátis
-                    </span>
-                    <span className="text-xs font-medium text-zinc-600">
-                      {readingsSummary.used < readingsSummary.limit
-                        ? "Sua primeira leitura é por nossa conta."
-                        : "Você já usou sua leitura grátis."}
-                    </span>
-                  </div>
-                )
-              ) : null}
-              <p className="text-sm leading-6 text-zinc-600 mb-4">
-                Veja os sinais do vídeo antes de publicar. A leitura compara estrutura, intenção e o seu mapa.
-              </p>
-
               <input
                 type="file"
                 accept="video/mp4,video/quicktime,video/webm"
@@ -976,7 +922,6 @@ export function MobileStrategicProfileAnalyzeFlow({
                   if (file) {
                     requestTemporaryUploadCleanup("user_cancelled");
                     setSelectedFile(file);
-                    setConsentAccepted(false);
                     setValidationStatus("idle");
                     setFileValidationError(null);
                     setUploadSessionValidated(false);
@@ -1006,94 +951,42 @@ export function MobileStrategicProfileAnalyzeFlow({
                 id="video-file-picker"
               />
 
-              <label
-                htmlFor="video-file-picker"
-                className="ds-upload-dropzone"
-              >
-                <span>
-                  <span className="ds-upload-dropzone__icon" aria-hidden="true">
-                    <svg width="25" height="25" viewBox="0 0 24 24" fill="none">
-                      <path d="M8 4H5a1 1 0 0 0-1 1v3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                      <circle cx="12" cy="12" r="2.25" stroke="currentColor" strokeWidth="1.5" />
-                    </svg>
+              {!selectedFile ? (
+                <label htmlFor="video-file-picker" className="ds-upload-dropzone">
+                  <span>
+                    <span className="ds-upload-dropzone__icon" aria-hidden="true">
+                      <svg width="25" height="25" viewBox="0 0 24 24" fill="none">
+                        <path d="M8 4H5a1 1 0 0 0-1 1v3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                        <circle cx="12" cy="12" r="2.25" stroke="currentColor" strokeWidth="1.5" />
+                      </svg>
+                    </span>
+                    <span className="mt-4 block font-display text-[1.15rem] font-bold tracking-[-0.035em] text-zinc-950">Selecionar vídeo</span>
+                    <span className="mt-1 block text-xs text-zinc-500">Até 90 segundos</span>
                   </span>
-                  <span className="mt-4 block font-display text-[1.15rem] font-bold tracking-[-0.035em] text-zinc-950">Escolher vídeo para escanear</span>
-                  <span className="mt-1 block text-xs text-zinc-500">MP4, MOV ou WEBM · até 90 s · 300 MB</span>
-                </span>
-              </label>
-
-              {selectedFile ? (
-                <div className="ds-upload-preview mt-4 text-left">
+                </label>
+              ) : (
+                <label
+                  htmlFor="video-file-picker"
+                  aria-label="Trocar vídeo"
+                  className="group relative block cursor-pointer overflow-hidden rounded-[1.5rem] bg-zinc-950 ds-enter-sheet"
+                >
                   {thumbnailDataUrl ? (
-                    <div className="overflow-hidden">
-                      <img src={thumbnailDataUrl} alt="" className="w-full object-cover" style={{ aspectRatio: "16/9", maxHeight: 180 }} aria-hidden="true" />
-                    </div>
-                  ) : null}
-                  <div className="p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-white/55">Vídeo selecionado</p>
-                    <p className="mt-1 truncate text-sm font-semibold text-white">{sanitizeVisibleFileName(selectedFile.name)}</p>
-                    <p className="mt-1 text-xs text-white/60">{selectedFile.type || "video/mp4"} · {formatSize(selectedFile.size)}</p>
-                  </div>
-                </div>
-              ) : null}
-
-              {selectedFile ? (
-                <div className="mt-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-400">O que precisa dar certo?</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {SCAN_GOALS.map((goal) => (
-                      <button
-                        key={goal.value}
-                        type="button"
-                        className={`ds-chip ${selectedOption === goal.value ? "ds-chip--active" : ""}`}
-                        aria-pressed={selectedOption === goal.value}
-                        onClick={() => setSelectedOption(goal.value)}
-                      >
-                        {goal.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-
-              {selectedFile ? (
-                <div className="mt-4 flex items-start gap-2.5">
-                  <input
-                    type="checkbox"
-                    id="video-consent-checkbox"
-                    checked={consentAccepted}
-                    onChange={(e) => {
-                      setConsentAccepted(e.target.checked);
-                      if (e.target.checked) {
-                        setFileValidationError(null);
-                      }
-                    }}
-                    className="mt-1 h-4 w-4 rounded border-zinc-300 accent-[var(--ds-color-brand)] focus:ring-[var(--ds-color-brand)]"
-                  />
-                  <label htmlFor="video-consent-checkbox" className="text-xs leading-5 text-zinc-600 cursor-pointer">
-                    Usar este vídeo apenas para estudar meus padrões e refletir minha narrativa.
-                  </label>
-                </div>
-              ) : null}
-
-              {/* Contexto opcional — substitui o antigo passo de "lente". Uma linha, sem
-                  pressão; refina a pergunta que a leitura responde, sem trocar a função
-                  única do modal ("vale postar?"). */}
-              {selectedFile ? (
-                <div className="mt-4">
-                  <label htmlFor="video-context-input" className="text-xs text-zinc-400">
-                    Quer me contar algo sobre esse vídeo? (opcional)
-                  </label>
-                  <input
-                    id="video-context-input"
-                    type="text"
-                    value={creatorGoal}
-                    onChange={(event) => setCreatorGoal(event.target.value)}
-                    placeholder="Ex: gravei no impulso e fiquei na dúvida se posto."
-                    className="ds-field mt-1.5 !text-sm"
-                  />
-                </div>
-              ) : null}
+                    <img
+                      src={thumbnailDataUrl}
+                      alt="Capa do vídeo selecionado"
+                      className="w-full object-cover transition duration-300 group-active:scale-[0.99]"
+                      style={{ aspectRatio: "9/12", maxHeight: 430 }}
+                    />
+                  ) : (
+                    <span className="grid aspect-[9/12] max-h-[430px] place-items-center text-sm text-white/60">
+                      Preparando capa...
+                    </span>
+                  )}
+                  <span className="absolute bottom-3 right-3 rounded-full bg-black/65 px-3 py-2 text-xs font-semibold text-white backdrop-blur-sm transition group-hover:bg-black/80">
+                    Trocar vídeo
+                  </span>
+                </label>
+              )}
 
               {validationStatus === "validating" ? (
                 <p className="ds-upload-status mt-3">
@@ -1117,7 +1010,6 @@ export function MobileStrategicProfileAnalyzeFlow({
                       requestTemporaryUploadCleanup("user_cancelled");
                       setSelectedFile(null);
                       setVideoDurationSeconds(null);
-                      setConsentAccepted(false);
                       setValidationStatus("idle");
                       setFileValidationError(null);
                       setUploadSessionValidated(false);
@@ -1506,7 +1398,11 @@ export function MobileStrategicProfileAnalyzeFlow({
             onClick={handleContinue}
             disabled={isContinueDisabled}
           >
-            Continuar
+            {step === "upload" && onCreateUploadSession
+              ? validationStatus === "validating" || validationStatus === "uploading"
+                ? "Enviando..."
+                : "Próximo"
+              : "Continuar"}
           </button>
         )}
         </div>

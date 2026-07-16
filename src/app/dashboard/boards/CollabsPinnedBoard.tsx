@@ -101,7 +101,15 @@ export default function CollabsPinnedBoard({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           narrativeLabel: narrative,
-          pautas: forPautas.map((p) => ({ id: p.id, territory: p.territory, title: p.title })),
+          pautas: forPautas.map((p) => ({
+            id: p.id,
+            territory: p.territory,
+            title: p.title,
+            angle: p.angle,
+            hook: p.hook,
+            suggestedFormat: p.suggestedFormat,
+            scriptBlueprint: p.scriptBlueprint ?? null,
+          })),
         }),
       });
       const json = res.ok ? await res.json() : null;
@@ -300,6 +308,7 @@ export default function CollabsPinnedBoard({
             fitReason: collab.narrativeFitReason,
             sharedSignal: collab.sharedSignal,
             recordingIdea: collab.collabRecordingIdea,
+            collabBlueprint: collab.collabBlueprint ?? null,
             collabMode: collab.collabMode ?? null,
           }),
         });

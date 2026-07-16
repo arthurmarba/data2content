@@ -16,7 +16,7 @@
 import {
   buildNarrativeCandidatePool,
   buildMatchFromCandidate,
-  assignCollabsByTerritory,
+  assignCollabsByPauta,
   fetchCreatorLocation,
   computeCollabMode,
   type NarrativeCollabMatch,
@@ -24,15 +24,19 @@ import {
   type CollabMode,
 } from "./narrativeCollabMatchingService";
 import { significantWords, complementarityScore, buildViewerTokens } from "./collabComplementarity";
+import {
+  buildLegacyCollabBlueprint,
+  type ContentIdeaScriptBlueprint,
+} from "./contentIdeaBlueprint";
 
 export interface PautaForMatch {
   id: string;
   territory: string;
   title?: string;
-}
-
-function normalizeTerritory(t: string): string {
-  return t.trim().toLowerCase();
+  angle?: string;
+  hook?: string;
+  suggestedFormat?: string;
+  scriptBlueprint?: ContentIdeaScriptBlueprint | null;
 }
 
 /**
@@ -104,30 +108,27 @@ export async function matchCollabsForPautas(
   ]);
   if (!poolResult || poolResult.pool.length === 0) return result;
 
-  // Dedup por território → lista de pautaIds. Ordena por frequência (território
-  // mais comum primeiro ganha o fit reason via Gemini antes do teto estourar).
-  const territoryToPautaIds = new Map<string, { label: string; ids: string[] }>();
-  for (const p of withTerritory) {
-    const key = normalizeTerritory(p.territory);
-    const entry = territoryToPautaIds.get(key);
-    if (entry) entry.ids.push(p.id);
-    else territoryToPautaIds.set(key, { label: p.territory.trim(), ids: [p.id] });
-  }
-  const territories = [...territoryToPautaIds.values()].sort((a, b) => b.ids.length - a.ids.length);
-
   const excludeIds = new Set<string>();
   const viewerTokens = buildViewerTokens([narrativeLabel]);
   const poolById = new Map(poolResult.pool.map((e) => [e.userId, e]));
 
-  // ── 1) Atribuição semântica (1 chamada Gemini para todo o lote). ──────────────
+  // ── 1) Atribuição + direção criativa (1 chamada Gemini para todo o lote). ───
   // `geminiCallCap <= 0` desliga o LLM (testes / modo barato) → só determinístico.
   const allowLLM = (options?.geminiCallCap ?? 1) > 0;
   let llmAssignments = new Map<string, CollabAssignment>();
   if (allowLLM) {
-    llmAssignments = await assignCollabsByTerritory({
+    llmAssignments = await assignCollabsByPauta({
       viewerNarrative: narrativeLabel,
       viewerCity: viewerLocation?.city ?? null,
-      territories: territories.map((t) => t.label),
+      pautas: withTerritory.map((p) => ({
+        id: p.id,
+        territory: p.territory,
+        title: p.title ?? p.territory,
+        angle: p.angle ?? null,
+        hook: p.hook ?? null,
+        suggestedFormat: p.suggestedFormat ?? null,
+        scriptBlueprint: p.scriptBlueprint ?? null,
+      })),
       candidates: poolResult.pool.map((e) => ({
         id: e.userId,
         name: e.user.name ?? "Criador",
@@ -138,21 +139,24 @@ export async function matchCollabsForPautas(
     });
   }
 
-  for (const { label, ids } of territories) {
+  for (const pauta of withTerritory) {
+    const label = pauta.territory.trim();
     let eligible: typeof poolResult.pool[number] | undefined;
     let fitReason = fallbackFitReason(label);
     // recordingIdea depende do MODO (presencial/remoto), que só se sabe depois de
     // escolher o candidato — resolvido no fim, quando temos eligible + mode.
     let llmRecordingIdea: string | null = null;
+    let usedAssignedCandidate = false;
 
     // Verdict do Gemini para este território (semântico, primário).
-    const assignment = llmAssignments.get(label.toLowerCase());
+    const assignment = llmAssignments.get(pauta.id);
     if (assignment?.candidateId) {
       const cand = poolById.get(assignment.candidateId);
       if (cand && !excludeIds.has(cand.userId)) {
         eligible = cand;
         if (assignment.fitReason) fitReason = assignment.fitReason;
         llmRecordingIdea = assignment.recordingIdea ?? null;
+        usedAssignedCandidate = true;
       }
     }
 
@@ -190,10 +194,20 @@ export async function matchCollabsForPautas(
     // encontro presencial pra quem mora longe.
     const collabMode = computeCollabMode(viewerLocation, eligible.user.location);
     const recordingIdea = llmRecordingIdea ?? fallbackRecordingIdea(label, collabMode);
+    const collabBlueprint = (usedAssignedCandidate ? assignment?.collabBlueprint : null)
+      ?? buildLegacyCollabBlueprint(recordingIdea, collabMode);
 
     excludeIds.add(eligible.userId);
-    const match = buildMatchFromCandidate(eligible, [label], poolResult.candidateTerritoriesById, fitReason, recordingIdea, collabMode);
-    for (const id of ids) result.set(id, match);
+    const match = buildMatchFromCandidate(
+      eligible,
+      [label],
+      poolResult.candidateTerritoriesById,
+      fitReason,
+      recordingIdea,
+      collabMode,
+      collabBlueprint,
+    );
+    result.set(pauta.id, match);
   }
 
   return result;

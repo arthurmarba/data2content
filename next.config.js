@@ -108,7 +108,7 @@ const nextConfig = {
     // vários minificadores disputem memória durante a build em máquinas menores.
     cpus: 1,
     serverActions: true,
-    serverComponentsExternalPackages: ['@sparticuz/chromium'],
+    serverComponentsExternalPackages: ['@sparticuz/chromium', 'ffmpeg-static'],
     outputFileTracingIncludes: {
       '/app/**/*': ['./src/app/lib/**/*.md'],
       '/api/mediakit/[token]/pdf': [

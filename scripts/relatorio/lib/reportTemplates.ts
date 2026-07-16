@@ -125,7 +125,7 @@ function coverStats(r: ReportData): string {
   const numCell = (valor: string, label: string) =>
     `<div class="num-cell"><div class="num-valor">${esc(valor)}</div><div class="num-label">${esc(label)}</div></div>`;
   const txtCell = (valor: string, label: string) =>
-    `<div class="num-cell"><div class="num-valor num-valor--txt">${esc(valor)}</div><div class="num-label">${esc(label)}</div></div>`;
+    `<div class="num-cell num-cell--wide"><div class="num-valor num-valor--txt">${esc(valor)}</div><div class="num-label">${esc(label)}</div></div>`;
 
   const cells = [numCell(String(posts), "posts na semana")];
   if (posts > 0) cells.push(numCell(`${centro} de ${posts}`, "no ponto-ouro"));
@@ -244,10 +244,11 @@ export function renderReportHtml(r: ReportData): string {
   .cover-regua { margin-top:22px; font-size:12.5px; color:var(--muted); letter-spacing:.01em; background:var(--card); border:1px solid var(--hair); border-radius:24px; padding:9px 20px; }
   .cover-regua b { font-weight:700; }
   .numeros { display:flex; margin:0; border:1px solid var(--hair); border-radius:14px; overflow:hidden; background:var(--card); }
-  .num-cell { flex:1; padding:18px 12px; text-align:center; border-right:1px solid var(--hair); display:flex; flex-direction:column; justify-content:center; }
+  .num-cell { flex:1; padding:18px 12px; text-align:center; border-right:1px solid var(--hair); display:flex; flex-direction:column; justify-content:center; min-width:0; }
   .num-cell:last-child { border-right:0; }
+  .num-cell--wide { flex:1.6; }
   .num-valor { font-family:var(--serif); font-weight:800; font-size:29px; line-height:1.05; color:var(--ink); }
-  .num-valor--txt { font-size:16px; line-height:1.25; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .num-valor--txt { font-size:15px; line-height:1.28; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
   .num-label { margin-top:6px; font-size:10px; letter-spacing:.08em; color:var(--muted); text-transform:uppercase; }
   .cover-resumo { margin-top:20px; padding-top:18px; border-top:1px solid var(--hair); font-size:15px; line-height:1.62; color:#3a362d; }
 

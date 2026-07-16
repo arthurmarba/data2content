@@ -190,8 +190,40 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
       />,
     );
     expect(screen.getByText("A verdade sobre como eu decido o que gravar sem depender de ninguém")).toBeInTheDocument();
-    expect(screen.getByText("“Eu aprendi que ela me dá mais liberdade.”")).toBeInTheDocument();
+    // A frente virou superfície de decisão visual: o gancho fica no detalhe.
+    expect(screen.queryByText("“Eu aprendi que ela me dá mais liberdade.”")).not.toBeInTheDocument();
     expect(screen.queryByText(/ningu\s*R/)).not.toBeInTheDocument();
+  });
+
+  it("mostra a pauta e as evidências do Seu mapa como chips, sem roteiro corrido", () => {
+    render(
+      <DiagnosticoCollabsFeed
+        {...baseProps}
+        pautas={[pauta("mapa", {
+          title: "O dia em que parei de imitar meu próprio conteúdo",
+          territory: "Autonomia criativa",
+          assets: ["Mesa de trabalho"],
+          tone: "Direto e irônico",
+          hook: "Eu estava copiando até a versão antiga de mim.",
+          scriptPoints: ["Abra a pasta de rascunhos antigos."],
+          mapAnchors: [
+            { kind: "situation", source: "themes", label: "Refazendo o mesmo vídeo" },
+            { kind: "subject", source: "territories", label: "Autonomia criativa" },
+            { kind: "scene", source: "assets", label: "Mesa de trabalho" },
+            { kind: "voice", source: "tone", label: "Direto e irônico" },
+          ],
+        })]}
+        pautaCollabs={new Map([["mapa", null]])}
+        collabDecisions={new Map()}
+      />,
+    );
+
+    expect(screen.getByText("Do seu mapa")).toBeInTheDocument();
+    expect(screen.getByText("Situação real")).toBeInTheDocument();
+    expect(screen.getByText("Refazendo o mesmo vídeo")).toBeInTheDocument();
+    expect(screen.getByText("Jeito de falar")).toBeInTheDocument();
+    expect(screen.queryByText(/Eu estava copiando/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Abra a pasta/)).not.toBeInTheDocument();
   });
 
   it("aceitar uma pauta solo → salva (vai pra estante); não registra decisão de collab", () => {

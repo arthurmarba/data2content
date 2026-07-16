@@ -22,6 +22,11 @@ import { GoogleGenAI, createUserContent } from "@google/genai";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { rankByComplementarity, findSharedLabel, findDistinctLabels, significantWords, buildViewerTokens } from "./collabComplementarity";
 import { logGeminiUsage } from "@/app/lib/llm/geminiUsageLog";
+import {
+  sanitizeContentIdeaCollabBlueprint,
+  type ContentIdeaCollabBlueprint,
+  type ContentIdeaScriptBlueprint,
+} from "./contentIdeaBlueprint";
 
 // Configurável por env (GEMINI_COLLAB_MODEL) para A/B de modelo — candidato a
 // gemini-2.5-flash-lite. Default idêntico ao histórico.
@@ -49,6 +54,8 @@ export interface NarrativeCollabMatch {
   narrativeFitReason: string;
   /** Como o conteúdo seria gravado a dois (1 frase). Opcional — só no fluxo por-pauta. */
   collabRecordingIdea?: string | null;
+  /** Plano de gravação dividido entre os dois creators, específico desta pauta. */
+  collabBlueprint?: ContentIdeaCollabBlueprint | null;
   /** Ponto de encontro: território confirmado do viewer que o candidato também toca. */
   sharedSignal: string | null;
   /** Territórios DELE que o viewer não tem — o ângulo novo que a collab traz. */
@@ -355,6 +362,7 @@ export function buildMatchFromCandidate(
   narrativeFitReason: string,
   collabRecordingIdea?: string | null,
   collabMode?: CollabMode | null,
+  collabBlueprint?: ContentIdeaCollabBlueprint | null,
 ): NarrativeCollabMatch {
   const { user, reading } = eligible;
   const candidateNarrative = reading.videoReading.mainNarrative?.trim() ?? "";
@@ -371,6 +379,7 @@ export function buildMatchFromCandidate(
     suggestedNarrativeLabel: candidateNarrative,
     narrativeFitReason,
     collabRecordingIdea: collabRecordingIdea ?? null,
+    collabBlueprint: collabBlueprint ?? null,
     sharedSignal: findSharedLabel(viewerTerritoryLabels, candidateNarrative),
     distinctSignals: findDistinctLabels(viewerTerritoryLabels, herTerritories, 3),
     collabMode: collabMode ?? null,
@@ -454,6 +463,126 @@ export interface CollabAssignment {
   candidateId: string | null;
   fitReason: string;
   recordingIdea: string | null;
+  collabBlueprint?: ContentIdeaCollabBlueprint | null;
+}
+
+export interface CollabPautaForLLM {
+  id: string;
+  title: string;
+  territory: string;
+  angle?: string | null;
+  hook?: string | null;
+  suggestedFormat?: string | null;
+  scriptBlueprint?: ContentIdeaScriptBlueprint | null;
+}
+
+/**
+ * Faz matching e direção criativa por pauta em uma única chamada. Diferente do
+ * matcher legado por território, duas pautas no mesmo assunto recebem planos
+ * próprios porque título, abertura e storyboard entram no contexto.
+ */
+export async function assignCollabsByPauta(params: {
+  viewerNarrative: string;
+  viewerCity?: string | null;
+  pautas: CollabPautaForLLM[];
+  candidates: CollabCandidateForLLM[];
+}): Promise<Map<string, CollabAssignment>> {
+  const out = new Map<string, CollabAssignment>();
+  if (params.pautas.length === 0 || params.candidates.length === 0) return out;
+  const apiKey = readApiKey();
+  if (!apiKey) return out;
+
+  const prompt = `\
+Você é diretor criativo de collabs da Data2Content. Para CADA pauta, escolha um creator que tenha ligação real com o território e transforme a pauta num plano filmável a dois.
+
+Regras de matching:
+- O creator escolhido precisa viver ou falar legitimamente do território. Se não houver ninguém, candidateId = null.
+- Evite repetir o mesmo creator em pautas diferentes.
+- fitReason nomeia o chão comum e o ponto de vista exclusivo que o outro creator acrescenta.
+- Nunca use métricas, algoritmo, alcance, performance ou seguidores.
+
+Regras do plano:
+- O plano pertence à PAUTA ESPECÍFICA: use o título, a abertura e o storyboard; não entregue uma frase genérica sobre o território.
+- Defina quem abre, quem responde, onde está a virada e como os dois fecham.
+- owner deve ser viewer, partner ou both.
+- beat deve ser abertura, contexto, virada ou fechamento.
+- visual descreve o que aparece e o que a pessoa faz; spokenIntent diz o que ela precisa comunicar sem escrever texto longo para decorar.
+- Se as cidades forem diferentes ou desconhecidas, o formato é remoto e cada creator grava no próprio ambiente. Se forem iguais, pode ser presencial.
+- editPlan explica como as partes se unem. handoffChecklist traz 2 a 4 combinados práticos de captação/arquivos.
+
+Creator base: narrativa "${params.viewerNarrative}" — cidade ${params.viewerCity?.trim() || "desconhecida"}
+
+Pautas:
+${params.pautas.map((p) => {
+  const scenes = p.scriptBlueprint?.scenes?.map((scene) => `${scene.beat}: ${scene.visual} / ${scene.spokenIntent}`).join(" | ") || "sem storyboard estruturado";
+  return `[${p.id}] título: "${p.title}" | território: ${p.territory} | ângulo: ${p.angle || "não informado"} | abertura: ${p.hook || "não informada"} | formato: ${p.suggestedFormat || "não informado"} | cenas: ${scenes}`;
+}).join("\n")}
+
+Creators disponíveis:
+${params.candidates.map((c) => `[${c.id}] ${c.name} | narrativa: ${c.narrative} | territórios: ${c.territories.join(", ")} | cidade: ${c.city?.trim() || "desconhecida"}`).join("\n")}
+
+Responda APENAS com JSON:
+{
+  "assignments": [
+    {
+      "pautaId": "<id exato>",
+      "candidateId": "<id exato ou null>",
+      "fitReason": "<chão comum + contribuição exclusiva>",
+      "recordingIdea": "<resumo em uma frase de como gravar>",
+      "collabBlueprint": {
+        "format": "<formato concreto e compatível com a distância>",
+        "openingOwner": "viewer|partner|both",
+        "scenes": [
+          { "owner": "viewer|partner|both", "beat": "abertura|contexto|virada|fechamento", "visual": "<ação visível>", "spokenIntent": "<o que comunicar>", "transition": "<como passa para a próxima parte>" }
+        ],
+        "editPlan": "<como montar as partes>",
+        "handoffChecklist": ["<combinado prático>", "<combinado prático>"]
+      }
+    }
+  ]
+}`;
+
+  try {
+    const ai = new GoogleGenAI({ apiKey });
+    const response = await ai.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: createUserContent([prompt]),
+      config: {
+        maxOutputTokens: 6000,
+        temperature: 0.45,
+        responseMimeType: "application/json",
+        thinkingConfig: { thinkingBudget: 0 },
+      },
+    });
+    logGeminiUsage("collab", GEMINI_MODEL, response);
+    const text = response.text?.trim();
+    if (!text) return out;
+    const parsed = JSON.parse(text) as { assignments?: Array<Record<string, unknown>> };
+    if (!Array.isArray(parsed.assignments)) return out;
+
+    const pautaIds = new Set(params.pautas.map((p) => p.id));
+    for (const raw of parsed.assignments) {
+      const pautaId = typeof raw.pautaId === "string" ? raw.pautaId.trim() : "";
+      if (!pautaIds.has(pautaId)) continue;
+      const candidateId = typeof raw.candidateId === "string" && raw.candidateId.trim()
+        ? raw.candidateId.trim()
+        : null;
+      const fitReason = typeof raw.fitReason === "string" ? raw.fitReason.trim().slice(0, 240) : "";
+      const recordingIdea = typeof raw.recordingIdea === "string" && raw.recordingIdea.trim()
+        ? raw.recordingIdea.trim().slice(0, 240)
+        : null;
+      out.set(pautaId, {
+        candidateId,
+        fitReason,
+        recordingIdea,
+        collabBlueprint: sanitizeContentIdeaCollabBlueprint(raw.collabBlueprint),
+      });
+    }
+  } catch (error) {
+    console.warn("[narrativeCollabMatching] plano por pauta indisponível; usando fallback", error);
+  }
+
+  return out;
 }
 
 /**

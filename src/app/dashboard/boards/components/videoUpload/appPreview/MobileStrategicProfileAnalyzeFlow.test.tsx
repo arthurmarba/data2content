@@ -356,13 +356,13 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
           onCreateUploadSession={onCreateSession}
         />
       );
-      expect(screen.getByText("Escolher vídeo para escanear")).toBeInTheDocument();
-      expect(screen.getByText("Escolher vídeo para escanear").closest("label")).toHaveClass("ds-upload-dropzone");
+      expect(screen.getByText("Selecionar vídeo")).toBeInTheDocument();
+      expect(screen.getByText("Selecionar vídeo").closest("label")).toHaveClass("ds-upload-dropzone");
       expect(screen.queryByRole("img")).not.toBeInTheDocument();
       expect(container.querySelector("video")).not.toBeInTheDocument();
     });
 
-    it("selecionar arquivo mostra o campo de contexto opcional e segue para a leitura", async () => {
+    it("selecionar arquivo mostra apenas a capa e avança com um clique", async () => {
       const onCreateSession = jest.fn().mockResolvedValue({
         ok: true,
         status: "mock_session_created",
@@ -381,23 +381,13 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       expect(fileInput).toBeInTheDocument();
       fireEvent.change(fileInput, { target: { files: [fileMock] } });
 
-      expect(screen.getByText("vlog.mp4")).toBeInTheDocument();
-      expect(screen.getByText(/video\/mp4/i)).toBeInTheDocument();
-      // Campo de contexto opcional substitui o antigo passo de lente.
-      expect(screen.getByText("Quer me contar algo sobre esse vídeo? (opcional)")).toBeInTheDocument();
+      expect(screen.getByLabelText("Trocar vídeo")).toBeInTheDocument();
+      expect(screen.getByText("Preparando capa...")).toBeInTheDocument();
+      expect(screen.queryByText("vlog.mp4")).not.toBeInTheDocument();
+      expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+      expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
 
-      // Sem consentimento aceito, a chamada não é feita
-      const continueBtn = screen.getByRole("button", { name: "Continuar" });
-      fireEvent.click(continueBtn);
-      expect(onCreateSession).not.toHaveBeenCalled();
-      expect(screen.getByText("Aceite o consentimento para continuar.")).toBeInTheDocument();
-
-      // Aceita consentimento
-      const checkbox = screen.getByRole("checkbox");
-      fireEvent.click(checkbox);
-
-      // Clica em Continuar
-      fireEvent.click(continueBtn);
+      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
 
       await waitFor(() => {
         expect(onCreateSession).toHaveBeenCalledWith({
@@ -418,7 +408,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       expect(screen.queryByText("O que você quer ler neste vídeo?")).not.toBeInTheDocument();
     });
 
-    it("envia o contexto opcional digitado como creatorGoal", async () => {
+    it("usa a lente fixa sem pedir contexto adicional", async () => {
       const onCreateSession = jest.fn().mockResolvedValue({ ok: true, status: "mock_session_created" });
       const onSubmit = jest.fn().mockResolvedValue(undefined);
       const { container } = render(
@@ -432,15 +422,11 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
-      fireEvent.change(screen.getByPlaceholderText("Ex: gravei no impulso e fiquei na dúvida se posto."), {
-        target: { value: "Gravei sem planejar." },
-      });
-      fireEvent.click(screen.getByRole("checkbox"));
-      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
 
       await waitFor(() => {
         expect(onSubmit).toHaveBeenCalledWith(
-          expect.objectContaining({ creatorGoal: "Gravei sem planejar.", selectedGoalOption: "retention" })
+          expect.objectContaining({ selectedGoalOption: "retention" })
         );
       });
     });
@@ -464,12 +450,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
       fireEvent.change(fileInput, { target: { files: [fileMock] } });
 
-      // Aceita consentimento
-      const checkbox = screen.getByRole("checkbox");
-      fireEvent.click(checkbox);
-
-      // Clica em Continuar
-      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
 
       await waitFor(() => {
         expect(screen.getByText(/O tamanho do vídeo excede o limite/i)).toBeInTheDocument();
@@ -494,8 +475,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
-      fireEvent.click(screen.getByRole("checkbox"));
-      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
 
       await waitFor(() => {
         expect(onSubmit).toHaveBeenCalledWith(
@@ -540,8 +520,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
-      fireEvent.click(screen.getByRole("checkbox"));
-      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
 
       await waitFor(() => {
         expect(screen.getByText("Conectando ao seu mapa...")).toBeInTheDocument();
@@ -579,8 +558,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
-      fireEvent.click(screen.getByRole("checkbox"));
-      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
 
       await waitFor(() => {
         expect(screen.getByRole("dialog", { name: "Escaneando seu vídeo" })).toBeInTheDocument();
@@ -606,8 +584,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
-      fireEvent.click(screen.getByRole("checkbox"));
-      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
 
       await waitFor(() => {
         expect(screen.getByText("Não conseguimos preparar o vídeo para leitura real agora.")).toBeInTheDocument();
@@ -651,8 +628,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
-      fireEvent.click(screen.getByRole("checkbox"));
-      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
 
       await waitFor(() => {
         expect(screen.getByText("Não foi possível enviar o vídeo agora.")).toBeInTheDocument();
@@ -696,8 +672,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
-      fireEvent.click(screen.getByRole("checkbox"));
-      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
 
       await waitFor(() => {
         expect(screen.getByRole("dialog", { name: "Seu Raio X" })).toBeInTheDocument();
@@ -753,8 +728,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
-      fireEvent.click(screen.getByRole("checkbox"));
-      fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
 
       await waitFor(() => {
         expect(screen.getByRole("dialog", { name: "Seu Raio X" })).toBeInTheDocument();

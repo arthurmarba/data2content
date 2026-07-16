@@ -327,6 +327,10 @@ export function DiagnosticoRealShellClient({ data }: Props) {
         id: p.id,
         territory: p.territory,
         title: p.title,
+        angle: p.angle,
+        hook: p.hook,
+        suggestedFormat: p.suggestedFormat,
+        scriptBlueprint: p.scriptBlueprint ?? null,
       })),
     }),
     [collabsNarrativeLabel, collabsPautas, data.userInfo.plan],
@@ -399,7 +403,15 @@ export function DiagnosticoRealShellClient({ data }: Props) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               narrativeLabel: collabsNarrativeLabel,
-              pautas: collabsPautas.map((p) => ({ id: p.id, territory: p.territory, title: p.title })),
+              pautas: collabsPautas.map((p) => ({
+                id: p.id,
+                territory: p.territory,
+                title: p.title,
+                angle: p.angle,
+                hook: p.hook,
+                suggestedFormat: p.suggestedFormat,
+                scriptBlueprint: p.scriptBlueprint ?? null,
+              })),
             }),
             signal: controller.signal,
           }),
@@ -546,6 +558,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
         fitReason: collab.narrativeFitReason,
         sharedSignal: collab.sharedSignal,
         recordingIdea: collab.collabRecordingIdea,
+        collabBlueprint: collab.collabBlueprint ?? null,
         collabMode: collab.collabMode,
         decision: "interested",
       }),
@@ -996,7 +1009,9 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           id: string; title: string; angle: string; hook: string;
           territory: string; assets: string[]; suggestedFormat: string;
           tone: string | null; whyItFits: string;
+          mapAnchors?: import("@/app/dashboard/boards/videoUpload/contentIdeaMapAnchors").ContentIdeaMapAnchor[];
           scriptPoints: string[]; scriptClosing: string | null;
+          scriptBlueprint?: import("@/app/dashboard/boards/videoUpload/contentIdeaBlueprint").ContentIdeaScriptBlueprint | null;
           resonanceNote?: string | null;
           generatedAt: string;
         }>;
@@ -1007,6 +1022,8 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           ...idea,
           scriptPoints: idea.scriptPoints ?? [],
           scriptClosing: idea.scriptClosing ?? null,
+          scriptBlueprint: idea.scriptBlueprint ?? null,
+          mapAnchors: idea.mapAnchors ?? [],
           resonanceNote: idea.resonanceNote ?? null,
           status: "active" as const,
           scheduledFor: null,

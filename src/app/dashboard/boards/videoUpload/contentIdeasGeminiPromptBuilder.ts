@@ -111,6 +111,18 @@ export interface ContentIdeasPromptOutput {
   responseSchemaInstruction: string;
 }
 
+/** Metadados internos que forçam variedade real dentro da leva de swipe. */
+export const CONTENT_IDEA_CREATIVE_MODES = [
+  "história vivida",
+  "bastidor concreto",
+  "posição pessoal",
+  "método prático",
+  "comparação ou contraste",
+  "decisão ou virada",
+] as const;
+
+export type ContentIdeaCreativeMode = (typeof CONTENT_IDEA_CREATIVE_MODES)[number];
+
 // ─── Response schema (strict JSON) ────────────────────────────────────────────
 
 const ideaJsonSchema = {
@@ -133,8 +145,11 @@ const ideaJsonSchema = {
           "assets",
           "suggestedFormat",
           "whyItFits",
+          "mapAnchors",
           "scriptPoints",
           "scriptClosing",
+          "scriptBlueprint",
+          "creativeMode",
         ],
         properties: {
           title: { type: "string", maxLength: 80 },
@@ -144,6 +159,21 @@ const ideaJsonSchema = {
           assets: { type: "array", items: { type: "string" }, maxItems: 4 },
           suggestedFormat: { type: "string", maxLength: 40 },
           whyItFits: { type: "string", maxLength: 320 },
+          mapAnchors: {
+            type: "array",
+            minItems: 1,
+            maxItems: 5,
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["kind", "source", "label"],
+              properties: {
+                kind: { type: "string", enum: ["subject", "situation", "scene", "voice"] },
+                source: { type: "string", enum: ["territories", "themes", "assets", "tone"] },
+                label: { type: "string", maxLength: 120 },
+              },
+            },
+          },
           scriptPoints: {
             type: "array",
             items: { type: "string", maxLength: 120 },
@@ -151,9 +181,44 @@ const ideaJsonSchema = {
             maxItems: 3,
           },
           scriptClosing: { type: "string", maxLength: 120 },
+          scriptBlueprint: {
+            type: "object",
+            additionalProperties: false,
+            required: ["visualPremise", "estimatedDurationSeconds", "scenes", "recordingChecklist"],
+            properties: {
+              visualPremise: { type: "string", maxLength: 180 },
+              estimatedDurationSeconds: { type: "integer", minimum: 10, maximum: 180 },
+              scenes: {
+                type: "array",
+                minItems: 3,
+                maxItems: 4,
+                items: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["beat", "visual", "spokenIntent", "onScreenText", "shot", "asset", "durationSeconds"],
+                  properties: {
+                    beat: { type: "string", enum: ["abertura", "contexto", "virada", "fechamento"] },
+                    visual: { type: "string", maxLength: 180 },
+                    spokenIntent: { type: "string", maxLength: 180 },
+                    onScreenText: { type: "string", maxLength: 90 },
+                    shot: { type: "string", maxLength: 80 },
+                    asset: { type: "string", maxLength: 100 },
+                    durationSeconds: { type: "integer", minimum: 1, maximum: 90 },
+                  },
+                },
+              },
+              recordingChecklist: {
+                type: "array",
+                minItems: 2,
+                maxItems: 4,
+                items: { type: "string", maxLength: 120 },
+              },
+            },
+          },
           // Opcional (não está em `required`): metade-audiência do "match".
           // Só preenchido quando a pauta cai num sinal de reconhecimento.
           resonanceNote: { type: "string", maxLength: 200 },
+          creativeMode: { type: "string", enum: CONTENT_IDEA_CREATIVE_MODES },
         },
       },
     },
@@ -210,8 +275,9 @@ export function buildContentIdeasPrompt(
     "Em vez de \"tendência\", fale sobre \"o que pulsa na sua vida agora\".",
     "",
     "IMPORTANTE — \"pauta\" é termo INTERNO desta plataforma. A palavra \"pauta\" (e \"pautas\")",
-    "NUNCA pode aparecer em nenhum campo que o criador lê (title, hook, scriptPoints, scriptClosing,",
+    "NUNCA pode aparecer em nenhum texto novo que o criador lê (title, hook, scriptPoints, scriptClosing, scriptBlueprint,",
     "whyItFits, resonanceNote). Use \"vídeo\", \"ideia\" ou \"roteiro\". Ex.: ❌ \"a estrutura de uma pauta\" → ✅ \"a estrutura do vídeo\".",
+    "Exceção: mapAnchors.label deve copiar literalmente um rótulo já confirmado pelo próprio criador, mesmo quando esse rótulo contém um termo da lista proibida.",
     "",
     "Cada pauta deve responder, de forma natural, a essa pergunta implícita:",
     "  \"O que da vida deste criador, hoje, pode virar um vídeo coerente com o mapa dele?\"",
@@ -374,6 +440,14 @@ export function buildContentIdeasPrompt(
     "",
     `Tarefa: gere exatamente ${count} pauta${count === 1 ? "" : "s"} que respeitem TODAS as crenças e o vocabulário permitido.`,
     "",
+    "COMPOSIÇÃO OBRIGATÓRIA DA LEVA — não entregue a mesma ideia com outras palavras:",
+    `  - Dê a cada ideia um creativeMode DIFERENTE, escolhido entre: ${CONTENT_IDEA_CREATIVE_MODES.join(", ")}.`,
+    "  - Mude a ORIGEM da história entre as ideias: se uma nasce de uma cena de bastidor, a próxima não pode apenas recontar esse mesmo bastidor com outro título.",
+    "  - Quando houver mais de um território confirmado, distribua as ideias por territórios diferentes antes de repetir um deles.",
+    "  - Quando houver mais de um asset ou cena confirmado, distribua as ideias por experiências diferentes antes de voltar ao mesmo lugar, objeto ou conflito.",
+    "  - Título, hook e angle precisam defender pontos de vista diferentes. Trocar sinônimos, inverter a frase ou mudar apenas o formato NÃO cria uma ideia nova.",
+    "  - Teste final: se dois vídeos poderiam usar a mesma primeira cena e chegar à mesma conclusão, mantenha só um e crie outro a partir de uma experiência realmente distinta.",
+    "",
     "Para cada pauta:",
     "  - title: este campo É o título do Reels — o texto que apareceria na tela ou como legenda principal.",
     "    Regras do título:",
@@ -477,6 +551,14 @@ export function buildContentIdeasPrompt(
     "    ✅ 'Isso aparece toda vez que você filma sozinho em casa. Já é o seu jeito.'",
     "    ❌ 'Seu humor sempre vem da capacidade de rir das suas próprias experiências.' (qualquer humorista)",
     "    ❌ 'Esta pauta conecta a narrativa central ao território X utilizando o asset Y.' (jargão)",
+    "  - mapAnchors: assinatura visual e RASTREÁVEL desta ideia no 'Seu mapa'.",
+    "    Use somente rótulos EXATOS das listas confirmadas acima e combine kind/source assim:",
+    "      • subject + territories: o mesmo rótulo exato usado em territory (obrigatório).",
+    "      • situation + themes: a situação real confirmada que sustenta ESTE roteiro; inclua quando uma das situações reais acima foi usada.",
+    "      • scene + assets: 0 a 2 elementos de cena realmente presentes no roteiro, exatamente como aparecem nos assets confirmados.",
+    "      • voice + tone: o tom confirmado, somente quando estiver disponível.",
+    "    Não invente, resuma, traduza nem reescreva labels. Não use creativeMode nem suggestedFormat como âncora do mapa.",
+    "    Prefira 3 ou 4 âncoras úteis a preencher 5 itens sem necessidade.",
     "  - scriptPoints: 2 a 3 pontos de partida concretos para o vídeo, em ordem.",
     "    Cada ponto ancora o criador num momento, objeto ou situação real da vida dele — não num conceito.",
     "    O criador lê e sabe imediatamente de onde tirar o conteúdo: qual memória usar, o que mostrar, onde começar.",
@@ -491,6 +573,19 @@ export function buildContentIdeasPrompt(
     "    ❌ 'Compartilha como as pessoas respondem a essa singularidade' (reação de audiência)",
     "    ✅ 'Mostra a cena real em que você fez tudo sozinho e o que sentiu ali'",
     "  - scriptClosing: como o vídeo termina — uma pergunta ao espectador, um convite ou um insight final (1 frase curta, sem ponto final)",
+    "  - scriptBlueprint: transforme o roteiro num storyboard simples, filmável e específico:",
+    "    • visualPremise: a lógica visual do vídeo em 1 frase — o que sustenta as imagens do começo ao fim.",
+    "    • estimatedDurationSeconds: duração total realista entre 10 e 180 segundos.",
+    "    • scenes: 3 ou 4 cenas em progressão. Use abertura, contexto, virada e fechamento; em roteiro de 3 cenas, una contexto e virada sem perder a mudança de direção.",
+    "    • visual: o que a câmera VÊ e o criador FAZ. Dê verbo, objeto/ambiente e ação concreta. Nunca escreva apenas 'falar para a câmera'.",
+    "    • spokenIntent: o que precisa ser comunicado naquele momento, em linguagem natural. Não escreva um texto longo para decorar.",
+    "    • onScreenText: texto curto que realmente ajudaria a leitura. Use string vazia quando não precisar.",
+    "    • shot: enquadramento simples e executável (selfie, plano próximo, detalhe das mãos, tela gravada, plano aberto).",
+    "    • asset: use EXATAMENTE um asset confirmado envolvido na cena; string vazia quando nenhum asset for necessário.",
+    "    • durationSeconds: duração estimada daquela cena.",
+    "    • recordingChecklist: 2 a 4 coisas concretas que o creator precisa separar ou capturar antes de gravar.",
+    "    O storyboard precisa variar imagem, escala ou ação entre as cenas. Se todas puderem ser gravadas no mesmo plano parado, refaça.",
+    "    Não invente locação, objeto, pessoa, marca ou rotina que não exista no mapa. Quando faltar contexto, simplifique a produção.",
     "  - resonanceNote: OBRIGATÓRIO sempre que a pauta se apoiar em QUALQUER sinal da audiência —",
     "    seja assunto, TOM (ex.: humor), INTENÇÃO, FORMA (ex.: tutorial) ou POSTURA. Atenção: se você",
     "    escolheu o tom/forma desta pauta por causa dos sinais acima, ELA SE APOIA na audiência — preencha.",
@@ -502,6 +597,7 @@ export function buildContentIdeasPrompt(
     "    ✅ 'Toda vez que você aparece assim, é o que as pessoas mais guardam pra rever.'",
     "    ✅ 'Você fala pouco disso — mas é o que mais fica com quem te acompanha.'",
     "    SÓ deixe de fora quando a pauta for puramente do mapa, sem nenhum sinal de reconhecimento envolvido. Nesse caso, não invente.",
+    "  - creativeMode: metadado INTERNO. Escolha exatamente um dos modos permitidos para representar o gesto principal desta ideia. Não escreva esse rótulo em nenhum outro campo.",
     "",
     "Exemplos de títulos BOM vs RUIM:",
     "  ✅ 'POV: você percebe que seu conteúdo sempre volta pro mesmo tema'",

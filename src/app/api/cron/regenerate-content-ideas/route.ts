@@ -34,6 +34,7 @@ import {
 import type { ContentIdeasMapContext } from "@/app/dashboard/boards/videoUpload/contentIdeasGeminiPromptBuilder";
 import { buildAudienceInsights, isPlaceholderTerritory } from "@/app/dashboard/boards/videoUpload/audienceInsightsService";
 import { buildContentIdeasAudienceResonance } from "@/app/dashboard/boards/videoUpload/contentIdeasAudienceResonance";
+import { getMapaSeedReadinessSource } from "@/app/dashboard/boards/videoUpload/mapaSeedReadinessSource";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -146,6 +147,7 @@ async function regenerateIdeasIfStale(userId: string): Promise<RegenerateResult>
     // 25 (não 10): descartes antigos que caíam da janela voltavam como
     // quase-duplicatas. Alinhado com a rota de geração sob demanda.
     const recentDismissedTitles = await listRecentDismissedTitles(userId, 25);
+    const mapaSeedSource = await getMapaSeedReadinessSource(userId);
 
     const context: ContentIdeasMapContext = {
       narrative: {
@@ -160,10 +162,14 @@ async function regenerateIdeasIfStale(userId: string): Promise<RegenerateResult>
           summary: t.summary ?? null,
         }));
       })(),
-      confirmedAssets: synthesis.confirmedLifeAssets
-        .filter((a) => a.evidenceCount >= 2)
-        .map((a) => a.label),
-      tone: synthesis.dominantTone ?? null,
+      confirmedAssets: (() => {
+        const fromVideo = synthesis.confirmedLifeAssets
+          .filter((a) => a.evidenceCount >= 2)
+          .map((a) => a.label);
+        return fromVideo.length > 0 ? fromVideo : mapaSeedSource.assets.slice(0, 12);
+      })(),
+      confirmedThemes: mapaSeedSource.temas.slice(0, 8),
+      tone: synthesis.dominantTone ?? mapaSeedSource.tone ?? null,
       topPerformingPattern: synthesis.topPerformingPattern ?? null,
       pastCreatorAnswers: [],
       onboardingAnswers: onboardingAnswers

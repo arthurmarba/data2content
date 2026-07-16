@@ -7,6 +7,8 @@ import { CATEGORY_META } from "./DiagnosticoCategoryMeta";
 import { CARD_BASE, CARD_P, HC } from "./diagnosticoTokens";
 import type { ContentIdeaListItem } from "@/app/dashboard/boards/videoUpload/contentIdeasReadService";
 import type { ContentIdeasReadiness } from "@/app/dashboard/boards/videoUpload/contentIdeasReadinessGate";
+import type { ContentIdeaScriptBlueprint } from "@/app/dashboard/boards/videoUpload/contentIdeaBlueprint";
+import type { ContentIdeaMapAnchor } from "@/app/dashboard/boards/videoUpload/contentIdeaMapAnchors";
 
 interface Props {
   ideas: ContentIdeaListItem[];
@@ -63,8 +65,10 @@ export function DiagnosticoIdeasDetailView({ ideas: initialIdeas, readiness, onC
         suggestedFormat: string;
         tone: string | null;
         whyItFits: string;
+        mapAnchors?: ContentIdeaMapAnchor[];
         scriptPoints?: string[];
         scriptClosing?: string | null;
+        scriptBlueprint?: ContentIdeaScriptBlueprint | null;
         resonanceNote?: string | null;
         generatedAt: string;
       }>;
@@ -74,6 +78,8 @@ export function DiagnosticoIdeasDetailView({ ideas: initialIdeas, readiness, onC
           ...i,
           scriptPoints: i.scriptPoints ?? [],
           scriptClosing: i.scriptClosing ?? null,
+          scriptBlueprint: i.scriptBlueprint ?? null,
+          mapAnchors: i.mapAnchors ?? [],
           resonanceNote: i.resonanceNote ?? null,
           status: "active" as const,
           scheduledFor: null,

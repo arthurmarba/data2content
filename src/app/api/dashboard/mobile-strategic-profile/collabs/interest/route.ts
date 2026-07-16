@@ -9,6 +9,7 @@ import {
   markMatchesCelebrated,
 } from "@/app/dashboard/boards/videoUpload/collabInterestService";
 import { logUsageEvent } from "@/app/lib/dataService/usageEventService";
+import { sanitizeContentIdeaCollabBlueprint } from "@/app/dashboard/boards/videoUpload/contentIdeaBlueprint";
 
 // Swipe de collab — POST registra "quero fazer"/"não agora" e responde se casou
 // (interesse paralelo: match = os dois toparam). GET hidrata decisões + matches
@@ -75,6 +76,7 @@ export async function POST(request: Request) {
       fitReason: typeof body?.fitReason === "string" ? body.fitReason : null,
       sharedSignal: typeof body?.sharedSignal === "string" ? body.sharedSignal : null,
       recordingIdea: typeof body?.recordingIdea === "string" ? body.recordingIdea : null,
+      collabBlueprint: sanitizeContentIdeaCollabBlueprint(body?.collabBlueprint),
       collabMode,
       decision,
     });

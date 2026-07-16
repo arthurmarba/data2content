@@ -107,6 +107,36 @@ describe("buildContentIdeasPrompt — bloco de temas (camada-cena)", () => {
 });
 
 describe("buildContentIdeasPrompt — blindagens de conteúdo", () => {
+  it("obriga uma composição diversa e expõe o modo criativo apenas como metadado interno", () => {
+    const { userInstruction } = buildContentIdeasPrompt({
+      context: baseContext({
+        territories: [{ label: "Humor", summary: null }, { label: "Bastidores", summary: null }],
+        confirmedAssets: ["quarto", "mesa"],
+      }),
+      count: 3,
+    });
+    const itemSchema = (CONTENT_IDEAS_RESPONSE_JSON_SCHEMA as any).properties.ideas.items;
+
+    expect(userInstruction).toContain("COMPOSIÇÃO OBRIGATÓRIA DA LEVA");
+    expect(userInstruction).toContain("não entregue a mesma ideia com outras palavras");
+    expect(userInstruction).toContain("creativeMode DIFERENTE");
+    expect(itemSchema.required).toContain("creativeMode");
+    expect(itemSchema.properties.creativeMode.enum).toContain("bastidor concreto");
+    expect(itemSchema.required).toContain("scriptBlueprint");
+    expect(itemSchema.required).toContain("mapAnchors");
+    expect(itemSchema.properties.mapAnchors.items.properties.kind.enum).toEqual([
+      "subject",
+      "situation",
+      "scene",
+      "voice",
+    ]);
+    expect(itemSchema.properties.scriptBlueprint.properties.scenes.minItems).toBe(3);
+    expect(userInstruction).toContain("assinatura visual e RASTREÁVEL");
+    expect(userInstruction).toContain("rótulos EXATOS das listas confirmadas");
+    expect(userInstruction).toContain("storyboard simples, filmável e específico");
+    expect(userInstruction).toContain("Se todas puderem ser gravadas no mesmo plano parado, refaça");
+  });
+
   it("proíbe a palavra 'pauta' nos campos visíveis ao criador", () => {
     const { systemInstruction } = buildContentIdeasPrompt({ context: baseContext(), count: 3 });
     expect(systemInstruction).toContain('"pauta" é termo INTERNO');

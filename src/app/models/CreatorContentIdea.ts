@@ -15,6 +15,8 @@
  * Saved/posted ideas are deliberate keeps and are never superseded.
  */
 import mongoose, { Schema, Types, Document, model } from "mongoose";
+import type { ContentIdeaScriptBlueprint } from "@/app/dashboard/boards/videoUpload/contentIdeaBlueprint";
+import type { ContentIdeaMapAnchor } from "@/app/dashboard/boards/videoUpload/contentIdeaMapAnchors";
 
 export type CreatorContentIdeaStatus =
   | "active"
@@ -45,12 +47,16 @@ export interface ICreatorContentIdea extends Document {
   tone: string | null;
   /** Why this fits the creator's specific map */
   whyItFits: string;
+  /** Dimensões confirmadas do "Seu mapa" que originaram a pauta. */
+  mapAnchors: ContentIdeaMapAnchor[];
 
   // ── Script directional (Fase 3a) ───────────────────────────────────────────
   /** 2-3 ordered scene/moment points for the video — directional, not a full script */
   scriptPoints: string[];
   /** Suggested video closing — a question, invitation, or final insight (1 short phrase) */
   scriptClosing: string | null;
+  /** Storyboard visual estruturado. Null em pautas antigas, resolvido por fallback na leitura. */
+  scriptBlueprint: ContentIdeaScriptBlueprint | null;
 
   // ── Audience match (Etapa 9 × Audiência) ───────────────────────────────────
   /**
@@ -103,8 +109,22 @@ const CreatorContentIdeaSchema = new Schema<ICreatorContentIdea>(
     suggestedFormat: { type: String, required: true, maxlength: 60 },
     tone: { type: String, default: null, maxlength: 80 },
     whyItFits: { type: String, required: true, maxlength: 400 },
+    mapAnchors: {
+      type: [
+        new Schema<ContentIdeaMapAnchor>(
+          {
+            kind: { type: String, enum: ["subject", "situation", "scene", "voice"], required: true },
+            source: { type: String, enum: ["territories", "themes", "assets", "tone"], required: true },
+            label: { type: String, required: true, maxlength: 120 },
+          },
+          { _id: false },
+        ),
+      ],
+      default: [],
+    },
     scriptPoints: { type: [String], default: [] },
     scriptClosing: { type: String, default: null, maxlength: 160 },
+    scriptBlueprint: { type: Schema.Types.Mixed, default: null },
     resonanceNote: { type: String, default: null, maxlength: 200 },
     scheduledFor: { type: Date, default: null },
     postedAt: { type: Date, default: null },
