@@ -215,7 +215,7 @@ describe("geminiVideoNarrativeClientFactory", () => {
     expect(generateContent).toHaveBeenCalledWith(expect.objectContaining({ model: "gemini-custom" }));
   });
 
-  it("adapter server-side pede JSON nativo para reduzir resposta inválida", async () => {
+  it("adapter server-side pede JSON nativo sem schema complexo incompatível com o Gemini", async () => {
     const client = createVideoNarrativeGeminiClientAdapter({
       apiKey: "secret-key",
       model: "gemini-custom",
@@ -239,34 +239,12 @@ describe("geminiVideoNarrativeClientFactory", () => {
         model: "gemini-runtime",
         config: expect.objectContaining({
           responseMimeType: "application/json",
-          responseJsonSchema: expect.objectContaining({
-            required: expect.arrayContaining(["mainNarrative", "contentContext", "narrativeCoherence", "contentPotentialScan", "evidenceAnchors"]),
-            properties: expect.objectContaining({
-              contentContext: expect.objectContaining({
-                required: expect.arrayContaining(["setting", "lifeSignals", "productionStyle"]),
-              }),
-              narrativeCoherence: expect.objectContaining({
-                required: expect.arrayContaining(["verdict", "alignedAssets", "newAssets"]),
-              }),
-              contentPotentialScan: expect.objectContaining({
-                required: expect.arrayContaining(["dimensions", "watchedMoments", "practicalDirection"]),
-                properties: expect.objectContaining({
-                  watchedMoments: expect.objectContaining({ minItems: 2, maxItems: 3 }),
-                  practicalDirection: expect.objectContaining({
-                    required: expect.arrayContaining(["title", "action", "example"]),
-                  }),
-                }),
-              }),
-              evidenceAnchors: expect.objectContaining({
-                required: expect.arrayContaining(["speechQuotes", "sceneAnchors", "creatorIntentAnchor"]),
-              }),
-            }),
-          }),
           maxOutputTokens: 3000,
           systemInstruction: "sistema",
         }),
       }),
     );
+    expect(generateContent.mock.calls[0][0].config).not.toHaveProperty("responseJsonSchema");
   });
 
   it("adapter server-side usa File API para vídeo grande em vez de inline base64", async () => {

@@ -506,7 +506,6 @@ export function createVideoNarrativeGeminiClientAdapter(
               systemInstruction,
               maxOutputTokens,
               responseMimeType: "application/json",
-              responseJsonSchema: videoNarrativeResponseJsonSchema,
               ...(signal ? { abortSignal: signal } : {}),
             },
           });
