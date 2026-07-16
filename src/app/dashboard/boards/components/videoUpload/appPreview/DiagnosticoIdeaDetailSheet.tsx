@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import type { ContentIdeaListItem } from "@/app/dashboard/boards/videoUpload/contentIdeasReadService";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
@@ -72,10 +72,49 @@ export function DiagnosticoIdeaDetailSheet({
 }: Props) {
   const reduceMotion = useReducedMotion();
   const [activePlan, setActivePlan] = useState<"solo" | "collab">(collab ? "collab" : "solo");
+  const [hasScrolled, setHasScrolled] = useState(false);
+  const scrollViewportRef = useRef<HTMLDivElement>(null);
+  const planContentRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
   const blueprint = useMemo(
     () => resolveContentIdeaScriptBlueprint(idea.scriptBlueprint, idea),
     [idea],
   );
+
+  useEffect(() => {
+    const previouslyFocused = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    titleRef.current?.focus({ preventScroll: true });
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus({ preventScroll: true });
+    };
+  }, [onClose]);
+
+  const handlePlanChange = useCallback((plan: "solo" | "collab") => {
+    if (plan === activePlan) return;
+    setActivePlan(plan);
+
+    window.requestAnimationFrame(() => {
+      const viewport = scrollViewportRef.current;
+      const planContent = planContentRef.current;
+      if (!viewport || !planContent) return;
+      viewport.scrollTo({
+        top: Math.max(0, planContent.offsetTop - 72),
+        behavior: reduceMotion ? "auto" : "smooth",
+      });
+    });
+  }, [activePlan, reduceMotion]);
   const mapAnchors = useMemo(
     () => selectContentIdeaCardAnchors(resolveContentIdeaMapAnchors({
       mapAnchors: idea.mapAnchors,
@@ -103,90 +142,116 @@ export function DiagnosticoIdeaDetailSheet({
         className="flex h-[100dvh] w-full max-w-[32rem] flex-col overflow-hidden bg-white text-zinc-950 shadow-2xl sm:h-auto sm:max-h-[min(94dvh,860px)] sm:rounded-[2rem]"
         onClick={(event) => event.stopPropagation()}
       >
-        <div className="shrink-0 border-b border-zinc-100 bg-white px-5 pb-5 pt-[max(0.75rem,env(safe-area-inset-top))] sm:px-7 sm:pt-4">
-          <div className="mb-4 flex items-center justify-between">
-            <div className="flex min-w-0 items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.09em] text-zinc-500">
-              <span className="text-violet-700">{idea.suggestedFormat}</span>
-              <span aria-hidden="true" className="text-zinc-300">/</span>
-              <span className="truncate">{idea.territory}</span>
-              {blueprint.estimatedDurationSeconds ? (
-                <>
+        <div
+          ref={scrollViewportRef}
+          data-testid="idea-detail-scroll"
+          className="min-h-0 flex-1 touch-pan-y overflow-y-auto overscroll-contain [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch]"
+          onScroll={(event) => setHasScrolled(event.currentTarget.scrollTop > 20)}
+        >
+          <div
+            data-testid="idea-detail-toolbar"
+            data-scrolled={hasScrolled ? "true" : "false"}
+            className={`sticky top-0 z-30 border-b px-5 pb-2 pt-[max(0.5rem,env(safe-area-inset-top))] transition-[background-color,border-color,box-shadow] duration-200 sm:px-7 sm:pt-2 ${
+              hasScrolled
+                ? "border-zinc-200 bg-white/94 shadow-[0_8px_24px_rgba(24,24,27,0.07)] backdrop-blur-xl"
+                : "border-transparent bg-white"
+            }`}
+          >
+            <div className="flex min-h-11 items-center justify-between gap-3">
+              {hasScrolled && collab ? (
+                <div className="inline-flex rounded-full bg-zinc-100 p-0.5" aria-label="Escolha do plano fixa">
+                  <PlanToggle compact active={activePlan === "solo"} onClick={() => handlePlanChange("solo")}>Solo</PlanToggle>
+                  <PlanToggle compact active={activePlan === "collab"} onClick={() => handlePlanChange("collab")}>A dois</PlanToggle>
+                </div>
+              ) : (
+                <div className="flex min-w-0 items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.09em] text-zinc-500">
+                  <span className="text-violet-700">{idea.suggestedFormat}</span>
                   <span aria-hidden="true" className="text-zinc-300">/</span>
-                  <span>{blueprint.estimatedDurationSeconds}s</span>
-                </>
-              ) : null}
+                  <span className="truncate">{idea.territory}</span>
+                  {blueprint.estimatedDurationSeconds ? (
+                    <>
+                      <span aria-hidden="true" className="text-zinc-300">/</span>
+                      <span>{blueprint.estimatedDurationSeconds}s</span>
+                    </>
+                  ) : null}
+                </div>
+              )}
+              <DiagnosticoCloseButton onClose={onClose} edgeAlign />
             </div>
-            <DiagnosticoCloseButton onClose={onClose} edgeAlign />
           </div>
 
-          <h2
-            id="idea-detail-title"
-            className="max-w-[12ch] font-display text-[clamp(1.95rem,8.4vw,2.4rem)] font-bold leading-[0.98] tracking-[-0.048em] text-zinc-950"
-          >
-            {idea.title}
-          </h2>
-          {idea.angle ? (
-            <p className="mt-3 max-w-[38ch] text-[16px] leading-[1.45] text-zinc-600">
-              {idea.angle}
-            </p>
-          ) : null}
+          <div className="px-5 pb-5 pt-3 sm:px-7 sm:pt-4">
+            <h2
+              ref={titleRef}
+              id="idea-detail-title"
+              tabIndex={-1}
+              className="max-w-[12ch] font-display text-[clamp(1.95rem,8.4vw,2.4rem)] font-bold leading-[0.98] tracking-[-0.048em] text-zinc-950 outline-none"
+            >
+              {idea.title}
+            </h2>
+            {idea.angle ? (
+              <p className="mt-3 max-w-[38ch] text-[16px] leading-[1.45] text-zinc-600">
+                {idea.angle}
+              </p>
+            ) : null}
 
-          {mapAnchors.length > 0 ? (
-            <div className="mt-4 border-t border-zinc-100 pt-3">
-              <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-violet-700">Do seu mapa</p>
-              <div className="mt-2 grid grid-cols-2 gap-1.5">
-                {mapAnchors.map((anchor) => (
-                  <span
-                    key={`${anchor.kind}:${anchor.label}`}
-                    className="grid min-w-0 grid-cols-1 rounded-xl bg-zinc-100 px-2.5 py-2 text-zinc-800"
-                    title={`${contentIdeaMapAnchorLabel(anchor.kind)}: ${anchor.label}`}
-                  >
-                    <span className="truncate text-[8px] font-bold uppercase tracking-[0.04em] text-zinc-500">{contentIdeaMapAnchorLabel(anchor.kind)}</span>
-                    <span className="mt-1 truncate text-[11px] font-semibold leading-none">{anchor.label}</span>
-                  </span>
-                ))}
+            {mapAnchors.length > 0 ? (
+              <div className="mt-4 border-t border-zinc-100 pt-3">
+                <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-violet-700">Do seu mapa</p>
+                <div className="mt-2 grid grid-cols-2 gap-1.5">
+                  {mapAnchors.map((anchor) => (
+                    <span
+                      key={`${anchor.kind}:${anchor.label}`}
+                      className="grid min-w-0 grid-cols-1 rounded-xl bg-zinc-100 px-2.5 py-2 text-zinc-800"
+                      title={`${contentIdeaMapAnchorLabel(anchor.kind)}: ${anchor.label}`}
+                    >
+                      <span className="truncate text-[8px] font-bold uppercase tracking-[0.04em] text-zinc-500">{contentIdeaMapAnchorLabel(anchor.kind)}</span>
+                      <span className="mt-1 truncate text-[11px] font-semibold leading-none">{anchor.label}</span>
+                    </span>
+                  ))}
+                </div>
               </div>
-            </div>
-          ) : null}
+            ) : null}
 
-          {collab ? (
-            <div className="mt-5 inline-flex rounded-full bg-zinc-100 p-1" aria-label="Escolha do plano">
-              <PlanToggle active={activePlan === "solo"} onClick={() => setActivePlan("solo")}>Solo</PlanToggle>
-              <PlanToggle active={activePlan === "collab"} onClick={() => setActivePlan("collab")}>A dois</PlanToggle>
-            </div>
-          ) : null}
-        </div>
+            {collab ? (
+              <div className="mt-4 inline-flex rounded-full bg-zinc-100 p-1" aria-label="Escolha do plano">
+                <PlanToggle active={activePlan === "solo"} onClick={() => handlePlanChange("solo")}>Solo</PlanToggle>
+                <PlanToggle active={activePlan === "collab"} onClick={() => handlePlanChange("collab")}>A dois</PlanToggle>
+              </div>
+            ) : null}
+          </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-10 pt-6 sm:px-7">
-          <AnimatePresence mode="wait" initial={false}>
-            {activePlan === "collab" && collab ? (
-              <motion.div
-                key="collab"
-                initial={reduceMotion ? false : { opacity: 0, x: 14 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={reduceMotion ? undefined : { opacity: 0, x: -10 }}
-                transition={{ duration: reduceMotion ? 0 : 0.2 }}
-              >
-                <CollabPlan
-                  collab={collab}
-                  onOpenCreatorMediaKit={onOpenCreatorMediaKit}
-                  reduceMotion={Boolean(reduceMotion)}
-                />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="solo"
-                initial={reduceMotion ? false : { opacity: 0, x: -14 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={reduceMotion ? undefined : { opacity: 0, x: 10 }}
-                transition={{ duration: reduceMotion ? 0 : 0.2 }}
-              >
-                <SoloPlan idea={idea} reduceMotion={Boolean(reduceMotion)} />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <div ref={planContentRef} className="border-t border-zinc-100 px-5 pb-10 pt-6 sm:px-7">
+            <AnimatePresence mode="wait" initial={false}>
+              {activePlan === "collab" && collab ? (
+                <motion.div
+                  key="collab"
+                  initial={reduceMotion ? false : { opacity: 0, x: 14 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={reduceMotion ? undefined : { opacity: 0, x: -10 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.2 }}
+                >
+                  <CollabPlan
+                    collab={collab}
+                    onOpenCreatorMediaKit={onOpenCreatorMediaKit}
+                    reduceMotion={Boolean(reduceMotion)}
+                  />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="solo"
+                  initial={reduceMotion ? false : { opacity: 0, x: -14 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={reduceMotion ? undefined : { opacity: 0, x: 10 }}
+                  transition={{ duration: reduceMotion ? 0 : 0.2 }}
+                >
+                  <SoloPlan idea={idea} reduceMotion={Boolean(reduceMotion)} />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
-          {!collab && !isPro ? <CollabContextTeaser onUpgrade={onUpgrade} /> : null}
+            {!collab && !isPro ? <CollabContextTeaser onUpgrade={onUpgrade} /> : null}
+          </div>
         </div>
 
         {decisionPending && onDecide ? (
@@ -223,13 +288,13 @@ export function DiagnosticoIdeaDetailSheet({
   );
 }
 
-function PlanToggle({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function PlanToggle({ active, compact = false, onClick, children }: { active: boolean; compact?: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={active}
-      className={`rounded-full px-4 py-2 text-[13px] font-semibold transition-colors ${active ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500"}`}
+      className={`rounded-full font-semibold transition-colors ${compact ? "px-3 py-1.5 text-[12px]" : "px-4 py-2 text-[13px]"} ${active ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500"}`}
     >
       {children}
     </button>

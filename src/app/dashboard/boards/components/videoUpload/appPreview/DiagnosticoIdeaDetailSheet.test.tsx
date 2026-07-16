@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { DiagnosticoIdeaDetailSheet } from "./DiagnosticoIdeaDetailSheet";
 import type { ContentIdeaListItem } from "@/app/dashboard/boards/videoUpload/contentIdeasReadService";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
@@ -44,6 +44,29 @@ function makeCollab(partial?: Partial<NarrativeCollabMatch>): NarrativeCollabMat
 }
 
 describe("DiagnosticoIdeaDetailSheet — match audiência", () => {
+  it("usa uma única superfície rolável para contexto, mapa e roteiro", () => {
+    render(
+      <DiagnosticoIdeaDetailSheet
+        idea={makeIdea({
+          mapAnchors: [
+            { kind: "subject", source: "territories", label: "Humor" },
+            { kind: "voice", source: "tone", label: "Íntimo" },
+          ],
+        })}
+        onClose={() => {}}
+      />,
+    );
+
+    const scrollSurface = screen.getByTestId("idea-detail-scroll");
+    expect(scrollSurface).toContainElement(screen.getByRole("heading", { name: "Por que parei de montar equipe" }));
+    expect(scrollSurface).toContainElement(screen.getByText("Do seu mapa"));
+    expect(scrollSurface).toContainElement(screen.getByText("Comece assim"));
+
+    Object.defineProperty(scrollSurface, "scrollTop", { configurable: true, value: 32 });
+    fireEvent.scroll(scrollSurface);
+    expect(screen.getByTestId("idea-detail-toolbar")).toHaveAttribute("data-scrolled", "true");
+  });
+
   it("usa o título como âncora e apresenta abertura + storyboard visual", () => {
     render(
       <DiagnosticoIdeaDetailSheet

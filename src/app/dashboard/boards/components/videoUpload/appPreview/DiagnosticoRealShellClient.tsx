@@ -846,7 +846,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
       window.open(COMMUNITY_WHATSAPP_URL, "_blank", "noopener,noreferrer");
     } else {
       openPaywallModal({
-        context: "narrative_map",
+        context: "whatsapp",
         source,
         returnTo: MOBILE_PROFILE_ROUTE,
         postCheckoutIntent: "join_community",

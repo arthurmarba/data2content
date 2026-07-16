@@ -484,12 +484,14 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
         collabDecisions={new Map()}
       />,
     );
-    expect(screen.getByText("Você triou a rodada")).toBeInTheDocument();
-    expect(screen.getByText(/1 pauta guardada na mochila/)).toBeInTheDocument();
+    expect(screen.getByText("Rodada concluída")).toBeInTheDocument();
+    expect(screen.getByText("Pronto para novas pautas?")).toBeInTheDocument();
+    expect(screen.getByText("1 pauta guardada nesta rodada.")).toBeInTheDocument();
   });
 
-  it("deck triado mostra o convite pra comunidade no WhatsApp — fim da rodada não é beco", () => {
+  it("assinante encerra a rodada com geração principal e WhatsApp secundário", () => {
     const onOpenWhatsAppCommunity = jest.fn();
+    const onGenerate = jest.fn();
     render(
       <DiagnosticoCollabsFeed
         {...baseProps}
@@ -497,11 +499,38 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
         pautaCollabs={new Map()}
         collabDecisions={new Map()}
         onOpenWhatsAppCommunity={onOpenWhatsAppCommunity}
+        onGenerate={onGenerate}
       />,
     );
-    expect(screen.getByText("A comunidade continua no WhatsApp")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Entrar na comunidade" }));
+    fireEvent.click(screen.getByRole("button", { name: "Carregar nova rodada" }));
+    expect(onGenerate).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "Entrar no grupo do WhatsApp" }));
     expect(onOpenWhatsAppCommunity).toHaveBeenCalledTimes(1);
+  });
+
+  it("não assinante abre o modal contextual em cada ação do fim da rodada", () => {
+    const onUpgrade = jest.fn();
+    const onGenerate = jest.fn();
+    const onOpenWhatsAppCommunity = jest.fn();
+    render(
+      <DiagnosticoCollabsFeed
+        {...baseProps}
+        isPro={false}
+        pautas={[pauta("guardada", { status: "saved" as const })]}
+        pautaCollabs={new Map()}
+        collabDecisions={new Map()}
+        onUpgrade={onUpgrade}
+        onGenerate={onGenerate}
+        onOpenWhatsAppCommunity={onOpenWhatsAppCommunity}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Carregar nova rodada/ }));
+    expect(onUpgrade).toHaveBeenLastCalledWith("planning");
+    fireEvent.click(screen.getByRole("button", { name: /Entrar no grupo do WhatsApp/ }));
+    expect(onUpgrade).toHaveBeenLastCalledWith("whatsapp");
+    expect(onGenerate).not.toHaveBeenCalled();
+    expect(onOpenWhatsAppCommunity).not.toHaveBeenCalled();
   });
 
   it("sem handler de comunidade, nem o ícone do header nem o card do fim aparecem", () => {
@@ -514,7 +543,7 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
       />,
     );
     expect(screen.queryByRole("button", { name: "Comunidade no WhatsApp" })).not.toBeInTheDocument();
-    expect(screen.queryByText("A comunidade continua no WhatsApp")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Entrar no grupo do WhatsApp/ })).not.toBeInTheDocument();
   });
 
   it("free: uma pauta vira o card misterioso e o coração abre o paywall (não decide)", () => {

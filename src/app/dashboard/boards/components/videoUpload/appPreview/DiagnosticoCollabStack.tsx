@@ -528,8 +528,7 @@ export function DiagnosticoCollabStack({
   items,
   isPro,
   shelfCount,
-  clearedFooter,
-  clearedCommunityCard,
+  clearedActions,
   onDecide,
   onOpenIdea,
   onUpgrade,
@@ -538,14 +537,8 @@ export function DiagnosticoCollabStack({
   isPro: boolean;
   /** Itens na mochila — vira a recompensa do estado "rodada triada". */
   shelfCount?: number;
-  /**
-   * Renderizado DENTRO do bloco "Você triou a rodada" (abaixo do texto) — é
-   * como o CTA de gerar entra no centro da mesa, colado à recompensa, em vez
-   * de solto no rodapé da tela como um elemento órfão.
-   */
-  clearedFooter?: ReactNode;
-  /** Continuação humana da rodada: abre a comunidade depois que o deck termina. */
-  clearedCommunityCard?: ReactNode;
+  /** Duas continuações do ritual, tratadas como uma única composição. */
+  clearedActions?: ReactNode;
   onDecide: (pautaId: string, decision: CollabStackDecision) => void;
   onOpenIdea?: (pautaId: string) => void;
   onUpgrade?: () => void;
@@ -705,30 +698,22 @@ export function DiagnosticoCollabStack({
   };
 
   if (emptyDeck) {
-    // Deck sem cartões = recompensa + próximo passo, um bloco só no centro da
-    // mesa (NUNCA branco). alignItems:center centraliza o ícone também.
-    // O clearedFooter (CTA de gerar) mora aqui dentro — colado à mensagem.
+    // Deck sem cartões = um único encerramento, sem card dentro de card.
     const shelfMsg = typeof shelfCount === "number" && shelfCount > 0
-      ? `${shelfCount} ${shelfCount === 1 ? "pauta guardada" : "pautas guardadas"} na mochila — é lá que se grava.`
-      : "Gere novas pautas quando quiser — do seu mapa, na sua voz.";
+      ? `${shelfCount} ${shelfCount === 1 ? "pauta guardada" : "pautas guardadas"} nesta rodada.`
+      : "A próxima rodada nasce do seu mapa.";
     return (
-      <div style={{ flex: "1 1 auto", minHeight: 0, maxHeight: CARD_MAX_HEIGHT, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "12px 12px 10px", textAlign: "center" }}>
-        <span style={{
-          display: "inline-grid", placeItems: "center", width: 52, height: 52,
-          borderRadius: 9999, background: COLLAB_TINT_BG, marginBottom: 12,
-        }} aria-hidden="true">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-            <path d="M5 13l4.5 4.5L19 7.5" stroke={COLLAB_ACCENT} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </span>
-        <p style={{ fontSize: 16, fontWeight: 700, color: TEXT_PRIMARY_HEX, margin: 0, letterSpacing: -0.3 }}>
-          {triaged ? "Você triou a rodada" : "Nenhuma pauta pra triar agora"}
+      <div style={{ flex: "1 1 auto", minHeight: 0, maxHeight: CARD_MAX_HEIGHT, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", padding: "16px 8px 12px", textAlign: "center" }}>
+        <p style={{ fontSize: 10.5, fontWeight: 800, color: CS_BRAND_STRONG_HEX, margin: 0, letterSpacing: 1.15, textTransform: "uppercase" }}>
+          {triaged ? "Rodada concluída" : "Sem pautas ativas"}
         </p>
-        <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, lineHeight: 1.5, margin: "5px 0 0" }}>
+        <p style={{ fontFamily: CS_FONT_DISPLAY, fontSize: 24, lineHeight: 1.06, fontWeight: 700, color: TEXT_PRIMARY_HEX, margin: "8px 0 0", letterSpacing: -0.8 }}>
+          Pronto para novas pautas?
+        </p>
+        <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, lineHeight: 1.45, margin: "7px 0 0" }}>
           {shelfMsg}
         </p>
-        {clearedFooter ? <div style={{ marginTop: 18 }}>{clearedFooter}</div> : null}
-        {clearedCommunityCard ? <div style={{ width: "100%", marginTop: 12 }}>{clearedCommunityCard}</div> : null}
+        {clearedActions ? <div style={{ width: "100%", maxWidth: 330, marginTop: 20 }}>{clearedActions}</div> : null}
       </div>
     );
   }

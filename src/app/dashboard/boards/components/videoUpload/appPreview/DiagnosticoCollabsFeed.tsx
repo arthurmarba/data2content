@@ -799,38 +799,55 @@ function GenerateButton({
   );
 }
 
-// Convite pra comunidade no fim da rodada — o deck triado é o momento de
-// lembrar que o criador não está sozinho: a comunidade acontece no WhatsApp.
-function CommunityInviteCard({ onOpen }: { onOpen: () => void }) {
+function RoundCompleteActions({
+  isPro,
+  isGeneratingIdeas,
+  onGenerate,
+  onUpgrade,
+  onOpenWhatsAppCommunity,
+}: Pick<Props, "isPro" | "isGeneratingIdeas" | "onGenerate" | "onUpgrade" | "onOpenWhatsAppCommunity">) {
+  const proBadge = !isPro ? (
+    <span style={{ borderRadius: 999, padding: "3px 6px", background: "rgba(255,255,255,0.16)", fontSize: 9, fontWeight: 800, letterSpacing: 0.65 }}>
+      PRO
+    </span>
+  ) : null;
+
   return (
-    <div
-      style={{
-        borderRadius: CARD_RADIUS, background: CS_NEUTRAL_HEX, padding: "16px 18px",
-        display: "flex", flexDirection: "column", alignItems: "center", gap: 10, textAlign: "center",
-      }}
-    >
-      <span style={{ display: "inline-flex", width: 36, height: 36, borderRadius: 999, background: "var(--ds-color-surface)", alignItems: "center", justifyContent: "center" }}>
-        <WhatsAppIcon color={WA_GREEN} size={19} />
-      </span>
-      <div>
-        <p style={{ fontSize: 15, fontWeight: 700, color: CS_INK_HEX, letterSpacing: -0.2, margin: 0 }}>
-          A comunidade continua no WhatsApp
-        </p>
-        <p style={{ fontSize: 13, color: CS_MUTED, lineHeight: 1.45, margin: "4px 0 0" }}>
-          É lá que os criadores combinam as collabs de verdade.
-        </p>
-      </div>
+    <div role="group" aria-label="Continuar depois da rodada" style={{ display: "grid", gap: 10 }}>
       <button
         type="button"
-        onClick={onOpen}
+        disabled={isGeneratingIdeas}
+        onClick={isPro ? onGenerate : () => onUpgrade?.("planning")}
         style={{
-          display: "inline-flex", alignItems: "center", justifyContent: "center",
-          borderRadius: 999, padding: "10px 18px", background: CS_BRAND_HEX, color: "var(--ds-color-on-brand)",
-          fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: "inherit",
+          minHeight: 50, width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 9,
+          borderRadius: 999, padding: "11px 18px", background: CS_BRAND_HEX, color: "var(--ds-color-on-brand)",
+          fontSize: 14, fontWeight: 700, border: "none", cursor: isGeneratingIdeas ? "wait" : "pointer", fontFamily: "inherit",
+          opacity: isGeneratingIdeas ? 0.72 : 1,
         }}
       >
-        Entrar na comunidade
+        <span>{isGeneratingIdeas ? "Criando sua próxima rodada…" : "Carregar nova rodada"}</span>
+        {!isGeneratingIdeas ? proBadge : null}
       </button>
+
+      {onOpenWhatsAppCommunity ? (
+        <button
+          type="button"
+          onClick={isPro ? onOpenWhatsAppCommunity : () => onUpgrade?.("whatsapp")}
+          style={{
+            minHeight: 48, width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
+            borderRadius: 999, padding: "10px 18px", background: "var(--ds-color-surface)", color: CS_INK_HEX,
+            fontSize: 13.5, fontWeight: 700, border: `1px solid ${CS_LINE}`, cursor: "pointer", fontFamily: "inherit",
+          }}
+        >
+          <WhatsAppIcon color={WA_GREEN} size={17} />
+          <span>Entrar no grupo do WhatsApp</span>
+          {!isPro ? (
+            <span style={{ borderRadius: 999, padding: "3px 6px", background: CS_NEUTRAL_HEX, color: CS_MUTED, fontSize: 9, fontWeight: 800, letterSpacing: 0.65 }}>
+              PRO
+            </span>
+          ) : null}
+        </button>
+      ) : null}
     </div>
   );
 }
@@ -842,7 +859,6 @@ export function DiagnosticoCollabsFeed({
   isGeneratingIdeas,
   ideaGenerationBlocker,
   pautaCollabs,
-  pautaCollabsLoading,
   bootstrapStatus = "ready",
   bootstrapError,
   onRetryBootstrap,
@@ -962,16 +978,6 @@ export function DiagnosticoCollabsFeed({
   }, [pautas, pautaCollabs, collabDecisions, confirmedMatches, isPro, pautaActionStates]);
 
   const pautaById = useMemo(() => new Map(pautas.map((p) => [p.id, p])), [pautas]);
-  // Mostra a área do deck enquanto há o que triar OU quando a rodada foi triada
-  // (algo já foi pra estante) — aí o stack exibe a recompensa "triou a rodada".
-  const showDeckArea =
-    bootstrapPending ||
-    bootstrapFailed ||
-    (isPro && Boolean(pautaCollabsLoading)) ||
-    deckItems.length > 0 ||
-    shelfPautas.length > 0 ||
-    (collabDecisions?.size ?? 0) > 0;
-
   // Roteia a decisão pelo tipo do card — o gesto é um, as consequências não.
   //   REJEITAR (qualquer card) = descarte PERMANENTE da pauta: nunca mais volta,
   //   nem no reload nem numa geração futura. (Antes: rejeitar collab devolvia a
@@ -1048,67 +1054,33 @@ export function DiagnosticoCollabsFeed({
       ) : null}
 
       {hasPautas ? (
-        <>
-          {/* A MESA — a tela é o deck, entre a stories row e a tab bar. Sem
-              palco: o card senta direto na página, com a própria elevação.
-              flex:1 + minHeight:0 = preenche o espaço real que sobra (não uma
-              altura fixa) — minHeight:0 é o que permite o filho ENCOLHER
-              abaixo do tamanho do conteúdo quando o espaço aperta, em vez de
-              estourar o container pai. */}
-          {showDeckArea ? (
-            // flex-start (não center): o card cola logo abaixo do header e a
-            // sobra de telas altas cai TODA embaixo, entre o rodapé do card e
-            // a tab bar — centralizar dividia essa sobra em dois vãos e
-            // deixava o card "boiando" no meio da tela, longe do topo.
-            <div style={{ padding: "10px 20px 8px", flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "flex-start" }}>
-              {bootstrapPending ? (
-                <StackSkeleton />
-              ) : bootstrapFailed ? (
-                <CollabsLoadError message={bootstrapError} onRetry={onRetryBootstrap} />
-              ) : (
-                <DiagnosticoCollabStack
-                  items={deckItems}
-                  isPro={isPro}
-                  shelfCount={shelfPautas.length}
-                  // "Gerar" mora DENTRO da recompensa "Você triou a rodada" —
-                  // recompensa + próximo passo são um bloco só, centrado na
-                  // mesa (antes o botão ficava órfão no rodapé da tela).
-                  clearedFooter={
-                    <GenerateButton
-                      isPro={isPro}
-                      isGeneratingIdeas={isGeneratingIdeas}
-                      onGenerate={onGenerate}
-                      onUpgrade={onUpgrade}
-                      label="Gerar novas pautas →"
-                    />
-                  }
-                  clearedCommunityCard={
-                    onOpenWhatsAppCommunity ? (
-                      <CommunityInviteCard onOpen={onOpenWhatsAppCommunity} />
-                    ) : undefined
-                  }
-                  onDecide={handleDeckDecision}
-                  onOpenIdea={onOpenIdea}
-                  onUpgrade={() => onUpgrade?.("narrative_map")}
-                />
-              )}
-            </div>
+        // A MESA — inclusive vazia. O stack possui um único estado final para
+        // qualquer rodada sem cards, evitando CTA órfão e variações de layout.
+        <div style={{ padding: "10px 20px 8px", flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", justifyContent: "flex-start" }}>
+          {bootstrapPending ? (
+            <StackSkeleton />
+          ) : bootstrapFailed ? (
+            <CollabsLoadError message={bootstrapError} onRetry={onRetryBootstrap} />
           ) : (
-            // Sem área de deck (nada triado nesta sessão e deck vazio — ex.:
-            // tudo foi postado): o CTA de gerar ainda precisa de uma casa.
-            !pautaCollabsLoading && deckItems.length === 0 ? (
-              <div style={{ padding: "24px 18px 0", display: "flex", justifyContent: "center" }}>
-                <GenerateButton
+            <DiagnosticoCollabStack
+              items={deckItems}
+              isPro={isPro}
+              shelfCount={shelfPautas.length}
+              clearedActions={
+                <RoundCompleteActions
                   isPro={isPro}
                   isGeneratingIdeas={isGeneratingIdeas}
                   onGenerate={onGenerate}
                   onUpgrade={onUpgrade}
-                  label="Gerar novas pautas →"
+                  onOpenWhatsAppCommunity={onOpenWhatsAppCommunity}
                 />
-              </div>
-            ) : null
+              }
+              onDecide={handleDeckDecision}
+              onOpenIdea={onOpenIdea}
+              onUpgrade={() => onUpgrade?.("narrative_map")}
+            />
           )}
-        </>
+        </div>
       ) : mapless ? (
         // Estado travado: sem mapa, devolve ao Perfil. Sem feed vazio.
         <div style={{ padding: "32px 24px", textAlign: "center" }}>
