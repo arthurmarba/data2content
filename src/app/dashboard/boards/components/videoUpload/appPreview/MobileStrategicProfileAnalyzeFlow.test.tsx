@@ -132,10 +132,10 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     expect(screen.getByText("Fala com quem já te acompanha.")).toBeInTheDocument();
     expect(screen.getByText("Abre um território ainda difuso.")).toBeInTheDocument();
     expect(screen.getByText("Vale postar depois de um ajuste.")).toBeInTheDocument();
-    expect(screen.getByText("Análise baseada em 2 momentos do vídeo")).toBeInTheDocument();
+    expect(screen.getByText("Leitura baseada em 2 momentos do vídeo")).toBeInTheDocument();
     expect(screen.getByText("Na abertura")).toBeInTheDocument();
     expect(screen.getByText("Você apresenta a dúvida principal na fala, mas ela não aparece em texto.")).toBeInTheDocument();
-    expect(screen.getByText("Faça isto antes de postar")).toBeInTheDocument();
+    expect(screen.getByText("Ajuste de maior impacto")).toBeInTheDocument();
     expect(screen.getByText("Leve a dúvida para o primeiro frame")).toBeInTheDocument();
     expect(screen.getByText(/Sua ideia trava antes de virar pauta\?/)).toBeInTheDocument();
     // A survey pós-leitura foi removida — o modal tem função única.

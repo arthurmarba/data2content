@@ -1086,11 +1086,12 @@ export function MobileStrategicProfileAnalyzeFlow({
         ) : null}
 
         {step === "confirmation" ? (
-          <div>
+          <div className="ds-analysis-editorial">
             {thumbnailDataUrl ? (
-              <div className="-mx-5 -mt-1 mb-4 overflow-hidden">
-                <img src={thumbnailDataUrl} alt="" className="w-full object-cover opacity-80" style={{ aspectRatio: "16/9", maxHeight: 120 }} aria-hidden="true" />
-              </div>
+              <figure className="ds-analysis-cover -mx-5 -mt-1 mb-5">
+                <img src={thumbnailDataUrl} alt="" className="h-full w-full object-cover" aria-hidden="true" />
+                <figcaption>Vídeo analisado</figcaption>
+              </figure>
             ) : null}
             {/* Leitura plana: seções separadas por hairline + hierarquia de fonte,
                 sem card-dentro-de-card. O único elemento "contido" é o botão. */}
@@ -1102,18 +1103,20 @@ export function MobileStrategicProfileAnalyzeFlow({
               const comparison = previousScan ? compareContentPotentialScans(previousScan, scan) : null;
               const watchedCount = scan.watchedMoments?.length ?? 0;
               return (
-                <section className="ds-scan-result">
-                  <p className="ds-eyebrow">{decision.eyebrow}</p>
-                  <h3 className="mt-1.5 font-display text-[1.55rem] font-bold leading-[1.05] tracking-[-0.04em] text-zinc-950">
-                    {decision.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-5 text-zinc-600">{decision.reason}</p>
-                  <p className="mt-2 flex items-center gap-1.5 text-[11px] font-semibold text-zinc-500">
-                    <span className="ds-scan-watched-mark" aria-hidden="true">✓</span>
-                    {watchedCount > 0
-                      ? `Análise baseada em ${watchedCount} momentos do vídeo`
-                      : "Análise baseada no vídeo enviado"}
-                  </p>
+                <section className="ds-scan-result ds-scan-result--editorial">
+                  <header className="ds-scan-editorial-hero">
+                    <p className="ds-eyebrow">{decision.eyebrow}</p>
+                    <h3 className="mt-2 font-display text-[1.95rem] font-bold leading-[0.98] tracking-[-0.055em] text-zinc-950">
+                      {decision.title}
+                    </h3>
+                    <p className="mt-3 max-w-[34ch] text-[0.94rem] leading-6 text-zinc-600">{decision.reason}</p>
+                    <p className="mt-3 flex items-center gap-2 text-[11px] font-semibold text-zinc-500">
+                      <span className="ds-scan-watched-mark" aria-hidden="true">✓</span>
+                      {watchedCount > 0
+                        ? `Leitura baseada em ${watchedCount} momentos do vídeo`
+                        : "Leitura baseada no vídeo enviado"}
+                    </p>
+                  </header>
 
                   {comparison ? (
                     <div className="ds-scan-comparison mt-4" aria-label="Comparação com a versão anterior">
@@ -1138,9 +1141,9 @@ export function MobileStrategicProfileAnalyzeFlow({
                     </div>
                   ) : null}
 
-                  <div className="ds-practical-direction mt-3.5">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--ds-color-brand-strong)]">Faça isto antes de postar</p>
-                    <p className="mt-1.5 font-display text-[1.18rem] font-bold leading-[1.1] tracking-[-0.025em] text-zinc-950">
+                  <div className="ds-practical-direction mt-5">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ds-color-brand-strong)]">Ajuste de maior impacto</p>
+                    <p className="mt-2 font-display text-[1.3rem] font-bold leading-[1.08] tracking-[-0.035em] text-zinc-950">
                       {scan.practicalDirection?.title ?? scan.highestImpactAdjustment}
                     </p>
                     {scan.practicalDirection?.action ? (
@@ -1180,16 +1183,21 @@ export function MobileStrategicProfileAnalyzeFlow({
                     ) : null}
                   </div>
 
-                  <div className="mt-5 grid gap-5 border-t border-[var(--ds-color-line)] pt-5">
+                  <section className="ds-scan-proof mt-6 border-t border-[var(--ds-color-line)] pt-5">
+                    <div className="mb-5">
+                      <p className="ds-eyebrow">O que sustenta esta leitura</p>
+                      <p className="mt-1.5 text-sm leading-5 text-zinc-500">Os sinais mais importantes encontrados na estrutura do vídeo.</p>
+                    </div>
+
                     <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Pontos fortes</p>
-                      <div className="mt-2 grid gap-2.5">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400">O que já funciona</p>
+                      <div className="ds-report-signal-list mt-2">
                         {strengths.length ? strengths.map((item) => (
-                          <div key={item.key} className="ds-report-signal">
-                            <span className="ds-report-signal__mark ds-report-signal__mark--positive" aria-hidden="true">✓</span>
+                          <div key={item.key} className="ds-report-signal ds-report-signal--positive">
+                            <span className="ds-report-signal__mark" aria-hidden="true" />
                             <div>
                               <p className="text-sm font-semibold text-zinc-950">{item.label}</p>
-                              <p className="mt-0.5 text-sm leading-5 text-zinc-600">{item.evidence}</p>
+                              <p className="mt-1 text-sm leading-5 text-zinc-600">{item.evidence}</p>
                             </div>
                           </div>
                         )) : (
@@ -1198,16 +1206,16 @@ export function MobileStrategicProfileAnalyzeFlow({
                       </div>
                     </div>
 
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">O que pode limitar o post</p>
-                      <div className="mt-2 grid gap-2.5">
+                    <div className="mt-5">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400">O que pode limitar</p>
+                      <div className="ds-report-signal-list mt-2">
                         {risks.length ? risks.map((item) => (
-                          <div key={item.key} className="ds-report-signal">
-                            <span className="ds-report-signal__mark ds-report-signal__mark--risk" aria-hidden="true">!</span>
+                          <div key={item.key} className="ds-report-signal ds-report-signal--risk">
+                            <span className="ds-report-signal__mark" aria-hidden="true" />
                             <div>
                               <p className="text-sm font-semibold text-zinc-950">{item.label}</p>
-                              <p className="mt-0.5 text-sm leading-5 text-zinc-600">{item.evidence}</p>
-                              {item.adjustment ? <p className="mt-1 text-xs font-semibold leading-5 text-zinc-800">Ajuste: {item.adjustment}</p> : null}
+                              <p className="mt-1 text-sm leading-5 text-zinc-600">{item.evidence}</p>
+                              {item.adjustment ? <p className="mt-1.5 text-xs font-semibold leading-5 text-zinc-800">Como melhorar: {item.adjustment}</p> : null}
                             </div>
                           </div>
                         )) : (
@@ -1215,11 +1223,11 @@ export function MobileStrategicProfileAnalyzeFlow({
                         )}
                       </div>
                     </div>
-                  </div>
+                  </section>
 
                   {scan.watchedMoments?.length ? (
-                    <details className="ds-report-details mt-5">
-                      <summary>Ver onde identifiquei isso no vídeo</summary>
+                    <details className="ds-report-details mt-6">
+                      <summary>Onde identifiquei isso no vídeo</summary>
                       <div className="mt-3">
                         {scan.watchedMoments.map((moment, index) => (
                           <div key={`${moment.moment}-${index}`} className="ds-watched-moment">
@@ -1253,8 +1261,8 @@ export function MobileStrategicProfileAnalyzeFlow({
                     <p className="mt-2 text-[11px] leading-4 text-zinc-400">{scan.disclaimer}</p>
                   </details>
 
-                  <div className="mt-5 border-t border-[var(--ds-color-line)] pt-4">
-                    <p className="text-xs font-semibold text-zinc-700">Esta leitura foi útil?</p>
+                  <div className="mt-6 border-t border-[var(--ds-color-line)] pt-5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400">Esta leitura foi útil?</p>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <button type="button" className={submittedFeedback === "helpful" ? "ds-chip ds-chip--active" : "ds-chip"} onClick={() => submitReportFeedback({ target: "overall", value: "helpful" })}>Sim</button>
                       <button type="button" className={submittedFeedback === "wrong_intent" ? "ds-chip ds-chip--active" : "ds-chip"} onClick={() => submitReportFeedback({ target: "overall", value: "wrong_intent" })}>Não entendeu a intenção</button>
