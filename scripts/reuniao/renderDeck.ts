@@ -28,6 +28,7 @@ import {
   respiroSlide,
   criadorSlideA,
   criadorSlideB,
+  criadorSlideC,
   collabSlide,
   constelacaoSlide,
   fechamentoSlide,
@@ -59,13 +60,14 @@ async function baixar(url: string | null | undefined, dest: string): Promise<str
     const res = await fetch(url);
     if (!res.ok) {
       console.error(`  ⚠ ${path.basename(dest)}: HTTP ${res.status}`);
-      return null;
+      // URLs assinadas do Instagram expiram; preserve o cache já materializado.
+      try { await fs.access(dest); return dest; } catch { return null; }
     }
     await fs.writeFile(dest, Buffer.from(await res.arrayBuffer()));
     return dest;
   } catch (e) {
     console.error(`  ⚠ ${path.basename(dest)}: ${(e as Error).message}`);
-    return null;
+    try { await fs.access(dest); return dest; } catch { return null; }
   }
 }
 
@@ -131,7 +133,9 @@ async function buscarReels(deck: DeckData, assetsDir: string, reelSecs: number, 
     if (reuse) {
       try {
         await fs.access(cached);
-        out.set(a.i, { videoPath: cached, posterPath: await posterPathOf(tag) });
+        const posterPath = await posterPathOf(tag);
+        if (posterPath && a.c.reel) a.c.reel.posterUrl = pathToFileURL(posterPath).href;
+        out.set(a.i, { videoPath: cached, posterPath });
         console.error(`  ↺ ${a.c.nome}: reel em cache (reuso)`);
         continue;
       } catch { /* não há cache → busca */ }
@@ -195,11 +199,16 @@ function ordenarSlides(deck: DeckData): { html: string; criadorIdx: number | nul
         criadorIdx: null,
       });
     }
-    // 2 tempos por criador: A (a semana, com o reel) → B (o que vem). Sem poluir.
+    // 3 tempos por criador ativo: evidência → aprendizado → decisão.
+    // Sem-sinal fica em um único slide de retomada pelo mapa.
     out.push({ html: criadorSlideA(c, i + 1, total), criadorIdx: i });
-    out.push({ html: criadorSlideB(c, i + 1, total), criadorIdx: null });
+    if (!c.semSinal) {
+      out.push({ html: criadorSlideB(c, i + 1, total), criadorIdx: null });
+      out.push({ html: criadorSlideC(c, i + 1, total), criadorIdx: null });
+    }
   });
-  const temCollabs = deck.collabs.length > 0;
+  const collabs = deck.collabs.slice(0, 3);
+  const temCollabs = collabs.length > 0;
   const constel = constelacaoSlide(deck);
   if (temCollabs || constel) {
     // Divisor (respiro accent): vira pro ato das pontes — quebra a parede de criadores.
@@ -209,8 +218,8 @@ function ordenarSlides(deck: DeckData): { html: string; criadorIdx: number | nul
     });
   }
   // 1 slide rico por collab.
-  deck.collabs.forEach((c, i) =>
-    out.push({ html: collabSlide(c, i + 1, deck.collabs.length, deck.criadores), criadorIdx: null }),
+  collabs.forEach((c, i) =>
+    out.push({ html: collabSlide(c, i + 1, collabs.length, deck.criadores), criadorIdx: null }),
   );
   if (constel) out.push({ html: constel, criadorIdx: null });
   out.push({ html: fechamentoSlide(deck), criadorIdx: null });
@@ -273,19 +282,25 @@ async function main() {
   const pptx = new pptxgen();
   pptx.defineLayout({ name: "D2C_16x9", width: PPTX_W, height: PPTX_H });
   pptx.layout = "D2C_16x9";
-  for (const r of rendered) {
+  for (let i = 0; i < rendered.length; i++) {
+    const r = rendered[i]!;
     const slide = pptx.addSlide();
     slide.addImage({ path: r.png, x: 0, y: 0, w: PPTX_W, h: PPTX_H });
     if (r.video) {
-      // pptxgenjs exige o cover como data URL base64 (não aceita caminho).
+      // O pptxgenjs salva covers em um arquivo .png dentro do pacote, mesmo quando
+      // o data URL recebido contém JPEG. PowerPoint Mac rejeita esse mismatch
+      // (extensão/MIME PNG com bytes JPEG) e pode invalidar todas as imagens do
+      // slide. Normalizamos o poster para PNG real antes de embuti-lo.
       let cover: string | undefined;
       if (r.video.poster) {
         try {
-          const b64 = (await fs.readFile(r.video.poster)).toString("base64");
-          const mime = /\.png$/i.test(r.video.poster) ? "image/png" : "image/jpeg";
-          cover = `data:${mime};base64,${b64}`;
+          const coverPng = path.join(assetsDir, `pptx-cover-${String(i + 1).padStart(2, "0")}.png`);
+          await execFileP("ffmpeg", ["-y", "-i", r.video.poster, "-frames:v", "1", coverPng]);
+          const b64 = (await fs.readFile(coverPng)).toString("base64");
+          cover = `data:image/png;base64,${b64}`;
         } catch {
-          /* sem poster → pptxgenjs usa o play button padrão */
+          // Sem cover é preferível a gerar um pacote inconsistente; o PowerPoint
+          // usa o botão de play padrão e o slide continua íntegro.
         }
       }
       slide.addMedia({

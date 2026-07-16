@@ -20,6 +20,7 @@
 import { Types } from "mongoose";
 import { GoogleGenAI, createUserContent } from "@google/genai";
 import { connectToDatabase } from "@/app/lib/mongoose";
+import { normalizeCreatorAvatarUrl, resolveCreatorAvatar } from "@/app/lib/avatar/creatorAvatar";
 import { rankByComplementarity, findSharedLabel, findDistinctLabels, significantWords, buildViewerTokens } from "./collabComplementarity";
 import { logGeminiUsage } from "@/app/lib/llm/geminiUsageLog";
 import {
@@ -31,6 +32,10 @@ import {
 // Configurável por env (GEMINI_COLLAB_MODEL) para A/B de modelo — candidato a
 // gemini-2.5-flash-lite. Default idêntico ao histórico.
 const GEMINI_MODEL = process.env.GEMINI_COLLAB_MODEL || "gemini-2.5-flash";
+// O card não pode ficar bloqueado indefinidamente por uma resposta criativa.
+// Ao estourar este limite, o matcher por-pauta usa seu ranking determinístico e
+// o blueprint de fallback — ambos já são específicos ao território e à distância.
+const COLLAB_ASSIGNMENT_MAX_WAIT_MS = 3500;
 const CANDIDATE_POOL_SIZE = 30; // Pool final (após ranking) — o matcher por-pauta dedupa por território
 // Quantos seeds VARRER antes de rankear. Maior que o pool final: dá ao ranker
 // uma escolha real (os mais compatíveis com o viewer), em vez de "os primeiros
@@ -110,6 +115,22 @@ function readApiKey(): string | null {
   );
 }
 
+async function resolveWithin<T>(promise: Promise<T>, timeoutMs: number): Promise<T | null> {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => resolve(null), timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timeout);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timeout);
+        reject(error);
+      },
+    );
+  });
+}
+
 /**
  * Gera a razão de fit narrativo entre duas narrativas em 1 frase curta.
  * Non-fatal: retorna fallback se Gemini falhar.
@@ -183,6 +204,16 @@ export interface EligibleCandidate {
     name?: string | null;
     email?: string | null;
     image?: string | null;
+    providerImage?: string | null;
+    profile_picture_url?: string | null;
+    isInstagramConnected?: boolean | null;
+    instagramAccountId?: string | null;
+    availableIgAccounts?: Array<{
+      igAccountId?: string | null;
+      profile_picture_url?: string | null;
+    }> | null;
+    /** Foto resolvida no pool, inclusive para contas legadas com snapshot de métricas. */
+    avatarUrl?: string | null;
     mediaKitSlug?: string | null;
     /** Cidade/estado do criador — usado pra saber se dá pra gravar presencial. */
     location?: CreatorLocation | null;
@@ -249,11 +280,40 @@ export async function buildNarrativeCandidatePool(
     const { default: CreatorVideoNarrativeDiagnosis } = await import(
       "@/app/models/CreatorVideoNarrativeDiagnosis"
     );
+    const { default: AccountInsightModel } = await import("@/app/models/AccountInsight");
 
     const users = await UserModel.find({ _id: { $in: candidateIds } })
-      .select("_id name email image mediaKitSlug location")
+      .select("_id name username instagramUsername email image providerImage profile_picture_url isInstagramConnected instagramAccountId availableIgAccounts mediaKitSlug location")
       .lean<Array<EligibleCandidate["user"]>>();
-    const userMap = new Map(users.map((u) => [u._id.toString(), u]));
+    const missingAvatarIds = users
+      .filter((user) => !resolveCreatorAvatar(user))
+      .map((user) => user._id);
+    const legacyAvatarSnapshots = missingAvatarIds.length > 0
+      ? await AccountInsightModel.aggregate<Array<{ _id: Types.ObjectId; profilePicture?: string | null }>>([
+          {
+            $match: {
+              user: { $in: missingAvatarIds },
+              "accountDetails.profile_picture_url": { $exists: true, $nin: [null, ""] },
+            },
+          },
+          { $sort: { recordedAt: -1 } },
+          {
+            $group: {
+              _id: "$user",
+              profilePicture: { $first: "$accountDetails.profile_picture_url" },
+            },
+          },
+        ])
+      : [];
+    const legacyAvatarByUserId = new Map(
+      legacyAvatarSnapshots
+        .map((snapshot) => [snapshot._id.toString(), normalizeCreatorAvatarUrl(snapshot.profilePicture)] as const)
+        .filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
+    );
+    const userMap = new Map(users.map((user) => {
+      const avatarUrl = resolveCreatorAvatar(user) ?? legacyAvatarByUserId.get(user._id.toString()) ?? null;
+      return [user._id.toString(), { ...user, avatarUrl }] as const;
+    }));
 
     // Leitura de vídeo é OPCIONAL agora — só enriquece o exemplo quando existe.
     const bestReadings = await CreatorVideoNarrativeDiagnosis.aggregate<EligibleCandidate["reading"]>([
@@ -373,7 +433,7 @@ export function buildMatchFromCandidate(
     id: user._id.toString(),
     name: user.name ?? "Criador",
     username: typeof handle === "string" ? handle : null,
-    avatarUrl: user.image ?? null,
+    avatarUrl: user.avatarUrl ?? resolveCreatorAvatar(user),
     mediaKitSlug: user.mediaKitSlug ?? null,
     narrativeExample: buildNarrativeExample(reading),
     suggestedNarrativeLabel: candidateNarrative,
@@ -544,16 +604,25 @@ Responda APENAS com JSON:
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: GEMINI_MODEL,
-      contents: createUserContent([prompt]),
-      config: {
-        maxOutputTokens: 6000,
-        temperature: 0.45,
-        responseMimeType: "application/json",
-        thinkingConfig: { thinkingBudget: 0 },
-      },
-    });
+    const response = await resolveWithin(
+      ai.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: createUserContent([prompt]),
+        config: {
+          // O detalhe recebe uma direção filmável, sem pedir um roteiro longo
+          // para cada pauta da rodada (que tornava a primeira abertura lenta).
+          maxOutputTokens: 3600,
+          temperature: 0.45,
+          responseMimeType: "application/json",
+          thinkingConfig: { thinkingBudget: 0 },
+        },
+      }),
+      COLLAB_ASSIGNMENT_MAX_WAIT_MS,
+    );
+    if (!response) {
+      console.warn("[narrativeCollabMatching] plano por pauta excedeu o tempo; usando fallback");
+      return out;
+    }
     logGeminiUsage("collab", GEMINI_MODEL, response);
     const text = response.text?.trim();
     if (!text) return out;

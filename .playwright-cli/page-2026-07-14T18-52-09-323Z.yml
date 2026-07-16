@@ -1,0 +1,62 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e5]:
+    - generic [ref=e7]:
+      - heading "Collabs" [level=1] [ref=e9]
+      - generic [ref=e10]:
+        - button "Comunidade no WhatsApp" [ref=e11] [cursor=pointer]
+        - button "Ver combinadas (1)" [ref=e15] [cursor=pointer]:
+          - generic [ref=e21]: "1"
+        - button "Ver pautas salvas (1)" [ref=e22] [cursor=pointer]:
+          - generic [ref=e25]: "1"
+    - generic [ref=e28]:
+      - generic:
+        - generic:
+          - generic: collab
+          - paragraph: O dia que meu filho perguntou se eu precisava trabalhar
+          - generic:
+            - generic: M
+            - generic:
+              - generic: Marina Braga
+              - generic: "@marinabraga"
+          - generic:
+            - text: Por que é ideal
+            - paragraph: Ela cruza a visão financeira familiar dela com o seu pilar de paternidade ativa, trazendo o ângulo do dinheiro em casa que você ainda não cobre nos seus vídeos.
+      - generic:
+        - generic:
+          - generic: collab
+          - paragraph: Aprendi a proteger o jantar como reunião importante
+          - generic:
+            - generic: T
+            - generic:
+              - generic: Théo Pires
+              - generic: "@théopires"
+          - generic:
+            - text: Por que é ideal
+            - paragraph: Vocês dois documentam a rotina em casa com leveza e bom humor.
+      - 'group "Pauta: A verdade sobre como a IA mudou o jeito que eu trabalho" [ref=e29]':
+        - generic [ref=e30]: toque pra virar
+        - generic: quero gravar
+        - generic: não é pra mim
+        - generic [ref=e34]:
+          - generic [ref=e35]: Cultura pop como negócio
+          - paragraph [ref=e37]: A verdade sobre como a IA mudou o jeito que eu trabalho
+          - generic [ref=e38]:
+            - text: Abre com
+            - paragraph [ref=e39]: “Muita gente vê a inteligência artificial como uma ameaça, mas pra mim, foi o meu melhor parceiro de trabalho.”
+        - generic [ref=e40]:
+          - generic [ref=e41]:
+            - button "Não é pra mim" [ref=e42] [cursor=pointer]
+            - generic [ref=e45]: não é pra mim
+          - generic [ref=e46]:
+            - button "Quero gravar essa pauta" [ref=e47] [cursor=pointer]
+            - generic [ref=e50]: quero gravar
+  - generic [ref=e51]:
+    - generic [ref=e52]:
+      - text: Utilizamos cookies essenciais para o funcionamento da plataforma e, com a sua autorização, cookies de analytics para melhorar a sua experiência.
+      - link "Saiba mais" [ref=e53] [cursor=pointer]:
+        - /url: /politica-de-privacidade
+      - text: .
+    - generic [ref=e54]:
+      - button "Recusar não-essenciais" [ref=e55] [cursor=pointer]
+      - button "Aceitar" [ref=e56] [cursor=pointer]
+  - alert [ref=e57]: Data2Content — Entenda o que seu conteúdo diz sobre você

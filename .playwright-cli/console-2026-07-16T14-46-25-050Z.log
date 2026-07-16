@@ -1,0 +1,8 @@
+[   11588ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom.development.js:37828
+[   12957ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:150
+[   15661ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3101/api/plan/status:0
+[   16321ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3101/api/plan/status?force=true:0
+[   17646ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3101/api/plan/status?force=true:0
+[  258417ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:150
+[  265247ms] [WARNING] The resource http://127.0.0.1:3101/_next/static/css/app/dev-collabs-preview/page.css?v=1784213447164 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3101/dev-collabs-preview:0
+[  265247ms] [WARNING] The resource http://127.0.0.1:3101/_next/static/css/app/layout.css?v=1784213447164 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3101/dev-collabs-preview:0

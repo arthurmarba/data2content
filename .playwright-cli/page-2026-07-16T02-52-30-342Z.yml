@@ -1,0 +1,180 @@
+- generic [ref=f2e1]:
+  - generic [ref=f2e3]:
+    - generic [ref=f2e5]:
+      - generic [ref=f2e7]:
+        - heading "Collabs" [level=1] [ref=f2e9]
+        - generic [ref=f2e10]:
+          - button "Comunidade no WhatsApp" [ref=f2e11] [cursor=pointer]
+          - button "Ver combinadas (1)" [ref=f2e15] [cursor=pointer]:
+            - generic [ref=f2e21]: "1"
+          - button "Ver pautas salvas (1)" [ref=f2e22] [cursor=pointer]:
+            - generic [ref=f2e25]: "1"
+      - generic [ref=f2e28]:
+        - generic:
+          - generic:
+            - generic: collab
+            - paragraph: O dia que meu filho perguntou se eu precisava trabalhar
+            - generic:
+              - generic: M
+              - generic:
+                - generic: Marina Braga
+                - generic: "@marinabraga · Remoto"
+            - generic:
+              - generic:
+                - generic: Do seu mapa
+                - generic: Reel falado
+              - generic:
+                - generic:
+                  - generic:
+                    - generic: Situação real
+                    - generic: Tentando encerrar o expediente no horário
+                - generic:
+                  - generic:
+                    - generic: Assunto
+                    - generic: Paternidade
+                - generic:
+                  - generic:
+                    - generic: Em cena
+                    - generic: Mesa de trabalho
+                - generic:
+                  - generic:
+                    - generic: Jeito de falar
+                    - generic: reflexivo
+        - generic:
+          - generic:
+            - generic: collab
+            - paragraph: Aprendi a proteger o jantar como reunião importante
+            - generic:
+              - generic: T
+              - generic:
+                - generic: Théo Pires
+                - generic: "@théopires · Presencial"
+            - generic:
+              - generic:
+                - generic: Do seu mapa
+                - generic: Reel falado
+              - generic:
+                - generic:
+                  - generic:
+                    - generic: Situação real
+                    - generic: Tentando encerrar o expediente no horário
+                - generic:
+                  - generic:
+                    - generic: Assunto
+                    - generic: Rotina
+                - generic:
+                  - generic:
+                    - generic: Em cena
+                    - generic: Mesa de trabalho
+                - generic:
+                  - generic:
+                    - generic: Jeito de falar
+                    - generic: reflexivo
+        - 'group "Pauta: A verdade sobre como a IA mudou o jeito que eu trabalho" [active]':
+          - generic: quero gravar
+          - generic: não é pra mim
+          - generic:
+            - generic: Pauta para você
+            - paragraph: A verdade sobre como a IA mudou o jeito que eu trabalho
+            - generic:
+              - generic:
+                - generic: Do seu mapa
+                - generic: Reel falado
+              - generic:
+                - 'generic "Situação real: Tentando encerrar o expediente no horário"':
+                  - generic:
+                    - generic: Situação real
+                    - generic: Tentando encerrar o expediente no horário
+                - 'generic "Assunto: Cultura pop como negócio"':
+                  - generic:
+                    - generic: Assunto
+                    - generic: Cultura pop como negócio
+                - 'generic "Em cena: Mesa de trabalho"':
+                  - generic:
+                    - generic: Em cena
+                    - generic: Mesa de trabalho
+                - 'generic "Jeito de falar: reflexivo"':
+                  - generic:
+                    - generic: Jeito de falar
+                    - generic: reflexivo
+          - generic:
+            - generic:
+              - button "Não é pra mim"
+              - generic: não é pra mim
+            - generic:
+              - button "Quero gravar essa pauta"
+              - generic: quero gravar
+    - navigation [ref=f2e88]:
+      - button "Perfil" [ref=f2e89] [cursor=pointer]
+      - generic [ref=f2e94]:
+        - button "Escanear novo vídeo" [ref=f2e95] [cursor=pointer]
+        - generic [ref=f2e99]: Escanear
+      - button "Collabs" [ref=f2e100] [cursor=pointer]
+    - dialog [ref=f2e138]:
+      - generic [ref=f2e139]:
+        - generic [ref=f2e140]:
+          - generic [ref=f2e141]:
+            - generic [ref=f2e142]: Reel falado
+            - generic [ref=f2e143]: /
+            - generic [ref=f2e144]: Cultura pop como negócio
+          - button "Fechar" [ref=f2e145] [cursor=pointer]
+        - heading "A verdade sobre como a IA mudou o jeito que eu trabalho" [level=2] [ref=f2e149]
+        - generic [ref=f2e150]:
+          - paragraph [ref=f2e151]: Do seu mapa
+          - generic [ref=f2e152]:
+            - 'generic "Situação real: Tentando encerrar o expediente no horário" [ref=f2e153]':
+              - generic [ref=f2e154]: Situação real
+              - generic [ref=f2e155]: Tentando encerrar o expediente no horário
+            - 'generic "Assunto: Cultura pop como negócio" [ref=f2e156]':
+              - generic [ref=f2e157]: Assunto
+              - generic [ref=f2e158]: Cultura pop como negócio
+            - 'generic "Em cena: Mesa de trabalho" [ref=f2e159]':
+              - generic [ref=f2e160]: Em cena
+              - generic [ref=f2e161]: Mesa de trabalho
+            - 'generic "Jeito de falar: reflexivo" [ref=f2e162]':
+              - generic [ref=f2e163]: Jeito de falar
+              - generic [ref=f2e164]: reflexivo
+      - generic [ref=f2e167]:
+        - region [ref=f2e168]:
+          - generic [ref=f2e169]:
+            - paragraph [ref=f2e170]: Comece assim
+            - button "Copiar abertura" [ref=f2e171] [cursor=pointer]
+          - blockquote [ref=f2e172]: “Muita gente vê a inteligência artificial como uma ameaça, mas pra mim, foi o meu melhor parceiro de trabalho.”
+          - generic [ref=f2e173]:
+            - paragraph [ref=f2e174]: Comece mostrando Mesa de trabalho
+            - generic [ref=f2e175]: plano próximo
+        - region [ref=f2e178]:
+          - generic [ref=f2e179]:
+            - generic [ref=f2e180]:
+              - paragraph [ref=f2e181]: Storyboard
+              - heading "O caminho do vídeo" [level=3] [ref=f2e182]
+            - button "Copiar plano" [ref=f2e183] [cursor=pointer]
+          - paragraph [ref=f2e184]: Comece mostrando Mesa de trabalho
+          - generic [ref=f2e185]:
+            - article [ref=f2e186]:
+              - generic [ref=f2e187]: "02"
+              - generic [ref=f2e188]:
+                - paragraph [ref=f2e189]: Desenvolvimento
+                - paragraph [ref=f2e190]: Abre com a pergunta do filho
+            - article [ref=f2e191]:
+              - generic [ref=f2e192]: "03"
+              - generic [ref=f2e193]:
+                - paragraph [ref=f2e194]: Desenvolvimento
+                - paragraph [ref=f2e195]: Conta o que passou na cabeça
+            - article [ref=f2e196]:
+              - generic [ref=f2e197]: "04"
+              - generic [ref=f2e198]:
+                - paragraph [ref=f2e199]: Desenvolvimento
+                - paragraph [ref=f2e200]: Fecha com a decisão que tomou
+            - article [ref=f2e201]:
+              - generic [ref=f2e202]: "05"
+              - generic [ref=f2e203]:
+                - paragraph [ref=f2e204]: Fechamento
+                - paragraph [ref=f2e205]: Volte ao enquadramento inicial para fechar a ideia
+                - paragraph [ref=f2e206]: "O que dizer: E você, já parou pra pensar no que o automático te custou?"
+                - generic [ref=f2e207]: plano próximo
+        - group [ref=f2e209]:
+          - generic "Por que essa ideia faz sentido" [ref=f2e210] [cursor=pointer]:
+            - text: Por que essa ideia faz sentido
+            - generic [ref=f2e211]: ＋
+  - alert [ref=f2e107]

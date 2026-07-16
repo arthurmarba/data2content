@@ -122,5 +122,122 @@
         "veredito": "repetir"
       }
     ]
+  },
+  {
+    "data": "2026-07-08",
+    "narrativaCentral": "Uma observadora curiosa que encontra humor e significado no cotidiano",
+    "territoriosOcupados": [
+      "Vida em Blumenau",
+      "Humor cotidiano",
+      "Casa e decoração",
+      "Consumo local",
+      "Fofocas e notícias",
+      "Relacionamentos pessoais",
+      "Indicações"
+    ],
+    "audienciaPede": "A sua audiência compartilha em massa quando você aplica a fórmula de identidade regional a um assunto NOVO (a Oktoberfest, Chapecó) — mas quando reposta o mesmo vídeo específico que já viralizou, ela passa direto porque já viu. Observações de humor cotidiano ('a cada esquina', 'os sinais') seguem sólidas. Gancho de Copa disperso, sem lente local, é o que menos rende.",
+    "facaMais": [
+      "Identidade regional com assunto sempre novo — a Oktoberfest e Chapecó, temas que você ainda não tinha feito, foram os dois maiores posts da semana. Continue percorrendo cidades e costumes catarinenses ainda não explorados.",
+      "Observação de humor cotidiano tipo 'a cada esquina' e 'os sinais mais claros' — formato consistente que gera boa conversa e compartilhamento toda vez que você usa."
+    ],
+    "facaMenos": [
+      "Repostar o MESMO vídeo específico que já viralizou — o Jaraguaense rendeu 32× menos na segunda vez. A fórmula continua ótima; o que não funciona é reciclar o conteúdo exato. Sempre que for repetir a fórmula, mude a cidade, o costume ou o ângulo.",
+      "Gancho de Copa misturado com temas dispersos (gravidez, mamães) sem a lente blumenauense — foi o post mais fraco da semana."
+    ],
+    "planoPrometido": [
+      "O dicionário do Blumenauense: as palavras que só quem é daqui entende",
+      "Como reconhecer um morador de Joinville (ou outra cidade catarinense ainda não feita)",
+      "Reformei minha penteadeira: o antes e depois que ninguém acredita",
+      "Um comércio querido por semana: o que fechou, o que resistiu, o que todo mundo esquece"
+    ],
+    "vereditos": [
+      {
+        "postId": "17985213878840971",
+        "veredito": "repetir"
+      },
+      {
+        "postId": "18099553910350365",
+        "veredito": "repetir"
+      },
+      {
+        "postId": "18613087864001717",
+        "veredito": "ajustar"
+      },
+      {
+        "postId": "18320349133302921",
+        "veredito": "ajustar"
+      },
+      {
+        "postId": "18398737333091280",
+        "veredito": "repetir"
+      },
+      {
+        "postId": "18093477035207593",
+        "veredito": "nao-repetir"
+      },
+      {
+        "postId": "17943335205253491",
+        "veredito": "repetir"
+      }
+    ]
+  },
+  {
+    "data": "2026-07-15",
+    "narrativaCentral": "Uma observadora curiosa que encontra humor e significado no cotidiano",
+    "territoriosOcupados": [
+      "Vida em Blumenau",
+      "Humor cotidiano",
+      "Casa e decoração",
+      "Consumo local",
+      "Fofocas e notícias",
+      "Relacionamentos pessoais",
+      "Indicações"
+    ],
+    "audienciaPede": "A sua audiência se mobiliza com força total quando você indica um comércio ou evento local com informação prática e específica — o Bazar da Villa das Marcas quebrou todos os recordes. Dicas úteis pro dia a dia em Blumenau e opiniões sobre o cotidiano local também seguem sólidas. Identidade regional de cidades mais distantes (Oeste catarinense) rende bem menos que quando o assunto é mais próximo da sua audiência.",
+    "facaMais": [
+      "Indicação de comércio ou evento local com informação prática e específica (endereço, datas, desconto) — o Bazar da Villa das Marcas provou que essa é a sua mina de ouro. Repita sempre que houver um comércio real pra indicar.",
+      "Dicas úteis pro dia a dia em Blumenau (umidade, frio, obras) — seguem rendendo consistentemente bem, tanto em shares quanto em conversa.",
+      "'Manias' regionais rendeu 5× mais que 'frases' regionais na mesma semana — vale explorar mais o ângulo de comportamento do que o de vocabulário."
+    ],
+    "facaMenos": [
+      "Legendas vagas sem contexto ('isso entrega muito') — o post mais fraco da semana não deu nenhuma pista do que estava sendo mostrado.",
+      "Identidade regional de cidades mais distantes da sua audiência principal — o Oeste catarinense rendeu bem menos que Blumenau e cidades vizinhas mais próximas."
+    ],
+    "planoPrometido": [
+      "Reformei minha penteadeira: o antes e depois que ninguém acredita",
+      "Outro comércio querido da semana: dessa vez um lugar que você ainda não mostrou",
+      "O dicionário do Blumenauense: as palavras que só quem é daqui entende",
+      "A dica que salva minha vida no inverno de Blumenau: parte 2"
+    ],
+    "vereditos": [
+      {
+        "postId": "18085569242421888",
+        "veredito": "repetir"
+      },
+      {
+        "postId": "18607723906010714",
+        "veredito": "nao-repetir"
+      },
+      {
+        "postId": "18324812131278442",
+        "veredito": "ajustar"
+      },
+      {
+        "postId": "18105227063025248",
+        "veredito": "ajustar"
+      },
+      {
+        "postId": "18067913675438357",
+        "veredito": "repetir"
+      },
+      {
+        "postId": "18208680955350206",
+        "veredito": "repetir"
+      },
+      {
+        "postId": "18211074055344282",
+        "veredito": "repetir"
+      }
+    ]
   }
 ]

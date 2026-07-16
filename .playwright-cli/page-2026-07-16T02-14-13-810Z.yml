@@ -1,0 +1,154 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e7]:
+        - heading "Collabs" [level=1] [ref=e9]
+        - generic [ref=e10]:
+          - button "Comunidade no WhatsApp" [ref=e11] [cursor=pointer]
+          - button "Ver combinadas (1)" [ref=e15] [cursor=pointer]:
+            - generic [ref=e21]: "1"
+          - button "Ver pautas salvas (1)" [ref=e22] [cursor=pointer]:
+            - generic [ref=e25]: "1"
+      - generic [ref=e28]:
+        - generic:
+          - generic:
+            - generic: collab
+            - paragraph: O dia que meu filho perguntou se eu precisava trabalhar
+            - generic:
+              - generic: M
+              - generic:
+                - generic: Marina Braga
+                - generic: "@marinabraga · Remoto"
+            - generic:
+              - text: Por que é ideal
+              - paragraph: Ela cruza a visão financeira familiar dela com o seu pilar de paternidade ativa, trazendo o ângulo do dinheiro em casa que você ainda não cobre nos seus vídeos.
+            - generic:
+              - text: Como gravar
+              - paragraph: Vocês gravam em formato remoto de reação, onde cada um comenta o planejamento do outro via split-screen.
+        - generic:
+          - generic:
+            - generic: collab
+            - paragraph: Aprendi a proteger o jantar como reunião importante
+            - generic:
+              - generic: T
+              - generic:
+                - generic: Théo Pires
+                - generic: "@théopires · Presencial"
+            - generic:
+              - text: Por que é ideal
+              - paragraph: Vocês dois documentam a rotina em casa com leveza e bom humor.
+            - generic:
+              - text: Como gravar
+              - paragraph: Vocês gravam um café da manhã juntos na mesma cozinha, trocando experiências reais de paternidade.
+        - 'group "Pauta: A verdade sobre como a IA mudou o jeito que eu trabalho" [ref=e29]':
+          - generic [ref=e30]: toque pra virar
+          - generic: quero gravar
+          - generic: não é pra mim
+          - generic [ref=e34]:
+            - generic [ref=e35]:
+              - generic [ref=e36]: Cultura pop como negócio
+              - generic [ref=e38]: Reel falado · tom reflexivo
+            - paragraph [ref=e39]: A verdade sobre como a IA mudou o jeito que eu trabalho
+            - generic [ref=e40]:
+              - text: Abre com
+              - paragraph [ref=e41]: “Muita gente vê a inteligência artificial como uma ameaça, mas pra mim, foi o meu melhor parceiro de trabalho.”
+            - generic [ref=e60]:
+              - text: No roteiro
+              - paragraph [ref=e61]: Abre com a pergunta do filho
+          - generic [ref=e42]:
+            - generic [ref=e43]:
+              - button "Não é pra mim" [ref=e44] [cursor=pointer]
+              - generic [ref=e47]: não é pra mim
+            - generic [ref=e48]:
+              - button "Quero gravar essa pauta" [ref=e49] [cursor=pointer]
+              - generic [ref=e52]: quero gravar
+    - navigation [ref=e62]:
+      - button "Perfil" [ref=e63] [cursor=pointer]
+      - generic [ref=e68]:
+        - button "Escanear novo vídeo" [ref=e69] [cursor=pointer]
+        - generic [ref=e73]: Escanear
+      - button "Collabs" [ref=e74] [cursor=pointer]
+    - dialog [ref=e111]:
+      - generic [ref=e112]:
+        - generic [ref=e113]:
+          - generic [ref=e114]:
+            - generic [ref=e115]: Reel falado
+            - generic [ref=e116]: /
+            - generic [ref=e117]: Rotina
+          - button "Fechar" [ref=e118] [cursor=pointer]
+        - heading "Já combinada — vídeo com o Théo sobre rotina" [level=2] [ref=e122]
+        - generic "Escolha do plano" [ref=e123]:
+          - button "Solo" [ref=e124] [cursor=pointer]
+          - button "A dois" [pressed] [ref=e125] [cursor=pointer]
+      - generic [ref=e128]:
+        - region [ref=e129]:
+          - button "T" [disabled] [ref=e130]
+          - generic [ref=e131]:
+            - paragraph [ref=e132]: Plano a dois
+            - heading "Você + Théo" [level=3] [ref=e133]
+            - generic [ref=e134]:
+              - generic [ref=e135]: Presencial · mesma cidade
+              - generic [ref=e139]: Conversa gravada no mesmo espaço
+        - generic [ref=e140]:
+          - paragraph [ref=e141]: Por que vocês
+          - paragraph [ref=e142]: Vocês dois documentam a rotina em casa com leveza e bom humor.
+          - paragraph [ref=e143]:
+            - strong [ref=e144]: "Ponto em comum:"
+            - text: Rotina
+          - paragraph [ref=e145]:
+            - strong [ref=e146]: "Ela/ele traz:"
+            - text: Educação infantil
+        - region [ref=e147]:
+          - paragraph [ref=e148]: Como gravar essa collab
+          - heading "Quem faz o quê" [level=4] [ref=e149]
+          - generic [ref=e150]:
+            - article [ref=e151]:
+              - generic [ref=e152]: "01"
+              - generic [ref=e153]:
+                - generic [ref=e154]:
+                  - generic [ref=e155]: Você
+                  - generic [ref=e156]: Abertura
+                - paragraph [ref=e157]: Abra a conversa com os dois no quadro
+                - paragraph [ref=e158]: "Intenção: Vocês gravam um café da manhã juntos na mesma cozinha, trocando experiências reais de paternidade."
+            - article [ref=e159]:
+              - generic [ref=e160]: "02"
+              - generic [ref=e161]:
+                - generic [ref=e162]:
+                  - generic [ref=e163]: Théo
+                  - generic [ref=e164]: Virada
+                - paragraph [ref=e165]: O outro creator assume a resposta
+                - paragraph [ref=e166]: "Intenção: Traga o ponto de vista complementar que só o outro creator consegue sustentar"
+                - paragraph [ref=e167]: "Transição: Corte para a reação de quem abriu"
+            - article [ref=e168]:
+              - generic [ref=e169]: "03"
+              - generic [ref=e170]:
+                - generic [ref=e171]:
+                  - generic [ref=e172]: Os dois
+                  - generic [ref=e173]: Fechamento
+                - paragraph [ref=e174]: Fechem a ideia juntos no mesmo plano
+                - paragraph [ref=e175]: "Intenção: Mostrem onde os dois pontos de vista se encontram"
+          - generic [ref=e176]:
+            - paragraph [ref=e177]: Na edição
+            - paragraph [ref=e178]: Mantenham a conversa contínua e usem cortes apenas para destacar reação e virada
+          - region "Combinem antes" [ref=e179]:
+            - paragraph [ref=e180]: Combinem antes
+            - list [ref=e181]:
+              - listitem [ref=e182]:
+                - generic [ref=e183]: ✓
+                - generic [ref=e184]: Combinar local e ordem das falas
+              - listitem [ref=e185]:
+                - generic [ref=e186]: ✓
+                - generic [ref=e187]: Gravar um plano dos dois
+              - listitem [ref=e188]:
+                - generic [ref=e189]: ✓
+                - generic [ref=e190]: Definir quem finaliza a edição
+  - generic [ref=e53]:
+    - generic [ref=e54]:
+      - text: Utilizamos cookies essenciais para o funcionamento da plataforma e, com a sua autorização, cookies de analytics para melhorar a sua experiência.
+      - link "Saiba mais" [ref=e55] [cursor=pointer]:
+        - /url: /politica-de-privacidade
+      - text: .
+    - generic [ref=e56]:
+      - button "Recusar não-essenciais" [ref=e57] [cursor=pointer]
+      - button "Aceitar" [ref=e58] [cursor=pointer]
+  - alert [ref=e59]: Data2Content — Entenda o que seu conteúdo diz sobre você

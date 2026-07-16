@@ -1,0 +1,198 @@
+- generic [ref=f1e1]:
+  - main [ref=f1e4]:
+    - generic [ref=f1e5]:
+      - paragraph [ref=f1e6]: Creator Studio
+      - button "Configurações" [ref=f1e8] [cursor=pointer]
+    - generic [ref=f1e12]:
+      - generic [ref=f1e13]:
+        - paragraph [ref=f1e14]: Design system
+        - heading "Uma linguagem humana para criar e decidir." [level=1] [ref=f1e15]
+        - paragraph [ref=f1e16]: Bricolage orienta. Instrument Sans sustenta o trabalho. Rosa é ação; cor semântica explica estado.
+      - generic [ref=f1e17]:
+        - heading "Cores" [level=2] [ref=f1e18]
+        - generic [ref=f1e19]:
+          - generic [ref=f1e20]: Marca
+          - generic [ref=f1e23]: Mapa
+          - generic [ref=f1e26]: Tinta
+          - generic [ref=f1e29]: Papel
+          - generic [ref=f1e32]: Neutro
+          - generic [ref=f1e35]: Sucesso
+      - generic [ref=f1e38]:
+        - heading "Ações" [level=2] [ref=f1e39]
+        - generic [ref=f1e40]:
+          - button "Continuar" [ref=f1e41] [cursor=pointer]
+          - button "Ver resultado" [ref=f1e44] [cursor=pointer]
+          - button "Agora não" [ref=f1e45] [cursor=pointer]
+          - button "Saber mais" [ref=f1e46] [cursor=pointer]
+          - button "Remover" [ref=f1e47] [cursor=pointer]
+          - button "Favoritar" [ref=f1e48] [cursor=pointer]
+      - generic [ref=f1e51]:
+        - heading "Estados" [level=2] [ref=f1e52]
+        - generic [ref=f1e53]:
+          - generic [ref=f1e54]: Creator Studio
+          - generic [ref=f1e55]: Rascunho
+          - generic [ref=f1e56]: Confirmado
+          - generic [ref=f1e57]: Revisar
+          - generic [ref=f1e58]: Falhou
+      - generic [ref=f1e59]:
+        - heading "Superfícies" [level=2] [ref=f1e60]
+        - generic [ref=f1e61]:
+          - generic [ref=f1e62]:
+            - paragraph [ref=f1e63]: Plano
+            - heading "Superfície plana" [level=3] [ref=f1e64]
+            - paragraph [ref=f1e65]: Use quando a borda já comunica agrupamento.
+          - generic [ref=f1e66]:
+            - paragraph [ref=f1e67]: Interação
+            - heading "Superfície elevada" [level=3] [ref=f1e68]
+            - paragraph [ref=f1e69]: Reservada para algo que abre, move ou responde.
+      - generic [ref=f1e70]:
+        - heading "Espaço editorial do Perfil" [level=2] [ref=f1e71]
+        - generic [ref=f1e72]:
+          - generic [ref=f1e73]:
+            - generic [ref=f1e74]:
+              - paragraph [ref=f1e75]: Seu Mapa
+              - heading "O território que você já ocupa" [level=3] [ref=f1e76]
+            - button "Aprimorar" [ref=f1e77] [cursor=pointer]
+          - generic [ref=f1e78]:
+            - paragraph [ref=f1e79]: Assuntos recorrentes
+            - generic [ref=f1e80]:
+              - generic [ref=f1e81]: Bastidores
+              - generic [ref=f1e82]: Criatividade
+              - generic [ref=f1e83]: Rotina real
+      - generic [ref=f1e84]:
+        - heading "Entrada de vídeo" [level=2] [ref=f1e85]
+        - generic [ref=f1e86] [cursor=pointer]:
+          - generic [ref=f1e91]: Escolher vídeo
+          - generic [ref=f1e92]: MP4, MOV ou WebM. Seu arquivo é usado somente durante a leitura.
+        - button "Testar Raio X" [ref=f1e93] [cursor=pointer]
+      - generic [ref=f1e94]:
+        - heading "Decisão de assinatura" [level=2] [ref=f1e95]
+        - generic [ref=f1e96]:
+          - paragraph [ref=f1e97]: Data2Content Pro
+          - heading "Continue usando seu mapa para decidir melhor." [level=3] [ref=f1e98]
+          - generic "Período de exemplo" [ref=f1e99]:
+            - button "Anual" [pressed] [ref=f1e100] [cursor=pointer]
+            - button "Mensal" [ref=f1e101] [cursor=pointer]
+          - generic [ref=f1e102]:
+            - paragraph [ref=f1e103]: Leituras de vídeo sem limite
+            - paragraph [ref=f1e106]: Mapa atualizado com seus conteúdos
+            - paragraph [ref=f1e109]: Decisões de pauta e marca em um só lugar
+          - button "Continuar com Pro" [ref=f1e112] [cursor=pointer]
+      - generic [ref=f1e113]:
+        - heading "Campo e sheet" [level=2] [ref=f1e114]
+        - textbox "Escreva com suas palavras…" [ref=f1e115]
+        - button "Abrir sheet" [ref=f1e116] [cursor=pointer]
+    - dialog [ref=f1e173]:
+      - generic [ref=f1e127]:
+        - generic [ref=f1e128]:
+          - paragraph [ref=f1e174]: Etapa 2 de 2
+          - heading "Seu Raio X" [level=2] [ref=f1e175]
+        - button "Fechar fluxo de análise" [ref=f1e131] [cursor=pointer]
+      - generic [ref=f1e176]:
+        - generic [ref=f1e179]:
+          - paragraph [ref=f1e180]: Um ajuste antes de postar
+          - heading "Vale postar depois de um ajuste." [level=3] [ref=f1e181]
+          - paragraph [ref=f1e182]: Vale testar depois de tornar a promessa visível na primeira cena.
+          - paragraph [ref=f1e183]:
+            - generic [ref=f1e184]: ✓
+            - text: Análise baseada em 3 momentos do vídeo
+          - generic [ref=f1e185]:
+            - paragraph [ref=f1e186]: Faça isto antes de postar
+            - paragraph [ref=f1e187]: Leve a tensão para o primeiro frame
+            - paragraph [ref=f1e188]: Mantenha a abertura falada e escreva a dúvida central na tela já na primeira cena.
+            - generic [ref=f1e189]:
+              - paragraph [ref=f1e190]: Um jeito de aplicar
+              - paragraph [ref=f1e191]: “Sua ideia trava antes de virar pauta?”
+            - generic [ref=f1e192]:
+              - button "Copiar sugestão" [ref=f1e193] [cursor=pointer]
+              - button "Ajuste feito ✓" [active] [pressed] [ref=f1e277] [cursor=pointer]
+            - button "Escanear versão ajustada" [ref=f1e278] [cursor=pointer]
+          - generic [ref=f1e195]:
+            - generic [ref=f1e196]:
+              - paragraph [ref=f1e197]: Pontos fortes
+              - generic [ref=f1e198]:
+                - generic [ref=f1e199]:
+                  - generic [ref=f1e200]: ✓
+                  - generic [ref=f1e201]:
+                    - paragraph [ref=f1e202]: Entrega
+                    - paragraph [ref=f1e203]: O final cumpre a promessa inicial.
+                - generic [ref=f1e204]:
+                  - generic [ref=f1e205]: ✓
+                  - generic [ref=f1e206]:
+                    - paragraph [ref=f1e207]: Progressão
+                    - paragraph [ref=f1e208]: Há progressão e uma virada visual nos primeiros 10 segundos.
+            - generic [ref=f1e209]:
+              - paragraph [ref=f1e210]: O que pode limitar o post
+              - generic [ref=f1e211]:
+                - generic [ref=f1e212]:
+                  - generic [ref=f1e213]: "!"
+                  - generic [ref=f1e214]:
+                    - paragraph [ref=f1e215]: Abertura
+                    - paragraph [ref=f1e216]: O tema aparece, mas depende do áudio.
+                    - paragraph [ref=f1e217]: "Ajuste: Escrever o gancho na tela."
+                - generic [ref=f1e218]:
+                  - generic [ref=f1e219]: "!"
+                  - generic [ref=f1e220]:
+                    - paragraph [ref=f1e221]: Vontade de compartilhar
+                    - paragraph [ref=f1e222]: A utilidade está implícita.
+                    - paragraph [ref=f1e223]: "Ajuste: Fechar com uma síntese encaminhável."
+          - group [ref=f1e224]:
+            - generic "Ver onde identifiquei isso no vídeo +" [ref=f1e225] [cursor=pointer]
+          - group [ref=f1e226]:
+            - generic "Como cheguei a esta leitura +" [ref=f1e227] [cursor=pointer]
+          - generic [ref=f1e228]:
+            - paragraph [ref=f1e229]: Esta leitura foi útil?
+            - generic [ref=f1e230]:
+              - button "Sim" [ref=f1e231] [cursor=pointer]
+              - button "Não entendeu a intenção" [ref=f1e232] [cursor=pointer]
+              - button "Viu algo que não existe" [ref=f1e233] [cursor=pointer]
+        - generic [ref=f1e234]:
+          - paragraph [ref=f1e235]: Coerência com o seu mapa
+          - generic [ref=f1e236]:
+            - generic [ref=f1e239]:
+              - paragraph [ref=f1e240]:
+                - text: Narrativa
+                - generic [ref=f1e241]: · Alinhada
+              - paragraph [ref=f1e242]: O tema confirma seu território de bastidores aplicáveis.
+            - generic [ref=f1e245]:
+              - paragraph [ref=f1e246]:
+                - text: Audiência
+                - generic [ref=f1e247]: · Alinhada
+              - paragraph [ref=f1e248]: Entrega uma conclusão útil para quem já acompanha seu processo.
+            - generic [ref=f1e251]:
+              - paragraph [ref=f1e252]:
+                - text: Marca
+                - generic [ref=f1e253]: · Alinhada
+              - paragraph [ref=f1e254]: Mantém um território comercial coerente sem depender de produto.
+          - paragraph [ref=f1e255]: A estrutura já sustenta a ideia; a abertura pode ficar mais legível sem som.
+        - generic [ref=f1e256]:
+          - paragraph [ref=f1e257]: Você decide
+          - paragraph [ref=f1e258]: A leitura é minha; a decisão é sua. Só o que você publica entra no seu mapa.
+          - generic [ref=f1e259]:
+            - button "Vou ajustar antes Use a sugestão e escaneie a nova versão." [pressed] [ref=f1e260] [cursor=pointer]:
+              - generic [ref=f1e261]:
+                - generic [ref=f1e262]: Vou ajustar antes
+                - generic [ref=f1e263]: Use a sugestão e escaneie a nova versão.
+              - generic [ref=f1e264]: ✓
+            - button "Vou postar assim O vídeo entra no aprendizado do seu mapa." [ref=f1e265] [cursor=pointer]:
+              - generic [ref=f1e266]:
+                - generic [ref=f1e267]: Vou postar assim
+                - generic [ref=f1e268]: O vídeo entra no aprendizado do seu mapa.
+              - generic [ref=f1e269]: →
+            - button "Não vou postar Esta leitura fica fora do seu padrão publicado." [ref=f1e270] [cursor=pointer]:
+              - generic [ref=f1e271]:
+                - generic [ref=f1e272]: Não vou postar
+                - generic [ref=f1e273]: Esta leitura fica fora do seu padrão publicado.
+              - generic [ref=f1e274]: →
+          - paragraph [ref=f1e279]: Ótimo. Marque o ajuste acima quando terminar para comparar a nova versão.
+      - button "Ver sua leitura completa" [ref=f1e276] [cursor=pointer]
+  - generic [ref=f1e117]:
+    - generic [ref=f1e118]:
+      - text: Utilizamos cookies essenciais para o funcionamento da plataforma e, com a sua autorização, cookies de analytics para melhorar a sua experiência.
+      - link "Saiba mais" [ref=f1e119] [cursor=pointer]:
+        - /url: /politica-de-privacidade
+      - text: .
+    - generic [ref=f1e120]:
+      - button "Recusar não-essenciais" [ref=f1e121] [cursor=pointer]
+      - button "Aceitar" [ref=f1e122] [cursor=pointer]
+  - alert [ref=f1e123]

@@ -1,0 +1,56 @@
+[    6297ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3213/api/plan/status:0
+[    6905ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3213/api/plan/status?force=true:0
+[    8113ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3213/api/plan/status?force=true:0
+[  167913ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Fyanna-livia%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  168143ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Fbruna-ramos%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  168823ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Frafael-belli%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  169054ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Fluiza-zveiter%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  169681ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Faclara-oficial%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  169771ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Fvivien-andrade-vivi%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  169809ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Fmayra-bittar%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  171384ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Fle-mendonca%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  173328ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Flary-kelbert%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  174220ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Fdaniel-souza%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  181090ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Fdaniel-souza%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  181091ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Faclara-oficial%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  181330ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Fheslaine-vieira%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  181985ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Fjoao-carlos-gava-junior%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  199060ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Florena-franzoi%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  199802ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Fbruna-oliveira%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  200149ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Fanna-clara-berner%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  200366ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Faline-aurea%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  200662ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Fmatos-advocacia%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  201168ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Fthiany-belmoque%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  201575ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Fmaria-gomes%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  203736ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Ffisioangelhotmailcom%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  205699ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Fana-vieira%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  206601ms] [ERROR] Failed to load resource: the server responded with a status of 400 (Bad Request) @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Fsimone-magnus%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  353952ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Fwilliam-yeh%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  353953ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3213/_next/image?url=%2Fapi%2Fmediakit%2Fcarla-tosta%2Favatar%3Fv%3D20260712-community-v1&w=128&q=75:0
+[  353955ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3213/mediakit/william-yeh?_rsc=acgkz:0
+[  353955ms] [ERROR] Failed to fetch RSC payload. Falling back to browser navigation. TypeError: Failed to fetch
+    at s (http://127.0.0.1:3213/_next/static/chunks/6787-3852e243c784e931.js:1:39950)
+    at http://127.0.0.1:3213/_next/static/chunks/6787-3852e243c784e931.js:1:54859
+    at Object.o [as task] (http://127.0.0.1:3213/_next/static/chunks/6787-3852e243c784e931.js:1:28839)
+    at c.s (http://127.0.0.1:3213/_next/static/chunks/6787-3852e243c784e931.js:1:29544)
+    at c.enqueue (http://127.0.0.1:3213/_next/static/chunks/6787-3852e243c784e931.js:1:28969)
+    at f (http://127.0.0.1:3213/_next/static/chunks/6787-3852e243c784e931.js:1:54822)
+    at f (http://127.0.0.1:3213/_next/static/chunks/6787-3852e243c784e931.js:1:63513)
+    at http://127.0.0.1:3213/_next/static/chunks/6787-3852e243c784e931.js:1:67814
+    at rM (http://127.0.0.1:3213/_next/static/chunks/36d859ac-5e164abd2be2adde.js:9:42446)
+    at Object.rT [as useReducer] (http://127.0.0.1:3213/_next/static/chunks/36d859ac-5e164abd2be2adde.js:9:41683) @ http://127.0.0.1:3213/_next/static/chunks/6787-3852e243c784e931.js:0
+[  353957ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3213/mediakit/carla-tosta?_rsc=acgkz:0
+[  353957ms] [ERROR] Failed to fetch RSC payload. Falling back to browser navigation. TypeError: Failed to fetch
+    at s (http://127.0.0.1:3213/_next/static/chunks/6787-3852e243c784e931.js:1:39950)
+    at http://127.0.0.1:3213/_next/static/chunks/6787-3852e243c784e931.js:1:54859
+    at Object.o [as task] (http://127.0.0.1:3213/_next/static/chunks/6787-3852e243c784e931.js:1:28839)
+    at c.s (http://127.0.0.1:3213/_next/static/chunks/6787-3852e243c784e931.js:1:29544)
+    at c.enqueue (http://127.0.0.1:3213/_next/static/chunks/6787-3852e243c784e931.js:1:28969)
+    at f (http://127.0.0.1:3213/_next/static/chunks/6787-3852e243c784e931.js:1:54822)
+    at f (http://127.0.0.1:3213/_next/static/chunks/6787-3852e243c784e931.js:1:63513)
+    at http://127.0.0.1:3213/_next/static/chunks/6787-3852e243c784e931.js:1:67814
+    at rM (http://127.0.0.1:3213/_next/static/chunks/36d859ac-5e164abd2be2adde.js:9:42446)
+    at Object.rT [as useReducer] (http://127.0.0.1:3213/_next/static/chunks/36d859ac-5e164abd2be2adde.js:9:41683) @ http://127.0.0.1:3213/_next/static/chunks/6787-3852e243c784e931.js:0
+[  545885ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3213/api/plan/status:0
+[  546600ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3213/api/plan/status?force=true:0
+[  547807ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3213/api/plan/status?force=true:0

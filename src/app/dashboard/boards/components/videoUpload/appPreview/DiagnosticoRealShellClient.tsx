@@ -289,8 +289,8 @@ export function DiagnosticoRealShellClient({ data }: Props) {
 
   // A entrada em Collabs é uma transação visual: sugestões por pauta, decisões
   // anteriores, matches confirmados e decisões locais precisam chegar ANTES de
-  // qualquer card real aparecer. Expor cada fonte separadamente fazia o mesmo
-  // espaço trocar de pauta → collab → match, parecendo um bug.
+  // qualquer card real aparecer. O bootstrap começa ainda no Perfil, em segundo
+  // plano, para que a troca de aba revele o deck pronto — não um skeleton longo.
   const [pautaCollabs, setPautaCollabs] = useState<Map<string, NarrativeCollabMatch | null>>(new Map());
   const [collabDecisions, setCollabDecisions] = useState<Map<string, CollabStackDecision>>(new Map());
   const [pautaActionStates, setPautaActionStates] = useState<Map<string, PautaActionState>>(new Map());
@@ -341,7 +341,6 @@ export function DiagnosticoRealShellClient({ data }: Props) {
       : "loading";
 
   useEffect(() => {
-    if (activeTab !== "collabs") return;
     if (collabsReadySignatureRef.current === collabsInputSignature) return;
 
     const requestId = ++collabsBootstrapRequestRef.current;
@@ -472,7 +471,6 @@ export function DiagnosticoRealShellClient({ data }: Props) {
 
     return () => controller.abort();
   }, [
-    activeTab,
     collabsBootstrapRetry,
     collabsInputSignature,
     collabsNarrativeLabel,

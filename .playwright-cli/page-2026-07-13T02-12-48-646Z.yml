@@ -1,0 +1,806 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "Data2Content - página inicial" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e8]: data2content
+      - navigation "Navegação principal" [ref=e9]:
+        - link "Como funciona" [ref=e10] [cursor=pointer]:
+          - /url: "#como-funciona"
+        - link "Comunidade" [ref=e11] [cursor=pointer]:
+          - /url: "#comunidade"
+        - link "Planos" [ref=e12] [cursor=pointer]:
+          - /url: "#planos"
+      - generic [ref=e13]:
+        - link "Entrar" [ref=e14] [cursor=pointer]:
+          - /url: /login?callbackUrl=%2Fdashboard
+        - link "Começar grátis" [ref=e15] [cursor=pointer]:
+          - /url: /login?callbackUrl=%2Fdashboard
+  - main [ref=e16]:
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - heading "30 ideias da IA. Alguma tinha a sua cara?" [level=1] [ref=e20]:
+          - generic [ref=e21]: 30 ideias da IA.
+          - emphasis [ref=e22]: Alguma tinha a sua cara?
+        - paragraph [ref=e23]: A D2C mergulha no que você já criou, entende sua narrativa e transforma isso em pautas, collabs e direção com a sua cara.
+        - link "Quero criar com a minha cara" [ref=e25] [cursor=pointer]:
+          - /url: /login?callbackUrl=%2Fdashboard
+        - generic [ref=e28]: Entre com Google. Sem cobrança automática.
+      - figure "Sua história já está aí. D2C" [ref=e29]:
+        - img "Creator desenvolvendo uma ideia em seu espaço de trabalho" [ref=e34]
+        - generic [ref=e37]:
+          - generic [ref=e38]: Sua história já está aí.
+          - generic [ref=e39]: D2C
+    - region "Manifesto D2C" [ref=e40]:
+      - generic [ref=e41]:
+        - img "Creators reunidos em um encontro criativo" [ref=e43]
+        - generic [ref=e45]:
+          - generic [ref=e46]:
+            - text: Você não é um nicho
+            - paragraph [ref=e47]: Você é tudo que viveu até aqui.
+          - generic [ref=e48]:
+            - text: Você não é um prompt
+            - paragraph [ref=e49]: Sua voz não cabe numa fórmula.
+          - generic [ref=e50]:
+            - text: Você está em movimento
+            - paragraph [ref=e51]: Sua próxima ideia também pode estar.
+        - generic [ref=e52]:
+          - generic [ref=e53]: D2C / Manifesto
+          - generic [ref=e54]: Role para descobrir
+    - region [ref=e55]:
+      - generic [ref=e56]:
+        - paragraph [ref=e57]: ✦IA com repertório de verdade
+        - heading "Tem dado. Tem gente. Tem contexto." [level=2] [ref=e58]
+        - generic [ref=e59]: A inteligência não chuta. Ela aprende com conteúdo real e com a resposta de audiências reais.
+      - generic [ref=e60]:
+        - generic [ref=e61]:
+          - term [ref=e62]: conteúdos analisados
+          - definition [ref=e63]: 3,7 mil
+        - generic [ref=e64]:
+          - term [ref=e65]: visualizações compreendidas
+          - definition [ref=e66]: 300 milhões
+        - generic [ref=e67]:
+          - term [ref=e68]: interações que viraram aprendizado
+          - definition [ref=e69]: 22 milhões
+      - paragraph [ref=e70]: Dados agregados e anonimizados da comunidade D2C. Os resultados pertencem aos creators acompanhados.
+      - text: ✦
+    - generic [ref=e71]:
+      - figure "Uma pauta que nasce do seu Mapa O que aprendi quando parei de criar como todo mundo?" [ref=e73]:
+        - img "Creator desenvolvendo uma pauta em seu estúdio de conteúdo" [ref=e75]
+        - generic [ref=e77]: Histórias vividas
+        - generic [ref=e78]: Assuntos que você defende
+        - generic [ref=e79]: Situações que se repetem
+        - generic [ref=e80]: Seu jeito de falar
+        - generic [ref=e81]:
+          - generic [ref=e82]: Uma pauta que nasce do seu Mapa
+          - strong [ref=e83]: O que aprendi quando parei de criar como todo mundo?
+      - generic [ref=e84]:
+        - generic [ref=e85]: Antes da pauta, vem você
+        - heading "A gente encontra o fio que conecta o que você vive, pensa e cria." [level=2] [ref=e86]
+        - paragraph [ref=e87]: Seus conteúdos já carregam histórias, assuntos, cenários e um jeito de falar que é só seu. A D2C organiza esses sinais no seu Mapa — e transforma o que encontra em novas possibilidades.
+        - generic [ref=e88]:
+          - generic [ref=e89]: Histórias que você viveu.
+          - generic [ref=e90]: Assuntos que você defende.
+          - generic [ref=e91]: Uma voz que ninguém pode copiar.
+        - link "Quero ver meu Mapa" [ref=e92] [cursor=pointer]:
+          - /url: /login?callbackUrl=%2Fdashboard
+    - generic [ref=e96]:
+      - generic [ref=e97]:
+        - paragraph [ref=e98]: Collab sem conversa vaga
+        - heading "Chega de “vamos marcar”. Comece por uma ideia." [level=2] [ref=e99]
+        - paragraph [ref=e100]: Você escolhe uma pauta. Outro creator também. A collab já começa com algo que os dois querem criar.
+      - generic [ref=e102]:
+        - paragraph [ref=e105]: Uma pauta feita para você
+        - article [ref=e107]:
+          - generic [ref=e108]:
+            - generic [ref=e109]:
+              - img "Foto de Lívia Linhares" [ref=e111]
+              - generic [ref=e112]:
+                - generic [ref=e113]: Pauta para você
+                - generic [ref=e114]: Lívia
+            - generic [ref=e115]: "01"
+          - generic [ref=e116]:
+            - generic [ref=e117]: Sua próxima pauta
+            - heading "Como comecei a defender a liberdade de criar com a minha cara" [level=3] [ref=e118]
+            - paragraph [ref=e119]: Uma pauta sobre autonomia criativa, identidade e o momento em que copiar fórmulas deixou de fazer sentido.
+            - blockquote [ref=e120]: Abre com a primeira vez em que você percebeu que uma fórmula podia apagar a sua voz.
+          - generic [ref=e121]:
+            - generic [ref=e122]: Agora não
+            - generic [ref=e128]: Quero fazer
+        - paragraph [ref=e133]: Continue rolando
+    - generic [ref=e136]:
+      - generic [ref=e137]:
+        - paragraph [ref=e138]: ✦Gente de verdade. Troca de verdade.
+        - heading "Creators com histórias, repertórios e caminhos próprios." [level=3] [ref=e139]
+      - generic "Creators ativos da comunidade D2C" [ref=e140]:
+        - generic [ref=e142]:
+          - generic [ref=e143]:
+            - link "Abrir o Media Kit de Aclara Oficial" [ref=e144] [cursor=pointer]:
+              - /url: /mediakit/aclara-oficial
+              - img "Foto de perfil de Aclara Oficial" [ref=e146]
+              - generic [ref=e147]: Aclara Oficial
+              - generic [ref=e152]: "@claralemkova_"
+            - link "Abrir o Media Kit de Aline Bergamini" [ref=e153] [cursor=pointer]:
+              - /url: /mediakit/aline-bergamini
+              - img "Foto de perfil de Aline Bergamini" [ref=e155]
+              - generic [ref=e156]: Aline Bergamini
+              - generic [ref=e161]: "@alinebergamini"
+            - link "Abrir o Media Kit de Amanda Magalhaes" [ref=e162] [cursor=pointer]:
+              - /url: /mediakit/amanda-magalhaes
+              - img "Foto de perfil de Amanda Magalhaes" [ref=e164]
+              - generic [ref=e165]: Amanda Magalhaes
+              - generic [ref=e170]: "@aamandamag"
+            - link "Abrir o Media Kit de Arthur Marba" [ref=e171] [cursor=pointer]:
+              - /url: /mediakit/arthur-marba
+              - img "Foto de perfil de Arthur Marba" [ref=e173]
+              - generic [ref=e174]: Arthur Marba
+              - generic [ref=e179]: "@arthurmarba"
+            - link "Abrir o Media Kit de Cecília Lopes" [ref=e180] [cursor=pointer]:
+              - /url: /mediakit/cecilia-lopes
+              - img "Foto de perfil de Cecília Lopes" [ref=e182]
+              - generic [ref=e183]: Cecília Lopes
+              - generic [ref=e188]: "@cecilialopeees"
+            - link "Abrir o Media Kit de Daniel Souza" [ref=e189] [cursor=pointer]:
+              - /url: /mediakit/daniel-souza
+              - img "Foto de perfil de Daniel Souza" [ref=e191]
+              - generic [ref=e192]: Daniel Souza
+              - generic [ref=e197]: "@danielolartte"
+            - link "Abrir o Media Kit de Eduarda Lobo" [ref=e198] [cursor=pointer]:
+              - /url: /mediakit/eduarda-lobo
+              - img "Foto de perfil de Eduarda Lobo" [ref=e200]
+              - generic [ref=e201]: Eduarda Lobo
+              - generic [ref=e206]: "@_dudalobo"
+            - link "Abrir o Media Kit de Giovanna Antiorio" [ref=e207] [cursor=pointer]:
+              - /url: /mediakit/giovanna-antiorio
+              - img "Foto de perfil de Giovanna Antiorio" [ref=e209]
+              - generic [ref=e210]: Giovanna Antiorio
+              - generic [ref=e215]: "@giantiorio"
+            - link "Abrir o Media Kit de Heslaine Vieira" [ref=e216] [cursor=pointer]:
+              - /url: /mediakit/heslaine-vieira
+              - img "Foto de perfil de Heslaine Vieira" [ref=e218]
+              - generic [ref=e219]: Heslaine Vieira
+              - generic [ref=e224]: "@heslainevieira"
+            - link "Abrir o Media Kit de João Carlos Gava Junior" [ref=e225] [cursor=pointer]:
+              - /url: /mediakit/joao-carlos-gava-junior
+              - img "Foto de perfil de João Carlos Gava Junior" [ref=e227]
+              - generic [ref=e228]: João Carlos Gava Junior
+              - generic [ref=e232]: "@umviajanteparaense"
+            - link "Abrir o Media Kit de Julia Brandão" [ref=e233] [cursor=pointer]:
+              - /url: /mediakit/julia-brandao
+              - img "Foto de perfil de Julia Brandão" [ref=e235]
+              - generic [ref=e236]: Julia Brandão
+              - generic [ref=e241]: "@narcisa.dra"
+            - link "Abrir o Media Kit de Karen Stephane" [ref=e242] [cursor=pointer]:
+              - /url: /mediakit/karen-stephane
+              - img "Foto de perfil de Karen Stephane" [ref=e244]
+              - generic [ref=e245]: Karen Stephane
+              - generic [ref=e250]: "@karenstephane"
+            - link "Abrir o Media Kit de Laura Rosa" [ref=e251] [cursor=pointer]:
+              - /url: /mediakit/laura-rosa
+              - img "Foto de perfil de Laura Rosa" [ref=e253]
+              - generic [ref=e254]: Laura Rosa
+              - generic [ref=e259]: "@laurarosapersonal"
+            - link "Abrir o Media Kit de Lorena Franzoi" [ref=e260] [cursor=pointer]:
+              - /url: /mediakit/lorena-franzoi
+              - img "Foto de perfil de Lorena Franzoi" [ref=e262]
+              - generic [ref=e263]: Lorena Franzoi
+              - generic [ref=e268]: "@lorenafranzoi"
+            - link "Abrir o Media Kit de Lucio Salimen" [ref=e269] [cursor=pointer]:
+              - /url: /mediakit/lucio-salimen
+              - img "Foto de perfil de Lucio Salimen" [ref=e271]
+              - generic [ref=e272]: Lucio Salimen
+              - generic [ref=e277]: "@luciosalimen"
+            - link "Abrir o Media Kit de Lívia Linhares" [ref=e278] [cursor=pointer]:
+              - /url: /mediakit/livia-linhares
+              - img "Foto de perfil de Lívia Linhares" [ref=e280]
+              - generic [ref=e281]: Lívia Linhares
+              - generic [ref=e286]: "@livialinharess"
+            - link "Abrir o Media Kit de Marina Dutra" [ref=e287] [cursor=pointer]:
+              - /url: /mediakit/marina-dutra
+              - img "Foto de perfil de Marina Dutra" [ref=e289]
+              - generic [ref=e290]: Marina Dutra
+              - generic [ref=e295]: "@marinaduttra_"
+            - link "Abrir o Media Kit de Matos Advocacia" [ref=e296] [cursor=pointer]:
+              - /url: /mediakit/matos-advocacia
+              - img "Foto de perfil de Matos Advocacia" [ref=e298]
+              - generic [ref=e299]: Matos Advocacia
+              - generic [ref=e304]: "@dayane.matoss"
+            - link "Abrir o Media Kit de Nossolardeamor" [ref=e305] [cursor=pointer]:
+              - /url: /mediakit/nossolardeamor
+              - img "Foto de perfil de Nossolardeamor" [ref=e307]
+              - generic [ref=e308]: Nossolardeamor
+              - generic [ref=e313]: "@nosso_lar_de.amor"
+            - link "Abrir o Media Kit de Osvaldo Barros" [ref=e314] [cursor=pointer]:
+              - /url: /mediakit/osvaldo-barros
+              - img "Foto de perfil de Osvaldo Barros" [ref=e316]
+              - generic [ref=e317]: Osvaldo Barros
+              - generic [ref=e322]: "@osvaldobarrosoficial"
+            - link "Abrir o Media Kit de Ronaldo Fonseca Jr" [ref=e323] [cursor=pointer]:
+              - /url: /mediakit/ronaldo-fonseca-jr
+              - img "Foto de perfil de Ronaldo Fonseca Jr" [ref=e325]
+              - generic [ref=e326]: Ronaldo Fonseca Jr
+              - generic [ref=e331]: "@ronaldofonsecajr"
+            - link "Abrir o Media Kit de Simone Magnus" [ref=e332] [cursor=pointer]:
+              - /url: /mediakit/simone-magnus
+              - img "Foto de perfil de Simone Magnus" [ref=e334]
+              - generic [ref=e335]: Simone Magnus
+              - generic [ref=e340]: "@simonemagnus.s"
+            - link "Abrir o Media Kit de Thaís Melchior" [ref=e341] [cursor=pointer]:
+              - /url: /mediakit/thais-melchior
+              - img "Foto de perfil de Thaís Melchior" [ref=e343]
+              - generic [ref=e344]: Thaís Melchior
+              - generic [ref=e349]: "@thaismelchior"
+            - link "Abrir o Media Kit de Wellingthon Costa" [ref=e350] [cursor=pointer]:
+              - /url: /mediakit/wellingthon-costa
+              - img "Foto de perfil de Wellingthon Costa" [ref=e352]
+              - generic [ref=e353]: Wellingthon Costa
+              - generic [ref=e358]: "@wellingthon.c"
+            - link "Abrir o Media Kit de Yanna Livia" [ref=e359] [cursor=pointer]:
+              - /url: /mediakit/yanna-livia
+              - img "Foto de perfil de Yanna Livia" [ref=e361]
+              - generic [ref=e362]: Yanna Livia
+              - generic [ref=e367]: "@yannafferreira"
+            - link "Abrir o Media Kit de produçãoMarinaloureiro Loureiro" [ref=e368] [cursor=pointer]:
+              - /url: /mediakit/producaomarinaloureiro-loureiro
+              - img "Foto de perfil de produçãoMarinaloureiro Loureiro" [ref=e370]
+              - generic [ref=e371]: produçãoMarinaloureiro Loureiro
+              - generic [ref=e375]: "@ninaktorres"
+            - link "Abrir o Media Kit de Bruna Ramos & Otávio" [ref=e376] [cursor=pointer]:
+              - /url: /mediakit/bruna-ramos
+              - img "Foto de perfil de Bruna Ramos & Otávio" [ref=e378]
+              - generic [ref=e379]: Bruna Ramos & Otávio
+              - generic [ref=e384]: "@riocomerebeber"
+            - link "Abrir o Media Kit de Erika Furtado" [ref=e385] [cursor=pointer]:
+              - /url: /mediakit/erika-freitas
+              - img "Foto de perfil de Erika Furtado" [ref=e387]
+              - generic [ref=e388]: Erika Furtado
+              - generic [ref=e393]: "@erikafurttado"
+            - link "Abrir o Media Kit de Rafaella Gomes Custódio" [ref=e394] [cursor=pointer]:
+              - /url: /mediakit/rafaella-gomes-custodio
+              - img "Foto de perfil de Rafaella Gomes Custódio" [ref=e396]
+              - generic [ref=e397]: Rafaella Gomes Custódio
+              - generic [ref=e401]: "@rafacustodio"
+          - generic [ref=e402]:
+            - link [ref=e403] [cursor=pointer]:
+              - /url: /mediakit/aclara-oficial
+              - generic [ref=e406]: Aclara Oficial
+              - generic [ref=e411]: "@claralemkova_"
+            - link [ref=e412] [cursor=pointer]:
+              - /url: /mediakit/aline-bergamini
+              - generic [ref=e415]: Aline Bergamini
+              - generic [ref=e420]: "@alinebergamini"
+            - link [ref=e421] [cursor=pointer]:
+              - /url: /mediakit/amanda-magalhaes
+              - generic [ref=e424]: Amanda Magalhaes
+              - generic [ref=e429]: "@aamandamag"
+            - link [ref=e430] [cursor=pointer]:
+              - /url: /mediakit/arthur-marba
+              - generic [ref=e433]: Arthur Marba
+              - generic [ref=e438]: "@arthurmarba"
+            - link [ref=e439] [cursor=pointer]:
+              - /url: /mediakit/cecilia-lopes
+              - generic [ref=e442]: Cecília Lopes
+              - generic [ref=e447]: "@cecilialopeees"
+            - link [ref=e448] [cursor=pointer]:
+              - /url: /mediakit/daniel-souza
+              - generic [ref=e451]: Daniel Souza
+              - generic [ref=e456]: "@danielolartte"
+            - link [ref=e457] [cursor=pointer]:
+              - /url: /mediakit/eduarda-lobo
+              - generic [ref=e460]: Eduarda Lobo
+              - generic [ref=e465]: "@_dudalobo"
+            - link [ref=e466] [cursor=pointer]:
+              - /url: /mediakit/giovanna-antiorio
+              - generic [ref=e469]: Giovanna Antiorio
+              - generic [ref=e474]: "@giantiorio"
+            - link [ref=e475] [cursor=pointer]:
+              - /url: /mediakit/heslaine-vieira
+              - generic [ref=e478]: Heslaine Vieira
+              - generic [ref=e483]: "@heslainevieira"
+            - link [ref=e484] [cursor=pointer]:
+              - /url: /mediakit/joao-carlos-gava-junior
+              - generic [ref=e487]: João Carlos Gava Junior
+              - generic [ref=e491]: "@umviajanteparaense"
+            - link [ref=e492] [cursor=pointer]:
+              - /url: /mediakit/julia-brandao
+              - generic [ref=e495]: Julia Brandão
+              - generic [ref=e500]: "@narcisa.dra"
+            - link [ref=e501] [cursor=pointer]:
+              - /url: /mediakit/karen-stephane
+              - generic [ref=e504]: Karen Stephane
+              - generic [ref=e509]: "@karenstephane"
+            - link [ref=e510] [cursor=pointer]:
+              - /url: /mediakit/laura-rosa
+              - generic [ref=e513]: Laura Rosa
+              - generic [ref=e518]: "@laurarosapersonal"
+            - link [ref=e519] [cursor=pointer]:
+              - /url: /mediakit/lorena-franzoi
+              - generic [ref=e522]: Lorena Franzoi
+              - generic [ref=e527]: "@lorenafranzoi"
+            - link [ref=e528] [cursor=pointer]:
+              - /url: /mediakit/lucio-salimen
+              - generic [ref=e531]: Lucio Salimen
+              - generic [ref=e536]: "@luciosalimen"
+            - link [ref=e537] [cursor=pointer]:
+              - /url: /mediakit/livia-linhares
+              - generic [ref=e540]: Lívia Linhares
+              - generic [ref=e545]: "@livialinharess"
+            - link [ref=e546] [cursor=pointer]:
+              - /url: /mediakit/marina-dutra
+              - generic [ref=e549]: Marina Dutra
+              - generic [ref=e554]: "@marinaduttra_"
+            - link [ref=e555] [cursor=pointer]:
+              - /url: /mediakit/matos-advocacia
+              - generic [ref=e558]: Matos Advocacia
+              - generic [ref=e563]: "@dayane.matoss"
+            - link [ref=e564] [cursor=pointer]:
+              - /url: /mediakit/nossolardeamor
+              - generic [ref=e567]: Nossolardeamor
+              - generic [ref=e572]: "@nosso_lar_de.amor"
+            - link [ref=e573] [cursor=pointer]:
+              - /url: /mediakit/osvaldo-barros
+              - generic [ref=e576]: Osvaldo Barros
+              - generic [ref=e581]: "@osvaldobarrosoficial"
+            - link [ref=e582] [cursor=pointer]:
+              - /url: /mediakit/ronaldo-fonseca-jr
+              - generic [ref=e585]: Ronaldo Fonseca Jr
+              - generic [ref=e590]: "@ronaldofonsecajr"
+            - link [ref=e591] [cursor=pointer]:
+              - /url: /mediakit/simone-magnus
+              - generic [ref=e594]: Simone Magnus
+              - generic [ref=e599]: "@simonemagnus.s"
+            - link [ref=e600] [cursor=pointer]:
+              - /url: /mediakit/thais-melchior
+              - generic [ref=e603]: Thaís Melchior
+              - generic [ref=e608]: "@thaismelchior"
+            - link [ref=e609] [cursor=pointer]:
+              - /url: /mediakit/wellingthon-costa
+              - generic [ref=e612]: Wellingthon Costa
+              - generic [ref=e617]: "@wellingthon.c"
+            - link [ref=e618] [cursor=pointer]:
+              - /url: /mediakit/yanna-livia
+              - generic [ref=e621]: Yanna Livia
+              - generic [ref=e626]: "@yannafferreira"
+            - link [ref=e627] [cursor=pointer]:
+              - /url: /mediakit/producaomarinaloureiro-loureiro
+              - generic [ref=e630]: produçãoMarinaloureiro Loureiro
+              - generic [ref=e634]: "@ninaktorres"
+            - link [ref=e635] [cursor=pointer]:
+              - /url: /mediakit/bruna-ramos
+              - generic [ref=e638]: Bruna Ramos & Otávio
+              - generic [ref=e643]: "@riocomerebeber"
+            - link [ref=e644] [cursor=pointer]:
+              - /url: /mediakit/erika-freitas
+              - generic [ref=e647]: Erika Furtado
+              - generic [ref=e652]: "@erikafurttado"
+            - link [ref=e653] [cursor=pointer]:
+              - /url: /mediakit/rafaella-gomes-custodio
+              - generic [ref=e656]: Rafaella Gomes Custódio
+              - generic [ref=e660]: "@rafacustodio"
+        - generic [ref=e662]:
+          - generic [ref=e663]:
+            - link "Abrir o Media Kit de Aline Aurea" [ref=e664] [cursor=pointer]:
+              - /url: /mediakit/aline-aurea
+              - img "Foto de perfil de Aline Aurea" [ref=e666]
+              - generic [ref=e667]: Aline Aurea
+              - generic [ref=e672]: "@alineaurea"
+            - link "Abrir o Media Kit de Aline Paiva" [ref=e673] [cursor=pointer]:
+              - /url: /mediakit/aline-paiva
+              - img "Foto de perfil de Aline Paiva" [ref=e675]
+              - generic [ref=e676]: Aline Paiva
+              - generic [ref=e681]: "@alinepaivadecora"
+            - link "Abrir o Media Kit de Anna clara Berner" [ref=e682] [cursor=pointer]:
+              - /url: /mediakit/anna-clara-berner
+              - img "Foto de perfil de Anna clara Berner" [ref=e684]
+              - generic [ref=e685]: Anna clara Berner
+              - generic [ref=e690]: "@annabernerblog"
+            - link "Abrir o Media Kit de Bruna Oliveira" [ref=e691] [cursor=pointer]:
+              - /url: /mediakit/bruna-oliveira
+              - img "Foto de perfil de Bruna Oliveira" [ref=e693]
+              - generic [ref=e694]: Bruna Oliveira
+              - generic [ref=e699]: "@bruoliveiira__"
+            - link "Abrir o Media Kit de ContatoLorena Coutinho" [ref=e700] [cursor=pointer]:
+              - /url: /mediakit/contatolorena-coutinho
+              - img "Foto de perfil de ContatoLorena Coutinho" [ref=e702]
+              - generic [ref=e703]: ContatoLorena Coutinho
+              - generic [ref=e707]: "@locoutiinho"
+            - link "Abrir o Media Kit de Débora Broch Machado" [ref=e708] [cursor=pointer]:
+              - /url: /mediakit/debora-broch-machado
+              - img "Foto de perfil de Débora Broch Machado" [ref=e710]
+              - generic [ref=e711]: Débora Broch Machado
+              - generic [ref=e715]: "@deborabroch"
+            - link "Abrir o Media Kit de Francyne Calheira" [ref=e716] [cursor=pointer]:
+              - /url: /mediakit/francyne-calheira
+              - img "Foto de perfil de Francyne Calheira" [ref=e718]
+              - generic [ref=e719]: Francyne Calheira
+              - generic [ref=e724]: "@fran.calheira"
+            - link "Abrir o Media Kit de Giselle Candido" [ref=e725] [cursor=pointer]:
+              - /url: /mediakit/giselle-candido
+              - img "Foto de perfil de Giselle Candido" [ref=e727]
+              - generic [ref=e728]: Giselle Candido
+              - generic [ref=e733]: "@gisellerhaylla"
+            - link "Abrir o Media Kit de Isabela Andrade" [ref=e734] [cursor=pointer]:
+              - /url: /mediakit/isabela-andrade
+              - img "Foto de perfil de Isabela Andrade" [ref=e736]
+              - generic [ref=e737]: Isabela Andrade
+              - generic [ref=e742]: "@isafandrade"
+            - link "Abrir o Media Kit de João Lucas" [ref=e743] [cursor=pointer]:
+              - /url: /mediakit/joao-lucas
+              - img "Foto de perfil de João Lucas" [ref=e745]
+              - generic [ref=e746]: João Lucas
+              - generic [ref=e751]: "@jlskim"
+            - link "Abrir o Media Kit de Juliete Silveira" [ref=e752] [cursor=pointer]:
+              - /url: /mediakit/juliete-silveira
+              - img "Foto de perfil de Juliete Silveira" [ref=e754]
+              - generic [ref=e755]: Juliete Silveira
+              - generic [ref=e760]: "@julietesilveira"
+            - link "Abrir o Media Kit de Lary Kelbert" [ref=e761] [cursor=pointer]:
+              - /url: /mediakit/lary-kelbert
+              - img "Foto de perfil de Lary Kelbert" [ref=e763]
+              - generic [ref=e764]: Lary Kelbert
+              - generic [ref=e769]: "@larykelbert"
+            - link "Abrir o Media Kit de Le Mendonça" [ref=e770] [cursor=pointer]:
+              - /url: /mediakit/le-mendonca
+              - img "Foto de perfil de Le Mendonça" [ref=e772]
+              - generic [ref=e773]: Le Mendonça
+              - generic [ref=e778]: "@leidemend"
+            - link "Abrir o Media Kit de Lorena Marchetti" [ref=e779] [cursor=pointer]:
+              - /url: /mediakit/lorena-marchetti
+              - img "Foto de perfil de Lorena Marchetti" [ref=e781]
+              - generic [ref=e782]: Lorena Marchetti
+              - generic [ref=e787]: "@lorenadmarchetti"
+            - link "Abrir o Media Kit de Luiza Zveiter" [ref=e788] [cursor=pointer]:
+              - /url: /mediakit/luiza-zveiter
+              - img "Foto de perfil de Luiza Zveiter" [ref=e790]
+              - generic [ref=e791]: Luiza Zveiter
+              - generic [ref=e796]: "@luizazveiter"
+            - link "Abrir o Media Kit de Mariana Souza" [ref=e797] [cursor=pointer]:
+              - /url: /mediakit/mariana-souza
+              - img "Foto de perfil de Mariana Souza" [ref=e799]
+              - generic [ref=e800]: Mariana Souza
+              - generic [ref=e805]: "@bymari.as"
+            - link "Abrir o Media Kit de Martina Djekic" [ref=e806] [cursor=pointer]:
+              - /url: /mediakit/martina-djekic
+              - img "Foto de perfil de Martina Djekic" [ref=e808]
+              - generic [ref=e809]: Martina Djekic
+              - generic [ref=e814]: "@martinadjekic"
+            - link "Abrir o Media Kit de Mayra Bittar" [ref=e815] [cursor=pointer]:
+              - /url: /mediakit/mayra-bittar
+              - img "Foto de perfil de Mayra Bittar" [ref=e817]
+              - generic [ref=e818]: Mayra Bittar
+              - generic [ref=e823]: "@mayrabittar"
+            - link "Abrir o Media Kit de O Bão de Moc" [ref=e824] [cursor=pointer]:
+              - /url: /mediakit/o-bao-de-moc
+              - img "Foto de perfil de O Bão de Moc" [ref=e826]
+              - generic [ref=e827]: O Bão de Moc
+              - generic [ref=e832]: "@obaodemoc"
+            - link "Abrir o Media Kit de Rafael Belli" [ref=e833] [cursor=pointer]:
+              - /url: /mediakit/rafael-belli
+              - img "Foto de perfil de Rafael Belli" [ref=e835]
+              - generic [ref=e836]: Rafael Belli
+              - generic [ref=e841]: "@belli_rafa"
+            - link "Abrir o Media Kit de Samantha Barros" [ref=e842] [cursor=pointer]:
+              - /url: /mediakit/samantha-barros
+              - img "Foto de perfil de Samantha Barros" [ref=e844]
+              - generic [ref=e845]: Samantha Barros
+              - generic [ref=e850]: "@samanthabarross"
+            - link "Abrir o Media Kit de Tais Evaristo" [ref=e851] [cursor=pointer]:
+              - /url: /mediakit/tais-evaristo
+              - img "Foto de perfil de Tais Evaristo" [ref=e853]
+              - generic [ref=e854]: Tais Evaristo
+              - generic [ref=e859]: "@casadetais"
+            - link "Abrir o Media Kit de Vivien Andrade (Vivi)" [ref=e860] [cursor=pointer]:
+              - /url: /mediakit/vivien-andrade-vivi
+              - img "Foto de perfil de Vivien Andrade (Vivi)" [ref=e862]
+              - generic [ref=e863]: Vivien Andrade (Vivi)
+              - generic [ref=e868]: "@vivienandrade"
+            - link "Abrir o Media Kit de William Yeh 葉斯盛" [ref=e869] [cursor=pointer]:
+              - /url: /mediakit/william-yeh
+              - img "Foto de perfil de William Yeh 葉斯盛" [ref=e871]
+              - generic [ref=e872]: William Yeh 葉斯盛
+              - generic [ref=e877]: "@melhor.correr"
+            - link "Abrir o Media Kit de carla tosta" [ref=e878] [cursor=pointer]:
+              - /url: /mediakit/carla-tosta
+              - img "Foto de perfil de carla tosta" [ref=e880]
+              - generic [ref=e881]: carla tosta
+              - generic [ref=e886]: "@carla_tosta"
+            - link "Abrir o Media Kit de Ana Vieira" [ref=e887] [cursor=pointer]:
+              - /url: /mediakit/ana-vieira
+              - img "Foto de perfil de Ana Vieira" [ref=e889]
+              - generic [ref=e890]: Ana Vieira
+              - generic [ref=e895]: "@anavieira40mais"
+            - link "Abrir o Media Kit de Camila Barros" [ref=e896] [cursor=pointer]:
+              - /url: /mediakit/fisioangelhotmailcom
+              - img "Foto de perfil de Camila Barros" [ref=e898]
+              - generic [ref=e899]: Camila Barros
+              - generic [ref=e904]: "@caamilabarross"
+            - link "Abrir o Media Kit de Maria Gomes" [ref=e905] [cursor=pointer]:
+              - /url: /mediakit/maria-gomes
+              - img "Foto de perfil de Maria Gomes" [ref=e907]
+              - generic [ref=e908]: Maria Gomes
+              - generic [ref=e913]: "@mariagomesu"
+            - link "Abrir o Media Kit de Tiany Belmoque" [ref=e914] [cursor=pointer]:
+              - /url: /mediakit/thiany-belmoque
+              - img "Foto de perfil de Tiany Belmoque" [ref=e916]
+              - generic [ref=e917]: Tiany Belmoque
+              - generic [ref=e922]: "@tianybelmoque"
+          - generic [ref=e923]:
+            - link [ref=e924] [cursor=pointer]:
+              - /url: /mediakit/aline-aurea
+              - generic [ref=e927]: Aline Aurea
+              - generic [ref=e932]: "@alineaurea"
+            - link [ref=e933] [cursor=pointer]:
+              - /url: /mediakit/aline-paiva
+              - generic [ref=e936]: Aline Paiva
+              - generic [ref=e941]: "@alinepaivadecora"
+            - link [ref=e942] [cursor=pointer]:
+              - /url: /mediakit/anna-clara-berner
+              - generic [ref=e945]: Anna clara Berner
+              - generic [ref=e950]: "@annabernerblog"
+            - link [ref=e951] [cursor=pointer]:
+              - /url: /mediakit/bruna-oliveira
+              - generic [ref=e954]: Bruna Oliveira
+              - generic [ref=e959]: "@bruoliveiira__"
+            - link [ref=e960] [cursor=pointer]:
+              - /url: /mediakit/contatolorena-coutinho
+              - generic [ref=e963]: ContatoLorena Coutinho
+              - generic [ref=e967]: "@locoutiinho"
+            - link [ref=e968] [cursor=pointer]:
+              - /url: /mediakit/debora-broch-machado
+              - generic [ref=e971]: Débora Broch Machado
+              - generic [ref=e975]: "@deborabroch"
+            - link [ref=e976] [cursor=pointer]:
+              - /url: /mediakit/francyne-calheira
+              - generic [ref=e979]: Francyne Calheira
+              - generic [ref=e984]: "@fran.calheira"
+            - link [ref=e985] [cursor=pointer]:
+              - /url: /mediakit/giselle-candido
+              - generic [ref=e988]: Giselle Candido
+              - generic [ref=e993]: "@gisellerhaylla"
+            - link [ref=e994] [cursor=pointer]:
+              - /url: /mediakit/isabela-andrade
+              - generic [ref=e997]: Isabela Andrade
+              - generic [ref=e1002]: "@isafandrade"
+            - link [ref=e1003] [cursor=pointer]:
+              - /url: /mediakit/joao-lucas
+              - generic [ref=e1006]: João Lucas
+              - generic [ref=e1011]: "@jlskim"
+            - link [ref=e1012] [cursor=pointer]:
+              - /url: /mediakit/juliete-silveira
+              - generic [ref=e1015]: Juliete Silveira
+              - generic [ref=e1020]: "@julietesilveira"
+            - link [ref=e1021] [cursor=pointer]:
+              - /url: /mediakit/lary-kelbert
+              - generic [ref=e1024]: Lary Kelbert
+              - generic [ref=e1029]: "@larykelbert"
+            - link [ref=e1030] [cursor=pointer]:
+              - /url: /mediakit/le-mendonca
+              - generic [ref=e1033]: Le Mendonça
+              - generic [ref=e1038]: "@leidemend"
+            - link [ref=e1039] [cursor=pointer]:
+              - /url: /mediakit/lorena-marchetti
+              - generic [ref=e1042]: Lorena Marchetti
+              - generic [ref=e1047]: "@lorenadmarchetti"
+            - link [ref=e1048] [cursor=pointer]:
+              - /url: /mediakit/luiza-zveiter
+              - generic [ref=e1051]: Luiza Zveiter
+              - generic [ref=e1056]: "@luizazveiter"
+            - link [ref=e1057] [cursor=pointer]:
+              - /url: /mediakit/mariana-souza
+              - generic [ref=e1060]: Mariana Souza
+              - generic [ref=e1065]: "@bymari.as"
+            - link [ref=e1066] [cursor=pointer]:
+              - /url: /mediakit/martina-djekic
+              - generic [ref=e1069]: Martina Djekic
+              - generic [ref=e1074]: "@martinadjekic"
+            - link [ref=e1075] [cursor=pointer]:
+              - /url: /mediakit/mayra-bittar
+              - generic [ref=e1078]: Mayra Bittar
+              - generic [ref=e1083]: "@mayrabittar"
+            - link [ref=e1084] [cursor=pointer]:
+              - /url: /mediakit/o-bao-de-moc
+              - generic [ref=e1087]: O Bão de Moc
+              - generic [ref=e1092]: "@obaodemoc"
+            - link [ref=e1093] [cursor=pointer]:
+              - /url: /mediakit/rafael-belli
+              - generic [ref=e1096]: Rafael Belli
+              - generic [ref=e1101]: "@belli_rafa"
+            - link [ref=e1102] [cursor=pointer]:
+              - /url: /mediakit/samantha-barros
+              - generic [ref=e1105]: Samantha Barros
+              - generic [ref=e1110]: "@samanthabarross"
+            - link [ref=e1111] [cursor=pointer]:
+              - /url: /mediakit/tais-evaristo
+              - generic [ref=e1114]: Tais Evaristo
+              - generic [ref=e1119]: "@casadetais"
+            - link [ref=e1120] [cursor=pointer]:
+              - /url: /mediakit/vivien-andrade-vivi
+              - generic [ref=e1123]: Vivien Andrade (Vivi)
+              - generic [ref=e1128]: "@vivienandrade"
+            - link [ref=e1129] [cursor=pointer]:
+              - /url: /mediakit/william-yeh
+              - generic [ref=e1132]: William Yeh 葉斯盛
+              - generic [ref=e1137]: "@melhor.correr"
+            - link [ref=e1138] [cursor=pointer]:
+              - /url: /mediakit/carla-tosta
+              - generic [ref=e1141]: carla tosta
+              - generic [ref=e1146]: "@carla_tosta"
+            - link [ref=e1147] [cursor=pointer]:
+              - /url: /mediakit/ana-vieira
+              - generic [ref=e1150]: Ana Vieira
+              - generic [ref=e1155]: "@anavieira40mais"
+            - link [ref=e1156] [cursor=pointer]:
+              - /url: /mediakit/fisioangelhotmailcom
+              - generic [ref=e1159]: Camila Barros
+              - generic [ref=e1164]: "@caamilabarross"
+            - link [ref=e1165] [cursor=pointer]:
+              - /url: /mediakit/maria-gomes
+              - generic [ref=e1168]: Maria Gomes
+              - generic [ref=e1173]: "@mariagomesu"
+            - link [ref=e1174] [cursor=pointer]:
+              - /url: /mediakit/thiany-belmoque
+              - generic [ref=e1177]: Tiany Belmoque
+              - generic [ref=e1182]: "@tianybelmoque"
+      - group [ref=e1183]:
+        - generic "Explorar todos os Media Kits+" [ref=e1184] [cursor=pointer]
+      - paragraph [ref=e1185]: Cada retrato abre um Media Kit público. Conheça o trabalho, a narrativa e o momento de cada creator.
+    - generic [ref=e1187]:
+      - generic [ref=e1188]:
+        - figure [ref=e1189]:
+          - img "Creator publicando um vídeo em seu estúdio" [ref=e1190]
+        - figure [ref=e1191]:
+          - img "Creator analisando e refinando um conteúdo" [ref=e1192]
+        - figure [ref=e1193]:
+          - img "Creators produzindo uma colaboração juntos" [ref=e1194]
+      - paragraph [ref=e1195]: Cenas editoriais ilustrativas da rotina de creators.
+      - generic [ref=e1197]:
+        - paragraph [ref=e1198]: Toda quinta · 19h · online
+        - generic [ref=e1199]: A call é coletiva. A leitura de cada creator é individual.
+      - generic [ref=e1200]:
+        - article [ref=e1201]:
+          - generic [ref=e1202]:
+            - text: "01"
+            - heading "A gente olha o que aconteceu." [level=2] [ref=e1203]
+            - paragraph [ref=e1204]: O que bateu, o que não encaixou e quais sinais a audiência deixou.
+        - article [ref=e1205]:
+          - generic [ref=e1206]:
+            - text: "02"
+            - heading "A IA encontra o que passou despercebido." [level=2] [ref=e1207]
+            - paragraph [ref=e1208]: Cada creator presente recebe uma leitura individual, com dados, contexto e direção.
+        - article [ref=e1209]:
+          - generic [ref=e1210]:
+            - text: "03"
+            - heading "A sala transforma análise em movimento." [level=2] [ref=e1211]
+            - paragraph [ref=e1212]: Saem pautas, testes, collabs, referências e gente com vontade de fazer junto.
+      - generic [ref=e1213]:
+        - paragraph [ref=e1214]: A IA organiza. A gente provoca. A comunidade faz a ideia crescer.
+        - link "Quero participar" [ref=e1215] [cursor=pointer]:
+          - /url: /login?callbackUrl=%2Fdashboard
+    - generic [ref=e1218]:
+      - figure "Imagem representativa. Será substituída por registros reais da comunidade." [ref=e1219]:
+        - img "Representação de creators em um encontro presencial" [ref=e1220]
+      - generic [ref=e1222]:
+        - generic [ref=e1223]:
+          - paragraph [ref=e1224]: ✦A cada dois meses · Rio e São Paulo
+          - heading "Da call pra mesma mesa." [level=2] [ref=e1225]
+        - generic [ref=e1226]:
+          - paragraph [ref=e1227]: Os encontros presenciais acontecem nos escritórios do Grupo Dreamers, no Rio de Janeiro e em São Paulo.
+          - paragraph [ref=e1228]: É onde o papo ganha tempo, as ideias circulam e novas collabs e relações profissionais começam a aparecer.
+          - generic [ref=e1229]:
+            - generic [ref=e1230]: Networking
+            - generic [ref=e1231]: Brainstorming
+            - generic [ref=e1232]: Collabs
+            - generic [ref=e1233]: Carreira
+    - generic [ref=e1234]:
+      - generic [ref=e1235]:
+        - paragraph [ref=e1236]: ✦Duas experiências. Uma mesma inquietação.
+        - heading "Criatividade de um lado. Mercado do outro. Você no centro." [level=2] [ref=e1237]
+      - generic [ref=e1238]:
+        - article [ref=e1239]:
+          - figure [ref=e1240]:
+            - img "Retrato editorial de Arthur Marbá" [ref=e1241]
+          - generic [ref=e1242]:
+            - text: Creators · dados · estratégia
+            - heading "Arthur Marbá" [level=3] [ref=e1243]
+            - paragraph [ref=e1244]: Fundador da D2C e estrategista de creators. Há mais de uma década transforma conteúdo, dados e comportamento em direção prática.
+        - article [ref=e1245]:
+          - figure [ref=e1246]:
+            - img "Retrato editorial de Ronaldo Fonseca" [ref=e1247]
+          - generic [ref=e1248]:
+            - text: Narrativas · cultura · negócios
+            - heading "Ronaldo Fonseca" [level=3] [ref=e1249]
+            - paragraph [ref=e1250]: Sócio da D2C e CEO da A-Lab, do Grupo Dreamers. Conecta narrativas, cultura e oportunidades de negócio.
+      - generic [ref=e1251]:
+        - paragraph [ref=e1252]: Um entende o que acontece no meio da criação. O outro, como uma narrativa ganha valor no mundo. A D2C junta os dois.
+        - link "Começar com a D2C" [ref=e1253] [cursor=pointer]:
+          - /url: /login?callbackUrl=%2Fdashboard
+    - generic [ref=e1256]:
+      - generic [ref=e1257]:
+        - paragraph [ref=e1258]: ✦Do feed para o mundo
+        - heading "Sua narrativa não serve só pro feed." [level=2] [ref=e1259]
+      - generic [ref=e1260]:
+        - generic [ref=e1261]:
+          - text: "01"
+          - heading "Pessoas" [level=3] [ref=e1262]
+          - paragraph [ref=e1263]: Sentem por que vale ficar por perto.
+        - generic [ref=e1264]:
+          - text: "02"
+          - heading "Creators" [level=3] [ref=e1265]
+          - paragraph [ref=e1266]: Enxergam por que criar junto.
+        - generic [ref=e1267]:
+          - text: "03"
+          - heading "Marcas" [level=3] [ref=e1268]
+          - paragraph [ref=e1269]: Entendem por que escolher você.
+      - generic [ref=e1270]:
+        - paragraph [ref=e1271]: Quando sua narrativa fica clara, apresentar seu trabalho, cobrar e escolher oportunidades também fica.
+        - generic [ref=e1272]:
+          - generic [ref=e1273]: Media Kit
+          - generic [ref=e1274]: Precificação
+          - generic [ref=e1275]: Propostas
+          - generic [ref=e1276]: Direção comercial
+      - generic [ref=e1277]:
+        - generic [ref=e1278]:
+          - text: Criação também é carreira
+          - heading "Talento também precisa ser visto." [level=3] [ref=e1279]
+        - generic [ref=e1280]:
+          - strong [ref=e1281]: Todo membro entra no radar para possíveis oportunidades de agenciamento.
+          - paragraph [ref=e1282]: A análise acontece com a Destaque Estratégia de Imagem, sob gestão de Márcia Marbá, olhando narrativa, momento de carreira e oportunidades que realmente combinem com a pessoa.
+          - generic [ref=e1283]: A análise não representa garantia de agenciamento, contratação ou oportunidade comercial.
+    - generic [ref=e1285]:
+      - generic [ref=e1286]:
+        - paragraph [ref=e1287]: ✦Tudo junto. Sem complicar.
+        - heading "Uma rotina de criação que finalmente conversa com você." [level=2] [ref=e1288]
+      - generic [ref=e1289]:
+        - generic [ref=e1290]: R$ 49,90/mês
+        - list [ref=e1291]:
+          - listitem [ref=e1292]: Mapa da sua narrativa
+          - listitem [ref=e1295]: Pautas e collabs personalizadas
+          - listitem [ref=e1298]: Reuniões semanais e comunidade
+        - link "Quero criar com a minha cara" [ref=e1301] [cursor=pointer]:
+          - /url: /login?callbackUrl=%2Fdashboard
+        - generic [ref=e1304]: Entre com Google. Assine quando fizer sentido. Cancele quando quiser.
+    - generic [ref=e1306]:
+      - generic [ref=e1307]:
+        - paragraph [ref=e1308]: ✦Sem letra miúda
+        - heading "Perguntas que fazem sentido." [level=2] [ref=e1309]
+      - generic [ref=e1310]:
+        - group [ref=e1311]:
+          - generic "Preciso já ser creator profissional? +" [ref=e1312] [cursor=pointer]
+        - group [ref=e1313]:
+          - generic "O que acontece depois que eu entrar com Google? +" [ref=e1314] [cursor=pointer]
+        - group [ref=e1315]:
+          - generic "O que significa “começar grátis”? +" [ref=e1316] [cursor=pointer]
+        - group [ref=e1317]:
+          - generic "Como a D2C entende minha narrativa? +" [ref=e1318] [cursor=pointer]
+        - group [ref=e1319]:
+          - generic "A IA decide o que devo criar? +" [ref=e1320] [cursor=pointer]
+        - group [ref=e1321]:
+          - generic "Como funcionam os matches de collab? +" [ref=e1322] [cursor=pointer]
+        - group [ref=e1323]:
+          - generic "Como funcionam os encontros da comunidade? +" [ref=e1324] [cursor=pointer]
+        - group [ref=e1325]:
+          - generic "Todo membro é agenciado? +" [ref=e1326] [cursor=pointer]
+        - group [ref=e1327]:
+          - generic "Posso cancelar quando quiser? +" [ref=e1328] [cursor=pointer]
+    - generic [ref=e1330]:
+      - generic [ref=e1331]:
+        - paragraph [ref=e1332]: Algoritmos, formatos e tendências mudam.
+        - heading "O algoritmo muda. Sua voz não precisa." [level=2] [ref=e1333]:
+          - text: O algoritmo muda.
+          - generic [ref=e1334]: Sua voz não precisa.
+      - link "Criar com a minha cara" [ref=e1335] [cursor=pointer]:
+        - /url: /login?callbackUrl=%2Fdashboard
+  - contentinfo [ref=e1338]:
+    - generic [ref=e1339]:
+      - link "Data2Content - página inicial" [ref=e1340] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e1342]: data2content
+      - paragraph [ref=e1343]: IA para enxergar. Gente para criar.
+      - navigation "Links legais" [ref=e1344]:
+        - link "Suporte" [ref=e1345] [cursor=pointer]:
+          - /url: mailto:arthur@data2content.ai
+        - link "Privacidade" [ref=e1346] [cursor=pointer]:
+          - /url: /politica-de-privacidade
+        - link "Termos" [ref=e1347] [cursor=pointer]:
+          - /url: /termos-e-condicoes
+      - generic [ref=e1348]: © 2026 Data2Content.

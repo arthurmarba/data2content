@@ -1,0 +1,7 @@
+[    6292ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3207/api/plan/status:0
+[    7543ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3207/api/plan/status?force=true:0
+[    8765ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3207/api/plan/status?force=true:0
+[  356883ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3207/api/plan/status:0
+[  357494ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3207/api/plan/status?force=true:0
+[  358704ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3207/api/plan/status?force=true:0
+[  421691ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3207/images/community/avatars/edgar-kumagai.jpg?v=20260713-community-v1:0

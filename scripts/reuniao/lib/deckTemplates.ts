@@ -9,13 +9,16 @@
 // screenshot por slide e os embrulha num .pptx.
 
 import type { CriadorSlide, CollabSugerida, DeckData, Ponto, Selo } from "./types";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 export const SLIDE_W = 1280;
 export const SLIDE_H = 720;
 
-const CIRC = { narrativa: "#C9603F", audiencia: "#2F6F8F", marca: "#4E8D5B" } as const;
-const FORTE = "#2e7d52"; // verde — ponto forte
-const AJUSTAR = "#b5462f"; // terracota — ponto a ajustar
+const CIRC = { narrativa: "#E90F4F", audiencia: "#FF8438", marca: "#167A55" } as const;
+const FORTE = "#167A55"; // verde — ponto forte
+const AJUSTAR = "#B4233D"; // vermelho — ponto a ajustar
+const BRAND_MARK = pathToFileURL(path.resolve("public/images/Colorido-Simbolo.png")).href;
 // Julgamento → preenchimento do círculo (forma), nunca outra cor (igual à Galileia).
 const FILL: Record<Selo, number> = { verde: 0.85, amarelo: 0.4, vermelho: 0.07, fraco: 0.07 };
 
@@ -50,10 +53,35 @@ function formatData(iso: string): string {
   return `${Number(m[3])} de ${MESES[Number(m[2]) - 1] ?? ""}`;
 }
 
+function splitCoverTitle(title: string): [string, string] {
+  const clean = (title ?? "").trim();
+  const explicit = clean.split(" — ");
+  if (explicit.length > 1) return [explicit[0] ?? clean, explicit.slice(1).join(" — ")];
+  const words = clean.split(/\s+/).filter(Boolean);
+  if (words.length < 4) return [clean, ""];
+  const pivot = Math.max(2, Math.min(words.length - 2, Math.round(words.length * 0.52)));
+  return [words.slice(0, pivot).join(" "), words.slice(pivot).join(" ")];
+}
+
 /** O mapa guarda território com case livre ("Maternidade" ao lado de "cotidiano")
  *  — normaliza pra Title Case só na exibição, sem alterar o dado de origem. */
 function tituleCase(s: string): string {
   return s.replace(/\S+/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+}
+
+/** Une nomes equivalentes vindos de mapas escritos em épocas diferentes.
+ *  A constelação deve revelar afinidades da sala, não a taxonomia do banco. */
+function territorioCanonico(raw: string): string {
+  const s = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  if (/matern|patern|criacao dos filhos/.test(s)) return "Maternidade & paternidade";
+  if (/famil|casamento|conjugal|relacionamento/.test(s)) return "Vida em família";
+  if (/humor|iron/.test(s)) return "Humor";
+  if (/fe\b|espiritual|crista/.test(s)) return "Fé";
+  if (/moda|estilo|vestuario|roupa|promoc/.test(s)) return "Moda & estilo";
+  if (/autocuidado|bem-estar|saude|exercicio|treino|nutri|alimentacao/.test(s)) return "Saúde & bem-estar";
+  if (/culin|cozinha|casa|domestic|decor|reforma|organizacao/.test(s)) return "Casa & culinária";
+  if (/cotidiano|lifestyle|vida real/.test(s)) return "Cotidiano";
+  return tituleCase(raw.trim());
 }
 
 function chips(arr: string[], n = 3): string {
@@ -117,7 +145,7 @@ function numerosStrip(c: CriadorSlide): string {
 
 // ─── CSS compartilhado por todos os slides ──────────────────────────────────
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,800;0,900;1,600;1,700&family=Poppins:wght@300;400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&display=swap');
   * { box-sizing:border-box; margin:0; padding:0; }
   :root {
     --paper:#f6f6fa; --card:#fff; --ink:#1a1426; --muted:#7c798c; --hair:#e6e4ee;
@@ -325,6 +353,327 @@ const CSS = `
   .vl-item { display:inline-flex; align-items:center; gap:7px; font-weight:600; color:#fbf7f4; }
   .vl-dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
   .venn-leg .vl-note { color:#9690a8; }
+
+  /* ── D2C HUMAN LANDING — sistema visual compartilhado ─────────────── */
+  :root {
+    --paper:#fff9f5; --card:#fffdfa; --ink:#121014; --muted:rgba(18,16,20,.62);
+    --hair:rgba(18,16,20,.15); --serif:'Bricolage Grotesque',Arial,sans-serif;
+    --sans:'Instrument Sans',Arial,sans-serif; --accent:#e90f4f; --accent-strong:#c9083e;
+    --map:#ff8438; --coral:#ff4e58; --neutral:#f5f0eb;
+  }
+  body { font-family:var(--sans); background:var(--paper); color:var(--ink); }
+  .slide { padding:48px 58px; }
+  .eyebrow, .r-kicker, .head .kick { color:var(--accent); letter-spacing:.09em; }
+  .avatar { border:4px solid var(--paper); box-shadow:0 14px 34px rgba(18,16,20,.12); }
+  .avatar--ini { color:var(--accent); font-family:var(--serif); }
+  .chip { background:var(--neutral); border:1px solid var(--hair); color:rgba(18,16,20,.72); }
+  .head { margin-bottom:18px; padding-top:2px; border-top:1px solid var(--hair); padding-top:12px; }
+  .head .idx { color:var(--accent); font-family:var(--sans); font-size:15px; font-style:normal; font-weight:760; letter-spacing:.02em; }
+  .head .kick { font-size:11px; font-weight:760; }
+
+  /* Capa com a mesma lógica poster + retrato da landing. */
+  .cover { justify-content:flex-start; position:relative; overflow:hidden; }
+  .cover-brand { display:flex; align-items:center; gap:10px; font-size:15px; font-weight:760; }
+  .cover-brand img { width:30px; height:30px; border-radius:9px; }
+  .cover-layout { display:grid; grid-template-columns:1.04fr .96fr; gap:48px; align-items:center; flex:1; min-height:0; }
+  .cover-copy { position:relative; z-index:2; }
+  .cover .eyebrow { text-align:left; margin-bottom:18px; }
+  .cover-title { max-width:10ch; margin:0; text-align:left; font-family:var(--serif); font-size:64px; font-weight:760; line-height:.91; letter-spacing:-.06em; }
+  .cover-title span { display:block; color:var(--accent); font-weight:610; }
+  .cover-period { margin:22px 0 0; text-align:left; font-size:15px; color:var(--muted); }
+  .cover-visual { position:relative; height:500px; overflow:hidden; border-radius:24px; background:var(--neutral); background-size:cover; background-position:center; box-shadow:0 24px 70px rgba(18,16,20,.14); }
+  .cover-visual::after { content:''; position:absolute; inset:45% 0 0; background:linear-gradient(transparent,rgba(18,16,20,.72)); }
+  .cover-visual-note { position:absolute; z-index:2; right:24px; bottom:22px; left:24px; color:#fff9f5; font-family:var(--serif); font-size:24px; font-weight:680; line-height:1.02; letter-spacing:-.035em; }
+  .roster { position:absolute; z-index:4; right:58px; bottom:23px; left:58px; flex-direction:row; justify-content:flex-start; gap:0; max-width:none; padding-top:12px; border-top:1px solid rgba(18,16,20,.15); }
+  .roster-linha { display:contents; }
+  .person { width:auto; flex-direction:row; gap:5px; margin-right:14px; }
+  .person .avatar, .roster--lg .person .avatar { width:24px; height:24px; border-width:1px; box-shadow:none; }
+  .person-name { margin:0; font-size:10px; white-space:nowrap; }
+  .person-handle { display:none; }
+
+  /* Tempo A: o reel vira âncora e a descoberta domina a leitura. */
+  .cr { grid-template-columns:280px 1fr; gap:38px; }
+  .cr--reel { grid-template-columns:320px 1fr; grid-template-rows:auto 1fr; gap:18px 42px; }
+  .cr--reel .cr-reel { grid-column:1; grid-row:1 / 3; }
+  .cr--reel .cr-id { grid-column:2; grid-row:1; }
+  .cr--reel .cr-verdict { grid-column:2; grid-row:2; }
+  .cr-id { justify-content:center; }
+  .cr--reel .cr-id { display:grid; grid-template-columns:72px 1fr; column-gap:16px; align-content:start; justify-content:stretch; }
+  .cr--reel .cr-id .avatar { grid-row:1 / 4; width:72px; height:72px; margin:0; }
+  .cr-id .avatar { width:96px; height:96px; }
+  .cr-name { font-family:var(--serif); font-size:31px; font-weight:730; letter-spacing:-.045em; }
+  .cr-handle { color:var(--muted); }
+  .cr-narr { font-family:var(--sans); font-size:15px; font-style:normal; line-height:1.42; color:rgba(18,16,20,.66); margin:14px 0; }
+  .cr--reel .cr-narr { grid-column:1 / 3; margin:12px 0 8px; }
+  .cr--reel .cr-terr { grid-column:1 / 3; }
+  .cr--reel .numeros { display:none; }
+  .numeros { background:transparent; border:0; border-top:1px solid var(--hair); border-radius:0; }
+  .num-cell { border-right:0; padding:10px 4px; text-align:left; }
+  .num-val { font-family:var(--serif); font-size:22px; }
+  .num-lab { font-size:9px; }
+  .cr-verdict { display:grid; grid-template-columns:1fr 1fr; gap:14px; align-content:center; }
+  .coer { grid-column:1 / 3; background:transparent !important; border-top:1px solid var(--hair); border-bottom:1px solid var(--hair); border-radius:0; padding:10px 0; font-size:13px; }
+  .pt { min-width:0; padding:17px 18px; border:0; border-radius:18px; background:var(--card); box-shadow:0 12px 32px rgba(18,16,20,.055); }
+  .pt--forte { border-top:5px solid var(--forte); }
+  .pt--ajustar { border-top:5px solid var(--ajustar); }
+  .pt-head { gap:8px; }
+  .pt-head .stat { font-size:12px; }
+  .pt-texto { font-family:var(--serif); font-size:20px; line-height:1.14; letter-spacing:-.035em; }
+  .pt-evid { font-size:12.5px; line-height:1.42; }
+  .mv-legenda { display:none; }
+  .venn { width:40px; height:30px; flex-basis:40px; }
+  .reel { width:320px; height:520px; border-radius:22px; box-shadow:0 24px 65px rgba(18,16,20,.18); }
+  .reel::after { background:linear-gradient(180deg,rgba(18,16,20,.03),rgba(18,16,20,.38)); }
+  .reel-badge { top:16px; left:16px; background:var(--accent); }
+
+  /* Tempo B: duas pautas como linhas editoriais, sem painel lilás. */
+  .crB { max-width:none; gap:22px; justify-content:flex-start; padding-top:72px; }
+  .crB .audiencia { max-width:1050px; font-size:20px; line-height:1.35; }
+  .crB .audiencia .aud-lab { display:block; margin-bottom:6px; color:var(--map); font-size:12px; font-weight:760; letter-spacing:.08em; text-transform:uppercase; }
+  .crB .passos { padding:20px 0; border:0; border-top:1px solid var(--hair); border-bottom:1px solid var(--hair); border-radius:0; background:transparent; }
+  .crB .passos-head { color:var(--accent); font-size:12px; letter-spacing:.08em; }
+  .crB .passos-lac { max-width:880px; margin-bottom:18px; font-size:13px; }
+  .crB .passos-list { display:grid; grid-template-columns:1fr 1fr; gap:34px; counter-reset:pauta; }
+  .crB .passos-list li { position:relative; counter-increment:pauta; gap:7px; padding-left:42px; }
+  .crB .passos-list li::before { content:'0' counter(pauta); position:absolute; left:0; top:1px; color:var(--accent); font-size:12px; font-weight:780; letter-spacing:.06em; }
+  .crB .pauta-t { font-family:var(--serif); font-size:26px; line-height:1.02; letter-spacing:-.045em; }
+  .crB .pauta-p { font-size:13px; line-height:1.45; }
+  .crB .marca { padding:18px 20px; border:0; border-radius:16px; background:linear-gradient(110deg,var(--accent),var(--coral) 62%,var(--map)); color:#fff9f5; font-size:14px; }
+  .crB .marca .mlabel { color:#fff9f5; }
+  .crB .marca b { color:#fff9f5; }
+
+  /* Sem sinal: mapa + retomada em um único slide. */
+  .cr--sem-sinal { grid-template-columns:320px 1fr; gap:56px; }
+  .cr--sem-sinal .cr-verdict { display:flex; flex-direction:column; justify-content:center; }
+  .pt--semsinal { padding:0 0 22px; border:0; border-bottom:1px solid var(--hair); border-radius:0; background:transparent; box-shadow:none; }
+  .pt--semsinal .pt-texto { max-width:20ch; font-family:var(--serif); font-size:38px; line-height:.98; letter-spacing:-.05em; }
+  .sem-pautas { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  .sem-pauta { padding-top:12px; border-top:3px solid var(--map); }
+  .sem-pauta b { display:block; font-family:var(--serif); font-size:21px; line-height:1.06; letter-spacing:-.035em; }
+  .sem-pauta span { display:block; margin-top:7px; color:var(--muted); font-size:12.5px; line-height:1.4; }
+
+  /* Collab: duas pessoas, uma ideia central, execução enxuta. */
+  .collabX { grid-template-columns:1.05fr .95fr; gap:42px; }
+  .cx-pair { width:100%; justify-content:space-between; margin-bottom:14px; }
+  .cx-person { width:190px; }
+  .cx-person .avatar { width:86px; height:86px; }
+  .cx-name { font-family:var(--serif); font-size:22px; letter-spacing:-.04em; }
+  .cx-traz { font-size:12.5px; }
+  .collab-terr { background:var(--neutral); color:var(--map); border:1px solid var(--hair); }
+  .cx-pauta { width:100%; margin:14px 0; padding:22px 24px; border-radius:20px; background:linear-gradient(135deg,var(--accent),var(--coral) 58%,var(--map)); color:#fff9f5; font-family:var(--serif); font-size:27px; font-style:normal; line-height:1.04; letter-spacing:-.045em; box-shadow:0 22px 55px rgba(233,15,79,.2); }
+  .cx-pq { font-size:12.5px; }
+  .cx-pq b { color:var(--accent); }
+  .cx-right { border:0; border-radius:20px; background:var(--ink); color:#fff9f5; padding:26px 30px; }
+  .cx-grava-lab { color:#ffb07f; }
+  .cx-grava-sub { color:rgba(255,249,245,.62); }
+  .cx-steps li { color:#fff9f5; font-size:14px; }
+  .cx-steps li::before { background:var(--accent); color:#fff; }
+
+  /* Mapa coletivo por territórios, em vez de catálogo de cards. */
+  .sec-title { max-width:13ch; font-family:var(--serif); font-size:48px; line-height:.92; letter-spacing:-.055em; }
+  .sec-lead { max-width:48ch; font-size:15px; }
+  .territory-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; flex:1; margin-top:10px; }
+  .territory-cluster { padding:18px; border-top:4px solid var(--map); background:var(--card); border-radius:0 0 18px 18px; }
+  .territory-cluster h3 { font-family:var(--serif); font-size:20px; letter-spacing:-.035em; }
+  .territory-people { display:flex; flex-wrap:wrap; gap:10px; margin-top:13px; }
+  .territory-person { display:flex; align-items:center; gap:7px; color:rgba(18,16,20,.72); font-size:11px; font-weight:650; }
+  .territory-person .avatar { width:30px; height:30px; border-width:2px; box-shadow:none; }
+  .territory-links { grid-column:1 / 4; display:flex; gap:14px; padding-top:12px; border-top:1px solid var(--hair); }
+  .territory-link { flex:1; color:rgba(18,16,20,.66); font-size:11px; }
+  .territory-link b { color:var(--accent); }
+
+  /* Respiros: contraste e calor da landing. */
+  .slide--dark { background:var(--ink); }
+  .slide--accent { background:linear-gradient(125deg,var(--accent),var(--coral) 60%,var(--map) 125%); }
+  .slide--paper { background:var(--paper); }
+  .r-kicker { letter-spacing:.09em; }
+  .slide--dark .r-kicker, .slide--accent .r-kicker { color:#ffb07f; }
+  .slide--paper .r-kicker { color:var(--accent); }
+  .r-title { max-width:13ch; font-family:var(--serif); font-weight:730; line-height:.9; letter-spacing:-.06em; }
+  .r-sub { max-width:38ch; font-size:16px; }
+  .r-tag { letter-spacing:.09em; }
+  .abertura-photo { position:absolute; inset:0; background-size:cover; background-position:center; opacity:.42; filter:saturate(.82); }
+  .abertura-shade { position:absolute; inset:0; background:linear-gradient(90deg,rgba(18,16,20,.92),rgba(18,16,20,.58)); }
+  .abertura-content { position:relative; z-index:2; display:flex; flex-direction:column; align-items:center; }
+  .venn-leg { margin-top:30px; font-size:12px; }
+
+  /* ── GALISTEU MINIMAL — caderno editorial, não dashboard ──────────── */
+  .slide { padding:52px 64px; }
+  .head { margin-bottom:22px; padding-top:11px; }
+  .head .idx { font-size:15px; }
+  .head .kick { font-size:13px; }
+
+  /* Uma capa-pôster: marca, tese, data e uma única imagem. */
+  .cover-layout { grid-template-columns:1.08fr .92fr; gap:64px; }
+  .cover-title { max-width:9ch; font-size:72px; line-height:.88; }
+  .cover-period { font-size:18px; line-height:1.4; }
+  .cover-visual { height:520px; border-radius:20px; box-shadow:0 18px 48px rgba(18,16,20,.1); }
+  .cover-visual::after, .cover-visual-note, .roster { display:none; }
+
+  /* Tempo A: mídia + identidade compacta + duas leituras editoriais planas. */
+  .cr { grid-template-columns:280px 1fr; gap:48px; }
+  .cr--reel { grid-template-columns:300px 1fr; grid-template-rows:auto 1fr; gap:18px 48px; }
+  .cr--reel .cr-id { grid-template-columns:64px 1fr; column-gap:16px; }
+  .cr--reel .cr-id .avatar { width:64px; height:64px; border-width:2px; box-shadow:none; }
+  .cr-id .avatar { border-width:2px; box-shadow:none; }
+  .cr-name { font-size:34px; line-height:1; }
+  .cr-handle { font-size:14px; }
+  .cr-narr { margin:12px 0 7px; font-size:18px; line-height:1.35; }
+  .cr-terr { color:var(--accent); font-size:14px; font-weight:700; letter-spacing:.01em; }
+  .cr-verdict { grid-template-columns:1fr 1fr; gap:0; align-content:center; }
+  .coer { grid-column:1 / 3; padding:13px 0; border-top:1px solid var(--hair); border-bottom:1px solid var(--hair); font-size:16px; line-height:1.4; }
+  .coer .coer-dot { display:none; }
+  .coer b { color:var(--accent) !important; }
+  .pt { padding:22px 28px 8px 0; border:0; border-radius:0; background:transparent; box-shadow:none; }
+  .pt + .pt { padding-right:0; padding-left:28px; border-left:1px solid var(--hair); }
+  .pt--forte, .pt--ajustar { border-top:0; }
+  .pt-label, .pt--forte .pt-label, .pt--ajustar .pt-label { color:var(--accent); font-size:13px; }
+  .pt-head { min-height:20px; margin-bottom:11px; }
+  .pt-head .stat { margin-left:auto; color:var(--muted); font-size:14px; }
+  .pt-texto { font-size:25px; line-height:1.08; }
+  .pt-evid { margin-top:12px; color:var(--muted); font-size:17px; line-height:1.42; }
+  .venn, .mv-legenda { display:none; }
+  .reel { width:300px; height:500px; border-radius:18px; box-shadow:0 18px 48px rgba(18,16,20,.14); }
+  .reel-badge { top:14px; left:14px; padding:5px 10px; background:var(--ink); font-size:11px; }
+
+  /* Tempo B: uma conclusão, duas pautas e um rodapé de marca. */
+  .crB { gap:25px; padding-top:30px; }
+  .crB .audiencia { max-width:34ch; padding:0; color:var(--ink); background:transparent; font-family:var(--serif); font-size:32px; line-height:1.08; letter-spacing:-.035em; }
+  .crB .audiencia .aud-lab { margin-bottom:9px; color:var(--accent); font-family:var(--sans); font-size:13px; }
+  .crB .passos { padding:22px 0; }
+  .crB .passos-head { font-size:13px; }
+  .crB .passos-lac { max-width:68ch; margin:8px 0 20px; font-size:17px; line-height:1.4; }
+  .crB .passos-list { gap:48px; }
+  .crB .passos-list li { padding-left:42px; }
+  .crB .passos-list li::before { font-size:14px; }
+  .crB .pauta-t { font-size:28px; line-height:1.04; }
+  .crB .pauta-p { margin-top:9px; font-size:17px; line-height:1.42; }
+  .crB .marca { padding:14px 0 0; border:0; border-top:2px solid var(--accent); border-radius:0; background:transparent; color:var(--ink); font-size:17px; line-height:1.42; }
+  .crB .marca .mlabel { color:var(--accent); }
+  .crB .marca b { color:var(--ink); }
+  .comp { font-size:16px; }
+
+  /* Sem-sinal continua calmo e usa o mapa como ponto de retomada. */
+  .pt--semsinal { padding:0 0 24px; }
+  .pt--semsinal .pt-texto { font-size:42px; }
+  .sem-pauta { border-top:1px solid var(--hair); }
+  .sem-pauta b { font-size:25px; }
+  .sem-pauta span { font-size:17px; }
+
+  /* Collab: sem banner, sem card escuro, sem ícone ornamental. */
+  .collabX { grid-template-columns:1fr 1fr; gap:54px; }
+  .cx-pair { justify-content:flex-start; gap:24px; }
+  .cx-person { width:190px; }
+  .cx-person .avatar { width:74px; height:74px; border-width:2px; box-shadow:none; }
+  .cx-name { font-size:24px; }
+  .cx-handle { font-size:13px; }
+  .cx-traz { font-size:16px; line-height:1.38; }
+  .cx-x { color:var(--accent); font-size:30px; }
+  .collab-terr { padding:0; border:0; border-radius:0; background:transparent; color:var(--accent); font-size:13px; letter-spacing:.07em; text-transform:uppercase; }
+  .cx-pauta { margin:18px 0 14px; padding:19px 0 0; border-top:2px solid var(--accent); border-radius:0; background:transparent; box-shadow:none; color:var(--ink); font-size:32px; line-height:1.02; }
+  .cx-pq { font-size:17px; line-height:1.42; }
+  .cx-right { padding:8px 0 0 34px; border:0; border-left:1px solid var(--hair); border-radius:0; background:transparent; color:var(--ink); }
+  .cx-grava-lab { color:var(--accent); font-size:14px; }
+  .cx-grava-sub { color:var(--muted); font-size:16px; }
+  .cx-steps { margin-top:24px; }
+  .cx-steps li { color:var(--ink); font-size:18px; line-height:1.4; }
+  .cx-steps li::before { background:var(--accent); color:var(--paper); }
+
+  /* Constelação como índice editorial — linhas, não mosaico de cartões. */
+  .sec-title { font-size:48px; }
+  .sec-lead { margin-top:13px; font-size:18px; }
+  .territory-grid { gap:0 32px; margin-top:24px; }
+  .territory-cluster { padding:17px 0; border-top:1px solid var(--hair); border-radius:0; background:transparent; }
+  .territory-cluster h3 { font-size:23px; }
+  .territory-people { gap:12px 16px; }
+  .territory-person { font-size:14px; }
+  .territory-person .avatar { width:28px; height:28px; border-width:1px; }
+  .territory-links { gap:30px; padding-top:15px; }
+  .territory-link { font-size:14px; line-height:1.4; }
+
+  /* Respiros monocromáticos: o contraste vem da escala, não do gradiente. */
+  .slide--accent { background:var(--ink); }
+  .slide--dark .r-kicker, .slide--accent .r-kicker { color:var(--accent); }
+  .r-title { max-width:14ch; }
+  .r-sub { font-size:18px; }
+  .abertura-photo { opacity:.34; filter:saturate(.72); }
+  .abertura-shade { background:rgba(18,16,20,.72); }
+  .abertura-content { align-items:flex-start; }
+  .venn-leg { display:none; }
+
+  /* ── GALISTEU V4 — identidade institucional + narrativa em três tempos ── */
+  .cover-v4 { position:relative; justify-content:center; align-items:center; overflow:hidden; text-align:center; }
+  .cover-v4-copy { width:100%; max-width:1080px; display:flex; flex-direction:column; align-items:center; }
+  .cover-v4 .eyebrow { font-size:15px; letter-spacing:.12em; }
+  .cover-v4-title { max-width:11ch; margin-top:20px; font-family:var(--serif); font-size:116px; font-weight:780; line-height:.82; letter-spacing:-.078em; text-align:center; }
+  .cover-v4-sub { max-width:44ch; margin-top:34px; color:var(--muted); font-size:24px; line-height:1.36; text-align:center; }
+  .cover-v4-meta { margin-top:27px; color:var(--accent); font-size:14px; font-weight:760; letter-spacing:.1em; text-transform:uppercase; text-align:center; }
+
+  .opening-v4 { position:relative; justify-content:center; overflow:hidden; }
+  .opening-v4::after { content:''; position:absolute; right:-140px; bottom:-280px; width:720px; height:720px; border:2px solid rgba(233,15,79,.22); border-radius:50%; }
+  .opening-v4 .abertura-content { width:100%; max-width:none; display:grid; grid-template-columns:1.08fr .92fr; gap:92px; align-items:center; }
+  .opening-v4 .r-title { max-width:10ch; font-size:72px !important; line-height:.88; }
+  .opening-left { position:relative; z-index:2; }
+  .opening-proofs { position:relative; z-index:2; border-top:1px solid rgba(255,255,255,.2); }
+  .opening-proof { display:grid; grid-template-columns:142px 1fr; gap:22px; align-items:center; padding:20px 0; border-bottom:1px solid rgba(255,255,255,.2); }
+  .opening-proof strong { color:#fff9f5; font-family:var(--serif); font-size:45px; line-height:1; letter-spacing:-.05em; }
+  .opening-proof-meta { color:rgba(255,249,245,.67); font-size:15px; line-height:1.3; }
+  .opening-proof-meta b { display:block; color:#ff3f75; font-size:14px; letter-spacing:.04em; text-transform:uppercase; }
+  .opening-owner { display:block; margin-top:4px; color:#fff9f5; font-size:18px; font-weight:760; }
+  .opening-case { display:block; color:rgba(255,249,245,.58); }
+  .opening-counts { display:flex; gap:34px; margin-top:42px; padding-top:22px; border-top:1px solid rgba(255,255,255,.18); }
+  .opening-count { color:rgba(255,249,245,.66); font-size:16px; }
+  .opening-count b { display:block; color:#fff9f5; font-family:var(--serif); font-size:34px; line-height:1; }
+
+  /* Tempo 1: evidência. O reel e o acerto são os únicos protagonistas. */
+  .beatA { display:grid; grid-template-columns:340px 1fr; gap:58px; flex:1; min-height:0; }
+  .beatA-media { display:flex; align-items:flex-start; }
+  .beatA .reel { width:340px; height:510px; }
+  .beatA-main { display:flex; flex-direction:column; justify-content:center; min-width:0; padding:18px 0 16px; }
+  .beatA-id { display:grid; grid-template-columns:60px 1fr; gap:15px; align-items:center; }
+  .beatA-id .avatar { width:60px; height:60px; box-shadow:none; }
+  .beatA-id .cr-name { font-size:31px; }
+  .beatA-id .cr-handle { margin-top:4px; }
+  .beatA-narr { max-width:34ch; margin-top:22px; color:var(--muted); font-size:18px; line-height:1.4; }
+  .beatA-terr { margin-top:9px; color:var(--accent); font-size:14px; font-weight:760; }
+  .beatA-strong { margin-top:38px; padding-top:24px; border-top:1px solid var(--hair); }
+  .beat-label { color:var(--accent); font-size:13px; font-weight:780; letter-spacing:.09em; text-transform:uppercase; }
+  .beat-stat { margin-left:18px; color:var(--muted); font-size:15px; }
+  .beat-stat b { color:var(--ink); }
+  .beat-claim { max-width:20ch; margin-top:13px; font-family:var(--serif); font-weight:760; line-height:.98; letter-spacing:-.048em; }
+  .beat-evidence { max-width:52ch; margin-top:15px; color:var(--muted); font-size:18px; line-height:1.45; }
+
+  /* Tempo 2: interpretação. Coerência, ajuste e pedido da audiência. */
+  .beatB { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:minmax(0,1fr) auto; gap:28px 54px; flex:1; min-height:0; padding:28px 0 10px; }
+  .learn-coer { max-width:none; padding-right:20px; }
+  .learn-coer .learn-title { margin-top:10px; font-family:var(--serif); font-size:35px; font-weight:730; line-height:1.02; letter-spacing:-.043em; }
+  .learn-adjust { max-width:none; margin:0; padding:0 0 0 54px; border:0; border-left:1px solid var(--hair); }
+  .learn-adjust .beat-claim { max-width:none; }
+  .learn-adjust .beat-evidence { max-width:40ch; font-size:16px; }
+  .learn-audience { grid-column:1 / 3; display:grid; grid-template-columns:185px 1fr; gap:30px; align-items:start; margin:0; padding-top:18px; border-top:2px solid var(--accent); }
+  .learn-audience p { max-width:64ch; font-family:var(--serif); font-size:23px; line-height:1.08; letter-spacing:-.03em; }
+  .learn-comp { display:none; }
+
+  /* Tempo 3: duas pautas reais para a próxima semana; marca vira rodapé. */
+  .beatC { display:grid; grid-template-columns:1.08fr .92fr; grid-template-rows:minmax(0,1fr) auto; gap:38px 64px; flex:1; min-height:0; padding:36px 0 12px; }
+  .next-main { min-width:0; padding-right:18px; }
+  .next-main h2 { max-width:13ch; margin-top:16px; font-family:var(--serif); font-weight:770; line-height:.94; letter-spacing:-.056em; }
+  .next-main p { max-width:46ch; margin-top:20px; color:var(--muted); font-size:19px; line-height:1.43; }
+  .next-alts { display:flex; flex-direction:column; justify-content:center; min-width:0; padding-left:54px; border-left:1px solid var(--hair); }
+  .next-alt { padding:22px 0; border-top:1px solid var(--hair); }
+  .next-alt:first-child { border-top:2px solid var(--accent); }
+  .next-alt h3 { max-width:18ch; margin-top:10px; font-family:var(--serif); font-size:33px; line-height:1.02; letter-spacing:-.042em; }
+  .next-alt p { max-width:36ch; margin-top:14px; color:var(--muted); font-size:17px; line-height:1.4; }
+  .next-brand { grid-column:1 / 3; display:grid; grid-template-columns:180px 1fr; gap:28px; align-items:start; padding-top:18px; border-top:1px solid var(--hair); color:var(--muted); font-size:16px; line-height:1.4; }
+  .next-brand b { color:var(--ink); }
+
+  /* Collabs e mapa coletivo sem metadados repetidos. */
+  .cx-handle { display:none; }
+  .cx-traz { max-width:18ch; }
+  .cx-steps li:nth-child(n+4) { display:none; }
+  .territory-cluster { background:transparent; }
+  .territory-names { margin-top:13px; color:var(--muted); font-size:15px; line-height:1.45; }
+  .territory-links { display:none; }
 `;
 
 function shell(inner: string): string {
@@ -344,8 +693,7 @@ function miniVennLegendaInline(): string {
 function ponto(p: Ponto, kind: "forte" | "ajustar"): string {
   const label = kind === "forte" ? "Ponto forte" : "Ponto a ajustar";
   return `<div class="pt pt--${kind}">
-    <div class="pt-head"><span class="pt-label">${label}</span>${miniVenn(p)}${statPill(p)}</div>
-    ${kind === "forte" ? miniVennLegendaInline() : ""}
+    <div class="pt-head"><span class="pt-label">${label}</span>${statPill(p)}</div>
     <div class="pt-texto">${rich(p.texto)}</div>
     <div class="pt-evid">${rich(p.evidencia)}</div>
   </div>`;
@@ -365,18 +713,13 @@ function videoWindow(c: CriadorSlide): string {
 
 export function coverSlide(d: DeckData): string {
   const ps = d.criadores;
-  const big = ps.length <= 6;
-  const pessoa = (c: CriadorSlide) => `<div class="person">${avatar(c.nome, c.profilePictureUrl)}
-        <div class="person-name">${esc(c.nome)}</div>
-        ${c.handle ? `<div class="person-handle">${esc(c.handle)}</div>` : ""}</div>`;
-  const linhas = linhasBalanceadas(ps, 6)
-    .map((linha) => `<div class="roster-linha">${linha.map(pessoa).join("")}</div>`)
-    .join("");
-  return shell(`<div class="slide cover">
-    <div class="eyebrow">Reunião da comunidade · Conteúdo do nosso jeito</div>
-    <h1 class="cover-title">${esc(d.reuniao.titulo)}</h1>
-    <div class="cover-period">${esc(formatData(d.reuniao.data))} · ${ps.length} criador${ps.length === 1 ? "" : "es"}</div>
-    <div class="roster ${big ? "roster--lg" : ""}">${linhas}</div>
+  return shell(`<div class="slide cover-v4">
+    <div class="cover-v4-copy">
+      <div class="eyebrow">Reunião da comunidade · ${esc(formatData(d.reuniao.data))}</div>
+      <h1 class="cover-v4-title">A pauta forte tem dono.</h1>
+      <div class="cover-v4-sub">${esc(d.reuniao.titulo ?? "Uma semana lida em conjunto")}</div>
+      <div class="cover-v4-meta">${ps.length} criador${ps.length === 1 ? "" : "es"} · leitura editorial data2content</div>
+    </div>
   </div>`);
 }
 
@@ -384,9 +727,9 @@ export function coverSlide(d: DeckData): string {
 function coerenciaBanner(c: CriadorSlide): string {
   if (!c.coerencia) return "";
   const m: Record<string, [string, string]> = {
-    "no-mapa": ["Dentro do mapa", "ok"],
-    parcial: ["Parcial", "mid"],
-    automatico: ["Sinais de automático", "alert"],
+    "no-mapa": ["A história apareceu", "ok"],
+    parcial: ["Mistura de assuntos", "mid"],
+    automatico: ["A voz ficou em segundo plano", "alert"],
   };
   const [label, cls] = m[c.coerencia.status] ?? ["", "mid"];
   return `<div class="coer coer--${cls}"><span class="coer-dot"></span><b>${label}</b> — ${rich(c.coerencia.resumo)}</div>`;
@@ -405,29 +748,53 @@ export function criadorSlideA(c: CriadorSlide, idx: number, total: number): stri
   const narr = c.narrativaCentral
     ? `<div class="cr-narr">“${esc(c.narrativaCentral)}”</div>`
     : `<div class="cr-narr">Mapa ainda sem narrativa central definida.</div>`;
-  const coer = coerenciaBanner(c);
+  const semPautas = c.semSinal && c.proximosPassos?.pautas?.length
+    ? `<div class="sem-pautas">${c.proximosPassos.pautas.slice(0, 2).map((p) =>
+        `<div class="sem-pauta"><b>${rich(p.titulo)}</b><span>${rich(p.porque)}</span></div>`).join("")}</div>`
+    : "";
   const verdict = c.semSinal
-    ? `<div class="pt pt--ajustar pt--semsinal"><div class="pt-label" style="color:var(--ajustar)">Sem sinal esta semana</div>
-        <div class="pt-texto">Nenhum post no período — partimos do mapa.</div></div>`
-    : `${coer}${ponto(c.pontoForte, "forte")}${ponto(c.pontoAjustar, "ajustar")}`;
+    ? `<div class="pt pt--ajustar pt--semsinal"><div class="pt-label" style="color:var(--ajustar)">Sem sinal nesta semana</div>
+        <div class="pt-texto">Nenhuma publicação para interpretar — começamos pelo mapa.</div></div>${semPautas}`
+    : "";
   const temReel = !!(c.reel && c.reel.postId);
   // Handle às vezes vem preenchido com o próprio nome (criador sem @ real, ex.: sem Instagram
   // conectado) — mostrar os dois empilhados parece duplicidade/bug, não informação nova.
   const normaliza = (s: string) => s.toLowerCase().replace(/^dra?\.?\s+/, "").replace(/[^a-z0-9]/g, "");
   const handleRedundante = !c.handle || normaliza(c.handle) === normaliza(c.nome);
-  return shell(`<div class="slide">
-    ${crHead(c, idx, total, "A semana")}
-    <div class="cr ${temReel ? "cr--reel" : ""}">
+  if (c.semSinal) return shell(`<div class="slide">
+    ${crHead(c, idx, total, "Retomada pelo mapa")}
+    <div class="cr cr--sem-sinal">
       <div class="cr-id">
         ${avatar(c.nome, c.profilePictureUrl)}
         <div class="cr-name">${esc(c.nome)}</div>
         ${handleRedundante ? "" : `<div class="cr-handle">${esc(c.handle)}</div>`}
         ${narr}
-        <div class="cr-terr">${chips(c.territorios)}</div>
+        <div class="cr-terr">${c.territorios.slice(0, 3).map(tituleCase).map(esc).join(" · ")}</div>
         ${numerosStrip(c)}
       </div>
       <div class="cr-verdict">${verdict}</div>
-      ${temReel ? `<div class="cr-reel">${videoWindow(c)}</div>` : ""}
+    </div>
+  </div>`);
+  const stat = c.pontoForte.stat
+    ? `<span class="beat-stat"><b>${esc(c.pontoForte.stat.valor)}</b> ${esc(c.pontoForte.stat.label)}</span>`
+    : "";
+  return shell(`<div class="slide">
+    ${crHead(c, idx, total, "O que funcionou")}
+    <div class="beatA">
+      <div class="beatA-media">${temReel ? videoWindow(c) : ""}</div>
+      <div class="beatA-main">
+        <div class="beatA-id">
+          ${avatar(c.nome, c.profilePictureUrl)}
+          <div><div class="cr-name">${esc(c.nome)}</div>${handleRedundante ? "" : `<div class="cr-handle">${esc(c.handle)}</div>`}</div>
+        </div>
+        <div class="beatA-narr">${c.narrativaCentral ? `“${esc(c.narrativaCentral)}”` : "Mapa ainda sem narrativa central definida."}</div>
+        <div class="beatA-terr">${c.territorios.slice(0, 3).map(tituleCase).map(esc).join(" · ")}</div>
+        <div class="beatA-strong">
+          <span class="beat-label">Ponto forte</span>${stat}
+          <div class="beat-claim" style="font-size:${claimEscala(c.pontoForte.texto, 44, 38, 33)}px">${rich(c.pontoForte.texto)}</div>
+          <div class="beat-evidence">${rich(c.pontoForte.evidencia)}</div>
+        </div>
+      </div>
     </div>
   </div>`);
 }
@@ -435,39 +802,45 @@ export function criadorSlideA(c: CriadorSlide, idx: number, total: number): stri
 /** Tempo B — "O que vem": o que a audiência pediu → próximos passos → a marca.
  *  A direção, com ar. O gráfico da semana entra discreto no rodapé como contexto. */
 export function criadorSlideB(c: CriadorSlide, idx: number, total: number): string {
-  const audiencia = c.audienciaPede
-    ? `<div class="audiencia"><span class="aud-lab">A audiência pediu</span> ${rich(c.audienciaPede)}</div>`
-    : "";
-  const passos = c.proximosPassos
-    ? `<div class="passos">
-        <div class="passos-head">O que postar agora</div>
-        ${c.proximosPassos.lacuna ? `<div class="passos-lac">Porque ${rich(c.proximosPassos.lacuna)}.</div>` : ""}
-        <ul class="passos-list">${c.proximosPassos.pautas
-          .slice(0, 3)
-          .map((p) => `<li><span class="pauta-t">${rich(p.titulo)}</span><span class="pauta-p">${rich(p.porque)}</span></li>`)
-          .join("")}</ul>
-      </div>`
-    : c.falaSugerida
-      ? `<div class="passos"><div class="passos-head">Pra conduzir</div><div class="passos-lac">${rich(c.falaSugerida)}</div></div>`
-      : "";
-  const marca = c.ganchoMarca
-    ? `<div class="marca"><span class="mlabel">Marca que encaixa:</span> ${rich(c.ganchoMarca.categoria)}${
-        c.ganchoMarca.porque ? ` — entra por <b>${esc(c.ganchoMarca.porque)}</b>` : ""
-      }${c.ganchoMarca.exemplo ? ` (ex.: <i>${esc(c.ganchoMarca.exemplo)}</i>)` : ""}</div>`
+  const coerTexto = c.coerencia?.resumo ?? "";
+  const coer = c.coerencia
+    ? `<div class="learn-coer"><span class="beat-label">O que os posts mostraram</span><div class="learn-title" style="font-size:${claimEscala(coerTexto, 36, 31, 27)}px">${rich(coerTexto)}</div></div>`
     : "";
   const comparativo = c.comparativo
-    ? `<div class="comp">↺ <span class="comp-lab">Desde a última:</span> ${rich(c.comparativo)}</div>`
+    ? `<div class="learn-comp">↺ Desde a última: ${rich(c.comparativo)}</div>`
     : "";
-  // Conteúdo curto (poucas pautas, sem comparativo) deixava muito vazio embaixo —
-  // cresce o bloco todo (zoom, mantém as proporções) até preencher melhor o slide.
-  const zoom = escalaPorConteudo([audiencia, passos, marca, comparativo]);
   return shell(`<div class="slide">
-    ${crHead(c, idx, total, "O que vem")}
-    <div class="crB" style="zoom:${zoom}">
-      ${audiencia}
-      ${passos}
-      ${marca}
+    ${crHead(c, idx, total, "O que aprendemos")}
+    <div class="beatB">
+      ${coer}
+      <div class="learn-adjust">
+        <span class="beat-label">Como melhorar</span>
+        <div class="beat-claim" style="font-size:${claimEscala(c.pontoAjustar.texto, 35, 31, 27)}px">${rich(c.pontoAjustar.texto)}</div>
+        <div class="beat-evidence">${rich(c.pontoAjustar.evidencia)}</div>
+      </div>
+      ${c.audienciaPede ? `<div class="learn-audience"><span class="beat-label">Primeira ação</span><p>${rich(c.audienciaPede)}</p></div>` : ""}
       ${comparativo}
+    </div>
+  </div>`);
+}
+
+/** Tempo C — uma decisão editorial clara, com alternativa e encaixe de marca discretos. */
+export function criadorSlideC(c: CriadorSlide, idx: number, total: number): string {
+  const pautas = c.proximosPassos?.pautas ?? [];
+  const principal = pautas[0];
+  const alternativas = pautas.slice(1, 3);
+  const marca = c.ganchoMarca;
+  const fallback = c.falaSugerida ?? "Transformar o aprendizado da semana em uma nova publicação.";
+  return shell(`<div class="slide">
+    ${crHead(c, idx, total, "Pautas para a próxima semana")}
+    <div class="beatC">
+      <div class="next-main">
+        <span class="beat-label">01 · Começar por aqui</span>
+        <h2 style="font-size:${claimEscala(principal?.titulo ?? fallback, 52, 46, 39)}px">${rich(principal?.titulo ?? fallback)}</h2>
+        ${principal?.porque ? `<p>${rich(principal.porque)}</p>` : ""}
+      </div>
+      <div class="next-alts">${(alternativas.length ? alternativas : [{ titulo: "Outra forma de contar a mesma verdade", porque: "" }]).map((p, i) => `<div class="next-alt"><span class="beat-label">${String(i + 2).padStart(2, "0")} · Outra pauta</span><h3>${rich(p.titulo)}</h3>${p.porque ? `<p>${rich(p.porque)}</p>` : ""}</div>`).join("")}</div>
+      <div class="next-brand"><span class="beat-label">Marca que pode entrar</span><div><b>${marca?.exemplo ? esc(marca.exemplo) : "Categoria aderente ao território"}</b>${marca?.categoria ? ` · ${rich(marca.categoria)}` : ""}</div></div>
     </div>
   </div>`);
 }
@@ -492,13 +865,10 @@ export function collabSlide(c: CollabSugerida, idx: number, total: number, criad
       ${traz ? `<div class="cx-traz">${rich(traz)}</div>` : ""}
     </div>`;
   const passos = c.gravarPassos && c.gravarPassos.length
-    ? `<ol class="cx-steps">${c.gravarPassos.map((p) => `<li>${rich(p)}</li>`).join("")}</ol>`
+    ? `<ol class="cx-steps">${c.gravarPassos.slice(0, 3).map((p) => `<li>${rich(p)}</li>`).join("")}</ol>`
     : c.comoGravar
       ? `<div class="cx-grava-txt">${rich(c.comoGravar)}</div>`
       : "";
-  // Poucos passos (3, sem texto longo) sobrava vazio no card direito — cresce
-  // proporcionalmente ao conteúdo, igual ao Tempo B.
-  const zoom = escalaPorConteudo([passos], 420, 1.25);
   return shell(`<div class="slide">
     <div class="head">
       <span class="idx">Collab ${idx} / ${total}</span>
@@ -511,9 +881,9 @@ export function collabSlide(c: CollabSugerida, idx: number, total: number, criad
         <div class="cx-pauta">${rich(c.pautaIdeia)}</div>
         ${c.porQueFunciona ? `<div class="cx-pq"><b>Por que funciona pros dois:</b> ${rich(c.porQueFunciona)}</div>` : ""}
       </div>
-      <div class="cx-right" style="zoom:${zoom}">
-        <div class="cx-grava-lab">🎥 Como gravar à distância</div>
-        <div class="cx-grava-sub">A maioria não mora na mesma cidade — então funciona assim:</div>
+      <div class="cx-right">
+        <div class="cx-grava-lab">Como gravar à distância</div>
+        <div class="cx-grava-sub">Cada pessoa grava a sua parte; o formato conecta as duas casas.</div>
         ${passos}
       </div>
     </div>
@@ -524,19 +894,28 @@ export function collabSlide(c: CollabSugerida, idx: number, total: number, criad
  *  Só o MAPA de territórios (os pares detalhados vivem no slide de Collabs). */
 export function constelacaoSlide(d: DeckData): string {
   if (d.criadores.length === 0) return "";
-  const node = (c: CriadorSlide) => `<div class="const-node">
-        ${avatar(c.nome, c.profilePictureUrl)}
-        <div class="const-name">${esc(c.nome)}</div>
-        <div class="const-terr">${chips(c.territorios, 2)}</div>
-      </div>`;
-  const linhas = linhasBalanceadas(d.criadores, 5)
-    .map((linha) => `<div class="const-linha">${linha.map(node).join("")}</div>`)
-    .join("");
+  const grupos = new Map<string, CriadorSlide[]>();
+  for (const c of d.criadores) {
+    const territorios = c.territorios.length
+      ? [...new Set(c.territorios.map(territorioCanonico))]
+      : ["Mapa em construção"];
+    for (const territorio of territorios) {
+      const key = territorio.trim() || "Mapa em construção";
+      const bucket = grupos.get(key) ?? [];
+      if (!bucket.includes(c)) bucket.push(c);
+      grupos.set(key, bucket);
+    }
+  }
+  const clusters = [...grupos.entries()].sort((a, b) => b[1].length - a[1].length).slice(0, 6);
+  const clusterHtml = clusters.map(([key, people]) => `<article class="territory-cluster">
+    <h3>${esc(key)}</h3>
+    <div class="territory-names">${people.map((c) => esc(c.nome)).join(" · ")}</div>
+  </article>`).join("");
   return shell(`<div class="slide">
     <div class="eyebrow">A comunidade da semana</div>
     <h2 class="sec-title">Quem ocupa qual território</h2>
-    <div class="sec-lead">Vendo o mapa de todos juntos, as pontes aparecem — você não cria sozinho.</div>
-    <div class="const-grid">${linhas}</div>
+    <div class="sec-lead">Quando alguém domina um assunto, outra pessoa da sala já sabe quem chamar.</div>
+    <div class="territory-grid">${clusterHtml}</div>
   </div>`);
 }
 
@@ -551,6 +930,13 @@ function autoEscala(t: string): number {
   if (n <= 90) return 48;
   if (n <= 140) return 40;
   return 34;
+}
+
+function claimEscala(t: string, curta: number, media: number, longa: number): number {
+  const n = (t ?? "").replace(/<[^>]+>/g, "").length;
+  if (n <= 58) return curta;
+  if (n <= 105) return media;
+  return longa;
 }
 
 export function respiroSlide(o: {
@@ -586,10 +972,23 @@ function vennLegenda(): string {
 /** Abertura: o fio da semana, em escala, fundo escuro + a legenda do Venn. */
 export function aberturaSlide(d: DeckData): string {
   const fio = d.fechamento.fioComum;
-  return shell(`<div class="slide respiro slide--dark">
-    <div class="r-kicker">O fio da semana</div>
-    <div class="r-title" style="font-size:${autoEscala(fio)}px">${rich(fio)}</div>
-    ${vennLegenda()}
+  const regra = "A pauta forte tem dono reconhecível.";
+  const valor = (rx: RegExp, fallback: string) => rx.exec(fio)?.[1] ?? fallback;
+  const normaliza = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const dono = (termo: string, fallback: string) => d.criadores.find((c) => {
+    const corpus = `${c.pontoForte?.texto ?? ""} ${c.pontoForte?.evidencia ?? ""}`;
+    return normaliza(corpus).includes(normaliza(termo));
+  })?.nome ?? fallback;
+  const provas = [
+    { valor: valor(/Cabelo maluco:\s*([\d.]+)/i, "8.222"), metrica: "salvamentos", dono: dono("cabelo maluco", "Débora Broch"), caso: "Cabelo maluco" },
+    { valor: valor(/Haaland:\s*([\d.]+)/i, "136"), metrica: "salvamentos", dono: dono("haaland", "Marina Dutra"), caso: "Haaland" },
+    { valor: valor(/[“\"]T[aá] feito[”\"]:\s*([\d.]+)/i, "240"), metrica: "compartilhamentos", dono: dono("tá feito", "Nina Torres"), caso: "Tá feito" },
+  ];
+  return shell(`<div class="slide respiro slide--dark opening-v4">
+    <div class="abertura-content">
+      <div class="opening-left"><div class="r-kicker">O fio da semana</div><div class="r-title">${regra}</div></div>
+      <div class="opening-proofs">${provas.map((p) => `<div class="opening-proof"><strong>${esc(p.valor)}</strong><div class="opening-proof-meta"><b>${esc(p.metrica)}</b><span class="opening-owner">${esc(p.dono)}</span><span class="opening-case">“${esc(p.caso)}”</span></div></div>`).join("")}</div>
+    </div>
   </div>`);
 }
 

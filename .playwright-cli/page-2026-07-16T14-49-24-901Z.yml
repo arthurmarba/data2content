@@ -1,0 +1,89 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e7]:
+        - heading "Collabs" [level=1] [ref=e9]
+        - generic [ref=e10]:
+          - button "Comunidade no WhatsApp" [ref=e11] [cursor=pointer]
+          - button "Ver combinadas (1)" [ref=e15] [cursor=pointer]:
+            - generic [ref=e21]: "1"
+          - button "Ver pautas salvas (1)" [ref=e22] [cursor=pointer]:
+            - generic [ref=e25]: "1"
+      - generic [ref=e28]:
+        - generic:
+          - generic:
+            - generic: collab
+            - paragraph: Por que parei de responder e-mail depois das 18h
+            - generic:
+              - generic: J
+              - generic:
+                - generic: João Reis
+                - generic: "@joãoreis · Remoto"
+            - generic:
+              - generic:
+                - generic: Do seu mapa
+                - generic: Reel falado
+              - generic:
+                - generic:
+                  - generic:
+                    - generic: Situação real
+                    - generic: Tentando encerrar o expediente no horário
+                - generic:
+                  - generic:
+                    - generic: Assunto
+                    - generic: Trabalho
+                - generic:
+                  - generic:
+                    - generic: Em cena
+                    - generic: Mesa de trabalho
+                - generic:
+                  - generic:
+                    - generic: Jeito de falar
+                    - generic: reflexivo
+        - 'group "Collab pra pauta: Aprendi a proteger o jantar como reunião importante" [ref=e213]':
+          - generic [ref=e214]: toque pra virar
+          - generic: quero fazer
+          - generic: não é pra mim
+          - generic [ref=e218]:
+            - generic [ref=e219]: collab
+            - paragraph [ref=e224]: Aprendi a proteger o jantar como reunião importante
+            - generic [ref=e225]:
+              - generic [ref=e226]: T
+              - generic [ref=e228]:
+                - generic [ref=e229]: Théo Pires
+                - generic [ref=e230]: "@théopires · Presencial"
+            - generic [ref=e231]:
+              - generic [ref=e232]:
+                - generic [ref=e233]: Do seu mapa
+                - generic [ref=e234]: Reel falado
+              - generic [ref=e235]:
+                - 'generic "Situação real: Tentando encerrar o expediente no horário" [ref=e236]':
+                  - generic [ref=e242]:
+                    - generic [ref=e243]: Situação real
+                    - generic [ref=e244]: Tentando encerrar o expediente no horário
+                - 'generic "Assunto: Rotina" [ref=e245]':
+                  - generic [ref=e250]:
+                    - generic [ref=e251]: Assunto
+                    - generic [ref=e252]: Rotina
+                - 'generic "Em cena: Mesa de trabalho" [ref=e253]':
+                  - generic [ref=e259]:
+                    - generic [ref=e260]: Em cena
+                    - generic [ref=e261]: Mesa de trabalho
+                - 'generic "Jeito de falar: reflexivo" [ref=e262]':
+                  - generic [ref=e268]:
+                    - generic [ref=e269]: Jeito de falar
+                    - generic [ref=e270]: reflexivo
+          - generic [ref=e271]:
+            - generic [ref=e272]:
+              - button "Não é pra mim" [active] [ref=e273] [cursor=pointer]
+              - generic [ref=e276]: não é pra mim
+            - generic [ref=e277]:
+              - button "Quero fazer essa collab" [ref=e278] [cursor=pointer]
+              - generic [ref=e281]: quero fazer
+    - navigation [ref=e88]:
+      - button "Perfil" [ref=e89] [cursor=pointer]
+      - generic [ref=e94]:
+        - button "Escanear novo vídeo" [ref=e95] [cursor=pointer]
+        - generic [ref=e99]: Escanear
+      - button "Collabs" [ref=e100] [cursor=pointer]
+  - alert [ref=e143]: Data2Content — Entenda o que seu conteúdo diz sobre você

@@ -129,6 +129,7 @@ export default function LandingHeader({
 
   return (
     <motion.header
+      data-analytics-section="landing_header"
       className="fixed top-0 z-50 w-full border-b transition-[padding] duration-300 ease-out"
       style={{
         backgroundColor,
@@ -166,6 +167,7 @@ export default function LandingHeader({
                   variant="outline"
                   className="border-slate-200 bg-white px-[0.95rem] py-[0.6rem] text-[0.9rem] font-semibold text-brand-dark shadow-none hover:border-slate-300 hover:bg-slate-50"
                   magnetic={false}
+                  analyticsName="landing_header_login"
                 >
                   Login
                 </ButtonPrimary>
@@ -175,6 +177,7 @@ export default function LandingHeader({
                   href={MAIN_DASHBOARD_ROUTE}
                   size="sm"
                   variant="brand"
+                  analyticsName="landing_header_dashboard"
                   className="px-[1.125rem] py-[0.6rem] text-[0.92rem] shadow-none"
                 >
                   {primaryCtaLabel}
@@ -186,6 +189,7 @@ export default function LandingHeader({
                   variant="brand"
                   className="px-[1.125rem] py-[0.6rem] text-[0.92rem] shadow-none"
                   disabled={isSessionLoading}
+                  analyticsName="landing_header_creator_cta"
                 >
                   {isSessionLoading ? 'Carregando...' : primaryCtaLabel}
                 </ButtonPrimary>
@@ -195,6 +199,7 @@ export default function LandingHeader({
 
           <button
             ref={menuButtonRef}
+            data-analytics-name="landing_header_mobile_menu"
             className="rounded-full border border-slate-200/70 bg-white/72 p-1.5 text-brand-dark shadow-[0_6px_14px_rgba(15,23,42,0.06)] md:hidden"
             onClick={() => setIsMenuOpen((prev) => !prev)}
             aria-label="Menu"
@@ -229,6 +234,7 @@ export default function LandingHeader({
                 size="sm"
                 variant="outline"
                 magnetic={false}
+                analyticsName="landing_mobile_menu_login"
               >
                 Login
               </ButtonPrimary>
@@ -250,6 +256,7 @@ export default function LandingHeader({
               ].join(' ')}
               ref={isAuthenticated || isSessionLoading ? ctaButtonRef : undefined}
               disabled={isSessionLoading}
+              data-analytics-name="landing_mobile_menu_creator_cta"
             >
               {isSessionLoading ? 'Carregando...' : primaryCtaLabel}
             </button>

@@ -21,6 +21,17 @@ type EventSpec<Payload extends Record<string, any>> = {
 };
 
 export const analyticsEventCatalog = {
+  button_click: {
+    group: 'navigation',
+    description: 'Visitor clicked an interactive control anywhere in the platform.',
+    payload: {
+      button_name: '' as string,
+      button_section: '' as string,
+      page_path: '' as string,
+      destination: '' as StringMaybe,
+      element_type: '' as ('button' | 'link' | 'input' | 'role_button'),
+    },
+  },
   media_kit_viewed: {
     group: 'funnel',
     description: 'Public media kit viewed by a visitor/brand.',

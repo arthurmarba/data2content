@@ -1,0 +1,27 @@
+[   14415ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:3101/dev-collabs-preview:0
+[   14625ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///./node_modules/react-dom/cjs/react-dom.development.js:29889
+[   14687ms] TypeError: Cannot read properties of undefined (reading 'clientModules')
+    at createRSCStream (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/app-render/create-server-components-renderer.js:64:155)
+    at ServerComponentWrapper (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/app-render/create-server-components-renderer.js:76:27)
+    at renderWithHooks (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom-server.edge.development.js:8996:16)
+    at renderIndeterminateComponent (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom-server.edge.development.js:9070:15)
+    at renderElement (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom-server.edge.development.js:9305:7)
+    at renderNodeDestructiveImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom-server.edge.development.js:9471:11)
+    at renderNodeDestructive (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom-server.edge.development.js:9443:14)
+    at retryTask (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom-server.edge.development.js:9938:5)
+    at performWork (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom-server.edge.development.js:10009:7)
+    at AsyncLocalStorage.run (node:async_hooks:346:14)
+    at Timeout._onTimeout (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom-server.edge.development.js:10389:29)
+    at listOnTimeout (node:internal/timers:581:17)
+    at process.processTimers (node:internal/timers:519:7)
+[   14684ms] [LOG] [HMR] connected @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/websocket.js:47
+[   43192ms] [LOG] [HMR] connected @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/websocket.js:47
+[   43235ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/hot-dev-client.js:182
+[   43887ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3101/_next/static/webpack/d1be56a2ff2c2187.webpack.hot-update.json:0
+[   43888ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/hot-dev-client.js:283
+[   45687ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/hot-dev-client.js:182
+[   53590ms] [LOG] Refreshing page data due to server-side change @ webpack-internal:///./node_modules/next/dist/client/next-dev.js:65
+[   53614ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/hot-dev-client.js:182
+[   54709ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/hot-dev-client.js:182
+[   57298ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom.development.js:37828
+[   58638ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:150

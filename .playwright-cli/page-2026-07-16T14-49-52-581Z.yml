@@ -1,0 +1,25 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e7]:
+        - heading "Collabs" [level=1] [ref=e9]
+        - generic [ref=e10]:
+          - button "Comunidade no WhatsApp" [ref=e11] [cursor=pointer]
+          - button "Ver combinadas (1)" [ref=e15] [cursor=pointer]:
+            - generic [ref=e21]: "1"
+          - button "Ver pautas salvas (1)" [ref=e22] [cursor=pointer]:
+            - generic [ref=e25]: "1"
+      - generic [ref=e27]:
+        - paragraph [ref=e351]: Rodada concluída
+        - paragraph [ref=e352]: Pronto para novas pautas?
+        - paragraph [ref=e353]: 1 pauta guardada nesta rodada.
+        - group "Continuar depois da rodada" [ref=e355]:
+          - button "Carregar nova rodada" [ref=e356] [cursor=pointer]
+          - button "Entrar no grupo do WhatsApp" [ref=e358] [cursor=pointer]
+    - navigation [ref=e88]:
+      - button "Perfil" [ref=e89] [cursor=pointer]
+      - generic [ref=e94]:
+        - button "Escanear novo vídeo" [ref=e95] [cursor=pointer]
+        - generic [ref=e99]: Escanear
+      - button "Collabs" [ref=e100] [cursor=pointer]
+  - alert [ref=e143]: Data2Content — Entenda o que seu conteúdo diz sobre você

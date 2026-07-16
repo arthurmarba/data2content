@@ -1,0 +1,51 @@
+[    9578ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:3101/#como-funciona:0
+[    9818ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///./node_modules/react-dom/cjs/react-dom.development.js:29889
+[    9882ms] Error: Module not found: Can't resolve '/Users/arthurmarba/d2c-frontend/node_modules/lucide-react/dist/esm/icons/hand-pointer'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/landing/components/narrative/NarrativeMatch.tsx
+    at <unknown> (https://nextjs.org/docs/messages/module-not-found)
+    at getNotFoundError (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/build/webpack/plugins/wellknown-errors-plugin/parseNotFoundError.js:128:16)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async getModuleBuildError (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/build/webpack/plugins/wellknown-errors-plugin/webpackModuleError.js:102:27)
+    at async (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/build/webpack/plugins/wellknown-errors-plugin/index.js:21:49)
+    at async (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/build/webpack/plugins/wellknown-errors-plugin/index.js:19:21)
+[    9897ms] [LOG] [HMR] connected @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/websocket.js:47
+[    9903ms] [ERROR] ./node_modules/lucide-react/dist/cjs/lucide-react.js:2:0
+Module not found: Can't resolve '/Users/arthurmarba/d2c-frontend/node_modules/lucide-react/dist/esm/icons/hand-pointer'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/landing/components/narrative/NarrativeMatch.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[    9949ms] [ERROR] ./node_modules/lucide-react/dist/esm/lucide-react.js:2:0
+Module not found: Can't resolve '/Users/arthurmarba/d2c-frontend/node_modules/lucide-react/dist/esm/icons/hand-pointer'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/landing/components/narrative/NarrativeMatch.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[   10456ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3101/favicon.ico:0
+[   10458ms] [ERROR] ./node_modules/lucide-react/dist/cjs/lucide-react.js:2:0
+Module not found: Can't resolve '/Users/arthurmarba/d2c-frontend/node_modules/lucide-react/dist/esm/icons/hand-pointer'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/landing/components/narrative/NarrativeMatch.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[   45206ms] [ERROR] ./node_modules/lucide-react/dist/esm/lucide-react.js:2:0
+Module not found: Can't resolve '/Users/arthurmarba/d2c-frontend/node_modules/lucide-react/dist/esm/icons/hand-pointer'
+
+https://nextjs.org/docs/messages/module-not-found
+
+Import trace for requested module:
+./src/app/landing/components/narrative/NarrativeMatch.tsx @ webpack-internal:///./node_modules/next/dist/compiled/@next/react-dev-overlay/dist/client.js:1
+[   45207ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/hot-dev-client.js:182
+[   46590ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3101/_next/static/webpack/bb0b68e65d2eb1c0.webpack.hot-update.json:0
+[   46591ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/hot-dev-client.js:283
+[   52655ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom.development.js:37828
+[   54875ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3101/api/plan/status:0
+[   55540ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3101/api/plan/status?force=true:0
+[   56805ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3101/api/plan/status?force=true:0

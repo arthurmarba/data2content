@@ -1,0 +1,16 @@
+[     918ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3247/dev-collabs-preview:0
+[    1115ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///./node_modules/react-dom/cjs/react-dom.development.js:29889
+[    1151ms] [LOG] [HMR] connected @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/websocket.js:47
+[    1211ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3247/favicon.ico:0
+[    3679ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3247/dev-collabs-preview:0
+[    6194ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3247/dev-collabs-preview:0
+[    8689ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3247/dev-collabs-preview:0
+[   11194ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3247/dev-collabs-preview:0
+[   13693ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3247/dev-collabs-preview:0
+[   16187ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3247/dev-collabs-preview:0
+[   18695ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3247/dev-collabs-preview:0
+[   21193ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3247/dev-collabs-preview:0
+[   33654ms] [ERROR] WebSocket connection to 'ws://127.0.0.1:3247/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/websocket.js:75
+[   38657ms] [ERROR] WebSocket connection to 'ws://127.0.0.1:3247/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/websocket.js:75
+[   43661ms] [ERROR] WebSocket connection to 'ws://127.0.0.1:3247/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/websocket.js:75
+[   48664ms] [ERROR] WebSocket connection to 'ws://127.0.0.1:3247/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/websocket.js:75

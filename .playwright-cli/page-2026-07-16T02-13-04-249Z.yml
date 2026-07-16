@@ -1,0 +1,55 @@
+- generic [active]:
+  - alert [ref=e1]
+  - dialog [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - navigation [ref=e8]:
+          - button "previous" [disabled] [ref=e9]:
+            - img "previous" [ref=e10]
+          - button "next" [disabled] [ref=e12]:
+            - img "next" [ref=e13]
+          - generic [ref=e15]: 1 of 1 unhandled error
+        - heading "Server Error" [level=1] [ref=e16]
+        - paragraph [ref=e17]: "TypeError: Cannot read properties of undefined (reading 'clientModules')"
+        - generic [ref=e18]: This error happened while generating the page. Any console logs will be displayed in the terminal window.
+      - generic [ref=e19]:
+        - heading "Call Stack" [level=2] [ref=e20]
+        - generic [ref=e21]:
+          - heading "createRSCStream" [level=3] [ref=e22]
+          - generic [ref=e23]: file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/app-render/create-server-components-renderer.js (64:155)
+        - generic [ref=e25]:
+          - heading "ServerComponentWrapper" [level=3] [ref=e26]
+          - generic [ref=e27]: file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/app-render/create-server-components-renderer.js (76:27)
+        - generic [ref=e29]:
+          - heading "renderWithHooks" [level=3] [ref=e30]
+          - generic [ref=e31]: file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom-server.edge.development.js (8996:16)
+        - generic [ref=e33]:
+          - heading "renderIndeterminateComponent" [level=3] [ref=e34]
+          - generic [ref=e35]: file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom-server.edge.development.js (9070:15)
+        - generic [ref=e37]:
+          - heading "renderElement" [level=3] [ref=e38]
+          - generic [ref=e39]: file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom-server.edge.development.js (9305:7)
+        - generic [ref=e41]:
+          - heading "renderNodeDestructiveImpl" [level=3] [ref=e42]
+          - generic [ref=e43]: file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom-server.edge.development.js (9471:11)
+        - generic [ref=e45]:
+          - heading "renderNodeDestructive" [level=3] [ref=e46]
+          - generic [ref=e47]: file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom-server.edge.development.js (9443:14)
+        - generic [ref=e49]:
+          - heading "retryTask" [level=3] [ref=e50]
+          - generic [ref=e51]: file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom-server.edge.development.js (9938:5)
+        - generic [ref=e53]:
+          - heading "performWork" [level=3] [ref=e54]
+          - generic [ref=e55]: file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom-server.edge.development.js (10009:7)
+        - generic [ref=e57]:
+          - heading "AsyncLocalStorage.run" [level=3] [ref=e58]
+          - generic [ref=e59]: node:async_hooks (346:14)
+        - generic [ref=e61]:
+          - heading "Timeout._onTimeout" [level=3] [ref=e62]
+          - generic [ref=e63]: file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom-server.edge.development.js (10389:29)
+        - generic [ref=e65]:
+          - heading "listOnTimeout" [level=3] [ref=e66]
+          - generic [ref=e67]: node:internal/timers (581:17)
+        - generic [ref=e69]:
+          - heading "process.processTimers" [level=3] [ref=e70]
+          - generic [ref=e71]: node:internal/timers (519:7)

@@ -1,0 +1,85 @@
+- generic [active] [ref=e1]:
+  - main [ref=e4]:
+    - generic [ref=e5]:
+      - paragraph [ref=e6]: Creator Studio
+      - button "Configurações" [ref=e8] [cursor=pointer]
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - paragraph [ref=e14]: Design system
+        - heading "Uma linguagem humana para criar e decidir." [level=1] [ref=e15]
+        - paragraph [ref=e16]: Bricolage orienta. Instrument Sans sustenta o trabalho. Rosa é ação; cor semântica explica estado.
+      - generic [ref=e17]:
+        - heading "Cores" [level=2] [ref=e18]
+        - generic [ref=e19]:
+          - generic [ref=e20]: Marca
+          - generic [ref=e23]: Mapa
+          - generic [ref=e26]: Tinta
+          - generic [ref=e29]: Papel
+          - generic [ref=e32]: Neutro
+          - generic [ref=e35]: Sucesso
+      - generic [ref=e38]:
+        - heading "Ações" [level=2] [ref=e39]
+        - generic [ref=e40]:
+          - button "Continuar" [ref=e41] [cursor=pointer]
+          - button "Ver resultado" [ref=e44] [cursor=pointer]
+          - button "Agora não" [ref=e45] [cursor=pointer]
+          - button "Saber mais" [ref=e46] [cursor=pointer]
+          - button "Remover" [ref=e47] [cursor=pointer]
+          - button "Favoritar" [ref=e48] [cursor=pointer]
+      - generic [ref=e51]:
+        - heading "Estados" [level=2] [ref=e52]
+        - generic [ref=e53]:
+          - generic [ref=e54]: Creator Studio
+          - generic [ref=e55]: Rascunho
+          - generic [ref=e56]: Confirmado
+          - generic [ref=e57]: Revisar
+          - generic [ref=e58]: Falhou
+      - generic [ref=e59]:
+        - heading "Superfícies" [level=2] [ref=e60]
+        - generic [ref=e61]:
+          - generic [ref=e62]:
+            - paragraph [ref=e63]: Plano
+            - heading "Superfície plana" [level=3] [ref=e64]
+            - paragraph [ref=e65]: Use quando a borda já comunica agrupamento.
+          - generic [ref=e66]:
+            - paragraph [ref=e67]: Interação
+            - heading "Superfície elevada" [level=3] [ref=e68]
+            - paragraph [ref=e69]: Reservada para algo que abre, move ou responde.
+      - generic [ref=e70]:
+        - heading "Espaço editorial do Perfil" [level=2] [ref=e71]
+        - generic [ref=e72]:
+          - generic [ref=e73]:
+            - generic [ref=e74]:
+              - paragraph [ref=e75]: Seu Mapa
+              - heading "O território que você já ocupa" [level=3] [ref=e76]
+            - button "Aprimorar" [ref=e77] [cursor=pointer]
+          - generic [ref=e78]:
+            - paragraph [ref=e79]: Assuntos recorrentes
+            - generic [ref=e80]:
+              - generic [ref=e81]: Bastidores
+              - generic [ref=e82]: Criatividade
+              - generic [ref=e83]: Rotina real
+      - generic [ref=e84]:
+        - heading "Entrada de vídeo" [level=2] [ref=e85]
+        - generic [ref=e86] [cursor=pointer]:
+          - generic [ref=e91]: Escolher vídeo
+          - generic [ref=e92]: MP4, MOV ou WebM. Seu arquivo é usado somente durante a leitura.
+        - button "Testar Raio X" [ref=e93] [cursor=pointer]
+      - generic [ref=e94]:
+        - heading "Decisão de assinatura" [level=2] [ref=e95]
+        - generic [ref=e96]:
+          - paragraph [ref=e97]: Data2Content Pro
+          - heading "Continue usando seu mapa para decidir melhor." [level=3] [ref=e98]
+          - generic "Período de exemplo" [ref=e99]:
+            - button "Anual" [pressed] [ref=e100] [cursor=pointer]
+            - button "Mensal" [ref=e101] [cursor=pointer]
+          - generic [ref=e102]:
+            - paragraph [ref=e103]: Leituras de vídeo sem limite
+            - paragraph [ref=e106]: Mapa atualizado com seus conteúdos
+            - paragraph [ref=e109]: Decisões de pauta e marca em um só lugar
+          - button "Continuar com Pro" [ref=e112] [cursor=pointer]
+      - generic [ref=e113]:
+        - heading "Campo e sheet" [level=2] [ref=e114]
+        - textbox "Escreva com suas palavras…" [ref=e115]
+        - button "Abrir sheet" [ref=e116] [cursor=pointer]
+  - alert [ref=e123]: Data2Content — Entenda o que seu conteúdo diz sobre você

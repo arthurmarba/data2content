@@ -2,6 +2,7 @@
 
 import type { Metadata } from "next";
 import Script from "next/script";
+import { Suspense } from "react";
 import "./globals.css";
 import "@/design-system/tokens.css";
 
@@ -15,11 +16,13 @@ import { Providers } from "./providers";
 import ClientHooksWrapper from "./components/ClientHooksWrapper";
 import { ToastA11yProvider } from "@/app/components/ui/ToastA11yProvider";
 import GoogleAnalytics from "./GoogleAnalytics";
+import AnalyticsClickTracker from "./components/AnalyticsClickTracker";
 import CookieConsent from "./components/CookieConsent";
 import { Toaster as HotToaster } from "react-hot-toast";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://data2content.ai";
 const GA_ID = process.env.NEXT_PUBLIC_GA_ID;
+const serializedGaId = JSON.stringify(GA_ID);
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -55,21 +58,35 @@ export default async function RootLayout({
         `}</style>
 
         {GA_ID && (
-          <Script
-            src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`}
-            strategy="afterInteractive"
-          />
-        )}
-        {GA_ID && (
           <Script id="ga-init" strategy="afterInteractive">
             {`
               window.dataLayer = window.dataLayer || [];
-              function gtag(){dataLayer.push(arguments);}
-              gtag('js', new Date());
-              gtag('consent', 'default', { ad_storage: 'denied', analytics_storage: 'denied' });
-              gtag('config', '${GA_ID}');
+              window.gtag = function(){window.dataLayer.push(arguments);};
+
+              var analyticsConsent = document.cookie
+                .split('; ')
+                .some(function(cookie) { return cookie === 'cookie_consent=granted'; })
+                  ? 'granted'
+                  : 'denied';
+
+              window.gtag('consent', 'default', {
+                ad_storage: 'denied',
+                ad_user_data: 'denied',
+                ad_personalization: 'denied',
+                analytics_storage: analyticsConsent,
+                wait_for_update: 500
+              });
+              window.gtag('js', new Date());
+              window.gtag('config', ${serializedGaId}, { send_page_view: false });
+              window.dispatchEvent(new Event('d2c-google-analytics-ready'));
             `}
           </Script>
+        )}
+        {GA_ID && (
+          <Script
+            src={`https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(GA_ID)}`}
+            strategy="afterInteractive"
+          />
         )}
       </head>
       <body
@@ -85,7 +102,10 @@ export default async function RootLayout({
       >
         <ToastA11yProvider maxVisible={3}>
           <Providers session={serializableSession}>
-            <GoogleAnalytics />
+            <Suspense fallback={null}>
+              <GoogleAnalytics />
+            </Suspense>
+            <AnalyticsClickTracker />
             <ClientHooksWrapper />
             {children}
             <CookieConsent />

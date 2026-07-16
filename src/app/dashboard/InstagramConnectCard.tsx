@@ -689,6 +689,8 @@ const InstagramConnectCard: React.FC<InstagramConnectCardProps> = ({
                 <div className="flex flex-col items-center sm:items-end w-full sm:w-auto">
                   <button
                     ref={openTriggerRef}
+                    data-analytics-name="connect_instagram"
+                    data-analytics-section="instagram_connect_card"
                     onClick={handleInitiateFacebookLink}
                     disabled={mainButtonDisabled}
                     className={`w-full sm:w-auto px-6 py-3 text-sm font-medium rounded-lg flex items-center justify-center gap-2.5 

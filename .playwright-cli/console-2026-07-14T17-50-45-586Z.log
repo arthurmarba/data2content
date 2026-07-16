@@ -1,0 +1,21 @@
+[    2887ms] [ERROR] WebSocket connection to 'ws://127.0.0.1:3201/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/websocket.js:75
+[    7900ms] [ERROR] WebSocket connection to 'ws://127.0.0.1:3201/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/websocket.js:75
+[   12905ms] [ERROR] WebSocket connection to 'ws://127.0.0.1:3201/_next/webpack-hmr' failed: Error in connection establishment: net::ERR_CONNECTION_REFUSED @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/websocket.js:75
+[   15604ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom-experimental/cjs/react-dom.development.js:37828
+[   16557ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/components/react-dev-overlay/hot-reloader-client.js:150
+[   17266ms] [WARNING] Image with src "/images/landing/d2c-creator-hero-editorial-v1.webp" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.
+Read more: https://nextjs.org/docs/api-reference/next/image#priority @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/shared/lib/utils/warn-once.js:15
+[   19710ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3202/api/plan/status:0
+[   20397ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3202/api/plan/status?force=true:0
+[   21652ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://127.0.0.1:3202/api/plan/status?force=true:0
+[   24578ms] [WARNING] Image with src "/images/landing/stop-motion/hero-creator-frame-02-v1.webp" was detected as the Largest Contentful Paint (LCP). Please add the "priority" property if this image is above the fold.
+Read more: https://nextjs.org/docs/api-reference/next/image#priority @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/shared/lib/utils/warn-once.js:15
+[  147788ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3202/images/community/avatars/aclara-oficial.jpg?v=20260713-community-v1:0
+[  147788ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3202/images/landing/stop-motion/weekly-publish-editorial-v1.webp:0
+[  147788ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3202/images/landing/stop-motion/weekly-refine-editorial-v1.webp:0
+[  147788ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3202/images/landing/stop-motion/weekly-collab-editorial-v1.webp:0
+[  147788ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3202/api/mediakit/marina-dutra/avatar?v=20260430-avatar-v3:0
+[  147788ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3202/images/landing/d2c-creators-editorial-v1.webp:0
+[  152923ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3202/api/mediakit/marina-dutra/avatar?v=20260430-avatar-v3:0
+[  154039ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3202/api/mediakit/marina-dutra/avatar?v=20260430-avatar-v3:0
+[  157036ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3202/images/community/avatars/aclara-oficial.jpg?v=20260713-community-v1:0

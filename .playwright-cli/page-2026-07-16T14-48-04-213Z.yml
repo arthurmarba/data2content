@@ -1,0 +1,114 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e7]:
+        - heading "Collabs" [level=1] [ref=e9]
+        - generic [ref=e10]:
+          - button "Comunidade no WhatsApp" [ref=e11] [cursor=pointer]
+          - button "Ver combinadas (1)" [ref=e15] [cursor=pointer]:
+            - generic [ref=e21]: "1"
+          - button "Ver pautas salvas (1)" [ref=e22] [cursor=pointer]:
+            - generic [ref=e25]: "1"
+      - generic [ref=e28]:
+        - generic:
+          - generic:
+            - generic: collab
+            - paragraph: O dia que meu filho perguntou se eu precisava trabalhar
+            - generic:
+              - generic: M
+              - generic:
+                - generic: Marina Braga
+                - generic: "@marinabraga · Remoto"
+            - generic:
+              - generic:
+                - generic: Do seu mapa
+                - generic: Reel falado
+              - generic:
+                - generic:
+                  - generic:
+                    - generic: Situação real
+                    - generic: Tentando encerrar o expediente no horário
+                - generic:
+                  - generic:
+                    - generic: Assunto
+                    - generic: Paternidade
+                - generic:
+                  - generic:
+                    - generic: Em cena
+                    - generic: Mesa de trabalho
+                - generic:
+                  - generic:
+                    - generic: Jeito de falar
+                    - generic: reflexivo
+        - generic:
+          - generic:
+            - generic: collab
+            - paragraph: Aprendi a proteger o jantar como reunião importante
+            - generic:
+              - generic: T
+              - generic:
+                - generic: Théo Pires
+                - generic: "@théopires · Presencial"
+            - generic:
+              - generic:
+                - generic: Do seu mapa
+                - generic: Reel falado
+              - generic:
+                - generic:
+                  - generic:
+                    - generic: Situação real
+                    - generic: Tentando encerrar o expediente no horário
+                - generic:
+                  - generic:
+                    - generic: Assunto
+                    - generic: Rotina
+                - generic:
+                  - generic:
+                    - generic: Em cena
+                    - generic: Mesa de trabalho
+                - generic:
+                  - generic:
+                    - generic: Jeito de falar
+                    - generic: reflexivo
+        - 'group "Pauta: A verdade sobre como a IA mudou o jeito que eu trabalho" [ref=e29]':
+          - generic [ref=e30]: toque pra virar
+          - generic: quero gravar
+          - generic: não é pra mim
+          - generic [ref=e34]:
+            - generic [ref=e35]: Pauta para você
+            - paragraph [ref=e36]: A verdade sobre como a IA mudou o jeito que eu trabalho
+            - generic [ref=e37]:
+              - generic [ref=e38]:
+                - generic [ref=e39]: Do seu mapa
+                - generic [ref=e40]: Reel falado
+              - generic [ref=e41]:
+                - 'generic "Situação real: Tentando encerrar o expediente no horário" [ref=e42]':
+                  - generic [ref=e48]:
+                    - generic [ref=e49]: Situação real
+                    - generic [ref=e50]: Tentando encerrar o expediente no horário
+                - 'generic "Assunto: Cultura pop como negócio" [ref=e51]':
+                  - generic [ref=e56]:
+                    - generic [ref=e57]: Assunto
+                    - generic [ref=e58]: Cultura pop como negócio
+                - 'generic "Em cena: Mesa de trabalho" [ref=e59]':
+                  - generic [ref=e65]:
+                    - generic [ref=e66]: Em cena
+                    - generic [ref=e67]: Mesa de trabalho
+                - 'generic "Jeito de falar: reflexivo" [ref=e68]':
+                  - generic [ref=e74]:
+                    - generic [ref=e75]: Jeito de falar
+                    - generic [ref=e76]: reflexivo
+          - generic [ref=e77]:
+            - generic [ref=e78]:
+              - button "Não é pra mim" [ref=e79] [cursor=pointer]
+              - generic [ref=e82]: não é pra mim
+            - generic [ref=e83]:
+              - button "Quero gravar essa pauta" [ref=e84] [cursor=pointer]
+              - generic [ref=e87]: quero gravar
+    - navigation [ref=e88]:
+      - button "Perfil" [ref=e89] [cursor=pointer]
+      - generic [ref=e94]:
+        - button "Escanear novo vídeo" [ref=e95] [cursor=pointer]
+        - generic [ref=e99]: Escanear
+      - button "Collabs" [ref=e100] [cursor=pointer]
+  - alert [ref=e143]: Data2Content — Entenda o que seu conteúdo diz sobre você

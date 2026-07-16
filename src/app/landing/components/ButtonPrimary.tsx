@@ -19,6 +19,8 @@ interface ButtonPrimaryProps {
   size?: ButtonSize;
   disabled?: boolean;
   magnetic?: boolean;
+  analyticsName?: string;
+  analyticsSection?: string;
 }
 
 const MagneticWrapper = ({
@@ -147,6 +149,8 @@ export default function ButtonPrimary({
   size = "md",
   disabled = false,
   magnetic,
+  analyticsName,
+  analyticsSection,
 }: ButtonPrimaryProps) {
   // Default magnetic effect to true for primary/solid buttons, false otherwise
   const isMagnetic = magnetic ?? (variant === "brand" || variant === "solid" || variant === "outline");
@@ -179,6 +183,8 @@ export default function ButtonPrimary({
           rel={rel}
           onClick={handleClick}
           aria-disabled={disabled}
+          data-analytics-name={analyticsName}
+          data-analytics-section={analyticsSection}
         >
           {children}
         </Link>
@@ -188,7 +194,13 @@ export default function ButtonPrimary({
 
   return (
     <MagneticWrapper className="" magnetic={isMagnetic && !disabled}>
-      <button onClick={handleClick} className={composedClasses} disabled={disabled}>
+      <button
+        onClick={handleClick}
+        className={composedClasses}
+        disabled={disabled}
+        data-analytics-name={analyticsName}
+        data-analytics-section={analyticsSection}
+      >
         {children}
       </button>
     </MagneticWrapper>

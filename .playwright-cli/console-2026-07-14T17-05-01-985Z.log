@@ -1,0 +1,3 @@
+[    1060ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://data2content.ai/api/plan/status:0
+[    1855ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://data2content.ai/api/plan/status?force=true:0
+[    3240ms] [ERROR] Failed to load resource: the server responded with a status of 401 () @ https://data2content.ai/api/plan/status?force=true:0

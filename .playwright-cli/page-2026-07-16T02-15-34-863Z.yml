@@ -1,0 +1,129 @@
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e7]:
+        - heading "Collabs" [level=1] [ref=e9]
+        - generic [ref=e10]:
+          - button "Comunidade no WhatsApp" [ref=e11] [cursor=pointer]
+          - button "Ver combinadas (1)" [ref=e15] [cursor=pointer]:
+            - generic [ref=e21]: "1"
+          - button "Ver pautas salvas (1)" [ref=e22] [cursor=pointer]:
+            - generic [ref=e25]: "1"
+      - generic [ref=e28]:
+        - generic:
+          - generic:
+            - generic: collab
+            - paragraph: O dia que meu filho perguntou se eu precisava trabalhar
+            - generic:
+              - generic: M
+              - generic:
+                - generic: Marina Braga
+                - generic: "@marinabraga · Remoto"
+            - generic:
+              - text: Por que é ideal
+              - paragraph: Ela cruza a visão financeira familiar dela com o seu pilar de paternidade ativa, trazendo o ângulo do dinheiro em casa que você ainda não cobre nos seus vídeos.
+            - generic:
+              - text: Como gravar
+              - paragraph: Vocês gravam em formato remoto de reação, onde cada um comenta o planejamento do outro via split-screen.
+        - generic:
+          - generic:
+            - generic: collab
+            - paragraph: Aprendi a proteger o jantar como reunião importante
+            - generic:
+              - generic: T
+              - generic:
+                - generic: Théo Pires
+                - generic: "@théopires · Presencial"
+            - generic:
+              - text: Por que é ideal
+              - paragraph: Vocês dois documentam a rotina em casa com leveza e bom humor.
+            - generic:
+              - text: Como gravar
+              - paragraph: Vocês gravam um café da manhã juntos na mesma cozinha, trocando experiências reais de paternidade.
+        - 'group "Pauta: A verdade sobre como a IA mudou o jeito que eu trabalho" [ref=e29]':
+          - generic [ref=e30]: toque pra virar
+          - generic: quero gravar
+          - generic: não é pra mim
+          - generic [ref=e34]:
+            - generic [ref=e35]:
+              - generic [ref=e36]: Cultura pop como negócio
+              - generic [ref=e38]: Reel falado · tom reflexivo
+            - paragraph [ref=e39]: A verdade sobre como a IA mudou o jeito que eu trabalho
+            - generic [ref=e40]:
+              - text: Abre com
+              - paragraph [ref=e41]: “Muita gente vê a inteligência artificial como uma ameaça, mas pra mim, foi o meu melhor parceiro de trabalho.”
+            - generic [ref=e60]:
+              - text: No roteiro
+              - paragraph [ref=e61]: Abre com a pergunta do filho
+          - generic [ref=e42]:
+            - generic [ref=e43]:
+              - button "Não é pra mim" [ref=e44] [cursor=pointer]
+              - generic [ref=e47]: não é pra mim
+            - generic [ref=e48]:
+              - button "Quero gravar essa pauta" [ref=e49] [cursor=pointer]
+              - generic [ref=e52]: quero gravar
+    - navigation [ref=e62]:
+      - button "Perfil" [ref=e63] [cursor=pointer]
+      - generic [ref=e68]:
+        - button "Escanear novo vídeo" [ref=e69] [cursor=pointer]
+        - generic [ref=e73]: Escanear
+      - button "Collabs" [ref=e74] [cursor=pointer]
+    - dialog [ref=e111]:
+      - generic [ref=e112]:
+        - generic [ref=e113]:
+          - generic [ref=e114]:
+            - generic [ref=e115]: Reel falado
+            - generic [ref=e116]: /
+            - generic [ref=e117]: Rotina
+          - button "Fechar" [ref=e118] [cursor=pointer]
+        - heading "Já combinada — vídeo com o Théo sobre rotina" [level=2] [ref=e122]
+        - generic "Escolha do plano" [ref=e123]:
+          - button "Solo" [active] [pressed] [ref=e124] [cursor=pointer]
+          - button "A dois" [ref=e125] [cursor=pointer]
+      - generic [ref=e192]:
+        - region [ref=e193]:
+          - generic [ref=e194]:
+            - paragraph [ref=e195]: Comece assim
+            - button "Copiar abertura" [ref=e196] [cursor=pointer]
+          - blockquote [ref=e197]: “Ontem meu filho perguntou uma coisa que me travou por uns segundos.”
+          - generic [ref=e198]:
+            - paragraph [ref=e199]: Comece em um enquadramento direto e próximo
+            - generic [ref=e200]: plano próximo
+        - region [ref=e203]:
+          - generic [ref=e204]:
+            - generic [ref=e205]:
+              - paragraph [ref=e206]: Storyboard
+              - heading "O caminho do vídeo" [level=3] [ref=e207]
+            - button "Copiar plano" [ref=e208] [cursor=pointer]
+          - paragraph [ref=e209]: Comece em um enquadramento direto e próximo
+          - generic [ref=e210]:
+            - article [ref=e211]:
+              - generic [ref=e212]: "02"
+              - generic [ref=e213]:
+                - paragraph [ref=e214]: Desenvolvimento
+                - paragraph [ref=e215]: Abre com a pergunta do filho
+                - paragraph [ref=e216]: "O que dizer: Abre com a pergunta do filho"
+            - article [ref=e217]:
+              - generic [ref=e218]: "03"
+              - generic [ref=e219]:
+                - paragraph [ref=e220]: Desenvolvimento
+                - paragraph [ref=e221]: Conta o que passou na cabeça
+                - paragraph [ref=e222]: "O que dizer: Conta o que passou na cabeça"
+            - article [ref=e223]:
+              - generic [ref=e224]: "04"
+              - generic [ref=e225]:
+                - paragraph [ref=e226]: Desenvolvimento
+                - paragraph [ref=e227]: Fecha com a decisão que tomou
+                - paragraph [ref=e228]: "O que dizer: Fecha com a decisão que tomou"
+            - article [ref=e229]:
+              - generic [ref=e230]: "05"
+              - generic [ref=e231]:
+                - paragraph [ref=e232]: Fechamento
+                - paragraph [ref=e233]: Volte ao enquadramento inicial para fechar a ideia
+                - paragraph [ref=e234]: "O que dizer: E você, já parou pra pensar no que o automático te custou?"
+                - generic [ref=e235]: plano próximo
+        - group [ref=e237]:
+          - generic "Por que essa ideia faz sentido" [ref=e238] [cursor=pointer]:
+            - text: Por que essa ideia faz sentido
+            - generic [ref=e239]: ＋
+  - alert [ref=e59]: Data2Content — Entenda o que seu conteúdo diz sobre você

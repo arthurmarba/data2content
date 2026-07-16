@@ -1,0 +1,64 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e5]:
+    - generic [ref=e7]:
+      - heading "Collabs" [level=1] [ref=e9]
+      - generic [ref=e10]:
+        - button "Comunidade no WhatsApp" [ref=e11] [cursor=pointer]
+        - button "Ver combinadas (1)" [ref=e15] [cursor=pointer]:
+          - generic [ref=e21]: "1"
+        - button "Ver pautas salvas (1)" [ref=e22] [cursor=pointer]:
+          - generic [ref=e25]: "1"
+    - generic [ref=e28]:
+      - generic:
+        - generic:
+          - generic: collab
+          - paragraph: O dia que meu filho perguntou se eu precisava trabalhar
+          - generic:
+            - generic: M
+            - generic:
+              - generic: Marina Braga
+              - generic: "@marinabraga · Remoto"
+          - generic:
+            - text: Por que é ideal
+            - paragraph: Ela cruza a visão financeira familiar dela com o seu pilar de paternidade ativa, trazendo o ângulo do dinheiro em casa que você ainda não cobre nos seus vídeos.
+      - generic:
+        - generic:
+          - generic: collab
+          - paragraph: Aprendi a proteger o jantar como reunião importante
+          - generic:
+            - generic: T
+            - generic:
+              - generic: Théo Pires
+              - generic: "@théopires · Presencial"
+          - generic:
+            - text: Por que é ideal
+            - paragraph: Vocês dois documentam a rotina em casa com leveza e bom humor.
+      - 'group "Pauta: A verdade sobre como a IA mudou o jeito que eu trabalho" [ref=e29]':
+        - generic [ref=e30]: toque pra virar
+        - generic: quero gravar
+        - generic: não é pra mim
+        - generic [ref=e34]:
+          - generic [ref=e35]:
+            - generic [ref=e36]: Cultura pop como negócio
+            - generic [ref=e38]: Reel falado · tom reflexivo
+          - paragraph [ref=e39]: A verdade sobre como a IA mudou o jeito que eu trabalho
+          - generic [ref=e40]:
+            - text: Abre com
+            - paragraph [ref=e41]: “Muita gente vê a inteligência artificial como uma ameaça, mas pra mim, foi o meu melhor parceiro de trabalho.”
+        - generic [ref=e42]:
+          - generic [ref=e43]:
+            - button "Não é pra mim" [ref=e44] [cursor=pointer]
+            - generic [ref=e47]: não é pra mim
+          - generic [ref=e48]:
+            - button "Quero gravar essa pauta" [ref=e49] [cursor=pointer]
+            - generic [ref=e52]: quero gravar
+  - generic [ref=e53]:
+    - generic [ref=e54]:
+      - text: Utilizamos cookies essenciais para o funcionamento da plataforma e, com a sua autorização, cookies de analytics para melhorar a sua experiência.
+      - link "Saiba mais" [ref=e55] [cursor=pointer]:
+        - /url: /politica-de-privacidade
+      - text: .
+    - generic [ref=e56]:
+      - button "Recusar não-essenciais" [ref=e57] [cursor=pointer]
+      - button "Aceitar" [ref=e58] [cursor=pointer]
+  - alert [ref=e59]: Data2Content — Entenda o que seu conteúdo diz sobre você

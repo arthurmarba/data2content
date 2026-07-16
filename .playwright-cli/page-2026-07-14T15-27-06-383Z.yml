@@ -1,0 +1,116 @@
+- generic [ref=f1e4]:
+  - generic [ref=f1e7]:
+    - generic [ref=f1e9]:
+      - img "Google" [ref=f1e11]
+      - generic [ref=f1e12]: Fazer Login com o Google
+    - generic [ref=f1e13]:
+      - 'heading "Acesso bloqueado: a solicitação desse app é inválida" [level=1] [ref=f1e16]'
+      - generic [ref=f1e22]:
+        - paragraph [ref=f1e23]:
+          - text: Não foi possível fazer login, porque esse app enviou uma solicitação inválida. Tente de novo ou entre em contato com o desenvolvedor para falar sobre o problema.
+          - link "Saiba mais sobre esse erro (link externo, abre em uma nova janela)" [ref=f1e24] [cursor=pointer]:
+            - /url: https://developers.google.com/identity/protocols/oauth2/web-server#authorization-errors-redirect-uri-mismatch
+            - text: Saiba mais sobre o erro
+        - paragraph [ref=f1e25]:
+          - text: Se você é um desenvolvedor desse app, consulte os
+          - button "detalhes do erro" [ref=f1e26] [cursor=pointer]
+          - text: .
+        - paragraph [ref=f1e27]: "Erro 400: redirect_uri_mismatch"
+  - contentinfo [ref=f1e28]:
+    - combobox [ref=f1e31] [cursor=pointer]:
+      - option "Afrikaans"
+      - option "azərbaycan"
+      - option "bosanski"
+      - option "català"
+      - option "Čeština"
+      - option "Cymraeg"
+      - option "Dansk"
+      - option "Deutsch"
+      - option "eesti"
+      - option "English (United Kingdom)"
+      - option "English (United States)"
+      - option "Español (España)"
+      - option "Español (Latinoamérica)"
+      - option "euskara"
+      - option "Filipino"
+      - option "Français (Canada)"
+      - option "Français (France)"
+      - option "Gaeilge"
+      - option "galego"
+      - option "Hrvatski"
+      - option "Indonesia"
+      - option "isiZulu"
+      - option "íslenska"
+      - option "Italiano"
+      - option "Kiswahili"
+      - option "latviešu"
+      - option "lietuvių"
+      - option "magyar"
+      - option "Melayu"
+      - option "Nederlands"
+      - option "norsk"
+      - option "o‘zbek"
+      - option "polski"
+      - option "Português (Brasil)" [selected]
+      - option "Português (Portugal)"
+      - option "română"
+      - option "shqip"
+      - option "Slovenčina"
+      - option "slovenščina"
+      - option "srpski (latinica)"
+      - option "Suomi"
+      - option "Svenska"
+      - option "Tiếng Việt"
+      - option "Türkçe"
+      - option "Ελληνικά"
+      - option "беларуская"
+      - option "български"
+      - option "кыргызча"
+      - option "қазақ тілі"
+      - option "македонски"
+      - option "монгол"
+      - option "Русский"
+      - option "српски (ћирилица)"
+      - option "Українська"
+      - option "ქართული"
+      - option "հայերեն"
+      - option "‫עברית‬‎"
+      - option "‫اردو‬‎"
+      - option "‫العربية‬‎"
+      - option "‫فارسی‬‎"
+      - option "አማርኛ"
+      - option "नेपाली"
+      - option "मराठी"
+      - option "हिन्दी"
+      - option "অসমীয়া"
+      - option "বাংলা"
+      - option "ਪੰਜਾਬੀ"
+      - option "ગુજરાતી"
+      - option "ଓଡ଼ିଆ"
+      - option "தமிழ்"
+      - option "తెలుగు"
+      - option "ಕನ್ನಡ"
+      - option "മലയാളം"
+      - option "සිංහල"
+      - option "ไทย"
+      - option "ລາວ"
+      - option "မြန်မာ"
+      - option "ខ្មែរ"
+      - option "한국어"
+      - option "中文（香港）"
+      - option "日本語"
+      - option "简体中文"
+      - option "繁體中文"
+    - list [ref=f1e32]:
+      - listitem [ref=f1e33]:
+        - link "Abrir a Central de Ajuda da Conta do Google (link externo, abre em uma nova janela)" [ref=f1e34] [cursor=pointer]:
+          - /url: https://support.google.com/accounts?hl=pt-BR&p=account_iph
+          - text: Ajuda
+      - listitem [ref=f1e35]:
+        - link "Política de Privacidade (link externo, abre em uma nova janela)" [ref=f1e36] [cursor=pointer]:
+          - /url: https://accounts.google.com/TOS?loc=BR&hl=pt-BR&privacy=true
+          - text: Privacidade
+      - listitem [ref=f1e37]:
+        - link "Termos de Serviço do Google (link externo, abre em uma nova janela)" [ref=f1e38] [cursor=pointer]:
+          - /url: https://accounts.google.com/TOS?loc=BR&hl=pt-BR
+          - text: Termos

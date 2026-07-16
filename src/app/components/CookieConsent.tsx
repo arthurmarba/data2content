@@ -78,7 +78,9 @@ const CookieConsent: React.FC = () => {
   const acceptCookies = () => {
     writeConsentCookie("granted");
     (window as any).gtag?.("consent", "update", {
-      ad_storage: "granted",
+      ad_storage: "denied",
+      ad_user_data: "denied",
+      ad_personalization: "denied",
       analytics_storage: "granted",
     });
     dismiss();
@@ -88,6 +90,8 @@ const CookieConsent: React.FC = () => {
     writeConsentCookie("denied");
     (window as any).gtag?.("consent", "update", {
       ad_storage: "denied",
+      ad_user_data: "denied",
+      ad_personalization: "denied",
       analytics_storage: "denied",
     });
     dismiss();
@@ -100,6 +104,7 @@ const CookieConsent: React.FC = () => {
     return (
       <div
         ref={bannerRef}
+        data-analytics-ignore="true"
         className="fixed left-3 right-3 z-[180] flex items-center justify-between gap-3 rounded-2xl border border-zinc-800 bg-zinc-950 px-3 py-3 text-sm leading-5 text-white shadow-[0_12px_36px_rgba(15,23,42,0.28)] sm:left-6 sm:right-6"
         style={{ bottom: "calc(env(safe-area-inset-bottom, 0px) + 5rem)" }}
       >
@@ -126,7 +131,7 @@ const CookieConsent: React.FC = () => {
 
   if (isLandingPage) {
     return (
-      <div ref={bannerRef} className="d2c-cookie-consent" role="region" aria-label="Preferências de cookies">
+      <div ref={bannerRef} data-analytics-ignore="true" className="d2c-cookie-consent" role="region" aria-label="Preferências de cookies">
         <p>
           Usamos cookies para entender como a landing funciona. <a href="/politica-de-privacidade">Saiba mais</a>
         </p>
@@ -141,6 +146,7 @@ const CookieConsent: React.FC = () => {
   return (
     <div
       ref={bannerRef}
+      data-analytics-ignore="true"
       className="fixed bottom-0 left-0 right-0 z-50 bg-brand-dark text-brand-light p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
     >
       <span className="text-sm leading-relaxed">

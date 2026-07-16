@@ -1,0 +1,378 @@
+- generic [active] [ref=f2e1]:
+  - generic [ref=f2e3]:
+    - banner [ref=f2e4]:
+      - generic [ref=f2e5]:
+        - link "Data2Content - página inicial" [ref=f2e6] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f2e8]: data2content
+        - button "Abrir menu" [ref=f2e9] [cursor=pointer]
+    - main [ref=f2e11]:
+      - generic [ref=f2e13]:
+        - generic [ref=f2e14]:
+          - generic [ref=f2e15]: 40 creators criando sem copiar fórmula.
+          - heading "30 ideias da IA. Alguma tinha a sua cara?" [level=1] [ref=f2e20]:
+            - generic [ref=f2e21]: 30 ideias da IA.
+            - emphasis [ref=f2e22]: Alguma tinha a sua cara?
+          - paragraph [ref=f2e23]: A D2C mergulha no que você já criou, entende sua narrativa e transforma isso em pautas, collabs e direção com a sua cara.
+          - link "Quero criar com a minha cara" [ref=f2e25] [cursor=pointer]:
+            - /url: /login?callbackUrl=%2Fdashboard
+          - generic [ref=f2e28]: Entre com Google. Sem cobrança automática.
+        - figure "Sua história já está aí. D2C" [ref=f2e29]:
+          - img "Creator desenvolvendo uma ideia em seu espaço de trabalho" [ref=f2e34]
+          - generic [ref=f2e37]:
+            - generic [ref=f2e38]: Sua história já está aí.
+            - generic [ref=f2e39]: D2C
+      - region "Comunidade D2C" [ref=f2e40]:
+        - generic [ref=f2e41]:
+          - paragraph [ref=f2e42]: 40 creators. Nenhum precisa caber numa fórmula.
+          - generic "Creators da comunidade" [ref=f2e43]:
+            - figure "Lívia Linhares@livialinharess" [ref=f2e44]:
+              - img "Lívia Linhares" [ref=f2e45]
+            - figure "Marina Dutra@marinaduttra_" [ref=f2e46]:
+              - img "Marina Dutra" [ref=f2e47]
+            - figure "Laura Rosa@laurarosapersonal" [ref=f2e48]:
+              - img "Laura Rosa" [ref=f2e49]
+            - figure "produçãoMarinaloureiro Loureiro@ninaktorres" [ref=f2e50]:
+              - img "produçãoMarinaloureiro Loureiro" [ref=f2e51]
+            - figure "Débora Broch Machado@deborabroch" [ref=f2e52]:
+              - img "Débora Broch Machado" [ref=f2e53]
+            - figure "Giovanna Antiorio@giantiorio" [ref=f2e54]:
+              - img "Giovanna Antiorio" [ref=f2e55]
+      - region "Manifesto D2C" [ref=f2e56]:
+        - generic [ref=f2e57]:
+          - img "Creators reunidos em um encontro criativo" [ref=f2e59]
+          - generic [ref=f2e61]:
+            - generic [ref=f2e62]:
+              - text: Você não é um nicho
+              - paragraph [ref=f2e63]: Você é tudo que viveu até aqui.
+            - generic [ref=f2e64]:
+              - text: Você não é um prompt
+              - paragraph [ref=f2e65]: Sua voz não cabe numa fórmula.
+            - generic [ref=f2e66]:
+              - text: Você está em movimento
+              - paragraph [ref=f2e67]: Sua próxima ideia também pode estar.
+          - generic [ref=f2e68]: D2C / Manifesto
+      - region [ref=f2e71]:
+        - generic [ref=f2e72]:
+          - paragraph [ref=f2e73]: ✦Onde você está agora?
+          - heading "Você não precisa virar outra pessoa para começar." [level=2] [ref=f2e74]
+        - generic [ref=f2e75]:
+          - article [ref=f2e76]:
+            - generic [ref=f2e77]:
+              - text: “Tenho coisa pra dizer”
+              - heading "Só não sei por onde começar" [level=3] [ref=f2e78]
+              - paragraph [ref=f2e79]: A gente encontra histórias e assuntos que já fazem parte de você.
+            - img "Lívia Linhares" [ref=f2e80]
+          - article [ref=f2e81]:
+            - generic [ref=f2e82]:
+              - text: “Posto, apago, volto”
+              - heading "Falta um fio que conecte tudo" [level=3] [ref=f2e83]
+              - paragraph [ref=f2e84]: Enxergue o que vale continuar, testar ou deixar para trás.
+            - img "Creators trocando ideias" [ref=f2e85]
+          - article [ref=f2e86]:
+            - generic [ref=f2e87]:
+              - text: “Quero viver disso”
+              - heading "Sem virar uma versão genérica de mim" [level=3] [ref=f2e88]
+              - paragraph [ref=f2e89]: Faça pessoas, creators e marcas entenderem por que escolher você.
+            - img "Marina Dutra" [ref=f2e90]
+      - region [ref=f2e91]:
+        - generic [ref=f2e92]:
+          - paragraph [ref=f2e93]: ✦IA com repertório de verdade
+          - heading "Tem dado. Tem gente. Tem contexto." [level=2] [ref=f2e94]
+          - generic [ref=f2e95]: A inteligência não chuta. Ela aprende com conteúdo real e com a resposta de audiências reais.
+        - generic [ref=f2e96]:
+          - generic [ref=f2e97]:
+            - term [ref=f2e98]: conteúdos analisados
+            - definition [ref=f2e99]: 3,7 mil
+          - generic [ref=f2e100]:
+            - term [ref=f2e101]: visualizações compreendidas
+            - definition [ref=f2e102]: 300 milhões
+          - generic [ref=f2e103]:
+            - term [ref=f2e104]: interações que viraram aprendizado
+            - definition [ref=f2e105]: 22 milhões
+        - paragraph [ref=f2e106]: Dados agregados e anonimizados da comunidade D2C. Os resultados pertencem aos creators acompanhados.
+        - text: ✦
+      - generic [ref=f2e107]:
+        - figure "Uma pauta que nasce do seu Mapa O que aprendi quando parei de criar como todo mundo?" [ref=f2e109]:
+          - img "Creator desenvolvendo uma pauta em seu estúdio de conteúdo" [ref=f2e111]
+          - generic [ref=f2e113]: Histórias vividas
+          - generic [ref=f2e114]: Assuntos que você defende
+          - generic [ref=f2e115]: Situações que se repetem
+          - generic [ref=f2e116]: Seu jeito de falar
+          - generic [ref=f2e117]:
+            - generic [ref=f2e118]: Uma pauta que nasce do seu Mapa
+            - strong [ref=f2e119]: O que aprendi quando parei de criar como todo mundo?
+        - generic [ref=f2e120]:
+          - generic [ref=f2e121]: Antes da pauta, vem você
+          - heading "A gente encontra o fio que conecta o que você vive, pensa e cria." [level=2] [ref=f2e122]
+          - paragraph [ref=f2e123]: Seus conteúdos já carregam histórias, assuntos, cenários e um jeito de falar que é só seu. A D2C organiza esses sinais no seu Mapa — e transforma o que encontra em novas possibilidades.
+          - generic [ref=f2e124]:
+            - generic [ref=f2e125]: Histórias que você viveu.
+            - generic [ref=f2e126]: Assuntos que você defende.
+            - generic [ref=f2e127]: Uma voz que ninguém pode copiar.
+          - link "Quero ver meu Mapa" [ref=f2e128] [cursor=pointer]:
+            - /url: /login?callbackUrl=%2Fdashboard
+      - generic [ref=f2e132]:
+        - generic [ref=f2e133]:
+          - paragraph [ref=f2e134]: Collab sem conversa vaga
+          - heading "Chega de “vamos marcar”. Comece por uma ideia." [level=2] [ref=f2e135]
+          - paragraph [ref=f2e136]: Você escolhe uma pauta. Outro creator também. A collab já começa com algo que os dois querem criar.
+        - generic [ref=f2e138]:
+          - paragraph [ref=f2e141]: O match foi revelado
+          - article [ref=f2e143]:
+            - generic [ref=f2e144]:
+              - generic [ref=f2e145]:
+                - img "Foto de Lívia Linhares" [ref=f2e147]
+                - generic [ref=f2e148]:
+                  - generic [ref=f2e149]: Pauta para você
+                  - generic [ref=f2e150]: Lívia
+              - generic [ref=f2e151]: "01"
+            - generic [ref=f2e152]:
+              - generic [ref=f2e153]: Sua próxima pauta
+              - heading "Como comecei a defender a liberdade de criar com a minha cara" [level=3] [ref=f2e154]
+              - paragraph [ref=f2e155]: Uma pauta sobre autonomia criativa, identidade e o momento em que copiar fórmulas deixou de fazer sentido.
+              - blockquote [ref=f2e156]: Abre com a primeira vez em que você percebeu que uma fórmula podia apagar a sua voz.
+            - generic [ref=f2e157]:
+              - generic [ref=f2e158]: Agora não
+              - generic [ref=f2e164]: Quero fazer
+          - paragraph [ref=f2e169]: Continue rolando
+      - generic [ref=f2e172]:
+        - generic [ref=f2e173]:
+          - paragraph [ref=f2e174]: ✦Gente de verdade. Troca de verdade.
+          - heading "15 creators. 15 jeitos de ver o mundo." [level=3] [ref=f2e175]
+        - generic "15 creators da comunidade D2C" [ref=f2e176]:
+          - generic [ref=f2e179]:
+            - button "Conhecer a narrativa de Lívia Linhares" [ref=f2e180] [cursor=pointer]:
+              - generic [ref=f2e182]: Lívia Linhares
+              - generic [ref=f2e183]: "@livialinharess"
+            - button "Conhecer a narrativa de Giovanna Antiorio" [ref=f2e184] [cursor=pointer]:
+              - generic [ref=f2e186]: Giovanna Antiorio
+              - generic [ref=f2e187]: "@giantiorio"
+            - button "Conhecer a narrativa de Rafaella Custódio" [ref=f2e188] [cursor=pointer]:
+              - generic [ref=f2e190]: Rafaella Custódio
+              - generic [ref=f2e191]: "@rafacustodio"
+            - button "Conhecer a narrativa de Thaís Melchior" [ref=f2e192] [cursor=pointer]:
+              - generic [ref=f2e194]: Thaís Melchior
+              - generic [ref=f2e195]: "@thaismelchior"
+            - button "Conhecer a narrativa de Erika Freitas" [ref=f2e196] [cursor=pointer]:
+              - generic [ref=f2e198]: Erika Freitas
+              - generic [ref=f2e199]: "@erikafurttado"
+            - button "Conhecer a narrativa de Amanda Magalhaes" [ref=f2e200] [cursor=pointer]:
+              - generic [ref=f2e202]: Amanda Magalhaes
+              - generic [ref=f2e203]: "@aamandamag"
+            - button "Conhecer a narrativa de Mariana Souza" [ref=f2e204] [cursor=pointer]:
+              - generic [ref=f2e206]: Mariana Souza
+              - generic [ref=f2e207]: "@bymari.as"
+            - button "Conhecer a narrativa de João Lucas" [ref=f2e208] [cursor=pointer]:
+              - generic [ref=f2e210]: João Lucas
+              - generic [ref=f2e211]: "@jlskim"
+          - generic [ref=f2e214]:
+            - button "Conhecer a narrativa de Débora Broch Machado" [ref=f2e215] [cursor=pointer]:
+              - generic [ref=f2e217]: Débora Broch Machado
+              - generic [ref=f2e218]: "@deborabroch"
+            - button "Conhecer a narrativa de Tais Evaristo" [ref=f2e219] [cursor=pointer]:
+              - generic [ref=f2e221]: Tais Evaristo
+              - generic [ref=f2e222]: "@casadetais"
+            - button "Conhecer a narrativa de Cecília Lopes" [ref=f2e223] [cursor=pointer]:
+              - generic [ref=f2e225]: Cecília Lopes
+              - generic [ref=f2e226]: "@cecilialopeees"
+            - button "Conhecer a narrativa de William Yeh 葉斯盛" [ref=f2e227] [cursor=pointer]:
+              - generic [ref=f2e229]: William Yeh 葉斯盛
+              - generic [ref=f2e230]: "@melhor.correr"
+            - button "Conhecer a narrativa de Ronaldo Fonseca Jr" [ref=f2e231] [cursor=pointer]:
+              - generic [ref=f2e233]: Ronaldo Fonseca Jr
+              - generic [ref=f2e234]: "@ronaldofonsecajr"
+            - button "Conhecer a narrativa de Aline Paiva" [ref=f2e235] [cursor=pointer]:
+              - generic [ref=f2e237]: Aline Paiva
+              - generic [ref=f2e238]: "@alinepaivadecora"
+            - button "Conhecer a narrativa de Wellingthon Costa" [ref=f2e239] [cursor=pointer]:
+              - generic [ref=f2e241]: Wellingthon Costa
+              - generic [ref=f2e242]: "@wellingthon.c"
+        - group [ref=f2e243]:
+          - generic "Explorar todos os 15 creators+" [ref=f2e244] [cursor=pointer]
+        - paragraph [ref=f2e245]:
+          - text: Aqui ninguém precisa criar sozinho. Toda semana tem análise, troca, ideia nova e gente com vontade de fazer junto.
+          - strong [ref=f2e246]: Nos últimos 30 dias, acompanhamos 315 conteúdos, 7,8 milhões de visualizações e 527 mil interações.
+      - generic [ref=f2e248]:
+        - generic [ref=f2e249]:
+          - figure [ref=f2e250]:
+            - img "Creator publicando um vídeo em seu estúdio" [ref=f2e251]
+          - figure [ref=f2e252]:
+            - img "Creator analisando e refinando um conteúdo" [ref=f2e253]
+          - figure [ref=f2e254]:
+            - img "Creators produzindo uma colaboração juntos" [ref=f2e255]
+        - generic [ref=f2e257]:
+          - paragraph [ref=f2e258]: Toda quinta · 19h · online
+          - generic [ref=f2e259]: A call é coletiva. A leitura de cada creator é individual.
+        - generic [ref=f2e260]:
+          - article [ref=f2e261]:
+            - generic [ref=f2e262]:
+              - text: "01"
+              - heading "A gente olha o que aconteceu." [level=2] [ref=f2e263]
+              - paragraph [ref=f2e264]: O que bateu, o que não encaixou e quais sinais a audiência deixou.
+          - article [ref=f2e265]:
+            - generic [ref=f2e266]:
+              - text: "02"
+              - heading "A IA encontra o que passou despercebido." [level=2] [ref=f2e267]
+              - paragraph [ref=f2e268]: Cada creator presente recebe uma leitura individual, com dados, contexto e direção.
+          - article [ref=f2e269]:
+            - generic [ref=f2e270]:
+              - text: "03"
+              - heading "A sala transforma análise em movimento." [level=2] [ref=f2e271]
+              - paragraph [ref=f2e272]: Saem pautas, testes, collabs, referências e gente com vontade de fazer junto.
+        - link "Quero participar" [ref=f2e274] [cursor=pointer]:
+          - /url: /login?callbackUrl=%2Fdashboard
+      - generic [ref=f2e278]:
+        - figure "Imagem representativa. Será substituída por registros reais da comunidade." [ref=f2e279]:
+          - img "Representação de creators em um encontro presencial" [ref=f2e280]
+        - generic [ref=f2e282]:
+          - generic [ref=f2e283]:
+            - paragraph [ref=f2e284]: ✦A cada dois meses · Rio e São Paulo
+            - heading "Da call pra mesma mesa." [level=2] [ref=f2e285]
+          - generic [ref=f2e286]:
+            - paragraph [ref=f2e287]: Os encontros presenciais acontecem nos escritórios do Grupo Dreamers, no Rio de Janeiro e em São Paulo.
+            - paragraph [ref=f2e288]: É onde o papo ganha tempo, as ideias circulam e novas collabs e relações profissionais começam a aparecer.
+            - generic [ref=f2e289]:
+              - generic [ref=f2e290]: Networking
+              - generic [ref=f2e291]: Brainstorming
+              - generic [ref=f2e292]: Collabs
+              - generic [ref=f2e293]: Carreira
+      - generic [ref=f2e294]:
+        - generic [ref=f2e295]:
+          - paragraph [ref=f2e296]: ✦Duas experiências. Uma mesma inquietação.
+          - heading "Criatividade de um lado. Mercado do outro. Você no centro." [level=2] [ref=f2e297]
+        - generic [ref=f2e298]:
+          - article [ref=f2e299]:
+            - figure [ref=f2e300]:
+              - img "Retrato editorial de Arthur Marbá" [ref=f2e301]
+            - generic [ref=f2e302]:
+              - text: Creators · dados · estratégia
+              - heading "Arthur Marbá" [level=3] [ref=f2e303]
+              - paragraph [ref=f2e304]: Fundador da D2C e estrategista de creators. Há mais de uma década transforma conteúdo, dados e comportamento em direção prática.
+          - article [ref=f2e305]:
+            - figure [ref=f2e306]:
+              - img "Retrato editorial de Ronaldo Fonseca" [ref=f2e307]
+            - generic [ref=f2e308]:
+              - text: Narrativas · cultura · negócios
+              - heading "Ronaldo Fonseca" [level=3] [ref=f2e309]
+              - paragraph [ref=f2e310]: Sócio da D2C e CEO da A-Lab, do Grupo Dreamers. Conecta narrativas, cultura e oportunidades de negócio.
+        - generic [ref=f2e311]:
+          - paragraph [ref=f2e312]: Um entende o que acontece no meio da criação. O outro, como uma narrativa ganha valor no mundo. A D2C junta os dois.
+          - link "Começar com a D2C" [ref=f2e313] [cursor=pointer]:
+            - /url: /login?callbackUrl=%2Fdashboard
+      - generic [ref=f2e317]:
+        - paragraph [ref=f2e318]: ✦Criação também é carreira
+        - heading "Talento também precisa ser visto." [level=2] [ref=f2e319]
+        - generic [ref=f2e320]:
+          - strong [ref=f2e321]: Todo membro entra no radar para possíveis oportunidades de agenciamento.
+          - paragraph [ref=f2e322]: A análise acontece com a Destaque Estratégia de Imagem, sob gestão de Márcia Marbá, olhando narrativa, momento de carreira e oportunidades que realmente combinem com a pessoa.
+          - generic [ref=f2e323]: A análise não representa garantia de agenciamento, contratação ou oportunidade comercial.
+      - generic [ref=f2e324]:
+        - generic [ref=f2e325]:
+          - paragraph [ref=f2e326]: ✦A IA não manda em você
+          - heading "A IA aponta. Você escolhe o caminho." [level=2] [ref=f2e327]
+        - generic [ref=f2e328]:
+          - generic [ref=f2e329]:
+            - generic [ref=f2e330]: "01"
+            - heading "Ajusta" [level=3] [ref=f2e331]
+            - paragraph [ref=f2e332]: Coloque, tire ou mude tudo que não parecer você.
+          - generic [ref=f2e333]:
+            - generic [ref=f2e334]: "02"
+            - heading "Curte ou passa" [level=3] [ref=f2e335]
+            - paragraph [ref=f2e336]: Cada pauta é uma possibilidade, nunca uma ordem.
+          - generic [ref=f2e337]:
+            - generic [ref=f2e338]: "03"
+            - heading "Decide" [level=3] [ref=f2e339]
+            - paragraph [ref=f2e340]: A inteligência mostra contexto. A escolha criativa continua sua.
+        - generic [ref=f2e341]: Seu Mapa é bússola, não cerca. É direção sem perder liberdade.
+      - generic [ref=f2e342]:
+        - generic [ref=f2e343]:
+          - paragraph [ref=f2e344]: ✦Do feed para o mundo
+          - heading "Sua narrativa não serve só pro feed." [level=2] [ref=f2e345]
+        - generic [ref=f2e346]:
+          - generic [ref=f2e347]:
+            - text: "01"
+            - heading "Pessoas" [level=3] [ref=f2e348]
+            - paragraph [ref=f2e349]: Sentem por que vale ficar por perto.
+          - generic [ref=f2e350]:
+            - text: "02"
+            - heading "Creators" [level=3] [ref=f2e351]
+            - paragraph [ref=f2e352]: Enxergam por que criar junto.
+          - generic [ref=f2e353]:
+            - text: "03"
+            - heading "Marcas" [level=3] [ref=f2e354]
+            - paragraph [ref=f2e355]: Entendem por que escolher você.
+        - generic [ref=f2e356]:
+          - paragraph [ref=f2e357]: Quando sua narrativa fica clara, apresentar seu trabalho, cobrar e escolher oportunidades também fica.
+          - generic [ref=f2e358]:
+            - generic [ref=f2e359]: Media Kit
+            - generic [ref=f2e360]: Precificação
+            - generic [ref=f2e361]: Propostas
+            - generic [ref=f2e362]: Direção comercial
+      - generic [ref=f2e364]:
+        - generic [ref=f2e365]:
+          - paragraph [ref=f2e366]: ✦Tudo junto. Sem complicar.
+          - heading "Uma rotina de criação que finalmente conversa com você." [level=2] [ref=f2e367]
+        - generic [ref=f2e368]:
+          - generic [ref=f2e369]: R$ 49,90/mês
+          - list [ref=f2e370]:
+            - listitem [ref=f2e371]: Mapa da sua narrativa
+            - listitem [ref=f2e374]: Pautas e collabs personalizadas
+            - listitem [ref=f2e377]: Reuniões semanais e comunidade
+          - link "Quero criar com a minha cara" [ref=f2e380] [cursor=pointer]:
+            - /url: /login?callbackUrl=%2Fdashboard
+          - generic [ref=f2e383]: Entre com Google. Assine quando fizer sentido. Cancele quando quiser.
+      - generic [ref=f2e385]:
+        - generic [ref=f2e386]:
+          - paragraph [ref=f2e387]: ✦Sem letra miúda
+          - heading "Perguntas que fazem sentido." [level=2] [ref=f2e388]
+        - generic [ref=f2e389]:
+          - group [ref=f2e390]:
+            - generic "Preciso já ser creator profissional? +" [ref=f2e391] [cursor=pointer]
+          - group [ref=f2e392]:
+            - generic "O que acontece depois que eu entrar com Google? +" [ref=f2e393] [cursor=pointer]
+          - group [ref=f2e394]:
+            - generic "O que significa “começar grátis”? +" [ref=f2e395] [cursor=pointer]
+          - group [ref=f2e396]:
+            - generic "Como a D2C entende minha narrativa? +" [ref=f2e397] [cursor=pointer]
+          - group [ref=f2e398]:
+            - generic "A IA decide o que devo criar? +" [ref=f2e399] [cursor=pointer]
+          - group [ref=f2e400]:
+            - generic "Como funcionam os matches de collab? +" [ref=f2e401] [cursor=pointer]
+          - group [ref=f2e402]:
+            - generic "Como funcionam os encontros da comunidade? +" [ref=f2e403] [cursor=pointer]
+          - group [ref=f2e404]:
+            - generic "Todo membro é agenciado? +" [ref=f2e405] [cursor=pointer]
+          - group [ref=f2e406]:
+            - generic "Posso cancelar quando quiser? +" [ref=f2e407] [cursor=pointer]
+      - generic [ref=f2e409]:
+        - generic [ref=f2e410]:
+          - paragraph [ref=f2e411]: Algoritmos, formatos e tendências mudam.
+          - heading "O algoritmo muda. Sua voz não precisa." [level=2] [ref=f2e412]:
+            - text: O algoritmo muda.
+            - generic [ref=f2e413]: Sua voz não precisa.
+        - link "Criar com a minha cara" [ref=f2e414] [cursor=pointer]:
+          - /url: /login?callbackUrl=%2Fdashboard
+    - contentinfo [ref=f2e417]:
+      - generic [ref=f2e418]:
+        - link "Data2Content - página inicial" [ref=f2e419] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f2e421]: data2content
+        - paragraph [ref=f2e422]: IA para enxergar. Gente para criar.
+        - navigation "Links legais" [ref=f2e423]:
+          - link "Suporte" [ref=f2e424] [cursor=pointer]:
+            - /url: mailto:arthur@data2content.ai
+          - link "Privacidade" [ref=f2e425] [cursor=pointer]:
+            - /url: /politica-de-privacidade
+          - link "Termos" [ref=f2e426] [cursor=pointer]:
+            - /url: /termos-e-condicoes
+        - generic [ref=f2e427]: © 2026 Data2Content.
+  - region "Preferências de cookies" [ref=f2e428]:
+    - paragraph [ref=f2e429]:
+      - text: Usamos cookies para entender como a landing funciona.
+      - link "Saiba mais" [ref=f2e430] [cursor=pointer]:
+        - /url: /politica-de-privacidade
+    - generic [ref=f2e431]:
+      - button "Só essenciais" [ref=f2e432] [cursor=pointer]
+      - button "Aceitar" [ref=f2e433] [cursor=pointer]
+  - alert [ref=f2e434]

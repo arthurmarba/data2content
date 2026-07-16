@@ -29,6 +29,7 @@ import CollabInterest, {
 import UserModel from "@/app/models/User";
 import { sendWhatsAppMessage } from "@/app/lib/whatsappService";
 import { logger } from "@/app/lib/logger";
+import { resolveCreatorAvatar } from "@/app/lib/avatar/creatorAvatar";
 import { cleanIdeaText } from "./contentIdeasTextHygiene";
 import type { NarrativeCollabMatch } from "./narrativeCollabMatchingService";
 import type { ContentIdeaCollabBlueprint } from "./contentIdeaBlueprint";
@@ -82,12 +83,20 @@ interface PartnerUserLean {
   username?: string | null;
   instagramUsername?: string | null;
   image?: string | null;
+  providerImage?: string | null;
+  profile_picture_url?: string | null;
+  isInstagramConnected?: boolean | null;
+  instagramAccountId?: string | null;
+  availableIgAccounts?: Array<{
+    igAccountId?: string | null;
+    profile_picture_url?: string | null;
+  }> | null;
   mediaKitSlug?: string | null;
   whatsappPhone?: string | null;
   whatsappVerified?: boolean;
 }
 
-const PARTNER_FIELDS = "_id name username instagramUsername image mediaKitSlug whatsappPhone whatsappVerified";
+const PARTNER_FIELDS = "_id name username instagramUsername image providerImage profile_picture_url isInstagramConnected instagramAccountId availableIgAccounts mediaKitSlug whatsappPhone whatsappVerified";
 
 /** Monta o parceiro no shape NarrativeCollabMatch que a UI de match já consome. */
 function buildMatchPayload(
@@ -99,7 +108,7 @@ function buildMatchPayload(
     id: user._id.toString(),
     name: user.name ?? "Criador",
     username: typeof handle === "string" ? handle : null,
-    avatarUrl: user.image ?? null,
+    avatarUrl: resolveCreatorAvatar(user),
     mediaKitSlug: user.mediaKitSlug ?? null,
     // Campos de sugestão não se aplicam a um match já confirmado — a UI de
     // "combinada" usa nome/@/avatar + fit/recording/mode do snapshot.

@@ -965,6 +965,8 @@ export default function BillingSubscribeModal({
                 disabled={loadingRedirect || billingStatusLoading || sessionStatus === "loading" || shouldBlockSubscribe}
                 className="ds-button ds-button--primary ds-button--block group/btn"
                 data-autofocus="true"
+                data-analytics-name="activate_subscription"
+                data-analytics-section="billing_subscribe_modal"
               >
                 {loadingRedirect ? (
                   <>

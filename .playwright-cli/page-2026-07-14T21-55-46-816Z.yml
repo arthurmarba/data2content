@@ -1,0 +1,8 @@
+- generic [active] [ref=e1]:
+  - main [ref=e5]:
+    - main [ref=e8]:
+      - generic [ref=e9]:
+        - paragraph [ref=e10]: Preview interno bloqueado
+        - heading "Perfil Estratégico mobile" [level=1] [ref=e11]
+        - paragraph [ref=e12]: Preview interno restrito a usuários admin/dev.
+  - alert [ref=e13]

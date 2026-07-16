@@ -1,0 +1,54 @@
+- dialog [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - navigation [ref=e7]:
+          - button "previous" [disabled] [ref=e8]:
+            - img "previous" [ref=e9]
+          - button "next" [disabled] [ref=e11]:
+            - img "next" [ref=e12]
+          - generic [ref=e14]: 1 of 1 unhandled error
+          - generic [ref=e15]:
+            - text: Next.js (13.4.19) is outdated
+            - link "(learn more)" [ref=e17] [cursor=pointer]:
+              - /url: https://nextjs.org/docs/messages/version-staleness
+        - button "Close" [ref=e18] [cursor=pointer]
+      - heading "Unhandled Runtime Error" [level=1] [ref=e23]
+      - paragraph [ref=e24]:
+        - text: "ChunkLoadError: Loading chunk app/page failed. (missing:"
+        - link "http://127.0.0.1:3101/_next/static/chunks/app/page.js)" [ref=e25] [cursor=pointer]:
+          - /url: http://127.0.0.1:3101/_next/static/chunks/app/page.js)
+    - generic [ref=e26]:
+      - heading "Call Stack" [level=2] [ref=e27]
+      - generic [ref=e28]:
+        - heading "__webpack_require__.f.j" [level=3] [ref=e29]
+        - generic [ref=e30]: file:///Users/arthurmarba/d2c-frontend/.next/static/chunks/webpack.js (853:29)
+      - generic [ref=e32]:
+        - heading "<unknown>" [level=3] [ref=e33]
+        - generic [ref=e34]: /_next/static/chunks/webpack.js (155:40)
+      - generic [ref=e36]:
+        - heading "Array.reduce" [level=3] [ref=e37]
+        - generic [ref=e38]: <anonymous>
+      - generic [ref=e40]:
+        - heading "__webpack_require__.e" [level=3] [ref=e41]
+        - generic [ref=e42]: file:///Users/arthurmarba/d2c-frontend/.next/static/chunks/webpack.js (154:67)
+      - generic [ref=e44]:
+        - heading "fn.e" [level=3] [ref=e45]
+        - generic [ref=e46]: /_next/static/chunks/webpack.js (391:50)
+      - group [ref=e48]:
+        - generic "Next.js" [ref=e49] [cursor=pointer]
+      - generic [ref=e57]:
+        - heading "preloadModule" [level=3] [ref=e58]
+        - generic [ref=e59]: node_modules/next/dist/compiled/react-server-dom-webpack-experimental/cjs/react-server-dom-webpack-client.browser.development.js (109:0)
+      - generic [ref=e61]:
+        - heading "resolveModule" [level=3] [ref=e62]
+        - generic [ref=e63]: node_modules/next/dist/compiled/react-server-dom-webpack-experimental/cjs/react-server-dom-webpack-client.browser.development.js (1571:0)
+      - generic [ref=e65]:
+        - heading "processFullRow" [level=3] [ref=e66]
+        - generic [ref=e67]: node_modules/next/dist/compiled/react-server-dom-webpack-experimental/cjs/react-server-dom-webpack-client.browser.development.js (1762:0)
+      - generic [ref=e69]:
+        - heading "processBinaryChunk" [level=3] [ref=e70]
+        - generic [ref=e71]: node_modules/next/dist/compiled/react-server-dom-webpack-experimental/cjs/react-server-dom-webpack-client.browser.development.js (1929:0)
+      - generic [ref=e73]:
+        - heading "progress" [level=3] [ref=e74]
+        - generic [ref=e75]: node_modules/next/dist/compiled/react-server-dom-webpack-experimental/cjs/react-server-dom-webpack-client.browser.development.js (2008:0)

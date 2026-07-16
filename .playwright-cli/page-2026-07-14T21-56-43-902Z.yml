@@ -1,0 +1,83 @@
+- main [ref=f1e4]:
+  - generic [ref=f1e5]:
+    - paragraph [ref=f1e6]: Creator Studio
+    - button "Configurações" [ref=f1e8] [cursor=pointer]
+  - generic [ref=f1e12]:
+    - generic [ref=f1e13]:
+      - paragraph [ref=f1e14]: Design system
+      - heading "Uma linguagem humana para criar e decidir." [level=1] [ref=f1e15]
+      - paragraph [ref=f1e16]: Bricolage orienta. Instrument Sans sustenta o trabalho. Rosa é ação; cor semântica explica estado.
+    - generic [ref=f1e17]:
+      - heading "Cores" [level=2] [ref=f1e18]
+      - generic [ref=f1e19]:
+        - generic [ref=f1e20]: Marca
+        - generic [ref=f1e23]: Mapa
+        - generic [ref=f1e26]: Tinta
+        - generic [ref=f1e29]: Papel
+        - generic [ref=f1e32]: Neutro
+        - generic [ref=f1e35]: Sucesso
+    - generic [ref=f1e38]:
+      - heading "Ações" [level=2] [ref=f1e39]
+      - generic [ref=f1e40]:
+        - button "Continuar" [ref=f1e41] [cursor=pointer]
+        - button "Ver resultado" [ref=f1e44] [cursor=pointer]
+        - button "Agora não" [ref=f1e45] [cursor=pointer]
+        - button "Saber mais" [ref=f1e46] [cursor=pointer]
+        - button "Remover" [ref=f1e47] [cursor=pointer]
+        - button "Favoritar" [ref=f1e48] [cursor=pointer]
+    - generic [ref=f1e51]:
+      - heading "Estados" [level=2] [ref=f1e52]
+      - generic [ref=f1e53]:
+        - generic [ref=f1e54]: Creator Studio
+        - generic [ref=f1e55]: Rascunho
+        - generic [ref=f1e56]: Confirmado
+        - generic [ref=f1e57]: Revisar
+        - generic [ref=f1e58]: Falhou
+    - generic [ref=f1e59]:
+      - heading "Superfícies" [level=2] [ref=f1e60]
+      - generic [ref=f1e61]:
+        - generic [ref=f1e62]:
+          - paragraph [ref=f1e63]: Plano
+          - heading "Superfície plana" [level=3] [ref=f1e64]
+          - paragraph [ref=f1e65]: Use quando a borda já comunica agrupamento.
+        - generic [ref=f1e66]:
+          - paragraph [ref=f1e67]: Interação
+          - heading "Superfície elevada" [level=3] [ref=f1e68]
+          - paragraph [ref=f1e69]: Reservada para algo que abre, move ou responde.
+    - generic [ref=f1e70]:
+      - heading "Espaço editorial do Perfil" [level=2] [ref=f1e71]
+      - generic [ref=f1e72]:
+        - generic [ref=f1e73]:
+          - generic [ref=f1e74]:
+            - paragraph [ref=f1e75]: Seu Mapa
+            - heading "O território que você já ocupa" [level=3] [ref=f1e76]
+          - button "Aprimorar" [ref=f1e77] [cursor=pointer]
+        - generic [ref=f1e78]:
+          - paragraph [ref=f1e79]: Assuntos recorrentes
+          - generic [ref=f1e80]:
+            - generic [ref=f1e81]: Bastidores
+            - generic [ref=f1e82]: Criatividade
+            - generic [ref=f1e83]: Rotina real
+    - generic [ref=f1e84]:
+      - heading "Entrada de vídeo" [level=2] [ref=f1e85]
+      - generic [ref=f1e86] [cursor=pointer]:
+        - generic [ref=f1e91]: Escolher vídeo
+        - generic [ref=f1e92]: MP4, MOV ou WebM. Seu arquivo é usado somente durante a leitura.
+      - button "Testar Raio X" [ref=f1e93] [cursor=pointer]
+    - generic [ref=f1e94]:
+      - heading "Decisão de assinatura" [level=2] [ref=f1e95]
+      - generic [ref=f1e96]:
+        - paragraph [ref=f1e97]: Data2Content Pro
+        - heading "Continue usando seu mapa para decidir melhor." [level=3] [ref=f1e98]
+        - generic "Período de exemplo" [ref=f1e99]:
+          - button "Anual" [pressed] [ref=f1e100] [cursor=pointer]
+          - button "Mensal" [ref=f1e101] [cursor=pointer]
+        - generic [ref=f1e102]:
+          - paragraph [ref=f1e103]: Leituras de vídeo sem limite
+          - paragraph [ref=f1e106]: Mapa atualizado com seus conteúdos
+          - paragraph [ref=f1e109]: Decisões de pauta e marca em um só lugar
+        - button "Continuar com Pro" [ref=f1e112] [cursor=pointer]
+    - generic [ref=f1e113]:
+      - heading "Campo e sheet" [level=2] [ref=f1e114]
+      - textbox "Escreva com suas palavras…" [ref=f1e115]
+      - button "Abrir sheet" [ref=f1e116] [cursor=pointer]

@@ -1,0 +1,11 @@
+[    1325ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3201/dashboard/boards/mobile-strategic-profile-preview:0
+[    1565ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///./node_modules/react-dom/cjs/react-dom.development.js:29889
+[    1605ms] [LOG] [HMR] connected @ webpack-internal:///./node_modules/next/dist/client/dev/error-overlay/websocket.js:47
+[    1771ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3201/favicon.ico:0
+[    4144ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3201/dashboard/boards/mobile-strategic-profile-preview:0
+[    6634ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3201/dashboard/boards/mobile-strategic-profile-preview:0
+[    9152ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3201/dashboard/boards/mobile-strategic-profile-preview:0
+[   11647ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3201/dashboard/boards/mobile-strategic-profile-preview:0
+[   14136ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3201/dashboard/boards/mobile-strategic-profile-preview:0
+[   16646ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3201/dashboard/boards/mobile-strategic-profile-preview:0
+[   19139ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3201/dashboard/boards/mobile-strategic-profile-preview:0

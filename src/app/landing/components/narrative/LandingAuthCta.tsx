@@ -48,6 +48,8 @@ export function LandingAuthCta({
     return (
       <button
         type="button"
+        data-analytics-name={`landing_creator_cta_${trackingLocation ?? "unknown"}`}
+        data-analytics-section={trackingLocation ?? "landing"}
         className={className}
         onClick={handleGuestSignIn}
         disabled={isLoading}
@@ -62,6 +64,8 @@ export function LandingAuthCta({
   return (
     <Link
       href={MAIN_DASHBOARD_ROUTE}
+      data-analytics-name={`landing_creator_cta_${trackingLocation ?? "unknown"}`}
+      data-analytics-section={trackingLocation ?? "landing"}
       className={className}
       onClick={() => {
         track("landing_creator_cta_click", trackingLocation ? { location: trackingLocation } : undefined);
