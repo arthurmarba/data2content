@@ -289,7 +289,7 @@ export async function buildNarrativeCandidatePool(
       .filter((user) => !resolveCreatorAvatar(user))
       .map((user) => user._id);
     const legacyAvatarSnapshots = missingAvatarIds.length > 0
-      ? await AccountInsightModel.aggregate<Array<{ _id: Types.ObjectId; profilePicture?: string | null }>>([
+      ? await AccountInsightModel.aggregate<{ _id: Types.ObjectId; profilePicture?: string | null }>([
           {
             $match: {
               user: { $in: missingAvatarIds },
