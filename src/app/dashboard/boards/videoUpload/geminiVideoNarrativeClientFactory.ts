@@ -5,6 +5,7 @@ import {
   createPartFromUri,
   createUserContent,
 } from "@google/genai";
+import type { MediaResolution } from "@google/genai";
 import { randomUUID } from "node:crypto";
 import { writeFile, unlink } from "node:fs/promises";
 import os from "node:os";
@@ -499,18 +500,23 @@ export function createVideoNarrativeGeminiClientAdapter(
             }
           }
 
+          const selectedModel = model || fallbackModel;
           const response = await ai.models.generateContent({
-            model: model || fallbackModel,
+            model: selectedModel,
             contents: createUserContent(parts),
             config: {
               systemInstruction,
               maxOutputTokens,
               responseMimeType: "application/json",
+              mediaResolution: "MEDIA_RESOLUTION_LOW" as MediaResolution,
+              ...(/^gemini-2\.5-flash(?:$|-)/i.test(selectedModel)
+                ? { thinkingConfig: { thinkingBudget: 0 } }
+                : {}),
               ...(signal ? { abortSignal: signal } : {}),
             },
           });
 
-          logGeminiUsage("video", model || fallbackModel, response);
+          logGeminiUsage("video", selectedModel, response);
 
           return { text: response.text ?? null };
         } finally {

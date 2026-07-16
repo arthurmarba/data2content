@@ -225,7 +225,7 @@ describe("geminiVideoNarrativeClientFactory", () => {
       systemInstruction: "sistema",
       userInstruction: "usuário",
       responseSchemaInstruction: "json",
-      model: "gemini-runtime",
+      model: "gemini-2.5-flash",
       maxOutputTokens: 3000,
       videoInput: {
         mimeType: "video/mp4",
@@ -236,11 +236,13 @@ describe("geminiVideoNarrativeClientFactory", () => {
 
     expect(generateContent).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "gemini-runtime",
+        model: "gemini-2.5-flash",
         config: expect.objectContaining({
           responseMimeType: "application/json",
           maxOutputTokens: 3000,
           systemInstruction: "sistema",
+          mediaResolution: "MEDIA_RESOLUTION_LOW",
+          thinkingConfig: { thinkingBudget: 0 },
         }),
       }),
     );

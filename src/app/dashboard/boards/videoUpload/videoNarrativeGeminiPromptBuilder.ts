@@ -365,7 +365,7 @@ export function buildVideoNarrativeGeminiPrompt(input: VideoNarrativeAiProviderI
     ].join("\n"),
     responseSchemaInstruction: [
       "Retorne exatamente um objeto JSON com este schema:",
-      JSON.stringify(schemaExample, null, 2),
+      JSON.stringify(schemaExample),
       "directAnswer é OBRIGATÓRIO: responda diretamente à pergunta/objetivo do creator em 1 a 2 frases, ancorado no vídeo, em tom observacional (sem 'faça', 'poste', 'ajuste'). Não repita mainNarrative nem strategicReading.",
       "Todas as strings devem ser curtas. Arrays devem ter no máximo 5 itens.",
       "mainNarrative deve ter no máximo 80 caracteres e não pode começar com 'O criador', 'A creator', 'Esse vídeo', 'Este vídeo' ou 'Pelo vídeo'.",
