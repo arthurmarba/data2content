@@ -72,22 +72,80 @@ function log(...args: unknown[]) {
   console.log(TAG, ...args);
 }
 
-async function resolveProductId(): Promise<string> {
-  const explicit = process.env.STRIPE_PRODUCT_ID;
-  if (explicit) return explicit;
+function productIdOf(price: Stripe.Price): string | null {
+  return typeof price.product === "string" ? price.product : price.product?.id ?? null;
+}
 
-  const refPriceId = process.env.STRIPE_PRICE_MONTHLY_BRL;
-  if (!refPriceId) {
-    throw new Error(
-      "Não foi possível resolver o Product. Defina STRIPE_PRODUCT_ID ou STRIPE_PRICE_MONTHLY_BRL no ambiente."
-    );
+/** Tenta resolver o Product a partir de uma price ID (silencioso se não existir). */
+async function productFromPriceId(priceId: string | undefined): Promise<string | null> {
+  if (!priceId) return null;
+  try {
+    const price = await stripe.prices.retrieve(priceId);
+    return productIdOf(price);
+  } catch {
+    return null;
   }
-  const price = await stripe.prices.retrieve(refPriceId);
-  const product = typeof price.product === "string" ? price.product : price.product?.id;
-  if (!product) {
-    throw new Error(`Price ${refPriceId} não tem um Product associado.`);
+}
+
+/** Descobre o Product varrendo assinaturas ativas (fonte de verdade real). */
+async function productFromActiveSubscriptions(): Promise<string | null> {
+  const counts = new Map<string, number>();
+  const iterator = stripe.subscriptions.list({
+    status: "all",
+    limit: 100,
+    expand: ["data.items.data.price"],
+  });
+  for await (const sub of iterator) {
+    if (!MIGRATE_STATUSES.has(sub.status)) continue;
+    for (const item of sub.items?.data ?? []) {
+      const pid = productIdOf(item.price as Stripe.Price);
+      if (pid) counts.set(pid, (counts.get(pid) ?? 0) + 1);
+    }
   }
-  return product;
+  if (counts.size === 0) return null;
+  // Product mais frequente entre as assinaturas ativas
+  const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  if (sorted.length > 1) {
+    log("Vários Products encontrados nas assinaturas ativas:", Object.fromEntries(sorted));
+    log("Defina STRIPE_PRODUCT_ID no ambiente para escolher explicitamente.");
+  }
+  return sorted[0]![0];
+}
+
+async function resolveProductId(): Promise<string> {
+  // 1) Explícito
+  const explicit = process.env.STRIPE_PRODUCT_ID;
+  if (explicit) {
+    log("Product via STRIPE_PRODUCT_ID:", explicit);
+    return explicit;
+  }
+
+  // 2) Qualquer uma das price IDs de env que ainda exista
+  const envPriceIds = [
+    process.env.STRIPE_PRICE_MONTHLY_BRL,
+    process.env.STRIPE_PRICE_ANNUAL_BRL,
+    process.env.STRIPE_PRICE_MONTHLY_USD,
+    process.env.STRIPE_PRICE_ANNUAL_USD,
+  ];
+  for (const pid of envPriceIds) {
+    const product = await productFromPriceId(pid);
+    if (product) {
+      log(`Product resolvido via price de env (${pid}):`, product);
+      return product;
+    }
+  }
+
+  // 3) Fallback: a partir das assinaturas ativas
+  log("Nenhuma price de env válida; tentando descobrir o Product pelas assinaturas ativas...");
+  const fromSubs = await productFromActiveSubscriptions();
+  if (fromSubs) {
+    log("Product resolvido via assinaturas ativas:", fromSubs);
+    return fromSubs;
+  }
+
+  throw new Error(
+    "Não foi possível resolver o Product automaticamente. Defina STRIPE_PRODUCT_ID (prod_...) no .env.local — encontre no Dashboard do Stripe em Products → plano Pro."
+  );
 }
 
 /** Garante uma Price pelo lookup_key. Em dry-run, não cria (retorna null). */
