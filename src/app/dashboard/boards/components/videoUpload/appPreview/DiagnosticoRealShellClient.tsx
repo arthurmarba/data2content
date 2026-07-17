@@ -1782,6 +1782,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
             whatsappLinked={hydratedData.userInfo.whatsappLinked ?? false}
             isGeneratingIdeas={isGeneratingIdeas}
             ideaGenerationBlocker={ideaGenerationBlocker}
+            ideaQuotaResetAt={ideaQuotaResetAt}
             pautaCollabs={pautaCollabs}
             pautaCollabsLoading={effectiveCollabsBootstrapStatus === "loading"}
             bootstrapStatus={effectiveCollabsBootstrapStatus}
