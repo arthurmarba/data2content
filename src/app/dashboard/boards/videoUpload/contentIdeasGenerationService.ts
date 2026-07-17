@@ -4,7 +4,7 @@
  * Orchestrates pauta generation:
  *   1. Reads the creator's confirmed map + signals
  *   2. Builds the Gemini prompt
- *   3. Calls Gemini with strict JSON schema
+ *   3. Calls Gemini with JSON-only output and validates it locally
  *   4. Validates and persists ideas as `active`
  *
  * Returns either the generated ideas or a structured error.
@@ -17,7 +17,6 @@ import CreatorContentIdea from "@/app/models/CreatorContentIdea";
 import type { ICreatorContentIdea } from "@/app/models/CreatorContentIdea";
 import {
   buildContentIdeasPrompt,
-  CONTENT_IDEAS_RESPONSE_JSON_SCHEMA,
   CONTENT_IDEA_CREATIVE_MODES,
   type ContentIdeaCreativeMode,
   type ContentIdeasMapContext,
@@ -332,7 +331,11 @@ export async function generateContentIdeas(
       config: {
         systemInstruction: prompt.systemInstruction,
         responseMimeType: "application/json",
-        responseJsonSchema: CONTENT_IDEAS_RESPONSE_JSON_SCHEMA,
+        // O schema completo de pauta (storyboard + arrays aninhados) ultrapassa
+        // o limite de estados aceito pelo Gemini em produção e ele recusa a
+        // requisição com 400. O prompt já exige JSON e a validação abaixo
+        // sanitiza cada campo antes de persistir, então mantemos a garantia sem
+        // enviar a restrição incompatível ao provedor.
         maxOutputTokens: 10000,
         // gemini-2.5-flash é um modelo "thinking": sem este teto, os tokens de
         // raciocínio consomem o maxOutputTokens e o JSON sai truncado/vazio →
