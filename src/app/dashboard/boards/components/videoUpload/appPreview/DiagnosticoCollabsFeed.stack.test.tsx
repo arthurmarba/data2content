@@ -508,6 +508,42 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
     expect(onOpenWhatsAppCommunity).toHaveBeenCalledTimes(1);
   });
 
+  it("rodada concluída expõe falha de geração e oferece Tentar novamente", () => {
+    const onGenerate = jest.fn();
+    render(
+      <DiagnosticoCollabsFeed
+        {...baseProps}
+        pautas={[pauta("guardada", { status: "saved" as const })]}
+        pautaCollabs={new Map()}
+        collabDecisions={new Map()}
+        ideaGenerationBlocker="failed"
+        onGenerate={onGenerate}
+      />,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent(/Não foi possível carregar a nova rodada/i);
+    fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
+    expect(onGenerate).toHaveBeenCalledTimes(1);
+  });
+
+  it("rodada concluída com cota estourada avisa e esconde o botão de gerar", () => {
+    const onGenerate = jest.fn();
+    render(
+      <DiagnosticoCollabsFeed
+        {...baseProps}
+        pautas={[pauta("guardada", { status: "saved" as const })]}
+        pautaCollabs={new Map()}
+        collabDecisions={new Map()}
+        ideaGenerationBlocker="quota_exceeded"
+        ideaQuotaResetAt="2026-08-01T00:00:00.000Z"
+        onGenerate={onGenerate}
+      />,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent(/gerações de pautas deste mês/i);
+    expect(screen.queryByRole("button", { name: /Carregar nova rodada/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Tentar novamente/ })).not.toBeInTheDocument();
+    expect(onGenerate).not.toHaveBeenCalled();
+  });
+
   it("não assinante abre o modal contextual em cada ação do fim da rodada", () => {
     const onUpgrade = jest.fn();
     const onGenerate = jest.fn();

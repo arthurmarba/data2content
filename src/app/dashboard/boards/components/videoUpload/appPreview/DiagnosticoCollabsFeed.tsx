@@ -77,6 +77,8 @@ interface Props {
   isGeneratingIdeas: boolean;
   /** "map_incomplete" => sem mapa (estado travado que devolve ao Perfil). */
   ideaGenerationBlocker?: "premium_required" | "quota_exceeded" | "map_incomplete" | "failed" | null;
+  /** ISO da virada da cota mensal (só presente em quota_exceeded). */
+  ideaQuotaResetAt?: string | null;
   /** Criador compatível por pauta (id da pauta → match). Ausente/null = sem collab. */
   pautaCollabs?: Map<string, NarrativeCollabMatch | null>;
   /** True enquanto o match por-pauta está sendo buscado — mostra skeleton da pilha. */
@@ -799,21 +801,77 @@ function GenerateButton({
   );
 }
 
+function RoundBlockerNotice({
+  blocker,
+  quotaResetAt,
+}: {
+  blocker: NonNullable<Props["ideaGenerationBlocker"]>;
+  quotaResetAt?: string | null;
+}) {
+  // Cota estourada trava a rodada até a virada do mês — tom de aviso (âmbar), sem
+  // botão de retry (tentar de novo não destrava). Falha transitória é vermelha; o
+  // próprio "Carregar nova rodada" acima já serve de retry.
+  const isQuota = blocker === "quota_exceeded";
+  const isPremium = blocker === "premium_required";
+  const warningTone = isQuota;
+  const resetLabel = quotaResetAt
+    ? new Date(quotaResetAt).toLocaleDateString("pt-BR", { month: "long", year: "numeric" })
+    : null;
+  const message = isQuota
+    ? resetLabel
+      ? `Você usou todas as suas gerações de pautas deste mês. Novas a partir de ${resetLabel}.`
+      : "Você usou todas as suas gerações de pautas deste mês."
+    : isPremium
+      ? "Gerar novas rodadas de pautas é um recurso Pro."
+      : "Não foi possível carregar a nova rodada agora. Tente novamente.";
+  return (
+    <div
+      role="alert"
+      style={{
+        borderRadius: 14, padding: "10px 12px", textAlign: "left",
+        background: warningTone ? "#fefce8" : "#fff1f2",
+        color: warningTone ? "#854d0e" : "#be123c",
+        fontSize: 12.5, fontWeight: 650, lineHeight: 1.4,
+      }}
+    >
+      {message}
+    </div>
+  );
+}
+
 function RoundCompleteActions({
   isPro,
   isGeneratingIdeas,
+  ideaGenerationBlocker,
+  ideaQuotaResetAt,
   onGenerate,
   onUpgrade,
   onOpenWhatsAppCommunity,
-}: Pick<Props, "isPro" | "isGeneratingIdeas" | "onGenerate" | "onUpgrade" | "onOpenWhatsAppCommunity">) {
+}: Pick<Props, "isPro" | "isGeneratingIdeas" | "ideaGenerationBlocker" | "ideaQuotaResetAt" | "onGenerate" | "onUpgrade" | "onOpenWhatsAppCommunity">) {
   const proBadge = !isPro ? (
     <span style={{ borderRadius: 999, padding: "3px 6px", background: "rgba(255,255,255,0.16)", fontSize: 9, fontWeight: 800, letterSpacing: 0.65 }}>
       PRO
     </span>
   ) : null;
 
+  // Blocker de geração que impede a nova rodada (mapa incompleto é tratado antes,
+  // no estado sem pautas). Sem isto, uma falha/cota estourada deixava o toque em
+  // "Carregar nova rodada" sem resposta visível — parecia que nada carregava.
+  const blocker =
+    ideaGenerationBlocker === "quota_exceeded" ||
+    ideaGenerationBlocker === "failed" ||
+    ideaGenerationBlocker === "premium_required"
+      ? ideaGenerationBlocker
+      : null;
+  // Cota estourada / recurso Pro não destravam via retry — some o botão de gerar.
+  const canRetryGenerate = !blocker || blocker === "failed";
+
   return (
     <div role="group" aria-label="Continuar depois da rodada" style={{ display: "grid", gap: 10 }}>
+      {blocker && !isGeneratingIdeas ? (
+        <RoundBlockerNotice blocker={blocker} quotaResetAt={ideaQuotaResetAt} />
+      ) : null}
+      {canRetryGenerate ? (
       <button
         type="button"
         disabled={isGeneratingIdeas}
@@ -825,9 +883,10 @@ function RoundCompleteActions({
           opacity: isGeneratingIdeas ? 0.72 : 1,
         }}
       >
-        <span>{isGeneratingIdeas ? "Criando sua próxima rodada…" : "Carregar nova rodada"}</span>
+        <span>{isGeneratingIdeas ? "Criando sua próxima rodada…" : blocker === "failed" ? "Tentar novamente" : "Carregar nova rodada"}</span>
         {!isGeneratingIdeas ? proBadge : null}
       </button>
+      ) : null}
 
       {onOpenWhatsAppCommunity ? (
         <button
@@ -858,6 +917,7 @@ export function DiagnosticoCollabsFeed({
   whatsappLinked,
   isGeneratingIdeas,
   ideaGenerationBlocker,
+  ideaQuotaResetAt,
   pautaCollabs,
   bootstrapStatus = "ready",
   bootstrapError,
@@ -1070,6 +1130,8 @@ export function DiagnosticoCollabsFeed({
                 <RoundCompleteActions
                   isPro={isPro}
                   isGeneratingIdeas={isGeneratingIdeas}
+                  ideaGenerationBlocker={ideaGenerationBlocker}
+                  ideaQuotaResetAt={ideaQuotaResetAt}
                   onGenerate={onGenerate}
                   onUpgrade={onUpgrade}
                   onOpenWhatsAppCommunity={onOpenWhatsAppCommunity}
@@ -1110,13 +1172,22 @@ export function DiagnosticoCollabsFeed({
           <p style={{ fontSize: 14, color: TEXT_SECONDARY_HEX, lineHeight: 1.5, margin: "8px 0 18px" }}>
             A D2C cria ideias do seu mapa, na sua voz — e indica criadores pra postar junto.
           </p>
-          <GenerateButton
-            isPro={isPro}
-            isGeneratingIdeas={isGeneratingIdeas}
-            onGenerate={onGenerate}
-            onUpgrade={onUpgrade}
-            label="Gerar pautas"
-          />
+          {(ideaGenerationBlocker === "quota_exceeded" ||
+            ideaGenerationBlocker === "failed" ||
+            ideaGenerationBlocker === "premium_required") && !isGeneratingIdeas ? (
+            <div style={{ maxWidth: 340, margin: "0 auto 14px" }}>
+              <RoundBlockerNotice blocker={ideaGenerationBlocker} quotaResetAt={ideaQuotaResetAt} />
+            </div>
+          ) : null}
+          {ideaGenerationBlocker !== "quota_exceeded" ? (
+            <GenerateButton
+              isPro={isPro}
+              isGeneratingIdeas={isGeneratingIdeas}
+              onGenerate={onGenerate}
+              onUpgrade={onUpgrade}
+              label={ideaGenerationBlocker === "failed" ? "Tentar novamente" : "Gerar pautas"}
+            />
+          ) : null}
         </div>
       )}
 
