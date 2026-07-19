@@ -1115,8 +1115,12 @@ export function MapaCard({
   }
 
   // ── Asset enrichment ───────────────────────────────────────────────────────
-  const emergingAssets = s.confirmedLifeAssets.filter((a) => a.evidenceCount < 2);
-  const pendingAsset = emergingAssets.find((a) => {
+  // Sem threshold de evidência: qualquer asset ainda não confirmado/dispensado
+  // recebe o botão. O gate anterior (evidenceCount < 2) invertia a lógica das
+  // demais dimensões — um asset forte do Instagram (peso 2) nunca era validado,
+  // justo o de maior sinal. Alinha com narrativa/territórios/tom (que perguntam
+  // independentemente da força) e com a validação surgir conforme o mapa enriquece.
+  const pendingAsset = s.confirmedLifeAssets.find((a) => {
     const state = assetConfirmations?.get(a.label);
     return state !== "confirmed" && state !== "dismissed";
   }) ?? null;
