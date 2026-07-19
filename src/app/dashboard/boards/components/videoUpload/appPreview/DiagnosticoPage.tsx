@@ -1041,20 +1041,28 @@ export function MapaCard({
     rawFilteredTerritories.filter((t) => !META_LABEL_PATTERNS.test(t.label))
   );
 
+  // Limiar >= 1 (não >= 2): a narrativa vinda só do onboarding/MapaSeed pesa 1 de
+  // evidência. Com >= 2 o "Isso ressoa com você?" nunca surgia para quem declarou a
+  // narrativa no onboarding (ou conectou IG com amostra insuficiente) — justo a
+  // dimensão mais fundamental falhava para o coorte inicial. Alinha com territórios
+  // e tom (ambos >= 1) e com a lógica de validação surgir conforme o mapa enriquece.
   const shouldAskNarrative =
     narrativeConfirmationState === "pending" &&
     onConfirmNarrative != null &&
-    (leadingNarrative?.evidenceCount ?? 0) >= 2;
+    (leadingNarrative?.evidenceCount ?? 0) >= 1;
 
   const shouldAskTone =
     toneConfirmationState === "pending" &&
     onConfirmTone != null &&
     s.toneSignals.length >= 1;
 
+  // Considera também os territórios do MapaSeed (fonte exibida no caminho editável):
+  // garante que o botão surja sempre que há território na tela, mesmo que o filtro de
+  // meta-labels da síntese tenha zerado a contagem — mantém display e gate coerentes.
   const shouldAskTerritories =
     territoriesConfirmationState === "pending" &&
     onConfirmTerritories != null &&
-    filteredTerritories.length >= 1;
+    (filteredTerritories.length >= 1 || (mapaSeed?.territorios?.length ?? 0) >= 1);
 
   // ── Hypothesis enrichment ──────────────────────────────────────────────────
   // A hypothesis ("narrativa em teste") is asked once. The creator's decision —
@@ -1066,6 +1074,32 @@ export function MapaCard({
   const [endorsedLocal, setEndorsedLocal] = useState<Set<string>>(new Set(endorsedHypotheses));
   const [dismissedLocal, setDismissedLocal] = useState<Set<string>>(new Set(dismissedHypotheses));
   const [hypothesisPendingSet, setHypothesisPendingSet] = useState<Set<string>>(new Set());
+
+  // ── Feedback calmo ao confirmar (3.1) ──────────────────────────────────────
+  // Antes, ao responder, a linha simplesmente sumia — podia ler como "não
+  // aconteceu nada". Um flash breve ("No seu mapa" ou "Vamos recalibrar", se
+  // dispensou) confirma que a resposta entrou, sem virar badge permanente que
+  // polua o card. Estado local, ~2,2s, tokens quentes nativos do card.
+  const [recentlyResolved, setRecentlyResolved] = useState<Record<string, "confirmed" | "dismissed">>({});
+  const flashResolved = (key: string, response: "yes" | "almost" | "no" | "occasional") => {
+    const state: "confirmed" | "dismissed" = response === "no" ? "dismissed" : "confirmed";
+    setRecentlyResolved((prev) => ({ ...prev, [key]: state }));
+    setTimeout(() => {
+      setRecentlyResolved((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
+    }, 2200);
+  };
+  const renderConfirmedFlash = (state: "confirmed" | "dismissed") => (
+    <div style={{ marginTop: 10, padding: "10px 14px", borderRadius: 14, background: "#fff3ea", border: "1px solid rgba(255,107,53,0.16)" }}>
+      <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, fontWeight: 600, color: TEXT_PRIMARY_HEX }}>
+        {state === "confirmed" && <span aria-hidden="true" style={{ color: "var(--ds-color-success)" }}>✓</span>}
+        {state === "confirmed" ? "No seu mapa" : "Entendido — vamos recalibrar"}
+      </span>
+    </div>
+  );
 
   useEffect(() => {
     setEndorsedLocal(new Set(endorsedHypotheses));
@@ -1110,8 +1144,12 @@ export function MapaCard({
   }
 
   // ── Asset enrichment ───────────────────────────────────────────────────────
-  const emergingAssets = s.confirmedLifeAssets.filter((a) => a.evidenceCount < 2);
-  const pendingAsset = emergingAssets.find((a) => {
+  // Sem threshold de evidência: qualquer asset ainda não confirmado/dispensado
+  // recebe o botão. O gate anterior (evidenceCount < 2) invertia a lógica das
+  // demais dimensões — um asset forte do Instagram (peso 2) nunca era validado,
+  // justo o de maior sinal. Alinha com narrativa/territórios/tom (que perguntam
+  // independentemente da força) e com a validação surgir conforme o mapa enriquece.
+  const pendingAsset = s.confirmedLifeAssets.find((a) => {
     const state = assetConfirmations?.get(a.label);
     return state !== "confirmed" && state !== "dismissed";
   }) ?? null;
@@ -1145,7 +1183,11 @@ export function MapaCard({
     filteredTerritories.length > 0 ||
     s.dominantTone != null ||
     confirmedAssets.length > 0 ||
-    s.executionPatterns.length > 0;
+    s.executionPatterns.length > 0 ||
+    // MapaSeed (onboarding/IG) pode ter só "temas" (situações reais), que não
+    // entram na síntese fundida — sem isto, um mapa só-temas cairia no estado
+    // vazio e o editor de temas nunca apareceria.
+    (mapaSeed?.temas?.length ?? 0) > 0;
 
   // ── Tom: chips (all signals, fallback to dominantTone) ──
   const toneChips = s.toneSignals.length > 0
@@ -1366,15 +1408,17 @@ export function MapaCard({
           <p style={{ fontFamily: CS_FONT_DISPLAY, fontSize: 24, fontWeight: 700, color: TEXT_PRIMARY_HEX, margin: 0, lineHeight: 1.12, letterSpacing: -0.7 }}>
             {narrativaLabel}
           </p>
-          {activePending === "narrative" && (
+          {recentlyResolved["narrative"] ? (
+            renderConfirmedFlash(recentlyResolved["narrative"])
+          ) : activePending === "narrative" ? (
             <MapaConfirmationRow
               variant="3way"
               question="Isso ressoa com você?"
-              onPrimary={() => onConfirmNarrative!("yes")}
-              onSecondary={() => onConfirmNarrative!("almost")}
-              onTertiary={() => onConfirmNarrative!("no")}
+              onPrimary={() => { flashResolved("narrative", "yes"); onConfirmNarrative!("yes"); }}
+              onSecondary={() => { flashResolved("narrative", "almost"); onConfirmNarrative!("almost"); }}
+              onTertiary={() => { flashResolved("narrative", "no"); onConfirmNarrative!("no"); }}
             />
-          )}
+          ) : null}
           {activePending === "hypothesis" && pendingHypothesis != null && (
             <MapaConfirmationRow
               variant="2way"
@@ -1420,15 +1464,17 @@ export function MapaCard({
         ) : (
           <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, margin: 0, fontStyle: "italic" }}>Emergindo...</p>
         )}
-        {activePending === "territories" && (
+        {recentlyResolved["territories"] ? (
+          renderConfirmedFlash(recentlyResolved["territories"])
+        ) : activePending === "territories" ? (
           <MapaConfirmationRow
             variant="3way"
             question="Esses territórios fazem sentido?"
-            onPrimary={() => onConfirmTerritories!("yes")}
-            onSecondary={() => onConfirmTerritories!("almost")}
-            onTertiary={() => onConfirmTerritories!("no")}
+            onPrimary={() => { flashResolved("territories", "yes"); onConfirmTerritories!("yes"); }}
+            onSecondary={() => { flashResolved("territories", "almost"); onConfirmTerritories!("almost"); }}
+            onTertiary={() => { flashResolved("territories", "no"); onConfirmTerritories!("no"); }}
           />
-        )}
+        ) : null}
       </MapaSection>
 
       {/* ── Temas — situações concretas do MapaSeed (editável) ───────────── */}
@@ -1484,19 +1530,21 @@ export function MapaCard({
         onMutate={mapaSeed && onMapSeedMutate ? onMapSeedMutate : undefined}
         assetGroups={mapaSeed?.assetGroups}
       />
-      {activePending === "asset" && pendingAsset != null && onConfirmAsset != null && (
+      {recentlyResolved["asset"] ? (
+        <div style={{ paddingBottom: 16 }}>{renderConfirmedFlash(recentlyResolved["asset"])}</div>
+      ) : activePending === "asset" && pendingAsset != null && onConfirmAsset != null ? (
         <div style={{ paddingBottom: 16 }}>
           <MapaConfirmationRow
             variant="3way-asset"
             label="Faz parte da sua vida?"
             labelColor="var(--ds-color-success)"
             title={pendingAsset.label}
-            onPrimary={() => onConfirmAsset(pendingAsset.label, "yes")}
-            onSecondary={() => onConfirmAsset(pendingAsset.label, "occasional")}
-            onTertiary={() => onConfirmAsset(pendingAsset.label, "no")}
+            onPrimary={() => { flashResolved("asset", "yes"); onConfirmAsset(pendingAsset.label, "yes"); }}
+            onSecondary={() => { flashResolved("asset", "occasional"); onConfirmAsset(pendingAsset.label, "occasional"); }}
+            onTertiary={() => { flashResolved("asset", "no"); onConfirmAsset(pendingAsset.label, "no"); }}
           />
         </div>
-      )}
+      ) : null}
 
       {/* ── Tom + Formatos — "Como você fala" ────────────────────────── */}
       {/* Editável a partir do MapaSeed (onboarding/IG): tom de voz (escalar,
@@ -1534,15 +1582,17 @@ export function MapaCard({
           ) : (
             <p style={{ fontSize: 13, color: TEXT_SECONDARY_HEX, margin: 0, fontStyle: "italic" }}>Emergindo...</p>
           )}
-          {activePending === "tone" && (
+          {recentlyResolved["tone"] ? (
+            renderConfirmedFlash(recentlyResolved["tone"])
+          ) : activePending === "tone" ? (
             <MapaConfirmationRow
               variant="3way"
               question="Esse tom reflete como você fala?"
-              onPrimary={() => onConfirmTone!("yes")}
-              onSecondary={() => onConfirmTone!("almost")}
-              onTertiary={() => onConfirmTone!("no")}
+              onPrimary={() => { flashResolved("tone", "yes"); onConfirmTone!("yes"); }}
+              onSecondary={() => { flashResolved("tone", "almost"); onConfirmTone!("almost"); }}
+              onTertiary={() => { flashResolved("tone", "no"); onConfirmTone!("no"); }}
             />
-          )}
+          ) : null}
         </MapaSection>
       ) : null}
 
