@@ -1609,10 +1609,12 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   // Each callback applies an optimistic local update immediately, then persists
   // to the server in the background. Failures are silent — UX is never blocked.
 
+  // Retorna se a persistência teve sucesso — os handlers usam isso para reverter
+  // o estado otimista em caso de falha (espelha o rollback de decideHypothesis).
   const patchConfirmation = useCallback(
-    async (body: Record<string, string>) => {
+    async (body: Record<string, string>): Promise<boolean> => {
       try {
-        await fetch(
+        const res = await fetch(
           "/api/dashboard/mobile-strategic-profile/confirm-map-dimension",
           {
             method: "PATCH",
@@ -1620,37 +1622,61 @@ export function DiagnosticoRealShellClient({ data }: Props) {
             body: JSON.stringify(body),
           },
         );
+        return res.ok;
       } catch {
-        // Non-fatal — optimistic state already applied
+        return false;
       }
     },
     [],
   );
 
   const handleConfirmNarrative = useCallback((response: ConfirmationResponse) => {
-    setNarrativeConfirmationState(response === "no" ? "dismissed" : "confirmed");
-    void patchConfirmation({ dimension: "narrative", response });
+    let prev: ConfirmationState = "pending";
+    setNarrativeConfirmationState((cur) => { prev = cur; return response === "no" ? "dismissed" : "confirmed"; });
+    void patchConfirmation({ dimension: "narrative", response }).then((ok) => {
+      if (!ok) setNarrativeConfirmationState(prev);
+    });
   }, [patchConfirmation]);
 
   const handleConfirmTerritories = useCallback((response: ConfirmationResponse) => {
-    setTerritoriesConfirmationState(response === "no" ? "dismissed" : "confirmed");
-    void patchConfirmation({ dimension: "territories", response });
+    let prev: ConfirmationState = "pending";
+    setTerritoriesConfirmationState((cur) => { prev = cur; return response === "no" ? "dismissed" : "confirmed"; });
+    void patchConfirmation({ dimension: "territories", response }).then((ok) => {
+      if (!ok) setTerritoriesConfirmationState(prev);
+    });
   }, [patchConfirmation]);
 
   const handleConfirmTone = useCallback((response: ConfirmationResponse) => {
-    setToneConfirmationState(response === "no" ? "dismissed" : "confirmed");
-    void patchConfirmation({ dimension: "tone", response });
+    let prev: ConfirmationState = "pending";
+    setToneConfirmationState((cur) => { prev = cur; return response === "no" ? "dismissed" : "confirmed"; });
+    void patchConfirmation({ dimension: "tone", response }).then((ok) => {
+      if (!ok) setToneConfirmationState(prev);
+    });
   }, [patchConfirmation]);
 
   const handleConfirmAsset = useCallback(
     (assetLabel: string, response: AssetConfirmationResponse) => {
-      // Optimistic: track per-asset state in a Map
+      // Optimistic: track per-asset state in a Map; captura o valor anterior
+      // (presente ou ausente) para reverter se a persistência falhar.
+      let hadPrev = false;
+      let prevVal: "confirmed" | "dismissed" | undefined;
       setAssetConfirmations((prev) => {
+        hadPrev = prev.has(assetLabel);
+        prevVal = prev.get(assetLabel);
         const next = new Map(prev);
         next.set(assetLabel, response === "no" ? "dismissed" : "confirmed");
         return next;
       });
-      void patchConfirmation({ dimension: "asset", response, assetLabel });
+      void patchConfirmation({ dimension: "asset", response, assetLabel }).then((ok) => {
+        if (!ok) {
+          setAssetConfirmations((cur) => {
+            const next = new Map(cur);
+            if (hadPrev && prevVal) next.set(assetLabel, prevVal);
+            else next.delete(assetLabel);
+            return next;
+          });
+        }
+      });
     },
     [patchConfirmation],
   );

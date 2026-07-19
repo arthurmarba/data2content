@@ -119,29 +119,41 @@ export async function confirmMapDimension(
   if (params.dimension === "asset") {
     const assetState: MapDimensionConfirmationState =
       params.response === "no" ? "dismissed" : "confirmed";
+    const userObjectId = new Types.ObjectId(userId);
 
-    // Replace previous decision for the same asset label, then append the latest one.
-    await CreatorMapConfirmations.findOneAndUpdate(
-      { userId: new Types.ObjectId(userId) },
+    // Atomic, idempotent por rótulo. O padrão anterior (pull sem upsert + push
+    // com upsert em duas ops) tinha janela de perda — um crash entre as duas
+    // apagava o asset sem re-inserir — e de duplicação em toque duplo rápido.
+    // 1) Atualiza no lugar quando o rótulo já existe (único $set posicional).
+    const updateExisting = await CreatorMapConfirmations.updateOne(
+      { userId: userObjectId, "assets.label": params.assetLabel },
       {
-        $pull: { assets: { label: params.assetLabel } },
+        $set: {
+          "assets.$.state": assetState,
+          "assets.$.response": params.response,
+          "assets.$.confirmedAt": now,
+        },
       },
     );
-    await CreatorMapConfirmations.findOneAndUpdate(
-      { userId: new Types.ObjectId(userId) },
-      {
-        $push: {
-          assets: {
-            label: params.assetLabel,
-            state: assetState,
-            response: params.response,
-            confirmedAt: now,
+
+    // 2) Senão insere — filtro "rótulo ausente" evita que uma escrita concorrente
+    //    crie duplicata. O upsert cria o documento na primeira confirmação.
+    if (updateExisting.matchedCount === 0) {
+      await CreatorMapConfirmations.updateOne(
+        { userId: userObjectId, "assets.label": { $ne: params.assetLabel } },
+        {
+          $push: {
+            assets: {
+              label: params.assetLabel,
+              state: assetState,
+              response: params.response,
+              confirmedAt: now,
+            },
           },
         },
-        $set: { updatedAt: now },
-      },
-      { upsert: true },
-    );
+        { upsert: true },
+      );
+    }
 
     logUsageEvent(userId, "map_dimension_confirmed", "mapa", { dimension: "asset", platform: "mobile" });
 

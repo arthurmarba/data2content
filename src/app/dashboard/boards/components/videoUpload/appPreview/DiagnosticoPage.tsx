@@ -1041,10 +1041,15 @@ export function MapaCard({
     rawFilteredTerritories.filter((t) => !META_LABEL_PATTERNS.test(t.label))
   );
 
+  // Limiar >= 1 (não >= 2): a narrativa vinda só do onboarding/MapaSeed pesa 1 de
+  // evidência. Com >= 2 o "Isso ressoa com você?" nunca surgia para quem declarou a
+  // narrativa no onboarding (ou conectou IG com amostra insuficiente) — justo a
+  // dimensão mais fundamental falhava para o coorte inicial. Alinha com territórios
+  // e tom (ambos >= 1) e com a lógica de validação surgir conforme o mapa enriquece.
   const shouldAskNarrative =
     narrativeConfirmationState === "pending" &&
     onConfirmNarrative != null &&
-    (leadingNarrative?.evidenceCount ?? 0) >= 2;
+    (leadingNarrative?.evidenceCount ?? 0) >= 1;
 
   const shouldAskTone =
     toneConfirmationState === "pending" &&
