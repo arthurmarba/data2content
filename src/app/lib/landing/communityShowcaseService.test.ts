@@ -58,7 +58,7 @@ describe("communityShowcaseService", () => {
     expect(creators[0]).toEqual(expect.objectContaining({
       name: "Nome público",
       mediaKitSlug: "creator-publico",
-      avatarUrl: "/images/community/avatars/creator-publico.jpg?v=20260713-community-v1",
+      avatarUrl: "/api/mediakit/creator-publico/avatar?v=20260721-community-v2",
       hasAvatarImage: true,
     }));
     expect(creators[1]).toEqual(expect.objectContaining({ name: "Outro creator", rank: 2 }));

@@ -28,7 +28,7 @@ export function buildCommunityCreatorDirectory(users: PublicMediaKitCreator[]): 
       name: user.mediaKitDisplayName?.trim() || user.name?.trim() || user.username?.trim() || "Creator D2C",
       username: user.username?.trim() || null,
       followers: user.followers_count ?? null,
-      avatarUrl: `/images/community/avatars/${encodeURIComponent(slug)}.jpg?v=20260713-community-v1`,
+      avatarUrl: `/api/mediakit/${encodeURIComponent(slug)}/avatar?v=20260721-community-v2`,
       totalInteractions: 0,
       totalReach: 0,
       postCount: 0,

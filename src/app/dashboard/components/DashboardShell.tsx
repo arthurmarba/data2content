@@ -18,7 +18,7 @@ import {
 } from "../context/HeaderContext";
 
 const MOBILE_STRATEGIC_PROFILE_PREVIEW_ROUTE = "/dashboard/boards/mobile-strategic-profile-preview";
-const MOBILE_DASHBOARD_ENTRY_PATHS = new Set(["/", "/dashboard", "/dashboard/home"]);
+const MOBILE_DASHBOARD_ENTRY_PATHS = new Set(["/dashboard", "/dashboard/home"]);
 // A reunião é servida fora do shell do board (rota própria, não a SPA do
 // Perfil), mas já pertence ao mesmo app novo — precisa da mesma chrome
 // legada suprimida (tab bar antiga + widget de ativação), não só o board.

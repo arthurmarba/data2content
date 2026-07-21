@@ -770,8 +770,13 @@ const authOptionsConfig = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: { params: { scope: "openid email profile" } },
       profile(profile) {
-        const profileJsonString = JSON.stringify(profile, null, 2);
-        logger.debug(`[NextAuth Google Profile DEBUG - CONTEÚDO COMPLETO] Profile recebido do Google: ${profileJsonString}`);
+        logger.info("[NextAuth OAuth Profile] Google profile accepted.", {
+          provider: "google",
+          hasName: Boolean(profile.name),
+          hasEmail: Boolean(profile.email),
+          hasImage: Boolean(profile.picture),
+          emailVerified: profile.email_verified === true,
+        });
         const name = profile.name && profile.name.trim() !== "" ? profile.name.trim() : profile.email?.split("@")[0] ?? "User";
         return { id: profile.sub!, name, email: profile.email, image: profile.picture };
       },
@@ -786,7 +791,12 @@ const authOptionsConfig = {
         },
       },
       profile(profile) {
-        logger.debug("NextAuth: Facebook profile returned:", profile);
+        logger.info("[NextAuth OAuth Profile] Facebook profile accepted.", {
+          provider: "facebook",
+          hasName: Boolean(profile.name),
+          hasEmail: Boolean(profile.email),
+          hasImage: Boolean((profile as any).picture?.data?.url),
+        });
         const name = profile.name && profile.name.trim() !== "" ? profile.name.trim() : profile.email?.split("@")[0] ?? "User";
         return { id: profile.id!, name, email: profile.email, image: (profile as any).picture?.data?.url };
       },
@@ -1904,10 +1914,16 @@ const authOptionsConfig = {
         if (process.env.NODE_ENV !== "production") {
           logger.debug(`[NextAuth Redirect Callback] URL solicitada (${requestedUrl.toString()}) é interna. Permitindo.`);
         }
+        logger.info("[NextAuth Redirect Callback] Internal destination resolved.", {
+          destinationPath: requestedUrl.pathname,
+          hasQuery: requestedUrl.search.length > 0,
+        });
         return requestedUrl.toString();
       }
 
-      logger.warn(`[NextAuth Redirect Callback] URL solicitada (${requestedUrl.toString()}) é externa/ inválida. Redirecionando para baseUrl: ${baseUrl}.`);
+      logger.warn("[NextAuth Redirect Callback] External destination rejected.", {
+        destinationOriginMatches: false,
+      });
       return baseUrl;
     },
   },

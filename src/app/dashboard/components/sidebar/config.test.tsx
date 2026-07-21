@@ -1,6 +1,19 @@
 import { buildSidebarSections } from "./config";
+import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
 
 describe("sidebar planning hub item", () => {
+  it("aponta a casinha para a Home autenticada", () => {
+    const sections = buildSidebarSections({
+      hasPremiumAccess: true,
+      planningLocked: false,
+      dashboardMinimal: false,
+      isMobile: false,
+    });
+    const home = sections.flatMap((section) => section.items).find((item) => item.key === "dashboard");
+
+    expect(home).toEqual(expect.objectContaining({ href: MAIN_DASHBOARD_ROUTE }));
+  });
+
   it("inclui o hub de Criação de Post na ordem esperada", () => {
     const sections = buildSidebarSections({
       hasPremiumAccess: true,

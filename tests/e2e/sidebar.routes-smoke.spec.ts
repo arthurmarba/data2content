@@ -38,6 +38,17 @@ async function expectPageHealthy(
 }
 
 test.describe("Sidebar visible routes smoke", () => {
+  test("Home autenticada permanece em /dashboard e a casinha aponta para ela", async ({ page }) => {
+    test.setTimeout(90_000);
+    await expectPageHealthy(page, "Home", "/dashboard", async (currentPage) => {
+      await expect(currentPage).toHaveURL(/\/dashboard(?:\?.*)?$/);
+      const homeLink = currentPage.getByRole("link", { name: "Painel" });
+      await expect(homeLink).toBeVisible({ timeout: 30_000 });
+      await expect(homeLink).toHaveAttribute("href", "/dashboard");
+      await expect(currentPage.getByText("Entrar na comunidade gratuita")).toHaveCount(0);
+    });
+  });
+
   test("Campanhas abre sem erros de runtime", async ({ page }) => {
     test.setTimeout(90_000);
     await expectPageHealthy(page, "Campanhas", "/campaigns", async (currentPage) => {

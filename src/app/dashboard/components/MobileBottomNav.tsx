@@ -15,6 +15,7 @@ import {
   FileText,
 } from "lucide-react";
 import { UserAvatar } from "@/app/components/UserAvatar";
+import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
 import {
   MOBILE_COMMUNITY_ROUTE,
   MOBILE_MEDIA_KIT_ROUTE,
@@ -61,8 +62,8 @@ const legacyNavItems: MobileBottomNavItem[] = [
     key: "home",
     label: "Comunidade",
     icon: UsersRound,
-    href: "/dashboard/home",
-    match: (p: string) => p === "/dashboard/home" || p === "/" || p === "/dashboard",
+    href: MAIN_DASHBOARD_ROUTE,
+    match: (p: string) => p === "/dashboard/home" || p === MAIN_DASHBOARD_ROUTE,
   },
   {
     key: "analysis",

@@ -39,6 +39,7 @@ import {
   PencilSquareIcon as PencilSquareIconSolid,
 } from "@heroicons/react/24/solid";
 import { navigationLabels } from "@/constants/navigationLabels";
+import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
 import type { PaywallContext } from "@/types/paywall";
 import type {
   SidebarBuildOptions,
@@ -104,7 +105,7 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         type: "item",
         key: "dashboard",
         label: "Painel",
-        href: "/",
+        href: MAIN_DASHBOARD_ROUTE,
         icon: ICONS.dashboard,
         exact: true,
       },

@@ -8,7 +8,10 @@ import {
 import { logger } from "@/app/lib/logger";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 5;
+// Cold database starts occasionally exceeded the old 5s platform ceiling before
+// the internal fallback could be serialized. Keep the app-level timeout, but
+// leave enough headroom for a deterministic 200 response.
+export const maxDuration = 10;
 
 const PUBLIC_CACHE_CONTROL =
   "public, max-age=60, s-maxage=600, stale-while-revalidate=3600, stale-if-error=86400";

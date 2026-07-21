@@ -14,7 +14,7 @@ describe("DashboardShell mobile strategic profile routing", () => {
   });
 
   it("identifica as entradas legadas que devem pular para o Perfil Estratégico no mobile", () => {
-    expect(isMobileDashboardEntryRoute("/")).toBe(true);
+    expect(isMobileDashboardEntryRoute("/")).toBe(false);
     expect(isMobileDashboardEntryRoute("/dashboard")).toBe(true);
     expect(isMobileDashboardEntryRoute("/dashboard/home")).toBe(true);
     expect(isMobileDashboardEntryRoute(MOBILE_PROFILE_ROUTE)).toBe(false);
