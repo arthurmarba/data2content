@@ -6,7 +6,7 @@ import { CommunityCreatorProfileImage } from "./CommunityCreatorProfileImage";
 jest.mock("next/image", () => ({
   __esModule: true,
   default: ({ fill: _fill, unoptimized: _unoptimized, ...props }: Record<string, unknown>) =>
-    createElement("img", props),
+    createElement("img", { ...props, "data-unoptimized": String(Boolean(_unoptimized)) }),
 }));
 
 describe("CommunityCreatorProfileImage", () => {
@@ -26,6 +26,7 @@ describe("CommunityCreatorProfileImage", () => {
       "src",
       "/api/mediakit/creator-publico/avatar?v=20260713-community-fallback-v1",
     );
+    expect(image).toHaveAttribute("data-unoptimized", "true");
   });
 
   it("uses the generic profile only when both real image sources fail", () => {

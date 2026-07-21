@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
+import { useState } from "react";
 
 import type { LandingCreatorHighlight } from "@/types/landing";
 import { CommunityCreatorProfileImage } from "./CommunityCreatorProfileImage";
@@ -34,9 +37,9 @@ function CreatorLink({ creator, duplicate = false }: { creator: LandingCreatorHi
 }
 
 export function CommunityCreatorShowcase({ creators }: CommunityCreatorShowcaseProps) {
-  const featuredCreators = creators
-    .filter((creator) => creator.mediaKitSlug)
-    .slice(0, 12);
+  const [expanded, setExpanded] = useState(false);
+  const publicCreators = creators.filter((creator) => creator.mediaKitSlug);
+  const featuredCreators = publicCreators.slice(0, 12);
 
   if (!featuredCreators.length) return null;
 
@@ -59,10 +62,26 @@ export function CommunityCreatorShowcase({ creators }: CommunityCreatorShowcaseP
         {renderRail(featuredCreators)}
       </section>
 
-      <Link className="d2c-community-directory-link" href="/casting">
-        Explorar todos os Media Kits
-        <ExternalLink size={14} aria-hidden="true" />
-      </Link>
+      {publicCreators.length > featuredCreators.length ? (
+        <div className="d2c-community-directory">
+          <button
+            type="button"
+            className="d2c-community-directory__toggle"
+            aria-expanded={expanded}
+            aria-controls="landing-community-media-kits"
+            onClick={() => setExpanded((current) => !current)}
+          >
+            {expanded ? "Ver menos Media Kits" : "Explorar todos os Media Kits"}
+          </button>
+          {expanded ? (
+            <div id="landing-community-media-kits" className="d2c-community-directory__grid">
+              {publicCreators.map((creator) => (
+                <CreatorLink key={`directory-${creator.id}`} creator={creator} />
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </>
   );
 }

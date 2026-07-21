@@ -19,6 +19,7 @@ export function CommunityCreatorProfileImage({ name, mediaKitSlug, src }: Commun
       alt={`Foto de perfil de ${name}`}
       fill
       sizes="128px"
+      unoptimized={currentSrc.startsWith("/api/mediakit/")}
       onError={() => {
         if (currentSrc !== endpointFallback) {
           setCurrentSrc(endpointFallback);

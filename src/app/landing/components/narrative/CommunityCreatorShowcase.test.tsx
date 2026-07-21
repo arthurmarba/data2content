@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 
 import type { LandingCreatorHighlight } from "@/types/landing";
 
@@ -31,11 +31,19 @@ function makeCreator(index: number): LandingCreatorHighlight {
 }
 
 describe("CommunityCreatorShowcase", () => {
-  it("renders a bounded featured sample and links to the complete directory", () => {
+  it("expands every Media Kit inline without navigating away from the landing page", () => {
     render(<CommunityCreatorShowcase creators={Array.from({ length: 30 }, (_, index) => makeCreator(index + 1))} />);
 
-    expect(screen.getAllByRole("link", { name: /Abrir o Media Kit de/ })).toHaveLength(12);
-    expect(screen.getByRole("link", { name: /Explorar todos os Media Kits/ })).toHaveAttribute("href", "/casting");
-    expect(screen.queryByText("Creator 13")).not.toBeInTheDocument();
+    const featuredRail = screen.getByRole("region", { name: "Creators ativos da comunidade D2C" });
+    expect(within(featuredRail).getAllByRole("link", { name: /Abrir o Media Kit de/ })).toHaveLength(12);
+    expect(screen.queryByRole("link", { name: "Abrir o Media Kit de Creator 13" })).not.toBeInTheDocument();
+
+    const toggle = screen.getByRole("button", { name: "Explorar todos os Media Kits" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(toggle);
+
+    expect(screen.getByRole("button", { name: "Ver menos Media Kits" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getAllByRole("link", { name: /Abrir o Media Kit de/ })).toHaveLength(42);
+    expect(screen.getByRole("link", { name: "Abrir o Media Kit de Creator 13" })).toBeVisible();
   });
 });
