@@ -9,9 +9,9 @@ import { Brand } from "./Brand";
 import { LandingAuthCta } from "./LandingAuthCta";
 
 const NAV_LINKS = [
-  { href: "#como-funciona", label: "Match" },
   { href: "#reuniao-semanal", label: "Reunião semanal" },
-  { href: "#comunidade", label: "Comunidade" },
+  { href: "#quem-conduz", label: "Quem analisa" },
+  { href: "#planos", label: "Plano Pro" },
 ] as const;
 
 export function NarrativeHeader() {
@@ -25,8 +25,7 @@ export function NarrativeHeader() {
           {NAV_LINKS.map((item) => <a href={item.href} key={item.href}>{item.label}</a>)}
         </nav>
         <div className="d2c-landing-header__actions">
-          <LandingAuthCta className="d2c-link-button" guestLabel="Entrar" authenticatedLabel="Acessar consultoria" trackingLocation="header" />
-          <LandingAuthCta className="d2c-button d2c-button--small" guestLabel="Começar grátis" authenticatedLabel="Acessar consultoria" trackingLocation="header" />
+          <LandingAuthCta className="d2c-button d2c-button--small" guestLabel="Assistir grátis" authenticatedLabel="Acessar a D2C" trackingLocation="header" />
         </div>
         <button
           className="d2c-menu-button"
@@ -60,7 +59,9 @@ export function NarrativeHeader() {
               </nav>
               <LandingAuthCta
                 className="d2c-mobile-menu__cta"
-                guestLabel="Descobrir minha narrativa"
+                guestLabel="Assistir à próxima reunião"
+                authenticatedLabel="Acessar a D2C"
+               
                 trackingLocation="mobile-menu"
                 onNavigate={() => setMenuOpen(false)}
               />

@@ -296,7 +296,7 @@ function pruneSessionRevalidationCache(nowTs: number) {
   }
 }
 
-function buildTermsConsentRequiredRedirect(cookieStore: ReturnType<typeof cookies>) {
+function buildTermsConsentRequiredRedirect(cookieStore: Awaited<ReturnType<typeof cookies>>) {
   const callbackUrl = cookieStore.get(buildAuthCookieName("callback-url", "__Secure-"))?.value;
 
   if (!callbackUrl) {
@@ -329,7 +329,7 @@ function applyRecordedLegalAcceptance(userRecord: IUser, acceptedAt: Date) {
   return changed;
 }
 
-async function resolveSessionUserIdFromCookie(cookieStore: ReturnType<typeof cookies>) {
+async function resolveSessionUserIdFromCookie(cookieStore: Awaited<ReturnType<typeof cookies>>) {
   try {
     const sessionCookieName = process.env.NODE_ENV === 'production'
       ? '__Secure-next-auth.session-token'
@@ -908,7 +908,7 @@ const authOptionsConfig = {
         await connectToDatabase();
         let dbUserRecord: IUser | null = null;
         let isNewUser = false;
-        const cookieStore = cookies();
+        const cookieStore = await cookies();
 
         if (provider === "facebook") {
           const linkTokenFromCookie = cookieStore.get(FACEBOOK_LINK_COOKIE_NAME)?.value;
@@ -941,7 +941,7 @@ const authOptionsConfig = {
                 dbUserRecord.instagramSyncErrorCode = IG_RECONNECT_ERROR_CODES.FACEBOOK_ALREADY_LINKED;
                 dbUserRecord.instagramSyncErrorMsg = "Esta conta do Facebook já está vinculada a outro usuário.";
                 await dbUserRecord.save();
-                cookies().delete(FACEBOOK_LINK_COOKIE_NAME);
+                cookieStore.delete(FACEBOOK_LINK_COOKIE_NAME);
                 return "/dashboard/instagram/connect?error=FacebookAlreadyLinked";
               }
               dbUserRecord.facebookProviderAccountId = providerAccountId;
@@ -1012,12 +1012,12 @@ const authOptionsConfig = {
                 }
               }
               await dbUserRecord.save();
-              cookies().delete(FACEBOOK_LINK_COOKIE_NAME);
+              cookieStore.delete(FACEBOOK_LINK_COOKIE_NAME);
               logger.info(`${TAG_SIGNIN} [Facebook] Vinculação/IG processadas para ${dbUserRecord._id}. flowId=${reconnectFlowId}`);
               logger.info(`${TAG_SIGNIN} telemetry ig_oauth_callback_ok userId=${dbUserRecord._id} flowId=${reconnectFlowId} reconnectState=${dbUserRecord.instagramReconnectState ?? "idle"}`);
             } else {
               logger.warn(`${TAG_SIGNIN} [Facebook] linkToken '${FACEBOOK_LINK_COOKIE_NAME}' inválido/expirado. Vinculação falhou. flowId=${reconnectFlowIdFromCookie ?? "none"}`);
-              cookies().delete(FACEBOOK_LINK_COOKIE_NAME);
+              cookieStore.delete(FACEBOOK_LINK_COOKIE_NAME);
               return "/dashboard/instagram/connect?error=FacebookLinkFailed";
             }
           } else {
@@ -1139,7 +1139,7 @@ const authOptionsConfig = {
             }
 
             await dbUserRecord.save();
-            cookies().delete(FACEBOOK_LINK_COOKIE_NAME);
+            cookieStore.delete(FACEBOOK_LINK_COOKIE_NAME);
             logger.info(`${TAG_SIGNIN} [Facebook] Vinculação/IG processadas via sessão ativa para ${dbUserRecord._id}. flowId=${reconnectFlowId}`);
             logger.info(`${TAG_SIGNIN} telemetry ig_oauth_callback_ok userId=${dbUserRecord._id} flowId=${reconnectFlowId} reconnectState=${dbUserRecord.instagramReconnectState ?? "idle"}`);
           }
@@ -1275,10 +1275,13 @@ const authOptionsConfig = {
 
         if (dbUserRecord) {
           try {
-            const ref = cookieStore.get("d2c_ref")?.value;
+            const ref = cookieStore.get("d2c_ref")?.value?.trim().toUpperCase();
             if (ref && !dbUserRecord.affiliateUsed) {
               if (!dbUserRecord.affiliateCode || dbUserRecord.affiliateCode !== ref) {
-                const refUser = await DbUser.findOne({ affiliateCode: ref });
+                const refUser = await DbUser.findOne({
+                  affiliateCode: ref,
+                  $or: [{ affiliateStatus: "active" }, { affiliateStatus: null }],
+                });
                 if (refUser && String(refUser._id) !== String(dbUserRecord._id)) {
                   dbUserRecord.affiliateUsed = ref;
                   await dbUserRecord.save();

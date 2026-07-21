@@ -1,5 +1,4 @@
 /** @jest-environment node */
-import "next/dist/server/node-polyfill-fetch";
 import fs from "fs";
 import path from "path";
 import { NextRequest } from "next/server";

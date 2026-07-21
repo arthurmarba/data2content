@@ -1,0 +1,2371 @@
+{
+  "reuniao": {
+    "data": "2026-07-16",
+    "titulo": "Reunião de 16/07",
+    "participantes": [
+      "@aamandamag",
+      "@amandamol_",
+      "@blununees",
+      "@riocomerebeber",
+      "@caamilabarross",
+      "@deborabroch",
+      "@edgarkumagai",
+      "@isafandrade",
+      "@locoutiinho",
+      "@lorenadmarchetti",
+      "@marinaduttra_",
+      "@casadetais"
+    ]
+  },
+  "criadores": [
+    {
+      "userId": "69c2632117a1957aa63a18f0",
+      "nome": "Amanda Magalhaes",
+      "handle": "@aamandamag",
+      "profilePictureUrl": "data:image/jpeg;base64,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",
+      "narrativaCentral": "Um atleta que encontra equilíbrio e humor na jornada de bem-estar",
+      "territorios": [
+        "Corrida e treino",
+        "Bem-estar físico",
+        "Gastronomia saudável",
+        "Vida com cães",
+        "Viagens e descobertas",
+        "Humor e opiniões"
+      ],
+      "semanas": [
+        {
+          "semanaFim": "2026-06-11",
+          "seguidores": 27318,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 2445,
+          "composicao": {
+            "curtidas": 4763,
+            "comentarios": 216,
+            "salvos": 312,
+            "compartilhamentos": 2133
+          },
+          "interacoes": 7424,
+          "alcance": 94942,
+          "taxaParticipacao": 0.07819510859261444,
+          "viewsMedioPorPost": 9220.6,
+          "posts": 15,
+          "topPost": {
+            "postId": "18081239813539699",
+            "thumbnailUrl": "https://scontent-iad3-1.cdninstagram.com/v/t51.82787-15/720283141_18005196995930274_4565106076716918674_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=101&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=LUmqj12VD0wQ7kNvwFObJQD&_nc_oc=AdpGB_Ro5vTkCPzr18jfjXhteC7dMq0NcJc1FCyw6MuCtjnxoCRAqhc0xe7nCOEJSZ4&_nc_zt=23&_nc_ht=scontent-iad3-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=m5JOy_T8I4Gjo-zws7dMog&_nc_tpa=Q5bMBQFqO2Sbx36dPEhCvvYZPt4vwG75hRAlQ40HOfrrTx7X697sx9ONScZ73cXQ3veR1gPN9Z1vAYdqlw&oh=00_AQCcB5qpCvnpL2ivH07hxjVg0pW0VDQrZDr-GCE1JmCZRw&oe=6A5EA135",
+            "description": "Verdades sejam ditas 😂\n\nAhahhahahaha juro galera. Mas vale muito!!! Amei o dia de hoje \n\n#naturaltech #humor",
+            "proposal": [],
+            "context": [],
+            "tone": [],
+            "saved": 102,
+            "shares": 1885
+          }
+        },
+        {
+          "semanaFim": "2026-06-18",
+          "seguidores": 29589,
+          "seguidoresDelta": 2271,
+          "seguidoresGanho": 2271,
+          "seguidoresPerda": 0,
+          "engajamento": 177,
+          "composicao": {
+            "curtidas": 1558,
+            "comentarios": 102,
+            "salvos": 99,
+            "compartilhamentos": 78
+          },
+          "interacoes": 1837,
+          "alcance": 50541,
+          "taxaParticipacao": 0.03634672839872579,
+          "viewsMedioPorPost": 3352.190476190476,
+          "posts": 21,
+          "topPost": {
+            "postId": "17867645361686654",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/724092493_18005457470930274_750944504103354368_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=107&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=14UTRCBZy18Q7kNvwHakRsH&_nc_oc=AdqHua3XbiMDxDcp8lM3_MRDVbzVapP-kZIIPVSOqGZ-98B-cKBCzErCt4KGdGPYMRo&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=m5JOy_T8I4Gjo-zws7dMog&_nc_tpa=Q5bMBQGY9sUwFIfiyYNCDsyNcZlqSiw4NE6bZwcOMJVkgNaUFnj1-jjeOMIVYPNaugnsGFOKlvINA9h7bA&oh=00_AQA8juYtl_UDYPwGPgexUBYNnTDBQ7FJesCyhPLepAgtZQ&oe=6A5EA5AA",
+            "description": "E começamos a temporada de vídeos no Chile 🇨🇱 \nFica a dica- fácil, rápido e gostoso.\n\nO nome do lugar é Fork. Tem muitas unidades!\n\n#chile #viagem #comida",
+            "proposal": [
+              "tips"
+            ],
+            "context": [
+              "food_culinary"
+            ],
+            "tone": [
+              "neutral"
+            ],
+            "saved": 18,
+            "shares": 14
+          }
+        },
+        {
+          "semanaFim": "2026-06-25",
+          "seguidores": 29951,
+          "seguidoresDelta": 362,
+          "seguidoresGanho": 362,
+          "seguidoresPerda": 0,
+          "engajamento": 507,
+          "composicao": {
+            "curtidas": 2521,
+            "comentarios": 150,
+            "salvos": 260,
+            "compartilhamentos": 247
+          },
+          "interacoes": 3178,
+          "alcance": 73863,
+          "taxaParticipacao": 0.043025601451335584,
+          "viewsMedioPorPost": 4922,
+          "posts": 23,
+          "topPost": {
+            "postId": "18069341225702126",
+            "thumbnailUrl": "https://scontent-iad3-1.cdninstagram.com/v/t51.82787-15/730120488_18007130180930274_6700648168092655916_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=104&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=xl7aE4B2rDsQ7kNvwGgDVUj&_nc_oc=AdqyOPb80_KY_QxHggj3pKsrHnB_RjcRmDjQAd8i26XyJeZ-8_3F8yJrL7E72hqjrJs&_nc_zt=23&_nc_ht=scontent-iad3-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=bYz-2VAL_DogebHQVPc9Rw&_nc_tpa=Q5bMBQGZYGeXMgmZcxtLpY5FvhblNt2hD3itZ52eyAkeDa3i5H29f3wh62-JqmlCvfo6_WbMPSmW-Hb60A&oh=00_AQCvp-maAECpKEzgu5SFmHtSjuoiMdUVyTAqeGEitXXtAQ&oe=6A5E9DAA",
+            "description": "Entre esses vídeos não existe uma transformação de meses. Existem apenas alguns dias.\n\nE é exatamente por isso que a compulsão alimentar mexe tanto com a nossa cabeça.\n\nTem semanas em que eu me sinto seca, definida, confiante. E tem semanas em que eu me sinto inchada, desconfortável e não me reconheço no espelho. Quando você vive nesse ciclo, é muito difícil não desenvolver uma relação confusa com",
+            "proposal": [
+              "message_motivational"
+            ],
+            "context": [
+              "health_wellness"
+            ],
+            "tone": [
+              "inspirational"
+            ],
+            "saved": 103,
+            "shares": 148
+          }
+        },
+        {
+          "semanaFim": "2026-07-02",
+          "seguidores": 30224,
+          "seguidoresDelta": 273,
+          "seguidoresGanho": 273,
+          "seguidoresPerda": 0,
+          "engajamento": 410,
+          "composicao": {
+            "curtidas": 2022,
+            "comentarios": 30,
+            "salvos": 166,
+            "compartilhamentos": 244
+          },
+          "interacoes": 2462,
+          "alcance": 30541,
+          "taxaParticipacao": 0.0806129465308929,
+          "viewsMedioPorPost": 6465.857142857143,
+          "posts": 7,
+          "topPost": {
+            "postId": "18598858510036832",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/731588867_18008231276930274_5984234330679444330_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=106&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=8Tpmje49w4UQ7kNvwGQ6fVA&_nc_oc=AdpjChbcLtfGYuj3lf74vztOCS_qZfti31B3rQ1id_o-wESLnmbXQVJSvAcf8yWS6Ak&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=d70u5-6qYG5Xt_olBJIieg&_nc_tpa=Q5bMBQFCOd6P2aV3C7M7MB7MlybdbHrS7yYx7u58o8TgOEV3DywUG3qyoqZUyoSjE-n8EGW6FjqlMIb1ww&oh=00_AQDiup_VtH50UULNO-bQJhu3G6e8AgiIhwTF6LJC-1F-vA&oe=6A5EA9F1",
+            "description": "No meu dia mais fraco kakaka",
+            "proposal": [],
+            "context": [],
+            "tone": [
+              "humorous"
+            ],
+            "saved": 131,
+            "shares": 208
+          }
+        },
+        {
+          "semanaFim": "2026-07-09",
+          "seguidores": 30439,
+          "seguidoresDelta": 215,
+          "seguidoresGanho": 215,
+          "seguidoresPerda": 0,
+          "engajamento": 298,
+          "composicao": {
+            "curtidas": 1061,
+            "comentarios": 36,
+            "salvos": 78,
+            "compartilhamentos": 220
+          },
+          "interacoes": 1395,
+          "alcance": 31108,
+          "taxaParticipacao": 0.044843770091294845,
+          "viewsMedioPorPost": 3816.153846153846,
+          "posts": 13,
+          "topPost": {
+            "postId": "18130114723721673",
+            "thumbnailUrl": "https://scontent-iad3-2.cdninstagram.com/v/t51.82787-15/734705862_18009212393930274_3479244400716240617_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=111&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=AlCNmNAdmWMQ7kNvwHmHKWz&_nc_oc=AdrMSt_dJF5C8bU3s_BQRzF1UZ3eNCX5AaZUVy09AdN6qgIOnThFH40yQndw-cxXjxU&_nc_zt=23&_nc_ht=scontent-iad3-2.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=h45HvTZUCz_GIctIf79uAA&_nc_tpa=Q5bMBQGSA8jOE_Eu9-bsUvKHVDhS6_wDC0cDCYE5_dKqsXSzqWhs-CNX93fpjaWQ58PNmisWiRN7opnZpQ&oh=00_AQB9DDuTioXAOqrJUOqcz6aRAR1z_SB_0CLduq8yCrMHXw&oe=6A5E8AAF",
+            "description": "Desse jeito 🍫 hahahaha\n\n#meme #humor #treino #dieta",
+            "proposal": [],
+            "context": [],
+            "tone": [
+              "humorous"
+            ],
+            "saved": 55,
+            "shares": 171
+          }
+        },
+        {
+          "semanaFim": "2026-07-16",
+          "seguidores": 30809,
+          "seguidoresDelta": 370,
+          "seguidoresGanho": 370,
+          "seguidoresPerda": 0,
+          "engajamento": 1607,
+          "composicao": {
+            "curtidas": 13346,
+            "comentarios": 195,
+            "salvos": 609,
+            "compartilhamentos": 998
+          },
+          "interacoes": 15148,
+          "alcance": 181032,
+          "taxaParticipacao": 0.08367581422069026,
+          "viewsMedioPorPost": 16110.357142857143,
+          "posts": 14,
+          "topPost": {
+            "postId": "17981463008866910",
+            "thumbnailUrl": "https://scontent-iad3-1.cdninstagram.com/v/t51.82787-15/743951519_18009923957930274_6465149956104232296_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=108&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=kJf3ykU363wQ7kNvwGZ5vJT&_nc_oc=AdqiBB3ojf7Ruu-kS3-5OY0vTZlssRtn1hJK3ygIWlyYu2Xe3rmTNdbvSGnYOek78wY&_nc_zt=23&_nc_ht=scontent-iad3-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=h45HvTZUCz_GIctIf79uAA&_nc_tpa=Q5bMBQHAVWNdbMV4BYuAGdCG7c-1t6O7-SjAAAKQuWn8nBA8_22dlJNRz-CdXCS0goyMmBGVrXj1tvgGcw&oh=00_AQATkdkYz_ma6-c2jY8DT0o7s2ZA0EDqhkX4HKbuFa7VEQ&oe=6A5E9D18",
+            "description": "Por mais provas assim 🤌🏼🤌🏼🤌🏼\n\nObrigada pelo convite! @goyamovimenta @goyaoficial_ ❤️\n\n#corrida #run #unboxing #kitcorrida",
+            "proposal": [],
+            "context": [
+              "lifestyle_and_wellbeing"
+            ],
+            "tone": [
+              "neutral"
+            ],
+            "saved": 450,
+            "shares": 927
+          }
+        }
+      ],
+      "leituraCruzada": "raso",
+      "coerencia": null,
+      "pontoForte": null,
+      "pontoAjustar": null,
+      "audienciaPede": null,
+      "comparativo": null,
+      "proximosPassos": null,
+      "ganchoMarca": null
+    },
+    {
+      "userId": "6a5911b15a02ebe18d207a80",
+      "nome": "Amanda Mol",
+      "handle": "@amandamol_",
+      "profilePictureUrl": "data:image/jpeg;base64,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",
+      "narrativaCentral": "troco experiências reais sobre maternidade e relacionamento",
+      "territorios": [
+        "maternidade",
+        "relacionamento",
+        "educação de filhos",
+        "sono infantil",
+        "autocuidado materno",
+        "relações familiares"
+      ],
+      "semanas": [
+        {
+          "semanaFim": "2026-06-11",
+          "seguidores": null,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        },
+        {
+          "semanaFim": "2026-06-18",
+          "seguidores": null,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        },
+        {
+          "semanaFim": "2026-06-25",
+          "seguidores": null,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        },
+        {
+          "semanaFim": "2026-07-02",
+          "seguidores": null,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        },
+        {
+          "semanaFim": "2026-07-09",
+          "seguidores": null,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        },
+        {
+          "semanaFim": "2026-07-16",
+          "seguidores": 9134,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 92,
+            "comentarios": 14,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 106,
+          "alcance": 494,
+          "taxaParticipacao": 0.2145748987854251,
+          "viewsMedioPorPost": 1103,
+          "posts": 1,
+          "topPost": {
+            "postId": "18402920242085002",
+            "thumbnailUrl": "https://scontent-iad3-1.cdninstagram.com/v/t51.82787-15/747625361_18459971497118054_764070050012752168_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=104&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiRkVFRC5iZXN0X2ltYWdlX3VybGdlbi5DMyJ9&_nc_ohc=XrDWA7rX2i4Q7kNvwEVyNVg&_nc_oc=Adoi-s3KcMRMpyDiGzhtvpDo9VL4q8CUEwniU7hLpowHYFJ577N0Mp2tgnfZLE10Q6w&_nc_zt=23&_nc_ht=scontent-iad3-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=lsU5H92god1lj-PhgJ2-vw&oh=00_AQCnPpw57J1oaN4p5Mf2_T8WicJNJk5RkMkVeHkwxlvVSA&oe=6A5F1121",
+            "description": "Existe a janela de ouro?\n\nNão sei. Mas hoje pensei sobre. Que foda sentar e tomar uma cerveja com meu pai. Tendo sido convidada. Falar sobre momentos complexos da nossa vida e rindo.\nQue incrível é a vida e poder viver.\n\nE, ao mesmo tempo que vivo meus pais, crio meus filhos. Tenho conversas difíceis e entendo que falhei em algum ponto. Mas os vejo sendo crianças, crescendo com saúde.\n\nQuanto priv",
+            "proposal": [
+              "message_motivational"
+            ],
+            "context": [
+              "personal_and_professional"
+            ],
+            "tone": [
+              "inspirational"
+            ],
+            "saved": 0,
+            "shares": 0
+          }
+        }
+      ],
+      "leituraCruzada": "dados-insuficientes",
+      "coerencia": null,
+      "pontoForte": null,
+      "pontoAjustar": null,
+      "audienciaPede": null,
+      "comparativo": null,
+      "proximosPassos": null,
+      "ganchoMarca": null
+    },
+    {
+      "userId": "68d19d9b2af62c86355d3b41",
+      "nome": "Blu Nunes",
+      "handle": "@blununees",
+      "profilePictureUrl": "https://scontent-iad3-2.xx.fbcdn.net/v/t51.82787-15/671233424_17972273928040282_1812120620803753549_n.jpg?_nc_cat=105&ccb=1-7&_nc_sid=7d201b&_nc_ohc=q3iRwgVQ1pcQ7kNvwG3bXov&_nc_oc=Ado5RK_qQ9BvjkzRH5ZYdtH9Fn051TbfdFObAWRIIJdUVIv4AD_FtDrn4beRF1sNCRU&_nc_zt=23&_nc_ht=scontent-iad3-2.xx&edm=AL-3X8kEAAAA&_nc_gid=IBH9iegjOBogD6jakvg1uQ&oh=00_Af8nNyVnOyO0O9EtPknQsNiYNyCaPkidoWPHm6Qf3Spj5w&oe=6A484473",
+      "narrativaCentral": "Uma mãe real que encontra beleza e humor na rotina",
+      "territorios": [
+        "Maternidade",
+        "Beleza",
+        "Autocuidado",
+        "Cuidados capilares",
+        "Vida familiar",
+        "Bem-estar feminino"
+      ],
+      "semanas": [
+        {
+          "semanaFim": "2026-06-11",
+          "seguidores": 7342,
+          "seguidoresDelta": null,
+          "seguidoresGanho": 0,
+          "seguidoresPerda": 12,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        },
+        {
+          "semanaFim": "2026-06-18",
+          "seguidores": 7326,
+          "seguidoresDelta": -16,
+          "seguidoresGanho": 2,
+          "seguidoresPerda": 18,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        },
+        {
+          "semanaFim": "2026-06-25",
+          "seguidores": 7312,
+          "seguidoresDelta": -14,
+          "seguidoresGanho": 0,
+          "seguidoresPerda": 14,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        },
+        {
+          "semanaFim": "2026-07-02",
+          "seguidores": 7300,
+          "seguidoresDelta": -12,
+          "seguidoresGanho": 0,
+          "seguidoresPerda": 12,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        },
+        {
+          "semanaFim": "2026-07-09",
+          "seguidores": 7300,
+          "seguidoresDelta": 0,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        },
+        {
+          "semanaFim": "2026-07-16",
+          "seguidores": 7300,
+          "seguidoresDelta": 0,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        }
+      ],
+      "leituraCruzada": "dados-insuficientes",
+      "coerencia": null,
+      "pontoForte": null,
+      "pontoAjustar": null,
+      "audienciaPede": null,
+      "comparativo": null,
+      "proximosPassos": null,
+      "ganchoMarca": null
+    },
+    {
+      "userId": "694893d307e8facbc8215d54",
+      "nome": "Bruna Ramos",
+      "handle": "@riocomerebeber",
+      "profilePictureUrl": "https://scontent-iad6-1.xx.fbcdn.net/v/t51.2885-15/337438128_904479607548411_1616629952908094276_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=7d201b&_nc_ohc=aft5CFBWDgsQ7kNvwELCdNx&_nc_oc=Adqy_EG6Paa-oQhZVPtMuvNlg02ZJi89HJj9NeET1TIayOlHssl_cm10qDfLB7o_-FM&_nc_zt=23&_nc_ht=scontent-iad6-1.xx&edm=AL-3X8kEAAAA&oh=00_Af53yKJQytbROyilgsLkNr8lcn9I-aOOe6kbQaBw7RtxSg&oe=6A194261",
+      "narrativaCentral": "",
+      "territorios": [],
+      "semanas": [
+        {
+          "semanaFim": "2026-06-11",
+          "seguidores": 45853,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        },
+        {
+          "semanaFim": "2026-06-18",
+          "seguidores": 45853,
+          "seguidoresDelta": 0,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        },
+        {
+          "semanaFim": "2026-06-25",
+          "seguidores": 45853,
+          "seguidoresDelta": 0,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        },
+        {
+          "semanaFim": "2026-07-02",
+          "seguidores": 45853,
+          "seguidoresDelta": 0,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        },
+        {
+          "semanaFim": "2026-07-09",
+          "seguidores": 45853,
+          "seguidoresDelta": 0,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        },
+        {
+          "semanaFim": "2026-07-16",
+          "seguidores": 45853,
+          "seguidoresDelta": 0,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        }
+      ],
+      "leituraCruzada": "dados-insuficientes",
+      "coerencia": null,
+      "pontoForte": null,
+      "pontoAjustar": null,
+      "audienciaPede": null,
+      "comparativo": null,
+      "proximosPassos": null,
+      "ganchoMarca": null
+    },
+    {
+      "userId": "6928cf74e051d63c89424e51",
+      "nome": "Camila Barros",
+      "handle": "@caamilabarross",
+      "profilePictureUrl": "https://scontent-iad6-1.xx.fbcdn.net/v/t51.82787-15/657159361_18585086182016001_588531311037843852_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=7d201b&_nc_ohc=rN9wbctOYHwQ7kNvwHKL1k6&_nc_oc=Adqb-fjgvcYBYEGqJigi8ZdfrGOFyQucELxbQj-CJtyPoD0X0Yh-rFRcmRr1tobR-jg&_nc_zt=23&_nc_ht=scontent-iad6-1.xx&edm=AL-3X8kEAAAA&_nc_gid=8oKVtjZEZiCS5vTDB-phrw&oh=00_Af-VjumfVRT6rOd9s3r9f3mci_uQRd15rfv4q9UPM9qWKw&oe=6A2FA419",
+      "narrativaCentral": "sou fisioterapeuta e mostro o movimento na minha rotina",
+      "territorios": [
+        "fisioterapia",
+        "movimento",
+        "rotina"
+      ],
+      "semanas": [
+        {
+          "semanaFim": "2026-06-11",
+          "seguidores": 57614,
+          "seguidoresDelta": null,
+          "seguidoresGanho": 0,
+          "seguidoresPerda": 66,
+          "engajamento": 28,
+          "composicao": {
+            "curtidas": 240,
+            "comentarios": 34,
+            "salvos": 7,
+            "compartilhamentos": 21
+          },
+          "interacoes": 302,
+          "alcance": 3552,
+          "taxaParticipacao": 0.08502252252252253,
+          "viewsMedioPorPost": 2776,
+          "posts": 2,
+          "topPost": {
+            "postId": "18375500923160977",
+            "thumbnailUrl": "https://scontent-iad3-2.cdninstagram.com/v/t51.71878-15/718726508_2426688184500879_8275832297311536138_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=105&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=6befUclHd5EQ7kNvwFEppOy&_nc_oc=Adpa3ZVX4yUd0i20zlp2yHlE5uBeROC0BSfzUjK4sBeuOsy3-p5mrou4CnKoXUSVT74&_nc_zt=23&_nc_ht=scontent-iad3-2.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=VUqgUYQzn24-rLynGve8Jg&_nc_tpa=Q5bMBQHOD8ZLh28yvJKnyGQz8zzVBY_8HdeLfSOe26DFaU32bPf_3rsXADukyuZvWr-4d3A8WeMuSPxfAg&oh=00_Af_Y44zuPjFjRu9mDYfu8_cHVy-17BxrHQ8_YHwWwlEk3g&oe=6A2FA24A",
+            "description": "Já perceberam isso?😌",
+            "proposal": [],
+            "context": [],
+            "tone": [],
+            "saved": 4,
+            "shares": 21
+          }
+        },
+        {
+          "semanaFim": "2026-06-18",
+          "seguidores": 57614,
+          "seguidoresDelta": 0,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        },
+        {
+          "semanaFim": "2026-06-25",
+          "seguidores": 57614,
+          "seguidoresDelta": 0,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        },
+        {
+          "semanaFim": "2026-07-02",
+          "seguidores": 57614,
+          "seguidoresDelta": 0,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        },
+        {
+          "semanaFim": "2026-07-09",
+          "seguidores": 57614,
+          "seguidoresDelta": 0,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        },
+        {
+          "semanaFim": "2026-07-16",
+          "seguidores": 57614,
+          "seguidoresDelta": 0,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 0,
+          "composicao": {
+            "curtidas": 0,
+            "comentarios": 0,
+            "salvos": 0,
+            "compartilhamentos": 0
+          },
+          "interacoes": 0,
+          "alcance": 0,
+          "taxaParticipacao": null,
+          "viewsMedioPorPost": null,
+          "posts": 0,
+          "topPost": null
+        }
+      ],
+      "leituraCruzada": "dados-insuficientes",
+      "coerencia": null,
+      "pontoForte": null,
+      "pontoAjustar": null,
+      "audienciaPede": null,
+      "comparativo": null,
+      "proximosPassos": null,
+      "ganchoMarca": null
+    },
+    {
+      "userId": "6928a987b1fcb2d066847fe8",
+      "nome": "Débora Broch Machado",
+      "handle": "@deborabroch",
+      "profilePictureUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAcFBQYFBAcGBgYIBwcICxILCwoKCxYPEA0SGhYbGhkWGRgcICgiHB4mHhgZIzAkJiorLS4tGyIyNTEsNSgsLSz/2wBDAQcICAsJCxULCxUsHRkdLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCz/wAARCACgAKADASIAAhEBAxEB/8QAHAAAAgMBAQEBAAAAAAAAAAAABQYDBAcCAQAI/8QAPRAAAgEDAgQEAwUGBAcBAAAAAQIDAAQRBSEGEjFBEyJRYXGBkQcUMqGxFSNCwdHwUmKy4RYkJTOCovGS/8QAGgEAAgMBAQAAAAAAAAAAAAAABAUBAgMGAP/EACsRAAICAQQBBAEEAgMAAAAAAAECAAMRBBIhMUEFIlFhcRMjMoEUJELB0f/aAAwDAQACEQMRAD8A0PVI7KV1jkUZY7EdaW9QjFhfBIRzo/lG2SMgjb3o/wAW2Yg1hZYdkdc7etAmje4dcEhg3MD16b0+2f6xbPGDFRb94DHmWYjcWBeFowoO433AzsatWurynTZbWXLwyq6Mvsc5/WhVtdy3iOWidPAVYiDvjGcflUls645CwzkjBNTp0rahS8ra7raQsWriza90hohIc2kLSFQPxENgflk0x6DonDN9oQuXjuPGWBVISZgRJ0bPbFUYlWOxljVhzSAlj6jp/Kj5trWzvL7Tbd5EeEK+FxzOOXI/WuccfccIfkSlpfBMckc091c3EK5/5dElOVX1JoVPo0lrcQML2480hiyTkqCP50Q1ZvDgj/51WAQeTByDQmzkjinFxNdhZFbAjbfyjq1UQHksZdivAWXbC1mW2Um7kYE/gwKLXWlQJw1eSvGsdw00axyEYbAB2JPQUhcT/aTDpfNbaZyXU6EgSFcIPftvWb6lr+t8QufvN1NKmciNSQgPrgbZ96LtdWVEXod8mD11sGZj56mpycX6Npt8niXqRhByg+JzMhG+cLk9apN9oejeI/Jd+IuSRzQsv9azCPRb11yEK/Guzod4g3TI/wAtTTqWozsPctZphb/ITYdO1yy1SIPaSI6MeXA6r8aJndzjGR3rFtMmudIm8VGZSCMjpTNafaI7XWLqDw4GO/hnOKb0eoqRizuLrdEwPsmljGRj0FfPKDsDlh2G9UrSWK+tY54pzJE6ggqcgiraful5QBjtimw94yIuPtOJ3Hnq+4Pb0qGclVbkPKfapA4OzGoZAfDapCyCZYfU7iS08CVy6jpml6yb95c+njP/AKmoxy5oLZAkXB9Zn/1tQGsUDbj5/wCoVpmJ3ZjzqjTG5ZJJjMqnZjVGO6S1/eucKnU5xt0qRpWcksc59aqywxyROkv/AGyPNvjbv1rdq/2WU/ExWz9wH7nMeEumaOZGivEjkAU4K8wIz8iKXbW61a2W4kvYg6FlVGhKncnAyT3xuRRnSr8wPBaR2drJbMuPGwWbl5iB39f1r03thdiNlgQKx8QPJblCAO4bJ77VzGQKwI87eLbahLJrXJAGK4KlfhsT/OmTii/bS+OfvYG5ht35iNiDGMjPyqDh7TVutTvI/HtxJb8yxeFuOXkYn/7UvGjXj6raRxHmt5rG1ldWUHDKuxG/tg+1VKjI+xJDdwVxRKLe/tbq2ZvuN7Ezoec4yfxKR86z/XtfMjiC08rKgQsNs49aYOOeJpRCbMcp+8P44UAAJkbkAdAew/rQbhbhd71DfXoKwjzKD39z7ViTgc9QitcnjuBdN0KS8kEswPIfXvTTBp8NvGFWNRj0FT3upWlp5RDNydA/hkD8690+8ttQ3ilBI6qdmHyrJmJhiIo4ncNoHYDlGKvNpHPHlFonp1okibDei62/gRgFeYegFCNZzDlq4mdajpQZHHLhgPSka+ieznYY3963e+0ESwNIvpWbcUaGQrnk3X2oim3MCvp8id/Z5r4trxdMnP8Ay10cwkn8Endc+h/WtPEYPRmwexr8+2jNFFKoJV4WEiEdQQd63XhvU01vQYL0EeKw5ZB6ONm/kfnXU+mX5BqP9TmdfTg7xL/IB3riRB4bbVY5MDOABXMigo3bbpTnMVyADp8qFaXC00cnKpJMjf62o4keQvyrzh0fc+FbnUjhUScpzHqSWbAFK/UXChTD9Gu4sJYB7EEGvXQOjL2YEVJyMPQ18FGc8pFMDjqLw0UtBaya7jN4JPusbsgCsVMY5xk7dcdaMalqcd1HbrY3UtraQhYLdZAp5Rud/UkDc0CtNHvYNav7aNZB97kaGBjjkHMQT+RNNXD3CsV7qdnDOyTwQSNNO2cLyKcDb35foa5G72EA+J0lfuGR5l3hnQzaail0CHNxFhpeZX8TKsCRgYUZ6AVU41fSLHSNDub+YJLLaKhUKC7Kvp+dXOGuITqPEOpMSngxTs6BMYCcuBgfLpWY8XpfcQa94ZJWO2RbSJT2xux+px8qwZjx+P8A2FU1hifgRbsbNuKOInuSrLaBuY56Bew+JrQJ9QtdO08xAoD0A6D4UOgs49Ms1s7YEBfxN3Y9zQ670S71BH8MCTuUfo1YO2YfTWVBwMmVr7WHmVhzR47jFK0xlt7v7xbEgg82AenwqDVdNurCfw4oGhljJ23Vh33HevrKeSSQCRfONmx61cDAyDMS244YTR+F9eW9tFkJxINmHvTxayrPGG6kVl+iaa6P4sGR4n8OKcIdTGnxpHM4VmOMHag7VBPEY0sduDHaK3EycvUHtS9xHwvz2sku3wxR7hq5S7IUkczdD2otxJHHForlmHMB2rFCVaWtx1PyvqNodP4hmt2GAQfpinn7MNS8LVbvSmbyzRieMH/ENm/LH0pe45jVeILaZRjxRg1R4c1E6dxZo93nADeG/wACcH9aeaW012K8QaqrerLN7AA/hFRyKOQ7YqbnDKG9a4YggiuwBnKzhUOw+FCU0651LhK1htpnVYblnZFAbJPQ4+u/ajAbLAAHrQLRNaSxtFiZXYlQ+EHv/tSn1MjC5+4x0HbYjYkLOQoUlj0AGc11NHJbp54mVugBGMmrFvK1rexSLkFWByO1OEc9tqqiO4KNDAviSFj1bfG/sMn6VfU6s0nAGYPptMLhkmZ/4sdpfy84UvaW5KhsbyvsDvVyzu7fQeGby9lkEq34WGCEbMqY5c59xv8AOhupXUF1Zytzp4l7cGVgFB5Ix5VGfptVh7S3/ZtjLchi9zcFIVA2WNRvt9K569t7FjHlK7FCwFwnHZ6RLe3m48JjIyu2chAeUe/m/SgGlWcz6hd6hdnLSN+6+e5P51c4ynTT9ZFhABE2oXinKjJ5c5XPruBUz8lrGIlPljTA39KwsbHMYaZcgynfukahVIB7mutMvEiG7D4ZpZ1TVJZ7xoYBlh19qo8l6w805T2Wh8bhiNFISPmtSaHqVj4d+kcjAeUg4dfgaSrfh2N7nFurEZ+JI96rW8UcF0sl0JZoz15TvTpol/YwTW0sKOkDDGJBhhvvkHvXsGtTiQwW5hxGrhjh220zTxcXMXisV6N6+lY7xXq37Y1m4mhDRRiQ8g9ANq/QDFJdO5oZFkQpzrynrX5s1vnsNUuxyFY0kwquOU4yeprHTku5J7k6kCtRjqG+C+NdR4d1iL707z2hYAqTnb2ra+Jb6DVeHIr6zm54JBnfYj2NYPYwWt9oZ1K3uFZoWCzW7jzqevzB7H2Ip8h1D7hwuYVfmiu4g6ezqd/yNa2AZ+4PXnGfEz7jiUPqFqucmPJP9/KlmNmKllPmiw4+NW9XvvvmuTZPMqeUfKqlkeaeRfU8v5EUagwIvsOWM/R2jTjUNFs7tDkTRK/zI3/PNW/CJ2zQD7NZzccFWik7ws8RJ7YbI/I02pCnhzszfhTy+5JA/rXW0W7qlY/AnJ3pttZYP8LBzk0uaVp6zWEcpkdMxIoCnG+5prZMKT86AacfB0C0YDcqD/6j+tAepchYX6eeWjfKojjZ8dOg9aH6vO2n8PzNkiVxy/8Ak21FzH4lwF7RjmPx7f1pd4n8a71C00638zDMjZ2A2OCfzNXvswpb+oPp0JYL/cE6TYPqF1b2tqC5lkCrt2Xv9T+VGuN5hHrljpkBxDp8XhkjuzDzUf4B02K1hkv5VAEMeOY9u5/X8qStR1NtQ1W41CTCRiQzBT3xuB+grni25voToAMCKXEOoNqP2pafBM2TDJk+nMFOB8sCiN/IUMzb+VCaz641M2/G9rfSyFsXQaRj3y2CfzNaXcW3Mr5GQ2xoe3nmNNMMLiIOpWl5Z2RvYXxPzhnBGQc9qJwwag1gJZrISLgbxNuc+gNH2gtbmGeK4/7ZHLt1B7UP0cnTrk20U24OVV2PI3rjPQ+/apUrjmbBHY+zmCraI3U4S2wJCcBZSF39MnvV640ziZkYQWLCWDbmwCR8qcrfhLSeL4SkE76Zd2qsW8gOT1GR3Ge49a54Z1rUNL1R+GuIYfCueUeBI2/MMZAz3+HasbSQMjmE0KCSOj8QZBxLc6HBoVhc20ttex8zzxv0KEYG/uc7e1EOI+DrbiZFvbcrFLKM82MjfsfUUqcYXK3HHc3LssOIx8l3/M1o3A2ownTlS4UyKBtg96wI2YYcQkkOCpGZl11wDqGi288kUXIkimKVQ2VP8SsPmMfPtVbUdRNjw9HDIdrYMQfUnG35VtvFEsUWh3RYLyhcocflX5l4w1b71fGziOY4z5sdzW1JNx5i/UEUr7fMCrJnxJCfMxqbTjmfPTcVSB2C1bsPK6+70x8RR5m5/ZHLzaTqFqSCYpw4HsRj+VaH4eAy4yDisy+x9z+2tTtuvPGr/wB/WtXEWSwI7070NmaQPic/6gu24/cHzxlYZG9FJ/KlmyQtpVquMKsajH/iKcLxOWwnONxG36GlnTk/6TbEb5Uf6RVdadxUfmW0XAY/iO9vbskBLg87eZj70vXOl3S3F1ficK1y620alc5B2b4bfzolrmoalpmmPcGC1eEAAlZGDb7bDFU7NYdYutM+5XLmPDStG2CY8HlGT7nNL9TbkBYXpKsMX7hrUc6L9n04LhpZf3KsFxkk4zj4ZrJ9Vla106SRx+7KM3xA/wB61PjdfGlsdOUkQwKZX9z0A/Wsn+0if7vYpGAFDIEAHpn/AGNL1OF/MZKMtMreP73qsCnzF3BP1z/Ktq0kC8s/BYgyIuRn+Lase0VfE1u37lcmtLjuHtyjp1AwfhWFrYwIzoXIM9k0wy3jxmYxMx9M1FecK3scfOrLKvUMvUVHeXciSrKrHrTTwvrkdywhlA5qwdyORD0rHmB9Anu7W5SLUbd5o13jmiOHTf17j1Fc/adf3V7oGm3dpb3Mt9YTGUzxx+XHqcDOTgddgB71o1zpFuzrLAoRz37GvbgraWbq0YOVIPvWQvwc4mz4cZ8/M/PCXk+p3T6hcKyyysWbIxkmtO4Ic+BGTjBoI/Dol1JxFGI4Q3lQbn5mmHxIOF9Ee6uMeQYRAcF27AVa1wwwspXlAS0H/axxXHp+nJp8DBrhxzsB29M/rWAyREoZXJLu2/8Af1pj4g1Sa9vri5upPFuZjzMAdlHYUHijNwg7kncenb+dH0J+muIn1Di1pTWPEhB7AVZtdih/ziuShMxHcbfSpbVfKG7K2aIJ4ggHM1/7IWP/ABhMB0e3O/yxW1JETk+prGfsdjB4jD9/u5GffBrcY1XkOCKP0T4rP5ij1Fc2j8QXfx8umXjgdIZD/wCppZ0i3/6HZDB/AT+f+1OWot4ei6gyMuRayggnp5DS1oYD6FZN2MZx/wDo16+zJErp6yqmdTyyalJplpYtP4Kj71KQgcJybYTP4sHt2NWPs9hDarPmI7Lzc7bbKeUbe/Wq+jWuoQaRca1a3MEQMRCq0f8ACMn6kk0W0ZpdL4PvtScvzGNlQbHmbJ3HzNKbHJjVECjiLXEWs6hd61dywRF4C/Ijcv8ACNh+lZl9od4Jvu2X5m8PLex9K0i6uoNP0o3Il8rIu5HU4xsayDi2dryd5iME5AQD9KqTzib1r5gjhlh+2lz2B/lWhyOCFwd81m+isYNbiyR+E5x8a0PPOkZB7jesrRzGGnPEsXCKY8Y7bihC3Mum3a3EOdjuKKXUm433AoRPb3citJHCzJ6jehYwQ4mh6HxqtxagPgEf4j0qTUdftmU+JMN9+tZbBFIGJ/eBvQeUUK4svZ4NJaMzENIQuFPbvvULRubEpZeEBOI6an9pWh6NzcshurgdI4hk59z0FZvrfHOpcQXRnnQJjKwxq3kjU+3c+9KSrzPjtmiqRAMu3SmSadK+ezFFmqst+hPpAWMzHOTy1NpsgDMpGB+L+v5V4I+YsnQlfzFV0Lxy5XY5yPjWvYxMBwcy7PGDqEmB1PTrviuQghjkC5ODt7mp41DXAk6Zwcem1S3sHhXPIRgMC4H0qufEsBNZ+xiAS6sysCR4O5z0GDW3RadGkTKrOofqAa/OvBWrXej6VJfWknI4Coem4zv+opnuPtX1oKELRciOCSqYL+2a1pu2KRAdVUWfImqa3YLHoGosHby20h6/5TSdoupQx6BYqWwREB88mkzU+P8AWNYt2je9ZEdSrJEvKGGCMH161xDfGKC3jBOOWpe39QylVZUcx4teK9Ng4NstPe4m8fw0EsYQEAdSM0F4s+0eCfRrPRNLtpgYSruGYYlx2YDoud/ekfV9TFrGFiUtNJsoJ2+JoFKDDExZszyfifvv8aD7jP8ATAhbVtZ1TV+X75IxGcYC8iL7KOgFVpbRr0TOxdxGceRSQSMY3PehpvlW+hjeaSXzhQq9Cc+tNFhI15aSRuREpYrsdh1OM99lqlh2jM0rXJxE3wfA1mIbg8gOT3NPNrzPbDGTgZpYu4g+rSvgY5tsDGANsU6cLwG5kEZGeVSKzsbjMLoHicxBbj8YOBUi27QQFVkJz1qOYm0upIyMYOK+8fmWsO4Z0JUkgKgk4+NZ5xlcePdLEhysfX40/aldcluyqfNikLULRpnc4yRuT7np/ftRVPByYBfyMRYjGZlUdjRiJCxf05NqG+CUuXHTkBb6b0xaXCtwFUEYc4A70W7QBF8SqkRZo5V3Vjg+3UV8tvzxeIEy2cY7EjvU80MlqzxoSELBgexGf0qXUSLZEjT8ToD/AF/v2qgaWIxIoFzIN89yauXZEunQXPdG8Mn2PSqWmRMts/McnlJ399s1JpkxcTQTea2Ay/sRuPqQB8695kjqOPCURuj+yh+J4D8mO4/QfWuGULFOwwkkRKlWGeU561T4O1A/t+KVzytKxBI2wSP9qM8WyLFcx6jAo8K75lkx/DKNmHz6/OqgEnExuHRgWKSUzxh0cc7f4cLjHamOOG5lt/vEMfiJCpZgpyQB1OPQZH13pcsLhpJURpH5c+VT3+HtRxJWjtSqSpHG+Vdw+xHcEVpmZIMiV10t7qeTUHHl5ykY9h3+uaHahYSS6nCARHEo52LbAYB+taDHZOeEoZ22ZiX2HY0p30WbsNnJWNjjGexoNLM8xs6YitZtA+uwxKsk5WQDLEgHfpgU0QTQ2tyIiyySJOZSFPkUtzco98AZpe0dubWYyVz+9PNv+FAMnf36VagumuL2cEfikDjGwA5+X9DXrOZSoYhPR9J/aazSRsolzzcjdx65+NPv2e2L2+qXNvcx4Ph9CNjQHh6y5lhuLYhXhHU9CckEH26Zp0sr+KG4EtrG33ggo0Z6xnuD8KFdiRiMUQDkRd4n06ODV5Iwx33x6UFFqxJVCTjsKO6xFNJetJLk5675396rQxhQWY4X0HUmrqeJ4iLlxZyOzKIyTVFtEYQE8hLsebH5D+/enaO1HKJ5lAB/CnZR7+pqrdlXc8gAXPQVdWJmLIBMn1fRza3RUb+IME1X0wm3lAYkDJRsdQexrQtS0tLhSzKPQUo6lpctq7TFccpAk+HZvl3+NEh88GCNXjkS9LbLfadIVC8wUkkdiPxY9iPMPgapmz+/2KTLnxoMK4x+E7Z/PerfD05Fz4LfxKBg9we31/ImuFS40vWJHhOJI2wVb8Lr6H+tUBwcSNuRmVbOzkkuJEjUkyMFA6nJycfHYV7qGmC2ga1iUFlbnlZT1bJ2B9F6Z9SfSiryR2iNcWCsvi4Yq34oRjBXPffv6VIENwFddgx5gR2I6jHtipLkcy9VYY4MA6Uz2uqRdCszYRh0WQbgH4/zp9SOPUZL7S2AH7TiF3a83QTqucD47ig54d+8HCeUTDmU/wCcb7e/cfOmLT547WwjlurgWsts2Q4thMQTvt3G5z86lXUnk4md9DJ7cRUtpvLAmP3pfkwTuKkltbdycowUEkgNsT3NH59R0qWcu+pXnNzeIRFpaKCc5z+Krx1nhNgT+y52bAGfueMY7/8Ad6nv61LOn/FwJnVWwB3ITGS25H4QgQnAEQzj1z0pI1JPCmZ2GzJyfMmneLllhCIMDOTjpml7XrDmiOPXH9/Sgk6IjN15meCJrbUZowpCEl849jj5b1ZtFFu/LsJHi5iMZJAkFX5LRpzk7yH92+PUdP5GoZLZodW52yPI56ejL0+YrRmyIOFwY98LKh0lo/xMvMDjvnfP0NEUlFmfEBwJRhnPUMNt/iB9RStwlq7Qz5lYGObIJ7EZyD8icH4+1M17beOWVBmMnOM9D7ViB4MMzxmQXE7SqzKjGIdXx5RX1nbh2Dlebfv6V5DCsETRDnWOQguvMSGI9RVgXkcMZSEYHQ+tWI8CSD5MqX0hedt847elU1jV3w3QdcV7NLyyEnJU9CB0+NfQSIy+U5zitF4EybmeSReI4AAVV7Cq9zooubK4kK5AQjpsfar6IST5SPjRKVo49GSFADLMck/4d/8A5UGV+pkZs3sbx1UHyDKHvg7j6EEUzXVol5bw3rqA80S83s4G/wCWKn4h0zweJLaFBkPCcnHXLyf0qTULMpongo2GWJZPhglW/KvFskSlaZOBEuYLLdPAjYIHlIOxx2/pVzQbt5JOWRMAMFdcbqR0OPfGDVC52maYRmPlCsAOvUY396JaMETF+w5YZpBA/ordQ3wziiXXiGNpfcSnQj5ZxxpkseZW5ZEx3K7jHvt+Zrvii0it5I5CCtlqCGIvHsY2I5lbPzP0qLh2NxA1i+TNE/iR535gTkY9+1H7u3/a3B95aqBLLAjGPHUlDzL8+UkfOgM7WmmrTKDPcy7RrC8njveEb6ZhNNmWwmLHaZei564YbfOk2e4ltEa2uk5rlCQVZ90PTHxBrVOHpOH7m5tZtYgvJ5YRmGWGYoRg+3y2+FFtQ07gPUtYk1CfRnleVjI5kEnMW9fK4A+lGG+tf5sBEH+Ja/8ABSRP/9k=",
+      "narrativaCentral": "Uma mãe que encontra força e propósito na jornada da maternidade",
+      "territorios": [
+        "Maternidade",
+        "Fé",
+        "Bem-estar",
+        "Autocuidado",
+        "Crescimento pessoal",
+        "Espiritualidade"
+      ],
+      "semanas": [
+        {
+          "semanaFim": "2026-06-11",
+          "seguidores": 134431,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 1454,
+          "composicao": {
+            "curtidas": 2197,
+            "comentarios": 22,
+            "salvos": 100,
+            "compartilhamentos": 1354
+          },
+          "interacoes": 3673,
+          "alcance": 51102,
+          "taxaParticipacao": 0.0718758561308755,
+          "viewsMedioPorPost": 19762.25,
+          "posts": 4,
+          "topPost": {
+            "postId": "18329510728271166",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/719949420_18597664027027259_3301803364056842212_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=_08sAb5Wj2sQ7kNvwE_SNqj&_nc_oc=Ado9CDNDZEqSPB6f8Zvjw6mhRbC87PJj9vEV7r0JSXI2mawbAej4DO9NqW1rHIWWJvM&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=NLiFLaPsGIlfrGVkHQq4cg&_nc_tpa=Q5bMBQE9OH3yxivFaxGwLPqRQ9z9TQoRKuxFcCg3O7kGnAudx5fWVx67ylilRcKAQrzw0dbPS3b6hBGfRQ&oh=00_Af8_7SIK44kvupBKf3SY7M3M9Z7dPMgkPV7cq-vAx0hDUg&oe=6A38F0A1",
+            "description": "Eu te amo antes mesmo de você existir 💜🥰\n\n#maternidade #maededuas #maedemeninas",
+            "proposal": [],
+            "context": [
+              "lifestyle_and_wellbeing",
+              "parenting"
+            ],
+            "tone": [
+              "inspirational"
+            ],
+            "saved": 72,
+            "shares": 1308
+          }
+        },
+        {
+          "semanaFim": "2026-06-18",
+          "seguidores": 134613,
+          "seguidoresDelta": 182,
+          "seguidoresGanho": 182,
+          "seguidoresPerda": 0,
+          "engajamento": 358,
+          "composicao": {
+            "curtidas": 1345,
+            "comentarios": 96,
+            "salvos": 160,
+            "compartilhamentos": 198
+          },
+          "interacoes": 1799,
+          "alcance": 39949,
+          "taxaParticipacao": 0.0450324163308218,
+          "viewsMedioPorPost": 8855.666666666666,
+          "posts": 6,
+          "topPost": {
+            "postId": "18121297942707833",
+            "thumbnailUrl": "https://scontent-iad3-2.cdninstagram.com/v/t51.71878-15/723999746_1699155771424566_8267207241886519471_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=103&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=bre8e7UlQyMQ7kNvwHtFCW2&_nc_oc=AdqhbzeWsjTge_yBMhIsd__pVJa3C3D8dsXdWyO7hy4xC-0_CJRWwP-CVpB1r0t1F1g&_nc_zt=23&_nc_ht=scontent-iad3-2.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=9kTfJbjMTW2-NnQat_oRUw&_nc_tpa=Q5bMBQGXD-FAEQYkFAt1mqIbub1LYOaZLB-OJYXzWDJcuU6LRsDJ6BLaNc1EnhBHn-PO9Dtz8Sdzd-QviA&oh=00_AQAklj_426qY5T5pOKRjDFlIAVMudAXfQ1Hc5EptEaPGqQ&oe=6A5E8783",
+            "description": "Eu parei de trabalhar fora.\nMas isso não significa que essa é a decisão certa para toda mãe.\n\nCada família tem uma realidade, uma necessidade e um momento diferente.\n\nPra mim, hoje, fez sentido estar mais presente nessa fase das meninas. Mas presença não é sobre estar 24h em casa é sobre qualidade, prioridade e escolhas possíveis dentro da realidade de cada uma.\n\nEu não trabalho mais fora de casa ",
+            "proposal": [],
+            "context": [],
+            "tone": [],
+            "saved": 124,
+            "shares": 147
+          }
+        },
+        {
+          "semanaFim": "2026-06-25",
+          "seguidores": 135306,
+          "seguidoresDelta": 693,
+          "seguidoresGanho": 693,
+          "seguidoresPerda": 0,
+          "engajamento": 12967,
+          "composicao": {
+            "curtidas": 23959,
+            "comentarios": 265,
+            "salvos": 1006,
+            "compartilhamentos": 11961
+          },
+          "interacoes": 37191,
+          "alcance": 627545,
+          "taxaParticipacao": 0.05926427586866281,
+          "viewsMedioPorPost": 80577.3,
+          "posts": 10,
+          "topPost": {
+            "postId": "18206569153355147",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/731031410_18601977316027259_7433693541171558626_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=106&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=WQF7XhVxgrMQ7kNvwFf-sqM&_nc_oc=AdpZqPAnaNNtEKTPyK154mTGGhFcoyiHwe_gP7QXM3pE1NpaKs7id2ZdSpgfda-hkh4&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=q1-nz0BFjRGNCZyABY6C8Q&_nc_tpa=Q5bMBQFfRkVsLRn7Y3mz-zg6sz78lhlCIoGhkPU1GUY5F79zI40Bn__nP7jYaGU7_hHwGImweTKAcj6QUA&oh=00_AQAwxVsG4W3rTRCeE-FSq3XE0Qt32ak4rMGrpOqC0h1XLA&oe=6A5E98D7",
+            "description": "E eu pensava que quando parasse de estudar eu não ia acordar mais tão cedo 😂😂😂 aí tive filhas… \n\n#humor #maternidade #frio❄️ #inverno",
+            "proposal": [
+              "humor_scene"
+            ],
+            "context": [
+              "parenting"
+            ],
+            "tone": [
+              "humorous"
+            ],
+            "saved": 819,
+            "shares": 10368
+          }
+        },
+        {
+          "semanaFim": "2026-07-02",
+          "seguidores": 135770,
+          "seguidoresDelta": 464,
+          "seguidoresGanho": 464,
+          "seguidoresPerda": 0,
+          "engajamento": 550,
+          "composicao": {
+            "curtidas": 1346,
+            "comentarios": 126,
+            "salvos": 33,
+            "compartilhamentos": 517
+          },
+          "interacoes": 2022,
+          "alcance": 78137,
+          "taxaParticipacao": 0.025877625196769775,
+          "viewsMedioPorPost": 20389.2,
+          "posts": 5,
+          "topPost": {
+            "postId": "18000067265779708",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/731350624_18603596149027259_2357739759818281496_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=102&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=LgpifREv2GkQ7kNvwE6OC6b&_nc_oc=AdqAmpGZfncsJI3iEAUQj15lMqd5JzzgRy2c5zt_5eCXZUDMhYBanR3nXn0BRwq0_dM&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=q1-nz0BFjRGNCZyABY6C8Q&_nc_tpa=Q5bMBQFjo2JEZPMhTQd9U2dO1r0UGbqmV54bTVIr7J77gYrxWWnY_dfnwY2zekHn3eDoltLf5f0_Hw3Xvg&oh=00_AQBVCeAOi6TLYZ6M-RSGrwBfoZ_mwgoFJbad-U70gfqYKQ&oe=6A5E8428",
+            "description": "Hahahahaha o bom que a gente se prepara né?! 😂😂😂😂\n\nSó aqui que os vizinhos gritam antes? \n\n#copadomundo2026 #brasil🇧🇷 #humor",
+            "proposal": [],
+            "context": [],
+            "tone": [
+              "humorous"
+            ],
+            "saved": 12,
+            "shares": 456
+          }
+        },
+        {
+          "semanaFim": "2026-07-09",
+          "seguidores": 136181,
+          "seguidoresDelta": 411,
+          "seguidoresGanho": 413,
+          "seguidoresPerda": 2,
+          "engajamento": 15651,
+          "composicao": {
+            "curtidas": 25180,
+            "comentarios": 196,
+            "salvos": 10288,
+            "compartilhamentos": 5363
+          },
+          "interacoes": 41027,
+          "alcance": 553817,
+          "taxaParticipacao": 0.07408042728915869,
+          "viewsMedioPorPost": 114773,
+          "posts": 6,
+          "topPost": {
+            "postId": "18129525871579756",
+            "thumbnailUrl": "https://scontent-iad3-1.cdninstagram.com/v/t51.82787-15/731390844_18604781674027259_9130141433554656526_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=104&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=1tMTSOmwPloQ7kNvwGGQFKd&_nc_oc=AdptQ7t3m0liMBRrtIt359qRf0Nk3HCA6Yj--4vIdQfXaRcJKqgrhuk5-wrA1e8IPP4&_nc_zt=23&_nc_ht=scontent-iad3-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=q1-nz0BFjRGNCZyABY6C8Q&_nc_tpa=Q5bMBQEEmE2GFbElGVN319Dr6uqmf4GuRB9Td80ztVCj-rkGW62zi05ZopL90UqUrv0lRcV6IG4h4zg8_w&oh=00_AQAB3oXnVBx2Nq1bLuMQWAdKCkSzmW0GsRAngkS4VLjAlQ&oe=6A5E9E3E",
+            "description": "Dia de cabelo Maluco 😜 ou cabelo de parabéns 🎈 \nJá salva para fazer depois! E manda pra uma mãe de menina 💜\n\nLinda inspiração @euemanudias \n#cabelomaluco #mãedemeninas",
+            "proposal": [
+              "lifestyle"
+            ],
+            "context": [
+              "lifestyle_and_wellbeing"
+            ],
+            "tone": [
+              "humorous"
+            ],
+            "saved": 10261,
+            "shares": 5284
+          }
+        },
+        {
+          "semanaFim": "2026-07-16",
+          "seguidores": 136280,
+          "seguidoresDelta": 99,
+          "seguidoresGanho": 102,
+          "seguidoresPerda": 3,
+          "engajamento": 858,
+          "composicao": {
+            "curtidas": 791,
+            "comentarios": 67,
+            "salvos": 52,
+            "compartilhamentos": 806
+          },
+          "interacoes": 1716,
+          "alcance": 20323,
+          "taxaParticipacao": 0.08443635290065443,
+          "viewsMedioPorPost": 6520.5,
+          "posts": 4,
+          "topPost": {
+            "postId": "17914586346222230",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/744660856_18608013925027259_4328059271421427177_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=107&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=gwk6EnC7jTQQ7kNvwHz5gcO&_nc_oc=AdqvJfUp3-NGb6z0Z7susk5tNG2hQVzBZobHcBEFOeZVOnUXXfDCsh9v3O6s78JIKGc&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=q1-nz0BFjRGNCZyABY6C8Q&_nc_tpa=Q5bMBQHB47XjaZ3MqtIPa_tHROC8cp1VRSwb6vYmX0g0tdTZdtqlLOtlTCbl5OWSvngrF5nJW6Mc8KOR2A&oh=00_AQAXgbF5GY0K644GvyQDXUKzYMBCDupVmR671XJkXlBhnw&oe=6A5EA419",
+            "description": "Com quais você se identificou? Mais algum sintoma por aí? 😂\n#humor #35+ #maternidade #mulheres",
+            "proposal": [
+              "humor_scene"
+            ],
+            "context": [],
+            "tone": [
+              "humorous"
+            ],
+            "saved": 30,
+            "shares": 791
+          }
+        }
+      ],
+      "leituraCruzada": "acompanhando",
+      "coerencia": null,
+      "pontoForte": null,
+      "pontoAjustar": null,
+      "audienciaPede": null,
+      "comparativo": null,
+      "proximosPassos": null,
+      "ganchoMarca": null
+    },
+    {
+      "userId": "691bc1ab0f1a9afe096d746d",
+      "nome": "Edgar Kumagai",
+      "handle": "@edgarkumagai",
+      "profilePictureUrl": "data:image/jpeg;base64,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",
+      "narrativaCentral": "Eu inspiro pessoas a explorar a culinária e a cultura",
+      "territorios": [
+        "Culinária",
+        "Inspiração",
+        "Lifestyle",
+        "Cultura japonesa",
+        "Futebol",
+        "Gastronomia"
+      ],
+      "semanas": [
+        {
+          "semanaFim": "2026-06-11",
+          "seguidores": 31380,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 1,
+          "composicao": {
+            "curtidas": 156,
+            "comentarios": 44,
+            "salvos": 1,
+            "compartilhamentos": 0
+          },
+          "interacoes": 201,
+          "alcance": 1380,
+          "taxaParticipacao": 0.14565217391304347,
+          "viewsMedioPorPost": 2263,
+          "posts": 1,
+          "topPost": {
+            "postId": "18089489366346768",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.71878-15/719452213_996941729749480_3455904992923193557_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=5qG0WEE-EPAQ7kNvwH3Jqc4&_nc_oc=Ado4VxHCIOyGB5zNK8Tu9s86-msfFCMgq8cfy1NOzR-czW5ZZkpQZw9YrLNkLiwg0ec&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=7Bp4pdv4XjiNwS3BW_ZeaA&_nc_tpa=Q5bMBQGLyNHWg0dVecAc4Sc6ekjpiizeA1OLN6cyIrJWuGqRJZhbCLv6dzegtbGUYKq8PQuhSH7rVwTNYw&oh=00_AQAPNewUTmqWzN31CwhuewFf8OD4H1WG88Yr4Cf-NqxbKQ&oe=6A5EA1EF",
+            "description": "Hoje celebro um novo ciclo carregando comigo as melhores lembranças do meu pai.❤️",
+            "proposal": [
+              "message_motivational"
+            ],
+            "context": [
+              "personal_and_professional"
+            ],
+            "tone": [
+              "inspirational"
+            ],
+            "saved": 1,
+            "shares": 0
+          }
+        },
+        {
+          "semanaFim": "2026-06-18",
+          "seguidores": 31380,
+          "seguidoresDelta": 0,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 66,
+          "composicao": {
+            "curtidas": 243,
+            "comentarios": 34,
+            "salvos": 35,
+            "compartilhamentos": 31
+          },
+          "interacoes": 343,
+          "alcance": 4408,
+          "taxaParticipacao": 0.07781306715063521,
+          "viewsMedioPorPost": 2058.6666666666665,
+          "posts": 3,
+          "topPost": {
+            "postId": "17995129655791762",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.71878-15/722963868_2482420225524279_4684982641215630884_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=_wzpAdkczgoQ7kNvwFmT20G&_nc_oc=AdqQZ9yL4K1Sgm8GpFSeBLonjhsqktVZpxQgfWKxepT75QKq1mrX9q0qNgq9_YScKCc&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=7Bp4pdv4XjiNwS3BW_ZeaA&_nc_tpa=Q5bMBQFm2OF9BfO66Z8DUHolNgx_UZ898tP3k4YnAc8NPkLbcH2_KB5Q5Lk4aEl6dmxJJwqwKqVsxe58Ow&oh=00_AQAinbW9HEH6NJTVEiWnk5drN6dBQFZkTqdbTJw4jCMjig&oe=6A5E8316",
+            "description": "❤️ Bora preparar um prato romântico? 🍤\n\nTem receitas que alimentam o coração, e essa é uma delas! 😍\n\nHoje vou te mostrar um Conchiglioni de Camarão irresistível, perfeito para surpreender alguém especial. Com ingredientes simples e muito sabor, o resultado é digno de restaurante! ✨\n\n📝 Ingredientes:\n• Conchiglioni @darozmassas  • Molho de tomate natural • Mozzarella de búfala • Espinafre • Camar",
+            "proposal": [
+              "tips"
+            ],
+            "context": [
+              "food_culinary"
+            ],
+            "tone": [
+              "inspirational"
+            ],
+            "saved": 28,
+            "shares": 23
+          }
+        },
+        {
+          "semanaFim": "2026-06-25",
+          "seguidores": 31380,
+          "seguidoresDelta": 0,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 41,
+          "composicao": {
+            "curtidas": 516,
+            "comentarios": 59,
+            "salvos": 21,
+            "compartilhamentos": 20
+          },
+          "interacoes": 616,
+          "alcance": 10198,
+          "taxaParticipacao": 0.060404000784467546,
+          "viewsMedioPorPost": 3313,
+          "posts": 4,
+          "topPost": {
+            "postId": "18116917369881637",
+            "thumbnailUrl": "https://scontent-iad3-1.cdninstagram.com/v/t51.82787-15/728266114_18463337272129565_1416746934438169696_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=108&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=15ykCj71_6QQ7kNvwHO-Lza&_nc_oc=Ado5IK0tthLRUJbfvFsUOebaqioylTHveWwqTB-ZNtFJKu1C_INr2VE_LnC42UmUqW8&_nc_zt=23&_nc_ht=scontent-iad3-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=7Bp4pdv4XjiNwS3BW_ZeaA&_nc_tpa=Q5bMBQGhq0iOc0ZokHWW_6P9X-qhYNhIqeL8iMR-0LkzaQFnj2kqQqK9YY3cx3bRsj9VbXrnwM5YHozfcA&oh=00_AQC2yTcrTyA9aZ8ktYBKzCpNGTVZkn3aVPsgo4KNh_aK3A&oe=6A5E9292",
+            "description": "🎌🇯🇵 Petisco perfeito para torcer pelo Japão!\n\nHoje preparei oniguiris na mão com salmão fresquinho da  @peixariahamada 🐟🍙 e uma versão irresistível com @missokarai 🌶️.\n\nPara finalizar, um toque especial na @kaisei_fishgrill , deixando tudo douradinho e cheio de sabor! 🔥\n\nE aí, qual você escolheria: salmão, missô karai ou ume? 👇🇯🇵⚽\n\n#onigiri #japão #copadomundo2026",
+            "proposal": [],
+            "context": [
+              "food_culinary"
+            ],
+            "tone": [
+              "neutral"
+            ],
+            "saved": 12,
+            "shares": 10
+          }
+        },
+        {
+          "semanaFim": "2026-07-02",
+          "seguidores": 31380,
+          "seguidoresDelta": 0,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 1857,
+          "composicao": {
+            "curtidas": 3360,
+            "comentarios": 279,
+            "salvos": 190,
+            "compartilhamentos": 1667
+          },
+          "interacoes": 5496,
+          "alcance": 77057,
+          "taxaParticipacao": 0.07132382522029147,
+          "viewsMedioPorPost": 15428,
+          "posts": 8,
+          "topPost": {
+            "postId": "18414291208147350",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/729517969_18464107468129565_282921298346234652_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=102&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=oAPLxiOIWuwQ7kNvwFFAtHl&_nc_oc=AdqlINzKhC0r-VowwLliTB3HbIcueDPY-5pSyIiGAdbiyy3BUaA2EE_9QFqYhjPZfeI&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=7Bp4pdv4XjiNwS3BW_ZeaA&_nc_tpa=Q5bMBQESV6pSuTCucXGsbsKinzpyRquyi724O3leS4uX8Lw4vTcJktOTU1vMOO6yRJFvPYMiOoYP0_jLZQ&oh=00_AQBbPrVBiUehgiAhqzPSCTHanHEWg0E_2CwjXZr9BZ7PsA&oe=6A5E9A51",
+            "description": "A regra é clara: só vale escolher UMA! 😅\n\n#brasil #2026convocadosnagetv \n#2026convocados \n#ligadosconvocados",
+            "proposal": [],
+            "context": [],
+            "tone": [],
+            "saved": 139,
+            "shares": 1547
+          }
+        },
+        {
+          "semanaFim": "2026-07-09",
+          "seguidores": 31380,
+          "seguidoresDelta": 0,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 49,
+          "composicao": {
+            "curtidas": 218,
+            "comentarios": 37,
+            "salvos": 34,
+            "compartilhamentos": 15
+          },
+          "interacoes": 304,
+          "alcance": 3669,
+          "taxaParticipacao": 0.08285636413191605,
+          "viewsMedioPorPost": 1629.3333333333333,
+          "posts": 3,
+          "topPost": {
+            "postId": "18474493384102560",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/731442352_18465584065129565_4717601888488138105_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=102&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=sDysElxC3hQQ7kNvwFmTiHL&_nc_oc=AdpefvbO-t5wsHdA3hp3ODcmWSwmrw-6nfIV1626rtdaWfXzjL_8vkClSrzi1xv5F7o&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=7Bp4pdv4XjiNwS3BW_ZeaA&_nc_tpa=Q5bMBQFnxANeM0DgjjBDuvs13s1MZQfmTRmaWEER3Tbuk7zJtXkQNO4EfS8tQFrIZstUaO3axZOjCVZ9nQ&oh=00_AQDA5KrIpeCGZsavi6AC7bE9ZaRS3fOx7K50Qcmi6kPP9w&oe=6A5EA068",
+            "description": "🔥 Bora fazer um Buraco Quente com um segredo especial que deixa tudo ainda mais irresistível? 😍\n\nO recheio fica super suculento, mas o grande diferencial é a mistura de Mussarela Ralada @pamfisqueijos + Queijo Parmesão Ralado @pamfisqueijos , que traz muito mais sabor e aquela cremosidade que faz toda a diferença! 🧀✨\n\nIngredientes: • 250g de patinho moído • 50g de bacon • 1 cebola • 2 dentes de",
+            "proposal": [
+              "tips"
+            ],
+            "context": [
+              "food_culinary"
+            ],
+            "tone": [
+              "humorous"
+            ],
+            "saved": 13,
+            "shares": 5
+          }
+        },
+        {
+          "semanaFim": "2026-07-16",
+          "seguidores": 32421,
+          "seguidoresDelta": 1041,
+          "seguidoresGanho": 1043,
+          "seguidoresPerda": 2,
+          "engajamento": 52,
+          "composicao": {
+            "curtidas": 260,
+            "comentarios": 35,
+            "salvos": 10,
+            "compartilhamentos": 42
+          },
+          "interacoes": 347,
+          "alcance": 5219,
+          "taxaParticipacao": 0.06648783291818355,
+          "viewsMedioPorPost": 1861.75,
+          "posts": 4,
+          "topPost": {
+            "postId": "17867873265632581",
+            "thumbnailUrl": "https://scontent-iad3-2.cdninstagram.com/v/t51.82787-15/747038285_18467508526129565_3130319903562667913_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=105&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=fMzYPTM46nYQ7kNvwHQi8Gs&_nc_oc=AdrLQaz-O14eMwatIc1bPirCsnqSKHf1bqpbvvUVJrqKprRuI5kgRWY4qo7X50pQhyM&_nc_zt=23&_nc_ht=scontent-iad3-2.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=7Bp4pdv4XjiNwS3BW_ZeaA&_nc_tpa=Q5bMBQFvtG0sNNm6G4oBPA7BXpszMu32TaEimCnaQ3hSlL5xYdHGtwUf778_ufU9_YSY424RTiIHzeyBGQ&oh=00_AQB_GGyY5B1wjSw4vSc1hxNKlFNEK-unHEght64rBlXjUg&oe=6A5EB5FC",
+            "description": "✨O Festival das Estrelas está chegando! 🎋\n\nEm poucos dias, o Tanabata Matsuri transforma Mogi das Cruzes em um pedacinho do Japão. 🇯🇵\n\nVenha viver uma tradição centenária: escreva seu desejo em um tanzaku, pendure-o no bambu e faça parte dessa linda história.\n\nAlém disso, você encontra:\n🍜 Gastronomia japonesa\n🥁 Taikô, dança e música\n🎭 Concurso Cosplay\n🕯️ Tooro Nagashi\n🎎 Vila Cultural, ofic",
+            "proposal": [],
+            "context": [],
+            "tone": [],
+            "saved": 4,
+            "shares": 23
+          }
+        }
+      ],
+      "leituraCruzada": "fundo",
+      "coerencia": null,
+      "pontoForte": null,
+      "pontoAjustar": null,
+      "audienciaPede": null,
+      "comparativo": null,
+      "proximosPassos": null,
+      "ganchoMarca": null
+    },
+    {
+      "userId": "6a4416e701fd8f881a6b35d2",
+      "nome": "Isabela Andrade",
+      "handle": "@isafandrade",
+      "profilePictureUrl": "data:image/jpeg;base64,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",
+      "narrativaCentral": "Uma vida ativa e consciente, sem abrir mão da leveza",
+      "territorios": [
+        "alimentação saudável",
+        "exercício físico",
+        "saúde feminina",
+        "autonomia corporal",
+        "estilo de vida",
+        "treino feminino",
+        "nutrição",
+        "musculação",
+        "corrida",
+        "fitness"
+      ],
+      "semanas": [
+        {
+          "semanaFim": "2026-06-11",
+          "seguidores": null,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 135,
+          "composicao": {
+            "curtidas": 469,
+            "comentarios": 34,
+            "salvos": 46,
+            "compartilhamentos": 89
+          },
+          "interacoes": 638,
+          "alcance": 11932,
+          "taxaParticipacao": 0.053469661414683206,
+          "viewsMedioPorPost": 8313,
+          "posts": 2,
+          "topPost": {
+            "postId": "18138941635526948",
+            "thumbnailUrl": "https://scontent-iad3-1.cdninstagram.com/v/t51.82787-15/718855011_18593667970063765_6018933488643166378_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=104&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=mbPCs8RuEgIQ7kNvwF093Qr&_nc_oc=AdpU6IlDZPLdb5tVui6lh-NTCa8Wvx1mY3rzBmyAOa23YznRs1BFzhgMlX_ZyDCLZkA&_nc_zt=23&_nc_ht=scontent-iad3-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=XLWC1f0YaPas7ZYahLVnzA&_nc_tpa=Q5bMBQEG55YlSSLdIjD2KbUFgSa76B3UmkW96cU_oKxOl2jaUfvxP8uFUPRXjC3WP29ODoyJqmzT5qNGCg&oh=00_AQBJXvqXelGSlupib0b-9kFuyyTf-x1YOmEgRmD6DvGyUQ&oe=6A5E8BA5",
+            "description": "Enquanto a legislação não muda… 😂🍑\nJá que estamos falando de coice na polia:\n\n📌 Joelho flexionado:\n✅ Menor participação dos posteriores.\n✅ Maior foco no glúteo.\n\n📌 Joelho estendido:\n✅ Maior participação dos posteriores.\n✅ Trabalho mais distribuído entre glúteo e cadeia posterior.\n\nAs duas versões são ótimas.\nA escolha depende do objetivo e da estratégia do treino.\n\nAgora me conta: você já sabi",
+            "proposal": [
+              "tips"
+            ],
+            "context": [
+              "fitness_sports"
+            ],
+            "tone": [
+              "humorous"
+            ],
+            "saved": 41,
+            "shares": 83
+          }
+        },
+        {
+          "semanaFim": "2026-06-18",
+          "seguidores": null,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 62,
+          "composicao": {
+            "curtidas": 302,
+            "comentarios": 24,
+            "salvos": 31,
+            "compartilhamentos": 31
+          },
+          "interacoes": 388,
+          "alcance": 8316,
+          "taxaParticipacao": 0.046657046657046654,
+          "viewsMedioPorPost": 6454,
+          "posts": 2,
+          "topPost": {
+            "postId": "18471832978097455",
+            "thumbnailUrl": "https://scontent-iad3-1.cdninstagram.com/v/t51.82787-15/724170215_18597077818063765_4698805698815978602_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=108&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=G6h4e7nzE70Q7kNvwHWB6AY&_nc_oc=Ado_ut5kMuaNHivTeSMwYWl0U-JFaOGVAtS8atlORZJokQaYNglH1fsCYDfO2vJTKIw&_nc_zt=23&_nc_ht=scontent-iad3-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=XLWC1f0YaPas7ZYahLVnzA&_nc_tpa=Q5bMBQG1nzsBPKck_R1K8tuKJfE3I1AV5Ueh6AhjgpdKoaKK53eifoZyhN85ogryA6GmeHOexNwoWr97Tg&oh=00_AQBS3rrvN0B9GmCY-4itpRknar28kZXA9pXfXSAdoQoYiQ&oe=6A5E9B01",
+            "description": "Quem nunca? 😂\n\nA verdade é que aquele “inchaço” que aparece durante e logo após o treino é o famoso “pump” muscular.\n\nEle acontece porque aumenta o fluxo sanguíneo para o músculo que está sendo trabalhado, deixando a região mais cheia e volumosa temporariamente.\n\nE não, o pump não significa necessariamente que você ganhou músculo naquele momento. 🥲\n\nMas vou te contar uma coisa: ele é uma das sen",
+            "proposal": [
+              "message_motivational"
+            ],
+            "context": [
+              "fitness_sports"
+            ],
+            "tone": [
+              "inspirational"
+            ],
+            "saved": 28,
+            "shares": 14
+          }
+        },
+        {
+          "semanaFim": "2026-06-25",
+          "seguidores": null,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 10,
+          "composicao": {
+            "curtidas": 64,
+            "comentarios": 4,
+            "salvos": 8,
+            "compartilhamentos": 2
+          },
+          "interacoes": 78,
+          "alcance": 1882,
+          "taxaParticipacao": 0.04144527098831031,
+          "viewsMedioPorPost": 2644,
+          "posts": 1,
+          "topPost": {
+            "postId": "18119805025702101",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/730004938_18600348685063765_721092514231999196_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=109&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=KaenqOGScEkQ7kNvwHULN_o&_nc_oc=AdoX1034nzyFEkdq-lGTMiT6d-Pe11P-CtyG8n9p82tKe1eAqoHYB5oQT4N2HAGTjmo&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=XLWC1f0YaPas7ZYahLVnzA&_nc_tpa=Q5bMBQGz3DMrvoOnzNtf0sRMd8re5L8mWcllgs8l6rsKT4vblOZJlqXaDjwyaue5GUbf9wp9vymPcQB1Og&oh=00_AQA62nNGfBOD3n6hnkQtaGQpgTdvReY1PZNCVGjBCtTpQA&oe=6A5E7FA3",
+            "description": "Hoje é dia de comemorar os 8 anos da @hardynfitness marca que me acompanha em absolutamente todos os treinos e que eu indico para vocês de olhos fechados. 🩷\n\nE como eu não poderia deixar essa data passar em branco, resolvi compartilhar um dos meus treinos favoritos de fortalecimento de CORE, daqueles que eu quase tenho ciúme de tão bom. 😜\n\n5 rounds:\n✨ 10 segundos de canoinha em isometria\n✨ 10 ca",
+            "proposal": [],
+            "context": [
+              "fitness_sports"
+            ],
+            "tone": [
+              "promotional"
+            ],
+            "saved": 8,
+            "shares": 2
+          }
+        },
+        {
+          "semanaFim": "2026-07-02",
+          "seguidores": 138645,
+          "seguidoresDelta": null,
+          "seguidoresGanho": 0,
+          "seguidoresPerda": 26,
+          "engajamento": 68,
+          "composicao": {
+            "curtidas": 283,
+            "comentarios": 15,
+            "salvos": 31,
+            "compartilhamentos": 37
+          },
+          "interacoes": 366,
+          "alcance": 10303,
+          "taxaParticipacao": 0.03552363389304086,
+          "viewsMedioPorPost": 4937.666666666667,
+          "posts": 3,
+          "topPost": {
+            "postId": "18606396604037284",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/729090307_18601333738063765_3948541321248647215_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=106&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=Xdmnseh9kXkQ7kNvwHuYUEa&_nc_oc=Adp1pRRAwfMItdq9twejWH4TT-jmqgvnkj9bsGR3xoZAC1svma_zVc_sEg7xamUCGzs&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=XLWC1f0YaPas7ZYahLVnzA&_nc_tpa=Q5bMBQH-ySmzV1xQiZmBC33aEAIvxYHHZABh3Qi4qVeNGWM64mWdqf3GgFskCzLFiVQlSBIK4WjuEjZ8HQ&oh=00_AQCKCEyvEuse3gahDrsLL1wQwZHmZ3X_BW2e9d9VOr6lcw&oe=6A5E9FF8",
+            "description": "Esses últimos meses, depois da lesão, reforçaram uma coisa em que eu sempre acreditei…\n\nNem sempre as condições serão perfeitas. Nem sempre a rotina vai colaborar. Nem sempre você vai conseguir fazer exatamente como gostaria.\n\nMas sempre existe algo que pode ser feito.\n\nPorque resultado depende muito mais de constância do que de perfeição.\n\nEntão, pare de esperar o momento perfeito.\nComece!\nE, mai",
+            "proposal": [
+              "message_motivational"
+            ],
+            "context": [
+              "fitness_sports"
+            ],
+            "tone": [
+              "inspirational"
+            ],
+            "saved": 20,
+            "shares": 33
+          }
+        },
+        {
+          "semanaFim": "2026-07-09",
+          "seguidores": 138574,
+          "seguidoresDelta": -71,
+          "seguidoresGanho": 11,
+          "seguidoresPerda": 82,
+          "engajamento": 7,
+          "composicao": {
+            "curtidas": 65,
+            "comentarios": 7,
+            "salvos": 4,
+            "compartilhamentos": 3
+          },
+          "interacoes": 79,
+          "alcance": 1410,
+          "taxaParticipacao": 0.05602836879432624,
+          "viewsMedioPorPost": 1972,
+          "posts": 1,
+          "topPost": {
+            "postId": "18104803199016712",
+            "thumbnailUrl": "https://scontent-iad3-1.cdninstagram.com/v/t51.82787-15/742103555_18604020433063765_3837534438198652849_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=110&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=oT0GC956-ToQ7kNvwHBSZ-Z&_nc_oc=AdoRkGXSHd8JoAvKSik3yVnmftGJVfTR3ewOxtLv0DIWvMcOduCXf9ePEwF3F2L0ypM&_nc_zt=23&_nc_ht=scontent-iad3-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=XLWC1f0YaPas7ZYahLVnzA&_nc_tpa=Q5bMBQHMoTQ_5QbATmFMkSE4kZH92O670gBZ3txVAhusTMgl3IAzpk8T6srOXMPRqvpcs0b-XY_QQmGoaA&oh=00_AQDkzYqMTYCZD9p3raayFxHE2g9Rgbktoeu4wZ54Y2e-0A&oe=6A5EB560",
+            "description": "Entender a lógica por trás das escolhas muda a forma como você se alimenta. 🧠\n\nE, falando em ovo… 🍳\nGeminha mole ou geminha dura? 👀",
+            "proposal": [],
+            "context": [],
+            "tone": [],
+            "saved": 4,
+            "shares": 3
+          }
+        },
+        {
+          "semanaFim": "2026-07-16",
+          "seguidores": 138415,
+          "seguidoresDelta": -159,
+          "seguidoresGanho": 1,
+          "seguidoresPerda": 160,
+          "engajamento": 88,
+          "composicao": {
+            "curtidas": 378,
+            "comentarios": 31,
+            "salvos": 66,
+            "compartilhamentos": 22
+          },
+          "interacoes": 497,
+          "alcance": 11272,
+          "taxaParticipacao": 0.044091554293825407,
+          "viewsMedioPorPost": 4180.5,
+          "posts": 4,
+          "topPost": {
+            "postId": "18075537350498003",
+            "thumbnailUrl": "https://scontent-iad3-2.cdninstagram.com/v/t51.82787-15/745048597_18605798362063765_4587036558560244339_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=105&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=o8q07vlih-sQ7kNvwGwYlO3&_nc_oc=AdpRXWL1oqku_BMvBz7whjDLGwAM_7FrPS_J7HPQTRNrKB8qGhIgdnVD-CSvnDFqbU4&_nc_zt=23&_nc_ht=scontent-iad3-2.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=XLWC1f0YaPas7ZYahLVnzA&_nc_tpa=Q5bMBQHRp4b3-oxXg151Y_rSdjLLY0yWY9IeGP3KHXb7AbmGvypIYxbEPOKnduXvoi4K-snio1b4a_w2yw&oh=00_AQA6qhrWAzqR7XKtzeFNKjMYhQB7RIX1qUNeXcymC2arIg&oe=6A5E9950",
+            "description": "TREINO DE CORE QUE VALE A PENA SALVAR 💪🏻\n\nTudo o que você precisa é de uma anilha e muita força de vontade, porque serão 7 minutos de abs queimando! 🔥\n\nFaça o maior número de rounds possível em 7 minutos:\n\n• 15 L Sit\n• 15 + 15 Nadador\n• 15 + 15 Russian Twist\n\nPontos de performance:\n✔️ Mantenha o core ativado durante todo o treino.\n✔️ Não compense o movimento com a lombar.\n✔️ Priorize a execução",
+            "proposal": [
+              "tips"
+            ],
+            "context": [
+              "fitness_sports"
+            ],
+            "tone": [
+              "educational"
+            ],
+            "saved": 46,
+            "shares": 11
+          }
+        }
+      ],
+      "leituraCruzada": "dados-insuficientes",
+      "coerencia": null,
+      "pontoForte": null,
+      "pontoAjustar": null,
+      "audienciaPede": null,
+      "comparativo": null,
+      "proximosPassos": null,
+      "ganchoMarca": null
+    },
+    {
+      "userId": "6a398318efa8b68b16805d97",
+      "nome": "Lorena Coutinho",
+      "handle": "@locoutiinho",
+      "profilePictureUrl": "data:image/jpeg;base64,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",
+      "narrativaCentral": "mulheres se reencontrando após a maternidade",
+      "territorios": [
+        "Maternidade",
+        "Rotina familiar",
+        "Valores familiares",
+        "Vlog de rotina",
+        "Casamento",
+        "Humor em família",
+        "Fe"
+      ],
+      "semanas": [
+        {
+          "semanaFim": "2026-06-11",
+          "seguidores": null,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 648,
+          "composicao": {
+            "curtidas": 15523,
+            "comentarios": 331,
+            "salvos": 352,
+            "compartilhamentos": 296
+          },
+          "interacoes": 16502,
+          "alcance": 221025,
+          "taxaParticipacao": 0.07466123741658183,
+          "viewsMedioPorPost": 35535.4,
+          "posts": 10,
+          "topPost": {
+            "postId": "17936550426270270",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/720712137_18445580482139061_4770314767167534946_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=109&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=N4d9JmstAvcQ7kNvwFzFooC&_nc_oc=AdqjJLxTGqPrzpKNVNZLZPu0o0EFcgQiAyKr1GTOVkStXz4OQVYBeyvhWT2yq4fQkmU&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=4zHhV5CrISns1cM7dy7Jsg&_nc_tpa=Q5bMBQHZKVCvwV1TQGgpSYJgjEsY_YU3Himzs96wzxugLPsXAKbApK5YdVLUTdy-mMzeeVsCNqab1BHmiA&oh=00_AQAi5suc3XArofUrecVn8IQCJGgBHza0Vs_yrjklgfgbNA&oe=6A5EB5BA",
+            "description": "Rotina DIA DE COMPRA DO MÊS com valor total \n🏠🤑🛒🥰",
+            "proposal": [
+              "lifestyle"
+            ],
+            "context": [
+              "lifestyle_and_wellbeing"
+            ],
+            "tone": [
+              "neutral"
+            ],
+            "saved": 142,
+            "shares": 73
+          }
+        },
+        {
+          "semanaFim": "2026-06-18",
+          "seguidores": null,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 175,
+          "composicao": {
+            "curtidas": 6588,
+            "comentarios": 351,
+            "salvos": 109,
+            "compartilhamentos": 66
+          },
+          "interacoes": 7114,
+          "alcance": 116144,
+          "taxaParticipacao": 0.06125154980024797,
+          "viewsMedioPorPost": 22148.88888888889,
+          "posts": 9,
+          "topPost": {
+            "postId": "18109078042944388",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/726494464_18447187609139061_187792572779842106_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=102&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=wZ3amk4f_mEQ7kNvwF1AWE7&_nc_oc=AdpS0ipOjfK_tqv4lud9H8REJBPPKsJeJ3cYjS6c-BmEs1sunKzy6TyieTpTcZciAwc&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=wAYGE-nCb2Vf8KaK2xBlHA&_nc_tpa=Q5bMBQHsQ9S9ap9CJRBXxIxh6KWgh0_AKkIl5t07TAeG5hx8m25f38CV93Gh_m1ugncHJVqgIT0pMyzgXw&oh=00_AQCALcYIC5BvcN_fR42Jjyap9g-bkpeXri9py9tpxBFLIg&oe=6A5EA0A1",
+            "description": "Não importa o que pensam de mim lá fora, enquanto aqui dentro eu ser exemplo  para eles , já ganhei no jogo❤️",
+            "proposal": [
+              "message_motivational"
+            ],
+            "context": [
+              "personal_and_professional"
+            ],
+            "tone": [
+              "inspirational"
+            ],
+            "saved": 25,
+            "shares": 15
+          }
+        },
+        {
+          "semanaFim": "2026-06-25",
+          "seguidores": 126419,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 581,
+          "composicao": {
+            "curtidas": 8613,
+            "comentarios": 477,
+            "salvos": 200,
+            "compartilhamentos": 381
+          },
+          "interacoes": 9671,
+          "alcance": 141498,
+          "taxaParticipacao": 0.0683472557916013,
+          "viewsMedioPorPost": 19283.363636363636,
+          "posts": 11,
+          "topPost": {
+            "postId": "18168096373439632",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/730331630_18448186558139061_2153533664247396460_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=109&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=SYCnna34EZIQ7kNvwHCEJtJ&_nc_oc=AdrZwxHF-4nkeL3JkaBQOUOuIO4pOnzPyl-ndq5cwsIY3JHnY1sQ3TgH0hgONxSOOk8&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=wAYGE-nCb2Vf8KaK2xBlHA&_nc_tpa=Q5bMBQGR2zvawtjWFbNfvTUJRTG7ozdqsEqOAtcFK7cnyd7aSZw9yAW6olzQdkVdQ-GS5AxOVRGdCme-mA&oh=00_AQD1DAbFzX2uu8ttvpLPHsqQ1rrMEmSEt_U4Rw62JZqJ5A&oe=6A5E9D65",
+            "description": "🍔❤️ Encontramos um lugar que realmente vale a pena para quem ama reunir a família em volta da mesa!\n\nFomos conhecer o @superburgermaringa e saímos de lá com aquela sensação boa de ter vivido mais um momento especial juntos. \n\n Além dos mini hambúrgueres à vontade, o buffet conta com diversas porções, sobremesas liberadas (mini churros, brigadeiro e sorvete) e agora também bebidas inclusas.\n\n💥 Pr",
+            "proposal": [
+              "announcement"
+            ],
+            "context": [
+              "food_culinary"
+            ],
+            "tone": [
+              "promotional"
+            ],
+            "saved": 39,
+            "shares": 282
+          }
+        },
+        {
+          "semanaFim": "2026-07-02",
+          "seguidores": 126622,
+          "seguidoresDelta": 203,
+          "seguidoresGanho": 208,
+          "seguidoresPerda": 5,
+          "engajamento": 297,
+          "composicao": {
+            "curtidas": 7464,
+            "comentarios": 736,
+            "salvos": 193,
+            "compartilhamentos": 104
+          },
+          "interacoes": 8497,
+          "alcance": 120047,
+          "taxaParticipacao": 0.07078061092738677,
+          "viewsMedioPorPost": 29631.571428571428,
+          "posts": 7,
+          "topPost": {
+            "postId": "18053217053774530",
+            "thumbnailUrl": "https://scontent-iad3-2.cdninstagram.com/v/t51.82787-15/730191737_18448751632139061_764748826585644980_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=111&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=aBzfQJ-nCxwQ7kNvwEN7a28&_nc_oc=AdqKaImrzzYrDF_lPp6Yz2g2EO_IqEXwKQEgpvq_12JNmmI3inGUFY_DopWJY0cLh4g&_nc_zt=23&_nc_ht=scontent-iad3-2.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=wAYGE-nCb2Vf8KaK2xBlHA&_nc_tpa=Q5bMBQE9JOTYC52rALkzJzo572-fRnKpMoltC6Ux-QezZz6IC8OurojzjCRIkBdUHCVWrHszjCUOe5dRSg&oh=00_AQD7FIEXwFJl8nCzFr16GZ9Y24dsvC4VgAkEyuYCkU2jvQ&oe=6A5E8C2C",
+            "description": "Isso eu NUNCA FUI !",
+            "proposal": [],
+            "context": [],
+            "tone": [],
+            "saved": 90,
+            "shares": 33
+          }
+        },
+        {
+          "semanaFim": "2026-07-09",
+          "seguidores": 126989,
+          "seguidoresDelta": 367,
+          "seguidoresGanho": 367,
+          "seguidoresPerda": 0,
+          "engajamento": 304,
+          "composicao": {
+            "curtidas": 7288,
+            "comentarios": 415,
+            "salvos": 199,
+            "compartilhamentos": 105
+          },
+          "interacoes": 8007,
+          "alcance": 168523,
+          "taxaParticipacao": 0.04751280240679314,
+          "viewsMedioPorPost": 21099,
+          "posts": 13,
+          "topPost": {
+            "postId": "18117622837849476",
+            "thumbnailUrl": "https://scontent-iad3-2.cdninstagram.com/v/t51.82787-15/731111352_18451111453139061_8957431084499928374_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=103&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=PlBpiIITsKMQ7kNvwGZGAur&_nc_oc=AdrANJ6yeLHVjEQd4PPH7kPSpgD3iHkaTVrigTIl7BuN8o-9fPXgy08sm3DdiY1qVcI&_nc_zt=23&_nc_ht=scontent-iad3-2.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=TbYWmdROBnZiiJpQkIt5hw&_nc_tpa=Q5bMBQEn0DhfW-NdtnN9FAfnRl2Ihz9HnkeFsWvv1Wco6TgAW9nhjm0eovCMxz7cY7mxIwnVs0tWcsNS7g&oh=00_AQCAgkcYIwqocL_vr8Pv3MLWNayqliQVYSR6o3QjlvIPFQ&oe=6A5E897C",
+            "description": "Montamos nosso closet da @kappesberg_oficial 🤩\n\n Ele é da linha adapt , escolhi os módulos de acordo com o espaço que eu tenho , usamos 5 módulos desta linha na cor branca e sem portas , e ficou perfeitooooo demais 🫰✨\n\nTemos cupom de desconto : LORENA6🏷️\n\n.\n\n.\n\n#closetdossonhos #maedequatrofilhos #realizandoumsonho",
+            "proposal": [
+              "announcement"
+            ],
+            "context": [
+              "personal_and_professional",
+              "home_decor_diy"
+            ],
+            "tone": [
+              "promotional"
+            ],
+            "saved": 65,
+            "shares": 38
+          }
+        },
+        {
+          "semanaFim": "2026-07-16",
+          "seguidores": 127620,
+          "seguidoresDelta": 631,
+          "seguidoresGanho": 631,
+          "seguidoresPerda": 0,
+          "engajamento": 257,
+          "composicao": {
+            "curtidas": 6784,
+            "comentarios": 354,
+            "salvos": 168,
+            "compartilhamentos": 89
+          },
+          "interacoes": 7395,
+          "alcance": 117377,
+          "taxaParticipacao": 0.06300212136960393,
+          "viewsMedioPorPost": 14638.692307692309,
+          "posts": 13,
+          "topPost": {
+            "postId": "18119323444868874",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/747307104_18452258323139061_80223220663921454_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=102&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=JS5YzuL1uJ4Q7kNvwF0TfEO&_nc_oc=AdrcxaOVAKqEKjJfJuDvExWHMrDNvXM_1FGj8OaMadOkskegFyOc5Mm19wg53j68_oY&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=TbYWmdROBnZiiJpQkIt5hw&_nc_tpa=Q5bMBQHeg9kjy5RQRjqUfUYBpwkqT4zSY-FueQEypmeNGcTZxPw1cKp9Exm-YlHuM-wMWSpPOqrBlNPXgg&oh=00_AQD2h5HIKI1Tu_jJdum3g-xLAN6rL33R7XZkaI88St6NEg&oe=6A5EB439",
+            "description": "Não foi fácil tomar  essa decisão 🏠💔\n\nMas precisávamos passar por tudo isso . \nVocê já viveu algo assim ? \n\n.",
+            "proposal": [],
+            "context": [],
+            "tone": [],
+            "saved": 57,
+            "shares": 18
+          }
+        }
+      ],
+      "leituraCruzada": "raso",
+      "coerencia": null,
+      "pontoForte": null,
+      "pontoAjustar": null,
+      "audienciaPede": null,
+      "comparativo": null,
+      "proximosPassos": null,
+      "ganchoMarca": null
+    },
+    {
+      "userId": "6a413af29f33af0b8710b042",
+      "nome": "Lorena Marchetti",
+      "handle": "@lorenadmarchetti",
+      "profilePictureUrl": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAcFBQYFBAcGBgYIBwcICxILCwoKCxYPEA0SGhYbGhkWGRgcICgiHB4mHhgZIzAkJiorLS4tGyIyNTEsNSgsLSz/2wBDAQcICAsJCxULCxUsHRkdLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCz/wAARCACgAKADASIAAhEBAxEB/8QAHAAAAQUBAQEAAAAAAAAAAAAABQECAwQGAAcI/8QAPRAAAQMCBAMGAwYDCAMAAAAAAQACAwQRBRIhMQZBcRMiMlFhgRSRoQczQlLB0RUjsSRTYnKi4fDxQ5LC/8QAGgEAAgMBAQAAAAAAAAAAAAAAAwQAAQUCBv/EACoRAAICAgIBBAAFBQAAAAAAAAABAgMRMQQhEhMiQVEFMnGh0RRCYYHw/9oADAMBAAIRAxEAPwD3hcuXJQOcuXLlCCpQkulChBQuXBefcT/aM2GpnocIkia2Els9dIe5GRuGjmRzOw9VzOagss7hBzeEbHFMew3B481dWRwnky93u9A0alZl32r8PRTmKpFXSm1wZYrX9r3Xj2IcYQGrcMO7Wsq5SQ+qlc7tH+ZAGoHv7KCjwKqqKYvex4nqJC55Dje3IX5f7pV3SXb6Go0RfS7Pe8N47wXEqfto5ZGN/wAUZNvldG6PEKTEI+0pKmOdo3yOuR1HJfPJrGYQ0MrcNrIi0W7WKVzXD1DjofdHMJ4nbTxtrKar7aFhymoa3LNATsJWjl67FVXfP+5dFz48Fp9nuaRAOHOKYMZ/s0pbHVhuYDlK38zf1HJaFOpp9oRaaeGNsusnJF0UJZMeNW9VJZMfu3quXotC21XWXc0tleCiO666S6S6hY66W6jzLs6otEiUKMOTmuUKAvF2MswfApXXPbTgxxgb7ake31IXzXiL67irH24VQ9yniNnlvhBBsT62NwOhPNeofadj8sNfiMgILaCnIiH+LYfN7h/6obwHw/FheERzvYDPMAXE77aJG23xbn86Q/TT54j8bYS4U4Fw7BaVtoGySnV0jxclbCCggbsxo9lVgebaK5A8k2KVgnJ5lsel7ViPSHS4RS1cZjlhbI08iFgOJ+AajBp/43w8wdpECJqQ6snjPiYR5EL1ClNm7aqdzM7bEbp6EEllCM5t9PR5VwxVQyQwPo3vZTyO7SmJPfp5BvGfUa9QvYMKrjiGHsmcA2Ud2Ro2Dhv7Hf3Xm+KYGzAMbkqKdmWkxBwL2jZko2cPK+x9lp+Dat4rayjkcSHATRg8hqCPY3HSyJCXuwBsh7cmuXJVyYFREx+7eqkUcm7eqp6Ih3NdZdzKVWUVC5ML0rioXusgylgMkK6WyQS3VV8mpSMfqlvVeQqh0X2vUrXXVSN11O0o8ZA2jwL7QnPqcQxTNfLPWxRN/wArSXH6kfJbnC4stJE3yaFmeK6QTVsAP/kqWyHqS79kVxCujp8NAmqHQQhl3lmjj6X5LLm/LCNiiPimzQiop4rXnjHVwVunqYpNWPa4ehuvA8TxvCZ64QwQ1TXPPdcZCQfXUgewWj4IrvgsbkpHGXOHFjhmJAPkRyKZdbrj5MFGxWS8Uz2WXEKfDKF1RUyZIwd7Xus7L9obpqkQUWHute3aTODR1sjdeztsDaY4xK8bA+a8dqqPi92Ll9DMyjBLswcG3O4Gtj6G2iZi847F3Fdto9gnldjODSMmjidmbma+J+bKQo8AblximmGhLTe3ruPmL+6C8I4ZjbZTUYjJA0uFi2E6vHIuA0B6I5RH+H4kwSXDGSX9juuJ9STJhOLSNuuSNIc0EagpU8ZpyY/xN6p6Y/xM6qmRDl1l3MpVZRQdsq0hsFYdsq0qUs0MwKjj3ilYdU13iKVqz1sbx0WoyrDT3T0VWMqwwp2vQtJHj3GMnw9fC0AgithaPqf3RSuwSLFqYQTC7DoR5p/F9DCysmkmFyZGGMnZp8/oi1KP5bL+WqznvH0bNaxHP2Zen+zuipiDFFGLai4Jt8zoiFJgUNLVhw7zuZsAEeqapsNO5xNg0LP0uJvaZqiWF8jneBrdLDy1V2ZkkmzqtJZaRvcKa19JlIuE2ppaZsoDhHmOwIQjBMadKAGgNcW+B/I+yJV1PNXUze0exkwvYsGg+aegsw6M+fVneglSQsa3ugKhi1MPiY5LaPu09eSrYNXy9s+jmcDKz6hFpGisiGuzvqETqUMIE8wnlhaht8BBbbIP6KdRUrOzpmNPIBSpuK6M+T7ZyY/xs6p6Y/xs6q2RDuZXWXDcpVZAeearS81ZKryjdKWaGIbKD/EUgKe8apgCznsdXaJmPVmJ6ps2ViHdMVMBNAviPCYK6jnMrA4BrXa87Ej9foglM9ogsw5sgHP0/wBls6tmeldpfz6c1kX0UNJilVI27Y5Y2EN/C05rHpe4Q7q8SyhvjW+zxZSxBxfR5wC5lr9dLhAv41TlzoWRPMrBfKY3a9NNVpcmRjoCLsOwVQU7G3BYCB5oD72OweCpQYricsjGtw1zfyuLWsA63d+i1DIsfqaDK2qgp53Aa5e0DfPkAdEHpKFhmBbGd76lbGhjc2EA29loUdoU5M4r8qBVJhppMVhkdK+Z+Sxkfufloj1HCCRHmsA4n6pkkbQ8P8lepaPUTOcQSNG2RoQ7M+yzKLg20SpbLrJoTETH+NnVSKN/3jFTIh/Mrlw5rrKyFAqCQaFWCoJBoUrPQxEoy7qMFSyhQDQrOkuxyOiVugU8O6gabqxFuiV7By0W49QhfE9Mx/D04awDVuw9RqrdXiFLhlIamsmEMIIBcfM7IDj3EMFZA2mpHZ43Wc99rX8gEe2yEYNN9nNFU5zTS6BbH9tGM3iHNSBoeNd1UifY3U7XXSEGmuzWkmtFiFxhcbgo5SV/dyuFgBv5oNAxz7an5orTwABP1daEbmnsIU0zZKmN0ujC8AA8zyR1Y3HA4YUWsOVzntDT+U7g/MLQ4HiYxXC2TOGWZv8ALmb+V43+e/uj12LzcGJW1+1TWgiuXJQmhURRv+8YpbKJ/wB8z3VMtDwlXBcoQHOKjdslLwTYblSsitq7UpZrOg66KDonPPdaT0CQYdM43OVvUos1t0/s7hcrjp9s69ZrQMZh+U3dJfoFM2maL2JurZYk7PyKIqYrSOHY3sHV2HQ4jQyUlS3NG+3UEagj1BWGxTCKnDJssgzRnwyDZ37H0XpgZe90yWkZLG5j2NkY7drhcFL3cRW/qMUct0vHweZQt0VuJluS01XwrA5xdSv7F35Hat9juEPkweqp2ntITYc26j5pePGlDY7/AFUJrpjKQDRFoRohNO0xvsUYpxdt0zBCtr+QbxP3OHp5f7std9bfqqOC4uMNx6J7zamxFgzeQeB+xv0v5LR12EDE8Olp6gObTPbd52JA1sPlusAIjU4ZNTxuyz0x7SJ3kWm4+bXWS/ITrmrEd0uM4ODPXhsuWHwHjFzaSL4lpfDYNJ/FGfXzC2NNWQVcIkhkD2lP08iFq62I20zr3onUT/vme6lUb/vme6OwCHrko5rlZAJSAvBlOx0Cuwv7wYdjsmNaGMsBZrRZJa5AvYnYpaEWkMSeWWwNCUrXKOmk7Vjgd06PUE+qOgRIuyg+ijzPB2XCQ8wu0cj8p5FKHFu4SByUFQofZr00x+Wi6ycLqEIfho3HvRsd1aFNHC1nha1vRoCcBYXS3sokkVljJmdpE5vmLLynIaPiNsH4Xvczr3XD9AvV3E5D6rzLGIOy4rgN72qCdfX/ALSPN0h3h7YJoo5GYrLAwjK55bY7A62v6Ej/AFFaOgrX4ZUdpFcRnxRk7DmD0QMt7HiBzrm7gCB67/8AyVoqqMS0rKyJoLZNXAbZtj8/2WTCLWWto1JNPCembKjqWVVOyaM3a4XCke12drrXA8lnOFqns3upL9y2ZnoPJapq3KJ+rBSMW6HpzaI2m40Sp7mDcJtkcBkHP0jP1SP0yOTpBYWO/wDVMHfp3N/ExDDIdA7s65zeTtVa8ERQ6R9poJL6OOVXpni4b6K4vZTWiniWISUGEz1MbWufEMwDtjrZBcO41gqJ+yq4hGbE3iDnG/TVVuM8XfBTswynAdLVtc55/Kxup/p9EB4Oq44+I6QAgF7i2/UFLStfn4xNzjcGEuLK2yPfbX6GsreLHQNDocLqCxxsx857IO6A6pMF4rlxPFvgZqIROLS4OY/MBbzTeOZ2NhpALmUlxGhtbqu4Ioo4oqqUgOmc4Au52te3zXXlL1PHIP0qFw3c4dvXb+wzNj1DTVklNM57HxmxOW4RJkjHRCUOGQjMCdBZYbiAZMfqfUg/QLWQAT8OsbuHU9v9KPGbbaE7+NCFcJx+QgHBwu0gj0N1w1KxfD8pjxiBuawddtr+YRriKqnomU8sEjmXJabK1PMcnFnEcLVUnsNO8K834tD6fGWTec7Mo6i36LTYDjlZiVb8M+Jr442kyzbG99PRZPiSrnrMUy1DGMMFQGNyg9610nypKVeV9h6ONOqyUZfCIaoM/iccnLszfq03/Uo1wm8TUdXh0t3dm4ll/L/ohBq7KHSu/uJG3/yvAH9QrWDVPw9bFU38AySerQbH5LPrl42DM4uUMBZ7HYbVw1LblsTwHW/Kef1W0isW3ve4WRxzF4KWaamfSyObYHMCLG40IRzhyq+LwWCTMXFoyEnc20WpRiE3BGfyK5+mrJIK8io1IdEw7lOsQRQfbLlJ6FRAmOQOO40KmkAym/NR7ss7XyKE0GRFUsDWkfhuHBTVAJk33CgqnWpXDct1CjbiGeZojyyNOrnX0A5DquG0jpJtAvHuGW42+GZlU+kqoQWslaMwsdwR/wA3Xm2GUNVFjUEcNSGzNnDGPtoDmsDZevYlXxUlBJVNY14jaXPBflsF5bhWGS4ji8EUEpa6STxxuuWC9yfZJXxXksbPTfhN0/Rmpv2pdZ/2arG6mvoKD4eqxqmrZM4PYiIB4+W3uo6JmKYhD8Nh7ixkjQ6QBwb8zvzV7GMBosG4eHYxF0hlbmlecz3b7lScGTB+ISjYiLb3CIoNy8ZA1bFcZ2VpPD+kv2QFxDDX4PiXY1EhccgcH62d090Vnx+RnDUFNDFMxj/5Tqg6bHUN89OaIcWtHxNM6w8Dh9VZwGlpq/BWsqIGSiGYlocNjoV0q2m4xYKfIjOiF1sc4f8AJk6Kpmoq+KpexxZG8Oy/iAB5+yKYzxGcUp+zp6YsjYcxe7Ujl0G6bi0UceL1QI3kJIKO4th1NFwxVspKdseZgf3BqbEFRRl4tJnVt1XnXZKPb0DeGMQgw7CayafRrC15sNTfQBZbiL4kYhDJKc5kqGTZrZbhwuNPdG8Dpoa17qKd57OojtcHUEaghLxfhdRGaapmqDUgHJ92GWttt7oc4uVePo7h6ceU4vcv46x+4Jp424jhj5N3TQ5XAbkgn91QoqlxbHL4QRd/voT7ED6o7wPSvzPgmHeh1B5EFVcew2PCMZnhp4wWPb2zGeQ/EB9Uj6E/HzLj4q2VL2i1SvqMToWPqWRtFD/LLj4nAnu9QtTwmC3CrWswyvy+oQaDCI58NhkpD2clQwMa4uNhbn/z1Wpw2g/huHxU5fncy5c+1sxJuVqcaEl+YzOZdF1emvvX/f5LxOqaVw1BXbhPMxj/2Q==",
+      "narrativaCentral": "uma mãe carioca que vive a vida real com paixão",
+      "territorios": [
+        "maternidade",
+        "família",
+        "lifestyle",
+        "identidade carioca",
+        "culinária",
+        "futebol"
+      ],
+      "semanas": [
+        {
+          "semanaFim": "2026-06-11",
+          "seguidores": null,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 3059,
+          "composicao": {
+            "curtidas": 12962,
+            "comentarios": 457,
+            "salvos": 298,
+            "compartilhamentos": 2761
+          },
+          "interacoes": 16478,
+          "alcance": 112426,
+          "taxaParticipacao": 0.14656751996869052,
+          "viewsMedioPorPost": 25128,
+          "posts": 7,
+          "topPost": {
+            "postId": "17883064191603545",
+            "thumbnailUrl": "https://scontent-iad3-1.cdninstagram.com/v/t51.71878-15/719231702_990092100404230_2512814539119871428_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=104&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=k2lxPToNjE4Q7kNvwFl6kby&_nc_oc=Adrs51CDAopGSlnYSRG6gwzj_u5qlwX5IqreZO8Fm9gz6YpRrO1jblXorEThdQ4v9-k&_nc_zt=23&_nc_ht=scontent-iad3-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=6CntW06qAuyMp-Do9o4e2w&_nc_tpa=Q5bMBQFLvwSnxsv17bRLOdbjd3sN-PBRZM66EG3Zyezc-dOWqcNER68OtBu83b_H7an1-auYEkBh5O5PGg&oh=00_AQDTRsJxdrLu5z1mjz9Qyw8uj13eyL5AYlgEillkpIMLLw&oe=6A5EA5D8",
+            "description": "O áudio mais fofo que você vai ouvir hoje, prometo!\n\n#botafogo #botafoguense #maedemenina #fanaticosporfutebol",
+            "proposal": [],
+            "context": [],
+            "tone": [],
+            "saved": 138,
+            "shares": 1468
+          }
+        },
+        {
+          "semanaFim": "2026-06-18",
+          "seguidores": null,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 175,
+          "composicao": {
+            "curtidas": 1904,
+            "comentarios": 221,
+            "salvos": 53,
+            "compartilhamentos": 122
+          },
+          "interacoes": 2300,
+          "alcance": 27712,
+          "taxaParticipacao": 0.08299653579676675,
+          "viewsMedioPorPost": 4936.375,
+          "posts": 8,
+          "topPost": {
+            "postId": "18092973875259189",
+            "thumbnailUrl": "https://scontent-iad3-1.cdninstagram.com/v/t51.82787-15/723238834_18157047268474050_3549117924774651330_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=110&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=7Gvf5Jw33sMQ7kNvwFZFzGQ&_nc_oc=Adrqs47X2HiBgjx5HMPE5bMsvGAp4KHZii9NMsXHcCQQgKh09J3JsxtzY2f9D5HCvrI&_nc_zt=23&_nc_ht=scontent-iad3-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=opSYAiKY3QvHCLnkpCXlNg&_nc_tpa=Q5bMBQEPVX71rR4nSkwAAqEp0m9TdyXYKWqnWpwvrAoR6bgDIyzVzYUI0DRHXMtm7IRi8F0PRRVAYgKCYg&oh=00_AQCi2rgewAoP0Td26VpNjjzSLqu-9fDBxpBAo44SB6oK_w&oe=6A5E89D5",
+            "description": "A gata borralheira está diferente 😂\n\n#maternidadereal #maedemenina #princesasdisney👑 #disneybrasil #criancasengracadas",
+            "proposal": [],
+            "context": [],
+            "tone": [
+              "humorous"
+            ],
+            "saved": 10,
+            "shares": 59
+          }
+        },
+        {
+          "semanaFim": "2026-06-25",
+          "seguidores": null,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 166,
+          "composicao": {
+            "curtidas": 1168,
+            "comentarios": 171,
+            "salvos": 35,
+            "compartilhamentos": 131
+          },
+          "interacoes": 1505,
+          "alcance": 15903,
+          "taxaParticipacao": 0.09463623215745456,
+          "viewsMedioPorPost": 3821,
+          "posts": 6,
+          "topPost": {
+            "postId": "18111578329857687",
+            "thumbnailUrl": "https://scontent-iad3-1.cdninstagram.com/v/t51.82787-15/729688055_18157860463474050_5694727111697429780_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=101&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_eui2=AeGDwve1oPm7FH4hLQ3XC9NhU6sxgKbCiiJTqzGApsKKIr_xtiU8EzfNkFVO6endoY-jWCg21X8TU23pV_i3Vlf4&_nc_ohc=RB5JBK130c4Q7kNvwGchCS4&_nc_oc=Ado9ASsT5CUMSskNO_dLKIf02oa9c4U8jyEmY4gKCGPBR5lnNuurBXKyaTbkkiwIFOU&_nc_zt=23&_nc_ht=scontent-iad3-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=d24GnGG0-Ktjj6tewk_MOw&_nc_tpa=Q5bMBQHZyKlqNyg6WQLLeAxibYhCGjND3yYvCYaMGGAyA_pv1UcXqC4ZxbT9qzfXJlol9vg0-f0a5h8CNQ&oh=00_AQDxp1KYaOZhCRMGmGYj6WMTtCedeh_qIwT_qf31e911Mw&oe=6A5740D9",
+            "description": "Praia, sol, pandeiro na mão e “pé na areia” na ponta da língua. Acho que o checklist da carioquice está 100% atualizado!\n\n#maternidadereal #maedemenina #riodejaneiro #carioquissima #cariocadagema",
+            "proposal": [],
+            "context": [
+              "lifestyle_and_wellbeing"
+            ],
+            "tone": [
+              "humorous"
+            ],
+            "saved": 2,
+            "shares": 39
+          }
+        },
+        {
+          "semanaFim": "2026-07-02",
+          "seguidores": 8018,
+          "seguidoresDelta": null,
+          "seguidoresGanho": 49,
+          "seguidoresPerda": 0,
+          "engajamento": 94,
+          "composicao": {
+            "curtidas": 764,
+            "comentarios": 95,
+            "salvos": 23,
+            "compartilhamentos": 71
+          },
+          "interacoes": 953,
+          "alcance": 13045,
+          "taxaParticipacao": 0.07305481027213492,
+          "viewsMedioPorPost": 4880.25,
+          "posts": 4,
+          "topPost": {
+            "postId": "18090501494528081",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/728288154_18158171356474050_5036486945522885049_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_eui2=AeFEbN2F1RMMKY1ir3lFbdOs3POZwj7kz3zc85nCPuTPfIdSnkiAJLnyZ79wf44sidN0QY4eTJ9xfM3VrA2uthW3&_nc_ohc=6BemoM67zNMQ7kNvwHEebGz&_nc_oc=AdqXHwVe6h3u2r64Mb_g5D1Gc8aSkpS0g5YInJIylNdDd1RJJayTaKplGgs-BHQWHvs&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=3neDqOfvQf2JOPEUmTg18A&_nc_tpa=Q5bMBQHH4cB2Fs3NeQqEhiDaZ2_HzsM8izl-tHkrONk4Cl1AK7YAKHdmDsTh7BPCSe24GyIbLaBeUCrAaQ&oh=00_AQAcRemwTHUpgUY2E3Eh5verx4w3vGOTQXa8vVqv4BARpw&oe=6A4EB815",
+            "description": "Qual o erro preferido de vocês? 🩷🤏🏻\n\n#maternidadereal #maedemenina #viralvideos #carioquissima #sotaquecarioca",
+            "proposal": [],
+            "context": [
+              "lifestyle_and_wellbeing",
+              "parenting"
+            ],
+            "tone": [
+              "humorous"
+            ],
+            "saved": 10,
+            "shares": 32
+          }
+        },
+        {
+          "semanaFim": "2026-07-09",
+          "seguidores": 8086,
+          "seguidoresDelta": 68,
+          "seguidoresGanho": 68,
+          "seguidoresPerda": 0,
+          "engajamento": 57,
+          "composicao": {
+            "curtidas": 1062,
+            "comentarios": 135,
+            "salvos": 19,
+            "compartilhamentos": 38
+          },
+          "interacoes": 1254,
+          "alcance": 20651,
+          "taxaParticipacao": 0.06072345164883056,
+          "viewsMedioPorPost": 2533.9166666666665,
+          "posts": 12,
+          "topPost": {
+            "postId": "18380393692163050",
+            "thumbnailUrl": "https://scontent-iad3-2.cdninstagram.com/v/t51.82787-15/729674395_18158907841474050_152817322163685487_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=105&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=2nbkdMW0lGoQ7kNvwHtQhAY&_nc_oc=AdpfSpttzuleF9BDB90uq3vwrdObik_50vhrNpcupyvu9ju9YIGrvk5lMtiIgmE5aZU&_nc_zt=23&_nc_ht=scontent-iad3-2.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=opSYAiKY3QvHCLnkpCXlNg&_nc_tpa=Q5bMBQEuuBDAGP66Puxt3uzH9XotobiV7tORu2QdhFO45uIW-wuBcJNwzgfNiAj6KsXc-jXWXQOhq-3n8Q&oh=00_AQAyjWexXty5ZnVQwHZGnPRT4PVFJLF5tT6diknADQCvwA&oe=6A5E88DD",
+            "description": "E não sou eu que vou corrigir essa fofura né?\n\nQual foi a sua palavra favorita?\n\n#maternidadereal #maedemenina #carioquissima #cariocas #humormaterno",
+            "proposal": [],
+            "context": [],
+            "tone": [],
+            "saved": 9,
+            "shares": 17
+          }
+        },
+        {
+          "semanaFim": "2026-07-16",
+          "seguidores": 8140,
+          "seguidoresDelta": 54,
+          "seguidoresGanho": 54,
+          "seguidoresPerda": 0,
+          "engajamento": 47,
+          "composicao": {
+            "curtidas": 392,
+            "comentarios": 52,
+            "salvos": 18,
+            "compartilhamentos": 29
+          },
+          "interacoes": 491,
+          "alcance": 6042,
+          "taxaParticipacao": 0.08126448195961603,
+          "viewsMedioPorPost": 2938.6666666666665,
+          "posts": 3,
+          "topPost": {
+            "postId": "18206510674345116",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/743051221_18159643465474050_6532137058989793780_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=109&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=MZ76P9bE3esQ7kNvwFyaaJj&_nc_oc=Adokb_PqbjQQE3nBc06wePbS9rNLJtyV0WdYjCnvmmljRobHM3MmSt_hXuT5BgNm_C0&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=opSYAiKY3QvHCLnkpCXlNg&_nc_tpa=Q5bMBQGLi01sRKYBOl0bZ92suRA_TbLBKJLVovZMRHV_BQIe9MaKi_Hl82NwFVFiwNPfOrhBhL4uBXD1VQ&oh=00_AQBaj3Oy_bdA5epEJoBbmqM1nmZ9r1Rn7gHCVLMi85OHNg&oe=6A5E993B",
+            "description": "Sextooooooou galera! Quem mais está no ritmo de fim de semana já? \n\n#maternidadereal #pagodinhodeleve #carioquissima #cariocas #sextouuu",
+            "proposal": [],
+            "context": [],
+            "tone": [],
+            "saved": 9,
+            "shares": 19
+          }
+        }
+      ],
+      "leituraCruzada": "dados-insuficientes",
+      "coerencia": null,
+      "pontoForte": null,
+      "pontoAjustar": null,
+      "audienciaPede": null,
+      "comparativo": null,
+      "proximosPassos": null,
+      "ganchoMarca": null
+    },
+    {
+      "userId": "69dcee5f107bd4e47e192a7d",
+      "nome": "Marina Dutra",
+      "handle": "@marinaduttra_",
+      "profilePictureUrl": "data:image/jpeg;base64,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",
+      "narrativaCentral": "Encontrar leveza e autenticidade na jornada da maternidade",
+      "territorios": [
+        "Maternidade",
+        "Autocuidado feminino",
+        "Bem-estar",
+        "Vida familiar",
+        "Humor",
+        "Alimentação"
+      ],
+      "semanas": [
+        {
+          "semanaFim": "2026-06-11",
+          "seguidores": 54875,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 103,
+          "composicao": {
+            "curtidas": 962,
+            "comentarios": 28,
+            "salvos": 39,
+            "compartilhamentos": 64
+          },
+          "interacoes": 1093,
+          "alcance": 32441,
+          "taxaParticipacao": 0.03369193304768657,
+          "viewsMedioPorPost": 16106.666666666666,
+          "posts": 3,
+          "topPost": {
+            "postId": "17868561630543404",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.71878-15/719210230_965365116344164_9093519453993736354_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=106&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=3lMOia21Me8Q7kNvwH2A_5K&_nc_oc=AdpdkkjDhSeyjG28uahucQm0cU8sz7BfzAedcQkxLMPin1a3a4ClZa0KAF_Em-zDWdw&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=fai9c4h52bSM8kf5rttLqg&_nc_tpa=Q5bMBQHOsZLz7YWvoq1UNxNvcRqjCo59ua1TnuSyqs0fYFtxkSV4jlPQTtGre4dHVpwSpDNnyX23pIKYVg&oh=00_AQD5jK-kENvrjSPD6khrP6lzjImytxm9S69Eq4gX2vgoUA&oe=6A5E98CE",
+            "description": "RONC RONC🐽🐽🐽",
+            "proposal": [],
+            "context": [],
+            "tone": [
+              "humorous"
+            ],
+            "saved": 19,
+            "shares": 30
+          }
+        },
+        {
+          "semanaFim": "2026-06-18",
+          "seguidores": 57316,
+          "seguidoresDelta": 2441,
+          "seguidoresGanho": 2441,
+          "seguidoresPerda": 0,
+          "engajamento": 100,
+          "composicao": {
+            "curtidas": 900,
+            "comentarios": 24,
+            "salvos": 44,
+            "compartilhamentos": 56
+          },
+          "interacoes": 1024,
+          "alcance": 16514,
+          "taxaParticipacao": 0.06200799321787574,
+          "viewsMedioPorPost": 11501.5,
+          "posts": 2,
+          "topPost": {
+            "postId": "17940101661055222",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.71878-15/719938960_4376508045931561_8630420474474887431_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=107&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=sBVNnOOlN5wQ7kNvwGsOMsk&_nc_oc=AdoE0mUHUxky2LyOrh6FX56bXKxQcPY-FjzASuIzPmwfOXySbAc-PUfpD1NfqH082i4&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=8W8JWMIua_O5JwziVpa-Hw&_nc_tpa=Q5bMBQFNK0gXDj6LveOcm9MW9yZqj1uNjllsZqBij6RFgFRx81fQJ11TCBF3PwyRpG-vKE2Rdej1E91bNQ&oh=00_AQAB2dwLOXDnMFycB0ChRfahYBk0HpmaVDbxxi8e7IYgTQ&oe=6A5E9F40",
+            "description": "me dá alergia 😬\n\n#maternidade",
+            "proposal": [],
+            "context": [],
+            "tone": [],
+            "saved": 34,
+            "shares": 54
+          }
+        },
+        {
+          "semanaFim": "2026-06-25",
+          "seguidores": 58495,
+          "seguidoresDelta": 1179,
+          "seguidoresGanho": 1179,
+          "seguidoresPerda": 0,
+          "engajamento": 613,
+          "composicao": {
+            "curtidas": 13690,
+            "comentarios": 65,
+            "salvos": 406,
+            "compartilhamentos": 207
+          },
+          "interacoes": 14368,
+          "alcance": 169324,
+          "taxaParticipacao": 0.0848550707519312,
+          "viewsMedioPorPost": 57712,
+          "posts": 4,
+          "topPost": {
+            "postId": "18131856784521339",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/727834800_18600534844055642_3290753100346188423_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=dwSye9SxA38Q7kNvwFAe6BQ&_nc_oc=AdqNt6kXWiFI2zpN9OJPCqBoV3wb7JcPb7gWOsQd0_MnmESyWVJg5nl0wQ9jWanlABo&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=8W8JWMIua_O5JwziVpa-Hw&_nc_tpa=Q5bMBQFkgyZY52rY_Ex5JfPkcmNgm_rxV8XNl8t8Ymu8MOjb9k1lSsVUehDrHi03KcqUMnM-soh0gTNarw&oh=00_AQD2FyqvTIMPd5-Z5fVI1vUU1Pn5dVQQDCyPKD_Zk65UJg&oe=6A5E967E",
+            "description": "Sabadouu 💅🏻✨💙\n#maternidade #maternidadereal #maededois #rotina",
+            "proposal": [],
+            "context": [
+              "lifestyle_and_wellbeing",
+              "parenting"
+            ],
+            "tone": [],
+            "saved": 357,
+            "shares": 152
+          }
+        },
+        {
+          "semanaFim": "2026-07-02",
+          "seguidores": 59399,
+          "seguidoresDelta": 904,
+          "seguidoresGanho": 904,
+          "seguidoresPerda": 0,
+          "engajamento": 6445,
+          "composicao": {
+            "curtidas": 147736,
+            "comentarios": 167,
+            "salvos": 2409,
+            "compartilhamentos": 4036
+          },
+          "interacoes": 154348,
+          "alcance": 1081955,
+          "taxaParticipacao": 0.1426565799871529,
+          "viewsMedioPorPost": 384353.5,
+          "posts": 4,
+          "topPost": {
+            "postId": "17999202194782658",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/730943327_18604636714055642_8406208645544315731_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=102&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=5Y-oCUt7ZA8Q7kNvwGM9JHe&_nc_oc=AdrLVopdXv3K82Om2kIZwccz7lb18R2QZAT2SEyQPyG6VFp5NlF-UvasZ0nNfvMrd7w&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=8W8JWMIua_O5JwziVpa-Hw&_nc_tpa=Q5bMBQHpwS6XOrdiLKMa4V_DkAjLcTbWaJJ86ZMo2HIfUirMSHLLzbn9BRwXb3WBjDFAXzBKtMJlC-432Q&oh=00_AQCP9mvRAfNokRc8bqsHFJ23BP6Cc_X-VhhHgjLjTk9GOw&oe=6A5E9F25",
+            "description": "Neymar ou Vini Jr? VINIVINI 💅🏻✨\n\n#vlog #sushi",
+            "proposal": [],
+            "context": [],
+            "tone": [],
+            "saved": 2359,
+            "shares": 4006
+          }
+        },
+        {
+          "semanaFim": "2026-07-09",
+          "seguidores": 60940,
+          "seguidoresDelta": 1541,
+          "seguidoresGanho": 1541,
+          "seguidoresPerda": 0,
+          "engajamento": 539,
+          "composicao": {
+            "curtidas": 9559,
+            "comentarios": 113,
+            "salvos": 256,
+            "compartilhamentos": 283
+          },
+          "interacoes": 10211,
+          "alcance": 267142,
+          "taxaParticipacao": 0.03822311729342447,
+          "viewsMedioPorPost": 51497,
+          "posts": 7,
+          "topPost": {
+            "postId": "18104499416469215",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/731448213_18605563204055642_5373387839277090205_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=AkzQ8MS2CiYQ7kNvwENFTt9&_nc_oc=AdogvcHHLZmXCEz_ijAM8OPIW7SKrft09T-jBSYuIqE0g6rbPWgJHG7zViguq3-cFow&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=8W8JWMIua_O5JwziVpa-Hw&_nc_tpa=Q5bMBQFV2Xsola7xdyS8WDzqA5OPHd35F76XWpkbfywGt9XmwO9mdnKiIUtRzFmNG6CXZG2bc6vDOsLhKg&oh=00_AQCA1z9p0B9IplHU416EQXtzjkLZCfiBbkPc07zWHAZLJg&oe=6A5E8D6C",
+            "description": "Haaland ou Virgínia? 🤣🤣🤣 \n\nIb: @thamycadore \n#haaland #virginia",
+            "proposal": [],
+            "context": [],
+            "tone": [],
+            "saved": 166,
+            "shares": 154
+          }
+        },
+        {
+          "semanaFim": "2026-07-16",
+          "seguidores": 67656,
+          "seguidoresDelta": 6716,
+          "seguidoresGanho": 6716,
+          "seguidoresPerda": 0,
+          "engajamento": 2049,
+          "composicao": {
+            "curtidas": 53908,
+            "comentarios": 265,
+            "salvos": 1107,
+            "compartilhamentos": 942
+          },
+          "interacoes": 56222,
+          "alcance": 486660,
+          "taxaParticipacao": 0.11552624008548062,
+          "viewsMedioPorPost": 91260.42857142857,
+          "posts": 7,
+          "topPost": {
+            "postId": "18121613347809103",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/734718420_18607585033055642_1473245532919632428_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=109&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=re6w4p0xXH0Q7kNvwGRpe9J&_nc_oc=AdrMbGlp0aESKeoK71DF3ZDxONPKzExYmnyE_wO4tNg-fjpMkZG_XaLXwo9dOzzERL4&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=8W8JWMIua_O5JwziVpa-Hw&_nc_tpa=Q5bMBQEUOM512Xcv82yvMctutjgT4W6kxqDxjMVJbakR-__-2mDxLHyonRfVzS6IT9_OleSclzFCTq74BA&oh=00_AQDrOTvIb3fwI6D3OOd3d6bBvH7DSAGRkLVR76Dmy2rjWg&oe=6A5EA00E",
+            "description": "feriadouuuu💖✨ \n\n#maternidade #vlog #rotina #feriado",
+            "proposal": [
+              "lifestyle"
+            ],
+            "context": [
+              "personal_and_professional"
+            ],
+            "tone": [
+              "neutral"
+            ],
+            "saved": 948,
+            "shares": 718
+          }
+        }
+      ],
+      "leituraCruzada": "fundo",
+      "coerencia": null,
+      "pontoForte": null,
+      "pontoAjustar": null,
+      "audienciaPede": null,
+      "comparativo": null,
+      "proximosPassos": null,
+      "ganchoMarca": null
+    },
+    {
+      "userId": "6986566ae713c39411143dc1",
+      "nome": "Tais Evaristo",
+      "handle": "@casadetais",
+      "profilePictureUrl": "data:image/jpeg;base64,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",
+      "narrativaCentral": "viver o cotidiano com mais presença e paixão",
+      "territorios": [
+        "culinária",
+        "vida doméstica",
+        "jornada pessoal",
+        "identidade brasileira",
+        "Masterchef",
+        "comida afetiva"
+      ],
+      "semanas": [
+        {
+          "semanaFim": "2026-06-11",
+          "seguidores": 215455,
+          "seguidoresDelta": null,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 3404,
+          "composicao": {
+            "curtidas": 10634,
+            "comentarios": 396,
+            "salvos": 2110,
+            "compartilhamentos": 1294
+          },
+          "interacoes": 14434,
+          "alcance": 126155,
+          "taxaParticipacao": 0.11441480718164163,
+          "viewsMedioPorPost": 23724.85714285714,
+          "posts": 7,
+          "topPost": {
+            "postId": "17901456864448722",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/721051629_18006861533915436_7304801823960122857_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=o2iPIp7rcVYQ7kNvwFIZqVy&_nc_oc=AdrILRT4qoBvTfdF_pTtyJGi04Nj9Xi5nWiWaR1kjjrE6XspP9NyRIPRLp8ZGUdf1LA&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=e9-EAvBYYEW1v1F71cI26w&_nc_tpa=Q5bMBQH08eLVVw-T696GG9fyJsCgj7YQT3kJOqROy-H54qCmAxZmq4vMdqZofrThXfqzqjHY2BrnV4gbJA&oh=00_AQCVho8WNnV4jJmgkXs3y-MaLwAUrYiXikLlxTOlPd84ag&oe=6A5EB01B",
+            "description": "COSTELINHA BBQ DO MASTERCHEF\n\nCOSTELINHA\n\n• 1 costelinha suína — aprox. 1,3 kg\n• 1 fio de azeite\n• 4 dentes de alho\n• 1 cebola\n• 1 colher (chá) de páprica defumada\n• 1 colher (chá) de páprica doce\n• 1 colher (café) de pimenta-do-reino\n• 1 colher (sopa) rasa de sal\n• 1 colher (sopa) cheia de açúcar mascavo\n• 1 xícara de ketchup\n• 3 colheres (sopa) de shoyu\n• Água até cobrir totalmente a carne\n\nPREP",
+            "proposal": [
+              "tips"
+            ],
+            "context": [
+              "food_culinary"
+            ],
+            "tone": [
+              "educational"
+            ],
+            "saved": 1420,
+            "shares": 808
+          }
+        },
+        {
+          "semanaFim": "2026-06-18",
+          "seguidores": 215455,
+          "seguidoresDelta": 0,
+          "seguidoresGanho": null,
+          "seguidoresPerda": null,
+          "engajamento": 3189,
+          "composicao": {
+            "curtidas": 21813,
+            "comentarios": 786,
+            "salvos": 1430,
+            "compartilhamentos": 1759
+          },
+          "interacoes": 25788,
+          "alcance": 270087,
+          "taxaParticipacao": 0.0954803452220951,
+          "viewsMedioPorPost": 58485.71428571428,
+          "posts": 7,
+          "topPost": {
+            "postId": "18093721937461623",
+            "thumbnailUrl": "https://scontent-iad3-1.cdninstagram.com/v/t51.82787-15/727058260_18007954829915436_8410394591937250325_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=108&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=r0MPibmOfEsQ7kNvwH5nmLz&_nc_oc=Adr2i6cgsDcKj7bmN4_fkrSP5AdZZWai_rqTTmRjAyXa2__MSAVfbOXCw2JlQoNdJiA&_nc_zt=23&_nc_ht=scontent-iad3-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=FUENPD-ioTeR1BeFxqif9w&_nc_tpa=Q5bMBQGOJeKnEL0Q_YrrJW4O6yd7ScabyurFU-hVJqVypuCnE3ypVZXTgnflfBs8RIF2i9Gr0tHj2bq-7Q&oh=00_AQBSz7IYssysYXu-KOE1_ZQUtqftk36BiPCNqoMpxsdeOw&oe=6A5EAD92",
+            "description": "O vídeo mais sem filtro que vocês verão hoje, eu to de saco cheio de ter que parar minha vida por causa de r4c1sm0 ! Hoje eu vi milhares de páginas que tiveram várias oportunidades de falar sobre os participantes pretos dessa edição do Masterchef, dando hype apenas para a maldita fala. Ou seja, a pauta em si não é genuinamente importante … Importante é o que vai gerar engajamento ….",
+            "proposal": [],
+            "context": [],
+            "tone": [],
+            "saved": 1017,
+            "shares": 1378
+          }
+        },
+        {
+          "semanaFim": "2026-06-25",
+          "seguidores": 218172,
+          "seguidoresDelta": 2717,
+          "seguidoresGanho": 2717,
+          "seguidoresPerda": 0,
+          "engajamento": 72,
+          "composicao": {
+            "curtidas": 1047,
+            "comentarios": 65,
+            "salvos": 44,
+            "compartilhamentos": 28
+          },
+          "interacoes": 1184,
+          "alcance": 19035,
+          "taxaParticipacao": 0.06220120830049908,
+          "viewsMedioPorPost": 12353.5,
+          "posts": 2,
+          "topPost": {
+            "postId": "18072343892699722",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/729731517_18008680427915436_2835064738914576943_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=107&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=2nazzKLyRJQQ7kNvwGuiJx5&_nc_oc=AdrPjNGwhC1BcWmeA7Yid8TE0YRijHg-AiYZ7DnCowRlWTCFAcZIYumjmQXjFPNFkF4&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=FUENPD-ioTeR1BeFxqif9w&_nc_tpa=Q5bMBQHUr6F-tkL2bTknnJuBhIpCSK-XhUn7qMfzmEKzLgqDQcVfRTc38gzNabnyIwFPjAHvnKA8OM_j6Q&oh=00_AQBc7_xcLW6fIpc1bF1_zyHCFPuk74gLrQyHRLyLzjc_-Q&oe=6A5EB2DF",
+            "description": "Cachorro quente combina com dia de jogo do Brasil hein ! Quero ver vocês fazendo esse aqui nível Masterchef 🤍 \n\nReceita nos Comentários 👇🏾",
+            "proposal": [],
+            "context": [],
+            "tone": [],
+            "saved": 24,
+            "shares": 24
+          }
+        },
+        {
+          "semanaFim": "2026-07-02",
+          "seguidores": 218389,
+          "seguidoresDelta": 217,
+          "seguidoresGanho": 317,
+          "seguidoresPerda": 100,
+          "engajamento": 298,
+          "composicao": {
+            "curtidas": 4109,
+            "comentarios": 326,
+            "salvos": 185,
+            "compartilhamentos": 113
+          },
+          "interacoes": 4733,
+          "alcance": 45692,
+          "taxaParticipacao": 0.10358487262540489,
+          "viewsMedioPorPost": 15580.75,
+          "posts": 4,
+          "topPost": {
+            "postId": "17895823350533005",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/740237426_18010457267915436_8994885713879480361_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=102&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=XODi0YZf2twQ7kNvwFz7fTP&_nc_oc=AdpJ7w9EjxrmJL0JyMYkjYga7J1U3P9iNFrfgHE2-IFaFtiQbOQISvsUle4IQs_bEAc&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=FUENPD-ioTeR1BeFxqif9w&_nc_tpa=Q5bMBQHLUeJoDmGqw-QtAyTFXit1CNhi-UJCUC1CkUKjyrnoAm4IANgH-w5tnTm_h4kvwgcTpHbHjTK_3w&oh=00_AQDiwsT29Z8PTEG23YC1zhLwW8vYbKsXbOhGlK5nmnLL0Q&oe=6A5EADBE",
+            "description": "O Japão encontrou o MasterChef Brasil, e pra mim deu muito certo! 🇯🇵🇧🇷\n\nVocê já conhecia o Omurice ou essa é a primeira vez que você ouve falar esse nome? Conta aqui nos comentários! 🤍\n\nArroz Frito\n\n* 2 xícaras de arroz agulhinha cozido\n* ½ cebola picada\n* ½ cenoura picada\n* 100 g de bacon\n* 300 g de filé de pernil\n* 1 dose de cachaça branca\n* 1 colher de sopa de vinagre branco\n* 4 colheres d",
+            "proposal": [
+              "tips"
+            ],
+            "context": [
+              "food_culinary"
+            ],
+            "tone": [
+              "neutral"
+            ],
+            "saved": 77,
+            "shares": 38
+          }
+        },
+        {
+          "semanaFim": "2026-07-09",
+          "seguidores": 219008,
+          "seguidoresDelta": 619,
+          "seguidoresGanho": 619,
+          "seguidoresPerda": 0,
+          "engajamento": 416,
+          "composicao": {
+            "curtidas": 2072,
+            "comentarios": 109,
+            "salvos": 217,
+            "compartilhamentos": 199
+          },
+          "interacoes": 2597,
+          "alcance": 29273,
+          "taxaParticipacao": 0.08871656475250231,
+          "viewsMedioPorPost": 12395.666666666666,
+          "posts": 3,
+          "topPost": {
+            "postId": "17933881167335322",
+            "thumbnailUrl": "https://scontent-iad6-1.cdninstagram.com/v/t51.82787-15/732422086_18010177562915436_168292170651700749_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=107&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=vCWhOzD8CHAQ7kNvwHcReEq&_nc_oc=Adp3rEOSl9d8fIlGb1Y7e1xiLQPE6DxniHlwkAWgFuDF-Jpynf9s_uows29G8EMo5G8&_nc_zt=23&_nc_ht=scontent-iad6-1.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=FUENPD-ioTeR1BeFxqif9w&_nc_tpa=Q5bMBQFRysQrvyyQAUXmd2KUcF4RtkkFB8FiFwKO-YaXGHiXhs0wzxK_gXVfUm5dx_SvcqqYwKtJABscXA&oh=00_AQBFeS2WvYNpG8UHBGJxCtZpwaAK8KUAZZeOJuF54Ff3Cw&oe=6A5E8898",
+            "description": "Já que vocês insistem em me chamar assim,  toma uma receita típica de Ameinda 🫶🏾\n\nChocolate Quente\n\n🍫 100g de chocolate em barra (usei metade ao leite e metade meio amargo)\n🥛 100g de creme de leite\n🥛 400 ml de leite\n🌿 1 canela em pau\n⭐ 1 anis-estrelado\n🤏 1 pitada de noz-moscada\n🧂 1 pitada de sal\n\nTomarias ?",
+            "proposal": [
+              "tips"
+            ],
+            "context": [
+              "food_culinary"
+            ],
+            "tone": [
+              "humorous"
+            ],
+            "saved": 80,
+            "shares": 137
+          }
+        },
+        {
+          "semanaFim": "2026-07-16",
+          "seguidores": 220177,
+          "seguidoresDelta": 1169,
+          "seguidoresGanho": 1169,
+          "seguidoresPerda": 0,
+          "engajamento": 18,
+          "composicao": {
+            "curtidas": 205,
+            "comentarios": 37,
+            "salvos": 8,
+            "compartilhamentos": 10
+          },
+          "interacoes": 260,
+          "alcance": 3187,
+          "taxaParticipacao": 0.0815814245371823,
+          "viewsMedioPorPost": 4639,
+          "posts": 1,
+          "topPost": {
+            "postId": "17932639524346652",
+            "thumbnailUrl": "https://scontent-iad3-2.cdninstagram.com/v/t51.82787-15/747752973_18011646299915436_2483580388407329843_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=103&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=K6RUR75nTk8Q7kNvwEsp-6-&_nc_oc=AdpqOLNZBPWD1GiBxYrSzfc4kMqrAdpNpvs3ayMT14rEfxjNFGZ85gcYGMuVTmSDQi8&_nc_zt=23&_nc_ht=scontent-iad3-2.cdninstagram.com&edm=AM6HXa8EAAAA&_nc_gid=FUENPD-ioTeR1BeFxqif9w&_nc_tpa=Q5bMBQEjNwwIxMs5QKqyTNxpnNVPYoW_5A9VOKuJeoNOVEuXborQ4VY83V3_kWi1NmLj9e4QIlYKjMcwtg&oh=00_AQB77B2P3rYafh5UYhAcXygHNH5JG6sde9IYiBAYQoTzDA&oe=6A5E9C44",
+            "description": "Você sabe fazer caipirinha?",
+            "proposal": [],
+            "context": [],
+            "tone": [],
+            "saved": 8,
+            "shares": 10
+          }
+        }
+      ],
+      "leituraCruzada": "raso",
+      "coerencia": null,
+      "pontoForte": null,
+      "pontoAjustar": null,
+      "audienciaPede": null,
+      "comparativo": null,
+      "proximosPassos": null,
+      "ganchoMarca": null
+    }
+  ]
+}

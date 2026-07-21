@@ -21,9 +21,9 @@ function sanitizeInternalCallbackUrl(value: string | null | undefined): string |
   return null;
 }
 
-function resolveLegalAcceptanceCallbackUrl(fallback: string): string {
+async function resolveLegalAcceptanceCallbackUrl(fallback: string): Promise<string> {
   try {
-    return sanitizeInternalCallbackUrl(headers().get(CURRENT_PATH_HEADER)) ?? fallback;
+    return sanitizeInternalCallbackUrl((await headers()).get(CURRENT_PATH_HEADER)) ?? fallback;
   } catch {
     return fallback;
   }
@@ -56,7 +56,7 @@ export async function enforceCurrentLegalAcceptance(callbackUrl: string) {
     }
 
     // Usuário existente com versão desatualizada → mostrar "O que mudou"
-    const resolvedCallbackUrl = resolveLegalAcceptanceCallbackUrl(callbackUrl);
+    const resolvedCallbackUrl = await resolveLegalAcceptanceCallbackUrl(callbackUrl);
     redirect(
       `/aceite-de-termos?callbackUrl=${encodeURIComponent(resolvedCallbackUrl)}`
     );

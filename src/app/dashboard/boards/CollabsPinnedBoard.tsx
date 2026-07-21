@@ -6,9 +6,9 @@ import { useSession } from "next-auth/react";
 
 import Board from "@/app/dashboard/components/Board";
 import { d2cFontVariables } from "@/app/fonts/d2cFonts";
-import { COMMUNITY_WHATSAPP_URL } from "@/app/lib/communityLinks";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import {
+  type CollabsBootstrapStatus,
   DiagnosticoCollabsFeed,
   type PautaActionKind,
   type PautaActionState,
@@ -57,7 +57,7 @@ export default function CollabsPinnedBoard({
   isHighlighted?: boolean;
 }) {
   const router = useRouter();
-  const { data: session } = useSession();
+  const { data: session, status: sessionStatus } = useSession();
   const billing = useBillingStatus();
   const userId = session?.user?.id ?? null;
   const isPro = Boolean(billing.hasPremiumAccess);
@@ -67,7 +67,8 @@ export default function CollabsPinnedBoard({
   const [collabDecisions, setCollabDecisions] = React.useState<Map<string, CollabStackDecision>>(new Map());
   const [confirmedMatches, setConfirmedMatches] = React.useState<Array<{ pautaId: string; collab: NarrativeCollabMatch }>>([]);
   const [pautaActionStates, setPautaActionStates] = React.useState<Map<string, PautaActionState>>(new Map());
-  const [collabsLoading, setCollabsLoading] = React.useState(false);
+  const [bootstrapStatus, setBootstrapStatus] = React.useState<CollabsBootstrapStatus>("idle");
+  const [bootstrapError, setBootstrapError] = React.useState<string | null>(null);
   const [generating, setGenerating] = React.useState(false);
   const pautaActionInFlightRef = React.useRef<Set<string>>(new Set());
   const narrativeRef = React.useRef<string>("");
@@ -94,51 +95,52 @@ export default function CollabsPinnedBoard({
       setPautaCollabs(new Map());
       return;
     }
-    setCollabsLoading(true);
-    try {
-      const res = await fetch(PER_PAUTA_API, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          narrativeLabel: narrative,
-          pautas: forPautas.map((p) => ({
-            id: p.id,
-            territory: p.territory,
-            title: p.title,
-            angle: p.angle,
-            hook: p.hook,
-            suggestedFormat: p.suggestedFormat,
-            scriptBlueprint: p.scriptBlueprint ?? null,
-          })),
-        }),
-      });
-      const json = res.ok ? await res.json() : null;
-      if (json?.ok && json.matches) setPautaCollabs(new Map(Object.entries(json.matches)));
-    } catch {
-      /* silencioso */
-    } finally {
-      setCollabsLoading(false);
+    const res = await fetch(PER_PAUTA_API, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        narrativeLabel: narrative,
+        pautas: forPautas.map((p) => ({
+          id: p.id,
+          territory: p.territory,
+          title: p.title,
+          angle: p.angle,
+          hook: p.hook,
+          suggestedFormat: p.suggestedFormat,
+          scriptBlueprint: p.scriptBlueprint ?? null,
+        })),
+      }),
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json?.ok || !json.matches || typeof json.matches !== "object") {
+      throw new Error("collab_matches_unavailable");
     }
+    setPautaCollabs(new Map(Object.entries(json.matches)));
   }, []);
 
   // Busca pautas + narrativa, e então casa um criador por pauta (território).
   const loadAll = React.useCallback(async () => {
-    if (!userId) return;
+    if (!userId || sessionStatus === "loading" || !billing.hasResolvedOnce) return;
+    setBootstrapStatus("loading");
+    setBootstrapError(null);
     try {
       const [ideasRes, summaryRes] = await Promise.all([
         fetch(IDEAS_API, { cache: "no-store" }),
         fetch(SUMMARY_API, { cache: "no-store" }),
       ]);
-      const ideasJson = ideasRes.ok ? await ideasRes.json() : null;
-      const summaryJson = summaryRes.ok ? await summaryRes.json() : null;
+      if (!ideasRes.ok || !summaryRes.ok) throw new Error("collab_bootstrap_unavailable");
+      const [ideasJson, summaryJson] = await Promise.all([ideasRes.json(), summaryRes.json()]);
       const nextPautas: ContentIdeaListItem[] = ideasJson?.ideas ?? [];
       narrativeRef.current = summaryJson?.summary?.narrative ?? "";
       setPautas(nextPautas);
-      void matchCollabs(nextPautas);
+      if (isPro) await matchCollabs(nextPautas);
+      else setPautaCollabs(new Map());
+      setBootstrapStatus("ready");
     } catch {
-      /* silencioso — o board não derruba a central */
+      setBootstrapStatus("error");
+      setBootstrapError("Não foi possível carregar suas pautas e collabs.");
     }
-  }, [userId, matchCollabs]);
+  }, [billing.hasResolvedOnce, isPro, matchCollabs, sessionStatus, userId]);
 
   React.useEffect(() => {
     void loadAll();
@@ -375,12 +377,6 @@ export default function CollabsPinnedBoard({
 
   const goFull = React.useCallback(() => router.push(FULL_MAP_ROUTE), [router]);
   const handleUpgrade = React.useCallback((_ctx?: PaywallContext) => router.push(PRO_ROUTE), [router]);
-  // Grupo da comunidade no WhatsApp — Pro entra direto; free vai pro upgrade.
-  const handleOpenWhatsAppCommunity = React.useCallback(() => {
-    if (isPro) window.open(COMMUNITY_WHATSAPP_URL, "_blank", "noopener,noreferrer");
-    else router.push(PRO_ROUTE);
-  }, [isPro, router]);
-
   return (
     <Board
       title="Collabs"
@@ -400,7 +396,9 @@ export default function CollabsPinnedBoard({
         isGeneratingIdeas={generating}
         ideaGenerationBlocker={isPro ? null : "premium_required"}
         pautaCollabs={pautaCollabs}
-        pautaCollabsLoading={collabsLoading}
+        bootstrapStatus={bootstrapStatus}
+        bootstrapError={bootstrapError}
+        onRetryBootstrap={loadAll}
         collabDecisions={collabDecisions}
         confirmedMatches={confirmedMatches}
         pautaActionStates={pautaActionStates}
@@ -411,7 +409,6 @@ export default function CollabsPinnedBoard({
         onAcceptCollabPauta={handleAcceptCollabPauta}
         onDismissPauta={handleDismissPauta}
         onOpenMatch={goFull}
-        onOpenWhatsAppCommunity={handleOpenWhatsAppCommunity}
         onConnectWhatsApp={() => router.push(WHATSAPP_ROUTE)}
         onUpgrade={handleUpgrade}
         onGenerate={handleGenerate}

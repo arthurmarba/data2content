@@ -38,7 +38,7 @@ describe("billing success postCheckoutIntent helpers", () => {
     });
     jest.spyOn(global, "fetch").mockResolvedValue({
       ok: true,
-      json: async () => ({ ok: true, instagram: { connected: false } }),
+      json: async () => ({ ok: true, status: "active", instagram: { connected: false } }),
     } as any);
   });
 
@@ -103,5 +103,49 @@ describe("billing success postCheckoutIntent helpers", () => {
     );
     expect(push).toHaveBeenCalledWith("/dashboard/instagram/connect?next=narrative-map");
     expect(JSON.stringify((trackMobileNarrativeEvent as jest.Mock).mock.calls)).not.toContain("//evil.example");
+  });
+
+  it("mostra as boas-vindas Pro (grupo antes do Instagram) no funil da reunião", async () => {
+    const push = jest.fn();
+    (useRouter as jest.Mock).mockReturnValue({ push });
+    window.sessionStorage.setItem(
+      "d2c.paywall.return",
+      JSON.stringify({
+        context: "narrative_map",
+        returnTo: "/dashboard/boards/mobile-strategic-profile",
+        postCheckoutIntent: "join_community",
+      }),
+    );
+
+    const { findByRole, getByRole } = render(<BillingSuccessPage />);
+
+    await findByRole("heading", { name: /Bem-vindo ao D2C Pro/i });
+    expect(getByRole("link", { name: /Entrar no grupo de assinantes/i })).toBeTruthy();
+    expect(getByRole("link", { name: /Conectar meu Instagram/i })).toBeTruthy();
+    // Não pode haver redirect automático: o assinante precisa ver o grupo primeiro.
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it("não oferece conexão do Instagram enquanto o pagamento não for confirmado", async () => {
+    const push = jest.fn();
+    (useRouter as jest.Mock).mockReturnValue({ push });
+    (global.fetch as jest.Mock).mockResolvedValue({
+      ok: true,
+      json: async () => ({ ok: true, status: "pending", instagram: { connected: false } }),
+    } as any);
+    window.sessionStorage.setItem(
+      "d2c.paywall.return",
+      JSON.stringify({
+        context: "narrative_map",
+        returnTo: "/dashboard/boards/mobile-strategic-profile",
+        postCheckoutIntent: "connect_instagram",
+      }),
+    );
+
+    const { findByRole, queryByRole } = render(<BillingSuccessPage />);
+
+    await findByRole("heading", { name: /Estamos confirmando seu pagamento/i });
+    expect(queryByRole("link", { name: /Conectar meu Instagram/i })).toBeNull();
+    expect(push).not.toHaveBeenCalled();
   });
 });

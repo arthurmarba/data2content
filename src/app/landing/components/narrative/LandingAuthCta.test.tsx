@@ -26,11 +26,13 @@ describe("LandingAuthCta", () => {
     jest.clearAllMocks();
   });
 
-  it("starts Google with a CSRF-protected form submission for a visitor", () => {
-    render(<LandingAuthCta className="cta" guestLabel="Entrar" />);
+  it("manda quem cria conta para o onboarding, não direto para a reunião", () => {
+    render(<LandingAuthCta className="cta" guestLabel="Entrar" destination="/reuniao" />);
     fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
-    expect(submitGoogleSignInFallbackMock).toHaveBeenCalledWith("/dashboard");
+    expect(submitGoogleSignInFallbackMock).toHaveBeenCalledWith(
+      "/dashboard/boards/mobile-strategic-profile",
+    );
   });
 
   it("preserves the protected destination received from /login", () => {
@@ -46,11 +48,38 @@ describe("LandingAuthCta", () => {
     );
   });
 
-  it("keeps authenticated navigation as a dashboard link", () => {
+  it("leva quem já tem conta ao Perfil, onde fica o card da reunião", () => {
     useSessionMock.mockReturnValue({ data: { user: { id: "user-1" } } });
 
     render(<LandingAuthCta className="cta" guestLabel="Entrar" authenticatedLabel="Acessar" />);
 
-    expect(screen.getByRole("link", { name: "Acessar" })).toHaveAttribute("href", "/dashboard");
+    expect(screen.getByRole("link", { name: "Acessar" })).toHaveAttribute(
+      "href",
+      "/dashboard/boards/mobile-strategic-profile",
+    );
+  });
+
+  it("permite sobrescrever o destino de quem cria conta", () => {
+    render(
+      <LandingAuthCta
+        className="cta"
+        guestLabel="Assistir"
+        destination="/reuniao"
+        guestDestination="/reuniao"
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Assistir" }));
+    expect(submitGoogleSignInFallbackMock).toHaveBeenCalledWith("/reuniao");
+  });
+
+  it("mantém a reunião como destino de quem já tem conta", () => {
+    useSessionMock.mockReturnValue({ data: { user: { id: "user-1" } } });
+    const { rerender } = render(
+      <LandingAuthCta className="cta" guestLabel="Assistir" authenticatedLabel="Abrir" destination="/reuniao" />,
+    );
+    rerender(
+      <LandingAuthCta className="cta" guestLabel="Assistir" authenticatedLabel="Abrir" destination="/reuniao" />,
+    );
+    expect(screen.getByRole("link", { name: "Abrir" })).toHaveAttribute("href", "/reuniao");
   });
 });

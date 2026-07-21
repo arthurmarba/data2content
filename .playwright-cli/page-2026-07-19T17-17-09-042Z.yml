@@ -1,0 +1,393 @@
+- generic [active] [ref=f5e1]:
+  - generic [ref=f5e3]:
+    - banner [ref=f5e4]:
+      - generic [ref=f5e5]:
+        - link "Data2Content - página inicial" [ref=f5e6] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f5e8]: data2content
+        - navigation "Navegação principal" [ref=f5e9]:
+          - link "Match" [ref=f5e10] [cursor=pointer]:
+            - /url: "#como-funciona"
+          - link "Reunião semanal" [ref=f5e11] [cursor=pointer]:
+            - /url: "#reuniao-semanal"
+          - link "Comunidade" [ref=f5e12] [cursor=pointer]:
+            - /url: "#comunidade"
+        - generic [ref=f5e13]:
+          - button "Entrar" [ref=f5e14] [cursor=pointer]
+          - button "Começar grátis" [ref=f5e15] [cursor=pointer]
+    - main [ref=f5e16]:
+      - generic [ref=f5e18]:
+        - generic [ref=f5e19]:
+          - heading "30 ideias da IA. Alguma tinha a sua cara?" [level=1] [ref=f5e20]:
+            - generic [ref=f5e21]: 30 ideias da IA.
+            - emphasis [ref=f5e22]: Alguma tinha a sua cara?
+          - paragraph [ref=f5e23]: A D2C entende sua narrativa, transforma isso em pautas e encontra creators que também querem criar essas ideias.
+          - button "Quero criar com a minha cara" [ref=f5e25] [cursor=pointer]
+        - figure "Sua história já está aí. D2C" [ref=f5e28]:
+          - img "Creator desenvolvendo uma ideia em seu espaço de trabalho" [ref=f5e29]
+          - generic "Sinais que formam o seu Mapa":
+            - generic: Histórias vividas
+            - generic: Assuntos que você defende
+            - generic: Situações que se repetem
+            - generic: Seu jeito de falar
+          - generic [ref=f5e36]:
+            - generic [ref=f5e37]: Sua história já está aí.
+            - generic [ref=f5e38]: D2C
+      - generic [ref=f5e40]:
+        - generic [ref=f5e41]:
+          - paragraph [ref=f5e42]: Match criativo por pauta
+          - heading "Não é sobre combinar perfis." [level=2] [ref=f5e43]
+          - paragraph [ref=f5e44]: É sobre querer criar a mesma ideia. Você escolhe uma pauta. Outro creator também. A identidade só aparece quando existe vontade dos dois lados.
+        - generic "Demonstração automática do match criativo" [ref=f5e46]:
+          - paragraph [ref=f5e49]: Uma pauta feita para você
+          - article [ref=f5e51]:
+            - generic [ref=f5e52]:
+              - generic [ref=f5e53]:
+                - img "Foto de Lívia Linhares" [ref=f5e55]
+                - generic [ref=f5e56]:
+                  - generic [ref=f5e57]: Pauta para você
+                  - generic [ref=f5e58]: Lívia
+              - generic [ref=f5e59]: "01"
+            - generic [ref=f5e60]:
+              - generic [ref=f5e61]: Sua próxima pauta
+              - heading "Como comecei a defender a liberdade de criar com a minha cara" [level=3] [ref=f5e62]
+              - paragraph [ref=f5e63]: Uma pauta sobre autonomia criativa, identidade e o momento em que copiar fórmulas deixou de fazer sentido.
+              - blockquote [ref=f5e64]: Abre com a primeira vez em que você percebeu que uma fórmula podia apagar a sua voz.
+            - generic [ref=f5e65]:
+              - generic [ref=f5e66]: Agora não
+              - generic [ref=f5e72]: Quero fazer
+      - generic [ref=f5e78]:
+        - generic [ref=f5e79]:
+          - paragraph [ref=f5e80]: ✦Quem está do outro lado
+          - heading "Veja quem pode aparecer no seu próximo match." [level=3] [ref=f5e81]
+        - region "Creators ativos da comunidade D2C" [ref=f5e82]:
+          - generic [ref=f5e84]:
+            - generic [ref=f5e85]:
+              - link "Abrir o Media Kit de Aclara Oficial" [ref=f5e86] [cursor=pointer]:
+                - /url: /mediakit/aclara-oficial
+                - img "Foto de perfil de Aclara Oficial" [ref=f5e88]
+                - generic [ref=f5e89]: Aclara Oficial
+                - generic [ref=f5e94]: "@claralemkova_"
+              - link "Abrir o Media Kit de Aline Aurea" [ref=f5e95] [cursor=pointer]:
+                - /url: /mediakit/aline-aurea
+                - img "Foto de perfil de Aline Aurea" [ref=f5e97]
+                - generic [ref=f5e98]: Aline Aurea
+                - generic [ref=f5e103]: "@alineaurea"
+              - link "Abrir o Media Kit de Aline Bergamini" [ref=f5e104] [cursor=pointer]:
+                - /url: /mediakit/aline-bergamini
+                - img "Foto de perfil de Aline Bergamini" [ref=f5e106]
+                - generic [ref=f5e107]: Aline Bergamini
+                - generic [ref=f5e112]: "@alinebergamini"
+              - link "Abrir o Media Kit de Aline Paiva" [ref=f5e113] [cursor=pointer]:
+                - /url: /mediakit/aline-paiva
+                - img "Foto de perfil de Aline Paiva" [ref=f5e115]
+                - generic [ref=f5e116]: Aline Paiva
+                - generic [ref=f5e121]: "@alinepaivadecora"
+              - link "Abrir o Media Kit de Amanda Magalhaes" [ref=f5e122] [cursor=pointer]:
+                - /url: /mediakit/amanda-magalhaes
+                - img "Foto de perfil de Amanda Magalhaes" [ref=f5e124]
+                - generic [ref=f5e125]: Amanda Magalhaes
+                - generic [ref=f5e130]: "@aamandamag"
+              - link "Abrir o Media Kit de Amanda Mol Neurociência do Sono Infantil" [ref=f5e131] [cursor=pointer]:
+                - /url: /mediakit/amanda-mol-neurociencia-do-sono-infantil
+                - img "Foto de perfil de Amanda Mol Neurociência do Sono Infantil" [ref=f5e133]
+                - generic [ref=f5e134]: Amanda Mol Neurociência do Sono Infantil
+                - generic [ref=f5e138]: "@amandamol_"
+              - link "Abrir o Media Kit de Anna clara Berner" [ref=f5e139] [cursor=pointer]:
+                - /url: /mediakit/anna-clara-berner
+                - img "Foto de perfil de Anna clara Berner" [ref=f5e141]
+                - generic [ref=f5e142]: Anna clara Berner
+                - generic [ref=f5e147]: "@annabernerblog"
+              - link "Abrir o Media Kit de Arthur Marba" [ref=f5e148] [cursor=pointer]:
+                - /url: /mediakit/arthur-marba
+                - img "Foto de perfil de Arthur Marba" [ref=f5e150]
+                - generic [ref=f5e151]: Arthur Marba
+                - generic [ref=f5e156]: "@arthurmarba"
+              - link "Abrir o Media Kit de Blu Nunes" [ref=f5e157] [cursor=pointer]:
+                - /url: /mediakit/blu-nunes
+                - img "Foto de perfil de Blu Nunes" [ref=f5e159]
+                - generic [ref=f5e160]: Blu Nunes
+                - generic [ref=f5e165]: "@blununees"
+              - link "Abrir o Media Kit de Cecília Lopes" [ref=f5e166] [cursor=pointer]:
+                - /url: /mediakit/cecilia-lopes
+                - img "Foto de perfil de Cecília Lopes" [ref=f5e168]
+                - generic [ref=f5e169]: Cecília Lopes
+                - generic [ref=f5e174]: "@cecilialopeees"
+              - link "Abrir o Media Kit de Daniel Souza" [ref=f5e175] [cursor=pointer]:
+                - /url: /mediakit/daniel-souza
+                - img "Foto de perfil de Daniel Souza" [ref=f5e177]
+                - generic [ref=f5e178]: Daniel Souza
+                - generic [ref=f5e183]: "@danielolartte"
+              - link "Abrir o Media Kit de Débora Broch Machado" [ref=f5e184] [cursor=pointer]:
+                - /url: /mediakit/debora-broch-machado
+                - img "Foto de perfil de Débora Broch Machado" [ref=f5e186]
+                - generic [ref=f5e187]: Débora Broch Machado
+                - generic [ref=f5e191]: "@deborabroch"
+            - generic [ref=f5e192]:
+              - link [ref=f5e193] [cursor=pointer]:
+                - /url: /mediakit/aclara-oficial
+                - generic [ref=f5e196]: Aclara Oficial
+                - generic [ref=f5e201]: "@claralemkova_"
+              - link [ref=f5e202] [cursor=pointer]:
+                - /url: /mediakit/aline-aurea
+                - generic [ref=f5e205]: Aline Aurea
+                - generic [ref=f5e210]: "@alineaurea"
+              - link [ref=f5e211] [cursor=pointer]:
+                - /url: /mediakit/aline-bergamini
+                - generic [ref=f5e214]: Aline Bergamini
+                - generic [ref=f5e219]: "@alinebergamini"
+              - link [ref=f5e220] [cursor=pointer]:
+                - /url: /mediakit/aline-paiva
+                - generic [ref=f5e223]: Aline Paiva
+                - generic [ref=f5e228]: "@alinepaivadecora"
+              - link [ref=f5e229] [cursor=pointer]:
+                - /url: /mediakit/amanda-magalhaes
+                - generic [ref=f5e232]: Amanda Magalhaes
+                - generic [ref=f5e237]: "@aamandamag"
+              - link [ref=f5e238] [cursor=pointer]:
+                - /url: /mediakit/amanda-mol-neurociencia-do-sono-infantil
+                - generic [ref=f5e241]: Amanda Mol Neurociência do Sono Infantil
+                - generic [ref=f5e245]: "@amandamol_"
+              - link [ref=f5e246] [cursor=pointer]:
+                - /url: /mediakit/anna-clara-berner
+                - generic [ref=f5e249]: Anna clara Berner
+                - generic [ref=f5e254]: "@annabernerblog"
+              - link [ref=f5e255] [cursor=pointer]:
+                - /url: /mediakit/arthur-marba
+                - generic [ref=f5e258]: Arthur Marba
+                - generic [ref=f5e263]: "@arthurmarba"
+              - link [ref=f5e264] [cursor=pointer]:
+                - /url: /mediakit/blu-nunes
+                - generic [ref=f5e267]: Blu Nunes
+                - generic [ref=f5e272]: "@blununees"
+              - link [ref=f5e273] [cursor=pointer]:
+                - /url: /mediakit/cecilia-lopes
+                - generic [ref=f5e276]: Cecília Lopes
+                - generic [ref=f5e281]: "@cecilialopeees"
+              - link [ref=f5e282] [cursor=pointer]:
+                - /url: /mediakit/daniel-souza
+                - generic [ref=f5e285]: Daniel Souza
+                - generic [ref=f5e290]: "@danielolartte"
+              - link [ref=f5e291] [cursor=pointer]:
+                - /url: /mediakit/debora-broch-machado
+                - generic [ref=f5e294]: Débora Broch Machado
+                - generic [ref=f5e298]: "@deborabroch"
+        - link "Explorar todos os Media Kits" [ref=f5e299] [cursor=pointer]:
+          - /url: /casting
+        - paragraph [ref=f5e304]: Todos os perfis exibidos estão ativos na comunidade. Cada retrato abre o Media Kit público do creator.
+      - region [ref=f5e305]:
+        - generic [ref=f5e306]:
+          - paragraph [ref=f5e307]: ✦IA com repertório de verdade
+          - heading "Tem dado. Tem gente. Tem contexto." [level=2] [ref=f5e308]
+          - generic [ref=f5e309]: A inteligência não chuta. Ela aprende com conteúdo real e com a resposta de audiências reais.
+        - generic [ref=f5e310]:
+          - generic [ref=f5e311]:
+            - term [ref=f5e312]: conteúdos analisados
+            - definition [ref=f5e313]: 3,9 mil
+          - generic [ref=f5e314]:
+            - term [ref=f5e315]: visualizações compreendidas
+            - definition [ref=f5e316]: 310 milhões
+          - generic [ref=f5e317]:
+            - term [ref=f5e318]: interações que viraram aprendizado
+            - definition [ref=f5e319]: 23 milhões
+        - paragraph [ref=f5e320]: Dados agregados e anonimizados da comunidade D2C. Os resultados pertencem aos creators acompanhados.
+        - text: ✦
+      - region [ref=f5e321]:
+        - generic [ref=f5e322]:
+          - generic [ref=f5e323]:
+            - paragraph [ref=f5e329]: O match abre a conversa.
+            - heading "A comunidade faz a ideia acontecer." [level=2] [ref=f5e330]
+          - list [ref=f5e331]:
+            - listitem [ref=f5e332]:
+              - generic [ref=f5e333]: "01"
+              - generic [ref=f5e336]:
+                - strong [ref=f5e337]: A plataforma encontra
+                - paragraph [ref=f5e338]: Uma pauta faz sentido para duas narrativas.
+            - listitem [ref=f5e339]:
+              - generic [ref=f5e340]: "02"
+              - generic [ref=f5e343]:
+                - strong [ref=f5e344]: A reunião aprofunda
+                - paragraph [ref=f5e345]: Histórias, repertórios e possibilidades entram na conversa.
+            - listitem [ref=f5e346]:
+              - generic [ref=f5e347]: "03"
+              - generic [ref=f5e350]:
+                - strong [ref=f5e351]: O WhatsApp mantém vivo
+                - paragraph [ref=f5e352]: A troca continua durante a semana, até a ideia ganhar forma.
+      - generic [ref=f5e354]:
+        - generic [ref=f5e355]:
+          - figure [ref=f5e356]:
+            - img "Creator publicando um vídeo em seu estúdio" [ref=f5e357]
+          - figure [ref=f5e358]:
+            - img "Creator analisando e refinando um conteúdo" [ref=f5e359]
+          - figure [ref=f5e360]:
+            - img "Creators produzindo uma colaboração juntos" [ref=f5e361]
+        - paragraph [ref=f5e362]: Cenas editoriais ilustrativas da rotina de creators.
+        - generic [ref=f5e364]:
+          - paragraph [ref=f5e365]: Toda quinta · 19h · online
+          - generic [ref=f5e366]: Alguns matches começam na plataforma. Outros aparecem quando uma pessoa escuta a história da outra.
+        - generic [ref=f5e367]:
+          - article [ref=f5e368]:
+            - generic [ref=f5e369]:
+              - text: "01"
+              - heading "A gente olha o que aconteceu." [level=2] [ref=f5e370]
+              - paragraph [ref=f5e371]: O que bateu, o que não encaixou e quais sinais a audiência deixou na semana.
+          - article [ref=f5e372]:
+            - generic [ref=f5e373]:
+              - text: "02"
+              - heading "Cada creator recebe uma leitura própria." [level=2] [ref=f5e374]
+              - paragraph [ref=f5e375]: A IA organiza os dados. A sala acrescenta contexto, repertório e novas perspectivas.
+          - article [ref=f5e376]:
+            - generic [ref=f5e377]:
+              - text: "03"
+              - heading "A afinidade vira movimento." [level=2] [ref=f5e378]
+              - paragraph [ref=f5e379]: Saem pautas, testes, collabs e gente com vontade de construir a próxima ideia junto.
+        - generic [ref=f5e380]:
+          - paragraph [ref=f5e381]: A plataforma aproxima. A reunião dá contexto. A comunidade ajuda a ideia a sair do papel.
+          - button "Quero participar" [ref=f5e382] [cursor=pointer]
+      - region [ref=f5e385]:
+        - generic [ref=f5e386]:
+          - generic [ref=f5e387]:
+            - paragraph [ref=f5e388]: Comunidade no WhatsApp
+            - heading "A reunião termina. A comunidade continua." [level=2] [ref=f5e389]: A reunião termina.A comunidade continua.
+            - generic [ref=f5e390]: Não é mais um grupo para acumular notificações. É o lugar onde conexões, pautas e collabs continuam ganhando forma.
+            - link "Conhecer quem já está na comunidade" [ref=f5e391] [cursor=pointer]:
+              - /url: "#comunidade"
+          - generic "Exemplo de uma conversa na comunidade D2C" [ref=f5e394]:
+            - paragraph [ref=f5e395]: Depois do match, dois creators trocam perspectivas, recebem uma referência da comunidade e combinam o próximo passo da collab.
+            - generic [ref=f5e404]:
+              - strong [ref=f5e405]: Comunidade D2C
+              - generic [ref=f5e406]: Creators criando em rede
+            - generic [ref=f5e409]:
+              - generic [ref=f5e410]: Hoje
+              - list [ref=f5e411]:
+                - listitem [ref=f5e412]:
+                  - generic [ref=f5e413]: Match por pauta
+                  - strong [ref=f5e414]: Você e Marina deram match nessa pauta.
+            - generic [ref=f5e415]: Mensagem
+      - region "Manifesto D2C" [ref=f5e420]:
+        - generic [ref=f5e421]:
+          - img "Creators reunidos em um encontro criativo" [ref=f5e423]
+          - generic [ref=f5e425]:
+            - generic [ref=f5e426]:
+              - text: Você não é um nicho
+              - paragraph [ref=f5e427]: Você é tudo que viveu até aqui.
+            - generic [ref=f5e428]:
+              - text: Conexão não é alcance
+              - paragraph [ref=f5e429]: Ela começa quando algo faz sentido pros dois.
+            - generic [ref=f5e430]:
+              - text: Você está em movimento
+              - paragraph [ref=f5e431]: Sua próxima ideia também pode estar.
+          - generic [ref=f5e432]:
+            - generic [ref=f5e433]: D2C / Manifesto
+            - generic [ref=f5e434]: Role para descobrir
+      - generic [ref=f5e435]:
+        - generic [ref=f5e436]:
+          - paragraph [ref=f5e437]: ✦Duas experiências. Uma mesma inquietação.
+          - heading "Criatividade de um lado. Mercado do outro. Você no centro." [level=2] [ref=f5e438]
+        - generic [ref=f5e439]:
+          - article [ref=f5e440]:
+            - figure [ref=f5e441]:
+              - img "Arthur Marbá" [ref=f5e442]
+            - generic [ref=f5e443]:
+              - text: Creators · dados · estratégia
+              - heading "Arthur Marbá" [level=3] [ref=f5e444]
+              - paragraph [ref=f5e445]: Fundador da D2C e estrategista de creators. Há mais de uma década transforma conteúdo, dados e comportamento em direção prática.
+          - article [ref=f5e446]:
+            - figure [ref=f5e447]:
+              - img "Ronaldo Fonseca" [ref=f5e448]
+            - generic [ref=f5e449]:
+              - text: Narrativas · cultura · negócios
+              - heading "Ronaldo Fonseca" [level=3] [ref=f5e450]
+              - paragraph [ref=f5e451]: Sócio da D2C e CEO da A-Lab, do Grupo Dreamers. Conecta narrativas, cultura e oportunidades de negócio.
+        - generic [ref=f5e452]:
+          - paragraph [ref=f5e453]: Um entende o que acontece no meio da criação. O outro, como uma narrativa ganha valor no mundo. A D2C junta os dois.
+          - button "Começar com a D2C" [ref=f5e454] [cursor=pointer]
+      - generic [ref=f5e458]:
+        - generic [ref=f5e459]:
+          - paragraph [ref=f5e460]: ✦Do conteúdo ao valor
+          - heading "Quanto cobrar deixa de ser um chute." [level=2] [ref=f5e461]
+          - generic [ref=f5e462]: A Calculadora de Publi considera entrega, alcance, direitos e contexto da marca — e transforma o resultado em pacote no seu Media Kit.
+          - generic [ref=f5e463]: Calculadora de Publi e Media Kit incluídos no plano D2C.
+        - generic "Demonstração da Calculadora de Publi no app mobile" [ref=f5e464]:
+          - paragraph [ref=f5e465]: A calculadora percorre cinco etapas do app, combina entrega, direitos, contexto e histórico, e recomenda os valores mínimo, justo e máximo.
+          - generic [ref=f5e466]:
+            - strong [ref=f5e472]: Calculadora de Publi
+            - generic [ref=f5e473]: Como no app
+          - generic [ref=f5e475]:
+            - generic [ref=f5e482]:
+              - generic [ref=f5e483]: Etapa 1 de 5
+              - heading [level=3] [ref=f5e484]: Entrega
+            - generic [ref=f5e497]:
+              - generic [ref=f5e498]:
+                - generic [ref=f5e499]: Alcance usado no cálculo
+                - strong [ref=f5e500]: 185 mil pessoas
+              - generic [ref=f5e501]:
+                - generic [ref=f5e502]:
+                  - strong [ref=f5e503]: Reels
+                  - generic [ref=f5e504]: "1"
+                - generic [ref=f5e510]:
+                  - strong [ref=f5e511]: Stories
+                  - generic [ref=f5e512]: "3"
+                - generic [ref=f5e518]:
+                  - strong [ref=f5e519]: Post
+                  - generic [ref=f5e520]: "0"
+            - generic [ref=f5e526]: Continuar
+          - generic [ref=f5e530]: Montando a entrega
+      - generic [ref=f5e533]:
+        - generic [ref=f5e534]:
+          - paragraph [ref=f5e535]: ✦Tudo junto. Sem complicar.
+          - heading "Plataforma, reunião e comunidade. Em um só plano." [level=2] [ref=f5e536]
+        - generic [ref=f5e537]:
+          - generic [ref=f5e538]: R$ 97,00/mês
+          - list [ref=f5e539]:
+            - listitem [ref=f5e540]: Mapa e pautas alinhadas à sua narrativa
+            - listitem [ref=f5e543]: Matches de collab
+            - listitem [ref=f5e546]: Reunião semanal e comunidade no WhatsApp
+            - listitem [ref=f5e549]: Calculadora de Publi e Media Kit
+          - button "Quero criar com a minha cara" [ref=f5e552] [cursor=pointer]
+          - generic [ref=f5e555]: Entre com Google. Assine quando fizer sentido. Cancele quando quiser.
+      - generic [ref=f5e557]:
+        - generic [ref=f5e558]:
+          - paragraph [ref=f5e559]: ✦Sem letra miúda
+          - heading "Perguntas que fazem sentido." [level=2] [ref=f5e560]
+        - generic [ref=f5e561]:
+          - group [ref=f5e562]:
+            - generic "Preciso já ser creator profissional? +" [ref=f5e563] [cursor=pointer]
+          - group [ref=f5e564]:
+            - generic "O que acontece quando entro e quando começa a cobrança? +" [ref=f5e565] [cursor=pointer]
+          - group [ref=f5e566]:
+            - generic "O que recebo toda semana? +" [ref=f5e567] [cursor=pointer]
+          - group [ref=f5e568]:
+            - generic "Como a D2C entende minha narrativa sem decidir por mim? +" [ref=f5e569] [cursor=pointer]
+          - group [ref=f5e570]:
+            - generic "A comunidade também recebe oportunidades profissionais? +" [ref=f5e571] [cursor=pointer]
+          - group [ref=f5e572]:
+            - generic "Posso cancelar quando quiser? +" [ref=f5e573] [cursor=pointer]
+      - generic [ref=f5e575]:
+        - heading "O algoritmo muda. Sua voz não." [level=2] [ref=f5e577]:
+          - text: O algoritmo muda.
+          - generic [ref=f5e578]: Sua voz não.
+        - button "Criar com a minha cara" [ref=f5e579] [cursor=pointer]
+    - contentinfo [ref=f5e582]:
+      - generic [ref=f5e583]:
+        - link "Data2Content - página inicial" [ref=f5e584] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f5e586]: data2content
+        - paragraph [ref=f5e587]: IA para enxergar. Gente para criar.
+        - navigation "Links legais" [ref=f5e588]:
+          - link "Suporte" [ref=f5e589] [cursor=pointer]:
+            - /url: mailto:arthur@data2content.ai
+          - link "Privacidade" [ref=f5e590] [cursor=pointer]:
+            - /url: /politica-de-privacidade
+          - link "Termos" [ref=f5e591] [cursor=pointer]:
+            - /url: /termos-e-condicoes
+        - generic [ref=f5e592]: © 2026 Data2Content.
+  - region "Preferências de cookies" [ref=f5e593]:
+    - paragraph [ref=f5e594]:
+      - text: Usamos cookies para entender como a landing funciona.
+      - link "Saiba mais" [ref=f5e595] [cursor=pointer]:
+        - /url: /politica-de-privacidade
+    - generic [ref=f5e596]:
+      - button "Só essenciais" [ref=f5e597] [cursor=pointer]
+      - button "Aceitar" [ref=f5e598] [cursor=pointer]
+  - alert [ref=f5e599]

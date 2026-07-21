@@ -30,8 +30,11 @@ export async function POST(req: Request) {
     await handleStripeConnectEvent(event);
   } catch (err: any) {
     console.error('Connect webhook processing error:', event.type, err?.message);
+    return NextResponse.json(
+      { received: false, error: 'processing-error' },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({ received: true }, { status: 200 });
 }
-

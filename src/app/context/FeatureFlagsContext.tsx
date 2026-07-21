@@ -12,9 +12,12 @@ type FeatureFlagState = {
 
 const FeatureFlagContext = createContext<FeatureFlagState | undefined>(undefined);
 
-async function fetchRemoteFlags() {
+async function fetchRemoteFlags(signal?: AbortSignal) {
   try {
-    const response = await fetch("/api/feature-flags", { cache: "no-store" });
+    const response = await fetch("/api/feature-flags", {
+      cache: "no-store",
+      signal,
+    });
     if (!response.ok) throw new Error(`Failed with status ${response.status}`);
     const body = await response.json().catch(() => null);
     return parseFeatureFlags(body?.data as Record<string, boolean>);
@@ -23,9 +26,15 @@ async function fetchRemoteFlags() {
   }
 }
 
-export function FeatureFlagProvider({ children }: { children: React.ReactNode }) {
+export function FeatureFlagProvider({
+  children,
+  loadRemoteFlags = true,
+}: {
+  children: React.ReactNode;
+  loadRemoteFlags?: boolean;
+}) {
   const [flags, setFlags] = useState<Record<string, boolean>>({ ...DEFAULT_FEATURE_FLAGS });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(loadRemoteFlags);
 
   const loadFlags = useCallback(async () => {
     setLoading(true);
@@ -35,8 +44,23 @@ export function FeatureFlagProvider({ children }: { children: React.ReactNode })
   }, []);
 
   useEffect(() => {
-    loadFlags();
-  }, [loadFlags]);
+    if (!loadRemoteFlags) {
+      setFlags({ ...DEFAULT_FEATURE_FLAGS });
+      setLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    setLoading(true);
+
+    void fetchRemoteFlags(controller.signal).then((remote) => {
+      if (controller.signal.aborted) return;
+      setFlags(remote);
+      setLoading(false);
+    });
+
+    return () => controller.abort();
+  }, [loadRemoteFlags]);
 
   const isEnabled = useCallback(
     (key: FeatureFlagKey, fallback?: boolean) => {

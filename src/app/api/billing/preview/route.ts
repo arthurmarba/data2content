@@ -6,6 +6,7 @@ import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
 import { getOrCreateStripeCustomerId } from "@/utils/stripeHelpers";
 import { getAffiliateCouponValidationError } from "@/app/lib/affiliateCouponRules";
+import { AffiliateBuyerCommissionIndex } from "@/server/db/models/AffiliateIndexes";
 
 const noStoreHeaders = { "Cache-Control": "no-store, max-age=0" } as const;
 
@@ -22,7 +23,7 @@ type Plan = "monthly" | "annual";
 type Currency = "BRL" | "USD";
 type AffiliateCheckResult = {
   couponId?: string;
-  error?: "invalid_code" | "coupon_not_configured" | "coupon_not_compliant" | "self_referral";
+  error?: "invalid_code" | "coupon_not_configured" | "coupon_not_compliant" | "self_referral" | "benefit_used";
   source?: "typed" | "url" | "cookie" | "session";
   code?: string;
 };
@@ -49,7 +50,7 @@ function getPriceId(plan: Plan, currency: Currency): string {
  */
 async function readAffiliateCookie(): Promise<string> {
   const mod = await import('next/headers');
-  return normalizeCode(mod.cookies().get('d2c_ref')?.value || '');
+  return normalizeCode((await mod.cookies()).get('d2c_ref')?.value || '');
 }
 
 async function resolveAffiliateFromRequest(
@@ -89,7 +90,10 @@ async function checkAffiliateCode(
   if (!code) return {};
 
   // Dono do código
-  const owner = await User.findOne({ affiliateCode: code }).select("_id affiliateCode").lean();
+  const owner = await User.findOne({
+    affiliateCode: code,
+    $or: [{ affiliateStatus: "active" }, { affiliateStatus: null }],
+  }).select("_id affiliateCode").lean();
   if (!owner) {
     return { error: "invalid_code", code };
   }
@@ -145,11 +149,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Parâmetros inválidos" }, { status: 400, headers: noStoreHeaders });
     }
 
-    const { code: resolvedCode, source } = await resolveAffiliateFromRequest(
+    const buyer = await User.findById(session.user.id)
+      .select("affiliateUsed affiliateFirstCommissionAt")
+      .lean();
+
+    const { code: requestedCode, source: requestedSource } = await resolveAffiliateFromRequest(
       req,
       bodyAffiliateCode,
-      (session.user as any)?.affiliateUsed
+      (buyer as any)?.affiliateUsed || (session.user as any)?.affiliateUsed
     );
+
+    // A primeira atribuição é canônica. Parâmetros/cookies posteriores não
+    // podem trocar o afiliado que receberá a comissão.
+    const existingCode = normalizeCode((buyer as any)?.affiliateUsed);
+    const resolvedCode = existingCode || requestedCode;
+    const source = existingCode ? "session" : requestedSource;
+
+    if (resolvedCode) {
+      const commissionAlreadyConsumed = Boolean(
+        (buyer as any)?.affiliateFirstCommissionAt ||
+          (await AffiliateBuyerCommissionIndex.exists({ buyerUserId: session.user.id }))
+      );
+      if (commissionAlreadyConsumed) {
+        return NextResponse.json(
+          {
+            code: "AFFILIATE_BENEFIT_ALREADY_USED",
+            error: "O benefício de afiliado já foi utilizado nesta conta.",
+            affiliateApplied: false,
+          },
+          { status: 409, headers: noStoreHeaders },
+        );
+      }
+    }
 
     const priceId = getPriceId(planNorm, currencyNorm);
     const customerId = await getOrCreateStripeCustomerId(session.user.id);

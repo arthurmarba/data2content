@@ -29,7 +29,7 @@ describe('matureAffiliateCommissions', () => {
           {
             _id: 'affiliate-1',
             commissionLog: [
-              { _id: 'entry-1', status: 'pending', availableAt: dueAt, currency: 'brl', amountCents: 1000 },
+              { _id: 'entry-1', type: 'commission', status: 'pending', availableAt: dueAt, currency: 'brl', amountCents: 1000 },
             ],
           },
         ]),

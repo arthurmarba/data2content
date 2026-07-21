@@ -222,8 +222,17 @@ function pctChange(velho: number | null, novo: number | null): number | null {
   return (novo - velho) / Math.abs(velho);
 }
 
+/** Abaixo disso, % de variação de engajamento é ruído estatístico (base quase
+ *  zero) — ex.: parar de postar faz o engajamento "cair 100%", o que soa como
+ *  "raso" (seguidores crescendo mais que engajamento) mas na real é só
+ *  inatividade, não um problema de audiência não engajando. */
+const POSTS_MINIMOS_PARA_LEITURA = 4;
+
 function calcularLeituraCruzada(semanas: SemanaDados[]): LeituraCruzada {
   if (semanas.length < 4) return "dados-insuficientes";
+  const totalPosts = semanas.reduce((acc, s) => acc + s.posts, 0);
+  if (totalPosts < POSTS_MINIMOS_PARA_LEITURA) return "dados-insuficientes";
+
   const meio = Math.floor(semanas.length / 2);
   const antigas = semanas.slice(0, meio);
   const recentes = semanas.slice(semanas.length - meio);

@@ -1,5 +1,4 @@
 /** @jest-environment node */
-import "next/dist/server/node-polyfill-fetch";
 import { NextRequest } from "next/server";
 import { POST } from "./route";
 import { ensurePlannerAccess } from "@/app/lib/planGuard";

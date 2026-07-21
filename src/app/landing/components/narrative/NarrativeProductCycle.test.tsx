@@ -2,6 +2,12 @@ import { fireEvent, render, screen } from "@testing-library/react";
 
 import { NarrativeProductCycle } from "./NarrativeProductCycle";
 
+jest.mock("./ProductBoards", () => ({
+  AnalysisBoard: () => <div>Quadro de análise</div>,
+  IdeaBoard: () => <div>Quadro de pautas</div>,
+  MapBoard: () => <div>Quadro do mapa</div>,
+}));
+
 jest.mock("framer-motion", () => {
   const React = require("react");
   const Motion = React.forwardRef(
@@ -25,7 +31,7 @@ describe("NarrativeProductCycle", () => {
 
     expect(tab).toHaveAttribute("aria-selected", "true");
     expect(screen.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", tab.id);
-    expect(screen.getByText(/Cada escolha ensina a inteligência/i)).toBeInTheDocument();
+    expect(screen.getByText(/direção discutida ao vivo/i)).toBeInTheDocument();
   });
 
   it("permite percorrer o produto pelo teclado", () => {

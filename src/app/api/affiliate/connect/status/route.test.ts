@@ -35,7 +35,9 @@ beforeEach(() => {
 describe('GET /api/affiliate/connect/status', () => {
   it('returns status info', async () => {
     mockGetServerSession.mockResolvedValue({ user: { id: 'user1' } });
-    mockFindById.mockResolvedValue({ paymentInfo: { stripeAccountId: 'acct_123' } });
+    mockFindById.mockReturnValue({
+      lean: jest.fn().mockResolvedValue({ paymentInfo: { stripeAccountId: 'acct_123' } }),
+    });
     mockRetrieve.mockResolvedValue({
       payouts_enabled: true,
       default_currency: 'brl',

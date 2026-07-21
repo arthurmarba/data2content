@@ -8,9 +8,9 @@ import { LandingAuthCta } from "./LandingAuthCta";
 import { useMobileAutoSequence } from "./useMobileAutoSequence";
 
 const WEEKLY_BEATS = [
-  { number: "01", title: "A gente olha o que aconteceu.", text: "O que bateu, o que não encaixou e quais sinais a audiência deixou na semana." },
-  { number: "02", title: "Cada creator recebe uma leitura própria.", text: "A IA organiza os dados. A sala acrescenta contexto, repertório e novas perspectivas." },
-  { number: "03", title: "A afinidade vira movimento.", text: "Saem pautas, testes, collabs e gente com vontade de construir a próxima ideia junto." },
+  { number: "01", title: "Você pode assistir gratuitamente.", text: "Toda quinta, Arthur e Ronaldo analisam conteúdo e estratégia de imagem ao vivo, creator por creator." },
+  { number: "02", title: "Assinou e confirmou? Você é analisado.", text: "Todo assinante que confirma presença no grupo exclusivo do WhatsApp entra nas análises daquela reunião." },
+  { number: "03", title: "A direção continua depois do ao vivo.", text: "Mapa, pautas, collabs e ferramentas ajudam você a transformar a conversa em movimento durante a semana." },
 ] as const;
 
 const WEEKLY_IMAGES = [
@@ -55,8 +55,8 @@ export function WeeklyRitual() {
         <p className="d2c-weekly-story__image-note">Cenas editoriais ilustrativas da rotina de creators.</p>
         <div className="d2c-weekly-story__shade" />
         <div className="d2c-shell d2c-weekly-story__header">
-          <p>Toda quinta · 19h · online</p>
-          <span>Alguns matches começam na plataforma. Outros aparecem quando uma pessoa escuta a história da outra.</span>
+          <p>Toda quinta · 19h–21h · online</p>
+          <span>Uma reunião de análise real. A plataforma acompanha você entre uma quinta e outra.</span>
         </div>
         <div className="d2c-shell d2c-weekly-story__beats">
           <motion.article className={activeIndex === 0 ? "is-active" : undefined} style={isMobile || reducedMotion ? undefined : { opacity: firstOpacity }} animate={isMobile ? { opacity: activeIndex === 0 ? 1 : 0 } : undefined}><motion.div style={isMobile || reducedMotion ? undefined : { y: firstY }}><span>{WEEKLY_BEATS[0].number}</span><h2>{WEEKLY_BEATS[0].title}</h2><p>{WEEKLY_BEATS[0].text}</p></motion.div></motion.article>
@@ -71,8 +71,8 @@ export function WeeklyRitual() {
           ))}
         </div>
         <div className="d2c-shell d2c-weekly-story__footer">
-          <p>A plataforma aproxima. A reunião dá contexto. A comunidade ajuda a ideia a sair do papel.</p>
-          <LandingAuthCta className="d2c-human-link" guestLabel="Quero participar" childrenAfter={<ArrowRight size={16} aria-hidden="true" />} trackingLocation="weekly-community" />
+          <p>Mesmo quando o conteúdo analisado não é o seu, os padrões da conversa mudam como você olha para o que está criando.</p>
+          <LandingAuthCta className="d2c-human-link" guestLabel="Assistir à próxima reunião" authenticatedLabel="Acessar a D2C" childrenAfter={<ArrowRight size={16} aria-hidden="true" />} trackingLocation="weekly-community" />
         </div>
         {!reducedMotion && <motion.div className="d2c-weekly-story__progress" style={{ scaleX: progressScale }} />}
       </div>

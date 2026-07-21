@@ -6,6 +6,7 @@ import { MOBILE_INSTAGRAM_CONNECT_ROUTE } from "@/app/dashboard/boards/videoUplo
 import { SAFE_TOP } from "./diagnosticoTokens";
 import type { NarrativeMapAccessState } from "@/app/dashboard/boards/videoUpload/narrativeMapAccessState";
 import { color, font } from "@/design-system";
+import { COMMUNITY_FREE_JOIN_ROUTE, COMMUNITY_WHATSAPP_URL } from "@/app/lib/communityLinks";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +32,7 @@ export type OnboardingStep =
   | "questions"          // Q1+Q2 fusionados — novo fluxo otimizado
   | "calibrating"
   | "first_signal"
+  | "meeting_invite"
   | "instagram_invite"   // CTA de Instagram pós first_signal — novo
   // Legacy: aceitos via initialStep para retomada após redirect OAuth
   | "instagram"
@@ -68,6 +70,8 @@ interface Props {
    * Se omitido, cai no comportamento legado (window.location.href).
    */
   onConnectInstagram?: () => void;
+  /** Abre a assinatura a partir da decisão final do visitante. */
+  onUpgrade?: () => void;
   onComplete: (answers: OnboardingAnswers) => void;
   /** Decisão 2 — abre o upload de vídeo direto após o criador escolher "Enviar meu primeiro vídeo" no first_signal. */
   onRequestUpload?: () => void;
@@ -86,19 +90,27 @@ interface Props {
  *
  * `calibrating` é estado de loading — não conta como etapa de progresso.
  */
+function hasOnboardingPremiumAccess(accessState: NarrativeMapAccessState) {
+  return accessState === "pro_needs_instagram" ||
+    accessState === "pro_instagram_connected" ||
+    accessState === "pro_quota_reached" ||
+    accessState === "admin";
+}
+
 function getVisibleSteps(
   instagramConnected: boolean,
   accessState: NarrativeMapAccessState,
 ): OnboardingStep[] {
-  const steps: OnboardingStep[] = ["questions"];
-  if (accessState !== "free_unused" && !instagramConnected) steps.push("instagram_invite");
+  const steps: OnboardingStep[] = ["questions", "meeting_invite"];
+  if (hasOnboardingPremiumAccess(accessState) && !instagramConnected) steps.push("instagram_invite");
   return steps;
 }
 
 
 /** Para qual step o botão "voltar" leva. Ausência = sem voltar (entrada/loading). */
 const BACK_TARGET: Partial<Record<OnboardingStep, OnboardingStep>> = {
-  instagram_invite: "questions",
+  meeting_invite: "questions",
+  instagram_invite: "meeting_invite",
 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -110,6 +122,7 @@ export function MobileOnboardingFlow({
   firstSignal,
   initialStep,
   onConnectInstagram,
+  onUpgrade,
   onComplete,
   onRequestUpload,
 }: Props) {
@@ -149,16 +162,28 @@ export function MobileOnboardingFlow({
     }
   }, [whyYouCreate, desiredFeeling, creatorPurpose, onComplete, onRequestUpload]);
 
-  // Determine the step that follows calibration (or direct submit when firstSignal
-  // is already present). Non-free users without Instagram see the instagram_invite;
-  // everyone else completes the onboarding immediately.
-  const advanceAfterSave = useCallback(() => {
-    if (accessState !== "free_unused" && !instagramConnected) {
+  const advanceAfterMeetingInvite = useCallback(() => {
+    if (hasOnboardingPremiumAccess(accessState) && !instagramConnected) {
       setStep("instagram_invite");
     } else {
       completeOnboarding();
     }
   }, [accessState, instagramConnected, completeOnboarding]);
+
+  const upgradeAfterMeetingInvite = useCallback(() => {
+    completeOnboarding();
+    if (onUpgrade) {
+      onUpgrade();
+      return;
+    }
+    window.location.href = "/pro";
+  }, [completeOnboarding, onUpgrade]);
+
+  // A reunião é a conclusão comum do onboarding. A conexão do Instagram,
+  // quando aplicável, continua depois dela como passo opcional.
+  const advanceAfterSave = useCallback(() => {
+    setStep("meeting_invite");
+  }, []);
 
   // `purposeValue` evita race condition com setState async — o closure de
   // `creatorPurpose` ficaria stale quando chamado imediatamente após setCreatorPurpose.
@@ -301,6 +326,13 @@ export function MobileOnboardingFlow({
               //  quebrando o JSON.stringify do body com refs circulares.)
               <CalibratingScreen isError={calibrationError} onRetry={() => saveAndCalibrate()} />
             )}
+            {step === "meeting_invite" && (
+              <MeetingInviteScreen
+                isPremium={hasOnboardingPremiumAccess(accessState)}
+                onContinue={advanceAfterMeetingInvite}
+                onUpgrade={upgradeAfterMeetingInvite}
+              />
+            )}
             {step === "instagram_invite" && (
               <InstagramInviteScreen
                 onConnect={() => {
@@ -315,6 +347,89 @@ export function MobileOnboardingFlow({
             )}
           </motion.div>
         </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
+function MeetingInviteScreen({
+  isPremium,
+  onContinue,
+  onUpgrade,
+}: {
+  isPremium: boolean;
+  onContinue: () => void;
+  onUpgrade: () => void;
+}) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { headingRef.current?.focus(); }, []);
+
+  return (
+    <div
+      className="flex min-h-full flex-col px-5"
+      style={{
+        paddingTop: "1.5rem",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 3rem)",
+      }}
+    >
+      <div className="my-auto mx-auto w-full max-w-sm">
+        <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-full bg-violet-100 text-violet-700">
+          <svg width="25" height="25" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="3" y="5" width="18" height="16" rx="3" stroke="currentColor" strokeWidth="1.8" />
+            <path d="M8 3v4M16 3v4M3 10h18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+        </div>
+        <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-violet-700">Toda quinta-feira · 19h–21h</p>
+        <h2
+          ref={headingRef}
+          tabIndex={-1}
+          className="mt-3 font-display text-[2.15rem] font-bold leading-[0.98] tracking-[-0.045em] text-zinc-950 focus:outline-none"
+        >
+          Você já pode assistir.
+        </h2>
+        <p className="mt-4 text-[14px] leading-6 text-zinc-500">
+          A reunião é gratuita para assistir. O WhatsApp confirma o link, mudanças e cancelamentos.
+        </p>
+
+        <div className="mt-6 overflow-hidden rounded-[1.25rem] border border-zinc-200 bg-white">
+          <div className="px-4 pb-3 pt-4">
+            <p className="text-sm font-bold text-zinc-900">Prepare sua próxima quinta-feira</p>
+            <p className="mt-1 text-xs leading-5 text-zinc-500">Você pode fazer as duas ações, em qualquer ordem.</p>
+          </div>
+          <a
+            href={isPremium ? COMMUNITY_WHATSAPP_URL : COMMUNITY_FREE_JOIN_ROUTE}
+            target="_blank"
+            rel="noreferrer"
+            className="flex min-h-12 w-full items-center justify-between border-t border-zinc-100 px-4 text-sm font-bold text-zinc-900 transition-colors active:bg-zinc-50"
+          >
+            <span className="inline-flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#dcfce7] text-[#15803d]">1</span> {isPremium ? "Abrir grupo Pro no WhatsApp" : "Receber avisos no WhatsApp"}</span>
+            <span aria-hidden="true" className="text-zinc-400">↗</span>
+          </a>
+          <a href="/api/community/meeting/calendar" className="flex min-h-12 w-full items-center justify-between border-t border-zinc-100 px-4 text-sm font-bold text-zinc-900 transition-colors active:bg-zinc-50">
+            <span className="inline-flex items-center gap-3"><span className="flex h-8 w-8 items-center justify-center rounded-full bg-violet-50 text-violet-700">2</span> Salvar previsão na agenda</span>
+            <span aria-hidden="true" className="text-zinc-400">↓</span>
+          </a>
+        </div>
+        <p className="mt-3 text-xs leading-5 text-zinc-500">
+          O acesso à reunião fica sempre no seu perfil, logo abaixo da calculadora.
+        </p>
+
+        {!isPremium ? (
+          <div className="mt-7 border-t border-zinc-200 pt-6">
+            <p className="font-display text-[1.2rem] font-bold tracking-[-0.025em] text-zinc-950">Quer participar por inteiro?</p>
+            <p className="mt-2 text-xs leading-5 text-zinc-500">No Pro, você pode ser analisado ao confirmar presença — e leva Mapa, pautas, collabs e ferramentas entre as reuniões.</p>
+            <button type="button" onClick={onUpgrade} className="ds-button ds-button--primary ds-button--block mt-4">
+              Quero ser analisado no Pro
+            </button>
+            <button type="button" onClick={onContinue} className="ds-button ds-button--ghost ds-button--block mt-2">
+              Entrar gratuitamente no app
+            </button>
+          </div>
+        ) : (
+          <button type="button" onClick={onContinue} className="ds-button ds-button--primary ds-button--block mt-6">
+            Continuar
+          </button>
+        )}
       </div>
     </div>
   );

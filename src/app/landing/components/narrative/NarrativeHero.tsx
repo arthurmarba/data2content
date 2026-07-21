@@ -61,14 +61,20 @@ export function NarrativeHero() {
         animate="visible"
         variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.12 } } }}
       >
+        <motion.p
+          className="d2c-human-hero__eyebrow"
+          variants={{ hidden: { opacity: 0, y: 12 }, visible: { opacity: 1, y: 0 } }}
+        >
+          Toda quinta · 19h–21h · ao vivo
+        </motion.p>
         <motion.h1 variants={{ hidden: { opacity: 0, y: 26 }, visible: { opacity: 1, y: 0, transition: { duration: 0.85 } } }}>
-          <span>30 ideias da IA.</span> <motion.em style={{ x: questionX }}>Alguma tinha a sua cara?</motion.em>
+          <span>A IA te deu 30 ideias.</span> <motion.em style={{ x: questionX }}>Nenhuma tinha a sua cara.</motion.em>
         </motion.h1>
         <motion.p className="d2c-human-hero__lead" variants={{ hidden: { opacity: 0, y: 18 }, visible: { opacity: 1, y: 0 } }}>
-          A D2C entende sua narrativa, transforma isso em pautas e encontra creators que também querem criar essas ideias.
+          Análise de conteúdo ao vivo com Arthur e Ronaldo. Assista gratuitamente — e leve direção para criar durante a semana inteira.
         </motion.p>
         <motion.div className="d2c-human-hero__actions" variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}>
-          <LandingAuthCta className="d2c-button d2c-button--human" guestLabel="Quero criar com a minha cara" childrenAfter={<ArrowRight size={18} aria-hidden="true" />} trackingLocation="hero" />
+          <LandingAuthCta className="d2c-button d2c-button--human" guestLabel="Assistir à próxima reunião" authenticatedLabel="Acessar a D2C" childrenAfter={<ArrowRight size={18} aria-hidden="true" />} trackingLocation="hero" />
         </motion.div>
         {loginError && (
           <motion.p
@@ -82,7 +88,7 @@ export function NarrativeHero() {
           </motion.p>
         )}
         <motion.small className="d2c-human-hero__note" variants={{ hidden: { opacity: 0 }, visible: { opacity: 1 } }}>
-          Entre com Google. Sem cobrança automática.
+          Online · entre com Google, sem cobrança automática.
         </motion.small>
         </motion.div>
         <motion.figure

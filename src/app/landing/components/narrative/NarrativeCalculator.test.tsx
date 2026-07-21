@@ -4,6 +4,21 @@ import { CALCULATOR_STAGE_DURATIONS, NarrativeCalculator } from "./NarrativeCalc
 
 let mockReducedMotion = false;
 
+jest.mock("lucide-react", () => {
+  const Icon = () => <svg aria-hidden="true" />;
+  return {
+    ArrowLeft: Icon,
+    ArrowRight: Icon,
+    BriefcaseBusiness: Icon,
+    Check: Icon,
+    LoaderCircle: Icon,
+    Minus: Icon,
+    Plus: Icon,
+    RotateCcw: Icon,
+    X: Icon,
+  };
+});
+
 jest.mock("framer-motion", () => {
   const React = require("react");
   const Motion = React.forwardRef(

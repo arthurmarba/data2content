@@ -19,6 +19,11 @@ const SERVICE_TAG = "[api/admin/carousels/case-generator/export]";
 const DEFAULT_CHROMIUM_ARGS = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"];
 const VIDEO_FRAME_READY_TIMEOUT_MS = 2_500;
 const VIDEO_EXPORT_SETTLE_MS = 450;
+type ChromiumLaunchAttempt = {
+  label: string;
+  executablePath?: string;
+  args?: string[];
+};
 const exportPayloadSchema = z.object({
   type: z.enum(["png", "video"]).default("png"),
   videoFormat: z.enum(["webm", "mp4"]).default("mp4"),
@@ -98,6 +103,35 @@ const resolveExecutableCandidates = () => {
   ).filter((candidate) => existsSync(candidate));
 };
 
+const shouldUseServerlessChromium = () =>
+  process.platform === "linux" &&
+  Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.AWS_EXECUTION_ENV);
+
+const resolveServerlessChromiumAttempt = async (
+  baseArgs: string[],
+): Promise<ChromiumLaunchAttempt | null> => {
+  if (!shouldUseServerlessChromium()) return null;
+
+  try {
+    const chromiumModule = await import("@sparticuz/chromium");
+    const serverlessChromium = chromiumModule.default;
+    const executablePath = await serverlessChromium.executablePath();
+
+    return {
+      label: "serverless-chromium",
+      executablePath,
+      args: Array.from(new Set([...serverlessChromium.args, ...baseArgs])),
+    };
+  } catch (error) {
+    logger.warn(
+      `${SERVICE_TAG} Falha ao preparar Chromium serverless: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    return null;
+  }
+};
+
 const isMissingBrowserBinaryError = (error: unknown) => {
   const message = error instanceof Error ? error.message : String(error ?? "");
   return (
@@ -148,7 +182,9 @@ async function launchChromium() {
 
   const { chromium } = await import("playwright");
   const chromiumArgs = resolveChromiumArgs();
-  const launchAttempts: Array<{ label: string; executablePath?: string }> = [
+  const serverlessAttempt = await resolveServerlessChromiumAttempt(chromiumArgs);
+  const launchAttempts: ChromiumLaunchAttempt[] = [
+    ...(serverlessAttempt ? [serverlessAttempt] : []),
     { label: "playwright-managed" },
     ...resolveExecutableCandidates().map((candidate) => ({
       label: `executable:${candidate}`,
@@ -163,7 +199,7 @@ async function launchChromium() {
     try {
       browser = await chromium.launch({
         headless: true,
-        args: chromiumArgs,
+        args: attempt.args ?? chromiumArgs,
         ...(attempt.executablePath ? { executablePath: attempt.executablePath } : {}),
       });
       break;

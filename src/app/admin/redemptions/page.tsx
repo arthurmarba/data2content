@@ -191,8 +191,12 @@ export default function AdminRedemptionsPage() {
   const handleStatusChange = async (r: RedemptionAdmin, newStatus: 'paid' | 'rejected') => {
     const payload: any = { status: newStatus };
     if (newStatus === 'paid') {
-      const tid = window.prompt('ID da transação (opcional):')?.trim();
-      if (tid) payload.transactionId = tid;
+      const tid = window.prompt('ID da transação (obrigatório):')?.trim();
+      if (!tid) {
+        toast.error('Informe o ID da transação para confirmar o pagamento.');
+        return;
+      }
+      payload.transactionId = tid;
     }
     try {
       const res = await fetch(`/api/admin/redemptions/${r._id}/status`, {

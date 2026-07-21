@@ -796,6 +796,23 @@ export async function updateRedemptionStatus(
     type FullRedemptionStatus = 'requested' | 'paid' | 'rejected';
     const prevStatus = redemption.status as unknown as FullRedemptionStatus;
 
+    if (prevStatus !== nextStatus && prevStatus !== 'requested') {
+      throw new Error(`Invalid redemption transition: ${prevStatus} -> ${nextStatus}.`);
+    }
+    if (
+      prevStatus === 'requested' &&
+      nextStatus === 'paid' &&
+      !redemption.transferId &&
+      !transactionId?.trim()
+    ) {
+      throw new Error('A transaction ID is required to mark a redemption as paid.');
+    }
+    if (prevStatus === 'requested' && (redemption as any).balanceReservedAt) {
+      if (nextStatus === 'rejected') {
+        throw new Error('Reserved redemption must be reconciled with Stripe before rejection.');
+      }
+    }
+
     // ⬇️ Tipagem expandida para incluir processedAt e transactionId opcionais
     const updateData: Partial<IRedemption> & {
       processedAt?: Date;
@@ -812,42 +829,78 @@ export async function updateRedemptionStatus(
       updateData.transactionId = transactionId;
     }
 
-    // Se estava 'requested' e agora vai para 'paid', debita o saldo do usuário
-    if (prevStatus === 'requested' && nextStatus === 'paid') {
-      const currency = redemption.currency;
-      const amountCents = redemption.amountCents;
-      const incField = { [`affiliateBalances.${currency}`]: -amountCents } as any;
-      const pushField: any = {
-        type: 'redeem',
-        status: 'paid',
-        currency,
-        amountCents,
-        affiliateUserId: redemption.userId,
-        note: 'affiliate redeem (manual)',
-        transactionId: transactionId || undefined,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      };
-
-      const userUpdate = await UserModel.updateOne(
-        { _id: redemption.userId, [`affiliateBalances.${currency}`]: { $gte: amountCents } },
-        { $inc: incField, $push: { commissionLog: pushField } }
-      );
-
-      if (userUpdate.modifiedCount !== 1) {
-        logger.warn(`${TAG} Insufficient or changed balance for user ${redemption.userId}`);
-        throw new Error('Saldo insuficiente ou alterado.');
+    if (prevStatus === nextStatus) {
+      if (
+        transactionId &&
+        redemption.transactionId &&
+        transactionId !== redemption.transactionId
+      ) {
+        throw new Error('A redemption transaction ID is immutable after processing.');
       }
+      if (notes === undefined) return redemption as IRedemption;
+
+      const notesUpdated = await RedemptionModel.findByIdAndUpdate(
+        redemptionId,
+        { $set: { notes } },
+        { new: true, runValidators: true },
+      ).exec();
+      if (!notesUpdated) throw new Error('Redemption not found.');
+      return notesUpdated as IRedemption;
     }
 
-    const updatedRedemption = await RedemptionModel.findByIdAndUpdate(
-      redemptionId,
-      { $set: updateData },
-      { new: true, runValidators: true }
-    ).exec();
+    const session = await mongoose.startSession();
+    let updatedRedemption: IRedemption | null = null;
+    try {
+      await session.withTransaction(async () => {
+        updatedRedemption = null;
+        // Legacy/manual requests did not reserve the balance. New automatic
+        // requests carry balanceReservedAt and must never be debited twice.
+        if (prevStatus === 'requested' && nextStatus === 'paid' && !(redemption as any).balanceReservedAt) {
+          const currency = redemption.currency;
+          const amountCents = redemption.amountCents;
+          const now = new Date();
+          const userUpdate = await UserModel.updateOne(
+            { _id: redemption.userId, [`affiliateBalances.${currency}`]: { $gte: amountCents } },
+            {
+              $inc: { [`affiliateBalances.${currency}`]: -amountCents },
+              $push: {
+                commissionLog: {
+                  type: 'redeem',
+                  status: 'paid',
+                  currency,
+                  amountCents,
+                  affiliateUserId: redemption.userId,
+                  redeemId: redemption._id,
+                  note: 'affiliate redeem (manual)',
+                  transactionId: transactionId || undefined,
+                  createdAt: now,
+                  updatedAt: now,
+                },
+              },
+            },
+            { session },
+          );
+
+          if (userUpdate.modifiedCount !== 1) {
+            logger.warn(`${TAG} Insufficient or changed balance for user ${redemption.userId}`);
+            throw new Error('Saldo insuficiente ou alterado.');
+          }
+        }
+
+        updatedRedemption = await RedemptionModel.findOneAndUpdate(
+          { _id: redemptionId, status: prevStatus },
+          { $set: updateData },
+          { new: true, runValidators: true, session },
+        ).exec();
+        if (!updatedRedemption) throw new Error('Redemption state changed concurrently.');
+      });
+    } finally {
+      await session.endSession();
+    }
 
     logger.info(`${TAG} Successfully updated status for redemption ${redemptionId}.`);
-    return updatedRedemption as IRedemption;
+    if (!updatedRedemption) throw new Error('Redemption was not updated.');
+    return updatedRedemption as unknown as IRedemption;
   } catch (error: any) {
     logger.error(`${TAG} Error updating redemption status for ID ${redemptionId}:`, error);
     throw new Error(error.message);

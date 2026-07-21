@@ -12,34 +12,60 @@ export interface MentorshipEventSummary {
   reminderUrl?: string | null;
   location?: string | null;
   isFallback?: boolean;
+  status?: "scheduled" | "cancelled";
+}
+
+function toMentorshipEventSummary(
+  event: ICommunityEvent,
+  isFallback: boolean,
+): MentorshipEventSummary {
+  return {
+    _id: event._id.toString(),
+    title: event.title,
+    description: event.description,
+    startAt: event.startAt,
+    endAt: event.endAt ?? null,
+    timezone: event.timezone ?? "America/Sao_Paulo",
+    joinUrl: event.joinUrl ?? null,
+    reminderUrl: event.reminderUrl ?? null,
+    location: event.location ?? null,
+    isFallback,
+    status: event.status === "cancelled" ? "cancelled" : "scheduled",
+  };
+}
+
+export async function getUpcomingMentorshipOperationalEvent(): Promise<MentorshipEventSummary | null> {
+  await connectToDatabase();
+  const now = new Date();
+  const possibleOngoingStart = new Date(now.getTime() - 3 * 60 * 60 * 1000);
+  const event = await CommunityEventModel.findOne({
+    type: "mentorship",
+    status: { $in: ["scheduled", "cancelled"] },
+    startAt: { $gte: possibleOngoingStart },
+  })
+    .sort({ startAt: 1 })
+    .lean<ICommunityEvent>()
+    .exec();
+
+  return event ? toMentorshipEventSummary(event, false) : null;
 }
 
 export async function getUpcomingMentorshipEvent(): Promise<MentorshipEventSummary | null> {
   await connectToDatabase();
   const now = new Date();
+  const possibleOngoingStart = new Date(now.getTime() - 3 * 60 * 60 * 1000);
 
   const next = await CommunityEventModel.findOne({
     type: "mentorship",
     status: "scheduled",
-    startAt: { $gte: now },
+    startAt: { $gte: possibleOngoingStart },
   })
     .sort({ startAt: 1 })
     .lean<ICommunityEvent>()
     .exec();
 
   if (next) {
-    return {
-      _id: next._id.toString(),
-      title: next.title,
-      description: next.description,
-      startAt: next.startAt,
-      endAt: next.endAt ?? null,
-      timezone: next.timezone ?? "America/Sao_Paulo",
-      joinUrl: next.joinUrl ?? null,
-      reminderUrl: next.reminderUrl ?? null,
-      location: next.location ?? null,
-      isFallback: false,
-    };
+    return toMentorshipEventSummary(next, false);
   }
 
   const latest = await CommunityEventModel.findOne({
@@ -54,17 +80,5 @@ export async function getUpcomingMentorshipEvent(): Promise<MentorshipEventSumma
     return null;
   }
 
-  return {
-    _id: latest._id.toString(),
-    title: latest.title,
-    description: latest.description,
-    startAt: latest.startAt,
-    endAt: latest.endAt ?? null,
-    timezone: latest.timezone ?? "America/Sao_Paulo",
-    joinUrl: latest.joinUrl ?? null,
-    reminderUrl: latest.reminderUrl ?? null,
-    location: latest.location ?? null,
-    isFallback: true,
-  };
+  return toMentorshipEventSummary(latest, true);
 }
-

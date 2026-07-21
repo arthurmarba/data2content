@@ -158,6 +158,86 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
     expect(screen.queryByText("Pra gravar")).not.toBeInTheDocument();
   });
 
+  it("promove exatamente o card visível atrás depois de salvar o topo", () => {
+    const onSavePauta = jest.fn();
+    const pautas = [pauta("a"), pauta("b"), pauta("c"), pauta("d"), pauta("e")];
+    const pautaCollabs = new Map([
+      ["a", match("Marina")],
+      ["b", null],
+      ["c", null],
+      ["d", match("Théo")],
+      ["e", null],
+    ]);
+    const { rerender } = render(
+      <DiagnosticoCollabsFeed
+        {...baseProps}
+        pautas={pautas}
+        pautaCollabs={pautaCollabs}
+        collabDecisions={new Map()}
+        onSavePauta={onSavePauta}
+      />,
+    );
+
+    expect(screen.getByRole("group", { name: "Pauta: Pauta b" })).toBeInTheDocument();
+    expect(screen.getByText("Pauta a").closest('[aria-hidden="true"]')).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Quero gravar essa pauta" }));
+    expect(onSavePauta).toHaveBeenCalledWith("b");
+
+    rerender(
+      <DiagnosticoCollabsFeed
+        {...baseProps}
+        pautas={pautas.map((item) => item.id === "b" ? { ...item, status: "saved" as const } : item)}
+        pautaCollabs={pautaCollabs}
+        collabDecisions={new Map()}
+        pautaActionStates={new Map([["b", { kind: "save" as const, phase: "pending" as const }]])}
+        onSavePauta={onSavePauta}
+      />,
+    );
+
+    expect(screen.getByRole("group", { name: "Collab pra pauta: Pauta a" })).toBeInTheDocument();
+  });
+
+  it("promove exatamente o card visível atrás depois de descartar o topo", () => {
+    const onDismissPauta = jest.fn();
+    const pautas = [pauta("a"), pauta("b"), pauta("c"), pauta("d"), pauta("e")];
+    const pautaCollabs = new Map([
+      ["a", match("Marina")],
+      ["b", null],
+      ["c", null],
+      ["d", match("Théo")],
+      ["e", null],
+    ]);
+    const { rerender } = render(
+      <DiagnosticoCollabsFeed
+        {...baseProps}
+        pautas={pautas}
+        pautaCollabs={pautaCollabs}
+        collabDecisions={new Map()}
+        onDismissPauta={onDismissPauta}
+      />,
+    );
+
+    expect(screen.getByRole("group", { name: "Pauta: Pauta b" })).toBeInTheDocument();
+    expect(screen.getByText("Pauta a").closest('[aria-hidden="true"]')).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Não é pra mim" }));
+    expect(onDismissPauta).toHaveBeenCalledWith("b");
+
+    rerender(
+      <DiagnosticoCollabsFeed
+        {...baseProps}
+        pautas={pautas.map((item) => item.id === "b" ? { ...item, status: "dismissed" as const } : item)}
+        pautaCollabs={pautaCollabs}
+        collabDecisions={new Map()}
+        pautaActionStates={new Map([["b", { kind: "dismiss" as const, phase: "confirmed" as const }]])}
+        onDismissPauta={onDismissPauta}
+      />,
+    );
+
+    expect(screen.getByRole("group", { name: "Collab pra pauta: Pauta a" })).toBeInTheDocument();
+  });
+
   it("renderiza títulos de card sem quebra agressiva no meio de palavra", () => {
     const title = "A verdade sobre como eu decido o que gravar sem depender de ninguém";
     render(
@@ -285,6 +365,24 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
     expect(onAcceptCollabPauta).not.toHaveBeenCalled();
   });
 
+  it("usa a rota interna estável para a foto no card real de collab", () => {
+    const { container } = render(
+      <DiagnosticoCollabsFeed
+        {...baseProps}
+        pautas={[pauta("solo", { status: "saved" }), pauta("a")]}
+        pautaCollabs={new Map([["a", match("Marina")], ["solo", null]])}
+        collabDecisions={new Map()}
+      />,
+    );
+
+    const avatar = container.querySelector('img[src^="/api/mediakit/marina-slug/avatar"]');
+    expect(avatar).not.toBeNull();
+    expect(avatar).toHaveAttribute(
+      "src",
+      "/api/mediakit/marina-slug/avatar?v=20260719-collab-avatar-v4",
+    );
+  });
+
   it("falha de save não recoloca a mesma pauta no deck e mostra retry", () => {
     const onRetryPautaAction = jest.fn();
     render(
@@ -400,8 +498,7 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
     expect(screen.queryByText("com Marina")).not.toBeInTheDocument();
   });
 
-  it("três ícones no header: Comunidade (WhatsApp), 'Combinadas' (novidade) e 'Pra gravar' (acervo)", () => {
-    const onOpenWhatsAppCommunity = jest.fn();
+  it("mantém no header apenas 'Combinadas' (novidade) e 'Pra gravar' (acervo)", () => {
     render(
       <DiagnosticoCollabsFeed
         {...baseProps}
@@ -413,16 +510,13 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
         pautaCollabs={new Map([["esperando", match("Marina")], ["casada", match("Théo")]])}
         collabDecisions={new Map([["esperando", "interested" as const]])}
         confirmedMatches={[{ pautaId: "casada", collab: match("Théo") }]}
-        onOpenWhatsAppCommunity={onOpenWhatsAppCommunity}
       />,
     );
     // A mesa fica só com o deck — nada de coleção solta no scroll.
     expect(screen.queryByText("Pra gravar")).not.toBeInTheDocument();
 
-    // Comunidade sempre visível — o grupo do WhatsApp é entrega principal,
-    // não pode depender de estado de match/acervo. O gate Pro/free é do caller.
-    fireEvent.click(screen.getByRole("button", { name: "Comunidade no WhatsApp" }));
-    expect(onOpenWhatsAppCommunity).toHaveBeenCalledTimes(1);
+    // O grupo da comunidade foi consolidado no card de reunião do Perfil.
+    expect(screen.queryByRole("button", { name: "Comunidade no WhatsApp" })).not.toBeInTheDocument();
 
     // Ícone de salvas → salvas-solo + aguardando. A CASADA NÃO mora aqui:
     // a célula completa dela vive em Combinadas (uma casa por item).
@@ -489,8 +583,7 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
     expect(screen.getByText("1 pauta guardada nesta rodada.")).toBeInTheDocument();
   });
 
-  it("assinante encerra a rodada com geração principal e WhatsApp secundário", () => {
-    const onOpenWhatsAppCommunity = jest.fn();
+  it("assinante encerra a rodada apenas com a próxima ação de pautas", () => {
     const onGenerate = jest.fn();
     render(
       <DiagnosticoCollabsFeed
@@ -498,14 +591,12 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
         pautas={[pauta("guardada", { status: "saved" as const })]}
         pautaCollabs={new Map()}
         collabDecisions={new Map()}
-        onOpenWhatsAppCommunity={onOpenWhatsAppCommunity}
         onGenerate={onGenerate}
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Carregar nova rodada" }));
     expect(onGenerate).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole("button", { name: "Entrar no grupo do WhatsApp" }));
-    expect(onOpenWhatsAppCommunity).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Entrar no grupo do WhatsApp" })).not.toBeInTheDocument();
   });
 
   it("rodada concluída expõe falha de geração e oferece Tentar novamente", () => {
@@ -544,10 +635,9 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
     expect(onGenerate).not.toHaveBeenCalled();
   });
 
-  it("não assinante abre o modal contextual em cada ação do fim da rodada", () => {
+  it("não assinante abre o modal contextual para gerar a próxima rodada", () => {
     const onUpgrade = jest.fn();
     const onGenerate = jest.fn();
-    const onOpenWhatsAppCommunity = jest.fn();
     render(
       <DiagnosticoCollabsFeed
         {...baseProps}
@@ -557,19 +647,16 @@ describe("DiagnosticoCollabsFeed — deck unificado", () => {
         collabDecisions={new Map()}
         onUpgrade={onUpgrade}
         onGenerate={onGenerate}
-        onOpenWhatsAppCommunity={onOpenWhatsAppCommunity}
       />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: /Carregar nova rodada/ }));
     expect(onUpgrade).toHaveBeenLastCalledWith("planning");
-    fireEvent.click(screen.getByRole("button", { name: /Entrar no grupo do WhatsApp/ }));
-    expect(onUpgrade).toHaveBeenLastCalledWith("whatsapp");
+    expect(screen.queryByRole("button", { name: /Entrar no grupo do WhatsApp/ })).not.toBeInTheDocument();
     expect(onGenerate).not.toHaveBeenCalled();
-    expect(onOpenWhatsAppCommunity).not.toHaveBeenCalled();
   });
 
-  it("sem handler de comunidade, nem o ícone do header nem o card do fim aparecem", () => {
+  it("não duplica no Collabs os acessos à comunidade que ficam no Perfil", () => {
     render(
       <DiagnosticoCollabsFeed
         {...baseProps}

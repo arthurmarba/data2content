@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
@@ -9,6 +8,12 @@ import { getClientIp } from "@/utils/getClientIp";
 import { logger } from "@/app/lib/logger";
 
 export const runtime = "nodejs";
+
+async function loadAuthOptions() {
+  if (process.env.NODE_ENV === "test") return {} as any;
+  const mod = await import("@/app/api/auth/[...nextauth]/route");
+  return mod.authOptions as any;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -19,7 +24,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const session = (await getServerSession(authOptions)) as any;
+    const session = (await getServerSession(await loadAuthOptions())) as any;
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
@@ -52,19 +57,22 @@ export async function POST(req: NextRequest) {
       | undefined;
 
     if (!accountId) {
-      const account = await stripe.accounts.create({
-        type: "express",
-        email: user.email,
-        // 🇧🇷 é obrigatório solicitar ambos no BR
-        capabilities: {
-          card_payments: { requested: true },
-          transfers: { requested: true },
+      const account = await stripe.accounts.create(
+        {
+          type: "express",
+          email: user.email,
+          // 🇧🇷 é obrigatório solicitar ambos no BR
+          capabilities: {
+            card_payments: { requested: true },
+            transfers: { requested: true },
+          },
+          business_profile: {
+            product_description: "Pagamentos de afiliado da Data2Content",
+          },
+          metadata: { userId: String(user._id) },
         },
-        business_profile: {
-          product_description: "Pagamentos de afiliado da Data2Content",
-        },
-        metadata: { userId: String(user._id) },
-      });
+        { idempotencyKey: `affiliate-connect-account:${user._id}` },
+      );
 
       accountId = account.id;
       status = "pending";

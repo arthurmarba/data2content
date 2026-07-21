@@ -12,9 +12,9 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import PerPautaCollabCache, { PER_PAUTA_COLLAB_CACHE_TTL_HOURS } from "@/app/models/PerPautaCollabCache";
 import type { PautaForMatch } from "./perPautaCollabMatchingService";
 
-// v4 reexecuta o matching uma vez para que o cache passe a guardar o avatar
-// resolvido do creator, não só a imagem do provedor de login.
-const PER_PAUTA_MATCHER_CACHE_VERSION = 4;
+// v5 invalida snapshots que ainda guardavam URLs assinadas e já expiradas do
+// Instagram/Facebook. A recomputação usa o resolvedor que descarta essas URLs.
+const PER_PAUTA_MATCHER_CACHE_VERSION = 5;
 
 /** Hash estável do input do matcher — ordena as pautas pra ser ordem-independente. */
 export function computePerPautaCacheKey(pautas: PautaForMatch[], narrativeLabel: string): string {

@@ -288,7 +288,7 @@ function ProfileHeader({
           className="mt-4 rounded-full border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-700"
           onClick={onJoinCommunity}
         >
-          Entrar na consultoria
+          Entrar no grupo Pro
         </button>
       ) : null}
     </header>
@@ -430,7 +430,7 @@ function FreeConversionCard({ onSubscribe }: { onSubscribe: () => void }) {
     <section className="mx-5 rounded-2xl border border-zinc-200 bg-zinc-50 p-4">
       <h3 className="text-base font-semibold text-zinc-950">Transforme essa leitura em um Perfil vivo</h3>
       <p className="mt-2 text-sm leading-6 text-zinc-600">
-        No Plano Pro, você libera 10 leituras por mês, conecta seu Instagram e participa das consultorias em grupo.
+        No Plano Pro, você libera 10 leituras por mês, conecta seu Instagram e é analisado nas reuniões semanais.
       </p>
       <button
         type="button"

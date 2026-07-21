@@ -21,14 +21,14 @@ describe('canRedeem', () => {
 
   test('blocks when debt exists', () => {
     const s: AffiliateSummary = {
-      byCurrency: { ...summary.byCurrency, BRL: { ...summary.byCurrency.BRL, debtCents: 100 } as any },
+      byCurrency: { ...summary.byCurrency, BRL: { ...summary.byCurrency.BRL!, debtCents: 100 } },
     };
     expect(canRedeem(status, s, 'BRL')).toBe(false);
   });
 
   test('blocks when below minimum', () => {
     const s: AffiliateSummary = {
-      byCurrency: { ...summary.byCurrency, BRL: { ...summary.byCurrency.BRL, availableCents: 1000 } as any },
+      byCurrency: { ...summary.byCurrency, BRL: { ...summary.byCurrency.BRL!, availableCents: 1000 } },
     };
     expect(canRedeem(status, s, 'BRL')).toBe(false);
   });
@@ -41,10 +41,25 @@ describe('canRedeem', () => {
     const s: AffiliateSummary = {
       byCurrency: {
         ...summary.byCurrency,
-        BRL: { ...summary.byCurrency.BRL, storedAvailableCents: 999999, reconciliationStatus: 'mismatch' },
+        BRL: { ...summary.byCurrency.BRL!, storedAvailableCents: 999999, reconciliationStatus: 'mismatch' },
       },
     };
     expect(canRedeem(status, s, 'BRL')).toBe(false);
+  });
+
+  test('allows resuming an already reserved redemption with the same request', () => {
+    const s: AffiliateSummary = {
+      byCurrency: {
+        BRL: {
+          ...summary.byCurrency.BRL!,
+          storedAvailableCents: 0,
+          availableCents: 10000,
+          reconciliationStatus: 'reconciled',
+          activeRedemption: { id: 'red_1', amountCents: 10000, balanceReserved: true },
+        },
+      },
+    };
+    expect(canRedeem(status, s, 'BRL')).toBe(true);
   });
 });
 

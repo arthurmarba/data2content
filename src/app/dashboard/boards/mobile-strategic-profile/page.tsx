@@ -32,10 +32,34 @@ import type { NarrativeMapReadingQuotaSnapshot } from "../videoUpload/narrativeM
 import type { DiagnosticoPageData } from "../videoUpload/diagnosticoPageData";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import { normalizePlanStatus } from "@/utils/planStatus";
+import type { MobileStrategicProfileSnapshotPayload } from "../videoUpload/mobileStrategicProfileSnapshotTypes";
+import { getWeeklyMeetingExperience } from "@/app/lib/community/weeklyMeetingService";
+import type { WeeklyMeetingProfileData } from "../components/videoUpload/appPreview/WeeklyMeetingProfileCard";
 
 export const dynamic = "force-dynamic";
 
 const DIAGNOSTICO_V2_ENABLED = process.env.DIAGNOSTICO_V2_ENABLED === "1";
+const PERF_LOGGING_ENABLED =
+  process.env.MOBILE_STRATEGIC_PROFILE_PERF_LOGGING_ENABLED === "1";
+
+type ServerTimingMeasurements = Record<string, number>;
+
+function serverNow() {
+  return typeof performance !== "undefined" ? performance.now() : Date.now();
+}
+
+async function measureServerOperation<T>(
+  measurements: ServerTimingMeasurements,
+  name: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const startedAt = serverNow();
+  try {
+    return await operation();
+  } finally {
+    measurements[name] = Math.round((serverNow() - startedAt) * 10) / 10;
+  }
+}
 
 // ── Production flag boot-check ─────────────────────────────────────────────
 // Logs a warning at startup if any critical production feature flag is missing.
@@ -66,12 +90,19 @@ type MobileStrategicProfilePageProps = {
 export default async function MobileStrategicProfilePage({
   searchParams,
 }: MobileStrategicProfilePageProps) {
+  const requestStartedAt = serverNow();
+  const serverTimings: ServerTimingMeasurements = {};
+
   if (!isMobileStrategicProfileEnabled()) {
     notFound();
     return null;
   }
 
-  const session = await getServerSession(authOptions);
+  const session = await measureServerOperation(
+    serverTimings,
+    "session",
+    () => getServerSession(authOptions),
+  );
   if (!session?.user) {
     const callbackUrl = encodeURIComponent("/dashboard/boards/mobile-strategic-profile");
     redirect(`/login?callbackUrl=${callbackUrl}&intent=strategic_profile`);
@@ -81,28 +112,36 @@ export default async function MobileStrategicProfilePage({
   const sessionUser = session.user as any;
   const userId: string = sessionUser?.id ?? "";
 
-  let initialSnapshotPayload = null;
+  let initialSnapshotPayload: MobileStrategicProfileSnapshotPayload | null = null;
   let initialNarrativeMapViewModel = null;
   let initialNarrativeMapPresentation = null;
   let initialReadingQuota: NarrativeMapReadingQuotaSnapshot | null = null;
   let diagnosticoPageData: DiagnosticoPageData | null = null;
-
-  const isSnapshotEnabled = process.env.MOBILE_STRATEGIC_PROFILE_SNAPSHOT_ENABLED !== "0";
-  if (isSnapshotEnabled && userId) {
-    try {
-      const result = await getStrategicProfileSnapshotByUserId(userId);
-      if (result?.snapshot) initialSnapshotPayload = result.snapshot;
-    } catch (err) {
-      console.error("Erro silencioso ao ler snapshot estratégico no servidor:", err);
-    }
-  }
+  let weeklyMeeting: WeeklyMeetingProfileData | null = null;
 
   if (userId) {
     try {
-      let effectiveUserForAccess = sessionUser;
-      let mediaKitSlug: string | null = sessionUser?.mediaKitSlug ?? null;
+      const isSnapshotEnabled = process.env.MOBILE_STRATEGIC_PROFILE_SNAPSHOT_ENABLED !== "0";
+      const snapshotPromise = measureServerOperation(serverTimings, "snapshot", async () => {
+        if (!isSnapshotEnabled) return null;
+        try {
+          const result = await getStrategicProfileSnapshotByUserId(userId);
+          return result?.snapshot ?? null;
+        } catch (err) {
+          console.error("Erro silencioso ao ler snapshot estratégico no servidor:", err);
+          return null;
+        }
+      });
+      const readingQuotaPromise = measureServerOperation(
+        serverTimings,
+        "readingQuota",
+        () => getNarrativeMapReadingQuotaForUser({ userId }),
+      );
+      const effectiveUserPromise = measureServerOperation(serverTimings, "freshUser", async () => {
+        let effectiveUser = sessionUser;
+        let mediaKitSlug: string | null = sessionUser?.mediaKitSlug ?? null;
+        if (!DIAGNOSTICO_V2_ENABLED) return { effectiveUser, mediaKitSlug };
 
-      if (DIAGNOSTICO_V2_ENABLED) {
         // Read access fields fresh from DB. This bypasses the JWT/session cache so
         // direct admin/manual DB activations do not get mistaken for free accounts.
         try {
@@ -113,7 +152,7 @@ export default async function MobileStrategicProfilePage({
             .lean();
           if (userDoc) {
             mediaKitSlug = (userDoc as any).mediaKitSlug ?? null;
-            effectiveUserForAccess = {
+            effectiveUser = {
               ...sessionUser,
               name: (userDoc as any).name ?? sessionUser?.name,
               email: (userDoc as any).email ?? sessionUser?.email,
@@ -131,8 +170,6 @@ export default async function MobileStrategicProfilePage({
               lastMapVisitAt: (userDoc as any).lastMapVisitAt ?? null,
               isNewUserForOnboarding: (userDoc as any).isNewUserForOnboarding ?? sessionUser?.isNewUserForOnboarding,
               onboardingCompletedAt: (userDoc as any).onboardingCompletedAt ?? null,
-              // Selecionados na query acima, mas precisam ser carregados explicitamente
-              // aqui — senão a leitura abaixo cai no sessionUser (token), que não os tem.
               onboardingAnswers: (userDoc as any).onboardingAnswers ?? null,
               weeklyMapSummary: (userDoc as any).weeklyMapSummary ?? null,
             };
@@ -140,26 +177,32 @@ export default async function MobileStrategicProfilePage({
         } catch (err) {
           console.error("Erro silencioso ao buscar dados do usuário:", err);
         }
-      }
+        return { effectiveUser, mediaKitSlug };
+      });
+
+      const [snapshotPayload, readingQuota, effectiveUserResult] = await Promise.all([
+        snapshotPromise,
+        readingQuotaPromise,
+        effectiveUserPromise,
+      ]);
+      initialSnapshotPayload = snapshotPayload;
+      initialReadingQuota = readingQuota;
+      const { effectiveUser: effectiveUserForAccess, mediaKitSlug } = effectiveUserResult;
 
       const accessLevel = getNarrativeMapAccessLevelForUser(effectiveUserForAccess);
       const isInstagramConnected = hasNarrativeMapInstagramConnection(effectiveUserForAccess);
       const hasPremiumAccess = hasNarrativeMapPremiumAccess(effectiveUserForAccess);
       const isInternalAdmin = isNarrativeMapAdminUser(effectiveUserForAccess);
 
-      initialReadingQuota = await getNarrativeMapReadingQuotaForUser({ userId });
-
-      const selectorResult = await buildNarrativeMapMobileViewModelFromReadings({
+      const selectorPromise = measureServerOperation(serverTimings, "narrativeSelector", () =>
+        buildNarrativeMapMobileViewModelFromReadings({
         userId,
         displayName: sessionUser?.name ?? "Creator",
         displayHandle: sessionUser?.instagramUsername ? `@${sessionUser.instagramUsername}` : null,
         accessLevel,
         instagramConnected: isInstagramConnected,
         mediaKitAvailable: Boolean(initialSnapshotPayload?.opportunities?.length),
-      });
-
-      initialNarrativeMapViewModel = selectorResult.viewModel;
-      initialNarrativeMapPresentation = selectorResult.currentPresentation;
+      }));
 
       if (DIAGNOSTICO_V2_ENABLED) {
         // lastMapVisitAt is read from the fresh user doc; falls back to null for new users.
@@ -168,28 +211,112 @@ export default async function MobileStrategicProfilePage({
             ? (effectiveUserForAccess as any).lastMapVisitAt
             : null;
 
-        const [instagramMetrics, mapConfirmations, streamBSignalsSummary, contentIdeas, audienceInsights] = await Promise.all([
-          isInstagramConnected
+        const mapConfirmationsPromise = measureServerOperation(
+          serverTimings,
+          "mapConfirmations",
+          () => getMapConfirmationsSnapshot(userId),
+        );
+        const instagramMetricsPromise = measureServerOperation(
+          serverTimings,
+          "instagramMetrics",
+          () => isInstagramConnected
             ? buildInstagramMetricsSummary(userId).catch(() => null)
             : Promise.resolve(null),
-          getMapConfirmationsSnapshot(userId),
-          isInstagramConnected
+        );
+        const streamBSignalsPromise = measureServerOperation(
+          serverTimings,
+          "streamBSignals",
+          () => isInstagramConnected
             ? buildStreamBSignalsSummary(userId, lastMapVisitAt)
             : Promise.resolve(null),
-          listContentIdeasForUser(userId),
-          isInstagramConnected
-            ? buildAudienceInsights(userId, {
-                confirmedTerritoryLabels: (selectorResult.profileSynthesis.narrativeTerritories ?? [])
-                  .map((t) => t.label),
-              }).catch((err) => {
-                // Não engolir em silêncio: uma exceção aqui é indistinguível, na UI, de
-                // "ainda processando" — o card fica preso em "Processando seus sinais".
-                // Logar para diferenciar quebra de processamento legítimo.
-                console.error("[mobile-strategic-profile] buildAudienceInsights falhou:", err);
-                return null;
-              })
-            : Promise.resolve(null),
+        );
+        const contentIdeasPromise = measureServerOperation(
+          serverTimings,
+          "contentIdeas",
+          () => listContentIdeasForUser(userId),
+        );
+        const mapaSeedSourcePromise = measureServerOperation(
+          serverTimings,
+          "mapaSeedReadiness",
+          () => getMapaSeedReadinessSource(userId),
+        );
+        const mapaSeedForMergePromise = measureServerOperation(
+          serverTimings,
+          "mapaSeedMergeSource",
+          () => loadMapaSeedForSynthesisMerge(userId).catch(() => null),
+        );
+        const fullMapaSeedPromise = measureServerOperation(serverTimings, "fullMapaSeed", async () => {
+          try {
+            const { default: MapaSeedModelImport } = await import("@/app/models/MapaSeed");
+            const doc = await MapaSeedModelImport.findOne({ userId })
+              .select("mapa")
+              .lean<{ mapa?: any } | null>();
+            return (doc?.mapa ?? null) as import("@/app/models/MapaSeed").IMapaData | null;
+          } catch {
+            return null;
+          }
+        });
+        const avatarPromise = measureServerOperation(serverTimings, "instagramAvatar", () =>
+          resolveFreshInstagramAvatar({
+            userId,
+            currentImage: (effectiveUserForAccess as any)?.image ?? null,
+            instagramAccountId: (effectiveUserForAccess as any)?.instagramAccountId ?? null,
+            instagramAccessToken: (effectiveUserForAccess as any)?.instagramAccessToken ?? null,
+          }));
+        const audienceInsightsPromise = measureServerOperation(
+          serverTimings,
+          "audienceInsights",
+          async () => {
+            if (!isInstagramConnected) return null;
+            const selector = await selectorPromise;
+            return buildAudienceInsights(userId, {
+              confirmedTerritoryLabels: (selector.profileSynthesis.narrativeTerritories ?? [])
+                .map((territory) => territory.label),
+            }).catch((err) => {
+              console.error("[mobile-strategic-profile] buildAudienceInsights falhou:", err);
+              return null;
+            });
+          },
+        );
+        const brandMatchesPromise = measureServerOperation(serverTimings, "brandMatches", async () => {
+          const [selector, confirmations] = await Promise.all([
+            selectorPromise,
+            mapConfirmationsPromise,
+          ]);
+          return buildBrandMatchesFromConfirmedMap(
+            selector.profileSynthesis,
+            confirmations,
+          ).catch(() => ({ matches: selector.brandMatches ?? [], confirmedMap: false }));
+        });
+
+        const [
+          selectorResult,
+          instagramMetrics,
+          mapConfirmations,
+          streamBSignalsSummary,
+          contentIdeas,
+          audienceInsights,
+          mapaSeedSource,
+          mapaSeedForMerge,
+          fullMapaSeedDoc,
+          resolvedAvatarUrl,
+          brandMatchResult,
+        ] = await Promise.all([
+          selectorPromise,
+          instagramMetricsPromise,
+          mapConfirmationsPromise,
+          streamBSignalsPromise,
+          contentIdeasPromise,
+          audienceInsightsPromise,
+          mapaSeedSourcePromise,
+          mapaSeedForMergePromise,
+          fullMapaSeedPromise,
+          avatarPromise,
+          brandMatchesPromise,
         ]);
+        initialNarrativeMapViewModel = selectorResult.viewModel;
+        initialNarrativeMapPresentation = selectorResult.currentPresentation;
+        const { matches: brandMatches, confirmedMap: brandMapConfirmed } = brandMatchResult;
         // Pautas are Pro-only. For non-premium users, mark as not ready with the
         // premiumRequired flag so the UI shows an upgrade prompt instead of a
         // retry button that will always fail with 403.
@@ -201,18 +328,9 @@ export default async function MobileStrategicProfilePage({
         // Fase 2C — o MapaSeed (onboarding + Instagram) também é fonte de
         // narrativa/territórios para a prontidão das pautas, ao lado da síntese de
         // vídeo. Mantém o card de pautas coerente com o gate da rota de geração.
-        const mapaSeedSource = await getMapaSeedReadinessSource(userId);
         const synthesisHasNarrative = !!(synthesis.mainNarrative?.label) || mapaSeedSource.hasNarrative;
         const synthesisHasTerritories = (synthesis.narrativeTerritories?.length ?? 0) > 0 || mapaSeedSource.hasTerritories;
         const contentIdeasReadiness = evaluateContentIdeasReadiness(mapConfirmations, synthesisHasNarrative, synthesisHasTerritories);
-
-        // Brand matching — uses confirmed map as primary signal when narrative is confirmed;
-        // falls back to synthesis-based matching for creators who haven't confirmed yet.
-        const { matches: brandMatches, confirmedMap: brandMapConfirmed } =
-          await buildBrandMatchesFromConfirmedMap(
-            selectorResult.profileSynthesis,
-            mapConfirmations,
-          ).catch(() => ({ matches: selectorResult.brandMatches ?? [], confirmedMap: false }));
 
         // Derive billing flags from planStatus — mirrors useBillingStatus.ts logic so the
         // server-rendered page shows the correct "payment_pending" / "payment_action_needed"
@@ -238,16 +356,6 @@ export default async function MobileStrategicProfilePage({
         // síntese que o card renderiza — assim quem conecta o Instagram (sem subir
         // vídeo) vê o mapa, não só as pautas. Gate e brand matching seguem na síntese
         // crua (já tratam o MapaSeed à parte / marcas não devem mudar de comportamento).
-        const [mapaSeedForMerge, fullMapaSeedDoc] = await Promise.all([
-          loadMapaSeedForSynthesisMerge(userId).catch(() => null),
-          (async () => {
-            try {
-              const { default: MapaSeedModelImport } = await import("@/app/models/MapaSeed");
-              const doc = await MapaSeedModelImport.findOne({ userId }).select("mapa").lean<{ mapa?: any } | null>();
-              return (doc?.mapa ?? null) as import("@/app/models/MapaSeed").IMapaData | null;
-            } catch { return null; }
-          })(),
-        ]);
         const mergedSynthesis = mergeMapaSeedIntoSynthesis(selectorResult.profileSynthesis, mapaSeedForMerge);
         const leadingNarrative = resolveDiagnosticoLeadingNarrativeSignal(mergedSynthesis);
 
@@ -270,15 +378,6 @@ export default async function MobileStrategicProfilePage({
         const needsOnboarding =
           (effectiveUserForAccess as any).isNewUserForOnboarding === true &&
           !(effectiveUserForAccess as any).onboardingCompletedAt;
-
-        // Avatar do IG: URLs do CDN do FB expiram (~4,5 dias). Re-busca sob demanda
-        // se estiver perto de expirar (best-effort, nunca quebra a página).
-        const resolvedAvatarUrl = await resolveFreshInstagramAvatar({
-          userId,
-          currentImage: (effectiveUserForAccess as any)?.image ?? null,
-          instagramAccountId: (effectiveUserForAccess as any)?.instagramAccountId ?? null,
-          instagramAccessToken: (effectiveUserForAccess as any)?.instagramAccessToken ?? null,
-        });
 
         diagnosticoPageData = {
           synthesis: mergedSynthesis,
@@ -333,10 +432,38 @@ export default async function MobileStrategicProfilePage({
           })(),
           weeklyMapSummary: (effectiveUserForAccess as any).weeklyMapSummary ?? null,
         };
+      } else {
+        const selectorResult = await selectorPromise;
+        initialNarrativeMapViewModel = selectorResult.viewModel;
+        initialNarrativeMapPresentation = selectorResult.currentPresentation;
       }
     } catch (err) {
       console.error("Erro silencioso ao montar mapa narrativo mobile:", err);
     }
+  }
+
+  if (DIAGNOSTICO_V2_ENABLED && diagnosticoPageData) {
+    try {
+      const meeting = await measureServerOperation(
+        serverTimings,
+        "weeklyMeeting",
+        () => getWeeklyMeetingExperience(),
+      );
+      weeklyMeeting = {
+        startAt: meeting.startAt.toISOString(),
+        status: meeting.status,
+      };
+    } catch (err) {
+      console.error("Erro silencioso ao carregar a reunião semanal no Perfil:", err);
+    }
+  }
+
+  serverTimings.total = Math.round((serverNow() - requestStartedAt) * 10) / 10;
+  if (PERF_LOGGING_ENABLED) {
+    console.info("[mobile-strategic-profile][server-timing]", {
+      diagnosticoV2: DIAGNOSTICO_V2_ENABLED,
+      timingsMs: serverTimings,
+    });
   }
 
   const stateQuery = typeof searchParams?.state === "string" ? searchParams.state : null;
@@ -348,6 +475,7 @@ export default async function MobileStrategicProfilePage({
         <DiagnosticoRealShellClient
           data={diagnosticoPageData}
           onAnalyzeAction={null}
+          weeklyMeeting={weeklyMeeting}
         />
       </Suspense>
     );

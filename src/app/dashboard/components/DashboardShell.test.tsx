@@ -54,4 +54,27 @@ describe("DashboardShell mobile strategic profile routing", () => {
       }),
     ).toBe(true);
   });
+
+  it("não renderiza a bottom nav global antiga na página da reunião", () => {
+    expect(
+      shouldRenderDashboardMobileBottomNav({
+        isPrintMode: false,
+        isGuidedFlow: false,
+        isMobile: true,
+        isMobileStrategicProfileAppEnabled: true,
+        pathname: "/reuniao",
+      }),
+    ).toBe(false);
+
+    // Independente da flag do app novo — /reuniao já é chrome novo por si só.
+    expect(
+      shouldRenderDashboardMobileBottomNav({
+        isPrintMode: false,
+        isGuidedFlow: false,
+        isMobile: true,
+        isMobileStrategicProfileAppEnabled: false,
+        pathname: "/reuniao",
+      }),
+    ).toBe(false);
+  });
 });

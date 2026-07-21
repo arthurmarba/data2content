@@ -214,7 +214,6 @@ export function DevCollabsPreviewClient() {
           onUnsavePauta={unsavePauta}
           onAcceptCollabPauta={acceptCollabPauta}
           onDismissPauta={dismissPauta}
-          onOpenWhatsAppCommunity={() => alert("abriria o grupo do WhatsApp")}
           onGenerate={() => {}}
           onUpgrade={() => alert("paywall")}
         />

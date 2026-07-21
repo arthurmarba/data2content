@@ -17,7 +17,7 @@ import {
   AdminRedemptionUpdateStatusPayload,
   RedemptionStatus,
 } from '@/types/admin/redemptions';
-import { Types } from 'mongoose';
+import mongoose, { Types } from 'mongoose';
 
 // Mock UserModel
 jest.mock('@/app/models/User', () => ({
@@ -38,6 +38,7 @@ jest.mock('@/app/models/Redemption', () => ({
     aggregate: jest.fn(),
     findById: jest.fn(),
     findByIdAndUpdate: jest.fn(),
+    findOneAndUpdate: jest.fn(),
     updateOne: jest.fn(),
   },
 }));
@@ -49,6 +50,7 @@ const mockRedemption = RedemptionModel as unknown as {
   aggregate: jest.Mock;
   findById: jest.Mock;
   findByIdAndUpdate: jest.Mock;
+  findOneAndUpdate: jest.Mock;
   updateOne: jest.Mock;
 };
 
@@ -58,6 +60,10 @@ describe('AdminCreatorService', () => {
     // Limpar mocks antes de cada teste
     jest.clearAllMocks();
     mockConnectToDatabase.mockResolvedValue(undefined); // Simula conexão bem-sucedida
+    jest.spyOn(mongoose, 'startSession').mockResolvedValue({
+      withTransaction: async (fn: () => Promise<void>) => fn(),
+      endSession: jest.fn(),
+    } as any);
   });
 
   describe('fetchCreators', () => {
@@ -302,9 +308,13 @@ describe('AdminCreatorService', () => {
   });
 
   describe('updateRedemptionStatus', () => {
-    it('should call RedemptionModel.findByIdAndUpdate with correct parameters', async () => {
+    it('updates the redemption and balance in one transaction', async () => {
       const redemptionId = new Types.ObjectId().toString();
-      const payload: AdminRedemptionUpdateStatusPayload = { status: 'paid', notes: 'Approved by admin' };
+      const payload: AdminRedemptionUpdateStatusPayload = {
+        status: 'paid',
+        notes: 'Approved by admin',
+        transactionId: 'tr_manual_1',
+      };
       const baseDoc = {
         _id: redemptionId,
         status: 'requested' as RedemptionStatus,
@@ -314,18 +324,44 @@ describe('AdminCreatorService', () => {
       };
 
       (mockRedemption.findById as jest.Mock).mockReturnValueOnce({ exec: jest.fn().mockResolvedValue(baseDoc) });
-      (mockRedemption.findByIdAndUpdate as jest.Mock).mockReturnValueOnce({ exec: jest.fn().mockResolvedValue({ ...baseDoc, ...payload }) });
+      (mockRedemption.findOneAndUpdate as jest.Mock).mockReturnValueOnce({ exec: jest.fn().mockResolvedValue({ ...baseDoc, ...payload }) });
       (mockRedemption.updateOne as jest.Mock).mockResolvedValueOnce({ modifiedCount: 1 });
       (UserModel.updateOne as any) = jest.fn().mockResolvedValueOnce({ modifiedCount: 1 });
 
       const result = await updateRedemptionStatus(redemptionId, payload);
 
-      expect(mockRedemption.findByIdAndUpdate).toHaveBeenCalledWith(
-        redemptionId,
+      expect(mockRedemption.findOneAndUpdate).toHaveBeenCalledWith(
+        { _id: redemptionId, status: 'requested' },
         { $set: expect.objectContaining({ status: 'paid', notes: 'Approved by admin' }) },
-        { new: true, runValidators: true }
+        expect.objectContaining({ new: true, runValidators: true, session: expect.any(Object) }),
       );
       expect(result).toEqual(expect.objectContaining({ status: 'paid' }));
+    });
+
+    it('updates notes without reopening a terminal redemption', async () => {
+      const redemptionId = new Types.ObjectId().toString();
+      const baseDoc = {
+        _id: redemptionId,
+        status: 'paid' as RedemptionStatus,
+        transactionId: 'tr_1',
+      };
+      (mockRedemption.findById as jest.Mock).mockReturnValueOnce({
+        exec: jest.fn().mockResolvedValue(baseDoc),
+      });
+      (mockRedemption.findByIdAndUpdate as jest.Mock).mockReturnValueOnce({
+        exec: jest.fn().mockResolvedValue({ ...baseDoc, notes: 'audit note' }),
+      });
+
+      const result = await updateRedemptionStatus(redemptionId, {
+        status: 'paid',
+        notes: 'audit note',
+      });
+      expect(mockRedemption.findByIdAndUpdate).toHaveBeenCalledWith(
+        redemptionId,
+        { $set: { notes: 'audit note' } },
+        { new: true, runValidators: true },
+      );
+      expect(result.notes).toBe('audit note');
     });
 
     it('should throw error if redemption not found', async () => {

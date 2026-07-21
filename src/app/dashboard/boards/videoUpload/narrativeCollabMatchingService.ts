@@ -20,7 +20,7 @@
 import { Types } from "mongoose";
 import { GoogleGenAI, createUserContent } from "@google/genai";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import { normalizeCreatorAvatarUrl, resolveCreatorAvatar } from "@/app/lib/avatar/creatorAvatar";
+import { resolveCreatorAvatar } from "@/app/lib/avatar/creatorAvatar";
 import { rankByComplementarity, findSharedLabel, findDistinctLabels, significantWords, buildViewerTokens } from "./collabComplementarity";
 import { logGeminiUsage } from "@/app/lib/llm/geminiUsageLog";
 import {
@@ -307,7 +307,13 @@ export async function buildNarrativeCandidatePool(
       : [];
     const legacyAvatarByUserId = new Map(
       legacyAvatarSnapshots
-        .map((snapshot) => [snapshot._id.toString(), normalizeCreatorAvatarUrl(snapshot.profilePicture)] as const)
+        .map((snapshot) => [
+          snapshot._id.toString(),
+          resolveCreatorAvatar({
+            isInstagramConnected: true,
+            profile_picture_url: snapshot.profilePicture,
+          }),
+        ] as const)
         .filter((entry): entry is readonly [string, string] => Boolean(entry[1])),
     );
     const userMap = new Map(users.map((user) => {

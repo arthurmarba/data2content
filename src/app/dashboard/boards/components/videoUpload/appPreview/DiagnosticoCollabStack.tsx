@@ -20,7 +20,7 @@
 //   - sem ranking, sem streak; o "N de M" é ritual pessoal
 //   - positivo é "quero", nunca "curtir"
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import {
   motion,
   animate,
@@ -37,6 +37,7 @@ import {
   type ContentIdeaMapAnchorKind,
 } from "@/app/dashboard/boards/videoUpload/contentIdeaMapAnchors";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
+import { StableCreatorAvatar } from "./StableCreatorAvatar";
 import {
   TEXT_PRIMARY_HEX,
   TEXT_SECONDARY_HEX,
@@ -223,38 +224,6 @@ function PautaEyebrow() {
     }}>
       Pauta para você
     </span>
-  );
-}
-
-function StableCreatorPhoto({ avatarUrl, initials }: { avatarUrl: string | null; initials: string }) {
-  const [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    setLoaded(false);
-    setFailed(false);
-  }, [avatarUrl]);
-
-  return (
-    <>
-      <span aria-hidden="true" style={{ opacity: loaded && !failed ? 0 : 1, transition: "opacity 160ms ease" }}>
-        {initials}
-      </span>
-      {avatarUrl && !failed ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={avatarUrl}
-          alt=""
-          referrerPolicy="no-referrer"
-          onLoad={() => setLoaded(true)}
-          onError={() => setFailed(true)}
-          style={{
-            position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
-            opacity: loaded ? 1 : 0, transition: "opacity 160ms ease",
-          }}
-        />
-      ) : null}
-    </>
   );
 }
 
@@ -475,7 +444,13 @@ function StackCardBody({ item }: { item: CollabStackItem }) {
                 boxShadow: `0 0 0 2px ${CS_PAPER_HEX}, 0 0 0 3.5px ${CS_BRAND_HEX}`,
               }}
             >
-              <StableCreatorPhoto avatarUrl={collab.avatarUrl} initials={initials} />
+              <StableCreatorAvatar
+                name={collab.name}
+                avatarUrl={collab.avatarUrl}
+                creatorId={collab.id}
+                mediaKitSlug={collab.mediaKitSlug}
+                fallbackText={initials}
+              />
             </div>
             <div style={{ minWidth: 0 }}>
               <span style={{ display: "block", fontSize: 18, fontWeight: 700, color: CS_INK_HEX, letterSpacing: -0.2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>

@@ -1,6 +1,5 @@
 import React from "react";
 import { headers } from "next/headers";
-import NextDynamic from "next/dynamic";
 import {
   buildDiscoverSearchParams,
   buildDiscoverSelectedFromParams,
@@ -11,15 +10,8 @@ import type { DiscoverSection } from "./discoverFeedUtils";
 import { DISCOVER_MAX_POST_AGE_DAYS } from "./discoverFeedUtils";
 import { prepareDiscoverSections } from "./discoverFeedUtils";
 import PlanningDiscoverBoard from "./PlanningDiscoverBoard";
-
-const DiscoverViewTracker = NextDynamic(
-  () => import("../../discover/components/DiscoverViewTracker"),
-  { ssr: false }
-);
-const DiscoverHeaderConfigurator = NextDynamic(
-  () => import("./DiscoverHeaderConfigurator"),
-  { ssr: false }
-);
+import DiscoverViewTracker from "../../discover/components/DiscoverViewTracker";
+import DiscoverHeaderConfigurator from "./DiscoverHeaderConfigurator";
 export const dynamic = "force-dynamic";
 const LIST_SAMPLE_SIZE = 24;
 
@@ -31,24 +23,26 @@ type FeedOk = {
 };
 type FeedErr = { ok: false; status: number };
 
-function buildBaseUrl() {
-  const hdrs = headers();
+function buildBaseUrl(hdrs: Awaited<ReturnType<typeof headers>>) {
   const proto = hdrs.get("x-forwarded-proto") || "http";
   const host = hdrs.get("x-forwarded-host") || hdrs.get("host") || "localhost:3000";
   return `${proto}://${host}`;
 }
 
-async function fetchFeed(qs?: string): Promise<FeedOk | FeedErr> {
+async function fetchFeed(
+  requestHeaders: Awaited<ReturnType<typeof headers>>,
+  qs?: string,
+): Promise<FeedOk | FeedErr> {
   try {
     const base =
       process.env.NEXT_PUBLIC_BASE_URL && process.env.NEXT_PUBLIC_BASE_URL.trim()
         ? process.env.NEXT_PUBLIC_BASE_URL
-        : buildBaseUrl();
+        : buildBaseUrl(requestHeaders);
     const url = `${base}/api/discover/feed${qs ? `?${qs}` : ""}`;
     const res = await fetch(url, {
       cache: "no-store",
       headers: {
-        cookie: headers().get("cookie") || "",
+        cookie: requestHeaders.get("cookie") || "",
       },
     });
     if (!res.ok) return { ok: false as const, status: res.status } as FeedErr;
@@ -67,8 +61,12 @@ async function fetchFeed(qs?: string): Promise<FeedOk | FeedErr> {
 export default async function DiscoverContentPage({
   searchParams,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  const [resolvedSearchParams, requestHeaders] = await Promise.all([
+    searchParams,
+    headers(),
+  ]);
   const rawParams = new URLSearchParams();
   const keys = [
     "format",
@@ -84,7 +82,7 @@ export default async function DiscoverContentPage({
     "tone",
   ] as const;
   for (const k of keys) {
-    const v = searchParams?.[k];
+    const v = resolvedSearchParams?.[k];
     if (!v) continue;
     if (Array.isArray(v)) rawParams.set(k, v.join(","));
     else rawParams.set(k, String(v));
@@ -93,7 +91,7 @@ export default async function DiscoverContentPage({
     rawParams,
     buildDiscoverSelectedFromParams(rawParams)
   );
-  const videoOnlyParam = searchParams?.videoOnly;
+  const videoOnlyParam = resolvedSearchParams?.videoOnly;
   if (videoOnlyParam && (Array.isArray(videoOnlyParam) ? videoOnlyParam[0] : videoOnlyParam)) {
     params.set("videoOnly", "1");
   }
@@ -101,7 +99,7 @@ export default async function DiscoverContentPage({
   params.set("days", String(DISCOVER_MAX_POST_AGE_DAYS));
   const qs = params.toString();
 
-  const result = await fetchFeed(qs).catch(
+  const result = await fetchFeed(requestHeaders, qs).catch(
     () => ({ ok: false as const, status: 500 } as FeedErr)
   );
 

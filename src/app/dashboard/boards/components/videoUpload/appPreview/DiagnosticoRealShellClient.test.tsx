@@ -7,13 +7,17 @@ import { openPaywallModal } from "@/utils/paywallModal";
 const mockRouterRefresh = jest.fn();
 const mockRouterPush = jest.fn();
 const mockRouterReplace = jest.fn();
+const mockRouter = { refresh: mockRouterRefresh, push: mockRouterPush, replace: mockRouterReplace };
 const mockAnalyzeFlowProps = jest.fn();
+const mockDiagnosticoPageRender = jest.fn();
+const mockFetchReading = jest.fn();
+const mockResetReading = jest.fn();
 
 // Mutable so individual tests can override the instagramLinked param
 let mockInstagramLinked: string | null = null;
 
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({ refresh: mockRouterRefresh, push: mockRouterPush, replace: mockRouterReplace }),
+  useRouter: () => mockRouter,
   useSearchParams: () => ({ get: (key: string) => (key === "instagramLinked" ? mockInstagramLinked : null) }),
 }));
 
@@ -55,35 +59,37 @@ jest.mock("./MobileCalculatorWizard", () => ({
 jest.mock("./useReadingDetail", () => ({
   useReadingDetail: () => ({
     state: { status: "idle" },
-    fetch: jest.fn(),
-    reset: jest.fn(),
+    fetch: mockFetchReading,
+    reset: mockResetReading,
   }),
 }));
 
 // Mock DiagnosticoPage to expose handlers via test buttons
-jest.mock("./DiagnosticoPage", () => ({
-  DiagnosticoPage: ({
-    onNewReading,
-    onOpenReading,
-    onOpenAccountMenu,
-    onOpenDiagnosis,
-    onOpenCalculator,
-  }: {
-    onNewReading: () => void;
-    onOpenReading: (id: string) => void;
-    onOpenAccountMenu?: () => void;
-    onOpenDiagnosis?: () => void;
-    onOpenCalculator?: () => void;
-  }) => (
-    <div>
-      <button onClick={onNewReading} data-testid="trigger-new-reading">Nova Leitura</button>
-      <button onClick={() => onOpenReading("diag-test")} data-testid="trigger-open-reading">Ver Leitura</button>
-      <button onClick={onOpenAccountMenu} data-testid="trigger-account-menu">Conta</button>
-      <button onClick={onOpenDiagnosis} data-testid="trigger-diagnosis-overview">Diagnóstico</button>
-      <button onClick={onOpenCalculator} data-testid="trigger-calculator">Calculadora</button>
-    </div>
-  ),
-}));
+jest.mock("./DiagnosticoPage", () => {
+  const ReactForMock = require("react");
+  const DiagnosticoPage = ReactForMock.memo((props: any) => {
+    const {
+      onNewReading,
+      onOpenReading,
+      onOpenAccountMenu,
+      onOpenDiagnosis,
+      onOpenCalculator,
+      onOpenCategory,
+    } = props;
+    mockDiagnosticoPageRender(props);
+    return (
+      <div>
+        <button onClick={onNewReading} data-testid="trigger-new-reading">Nova Leitura</button>
+        <button onClick={() => onOpenReading("diag-test")} data-testid="trigger-open-reading">Ver Leitura</button>
+        <button onClick={onOpenAccountMenu} data-testid="trigger-account-menu">Conta</button>
+        <button onClick={onOpenDiagnosis} data-testid="trigger-diagnosis-overview">Diagnóstico</button>
+        <button onClick={onOpenCalculator} data-testid="trigger-calculator">Calculadora</button>
+        <button onClick={() => onOpenCategory?.("collabs")} data-testid="trigger-collabs-detail">Detalhe de Collabs</button>
+      </div>
+    );
+  });
+  return { DiagnosticoPage };
+});
 
 jest.mock("./mobileStrategicProfileUploadSessionClient", () => ({
   requestUploadSession: jest.fn(),
@@ -111,12 +117,20 @@ describe("DiagnosticoRealShellClient", () => {
     expect(screen.getByTestId("trigger-new-reading")).toBeInTheDocument();
   });
 
-  it("opens account actions sheet from the profile avatar handler", () => {
+  it("opens account actions sheet from the profile avatar handler", async () => {
     render(<DiagnosticoRealShellClient data={buildDiagnosticoPageDataFixture()} onAnalyzeAction={null} />);
 
+    const profileRenderCount = mockDiagnosticoPageRender.mock.calls.length;
+    const profilePropsBefore = mockDiagnosticoPageRender.mock.lastCall?.[0];
     fireEvent.click(screen.getByTestId("trigger-account-menu"));
+    const profilePropsAfter = mockDiagnosticoPageRender.mock.lastCall?.[0];
+    const changedProfileProps = Object.keys(profilePropsAfter).filter(
+      (key) => profilePropsAfter[key] !== profilePropsBefore[key],
+    );
+    expect(changedProfileProps).toEqual([]);
+    expect(mockDiagnosticoPageRender).toHaveBeenCalledTimes(profileRenderCount);
 
-    expect(screen.getByRole("dialog", { name: "Conta e preferências" })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Conta e preferências" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Configurações" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Mídia Kit" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Comunidade" })).toBeInTheDocument();
@@ -128,17 +142,17 @@ describe("DiagnosticoRealShellClient", () => {
     expect(screen.getByRole("button", { name: "Excluir minha conta" })).toBeInTheDocument();
   });
 
-  it("opens the diagnosis overview detail from the main diagnosis card handler", () => {
+  it("opens the diagnosis overview detail from the main diagnosis card handler", async () => {
     render(<DiagnosticoRealShellClient data={buildDiagnosticoPageDataFixture()} onAnalyzeAction={null} />);
 
     fireEvent.click(screen.getByTestId("trigger-diagnosis-overview"));
 
-    expect(screen.getByRole("dialog", { name: "Diagnóstico" })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Diagnóstico" })).toBeInTheDocument();
     expect(screen.getByText("Evolução")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ver leituras" })).toBeInTheDocument();
   });
 
-  it("opens analyze flow for pro_instagram_connected", () => {
+  it("opens analyze flow for pro_instagram_connected", async () => {
     render(
       <DiagnosticoRealShellClient
         data={buildDiagnosticoPageDataFixture({ accessState: "pro_instagram_connected" })}
@@ -146,7 +160,7 @@ describe("DiagnosticoRealShellClient", () => {
       />,
     );
     fireEvent.click(screen.getByTestId("trigger-new-reading"));
-    expect(screen.getByTestId("analyze-flow")).toBeInTheDocument();
+    expect(await screen.findByTestId("analyze-flow")).toBeInTheDocument();
     expect(mockAnalyzeFlowProps).toHaveBeenLastCalledWith(expect.objectContaining({
       completionSecondaryAction: "another_video",
     }));
@@ -266,7 +280,7 @@ describe("DiagnosticoRealShellClient", () => {
     );
   });
 
-  it("opens the calculator wizard for Pro users", () => {
+  it("opens the calculator wizard for Pro users", async () => {
     const fetchSpy = jest.spyOn(global, "fetch").mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (url === "/api/calculator/latest") {
@@ -289,7 +303,7 @@ describe("DiagnosticoRealShellClient", () => {
 
     fireEvent.click(screen.getByTestId("trigger-calculator"));
 
-    expect(screen.getByRole("dialog", { name: "Resultado sugerido" })).toBeInTheDocument();
+    expect(await screen.findByRole("dialog", { name: "Resultado sugerido" })).toBeInTheDocument();
     expect(openPaywallModal).not.toHaveBeenCalledWith(
       expect.objectContaining({ source: "mobile_profile_calculator" }),
     );
@@ -343,6 +357,79 @@ describe("DiagnosticoRealShellClient", () => {
     expect(screen.getByRole("status")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /fechar/i }));
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("adia chamadas secundárias e só gera pautas ao abrir Collabs", async () => {
+    const fetchSpy = jest.spyOn(global, "fetch").mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.endsWith("/content-ideas/generate")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, ideas: [] }), { status: 200 }));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ ok: true, items: [] }), { status: 200 }));
+    });
+    const base = buildDiagnosticoPageDataFixture();
+    render(
+      <DiagnosticoRealShellClient
+        data={buildDiagnosticoPageDataFixture({
+          userInfo: { ...base.userInfo, plan: "Pro" },
+          contentIdeasReadiness: { ready: true, missingDimensions: [], nextStep: null },
+        })}
+        onAnalyzeAction={null}
+      />,
+    );
+
+    const initialRequestUrls = fetchSpy.mock.calls.map(([input]) => String(input));
+    expect(initialRequestUrls).not.toContain("/api/calculator/latest");
+    expect(initialRequestUrls).not.toContain("/api/dashboard/mobile-strategic-profile/last-map-visit");
+    expect(initialRequestUrls).not.toContain("/api/dashboard/mobile-strategic-profile/content-ideas/generate");
+    expect(initialRequestUrls).not.toContain("/api/dashboard/mobile-strategic-profile/collabs/suggestions");
+
+    fireEvent.click(screen.getByRole("button", { name: "Collabs" }));
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        "/api/dashboard/mobile-strategic-profile/content-ideas/generate",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+    fetchSpy.mockRestore();
+  });
+
+  it("carrega sugestões legadas apenas ao abrir o detalhe de Collabs", async () => {
+    const fetchSpy = jest.spyOn(global, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ items: [] }), { status: 200 }),
+    );
+    const base = buildDiagnosticoPageDataFixture();
+    render(
+      <DiagnosticoRealShellClient
+        data={buildDiagnosticoPageDataFixture({
+          userInfo: { ...base.userInfo, plan: "Pro" },
+          mapConfirmations: {
+            narrative: "confirmed",
+            territories: "confirmed",
+            tone: "pending",
+            assetConfirmations: [],
+            endorsedHypotheses: [],
+            dismissedHypotheses: [],
+            confirmedFormats: [],
+            adjacentNarratives: [],
+          },
+        })}
+        onAnalyzeAction={null}
+      />,
+    );
+
+    expect(fetchSpy).not.toHaveBeenCalledWith(
+      "/api/dashboard/mobile-strategic-profile/collabs/suggestions",
+      expect.anything(),
+    );
+    fireEvent.click(screen.getByTestId("trigger-collabs-detail"));
+    await waitFor(() => {
+      expect(fetchSpy).toHaveBeenCalledWith(
+        "/api/dashboard/mobile-strategic-profile/collabs/suggestions",
+        expect.objectContaining({ method: "POST" }),
+      );
+    });
+    fetchSpy.mockRestore();
   });
 
   it("só revela o deck depois que sugestões e estado persistido chegam, em qualquer ordem", async () => {
@@ -399,8 +486,20 @@ describe("DiagnosticoRealShellClient", () => {
       />,
     );
 
+    const initialRequestUrls = fetchSpy.mock.calls.map(([input]) => String(input));
+    expect(initialRequestUrls).not.toContain(
+      "/api/dashboard/mobile-strategic-profile/collabs/per-pauta",
+    );
+    expect(initialRequestUrls).not.toContain(
+      "/api/dashboard/mobile-strategic-profile/collabs/interest",
+    );
+    expect(initialRequestUrls.some((url) => url.startsWith("/api/landing/casting?"))).toBe(false);
+    expect(initialRequestUrls).not.toContain(
+      "/api/dashboard/mobile-strategic-profile/collabs/suggestions",
+    );
+
     fireEvent.click(screen.getByRole("button", { name: "Collabs" }));
-    expect(screen.getByRole("status", { name: "Preparando suas collabs" })).toBeInTheDocument();
+    expect(await screen.findByRole("status", { name: "Preparando suas collabs" })).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: /Pauta estável/ })).not.toBeInTheDocument();
 
     await act(async () => {

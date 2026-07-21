@@ -6,6 +6,10 @@ jest.mock("./LandingAuthCta", () => ({
   LandingAuthCta: ({ guestLabel }: { guestLabel: string }) => <a href="/entrar">{guestLabel}</a>,
 }));
 
+jest.mock("lucide-react", () => ({
+  ArrowRight: () => <svg aria-hidden="true" />,
+}));
+
 describe("LandingMobileCta", () => {
   it("some em seções visualmente sensíveis e retorna nas zonas calmas", () => {
     const callbacks: IntersectionObserverCallback[] = [];
@@ -30,8 +34,9 @@ describe("LandingMobileCta", () => {
     document.body.innerHTML = `
       <section class="d2c-human-hero"></section>
       <section data-landing-section="data-proof"></section>
+      <section data-landing-section="platform"></section>
       <section data-landing-section="collabs"></section>
-      <section data-landing-section="connection-flow"></section>
+      <section data-landing-section="community"></section>
       <section data-landing-section="weekly-community"></section>
       <section data-landing-section="whatsapp-community"></section>
       <section data-landing-section="authority"></section>
@@ -41,14 +46,14 @@ describe("LandingMobileCta", () => {
 
     render(<LandingMobileCta />);
 
-    expect(observed).toHaveLength(9);
-    expect(screen.getByText("Criar com a minha cara")).toBeInTheDocument();
+    expect(observed).toHaveLength(10);
+    expect(screen.getByText("Assistir à próxima reunião")).toBeInTheDocument();
 
     const weeklySection = document.querySelector("[data-landing-section='weekly-community']")!;
     act(() => callbacks[0]!([{ target: weeklySection, isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver));
-    expect(screen.queryByText("Criar com a minha cara")).not.toBeInTheDocument();
+    expect(screen.queryByText("Assistir à próxima reunião")).not.toBeInTheDocument();
 
     act(() => callbacks[0]!([{ target: weeklySection, isIntersecting: false } as IntersectionObserverEntry], {} as IntersectionObserver));
-    expect(screen.getByText("Criar com a minha cara")).toBeInTheDocument();
+    expect(screen.getByText("Assistir à próxima reunião")).toBeInTheDocument();
   });
 });

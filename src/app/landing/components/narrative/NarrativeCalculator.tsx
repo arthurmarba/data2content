@@ -108,7 +108,7 @@ export function NarrativeCalculator() {
                 </div>
               </header>
 
-              <main className="d2c-calculator-sheet__body">
+              <div className="d2c-calculator-sheet__body">
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.div key={stage} className={`d2c-calculator-stage is-${stage}`} {...stageMotion}>
                     {stage === "delivery" && <DeliveryStep />}
@@ -119,7 +119,7 @@ export function NarrativeCalculator() {
                     {(stage === "result" || stage === "saved") && <ResultStep saved={stage === "saved"} />}
                   </motion.div>
                 </AnimatePresence>
-              </main>
+              </div>
 
               <footer className="d2c-calculator-sheet__footer">
                 <span className={`d2c-calculator-sheet__cta${stage === "calculating" || stage === "saved" ? " is-disabled" : ""}${stage === "calculating" ? " is-loading" : ""}`}>

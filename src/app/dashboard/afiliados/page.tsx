@@ -1,8 +1,6 @@
 // src/app/dashboard/afiliados/page.tsx
 import React from 'react';
-import NextDynamic from 'next/dynamic';
-
-const AffiliateCard = NextDynamic(() => import('@/components/affiliate/AffiliateCard'), { ssr: false });
+import AffiliateCard from './AffiliateCardClient';
 
 export const dynamic = 'force-dynamic';
 

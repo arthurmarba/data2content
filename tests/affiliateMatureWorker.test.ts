@@ -19,6 +19,12 @@ const mockFind = (User as any).find as jest.Mock;
 const mockUpdateOne = (User as any).updateOne as jest.Mock;
 const mockCount = (User as any).countDocuments as jest.Mock;
 
+function mockUsers(users: any[]) {
+  mockFind.mockReturnValue({
+    limit: jest.fn().mockReturnValue({ lean: jest.fn().mockResolvedValue(users) }),
+  });
+}
+
 beforeEach(() => {
   jest.clearAllMocks();
   mockCount.mockResolvedValue(0);
@@ -29,20 +35,24 @@ describe('matureAffiliateCommissions', () => {
     const user = {
       _id: 'u1',
       commissionLog: [
-        { _id: 'e1', status: 'pending', currency: 'brl', amountCents: 449, availableAt: new Date() },
-        { _id: 'e2', status: 'pending', currency: 'usd', amountCents: 299, availableAt: new Date() },
-        { _id: 'e3', status: 'pending', currency: 'brl', amountCents: 999, availableAt: new Date() },
+        { _id: 'e1', type: 'commission', status: 'pending', currency: 'brl', amountCents: 449, availableAt: new Date() },
+        { _id: 'e2', type: 'commission', status: 'pending', currency: 'usd', amountCents: 299, availableAt: new Date() },
+        { _id: 'e3', type: 'commission', status: 'pending', currency: 'brl', amountCents: 999, availableAt: new Date() },
       ],
     };
-    mockFind.mockResolvedValue([user]);
+    mockUsers([user]);
     mockUpdateOne.mockResolvedValue({ modifiedCount: 1 });
 
     const first = await matureAffiliateCommissions({ maxUsers: 1, maxEntriesPerUser: 10 });
     expect(first.promotedCount).toBe(3);
     expect(first.byCurrency).toEqual({ brl: 2, usd: 1 });
     expect(mockUpdateOne).toHaveBeenCalledWith(
-      expect.objectContaining({ _id: 'u1', 'commissionLog._id': 'e1' }),
-      expect.objectContaining({ $inc: { 'affiliateBalances.brl': 449 } })
+      expect.objectContaining({
+        _id: 'u1',
+        commissionLog: { $elemMatch: expect.objectContaining({ _id: 'e1', status: 'pending' }) },
+      }),
+      expect.objectContaining({ $inc: { 'affiliateBalances.brl': 449 } }),
+      expect.objectContaining({ arrayFilters: expect.any(Array) }),
     );
 
     mockUpdateOne.mockResolvedValue({ modifiedCount: 0 });
@@ -54,10 +64,10 @@ describe('matureAffiliateCommissions', () => {
     const user = {
       _id: 'u2',
       commissionLog: [
-        { _id: 'e1', status: 'pending', currency: 'brl', amountCents: 100, availableAt: new Date() },
+        { _id: 'e1', type: 'commission', status: 'pending', currency: 'brl', amountCents: 100, availableAt: new Date() },
       ],
     };
-    mockFind.mockResolvedValue([user]);
+    mockUsers([user]);
     const res = await matureAffiliateCommissions({ dryRun: true });
     expect(res.promotedCount).toBe(1);
     expect(mockUpdateOne).not.toHaveBeenCalled();
@@ -67,10 +77,10 @@ describe('matureAffiliateCommissions', () => {
     const user = {
       _id: 'u3',
       commissionLog: [
-        { _id: 'e1', status: 'pending', currency: 'brl', amountCents: 100, availableAt: new Date() },
+        { _id: 'e1', type: 'commission', status: 'pending', currency: 'brl', amountCents: 100, availableAt: new Date() },
       ],
     };
-    mockFind.mockResolvedValue([user]);
+    mockUsers([user]);
     mockUpdateOne
       .mockResolvedValueOnce({ modifiedCount: 1 })
       .mockResolvedValueOnce({ modifiedCount: 0 });

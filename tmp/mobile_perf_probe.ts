@@ -1,6 +1,10 @@
 import { chromium, devices, type Page, type APIRequestContext } from "@playwright/test";
+import nextEnv from "@next/env";
+
+nextEnv.loadEnvConfig(process.cwd());
 
 type ProbeResult = {
+  run: number;
   route: string;
   status: number | null;
   domContentLoaded: number | null;
@@ -29,7 +33,13 @@ declare global {
   }
 }
 
-const routes = ["/planning/graficos", "/planning/chat", "/planning/roteiros"];
+const routes = (process.env.PERF_ROUTES ?? "/planning/graficos,/planning/chat,/planning/roteiros")
+  .split(",")
+  .map((route) => route.trim())
+  .filter(Boolean);
+const settleMs = Number(process.env.PERF_SETTLE_MS ?? 2500);
+const configuredRuns = Number(process.env.PERF_RUNS ?? 1);
+const runs = Number.isInteger(configuredRuns) && configuredRuns > 0 ? configuredRuns : 1;
 
 function formEncode(data: Record<string, string>) {
   return new URLSearchParams(data).toString();
@@ -127,7 +137,7 @@ async function probeRoute(
 
   const response = await page.goto(route, { waitUntil: "domcontentloaded", timeout: 120_000 });
   await page.waitForLoadState("networkidle", { timeout: 120_000 }).catch(() => null);
-  await page.waitForTimeout(2_500);
+  await page.waitForTimeout(Number.isFinite(settleMs) && settleMs >= 0 ? settleMs : 2500);
 
   const data = await page.evaluate(() => {
     const navigation = performance.getEntriesByType("navigation")[0] as PerformanceNavigationTiming | undefined;
@@ -151,6 +161,7 @@ async function probeRoute(
   });
 
   return {
+    run: 0,
     route,
     status: response?.status() ?? null,
     ...data,
@@ -168,19 +179,32 @@ async function main() {
   }
 
   const browser = await chromium.launch({ headless: true });
-  const context = await browser.newContext({
-    ...devices["iPhone 13"],
-    baseURL,
-  });
-  const page = await context.newPage();
-  await loginByRequestCredentials(page.request, baseURL, email, password);
   const results: ProbeResult[] = [];
 
-  for (const route of routes) {
-    results.push(await probeRoute(page, baseURL, route));
+  for (let run = 1; run <= runs; run += 1) {
+    const context = await browser.newContext({
+      ...devices["iPhone 13"],
+      baseURL,
+    });
+    const page = await context.newPage();
+    await loginByRequestCredentials(page.request, baseURL, email, password);
+    if (process.env.PERF_BLOCK_PAGE_WRITES === "1") {
+      await page.route("**/api/**", async (route) => {
+        const method = route.request().method();
+        if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
+          await route.abort("blockedbyclient");
+          return;
+        }
+        await route.continue();
+      });
+    }
+
+    for (const route of routes) {
+      results.push({ ...(await probeRoute(page, baseURL, route)), run });
+    }
+    await context.close();
   }
 
-  await context.close();
   await browser.close();
   console.log(JSON.stringify(results, null, 2));
 }

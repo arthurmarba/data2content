@@ -98,9 +98,11 @@ function shouldIgnoreOutOfOrderEvent(user: any, event: Stripe.Event): boolean {
         incomingCreatedAt: new Date(current).toISOString(),
       }),
     });
-    return true;
   }
 
+  // Stripe explicitly does not guarantee delivery order. Most handlers below
+  // re-fetch the current Subscription before persisting, so this timestamp is
+  // diagnostic only and must never suppress a financial event.
   return false;
 }
 
@@ -201,14 +203,98 @@ function getIntervalFromInvoice(invoice: Stripe.Invoice): "month" | "year" | nul
 }
 
 // Extrai invoiceId de um Charge (direto ou via payment_intent)
-function getInvoiceIdFromCharge(charge: Stripe.Charge): string | null {
+async function getInvoiceIdFromCharge(charge: Stripe.Charge): Promise<string | null> {
   const c: any = charge as any;
   const direct = c?.invoice?.id ?? c?.invoice ?? null;
   if (typeof direct === "string") return direct;
   const pi: any = c?.payment_intent;
   if (!pi) return null;
   const viaPI = pi?.invoice?.id ?? pi?.invoice ?? null;
-  return typeof viaPI === "string" ? viaPI : null;
+  if (typeof viaPI === "string") return viaPI;
+
+  // Stripe Basil removed `invoice` from Charge and PaymentIntent. The
+  // authoritative relationship now lives in InvoicePayment.
+  const paymentIntentId = typeof pi === "string" ? pi : pi?.id;
+  if (!paymentIntentId) return null;
+
+  const payments = await stripe.invoicePayments.list({
+    payment: { type: "payment_intent", payment_intent: paymentIntentId },
+    limit: 2,
+  });
+  const paid = payments.data.find((payment) => payment.status === "paid") ?? payments.data[0];
+  const invoice = paid?.invoice;
+  return typeof invoice === "string" ? invoice : invoice?.id ?? null;
+}
+
+async function getInvoiceRefundedTotalCents(
+  invoiceId: string,
+  currentCharge?: Stripe.Charge,
+): Promise<number> {
+  const payments: any[] = [];
+  let startingAfter: string | undefined;
+
+  for (let page = 0; page < 10; page++) {
+    const response = await stripe.invoicePayments.list({
+      invoice: invoiceId,
+      status: "paid",
+      limit: 100,
+      ...(startingAfter ? { starting_after: startingAfter } : {}),
+    });
+    payments.push(...response.data);
+    if (!response.has_more || response.data.length === 0) break;
+    startingAfter = response.data[response.data.length - 1]?.id;
+    if (!startingAfter) break;
+  }
+
+  const currentChargeId = currentCharge?.id;
+  const currentPaymentIntentId =
+    typeof currentCharge?.payment_intent === "string"
+      ? currentCharge.payment_intent
+      : currentCharge?.payment_intent?.id;
+
+  const refundedAmounts = await Promise.all(
+    payments.map(async (invoicePayment: any) => {
+      const payment = invoicePayment?.payment || {};
+      const paymentIntent = payment.payment_intent;
+      const paymentIntentId =
+        typeof paymentIntent === "string" ? paymentIntent : paymentIntent?.id;
+
+      if (paymentIntentId) {
+        if (paymentIntentId === currentPaymentIntentId && currentCharge) {
+          return Number(currentCharge.amount_refunded || 0);
+        }
+        const pi = await stripe.paymentIntents.retrieve(paymentIntentId, {
+          expand: ["latest_charge"],
+        });
+        const latestCharge = pi.latest_charge;
+        if (!latestCharge) return 0;
+        if (typeof latestCharge !== "string") {
+          return Number(latestCharge.amount_refunded || 0);
+        }
+        if (latestCharge === currentChargeId && currentCharge) {
+          return Number(currentCharge.amount_refunded || 0);
+        }
+        const charge = await stripe.charges.retrieve(latestCharge);
+        return Number(charge.amount_refunded || 0);
+      }
+
+      const chargeRef = payment.charge;
+      const chargeId = typeof chargeRef === "string" ? chargeRef : chargeRef?.id;
+      if (!chargeId) return 0;
+      if (chargeId === currentChargeId && currentCharge) {
+        return Number(currentCharge.amount_refunded || 0);
+      }
+      const charge = typeof chargeRef === "string"
+        ? await stripe.charges.retrieve(chargeRef)
+        : chargeRef;
+      return Number(charge?.amount_refunded || 0);
+    }),
+  );
+
+  return Math.max(
+    refundedAmounts.reduce((sum, amount) => sum + amount, 0),
+    Number(currentCharge?.amount_refunded || 0),
+  );
 }
 
 /* --------------------- Normalização de assinatura --------------------- */
@@ -579,25 +665,28 @@ export async function handleStripeEvent(event: Stripe.Event) {
       if ((invoice.amount_paid ?? 0) > 0) {
         const code = (user as any).affiliateUsed || invoice.metadata?.affiliateCode;
         if (code) {
-          const owner = await User.findOne({ affiliateCode: code });
+          const owner = await User.findOne({
+            affiliateCode: code,
+            $or: [{ affiliateStatus: "active" }, { affiliateStatus: null }],
+          });
           if (owner && String(owner._id) !== String(user._id) && !(user as any).affiliateFirstCommissionAt) {
-            const okInvoice = await ensureInvoiceIdempotent(
-              invoice.id!,
-              String(owner._id)
-            );
-            const subId2 = getSubscriptionIdFromInvoice(invoice);
-            const okBuyer = okInvoice
-              ? await ensureBuyerFirstCommission(String(user._id), String(owner._id), invoice.id!)
-              : false;
-            const okSub = okBuyer && subId2
-              ? await ensureSubscriptionFirstTime(subId2, String(owner._id))
-              : okBuyer;
+            const amountCents = calcCommissionCents(invoice);
+            if (amountCents > 0) {
+              const okInvoice = await ensureInvoiceIdempotent(
+                invoice.id!,
+                String(owner._id)
+              );
+              const subId2 = getSubscriptionIdFromInvoice(invoice);
+              const okBuyer = okInvoice
+                ? await ensureBuyerFirstCommission(String(user._id), String(owner._id), invoice.id!)
+                : false;
+              const okSub = okBuyer && subId2
+                ? await ensureSubscriptionFirstTime(subId2, String(owner._id))
+                : okBuyer;
 
-            if (okInvoice && okBuyer && okSub) {
-              const amountCents = calcCommissionCents(invoice);
-              if (amountCents > 0) {
-                (user as any).affiliateFirstCommissionAt = new Date();
-                (owner as any).commissionLog.push({
+              if (okInvoice && okBuyer && okSub) {
+                const createdAt = new Date();
+                const commission = {
                   type: "commission",
                   status: "pending",
                   invoiceId: invoice.id!,
@@ -607,20 +696,44 @@ export async function handleStripeEvent(event: Stripe.Event) {
                   currency: String(invoice.currency || "brl").toLowerCase(),
                   amountCents,
                   commissionRateBps: getCommissionRateBps(),
-                  availableAt: addDays(new Date(), HOLD_DAYS),
-                  createdAt: new Date(),
-                });
-                await withRetries(
-                  () => owner.save(),
+                  availableAt: addDays(createdAt, HOLD_DAYS),
+                  createdAt,
+                  updatedAt: createdAt,
+                };
+
+                const ledgerWrite = await withRetries(
+                  () => User.updateOne(
+                    {
+                      _id: owner._id,
+                      commissionLog: {
+                        $not: { $elemMatch: { type: "commission", invoiceId: invoice.id! } },
+                      },
+                    },
+                    { $push: { commissionLog: commission } },
+                  ),
                   {
                     context: {
                       ownerId: String(owner._id),
-                      action: "owner.save",
+                      action: "commission.atomic_insert",
                       eventId: event.id,
                       eventType: event.type,
                     },
                   }
                 );
+
+                // A modifiedCount=0 means a replay completed the ledger write
+                // earlier. The buyer marker may now be persisted safely.
+                if (ledgerWrite.modifiedCount > 0 || ledgerWrite.matchedCount === 0) {
+                  (user as any).affiliateFirstCommissionAt = createdAt;
+                }
+
+                // A refund event can arrive before invoice.payment_succeeded.
+                // Re-reading the invoice's complete payment set closes that
+                // ordering gap and applies any refund already accepted.
+                const refundedTotal = await getInvoiceRefundedTotalCents(invoice.id!);
+                if (refundedTotal > 0) {
+                  await processAffiliateRefund(invoice.id!, refundedTotal);
+                }
               }
             }
           }
@@ -832,9 +945,10 @@ export async function handleStripeEvent(event: Stripe.Event) {
     /* ------------------------------ Reembolso ------------------------------ */
     case "charge.refunded": {
       const charge = event.data.object as Stripe.Charge;
-      const invId = getInvoiceIdFromCharge(charge);
+      const invId = await getInvoiceIdFromCharge(charge);
       if (!invId) return;
-      await processAffiliateRefund(invId, undefined, charge);
+      const refundedTotal = await getInvoiceRefundedTotalCents(invId, charge);
+      await processAffiliateRefund(invId, refundedTotal, charge);
       return;
     }
 

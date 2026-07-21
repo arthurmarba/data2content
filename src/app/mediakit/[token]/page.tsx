@@ -52,10 +52,9 @@ export const runtime = 'nodejs';
 const MEDIAKIT_OG_VERSION = '20260223-mediakit-og-v2';
 
 /** Helpers para metadados */
-function absoluteUrl(path: string) {
+function absoluteUrl(path: string, h: Awaited<ReturnType<typeof headers>>) {
   if (!path) return '';
   if (/^https?:\/\//i.test(path)) return path;
-  const h = headers();
   const host = h.get('host') ?? 'localhost:3000';
   const proto =
     process.env.NEXT_PUBLIC_APP_URL?.startsWith('https')
@@ -78,11 +77,12 @@ function logMediaKitDependencyFailure(resource: string, detail: string, level: '
 // Gera metadados dinâmicos para que o link do mídia kit apresente informações
 // personalizadas do criador nas prévias de compartilhamento.
 export async function generateMetadata(
-  { params }: { params: { token: string } }
+  { params }: { params: Promise<{ token: string }> }
 ): Promise<Metadata> {
+  const [resolvedParams, requestHeaders] = await Promise.all([params, headers()]);
   await connectToDatabase();
 
-  const resolvedToken = await resolveMediaKitToken(params.token);
+  const resolvedToken = await resolveMediaKitToken(resolvedParams.token);
   if (!resolvedToken) {
     return {
       title: 'Mídia Kit | Data2Content',
@@ -112,15 +112,17 @@ export async function generateMetadata(
     biography: (user as any)?.biography,
   });
 
-  const pageUrl = absoluteUrl(`/mediakit/${resolvedToken.canonicalSlug}`);
+  const pageUrl = absoluteUrl(`/mediakit/${resolvedToken.canonicalSlug}`, requestHeaders);
   const ogImageVersionRaw = (user as any)?.updatedAt ? new Date((user as any).updatedAt).getTime() : 1;
   const ogImageVersion = Number.isFinite(ogImageVersionRaw) ? ogImageVersionRaw : 1;
   const previewVersion = `${MEDIAKIT_OG_VERSION}-${ogImageVersion}`;
   const avatarImage = absoluteUrl(
     `/api/mediakit/${resolvedToken.canonicalSlug}/avatar?v=${previewVersion}`,
+    requestHeaders,
   );
   const ogImage = absoluteUrl(
     `/api/mediakit/${resolvedToken.canonicalSlug}/og-image?v=${previewVersion}`,
+    requestHeaders,
   );
 
   return {
@@ -250,12 +252,20 @@ export default async function MediaKitPage(
   {
     params,
     searchParams,
-  }: { params: { token: string }; searchParams?: { [key: string]: string | string[] | undefined } },
+  }: {
+    params: Promise<{ token: string }>;
+    searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+  },
   req?: Request,
 ) {
   await connectToDatabase();
 
-  const resolvedToken = await resolveMediaKitToken(params.token);
+  const [resolvedParams, resolvedSearchParams, reqHeaders] = await Promise.all([
+    params,
+    searchParams,
+    headers(),
+  ]);
+  const resolvedToken = await resolveMediaKitToken(resolvedParams.token);
   if (!resolvedToken) {
     notFound();
   }
@@ -267,12 +277,11 @@ export default async function MediaKitPage(
     notFound();
   }
 
-  const reqHeaders = headers();
-  const printParam = searchParams?.print;
+  const printParam = resolvedSearchParams?.print;
   const isPrintMode = Array.isArray(printParam)
     ? printParam.includes('1') || printParam.includes('true')
     : printParam === '1' || printParam === 'true';
-  const embeddedParam = searchParams?.embedded;
+  const embeddedParam = resolvedSearchParams?.embedded;
   const isEmbedded = Array.isArray(embeddedParam)
     ? embeddedParam.includes('1') || embeddedParam.includes('true')
     : embeddedParam === '1' || embeddedParam === 'true';

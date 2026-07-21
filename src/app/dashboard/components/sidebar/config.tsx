@@ -68,6 +68,7 @@ const iconSet = (outline: SidebarIconComponent, solid: SidebarIconComponent): Si
 
 const ICONS = {
   dashboard: iconSet(HomeIconOutline, HomeIconSolid),
+  meeting: iconSet(CalendarDaysIconOutline, CalendarDaysIconSolid),
   strategicMap: iconSet(MapIconOutline, MapIconSolid),
   collabs: iconSet(UsersIconOutline, UsersIconSolid),
   mediaKit: iconSet(RectangleGroupIconOutline, RectangleGroupIconSolid),
@@ -106,6 +107,14 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         href: "/",
         icon: ICONS.dashboard,
         exact: true,
+      },
+      {
+        type: "item",
+        key: "weekly-meeting",
+        label: "Reunião semanal",
+        tooltip: "Assista ao vivo toda quinta-feira, às 19h",
+        href: "/reuniao",
+        icon: ICONS.meeting,
       },
       {
         type: "item",

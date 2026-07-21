@@ -27,6 +27,7 @@ import { formatCompactNumber } from "@/app/landing/utils/format";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { getUpcomingMentorshipEvent } from "@/app/lib/community/events";
+import { computeNextWeeklyMeeting } from "@/app/lib/community/weeklyMeeting";
 import { getPlanAccessMeta, isPlanActiveLike } from "@/utils/planStatus";
 import { isWhatsappTrialEnabled } from "@/app/lib/whatsappTrial";
 import {
@@ -879,7 +880,7 @@ function buildMentorshipCalendarLink(event: {
 }) {
   try {
     const start = new Date(event.startAt);
-    const end = event.endAt ? new Date(event.endAt) : new Date(start.getTime() + 60 * 60 * 1000);
+    const end = event.endAt ? new Date(event.endAt) : new Date(start.getTime() + 2 * 60 * 60 * 1000);
     const formatDate = (d: Date) =>
       d
         .toISOString()
@@ -1082,21 +1083,11 @@ async function computeMicroInsight(userId: string) {
 }
 
 function computeNextMentorshipSlot(baseDate: Date) {
-  const targetWeekday = 1; // Monday
-  const reference = new Date(baseDate.getTime());
-  const currentDay = reference.getDay();
-  let delta = (targetWeekday - currentDay + 7) % 7;
-  if (delta === 0 && reference.getHours() >= 19) {
-    delta = 7;
-  }
-
-  const next = new Date(reference.getTime());
-  next.setDate(reference.getDate() + delta);
-  next.setHours(19, 0, 0, 0);
-  const label = formatMentorshipLabel(next, "America/Sao_Paulo");
+  const slot = computeNextWeeklyMeeting(baseDate);
+  const label = formatMentorshipLabel(slot.startAt, slot.timezone);
 
   return {
-    isoDate: next.toISOString(),
+    isoDate: slot.startAt.toISOString(),
     display: label,
   };
 }
@@ -1531,9 +1522,7 @@ export async function GET(request: Request) {
         joinUrl: mentorshipEvent?.joinUrl ?? null,
       });
 
-      const joinCommunityUrl = coreState.hasPaidProPlan
-        ? mentorshipEvent?.joinUrl ?? VIP_COMMUNITY_URL
-        : FREE_COMMUNITY_JOIN_URL;
+      const joinCommunityUrl = "/reuniao";
       const reminderUrl = coreState.hasPaidProPlan
         ? mentorshipEvent?.reminderUrl ?? VIP_COMMUNITY_URL
         : null;
@@ -1806,9 +1795,7 @@ export async function GET(request: Request) {
         joinUrl: mentorshipEvent?.joinUrl ?? null,
       });
 
-      const joinCommunityUrl = vipHasAccess
-        ? mentorshipEvent?.joinUrl ?? VIP_COMMUNITY_URL
-        : FREE_COMMUNITY_JOIN_URL;
+      const joinCommunityUrl = "/reuniao";
       const reminderUrl = vipHasAccess ? mentorshipEvent?.reminderUrl ?? VIP_COMMUNITY_URL : null;
 
       responsePayload.mentorship = {

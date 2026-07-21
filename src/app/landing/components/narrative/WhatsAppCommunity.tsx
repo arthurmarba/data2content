@@ -164,9 +164,9 @@ export function WhatsAppCommunity({ creators, communityCreators }: WhatsAppCommu
     <section ref={ref} className="d2c-whatsapp-community" data-landing-section="whatsapp-community" aria-labelledby="whatsapp-community-title">
       <div className="d2c-shell d2c-whatsapp-community__inner">
         <div className="d2c-whatsapp-community__copy">
-          <p>Comunidade no WhatsApp</p>
-          <h2 id="whatsapp-community-title">A reunião termina.<br />A comunidade continua.</h2>
-          <span>Não é mais um grupo para acumular notificações. É o lugar onde conexões, pautas e collabs continuam ganhando forma.</span>
+          <p>Grupo exclusivo de assinantes</p>
+          <h2 id="whatsapp-community-title">A reunião começa<br />antes das 19h.</h2>
+          <span>É no grupo que assinantes confirmam presença para serem analisados — e onde referências, pautas e collabs continuam ganhando forma depois do ao vivo.</span>
           <a href="#comunidade">Conhecer quem já está na comunidade <ArrowDown size={16} aria-hidden="true" /></a>
         </div>
 
@@ -178,7 +178,7 @@ export function WhatsAppCommunity({ creators, communityCreators }: WhatsAppCommu
               <CreatorAvatar creator={second} size={29} />
               <CreatorAvatar creator={supporter} size={29} />
             </span>
-            <div><strong>Comunidade D2C</strong><small>Creators criando em rede</small></div>
+            <div><strong>Assinantes D2C Pro</strong><small>Creators criando em rede</small></div>
             <MessageCircleMore size={18} aria-hidden="true" />
           </header>
           <div className="d2c-whatsapp-chat__body">

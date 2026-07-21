@@ -31,7 +31,11 @@ const rich = (s: string): string =>
         .replace(/&lt;b&gt;/g, "<b>").replace(/&lt;\/b&gt;/g, "</b>");
 
 function iniciais(nome: string): string {
-  const partes = (nome ?? "").trim().split(/\s+/).filter(Boolean);
+  const partes = (nome ?? "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((p) => !/^(dr|dra)\.?$/i.test(p));
   const primeiro = partes[0];
   if (!primeiro) return "·";
   if (partes.length === 1) return primeiro.slice(0, 2).toUpperCase();
@@ -447,10 +451,11 @@ const CSS = `
   .cr--sem-sinal .cr-verdict { display:flex; flex-direction:column; justify-content:center; }
   .pt--semsinal { padding:0 0 22px; border:0; border-bottom:1px solid var(--hair); border-radius:0; background:transparent; box-shadow:none; }
   .pt--semsinal .pt-texto { max-width:20ch; font-family:var(--serif); font-size:38px; line-height:.98; letter-spacing:-.05em; }
-  .sem-pautas { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  .sem-pautas { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
+  .sem-pautas--2 { grid-template-columns:1fr 1fr; gap:24px; }
   .sem-pauta { padding-top:12px; border-top:3px solid var(--map); }
-  .sem-pauta b { display:block; font-family:var(--serif); font-size:21px; line-height:1.06; letter-spacing:-.035em; }
-  .sem-pauta span { display:block; margin-top:7px; color:var(--muted); font-size:12.5px; line-height:1.4; }
+  .sem-pauta b { display:block; font-family:var(--serif); font-size:18px; line-height:1.06; letter-spacing:-.035em; }
+  .sem-pauta span { display:block; margin-top:7px; color:var(--muted); font-size:11.5px; line-height:1.38; }
 
   /* Collab: duas pessoas, uma ideia central, execução enxuta. */
   .collabX { grid-template-columns:1.05fr .95fr; gap:42px; }
@@ -747,22 +752,27 @@ function crHead(c: CriadorSlide, idx: number, total: number, kick: string): stri
 export function criadorSlideA(c: CriadorSlide, idx: number, total: number): string {
   const narr = c.narrativaCentral
     ? `<div class="cr-narr">“${esc(c.narrativaCentral)}”</div>`
-    : `<div class="cr-narr">Mapa ainda sem narrativa central definida.</div>`;
+    : `<div class="cr-narr">Mapa em construção: primeiro vamos definir a história que só este perfil pode contar.</div>`;
   const semPautas = c.semSinal && c.proximosPassos?.pautas?.length
-    ? `<div class="sem-pautas">${c.proximosPassos.pautas.slice(0, 2).map((p) =>
+    ? `<div class="sem-pautas ${c.proximosPassos.pautas.length < 3 ? "sem-pautas--2" : ""}">${c.proximosPassos.pautas.slice(0, 3).map((p) =>
         `<div class="sem-pauta"><b>${rich(p.titulo)}</b><span>${rich(p.porque)}</span></div>`).join("")}</div>`
     : "";
   const verdict = c.semSinal
-    ? `<div class="pt pt--ajustar pt--semsinal"><div class="pt-label" style="color:var(--ajustar)">Sem sinal nesta semana</div>
-        <div class="pt-texto">Nenhuma publicação para interpretar — começamos pelo mapa.</div></div>${semPautas}`
+    ? `<div class="pt pt--ajustar pt--semsinal"><div class="pt-label" style="color:var(--ajustar)">Situação dos dados</div>
+        <div class="pt-texto">${rich(c.falaSugerida ?? "Não houve publicação nesta semana. A retomada começa pelo mapa.")}</div></div>${semPautas}`
     : "";
   const temReel = !!(c.reel && c.reel.postId);
   // Handle às vezes vem preenchido com o próprio nome (criador sem @ real, ex.: sem Instagram
   // conectado) — mostrar os dois empilhados parece duplicidade/bug, não informação nova.
   const normaliza = (s: string) => s.toLowerCase().replace(/^dra?\.?\s+/, "").replace(/[^a-z0-9]/g, "");
   const handleRedundante = !c.handle || normaliza(c.handle) === normaliza(c.nome);
+  const retomadaKick = c.retomadaFonte === "historico"
+    ? "Retomada pelo histórico"
+    : c.retomadaFonte === "cadastro"
+      ? "Ponto de partida"
+      : "Retomada pelo mapa";
   if (c.semSinal) return shell(`<div class="slide">
-    ${crHead(c, idx, total, "Retomada pelo mapa")}
+    ${crHead(c, idx, total, retomadaKick)}
     <div class="cr cr--sem-sinal">
       <div class="cr-id">
         ${avatar(c.nome, c.profilePictureUrl)}
@@ -971,19 +981,36 @@ function vennLegenda(): string {
 
 /** Abertura: o fio da semana, em escala, fundo escuro + a legenda do Venn. */
 export function aberturaSlide(d: DeckData): string {
-  const fio = d.fechamento.fioComum;
   const regra = "A pauta forte tem dono reconhecível.";
-  const valor = (rx: RegExp, fallback: string) => rx.exec(fio)?.[1] ?? fallback;
   const normaliza = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  const dono = (termo: string, fallback: string) => d.criadores.find((c) => {
-    const corpus = `${c.pontoForte?.texto ?? ""} ${c.pontoForte?.evidencia ?? ""}`;
-    return normaliza(corpus).includes(normaliza(termo));
-  })?.nome ?? fallback;
-  const provas = [
-    { valor: valor(/Cabelo maluco:\s*([\d.]+)/i, "8.222"), metrica: "salvamentos", dono: dono("cabelo maluco", "Débora Broch"), caso: "Cabelo maluco" },
-    { valor: valor(/Haaland:\s*([\d.]+)/i, "136"), metrica: "salvamentos", dono: dono("haaland", "Marina Dutra"), caso: "Haaland" },
-    { valor: valor(/[“\"]T[aá] feito[”\"]:\s*([\d.]+)/i, "240"), metrica: "compartilhamentos", dono: dono("tá feito", "Nina Torres"), caso: "Tá feito" },
-  ];
+  const numero = (s: string): number => {
+    const limpo = s.replace(/\./g, "").replace(",", ".");
+    return Number(limpo.match(/[\d.]+/)?.[0] ?? 0);
+  };
+  const casoDe = (texto: string): string => {
+    const corpus = normaliza(texto);
+    const casos: [RegExp, string][] = [
+      [/goya|prova/, "Prova da Goya"],
+      [/feriado/, "Vlog de feriado"],
+      [/decisao.*casa|casa.*decisao/, "Decisão da casa"],
+      [/tanabata/, "Tanabata"],
+      [/core/, "Treino de core"],
+      [/sexta/, "Sexta em família"],
+      [/caipirinha/, "Caipirinha"],
+    ];
+    return casos.find(([rx]) => rx.test(corpus))?.[1] ?? "Post mais forte";
+  };
+  const provas = d.criadores
+    .filter((c) => !c.semSinal && c.pontoForte?.stat?.valor)
+    .map((c) => ({
+      valor: c.pontoForte.stat!.valor,
+      metrica: c.pontoForte.stat!.label,
+      dono: c.nome,
+      caso: casoDe(`${c.pontoForte.texto} ${c.pontoForte.evidencia}`),
+      ordem: numero(c.pontoForte.stat!.valor),
+    }))
+    .sort((a, b) => b.ordem - a.ordem)
+    .slice(0, 3);
   return shell(`<div class="slide respiro slide--dark opening-v4">
     <div class="abertura-content">
       <div class="opening-left"><div class="r-kicker">O fio da semana</div><div class="r-title">${regra}</div></div>

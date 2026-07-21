@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import type { NarrativeMapMobileReadingItem } from "@/app/dashboard/boards/videoUpload/narrativeMapMobileViewModel";
 import { HC_READING } from "./diagnosticoTokens";
 import { Chevron } from "./DiagnosticoCardShell";
@@ -86,11 +87,15 @@ export function DiagnosticoReadingCard({
           {/* Thumbnail 16:9 */}
           <div className="relative shrink-0 h-[54px] w-[96px] rounded-xl bg-zinc-100 overflow-hidden">
             {reading.thumbnailUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Image
                 src={reading.thumbnailUrl}
                 alt=""
-                className="h-full w-full object-cover"
+                fill
+                sizes="96px"
+                quality={65}
+                loading="lazy"
+                unoptimized={reading.thumbnailUrl.startsWith("data:") || reading.thumbnailUrl.startsWith("blob:")}
+                className="object-cover"
               />
             ) : (
               <div className="flex h-full items-center justify-center">

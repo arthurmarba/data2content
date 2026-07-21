@@ -5,11 +5,11 @@ const SITE_URL = "https://data2content.ai";
 const HOME_SHARE_LOGO_URL = `${SITE_URL}/images/Colorido-Simbolo.png`;
 
 // OG title: ≤60 chars — aparece em negrito no preview do WhatsApp/social
-const OG_TITLE = "Data2Content — Pautas com a sua cara";
+const OG_TITLE = "Data2Content — Análise de conteúdo ao vivo";
 
 // OG description: ≤160 chars — aparece como texto abaixo do título
 const OG_DESCRIPTION =
-  "Descubra sua narrativa, receba pautas personalizadas e encontre creators para collabs que dão match.";
+  "Assista gratuitamente à reunião semanal de análise de conteúdo. Toda quinta, às 19h, com Arthur Marbá e Ronaldo Fonseca.";
 
 export const landingMetadata: Metadata = {
   title: OG_TITLE,
@@ -57,7 +57,7 @@ export const landingProductJsonLd = {
   "@type": "SoftwareApplication",
   name: "data2content",
   description:
-    "Consultoria de conteúdo com IA para descobrir sua narrativa, criar pautas personalizadas, encontrar collabs e crescer como negócio.",
+    "Experiência consultiva de conteúdo com reunião semanal ao vivo, Mapa, pautas personalizadas, collabs e ferramentas para creators.",
   applicationCategory: "MarketingApplication",
   offers: {
     "@type": "Offer",

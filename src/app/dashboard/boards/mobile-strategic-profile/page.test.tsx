@@ -26,6 +26,11 @@ jest.mock("next/navigation", () => ({
   notFound: jest.fn(),
 }));
 
+jest.mock("./DesktopRedirectGuard", () => ({
+  __esModule: true,
+  default: () => null,
+}));
+
 jest.mock("../videoUpload/mobileStrategicProfileFeatureFlag", () => ({
   isMobileStrategicProfileEnabled: jest.fn(),
 }));
@@ -166,6 +171,39 @@ describe("MobileStrategicProfilePage Rota Real", () => {
 
     const wrapper = screen.getByTestId("real-profile-client-wrapper");
     expect(wrapper).toHaveAttribute("data-hassnapshot", "true");
+  });
+
+  it("inicia snapshot e quota em paralelo antes de montar o seletor narrativo", async () => {
+    (isMobileStrategicProfileEnabled as jest.Mock).mockReturnValue(true);
+    (getServerSession as jest.Mock).mockResolvedValue({
+      user: {
+        id: "usr_parallel",
+        name: "Arthur Teste",
+        instagramConnected: true,
+        instagramUsername: "arthur.test",
+        planStatus: "premium",
+      },
+    });
+
+    let resolveSnapshot!: (value: null) => void;
+    (getStrategicProfileSnapshotByUserId as jest.Mock).mockReturnValue(
+      new Promise<null>((resolve) => {
+        resolveSnapshot = resolve;
+      }),
+    );
+
+    const pagePromise = MobileStrategicProfilePage({});
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(getStrategicProfileSnapshotByUserId).toHaveBeenCalledWith("usr_parallel");
+    expect(getNarrativeMapReadingQuotaForUser).toHaveBeenCalledWith({ userId: "usr_parallel" });
+    expect(buildNarrativeMapMobileViewModelFromReadings).not.toHaveBeenCalled();
+
+    resolveSnapshot(null);
+    await pagePromise;
+
+    expect(buildNarrativeMapMobileViewModelFromReadings).toHaveBeenCalledTimes(1);
   });
 
   it("MM85 monta e repassa o NarrativeMapMobileViewModel seguro para o shell real", async () => {

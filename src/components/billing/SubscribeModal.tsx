@@ -29,7 +29,7 @@ const PRO_FEATURE_SECTIONS: ProFeatureSection[] = [
     items: [
       {
         title: 'Reunião semanal da comunidade',
-        description: 'Toda semana a comunidade se reúne ao vivo pra ler conteúdo junto — o que está funcionando e como ajustar sua estratégia de imagem.',
+        description: 'Toda quinta, das 19h às 21h, a comunidade se reúne ao vivo pra ler conteúdo junto. Assinantes que confirmam presença no grupo levam o próprio conteúdo para análise.',
       },
       {
         title: 'Descoberta da Comunidade',

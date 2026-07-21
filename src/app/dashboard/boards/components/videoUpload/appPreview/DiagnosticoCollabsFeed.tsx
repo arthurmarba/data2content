@@ -14,11 +14,12 @@
 //
 // Ver docs/brief-collabs-gamificada-fable.md para as decisões travadas.
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ContentIdeaListItem } from "@/app/dashboard/boards/videoUpload/contentIdeasReadService";
 import { cleanIdeaText } from "@/app/dashboard/boards/videoUpload/contentIdeasTextHygiene";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
 import type { PaywallContext } from "@/types/paywall";
+import { StableCreatorAvatar } from "./StableCreatorAvatar";
 import {
   DiagnosticoCollabStack,
   MetaChip,
@@ -34,7 +35,6 @@ import {
   CS_BRAND_HEX,
   CS_INK_HEX,
   CS_LINE,
-  CS_MUTED,
   CS_NEUTRAL_HEX,
   CS_PAPER_HEX,
   CS_FONT_DISPLAY,
@@ -81,8 +81,6 @@ interface Props {
   ideaQuotaResetAt?: string | null;
   /** Criador compatível por pauta (id da pauta → match). Ausente/null = sem collab. */
   pautaCollabs?: Map<string, NarrativeCollabMatch | null>;
-  /** True enquanto o match por-pauta está sendo buscado — mostra skeleton da pilha. */
-  pautaCollabsLoading?: boolean;
   /** A rodada só pode ficar interativa depois de todas as fontes serem hidratadas. */
   bootstrapStatus?: CollabsBootstrapStatus;
   bootstrapError?: string | null;
@@ -105,8 +103,6 @@ interface Props {
   onAcceptCollabPauta?: (id: string) => void;
   /** Descarte PERMANENTE (status "dismissed") — a pauta rejeitada nunca mais volta. */
   onDismissPauta?: (id: string) => void;
-  /** Abre o grupo da comunidade no WhatsApp (o gate Pro/paywall mora no caller). */
-  onOpenWhatsAppCommunity?: () => void;
   onConnectWhatsApp?: () => void;
   onUpgrade?: (context?: PaywallContext) => void;
   onGenerate?: () => void;
@@ -187,7 +183,6 @@ function FeedHeader({
   loading,
   onOpenSalvas,
   onOpenCombinadas,
-  onOpenCommunityWhatsApp,
 }: {
   /** Pautas salvas (pra gravar). */
   savedCount: number;
@@ -196,7 +191,6 @@ function FeedHeader({
   loading?: boolean;
   onOpenSalvas: () => void;
   onOpenCombinadas: () => void;
-  onOpenCommunityWhatsApp?: () => void;
 }) {
   return (
     // Hero em Bricolage (creator-studio) — piloto do design system da landing.
@@ -215,23 +209,14 @@ function FeedHeader({
           Collabs
         </h1>
       </div>
-      {/* Três pontos de entrada: comunidade (WhatsApp — onde a comunidade
-          acontece de fato, sempre visível) < matches (novidade) < salvas
-          (acervo). Combinadas fica SEMPRE visível — mesmo sem match, é onde o
+      {/* Dois pontos de entrada: matches (novidade) e salvas (acervo).
+          O acesso à comunidade/reunião agora mora no card dedicado do Perfil.
+          Combinadas fica SEMPRE visível — mesmo sem match, é onde o
           criador confirma que ainda não deu match (a sheet mostra o estado
           vazio em vez do ícone simplesmente sumir, o que lia como "essa função
           não existe"). Salvas some quando vazio porque é um acervo — sem nada
           guardado não há o que abrir. */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-        {onOpenCommunityWhatsApp ? (
-          <HeaderIconButton
-            onClick={onOpenCommunityWhatsApp}
-            ariaLabel="Comunidade no WhatsApp"
-            badgeTone="neutral"
-          >
-            <WhatsAppIcon color={WA_GREEN} size={18} />
-          </HeaderIconButton>
-        ) : null}
         {loading ? (
           <>
             <span aria-hidden="true" style={{ width: 40, height: 40, borderRadius: 9999, background: CS_NEUTRAL_HEX }} />
@@ -574,10 +559,13 @@ function ConfirmedMatchesRow({
                   background: "var(--ds-color-ink)", color: "var(--ds-color-on-brand)", display: "grid", placeItems: "center",
                   fontSize: 14, fontWeight: 700,
                 }}>
-                  {collab.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={collab.avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} referrerPolicy="no-referrer" />
-                  ) : initials}
+                  <StableCreatorAvatar
+                    name={collab.name}
+                    avatarUrl={collab.avatarUrl}
+                    creatorId={collab.id}
+                    mediaKitSlug={collab.mediaKitSlug}
+                    fallbackText={initials}
+                  />
                 </div>
                 <span style={{
                   position: "absolute", bottom: -2, right: -2, width: 16, height: 16,
@@ -846,8 +834,7 @@ function RoundCompleteActions({
   ideaQuotaResetAt,
   onGenerate,
   onUpgrade,
-  onOpenWhatsAppCommunity,
-}: Pick<Props, "isPro" | "isGeneratingIdeas" | "ideaGenerationBlocker" | "ideaQuotaResetAt" | "onGenerate" | "onUpgrade" | "onOpenWhatsAppCommunity">) {
+}: Pick<Props, "isPro" | "isGeneratingIdeas" | "ideaGenerationBlocker" | "ideaQuotaResetAt" | "onGenerate" | "onUpgrade">) {
   const proBadge = !isPro ? (
     <span style={{ borderRadius: 999, padding: "3px 6px", background: "rgba(255,255,255,0.16)", fontSize: 9, fontWeight: 800, letterSpacing: 0.65 }}>
       PRO
@@ -887,26 +874,6 @@ function RoundCompleteActions({
         {!isGeneratingIdeas ? proBadge : null}
       </button>
       ) : null}
-
-      {onOpenWhatsAppCommunity ? (
-        <button
-          type="button"
-          onClick={isPro ? onOpenWhatsAppCommunity : () => onUpgrade?.("whatsapp")}
-          style={{
-            minHeight: 48, width: "100%", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
-            borderRadius: 999, padding: "10px 18px", background: "var(--ds-color-surface)", color: CS_INK_HEX,
-            fontSize: 13.5, fontWeight: 700, border: `1px solid ${CS_LINE}`, cursor: "pointer", fontFamily: "inherit",
-          }}
-        >
-          <WhatsAppIcon color={WA_GREEN} size={17} />
-          <span>Entrar no grupo do WhatsApp</span>
-          {!isPro ? (
-            <span style={{ borderRadius: 999, padding: "3px 6px", background: CS_NEUTRAL_HEX, color: CS_MUTED, fontSize: 9, fontWeight: 800, letterSpacing: 0.65 }}>
-              PRO
-            </span>
-          ) : null}
-        </button>
-      ) : null}
     </div>
   );
 }
@@ -932,7 +899,6 @@ export function DiagnosticoCollabsFeed({
   onUnsavePauta,
   onAcceptCollabPauta,
   onDismissPauta,
-  onOpenWhatsAppCommunity,
   onConnectWhatsApp,
   onUpgrade,
   onGenerate,
@@ -945,6 +911,26 @@ export function DiagnosticoCollabsFeed({
   // Duas gavetas single-purpose, dois pontos de entrada no header: novidade
   // (Combinadas) × acervo (Pra gravar). Nunca as duas abertas ao mesmo tempo.
   const [openSheet, setOpenSheet] = useState<null | "combinadas" | "salvas">(null);
+  // A ordem é uma propriedade da RODADA, não do conjunto de cards ainda
+  // ativos. Recalcular a intercalação depois de cada decisão fazia o item
+  // mostrado atrás do topo trocar de posição no mesmo instante em que o topo
+  // saía. Este snapshot só é substituído quando a rodada realmente muda.
+  const [deckOrder, setDeckOrder] = useState<{ fingerprint: string; pautaIds: string[] }>({
+    fingerprint: "",
+    pautaIds: [],
+  });
+
+  const deckRoundFingerprint = useMemo(() => {
+    const pautaFingerprint = pautas
+      .map((pauta) => `${pauta.id}:${pauta.generatedAt ?? ""}`)
+      .join("|");
+    const matchFingerprint = isPro
+      ? pautas
+          .map((pauta) => `${pauta.id}:${pautaCollabs?.get(pauta.id)?.id ?? "solo"}`)
+          .join("|")
+      : "free";
+    return `${isPro ? "pro" : "free"}::${pautaFingerprint}::${matchFingerprint}`;
+  }, [isPro, pautaCollabs, pautas]);
 
   // ─── Deck único + estante ────────────────────────────────────────────────────
   //
@@ -965,7 +951,7 @@ export function DiagnosticoCollabsFeed({
     return null;
   }, [pautaActionStates]);
 
-  const { deckItems, shelfPautas, awaitingByPauta } = useMemo(() => {
+  const { proposedDeck, shelfPautas, awaitingByPauta } = useMemo(() => {
     const matched = new Map<string, NarrativeCollabMatch>(
       (confirmedMatches ?? []).map((m) => [m.pautaId, m.collab]),
     );
@@ -1022,10 +1008,10 @@ export function DiagnosticoCollabsFeed({
     // Intercala PELA ORDEM DA GERAÇÃO (pos. 1, 4, 7…). Os cards aqui já são só os
     // não-decididos (decididos foram pra estante ou descartados acima), então o
     // deck é exatamente o que resta pra triar — sem re-entrada de rejeitadas.
-    const deck: CollabStackItem[] = [...pautaCards];
+    const proposedDeck: CollabStackItem[] = [...pautaCards];
     collabCards.forEach((card, i) => {
-      const pos = Math.min(1 + i * 3, deck.length);
-      deck.splice(pos, 0, card);
+      const pos = Math.min(1 + i * 3, proposedDeck.length);
+      proposedDeck.splice(pos, 0, card);
     });
 
     // Estante: aguardando primeiro (tem gente do outro lado), depois salvas.
@@ -1034,8 +1020,33 @@ export function DiagnosticoCollabsFeed({
       return rank(a) - rank(b);
     });
 
-    return { deckItems: deck, shelfPautas: shelf, awaitingByPauta: awaiting };
+    return { proposedDeck, shelfPautas: shelf, awaitingByPauta: awaiting };
   }, [pautas, pautaCollabs, collabDecisions, confirmedMatches, isPro, pautaActionStates]);
+
+  const proposedDeckPautaIds = useMemo(
+    () => proposedDeck.map((item) => item.pauta.id),
+    [proposedDeck],
+  );
+
+  useEffect(() => {
+    setDeckOrder((current) => {
+      if (current.fingerprint === deckRoundFingerprint) return current;
+      return { fingerprint: deckRoundFingerprint, pautaIds: proposedDeckPautaIds };
+    });
+  }, [deckRoundFingerprint, proposedDeckPautaIds]);
+
+  const deckItems = useMemo(() => {
+    // Na primeira renderização de uma nova rodada, usa imediatamente a ordem
+    // proposta. O efeito acima a transforma no snapshot persistente antes das
+    // decisões seguintes.
+    const pautaIds = deckOrder.fingerprint === deckRoundFingerprint
+      ? deckOrder.pautaIds
+      : proposedDeckPautaIds;
+    const proposedByPautaId = new Map(proposedDeck.map((item) => [item.pauta.id, item]));
+    return pautaIds
+      .map((pautaId) => proposedByPautaId.get(pautaId))
+      .filter((item): item is CollabStackItem => Boolean(item));
+  }, [deckOrder, deckRoundFingerprint, proposedDeck, proposedDeckPautaIds]);
 
   const pautaById = useMemo(() => new Map(pautas.map((p) => [p.id, p])), [pautas]);
   // Roteia a decisão pelo tipo do card — o gesto é um, as consequências não.
@@ -1079,7 +1090,6 @@ export function DiagnosticoCollabsFeed({
           loading={bootstrapPending}
           onOpenSalvas={() => setOpenSheet("salvas")}
           onOpenCombinadas={() => setOpenSheet("combinadas")}
-          onOpenCommunityWhatsApp={onOpenWhatsAppCommunity}
         />
       </div>
 
@@ -1134,7 +1144,6 @@ export function DiagnosticoCollabsFeed({
                   ideaQuotaResetAt={ideaQuotaResetAt}
                   onGenerate={onGenerate}
                   onUpgrade={onUpgrade}
-                  onOpenWhatsAppCommunity={onOpenWhatsAppCommunity}
                 />
               }
               onDecide={handleDeckDecision}

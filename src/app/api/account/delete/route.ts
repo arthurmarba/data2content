@@ -3,11 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
+import Redemption from "@/app/models/Redemption";
 import { logger } from "@/app/lib/logger";
 import { stripe } from "@/app/lib/stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
 import { getClientIp } from "@/utils/getClientIp";
 import { cancelBlockingIncompleteSubs } from "@/utils/stripeHelpers";
+import { normalizedBalanceMap, summarizeAffiliateLedger } from "@/server/affiliate/ledger";
+import mongoose from "mongoose";
 
 export const runtime = "nodejs";
 
@@ -116,18 +119,31 @@ export async function DELETE(req: NextRequest) {
       }
     }
 
-    // 💸 Opcional: bloquear exclusão se houver saldo de afiliado positivo
-    const balancesRaw =
-      user.affiliateBalances instanceof Map
-        ? Object.fromEntries(user.affiliateBalances as any)
-        : (user.affiliateBalances as any) || {};
-    const balances = (balancesRaw || {}) as Record<string, number>;
-    const hasAffiliateBalances = Object.values(balances).some((v) => Number(v) > 0);
+    // Uma exclusão não pode apagar obrigação financeira nem interromper um
+    // Transfer já iniciado. O bloqueio é uma invariante, não uma feature flag.
+    const balances = normalizedBalanceMap(user.affiliateBalances);
+    const debts = normalizedBalanceMap(user.affiliateDebtByCurrency);
+    const ledger = summarizeAffiliateLedger(user.commissionLog || []);
+    const hasAffiliateLiability =
+      Object.values(balances).some((value) => value > 0) ||
+      Object.values(debts).some((value) => value > 0) ||
+      Object.values(ledger).some(
+        (summary) => summary.availableCents > 0 || summary.pendingCents > 0,
+      );
+    const redemptionRecord = await Redemption.findOne(
+      { userId: user._id },
+      "_id status",
+    ).lean();
+    const hasActiveRedemption = redemptionRecord?.status === "requested";
+    const hasAffiliateFinancialHistory =
+      Boolean(user.commissionLog?.length) || Boolean(redemptionRecord);
 
-    if (hasAffiliateBalances && process.env.BLOCK_DELETE_WITH_AFFILIATE_BALANCE === "true") {
-      logger.warn("[account.delete] abort due to affiliate balances", {
+    if (hasAffiliateLiability || hasActiveRedemption) {
+      logger.warn("[account.delete] abort due to affiliate financial state", {
         userId: user._id,
         balances,
+        debts,
+        hasActiveRedemption,
       });
       return NextResponse.json(
         {
@@ -137,15 +153,73 @@ export async function DELETE(req: NextRequest) {
         { status: 409 }
       );
     }
-
-    if (hasAffiliateBalances) {
-      logger.warn("[account.delete] deleting account with affiliate balances", {
-        userId: user._id,
-        balances,
-      });
+    if (hasAffiliateFinancialHistory) {
+      return NextResponse.json(
+        {
+          error: "ERR_AFFILIATE_HISTORY",
+          message: "Sua conta possui histórico financeiro de afiliado. Solicite a anonimização ao suporte.",
+        },
+        { status: 409 },
+      );
     }
 
-    // (Opcional) deletar Stripe Connected Account
+    // Revalida e exclui na mesma transação. Isso fecha a janela em que uma
+    // comissão poderia maturar entre a primeira checagem e o hard delete.
+    const deleteSession = await mongoose.startSession();
+    let blockedAtCommit: "liability" | "history" | null = null;
+    try {
+      await deleteSession.withTransaction(async () => {
+        blockedAtCommit = null;
+        const freshUser = await User.findOne(
+          { _id: user._id },
+          null,
+          { session: deleteSession },
+        );
+        if (!freshUser) return;
+
+        const freshBalances = normalizedBalanceMap(freshUser.affiliateBalances);
+        const freshDebts = normalizedBalanceMap(freshUser.affiliateDebtByCurrency);
+        const freshLedger = summarizeAffiliateLedger(freshUser.commissionLog || []);
+        const redemption = await Redemption.findOne(
+          { userId: freshUser._id },
+          "_id status",
+          { session: deleteSession },
+        ).lean();
+        const hasFreshLiability =
+          redemption?.status === "requested" ||
+          Object.values(freshBalances).some((value) => value > 0) ||
+          Object.values(freshDebts).some((value) => value > 0) ||
+          Object.values(freshLedger).some(
+            (summary) => summary.availableCents > 0 || summary.pendingCents > 0,
+          );
+        blockedAtCommit = hasFreshLiability
+          ? "liability"
+          : freshUser.commissionLog?.length || redemption
+            ? "history"
+            : null;
+        if (blockedAtCommit) return;
+
+        await User.deleteOne({ _id: freshUser._id }, { session: deleteSession });
+      });
+    } finally {
+      await deleteSession.endSession();
+    }
+
+    if (blockedAtCommit) {
+      const historyOnly = blockedAtCommit === "history";
+      return NextResponse.json(
+        {
+          error: historyOnly ? "ERR_AFFILIATE_HISTORY" : "ERR_AFFILIATE_BALANCE",
+          message: historyOnly
+            ? "Sua conta possui histórico financeiro de afiliado. Solicite a anonimização ao suporte."
+            : "Você possui comissões pendentes. Solicite o saque antes de excluir a conta.",
+        },
+        { status: 409 },
+      );
+    }
+
+    // A limpeza externa ocorre somente depois que a exclusão local foi
+    // confirmada; nunca removemos a conta de saque de um usuário retido.
     if (
       process.env.DELETE_CONNECT_ACCOUNT_ON_USER_DELETE === "true" &&
       user.paymentInfo?.stripeAccountId
@@ -159,9 +233,6 @@ export async function DELETE(req: NextRequest) {
         });
       }
     }
-
-    // Efetiva a exclusão (hard delete)
-    await User.deleteOne({ _id: user._id });
 
     logger.info("[account.delete] user deleted", { userId: user._id });
     return NextResponse.json({ ok: true });

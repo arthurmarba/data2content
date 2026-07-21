@@ -19,6 +19,10 @@ import {
 
 const MOBILE_STRATEGIC_PROFILE_PREVIEW_ROUTE = "/dashboard/boards/mobile-strategic-profile-preview";
 const MOBILE_DASHBOARD_ENTRY_PATHS = new Set(["/", "/dashboard", "/dashboard/home"]);
+// A reunião é servida fora do shell do board (rota própria, não a SPA do
+// Perfil), mas já pertence ao mesmo app novo — precisa da mesma chrome
+// legada suprimida (tab bar antiga + widget de ativação), não só o board.
+const WEEKLY_MEETING_ROUTE = "/reuniao";
 
 export function isMobileStrategicProfileRoute(pathname?: string | null) {
   if (!pathname) return false;
@@ -44,6 +48,7 @@ export function shouldRenderDashboardMobileBottomNav({
   pathname?: string | null;
 }) {
   if (isPrintMode || isGuidedFlow || !isMobile) return false;
+  if (pathname === WEEKLY_MEETING_ROUTE) return false;
   if (isMobileStrategicProfileAppEnabled && isMobileStrategicProfileRoute(pathname)) return false;
   return true;
 }
@@ -144,6 +149,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const isOpen = !isCollapsed;
   const hasPageOverride = isMediaKitPage || isPlannerPage || isDiscover;
   const isMobileStrategicProfileSurface = isMobileStrategicProfileRoute(pathname);
+  const isWeeklyMeetingRoute = pathname === WEEKLY_MEETING_ROUTE;
   const isMobileStrategicProfileMediaKitReturn =
     isMediaKitPage && searchParams?.get("from") === "mobile-strategic-profile";
   const shouldRedirectMobileDashboardEntryPath =
@@ -348,7 +354,8 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         !shouldUseMobileStrategicProfileShell &&
         !isMobileStrategicProfileMediaKitReturn &&
         !isBillingPage &&
-        !isGuidedFlow ? (
+        !isGuidedFlow &&
+        !isWeeklyMeetingRoute ? (
           <ActivationPendingWidget />
         ) : null}
         {shouldShowMobileBottomNav ? <MobileBottomNav /> : null}

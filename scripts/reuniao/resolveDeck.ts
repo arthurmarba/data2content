@@ -26,7 +26,14 @@ function arg(name: string): string | null {
   return process.argv.find((a) => a.startsWith(`--${name}=`))?.split("=")[1] ?? null;
 }
 
-const norm = (h: string | null | undefined): string => (h ?? "").replace(/^@/, "").toLowerCase().trim();
+const norm = (h: string | null | undefined): string => (h ?? "")
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .replace(/^@/, "")
+  .toLowerCase()
+  .replace(/^(dra?\.?|assessoria)\s+/, "")
+  .replace(/[^a-z0-9]+/g, " ")
+  .trim();
 
 function postById(p: ParticipanteSemana, id: string | null | undefined): PostSemana | null {
   if (!id) return null;
@@ -63,16 +70,25 @@ async function main() {
   const ctx: MeetingContext = JSON.parse(await fs.readFile(ctxPath, "utf-8"));
   const byHandle = new Map<string, ParticipanteSemana>();
   const byNome = new Map<string, ParticipanteSemana>();
+  const participantesNormalizados: { keys: string[]; participante: ParticipanteSemana }[] = [];
   for (const p of ctx.participantes) {
     if (p.handle) byHandle.set(norm(p.handle), p);
     if (p.nome) byNome.set(norm(p.nome), p);
+    participantesNormalizados.push({
+      keys: [p.handle, p.nome, p.consulta].map(norm).filter(Boolean),
+      participante: p,
+    });
   }
 
   let hidratados = 0;
   const semContexto: string[] = [];
   for (const c of deck.criadores) {
     // Criadores sem Instagram conectado não têm handle — casam por nome (resolvido via --names).
-    const p = byHandle.get(norm(c.handle)) ?? byNome.get(norm(c.handle)) ?? byNome.get(norm(c.nome));
+    const creatorKeys = [c.handle, c.nome].map(norm).filter(Boolean);
+    const fuzzy = participantesNormalizados.find(({ keys }) =>
+      creatorKeys.some((creatorKey) => keys.some((key) => key === creatorKey || key.startsWith(`${creatorKey} `) || creatorKey.startsWith(`${key} `))),
+    )?.participante;
+    const p = byHandle.get(norm(c.handle)) ?? byNome.get(norm(c.handle)) ?? byNome.get(norm(c.nome)) ?? fuzzy;
     if (!p || !p.encontrado) {
       semContexto.push(c.handle ?? c.nome);
       continue;

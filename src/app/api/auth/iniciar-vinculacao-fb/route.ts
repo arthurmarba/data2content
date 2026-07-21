@@ -71,7 +71,7 @@ export async function POST(_request: Request) {
     logger.info(`${TAG} telemetry ig_reconnect_started userId=${userId} flowId=${reconnectFlowId}`);
 
     // 5. Definir o cookie temporário 'auth-link-token'
-    const cookieStore = cookies();
+    const cookieStore = await cookies();
     cookieStore.set('auth-link-token', linkToken, {
       httpOnly: true, // Impede acesso via JavaScript no cliente
       secure: process.env.NODE_ENV === 'production', // Usar secure apenas em produção (HTTPS)

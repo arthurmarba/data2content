@@ -4,6 +4,7 @@ export interface IAffiliateRefundProgress extends Document {
   invoiceId: string;
   affiliateUserId: Types.ObjectId;
   refundedPaidCentsTotal: number;
+  reversedCommissionCentsTotal: number;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -13,6 +14,7 @@ const affiliateRefundProgressSchema = new Schema<IAffiliateRefundProgress>(
     invoiceId: { type: String, required: true, index: true },
     affiliateUserId: { type: Schema.Types.ObjectId, required: true, index: true },
     refundedPaidCentsTotal: { type: Number, required: true, default: 0 },
+    reversedCommissionCentsTotal: { type: Number, required: true, default: 0 },
   },
   { timestamps: true }
 );

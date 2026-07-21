@@ -17,6 +17,7 @@ import {
 } from "@/app/dashboard/boards/videoUpload/contentIdeaMapAnchors";
 import { DiagnosticoCloseButton } from "./DiagnosticoCloseButton";
 import { CollabModeBadge } from "./CollabModeBadge";
+import { StableCreatorAvatar } from "./StableCreatorAvatar";
 import { color } from "@/design-system";
 
 interface Props {
@@ -412,13 +413,16 @@ function CollabPlan({
           type="button"
           disabled={!openMediaKit}
           onClick={openMediaKit}
-          className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-zinc-950 text-lg font-bold text-white disabled:cursor-default"
+          className="relative grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-zinc-950 text-lg font-bold text-white disabled:cursor-default"
           aria-label={openMediaKit ? `Abrir mídia kit de ${collab.name}` : undefined}
         >
-          {collab.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={collab.avatarUrl} alt="" className="h-full w-full object-cover" referrerPolicy="no-referrer" />
-          ) : initials}
+          <StableCreatorAvatar
+            name={collab.name}
+            avatarUrl={collab.avatarUrl}
+            creatorId={collab.id}
+            mediaKitSlug={collab.mediaKitSlug}
+            fallbackText={initials}
+          />
         </button>
         <div className="min-w-0 flex-1">
           <p className="text-[11px] font-bold uppercase tracking-[0.09em] text-violet-700">Plano a dois</p>

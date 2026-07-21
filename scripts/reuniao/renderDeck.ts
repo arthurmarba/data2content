@@ -241,38 +241,50 @@ async function main() {
   // 1. Imagens + 2. reels (mp4, comprimidos; cache em --render-only/--reuse-reels)
   const reelSecs = Number(arg("reel-secs") ?? 45);
   const reuse = has("render-only") || has("reuse-reels");
+  const assembleOnly = has("assemble-only");
   await localizarImagens(deck, assetsDir);
   const reels = await buscarReels(deck, assetsDir, reelSecs, reuse);
 
   // 3. Renderiza cada slide → PNG (16:9, 2×) e mede a janela do reel
   const slides = ordenarSlides(deck);
-  const browser = await chromium.launch();
+  // A composição por GPU pode deixar tiles pretos ao navegar entre slides com
+  // imagens verticais grandes no Chromium/Metal. Software rendering + uma ida
+  // a about:blank limpa o frame anterior sem abrir dezenas de páginas.
+  const browser = await chromium.launch({ args: ["--disable-gpu", "--disable-gpu-compositing"] });
   const page = await browser.newPage({ viewport: { width: SLIDE_W, height: SLIDE_H }, deviceScaleFactor: 2 });
   type Rendered = { png: string; video?: { path: string; poster: string | null; box: { x: number; y: number; w: number; h: number } } };
   const rendered: Rendered[] = [];
   for (let i = 0; i < slides.length; i++) {
     const htmlFile = path.join(deckDir, `.slide-${i}.html`);
-    await fs.writeFile(htmlFile, slides[i].html);
-    await page.goto(pathToFileURL(htmlFile).href, { waitUntil: "networkidle" });
-    await page.evaluate(async () => {
-      // @ts-ignore
-      if (document.fonts?.ready) await document.fonts.ready;
-    });
     const png = path.join(deckDir, `slide-${String(i + 1).padStart(2, "0")}.png`);
-    await page.screenshot({ path: png, clip: { x: 0, y: 0, width: SLIDE_W, height: SLIDE_H } });
-
     const reel = slides[i].criadorIdx != null ? reels.get(slides[i].criadorIdx!) : undefined;
     let video: Rendered["video"];
-    if (reel) {
-      const box = await page.evaluate(() => {
-        const el = document.querySelector("[data-vbox]") as HTMLElement | null;
-        if (!el) return null;
-        const r = el.getBoundingClientRect();
-        return { x: r.x, y: r.y, w: r.width, h: r.height };
+    if (!assembleOnly || reel) {
+      await page.goto("about:blank");
+      await fs.writeFile(htmlFile, slides[i].html);
+      await page.goto(pathToFileURL(htmlFile).href, { waitUntil: "networkidle" });
+      await page.evaluate(async () => {
+        // @ts-ignore
+        if (document.fonts?.ready) await document.fonts.ready;
       });
-      if (box) video = { path: reel.videoPath, poster: reel.posterPath, box };
+      if (!assembleOnly) {
+        await page.screenshot({ path: png, clip: { x: 0, y: 0, width: SLIDE_W, height: SLIDE_H } });
+      } else {
+        await fs.access(png);
+      }
+      if (reel) {
+        const box = await page.evaluate(() => {
+          const el = document.querySelector("[data-vbox]") as HTMLElement | null;
+          if (!el) return null;
+          const r = el.getBoundingClientRect();
+          return { x: r.x, y: r.y, w: r.width, h: r.height };
+        });
+        if (box) video = { path: reel.videoPath, poster: reel.posterPath, box };
+      }
+      await fs.rm(htmlFile, { force: true });
+    } else {
+      await fs.access(png);
     }
-    await fs.rm(htmlFile, { force: true });
     rendered.push({ png, video });
   }
   await browser.close();

@@ -1,22 +1,19 @@
 // next.config.js
 console.log('--- Lendo next.config.js (ESM) ---', new Date().toISOString());
 
-const PLAYWRIGHT_LOCAL_BROWSER_TRACE_GLOBS = [
-  './node_modules/playwright-core/.local-browsers/**/*',
-  './node_modules/playwright/.local-browsers/**/*',
-];
 const SERVERLESS_CHROMIUM_TRACE_GLOBS = [
   './node_modules/@sparticuz/chromium/**/*',
 ];
 
 const CAROUSEL_EXPORT_RUNTIME_TRACE_GLOBS = [
-  ...PLAYWRIGHT_LOCAL_BROWSER_TRACE_GLOBS,
+  ...SERVERLESS_CHROMIUM_TRACE_GLOBS,
   './node_modules/ffmpeg-static/**/*',
 ];
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  outputFileTracingRoot: process.cwd(),
 
   images: {
     // Em desenvolvimento, desabilita o otimizador para evitar 403 de CDNs (fbcdn/instagram).
@@ -102,26 +99,24 @@ const nextConfig = {
     ],
   },
 
+  serverExternalPackages: ['@sparticuz/chromium', 'ffmpeg-static'],
+  outputFileTracingIncludes: {
+    '/app/**/*': ['./src/app/lib/**/*.md'],
+    '/api/mediakit/[token]/pdf': [
+      ...SERVERLESS_CHROMIUM_TRACE_GLOBS,
+    ],
+    '/api/mediakit/[token]/pdf/route': [
+      ...SERVERLESS_CHROMIUM_TRACE_GLOBS,
+    ],
+    '/api/admin/carousels/case-generator/export': CAROUSEL_EXPORT_RUNTIME_TRACE_GLOBS,
+    '/api/admin/carousels/case-generator/export/route': CAROUSEL_EXPORT_RUNTIME_TRACE_GLOBS,
+  },
+
   // Mantido do seu arquivo
   experimental: {
     // O bundle contém dependências pesadas de vídeo/PDF. Limitar o paralelismo evita que
     // vários minificadores disputem memória durante a build em máquinas menores.
     cpus: 1,
-    serverActions: true,
-    serverComponentsExternalPackages: ['@sparticuz/chromium', 'ffmpeg-static'],
-    outputFileTracingIncludes: {
-      '/app/**/*': ['./src/app/lib/**/*.md'],
-      '/api/mediakit/[token]/pdf': [
-        ...PLAYWRIGHT_LOCAL_BROWSER_TRACE_GLOBS,
-        ...SERVERLESS_CHROMIUM_TRACE_GLOBS,
-      ],
-      '/api/mediakit/[token]/pdf/route': [
-        ...PLAYWRIGHT_LOCAL_BROWSER_TRACE_GLOBS,
-        ...SERVERLESS_CHROMIUM_TRACE_GLOBS,
-      ],
-      '/api/admin/carousels/case-generator/export': CAROUSEL_EXPORT_RUNTIME_TRACE_GLOBS,
-      '/api/admin/carousels/case-generator/export/route': CAROUSEL_EXPORT_RUNTIME_TRACE_GLOBS,
-    },
   },
 
   webpack(config) {

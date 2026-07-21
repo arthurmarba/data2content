@@ -57,19 +57,19 @@ export const PRODUCT_MOMENTS = {
     index: "01",
     label: "Seu Mapa",
     title: "Entenda o que já torna seu conteúdo reconhecível.",
-    body: "A D2C encontra assuntos, situações reais, cenários e formas de comunicação que se repetem no que você cria.",
+    body: "A conversa da reunião encontra continuidade: a D2C organiza assuntos, situações reais e formas de comunicação que já fazem parte de você.",
   },
   pautas: {
     index: "02",
     label: "Pautas",
     title: "Escolha ideias que realmente poderiam ser suas.",
-    body: "Cada escolha ensina a inteligência não apenas sobre o seu histórico, mas sobre a direção que você quer construir.",
+    body: "As pautas transformam a direção discutida ao vivo em caminhos concretos para você criar durante a semana.",
   },
   analise: {
     index: "03",
     label: "Análise",
     title: "Publique entendendo melhor o que está construindo.",
-    body: "Antes de postar, compare o vídeo com seu Mapa e veja se ele fortalece, expande ou inaugura uma narrativa.",
+    body: "Antes de postar, compare o vídeo com seu Mapa e entenda se ele fortalece, expande ou inaugura uma narrativa.",
   },
 } as const;
 

@@ -44,9 +44,55 @@ export async function resolveUserId(
     if (u) return String(u._id);
   }
   if (name) {
-    const rx = new RegExp(name.trim().replace(/\s+/g, ".*"), "i");
-    const u: any = await User.findOne({ name: rx }).select("_id").lean();
-    if (u) return String(u._id);
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(name.trim())) {
+      const byEmail: any = await User.findOne({ email: name.trim().toLowerCase() })
+        .select("_id")
+        .lean();
+      if (byEmail) return String(byEmail._id);
+    }
+    const clean = name.trim().replace(/^(dra?\.?|assessoria)\s+/i, "");
+    const accentPattern = (value: string): string => value
+      .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+      .replace(/[aáàâãä]/gi, "[aáàâãä]")
+      .replace(/[eéèêë]/gi, "[eéèêë]")
+      .replace(/[iíìîï]/gi, "[iíìîï]")
+      .replace(/[oóòôõö]/gi, "[oóòôõö]")
+      .replace(/[uúùûü]/gi, "[uúùûü]")
+      .replace(/[cç]/gi, "[cç]")
+      .replace(/\s+/g, ".*");
+    const rx = new RegExp(accentPattern(clean), "i");
+    const candidates: any[] = await User.find({ name: rx })
+      .select(
+        "_id name username accountState mergedIntoUserId planStatus isInstagramConnected instagramAccountId instagramAccessToken lastInstagramSyncSuccess updatedAt",
+      )
+      .lean();
+    if (candidates.length) {
+      const normName = (value: string): string => value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/^(dra?\.?|assessoria)\s+/, "")
+        .replace(/[^a-z0-9]+/g, " ")
+        .trim();
+      const wanted = normName(clean);
+      const score = (u: any): number => {
+        const candidate = normName(u.name ?? "");
+        let total = 0;
+        if (candidate === wanted) total += 50;
+        else if (candidate.startsWith(wanted) || wanted.startsWith(candidate)) total += 30;
+        if (u.isInstagramConnected) total += 35;
+        if (u.instagramAccessToken) total += 15;
+        if (u.instagramAccountId) total += 10;
+        if (u.username) total += 10;
+        if (u.lastInstagramSyncSuccess) total += 8;
+        if (["active", "trial", "trialing"].includes(u.planStatus)) total += 12;
+        if (u.accountState === "registered") total += 3;
+        if (u.mergedIntoUserId) total -= 100;
+        return total;
+      };
+      candidates.sort((a, b) => score(b) - score(a));
+      return String(candidates[0]._id);
+    }
   }
   return null;
 }

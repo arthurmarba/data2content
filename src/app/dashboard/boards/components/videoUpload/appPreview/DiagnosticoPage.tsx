@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { memo, useState, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
+import dynamic from "next/dynamic";
 import type { IMapaData, AssetGroupOverride } from "@/app/models/MapaSeed";
 import type {
   DiagnosticoCollabSuggestionsState,
@@ -10,8 +11,8 @@ import type {
 } from "@/app/dashboard/boards/videoUpload/diagnosticoPageData";
 import { resolveDiagnosticoLeadingNarrativeSignal } from "@/app/dashboard/boards/videoUpload/diagnosticoNarrativeSignals";
 import { DiagnosticoWarningCard } from "./DiagnosticoWarningCard";
-import { AudienceInsightsCard, AudienceConnectPrompt } from "./AudienceInsightsCard";
 import { MapaConfirmationRow } from "./MapaConfirmationRow";
+import type { DiagnosticoDeferredProfileSectionsProps } from "./DiagnosticoDeferredProfileSections";
 import {
   TEXT_PRIMARY_HEX,
   TEXT_SECONDARY_HEX,
@@ -40,6 +41,62 @@ import type {
 } from "./diagnosticoConfirmationTypes";
 import type { AssetConfirmationResponse } from "./diagnosticoConfirmationTypes";
 import type { PaywallContext } from "@/types/paywall";
+import {
+  WeeklyMeetingProfileCard,
+  type WeeklyMeetingProfileData,
+} from "./WeeklyMeetingProfileCard";
+
+const DiagnosticoDeferredProfileSections = dynamic(
+  () => import("./DiagnosticoDeferredProfileSections")
+    .then((module) => module.DiagnosticoDeferredProfileSections),
+  { ssr: false, loading: () => <DeferredProfileSectionsPlaceholder /> },
+);
+
+function DeferredProfileSectionsPlaceholder() {
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        minHeight: 190,
+        margin: "14px 18px 40px",
+        borderRadius: CARD_RADIUS,
+        background: "var(--ds-color-surface)",
+      }}
+    />
+  );
+}
+
+function DeferredProfileSectionsGate(props: DiagnosticoDeferredProfileSectionsProps) {
+  const gateRef = useRef<HTMLDivElement>(null);
+  const [shouldRender, setShouldRender] = useState(
+    () => typeof window !== "undefined" && typeof window.IntersectionObserver === "undefined",
+  );
+
+  useEffect(() => {
+    if (shouldRender) return;
+    const node = gateRef.current;
+    if (!node || typeof IntersectionObserver === "undefined") {
+      setShouldRender(true);
+      return;
+    }
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        setShouldRender(true);
+        observer.disconnect();
+      },
+      { rootMargin: "600px 0px" },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [shouldRender]);
+
+  return (
+    <div ref={gateRef} style={{ minHeight: 190 }}>
+      {shouldRender ? <DiagnosticoDeferredProfileSections {...props} /> : <DeferredProfileSectionsPlaceholder />}
+    </div>
+  );
+}
 
 // ─── Design tokens ──────────────────────────────────────────────────────────
 
@@ -2194,6 +2251,13 @@ function QuickActionsBar({
   // cai para as iniciais em vez de mostrar o círculo preto do fundo.
   const [avatarFailed, setAvatarFailed] = useState(false);
   const showAvatar = Boolean(userImageUrl) && !avatarFailed;
+  const optimizeAvatar =
+    process.env.NODE_ENV === "production" &&
+    Boolean(userImageUrl && /^https?:\/\//.test(userImageUrl));
+  const optimizedAvatarUrl = (width: 64 | 128) =>
+    optimizeAvatar
+      ? `/_next/image?url=${encodeURIComponent(userImageUrl!)}&w=${width}&q=70`
+      : userImageUrl!;
 
   // Avatar responsivo: Pro Max / Pro (≥393px) usa 62px; telas menores, 50px.
   const kitAvatarSize = typeof window !== "undefined" && window.innerWidth >= 393 ? 62 : 50;
@@ -2260,6 +2324,7 @@ function QuickActionsBar({
       >
         <div style={{
           width: kitAvatarSize, height: kitAvatarSize, borderRadius: 9999, flexShrink: 0,
+          position: "relative",
           background: CS_BRAND_HEX, color: "var(--ds-color-on-brand)",
           display: "grid", placeItems: "center",
           fontSize: 14, fontWeight: 700, letterSpacing: -0.2,
@@ -2267,9 +2332,21 @@ function QuickActionsBar({
           boxShadow: "0 1px 3px rgba(28,28,30,0.18)",
         }}>
           {showAvatar ? (
+            // O avatar usa o otimizador do Next sem importar o runtime de next/image
+            // no bundle inicial por uma única imagem de 50–62 px.
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={userImageUrl!} alt=""
+              src={optimizedAvatarUrl(64)}
+              srcSet={optimizeAvatar
+                ? `${optimizedAvatarUrl(64)} 64w, ${optimizedAvatarUrl(128)} 128w`
+                : undefined}
+              alt=""
+              sizes="(min-width: 393px) 62px, 50px"
+              width={kitAvatarSize}
+              height={kitAvatarSize}
+              loading="eager"
+              fetchPriority="high"
+              decoding="async"
               style={{ width: "100%", height: "100%", objectFit: "cover" }}
               referrerPolicy="no-referrer"
               onError={() => setAvatarFailed(true)}
@@ -2607,8 +2684,6 @@ interface Props {
   onConnectInstagram?: () => void;
   onOpenCategory?: (id: CategoryId) => void;
   onOpenCommunity?: () => void;
-  /** Abre o grupo do WhatsApp direto (Pro) ou o paywall (free). Usado no botão do header. */
-  onOpenWhatsAppGroup?: () => void;
   onOpenMediaKit?: () => void;
   onOpenAccountMenu?: () => void;
   onOpenDiagnosis?: () => void;
@@ -2640,6 +2715,8 @@ interface Props {
   latestCalculation?: any | null;
   /** Opens the calculator wizard modal. */
   onOpenCalculator?: () => void;
+  /** Próxima edição operacional da reunião semanal. */
+  weeklyMeeting?: WeeklyMeetingProfileData | null;
   /** Opens another creator's media kit inline (instead of a new tab). */
   onOpenCreatorMediaKit?: (slug: string) => void;
   /** Fase 2 — abre a pesquisa de perfil a partir do menu de configurações. */
@@ -2655,7 +2732,7 @@ interface Props {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function DiagnosticoPage({
+export const DiagnosticoPage = memo(function DiagnosticoPage({
   data,
   collabSuggestions,
   creatorDirectory,
@@ -2663,7 +2740,6 @@ export function DiagnosticoPage({
   onConnectInstagram,
   onOpenCategory,
   onOpenCommunity,
-  onOpenWhatsAppGroup,
   onOpenMediaKit,
   onOpenAccountMenu,
   onOpenDiagnosis,
@@ -2685,6 +2761,7 @@ export function DiagnosticoPage({
   onConnectWhatsApp,
   latestCalculation,
   onOpenCalculator,
+  weeklyMeeting,
   onOpenCreatorMediaKit,
   onOpenSurvey,
   onOpenNorte,
@@ -2955,6 +3032,12 @@ export function DiagnosticoPage({
           onOpenCalculator={onOpenCalculator}
         />
 
+        {/* A reunião fica no caminho principal do Perfil: abaixo das ferramentas
+            comerciais e antes do mapa que sustenta o valor entre as semanas. */}
+        {weeklyMeeting ? (
+          <WeeklyMeetingProfileCard isPro={isPro} meeting={weeklyMeeting} />
+        ) : null}
+
         {/* ── Seu Mapa card ─────────────────────────────────────────────────── */}
         <div id="diagnostico-mapa" style={{ padding: "14px 18px 0", scrollMarginTop: 14 }}>
           <MapaCard
@@ -2983,62 +3066,18 @@ export function DiagnosticoPage({
           />
         </div>
 
-        {/* ── Sua Audiência card ───────────────────────────────────────────── */}
-        {/* 3 estados: não conectado (convite) · conectado sem dados (processando) · conectado com dados (insights) */}
-        <div style={{ padding: "14px 18px 0" }}>
-          {!instagramConnected ? (
-            <AudienceConnectPrompt onConnectInstagram={onConnectInstagram} isPro={isPro} />
-          ) : data.audienceInsights?.hasAny ? (
-            // `hasAny` (não só a existência do objeto): buildAudienceInsights
-            // SEMPRE retorna um objeto truthy (EMPTY_INSIGHTS no catch ou quando
-            // ainda não há sinal). Checar só a existência levava o pai a montar o
-            // AudienceInsightsCard, que internamente faz `if (!hasAny) return null`
-            // → a seção sumia. Com hasAny, o caso "conectado sem dados" cai no
-            // estado "Processando" e o card nunca desaparece.
-            <AudienceInsightsCard
-              insights={data.audienceInsights}
-              instagramConnected={instagramConnected}
-              onReviewTerritories={() =>
-                document.getElementById("diagnostico-mapa")?.scrollIntoView({ behavior: "smooth", block: "start" })
-              }
-              onGeneratePautasForTerritory={onGeneratePautasForTerritory}
-            />
-          ) : (
-            <AudienceConnectPrompt pending />
-          )}
-        </div>
-
-        {/* ── Expansão — só aparece quando há match real de marcas ────────── */}
-        {isMapReadyForExpansion && hasBrandMatch && (
-          <>
-            <SectionTitle title="Expansão" />
-            <div style={{ padding: "0 18px", display: "grid", gap: 16 }}>
-              <CardShell variant="filled" bg="var(--ds-color-brand-soft)" onClick={() => onOpenCategory?.("brands")}>
-                <CardHeader cat="marcas" />
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", marginTop: 14 }}>
-                  <p style={{
-                    fontSize: 16, fontWeight: 700, color: INK_DARK_HEX, margin: 0, letterSpacing: -0.35, lineHeight: 1.3,
-                    display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden",
-                    overflowWrap: "break-word",
-                  }}>
-                    {marcasTitle ?? "Oportunidades a revelar"}
-                  </p>
-                  <p style={{
-                    fontSize: 13, color: TEXT_SECONDARY_HEX, margin: "5px 0 0", fontWeight: 400,
-                    letterSpacing: -0.1, lineHeight: 1.35,
-                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                  }}>
-                    {marcasSubtitle}
-                  </p>
-                </div>
-              </CardShell>
-            </div>
-            <div style={{ height: 28 }} />
-          </>
-        )}
-
-        <div style={{ height: 40 }} />
+        <DeferredProfileSectionsGate
+          audienceInsights={data.audienceInsights}
+          instagramConnected={instagramConnected}
+          isPro={isPro}
+          isMapReadyForExpansion={isMapReadyForExpansion}
+          brandName={hasBrandMatch ? marcasTitle : null}
+          brandSubtitle={marcasSubtitle}
+          onConnectInstagram={onConnectInstagram}
+          onGeneratePautasForTerritory={onGeneratePautasForTerritory}
+          onOpenBrands={() => onOpenCategory?.("brands")}
+        />
       </div>
     </div>
   );
-}
+});

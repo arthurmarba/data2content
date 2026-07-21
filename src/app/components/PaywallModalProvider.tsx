@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
-import BillingSubscribeModal from "@/app/dashboard/billing/BillingSubscribeModal";
 import { trackMobileNarrativeEvent } from "@/app/dashboard/boards/videoUpload/mobileNarrativeTelemetry";
 import { useFeatureFlag } from "@/app/context/FeatureFlagsContext";
 import { startGoogleSignInForPaywall } from "@/app/lib/paywall/startGoogleSignInForPaywall";
@@ -15,6 +15,11 @@ import {
   PAYWALL_RETURN_STORAGE_KEY,
   PAYWALL_URL_PARAM,
 } from "@/types/paywall";
+
+const BillingSubscribeModal = dynamic(
+  () => import("@/app/dashboard/billing/BillingSubscribeModal"),
+  { ssr: false, loading: () => null },
+);
 
 const ALLOWED_CONTEXTS: PaywallContext[] = [
   "default",

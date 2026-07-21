@@ -61,6 +61,7 @@ export default function AffiliateCard() {
   } = useConnectStatus();
   const [a11yMsg, setA11yMsg] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [redeeming, setRedeeming] = useState(false);
   const [copiedTipId, setCopiedTipId] = useState<string | null>(null);
 
   const loading = summaryLoading || statusLoading;
@@ -186,6 +187,30 @@ export default function AffiliateCard() {
 
   const reason = getRedeemBlockReason(status, summary, primaryCur);
   const payoutsReady = canRedeem(status, summary, primaryCur);
+  const activeRedemption = primaryInfo?.activeRedemption || null;
+
+  const handleRedeem = async () => {
+    if (!payoutsReady || redeeming) return;
+    setRedeeming(true);
+    try {
+      const response = await fetch('/api/affiliate/redeem', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currency: primaryCur }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        await refreshAll();
+        throw new Error(body?.message || 'Não foi possível processar o recebimento.');
+      }
+      toast.success(`${fmt(body.amountCents, body.currency)} enviado para sua conta Stripe.`);
+      await refreshAll();
+    } catch (err: any) {
+      toast.error(err?.message || 'Não foi possível processar o recebimento.');
+    } finally {
+      setRedeeming(false);
+    }
+  };
 
   const payoutCard = (() => {
     if (!status.payoutsEnabled || reason === 'needsOnboarding' || reason === 'payouts_disabled') {
@@ -232,10 +257,20 @@ export default function AffiliateCard() {
     }
     return {
       tone: 'success' as const,
-      title: 'Tudo pronto para receber',
+      title: activeRedemption ? 'Pagamento em processamento' : 'Tudo pronto para receber',
       message: payoutsReady
-        ? 'Seus ganhos liberados serão processados automaticamente.'
+        ? activeRedemption
+          ? 'Retome a solicitação com segurança; nenhuma nova transferência será criada.'
+          : 'Seus ganhos estão liberados para envio à sua conta Stripe.'
         : 'Seus dados estão configurados e os próximos ganhos serão liberados aqui.',
+      actionLabel: payoutsReady
+        ? redeeming
+          ? 'Processando...'
+          : activeRedemption
+            ? 'Tentar novamente'
+            : 'Receber agora'
+        : undefined,
+      action: payoutsReady ? handleRedeem : undefined,
     };
   })();
 

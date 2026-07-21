@@ -34,14 +34,15 @@ function CreatorLink({ creator, duplicate = false }: { creator: LandingCreatorHi
 }
 
 export function CommunityCreatorShowcase({ creators }: CommunityCreatorShowcaseProps) {
-  if (!creators.length) return null;
+  const featuredCreators = creators
+    .filter((creator) => creator.mediaKitSlug)
+    .slice(0, 12);
 
-  const firstRow = creators.filter((_, index) => index % 2 === 0);
-  const secondRow = creators.filter((_, index) => index % 2 === 1);
+  if (!featuredCreators.length) return null;
 
-  const renderRail = (items: LandingCreatorHighlight[], reverse = false) => (
+  const renderRail = (items: LandingCreatorHighlight[]) => (
     <div className="d2c-community-wall__viewport">
-      <div className={`d2c-community-wall__track${reverse ? " is-reverse" : ""}`}>
+      <div className="d2c-community-wall__track">
         <div className="d2c-community-wall__set">
           {items.map((creator) => <CreatorLink key={creator.id} creator={creator} />)}
         </div>
@@ -54,27 +55,14 @@ export function CommunityCreatorShowcase({ creators }: CommunityCreatorShowcaseP
 
   return (
     <>
-      <div className="d2c-community-wall d2c-community-wall--desktop" aria-label="Creators ativos da comunidade D2C">
-        {renderRail(firstRow)}
-        {secondRow.length > 0 && renderRail(secondRow, true)}
-      </div>
+      <section className="d2c-community-wall d2c-community-wall--featured" aria-label="Creators ativos da comunidade D2C">
+        {renderRail(featuredCreators)}
+      </section>
 
-      <div className="d2c-community-wall d2c-community-wall--mobile" aria-label="Creators ativos da comunidade D2C">
-        <div className="d2c-community-wall__viewport">
-          <div className="d2c-community-wall__track">
-            <div className="d2c-community-wall__set">
-              {creators.map((creator) => <CreatorLink key={`mobile-${creator.id}`} creator={creator} />)}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <details className="d2c-community-directory">
-        <summary>Explorar todos os Media Kits</summary>
-        <div className="d2c-community-directory__grid">
-          {creators.map((creator) => <CreatorLink key={`directory-${creator.id}`} creator={creator} />)}
-        </div>
-      </details>
+      <Link className="d2c-community-directory-link" href="/casting">
+        Explorar todos os Media Kits
+        <ExternalLink size={14} aria-hidden="true" />
+      </Link>
     </>
   );
 }

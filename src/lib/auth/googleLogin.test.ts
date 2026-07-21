@@ -1,4 +1,24 @@
-import { submitGoogleSignInFallback } from "./googleLogin";
+import {
+  buildGoogleConsentLoginUrl,
+  normalizeInternalCallbackUrl,
+  submitGoogleSignInFallback,
+} from "./googleLogin";
+
+describe("normalizeInternalCallbackUrl", () => {
+  it("keeps internal destinations and trims surrounding whitespace", () => {
+    expect(normalizeInternalCallbackUrl(" /dashboard/boards/profile?tab=about ")).toBe(
+      "/dashboard/boards/profile?tab=about",
+    );
+  });
+
+  it.each(["", "https://example.com", "//example.com", "javascript:alert(1)"])(
+    "replaces an unsafe callback URL (%s)",
+    (callbackUrl) => {
+      expect(normalizeInternalCallbackUrl(callbackUrl)).toBe("/dashboard");
+      expect(buildGoogleConsentLoginUrl(callbackUrl)).toBe("/login?callbackUrl=%2Fdashboard");
+    },
+  );
+});
 
 describe("submitGoogleSignInFallback", () => {
   const fetchMock = jest.fn();

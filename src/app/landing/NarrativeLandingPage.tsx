@@ -6,14 +6,13 @@ import { bricolageGrotesque, instrumentSans } from "@/app/fonts/d2cFonts";
 import { LANDING_PLAN_PRICE_DISPLAY } from "@/app/landing/copy";
 import type { LandingCreatorHighlight, LandingProofMetrics } from "@/types/landing";
 
+import "./narrative-landing.css";
+
 import { Brand } from "./components/narrative/Brand";
 import { CommunityCreatorShowcase } from "./components/narrative/CommunityCreatorShowcase";
-import { ConnectionBridge } from "./components/narrative/ConnectionBridge";
-import { CreatorManifesto } from "./components/narrative/CreatorManifesto";
 import { LandingAuthCta } from "./components/narrative/LandingAuthCta";
 import { LandingMobileCta } from "./components/narrative/LandingMobileCta";
 import { LandingSectionTracker } from "./components/narrative/LandingSectionTracker";
-import { NarrativeCalculator } from "./components/narrative/NarrativeCalculator";
 import { NarrativeHeader } from "./components/narrative/NarrativeHeader";
 import { NarrativeHero } from "./components/narrative/NarrativeHero";
 import { NarrativeMatch } from "./components/narrative/NarrativeMatch";
@@ -43,22 +42,11 @@ export function NarrativeLandingPage({ creators, proofMetrics, communityCreators
       <main>
         <NarrativeHero />
 
-        <section className="d2c-match-section d2c-human-match" id="como-funciona" data-landing-section="collabs">
-          <div className="d2c-shell d2c-match-section__inner">
-            <div className="d2c-match-section__copy">
-              <p className="d2c-section-label">Match criativo por pauta</p>
-              <h2>Não é sobre combinar perfis.</h2>
-              <p>É sobre querer criar a mesma ideia. Você escolhe uma pauta. Outro creator também. A identidade só aparece quando existe vontade dos dois lados.</p>
-            </div>
-            <NarrativeMatch creators={creators} />
-          </div>
-        </section>
-
         <section className="d2c-human-community-block" id="comunidade" data-landing-section="community">
           <div className="d2c-shell d2c-match-community">
             <div className="d2c-match-community__intro">
-              <p>Quem está do outro lado</p>
-              <h3>Veja quem pode aparecer no seu próximo match.</h3>
+              <p>Quem já está criando junto</p>
+              <h3>Uma comunidade de creators, não uma plateia.</h3>
             </div>
             <CommunityCreatorShowcase creators={communityCreators} />
             <p className="d2c-match-community__proof">
@@ -70,9 +58,9 @@ export function NarrativeLandingPage({ creators, proofMetrics, communityCreators
         {proofMetrics && (
           <section className="d2c-data-proof" aria-labelledby="data-proof-title" data-landing-section="data-proof">
             <div className="d2c-shell d2c-data-proof__intro">
-              <p>IA com repertório de verdade</p>
+              <p>Experiência alimentada por sinais reais</p>
               <h2 id="data-proof-title">Tem dado. Tem gente. Tem contexto.</h2>
-              <span>A inteligência não chuta. Ela aprende com conteúdo real e com a resposta de audiências reais.</span>
+              <span>A tecnologia organiza os sinais. O repertório humano transforma esses sinais em direção.</span>
             </div>
             <dl className="d2c-shell d2c-data-proof__numbers">
               <div><dt>conteúdos analisados</dt><dd>{formatHistoricalProof(proofMetrics.contentAnalyzed, "content")}</dd></div>
@@ -83,18 +71,10 @@ export function NarrativeLandingPage({ creators, proofMetrics, communityCreators
           </section>
         )}
 
-        <ConnectionBridge />
-
-        <WeeklyRitual />
-
-        <WhatsAppCommunity creators={creators} communityCreators={communityCreators} />
-
-        <CreatorManifesto />
-
-        <section className="d2c-founders" data-landing-section="authority">
+        <section className="d2c-founders" id="quem-conduz" data-landing-section="authority">
           <div className="d2c-shell d2c-founders__intro">
-            <p>Duas experiências. Uma mesma inquietação.</p>
-            <h2>Criatividade de um lado. Mercado do outro. Você no centro.</h2>
+            <p>Quem conduz a reunião</p>
+            <h2>Repertório de mercado, aplicado ao seu conteúdo.</h2>
           </div>
           <div className="d2c-shell d2c-founders__people">
             <article className="d2c-founder d2c-founder--arthur">
@@ -117,39 +97,51 @@ export function NarrativeLandingPage({ creators, proofMetrics, communityCreators
             </article>
           </div>
           <div className="d2c-shell d2c-founders__synthesis">
-            <p>Um entende o que acontece no meio da criação. O outro, como uma narrativa ganha valor no mundo. A D2C junta os dois.</p>
-            <LandingAuthCta className="d2c-human-link" guestLabel="Começar com a D2C" childrenAfter={<ArrowRight size={16} aria-hidden="true" />} trackingLocation="authority" />
+            <p>Arthur lê os sinais da criação. Ronaldo conecta narrativa, cultura e negócio. Toda quinta, os dois colocam essa experiência na mesa.</p>
           </div>
         </section>
 
-        <NarrativeCalculator />
+        <WeeklyRitual />
+
+        <section className="d2c-match-section d2c-human-match" id="collabs" data-landing-section="collabs">
+          <div className="d2c-shell d2c-match-section__inner">
+            <div className="d2c-match-section__copy">
+              <p className="d2c-section-label">Match criativo por pauta</p>
+              <h2>Quando a direção encontra outra pessoa.</h2>
+              <p>Você escolhe uma pauta. Outro creator também. O match nasce da vontade de criar a mesma ideia — não de um perfil genérico.</p>
+            </div>
+            <NarrativeMatch creators={creators} />
+          </div>
+        </section>
+
+        <WhatsAppCommunity creators={creators} communityCreators={communityCreators} />
 
         <section className="d2c-human-pricing" id="planos" data-landing-section="pricing">
           <div className="d2c-shell d2c-human-pricing__inner">
-            <div><p>Tudo junto. Sem complicar.</p><h2>Plataforma, reunião e comunidade. Em um só plano.</h2></div>
+            <div><p>A experiência completa</p><h2>Uma reunião por semana. Uma plataforma para os outros seis dias.</h2></div>
             <div className="d2c-human-final__offer">
               <b>{LANDING_PLAN_PRICE_DISPLAY}<small>/mês</small></b>
               <ul>
-                <li><Check size={15} /> Mapa e pautas alinhadas à sua narrativa</li>
-                <li><Check size={15} /> Matches de collab</li>
-                <li><Check size={15} /> Reunião semanal e comunidade no WhatsApp</li>
-                <li><Check size={15} /> Calculadora de Publi e Media Kit</li>
+                <li><Check size={15} /> Análise garantida quando você confirma presença no grupo</li>
+                <li><Check size={15} /> Grupo exclusivo de assinantes no WhatsApp</li>
+                <li><Check size={15} /> Mapa, pautas e análise de conteúdo na plataforma</li>
+                <li><Check size={15} /> Matches, Calculadora de Publi e Media Kit</li>
               </ul>
-              <LandingAuthCta className="d2c-button d2c-button--human" guestLabel="Quero criar com a minha cara" childrenAfter={<ArrowRight size={17} />} trackingLocation="pricing" />
-              <small className="d2c-human-pricing__note">Entre com Google. Assine quando fizer sentido. Cancele quando quiser.</small>
+              <LandingAuthCta className="d2c-button d2c-button--human" guestLabel="Criar conta e assinar" authenticatedLabel="Ver meu plano" destination="/dashboard/billing" childrenAfter={<ArrowRight size={17} />} trackingLocation="pricing" />
+              <small className="d2c-human-pricing__note">Assista gratuitamente antes de decidir. Cancele quando quiser.</small>
             </div>
           </div>
         </section>
 
         <section className="d2c-human-faq" data-landing-section="faq">
           <div className="d2c-shell d2c-human-faq__inner">
-            <div><p>Sem letra miúda</p><h2>Perguntas que fazem sentido.</h2></div>
+            <div><p>Sem letra miúda</p><h2>Como a reunião e a assinatura funcionam.</h2></div>
             <div className="d2c-human-faq__list">
-              <details><summary>Preciso já ser creator profissional?</summary><p>Não. A D2C ajuda tanto quem está encontrando sua direção quanto quem já transforma conteúdo em carreira.</p></details>
-              <details><summary>O que acontece quando entro e quando começa a cobrança?</summary><p>Você entra com Google, conecta ou envia seus conteúdos e começa a organizar os sinais da sua narrativa. Criar a conta não gera cobrança automática: o plano é apresentado antes de qualquer assinatura.</p></details>
-              <details><summary>O que recebo toda semana?</summary><p>Novas pautas, possibilidades de match e a reunião online de quinta-feira, às 19h. Depois, as conversas, referências e collabs continuam na comunidade do WhatsApp.</p></details>
-              <details><summary>Como a D2C entende minha narrativa sem decidir por mim?</summary><p>A inteligência identifica temas, histórias e formas de comunicação recorrentes nos seus conteúdos. Ela apresenta contexto e possibilidades; a escolha do que representa você continua sendo sua.</p></details>
-              <details><summary>A comunidade também recebe oportunidades profissionais?</summary><p>Os membros podem ter seus perfis analisados para oportunidades em parceria com a Destaque Estratégia de Imagem. A análise considera narrativa e momento de carreira, mas não garante agenciamento ou contratação.</p></details>
+              <details><summary>Posso assistir sem pagar?</summary><p>Sim. Depois do login e do onboarding, você pode assistir gratuitamente às reuniões de quinta-feira, sempre às 19h. Criar a conta não gera cobrança automática.</p></details>
+              <details><summary>Como faço para ter meu conteúdo analisado?</summary><p>Assine o D2C Pro e confirme presença na reunião dentro do grupo exclusivo de assinantes no WhatsApp. Todos os assinantes que confirmam presença são analisados naquela reunião.</p></details>
+              <details><summary>Quanto tempo dura a reunião?</summary><p>Ela começa às 19h e costuma durar cerca de duas horas. O acesso e a opção de salvar na agenda ficam disponíveis dentro da D2C.</p></details>
+              <details><summary>O que assino além da análise ao vivo?</summary><p>Você entra no grupo exclusivo e acessa o Mapa, pautas, análise de conteúdo, matches de collab, Calculadora de Publi e Media Kit para continuar evoluindo entre as reuniões.</p></details>
+              <details><summary>Preciso já ser creator profissional?</summary><p>Não. A D2C acompanha tanto quem está encontrando sua direção quanto quem já transforma conteúdo em carreira.</p></details>
               <details><summary>Posso cancelar quando quiser?</summary><p>O cancelamento pode ser solicitado a qualquer momento, conforme as condições do plano vigente.</p></details>
             </div>
           </div>
@@ -158,9 +150,9 @@ export function NarrativeLandingPage({ creators, proofMetrics, communityCreators
         <section className="d2c-human-final">
           <div className="d2c-shell d2c-human-final__inner">
             <div>
-              <h2>O algoritmo muda. <span>Sua voz não.</span></h2>
+              <h2>Assista primeiro. <span>Depois, decida até onde quer levar.</span></h2>
             </div>
-            <LandingAuthCta className="d2c-button d2c-button--human" guestLabel="Criar com a minha cara" childrenAfter={<ArrowRight size={17} />} trackingLocation="final" />
+            <LandingAuthCta className="d2c-button d2c-button--human" guestLabel="Assistir à próxima reunião" authenticatedLabel="Acessar a D2C" childrenAfter={<ArrowRight size={17} />} trackingLocation="final" />
           </div>
         </section>
       </main>
@@ -168,7 +160,7 @@ export function NarrativeLandingPage({ creators, proofMetrics, communityCreators
       <footer className="d2c-footer">
         <div className="d2c-shell d2c-footer__inner">
           <Brand />
-          <p>IA para enxergar. Gente para criar.</p>
+          <p>Gente para enxergar. Plataforma para continuar.</p>
           <nav aria-label="Links legais"><a href="mailto:arthur@data2content.ai">Suporte</a><Link href="/politica-de-privacidade">Privacidade</Link><Link href="/termos-e-condicoes">Termos</Link></nav>
           <small>© {new Date().getFullYear()} Data2Content.</small>
         </div>

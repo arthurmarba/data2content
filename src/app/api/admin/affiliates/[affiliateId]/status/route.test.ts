@@ -3,9 +3,13 @@ import { PATCH } from './route';
 import { updateAffiliateStatus } from '@/lib/services/adminCreatorService'; // Ajuste se o nome do serviço mudou
 import { NextRequest } from 'next/server';
 import { AdminAffiliateUpdateStatusPayload } from '@/types/admin/affiliates';
+import { getAdminSession } from '@/lib/getAdminSession';
 
 jest.mock('@/lib/services/adminCreatorService', () => ({
   updateAffiliateStatus: jest.fn(),
+}));
+jest.mock('@/lib/getAdminSession', () => ({
+  getAdminSession: jest.fn().mockResolvedValue({ user: { role: 'admin', name: 'Admin' } }),
 }));
 
 // Mock de getAdminSession (similar ao GET)
@@ -21,11 +25,12 @@ async function createMockAffiliatePatchRequest(body: any): Promise<NextRequest> 
 
 describe('API Route: PATCH /api/admin/affiliates/[affiliateId]/status', () => {
   const mockUpdateAffiliateStatus = updateAffiliateStatus as jest.Mock;
+  const mockGetAdminSession = getAdminSession as jest.Mock;
   const mockUserId = 'testAffiliateUserId123'; // affiliateId na rota é o userId
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // (require('./route') as any).getAdminSession.mockResolvedValue({ user: { name: 'Admin User', role: 'admin' } });
+    mockGetAdminSession.mockResolvedValue({ user: { role: 'admin', name: 'Admin' } });
   });
 
   it('should return 200 and updated affiliate on successful status update', async () => {

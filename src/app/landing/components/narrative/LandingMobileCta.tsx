@@ -20,8 +20,9 @@ export function LandingMobileCta() {
     const blockedSections = Array.from(document.querySelectorAll<HTMLElement>([
       ".d2c-human-hero",
       "[data-landing-section='data-proof']",
+      "[data-landing-section='platform']",
       "[data-landing-section='collabs']",
-      "[data-landing-section='connection-flow']",
+      "[data-landing-section='community']",
       "[data-landing-section='weekly-community']",
       "[data-landing-section='whatsapp-community']",
       "[data-landing-section='authority']",
@@ -53,7 +54,7 @@ export function LandingMobileCta() {
 
   return (
     <div className="d2c-mobile-conversion is-visible">
-      <LandingAuthCta className="d2c-button d2c-button--human" guestLabel="Criar com a minha cara" childrenAfter={<ArrowRight size={16} />} trackingLocation="sticky-mobile" />
+      <LandingAuthCta className="d2c-button d2c-button--human" guestLabel="Assistir à próxima reunião" authenticatedLabel="Acessar a D2C" childrenAfter={<ArrowRight size={16} />} trackingLocation="sticky-mobile" />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { ArrowRight, Calendar, CheckCircle2, Crown } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
@@ -199,17 +200,25 @@ export default function CommunityConversionSection(_props: {
             ) : null}
           </div>
 
-          {/* CTA button */}
-          <button
-            type="button"
-            onClick={handleCommunityAccess}
-            disabled={resolvingVipAccess}
-            className={`inline-flex shrink-0 items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold text-white shadow-sm transition-all disabled:opacity-70 ${
-              planActive && !paymentPending
-                ? "bg-[#25D366] hover:bg-[#1ebe5d]"
-                : "bg-zinc-950 hover:bg-black"
-            }`}
-          >
+          <div className="flex shrink-0 flex-col gap-2 sm:flex-row md:flex-col">
+            <Link
+              href="/reuniao"
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-black"
+            >
+              <Calendar className="h-4 w-4" />
+              Acessar reunião
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+            <button
+              type="button"
+              onClick={handleCommunityAccess}
+              disabled={resolvingVipAccess}
+              className={`inline-flex items-center justify-center gap-2 rounded-full px-4 py-2.5 text-sm font-bold shadow-sm transition-all disabled:opacity-70 ${
+                planActive && !paymentPending
+                  ? "bg-[#25D366] text-white hover:bg-[#1ebe5d]"
+                  : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+              }`}
+            >
             {resolvingVipAccess ? (
               <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
             ) : planActive && !paymentPending ? (
@@ -225,7 +234,8 @@ export default function CommunityConversionSection(_props: {
                 <ArrowRight className="h-3.5 w-3.5" />
               </>
             )}
-          </button>
+            </button>
+          </div>
         </div>
       </motion.section>
     </motion.div>

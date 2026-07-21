@@ -40,7 +40,7 @@ export async function markEventIfNew(
 
 /**
  * Garante idempotência por fatura + afiliado.
- * Retorna true se CRIOU o índice agora; false se já existia.
+ * Reservas existentes continuam válidas para permitir retomada após falha.
  */
 export async function ensureInvoiceIdempotent(invoiceId: string, affiliateUserId: string) {
   const res = await withMongoTransientRetry(
@@ -52,12 +52,15 @@ export async function ensureInvoiceIdempotent(invoiceId: string, affiliateUserId
       ),
     { retries: 1 }
   );
-  return (res.upsertedCount ?? 0) > 0;
+  // Existing reservation is resumable. The ledger write itself is guarded by
+  // invoiceId, so a crash after reserving the key cannot permanently lose a
+  // commission and a replay still cannot duplicate it.
+  return (res.upsertedCount ?? 0) > 0 || (res.matchedCount ?? 0) > 0;
 }
 
 /**
  * Garante que uma assinatura só gere comissão na primeira fatura.
- * Retorna true se CRIOU o índice agora; false se já existia.
+ * A gravação atômica no ledger é a barreira final contra duplicação.
  */
 export async function ensureSubscriptionFirstTime(subscriptionId: string, affiliateUserId: string) {
   const res = await withMongoTransientRetry(
@@ -69,7 +72,7 @@ export async function ensureSubscriptionFirstTime(subscriptionId: string, affili
       ),
     { retries: 1 }
   );
-  return (res.upsertedCount ?? 0) > 0;
+  return (res.upsertedCount ?? 0) > 0 || (res.matchedCount ?? 0) > 0;
 }
 
 /** Garante a comissão única para o criador indicado, inclusive após uma nova assinatura. */
@@ -88,7 +91,16 @@ export async function ensureBuyerFirstCommission(
       ),
     { retries: 1 },
   );
-  return (res.upsertedCount ?? 0) > 0;
+  if ((res.upsertedCount ?? 0) > 0) return true;
+
+  const existing = await (AffiliateBuyerCommissionIndex as any)
+    .findOne({ buyerUserId })
+    .lean();
+  return Boolean(
+    existing &&
+      String(existing.affiliateUserId) === String(affiliateUserId) &&
+      existing.invoiceId === invoiceId
+  );
 }
 
 export function calcCommissionCents(invoice: Stripe.Invoice) {

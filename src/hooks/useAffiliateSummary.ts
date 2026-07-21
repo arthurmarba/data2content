@@ -29,6 +29,9 @@ export function canRedeem(
   const curSummary = summary.byCurrency?.[curNorm];
   if (!curSummary) return false;
   if (curSummary.reconciliationStatus !== 'reconciled') return false;
+  // A requisição pode já ter sido aceita pela Stripe. Ela precisa ser retomada
+  // com a mesma chave mesmo se um estorno criou dívida nesse intervalo.
+  if (curSummary.activeRedemption) return true;
   const min = curSummary.minRedeemCents ?? 0;
   return curSummary.availableCents >= min && curSummary.debtCents === 0;
 }
@@ -57,6 +60,7 @@ export function getRedeemBlockReason(
   const curSummary = summary.byCurrency?.[curNorm];
   if (!curSummary) return null;
   if (curSummary.reconciliationStatus !== 'reconciled') return 'ledger_out_of_sync';
+  if (curSummary.activeRedemption) return null;
   if (curSummary.debtCents > 0) return 'has_debt';
   const min = curSummary.minRedeemCents ?? 0;
   if (curSummary.availableCents < min) return 'below_min';

@@ -1,0 +1,853 @@
+{
+  "reuniao": {
+    "data": "2026-07-16",
+    "titulo": "Da prova ao Tanabata, a pauta forte começou antes da câmera",
+    "participantes": [
+      "@aamandamag",
+      "@blununees",
+      "@lorenadmarchetti",
+      "@locoutiinho",
+      "@marinaduttra_",
+      "@isafandrade",
+      "Debora Broch",
+      "Camila Barros",
+      "@casadetais",
+      "@brunaarrudaoficial",
+      "@edgarkumagai"
+    ]
+  },
+  "criadores": [
+    {
+      "handle": "@aamandamag",
+      "nome": "Amanda Magalhães",
+      "pontoForte": {
+        "texto": "A prova virou uma história que as pessoas quiseram mandar para alguém.",
+        "evidencia": "O reel do convite da Goya Movement teve 450 pessoas guardando e 927 compartilhando — o maior sinal da semana dela.",
+        "postId": "17981463008866910",
+        "stat": {
+          "valor": "927",
+          "label": "compartilhamentos no pico"
+        },
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "verde",
+          "marca": "verde"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/743951519_18009923957930274_6465149956104232296_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=108&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=kv7FJOmllxEQ7kNvwH2KWpm&_nc_oc=Adp7t4GRSRMxhrVHkEGukt8XvndA24kYZm75pOrPiAA1Zvjg64sWFd0g2x8B0gUq2uN5D-cfulFIMy13d4s6KB6E&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=mx95tUhOM7bIGWV1vTJAZQ&_nc_tpa=Q5bMBQGQ9XMegLp5YzBA9B0UAWOCakBNFeBAqA4L1QSVmjkRIegw_TGnE3ua2KYDn0kDfi4D5deYmbJyeA&oh=00_AQCGb6FuYF-8A6ZqCTzktDOfyiXQFIvEXJ1vsyG-gcFNCw&oe=6A5F0D98"
+      },
+      "pontoAjustar": {
+        "texto": "A mudança de cabelo rendeu conversa, mas ficou solta da história de treino e bem-estar que o público reconhece nela.",
+        "evidencia": "Foram 54 comentários, mas só 3 pessoas guardaram e 3 compartilharam; na prova, foram 450 e 927.",
+        "postId": "18154576438492245",
+        "selos": {
+          "narrativa": "amarelo",
+          "audiencia": "amarelo",
+          "marca": "amarelo"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/743564345_18009793010930274_5621717994768439766_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=104&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=UXYlnepNLDMQ7kNvwE23qL2&_nc_oc=Ado1_mFF5od-LxKMmLAhZrNNEuLnIKcLSQbW-zMCsDeqTL1g3F4FVIKS5KIut-nrwZsx-zIFAwn1ixbUs30GVhEe&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=w26IdmCSsWW24oS8-ZdDwQ&_nc_tpa=Q5bMBQEu6J9rMMawiMB8ka23uiWbgFIms5gLcj_VRlS1BEpSco8cKPWyGFmQD0naaNXZ5FYukLLMDkw-Cg&oh=00_AQCLOGdewWI8JLlKyBvePew7cYsGK-xFyts0o2dRheb7FQ&oe=6A5F28E1"
+      },
+      "ganchoMarca": {
+        "categoria": "provas e experiências de corrida com clima de comunidade",
+        "exemplo": "Goya Movement",
+        "porque": "o convite já virou uma história de prova que circulou muito além de um registro esportivo"
+      },
+      "coerencia": {
+        "status": "parcial",
+        "resumo": "Corrida, comida e a conversa sobre compulsão mostraram as partes mais reconhecíveis da Amanda. A mudança de cabelo apareceu sem ligação com esse caminho."
+      },
+      "audienciaPede": "Abrir o próximo vídeo com uma cena do dia da prova e contar o que mudou entre a largada e a chegada.",
+      "reel": {
+        "postId": "17981463008866910",
+        "posterUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/743951519_18009923957930274_6465149956104232296_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=108&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=kv7FJOmllxEQ7kNvwH2KWpm&_nc_oc=Adp7t4GRSRMxhrVHkEGukt8XvndA24kYZm75pOrPiAA1Zvjg64sWFd0g2x8B0gUq2uN5D-cfulFIMy13d4s6KB6E&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=mx95tUhOM7bIGWV1vTJAZQ&_nc_tpa=Q5bMBQGQ9XMegLp5YzBA9B0UAWOCakBNFeBAqA4L1QSVmjkRIegw_TGnE3ua2KYDn0kDfi4D5deYmbJyeA&oh=00_AQCGb6FuYF-8A6ZqCTzktDOfyiXQFIvEXJ1vsyG-gcFNCw&oe=6A5F0D98"
+      },
+      "numeros": [
+        {
+          "valor": "14",
+          "label": "posts na semana"
+        },
+        {
+          "valor": "927",
+          "label": "compartilhamentos no pico"
+        }
+      ],
+      "proximosPassos": {
+        "lacuna": "a prova apareceu como grande acontecimento, mas o bastidor emocional ainda pode render uma sequência",
+        "pautas": [
+          {
+            "titulo": "O que a prova da Goya me ensinou sobre correr sem me levar tão a sério",
+            "porque": "Continua o post mais compartilhado da semana e devolve o humor que faz parte da voz dela."
+          },
+          {
+            "titulo": "A semana em que a compulsão voltou — o que eu mudei sem transformar comida em castigo",
+            "porque": "Leva a vulnerabilidade para uma decisão concreta de cuidado, sem vender perfeição."
+          },
+          {
+            "titulo": "Bolo de banana da corredora: antes ou depois do treino?",
+            "porque": "A receita já foi guardada por 61 pessoas; a pergunta conecta comida e corrida na mesma cena."
+          }
+        ]
+      },
+      "userId": "69c2632117a1957aa63a18f0",
+      "profilePictureUrl": "https://scontent-iad6-1.xx.fbcdn.net/v/t51.82787-15/743373984_18009804029930274_3345775554131591506_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=7d201b&_nc_ohc=EFrs9pPkTrAQ7kNvwEAYAWE&_nc_oc=AdrX4EshrRO9QZns32T9N2iIzO6aGol995mxUQ986CiSiu0i0YvhjSkJQBmz6DnpJco&_nc_zt=23&_nc_ht=scontent-iad6-1.xx&edm=AL-3X8kEAAAA&_nc_gid=Hs1I6mm41nLreSfYRqI8Ig&oh=00_AQBED5zmYo4UMsNCC8P2e1CR-ikkiF7BcFLjflav8zRmag&oe=6A5EA209",
+      "narrativaCentral": "Um atleta que encontra equilíbrio e humor na jornada de bem-estar",
+      "territorios": [
+        "Corrida e treino",
+        "Bem-estar físico",
+        "Gastronomia saudável",
+        "Vida com cães",
+        "Viagens e descobertas",
+        "Humor e opiniões"
+      ],
+      "grafico": {
+        "posts": [
+          {
+            "rotulo": "11/07",
+            "saves": 25,
+            "shares": 30
+          },
+          {
+            "rotulo": "12/07",
+            "saves": 454,
+            "shares": 928
+          },
+          {
+            "rotulo": "13/07",
+            "saves": 55,
+            "shares": 22
+          },
+          {
+            "rotulo": "14/07",
+            "saves": 61,
+            "shares": 18
+          },
+          {
+            "rotulo": "15/07",
+            "saves": 14,
+            "shares": 0
+          }
+        ]
+      }
+    },
+    {
+      "handle": "@blununees",
+      "nome": "Blu Nunes",
+      "semSinal": true,
+      "ganchoMarca": {
+        "categoria": "beleza prática para a rotina com filhos",
+        "exemplo": "Salon Line",
+        "porque": "cabelo, autocuidado e maternidade já dividem o mesmo espaço no mapa dela"
+      },
+      "proximosPassos": {
+        "lacuna": "não houve publicação entre 10 e 16 de julho; a retomada pode começar com uma cena simples da casa",
+        "pautas": [
+          {
+            "titulo": "Meu cabelo em dez minutos enquanto as crianças escolhem o desenho",
+            "porque": "Junta cuidado capilar e a interrupção real da maternidade sem precisar montar uma produção."
+          },
+          {
+            "titulo": "Cada filho escolhe um produto da minha nécessaire — e eu conto para que serve",
+            "porque": "As crianças entram na cena e transformam recomendação de beleza em conversa de família."
+          }
+        ]
+      },
+      "userId": "68d19d9b2af62c86355d3b41",
+      "profilePictureUrl": "https://scontent-iad3-2.xx.fbcdn.net/v/t51.82787-15/671233424_17972273928040282_1812120620803753549_n.jpg?_nc_cat=105&ccb=1-7&_nc_sid=7d201b&_nc_ohc=q3iRwgVQ1pcQ7kNvwG3bXov&_nc_oc=Ado5RK_qQ9BvjkzRH5ZYdtH9Fn051TbfdFObAWRIIJdUVIv4AD_FtDrn4beRF1sNCRU&_nc_zt=23&_nc_ht=scontent-iad3-2.xx&edm=AL-3X8kEAAAA&_nc_gid=IBH9iegjOBogD6jakvg1uQ&oh=00_Af8nNyVnOyO0O9EtPknQsNiYNyCaPkidoWPHm6Qf3Spj5w&oe=6A484473",
+      "narrativaCentral": "Uma mãe real que encontra beleza e humor na rotina",
+      "territorios": [
+        "Maternidade",
+        "Beleza",
+        "Autocuidado",
+        "Cuidados capilares",
+        "Vida familiar",
+        "Bem-estar feminino"
+      ],
+      "grafico": {
+        "posts": []
+      }
+    },
+    {
+      "handle": "@lorenadmarchetti",
+      "nome": "Lorena Marchetti",
+      "pontoForte": {
+        "texto": "O vídeo de sexta funcionou porque colocou a família dentro de um momento que todo mundo reconhece: a chegada do fim de semana.",
+        "evidencia": "Foi o post mais compartilhado dela: 19 pessoas enviaram e 29 comentaram.",
+        "postId": "18206510674345116",
+        "stat": {
+          "valor": "1º",
+          "label": "em compartilhamentos"
+        },
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "verde",
+          "marca": "amarelo"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/743051221_18159643465474050_6532137058989793780_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=109&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=MZ76P9bE3esQ7kNvwEr73k2&_nc_oc=Adp4iHa-L_rK8i_Gy3eHvypt-BA6Mc40a0K4Edz23XVLgLkWx_gd-lMu8wJ06BNHLNLRLucS7gsypkxH4hc9o0H3&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=lb0_q1WE6cDuHLfWC2T_fQ&_nc_tpa=Q5bMBQHkI93l3V6qM3p30hh7j_hWutqNXsAQtQNrJfJZ3XBEy5loa8Ml8XNxfLJtYBs9D5SAChEGDaEbjw&oh=00_AQBGUu7VygaiznixrZieH985gMccrhw5ZWUg0-1h-TSmzw&oe=6A5F09BB"
+      },
+      "pontoAjustar": {
+        "texto": "Os cestos apareceram como produto bonito, mas faltou mostrar o problema da casa que eles resolveram.",
+        "evidencia": "O post teve 9 pessoas guardando e nenhum compartilhamento; o vídeo de sexta foi enviado 19 vezes.",
+        "postId": "18108167672073327",
+        "selos": {
+          "narrativa": "amarelo",
+          "audiencia": "amarelo",
+          "marca": "verde"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/742096702_18159609223474050_6323834209440734410_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=P_1ouemGeRIQ7kNvwHO4rQY&_nc_oc=Adq8JX0tn-_q4OQe7hAFBHfiMjEJ2kWos-AVo90PM0j-KoyE5_lHPzYaAhpPHDhWyrUFzz93t9E2aVPYFcp8QaM6&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=izp0Fe10c5OGuuYjLBM8nA&_nc_tpa=Q5bMBQEoNUhh3xEb0siDmveawzgYL8hwsLX1dKC0zOQEY0uUP3N1YHuk1_3PgteMO2KxLYAydS8Ab_6hTw&oh=00_AQBMrMuES4KoOWYovtqzUURcOBu4oCzUPJojiuCrLl8rpQ&oe=6A5F03D6"
+      },
+      "ganchoMarca": {
+        "categoria": "organização para casas com criança",
+        "exemplo": "Ordene",
+        "porque": "os cestos ganham sentido quando entram na bagunça real da sala, dos brinquedos e da rotina com a Liv"
+      },
+      "coerencia": {
+        "status": "parcial",
+        "resumo": "O fim de semana e a piada sobre o que é caro trouxeram a Lorena e a Liv para o centro. Os cestos ficaram mais perto de uma vitrine do que da vida da casa."
+      },
+      "audienciaPede": "Transformar a piada do preço em uma cena com a Liv escolhendo um item e defendendo por que ele é essencial.",
+      "reel": {
+        "postId": "18206510674345116",
+        "posterUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/743051221_18159643465474050_6532137058989793780_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=109&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=MZ76P9bE3esQ7kNvwEr73k2&_nc_oc=Adp4iHa-L_rK8i_Gy3eHvypt-BA6Mc40a0K4Edz23XVLgLkWx_gd-lMu8wJ06BNHLNLRLucS7gsypkxH4hc9o0H3&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=lb0_q1WE6cDuHLfWC2T_fQ&_nc_tpa=Q5bMBQHkI93l3V6qM3p30hh7j_hWutqNXsAQtQNrJfJZ3XBEy5loa8Ml8XNxfLJtYBs9D5SAChEGDaEbjw&oh=00_AQBGUu7VygaiznixrZieH985gMccrhw5ZWUg0-1h-TSmzw&oe=6A5F09BB"
+      },
+      "proximosPassos": {
+        "lacuna": "a identidade carioca e a cozinha não apareceram nos três posts da semana",
+        "pautas": [
+          {
+            "titulo": "Liv escolhe o programa de sexta — e a família tem 30 minutos para sair",
+            "porque": "Repete o clima do post mais compartilhado, agora com começo, escolha e consequência."
+          },
+          {
+            "titulo": "Três compras que para mim são caras e para a Liv são essenciais",
+            "porque": "A piada já funcionou; os três objetos dão exemplos para o público comparar com a própria casa."
+          },
+          {
+            "titulo": "Onde os cestos entraram de verdade na rotina da casa",
+            "porque": "Mostra o antes, a bagunça e o uso real — o contexto que faltou no post do produto."
+          }
+        ]
+      },
+      "userId": "6a413af29f33af0b8710b042",
+      "profilePictureUrl": "https://scontent-iad6-1.xx.fbcdn.net/v/t51.82787-15/656759973_18147942202474050_2933790870058558275_n.jpg?_nc_cat=107&ccb=1-7&_nc_sid=7d201b&_nc_ohc=MJVd286BpVQQ7kNvwGjMyq3&_nc_oc=Adq9JsbVDp29h1BfvX6N_NYXRFEc2_KUD6s8W-MAHJSdOU3b6e55J4_PJvx2igf48F8&_nc_zt=23&_nc_ht=scontent-iad6-1.xx&edm=AL-3X8kEAAAA&_nc_gid=Cala3MyeGgz4MGF9alazbw&oh=00_AQD45JqsdQ7QLMzb3oKizd9BzKKyzwnO2sJIg7cTyXMivQ&oe=6A5EAC21",
+      "narrativaCentral": "uma mãe carioca que vive a vida real com paixão",
+      "territorios": [
+        "maternidade",
+        "família",
+        "lifestyle",
+        "identidade carioca",
+        "culinária",
+        "futebol"
+      ],
+      "grafico": {
+        "posts": [
+          {
+            "rotulo": "10/07",
+            "saves": 18,
+            "shares": 19
+          },
+          {
+            "rotulo": "14/07",
+            "saves": 0,
+            "shares": 10
+          }
+        ]
+      }
+    },
+    {
+      "handle": "@locoutiinho",
+      "nome": "Lorena Coutinho",
+      "pontoForte": {
+        "texto": "A decisão sobre a casa prendeu a atenção porque havia uma mudança real acontecendo com a família.",
+        "evidencia": "57 pessoas guardaram, 18 compartilharam e 53 comentaram — o maior conjunto de sinais da semana dela.",
+        "postId": "18119323444868874",
+        "stat": {
+          "valor": "57",
+          "label": "pessoas guardaram"
+        },
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "verde",
+          "marca": "verde"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/747307104_18452258323139061_80223220663921454_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=102&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=JS5YzuL1uJ4Q7kNvwF1oKDz&_nc_oc=AdrzdVcaCIB2UQA5AhcJH76heqpzDYw4oy8vUhydVmWfPOUZUHTHF9IRtK10o2ebYgE3z3kSOSCg0VSQkqkW57OP&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=aOJuOMP7RxJrq4l-1YX4jQ&_nc_tpa=Q5bMBQGVkzRp82kB_JChq5GvXaUnw970SwaZDKcbB5etqRjEohVTXsZxx7ZXEo2RZfoOx9hM69ZTpazBeQ&oh=00_AQDpHeK-fZH-Kx7RA1C-iIGtaSdm1FANbCaXiz_Pbbk5bg&oe=6A5F24B9"
+      },
+      "pontoAjustar": {
+        "texto": "As comprinhas de meninas mostraram os produtos, mas quase não mostraram as meninas escolhendo ou usando cada peça.",
+        "evidencia": "O post da SHEIN teve 19 pessoas guardando e apenas 1 compartilhamento; a decisão da casa teve 57 e 18.",
+        "postId": "18031068947656684",
+        "selos": {
+          "narrativa": "amarelo",
+          "audiencia": "amarelo",
+          "marca": "verde"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/746429356_18452008978139061_6399601590463872836_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=105&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=vM3ke_i0MqwQ7kNvwFD6BCh&_nc_oc=AdqjcX1vS1AZYoK6Ii4-j-fsDZ5CYupZ-grdo6habOaL89IOcdOG9WLMw-nTfb8qqAJP529rHN4r6XCFC9d0ShrT&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=-PZh9GhtghGh4MHllrnpPw&_nc_tpa=Q5bMBQG-JaV5P0xdf3GLHuPACZzwXqFjpMgZGXyuTuaiJn-wLF3tFNsIh-aThZSw5iqEFWEzpbqCSfG1Bw&oh=00_AQA8bgnKBeRXQz19SaPsURZydUQI7HkFRPanR8hDjEG1Nw&oe=6A5EF87B"
+      },
+      "ganchoMarca": {
+        "categoria": "soluções de organização para mudanças em família",
+        "exemplo": "Kappesberg",
+        "porque": "o closet do marido e a decisão sobre a casa já mostram organização ligada a uma fase concreta da família"
+      },
+      "coerencia": {
+        "status": "parcial",
+        "resumo": "A decisão de deixar a casa, a compra do mês e o testemunho falaram da vida de uma família de seis. Quando o produto ocupou a cena sozinho, a conversa perdeu força."
+      },
+      "audienciaPede": "Contar o que pesou na decisão da casa antes de mostrar o próximo passo da mudança.",
+      "reel": {
+        "postId": "18119323444868874",
+        "posterUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/747307104_18452258323139061_80223220663921454_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=102&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=JS5YzuL1uJ4Q7kNvwF1oKDz&_nc_oc=AdrzdVcaCIB2UQA5AhcJH76heqpzDYw4oy8vUhydVmWfPOUZUHTHF9IRtK10o2ebYgE3z3kSOSCg0VSQkqkW57OP&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=aOJuOMP7RxJrq4l-1YX4jQ&_nc_tpa=Q5bMBQGVkzRp82kB_JChq5GvXaUnw970SwaZDKcbB5etqRjEohVTXsZxx7ZXEo2RZfoOx9hM69ZTpazBeQ&oh=00_AQDpHeK-fZH-Kx7RA1C-iIGtaSdm1FANbCaXiz_Pbbk5bg&oe=6A5F24B9"
+      },
+      "proximosPassos": {
+        "lacuna": "a mudança abriu uma história maior que ainda precisa mostrar decisão, preparação e consequência",
+        "pautas": [
+          {
+            "titulo": "Por que a gente decidiu deixar a casa — o que pesou de verdade",
+            "porque": "Responde à curiosidade aberta pelo post mais guardado sem transformar a decisão em suspense vazio."
+          },
+          {
+            "titulo": "Compra do mês para seis: o que acabou primeiro e o que eu não compro de novo",
+            "porque": "Continua uma cena que já faz parte da rotina e acrescenta opinião prática."
+          },
+          {
+            "titulo": "Cada filha escolhe uma peça da SHEIN e explica onde usaria",
+            "porque": "Coloca as meninas dentro da comprinha e faz o produto participar da família, em vez de substituir a história."
+          }
+        ]
+      },
+      "userId": "6a398318efa8b68b16805d97",
+      "profilePictureUrl": "https://scontent-iad6-1.xx.fbcdn.net/v/t51.82787-15/628938306_18426029761139061_7159105744733172557_n.jpg?_nc_cat=100&ccb=1-7&_nc_sid=7d201b&_nc_ohc=MOOqTfe06aEQ7kNvwFV880E&_nc_oc=AdqRvAn83f9-q2jqCwHjHxfsumqLEuf0vMHuCLFER2UwCS18siYQKxx3ae527WBi9b8&_nc_zt=23&_nc_ht=scontent-iad6-1.xx&edm=AL-3X8kEAAAA&_nc_gid=5wkYqgq-GyRQNT8MohnGOA&oh=00_AQCrjPYJj8Vu8FfcEJdZOMtq4k6JaSdwZZiQ8GlK-pW8GA&oe=6A5E8143",
+      "narrativaCentral": "mulheres se reencontrando após a maternidade",
+      "territorios": [
+        "Maternidade",
+        "Rotina familiar",
+        "Valores familiares",
+        "Vlog de rotina",
+        "Casamento",
+        "Humor em família",
+        "Fe"
+      ],
+      "grafico": {
+        "posts": [
+          {
+            "rotulo": "10/07",
+            "saves": 27,
+            "shares": 38
+          },
+          {
+            "rotulo": "11/07",
+            "saves": 17,
+            "shares": 3
+          },
+          {
+            "rotulo": "12/07",
+            "saves": 18,
+            "shares": 8
+          },
+          {
+            "rotulo": "13/07",
+            "saves": 17,
+            "shares": 12
+          },
+          {
+            "rotulo": "14/07",
+            "saves": 19,
+            "shares": 1
+          },
+          {
+            "rotulo": "15/07",
+            "saves": 70,
+            "shares": 27
+          }
+        ]
+      }
+    },
+    {
+      "handle": "@marinaduttra_",
+      "nome": "Marina Dutra",
+      "pontoForte": {
+        "texto": "O vlog de feriado virou o grande post porque o público entrou num dia inteiro com a família, não numa cena isolada.",
+        "evidencia": "948 pessoas guardaram e 718 compartilharam — muito acima dos outros seis posts da semana.",
+        "postId": "18121613347809103",
+        "stat": {
+          "valor": "948",
+          "label": "pessoas guardaram"
+        },
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "verde",
+          "marca": "verde"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/734718420_18607585033055642_1473245532919632428_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=109&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzIifQ%3D%3D&_nc_ohc=re6w4p0xXH0Q7kNvwEiiL8T&_nc_oc=AdrmrE4x8iJ5o11Wo8fZ8GCAXZvY_n6HR_VFfp4N-o9dYOPM3hw38m1BWyua75Oa8v-0-hUhBP9-jYxx2L_sQCao&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=NjigYB0MojywG3bTw9rfSQ&_nc_tpa=Q5bMBQEVn93pDzds5c68evBu1k8Epns0tzj29SG0ARI7WRtG-vVq7koQtebwXuxWB0ucggvkVn0Smn13wQ&oh=00_AQDJxQuawnebrR3s0QKTYd6Lk0x64qZjOqbVI2Y87Y9wvw&oe=6A5F108E"
+      },
+      "pontoAjustar": {
+        "texto": "A piada sobre a cara da criança chegou sem contexto; faltou mostrar o que tinha acontecido antes da reação.",
+        "evidencia": "Foi o menor sinal da semana: 1 pessoa guardou e 7 compartilharam.",
+        "postId": "18030214388828640",
+        "selos": {
+          "narrativa": "amarelo",
+          "audiencia": "vermelho",
+          "marca": "fraco"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/746369742_18608616040055642_5182571803851407225_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=110&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzIifQ%3D%3D&_nc_ohc=IlTRAAn3Mq4Q7kNvwHfDqEy&_nc_oc=AdoIEkgSXObCfo99DaTTxsBpBjY55oAXkjvj4HAP1b2grTpBhB-27sUm_bA4nv1UbpVjm31rTbzaLYgEAxSiGJrQ&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=-sK72vtvaJdj3gZp2XAldQ&_nc_tpa=Q5bMBQHOoYiJDhnmG7m-m9qblw4AfmxP9u4WiX_dsSBcBawZeC1U8Vn0-JiFNqlivSbYpcpwBTlKusmDFQ&oh=00_AQABEd2-FkW1ycsOvy4HNijAK0yLl0zg5BJSbnbgMThpNg&oe=6A5F0705"
+      },
+      "ganchoMarca": {
+        "categoria": "passeios e hospedagens pensados para famílias",
+        "exemplo": "Le Canton",
+        "porque": "o vlog de feriado prova que a experiência ganha valor quando a família inteira vira parte da narrativa"
+      },
+      "coerencia": {
+        "status": "no-mapa",
+        "resumo": "Feriado, rotina noturna, chamada de vídeo e até o aniversário da torneira mostraram a mesma casa por ângulos diferentes. O perfil continuou reconhecível durante toda a semana."
+      },
+      "audienciaPede": "Repetir o vlog de feriado com uma missão escolhida pelos filhos para conduzir o dia.",
+      "reel": {
+        "postId": "18121613347809103",
+        "posterUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/734718420_18607585033055642_1473245532919632428_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=109&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzIifQ%3D%3D&_nc_ohc=re6w4p0xXH0Q7kNvwEiiL8T&_nc_oc=AdrmrE4x8iJ5o11Wo8fZ8GCAXZvY_n6HR_VFfp4N-o9dYOPM3hw38m1BWyua75Oa8v-0-hUhBP9-jYxx2L_sQCao&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=NjigYB0MojywG3bTw9rfSQ&_nc_tpa=Q5bMBQEVn93pDzds5c68evBu1k8Epns0tzj29SG0ARI7WRtG-vVq7koQtebwXuxWB0ucggvkVn0Smn13wQ&oh=00_AQDJxQuawnebrR3s0QKTYd6Lk0x64qZjOqbVI2Y87Y9wvw&oe=6A5F108E"
+      },
+      "proximosPassos": {
+        "lacuna": "o vlog mostrou o dia inteiro; agora as crianças podem assumir uma parte da condução",
+        "pautas": [
+          {
+            "titulo": "O feriado visto pelas crianças: cada uma escolhe uma cena",
+            "porque": "Mantém o formato que teve 948 pessoas guardando e muda o ponto de vista."
+          },
+          {
+            "titulo": "Aniversário da próxima coisa da casa: eleição em família",
+            "porque": "A torneira já virou personagem; a votação cria continuidade para a brincadeira."
+          },
+          {
+            "titulo": "A rotina noturna que nunca cabe no plano — versão sem corte",
+            "porque": "A rotina noturna teve 31 pessoas guardando e 40 compartilhando; mostrar o imprevisto aproxima ainda mais."
+          }
+        ]
+      },
+      "userId": "69dcee5f107bd4e47e192a7d",
+      "profilePictureUrl": "https://scontent-iad6-1.xx.fbcdn.net/v/t51.82787-15/731111392_18606852907055642_8921863510747985804_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=7d201b&_nc_ohc=hbiVHxPtfwUQ7kNvwHtQqr2&_nc_oc=AdoLkIwA8E8V04bzQiQ9cJeeV4qyD6-SauWzr9FYcx3yeri_LZY5fgYaq-Esu0Npbpk&_nc_zt=23&_nc_ht=scontent-iad6-1.xx&edm=AL-3X8kEAAAA&_nc_gid=UyGO6rVO45CtmmHGhVbajg&oh=00_AQAsKMsoR2mlbjgm0v856G22k3sppiPbONyUxD10hCviEA&oe=6A5EB5CF",
+      "narrativaCentral": "Encontrar leveza e autenticidade na jornada da maternidade",
+      "territorios": [
+        "Maternidade",
+        "Autocuidado feminino",
+        "Bem-estar",
+        "Vida familiar",
+        "Humor",
+        "Alimentação"
+      ],
+      "grafico": {
+        "posts": [
+          {
+            "rotulo": "10/07",
+            "saves": 13,
+            "shares": 10
+          },
+          {
+            "rotulo": "11/07",
+            "saves": 59,
+            "shares": 83
+          },
+          {
+            "rotulo": "12/07",
+            "saves": 948,
+            "shares": 718
+          },
+          {
+            "rotulo": "13/07",
+            "saves": 86,
+            "shares": 124
+          },
+          {
+            "rotulo": "15/07",
+            "saves": 1,
+            "shares": 7
+          }
+        ]
+      }
+    },
+    {
+      "handle": "@isafandrade",
+      "nome": "Isabela Andrade",
+      "pontoForte": {
+        "texto": "O treino de core foi o conteúdo mais útil da semana: dava para guardar e repetir.",
+        "evidencia": "46 pessoas salvaram e 11 compartilharam, mesmo com menos interações totais que o post motivacional.",
+        "postId": "18075537350498003",
+        "stat": {
+          "valor": "4,6×",
+          "label": "mais salvo que o motivacional"
+        },
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "verde",
+          "marca": "verde"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/745048597_18605798362063765_4587036558560244339_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=105&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=o8q07vlih-sQ7kNvwEB4HyW&_nc_oc=Adrs6R0ExNCwscIPc2JxoRtrNNTXehkaN7oa7f2NAQsA-ku3NVWVfEnehQ1br050S6YXg6iru-IZufICZ8Qj6kRb&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=xYXMwETxhFiWRcJ_iuIVVA&_nc_tpa=Q5bMBQEUaVvksu72zJQ8tLf5jagzEwy3Vcaz9RDJB-405eecr5An5RQlL8JfILh4QOSYYBdJfWOJ7JiI4w&oh=00_AQC-yuAiMyDCYe6jBTnXtw7PGPkO6FlDGTB0PtBg6aIYVQ&oe=6A5F09D0"
+      },
+      "pontoAjustar": {
+        "texto": "A Hardyn apareceu como marca que ela usa, mas faltou provar o que a roupa resolve durante o treino.",
+        "evidencia": "O post teve 6 pessoas guardando e nenhum compartilhamento; o treino de core teve 46 e 11.",
+        "postId": "18119429278858823",
+        "selos": {
+          "narrativa": "amarelo",
+          "audiencia": "vermelho",
+          "marca": "verde"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.71878-15/747127099_1575889497514983_1517194499984751050_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=bbY091U-COwQ7kNvwFCEcRo&_nc_oc=AdqcFP0h6a1CWz0H5Sgkq60PP9zSyzmhxQ53m0o3zDau54aqo8fNLZ72HYKaOC9YMI47CgxGnjSRpYC-pX-lGZBi&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=ULPv37leIMD5Z0nMGtiyPA&_nc_tpa=Q5bMBQH0q93dXYDUh1-touKP8eTFik4iDNA80WgTziostXeinyhanZV3zXuIDWK33F0k5JKgC8v-5-MI_g&oh=00_AQB7O7Gd5NBLaL-EW5jMzHOuwsFTjLv7J4EiuzuKWl6RHQ&oe=6A5F215B"
+      },
+      "ganchoMarca": {
+        "categoria": "roupa de treino feminino testada na prática",
+        "exemplo": "Hardyn Fitness",
+        "porque": "a marca já está na rotina; falta transformar uso diário em demonstração concreta"
+      },
+      "coerencia": {
+        "status": "parcial",
+        "resumo": "O treino de core ensinou algo que a pessoa pode repetir hoje. Nos posts motivacionais e da Hardyn, faltou mostrar a decisão ou o teste acontecendo no corpo dela."
+      },
+      "audienciaPede": "Filmar o treino de core de frente e de lado, apontando o erro mais comum em cada exercício.",
+      "reel": {
+        "postId": "18075537350498003",
+        "posterUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/745048597_18605798362063765_4587036558560244339_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=105&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=o8q07vlih-sQ7kNvwEB4HyW&_nc_oc=Adrs6R0ExNCwscIPc2JxoRtrNNTXehkaN7oa7f2NAQsA-ku3NVWVfEnehQ1br050S6YXg6iru-IZufICZ8Qj6kRb&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=xYXMwETxhFiWRcJ_iuIVVA&_nc_tpa=Q5bMBQEUaVvksu72zJQ8tLf5jagzEwy3Vcaz9RDJB-405eecr5An5RQlL8JfILh4QOSYYBdJfWOJ7JiI4w&oh=00_AQC-yuAiMyDCYe6jBTnXtw7PGPkO6FlDGTB0PtBg6aIYVQ&oe=6A5F09D0"
+      },
+      "proximosPassos": {
+        "lacuna": "o conteúdo didático funcionou, mas alimentação e corrida ficaram sem uma cena prática nesta semana",
+        "pautas": [
+          {
+            "titulo": "Core com um halter: quatro exercícios e o erro que tira o efeito",
+            "porque": "Continua o post mais guardado e acrescenta correção, não apenas demonstração."
+          },
+          {
+            "titulo": "Comer pouco não constrói shape: montar um prato real do meu dia",
+            "porque": "Transforma a frase do post motivacional em comida visível e quantidade possível."
+          },
+          {
+            "titulo": "Hardyn em teste: a peça segura corrida e musculação no mesmo dia?",
+            "porque": "Dá uma função para a marca e usa dois treinos que já fazem parte da rotina dela."
+          }
+        ]
+      },
+      "userId": "6a4416e701fd8f881a6b35d2",
+      "profilePictureUrl": "https://scontent-iad6-1.xx.fbcdn.net/v/t51.82787-15/700096569_18587558080063765_2838073337162646125_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=7d201b&_nc_ohc=fb7Yk4YI1QUQ7kNvwFHHq4d&_nc_oc=AdprAtNbspRit8Vy9_zgLMV6CZsHwZfCRM6CK3g7NoXcXgDhEKf-bGUZu0m_yn4Vt8k&_nc_zt=23&_nc_ht=scontent-iad6-1.xx&edm=AL-3X8kEAAAA&_nc_gid=ige6ka5T-1N5FX5MQ3Ts9Q&oh=00_AQA6H3fUPgFvyOw7uXA5s17lGEowx9kQr1SekNSJrrHF3w&oe=6A5EB4FC",
+      "narrativaCentral": "Uma vida ativa e consciente, sem abrir mão da leveza",
+      "territorios": [
+        "alimentação saudável",
+        "exercício físico",
+        "saúde feminina",
+        "autonomia corporal",
+        "estilo de vida",
+        "treino feminino",
+        "nutrição",
+        "musculação",
+        "corrida",
+        "fitness"
+      ],
+      "grafico": {
+        "posts": [
+          {
+            "rotulo": "12/07",
+            "saves": 10,
+            "shares": 5
+          },
+          {
+            "rotulo": "13/07",
+            "saves": 4,
+            "shares": 6
+          },
+          {
+            "rotulo": "14/07",
+            "saves": 6,
+            "shares": 0
+          },
+          {
+            "rotulo": "15/07",
+            "saves": 46,
+            "shares": 11
+          }
+        ]
+      }
+    },
+    {
+      "handle": "Debora Broch",
+      "nome": "Débora Broch",
+      "narrativaCentral": "Mãe real se desdobrando entre desafios e autocuidado",
+      "territorios": [
+        "Maternidade",
+        "Rotina",
+        "Bem-estar"
+      ],
+      "semSinal": true,
+      "ganchoMarca": {
+        "categoria": "autocuidado possível para mães com rotina longa",
+        "exemplo": "Nivea",
+        "porque": "o mapa dela parte de um dia que começa às 5h30 e termina às 23h"
+      },
+      "proximosPassos": {
+        "lacuna": "não houve publicação entre 10 e 16 de julho; o próprio horário da rotina oferece uma retomada concreta",
+        "pautas": [
+          {
+            "titulo": "Das 5h30 às 23h: três momentos em que eu quase desisto do plano",
+            "porque": "Usa o relógio real da Débora e mostra como duas filhas de idades diferentes mudam o dia."
+          },
+          {
+            "titulo": "A mesma manhã com uma filha de 11 e outra de 4",
+            "porque": "A diferença de idade cria comparação, humor e uma cena que só existe na família dela."
+          }
+        ]
+      }
+    },
+    {
+      "handle": "Camila Barros",
+      "nome": "Dra. Camila Barros",
+      "semSinal": true,
+      "ganchoMarca": {
+        "categoria": "a definir depois do mapa",
+        "exemplo": "Mapa ainda não preenchido",
+        "porque": "não há narrativa, territórios ou posts suficientes para sugerir uma marca com responsabilidade"
+      },
+      "userId": "6a50c4acc00529877c695673",
+      "profilePictureUrl": null,
+      "narrativaCentral": "",
+      "territorios": [],
+      "grafico": {
+        "posts": []
+      }
+    },
+    {
+      "handle": "@casadetais",
+      "nome": "Taís Evaristo",
+      "pontoForte": {
+        "texto": "A caipirinha abriu uma conversa simples e brasileira, com espaço para o público responder a partir da própria experiência.",
+        "evidencia": "Foi o único post da semana: 8 pessoas guardaram, 10 compartilharam e 37 comentaram.",
+        "postId": "17932639524346652",
+        "stat": {
+          "valor": "37",
+          "label": "comentários na conversa"
+        },
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "verde",
+          "marca": "verde"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/747752973_18011646299915436_2483580388407329843_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=103&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=K6RUR75nTk8Q7kNvwHmRyq2&_nc_oc=Adpo22_DaBTE4raAZX-nQa1Csia1RS6j0hp6uJ1IzvMQcSLp8UcwjjRN_ZYvWZ3Uh0pObFfxRwW5VZao-yHmgx4N&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=fCv7mT02H2HJJg458fmUCg&_nc_tpa=Q5bMBQEAEgBrQdeAtS62dvFsPgHR5STnewpa7vDbU7xfMnQv4RU36lIY6OmBT8wLwCaavCnAx8LPQLgcjQ&oh=00_AQCeRPQDr0gGXBps-lSkt9i7pcri3Lf06Yin1F8MGLje9Q&oe=6A5F0CC4"
+      },
+      "pontoAjustar": {
+        "texto": "A receita mostrou como fazer, mas não contou quem ensinou a Taís nem por que essa caipirinha faz parte da história dela.",
+        "evidencia": "O post teve 37 comentários; existe curiosidade, mas a cena ficou sem memória afetiva ou ligação com a jornada no MasterChef.",
+        "postId": "17932639524346652",
+        "selos": {
+          "narrativa": "amarelo",
+          "audiencia": "verde",
+          "marca": "verde"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/747752973_18011646299915436_2483580388407329843_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=103&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=K6RUR75nTk8Q7kNvwHmRyq2&_nc_oc=Adpo22_DaBTE4raAZX-nQa1Csia1RS6j0hp6uJ1IzvMQcSLp8UcwjjRN_ZYvWZ3Uh0pObFfxRwW5VZao-yHmgx4N&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=fCv7mT02H2HJJg458fmUCg&_nc_tpa=Q5bMBQEAEgBrQdeAtS62dvFsPgHR5STnewpa7vDbU7xfMnQv4RU36lIY6OmBT8wLwCaavCnAx8LPQLgcjQ&oh=00_AQCeRPQDr0gGXBps-lSkt9i7pcri3Lf06Yin1F8MGLje9Q&oe=6A5F0CC4"
+      },
+      "ganchoMarca": {
+        "categoria": "cachaça brasileira com história de origem",
+        "exemplo": "Ypióca",
+        "porque": "a caipirinha permite falar de ingrediente, técnica e memória brasileira dentro da cozinha dela"
+      },
+      "coerencia": {
+        "status": "parcial",
+        "resumo": "A caipirinha trouxe a cozinha brasileira de volta, mas a Taís ainda não apareceu dentro da receita: faltaram a memória, a opinião e a história de quem ensinou."
+      },
+      "audienciaPede": "Contar quem ensinou a caipirinha antes de mostrar o primeiro passo da receita.",
+      "comparativo": "A caipirinha abriu um caminho novo, mas as pautas prometidas em 6 de julho ainda podem virar a próxima sequência.",
+      "reel": {
+        "postId": "17932639524346652",
+        "posterUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/747752973_18011646299915436_2483580388407329843_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=103&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=K6RUR75nTk8Q7kNvwHmRyq2&_nc_oc=Adpo22_DaBTE4raAZX-nQa1Csia1RS6j0hp6uJ1IzvMQcSLp8UcwjjRN_ZYvWZ3Uh0pObFfxRwW5VZao-yHmgx4N&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=fCv7mT02H2HJJg458fmUCg&_nc_tpa=Q5bMBQEAEgBrQdeAtS62dvFsPgHR5STnewpa7vDbU7xfMnQv4RU36lIY6OmBT8wLwCaavCnAx8LPQLgcjQ&oh=00_AQCeRPQDr0gGXBps-lSkt9i7pcri3Lf06Yin1F8MGLje9Q&oe=6A5F0CC4"
+      },
+      "proximosPassos": {
+        "lacuna": "a receita apareceu sem a memória afetiva e sem a jornada do MasterChef que diferenciam a Taís",
+        "pautas": [
+          {
+            "titulo": "Caipirinha de família: quem me ensinou e o detalhe que eu não abro mão",
+            "porque": "Continua o único post da semana e acrescenta a pessoa e a memória por trás da receita."
+          },
+          {
+            "titulo": "Ameinda volta à cozinha: a receita ligada ao meu apelido",
+            "porque": "Retoma uma pauta já prometida e conecta identidade, família e comida afetiva."
+          },
+          {
+            "titulo": "O prato do MasterChef que eu faria hoje de outro jeito",
+            "porque": "Traz aprendizado e opinião para um cenário que o público já associa à trajetória dela."
+          }
+        ]
+      },
+      "userId": "6986566ae713c39411143dc1",
+      "profilePictureUrl": "https://scontent-iad6-1.xx.fbcdn.net/v/t51.82787-15/715277461_18005768534915436_379254398679105660_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=7d201b&_nc_ohc=XkUfXSJnpF8Q7kNvwFiB7ag&_nc_oc=AdrDyZWLEVxjRvlny-LtiqXuWPglGPilp831npE5sP8DksYsiOL6T7BOxrj9sCZTdoI&_nc_zt=23&_nc_ht=scontent-iad6-1.xx&edm=AL-3X8kEAAAA&_nc_gid=HjEWApjlskbolNNFmVw-Iw&oh=00_AQDEzfAVoayz1Ut8Y_2tT8CFwYdWFeZwcJlfwWMSSXsapA&oe=6A5E86A5",
+      "narrativaCentral": "viver o cotidiano com mais presença e paixão",
+      "territorios": [
+        "culinária",
+        "vida doméstica",
+        "jornada pessoal",
+        "identidade brasileira",
+        "Masterchef",
+        "comida afetiva"
+      ],
+      "grafico": {
+        "posts": [
+          {
+            "rotulo": "12/07",
+            "saves": 8,
+            "shares": 10
+          }
+        ]
+      }
+    },
+    {
+      "handle": "@brunaarrudaoficial",
+      "nome": "Bruna Arruda",
+      "narrativaCentral": "",
+      "territorios": [],
+      "semSinal": true,
+      "ganchoMarca": {
+        "categoria": "a definir depois do mapa",
+        "exemplo": "Mapa ainda não preenchido",
+        "porque": "não há narrativa, territórios ou posts suficientes para sugerir uma marca com responsabilidade"
+      }
+    },
+    {
+      "handle": "@edgarkumagai",
+      "nome": "Edgar Kumagai",
+      "pontoForte": {
+        "texto": "O anúncio do Tanabata circulou porque apresentou uma celebração japonesa que estava prestes a acontecer.",
+        "evidencia": "23 pessoas compartilharam — o maior número da semana dele — e 16 entraram na conversa.",
+        "postId": "17867873265632581",
+        "stat": {
+          "valor": "23",
+          "label": "compartilhamentos no pico"
+        },
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "verde",
+          "marca": "verde"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/747038285_18467508526129565_3130319903562667913_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=105&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=fMzYPTM46nYQ7kNvwHNb4-9&_nc_oc=AdpseMtVFa84wllgSyCV8UMy7q2xMYGNEsUHfEyMRAVAbA-xS4cCNr5SuAshTSDvEUoPFgbfoCXt8h8CuBEVBJ5Z&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=mrfqjazMEoFublcxrW0mqQ&_nc_tpa=Q5bMBQEtLxIrgA-RocLtszi6nJiP8ThHHS9KhZuQrv68zGUb5W-vKpO_puPOGUMHrden_cauRD8gPSvXUw&oh=00_AQAMJ2bWGn2lqC5ZT1-9sHDx0DX8QAlH55EabKkgL3-_-A&oe=6A5F267C"
+      },
+      "pontoAjustar": {
+        "texto": "O agradecimento sobre os perfumes de matcha e ringo citou os produtos, mas não trouxe a leitura culinária e cultural do Edgar.",
+        "evidencia": "Foram 2 pessoas guardando e 3 compartilhando; no Tanabata, 4 guardaram e 23 compartilharam.",
+        "postId": "18450486799186308",
+        "selos": {
+          "narrativa": "amarelo",
+          "audiencia": "vermelho",
+          "marca": "verde"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/747695992_18467507632129565_3161836354243040620_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=101&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=chOT9pkfLJUQ7kNvwFJa1wh&_nc_oc=AdqsY8E3pZDJjQA4U4GSYEz3csP2mrb1ZSYExZTWtJImCALMUDQlYq3iWwvTG1qxk1e9puYvHIY7OFIeORYWECmg&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=C1y3gwRe14Mu-2msRuGuvg&_nc_tpa=Q5bMBQGPM3GmQzxv0_Txzq7CfNBkCTB0Iqc315t2rHQMhMzPYA-hH0c4lsuiG0-YEawzb1IBkbZa7vaDGw&oh=00_AQD7sCRODfuFUtDip7tSZZzNH9LWOcgxuW1kmIEOy3mfSg&oe=6A5EF79D"
+      },
+      "ganchoMarca": {
+        "categoria": "ingredientes japoneses explicados por quem cozinha",
+        "exemplo": "House Foods Brasil",
+        "porque": "a experiência no Festival do Japão já coloca o produto dentro de uma história de culinária e cultura"
+      },
+      "coerencia": {
+        "status": "no-mapa",
+        "resumo": "Tanabata, Festival do Japão, Copa e aromas de matcha mantiveram a cultura japonesa presente. O que faltou foi levar dois desses assuntos até a cozinha."
+      },
+      "audienciaPede": "Fazer o Tanabata terminar na cozinha, com um prato e uma explicação curta sobre a tradição.",
+      "reel": {
+        "postId": "17867873265632581",
+        "posterUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/747038285_18467508526129565_3130319903562667913_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=105&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=fMzYPTM46nYQ7kNvwHNb4-9&_nc_oc=AdpseMtVFa84wllgSyCV8UMy7q2xMYGNEsUHfEyMRAVAbA-xS4cCNr5SuAshTSDvEUoPFgbfoCXt8h8CuBEVBJ5Z&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=mrfqjazMEoFublcxrW0mqQ&_nc_tpa=Q5bMBQEtLxIrgA-RocLtszi6nJiP8ThHHS9KhZuQrv68zGUb5W-vKpO_puPOGUMHrden_cauRD8gPSvXUw&oh=00_AQAMJ2bWGn2lqC5ZT1-9sHDx0DX8QAlH55EabKkgL3-_-A&oe=6A5F267C"
+      },
+      "proximosPassos": {
+        "lacuna": "os eventos culturais apareceram, mas ainda não viraram preparo, ingrediente ou prato",
+        "pautas": [
+          {
+            "titulo": "Tanabata em casa: o prato que combina com a noite das estrelas",
+            "porque": "Transforma o post mais compartilhado em culinária e explica a celebração sem virar aula longa."
+          },
+          {
+            "titulo": "House Foods: transformar a experiência do festival em uma receita",
+            "porque": "O produto deixa de ser registro de evento e ganha uso, sabor e contexto na cozinha."
+          },
+          {
+            "titulo": "Noruega x Inglaterra: o prato que eu faria para cada torcida",
+            "porque": "A Copa já entrou no perfil; os dois pratos devolvem o ponto de vista culinário do Edgar."
+          }
+        ]
+      },
+      "userId": "691bc1ab0f1a9afe096d746d",
+      "profilePictureUrl": "https://scontent-iad3-1.xx.fbcdn.net/v/t51.2885-15/461213686_1017430233496470_2845624948223917109_n.jpg?_nc_cat=110&ccb=1-7&_nc_sid=7d201b&_nc_ohc=FcXh4FjUEygQ7kNvwF0Wsjc&_nc_oc=AdoziJjyZ_41Ws25T1WykCAfByFaUNfpip62uQzHLJosyZ3D0qTwxjIW1oTpUkHYeIc&_nc_zt=23&_nc_ht=scontent-iad3-1.xx&edm=AL-3X8kEAAAA&oh=00_AQAbTbP6sOQZcsQbYLgIdXIPXgC-FNQoQBsrfgigiMWTCw&oe=6A5EB0BB",
+      "narrativaCentral": "Eu inspiro pessoas a explorar a culinária e a cultura",
+      "territorios": [
+        "Culinária",
+        "Inspiração",
+        "Lifestyle",
+        "Cultura japonesa",
+        "Futebol",
+        "Gastronomia"
+      ],
+      "grafico": {
+        "posts": [
+          {
+            "rotulo": "11/07",
+            "saves": 2,
+            "shares": 13
+          },
+          {
+            "rotulo": "12/07",
+            "saves": 2,
+            "shares": 3
+          },
+          {
+            "rotulo": "14/07",
+            "saves": 2,
+            "shares": 3
+          },
+          {
+            "rotulo": "15/07",
+            "saves": 4,
+            "shares": 23
+          }
+        ]
+      }
+    }
+  ],
+  "collabs": [
+    {
+      "a": "@aamandamag",
+      "b": "@isafandrade",
+      "aTraz": "a prova que gerou 927 compartilhamentos e uma relação honesta com comida",
+      "bTraz": "o treino de core que 46 pessoas guardaram para repetir",
+      "territorioComum": "treino sem extremos",
+      "porque": "Amanda mostra a experiência vivida; Isabela organiza o aprendizado em uma orientação que cabe na rotina.",
+      "pautaIdeia": "O que eu senti na prova × o exercício que me prepara para sentir menos dor",
+      "comoGravar": "Amanda conta uma cena da prova e Isabela responde com um exercício de preparação.",
+      "gravarPassos": [
+        "Amanda grava em casa a cena mais difícil da prova e aponta onde sentiu o corpo reclamar",
+        "Isabela grava um exercício de core que ajuda naquela situação e explica um erro comum",
+        "O corte alterna relato e demonstração e termina com as duas escolhendo o próximo teste"
+      ],
+      "porQueFunciona": "Uma traz a pergunta que nasceu no percurso; a outra entrega uma resposta prática sem apagar a experiência real."
+    },
+    {
+      "a": "@casadetais",
+      "b": "@edgarkumagai",
+      "aTraz": "a caipirinha e a memória da cozinha brasileira",
+      "bTraz": "o Tanabata e a leitura culinária da cultura japonesa",
+      "territorioComum": "comida como memória cultural",
+      "porque": "Taís parte do afeto brasileiro; Edgar mostra como um ritual japonês chega ao prato.",
+      "pautaIdeia": "Limão em duas cozinhas: caipirinha brasileira e molho japonês",
+      "comoGravar": "Cada um prepara sua receita com limão e o vídeo cruza as duas explicações.",
+      "gravarPassos": [
+        "Taís grava o preparo da caipirinha e conta quem ensinou o detalhe que ela não abre mão",
+        "Edgar grava um molho japonês com limão e explica em que prato ele usa",
+        "A edição junta os mesmos gestos em tela dividida e fecha com cada um provando sua receita"
+      ],
+      "porQueFunciona": "O mesmo ingrediente revela duas histórias de origem, e cada criador entra com conhecimento que o outro não tem."
+    },
+    {
+      "a": "@lorenadmarchetti",
+      "b": "@marinaduttra_",
+      "aTraz": "a Liv transformando preço e sexta-feira em conversa de família",
+      "bTraz": "a torneira aniversariante e o vlog de feriado guardado por 948 pessoas",
+      "territorioComum": "humor que nasce dentro de casa",
+      "porque": "Lorena trabalha a resposta rápida da criança; Marina transforma objetos e rotinas em personagens recorrentes.",
+      "pautaIdeia": "Qual objeto da sua casa merece uma festa — decidido pelas crianças",
+      "comoGravar": "Cada família faz sua eleição e as duas respostas viram um único vídeo.",
+      "gravarPassos": [
+        "Lorena grava a Liv escolhendo um objeto e defendendo por que ele merece uma festa",
+        "Marina grava os filhos fazendo a mesma escolha e lembra o aniversário da torneira",
+        "A edição intercala as defesas e termina com uma votação aberta entre os dois objetos"
+      ],
+      "porQueFunciona": "A collab transforma duas piadas domésticas em um jogo que qualquer família consegue responder nos comentários."
+    }
+  ],
+  "fechamento": {
+    "fioComum": "A prova da Amanda, o feriado da Marina, a decisão da Lorena e o Tanabata do Edgar mostram a mesma coisa: quando existe um acontecimento concreto, o público sabe o que guardar ou mandar para alguém.",
+    "lembreteComunidade": "Na próxima semana, escolha uma cena que já está acontecendo na sua vida — e use alguém desta sala para enxergar o ângulo que ainda faltava."
+  }
+}

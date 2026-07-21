@@ -1,7 +1,6 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Image from "next/image";
 import type {
   DiagnosticoCollabSuggestion,
   DiagnosticoCollabSuggestionsState,
@@ -13,6 +12,7 @@ import { DiagnosticoCategoryTile } from "./DiagnosticoCategoryTile";
 import { DiagnosticoHeroTile } from "./DiagnosticoHeroTile";
 import { DiagnosticoDeltaChip } from "./DiagnosticoDeltaChip";
 import { DiagnosticoConfidenceDots } from "./DiagnosticoConfidenceDots";
+import { StableCreatorAvatar } from "./StableCreatorAvatar";
 import { CATEGORY_META, type CategoryId } from "./DiagnosticoCategoryMeta";
 import {
   refineDiagnosticoNextMove,
@@ -409,20 +409,14 @@ function MiniAvatarStack({ creators }: { creators: DiagnosticoCollabSuggestion[]
           key={creator.id}
           className="relative flex h-7 w-7 shrink-0 overflow-hidden rounded-full border-2 border-white bg-indigo-50 shadow-sm ring-1 ring-indigo-100"
         >
-          {getStableCreatorAvatarUrl(creator) ? (
-            <Image
-              src={getStableCreatorAvatarUrl(creator)!}
-              alt=""
-              width={28}
-              height={28}
-              sizes="28px"
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <span className="flex h-full w-full items-center justify-center text-[10px] font-bold text-indigo-500">
-              {getInitials(creator.name)}
-            </span>
-          )}
+          <StableCreatorAvatar
+            name={creator.name}
+            avatarUrl={creator.avatarUrl}
+            creatorId={creator.id}
+            mediaKitSlug={creator.mediaKitSlug}
+            fallbackText={getInitials(creator.name)}
+            fallbackClassName="text-[10px] font-bold text-indigo-500"
+          />
         </span>
       ))}
     </div>
@@ -433,13 +427,6 @@ function getInitials(value?: string | null) {
   const parts = (value || "D2C").trim().split(/\s+/).filter(Boolean);
   const initials = parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
   return initials || "D2C";
-}
-
-function getStableCreatorAvatarUrl(creator: Pick<DiagnosticoCollabSuggestion, "avatarUrl" | "mediaKitSlug">) {
-  if (creator.mediaKitSlug) {
-    return `/api/mediakit/${encodeURIComponent(creator.mediaKitSlug)}/avatar?v=20260430-avatar-v3`;
-  }
-  return creator.avatarUrl || null;
 }
 
 function StrategicHeroMeta({ synthesis: s }: { synthesis: CreatorStrategicProfileSynthesis }) {

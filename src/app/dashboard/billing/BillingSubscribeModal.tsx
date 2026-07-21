@@ -344,18 +344,6 @@ export default function BillingSubscribeModal({
     return () => document.removeEventListener("keydown", onKey);
   }, [closeModal, modalVisible]);
 
-  // Ajusta moeda padrão pelo locale do usuário
-  useEffect(() => {
-    if (!modalVisible) return;
-    try {
-      const lang = (typeof navigator !== "undefined" && navigator.language) || "";
-      if (/^pt(-|$)/i.test(lang)) setCurrency("brl");
-      else setCurrency("usd");
-    } catch {
-      /* no-op */
-    }
-  }, [modalVisible]);
-
   useEffect(() => {
     if (!modalVisible) {
       trackedOpenRef.current = false;

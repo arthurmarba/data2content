@@ -15,6 +15,7 @@ import type { ContentIdeaListItem } from "@/app/dashboard/boards/videoUpload/con
 import { cleanIdeaText } from "@/app/dashboard/boards/videoUpload/contentIdeasTextHygiene";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
 import { CollabModeBadge } from "./CollabModeBadge";
+import { StableCreatorAvatar } from "./StableCreatorAvatar";
 import { color, font, shadow } from "@/design-system";
 
 const INK = color.ink;
@@ -34,11 +35,15 @@ function SparkleIcon({ size = 26 }: { size?: number }) {
 function Avatar({
   name,
   avatarUrl,
+  creatorId,
+  mediaKitSlug,
   size = 72,
   ring = color.brand,
 }: {
   name: string;
   avatarUrl?: string | null;
+  creatorId?: string | null;
+  mediaKitSlug?: string | null;
   size?: number;
   ring?: string;
 }) {
@@ -49,16 +54,19 @@ function Avatar({
         // Mesmo fundo de iniciais dos avatares do deck/ficha/gavetas (var(--ds-color-ink))
         // — uma pele só pro "criador sem foto" em toda a experiência.
         width: size, height: size, borderRadius: 9999, overflow: "hidden", flexShrink: 0,
-        background: color.ink, color: color.paper, display: "grid", placeItems: "center",
+        position: "relative", background: color.ink, color: color.paper, display: "grid", placeItems: "center",
         fontSize: size * 0.36, fontWeight: 700,
         border: `3px solid ${ring}`,
         boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
       }}
     >
-      {avatarUrl ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={avatarUrl} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} referrerPolicy="no-referrer" />
-      ) : initials}
+      <StableCreatorAvatar
+        name={name}
+        avatarUrl={avatarUrl}
+        creatorId={creatorId}
+        mediaKitSlug={mediaKitSlug}
+        fallbackText={initials}
+      />
     </div>
   );
 }
@@ -140,7 +148,13 @@ export function DiagnosticoCollabMatchOverlay({
               <SparkleIcon />
             </motion.div>
             <motion.div {...springIn(80)} style={{ zIndex: 1, marginLeft: -14 }}>
-              <Avatar name={collab.name} avatarUrl={collab.avatarUrl} ring={color.brand} />
+              <Avatar
+                name={collab.name}
+                avatarUrl={collab.avatarUrl}
+                creatorId={collab.id}
+                mediaKitSlug={collab.mediaKitSlug}
+                ring={color.brand}
+              />
             </motion.div>
           </div>
 

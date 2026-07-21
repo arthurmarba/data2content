@@ -1,5 +1,4 @@
 /** @jest-environment node */
-import "next/dist/server/node-polyfill-fetch";
 import { NextRequest } from "next/server";
 
 jest.mock("next-auth/next", () => ({ getServerSession: jest.fn() }));
@@ -35,6 +34,9 @@ jest.mock("@/app/lib/affiliate", () => ({
 }));
 jest.mock("@/app/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
+jest.mock("@/server/db/models/AffiliateIndexes", () => ({
+  AffiliateBuyerCommissionIndex: { exists: jest.fn().mockResolvedValue(false) },
 }));
 
 const getServerSession = require("next-auth/next").getServerSession as jest.Mock;

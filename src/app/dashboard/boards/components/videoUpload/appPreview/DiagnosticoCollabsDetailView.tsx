@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import type { CreatorStrategicProfileSynthesis } from "@/app/dashboard/boards/videoUpload/creatorStrategicProfileSynthesis";
 import type {
@@ -14,6 +13,7 @@ import { DiagnosticoDetailEmptyState } from "./DiagnosticoDetailEmptyState";
 import { DiagnosticoCardShell, DiagCardHeader } from "./DiagnosticoCardShell";
 import { CATEGORY_META } from "./DiagnosticoCategoryMeta";
 import { CARD_P } from "./diagnosticoTokens";
+import { StableCreatorAvatar } from "./StableCreatorAvatar";
 
 /** Botão no canto direito do header — abre a tela de Comunidade, onde o paywall protege o grupo. */
 function CommunityHeaderButton({ onClick }: { onClick?: () => void }) {
@@ -323,7 +323,6 @@ function CollabCreatorSlide({
       ? creator.username
       : `@${creator.username}`
     : null;
-  const avatarUrl = getStableCreatorAvatarUrl(creator);
   const hasMediaKit = Boolean(creator.mediaKitSlug);
   const fitReason = creator.narrativeFitReason ?? getMatchLabel(creator);
   const sharedChip = creator.sharedSignal;
@@ -332,20 +331,16 @@ function CollabCreatorSlide({
     <div className="relative h-[248px] w-full overflow-hidden rounded-3xl bg-zinc-800 ring-1 ring-black/[0.06]">
 
       {/* Foto de fundo full-bleed */}
-      {avatarUrl ? (
-        <Image
-          src={avatarUrl}
-          alt={creator.name ?? ""}
-          fill
-          sizes="100vw"
-          className="object-cover object-top"
-          priority
-        />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center text-[32px] font-bold text-zinc-500">
-          {getInitials(creator.name)}
-        </div>
-      )}
+      <StableCreatorAvatar
+        name={creator.name}
+        avatarUrl={creator.avatarUrl}
+        creatorId={creator.id}
+        mediaKitSlug={creator.mediaKitSlug}
+        fallbackText={getInitials(creator.name)}
+        fallbackClassName="text-[32px] font-bold text-zinc-500"
+        imageStyle={{ objectPosition: "top" }}
+        alt={creator.name ?? ""}
+      />
 
       {/* Gradient: escuro embaixo, transparente no topo */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
@@ -544,7 +539,6 @@ function DirectoryCreatorCard({
       ? creator.username
       : `@${creator.username}`
     : null;
-  const avatarUrl = getStableLandingCreatorAvatarUrl(creator);
 
   const handleClick = creator.mediaKitSlug
     ? () => {
@@ -567,14 +561,15 @@ function DirectoryCreatorCard({
       style={{ cursor: handleClick ? "pointer" : "default" }}
     >
       {/* Foto de fundo — fill */}
-      {avatarUrl ? (
-        <Image src={avatarUrl} alt={creator.name} fill sizes="104px" className="object-cover" />
-      ) : (
-        // Placeholder escuro — mantém visual dark coerente com as fotos ao redor
-        <div className="flex h-full w-full items-center justify-center text-[22px] font-bold text-zinc-300">
-          {getInitials(creator.name)}
-        </div>
-      )}
+      <StableCreatorAvatar
+        name={creator.name}
+        avatarUrl={creator.avatarUrl}
+        creatorId={creator.id}
+        mediaKitSlug={creator.mediaKitSlug}
+        fallbackText={getInitials(creator.name)}
+        fallbackClassName="text-[22px] font-bold text-zinc-300"
+        alt={creator.name}
+      />
 
       {/* Gradient inferior — texto legível sobre qualquer foto */}
       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent px-2.5 pb-3 pt-10">
@@ -635,20 +630,6 @@ function getInitials(value?: string | null) {
   const parts = (value || "D2C").trim().split(/\s+/).filter(Boolean);
   const initials = parts.slice(0, 2).map((part) => part[0]?.toUpperCase()).join("");
   return initials || "D2C";
-}
-
-function getStableCreatorAvatarUrl(creator: Pick<DiagnosticoCollabSuggestion, "avatarUrl" | "mediaKitSlug">) {
-  if (creator.mediaKitSlug) {
-    return `/api/mediakit/${encodeURIComponent(creator.mediaKitSlug)}/avatar?v=20260430-avatar-v3`;
-  }
-  return creator.avatarUrl || null;
-}
-
-function getStableLandingCreatorAvatarUrl(creator: LandingCreatorHighlight) {
-  if (creator.mediaKitSlug) {
-    return `/api/mediakit/${encodeURIComponent(creator.mediaKitSlug)}/avatar?v=20260430-avatar-v3`;
-  }
-  return creator.avatarUrl || null;
 }
 
 function groupCreatorsByNiche(creators: LandingCreatorHighlight[]): [string, LandingCreatorHighlight[]][] {

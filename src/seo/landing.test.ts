@@ -13,7 +13,7 @@ describe("landingMetadata", () => {
   it("preenche campos de twitter summary_large_image", () => {
     expect(landingMetadata.twitter?.card).toBe("summary_large_image");
     expect(landingMetadata.twitter?.title).toContain("Data2Content");
-    expect(landingMetadata.twitter?.description).toContain("Descubra sua narrativa");
+    expect(landingMetadata.twitter?.description).toContain("reunião semanal");
     expect(Array.isArray(landingMetadata.twitter?.images)).toBe(true);
   });
 

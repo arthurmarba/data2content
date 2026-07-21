@@ -40,7 +40,13 @@ export async function matureAffiliateCommissions(
 
   const query = {
     commissionLog: {
-      $elemMatch: { status: 'pending', availableAt: { $lte: nowUtc } },
+      $elemMatch: {
+        type: 'commission',
+        status: 'pending',
+        amountCents: { $gt: 0 },
+        currency: { $regex: /^[a-z]{3}$/i },
+        availableAt: { $lte: nowUtc },
+      },
     },
   };
   const projection = {
@@ -74,11 +80,17 @@ export async function matureAffiliateCommissions(
     const due = (u.commissionLog || [])
       .filter(
         (e: any) =>
-          e.status === 'pending' && new Date(e.availableAt) <= nowUtc
+          e.type === 'commission' &&
+          e.status === 'pending' &&
+          Number.isInteger(e.amountCents) &&
+          e.amountCents > 0 &&
+          /^[a-z]{3}$/i.test(String(e.currency || '')) &&
+          new Date(e.availableAt) <= nowUtc
       )
       .slice(0, maxEntriesPerUser);
 
     for (const e of due) {
+      const currency = String(e.currency).toLowerCase();
       if (Date.now() - start > MATURATION_TIMEOUT_MS) {
         logger.warn(`${TAG} timeout`);
         return {
@@ -96,7 +108,7 @@ export async function matureAffiliateCommissions(
 
       if (dryRun) {
         promotedCount++;
-        byCurrency[e.currency] = (byCurrency[e.currency] || 0) + 1;
+        byCurrency[currency] = (byCurrency[currency] || 0) + 1;
         continue;
       }
 
@@ -110,7 +122,10 @@ export async function matureAffiliateCommissions(
                 commissionLog: {
                   $elemMatch: {
                     _id: e._id,
+                    type: 'commission',
                     status: 'pending',
+                    amountCents: e.amountCents,
+                    currency: e.currency,
                     availableAt: { $lte: nowUtc },
                   },
                 },
@@ -121,13 +136,16 @@ export async function matureAffiliateCommissions(
                   'commissionLog.$[entry].maturedAt': nowUtc,
                   'commissionLog.$[entry].updatedAt': nowUtc,
                 },
-                $inc: { [`affiliateBalances.${e.currency}`]: e.amountCents },
+                $inc: { [`affiliateBalances.${currency}`]: e.amountCents },
               },
               {
                 arrayFilters: [
                   {
                     'entry._id': e._id,
+                    'entry.type': 'commission',
                     'entry.status': 'pending',
+                    'entry.amountCents': e.amountCents,
+                    'entry.currency': e.currency,
                     'entry.availableAt': { $lte: nowUtc },
                   },
                 ],
@@ -148,11 +166,11 @@ export async function matureAffiliateCommissions(
         );
         if (res.modifiedCount === 1) {
           promotedCount++;
-          byCurrency[e.currency] = (byCurrency[e.currency] || 0) + 1;
+          byCurrency[currency] = (byCurrency[currency] || 0) + 1;
           logger.info(`${TAG} promoted`, {
             userId: u._id,
             entryId: e._id,
-            currency: e.currency,
+            currency,
             amountCents: e.amountCents,
           });
         } else {

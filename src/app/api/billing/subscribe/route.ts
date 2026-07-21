@@ -15,6 +15,7 @@ import {
 import { resolveAffiliateCode as resolveAffiliateCodeHelper } from "@/app/lib/affiliate";
 import { logger } from "@/app/lib/logger";
 import { getAffiliateCouponValidationError } from "@/app/lib/affiliateCouponRules";
+import { AffiliateBuyerCommissionIndex } from '@/server/db/models/AffiliateIndexes';
 
 export const runtime = "nodejs";
 
@@ -123,7 +124,7 @@ type ResolvedAffiliate =
 
 async function readAffiliateCookie(): Promise<string> {
   const mod = await import('next/headers');
-  return normalizeCode(mod.cookies().get('d2c_ref')?.value || '');
+  return normalizeCode((await mod.cookies()).get('d2c_ref')?.value || '');
 }
 
 async function resolveAffiliateCodeFallback(req: NextRequest, bodyCode?: string): Promise<ResolvedAffiliate> {
@@ -379,16 +380,19 @@ export async function POST(req: NextRequest) {
     }
 
     let resolved: ResolvedAffiliate = resolveAffiliateCodeHelper
-      ? (resolveAffiliateCodeHelper(req, body.affiliateCode) as ResolvedAffiliate)
+      ? (await resolveAffiliateCodeHelper(req, body.affiliateCode) as ResolvedAffiliate)
       : { code: undefined, source: undefined };
 
     if (!resolved?.code) {
       resolved = await resolveAffiliateCodeFallback(req, body.affiliateCode);
     }
 
-    const affiliateCode: string | undefined = normalizeCode(resolved.code || undefined) || undefined;
-    const source: "typed" | "url" | "cookie" | undefined =
-      (resolved as Extract<ResolvedAffiliate, { code: string | null }>).source || undefined;
+    const existingAffiliateCode = normalizeCode(user.affiliateUsed || undefined) || undefined;
+    const affiliateCode: string | undefined =
+      existingAffiliateCode || normalizeCode(resolved.code || undefined) || undefined;
+    const source: "typed" | "url" | "cookie" | undefined = existingAffiliateCode
+      ? undefined
+      : (resolved as Extract<ResolvedAffiliate, { code: string | null }>).source || undefined;
 
     const typedCode = source === "typed" ? affiliateCode : undefined;
     const priceId = getPriceId(plan, currency);
@@ -523,7 +527,10 @@ export async function POST(req: NextRequest) {
 
     // --- FLUXO DE NOVA ASSINATURA ---
     if (affiliateCode) {
-      affiliateOwner = await User.findOne({ affiliateCode }).select("_id affiliateCode").lean();
+      affiliateOwner = await User.findOne({
+        affiliateCode,
+        $or: [{ affiliateStatus: 'active' }, { affiliateStatus: null }],
+      }).select("_id affiliateCode affiliateStatus").lean();
     }
 
     if (affiliateOwner) {
@@ -531,6 +538,20 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           { code: "SELF_REFERRAL", message: "Você não pode usar seu próprio código." },
           { status: 400 }
+        );
+      }
+
+      const commissionAlreadyConsumed = Boolean(
+        user.affiliateFirstCommissionAt ||
+          (await AffiliateBuyerCommissionIndex.exists({ buyerUserId: user._id }))
+      );
+      if (commissionAlreadyConsumed) {
+        return NextResponse.json(
+          {
+            code: 'AFFILIATE_BENEFIT_ALREADY_USED',
+            message: 'O benefício de afiliado já foi utilizado por esta conta.',
+          },
+          { status: 409 },
         );
       }
 

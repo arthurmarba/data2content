@@ -117,28 +117,25 @@ async function main() {
       continue;
     }
 
-    // Foto de perfil.
+    // Foto de perfil. Em qualquer falha, zera o campo — uma URL externa que
+    // não virou data URI vai quebrar no Artifact publicado (CSP bloqueia host
+    // externo) e sem onerror no cabeçalho do painel isso vira ícone quebrado;
+    // null cai no fallback de iniciais, que é honesto e nunca quebra.
     const freshPerfil = await fotoDePerfilFresca(c.userId, token);
-    if (freshPerfil) {
-      const dataUri = await resolverEEmbutir(freshPerfil);
-      if (dataUri) {
-        c.profilePictureUrl = dataUri;
-        okAvatar++;
-      } else falhaAvatar++;
-    } else falhaAvatar++;
+    const dataUriAvatar = freshPerfil ? await resolverEEmbutir(freshPerfil) : null;
+    c.profilePictureUrl = dataUriAvatar;
+    if (dataUriAvatar) okAvatar++;
+    else falhaAvatar++;
 
-    // Thumbnails do ponto forte / ponto a ajustar.
+    // Thumbnails do ponto forte / ponto a ajustar — mesma lógica: falha zera.
     for (const campo of ["pontoForte", "pontoAjustar"] as const) {
       const ponto = c[campo];
       if (!ponto || !ponto.postId) continue;
       const freshUrl = await freshThumb(ponto.postId, token);
-      if (freshUrl) {
-        const dataUri = await resolverEEmbutir(freshUrl);
-        if (dataUri) {
-          ponto.thumbnailUrl = dataUri;
-          okThumb++;
-        } else falhaThumb++;
-      } else falhaThumb++;
+      const dataUriThumb = freshUrl ? await resolverEEmbutir(freshUrl) : null;
+      ponto.thumbnailUrl = dataUriThumb;
+      if (dataUriThumb) okThumb++;
+      else falhaThumb++;
     }
   }
 

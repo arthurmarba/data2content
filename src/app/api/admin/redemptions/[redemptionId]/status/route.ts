@@ -20,7 +20,7 @@ function apiError(message: string, status: number): NextResponse {
 const bodySchema = z.object({
   status: z.enum(['requested', 'paid', 'rejected']),
   notes: z.string().max(1000).optional(),
-  transactionId: z.string().optional(),
+  transactionId: z.string().trim().min(1).max(255).optional(),
 });
 
 /**
@@ -69,6 +69,12 @@ export async function PATCH(
         return apiError(error.message, 404);
     }
     if (error.message === 'Saldo insuficiente ou alterado.') {
+        return apiError(error.message, 409);
+    }
+    if (error.message === 'A transaction ID is required to mark a redemption as paid.') {
+        return apiError(error.message, 400);
+    }
+    if (String(error.message || '').startsWith('Invalid redemption transition:')) {
         return apiError(error.message, 409);
     }
     return apiError(error.message || 'Ocorreu um erro interno no servidor.', 500);

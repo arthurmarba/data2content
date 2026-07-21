@@ -1,5 +1,4 @@
 /** @jest-environment node */
-import "next/dist/server/node-polyfill-fetch";
 import { NextRequest } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { connectToDatabase } from "@/app/lib/mongoose";

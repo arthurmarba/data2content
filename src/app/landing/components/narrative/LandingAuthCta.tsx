@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
-import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
+import { MOBILE_PROFILE_ROUTE } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
 import { submitGoogleSignInFallback } from "@/lib/auth/googleLogin";
 import { track } from "@/lib/track";
 
@@ -15,15 +15,21 @@ type LandingAuthCtaProps = {
   guestLabel: string;
   childrenAfter?: ReactNode;
   onNavigate?: () => void;
+  /** Destino de quem já tem conta (a reunião). */
+  destination?: string;
+  /** Destino de quem acabou de criar a conta; por padrão, o onboarding. */
+  guestDestination?: string;
   trackingLocation?: "header" | "hero" | "mapa" | "collabs" | "weekly-community" | "authority" | "pricing" | "final" | "mobile-menu" | "sticky-mobile";
 };
 
 export function LandingAuthCta({
   className,
-  authenticatedLabel = "Acessar minha consultoria",
+  authenticatedLabel = "Acessar a D2C",
   guestLabel,
   childrenAfter,
   onNavigate,
+  destination,
+  guestDestination,
   trackingLocation,
 }: LandingAuthCtaProps) {
   const { data: session } = useSession();
@@ -32,7 +38,11 @@ export function LandingAuthCta({
   const authenticated = Boolean(session?.user);
 
   const handleGuestSignIn = () => {
-    const callbackUrl = searchParams.get("callbackUrl")?.trim() || MAIN_DASHBOARD_ROUTE;
+    // Quem cria conta entra pelo caminho normal: o onboarding, onde responde a
+    // narrativa e recebe a reunião (agenda, WhatsApp e acesso). O `destination`
+    // da reunião vale para quem já tem conta e já passou por essa etapa.
+    const callbackUrl =
+      searchParams.get("callbackUrl")?.trim() || guestDestination || MOBILE_PROFILE_ROUTE;
     track("landing_creator_cta_click", trackingLocation ? { location: trackingLocation } : undefined);
     onNavigate?.();
     setIsLoading(true);
@@ -61,9 +71,11 @@ export function LandingAuthCta({
     );
   }
 
+  // Quem já tem conta cai no Perfil, onde o card da reunião concentra data,
+  // WhatsApp e o acesso à página `/reuniao`.
   return (
     <Link
-      href={MAIN_DASHBOARD_ROUTE}
+      href={destination || MOBILE_PROFILE_ROUTE}
       data-analytics-name={`landing_creator_cta_${trackingLocation ?? "unknown"}`}
       data-analytics-section={trackingLocation ?? "landing"}
       className={className}

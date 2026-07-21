@@ -1,6 +1,5 @@
 import React from 'react';
 import '@testing-library/jest-dom';
-import 'next/dist/server/node-polyfill-fetch';
 
 // Polyfills for Next.js API routes during testing
 import { TextEncoder, TextDecoder } from 'util';
@@ -9,6 +8,19 @@ import { TextEncoder, TextDecoder } from 'util';
 global.TextEncoder = TextEncoder;
 // @ts-ignore
 global.TextDecoder = TextDecoder;
+
+// Next 15 no longer ships the private node-polyfill-fetch module. Keep the
+// Jest environment on the public Fetch API implementation used by Node.
+const streamWeb = require('stream/web');
+global.ReadableStream = global.ReadableStream || streamWeb.ReadableStream;
+global.WritableStream = global.WritableStream || streamWeb.WritableStream;
+global.TransformStream = global.TransformStream || streamWeb.TransformStream;
+const undici = require('undici');
+global.fetch = global.fetch || undici.fetch;
+global.Headers = global.Headers || undici.Headers;
+global.Request = global.Request || undici.Request;
+global.Response = global.Response || undici.Response;
+global.FormData = global.FormData || undici.FormData;
 
 // Evita importar a rota real do NextAuth (usa next/headers) durante os testes
 jest.mock('@/app/api/auth/[...nextauth]/route', () => ({ authOptions: {} }), { virtual: true });

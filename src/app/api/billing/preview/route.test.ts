@@ -4,7 +4,10 @@ import { NextRequest } from 'next/server';
 jest.mock('next-auth/next', () => ({ getServerSession: jest.fn() }));
 jest.mock('@/app/api/auth/[...nextauth]/route', () => ({ authOptions: {} }), { virtual: true });
 jest.mock('@/app/lib/mongoose', () => ({ connectToDatabase: jest.fn() }));
-jest.mock('@/app/models/User', () => ({ findOne: jest.fn() }));
+jest.mock('@/app/models/User', () => ({ findOne: jest.fn(), findById: jest.fn() }));
+jest.mock('@/server/db/models/AffiliateIndexes', () => ({
+  AffiliateBuyerCommissionIndex: { exists: jest.fn() },
+}));
 jest.mock('@/app/lib/stripe', () => ({
   stripe: {
     coupons: { retrieve: jest.fn() },
@@ -18,6 +21,7 @@ const getServerSession = require('next-auth/next').getServerSession as jest.Mock
 const User = require('@/app/models/User');
 const { stripe } = require('@/app/lib/stripe');
 const { getOrCreateStripeCustomerId } = require('@/utils/stripeHelpers');
+const { AffiliateBuyerCommissionIndex } = require('@/server/db/models/AffiliateIndexes');
 const { POST } = require('./route');
 
 const createRequest = (body: any) =>
@@ -32,6 +36,12 @@ describe('POST /api/billing/preview', () => {
     jest.clearAllMocks();
     getServerSession.mockResolvedValue({ user: { id: 'u1', affiliateUsed: null } });
     getOrCreateStripeCustomerId.mockResolvedValue('cus_123');
+    User.findById.mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue({ affiliateUsed: null, affiliateFirstCommissionAt: null }),
+      }),
+    });
+    AffiliateBuyerCommissionIndex.exists.mockResolvedValue(false);
     process.env.STRIPE_PRICE_MONTHLY_BRL = 'price_monthly_brl';
     process.env.STRIPE_COUPON_AFFILIATE10_ONCE_BRL = 'coupon_aff_brl';
   });
@@ -84,5 +94,21 @@ describe('POST /api/billing/preview', () => {
     expect(body.affiliateApplied).toBe(true);
     expect(body.discountsTotal).toBe(1000);
     expect(body.total).toBe(9000);
+  });
+
+  test('does not offer the first-purchase coupon after a commission was consumed', async () => {
+    User.findById.mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue({
+          affiliateUsed: 'AFF123',
+          affiliateFirstCommissionAt: new Date('2026-01-01T00:00:00.000Z'),
+        }),
+      }),
+    });
+
+    const res = await POST(createRequest({ plan: 'monthly', currency: 'BRL', affiliateCode: 'OTHER' }));
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ code: 'AFFILIATE_BENEFIT_ALREADY_USED' });
+    expect(stripe.invoices.createPreview).not.toHaveBeenCalled();
   });
 });

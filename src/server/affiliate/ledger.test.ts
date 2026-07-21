@@ -9,7 +9,7 @@ describe('affiliate ledger reconciliation', () => {
 
     expect(ledger.BRL).toMatchObject({ availableCents: 2246, pendingCents: 2495 });
     expect(normalizedBalanceMap({ brl: 11471761 }).BRL).toBe(11471761);
-    expect(ledger.BRL.availableCents).not.toBe(normalizedBalanceMap({ brl: 11471761 }).BRL);
+    expect(ledger.BRL!.availableCents).not.toBe(normalizedBalanceMap({ brl: 11471761 }).BRL);
   });
 
   it('accounts for refund adjustments and legacy manual redemptions', () => {
@@ -19,6 +19,6 @@ describe('affiliate ledger reconciliation', () => {
       { type: 'redeem', status: 'paid', currency: 'brl', amountCents: 2000 },
     ]);
 
-    expect(ledger.BRL.availableCents).toBe(2000);
+    expect(ledger.BRL!.availableCents).toBe(2000);
   });
 });

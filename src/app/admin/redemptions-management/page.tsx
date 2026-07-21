@@ -201,13 +201,17 @@ export default function RedemptionsManagementPage() {
     setIsUpdatingStatus(true);
     const loadingToastId = toast.loading('Atualizando status do resgate...');
 
-    const extra =
-      newStatusForRedemption === 'paid'
-        ? (() => {
-            const tid = window.prompt('ID da transação (opcional):')?.trim();
-            return tid ? { transactionId: tid } : {};
-          })()
-        : {};
+    let extra: { transactionId?: string } = {};
+    if (newStatusForRedemption === 'paid') {
+      const tid = window.prompt('ID da transação (obrigatório):')?.trim();
+      if (!tid) {
+        toast.dismiss(loadingToastId);
+        toast.error('Informe o ID da transação para confirmar o pagamento.');
+        setIsUpdatingStatus(false);
+        return;
+      }
+      extra = { transactionId: tid };
+    }
 
     const payload: AdminRedemptionUpdateStatusPayload = {
       status: newStatusForRedemption,

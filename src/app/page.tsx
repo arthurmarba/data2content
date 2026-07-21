@@ -16,12 +16,13 @@ import {
 export const metadata = landingMetadata;
 
 type HomePageProps = {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function HomePage({ searchParams = {} }: HomePageProps) {
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const resolvedSearchParams = (await searchParams) ?? {};
   const query = new URLSearchParams();
-  Object.entries(searchParams).forEach(([key, value]) => {
+  Object.entries(resolvedSearchParams).forEach(([key, value]) => {
     if (typeof value === "string") query.set(key, value);
     else if (Array.isArray(value)) value.forEach((entry) => query.append(key, entry));
   });

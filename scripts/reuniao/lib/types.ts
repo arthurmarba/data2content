@@ -137,6 +137,9 @@ export interface CriadorSlide {
   comparativo?: string;
   /** Criador sem posts na semana: slide nasce do mapa, sinais marcados como fracos. */
   semSinal?: boolean;
+  /** De onde vem a retomada quando não há posts atuais. Evita chamar histórico ou
+   *  cadastro vazio de "mapa" no cabeçalho do slide. */
+  retomadaFonte?: "mapa" | "historico" | "cadastro";
 }
 
 export interface CollabSugerida {

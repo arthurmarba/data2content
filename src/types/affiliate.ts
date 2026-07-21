@@ -8,6 +8,11 @@ export type CurrencySummary = {
   debtCents: number;
   nextMatureAt: string | null;
   minRedeemCents: number;
+  activeRedemption?: {
+    id: string;
+    amountCents: number;
+    balanceReserved: boolean;
+  } | null;
 };
 
 export type AffiliateSummary = {

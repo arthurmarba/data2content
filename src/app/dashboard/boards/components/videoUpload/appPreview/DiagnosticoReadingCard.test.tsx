@@ -3,6 +3,18 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { DiagnosticoReadingCard } from "./DiagnosticoReadingCard";
 import { buildDiagnosticoReadingItemFixture } from "./diagnosticoTestFixtures";
 
+jest.mock("next/image", () => {
+  const ReactForMock = require("react");
+  return {
+    __esModule: true,
+    default: ({ fill: _fill, unoptimized = false, priority: _priority, quality: _quality, ...props }: any) =>
+      ReactForMock.createElement("img", {
+        ...props,
+        "data-unoptimized": String(Boolean(unoptimized)),
+      }),
+  };
+});
+
 describe("DiagnosticoReadingCard", () => {
   it("renders the reading title", () => {
     const reading = buildDiagnosticoReadingItemFixture({ rememberedAs: "Vídeo de review de produto" });
@@ -49,11 +61,22 @@ describe("DiagnosticoReadingCard", () => {
   });
 
   it("renders thumbnail img when thumbnailUrl is set", () => {
-    const reading = buildDiagnosticoReadingItemFixture({ thumbnailUrl: "https://example.com/thumb.jpg" });
+    const reading = buildDiagnosticoReadingItemFixture({ thumbnailUrl: "https://i.ibb.co/thumb.jpg" });
     const { container } = render(<DiagnosticoReadingCard reading={reading} onTap={jest.fn()} />);
     const img = container.querySelector("img");
     expect(img).not.toBeNull();
-    expect(img).toHaveAttribute("src", "https://example.com/thumb.jpg");
+    expect(img).toHaveAttribute("sizes", "96px");
+    expect(img).toHaveAttribute("loading", "lazy");
+    expect(img).toHaveAttribute("src", "https://i.ibb.co/thumb.jpg");
+    expect(img).toHaveAttribute("data-unoptimized", "false");
+  });
+
+  it("keeps local data thumbnails outside the remote optimizer", () => {
+    const thumbnailUrl = "data:image/jpeg;base64,dGVzdA==";
+    const reading = buildDiagnosticoReadingItemFixture({ thumbnailUrl });
+    const { container } = render(<DiagnosticoReadingCard reading={reading} onTap={jest.fn()} />);
+    expect(container.querySelector("img")).toHaveAttribute("src", thumbnailUrl);
+    expect(container.querySelector("img")).toHaveAttribute("data-unoptimized", "true");
   });
 
   it("calls onTap when clicked", () => {
@@ -64,18 +87,21 @@ describe("DiagnosticoReadingCard", () => {
     expect(onTap).toHaveBeenCalledTimes(1);
   });
 
-  it("shows orange icon bubble for confirms_existing_pattern", () => {
+  it("shows the brand color token for confirms_existing_pattern", () => {
     const reading = buildDiagnosticoReadingItemFixture({ contributionType: "confirms_existing_pattern" });
     const { container } = render(<DiagnosticoReadingCard reading={reading} onTap={jest.fn()} />);
-    // The icon bubble div carries bg-orange-500
-    const bubble = container.querySelector(".bg-orange-500");
+    const bubble = Array.from(container.querySelectorAll("div")).find((element) =>
+      element.classList.contains("bg-[var(--ds-color-brand)]"),
+    );
     expect(bubble).toBeInTheDocument();
   });
 
-  it("shows amber icon bubble for creative_deviation", () => {
+  it("shows the warning color token for creative_deviation", () => {
     const reading = buildDiagnosticoReadingItemFixture({ contributionType: "creative_deviation" });
     const { container } = render(<DiagnosticoReadingCard reading={reading} onTap={jest.fn()} />);
-    const bubble = container.querySelector(".bg-amber-500");
+    const bubble = Array.from(container.querySelectorAll("div")).find((element) =>
+      element.classList.contains("bg-[var(--ds-color-warning)]"),
+    );
     expect(bubble).toBeInTheDocument();
   });
 });

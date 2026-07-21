@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, startTransition, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signOut } from "next-auth/react";
 import type {
@@ -10,8 +11,8 @@ import type {
 } from "@/app/dashboard/boards/videoUpload/diagnosticoPageData";
 import { resolveDiagnosticoLeadingNarrativeSignal } from "@/app/dashboard/boards/videoUpload/diagnosticoNarrativeSignals";
 import { d2cFontVariables } from "@/app/fonts/d2cFonts";
-import { COMMUNITY_WHATSAPP_URL } from "@/app/lib/communityLinks";
 import { openPaywallModal } from "@/utils/paywallModal";
+import type { PaywallContext } from "@/types/paywall";
 import { startInstagramReconnect } from "@/app/lib/instagram/client/startInstagramReconnect";
 import {
   MOBILE_INSTAGRAM_CONNECT_ROUTE,
@@ -22,51 +23,30 @@ import {
 import { requestUploadSession } from "./mobileStrategicProfileUploadSessionClient";
 import { uploadVideoToTemporarySignedUrl } from "./mobileStrategicProfileDirectUploadClient";
 import { postMobileStrategicProfileAnalysisJson } from "./mobileStrategicProfileAnalysisSubmitClient";
-import {
-  MobileStrategicProfileAnalyzeFlow,
-  type MobileStrategicProfileAnalyzeResult,
-  type MobileStrategicProfileAnalyzeFlowCompleteResult,
+import type {
+  MobileStrategicProfileAnalyzeResult,
+  MobileStrategicProfileAnalyzeFlowCompleteResult,
 } from "./MobileStrategicProfileAnalyzeFlow";
-import {
-  MobileCalculatorWizard,
-  type MobileCalculatorResult,
-} from "./MobileCalculatorWizard";
+import type { MobileCalculatorResult } from "./MobileCalculatorWizard";
 import { fetchAnalysisConfirmationDataFromReading } from "./mobileStrategicProfileAnalysisConfirmationClient";
 import { DiagnosticoPage } from "./DiagnosticoPage";
+import type { WeeklyMeetingProfileData } from "./WeeklyMeetingProfileCard";
 import { DiagnosticoTabBar, type DiagnosticoTab } from "./DiagnosticoTabBar";
-import {
-  DiagnosticoCollabsFeed,
-  type CollabsBootstrapStatus,
-  type PautaActionKind,
-  type PautaActionState,
+import type {
+  CollabsBootstrapStatus,
+  PautaActionKind,
+  PautaActionState,
 } from "./DiagnosticoCollabsFeed";
 import type { CollabStackDecision } from "./DiagnosticoCollabStack";
-import { DiagnosticoCollabMatchOverlay } from "./DiagnosticoCollabMatchOverlay";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
-import { ReadingDetailView } from "./ReadingDetailView";
 import { useReadingDetail } from "./useReadingDetail";
 import type { CategoryId } from "./DiagnosticoCategoryMeta";
-import { DiagnosticoNarrativeDetailView } from "./DiagnosticoNarrativeDetailView";
-import { MobileOnboardingFlow, type OnboardingStep } from "./MobileOnboardingFlow";
+import type { OnboardingStep } from "./MobileOnboardingFlow";
 import type {
   ConfirmationState,
   ConfirmationResponse,
   AssetConfirmationResponse,
 } from "./diagnosticoConfirmationTypes";
-import { DiagnosticoStrategicDetailView } from "./DiagnosticoStrategicDetailView";
-import { DiagnosticoExecutionDetailView } from "./DiagnosticoExecutionDetailView";
-import { DiagnosticoInstagramDetailView } from "./DiagnosticoInstagramDetailView";
-import { DiagnosticoBrandsDetailView } from "./DiagnosticoBrandsDetailView";
-import { DiagnosticoCollabsDetailView } from "./DiagnosticoCollabsDetailView";
-import { DiagnosticoCommunityDetailView } from "./DiagnosticoCommunityDetailView";
-import { DiagnosticoReadingsDetailView } from "./DiagnosticoReadingsDetailView";
-import { DiagnosticoIdeasDetailView } from "./DiagnosticoIdeasDetailView";
-import { DiagnosticoAccountMenuSheet } from "./DiagnosticoAccountMenuSheet";
-import { DiagnosticoNorteView } from "./DiagnosticoNorteView";
-import { DiagnosticoWhatsAppSheet } from "./DiagnosticoWhatsAppSheet";
-import { DiagnosticoIdeaDetailSheet } from "./DiagnosticoIdeaDetailSheet";
-import { DiagnosticoOverviewDetailView } from "./DiagnosticoOverviewDetailView";
-import { MediaKitSheet } from "./MediaKitSheet";
 import { getNarrativeMapAccessAction } from "@/app/dashboard/boards/videoUpload/narrativeMapAccessState";
 import { trackMobileNarrativeEvent, type MobileNarrativeTelemetryEventName } from "@/app/dashboard/boards/videoUpload/mobileNarrativeTelemetry";
 import {
@@ -75,7 +55,95 @@ import {
   readContentIdeaLocalDecisions,
   rememberContentIdeaLocalDecision,
 } from "@/app/dashboard/boards/videoUpload/contentIdeaLocalDecisions";
-import SurveyModal from "@/app/dashboard/home/minimal/SurveyModal";
+
+const MobileStrategicProfileAnalyzeFlow = dynamic(
+  () => import("./MobileStrategicProfileAnalyzeFlow").then((module) => module.MobileStrategicProfileAnalyzeFlow),
+  { ssr: false },
+);
+const MobileCalculatorWizard = dynamic(
+  () => import("./MobileCalculatorWizard").then((module) => module.MobileCalculatorWizard),
+  { ssr: false },
+);
+const DiagnosticoCollabsFeed = dynamic(
+  () => import("./DiagnosticoCollabsFeed").then((module) => module.DiagnosticoCollabsFeed),
+  { ssr: false },
+);
+const DiagnosticoCollabMatchOverlay = dynamic(
+  () => import("./DiagnosticoCollabMatchOverlay").then((module) => module.DiagnosticoCollabMatchOverlay),
+  { ssr: false },
+);
+const ReadingDetailView = dynamic(
+  () => import("./ReadingDetailView").then((module) => module.ReadingDetailView),
+  { ssr: false },
+);
+const DiagnosticoNarrativeDetailView = dynamic(
+  () => import("./DiagnosticoNarrativeDetailView").then((module) => module.DiagnosticoNarrativeDetailView),
+  { ssr: false },
+);
+const MobileOnboardingFlow = dynamic(
+  () => import("./MobileOnboardingFlow").then((module) => module.MobileOnboardingFlow),
+  { ssr: false },
+);
+const DiagnosticoStrategicDetailView = dynamic(
+  () => import("./DiagnosticoStrategicDetailView").then((module) => module.DiagnosticoStrategicDetailView),
+  { ssr: false },
+);
+const DiagnosticoExecutionDetailView = dynamic(
+  () => import("./DiagnosticoExecutionDetailView").then((module) => module.DiagnosticoExecutionDetailView),
+  { ssr: false },
+);
+const DiagnosticoInstagramDetailView = dynamic(
+  () => import("./DiagnosticoInstagramDetailView").then((module) => module.DiagnosticoInstagramDetailView),
+  { ssr: false },
+);
+const DiagnosticoBrandsDetailView = dynamic(
+  () => import("./DiagnosticoBrandsDetailView").then((module) => module.DiagnosticoBrandsDetailView),
+  { ssr: false },
+);
+const DiagnosticoCollabsDetailView = dynamic(
+  () => import("./DiagnosticoCollabsDetailView").then((module) => module.DiagnosticoCollabsDetailView),
+  { ssr: false },
+);
+const DiagnosticoCommunityDetailView = dynamic(
+  () => import("./DiagnosticoCommunityDetailView").then((module) => module.DiagnosticoCommunityDetailView),
+  { ssr: false },
+);
+const DiagnosticoReadingsDetailView = dynamic(
+  () => import("./DiagnosticoReadingsDetailView").then((module) => module.DiagnosticoReadingsDetailView),
+  { ssr: false },
+);
+const DiagnosticoIdeasDetailView = dynamic(
+  () => import("./DiagnosticoIdeasDetailView").then((module) => module.DiagnosticoIdeasDetailView),
+  { ssr: false },
+);
+const DiagnosticoAccountMenuSheet = dynamic(
+  () => import("./DiagnosticoAccountMenuSheet").then((module) => module.DiagnosticoAccountMenuSheet),
+  { ssr: false },
+);
+const DiagnosticoNorteView = dynamic(
+  () => import("./DiagnosticoNorteView").then((module) => module.DiagnosticoNorteView),
+  { ssr: false },
+);
+const DiagnosticoWhatsAppSheet = dynamic(
+  () => import("./DiagnosticoWhatsAppSheet").then((module) => module.DiagnosticoWhatsAppSheet),
+  { ssr: false },
+);
+const DiagnosticoIdeaDetailSheet = dynamic(
+  () => import("./DiagnosticoIdeaDetailSheet").then((module) => module.DiagnosticoIdeaDetailSheet),
+  { ssr: false },
+);
+const DiagnosticoOverviewDetailView = dynamic(
+  () => import("./DiagnosticoOverviewDetailView").then((module) => module.DiagnosticoOverviewDetailView),
+  { ssr: false },
+);
+const MediaKitSheet = dynamic(
+  () => import("./MediaKitSheet").then((module) => module.MediaKitSheet),
+  { ssr: false },
+);
+const SurveyModal = dynamic(
+  () => import("@/app/dashboard/home/minimal/SurveyModal"),
+  { ssr: false },
+);
 
 const REAL_ANALYSIS_ENABLED =
   process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED === "1";
@@ -83,6 +151,7 @@ const REAL_ANALYSIS_ENABLED =
 interface Props {
   data: DiagnosticoPageData;
   onAnalyzeAction: null;
+  weeklyMeeting?: WeeklyMeetingProfileData | null;
 }
 
 type MobileCollabSuggestionsPayload = {
@@ -92,6 +161,16 @@ type MobileCollabSuggestionsPayload = {
   periodDays: number;
   limit: number;
 };
+
+function scheduleAfterInitialPaint(task: () => void): () => void {
+  if (typeof window === "undefined") return () => {};
+  if (typeof window.requestIdleCallback === "function") {
+    const idleId = window.requestIdleCallback(task, { timeout: 2000 });
+    return () => window.cancelIdleCallback(idleId);
+  }
+  const timeoutId = window.setTimeout(task, 1200);
+  return () => window.clearTimeout(timeoutId);
+}
 
 function cleanSignalText(value: string | null | undefined) {
   const text = value?.replace(/\s+/g, " ").trim() || "";
@@ -149,9 +228,10 @@ function buildMobileCollabSuggestionsPayload(data: DiagnosticoPageData): MobileC
   };
 }
 
-export function DiagnosticoRealShellClient({ data }: Props) {
+export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const tabScrollContainerRef = useRef<HTMLDivElement>(null);
   const [analyzeFlowOpen, setAnalyzeFlowOpen] = useState(false);
   // Aba ativa da tab bar mobile (Perfil/Collabs). "+" não é aba — abre o upload.
   // Default "perfil": usuário novo/sem mapa cai no Perfil.
@@ -159,6 +239,19 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   const [accessMessage, setAccessMessage] = useState<string | null>(null);
   const [localThumbnails, setLocalThumbnails] = useState<Record<string, string>>({});
   const [showInstagramConnectedNotice, setShowInstagramConnectedNotice] = useState(false);
+
+  useEffect(() => {
+    // Perfil e Collabs têm alturas muito diferentes. Reaproveitar o scroll da
+    // aba anterior pode posicionar a nova superfície além do próprio conteúdo,
+    // produzindo uma tela aparentemente vazia.
+    const container = tabScrollContainerRef.current;
+    if (!container) return;
+    if (typeof container.scrollTo === "function") {
+      container.scrollTo({ top: 0, behavior: "auto" });
+    } else {
+      container.scrollTop = 0;
+    }
+  }, [activeTab]);
   // True quando a página foi carregada após a conexão do Instagram (via ?instagramLinked=true).
   // Usado para mostrar estado "processando" no card de pautas enquanto o enriquecimento
   // assíncrono ainda não terminou. Inicializa do URL para capturar o hard-reload.
@@ -184,6 +277,31 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   const [whatsAppSheetOpen, setWhatsAppSheetOpen] = useState(false);
   const [calculatorWizardOpen, setCalculatorWizardOpen] = useState(false);
   const [latestCalculation, setLatestCalculation] = useState<MobileCalculatorResult | null>(null);
+  const latestCalculationRequestRef = useRef<{
+    promise: Promise<MobileCalculatorResult | null>;
+    controller: AbortController;
+  } | null>(null);
+  const loadLatestCalculation = useCallback(() => {
+    if (data.userInfo.plan !== "Pro") return Promise.resolve(null);
+    if (latestCalculationRequestRef.current) return latestCalculationRequestRef.current.promise;
+
+    const controller = new AbortController();
+    const request = fetch("/api/calculator/latest", { cache: "no-store", signal: controller.signal })
+      .then(async (response) => {
+        if (response.status === 404 || !response.ok) return null;
+        return response.json() as Promise<MobileCalculatorResult>;
+      })
+      .then((calculation) => {
+        if (calculation) setLatestCalculation(calculation);
+        return calculation;
+      })
+      .catch(() => {
+        latestCalculationRequestRef.current = null;
+        return null;
+      });
+    latestCalculationRequestRef.current = { promise: request, controller };
+    return request;
+  }, [data.userInfo.plan]);
   const [openIdeaId, setOpenIdeaId] = useState<string | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(data.needsOnboarding);
   // O3: step de retomada após conectar Instagram durante o onboarding.
@@ -289,8 +407,8 @@ export function DiagnosticoRealShellClient({ data }: Props) {
 
   // A entrada em Collabs é uma transação visual: sugestões por pauta, decisões
   // anteriores, matches confirmados e decisões locais precisam chegar ANTES de
-  // qualquer card real aparecer. O bootstrap começa ainda no Perfil, em segundo
-  // plano, para que a troca de aba revele o deck pronto — não um skeleton longo.
+  // qualquer card real aparecer. O bootstrap começa na primeira abertura da aba,
+  // evitando rede e parsing para quem permanece no Perfil.
   const [pautaCollabs, setPautaCollabs] = useState<Map<string, NarrativeCollabMatch | null>>(new Map());
   const [collabDecisions, setCollabDecisions] = useState<Map<string, CollabStackDecision>>(new Map());
   const [pautaActionStates, setPautaActionStates] = useState<Map<string, PautaActionState>>(new Map());
@@ -341,6 +459,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
       : "loading";
 
   useEffect(() => {
+    if (activeTab !== "collabs") return;
     if (collabsReadySignatureRef.current === collabsInputSignature) return;
 
     const requestId = ++collabsBootstrapRequestRef.current;
@@ -471,6 +590,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
 
     return () => controller.abort();
   }, [
+    activeTab,
     collabsBootstrapRetry,
     collabsInputSignature,
     collabsNarrativeLabel,
@@ -633,8 +753,9 @@ export function DiagnosticoRealShellClient({ data }: Props) {
       });
       return;
     }
+    void loadLatestCalculation();
     setCalculatorWizardOpen(true);
-  }, [data.instagramConnected, data.userInfo.plan]);
+  }, [data.instagramConnected, data.userInfo.plan, loadLatestCalculation]);
 
   // Abrir a pauta (roteiro completo + por que o criador é ideal pra collab) é Pro.
   // Free vê o card (título + direcional) como teaser; o tap abre o paywall.
@@ -837,28 +958,6 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     setOpenCategory("community");
   }, []);
 
-  // Grupo da comunidade no WhatsApp — Pro entra direto; free vê o paywall.
-  // `source` distingue a superfície de origem na telemetria do paywall.
-  const openWhatsAppCommunity = useCallback((source: string) => {
-    if (data.userInfo.plan === "Pro") {
-      window.open(COMMUNITY_WHATSAPP_URL, "_blank", "noopener,noreferrer");
-    } else {
-      openPaywallModal({
-        context: "whatsapp",
-        source,
-        returnTo: MOBILE_PROFILE_ROUTE,
-        postCheckoutIntent: "join_community",
-      });
-    }
-  }, [data.userInfo.plan]);
-  const handleOpenWhatsAppGroup = useCallback(
-    () => openWhatsAppCommunity("mobile_profile_whatsapp_community"),
-    [openWhatsAppCommunity],
-  );
-  const handleOpenCollabsWhatsAppCommunity = useCallback(
-    () => openWhatsAppCommunity("mobile_collabs_whatsapp_community"),
-    [openWhatsAppCommunity],
-  );
   const handleOpenAccountInstagramConnection = useCallback(() => {
     setAccountMenuOpen(false);
     handleConnectInstagram();
@@ -932,39 +1031,31 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   }, [resetReading]);
 
   // Record this visit so next time we can show "X posts analisados desde sua última visita".
-  // Fire-and-forget; the data on this render reflects the OLD lastMapVisitAt and is unaffected.
+  // É uma mutação secundária: espera o primeiro paint para não disputar conexão com a rota.
   useEffect(() => {
-    void fetch("/api/dashboard/mobile-strategic-profile/last-map-visit", {
-      method: "POST",
-    }).catch(() => { /* non-fatal */ });
+    return scheduleAfterInitialPaint(() => {
+      void fetch("/api/dashboard/mobile-strategic-profile/last-map-visit", {
+        method: "POST",
+      }).catch(() => { /* non-fatal */ });
+    });
   }, []);
 
   useEffect(() => {
     if (data.userInfo.plan !== "Pro") {
+      latestCalculationRequestRef.current?.controller.abort();
       setLatestCalculation(null);
+      latestCalculationRequestRef.current = null;
       return;
     }
-
-    let cancelled = false;
-    void fetch("/api/calculator/latest", { cache: "no-store" })
-      .then(async (response) => {
-        if (response.status === 404) return null;
-        if (!response.ok) return null;
-        return response.json() as Promise<MobileCalculatorResult>;
-      })
-      .then((calculation) => {
-        if (!cancelled && calculation) {
-          setLatestCalculation(calculation);
-        }
-      })
-      .catch(() => {
-        // Non-fatal: the card keeps the first-calculation CTA.
-      });
-
+    const cancelScheduledLoad = scheduleAfterInitialPaint(() => {
+      void loadLatestCalculation();
+    });
     return () => {
-      cancelled = true;
+      cancelScheduledLoad();
+      latestCalculationRequestRef.current?.controller.abort();
+      latestCalculationRequestRef.current = null;
     };
-  }, [data.userInfo.plan]);
+  }, [data.userInfo.plan, loadLatestCalculation]);
 
   // Extracted so the user can also retry manually from the card.
   // `focusedTerritory` (opcional) semeia a geração a partir de um território —
@@ -1064,6 +1155,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   // ex.: o enriquecimento assíncrono do Instagram concluiu e o polling abaixo trouxe
   // dados frescos. O ref garante disparo único por mount.
   useEffect(() => {
+    if (activeTab !== "collabs") return;
     const ready = data.contentIdeasReadiness.ready;
     const noIdeas = data.contentIdeas.length === 0;
     const latestIdea = data.contentIdeas[0];
@@ -1081,6 +1173,8 @@ export function DiagnosticoRealShellClient({ data }: Props) {
       void triggerGenerateIdeas();
     }
   }, [
+    activeTab,
+    data.contentIdeas,
     data.contentIdeasReadiness.ready,
     data.contentIdeas.length,
     data.contentIdeasMapStale,
@@ -1225,6 +1319,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   }, [data, isMapReadyForExpansion]);
 
   useEffect(() => {
+    if (openCategory !== "collabs") return;
     if (collabSuggestionsRequest.key === "blocked") {
       setCollabSuggestions({ status: "blocked", items: [], error: null });
       return;
@@ -1304,7 +1399,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     return () => {
       controller.abort();
     };
-  }, [collabSuggestionsRequest]);
+  }, [collabSuggestionsRequest, openCategory]);
 
   const loadCreatorDirectory = useCallback(async () => {
     if (creatorDirectoryRequestedRef.current) return;
@@ -1336,19 +1431,11 @@ export function DiagnosticoRealShellClient({ data }: Props) {
   }, []);
 
   useEffect(() => {
-    // Collabs: diretório carrega junto do matching (exige mapa pronto).
-    // Comunidade: diretório é prova social aberta — carrega para qualquer usuário.
-    // Stories Row: carrega no mount para exibir prova social no header.
+    // O diretório completo só é necessário nas detail views de Collabs e Comunidade.
     if (openCategory === "community" || (openCategory === "collabs" && isMapReadyForExpansion)) {
       void loadCreatorDirectory();
     }
   }, [isMapReadyForExpansion, loadCreatorDirectory, openCategory]);
-
-  useEffect(() => {
-    // Carrega o diretório no mount — alimenta as detail views de Comunidade e Collabs.
-    void loadCreatorDirectory();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const handleNewReading = useCallback(() => {
     setAccessMessage(null);
@@ -1392,7 +1479,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
       returnTo: MOBILE_PROFILE_ROUTE,
       postCheckoutIntent: "connect_instagram",
     });
-  }, [data.accessState, router]);
+  }, [data.accessState]);
 
   const handleOpenReading = useCallback(
     (diagnosisId: string) => {
@@ -1750,19 +1837,31 @@ export function DiagnosticoRealShellClient({ data }: Props) {
     }
   }, []);
 
-  // Hydrate reading thumbnails into data
-  const hydratedReadings = data.readings.map((r) =>
-    localThumbnails[r.diagnosisId] ? { ...r, thumbnailUrl: localThumbnails[r.diagnosisId] } : r,
+  // O shell concentra muitos overlays e fluxos locais. Sem memoização, qualquer
+  // abertura de sheet refazia as listas e trocava a referência de `data`, forçando
+  // toda a árvore pesada do perfil a renderizar novamente.
+  const hydratedReadings = useMemo(
+    () => data.readings.map((reading) =>
+      localThumbnails[reading.diagnosisId]
+        ? { ...reading, thumbnailUrl: localThumbnails[reading.diagnosisId] }
+        : reading,
+    ),
+    [data.readings, localThumbnails],
   );
 
-  const leadingNarrative = resolveDiagnosticoLeadingNarrativeSignal(data.synthesis);
+  const leadingNarrative = useMemo(
+    () => resolveDiagnosticoLeadingNarrativeSignal(data.synthesis),
+    [data.synthesis],
+  );
   // Prefer local (populated by generation) over server when local has at least as many ideas.
-  const effectiveContentIdeas =
-    localContentIdeas.length >= data.contentIdeas.length
+  const effectiveContentIdeas = useMemo(
+    () => localContentIdeas.length >= data.contentIdeas.length
       ? localContentIdeas
-      : data.contentIdeas;
+      : data.contentIdeas,
+    [data.contentIdeas, localContentIdeas],
+  );
 
-  const hydratedData = {
+  const hydratedData = useMemo<DiagnosticoPageData>(() => ({
     ...data,
     readings: hydratedReadings,
     contentIdeas: effectiveContentIdeas,
@@ -1777,7 +1876,36 @@ export function DiagnosticoRealShellClient({ data }: Props) {
       contentLimit: data.onboardingAnswers?.contentLimit ?? null,
       creatorPurpose: localPurpose,
     },
-  };
+  }), [
+    data,
+    effectiveContentIdeas,
+    hydratedReadings,
+    isMapReadyForExpansion,
+    leadingNarrative?.label,
+    localMapConfirmations,
+    localPurpose,
+  ]);
+
+  const handleProfileUpgrade = useCallback((context?: PaywallContext) => {
+    openPaywallModal({
+      // Cada superfície do card passa seu próprio contexto (ex.: "whatsapp",
+      // "planning") para condicionar a copy do modal.
+      context: typeof context === "string" ? context : "narrative_map",
+      source: typeof context === "string" ? `mobile_profile_${context}` : "mobile_profile_empty_state",
+      returnTo: MOBILE_PROFILE_ROUTE,
+      postCheckoutIntent: "connect_instagram",
+    });
+  }, []);
+  const handleOpenAccountMenu = useCallback(() => setAccountMenuOpen(true), []);
+  const handleOpenSurvey = useCallback(() => setSurveyOpen(true), []);
+  const handleOpenNorte = useCallback(() => setNorteOpen(true), []);
+  const handleConnectWhatsApp = useCallback(() => setWhatsAppSheetOpen(true), []);
+  const handleGeneratePautasForTerritory = useCallback((territoryLabel: string) => {
+    // Ponte leitura → criação: semeia a geração pelo território e leva o
+    // criador à aba Collabs, onde as pautas frescas aparecem (com o loading).
+    void triggerGenerateIdeas(territoryLabel);
+    setActiveTab("collabs");
+  }, [triggerGenerateIdeas]);
 
   return (
     <div
@@ -1787,6 +1915,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
       }}
     >
       <div
+        ref={tabScrollContainerRef}
         className="flex-1 overflow-y-auto overscroll-contain"
         style={{
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)",
@@ -1810,7 +1939,6 @@ export function DiagnosticoRealShellClient({ data }: Props) {
             ideaGenerationBlocker={ideaGenerationBlocker}
             ideaQuotaResetAt={ideaQuotaResetAt}
             pautaCollabs={pautaCollabs}
-            pautaCollabsLoading={effectiveCollabsBootstrapStatus === "loading"}
             bootstrapStatus={effectiveCollabsBootstrapStatus}
             bootstrapError={collabsBootstrap.error}
             onRetryBootstrap={handleRetryCollabsBootstrap}
@@ -1824,7 +1952,6 @@ export function DiagnosticoRealShellClient({ data }: Props) {
             onUnsavePauta={handleUnsavePauta}
             onAcceptCollabPauta={handleAcceptCollabPauta}
             onDismissPauta={handleDismissPauta}
-            onOpenWhatsAppCommunity={handleOpenCollabsWhatsAppCommunity}
             onConnectWhatsApp={() => setWhatsAppSheetOpen(true)}
             onUpgrade={(ctx) => openPaywallModal({
               context: typeof ctx === "string" ? ctx : "narrative_map",
@@ -1843,23 +1970,14 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           onNewReading={handleNewReading}
           onOpenReading={handleOpenReading}
           onConnectInstagram={handleConnectInstagram}
-          onUpgrade={(ctx) => openPaywallModal({
-            // Cada superfície do card passa seu próprio contexto (ex.: "whatsapp",
-            // "planning") para condicionar a copy do modal. Sem contexto válido cai
-            // no mapa narrativo. O typeof guarda contra um evento de clique vazar aqui.
-            context: typeof ctx === "string" ? ctx : "narrative_map",
-            source: typeof ctx === "string" ? `mobile_profile_${ctx}` : "mobile_profile_empty_state",
-            returnTo: MOBILE_PROFILE_ROUTE,
-            postCheckoutIntent: "connect_instagram",
-          })}
+          onUpgrade={handleProfileUpgrade}
           onOpenCategory={handleOpenCategory}
           onOpenCommunity={handleOpenAccountCommunity}
-          onOpenWhatsAppGroup={handleOpenWhatsAppGroup}
           onOpenMediaKit={handleOpenMediaKit}
           onOpenCreatorMediaKit={handleOpenCreatorMediaKit}
-          onOpenAccountMenu={() => setAccountMenuOpen(true)}
-          onOpenSurvey={() => setSurveyOpen(true)}
-          onOpenNorte={() => setNorteOpen(true)}
+          onOpenAccountMenu={handleOpenAccountMenu}
+          onOpenSurvey={handleOpenSurvey}
+          onOpenNorte={handleOpenNorte}
           onOpenDiagnosis={handleOpenDiagnosisOverview}
           narrativeConfirmationState={narrativeConfirmationState}
           onConfirmNarrative={handleConfirmNarrative}
@@ -1873,17 +1991,13 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           ideaGenerationBlocker={ideaGenerationBlocker}
           ideaQuotaResetAt={ideaQuotaResetAt}
           onRetryGenerateIdeas={triggerGenerateIdeas}
-          onGeneratePautasForTerritory={(territoryLabel) => {
-            // Ponte leitura → criação: semeia a geração pelo território e leva o
-            // criador à aba Collabs, onde as pautas frescas aparecem (com o loading).
-            void triggerGenerateIdeas(territoryLabel);
-            setActiveTab("collabs");
-          }}
+          onGeneratePautasForTerritory={handleGeneratePautasForTerritory}
           instagramEnrichmentPending={instagramEnrichmentPending}
           onOpenIdea={handleOpenIdea}
-          onConnectWhatsApp={() => setWhatsAppSheetOpen(true)}
+          onConnectWhatsApp={handleConnectWhatsApp}
           latestCalculation={latestCalculation}
           onOpenCalculator={handleOpenCalculator}
+          weeklyMeeting={weeklyMeeting}
         />
         )}
       </div>
@@ -1981,14 +2095,16 @@ export function DiagnosticoRealShellClient({ data }: Props) {
         />
       ) : null}
 
-      <SurveyModal
-        open={surveyOpen}
-        onClose={() => setSurveyOpen(false)}
-        onSaved={() => {
-          setSurveyOpen(false);
-          router.refresh();
-        }}
-      />
+      {surveyOpen ? (
+        <SurveyModal
+          open
+          onClose={() => setSurveyOpen(false)}
+          onSaved={() => {
+            setSurveyOpen(false);
+            router.refresh();
+          }}
+        />
+      ) : null}
 
       {norteOpen && (
         <DiagnosticoNorteView
@@ -2136,8 +2252,9 @@ export function DiagnosticoRealShellClient({ data }: Props) {
       {/* Upload "+" lives in the header; Mídia Kit remains a contextual card */}
 
       {/* Analyze flow overlay */}
+      {analyzeFlowOpen ? (
       <MobileStrategicProfileAnalyzeFlow
-        open={analyzeFlowOpen}
+        open
         onClose={() => setAnalyzeFlowOpen(false)}
         onComplete={handleAnalyzeComplete}
         onSubmitAnalysis={handleAnalyzeSubmit}
@@ -2161,9 +2278,11 @@ export function DiagnosticoRealShellClient({ data }: Props) {
             : { isPro: false, used: q?.usedTotal ?? 0, limit: q?.freeTotalLimit ?? 1 };
         })()}
       />
+      ) : null}
 
+      {calculatorWizardOpen ? (
       <MobileCalculatorWizard
-        open={calculatorWizardOpen}
+        open
         onClose={() => setCalculatorWizardOpen(false)}
         latestCalculation={latestCalculation}
         suggestedReach={hydratedData.instagramMetrics?.avgReachPerPost ?? null}
@@ -2179,6 +2298,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           }).catch(() => { /* não-fatal: o criador segue para a calculadora */ });
         }}
       />
+      ) : null}
 
       {/* Access message toast */}
       {accessMessage && (
@@ -2280,8 +2400,9 @@ export function DiagnosticoRealShellClient({ data }: Props) {
       )}
 
       {/* ── Onboarding overlay — shown once for new creators ────────────────── */}
+      {onboardingOpen ? (
       <MobileOnboardingFlow
-        open={onboardingOpen}
+        open
         instagramConnected={hydratedData.instagramConnected}
         accessState={hydratedData.accessState}
         firstSignal={(() => {
@@ -2291,6 +2412,12 @@ export function DiagnosticoRealShellClient({ data }: Props) {
         // O3: retomada após conectar Instagram — pula a tela de boas-vindas.
         initialStep={onboardingInitialStep ?? undefined}
         onConnectInstagram={handleOnboardingConnectInstagram}
+        onUpgrade={() => openPaywallModal({
+          context: "onboarding",
+          source: "mobile_onboarding_meeting_analysis",
+          returnTo: MOBILE_PROFILE_ROUTE,
+          postCheckoutIntent: "join_community",
+        })}
         onRequestUpload={() => setAnalyzeFlowOpen(true)}
         onComplete={(answers) => {
           setOnboardingOpen(false);
@@ -2305,6 +2432,7 @@ export function DiagnosticoRealShellClient({ data }: Props) {
           router.refresh();
         }}
       />
+      ) : null}
 
     </div>
   );

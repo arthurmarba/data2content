@@ -399,7 +399,10 @@ export interface IUser extends Document {
   affiliateRank?: number;
   affiliateInvites?: number;
   affiliateCode?: string;
+  affiliateStatus?: 'pending_approval' | 'active' | 'inactive' | 'suspended';
+  affiliateSince?: Date | null;
   affiliateUsed: string | null;
+  affiliateFirstCommissionAt?: Date | null;
   affiliateBalances?: Map<string, number>;
   affiliateDebtByCurrency?: Map<string, number>;
   affiliateBalance?: number;
@@ -737,7 +740,15 @@ const userSchema = new Schema<IUser>(
     affiliateRank: { type: Number, default: 1 },
     affiliateInvites: { type: Number, default: 0 },
     affiliateCode: { type: String, unique: true, sparse: true },
+    affiliateStatus: {
+      type: String,
+      enum: ['pending_approval', 'active', 'inactive', 'suspended'],
+      default: 'active',
+      index: true,
+    },
+    affiliateSince: { type: Date, default: Date.now },
     affiliateUsed: { type: String, default: null },
+    affiliateFirstCommissionAt: { type: Date, default: null, index: true },
     affiliateBalances: { type: Map, of: Number, default: {} },
     affiliateDebtByCurrency: { type: Map, of: Number, default: {} },
     affiliateBalanceCents: { type: Number, default: 0 },

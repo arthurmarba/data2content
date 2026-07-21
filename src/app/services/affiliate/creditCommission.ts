@@ -8,9 +8,13 @@ export type CreditArgs = {
   currency: string;
   description?: string;
   sourcePaymentId?: string;
-  buyerUserId?: string; // chega como string
+  buyerUserId?: string;
 };
 
+/**
+ * Crédito administrativo/legado. Exige uma origem financeira estável e usa
+ * uma única atualização atômica para saldo + ledger.
+ */
 export async function creditAffiliateCommission(args: CreditArgs) {
   const {
     affiliateUserId,
@@ -21,60 +25,62 @@ export async function creditAffiliateCommission(args: CreditArgs) {
     buyerUserId,
   } = args;
 
-  await connectToDatabase();
-
   if (!Types.ObjectId.isValid(affiliateUserId)) {
     throw new Error("Invalid affiliateUserId");
   }
+  if (!Number.isSafeInteger(amountCents) || amountCents <= 0) {
+    throw new Error("amountCents must be a positive safe integer");
+  }
+  const lowerCurrency = String(currency || "").trim().toLowerCase();
+  if (!/^[a-z]{3}$/.test(lowerCurrency)) {
+    throw new Error("Invalid currency");
+  }
+  if (!sourcePaymentId?.trim()) {
+    throw new Error("sourcePaymentId is required for idempotency");
+  }
+  if (buyerUserId && !Types.ObjectId.isValid(buyerUserId)) {
+    throw new Error("Invalid buyerUserId");
+  }
 
-  const user = await User.findById(affiliateUserId);
-  if (!user) throw new Error("Affiliate user not found");
-
-  // normaliza moeda e valida o buyerUserId (se vier)
-  const lowerCurrency = (currency || "BRL").toLowerCase();
-  const buyerObjId =
-    buyerUserId && Types.ObjectId.isValid(buyerUserId)
-      ? new Types.ObjectId(buyerUserId)
-      : undefined;
-
+  await connectToDatabase();
   const now = new Date();
-  user.commissionLog ||= [];
-  user.commissionLog.push({
-    type: 'commission',
-    status: 'available',
-    affiliateUserId: user._id,
-    buyerUserId: buyerObjId,
-    currency: lowerCurrency,
-    amountCents,
-    invoiceId: sourcePaymentId,
-    note: description,
-    availableAt: now,
-    maturedAt: now,
-    createdAt: now,
-    updatedAt: now,
-  } as any);
+  const affiliateObjectId = new Types.ObjectId(affiliateUserId);
+  const invoiceId = sourcePaymentId.trim();
+  const result = await User.updateOne(
+    {
+      _id: affiliateObjectId,
+      $or: [{ affiliateStatus: "active" }, { affiliateStatus: null }],
+      commissionLog: {
+        $not: { $elemMatch: { type: "commission", invoiceId } },
+      },
+    },
+    {
+      $push: {
+        commissionLog: {
+          type: "commission",
+          status: "available",
+          affiliateUserId: affiliateObjectId,
+          buyerUserId: buyerUserId ? new Types.ObjectId(buyerUserId) : undefined,
+          currency: lowerCurrency,
+          amountCents,
+          invoiceId,
+          note: description,
+          availableAt: now,
+          maturedAt: now,
+          createdAt: now,
+          updatedAt: now,
+        },
+      },
+      $inc: { [`affiliateBalances.${lowerCurrency}`]: amountCents },
+    },
+  );
 
-  // Garante que affiliateBalances seja um Map-like válido (cobre legado objeto plano)
-  // @ts-ignore (MongooseMap possui get/set em runtime)
-  if (!user.affiliateBalances) {
-    // @ts-ignore
-    user.affiliateBalances = new Map<string, number>();
-  }
-  // @ts-ignore
-  if (typeof (user.affiliateBalances as any).get !== "function") {
-    const asObj = user.affiliateBalances as unknown as Record<string, number>;
-    // @ts-ignore
-    user.affiliateBalances = new Map<string, number>(Object.entries(asObj || {}));
-  }
+  if (result.modifiedCount === 1) return { ok: true, duplicate: false };
 
-  // @ts-ignore
-  const prev = user.affiliateBalances.get(lowerCurrency) ?? 0;
-  // @ts-ignore
-  user.affiliateBalances.set(lowerCurrency, prev + amountCents);
-
-  user.markModified("commissionLog");
-  user.markModified("affiliateBalances");
-  await user.save();
-
-  return { ok: true };
+  const duplicate = await User.exists({
+    _id: affiliateObjectId,
+    commissionLog: { $elemMatch: { type: "commission", invoiceId } },
+  });
+  if (duplicate) return { ok: true, duplicate: true };
+  throw new Error("Affiliate user not found or inactive");
 }

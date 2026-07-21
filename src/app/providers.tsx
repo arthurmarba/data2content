@@ -3,10 +3,16 @@
 
 import { SessionProvider } from "next-auth/react";
 import type { Session } from "next-auth";
+import dynamic from "next/dynamic";
+import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import Cookies from "js-cookie";
 import { FeatureFlagProvider } from "@/app/context/FeatureFlagsContext";
-import PaywallModalProvider from "@/app/components/PaywallModalProvider";
+
+const PaywallModalProvider = dynamic(
+  () => import("@/app/components/PaywallModalProvider"),
+  { ssr: false },
+);
 
 // --- INÍCIO DA CORREÇÃO ---
 // A definição da interface que estava faltando foi adicionada de volta.
@@ -18,7 +24,14 @@ interface ProvidersProps {
 
 const AFFILIATE_COOKIE_NAME = 'd2c_ref';
 
+export function shouldLoadProductInfrastructure(pathname: string | null) {
+  return pathname !== "/" && pathname !== "/landing";
+}
+
 export function Providers({ children, session }: ProvidersProps) {
+  const pathname = usePathname();
+  const loadProductInfrastructure = shouldLoadProductInfrastructure(pathname);
+
   useEffect(() => {
     // Este código roda uma vez quando a aplicação carrega no navegador.
     if (typeof window !== 'undefined') {
@@ -47,9 +60,9 @@ export function Providers({ children, session }: ProvidersProps) {
       refetchOnWindowFocus={false}
       basePath="/api/auth"
     >
-      <FeatureFlagProvider>
+      <FeatureFlagProvider loadRemoteFlags={loadProductInfrastructure}>
         {children}
-        <PaywallModalProvider />
+        {loadProductInfrastructure ? <PaywallModalProvider /> : null}
       </FeatureFlagProvider>
     </SessionProvider>
   );

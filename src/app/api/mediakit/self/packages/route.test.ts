@@ -1,5 +1,4 @@
 /** @jest-environment node */
-import 'next/dist/server/node-polyfill-fetch';
 import { NextRequest } from 'next/server';
 
 jest.mock('next-auth/next', () => ({ getServerSession: jest.fn() }));

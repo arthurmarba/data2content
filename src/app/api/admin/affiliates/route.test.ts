@@ -3,10 +3,12 @@ import { GET } from './route';
 import { fetchAffiliates } from '@/lib/services/adminCreatorService'; // Ajuste se o nome do serviço mudou
 import { NextRequest } from 'next/server';
 import { AdminAffiliateListParams } from '@/types/admin/affiliates';
+import { getAdminSession } from '@/lib/getAdminSession';
 
 jest.mock('@/lib/services/adminCreatorService', () => ({
   fetchAffiliates: jest.fn(),
 }));
+jest.mock('@/lib/getAdminSession', () => ({ getAdminSession: jest.fn() }));
 
 // Mock de getAdminSession (assumindo que está definido na rota ou é importável e mockável)
 // Se for uma função local simples na rota, este mock pode não ter efeito direto sem
@@ -24,7 +26,9 @@ describe('API Route: GET /api/admin/affiliates', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // (require('./route') as any).getAdminSession.mockResolvedValue({ user: { name: 'Admin User', role: 'admin' } });
+    (getAdminSession as jest.Mock).mockResolvedValue({
+      user: { name: 'Admin User', role: 'admin' },
+    });
   });
 
   it('should return 200 and affiliate data on successful fetch', async () => {

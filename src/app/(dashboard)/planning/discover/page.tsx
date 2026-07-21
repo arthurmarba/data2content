@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 export default async function PlanningDiscoverPage({
   searchParams,
 }: {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const session = await getServerSession(authOptions);
 
