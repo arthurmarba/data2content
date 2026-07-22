@@ -259,7 +259,7 @@ const PLATFORM_STEPS: StoryboardStep[] = [
     overlaySubtitle: "Monetizacao adicional por indicacao",
     focusTexts: [
       "Programa de Afiliados",
-      "Ganhe 50% da primeira fatura de cada criador indicado.",
+      "Ganhe 20% da primeira fatura de cada criador indicado.",
       "Seu link de afiliado",
       "Compartilhar link",
       "Ranking e Resgate em um só lugar",

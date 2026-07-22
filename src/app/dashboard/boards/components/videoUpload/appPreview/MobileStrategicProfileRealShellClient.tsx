@@ -59,6 +59,7 @@ interface MobileStrategicProfileRealShellClientProps {
   initialSynthesisSnapshotWrite?: VideoNarrativeSynthesisSnapshotWriteSummary | null;
   initialReadingQuota?: NarrativeMapReadingQuotaSnapshot | null;
   internalSnapshotReview?: boolean;
+  initialAffiliateView?: boolean;
 }
 
 function normalizeProfileImageCandidate(value: unknown): string | null {
@@ -96,6 +97,7 @@ export function MobileStrategicProfileRealShellClient({
   initialSynthesisSnapshotWrite,
   initialReadingQuota,
   internalSnapshotReview,
+  initialAffiliateView = false,
 }: MobileStrategicProfileRealShellClientProps) {
   const router = useRouter();
   const realAnalysisEnabled = process.env.NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED === "1";
@@ -804,6 +806,7 @@ export function MobileStrategicProfileRealShellClient({
             }}
             onSignOut={() => signOut({ callbackUrl: "/" })}
             frameMode="app"
+            initialAccountMenuView={initialAffiliateView ? "affiliates" : "menu"}
           />
           {/* Access message toast — floats above the bottom nav */}
           {mapAccessMessage ? (

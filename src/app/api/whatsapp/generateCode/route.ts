@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
 
     if (hasValidExisting) {
       console.log(
-        `[whatsapp/generateCode] Existing code reused -> user=${current._id}, code=${current.whatsappVerificationCode}`
+        `[whatsapp/generateCode] Existing code reused -> user=${current._id}`
       );
       return NextResponse.json(
         {
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     await current.save();
 
     console.log(
-      `[whatsapp/generateCode] New code generated -> user=${userId}, code=${freshCode}, expiresAt=${freshExpiresAt.toISOString()}`
+      `[whatsapp/generateCode] New code generated -> user=${userId}, expiresAt=${freshExpiresAt.toISOString()}`
     );
 
     return NextResponse.json(

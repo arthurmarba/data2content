@@ -261,7 +261,8 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
   const [openCategory, setOpenCategory] = useState<CategoryId | null>(null);
   const pendingPublishIntentRef = useRef<Promise<void> | null>(null);
   const [diagnosisOverviewOpen, setDiagnosisOverviewOpen] = useState(false);
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const affiliateReturn = searchParams?.get("affiliate") === "1";
+  const [accountMenuOpen, setAccountMenuOpen] = useState(affiliateReturn);
   const [surveyOpen, setSurveyOpen] = useState(false);
   const [norteOpen, setNorteOpen] = useState(false);
   // Propósito local — reflete saves em DiagnosticoNorteView sem router.refresh().
@@ -995,10 +996,6 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
     });
   }, [data.instagramConnected]);
-  const handleOpenAccountAffiliates = useCallback(() => {
-    setAccountMenuOpen(false);
-    router.push("/afiliados");
-  }, [router]);
   const handleContactSupport = useCallback(() => {
     setAccountMenuOpen(false);
     window.location.href = "mailto:support@data2content.ai";
@@ -2086,12 +2083,12 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
           onOpenInstagramConnection={handleOpenAccountInstagramConnection}
           onOpenBilling={handleOpenAccountBilling}
           onUpgrade={handleAccountUpgrade}
-          onOpenAffiliates={handleOpenAccountAffiliates}
           onContactSupport={handleContactSupport}
           onSignOut={handleAccountSignOut}
           onOpenSurvey={() => setSurveyOpen(true)}
           onOpenNorte={() => setNorteOpen(true)}
           hasPurpose={Boolean(localPurpose)}
+          initialView={affiliateReturn ? "affiliates" : "menu"}
         />
       ) : null}
 

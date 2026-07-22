@@ -26,7 +26,7 @@ jest.mock('@/server/stripe/webhook-helpers', () => ({
   ensureInvoiceIdempotent: jest.fn(async () => true),
   ensureSubscriptionFirstTime: jest.fn(async () => true),
   ensureBuyerFirstCommission: jest.fn(async () => true),
-  calcCommissionCents: jest.fn(() => 4500),
+  calcCommissionCents: jest.fn(() => 1800),
   addDays: jest.fn(() => new Date('2026-03-15T00:00:00.000Z')),
 }));
 jest.mock('@/server/affiliate/balance', () => ({ adjustBalance: jest.fn() }));
@@ -38,7 +38,7 @@ jest.mock('@/app/lib/emailService', () => ({
   sendPaymentReceiptEmail: jest.fn(),
 }));
 jest.mock('@/app/services/affiliate/calcCommissionCents', () => ({
-  getCommissionRateBps: jest.fn(() => 5000),
+  getCommissionRateBps: jest.fn(() => 2000),
 }));
 
 import { User } from '@/server/db/models/User';
@@ -101,7 +101,7 @@ describe('handleStripeEvent affiliate commissions', () => {
     (stripe as any).invoicePayments.list.mockResolvedValue({ data: [], has_more: false });
   });
 
-  test('creates a pending 50% commission only on the first paid invoice of the indicated creator', async () => {
+  test('creates a pending 20% commission only on the first paid invoice of the indicated creator', async () => {
     const buyer = buildBuyer();
     const owner = buildOwner();
 
@@ -119,8 +119,8 @@ describe('handleStripeEvent affiliate commissions', () => {
       status: 'pending',
       invoiceId: 'in_1',
       subscriptionId: 'sub_1',
-      amountCents: 4500,
-      commissionRateBps: 5000,
+      amountCents: 1800,
+      commissionRateBps: 2000,
       currency: 'brl',
     });
     expect(buyer.affiliateFirstCommissionAt).toBeInstanceOf(Date);

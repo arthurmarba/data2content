@@ -84,6 +84,7 @@ if (process.env.NODE_ENV === "production") {
 type MobileStrategicProfilePageProps = {
   searchParams?: {
     state?: string | string[];
+    affiliate?: string | string[];
   };
 };
 
@@ -467,6 +468,7 @@ export default async function MobileStrategicProfilePage({
   }
 
   const stateQuery = typeof searchParams?.state === "string" ? searchParams.state : null;
+  const initialAffiliateView = searchParams?.affiliate === "1";
 
   if (DIAGNOSTICO_V2_ENABLED && diagnosticoPageData) {
     return (
@@ -491,6 +493,7 @@ export default async function MobileStrategicProfilePage({
         initialNarrativeMapViewModel={initialNarrativeMapViewModel}
         initialNarrativeMapPresentation={initialNarrativeMapPresentation}
         initialReadingQuota={initialReadingQuota}
+        initialAffiliateView={initialAffiliateView}
       />
     </>
   );

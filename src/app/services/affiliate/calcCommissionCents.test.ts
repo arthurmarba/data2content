@@ -1,13 +1,13 @@
 import { calcCommissionCents, getCommissionRateBps } from './calcCommissionCents';
 
 describe('calcCommissionCents', () => {
-  test('calculates 50% of amount paid', () => {
+  test('calculates 20% of amount paid', () => {
     expect(
       calcCommissionCents({
         amount_paid: 9000,
       } as any)
-    ).toBe(4500);
-    expect(getCommissionRateBps()).toBe(5000);
+    ).toBe(1800);
+    expect(getCommissionRateBps()).toBe(2000);
   });
 
   test('returns zero when invoice has no paid amount', () => {

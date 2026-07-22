@@ -11,6 +11,7 @@ import { Bricolage_Grotesque, Instrument_Sans } from "next/font/google";
 export const instrumentSans = Instrument_Sans({
   subsets: ["latin"],
   weight: "variable",
+  style: ["normal", "italic"],
   variable: "--font-d2c-sans",
   display: "swap",
   adjustFontFallback: false,

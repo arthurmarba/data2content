@@ -6,6 +6,10 @@ import { stripe } from "@/app/lib/stripe";
 import { checkRateLimit } from "@/utils/rateLimit";
 import { getClientIp } from "@/utils/getClientIp";
 import { logger } from "@/app/lib/logger";
+import {
+  appendAffiliateConnectReturn,
+  normalizeAffiliateConnectReturn,
+} from "@/lib/affiliateConnectReturn";
 
 export const runtime = "nodejs";
 
@@ -28,6 +32,8 @@ export async function POST(req: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
+    const requestBody = await req.json().catch(() => ({}));
+    const returnTo = normalizeAffiliateConnectReturn(requestBody?.returnTo, "");
 
     const ip = getClientIp(req);
     const { allowed } = await checkRateLimit(
@@ -93,12 +99,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ url: ll.url, kind: "login" });
     }
 
-    const refreshUrl =
+    const refreshUrl = appendAffiliateConnectReturn(
       process.env.STRIPE_CONNECT_REFRESH_URL ||
-      `${origin}/affiliate/connect/refresh`;
-    const returnUrl =
+      `${origin}/affiliate/connect/refresh`,
+      returnTo,
+    );
+    const returnUrl = appendAffiliateConnectReturn(
       process.env.STRIPE_CONNECT_RETURN_URL ||
-      `${origin}/affiliate/connect/return`;
+      `${origin}/affiliate/connect/return`,
+      returnTo,
+    );
 
     const link = await stripe.accountLinks.create({
       account: accountId!,

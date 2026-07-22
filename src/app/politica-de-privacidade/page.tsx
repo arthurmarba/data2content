@@ -29,7 +29,7 @@ export default function PrivacyPolicyPage() {
               Política de Privacidade
             </h1>
             <p className="mt-4 text-md text-gray-500">
-              <strong>Última Atualização:</strong> 3 de junho de 2026
+              <strong>Última Atualização:</strong> 21 de julho de 2026
             </p>
           </header>
 
@@ -52,7 +52,7 @@ export default function PrivacyPolicyPage() {
             <h3 className="text-xl font-semibold text-gray-800 mt-6">2.1. Dados via APIs da Meta (com a sua autorização)</h3>
             <p>Quando você conecta a sua conta do Instagram ao Data2Content, solicitamos permissão para coletar:</p>
             <ul className="list-disc list-inside mt-4 space-y-2">
-              <li><strong>Informações Básicas do Perfil (<code>public_profile</code>, <code>email</code>):</strong> Nome, e-mail principal e foto de perfil da conta do Facebook, usados para criar e gerir a sua conta.</li>
+              <li><strong>Perfil Público do Facebook (<code>public_profile</code>):</strong> Identificador, nome e foto pública usados exclusivamente para reconhecer a conta Facebook autorizada e associar com segurança a conexão do Instagram à conta Data2Content já autenticada.</li>
               <li><strong>Lista de Páginas do Facebook (<code>pages_show_list</code>):</strong> Acesso temporário para selecionar a Página vinculada à sua conta profissional do Instagram.</li>
               <li><strong>Informações Básicas da Conta Instagram (<code>instagram_basic</code>):</strong> ID de usuário, @username, foto de perfil, número de seguidores e contagem de mídias.</li>
               <li><strong>Insights do Instagram (<code>instagram_manage_insights</code>):</strong> Métricas de desempenho agregadas (alcance, impressões, curtidas, comentários, salvamentos, visualizações, dados demográficos da audiência). Estes dados são a base para as análises do nosso assistente de IA.</li>
@@ -62,8 +62,9 @@ export default function PrivacyPolicyPage() {
             <h3 className="text-xl font-semibold text-gray-800 mt-6">2.2. Dados via API do WhatsApp (com a sua autorização)</h3>
             <p>Quando você vincula o seu número de WhatsApp, usamos as permissões <code>whatsapp_business_messaging</code> e <code>whatsapp_business_management</code> para:</p>
             <ul className="list-disc list-inside mt-4 space-y-2">
-              <li>Enviar e receber mensagens para interação com o assistente de IA.</li>
-              <li>Gerir a conexão técnica e os modelos de mensagem usados em relatórios e alertas.</li>
+              <li>Receber o código enviado voluntariamente pelo usuário e confirmar o vínculo do número à conta Data2Content.</li>
+              <li>Enviar confirmações, alertas e notificações de serviço após o opt-in, além de processar pedidos de ajuda ou cancelamento de mensagens.</li>
+              <li>Gerir a conexão técnica do número comercial, webhooks e modelos de mensagem usados nesses alertas.</li>
             </ul>
 
             <h3 className="text-xl font-semibold text-gray-800 mt-6">2.3. Dados Fornecidos Diretamente por Você</h3>
@@ -91,7 +92,7 @@ export default function PrivacyPolicyPage() {
                 <tbody>
                   <tr className="even:bg-gray-50">
                     <td className="border border-gray-300 px-4 py-3">Fornecer análises personalizadas via IA</td>
-                    <td className="border border-gray-300 px-4 py-3">Insights do Instagram, interações WhatsApp</td>
+                    <td className="border border-gray-300 px-4 py-3">Perfil, posts, legendas, capas de posts e insights do Instagram</td>
                     <td className="border border-gray-300 px-4 py-3">Execução de contrato (inciso V) + Consentimento (inciso I)</td>
                   </tr>
                   <tr className="even:bg-gray-50">
@@ -169,6 +170,16 @@ export default function PrivacyPolicyPage() {
                   <tr className="even:bg-gray-50">
                     <td className="border border-gray-300 px-4 py-3">Upstash, Inc.</td>
                     <td className="border border-gray-300 px-4 py-3">Cache de dados</td>
+                    <td className="border border-gray-300 px-4 py-3">DPA com cláusulas contratuais-padrão (inciso II)</td>
+                  </tr>
+                  <tr className="even:bg-gray-50">
+                    <td className="border border-gray-300 px-4 py-3">OpenAI, L.L.C.</td>
+                    <td className="border border-gray-300 px-4 py-3">Processamento de IA para gerar análises e recomendações, quando este provedor estiver habilitado</td>
+                    <td className="border border-gray-300 px-4 py-3">DPA com cláusulas contratuais-padrão (inciso II)</td>
+                  </tr>
+                  <tr className="even:bg-gray-50">
+                    <td className="border border-gray-300 px-4 py-3">Google LLC (Google Gemini API)</td>
+                    <td className="border border-gray-300 px-4 py-3">Processamento de IA de conteúdo e imagens de posts para gerar análises e recomendações, quando este provedor estiver habilitado</td>
                     <td className="border border-gray-300 px-4 py-3">DPA com cláusulas contratuais-padrão (inciso II)</td>
                   </tr>
                   <tr className="even:bg-gray-50">

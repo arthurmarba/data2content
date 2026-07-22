@@ -39,6 +39,7 @@ import { fetchAvailableInstagramAccounts } from "@/app/lib/instagram";
 import type { AvailableInstagramAccount as ServiceAvailableIgAccount } from "@/app/lib/instagram/types";
 import type { ProTrialState } from "@/types/billing";
 import { isInstagramReconnectV2Enabled } from "@/app/lib/instagram/reconnectConfig";
+import { INSTAGRAM_OAUTH_SCOPE } from "@/app/lib/instagram/oauthPermissions";
 import {
   IG_RECONNECT_ERROR_CODES,
   inferReconnectErrorCodeFromMessage,
@@ -475,7 +476,6 @@ function resolveDevE2ECredentialsUser(credentials: { email?: string | null; pass
 
   const identity = identities.find((candidate) => candidate.email === providedEmail);
   if (!identity) return null;
-
   return {
     id: identity.id,
     name: identity.planStatus === "inactive" ? "E2E Free User" : "E2E Test User",
@@ -786,7 +786,7 @@ const authOptionsConfig = {
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET!,
       authorization: {
         params: {
-          scope: "email,public_profile,pages_show_list,pages_read_engagement,instagram_basic,instagram_manage_insights,business_management",
+          scope: INSTAGRAM_OAUTH_SCOPE,
           auth_type: "rerequest",
         },
       },

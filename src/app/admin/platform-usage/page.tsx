@@ -1,354 +1,639 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { PresentationChartBarIcon } from '@heroicons/react/24/outline';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+  ArrowPathIcon,
+  ArrowTrendingDownIcon,
+  ArrowTrendingUpIcon,
+  CheckCircleIcon,
+  DevicePhoneMobileIcon,
+  ExclamationTriangleIcon,
+  PresentationChartBarIcon,
+  SparklesIcon,
+} from '@heroicons/react/24/outline';
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import { percentage, relativeGrowth } from './platformUsageUtils';
 
-/* ── tipos ── */
 interface PlanItem { _id: string; total: number }
 interface MauPoint { month: string; mau: number; avgDau: number }
+interface DayPoint { date: string; users: number; events: number }
 interface WeekPoint { _id: { year: number; week: number }; total: number; uniqueUsers: number }
-interface MkMonth  { _id: { year: number; month: number }; acessos: number; visitantesUnicos: number }
-interface Creator  { name: string; username: string | null; planStatus: string; followers: number | null; visitantesUnicos: number; acessosTotais: number }
-interface ToolStat { eventName: string; total: number; uniqueUsers: number; mobileTotal: number; mobileUniqueUsers: number }
-interface Data {
-  generatedAt: string
-  users: { total: number; planDist: PlanItem[] }
-  activity: { avgDau30: number; peakDau: number; mau30: number; mauByMonth: MauPoint[]; dauLogin: number; mauLogin30d: number }
-  features: {
-    pautas: { total30d: number; users30d: number; byWeek: WeekPoint[] }
-    publi:  { total: number; total30d: number; users30d: number }
-    video:  { total30d: number }
-    mapa:   { total: number; confirmations30d: number }
-    byTool: ToolStat[]
-  }
-  mediakit: { humanTotal: number; human30d: number; byMonth: MkMonth[]; ranking: Creator[] }
+interface MkMonth { _id: { year: number; month: number }; acessos: number; visitantesUnicos: number }
+interface Creator {
+  name: string;
+  username: string | null;
+  planStatus: string;
+  followers: number | null;
+  visitantesUnicos: number;
+  acessosTotais: number;
 }
+interface ToolStat {
+  eventName: string;
+  total: number;
+  uniqueUsers: number;
+  mobileTotal: number;
+  mobileUniqueUsers: number;
+}
+interface Data {
+  generatedAt: string;
+  users: {
+    total: number;
+    planDist: PlanItem[];
+    new7d: number;
+    new30d: number;
+    previous30d: number;
+  };
+  activity: {
+    avgDau30: number;
+    peakDau: number;
+    mau30: number;
+    mauByMonth: MauPoint[];
+    dauLogin: number;
+    mauLogin30d: number;
+    actionUsers30d: number;
+    events30d: number;
+    dauByDay: DayPoint[];
+  };
+  features: {
+    pautas: { total30d: number; users30d: number; byWeek: WeekPoint[] };
+    publi: { total: number; total30d: number; users30d: number };
+    video: { total30d: number };
+    mapa: { total: number; confirmations30d: number };
+    byTool: ToolStat[];
+  };
+  mediakit: {
+    humanTotal: number;
+    human30d: number;
+    humanPrevious30d: number;
+    uniqueVisitors30d: number;
+    creators30d: number;
+    byMonth: MkMonth[];
+    ranking: Creator[];
+  };
+}
+
+type Tab = 'geral' | 'features' | 'midia-kit';
 
 const TOOL_LABELS: Record<string, string> = {
   publi_calculated: 'Calculadora de publi',
-  media_kit_opened: 'Mídia kit (aberto pelo criador)',
-  pauta_created: 'Pautas geradas',
-  map_dimension_confirmed: 'Confirmações no mapa',
-  video_upload_started: 'Vídeo — upload iniciado',
-  video_diagnosis_created: 'Vídeo — diagnóstico concluído',
-  collab_swiped: 'Collabs — swipe',
-  collab_matched: 'Collabs — match',
-  chat_session_started: 'Chat — sessão iniciada',
+  media_kit_opened: 'Mídia Kit',
+  pauta_created: 'Pautas',
+  map_dimension_confirmed: 'Mapa estratégico',
+  video_upload_started: 'Upload de vídeo',
+  video_diagnosis_created: 'Diagnóstico de vídeo',
+  collab_swiped: 'Collabs · descoberta',
+  collab_matched: 'Collabs · match',
+  chat_session_started: 'Chat AI',
   session_start: 'Login',
 };
-function toolLabel(eventName: string) { return TOOL_LABELS[eventName] ?? eventName; }
 
-/* ── helpers ── */
-const PLAN_COLORS: Record<string, string> = {
-  active: 'bg-green-100 text-green-800',
-  canceled: 'bg-orange-100 text-orange-800',
-  inactive: 'bg-gray-100 text-gray-600',
-  non_renewing: 'bg-yellow-100 text-yellow-700',
-  past_due: 'bg-red-100 text-red-700',
+const PLAN_LABELS: Record<string, string> = {
+  active: 'Ativo',
+  canceled: 'Cancelado',
+  inactive: 'Inativo',
+  non_renewing: 'Não renovará',
+  past_due: 'Pagamento pendente',
 };
-const MONTHS_PT = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-function fmtMonth(m: MkMonth) { return `${MONTHS_PT[m._id.month - 1]}/${String(m._id.year).slice(2)}`; }
-function fmtWeek(w: WeekPoint) { return `W${String(w._id.week).padStart(2,'0')}`; }
-function num(n: number) { return n.toLocaleString('pt-BR'); }
 
-/* ── sub-componentes ── */
-function KpiCard({ label, value, sub, color = 'text-gray-900' }: { label: string; value: string | number; sub?: string; color?: string }) {
+const PLAN_BADGES: Record<string, string> = {
+  active: 'bg-emerald-50 text-emerald-700',
+  canceled: 'bg-orange-50 text-orange-700',
+  inactive: 'bg-zinc-100 text-zinc-600',
+  non_renewing: 'bg-amber-50 text-amber-700',
+  past_due: 'bg-red-50 text-red-700',
+};
+
+const MONTHS_PT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+const TOOLTIP_STYLE = {
+  borderRadius: 14,
+  border: '1px solid #e4e4e7',
+  boxShadow: '0 12px 32px rgba(24,24,27,.10)',
+  fontSize: 12,
+};
+
+function num(value: number, maximumFractionDigits = 0) {
+  return value.toLocaleString('pt-BR', { maximumFractionDigits });
+}
+
+function toolLabel(eventName: string) {
+  return TOOL_LABELS[eventName] ?? eventName.replaceAll('_', ' ');
+}
+
+function fmtMonth(item: MkMonth) {
+  return `${MONTHS_PT[item._id.month - 1]}/${String(item._id.year).slice(2)}`;
+}
+
+function fmtWeek(item: WeekPoint) {
+  return `S${String(item._id.week).padStart(2, '0')}`;
+}
+
+function Trend({ value, suffix = ' vs. período anterior' }: { value: number | null; suffix?: string }) {
+  if (value === null) return <span className="text-zinc-400">Sem base de comparação</span>;
+  const positive = value >= 0;
+  const Icon = positive ? ArrowTrendingUpIcon : ArrowTrendingDownIcon;
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p>
-      <p className={`text-3xl font-bold mt-1 ${color}`}>{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+    <span className={positive ? 'text-emerald-700' : 'text-red-700'}>
+      <Icon className="mr-1 inline h-3.5 w-3.5" aria-hidden />
+      {positive ? '+' : ''}{num(value, 1)}%{suffix}
+    </span>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  detail,
+  trend,
+}: {
+  label: string;
+  value: string;
+  detail: string;
+  trend?: number | null;
+}) {
+  return (
+    <div className="min-w-0 px-5 py-5 first:pl-0 last:pr-0 sm:px-6">
+      <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">{label}</p>
+      <p className="mt-2 text-3xl font-semibold tracking-[-0.045em] text-zinc-950">{value}</p>
+      <p className="mt-1.5 text-xs leading-5 text-zinc-500">
+        {trend === undefined ? detail : <><Trend value={trend} /><span className="block text-zinc-400">{detail}</span></>}
+      </p>
     </div>
   );
 }
 
-function HBar({ label, value, max, color = 'bg-indigo-500' }: { label: string; value: number; max: number; color?: string }) {
-  const pct = Math.round((value / max) * 100);
+function SectionHeading({ title, description, aside }: { title: string; description: string; aside?: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-3">
-      <span className="w-28 text-xs text-gray-500 text-right shrink-0">{label}</span>
-      <div className="flex-1 bg-gray-100 rounded h-5 overflow-hidden">
-        <div className={`h-full ${color} rounded flex items-center pl-2`} style={{ width: `${pct}%` }}>
-          <span className="text-white text-xs font-semibold">{num(value)}</span>
-        </div>
+    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div>
+        <h2 className="text-lg font-semibold tracking-[-0.02em] text-zinc-950">{title}</h2>
+        <p className="mt-1 text-sm text-zinc-500">{description}</p>
+      </div>
+      {aside}
+    </div>
+  );
+}
+
+function Insight({
+  tone,
+  title,
+  body,
+}: {
+  tone: 'positive' | 'attention' | 'neutral';
+  title: string;
+  body: string;
+}) {
+  const Icon = tone === 'positive' ? CheckCircleIcon : tone === 'attention' ? ExclamationTriangleIcon : SparklesIcon;
+  const iconClass = tone === 'positive' ? 'text-emerald-600' : tone === 'attention' ? 'text-amber-600' : 'text-indigo-600';
+  return (
+    <div className="flex gap-3 border-b border-zinc-100 py-4 last:border-0">
+      <Icon className={`mt-0.5 h-5 w-5 shrink-0 ${iconClass}`} aria-hidden />
+      <div>
+        <p className="text-sm font-semibold text-zinc-900">{title}</p>
+        <p className="mt-1 text-xs leading-5 text-zinc-500">{body}</p>
       </div>
     </div>
   );
 }
 
-function BarChart({ data, labelFn, valueFn, color = 'bg-indigo-500', label }: {
-  data: unknown[]; labelFn: (d: unknown) => string; valueFn: (d: unknown) => number; color?: string; label?: string;
-}) {
-  const max = Math.max(...data.map(d => valueFn(d)), 1);
+function LoadingState() {
   return (
-    <div className="space-y-2">
-      {label && <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{label}</p>}
-      {data.map((d, i) => (
-        <div key={i} className="flex items-center gap-3">
-          <span className="w-16 text-xs text-gray-500 text-right shrink-0">{labelFn(d)}</span>
-          <div className="flex-1 bg-gray-100 rounded h-6 overflow-hidden">
-            <div
-              className={`h-full ${color} rounded flex items-center pl-2 transition-all`}
-              style={{ width: `${Math.round((valueFn(d) / max) * 100)}%` }}
-            >
-              <span className="text-white text-xs font-semibold">{num(valueFn(d))}</span>
-            </div>
-          </div>
-        </div>
-      ))}
+    <div className="space-y-7 animate-pulse">
+      <div className="h-9 w-64 rounded bg-zinc-200" />
+      <div className="h-28 rounded-2xl bg-white ring-1 ring-zinc-200" />
+      <div className="grid gap-6 lg:grid-cols-[1.65fr_1fr]">
+        <div className="h-96 rounded-2xl bg-white ring-1 ring-zinc-200" />
+        <div className="h-96 rounded-2xl bg-white ring-1 ring-zinc-200" />
+      </div>
     </div>
   );
 }
 
-/* ── página ── */
 export default function PlatformUsagePage() {
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
-  const [tab, setTab] = useState<'geral' | 'features' | 'midia-kit'>('geral');
+  const [tab, setTab] = useState<Tab>('geral');
 
-  useEffect(() => {
-    fetch('/api/admin/platform-usage')
-      .then(r => { if (!r.ok) throw new Error('Erro ao carregar'); return r.json(); })
-      .then(setData)
-      .catch(e => setError(e.message))
-      .finally(() => setLoading(false));
+  const loadData = useCallback(async (refresh = false) => {
+    refresh ? setRefreshing(true) : setLoading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/admin/platform-usage', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Não foi possível carregar os dados de uso.');
+      setData(await response.json());
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Erro inesperado.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600" />
-    </div>
-  );
-  if (error || !data) return <div className="text-red-600 p-6">{error || 'Sem dados'}</div>;
+  useEffect(() => { void loadData(); }, [loadData]);
 
-  const d = data;
-  const activeCount = d.users.planDist.find(p => p._id === 'active')?.total ?? 0;
-  const updatedAt = new Date(d.generatedAt).toLocaleString('pt-BR');
+  const derived = useMemo(() => {
+    if (!data) return null;
+    const activeCount = data.users.planDist.find(plan => plan._id === 'active')?.total ?? 0;
+    const paidConversion = percentage(activeCount, data.users.total);
+    const loginReach = percentage(data.activity.mauLogin30d, data.users.total);
+    const actionReach = percentage(data.activity.actionUsers30d, data.activity.mauLogin30d);
+    const stickiness = percentage(data.activity.avgDau30, data.activity.actionUsers30d);
+    const userGrowth = relativeGrowth(data.users.new30d, data.users.previous30d);
+    const mediaKitGrowth = relativeGrowth(data.mediakit.human30d, data.mediakit.humanPrevious30d);
+    const visitsPerVisitor = data.mediakit.uniqueVisitors30d
+      ? data.mediakit.human30d / data.mediakit.uniqueVisitors30d
+      : 0;
+    const topThreeMediaKitShare = percentage(
+      data.mediakit.ranking.slice(0, 3).reduce((sum, creator) => sum + creator.visitantesUnicos, 0),
+      data.mediakit.ranking.reduce((sum, creator) => sum + creator.visitantesUnicos, 0),
+    );
+    return {
+      activeCount,
+      paidConversion,
+      loginReach,
+      actionReach,
+      stickiness,
+      userGrowth,
+      mediaKitGrowth,
+      visitsPerVisitor,
+      topThreeMediaKitShare,
+    };
+  }, [data]);
 
-  const TABS = [
-    { key: 'geral', label: 'Visão Geral' },
-    { key: 'features', label: 'Features' },
-    { key: 'midia-kit', label: 'Mídia Kit' },
-  ] as const;
+  if (loading) return <LoadingState />;
 
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <PresentationChartBarIcon className="w-7 h-7 text-indigo-600" />
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Uso da Plataforma</h1>
-            <p className="text-sm text-gray-500">Atualizado em {updatedAt}</p>
-          </div>
-        </div>
-        <button
-          onClick={() => { setLoading(true); fetch('/api/admin/platform-usage').then(r => r.json()).then(setData).finally(() => setLoading(false)); }}
-          className="text-sm text-indigo-600 hover:underline"
-        >
-          Atualizar
+  if (error || !data || !derived) {
+    return (
+      <div className="flex min-h-72 flex-col items-center justify-center rounded-2xl bg-white p-8 text-center ring-1 ring-zinc-200">
+        <ExclamationTriangleIcon className="h-8 w-8 text-amber-500" />
+        <p className="mt-3 font-semibold text-zinc-900">Dados indisponíveis</p>
+        <p className="mt-1 text-sm text-zinc-500">{error || 'Nenhum dado retornado.'}</p>
+        <button onClick={() => void loadData()} className="mt-5 rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white">
+          Tentar novamente
         </button>
       </div>
+    );
+  }
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-gray-200">
-        {TABS.map(t => (
+  const updatedAt = new Date(data.generatedAt).toLocaleString('pt-BR', {
+    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+  });
+  const featureRows = [...data.features.byTool].sort((a, b) => b.uniqueUsers - a.uniqueUsers);
+  const topFeatureRows = featureRows.slice(0, 7).map(item => ({
+    name: toolLabel(item.eventName),
+    usuários: item.uniqueUsers,
+  }));
+  const monthChart = data.mediakit.byMonth.slice(-12).map(item => ({
+    month: fmtMonth(item),
+    acessos: item.acessos,
+    visitantes: item.visitantesUnicos,
+  }));
+  const weeklyIdeas = data.features.pautas.byWeek.slice(-8).map(item => ({
+    week: fmtWeek(item),
+    pautas: item.total,
+    criadores: item.uniqueUsers,
+  }));
+
+  const tabs: Array<{ key: Tab; label: string }> = [
+    { key: 'geral', label: 'Saúde' },
+    { key: 'features', label: 'Adoção' },
+    { key: 'midia-kit', label: 'Mídia Kit' },
+  ];
+
+  return (
+    <div className="mx-auto max-w-[1500px] space-y-7 pb-12">
+      <header className="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-indigo-600">
+            <PresentationChartBarIcon className="h-4 w-4" aria-hidden />
+            Operação
+          </div>
+          <h1 className="mt-2 text-3xl font-semibold tracking-[-0.045em] text-zinc-950">Uso da plataforma</h1>
+          <p className="mt-2 text-sm text-zinc-500">Atividade, adoção e sinais de valor em uma única leitura.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="hidden text-xs text-zinc-400 sm:inline">Atualizado {updatedAt}</span>
           <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              tab === t.key ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+            onClick={() => void loadData(true)}
+            disabled={refreshing}
+            className="inline-flex min-h-10 items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 text-sm font-semibold text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50 disabled:opacity-60"
+          >
+            <ArrowPathIcon className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} aria-hidden />
+            {refreshing ? 'Atualizando' : 'Atualizar'}
+          </button>
+        </div>
+      </header>
+
+      <nav className="flex w-fit gap-1 rounded-full bg-zinc-100 p-1" aria-label="Seções do painel">
+        {tabs.map(item => (
+          <button
+            key={item.key}
+            onClick={() => setTab(item.key)}
+            className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+              tab === item.key ? 'bg-white text-zinc-950 shadow-sm' : 'text-zinc-500 hover:text-zinc-800'
             }`}
           >
-            {t.label}
+            {item.label}
           </button>
         ))}
-      </div>
+      </nav>
 
-      {/* ── VISÃO GERAL ── */}
-      {tab === 'geral' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KpiCard label="Usuários cadastrados" value={num(d.users.total)} sub="desde o lançamento" />
-            <KpiCard label="Pagantes ativos" value={activeCount} sub={`${((activeCount / d.users.total) * 100).toFixed(1)}% de conversão`} color="text-green-700" />
-            <KpiCard label="MAU — mês atual (ação)" value={d.activity.mau30} sub="usuários únicos com ação registrada" color="text-indigo-700" />
-            <KpiCard label="DAU médio (30d, ação)" value={d.activity.avgDau30} sub={`pico: ${d.activity.peakDau} usuários/dia`} />
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KpiCard label="DAU — hoje (login)" value={num(d.activity.dauLogin)} sub="sessão autenticada nas últimas 24h" color="text-sky-700" />
-            <KpiCard label="MAU — 30d (login)" value={num(d.activity.mauLogin30d)} sub="sessão autenticada nos últimos 30d" color="text-sky-700" />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* MAU por mês */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4">MAU mensal por ação (últimos 4 meses)</h3>
-              <BarChart
-                data={d.activity.mauByMonth.slice(-4)}
-                labelFn={(d: unknown) => (d as MauPoint).month.slice(5)}
-                valueFn={(d: unknown) => (d as MauPoint).mau}
-                color="bg-indigo-500"
-              />
-            </div>
-
-            {/* Distribuição de plano */}
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4">Distribuição de plano</h3>
-              <div className="space-y-3">
-                {d.users.planDist.map(p => (
-                  <HBar key={p._id} label={p._id || 'null'} value={p.total} max={d.users.total} color={
-                    p._id === 'active' ? 'bg-green-500' :
-                    p._id === 'canceled' ? 'bg-orange-400' :
-                    p._id === 'inactive' ? 'bg-gray-400' : 'bg-yellow-400'
-                  } />
-                ))}
+      <motion.div
+        key={tab}
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.22, ease: 'easeOut' }}
+      >
+        {tab === 'geral' && (
+          <div className="space-y-8">
+            <section>
+              <SectionHeading title="Saúde da plataforma" description="Aquisição, receita e uso real nos últimos 30 dias." />
+              <div className="grid divide-y divide-zinc-100 rounded-2xl bg-white px-5 ring-1 ring-zinc-200 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+                <Metric label="Usuários" value={num(data.users.total)} detail={`${num(data.users.new7d)} novos nos últimos 7 dias`} trend={derived.userGrowth} />
+                <Metric label="Pagantes ativos" value={num(derived.activeCount)} detail={`${num(derived.paidConversion, 1)}% da base cadastrada`} />
+                <Metric label="MAU por login" value={num(data.activity.mauLogin30d)} detail={`${num(derived.loginReach, 1)}% da base entrou em 30 dias`} />
+                <Metric label="MAU por ação" value={num(data.activity.actionUsers30d)} detail={`${num(derived.actionReach, 1)}% de quem entrou realizou uma ação`} />
               </div>
-            </div>
-          </div>
+            </section>
 
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-600">
-            <strong>Nota:</strong> &ldquo;Ação&rdquo; conta eventos reais gravados no log de uso (pautas, publi, mapa, vídeo, chat, sessão). &ldquo;Login&rdquo; conta sessões autenticadas — mais amplo, mas só reflete dados a partir do deploy desta instrumentação; o histórico anterior não existe.
-          </div>
-        </div>
-      )}
+            <section className="grid gap-6 lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,0.8fr)]">
+              <div className="rounded-2xl bg-white p-5 ring-1 ring-zinc-200 sm:p-6">
+                <SectionHeading
+                  title="Ritmo de uso"
+                  description="Usuários únicos e eventos registrados por dia."
+                  aside={<span className="text-xs text-zinc-400">Pico de {num(data.activity.peakDau)} usuários/dia</span>}
+                />
+                <div className="h-80 w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={data.activity.dauByDay} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="usersFill" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#4f46e5" stopOpacity={0.25} />
+                          <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.02} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
+                      <XAxis dataKey="date" tickFormatter={value => value.slice(8)} tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} interval={4} />
+                      <YAxis tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip contentStyle={TOOLTIP_STYLE} labelFormatter={value => new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR')} />
+                      <Area type="monotone" dataKey="users" name="Usuários" stroke="#4f46e5" strokeWidth={2.5} fill="url(#usersFill)" animationDuration={650} />
+                      <Area type="monotone" dataKey="events" name="Eventos" stroke="#a1a1aa" strokeWidth={1.5} fill="transparent" animationDuration={700} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 border-t border-zinc-100 pt-4 text-xs text-zinc-500">
+                  <span><strong className="text-zinc-900">{num(data.activity.events30d)}</strong> eventos em 30 dias</span>
+                  <span><strong className="text-zinc-900">{num(data.activity.avgDau30, 1)}</strong> DAU médio</span>
+                  <span><strong className="text-zinc-900">{num(derived.stickiness, 1)}%</strong> aderência diária</span>
+                </div>
+              </div>
 
-      {/* ── FEATURES ── */}
-      {tab === 'features' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KpiCard label="Pautas (30d)" value={num(d.features.pautas.total30d)} sub={`${d.features.pautas.users30d} criadores únicos`} color="text-indigo-700" />
-            <KpiCard label="Calc. Publi (30d)" value={d.features.publi.total30d} sub={`${d.features.publi.users30d} criadores · ${num(d.features.publi.total)} histórico`} />
-            <KpiCard label="Uploads de vídeo (30d)" value={d.features.video.total30d} />
-            <KpiCard label="Criadores no Mapa" value={d.features.mapa.total} sub={`${d.features.mapa.confirmations30d} confirmações 30d`} />
-          </div>
+              <aside className="rounded-2xl bg-white p-5 ring-1 ring-zinc-200 sm:p-6">
+                <SectionHeading title="Leitura operacional" description="Sinais calculados a partir do período atual." />
+                <Insight
+                  tone={derived.userGrowth !== null && derived.userGrowth >= 0 ? 'positive' : 'attention'}
+                  title={derived.userGrowth === null ? 'Crescimento sem histórico' : `${derived.userGrowth >= 0 ? 'Crescimento' : 'Queda'} de ${num(Math.abs(derived.userGrowth), 1)}%`}
+                  body={`${num(data.users.new30d)} novos cadastros agora, contra ${num(data.users.previous30d)} nos 30 dias anteriores.`}
+                />
+                <Insight
+                  tone={derived.actionReach >= 50 ? 'positive' : 'attention'}
+                  title={`${num(derived.actionReach, 1)}% dos usuários que entram geram ação`}
+                  body="A diferença entre login e ação indica o espaço para melhorar ativação e descoberta de valor."
+                />
+                <Insight
+                  tone={derived.stickiness >= 20 ? 'positive' : 'neutral'}
+                  title={`Aderência diária de ${num(derived.stickiness, 1)}%`}
+                  body="Relação entre DAU médio e usuários únicos que realizaram ações no período."
+                />
+                <Insight
+                  tone={derived.paidConversion >= 5 ? 'positive' : 'neutral'}
+                  title={`${num(derived.paidConversion, 1)}% da base está ativa no plano`}
+                  body="Conversão calculada sobre todos os usuários cadastrados."
+                />
+              </aside>
+            </section>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4">Pautas por semana</h3>
-              <BarChart
-                data={d.features.pautas.byWeek.slice(-6)}
-                labelFn={(d: unknown) => fmtWeek(d as WeekPoint)}
-                valueFn={(d: unknown) => (d as WeekPoint).total}
-                color="bg-violet-500"
-              />
-            </div>
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4">Criadores únicos por semana</h3>
-              <BarChart
-                data={d.features.pautas.byWeek.slice(-6)}
-                labelFn={(d: unknown) => fmtWeek(d as WeekPoint)}
-                valueFn={(d: unknown) => (d as WeekPoint).uniqueUsers}
-                color="bg-indigo-400"
-              />
-            </div>
-          </div>
+            <section className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
+              <div className="rounded-2xl bg-white p-5 ring-1 ring-zinc-200 sm:p-6">
+                <SectionHeading title="Atividade mensal" description="MAU por ação e média diária por mês instrumentado." />
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data.activity.mauByMonth.slice(-8)} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
+                      <XAxis dataKey="month" tickFormatter={value => value.slice(5)} tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip contentStyle={TOOLTIP_STYLE} />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                      <Bar dataKey="mau" name="MAU" fill="#4f46e5" radius={[6, 6, 0, 0]} animationDuration={650} />
+                      <Bar dataKey="avgDau" name="DAU médio" fill="#c7d2fe" radius={[6, 6, 0, 0]} animationDuration={700} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
 
-          {/* Por ferramenta */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-700 mb-1">Uso por ferramenta (30d)</h3>
-            <p className="text-xs text-gray-400 mb-4">Eventos reais gravados no log de uso. &ldquo;Mobile&rdquo; = disparado a partir do board mobile (Mapa/Collabs/Vídeo/Mídia Kit/Calculadora); eventos sem essa tag ainda não distinguem plataforma.</p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs uppercase tracking-wide text-gray-400 border-b border-gray-100">
-                    <th className="pb-2 text-left">Ferramenta</th>
-                    <th className="pb-2 text-right">Eventos (30d)</th>
-                    <th className="pb-2 text-right">Criadores únicos</th>
-                    <th className="pb-2 text-right">% mobile</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {d.features.byTool.map(t => (
-                    <tr key={t.eventName} className="border-b border-gray-50 hover:bg-gray-50">
-                      <td className="py-2 font-medium text-gray-800">{toolLabel(t.eventName)}</td>
-                      <td className="py-2 text-right">{num(t.total)}</td>
-                      <td className="py-2 text-right text-indigo-700 font-semibold">{num(t.uniqueUsers)}</td>
-                      <td className="py-2 text-right text-gray-500">
-                        {t.total > 0 ? `${Math.round((t.mobileTotal / t.total) * 100)}%` : '—'}
-                      </td>
-                    </tr>
-                  ))}
-                  {d.features.byTool.length === 0 && (
-                    <tr><td colSpan={4} className="py-4 text-center text-gray-400">Sem eventos nos últimos 30 dias.</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ── MÍDIA KIT ── */}
-      {tab === 'midia-kit' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <KpiCard label="Acessos humanos (1 ano)" value={num(d.mediakit.humanTotal)} sub="bots/crawlers excluídos" color="text-green-700" />
-            <KpiCard label="Acessos humanos (30d)" value={num(d.mediakit.human30d)} />
-            <KpiCard label="Pico mensal" value={num(Math.max(...d.mediakit.byMonth.map(m => m.visitantesUnicos), 0))} sub="visitantes únicos" />
-            <KpiCard label="Criadores no ranking" value={d.mediakit.ranking.length} sub="com kit aberto" />
-          </div>
-
-          {/* Gráfico mensal */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">Visitantes únicos por mês</h3>
-            <BarChart
-              data={d.mediakit.byMonth}
-              labelFn={(d: unknown) => fmtMonth(d as MkMonth)}
-              valueFn={(d: unknown) => (d as MkMonth).visitantesUnicos}
-              color="bg-emerald-500"
-            />
-          </div>
-
-          {/* Ranking */}
-          <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-700 mb-4">Ranking — visitantes únicos no kit</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-xs uppercase tracking-wide text-gray-400 border-b border-gray-100">
-                    <th className="pb-2 text-left w-8">#</th>
-                    <th className="pb-2 text-left">Criador</th>
-                    <th className="pb-2 text-left">Handle</th>
-                    <th className="pb-2 text-right">Visitantes</th>
-                    <th className="pb-2 text-right">Acessos</th>
-                    <th className="pb-2 text-right">Seguidores</th>
-                    <th className="pb-2 text-left pl-4">Plano</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {d.mediakit.ranking.map((c, i) => (
-                    <tr key={i} className="border-b border-gray-50 hover:bg-gray-50">
-                      <td className="py-2 text-gray-400 text-xs">{String(i + 1).padStart(2, '0')}</td>
-                      <td className="py-2 font-medium text-gray-800">{c.name}</td>
-                      <td className="py-2 text-gray-500 text-xs">{c.username ? `@${c.username}` : '—'}</td>
-                      <td className="py-2 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <div className="w-16 bg-gray-100 rounded h-1.5 overflow-hidden">
-                            <div
-                              className="h-full bg-emerald-500 rounded"
-                              style={{ width: `${Math.round((c.visitantesUnicos / (d.mediakit.ranking[0]?.visitantesUnicos || 1)) * 100)}%` }}
-                            />
-                          </div>
-                          <span className="font-semibold w-10 text-right">{num(c.visitantesUnicos)}</span>
+              <div className="rounded-2xl bg-white p-5 ring-1 ring-zinc-200 sm:p-6">
+                <SectionHeading title="Situação dos planos" description="Composição atual da base cadastrada." />
+                <div className="space-y-4">
+                  {data.users.planDist.map(plan => {
+                    const share = percentage(plan.total, data.users.total);
+                    return (
+                      <div key={plan._id || 'sem-status'}>
+                        <div className="mb-1.5 flex items-center justify-between text-xs">
+                          <span className="font-medium text-zinc-700">{PLAN_LABELS[plan._id] ?? plan._id ?? 'Sem status'}</span>
+                          <span className="text-zinc-400">{num(plan.total)} · {num(share, 1)}%</span>
                         </div>
-                      </td>
-                      <td className="py-2 text-right text-gray-500">{num(c.acessosTotais)}</td>
-                      <td className="py-2 text-right text-gray-500">{c.followers ? num(c.followers) : '—'}</td>
-                      <td className="py-2 pl-4">
-                        <span className={`text-xs px-2 py-0.5 rounded font-medium ${PLAN_COLORS[c.planStatus] ?? 'bg-gray-100 text-gray-500'}`}>
-                          {c.planStatus}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                        <div className="h-2 overflow-hidden rounded-full bg-zinc-100">
+                          <motion.div initial={{ width: 0 }} animate={{ width: `${share}%` }} transition={{ duration: 0.55 }} className="h-full rounded-full bg-indigo-500" />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </section>
+
+            <p className="border-t border-zinc-200 pt-4 text-xs leading-5 text-zinc-400">
+              “Ação” usa eventos reais do log de uso. “Login” usa a última sessão autenticada registrada por usuário e não reconstrói períodos anteriores à instrumentação.
+            </p>
           </div>
-        </div>
-      )}
+        )}
+
+        {tab === 'features' && (
+          <div className="space-y-8">
+            <section>
+              <SectionHeading title="Adoção de recursos" description="Volume e alcance das principais jornadas nos últimos 30 dias." />
+              <div className="grid divide-y divide-zinc-100 rounded-2xl bg-white px-5 ring-1 ring-zinc-200 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+                <Metric label="Pautas geradas" value={num(data.features.pautas.total30d)} detail={`${num(data.features.pautas.users30d)} criadores únicos`} />
+                <Metric label="Cálculos de publi" value={num(data.features.publi.total30d)} detail={`${num(data.features.publi.users30d)} criadores · ${num(data.features.publi.total)} histórico`} />
+                <Metric label="Diagnósticos de vídeo" value={num(data.features.video.total30d)} detail="processados nos últimos 30 dias" />
+                <Metric label="Criadores no mapa" value={num(data.features.mapa.total)} detail={`${num(data.features.mapa.confirmations30d)} confirmações em 30 dias`} />
+              </div>
+            </section>
+
+            <section className="grid gap-6 lg:grid-cols-2">
+              <div className="rounded-2xl bg-white p-5 ring-1 ring-zinc-200 sm:p-6">
+                <SectionHeading title="Alcance por recurso" description="Criadores únicos que usaram cada ferramenta." />
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={topFeatureRows} layout="vertical" margin={{ top: 4, right: 16, left: 18, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f4f4f5" />
+                      <XAxis type="number" tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <YAxis type="category" dataKey="name" width={126} tick={{ fontSize: 11, fill: '#52525b' }} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={TOOLTIP_STYLE} />
+                      <Bar dataKey="usuários" fill="#4f46e5" radius={[0, 6, 6, 0]} animationDuration={650} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              <div className="rounded-2xl bg-white p-5 ring-1 ring-zinc-200 sm:p-6">
+                <SectionHeading title="Ritmo de pautas" description="Produção e criadores únicos nas últimas oito semanas." />
+                <div className="h-80">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={weeklyIdeas} margin={{ top: 4, right: 8, left: -24, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
+                      <XAxis dataKey="week" tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip contentStyle={TOOLTIP_STYLE} />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                      <Bar dataKey="pautas" fill="#4f46e5" radius={[5, 5, 0, 0]} />
+                      <Bar dataKey="criadores" fill="#c7d2fe" radius={[5, 5, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </section>
+
+            <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-zinc-200">
+              <div className="border-b border-zinc-100 px-5 py-5 sm:px-6">
+                <SectionHeading title="Eficiência por ferramenta" description="Alcance, recorrência e participação mobile por evento instrumentado." />
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[760px] text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-100 bg-zinc-50/70 text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-400">
+                      <th className="px-6 py-3 text-left">Ferramenta</th>
+                      <th className="px-4 py-3 text-right">Usuários</th>
+                      <th className="px-4 py-3 text-right">Adoção</th>
+                      <th className="px-4 py-3 text-right">Eventos</th>
+                      <th className="px-4 py-3 text-right">Eventos/usuário</th>
+                      <th className="px-6 py-3 text-right">Mobile</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {featureRows.map(item => {
+                      const adoption = percentage(item.uniqueUsers, data.activity.actionUsers30d);
+                      const intensity = item.uniqueUsers ? item.total / item.uniqueUsers : 0;
+                      const mobileShare = percentage(item.mobileTotal, item.total);
+                      return (
+                        <tr key={item.eventName} className="border-b border-zinc-100 transition hover:bg-indigo-50/30 last:border-0">
+                          <td className="px-6 py-3.5 font-medium text-zinc-900">{toolLabel(item.eventName)}</td>
+                          <td className="px-4 py-3.5 text-right font-semibold text-zinc-900">{num(item.uniqueUsers)}</td>
+                          <td className="px-4 py-3.5 text-right text-zinc-500">{num(adoption, 1)}%</td>
+                          <td className="px-4 py-3.5 text-right text-zinc-500">{num(item.total)}</td>
+                          <td className="px-4 py-3.5 text-right text-zinc-500">{num(intensity, 1)}×</td>
+                          <td className="px-6 py-3.5 text-right">
+                            <span className="inline-flex items-center gap-1.5 text-zinc-500"><DevicePhoneMobileIcon className="h-4 w-4" />{num(mobileShare)}%</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {featureRows.length === 0 && <tr><td colSpan={6} className="px-6 py-12 text-center text-zinc-400">Sem eventos instrumentados no período.</td></tr>}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        )}
+
+        {tab === 'midia-kit' && (
+          <div className="space-y-8">
+            <section>
+              <SectionHeading title="Distribuição do Mídia Kit" description="Audiência humana, recorrência e alcance dos kits públicos." />
+              <div className="grid divide-y divide-zinc-100 rounded-2xl bg-white px-5 ring-1 ring-zinc-200 sm:grid-cols-2 sm:divide-x sm:divide-y-0 lg:grid-cols-4">
+                <Metric label="Acessos em 30 dias" value={num(data.mediakit.human30d)} detail={`${num(data.mediakit.humanTotal)} no histórico`} trend={derived.mediaKitGrowth} />
+                <Metric label="Visitantes únicos" value={num(data.mediakit.uniqueVisitors30d)} detail={`${num(derived.visitsPerVisitor, 1)} acessos por visitante`} />
+                <Metric label="Criadores alcançados" value={num(data.mediakit.creators30d)} detail="kits com ao menos um acesso no período" />
+                <Metric label="Concentração Top 3" value={`${num(derived.topThreeMediaKitShare, 1)}%`} detail="dos visitantes únicos do ranking" />
+              </div>
+            </section>
+
+            <section className="rounded-2xl bg-white p-5 ring-1 ring-zinc-200 sm:p-6">
+              <SectionHeading title="Audiência mensal" description="Acessos humanos e visitantes únicos nos últimos 12 meses." />
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={monthChart} margin={{ top: 6, right: 8, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: '#a1a1aa' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
+                    <Legend iconType="circle" wrapperStyle={{ fontSize: 11 }} />
+                    <Bar dataKey="acessos" name="Acessos" fill="#4f46e5" radius={[6, 6, 0, 0]} animationDuration={650} />
+                    <Bar dataKey="visitantes" name="Visitantes únicos" fill="#c7d2fe" radius={[6, 6, 0, 0]} animationDuration={700} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </section>
+
+            <section className="overflow-hidden rounded-2xl bg-white ring-1 ring-zinc-200">
+              <div className="border-b border-zinc-100 px-5 py-5 sm:px-6">
+                <SectionHeading title="Kits com maior audiência" description="Ranking histórico sem tráfego identificado como bot ou crawler." />
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[820px] text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-100 bg-zinc-50/70 text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-400">
+                      <th className="px-6 py-3 text-left">#</th>
+                      <th className="px-4 py-3 text-left">Criador</th>
+                      <th className="px-4 py-3 text-right">Visitantes</th>
+                      <th className="px-4 py-3 text-right">Acessos</th>
+                      <th className="px-4 py-3 text-right">Recorrência</th>
+                      <th className="px-4 py-3 text-right">Seguidores</th>
+                      <th className="px-6 py-3 text-left">Plano</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.mediakit.ranking.map((creator, index) => {
+                      const frequency = creator.visitantesUnicos ? creator.acessosTotais / creator.visitantesUnicos : 0;
+                      return (
+                        <tr key={`${creator.username ?? creator.name}-${index}`} className="border-b border-zinc-100 transition hover:bg-indigo-50/30 last:border-0">
+                          <td className="px-6 py-3.5 text-xs text-zinc-400">{String(index + 1).padStart(2, '0')}</td>
+                          <td className="px-4 py-3.5">
+                            <p className="font-medium text-zinc-900">{creator.name}</p>
+                            <p className="mt-0.5 text-xs text-zinc-400">{creator.username ? `@${creator.username}` : 'Sem handle'}</p>
+                          </td>
+                          <td className="px-4 py-3.5 text-right font-semibold text-zinc-900">{num(creator.visitantesUnicos)}</td>
+                          <td className="px-4 py-3.5 text-right text-zinc-500">{num(creator.acessosTotais)}</td>
+                          <td className="px-4 py-3.5 text-right text-zinc-500">{num(frequency, 1)}×</td>
+                          <td className="px-4 py-3.5 text-right text-zinc-500">{creator.followers ? num(creator.followers) : '—'}</td>
+                          <td className="px-6 py-3.5">
+                            <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${PLAN_BADGES[creator.planStatus] ?? 'bg-zinc-100 text-zinc-600'}`}>
+                              {PLAN_LABELS[creator.planStatus] ?? creator.planStatus}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        )}
+      </motion.div>
     </div>
   );
 }

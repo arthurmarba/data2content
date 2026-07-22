@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useCallback, useMemo, useState } from 'react';
-import { useSession } from 'next-auth/react';
 import toast from 'react-hot-toast';
 import {
   AlertTriangle,
@@ -17,12 +16,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { track } from '@/lib/track';
-import {
-  useAffiliateSummary,
-  canRedeem,
-  getRedeemBlockReason,
-} from '@/hooks/useAffiliateSummary';
-import { useConnectStatus } from '@/hooks/useConnectStatus';
+import { formatAffiliateAmount, useAffiliateDashboard } from '@/hooks/useAffiliateDashboard';
 import ErrorState from '@/components/ui/ErrorState';
 import { AFFILIATE_TIP_TEMPLATES } from '@/data/affiliateTips';
 
@@ -35,54 +29,25 @@ const copyLabels: Record<CopyKind, string> = {
 };
 
 function fmt(amountCents: number, cur: string) {
-  const n = (amountCents || 0) / 100;
-  const currency = (cur || 'BRL').toUpperCase();
-  const locale = currency === 'BRL' ? 'pt-BR' : 'en-US';
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-  }).format(n);
+  return formatAffiliateAmount(amountCents, cur);
 }
 
 export default function AffiliateCard() {
-  const { data: session } = useSession();
-  const {
-    summary,
-    loading: summaryLoading,
-    error: summaryError,
-    refresh: refreshSummary,
-  } = useAffiliateSummary();
-  const {
-    status,
-    isLoading: statusLoading,
-    error: statusError,
-    refresh: refreshStatus,
-  } = useConnectStatus();
+  const affiliate = useAffiliateDashboard();
+  const { summary, status } = affiliate;
   const [a11yMsg, setA11yMsg] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
-  const [redeeming, setRedeeming] = useState(false);
   const [copiedTipId, setCopiedTipId] = useState<string | null>(null);
 
-  const loading = summaryLoading || statusLoading;
-  const error = summaryError || statusError;
-
-  const refreshAll = useCallback(async () => {
-    await Promise.all([refreshSummary(), refreshStatus()]);
-  }, [refreshSummary, refreshStatus]);
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await refreshAll();
-    } finally {
-      setRefreshing(false);
-    }
-  }, [refreshAll]);
+  const loading = affiliate.loading;
+  const error = affiliate.error;
 
   const handleCopy = useCallback(
     async (textToCopy: string | null, type: CopyKind, successMessage?: string) => {
       if (!textToCopy) return;
+      if (type !== 'tip') {
+        await affiliate.copy(textToCopy, type);
+        return;
+      }
       try {
         await navigator.clipboard.writeText(textToCopy);
         const label = successMessage || `${copyLabels[type]} copiado!`;
@@ -93,58 +58,12 @@ export default function AffiliateCard() {
         toast.error('Falha ao copiar.');
       }
     },
-    [],
+    [affiliate],
   );
-
-  const handleShare = useCallback(
-    async (url: string | null) => {
-      if (!url) return;
-      try {
-        if (typeof navigator !== 'undefined' && (navigator as any).share) {
-          await (navigator as any).share({ title: 'Meu link de afiliado', url });
-          track('affiliate_share_native');
-        } else {
-          await navigator.clipboard.writeText(url);
-          toast.success('Link copiado para compartilhar!');
-          setA11yMsg('Link pronto para compartilhamento.');
-          track('affiliate_share_fallback_copy');
-        }
-      } catch {
-        /* usuário cancelou o compartilhamento */
-      }
-    },
-    [],
-  );
-
-  const openStripe = useCallback(async () => {
-    try {
-      const createRes = await fetch('/api/affiliate/connect/create', { method: 'POST' });
-      const createBody = await createRes.json().catch(() => ({}));
-      if (!createRes.ok) throw new Error(createBody?.error || 'Falha ao preparar conta Stripe');
-
-      const linkRes = await fetch('/api/affiliate/connect/link', { method: 'POST' });
-      const data = await linkRes.json().catch(() => ({}));
-      if (!linkRes.ok || !data?.url) throw new Error(data?.error || 'Falha ao gerar link do Stripe');
-      window.open(data.url, '_blank');
-    } catch (e: any) {
-      toast.error(e?.message || 'Não foi possível abrir o Stripe agora.');
-      refreshStatus();
-    }
-  }, [refreshStatus]);
 
   const fallbackOrigin = process.env.NEXT_PUBLIC_APP_URL || 'https://data2content.ai';
-  const userCode = session?.user?.affiliateCode || null;
-  const origin = useMemo(() => {
-    if (typeof window !== 'undefined' && window.location?.origin) {
-      return window.location.origin;
-    }
-    return fallbackOrigin;
-  }, [fallbackOrigin]);
-
-  const referralLink = useMemo(() => {
-    if (!userCode) return null;
-    return `${origin}/?ref=${userCode}`;
-  }, [origin, userCode]);
+  const userCode = affiliate.affiliateCode;
+  const referralLink = affiliate.referralLink;
 
   const displayLink = referralLink ?? `${fallbackOrigin}/?ref=${userCode ?? 'SEULINK'}`;
   const quickTips = useMemo(
@@ -169,48 +88,26 @@ export default function AffiliateCard() {
   if (error || !summary || !status) {
     return (
       <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
-        <ErrorState message="Erro ao carregar dados do afiliado." onRetry={refreshAll} />
+        <ErrorState message="Erro ao carregar dados do afiliado." onRetry={affiliate.refresh} />
       </div>
     );
   }
 
-  const currencies = Object.keys(summary.byCurrency ?? {});
-  const primaryCur = (status.defaultCurrency || currencies[0] || 'BRL').toUpperCase();
-  const primaryInfo = summary.byCurrency?.[primaryCur];
-  const availableCents = primaryInfo?.availableCents ?? 0;
-  const pendingCents = primaryInfo?.pendingCents ?? 0;
-  const totalCents = availableCents + pendingCents;
-  const minRedeem = primaryInfo?.minRedeemCents ?? 0;
-  const debtCents = primaryInfo?.debtCents ?? 0;
+  const primaryCur = affiliate.primaryCurrency;
+  const primaryInfo = affiliate.currencySummary;
+  const availableCents = affiliate.availableCents;
+  const pendingCents = affiliate.pendingCents;
+  const totalCents = affiliate.totalCents;
+  const minRedeem = affiliate.minRedeemCents;
+  const debtCents = affiliate.debtCents;
   const progressPct =
     totalCents > 0 ? Math.min(100, Math.max(0, Math.round((availableCents / totalCents) * 100))) : 0;
 
-  const reason = getRedeemBlockReason(status, summary, primaryCur);
-  const payoutsReady = canRedeem(status, summary, primaryCur);
+  const reason = affiliate.blockReason;
+  const payoutsReady = affiliate.redeemEnabled;
   const activeRedemption = primaryInfo?.activeRedemption || null;
 
-  const handleRedeem = async () => {
-    if (!payoutsReady || redeeming) return;
-    setRedeeming(true);
-    try {
-      const response = await fetch('/api/affiliate/redeem', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currency: primaryCur }),
-      });
-      const body = await response.json().catch(() => ({}));
-      if (!response.ok) {
-        await refreshAll();
-        throw new Error(body?.message || 'Não foi possível processar o recebimento.');
-      }
-      toast.success(`${fmt(body.amountCents, body.currency)} enviado para sua conta Stripe.`);
-      await refreshAll();
-    } catch (err: any) {
-      toast.error(err?.message || 'Não foi possível processar o recebimento.');
-    } finally {
-      setRedeeming(false);
-    }
-  };
+  const handleRedeem = affiliate.redeem;
 
   const payoutCard = (() => {
     if (!status.payoutsEnabled || reason === 'needsOnboarding' || reason === 'payouts_disabled') {
@@ -219,7 +116,7 @@ export default function AffiliateCard() {
         title: '⚠️ Ação necessária',
         message: 'Conecte sua conta Stripe para liberar ganhos.',
         actionLabel: 'Conectar Stripe',
-        action: openStripe,
+        action: affiliate.openStripe,
       };
     }
     if (reason === 'currency_mismatch') {
@@ -228,7 +125,7 @@ export default function AffiliateCard() {
         title: 'Atualize seu cadastro',
         message: `Sua conta Stripe precisa operar em ${status.defaultCurrency?.toUpperCase() || primaryCur}.`,
         actionLabel: 'Abrir Stripe',
-        action: openStripe,
+        action: affiliate.openStripe,
       };
     }
     if (reason === 'has_debt') {
@@ -264,7 +161,7 @@ export default function AffiliateCard() {
           : 'Seus ganhos estão liberados para envio à sua conta Stripe.'
         : 'Seus dados estão configurados e os próximos ganhos serão liberados aqui.',
       actionLabel: payoutsReady
-        ? redeeming
+        ? affiliate.redeeming
           ? 'Processando...'
           : activeRedemption
             ? 'Tentar novamente'
@@ -296,7 +193,7 @@ export default function AffiliateCard() {
   return (
     <>
       <span aria-live="polite" className="sr-only">
-        {a11yMsg}
+        {a11yMsg || affiliate.a11yMessage}
       </span>
 
       <div className="dashboard-page-shell space-y-8 pb-12 pt-6">
@@ -308,15 +205,15 @@ export default function AffiliateCard() {
                 🤝 Programa de Afiliados
               </p>
               <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">
-                Ganhe 50% da primeira fatura de cada criador indicado.
+                Ganhe 20% da primeira fatura de cada criador indicado.
               </h1>
               <p className="mt-3 max-w-xl text-sm text-brand-text-secondary">
-                Seu link dá 10% de desconto na primeira fatura para o indicado, e você acompanha quanto já foi liberado aqui mesmo.
+                Seu link registra a indicação sem alterar o preço da assinatura, e você acompanha quanto já foi liberado aqui mesmo.
               </p>
             </div>
             <button
               type="button"
-              onClick={() => handleShare(referralLink)}
+              onClick={affiliate.share}
               disabled={!referralLink}
               className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#E4224D] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#E4224D]/40 transition hover:bg-[#cc1c40] disabled:cursor-not-allowed disabled:opacity-70"
             >
@@ -334,11 +231,11 @@ export default function AffiliateCard() {
             </div>
             <button
               type="button"
-              onClick={handleRefresh}
-              disabled={refreshing}
+              onClick={affiliate.refresh}
+              disabled={affiliate.refreshing}
               className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <RefreshCcw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              <RefreshCcw className={`h-4 w-4 ${affiliate.refreshing ? 'animate-spin' : ''}`} />
               Atualizar dados
             </button>
           </div>
@@ -400,7 +297,7 @@ export default function AffiliateCard() {
               </button>
               <button
                 type="button"
-                onClick={() => handleShare(referralLink)}
+                onClick={affiliate.share}
                 disabled={!referralLink}
                 className="inline-flex items-center gap-2 rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:border-slate-400 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-60"
               >

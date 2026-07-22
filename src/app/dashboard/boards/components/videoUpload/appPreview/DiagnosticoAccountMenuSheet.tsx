@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   CreditCard,
   ChevronRight,
@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import type { DiagnosticoUserInfo } from "@/app/dashboard/boards/videoUpload/diagnosticoPageData";
 import DeleteAccountSection from "@/app/dashboard/settings/DeleteAccountSection";
+import { DiagnosticoAffiliateView } from "./DiagnosticoAffiliateView";
 
 interface Props {
   userInfo: DiagnosticoUserInfo;
@@ -30,7 +31,6 @@ interface Props {
   onOpenBilling: () => void;
   /** Called when a Free user taps "Assinar Pro" — opens the paywall. */
   onUpgrade: () => void;
-  onOpenAffiliates: () => void;
   onContactSupport?: () => void;
   onSignOut: () => void;
   /** Fase 2 — abre a pesquisa de perfil para completar o mapa. */
@@ -39,6 +39,8 @@ interface Props {
   onOpenNorte?: () => void;
   /** Fase 4 — indica se o propósito ainda não foi declarado (ponto laranja). */
   hasPurpose?: boolean;
+  /** Reabre diretamente a área de afiliados após o retorno do Stripe Connect. */
+  initialView?: "menu" | "affiliates";
 }
 
 export function DiagnosticoAccountMenuSheet({
@@ -51,13 +53,14 @@ export function DiagnosticoAccountMenuSheet({
   onOpenInstagramConnection,
   onOpenBilling,
   onUpgrade,
-  onOpenAffiliates,
   onContactSupport,
   onSignOut,
   onOpenSurvey,
   onOpenNorte,
   hasPurpose = false,
+  initialView = "menu",
 }: Props) {
+  const [view, setView] = useState<"menu" | "affiliates">(initialView);
   const plan = userInfo.plan || "Free";
   const handleContactSupport = () => {
     if (onContactSupport) {
@@ -67,6 +70,26 @@ export function DiagnosticoAccountMenuSheet({
     onClose();
     window.location.href = "mailto:support@data2content.ai";
   };
+
+  if (view === "affiliates") {
+    return (
+      <div
+        className="fixed inset-0 z-[260] flex items-end justify-center ds-scrim"
+        role="presentation"
+        onClick={onClose}
+      >
+        <section
+          role="dialog"
+          aria-modal="true"
+          aria-label="Afiliados"
+          className="ds-sheet ds-enter-sheet"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <DiagnosticoAffiliateView onBack={() => setView("menu")} onClose={onClose} />
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -150,7 +173,7 @@ export function DiagnosticoAccountMenuSheet({
 
         <AccountMenuSection title="Suporte">
           <AccountMenuAction label="Suporte por email" onClick={handleContactSupport} icon={<LifeBuoy className="h-4 w-4" strokeWidth={1.9} />} />
-          <AccountMenuAction label="Programa de Afiliados" onClick={onOpenAffiliates} icon={<Handshake className="h-4 w-4" strokeWidth={1.9} />} />
+          <AccountMenuAction label="Afiliados" onClick={() => setView("affiliates")} icon={<Handshake className="h-4 w-4" strokeWidth={1.9} />} />
         </AccountMenuSection>
 
         <AccountMenuSection title="Legal">

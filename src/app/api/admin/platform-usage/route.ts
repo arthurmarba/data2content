@@ -17,11 +17,17 @@ export async function GET() {
 
   const now = new Date();
   const d30 = new Date(now.getTime() - 30 * 24 * 3600 * 1000);
+  const d60 = new Date(now.getTime() - 60 * 24 * 3600 * 1000);
   const d7  = new Date(now.getTime() -  7 * 24 * 3600 * 1000);
   const d90 = new Date(now.getTime() - 90 * 24 * 3600 * 1000);
 
   // --- Usuários ---
   const totalUsers   = await db.collection('users').countDocuments();
+  const [newUsers7d, newUsers30d, newUsersPrevious30d] = await Promise.all([
+    db.collection('users').countDocuments({ createdAt: { $gte: d7 } }),
+    db.collection('users').countDocuments({ createdAt: { $gte: d30 } }),
+    db.collection('users').countDocuments({ createdAt: { $gte: d60, $lt: d30 } }),
+  ]);
   const planDist     = await db.collection('users').aggregate([
     { $group: { _id: '$planStatus', total: { $sum: 1 } } },
     { $sort: { total: -1 } },
@@ -34,6 +40,7 @@ export async function GET() {
   ).toArray();
 
   const byDay: Record<string, Set<string>> = {};
+  const eventsByDay: Record<string, number> = {};
   const byMonth: Record<string, Set<string>> = {};
   for (const e of usageEvents) {
     const uid = e.userId?.toString();
@@ -42,6 +49,7 @@ export async function GET() {
     const day = new Date(dt).toISOString().slice(0, 10);
     if (!byDay[day]) byDay[day] = new Set();
     byDay[day]!.add(uid);
+    eventsByDay[day] = (eventsByDay[day] ?? 0) + 1;
     const m = day.slice(0, 7);
     if (!byMonth[m]) byMonth[m] = new Set();
     byMonth[m].add(uid);
@@ -65,6 +73,23 @@ export async function GET() {
   const peakDau    = dauValues.length ? Math.max(...dauValues) : 0;
   const curMonthKey = new Date(now.getTime() - 5 * 24 * 3600 * 1000).toISOString().slice(0, 7);
   const mau30      = byMonth[curMonthKey]?.size ?? 0;
+  const actionUsers30d = new Set(
+    usageEvents
+      .filter(e => e.createdAt && new Date(e.createdAt) >= d30)
+      .map(e => e.userId?.toString())
+      .filter((uid): uid is string => Boolean(uid)),
+  ).size;
+  const events30d = usageEvents.filter(e => e.createdAt && new Date(e.createdAt) >= d30).length;
+  const dauByDay = Array.from({ length: 30 }, (_, index) => {
+    const date = new Date(now.getTime() - (29 - index) * 24 * 3600 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    return {
+      date,
+      users: byDay[date]?.size ?? 0,
+      events: eventsByDay[date] ?? 0,
+    };
+  });
 
   // --- DAU/MAU por login (users.lastActiveAt) — complementa a visão por ação.
   // lastActiveAt guarda só o valor mais recente por usuário, então serve para
@@ -121,6 +146,20 @@ export async function GET() {
   const mkHumanTotal = await db.collection('mediakitaccesslogs').countDocuments({
     ip: { $not: mkBotPattern },
   });
+  const [mkHumanPrevious30d, mkUniqueVisitors30d, mkCreators30d] = await Promise.all([
+    db.collection('mediakitaccesslogs').countDocuments({
+      ip: { $not: mkBotPattern },
+      timestamp: { $gte: d60, $lt: d30 },
+    }),
+    db.collection('mediakitaccesslogs').distinct('ip', {
+      ip: { $not: mkBotPattern },
+      timestamp: { $gte: d30 },
+    }).then(values => values.length),
+    db.collection('mediakitaccesslogs').distinct('user', {
+      ip: { $not: mkBotPattern },
+      timestamp: { $gte: d30 },
+    }).then(values => values.length),
+  ]);
 
   const mkByMonth = await db.collection('mediakitaccesslogs').aggregate([
     { $match: { ip: { $not: mkBotPattern } } },
@@ -169,8 +208,24 @@ export async function GET() {
 
   return NextResponse.json({
     generatedAt: now.toISOString(),
-    users: { total: totalUsers, planDist },
-    activity: { avgDau30, peakDau, mau30, mauByMonth, dauLogin, mauLogin30d },
+    users: {
+      total: totalUsers,
+      planDist,
+      new7d: newUsers7d,
+      new30d: newUsers30d,
+      previous30d: newUsersPrevious30d,
+    },
+    activity: {
+      avgDau30,
+      peakDau,
+      mau30,
+      mauByMonth,
+      dauLogin,
+      mauLogin30d,
+      actionUsers30d,
+      events30d,
+      dauByDay,
+    },
     features: {
       pautas: { total30d: pautas30d, users30d: pautasUsers30d, byWeek: pautasByWeek },
       publi:  { total: publiTotal, total30d: publi30d, users30d: publiUsers30d },
@@ -187,6 +242,9 @@ export async function GET() {
     mediakit: {
       humanTotal: mkHumanTotal,
       human30d:   mkHuman30d,
+      humanPrevious30d: mkHumanPrevious30d,
+      uniqueVisitors30d: mkUniqueVisitors30d,
+      creators30d: mkCreators30d,
       byMonth:    mkByMonth,
       ranking:    mkRankingFull,
     },

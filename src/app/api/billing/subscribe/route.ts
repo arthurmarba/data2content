@@ -14,7 +14,6 @@ import {
 } from "@/utils/stripeHelpers";
 import { resolveAffiliateCode as resolveAffiliateCodeHelper } from "@/app/lib/affiliate";
 import { logger } from "@/app/lib/logger";
-import { getAffiliateCouponValidationError } from "@/app/lib/affiliateCouponRules";
 import { AffiliateBuyerCommissionIndex } from '@/server/db/models/AffiliateIndexes';
 
 export const runtime = "nodejs";
@@ -111,11 +110,6 @@ async function resolveManualDiscountFields(
   } catch { /* noop */ }
 
   return null;
-}
-
-async function assertAffiliateCouponCompliance(couponId: string): Promise<string | null> {
-  const coupon = await stripe.coupons.retrieve(couponId);
-  return getAffiliateCouponValidationError(coupon);
 }
 
 type ResolvedAffiliate =
@@ -549,44 +543,18 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           {
             code: 'AFFILIATE_BENEFIT_ALREADY_USED',
-            message: 'O benefício de afiliado já foi utilizado por esta conta.',
+            message: 'A indicação de afiliado já foi utilizada por esta conta.',
           },
           { status: 409 },
         );
       }
 
-      const couponEnv =
-        currency === "BRL"
-          ? process.env.STRIPE_COUPON_AFFILIATE10_ONCE_BRL
-          : process.env.STRIPE_COUPON_AFFILIATE10_ONCE_USD;
-
-      if (!couponEnv) {
-        return NextResponse.json(
-          {
-            code: "AFFILIATE_COUPON_MISSING",
-            message: "Cupom de afiliado não configurado. Contate o suporte.",
-          },
-          { status: 500 }
-        );
-      }
-      const couponError = await assertAffiliateCouponCompliance(couponEnv);
-      if (couponError) {
-        return NextResponse.json(
-          {
-            code: "AFFILIATE_COUPON_INVALID",
-            message: couponError,
-          },
-          { status: 500 }
-        );
-      }
-
-      // Salva a afiliação apenas depois de validar o cupom e antes de criar a assinatura,
-      // para que o webhook encontre o vínculo correto sem persistir estado inválido.
+      // Salva a afiliação antes de criar a assinatura para que o webhook encontre
+      // o vínculo correto. O link não aplica desconto ao preço do assinante.
       if (!user.affiliateUsed) {
         user.affiliateUsed = affiliateCode!;
         await user.save();
       }
-      discounts = [{ coupon: couponEnv }];
     } else if (typedCode) {
       const manual = await resolveManualDiscountFields(typedCode);
       if (!manual) {

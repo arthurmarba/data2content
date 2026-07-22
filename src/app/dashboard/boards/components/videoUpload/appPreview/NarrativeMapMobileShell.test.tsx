@@ -183,7 +183,7 @@ describe("NarrativeMapMobileShell", () => {
     expect(screen.getByRole("button", { name: "Conexão Instagram" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Gerenciar assinatura" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Suporte por email" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Programa de Afiliados" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Afiliados" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Política de Privacidade" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Termos e Condições" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Excluir minha conta" })).toBeInTheDocument();

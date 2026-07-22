@@ -2,8 +2,8 @@
 
 Regra vigente do programa:
 
-- O indicado recebe `10%` de desconto apenas na primeira fatura da assinatura.
-- O afiliado recebe `50%` de comissão apenas sobre a primeira fatura paga do indicado.
+- O indicado paga o preço integral da assinatura, sem desconto pelo link de afiliado.
+- O afiliado recebe `20%` de comissão apenas sobre a primeira fatura paga do indicado.
 - Faturas recorrentes, upgrades/downgrades e reativações não geram nova comissão.
 
 ## 1) Pré-requisitos
@@ -15,7 +15,6 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
 NEXTAUTH_URL=http://localhost:3000
 STRIPE_PRICE_MONTHLY_BRL=price_...
 STRIPE_PRICE_ANNUAL_BRL=price_...
-STRIPE_COUPON_AFFILIATE10_ONCE_BRL=coupon_...
 INTERNAL_CRON_SECRET=algum-segredo
 ```
 
@@ -72,10 +71,10 @@ db.users.findOne({ email: "comprador@teste.com" }, { affiliateUsed:1, planStatus
 
 **Esperado:**
 - Redireciona para `/dashboard/billing/success` → polling confirma “Ativo”.
-- Checkout/preview mostra `10%` de desconto só na primeira cobrança.
+- Checkout/preview confirma o código de afiliado e mantém o preço integral.
 - Mongo (comprador): `planStatus="active"`, `planInterval="month"`, `planExpiresAt` setado, `stripeSubscriptionId` setado, `affiliateUsed="D2C123"`.
-- Mongo (afiliado): `commissionLog[0] = { type:"commission", status:"pending", amountCents=50% do valor pago na primeira fatura, commissionRateBps:5000, availableAt ~ +7d }`.
-- Exemplo: se a mensalidade é `R$ 100,00`, o indicado paga `R$ 90,00` e a comissão esperada é `R$ 45,00`.
+- Mongo (afiliado): `commissionLog[0] = { type:"commission", status:"pending", amountCents=20% do valor pago na primeira fatura, commissionRateBps:2000, availableAt ~ +7d }`.
+- Exemplo: se a mensalidade é `R$ 100,00`, o indicado paga `R$ 100,00` e a comissão esperada é `R$ 20,00`.
 - Idempotência: reprocessar webhook/evento não duplica comissão.
 
 ### C2 — Código inválido → 422
@@ -88,12 +87,6 @@ db.users.findOne({ email: "comprador@teste.com" }, { affiliateUsed:1, planStatus
 2. Digitar no campo.
 
 **Esperado:** desconto aplicado na fatura; segue para pagamento; sem comissão de afiliado.
-
-### C3.1 — Cupom de afiliado mal configurado no Stripe
-1. Temporariamente apontar `STRIPE_COUPON_AFFILIATE10_ONCE_BRL` para um cupom que não seja `10%` ou não seja `once`.
-2. Abrir preview ou tentar checkout com código de afiliado válido.
-
-**Esperado:** backend bloqueia a operação com erro de configuração do cupom de afiliado.
 
 ### C4 — Falha e retry
 1. Iniciar assinatura normalmente.
@@ -186,8 +179,8 @@ db.affiliaterefundprogresses.find().sort({ createdAt:-1 }).limit(5)
 ## 6) Critérios de Aceite
 
 - 3DS conclui e `/dashboard/billing/success` confirma via polling.
-- Código válido de afiliado aplica `10%` de desconto apenas na primeira cobrança.
-- A primeira fatura paga gera exatamente uma comissão de `50%` do valor efetivamente pago.
+- Código válido de afiliado registra a atribuição sem aplicar desconto à cobrança.
+- A primeira fatura paga gera exatamente uma comissão de `20%` do valor efetivamente pago.
 - Idempotência: 1ª fatura paga cria uma comissão; triggers repetidos não duplicam.
 - Falha e retry funcionam; `lastPaymentError` popula/limpa corretamente.
 - Upgrade/downgrade sem nova comissão; `updated` sincroniza plano.
@@ -202,7 +195,6 @@ db.affiliaterefundprogresses.find().sort({ createdAt:-1 }).limit(5)
 
 - Webhook não dispara: confira `stripe listen` e `STRIPE_WEBHOOK_SECRET`.
 - Payment Element não volta para success: verifique `return_url`.
-- Cupom de afiliado ausente: definir `STRIPE_COUPON_AFFILIATE10_ONCE_BRL`.
-- Cupom de afiliado inválido: garantir que o cupom do Stripe seja `10%` e `duration=once`.
+- Código de afiliado não atribuído: conferir `affiliateUsed`, o cookie `d2c_ref` e os metadados da assinatura no Stripe.
 - Duplicidade de comissão: checar coleções `AffiliateInvoiceIndex` e `AffiliateSubscriptionIndex`.
 - Refund parcial não refletiu: confira se foi na charge correta e aguarde webhook.

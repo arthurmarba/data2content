@@ -2,6 +2,8 @@
 // - ADICIONADO: Constantes ACCOUNT_INSIGHTS_REQUIRING_TOTAL_VALUE e DEMOGRAPHICS_REQUIRING_TOTAL_VALUE.
 // - Mantém funcionalidades da v1.9.10.
 
+import { INSTAGRAM_OAUTH_PERMISSIONS } from '@/app/lib/instagram/oauthPermissions';
+
 // ATUALIZADO para v22.0 (ou a versão desejada/configurada no painel da Meta)
 export const API_VERSION = 'v22.0';
 export const BASE_URL = `https://graph.facebook.com`; // BASE_URL não inclui mais a versão
@@ -78,11 +80,4 @@ export const DEFAULT_ACCOUNT_INSIGHTS_PERIOD = 'days_28';
 
 
 // --- Permissões OAuth Necessárias (Referência) ---
-export const REQUIRED_OAUTH_PERMISSIONS = [
-  'instagram_basic',
-  'instagram_manage_insights',
-  'pages_read_engagement',
-  'pages_show_list',
-  'business_management',
-  'instagram_manage_comments',
-];
+export const REQUIRED_OAUTH_PERMISSIONS = [...INSTAGRAM_OAUTH_PERMISSIONS];

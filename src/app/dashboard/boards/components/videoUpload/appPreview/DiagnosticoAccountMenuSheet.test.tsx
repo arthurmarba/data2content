@@ -3,10 +3,37 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { DiagnosticoAccountMenuSheet } from "./DiagnosticoAccountMenuSheet";
 import type { DiagnosticoUserInfo } from "@/app/dashboard/boards/videoUpload/diagnosticoPageData";
 
+jest.mock("lucide-react", () => {
+  const ReactForMock = require("react");
+  const Icon = (props: Record<string, unknown>) => ReactForMock.createElement("svg", props);
+  return {
+    CreditCard: Icon,
+    ChevronRight: Icon,
+    Compass: Icon,
+    FileText: Icon,
+    Handshake: Icon,
+    Instagram: Icon,
+    LifeBuoy: Icon,
+    LogOut: Icon,
+    Shield: Icon,
+    UsersRound: Icon,
+    X: Icon,
+  };
+});
+
 // Mocka o DeleteAccountSection (puxa next-auth + fetch) — fora do escopo do menu.
 jest.mock("@/app/dashboard/settings/DeleteAccountSection", () => ({
   __esModule: true,
   default: () => <div data-testid="delete-account" />,
+}));
+
+jest.mock("./DiagnosticoAffiliateView", () => ({
+  DiagnosticoAffiliateView: ({ onBack }: { onBack: () => void }) => (
+    <div>
+      <p>Saldo e pagamentos</p>
+      <button type="button" onClick={onBack}>Voltar para configurações</button>
+    </div>
+  ),
 }));
 
 const userInfo: DiagnosticoUserInfo = {
@@ -28,7 +55,6 @@ function setup(overrides: Partial<React.ComponentProps<typeof DiagnosticoAccount
     onOpenInstagramConnection: jest.fn(),
     onOpenBilling: jest.fn(),
     onUpgrade: jest.fn(),
-    onOpenAffiliates: jest.fn(),
     onSignOut: jest.fn(),
     ...overrides,
   };
@@ -72,5 +98,17 @@ describe("DiagnosticoAccountMenuSheet — U5 menu contextual", () => {
     const props = setup();
     fireEvent.click(screen.getByText("Comunidade"));
     expect(props.onOpenCommunity).toHaveBeenCalledTimes(1);
+  });
+
+  it("abre Afiliados dentro do mesmo sheet e permite voltar ao menu", () => {
+    setup();
+
+    fireEvent.click(screen.getByText("Afiliados"));
+    expect(screen.getByRole("dialog", { name: "Afiliados" })).toBeInTheDocument();
+    expect(screen.getByText("Saldo e pagamentos")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Voltar para configurações"));
+    expect(screen.getByRole("dialog", { name: "Conta e preferências" })).toBeInTheDocument();
+    expect(screen.getByText("Afiliados")).toBeInTheDocument();
   });
 });

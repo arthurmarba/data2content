@@ -8,14 +8,14 @@ export function CouponAffiliateNotice({ hasManualCoupon, affiliateApplied, affil
   if (hasManualCoupon) {
     return (
       <p className="text-sm">
-        Cupom aplicado. O desconto de afiliado não é cumulativo e não gera comissão.
+        Cupom promocional aplicado. Esse cupom não faz parte do programa de afiliados.
       </p>
     );
   }
   if (affiliateApplied) {
     return (
       <p className="text-sm">
-        Desconto de afiliado <strong>10%</strong> aplicado na 1ª fatura pelo código <strong>{affiliateCode}</strong>.
+        Indicação registrada pelo código de afiliado <strong>{affiliateCode}</strong>. O preço da assinatura permanece o mesmo.
       </p>
     );
   }

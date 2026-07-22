@@ -476,6 +476,7 @@ export function NarrativeMapMobileShell({
   userInfo,
   onSignOut,
   frameMode = "preview",
+  initialAccountMenuView = "menu",
 }: {
   viewModel: NarrativeMapMobileViewModel;
   presentation: CreatorNarrativeMapReadingPresentation;
@@ -496,12 +497,13 @@ export function NarrativeMapMobileShell({
   userInfo?: { name: string | null; email: string | null; plan: string } | null;
   onSignOut?: () => void;
   frameMode?: "app" | "preview";
+  initialAccountMenuView?: "menu" | "affiliates";
 }) {
   const [activeChapter, setActiveChapter] = useState<CreatorNarrativeMapReadingChapter | null>(null);
   const [activeReading, setActiveReading] = useState<NarrativeMapMobileReadingItem | null>(null);
   const [activeOpportunity, setActiveOpportunity] = useState<NarrativeMapMobileOpportunityItem | null>(null);
   const [fullDiagnosisOpen, setFullDiagnosisOpen] = useState(false);
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(initialAccountMenuView === "affiliates");
   const [shareToast, setShareToast] = useState(false);
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
   const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
@@ -2180,10 +2182,6 @@ export function NarrativeMapMobileShell({
               setAccountMenuOpen(false);
               router.push("/dashboard/billing");
             }}
-            onOpenAffiliates={() => {
-              setAccountMenuOpen(false);
-              router.push("/afiliados");
-            }}
             onContactSupport={() => {
               setAccountMenuOpen(false);
               window.location.href = "mailto:support@data2content.ai";
@@ -2192,6 +2190,7 @@ export function NarrativeMapMobileShell({
               setAccountMenuOpen(false);
               onSignOut?.();
             }}
+            initialView={initialAccountMenuView}
           />
         ) : null}
       </div>

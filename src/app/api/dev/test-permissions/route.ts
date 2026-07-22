@@ -124,12 +124,12 @@ export async function GET(request: NextRequest) {
             results['pages_show_list'] = { success: false, error: e.message };
         }
 
-        logger.debug(`${TAG} Testando permissões: pages_read_engagement & instagram_manage_insights...`);
+        logger.debug(`${TAG} Testando permissões: instagram_basic & instagram_manage_insights...`);
         let mediaIdForInsightTest: string | null = null;
         try {
             logger.debug(`${TAG} Chamando fetchInstagramMedia para ${accountId}...`);
             const mediaResult = await fetchInstagramMedia(accountId, accessToken);
-            results['fetchInstagramMedia (pages_read_engagement)'] = {
+            results['fetchInstagramMedia (instagram_basic)'] = {
                 success: mediaResult.success,
                 data: mediaResult.data,
                 error: mediaResult.error ?? undefined, // Converte null/undefined para undefined
@@ -140,15 +140,15 @@ export async function GET(request: NextRequest) {
                 mediaIdForInsightTest = mediaResult.data[0]?.id ?? null;
             } else if (mediaResult.success) {
                 logger.warn(`${TAG} fetchInstagramMedia: SUCESSO, mas nenhuma mídia encontrada na conta ${accountId}.`);
-                if (results['fetchInstagramMedia (pages_read_engagement)']) { // Verifica se a chave existe
-                    results['fetchInstagramMedia (pages_read_engagement)'].message = "Sucesso, mas nenhuma mídia encontrada.";
+                if (results['fetchInstagramMedia (instagram_basic)']) { // Verifica se a chave existe
+                    results['fetchInstagramMedia (instagram_basic)'].message = "Sucesso, mas nenhuma mídia encontrada.";
                 }
             } else {
                 logger.warn(`${TAG} fetchInstagramMedia: FALHA - ${mediaResult.error}`);
             }
         } catch (e: any) {
             logger.error(`${TAG} fetchInstagramMedia: ERRO EXCEÇÃO - ${e.message}`);
-            results['fetchInstagramMedia (pages_read_engagement)'] = { success: false, error: e.message };
+            results['fetchInstagramMedia (instagram_basic)'] = { success: false, error: e.message };
         }
 
         if (mediaIdForInsightTest) {

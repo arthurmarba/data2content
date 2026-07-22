@@ -23,6 +23,7 @@ export default function WhatsAppConnectInline() {
   const [linkedPhone, setLinkedPhone] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState<string>("");
   const [copied, setCopied] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
 
   // --- helpers ---
   const isExpired = code && timeLeft === "expirado";
@@ -132,6 +133,28 @@ export default function WhatsAppConnectInline() {
     }
   };
 
+  const disconnect = async () => {
+    if (!linkedPhone || disconnecting) return;
+    if (!window.confirm("Desvincular este número do WhatsApp? Os alertas serão interrompidos.")) return;
+
+    setDisconnecting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/whatsapp/status", { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Falha ao desvincular WhatsApp.");
+
+      setLinkedPhone(null);
+      setCode(null);
+      setExpiresAt(null);
+      setTimeLeft("");
+    } catch (e: any) {
+      setError(e?.message || "Erro inesperado ao desvincular WhatsApp.");
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
   // estilos do container: mostra erro/expirado com tom de alerta
   const containerBase =
     "flex items-center justify-between rounded-lg px-3 py-2 border";
@@ -221,10 +244,20 @@ export default function WhatsAppConnectInline() {
             <button
               onClick={openWhatsApp}
               className="text-xs px-3 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 flex items-center gap-1.5 transition-colors shadow-sm"
-              aria-label={linkedPhone ? "Abrir conversa no WhatsApp" : "Abrir WhatsApp para enviar o código"}
+              aria-label={linkedPhone ? "Abrir WhatsApp para acessar o Chat AI" : "Abrir WhatsApp para enviar o código"}
             >
               <FaWhatsapp className="text-sm" />
-              {linkedPhone ? "Conversar" : "Abrir WhatsApp"}
+              Abrir WhatsApp
+            </button>
+          )}
+
+          {!loading && linkedPhone && (
+            <button
+              onClick={disconnect}
+              disabled={disconnecting}
+              className="text-xs px-3 py-2 rounded-lg bg-white text-red-700 border border-red-200 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
+            >
+              {disconnecting ? "Desvinculando..." : "Desvincular"}
             </button>
           )}
 

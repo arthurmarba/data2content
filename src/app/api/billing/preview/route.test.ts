@@ -43,47 +43,20 @@ describe('POST /api/billing/preview', () => {
     });
     AffiliateBuyerCommissionIndex.exists.mockResolvedValue(false);
     process.env.STRIPE_PRICE_MONTHLY_BRL = 'price_monthly_brl';
-    process.env.STRIPE_COUPON_AFFILIATE10_ONCE_BRL = 'coupon_aff_brl';
   });
 
-  test('rejects affiliate coupon that is not compliant with 10% once rule', async () => {
+  test('registers the affiliate without discounting the subscription', async () => {
     User.findOne.mockReturnValue({
       select: jest.fn().mockReturnValue({
         lean: jest.fn().mockResolvedValue({ _id: 'owner1', affiliateCode: 'AFF123' }),
       }),
-    });
-    stripe.coupons.retrieve.mockResolvedValue({
-      id: 'coupon_bad',
-      object: 'coupon',
-      duration: 'forever',
-      percent_off: 10,
-    });
-
-    const res = await POST(createRequest({ plan: 'monthly', currency: 'BRL', affiliateCode: 'AFF123' }));
-    const body = await res.json();
-
-    expect(res.status).toBe(500);
-    expect(body.code).toBe('COUPON_NOT_COMPLIANT');
-  });
-
-  test('returns affiliateApplied when coupon is compliant', async () => {
-    User.findOne.mockReturnValue({
-      select: jest.fn().mockReturnValue({
-        lean: jest.fn().mockResolvedValue({ _id: 'owner1', affiliateCode: 'AFF123' }),
-      }),
-    });
-    stripe.coupons.retrieve.mockResolvedValue({
-      id: 'coupon_ok',
-      object: 'coupon',
-      duration: 'once',
-      percent_off: 10,
     });
     stripe.invoices.createPreview.mockResolvedValue({
       currency: 'brl',
       subtotal: 10000,
-      total_discount_amounts: [{ amount: 1000 }],
+      total_discount_amounts: [],
       tax: 0,
-      total: 9000,
+      total: 10000,
     });
     stripe.prices.retrieve.mockResolvedValue({ unit_amount: 10000 });
 
@@ -92,8 +65,13 @@ describe('POST /api/billing/preview', () => {
 
     expect(res.status).toBe(200);
     expect(body.affiliateApplied).toBe(true);
-    expect(body.discountsTotal).toBe(1000);
-    expect(body.total).toBe(9000);
+    expect(body.discountsTotal).toBe(0);
+    expect(body.total).toBe(10000);
+    expect(stripe.invoices.createPreview).toHaveBeenCalledWith({
+      customer: 'cus_123',
+      subscription_details: { items: [{ price: 'price_monthly_brl', quantity: 1 }] },
+    });
+    expect(stripe.coupons.retrieve).not.toHaveBeenCalled();
   });
 
   test('does not offer the first-purchase coupon after a commission was consumed', async () => {

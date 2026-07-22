@@ -10,8 +10,8 @@ This document describes the affiliate program implementation within the applicat
    - A commission is created only once per subscription via `AffiliateSubscriptionIndex`.
    - Replayed webhook events and repeated invoices are blocked by `AffiliateInvoiceIndex`.
 3. **Amount**:
-   - The referred user receives `10%` discount only on the first invoice, via a Stripe coupon configured as `percent_off=10` and `duration=once`.
-   - The affiliate receives `50%` commission over the amount effectively paid on that first invoice.
+   - The affiliate link does not discount or otherwise change the referred user's subscription price.
+   - The affiliate receives `20%` commission over the amount effectively paid on that first invoice.
    - The applied rate is persisted in `commissionLog.commissionRateBps` so refunds and adjustments keep historical correctness.
 4. **Settlement**:
    - The webhook creates the commission as `pending`.
@@ -30,11 +30,11 @@ This document describes the affiliate program implementation within the applicat
   - otherwise `pending`
 - Retrieved status is persisted in `paymentInfo.stripeAccountStatus`.
 
-## Subscription and Coupon
+## Subscription and Attribution
 
 - Endpoint `POST /api/billing/subscribe` accepts `plan`, `currency` and optional `affiliateCode`.
-- When `affiliateCode` is present a coupon defined by `STRIPE_COUPON_AFFILIATE10_ONCE_BRL` or `STRIPE_COUPON_AFFILIATE10_ONCE_USD` (based on the currency) is applied via `discounts`.
-- The backend validates the Stripe coupon before using it. It must be exactly `10%` and `once`.
+- When `affiliateCode` is present, the backend validates and persists the attribution without adding Stripe `discounts`.
+- Independent manual promotion codes remain supported and are not part of the affiliate program.
 - Auto‑usage is blocked when `affUser._id === user._id`.
 - If an existing `stripeSubscriptionId` is `canceled` or `incomplete_expired`, a new subscription is created; otherwise the existing one is updated with `payment_behavior: default_incomplete`, `proration_behavior: create_prorations`, `billing_cycle_anchor: now` and `expand: latest_invoice.payment_intent`.
 - Price IDs are resolved for BRL/USD ensuring plan and currency consistency.
@@ -43,7 +43,7 @@ This document describes the affiliate program implementation within the applicat
 
 - Affiliate links include `?ref=` or `?aff=`; the code stores the value in `d2c_ref` cookie (TTL 90 days).
 - During subscription the cookie value is sent as `affiliateCode` in the request body.
-- Checkout UI displays the affiliate discount only for the first invoice.
+- Checkout UI confirms the affiliate attribution while displaying the regular subscription price.
 
 ## Affiliate Dashboard
 
@@ -82,8 +82,8 @@ Route: `/admin/affiliates/commissions`
 
 ## QA Scenarios
 
-- BRL and USD subscriptions with affiliate codes apply `10%` only on the first invoice.
-- The first paid invoice creates exactly one `50%` commission entry.
+- BRL and USD subscriptions with affiliate codes keep the regular subscription price.
+- The first paid invoice creates exactly one `20%` commission entry (`commissionRateBps=2000`).
 - Webhook replay with the same `event.id` does not generate duplicate commissions.
 - A second invoice for the same subscription does not create a new commission.
 - Refund partial/total adjusts the commission using the stored `commissionRateBps`.
@@ -102,10 +102,7 @@ STRIPE_PRICE_MONTHLY_BRL
 STRIPE_PRICE_ANNUAL_BRL
 STRIPE_PRICE_MONTHLY_USD
 STRIPE_PRICE_ANNUAL_USD
-STRIPE_COUPON_AFFILIATE10_ONCE_BRL
-STRIPE_COUPON_AFFILIATE10_ONCE_USD
 STRIPE_CONNECT_MODE=express|standard
-COMMISSION_RATE=0.5
 NEXT_PUBLIC_APP_URL
 NEXTAUTH_URL
 ```

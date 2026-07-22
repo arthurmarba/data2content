@@ -284,7 +284,7 @@ function PlanTeaserContent() {
         ))}
       </div>
 
-      {/* Preço (usa preview para refletir afiliado; fallback para prices) */}
+      {/* Preço (usa preview para refletir o total; fallback para prices) */}
       <div className="mb-6 text-center min-h-[3.25rem] flex items-center justify-center">
         <AnimatePresence mode="wait">
           <motion.div
@@ -299,7 +299,7 @@ function PlanTeaserContent() {
               <span className="text-gray-400">—</span>
             ) : preview ? (
               <>
-                {preview.affiliateApplied && (
+                {preview.discountsTotal > 0 && (
                   <span className="text-2xl text-gray-400 line-through">
                     {formatCurrency(preview.subtotal, preview.currency)}
                   </span>
@@ -363,7 +363,7 @@ function PlanTeaserContent() {
         <div role="status" aria-live="polite" className="min-h-[1.25rem]">
           {affiliateError && <p id="aff-error" className="mt-1 text-xs text-red-600">{affiliateError}</p>}
           {!affiliateError && preview?.affiliateApplied && (
-            <p className="mt-1 text-xs text-green-600">✓ Desconto de 10% aplicado na primeira cobrança!</p>
+            <p className="mt-1 text-xs text-green-600">✓ Código de afiliado registrado. O preço permanece o mesmo.</p>
           )}
         </div>
         <p className="mt-1 text-xs text-gray-500">

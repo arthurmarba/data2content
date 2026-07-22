@@ -56,7 +56,6 @@ const mockConnect = connectToDatabase as jest.Mock;
 const mockFindById = (User as any).findById as jest.Mock;
 const mockStripeList = (stripe as any).subscriptions.list as jest.Mock;
 const mockStripeCreate = (stripe as any).subscriptions.create as jest.Mock;
-const mockStripeCouponRetrieve = (stripe as any).coupons.retrieve as jest.Mock;
 const mockCheckRateLimit = checkRateLimit as jest.Mock;
 const mockGetCustomerId = getOrCreateStripeCustomerId as jest.Mock;
 const mockIsStripeResourceMissingError = isStripeResourceMissingError as jest.Mock;
@@ -80,7 +79,6 @@ beforeEach(() => {
   process.env.STRIPE_PRICE_ANNUAL_BRL = "price_annual_brl";
   process.env.STRIPE_PRICE_MONTHLY_USD = "price_monthly_usd";
   process.env.STRIPE_PRICE_ANNUAL_USD = "price_annual_usd";
-  process.env.STRIPE_COUPON_AFFILIATE10_ONCE_BRL = "coupon_aff_brl";
 });
 
 describe("POST /api/billing/subscribe", () => {
@@ -121,35 +119,47 @@ describe("POST /api/billing/subscribe", () => {
     expect(body.code).toBe("PAYMENT_ISSUE");
   });
 
-  it("blocks when affiliate coupon is not compliant with 10% once", async () => {
+  it("attributes the affiliate without attaching a discount", async () => {
     mockGetServerSession.mockResolvedValue({ user: { id: "u4", email: "u4@test.com" } });
     const save = jest.fn();
-    mockFindById.mockResolvedValue({
+    const buyer = {
       _id: "u4",
       planStatus: "inactive",
       stripeCustomerId: "cus_123",
       save,
-    });
+    };
+    mockFindById.mockResolvedValue(buyer);
     (User as any).findOne.mockReturnValue({
       select: jest.fn().mockReturnValue({
         lean: jest.fn().mockResolvedValue({ _id: "owner1", affiliateCode: "AFF123" }),
       }),
     });
     mockStripeList.mockResolvedValue({ data: [] });
-    mockStripeCouponRetrieve.mockResolvedValue({
-      id: "coupon_bad",
-      object: "coupon",
-      duration: "forever",
-      percent_off: 10,
+    mockStripeCreate.mockResolvedValue({
+      id: "sub_affiliate",
+      status: "incomplete",
+      latest_invoice: { payment_intent: { client_secret: "cs_affiliate" } },
+      items: { data: [{ price: { id: "price_monthly_brl" } }] },
     });
 
     const res = await POST(createRequest({ plan: "monthly", currency: "BRL", affiliateCode: "AFF123" }));
     const body = await res.json();
 
-    expect(res.status).toBe(500);
-    expect(body.code).toBe("AFFILIATE_COUPON_INVALID");
-    expect(mockStripeCreate).not.toHaveBeenCalled();
-    expect(save).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(body.affiliateApplied).toBe(true);
+    expect((buyer as any).affiliateUsed).toBe("AFF123");
+    expect(save).toHaveBeenCalled();
+    expect(mockStripeCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          affiliateCode: "AFF123",
+          affiliate_user_id: "owner1",
+        }),
+      }),
+      expect.any(Object),
+    );
+    expect(mockStripeCreate.mock.calls[0][0]).not.toHaveProperty("discounts");
+    expect(stripe.coupons.retrieve).not.toHaveBeenCalled();
   });
 
   it("recreates a stale Stripe customer when list returns resource_missing", async () => {

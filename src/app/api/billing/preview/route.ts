@@ -5,7 +5,6 @@ import { connectToDatabase } from "@/app/lib/mongoose";
 import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
 import { getOrCreateStripeCustomerId } from "@/utils/stripeHelpers";
-import { getAffiliateCouponValidationError } from "@/app/lib/affiliateCouponRules";
 import { AffiliateBuyerCommissionIndex } from "@/server/db/models/AffiliateIndexes";
 
 const noStoreHeaders = { "Cache-Control": "no-store, max-age=0" } as const;
@@ -22,8 +21,7 @@ async function loadAuthOptions() {
 type Plan = "monthly" | "annual";
 type Currency = "BRL" | "USD";
 type AffiliateCheckResult = {
-  couponId?: string;
-  error?: "invalid_code" | "coupon_not_configured" | "coupon_not_compliant" | "self_referral" | "benefit_used";
+  error?: "invalid_code" | "self_referral";
   source?: "typed" | "url" | "cookie" | "session";
   code?: string;
 };
@@ -78,12 +76,11 @@ async function resolveAffiliateFromRequest(
 }
 
 /**
- * Verifica a validade do código e a configuração do cupom (10% once).
+ * Verifica a validade do código de afiliado.
  * Bloqueia self-referral (usuário não pode usar o próprio código).
  */
 async function checkAffiliateCode(
   affiliateCode: string | undefined,
-  currency: Currency,
   currentUserId: string
 ): Promise<AffiliateCheckResult> {
   const code = normalizeCode(affiliateCode);
@@ -103,24 +100,7 @@ async function checkAffiliateCode(
     return { error: "self_referral", code };
   }
 
-  const couponEnvKey = `STRIPE_COUPON_AFFILIATE10_ONCE_${currency.toUpperCase()}`;
-  const couponId = process.env[couponEnvKey as keyof NodeJS.ProcessEnv] as string | undefined;
-
-  if (!couponId) {
-    console.error(
-      `[billing/preview] CRITICAL: Cupom de afiliado não configurado para ${currency}. Defina ${couponEnvKey}.`
-    );
-    return { error: "coupon_not_configured", code };
-  }
-
-  const coupon = await stripe.coupons.retrieve(couponId);
-  const couponError = getAffiliateCouponValidationError(coupon);
-  if (couponError) {
-    console.error(`[billing/preview] CRITICAL: ${couponError} CouponId=${couponId}`);
-    return { error: "coupon_not_compliant", code };
-  }
-
-  return { couponId, code };
+  return { code };
 }
 
 function sumDiscounts(inv: any): number {
@@ -174,7 +154,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           {
             code: "AFFILIATE_BENEFIT_ALREADY_USED",
-            error: "O benefício de afiliado já foi utilizado nesta conta.",
+            error: "A indicação de afiliado já foi utilizada nesta conta.",
             affiliateApplied: false,
           },
           { status: 409, headers: noStoreHeaders },
@@ -185,8 +165,8 @@ export async function POST(req: NextRequest) {
     const priceId = getPriceId(planNorm, currencyNorm);
     const customerId = await getOrCreateStripeCustomerId(session.user.id);
 
-    // Validação do código + cupom
-    const affiliateCheck = await checkAffiliateCode(resolvedCode, currencyNorm, session.user.id);
+    // O código atribui a comissão ao afiliado, sem alterar o preço do plano.
+    const affiliateCheck = await checkAffiliateCode(resolvedCode, session.user.id);
 
     if (affiliateCheck.error === "invalid_code") {
       return NextResponse.json(
@@ -200,28 +180,12 @@ export async function POST(req: NextRequest) {
         { status: 400, headers: noStoreHeaders }
       );
     }
-    if (affiliateCheck.error === "coupon_not_configured") {
-      return NextResponse.json(
-        { code: "COUPON_NOT_CONFIGURED", error: "O sistema de cupons não está configurado corretamente." },
-        { status: 500, headers: noStoreHeaders }
-      );
-    }
-    if (affiliateCheck.error === "coupon_not_compliant") {
-      return NextResponse.json(
-        { code: "COUPON_NOT_COMPLIANT", error: "O cupom de afiliado não respeita as regras da oferta." },
-        { status: 500, headers: noStoreHeaders }
-      );
-    }
-
-    const affiliateCouponId = affiliateCheck.couponId;
-
     // ✅ Basil: usar Create Preview Invoice
     const invoice = await stripe.invoices.createPreview({
       customer: customerId,
       subscription_details: {
         items: [{ price: priceId, quantity: 1 }],
       },
-      discounts: affiliateCouponId ? [{ coupon: affiliateCouponId }] : [],
     });
 
     // valor nominal do próximo ciclo (sem proration): usa o price direto
@@ -238,7 +202,7 @@ export async function POST(req: NextRequest) {
         tax: (invoice as any).tax ?? 0,
         total: (invoice as any).total ?? 0,
         nextCycleAmount,
-        affiliateApplied: !!affiliateCouponId,
+        affiliateApplied: Boolean(affiliateCheck.code),
         affiliateSource: source || null,
         affiliateCode: affiliateCheck.code || null,
       },

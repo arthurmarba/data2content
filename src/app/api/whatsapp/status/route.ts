@@ -141,3 +141,50 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const userId = await getUserIdFromRequest(request);
+    if (!userId || !mongoose.isValidObjectId(userId)) {
+      return NextResponse.json(
+        { error: "Não autenticado." },
+        { status: 401, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    await connectToDatabase();
+
+    const result = await User.updateOne(
+      { _id: userId },
+      {
+        $set: {
+          whatsappPhone: null,
+          whatsappVerified: false,
+          whatsappLinkedAt: null,
+          whatsappVerificationCode: null,
+          whatsappVerificationCodeExpiresAt: null,
+          whatsappOptOut: true,
+          whatsappOptOutAt: new Date(),
+        },
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json(
+        { error: "Usuário não encontrado." },
+        { status: 404, headers: { "Cache-Control": "no-store" } }
+      );
+    }
+
+    return NextResponse.json(
+      { ok: true, linked: false },
+      { status: 200, headers: { "Cache-Control": "no-store" } }
+    );
+  } catch (err) {
+    console.error("[whatsapp/status] Erro ao desvincular WhatsApp:", err);
+    return NextResponse.json(
+      { error: "Falha ao desvincular WhatsApp." },
+      { status: 500, headers: { "Cache-Control": "no-store" } }
+    );
+  }
+}

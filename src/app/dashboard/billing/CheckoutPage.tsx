@@ -474,7 +474,7 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
                     </p>
                   )}
                   {!affiliateError && preview?.affiliateApplied && (
-                    <p className="mt-1 text-xs text-green-600">✓ Desconto de 10% aplicado na primeira cobrança!</p>
+                    <p className="mt-1 text-xs text-green-600">✓ Código de afiliado registrado. O preço permanece o mesmo.</p>
                   )}
                 </div>
               </div>
@@ -500,7 +500,7 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
                     </div>
                   ) : preview ? (
                     <>
-                      {/* --- Preço grande com risco quando houver desconto de afiliado --- */}
+                      {/* --- Preço grande com risco quando houver algum desconto promocional --- */}
                       <div className="flex items-baseline justify-between">
                         {preview.affiliateApplied && preview.discountsTotal > 0 ? (
                           <div className="flex items-baseline gap-2">
@@ -534,7 +534,7 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
 
                       {preview.discountsTotal > 0 && (
                         <div className="flex justify-between text-green-600 font-semibold">
-                          <span>Desconto de Afiliado</span>
+                          <span>Desconto promocional</span>
                           <span>- {fmt(preview.discountsTotal, preview.currency)}</span>
                         </div>
                       )}

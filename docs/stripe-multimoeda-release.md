@@ -26,11 +26,11 @@ Este documento consolida a especificação, checklist e critérios de aceite par
 - Nenhum 400/500 indevido; assinatura do webhook validada.
 
 ## EPIC 2 — Subscribe multimoeda
-**Objetivo**: Assinatura via `/api/billing/subscribe` com plano/moeda corretos e validação de cupom por moeda.
+**Objetivo**: Assinatura via `/api/billing/subscribe` com plano/moeda corretos e atribuição de afiliado sem desconto.
 
 **Tarefas**
 - Garantir `getPriceId(plan, currency)` com todas envs definidas (`STRIPE_PRICE_MONTHLY_BRL`, `STRIPE_PRICE_ANNUAL_BRL`, `STRIPE_PRICE_MONTHLY_USD`, `STRIPE_PRICE_ANNUAL_USD`).
-- Se houver cupom (`STRIPE_COUPON_AFFILIATE10_ONCE_BRL` ou `STRIPE_COUPON_AFFILIATE10_ONCE_USD`), aplicar apenas se compatível com a moeda configurada.
+- Persistir o `affiliateCode` e os metadados de atribuição sem adicionar `discounts` à assinatura.
 - Usuário com `stripeSubscriptionId` ativo → ignorar `affiliateCode` e atualizar price.
 
 **Critérios de Aceite**
@@ -136,7 +136,6 @@ Este documento consolida a especificação, checklist e critérios de aceite par
   - `STRIPE_CONNECT_MODE=express`
   - `STRIPE_PRICE_MONTHLY_BRL`, `STRIPE_PRICE_ANNUAL_BRL`
   - `STRIPE_PRICE_MONTHLY_USD`, `STRIPE_PRICE_ANNUAL_USD`
-  - (opcional) `STRIPE_COUPON_AFFILIATE10_ONCE_BRL`, `STRIPE_COUPON_AFFILIATE10_ONCE_USD`
 - Stripe CLI: script de teste (local ou staging) para:
   - Criar/atualizar assinatura BRL e USD
   - Disparar `invoice.payment_succeeded`

@@ -8,8 +8,8 @@ import { MONTHLY_PRICE } from "@/config/pricing.config";
 import { AFFILIATE_TIP_TEMPLATES } from "@/data/affiliateTips";
 
 const heroHighlights = [
-  "50% da primeira fatura paga",
-  "10% de desconto para o indicado",
+  "20% da primeira fatura paga",
+  "Preço integral para o indicado",
   "Resgate mínimo de R$ 50,00",
 ];
 
@@ -38,7 +38,7 @@ const termsList = [
   {
     title: "Base de cálculo",
     content:
-      "A comissão é de 50% sobre o valor efetivamente pago na primeira fatura do indicado. O desconto do link de afiliado é de 10% e vale apenas nessa primeira cobrança.",
+      "A comissão é de 20% sobre o valor efetivamente pago na primeira fatura do indicado. O link de afiliado não oferece desconto nem altera o preço da assinatura.",
   },
   {
     title: "Suporte",
@@ -68,8 +68,8 @@ export default function AffiliateProgramPage() {
   );
   const previewCode = normalizedCode || AFFILIATE_PLACEHOLDER_CODE;
   const monthlyPrice = formatCurrency(MONTHLY_PRICE);
-  const firstInvoiceTotal = formatCurrency(MONTHLY_PRICE * 0.9);
-  const commissionValue = formatCurrency(MONTHLY_PRICE * 0.9 * 0.5);
+  const firstInvoiceTotal = formatCurrency(MONTHLY_PRICE);
+  const commissionValue = formatCurrency(MONTHLY_PRICE * 0.2);
   const referralLinkExample = useMemo(
     () => `${resolvedBaseUrl}/?ref=${previewCode}`,
     [previewCode, resolvedBaseUrl]
@@ -80,7 +80,7 @@ export default function AffiliateProgramPage() {
       title: "Como Funciona?",
       lines: [
         "Ao registar-se na Data2Content, recebe automaticamente um código de afiliado e um link exclusivo.",
-        "Compartilhe esse código ou link com criadores de conteúdo. Quem entrar por ele recebe 10% de desconto na primeira fatura.",
+        "Compartilhe esse código ou link com criadores de conteúdo. O link registra a indicação sem alterar o preço da assinatura.",
       ],
     },
     {
@@ -93,7 +93,7 @@ export default function AffiliateProgramPage() {
     {
       title: "Sua Comissão",
       lines: [
-        `Você recebe 50% do valor pago na primeira fatura de cada indicado. Se o plano mensal custa ${monthlyPrice}, o indicado paga ${firstInvoiceTotal} com o desconto e você ganha ${commissionValue}.`,
+        `Você recebe 20% do valor pago na primeira fatura de cada indicado. Se o plano mensal custa ${monthlyPrice}, o indicado paga ${firstInvoiceTotal} e você ganha ${commissionValue}.`,
         "Após a confirmação do pagamento, o valor cai no seu saldo e fica pronto para resgate quando atingir R$ 50,00.",
       ],
     },
@@ -149,7 +149,7 @@ export default function AffiliateProgramPage() {
         <title>Programa de Afiliados - Data2Content</title>
         <meta
           name="description"
-          content="Entenda como funciona o programa de afiliados da Data2Content: 50% de comissão na primeira fatura paga e 10% de desconto para o indicado na primeira cobrança."
+          content="Entenda como funciona o programa de afiliados da Data2Content: 20% de comissão na primeira fatura paga, sem desconto para o indicado."
         />
       </Head>
 
@@ -164,7 +164,7 @@ export default function AffiliateProgramPage() {
             </p>
             <h1 className="mt-4 text-4xl font-bold sm:text-5xl">Transforme seu alcance em receita</h1>
             <p className="mx-auto mt-4 max-w-2xl text-base text-white/90 sm:text-lg">
-              Indique o Mobi para outros criadores de conteúdo. Seu link dá 10% de desconto na primeira fatura do indicado e rende 50% de comissão para você nessa primeira cobrança paga.
+              Indique o Mobi para outros criadores de conteúdo. Seu link registra a indicação sem alterar o preço da assinatura e rende 20% de comissão para você sobre a primeira cobrança paga.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
               <a
