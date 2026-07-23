@@ -13,6 +13,7 @@ import BrandProposal from "@/app/models/BrandProposal";
 import PostReviewModel from "@/app/models/PostReview";
 import ScriptEntry from "@/app/models/ScriptEntry";
 import type { IScriptEntry } from "@/app/models/ScriptEntry";
+import { buildUnreadCampaignsFilter } from "@/app/lib/proposals/unread";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -146,7 +147,6 @@ export async function GET(request: NextRequest) {
   const reviewsSince = parseSince(url.searchParams.get("reviewsSince"));
   const scriptsRecommendationsSince = parseSince(url.searchParams.get("scriptsRecommendationsSince"));
   const scriptsFeedbackSince = parseSince(url.searchParams.get("scriptsFeedbackSince"));
-  const campaignsSince = parseSince(url.searchParams.get("campaignsSince"));
   const reviewsLimit = parseReviewsLimit(url.searchParams.get("reviewsLimit"));
 
   const cacheKey = [
@@ -154,7 +154,6 @@ export async function GET(request: NextRequest) {
     reviewsSince ? reviewsSince.toISOString() : "",
     scriptsRecommendationsSince ? scriptsRecommendationsSince.toISOString() : "",
     scriptsFeedbackSince ? scriptsFeedbackSince.toISOString() : "",
-    campaignsSince ? campaignsSince.toISOString() : "",
     reviewsLimit,
   ].join("|");
 
@@ -199,17 +198,7 @@ export async function GET(request: NextRequest) {
                     ],
                   })
                 : Promise.resolve(0),
-              BrandProposal.countDocuments(
-                campaignsSince
-                  ? {
-                      userId: userObjectId,
-                      createdAt: { $gt: campaignsSince },
-                    }
-                  : {
-                      userId: userObjectId,
-                      status: "novo",
-                    }
-              ),
+              BrandProposal.countDocuments(buildUnreadCampaignsFilter(userObjectId)),
             ]);
 
           return {

@@ -8,7 +8,7 @@ export function proWelcomeEmail({
   const greeting = name ? `Olá, ${name}!` : "Olá!";
   const baseUrl =
     process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL || "https://app.data2content.ai";
-  const campaignsUrl = `${baseUrl}/dashboard/proposals`;
+  const campaignsUrl = `${baseUrl}/campaigns`;
   const plannerUrl = `${baseUrl}/planning/planner`;
   const billingUrl = `${baseUrl}/dashboard/billing`;
   const communityUrl = `${baseUrl}/planning/discover`;

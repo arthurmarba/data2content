@@ -8,6 +8,9 @@ import { useSearchParams } from "next/navigation";
 import PinnedBoardsHub from "../boards/PinnedBoardsHub";
 import { isPinnableBoardId, type PinnableBoardId } from "../boards/boardRegistry";
 import { usePinnedBoardsEnabled } from "../boards/usePinnedBoards";
+import { useDashboardNotificationBadges } from "../hooks/useDashboardNotificationBadges";
+import CampaignPriorityNotice from "./CampaignPriorityNotice";
+import { prioritizeCampaignBoardIds } from "./campaignHomePriority";
 
 const CampaignsBoard = dynamic(() => import("@/app/(dashboard)/campaigns/CampaignsBoard"), {
   ssr: false,
@@ -152,8 +155,28 @@ export default function HomeDesktopBoards() {
     usePinnedBoardsEnabled(sessionUserId, true);
   const searchParams = useSearchParams();
   const highlightBoardId = searchParams?.get("highlight");
+  const { campaignsUnreadCount } = useDashboardNotificationBadges();
 
   const [activeHighlight, setActiveHighlight] = React.useState<string | null>(null);
+
+  // Baseline de propostas que o usuário já dispensou. O destaque de campanhas
+  // reflete o número de não lidas atual (que cai sozinho quando as propostas
+  // são lidas e o badge revalida) e some quando o usuário fecha o aviso.
+  const [dismissedCampaignCount, setDismissedCampaignCount] = React.useState(0);
+  const priorityCampaignCount =
+    campaignsUnreadCount > dismissedCampaignCount ? campaignsUnreadCount : 0;
+
+  React.useEffect(() => {
+    // Zera o baseline quando não há mais não lidas, para que uma nova proposta
+    // futura volte a destacar campanhas mesmo após um "dispensar" anterior.
+    if (campaignsUnreadCount === 0 && dismissedCampaignCount !== 0) {
+      setDismissedCampaignCount(0);
+    }
+  }, [campaignsUnreadCount, dismissedCampaignCount]);
+
+  const handleDismissCampaignPriority = React.useCallback(() => {
+    setDismissedCampaignCount(campaignsUnreadCount);
+  }, [campaignsUnreadCount]);
 
   React.useEffect(() => {
     if (!highlightBoardId) return undefined;
@@ -254,8 +277,20 @@ export default function HomeDesktopBoards() {
   );
 
   const boardIds = React.useMemo<PinnableBoardId[]>(
-    () => orderedPinnedBoards.map((boardConfig) => boardConfig.id),
-    [orderedPinnedBoards],
+    () =>
+      prioritizeCampaignBoardIds(
+        orderedPinnedBoards.map((boardConfig) => boardConfig.id),
+        priorityCampaignCount > 0,
+      ),
+    [orderedPinnedBoards, priorityCampaignCount],
+  );
+  const boardNavigationLabels = React.useMemo(
+    () =>
+      boardIds.map((boardId) => {
+        const board = orderedPinnedBoards.find((item) => item.id === boardId);
+        return board?.title ?? boardId;
+      }),
+    [boardIds, orderedPinnedBoards],
   );
 
   const homeRailBoardWidthClassName =
@@ -269,22 +304,31 @@ export default function HomeDesktopBoards() {
     boardIds.length > 0 ? homeRailRestItemClassName : homeRailPrimaryItemClassName;
 
   return (
-    <PinnedBoardsHub
-      boardWidthClassName={homeRailBoardWidthClassName}
-      itemClassName={homeRailItemClassName}
-      firstItemClassName={homeRailFirstItemClassName}
-      restItemClassName={homeRailRestItemClassName}
-      railClassName={homeRailClassName}
-    >
-      {boardIds.map((boardId, index) => (
-        <DeferredRealBoardMount
-          key={boardId}
-          priority={index}
-          immediate={index < 2}
-        >
-          {renderPinnedBoard(boardId)}
-        </DeferredRealBoardMount>
-      ))}
-    </PinnedBoardsHub>
+    <div className="flex h-full min-h-0 w-full flex-col">
+      <CampaignPriorityNotice
+        count={priorityCampaignCount}
+        creatorId={sessionUserId}
+        onDismiss={handleDismissCampaignPriority}
+      />
+      <PinnedBoardsHub
+        className="min-h-0 flex-1"
+        boardWidthClassName={homeRailBoardWidthClassName}
+        itemClassName={homeRailItemClassName}
+        firstItemClassName={homeRailFirstItemClassName}
+        restItemClassName={homeRailRestItemClassName}
+        railClassName={homeRailClassName}
+        navigationLabels={boardNavigationLabels}
+      >
+        {boardIds.map((boardId, index) => (
+          <DeferredRealBoardMount
+            key={boardId}
+            priority={index}
+            immediate={index < 2}
+          >
+            {renderPinnedBoard(boardId)}
+          </DeferredRealBoardMount>
+        ))}
+      </PinnedBoardsHub>
+    </div>
   );
 }

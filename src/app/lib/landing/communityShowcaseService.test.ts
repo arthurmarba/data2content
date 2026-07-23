@@ -20,7 +20,7 @@ describe("communityShowcaseService", () => {
     mockConnect.mockResolvedValue(undefined);
   });
 
-  it("queries only active users with a public Media Kit slug", async () => {
+  it("queries only active users with a public Media Kit slug and an available portrait", async () => {
     const exec = jest.fn().mockResolvedValue([]);
     const lean = jest.fn(() => ({ exec }));
     const sort = jest.fn(() => ({ lean }));
@@ -32,6 +32,11 @@ describe("communityShowcaseService", () => {
       {
         planStatus: "active",
         mediaKitSlug: { $exists: true, $nin: [null, ""] },
+        $or: expect.arrayContaining([
+          { providerImage: { $exists: true, $nin: [null, ""] } },
+          { image: { $exists: true, $nin: [null, ""] } },
+          { profile_picture_url: { $exists: true, $nin: [null, ""] } },
+        ]),
       },
       expect.objectContaining({ _id: 1, mediaKitSlug: 1, mediaKitDisplayName: 1 }),
     );
@@ -52,6 +57,11 @@ describe("communityShowcaseService", () => {
         name: "Outro creator",
         mediaKitSlug: "outro-creator",
       },
+      {
+        _id: { toString: () => "creator-sem-retrato" },
+        name: "Creator sem retrato",
+        mediaKitSlug: "ana-vieira",
+      },
     ]);
 
     expect(creators).toHaveLength(2);
@@ -62,5 +72,6 @@ describe("communityShowcaseService", () => {
       hasAvatarImage: true,
     }));
     expect(creators[1]).toEqual(expect.objectContaining({ name: "Outro creator", rank: 2 }));
+    expect(creators.some((creator) => creator.mediaKitSlug === "ana-vieira")).toBe(false);
   });
 });

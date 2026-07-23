@@ -5,10 +5,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { ArrowUpRight, ChevronDown, Copy } from 'lucide-react';
+import { mutate as mutateSWR } from 'swr';
 
 import { useToast } from '@/app/components/ui/ToastA11yProvider';
 import useBillingStatus from '@/app/hooks/useBillingStatus';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
+import {
+  CAMPAIGNS_ROUTE,
+  buildCampaignProposalHref,
+  type CampaignEntrySource,
+} from '@/constants/routes';
 import { redirectToGoogleConsentLogin } from '@/lib/auth/googleLogin';
 import { track } from '@/lib/track';
 import { openPaywallModal } from '@/utils/paywallModal';
@@ -69,7 +74,21 @@ const INTENT_FROM_VERDICT: Record<ProposalSuggestionType, ReplyIntent> = {
   coletar_orcamento: 'collect_budget',
 };
 const PROPOSAL_COPY_FEEDBACK_MS = 20_000;
-const LAST_VIEWED_CAMPAIGNS_AT_KEY = 'd2c_last_viewed_campaigns_at';
+const CAMPAIGN_ENTRY_SOURCES = new Set<CampaignEntrySource>([
+  'sidebar',
+  'home_alert',
+  'home_board',
+  'email',
+  'deep_link',
+  'direct',
+]);
+
+function elapsedHours(from: string | null | undefined, to = Date.now()): number | null {
+  if (!from) return null;
+  const startedAt = new Date(from).getTime();
+  if (!Number.isFinite(startedAt)) return null;
+  return Math.max(0, Math.round(((to - startedAt) / 3_600_000) * 100) / 100);
+}
 
 const currencyFormatter = (currency: string) =>
   new Intl.NumberFormat('pt-BR', {
@@ -530,25 +549,40 @@ const COMPACT_EMPTY_PREVIEW_HELPER_TEXT: Record<InboxTab, string> = {
   lost: 'Campanhas perdidas ficam registradas aqui.',
 };
 
-export default function ProposalsClient({ compactView = false }: { compactView?: boolean }) {
+export default function ProposalsClient({
+  compactView = false,
+  onNewCountChange,
+}: {
+  compactView?: boolean;
+  onNewCountChange?: (count: number) => void;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { status: sessionStatus } = useSession();
+  const { status: sessionStatus, data: session } = useSession();
+  const creatorId = (session?.user as { id?: string } | undefined)?.id ?? null;
   const { toast } = useToast();
   const billingStatus = useBillingStatus();
-  const [, setLastViewedCampaignsAt] = useLocalStorage<string>(LAST_VIEWED_CAMPAIGNS_AT_KEY, '');
   const requestedProposalId = useMemo(() => {
     const value = searchParams?.get('proposalId');
     if (!value) return null;
     const normalized = value.trim();
     return normalized.length > 0 ? normalized : null;
   }, [searchParams]);
+  const campaignEntrySource = useMemo<CampaignEntrySource>(() => {
+    if (compactView) return 'home_board';
+    const requestedSource = searchParams?.get('source') as CampaignEntrySource | null;
+    if (requestedSource && CAMPAIGN_ENTRY_SOURCES.has(requestedSource)) return requestedSource;
+    return requestedProposalId ? 'deep_link' : 'direct';
+  }, [compactView, requestedProposalId, searchParams]);
 
   const [isLoading, setIsLoading] = useState(true);
+  const [listError, setListError] = useState<string | null>(null);
   const [proposals, setProposals] = useState<ProposalListItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedProposal, setSelectedProposal] = useState<ProposalDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [detailReloadNonce, setDetailReloadNonce] = useState(0);
 
   const [currentStep, setCurrentStep] = useState<CampaignsStep>('inbox');
   const [activeTab, setActiveTab] = useState<InboxTab>('incoming');
@@ -605,6 +639,7 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
 
   const replyTextareaRef = useRef<HTMLTextAreaElement | null>(null);
   const proposalCopyFeedbackTimerRef = useRef<number | null>(null);
+  const openedProposalEventsRef = useRef<Set<string>>(new Set());
 
   const hasProAccess = Boolean(billingStatus.hasPremiumAccess);
   const isBillingLoading = Boolean(billingStatus.isLoading);
@@ -613,7 +648,7 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
   const buildReturnTo = useCallback(
     (proposalId?: string | null) => {
       const id = proposalId ?? selectedProposal?.id ?? null;
-      return id ? `/dashboard/proposals?proposalId=${encodeURIComponent(id)}` : '/dashboard/proposals';
+      return id ? buildCampaignProposalHref(id) : CAMPAIGNS_ROUTE;
     },
     [selectedProposal]
   );
@@ -766,6 +801,7 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
 
   const loadProposals = useCallback(async () => {
     if (sessionStatus === 'unauthenticated') {
+      setListError(null);
       setProposals([]);
       setSelectedId(null);
       setSelectedProposal(null);
@@ -783,6 +819,7 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
       return;
     }
     setIsLoading(true);
+    setListError(null);
     try {
       const response = await fetch('/api/proposals', { cache: 'no-store' });
       if (!response.ok) {
@@ -815,26 +852,38 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
         if (prev && items.some((item) => item.id === prev)) {
           return prev;
         }
+        if (compactView) {
+          return null;
+        }
         return items[0]?.id ?? null;
       });
     } catch (error: any) {
-      toast({ variant: 'error', title: error?.message || 'Erro ao carregar propostas.' });
-      setProposals([]);
+      const message = error?.message || 'Erro ao carregar propostas.';
+      setListError(message);
+      track('campaigns_load_failed', {
+        creator_id: creatorId,
+        source: campaignEntrySource,
+        stage: 'list',
+        proposal_id: null,
+        error_message: message,
+      });
+      toast({ variant: 'error', title: message });
     } finally {
       setIsLoading(false);
     }
-  }, [requestedProposalId, sessionStatus, toast]);
+  }, [
+    campaignEntrySource,
+    compactView,
+    creatorId,
+    requestedProposalId,
+    sessionStatus,
+    toast,
+  ]);
 
   useEffect(() => {
     if (sessionStatus === 'loading') return;
     loadProposals();
   }, [loadProposals, sessionStatus]);
-
-  useEffect(() => {
-    if (isLoading) return;
-    if (!proposals.length) return;
-    setLastViewedCampaignsAt(new Date().toISOString());
-  }, [isLoading, proposals.length, setLastViewedCampaignsAt]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -854,6 +903,7 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
   useEffect(() => {
     if (!selectedId) {
       setSelectedProposal(null);
+      setDetailError(null);
       setAnalysisMessage(null);
       setAnalysisV2(null);
       setAnalysisPricingMeta({ pricingConsistency: null, pricingSource: null, limitations: [] });
@@ -870,7 +920,9 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
     let cancelled = false;
 
     async function fetchDetail() {
+      setSelectedProposal(null);
       setDetailLoading(true);
+      setDetailError(null);
       try {
         const response = await fetch(`/api/proposals/${selectedId}`, { cache: 'no-store' });
         if (!response.ok) {
@@ -899,12 +951,70 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
             : ''
         );
 
-        if (payload.status === 'novo') {
-          await updateProposalStatus(payload.id, 'visto', false);
+        if (!openedProposalEventsRef.current.has(payload.id)) {
+          openedProposalEventsRef.current.add(payload.id);
+          track('proposal_opened', {
+            creator_id: creatorId,
+            proposal_id: payload.id,
+            source: campaignEntrySource,
+            was_unread: payload.isUnread,
+            received_to_open_hours: elapsedHours(payload.receivedAt),
+          });
+        }
+
+        if (payload.isUnread) {
+          const openedResponse = await fetch(`/api/proposals/${payload.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ opened: true }),
+          });
+          if (!openedResponse.ok) {
+            throw new Error('Não foi possível registrar a abertura da proposta.');
+          }
+          const openedProposal = (await openedResponse.json()) as ProposalDetail;
+          if (cancelled) return;
+          setSelectedProposal(openedProposal);
+          setProposals((current) =>
+            current.map((item) =>
+              item.id === openedProposal.id
+                ? {
+                    ...item,
+                    status: openedProposal.status,
+                    openedAt: openedProposal.openedAt,
+                    isUnread: false,
+                  }
+                : item
+            )
+          );
+          void mutateSWR(
+            (key) =>
+              typeof key === 'string' &&
+              key.startsWith('/api/dashboard/notifications/badges?'),
+            (current: any) =>
+              current
+                ? {
+                    ...current,
+                    campaignsUnreadCount: Math.max(
+                      0,
+                      Number(current.campaignsUnreadCount || 0) - 1
+                    ),
+                  }
+                : current,
+            { revalidate: false }
+          );
         }
       } catch (error: any) {
         if (!cancelled) {
-          toast({ variant: 'error', title: error?.message || 'Erro ao carregar detalhes da proposta.' });
+          const message = error?.message || 'Erro ao carregar detalhes da proposta.';
+          setDetailError(message);
+          track('campaigns_load_failed', {
+            creator_id: creatorId,
+            source: campaignEntrySource,
+            stage: 'detail',
+            proposal_id: selectedId,
+            error_message: message,
+          });
+          toast({ variant: 'error', title: message });
         }
       } finally {
         if (!cancelled) setDetailLoading(false);
@@ -915,7 +1025,7 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
     return () => {
       cancelled = true;
     };
-  }, [selectedId, toast]);
+  }, [campaignEntrySource, creatorId, detailReloadNonce, selectedId, toast]);
 
   useEffect(() => {
     if (!hasProAccess && !isBillingLoading) {
@@ -1503,8 +1613,9 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
       setReplyDraft(normalizeEmailParagraphs(updated.lastResponseMessage ?? normalizedDraft));
 
       track('email_sent_via_platform', {
-        creator_id: null,
+        creator_id: creatorId,
         proposal_id: updated.id,
+        received_to_reply_hours: elapsedHours(updated.receivedAt),
       });
       toast({ variant: 'success', title: 'Resposta enviada com sucesso.' });
     } catch (error: any) {
@@ -1519,6 +1630,7 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
     replyDraft,
     resolvePublicMediaKitUrl,
     selectedProposal,
+    creatorId,
     showUpgradeToast,
     toast,
   ]);
@@ -1716,6 +1828,37 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
     </div>
   );
 
+  const detailErrorView = (
+    <div
+      className="flex h-full min-h-[360px] flex-col items-center justify-center px-6 text-center"
+      role="alert"
+    >
+      <p className="dashboard-muted-label text-rose-500">Briefing indisponível</p>
+      <p className="dashboard-type-section-title mt-3">Não foi possível abrir esta campanha.</p>
+      <p className="dashboard-type-body mt-2 max-w-sm">
+        Sua proposta continua salva. Tente carregar o briefing novamente.
+      </p>
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+        <button
+          type="button"
+          onClick={() => setDetailReloadNonce((current) => current + 1)}
+          className="dashboard-primary-button dashboard-type-control inline-flex min-h-10 items-center justify-center px-4 py-2.5"
+        >
+          Tentar novamente
+        </button>
+        {(compactView || isMobile) ? (
+          <button
+            type="button"
+            onClick={handleBackToInbox}
+            className="dashboard-type-control inline-flex min-h-10 items-center justify-center rounded-full px-4 py-2.5 text-zinc-600 transition hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300"
+          >
+            Voltar às campanhas
+          </button>
+        ) : null}
+      </div>
+    </div>
+  );
+
   const sortedProposals = useMemo(
     () =>
       [...proposals].sort((a, b) => {
@@ -1725,6 +1868,15 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
       }),
     [proposals]
   );
+  const newProposalsCount = useMemo(
+    () => proposals.filter((proposal) => proposal.isUnread).length,
+    [proposals]
+  );
+
+  useEffect(() => {
+    onNewCountChange?.(newProposalsCount);
+  }, [newProposalsCount, onNewCountChange]);
+
   const pipelineGroups = useMemo(
     () =>
       PIPELINE_GROUPS.map((group) => {
@@ -1754,12 +1906,19 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
     if (detailLoading) {
       return detailLoadingView;
     }
+    if (detailError) {
+      return detailErrorView;
+    }
   }
 
   const hasProposals = sortedProposals.length > 0;
 
   const listContent = (
     <>
+        {/* Barra utilitária "copiar formulário": persistente sobre a lista e no
+            vazio do mobile (onde é o único CTA). No vazio do desktop ela é
+            omitida para não duplicar o CTA do próprio empty-state. */}
+        {(hasProposals || compactView) ? (
         <div className={compactView ? "mb-8" : "mb-5"}>
           <div className={`overflow-hidden ${compactView ? "rounded-[1.24rem] border border-zinc-100/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(246,246,247,0.94))] px-3.5 py-3" : "rounded-[1.55rem] bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.12),transparent_28%),linear-gradient(180deg,rgba(253,242,248,0.36),rgba(255,255,255,0.94))] px-4 py-4 ring-1 ring-pink-100/70"}`}>
             <div className={`flex gap-3 ${compactView ? "flex-col items-stretch gap-3" : "flex-col items-stretch sm:flex-row sm:items-end sm:justify-between"}`}>
@@ -1798,12 +1957,31 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
             </div>
           </div>
         </div>
+        ) : null}
+
+        {listError && hasProposals ? (
+          <div
+            className="mb-4 flex flex-col gap-3 border-y border-amber-100 bg-amber-50/55 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+            role="status"
+          >
+            <p className="dashboard-type-meta text-amber-900">
+              Exibindo a última lista carregada. Não foi possível buscar atualizações.
+            </p>
+            <button
+              type="button"
+              onClick={() => void loadProposals()}
+              className="dashboard-type-control min-h-9 self-start rounded-full px-3 py-2 text-amber-900 transition hover:bg-amber-100 sm:self-auto"
+            >
+              Atualizar novamente
+            </button>
+          </div>
+        ) : null}
 
         {isLoading ? (
           compactView ? (
             <div className="space-y-3.5">
               <div className="space-y-0">
-                {["Novas propostas", "Em negociação", "Fechadas (mês)"].map((label, index) => (
+                {["Novas Propostas", "Em Negociação", "Fechadas (Mês)"].map((label, index) => (
                   <div
                     key={label}
                     className="border-t border-zinc-100/75 py-4 first:border-t-0 first:pt-0"
@@ -1839,6 +2017,26 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
               ))}
             </div>
           )
+        ) : listError ? (
+          <div
+            className="flex min-h-[280px] flex-col items-center justify-center border-y border-zinc-100 px-6 py-10 text-center"
+            role="alert"
+          >
+            <p className="dashboard-muted-label text-rose-500">Campanhas indisponíveis</p>
+            <p className="dashboard-type-section-title mt-3">
+              Não foi possível carregar suas campanhas.
+            </p>
+            <p className="dashboard-type-body mt-2 max-w-sm">
+              Nenhuma proposta foi removida. Verifique sua conexão e tente novamente.
+            </p>
+            <button
+              type="button"
+              onClick={() => void loadProposals()}
+              className="dashboard-primary-button dashboard-type-control mt-5 inline-flex min-h-10 items-center justify-center px-4 py-2.5"
+            >
+              Tentar novamente
+            </button>
+          </div>
         ) : !hasProposals ? (
           compactView ? (
             <div className="space-y-0">
@@ -1921,7 +2119,7 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
                 Nenhuma campanha recebida ainda.
               </p>
               <p className="dashboard-type-body mx-auto mt-2 max-w-[20rem] text-center">
-                Copie o formulario e coloque na bio para começar a receber propostas.
+                Copie o formulário e coloque na bio para começar a receber propostas.
               </p>
               <button
                 type="button"
@@ -2188,6 +2386,8 @@ export default function ProposalsClient({ compactView = false }: { compactView?:
                 detailView
               ) : detailLoading ? (
                 detailLoadingView
+              ) : detailError ? (
+                detailErrorView
               ) : (
                 <div className="flex h-full min-h-[560px] flex-col items-center justify-center px-8 text-center">
                   <p className="dashboard-muted-label text-zinc-400">Detalhe da campanha</p>

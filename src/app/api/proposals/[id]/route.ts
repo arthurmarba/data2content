@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth/next';
 import mongoose from 'mongoose';
 
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
+import { resolveAuthOptions } from '@/app/api/auth/resolveAuthOptions';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import BrandProposal, { BrandProposalStatus } from '@/app/models/BrandProposal';
 import { logger } from '@/app/lib/logger';
 import { normalizeCurrencyCode } from '@/utils/currency';
+import { isUnreadCampaign } from '@/app/lib/proposals/unread';
 
 export const runtime = 'nodejs';
 
@@ -126,6 +127,18 @@ const serializeProposal = (proposal: any) => ({
   creatorProposedCurrency: proposal.creatorProposedCurrency ?? null,
   creatorProposedAt: proposal.creatorProposedAt ? proposal.creatorProposedAt.toISOString() : null,
   status: proposal.status,
+  receivedAt: proposal.receivedAt
+    ? proposal.receivedAt.toISOString()
+    : proposal.createdAt
+      ? proposal.createdAt.toISOString()
+      : null,
+  openedAt: proposal.openedAt ? proposal.openedAt.toISOString() : null,
+  repliedAt: proposal.repliedAt
+    ? proposal.repliedAt.toISOString()
+    : proposal.lastResponseAt
+      ? proposal.lastResponseAt.toISOString()
+      : null,
+  isUnread: isUnreadCampaign(proposal),
   originIp: proposal.originIp ?? null,
   userAgent: proposal.userAgent ?? null,
   mediaKitSlug: proposal.mediaKitSlug ?? null,
@@ -140,6 +153,7 @@ const serializeProposal = (proposal: any) => ({
 });
 
 async function getAuthorizedProposal(request: NextRequest, id: string) {
+  const authOptions = await resolveAuthOptions();
   const session = (await getServerSession({ req: request, ...authOptions })) as any;
   if (!session?.user?.id) {
     return { response: NextResponse.json({ error: 'Não autenticado.' }, { status: 401 }) };
@@ -185,6 +199,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   const allowedStatuses: BrandProposalStatus[] = ['novo', 'visto', 'respondido', 'aceito', 'rejeitado'];
   const hasStatusField = Object.prototype.hasOwnProperty.call(payload ?? {}, 'status');
   const status = payload?.status as BrandProposalStatus | undefined;
+  const hasOpenedField = Object.prototype.hasOwnProperty.call(payload ?? {}, 'opened');
+  const shouldMarkOpened = payload?.opened === true;
 
   const parsedCreatorBudget = parseOptionalMoneyInput(payload?.creatorProposedBudget);
   const hasCreatorBudgetField = parsedCreatorBudget.provided;
@@ -194,12 +210,16 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   );
   const rawCreatorCurrency = payload?.creatorProposedCurrency;
 
-  if (!hasStatusField && !hasCreatorBudgetField && !hasCreatorCurrencyField) {
+  if (!hasStatusField && !hasCreatorBudgetField && !hasCreatorCurrencyField && !hasOpenedField) {
     return NextResponse.json({ error: 'Nenhuma alteração informada.' }, { status: 422 });
   }
 
   if (hasStatusField && (!status || !allowedStatuses.includes(status))) {
     return NextResponse.json({ error: 'Status inválido.' }, { status: 422 });
+  }
+
+  if (hasOpenedField && !shouldMarkOpened) {
+    return NextResponse.json({ error: 'Estado de leitura inválido.' }, { status: 422 });
   }
 
   if (hasCreatorBudgetField && !parsedCreatorBudget.valid) {
@@ -217,6 +237,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   const setPayload: Record<string, any> = {};
   if (hasStatusField && status) {
     setPayload.status = status;
+  }
+  if (shouldMarkOpened && !proposal.openedAt) {
+    setPayload.openedAt = new Date();
+    if (!hasStatusField && proposal.status === 'novo') {
+      setPayload.status = 'visto';
+    }
   }
 
   if (hasCreatorBudgetField) {
@@ -245,6 +271,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   logger.info('[PROPOSAL_UPDATE] status change', {
     proposalId: proposal._id.toString(),
     ...(hasStatusField && status ? { status } : {}),
+    ...(shouldMarkOpened ? { opened: true } : {}),
     ...(hasCreatorBudgetField ? { creatorProposedBudget: parsedCreatorBudget.value } : {}),
   });
 

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { CAMPAIGNS_ROUTE } from "@/constants/routes";
 
 export const dynamic = "force-dynamic";
 
@@ -20,5 +21,5 @@ export default function LegacyProposalsPage({ searchParams = {} }: LegacyProposa
   });
 
   const query = params.toString();
-  redirect(query ? `/campaigns?${query}` : "/campaigns");
+  redirect(query ? `${CAMPAIGNS_ROUTE}?${query}` : CAMPAIGNS_ROUTE);
 }

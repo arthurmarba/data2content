@@ -171,7 +171,7 @@ function BrandMatchCard({
 
           {/* CTA */}
           <a
-            href="/dashboard/proposals"
+            href="/campaigns"
             className="flex w-full items-center justify-center rounded-full bg-zinc-950 py-2.5 text-[12.5px] font-semibold text-white shadow-[0_4px_14px_-4px_rgba(9,9,11,0.35)]"
           >
             Abrir propostas →

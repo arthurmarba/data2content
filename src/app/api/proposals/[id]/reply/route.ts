@@ -7,6 +7,7 @@ import { resolveAuthOptions } from '@/app/api/auth/resolveAuthOptions';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import BrandProposal, { BrandProposalStatus } from '@/app/models/BrandProposal';
 import { logger } from '@/app/lib/logger';
+import { isUnreadCampaign } from '@/app/lib/proposals/unread';
 import { sendProposalReplyEmail } from '@/app/lib/emailService';
 import { formatCurrencySafely, normalizeCurrencyCode } from '@/utils/currency';
 import { ensurePlannerAccess } from '@/app/lib/planGuard';
@@ -84,6 +85,18 @@ const serializeProposal = (proposal: any) => ({
   creatorProposedCurrency: proposal.creatorProposedCurrency ?? null,
   creatorProposedAt: proposal.creatorProposedAt ? proposal.creatorProposedAt.toISOString() : null,
   status: proposal.status as BrandProposalStatus,
+  receivedAt: proposal.receivedAt
+    ? proposal.receivedAt.toISOString()
+    : proposal.createdAt
+      ? proposal.createdAt.toISOString()
+      : null,
+  openedAt: proposal.openedAt ? proposal.openedAt.toISOString() : null,
+  repliedAt: proposal.repliedAt
+    ? proposal.repliedAt.toISOString()
+    : proposal.lastResponseAt
+      ? proposal.lastResponseAt.toISOString()
+      : null,
+  isUnread: isUnreadCampaign(proposal),
   originIp: proposal.originIp ?? null,
   userAgent: proposal.userAgent ?? null,
   mediaKitSlug: proposal.mediaKitSlug ?? null,
@@ -196,7 +209,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       budgetText,
       creatorProposedBudgetText,
       deliverables: Array.isArray(proposal.deliverables) ? proposal.deliverables : [],
-      receivedAt: proposal.createdAt ?? undefined,
+      receivedAt: proposal.receivedAt ?? proposal.createdAt ?? undefined,
       mediaKitUrl,
     });
   } catch (error) {
@@ -208,7 +221,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   const setPayload: Record<string, any> = {
     status: 'respondido' as BrandProposalStatus,
+    openedAt: proposal.openedAt ?? responseAt,
     lastResponseAt: responseAt,
+    repliedAt: responseAt,
     lastResponseMessage: emailTextRaw,
   };
 

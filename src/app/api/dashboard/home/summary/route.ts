@@ -117,9 +117,9 @@ function buildFlowChecklist({
     title: "Receber Propostas",
     status: receiveStatus,
     actionLabel: "Abrir Propostas",
-    actionHref: "/dashboard/proposals",
+    actionHref: "/campaigns",
     completedLabel: totalProposals > 0 ? "Ir para Campanhas" : undefined,
-    completedHref: totalProposals > 0 ? "/dashboard/proposals" : undefined,
+    completedHref: totalProposals > 0 ? "/campaigns" : undefined,
     helper:
       totalProposals > 0
         ? null
@@ -144,11 +144,11 @@ function buildFlowChecklist({
     title: "Responder com IA",
     status: respondStatus,
     actionLabel: respondActionLabel,
-    actionHref: "/dashboard/proposals?status=novo",
+    actionHref: "/campaigns?status=novo",
     completedLabel:
       respondedProposals > 0 && pendingProposals === 0 ? "Ir para Campanhas" : undefined,
     completedHref:
-      respondedProposals > 0 && pendingProposals === 0 ? "/dashboard/proposals" : undefined,
+      respondedProposals > 0 && pendingProposals === 0 ? "/campaigns" : undefined,
     helper:
       pendingProposals > 0
         ? "Você tem respostas pendentes. Resolva em minutos com a IA."

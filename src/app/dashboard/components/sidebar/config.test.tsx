@@ -1,4 +1,7 @@
-import { buildSidebarSections } from "./config";
+import {
+  buildSidebarSections,
+  filterDesktopSidebarSections,
+} from "./config";
 import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
 
 describe("sidebar planning hub item", () => {
@@ -46,5 +49,25 @@ describe("sidebar planning hub item", () => {
 
     expect(hubItem && hubItem.type === "item" ? hubItem.href : null).toBe("/calendar");
     expect(hubItem && hubItem.type === "item" ? hubItem.paywallContext : undefined).toBeUndefined();
+  });
+
+  it("mantém Campanhas como destino comercial canônico no desktop", () => {
+    const sections = buildSidebarSections({
+      hasPremiumAccess: false,
+      planningLocked: false,
+      dashboardMinimal: false,
+      isMobile: false,
+    });
+    const desktopSections = filterDesktopSidebarSections(sections);
+    const monetizationSection = desktopSections.find(
+      (section) => section.key === "monetization"
+    );
+    const campaignsItem = monetizationSection?.items.find(
+      (item) => item.type === "item" && item.key === "campaigns.overview"
+    );
+
+    expect(campaignsItem && campaignsItem.type === "item" ? campaignsItem.href : null).toBe(
+      "/campaigns"
+    );
   });
 });

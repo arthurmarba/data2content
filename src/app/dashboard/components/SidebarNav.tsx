@@ -7,7 +7,10 @@ import { useSession } from "next-auth/react";
 import React, { useCallback, useMemo, useEffect, useTransition } from "react";
 import { useFeatureFlag } from "@/app/context/FeatureFlagsContext";
 import { normalizePlanStatus, isPlanActiveLike } from "@/utils/planStatus";
-import { buildSidebarSections } from "./sidebar/config";
+import {
+  buildSidebarSections,
+  filterDesktopSidebarSections,
+} from "./sidebar/config";
 import { SidebarSectionList, type SidebarPresentationTokens } from "./sidebar/components";
 import type { SidebarSection, SidebarChildNode } from "./sidebar/types";
 import DashboardUserMenu from "./DashboardUserMenu";
@@ -19,6 +22,8 @@ import {
   useSidebarIntentPrefetch,
 } from "./sidebar/hooks";
 import { useDashboardNotificationBadges } from "../hooks/useDashboardNotificationBadges";
+import { CAMPAIGNS_ROUTE } from "@/constants/routes";
+import { track } from "@/lib/track";
 
 const normalizePath = (value: string) => (value.endsWith("/") ? value.slice(0, -1) : value);
 const startsWithSegment = (pathname: string, href: string) => {
@@ -26,12 +31,6 @@ const startsWithSegment = (pathname: string, href: string) => {
   const target = normalizePath(href);
   return path === target || path.startsWith(`${target}/`);
 };
-
-const DESKTOP_HIDDEN_PANEL_ITEM_KEYS = new Set([
-  "media-kit",
-  "campaigns.overview",
-  "planning.discover",
-]);
 
 const collectPrefetchTargets = (
   sections: SidebarSection[],
@@ -141,13 +140,7 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
   );
   const visibleSections = useMemo(() => {
     if (isMobile) return sections;
-
-    return sections
-      .map((section) => ({
-        ...section,
-        items: section.items.filter((item) => !DESKTOP_HIDDEN_PANEL_ITEM_KEYS.has(item.key)),
-      }))
-      .filter((section) => section.items.length > 0);
+    return filterDesktopSidebarSections(sections);
   }, [isMobile, sections]);
   const idlePrefetchTargets = useMemo(
     () => collectPrefetchTargets(visibleSections, pathname, sidebarBadges, isMobile ? 2 : 4),
@@ -182,11 +175,19 @@ export default function SidebarNav({ isCollapsed, onToggle }: SidebarNavProps) {
   const handleNavigateTo = useCallback(
     (href: string) => {
       if (normalizePath(href) === normalizedPathname) return;
+      const isCampaignsEntry = normalizePath(href) === CAMPAIGNS_ROUTE;
+      if (isCampaignsEntry) {
+        track("campaigns_entry_clicked", {
+          creator_id: userId,
+          source: "sidebar",
+          unread_count: campaignsUnreadCount,
+        });
+      }
       startRouteTransition(() => {
-        router.push(href);
+        router.push(isCampaignsEntry ? `${CAMPAIGNS_ROUTE}?source=sidebar` : href);
       });
     },
-    [normalizedPathname, router, startRouteTransition]
+    [campaignsUnreadCount, normalizedPathname, router, startRouteTransition, userId]
   );
 
   const interaction = useMemo(

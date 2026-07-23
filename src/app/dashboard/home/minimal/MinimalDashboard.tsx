@@ -239,12 +239,12 @@ export default function MinimalDashboard({
             summary={proposalsSummary}
             onOpenProposals={() => {
               trackCta("open_proposals", "proposals_block");
-              onNavigate("/dashboard/proposals");
+              onNavigate("/campaigns");
             }}
             onRespondNow={() => {
               if (plan && plan.hasPremiumAccess) {
                 trackCta("analyze_with_ai", "proposals_block");
-                onNavigate("/dashboard/proposals?status=novo");
+                onNavigate("/campaigns?status=novo");
                 return;
               }
               onTriggerPaywall("analyze_with_ai");

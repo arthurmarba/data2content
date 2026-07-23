@@ -262,6 +262,11 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
   },
 ];
 
+const DESKTOP_HIDDEN_PANEL_ITEM_KEYS = new Set([
+  "media-kit",
+  "planning.discover",
+]);
+
 const shouldHideInMinimal = (hideInMinimal: boolean | undefined, dashboardMinimal: boolean) =>
   Boolean(hideInMinimal && dashboardMinimal);
 const HIDDEN_SIDEBAR_ITEM_KEYS = new Set<string>(["pro", "instagram-connection", "settings", "publis", "campaigns.calculator"]);
@@ -329,3 +334,15 @@ export const buildSidebarSections = (options: SidebarBuildOptions): SidebarSecti
       items,
     };
   }).filter((section): section is SidebarSection => Boolean(section));
+
+export const filterDesktopSidebarSections = (
+  sections: SidebarSection[]
+): SidebarSection[] =>
+  sections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter(
+        (item) => !DESKTOP_HIDDEN_PANEL_ITEM_KEYS.has(item.key)
+      ),
+    }))
+    .filter((section) => section.items.length > 0);

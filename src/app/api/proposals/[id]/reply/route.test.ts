@@ -163,7 +163,9 @@ describe('POST /api/proposals/[id]/reply', () => {
       {
         $set: {
           status: 'respondido',
+          openedAt: now,
           lastResponseAt: now,
+          repliedAt: now,
           lastResponseMessage: 'Oi, podemos seguir',
         },
       }
@@ -215,7 +217,9 @@ describe('POST /api/proposals/[id]/reply', () => {
       {
         $set: {
           status: 'respondido',
+          openedAt: now,
           lastResponseAt: now,
+          repliedAt: now,
           lastResponseMessage: 'Seguimos com o plano',
         },
       }
@@ -261,7 +265,9 @@ describe('POST /api/proposals/[id]/reply', () => {
       {
         $set: {
           status: 'respondido',
+          openedAt: now,
           lastResponseAt: now,
+          repliedAt: now,
           lastResponseMessage: 'Segue contraproposta',
           creatorProposedBudget: 3200,
           creatorProposedAt: now,

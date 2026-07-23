@@ -72,12 +72,70 @@ export const analyticsEventCatalog = {
       source: '' as ('media_kit' | 'campaign_brief' | 'other' | null | undefined),
     },
   },
+  campaigns_entry_clicked: {
+    group: 'navigation',
+    description: 'Creator used an explicit entry point to access the campaigns CRM.',
+    payload: {
+      creator_id: '' as StringMaybe,
+      source: '' as (
+        | 'sidebar'
+        | 'home_alert'
+        | 'home_board'
+        | 'email'
+        | 'deep_link'
+        | 'direct'
+        | null
+        | undefined
+      ),
+      unread_count: 0 as NumberMaybe,
+    },
+  },
+  campaigns_hub_viewed: {
+    group: 'funnel',
+    description: 'Creator reached the dedicated campaigns CRM.',
+    payload: {
+      creator_id: '' as StringMaybe,
+      source: '' as (
+        | 'sidebar'
+        | 'home_alert'
+        | 'home_board'
+        | 'email'
+        | 'deep_link'
+        | 'direct'
+        | null
+        | undefined
+      ),
+    },
+  },
+  campaigns_load_failed: {
+    group: 'ops',
+    description: 'Campaign CRM failed to load the list or a proposal detail.',
+    payload: {
+      creator_id: '' as StringMaybe,
+      source: '' as StringMaybe,
+      stage: '' as ('list' | 'detail' | null | undefined),
+      proposal_id: '' as StringMaybe,
+      error_message: '' as StringMaybe,
+    },
+  },
   proposal_opened: {
     group: 'funnel',
     description: 'Creator opened a proposal inside the dashboard.',
     payload: {
       creator_id: '' as StringMaybe,
       proposal_id: '' as StringMaybe,
+      source: '' as (
+        | 'sidebar'
+        | 'home_alert'
+        | 'home_board'
+        | 'email'
+        | 'deep_link'
+        | 'direct'
+        | null
+        | undefined
+      ),
+      was_unread: null as boolean | null | undefined,
+      received_to_open_hours: 0 as NumberMaybe,
     },
   },
   ai_analysis_started: {
@@ -133,6 +191,7 @@ export const analyticsEventCatalog = {
     payload: {
       creator_id: '' as StringMaybe,
       proposal_id: '' as StringMaybe,
+      received_to_reply_hours: 0 as NumberMaybe,
     },
   },
   proposal_status_changed: {

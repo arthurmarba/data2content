@@ -11,7 +11,11 @@ type CommunityCreatorShowcaseProps = {
   creators: LandingCreatorHighlight[];
 };
 
-function CreatorLink({ creator, duplicate = false }: { creator: LandingCreatorHighlight; duplicate?: boolean }) {
+function getCommunityAvatarUrl(mediaKitSlug: string) {
+  return `https://data2content.ai/api/mediakit/${encodeURIComponent(mediaKitSlug)}/avatar?v=20260723-community-v3`;
+}
+
+function CreatorLink({ creator, duplicate = false, eager = false }: { creator: LandingCreatorHighlight; duplicate?: boolean; eager?: boolean }) {
   if (!creator.mediaKitSlug) return null;
 
   return (
@@ -27,7 +31,8 @@ function CreatorLink({ creator, duplicate = false }: { creator: LandingCreatorHi
         <CommunityCreatorProfileImage
           name={creator.name}
           mediaKitSlug={creator.mediaKitSlug}
-          src={creator.avatarUrl || "/images/default-profile.png"}
+          src={getCommunityAvatarUrl(creator.mediaKitSlug)}
+          eager={eager}
         />
       </span>
       <b>{creator.name}<ExternalLink size={12} aria-hidden="true" /></b>
@@ -47,10 +52,10 @@ export function CommunityCreatorShowcase({ creators }: CommunityCreatorShowcaseP
     <div className="d2c-community-wall__viewport">
       <div className="d2c-community-wall__track">
         <div className="d2c-community-wall__set">
-          {items.map((creator) => <CreatorLink key={creator.id} creator={creator} />)}
+          {items.map((creator) => <CreatorLink key={creator.id} creator={creator} eager />)}
         </div>
         <div className="d2c-community-wall__set" aria-hidden="true">
-          {items.map((creator) => <CreatorLink key={`copy-${creator.id}`} creator={creator} duplicate />)}
+          {items.map((creator) => <CreatorLink key={`copy-${creator.id}`} creator={creator} duplicate eager />)}
         </div>
       </div>
     </div>

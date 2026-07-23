@@ -67,6 +67,10 @@ function mockFetchFreeFlow() {
         creatorProposedCurrency: null,
         creatorProposedAt: null,
         status: 'novo',
+        receivedAt: new Date().toISOString(),
+        openedAt: null,
+        repliedAt: null,
+        isUnread: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         lastResponseAt: null,
@@ -87,6 +91,8 @@ function mockFetchFreeFlow() {
   const updatedDetail = {
     ...detailPayload,
     status: 'visto',
+    openedAt: new Date().toISOString(),
+    isUnread: false,
   };
 
   return jest
@@ -157,6 +163,10 @@ function mockFetchProFlow() {
         creatorProposedCurrency: null,
         creatorProposedAt: null,
         status: 'visto',
+        receivedAt: new Date().toISOString(),
+        openedAt: new Date().toISOString(),
+        repliedAt: null,
+        isUnread: false,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         lastResponseAt: null,
@@ -276,11 +286,32 @@ test('free user sees upgrade banner, tracking, and notify-upgrade flow', async (
   });
 
   const fetchMock = mockFetchFreeFlow();
+  const onNewCountChange = jest.fn();
 
-  render(<ProposalsClient />);
+  render(<ProposalsClient onNewCountChange={onNewCountChange} />);
 
   await waitFor(() =>
     expect(fetchMock).toHaveBeenCalledWith('/api/proposals', expect.anything())
+  );
+  await waitFor(() => expect(onNewCountChange).toHaveBeenCalledWith(1));
+  await waitFor(() =>
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/proposals/prop-1',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ opened: true }),
+      })
+    )
+  );
+  expect(track).toHaveBeenCalledWith(
+    'proposal_opened',
+    expect.objectContaining({
+      creator_id: null,
+      proposal_id: 'prop-1',
+      source: 'direct',
+      was_unread: true,
+      received_to_open_hours: expect.any(Number),
+    })
   );
 
   await waitFor(() =>
@@ -306,6 +337,197 @@ test('free user sees upgrade banner, tracking, and notify-upgrade flow', async (
       expect.objectContaining({ method: 'POST' })
     )
   );
+});
+
+test('compact board does not mark a proposal as opened before user selection', async () => {
+  mockUseBillingStatus.mockReturnValue({
+    hasPremiumAccess: false,
+    isLoading: false,
+  });
+
+  const fetchMock = mockFetchFreeFlow();
+
+  render(<ProposalsClient compactView />);
+
+  expect(await screen.findByText('Campanha XPTO')).toBeInTheDocument();
+  expect(fetchMock).not.toHaveBeenCalledWith(
+    '/api/proposals/prop-1',
+    expect.objectContaining({ method: 'PATCH' })
+  );
+
+  fireEvent.click(screen.getByText('Campanha XPTO'));
+
+  await waitFor(() =>
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/proposals/prop-1',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ opened: true }),
+      })
+    )
+  );
+  expect(track).toHaveBeenCalledWith(
+    'proposal_opened',
+    expect.objectContaining({
+      proposal_id: 'prop-1',
+      source: 'home_board',
+      was_unread: true,
+    })
+  );
+});
+
+test('shows a recoverable state when the campaign list fails to load', async () => {
+  mockUseBillingStatus.mockReturnValue({
+    hasPremiumAccess: true,
+    isLoading: false,
+  });
+
+  let listAttempts = 0;
+  const fetchMock = jest
+    .spyOn(global, 'fetch')
+    .mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = (init?.method || 'GET').toUpperCase();
+
+      if (url === '/api/users/media-kit-token' && method === 'GET') {
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ url: 'https://data2content.io/media-kit/creator' }),
+        } as Response);
+      }
+
+      if (url === '/api/proposals' && method === 'GET') {
+        listAttempts += 1;
+        if (listAttempts === 1) {
+          return Promise.resolve({
+            ok: false,
+            status: 503,
+            json: async () => ({}),
+          } as Response);
+        }
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: async () => ({ items: [] }),
+        } as Response);
+      }
+
+      throw new Error(`Unexpected fetch call: ${method} ${url}`);
+    });
+
+  render(<ProposalsClient />);
+
+  expect(await screen.findByText('Não foi possível carregar suas campanhas.')).toBeInTheDocument();
+  expect(screen.queryByText('Nenhuma campanha recebida ainda.')).toBeNull();
+  expect(track).toHaveBeenCalledWith(
+    'campaigns_load_failed',
+    expect.objectContaining({
+      stage: 'list',
+      source: 'direct',
+      proposal_id: null,
+    })
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+  await waitFor(() => expect(listAttempts).toBe(2));
+  expect(await screen.findByText('Nenhuma campanha recebida ainda.')).toBeInTheDocument();
+  expect(fetchMock).toHaveBeenCalledWith('/api/proposals', expect.anything());
+});
+
+test('allows retrying a briefing that failed to open', async () => {
+  mockUseBillingStatus.mockReturnValue({
+    hasPremiumAccess: true,
+    isLoading: false,
+  });
+
+  const receivedAt = new Date().toISOString();
+  const listItem = {
+    id: 'prop-retry',
+    brandName: 'Marca Retry',
+    contactEmail: 'brand@example.com',
+    contactWhatsapp: null,
+    campaignTitle: 'Campanha recuperável',
+    campaignDescription: null,
+    deliverables: [],
+    budget: null,
+    budgetIntent: 'requested',
+    currency: 'BRL',
+    creatorProposedBudget: null,
+    creatorProposedCurrency: null,
+    creatorProposedAt: null,
+    status: 'visto',
+    receivedAt,
+    openedAt: receivedAt,
+    repliedAt: null,
+    isUnread: false,
+    createdAt: receivedAt,
+    updatedAt: receivedAt,
+    lastResponseAt: null,
+    lastResponseMessage: null,
+  };
+  let detailAttempts = 0;
+
+  jest.spyOn(global, 'fetch').mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    const method = (init?.method || 'GET').toUpperCase();
+
+    if (url === '/api/users/media-kit-token' && method === 'GET') {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ url: 'https://data2content.io/media-kit/creator' }),
+      } as Response);
+    }
+    if (url === '/api/proposals' && method === 'GET') {
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({ items: [listItem] }),
+      } as Response);
+    }
+    if (url === '/api/proposals/prop-retry' && method === 'GET') {
+      detailAttempts += 1;
+      if (detailAttempts === 1) {
+        return Promise.resolve({
+          ok: false,
+          status: 503,
+          json: async () => ({}),
+        } as Response);
+      }
+      return Promise.resolve({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          ...listItem,
+          mediaKitSlug: 'creator-kit',
+          latestAnalysis: null,
+          analysisHistory: [],
+        }),
+      } as Response);
+    }
+
+    throw new Error(`Unexpected fetch call: ${method} ${url}`);
+  });
+
+  render(<ProposalsClient compactView />);
+  fireEvent.click(await screen.findByText('Campanha recuperável'));
+
+  expect(await screen.findByText('Não foi possível abrir esta campanha.')).toBeInTheDocument();
+  expect(track).toHaveBeenCalledWith(
+    'campaigns_load_failed',
+    expect.objectContaining({
+      stage: 'detail',
+      proposal_id: 'prop-retry',
+      source: 'home_board',
+    })
+  );
+
+  fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+  await waitFor(() => expect(detailAttempts).toBe(2));
+  expect((await screen.findAllByText('Campanha recuperável')).length).toBeGreaterThan(0);
 });
 
 test('pro user can generate analysis in summary mode and update reply draft', async () => {

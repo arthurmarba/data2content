@@ -278,7 +278,7 @@ function SectionTitle({ title, action, onAction }: { title: string; action?: str
 // ─── Opportunity detail sheet ────────────────────────────────────────────────
 
 const OPPORTUNITY_CTA: Record<string, { label: string; href: string }> = {
-  brand_territory: { label: "Ver propostas de marca", href: "/dashboard/proposals" },
+  brand_territory: { label: "Ver propostas de marca", href: "/campaigns" },
   collab_type: { label: "Abrir Planner", href: "/planning/planner" },
   media_kit_bridge: { label: "Abrir Mídia Kit", href: "/dashboard/media-kit" },
   instagram_precision: { label: "Ver configurações", href: "/dashboard/settings" },

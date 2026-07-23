@@ -10,8 +10,9 @@ This note centralises the current feature snapshot, the manual QA path, and the 
   * `GET /api/proposals` – lista autenticada para o creator.
   * `PATCH /api/proposals/[id]` – atualiza status (`novo`, `visto`, `aceito`, `rejeitado`).
   * `POST /api/proposals/[id]/analyze` – chama o Mobi para avaliar proposta.
-- Notificação automática por e-mail (`proposalReceivedEmail`) enviada ao criador com resumo da proposta e link direto (`/dashboard/proposals/[id]`).
-- Dashboard `/dashboard/proposals` lista itens, permite alterar status e aciona a IA.
+- Notificação automática por e-mail (`proposalReceivedEmail`) enviada ao criador com resumo da proposta e link direto canônico (`/campaigns?proposalId=...&source=email`).
+- CRM `/campaigns` acessível pela sidebar e pela home; as rotas antigas em `/dashboard/proposals` redirecionam para o endereço canônico.
+- Cada proposta persiste `receivedAt`, `openedAt` e `repliedAt`. Registros antigos continuam compatíveis sem backfill obrigatório.
 - Prompt do Mobi agora compara orçamento vs. cálculo recente + ticket médio histórico.
 - Formulário público só aparece para visitantes (dono logado não vê) -> prevenção de auto-submissões.
 - Logs enviados: `[PROPOSAL_PUBLIC]`, `[PROPOSAL_ANALYSIS]` via `logger` + Sentry.
@@ -24,7 +25,7 @@ This note centralises the current feature snapshot, the manual QA path, and the 
    - Repetir +6 vezes com o mesmo IP → deve retornar 429 (“Limite de propostas atingido”).
    - Validar que o criador recebe o e-mail “Nova proposta recebida no seu Mídia Kit 🎯” com briefing completo e link.
 2. **Painel do creator**
-   - Logar como dono → `/dashboard/proposals`.
+   - Logar como dono → `/campaigns`.
    - Ver proposta recém-criada (status `Novo`, orçamento/datas preenchidos).
    - Abrir detalhe → briefing, entregáveis, contato completos.
 3. **Ações**
@@ -47,6 +48,8 @@ This note centralises the current feature snapshot, the manual QA path, and the 
 - **E-mail**: `emailService` grava `[emailService] Notificação de proposta recebida` no log; falhas sobem como erro `Sentry`.
 - **Rate limit**: chaves Redis prefixadas com `proposal_public:<ip>`. Verificar TTL/contagem ao investigar bloqueios.
 - **Banco**: `brandproposals` armazenam IP/UA para auditoria; índices em `userId` e `mediaKitSlug`.
+- **Funil**: acompanhar origem de entrada, tempo até abertura e tempo até resposta pelos eventos `campaigns_*`, `proposal_opened` e `email_sent_via_platform`.
+- **Compatibilidade**: propostas legadas sem `openedAt` são consideradas não lidas apenas quando ainda estão em `novo`; não executar migração destrutiva para inferir datas históricas.
 - **Alertas sugeridos** (pós-go-live, 1ª semana):
   - Contagem diária de propostas > threshold configurado (para detectar spikes ou degradação).
   - Erros 500 em `/proposals/*` > 0.

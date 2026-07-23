@@ -65,6 +65,10 @@ export interface ProposalListItem {
   creatorProposedBudget: number | null;
   creatorProposedCurrency: string | null;
   creatorProposedAt: string | null;
+  receivedAt: string | null;
+  openedAt: string | null;
+  repliedAt: string | null;
+  isUnread: boolean;
   createdAt: string | null;
   lastResponseAt: string | null;
   lastResponseMessage: string | null;

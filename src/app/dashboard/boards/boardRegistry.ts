@@ -1,5 +1,7 @@
 "use client";
 
+import { CAMPAIGNS_ROUTE } from "@/constants/routes";
+
 export type PinnableBoardId =
   | "strategic-map"
   | "collabs"
@@ -34,7 +36,7 @@ export const PINNABLE_BOARD_REGISTRY: Record<PinnableBoardId, PinnableBoardConfi
   campaigns: {
     id: "campaigns",
     title: "Campanhas",
-    route: "/dashboard/campaigns",
+    route: CAMPAIGNS_ROUTE,
     defaultPinned: true,
     fixedPinned: true,
   },

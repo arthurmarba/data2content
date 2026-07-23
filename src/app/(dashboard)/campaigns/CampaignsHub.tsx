@@ -1,13 +1,44 @@
 "use client";
 
 import React from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import CampaignsBoard from './CampaignsBoard';
 import { useHeaderSetup } from '@/app/dashboard/context/HeaderContext';
 import useBoardMobileViewport from '@/app/dashboard/hooks/useBoardMobileViewport';
+import type { CampaignEntrySource } from '@/constants/routes';
+import { track } from '@/lib/track';
+
+const CAMPAIGN_ENTRY_SOURCES = new Set<CampaignEntrySource>([
+    'sidebar',
+    'home_alert',
+    'home_board',
+    'email',
+    'deep_link',
+    'direct',
+]);
 
 export default function CampaignsHub({ viewer }: { viewer?: any }) {
     const isMobileViewport = useBoardMobileViewport();
     const useWideDesktop = !isMobileViewport;
+    const searchParams = useSearchParams();
+    const { data: session } = useSession();
+    const creatorId = (session?.user as { id?: string } | undefined)?.id ?? null;
+    const trackedViewRef = React.useRef(false);
+    const source = React.useMemo<CampaignEntrySource>(() => {
+        const requestedSource = searchParams?.get('source') as CampaignEntrySource | null;
+        if (requestedSource && CAMPAIGN_ENTRY_SOURCES.has(requestedSource)) return requestedSource;
+        return searchParams?.get('proposalId') ? 'deep_link' : 'direct';
+    }, [searchParams]);
+
+    React.useEffect(() => {
+        if (trackedViewRef.current) return;
+        trackedViewRef.current = true;
+        track('campaigns_hub_viewed', {
+            creator_id: creatorId,
+            source,
+        });
+    }, [creatorId, source]);
 
     useHeaderSetup(
         {

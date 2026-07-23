@@ -10,6 +10,7 @@ import { getClientIp } from '@/utils/getClientIp';
 import rateLimit from '@/utils/rateLimit';
 import { formatCurrencySafely, normalizeCurrencyCode } from '@/utils/currency';
 import { resolveMediaKitToken } from '@/app/lib/mediakit/slugService';
+import { buildCampaignProposalUrl } from '@/constants/routes';
 
 export const runtime = 'nodejs';
 
@@ -190,6 +191,7 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
   const utmLastTouchAt = sanitizeDate(payload.utmLastTouchAt ?? payload.utm_last_touch_at) ?? utmFirstTouchAt;
 
   try {
+    const receivedAt = new Date();
     const proposal = await BrandProposal.create({
       userId: creator._id,
       mediaKitSlug: creator.mediaKitSlug,
@@ -203,6 +205,8 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
       budget,
       budgetIntent,
       currency,
+      receivedAt,
+      openedAt: null,
       originIp: ip,
       userAgent: request.headers.get('user-agent') ?? undefined,
       utmSource,
@@ -255,7 +259,9 @@ export async function POST(request: NextRequest, { params }: { params: { token: 
         process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, '') ||
         process.env.APP_URL?.replace(/\/+$/, '') ||
         'https://data2content.ai';
-      const proposalUrl = `${baseAppUrl}/dashboard/proposals/${proposal._id.toString()}`;
+      const proposalUrl = buildCampaignProposalUrl(baseAppUrl, proposal._id.toString(), {
+        source: 'email',
+      });
 
       try {
         await sendProposalReceivedEmail(creatorEmail, {

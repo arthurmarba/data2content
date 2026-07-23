@@ -40,6 +40,9 @@ export interface IBrandProposal extends Document {
   creatorProposedCurrency?: string;
   creatorProposedAt?: Date;
   status: BrandProposalStatus;
+  receivedAt?: Date;
+  openedAt?: Date | null;
+  repliedAt?: Date;
   referenceLinks?: string[];
   originIp?: string;
   userAgent?: string;
@@ -196,6 +199,19 @@ const BrandProposalSchema = new Schema<IBrandProposal>(
       default: 'novo',
       index: true,
     },
+    receivedAt: {
+      type: Date,
+      default: Date.now,
+      index: true,
+    },
+    openedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    repliedAt: {
+      type: Date,
+    },
     originIp: {
       type: String,
       trim: true,
@@ -258,6 +274,7 @@ const BrandProposalSchema = new Schema<IBrandProposal>(
 );
 
 BrandProposalSchema.index({ userId: 1, createdAt: -1 });
+BrandProposalSchema.index({ userId: 1, openedAt: 1, status: 1 });
 BrandProposalSchema.index({ mediaKitSlug: 1, createdAt: -1 });
 
 const BrandProposal =

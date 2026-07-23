@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth/next';
 import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectToDatabase } from '@/app/lib/mongoose';
 import BrandProposal from '@/app/models/BrandProposal';
+import { isUnreadCampaign } from '@/app/lib/proposals/unread';
 
 export const runtime = 'nodejs';
 
@@ -39,6 +40,18 @@ const serializeProposal = (proposal: any) => ({
   creatorProposedCurrency: proposal.creatorProposedCurrency ?? null,
   creatorProposedAt: proposal.creatorProposedAt ? proposal.creatorProposedAt.toISOString() : null,
   status: proposal.status,
+  receivedAt: proposal.receivedAt
+    ? proposal.receivedAt.toISOString()
+    : proposal.createdAt
+      ? proposal.createdAt.toISOString()
+      : null,
+  openedAt: proposal.openedAt ? proposal.openedAt.toISOString() : null,
+  repliedAt: proposal.repliedAt
+    ? proposal.repliedAt.toISOString()
+    : proposal.lastResponseAt
+      ? proposal.lastResponseAt.toISOString()
+      : null,
+  isUnread: isUnreadCampaign(proposal),
   createdAt: proposal.createdAt ? proposal.createdAt.toISOString() : null,
   updatedAt: proposal.updatedAt ? proposal.updatedAt.toISOString() : null,
   lastResponseAt: proposal.lastResponseAt ? proposal.lastResponseAt.toISOString() : null,
