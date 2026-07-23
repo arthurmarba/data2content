@@ -308,13 +308,13 @@ export function BillingMobileShell() {
     finally { setAborting(false); }
   }
 
-  async function cancel({ reasons, comment }: { reasons: string[]; comment: string }) {
+  async function cancel({ reasonCodes, comment }: { reasonCodes: string[]; comment: string }) {
     try {
       setCanceling(true);
       const res = await fetch("/api/billing/cancel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reasons, comment }),
+        body: JSON.stringify({ reasonCodes, comment }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) { toast.error(data?.message ?? "Não foi possível cancelar a renovação."); return; }
