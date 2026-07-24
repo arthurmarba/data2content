@@ -42,8 +42,9 @@ export default function ThreadsTabs({
         else if (event.key === 'Home') nextIndex = 0;
         else if (event.key === 'End') nextIndex = count - 1;
         if (nextIndex === null) return;
-        event.preventDefault();
         const nextTab = tabs[nextIndex];
+        if (!nextTab) return;
+        event.preventDefault();
         onChange(nextTab.id);
         const sibling = event.currentTarget.parentElement?.children[nextIndex] as HTMLElement | undefined;
         sibling?.focus();
