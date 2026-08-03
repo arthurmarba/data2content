@@ -1,0 +1,427 @@
+[  353671ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:3000/:0
+[  525241ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(pages-dir-browser)/./node_modules/react-dom/cjs/react-dom.development.js:29889
+[  526827ms] Error: ENOENT: no such file or directory, open '/Users/arthurmarba/d2c-frontend/.next/server/app/page.js'
+    at Object.readFileSync (node:fs:448:20)
+    at loadSource (node:internal/modules/cjs/loader:1548:17)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1617:44)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at mod.require (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/require-hook.js:68:28)
+    at Module.patchedRequire (file:///Users/arthurmarba/d2c-frontend/node_modules/require-in-the-middle/index.js:256:27)
+    at Hook._require.Module.require (file:///Users/arthurmarba/d2c-frontend/node_modules/require-in-the-middle/index.js:181:27)
+    at require (node:internal/modules/helpers:182:18)
+    at requirePage (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/require.js:99:80)
+    at loadComponentsImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/load-components.js:132:57)
+    at async DevServer.findPageComponentsImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:900:36)
+    at async DevServer.findPageComponents (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:706:16)
+    at async DevServer.renderPageComponent (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1468:24)
+    at async DevServer.renderToResponseImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1522:32)
+    at async DevServer.pipeImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1026:25)
+    at async NextNodeServer.handleCatchallRenderRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:394:17)
+    at async DevServer.handleRequestImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:917:17)
+    at async (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:400:20)
+    at async Span.traceAsyncFn (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/trace/trace.js:157:20)
+    at async DevServer.handleRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:396:24)
+    at async invokeRender (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:240:21)
+    at async handleRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:437:24)
+    at async requestHandlerImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:485:13)
+    at async Server.requestListener (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/start-server.js:226:13)
+[  526309ms] [LOG] [HMR] connected @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/websocket.js:45
+[  555049ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[  650691ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3000/_next/static/css/app/page.css?v=1785789045858:0
+[  650986ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3000/_next/static/chunks/app/page.js:0
+[  660120ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:25630
+[  663378ms] [WARNING] The resource https://www.googletagmanager.com/gtag/js?id=G-36B3TLFLLZ was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[  663378ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/e9b443debf0e5df9.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[  663378ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/26d0ba92e140f0dc.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[  663378ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/9d5a263311222317.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[  671507ms] [WARNING] The resource https://www.googletagmanager.com/gtag/js?id=G-36B3TLFLLZ was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[  671507ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/e9b443debf0e5df9.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[  671507ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/26d0ba92e140f0dc.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[  671507ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/9d5a263311222317.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[  781126ms] ChunkLoadError: Loading chunk app/page failed.
+(timeout: http://127.0.0.1:3000/_next/static/chunks/app/page.js)
+    at __webpack_require__.f.j (http://127.0.0.1:3000/_next/static/chunks/webpack.js?v=1785789045858:866:29)
+    at http://127.0.0.1:3000/_next/static/chunks/webpack.js?v=1785789045858:145:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (http://127.0.0.1:3000/_next/static/chunks/webpack.js?v=1785789045858:144:67)
+    at fn.e (http://127.0.0.1:3000/_next/static/chunks/webpack.js?v=1785789045858:381:50)
+    at loadChunk (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:113:34)
+    at preloadModule (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:82:31)
+    at resolveModule (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2130:20)
+    at processFullStringRow (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2830:11)
+    at processFullBinaryRow (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2825:7)
+    at processBinaryChunk (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:3028:15)
+    at progress (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:3294:13)
+[  818587ms] [WARNING] The resource https://www.googletagmanager.com/gtag/js?id=G-36B3TLFLLZ was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[  818589ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/e9b443debf0e5df9.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[  818589ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/26d0ba92e140f0dc.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[  818589ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/9d5a263311222317.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[  950285ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:196
+[  958196ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:113
+[  961199ms] [WARNING] The resource https://www.googletagmanager.com/gtag/js?id=G-36B3TLFLLZ was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[  961202ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/e9b443debf0e5df9.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[  961202ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/26d0ba92e140f0dc.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[  961203ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/9d5a263311222317.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[  963331ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3000/_next/static/css/app/page.css?v=1785789362839:0
+[  963493ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3000/_next/static/chunks/app/page.js:0
+[  964179ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:25630
+[  968475ms] [WARNING] The resource https://www.googletagmanager.com/gtag/js?id=G-36B3TLFLLZ was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[  968475ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/e9b443debf0e5df9.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[  968475ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/26d0ba92e140f0dc.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[  968475ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/9d5a263311222317.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[ 1084630ms] ChunkLoadError: Loading chunk app/page failed.
+(timeout: http://127.0.0.1:3000/_next/static/chunks/app/page.js)
+    at __webpack_require__.f.j (http://127.0.0.1:3000/_next/static/chunks/webpack.js?v=1785789362839:866:29)
+    at http://127.0.0.1:3000/_next/static/chunks/webpack.js?v=1785789362839:145:40
+    at Array.reduce (<anonymous>)
+    at __webpack_require__.e (http://127.0.0.1:3000/_next/static/chunks/webpack.js?v=1785789362839:144:67)
+    at fn.e (http://127.0.0.1:3000/_next/static/chunks/webpack.js?v=1785789362839:381:50)
+    at loadChunk (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:113:34)
+    at preloadModule (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:82:31)
+    at resolveModule (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2130:20)
+    at processFullStringRow (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2830:11)
+    at processFullBinaryRow (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:2825:7)
+    at processBinaryChunk (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:3028:15)
+    at progress (webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-server-dom-webpack/cjs/react-server-dom-webpack-client.browser.development.js:3294:13)
+[ 1088144ms] [WARNING] The resource https://www.googletagmanager.com/gtag/js?id=G-36B3TLFLLZ was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[ 1088144ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/e9b443debf0e5df9.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[ 1088144ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/26d0ba92e140f0dc.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[ 1088144ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/9d5a263311222317.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[ 1098644ms] [WARNING] The resource https://www.googletagmanager.com/gtag/js?id=G-36B3TLFLLZ was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[ 1098645ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/e9b443debf0e5df9.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[ 1098646ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/26d0ba92e140f0dc.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[ 1098646ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/9d5a263311222317.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[ 1136033ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:196
+[ 1169199ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3000/_next/static/webpack/3971d6bdca57f35c.webpack.hot-update.json:0
+[ 1169207ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:113
+[ 1172210ms] [WARNING] The resource https://www.googletagmanager.com/gtag/js?id=G-36B3TLFLLZ was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[ 1172211ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/e9b443debf0e5df9.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[ 1172212ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/26d0ba92e140f0dc.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[ 1172212ms] [WARNING] The resource http://127.0.0.1:3000/_next/static/media/9d5a263311222317.p.woff2 was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally. @ http://127.0.0.1:3000/:0
+[ 1179985ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:196
+[ 1185944ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3000/_next/static/webpack/3971d6bdca57f35c.webpack.hot-update.json:0
+[ 1185944ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:113
+[ 1192190ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:3000/:0
+[ 1195797ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(pages-dir-browser)/./node_modules/react-dom/cjs/react-dom.development.js:29889
+[ 1195981ms] Error: ENOENT: no such file or directory, open '/Users/arthurmarba/d2c-frontend/.next/server/pages/_document.js'
+    at Object.readFileSync (node:fs:448:20)
+    at loadSource (node:internal/modules/cjs/loader:1548:17)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1617:44)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at mod.require (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/require-hook.js:68:28)
+    at Module.patchedRequire (file:///Users/arthurmarba/d2c-frontend/node_modules/require-in-the-middle/index.js:256:27)
+    at Hook._require.Module.require (file:///Users/arthurmarba/d2c-frontend/node_modules/require-in-the-middle/index.js:181:27)
+    at require (node:internal/modules/helpers:182:18)
+    at requirePage (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/require.js:99:80)
+    at loadComponentsImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/load-components.js:86:38)
+    at DevServer.findPageComponentsImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:900:77)
+    at <unknown> (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:878:21)
+    at <unknown> (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/trace/tracer.js:184:36)
+    at AsyncLocalStorage.run (node:async_hooks:346:14)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@opentelemetry/context-async-hooks/build/src/AsyncLocalStorageContextManager.js:33:40)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@sentry/opentelemetry/build/cjs/index.js:1433:24)
+    at ContextAPI.with (webpack-internal:///(rsc)/./node_modules/@opentelemetry/api/build/esm/api/context.js:95:54)
+    at Tracer.startActiveSpan (webpack-internal:///(rsc)/./node_modules/@opentelemetry/sdk-trace-base/build/esm/Tracer.js:153:76)
+    at <unknown> (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/trace/tracer.js:153:103)
+    at AsyncLocalStorage.run (node:async_hooks:346:14)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@opentelemetry/context-async-hooks/build/src/AsyncLocalStorageContextManager.js:33:40)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@sentry/opentelemetry/build/cjs/index.js:1433:24)
+    at ContextAPI.with (file:///Users/arthurmarba/d2c-frontend/node_modules/@opentelemetry/api/build/src/api/context.js:60:46)
+    at NextTracerImpl.trace (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/trace/tracer.js:153:28)
+    at DevServer.findPageComponents (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:873:41)
+    at DevServer.findPageComponents (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:706:28)
+    at async DevServer.renderErrorToResponseImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1695:26)
+    at async pipe.req.req (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1618:30)
+    at async DevServer.pipeImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1026:25)
+    at async NextNodeServer.handleCatchallRenderRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:409:21)
+    at async DevServer.handleRequestImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:917:17)
+    at async (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:400:20)
+    at async Span.traceAsyncFn (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/trace/trace.js:157:20)
+    at async DevServer.handleRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:396:24)
+    at async invokeRender (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:240:21)
+    at async handleRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:437:24)
+    at async requestHandlerImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:485:13)
+    at async Server.requestListener (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/start-server.js:226:13)
+[ 1196031ms] [LOG] [HMR] connected @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/websocket.js:45
+[ 1196441ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3000/_next/static/webpack/82aff9c32b08bf82.webpack.hot-update.json:0
+[ 1196441ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[ 1198019ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:3000/:0
+[ 1198248ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(pages-dir-browser)/./node_modules/react-dom/cjs/react-dom.development.js:29889
+[ 1198264ms] Error: ENOENT: no such file or directory, open '/Users/arthurmarba/d2c-frontend/.next/server/pages/_document.js'
+    at Object.readFileSync (node:fs:448:20)
+    at loadSource (node:internal/modules/cjs/loader:1548:17)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1617:44)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at mod.require (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/require-hook.js:68:28)
+    at Module.patchedRequire (file:///Users/arthurmarba/d2c-frontend/node_modules/require-in-the-middle/index.js:256:27)
+    at Hook._require.Module.require (file:///Users/arthurmarba/d2c-frontend/node_modules/require-in-the-middle/index.js:181:27)
+    at require (node:internal/modules/helpers:182:18)
+    at requirePage (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/require.js:99:80)
+    at loadComponentsImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/load-components.js:86:38)
+    at DevServer.findPageComponentsImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:900:77)
+    at <unknown> (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:878:21)
+    at <unknown> (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/trace/tracer.js:184:36)
+    at AsyncLocalStorage.run (node:async_hooks:346:14)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@opentelemetry/context-async-hooks/build/src/AsyncLocalStorageContextManager.js:33:40)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@sentry/opentelemetry/build/cjs/index.js:1433:24)
+    at ContextAPI.with (webpack-internal:///(rsc)/./node_modules/@opentelemetry/api/build/esm/api/context.js:95:54)
+    at Tracer.startActiveSpan (webpack-internal:///(rsc)/./node_modules/@opentelemetry/sdk-trace-base/build/esm/Tracer.js:153:76)
+    at <unknown> (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/trace/tracer.js:153:103)
+    at AsyncLocalStorage.run (node:async_hooks:346:14)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@opentelemetry/context-async-hooks/build/src/AsyncLocalStorageContextManager.js:33:40)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@sentry/opentelemetry/build/cjs/index.js:1433:24)
+    at ContextAPI.with (file:///Users/arthurmarba/d2c-frontend/node_modules/@opentelemetry/api/build/src/api/context.js:60:46)
+    at NextTracerImpl.trace (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/trace/tracer.js:153:28)
+    at DevServer.findPageComponents (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:873:41)
+    at DevServer.findPageComponents (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:706:28)
+    at async DevServer.renderErrorToResponseImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1695:26)
+    at async pipe.req.req (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1618:30)
+    at async DevServer.pipeImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1026:25)
+    at async NextNodeServer.handleCatchallRenderRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:409:21)
+    at async DevServer.handleRequestImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:917:17)
+    at async (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:400:20)
+    at async Span.traceAsyncFn (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/trace/trace.js:157:20)
+    at async DevServer.handleRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:396:24)
+    at async invokeRender (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:240:21)
+    at async handleRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:437:24)
+    at async requestHandlerImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:485:13)
+    at async Server.requestListener (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/start-server.js:226:13)
+[ 1198265ms] [LOG] [HMR] connected @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/websocket.js:45
+[ 1199126ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3000/_next/static/webpack/82aff9c32b08bf82.webpack.hot-update.json:0
+[ 1199127ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[ 1199355ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:3000/:0
+[ 1199602ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(pages-dir-browser)/./node_modules/react-dom/cjs/react-dom.development.js:29889
+[ 1199617ms] Error: ENOENT: no such file or directory, open '/Users/arthurmarba/d2c-frontend/.next/server/pages/_document.js'
+    at Object.readFileSync (node:fs:448:20)
+    at loadSource (node:internal/modules/cjs/loader:1548:17)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1617:44)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at mod.require (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/require-hook.js:68:28)
+    at Module.patchedRequire (file:///Users/arthurmarba/d2c-frontend/node_modules/require-in-the-middle/index.js:256:27)
+    at Hook._require.Module.require (file:///Users/arthurmarba/d2c-frontend/node_modules/require-in-the-middle/index.js:181:27)
+    at require (node:internal/modules/helpers:182:18)
+    at requirePage (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/require.js:99:80)
+    at loadComponentsImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/load-components.js:86:38)
+    at DevServer.findPageComponentsImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:900:77)
+    at <unknown> (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:878:21)
+    at <unknown> (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/trace/tracer.js:184:36)
+    at AsyncLocalStorage.run (node:async_hooks:346:14)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@opentelemetry/context-async-hooks/build/src/AsyncLocalStorageContextManager.js:33:40)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@sentry/opentelemetry/build/cjs/index.js:1433:24)
+    at ContextAPI.with (webpack-internal:///(rsc)/./node_modules/@opentelemetry/api/build/esm/api/context.js:95:54)
+    at Tracer.startActiveSpan (webpack-internal:///(rsc)/./node_modules/@opentelemetry/sdk-trace-base/build/esm/Tracer.js:153:76)
+    at <unknown> (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/trace/tracer.js:153:103)
+    at AsyncLocalStorage.run (node:async_hooks:346:14)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@opentelemetry/context-async-hooks/build/src/AsyncLocalStorageContextManager.js:33:40)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@sentry/opentelemetry/build/cjs/index.js:1433:24)
+    at ContextAPI.with (file:///Users/arthurmarba/d2c-frontend/node_modules/@opentelemetry/api/build/src/api/context.js:60:46)
+    at NextTracerImpl.trace (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/trace/tracer.js:153:28)
+    at DevServer.findPageComponents (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:873:41)
+    at DevServer.findPageComponents (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:706:28)
+    at async DevServer.renderErrorToResponseImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1695:26)
+    at async pipe.req.req (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1618:30)
+    at async DevServer.pipeImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1026:25)
+    at async NextNodeServer.handleCatchallRenderRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:409:21)
+    at async DevServer.handleRequestImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:917:17)
+    at async (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:400:20)
+    at async Span.traceAsyncFn (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/trace/trace.js:157:20)
+    at async DevServer.handleRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:396:24)
+    at async invokeRender (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:240:21)
+    at async handleRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:437:24)
+    at async requestHandlerImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:485:13)
+    at async Server.requestListener (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/start-server.js:226:13)
+[ 1199617ms] [LOG] [HMR] connected @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/websocket.js:45
+[ 1200236ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3000/_next/static/webpack/82aff9c32b08bf82.webpack.hot-update.json:0
+[ 1200236ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[ 1200460ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:3000/:0
+[ 1200651ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(pages-dir-browser)/./node_modules/react-dom/cjs/react-dom.development.js:29889
+[ 1200675ms] Error: ENOENT: no such file or directory, open '/Users/arthurmarba/d2c-frontend/.next/server/pages/_document.js'
+    at Object.readFileSync (node:fs:448:20)
+    at loadSource (node:internal/modules/cjs/loader:1548:17)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1617:44)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at mod.require (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/require-hook.js:68:28)
+    at Module.patchedRequire (file:///Users/arthurmarba/d2c-frontend/node_modules/require-in-the-middle/index.js:256:27)
+    at Hook._require.Module.require (file:///Users/arthurmarba/d2c-frontend/node_modules/require-in-the-middle/index.js:181:27)
+    at require (node:internal/modules/helpers:182:18)
+    at requirePage (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/require.js:99:80)
+    at loadComponentsImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/load-components.js:86:38)
+    at DevServer.findPageComponentsImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:900:77)
+    at <unknown> (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:878:21)
+    at <unknown> (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/trace/tracer.js:184:36)
+    at AsyncLocalStorage.run (node:async_hooks:346:14)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@opentelemetry/context-async-hooks/build/src/AsyncLocalStorageContextManager.js:33:40)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@sentry/opentelemetry/build/cjs/index.js:1433:24)
+    at ContextAPI.with (webpack-internal:///(rsc)/./node_modules/@opentelemetry/api/build/esm/api/context.js:95:54)
+    at Tracer.startActiveSpan (webpack-internal:///(rsc)/./node_modules/@opentelemetry/sdk-trace-base/build/esm/Tracer.js:153:76)
+    at <unknown> (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/trace/tracer.js:153:103)
+    at AsyncLocalStorage.run (node:async_hooks:346:14)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@opentelemetry/context-async-hooks/build/src/AsyncLocalStorageContextManager.js:33:40)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@sentry/opentelemetry/build/cjs/index.js:1433:24)
+    at ContextAPI.with (file:///Users/arthurmarba/d2c-frontend/node_modules/@opentelemetry/api/build/src/api/context.js:60:46)
+    at NextTracerImpl.trace (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/trace/tracer.js:153:28)
+    at DevServer.findPageComponents (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:873:41)
+    at DevServer.findPageComponents (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:706:28)
+    at async DevServer.renderErrorToResponseImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1695:26)
+    at async pipe.req.req (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1618:30)
+    at async DevServer.pipeImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1026:25)
+    at async NextNodeServer.handleCatchallRenderRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:409:21)
+    at async DevServer.handleRequestImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:917:17)
+    at async (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:400:20)
+    at async Span.traceAsyncFn (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/trace/trace.js:157:20)
+    at async DevServer.handleRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:396:24)
+    at async invokeRender (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:240:21)
+    at async handleRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:437:24)
+    at async requestHandlerImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:485:13)
+    at async Server.requestListener (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/start-server.js:226:13)
+[ 1200679ms] [LOG] [HMR] connected @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/websocket.js:45
+[ 1201253ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3000/_next/static/webpack/82aff9c32b08bf82.webpack.hot-update.json:0
+[ 1201253ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[ 1201457ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:3000/:0
+[ 1201646ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(pages-dir-browser)/./node_modules/react-dom/cjs/react-dom.development.js:29889
+[ 1201657ms] Error: ENOENT: no such file or directory, open '/Users/arthurmarba/d2c-frontend/.next/server/pages/_document.js'
+    at Object.readFileSync (node:fs:448:20)
+    at loadSource (node:internal/modules/cjs/loader:1548:17)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1617:44)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at mod.require (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/require-hook.js:68:28)
+    at Module.patchedRequire (file:///Users/arthurmarba/d2c-frontend/node_modules/require-in-the-middle/index.js:256:27)
+    at Hook._require.Module.require (file:///Users/arthurmarba/d2c-frontend/node_modules/require-in-the-middle/index.js:181:27)
+    at require (node:internal/modules/helpers:182:18)
+    at requirePage (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/require.js:99:80)
+    at loadComponentsImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/load-components.js:86:38)
+    at DevServer.findPageComponentsImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:900:77)
+    at <unknown> (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:878:21)
+    at <unknown> (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/trace/tracer.js:184:36)
+    at AsyncLocalStorage.run (node:async_hooks:346:14)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@opentelemetry/context-async-hooks/build/src/AsyncLocalStorageContextManager.js:33:40)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@sentry/opentelemetry/build/cjs/index.js:1433:24)
+    at ContextAPI.with (webpack-internal:///(rsc)/./node_modules/@opentelemetry/api/build/esm/api/context.js:95:54)
+    at Tracer.startActiveSpan (webpack-internal:///(rsc)/./node_modules/@opentelemetry/sdk-trace-base/build/esm/Tracer.js:153:76)
+    at <unknown> (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/trace/tracer.js:153:103)
+    at AsyncLocalStorage.run (node:async_hooks:346:14)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@opentelemetry/context-async-hooks/build/src/AsyncLocalStorageContextManager.js:33:40)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@sentry/opentelemetry/build/cjs/index.js:1433:24)
+    at ContextAPI.with (file:///Users/arthurmarba/d2c-frontend/node_modules/@opentelemetry/api/build/src/api/context.js:60:46)
+    at NextTracerImpl.trace (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/trace/tracer.js:153:28)
+    at DevServer.findPageComponents (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:873:41)
+    at DevServer.findPageComponents (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:706:28)
+    at async DevServer.renderErrorToResponseImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1695:26)
+    at async pipe.req.req (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1618:30)
+    at async DevServer.pipeImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1026:25)
+    at async NextNodeServer.handleCatchallRenderRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:409:21)
+    at async DevServer.handleRequestImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:917:17)
+    at async (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:400:20)
+    at async Span.traceAsyncFn (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/trace/trace.js:157:20)
+    at async DevServer.handleRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:396:24)
+    at async invokeRender (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:240:21)
+    at async handleRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:437:24)
+    at async requestHandlerImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:485:13)
+    at async Server.requestListener (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/start-server.js:226:13)
+[ 1201659ms] [LOG] [HMR] connected @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/websocket.js:45
+[ 1202263ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3000/_next/static/webpack/82aff9c32b08bf82.webpack.hot-update.json:0
+[ 1202263ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[ 1202501ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:3000/:0
+[ 1202700ms] [INFO] %cDownload the React DevTools for a better development experience: https://reactjs.org/link/react-devtools font-weight:bold @ webpack-internal:///(pages-dir-browser)/./node_modules/react-dom/cjs/react-dom.development.js:29889
+[ 1202731ms] Error: ENOENT: no such file or directory, open '/Users/arthurmarba/d2c-frontend/.next/server/pages/_document.js'
+    at Object.readFileSync (node:fs:448:20)
+    at loadSource (node:internal/modules/cjs/loader:1548:17)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1617:44)
+    at Module.load (node:internal/modules/cjs/loader:1266:32)
+    at Module._load (node:internal/modules/cjs/loader:1091:12)
+    at Module.require (node:internal/modules/cjs/loader:1289:19)
+    at mod.require (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/require-hook.js:68:28)
+    at Module.patchedRequire (file:///Users/arthurmarba/d2c-frontend/node_modules/require-in-the-middle/index.js:256:27)
+    at Hook._require.Module.require (file:///Users/arthurmarba/d2c-frontend/node_modules/require-in-the-middle/index.js:181:27)
+    at require (node:internal/modules/helpers:182:18)
+    at requirePage (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/require.js:99:80)
+    at loadComponentsImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/load-components.js:86:38)
+    at DevServer.findPageComponentsImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:900:77)
+    at <unknown> (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:878:21)
+    at <unknown> (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/trace/tracer.js:184:36)
+    at AsyncLocalStorage.run (node:async_hooks:346:14)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@opentelemetry/context-async-hooks/build/src/AsyncLocalStorageContextManager.js:33:40)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@sentry/opentelemetry/build/cjs/index.js:1433:24)
+    at ContextAPI.with (webpack-internal:///(rsc)/./node_modules/@opentelemetry/api/build/esm/api/context.js:95:54)
+    at Tracer.startActiveSpan (webpack-internal:///(rsc)/./node_modules/@opentelemetry/sdk-trace-base/build/esm/Tracer.js:153:76)
+    at <unknown> (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/trace/tracer.js:153:103)
+    at AsyncLocalStorage.run (node:async_hooks:346:14)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@opentelemetry/context-async-hooks/build/src/AsyncLocalStorageContextManager.js:33:40)
+    at SentryContextManager.with (webpack-internal:///(rsc)/./node_modules/@sentry/opentelemetry/build/cjs/index.js:1433:24)
+    at ContextAPI.with (file:///Users/arthurmarba/d2c-frontend/node_modules/@opentelemetry/api/build/src/api/context.js:60:46)
+    at NextTracerImpl.trace (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/trace/tracer.js:153:28)
+    at DevServer.findPageComponents (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:873:41)
+    at DevServer.findPageComponents (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:706:28)
+    at async DevServer.renderErrorToResponseImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1695:26)
+    at async pipe.req.req (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1618:30)
+    at async DevServer.pipeImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:1026:25)
+    at async NextNodeServer.handleCatchallRenderRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/next-server.js:409:21)
+    at async DevServer.handleRequestImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/base-server.js:917:17)
+    at async (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:400:20)
+    at async Span.traceAsyncFn (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/trace/trace.js:157:20)
+    at async DevServer.handleRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/dev/next-dev-server.js:396:24)
+    at async invokeRender (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:240:21)
+    at async handleRequest (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:437:24)
+    at async requestHandlerImpl (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/router-server.js:485:13)
+    at async Server.requestListener (file:///Users/arthurmarba/d2c-frontend/node_modules/next/dist/server/lib/start-server.js:226:13)
+[ 1202731ms] [LOG] [HMR] connected @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/websocket.js:45
+[ 1205789ms] [LOG] [HMR] connected @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/websocket.js:45
+[ 1205811ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3000/_next/static/webpack/82aff9c32b08bf82.webpack.hot-update.json:0
+[ 1205811ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[ 1207509ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:206
+[ 1213906ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:206
+[ 1214058ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3000/_next/static/webpack/82aff9c32b08bf82.webpack.hot-update.json:0
+[ 1214058ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[ 1215768ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3000/_next/static/webpack/82aff9c32b08bf82.webpack.hot-update.json:0
+[ 1215768ms] [WARNING] [Fast Refresh] performing full reload because your application had an unrecoverable error @ webpack-internal:///(pages-dir-browser)/./node_modules/next/dist/client/dev/hot-reloader/pages/hot-reloader-pages.js:347
+[ 1221231ms] [INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/compiled/react-dom/cjs/react-dom-client.development.js:25630
+[ 1221386ms] [WARNING] Image with src "/images/landing/stop-motion/weekly-publish-editorial-v1.webp" is using quality "82" which is not configured in images.qualities. This config will be required starting in Next.js 16.
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/shared/lib/utils/warn-once.js:15
+[ 1221386ms] [WARNING] Image with src "/images/landing/stop-motion/weekly-refine-editorial-v1.webp" is using quality "82" which is not configured in images.qualities. This config will be required starting in Next.js 16.
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/shared/lib/utils/warn-once.js:15
+[ 1221387ms] [WARNING] Image with src "/images/landing/stop-motion/weekly-collab-editorial-v1.webp" is using quality "82" which is not configured in images.qualities. This config will be required starting in Next.js 16.
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-qualities @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/shared/lib/utils/warn-once.js:15
+[ 1221390ms] [WARNING] Image with src "/api/mediakit/eduarda-lobo/avatar?v=20260430-avatar-v3" is using a query string which is not configured in images.localPatterns. This config will be required starting in Next.js 16.
+Read more: https://nextjs.org/docs/messages/next-image-unconfigured-localpatterns @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/shared/lib/utils/warn-once.js:15
+[ 1240540ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:196
+[ 1241379ms] [LOG] [Fast Refresh] done in 839ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/report-hmr-latency.js:13
+[ 1362399ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:196
+[ 1363088ms] [LOG] [Fast Refresh] done in 692ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/report-hmr-latency.js:13
+[ 1728117ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:196
+[ 1729872ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:196
+[ 1730450ms] [LOG] [Fast Refresh] done in 575ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/report-hmr-latency.js:13
+[ 1732029ms] [LOG] [Fast Refresh] done in 2156ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/report-hmr-latency.js:13
+[ 1873144ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:196
+[ 1878311ms] [LOG] [Fast Refresh] done in 5169ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/report-hmr-latency.js:13
+[ 1932803ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:196
+[ 1934756ms] [LOG] [Fast Refresh] done in 1953ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/report-hmr-latency.js:13
+[ 1985125ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:196
+[ 1987809ms] [LOG] [Fast Refresh] done in 2684ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/report-hmr-latency.js:13
+[ 1991446ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:196
+[ 1993457ms] [LOG] [Fast Refresh] done in 2011ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/report-hmr-latency.js:13
+[ 2132572ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:196
+[ 2133928ms] [LOG] [Fast Refresh] done in 1357ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/report-hmr-latency.js:13
+[ 2180171ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:196
+[ 2181441ms] [LOG] [Fast Refresh] done in 1270ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/report-hmr-latency.js:13
+[ 2281428ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:196
+[ 2282312ms] [LOG] [Fast Refresh] done in 884ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/report-hmr-latency.js:13
+[ 2346380ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:196
+[ 2346553ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:196
+[ 2346602ms] [LOG] [Fast Refresh] done in 50ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/report-hmr-latency.js:13
+[ 2347578ms] [LOG] [Fast Refresh] done in 1025ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/report-hmr-latency.js:13
+[ 5462888ms] [LOG] [Fast Refresh] rebuilding @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js:196
+[ 5464832ms] [LOG] [Fast Refresh] done in 1944ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/report-hmr-latency.js:13
+[ 5466055ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3000/_next/static/css/app/layout.css?v=1785793867566:0
+[ 5466072ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:3000/_next/static/css/app/page.css?v=1785793867566:0

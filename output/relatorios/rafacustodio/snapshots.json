@@ -239,5 +239,74 @@
         "veredito": "repetir"
       }
     ]
+  },
+  {
+    "data": "2026-07-30",
+    "narrativaCentral": "Uma observadora curiosa que encontra humor e significado no cotidiano",
+    "territoriosOcupados": [
+      "Vida em Blumenau",
+      "Humor cotidiano",
+      "Casa e decoração",
+      "Consumo local",
+      "Fofocas e notícias",
+      "Relacionamentos pessoais",
+      "Indicações"
+    ],
+    "audienciaPede": "A sua audiência quer descobrir coisas sobre o lugar onde ela mora. Curiosidade histórica de Blumenau foi salva, compartilhada e discutida em volume que nenhum outro assunto seu alcança — e a MESMA fórmula, apontada pro Oeste catarinense, caiu 26 vezes. Proximidade não é detalhe: é o ingrediente. Rivalidade e vocabulário regional ainda geram comentário, mas comentário de discussão não é a mesma coisa que alguém guardando o seu post.",
+    "facaMais": [
+      "'Tem um dado sobre Blumenau que quase ninguém conhece' virou a sua fórmula mais forte — mas só sobre Blumenau e cidades bem vizinhas. Transforme em quadro fixo: um bairro, uma rua, um prédio, um costume por semana.",
+      "Volte a indicar um comércio ou evento local com informação prática (endereço, data, preço). É o seu recorde histórico de compartilhamento e já faz duas semanas que não aparece — a única vez que comércio entrou no feed foi como publi.",
+      "Amarre a curiosidade a um lugar que existe: se o dado é sobre imigração, mostre a casa, a padaria, a família que ainda está lá. É o que transforma um post de 841 shares em série — e o que faz marca de verdade querer entrar."
+    ],
+    "facaMenos": [
+      "Aplicar a fórmula boa numa região distante. Blumenau: 841 compartilhamentos. O Oeste, mesma frase: 32. Joinville, mesma lógica: 10. Sua audiência mora perto de você.",
+      "Vocabulário regional ('quem fala assim', 'como reconhecer um…'). Chegou ao pior número da conta (3 salvamentos) — o filão está gasto, dá pra deixar descansar meses.",
+      "Publi em modo vitrine e gancho de fora (a Copa). Um só entrega o recado da marca, o outro só empresta o assunto de outra pessoa: nos dois casos a audiência não guarda nada seu."
+    ],
+    "planoPrometido": [
+      "Tem um dado sobre a Vila Itoupava que quase ninguém conhece",
+      "O comércio querido dessa semana: um lugar que ninguém te mostrou ainda",
+      "O mercado do meu bairro já mudou de dono quatro vezes: a história que ninguém conta",
+      "Reformei minha penteadeira: o antes e depois que ninguém acredita",
+      "A dica que salva o inverno em Blumenau: parte 2"
+    ],
+    "vereditos": [
+      {
+        "postId": "18005382071760839",
+        "veredito": "ajustar"
+      },
+      {
+        "postId": "18122637433686248",
+        "veredito": "nao-repetir"
+      },
+      {
+        "postId": "17937895953282325",
+        "veredito": "ajustar"
+      },
+      {
+        "postId": "17895033225558999",
+        "veredito": "repetir"
+      },
+      {
+        "postId": "17940105918276386",
+        "veredito": "ajustar"
+      },
+      {
+        "postId": "17898786192538363",
+        "veredito": "ajustar"
+      },
+      {
+        "postId": "18021514313892761",
+        "veredito": "nao-repetir"
+      },
+      {
+        "postId": "18326449795275621",
+        "veredito": "ajustar"
+      },
+      {
+        "postId": "17909021100449948",
+        "veredito": "ajustar"
+      }
+    ]
   }
 ]

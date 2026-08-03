@@ -6,6 +6,11 @@ import User from "@/app/models/User";
 import { stripe } from "@/app/lib/stripe";
 import { getOrCreateStripeCustomerId } from "@/utils/stripeHelpers";
 import { AffiliateBuyerCommissionIndex } from "@/server/db/models/AffiliateIndexes";
+import {
+  D2C_VIP_DISPLAY_CODE,
+  isD2cVipPromotionCode,
+  normalizePromotionCode,
+} from "@/app/lib/billing/d2cVipPromotion";
 
 const noStoreHeaders = { "Cache-Control": "no-store, max-age=0" } as const;
 
@@ -121,12 +126,32 @@ export async function POST(req: NextRequest) {
 
     await connectToDatabase();
 
-    const { plan, currency, affiliateCode: bodyAffiliateCode } = await req.json();
+    const {
+      plan,
+      currency,
+      affiliateCode: bodyAffiliateCode,
+      promotionCode: bodyPromotionCode,
+    } = await req.json();
     const planNorm = String(plan || "").toLowerCase() as Plan;
     const currencyNorm = (String(currency || "BRL").toUpperCase() === "USD" ? "USD" : "BRL") as Currency;
+    const promotionCode = normalizePromotionCode(
+      bodyPromotionCode || (isD2cVipPromotionCode(bodyAffiliateCode) ? bodyAffiliateCode : ""),
+    );
+    const affiliateCodeInput = promotionCode ? undefined : bodyAffiliateCode;
 
     if (!["monthly", "annual"].includes(planNorm) || !["BRL", "USD"].includes(currencyNorm)) {
       return NextResponse.json({ error: "Parâmetros inválidos" }, { status: 400, headers: noStoreHeaders });
+    }
+
+    if (isD2cVipPromotionCode(promotionCode) && planNorm !== "monthly") {
+      return NextResponse.json(
+        {
+          code: "PROMOTION_NOT_AVAILABLE_FOR_PLAN",
+          error: `O cupom ${D2C_VIP_DISPLAY_CODE} é válido apenas para o plano mensal.`,
+          promotionApplied: false,
+        },
+        { status: 422, headers: noStoreHeaders },
+      );
     }
 
     const buyer = await User.findById(session.user.id)
@@ -135,7 +160,7 @@ export async function POST(req: NextRequest) {
 
     const { code: requestedCode, source: requestedSource } = await resolveAffiliateFromRequest(
       req,
-      bodyAffiliateCode,
+      affiliateCodeInput,
       (buyer as any)?.affiliateUsed || (session.user as any)?.affiliateUsed
     );
 
@@ -180,12 +205,29 @@ export async function POST(req: NextRequest) {
         { status: 400, headers: noStoreHeaders }
       );
     }
+    let promotionCodeId: string | null = null;
+    if (promotionCode) {
+      const promotionCodes = await stripe.promotionCodes.list({
+        code: promotionCode,
+        active: true,
+        limit: 1,
+      });
+      promotionCodeId = promotionCodes.data[0]?.id ?? null;
+      if (!promotionCodeId) {
+        return NextResponse.json(
+          { code: "INVALID_CODE", error: "Cupom inválido ou expirado.", promotionApplied: false },
+          { status: 422, headers: noStoreHeaders },
+        );
+      }
+    }
+
     // ✅ Basil: usar Create Preview Invoice
     const invoice = await stripe.invoices.createPreview({
       customer: customerId,
       subscription_details: {
         items: [{ price: priceId, quantity: 1 }],
       },
+      ...(promotionCodeId ? { discounts: [{ promotion_code: promotionCodeId }] } : {}),
     });
 
     // valor nominal do próximo ciclo (sem proration): usa o price direto
@@ -203,8 +245,10 @@ export async function POST(req: NextRequest) {
         total: (invoice as any).total ?? 0,
         nextCycleAmount,
         affiliateApplied: Boolean(affiliateCheck.code),
+        promotionApplied: Boolean(promotionCodeId),
         affiliateSource: source || null,
         affiliateCode: affiliateCheck.code || null,
+        promotionCode: promotionCodeId ? D2C_VIP_DISPLAY_CODE : null,
       },
       { headers: noStoreHeaders }
     );

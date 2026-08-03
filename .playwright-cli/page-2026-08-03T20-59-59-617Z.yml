@@ -1,0 +1,86 @@
+- generic [ref=f2e1]:
+  - main [ref=f2e5]:
+    - generic [ref=f2e8]:
+      - generic [ref=f2e10]:
+        - generic [ref=f2e13]:
+          - heading "Olá, E2E" [level=1] [ref=f2e15]
+          - button "Configurações" [ref=f2e18] [cursor=pointer]
+        - generic [ref=f2e23]:
+          - generic [ref=f2e25]:
+            - button "EU Mídia Kit Incluído no Pro" [ref=f2e26] [cursor=pointer]:
+              - generic [ref=f2e27]: EU
+              - generic [ref=f2e28]:
+                - generic [ref=f2e29]: Mídia Kit
+                - generic [ref=f2e30]: Incluído no Pro
+            - button "Quanto vale sua publi? Descubra seu preço justo de publi" [ref=f2e33] [cursor=pointer]:
+              - generic [ref=f2e38]:
+                - generic [ref=f2e39]: Quanto vale sua publi?
+                - generic [ref=f2e40]: Descubra seu preço justo de publi
+          - region [ref=f2e43]:
+            - generic [ref=f2e44]:
+              - generic [ref=f2e45]:
+                - generic [ref=f2e46]: Reunião semanal
+                - generic [ref=f2e50]: Horário previsto
+              - heading "Quinta-feira, 6 de agosto · 19h–21h" [level=2] [ref=f2e51]
+              - paragraph [ref=f2e52]: Assine o Pro para entrar no grupo e confirmar presença para análise.
+              - generic [ref=f2e53]:
+                - button "Abrir grupo Pro" [active] [ref=f2e54] [cursor=pointer]
+                - link "Ver reunião" [ref=f2e58] [cursor=pointer]:
+                  - /url: /reuniao
+          - generic [ref=f2e60]:
+            - paragraph [ref=f2e67]: Seu Mapa
+            - paragraph [ref=f2e68]: Seu mapa está sendo construído.
+            - paragraph [ref=f2e69]: Cada vídeo analisado revela um pouco mais de quem você é.
+            - button "Primeira análise" [ref=f2e70] [cursor=pointer]
+            - button "Defina seu norte Por que você cria? Isso ancora todo o mapa." [ref=f2e73] [cursor=pointer]:
+              - generic [ref=f2e77]:
+                - generic [ref=f2e78]: Defina seu norte
+                - generic [ref=f2e79]: Por que você cria? Isso ancora todo o mapa.
+      - navigation [ref=f2e85]:
+        - button "Perfil" [ref=f2e86] [cursor=pointer]
+        - generic [ref=f2e91]:
+          - button "Escanear novo vídeo" [ref=f2e92] [cursor=pointer]
+          - generic [ref=f2e96]: Escanear
+        - button "Collabs" [ref=f2e97] [cursor=pointer]
+  - generic [ref=f2e104]:
+    - generic [ref=f2e105]: Usamos cookies de analytics para melhorar a experiência. Aceita?
+    - generic [ref=f2e106]:
+      - button "Recusar" [ref=f2e107] [cursor=pointer]
+      - button "Aceitar" [ref=f2e108] [cursor=pointer]
+  - dialog [ref=f2e119]:
+    - generic [ref=f2e120]:
+      - generic [ref=f2e122]:
+        - generic [ref=f2e123]:
+          - generic [ref=f2e124]: Data2Content Pro
+          - button "Fechar" [ref=f2e125] [cursor=pointer]
+        - heading "Você não cria sozinho." [level=2] [ref=f2e129]
+        - paragraph [ref=f2e130]: Tendências, análise ao vivo e ferramentas para transformar seu conteúdo em direção prática.
+      - generic [ref=f2e132]:
+        - list [ref=f2e133]:
+          - listitem [ref=f2e134]:
+            - generic [ref=f2e137]: Tendências e referências novas toda semana
+          - listitem [ref=f2e138]:
+            - generic [ref=f2e141]: Reunião ao vivo com análise e direção
+          - listitem [ref=f2e142]:
+            - generic [ref=f2e145]: Mapa, pautas, collabs e ferramentas comerciais
+        - region "Escolha do plano" [ref=f2e146]:
+          - generic [ref=f2e147]:
+            - generic [ref=f2e148]:
+              - generic [ref=f2e149]: R$ 97,00
+              - generic [ref=f2e150]: /mês
+            - button "Ver em USD" [ref=f2e151] [cursor=pointer]
+          - generic [ref=f2e152]: Cobrança mensal. Cancele quando quiser.
+          - generic [ref=f2e154]:
+            - button "Mensal" [pressed] [ref=f2e155] [cursor=pointer]
+            - button "Anual −24%" [ref=f2e156] [cursor=pointer]
+        - generic [ref=f2e157]:
+          - text: Tem um cupom?
+          - generic [ref=f2e158]:
+            - textbox "Tem um cupom?" [ref=f2e159]:
+              - /placeholder: Digite o código
+            - button "Aplicar" [disabled] [ref=f2e160]
+      - generic [ref=f2e162]:
+        - button "Assinar Pro e entrar" [ref=f2e163] [cursor=pointer]
+        - paragraph [ref=f2e166]: Pagamento seguro. Cancele quando quiser.
+  - button "Open Next.js Dev Tools" [ref=f2e114] [cursor=pointer]
+  - alert [ref=f2e118]

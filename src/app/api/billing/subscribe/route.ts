@@ -15,6 +15,11 @@ import {
 import { resolveAffiliateCode as resolveAffiliateCodeHelper } from "@/app/lib/affiliate";
 import { logger } from "@/app/lib/logger";
 import { AffiliateBuyerCommissionIndex } from '@/server/db/models/AffiliateIndexes';
+import {
+  D2C_VIP_DISPLAY_CODE,
+  isD2cVipPromotionCode,
+  normalizePromotionCode,
+} from "@/app/lib/billing/d2cVipPromotion";
 
 export const runtime = "nodejs";
 
@@ -71,6 +76,7 @@ function buildIdempotencyKey(params: {
   plan: Plan;
   currency: Currency;
   affiliateCode?: string;
+  promotionCode?: string;
 }) {
   const bucket = Math.floor(Date.now() / (1000 * 60 * 5)); // 5 min window
   const raw = [
@@ -80,6 +86,7 @@ function buildIdempotencyKey(params: {
     params.plan,
     params.currency,
     params.affiliateCode || "",
+    params.promotionCode || "",
     String(bucket),
   ].join(":");
   return crypto.createHash("sha256").update(raw).digest("hex");
@@ -214,9 +221,20 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const plan: Plan = String(body.plan || "").toLowerCase() as Plan;
     const currency = String(body.currency || "").toUpperCase() as Currency;
+    const requestedPromotionCode = normalizePromotionCode(body.promotionCode);
 
     if (!["monthly", "annual"].includes(plan) || !["BRL", "USD"].includes(currency)) {
       return NextResponse.json({ error: "Parâmetros inválidos" }, { status: 400 });
+    }
+
+    if (isD2cVipPromotionCode(requestedPromotionCode) && plan !== "monthly") {
+      return NextResponse.json(
+        {
+          code: "PROMOTION_NOT_AVAILABLE_FOR_PLAN",
+          message: `O cupom ${D2C_VIP_DISPLAY_CODE} é válido apenas para o plano mensal.`,
+        },
+        { status: 422 },
+      );
     }
 
     await connectToDatabase();
@@ -515,7 +533,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let sub: Stripe.Subscription;
     let affiliateOwner: any = null;
     let discounts: Stripe.SubscriptionCreateParams.Discount[] | undefined = undefined;
 
@@ -555,8 +572,23 @@ export async function POST(req: NextRequest) {
         user.affiliateUsed = affiliateCode!;
         await user.save();
       }
-    } else if (typedCode) {
-      const manual = await resolveManualDiscountFields(typedCode);
+    }
+
+    const legacyPromotionCode = !affiliateOwner ? typedCode : undefined;
+    const promotionCode = requestedPromotionCode || legacyPromotionCode;
+
+    if (isD2cVipPromotionCode(promotionCode) && plan !== "monthly") {
+      return NextResponse.json(
+        {
+          code: "PROMOTION_NOT_AVAILABLE_FOR_PLAN",
+          message: `O cupom ${D2C_VIP_DISPLAY_CODE} é válido apenas para o plano mensal.`,
+        },
+        { status: 422 },
+      );
+    }
+
+    if (promotionCode) {
+      const manual = await resolveManualDiscountFields(promotionCode);
       if (!manual) {
         return NextResponse.json(
           { code: "INVALID_CODE", message: "Código inválido ou expirado." },
@@ -572,8 +604,89 @@ export async function POST(req: NextRequest) {
       metadata.affiliate_user_id = String(affiliateOwner._id);
       if (source) metadata.attribution_source = String(source);
     }
+    if (promotionCode) metadata.promotionCode = promotionCode;
 
-    sub = await stripe.subscriptions.create({
+    const affiliateApplied = Boolean(affiliateOwner);
+    const usedCouponType = promotionCode ? "manual" : (affiliateApplied ? "affiliate" : null);
+
+    // Uma assinatura com primeira fatura 100% descontada não gera PaymentIntent.
+    // Para o d2cVIP usamos Checkout hospedado e forçamos a coleta do cartão,
+    // garantindo a cobrança automática do segundo mês em diante.
+    if (isD2cVipPromotionCode(promotionCode)) {
+      const appBaseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin;
+      const successUrl = resolveCheckoutRedirectUrl(body.successUrl, {
+        appBaseUrl,
+        fallbackPath: "/billing/success?session_id={CHECKOUT_SESSION_ID}",
+      });
+      const cancelUrl = resolveCheckoutRedirectUrl(body.cancelUrl, {
+        appBaseUrl,
+        fallbackPath: "/dashboard/billing",
+      });
+
+      const sessionCheckout = await stripe.checkout.sessions.create({
+        mode: "subscription",
+        customer: customerId!,
+        line_items: [{ price: priceId, quantity: 1 }],
+        payment_method_collection: "always",
+        discounts: discounts as Stripe.Checkout.SessionCreateParams.Discount[],
+        subscription_data: { metadata },
+        success_url: successUrl,
+        cancel_url: cancelUrl,
+        client_reference_id: String(user._id),
+      }, {
+        idempotencyKey: buildIdempotencyKey({
+          scope: "checkout_session",
+          userId: String(user._id),
+          priceId,
+          plan,
+          currency,
+          affiliateCode,
+          promotionCode,
+        }),
+      });
+
+      if (!sessionCheckout.url) {
+        return NextResponse.json(
+          {
+            code: "SUBSCRIBE_CHECKOUT_FAILED",
+            message: "Não foi possível iniciar o checkout. Tente novamente.",
+          },
+          { status: 500 },
+        );
+      }
+
+      user.planStatus = "pending" as any;
+      user.planType = plan;
+      user.planInterval = "month";
+      user.stripePriceId = priceId;
+      user.cancelAtPeriodEnd = false;
+      user.planExpiresAt = null;
+      user.stripeSubscriptionId = null;
+      (user as any).lastPaymentError = null;
+      await user.save();
+
+      logger.info("billing_subscribe_vip_checkout_initialized", {
+        endpoint: "POST /api/billing/subscribe",
+        userId,
+        customerId,
+        subscriptionId: null,
+        statusDb: "pending",
+        statusStripe: null,
+        promotionCode,
+        errorCode: null,
+        stripeRequestId: getStripeRequestId(sessionCheckout),
+      });
+
+      return NextResponse.json({
+        checkoutUrl: sessionCheckout.url,
+        subscriptionId: null,
+        affiliateApplied,
+        usedCouponType,
+        promotionCode: D2C_VIP_DISPLAY_CODE,
+      });
+    }
+
+    const sub = await stripe.subscriptions.create({
       customer: customerId!,
       items: [{ price: priceId }],
       payment_behavior: "default_incomplete",
@@ -588,6 +701,7 @@ export async function POST(req: NextRequest) {
         plan,
         currency,
         affiliateCode,
+        promotionCode,
       }),
     });
 
@@ -601,9 +715,6 @@ export async function POST(req: NextRequest) {
         clientSecret = await extractClientSecretFromSubscription(refreshed);
       } catch { /* noop */ }
     }
-
-    const affiliateApplied = Boolean(affiliateOwner);
-    const usedCouponType = affiliateApplied ? "affiliate" : (typedCode ? "manual" : null);
 
     let checkoutUrl: string | null = null;
     let checkoutRequestId: string | null = null;
@@ -649,7 +760,7 @@ export async function POST(req: NextRequest) {
         line_items: [{ price: priceId, quantity: 1 }],
         ...(discounts && discounts.length > 0
           ? { discounts: discounts as Stripe.Checkout.SessionCreateParams.Discount[] }
-          : { allow_promotion_codes: true }
+          : {}
         ),
         subscription_data: {
           metadata: {
@@ -659,6 +770,7 @@ export async function POST(req: NextRequest) {
               ? { affiliateCode, affiliate_user_id: String(affiliateOwner._id) }
               : {}),
             ...(source ? { attribution_source: String(source) } : {}),
+            ...(promotionCode ? { promotionCode } : {}),
           },
         },
         success_url: successUrl,
@@ -672,6 +784,7 @@ export async function POST(req: NextRequest) {
           plan,
           currency,
           affiliateCode,
+          promotionCode,
         }),
       });
 

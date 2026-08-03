@@ -25,4 +25,5 @@ export const PAYWALL_CONTEXT_PARAM = "d2c_paywall_context";
 export const PAYWALL_AUTOSTART_PARAM = "d2c_paywall_autostart";
 export const PAYWALL_PERIOD_PARAM = "d2c_paywall_period";
 export const PAYWALL_CURRENCY_PARAM = "d2c_paywall_currency";
+export const PAYWALL_COUPON_PARAM = "d2c_paywall_coupon";
 export const ACTIVATION_JOURNEY_STORAGE_KEY = "d2c.activation.intent";

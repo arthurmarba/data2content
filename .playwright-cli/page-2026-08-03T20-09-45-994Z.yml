@@ -1,0 +1,43 @@
+- main [ref=f9e5]:
+  - generic [ref=f9e8]:
+    - generic [ref=f9e10]:
+      - generic [ref=f9e13]:
+        - heading "Olá, E2E" [level=1] [ref=f9e15]
+        - button "Configurações" [ref=f9e18] [cursor=pointer]
+      - generic [ref=f9e23]:
+        - generic [ref=f9e25]:
+          - button "EU Mídia Kit Incluído no Pro" [ref=f9e26] [cursor=pointer]:
+            - generic [ref=f9e27]: EU
+            - generic [ref=f9e28]:
+              - generic [ref=f9e29]: Mídia Kit
+              - generic [ref=f9e30]: Incluído no Pro
+          - button "Quanto vale sua publi? Descubra seu preço justo de publi" [ref=f9e33] [cursor=pointer]:
+            - generic [ref=f9e38]:
+              - generic [ref=f9e39]: Quanto vale sua publi?
+              - generic [ref=f9e40]: Descubra seu preço justo de publi
+        - region [ref=f9e43]:
+          - generic [ref=f9e44]:
+            - generic [ref=f9e45]:
+              - generic [ref=f9e46]: Reunião semanal
+              - generic [ref=f9e50]: Horário previsto
+            - heading "Quinta-feira, 6 de agosto · 19h–21h" [level=2] [ref=f9e51]
+            - paragraph [ref=f9e52]: Assine o Pro para entrar no grupo e confirmar presença para análise.
+            - generic [ref=f9e53]:
+              - button "Abrir grupo Pro" [ref=f9e54] [cursor=pointer]
+              - link "Ver reunião" [ref=f9e58] [cursor=pointer]:
+                - /url: /reuniao
+        - generic [ref=f9e60]:
+          - paragraph [ref=f9e67]: Seu Mapa
+          - paragraph [ref=f9e68]: Seu mapa está sendo construído.
+          - paragraph [ref=f9e69]: Cada vídeo analisado revela um pouco mais de quem você é.
+          - button "Primeira análise" [ref=f9e70] [cursor=pointer]
+          - button "Defina seu norte Por que você cria? Isso ancora todo o mapa." [ref=f9e73] [cursor=pointer]:
+            - generic [ref=f9e77]:
+              - generic [ref=f9e78]: Defina seu norte
+              - generic [ref=f9e79]: Por que você cria? Isso ancora todo o mapa.
+    - navigation [ref=f9e85]:
+      - button "Perfil" [ref=f9e86] [cursor=pointer]
+      - generic [ref=f9e91]:
+        - button "Escanear novo vídeo" [ref=f9e92] [cursor=pointer]
+        - generic [ref=f9e96]: Escanear
+      - button "Collabs" [ref=f9e97] [cursor=pointer]

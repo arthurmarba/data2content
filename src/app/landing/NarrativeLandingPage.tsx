@@ -17,7 +17,6 @@ import { NarrativeHeader } from "./components/narrative/NarrativeHeader";
 import { NarrativeHero } from "./components/narrative/NarrativeHero";
 import { NarrativeMatch } from "./components/narrative/NarrativeMatch";
 import { WeeklyRitual } from "./components/narrative/WeeklyRitual";
-import { WhatsAppCommunity } from "./components/narrative/WhatsAppCommunity";
 
 const formatDecimal = (value: number) => value.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 
@@ -45,12 +44,12 @@ export function NarrativeLandingPage({ creators, proofMetrics, communityCreators
         <section className="d2c-human-community-block" id="comunidade" data-landing-section="community">
           <div className="d2c-shell d2c-match-community">
             <div className="d2c-match-community__intro">
-              <p>Quem já está criando junto</p>
-              <h3>Uma comunidade de creators, não uma plateia.</h3>
+              <p>Conteúdo real · sinais reais</p>
+              <h3>Uma comunidade diversa revela movimentos que ninguém vê sozinho.</h3>
             </div>
             <CommunityCreatorShowcase creators={communityCreators} />
             <p className="d2c-match-community__proof">
-              Todos os perfis exibidos estão ativos na comunidade. Cada retrato abre o Media Kit público do creator.
+              Os perfis exibidos estão ativos na comunidade. Cada retrato abre o Media Kit público do creator.
             </p>
           </div>
         </section>
@@ -58,9 +57,9 @@ export function NarrativeLandingPage({ creators, proofMetrics, communityCreators
         {proofMetrics && (
           <section className="d2c-data-proof" aria-labelledby="data-proof-title" data-landing-section="data-proof">
             <div className="d2c-shell d2c-data-proof__intro">
-              <p>Experiência alimentada por sinais reais</p>
-              <h2 id="data-proof-title">Tem dado. Tem gente. Tem contexto.</h2>
-              <span>A tecnologia organiza os sinais. O repertório humano transforma esses sinais em direção.</span>
+              <p>Inteligência alimentada por sinais reais</p>
+              <h2 id="data-proof-title">Cada conteúdo deixa sinais. A D2C aprende com eles.</h2>
+              <span>A tecnologia organiza milhares de conteúdos e interações. A leitura humana transforma padrões em hipóteses, tendências e decisões.</span>
             </div>
             <dl className="d2c-shell d2c-data-proof__numbers">
               <div><dt>conteúdos analisados</dt><dd>{formatHistoricalProof(proofMetrics.contentAnalyzed, "content")}</dd></div>
@@ -73,8 +72,8 @@ export function NarrativeLandingPage({ creators, proofMetrics, communityCreators
 
         <section className="d2c-founders" id="quem-conduz" data-landing-section="authority">
           <div className="d2c-shell d2c-founders__intro">
-            <p>Quem conduz a reunião</p>
-            <h2>Repertório de mercado, aplicado ao seu conteúdo.</h2>
+            <p>Quem interpreta a inteligência</p>
+            <h2>Dados mostram o movimento. Repertório dá sentido.</h2>
           </div>
           <div className="d2c-shell d2c-founders__people">
             <article className="d2c-founder d2c-founder--arthur">
@@ -97,7 +96,7 @@ export function NarrativeLandingPage({ creators, proofMetrics, communityCreators
             </article>
           </div>
           <div className="d2c-shell d2c-founders__synthesis">
-            <p>Arthur lê os sinais da criação. Ronaldo conecta narrativa, cultura e negócio. Toda quinta, os dois colocam essa experiência na mesa.</p>
+            <p>Arthur lê os sinais da criação. Ronaldo conecta conteúdo, cultura e negócio. Toda semana, os dois transformam os achados do relatório em uma conversa aplicável.</p>
           </div>
         </section>
 
@@ -106,42 +105,42 @@ export function NarrativeLandingPage({ creators, proofMetrics, communityCreators
         <section className="d2c-match-section d2c-human-match" id="collabs" data-landing-section="collabs">
           <div className="d2c-shell d2c-match-section__inner">
             <div className="d2c-match-section__copy">
-              <p className="d2c-section-label">Match criativo por pauta</p>
-              <h2>Quando a direção encontra outra pessoa.</h2>
-              <p>Você escolhe uma pauta. Outro creator também. O match nasce da vontade de criar a mesma ideia — não de um perfil genérico.</p>
+              <p className="d2c-section-label">Tendência aplicada à criação</p>
+              <h2>Quando uma tendência encontra duas narrativas.</h2>
+              <p>Uma pauta sugerida pela inteligência pode aproximar creators que enxergam oportunidade no mesmo assunto.</p>
             </div>
             <NarrativeMatch creators={creators} />
           </div>
         </section>
 
-        <WhatsAppCommunity creators={creators} communityCreators={communityCreators} />
-
         <section className="d2c-human-pricing" id="planos" data-landing-section="pricing">
           <div className="d2c-shell d2c-human-pricing__inner">
-            <div><p>A experiência completa</p><h2>Uma reunião por semana. Uma plataforma para os outros seis dias.</h2></div>
+            <div><p>A inteligência completa</p><h2>Inteligência nova toda semana. Direção para todos os dias.</h2></div>
             <div className="d2c-human-final__offer">
               <b>{LANDING_PLAN_PRICE_DISPLAY}<small>/mês</small></b>
               <ul>
-                <li><Check size={15} /> Análise garantida quando você confirma presença no grupo</li>
-                <li><Check size={15} /> Grupo exclusivo de assinantes no WhatsApp</li>
-                <li><Check size={15} /> Mapa, pautas e análise de conteúdo na plataforma</li>
-                <li><Check size={15} /> Matches, Calculadora de Publi e Media Kit</li>
+                <li><Check size={15} /> Relatório completo de tendências toda semana</li>
+                <li><Check size={15} /> Participação nas reuniões ao vivo</li>
+                <li><Check size={15} /> Análise e direcionamento para assinantes</li>
+                <li><Check size={15} /> Mapa, pautas, matches, Media Kit e Calculadora de Publi</li>
+                <li><Check size={15} /> Grupo exclusivo de assinantes</li>
               </ul>
-              <LandingAuthCta className="d2c-button d2c-button--human" guestLabel="Criar conta e assinar" authenticatedLabel="Ver meu plano" destination="/dashboard/billing" childrenAfter={<ArrowRight size={17} />} trackingLocation="pricing" />
-              <small className="d2c-human-pricing__note">Assista gratuitamente antes de decidir. Cancele quando quiser.</small>
+              <LandingAuthCta className="d2c-button d2c-button--human" guestLabel="Criar conta para assinar" authenticatedLabel="Assinar o Plano Pro" destination="/dashboard/billing" childrenAfter={<ArrowRight size={17} />} trackingLocation="pricing" />
+              <small className="d2c-human-pricing__note">Criar a conta é grátis. Cancele a assinatura quando quiser.</small>
             </div>
           </div>
         </section>
 
         <section className="d2c-human-faq" data-landing-section="faq">
           <div className="d2c-shell d2c-human-faq__inner">
-            <div><p>Sem letra miúda</p><h2>Como a reunião e a assinatura funcionam.</h2></div>
+            <div><p>Sem letra miúda</p><h2>Como a conta gratuita e a assinatura funcionam.</h2></div>
             <div className="d2c-human-faq__list">
-              <details><summary>Posso assistir sem pagar?</summary><p>Sim. Depois do login e do onboarding, você pode assistir gratuitamente às reuniões de quinta-feira, sempre às 19h. Criar a conta não gera cobrança automática.</p></details>
-              <details><summary>Como faço para ter meu conteúdo analisado?</summary><p>Assine o D2C Pro e confirme presença na reunião dentro do grupo exclusivo de assinantes no WhatsApp. Todos os assinantes que confirmam presença são analisados naquela reunião.</p></details>
-              <details><summary>Quanto tempo dura a reunião?</summary><p>Ela começa às 19h e costuma durar cerca de duas horas. O acesso e a opção de salvar na agenda ficam disponíveis dentro da D2C.</p></details>
-              <details><summary>O que assino além da análise ao vivo?</summary><p>Você entra no grupo exclusivo e acessa o Mapa, pautas, análise de conteúdo, matches de collab, Calculadora de Publi e Media Kit para continuar evoluindo entre as reuniões.</p></details>
-              <details><summary>Preciso já ser creator profissional?</summary><p>Não. A D2C acompanha tanto quem está encontrando sua direção quanto quem já transforma conteúdo em carreira.</p></details>
+              <details><summary>Criar uma conta é gratuito?</summary><p>Sim. Você pode criar sua conta e entrar na plataforma gratuitamente. O relatório semanal, as reuniões ao vivo e a análise de conteúdo são exclusivos para assinantes.</p></details>
+              <details><summary>Posso participar da reunião sem assinar?</summary><p>Não. As reuniões semanais fazem parte da assinatura D2C e acontecem às quintas-feiras, das 19h às 21h.</p></details>
+              <details><summary>O que encontro no relatório semanal?</summary><p>Achados sobre assuntos, falas, cenários, formatos, estéticas e respostas da audiência, organizados por território e transformados em hipóteses para testar.</p></details>
+              <details><summary>O relatório serve para criadores e marcas?</summary><p>Sim. A inteligência ajuda quem usa conteúdo para crescer, engajar, vender, atrair publicidade ou criar comunidade — seja creator, profissional ou marca.</p></details>
+              <details><summary>Tendência significa copiar um formato?</summary><p>Não. A D2C mostra onde cada sinal funciona e ajuda você a interpretar o movimento dentro da sua narrativa e dos seus objetivos.</p></details>
+              <details><summary>Como faço para ter meu conteúdo analisado?</summary><p>Assine o D2C Pro e confirme sua participação pelos canais exclusivos de assinantes. Quem confirma presença entra nas análises daquela reunião.</p></details>
               <details><summary>Posso cancelar quando quiser?</summary><p>O cancelamento pode ser solicitado a qualquer momento, conforme as condições do plano vigente.</p></details>
             </div>
           </div>
@@ -150,9 +149,9 @@ export function NarrativeLandingPage({ creators, proofMetrics, communityCreators
         <section className="d2c-human-final">
           <div className="d2c-shell d2c-human-final__inner">
             <div>
-              <h2>Assista primeiro. <span>Depois, decida até onde quer levar.</span></h2>
+              <h2>Conteúdo muda toda semana. <span>Sua direção também pode evoluir.</span></h2>
             </div>
-            <LandingAuthCta className="d2c-button d2c-button--human" guestLabel="Assistir à próxima reunião" authenticatedLabel="Acessar a D2C" childrenAfter={<ArrowRight size={17} />} trackingLocation="final" />
+            <LandingAuthCta className="d2c-button d2c-button--human" guestLabel="Criar minha conta grátis" authenticatedLabel="Acessar a D2C" childrenAfter={<ArrowRight size={17} />} trackingLocation="final" />
           </div>
         </section>
       </main>
@@ -160,7 +159,7 @@ export function NarrativeLandingPage({ creators, proofMetrics, communityCreators
       <footer className="d2c-footer">
         <div className="d2c-shell d2c-footer__inner">
           <Brand />
-          <p>Gente para enxergar. Plataforma para continuar.</p>
+          <p>Inteligência para enxergar. Plataforma para agir.</p>
           <nav aria-label="Links legais"><a href="mailto:arthur@data2content.ai">Suporte</a><Link href="/politica-de-privacidade">Privacidade</Link><Link href="/termos-e-condicoes">Termos</Link></nav>
           <small>© {new Date().getFullYear()} Data2Content.</small>
         </div>

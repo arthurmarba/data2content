@@ -26,7 +26,7 @@ describe("LandingAuthCta", () => {
     jest.clearAllMocks();
   });
 
-  it("manda quem cria conta para o onboarding, não direto para a reunião", () => {
+  it("manda quem cria conta para o onboarding, não para um destino exclusivo de assinantes", () => {
     render(<LandingAuthCta className="cta" guestLabel="Entrar" destination="/reuniao" />);
     fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
@@ -48,7 +48,7 @@ describe("LandingAuthCta", () => {
     );
   });
 
-  it("leva quem já tem conta ao Perfil, onde fica o card da reunião", () => {
+  it("leva quem já tem conta ao Perfil estratégico", () => {
     useSessionMock.mockReturnValue({ data: { user: { id: "user-1" } } });
 
     render(<LandingAuthCta className="cta" guestLabel="Entrar" authenticatedLabel="Acessar" />);
@@ -72,7 +72,7 @@ describe("LandingAuthCta", () => {
     expect(submitGoogleSignInFallbackMock).toHaveBeenCalledWith("/reuniao");
   });
 
-  it("mantém a reunião como destino de quem já tem conta", () => {
+  it("respeita o destino explícito de quem já tem conta", () => {
     useSessionMock.mockReturnValue({ data: { user: { id: "user-1" } } });
     const { rerender } = render(
       <LandingAuthCta className="cta" guestLabel="Assistir" authenticatedLabel="Abrir" destination="/reuniao" />,

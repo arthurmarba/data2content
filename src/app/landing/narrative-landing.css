@@ -1116,6 +1116,30 @@ html.d2c-motion-ready .d2c-human-landing [data-landing-section].is-in-view :is(h
   font-weight: 680;
   letter-spacing: -.055em;
 }
+.d2c-human-hero__business-line {
+  position: relative;
+  display: block;
+  min-height: 1.8em;
+  overflow: hidden;
+}
+.d2c-human-hero__outcome-line {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+.d2c-human-hero__outcome-prefix {
+  font-family: var(--font-d2c-display), Arial, sans-serif;
+  font-style: normal;
+}
+.d2c-human-hero__outcome-word {
+  color: var(--d2c-brand-strong);
+  font-family: var(--font-d2c-sans), Arial, sans-serif;
+  font-size: .92em;
+  font-style: italic;
+  font-weight: 570;
+  letter-spacing: -.045em;
+  text-decoration: none;
+}
 .d2c-human-hero__lead {
   max-width: 36rem;
   margin-top: 1.25rem;

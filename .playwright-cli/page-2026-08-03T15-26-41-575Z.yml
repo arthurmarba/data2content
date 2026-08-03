@@ -1,0 +1,14 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e4]:
+    - heading "404" [level=1] [ref=e5]
+    - heading "This page could not be found." [level=2] [ref=e7]
+  - region "Preferências de cookies" [ref=e8]:
+    - paragraph [ref=e9]:
+      - text: Usamos cookies para entender como a landing funciona.
+      - link "Saiba mais" [ref=e10] [cursor=pointer]:
+        - /url: /politica-de-privacidade
+    - generic [ref=e11]:
+      - button "Só essenciais" [ref=e12] [cursor=pointer]
+      - button "Aceitar" [ref=e13] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e19] [cursor=pointer]
+  - alert [ref=e23]

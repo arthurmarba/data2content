@@ -45,6 +45,7 @@
     "qa:listen": "bash qa/stripe-listen.sh",
     "qa:triggers": "bash qa/stripe-triggers.sh",
     "qa:http": "bash qa/http.sh",
+    "billing:create-d2cvip": "node --env-file=.env.local scripts/create-d2cvip-promotion.mjs",
     "cron:refresh-metrics": "tsx --env-file=.env.local ./scripts/cron/refreshMetrics.ts",
     "relatorio:fechar": "tsx --env-file=.env.local ./scripts/relatorio-semanal/closeWeek.ts",
     "relatorio:fechar:dry-run": "npm run relatorio:fechar -- --dry-run",

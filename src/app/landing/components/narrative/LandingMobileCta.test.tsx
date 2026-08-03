@@ -38,7 +38,6 @@ describe("LandingMobileCta", () => {
       <section data-landing-section="collabs"></section>
       <section data-landing-section="community"></section>
       <section data-landing-section="weekly-community"></section>
-      <section data-landing-section="whatsapp-community"></section>
       <section data-landing-section="authority"></section>
       <section data-landing-section="pricing"></section>
       <section class="d2c-human-final"></section>
@@ -46,14 +45,14 @@ describe("LandingMobileCta", () => {
 
     render(<LandingMobileCta />);
 
-    expect(observed).toHaveLength(10);
-    expect(screen.getByText("Assistir à próxima reunião")).toBeInTheDocument();
+    expect(observed).toHaveLength(9);
+    expect(screen.getByText("Criar conta grátis")).toBeInTheDocument();
 
     const weeklySection = document.querySelector("[data-landing-section='weekly-community']")!;
     act(() => callbacks[0]!([{ target: weeklySection, isIntersecting: true } as IntersectionObserverEntry], {} as IntersectionObserver));
-    expect(screen.queryByText("Assistir à próxima reunião")).not.toBeInTheDocument();
+    expect(screen.queryByText("Criar conta grátis")).not.toBeInTheDocument();
 
     act(() => callbacks[0]!([{ target: weeklySection, isIntersecting: false } as IntersectionObserverEntry], {} as IntersectionObserver));
-    expect(screen.getByText("Assistir à próxima reunião")).toBeInTheDocument();
+    expect(screen.getByText("Criar conta grátis")).toBeInTheDocument();
   });
 });

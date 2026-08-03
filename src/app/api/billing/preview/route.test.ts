@@ -11,6 +11,7 @@ jest.mock('@/server/db/models/AffiliateIndexes', () => ({
 jest.mock('@/app/lib/stripe', () => ({
   stripe: {
     coupons: { retrieve: jest.fn() },
+    promotionCodes: { list: jest.fn() },
     invoices: { createPreview: jest.fn() },
     prices: { retrieve: jest.fn() },
   },
@@ -72,6 +73,61 @@ describe('POST /api/billing/preview', () => {
       subscription_details: { items: [{ price: 'price_monthly_brl', quantity: 1 }] },
     });
     expect(stripe.coupons.retrieve).not.toHaveBeenCalled();
+  });
+
+  test('previews d2cVIP as a free first month on the monthly plan', async () => {
+    User.findOne.mockReturnValue({
+      select: jest.fn().mockReturnValue({
+        lean: jest.fn().mockResolvedValue(null),
+      }),
+    });
+    stripe.promotionCodes.list.mockResolvedValue({
+      data: [{ id: 'promo_d2cvip', active: true }],
+    });
+    stripe.invoices.createPreview.mockResolvedValue({
+      currency: 'brl',
+      subtotal: 9700,
+      total_discount_amounts: [{ amount: 9700 }],
+      tax: 0,
+      total: 0,
+    });
+    stripe.prices.retrieve.mockResolvedValue({ unit_amount: 9700 });
+
+    const res = await POST(createRequest({
+      plan: 'monthly',
+      currency: 'BRL',
+      promotionCode: 'd2cVIP',
+    }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body).toMatchObject({
+      total: 0,
+      discountsTotal: 9700,
+      nextCycleAmount: 9700,
+      promotionApplied: true,
+      promotionCode: 'd2cVIP',
+    });
+    expect(stripe.invoices.createPreview).toHaveBeenCalledWith({
+      customer: 'cus_123',
+      subscription_details: { items: [{ price: 'price_monthly_brl', quantity: 1 }] },
+      discounts: [{ promotion_code: 'promo_d2cvip' }],
+    });
+  });
+
+  test('rejects d2cVIP on the annual plan', async () => {
+    process.env.STRIPE_PRICE_ANNUAL_BRL = 'price_annual_brl';
+
+    const res = await POST(createRequest({
+      plan: 'annual',
+      currency: 'BRL',
+      promotionCode: 'd2cVIP',
+    }));
+
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({ code: 'PROMOTION_NOT_AVAILABLE_FOR_PLAN' });
+    expect(stripe.promotionCodes.list).not.toHaveBeenCalled();
+    expect(stripe.invoices.createPreview).not.toHaveBeenCalled();
   });
 
   test('does not offer the first-purchase coupon after a commission was consumed', async () => {

@@ -135,5 +135,71 @@
         "veredito": "ajustar"
       }
     ]
+  },
+  {
+    "data": "2026-07-30",
+    "narrativaCentral": "Uma estudante de medicina que navega a maternidade e a vida adulta com humor e ironia",
+    "territoriosOcupados": [
+      "Maternidade",
+      "Estudo de medicina",
+      "Humor cotidiano",
+      "Autoconhecimento",
+      "Relacionamentos",
+      "Saúde mental"
+    ],
+    "audienciaPede": "A audiência ainda responde a formatos de entretenimento genérico — o desafio ao marido rendeu bem na primeira vez (33 shares) e a reflexão vaga gerou o maior volume de comentários da semana. Mas nenhum desses formatos é exclusivamente seu. O post que mais se aproximou do seu território real (maternidade sem filtro) teve o pior resultado, possivelmente por concorrer no mesmo dia com um repost. E o cruzamento medicina+nordeste, que rendeu os seus melhores números em semanas anteriores, não apareceu nenhuma vez.",
+    "facaMais": [
+      "Retomar o cruzamento medicina + identidade nordestina — sumiu completamente esta semana, mas é o único formato que já provou gerar ponto-ouro de verdade (dobro de shares e saves das outras semanas).",
+      "Maternidade real e sem filtro (o post do passeio em família) — é o único post desta semana no seu território certo. Vale repetir com mais espaço, sem concorrer com outro post no mesmo dia."
+    ],
+    "facaMenos": [
+      "Desafio/pergunta ao marido: rendeu bem na primeira execução, mas repetir 3 vezes na mesma semana gerou fadiga visível (33 → 17 shares). É formato de entretenimento genérico, não sua assinatura.",
+      "Trends de internet sem conexão pessoal (o 'farmar aura') — e pior ainda, repostar o MESMO vídeo no mesmo período: foi o pior resultado absoluto da semana.",
+      "Republicar o mesmo conteúdo no mesmo dia ou semana — já vimos isso falhar com outros criadores também; a audiência que já viu não reage de novo."
+    ],
+    "planoPrometido": [
+      "A consulta que mais me marcou na UPA — contada como só eu consigo contar",
+      "Duas mães no plantão: a que segue o protocolo e a que reza a São Longuinho",
+      "Maternidade sem filtro, parte 2: o que realmente acontece quando a gente tenta criar o 'momento perfeito' em família",
+      "Por que virar meme de internet nunca vai ser tão bom quanto ser a mãe-estudante de medicina mais nordestina do feed"
+    ],
+    "vereditos": [
+      {
+        "postId": "18110687848965421",
+        "veredito": "ajustar"
+      },
+      {
+        "postId": "18097448854998889",
+        "veredito": "ajustar"
+      },
+      {
+        "postId": "17882057466678506",
+        "veredito": "nao-repetir"
+      },
+      {
+        "postId": "18099198149260946",
+        "veredito": "ajustar"
+      },
+      {
+        "postId": "18106325702277879",
+        "veredito": "ajustar"
+      },
+      {
+        "postId": "18051222014799132",
+        "veredito": "ajustar"
+      },
+      {
+        "postId": "17942523993274161",
+        "veredito": "nao-repetir"
+      },
+      {
+        "postId": "18066910682534192",
+        "veredito": "repetir"
+      },
+      {
+        "postId": "18117920578923533",
+        "veredito": "nao-repetir"
+      }
+    ]
   }
 ]

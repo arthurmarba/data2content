@@ -232,25 +232,25 @@ export function renderReportHtml(r: ReportData): string {
   .cover { display:flex; flex-direction:column; }
   .cover-hero { text-align:center; flex:1 1 auto; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:4mm 0; }
   .avatar { width:60px; height:60px; flex:0 0 60px; border-radius:50%; background-size:cover; background-position:center; background-color:#ece9f3; border:2px solid #fff; }
-  .cover-photo { position:relative; display:flex; align-items:center; justify-content:center; margin:26px 0 30px; }
+  .cover-photo { position:relative; display:flex; align-items:center; justify-content:center; margin:18px 0 20px; flex-shrink:0; }
   .avatar--lg { position:relative; width:200px; height:200px; flex:0 0 200px; border:5px solid #fff; box-shadow:0 0 0 1px var(--hair); }
   .avatar--ini { display:flex; align-items:center; justify-content:center; font-family:var(--serif); font-weight:700; color:var(--accent); }
   .avatar.avatar--lg.avatar--ini { font-size:74px; }
   .cover-eyebrow { font-size:11.5px; letter-spacing:.28em; text-transform:uppercase; color:var(--accent); font-weight:700; }
   .cover-creator { margin-top:16px; font-size:15.5px; color:var(--ink); font-weight:600; letter-spacing:.01em; }
-  .cover-orn { width:40px; height:2px; background:var(--accent); border-radius:2px; margin:22px 0 4px; opacity:.55; }
-  .cover-narr-hero { font-family:var(--serif); font-weight:800; font-size:46px; line-height:1.14; margin:16px 0 0; max-width:19ch; color:var(--ink); }
-  .cover-period { margin-top:20px; font-size:12px; color:var(--muted); letter-spacing:.14em; text-transform:uppercase; }
-  .cover-regua { margin-top:22px; font-size:12.5px; color:var(--muted); letter-spacing:.01em; background:var(--card); border:1px solid var(--hair); border-radius:24px; padding:9px 20px; }
+  .cover-orn { width:40px; height:2px; background:var(--accent); border-radius:2px; margin:16px 0 4px; opacity:.55; flex-shrink:0; }
+  .cover-narr-hero { font-family:var(--serif); font-weight:800; font-size:42px; line-height:1.14; margin:14px 0 0; max-width:19ch; color:var(--ink); }
+  .cover-period { margin-top:16px; font-size:12px; color:var(--muted); letter-spacing:.14em; text-transform:uppercase; flex-shrink:0; }
+  .cover-regua { margin-top:16px; font-size:12.5px; color:var(--muted); letter-spacing:.01em; background:var(--card); border:1px solid var(--hair); border-radius:24px; padding:9px 20px; flex-shrink:0; }
   .cover-regua b { font-weight:700; }
-  .numeros { display:flex; margin:0; border:1px solid var(--hair); border-radius:14px; overflow:hidden; background:var(--card); }
-  .num-cell { flex:1; padding:18px 12px; text-align:center; border-right:1px solid var(--hair); display:flex; flex-direction:column; justify-content:center; min-width:0; }
+  .numeros { display:flex; flex-shrink:0; margin:0; border:1px solid var(--hair); border-radius:14px; overflow:hidden; background:var(--card); height:96px; }
+  .num-cell { flex:1; height:96px; padding:14px 12px; text-align:center; border-right:1px solid var(--hair); display:flex; flex-direction:column; justify-content:center; align-items:center; min-width:0; overflow:hidden; }
   .num-cell:last-child { border-right:0; }
   .num-cell--wide { flex:1.6; }
   .num-valor { font-family:var(--serif); font-weight:800; font-size:29px; line-height:1.05; color:var(--ink); }
-  .num-valor--txt { font-size:15px; line-height:1.28; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+  .num-valor--txt { font-size:14px; line-height:1.24; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; max-height:52px; }
   .num-label { margin-top:6px; font-size:10px; letter-spacing:.08em; color:var(--muted); text-transform:uppercase; }
-  .cover-resumo { margin-top:20px; padding-top:18px; border-top:1px solid var(--hair); font-size:15px; line-height:1.62; color:#3a362d; }
+  .cover-resumo { flex-shrink:0; margin-top:20px; padding-top:18px; border-top:1px solid var(--hair); font-size:15px; line-height:1.62; color:#3a362d; }
 
   /* Atos */
   .act { display:flex; align-items:baseline; gap:12px; margin:4px 0 22px; padding-bottom:8px; border-bottom:2px solid var(--ink); page-break-after:avoid; }

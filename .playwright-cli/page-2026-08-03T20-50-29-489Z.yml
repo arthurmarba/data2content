@@ -1,0 +1,50 @@
+- generic [active] [ref=f1e1]:
+  - main [ref=f1e5]:
+    - generic [ref=f1e8]:
+      - generic [ref=f1e10]:
+        - generic [ref=f1e13]:
+          - heading "Olá, E2E" [level=1] [ref=f1e15]
+          - button "Configurações" [ref=f1e18] [cursor=pointer]
+        - generic [ref=f1e23]:
+          - generic [ref=f1e25]:
+            - button "EU Mídia Kit Incluído no Pro" [ref=f1e26] [cursor=pointer]:
+              - generic [ref=f1e27]: EU
+              - generic [ref=f1e28]:
+                - generic [ref=f1e29]: Mídia Kit
+                - generic [ref=f1e30]: Incluído no Pro
+            - button "Quanto vale sua publi? Descubra seu preço justo de publi" [ref=f1e33] [cursor=pointer]:
+              - generic [ref=f1e38]:
+                - generic [ref=f1e39]: Quanto vale sua publi?
+                - generic [ref=f1e40]: Descubra seu preço justo de publi
+          - region [ref=f1e43]:
+            - generic [ref=f1e44]:
+              - generic [ref=f1e45]:
+                - generic [ref=f1e46]: Reunião semanal
+                - generic [ref=f1e50]: Horário previsto
+              - heading "Quinta-feira, 6 de agosto · 19h–21h" [level=2] [ref=f1e51]
+              - paragraph [ref=f1e52]: Assine o Pro para entrar no grupo e confirmar presença para análise.
+              - generic [ref=f1e53]:
+                - button "Abrir grupo Pro" [ref=f1e54] [cursor=pointer]
+                - link "Ver reunião" [ref=f1e58] [cursor=pointer]:
+                  - /url: /reuniao
+          - generic [ref=f1e60]:
+            - paragraph [ref=f1e67]: Seu Mapa
+            - paragraph [ref=f1e68]: Seu mapa está sendo construído.
+            - paragraph [ref=f1e69]: Cada vídeo analisado revela um pouco mais de quem você é.
+            - button "Primeira análise" [ref=f1e70] [cursor=pointer]
+            - button "Defina seu norte Por que você cria? Isso ancora todo o mapa." [ref=f1e73] [cursor=pointer]:
+              - generic [ref=f1e77]:
+                - generic [ref=f1e78]: Defina seu norte
+                - generic [ref=f1e79]: Por que você cria? Isso ancora todo o mapa.
+      - navigation [ref=f1e85]:
+        - button "Perfil" [ref=f1e86] [cursor=pointer]
+        - generic [ref=f1e91]:
+          - button "Escanear novo vídeo" [ref=f1e92] [cursor=pointer]
+          - generic [ref=f1e96]: Escanear
+        - button "Collabs" [ref=f1e97] [cursor=pointer]
+  - generic [ref=f1e104]:
+    - generic [ref=f1e105]: Usamos cookies de analytics para melhorar a experiência. Aceita?
+    - generic [ref=f1e106]:
+      - button "Recusar" [ref=f1e107] [cursor=pointer]
+      - button "Aceitar" [ref=f1e108] [cursor=pointer]
+  - alert [ref=f1e109]

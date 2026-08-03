@@ -12,25 +12,27 @@ const meeting = {
 };
 
 describe("WeeklyMeetingProfileCard", () => {
-  it("leva o visitante ao canal gratuito de avisos", () => {
+  beforeEach(() => {
+    (openPaywallModal as jest.Mock).mockClear();
+  });
+
+  it("mostra apenas o grupo Pro ao visitante e abre a assinatura", () => {
     render(<WeeklyMeetingProfileCard isPro={false} meeting={meeting} />);
 
     expect(screen.getByRole("heading", { name: /Quinta-feira, 23 de julho/ })).toBeInTheDocument();
-    expect(screen.getByText(/Assista grátis/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Receber avisos/ })).toHaveAttribute(
-      "href",
-      "/api/dashboard/community/free-join",
-    );
+    expect(screen.getByText(/Assine o Pro para entrar no grupo/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Receber avisos/ })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Ver reunião" })).toHaveAttribute("href", "/reuniao");
-  });
 
-  it("oferece a conversão para o visitante com a intenção do grupo", () => {
-    render(<WeeklyMeetingProfileCard isPro={false} meeting={meeting} />);
-
-    fireEvent.click(screen.getByRole("button", { name: /Conheça o Pro/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Abrir grupo Pro/ }));
 
     expect(openPaywallModal).toHaveBeenCalledWith(
-      expect.objectContaining({ postCheckoutIntent: "join_community" }),
+      {
+        context: "mentoria",
+        source: "profile_weekly_meeting_card",
+        returnTo: "/dashboard/boards/mobile-strategic-profile",
+        postCheckoutIntent: "join_community",
+      },
     );
   });
 
@@ -40,7 +42,7 @@ describe("WeeklyMeetingProfileCard", () => {
     const groupLink = screen.getByRole("link", { name: /Abrir grupo Pro/ });
     expect(groupLink).toHaveAttribute("href", expect.stringContaining("chat.whatsapp.com"));
     expect(screen.getByText("Confirme presença no grupo Pro para ser analisado.")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Conheça o Pro/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Abrir grupo Pro/ })).not.toBeInTheDocument();
   });
 
   it("não apresenta uma edição cancelada como reunião disponível", () => {

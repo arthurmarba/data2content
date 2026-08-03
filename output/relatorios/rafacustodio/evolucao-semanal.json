@@ -1,0 +1,263 @@
+{
+  "nome": "Rafaella Custódio",
+  "handle": "@rafacustodio",
+  "periodo": {
+    "de": "2026-04-22",
+    "ate": "2026-07-28",
+    "semanas": 14
+  },
+  "semanas": [
+    {
+      "semanaFim": "2026-04-28",
+      "seguidores": 45520,
+      "seguidoresDelta": null,
+      "seguidoresGanho": null,
+      "seguidoresPerda": null,
+      "composicao": {
+        "curtidas": 4240,
+        "comentarios": 381,
+        "salvos": 215,
+        "compartilhamentos": 695
+      },
+      "interacoes": 5531,
+      "alcance": 93094,
+      "taxaParticipacao": 0.05941306636303092,
+      "viewsMedioPorPost": 24149.166666666668,
+      "posts": 6
+    },
+    {
+      "semanaFim": "2026-05-05",
+      "seguidores": 45520,
+      "seguidoresDelta": 0,
+      "seguidoresGanho": null,
+      "seguidoresPerda": null,
+      "composicao": {
+        "curtidas": 7239,
+        "comentarios": 289,
+        "salvos": 747,
+        "compartilhamentos": 8992
+      },
+      "interacoes": 17267,
+      "alcance": 162863,
+      "taxaParticipacao": 0.1060216255380289,
+      "viewsMedioPorPost": 42317,
+      "posts": 6
+    },
+    {
+      "semanaFim": "2026-05-12",
+      "seguidores": 45520,
+      "seguidoresDelta": 0,
+      "seguidoresGanho": null,
+      "seguidoresPerda": null,
+      "composicao": {
+        "curtidas": 1484,
+        "comentarios": 87,
+        "salvos": 41,
+        "compartilhamentos": 124
+      },
+      "interacoes": 1736,
+      "alcance": 36186,
+      "taxaParticipacao": 0.04797435472282098,
+      "viewsMedioPorPost": 14785.5,
+      "posts": 4
+    },
+    {
+      "semanaFim": "2026-05-19",
+      "seguidores": 45520,
+      "seguidoresDelta": 0,
+      "seguidoresGanho": null,
+      "seguidoresPerda": null,
+      "composicao": {
+        "curtidas": 1596,
+        "comentarios": 157,
+        "salvos": 49,
+        "compartilhamentos": 113
+      },
+      "interacoes": 1915,
+      "alcance": 50492,
+      "taxaParticipacao": 0.03792680028519369,
+      "viewsMedioPorPost": 23296.25,
+      "posts": 4
+    },
+    {
+      "semanaFim": "2026-05-26",
+      "seguidores": 45520,
+      "seguidoresDelta": 0,
+      "seguidoresGanho": null,
+      "seguidoresPerda": null,
+      "composicao": {
+        "curtidas": 7081,
+        "comentarios": 359,
+        "salvos": 242,
+        "compartilhamentos": 2146
+      },
+      "interacoes": 9828,
+      "alcance": 145025,
+      "taxaParticipacao": 0.06776762627133252,
+      "viewsMedioPorPost": 35203.666666666664,
+      "posts": 6
+    },
+    {
+      "semanaFim": "2026-06-02",
+      "seguidores": 46365,
+      "seguidoresDelta": 845,
+      "seguidoresGanho": 845,
+      "seguidoresPerda": 0,
+      "composicao": {
+        "curtidas": 1161,
+        "comentarios": 141,
+        "salvos": 42,
+        "compartilhamentos": 135
+      },
+      "interacoes": 1479,
+      "alcance": 38792,
+      "taxaParticipacao": 0.03812641781810683,
+      "viewsMedioPorPost": 12573.6,
+      "posts": 5
+    },
+    {
+      "semanaFim": "2026-06-09",
+      "seguidores": 46365,
+      "seguidoresDelta": 0,
+      "seguidoresGanho": null,
+      "seguidoresPerda": null,
+      "composicao": {
+        "curtidas": 1391,
+        "comentarios": 108,
+        "salvos": 50,
+        "compartilhamentos": 136
+      },
+      "interacoes": 1685,
+      "alcance": 49036,
+      "taxaParticipacao": 0.03436250917693123,
+      "viewsMedioPorPost": 8479,
+      "posts": 9
+    },
+    {
+      "semanaFim": "2026-06-16",
+      "seguidores": 46469,
+      "seguidoresDelta": 104,
+      "seguidoresGanho": 107,
+      "seguidoresPerda": 3,
+      "composicao": {
+        "curtidas": 3226,
+        "comentarios": 221,
+        "salvos": 244,
+        "compartilhamentos": 1203
+      },
+      "interacoes": 4894,
+      "alcance": 129269,
+      "taxaParticipacao": 0.03785903812979136,
+      "viewsMedioPorPost": 28495.14285714286,
+      "posts": 7
+    },
+    {
+      "semanaFim": "2026-06-23",
+      "seguidores": 46491,
+      "seguidoresDelta": 22,
+      "seguidoresGanho": 47,
+      "seguidoresPerda": 25,
+      "composicao": {
+        "curtidas": 2264,
+        "comentarios": 193,
+        "salvos": 62,
+        "compartilhamentos": 273
+      },
+      "interacoes": 2792,
+      "alcance": 83725,
+      "taxaParticipacao": 0.03334726784114661,
+      "viewsMedioPorPost": 18722.428571428572,
+      "posts": 7
+    },
+    {
+      "semanaFim": "2026-06-30",
+      "seguidores": 46643,
+      "seguidoresDelta": 152,
+      "seguidoresGanho": 153,
+      "seguidoresPerda": 1,
+      "composicao": {
+        "curtidas": 3848,
+        "comentarios": 296,
+        "salvos": 173,
+        "compartilhamentos": 1030
+      },
+      "interacoes": 5347,
+      "alcance": 113556,
+      "taxaParticipacao": 0.04708689985557787,
+      "viewsMedioPorPost": 29330.571428571428,
+      "posts": 7
+    },
+    {
+      "semanaFim": "2026-07-07",
+      "seguidores": 46731,
+      "seguidoresDelta": 88,
+      "seguidoresGanho": 101,
+      "seguidoresPerda": 13,
+      "composicao": {
+        "curtidas": 5812,
+        "comentarios": 661,
+        "salvos": 187,
+        "compartilhamentos": 1127
+      },
+      "interacoes": 7787,
+      "alcance": 177444,
+      "taxaParticipacao": 0.043884267712630466,
+      "viewsMedioPorPost": 30506.777777777777,
+      "posts": 9
+    },
+    {
+      "semanaFim": "2026-07-14",
+      "seguidores": 46808,
+      "seguidoresDelta": 77,
+      "seguidoresGanho": 80,
+      "seguidoresPerda": 3,
+      "composicao": {
+        "curtidas": 4494,
+        "comentarios": 241,
+        "salvos": 300,
+        "compartilhamentos": 1977
+      },
+      "interacoes": 7012,
+      "alcance": 146675,
+      "taxaParticipacao": 0.04780637463780467,
+      "viewsMedioPorPost": 32326.571428571428,
+      "posts": 7
+    },
+    {
+      "semanaFim": "2026-07-21",
+      "seguidores": 46884,
+      "seguidoresDelta": 76,
+      "seguidoresGanho": 77,
+      "seguidoresPerda": 1,
+      "composicao": {
+        "curtidas": 2724,
+        "comentarios": 1038,
+        "salvos": 253,
+        "compartilhamentos": 1167
+      },
+      "interacoes": 5182,
+      "alcance": 91265,
+      "taxaParticipacao": 0.05677970744535145,
+      "viewsMedioPorPost": 32927.8,
+      "posts": 5
+    },
+    {
+      "semanaFim": "2026-07-28",
+      "seguidores": 46955,
+      "seguidoresDelta": 71,
+      "seguidoresGanho": 72,
+      "seguidoresPerda": 1,
+      "composicao": {
+        "curtidas": 1088,
+        "comentarios": 211,
+        "salvos": 63,
+        "compartilhamentos": 123
+      },
+      "interacoes": 1485,
+      "alcance": 57773,
+      "taxaParticipacao": 0.02570404860401918,
+      "viewsMedioPorPost": 17410.8,
+      "posts": 5
+    }
+  ]
+}

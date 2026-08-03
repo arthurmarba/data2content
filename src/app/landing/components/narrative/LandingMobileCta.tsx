@@ -24,7 +24,6 @@ export function LandingMobileCta() {
       "[data-landing-section='collabs']",
       "[data-landing-section='community']",
       "[data-landing-section='weekly-community']",
-      "[data-landing-section='whatsapp-community']",
       "[data-landing-section='authority']",
       "[data-landing-section='pricing']",
       ".d2c-human-final",
@@ -54,7 +53,7 @@ export function LandingMobileCta() {
 
   return (
     <div className="d2c-mobile-conversion is-visible">
-      <LandingAuthCta className="d2c-button d2c-button--human" guestLabel="Assistir à próxima reunião" authenticatedLabel="Acessar a D2C" childrenAfter={<ArrowRight size={16} />} trackingLocation="sticky-mobile" />
+      <LandingAuthCta className="d2c-button d2c-button--human" guestLabel="Criar conta grátis" authenticatedLabel="Acessar a D2C" childrenAfter={<ArrowRight size={16} />} trackingLocation="sticky-mobile" />
     </div>
   );
 }

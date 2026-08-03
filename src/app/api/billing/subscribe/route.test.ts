@@ -82,6 +82,76 @@ beforeEach(() => {
 });
 
 describe("POST /api/billing/subscribe", () => {
+  it("rejects d2cVIP on the annual plan before creating Stripe resources", async () => {
+    mockGetServerSession.mockResolvedValue({ user: { id: "vip-annual", email: "vip-annual@test.com" } });
+
+    const res = await POST(createRequest({
+      plan: "annual",
+      currency: "BRL",
+      promotionCode: "d2cVIP",
+    }));
+
+    expect(res.status).toBe(422);
+    expect(await res.json()).toMatchObject({ code: "PROMOTION_NOT_AVAILABLE_FOR_PLAN" });
+    expect(mockConnect).not.toHaveBeenCalled();
+    expect(mockStripeCreate).not.toHaveBeenCalled();
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("creates a monthly d2cVIP Checkout that collects the card before the free month", async () => {
+    mockGetServerSession.mockResolvedValue({ user: { id: "vip-monthly", email: "vip-monthly@test.com" } });
+    const save = jest.fn();
+    const buyer = {
+      _id: "vip-monthly",
+      planStatus: "inactive",
+      stripeCustomerId: "cus_123",
+      save,
+    };
+    mockFindById.mockResolvedValue(buyer);
+    mockStripeList.mockResolvedValue({ data: [] });
+    stripe.promotionCodes.list.mockResolvedValue({
+      data: [{ id: "promo_d2cvip", code: "d2cVIP", active: true }],
+    });
+    stripe.checkout.sessions.create.mockResolvedValue({
+      id: "cs_d2cvip",
+      url: "https://checkout.stripe.com/d2cvip",
+    });
+
+    const res = await POST(createRequest({
+      plan: "monthly",
+      currency: "BRL",
+      promotionCode: "d2cVIP",
+      successUrl: "http://localhost/billing/success",
+      cancelUrl: "http://localhost/dashboard/billing",
+    }));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.checkoutUrl).toBe("https://checkout.stripe.com/d2cvip");
+    expect(body.promotionCode).toBe("d2cVIP");
+    expect(mockStripeCreate).not.toHaveBeenCalled();
+    expect(stripe.checkout.sessions.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: "subscription",
+        customer: "cus_123",
+        line_items: [{ price: "price_monthly_brl", quantity: 1 }],
+        payment_method_collection: "always",
+        discounts: [{ promotion_code: "promo_d2cvip" }],
+        subscription_data: {
+          metadata: expect.objectContaining({
+            userId: "vip-monthly",
+            plan: "monthly",
+            promotionCode: "D2CVIP",
+          }),
+        },
+      }),
+      expect.any(Object),
+    );
+    expect((buyer as any).planStatus).toBe("pending");
+    expect((buyer as any).planType).toBe("monthly");
+    expect(save).toHaveBeenCalled();
+  });
+
   it("blocks when DB says active", async () => {
     mockGetServerSession.mockResolvedValue({ user: { id: "u1", email: "u1@test.com" } });
     mockFindById.mockResolvedValue({ _id: "u1", planStatus: "active", stripeCustomerId: "cus_1" });

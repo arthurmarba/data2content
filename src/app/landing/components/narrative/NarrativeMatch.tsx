@@ -184,7 +184,7 @@ function MatchReveal({ first, second, preview = false }: { first: LandingCreator
         {!preview && (
           <LandingAuthCta
             className="d2c-match-reveal__cta"
-            guestLabel="Quero dar match criativo"
+            guestLabel="Criar conta para dar match"
             childrenAfter={<ArrowRight size={17} aria-hidden="true" />}
             trackingLocation="collabs"
           />

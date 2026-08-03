@@ -1,6 +1,6 @@
 "use client";
 
-import { COMMUNITY_FREE_JOIN_ROUTE, COMMUNITY_WHATSAPP_URL } from "@/app/lib/communityLinks";
+import { COMMUNITY_WHATSAPP_URL } from "@/app/lib/communityLinks";
 import Link from "next/link";
 import { openPaywallModal } from "@/utils/paywallModal";
 import { MOBILE_PROFILE_ROUTE } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
@@ -57,15 +57,21 @@ export function WeeklyMeetingProfileCard({
   meeting,
 }: WeeklyMeetingProfileCardProps) {
   const cancelled = meeting.status === "cancelled";
-  const whatsappUrl = isPro
-    ? COMMUNITY_WHATSAPP_URL
-    : COMMUNITY_FREE_JOIN_ROUTE;
-  const whatsappLabel = isPro ? "Abrir grupo Pro" : "Receber avisos";
   const supportingCopy = cancelled
     ? "Confira o WhatsApp para acompanhar a previsão da próxima edição."
     : isPro
       ? "Confirme presença no grupo Pro para ser analisado."
-      : "Assista grátis. O WhatsApp avisa sobre link, mudanças e cancelamentos.";
+      : "Assine o Pro para entrar no grupo e confirmar presença para análise.";
+
+  const openCommunityPaywall = () => {
+    openPaywallModal({
+      context: "mentoria",
+      source: "profile_weekly_meeting_card",
+      returnTo: MOBILE_PROFILE_ROUTE,
+      // Depois do pagamento, o grupo vem antes de qualquer outra coisa.
+      postCheckoutIntent: "join_community",
+    });
+  };
 
   return (
     <section
@@ -123,15 +129,26 @@ export function WeeklyMeetingProfileCard({
         </p>
 
         <div className="d2c-meeting-actions" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, .82fr)", gap: 9, marginTop: 17 }}>
-          <a
-            href={whatsappUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="d2c-meeting-action"
-            style={{ minHeight: 46, borderRadius: 999, background: "#25D366", color: "#101713", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "10px 12px", textDecoration: "none", fontSize: 12.5, fontWeight: 800, textAlign: "center" }}
-          >
-            <WhatsAppGlyph /> {whatsappLabel}
-          </a>
+          {isPro ? (
+            <a
+              href={COMMUNITY_WHATSAPP_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="d2c-meeting-action"
+              style={{ minHeight: 46, borderRadius: 999, background: "#25D366", color: "#101713", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "10px 12px", textDecoration: "none", fontSize: 12.5, fontWeight: 800, textAlign: "center" }}
+            >
+              <WhatsAppGlyph /> Abrir grupo Pro
+            </a>
+          ) : (
+            <button
+              type="button"
+              onClick={openCommunityPaywall}
+              className="d2c-meeting-action"
+              style={{ minHeight: 46, border: 0, borderRadius: 999, background: "#25D366", color: "#101713", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "10px 12px", fontSize: 12.5, fontWeight: 800, textAlign: "center", cursor: "pointer" }}
+            >
+              <WhatsAppGlyph /> Abrir grupo Pro
+            </button>
+          )}
           <Link
             href="/reuniao"
             className="d2c-meeting-action"
@@ -141,40 +158,6 @@ export function WeeklyMeetingProfileCard({
           </Link>
         </div>
 
-        {!isPro && !cancelled ? (
-          <button
-            type="button"
-            onClick={() =>
-              openPaywallModal({
-                context: "mentoria",
-                source: "profile_weekly_meeting_card",
-                returnTo: MOBILE_PROFILE_ROUTE,
-                // Depois do pagamento, o grupo vem antes de qualquer outra coisa.
-                postCheckoutIntent: "join_community",
-              })
-            }
-            className="d2c-meeting-action"
-            style={{
-              marginTop: 14,
-              width: "100%",
-              minHeight: 40,
-              borderRadius: 999,
-              border: "1px solid rgba(196,181,253,.34)",
-              background: "rgba(196,181,253,.11)",
-              color: "#ddd6fe",
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 6,
-              padding: "9px 12px",
-              fontSize: 12,
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            Quer levar seu conteúdo para análise? Conheça o Pro
-          </button>
-        ) : null}
       </div>
     </section>
   );

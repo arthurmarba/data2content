@@ -16,12 +16,17 @@ import { useBodyScrollLock } from "@/lib/a11y";
 import { d2cFontVariables } from "@/app/fonts/d2cFonts";
 import {
   PAYWALL_AUTOSTART_PARAM,
+  PAYWALL_COUPON_PARAM,
   PAYWALL_CONTEXT_PARAM,
   PAYWALL_CURRENCY_PARAM,
   PAYWALL_PERIOD_PARAM,
   PAYWALL_RETURN_STORAGE_KEY,
   PAYWALL_URL_PARAM,
 } from "@/types/paywall";
+import {
+  D2C_VIP_DISPLAY_CODE,
+  isD2cVipPromotionCode,
+} from "@/app/lib/billing/d2cVipPromotion";
 
 interface BillingSubscribeModalProps {
   open: boolean;
@@ -44,181 +49,73 @@ type APIRawPrice = {
 // cache simples em escopo de módulo para reabrir o modal sem re-buscar sempre
 let pricesCache: PricesShape | null = null;
 
-// 🎯 Proposta de valor central do Pro — usada pelo contexto "default"
-const FEATURES: string[] = [
-  "Clareza sobre o que funciona — com dados reais do Instagram",
-  "Pautas prontas na sua voz, no WhatsApp",
-  "Criadores indicados pra collab com a sua narrativa",
-  "Reunião semanal da comunidade, ao vivo",
-  "Mídia Kit com vitrine no Marketplace",
-];
+const PRO_BENEFITS = [
+  "Tendências e referências novas toda semana",
+  "Reunião ao vivo com análise e direção",
+  "Mapa, pautas, collabs e ferramentas comerciais",
+] as const;
 
 type PaywallCopy = {
   title: string;
   subtitle: string;
-  bullets: string[];
   ctaLabel: string;
-  steps?: string[];
-  /** Frase curta de ancoragem mostrada logo abaixo do preço — traduz o custo em
-   *  algo concreto pro criador (ex.: "uma publi paga meses"). Opcional. */
-  priceAnchor?: string;
 };
 
 const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
   default: {
-    title: "Você não está mais criando conteúdo sozinho.",
-    subtitle: "Pautas na sua voz, collabs e uma comunidade toda semana. Seu parceiro de conteúdo, todo dia.",
-    bullets: FEATURES,
-    ctaLabel: "Assinar Pro",
-    priceAnchor: "Menos que o preço de uma publi — por mês inteiro de parceria.",
+    title: "Seu conteúdo com direção, toda semana.",
+    subtitle: "O Pro mostra o que está mudando, ajuda você a interpretar os sinais e entrega as ferramentas para agir.",
+    ctaLabel: "Assinar o Pro",
   },
   reply_email: {
-    title: "IA de Negociação",
-    subtitle: "Analise propostas em segundos e receba recomendações estratégicas para fechar mais contratos.",
-    bullets: [
-      "Playbook de resposta baseada em métricas reais",
-      "Rascunhos automáticos de email otimizados para conversão",
-      "Identificação de riscos e oportunidades no briefing",
-    ],
-    ctaLabel: "Ativar IA de Negociação",
-    steps: [
-      "Ative sua assinatura",
-      "Conecte seu Instagram",
-      "Volte para liberar sua IA",
-    ],
+    title: "Negocie com contexto, não no escuro.",
+    subtitle: "O Pro reúne seus dados, sua estratégia e ferramentas comerciais para você responder propostas com mais confiança.",
+    ctaLabel: "Assinar o Pro",
   },
   ai_analysis: {
-    title: "IA de Negociação",
-    subtitle: "Analise propostas em segundos e receba recomendações estratégicas para fechar mais contratos.",
-    bullets: [
-      "Playbook de resposta baseada em métricas reais",
-      "Rascunhos automáticos de email otimizados para conversão",
-      "Identificação de riscos e oportunidades no briefing",
-    ],
-    ctaLabel: "Ativar IA de Negociação",
-    steps: [
-      "Ative sua assinatura",
-      "Conecte seu Instagram",
-      "Volte para liberar sua IA",
-    ],
+    title: "Negocie com contexto, não no escuro.",
+    subtitle: "O Pro reúne seus dados, sua estratégia e ferramentas comerciais para você responder propostas com mais confiança.",
+    ctaLabel: "Assinar o Pro",
   },
   calculator: {
-    title: "Precificação Estratégica",
-    subtitle: "Valores calibrados para atrair as marcas que você realmente quer.",
-    bullets: [
-      "Faixas estratégicas (Justo, Influencer e Premium)",
-      "Multiplicadores auditados pelo time D2C",
-    ],
-    ctaLabel: "Assinar Pro",
-    priceAnchor: "Uma única publi no preço certo paga meses de assinatura.",
-    steps: [
-      "Ative sua assinatura",
-      "Conecte seu Instagram",
-      "Volte para liberar sua precificação",
-    ],
+    title: "Saiba quanto cobrar — e por quê.",
+    subtitle: "Use seus dados para chegar a uma faixa de preço defensável e negociar publis com mais confiança.",
+    ctaLabel: "Liberar o Pro",
   },
   media_kit: {
-    title: "Mídia Kit Profissional",
-    subtitle: "Gere seu link único com métricas auditadas e sincronizadas automaticamente.",
-    bullets: [
-      "Dados reais do Instagram (Alcance, Engajamento, etc)",
-      "Sugestões de faixas de preço baseadas em performance",
-      "Vitrine exclusiva no Marketplace Destaque",
-    ],
-    ctaLabel: "Assinar Pro",
-    steps: [
-      "Ative sua assinatura",
-      "Conecte seu Instagram",
-      "Volte para liberar seu Mídia Kit",
-    ],
+    title: "Apresente seu trabalho como profissional.",
+    subtitle: "Transforme métricas reais em um Mídia Kit claro, atualizado e pronto para compartilhar com marcas.",
+    ctaLabel: "Liberar o Mídia Kit",
   },
   publis: {
-    title: "Biblioteca de Publis",
-    subtitle: "Organize suas parcerias e compartilhe métricas ao vivo com marcas.",
-    bullets: [
-      "Histórico completo de conteúdos publicitários",
-      "Compartilhamento de resultados via link",
-      "Filtros inteligentes por desempenho e data",
-    ],
-    ctaLabel: "Assinar Pro",
-    steps: [
-      "Ative sua assinatura",
-      "Conecte seu Instagram",
-      "Volte para liberar suas publis",
-    ],
+    title: "Suas publis organizadas e valorizadas.",
+    subtitle: "Guarde o histórico, acompanhe resultados e apresente seu trabalho com dados para as marcas.",
+    ctaLabel: "Assinar o Pro",
   },
   onboarding: {
-    title: "Seu mapa começou.",
-    subtitle: "Ideias prontas, criadores para collab e clareza sobre o que funciona.",
-    bullets: [
-      "Clareza sobre o que funciona — com dados reais do Instagram",
-      "Pautas prontas na sua voz, no WhatsApp",
-      "Criadores indicados pra collab com a sua narrativa",
-      "Reunião semanal da comunidade, ao vivo",
-    ],
-    ctaLabel: "Assinar agora",
+    title: "Seu mapa é só o começo.",
+    subtitle: "Ative o Pro para transformar a leitura do seu conteúdo em direção prática, semana após semana.",
+    ctaLabel: "Ativar o Pro",
   },
   narrative_map: {
-    title: "Seu mapa está tomando forma.",
-    subtitle: "Ideias prontas, criadores para collab e clareza sobre o que funciona.",
-    bullets: [
-      "Clareza sobre o que funciona — com dados reais do Instagram",
-      "Pautas prontas na sua voz, no WhatsApp",
-      "Criadores indicados pra collab com a sua narrativa",
-      "Reunião semanal da comunidade, ao vivo",
-    ],
-    ctaLabel: "Ativar Pro",
+    title: "Transforme seu mapa em próximos passos.",
+    subtitle: "Entenda seus territórios, encontre pautas coerentes e use os sinais para decidir o que criar, testar ou ajustar.",
+    ctaLabel: "Ativar o Pro",
   },
   mentoria: {
     title: "Você não cria sozinho.",
-    subtitle:
-      "Toda semana a comunidade se reúne ao vivo pra ler conteúdo junto e ajustar a estratégia de imagem de cada um — e as pautas chegam pelo WhatsApp.",
-    bullets: [
-      "Reunião semanal da comunidade, ao vivo",
-      "Criadores indicados pra collab com a sua narrativa",
-      "Clareza sobre o que funciona — com dados reais do Instagram",
-      "Pautas prontas na sua voz, no WhatsApp",
-    ],
+    subtitle: "Tendências, análise ao vivo e ferramentas para transformar seu conteúdo em direção prática.",
     ctaLabel: "Assinar Pro e entrar",
-    steps: [
-      "Ative sua assinatura",
-      "Entre na comunidade",
-      "Acesse a agenda da reunião semanal",
-    ],
   },
   planning: {
-    title: "Nunca mais trave no \"o que eu posto hoje?\"",
-    subtitle:
-      "Cada pauta nasce do que você já posta, na sua voz. Você abre o app e já tem o próximo conteúdo esperando — sem partir do zero.",
-    bullets: [
-      "Ideias geradas a partir do que você já posta",
-      "Pautas entregues pelo WhatsApp no momento certo",
-      "Dados reais do Instagram para calibrar timing e formato",
-    ],
-    ctaLabel: "Assinar Pro",
-    priceAnchor: "Menos que o preço de uma publi — por um mês inteiro de pautas.",
-    steps: [
-      "Ative sua assinatura",
-      "Conecte seu Instagram",
-      "Receba suas primeiras pautas pelo WhatsApp",
-    ],
+    title: "Saia da dúvida para a próxima pauta.",
+    subtitle: "Cruze o seu mapa com as tendências da semana para escolher ideias que fazem sentido para você.",
+    ctaLabel: "Liberar minhas pautas",
   },
   whatsapp: {
-    title: "Seu conteúdo chega até você.",
-    subtitle:
-      "Uma mensagem por semana com pautas prontas na sua voz, criadores para collab e o que está surgindo no seu perfil. Você não precisa lembrar de voltar — a gente te chama.",
-    bullets: [
-      "Ideias de pauta prontas na sua voz, toda semana",
-      "Criador disponível para collab quando fizer sentido",
-      "O que está surgindo no seu conteúdo para você validar",
-    ],
-    ctaLabel: "Assinar Pro",
-    priceAnchor: "Menos que o preço de uma publi — por um mês inteiro de parceria.",
-    steps: [
-      "Ative sua assinatura",
-      "Conecte seu Instagram",
-      "Receba seu primeiro resumo semanal",
-    ],
+    title: "Tenha direção nova toda semana.",
+    subtitle: "O Pro reúne tendências, análise ao vivo e ferramentas para você decidir o próximo movimento do seu conteúdo.",
+    ctaLabel: "Assinar o Pro",
   },
 };
 
@@ -241,6 +138,9 @@ export default function BillingSubscribeModal({
   // UI state
   const [period, setPeriod] = useState<"monthly" | "annual">("monthly"); // padrão mensal para destacar valor inicial
   const [currency, setCurrency] = useState<"brl" | "usd">("brl");
+  const [couponCode, setCouponCode] = useState("");
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
   const trackedOpenRef = useRef(false);
@@ -260,8 +160,6 @@ export default function BillingSubscribeModal({
   // O modal responde ao motivo que o abriu; o stack completo não compete com a decisão.
   const contextCopy = PAYWALL_COPY[effectiveContext] ?? PAYWALL_COPY.default;
   const paywallCopy = contextCopy;
-  const valueBullets = (contextCopy.bullets.length > 0 ? contextCopy.bullets : FEATURES).slice(0, 3);
-  const priceAnchor = contextCopy.priceAnchor ?? null;
   const primaryCtaLabel = contextCopy.ctaLabel || "Assinar e continuar";
   const shouldBlockSubscribe =
     !billingStatusError && (hasPremiumAccess || needsPaymentAction);
@@ -284,6 +182,7 @@ export default function BillingSubscribeModal({
     next.searchParams.delete(PAYWALL_AUTOSTART_PARAM);
     next.searchParams.delete(PAYWALL_PERIOD_PARAM);
     next.searchParams.delete(PAYWALL_CURRENCY_PARAM);
+    next.searchParams.delete(PAYWALL_COUPON_PARAM);
     const target =
       next.pathname +
       (next.search ? next.search : "") +
@@ -299,8 +198,11 @@ export default function BillingSubscribeModal({
     callbackUrl.searchParams.set(PAYWALL_AUTOSTART_PARAM, "1");
     callbackUrl.searchParams.set(PAYWALL_PERIOD_PARAM, period);
     callbackUrl.searchParams.set(PAYWALL_CURRENCY_PARAM, currency);
+    if (couponApplied) {
+      callbackUrl.searchParams.set(PAYWALL_COUPON_PARAM, D2C_VIP_DISPLAY_CODE);
+    }
     redirectToGoogleConsentLogin(callbackUrl.toString());
-  }, [currency, effectiveContext, period]);
+  }, [couponApplied, currency, effectiveContext, period]);
 
   const resolveCheckoutCancelUrl = useCallback(() => {
     if (typeof window === "undefined") return "/dashboard/billing";
@@ -328,6 +230,7 @@ export default function BillingSubscribeModal({
     fallback.searchParams.delete(PAYWALL_AUTOSTART_PARAM);
     fallback.searchParams.delete(PAYWALL_PERIOD_PARAM);
     fallback.searchParams.delete(PAYWALL_CURRENCY_PARAM);
+    fallback.searchParams.delete(PAYWALL_COUPON_PARAM);
     const fallbackPath =
       fallback.pathname +
       (fallback.search ? fallback.search : "") +
@@ -469,12 +372,18 @@ export default function BillingSubscribeModal({
     if ((!modalVisible && !resumeCheckoutDirect) || !searchParams) return;
     const periodParam = searchParams.get(PAYWALL_PERIOD_PARAM);
     const currencyParam = searchParams.get(PAYWALL_CURRENCY_PARAM);
+    const couponParam = searchParams.get(PAYWALL_COUPON_PARAM);
 
     if (periodParam === "monthly" || periodParam === "annual") {
       setPeriod(periodParam);
     }
     if (currencyParam === "brl" || currencyParam === "usd") {
       setCurrency(currencyParam);
+    }
+    if (isD2cVipPromotionCode(couponParam) && periodParam !== "annual") {
+      setCouponCode(D2C_VIP_DISPLAY_CODE);
+      setCouponApplied(true);
+      setCouponError(null);
     }
   }, [modalVisible, resumeCheckoutDirect, searchParams]);
 
@@ -584,7 +493,35 @@ export default function BillingSubscribeModal({
     return Math.max(0, Math.round(pct * 100));
   }, [prices, currency]);
   const resolvedPrimaryCtaLabel =
-    sessionStatus === "authenticated" ? primaryCtaLabel : "Continuar com Google";
+    sessionStatus === "authenticated"
+      ? couponApplied && period === "monthly" ? "Começar meu mês grátis" : primaryCtaLabel
+      : "Continuar com Google";
+
+  const handleApplyCoupon = useCallback(() => {
+    if (!isD2cVipPromotionCode(couponCode)) {
+      setCouponApplied(false);
+      setCouponError("Cupom inválido ou expirado.");
+      return;
+    }
+    if (period !== "monthly") {
+      setCouponApplied(false);
+      setCouponError(`O cupom ${D2C_VIP_DISPLAY_CODE} é válido apenas para o plano mensal.`);
+      return;
+    }
+    setCouponCode(D2C_VIP_DISPLAY_CODE);
+    setCouponApplied(true);
+    setCouponError(null);
+  }, [couponCode, period]);
+
+  const handlePeriodChange = useCallback((nextPeriod: "monthly" | "annual") => {
+    setPeriod(nextPeriod);
+    if (nextPeriod === "annual" && couponApplied) {
+      setCouponApplied(false);
+      setCouponError(`O cupom ${D2C_VIP_DISPLAY_CODE} foi removido porque vale apenas no plano mensal.`);
+    } else {
+      setCouponError(null);
+    }
+  }, [couponApplied]);
 
   /** Dispara o fluxo de assinatura (Checkout hospedado ou Payment Element). */
   const handleSubscribe = useCallback(async (options?: { hiddenResume?: boolean }) => {
@@ -622,6 +559,9 @@ export default function BillingSubscribeModal({
         successUrl: `${window.location.origin}/billing/success`,
         cancelUrl: resolveCheckoutCancelUrl(),
         source: "modal",
+        ...(couponApplied || isD2cVipPromotionCode(searchParams?.get(PAYWALL_COUPON_PARAM))
+          ? { promotionCode: D2C_VIP_DISPLAY_CODE }
+          : {}),
       };
 
       const response = await fetch("/api/billing/subscribe", {
@@ -674,6 +614,7 @@ export default function BillingSubscribeModal({
   }, [
     closeModal,
     currency,
+    couponApplied,
     effectiveContext,
     hasPremiumAccess,
     needsCheckout,
@@ -681,6 +622,7 @@ export default function BillingSubscribeModal({
     period,
     resolveCheckoutCancelUrl,
     router,
+    searchParams,
     sessionStatus,
     startGoogleCheckoutFlow,
   ]);
@@ -827,93 +769,28 @@ export default function BillingSubscribeModal({
       >
         <div
           ref={dialogRef}
-          className="ds-paywall animate-[fadeIn_180ms_ease-out] flex flex-col"
+          className="billing-pro-modal ds-paywall animate-[fadeIn_180ms_ease-out] flex flex-col"
           tabIndex={-1}
         >
-          {/* Header sticky */}
           <div className="sticky top-0 z-10 bg-[var(--ds-color-surface)]">
-            <div className="px-6 pb-5 pt-5">
-              {/* Badge + fechar */}
-              <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="px-5 pb-3 pt-4 sm:px-6 sm:pt-5">
+              <div className="mb-3 flex items-center justify-between gap-3">
                 <span className="ds-eyebrow">Data2Content Pro</span>
-                <button
-                  onClick={closeModal}
-                  aria-label="Fechar"
-                  className="ds-icon-button !h-11 !w-11"
-                >
+                <button onClick={closeModal} aria-label="Fechar" className="ds-icon-button !h-10 !w-10">
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              {/* Título + subtítulo */}
-              <h2 id="subscribe-modal-title" className="font-display text-[2.1rem] font-bold tracking-[-0.05em] leading-[0.96] text-zinc-950">
+              <h2 id="subscribe-modal-title" className="max-w-[25rem] font-display text-[1.9rem] font-bold leading-[1] tracking-[-0.045em] text-zinc-950 sm:text-[2.15rem]">
                 {paywallCopy.title}
               </h2>
-              <p className="mt-2 text-[13px] leading-[1.55] text-zinc-500">
+              <p className="mt-2 max-w-[26rem] text-[13px] leading-[1.5] text-zinc-600">
                 {paywallCopy.subtitle}
               </p>
             </div>
           </div>
 
           <div className="dashboard-scrollbar flex-1 overflow-y-auto">
-            {/* Zona de preço */}
-            <div className="px-6 pb-5 pt-1">
-              <div className="flex items-baseline gap-1.5">
-                <div className="font-display text-[3rem] font-bold leading-none tracking-[-0.055em] text-zinc-950">
-                  {period === "annual" ? formatMoney(monthlyEquivalent) : formatMoney(activePrice)}
-                </div>
-                <span className="text-sm font-medium text-zinc-400">/mês</span>
-              </div>
-
-              {period === "annual" && (
-                <div className="mt-1.5 text-[12px] text-zinc-400">
-                  cobrado anualmente · <span className="font-semibold text-zinc-500">{formatMoney(activePrice)}/ano</span>
-                </div>
-              )}
-
-              {/* Âncora de preço — traduz o custo em algo concreto pro criador.
-                  Condicionada ao contexto (ex.: na calculadora, "uma publi paga meses"). */}
-              {priceAnchor && (
-                <p className="mt-2 text-[12.5px] font-medium leading-snug text-zinc-600">
-                  {priceAnchor}
-                </p>
-              )}
-
-              {/* Seletores — período + moeda na mesma linha */}
-              <div className="mt-5 flex items-center justify-between gap-3">
-                <div className="ds-paywall__toggle">
-                  <button
-                    type="button"
-                    onClick={() => setPeriod("monthly")}
-                    className="ds-paywall__toggle-option"
-                    aria-pressed={period === "monthly"}
-                    disabled={loadingRedirect}
-                  >
-                    Mensal
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setPeriod("annual")}
-                    className="ds-paywall__toggle-option"
-                    aria-pressed={period === "annual"}
-                    disabled={loadingRedirect}
-                  >
-                    Anual {savingsPct > 0 && <span className="ml-1 text-[var(--ds-color-brand-strong)]">-{savingsPct}%</span>}
-                  </button>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setCurrency(currency === "brl" ? "usd" : "brl")}
-                  disabled={loadingRedirect}
-                  className="min-h-11 text-xs font-semibold text-[var(--ds-color-brand-strong)] underline-offset-2 transition-colors hover:underline disabled:opacity-50"
-                >
-                  {currency === "brl" ? "Ver em USD" : "Ver em BRL"}
-                </button>
-              </div>
-            </div>
-
-            {/* Três razões contextuais — uma decisão, sem catálogo de features. */}
-            <div className="px-6 pb-6 pt-2">
+            <div className="px-5 py-4 sm:px-6 sm:py-5">
               {hasPremiumAccess && !billingStatusLoading && !billingStatusError && (
                 <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-xs font-semibold text-emerald-700">
                   Você já tem o Pro ativo. Se algo não está funcionando, tente recarregar a página.
@@ -930,29 +807,126 @@ export default function BillingSubscribeModal({
                 </div>
               )}
 
-              <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--ds-color-brand-strong)]">Incluído no Pro</p>
               <ul className="grid gap-3">
-                {valueBullets.map((feat) => (
-                  <li key={feat} className="flex items-start gap-3 border-b border-[var(--ds-color-line)] pb-3 last:border-0 last:pb-0">
-                    <span className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--ds-color-brand-soft)]">
-                      <Check className="h-3.5 w-3.5 text-[var(--ds-color-brand-strong)]" strokeWidth={2.5} />
-                    </span>
-                    <span className="text-[13px] font-medium leading-[1.5] text-zinc-800">{feat}</span>
+                {PRO_BENEFITS.map((benefit) => (
+                  <li key={benefit} className="flex items-start gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ds-color-brand-strong)]" strokeWidth={2.5} />
+                    <span className="text-[13px] font-semibold leading-[1.4] text-zinc-800">{benefit}</span>
                   </li>
                 ))}
               </ul>
+
+              <section aria-label="Escolha do plano" className="mt-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div key={`${period}-${currency}-${couponApplied}`} className="flex animate-[priceShift_180ms_ease-out] items-baseline gap-1.5">
+                      <span className="font-display text-[2.75rem] font-bold leading-none tracking-[-0.055em] text-zinc-950">
+                        {couponApplied && period === "monthly"
+                          ? formatMoney(0)
+                          : period === "annual"
+                            ? formatMoney(monthlyEquivalent)
+                            : formatMoney(activePrice)}
+                      </span>
+                      <span className="text-xs font-semibold text-zinc-400">
+                        {couponApplied && period === "monthly" ? "no 1º mês" : "/mês"}
+                      </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCurrency(currency === "brl" ? "usd" : "brl")}
+                    disabled={loadingRedirect}
+                    className="min-h-10 shrink-0 text-[11px] font-semibold text-zinc-400 transition hover:text-zinc-700 disabled:opacity-50"
+                  >
+                    {currency === "brl" ? "Ver em USD" : "Ver em BRL"}
+                  </button>
+                </div>
+
+                <div className="mt-1.5 min-h-5 text-[11px] font-medium text-zinc-500">
+                  {couponApplied && period === "monthly"
+                    ? `Depois, ${formatMoney(prices.monthly[currency])}/mês. Cancele quando quiser.`
+                    : period === "annual"
+                      ? `Cobrado anualmente: ${formatMoney(activePrice)}/ano.`
+                      : "Cobrança mensal. Cancele quando quiser."}
+                </div>
+
+                <div className="mt-3">
+                  <div className="inline-flex rounded-full bg-zinc-100 p-1">
+                    <button
+                      type="button"
+                      onClick={() => handlePeriodChange("monthly")}
+                      aria-pressed={period === "monthly"}
+                      disabled={loadingRedirect}
+                      className={`min-h-9 rounded-full px-3 text-[11px] font-bold transition ${period === "monthly" ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500 hover:text-zinc-800"}`}
+                    >
+                      Mensal
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handlePeriodChange("annual")}
+                      aria-pressed={period === "annual"}
+                      disabled={loadingRedirect}
+                      className={`min-h-9 rounded-full px-3 text-[11px] font-bold transition ${period === "annual" ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-500 hover:text-zinc-800"}`}
+                    >
+                      Anual {savingsPct > 0 ? `−${savingsPct}%` : ""}
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <div className="mt-4">
+                <label htmlFor="d2c-promotion-code" className="text-[11px] font-bold text-zinc-700">
+                  Tem um cupom?
+                </label>
+                <div className="mt-1.5 flex gap-2">
+                  <input
+                    id="d2c-promotion-code"
+                    type="text"
+                    value={couponCode}
+                    onChange={(event) => {
+                      setCouponCode(event.target.value);
+                      setCouponApplied(false);
+                      setCouponError(null);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        handleApplyCoupon();
+                      }
+                    }}
+                    placeholder="Digite o código"
+                    autoComplete="off"
+                    disabled={loadingRedirect}
+                    aria-invalid={Boolean(couponError)}
+                    aria-describedby={couponError ? "d2c-promotion-error" : couponApplied ? "d2c-promotion-success" : undefined}
+                    className="min-h-11 min-w-0 flex-1 rounded-xl border border-transparent bg-zinc-100 px-3 text-sm font-semibold text-zinc-900 outline-none transition focus:bg-white focus:ring-2 focus:ring-[var(--ds-color-brand-soft)] disabled:opacity-50"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    disabled={loadingRedirect || !couponCode.trim() || couponApplied}
+                    className="min-h-11 px-2 text-xs font-bold text-[var(--ds-color-brand-strong)] transition hover:text-zinc-950 disabled:opacity-60"
+                  >
+                    {couponApplied ? "Aplicado" : "Aplicar"}
+                  </button>
+                </div>
+                {couponApplied ? (
+                  <p id="d2c-promotion-success" role="status" className="sr-only">
+                    Primeiro mês gratuito aplicado. Depois, {formatMoney(prices.monthly[currency])}/mês.
+                  </p>
+                ) : couponError ? (
+                  <p id="d2c-promotion-error" className="mt-2 text-xs font-semibold text-red-600">{couponError}</p>
+                ) : null}
+              </div>
             </div>
           </div>
 
           {/* Rodapé sticky */}
-          <div className="sticky bottom-0 z-10 border-t border-[var(--ds-color-line)] bg-[var(--ds-color-surface)]">
-            <div className="px-6 pb-6 pt-4">
+          <div className="sticky bottom-0 z-10 bg-[var(--ds-color-surface)]">
+            <div className="px-5 pb-4 pt-3 sm:px-6 sm:pb-5 sm:pt-4">
               <button
                 type="button"
                 onClick={() => handleSubscribe()}
                 disabled={loadingRedirect || billingStatusLoading || sessionStatus === "loading" || shouldBlockSubscribe}
                 className="ds-button ds-button--primary ds-button--block group/btn"
-                data-autofocus="true"
                 data-analytics-name="activate_subscription"
                 data-analytics-section="billing_subscribe_modal"
               >
@@ -970,7 +944,9 @@ export default function BillingSubscribeModal({
               </button>
 
               <p className="mt-3 text-center text-[11px] text-zinc-400">
-                Pagamento seguro. Cancele quando quiser.
+                {couponApplied && period === "monthly"
+                  ? "Cadastre seu cartão agora. A primeira cobrança será feita somente após o primeiro mês."
+                  : "Pagamento seguro. Cancele quando quiser."}
               </p>
 
               {/* CTA secundário: apenas no contexto onboarding.
@@ -993,7 +969,10 @@ export default function BillingSubscribeModal({
 
         <style jsx global>{`
           @keyframes fadeIn { from{opacity:0;transform:translateY(15px) scale(.95)} to{opacity:1;transform:translateY(0) scale(1)} }
+          @keyframes priceShift { from{opacity:.45;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
           @keyframes shimmer { 0%{transform:translateX(-100%)} 100%{transform:translateX(100%)} }
+          .billing-pro-modal { max-height: 96dvh; }
+          @media (min-width: 640px) { .billing-pro-modal { max-height: min(92dvh, 48rem); } }
         `}</style>
       </div>
     );

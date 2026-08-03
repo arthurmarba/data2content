@@ -1,0 +1,8 @@
+- generic [active] [ref=e1]:
+  - main [ref=e3]:
+    - generic [ref=e4]:
+      - img "Data2Content" [ref=e5]
+      - heading "Abrindo login do Google..." [level=1] [ref=e6]
+      - paragraph [ref=e7]: Você será redirecionado em instantes.
+      - generic "Carregando" [ref=e8]
+  - alert [ref=e9]

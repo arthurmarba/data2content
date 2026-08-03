@@ -1,0 +1,83 @@
+- generic [ref=f9e1]:
+  - main [ref=f9e5]:
+    - generic [ref=f9e8]:
+      - generic [ref=f9e10]:
+        - generic [ref=f9e13]:
+          - heading "Olá, E2E" [level=1] [ref=f9e15]
+          - button "Configurações" [ref=f9e18] [cursor=pointer]
+        - generic [ref=f9e23]:
+          - generic [ref=f9e25]:
+            - button "EU Mídia Kit Incluído no Pro" [ref=f9e26] [cursor=pointer]:
+              - generic [ref=f9e27]: EU
+              - generic [ref=f9e28]:
+                - generic [ref=f9e29]: Mídia Kit
+                - generic [ref=f9e30]: Incluído no Pro
+            - button "Quanto vale sua publi? Descubra seu preço justo de publi" [ref=f9e33] [cursor=pointer]:
+              - generic [ref=f9e38]:
+                - generic [ref=f9e39]: Quanto vale sua publi?
+                - generic [ref=f9e40]: Descubra seu preço justo de publi
+          - region [ref=f9e43]:
+            - generic [ref=f9e44]:
+              - generic [ref=f9e45]:
+                - generic [ref=f9e46]: Reunião semanal
+                - generic [ref=f9e50]: Horário previsto
+              - heading "Quinta-feira, 6 de agosto · 19h–21h" [level=2] [ref=f9e51]
+              - paragraph [ref=f9e52]: Assine o Pro para entrar no grupo e confirmar presença para análise.
+              - generic [ref=f9e53]:
+                - button "Abrir grupo Pro" [active] [ref=f9e54] [cursor=pointer]
+                - link "Ver reunião" [ref=f9e58] [cursor=pointer]:
+                  - /url: /reuniao
+          - generic [ref=f9e60]:
+            - paragraph [ref=f9e67]: Seu Mapa
+            - paragraph [ref=f9e68]: Seu mapa está sendo construído.
+            - paragraph [ref=f9e69]: Cada vídeo analisado revela um pouco mais de quem você é.
+            - button "Primeira análise" [ref=f9e70] [cursor=pointer]
+            - button "Defina seu norte Por que você cria? Isso ancora todo o mapa." [ref=f9e73] [cursor=pointer]:
+              - generic [ref=f9e77]:
+                - generic [ref=f9e78]: Defina seu norte
+                - generic [ref=f9e79]: Por que você cria? Isso ancora todo o mapa.
+      - navigation [ref=f9e85]:
+        - button "Perfil" [ref=f9e86] [cursor=pointer]
+        - generic [ref=f9e91]:
+          - button "Escanear novo vídeo" [ref=f9e92] [cursor=pointer]
+          - generic [ref=f9e96]: Escanear
+        - button "Collabs" [ref=f9e97] [cursor=pointer]
+  - dialog [ref=f9e105]:
+    - generic [ref=f9e106]:
+      - generic [ref=f9e108]:
+        - generic [ref=f9e109]:
+          - generic [ref=f9e110]: Data2Content Pro
+          - button "Fechar" [ref=f9e111] [cursor=pointer]
+        - heading "Você não cria sozinho." [level=2] [ref=f9e115]
+        - paragraph [ref=f9e116]: Toda semana a comunidade se reúne ao vivo pra ler conteúdo junto e ajustar a estratégia de imagem de cada um — e as pautas chegam pelo WhatsApp.
+      - generic [ref=f9e117]:
+        - generic [ref=f9e118]:
+          - generic [ref=f9e119]:
+            - generic [ref=f9e120]: R$ 97,00
+            - generic [ref=f9e121]: /mês
+          - generic [ref=f9e122]:
+            - generic [ref=f9e123]:
+              - button "Mensal" [pressed] [ref=f9e124] [cursor=pointer]
+              - button "Anual -24%" [ref=f9e125] [cursor=pointer]:
+                - text: Anual
+                - generic [ref=f9e126]: "-24%"
+            - button "Ver em USD" [ref=f9e127] [cursor=pointer]
+          - generic [ref=f9e128]:
+            - text: Cupom
+            - generic [ref=f9e129]:
+              - textbox "Cupom" [ref=f9e130]:
+                - /placeholder: Digite seu cupom
+              - button "Aplicar" [disabled] [ref=f9e131]
+        - generic [ref=f9e132]:
+          - paragraph [ref=f9e133]: Incluído no Pro
+          - list [ref=f9e134]:
+            - listitem [ref=f9e135]:
+              - generic [ref=f9e139]: Reunião semanal da comunidade, ao vivo
+            - listitem [ref=f9e140]:
+              - generic [ref=f9e144]: Criadores indicados pra collab com a sua narrativa
+            - listitem [ref=f9e145]:
+              - generic [ref=f9e149]: Clareza sobre o que funciona — com dados reais do Instagram
+      - generic [ref=f9e151]:
+        - button "Assinar Pro e entrar" [ref=f9e152] [cursor=pointer]
+        - paragraph [ref=f9e155]: Pagamento seguro. Cancele quando quiser.
+  - alert [ref=f9e104]

@@ -15,7 +15,7 @@ type LandingAuthCtaProps = {
   guestLabel: string;
   childrenAfter?: ReactNode;
   onNavigate?: () => void;
-  /** Destino de quem já tem conta (a reunião). */
+  /** Destino de quem já tem conta; por padrão, o perfil estratégico. */
   destination?: string;
   /** Destino de quem acabou de criar a conta; por padrão, o onboarding. */
   guestDestination?: string;
@@ -38,9 +38,9 @@ export function LandingAuthCta({
   const authenticated = Boolean(session?.user);
 
   const handleGuestSignIn = () => {
-    // Quem cria conta entra pelo caminho normal: o onboarding, onde responde a
-    // narrativa e recebe a reunião (agenda, WhatsApp e acesso). O `destination`
-    // da reunião vale para quem já tem conta e já passou por essa etapa.
+    // Quem cria conta entra pelo caminho gratuito normal: o onboarding, onde
+    // responde à narrativa e começa a conhecer a plataforma. O `destination`
+    // vale apenas para quem já tem conta e passou por essa etapa.
     const callbackUrl =
       searchParams.get("callbackUrl")?.trim() || guestDestination || MOBILE_PROFILE_ROUTE;
     track("landing_creator_cta_click", trackingLocation ? { location: trackingLocation } : undefined);
@@ -71,8 +71,8 @@ export function LandingAuthCta({
     );
   }
 
-  // Quem já tem conta cai no Perfil, onde o card da reunião concentra data,
-  // WhatsApp e o acesso à página `/reuniao`.
+  // Quem já tem conta cai no Perfil, ponto de entrada para sua direção de
+  // conteúdo e para os recursos liberados conforme o plano.
   return (
     <Link
       href={destination || MOBILE_PROFILE_ROUTE}

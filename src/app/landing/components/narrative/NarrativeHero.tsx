@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -16,16 +16,25 @@ const HERO_STOP_MOTION = [
 ] as const;
 
 const HERO_MAP_SIGNALS = [
-  { category: "Território", value: "Criatividade sem fórmulas" },
-  { category: "Assuntos", value: "IA · negócios criativos" },
-  { category: "Asset de vida", value: "Bastidores de quem constrói" },
-  { category: "Tom de fala", value: "Direto · pessoal · provocativo" },
+  { category: "Cenário", value: "Espaço de trabalho" },
+  { category: "Assunto", value: "IA · negócios criativos" },
+  { category: "Fala", value: "Estou construindo do meu jeito" },
+  { category: "Tom", value: "Direto · pessoal · provocativo" },
+] as const;
+
+const HERO_OUTCOMES = [
+  "ganhar seguidores",
+  "engajar",
+  "vender",
+  "atrair publicidade",
+  "criar comunidade",
 ] as const;
 
 export function NarrativeHero() {
   const searchParams = useSearchParams();
   const reducedMotion = useReducedMotion();
   const [activeFrame, setActiveFrame] = useState(0);
+  const [activeOutcome, setActiveOutcome] = useState(0);
   const loginError = searchParams.get("error");
 
   useEffect(() => {
@@ -46,22 +55,52 @@ export function NarrativeHero() {
     return () => window.clearInterval(timer);
   }, [reducedMotion]);
 
+  useEffect(() => {
+    if (reducedMotion) {
+      setActiveOutcome(0);
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      setActiveOutcome((current) => (current + 1) % HERO_OUTCOMES.length);
+    }, 3600);
+
+    return () => window.clearInterval(timer);
+  }, [reducedMotion]);
+
   return (
     <section className="d2c-hero d2c-human-hero">
       <div className="d2c-shell d2c-human-hero__layout">
         <div className="d2c-human-hero__content">
           <p className="d2c-human-hero__eyebrow">
-            Consultoria ao vivo · quintas, 19h–21h
+            Inteligência de tendências para criadores e marcas
           </p>
           <h1>
-            <span className="d2c-human-hero__promise-line">Te ajudamos a criar</span>
-            <span className="d2c-human-hero__business-line">pra atrair marcas.</span>
+            <span className="sr-only">
+              Tendências de conteúdo viram direção para ganhar seguidores, engajar, vender, atrair publicidade e criar comunidade.
+            </span>
+            <span aria-hidden="true" className="d2c-human-hero__promise-line">Tendência vira direção</span>
+            <span aria-hidden="true" className="d2c-human-hero__business-line">
+              <AnimatePresence initial={false} mode="sync">
+                <motion.span
+                  key={HERO_OUTCOMES[activeOutcome]}
+                  className="d2c-human-hero__outcome-line"
+                  initial={{ opacity: 0, y: "32%" }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: "-28%" }}
+                  transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+                >
+                  <span className="d2c-human-hero__outcome-prefix">para </span>
+                  <em className="d2c-human-hero__outcome-word">{HERO_OUTCOMES[activeOutcome]}.</em>
+                </motion.span>
+              </AnimatePresence>
+            </span>
           </h1>
           <p className="d2c-human-hero__lead">
-            Marcas compram narrativas. Na D2C, consultoria, IA e creators transformam sua história em direção, pautas e collabs.
+            Assuntos, falas, cenários, formatos e reações da audiência viram inteligência toda semana. Assinantes recebem o relatório completo e debatem os achados ao vivo com a D2C.
           </p>
           <div className="d2c-human-hero__actions">
-            <LandingAuthCta className="d2c-button d2c-button--human" guestLabel="Entrar na D2C" authenticatedLabel="Acessar a D2C" childrenAfter={<ArrowRight size={18} aria-hidden="true" />} trackingLocation="hero" />
+            <LandingAuthCta className="d2c-button d2c-button--human" guestLabel="Criar conta grátis" authenticatedLabel="Acessar a D2C" childrenAfter={<ArrowRight size={18} aria-hidden="true" />} trackingLocation="hero" />
           </div>
           {loginError && (
             <p role="alert" className="d2c-human-hero__auth-notice">
@@ -71,7 +110,7 @@ export function NarrativeHero() {
             </p>
           )}
           <small className="d2c-human-hero__note">
-            Entre com Google · sem cobrança automática.
+            Conta gratuita · relatório e reuniões para assinantes.
           </small>
         </div>
         <figure className="d2c-human-hero__portrait">
@@ -95,9 +134,9 @@ export function NarrativeHero() {
             />
             <figcaption
               className="d2c-human-hero__map-caption"
-              aria-label="Elementos que formam o Seu Mapa: Território, Assuntos, Asset de vida e Tom de fala"
+              aria-label="Sinais que a D2C lê no conteúdo: cenário, assunto, fala e tom"
             >
-              <small>Seu mapa</small>
+              <small>Sinais do conteúdo</small>
               <dl>
                 {HERO_MAP_SIGNALS.map((signal, index) => (
                   <motion.div

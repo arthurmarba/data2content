@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useDebounce } from "use-debounce";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { mapSubscribeError } from "@/app/lib/billing/errors";
+import { isD2cVipPromotionCode } from "@/app/lib/billing/d2cVipPromotion";
 
 // --- Tipos e Constantes ---
 type Plan = "monthly" | "annual";
@@ -23,6 +24,7 @@ interface InvoicePreview {
   total: number;           // em centavos
   nextCycleAmount: number; // em centavos
   affiliateApplied: boolean;
+  promotionApplied?: boolean;
 }
 
 // <<< ALTERAÇÃO 1: Definir a interface de propriedades para o componente >>>
@@ -98,8 +100,11 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
   // Persistir no localStorage se o usuário editar
   useEffect(() => {
     try {
-      if (affiliateCode?.trim()) localStorage.setItem("d2c_ref", affiliateCode.trim().toUpperCase());
-      else localStorage.removeItem("d2c_ref");
+      if (affiliateCode?.trim() && !isD2cVipPromotionCode(affiliateCode)) {
+        localStorage.setItem("d2c_ref", affiliateCode.trim().toUpperCase());
+      } else if (!affiliateCode?.trim()) {
+        localStorage.removeItem("d2c_ref");
+      }
     } catch {}
   }, [affiliateCode]);
 
@@ -109,7 +114,13 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
       const res = await fetch("/api/billing/preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: p, currency: c, affiliateCode: code }),
+        body: JSON.stringify({
+          plan: p,
+          currency: c,
+          ...(isD2cVipPromotionCode(code)
+            ? { promotionCode: code }
+            : { affiliateCode: code }),
+        }),
       });
       const data = await res.json();
       return { ok: res.ok, data };
@@ -306,7 +317,9 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
         body: JSON.stringify({
           plan,
           currency,
-          affiliateCode: affiliateCode.trim().toUpperCase() || undefined,
+          ...(isD2cVipPromotionCode(affiliateCode)
+            ? { promotionCode: affiliateCode.trim() }
+            : { affiliateCode: affiliateCode.trim().toUpperCase() || undefined }),
         }),
       });
       const data = await res.json();
@@ -437,7 +450,7 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
                 </label>
                 <div
                   className={`relative ${
-                    preview?.affiliateApplied && !affiliateError ? "ring-2 ring-indigo-500/30 rounded-md" : ""
+                    (preview?.affiliateApplied || preview?.promotionApplied) && !affiliateError ? "ring-2 ring-indigo-500/30 rounded-md" : ""
                   }`}
                 >
                   <input
@@ -476,6 +489,9 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
                   {!affiliateError && preview?.affiliateApplied && (
                     <p className="mt-1 text-xs text-green-600">✓ Código de afiliado registrado. O preço permanece o mesmo.</p>
                   )}
+                  {!affiliateError && preview?.promotionApplied && (
+                    <p className="mt-1 text-xs text-green-600">✓ Cupom d2cVIP aplicado: primeiro mês gratuito.</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -502,7 +518,7 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
                     <>
                       {/* --- Preço grande com risco quando houver algum desconto promocional --- */}
                       <div className="flex items-baseline justify-between">
-                        {preview.affiliateApplied && preview.discountsTotal > 0 ? (
+                        {preview.discountsTotal > 0 ? (
                           <div className="flex items-baseline gap-2">
                             <span className="text-xl text-gray-400 line-through">
                               {fmt(preview.subtotal, preview.currency)}

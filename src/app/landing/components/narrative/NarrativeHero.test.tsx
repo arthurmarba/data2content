@@ -30,6 +30,7 @@ jest.mock("framer-motion", () => {
   });
 
   return {
+    AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
     motion,
     useReducedMotion: () => true,
     useScroll: () => ({ scrollYProgress: 0 }),
@@ -48,20 +49,24 @@ describe("NarrativeHero", () => {
     render(<NarrativeHero />);
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "Te ajudamos a criarpra atrair marcas.",
+      "Tendências de conteúdo viram direção para ganhar seguidores, engajar, vender, atrair publicidade e criar comunidade.",
     );
-    expect(screen.getByText(/Marcas compram narrativas\. Na D2C/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Entrar na D2C/i })).toBeInTheDocument();
+    expect(screen.getByText(/Assuntos, falas, cenários, formatos e reações da audiência/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Criar conta grátis/i })).toBeInTheDocument();
+    expect(screen.getByText(/Conta gratuita · relatório e reuniões para assinantes/i)).toBeInTheDocument();
+    expect(screen.getByText("para")).toHaveClass("d2c-human-hero__outcome-prefix");
+    expect(screen.getByText("ganhar seguidores.").tagName).toBe("EM");
+    expect(screen.getByText("ganhar seguidores.")).toHaveClass("d2c-human-hero__outcome-word");
   });
 
-  it("expõe as dimensões do Seu Mapa como conteúdo, não como decoração", () => {
+  it("expõe os sinais lidos pela D2C como conteúdo, não como decoração", () => {
     render(<NarrativeHero />);
 
-    const map = screen.getByLabelText(/Elementos que formam o Seu Mapa/i);
+    const signals = screen.getByLabelText(/Sinais que a D2C lê no conteúdo/i);
 
-    expect(map).toHaveTextContent("TerritórioCriatividade sem fórmulas");
-    expect(map).toHaveTextContent("AssuntosIA · negócios criativos");
-    expect(map).toHaveTextContent("Asset de vidaBastidores de quem constrói");
-    expect(map).toHaveTextContent("Tom de falaDireto · pessoal · provocativo");
+    expect(signals).toHaveTextContent("CenárioEspaço de trabalho");
+    expect(signals).toHaveTextContent("AssuntoIA · negócios criativos");
+    expect(signals).toHaveTextContent("FalaEstou construindo do meu jeito");
+    expect(signals).toHaveTextContent("TomDireto · pessoal · provocativo");
   });
 });

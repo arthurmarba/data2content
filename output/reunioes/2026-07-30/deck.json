@@ -1,0 +1,780 @@
+{
+  "reuniao": {
+    "data": "2026-07-30",
+    "titulo": "Mykonos bateu recorde, a infância também — e repetir a legenda, não",
+    "participantes": [
+      "@ninaktorres",
+      "@lorenadmarchetti",
+      "@carla_tosta",
+      "@marinaduttra_",
+      "@blununees",
+      "@riocomerebeber",
+      "Camila Barros",
+      "Cris Valente"
+    ]
+  },
+  "criadores": [
+    {
+      "handle": "@ninaktorres",
+      "nome": "Nina Torres",
+      "pontoForte": {
+        "texto": "O vídeo do cachorro que ela não consegue controlar foi o mais comentado da semana.",
+        "evidencia": "415 interações — bem mais que o vídeo sem legenda nenhuma, que ficou em 159. Quando ela dá o contexto na abertura, a piada rende mais.",
+        "postId": "18066612389708952",
+        "stat": {
+          "valor": "415",
+          "label": "interações"
+        },
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "verde",
+          "marca": "amarelo"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/759445174_18608142505061036_3871576918324463555_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=105&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=lTbzmr5lUZkQ7kNvwHOP2g7&_nc_oc=Adrv_poC33qs2WfPlJD1uuLdR_VwJuFACn_mVWkOxlenBQUqRWpwkZSwyjSeBJVezeeuKyyKOBIWBF_ksNpLtF_o&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=t8-xHzym4OaDHg5muASIYw&_nc_tpa=Q5bMBQE41duvp-9kThRainN7K_xT2FRkZNsKwLPOObgkr3ZGqajWa1FziEEcT-FQo5BUxlhipveoBlPlFw&oh=00_AQF67mbI1QVSXRyUOp3JwtvQ_fG_hU91AiVcCANYoBojVQ&oe=6A7197A1"
+      },
+      "pontoAjustar": {
+        "texto": "O vídeo sem nenhuma legenda foi o que menos gente comentou.",
+        "evidencia": "159 interações contra 415 do vídeo do cachorro — sem a frase de abertura, quem passa o dedo não entende a piada a tempo.",
+        "postId": "18021803123891538",
+        "selos": {
+          "narrativa": "amarelo",
+          "audiencia": "vermelho",
+          "marca": "amarelo"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/755743299_18607209781061036_5901420574123197528_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=p4tGcbULa_UQ7kNvwE_xQXX&_nc_oc=AdrWha8KPPbia61PhSwyG65rzH7VydR0v54asjz8BrbEkPvE1QFti9bP76yk3O-ZKEyDIllH1XaotYsQEwbnHD1r&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=0i0v45_DTEqarp2ZvgdtXg&_nc_tpa=Q5bMBQEedN4ZiRwRSo80v6jntroyeDZSwUXnaQTz56s5xh1aKkL1NpeEDm6Im0bHA_n7bwapD7KvKBZOWw&oh=00_AQHvotlKKPxIxpaaZL23fr903Qfh_h_p5W81xOkJKBcPCQ&oe=6A719596"
+      },
+      "ganchoMarca": {
+        "categoria": "marca de jogos de casal",
+        "exemplo": "ela já grava com o \"Guess Who?\" em vídeo",
+        "porque": "o jogo já é asset real dela, não uma sugestão do nada"
+      },
+      "coerencia": {
+        "status": "no-mapa",
+        "resumo": "Os três posts da semana ficaram dentro do assunto dela — família e humor do dia a dia."
+      },
+      "audienciaPede": "querem mais desses temas de família — a pergunta sobre irmãos do meio também rendeu bem",
+      "reel": {
+        "postId": "18066612389708952",
+        "posterUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/759445174_18608142505061036_3871576918324463555_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=105&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=lTbzmr5lUZkQ7kNvwHOP2g7&_nc_oc=Adrv_poC33qs2WfPlJD1uuLdR_VwJuFACn_mVWkOxlenBQUqRWpwkZSwyjSeBJVezeeuKyyKOBIWBF_ksNpLtF_o&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=t8-xHzym4OaDHg5muASIYw&_nc_tpa=Q5bMBQE41duvp-9kThRainN7K_xT2FRkZNsKwLPOObgkr3ZGqajWa1FziEEcT-FQo5BUxlhipveoBlPlFw&oh=00_AQF67mbI1QVSXRyUOp3JwtvQ_fG_hU91AiVcCANYoBojVQ&oe=6A7197A1"
+      },
+      "numeros": [
+        {
+          "valor": "3",
+          "label": "posts"
+        },
+        {
+          "valor": "415",
+          "label": "interações (pico)"
+        },
+        {
+          "valor": "humor",
+          "label": "território forte"
+        }
+      ],
+      "proximosPassos": {
+        "lacuna": "humor de casal e signo, territórios mapeados dela, não apareceram essa semana",
+        "pautas": [
+          {
+            "titulo": "Manda pra minha irmã reagir ao vídeo do cachorro",
+            "porque": "puxa o território de relação entre irmãs, que já rendeu bem essa semana"
+          },
+          {
+            "titulo": "O parceiro tenta adivinhar o meu signo ao vivo",
+            "porque": "junta humor de casal e signo, dois territórios que sumiram"
+          },
+          {
+            "titulo": "Um cachorro eu controlo, o resto da casa não",
+            "porque": "continua o gancho do vídeo que mais comentaram, sem perder o momentum"
+          }
+        ]
+      },
+      "userId": "6a446f3b6292d3878c0655d1",
+      "profilePictureUrl": "https://scontent-iad3-2.xx.fbcdn.net/v/t51.2885-15/312069181_444825374459558_95467861958617038_n.jpg?_nc_cat=111&ccb=1-7&_nc_sid=7d201b&_nc_ohc=WWeDYzzObMEQ7kNvwEY07To&_nc_oc=AdrdnhAq1s_x3weRb2-uZ5gQxHPd4tLVPtND0oB37VzwuwhNv_gC2NGwvQWWN9om9HY&_nc_zt=23&_nc_ht=scontent-iad3-2.xx&edm=AL-3X8kEAAAA&oh=00_AQHNZLz2-HsVg02tdD1BOfgbG1TT3YyAduKaZ8b-WOSsdQ&oe=6A70FF82",
+      "narrativaCentral": "uma amiga que te faz rir e se identificar",
+      "territorios": [
+        "cotidiano",
+        "humor",
+        "conexão",
+        "Relações entre irmãs",
+        "Humor de casal",
+        "Signo"
+      ],
+      "grafico": {
+        "posts": [
+          {
+            "rotulo": "24/07",
+            "saves": 5,
+            "shares": 7
+          },
+          {
+            "rotulo": "27/07",
+            "saves": 12,
+            "shares": 8
+          },
+          {
+            "rotulo": "28/07",
+            "saves": 11,
+            "shares": 5
+          }
+        ]
+      }
+    },
+    {
+      "handle": "@lorenadmarchetti",
+      "nome": "Lorena Marchetti",
+      "pontoForte": {
+        "texto": "O post sobre viver a infância sem pensar no \"depois\" foi de longe o maior da semana.",
+        "evidencia": "199 salvamentos e 710 compartilhamentos — 6.263 interações, um número que ela nunca tinha batido. A reflexão sobre ser mãe presente é o que mais penetra.",
+        "postId": "18172957882386648",
+        "stat": {
+          "valor": "710",
+          "label": "compartilhamentos"
+        },
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "verde",
+          "marca": "amarelo"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/756894728_18161434171474050_8179660659540035882_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=111&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_eui2=AeHaYYs-XdJlC4VPXz16LDfgkgRIP4CBp9CSBEg_gIGn0HT55yB3DmVeV8zkk3h2aneOU5aZuR4TpLTWXmfQHF91&_nc_ohc=0kba3X583B0Q7kNvwH_cjkm&_nc_oc=AdpIigxnHaw33U73Z7i8g0AKuU9wH1A71cczCXj-1967Ntk3zZu1ro6kZDP2Ez70YmsqKc7iAkaHbgH-JbG28s9H&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=UUkvId38jNUrACBBlHPCRw&_nc_tpa=Q5bMBQHVTKZnroh6dV_rXqGD6TLsCnf4XjsBwhujwx7GN_v90G4aUsU-UOXyQMkS7vkCd7E2IoG6ueRJFA&oh=00_AQHgYQ1QXjQz9VArFAgRHVEXA3F53OOjC5TqLjdKTB4XVA&oe=6A719F73"
+      },
+      "pontoAjustar": {
+        "texto": "O teste de um protocolo de beleza não teve nenhum salvamento nem compartilhamento.",
+        "evidencia": "Zero e zero, contra 199 e 710 do post da infância — quando ela testa produto solto, sem ligar com a vida real de mãe, a audiência passa direto.",
+        "postId": "18220715608328963",
+        "selos": {
+          "narrativa": "vermelho",
+          "audiencia": "vermelho",
+          "marca": "verde"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/759477793_18161533234474050_6109212078158955959_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=101&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_eui2=AeHtNpR90Z-XuH443k-WEzYVA32W3tKWaEQDfZbe0pZoRNZB5sXWlrUABsA3CSOKkgrSQ_XcJ4KbkiYcr8SS3kIb&_nc_ohc=13ru2KxiwiAQ7kNvwFshqkS&_nc_oc=Adp7DftRUYVFYPs-QZrrRaWbQ04sxQ0qem77tfLXkuj6kfrb9U7b0z-_g9wRUvE6vZ4RMcjJHBpzJXG2sPgfrk-n&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=JnLnR_rIbX9_h8rHvEgu1w&_nc_tpa=Q5bMBQHUDxznINHEhqCMwqO56BMiAS30Z9dQm2LifdUrettpDDSyyEJZGguxkseqT8uSOAZbU6DUimgCXQ&oh=00_AQEKdAuQhtjZgHBTPB27CGUYTuiRPwjYY0VAYC9MpLcE_w&oe=6A71A912"
+      },
+      "ganchoMarca": {
+        "categoria": "marca de turismo ou hotelaria carioca",
+        "exemplo": "tipo Selina ou uma rede de pousadas do Rio",
+        "porque": "o post do All Inclusive do Rio já rendeu 218 compartilhamentos — ela já prova que sabe recomendar hospedagem"
+      },
+      "coerencia": {
+        "status": "parcial",
+        "resumo": "O post da infância bateu recorde porque veio da vida real dela; o teste de produto, sem esse laço, não teve nenhum salvamento."
+      },
+      "audienciaPede": "querem ver mais os lugares do Rio que ela realmente testa, não o produto de beleza solto",
+      "reel": {
+        "postId": "18172957882386648",
+        "posterUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/756894728_18161434171474050_8179660659540035882_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=111&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_eui2=AeHaYYs-XdJlC4VPXz16LDfgkgRIP4CBp9CSBEg_gIGn0HT55yB3DmVeV8zkk3h2aneOU5aZuR4TpLTWXmfQHF91&_nc_ohc=0kba3X583B0Q7kNvwH_cjkm&_nc_oc=AdpIigxnHaw33U73Z7i8g0AKuU9wH1A71cczCXj-1967Ntk3zZu1ro6kZDP2Ez70YmsqKc7iAkaHbgH-JbG28s9H&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=UUkvId38jNUrACBBlHPCRw&_nc_tpa=Q5bMBQHVTKZnroh6dV_rXqGD6TLsCnf4XjsBwhujwx7GN_v90G4aUsU-UOXyQMkS7vkCd7E2IoG6ueRJFA&oh=00_AQHgYQ1QXjQz9VArFAgRHVEXA3F53OOjC5TqLjdKTB4XVA&oe=6A719F73"
+      },
+      "numeros": [
+        {
+          "valor": "3",
+          "label": "posts"
+        },
+        {
+          "valor": "710",
+          "label": "+ compartilhado (recorde dela)"
+        },
+        {
+          "valor": "maternidade",
+          "label": "território forte"
+        }
+      ],
+      "proximosPassos": {
+        "lacuna": "futebol e culinária infantil, territórios mapeados dela, não apareceram essa semana",
+        "pautas": [
+          {
+            "titulo": "A receita que a Liv aprova antes de qualquer prato pronto",
+            "porque": "usa culinária infantil, território mapeado e não usado"
+          },
+          {
+            "titulo": "Um passeio no Rio que prova que dá pra curtir sem gastar muito",
+            "porque": "continua o gancho do All Inclusive, que já rendeu 218 compartilhamentos"
+          },
+          {
+            "titulo": "O time que a Liv já torce, mesmo sem entender nada de futebol",
+            "porque": "usa o território de futebol, que está no mapa e sumiu essa semana"
+          }
+        ]
+      },
+      "userId": "6a413af29f33af0b8710b042",
+      "profilePictureUrl": "https://scontent-iad6-1.xx.fbcdn.net/v/t51.82787-15/656759973_18147942202474050_2933790870058558275_n.jpg?_nc_cat=107&ccb=1-7&_nc_sid=7d201b&_nc_eui2=AeHSOhbDf6V_-98Ew2n1h3HpvK0QoGcJZkq8rRCgZwlmSlVaVuE2DZmmSsV4ycpM5An2lHo1vd5O3vXMnVCIUtKO&_nc_ohc=isjip2qSrBoQ7kNvwHYShNC&_nc_oc=Ado_dJ9jcaE0iubsojhzD1VKJ2inNP2zrgQxl1CusuOeOfZymgD5fXfAUGheZIpVpwA&_nc_zt=23&_nc_ht=scontent-iad6-1.xx&edm=AL-3X8kEAAAA&_nc_gid=1RoaCwEvz3PqjECt6kLy-A&oh=00_AQHTuJocU9XztL_dE_KT75vUlZ7kHTSEuE9nLOsTFSY3Tg&oe=6A712121",
+      "narrativaCentral": "uma mãe carioca que vive a vida real com paixão",
+      "territorios": [
+        "maternidade",
+        "família",
+        "lifestyle",
+        "identidade carioca",
+        "culinária",
+        "futebol"
+      ],
+      "grafico": {
+        "posts": [
+          {
+            "rotulo": "26/07",
+            "saves": 21,
+            "shares": 218
+          },
+          {
+            "rotulo": "27/07",
+            "saves": 199,
+            "shares": 710
+          },
+          {
+            "rotulo": "28/07",
+            "saves": 0,
+            "shares": 0
+          }
+        ]
+      }
+    },
+    {
+      "handle": "@carla_tosta",
+      "nome": "Carla Tosta",
+      "pontoForte": {
+        "texto": "O relato sobre um dia que deixou o corpo dolorido, mas valeu a pena, foi o mais comentado da semana.",
+        "evidencia": "21 comentários e 461 interações — mais que o dobro do vídeo de nostalgia dos anos 90.",
+        "postId": "18081032012283348",
+        "stat": {
+          "valor": "461",
+          "label": "interações"
+        },
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "verde",
+          "marca": "amarelo"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.71878-15/758427548_1734144974495244_8066608037697059490_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=105&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=Kx079pZTmmIQ7kNvwFPYSck&_nc_oc=AdqAbFRdx-LhbAm350jyGK9t-W4ij7bpY0Nhtb15LAzrkyYkJivN1OQZDvH9TqcMdK9QLma4LWmVVRgEmj3PMSRZ&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=d13ylu-clgfUw9PTISF6Jg&_nc_tpa=Q5bMBQH0jcOeDp1vR9jf38R452iOggi1CTA3lxgkKUr4AjCPaHOSI13dWGosviPrdB3T8sWhPDyvmE1Ggw&oh=00_AQGSAonIG_qZuo2NntMK2FFin2Js-r6ujXm6d_G_y_xaMw&oe=6A71B9CB"
+      },
+      "pontoAjustar": {
+        "texto": "O vídeo de nostalgia dos anos 90, que é a cara dela no mapa, rendeu menos que o relato pessoal.",
+        "evidencia": "207 interações contra 461 — mesmo sendo o território mais forte dela, a nostalgia sozinha não bateu o pessoal essa semana.",
+        "postId": "17948610783219235",
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "vermelho",
+          "marca": "amarelo"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.71878-15/755141674_992864287115602_3602531444428781699_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=100&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=4Yrm3XaC8qAQ7kNvwEu6wAc&_nc_oc=AdqGpeWkKMgXCU_gwFXTLJzLkfHh-1oztAQBgjGv5IoKE-10HxusM3D56FdELUgnwdetNm3zkh4yeaxzM2wmYOXd&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=vCrvhqX5Thi1mlBW2yfz_A&_nc_tpa=Q5bMBQFRsr1chn2Y8W6D2nsjqGv3CtYMBIRb3JFNgtXZphrcESTdx_U-rFH2y12l0MUoEM0rPcUz7LyFFQ&oh=00_AQHY9aPC0tNukBC3IkI_qs2aUQtzWasPr0a9L6LfLHcdDw&oe=6A71B502"
+      },
+      "ganchoMarca": {
+        "categoria": "marca de streaming ou entretenimento",
+        "exemplo": "tipo Globoplay",
+        "porque": "ela já mostra bastidores reais da Globo/Projac, com crachá e tudo"
+      },
+      "coerencia": {
+        "status": "parcial",
+        "resumo": "O relato pessoal rendeu mais que a nostalgia dos anos 90, que é o assunto mais forte dela no mapa."
+      },
+      "audienciaPede": "querem ver o lado pessoal dela, não só as lembranças da cultura pop",
+      "reel": {
+        "postId": "18081032012283348",
+        "posterUrl": "https://scontent.cdninstagram.com/v/t51.71878-15/758427548_1734144974495244_8066608037697059490_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=105&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=Kx079pZTmmIQ7kNvwFPYSck&_nc_oc=AdqAbFRdx-LhbAm350jyGK9t-W4ij7bpY0Nhtb15LAzrkyYkJivN1OQZDvH9TqcMdK9QLma4LWmVVRgEmj3PMSRZ&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=d13ylu-clgfUw9PTISF6Jg&_nc_tpa=Q5bMBQH0jcOeDp1vR9jf38R452iOggi1CTA3lxgkKUr4AjCPaHOSI13dWGosviPrdB3T8sWhPDyvmE1Ggw&oh=00_AQGSAonIG_qZuo2NntMK2FFin2Js-r6ujXm6d_G_y_xaMw&oe=6A71B9CB"
+      },
+      "numeros": [
+        {
+          "valor": "2",
+          "label": "posts"
+        },
+        {
+          "valor": "461",
+          "label": "interações (pico)"
+        },
+        {
+          "valor": "nostalgia",
+          "label": "território a resgatar"
+        }
+      ],
+      "proximosPassos": {
+        "lacuna": "bastidores de TV e amizade, territórios fortes dela, não apareceram essa semana",
+        "pautas": [
+          {
+            "titulo": "O crachá que abre a porta dos bastidores da Globo",
+            "porque": "usa o asset de bastidores, território forte que sumiu essa semana"
+          },
+          {
+            "titulo": "Uma amiga de anos contando a mesma lembrança que eu",
+            "porque": "junta amizade e nostalgia, dois territórios mapeados"
+          },
+          {
+            "titulo": "O que os anos 2000 ensinaram sobre bem-estar hoje",
+            "porque": "combina nostalgia com bem-estar pessoal, puxando o relato que mais rendeu"
+          }
+        ]
+      },
+      "userId": "6a021d220ef12ab7df1bd92d",
+      "profilePictureUrl": "https://scontent-iad6-1.xx.fbcdn.net/v/t51.82787-15/722268297_18584769154011760_117761970232654257_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=7d201b&_nc_ohc=sPtjADJTrbIQ7kNvwHeDor2&_nc_oc=AdqQMWBVR3Nta4hLXZ41OWiJtBQqp6UdNeCMcJj-8kJWbjFAVFtvgKeuZhLnNYpuvdE&_nc_zt=23&_nc_ht=scontent-iad6-1.xx&edm=AL-3X8kEAAAA&_nc_gid=7ZW8H2FvZ-ZA_btfUFqkAg&oh=00_AQFmD6EAaWZPSc0OZjeaZXmycOYbJk-qQjdQyVOjob6phw&oe=6A716C42",
+      "narrativaCentral": "Uma entusiasta que celebra a cultura pop e as conexões da vida",
+      "territorios": [
+        "Cultura pop",
+        "Amizade",
+        "Bastidores de TV",
+        "Bem-estar pessoal",
+        "Nostalgia",
+        "Relacionamentos interpessoais"
+      ],
+      "grafico": {
+        "posts": [
+          {
+            "rotulo": "24/07",
+            "saves": 6,
+            "shares": 5
+          },
+          {
+            "rotulo": "26/07",
+            "saves": 19,
+            "shares": 10
+          }
+        ]
+      }
+    },
+    {
+      "handle": "@marinaduttra_",
+      "nome": "Marina Dutra",
+      "pontoForte": {
+        "texto": "\"Ele: futebol. Nós: sushi\" foi o post mais compartilhado da semana com legenda.",
+        "evidencia": "479 compartilhamentos e 5.468 interações — o contraste de gostos com o parceiro, contado com humor, é o que a audiência mais repassa.",
+        "postId": "17978178030063824",
+        "stat": {
+          "valor": "479",
+          "label": "compartilhamentos"
+        },
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "verde",
+          "marca": "amarelo"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/758455845_18612426664055642_6945038868822048986_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=110&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=mHP0NL22tnYQ7kNvwGAe53G&_nc_oc=AdpTsaQObmLy2kOhQ3gF6bb1aP_HBbHUMBUiSt3bSeTTjduA0jl2yh5M9Oyhctuqmf0RF_DPbJXaKbDRWQldFYmX&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=ryc2mKuRb5X0K9k4uhiTjw&_nc_tpa=Q5bMBQEkehIjvm87LVYS5cBd1UT7sb5MdrO-wd5bBZUV2nrEK0hvol_2qu0sZ4Mt8QhSlTdVy0REPDAWcQ&oh=00_AQFeKdjo0nzwZk27RyplE3lBrWl_qrbN2JfehhGbMtnHCw&oe=6A7189EA"
+      },
+      "pontoAjustar": {
+        "texto": "Ela postou a mesma pergunta (\"preciso de mais ideias\") duas vezes na semana, e a segunda vez rendeu bem menos.",
+        "evidencia": "70 interações na repetição, contra 281 na primeira vez — perguntar de novo sem variar cansa a audiência.",
+        "postId": "17895314085372977",
+        "selos": {
+          "narrativa": "amarelo",
+          "audiencia": "vermelho",
+          "marca": "amarelo"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/757831980_18612430507055642_4754564122660629540_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=102&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=cDYuJ-dyoogQ7kNvwE9S9XT&_nc_oc=AdqQlgXgwWRo23TGdHrQ2hyvD7zfkFy2RsqB-KpL2gE0RCdZokClW5sW6XD26Zhn7WVQksv2Mnlh-doNR7K3YPo-&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=nF1HIz3q8g6iYaG3BoiPgg&_nc_tpa=Q5bMBQEK14rbxfKZvG-ognA7br_pYxli03WihldkAh7lRCFVWqNTyJFOMAalPXslZ8Aof0iuzjPU1FPFyA&oh=00_AQEYWdqbc2lVTM58u2vojDThkpq5lIEODE7AwnrLdK8awQ&oe=6A71BEA5"
+      },
+      "ganchoMarca": {
+        "categoria": "marca de delivery de comida japonesa",
+        "exemplo": "tipo iFood ou uma rede de sushi delivery",
+        "porque": "o sushi já apareceu como parte real da rotina dela essa semana, não como produto forçado"
+      },
+      "coerencia": {
+        "status": "parcial",
+        "resumo": "O contraste com o marido bateu recorde de compartilhamento, mas repetir a mesma pergunta duas vezes rendeu cada vez menos."
+      },
+      "audienciaPede": "querem mais desses contrastes de casal contados com humor — não a mesma pergunta repetida sem variar",
+      "reel": {
+        "postId": "17978178030063824",
+        "posterUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/758455845_18612426664055642_6945038868822048986_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=110&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=mHP0NL22tnYQ7kNvwGAe53G&_nc_oc=AdpTsaQObmLy2kOhQ3gF6bb1aP_HBbHUMBUiSt3bSeTTjduA0jl2yh5M9Oyhctuqmf0RF_DPbJXaKbDRWQldFYmX&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=ryc2mKuRb5X0K9k4uhiTjw&_nc_tpa=Q5bMBQEkehIjvm87LVYS5cBd1UT7sb5MdrO-wd5bBZUV2nrEK0hvol_2qu0sZ4Mt8QhSlTdVy0REPDAWcQ&oh=00_AQFeKdjo0nzwZk27RyplE3lBrWl_qrbN2JfehhGbMtnHCw&oe=6A7189EA"
+      },
+      "numeros": [
+        {
+          "valor": "7",
+          "label": "posts"
+        },
+        {
+          "valor": "479",
+          "label": "+ compartilhado (pico)"
+        },
+        {
+          "valor": "humor de casal",
+          "label": "território forte"
+        }
+      ],
+      "proximosPassos": {
+        "lacuna": "autocuidado feminino, território mapeado dela, ficou de fora nos 7 posts da semana",
+        "pautas": [
+          {
+            "titulo": "O motivo real por trás da bagunça que ela se recusa a limpar",
+            "porque": "expande o post sobre a casa bagunçada, que já teve resposta boa"
+          },
+          {
+            "titulo": "Cinco minutos de autocuidado enquanto o sushi não chega",
+            "porque": "junta o sushi, que virou asset real, com autocuidado, que sumiu essa semana"
+          },
+          {
+            "titulo": "A pergunta que ela fez duas vezes — respondida de verdade agora",
+            "porque": "resolve de vez o que ela perguntou sem resposta clara na semana"
+          }
+        ]
+      },
+      "userId": "69dcee5f107bd4e47e192a7d",
+      "profilePictureUrl": "https://scontent-iad6-1.xx.fbcdn.net/v/t51.82787-15/731111392_18606852907055642_8921863510747985804_n.jpg?_nc_cat=106&ccb=1-7&_nc_sid=7d201b&_nc_ohc=UWWck8PfBWQQ7kNvwFIXWwm&_nc_oc=AdrGlwGKSEpK85-zbL5mflyU0BwDg6GkumM8O1BCCOLaPKfnA93QOngL-_6mRQx5COk&_nc_zt=23&_nc_ht=scontent-iad6-1.xx&edm=AL-3X8kEAAAA&_nc_gid=NzN52Di9baxX-IJocrhtHg&oh=00_AQEVF9t7Ujvns8_Ug4bi8Bw4x0V2hksZ9j0V74nWKlPN3A&oe=6A712ACF",
+      "narrativaCentral": "Encontrar leveza e autenticidade na jornada da maternidade",
+      "territorios": [
+        "Maternidade",
+        "Autocuidado feminino",
+        "Bem-estar",
+        "Vida familiar",
+        "Humor",
+        "Alimentação"
+      ],
+      "grafico": {
+        "posts": [
+          {
+            "rotulo": "26/07",
+            "saves": 180,
+            "shares": 1580
+          },
+          {
+            "rotulo": "27/07",
+            "saves": 168,
+            "shares": 492
+          },
+          {
+            "rotulo": "28/07",
+            "saves": 64,
+            "shares": 92
+          },
+          {
+            "rotulo": "29/07",
+            "saves": 18,
+            "shares": 14
+          }
+        ]
+      }
+    },
+    {
+      "handle": "@blununees",
+      "nome": "Blu Nunes",
+      "pontoForte": {
+        "texto": "O vlog de rotina no caps foi o que mais gente guardou e compartilhou.",
+        "evidencia": "6 salvamentos e 8 compartilhamentos — e a versão em forma de pergunta (\"é isso que vocês querem?\") teve 39 comentários confirmando que sim.",
+        "postId": "18540114133073464",
+        "stat": {
+          "valor": "39",
+          "label": "comentários (na pergunta)"
+        },
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "verde",
+          "marca": "amarelo"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/756671376_17986697553040282_4974833700769659988_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=107&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_eui2=AeG3v-1-Z2Ge-zSWp1IDF8f04oQVsIesahfihBWwh6xqF5zDcofI0neuc9TW_ixjS_o2ukhkSqqWNt-QWfUFBlyH&_nc_ohc=42ZhFhmyugsQ7kNvwEGO0nK&_nc_oc=AdojO5bOmuIno4pRgp77ILcQW95E5CZ4TFt-kuoV7QSyvLXT-uwSNGfnBA5At7H_U6V0vrcj4M032yuK-eTEYD2h&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=MC_4noGdmAa_hmb3BuRWLw&_nc_tpa=Q5bMBQGvHjHzcgYr4NIk8H9ZWDj8wi39KW8rTzA_Er1J_AUN06tWS9x9y-KlkEmdgTVq2OuB5T_Zmqr26g&oh=00_AQFUVIzDyqRpRAPazU5ClajUdyDHqZ7zvpdDSbtmjXyiBg&oe=6A71AF16"
+      },
+      "pontoAjustar": {
+        "texto": "O post sobre as mudanças no cabelo ao longo dos anos não teve nenhum salvamento.",
+        "evidencia": "0 salvamentos e 0 compartilhamentos, contra 6 e 8 do vlog de rotina — sem o contexto do dia a dia, o cabelo sozinho não prendeu.",
+        "postId": "18087858899535002",
+        "selos": {
+          "narrativa": "amarelo",
+          "audiencia": "vermelho",
+          "marca": "verde"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/758368060_17987324076040282_191111802420375132_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=111&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_eui2=AeFyAYd8zlkIXYbQJgF9-wQSu7RRljQnsaO7tFGWNCexo9v6o9OgITFuNX6qt7GVyL9FHTQ8re2NifPfzbbcQp9-&_nc_ohc=G0kelDBp3-8Q7kNvwHrjXBA&_nc_oc=AdrYySw-BI1t3nH3Gua_yduiGqE7LhCxsjn_2Gj4FiT1n69Q7kzxFsPp309JY2iq48hD2stUp0cHQIfZ473TALCZ&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=cLSu_MKvAHfqWqGfdLtwpQ&_nc_tpa=Q5bMBQGInS5IRghie1CrIfZy86EdNEjAJd6noyENiQtRHtTG_iKit6IWrfgR86iYhdqLXpEVRkv784mGMQ&oh=00_AQEZPshHOWVLKZTa_e6-OSdIYE9s0PCnB0BBx7c_GofgyQ&oe=6A71B29A"
+      },
+      "ganchoMarca": {
+        "categoria": "marca de cuidados capilares pra rotina corrida",
+        "exemplo": "tipo Salon Line ou Novex",
+        "porque": "ela já testa produto de cabelo no dia a dia, só falta amarrar ao vlog de rotina que já funciona"
+      },
+      "coerencia": {
+        "status": "no-mapa",
+        "resumo": "Os vlogs de rotina, que são o forte dela, bateram mais que o post solto sobre o cabelo."
+      },
+      "audienciaPede": "os 39 comentários confirmaram — querem mais vlog de rotina real, não o produto sozinho",
+      "reel": {
+        "postId": "18540114133073464",
+        "posterUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/756671376_17986697553040282_4974833700769659988_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=107&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_eui2=AeG3v-1-Z2Ge-zSWp1IDF8f04oQVsIesahfihBWwh6xqF5zDcofI0neuc9TW_ixjS_o2ukhkSqqWNt-QWfUFBlyH&_nc_ohc=42ZhFhmyugsQ7kNvwEGO0nK&_nc_oc=AdojO5bOmuIno4pRgp77ILcQW95E5CZ4TFt-kuoV7QSyvLXT-uwSNGfnBA5At7H_U6V0vrcj4M032yuK-eTEYD2h&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=MC_4noGdmAa_hmb3BuRWLw&_nc_tpa=Q5bMBQGvHjHzcgYr4NIk8H9ZWDj8wi39KW8rTzA_Er1J_AUN06tWS9x9y-KlkEmdgTVq2OuB5T_Zmqr26g&oh=00_AQFUVIzDyqRpRAPazU5ClajUdyDHqZ7zvpdDSbtmjXyiBg&oe=6A71AF16"
+      },
+      "numeros": [
+        {
+          "valor": "3",
+          "label": "posts"
+        },
+        {
+          "valor": "39",
+          "label": "comentários (pico)"
+        },
+        {
+          "valor": "rotina",
+          "label": "território forte"
+        }
+      ],
+      "proximosPassos": {
+        "lacuna": "autocuidado e bem-estar feminino aparecem só ligados a produto, não à rotina real",
+        "pautas": [
+          {
+            "titulo": "O caps que virou uniforme de mãe de 3",
+            "porque": "usa o asset do vlog, que é o forte dela essa semana"
+          },
+          {
+            "titulo": "O produto de cabelo testado dentro do próprio vlog de rotina",
+            "porque": "resolve o que não funcionou — o cabelo separado da rotina"
+          },
+          {
+            "titulo": "A pergunta que 39 pessoas responderam — o que elas pediram",
+            "porque": "continua a conversa que já começou nos comentários"
+          }
+        ]
+      },
+      "userId": "68d19d9b2af62c86355d3b41",
+      "profilePictureUrl": "https://scontent-iad3-2.xx.fbcdn.net/v/t51.82787-15/671233424_17972273928040282_1812120620803753549_n.jpg?_nc_cat=105&ccb=1-7&_nc_sid=7d201b&_nc_eui2=AeFOV1JmeYeqjovDksYE9thcRCvJBnrgGkBEK8kGeuAaQLVHamomn7RfIliIOYUipxLT49x192BqptcWEJSgm8B-&_nc_ohc=sa3z1tEkex0Q7kNvwH2cOx6&_nc_oc=AdrLCKcD5h1XxPRZZzyXxz92hz2vN48O6hSP21GF2qWlT7PZ8MXL_KfJalrr7eJHkD8&_nc_zt=23&_nc_ht=scontent-iad3-2.xx&edm=AL-3X8kEAAAA&_nc_gid=gOKH_mpWbtVO73MyO7nJ4A&oh=00_AQHfUfPMx1ygp8TrpOC7fuKtvMbTg5G1Ubp5CvKVj5c12Q&oe=6A7122F3",
+      "narrativaCentral": "Uma mãe real que encontra beleza e humor na rotina",
+      "territorios": [
+        "Maternidade",
+        "Beleza",
+        "Autocuidado",
+        "Cuidados capilares",
+        "Vida familiar",
+        "Bem-estar feminino"
+      ],
+      "grafico": {
+        "posts": [
+          {
+            "rotulo": "24/07",
+            "saves": 4,
+            "shares": 3
+          },
+          {
+            "rotulo": "25/07",
+            "saves": 6,
+            "shares": 8
+          },
+          {
+            "rotulo": "29/07",
+            "saves": 0,
+            "shares": 0
+          }
+        ]
+      }
+    },
+    {
+      "handle": "@riocomerebeber",
+      "nome": "Bruna Ramos",
+      "pontoForte": {
+        "texto": "O vídeo com os valores reais de Mykonos foi, de longe, o maior post da reunião inteira.",
+        "evidencia": "653 salvamentos e 9.704 compartilhamentos — mais compartilhado que a soma de todos os outros posts dela juntos essa semana.",
+        "postId": "17943443748261132",
+        "stat": {
+          "valor": "9.704",
+          "label": "compartilhamentos"
+        },
+        "selos": {
+          "narrativa": "verde",
+          "audiencia": "verde",
+          "marca": "amarelo"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/760555014_18032944736827946_1420072063169369162_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=110&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=hXJgl8By9S0Q7kNvwGsfGpR&_nc_oc=AdoGE3ZmbZSpcV3gVMtVs3Fy4y3B2tuZQlNAzxL2ey8TatTyy8rI0mcv_iPO8PpHK58V5Dlez94zsMlbOfzm-Y87&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=0uV3dTZDNt0KQ1TINYRJBw&_nc_tpa=Q5bMBQEleImLpNDm2tWhDSF0fcj-TAUNdcRhc48nGClLLpTai1wvMm14KiiWUiGFHwj6p33DV1caZr3_hA&oh=00_AQE_utbVunwt6xuqhw5hZjPxMsSxRxVT6fNk0ZXUeYT-2A&oe=6A718CB5"
+      },
+      "pontoAjustar": {
+        "texto": "A legenda \"aí é sucesso\" apareceu duas vezes na semana, e a segunda vez rendeu 29× menos.",
+        "evidencia": "61 interações na segunda vez, contra 1.768 na primeira — repetir a mesma frase sem um contexto novo esvazia o post.",
+        "postId": "18374319418224276",
+        "selos": {
+          "narrativa": "amarelo",
+          "audiencia": "vermelho",
+          "marca": "amarelo"
+        },
+        "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/755246913_18032664194827946_1203498186608102448_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=109&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=8UngX4GUar0Q7kNvwFcmaOC&_nc_oc=AdrBRgJSvMmMYz_YlSyOZ02uenNkpVPBwcPQDTpUrD5lK5o0bPCkgjkGH1IafEJmQcfvLxpJDtt-pMzQyG_Y23_v&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=fOnMcTLaspiYi7avXisLQQ&_nc_tpa=Q5bMBQFGMHIaHfmPCfKRwQeh3rdf6rwMSU2mKAbCtyV-rv-Y4EQoq-uaHpSR5coXANT8kh8i0hMd8aClyA&oh=00_AQFD-RMu68iL0om4gilcinyVuEhoYCwqnsR0v4J5Gcke0A&oe=6A71B737"
+      },
+      "ganchoMarca": {
+        "categoria": "agência de viagem ou plataforma de reserva de pacotes",
+        "exemplo": "tipo Decolar ou CVC",
+        "porque": "o post de valores reais já prova que ela tem autoridade pra comparar preço e vale a pena"
+      },
+      "coerencia": {
+        "status": "parcial",
+        "resumo": "O vídeo de valores reais bateu recorde porque respondeu uma pergunta prática; repetir a legenda de sucesso sem contexto rendeu cada vez menos."
+      },
+      "audienciaPede": "o comparativo de preço bombou — querem mais números reais de custo, não só a cena bonita do destino",
+      "reel": {
+        "postId": "17943443748261132",
+        "posterUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/760555014_18032944736827946_1420072063169369162_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=110&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=hXJgl8By9S0Q7kNvwGsfGpR&_nc_oc=AdoGE3ZmbZSpcV3gVMtVs3Fy4y3B2tuZQlNAzxL2ey8TatTyy8rI0mcv_iPO8PpHK58V5Dlez94zsMlbOfzm-Y87&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=0uV3dTZDNt0KQ1TINYRJBw&_nc_tpa=Q5bMBQEleImLpNDm2tWhDSF0fcj-TAUNdcRhc48nGClLLpTai1wvMm14KiiWUiGFHwj6p33DV1caZr3_hA&oh=00_AQE_utbVunwt6xuqhw5hZjPxMsSxRxVT6fNk0ZXUeYT-2A&oe=6A718CB5"
+      },
+      "numeros": [
+        {
+          "valor": "7",
+          "label": "posts"
+        },
+        {
+          "valor": "9.704",
+          "label": "+ compartilhado (recorde da reunião)"
+        },
+        {
+          "valor": "gastronomia",
+          "label": "território a resgatar"
+        }
+      ],
+      "proximosPassos": {
+        "lacuna": "gastronomia e hotéis de luxo, territórios mapeados, ficaram em segundo plano essa semana",
+        "pautas": [
+          {
+            "titulo": "O prato de 200 euros comparado com o de rua, lado a lado",
+            "porque": "usa gastronomia, território que ficou de fora, no mesmo formato de valores que já bombou"
+          },
+          {
+            "titulo": "O hotel que parecia caro e não era",
+            "porque": "puxa hotéis de luxo com o mesmo gancho de custo real que rendeu 9.704 compartilhamentos"
+          },
+          {
+            "titulo": "O beach club que vale cada centavo, explicado item por item",
+            "porque": "usa praias e beach clubs, território mapeado que sumiu essa semana"
+          }
+        ]
+      },
+      "userId": "694893d307e8facbc8215d54",
+      "profilePictureUrl": "https://scontent-iad6-1.xx.fbcdn.net/v/t51.2885-15/337438128_904479607548411_1616629952908094276_n.jpg?_nc_cat=109&ccb=1-7&_nc_sid=7d201b&_nc_ohc=F30_dsGqt0EQ7kNvwEAuSGD&_nc_oc=AdoUpLDBbmATAdtmFf0Ts-cEhySe9R8HxBbwm9TAI9Q3Gd8BdxiM5dsGa6tdurFcXX8&_nc_zt=23&_nc_ht=scontent-iad6-1.xx&edm=AL-3X8kEAAAA&oh=00_AQGeBG4uGEKU1vsPOYXWg9R0N-jsAFC3wjqUrwqhkKCpyw&oe=6A712661",
+      "narrativaCentral": "Explorar o mundo com luxo e autenticidade",
+      "territorios": [
+        "Viagens de luxo",
+        "Gastronomia",
+        "Destinos internacionais",
+        "Praias e beach clubs",
+        "Hotéis e hospedagens",
+        "Comparativos de destinos"
+      ],
+      "grafico": {
+        "posts": [
+          {
+            "rotulo": "26/07",
+            "saves": 51,
+            "shares": 282
+          },
+          {
+            "rotulo": "27/07",
+            "saves": 28,
+            "shares": 70
+          },
+          {
+            "rotulo": "29/07",
+            "saves": 662,
+            "shares": 9757
+          }
+        ]
+      }
+    },
+    {
+      "handle": "Camila Barros",
+      "nome": "Dra. Camila Barros",
+      "semSinal": true,
+      "proximosPassos": {
+        "lacuna": "ainda sem mapa e sem posts na semana — o primeiro passo é montar o mapa",
+        "pautas": [
+          {
+            "titulo": "Quem é você fora do consultório",
+            "porque": "o ponto de partida do mapa — a narrativa nasce daqui"
+          },
+          {
+            "titulo": "O assunto que você explicaria de olhos fechados",
+            "porque": "ajuda a achar o território mais forte"
+          },
+          {
+            "titulo": "A pergunta que os pacientes mais fazem no consultório",
+            "porque": "os primeiros assets de vida pra alimentar o conteúdo, direto da rotina que ela já vive"
+          }
+        ]
+      },
+      "userId": "6a50c4acc00529877c695673",
+      "profilePictureUrl": null,
+      "narrativaCentral": "",
+      "territorios": [],
+      "grafico": {
+        "posts": []
+      }
+    },
+    {
+      "handle": "Cris Valente",
+      "nome": "Cris Valente",
+      "semSinal": true,
+      "retomadaFonte": "cadastro",
+      "proximosPassos": {
+        "lacuna": "o mapa já existe (divulgar marcas e lugares), mas nenhum post saiu essa semana",
+        "pautas": [
+          {
+            "titulo": "O lugar que você visitou essa semana e ainda não mostrou",
+            "porque": "usa o território de lugares, que já está no mapa dela"
+          },
+          {
+            "titulo": "Uma marca que você já usa no dia a dia, sem ser publi",
+            "porque": "usa o território de marcas, provando fit antes de qualquer parceria"
+          },
+          {
+            "titulo": "Os bastidores de como você escolhe o que divulgar",
+            "porque": "junta os dois territórios do mapa numa pauta só"
+          }
+        ]
+      },
+      "userId": "6a4654b501e515b928f9c5c6",
+      "profilePictureUrl": null,
+      "narrativaCentral": "eu divulgo marcas e lugares",
+      "territorios": [
+        "Marcas",
+        "Lugares"
+      ],
+      "grafico": {
+        "posts": []
+      }
+    }
+  ],
+  "collabs": [
+    {
+      "a": "@lorenadmarchetti",
+      "b": "@marinaduttra_",
+      "aTraz": "o recorde de 710 compartilhamentos com um post sobre viver a infância presente",
+      "bTraz": "o recorde de 479 compartilhamentos com um post sobre o contraste de gostos com o marido",
+      "territorioComum": "maternidade real na mesma semana de recordes",
+      "porque": "as duas bateram o maior número que já tiveram essa semana — uma com reflexão, a outra com humor. Juntas podem comparar o que fez cada post decolar, em vez de descobrir sozinhas",
+      "pautaIdeia": "As duas respondem: qual foi o momento da semana que te pegou de surpresa?",
+      "gravarPassos": [
+        "Cada uma grava a própria resposta em casa (1-2 min)",
+        "Montar como dueto: Lorena fala primeiro (a infância), Marina responde (o contraste com o marido)",
+        "Fechar com a mesma pergunta pro público: \"e com você, o que te pegou essa semana?\"",
+        "Cada uma publica no seu, marcando a outra"
+      ],
+      "porQueFunciona": "Lorena aprende o timing de humor rápido que fez Marina bombar; Marina aprende a puxar reflexão mais funda, como Lorena fez com a infância."
+    },
+    {
+      "a": "@blununees",
+      "b": "@carla_tosta",
+      "aTraz": "o vlog de rotina que já confirmou demanda (39 comentários) mas ainda testa produto solto",
+      "bTraz": "o formato de relato pessoal que rendeu o dobro da nostalgia (461 vs 207)",
+      "territorioComum": "bem-estar e autocuidado contados através de uma cena real",
+      "porque": "Blu sabe prender audiência com rotina mas ainda separa o produto da vida real; Carla já sabe transformar um relato pessoal em post que dobra o engajamento — uma empresta o formato pra outra",
+      "pautaIdeia": "Carla ensina Blu a contar o \"antes\" de um produto, não só o resultado",
+      "gravarPassos": [
+        "Carla grava, por vídeo-chamada, como ela decide contar um relato pessoal antes do resultado",
+        "Blu grava testando um produto de cabelo já dentro do vlog de rotina, contando o \"antes\"",
+        "Montar como resposta: a dica da Carla cortada com a aplicação da Blu",
+        "Publicam a mesma semana, cada uma no seu perfil, marcando uma a outra"
+      ],
+      "porQueFunciona": "Blu ganha o formato que já dobrou o engajamento da Carla; Carla ganha prova de que o método funciona fora do próprio conteúdo dela."
+    },
+    {
+      "a": "@riocomerebeber",
+      "b": "Cris Valente",
+      "aTraz": "a prova real de que comparativo de preço vira recorde (9.704 compartilhamentos)",
+      "bTraz": "um mapa pronto pra divulgar marcas e lugares, ainda sem nenhum post",
+      "territorioComum": "divulgação de lugares com credibilidade",
+      "porque": "Cris já se define como quem divulga marcas e lugares, mas não postou nada essa semana; Bruna prova toda semana que dá pra fazer isso com números reais — Cris aprende o formato, Bruna ganha uma parceira de conteúdo de viagem",
+      "pautaIdeia": "Cris entrevista a Bruna: como ela calcula se um lugar vale o preço",
+      "gravarPassos": [
+        "Combinar as perguntas antes, por mensagem",
+        "Gravar por vídeo-chamada, Cris perguntando e Bruna respondendo com um exemplo real de custo",
+        "Cortar em um vídeo só, formato entrevista, sem precisar estar no mesmo destino",
+        "Cris publica apresentando a conversa pro público dela, puxando o primeiro post do mapa"
+      ],
+      "porQueFunciona": "Cris sai da semana sem sinal com o primeiro post pronto; Bruna ganha conteúdo de bastidor sobre o próprio método que já bombou."
+    },
+    {
+      "a": "@ninaktorres",
+      "b": "Camila Barros",
+      "aTraz": "o jeito de transformar uma pergunta simples em conversa (a do cachorro rendeu 415 interações)",
+      "bTraz": "a experiência médica, ainda sem mapa nem posts no Instagram",
+      "territorioComum": "conhecimento real que ainda não virou conteúdo",
+      "porque": "Camila está começando do zero; Nina já sabe fazer uma pergunta simples virar o post mais comentado da semana",
+      "pautaIdeia": "Nina manda uma pergunta de saúde pra Camila responder em vídeo — o primeiro post dela",
+      "gravarPassos": [
+        "Nina grava a pergunta em casa, no mesmo tom das perguntas que já funcionam pra ela",
+        "Camila grava a resposta, por vídeo-chamada ou celular, sem precisar de roteiro pronto",
+        "Cortar em um vídeo só, formato pergunta-resposta",
+        "Nina publica marcando a Dra. Camila, apresentando ela pro público dela"
+      ],
+      "porQueFunciona": "Camila ganha o primeiro post e os primeiros seguidores vindos de um público que já confia em Nina; Nina ganha conteúdo com uma resposta de autoridade médica real."
+    }
+  ],
+  "fechamento": {
+    "fioComum": "Bruna mostrou quanto custa curtir Mykonos e teve 9.704 compartilhamentos; Lorena falou sobre viver a infância sem pensar no \"depois\" e bateu o maior número que já teve. Nos dois casos tinha uma verdade real por trás. Já quando Marina e a própria Bruna repetiram a mesma legenda numa segunda tentativa, o número despencou — de 1.768 pra 61, de 281 pra 70. A audiência sente na hora quando é a mesma coisa de novo.",
+    "lembreteComunidade": "Ninguém notaria esse padrão sozinho — é por isso que a gente olha a semana de todo mundo junto: pra ver o que realmente rendeu, e o que só pareceu render."
+  }
+}
