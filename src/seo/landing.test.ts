@@ -12,8 +12,10 @@ describe("landingMetadata", () => {
 
   it("preenche campos de twitter summary_large_image", () => {
     expect(landingMetadata.twitter?.card).toBe("summary_large_image");
-    expect(landingMetadata.twitter?.title).toContain("Data2Content");
-    expect(landingMetadata.twitter?.description).toContain("reunião semanal");
+    expect(landingMetadata.twitter?.title).toBe("Data2Content — Tendência vira direção");
+    expect(landingMetadata.twitter?.description).toBe(
+      "Inteligência de tendências para criadores e marcas. Descubra assuntos, formatos e sinais para seu conteúdo crescer, engajar e vender."
+    );
     expect(Array.isArray(landingMetadata.twitter?.images)).toBe(true);
   });
 
