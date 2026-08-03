@@ -49,3 +49,7 @@ keys/
 
 # Claude Code local state
 .claude/
+
+# Relatório Semanal gerado: JSON, PNGs e PDF com dado e nome de criador real.
+# O artefato é reprodutível a partir do snapshot no banco — não versionar.
+/output/relatorio-semanal/

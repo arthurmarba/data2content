@@ -95,6 +95,49 @@ export interface IMetricEntityTarget {
   canonicalId?: string | null;
 }
 
+/**
+ * Elementos do MAPA do criador que apareceram neste vídeo. Ver IMetric.sceneElements.
+ *
+ * Não é classificação aberta: é o resultado de conferir, contra o vídeo publicado,
+ * quais dos assets e tons que o criador declarou no card "Seu Mapa" se realizaram.
+ * Os valores são PAPÉIS canônicos do registro (relatorio/mapRegistry.ts) — nunca o
+ * rótulo pessoal do criador, que nomearia indivíduos e violaria a Regra 3.
+ */
+export interface IMetricSceneElements {
+  /** Papéis de asset presentes: ["parceiro_em_cena", "cozinha"]. */
+  assetRoleIds: string[];
+  /** Tons canônicos identificados: ["humor"]. */
+  toneIds: string[];
+  /** Assuntos do MAPA que o vídeo abordou: ["vida_em_familia"]. Agrupamento grosso. */
+  subjectIds: string[];
+  /**
+   * Sobre o que o vídeo falou, nas palavras do próprio vídeo e em texto livre:
+   * ["voltar a trabalhar depois da licença"]. É o que o relatório mostra — as 20
+   * gavetas de `subjectIds` são só para juntar.
+   */
+  subjects: string[];
+  /** Objetos em cena pelo nome: ["caneca", "carrinho de bebê"]. */
+  objects: string[];
+  /** Trechos ditos, verbatim. */
+  quotes: string[];
+  /** Onde foi gravado, de `CANONICAL_PLACES`: "cozinha_local". */
+  placeId: string | null;
+  /** Enquadramentos de `CANONICAL_FRAMINGS`: ["close", "camera_fixa"]. */
+  framingIds: string[];
+  /** Traços de `CANONICAL_AESTHETICS`: ["luz_natural", "caseiro"]. */
+  aestheticIds: string[];
+  /** Texto na tela na abertura, verbatim. */
+  screenTitle: string | null;
+  /** Primeira frase falada, verbatim. */
+  openingLine: string | null;
+  /** true quando nada do mapa apareceu — sinal sobre o mapa, não erro de leitura. */
+  offMap: boolean;
+  /** Modelo e versão que produziram isto — auditoria e reprocesso. */
+  provider: string;
+  version: string;
+  analyzedAt: Date;
+}
+
 export interface IMetricClassificationMeta {
   confidence?: Record<string, number>;
   evidence?: Record<string, string[]>;
@@ -159,6 +202,17 @@ export interface IMetric extends Document {
    * "Asset×resultado" — which life asset drives the most recognition.
    */
   lifeAssets?: string[];
+  /**
+   * Elementos de CENA extraídos do vídeo publicado pelo worker multimodal
+   * (src/app/api/worker/classify-published-video). Diferente de `lifeAssets`, que só
+   * chega quando o criador sobe um vídeo antes de postar: isto é lido do reel que
+   * está no ar, para toda a base.
+   *
+   * É o que sustenta o ranking de assets de vida e o tom do Relatório Semanal — a
+   * classificação por legenda não vê "a esposa em cena" nem "cena sem fala". Os valores
+   * são papéis canônicos do registro do mapa (relatorio/mapRegistry.ts).
+   */
+  sceneElements?: IMetricSceneElements | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -422,6 +476,27 @@ const classificationQuarantineSchema = new Schema<IMetricClassificationQuarantin
   { _id: false }
 );
 
+const sceneElementsSchema = new Schema<IMetricSceneElements>(
+  {
+    assetRoleIds: { type: [String], default: [] },
+    toneIds: { type: [String], default: [] },
+    subjectIds: { type: [String], default: [] },
+    subjects: { type: [String], default: [] },
+    objects: { type: [String], default: [] },
+    quotes: { type: [String], default: [] },
+    placeId: { type: String, default: null },
+    framingIds: { type: [String], default: [] },
+    aestheticIds: { type: [String], default: [] },
+    screenTitle: { type: String, default: null },
+    openingLine: { type: String, default: null },
+    offMap: { type: Boolean, default: false },
+    provider: { type: String, required: true },
+    version: { type: String, required: true },
+    analyzedAt: { type: Date, required: true, default: () => new Date() },
+  },
+  { _id: false },
+);
+
 const entityTargetSchema = new Schema<IMetricEntityTarget>(
   {
     type: { type: String, required: true },
@@ -468,6 +543,8 @@ const metricSchema = new Schema<IMetric>(
     isPubli: { type: Boolean, default: false, index: true },
     // Life assets promoted from VideoNarrativeDiagnosis.contentContext on publishIntent='yes'.
     lifeAssets: { type: [String], default: undefined },
+    // Scene elements read from the published reel. See IMetric.sceneElements.
+    sceneElements: { type: sceneElementsSchema, default: undefined },
   },
   { timestamps: true }
 );
