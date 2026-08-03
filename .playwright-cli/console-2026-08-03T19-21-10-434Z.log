@@ -441,3 +441,19 @@ Read more: https://nextjs.org/docs/messages/next-image-unconfigured-localpattern
 [ 9000857ms] [LOG] [Fast Refresh] done in 718ms @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/client/dev/report-hmr-latency.js:13
 [ 9001246ms] [ERROR] Failed to load resource: the server responded with a status of 500 (Internal Server Error) @ http://127.0.0.1:3000/api/mediakit/eduarda-lobo/avatar?v=20260430-avatar-v3:0
 [ 9001324ms] [WARNING] Image with src "http://127.0.0.1:3000/images/landing/stop-motion/hero-creator-frame-01-v1.webp" has "fill" and parent element with invalid "position". Provided "static" should be one of absolute,fixed,relative. @ webpack-internal:///(app-pages-browser)/./node_modules/next/dist/shared/lib/utils/warn-once.js:15
+[ 9451319ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/images/landing/stop-motion/hero-creator-frame-01-v1.webp:0
+[ 9451342ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/images/landing/stop-motion/weekly-publish-editorial-v1.webp:0
+[ 9451342ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/images/landing/stop-motion/weekly-refine-editorial-v1.webp:0
+[ 9451343ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/images/landing/stop-motion/weekly-collab-editorial-v1.webp:0
+[ 9454917ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/images/landing/stop-motion/hero-creator-frame-01-v1.webp:0
+[ 9458521ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/images/landing/stop-motion/hero-creator-frame-01-v1.webp:0
+[ 9462117ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/images/landing/stop-motion/hero-creator-frame-01-v1.webp:0
+[ 9465728ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/images/landing/stop-motion/hero-creator-frame-01-v1.webp:0
+[ 9469322ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/images/landing/stop-motion/hero-creator-frame-01-v1.webp:0
+[ 9472916ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/images/landing/stop-motion/hero-creator-frame-01-v1.webp:0
+[ 9476524ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/images/landing/stop-motion/hero-creator-frame-01-v1.webp:0
+[ 9480124ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/images/landing/stop-motion/hero-creator-frame-01-v1.webp:0
+[ 9483724ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/images/landing/stop-motion/hero-creator-frame-01-v1.webp:0
+[ 9487322ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/images/landing/stop-motion/hero-creator-frame-01-v1.webp:0
+[ 9490925ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/images/landing/stop-motion/hero-creator-frame-01-v1.webp:0
+[ 9494516ms] [ERROR] Failed to load resource: net::ERR_CONNECTION_REFUSED @ http://127.0.0.1:3000/images/landing/stop-motion/hero-creator-frame-01-v1.webp:0
