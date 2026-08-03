@@ -81,6 +81,33 @@ const CRONS = [
     method: 'POST',
     body: '[MAPA_WHATSAPP] Mensagem semanal do mapa narrativo — única mensagem WhatsApp da semana',
   },
+  // ── Relatório Semanal ───────────────────────────────────────────────────────
+  // Segunda 00h BRT: depois da semana encerrar, confere os vídeos contra o mapa de
+  // cada criador, ANTES do close-week (01h), para o snapshot já sair com assets e
+  // tons preenchidos. Rodar depois da meia-noite é essencial: `lastClosedWeek()` só
+  // passa a apontar para a semana recém-encerrada após a virada de domingo.
+  // ~94 vídeos/semana ≈ US$ 0,47. Sem backfill: a janela de 90 dias inclui a semana
+  // corrente, então o ranking popula já na primeira execução.
+  {
+    id: 'relatorio-semanal-cenas',
+    destination: 'https://data2content.ai/api/cron/weekly-scene-evaluation',
+    cron: '0 3 * * 1', // Segunda 00:00 BRT = segunda 03:00 UTC
+    method: 'POST',
+    body: '[RELATORIO_SEMANAL] Conferir os vídeos da semana contra o mapa dos criadores',
+  },
+  // Segunda 01h BRT: uma hora depois do fan-out de cenas. Congela o snapshot da
+  // semana que terminou no domingo, sem cortar a última hora de posts da semana.
+  // ATENÇÃO: semana que não roda aqui é irrecuperável — `Metric.stats` é cumulativo e
+  // reescrito a cada sync, então o ranking de uma semana passada não pode ser
+  // reconstruído com os números que ela tinha. Se este job falhar, refazer no mesmo
+  // dia com ?week=<chave>.
+  {
+    id: 'relatorio-semanal-close-week',
+    destination: 'https://data2content.ai/api/cron/weekly-report-close',
+    cron: '0 4 * * 1', // Segunda 01:00 BRT = segunda 04:00 UTC
+    method: 'POST',
+    body: '[RELATORIO_SEMANAL] Congelar o snapshot da semana por território',
+  },
 ] as const;
 
 async function createCrons() {

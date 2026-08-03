@@ -4,8 +4,10 @@
  * Enfileira, no worker de cena, os vídeos da última semana fechada que ainda não foram
  * conferidos contra o mapa do criador.
  *
- * Agendado para domingo 22h BRT — ANTES do `weekly-report-close` (23h), para que o
- * snapshot da semana já saia com os assets e tons preenchidos.
+ * Agendado para segunda 00h BRT — depois de a semana encerrar e ANTES do
+ * `weekly-report-close` (01h), para que o snapshot da semana já saia com os assets e
+ * tons preenchidos. O horário após a virada garante que `lastClosedWeek()` selecione
+ * a semana que acabou de fechar, não a anterior.
  *
  * POR QUE SÓ A SEMANA, e não um backfill de 90 dias: o corte de elegibilidade olha a
  * janela de 90 dias, e a janela INCLUI a semana corrente. Um território com ~46 posts

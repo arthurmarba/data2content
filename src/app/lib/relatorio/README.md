@@ -138,7 +138,8 @@ semana inteira. Um pouco abaixo da estimativa de US$ 0,005.
 **Não faça backfill de 90 dias.** O corte de elegibilidade olha a janela de 90 dias e a
 janela INCLUI a semana corrente, então classificar só a semana já popula o ranking: na
 primeira execução, `casa` saiu com 42 ocorrências em 15 criadores, `filho_em_cena` com 22
-em 8. O cron `relatorio-semanal-cenas` roda domingo 22h, antes do close-week.
+em 8. O cron `relatorio-semanal-cenas` roda segunda 00h BRT, depois de a semana
+encerrar e uma hora antes do close-week (01h BRT).
 
 ### O teto de cobertura, medido
 

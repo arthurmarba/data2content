@@ -4,8 +4,9 @@
  * Fecha a semana do Relatório Semanal: recalcula os rankings da última semana
  * FECHADA e grava o snapshot congelado por território.
  *
- * Agendado para domingo 23h BRT (depois do último refresh-instagram-data do dia), via
- * QStash. Idempotente: rodar duas vezes na mesma semana reescreve o mesmo documento.
+ * Agendado para segunda 01h BRT, uma hora depois do fan-out de cenas e depois de a
+ * semana encerrar, via QStash. Idempotente: rodar duas vezes na mesma semana reescreve
+ * o mesmo documento.
  *
  * POR QUE ESTE JOB É O MAIS IMPORTANTE DO PIPELINE: `Metric.stats` é cumulativo e
  * reescrito a cada sync. Se uma semana não é congelada aqui, ela não pode ser
