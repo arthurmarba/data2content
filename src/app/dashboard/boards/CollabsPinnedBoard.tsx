@@ -416,6 +416,7 @@ export default function CollabsPinnedBoard({
         onUpgrade={handleUpgrade}
         onGenerate={handleGenerate}
         onBackToPerfil={goFull}
+        showHeaderTitle={!dedicatedView}
       />
     </Board>
   );

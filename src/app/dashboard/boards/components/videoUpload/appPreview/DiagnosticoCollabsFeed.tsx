@@ -108,6 +108,8 @@ interface Props {
   onGenerate?: () => void;
   /** Volta para a aba Perfil (estado sem mapa). */
   onBackToPerfil?: () => void;
+  /** Evita repetir o título quando a experiência já possui um cabeçalho de página. */
+  showHeaderTitle?: boolean;
 }
 
 function BookmarkSolidIcon({ size = 15, color = TEXT_PRIMARY_HEX }: { size?: number; color?: string }) {
@@ -181,6 +183,7 @@ function FeedHeader({
   savedCount,
   matchCount,
   loading,
+  showTitle,
   onOpenSalvas,
   onOpenCombinadas,
 }: {
@@ -189,6 +192,7 @@ function FeedHeader({
   /** Collabs combinadas. */
   matchCount: number;
   loading?: boolean;
+  showTitle: boolean;
   onOpenSalvas: () => void;
   onOpenCombinadas: () => void;
 }) {
@@ -200,14 +204,16 @@ function FeedHeader({
       {/* O contador do marcador "pulsa" quando um card cai na mochila. */}
       <style>{`@keyframes d2c-pocket-pop{0%{transform:scale(1)}40%{transform:scale(1.45)}100%{transform:scale(1)}}`}</style>
       <div style={{ minWidth: 0, flex: 1 }}>
-        <h1 style={{
-          fontFamily: CS_FONT_DISPLAY,
-          fontSize: "clamp(26px, 8.5vw, 33px)",
-          fontWeight: 700, color: CS_INK_HEX, margin: 0,
-          letterSpacing: CS_DISPLAY_TRACKING, lineHeight: 1.1,
-        }}>
-          Collabs
-        </h1>
+        {showTitle ? (
+          <h1 style={{
+            fontFamily: CS_FONT_DISPLAY,
+            fontSize: "clamp(26px, 8.5vw, 33px)",
+            fontWeight: 700, color: CS_INK_HEX, margin: 0,
+            letterSpacing: CS_DISPLAY_TRACKING, lineHeight: 1.1,
+          }}>
+            Collabs
+          </h1>
+        ) : null}
       </div>
       {/* Dois pontos de entrada: matches (novidade) e salvas (acervo).
           O acesso à comunidade/reunião agora mora no card dedicado do Perfil.
@@ -903,6 +909,7 @@ export function DiagnosticoCollabsFeed({
   onUpgrade,
   onGenerate,
   onBackToPerfil,
+  showHeaderTitle = true,
 }: Props) {
   const hasPautas = pautas.length > 0;
   const mapless = ideaGenerationBlocker === "map_incomplete";
@@ -1088,6 +1095,7 @@ export function DiagnosticoCollabsFeed({
           savedCount={shelfPautas.length}
           matchCount={confirmedMatches?.length ?? 0}
           loading={bootstrapPending}
+          showTitle={showHeaderTitle}
           onOpenSalvas={() => setOpenSheet("salvas")}
           onOpenCombinadas={() => setOpenSheet("combinadas")}
         />
