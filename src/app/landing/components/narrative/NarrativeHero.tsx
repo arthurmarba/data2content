@@ -61,7 +61,9 @@ type HeroSignal = {
   hold: number;
 };
 
-const HERO_SIGNALS: HeroSignal[] = [
+/* Tupla não-vazia: garante ao compilador que HERO_SIGNALS[0] existe, que é o
+   fallback do índice ativo (o projeto usa noUncheckedIndexedAccess). */
+const HERO_SIGNALS: [HeroSignal, ...HeroSignal[]] = [
   { action: ["Gravar o vídeo", "dentro de casa"], proof: "2,3× em comentários", anchor: "top-left", hold: 2100 },
   { action: ["Falar sobre criar", "os filhos"], proof: "5,5× em compartilhamentos", anchor: "mid-right", hold: 2100 },
   { action: ["Postar na quarta", "de manhã"], proof: "7,9× em compartilhamentos", anchor: "low-left", hold: 2100 },
