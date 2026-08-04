@@ -275,9 +275,9 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
   },
 ];
 
-const DESKTOP_HIDDEN_PANEL_ITEM_KEYS = new Set([
-  "media-kit",
-]);
+// Todos os destinos principais do produto devem permanecer visíveis no painel
+// lateral do desktop, inclusive o Mídia Kit.
+const DESKTOP_HIDDEN_PANEL_ITEM_KEYS = new Set<string>();
 
 const shouldHideInMinimal = (hideInMinimal: boolean | undefined, dashboardMinimal: boolean) =>
   Boolean(hideInMinimal && dashboardMinimal);
@@ -285,6 +285,8 @@ const HIDDEN_SIDEBAR_ITEM_KEYS = new Set<string>([
   "pro",
   "instagram-connection",
   "settings",
+  "weekly-meeting",
+  "reviews",
   "publis",
   "campaigns.calculator",
   "calendar.hub",

@@ -35,6 +35,27 @@ describe("sidebar product navigation", () => {
     },
   );
 
+  it("mantém apenas os seis destinos principais além do Início", () => {
+    const sections = buildSidebarSections({
+      hasPremiumAccess: true,
+      planningLocked: false,
+      dashboardMinimal: false,
+      isMobile: false,
+    });
+    const desktopSections = filterDesktopSidebarSections(sections);
+    const itemKeys = desktopSections.flatMap((section) => section.items.map((item) => item.key));
+
+    expect(itemKeys).toEqual([
+      "dashboard",
+      "recorded-meetings",
+      "strategic-map",
+      "collabs",
+      "media-kit",
+      "campaigns.overview",
+      "affiliates",
+    ]);
+  });
+
   it("mantém Campanhas como destino comercial canônico no desktop", () => {
     const sections = buildSidebarSections({
       hasPremiumAccess: false,
