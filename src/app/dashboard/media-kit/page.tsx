@@ -51,7 +51,7 @@ function MediaKitBoardShell({
 }) {
   const dedicatedDesktopWidthClassName = 'lg:max-w-[1640px]';
   return (
-    <main className="mx-auto flex h-full min-h-0 w-full flex-col bg-[radial-gradient(120%_36%_at_50%_0%,rgba(255,255,255,0.95),rgba(243,244,246,0.98)_52%,rgba(243,244,246,1)_100%)] px-0 lg:bg-none lg:px-8 lg:pb-5 lg:pt-5">
+    <div className="mx-auto flex h-full min-h-0 w-full flex-col bg-[radial-gradient(120%_36%_at_50%_0%,rgba(255,255,255,0.95),rgba(243,244,246,0.98)_52%,rgba(243,244,246,1)_100%)] px-0 lg:bg-none lg:px-8 lg:pb-5 lg:pt-5">
       {mobileAppView && showProfileCloseButton ? (
         <button
           type="button"
@@ -81,7 +81,7 @@ function MediaKitBoardShell({
           <div className={contentClassName}>{children}</div>
         </Board>
       </div>
-    </main>
+    </div>
   );
 }
 

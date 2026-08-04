@@ -6,8 +6,8 @@ export const dynamic = 'force-dynamic';
 
 export default function AfiliadosPage() {
   return (
-    <main className="w-full">
+    <div className="w-full">
       <AffiliateCard />
-    </main>
+    </div>
   );
 }

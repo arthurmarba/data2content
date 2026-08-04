@@ -38,7 +38,7 @@ export default async function RecordedMeetingsPage() {
   }
 
   return (
-    <main className="h-full min-h-0 overflow-y-auto bg-[#f7f7f5] text-zinc-950">
+    <div className="h-full min-h-0 overflow-y-auto bg-[#f7f7f5] text-zinc-950">
       <div className="mx-auto w-full max-w-[1480px] px-4 pb-16 pt-6 sm:px-6 sm:pt-8 lg:px-10 lg:pb-10">
         <header className="mb-8 flex flex-col justify-between gap-5 border-b border-zinc-200 pb-7 sm:flex-row sm:items-end">
           <div>
@@ -59,6 +59,6 @@ export default async function RecordedMeetingsPage() {
 
         <RecordedMeetingsLibrary meetings={meetings} />
       </div>
-    </main>
+    </div>
   );
 }

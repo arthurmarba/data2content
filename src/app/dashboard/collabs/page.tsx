@@ -9,7 +9,7 @@ import DesktopWorkspaceHeader from "@/app/dashboard/components/DesktopWorkspaceH
  */
 export default function CollabsPage() {
   return (
-    <main className="h-full min-h-0 overflow-hidden bg-[#f5f5f4] px-4 sm:px-6 lg:px-8">
+    <div className="h-full min-h-0 overflow-hidden bg-[#f5f5f4] px-4 sm:px-6 lg:px-8">
       <div className="mx-auto flex h-full min-h-0 w-full max-w-[1280px] flex-col">
         <DesktopWorkspaceHeader
           eyebrow="Pautas e conexões"
@@ -20,6 +20,6 @@ export default function CollabsPage() {
           <CollabsPinnedBoard dedicatedView />
         </div>
       </div>
-    </main>
+    </div>
   );
 }
