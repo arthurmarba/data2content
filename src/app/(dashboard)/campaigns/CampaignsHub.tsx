@@ -8,6 +8,7 @@ import { useHeaderSetup } from '@/app/dashboard/context/HeaderContext';
 import useBoardMobileViewport from '@/app/dashboard/hooks/useBoardMobileViewport';
 import type { CampaignEntrySource } from '@/constants/routes';
 import { track } from '@/lib/track';
+import DesktopWorkspaceHeader from '@/app/dashboard/components/DesktopWorkspaceHeader';
 
 const CAMPAIGN_ENTRY_SOURCES = new Set<CampaignEntrySource>([
     'sidebar',
@@ -56,18 +57,28 @@ export default function CampaignsHub({ viewer }: { viewer?: any }) {
     );
 
     return (
-        <div className="flex h-full min-h-0 w-full overflow-hidden bg-transparent">
-            <div className="mx-auto flex h-full min-h-0 w-full justify-center px-0 py-0 lg:px-8 lg:pb-5 lg:pt-[2.75rem]">
+        <div className="flex h-full min-h-0 w-full overflow-hidden bg-[#f5f5f4]">
+            <div className="mx-auto flex h-full min-h-0 w-full justify-center px-0 py-0 lg:px-8">
                 <div
                     className={`mx-auto flex h-full min-h-0 w-full flex-col overflow-hidden ${
                         useWideDesktop ? "lg:max-w-[1640px]" : "lg:w-[900px] xl:w-[940px]"
                     }`}
                 >
-                <CampaignsBoard
-                    viewer={viewer}
-                    compactView={!useWideDesktop}
-                    showTitleMarker={false}
-                />
+                    {useWideDesktop ? (
+                        <DesktopWorkspaceHeader
+                            eyebrow="Central comercial"
+                            title="Campanhas"
+                            description="Acompanhe propostas, organize publis e calcule seus valores em um só lugar."
+                        />
+                    ) : null}
+                    <div className="min-h-0 flex-1 lg:pb-7">
+                        <CampaignsBoard
+                            viewer={viewer}
+                            compactView={!useWideDesktop}
+                            showTitleMarker={false}
+                            dedicatedView={useWideDesktop}
+                        />
+                    </div>
                 </div>
             </div>
         </div>

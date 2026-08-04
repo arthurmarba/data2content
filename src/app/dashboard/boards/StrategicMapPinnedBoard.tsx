@@ -33,9 +33,11 @@ type LoadState = "loading" | "error" | "ready";
 export default function StrategicMapPinnedBoard({
   showTitleMarker = true,
   isHighlighted = false,
+  dedicatedView = false,
 }: {
   showTitleMarker?: boolean;
   isHighlighted?: boolean;
+  dedicatedView?: boolean;
 }) {
   const { data: session } = useSession();
   const router = useRouter();
@@ -163,10 +165,11 @@ export default function StrategicMapPinnedBoard({
       title="Seu Mapa"
       showTitleMarker={showTitleMarker}
       titleMarkerVariant="chip"
-      variant="card"
+      variant={dedicatedView ? "workspace" : "card"}
       showChevron={false}
       showOptions={false}
-      contentClassName="bg-[#fffaf7] p-5 h-full flex flex-col"
+      hideTitleBar={dedicatedView}
+      contentClassName={`bg-[#fffaf7] h-full flex flex-col ${dedicatedView ? "p-6 lg:p-8" : "p-5"}`}
       titleClassName="text-zinc-950"
       isHighlighted={isHighlighted}
     >

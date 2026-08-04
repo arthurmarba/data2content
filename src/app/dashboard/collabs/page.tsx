@@ -1,18 +1,25 @@
 "use client";
 
 import CollabsPinnedBoard from "@/app/dashboard/boards/CollabsPinnedBoard";
+import DesktopWorkspaceHeader from "@/app/dashboard/components/DesktopWorkspaceHeader";
 
 /**
- * Visualização individual do board "Collabs" (acessível pela sidebar). Coluna
- * única centrada na largura mobile — o padrão é o mobile. O board (feed de pautas
- * com criador compatível) rola dentro do próprio Board.
+ * Workspace desktop de pautas e conexões. O dashboard recebe apenas o resumo;
+ * aqui a experiência completa pode usar a largura disponível.
  */
 export default function CollabsPage() {
   return (
-    <div className="flex h-full w-full justify-center px-4 pt-4 lg:pt-6">
-      <div className="h-full w-full max-w-[470px]">
-        <CollabsPinnedBoard />
+    <main className="h-full min-h-0 overflow-hidden bg-[#f5f5f4] px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-full min-h-0 w-full max-w-[1280px] flex-col">
+        <DesktopWorkspaceHeader
+          eyebrow="Pautas e conexões"
+          title="Collabs"
+          description="Explore ideias conectadas ao seu mapa e encontre criadores com afinidade narrativa."
+        />
+        <div className="min-h-0 flex-1 pb-5 lg:pb-7">
+          <CollabsPinnedBoard dedicatedView />
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

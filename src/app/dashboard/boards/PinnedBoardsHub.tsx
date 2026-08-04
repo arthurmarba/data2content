@@ -44,7 +44,10 @@ export default function PinnedBoardsHub({
       if (!container || !target) return;
 
       container.scrollTo({
-        left: Math.max(target.offsetLeft - 24, 0),
+        left: Math.max(
+          target.offsetLeft - (container.clientWidth - target.clientWidth) / 2,
+          0,
+        ),
         behavior: "smooth",
       });
       setActiveIndex(nextIndex);
@@ -60,9 +63,11 @@ export default function PinnedBoardsHub({
     );
     if (!boardElements.length) return;
 
+    const containerCenter = container.scrollLeft + container.clientWidth / 2;
     const closestIndex = boardElements.reduce(
       (closest, element, index) => {
-        const distance = Math.abs(element.offsetLeft - container.scrollLeft);
+        const elementCenter = element.offsetLeft + element.clientWidth / 2;
+        const distance = Math.abs(elementCenter - containerCenter);
         return distance < closest.distance ? { index, distance } : closest;
       },
       { index: 0, distance: Number.POSITIVE_INFINITY },
@@ -73,28 +78,36 @@ export default function PinnedBoardsHub({
   return (
     <div className={`relative flex h-full min-h-0 w-full flex-col ${className}`}>
       {hasNavigation ? (
-        <div className="flex h-9 shrink-0 items-center justify-end gap-2 px-4 sm:px-6 lg:px-8">
-          <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
-            {activeIndex + 1} / {items.length} · {navigationLabels[activeIndex]}
-          </span>
-          <button
-            type="button"
-            onClick={() => scrollToIndex(activeIndex - 1)}
-            disabled={activeIndex === 0}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200/80 bg-white text-zinc-600 transition-colors hover:border-zinc-300 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-30"
-            aria-label="Painel anterior"
-          >
-            <ChevronLeftIcon className="h-3.5 w-3.5" />
-          </button>
-          <button
-            type="button"
-            onClick={() => scrollToIndex(activeIndex + 1)}
-            disabled={activeIndex === items.length - 1}
-            className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200/80 bg-white text-zinc-600 transition-colors hover:border-zinc-300 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-30"
-            aria-label="Próximo painel"
-          >
-            <ChevronRightIcon className="h-3.5 w-3.5" />
-          </button>
+        <div className="flex h-14 shrink-0 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold tracking-[-0.02em] text-zinc-950">Visão geral</p>
+            <p className="mt-0.5 truncate text-[12px] text-zinc-500">
+              Atualizações e próximos passos do seu workspace
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="mr-1 hidden text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 sm:inline">
+              {activeIndex + 1} de {items.length} · {navigationLabels[activeIndex]}
+            </span>
+            <button
+              type="button"
+              onClick={() => scrollToIndex(activeIndex - 1)}
+              disabled={activeIndex === 0}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/90 bg-white text-zinc-700 shadow-sm transition hover:-translate-y-0.5 hover:border-zinc-300 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2"
+              aria-label="Painel anterior"
+            >
+              <ChevronLeftIcon className="h-4 w-4" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={() => scrollToIndex(activeIndex + 1)}
+              disabled={activeIndex === items.length - 1}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-zinc-200/90 bg-white text-zinc-700 shadow-sm transition hover:-translate-y-0.5 hover:border-zinc-300 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-30 disabled:hover:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2"
+              aria-label="Próximo painel"
+            >
+              <ChevronRightIcon className="h-4 w-4" aria-hidden="true" />
+            </button>
+          </div>
         </div>
       ) : null}
       <div
@@ -107,7 +120,7 @@ export default function PinnedBoardsHub({
       >
         <div
           className={`
-            flex h-full items-stretch gap-8 px-4 pb-4 pt-4 sm:px-6 lg:gap-10 lg:px-8 lg:pb-5 lg:pt-2
+            flex h-full items-stretch gap-6 px-4 pb-4 pt-3 sm:px-6 lg:gap-8 lg:px-8 lg:pb-6 lg:pt-3
             ${hasSingleBoard ? "min-w-0 justify-center" : "min-w-max"}
             ${railClassName}
           `}
@@ -118,10 +131,13 @@ export default function PinnedBoardsHub({
               data-pinned-board-index={index}
               className={`
                 ${boardWidthClassName} h-full
-                ${hasSingleBoard ? "shrink" : "shrink-0 snap-start"}
+                ${hasSingleBoard ? "shrink" : "shrink-0 snap-center"}
                 ${index === 0 ? firstItemClassName : restItemClassName}
                 ${itemClassName}
+                transition-[opacity,transform] duration-300
+                ${!hasSingleBoard && index !== activeIndex ? "opacity-[0.82]" : "opacity-100"}
               `}
+              aria-current={index === activeIndex ? "true" : undefined}
             >
               {child}
             </div>

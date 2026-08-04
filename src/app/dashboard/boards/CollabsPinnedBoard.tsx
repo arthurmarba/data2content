@@ -52,9 +52,11 @@ type CollabMap = Map<string, NarrativeCollabMatch | null>;
 export default function CollabsPinnedBoard({
   showTitleMarker = true,
   isHighlighted = false,
+  dedicatedView = false,
 }: {
   showTitleMarker?: boolean;
   isHighlighted?: boolean;
+  dedicatedView?: boolean;
 }) {
   const router = useRouter();
   const { data: session, status: sessionStatus } = useSession();
@@ -382,9 +384,10 @@ export default function CollabsPinnedBoard({
       title="Collabs"
       showTitleMarker={showTitleMarker}
       titleMarkerVariant="chip"
-      variant="card"
+      variant={dedicatedView ? "workspace" : "card"}
       showChevron={false}
       showOptions={false}
+      hideTitleBar={dedicatedView}
       contentClassName={`bg-white ${d2cFontVariables}`}
       titleClassName="text-zinc-950"
       isHighlighted={isHighlighted}

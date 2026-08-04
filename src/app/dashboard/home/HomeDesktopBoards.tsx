@@ -12,17 +12,12 @@ import { useDashboardNotificationBadges } from "../hooks/useDashboardNotificatio
 import CampaignPriorityNotice from "./CampaignPriorityNotice";
 import { prioritizeCampaignBoardIds } from "./campaignHomePriority";
 
-const CampaignsBoard = dynamic(() => import("@/app/(dashboard)/campaigns/CampaignsBoard"), {
+const CampaignsOverviewBoard = dynamic(() => import("../boards/CampaignsOverviewBoard"), {
   ssr: false,
   loading: () => null,
 });
 
-const DiscoverBoard = dynamic(() => import("../discover/DiscoverBoard"), {
-  ssr: false,
-  loading: () => null,
-});
-
-const MediaKitPinnedBoard = dynamic(() => import("../boards/MediaKitPinnedBoard"), {
+const MediaKitOverviewBoard = dynamic(() => import("../boards/MediaKitOverviewBoard"), {
   ssr: false,
   loading: () => null,
 });
@@ -35,22 +30,12 @@ const RecordedMeetingsPinnedBoard = dynamic(
   },
 );
 
-const PostCreationPinnedBoard = dynamic(() => import("../boards/PostCreationPinnedBoard"), {
+const StrategicMapOverviewBoard = dynamic(() => import("../boards/StrategicMapOverviewBoard"), {
   ssr: false,
   loading: () => null,
 });
 
-const PlanningChartsPage = dynamic(() => import("../planning/PlanningChartsPage"), {
-  ssr: false,
-  loading: () => null,
-});
-
-const StrategicMapPinnedBoard = dynamic(() => import("../boards/StrategicMapPinnedBoard"), {
-  ssr: false,
-  loading: () => null,
-});
-
-const CollabsPinnedBoard = dynamic(() => import("../boards/CollabsPinnedBoard"), {
+const CollabsOverviewBoard = dynamic(() => import("../boards/CollabsOverviewBoard"), {
   ssr: false,
   loading: () => null,
 });
@@ -153,12 +138,6 @@ function DeferredRealBoardMount({
 export default function HomeDesktopBoards() {
   const { data: session } = useSession();
   const sessionUserId = session?.user?.id ?? null;
-  const sessionUserRole = session?.user?.role ?? null;
-  const sessionUserName = session?.user?.name ?? null;
-  const sessionUserPlanStatus =
-    (session?.user as { planStatus?: string | null } | undefined)?.planStatus ?? null;
-  const sessionAffiliateCode =
-    (session?.user as { affiliateCode?: string | null } | undefined)?.affiliateCode ?? null;
   const { orderedPinnedBoards, isPinned, pinBoard, hydrated: pinsHydrated } =
     usePinnedBoardsEnabled(sessionUserId, true);
   const searchParams = useSearchParams();
@@ -199,49 +178,25 @@ export default function HomeDesktopBoards() {
     return () => clearTimeout(timer);
   }, [highlightBoardId, pinsHydrated, isPinned, pinBoard]);
 
-  const compactCampaignViewer = React.useMemo(
-    () => ({
-      id: sessionUserId,
-      role: sessionUserRole,
-      name: sessionUserName,
-      planStatus: sessionUserPlanStatus,
-    }),
-    [sessionUserId, sessionUserName, sessionUserPlanStatus, sessionUserRole],
-  );
-
-  const compactPlanningViewer = React.useMemo(
-    () => ({
-      id: sessionUserId ?? "",
-      role: sessionUserRole,
-      name: sessionUserName,
-      affiliateCode: sessionAffiliateCode,
-    }),
-    [sessionAffiliateCode, sessionUserId, sessionUserName, sessionUserRole],
-  );
-
   const renderPinnedBoard = React.useCallback(
     (boardId: PinnableBoardId) => {
       switch (boardId) {
         case "strategic-map":
           return (
-            <StrategicMapPinnedBoard
-              showTitleMarker={false}
+            <StrategicMapOverviewBoard
               isHighlighted={activeHighlight === "strategic-map"}
             />
           );
         case "collabs":
           return (
-            <CollabsPinnedBoard
-              showTitleMarker={false}
+            <CollabsOverviewBoard
               isHighlighted={activeHighlight === "collabs"}
             />
           );
         case "campaigns":
           return (
-            <CampaignsBoard
-              viewer={compactCampaignViewer}
-              compactView
-              showTitleMarker={false}
+            <CampaignsOverviewBoard
+              unreadCount={campaignsUnreadCount}
               isHighlighted={activeHighlight === "campaigns"}
             />
           );
@@ -251,43 +206,17 @@ export default function HomeDesktopBoards() {
               isHighlighted={activeHighlight === "recorded-meetings"}
             />
           );
-        case "discover":
-          return (
-            <DiscoverBoard
-              compactView
-              showTitleMarker={false}
-              allowCompactWarmup={false}
-              isHighlighted={activeHighlight === "discover"}
-            />
-          );
         case "media-kit":
           return (
-            <MediaKitPinnedBoard
-              showTitleMarker={false}
+            <MediaKitOverviewBoard
               isHighlighted={activeHighlight === "media-kit"}
-            />
-          );
-        case "post-creation":
-          return (
-            <PostCreationPinnedBoard
-              isHighlighted={activeHighlight === "post-creation"}
-            />
-          );
-        case "profile-analysis":
-          return (
-            <PlanningChartsPage
-              viewer={compactPlanningViewer}
-              showPinButton
-              pinButtonRedirectOnPin={false}
-              compactView
-              isHighlighted={activeHighlight === "profile-analysis"}
             />
           );
         default:
           return null;
       }
     },
-    [activeHighlight, compactCampaignViewer, compactPlanningViewer],
+    [activeHighlight, campaignsUnreadCount],
   );
 
   const boardIds = React.useMemo<PinnableBoardId[]>(
@@ -308,14 +237,10 @@ export default function HomeDesktopBoards() {
   );
 
   const homeRailBoardWidthClassName =
-    "w-[min(415px,calc(100vw-28px))] lg:w-[450px] xl:w-[470px]";
-  const homeRailPrimaryItemClassName =
-    "w-[min(760px,calc(100vw-28px))] lg:w-[min(760px,55vw)] xl:w-[min(840px,58vw)]";
-  const homeRailItemClassName = "lg:-mt-[0.5rem] lg:h-[calc(100%+0.5rem)]";
+    "w-[min(390px,calc(100vw-28px))] lg:w-[390px] xl:w-[410px] 2xl:w-[420px]";
+  const homeRailItemClassName = "h-full";
   const homeRailClassName = "items-start";
   const homeRailRestItemClassName = "self-start";
-  const homeRailFirstItemClassName =
-    boardIds.length > 0 ? homeRailRestItemClassName : homeRailPrimaryItemClassName;
 
   return (
     <div className="flex h-full min-h-0 w-full flex-col">
@@ -328,7 +253,7 @@ export default function HomeDesktopBoards() {
         className="min-h-0 flex-1"
         boardWidthClassName={homeRailBoardWidthClassName}
         itemClassName={homeRailItemClassName}
-        firstItemClassName={homeRailFirstItemClassName}
+        firstItemClassName={homeRailRestItemClassName}
         restItemClassName={homeRailRestItemClassName}
         railClassName={homeRailClassName}
         navigationLabels={boardNavigationLabels}

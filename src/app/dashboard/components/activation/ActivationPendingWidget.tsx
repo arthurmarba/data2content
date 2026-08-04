@@ -77,7 +77,7 @@ export default function ActivationPendingWidget() {
       className={[
         "pointer-events-none fixed bottom-[calc(env(safe-area-inset-bottom,0px)+5.35rem)] z-[210] lg:bottom-[calc(env(safe-area-inset-bottom,0px)+1.2rem)]",
         minimized
-          ? "right-3 w-[232px] sm:right-6 sm:w-[280px]"
+          ? "right-3 w-[232px] sm:right-6 sm:w-[280px] lg:w-12"
           : "inset-x-4 sm:inset-x-auto sm:right-6 sm:w-[350px]",
       ].join(" ")}
     >
@@ -95,10 +95,11 @@ export default function ActivationPendingWidget() {
         <button
           type="button"
           onClick={handleToggle}
+          aria-label={minimized ? `Abrir próximos passos — ${progressPercent}% concluído` : "Recolher próximos passos"}
           className={[
             "flex w-full justify-between gap-3 text-left transition-all duration-300",
             minimized
-              ? "items-center px-3.5 pb-3 pt-2.5"
+              ? "items-center px-3.5 pb-3 pt-2.5 lg:h-12 lg:justify-center lg:p-0"
               : "items-start px-5 py-4 sm:px-4.5 sm:py-3.5",
           ].join(" ")}
         >
@@ -118,7 +119,7 @@ export default function ActivationPendingWidget() {
                 <p className="mt-1 text-[13px] font-medium text-zinc-400">{progressLabel}</p>
               </>
             ) : (
-              <div className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1 lg:hidden">
                 <div className="flex min-w-0 items-center gap-2">
                   <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border shadow-sm ${progressPercent === 100
                       ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-400"
@@ -151,8 +152,15 @@ export default function ActivationPendingWidget() {
               </div>
             )}
           </div>
-          <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/8 bg-white/5 text-zinc-400 transition-all hover:bg-white/10 hover:text-white">
-            {minimized ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          <span className={`inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-white/8 bg-white/5 text-zinc-400 transition-all hover:bg-white/10 hover:text-white ${minimized ? "lg:h-12 lg:w-12 lg:border-0 lg:bg-transparent lg:text-rose-400" : ""}`}>
+            {minimized ? (
+              <>
+                <ChevronUp className="h-4 w-4 lg:hidden" aria-hidden="true" />
+                <Sparkles className="hidden h-5 w-5 lg:block" aria-hidden="true" />
+              </>
+            ) : (
+              <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            )}
           </span>
         </button>
 

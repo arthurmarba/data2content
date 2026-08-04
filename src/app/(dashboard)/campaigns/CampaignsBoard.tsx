@@ -23,6 +23,7 @@ export default function CampaignsBoard({
   headerActions,
   showTitleMarker = true,
   isHighlighted = false,
+  dedicatedView = false,
 }: {
   viewer?: any;
   compactView?: boolean;
@@ -30,6 +31,7 @@ export default function CampaignsBoard({
   headerActions?: React.ReactNode;
   showTitleMarker?: boolean;
   isHighlighted?: boolean;
+  dedicatedView?: boolean;
 }) {
   const dedicatedDesktopWidthClassName = "lg:max-w-[1640px]";
   const isBoardMobileViewport = useBoardMobileViewport();
@@ -79,10 +81,11 @@ export default function CampaignsBoard({
       mobilePresentation={useMobileAppView ? "flat" : "surface"}
       showTitleMarker={showTitleMarker}
       titleMarkerVariant="chip"
-      variant="card"
+      variant={dedicatedView ? "workspace" : "card"}
       showChevron={false}
       showOptions={false}
       hideActionsUntilHover={false}
+      hideTitleBar={dedicatedView}
       className="before:hidden"
       desktopWidthClassName={!useCompactLayout ? dedicatedDesktopWidthClassName : ""}
       contentClassName={useMobileAppView ? "bg-transparent" : "bg-white"}
@@ -97,11 +100,13 @@ export default function CampaignsBoard({
             : "border-b border-zinc-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.99),rgba(255,255,255,0.96))] px-6 pt-3 pb-0"
         }`}
       >
-        <div className={useMobileAppView ? "px-1 pb-2" : "pb-3"}>
-          <p className="max-w-[34rem] text-[12px] leading-relaxed text-zinc-500 sm:text-[13px]">
-            Acompanhe propostas, leia briefings e responda às marcas em um só lugar.
-          </p>
-        </div>
+        {!dedicatedView ? (
+          <div className={useMobileAppView ? "px-1 pb-2" : "pb-3"}>
+            <p className="max-w-[34rem] text-[12px] leading-relaxed text-zinc-500 sm:text-[13px]">
+              Acompanhe propostas, leia briefings e responda às marcas em um só lugar.
+            </p>
+          </div>
+        ) : null}
         <ThreadsTabs
           tabs={tabs}
           activeTab={activeTab}

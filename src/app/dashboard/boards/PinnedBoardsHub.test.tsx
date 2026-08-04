@@ -45,12 +45,13 @@ describe("PinnedBoardsHub", () => {
     const scrollContainer = container.querySelector(".overflow-x-auto") as HTMLDivElement;
     scrollContainer.scrollTo = jest.fn();
 
-    expect(screen.getByText("1 / 2 · Campanhas")).toBeInTheDocument();
+    expect(screen.getByText("1 de 2 · Campanhas")).toBeInTheDocument();
+    expect(screen.getByText("Visão geral")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Painel anterior" })).toBeDisabled();
 
     fireEvent.click(screen.getByRole("button", { name: "Próximo painel" }));
 
     expect(scrollContainer.scrollTo).toHaveBeenCalled();
-    expect(screen.getByText("2 / 2 · Comunidade")).toBeInTheDocument();
+    expect(screen.getByText("2 de 2 · Comunidade")).toBeInTheDocument();
   });
 });

@@ -197,7 +197,6 @@ export default function AffiliateCard() {
       </span>
 
       <div className="dashboard-page-shell space-y-8 pb-12 pt-6">
-        <h1 className="sr-only">Programa de afiliados</h1>
         <section className="rounded-3xl border border-brand-purple/10 bg-white p-6 text-brand-dark shadow-sm sm:p-8">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>

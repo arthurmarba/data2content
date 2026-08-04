@@ -27,6 +27,8 @@ interface BoardProps {
     desktopWidthClassName?: string;
     disableMobilePaddingTop?: boolean;
     isHighlighted?: boolean;
+    contentScrollable?: boolean;
+    hideTitleBar?: boolean;
 }
 
 export default function Board({ 
@@ -51,6 +53,8 @@ export default function Board({
     desktopWidthClassName = "",
     disableMobilePaddingTop = false,
     isHighlighted = false,
+    contentScrollable = true,
+    hideTitleBar = false,
 }: BoardProps) {
     const isCard = variant === 'card';
     const isCompact = variant === 'compact';
@@ -136,7 +140,7 @@ export default function Board({
             data-mobile-frame={isMobileFlat ? "flat" : "surface"}
             onWheel={handleBoardWheel}
         >
-            <div className={`
+            {!hideTitleBar ? <div className={`
                 dashboard-board-titlebar relative z-[2] min-h-[2.25rem]
                 ${promoteHeaderOnMobile ? 'hidden lg:block' : ''}
                 ${titleBarPaddingClassName}
@@ -188,7 +192,7 @@ export default function Board({
                         </button>
                     )}
                 </div>
-            </div>
+            </div> : null}
 
             <div
                 className={`
@@ -198,7 +202,7 @@ export default function Board({
                 <div
                     ref={scrollContainerRef}
                     data-board-scroll-container="true"
-                    className={`dashboard-board-content dashboard-scrollbar relative z-[1] min-h-0 h-full overflow-y-auto scroll-smooth ${contentPaddingClassName} ${contentClassName}`}
+                    className={`dashboard-board-content dashboard-scrollbar relative z-[1] min-h-0 h-full ${contentScrollable ? "overflow-y-auto scroll-smooth" : "overflow-hidden"} ${contentPaddingClassName} ${contentClassName}`}
                 >
                     {children}
                 </div>
