@@ -19,6 +19,7 @@ import { track } from '@/lib/track';
 import { formatAffiliateAmount, useAffiliateDashboard } from '@/hooks/useAffiliateDashboard';
 import ErrorState from '@/components/ui/ErrorState';
 import { AFFILIATE_TIP_TEMPLATES } from '@/data/affiliateTips';
+import DesktopWorkspaceHeader from '@/app/dashboard/components/DesktopWorkspaceHeader';
 
 type CopyKind = 'code' | 'link' | 'tip';
 
@@ -113,7 +114,7 @@ export default function AffiliateCard() {
     if (!status.payoutsEnabled || reason === 'needsOnboarding' || reason === 'payouts_disabled') {
       return {
         tone: 'warning' as const,
-        title: '⚠️ Ação necessária',
+        title: 'Ação necessária',
         message: 'Conecte sua conta Stripe para liberar ganhos.',
         actionLabel: 'Conectar Stripe',
         action: affiliate.openStripe,
@@ -196,36 +197,41 @@ export default function AffiliateCard() {
         {a11yMsg || affiliate.a11yMessage}
       </span>
 
-      <div className="dashboard-page-shell space-y-8 pb-12 pt-6">
-        <section className="rounded-3xl border border-brand-purple/10 bg-white p-6 text-brand-dark shadow-sm sm:p-8">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-brand-purple">
-                🤝 Programa de Afiliados
-              </p>
-              <h1 className="mt-2 text-2xl font-semibold sm:text-3xl">
-                Ganhe 20% da primeira fatura de cada criador indicado.
-              </h1>
-              <p className="mt-3 max-w-xl text-sm text-brand-text-secondary">
-                Seu link registra a indicação sem alterar o preço da assinatura, e você acompanha quanto já foi liberado aqui mesmo.
-              </p>
-            </div>
+      <div className="dashboard-page-shell space-y-6 pb-12">
+        <DesktopWorkspaceHeader
+          eyebrow="Indicações e ganhos"
+          title="Programa de Afiliados"
+          description="Ganhe 20% da primeira fatura de cada criador indicado e acompanhe seus resultados em um só lugar."
+          actions={(
             <button
               type="button"
               onClick={affiliate.share}
               disabled={!referralLink}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#E4224D] px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-[#E4224D]/40 transition hover:bg-[#cc1c40] disabled:cursor-not-allowed disabled:opacity-70"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#E4224D] px-5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(228,34,77,0.22)] transition hover:bg-[#cc1c40] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Share2 className="h-4 w-4" />
               Compartilhar link
             </button>
-          </div>
-        </section>
+          )}
+        />
+
+        <button
+          type="button"
+          onClick={affiliate.share}
+          disabled={!referralLink}
+          className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-[#E4224D] px-5 text-sm font-semibold text-white shadow-[0_10px_24px_rgba(228,34,77,0.22)] transition hover:bg-[#cc1c40] disabled:cursor-not-allowed disabled:opacity-60 lg:hidden"
+        >
+          <Share2 className="h-4 w-4" />
+          Compartilhar link
+        </button>
 
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-sm font-semibold text-slate-900">💰 Saldo</p>
+              <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                <Wallet className="h-4 w-4 text-brand-purple" />
+                Saldo
+              </p>
               <p className="text-xs text-slate-500">Total, liberado e aguardando em {primaryCur}.</p>
             </div>
             <button
@@ -279,7 +285,10 @@ export default function AffiliateCard() {
 
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
           <div className="flex flex-col gap-2">
-            <p className="text-sm font-semibold text-slate-900">🔗 Seu link de afiliado</p>
+            <p className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+              <Link2 className="h-4 w-4 text-brand-purple" />
+              Seu link de afiliado
+            </p>
             <div className="flex items-center gap-2 text-sm text-slate-500">
               <Link2 className="h-4 w-4" />
               {displayLink}
@@ -349,7 +358,7 @@ export default function AffiliateCard() {
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
           <div className="flex items-center gap-2 text-slate-900">
             <Lightbulb className="h-5 w-5 text-amber-500" />
-            <p className="text-sm font-semibold">💡 Dicas rápidas de divulgação</p>
+            <p className="text-sm font-semibold">Dicas rápidas de divulgação</p>
           </div>
           <div className="mt-5 divide-y divide-slate-100 rounded-2xl border border-slate-100">
             {quickTips.map((tip) => (

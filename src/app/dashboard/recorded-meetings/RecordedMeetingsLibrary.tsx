@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import React from "react";
-import { CalendarDays, Clock3, Search, Video } from "lucide-react";
+import { CalendarDays, Clock3, Search, Video, type LucideIcon } from "lucide-react";
 
 import type { RecordedMeeting } from "@/app/lib/community/recordedMeetingsService";
 
@@ -43,17 +43,45 @@ export default function RecordedMeetingsLibrary({
 
   if (!selectedMeeting) {
     return (
-      <div className="flex min-h-[420px] flex-col items-center justify-center px-6 text-center">
-        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-zinc-100 text-zinc-500">
-          <Video className="h-6 w-6" />
-        </span>
-        <h2 className="mt-5 text-xl font-semibold tracking-tight text-zinc-950">
-          A biblioteca está sendo preparada
-        </h2>
-        <p className="mt-2 max-w-md text-sm leading-6 text-zinc-500">
-          As gravações das reuniões aparecerão aqui assim que forem publicadas.
-        </p>
-      </div>
+      <section className="grid min-h-[430px] overflow-hidden rounded-[28px] border border-zinc-200/80 bg-white shadow-[0_18px_50px_rgba(24,24,27,0.045)] lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="flex flex-col items-center justify-center px-8 py-14 text-center">
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-50 text-violet-700 ring-1 ring-violet-100">
+            <Video className="h-6 w-6" aria-hidden="true" />
+          </span>
+          <p className="mt-6 text-[10px] font-bold uppercase tracking-[0.18em] text-violet-700">
+            Nenhuma gravação publicada
+          </p>
+          <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-zinc-950">
+            A biblioteca está sendo preparada
+          </h2>
+          <p className="mt-3 max-w-md text-sm leading-6 text-zinc-500">
+            Assim que a primeira reunião for publicada, ela aparecerá aqui pronta para assistir.
+          </p>
+        </div>
+
+        <aside className="border-t border-zinc-200/80 bg-zinc-50/70 px-7 py-9 lg:border-l lg:border-t-0" aria-label="Recursos da biblioteca">
+          <p className="text-[10px] font-bold uppercase tracking-[0.17em] text-zinc-400">
+            Nesta biblioteca
+          </p>
+          <ul className="mt-6 space-y-6">
+            <EmptyLibraryFeature
+              icon={Video}
+              title="Gravação completa"
+              description="Assista às reuniões semanais no seu ritmo."
+            />
+            <EmptyLibraryFeature
+              icon={CalendarDays}
+              title="Arquivo por data"
+              description="Encontre rapidamente a semana que deseja rever."
+            />
+            <EmptyLibraryFeature
+              icon={Search}
+              title="Busca no acervo"
+              description="Pesquise reuniões por título ou assunto."
+            />
+          </ul>
+        </aside>
+      </section>
     );
   }
 
@@ -171,5 +199,27 @@ export default function RecordedMeetingsLibrary({
         </div>
       </aside>
     </div>
+  );
+}
+
+function EmptyLibraryFeature({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+}) {
+  return (
+    <li className="flex gap-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-zinc-500 ring-1 ring-zinc-200/80">
+        <Icon className="h-4 w-4" aria-hidden="true" />
+      </span>
+      <div>
+        <p className="text-sm font-semibold text-zinc-900">{title}</p>
+        <p className="mt-1 text-[13px] leading-5 text-zinc-500">{description}</p>
+      </div>
+    </li>
   );
 }
