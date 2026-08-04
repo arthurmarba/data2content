@@ -45,29 +45,29 @@ jest.mock("./LandingAuthCta", () => ({
 }));
 
 describe("NarrativeHero", () => {
-  it("apresenta a promessa, o CTA e a copy de apoio definidos para a primeira dobra", () => {
+  it("apresenta a promessa inteira no h1 e o CTA da primeira dobra", () => {
     render(<NarrativeHero />);
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "Pare de adivinhar o que postar.",
+      "Seus posts revelam o que sua audiência quer. A gente te diz o que postar.",
     );
-    expect(screen.getByText(/Nossa IA assiste aos conteúdos dos criadores/i)).toBeInTheDocument();
-    expect(screen.getByText(/identifica padrões em assuntos, falas, cenários e formatos/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Criar conta grátis/i })).toBeInTheDocument();
-    expect(screen.getByText("para")).toHaveClass("d2c-human-hero__outcome-prefix");
-    expect(screen.getByText("ganhar seguidores.").tagName).toBe("EM");
-    expect(screen.getByText("ganhar seguidores.")).toHaveClass("d2c-human-hero__outcome-word");
+    expect(screen.queryByText(/Para criadores, marcas e prestadores de serviço/i)).not.toBeInTheDocument();
   });
 
-  it("expõe os sinais lidos pela D2C como conteúdo, não como decoração", () => {
+  it("expõe as sugestões lidas pela D2C como conteúdo, não como decoração", () => {
     render(<NarrativeHero />);
 
-    const signals = screen.getByLabelText(/A IA assiste aos conteúdos/i);
+    const signals = screen.getByLabelText(/Exemplo de análise da D2C/i);
 
-    expect(signals).toHaveTextContent("CenárioEspaço de trabalho");
-    expect(signals).toHaveTextContent("AssuntoIA · negócios criativos");
-    expect(signals).toHaveTextContent("FalaEstou construindo do meu jeito");
-    expect(signals).toHaveTextContent("FormatoBastidores em primeira pessoa");
-    expect(signals).toHaveTextContent("Direção para postar");
+    /* A lista completa vive no rótulo acessível: só uma sugestão aparece
+       por vez na tela, mas nenhuma pode ficar invisível para quem não vê. */
+    expect(signals).toHaveAccessibleName(
+      expect.stringContaining("Gravar o vídeo dentro de casa — 2,3× em comentários"),
+    );
+    expect(signals).toHaveAccessibleName(
+      expect.stringContaining("Postar na quarta de manhã — 7,9× em compartilhamentos"),
+    );
+    expect(signals).toHaveTextContent("Gravar o vídeo");
   });
 });
