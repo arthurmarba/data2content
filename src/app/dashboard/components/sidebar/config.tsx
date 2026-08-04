@@ -7,6 +7,7 @@ import {
   ChatBubbleLeftRightIcon as ChatBubbleLeftRightIconOutline,
   PresentationChartLineIcon as PresentationChartLineIconOutline,
   CalendarDaysIcon as CalendarDaysIconOutline,
+  FilmIcon as FilmIconOutline,
   DocumentTextIcon as DocumentTextIconOutline,
   MagnifyingGlassCircleIcon as MagnifyingGlassCircleIconOutline,
   MegaphoneIcon as MegaphoneIconOutline,
@@ -27,6 +28,7 @@ import {
   ChatBubbleLeftRightIcon as ChatBubbleLeftRightIconSolid,
   PresentationChartLineIcon as PresentationChartLineIconSolid,
   CalendarDaysIcon as CalendarDaysIconSolid,
+  FilmIcon as FilmIconSolid,
   DocumentTextIcon as DocumentTextIconSolid,
   MagnifyingGlassCircleIcon as MagnifyingGlassCircleIconSolid,
   MegaphoneIcon as MegaphoneIconSolid,
@@ -39,7 +41,7 @@ import {
   PencilSquareIcon as PencilSquareIconSolid,
 } from "@heroicons/react/24/solid";
 import { navigationLabels } from "@/constants/navigationLabels";
-import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
+import { MAIN_DASHBOARD_ROUTE, RECORDED_MEETINGS_ROUTE } from "@/constants/routes";
 import type { PaywallContext } from "@/types/paywall";
 import type {
   SidebarBuildOptions,
@@ -70,6 +72,7 @@ const iconSet = (outline: SidebarIconComponent, solid: SidebarIconComponent): Si
 const ICONS = {
   dashboard: iconSet(HomeIconOutline, HomeIconSolid),
   meeting: iconSet(CalendarDaysIconOutline, CalendarDaysIconSolid),
+  recordedMeetings: iconSet(FilmIconOutline, FilmIconSolid),
   strategicMap: iconSet(MapIconOutline, MapIconSolid),
   collabs: iconSet(UsersIconOutline, UsersIconSolid),
   mediaKit: iconSet(RectangleGroupIconOutline, RectangleGroupIconSolid),
@@ -116,6 +119,16 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         tooltip: "Assista ao vivo toda quinta-feira, às 19h",
         href: "/reuniao",
         icon: ICONS.meeting,
+      },
+      {
+        type: "item",
+        key: "recorded-meetings",
+        label: "Reuniões gravadas",
+        tooltip: "Assista novamente às reuniões exclusivas para assinantes",
+        href: RECORDED_MEETINGS_ROUTE,
+        icon: ICONS.recordedMeetings,
+        paywallResolver: ({ hasPremiumAccess }) =>
+          hasPremiumAccess ? undefined : "mentoria",
       },
       {
         type: "item",
@@ -264,12 +277,20 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
 
 const DESKTOP_HIDDEN_PANEL_ITEM_KEYS = new Set([
   "media-kit",
-  "planning.discover",
 ]);
 
 const shouldHideInMinimal = (hideInMinimal: boolean | undefined, dashboardMinimal: boolean) =>
   Boolean(hideInMinimal && dashboardMinimal);
-const HIDDEN_SIDEBAR_ITEM_KEYS = new Set<string>(["pro", "instagram-connection", "settings", "publis", "campaigns.calculator"]);
+const HIDDEN_SIDEBAR_ITEM_KEYS = new Set<string>([
+  "pro",
+  "instagram-connection",
+  "settings",
+  "publis",
+  "campaigns.calculator",
+  "calendar.hub",
+  "planning.charts",
+  "planning.discover",
+]);
 
 const resolveChild = (
   definition: SidebarChildDefinition,
@@ -285,13 +306,9 @@ const resolveChild = (
 
   const paywallContext = definition.paywallResolver?.(options);
 
-  if (options.isMobile && definition.key === "planning.discover") {
-    return null;
-  }
-
   return {
     ...definition,
-    label: options.isMobile && definition.key === "dashboard" ? "Comunidade" : definition.label,
+    label: options.isMobile && definition.key === "dashboard" ? "Início" : definition.label,
     paywallContext,
   };
 };

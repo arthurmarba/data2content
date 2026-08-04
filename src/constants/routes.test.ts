@@ -1,5 +1,6 @@
 import {
   CAMPAIGNS_ROUTE,
+  RECORDED_MEETINGS_ROUTE,
   buildCampaignProposalHref,
   buildCampaignProposalUrl,
 } from "./routes";
@@ -28,5 +29,11 @@ describe("campaign routes", () => {
     expect(
       buildCampaignProposalUrl("https://data2content.ai/", "123", { source: "email" })
     ).toBe("https://data2content.ai/campaigns?proposalId=123&source=email");
+  });
+});
+
+describe("recorded meetings route", () => {
+  it("mantém a videoteca em uma rota canônica", () => {
+    expect(RECORDED_MEETINGS_ROUTE).toBe("/reunioes-gravadas");
   });
 });

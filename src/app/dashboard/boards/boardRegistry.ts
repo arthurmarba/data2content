@@ -1,11 +1,12 @@
 "use client";
 
-import { CAMPAIGNS_ROUTE } from "@/constants/routes";
+import { CAMPAIGNS_ROUTE, RECORDED_MEETINGS_ROUTE } from "@/constants/routes";
 
 export type PinnableBoardId =
   | "strategic-map"
   | "collabs"
   | "campaigns"
+  | "recorded-meetings"
   | "discover"
   | "profile-analysis"
   | "media-kit"
@@ -15,6 +16,7 @@ export type PinnableBoardConfig = {
   id: PinnableBoardId;
   title: string;
   route: string;
+  visibleOnHome: boolean;
   defaultPinned: boolean;
   fixedPinned?: boolean;
 };
@@ -24,6 +26,7 @@ export const PINNABLE_BOARD_REGISTRY: Record<PinnableBoardId, PinnableBoardConfi
     id: "strategic-map",
     title: "Seu Mapa",
     route: "/dashboard/boards/mobile-strategic-profile",
+    visibleOnHome: true,
     defaultPinned: true,
     fixedPinned: true,
   },
@@ -31,12 +34,22 @@ export const PINNABLE_BOARD_REGISTRY: Record<PinnableBoardId, PinnableBoardConfi
     id: "collabs",
     title: "Collabs",
     route: "/dashboard/boards/mobile-strategic-profile",
+    visibleOnHome: true,
     defaultPinned: true,
   },
   campaigns: {
     id: "campaigns",
     title: "Campanhas",
     route: CAMPAIGNS_ROUTE,
+    visibleOnHome: true,
+    defaultPinned: true,
+    fixedPinned: true,
+  },
+  "recorded-meetings": {
+    id: "recorded-meetings",
+    title: "Reuniões gravadas",
+    route: RECORDED_MEETINGS_ROUTE,
+    visibleOnHome: true,
     defaultPinned: true,
     fixedPinned: true,
   },
@@ -44,19 +57,21 @@ export const PINNABLE_BOARD_REGISTRY: Record<PinnableBoardId, PinnableBoardConfi
     id: "discover",
     title: "Comunidade",
     route: "/planning/discover",
-    defaultPinned: true,
-    fixedPinned: true,
+    visibleOnHome: false,
+    defaultPinned: false,
   },
   "profile-analysis": {
     id: "profile-analysis",
     title: "Análise de Perfil",
     route: "/planning/graficos",
-    defaultPinned: true,
+    visibleOnHome: false,
+    defaultPinned: false,
   },
   "media-kit": {
     id: "media-kit",
     title: "Mídia Kit",
     route: "/dashboard/media-kit",
+    visibleOnHome: true,
     defaultPinned: true,
     fixedPinned: true,
   },
@@ -64,11 +79,14 @@ export const PINNABLE_BOARD_REGISTRY: Record<PinnableBoardId, PinnableBoardConfi
     id: "post-creation",
     title: "Criação de Post",
     route: "/calendar",
+    visibleOnHome: false,
     defaultPinned: false,
   },
 };
 
-export const PINNABLE_BOARD_ORDER = Object.keys(PINNABLE_BOARD_REGISTRY) as PinnableBoardId[];
+export const PINNABLE_BOARD_ORDER = (Object.keys(PINNABLE_BOARD_REGISTRY) as PinnableBoardId[]).filter(
+  (boardId) => PINNABLE_BOARD_REGISTRY[boardId].visibleOnHome,
+);
 
 export const DEFAULT_PINNED_BOARD_IDS = PINNABLE_BOARD_ORDER.filter(
   (boardId) => PINNABLE_BOARD_REGISTRY[boardId].defaultPinned,

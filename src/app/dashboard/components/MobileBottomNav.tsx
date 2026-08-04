@@ -6,10 +6,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import {
   Home,
-  UsersRound,
-  TrendingUp,
   DollarSign,
-  PenLine,
   LayoutGrid,
   Activity,
   FileText,
@@ -17,7 +14,6 @@ import {
 import { UserAvatar } from "@/app/components/UserAvatar";
 import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
 import {
-  MOBILE_COMMUNITY_ROUTE,
   MOBILE_MEDIA_KIT_ROUTE,
   MOBILE_PROFILE_ROUTE,
 } from "../boards/videoUpload/mobileStrategicProfileRoutes";
@@ -42,13 +38,6 @@ const mobileStrategicProfileNavItems: MobileBottomNavItem[] = [
       p.startsWith("/dashboard/boards/mobile-strategic-profile-preview"),
   },
   {
-    key: "community",
-    label: "Comunidade",
-    icon: UsersRound,
-    href: MOBILE_COMMUNITY_ROUTE,
-    match: (p: string) => p.startsWith(MOBILE_COMMUNITY_ROUTE) || p.startsWith("/dashboard/discover"),
-  },
-  {
     key: "media-kit",
     label: "Mídia Kit",
     icon: FileText,
@@ -60,17 +49,10 @@ const mobileStrategicProfileNavItems: MobileBottomNavItem[] = [
 const legacyNavItems: MobileBottomNavItem[] = [
   {
     key: "home",
-    label: "Comunidade",
-    icon: UsersRound,
+    label: "Início",
+    icon: Home,
     href: MAIN_DASHBOARD_ROUTE,
     match: (p: string) => p === "/dashboard/home" || p === MAIN_DASHBOARD_ROUTE,
-  },
-  {
-    key: "analysis",
-    label: "Análise",
-    icon: TrendingUp,
-    href: "/planning/graficos",
-    match: (p: string) => p.startsWith("/planning/graficos"),
   },
   {
     key: "campaigns",
@@ -78,13 +60,6 @@ const legacyNavItems: MobileBottomNavItem[] = [
     icon: DollarSign,
     href: "/campaigns",
     match: (p: string) => p.startsWith("/campaigns"),
-  },
-  {
-    key: "calendar",
-    label: "Criação",
-    icon: PenLine,
-    href: "/calendar",
-    match: (p: string) => p.startsWith("/calendar"),
   },
   {
     key: "profile",

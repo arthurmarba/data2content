@@ -40,6 +40,12 @@ const nextConfig = {
         hostname: 'placehold.co',
         pathname: '/**',
       },
+      // Capas das reuniões gravadas no YouTube
+      {
+        protocol: 'https',
+        hostname: 'img.youtube.com',
+        pathname: '/**',
+      },
 
       // CDNs do Facebook/Instagram (específicos)
       {

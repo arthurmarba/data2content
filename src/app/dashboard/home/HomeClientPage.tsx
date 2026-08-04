@@ -11,7 +11,7 @@ const SurveyModal = dynamic(() => import("./minimal/SurveyModal"), {
   loading: () => null,
 });
 
-const DiscoverBoard = dynamic(() => import("../discover/DiscoverBoard"), {
+const StrategicMapPinnedBoard = dynamic(() => import("../boards/StrategicMapPinnedBoard"), {
   ssr: false,
   loading: () => null,
 });
@@ -68,16 +68,16 @@ export default function HomeClientPage() {
 
   const boardWidthClassName =
     "w-[min(415px,calc(100vw-28px))] lg:w-[450px] xl:w-[470px]";
-  const shouldUseSingleDiscoverBoard = !viewportMounted || isMobile;
+  const shouldUseSingleStrategicMapBoard = !viewportMounted || isMobile;
 
   return (
     <>
-      {shouldUseSingleDiscoverBoard ? (
+      {shouldUseSingleStrategicMapBoard ? (
         <SingleBoardHomeFrame
           boardWidthClassName={boardWidthClassName}
           itemClassName="lg:-mt-[0.5rem] lg:h-[calc(100%+0.5rem)]"
         >
-          <DiscoverBoard mobileAppView showTitleMarker={false} />
+          <StrategicMapPinnedBoard showTitleMarker={false} />
         </SingleBoardHomeFrame>
       ) : (
         <HomeDesktopBoards />

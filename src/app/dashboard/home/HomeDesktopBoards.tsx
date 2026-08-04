@@ -27,6 +27,14 @@ const MediaKitPinnedBoard = dynamic(() => import("../boards/MediaKitPinnedBoard"
   loading: () => null,
 });
 
+const RecordedMeetingsPinnedBoard = dynamic(
+  () => import("../boards/RecordedMeetingsPinnedBoard"),
+  {
+    ssr: false,
+    loading: () => null,
+  },
+);
+
 const PostCreationPinnedBoard = dynamic(() => import("../boards/PostCreationPinnedBoard"), {
   ssr: false,
   loading: () => null,
@@ -235,6 +243,12 @@ export default function HomeDesktopBoards() {
               compactView
               showTitleMarker={false}
               isHighlighted={activeHighlight === "campaigns"}
+            />
+          );
+        case "recorded-meetings":
+          return (
+            <RecordedMeetingsPinnedBoard
+              isHighlighted={activeHighlight === "recorded-meetings"}
             />
           );
         case "discover":

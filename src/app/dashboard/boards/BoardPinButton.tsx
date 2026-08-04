@@ -43,7 +43,8 @@ export default function BoardPinButton({
   const userId = session?.user?.id ?? null;
   const { hydrated, isPinned, pinBoard, unpinBoard } = usePinnedBoards(userId);
   const pinned = isPinned(boardId);
-  const fixedPinned = Boolean(PINNABLE_BOARD_REGISTRY[boardId].fixedPinned);
+  const boardConfig = PINNABLE_BOARD_REGISTRY[boardId];
+  const fixedPinned = Boolean(boardConfig.fixedPinned);
 
   const handleClick = React.useCallback(() => {
     if (fixedPinned) {
@@ -70,7 +71,7 @@ export default function BoardPinButton({
     dismissOnboarding();
   }, [boardId, boardTitle, fixedPinned, pinBoard, pinned, redirectOnPin, router, unpinBoard, dismissOnboarding]);
 
-  if (fixedPinned) {
+  if (!boardConfig.visibleOnHome || fixedPinned) {
     return null;
   }
 

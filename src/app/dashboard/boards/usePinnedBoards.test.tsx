@@ -15,11 +15,11 @@ function HookHarness({ userId = "user-1" }: { userId?: string | null }) {
   return (
     <div>
       <output data-testid="pins">{pinnedBoardIds.join(",")}</output>
-      <button type="button" onClick={() => pinBoard("post-creation")}>
-        pin-post-creation
+      <button type="button" onClick={() => pinBoard("collabs")}>
+        pin-collabs
       </button>
-      <button type="button" onClick={() => unpinBoard("discover")}>
-        unpin-discover
+      <button type="button" onClick={() => unpinBoard("collabs")}>
+        unpin-collabs
       </button>
     </div>
   );
@@ -32,21 +32,23 @@ describe("usePinnedBoards", () => {
 
   it("sanitiza ids inválidos e mantém a ordem do catálogo", () => {
     expect(
-      sanitizePinnedBoardIds(["media-kit", "discover", "campaigns", "discover", "invalid"]),
+      sanitizePinnedBoardIds(["media-kit", "discover", "campaigns", "profile-analysis", "invalid"]),
     ).toEqual([
       "strategic-map",
       "campaigns",
-      "discover",
+      "recorded-meetings",
       "media-kit",
     ]);
-    expect(orderPinnedBoardIds(["discover", "campaigns"])).toEqual(["campaigns", "discover"]);
+    expect(orderPinnedBoardIds(["discover", "collabs", "campaigns"])).toEqual([
+      "collabs",
+      "campaigns",
+    ]);
   });
 
-  it("sempre mantém os boards fixos na lista sanitizada", () => {
-    expect(sanitizePinnedBoardIds(["post-creation"])).toEqual([
-      ...FIXED_PINNED_BOARD_IDS,
-      "post-creation",
-    ]);
+  it("mantém os boards fixos e descarta boards ocultos da lista sanitizada", () => {
+    expect(sanitizePinnedBoardIds(["discover", "profile-analysis", "post-creation"])).toEqual(
+      FIXED_PINNED_BOARD_IDS,
+    );
   });
 
   it("usa os boards padrão quando não há preferência salva", async () => {
@@ -60,22 +62,24 @@ describe("usePinnedBoards", () => {
   it("persiste pin e unpin por usuário", async () => {
     render(<HookHarness />);
 
-    fireEvent.click(screen.getByRole("button", { name: "pin-post-creation" }));
+    fireEvent.click(screen.getByRole("button", { name: "unpin-collabs" }));
 
     await waitFor(() => {
       expect(screen.getByTestId("pins")).toHaveTextContent(
-        "strategic-map,collabs,campaigns,discover,profile-analysis,media-kit,post-creation",
+        "strategic-map,campaigns,recorded-meetings,media-kit",
       );
     });
 
     expect(window.localStorage.getItem("dashboard:pinned-boards:v1:user-1")).toBe(
-      JSON.stringify(["strategic-map", "collabs", "campaigns", "discover", "profile-analysis", "media-kit", "post-creation"]),
+      JSON.stringify(["strategic-map", "campaigns", "recorded-meetings", "media-kit"]),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "unpin-discover" }));
+    fireEvent.click(screen.getByRole("button", { name: "pin-collabs" }));
 
     await waitFor(() => {
-      expect(screen.getByTestId("pins")).toHaveTextContent("strategic-map,collabs,campaigns,discover,profile-analysis,media-kit");
+      expect(screen.getByTestId("pins")).toHaveTextContent(
+        "strategic-map,collabs,campaigns,recorded-meetings,media-kit",
+      );
     });
   });
 });
