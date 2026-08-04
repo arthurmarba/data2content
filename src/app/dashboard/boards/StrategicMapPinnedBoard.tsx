@@ -3,6 +3,7 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { CircleCheck, Compass, Layers3, ScanSearch } from "lucide-react";
 
 import Board from "@/app/dashboard/components/Board";
 import { MapaCard } from "@/app/dashboard/boards/components/videoUpload/appPreview/DiagnosticoPage";
@@ -169,7 +170,7 @@ export default function StrategicMapPinnedBoard({
       showChevron={false}
       showOptions={false}
       hideTitleBar={dedicatedView}
-      contentClassName={`bg-[#fffaf7] h-full flex flex-col ${dedicatedView ? "p-6 lg:p-8" : "p-5"}`}
+      contentClassName={`bg-[#fffaf7] h-full ${dedicatedView ? "p-5 lg:p-7" : "flex flex-col p-5"}`}
       titleClassName="text-zinc-950"
       isHighlighted={isHighlighted}
     >
@@ -177,6 +178,47 @@ export default function StrategicMapPinnedBoard({
         <MapSkeleton />
       ) : state === "error" || !full ? (
         <EmptyMap onMount={goFull} />
+      ) : dedicatedView ? (
+        <div className="grid min-h-full gap-7 lg:grid-cols-[17rem_minmax(0,1fr)] xl:gap-9">
+          <StrategicMapWorkspaceSummary
+            full={full}
+            mapaSeed={mapaSeedLocal}
+            narrativeState={narrativeState}
+            territoriesState={territoriesState}
+            toneState={toneState}
+          />
+          <section
+            aria-label="Editor do mapa estratégico"
+            className="min-w-0 rounded-[28px] border border-zinc-200/70 bg-white/80 p-5 shadow-[0_18px_50px_rgba(24,24,27,0.055)] sm:p-6 lg:p-7"
+          >
+            <MapaCard
+              synthesis={full.synthesis}
+              leadingNarrative={resolveDiagnosticoLeadingNarrativeSignal(full.synthesis)}
+              mapaSeed={mapaSeedLocal}
+              onMapSeedMutate={handleMapSeedMutate}
+              narrativeConfirmationState={narrativeState}
+              onConfirmNarrative={handleConfirmNarrative}
+              territoriesConfirmationState={territoriesState}
+              onConfirmTerritories={handleConfirmTerritories}
+              toneConfirmationState={toneState}
+              onConfirmTone={handleConfirmTone}
+              onConfirmAsset={handleConfirmAsset}
+              assetConfirmations={assetConfirmations}
+              endorsedHypotheses={full.endorsedHypotheses}
+              dismissedHypotheses={full.dismissedHypotheses}
+              adjacentNarrativesFromMap={full.adjacentNarratives as never}
+              hasReadings={full.hasReadings}
+              onNewReading={goFull}
+              onOpenNarrative={goFull}
+              onOpenNorte={goFull}
+              mapEvolutionStatus={full.mapEvolutionStatus}
+              lastReadingAt={full.lastReadingAt}
+              hasPurpose={full.hasPurpose}
+              noShell
+              headerTitle="Editor do mapa"
+            />
+          </section>
+        </div>
       ) : (
         <MapaCard
           synthesis={full.synthesis}
@@ -206,6 +248,115 @@ export default function StrategicMapPinnedBoard({
       )}
     </Board>
   );
+}
+
+const MATURITY_LABELS: Record<string, string> = {
+  seed: "Mapa inicial",
+  instagram_enriched: "Enriquecido pelo Instagram",
+  video_enriched: "Enriquecido por vídeos",
+};
+
+function StrategicMapWorkspaceSummary({
+  full,
+  mapaSeed,
+  narrativeState,
+  territoriesState,
+  toneState,
+}: {
+  full: StrategicMapFull;
+  mapaSeed: IMapaData | null;
+  narrativeState: ConfirmationState;
+  territoriesState: ConfirmationState;
+  toneState: ConfirmationState;
+}) {
+  const dimensions = [
+    { label: "Narrativa", ready: narrativeState === "confirmed" },
+    { label: "Territórios", ready: territoriesState === "confirmed" },
+    { label: "Tom de voz", ready: toneState === "confirmed" },
+    { label: "Vida real", ready: (mapaSeed?.assets?.length ?? 0) > 0 },
+  ];
+  const readyCount = dimensions.filter((dimension) => dimension.ready).length;
+  const progress = Math.round((readyCount / dimensions.length) * 100);
+  const maturity = mapaSeed?.maturidade
+    ? MATURITY_LABELS[mapaSeed.maturidade] ?? "Em evolução"
+    : "Em evolução";
+
+  return (
+    <aside className="min-w-0 lg:sticky lg:top-0 lg:self-start" aria-label="Resumo do mapa">
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-rose-50 text-rose-600 ring-1 ring-rose-100">
+          <Compass className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-rose-600">Status do mapa</p>
+          <p className="mt-0.5 text-sm font-semibold text-zinc-950">{maturity}</p>
+        </div>
+      </div>
+
+      <div className="mt-7 border-y border-zinc-200/80 py-5">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-[12px] font-medium text-zinc-500">Dimensões confirmadas</p>
+            <p className="mt-1 text-2xl font-semibold tracking-[-0.04em] text-zinc-950">
+              {readyCount} de {dimensions.length}
+            </p>
+          </div>
+          <span className="text-sm font-semibold text-rose-600">{progress}%</span>
+        </div>
+        <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-zinc-200/80">
+          <div
+            className="h-full rounded-full bg-rose-500 transition-[width] duration-500"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      <ul className="mt-5 space-y-1" aria-label="Dimensões do mapa">
+        {dimensions.map((dimension) => (
+          <li key={dimension.label} className="flex min-h-10 items-center justify-between gap-3 border-b border-zinc-200/60 py-2 last:border-0">
+            <span className="text-sm text-zinc-700">{dimension.label}</span>
+            <span className={dimension.ready ? "text-emerald-600" : "text-zinc-300"}>
+              <CircleCheck className="h-[18px] w-[18px]" aria-hidden="true" />
+              <span className="sr-only">{dimension.ready ? "Confirmada" : "Pendente"}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      <dl className="mt-6 space-y-4">
+        <div className="flex items-start gap-3">
+          <ScanSearch className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" aria-hidden="true" />
+          <div>
+            <dt className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">Análises</dt>
+            <dd className="mt-1 text-sm font-medium text-zinc-800">{full.synthesis.analyzedReadingsCount} incorporadas</dd>
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <Layers3 className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" aria-hidden="true" />
+          <div>
+            <dt className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">Fontes</dt>
+            <dd className="mt-1 text-sm font-medium leading-5 text-zinc-800">
+              {formatMapSources(mapaSeed?.fonte)}
+            </dd>
+          </div>
+        </div>
+      </dl>
+
+      <p className="mt-7 text-[12px] leading-5 text-zinc-500">
+        Edite os sinais ao lado. Suas escolhas passam a orientar pautas, collabs e recomendações.
+      </p>
+    </aside>
+  );
+}
+
+function formatMapSources(sources?: IMapaData["fonte"]) {
+  if (!sources?.length) return "Onboarding";
+  const labels: Record<IMapaData["fonte"][number], string> = {
+    onboarding_declarativo: "Onboarding",
+    instagram: "Instagram",
+    video: "Vídeos",
+  };
+  return sources.map((source) => labels[source]).join(" · ");
 }
 
 function EmptyMap({ onMount }: { onMount: () => void }) {

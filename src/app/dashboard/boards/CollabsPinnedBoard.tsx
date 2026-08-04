@@ -3,6 +3,7 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { Bookmark, CircleDot, Sparkles, UsersRound, type LucideIcon } from "lucide-react";
 
 import Board from "@/app/dashboard/components/Board";
 import { d2cFontVariables } from "@/app/fonts/d2cFonts";
@@ -388,36 +389,138 @@ export default function CollabsPinnedBoard({
       showChevron={false}
       showOptions={false}
       hideTitleBar={dedicatedView}
-      contentClassName={`bg-white ${d2cFontVariables}`}
+      contentClassName={`${dedicatedView ? "bg-[#fffaf7] p-5 lg:p-7" : "bg-white"} ${d2cFontVariables}`}
       titleClassName="text-zinc-950"
       isHighlighted={isHighlighted}
     >
-      <DiagnosticoCollabsFeed
-        pautas={pautas}
-        isPro={isPro}
-        whatsappLinked={false}
-        isGeneratingIdeas={generating}
-        ideaGenerationBlocker={isPro ? null : "premium_required"}
-        pautaCollabs={pautaCollabs}
-        bootstrapStatus={bootstrapStatus}
-        bootstrapError={bootstrapError}
-        onRetryBootstrap={loadAll}
-        collabDecisions={collabDecisions}
-        confirmedMatches={confirmedMatches}
-        pautaActionStates={pautaActionStates}
-        onRetryPautaAction={handleRetryPautaAction}
-        onOpenIdea={goFull}
-        onSavePauta={handleSavePauta}
-        onUnsavePauta={handleUnsavePauta}
-        onAcceptCollabPauta={handleAcceptCollabPauta}
-        onDismissPauta={handleDismissPauta}
-        onOpenMatch={goFull}
-        onConnectWhatsApp={() => router.push(WHATSAPP_ROUTE)}
-        onUpgrade={handleUpgrade}
-        onGenerate={handleGenerate}
-        onBackToPerfil={goFull}
-        showHeaderTitle={!dedicatedView}
-      />
+      <div className={dedicatedView ? "grid min-h-full gap-7 lg:grid-cols-[17rem_minmax(0,1fr)] xl:gap-9" : "h-full"}>
+        {dedicatedView ? (
+          <CollabsWorkspaceSummary
+            bootstrapStatus={bootstrapStatus}
+            pautas={pautas}
+            suggestedMatches={Array.from(pautaCollabs.values()).filter(Boolean).length}
+            confirmedMatches={confirmedMatches.length}
+          />
+        ) : null}
+        <section
+          aria-label="Rodada de pautas e collabs"
+          className={dedicatedView
+            ? "min-h-[34rem] min-w-0 overflow-hidden rounded-[28px] border border-zinc-200/70 bg-white shadow-[0_18px_50px_rgba(24,24,27,0.055)]"
+            : "h-full"}
+        >
+          <DiagnosticoCollabsFeed
+            pautas={pautas}
+            isPro={isPro}
+            whatsappLinked={false}
+            isGeneratingIdeas={generating}
+            ideaGenerationBlocker={isPro ? null : "premium_required"}
+            pautaCollabs={pautaCollabs}
+            bootstrapStatus={bootstrapStatus}
+            bootstrapError={bootstrapError}
+            onRetryBootstrap={loadAll}
+            collabDecisions={collabDecisions}
+            confirmedMatches={confirmedMatches}
+            pautaActionStates={pautaActionStates}
+            onRetryPautaAction={handleRetryPautaAction}
+            onOpenIdea={goFull}
+            onSavePauta={handleSavePauta}
+            onUnsavePauta={handleUnsavePauta}
+            onAcceptCollabPauta={handleAcceptCollabPauta}
+            onDismissPauta={handleDismissPauta}
+            onOpenMatch={goFull}
+            onConnectWhatsApp={() => router.push(WHATSAPP_ROUTE)}
+            onUpgrade={handleUpgrade}
+            onGenerate={handleGenerate}
+            onBackToPerfil={goFull}
+            showHeaderTitle={!dedicatedView}
+          />
+        </section>
+      </div>
     </Board>
+  );
+}
+
+function CollabsWorkspaceSummary({
+  bootstrapStatus,
+  pautas,
+  suggestedMatches,
+  confirmedMatches,
+}: {
+  bootstrapStatus: CollabsBootstrapStatus;
+  pautas: ContentIdeaListItem[];
+  suggestedMatches: number;
+  confirmedMatches: number;
+}) {
+  const savedCount = pautas.filter((pauta) => pauta.status === "saved").length;
+  const activeCount = pautas.filter((pauta) => pauta.status === "active").length;
+  const loading = bootstrapStatus === "idle" || bootstrapStatus === "loading";
+
+  return (
+    <aside className="min-w-0 lg:sticky lg:top-0 lg:self-start" aria-label="Resumo das collabs">
+      <div className="flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-violet-50 text-violet-700 ring-1 ring-violet-100">
+          <UsersRound className="h-5 w-5" aria-hidden="true" />
+        </span>
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-violet-700">Rodada atual</p>
+          <p className="mt-0.5 text-sm font-semibold text-zinc-950">
+            {loading ? "Atualizando pautas" : `${activeCount} ${activeCount === 1 ? "pauta para avaliar" : "pautas para avaliar"}`}
+          </p>
+        </div>
+      </div>
+
+      <dl className="mt-7 divide-y divide-zinc-200/70 border-y border-zinc-200/80">
+        <CollabsStat icon={CircleDot} label="Pautas disponíveis" value={loading ? "—" : String(pautas.length)} />
+        <CollabsStat icon={Bookmark} label="Salvas para gravar" value={loading ? "—" : String(savedCount)} />
+        <CollabsStat icon={Sparkles} label="Afinidades sugeridas" value={loading ? "—" : String(suggestedMatches)} />
+      </dl>
+
+      {confirmedMatches > 0 ? (
+        <div className="mt-5 rounded-2xl bg-emerald-50 px-4 py-3 text-emerald-900 ring-1 ring-emerald-100">
+          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700">Conexões confirmadas</p>
+          <p className="mt-1 text-sm font-semibold">{confirmedMatches} {confirmedMatches === 1 ? "collab combinada" : "collabs combinadas"}</p>
+        </div>
+      ) : null}
+
+      <div className="mt-7">
+        <p className="text-[11px] font-bold uppercase tracking-[0.13em] text-zinc-400">Como usar</p>
+        <ol className="mt-4 space-y-4">
+          {[
+            "Avalie a pauta recomendada.",
+            "Salve o que merece virar conteúdo.",
+            "Quando houver afinidade, convide o criador sugerido.",
+          ].map((instruction, index) => (
+            <li key={instruction} className="flex gap-3 text-[13px] leading-5 text-zinc-600">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-[10px] font-bold text-white">
+                {index + 1}
+              </span>
+              <span>{instruction}</span>
+            </li>
+          ))}
+        </ol>
+      </div>
+
+      <p className="mt-7 text-[12px] leading-5 text-zinc-500">
+        As sugestões usam os territórios e sinais confirmados no Seu Mapa.
+      </p>
+    </aside>
+  );
+}
+
+function CollabsStat({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="flex min-h-14 items-center gap-3 py-3">
+      <Icon className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden="true" />
+      <dt className="min-w-0 flex-1 text-[12px] text-zinc-600">{label}</dt>
+      <dd className="text-sm font-semibold tabular-nums text-zinc-950">{value}</dd>
+    </div>
   );
 }
