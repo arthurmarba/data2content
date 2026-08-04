@@ -1099,28 +1099,30 @@ html.d2c-motion-ready .d2c-human-landing [data-landing-section].is-in-view :is(h
   text-transform: none;
 }
 .d2c-human-hero h1 {
-  max-width: 14ch;
-  font-size: clamp(4.5rem, 6.45vw, 7rem);
+  max-width: 15ch;
+  font-size: clamp(4.15rem, 6vw, 6.65rem);
   font-weight: 680;
-  line-height: .9;
+  line-height: .91;
   letter-spacing: -.058em;
   text-wrap: balance;
 }
-.d2c-human-hero__promise-line { font-weight: 680; }
-.d2c-human-hero__business-line {
-  margin-top: .05em;
-  color: var(--d2c-ink);
-  font-family: var(--font-d2c-display), Arial, sans-serif;
-  font-size: 1em;
-  font-style: normal;
+.d2c-human-hero__promise-line {
+  display: block;
   font-weight: 680;
-  letter-spacing: -.055em;
 }
 .d2c-human-hero__business-line {
   position: relative;
   display: block;
-  min-height: 1.8em;
+  width: 100%;
+  min-height: 1.5em;
+  margin-top: .7rem;
   overflow: hidden;
+  color: var(--d2c-ink);
+  font-family: var(--font-d2c-display), Arial, sans-serif;
+  font-size: clamp(1.7rem, 2.25vw, 2.2rem);
+  font-style: normal;
+  font-weight: 620;
+  letter-spacing: -.04em;
 }
 .d2c-human-hero__outcome-line {
   position: absolute;
@@ -1141,12 +1143,15 @@ html.d2c-motion-ready .d2c-human-landing [data-landing-section].is-in-view :is(h
   text-decoration: none;
 }
 .d2c-human-hero__lead {
-  max-width: 36rem;
-  margin-top: 1.25rem;
-  font-size: clamp(.98rem, 1.18vw, 1.08rem);
-  line-height: 1.56;
+  max-width: 38rem;
+  margin-top: 1.55rem;
+  color: rgba(18,16,20,.7);
+  font-size: clamp(1.24rem, 1.55vw, 1.5rem);
+  font-weight: 520;
+  line-height: 1.38;
+  letter-spacing: -.025em;
 }
-.d2c-human-hero__actions { margin-top: 1.65rem; }
+.d2c-human-hero__actions { margin-top: 1.6rem; }
 .d2c-human-hero__note { margin-top: .8rem; }
 .d2c-human-hero__portrait {
   width: min(100%, 76rem);
@@ -1197,7 +1202,7 @@ html.d2c-motion-ready .d2c-human-landing [data-landing-section].is-in-view :is(h
   border-left: 1px solid rgba(233,15,79,.8);
   border-radius: .32rem;
   background: rgba(18,16,20,.42);
-  padding: .48rem .58rem .52rem;
+  padding: .58rem .7rem .62rem;
   box-shadow: 0 8px 24px rgba(18,16,20,.12);
   backdrop-filter: blur(8px);
 }
@@ -1211,7 +1216,7 @@ html.d2c-motion-ready .d2c-human-landing [data-landing-section].is-in-view :is(h
 .d2c-human-hero__map-caption dl > div:nth-child(4) { top: 63%; right: 3%; }
 .d2c-human-hero__map-caption dt {
   color: rgba(255,255,255,.64);
-  font-size: .48rem;
+  font-size: .64rem;
   font-weight: 680;
   letter-spacing: .1em;
   line-height: 1.2;
@@ -1220,11 +1225,39 @@ html.d2c-motion-ready .d2c-human-landing [data-landing-section].is-in-view :is(h
 .d2c-human-hero__map-caption dd {
   margin: .2rem 0 0;
   color: #fff;
-  font-size: .68rem;
+  font-size: .9rem;
   font-weight: 560;
   letter-spacing: -.01em;
   line-height: 1.18;
   text-shadow: 0 1px 8px rgba(0,0,0,.45);
+}
+.d2c-human-hero__analysis-result-slot {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 1rem clamp(1.25rem, 3vw, 2rem);
+}
+.d2c-human-hero__portrait figcaption .d2c-human-hero__analysis-result {
+  display: inline-flex;
+  max-width: none;
+  margin: 0;
+  border: 1px solid rgba(255,255,255,.2);
+  border-radius: 999px;
+  background: rgba(18,16,20,.72);
+  padding: 1rem 1.4rem 1.06rem;
+  box-shadow: 0 16px 42px rgba(18,16,20,.22);
+  backdrop-filter: blur(14px);
+  color: #fff;
+  font-family: var(--font-d2c-display), Arial, sans-serif;
+  font-size: clamp(1.35rem, 2vw, 1.7rem);
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: -.035em;
+  text-shadow: 0 1px 12px rgba(0,0,0,.35);
+  white-space: nowrap;
 }
 
 /* Desktop: texto e foto lado a lado — o "First fold" acima empilha para caber
@@ -1267,24 +1300,29 @@ html.d2c-motion-ready .d2c-human-landing [data-landing-section].is-in-view :is(h
   .d2c-human-hero__layout { gap: 2.5rem; }
   .d2c-human-hero__content { width: 100%; }
   .d2c-human-hero h1 {
-    max-width: 15ch;
-    font-size: clamp(2.85rem, 11.9vw, 3.65rem);
+    max-width: 15.5ch;
+    font-size: clamp(2.75rem, 11.35vw, 3.5rem);
     line-height: .91;
   }
   .d2c-human-hero__eyebrow { margin-bottom: .85rem; font-size: .76rem; }
   .d2c-human-hero__lead {
     max-width: 21rem;
-    margin-top: .95rem;
-    font-size: .9rem;
-    line-height: 1.48;
+    margin-top: 1.2rem;
+    font-size: 1.08rem;
+    line-height: 1.36;
   }
-  .d2c-human-hero__actions { width: auto; margin-top: 1.35rem; }
+  .d2c-human-hero__business-line {
+    min-height: 1.5em;
+    margin-top: .58rem;
+    font-size: clamp(1.5rem, 6.5vw, 1.78rem);
+  }
+  .d2c-human-hero__actions { width: auto; margin-top: 1.5rem; }
   .d2c-human-hero__actions .d2c-button {
     width: auto;
     min-width: 15rem;
     min-height: 3.75rem;
     padding-inline: 1.5rem;
-    font-size: 1rem;
+    font-size: 1.06rem;
   }
   .d2c-human-hero__note { font-size: .72rem; }
   .d2c-human-hero__portrait {
@@ -1314,13 +1352,23 @@ html.d2c-motion-ready .d2c-human-landing [data-landing-section].is-in-view :is(h
     padding: 0;
   }
   .d2c-human-hero__portrait .d2c-human-hero__map-caption small { bottom: .85rem; left: .8rem; font-size: .46rem; }
-  .d2c-human-hero__map-caption dl > div { max-width: 46%; padding: .4rem .48rem .44rem; }
+  .d2c-human-hero__map-caption dl > div { max-width: 48%; padding: .5rem .58rem .54rem; }
   .d2c-human-hero__map-caption dl > div:nth-child(1) { top: 6%; left: .75rem; }
   .d2c-human-hero__map-caption dl > div:nth-child(2) { top: 19%; right: .65rem; }
   .d2c-human-hero__map-caption dl > div:nth-child(3) { top: 54%; left: .65rem; }
   .d2c-human-hero__map-caption dl > div:nth-child(4) { top: 65%; right: .65rem; }
-  .d2c-human-hero__map-caption dt { font-size: .43rem; }
-  .d2c-human-hero__map-caption dd { font-size: .61rem; }
+  .d2c-human-hero__map-caption dt { font-size: .52rem; }
+  .d2c-human-hero__map-caption dd { font-size: .74rem; }
+  .d2c-human-hero__analysis-result-slot {
+    top: 45%;
+    bottom: auto;
+    align-items: flex-start;
+    padding: 0 1rem;
+  }
+  .d2c-human-hero__portrait figcaption .d2c-human-hero__analysis-result {
+    padding: .86rem 1.08rem .9rem;
+    font-size: 1.18rem;
+  }
 }
 
 /* Match story — product gesture first, human reward last */
@@ -2252,7 +2300,7 @@ html.d2c-motion-ready .d2c-human-landing .d2c-human-match :is(h2, h3) {
   .d2c-human-hero { padding-top: 6.1rem; }
   .d2c-human-hero__layout { gap: 1.5rem; }
   .d2c-human-hero h1 { font-size: clamp(2.8rem, 14.2vw, 3.05rem); }
-  .d2c-human-hero__lead { margin-top: .75rem; font-size: .84rem; line-height: 1.4; }
+  .d2c-human-hero__lead { margin-top: .9rem; font-size: .98rem; line-height: 1.36; }
   .d2c-human-hero__actions { margin-top: .9rem; }
   .d2c-human-hero__actions .d2c-button { min-height: 3.15rem; }
   .d2c-human-hero__note { margin-top: .45rem; font-size: .62rem; }

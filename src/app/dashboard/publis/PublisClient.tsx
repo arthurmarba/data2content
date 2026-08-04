@@ -61,6 +61,7 @@ export default function PublisClient({ compactView = false }: { compactView?: bo
     const hasProAccess =
         Boolean(billingStatus.hasLoadedOnce && billingStatus.hasPremiumAccess);
     const [adminTargetUser, setAdminTargetUser] = useState<AdminTargetUser | null>(null);
+    const [adminToolsExpanded, setAdminToolsExpanded] = useState(false);
     const hasHydratedAdminTargetRef = useRef(false);
     const targetUserId = isAdminViewer && adminTargetUser?.id ? adminTargetUser.id : null;
     const isActingOnBehalf = Boolean(
@@ -69,6 +70,7 @@ export default function PublisClient({ compactView = false }: { compactView?: bo
         sessionUserId &&
         targetUserId !== sessionUserId
     );
+    const adminControlsVisible = adminToolsExpanded || isActingOnBehalf || Boolean(adminTargetUser);
 
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState('');
@@ -389,7 +391,17 @@ export default function PublisClient({ compactView = false }: { compactView?: bo
             <div className={compactView ? "px-0 py-0.5" : "py-4 md:py-6"}>
                 {isAdminViewer ? (
                     <div className={`${compactView ? "mb-2 space-y-1.5" : "mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"}`}>
-                        {!compactView || isActingOnBehalf || adminTargetUser ? (
+                        {!compactView ? (
+                            <button
+                                type="button"
+                                onClick={() => setAdminToolsExpanded((current) => !current)}
+                                aria-expanded={adminToolsExpanded}
+                                className="inline-flex min-h-9 w-fit items-center rounded-full border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-600 transition hover:border-zinc-300 hover:text-zinc-900"
+                            >
+                                {adminToolsExpanded ? "Fechar modo administrativo" : "Modo administrativo"}
+                            </button>
+                        ) : null}
+                        {adminControlsVisible ? (
                         <div className={compactView ? "w-full" : "w-full sm:max-w-md"}>
                             <CreatorQuickSearch
                                 onSelect={(creator) =>
@@ -406,7 +418,7 @@ export default function PublisClient({ compactView = false }: { compactView?: bo
                             />
                         </div>
                         ) : null}
-                        {(!compactView || isActingOnBehalf || adminTargetUser) ? (
+                        {adminControlsVisible ? (
                         <p className="text-xs text-slate-500">
                             {isActingOnBehalf ? `Vendo publis de ${adminTargetUser?.name}.` : "Vendo suas publis."}
                         </p>
@@ -483,7 +495,17 @@ export default function PublisClient({ compactView = false }: { compactView?: bo
         <div className={compactView ? "px-0 py-0.5" : "py-2 px-4"}>
             {isAdminViewer ? (
                 <div className={`${compactView ? "mb-2 space-y-1.5" : "mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"}`}>
-                    {!compactView || isActingOnBehalf || adminTargetUser ? (
+                    {!compactView ? (
+                        <button
+                            type="button"
+                            onClick={() => setAdminToolsExpanded((current) => !current)}
+                            aria-expanded={adminToolsExpanded}
+                            className="inline-flex min-h-9 w-fit items-center rounded-full border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-600 transition hover:border-zinc-300 hover:text-zinc-900"
+                        >
+                            {adminToolsExpanded ? "Fechar modo administrativo" : "Modo administrativo"}
+                        </button>
+                    ) : null}
+                    {adminControlsVisible ? (
                     <div className={compactView ? "w-full" : "w-full sm:max-w-md"}>
                         <CreatorQuickSearch
                             onSelect={(creator) =>
@@ -500,7 +522,7 @@ export default function PublisClient({ compactView = false }: { compactView?: bo
                         />
                     </div>
                     ) : null}
-                    {(!compactView || isActingOnBehalf || adminTargetUser) ? (
+                    {adminControlsVisible ? (
                         <p className="text-xs text-slate-500">
                             {isActingOnBehalf ? `Vendo publis de ${adminTargetUser?.name}.` : "Vendo suas publis."}
                         </p>

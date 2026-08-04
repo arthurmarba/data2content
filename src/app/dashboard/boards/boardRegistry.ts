@@ -10,6 +10,7 @@ export type PinnableBoardId =
   | "discover"
   | "profile-analysis"
   | "media-kit"
+  | "affiliates"
   | "post-creation";
 
 export type PinnableBoardConfig = {
@@ -25,7 +26,7 @@ export const PINNABLE_BOARD_REGISTRY: Record<PinnableBoardId, PinnableBoardConfi
   "strategic-map": {
     id: "strategic-map",
     title: "Seu Mapa",
-    route: "/dashboard/boards/mobile-strategic-profile",
+    route: "/dashboard/strategic-map",
     visibleOnHome: true,
     defaultPinned: true,
     fixedPinned: true,
@@ -33,7 +34,7 @@ export const PINNABLE_BOARD_REGISTRY: Record<PinnableBoardId, PinnableBoardConfi
   collabs: {
     id: "collabs",
     title: "Collabs",
-    route: "/dashboard/boards/mobile-strategic-profile",
+    route: "/dashboard/collabs",
     visibleOnHome: true,
     defaultPinned: true,
   },
@@ -70,7 +71,15 @@ export const PINNABLE_BOARD_REGISTRY: Record<PinnableBoardId, PinnableBoardConfi
   "media-kit": {
     id: "media-kit",
     title: "Mídia Kit",
-    route: "/dashboard/media-kit",
+    route: "/media-kit",
+    visibleOnHome: true,
+    defaultPinned: true,
+    fixedPinned: true,
+  },
+  affiliates: {
+    id: "affiliates",
+    title: "Afiliados",
+    route: "/affiliates",
     visibleOnHome: true,
     defaultPinned: true,
     fixedPinned: true,

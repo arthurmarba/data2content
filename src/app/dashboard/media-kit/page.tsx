@@ -49,9 +49,9 @@ function MediaKitBoardShell({
   showProfileCloseButton?: boolean;
   onCloseProfile?: () => void;
 }) {
-  const dedicatedDesktopWidthClassName = 'lg:max-w-[1640px]';
+  const dedicatedDesktopWidthClassName = 'lg:max-w-[720px]';
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full flex-col bg-[radial-gradient(120%_36%_at_50%_0%,rgba(255,255,255,0.95),rgba(243,244,246,0.98)_52%,rgba(243,244,246,1)_100%)] px-0 lg:bg-none lg:px-8 lg:pb-5 lg:pt-5">
+    <div className="mx-auto flex h-full min-h-0 w-full flex-col bg-[#f5f5f4] px-0 lg:px-6 lg:pb-6 lg:pt-5">
       {mobileAppView && showProfileCloseButton ? (
         <button
           type="button"
@@ -62,14 +62,14 @@ function MediaKitBoardShell({
           <FaTimes className="h-3.5 w-3.5" aria-hidden="true" />
         </button>
       ) : null}
-      <div className="relative mx-auto flex h-full min-h-0 w-full max-w-[1640px] flex-col overflow-hidden">
+      <div className="relative mx-auto flex h-full min-h-0 w-full max-w-[720px] flex-col overflow-hidden">
         <Board
           title="Mídia Kit"
           showTitleMarker={false}
           promoteHeaderOnMobile
           mobilePresentation={mobileAppView ? "flat" : "surface"}
-          variant={mobileAppView ? "card" : "workspace"}
-          hideTitleBar={!mobileAppView}
+          variant="card"
+          hideTitleBar={false}
           showChevron={false}
           showOptions={false}
           className="mx-auto h-full"
@@ -1005,7 +1005,7 @@ export default function MediaKitSelfServePage() {
         showProfileCloseButton={shouldUseProfileReturnChrome}
         onCloseProfile={handleCloseToProfile}
       >
-        <MediaKitSkeleton compactPadding={isBoardMobileViewport} compactBoardPreview={isBoardMobileViewport} />
+        <MediaKitSkeleton compactPadding compactBoardPreview />
       </MediaKitBoardShell>
     );
   }
@@ -1061,12 +1061,12 @@ export default function MediaKitSelfServePage() {
             fallbackName={session?.user?.name}
             fallbackEmail={session?.user?.email}
             fallbackImage={session?.user?.image}
-            compactPadding={isBoardMobileViewport}
-            compactBoardPreview={isBoardMobileViewport}
+            compactPadding
+            compactBoardPreview
             publicUrlForCopy={url}
             onPublicUrlChange={setUrl}
             premiumAccess={premiumAccessConfig}
-            showOwnerSettingsShortcut={!shouldUseProfileReturnChrome}
+            showOwnerSettingsShortcut={false}
           />
         </>
       </MediaKitBoardShell>

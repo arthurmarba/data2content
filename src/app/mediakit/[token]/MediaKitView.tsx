@@ -3315,9 +3315,9 @@ const resolvedGlassCardBaseClass = isBoardEmbedded
                   />
                 </div>
                 <div className="min-w-0 flex-1 pl-1 pt-1">
-                  <h2 className="dashboard-type-board-title truncate text-[1.28rem] leading-tight text-zinc-950">
+                  <h1 className="dashboard-type-board-title truncate text-[1.28rem] leading-tight text-zinc-950">
                     {user.name || 'Criador'}
-                  </h2>
+                  </h1>
                   <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-zinc-400">
                     {affiliateHandleLabel ? (
                       <p className="text-[13px] font-medium leading-none text-zinc-500">{affiliateHandleLabel}</p>
@@ -3356,18 +3356,14 @@ const resolvedGlassCardBaseClass = isBoardEmbedded
                       <Download className="h-3.5 w-3.5" />
                       {isPdfGenerating ? 'Gerando PDF...' : 'Salvar PDF'}
                     </button>
-                    {showOwnerCtas ? (
+                    {showOwnerCtas && onEditName ? (
                       <button
                         type="button"
-                        onClick={() => {
-                          if (typeof window !== 'undefined') {
-                            window.location.assign('/dashboard/media-kit');
-                          }
-                        }}
+                        onClick={onEditName}
                         className="dashboard-type-control inline-flex min-h-[2.25rem] items-center justify-center gap-1.5 rounded-full px-2.5 py-1.5 text-zinc-500 transition hover:text-zinc-700"
                       >
                         <Pencil className="h-3.5 w-3.5" />
-                        Editar kit
+                        Editar nome
                       </button>
                     ) : null}
                   </div>

@@ -38,6 +38,7 @@ describe("usePinnedBoards", () => {
       "campaigns",
       "recorded-meetings",
       "media-kit",
+      "affiliates",
     ]);
     expect(orderPinnedBoardIds(["discover", "collabs", "campaigns"])).toEqual([
       "collabs",
@@ -66,19 +67,19 @@ describe("usePinnedBoards", () => {
 
     await waitFor(() => {
       expect(screen.getByTestId("pins")).toHaveTextContent(
-        "strategic-map,campaigns,recorded-meetings,media-kit",
+        "strategic-map,campaigns,recorded-meetings,media-kit,affiliates",
       );
     });
 
     expect(window.localStorage.getItem("dashboard:pinned-boards:v1:user-1")).toBe(
-      JSON.stringify(["strategic-map", "campaigns", "recorded-meetings", "media-kit"]),
+      JSON.stringify(["strategic-map", "campaigns", "recorded-meetings", "media-kit", "affiliates"]),
     );
 
     fireEvent.click(screen.getByRole("button", { name: "pin-collabs" }));
 
     await waitFor(() => {
       expect(screen.getByTestId("pins")).toHaveTextContent(
-        "strategic-map,collabs,campaigns,recorded-meetings,media-kit",
+        "strategic-map,collabs,campaigns,recorded-meetings,media-kit,affiliates",
       );
     });
   });

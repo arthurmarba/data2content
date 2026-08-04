@@ -4,7 +4,10 @@ import Image from "next/image";
 import React from "react";
 import { CalendarDays, Clock3, Search, Video, type LucideIcon } from "lucide-react";
 
-import type { RecordedMeeting } from "@/app/lib/community/recordedMeetingsService";
+import type {
+  RecordedMeeting,
+  RecordedMeetingsStatus,
+} from "@/app/lib/community/recordedMeetingsService";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   day: "2-digit",
@@ -21,8 +24,10 @@ function formatMeetingDate(value: string) {
 
 export default function RecordedMeetingsLibrary({
   meetings,
+  status = meetings.length > 0 ? "ready" : "empty",
 }: {
   meetings: RecordedMeeting[];
+  status?: RecordedMeetingsStatus;
 }) {
   const [selectedId, setSelectedId] = React.useState(meetings[0]?.id ?? "");
   const [query, setQuery] = React.useState("");
@@ -42,6 +47,7 @@ export default function RecordedMeetingsLibrary({
   );
 
   if (!selectedMeeting) {
+    const unavailable = status === "unavailable" || status === "unconfigured";
     return (
       <section className="grid min-h-[430px] overflow-hidden rounded-[28px] border border-zinc-200/80 bg-white shadow-[0_18px_50px_rgba(24,24,27,0.045)] lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="flex flex-col items-center justify-center px-8 py-14 text-center">
@@ -49,13 +55,15 @@ export default function RecordedMeetingsLibrary({
             <Video className="h-6 w-6" aria-hidden="true" />
           </span>
           <p className="mt-6 text-[10px] font-bold uppercase tracking-[0.18em] text-violet-700">
-            Nenhuma gravação publicada
+            {unavailable ? "Biblioteca indisponível" : "Nenhuma gravação publicada"}
           </p>
           <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-zinc-950">
-            A biblioteca está sendo preparada
+            {unavailable ? "Não foi possível carregar as gravações" : "A biblioteca está sendo preparada"}
           </h2>
           <p className="mt-3 max-w-md text-sm leading-6 text-zinc-500">
-            Assim que a primeira reunião for publicada, ela aparecerá aqui pronta para assistir.
+            {unavailable
+              ? "Estamos ajustando o acesso ao acervo. Tente novamente em alguns minutos."
+              : "Assim que a primeira reunião for publicada, ela aparecerá aqui pronta para assistir."}
           </p>
         </div>
 

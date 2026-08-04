@@ -312,6 +312,12 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 
   const shell = (
     <>
+      <a
+        href="#dashboard-main"
+        className="sr-only fixed left-4 top-4 z-[1000] rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white shadow-lg focus:not-sr-only focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-400 focus-visible:ring-offset-2"
+      >
+        Pular para o conteúdo
+      </a>
       {!isGuidedFlow && !isPrintMode && (
         <SidebarNav isCollapsed={isCollapsed} onToggle={() => toggleSidebar()} />
       )}

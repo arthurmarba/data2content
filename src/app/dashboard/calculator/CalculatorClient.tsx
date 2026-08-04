@@ -500,6 +500,7 @@ export default function CalculatorClient({
   const viewerRole = typeof rawViewerRole === "string" ? rawViewerRole.trim().toLowerCase() : null;
   const isAdminViewer = viewerRole === "admin";
   const [adminTargetUser, setAdminTargetUser] = useState<AdminTargetUser | null>(null);
+  const [adminToolsExpanded, setAdminToolsExpanded] = useState(false);
   const targetUserId = isAdminViewer && adminTargetUser?.id ? adminTargetUser.id : null;
   const isActingOnBehalf = Boolean(
     isAdminViewer &&
@@ -507,6 +508,7 @@ export default function CalculatorClient({
     sessionUserId &&
     targetUserId !== sessionUserId
   );
+  const adminControlsVisible = adminToolsExpanded || isActingOnBehalf || Boolean(adminTargetUser);
 
   const planStatusSession = viewer?.planStatus ?? sessionUser?.planStatus;
   const billingInstagramConnected = Boolean(billingStatus.instagram?.connected);
@@ -1902,7 +1904,17 @@ export default function CalculatorClient({
 
         {isAdminViewer ? (
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            {(!compactView || isActingOnBehalf || adminTargetUser) ? (
+            {!compactView ? (
+              <button
+                type="button"
+                onClick={() => setAdminToolsExpanded((current) => !current)}
+                aria-expanded={adminToolsExpanded}
+                className="inline-flex min-h-9 w-fit items-center rounded-full border border-zinc-200 bg-white px-3 text-xs font-semibold text-zinc-600 transition hover:border-zinc-300 hover:text-zinc-900"
+              >
+                {adminToolsExpanded ? "Fechar modo administrativo" : "Modo administrativo"}
+              </button>
+            ) : null}
+            {adminControlsVisible ? (
               <div className="w-full sm:max-w-md">
                 <CreatorQuickSearch
                   onSelect={(creator) =>
@@ -1919,7 +1931,7 @@ export default function CalculatorClient({
                 />
               </div>
             ) : null}
-            {(!compactView || isActingOnBehalf || adminTargetUser) ? (
+            {adminControlsVisible ? (
               <p className="text-xs text-slate-500">
                 {isActingOnBehalf
                   ? `Calculando para ${adminTargetUser?.name}.`

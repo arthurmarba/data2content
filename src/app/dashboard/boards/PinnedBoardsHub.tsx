@@ -48,7 +48,10 @@ export default function PinnedBoardsHub({
           target.offsetLeft - (container.clientWidth - target.clientWidth) / 2,
           0,
         ),
-        behavior: "smooth",
+        behavior:
+          typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches
+            ? "auto"
+            : "smooth",
       });
       setActiveIndex(nextIndex);
     },
@@ -80,13 +83,17 @@ export default function PinnedBoardsHub({
       {hasNavigation ? (
         <div className="flex h-14 shrink-0 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <div className="min-w-0">
-            <p className="text-sm font-semibold tracking-[-0.02em] text-zinc-950">Visão geral</p>
+            <h1 className="text-sm font-semibold tracking-[-0.02em] text-zinc-950">Visão geral</h1>
             <p className="mt-0.5 truncate text-[12px] text-zinc-500">
               Atualizações e próximos passos do seu workspace
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <span className="mr-1 hidden text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 sm:inline">
+            <span
+              className="mr-1 hidden text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 sm:inline"
+              aria-live="polite"
+              aria-atomic="true"
+            >
               {activeIndex + 1} de {items.length} · {navigationLabels[activeIndex]}
             </span>
             <button
@@ -113,6 +120,8 @@ export default function PinnedBoardsHub({
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
+        role="region"
+        aria-label="Painéis da visão geral"
         className={`
           dashboard-scrollbar min-h-0 flex-1 overflow-y-hidden lg:overflow-y-visible scroll-smooth scroll-pl-4 scroll-pr-4 sm:scroll-pl-6 sm:scroll-pr-6 lg:scroll-pl-8 lg:scroll-pr-8
           ${hasSingleBoard ? "overflow-x-hidden" : "overflow-x-auto snap-x snap-mandatory"}

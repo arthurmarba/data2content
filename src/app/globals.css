@@ -86,6 +86,17 @@
   background: #f3f4f6;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-skin *,
+  .dashboard-skin *::before,
+  .dashboard-skin *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 .dashboard-shell-canvas {
   position: relative;
   isolation: isolate;

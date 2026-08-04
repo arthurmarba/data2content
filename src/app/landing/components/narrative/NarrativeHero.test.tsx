@@ -49,11 +49,11 @@ describe("NarrativeHero", () => {
     render(<NarrativeHero />);
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "Tendências de conteúdo viram direção para ganhar seguidores, engajar, vender, atrair publicidade e criar comunidade.",
+      "Pare de adivinhar o que postar.",
     );
-    expect(screen.getByText(/Assuntos, falas, cenários, formatos e reações da audiência/i)).toBeInTheDocument();
+    expect(screen.getByText(/Nossa IA assiste aos conteúdos dos criadores/i)).toBeInTheDocument();
+    expect(screen.getByText(/identifica padrões em assuntos, falas, cenários e formatos/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Criar conta grátis/i })).toBeInTheDocument();
-    expect(screen.getByText(/Conta gratuita · relatório e reuniões para assinantes/i)).toBeInTheDocument();
     expect(screen.getByText("para")).toHaveClass("d2c-human-hero__outcome-prefix");
     expect(screen.getByText("ganhar seguidores.").tagName).toBe("EM");
     expect(screen.getByText("ganhar seguidores.")).toHaveClass("d2c-human-hero__outcome-word");
@@ -62,11 +62,12 @@ describe("NarrativeHero", () => {
   it("expõe os sinais lidos pela D2C como conteúdo, não como decoração", () => {
     render(<NarrativeHero />);
 
-    const signals = screen.getByLabelText(/Sinais que a D2C lê no conteúdo/i);
+    const signals = screen.getByLabelText(/A IA assiste aos conteúdos/i);
 
     expect(signals).toHaveTextContent("CenárioEspaço de trabalho");
     expect(signals).toHaveTextContent("AssuntoIA · negócios criativos");
     expect(signals).toHaveTextContent("FalaEstou construindo do meu jeito");
-    expect(signals).toHaveTextContent("TomDireto · pessoal · provocativo");
+    expect(signals).toHaveTextContent("FormatoBastidores em primeira pessoa");
+    expect(signals).toHaveTextContent("Direção para postar");
   });
 });

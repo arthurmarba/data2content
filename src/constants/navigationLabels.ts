@@ -39,8 +39,8 @@ export const navigationLabels = {
     tooltip: "Desbloquear o Acesso VIP",
   },
   affiliates: {
-    menu: "Programa de Indicação",
-    tooltip: "Convide colegas",
+    menu: "Afiliados",
+    tooltip: "Compartilhe seu link e acompanhe suas comissões",
   },
   settings: {
     menu: "Perfil & Ajuda",

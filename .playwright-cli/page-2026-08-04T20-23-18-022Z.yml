@@ -1,0 +1,304 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - link "Data2Content - página inicial" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e8]: data2content
+      - navigation "Navegação principal" [ref=e9]:
+        - link "Inteligência semanal" [ref=e10] [cursor=pointer]:
+          - /url: "#reuniao-semanal"
+        - link "Quem interpreta" [ref=e11] [cursor=pointer]:
+          - /url: "#quem-conduz"
+        - link "Plano Pro" [ref=e12] [cursor=pointer]:
+          - /url: "#planos"
+      - button "Criar conta grátis" [ref=e14] [cursor=pointer]
+  - main [ref=e15]:
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - heading "Pare de adivinhar o que postar." [level=1] [ref=e19]:
+          - generic [ref=e20]: Pare de adivinhar
+          - generic [ref=e21]: o que postar.
+        - paragraph [ref=e22]: Nossa IA assiste aos conteúdos dos criadores.
+        - generic [ref=e23]: Ela identifica padrões em assuntos, falas, cenários e formatos e transforma isso em direção para criar conteúdo que ganha seguidores, engaja, vende, atrai marcas e cria comunidade.
+        - generic [ref=e25]:
+          - text: para
+          - emphasis [ref=e26]: ganhar seguidores.
+        - button "Criar conta grátis" [ref=e28] [cursor=pointer]
+      - figure [ref=e31]:
+        - generic [ref=e32]:
+          - img "Creator desenvolvendo uma ideia em seu espaço de trabalho" [ref=e33]
+          - generic "A IA assiste aos conteúdos, identifica sinais de cenário, assunto, fala e formato, encontra padrões e os transforma em direção para postar":
+            - generic:
+              - generic:
+                - term: Cenário
+                - definition: Espaço de trabalho
+              - generic:
+                - term: Assunto
+                - definition: IA · negócios criativos
+              - generic:
+                - term: Fala
+                - definition: Estou construindo do meu jeito
+              - generic:
+                - term: Formato
+                - definition: Bastidores em primeira pessoa
+    - generic [ref=e35]:
+      - generic [ref=e36]:
+        - paragraph [ref=e37]: ✦Conteúdo real · sinais reais
+        - heading "Uma comunidade diversa revela movimentos que ninguém vê sozinho." [level=3] [ref=e38]
+      - region "Creators ativos da comunidade D2C" [ref=e39]:
+        - generic [ref=e41]:
+          - generic [ref=e42]:
+            - link "Abrir o Media Kit de Aline Bergamini" [ref=e43] [cursor=pointer]:
+              - /url: /mediakit/aline-bergamini
+              - img "Foto de perfil de Aline Bergamini" [ref=e45]
+              - generic [ref=e46]: Aline Bergamini
+              - generic [ref=e51]: "@alinebergamini"
+            - link "Abrir o Media Kit de Aline Paiva" [ref=e52] [cursor=pointer]:
+              - /url: /mediakit/aline-paiva
+              - img "Foto de perfil de Aline Paiva" [ref=e54]
+              - generic [ref=e55]: Aline Paiva
+              - generic [ref=e60]: "@alinepaivadecora"
+            - link "Abrir o Media Kit de Amanda Magalhaes" [ref=e61] [cursor=pointer]:
+              - /url: /mediakit/amanda-magalhaes
+              - img "Foto de perfil de Amanda Magalhaes" [ref=e63]
+              - generic [ref=e64]: Amanda Magalhaes
+              - generic [ref=e69]: "@aamandamag"
+            - link "Abrir o Media Kit de Amanda Mol Neurociência do Sono Infantil" [ref=e70] [cursor=pointer]:
+              - /url: /mediakit/amanda-mol-neurociencia-do-sono-infantil
+              - img "Foto de perfil de Amanda Mol Neurociência do Sono Infantil" [ref=e72]
+              - generic [ref=e73]: Amanda Mol Neurociência do Sono Infantil
+              - generic [ref=e77]: "@amandamol_"
+            - link "Abrir o Media Kit de Arthur Marba" [ref=e78] [cursor=pointer]:
+              - /url: /mediakit/arthur-marba
+              - img "Foto de perfil de Arthur Marba" [ref=e80]
+              - generic [ref=e81]: Arthur Marba
+              - generic [ref=e86]: "@arthurmarba"
+            - link "Abrir o Media Kit de Blu Nunes" [ref=e87] [cursor=pointer]:
+              - /url: /mediakit/blu-nunes
+              - img "Foto de perfil de Blu Nunes" [ref=e89]
+              - generic [ref=e90]: Blu Nunes
+              - generic [ref=e95]: "@blununees"
+            - link "Abrir o Media Kit de Cris Valente" [ref=e96] [cursor=pointer]:
+              - /url: /mediakit/cris-valente
+              - img "Foto de perfil de Cris Valente" [ref=e98]
+              - generic [ref=e99]: Cris Valente
+              - generic [ref=e104]: "@cris_valentereal"
+            - link "Abrir o Media Kit de Débora Broch Machado" [ref=e105] [cursor=pointer]:
+              - /url: /mediakit/debora-broch-machado
+              - img "Foto de perfil de Débora Broch Machado" [ref=e107]
+              - generic [ref=e108]: Débora Broch Machado
+              - generic [ref=e112]: "@deborabroch"
+            - link "Abrir o Media Kit de Edgar Kumagai" [ref=e113] [cursor=pointer]:
+              - /url: /mediakit/edgar-kumagai
+              - img "Foto de perfil de Edgar Kumagai" [ref=e115]
+              - generic [ref=e116]: Edgar Kumagai
+              - generic [ref=e121]: "@edgarkumagai"
+            - link "Abrir o Media Kit de Eduarda Lobo" [ref=e122] [cursor=pointer]:
+              - /url: /mediakit/eduarda-lobo
+              - img "Foto de perfil de Eduarda Lobo" [ref=e124]
+              - generic [ref=e125]: Eduarda Lobo
+              - generic [ref=e130]: "@_dudalobo"
+            - link "Abrir o Media Kit de Giovanna Antiorio" [ref=e131] [cursor=pointer]:
+              - /url: /mediakit/giovanna-antiorio
+              - img "Foto de perfil de Giovanna Antiorio" [ref=e133]
+              - generic [ref=e134]: Giovanna Antiorio
+              - generic [ref=e139]: "@giantiorio"
+            - link "Abrir o Media Kit de Giselle Candido" [ref=e140] [cursor=pointer]:
+              - /url: /mediakit/giselle-candido
+              - img "Foto de perfil de Giselle Candido" [ref=e142]
+              - generic [ref=e143]: Giselle Candido
+              - generic [ref=e148]: "@gisellerhaylla"
+          - generic [ref=e149]:
+            - link [ref=e150] [cursor=pointer]:
+              - /url: /mediakit/aline-bergamini
+              - generic [ref=e153]: Aline Bergamini
+              - generic [ref=e158]: "@alinebergamini"
+            - link [ref=e159] [cursor=pointer]:
+              - /url: /mediakit/aline-paiva
+              - generic [ref=e162]: Aline Paiva
+              - generic [ref=e167]: "@alinepaivadecora"
+            - link [ref=e168] [cursor=pointer]:
+              - /url: /mediakit/amanda-magalhaes
+              - generic [ref=e171]: Amanda Magalhaes
+              - generic [ref=e176]: "@aamandamag"
+            - link [ref=e177] [cursor=pointer]:
+              - /url: /mediakit/amanda-mol-neurociencia-do-sono-infantil
+              - generic [ref=e180]: Amanda Mol Neurociência do Sono Infantil
+              - generic [ref=e184]: "@amandamol_"
+            - link [ref=e185] [cursor=pointer]:
+              - /url: /mediakit/arthur-marba
+              - generic [ref=e188]: Arthur Marba
+              - generic [ref=e193]: "@arthurmarba"
+            - link [ref=e194] [cursor=pointer]:
+              - /url: /mediakit/blu-nunes
+              - generic [ref=e197]: Blu Nunes
+              - generic [ref=e202]: "@blununees"
+            - link [ref=e203] [cursor=pointer]:
+              - /url: /mediakit/cris-valente
+              - generic [ref=e206]: Cris Valente
+              - generic [ref=e211]: "@cris_valentereal"
+            - link [ref=e212] [cursor=pointer]:
+              - /url: /mediakit/debora-broch-machado
+              - generic [ref=e215]: Débora Broch Machado
+              - generic [ref=e219]: "@deborabroch"
+            - link [ref=e220] [cursor=pointer]:
+              - /url: /mediakit/edgar-kumagai
+              - generic [ref=e223]: Edgar Kumagai
+              - generic [ref=e228]: "@edgarkumagai"
+            - link [ref=e229] [cursor=pointer]:
+              - /url: /mediakit/eduarda-lobo
+              - generic [ref=e232]: Eduarda Lobo
+              - generic [ref=e237]: "@_dudalobo"
+            - link [ref=e238] [cursor=pointer]:
+              - /url: /mediakit/giovanna-antiorio
+              - generic [ref=e241]: Giovanna Antiorio
+              - generic [ref=e246]: "@giantiorio"
+            - link [ref=e247] [cursor=pointer]:
+              - /url: /mediakit/giselle-candido
+              - generic [ref=e250]: Giselle Candido
+              - generic [ref=e255]: "@gisellerhaylla"
+      - button "Explorar todos os Media Kits+" [ref=e257] [cursor=pointer]
+      - paragraph [ref=e258]: Os perfis exibidos estão ativos na comunidade. Cada retrato abre o Media Kit público do creator.
+    - region [ref=e259]:
+      - generic [ref=e260]:
+        - paragraph [ref=e261]: ✦Inteligência alimentada por sinais reais
+        - heading "Cada conteúdo deixa sinais. A D2C aprende com eles." [level=2] [ref=e262]
+        - generic [ref=e263]: A tecnologia organiza milhares de conteúdos e interações. A leitura humana transforma padrões em hipóteses, tendências e decisões.
+      - generic [ref=e264]:
+        - generic [ref=e265]:
+          - term [ref=e266]: conteúdos analisados
+          - definition [ref=e267]: 3,1 mil
+        - generic [ref=e268]:
+          - term [ref=e269]: visualizações compreendidas
+          - definition [ref=e270]: 240 milhões
+        - generic [ref=e271]:
+          - term [ref=e272]: interações que viraram aprendizado
+          - definition [ref=e273]: 17 milhões
+      - paragraph [ref=e274]: Dados agregados e anonimizados da comunidade D2C. Os resultados pertencem aos creators acompanhados.
+      - text: ✦
+    - generic [ref=e275]:
+      - generic [ref=e276]:
+        - paragraph [ref=e277]: ✦Quem interpreta a inteligência
+        - heading "Dados mostram o movimento. Repertório dá sentido." [level=2] [ref=e278]
+      - generic [ref=e279]:
+        - article [ref=e280]:
+          - figure [ref=e281]:
+            - img "Arthur Marbá" [ref=e282]
+          - generic [ref=e283]:
+            - text: Creators · dados · estratégia
+            - heading "Arthur Marbá" [level=3] [ref=e284]
+            - paragraph [ref=e285]: Fundador da D2C e estrategista de creators. Há mais de uma década transforma conteúdo, dados e comportamento em direção prática.
+        - article [ref=e286]:
+          - figure [ref=e287]:
+            - img "Ronaldo Fonseca" [ref=e288]
+          - generic [ref=e289]:
+            - text: Narrativas · cultura · negócios
+            - heading "Ronaldo Fonseca" [level=3] [ref=e290]
+            - paragraph [ref=e291]: Sócio da D2C e CEO da A-Lab, do Grupo Dreamers. Conecta narrativas, cultura e oportunidades de negócio.
+      - paragraph [ref=e293]: Arthur lê os sinais da criação. Ronaldo conecta conteúdo, cultura e negócio. Toda semana, os dois transformam os achados do relatório em uma conversa aplicável.
+    - generic [ref=e295]:
+      - generic [ref=e296]:
+        - figure [ref=e297]:
+          - img "Creator publicando um vídeo em seu estúdio" [ref=e298]
+        - figure [ref=e299]:
+          - img "Creator analisando e refinando um conteúdo" [ref=e300]
+        - figure [ref=e301]:
+          - img "Creators produzindo uma colaboração juntos" [ref=e302]
+      - paragraph [ref=e303]: Cenas editoriais ilustrativas da rotina de creators.
+      - generic [ref=e305]:
+        - paragraph [ref=e306]: Toda quinta · 19h–21h · online
+        - generic [ref=e307]: O relatório organiza os sinais. A reunião transforma os achados em direção.
+      - generic [ref=e308]:
+        - article [ref=e309]:
+          - generic [ref=e310]:
+            - text: "01"
+            - heading "A semana vira relatório." [level=2] [ref=e311]
+            - paragraph [ref=e312]: A D2C cruza assuntos, falas, cenas, formatos e respostas da audiência para identificar movimentos de conteúdo.
+        - article [ref=e313]:
+          - generic [ref=e314]:
+            - text: "02"
+            - heading "Os achados ganham contexto ao vivo." [level=2] [ref=e315]
+            - paragraph [ref=e316]: Toda quinta, assinantes participam da reunião em que Arthur e Ronaldo interpretam tendências e oportunidades.
+        - article [ref=e317]:
+          - generic [ref=e318]:
+            - text: "03"
+            - heading "A inteligência vira próximo passo." [level=2] [ref=e319]
+            - paragraph [ref=e320]: Assinantes recebem o relatório completo e usam os sinais para decidir o que criar, testar ou ajustar.
+      - generic [ref=e321]:
+        - paragraph [ref=e322]: Tendência não é receita. A reunião ajuda você a entender como aplicar cada movimento ao seu contexto.
+        - button "Criar conta grátis" [ref=e323] [cursor=pointer]
+    - generic [ref=e327]:
+      - generic [ref=e328]:
+        - paragraph [ref=e329]: Tendência aplicada à criação
+        - heading "Quando uma tendência encontra duas narrativas." [level=2] [ref=e330]
+        - paragraph [ref=e331]: Uma pauta sugerida pela inteligência pode aproximar creators que enxergam oportunidade no mesmo assunto.
+      - generic "Demonstração automática do match criativo" [ref=e333]:
+        - paragraph [ref=e336]: Uma pauta feita para você
+        - article [ref=e338]:
+          - generic [ref=e339]:
+            - generic [ref=e340]:
+              - img "Foto de Eduarda Lobo" [ref=e342]
+              - generic [ref=e343]:
+                - generic [ref=e344]: Pauta para você
+                - generic [ref=e345]: Eduarda
+            - generic [ref=e346]: "01"
+          - generic [ref=e347]:
+            - generic [ref=e348]: Sua próxima pauta
+            - heading "Como comecei a defender a liberdade de criar com a minha cara" [level=3] [ref=e349]
+            - paragraph [ref=e350]: Uma pauta sobre autonomia criativa, identidade e o momento em que copiar fórmulas deixou de fazer sentido.
+            - blockquote [ref=e351]: Abre com a primeira vez em que você percebeu que uma fórmula podia apagar a sua voz.
+          - generic [ref=e352]:
+            - generic [ref=e353]: Agora não
+            - generic [ref=e359]: Quero fazer
+    - generic [ref=e365]:
+      - generic [ref=e366]:
+        - paragraph [ref=e367]: ✦A inteligência completa
+        - heading "Inteligência nova toda semana. Direção para todos os dias." [level=2] [ref=e368]
+      - generic [ref=e369]:
+        - generic [ref=e370]: R$ 97,00/mês
+        - list [ref=e371]:
+          - listitem [ref=e372]: Relatório completo de tendências toda semana
+          - listitem [ref=e375]: Participação nas reuniões ao vivo
+          - listitem [ref=e378]: Análise e direcionamento para assinantes
+          - listitem [ref=e381]: Mapa, pautas, matches, Media Kit e Calculadora de Publi
+          - listitem [ref=e384]: Grupo exclusivo de assinantes
+        - button "Criar conta para assinar" [ref=e387] [cursor=pointer]
+        - generic [ref=e390]: Criar a conta é grátis. Cancele a assinatura quando quiser.
+    - generic [ref=e392]:
+      - generic [ref=e393]:
+        - paragraph [ref=e394]: ✦Sem letra miúda
+        - heading "Como a conta gratuita e a assinatura funcionam." [level=2] [ref=e395]
+      - generic [ref=e396]:
+        - group [ref=e397]:
+          - generic "Criar uma conta é gratuito? +" [ref=e398] [cursor=pointer]
+        - group [ref=e399]:
+          - generic "Posso participar da reunião sem assinar? +" [ref=e400] [cursor=pointer]
+        - group [ref=e401]:
+          - generic "O que encontro no relatório semanal? +" [ref=e402] [cursor=pointer]
+        - group [ref=e403]:
+          - generic "O relatório serve para criadores e marcas? +" [ref=e404] [cursor=pointer]
+        - group [ref=e405]:
+          - generic "Tendência significa copiar um formato? +" [ref=e406] [cursor=pointer]
+        - group [ref=e407]:
+          - generic "Como faço para ter meu conteúdo analisado? +" [ref=e408] [cursor=pointer]
+        - group [ref=e409]:
+          - generic "Posso cancelar quando quiser? +" [ref=e410] [cursor=pointer]
+    - generic [ref=e412]:
+      - heading "Conteúdo muda toda semana. Sua direção também pode evoluir." [level=2] [ref=e414]:
+        - text: Conteúdo muda toda semana.
+        - generic [ref=e415]: Sua direção também pode evoluir.
+      - button "Criar minha conta grátis" [ref=e416] [cursor=pointer]
+  - contentinfo [ref=e419]:
+    - generic [ref=e420]:
+      - link "Data2Content - página inicial" [ref=e421] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e423]: data2content
+      - paragraph [ref=e424]: Inteligência para enxergar. Plataforma para agir.
+      - navigation "Links legais" [ref=e425]:
+        - link "Suporte" [ref=e426] [cursor=pointer]:
+          - /url: mailto:arthur@data2content.ai
+        - link "Privacidade" [ref=e427] [cursor=pointer]:
+          - /url: /politica-de-privacidade
+        - link "Termos" [ref=e428] [cursor=pointer]:
+          - /url: /termos-e-condicoes
+      - generic [ref=e429]: © 2026 Data2Content.

@@ -40,6 +40,11 @@ const CollabsOverviewBoard = dynamic(() => import("../boards/CollabsOverviewBoar
   loading: () => null,
 });
 
+const AffiliatesOverviewBoard = dynamic(() => import("../boards/AffiliatesOverviewBoard"), {
+  ssr: false,
+  loading: () => null,
+});
+
 const BOARD_IDLE_DELAYS_MS = [0, 0, 750, 1450, 2200];
 
 function BoardLoadingShell() {
@@ -210,6 +215,12 @@ export default function HomeDesktopBoards() {
           return (
             <MediaKitOverviewBoard
               isHighlighted={activeHighlight === "media-kit"}
+            />
+          );
+        case "affiliates":
+          return (
+            <AffiliatesOverviewBoard
+              isHighlighted={activeHighlight === "affiliates"}
             />
           );
         default:

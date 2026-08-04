@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { canAccessRecordedMeetings } from "@/app/lib/community/recordedMeetingsAccess";
-import { getRecordedMeetings } from "@/app/lib/community/recordedMeetingsService";
+import { getRecordedMeetingsState } from "@/app/lib/community/recordedMeetingsService";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +19,24 @@ export async function GET() {
   }
 
   try {
-    const meetings = await getRecordedMeetings();
-    return NextResponse.json({ ok: true, meetings });
+    const result = await getRecordedMeetingsState();
+    if (result.status === "unavailable") {
+      return NextResponse.json(
+        { ok: false, status: result.status, error: "recorded_meetings_unavailable" },
+        { status: 502 },
+      );
+    }
+    if (result.status === "unconfigured") {
+      console.error(
+        "[recorded-meetings] Configuração ausente:",
+        result.missingConfiguration?.join(", "),
+      );
+      return NextResponse.json(
+        { ok: false, status: result.status, error: "recorded_meetings_unconfigured" },
+        { status: 503 },
+      );
+    }
+    return NextResponse.json({ ok: true, status: result.status, meetings: result.meetings });
   } catch (error) {
     console.error("[recorded-meetings] Falha ao carregar playlist:", error);
     return NextResponse.json(

@@ -7,8 +7,8 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import RecordedMeetingsLibrary from "@/app/dashboard/recorded-meetings/RecordedMeetingsLibrary";
 import { canAccessRecordedMeetings } from "@/app/lib/community/recordedMeetingsAccess";
 import {
-  getRecordedMeetings,
-  type RecordedMeeting,
+  getRecordedMeetingsState,
+  type RecordedMeetingsResult,
 } from "@/app/lib/community/recordedMeetingsService";
 import { RECORDED_MEETINGS_ROUTE } from "@/constants/routes";
 
@@ -30,9 +30,15 @@ export default async function RecordedMeetingsPage() {
     redirect(`/pro?source=recorded_meetings&returnTo=${encodeURIComponent(RECORDED_MEETINGS_ROUTE)}`);
   }
 
-  let meetings: RecordedMeeting[] = [];
+  let library: RecordedMeetingsResult = { status: "unavailable", meetings: [] };
   try {
-    meetings = await getRecordedMeetings();
+    library = await getRecordedMeetingsState();
+    if (library.status === "unconfigured") {
+      console.error(
+        "[recorded-meetings-page] Configuração ausente:",
+        library.missingConfiguration?.join(", "),
+      );
+    }
   } catch (error) {
     console.error("[recorded-meetings-page] Falha ao carregar playlist:", error);
   }
@@ -57,7 +63,7 @@ export default async function RecordedMeetingsPage() {
           </span>
         </header>
 
-        <RecordedMeetingsLibrary meetings={meetings} />
+        <RecordedMeetingsLibrary meetings={library.meetings} status={library.status} />
       </div>
     </div>
   );

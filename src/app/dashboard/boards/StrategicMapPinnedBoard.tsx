@@ -276,6 +276,7 @@ function StrategicMapWorkspaceSummary({
     { label: "Vida real", ready: (mapaSeed?.assets?.length ?? 0) > 0 },
   ];
   const readyCount = dimensions.filter((dimension) => dimension.ready).length;
+  const nextDimension = dimensions.find((dimension) => !dimension.ready) ?? null;
   const progress = Math.round((readyCount / dimensions.length) * 100);
   const maturity = mapaSeed?.maturidade
     ? MATURITY_LABELS[mapaSeed.maturidade] ?? "Em evolução"
@@ -322,6 +323,13 @@ function StrategicMapWorkspaceSummary({
           </li>
         ))}
       </ul>
+
+      {nextDimension ? (
+        <div className="mt-5 border-l-2 border-rose-400 pl-3">
+          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-rose-600">Próximo passo</p>
+          <p className="mt-1 text-sm font-medium text-zinc-800">Confirme {nextDimension.label.toLocaleLowerCase("pt-BR")} no editor.</p>
+        </div>
+      ) : null}
 
       <dl className="mt-6 space-y-4">
         <div className="flex items-start gap-3">

@@ -7,10 +7,25 @@ import { logger } from '@/app/lib/logger';
 import { fetchFollowerDemographics } from '@/services/instagramInsightsService';
 import AudienceDemographicSnapshotModel from '@/app/models/demographics/AudienceDemographicSnapshot';
 
-const redisUrl = process.env.REDIS_URL || '';
-const redis = createClient({ url: redisUrl });
-redis.on('error', err => logger.error('[demographics][Redis]', err));
-redis.connect().catch(err => logger.error('[demographics][Redis] connect', err));
+const redisUrl = process.env.REDIS_URL?.trim() || null;
+let redisClientPromise: Promise<ReturnType<typeof createClient> | null> | null = null;
+
+async function getRedisClient() {
+  if (!redisUrl) return null;
+  if (!redisClientPromise) {
+    const client = createClient({ url: redisUrl });
+    client.on('error', err => logger.error('[demographics][Redis]', err));
+    redisClientPromise = client
+      .connect()
+      .then(() => client)
+      .catch(err => {
+        logger.error('[demographics][Redis] connect', err);
+        redisClientPromise = null;
+        return null;
+      });
+  }
+  return redisClientPromise;
+}
 
 export async function GET(request: NextRequest, { params }: { params: { userId: string } }) {
   const { userId } = params;
@@ -30,8 +45,9 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
   }
 
   const cacheKey = `demographics:${user.instagramAccountId}`;
+  const redis = await getRedisClient();
   try {
-    const cached = await redis.get(cacheKey);
+    const cached = redis ? await redis.get(cacheKey) : null;
     if (cached) {
       const parsed = JSON.parse(cached);
       return NextResponse.json(parsed, { status: 200 });
@@ -42,7 +58,9 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
 
   try {
     const data = await fetchFollowerDemographics(user.instagramAccountId, user.instagramAccessToken);
-    await redis.set(cacheKey, JSON.stringify(data), { EX: 60 * 60 * 24 });
+    if (redis) {
+      await redis.set(cacheKey, JSON.stringify(data), { EX: 60 * 60 * 24 });
+    }
     
     // CORREÇÃO: Envolve os dados na estrutura correta que o schema espera.
     await AudienceDemographicSnapshotModel.create({
@@ -54,10 +72,8 @@ export async function GET(request: NextRequest, { params }: { params: { userId: 
       },
     });
 
-    await redis.quit();
     return NextResponse.json(data, { status: 200 });
   } catch (err) {
-    await redis.quit();
     logger.error(`${TAG} Erro ao obter demografia`, err);
     return NextResponse.json({ error: 'Falha ao obter dados de demografia.' }, { status: 500 });
   }

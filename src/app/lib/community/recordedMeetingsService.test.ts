@@ -1,5 +1,6 @@
 import {
   getRecordedMeetings,
+  getRecordedMeetingsState,
   mapYouTubePlaylistItems,
 } from "./recordedMeetingsService";
 
@@ -67,6 +68,38 @@ describe("recordedMeetingsService", () => {
 
     await expect(getRecordedMeetings()).resolves.toEqual([]);
     expect(fetchSpy).not.toHaveBeenCalled();
+    await expect(getRecordedMeetingsState()).resolves.toEqual({
+      status: "unconfigured",
+      meetings: [],
+      missingConfiguration: [
+        "YOUTUBE_API_KEY",
+        "YOUTUBE_RECORDED_MEETINGS_PLAYLIST_ID",
+      ],
+    });
+  });
+
+  it("distingue playlist vazia de indisponibilidade externa", async () => {
+    process.env.YOUTUBE_API_KEY = "test-key";
+    process.env.YOUTUBE_RECORDED_MEETINGS_PLAYLIST_ID = "playlist-123";
+    jest.spyOn(global, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ items: [] }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    await expect(getRecordedMeetingsState()).resolves.toEqual({
+      status: "empty",
+      meetings: [],
+    });
+
+    jest.spyOn(global, "fetch").mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: "quota" }), { status: 503 }),
+    );
+    await expect(getRecordedMeetingsState()).resolves.toEqual({
+      status: "unavailable",
+      meetings: [],
+    });
   });
 
   it("busca os itens da playlist configurada", async () => {

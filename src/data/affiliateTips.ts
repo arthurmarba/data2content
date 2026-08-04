@@ -11,9 +11,9 @@ export const AFFILIATE_TIP_TEMPLATES: AffiliateTipTemplate[] = [
     id: 'bio',
     emoji: '🔗',
     title: 'Bio do Instagram',
-    description: 'Deixe o link do seu mídia kit na bio e convide outros criadores a conhecer o Mobi.',
+    description: 'Deixe o link do seu mídia kit na bio e convide outros criadores a conhecer a Data2Content.',
     buildCopy: (link) =>
-      `Atualizei minha bio com meu mídia kit do Mobi: ${link}. Por ali você conhece a plataforma e já vê como uso o painel.`,
+      `Atualizei minha bio com meu mídia kit da Data2Content: ${link}. Por ali você conhece a plataforma e já vê como uso o painel.`,
   },
   {
     id: 'stories',
@@ -21,7 +21,7 @@ export const AFFILIATE_TIP_TEMPLATES: AffiliateTipTemplate[] = [
     title: 'Stories com contexto',
     description: 'Mostre seus resultados nos stories e em seguida compartilhe o link com o benefício.',
     buildCopy: (link) =>
-      `Mostrando como planejo meus conteúdos no Mobi. Se quiser conhecer a plataforma e ter um mídia kit pronto, use meu link: ${link}. Te ajudo no onboarding!`,
+      `Mostrando como planejo meus conteúdos na Data2Content. Se quiser conhecer a plataforma e ter um mídia kit pronto, use meu link: ${link}.`,
   },
   {
     id: 'groups',
@@ -29,7 +29,7 @@ export const AFFILIATE_TIP_TEMPLATES: AffiliateTipTemplate[] = [
     title: 'Grupos e comunidades',
     description: 'Envie o link pronto quando alguém pedir ferramenta para métricas/mídia kit.',
     buildCopy: (link) =>
-      `Pra quem queria uma ferramenta completa de mídia kit + análises: eu uso o Mobi. Pelo meu link ${link} você conhece a plataforma e já recebe meu kit de referência.`,
+      `Para quem procura mídia kit e análises de conteúdo em um só lugar: eu uso a Data2Content. Pelo meu link ${link} você conhece a plataforma e vê meu kit como referência.`,
   },
   {
     id: 'mentoria',
@@ -37,6 +37,6 @@ export const AFFILIATE_TIP_TEMPLATES: AffiliateTipTemplate[] = [
     title: 'Mentorias e 1:1',
     description: 'Convide pessoalmente e ofereça ajuda para montar o painel e o kit.',
     buildCopy: (link) =>
-      `Quer conhecer o Mobi comigo? Entre por ${link} e eu te mostro como uso os alertas no WhatsApp e o mídia kit para falar com marcas (dúvidas com IA ficam no Chat AI do app).`,
+      `Quer conhecer a Data2Content comigo? Entre por ${link} e eu te mostro como uso o mídia kit e as análises para conversar com marcas.`,
   },
 ];

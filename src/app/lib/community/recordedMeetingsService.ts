@@ -7,6 +7,18 @@ export type RecordedMeeting = {
   thumbnailUrl: string;
 };
 
+export type RecordedMeetingsStatus =
+  | "ready"
+  | "empty"
+  | "unconfigured"
+  | "unavailable";
+
+export type RecordedMeetingsResult = {
+  status: RecordedMeetingsStatus;
+  meetings: RecordedMeeting[];
+  missingConfiguration?: Array<"YOUTUBE_API_KEY" | "YOUTUBE_RECORDED_MEETINGS_PLAYLIST_ID">;
+};
+
 type YouTubePlaylistItem = {
   id?: string;
   snippet?: {
@@ -61,10 +73,15 @@ export function mapYouTubePlaylistItems(
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
 }
 
-export async function getRecordedMeetings(): Promise<RecordedMeeting[]> {
+export async function getRecordedMeetingsState(): Promise<RecordedMeetingsResult> {
   const apiKey = process.env.YOUTUBE_API_KEY?.trim();
   const playlistId = process.env.YOUTUBE_RECORDED_MEETINGS_PLAYLIST_ID?.trim();
-  if (!apiKey || !playlistId) return [];
+  if (!apiKey || !playlistId) {
+    const missingConfiguration: RecordedMeetingsResult["missingConfiguration"] = [];
+    if (!apiKey) missingConfiguration.push("YOUTUBE_API_KEY");
+    if (!playlistId) missingConfiguration.push("YOUTUBE_RECORDED_MEETINGS_PLAYLIST_ID");
+    return { status: "unconfigured", meetings: [], missingConfiguration };
+  }
 
   const playlistItems: YouTubePlaylistItem[] = [];
   let pageToken = "";
@@ -80,18 +97,35 @@ export async function getRecordedMeetings(): Promise<RecordedMeeting[]> {
     });
     if (pageToken) params.set("pageToken", pageToken);
 
-    const response = await fetch(`${YOUTUBE_PLAYLIST_ITEMS_ENDPOINT}?${params.toString()}`, {
-      next: { revalidate: 15 * 60 },
-    });
-    if (!response.ok) {
-      throw new Error(`youtube_recorded_meetings_unavailable:${response.status}`);
+    let response: Response;
+    try {
+      response = await fetch(`${YOUTUBE_PLAYLIST_ITEMS_ENDPOINT}?${params.toString()}`, {
+        next: { revalidate: 15 * 60 },
+      });
+    } catch {
+      return { status: "unavailable", meetings: [] };
     }
+    if (!response.ok) return { status: "unavailable", meetings: [] };
 
-    const payload = (await response.json()) as YouTubePlaylistResponse;
+    let payload: YouTubePlaylistResponse;
+    try {
+      payload = (await response.json()) as YouTubePlaylistResponse;
+    } catch {
+      return { status: "unavailable", meetings: [] };
+    }
     if (Array.isArray(payload.items)) playlistItems.push(...payload.items);
     pageToken = payload.nextPageToken?.trim() || "";
     if (!pageToken) break;
   }
 
-  return mapYouTubePlaylistItems(playlistItems);
+  const meetings = mapYouTubePlaylistItems(playlistItems);
+  return { status: meetings.length > 0 ? "ready" : "empty", meetings };
+}
+
+export async function getRecordedMeetings(): Promise<RecordedMeeting[]> {
+  const result = await getRecordedMeetingsState();
+  if (result.status === "unavailable") {
+    throw new Error("youtube_recorded_meetings_unavailable");
+  }
+  return result.meetings;
 }
