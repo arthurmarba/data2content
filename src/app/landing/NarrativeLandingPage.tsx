@@ -45,7 +45,7 @@ export function NarrativeLandingPage({ creators, proofMetrics, communityCreators
           <div className="d2c-shell d2c-match-community">
             <div className="d2c-match-community__intro">
               <p>Conteúdo real · sinais reais</p>
-              <h3>Uma comunidade diversa revela movimentos que ninguém vê sozinho.</h3>
+              <h3>A metodologia que, toda semana, ajuda centenas de criadores a saber o que postar e alcançar milhões de visualizações.</h3>
             </div>
             <CommunityCreatorShowcase creators={communityCreators} />
             <p className="d2c-match-community__proof">
