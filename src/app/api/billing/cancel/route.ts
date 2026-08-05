@@ -7,6 +7,10 @@ import User from "@/app/models/User";
 import Stripe from "stripe";
 import { stripe } from "@/app/lib/stripe";
 import { logger } from "@/app/lib/logger";
+import {
+  normalizeCancellationReasons,
+  cancellationReasonLabel,
+} from "@/types/billing";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -71,7 +75,13 @@ export async function POST(req: Request) {
       // ignore JSON parse error (empty body)
     }
 
-    const { reasons, comment } = body;
+    const { reasons, reasonCodes: rawReasonCodes, comment } = body;
+    // Aceita `reasonCodes` (códigos novos) ou `reasons` (labels legados) — ambos normalizados.
+    const reasonCodes = normalizeCancellationReasons(rawReasonCodes ?? reasons);
+    const trimmedComment =
+      typeof comment === "string" && comment.trim()
+        ? comment.trim().substring(0, 500)
+        : null;
 
     await connectToDatabase();
     const user = await User.findById(session.user.id);
@@ -88,13 +98,16 @@ export async function POST(req: Request) {
       { expand: ["items.data.price"] }
     );
 
-    // Prepare metadata
+    // Prepare metadata (Stripe guarda backup legível; o banco guarda a fonte consultável)
     const metadata: Stripe.MetadataParam = {};
-    if (Array.isArray(reasons) && reasons.length > 0) {
-      metadata["cancellation_reasons"] = reasons.join(", ");
+    if (reasonCodes.length > 0) {
+      metadata["cancellation_reason_codes"] = reasonCodes.join(",");
+      metadata["cancellation_reasons"] = reasonCodes
+        .map(cancellationReasonLabel)
+        .join(", ");
     }
-    if (typeof comment === "string" && comment.trim()) {
-      metadata["cancellation_comment"] = comment.substring(0, 500); // Limit length
+    if (trimmedComment) {
+      metadata["cancellation_comment"] = trimmedComment;
     }
 
     // 2) Ação: cancela na hora se estiver problemática, senão agenda no fim do ciclo
@@ -145,6 +158,18 @@ export async function POST(req: Request) {
     user.cancelAtPeriodEnd = cancelAtPeriodEnd;
     if (currency) (user as any).currency = currency;
 
+    // Persiste o motivo no nosso banco para analytics de churn (fonte consultável)
+    if (reasonCodes.length > 0 || trimmedComment) {
+      (user as any).cancellationFeedback = {
+        reasonCodes,
+        comment: trimmedComment,
+        canceledAt: new Date(),
+        subscriptionId: finalSubscription.id,
+        planInterval: planInterval ?? null,
+        source: "self_service",
+      };
+    }
+
     await user.save();
 
     logger.info("billing_cancel_success", {
@@ -156,8 +181,8 @@ export async function POST(req: Request) {
       statusStripe: finalSubscription.status ?? null,
       errorCode: null,
       stripeRequestId: (finalSubscription as any)?.lastResponse?.requestId ?? null,
-      reasons,
-      hasComment: !!comment
+      reasonCodes,
+      hasComment: !!trimmedComment,
     });
 
     return NextResponse.json(

@@ -19,10 +19,10 @@ export default function CancelRenewalCard() {
   const alreadyCancelled = (planStatus as string) === "canceled";
 
   async function cancelRenewal({
-    reasons,
+    reasonCodes,
     comment,
   }: {
-    reasons: string[];
+    reasonCodes: string[];
     comment: string;
   }) {
     setLoading(true);
@@ -30,7 +30,7 @@ export default function CancelRenewalCard() {
       const res = await fetch("/api/billing/cancel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reasons, comment }),
+        body: JSON.stringify({ reasonCodes, comment }),
       });
       const data = await res.json();
 

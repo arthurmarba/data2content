@@ -211,10 +211,10 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
 
   // Cancelar (agendar no fim do ciclo)
   async function cancel({
-    reasons,
+    reasonCodes,
     comment,
   }: {
-    reasons: string[];
+    reasonCodes: string[];
     comment: string;
   }) {
     try {
@@ -222,7 +222,7 @@ export default function SubscriptionCard({ onChangePlan }: Props) {
       const res = await fetch('/api/billing/cancel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reasons, comment }),
+        body: JSON.stringify({ reasonCodes, comment }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
