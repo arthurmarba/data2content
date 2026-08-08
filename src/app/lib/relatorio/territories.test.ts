@@ -99,11 +99,18 @@ describe("selectWeekTerritories", () => {
     ).toEqual(["maternidade", "casa-real", "cozinha", "treino"]);
   });
 
-  it("não abre tela de território que é a semana de uma pessoa só", () => {
-    expect(selectWeekTerritories(volumes, { count: 6 })).not.toContain("viagem");
+  it("território de uma pessoa só entra — não existe mais piso de 3", () => {
+    // Era excluído até a Fase 13: a tabela precisava de ≥2 criadores por elemento pra
+    // não sair vazia. Hoje o peso rotula a linha "indício" em vez de escondê-la, então
+    // não há mais razão pra esconder o território inteiro.
+    expect(selectWeekTerritories(volumes, { count: 6 })).toContain("viagem");
   });
 
-  it("fixado entra mesmo com pouco criador — a decisão é editorial", () => {
+  it("com count menor que o total, o de menor volume fica de fora — não por ter pouca gente", () => {
+    expect(selectWeekTerritories(volumes, { count: 5 })).not.toContain("viagem");
+  });
+
+  it("fixado entra mesmo fora do topo por volume — a decisão é editorial", () => {
     expect(selectWeekTerritories(volumes, { pinned: ["viagem"], count: 2 })).toContain("viagem");
   });
 

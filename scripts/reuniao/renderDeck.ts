@@ -29,6 +29,8 @@ import {
   criadorSlideA,
   criadorSlideB,
   criadorSlideC,
+  criadorSlidePadroes,
+  criadorSlideGanchos,
   collabSlide,
   constelacaoSlide,
   fechamentoSlide,
@@ -206,8 +208,17 @@ function ordenarSlides(deck: DeckData): { html: string; criadorIdx: number | nul
       out.push({ html: criadorSlideB(c, i + 1, total), criadorIdx: null });
       out.push({ html: criadorSlideC(c, i + 1, total), criadorIdx: null });
     }
+    // Ato dos padrões (90 dias): o ranking por cenário/objeto/dia/horário e os
+    // ganchos. Vale TAMBÉM pra quem não postou na semana — quem está parado é
+    // justamente quem precisa ver com o que costuma voltar. Vazio honesto: cada
+    // função devolve "" sem dado, e o slide simplesmente não entra.
+    for (const html of [criadorSlidePadroes(c, i + 1, total), criadorSlideGanchos(c, i + 1, total)]) {
+      if (html) out.push({ html, criadorIdx: null });
+    }
   });
-  const collabs = deck.collabs.slice(0, 3);
+  // Todas as collabs escritas entram: com 8+ participantes o deck precisa de mais
+  // de 3 pares pra ninguém ficar sem par (antes o slice(0,3) descartava calado).
+  const collabs = deck.collabs;
   const temCollabs = collabs.length > 0;
   const constel = constelacaoSlide(deck);
   if (temCollabs || constel) {

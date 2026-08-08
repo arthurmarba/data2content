@@ -9,6 +9,7 @@
 // screenshot por slide e os embrulha num .pptx.
 
 import type { CriadorSlide, CollabSugerida, DeckData, Ponto, Selo } from "./types";
+import type { ExtremoItem, PadraoDimensao } from "../../relatorio/lib/types";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -16,6 +17,10 @@ export const SLIDE_W = 1280;
 export const SLIDE_H = 720;
 
 const CIRC = { narrativa: "#E90F4F", audiencia: "#FF8438", marca: "#167A55" } as const;
+/** Nível de evidência do hábito de 90 dias, em português. Vem CALCULADO do motor
+ *  compartilhado com a Galileia (baseline.ts) — o slide nunca decide o peso de um
+ *  número, só o exibe. */
+const EVIDENCE_PT = { indicio: "indício", sinal: "sinal", tendencia: "tendência" } as const;
 const FORTE = "#167A55"; // verde — ponto forte
 const AJUSTAR = "#B4233D"; // vermelho — ponto a ajustar
 const BRAND_MARK = pathToFileURL(path.resolve("public/images/Colorido-Simbolo.png")).href;
@@ -617,7 +622,10 @@ const CSS = `
   .opening-v4 { position:relative; justify-content:center; overflow:hidden; }
   .opening-v4::after { content:''; position:absolute; right:-140px; bottom:-280px; width:720px; height:720px; border:2px solid rgba(233,15,79,.22); border-radius:50%; }
   .opening-v4 .abertura-content { width:100%; max-width:none; display:grid; grid-template-columns:1.08fr .92fr; gap:92px; align-items:center; }
-  .opening-v4 .r-title { max-width:10ch; font-size:72px !important; line-height:.88; }
+  /* Sem !important: o fio da semana vem do deck e varia de comprimento, então o
+     tamanho é calculado inline por claimEscala. O 72px aqui é só o padrão de
+     frase curta — o inline manda quando o fio é mais longo. */
+  .opening-v4 .r-title { max-width:16ch; font-size:72px; line-height:.94; }
   .opening-left { position:relative; z-index:2; }
   .opening-proofs { position:relative; z-index:2; border-top:1px solid rgba(255,255,255,.2); }
   .opening-proof { display:grid; grid-template-columns:142px 1fr; gap:22px; align-items:center; padding:20px 0; border-bottom:1px solid rgba(255,255,255,.2); }
@@ -652,6 +660,15 @@ const CSS = `
   .beatB { display:grid; grid-template-columns:1fr 1fr; grid-template-rows:minmax(0,1fr) auto; gap:28px 54px; flex:1; min-height:0; padding:28px 0 10px; }
   .learn-coer { max-width:none; padding-right:20px; }
   .learn-coer .learn-title { margin-top:10px; font-family:var(--serif); font-size:35px; font-weight:730; line-height:1.02; letter-spacing:-.043em; }
+  /* O hábito dos 90 dias, sob a leitura da semana — o contraste "esta semana ×
+     o que é sempre assim" é o que separa sorte de padrão. */
+  .learn-habito { margin-top:26px; padding-top:18px; border-top:1px solid var(--hair); }
+  .learn-habito p { margin-top:8px; max-width:46ch; font-size:17px; line-height:1.32; color:var(--muted); }
+  .learn-habito .hab-ev { display:inline-block; margin-left:8px; padding:2px 9px; border-radius:20px;
+    font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; vertical-align:middle; }
+  .learn-habito .hab-ev--tendencia { background:#e6f2ea; color:#2e7d52; }
+  .learn-habito .hab-ev--sinal { background:#fbf3e4; color:#9a7212; }
+  .learn-habito .hab-ev--indicio { background:#f0eef4; color:var(--muted); }
   .learn-adjust { max-width:none; margin:0; padding:0 0 0 54px; border:0; border-left:1px solid var(--hair); }
   .learn-adjust .beat-claim { max-width:none; }
   .learn-adjust .beat-evidence { max-width:40ch; font-size:16px; }
@@ -671,6 +688,42 @@ const CSS = `
   .next-alt p { max-width:36ch; margin-top:14px; color:var(--muted); font-size:17px; line-height:1.4; }
   .next-brand { grid-column:1 / 3; display:grid; grid-template-columns:180px 1fr; gap:28px; align-items:start; padding-top:18px; border-top:1px solid var(--hair); color:var(--muted); font-size:16px; line-height:1.4; }
   .next-brand b { color:var(--ink); }
+
+  /* ── ATO DOS PADRÕES (90 dias) — registro de DOCUMENTO, não de condução.
+     É o slide de consulta: o host para de narrar e mostra o ranking. Cada item
+     comparado com a mediana do próprio criador (1,0× = o normal dele). ── */
+  .padroes { display:flex; flex-direction:column; gap:11px; flex:1; min-height:0; padding:10px 0 4px; }
+  .pad-lead { max-width:130ch; color:var(--muted); font-size:13.5px; line-height:1.36; }
+  .pad-lead b { color:var(--ink); }
+  .pad-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:11px 26px; }
+  .pad-block { min-width:0; }
+  .pad-head { padding-bottom:5px; border-bottom:2px solid var(--accent); }
+  .pad-head b { display:block; font-family:var(--serif); font-size:15px; font-weight:770; letter-spacing:-.022em; line-height:1.08; }
+  .pad-head span { display:block; margin-top:1px; color:var(--muted); font-size:10px; line-height:1.18; }
+  .pad-row { padding:4px 0; border-bottom:1px solid var(--hair); }
+  .pad-top { display:grid; grid-template-columns:1fr auto; gap:8px; align-items:baseline; }
+  .pad-lab { font-size:12.5px; line-height:1.15; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .pad-idx { font-family:var(--serif); font-weight:780; font-size:14.5px; letter-spacing:-.02em; }
+  .pad-idx--up { color:var(--marca); }
+  .pad-idx--down { color:var(--accent-strong); }
+  .pad-idx--na { color:var(--muted); }
+  .pad-bar { height:2.5px; margin-top:3px; background:var(--hair); border-radius:2px; overflow:hidden; }
+  .pad-bar i { display:block; height:100%; border-radius:2px; }
+  .pad-bar i.up { background:var(--marca); } .pad-bar i.down { background:var(--accent-strong); }
+  .pad-meta { margin-top:2px; color:var(--muted); font-size:9.5px; letter-spacing:.01em; }
+  .pad-meta .sem { color:var(--accent); font-weight:700; }
+  .pad-mais { margin-top:4px; color:var(--muted); font-size:9.5px; font-style:italic; }
+  .pad-leitura { margin-top:4px; font-size:11px; line-height:1.3; color:var(--ink); }
+  /* Extremos (gancho e assunto): texto livre do vídeo, sem agrupar em categoria. */
+  .ext-grid { display:grid; grid-template-columns:1fr 1fr; gap:22px 40px; flex:1; min-height:0; }
+  .ext-block { display:flex; flex-direction:column; min-width:0; }
+  .ext-cols { display:grid; grid-template-columns:1fr 1fr; gap:18px 26px; margin-top:12px; }
+  .ext-cap { font-size:11px; font-weight:780; letter-spacing:.08em; text-transform:uppercase; padding-bottom:5px; border-bottom:1px solid var(--hair); }
+  .ext-cap--up { color:var(--marca); } .ext-cap--down { color:var(--accent-strong); }
+  .ext-block ul { list-style:none; margin:8px 0 0; padding:0; display:flex; flex-direction:column; gap:8px; }
+  .ext-block li { display:grid; grid-template-columns:44px 1fr; gap:9px; align-items:baseline; font-size:12.5px; line-height:1.28; }
+  .ext-idx { font-family:var(--serif); font-weight:780; font-size:14px; text-align:right; }
+  .ext-txt { color:var(--ink); }
 
   /* Collabs e mapa coletivo sem metadados repetidos. */
   .cx-handle { display:none; }
@@ -813,9 +866,19 @@ export function criadorSlideA(c: CriadorSlide, idx: number, total: number): stri
  *  A direção, com ar. O gráfico da semana entra discreto no rodapé como contexto. */
 export function criadorSlideB(c: CriadorSlide, idx: number, total: number): string {
   const coerTexto = c.coerencia?.resumo ?? "";
-  const coer = c.coerencia
-    ? `<div class="learn-coer"><span class="beat-label">O que os posts mostraram</span><div class="learn-title" style="font-size:${claimEscala(coerTexto, 36, 31, 27)}px">${rich(coerTexto)}</div></div>`
+  // O hábito dos 90 dias entra sob a leitura da semana: "isso é sempre assim" pesa
+  // diferente de "isso aconteceu essa semana". O selo de evidência é honestidade —
+  // indício é hipótese pra testar, tendência sustenta afirmação.
+  const habito = c.padraoHabito
+    ? `<div class="learn-habito"><span class="beat-label">Nos últimos 90 dias</span><span class="hab-ev hab-ev--${
+        c.padraoHabito.evidencia
+      }">${EVIDENCE_PT[c.padraoHabito.evidencia]}</span><p>${rich(c.padraoHabito.texto)}</p></div>`
     : "";
+  const coer = c.coerencia
+    ? `<div class="learn-coer"><span class="beat-label">O que os posts mostraram</span><div class="learn-title" style="font-size:${claimEscala(coerTexto, 36, 31, 27)}px">${rich(coerTexto)}</div>${habito}</div>`
+    : habito
+      ? `<div class="learn-coer">${habito}</div>`
+      : "";
   const comparativo = c.comparativo
     ? `<div class="learn-comp">↺ Desde a última: ${rich(c.comparativo)}</div>`
     : "";
@@ -851,6 +914,109 @@ export function criadorSlideC(c: CriadorSlide, idx: number, total: number): stri
       </div>
       <div class="next-alts">${(alternativas.length ? alternativas : [{ titulo: "Outra forma de contar a mesma verdade", porque: "" }]).map((p, i) => `<div class="next-alt"><span class="beat-label">${String(i + 2).padStart(2, "0")} · Outra pauta</span><h3>${rich(p.titulo)}</h3>${p.porque ? `<p>${rich(p.porque)}</p>` : ""}</div>`).join("")}</div>
       <div class="next-brand"><span class="beat-label">Marca que pode entrar</span><div><b>${marca?.exemplo ? esc(marca.exemplo) : "Categoria aderente ao território"}</b>${marca?.categoria ? ` · ${rich(marca.categoria)}` : ""}</div></div>
+    </div>
+  </div>`);
+}
+
+/** Quantas linhas de cada tabela cabem no slide. O motor calcula até 10; aqui é o
+ *  que cabe em 4 colunas sem virar letra miúda — o resto é contado honestamente. */
+const PAD_LINHAS = 4;
+
+const fmtIndice = (v: number | null): string =>
+  v == null || !Number.isFinite(v) ? "—" : `${v.toFixed(1).replace(".", ",")}×`;
+
+/** Uma tabela de ranking (cenário, objeto, dia, horário…). Cada linha traz o
+ *  índice contra a mediana do criador, o tamanho da amostra, o nível de evidência
+ *  e se aquele padrão apareceu na semana — é o que separa hábito de acaso. */
+function padraoTabela(d: PadraoDimensao, leitura?: string): string {
+  const linhas = d.linhas.slice(0, PAD_LINHAS);
+  const maxIdx = Math.max(1.2, ...linhas.map((l) => l.indexShares ?? 0));
+  const corpo = linhas
+    .map((l) => {
+      const idx = l.indexShares;
+      const pct = idx == null ? 0 : Math.min(100, (idx / maxIdx) * 100);
+      const acima = (idx ?? 1) >= 1;
+      const cls = idx == null ? "na" : acima ? "up" : "down";
+      const semana = l.semana
+        ? `<span class="sem">${l.semana.nPosts}× na semana</span>`
+        : "não saiu na semana";
+      return `<div class="pad-row">
+        <div class="pad-top"><span class="pad-lab">${esc(l.label)}</span><span class="pad-idx pad-idx--${cls}">${fmtIndice(idx)}</span></div>
+        ${idx == null ? "" : `<div class="pad-bar"><i class="${acima ? "up" : "down"}" style="width:${pct.toFixed(1)}%"></i></div>`}
+        <div class="pad-meta">${l.nPosts} post${l.nPosts === 1 ? "" : "s"} · ${EVIDENCE_PT[l.evidence]} · ${semana}</div>
+      </div>`;
+    })
+    .join("");
+  const resto = d.linhas.length - linhas.length;
+  return `<div class="pad-block">
+    <div class="pad-head"><b>${esc(d.titulo)}</b><span>${esc(d.subtitulo)}</span></div>
+    ${corpo}
+    ${resto > 0 ? `<div class="pad-mais">+${resto} ${resto === 1 ? "item" : "itens"} fora do top ${PAD_LINHAS}</div>` : ""}
+    ${leitura ? `<p class="pad-leitura">${rich(leitura)}</p>` : ""}
+  </div>`;
+}
+
+/** Ato dos padrões — as tabelas de ranking dos 90 dias. Slide de CONSULTA: o
+ *  host mostra o ranking em vez de narrar. Vazio honesto: dimensão sem dado não
+ *  aparece (o motor já filtra), e sem nenhuma tabela o slide não é gerado. */
+export function criadorSlidePadroes(c: CriadorSlide, idx: number, total: number): string {
+  const pad = c.padroes;
+  if (!pad || pad.dimensoes.length === 0) return "";
+  const leituras = c.padroesLeitura ?? {};
+  const cobertura =
+    pad.nComCena < pad.nPosts ? ` · leitura de cena em ${pad.nComCena} de ${pad.nPosts}` : "";
+  return shell(`<div class="slide">
+    ${crHead(c, idx, total, "O que costuma funcionar")}
+    <div class="padroes">
+      <div class="pad-lead">Cada item comparado com a <b>mediana dela nos 90 dias</b> — <b>1,0× é o normal dela</b>, não do grupo.
+        ${pad.nPosts} posts${cobertura}. Nada é descartado por amostra pequena: o rótulo ao lado diz o quanto dá pra confiar.</div>
+      <div class="pad-grid">${pad.dimensoes.map((d) => padraoTabela(d, leituras[d.chave])).join("")}</div>
+    </div>
+  </div>`);
+}
+
+/** Extremos de texto livre (o gancho que abre o vídeo, o assunto específico):
+ *  agrupar isso em categoria seria inventar taxonomia — mostramos as duas pontas
+ *  com a frase exata e deixamos o padrão falar. */
+function extremosBloco(
+  ext: { melhores: ExtremoItem[]; piores: ExtremoItem[] },
+  titulo: string,
+  subtitulo: string,
+  leitura?: string,
+  aspas = true,
+): string {
+  if (!ext.melhores.length) return "";
+  const N = 5;
+  const item = (x: ExtremoItem) =>
+    `<li><span class="ext-idx">${fmtIndice(x.indexShares)}</span><span class="ext-txt">${
+      aspas ? `“${esc(x.texto)}”` : esc(x.texto)
+    }</span></li>`;
+  return `<div class="ext-block">
+    <div class="pad-head"><b>${esc(titulo)}</b><span>${esc(subtitulo)}</span></div>
+    <div class="ext-cols">
+      <div><div class="ext-cap ext-cap--up">Os que mais renderam</div><ul>${ext.melhores.slice(0, N).map(item).join("")}</ul></div>
+      <div><div class="ext-cap ext-cap--down">Os que menos renderam</div><ul>${ext.piores.slice(0, N).map(item).join("")}</ul></div>
+    </div>
+    ${leitura ? `<p class="pad-leitura">${rich(leitura)}</p>` : ""}
+  </div>`;
+}
+
+/** Ato dos padrões, parte 2 — gancho e assunto específico, com o texto exato do
+ *  vídeo. Só sai quando há leitura de cena; sem ela, o slide não é gerado. */
+export function criadorSlideGanchos(c: CriadorSlide, idx: number, total: number): string {
+  const pad = c.padroes;
+  if (!pad) return "";
+  const leituras = c.padroesLeitura ?? {};
+  const blocos = [
+    extremosBloco(pad.assuntos, "Assunto específico", "do que o vídeo tratava de fato — não o tópico guarda-chuva", leituras["assuntos"], false),
+    extremosBloco(pad.ganchos, "Ganchos", "a frase que abre o vídeo — texto exato, sem agrupar", leituras["ganchos"]),
+  ].filter(Boolean);
+  if (blocos.length === 0) return "";
+  return shell(`<div class="slide">
+    ${crHead(c, idx, total, "As frases que abrem e o assunto")}
+    <div class="padroes">
+      <div class="pad-lead">O texto exato do vídeo, com o quanto cada um rendeu <b>contra a mediana dela</b>. As duas pontas juntas mostram o que os de cima têm que os de baixo não têm.</div>
+      <div class="ext-grid">${blocos.join("")}</div>
     </div>
   </div>`);
 }
@@ -981,24 +1147,13 @@ function vennLegenda(): string {
 
 /** Abertura: o fio da semana, em escala, fundo escuro + a legenda do Venn. */
 export function aberturaSlide(d: DeckData): string {
-  const regra = "A pauta forte tem dono reconhecível.";
-  const normaliza = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  // O fio VEM DO DECK — é a tese que o agente escreveu depois de ler todos juntos.
+  // (Já esteve hardcoded aqui, virando a mesma frase toda semana: exatamente o que
+  // o teste anti-genérico do skill proíbe.)
+  const regra = d.fechamento.fioComum;
   const numero = (s: string): number => {
     const limpo = s.replace(/\./g, "").replace(",", ".");
     return Number(limpo.match(/[\d.]+/)?.[0] ?? 0);
-  };
-  const casoDe = (texto: string): string => {
-    const corpus = normaliza(texto);
-    const casos: [RegExp, string][] = [
-      [/goya|prova/, "Prova da Goya"],
-      [/feriado/, "Vlog de feriado"],
-      [/decisao.*casa|casa.*decisao/, "Decisão da casa"],
-      [/tanabata/, "Tanabata"],
-      [/core/, "Treino de core"],
-      [/sexta/, "Sexta em família"],
-      [/caipirinha/, "Caipirinha"],
-    ];
-    return casos.find(([rx]) => rx.test(corpus))?.[1] ?? "Post mais forte";
   };
   const provas = d.criadores
     .filter((c) => !c.semSinal && c.pontoForte?.stat?.valor)
@@ -1006,15 +1161,16 @@ export function aberturaSlide(d: DeckData): string {
       valor: c.pontoForte.stat!.valor,
       metrica: c.pontoForte.stat!.label,
       dono: c.nome,
-      caso: casoDe(`${c.pontoForte.texto} ${c.pontoForte.evidencia}`),
+      // Identificação real do criador, não rótulo adivinhado por palavra-chave.
+      caso: c.handle && c.handle.startsWith("@") ? c.handle : "",
       ordem: numero(c.pontoForte.stat!.valor),
     }))
     .sort((a, b) => b.ordem - a.ordem)
     .slice(0, 3);
   return shell(`<div class="slide respiro slide--dark opening-v4">
     <div class="abertura-content">
-      <div class="opening-left"><div class="r-kicker">O fio da semana</div><div class="r-title">${regra}</div></div>
-      <div class="opening-proofs">${provas.map((p) => `<div class="opening-proof"><strong>${esc(p.valor)}</strong><div class="opening-proof-meta"><b>${esc(p.metrica)}</b><span class="opening-owner">${esc(p.dono)}</span><span class="opening-case">“${esc(p.caso)}”</span></div></div>`).join("")}</div>
+      <div class="opening-left"><div class="r-kicker">O fio da semana</div><div class="r-title" style="font-size:${claimEscala(regra, 52, 42, 34)}px">${rich(regra)}</div></div>
+      <div class="opening-proofs">${provas.map((p) => `<div class="opening-proof"><strong>${esc(p.valor)}</strong><div class="opening-proof-meta"><b>${esc(p.metrica)}</b><span class="opening-owner">${esc(p.dono)}</span>${p.caso ? `<span class="opening-case">${esc(p.caso)}</span>` : ""}</div></div>`).join("")}</div>
     </div>
   </div>`);
 }

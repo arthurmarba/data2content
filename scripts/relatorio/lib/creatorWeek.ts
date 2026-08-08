@@ -13,6 +13,11 @@ import User from "@/app/models/User";
 import Metric from "@/app/models/Metric";
 import AccountInsight from "@/app/models/AccountInsight";
 import { BASE_URL, API_VERSION } from "@/app/lib/instagram/config/instagramApiConfig";
+import {
+  canonicalPlaceById,
+  canonicalFramingById,
+  canonicalAestheticById,
+} from "@/app/lib/relatorio/mapRegistry";
 import type { PostSemana, Snapshot } from "./types";
 
 export function ymd(d: Date): string {
@@ -97,6 +102,31 @@ export async function resolveUserId(
   return null;
 }
 
+/** Converte a leitura de cena crua (Metric.sceneElements) no formato que a
+ *  Galileia usa. Campos de texto livre (subjects/objects/quotes/openingLine/
+ *  screenTitle) já vêm em português direto do Gemini; placeId/framingIds/
+ *  aestheticIds são códigos e precisam do lookup canônico pra virar label. */
+function cenaFrom(sceneElements: any): PostSemana["cena"] | undefined {
+  if (!sceneElements?.version) return undefined;
+  const local = sceneElements.placeId ? canonicalPlaceById(sceneElements.placeId)?.label ?? null : null;
+  const enquadramentos = (Array.isArray(sceneElements.framingIds) ? sceneElements.framingIds : [])
+    .map((id: string) => canonicalFramingById(id)?.label)
+    .filter((v: unknown): v is string => Boolean(v));
+  const esteticas = (Array.isArray(sceneElements.aestheticIds) ? sceneElements.aestheticIds : [])
+    .map((id: string) => canonicalAestheticById(id)?.label)
+    .filter((v: unknown): v is string => Boolean(v));
+  return {
+    assuntos: Array.isArray(sceneElements.subjects) ? sceneElements.subjects : [],
+    objetos: Array.isArray(sceneElements.objects) ? sceneElements.objects : [],
+    falas: Array.isArray(sceneElements.quotes) ? sceneElements.quotes : [],
+    local,
+    enquadramentos,
+    esteticas,
+    gancho: sceneElements.openingLine ?? null,
+    tituloNaTela: sceneElements.screenTitle ?? null,
+  };
+}
+
 export async function postsInWeek(userId: unknown, de: Date, ate: Date): Promise<PostSemana[]> {
   const posts = await Metric.find({
     user: userId,
@@ -104,7 +134,7 @@ export async function postsInWeek(userId: unknown, de: Date, ate: Date): Promise
   })
     .sort({ postDate: 1 })
     .select(
-      "postLink postDate type format proposal context tone references description thumbnailUrl coverUrl instagramMediaId stats",
+      "postLink postDate type format proposal context tone references description thumbnailUrl coverUrl instagramMediaId stats sceneElements",
     )
     .lean();
 
@@ -129,6 +159,40 @@ export async function postsInWeek(userId: unknown, de: Date, ate: Date): Promise
       shares: p.stats?.shares,
       total_interactions: p.stats?.total_interactions,
     },
+    cena: cenaFrom(p.sceneElements),
+  }));
+}
+
+/** Stats + leitura de cena de todos os posts num intervalo. Alimenta duas
+ *  coisas: a baseline por-post (mediana dos 90 dias ANTERIORES à semana) e o
+ *  motor de padrões (a janela INTEIRA, incluindo a semana). Projeção mínima:
+ *  sem thumbnail e sem rebuscar Graph API — seria caro e inútil aqui.
+ *  `postDate` vem como Date (não string) porque o motor de padrões precisa da
+ *  hora para agrupar por dia da semana e faixa horária. */
+export async function statsWindow(
+  userId: unknown,
+  from: Date,
+  to: Date,
+): Promise<{ postDate: Date; stats: PostSemana["stats"]; sceneElements?: any }[]> {
+  const posts = await Metric.find({
+    user: userId,
+    postDate: { $gte: from, $lte: to },
+  })
+    .select("postDate stats sceneElements")
+    .lean();
+
+  return posts.map((p: any) => ({
+    postDate: p.postDate ? new Date(p.postDate) : new Date(0),
+    stats: {
+      views: p.stats?.views,
+      reach: p.stats?.reach,
+      likes: p.stats?.likes,
+      comments: p.stats?.comments,
+      saved: p.stats?.saved,
+      shares: p.stats?.shares,
+      total_interactions: p.stats?.total_interactions,
+    },
+    sceneElements: p.sceneElements,
   }));
 }
 

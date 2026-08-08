@@ -34,7 +34,8 @@ export async function enforceCurrentLegalAcceptance(callbackUrl: string) {
   const userId = session?.user?.id;
 
   if (!userId) {
-    return;
+    const resolvedCallbackUrl = await resolveLegalAcceptanceCallbackUrl(callbackUrl);
+    redirect(`/login?callbackUrl=${encodeURIComponent(resolvedCallbackUrl)}`);
   }
 
   await connectToDatabase();

@@ -11,9 +11,9 @@
 // com a narrativa como âncora) — mas destilada a UM forte e UM fraco por criador,
 // porque é reunião em grupo, não consultoria individual.
 
-import type { PostSemana, Snapshot } from "../../relatorio/lib/types";
+import type { CreatorBaseline, PadroesJanela, PostSemana, Snapshot } from "../../relatorio/lib/types";
 
-export type { PostSemana, Snapshot };
+export type { CreatorBaseline, PadroesJanela, PostSemana, Snapshot };
 
 /** Selo dos 3 círculos do ponto-ouro (reusa a régua da Galileia).
  *  fraco = sinal insuficiente (post recente, poucos dados) — honestidade, não chute. */
@@ -38,6 +38,15 @@ export interface ParticipanteSemana {
   assets: string[];
   tom: string;
   posts: PostSemana[];
+  /** Mediana dos ~90 dias que ANTECEDEM a semana (motor da Galileia, mesmo
+   *  `baseline.ts`). É o que permite dizer "3× a mediana dela" em vez de comparar
+   *  um post contra outro da mesma semana — comparação intra-semana é ruído: numa
+   *  semana ruim o "melhor post" ainda é ruim, e numa boa o "pior" pode ser ótimo. */
+  baseline?: CreatorBaseline;
+  /** Leitura de 90 dias (tabelas prontas de `patterns.ts`): o que é HÁBITO deste
+   *  criador, não o que foi sorte da semana. Cada linha carrega nível de evidência
+   *  (indício/sinal/tendência) — o digest mostra só o topo, compacto. */
+  padroes?: PadroesJanela;
   /** Snapshot da semana anterior (da Galileia), se existir — liga o comparativo. */
   anterior: Snapshot | null;
 }
@@ -133,6 +142,20 @@ export interface CriadorSlide {
   grafico?: { posts: { rotulo: string; saves: number; shares: number }[] };
   /** O que a audiência pediu, em 1 linha de narrativa (lido por saves/shares + classificação). */
   audienciaPede?: string;
+  /** O HÁBITO dos 90 dias (não a semana): o que funciona sempre pra este criador,
+   *  lido das tabelas de `padroes`. Separa "deu sorte essa semana" de "isso é o
+   *  jeito dela". `evidencia` vem calculada — indício é hipótese ("vale testar"),
+   *  tendência sustenta afirmação. Renderiza como linha discreta no Tempo B. */
+  padraoHabito?: { texto: string; evidencia: "indicio" | "sinal" | "tendencia" };
+  /** As TABELAS de ranking dos 90 dias (cenário, objeto, elenco, tom, enquadramento,
+   *  dia, horário, assunto repetido + os extremos de gancho/assunto). Hidratado pelo
+   *  `resolveDeck` a partir do context.json — o Galisteu NÃO transcreve número aqui,
+   *  igual ao Ato 2 da Galileia: o motor calcula, o render exibe. */
+  padroes?: PadroesJanela;
+  /** Interpretação opcional por dimensão (chaveada por `PadraoDimensao.chave` ou
+   *  "ganchos"/"assuntos"): 1 frase do que o padrão SIGNIFICA. Nunca repita o
+   *  número — ele já está na tabela ao lado. */
+  padroesLeitura?: Record<string, string>;
   /** Delta vs. a semana passada (só quando há `anterior`): cumpriu o que prometeu? 1 linha. */
   comparativo?: string;
   /** Criador sem posts na semana: slide nasce do mapa, sinais marcados como fracos. */

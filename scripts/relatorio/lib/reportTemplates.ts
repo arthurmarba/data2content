@@ -14,7 +14,16 @@
 //   FORMA= julgamento             → preenchido (acertou) / meio (parcial) / vazio (não)
 // Cada post é "plotado" num mini-Venn com os mesmos 3 círculos da capa.
 
-import type { ReportData, PostAvaliacao, Selo, Veredito, Mira } from "./types";
+import type {
+  ReportData,
+  PostAvaliacao,
+  Selo,
+  Veredito,
+  Mira,
+  PadraoDimensao,
+  PadroesJanela,
+  ExtremoItem,
+} from "./types";
 
 // ─── Identidade fixa dos 3 círculos (cor) ───────────────────────────────────
 const CIRC = { narrativa: "#C9603F", audiencia: "#2F6F8F", marca: "#4E8D5B" } as const;
@@ -37,6 +46,12 @@ const MIRA_LABEL: Record<Mira, string> = {
   "narrativa+audiencia": "narrativa + audiência",
   "narrativa+marca": "narrativa + marca",
   narrativa: "reforça a narrativa",
+};
+/** Quanto dá pra confiar na linha — o peso substitui o corte. */
+const EVIDENCIA_LABEL: Record<PadraoDimensao["linhas"][number]["evidence"], string> = {
+  indicio: "indício",
+  sinal: "sinal",
+  tendencia: "tendência",
 };
 
 const esc = (s: string): string =>
@@ -97,6 +112,9 @@ function postCard(p: PostAvaliacao): string {
   const stat = p.stat
     ? `<div class="pc-stat"><b>${esc(p.stat.valor)}</b> ${esc(p.stat.label)}</div>`
     : "";
+  const cenaBits = [p.cena?.local, p.cena?.assunto].filter((v): v is string => Boolean(v));
+  const cena = cenaBits.length ? `<div class="pc-cena">${cenaBits.map(esc).join(" · ")}</div>` : "";
+  const gancho = p.gancho ? `<div class="pc-gancho">— abertura: “${esc(p.gancho)}”</div>` : "";
   return `<div class="post-card">
     ${thumb}
     <div class="pc-body">
@@ -105,6 +123,8 @@ function postCard(p: PostAvaliacao): string {
         <span class="pc-veredito" style="--vc:${VEREDITO_COR[p.veredito]}">${VEREDITO_LABEL[p.veredito]}</span>
       </div>
       <div class="pc-oque">${esc(p.oQueEra)}</div>
+      ${cena}
+      ${gancho}
       <div class="pc-seal">${miniVenn(p)}${sealCap(p)}</div>
       ${stat}
       <div class="pc-line pc-up"><b>Funcionou.</b> ${esc(p.funcionou)}</div>
@@ -207,7 +227,91 @@ function planoSection(r: ReportData): string {
   </section>`;
 }
 
-export function renderReportHtml(r: ReportData): string {
+/** Uma tabela de padrão: rótulo · barra do índice · n · evidência · a semana.
+ *  Os números vêm CALCULADOS do context.json (patterns.ts) — o LLM só escreve
+ *  a `leitura` que aparece embaixo. */
+function padraoTabela(d: PadraoDimensao, leitura?: string): string {
+  // Escala das barras: o maior índice da tabela vira 100%, com 1,0× marcado.
+  const maxIdx = Math.max(1.2, ...d.linhas.map((l) => l.indexShares ?? 0));
+  const linhas = d.linhas
+    .map((l) => {
+      const idx = l.indexShares;
+      const pct = idx === null ? 0 : Math.min(100, (idx / maxIdx) * 100);
+      const acima = (idx ?? 1) >= 1;
+      const semana = l.semana
+        ? `<span class="pt-sem"><b>${l.semana.nPosts}×</b> na semana${
+            l.semana.indexShares !== null ? ` · ${l.semana.indexShares.toFixed(1)}×` : ""
+          }</span>`
+        : `<span class="pt-sem pt-sem--off">não saiu na semana</span>`;
+      return `<div class="pt-row">
+        <span class="pt-label">${esc(l.label)}</span>
+        <span class="pt-barwrap"><span class="pt-bar ${acima ? "pt-bar--up" : "pt-bar--down"}" style="width:${pct.toFixed(1)}%"></span></span>
+        <span class="pt-idx">${idx === null ? "—" : `${idx.toFixed(1)}×`}</span>
+        <span class="pt-n">${l.nPosts} post${l.nPosts === 1 ? "" : "s"} · ${EVIDENCIA_LABEL[l.evidence]}</span>
+        ${semana}
+      </div>`;
+    })
+    .join("");
+  return `<div class="pt-block">
+    <div class="pt-head"><b>${esc(d.titulo)}</b> <span>${esc(d.subtitulo)}</span></div>
+    <div class="pt-table">${linhas}</div>
+    ${leitura ? `<p class="pt-leitura">${esc(leitura)}</p>` : ""}
+  </div>`;
+}
+
+/** Bloco de extremos — para texto livre do vídeo (gancho, assunto específico),
+ *  onde agrupar em categoria seria inventar taxonomia. Mostra as duas pontas
+ *  com a frase exata; `aspas` fica false quando o texto não é uma citação. */
+function extremosBloco(
+  ext: { melhores: ExtremoItem[]; piores: ExtremoItem[] },
+  titulo: string,
+  subtitulo: string,
+  leitura?: string,
+  aspas = true,
+): string {
+  if (!ext.melhores.length) return "";
+  const item = (x: ExtremoItem) =>
+    `<li><span class="gk-idx">${x.indexShares === null ? "—" : `${x.indexShares.toFixed(1)}×`}</span>
+      <span class="gk-txt">${aspas ? `“${esc(x.texto)}”` : esc(x.texto)}</span></li>`;
+  return `<div class="pt-block">
+    <div class="pt-head"><b>${esc(titulo)}</b> <span>${esc(subtitulo)}</span></div>
+    <div class="gk-grid">
+      <div class="gk-col"><div class="gk-cap gk-cap--up">Os que mais renderam</div><ul>${ext.melhores.map(item).join("")}</ul></div>
+      <div class="gk-col"><div class="gk-cap gk-cap--down">Os que menos renderam</div><ul>${ext.piores.map(item).join("")}</ul></div>
+    </div>
+    ${leitura ? `<p class="pt-leitura">${esc(leitura)}</p>` : ""}
+  </div>`;
+}
+
+function padroesSection(p: PadroesJanela, leituras: Record<string, string>): string {
+  const cobertura =
+    p.nComCena < p.nPosts
+      ? ` · leitura de cena em ${p.nComCena} de ${p.nPosts}`
+      : "";
+  return `<section class="block">
+    ${sectionHeader(
+      "O que costuma funcionar",
+      "Seus padrões em 90 dias",
+      `Cada item comparado com a SUA mediana da janela — 1,0× é o seu normal. ${p.nPosts} posts${cobertura}. Nada é descartado por amostra pequena: o rótulo ao lado diz o quanto dá pra confiar.`,
+    )}
+    ${extremosBloco(
+      p.assuntos,
+      "Assunto específico",
+      "do que o vídeo tratava, de fato — não o tópico guarda-chuva",
+      leituras["assuntos"],
+      false,
+    )}
+    ${p.dimensoes.map((d) => padraoTabela(d, leituras[d.chave])).join("")}
+    ${extremosBloco(
+      p.ganchos,
+      "Ganchos",
+      "a frase que abre o vídeo — texto exato, sem agrupar",
+      leituras["ganchos"],
+    )}
+  </section>`;
+}
+
+export function renderReportHtml(r: ReportData, padroes?: PadroesJanela): string {
   const c = r.criador;
   const avaliacoes = r.avaliacoes.map(postCard).join("");
   const semPosts =
@@ -277,7 +381,9 @@ export function renderReportHtml(r: ReportData): string {
   .pc-head { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:3px; }
   .pc-date { font-size:11px; color:var(--muted); letter-spacing:.06em; font-weight:500; white-space:nowrap; }
   .pc-veredito { flex:0 0 auto; font-size:10.5px; font-weight:700; letter-spacing:.05em; text-transform:uppercase; color:var(--vc); border:1.4px solid var(--vc); border-radius:20px; padding:2px 12px; white-space:nowrap; }
-  .pc-oque { font-size:12.5px; line-height:1.45; color:var(--muted); margin:0 0 11px; }
+  .pc-oque { font-size:12.5px; line-height:1.45; color:var(--muted); margin:0 0 4px; }
+  .pc-cena { font-size:11.5px; font-weight:600; line-height:1.4; color:#5a5568; margin:0 0 4px; }
+  .pc-gancho { font-family:var(--serif); font-style:italic; font-size:12.5px; line-height:1.4; color:#5a5568; margin:0 0 11px; }
   .pc-seal { display:flex; align-items:center; gap:16px; margin-bottom:12px; padding-bottom:13px; border-bottom:1px solid var(--hair); }
   .mini-venn { width:54px; height:42px; flex:0 0 54px; }
   .seal-cap { display:flex; flex-wrap:wrap; gap:5px 18px; }
@@ -319,6 +425,35 @@ export function renderReportHtml(r: ReportData): string {
   .faca ul { margin:0; padding-left:18px; } .faca li { font-size:13px; line-height:1.55; margin-bottom:8px; }
   .faca li:last-child { margin-bottom:0; }
 
+  /* Padrões 90 dias — tabelas */
+  .pt-block { background:var(--card); border:1px solid var(--hair); border-radius:12px; padding:14px 16px; margin-bottom:12px; page-break-inside:avoid; break-inside:avoid; }
+  .pt-head { display:flex; align-items:baseline; gap:8px; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--hair); }
+  .pt-head b { font-size:13.5px; font-weight:700; }
+  .pt-head span { font-size:11px; color:var(--muted); }
+  .pt-table { display:flex; flex-direction:column; gap:7px; }
+  .pt-row { display:grid; grid-template-columns:118px 74px 34px 118px 1fr; align-items:center; gap:9px; }
+  .pt-label { font-size:11.5px; font-weight:600; line-height:1.25; }
+  .pt-barwrap { height:7px; background:var(--hair); border-radius:5px; overflow:hidden; }
+  .pt-bar { display:block; height:100%; border-radius:5px; }
+  .pt-bar--up { background:var(--accent); }
+  .pt-bar--down { background:#c2a6e8; }
+  .pt-idx { font-size:11.5px; font-weight:700; font-variant-numeric:tabular-nums; text-align:right; }
+  .pt-n { font-size:10px; color:var(--muted); }
+  .pt-sem { font-size:10px; color:#3a362d; }
+  .pt-sem b { color:var(--accent); }
+  .pt-sem--off { color:#b3aebd; }
+  .pt-leitura { font-size:12px; line-height:1.5; color:#3a362d; margin:11px 0 0; padding-top:9px; border-top:1px solid var(--hair); }
+
+  /* Ganchos — extremos, sem agrupar */
+  .gk-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .gk-cap { font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; margin-bottom:7px; }
+  .gk-cap--up { color:#2e7d52; }
+  .gk-cap--down { color:#b5462f; }
+  .gk-col ul { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:7px; }
+  .gk-col li { display:grid; grid-template-columns:32px 1fr; gap:7px; align-items:baseline; }
+  .gk-idx { font-size:11px; font-weight:700; font-variant-numeric:tabular-nums; color:var(--accent); }
+  .gk-txt { font-family:var(--serif); font-style:italic; font-size:11.5px; line-height:1.4; color:#3a362d; overflow-wrap:anywhere; }
+
   /* Plano */
   .plano-grid { display:flex; flex-direction:column; gap:13px; }
   .plano-card { background:var(--card); border:1px solid var(--hair); border-left:3px solid var(--accent); border-radius:12px; padding:14px 16px; page-break-inside:avoid; }
@@ -357,14 +492,22 @@ export function renderReportHtml(r: ReportData): string {
       <div class="post-list">${avaliacoes}</div>
     </section>
 
-    <!-- ATO 2 — O QUE ISSO DIZ -->
-    ${actDivider(2, "O que isso diz", "a leitura da semana")}
+    ${
+      padroes
+        ? `<!-- ATO 2 — SEUS PADRÕES (90 DIAS) -->
+    ${actDivider(2, "Seus padrões", "90 dias · o que costuma funcionar pra você")}
+    ${padroesSection(padroes, r.padroesLeitura ?? {})}`
+        : ""
+    }
+
+    <!-- ATO ${padroes ? 3 : 2} — O QUE ISSO DIZ -->
+    ${actDivider(padroes ? 3 : 2, "O que isso diz", "a leitura da semana")}
     ${audienciaSection(r)}
     ${recapSection(r)}
     ${facaSection(r)}
 
-    <!-- ATO 3 — SEU PLANO -->
-    ${actDivider(3, "Seu plano", "para a próxima semana")}
+    <!-- ATO ${padroes ? 4 : 3} — SEU PLANO -->
+    ${actDivider(padroes ? 4 : 3, "Seu plano", "para a próxima semana")}
     ${planoSection(r)}
 
     <div class="footer"><span>Galileia · análise Data2Content · ${esc(c.nome)}</span><span>${esc(r.periodo.ate)}</span></div>

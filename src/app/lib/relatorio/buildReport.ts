@@ -120,7 +120,12 @@ export function buildWeeklyReport(params: BuildReportParams): BuiltReport {
     prediction,
     previousWinners = new Set<string>(),
     pinnedTerritories = [],
-    territoryCount = 4,
+    // ERA 4. O teto escondia território de verdade: um criador podia ter a semana
+    // inteira medida — Moda com 2 criadores, Cultura com 2 — e nunca aparecer, só
+    // porque Maternidade e Gastronomia tinham mais posts. Sem teto, todo território
+    // com QUALQUER atividade na semana ganha tela — o relatório passa a refletir a
+    // largura real da comunidade, não só os 4 territórios mais movimentados.
+    territoryCount = Number.POSITIVE_INFINITY,
   } = params;
 
   const week: WeekWindow = window.week;

@@ -25,35 +25,77 @@ import {
   slugify,
   resolveUserId,
   postsInWeek,
+  statsWindow,
   enrichThumbs,
   profilePicFor,
   previousSnapshot,
 } from "./lib/creatorWeek";
+import { computeBaseline, indicesFor } from "./lib/baseline";
+import { buildPadroes } from "./lib/patterns";
 
 function arg(name: string): string | null {
   return process.argv.find((a) => a.startsWith(`--${name}=`))?.split("=")[1] ?? null;
 }
 
+function fmtIdx(v: number | null | undefined): string {
+  return v == null ? "—" : `${v.toFixed(1)}×`;
+}
+
 function digest(ctx: ContextoSemana): string {
   const c = ctx.criador;
+  const b = c.baseline;
   const l: string[] = [
     `▸ ${c.nome} (${c.handle ?? "?"}) · ${ctx.periodo.de} → ${ctx.periodo.ate}`,
     `narrativa: ${c.narrativaCentral}`,
     c.territorios.length ? `territórios: ${c.territorios.join(" · ")}` : "",
     c.tom ? `tom: ${c.tom}` : "",
     ctx.anterior ? `↺ comparativo LIGADO (snapshot ${ctx.anterior.data})` : "↺ primeira semana — sem comparativo",
+    b
+      ? b.sufficient
+        ? `⚖ baseline (${b.nPosts} posts/90d): views=${b.medianViews ?? "—"} reach=${b.medianReach ?? "—"} shares=${b.medianShares ?? "—"} saved=${b.medianSaved ?? "—"}`
+        : `⚖ baseline insuficiente (${b.nPosts} posts/90d, mínimo 4) — sem índice contra histórico`
+      : "",
     ``,
     `${ctx.posts.length} post(s) na semana:`,
   ].filter(Boolean);
   for (const p of ctx.posts) {
     const s = p.stats;
+    const i = p.indices;
     l.push(
       `  • ${p.postDate} | ${p.type}${p.format.length ? "/" + p.format.join(",") : ""} | ` +
         `saves=${s.saved ?? "?"} shares=${s.shares ?? "?"} coment=${s.comments ?? "?"} int=${s.total_interactions ?? "?"} | ` +
         `postId=${p.postId ?? "—"} | ${p.description.replace(/\s+/g, " ").slice(0, 80)}`,
     );
+    if (i) {
+      l.push(
+        `      índices vs. baseline → views:${fmtIdx(i.views)} reach:${fmtIdx(i.reach)} shares:${fmtIdx(i.shares)} saved:${fmtIdx(i.saved)} engRate:${fmtIdx(i.engagementRate)}`,
+      );
+    }
   }
   if (ctx.posts.length === 0) l.push("  (nenhum post publicado no período)");
+
+  const pad = ctx.padroes;
+  if (pad) {
+    l.push(``, `▣ padrões de 90 dias — ${pad.nPosts} posts, ${pad.nComCena} com leitura de cena`);
+    l.push(
+      `  medianas da janela: shares=${pad.medianas.shares ?? "—"} saved=${pad.medianas.saved ?? "—"} views=${pad.medianas.views ?? "—"}`,
+    );
+    for (const d of pad.dimensoes) {
+      const top = d.linhas
+        .slice(0, 3)
+        .map((r) => `${r.label} ${fmtIdx(r.indexShares)}(n=${r.nPosts})`)
+        .join(" · ");
+      l.push(`  ${d.titulo}: ${top}`);
+    }
+    if (pad.assuntos.melhores.length) {
+      l.push(`  assunto + forte: ${pad.assuntos.melhores[0]?.texto.slice(0, 70)}`);
+      l.push(`  assunto + fraco: ${pad.assuntos.piores[0]?.texto.slice(0, 70)}`);
+    }
+    if (pad.ganchos.melhores.length) {
+      l.push(`  gancho + forte: "${pad.ganchos.melhores[0]?.texto.slice(0, 70)}"`);
+      l.push(`  gancho + fraco: "${pad.ganchos.piores[0]?.texto.slice(0, 70)}"`);
+    }
+  }
   return l.join("\n");
 }
 
@@ -86,13 +128,38 @@ async function main() {
   }
   const mapa = mapaDoc?.mapa ?? {};
 
-  const [posts, profilePictureUrl] = await Promise.all([
+  // Uma leitura só, dois usos (mesmo desenho do TrendReport: a janela de 90
+  // dias CONTÉM a semana):
+  //   • baseline dos índices por post = subconjunto estritamente ANTERIOR à
+  //     semana, senão o post se compararia contra si mesmo;
+  //   • base dos padrões = os 90 dias inteiros.
+  // Cada uma quer 90 dias contados de um ponto diferente, então lemos a união
+  // (a partir de `de - 90d`, o mais antigo dos dois) e recortamos depois.
+  const baselineInicio = new Date(de.getTime() - 90 * 24 * 60 * 60 * 1000);
+  const padroesInicio = new Date(ate.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+  const [posts, profilePictureUrl, janela] = await Promise.all([
     postsInWeek(userId, de, ate),
     profilePicFor(userId),
+    statsWindow(userId, baselineInicio, ate),
   ]);
 
   // Rebusca thumbnails frescas (a URL salva no Metric expira → 403 no download).
   await enrichThumbs(userId, posts);
+
+  // Baseline do próprio criador (nunca do território) + índice por post:
+  // exatamente os 90 dias que ANTECEDEM a semana.
+  const baseline = computeBaseline(
+    janela.filter((p) => p.postDate >= baselineInicio && p.postDate < de),
+  );
+  for (const p of posts) p.indices = indicesFor(p.stats, baseline);
+
+  // Padrões: os 90 dias que TERMINAM no fim da semana (inclui a semana).
+  const padroes = buildPadroes(
+    janela.filter((p) => p.postDate >= padroesInicio),
+    { de: ymd(padroesInicio), ate: ateStr },
+    de,
+  );
 
   const nome = user.name ?? "Criador";
   const slug = slugify(user.username?.replace(/^@/, "") || nome);
@@ -117,8 +184,10 @@ async function main() {
       temas: mapa.temas ?? [],
       assets: mapa.assets ?? [],
       tom: mapa.tom ?? "",
+      baseline,
     },
     posts,
+    padroes,
     anterior,
   };
 

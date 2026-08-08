@@ -285,16 +285,18 @@ describe("slideTemplates — completude e paginação", () => {
     );
   });
 
-  it("separa a matriz entre territórios das leituras e omite mensagens redundantes de não repetição", () => {
+  it("não abre mais telas dedicadas de matriz/leitura entre territórios — só o resumo de padrões", () => {
+    // A matriz "Comparação entre territórios" + a leitura "O que muda entre os
+    // territórios" viravam 2 telas por página (5 páginas com 13 territórios = 10
+    // telas), a maioria com poucos valores reais. O resumo de padrões (top 5, uma
+    // tela só) continua existindo — o que saiu foi só o estudo paginado.
     const slides = buildSlides(denseReport());
-    const matrices = slides.filter((slide) => slide.family === "cross-territory");
-    const readings = slides.filter((slide) => slide.family === "cross-territory-readings");
     const html = slides.map((slide) => slide.html).join("\n");
 
-    expect(matrices.length).toBeGreaterThan(0);
-    expect(readings).toHaveLength(matrices.length);
-    expect(matrices.every((slide) => !slide.html.includes("O que isso quer dizer"))).toBe(true);
-    expect(readings.every((slide) => slide.html.includes("crossbars"))).toBe(true);
+    expect(slides.some((slide) => slide.family === "cross-territory")).toBe(false);
+    expect(slides.some((slide) => slide.family === "cross-territory-readings")).toBe(false);
+    expect(html).not.toContain("Comparação entre territórios");
+    expect(html).not.toContain("O que muda entre os territórios");
     expect(html).not.toContain("Nada se repetiu nesta semana");
     expect(html).not.toContain("sem repetição, sem ranking");
   });

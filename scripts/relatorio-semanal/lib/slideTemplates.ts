@@ -884,7 +884,6 @@ export function expectedCoverageKeys(report: WeeklyReportData): string[] {
   report.overview.forEach((_, index) => keys.push(`overview:${index}`));
   if (report.previousPrediction) keys.push("previous-prediction");
   report.highlights.forEach((_, index) => keys.push(`highlight:${index}`));
-  report.crossTerritory.forEach((_, index) => keys.push(`cross-territory:${index}`));
   if (report.prediction) keys.push("prediction");
 
   for (const section of report.territories) {
@@ -979,7 +978,7 @@ function coverSlide(report: WeeklyReportData, n: number): RenderedSlide {
   };
 }
 
-function overviewSlide(report: WeeklyReportData, n: number): RenderedSlide {
+function overviewSlide(report: WeeklyReportData, n: number): RenderedSlide[] {
   const rows = report.overview
     .map((row) => {
       const metrics = OVERVIEW_COLUMNS.map(
@@ -1024,40 +1023,92 @@ function overviewSlide(report: WeeklyReportData, n: number): RenderedSlide {
       )}</div>`,
   ).join("");
 
-  return {
-    n,
-    id: "visao-geral",
-    note: `${String(n).padStart(2, "0")} · os territórios + previsão anterior + legenda`,
-    chapter: "abertura",
-    readingMode: "anchor",
-    family: "overview",
-    coverageKeys: [
-      ...report.overview.map((_, index) => `overview:${index}`),
-      ...(report.previousPrediction ? ["previous-prediction"] : []),
-      "silent-creators:count",
-    ],
-    html: slide(
-      `<div class="thead"><div class="nm">Os ${report.overview.length} territórios</div>` +
-        `<div class="meta">${esc(sortedByLabel("comentarios"))} · variação sobre a semana anterior</div></div>` +
-        `<table class="rk"><tr><th style="width:190px">Território</th><th style="width:52px">Mov.</th>` +
-        OVERVIEW_COLUMNS.map((metric) => `<th>${esc(REPORT_METRIC_SHORT[metric])}</th>`).join("") +
-        `<th style="text-align:right;width:78px">Criadores</th></tr>${rows}</table>` +
-        `<div class="split125">` +
-        `<div>${predictionBlock}</div><div class="vr"></div>` +
-        `<div><p class="sortby mb12">Como ler as barras</p>` +
-        `<div class="leg col">${legend}</div>` +
-        // A conta da capa não fecha com a soma das linhas, e sem esta nota parece erro:
-        // a capa conta TODO criador que postou; as linhas contam só os territórios que
-        // abriram tela. O resto está espalhado em territórios pequenos demais.
-        (cover.creators > shown
-          ? `<p class="note-fine">Os ${cover.creators} criadores da capa incluem ` +
-            `${cover.creators - shown} que postaram em territórios menores, sem tela ` +
-            `própria nesta semana.</p>`
-          : "") +
-        `</div></div>`,
-      { foot: ["Visão geral", `Semana ${report.cover.isoWeek} · ${String(n).padStart(2, "0")}`] },
-    ),
-  };
+  const table =
+    `<table class="rk${report.overview.length > 6 ? " ovcompact" : ""}">` +
+    `<tr><th style="width:190px">Território</th><th style="width:52px">Mov.</th>` +
+    OVERVIEW_COLUMNS.map((metric) => `<th>${esc(REPORT_METRIC_SHORT[metric])}</th>`).join("") +
+    `<th style="text-align:right;width:78px">Criadores</th></tr>${rows}</table>`;
+
+  const legendBlock =
+    `<div><p class="sortby mb12">Como ler as barras</p>` +
+    `<div class="leg col">${legend}</div>` +
+    // A conta da capa não fecha com a soma das linhas, e sem esta nota parece erro: a
+    // capa conta TODO criador que postou; as linhas contam só os territórios que
+    // abriram tela. O resto está espalhado em territórios pequenos demais.
+    (cover.creators > shown
+      ? `<p class="note-fine">Os ${cover.creators} criadores da capa incluem ` +
+        `${cover.creators - shown} que postaram em territórios menores, sem tela ` +
+        `própria nesta semana.</p>`
+      : "") +
+    `</div>`;
+
+  // Calibrado para ~4-6 territórios: a tabela + previsão + legenda dividiam a mesma
+  // tela. Sem teto de território, com 13 a tabela sozinha já ocupa quase toda a altura
+  // (622 dos ~638px medidos) — não sobra o suficiente pra previsão nem apertando o CSS.
+  // Acima do limiar, a tabela ganha a tela pra ela e previsão+legenda vira uma segunda,
+  // com espaço de sobra. Poucos territórios continuam numa tela só, como sempre foi.
+  if (report.overview.length <= 6) {
+    return [
+      {
+        n,
+        id: "visao-geral",
+        note: `${String(n).padStart(2, "0")} · os territórios + previsão anterior + legenda`,
+        chapter: "abertura",
+        readingMode: "anchor",
+        family: "overview",
+        coverageKeys: [
+          ...report.overview.map((_, index) => `overview:${index}`),
+          ...(report.previousPrediction ? ["previous-prediction"] : []),
+          "silent-creators:count",
+        ],
+        html: slide(
+          `<div class="thead"><div class="nm">Os ${report.overview.length} territórios</div>` +
+            `<div class="meta">${esc(sortedByLabel("comentarios"))} · variação sobre a semana anterior</div></div>` +
+            table +
+            `<div class="split125"><div>${predictionBlock}</div><div class="vr"></div>${legendBlock}</div>`,
+          { foot: ["Visão geral", `Semana ${report.cover.isoWeek} · ${String(n).padStart(2, "0")}`] },
+        ),
+      },
+    ];
+  }
+
+  const secondN = n + 1;
+  return [
+    {
+      n,
+      id: "visao-geral",
+      note: `${String(n).padStart(2, "0")} · os territórios · 1 de 2`,
+      chapter: "abertura",
+      readingMode: "anchor",
+      family: "overview",
+      coverageKeys: report.overview.map((_, index) => `overview:${index}`),
+      html: slide(
+        `<div class="thead"><div class="nm">Os ${report.overview.length} territórios</div>` +
+          `<div class="meta">${esc(sortedByLabel("comentarios"))} · variação sobre a semana anterior · 1 de 2</div></div>` +
+          table,
+        { foot: ["Visão geral", `Semana ${report.cover.isoWeek} · ${String(n).padStart(2, "0")}`] },
+      ),
+    },
+    {
+      n: secondN,
+      id: "visao-geral-previsao",
+      note: `${String(secondN).padStart(2, "0")} · previsão anterior + legenda · 2 de 2`,
+      chapter: "abertura",
+      readingMode: "anchor",
+      family: "overview",
+      coverageKeys: [
+        ...(report.previousPrediction ? ["previous-prediction"] : []),
+        "silent-creators:count",
+      ],
+      html: slide(
+        `<div class="thead"><div class="nm">Os ${report.overview.length} territórios</div>` +
+          `<div class="meta">Previsão da semana passada e legenda · 2 de 2</div></div>` +
+          `<div class="split125" style="margin-top:40px">` +
+          `<div>${predictionBlock}</div><div class="vr"></div>${legendBlock}</div>`,
+        { foot: ["Visão geral", `Semana ${report.cover.isoWeek} · ${String(secondN).padStart(2, "0")}`] },
+      ),
+    },
+  ];
 }
 
 /**
@@ -1512,12 +1563,17 @@ function emptyTableSlide(
           `${naoLidos} não — e o que foi lido não trouxe nada nesta dimensão.</p>`;
 
   return (
+    // `.emptywrap` mede a própria altura em vez de assumir "o cabeçalho tem 90px" —
+    // esse número era certo quando foi calibrado e ficou errado assim que o cabeçalho
+    // do território cresceu no redesenho (avatar, selo). Onze telas (Bem-estar,
+    // Treino) estouravam pelo mesmo tanto fixo, sinal de que o erro era um número
+    // parado, não o conteúdo. Flexbox mede o cabeçalho de verdade a cada render.
+    `<div class="emptywrap">` +
     `<div class="rowhead mb10"><div><h2 class="tt sm">${esc(title)}</h2>` +
     `<p class="sub sm">${esc(subtitle)}</p></div>` +
     `<div class="sortby">Sem dado nesta semana</div></div>` +
-    // Centralizado no que sobra da tela: um bloco de texto encostado no topo com 60%
-    // de vazio embaixo parece erro de render, não decisão.
-    `<div class="midbox"><div class="box" style="max-width:820px">${explicacao}</div></div>`
+    `<div class="midbox"><div class="box" style="max-width:820px">${explicacao}</div></div>` +
+    `</div>`
   );
 }
 
@@ -1674,7 +1730,11 @@ function territorySlides(
               `</article>`
             ).join("")}</div>` +
             `<p class="summary-basis">Barras: multiplicador versus o post típico do território.</p>`
-          : `<p class="gd mt20">A semana ainda não tem lastro suficiente para destacar padrões. O estudo integral continua nas próximas páginas.</p>`) +
+          // .gd (12.5px) é pequeno demais para esta família — território fino (poucos
+          // criadores) é o caso que agora aciona este texto com frequência, e antes
+          // ele nunca tinha sido visto de verdade. .terrsummary-empty usa a mesma
+          // escala do resto da página-resumo (20px), não o corpo de texto genérico.
+          : `<p class="terrsummary-empty">A semana ainda não tem lastro suficiente para destacar padrões. O estudo integral continua nas próximas páginas.</p>`) +
         `</div></div>`,
       "resumo",
       {
@@ -2033,85 +2093,6 @@ function territorySlides(
     );
   });
 
-  return out;
-}
-
-function crossTerritorySlides(report: WeeklyReportData, startN: number): RenderedSlide[] {
-  const labels = report.territories.map((section) => section.header);
-  const head =
-    `<tr><th style="width:230px">Elemento</th>` +
-    labels.map((header) => `<th>${esc(header.label)}</th>`).join("") +
-    `</tr>`;
-
-  const pages = chunk(report.crossTerritory, 5);
-  const pagesOrEmpty = pages.length > 0 ? pages : [[]];
-  const out: RenderedSlide[] = [];
-  pagesOrEmpty.forEach((pageRows, page) => {
-    const n = startN + out.length;
-    const startIndex = pageRows.length > 0 ? report.crossTerritory.indexOf(pageRows[0]!) : 0;
-    const rows =
-      pageRows.length === 0
-        ? ""
-        : pageRows
-          .map((row) => {
-            const cells = labels
-              .map((header) => {
-                const cell = row.byTerritory.find((c) => c.territoryId === header.territoryId);
-                return `<td>${metricBar(row.metric, cell?.index ?? null)}</td>`;
-              })
-              .join("");
-            return (
-              `<tr><td><div class="it">${esc(row.label)}</div></td>${cells}</tr>`
-            );
-          })
-          .join("");
-
-    out.push({
-      n,
-      id: `comparacao${page > 0 ? `-${page + 1}` : ""}`,
-      note: `${String(n).padStart(2, "0")} · o mesmo elemento nos territórios`,
-      chapter: "inteligencia" as const,
-      readingMode: "study" as const,
-      family: "cross-territory",
-      coverageKeys: pageRows.map((_, index) => `cross-territory:${startIndex + index}`),
-      html: slide(
-        `<div class="thead"><div class="nm">Comparação entre territórios</div>` +
-          `<div class="meta">${page + 1} de ${pagesOrEmpty.length} · por compartilhamentos</div></div>` +
-          `<p class="sub mb18">Nenhum criador enxerga isso sozinho. Só aparece cruzando os territórios.</p>` +
-          (rows
-            ? `<table class="rk crossmatrix">${head}${rows}</table>`
-            : emptyNote("Nenhum elemento apareceu em dois territórios com amostra suficiente.")),
-        { foot: ["Comparação entre territórios", `Semana ${report.cover.isoWeek} · ${String(n).padStart(2, "0")}`] },
-      ),
-    });
-
-    if (pageRows.length === 0) return;
-    const insightN = startN + out.length;
-    out.push({
-      n: insightN,
-      id: `comparacao-leituras${page > 0 ? `-${page + 1}` : ""}`,
-      note: `${String(insightN).padStart(2, "0")} · o que muda entre os territórios`,
-      chapter: "inteligencia",
-      readingMode: "study",
-      family: "cross-territory-readings",
-      repeatedCoverageKeys: pageRows.map((_, index) => `cross-territory:${startIndex + index}`),
-      html: slide(
-        `<div class="thead"><div class="nm">O que muda entre os territórios</div>` +
-        `<div class="meta">${page + 1} de ${pagesOrEmpty.length} · leitura comparada</div></div>` +
-        `<div class="crossinsights">` +
-        pageRows.map((row, index) =>
-          `<article><div class="crosslead"><span>${String(startIndex + index + 1).padStart(2, "0")}</span>` +
-          `<div><p class="pt">${esc(row.label)}</p><p class="crossreading">${esc(row.reading ?? "Compare os multiplicadores entre os territórios.")}</p></div></div>` +
-          `<div class="crossbars">${labels.map((header) => {
-            const cell = row.byTerritory.find((entry) => entry.territoryId === header.territoryId);
-            return `<div><span>${esc(header.label)}</span>${wideMetricBar(row.metric, cell?.index ?? null)}<b>${idx(cell?.index)}</b></div>`;
-          }).join("")}</div></article>`,
-        ).join("") +
-        `</div>`,
-        { foot: ["Leitura entre territórios", `Semana ${report.cover.isoWeek} · ${String(insightN).padStart(2, "0")}`] },
-      ),
-    });
-  });
   return out;
 }
 
@@ -2502,30 +2483,39 @@ function weeklyIntelligenceSlides(report: WeeklyReportData, startN: number): Ren
     }
     if (!added) break;
   }
-  const firstN = startN;
-  const secondN = startN + 1;
-  const thirdN = startN + 2;
-  return [
-    {
-      n: firstN,
-      id: "inteligencia-achados",
-      note: `${pad(firstN)} · principais achados`,
+  // Um achado por território, num artigo rico (título + duas barras) — media ~103px
+  // de altura cada. Cabia numa tela só até uns 5 territórios; sem teto, uma semana de
+  // 13 estourava por 788px. 4 por página é o que sobra de espaço depois do cabeçalho.
+  const findingPages = chunk(territoryFindings, 4);
+  const out: RenderedSlide[] = [];
+  const nextN = () => startN + out.length;
+  findingPages.forEach((pageFindings, page) => {
+    const num = nextN();
+    const counter = findingPages.length > 1 ? ` · ${page + 1} de ${findingPages.length}` : "";
+    out.push({
+      n: num,
+      id: `inteligencia-achados${page > 0 ? `-${page + 1}` : ""}`,
+      note: `${pad(num)} · principais achados${counter}`,
       chapter: "inteligencia",
       readingMode: "anchor",
       family: "intelligence-summary",
       html: slide(
         `<div class="rowhead"><div><p class="modeflag">Resumo · inteligência geral</p>` +
-          `<h2 class="tt xl">Os achados que merecem a conversa</h2></div></div>` +
-          `<div class="findinglist">${territoryFindings.map((finding, index) =>
-            `<article><div class="findingnumber">${String(index + 1).padStart(2, "0")}</div>` +
+          `<h2 class="tt xl">Os achados que merecem a conversa${counter ? `<span class="sortby"> ${esc(counter.trim())}</span>` : ""}</h2></div></div>` +
+          `<div class="findinglist">${pageFindings.map((finding, index) =>
+            `<article><div class="findingnumber">${String(page * 4 + index + 1).padStart(2, "0")}</div>` +
             `<div class="findingcopy"><p class="pt">${esc(finding.territory)}</p>` +
             `<h3>${esc(finding.topic)}</h3><p class="findingbasis">${esc(metricBasis(finding.metric))}</p></div>` +
             `<div class="findingmeter"><div><span>Post típico</span>${wideMetricBar(finding.metric, 1)}<b>1,0×</b></div>` +
             `<div class="current"><span>Este assunto</span>${wideMetricBar(finding.metric, finding.value)}<b>${idx(finding.value)}</b></div></div></article>`,
           ).join("")}</div>`,
-        { foot: ["Principais achados", `Semana ${report.cover.isoWeek} · ${pad(firstN)}`], className: "mode-anchor" },
+        { foot: [`Principais achados${counter}`, `Semana ${report.cover.isoWeek} · ${pad(num)}`], className: "mode-anchor" },
       ),
-    },
+    });
+  });
+  const secondN = nextN();
+  const thirdN = secondN + 1;
+  out.push(
     {
       n: secondN,
       id: "inteligencia-padroes",
@@ -2533,7 +2523,6 @@ function weeklyIntelligenceSlides(report: WeeklyReportData, startN: number): Ren
       chapter: "inteligencia",
       readingMode: "anchor",
       family: "intelligence-patterns",
-      repeatedCoverageKeys: report.crossTerritory.map((_, index) => `cross-territory:${index}`),
       html: slide(
         `<div class="rowhead"><div><p class="modeflag">Resumo · inteligência geral</p>` +
           `<h2 class="tt xl">O mesmo elemento muda de força entre territórios</h2>` +
@@ -2543,8 +2532,7 @@ function weeklyIntelligenceSlides(report: WeeklyReportData, startN: number): Ren
               `<article><span>${String(index + 1).padStart(2, "0")}</span>` +
               `<h3>${esc(row.label)}</h3><p>${esc(row.reading ?? "Compare os multiplicadores no estudo completo.")}</p></article>`,
             ).join("")}</div>`
-            : `<p class="gd mt16">Nenhum elemento cruzou territórios com lastro suficiente.</p>`) +
-          `<p class="patternnote">A matriz completa nas próximas páginas mostra os multiplicadores de cada território.</p>`,
+            : `<p class="gd mt16">Nenhum elemento cruzou territórios com lastro suficiente.</p>`),
         { foot: ["Padrões entre territórios", `Semana ${report.cover.isoWeek} · ${pad(secondN)}`], className: "mode-anchor" },
       ),
     },
@@ -2576,7 +2564,8 @@ function weeklyIntelligenceSlides(report: WeeklyReportData, startN: number): Ren
         { foot: ["Resultados abaixo do normal e próximo teste", `Semana ${report.cover.isoWeek} · ${pad(thirdN)}`], className: "mode-anchor" },
       ),
     },
-  ];
+  );
+  return out;
 }
 
 function intelligenceDividerSlide(report: WeeklyReportData, n: number): RenderedSlide {
@@ -2632,7 +2621,11 @@ function reportMapSlide(report: WeeklyReportData, n: number, slides: readonly Re
     html: slide(
       `<div class="rowhead"><div><p class="modeflag">Navegação</p><h2 class="tt xl">Mapa do relatório</h2>` +
         `<p class="sub">${slides.length + 1} páginas. A extensão acompanha a densidade da semana.</p></div></div>` +
-        `<div class="maplist">${mapEntries.map((entry) =>
+        // A lista tem uma linha por capítulo + uma por território. Era dimensionada
+        // para ~4 territórios (9 linhas); sem teto de território, uma semana rica
+        // pode ter 13+ territórios (18+ linhas) e a lista no tamanho antigo passava
+        // por cima do rodapé. Densidade: mesma ideia de densidadeDe(), aplicada aqui.
+        `<div class="maplist${mapEntries.length > 13 ? " dense" : mapEntries.length > 9 ? " compact" : ""}">${mapEntries.map((entry) =>
           `<div class="${entry.child ? "mapchild" : ""}"><span>${entry.child ? "↳" : String(entry.order).padStart(2, "0")}</span>` +
           `<b>${esc(entry.label)}</b><em>${padRanges(entry.pages)}</em></div>`,
         ).join("")}</div>` +
@@ -2669,8 +2662,9 @@ export function buildSlides(report: WeeklyReportData): RenderedSlide[] {
   const cover = coverSlide(report, 1);
   const slides: RenderedSlide[] = [howToReadSlide(report, 3)];
   let n = 4;
-  slides.push(overviewSlide(report, n));
-  n += 1;
+  const overview = overviewSlide(report, n);
+  slides.push(...overview);
+  n += overview.length;
   const hall = highlightSlides(report, n);
   slides.push(...hall);
   n += hall.length;
@@ -2679,9 +2673,6 @@ export function buildSlides(report: WeeklyReportData): RenderedSlide[] {
   const intelligence = weeklyIntelligenceSlides(report, n);
   slides.push(...intelligence);
   n += intelligence.length;
-  const cross = crossTerritorySlides(report, n);
-  slides.push(...cross);
-  n += cross.length;
   for (let index = 0; index < report.territories.length; index += 1) {
     // O número de telas por território deixou de ser fixo em 5: depende de quantas
     // linhas o território produziu. Contar o que voltou, em vez de somar 5, é o que
@@ -2887,7 +2878,14 @@ table.rk.d-normal .mv-val{font-size:13.5px}
 .pairh{font-size:17px;font-weight:700;letter-spacing:-.01em}
 .split11.pair .inv{margin-top:14px}
 .split11.pair .invlist{columns:2;column-gap:22px}
-.midbox{display:flex;align-items:center;justify-content:flex-start;height:calc(100% - 90px)}
+/* height:100% sozinho ignora que territoryHead() já ocupa espaço ACIMA deste bloco
+   dentro do mesmo .body (push() faz head + inner concatenados — head e emptywrap são
+   irmãos, não pai/filho). Sem desconto, emptywrap "achava" que tinha a altura toda de
+   .body e estourava por baixo exatamente pela altura do cabeçalho. Medido no overflow
+   real (12 ocorrências, sempre os mesmos 50px, porque territoryHead() tem estrutura
+   fixa) — não é palpite, é o delta que o próprio erro reportou. +4px de folga. */
+.emptywrap{display:flex;flex-direction:column;height:calc(100% - 54px)}
+.midbox{display:flex;align-items:center;justify-content:flex-start;flex:1;min-height:0}
 /* A narrativa é a frase que define a pessoa no mapa, e estava no MENOR corpo da tela:
    15px, duas colunas, 43% da altura usada. Em corpo grande, uma coluna, as 11 frases
    preenchem a tela e ficam legíveis de longe na reunião. */
@@ -3006,6 +3004,7 @@ table.rk.d-normal .mv-val{font-size:13.5px}
 .terrsummary-copy .tt{max-width:100%}
 .terrsummary-copy .tt.long{font-size:42px}
 .terrsummary-lead{font-size:20px;line-height:1.4;color:var(--gray);margin-top:22px;max-width:480px}
+.terrsummary-empty{font-size:19px;line-height:1.42;color:var(--gray);margin-top:20px;max-width:460px}
 .terrsummary-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;margin:34px 0 0;
   border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:18px 0}
 .terrsummary-stats p{padding:0 18px;border-left:1px solid var(--rule)}
@@ -3033,7 +3032,6 @@ table.rk.d-normal .mv-val{font-size:13.5px}
 .patternlist span{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--pink-text);font-weight:700}
 .patternlist h3{font-family:'Bricolage Grotesque',sans-serif;font-size:24px;line-height:1.1;letter-spacing:-.02em}
 .patternlist p{font-size:18px;line-height:1.35;color:var(--gray)}
-.patternnote{font-family:'JetBrains Mono',monospace;font-size:10px;line-height:1.4;color:var(--gray2);margin-top:18px}
 .cautionsection{margin-top:24px}
 .cautionintro{display:grid;grid-template-columns:390px minmax(0,1fr);gap:32px;align-items:end;
   padding:15px 0 14px;border-top:2px solid var(--ink);border-bottom:1px solid var(--rule)}
@@ -3093,6 +3091,18 @@ table.rk.d-normal .mv-val{font-size:13.5px}
 .maplist span,.maplist em{font-family:'JetBrains Mono',monospace;font-size:12px;font-style:normal;color:var(--gray2);letter-spacing:.1em}
 .maplist b{font-family:'Bricolage Grotesque',sans-serif;font-size:25px;letter-spacing:-.015em}
 .maplist em{text-align:right;color:var(--ink);font-weight:700}
+/* Sem teto de território, o mapa do relatório pode ter muito mais linhas do que as
+   ~9 para as quais foi calibrado. compact/dense encolhem padding e fonte na mesma
+   ordem de ideia da densidadeDe() das tabelas — mais linha, letra menor. */
+.maplist.compact>div{padding:7px 0}
+.maplist.compact>div.mapchild{padding:5px 0 5px 36px}
+.maplist.compact b{font-size:19px}
+.maplist.compact>div.mapchild b{font-size:15px}
+.maplist.dense>div{padding:4px 0}
+.maplist.dense>div.mapchild{padding:3px 0 3px 36px}
+.maplist.dense b{font-size:15px}
+.maplist.dense>div.mapchild b{font-size:12.5px}
+.maplist.dense span,.maplist.dense em{font-size:10px}
 .findinglist{display:grid;gap:0;margin-top:23px}
 .findinglist article{display:grid;grid-template-columns:52px minmax(0,1.35fr) minmax(290px,.8fr);
   gap:24px;align-items:center;padding:18px 0}
@@ -3204,6 +3214,19 @@ p.sub.sm{font-size:13px}
 .split11.mid{align-items:flex-start;padding-top:34px}
 .split115{display:grid;grid-template-columns:1.15fr 1px 1fr;gap:26px;height:calc(100% - 52px)}
 .split125{display:grid;grid-template-columns:1.25fr 1px 1fr;gap:30px;margin-top:26px}
+.split125.compact{margin-top:14px}
+.split125.compact .tt{font-size:19px}
+.split125.compact .sub{font-size:12.5px}
+.split125.compact .big{font-size:38px!important}
+.split125.compact .predrow{margin-top:8px;gap:16px}
+.split125.compact .leg.col{gap:4px}
+/* Tabela de visão geral com mais território do que os ~6 pra que foi calibrada
+   originalmente — mesma ideia da densidadeDe() das tabelas de ranking. */
+table.rk.ovcompact td{padding:4px 8px 4px 0}
+table.rk.ovcompact .it{font-size:14px}
+table.rk.ovcompact .occ{font-size:10px}
+table.rk.ovcompact .mb{height:7px}
+table.rk.ovcompact .mv-val{font-size:11.5px}
 .split15{display:grid;grid-template-columns:1.5fr 1px 1fr;gap:24px;margin-top:16px}
 .split16{display:grid;grid-template-columns:1.6fr 1px 1fr;gap:28px;height:calc(100% - 52px)}
 .vr{background:var(--rule);width:1px} .vr.dark,.dark .vr{background:var(--ruled)}
@@ -3254,24 +3277,6 @@ table.rk tr.cut td{border-bottom:none;padding:0}
 .signalbar::after{content:'';position:absolute;left:33.333%;top:-3px;bottom:-3px;width:1px;background:#807870}
 .c-com{background:var(--pink)} .c-sha{background:var(--blue)} .c-sav{background:var(--green)}
 .c-lik{background:var(--gold)} .c-ret{background:var(--purple)} .c-alc{background:var(--gray2)}
-
-.crossmatrix{margin-top:8px}
-.crossmatrix td{padding-top:17px!important;padding-bottom:17px!important}
-.crossmatrix .it{font-size:19px;font-weight:600}
-.crossmatrix .mb{width:112px;height:12px}
-.crossmatrix .mv-val{font-size:14px}
-.crossinsights{display:grid;gap:0;margin-top:3px}
-.crossinsights article{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:44px;
-  align-items:center;padding:14px 0}
-.crossinsights article+article{border-top:1px solid var(--rule)}
-.crosslead{display:grid;grid-template-columns:42px minmax(0,1fr);gap:16px;align-items:start}
-.crosslead>span{font-family:'JetBrains Mono',monospace;font-size:17px;color:var(--gray2);padding-top:2px}
-.crossreading{font-size:16.5px;line-height:1.38;color:var(--gray);margin-top:5px}
-.crossbars{display:grid;gap:7px}
-.crossbars>div{display:grid;grid-template-columns:180px minmax(0,1fr) 48px;gap:10px;align-items:center}
-.crossbars span,.crossbars b{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gray2)}
-.crossbars span{white-space:nowrap}
-.crossbars b{text-align:right;color:var(--ink);font-size:11px}
 
 .leg{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
 .leg.col{flex-direction:column;gap:8px;align-items:flex-start}

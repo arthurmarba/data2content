@@ -140,12 +140,18 @@ export interface SelectWeekTerritoriesOptions {
   /**
    * Território só abre tela se tantos criadores postaram na semana.
    *
-   * Piso 3, não 2. Com 2 criadores, Casa real abriu as quatro telas e as quatro saíram
-   * vazias — 0 assets, 0 assuntos, 0 tom, matriz com 0 linhas — porque o corte de
-   * ranking exige ≥2 criadores por elemento e dois criadores não produzem nenhum
-   * elemento compartilhado. Quatro slides em branco custam mais que um território a
-   * menos, e a Regra 2 já dizia isso: análise de território é tendência ENTRE
-   * criadores, e dois não fazem tendência.
+   * ERA 3. O piso existia porque, na época, uma tabela só mostrava elemento com ≥2
+   * criadores — com 2 criadores no território, "Casa real" abriu quatro telas vazias
+   * (0 assets, 0 assuntos, 0 tom, matriz com 0 linhas), porque dois criadores quase
+   * nunca compartilham o mesmo elemento.
+   *
+   * Não existe mais desde a Fase 13 (peso substitui corte): hoje todo elemento visto
+   * pelo menos uma vez entra na tabela, só que rotulado "indício" em vez de
+   * "tendência" — a linha nunca finge ser mais forte do que é. Verificado com dado
+   * real: território de 1 criador produz tabela cheia (rotulada indício) quando o
+   * criador tem cena lida, e cai no estado "ponto cego" já existente quando não tem —
+   * nunca mais em tela vazia. O piso de 3 hoje só esconde território de verdade sem
+   * proteger nada.
    */
   minCreators?: number;
 }
@@ -162,7 +168,7 @@ export function selectWeekTerritories(
   volumes: readonly TerritoryVolume[],
   options: SelectWeekTerritoriesOptions = {},
 ): string[] {
-  const { count = 4, pinned = [], minCreators = 3 } = options;
+  const { count = 4, pinned = [], minCreators = 1 } = options;
   const byId = new Map(volumes.map((v) => [v.territoryId, v]));
   const selected: string[] = [];
 

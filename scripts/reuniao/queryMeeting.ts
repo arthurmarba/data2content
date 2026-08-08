@@ -25,11 +25,14 @@ import {
   slugify,
   resolveUserId,
   postsInWeek,
+  statsWindow,
   enrichThumbs,
   profilePicFor,
   previousSnapshot,
 } from "../relatorio/lib/creatorWeek";
-import type { MeetingContext, ParticipanteSemana } from "./lib/types";
+import { computeBaseline, indicesFor, forceMagnitude, EVIDENCE_LABEL } from "../relatorio/lib/baseline";
+import { buildPadroes } from "../relatorio/lib/patterns";
+import type { MeetingContext, ParticipanteSemana, PostSemana } from "./lib/types";
 
 if (!process.env.LOG_LEVEL) process.env.LOG_LEVEL = "error";
 
@@ -101,11 +104,35 @@ async function gatherParticipante(
   if (!user) return vazio();
 
   const mapa = mapaDoc?.mapa ?? {};
-  const [posts, profilePictureUrl] = await Promise.all([
+
+  // Mesma leitura de 90 dias da Galileia, dois recortes (ver queryWeek.ts):
+  //   • baseline dos índices por post = só o que ANTECEDE a semana (senão o post
+  //     se compararia contra si mesmo);
+  //   • base dos padrões = os 90 dias inteiros, incluindo a semana.
+  const baselineInicio = new Date(de.getTime() - 90 * 24 * 60 * 60 * 1000);
+  const padroesInicio = new Date(ate.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+  const [posts, profilePictureUrl, janela] = await Promise.all([
     postsInWeek(userId, de, ate),
     profilePicFor(userId),
+    statsWindow(userId, baselineInicio, ate),
   ]);
   await enrichThumbs(userId, posts); // thumbs frescas (a URL salva expira → 403)
+
+  // Baseline do PRÓPRIO criador (nunca do território) + índice por post: é o que
+  // deixa o host dizer "3× a mediana dela" em vez de comparar dois posts da mesma
+  // semana — numa semana fraca o melhor post ainda é fraco, e o número cru mente.
+  const baseline = computeBaseline(
+    janela.filter((p) => p.postDate >= baselineInicio && p.postDate < de),
+  );
+  for (const p of posts) p.indices = indicesFor(p.stats, baseline);
+
+  // Padrões de 90 dias: o que é HÁBITO deste criador, não o que foi sorte da semana.
+  const padroes = buildPadroes(
+    janela.filter((p) => p.postDate >= padroesInicio),
+    { de: ymd(padroesInicio), ate: ymd(ate) },
+    de,
+  );
 
   // Comparativo: reusa o snapshots.json que a Galileia grava por criador.
   const slug = slugify(user.username?.replace(/^@/, "") || user.name || "");
@@ -125,8 +152,40 @@ async function gatherParticipante(
     assets: mapa.assets ?? [],
     tom: mapa.tom ?? "",
     posts,
+    baseline,
+    padroes,
     anterior,
   };
+}
+
+/** "3,2×" / "0,4×" / "—" — formato curto do índice contra a mediana do criador. */
+function fmtIdx(v: number | null | undefined): string {
+  if (v == null || !Number.isFinite(v)) return "—";
+  return `${v.toFixed(1).replace(".", ",")}×`;
+}
+
+/** As linhas de padrão que mais puxam pra cima/baixo — o HÁBITO do criador, não a
+ *  semana. Compacto de propósito: a Galileia mostra 10 tabelas porque é 1 criador
+ *  por PDF; aqui são 8 criadores no mesmo deck, e o host tem ~1 minuto por pessoa. */
+function habitoLinhas(p: ParticipanteSemana, max = 3): string[] {
+  const pad = p.padroes;
+  if (!pad || pad.dimensoes.length === 0) return [];
+  // Uma linha por dimensão (a mais forte dela), depois as mais expressivas no geral.
+  const candidatas = pad.dimensoes
+    .map((d) => ({ dim: d.titulo, linha: d.linhas[0] }))
+    .filter((x): x is { dim: string; linha: NonNullable<typeof x.linha> } => !!x.linha)
+    .sort(
+      (a, b) =>
+        forceMagnitude(b.linha.indexShares, b.linha.nPosts) -
+        forceMagnitude(a.linha.indexShares, a.linha.nPosts),
+    )
+    .slice(0, max);
+  return candidatas.map(
+    ({ dim, linha }) =>
+      `     ▣ ${dim}: "${linha.label}" — compart. ${fmtIdx(linha.indexShares)} / salvos ${fmtIdx(
+        linha.indexSaved,
+      )} da mediana dela · ${linha.nPosts} post(s) · ${EVIDENCE_LABEL[linha.evidence]}`,
+  );
 }
 
 function digest(ctx: MeetingContext): string {
@@ -146,19 +205,24 @@ function digest(ctx: MeetingContext): string {
       p.temas.length ? `   temas: ${p.temas.join(" · ")}` : "",
       p.assets.length ? `   assets: ${p.assets.join(" · ")}` : "",
       p.tom ? `   tom: ${p.tom}` : "",
+      // A régua: sem isto o host só compara post contra post da mesma semana.
+      p.baseline
+        ? p.baseline.sufficient
+          ? `   ⚖ mediana dela (${p.baseline.nPosts} posts/90d): compart.=${p.baseline.medianShares ?? "—"} salvos=${p.baseline.medianSaved ?? "—"} views=${p.baseline.medianViews ?? "—"} → USE os índices abaixo, não o número cru`
+          : `   ⚖ baseline insuficiente (${p.baseline.nPosts} posts/90d, mínimo 4) — sem histórico p/ comparar; compare dentro da semana ou omita o stat`
+        : "",
       p.anterior
         ? `   ↺ comparativo LIGADO (snapshot ${p.anterior.data}; prometeu: ${p.anterior.planoPrometido.join("; ") || "—"})`
         : `   ↺ sem semana anterior (sem comparativo)`,
       `   ${p.posts.length} post(s) na semana (top por engajamento; resto resumido):`,
     );
-    // Token-frugal: mostra só os TOP posts por interação (os candidatos a forte/fraco)
-    // + uma linha de resumo do resto (captura o padrão de diluição sem listar tudo).
+    // Token-frugal, mas sem ponto cego. Cortar só pelos TOP por interação escondia
+    // justamente os piores posts — que é onde mora o "ponto a ajustar". Então o
+    // digest mostra as DUAS pontas: os melhores por engajamento E os que mais
+    // ficaram abaixo da mediana do criador. O resto vira uma linha de resumo.
     const TOP = 8;
-    const ord = [...p.posts].sort(
-      (a, b) => (b.stats.total_interactions ?? 0) - (a.stats.total_interactions ?? 0),
-    );
-    const top = ord.slice(0, TOP);
-    for (const post of top) {
+    const PIORES = 3;
+    const linhaPost = (post: PostSemana): void => {
       const s = post.stats;
       const classif = [
         post.proposal.length ? post.proposal.join(",") : "",
@@ -169,8 +233,35 @@ function digest(ctx: MeetingContext): string {
         `     • ${post.postDate} sv=${s.saved ?? "?"} sh=${s.shares ?? "?"} cm=${s.comments ?? "?"} int=${s.total_interactions ?? "?"} | ` +
           `${classif || "sem-classif"} | id=${post.postId ?? "—"} | ${post.description.replace(/\s+/g, " ").slice(0, 70)}`,
       );
+      // Índices vs. a mediana DELA — é daqui que sai o `stat` do deck.json.
+      const i = post.indices;
+      if (i && (i.shares != null || i.saved != null || i.views != null)) {
+        l.push(
+          `       ↳ vs. mediana dela → compart. ${fmtIdx(i.shares)} · salvos ${fmtIdx(i.saved)} · views ${fmtIdx(i.views)}`,
+        );
+      }
+    };
+
+    const ord = [...p.posts].sort(
+      (a, b) => (b.stats.total_interactions ?? 0) - (a.stats.total_interactions ?? 0),
+    );
+    const top = ord.slice(0, TOP);
+    for (const post of top) linhaPost(post);
+
+    // A outra ponta: entre os que não entraram acima, os que mais afundaram contra
+    // a mediana do criador (índice mais baixo; empate desempatado por interação).
+    const foraDoTop = ord.slice(TOP);
+    const desempenho = (x: PostSemana): number =>
+      Math.max(x.indices?.shares ?? 0, x.indices?.saved ?? 0);
+    const piores = [...foraDoTop]
+      .sort((a, b) => desempenho(a) - desempenho(b) || (a.stats.total_interactions ?? 0) - (b.stats.total_interactions ?? 0))
+      .slice(0, PIORES);
+    if (piores.length) {
+      l.push(`     ▽ os que mais ficaram abaixo da mediana dela (candidatos a ponto a ajustar):`);
+      for (const post of piores) linhaPost(post);
     }
-    const resto = ord.slice(TOP);
+
+    const resto = foraDoTop.filter((x) => !piores.includes(x));
     if (resto.length) {
       const savesResto = resto.map((r) => r.stats.saved ?? 0).sort((a, b) => a - b);
       const mediana = savesResto[Math.floor(savesResto.length / 2)] ?? 0;
@@ -184,6 +275,16 @@ function digest(ctx: MeetingContext): string {
       );
     }
     if (p.posts.length === 0) l.push("     (nenhum post publicado no período — slide nasce do mapa)");
+    // O hábito de 90 dias: o que funciona SEMPRE pra ela, não só nesta semana.
+    const hab = habitoLinhas(p);
+    if (hab.length) {
+      l.push(
+        `   ▣ hábito dos 90 dias (${p.padroes?.nPosts ?? 0} posts${
+          p.padroes?.nComCena ? `, ${p.padroes.nComCena} com leitura de cena` : ", sem leitura de cena"
+        }) — o que é padrão, não sorte da semana:`,
+        ...hab,
+      );
+    }
     l.push(``);
   }
   return l.join("\n");
