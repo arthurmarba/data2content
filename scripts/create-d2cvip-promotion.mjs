@@ -53,12 +53,23 @@ const coupon = await stripe.coupons.create({
   },
 });
 
+// ATENÇÃO: max_redemptions e expires_at são IMUTÁVEIS depois da criação — o
+// Stripe recusa os dois num update. Definir aqui é a única chance; para um
+// código que já existe, o teto e a validade são aplicados pela aplicação
+// (D2C_VIP_MAX_REDEMPTIONS / D2C_VIP_EXPIRES_AT, ver d2cVipCampaign.ts).
+const maxRedemptions = Number(process.env.D2C_VIP_MAX_REDEMPTIONS) || null;
+const expiresAt = process.env.D2C_VIP_EXPIRES_AT
+  ? Math.floor(new Date(process.env.D2C_VIP_EXPIRES_AT).getTime() / 1000)
+  : null;
+
 const promotionCode = await stripe.promotionCodes.create({
   coupon: coupon.id,
   code: displayCode,
   restrictions: {
     first_time_transaction: true,
   },
+  ...(maxRedemptions ? { max_redemptions: maxRedemptions } : {}),
+  ...(expiresAt ? { expires_at: expiresAt } : {}),
   metadata: {
     campaign: "d2c_vip",
     eligible_plan: "monthly",

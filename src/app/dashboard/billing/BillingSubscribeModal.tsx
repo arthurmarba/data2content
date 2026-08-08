@@ -27,6 +27,7 @@ import {
   D2C_VIP_DISPLAY_CODE,
   isD2cVipPromotionCode,
 } from "@/app/lib/billing/d2cVipPromotion";
+import { buildFreeMonthNotice } from "@/app/lib/billing/firstCharge";
 
 interface BillingSubscribeModalProps {
   open: boolean;
@@ -492,6 +493,18 @@ export default function BillingSubscribeModal({
     const pct = 1 - monthlyEq / m;
     return Math.max(0, Math.round(pct * 100));
   }, [prices, currency]);
+  // O cupom é 100% off por um mês, não trial — então o Stripe não avisa ninguém
+  // de que a cobrança vem. Dizer a data aqui é a única chance antes do cartão.
+  const freeMonthNotice = useMemo(
+    () =>
+      prices
+        ? buildFreeMonthNotice({ monthlyPriceLabel: formatMoney(prices.monthly[currency]) })
+        : "Cadastre seu cartão agora. A primeira cobrança será feita somente após o primeiro mês.",
+    // formatMoney depende de currency, que já está nas dependências.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [prices, currency],
+  );
+
   const resolvedPrimaryCtaLabel =
     sessionStatus === "authenticated"
       ? couponApplied && period === "monthly" ? "Começar meu mês grátis" : primaryCtaLabel
@@ -910,7 +923,7 @@ export default function BillingSubscribeModal({
                 </div>
                 {couponApplied ? (
                   <p id="d2c-promotion-success" role="status" className="sr-only">
-                    Primeiro mês gratuito aplicado. Depois, {formatMoney(prices.monthly[currency])}/mês.
+                    Primeiro mês gratuito aplicado. {freeMonthNotice}
                   </p>
                 ) : couponError ? (
                   <p id="d2c-promotion-error" className="mt-2 text-xs font-semibold text-red-600">{couponError}</p>
@@ -945,7 +958,7 @@ export default function BillingSubscribeModal({
 
               <p className="mt-3 text-center text-[11px] text-zinc-400">
                 {couponApplied && period === "monthly"
-                  ? "Cadastre seu cartão agora. A primeira cobrança será feita somente após o primeiro mês."
+                  ? freeMonthNotice
                   : "Pagamento seguro. Cancele quando quiser."}
               </p>
 

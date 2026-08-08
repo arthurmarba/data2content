@@ -57,6 +57,18 @@ const BILLING_ERROR_MAP: Record<string, ErrorConfig> = {
   BILLING_IN_PROGRESS: {
     message: "Ja existe uma tentativa em andamento. Aguarde alguns segundos.",
   },
+  INVALID_CODE: {
+    message: "Codigo invalido ou expirado.",
+  },
+  PROMOTION_NOT_AVAILABLE_FOR_PLAN: {
+    message: "Este cupom vale apenas para o plano mensal.",
+  },
+  PROMOTION_NOT_ELIGIBLE: {
+    message: "Este cupom vale apenas para a primeira assinatura.",
+  },
+  PROMOTION_CAMPAIGN_CLOSED: {
+    message: "Este cupom nao esta mais disponivel.",
+  },
 };
 
 export function mapSubscribeError(

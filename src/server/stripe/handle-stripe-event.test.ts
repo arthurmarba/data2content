@@ -250,3 +250,148 @@ describe('handleStripeEvent affiliate commissions', () => {
     );
   });
 });
+
+describe('handleStripeEvent checkout.session.expired', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (webhookHelpers.markEventIfNew as any).mockResolvedValue(true);
+  });
+
+  function buildExpiredEvent(sessionId = 'cs_abandoned') {
+    return {
+      id: 'evt_expired',
+      type: 'checkout.session.expired',
+      created: 1_709_894_400,
+      data: {
+        object: {
+          id: sessionId,
+          object: 'checkout.session',
+          mode: 'subscription',
+          customer: 'cus_1',
+          client_reference_id: 'buyer1',
+        },
+      },
+    } as any;
+  }
+
+  test('frees a user left pending by an abandoned checkout', async () => {
+    const buyer = {
+      _id: 'buyer1',
+      planStatus: 'pending',
+      stripeSubscriptionId: null,
+      pendingCheckoutSessionId: 'cs_abandoned',
+      pendingCheckoutExpiresAt: new Date(),
+      save: jest.fn(async function save() { return this; }),
+    };
+    (webhookHelpers.findUserByCustomerId as any).mockResolvedValue(buyer);
+
+    await handleStripeEvent(buildExpiredEvent());
+
+    expect(buyer.planStatus).toBe('inactive');
+    expect(buyer.pendingCheckoutSessionId).toBeNull();
+    expect(buyer.pendingCheckoutExpiresAt).toBeNull();
+    expect(buyer.save).toHaveBeenCalled();
+  });
+
+  test('never downgrades an active subscription', async () => {
+    const buyer = {
+      _id: 'buyer1',
+      planStatus: 'active',
+      stripeSubscriptionId: 'sub_live',
+      pendingCheckoutSessionId: 'cs_abandoned',
+      save: jest.fn(async function save() { return this; }),
+    };
+    (webhookHelpers.findUserByCustomerId as any).mockResolvedValue(buyer);
+
+    await handleStripeEvent(buildExpiredEvent());
+
+    expect(buyer.planStatus).toBe('active');
+    expect(buyer.stripeSubscriptionId).toBe('sub_live');
+    expect(buyer.pendingCheckoutSessionId).toBeNull();
+  });
+
+  test('ignores an old session expiring after a newer checkout started', async () => {
+    const buyer = {
+      _id: 'buyer1',
+      planStatus: 'pending',
+      stripeSubscriptionId: null,
+      pendingCheckoutSessionId: 'cs_current',
+      save: jest.fn(async function save() { return this; }),
+    };
+    (webhookHelpers.findUserByCustomerId as any).mockResolvedValue(buyer);
+
+    await handleStripeEvent(buildExpiredEvent('cs_stale'));
+
+    expect(buyer.pendingCheckoutSessionId).toBe('cs_current');
+    expect(buyer.planStatus).toBe('pending');
+    expect(buyer.save).not.toHaveBeenCalled();
+  });
+});
+
+describe('handleStripeEvent zero-amount invoices', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (webhookHelpers.markEventIfNew as any).mockResolvedValue(true);
+    (webhookHelpers.ensureInvoiceIdempotent as any).mockResolvedValue(true);
+    (stripe as any).invoicePayments.list.mockResolvedValue({ data: [], has_more: false });
+  });
+
+  /**
+   * O fallback só é alcançado quando o retrieve da assinatura falha — que é
+   * exatamente a janela em que o status errado fica gravado.
+   */
+  function buildZeroInvoiceEvent({ subtotal }: { subtotal: number }) {
+    return {
+      id: `evt_zero_${subtotal}`,
+      type: 'invoice.payment_succeeded',
+      created: 1_709_894_400,
+      data: {
+        object: {
+          id: 'in_zero',
+          object: 'invoice',
+          customer: 'cus_1',
+          subscription: 'sub_zero',
+          amount_paid: 0,
+          subtotal,
+          total: 0,
+          currency: 'brl',
+          billing_reason: 'subscription_create',
+          lines: { data: [{ period: { start: 1_709_894_400, end: 1_712_572_800 } }] },
+          metadata: {},
+        },
+      },
+    } as any;
+  }
+
+  test('keeps the d2cVIP subscriber active when the coupon zeroed a full-price invoice', async () => {
+    const buyer = {
+      _id: 'buyer1',
+      email: 'vip@test.com',
+      commissionLog: [],
+      save: jest.fn(async function save() { return this; }),
+    };
+    (webhookHelpers.findUserByCustomerId as any).mockResolvedValue(buyer);
+    (stripe as any).subscriptions.retrieve.mockRejectedValue(new Error('stripe indisponível'));
+
+    await handleStripeEvent(buildZeroInvoiceEvent({ subtotal: 9700 }));
+
+    // "trial" não concede acesso neste produto: gravar isso trancaria fora do
+    // produto alguém que acabou de assinar.
+    expect((buyer as any).planStatus).toBe('active');
+  });
+
+  test('still treats a genuine trial invoice as a trial', async () => {
+    const buyer = {
+      _id: 'buyer1',
+      email: 'trial@test.com',
+      commissionLog: [],
+      save: jest.fn(async function save() { return this; }),
+    };
+    (webhookHelpers.findUserByCustomerId as any).mockResolvedValue(buyer);
+    (stripe as any).subscriptions.retrieve.mockRejectedValue(new Error('stripe indisponível'));
+
+    await handleStripeEvent(buildZeroInvoiceEvent({ subtotal: 0 }));
+
+    expect((buyer as any).planStatus).toBe('trial');
+  });
+});

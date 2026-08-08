@@ -11,6 +11,10 @@ import {
   isD2cVipPromotionCode,
   normalizePromotionCode,
 } from "@/app/lib/billing/d2cVipPromotion";
+import {
+  checkVipCampaignWindow,
+  vipCampaignMessage,
+} from "@/app/lib/billing/d2cVipCampaign";
 
 const noStoreHeaders = { "Cache-Control": "no-store, max-age=0" } as const;
 
@@ -106,6 +110,23 @@ async function checkAffiliateCode(
   }
 
   return { code };
+}
+
+/**
+ * Um cupom com `first_time_transaction` só vale para quem nunca pagou nada.
+ * Faturas de R$ 0 (o próprio benefício do cupom) não desqualificam ninguém.
+ */
+async function customerHasPaidBefore(customerId: string): Promise<boolean> {
+  try {
+    const invoices = await stripe.invoices.list({
+      customer: customerId,
+      status: "paid",
+      limit: 20,
+    });
+    return invoices.data.some((invoice) => (invoice.amount_paid ?? 0) > 0);
+  } catch {
+    return false;
+  }
 }
 
 function sumDiscounts(inv: any): number {
@@ -212,10 +233,43 @@ export async function POST(req: NextRequest) {
         active: true,
         limit: 1,
       });
-      promotionCodeId = promotionCodes.data[0]?.id ?? null;
+      const foundPromotionCode = promotionCodes.data[0] ?? null;
+      promotionCodeId = foundPromotionCode?.id ?? null;
       if (!promotionCodeId) {
         return NextResponse.json(
           { code: "INVALID_CODE", error: "Cupom inválido ou expirado.", promotionApplied: false },
+          { status: 422, headers: noStoreHeaders },
+        );
+      }
+
+      // Teto e validade da campanha vivem em env, não no Stripe: ele não aceita
+      // acrescentá-los a um código já criado.
+      if (isD2cVipPromotionCode(promotionCode)) {
+        const window = checkVipCampaignWindow({ promotionCode: foundPromotionCode });
+        if (!window.available) {
+          return NextResponse.json(
+            {
+              code: "PROMOTION_CAMPAIGN_CLOSED",
+              error: vipCampaignMessage(window.reason),
+              promotionApplied: false,
+            },
+            { status: 422, headers: noStoreHeaders },
+          );
+        }
+      }
+
+      // Sem esta checagem o createPreview abaixo estoura e o usuário recebe
+      // um 500 com a mensagem do Stripe em inglês.
+      if (
+        (foundPromotionCode as any)?.restrictions?.first_time_transaction &&
+        (await customerHasPaidBefore(customerId))
+      ) {
+        return NextResponse.json(
+          {
+            code: "PROMOTION_NOT_ELIGIBLE",
+            error: `O cupom ${D2C_VIP_DISPLAY_CODE} vale apenas para a primeira assinatura.`,
+            promotionApplied: false,
+          },
           { status: 422, headers: noStoreHeaders },
         );
       }

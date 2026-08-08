@@ -369,6 +369,20 @@ type DbPlanStatus =
   | "non_renewing"
   | undefined;
 
+/**
+ * Uma fatura de R$ 0 significa duas coisas opostas.
+ *
+ * Trial: nada foi cobrado porque a assinatura ainda não começou a valer — o
+ * subtotal também é zero. Cupom de 100% (d2cVIP): a assinatura está plenamente
+ * ativa e alguém cobriu a conta — o subtotal é o preço cheio e o desconto zera
+ * o total. Tratar as duas como trial tira o acesso de quem acabou de assinar,
+ * porque "trial"/"trialing" não concede acesso neste produto.
+ */
+function isZeroInvoiceCoveredByDiscount(invoice: Stripe.Invoice): boolean {
+  const subtotal = typeof invoice.subtotal === "number" ? invoice.subtotal : 0;
+  return subtotal > 0;
+}
+
 function toDbPlanStatus(s: Normalized["planStatus"] | undefined): DbPlanStatus {
   if (!s) return undefined;
   if (s === "trialing") return "trial";
@@ -571,6 +585,8 @@ export async function handleStripeEvent(event: Stripe.Event) {
       }
 
       (user as any).lastStripeEventAt = eventDate;
+      (user as any).pendingCheckoutSessionId = null;
+      (user as any).pendingCheckoutExpiresAt = null;
 
       await markEventIfNew(user, event.id);
 
@@ -578,6 +594,55 @@ export async function handleStripeEvent(event: Stripe.Event) {
         () => user.save(),
         { context: buildEventMeta(user, event, { action: "user.save" }) }
       );
+      return;
+    }
+
+    /* ----------------- Checkout abandonado (sessão expirada) ----------------- */
+    case "checkout.session.expired": {
+      const cs = event.data.object as Stripe.Checkout.Session;
+      if (cs.mode !== "subscription") return;
+
+      const customerId =
+        typeof cs.customer === "string" ? cs.customer : (cs.customer as any)?.id;
+      const clientRef = cs.client_reference_id || null;
+
+      const user =
+        (customerId ? await findUserByCustomerId(customerId) : null) ||
+        (clientRef ? await User.findById(clientRef) : null);
+
+      if (!user) return;
+
+      const isNewEvent = await markEventIfNew(user, event.id, { commit: false });
+      if (!isNewEvent) return;
+
+      // Só limpa se o checkout abandonado ainda é o que está registrado. Uma
+      // sessão antiga expirando não pode derrubar uma assinatura já ativa.
+      const pendingId = (user as any).pendingCheckoutSessionId ?? null;
+      if (pendingId && pendingId !== cs.id) return;
+
+      (user as any).pendingCheckoutSessionId = null;
+      (user as any).pendingCheckoutExpiresAt = null;
+
+      const status = String((user as any).planStatus ?? "").toLowerCase();
+      if (!(user as any).stripeSubscriptionId && (status === "pending" || status === "incomplete")) {
+        (user as any).planStatus = "inactive";
+        (user as any).planExpiresAt = null;
+        (user as any).cancelAtPeriodEnd = false;
+      }
+
+      (user as any).lastStripeEventAt = eventCreatedDate(event) ?? new Date();
+      (user as any).lastProcessedEventId = event.id;
+
+      await markEventIfNew(user, event.id);
+
+      await withRetries(
+        () => user.save(),
+        { context: buildEventMeta(user, event, { action: "user.save" }) }
+      );
+
+      logger.info("stripe_checkout_session_expired_cleared", {
+        ...buildEventMeta(user, event, { checkoutSessionId: cs.id }),
+      });
       return;
     }
 
@@ -613,6 +678,11 @@ export async function handleStripeEvent(event: Stripe.Event) {
       const periodEnd = period?.end ? new Date(period.end * 1000) : null;
       const shouldSendWelcome = amountPaidCents > 0 && billingReason === "subscription_create";
       const shouldSendReceipt = amountPaidCents > 0;
+      // Quem entrou pelo cupom tem fatura zerada e assinatura ativa: só o trial
+      // de verdade justifica um status que não libera o produto.
+      const zeroInvoiceStatus: Normalized["planStatus"] = isZeroInvoiceCoveredByDiscount(invoice)
+        ? "active"
+        : "trialing";
 
       if (subId) {
         try {
@@ -633,7 +703,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
         } catch {
           // Fallback: se for fatura de $0 (subscription_create com trial),
           // NÃO devemos marcar como "active".
-          (user as any).planStatus = toDbPlanStatus(amountPaidCents === 0 ? "trialing" : "active");
+          (user as any).planStatus = toDbPlanStatus(amountPaidCents === 0 ? zeroInvoiceStatus : "active");
           (user as any).stripeSubscriptionId = subId ?? (user as any).stripeSubscriptionId ?? null;
           (user as any).planInterval =
             coerceInterval(getIntervalFromInvoice(invoice)) ?? (user as any).planInterval;
@@ -648,7 +718,7 @@ export async function handleStripeEvent(event: Stripe.Event) {
           (user as any).lastSubscriptionEventId = event.id;
         }
       } else {
-        (user as any).planStatus = toDbPlanStatus(amountPaidCents === 0 ? "trialing" : "active");
+        (user as any).planStatus = toDbPlanStatus(amountPaidCents === 0 ? zeroInvoiceStatus : "active");
         (user as any).planInterval =
           coerceInterval(getIntervalFromInvoice(invoice)) ?? (user as any).planInterval;
         if ((user as any).planInterval === "month") (user as any).planType = "monthly";
@@ -1158,6 +1228,11 @@ export async function handleStripeEvent(event: Stripe.Event) {
       applyNormalizedUserBilling(user, sub, event.id, { overrideStatus });
       (user as any).lastSubscriptionEventId = event.id;
       (user as any).lastStripeEventAt = eventCreatedDate(event) ?? new Date();
+      // A assinatura existe: o checkout que a originou não está mais pendente.
+      // Redundante com checkout.session.completed de propósito — o endpoint de
+      // produção hoje só assina os eventos de subscription.
+      (user as any).pendingCheckoutSessionId = null;
+      (user as any).pendingCheckoutExpiresAt = null;
 
       await markEventIfNew(user, event.id);
 

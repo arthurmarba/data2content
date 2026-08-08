@@ -367,6 +367,12 @@ export interface IUser extends Document {
   lastProcessedEventId?: string;
   lastStripeEventAt?: Date | null;
   lastSubscriptionEventId?: string | null;
+  /**
+   * Checkout hospedado aberto e ainda não concluído. Não concede nem bloqueia
+   * acesso: serve só para reconciliar quando o usuário abandona a tela do Stripe.
+   */
+  pendingCheckoutSessionId?: string | null;
+  pendingCheckoutExpiresAt?: Date | null;
   planExpiresAt?: Date | null;
   autoRenewConsentAt?: Date | null;
   proTrialStatus?: ProTrialState;
@@ -638,6 +644,8 @@ const userSchema = new Schema<IUser>(
     lastProcessedEventId: { type: String },
     lastStripeEventAt: { type: Date, default: null },
     lastSubscriptionEventId: { type: String, default: null },
+    pendingCheckoutSessionId: { type: String, default: null },
+    pendingCheckoutExpiresAt: { type: Date, default: null },
 
     inferredExpertiseLevel: {
       type: String,

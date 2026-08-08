@@ -57,6 +57,18 @@ const CRONS = [
     method: 'POST',
     body: '[INSTAGRAM_REFRESH] Atualizar dados e renovar tokens próximos do vencimento',
   },
+  // O mês grátis do d2cVIP é cupom, não trial — o Stripe não manda o aviso de
+  // "seu teste está acabando". Sem este job a primeira cobrança chega em
+  // silêncio, um mês depois da pessoa ter visto R$ 0,00 na tela. Diário porque
+  // o benefício é concedido em qualquer dia; a idempotência mora na metadata da
+  // assinatura, então rodar todo dia não gera aviso repetido.
+  {
+    id: 'billing-free-month-ending',
+    destination: 'https://data2content.ai/api/cron/notify-free-month-ending',
+    cron: '0 13 * * *', // 10:00 BRT — horário de gente acordada, não de madrugada
+    method: 'POST',
+    body: '[BILLING_FREE_MONTH] Avisar quem entrou com mês grátis que a cobrança está chegando',
+  },
   // ── Narrative Map crons ─────────────────────────────────────────────────────
   {
     id: 'narrative-weekly-map-summary',

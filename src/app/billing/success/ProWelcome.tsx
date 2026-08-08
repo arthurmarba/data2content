@@ -2,6 +2,7 @@
 "use client";
 
 import { COMMUNITY_WHATSAPP_URL } from "@/app/lib/communityLinks";
+import { buildNextChargeNotice } from "@/app/lib/billing/firstCharge";
 
 export const PRO_WELCOME_INSTAGRAM_HREF = "/dashboard/instagram/connect?next=narrative-map";
 
@@ -10,6 +11,8 @@ interface ProWelcomeProps {
   instagramConnected: boolean;
   /** Rota interna de volta ao app (mapa/perfil). */
   continueHref: string;
+  /** Data real da próxima cobrança, quando o Stripe já respondeu. */
+  nextChargeAt?: Date | null;
   /** Telemetria de cada passo tocado. */
   onStep?: (step: "community" | "instagram" | "continue") => void;
 }
@@ -32,7 +35,16 @@ function StepBadge({ children }: { children: React.ReactNode }) {
  * confirma presença e entra na análise da semana. A conexão do Instagram é o
  * segundo passo e só existe depois do pagamento aprovado.
  */
-export function ProWelcome({ instagramConnected, continueHref, onStep }: ProWelcomeProps) {
+export function ProWelcome({
+  instagramConnected,
+  continueHref,
+  nextChargeAt,
+  onStep,
+}: ProWelcomeProps) {
+  // Quem entrou com o mês grátis não recebe nenhum aviso do Stripe antes da
+  // primeira cobrança. Esta é a última superfície onde a data aparece.
+  const chargeNotice = buildNextChargeNotice(nextChargeAt ?? null);
+
   return (
     // pb generoso: o banner de cookies fica fixo no rodapé e não pode cobrir o último passo.
     <main className="mx-auto flex min-h-[100dvh] w-full max-w-md flex-col justify-center bg-white px-6 pb-32 pt-12">
@@ -96,10 +108,16 @@ export function ProWelcome({ instagramConnected, continueHref, onStep }: ProWelc
         ) : null}
       </ol>
 
+      {chargeNotice ? (
+        <p className="mt-10 text-[12px] leading-relaxed text-zinc-400">
+          {chargeNotice} Você pode cancelar quando quiser em Assinatura.
+        </p>
+      ) : null}
+
       <a
         href={continueHref}
         onClick={() => onStep?.("continue")}
-        className="mt-10 text-center text-[14px] font-medium text-zinc-500 underline underline-offset-4"
+        className={`${chargeNotice ? "mt-6" : "mt-10"} text-center text-[14px] font-medium text-zinc-500 underline underline-offset-4`}
       >
         Continuar no app
       </a>

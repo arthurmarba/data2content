@@ -13,6 +13,8 @@ type PlanSnapshot = {
   instagramConnected: boolean | null;
   /** null = não conseguimos confirmar; usamos o token como fallback. */
   planActive: boolean | null;
+  /** Data real da próxima cobrança, vinda do Stripe. */
+  nextChargeAt: Date | null;
 };
 
 async function fetchPlanSnapshot(force = false): Promise<PlanSnapshot> {
@@ -23,14 +25,19 @@ async function fetchPlanSnapshot(force = false): Promise<PlanSnapshot> {
       credentials: "include",
     });
     const payload = await res.json().catch(() => null);
-    if (!res.ok || !payload?.ok) return { instagramConnected: null, planActive: null };
+    if (!res.ok || !payload?.ok) {
+      return { instagramConnected: null, planActive: null, nextChargeAt: null };
+    }
     const status = typeof payload?.status === "string" ? payload.status : null;
+    const parsedNextCharge = payload?.planExpiresAt ? new Date(payload.planExpiresAt) : null;
     return {
       instagramConnected: Boolean(payload?.instagram?.connected),
       planActive: status ? status === "active" || status === "non_renewing" : null,
+      nextChargeAt:
+        parsedNextCharge && !Number.isNaN(parsedNextCharge.getTime()) ? parsedNextCharge : null,
     };
   } catch {
-    return { instagramConnected: null, planActive: null };
+    return { instagramConnected: null, planActive: null, nextChargeAt: null };
   }
 }
 
@@ -80,9 +87,14 @@ export default function BillingSuccessPage() {
   const [phase, setPhase] = useState<"activating" | "settled" | "pro_welcome" | "payment_pending">(
     "activating",
   );
-  const [welcome, setWelcome] = useState<{ instagramConnected: boolean; continueHref: string }>({
+  const [welcome, setWelcome] = useState<{
+    instagramConnected: boolean;
+    continueHref: string;
+    nextChargeAt: Date | null;
+  }>({
     instagramConnected: false,
     continueHref: "/dashboard/boards/mobile-strategic-profile",
+    nextChargeAt: null,
   });
   // Guarda o trabalho async dentro desta instância (cobre o double-invoke do
   // StrictMode sem depender do sessionStorage para o estado de UI).
@@ -219,7 +231,7 @@ export default function BillingSuccessPage() {
         const continueHref =
           proWelcomeHref ?? resolvedReturnTo ?? "/dashboard/boards/mobile-strategic-profile";
         if (paymentUnconfirmed) {
-          setWelcome({ instagramConnected, continueHref });
+          setWelcome({ instagramConnected, continueHref, nextChargeAt: snapshot.nextChargeAt });
           setPhase("payment_pending");
           return;
         }
@@ -227,7 +239,7 @@ export default function BillingSuccessPage() {
         // o usuário. Nesse caso as boas-vindas Pro são o destino padrão — o grupo é
         // onde a presença é confirmada, então ele precisa vir antes de qualquer outra
         // coisa, independentemente de onde a assinatura começou.
-        setWelcome({ instagramConnected, continueHref });
+        setWelcome({ instagramConnected, continueHref, nextChargeAt: snapshot.nextChargeAt });
         setPhase("pro_welcome");
       } catch {
         // Erro não bloqueia a tela: revela a confirmação (a assinatura já foi
@@ -285,6 +297,7 @@ export default function BillingSuccessPage() {
       <ProWelcome
         instagramConnected={welcome.instagramConnected}
         continueHref={welcome.continueHref}
+        nextChargeAt={welcome.nextChargeAt}
         onStep={(step) =>
           trackMobileNarrativeEvent("mobile_post_checkout_intent_consumed", {
             route: "/billing/success",

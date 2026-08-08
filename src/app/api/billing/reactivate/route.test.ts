@@ -63,6 +63,41 @@ describe("POST /api/billing/reactivate", () => {
     expect(save).toHaveBeenCalled();
   });
 
+  it("clears the cancellation reason so it does not stick to a live subscription", async () => {
+    mockGetServerSession.mockResolvedValue({ user: { id: "u1" } });
+    mockFindById.mockResolvedValue({ _id: "u1", stripeSubscriptionId: "sub_1", save: jest.fn() });
+    mockRetrieve.mockResolvedValue({
+      id: "sub_1",
+      status: "active",
+      cancel_at_period_end: true,
+      current_period_end: 1700000000,
+      metadata: {
+        plan: "monthly",
+        cancellation_reasons: "Outro",
+        cancellation_comment: "Ainda vou testar o mes!",
+      },
+      items: { data: [{ price: { id: "price_1", recurring: { interval: "month" } } }] },
+    });
+    mockUpdate.mockResolvedValue({
+      id: "sub_1",
+      status: "active",
+      cancel_at_period_end: false,
+      current_period_end: 1700000000,
+      items: { data: [{ price: { id: "price_1", recurring: { interval: "month" } } }] },
+    });
+
+    await POST(createRequest());
+
+    expect(mockUpdate).toHaveBeenCalledWith("sub_1", {
+      cancel_at_period_end: false,
+      metadata: {
+        plan: "monthly",
+        cancellation_reasons: null,
+        cancellation_comment: null,
+      },
+    });
+  });
+
   it("blocks when subscription is canceled", async () => {
     mockGetServerSession.mockResolvedValue({ user: { id: "u1" } });
     const save = jest.fn();

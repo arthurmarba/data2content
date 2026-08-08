@@ -20,7 +20,7 @@ jest.mock("@/app/lib/stripe", () => ({
     checkout: { sessions: { create: jest.fn() } },
     promotionCodes: { list: jest.fn() },
     coupons: { retrieve: jest.fn() },
-    invoices: { retrieve: jest.fn() },
+    invoices: { retrieve: jest.fn(), list: jest.fn() },
   },
 }));
 jest.mock("@/utils/rateLimit", () => ({ checkRateLimit: jest.fn() }));
@@ -75,6 +75,9 @@ beforeEach(() => {
   mockGetCustomerId.mockResolvedValue("cus_123");
   mockIsStripeResourceMissingError.mockReturnValue(false);
   mockPersistStaleStripeBillingPatch.mockResolvedValue(undefined);
+  (stripe as any).invoices.list.mockResolvedValue({ data: [] });
+  delete process.env.D2C_VIP_MAX_REDEMPTIONS;
+  delete process.env.D2C_VIP_EXPIRES_AT;
   process.env.STRIPE_PRICE_MONTHLY_BRL = "price_monthly_brl";
   process.env.STRIPE_PRICE_ANNUAL_BRL = "price_annual_brl";
   process.env.STRIPE_PRICE_MONTHLY_USD = "price_monthly_usd";
@@ -110,11 +113,19 @@ describe("POST /api/billing/subscribe", () => {
     mockFindById.mockResolvedValue(buyer);
     mockStripeList.mockResolvedValue({ data: [] });
     stripe.promotionCodes.list.mockResolvedValue({
-      data: [{ id: "promo_d2cvip", code: "d2cVIP", active: true }],
+      data: [
+        {
+          id: "promo_d2cvip",
+          code: "d2cVIP",
+          active: true,
+          restrictions: { first_time_transaction: true },
+        },
+      ],
     });
     stripe.checkout.sessions.create.mockResolvedValue({
       id: "cs_d2cvip",
       url: "https://checkout.stripe.com/d2cvip",
+      expires_at: 1_800_000_000,
     });
 
     const res = await POST(createRequest({
@@ -147,9 +158,241 @@ describe("POST /api/billing/subscribe", () => {
       }),
       expect.any(Object),
     );
-    expect((buyer as any).planStatus).toBe("pending");
+    // O status só avança quando o webhook confirmar: marcar "pending" aqui
+    // trancava quem fechasse a aba do Stripe sem concluir o checkout.
+    expect((buyer as any).planStatus).toBe("inactive");
+    expect((buyer as any).pendingCheckoutSessionId).toBe("cs_d2cvip");
+    expect((buyer as any).pendingCheckoutExpiresAt).toEqual(new Date(1_800_000_000 * 1000));
     expect((buyer as any).planType).toBe("monthly");
     expect(save).toHaveBeenCalled();
+  });
+
+  it("lets an abandoned hosted checkout retry instead of blocking on stale pending", async () => {
+    mockGetServerSession.mockResolvedValue({ user: { id: "u-retry", email: "u-retry@test.com" } });
+    const save = jest.fn();
+    const buyer = {
+      _id: "u-retry",
+      planStatus: "pending",
+      stripeSubscriptionId: null,
+      stripeCustomerId: "cus_123",
+      pendingCheckoutSessionId: "cs_abandoned",
+      save,
+    };
+    mockFindById.mockResolvedValue(buyer);
+    mockStripeList.mockResolvedValue({ data: [] });
+    stripe.promotionCodes.list.mockResolvedValue({
+      data: [{ id: "promo_d2cvip", code: "d2cVIP", active: true, restrictions: {} }],
+    });
+    stripe.checkout.sessions.create.mockResolvedValue({
+      id: "cs_new",
+      url: "https://checkout.stripe.com/new",
+    });
+
+    const res = await POST(createRequest({
+      plan: "monthly",
+      currency: "BRL",
+      promotionCode: "d2cVIP",
+    }));
+
+    expect(res.status).toBe(200);
+    expect((await res.json()).checkoutUrl).toBe("https://checkout.stripe.com/new");
+    expect((buyer as any).pendingCheckoutSessionId).toBe("cs_new");
+  });
+
+  it("still blocks a pending checkout that has a real subscription to resume", async () => {
+    mockGetServerSession.mockResolvedValue({ user: { id: "u-resume", email: "u-resume@test.com" } });
+    mockFindById.mockResolvedValue({
+      _id: "u-resume",
+      planStatus: "pending",
+      stripeSubscriptionId: "sub_pending",
+      stripeCustomerId: "cus_123",
+      save: jest.fn(),
+    });
+
+    const res = await POST(createRequest({ plan: "monthly", currency: "BRL" }));
+
+    expect(res.status).toBe(409);
+    expect(await res.json()).toMatchObject({ code: "BILLING_BLOCKED_PENDING_OR_INCOMPLETE" });
+  });
+
+  it("rejects d2cVIP in Portuguese when the customer already paid before", async () => {
+    mockGetServerSession.mockResolvedValue({ user: { id: "u-old", email: "u-old@test.com" } });
+    mockFindById.mockResolvedValue({
+      _id: "u-old",
+      planStatus: "inactive",
+      stripeCustomerId: "cus_123",
+      save: jest.fn(),
+    });
+    mockStripeList.mockResolvedValue({ data: [] });
+    stripe.promotionCodes.list.mockResolvedValue({
+      data: [
+        {
+          id: "promo_d2cvip",
+          code: "d2cVIP",
+          active: true,
+          restrictions: { first_time_transaction: true },
+        },
+      ],
+    });
+    // Fatura de R$ 0 do próprio VIP não conta; uma cobrança real conta.
+    (stripe as any).invoices.list.mockResolvedValue({
+      data: [{ amount_paid: 0 }, { amount_paid: 9700 }],
+    });
+
+    const res = await POST(createRequest({
+      plan: "monthly",
+      currency: "BRL",
+      promotionCode: "d2cVIP",
+    }));
+
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.code).toBe("PROMOTION_NOT_ELIGIBLE");
+    expect(body.message).toContain("primeira assinatura");
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("keeps a zero-amount invoice from disqualifying the coupon", async () => {
+    mockGetServerSession.mockResolvedValue({ user: { id: "u-zero", email: "u-zero@test.com" } });
+    mockFindById.mockResolvedValue({
+      _id: "u-zero",
+      planStatus: "inactive",
+      stripeCustomerId: "cus_123",
+      save: jest.fn(),
+    });
+    mockStripeList.mockResolvedValue({ data: [] });
+    stripe.promotionCodes.list.mockResolvedValue({
+      data: [
+        {
+          id: "promo_d2cvip",
+          code: "d2cVIP",
+          active: true,
+          restrictions: { first_time_transaction: true },
+        },
+      ],
+    });
+    (stripe as any).invoices.list.mockResolvedValue({ data: [{ amount_paid: 0 }] });
+    stripe.checkout.sessions.create.mockResolvedValue({
+      id: "cs_zero",
+      url: "https://checkout.stripe.com/zero",
+    });
+
+    const res = await POST(createRequest({
+      plan: "monthly",
+      currency: "BRL",
+      promotionCode: "d2cVIP",
+    }));
+
+    expect(res.status).toBe(200);
+  });
+
+  it("translates a Stripe coupon restriction error instead of leaking it raw", async () => {
+    mockGetServerSession.mockResolvedValue({ user: { id: "u-raw", email: "u-raw@test.com" } });
+    mockFindById.mockResolvedValue({
+      _id: "u-raw",
+      planStatus: "inactive",
+      stripeCustomerId: "cus_123",
+      save: jest.fn(),
+    });
+    mockStripeList.mockResolvedValue({ data: [] });
+    stripe.promotionCodes.list.mockResolvedValue({
+      data: [{ id: "promo_d2cvip", code: "d2cVIP", active: true, restrictions: {} }],
+    });
+    stripe.checkout.sessions.create.mockRejectedValue(
+      Object.assign(new Error("This promotion code cannot be redeemed."), {
+        type: "StripeInvalidRequestError",
+        param: "discounts[0][promotion_code]",
+      }),
+    );
+
+    const res = await POST(createRequest({
+      plan: "monthly",
+      currency: "BRL",
+      promotionCode: "d2cVIP",
+    }));
+
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.code).toBe("PROMOTION_NOT_ELIGIBLE");
+    expect(body.message).not.toContain("cannot be redeemed");
+  });
+
+  it("closes the coupon once the campaign cap is reached", async () => {
+    process.env.D2C_VIP_MAX_REDEMPTIONS = "6";
+    mockGetServerSession.mockResolvedValue({ user: { id: "u-cap", email: "u-cap@test.com" } });
+    mockFindById.mockResolvedValue({
+      _id: "u-cap",
+      planStatus: "inactive",
+      stripeCustomerId: "cus_123",
+      save: jest.fn(),
+    });
+    mockStripeList.mockResolvedValue({ data: [] });
+    stripe.promotionCodes.list.mockResolvedValue({
+      data: [{ id: "promo_d2cvip", code: "d2cVIP", active: true, times_redeemed: 6, restrictions: {} }],
+    });
+
+    const res = await POST(createRequest({
+      plan: "monthly",
+      currency: "BRL",
+      promotionCode: "d2cVIP",
+    }));
+
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.code).toBe("PROMOTION_CAMPAIGN_CLOSED");
+    expect(body.message).toContain("limite de usos");
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+  });
+
+  it("keeps the coupon open while the cap has room", async () => {
+    process.env.D2C_VIP_MAX_REDEMPTIONS = "100";
+    mockGetServerSession.mockResolvedValue({ user: { id: "u-room", email: "u-room@test.com" } });
+    mockFindById.mockResolvedValue({
+      _id: "u-room",
+      planStatus: "inactive",
+      stripeCustomerId: "cus_123",
+      save: jest.fn(),
+    });
+    mockStripeList.mockResolvedValue({ data: [] });
+    stripe.promotionCodes.list.mockResolvedValue({
+      data: [{ id: "promo_d2cvip", code: "d2cVIP", active: true, times_redeemed: 6, restrictions: {} }],
+    });
+    stripe.checkout.sessions.create.mockResolvedValue({
+      id: "cs_room",
+      url: "https://checkout.stripe.com/room",
+    });
+
+    const res = await POST(createRequest({
+      plan: "monthly",
+      currency: "BRL",
+      promotionCode: "d2cVIP",
+    }));
+
+    expect(res.status).toBe(200);
+  });
+
+  it("closes the coupon after the campaign deadline", async () => {
+    process.env.D2C_VIP_EXPIRES_AT = "2020-01-01T00:00:00Z";
+    mockGetServerSession.mockResolvedValue({ user: { id: "u-exp", email: "u-exp@test.com" } });
+    mockFindById.mockResolvedValue({
+      _id: "u-exp",
+      planStatus: "inactive",
+      stripeCustomerId: "cus_123",
+      save: jest.fn(),
+    });
+    mockStripeList.mockResolvedValue({ data: [] });
+    stripe.promotionCodes.list.mockResolvedValue({
+      data: [{ id: "promo_d2cvip", code: "d2cVIP", active: true, times_redeemed: 0, restrictions: {} }],
+    });
+
+    const res = await POST(createRequest({
+      plan: "monthly",
+      currency: "BRL",
+      promotionCode: "d2cVIP",
+    }));
+
+    expect(res.status).toBe(422);
+    expect((await res.json()).message).toContain("expirou");
   });
 
   it("blocks when DB says active", async () => {

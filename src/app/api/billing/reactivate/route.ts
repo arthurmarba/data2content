@@ -175,9 +175,18 @@ export async function POST() {
       )
     }
 
-    // 3) Se estava marcado para cancelar no fim do ciclo, retira o cancelamento
+    // 3) Se estava marcado para cancelar no fim do ciclo, retira o cancelamento.
+    // O motivo do cancelamento sai junto: deixá-lo colado numa assinatura viva
+    // envenena qualquer leitura futura de churn — a pessoa desistiu de sair.
     const updated = needsFlip
-      ? await stripe.subscriptions.update(user.stripeSubscriptionId, { cancel_at_period_end: false }) as Stripe.Subscription
+      ? await stripe.subscriptions.update(user.stripeSubscriptionId, {
+          cancel_at_period_end: false,
+          metadata: {
+            ...(current.metadata ?? {}),
+            cancellation_reasons: null,
+            cancellation_comment: null,
+          },
+        }) as Stripe.Subscription
       : current
 
     // 4) Persistência no DB (status REAL do Stripe)

@@ -6,6 +6,7 @@ import { paymentFailureEmail } from '@/emails/paymentFailure';
 import { subscriptionCanceledEmail } from '@/emails/subscriptionCanceled';
 import { paymentReceiptEmail } from '@/emails/paymentReceipt';
 import { vipInviteEmail } from '@/emails/vipInvite';
+import { freeMonthEndingEmail } from '@/emails/freeMonthEnding';
 import { proposalReplyEmail, ProposalReplyEmailParams } from '@/emails/proposalReply';
 import { proposalReceivedEmail, ProposalReceivedEmailParams } from '@/emails/proposalReceivedEmail';
 import { campaignBriefConfirmation, CampaignBriefConfirmationParams } from '@/emails/campaignBriefConfirmation';
@@ -165,6 +166,22 @@ export async function sendPaymentReceiptEmail(
   } catch (err) {
     logger.error('[emailService] Falha ao enviar recibo de pagamento', err);
   }
+}
+
+export async function sendFreeMonthEndingEmail(
+  to: string,
+  params: {
+    name?: string | null;
+    chargeDate: Date;
+    amountCents: number;
+    currency: string;
+  }
+) {
+  const template = freeMonthEndingEmail(params);
+  // Diferente dos outros: quem chama precisa saber se falhou, porque o envio é
+  // marcado como feito e não se repete. Engolir o erro cobraria em silêncio.
+  await sendMail({ to, subject: template.subject, text: template.text, html: template.html });
+  logger.info(`[emailService] Aviso de fim do mês grátis enviado para ${to}`);
 }
 
 export async function sendVipInviteEmail(to: string, params: { name?: string | null }) {

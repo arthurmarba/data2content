@@ -20,6 +20,10 @@ import {
   isD2cVipPromotionCode,
   normalizePromotionCode,
 } from "@/app/lib/billing/d2cVipPromotion";
+import {
+  checkVipCampaignWindow,
+  vipCampaignMessage,
+} from "@/app/lib/billing/d2cVipCampaign";
 
 export const runtime = "nodejs";
 
@@ -96,27 +100,80 @@ function getStripeRequestId(obj: unknown): string | null {
   return (obj as any)?.lastResponse?.requestId ?? null;
 }
 
+/** Erro do Stripe ao recusar um cupom por restrição (elegibilidade, validade, produto). */
+function isPromotionRestrictionError(error: unknown): boolean {
+  const err = error as any;
+  if (err?.type !== "StripeInvalidRequestError") return false;
+  const param = String(err?.param ?? "");
+  const message = String(err?.raw?.message ?? err?.message ?? "").toLowerCase();
+  return (
+    param.includes("discounts") ||
+    param.includes("promotion_code") ||
+    param.includes("coupon") ||
+    message.includes("promotion code") ||
+    message.includes("coupon")
+  );
+}
+
+type ManualDiscountResolution =
+  | { ok: true; discounts: Stripe.SubscriptionCreateParams.Discount[] }
+  | { ok: false; reason: "not_found" | "first_time_only" | "expired" | "sold_out" };
+
+/**
+ * Um cupom com `first_time_transaction` só vale para quem nunca pagou nada.
+ * O Stripe considera "transação" uma cobrança real, então uma fatura de R$ 0
+ * (o próprio benefício do d2cVIP) não desqualifica ninguém.
+ */
+async function customerHasPaidBefore(customerId: string): Promise<boolean> {
+  try {
+    const invoices = await stripe.invoices.list({
+      customer: customerId,
+      status: "paid",
+      limit: 20,
+    });
+    return invoices.data.some((invoice) => (invoice.amount_paid ?? 0) > 0);
+  } catch {
+    // Na dúvida, deixa o Stripe decidir no momento do checkout.
+    return false;
+  }
+}
+
 async function resolveManualDiscountFields(
-  code: string
-): Promise<{ discounts: Stripe.SubscriptionCreateParams.Discount[] } | null> {
+  code: string,
+  customerId?: string | null
+): Promise<ManualDiscountResolution> {
   const trimmed = normalizeCode(code);
-  if (!trimmed) return null;
+  if (!trimmed) return { ok: false, reason: "not_found" };
 
   try {
     const res = await stripe.promotionCodes.list({ code: trimmed, active: true, limit: 1 });
     const pc = res.data?.[0];
-    if (pc?.id) return { discounts: [{ promotion_code: pc.id }] };
+    if (pc?.id) {
+      // Teto e validade da campanha são nossos: o Stripe não aceita acrescentá-los
+      // a um código que já existe.
+      if (isD2cVipPromotionCode(trimmed)) {
+        const window = checkVipCampaignWindow({ promotionCode: pc });
+        if (!window.available) {
+          return { ok: false, reason: window.reason };
+        }
+      }
+      const firstTimeOnly = Boolean((pc as any)?.restrictions?.first_time_transaction);
+      if (firstTimeOnly && customerId && (await customerHasPaidBefore(customerId))) {
+        return { ok: false, reason: "first_time_only" };
+      }
+      return { ok: true, discounts: [{ promotion_code: pc.id }] };
+    }
   } catch { /* noop */ }
 
   try {
     const c = await stripe.coupons.retrieve(trimmed as string);
     const isDeleted = (c as any)?.deleted === true;
     if ((c as any)?.id && !isDeleted) {
-      return { discounts: [{ coupon: (c as any).id }] };
+      return { ok: true, discounts: [{ coupon: (c as any).id }] };
     }
   } catch { /* noop */ }
 
-  return null;
+  return { ok: false, reason: "not_found" };
 }
 
 type ResolvedAffiliate =
@@ -369,7 +426,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (dbStatus === "pending" || dbStatus === "incomplete") {
+    // Um checkout hospedado abandonado deixa o usuário "pending" sem assinatura
+    // nenhuma para retomar. Nesse caso não há pendência real: limpa e segue,
+    // em vez de trancá-lo fora da compra até achar "Resolver pendência".
+    const hasOrphanPendingCheckout =
+      (dbStatus === "pending" || dbStatus === "incomplete") &&
+      !(user as any).stripeSubscriptionId;
+
+    if (hasOrphanPendingCheckout) {
+      (user as any).planStatus = "inactive";
+      (user as any).pendingCheckoutSessionId = null;
+      (user as any).pendingCheckoutExpiresAt = null;
+      await user.save();
+      logger.info("billing_subscribe_recovered_orphan_pending", {
+        endpoint: "POST /api/billing/subscribe",
+        userId,
+        customerId: (user as any).stripeCustomerId ?? null,
+        subscriptionId: null,
+        statusDb: dbStatus,
+        statusStripe: null,
+        errorCode: null,
+        stripeRequestId: null,
+      });
+    }
+
+    if (!hasOrphanPendingCheckout && (dbStatus === "pending" || dbStatus === "incomplete")) {
       logger.info("billing_subscribe_blocked_db_pending", {
         endpoint: "POST /api/billing/subscribe",
         userId,
@@ -588,8 +669,48 @@ export async function POST(req: NextRequest) {
     }
 
     if (promotionCode) {
-      const manual = await resolveManualDiscountFields(promotionCode);
-      if (!manual) {
+      const manual = await resolveManualDiscountFields(promotionCode, customerId);
+      if (!manual.ok) {
+        if (manual.reason === "expired" || manual.reason === "sold_out") {
+          logger.info("billing_subscribe_promotion_campaign_closed", {
+            endpoint: "POST /api/billing/subscribe",
+            userId,
+            customerId,
+            subscriptionId: null,
+            statusDb: dbStatus || null,
+            statusStripe: null,
+            promotionCode,
+            errorCode: "PROMOTION_CAMPAIGN_CLOSED",
+            stripeRequestId: null,
+          });
+          return NextResponse.json(
+            {
+              code: "PROMOTION_CAMPAIGN_CLOSED",
+              message: vipCampaignMessage(manual.reason),
+            },
+            { status: 422 },
+          );
+        }
+        if (manual.reason === "first_time_only") {
+          logger.info("billing_subscribe_promotion_not_eligible", {
+            endpoint: "POST /api/billing/subscribe",
+            userId,
+            customerId,
+            subscriptionId: null,
+            statusDb: dbStatus || null,
+            statusStripe: null,
+            promotionCode,
+            errorCode: "PROMOTION_NOT_ELIGIBLE",
+            stripeRequestId: null,
+          });
+          return NextResponse.json(
+            {
+              code: "PROMOTION_NOT_ELIGIBLE",
+              message: `O cupom ${D2C_VIP_DISPLAY_CODE} vale apenas para a primeira assinatura.`,
+            },
+            { status: 422 },
+          );
+        }
         return NextResponse.json(
           { code: "INVALID_CODE", message: "Código inválido ou expirado." },
           { status: 422 }
@@ -623,27 +744,54 @@ export async function POST(req: NextRequest) {
         fallbackPath: "/dashboard/billing",
       });
 
-      const sessionCheckout = await stripe.checkout.sessions.create({
-        mode: "subscription",
-        customer: customerId!,
-        line_items: [{ price: priceId, quantity: 1 }],
-        payment_method_collection: "always",
-        discounts: discounts as Stripe.Checkout.SessionCreateParams.Discount[],
-        subscription_data: { metadata },
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-        client_reference_id: String(user._id),
-      }, {
-        idempotencyKey: buildIdempotencyKey({
-          scope: "checkout_session",
-          userId: String(user._id),
-          priceId,
-          plan,
-          currency,
-          affiliateCode,
-          promotionCode,
-        }),
-      });
+      let sessionCheckout: Stripe.Checkout.Session;
+      try {
+        sessionCheckout = await stripe.checkout.sessions.create({
+          mode: "subscription",
+          customer: customerId!,
+          line_items: [{ price: priceId, quantity: 1 }],
+          payment_method_collection: "always",
+          discounts: discounts as Stripe.Checkout.SessionCreateParams.Discount[],
+          subscription_data: { metadata },
+          success_url: successUrl,
+          cancel_url: cancelUrl,
+          client_reference_id: String(user._id),
+        }, {
+          idempotencyKey: buildIdempotencyKey({
+            scope: "checkout_session",
+            userId: String(user._id),
+            priceId,
+            plan,
+            currency,
+            affiliateCode,
+            promotionCode,
+          }),
+        });
+      } catch (error) {
+        // Restrições do cupom (ex.: first_time_transaction) só estouram aqui.
+        // Sem esta tradução a mensagem crua do Stripe, em inglês, vaza na tela.
+        if (isPromotionRestrictionError(error)) {
+          logger.info("billing_subscribe_promotion_rejected_by_stripe", {
+            endpoint: "POST /api/billing/subscribe",
+            userId,
+            customerId,
+            subscriptionId: null,
+            statusDb: dbStatus || null,
+            statusStripe: null,
+            promotionCode,
+            errorCode: "PROMOTION_NOT_ELIGIBLE",
+            stripeRequestId: null,
+          });
+          return NextResponse.json(
+            {
+              code: "PROMOTION_NOT_ELIGIBLE",
+              message: `O cupom ${D2C_VIP_DISPLAY_CODE} vale apenas para a primeira assinatura.`,
+            },
+            { status: 422 },
+          );
+        }
+        throw error;
+      }
 
       if (!sessionCheckout.url) {
         return NextResponse.json(
@@ -655,13 +803,19 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      user.planStatus = "pending" as any;
+      // O status só muda quando o webhook confirmar o pagamento. Marcar
+      // "pending" aqui trancava quem fechava a aba do Stripe sem concluir.
       user.planType = plan;
       user.planInterval = "month";
       user.stripePriceId = priceId;
       user.cancelAtPeriodEnd = false;
       user.planExpiresAt = null;
       user.stripeSubscriptionId = null;
+      (user as any).pendingCheckoutSessionId = sessionCheckout.id ?? null;
+      (user as any).pendingCheckoutExpiresAt =
+        typeof sessionCheckout.expires_at === "number"
+          ? new Date(sessionCheckout.expires_at * 1000)
+          : null;
       (user as any).lastPaymentError = null;
       await user.save();
 
@@ -670,7 +824,7 @@ export async function POST(req: NextRequest) {
         userId,
         customerId,
         subscriptionId: null,
-        statusDb: "pending",
+        statusDb: (user as any).planStatus ?? null,
         statusStripe: null,
         promotionCode,
         errorCode: null,
@@ -718,6 +872,8 @@ export async function POST(req: NextRequest) {
 
     let checkoutUrl: string | null = null;
     let checkoutRequestId: string | null = null;
+    let checkoutSessionId: string | null = null;
+    let checkoutExpiresAt: Date | null = null;
 
     if (!clientSecret) {
       if (sub.status !== "incomplete") {
@@ -790,6 +946,11 @@ export async function POST(req: NextRequest) {
 
       checkoutUrl = sessionCheckout.url ?? null;
       checkoutRequestId = getStripeRequestId(sessionCheckout);
+      checkoutSessionId = sessionCheckout.id ?? null;
+      checkoutExpiresAt =
+        typeof sessionCheckout.expires_at === "number"
+          ? new Date(sessionCheckout.expires_at * 1000)
+          : null;
 
       if (!checkoutUrl) {
         return NextResponse.json(
@@ -818,7 +979,11 @@ export async function POST(req: NextRequest) {
         ? new Date(currentPeriodEndSec * 1000)
         : null;
 
-    const statusForDb = sub.status === "incomplete" ? "pending" : (sub.status as any);
+    // Sem clientSecret a assinatura foi cancelada e o pagamento virou checkout
+    // hospedado: não há nada para "retomar", então o status não vira pending.
+    const statusForDb = clientSecret
+      ? (sub.status === "incomplete" ? "pending" : (sub.status as any))
+      : ((user as any).planStatus ?? "inactive");
 
     user.planStatus = statusForDb as any;
     user.planType = plan;
@@ -827,6 +992,8 @@ export async function POST(req: NextRequest) {
     user.cancelAtPeriodEnd = false;
     user.planExpiresAt = resolvedExpiresAt;
     (user as any).lastPaymentError = null;
+    (user as any).pendingCheckoutSessionId = clientSecret ? null : checkoutSessionId;
+    (user as any).pendingCheckoutExpiresAt = clientSecret ? null : checkoutExpiresAt;
 
     user.stripeSubscriptionId = clientSecret ? sub.id : null;
 
