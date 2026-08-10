@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BriefcaseBusiness, Calculator } from "lucide-react";
 import { COMMUNITY_WHATSAPP_URL } from "@/app/lib/communityLinks";
@@ -465,14 +464,23 @@ function MeetingCard({
         {cancelled ? "Esta edição foi cancelada" : meeting ? formatMeetingDate(meeting) : "Toda quinta, 19h"}
       </h2>
       <p className="ds-body mt-2">Os criadores abrem os relatórios e dizem o que fariam diferente. É onde você descobre o que ninguém percebe sozinho.</p>
-      <div className="mt-4 flex flex-wrap gap-2">
+      {/* Um destino só: o grupo. Quem assina entra direto; quem não assina cai
+          no paywall. A página /reuniao continua existindo para gravações e
+          calendário, mas deixou de ser passagem obrigatória do Perfil. */}
+      <div className="mt-4">
         {isPro && !isDemo ? (
-          <>
-            <Link href="/reuniao" className="ds-button ds-button--secondary ds-button--small no-underline">Entrar na reunião</Link>
-            <a href={COMMUNITY_WHATSAPP_URL} target="_blank" rel="noreferrer" className="ds-button ds-button--quiet ds-button--small no-underline">Grupo Pro</a>
-          </>
+          <a
+            href={COMMUNITY_WHATSAPP_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="ds-button ds-button--secondary ds-button--small no-underline"
+          >
+            Entrar no grupo
+          </a>
         ) : (
-          <button type="button" className="ds-button ds-button--quiet ds-button--small" onClick={() => onUpgrade("mentoria")}>Participar das reuniões</button>
+          <button type="button" className="ds-button ds-button--quiet ds-button--small" onClick={() => onUpgrade("mentoria")}>
+            Ser membro e entrar no grupo
+          </button>
         )}
       </div>
     </section>

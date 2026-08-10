@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { CREATOR_WEEKLY_REPORT_DEMO } from "@/app/lib/creatorWeeklyReport/demoReport";
+import { COMMUNITY_WHATSAPP_URL } from "@/app/lib/communityLinks";
 import { buildDiagnosticoPageDataFixture } from "./diagnosticoTestFixtures";
 import { CreatorWeeklyProfileExperience } from "./CreatorWeeklyProfileExperience";
 
@@ -72,6 +73,10 @@ describe("CreatorWeeklyProfileExperience", () => {
     expect(callbacks.onOpenAccountMenu).toHaveBeenCalledTimes(1);
     fireEvent.click(screen.getByRole("button", { name: "Ver relatório de exemplo" }));
     expect(callbacks.onDemoChange).toHaveBeenCalledWith(true);
+    // Sem assinatura o convite da comunidade vai para o paywall, nunca para o grupo.
+    expect(screen.queryByRole("link", { name: "Entrar no grupo" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ser membro e entrar no grupo" }));
+    expect(callbacks.onUpgrade).toHaveBeenCalledWith("mentoria");
   });
 
   it("abre os rankings do relatório real sem trocar a identidade", () => {
@@ -99,6 +104,11 @@ describe("CreatorWeeklyProfileExperience", () => {
     expect(screen.getByText("Ana Criadora")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "A semana por dentro" }).closest("section")).toHaveClass("ds-notebook-section");
     expect(container.querySelectorAll(".ds-editorial-panel")).toHaveLength(0);
+    // Assinante vai direto ao grupo: sem página intermediária no caminho.
+    const groupLink = screen.getByRole("link", { name: "Entrar no grupo" });
+    expect(groupLink).toHaveAttribute("href", COMMUNITY_WHATSAPP_URL);
+    expect(screen.queryByRole("link", { name: /Entrar na reunião/i })).not.toBeInTheDocument();
+
     fireEvent.click(screen.getByRole("button", { name: /Dia e horário/i }));
     expect(screen.getByRole("heading", { name: "Dia e horário" })).toBeInTheDocument();
     expect(screen.getByText("Ranking dos dias")).toBeInTheDocument();
