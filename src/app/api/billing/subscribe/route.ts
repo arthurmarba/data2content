@@ -24,6 +24,8 @@ import {
   checkVipCampaignWindow,
   vipCampaignMessage,
 } from "@/app/lib/billing/d2cVipCampaign";
+import { TAX_ID_INVALID_MESSAGE, parseTaxId } from "@/app/lib/billing/taxId";
+import { syncTaxIdToStripe } from "@/app/lib/billing/syncTaxIdToStripe";
 
 export const runtime = "nodejs";
 
@@ -73,6 +75,24 @@ function resolveCheckoutRedirectUrl(
   }
 }
 
+function resolveHostedCheckoutSuccessUrl(
+  rawValue: unknown,
+  options: { appBaseUrl: string }
+) {
+  const resolved = resolveCheckoutRedirectUrl(rawValue, {
+    appBaseUrl: options.appBaseUrl,
+    fallbackPath: "/billing/success?session_id={CHECKOUT_SESSION_ID}",
+  });
+  const url = new URL(resolved);
+  if (!url.searchParams.has("session_id")) {
+    url.searchParams.set("session_id", "{CHECKOUT_SESSION_ID}");
+  }
+  // URLSearchParams codifica as chaves; a Stripe exige este placeholder literal.
+  return url
+    .toString()
+    .replace("%7BCHECKOUT_SESSION_ID%7D", "{CHECKOUT_SESSION_ID}");
+}
+
 function buildIdempotencyKey(params: {
   scope: "sub_create" | "checkout_session";
   userId: string;
@@ -99,6 +119,16 @@ function buildIdempotencyKey(params: {
 function getStripeRequestId(obj: unknown): string | null {
   return (obj as any)?.lastResponse?.requestId ?? null;
 }
+
+/**
+ * Coleta de CPF/CNPJ no Checkout hospedado. O `customer_update` é exigido pelo
+ * Stripe para gravar o que foi coletado num customer que já existe — sem ele a
+ * criação da sessão falha.
+ */
+const HOSTED_CHECKOUT_TAX_ID_COLLECTION = {
+  tax_id_collection: { enabled: true, required: "if_supported" },
+  customer_update: { name: "auto", address: "auto" },
+} as const satisfies Partial<Stripe.Checkout.SessionCreateParams>;
 
 /** Erro do Stripe ao recusar um cupom por restrição (elegibilidade, validade, produto). */
 function isPromotionRestrictionError(error: unknown): boolean {
@@ -300,6 +330,24 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Usuário não encontrado" }, { status: 404 });
     }
     const userId = String(user._id);
+
+    // CPF/CNPJ: sem documento não há nota fiscal, e o único momento em que dá
+    // para pedir com a pessoa presente é agora. Aceita o que já está salvo,
+    // para quem volta a assinar não precisar digitar de novo.
+    const incomingTaxId = parseTaxId(body.taxId);
+    if (body.taxId !== undefined && !incomingTaxId) {
+      return NextResponse.json(
+        { code: "INVALID_TAX_ID", message: TAX_ID_INVALID_MESSAGE },
+        { status: 422 },
+      );
+    }
+    if (incomingTaxId && (user as any).taxId !== incomingTaxId.value) {
+      (user as any).taxId = incomingTaxId.value;
+      (user as any).taxIdType = incomingTaxId.type;
+      (user as any).taxIdUpdatedAt = new Date();
+      await user.save();
+    }
+
     const dbStatusRaw = (user as any).planStatus ?? null;
     const dbStatus = typeof dbStatusRaw === "string" ? dbStatusRaw.toLowerCase() : "";
     const dbCancelAtPeriodEnd = Boolean((user as any).cancelAtPeriodEnd);
@@ -491,6 +539,13 @@ export async function POST(req: NextRequest) {
     const priceId = getPriceId(plan, currency);
 
     let customerId = await getOrCreateStripeCustomerId(user);
+
+    // Documento no cliente do Stripe: aparece na fatura e no recibo dele.
+    const storedTaxId = parseTaxId((user as any).taxId);
+    if (storedTaxId) {
+      await syncTaxIdToStripe(customerId, storedTaxId);
+    }
+
     let subsList: Stripe.ApiList<Stripe.Subscription>;
     try {
       subsList = await stripe.subscriptions.list({
@@ -735,10 +790,7 @@ export async function POST(req: NextRequest) {
     // garantindo a cobrança automática do segundo mês em diante.
     if (isD2cVipPromotionCode(promotionCode)) {
       const appBaseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin;
-      const successUrl = resolveCheckoutRedirectUrl(body.successUrl, {
-        appBaseUrl,
-        fallbackPath: "/billing/success?session_id={CHECKOUT_SESSION_ID}",
-      });
+      const successUrl = resolveHostedCheckoutSuccessUrl(body.successUrl, { appBaseUrl });
       const cancelUrl = resolveCheckoutRedirectUrl(body.cancelUrl, {
         appBaseUrl,
         fallbackPath: "/dashboard/billing",
@@ -753,6 +805,8 @@ export async function POST(req: NextRequest) {
           payment_method_collection: "always",
           discounts: discounts as Stripe.Checkout.SessionCreateParams.Discount[],
           subscription_data: { metadata },
+          // Só pede se ainda não temos: quem já informou não digita de novo.
+          ...(storedTaxId ? {} : HOSTED_CHECKOUT_TAX_ID_COLLECTION),
           success_url: successUrl,
           cancel_url: cancelUrl,
           client_reference_id: String(user._id),
@@ -901,10 +955,7 @@ export async function POST(req: NextRequest) {
       } catch { /* noop */ }
 
       const appBaseUrl = process.env.NEXTAUTH_URL || new URL(req.url).origin;
-      const successUrl = resolveCheckoutRedirectUrl(body.successUrl, {
-        appBaseUrl,
-        fallbackPath: "/billing/success?session_id={CHECKOUT_SESSION_ID}",
-      });
+      const successUrl = resolveHostedCheckoutSuccessUrl(body.successUrl, { appBaseUrl });
       const cancelUrl = resolveCheckoutRedirectUrl(body.cancelUrl, {
         appBaseUrl,
         fallbackPath: "/dashboard/billing",
@@ -918,6 +969,7 @@ export async function POST(req: NextRequest) {
           ? { discounts: discounts as Stripe.Checkout.SessionCreateParams.Discount[] }
           : {}
         ),
+        ...(storedTaxId ? {} : HOSTED_CHECKOUT_TAX_ID_COLLECTION),
         subscription_data: {
           metadata: {
             userId: String(user._id),

@@ -35,6 +35,7 @@ jest.mock("@/app/lib/affiliate", () => ({
 jest.mock("@/app/lib/logger", () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }));
+jest.mock("@/app/lib/billing/syncTaxIdToStripe", () => ({ syncTaxIdToStripe: jest.fn() }));
 jest.mock("@/server/db/models/AffiliateIndexes", () => ({
   AffiliateBuyerCommissionIndex: { exists: jest.fn().mockResolvedValue(false) },
 }));
@@ -49,6 +50,7 @@ const {
   isStripeResourceMissingError,
   persistStaleStripeBillingPatch,
 } = require("@/utils/stripeHelpers");
+const { syncTaxIdToStripe } = require("@/app/lib/billing/syncTaxIdToStripe");
 const { POST } = require("./route");
 
 const mockGetServerSession = getServerSession as jest.Mock;
@@ -60,6 +62,7 @@ const mockCheckRateLimit = checkRateLimit as jest.Mock;
 const mockGetCustomerId = getOrCreateStripeCustomerId as jest.Mock;
 const mockIsStripeResourceMissingError = isStripeResourceMissingError as jest.Mock;
 const mockPersistStaleStripeBillingPatch = persistStaleStripeBillingPatch as jest.Mock;
+const mockSyncTaxIdToStripe = syncTaxIdToStripe as jest.Mock;
 
 const createRequest = (body: any) =>
   new NextRequest("http://localhost/api/billing/subscribe", {
@@ -76,6 +79,7 @@ beforeEach(() => {
   mockIsStripeResourceMissingError.mockReturnValue(false);
   mockPersistStaleStripeBillingPatch.mockResolvedValue(undefined);
   (stripe as any).invoices.list.mockResolvedValue({ data: [] });
+  mockSyncTaxIdToStripe.mockResolvedValue(true);
   delete process.env.D2C_VIP_MAX_REDEMPTIONS;
   delete process.env.D2C_VIP_EXPIRES_AT;
   process.env.STRIPE_PRICE_MONTHLY_BRL = "price_monthly_brl";
@@ -146,6 +150,7 @@ describe("POST /api/billing/subscribe", () => {
         mode: "subscription",
         customer: "cus_123",
         line_items: [{ price: "price_monthly_brl", quantity: 1 }],
+        success_url: "http://localhost/billing/success?session_id={CHECKOUT_SESSION_ID}",
         payment_method_collection: "always",
         discounts: [{ promotion_code: "promo_d2cvip" }],
         subscription_data: {
@@ -393,6 +398,80 @@ describe("POST /api/billing/subscribe", () => {
 
     expect(res.status).toBe(422);
     expect((await res.json()).message).toContain("expirou");
+  });
+
+  it("saves the tax id sent at checkout and mirrors it to Stripe", async () => {
+    mockGetServerSession.mockResolvedValue({ user: { id: "u-tax", email: "u-tax@test.com" } });
+    const save = jest.fn();
+    const buyer = { _id: "u-tax", planStatus: "inactive", stripeCustomerId: "cus_123", save };
+    mockFindById.mockResolvedValue(buyer);
+    mockStripeList.mockResolvedValue({ data: [] });
+    stripe.promotionCodes.list.mockResolvedValue({
+      data: [{ id: "promo_d2cvip", code: "d2cVIP", active: true, restrictions: {} }],
+    });
+    stripe.checkout.sessions.create.mockResolvedValue({ id: "cs_tax", url: "https://checkout.stripe.com/tax" });
+
+    const res = await POST(createRequest({
+      plan: "monthly",
+      currency: "BRL",
+      promotionCode: "d2cVIP",
+      taxId: "529.982.247-25",
+    }));
+
+    expect(res.status).toBe(200);
+    expect((buyer as any).taxId).toBe("52998224725");
+    expect((buyer as any).taxIdType).toBe("cpf");
+    expect(mockSyncTaxIdToStripe).toHaveBeenCalledWith("cus_123", { value: "52998224725", type: "cpf" });
+  });
+
+  it("refuses an invalid tax id before touching Stripe", async () => {
+    mockGetServerSession.mockResolvedValue({ user: { id: "u-bad", email: "u-bad@test.com" } });
+    mockFindById.mockResolvedValue({ _id: "u-bad", planStatus: "inactive", stripeCustomerId: "cus_123", save: jest.fn() });
+
+    const res = await POST(createRequest({ plan: "monthly", currency: "BRL", taxId: "111.111.111-11" }));
+
+    expect(res.status).toBe(422);
+    expect((await res.json()).code).toBe("INVALID_TAX_ID");
+    expect(stripe.checkout.sessions.create).not.toHaveBeenCalled();
+    expect(mockStripeCreate).not.toHaveBeenCalled();
+  });
+
+  it("asks for the document at the hosted checkout only when we do not have it", async () => {
+    mockGetServerSession.mockResolvedValue({ user: { id: "u-known", email: "u-known@test.com" } });
+    mockFindById.mockResolvedValue({
+      _id: "u-known",
+      planStatus: "inactive",
+      stripeCustomerId: "cus_123",
+      taxId: "52998224725",
+      taxIdType: "cpf",
+      save: jest.fn(),
+    });
+    mockStripeList.mockResolvedValue({ data: [] });
+    stripe.promotionCodes.list.mockResolvedValue({
+      data: [{ id: "promo_d2cvip", code: "d2cVIP", active: true, restrictions: {} }],
+    });
+    stripe.checkout.sessions.create.mockResolvedValue({ id: "cs_known", url: "https://checkout.stripe.com/known" });
+
+    await POST(createRequest({ plan: "monthly", currency: "BRL", promotionCode: "d2cVIP" }));
+
+    const params = stripe.checkout.sessions.create.mock.calls[0][0];
+    expect(params.tax_id_collection).toBeUndefined();
+  });
+
+  it("turns on tax id collection at the hosted checkout for someone without a document", async () => {
+    mockGetServerSession.mockResolvedValue({ user: { id: "u-new", email: "u-new@test.com" } });
+    mockFindById.mockResolvedValue({ _id: "u-new", planStatus: "inactive", stripeCustomerId: "cus_123", save: jest.fn() });
+    mockStripeList.mockResolvedValue({ data: [] });
+    stripe.promotionCodes.list.mockResolvedValue({
+      data: [{ id: "promo_d2cvip", code: "d2cVIP", active: true, restrictions: {} }],
+    });
+    stripe.checkout.sessions.create.mockResolvedValue({ id: "cs_new", url: "https://checkout.stripe.com/new" });
+
+    await POST(createRequest({ plan: "monthly", currency: "BRL", promotionCode: "d2cVIP" }));
+
+    const params = stripe.checkout.sessions.create.mock.calls[0][0];
+    expect(params.tax_id_collection).toEqual({ enabled: true, required: "if_supported" });
+    expect(params.customer_update).toEqual({ name: "auto", address: "auto" });
   });
 
   it("blocks when DB says active", async () => {

@@ -185,14 +185,16 @@ export function BillingMobileShell() {
   const isUnpaid = status === "unpaid";
   const isCanceled = status === "canceled";
   const isInactive = status === "inactive" || status === "expired";
+  const billingManagedByStripe = subscription?.billingManagedByStripe !== false;
 
   const showReactivate = isNonRenewing && subscription?.cancelAtPeriodEnd === true;
-  const canCancel = (isActive || isTrialing) && !subscription?.cancelAtPeriodEnd;
+  const canCancel = billingManagedByStripe && (isActive || isTrialing) && !subscription?.cancelAtPeriodEnd;
   const canResumeCheckout = isPending;
   const canAbortCheckout = isPending || isIncompleteExpired;
   const showSubscribeAgain = isCanceled || isInactive || isIncompleteExpired;
-  const canChangePlan = isActive;
+  const canChangePlan = billingManagedByStripe && isActive;
   const showPortal =
+    billingManagedByStripe &&
     (isActive || isTrialing || isNonRenewing || isPastDue || isUnpaid) &&
     !isPending &&
     !isIncompleteExpired;
@@ -230,6 +232,9 @@ export function BillingMobileShell() {
 
   // ── Calm status subtitle (1 fact per state) ───────────────────────────────
   const statusSubtitle = (() => {
+    if (isPro && !billingManagedByStripe) {
+      return "Seu acesso Pro está ativo. Não há cobrança recorrente vinculada a esta conta.";
+    }
     if (isTrialing && amount && trialEndLabel !== "—") {
       return `Próxima cobrança de ${amount} em ${nextInvoiceDateLabel !== "—" ? nextInvoiceDateLabel : trialEndLabel}.`;
     }

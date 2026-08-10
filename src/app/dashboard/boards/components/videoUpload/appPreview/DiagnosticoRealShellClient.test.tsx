@@ -109,6 +109,107 @@ describe("DiagnosticoRealShellClient", () => {
     });
   });
 
+  it("renders the weekly profile and its new tab navigation when enabled", () => {
+    render(
+      <DiagnosticoRealShellClient
+        data={buildDiagnosticoPageDataFixture({
+          creatorWeeklyProfileExperienceEnabled: true,
+          userInfo: {
+            ...buildDiagnosticoPageDataFixture().userInfo,
+            name: "Ana Criadora",
+          },
+        })}
+        onAnalyzeAction={null}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Ana Criadora" })).toBeInTheDocument();
+    expect(screen.getByText("Faltam 2 passos")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Analisar conteúdo" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Collabs" })).toBeInTheDocument();
+    expect(mockDiagnosticoPageRender).not.toHaveBeenCalled();
+  });
+
+  it("lets an admin with a Free billing label use premium mobile actions", async () => {
+    const fetchSpy = jest.spyOn(global, "fetch").mockImplementation((input: RequestInfo | URL) => {
+      if (String(input) === "/api/calculator/latest") {
+        return Promise.resolve(new Response(JSON.stringify({ error: "Nenhum cálculo encontrado." }), { status: 404 }));
+      }
+      return Promise.resolve(new Response(null, { status: 204 }));
+    });
+    const base = buildDiagnosticoPageDataFixture();
+
+    render(
+      <DiagnosticoRealShellClient
+        data={buildDiagnosticoPageDataFixture({
+          accessState: "admin",
+          creatorWeeklyProfileExperienceEnabled: true,
+          instagramConnected: false,
+          userInfo: { ...base.userInfo, plan: "Free" },
+        })}
+        onAnalyzeAction={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Configurações da conta" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Conectar Instagram" }));
+    expect(mockRouterPush).toHaveBeenCalledWith(
+      "/dashboard/instagram/connect?next=narrative-map",
+    );
+    expect(openPaywallModal).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: /Quanto vale sua publi/i }));
+    expect(await screen.findByRole("dialog", { name: "Resultado sugerido" })).toBeInTheDocument();
+    expect(openPaywallModal).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
+  });
+
+  it("chains Instagram after upgrade only when the account is not connected", () => {
+    const base = buildDiagnosticoPageDataFixture();
+    const { unmount } = render(
+      <DiagnosticoRealShellClient
+        data={buildDiagnosticoPageDataFixture({
+          accessState: "free_unused",
+          creatorWeeklyProfileExperienceEnabled: true,
+          instagramConnected: false,
+          userInfo: { ...base.userInfo, plan: "Free" },
+        })}
+        onAnalyzeAction={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Assinar" }));
+    expect(openPaywallModal).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        returnTo: "/dashboard/boards/mobile-strategic-profile",
+        postCheckoutIntent: "connect_instagram",
+      }),
+    );
+
+    unmount();
+    jest.clearAllMocks();
+
+    render(
+      <DiagnosticoRealShellClient
+        data={buildDiagnosticoPageDataFixture({
+          accessState: "free_unused",
+          creatorWeeklyProfileExperienceEnabled: true,
+          instagramConnected: true,
+          userInfo: { ...base.userInfo, plan: "Free" },
+        })}
+        onAnalyzeAction={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Assinar" }));
+    expect(openPaywallModal).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        returnTo: "/dashboard/boards/mobile-strategic-profile",
+        postCheckoutIntent: undefined,
+      }),
+    );
+  });
+
   it("does not render an internal floating tab bar", () => {
     render(<DiagnosticoRealShellClient data={buildDiagnosticoPageDataFixture()} onAnalyzeAction={null} />);
     expect(screen.queryByRole("navigation", { name: /navegação do diagnóstico/i })).not.toBeInTheDocument();
@@ -138,7 +239,7 @@ describe("DiagnosticoRealShellClient", () => {
     expect(screen.getByRole("button", { name: "Conectar Instagram" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Assinar Pro" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Suporte por email" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Programa de Afiliados" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Afiliados" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Excluir minha conta" })).toBeInTheDocument();
   });
 

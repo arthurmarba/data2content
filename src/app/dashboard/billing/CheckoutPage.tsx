@@ -11,6 +11,7 @@ import { useDebounce } from "use-debounce";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { mapSubscribeError } from "@/app/lib/billing/errors";
 import { isD2cVipPromotionCode } from "@/app/lib/billing/d2cVipPromotion";
+import { TAX_ID_INVALID_MESSAGE, maskTaxIdInput, parseTaxId } from "@/app/lib/billing/taxId";
 
 // --- Tipos e Constantes ---
 type Plan = "monthly" | "annual";
@@ -92,6 +93,10 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
   const [loading, setLoading] = useState(false);
   const [resumeLoading, setResumeLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  // CPF/CNPJ é requisito da nota fiscal, então é obrigatório para assinar.
+  const [taxId, setTaxId] = useState("");
+  const [taxIdError, setTaxIdError] = useState<string | null>(null);
+  const [hasStoredTaxId, setHasStoredTaxId] = useState<boolean | null>(null);
   const [errorAction, setErrorAction] = useState<{ label: string; href: string } | null>(null);
 
   // <<< ALTERAÇÃO 4: Remover o useEffect que lia a URL, pois isso agora é feito no Server Component pai >>>
@@ -305,12 +310,39 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
     }
   }, [affiliateCode, plan, currency, fetchPreview]);
 
+  // Quem já informou o documento antes não vê o campo de novo.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/billing/tax-id", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setHasStoredTaxId(Boolean(data?.hasTaxId));
+      } catch {
+        // Indisponibilidade aqui não pode travar o checkout: o campo aparece e
+        // o backend valida de novo.
+        if (!cancelled) setHasStoredTaxId(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
   // --- Iniciar pagamento ---
   async function startCheckout() {
     try {
       setLoading(true);
       setErr(null);
       setErrorAction(null);
+      setTaxIdError(null);
+
+      const needsTaxId = hasStoredTaxId === false;
+      const parsedTaxId = parseTaxId(taxId);
+      if (needsTaxId && !parsedTaxId) {
+        setTaxIdError(TAX_ID_INVALID_MESSAGE);
+        setLoading(false);
+        return;
+      }
       const res = await fetch("/api/billing/subscribe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -320,11 +352,16 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
           ...(isD2cVipPromotionCode(affiliateCode)
             ? { promotionCode: affiliateCode.trim() }
             : { affiliateCode: affiliateCode.trim().toUpperCase() || undefined }),
+          ...(parsedTaxId ? { taxId: parsedTaxId.value } : {}),
         }),
       });
       const data = await res.json();
 
       if (!res.ok) {
+        if (data?.code === "INVALID_TAX_ID") {
+          setTaxIdError(data?.message || TAX_ID_INVALID_MESSAGE);
+          return;
+        }
         if (data?.code === "SELF_REFERRAL") {
           setAffiliateError("Você não pode usar seu próprio código.");
           return;
@@ -442,6 +479,42 @@ export default function CheckoutPage({ affiliateCode: initialAffiliateCode }: Ch
                   </button>
                 </div>
               </div>
+
+              {/* CPF/CNPJ — obrigatório para a nota fiscal */}
+              {hasStoredTaxId === false && (
+                <div>
+                  <label htmlFor="tax-id" className="block text-sm font-medium mb-2">
+                    CPF ou CNPJ
+                  </label>
+                  <input
+                    id="tax-id"
+                    value={taxId}
+                    onChange={(e) => {
+                      setTaxId(maskTaxIdInput(e.target.value));
+                      setTaxIdError(null);
+                    }}
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="000.000.000-00"
+                    aria-invalid={!!taxIdError}
+                    aria-describedby={taxIdError ? "tax-id-error" : "tax-id-hint"}
+                    className={`w-full px-3 py-2 border rounded-md text-sm outline-none ${
+                      taxIdError ? "border-red-500" : "border-gray-300 focus:border-gray-900"
+                    }`}
+                  />
+                  <div role="status" aria-live="polite" className="min-h-[1.25rem]">
+                    {taxIdError ? (
+                      <p id="tax-id-error" className="mt-1 text-xs text-red-600">
+                        {taxIdError}
+                      </p>
+                    ) : (
+                      <p id="tax-id-hint" className="mt-1 text-xs text-gray-500">
+                        Usamos para emitir sua nota fiscal.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Código de Afiliado */}
               <div>

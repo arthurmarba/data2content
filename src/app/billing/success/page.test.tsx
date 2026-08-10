@@ -1,6 +1,7 @@
 import {
   default as BillingSuccessPage,
   normalizeBillingSuccessPostCheckoutIntent,
+  resolveBillingSuccessAttemptId,
   sanitizeBillingSuccessReturnTo,
 } from "./page";
 import { act, render } from "@testing-library/react";
@@ -66,6 +67,15 @@ describe("billing success postCheckoutIntent helpers", () => {
     expect(normalizeBillingSuccessPostCheckoutIntent("connect_instagram")).toBe("connect_instagram");
     expect(normalizeBillingSuccessPostCheckoutIntent("join_community")).toBe("join_community");
     expect(normalizeBillingSuccessPostCheckoutIntent("external_redirect")).toBeNull();
+  });
+
+  it("identifica tanto o Checkout hospedado quanto a assinatura do Payment Element", () => {
+    expect(resolveBillingSuccessAttemptId(new URLSearchParams("session_id=cs_live_123"))).toBe(
+      "cs_live_123",
+    );
+    expect(resolveBillingSuccessAttemptId(new URLSearchParams("sid=sub_live_123"))).toBe(
+      "sub_live_123",
+    );
   });
 
   it("registra intent visto/consumido e redireciona sem aceitar rota externa", async () => {

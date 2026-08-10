@@ -120,6 +120,13 @@ const CRONS = [
     method: 'POST',
     body: '[RELATORIO_SEMANAL] Congelar o snapshot da semana por território',
   },
+  {
+    id: 'creator-weekly-reports',
+    destination: 'https://data2content.ai/api/cron/creator-weekly-reports',
+    cron: '15 4 * * 1', // Segunda 01:15 BRT — após o fechamento das métricas.
+    method: 'POST',
+    body: '[CREATOR_WEEKLY_REPORT] Materializar os relatórios individuais da semana',
+  },
 ] as const;
 
 async function createCrons() {
@@ -131,9 +138,43 @@ async function createCrons() {
     throw new Error('Missing ADMIN_TOKEN environment variable.');
   }
 
-  for (const task of CRONS) {
-    console.log(`Creating QStash schedule: ${task.id}`);
+  const requestedIds = new Set(
+    process.argv
+      .slice(2)
+      .flatMap((value) => value.split(','))
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
+  const unknownIds = [...requestedIds].filter(
+    (id) => !CRONS.some((task) => task.id === id),
+  );
+  if (unknownIds.length > 0) {
+    throw new Error(`Unknown schedule id(s): ${unknownIds.join(', ')}`);
+  }
+
+  const selectedCrons = requestedIds.size > 0
+    ? CRONS.filter((task) => requestedIds.has(task.id))
+    : CRONS;
+  const existingSchedules = await qstash.schedules.list();
+  const duplicateDestinations: string[] = [];
+
+  for (const task of selectedCrons) {
+    const existingForDestination = existingSchedules.filter(
+      (schedule) => schedule.destination === task.destination,
+    );
+    if (existingForDestination.length > 1) {
+      duplicateDestinations.push(task.destination);
+      console.error(
+        `Skipping ${task.id}: ${existingForDestination.length} schedules already target ${task.destination}. ` +
+        'Deduplicate them explicitly before reconciling this destination.',
+      );
+      continue;
+    }
+
+    const scheduleId = existingForDestination[0]?.scheduleId ?? task.id;
+    console.log(`${existingForDestination.length === 0 ? 'Creating' : 'Updating'} QStash schedule: ${task.id}`);
     await qstash.schedules.create({
+      scheduleId,
       destination: task.destination,
       cron: task.cron,
       body: task.body,
@@ -145,7 +186,13 @@ async function createCrons() {
     });
   }
 
-  console.log('✅ All scheduled jobs created successfully.');
+  if (duplicateDestinations.length > 0) {
+    throw new Error(
+      `Duplicate QStash destinations require manual cleanup: ${duplicateDestinations.join(', ')}`,
+    );
+  }
+
+  console.log(`✅ ${selectedCrons.length} scheduled job(s) reconciled successfully.`);
 }
 
 createCrons().catch((error) => {

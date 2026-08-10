@@ -27,7 +27,9 @@ export default function CheckoutForm({ subscriptionId, onBack }: Props) {
       setSubmitting(true);
       setErr(null);
 
-      const returnUrl = `${window.location.origin}/billing/success`;
+      const returnUrl = `${window.location.origin}/billing/success${
+        subscriptionId ? `?sid=${encodeURIComponent(subscriptionId)}` : ""
+      }`;
 
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,

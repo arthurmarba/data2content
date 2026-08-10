@@ -1,6 +1,6 @@
 "use client";
 
-// Tab bar mobile do "Seu Mapa" — 3 slots: Perfil · Scan · Collabs.
+// Tab bar mobile do Perfil — 3 slots: Perfil · ação "+" · Collabs.
 // Apresentacional: o shell (DiagnosticoRealShellClient) dona o estado da aba e a
 // ação do "+". Fica em z-40 — acima do conteúdo da página e ABAIXO dos overlays
 // de detalhe (z-50), que devem cobri-la quando abertos.
@@ -91,12 +91,12 @@ export function DiagnosticoTabBar({
         <PerfilIcon active={activeTab === "perfil"} />
       </TabButton>
 
-      {/* Centro Scan — ação de leitura, não é uma aba. Elevado e destacado. */}
+      {/* O centro é uma ação, não uma terceira aba. O rótulo permanece no aria. */}
       <div className="flex min-w-[64px] flex-1 flex-col items-center">
         <button
           type="button"
           onClick={onPressPlus}
-          aria-label="Escanear novo vídeo"
+          aria-label="Analisar conteúdo"
           className="active:scale-[0.94] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-[rgba(250,22,91,0.3)]"
           style={{
             marginTop: -22,
@@ -114,23 +114,9 @@ export function DiagnosticoTabBar({
           }}
         >
           <svg width="27" height="27" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M8 4H5a1 1 0 0 0-1 1v3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            <path d="M7 12h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-            <circle cx="12" cy="12" r="2.4" stroke="currentColor" strokeWidth="1.6" />
+            <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
           </svg>
         </button>
-        <span
-          aria-hidden="true"
-          style={{
-            marginTop: 3,
-            color: color.brandStrong,
-            fontSize: 11,
-            fontWeight: 750,
-            letterSpacing: -0.1,
-          }}
-        >
-          Escanear
-        </span>
       </div>
 
       <TabButton label="Collabs" active={activeTab === "collabs"} onClick={onSelectCollabs}>

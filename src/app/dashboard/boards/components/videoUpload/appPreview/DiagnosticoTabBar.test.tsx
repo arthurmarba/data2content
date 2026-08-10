@@ -18,11 +18,11 @@ describe("DiagnosticoTabBar", () => {
 
     expect(screen.getByRole("button", { name: "Collabs" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("button", { name: "Perfil" })).not.toHaveAttribute("aria-current");
-    expect(screen.getByText("Escanear")).toBeVisible();
+    expect(screen.queryByText("Escanear")).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Perfil" }));
     fireEvent.click(screen.getByRole("button", { name: "Collabs" }));
-    fireEvent.click(screen.getByRole("button", { name: "Escanear novo vídeo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
     expect(onSelectPerfil).toHaveBeenCalledTimes(1);
     expect(onSelectCollabs).toHaveBeenCalledTimes(1);

@@ -373,6 +373,10 @@ export interface IUser extends Document {
    */
   pendingCheckoutSessionId?: string | null;
   pendingCheckoutExpiresAt?: Date | null;
+  /** CPF/CNPJ do assinante, só dígitos. Obrigatório para emitir NFS-e. */
+  taxId?: string | null;
+  taxIdType?: 'cpf' | 'cnpj' | null;
+  taxIdUpdatedAt?: Date | null;
   planExpiresAt?: Date | null;
   autoRenewConsentAt?: Date | null;
   proTrialStatus?: ProTrialState;
@@ -646,6 +650,9 @@ const userSchema = new Schema<IUser>(
     lastSubscriptionEventId: { type: String, default: null },
     pendingCheckoutSessionId: { type: String, default: null },
     pendingCheckoutExpiresAt: { type: Date, default: null },
+    taxId: { type: String, default: null },
+    taxIdType: { type: String, enum: ['cpf', 'cnpj', null], default: null },
+    taxIdUpdatedAt: { type: Date, default: null },
 
     inferredExpertiseLevel: {
       type: String,

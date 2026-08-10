@@ -29,7 +29,13 @@ export type MobileNarrativeTelemetryEventName =
   | "mobile_scan_adjustment_marked"
   | "mobile_scan_rescan_started"
   | "mobile_scan_feedback_submitted"
-  | "mobile_scan_publish_decision";
+  | "mobile_scan_publish_decision"
+  | "mobile_weekly_profile_viewed"
+  | "mobile_profile_tab_selected"
+  | "mobile_weekly_report_demo_opened"
+  | "mobile_weekly_report_demo_closed"
+  | "mobile_weekly_report_detail_opened"
+  | "mobile_weekly_report_refresh_succeeded";
 
 export type MobileNarrativeAnalysisMode = "mock" | "real_gated";
 export type MobileNarrativeGateResult = "allowed" | "blocked";

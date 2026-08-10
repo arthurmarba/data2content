@@ -71,9 +71,15 @@ export function normalizeBillingSuccessPostCheckoutIntent(value: unknown): "conn
   return value === "connect_instagram" || value === "join_community" ? value : null;
 }
 
+export function resolveBillingSuccessAttemptId(
+  params: Pick<URLSearchParams, "get">,
+): string | null {
+  return params.get("session_id") ?? params.get("sid");
+}
+
 export default function BillingSuccessPage() {
   const sp = useSearchParams();
-  const sid = sp.get("session_id");
+  const sid = resolveBillingSuccessAttemptId(sp);
   const { update } = useSession();
   const router = useRouter();
 

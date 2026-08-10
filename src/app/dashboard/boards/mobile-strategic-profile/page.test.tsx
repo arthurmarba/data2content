@@ -137,7 +137,7 @@ describe("MobileStrategicProfilePage Rota Real", () => {
     });
 
     const jsx = await MobileStrategicProfilePage({
-      searchParams: { state: "instagram_optimized" },
+      searchParams: Promise.resolve({ state: "instagram_optimized" }),
     });
     render(jsx);
 

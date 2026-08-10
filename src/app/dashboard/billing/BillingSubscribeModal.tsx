@@ -569,7 +569,7 @@ export default function BillingSubscribeModal({
         plan: period,              // "monthly" | "annual"
         currency,                  // "brl" | "usd"
         mode: "subscription",
-        successUrl: `${window.location.origin}/billing/success`,
+        successUrl: `${window.location.origin}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
         cancelUrl: resolveCheckoutCancelUrl(),
         source: "modal",
         ...(couponApplied || isD2cVipPromotionCode(searchParams?.get(PAYWALL_COUPON_PARAM))

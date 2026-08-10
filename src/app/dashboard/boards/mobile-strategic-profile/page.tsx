@@ -35,10 +35,13 @@ import { normalizePlanStatus } from "@/utils/planStatus";
 import type { MobileStrategicProfileSnapshotPayload } from "../videoUpload/mobileStrategicProfileSnapshotTypes";
 import { getWeeklyMeetingExperience } from "@/app/lib/community/weeklyMeetingService";
 import type { WeeklyMeetingProfileData } from "../components/videoUpload/appPreview/WeeklyMeetingProfileCard";
+import { isCreatorWeeklyProfileExperienceEnabled } from "../videoUpload/creatorWeeklyProfileFeatureFlag";
+import { getOrGenerateCreatorWeeklyReport } from "@/app/lib/creatorWeeklyReport/service";
 
 export const dynamic = "force-dynamic";
 
 const DIAGNOSTICO_V2_ENABLED = process.env.DIAGNOSTICO_V2_ENABLED === "1";
+const CREATOR_WEEKLY_PROFILE_ENABLED = isCreatorWeeklyProfileExperienceEnabled();
 const PERF_LOGGING_ENABLED =
   process.env.MOBILE_STRATEGIC_PROFILE_PERF_LOGGING_ENABLED === "1";
 
@@ -68,7 +71,10 @@ if (process.env.NODE_ENV === "production") {
   const REQUIRED_PROD_FLAGS = [
     "DIAGNOSTICO_V2_ENABLED",
     "VIDEO_NARRATIVE_GEMINI_PROVIDER_ENABLED",
-    "VIDEO_NARRATIVE_REAL_ANALYSIS_ALLOW_PREMIUM_BETA",
+    "VIDEO_NARRATIVE_TEMP_UPLOAD_SESSION_ENABLED",
+    "VIDEO_NARRATIVE_REAL_UPLOAD_ENABLED",
+    "VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED",
+    "NEXT_PUBLIC_VIDEO_NARRATIVE_REAL_ANALYSIS_E2E_ENABLED",
   ] as const;
   for (const flag of REQUIRED_PROD_FLAGS) {
     const val = process.env[flag];
@@ -82,10 +88,10 @@ if (process.env.NODE_ENV === "production") {
 }
 
 type MobileStrategicProfilePageProps = {
-  searchParams?: {
+  searchParams?: Promise<{
     state?: string | string[];
     affiliate?: string | string[];
-  };
+  }>;
 };
 
 export default async function MobileStrategicProfilePage({
@@ -93,6 +99,7 @@ export default async function MobileStrategicProfilePage({
 }: MobileStrategicProfilePageProps) {
   const requestStartedAt = serverNow();
   const serverTimings: ServerTimingMeasurements = {};
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
 
   if (!isMobileStrategicProfileEnabled()) {
     notFound();
@@ -289,6 +296,21 @@ export default async function MobileStrategicProfilePage({
             confirmations,
           ).catch(() => ({ matches: selector.brandMatches ?? [], confirmedMap: false }));
         });
+        const creatorWeeklyReportPromise = measureServerOperation(
+          serverTimings,
+          "creatorWeeklyReport",
+          async () => {
+            if (!CREATOR_WEEKLY_PROFILE_ENABLED || !isInstagramConnected || (!hasPremiumAccess && !isInternalAdmin)) {
+              return null;
+            }
+            return getOrGenerateCreatorWeeklyReport(userId)
+              .then((snapshot) => snapshot.report)
+              .catch((error) => {
+                console.error("[mobile-strategic-profile] relatório semanal indisponível:", error);
+                return null;
+              });
+          },
+        );
 
         const [
           selectorResult,
@@ -302,6 +324,7 @@ export default async function MobileStrategicProfilePage({
           fullMapaSeedDoc,
           resolvedAvatarUrl,
           brandMatchResult,
+          creatorWeeklyReport,
         ] = await Promise.all([
           selectorPromise,
           instagramMetricsPromise,
@@ -314,6 +337,7 @@ export default async function MobileStrategicProfilePage({
           fullMapaSeedPromise,
           avatarPromise,
           brandMatchesPromise,
+          creatorWeeklyReportPromise,
         ]);
         initialNarrativeMapViewModel = selectorResult.viewModel;
         initialNarrativeMapPresentation = selectorResult.currentPresentation;
@@ -403,6 +427,8 @@ export default async function MobileStrategicProfilePage({
           contentIdeasMapStale,
           audienceInsights: audienceInsights ?? null,
           mapaSeed: fullMapaSeedDoc,
+          creatorWeeklyReport,
+          creatorWeeklyProfileExperienceEnabled: CREATOR_WEEKLY_PROFILE_ENABLED,
           userInfo: (() => {
             const profile = (effectiveUserForAccess as any).creatorProfileExtended ?? {};
             const hasNiches = Array.isArray(profile.niches) && profile.niches.length > 0;
@@ -467,8 +493,9 @@ export default async function MobileStrategicProfilePage({
     });
   }
 
-  const stateQuery = typeof searchParams?.state === "string" ? searchParams.state : null;
-  const initialAffiliateView = searchParams?.affiliate === "1";
+  const stateQuery =
+    typeof resolvedSearchParams?.state === "string" ? resolvedSearchParams.state : null;
+  const initialAffiliateView = resolvedSearchParams?.affiliate === "1";
 
   if (DIAGNOSTICO_V2_ENABLED && diagnosticoPageData) {
     return (

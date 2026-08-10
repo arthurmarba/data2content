@@ -369,6 +369,19 @@ export default function InstagramConnectingPage() {
     [router],
   );
 
+  const prepareNarrativeMapReport = useCallback(async () => {
+    if ((nextTarget || "").toLowerCase() !== "narrative-map") return;
+    setMessage("Organizando os seus últimos 90 dias…");
+    // O refresh do Instagram continua no worker. Esta chamada materializa já o
+    // que estiver disponível e evita que contas com histórico sincronizado
+    // cheguem ao Perfil sem o primeiro relatório.
+    await fetch("/api/dashboard/mobile-strategic-profile/weekly-report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ force: true }),
+    }).catch(() => null);
+  }, [nextTarget]);
+
   const finalizeSelectedAccount = useCallback(
     async (selection: AvailableIgAccount) => {
       const instagramAccountId = selection.igAccountId;
@@ -411,6 +424,7 @@ export default function InstagramConnectingPage() {
         }
 
         await update();
+        await prepareNarrativeMapReport();
         track("ig_account_connected", {
           source: "instagram_connecting_page",
           next: nextTarget || "chat",
@@ -438,7 +452,7 @@ export default function InstagramConnectingPage() {
         setIsFinalizingSelection(false);
       }
     },
-    [nextTarget, scheduleRedirectWithSuccess, update],
+    [nextTarget, prepareNarrativeMapReport, scheduleRedirectWithSuccess, update],
   );
 
   useEffect(() => {
@@ -483,6 +497,7 @@ export default function InstagramConnectingPage() {
         }
 
         if (u.instagramConnected) {
+          await prepareNarrativeMapReport();
           scheduleRedirectWithSuccess(
             buildNextUrl(nextTarget),
             nextTarget === "post-creation"
@@ -556,6 +571,7 @@ export default function InstagramConnectingPage() {
     nextTarget,
     sp,
     finalizeSelectedAccount,
+    prepareNarrativeMapReport,
     scheduleRedirectWithSuccess,
   ]);
 

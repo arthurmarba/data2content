@@ -7,6 +7,8 @@ import { triggerDataRefresh } from '@/app/lib/instagram';
 import mongoose from 'mongoose'; // Para validar ObjectId
 import { invalidateDashboardHomeSummaryCache } from '@/app/lib/cache/dashboardCache';
 import { enrichMapaSeedWithInstagram } from '@/app/lib/mapaSeed/enrichMapaSeedForUser';
+import { generateCreatorWeeklyReport } from '@/app/lib/creatorWeeklyReport/service';
+import { isCreatorWeeklyProfileExperienceEnabled } from '@/app/dashboard/boards/videoUpload/creatorWeeklyProfileFeatureFlag';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic'; // Garante execução dinâmica
@@ -108,6 +110,15 @@ export async function POST(request: NextRequest) {
         // Enriquece o MapaSeed com os posts recentes do Instagram.
         // Non-fatal: nunca bloqueia a resposta do worker.
         await enrichMapaSeedWithInstagram(userId);
+
+        // O relatório individual é materializado depois do sync, usando as
+        // métricas que acabaram de chegar. Falha aqui não invalida a conexão:
+        // a rota do Perfil e a cron de segunda também conseguem regenerá-lo.
+        if (isCreatorWeeklyProfileExperienceEnabled()) {
+          await generateCreatorWeeklyReport({ userId }).catch((error) => {
+            logger.error(`${TAG} Falha não fatal ao materializar relatório semanal para User ${userId}:`, error);
+          });
+        }
 
         return NextResponse.json({ success: true, message: refreshResult.message, details: refreshResult.details }, { status: 200 });
     } else {

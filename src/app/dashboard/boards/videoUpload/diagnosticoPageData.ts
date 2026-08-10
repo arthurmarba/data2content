@@ -11,6 +11,7 @@ import type { MapEvolutionStatus } from "./mapEvolutionStatusResolver";
 import type { ContentIdeaListItem } from "./contentIdeasReadService";
 import type { ContentIdeasReadiness } from "./contentIdeasReadinessGate";
 import type { AudienceInsights } from "./audienceInsightsService";
+import type { CreatorWeeklyReportPayload } from "@/app/lib/creatorWeeklyReport/types";
 
 export interface DiagnosticoUserInfo {
   name: string | null;
@@ -200,4 +201,8 @@ export interface DiagnosticoPageData {
    * by the creator (via onboarding + enrichment). Null when no seed exists yet.
    */
   mapaSeed?: IMapaData | null;
+  /** Relatório individual da última semana fechada, comparado aos 90 dias da conta. */
+  creatorWeeklyReport?: CreatorWeeklyReportPayload | null;
+  /** Permite rollback instantâneo para o Perfil anterior sem mudar a rota. */
+  creatorWeeklyProfileExperienceEnabled?: boolean;
 }

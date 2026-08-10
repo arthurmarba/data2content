@@ -32,6 +32,8 @@ import { fetchAnalysisConfirmationDataFromReading } from "./mobileStrategicProfi
 import { DiagnosticoPage } from "./DiagnosticoPage";
 import type { WeeklyMeetingProfileData } from "./WeeklyMeetingProfileCard";
 import { DiagnosticoTabBar, type DiagnosticoTab } from "./DiagnosticoTabBar";
+import { CreatorWeeklyProfileExperience } from "./CreatorWeeklyProfileExperience";
+import { CreatorWeeklyCollabsGate } from "./CreatorWeeklyCollabsGate";
 import type {
   CollabsBootstrapStatus,
   PautaActionKind,
@@ -236,6 +238,14 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
   // Aba ativa da tab bar mobile (Perfil/Collabs). "+" não é aba — abre o upload.
   // Default "perfil": usuário novo/sem mapa cai no Perfil.
   const [activeTab, setActiveTab] = useState<DiagnosticoTab>("perfil");
+  const [weeklyReportDemo, setWeeklyReportDemo] = useState(false);
+  const weeklyProfileExperienceEnabled = data.creatorWeeklyProfileExperienceEnabled === true;
+  const hasProAccess = data.userInfo.plan === "Pro" || data.accessState === "admin";
+  const weeklyCollabsUnlocked =
+    hasProAccess &&
+    data.instagramConnected &&
+    data.accessState !== "payment_pending" &&
+    data.accessState !== "payment_action_needed";
   const [accessMessage, setAccessMessage] = useState<string | null>(null);
   const [localThumbnails, setLocalThumbnails] = useState<Record<string, string>>({});
   const [showInstagramConnectedNotice, setShowInstagramConnectedNotice] = useState(false);
@@ -251,7 +261,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     } else {
       container.scrollTop = 0;
     }
-  }, [activeTab]);
+  }, [activeTab, weeklyReportDemo]);
   // True quando a página foi carregada após a conexão do Instagram (via ?instagramLinked=true).
   // Usado para mostrar estado "processando" no card de pautas enquanto o enriquecimento
   // assíncrono ainda não terminou. Inicializa do URL para capturar o hard-reload.
@@ -283,7 +293,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     controller: AbortController;
   } | null>(null);
   const loadLatestCalculation = useCallback(() => {
-    if (data.userInfo.plan !== "Pro") return Promise.resolve(null);
+    if (!hasProAccess) return Promise.resolve(null);
     if (latestCalculationRequestRef.current) return latestCalculationRequestRef.current.promise;
 
     const controller = new AbortController();
@@ -302,7 +312,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       });
     latestCalculationRequestRef.current = { promise: request, controller };
     return request;
-  }, [data.userInfo.plan]);
+  }, [hasProAccess]);
   const [openIdeaId, setOpenIdeaId] = useState<string | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(data.needsOnboarding);
   // O3: step de retomada após conectar Instagram durante o onboarding.
@@ -461,6 +471,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
 
   useEffect(() => {
     if (activeTab !== "collabs") return;
+    if (weeklyProfileExperienceEnabled && (!weeklyCollabsUnlocked || weeklyReportDemo)) return;
     if (collabsReadySignatureRef.current === collabsInputSignature) return;
 
     const requestId = ++collabsBootstrapRequestRef.current;
@@ -487,7 +498,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
 
     // Free não consulta identidades reais, mas ainda respeita a transição única
     // loading → ready para não hidratar decisões locais depois do primeiro card.
-    if (data.userInfo.plan !== "Pro") {
+    if (!hasProAccess) {
       commitLocalDecisions();
       setPautaCollabs(new Map());
       setCollabDecisions(new Map());
@@ -596,8 +607,11 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     collabsInputSignature,
     collabsNarrativeLabel,
     collabsPautas,
-    data.userInfo.plan,
+    hasProAccess,
     localPautaDecisionStorageKey,
+    weeklyCollabsUnlocked,
+    weeklyProfileExperienceEnabled,
+    weeklyReportDemo,
   ]);
 
   const handleRetryCollabsBootstrap = useCallback(() => {
@@ -701,7 +715,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
   }, [findCurrentPauta, pautaCollabs]);
 
   const handleConnectInstagram = useCallback(() => {
-    if (data.userInfo.plan !== "Pro") {
+    if (!hasProAccess) {
       openPaywallModal({
         context: "narrative_map",
         source: "mobile_profile_instagram_connect",
@@ -711,10 +725,10 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       return;
     }
     router.push(MOBILE_INSTAGRAM_CONNECT_ROUTE);
-  }, [data.userInfo.plan, router]);
+  }, [hasProAccess, router]);
 
   const handleOpenMediaKit = useCallback(() => {
-    if (data.userInfo.plan !== "Pro") {
+    if (!hasProAccess) {
       openPaywallModal({
         context: "media_kit",
         source: "mobile_profile_media_kit",
@@ -732,7 +746,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     } else {
       router.push(MOBILE_MEDIA_KIT_ROUTE);
     }
-  }, [data.userInfo.plan, data.instagramConnected, data.userInfo.mediaKitSlug, router]);
+  }, [hasProAccess, data.instagramConnected, data.userInfo.mediaKitSlug, router]);
 
   const handleOpenCreatorMediaKit = useCallback((slug: string) => {
     setMediaKitSheetSlug(slug);
@@ -745,7 +759,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     handleOpenMediaKit();
   }, [handleOpenMediaKit]);
   const handleOpenCalculator = useCallback(() => {
-    if (data.userInfo.plan !== "Pro") {
+    if (!hasProAccess) {
       openPaywallModal({
         context: "calculator",
         source: "mobile_profile_calculator",
@@ -756,12 +770,12 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     }
     void loadLatestCalculation();
     setCalculatorWizardOpen(true);
-  }, [data.instagramConnected, data.userInfo.plan, loadLatestCalculation]);
+  }, [data.instagramConnected, hasProAccess, loadLatestCalculation]);
 
   // Abrir a pauta (roteiro completo + por que o criador é ideal pra collab) é Pro.
   // Free vê o card (título + direcional) como teaser; o tap abre o paywall.
   const handleOpenIdea = useCallback((id: string) => {
-    if (data.userInfo.plan !== "Pro") {
+    if (!hasProAccess) {
       openPaywallModal({
         context: "planning",
         source: "mobile_idea_open",
@@ -771,7 +785,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       return;
     }
     setOpenIdeaId(id);
-  }, [data.instagramConnected, data.userInfo.plan]);
+  }, [data.instagramConnected, hasProAccess]);
 
   const beginPautaAction = useCallback((id: string) => {
     if (pautaActionInFlightRef.current.has(id)) return false;
@@ -786,7 +800,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
   // Salvar explicitamente: usado no deck. Falha não recoloca a pauta no deck;
   // ela fica na estante da sessão como "não sincronizada" com retry.
   const handleSavePauta = useCallback((id: string) => {
-    if (data.userInfo.plan !== "Pro") {
+    if (!hasProAccess) {
       openPaywallModal({
         context: "planning",
         source: "mobile_idea_save",
@@ -818,7 +832,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     beginPautaAction,
     clearPautaAction,
     data.instagramConnected,
-    data.userInfo.plan,
+    hasProAccess,
     finishPautaAction,
     localPautaDecisionStorageKey,
     persistPautaStatus,
@@ -880,7 +894,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
   ]);
 
   const handleAcceptCollabPauta = useCallback((id: string) => {
-    if (data.userInfo.plan !== "Pro") {
+    if (!hasProAccess) {
       openPaywallModal({
         context: "narrative_map",
         source: "mobile_collabs_accept",
@@ -928,7 +942,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     beginPautaAction,
     clearPautaAction,
     data.instagramConnected,
-    data.userInfo.plan,
+    hasProAccess,
     findCurrentPauta,
     finishPautaAction,
     localPautaDecisionStorageKey,
@@ -1038,7 +1052,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
   }, []);
 
   useEffect(() => {
-    if (data.userInfo.plan !== "Pro") {
+    if (!hasProAccess) {
       latestCalculationRequestRef.current?.controller.abort();
       setLatestCalculation(null);
       latestCalculationRequestRef.current = null;
@@ -1052,7 +1066,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       latestCalculationRequestRef.current?.controller.abort();
       latestCalculationRequestRef.current = null;
     };
-  }, [data.userInfo.plan, loadLatestCalculation]);
+  }, [hasProAccess, loadLatestCalculation]);
 
   // Extracted so the user can also retry manually from the card.
   // `focusedTerritory` (opcional) semeia a geração a partir de um território —
@@ -1452,7 +1466,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
         context: "narrative_map",
         source: "mobile_profile_free_used",
         returnTo: MOBILE_PROFILE_ROUTE,
-        postCheckoutIntent: "connect_instagram",
+        postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
       });
       return;
     }
@@ -1465,7 +1479,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
         context: "narrative_map",
         source: "mobile_profile",
         returnTo: MOBILE_PROFILE_ROUTE,
-        postCheckoutIntent: "connect_instagram",
+        postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
       });
       return;
     }
@@ -1474,9 +1488,9 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       context: "narrative_map",
       source: "mobile_profile",
       returnTo: MOBILE_PROFILE_ROUTE,
-      postCheckoutIntent: "connect_instagram",
+      postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
     });
-  }, [data.accessState]);
+  }, [data.accessState, data.instagramConnected]);
 
   const handleOpenReading = useCallback(
     (diagnosisId: string) => {
@@ -1670,9 +1684,9 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       context: "narrative_map",
       source: "mobile_profile_free_completion",
       returnTo: MOBILE_PROFILE_ROUTE,
-      postCheckoutIntent: "connect_instagram",
+      postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
     });
-  }, []);
+  }, [data.instagramConnected]);
 
   const handleCleanupUpload = useCallback(
     async (payload: {
@@ -1890,9 +1904,29 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       context: typeof context === "string" ? context : "narrative_map",
       source: typeof context === "string" ? `mobile_profile_${context}` : "mobile_profile_empty_state",
       returnTo: MOBILE_PROFILE_ROUTE,
-      postCheckoutIntent: "connect_instagram",
+      postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
     });
-  }, []);
+  }, [data.instagramConnected]);
+  const handleSelectProfileTab = useCallback(() => {
+    trackMobileNarrativeEvent("mobile_profile_tab_selected", {
+      route: MOBILE_PROFILE_ROUTE,
+      accessState: data.accessState,
+      isPro: data.userInfo.plan === "Pro" || data.accessState === "admin",
+      instagramConnected: data.instagramConnected,
+      actionType: "perfil",
+    });
+    setActiveTab("perfil");
+  }, [data.accessState, data.instagramConnected, data.userInfo.plan]);
+  const handleSelectCollabsTab = useCallback(() => {
+    trackMobileNarrativeEvent("mobile_profile_tab_selected", {
+      route: MOBILE_PROFILE_ROUTE,
+      accessState: data.accessState,
+      isPro: data.userInfo.plan === "Pro" || data.accessState === "admin",
+      instagramConnected: data.instagramConnected,
+      actionType: "collabs",
+    });
+    setActiveTab("collabs");
+  }, [data.accessState, data.instagramConnected, data.userInfo.plan]);
   const handleOpenAccountMenu = useCallback(() => setAccountMenuOpen(true), []);
   const handleOpenSurvey = useCallback(() => setSurveyOpen(true), []);
   const handleOpenNorte = useCallback(() => setNorteOpen(true), []);
@@ -1913,6 +1947,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     >
       <div
         ref={tabScrollContainerRef}
+        data-mobile-profile-scroll-container="true"
         className="flex-1 overflow-y-auto overscroll-contain"
         style={{
           paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)",
@@ -1928,9 +1963,18 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
         }}
       >
         {activeTab === "collabs" ? (
+          weeklyProfileExperienceEnabled && (!weeklyCollabsUnlocked || weeklyReportDemo) ? (
+            <CreatorWeeklyCollabsGate
+              accessState={hydratedData.accessState}
+              isDemo={weeklyReportDemo}
+              onUpgrade={handleProfileUpgrade}
+              onConnectInstagram={handleConnectInstagram}
+              onDemoChange={setWeeklyReportDemo}
+            />
+          ) : (
           <DiagnosticoCollabsFeed
             pautas={effectiveContentIdeas}
-            isPro={hydratedData.userInfo.plan === "Pro"}
+            isPro={hasProAccess}
             whatsappLinked={hydratedData.userInfo.whatsappLinked ?? false}
             isGeneratingIdeas={isGeneratingIdeas}
             ideaGenerationBlocker={ideaGenerationBlocker}
@@ -1954,10 +1998,24 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
               context: typeof ctx === "string" ? ctx : "narrative_map",
               source: typeof ctx === "string" ? `mobile_collabs_${ctx}` : "mobile_collabs",
               returnTo: MOBILE_PROFILE_ROUTE,
-              postCheckoutIntent: "connect_instagram",
+              postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
             })}
             onGenerate={triggerGenerateIdeas}
             onBackToPerfil={() => setActiveTab("perfil")}
+          />
+          )
+        ) : (
+        weeklyProfileExperienceEnabled ? (
+          <CreatorWeeklyProfileExperience
+            data={hydratedData}
+            weeklyMeeting={weeklyMeeting}
+            isDemo={weeklyReportDemo}
+            onDemoChange={setWeeklyReportDemo}
+            onOpenAccountMenu={handleOpenAccountMenu}
+            onOpenMediaKit={handleOpenMediaKit}
+            onOpenCalculator={handleOpenCalculator}
+            onUpgrade={handleProfileUpgrade}
+            onConnectInstagram={handleConnectInstagram}
           />
         ) : (
         <DiagnosticoPage
@@ -1996,6 +2054,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
           onOpenCalculator={handleOpenCalculator}
           weeklyMeeting={weeklyMeeting}
         />
+        )
         )}
       </div>
 
@@ -2003,9 +2062,11 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
           abre o upload via handleNewReading (mesma lógica de acesso do card). */}
       <DiagnosticoTabBar
         activeTab={activeTab}
-        onSelectPerfil={() => setActiveTab("perfil")}
-        onSelectCollabs={() => setActiveTab("collabs")}
-        onPressPlus={handleNewReading}
+        onSelectPerfil={handleSelectProfileTab}
+        onSelectCollabs={handleSelectCollabsTab}
+        onPressPlus={weeklyReportDemo
+          ? () => setAccessMessage("No relatório de exemplo, a análise de vídeo fica desativada.")
+          : handleNewReading}
       />
 
       {openIdeaId && (() => {
@@ -2020,7 +2081,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
           <DiagnosticoIdeaDetailSheet
             idea={idea}
             collab={ideaCollab}
-            isPro={hydratedData.userInfo.plan === "Pro"}
+            isPro={hasProAccess}
             decisionPending={Boolean(ideaCollab) && !ideaDecision && !ideaMatched}
             onDecide={(decision) => {
               if (decision === "interested") {
@@ -2036,7 +2097,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
               context: "narrative_map",
               source: "mobile_idea_collab",
               returnTo: MOBILE_PROFILE_ROUTE,
-              postCheckoutIntent: "connect_instagram",
+              postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
             })}
             onClose={() => setOpenIdeaId(null)}
           />
@@ -2075,7 +2136,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       {accountMenuOpen ? (
         <DiagnosticoAccountMenuSheet
           userInfo={hydratedData.userInfo}
-          isPro={hydratedData.userInfo.plan === "Pro"}
+          isPro={hasProAccess}
           instagramConnected={hydratedData.instagramConnected}
           onClose={closeAccountMenu}
           onOpenMediaKit={handleOpenAccountMediaKit}
@@ -2213,7 +2274,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       {openCategory === "community" && (
         <DiagnosticoCommunityDetailView
           creatorDirectory={creatorDirectory}
-          isPro={hydratedData.userInfo.plan === "Pro"}
+          isPro={hasProAccess}
           onUpgrade={() => openPaywallModal({
             context: "narrative_map",
             source: "community_join_upsell",
