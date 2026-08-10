@@ -31,11 +31,11 @@ export function CreatorWeeklyReportDetail({
   onBack: () => void;
 }) {
   return (
-    <main className="mx-auto w-full max-w-[32rem] px-5 pb-8 pt-[var(--ds-safe-top)] ds-analysis-editorial">
+    <main className="ds-notebook-page ds-analysis-editorial">
       <button
         type="button"
         onClick={onBack}
-        className="mb-4 inline-flex min-h-11 items-center gap-1 rounded-full bg-transparent pr-3 text-[13px] font-bold text-[var(--ds-color-brand-strong)]"
+        className="mb-4 inline-flex min-h-11 items-center gap-1 rounded-md bg-transparent pr-3 text-[13px] font-semibold text-[var(--ds-color-ink)] active:bg-[var(--ds-color-neutral)]"
       >
         <BackIcon /> Voltar
       </button>
@@ -51,14 +51,18 @@ export function CreatorWeeklyReportDetail({
         <p className="ds-body mt-2">{detail.subtitle}</p>
       </header>
 
-      <div className="mt-5 rounded-[18px] bg-[var(--ds-color-info-soft)] px-4 py-3 text-[13px] leading-[1.5] text-[var(--ds-color-info)]">
-        <strong>Quanto dá para confiar.</strong> Indício é 1 ou 2 posts; sinal é de 3 a 7; tendência é 8 ou mais.
-      </div>
+      <details className="group mt-5 rounded-xl bg-white px-4 py-2 text-[13px]">
+        <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between font-semibold text-[var(--ds-color-ink)]">
+          Quanto dá para confiar
+          <span className="text-[var(--ds-color-text-muted)] transition-transform group-open:rotate-90" aria-hidden="true">›</span>
+        </summary>
+        <p className="pb-2 pr-6 leading-[1.5] text-[var(--ds-color-text-muted)]">Indício é 1 ou 2 posts; sinal é de 3 a 7; tendência é 8 ou mais.</p>
+      </details>
 
       {detail.groups.length > 0 ? (
-        <div className="mt-6 space-y-6">
+        <div className="mt-6">
           {detail.groups.map((group) => (
-            <section key={group.id} aria-labelledby={`weekly-report-group-${group.id}`}>
+            <section key={group.id} className="ds-notebook-section" aria-labelledby={`weekly-report-group-${group.id}`}>
               <div className="mb-3">
                 <h2 id={`weekly-report-group-${group.id}`} className="text-[1.25rem] font-bold leading-tight text-[var(--ds-color-ink)]">
                   {group.title}
@@ -66,20 +70,16 @@ export function CreatorWeeklyReportDetail({
                 <p className="ds-caption mt-1">{group.subtitle}</p>
               </div>
 
-              <div className="overflow-hidden rounded-[20px] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)]">
+              <div className="space-y-1">
                 {group.items.map((item, index) => {
                   const positive = item.index !== null && item.index >= 1;
                   return (
                     <div
                       key={item.id}
-                      className="grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-2 border-b border-[var(--ds-color-line)] px-3 py-3.5 last:border-b-0"
+                      className="grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg py-3"
                     >
                       <span
-                        className={`grid h-7 w-7 place-items-center rounded-full text-[11px] font-extrabold ${
-                          index === 0
-                            ? "bg-[var(--ds-color-ink)] text-white"
-                            : "bg-[var(--ds-color-neutral)] text-[var(--ds-color-text-secondary)]"
-                        }`}
+                        className={`text-[12px] font-semibold ${index === 0 ? "text-[var(--ds-color-ink)]" : "text-[var(--ds-color-text-muted)]"}`}
                       >
                         {index + 1}
                       </span>
@@ -87,7 +87,7 @@ export function CreatorWeeklyReportDetail({
                         <span className="block text-[14px] font-bold leading-[1.25] text-[var(--ds-color-ink)]">
                           {item.label}
                         </span>
-                        <span className="mt-1 block text-[11px] text-[var(--ds-color-text-muted)]">
+                        <span className="mt-1 block text-[12px] text-[var(--ds-color-text-muted)]">
                           {item.nPosts} {item.nPosts === 1 ? "post" : "posts"} · {EVIDENCE_LABEL[item.evidence]}
                           {item.weeklyOccurrences > 0 ? ` · ${item.weeklyOccurrences} nesta semana` : ""}
                         </span>
@@ -111,7 +111,7 @@ export function CreatorWeeklyReportDetail({
           ))}
         </div>
       ) : (
-        <section className="mt-6 rounded-[20px] bg-[var(--ds-color-neutral)] p-5">
+        <section className="ds-notebook-section mt-6">
           <span className="ds-eyebrow">Cobertura em formação</span>
           <h2 className="mt-2 text-[1.25rem] font-bold leading-tight text-[var(--ds-color-ink)]">
             Ainda não há dados suficientes para este ranking.
@@ -120,7 +120,7 @@ export function CreatorWeeklyReportDetail({
         </section>
       )}
 
-      <section className="mt-6 border-l-2 border-[var(--ds-color-brand)] pl-4">
+      <section className="ds-notebook-section mt-6">
         <span className="ds-eyebrow">Leitura da semana</span>
         <p className="mt-2 text-[15px] leading-[1.55] text-[var(--ds-color-ink)]">
           {detail.interpretation ?? detail.summary}

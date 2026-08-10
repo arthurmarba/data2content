@@ -18,7 +18,6 @@ import {
   MOBILE_INSTAGRAM_CONNECT_ROUTE,
   MOBILE_MEDIA_KIT_ROUTE,
   MOBILE_PROFILE_ROUTE,
-  MOBILE_WHATSAPP_CONNECT_ROUTE,
 } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
 import { requestUploadSession } from "./mobileStrategicProfileUploadSessionClient";
 import { uploadVideoToTemporarySignedUrl } from "./mobileStrategicProfileDirectUploadClient";
@@ -313,6 +312,18 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     latestCalculationRequestRef.current = { promise: request, controller };
     return request;
   }, [hasProAccess]);
+  // Valor da última publi já formatado para a linha de ferramentas do Perfil.
+  // Usa o cálculo que já é carregado após a primeira pintura — sem requisição nova.
+  const weeklyProfileCalculatorPrice = useMemo(() => {
+    const justo = latestCalculation?.justo;
+    if (typeof justo !== "number" || !Number.isFinite(justo)) return null;
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+      maximumFractionDigits: 0,
+    }).format(justo);
+  }, [latestCalculation?.justo]);
+
   const [openIdeaId, setOpenIdeaId] = useState<string | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(data.needsOnboarding);
   // O3: step de retomada após conectar Instagram durante o onboarding.
@@ -590,7 +601,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
             body: JSON.stringify({ celebratedPautaIds }),
           }).catch(() => {});
         }
-      } catch (error) {
+      } catch {
         if (controller.signal.aborted || collabsBootstrapRequestRef.current !== requestId) return;
         setCollabsBootstrap({
           status: "error",
@@ -1940,9 +1951,9 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
 
   return (
     <div
-      className={`d2c-mobile-app fixed inset-0 flex flex-col overflow-hidden ${d2cFontVariables}`}
+      className={`d2c-mobile-app ds-notebook fixed inset-0 flex flex-col overflow-hidden ${d2cFontVariables}`}
       style={{
-        background: "var(--ds-color-paper)",
+        background: "var(--ds-color-neutral)",
       }}
     >
       <div
@@ -1959,7 +1970,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
           // gradiente mudar (parar mais peachy, por mais tempo), essa faixa
           // reaparece com a cor errada, sem nenhum aviso. Fundo explícito
           // remove essa dependência — a faixa é sempre branca, ponto.
-          background: "var(--ds-color-paper)",
+          background: "var(--ds-color-neutral)",
         }}
       >
         {activeTab === "collabs" ? (
@@ -2009,9 +2020,11 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
           <CreatorWeeklyProfileExperience
             data={hydratedData}
             weeklyMeeting={weeklyMeeting}
+            calculatorPrice={weeklyProfileCalculatorPrice}
             isDemo={weeklyReportDemo}
             onDemoChange={setWeeklyReportDemo}
             onOpenAccountMenu={handleOpenAccountMenu}
+            onOpenNorte={handleOpenNorte}
             onOpenMediaKit={handleOpenMediaKit}
             onOpenCalculator={handleOpenCalculator}
             onUpgrade={handleProfileUpgrade}
@@ -2167,7 +2180,18 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       {norteOpen && (
         <DiagnosticoNorteView
           initialPurpose={localPurpose}
+          mapNarrative={hydratedData.mapaSeed?.narrativa_central?.trim()
+            || hydratedData.synthesis.mainNarrative?.label?.trim()
+            || null}
+          mapTerritories={(hydratedData.mapaSeed?.territorios?.filter(Boolean).length
+            ? hydratedData.mapaSeed.territorios.filter(Boolean)
+            : hydratedData.synthesis.narrativeTerritories.map((territory) => territory.label).filter(Boolean)
+          ).slice(0, 8)}
           onClose={() => setNorteOpen(false)}
+          onEditMap={() => {
+            setNorteOpen(false);
+            setSurveyOpen(true);
+          }}
           onSaved={(newPurpose) => {
             setLocalPurpose(newPurpose);
             // Declarar o propósito SEMEIA o MapaSeed no servidor (seedMapaSeedFromPurpose,

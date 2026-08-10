@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { BriefcaseBusiness, Calculator } from "lucide-react";
 import { COMMUNITY_WHATSAPP_URL } from "@/app/lib/communityLinks";
 import type { DiagnosticoPageData } from "@/app/dashboard/boards/videoUpload/diagnosticoPageData";
 import { CREATOR_WEEKLY_REPORT_DEMO } from "@/app/lib/creatorWeeklyReport/demoReport";
@@ -64,20 +65,13 @@ function ChevronIcon() {
   );
 }
 
-function LockIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="5" y="10" width="14" height="10" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
-      <path d="M8.5 10V7.5a3.5 3.5 0 0 1 7 0V10" stroke="currentColor" strokeWidth="1.8" />
-    </svg>
-  );
-}
-
 function ProfileAvatar({ name, imageUrl }: { name: string | null; imageUrl: string | null }) {
   const [failed, setFailed] = useState(false);
   const initial = firstName(name).charAt(0).toUpperCase();
   return (
-    <div className="grid h-[3.25rem] w-[3.25rem] shrink-0 place-items-center overflow-hidden rounded-full bg-[var(--ds-color-ink)] text-[16px] font-extrabold text-white">
+    // 72px: retrato, não chip de conta. Sem foto o círculo é bege com a letra
+    // escura — um disco preto de 72px pesaria mais do que a letra comunica.
+    <div className="grid h-[4.5rem] w-[4.5rem] shrink-0 place-items-center overflow-hidden rounded-full bg-[var(--ds-color-neutral)] text-[24px] font-extrabold text-[var(--ds-color-ink)]">
       {imageUrl && !failed ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={imageUrl} alt="" className="h-full w-full object-cover" onError={() => setFailed(true)} />
@@ -88,34 +82,60 @@ function ProfileAvatar({ name, imageUrl }: { name: string | null; imageUrl: stri
 
 function UtilityPanel({
   isPro,
+  calculatorPrice,
   onOpenMediaKit,
   onOpenCalculator,
 }: {
   isPro: boolean;
+  calculatorPrice: string | null;
   onOpenMediaKit: () => void;
   onOpenCalculator: () => void;
 }) {
+  // Linha de navegação, não botão: elas levam para outra tela em vez de
+  // executar algo aqui — a seta é a promessa correta, o botão prometeria demais.
   const rows = [
-    { id: "media-kit", icon: "▤", title: "Mídia Kit", subtitle: isPro ? "Sua página para marcas" : "Sua página para marcas · incluído no Pro", action: onOpenMediaKit },
-    { id: "calculator", icon: "R$", title: "Quanto vale sua publi", subtitle: isPro ? "Calcule seu preço justo" : "Seu preço justo · incluído no Pro", action: onOpenCalculator },
+    {
+      id: "media-kit",
+      icon: <BriefcaseBusiness className="h-[18px] w-[18px]" strokeWidth={1.8} />,
+      title: "Mídia Kit",
+      subtitle: "Sua página para marcas",
+      value: null as string | null,
+      action: onOpenMediaKit,
+    },
+    {
+      id: "calculator",
+      icon: <Calculator className="h-[18px] w-[18px]" strokeWidth={1.8} />,
+      title: "Quanto vale sua publi",
+      // Uma linha que devolve um número se justifica; uma que só se anuncia, não.
+      subtitle: isPro && calculatorPrice ? "Último cálculo · Reels" : "Calcule seu preço justo",
+      value: isPro ? calculatorPrice : null,
+      action: onOpenCalculator,
+    },
   ];
   return (
-    <section className="overflow-hidden rounded-[20px] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)]">
-      {rows.map((row) => (
-        <button
-          key={row.id}
-          type="button"
-          onClick={row.action}
-          className="grid min-h-[4.6rem] w-full grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--ds-color-line)] px-4 text-left last:border-b-0 active:bg-[var(--ds-color-neutral)]"
-        >
-          <span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--ds-color-neutral)] text-[12px] font-extrabold text-[var(--ds-color-ink)]">{row.icon}</span>
-          <span className="min-w-0">
-            <span className="block text-[14px] font-bold text-[var(--ds-color-ink)]">{row.title}</span>
-            <span className="mt-0.5 block text-[11px] leading-[1.35] text-[var(--ds-color-text-muted)]">{row.subtitle}</span>
-          </span>
-          <span className="text-[var(--ds-color-text-muted)]">{isPro ? <ChevronIcon /> : <LockIcon />}</span>
-        </button>
-      ))}
+    <section className="ds-notebook-section" aria-labelledby="profile-tools-title">
+      <h2 id="profile-tools-title" className="ds-notebook-label mb-1">{isPro ? "Ferramentas" : "Ferramentas incluídas no Pro"}</h2>
+      <div className="ds-notebook-divided">
+        {rows.map((row) => (
+          <button key={row.id} type="button" onClick={row.action} className="ds-notebook-row">
+            <span className="text-[var(--ds-color-text-secondary)]">{row.icon}</span>
+            <span className="min-w-0">
+              <span className="block text-[14px] font-semibold text-[var(--ds-color-ink)]">{row.title}</span>
+              <span className="mt-0.5 block text-[12px] leading-[1.35] text-[var(--ds-color-text-muted)]">{row.subtitle}</span>
+            </span>
+            {isPro ? (
+              <span className="flex items-center gap-2 text-[var(--ds-color-text-muted)]">
+                {row.value ? <b className="text-[15px] font-extrabold tabular-nums text-[var(--ds-color-ink)]">{row.value}</b> : null}
+                <ChevronIcon />
+              </span>
+            ) : (
+              // Etiqueta escrita no lugar do cadeado: um ícone de 12px em cinza
+              // lê como enfeite, a palavra comunica na hora.
+              <span className="ds-notebook-tag font-semibold text-[var(--ds-color-text-secondary)]">Pro</span>
+            )}
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
@@ -139,8 +159,8 @@ function ActivationCard({
 
   if (billingAttention) {
     return (
-      <section className="ds-editorial-panel p-5">
-        <span className="ds-eyebrow">Assinatura</span>
+      <section className="ds-notebook-section">
+        <span className="ds-notebook-label">Assinatura</span>
         <h2 className="mt-3 text-[1.5rem] font-bold leading-[1.08] text-[var(--ds-color-ink)]">
           {paymentPending ? "Falta concluir o pagamento." : "Seu pagamento precisa ser atualizado."}
         </h2>
@@ -153,16 +173,17 @@ function ActivationCard({
   }
 
   return (
-    <section className="ds-editorial-panel p-5">
-      <span className="ds-eyebrow">{proNeedsInstagram ? "Falta 1 passo" : "Faltam 2 passos"}</span>
-      <h2 className="mt-3 text-[1.55rem] font-bold leading-[1.07] text-[var(--ds-color-ink)]">
+    <section className="ds-notebook-section">
+      {/* A contagem diz que o caminho é curto e finito — "Próximos passos" não diz. */}
+      <span className="ds-notebook-label">{proNeedsInstagram ? "Falta 1 passo" : "Faltam 2 passos"}</span>
+      <h2 className="mt-3 text-[1.5rem] font-bold leading-[1.08] text-[var(--ds-color-ink)]">
         Você já contou quem você é. Agora falta a D2C ver os seus vídeos.
       </h2>
       <p className="ds-body mt-3">Dia, horário, cena e assunto são calculados com os seus próprios posts.</p>
 
-      <ol className="mt-5 border-t border-[var(--ds-color-line)]">
-        <li className="grid grid-cols-[2rem_minmax(0,1fr)] gap-3 border-b border-[var(--ds-color-line)] py-4">
-          <span className={`grid h-8 w-8 place-items-center rounded-full text-[12px] font-extrabold ${proNeedsInstagram ? "bg-[var(--ds-color-success-soft)] text-[var(--ds-color-success)]" : "bg-[var(--ds-color-ink)] text-white"}`}>
+      <ol className="mt-5 space-y-5">
+        <li className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-3">
+          <span className={`pt-0.5 text-[13px] font-bold ${proNeedsInstagram ? "text-[var(--ds-color-text-muted)]" : "text-[var(--ds-color-ink)]"}`}>
             {proNeedsInstagram ? "✓" : "1"}
           </span>
           <div>
@@ -173,8 +194,8 @@ function ActivationCard({
             ) : null}
           </div>
         </li>
-        <li className="grid grid-cols-[2rem_minmax(0,1fr)] gap-3 py-4">
-          <span className={`grid h-8 w-8 place-items-center rounded-full text-[12px] font-extrabold ${proNeedsInstagram ? "bg-[var(--ds-color-ink)] text-white" : "bg-[var(--ds-color-neutral)] text-[var(--ds-color-text-muted)]"}`}>2</span>
+        <li className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-3">
+          <span className={`pt-0.5 text-[13px] font-bold ${proNeedsInstagram ? "text-[var(--ds-color-ink)]" : "text-[var(--ds-color-text-muted)]"}`}>2</span>
           <div>
             <p className="m-0 text-[14px] font-bold text-[var(--ds-color-ink)]">Conectar o seu Instagram</p>
             <p className="ds-caption mt-1">Você autoriza pelo próprio Instagram e pode desconectar quando quiser.</p>
@@ -185,7 +206,7 @@ function ActivationCard({
         </li>
       </ol>
 
-      <div className="rounded-[16px] bg-[var(--ds-color-neutral)] px-4 py-3 text-[12px] leading-[1.5] text-[var(--ds-color-text-secondary)]">
+      <div className="ds-notebook-note mt-1">
         <strong className="text-[var(--ds-color-ink)]">Sem uma fila depois da conexão.</strong> O relatório-base usa os posts já publicados; leituras visuais entram conforme ficam confiáveis.
       </div>
     </section>
@@ -193,33 +214,68 @@ function ActivationCard({
 }
 
 function CreatorMap({
+  userName,
+  userImageUrl,
+  headerSubtitle,
   narrative,
+  narrativeIsPlaceholder,
   territories,
   observedSubjects,
   hasVideoEvidence,
   onOpenSettings,
+  onOpenAccountMenu,
 }: {
+  userName: string | null;
+  userImageUrl: string | null;
+  headerSubtitle: string;
   narrative: string;
+  narrativeIsPlaceholder: boolean;
   territories: string[];
   observedSubjects: string[];
   hasVideoEvidence: boolean;
   onOpenSettings: () => void;
+  onOpenAccountMenu: () => void;
 }) {
   const observedNormalized = observedSubjects.map(normalizeForMatch);
   return (
-    <section className="ds-editorial-panel p-5">
-      <span className="ds-eyebrow">Seu mapa</span>
-      <blockquote className="mt-3 text-[1.5rem] font-bold leading-[1.12] text-[var(--ds-color-ink)]">
-        “{narrative}”
-      </blockquote>
-      <div className="mt-5 border-t border-[var(--ds-color-line)] pt-4">
-        <span className="text-[10px] font-extrabold uppercase tracking-[0.09em] text-[var(--ds-color-text-muted)]">Seus assuntos</span>
+    // Identidade e mapa no mesmo cartão: são a mesma pergunta — quem é você.
+    // Separados por uma fronteira de cartão, o retrato virava enfeite de topo.
+    <section className="ds-notebook-section ds-notebook-section--first" aria-labelledby="creator-map-title">
+      <div className="flex items-center gap-4">
+        <ProfileAvatar name={userName} imageUrl={userImageUrl} />
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-[1.3rem] font-extrabold leading-tight tracking-[-0.02em] text-[var(--ds-color-ink)]">
+            {userName || "Seu perfil"}
+          </h1>
+          <p className="mt-1 truncate text-[12.5px] text-[var(--ds-color-text-muted)]">{headerSubtitle}</p>
+        </div>
+        <button type="button" className="ds-icon-button shrink-0 self-start" aria-label="Configurações da conta" onClick={onOpenAccountMenu}>
+          <GearIcon />
+        </button>
+      </div>
+
+      <div className="my-5 h-px bg-[var(--ds-color-line)]" />
+
+      <span className="ds-notebook-label">Seu mapa</span>
+      {/* Vazio nunca ocupa o nível de título: promover a ausência de conteúdo
+          faz o maior texto da tela ser justamente o que não existe ainda. */}
+      {narrativeIsPlaceholder ? (
+        <p id="creator-map-title" className="mt-3 text-[15px] leading-[1.5] text-[var(--ds-color-text-muted)]">
+          {narrative}
+        </p>
+      ) : (
+        <blockquote id="creator-map-title" className="mt-3 text-[1.75rem] font-bold leading-[1.08] tracking-[-0.03em] text-[var(--ds-color-ink)]">
+          “{narrative}”
+        </blockquote>
+      )}
+      <div className="mt-5">
+        <span className="ds-notebook-label">Assuntos</span>
         <div className="mt-3 flex flex-wrap gap-2">
           {territories.length > 0 ? territories.map((territory) => {
             const normalized = normalizeForMatch(territory);
             const observed = observedNormalized.some((subject) => subject.includes(normalized) || normalized.includes(subject));
             return (
-              <span key={territory} className={`ds-chip ${observed ? "ds-chip--active" : ""}`}>
+              <span key={territory} className={`ds-notebook-tag ${observed ? "font-semibold text-[var(--ds-color-ink)]" : ""}`}>
                 {observed ? "✓" : null} {territory}
               </span>
             );
@@ -230,8 +286,9 @@ function CreatorMap({
             ? "O ✓ indica um assunto que também apareceu nos vídeos lidos."
             : "Isso é o que você escreveu ao criar a conta. Nenhum vídeo publicado confirmou esses assuntos ainda."}
         </p>
-        <button type="button" className="mt-3 min-h-10 text-[12px] font-bold text-[var(--ds-color-brand-strong)]" onClick={onOpenSettings}>
-          Ajustar nas configurações
+        <button type="button" className="ds-notebook-action mt-2" onClick={onOpenSettings}>
+          <span>Ajustar mapa</span>
+          <span className="text-[var(--ds-color-text-muted)]"><ChevronIcon /></span>
         </button>
       </div>
     </section>
@@ -240,31 +297,35 @@ function CreatorMap({
 
 function WeeklyVideoCard({ video, isDemo }: { video: CreatorWeeklyReportVideo; isDemo: boolean }) {
   const body = (
-    <div className="ds-editorial-panel overflow-hidden">
-      <div className="relative aspect-[16/10] bg-[var(--ds-color-ink)]">
-        {!isDemo && video.thumbnailUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
+    <div className="ds-notebook-media">
+      {/* Sem capa o bloco não precisa ocupar a altura de um vídeo — vira uma
+          faixa baixa, para não abrir um vazio de 400px no meio da leitura. */}
+      {!isDemo && video.thumbnailUrl ? (
+        <div className="relative aspect-[16/10] bg-[var(--ds-color-ink)]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={video.thumbnailUrl} alt="Capa do vídeo da semana" className="h-full w-full object-cover opacity-85" />
-        ) : (
-          <div className="grid h-full place-items-center bg-[linear-gradient(145deg,var(--ds-color-line-strong),var(--ds-color-text-muted))] text-center text-[12px] font-bold text-white/80">
-            {isDemo ? "Vídeo ocultado no exemplo" : "Capa indisponível"}
-          </div>
-        )}
-        <span className="absolute left-4 top-4 rounded-full bg-black/65 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.08em] text-white backdrop-blur-sm">Vídeo da semana</span>
-      </div>
+        </div>
+      ) : (
+        <div className="grid h-[76px] place-items-center bg-[var(--ds-color-neutral)] text-center text-[12px] font-semibold text-[var(--ds-color-text-muted)]">
+          {isDemo ? "Vídeo ocultado no exemplo" : "Capa indisponível"}
+        </div>
+      )}
       <div className="p-5">
         <div className="flex items-center gap-2">
-          <span className="ds-eyebrow">O que mais rendeu</span>
+          <span className="ds-notebook-label">Vídeo da semana</span>
           {isDemo ? <span className="ds-badge ds-badge--neutral">Exemplo</span> : null}
         </div>
-        <h2 className="mt-3 text-[1.35rem] font-bold leading-[1.12] text-[var(--ds-color-ink)]">{video.description}</h2>
-        {formatIndex(video.performanceIndex) ? <p className="mt-2 text-[13px] font-bold text-[var(--ds-color-success)]">{formatIndex(video.performanceIndex)}</p> : null}
-        <div className="mt-5 grid grid-cols-3 border-t border-[var(--ds-color-line)] pt-4">
+        {/* O veredito vem antes da manchete: é o que a pessoa veio saber. */}
+        {formatIndex(video.performanceIndex) ? (
+          <p className="mt-2 text-[1.5rem] font-extrabold leading-none tracking-[-0.02em] text-[var(--ds-color-success)]">{formatIndex(video.performanceIndex)}</p>
+        ) : null}
+        <h2 className="mt-2 text-[1.35rem] font-bold leading-[1.12] text-[var(--ds-color-ink)]">{video.description}</h2>
+        <div className="mt-5 grid grid-cols-3 pt-1">
           <div><b className="block text-[16px] text-[var(--ds-color-ink)]">{formatMetric(video.views)}</b><span className="ds-caption">views</span></div>
           <div><b className="block text-[16px] text-[var(--ds-color-ink)]">{formatMetric(video.saved)}</b><span className="ds-caption">salvos</span></div>
           <div><b className="block text-[16px] text-[var(--ds-color-ink)]">{formatMetric(video.shares)}</b><span className="ds-caption">envios</span></div>
         </div>
-        {video.openingLine ? <p className="mt-4 border-l-2 border-[var(--ds-color-brand)] pl-3 text-[13px] italic leading-[1.45] text-[var(--ds-color-text-secondary)]">“{video.openingLine}”</p> : null}
+        {video.openingLine ? <p className="mt-4 border-l-2 border-[var(--ds-color-line-strong)] pl-3 text-[13px] italic leading-[1.45] text-[var(--ds-color-text-secondary)]">“{video.openingLine}”</p> : null}
       </div>
     </div>
   );
@@ -284,20 +345,18 @@ function ReportOverview({
   onOpenDetail: (id: CreatorWeeklyReportDetailId) => void;
 }) {
   return (
-    <section aria-labelledby="weekly-report-title">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className="ds-eyebrow">Seu relatório</span>
-            {isDemo ? <span className="ds-badge ds-badge--neutral">Exemplo</span> : null}
-          </div>
-          <h2 id="weekly-report-title" className="mt-2 text-[1.75rem] font-bold leading-none text-[var(--ds-color-ink)]">A semana por dentro</h2>
-        </div>
-        <span className="ds-caption shrink-0">90 dias</span>
+    <section aria-labelledby="weekly-report-title" className="ds-notebook-section">
+      <div className="flex items-center gap-2">
+        <span className="ds-notebook-label">Seu relatório</span>
+        {isDemo ? <span className="ds-badge ds-badge--neutral">Exemplo</span> : null}
       </div>
+      <h2 id="weekly-report-title" className="mt-2 text-[1.75rem] font-bold leading-none tracking-[-0.025em] text-[var(--ds-color-ink)]">A semana por dentro</h2>
+      {/* "90 dias" colado no título contradizia a seção, que fala da semana.
+          Como linha de apoio ele explica a régua em vez de confundir. */}
       <p className="ds-body mt-3">{report.overview.summary}</p>
+      <p className="ds-caption mt-2">Tudo comparado com a sua mediana dos últimos 90 dias.</p>
 
-      <div className="mt-5 grid grid-cols-3 border-y border-[var(--ds-color-line)] py-4">
+      <div className="mt-5 grid grid-cols-3 py-2">
         {report.overview.numbers.map((number) => (
           <div key={number.label} className="border-r border-[var(--ds-color-line)] px-2 text-center first:pl-0 last:border-r-0 last:pr-0">
             <b className="block text-[1.25rem] leading-none text-[var(--ds-color-ink)]">{number.value}</b>
@@ -307,26 +366,26 @@ function ReportOverview({
       </div>
 
       {report.weeklyVideo ? <div className="mt-6"><WeeklyVideoCard video={report.weeklyVideo} isDemo={isDemo} /></div> : (
-        <div className="mt-6 rounded-[18px] bg-[var(--ds-color-neutral)] p-5">
+        <div className="mt-6 py-3">
           <span className="ds-eyebrow">Vídeo da semana</span>
           <h3 className="mt-2 text-[1.25rem] font-bold text-[var(--ds-color-ink)]">Nenhum post na semana encerrada.</h3>
           <p className="ds-body mt-2">Os rankings de 90 dias continuam disponíveis abaixo.</p>
         </div>
       )}
 
-      <div className="mt-6 overflow-hidden rounded-[20px] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)]">
+      <div className="ds-notebook-divided mt-6">
         {report.details.map((detail) => (
           <button
             key={detail.id}
             type="button"
             onClick={() => onOpenDetail(detail.id)}
-            className="grid min-h-[5.25rem] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[var(--ds-color-line)] px-4 py-3.5 text-left last:border-b-0 active:bg-[var(--ds-color-neutral)]"
+            className="grid min-h-[5rem] w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg px-1 py-3 text-left active:bg-[var(--ds-color-neutral)]"
           >
             <span className="min-w-0">
               <span className="block text-[14px] font-bold text-[var(--ds-color-ink)]">{detail.title}</span>
               <span className="mt-1 block text-[11px] leading-[1.35] text-[var(--ds-color-text-muted)]">{detail.summary}</span>
             </span>
-            <span className="text-[var(--ds-color-brand-strong)]"><ChevronIcon /></span>
+            <span className="text-[var(--ds-color-text-muted)]"><ChevronIcon /></span>
           </button>
         ))}
       </div>
@@ -343,14 +402,16 @@ function LockedBenefits() {
     ["Assuntos e aberturas", "Os temas e primeiras frases que mais rendem"],
   ];
   return (
-    <section className="ds-editorial-panel p-5">
-      <span className="ds-eyebrow">O que chega toda segunda</span>
+    <section className="ds-notebook-section">
+      <span className="ds-notebook-label">O que chega toda segunda</span>
       <h2 className="mt-3 text-[1.4rem] font-bold leading-tight text-[var(--ds-color-ink)]">Depois dos dois passos</h2>
-      <div className="mt-3">
+      {/* Sem cadeado por linha: o título já diz que isso ainda vai chegar, e um
+          ícone de 12px repetido quatro vezes só adiciona ruído. */}
+      <div className="ds-notebook-divided mt-4">
         {rows.map(([title, subtitle]) => (
-          <div key={title} className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 border-b border-[var(--ds-color-line)] py-3 last:border-b-0">
-            <span><b className="block text-[13px] text-[var(--ds-color-ink)]">{title}</b><span className="ds-caption mt-1 block">{subtitle}</span></span>
-            <span className="self-center text-[var(--ds-color-text-muted)]"><LockIcon /></span>
+          <div key={title} className="py-3">
+            <b className="block text-[14px] text-[var(--ds-color-ink)]">{title}</b>
+            <span className="ds-caption mt-1 block">{subtitle}</span>
           </div>
         ))}
       </div>
@@ -373,7 +434,7 @@ function BrandMatchCard({
     : match?.rationale;
 
   return (
-    <section className="ds-editorial-panel p-5">
+    <section className="ds-notebook-section">
       <div className="flex items-center gap-2">
         <span className="ds-eyebrow">Marca que combina com você</span>
         {isDemo ? <span className="ds-badge ds-badge--neutral">Exemplo</span> : null}
@@ -398,8 +459,8 @@ function MeetingCard({
 }) {
   const cancelled = meeting?.status === "cancelled";
   return (
-    <section className="border-t border-[var(--ds-color-line)] pt-6">
-      <span className="ds-eyebrow">Reunião da comunidade</span>
+    <section className="ds-notebook-section">
+      <span className="ds-notebook-label">Reunião da comunidade</span>
       <h2 className="mt-2 text-[1.4rem] font-bold leading-tight text-[var(--ds-color-ink)]">
         {cancelled ? "Esta edição foi cancelada" : meeting ? formatMeetingDate(meeting) : "Toda quinta, 19h"}
       </h2>
@@ -421,9 +482,11 @@ function MeetingCard({
 export function CreatorWeeklyProfileExperience({
   data,
   weeklyMeeting,
+  calculatorPrice = null,
   isDemo,
   onDemoChange,
   onOpenAccountMenu,
+  onOpenNorte,
   onOpenMediaKit,
   onOpenCalculator,
   onUpgrade,
@@ -431,9 +494,12 @@ export function CreatorWeeklyProfileExperience({
 }: {
   data: DiagnosticoPageData;
   weeklyMeeting: WeeklyMeetingProfileData | null;
+  /** Último cálculo de publi já formatado (ex.: "R$ 2.800"), quando existir. */
+  calculatorPrice?: string | null;
   isDemo: boolean;
   onDemoChange: (demo: boolean) => void;
   onOpenAccountMenu: () => void;
+  onOpenNorte: () => void;
   onOpenMediaKit: () => void;
   onOpenCalculator: () => void;
   onUpgrade: (context?: PaywallContext) => void;
@@ -504,9 +570,13 @@ export function CreatorWeeklyProfileExperience({
     };
   }, [data.accessState, data.instagramConnected, hasReportAccess, isPro, liveReport?.coverage.posts90d]);
 
-  const narrative = data.mapaSeed?.narrativa_central?.trim()
+  const declaredNarrative = data.mapaSeed?.narrativa_central?.trim()
     || data.synthesis.mainNarrative?.label?.trim()
-    || "Sua história ainda está ganhando forma";
+    || "";
+  const narrativeIsPlaceholder = declaredNarrative.length === 0;
+  const narrative = narrativeIsPlaceholder
+    ? "Sua história ainda está ganhando forma. Responda o Seu Norte para escrevê-la."
+    : declaredNarrative;
   const territories = useMemo(() => {
     const fromMap = data.mapaSeed?.territorios?.filter(Boolean) ?? [];
     if (fromMap.length > 0) return fromMap.slice(0, 8);
@@ -542,44 +612,47 @@ export function CreatorWeeklyProfileExperience({
   }
 
   return (
-    <main className="mx-auto w-full max-w-[32rem] px-5 pb-8 pt-[var(--ds-safe-top)] ds-analysis-editorial">
-      <header className="flex items-center gap-3">
-        <ProfileAvatar name={data.userInfo.name} imageUrl={data.userInfo.imageUrl} />
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[1.05rem] font-extrabold leading-tight text-[var(--ds-color-ink)]">{data.userInfo.name || "Seu perfil"}</h1>
-          <p className="mt-1 truncate text-[11px] text-[var(--ds-color-text-muted)]">
-            {isDemo ? "Relatório de exemplo" : report ? `Semana de ${report.period.rangeLabel}` : `Olá, ${firstName(data.userInfo.name)}`}
-          </p>
-        </div>
-        <button type="button" className="ds-icon-button" aria-label="Configurações da conta" onClick={onOpenAccountMenu}><GearIcon /></button>
-      </header>
+    <main className="ds-notebook-page ds-analysis-editorial">
+      <div>
+        {/* Identidade sempre primeiro: em qualquer estado ela abre o app e vê
+            o próprio perfil antes de qualquer cobrança ou relatório. */}
+        <CreatorMap
+          userName={data.userInfo.name}
+          userImageUrl={data.userInfo.imageUrl}
+          headerSubtitle={isDemo ? "Relatório de exemplo" : report ? `Semana de ${report.period.rangeLabel}` : `Olá, ${firstName(data.userInfo.name)}`}
+          narrative={narrative}
+          narrativeIsPlaceholder={narrativeIsPlaceholder}
+          territories={territories}
+          observedSubjects={report?.overview.observedSubjects ?? []}
+          hasVideoEvidence={(report?.coverage.postsWithScene ?? 0) > 0 && !isDemo}
+          onOpenSettings={onOpenNorte}
+          onOpenAccountMenu={onOpenAccountMenu}
+        />
 
-      <div className="mt-6 space-y-6">
+        {/* Depois da identidade, a ordem muda com o estado: quem já tem relatório
+            abre o app para ver a semana, então as ferramentas descem para o fim.
+            Quem ainda não tem vê nelas o valor que a assinatura libera. */}
         {!hasReportAccess && !isDemo ? (
           <ActivationCard accessState={data.accessState} onUpgrade={onUpgrade} onConnectInstagram={onConnectInstagram} />
         ) : null}
 
-        <UtilityPanel isPro={isPro && !isDemo} onOpenMediaKit={isDemo ? () => onUpgrade("media_kit") : onOpenMediaKit} onOpenCalculator={isDemo ? () => onUpgrade("calculator") : onOpenCalculator} />
-
-        <CreatorMap
-          narrative={narrative}
-          territories={territories}
-          observedSubjects={report?.overview.observedSubjects ?? []}
-          hasVideoEvidence={(report?.coverage.postsWithScene ?? 0) > 0 && !isDemo}
-          onOpenSettings={onOpenAccountMenu}
-        />
+        {!hasReportAccess || isDemo ? (
+          <UtilityPanel isPro={isPro && !isDemo} calculatorPrice={calculatorPrice} onOpenMediaKit={isDemo ? () => onUpgrade("media_kit") : onOpenMediaKit} onOpenCalculator={isDemo ? () => onUpgrade("calculator") : onOpenCalculator} />
+        ) : null}
 
         {isDemo ? (
-          <section className="rounded-[18px] bg-[var(--ds-color-brand-soft)] p-4 text-[13px] leading-[1.5] text-[var(--ds-color-brand-strong)]">
+          <section className="ds-notebook-section">
+            <p className="ds-notebook-note">
             <strong>Você está vendo um exemplo.</strong> Seu nome, sua foto e seu mapa continuam sendo seus; só os números abaixo são demonstrativos.
+            </p>
           </section>
         ) : null}
 
         {report && (hasReportAccess || isDemo) ? (
           <ReportOverview report={report} isDemo={isDemo} onOpenDetail={handleOpenDetail} />
         ) : hasReportAccess ? (
-          <section className="rounded-[20px] bg-[var(--ds-color-neutral)] p-5" role="status" aria-live="polite">
-            <span className="ds-eyebrow">Seu relatório</span>
+          <section className="ds-notebook-section" role="status" aria-live="polite">
+            <span className="ds-notebook-label">Seu relatório</span>
             <h2 className="mt-2 text-[1.4rem] font-bold leading-tight text-[var(--ds-color-ink)]">Seus dados já estão chegando ao Perfil.</h2>
             <p className="ds-body mt-2">O mapa permanece disponível e esta seção se atualiza automaticamente depois da primeira sincronização.</p>
           </section>
@@ -592,17 +665,19 @@ export function CreatorWeeklyProfileExperience({
         ) : null}
 
         {!hasReportAccess && !isDemo ? (
-          <section className="border-t border-[var(--ds-color-line)] pt-6">
-            <span className="ds-eyebrow">Veja por dentro</span>
+          <section className="ds-notebook-section">
+            <span className="ds-notebook-label">Veja por dentro</span>
             <h2 className="mt-2 text-[1.5rem] font-bold leading-[1.08] text-[var(--ds-color-ink)]">Veja um relatório inteiro antes de assinar.</h2>
             <p className="ds-body mt-2">Navegue pelos rankings, pelo vídeo da semana e pelas frases de abertura com dados sanitizados.</p>
-            <button type="button" className="ds-button ds-button--primary mt-4" onClick={() => handleDemoChange(true)}>Ver relatório de exemplo</button>
+            {/* Secundário de propósito: o vermelho da tela pertence a "Assinar".
+                Dois botões cheios na mesma rolagem anulam um ao outro. */}
+            <button type="button" className="ds-button ds-button--secondary mt-4" onClick={() => handleDemoChange(true)}>Ver relatório de exemplo</button>
           </section>
         ) : null}
 
         {isDemo ? (
-          <section className="ds-editorial-panel p-5">
-            <span className="ds-eyebrow">Fim do exemplo</span>
+          <section className="ds-notebook-section">
+            <span className="ds-notebook-label">Fim do exemplo</span>
             <h2 className="mt-2 text-[1.45rem] font-bold leading-tight text-[var(--ds-color-ink)]">O seu usa os seus últimos 90 dias.</h2>
             <p className="ds-body mt-2">Depois da conexão, ele aparece aqui e se atualiza toda segunda-feira.</p>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -614,7 +689,11 @@ export function CreatorWeeklyProfileExperience({
 
         <MeetingCard meeting={weeklyMeeting} isPro={isPro} isDemo={isDemo} onUpgrade={onUpgrade} />
 
-        <p className="pb-2 text-center text-[11px] leading-[1.45] text-[var(--ds-color-text-muted)]">
+        {hasReportAccess && !isDemo ? (
+          <UtilityPanel isPro={isPro} calculatorPrice={calculatorPrice} onOpenMediaKit={onOpenMediaKit} onOpenCalculator={onOpenCalculator} />
+        ) : null}
+
+        <p className="pb-2 pt-6 text-center text-[11px] leading-[1.45] text-[var(--ds-color-text-muted)]">
           Segunda o relatório chega. Quinta a gente conversa sobre ele.
         </p>
       </div>

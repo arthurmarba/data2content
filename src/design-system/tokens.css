@@ -160,6 +160,220 @@
   padding-block: 1rem;
 }
 
+/*
+ * Notebook workspace
+ * ------------------
+ * A monochrome, document-first layer for the mobile creator experience. It is
+ * deliberately scoped so the rest of the product keeps the existing brand
+ * system. Hierarchy comes from type, spacing and dividers; surfaces are the
+ * exception and are reserved for media or overlays.
+ */
+.ds-notebook {
+  /* Vermelho da landing pública (#e90f4f). A variante forte existe para texto
+     pequeno, onde o tom cheio não alcança contraste AA. */
+  --ds-color-brand: #e90f4f;
+  --ds-color-brand-strong: #c70a42;
+  --ds-color-brand-soft: #fdecf1;
+  /* Escala neutra própria, de viés quente — parente do creme do deck da
+     reunião. Substitui os cinzas frios usados na primeira versão. */
+  --ds-color-ink: #17140f;
+  --ds-color-paper: #ffffff;
+  --ds-color-surface: #ffffff;
+  --ds-color-neutral: #efe9e0;
+  --ds-color-text: #17140f;
+  --ds-color-text-secondary: #423b33;
+  --ds-color-text-muted: #6b6157; /* 5.9:1 no branco — o #787774 anterior ficava em 4.5 */
+  --ds-color-line: #e7e1d8;
+  --ds-color-line-strong: #d6cec2;
+  --ds-shadow-raised: none;
+  --ds-shadow-floating: none;
+  /* A página é mais escura que o cartão de propósito: cartão só existe se tiver
+     sobre o que repousar. Branco sobre quase-branco é o pior dos dois mundos. */
+  background: #f1ebe1;
+}
+
+.d2c-mobile-app.ds-notebook {
+  background: #f1ebe1;
+}
+
+/* A fonte de display já cobre h1/h2/h3 via `.d2c-mobile-app`; a narrativa do
+   mapa é um blockquote e ficava de fora, saindo na fonte de corpo. */
+.ds-notebook :where(blockquote) {
+  font-family: var(--ds-font-display);
+}
+
+.ds-notebook-page {
+  width: 100%;
+  max-width: 32rem;
+  margin-inline: auto;
+  /* O primeiro elemento é um cartão com borda visível, não texto solto: encostar
+     a 12px do notch aperta. 16px dá o respiro que a aresta do cartão pede. */
+  padding: calc(env(safe-area-inset-top, 0px) + 1rem) 1.25rem 2rem;
+}
+
+/* Dois níveis de separação, sem ambiguidade: o cartão separa assuntos
+   diferentes; a linha fina (.ds-notebook-divided) separa irmãos dentro do
+   mesmo assunto. Antes os dois usavam a mesma linha e o leitor não conseguia
+   distinguir fronteira de divisão. */
+.ds-notebook-section {
+  margin-bottom: 0.75rem;
+  border: 0;
+  border-radius: 1rem;
+  background: var(--ds-color-surface);
+  padding: 1.25rem;
+}
+
+.ds-notebook-section--first {
+  padding-top: 1.25rem;
+}
+
+/* Irmãos dentro de um bloco. */
+.ds-notebook-divided > * + * {
+  border-top: 1px solid var(--ds-color-line);
+}
+
+.ds-notebook-label {
+  color: var(--ds-color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.ds-notebook-row {
+  display: grid;
+  min-height: 3.5rem;
+  width: 100%;
+  grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  padding: 0.7rem 0.25rem;
+  color: var(--ds-color-ink);
+  text-align: left;
+  transition: background var(--ds-motion-fast) var(--ds-ease-standard);
+}
+
+.ds-notebook-row + .ds-notebook-row { margin-top: 0.15rem; }
+.ds-notebook-row:active { background: var(--ds-color-neutral); }
+
+.ds-notebook-tag {
+  display: inline-flex;
+  min-height: 1.65rem;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 0.375rem;
+  background: var(--ds-color-neutral);
+  color: var(--ds-color-text-secondary);
+  padding: 0.3rem 0.55rem;
+  font-size: 0.8125rem;
+  font-weight: 550;
+  line-height: 1.1;
+}
+
+.ds-notebook-action {
+  display: flex;
+  min-height: 2.75rem;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border: 0;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--ds-color-ink);
+  padding: 0.55rem 0;
+  font-size: 0.82rem;
+  font-weight: 650;
+  text-align: left;
+  transition: background var(--ds-motion-fast) var(--ds-ease-standard), padding var(--ds-motion-fast) var(--ds-ease-standard);
+}
+
+.ds-notebook-action:active {
+  background: var(--ds-color-neutral);
+  padding-inline: 0.5rem;
+}
+
+.ds-notebook-media {
+  overflow: hidden;
+  border: 1px solid var(--ds-color-line);
+  border-radius: 0.625rem;
+  background: var(--ds-color-surface);
+}
+
+.ds-notebook-note {
+  border-left: 2px solid var(--ds-color-line-strong);
+  padding-left: 0.9rem;
+  color: var(--ds-color-text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+/* Flatten legacy panels that still render inside this scoped experience. */
+.ds-notebook .ds-editorial-panel {
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.ds-notebook .ds-eyebrow {
+  color: var(--ds-color-text-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.ds-notebook .ds-chip {
+  min-height: 1.65rem;
+  border: 0;
+  border-radius: 0.375rem;
+  background: var(--ds-color-neutral);
+  color: var(--ds-color-text-secondary);
+  padding: 0.3rem 0.55rem;
+  font-weight: 550;
+}
+
+.ds-notebook .ds-chip--active {
+  border: 0;
+  background: var(--ds-color-line-strong);
+  color: var(--ds-color-ink);
+}
+
+.ds-notebook .ds-button {
+  min-height: 2.75rem;
+  border-radius: 0.5rem;
+  box-shadow: none;
+}
+
+/* A ação principal é um dos quatro únicos lugares com cor na tela. */
+.ds-notebook .ds-button--primary {
+  background: var(--ds-color-brand);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.ds-notebook .ds-button--secondary {
+  background: var(--ds-color-ink);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.ds-notebook .ds-button--quiet {
+  background: var(--ds-color-neutral);
+  color: var(--ds-color-ink);
+}
+
+.ds-notebook .ds-icon-button {
+  border-radius: 0.5rem;
+  background: transparent;
+}
+
+.ds-notebook .ds-icon-button:active { background: var(--ds-color-neutral); }
+
 .ds-chip {
   display: inline-flex;
   min-height: 2rem;

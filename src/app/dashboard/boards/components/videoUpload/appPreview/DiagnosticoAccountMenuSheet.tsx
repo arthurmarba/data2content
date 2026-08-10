@@ -35,7 +35,7 @@ interface Props {
   onSignOut: () => void;
   /** Fase 2 — abre a pesquisa de perfil para completar o mapa. */
   onOpenSurvey?: () => void;
-  /** Fase 4 — abre a tela "Meu Norte" para editar o propósito do criador. */
+  /** Abre "Seu norte" para editar o propósito e revisar o mapa do criador. */
   onOpenNorte?: () => void;
   /** Fase 4 — indica se o propósito ainda não foi declarado (ponto laranja). */
   hasPurpose?: boolean;
@@ -120,9 +120,7 @@ export function DiagnosticoAccountMenuSheet({
             ) : null}
           </div>
           <span
-            className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-              plan === "Pro" ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"
-            }`}
+            className="shrink-0 rounded-[4px] bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-600"
           >
             {plan}
           </span>
@@ -147,7 +145,7 @@ export function DiagnosticoAccountMenuSheet({
           )}
           {onOpenNorte && (
             <AccountMenuAction
-              label="Meu Norte"
+              label="Seu norte"
               onClick={() => { onClose(); onOpenNorte(); }}
               icon={<Compass className="h-4 w-4" strokeWidth={1.9} />}
               statusDot={hasPurpose ? undefined : "orange"}
@@ -243,7 +241,7 @@ function AccountMenuAction({
   onClick: () => void;
   /** Optional status indicator dot rendered before the chevron. */
   statusDot?: "green" | "orange";
-  /** Primary action styling (amber accent) — used for "Assinar Pro". */
+  /** Primary action styling — used for "Assinar Pro". */
   emphasis?: boolean;
 }) {
   const iconClass = emphasis

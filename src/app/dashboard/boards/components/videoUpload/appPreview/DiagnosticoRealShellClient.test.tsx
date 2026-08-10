@@ -130,6 +130,34 @@ describe("DiagnosticoRealShellClient", () => {
     expect(mockDiagnosticoPageRender).not.toHaveBeenCalled();
   });
 
+  it("abre Seu norte diretamente pelo card do mapa", async () => {
+    render(
+      <DiagnosticoRealShellClient
+        data={buildDiagnosticoPageDataFixture({
+          creatorWeeklyProfileExperienceEnabled: true,
+          mapaSeed: {
+            narrativa_central: "Criatividade que cabe na rotina",
+            territorios: ["Bastidores", "Processo criativo"],
+            temas: [],
+            narrativas_adjacentes: [],
+            assets: [],
+            tom: "",
+            formatos: [],
+            maturidade: "seed",
+            fonte: ["onboarding_declarativo"],
+          },
+        })}
+        onAnalyzeAction={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Ajustar mapa" }));
+
+    expect(await screen.findByText("Seu norte")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Criatividade que cabe na rotina/ })).toBeInTheDocument();
+    expect(screen.queryByRole("dialog", { name: "Conta e preferências" })).not.toBeInTheDocument();
+  });
+
   it("lets an admin with a Free billing label use premium mobile actions", async () => {
     const fetchSpy = jest.spyOn(global, "fetch").mockImplementation((input: RequestInfo | URL) => {
       if (String(input) === "/api/calculator/latest") {

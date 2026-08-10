@@ -7,7 +7,7 @@ describe("DiagnosticoTabBar", () => {
     const onSelectCollabs = jest.fn();
     const onPressPlus = jest.fn();
 
-    render(
+    const { container } = render(
       <DiagnosticoTabBar
         activeTab="collabs"
         onSelectPerfil={onSelectPerfil}
@@ -19,6 +19,8 @@ describe("DiagnosticoTabBar", () => {
     expect(screen.getByRole("button", { name: "Collabs" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("button", { name: "Perfil" })).not.toHaveAttribute("aria-current");
     expect(screen.queryByText("Escanear")).not.toBeInTheDocument();
+    expect(container.querySelector("nav")).toHaveClass("bg-white");
+    expect(container.querySelector("nav")).not.toHaveClass("shadow-lg");
 
     fireEvent.click(screen.getByRole("button", { name: "Perfil" }));
     fireEvent.click(screen.getByRole("button", { name: "Collabs" }));
