@@ -1,6 +1,7 @@
 import {
   isMobileDashboardEntryRoute,
   isMobileStrategicProfileRoute,
+  shouldSuppressDashboardLegacyChrome,
   shouldRenderDashboardMobileBottomNav,
 } from "./DashboardShell";
 import { MOBILE_PROFILE_ROUTE } from "../boards/videoUpload/mobileStrategicProfileRoutes";
@@ -74,6 +75,33 @@ describe("DashboardShell mobile strategic profile routing", () => {
         isMobile: true,
         isMobileStrategicProfileAppEnabled: false,
         pathname: "/reuniao",
+      }),
+    ).toBe(false);
+  });
+
+  it("não renderiza chrome legado no arquivo de reuniões gravadas", () => {
+    expect(shouldSuppressDashboardLegacyChrome("/reunioes-gravadas")).toBe(true);
+    expect(shouldSuppressDashboardLegacyChrome("/reuniao")).toBe(true);
+    expect(shouldSuppressDashboardLegacyChrome("/planning/discover")).toBe(false);
+
+    expect(
+      shouldRenderDashboardMobileBottomNav({
+        isPrintMode: false,
+        isGuidedFlow: false,
+        isMobile: true,
+        isMobileStrategicProfileAppEnabled: true,
+        pathname: "/reunioes-gravadas",
+      }),
+    ).toBe(false);
+
+    // A rota é independente da flag do novo Perfil.
+    expect(
+      shouldRenderDashboardMobileBottomNav({
+        isPrintMode: false,
+        isGuidedFlow: false,
+        isMobile: true,
+        isMobileStrategicProfileAppEnabled: false,
+        pathname: "/reunioes-gravadas",
       }),
     ).toBe(false);
   });

@@ -1,0 +1,240 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e3]:
+    - banner [ref=f1e4]:
+      - generic [ref=f1e5]:
+        - link "Data2Content - página inicial" [ref=f1e6] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f1e8]: data2content
+        - button "Abrir menu" [ref=f1e9] [cursor=pointer]
+    - main [ref=f1e11]:
+      - generic [ref=f1e13]:
+        - generic [ref=f1e14]:
+          - heading "Pare de adivinhar o que postar." [level=1] [ref=f1e15]:
+            - generic [ref=f1e16]: Pare de adivinhar
+            - generic [ref=f1e17]: o que postar.
+          - generic [ref=f1e18]:
+            - paragraph [ref=f1e19]: Nossa IA assiste aos conteúdos e encontra padrões para você
+            - generic [ref=f1e20]: ganhar seguidores, engajar, vender, atrair marcas e criar comunidade.
+            - emphasis [ref=f1e321]: vender.
+          - button "Criar conta grátis" [ref=f1e25] [cursor=pointer]
+        - figure [ref=f1e28]:
+          - generic [ref=f1e29]:
+            - img "Creator desenvolvendo uma ideia em seu espaço de trabalho" [ref=f1e30]
+            - generic "A IA assiste aos conteúdos, identifica sinais de cenário, assunto, fala e formato, encontra padrões e os transforma em direção para postar":
+              - generic:
+                - generic:
+                  - generic: Direção
+                  - strong: O que postar a seguir
+      - generic [ref=f1e32]:
+        - generic [ref=f1e33]:
+          - paragraph [ref=f1e34]: ✦Conteúdo real · sinais reais
+          - heading "Uma comunidade diversa revela movimentos que ninguém vê sozinho." [level=3] [ref=f1e35]
+        - region "Creators ativos da comunidade D2C" [ref=f1e36]:
+          - generic [ref=f1e39]:
+            - link "Abrir o Media Kit de Aline Bergamini" [ref=f1e40] [cursor=pointer]:
+              - /url: /mediakit/aline-bergamini
+              - img "Foto de perfil de Aline Bergamini" [ref=f1e42]
+              - generic [ref=f1e43]: Aline Bergamini
+              - generic [ref=f1e48]: "@alinebergamini"
+            - link "Abrir o Media Kit de Aline Paiva" [ref=f1e49] [cursor=pointer]:
+              - /url: /mediakit/aline-paiva
+              - img "Foto de perfil de Aline Paiva" [ref=f1e51]
+              - generic [ref=f1e52]: Aline Paiva
+              - generic [ref=f1e57]: "@alinepaivadecora"
+            - link "Abrir o Media Kit de Amanda Magalhaes" [ref=f1e58] [cursor=pointer]:
+              - /url: /mediakit/amanda-magalhaes
+              - img "Foto de perfil de Amanda Magalhaes" [ref=f1e60]
+              - generic [ref=f1e61]: Amanda Magalhaes
+              - generic [ref=f1e65]: "@aamandamag"
+            - link "Abrir o Media Kit de Amanda Mol Neurociência do Sono Infantil" [ref=f1e66] [cursor=pointer]:
+              - /url: /mediakit/amanda-mol-neurociencia-do-sono-infantil
+              - img "Foto de perfil de Amanda Mol Neurociência do Sono Infantil" [ref=f1e68]
+              - generic [ref=f1e69]: Amanda Mol Neurociência do Sono Infantil
+              - generic [ref=f1e73]: "@amandamol_"
+            - link "Abrir o Media Kit de Arthur Marba" [ref=f1e74] [cursor=pointer]:
+              - /url: /mediakit/arthur-marba
+              - img "Foto de perfil de Arthur Marba" [ref=f1e76]
+              - generic [ref=f1e77]: Arthur Marba
+              - generic [ref=f1e82]: "@arthurmarba"
+            - link "Abrir o Media Kit de Blu Nunes" [ref=f1e83] [cursor=pointer]:
+              - /url: /mediakit/blu-nunes
+              - img "Foto de perfil de Blu Nunes" [ref=f1e85]
+              - generic [ref=f1e86]: Blu Nunes
+              - generic [ref=f1e91]: "@blununees"
+            - link "Abrir o Media Kit de Cris Valente" [ref=f1e92] [cursor=pointer]:
+              - /url: /mediakit/cris-valente
+              - img "Foto de perfil de Cris Valente" [ref=f1e94]
+              - generic [ref=f1e95]: Cris Valente
+              - generic [ref=f1e100]: "@cris_valentereal"
+            - link "Abrir o Media Kit de Débora Broch Machado" [ref=f1e101] [cursor=pointer]:
+              - /url: /mediakit/debora-broch-machado
+              - img "Foto de perfil de Débora Broch Machado" [ref=f1e103]
+              - generic [ref=f1e104]: Débora Broch Machado
+              - generic [ref=f1e108]: "@deborabroch"
+            - link "Abrir o Media Kit de Edgar Kumagai" [ref=f1e109] [cursor=pointer]:
+              - /url: /mediakit/edgar-kumagai
+              - img "Foto de perfil de Edgar Kumagai" [ref=f1e111]
+              - generic [ref=f1e112]: Edgar Kumagai
+              - generic [ref=f1e117]: "@edgarkumagai"
+            - link "Abrir o Media Kit de Eduarda Lobo" [ref=f1e118] [cursor=pointer]:
+              - /url: /mediakit/eduarda-lobo
+              - img "Foto de perfil de Eduarda Lobo" [ref=f1e120]
+              - generic [ref=f1e121]: Eduarda Lobo
+              - generic [ref=f1e126]: "@_dudalobo"
+            - link "Abrir o Media Kit de Giovanna Antiorio" [ref=f1e127] [cursor=pointer]:
+              - /url: /mediakit/giovanna-antiorio
+              - img "Foto de perfil de Giovanna Antiorio" [ref=f1e129]
+              - generic [ref=f1e130]: Giovanna Antiorio
+              - generic [ref=f1e135]: "@giantiorio"
+            - link "Abrir o Media Kit de Giselle Candido" [ref=f1e136] [cursor=pointer]:
+              - /url: /mediakit/giselle-candido
+              - img "Foto de perfil de Giselle Candido" [ref=f1e138]
+              - generic [ref=f1e139]: Giselle Candido
+              - generic [ref=f1e144]: "@gisellerhaylla"
+        - button "Explorar todos os Media Kits+" [ref=f1e146] [cursor=pointer]
+        - paragraph [ref=f1e147]: Os perfis exibidos estão ativos na comunidade. Cada retrato abre o Media Kit público do creator.
+      - region [ref=f1e148]:
+        - generic [ref=f1e149]:
+          - paragraph [ref=f1e150]: ✦Inteligência alimentada por sinais reais
+          - heading "Cada conteúdo deixa sinais. A D2C aprende com eles." [level=2] [ref=f1e151]
+          - generic [ref=f1e152]: A tecnologia organiza milhares de conteúdos e interações. A leitura humana transforma padrões em hipóteses, tendências e decisões.
+        - generic [ref=f1e153]:
+          - generic [ref=f1e154]:
+            - term [ref=f1e155]: conteúdos analisados
+            - definition [ref=f1e156]: 3,1 mil
+          - generic [ref=f1e157]:
+            - term [ref=f1e158]: visualizações compreendidas
+            - definition [ref=f1e159]: 240 milhões
+          - generic [ref=f1e160]:
+            - term [ref=f1e161]: interações que viraram aprendizado
+            - definition [ref=f1e162]: 17 milhões
+        - paragraph [ref=f1e163]: Dados agregados e anonimizados da comunidade D2C. Os resultados pertencem aos creators acompanhados.
+        - text: ✦
+      - generic [ref=f1e164]:
+        - generic [ref=f1e165]:
+          - paragraph [ref=f1e166]: ✦Quem interpreta a inteligência
+          - heading "Dados mostram o movimento. Repertório dá sentido." [level=2] [ref=f1e167]
+        - generic [ref=f1e168]:
+          - article [ref=f1e169]:
+            - figure [ref=f1e170]:
+              - img "Arthur Marbá" [ref=f1e171]
+            - generic [ref=f1e172]:
+              - generic [ref=f1e173]: Creators · dados · estratégia
+              - heading "Arthur Marbá" [level=3] [ref=f1e174]
+              - group [ref=f1e175]:
+                - generic "Conhecer trajetória +" [ref=f1e176]
+          - article [ref=f1e177]:
+            - figure [ref=f1e178]:
+              - img "Ronaldo Fonseca" [ref=f1e179]
+            - generic [ref=f1e180]:
+              - generic [ref=f1e181]: Narrativas · cultura · negócios
+              - heading "Ronaldo Fonseca" [level=3] [ref=f1e182]
+              - group [ref=f1e183]:
+                - generic "Conhecer trajetória +" [ref=f1e184]
+        - paragraph [ref=f1e186]: Arthur lê os sinais da criação. Ronaldo conecta conteúdo, cultura e negócio. Toda semana, os dois transformam os achados do relatório em uma conversa aplicável.
+      - generic [ref=f1e188]:
+        - generic [ref=f1e189]:
+          - figure [ref=f1e190]:
+            - img "Creator publicando um vídeo em seu estúdio" [ref=f1e191]
+          - figure
+          - figure
+        - generic [ref=f1e193]:
+          - paragraph [ref=f1e194]: Toda quinta · 19h–21h · online
+          - generic [ref=f1e195]: O relatório organiza os sinais. A reunião transforma os achados em direção.
+        - generic [ref=f1e196]:
+          - article [ref=f1e197]:
+            - generic [ref=f1e198]:
+              - text: "01"
+              - heading "A semana vira relatório." [level=2] [ref=f1e199]
+              - paragraph [ref=f1e200]: A D2C cruza assuntos, falas, cenas, formatos e respostas da audiência para identificar movimentos de conteúdo.
+          - article:
+            - generic:
+              - text: "02"
+              - heading "Os achados ganham contexto ao vivo." [level=2]
+              - paragraph: Toda quinta, assinantes participam da reunião em que Arthur e Ronaldo interpretam tendências e oportunidades.
+          - article:
+            - generic:
+              - text: "03"
+              - heading "A inteligência vira próximo passo." [level=2]
+              - paragraph: Assinantes recebem o relatório completo e usam os sinais para decidir o que criar, testar ou ajustar.
+        - group "Momentos da reunião semanal" [ref=f1e201]:
+          - button "Ver momento 01" [pressed] [ref=f1e202] [cursor=pointer]: "01"
+          - button "Ver momento 02" [ref=f1e203] [cursor=pointer]: "02"
+          - button "Ver momento 03" [ref=f1e204] [cursor=pointer]: "03"
+        - button "Criar conta grátis" [ref=f1e206] [cursor=pointer]
+      - generic [ref=f1e210]:
+        - generic [ref=f1e211]:
+          - paragraph [ref=f1e212]: Tendência aplicada à criação
+          - heading "Quando uma tendência encontra duas narrativas." [level=2] [ref=f1e213]
+          - paragraph [ref=f1e214]: Uma pauta sugerida pela inteligência pode aproximar creators que enxergam oportunidade no mesmo assunto.
+        - generic "Demonstração automática do match criativo" [ref=f1e216]:
+          - paragraph [ref=f1e219]: Uma pauta feita para você
+          - article [ref=f1e221]:
+            - generic [ref=f1e222]:
+              - generic [ref=f1e223]:
+                - img "Foto de Eduarda Lobo" [ref=f1e225]
+                - generic [ref=f1e226]:
+                  - generic [ref=f1e227]: Pauta para você
+                  - generic [ref=f1e228]: Eduarda
+              - generic [ref=f1e229]: "01"
+            - generic [ref=f1e230]:
+              - generic [ref=f1e231]: Sua próxima pauta
+              - heading "Como comecei a defender a liberdade de criar com a minha cara" [level=3] [ref=f1e232]
+              - paragraph [ref=f1e233]: Uma pauta sobre autonomia criativa, identidade e o momento em que copiar fórmulas deixou de fazer sentido.
+              - blockquote [ref=f1e234]: Abre com a primeira vez em que você percebeu que uma fórmula podia apagar a sua voz.
+            - generic [ref=f1e235]:
+              - generic [ref=f1e236]: Agora não
+              - generic [ref=f1e242]: Quero fazer
+      - generic [ref=f1e248]:
+        - generic [ref=f1e249]:
+          - paragraph [ref=f1e250]: ✦A inteligência completa
+          - heading "Inteligência nova toda semana. Direção para todos os dias." [level=2] [ref=f1e251]
+        - generic [ref=f1e252]:
+          - generic [ref=f1e253]: R$ 97,00/mês
+          - list [ref=f1e254]:
+            - listitem [ref=f1e255]: Relatório completo de tendências toda semana
+            - listitem [ref=f1e258]: Participação nas reuniões ao vivo
+            - listitem [ref=f1e261]: Análise e direcionamento para assinantes
+            - listitem [ref=f1e264]: Mapa, pautas, matches, Media Kit e Calculadora de Publi
+            - listitem [ref=f1e267]: Grupo exclusivo de assinantes
+          - button "Criar conta para assinar" [ref=f1e270] [cursor=pointer]
+          - generic [ref=f1e273]: Criar a conta é grátis. Cancele a assinatura quando quiser.
+      - generic [ref=f1e275]:
+        - generic [ref=f1e276]:
+          - paragraph [ref=f1e277]: ✦Sem letra miúda
+          - heading "Como a conta gratuita e a assinatura funcionam." [level=2] [ref=f1e278]
+        - generic [ref=f1e279]:
+          - group [ref=f1e280]:
+            - generic "Criar uma conta é gratuito? +" [ref=f1e281] [cursor=pointer]
+          - group [ref=f1e282]:
+            - generic "Posso participar da reunião sem assinar? +" [ref=f1e283] [cursor=pointer]
+          - group [ref=f1e284]:
+            - generic "O que encontro no relatório semanal? +" [ref=f1e285] [cursor=pointer]
+          - group [ref=f1e286]:
+            - generic "O relatório serve para criadores e marcas? +" [ref=f1e287] [cursor=pointer]
+          - group [ref=f1e288]:
+            - generic "Tendência significa copiar um formato? +" [ref=f1e289] [cursor=pointer]
+          - group [ref=f1e290]:
+            - generic "Como faço para ter meu conteúdo analisado? +" [ref=f1e291] [cursor=pointer]
+          - group [ref=f1e292]:
+            - generic "Posso cancelar quando quiser? +" [ref=f1e293] [cursor=pointer]
+      - generic [ref=f1e295]:
+        - heading "Conteúdo muda toda semana. Sua direção também pode evoluir." [level=2] [ref=f1e297]:
+          - text: Conteúdo muda toda semana.
+          - generic [ref=f1e298]: Sua direção também pode evoluir.
+        - button "Criar minha conta grátis" [ref=f1e299] [cursor=pointer]
+    - contentinfo [ref=f1e302]:
+      - generic [ref=f1e303]:
+        - link "Data2Content - página inicial" [ref=f1e304] [cursor=pointer]:
+          - /url: /
+          - generic [ref=f1e306]: data2content
+        - paragraph [ref=f1e307]: Inteligência para enxergar. Plataforma para agir.
+        - navigation "Links legais" [ref=f1e308]:
+          - link "Suporte" [ref=f1e309] [cursor=pointer]:
+            - /url: mailto:arthur@data2content.ai
+          - link "Privacidade" [ref=f1e310] [cursor=pointer]:
+            - /url: /politica-de-privacidade
+          - link "Termos" [ref=f1e311] [cursor=pointer]:
+            - /url: /termos-e-condicoes
+        - generic [ref=f1e312]: © 2026 Data2Content.
+  - alert [ref=f1e319]

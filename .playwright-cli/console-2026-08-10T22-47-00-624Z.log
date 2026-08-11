@@ -1,0 +1,4 @@
+[     867ms] [ERROR] Failed to load resource: the server responded with a status of 401 (Unauthorized) @ http://localhost:3206/api/plan/status:0
+[    1724ms] [LOG] %c%s color: red; background: yellow; font-size: 24px; AVISO @ https://www.gstatic.com/_/mss/boq-identity/_/js/k=boq-identity.OAuthUi.pt_BR.IQtsyidjSEM.es5.O/am=EgAAAPABAcD__28AwXbgngEUIAAAAAAAAAAAMAQARA/d=1/excm=_b,_tp,errorview/ed=1/dg=0/wt=2/ujg=1/rs=AOaEmlExsdRLIT521yENSDJOQGBekG9-kg/dti=1/m=_b,_tp:532
+[    1725ms] [LOG] %c%s font-size: 18px; O uso deste console pode permitir que invasores falsifiquem sua identidade para roubar informações por meio de um ataque chamado Self-XSS.
+Não insira nem cole códigos que você não conheça. @ https://www.gstatic.com/_/mss/boq-identity/_/js/k=boq-identity.OAuthUi.pt_BR.IQtsyidjSEM.es5.O/am=EgAAAPABAcD__28AwXbgngEUIAAAAAAAAAAAMAQARA/d=1/excm=_b,_tp,errorview/ed=1/dg=0/wt=2/ujg=1/rs=AOaEmlExsdRLIT521yENSDJOQGBekG9-kg/dti=1/m=_b,_tp:532

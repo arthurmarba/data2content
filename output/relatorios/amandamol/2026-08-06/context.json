@@ -1,0 +1,400 @@
+{
+  "periodo": {
+    "de": "2026-07-31",
+    "ate": "2026-08-06"
+  },
+  "criador": {
+    "userId": "6a5911b15a02ebe18d207a80",
+    "nome": "Amanda Mol Neurociência do Sono Infantil",
+    "handle": "@amandamol_",
+    "profilePictureUrl": "https://scontent-iad3-2.xx.fbcdn.net/v/t51.82787-15/549723296_18408355792118054_7736405464600962767_n.jpg?_nc_cat=103&ccb=1-7&_nc_sid=7d201b&_nc_ohc=H6eZRnT7Q_AQ7kNvwGXkHqc&_nc_oc=AdrXolqQc8XRx1I25IWFQcs70m-8C3P_Sd9Z_AQaByH3-k7-ZACD9F-Vnmb2nQ5j6EY&_nc_zt=23&_nc_ht=scontent-iad3-2.xx&edm=AL-3X8kEAAAA&_nc_gid=kHBV5fC307J2Evk9oYTrnQ&oh=00_AQHkUtSjjZHG2_jZJTYzErH5jURKEpZJ5vzWJzFj-yirvA&oe=6A7A487D",
+    "narrativaCentral": "troco experiências reais sobre maternidade e relacionamento",
+    "territorios": [
+      "maternidade",
+      "relacionamento",
+      "educação de filhos",
+      "sono infantil",
+      "autocuidado materno",
+      "relações familiares"
+    ],
+    "temas": [
+      "compartilhar o dia a dia da maternidade real",
+      "discutir a dinâmica do relacionamento a dois",
+      "refletir sobre como a criação de hoje molda o futuro dos filhos",
+      "lidar com os desafios e alegrias da rotina de sono infantil",
+      "encontrar momentos de autocuidado em meio à vida familiar",
+      "navegar os desafios e alegrias da maternidade"
+    ],
+    "assets": [
+      "mãe",
+      "experiências reais",
+      "filhos (bebês e crianças)",
+      "cônjuge/parceiro",
+      "pais/avós",
+      "ambientes domésticos",
+      "aulas/treinos (Jiu Jitsu)",
+      "garrafinhas de lavagem nasal"
+    ],
+    "tom": "Direto e pessoal, Didático e emocional, Reflexivo",
+    "baseline": {
+      "nPosts": 5,
+      "medianViews": 1314,
+      "medianReach": 693,
+      "medianShares": 1,
+      "medianSaved": 1,
+      "medianEngagementRate": 0.13968957871396895,
+      "sufficient": true
+    }
+  },
+  "posts": [
+    {
+      "postId": "17872321506629436",
+      "postLink": "https://www.instagram.com/reel/DbrAtpxx5SG/",
+      "postDate": "2026-08-05",
+      "type": "REEL",
+      "format": [
+        "reel"
+      ],
+      "proposal": [],
+      "context": [],
+      "tone": [],
+      "references": [
+        "pop_culture_movies_series"
+      ],
+      "description": "Você já viu o filme? O que achou?\n#toystory5 #maternidade",
+      "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/765854998_18463986802118054_3957511723212473069_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=103&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=6KvYf1XCv3UQ7kNvwGYF6ks&_nc_oc=AdpuEf89Bivjh5DcnvuB7dpQTAtSdPCuuru_T0zItzzSzOhXr2kLqqhPFsQyn1nnrZEozHTr38fyw26kAOhsNSgE&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=irzo-Hnx5c4cTPnjwVBWhA&_nc_tpa=Q5bMBQHBmrWLT_gr5MizkUgkeDmsSBgv8_DLSUgYdANUbBd3PFZ1uFcXSKeBpd9JHr5pJLDxs6D9Zl4_EA&oh=00_AQFNfWCZ6PI_2LEWyuhl7KPwORGLF8SyXT-QrOy5D4JQtQ&oe=6A7A6AF7",
+      "stats": {
+        "views": 1097,
+        "reach": 661,
+        "likes": 37,
+        "comments": 5,
+        "saved": 5,
+        "shares": 3,
+        "total_interactions": 50
+      },
+      "indices": {
+        "views": 0.834855403348554,
+        "reach": 0.9538239538239538,
+        "shares": 3,
+        "saved": 5,
+        "engagementRate": 0.5415075763033403
+      }
+    }
+  ],
+  "padroes": {
+    "periodo": {
+      "de": "2026-05-08",
+      "ate": "2026-08-06"
+    },
+    "nPosts": 6,
+    "nComCena": 2,
+    "medianas": {
+      "shares": 0.5,
+      "saved": 0.5,
+      "views": 1278
+    },
+    "dimensoes": [
+      {
+        "chave": "cenario",
+        "titulo": "Cenário",
+        "subtitulo": "onde você gravou",
+        "linhas": [
+          {
+            "id": "quarto",
+            "label": "Quarto",
+            "nPosts": 1,
+            "indexShares": 2,
+            "indexSaved": 0,
+            "indexViews": 1.874021909233177,
+            "evidence": "indicio",
+            "semana": null
+          },
+          {
+            "id": "carro_local",
+            "label": "Carro",
+            "nPosts": 1,
+            "indexShares": 0,
+            "indexSaved": 2,
+            "indexViews": 0.971830985915493,
+            "evidence": "indicio",
+            "semana": null
+          }
+        ]
+      },
+      {
+        "chave": "elenco",
+        "titulo": "Quem e o que aparece",
+        "subtitulo": "as pessoas e coisas em cena",
+        "linhas": [
+          {
+            "id": "parceiro_em_cena",
+            "label": "Parceiro em cena",
+            "nPosts": 1,
+            "indexShares": 2,
+            "indexSaved": 0,
+            "indexViews": 1.874021909233177,
+            "evidence": "indicio",
+            "semana": null
+          },
+          {
+            "id": "casa",
+            "label": "Casa",
+            "nPosts": 1,
+            "indexShares": 2,
+            "indexSaved": 0,
+            "indexViews": 1.874021909233177,
+            "evidence": "indicio",
+            "semana": null
+          },
+          {
+            "id": "familia_em_cena",
+            "label": "Família em cena",
+            "nPosts": 1,
+            "indexShares": 0,
+            "indexSaved": 2,
+            "indexViews": 0.971830985915493,
+            "evidence": "indicio",
+            "semana": null
+          },
+          {
+            "id": "filho_em_cena",
+            "label": "Filho em cena",
+            "nPosts": 2,
+            "indexShares": 1,
+            "indexSaved": 1,
+            "indexViews": 1.4229264475743348,
+            "evidence": "indicio",
+            "semana": null
+          }
+        ]
+      },
+      {
+        "chave": "tom",
+        "titulo": "Tom",
+        "subtitulo": "o jeito de falar do vídeo",
+        "linhas": [
+          {
+            "id": "reflexivo",
+            "label": "Reflexivo",
+            "nPosts": 1,
+            "indexShares": 0,
+            "indexSaved": 2,
+            "indexViews": 0.971830985915493,
+            "evidence": "indicio",
+            "semana": null
+          },
+          {
+            "id": "acolhedor",
+            "label": "Acolhedor",
+            "nPosts": 1,
+            "indexShares": 0,
+            "indexSaved": 2,
+            "indexViews": 0.971830985915493,
+            "evidence": "indicio",
+            "semana": null
+          }
+        ]
+      },
+      {
+        "chave": "enquadramento",
+        "titulo": "Enquadramento",
+        "subtitulo": "como a câmera te mostra",
+        "linhas": [
+          {
+            "id": "plano_aberto",
+            "label": "Plano aberto",
+            "nPosts": 1,
+            "indexShares": 2,
+            "indexSaved": 0,
+            "indexViews": 1.874021909233177,
+            "evidence": "indicio",
+            "semana": null
+          },
+          {
+            "id": "camera_na_mao",
+            "label": "Câmera na mão",
+            "nPosts": 1,
+            "indexShares": 2,
+            "indexSaved": 0,
+            "indexViews": 1.874021909233177,
+            "evidence": "indicio",
+            "semana": null
+          },
+          {
+            "id": "pov",
+            "label": "POV",
+            "nPosts": 1,
+            "indexShares": 2,
+            "indexSaved": 0,
+            "indexViews": 1.874021909233177,
+            "evidence": "indicio",
+            "semana": null
+          },
+          {
+            "id": "plano_medio",
+            "label": "Plano médio",
+            "nPosts": 1,
+            "indexShares": 0,
+            "indexSaved": 2,
+            "indexViews": 0.971830985915493,
+            "evidence": "indicio",
+            "semana": null
+          },
+          {
+            "id": "selfie_no_braco",
+            "label": "Selfie no braço",
+            "nPosts": 2,
+            "indexShares": 1,
+            "indexSaved": 1,
+            "indexViews": 1.4229264475743348,
+            "evidence": "indicio",
+            "semana": null
+          }
+        ]
+      },
+      {
+        "chave": "dia",
+        "titulo": "Dia da semana",
+        "subtitulo": "quando você publica",
+        "linhas": [
+          {
+            "id": "d3",
+            "label": "Qua",
+            "nPosts": 1,
+            "indexShares": 6,
+            "indexSaved": 10,
+            "indexViews": 0.8583724569640062,
+            "evidence": "indicio",
+            "semana": {
+              "nPosts": 1,
+              "indexShares": 6
+            }
+          },
+          {
+            "id": "d1",
+            "label": "Seg",
+            "nPosts": 1,
+            "indexShares": 2,
+            "indexSaved": 0,
+            "indexViews": 1.874021909233177,
+            "evidence": "indicio",
+            "semana": null
+          },
+          {
+            "id": "d4",
+            "label": "Qui",
+            "nPosts": 1,
+            "indexShares": 2,
+            "indexSaved": 0,
+            "indexViews": 1.028169014084507,
+            "evidence": "indicio",
+            "semana": null
+          },
+          {
+            "id": "d0",
+            "label": "Dom",
+            "nPosts": 1,
+            "indexShares": 0,
+            "indexSaved": 2,
+            "indexViews": 0.971830985915493,
+            "evidence": "indicio",
+            "semana": null
+          },
+          {
+            "id": "d6",
+            "label": "Sáb",
+            "nPosts": 1,
+            "indexShares": 0,
+            "indexSaved": 0,
+            "indexViews": 0.770735524256651,
+            "evidence": "indicio",
+            "semana": null
+          },
+          {
+            "id": "d2",
+            "label": "Ter",
+            "nPosts": 1,
+            "indexShares": 0,
+            "indexSaved": 2,
+            "indexViews": 1.1604068857589984,
+            "evidence": "indicio",
+            "semana": null
+          }
+        ]
+      },
+      {
+        "chave": "horario",
+        "titulo": "Horário",
+        "subtitulo": "a faixa do dia em que o post sai",
+        "linhas": [
+          {
+            "id": "s4",
+            "label": "16–20h",
+            "nPosts": 1,
+            "indexShares": 6,
+            "indexSaved": 10,
+            "indexViews": 0.8583724569640062,
+            "evidence": "indicio",
+            "semana": {
+              "nPosts": 1,
+              "indexShares": 6
+            }
+          },
+          {
+            "id": "s3",
+            "label": "12–16h",
+            "nPosts": 1,
+            "indexShares": 0,
+            "indexSaved": 2,
+            "indexViews": 0.971830985915493,
+            "evidence": "indicio",
+            "semana": null
+          },
+          {
+            "id": "s5",
+            "label": "20–24h",
+            "nPosts": 4,
+            "indexShares": 1,
+            "indexSaved": 0,
+            "indexViews": 1.0942879499217528,
+            "evidence": "sinal",
+            "semana": null
+          }
+        ]
+      }
+    ],
+    "ganchos": {
+      "melhores": [
+        {
+          "texto": "porque a escola onde ele estudava, ele já não estava dando conta.",
+          "data": "2026-06-02",
+          "indexShares": 2
+        }
+      ],
+      "piores": [
+        {
+          "texto": "Mãe, a gente está indo para onde?",
+          "data": "2026-07-26",
+          "indexShares": 0
+        }
+      ]
+    },
+    "assuntos": {
+      "melhores": [
+        {
+          "texto": "chegar em casa tarde · crianças esperando para dormir · rotina noturna com os filhos",
+          "data": "2026-06-02",
+          "indexShares": 2
+        }
+      ],
+      "piores": [
+        {
+          "texto": "papo antes da avaliação de futebol · incentivar o filho a se divertir · lidar com a pressão de uma avaliação",
+          "data": "2026-07-26",
+          "indexShares": 0
+        }
+      ]
+    }
+  },
+  "anterior": null
+}

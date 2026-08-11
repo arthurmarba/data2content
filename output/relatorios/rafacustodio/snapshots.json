@@ -308,5 +308,59 @@
         "veredito": "ajustar"
       }
     ]
+  },
+  {
+    "data": "2026-08-05",
+    "narrativaCentral": "Uma observadora curiosa que encontra humor e significado no cotidiano",
+    "territoriosOcupados": [
+      "Vida em Blumenau",
+      "Humor cotidiano",
+      "Casa e decoração",
+      "Consumo local",
+      "Fofocas e notícias",
+      "Relacionamentos pessoais",
+      "Indicações"
+    ],
+    "audienciaPede": "Sua audiência vai ao teto quando você comenta algo cultural bem específico de Blumenau, com nome próprio — a Oktoberfest gerou o 2º melhor resultado já registrado na sua conta. Blumenau mencionada de forma genérica ainda funciona, mas bem menos. Territórios distantes (Oeste, Paraná, Lages) seguem confirmando que não rendem, e comércio em modo vitrine (publi tradicional) foi o pior resultado da semana.",
+    "facaMais": [
+      "Curiosidade sobre eventos ou instituições bem específicas de Blumenau, com nome próprio (a Oktoberfest) — 2º melhor resultado já registrado na conta. É a 3ª vez que essa fórmula se confirma.",
+      "Comércio local como curiosidade ou história — não como anúncio. A publi desta semana confirma: o formato vitrine não guarda nada seu; o que rendeu recorde antes foi mostrar a história por trás do lugar."
+    ],
+    "facaMenos": [
+      "Aplicar os seus territórios em regiões distantes (Oeste, Paraná, Lages) — 3ª semana seguida com resultado fraco. O filão já foi testado o suficiente.",
+      "Publi em modo vitrine tradicional (preço, data, condição) — foi o pior resultado da semana, confirmando o padrão já identificado antes."
+    ],
+    "planoPrometido": [
+      "O que ninguém te conta sobre os bastidores da escolha da rainha da Oktoberfest",
+      "O comércio querido dessa semana: a história por trás do lugar, não o anúncio dele",
+      "Tem um dado sobre a Vila Itoupava que quase ninguém conhece",
+      "Reformei minha penteadeira: o antes e depois que ninguém acredita"
+    ],
+    "vereditos": [
+      {
+        "postId": "17981703900025046",
+        "veredito": "ajustar"
+      },
+      {
+        "postId": "18112330504987757",
+        "veredito": "nao-repetir"
+      },
+      {
+        "postId": "18096438986365775",
+        "veredito": "ajustar"
+      },
+      {
+        "postId": "18054192149534566",
+        "veredito": "nao-repetir"
+      },
+      {
+        "postId": "18120699841885391",
+        "veredito": "repetir"
+      },
+      {
+        "postId": "17864739618642330",
+        "veredito": "nao-repetir"
+      }
+    ]
   }
 ]

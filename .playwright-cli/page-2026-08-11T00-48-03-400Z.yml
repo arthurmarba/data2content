@@ -1,0 +1,12 @@
+- generic [active] [ref=f2e1]:
+  - generic [ref=f2e3]:
+    - link "Pular para o conteúdo" [ref=f2e4] [cursor=pointer]:
+      - /url: "#dashboard-main"
+    - main [ref=f2e6]:
+      - main [ref=f2e9]
+  - generic [ref=f2e17]:
+    - generic [ref=f2e18]: Usamos cookies de analytics para melhorar a experiência. Aceita?
+    - generic [ref=f2e19]:
+      - button "Recusar" [ref=f2e20] [cursor=pointer]
+      - button "Aceitar" [ref=f2e21] [cursor=pointer]
+  - alert [ref=f2e22]

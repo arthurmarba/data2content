@@ -48,5 +48,56 @@
         "veredito": "ajustar"
       }
     ]
+  },
+  {
+    "data": "2026-08-07",
+    "narrativaCentral": "viver o cotidiano com mais presença e paixão",
+    "territoriosOcupados": [
+      "culinária",
+      "vida doméstica",
+      "jornada pessoal",
+      "identidade brasileira",
+      "Masterchef",
+      "comida afetiva"
+    ],
+    "audienciaPede": "A audiência pede o Masterchef vivido em casa — não o reality contado de fora, mas o efeito dele na sua família e na sua rotina —, e pede receita com uma razão pessoal por trás. O que sai do universo cozinha/Masterchef gera conversa, mas não salvamento.",
+    "facaMais": [
+      "Trazer a família pra dentro da cena de assistir você no Masterchef — é o padrão mais forte e mais repetível que você tem hoje.",
+      "Amarrar toda receita a uma razão pessoal (um apelido, uma aposta, uma data) — é o que separa salvamento alto de salvamento baixo.",
+      "Guardar as pautas fortes pra sexta a domingo, e publicar de manhã (8h–12h) — seu horário mais consistente."
+    ],
+    "facaMenos": [
+      "Contar o Masterchef 'de fora' (avaliação de prato, o que o jurado disse) sem trazer pra dentro da sua casa ou família — é a versão mais fraca do mesmo território.",
+      "Sair do universo cozinha/Masterchef pra temas soltos — gera comentário, mas a audiência não trata como pedido de conteúdo seu.",
+      "Publicar no fim de tarde (16h–20h) só porque é quando dá — é o horário mais fraco da sua rotina, e foi onde saiu a maior parte desta semana."
+    ],
+    "planoPrometido": [
+      "O dia que minha família se juntou na sala pra assistir o episódio que eu mais tinha vergonha",
+      "Receita de costela com barbecue, parte 2: o que eu mudei depois que ela virou a mais salva do meu perfil",
+      "O dia que tentei refazer minha receita do Masterchef só com o que tenho em casa, na sala, sem estúdio",
+      "A panela de pressão que era da minha avó e o prato que só sai dela"
+    ],
+    "vereditos": [
+      {
+        "postId": "18093701897381400",
+        "veredito": "repetir"
+      },
+      {
+        "postId": "18121084490495133",
+        "veredito": "ajustar"
+      },
+      {
+        "postId": "18121578092501304",
+        "veredito": "nao-repetir"
+      },
+      {
+        "postId": "18095407373269450",
+        "veredito": "ajustar"
+      },
+      {
+        "postId": "17894539389595377",
+        "veredito": "repetir"
+      }
+    ]
   }
 ]

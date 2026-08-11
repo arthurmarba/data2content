@@ -1,0 +1,21 @@
+- generic [active] [ref=f2e1]:
+  - generic [ref=f2e3]:
+    - link "Pular para o conteúdo" [ref=f2e4] [cursor=pointer]:
+      - /url: "#dashboard-main"
+    - main [ref=f2e6]:
+      - main [ref=f2e23]:
+        - generic [ref=f2e25]:
+          - link "Voltar" [ref=f2e26] [cursor=pointer]:
+            - /url: /dashboard/boards/mobile-strategic-profile
+          - heading "Últimas análises" [level=1] [ref=f2e29]
+        - generic [ref=f2e30]:
+          - paragraph [ref=f2e31]: Seu arquivo
+          - heading "Conteúdos que você já analisou." [level=2] [ref=f2e32]
+          - paragraph [ref=f2e33]: Guardamos o relatório e uma capa leve. O vídeo enviado é apagado após a análise.
+          - link "10 ago. de 2026 Potencial de engajamento O vídeo reúne sinais que costumam sustentar interação no seu perfil." [ref=f2e35] [cursor=pointer]:
+            - /url: /dashboard/boards/mobile-strategic-profile/settings/analyses/video-narrative-diagnosis-real-video-narrative-video-temp-upload-session-0f98993e-4c57-4b3d-9116-4030735175ac
+            - generic [ref=f2e37]:
+              - paragraph [ref=f2e38]: 10 ago. de 2026
+              - heading "Potencial de engajamento" [level=3] [ref=f2e39]
+              - paragraph [ref=f2e40]: O vídeo reúne sinais que costumam sustentar interação no seu perfil.
+  - alert [ref=f2e22]

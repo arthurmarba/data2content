@@ -1,0 +1,896 @@
+{
+  "periodo": {
+    "de": "2026-08-01",
+    "ate": "2026-08-07"
+  },
+  "criador": {
+    "userId": "68bb8b11a199b11d5c99a184",
+    "nome": "Lívia Linhares",
+    "handle": "@livialinharess",
+    "profilePictureUrl": "https://scontent-iad3-1.xx.fbcdn.net/v/t51.2885-15/271170549_247370077529690_2331136891572023111_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=7d201b&_nc_ohc=-kKWg8w7kGEQ7kNvwEwH7wb&_nc_oc=Adp2kRZcPYj3VrFhBCO-CApeZUXCIHnM-VrXz3bFOWE3x_GSliGc3du3Pc7anyTKeFY&_nc_zt=23&_nc_ht=scontent-iad3-1.xx&edm=AL-3X8kEAAAA&oh=00_AQFFvgmJHwWY2TR65QpdJ9Yv1niq1982Klb9NonVR6NSGQ&oe=6A7B95BC",
+    "narrativaCentral": "um carioca que usa o humor para motivar e conectar",
+    "territorios": [
+      "Comédia",
+      "Cultura carioca",
+      "Motivação",
+      "Bem-estar",
+      "Identidade regional",
+      "Mineiro x Paulista x Carioca"
+    ],
+    "temas": [
+      "Rir das situações do dia a dia carioca",
+      "Transformar mensagens motivacionais em piada",
+      "Brincadeiras com estereótipos cariocas",
+      "Celebrar a paixão pelo futebol e pela seleção",
+      "Encontrar momentos de relaxamento na rotina",
+      "Comparar a vida carioca com outras regiões do Brasil"
+    ],
+    "assets": [
+      "Carioca",
+      "Humor",
+      "Camisa da seleção brasileira",
+      "Microfone",
+      "Cenários externos com vegetação",
+      "Escritório",
+      "Casa",
+      "Lousa branca com escrita manual",
+      "Interações com outras pessoas"
+    ],
+    "tom": "Bem-humorado e descontraído, Linguagem coloquial, Interativo",
+    "baseline": {
+      "nPosts": 47,
+      "medianViews": 185326,
+      "medianReach": 116286,
+      "medianShares": 4266,
+      "medianSaved": 487,
+      "medianEngagementRate": 0.12102382348413132,
+      "sufficient": true
+    }
+  },
+  "posts": [
+    {
+      "postId": "18086006459195152",
+      "postLink": "https://www.instagram.com/reel/DboyRLruMDc/",
+      "postDate": "2026-08-04",
+      "type": "REEL",
+      "format": [
+        "reel"
+      ],
+      "proposal": [],
+      "context": [
+        "social_and_events"
+      ],
+      "tone": [
+        "humorous"
+      ],
+      "references": [
+        "pop_culture"
+      ],
+      "description": "Invasão carioca no lançamento da nova novela das 19h da @tvglobo com @pietraquintela e @igorjansen ! E tu? Qual gíria carioca tu mais gosta de falar?? Deixa aqui nos comentários 😂👊🏼\n\n#carioca #cariocando #cariocas #cariocadagema #carioquissimo",
+      "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/762691243_18606054691016608_3531583902417736140_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=110&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=bNaC7cKSBSQQ7kNvwHM62Xx&_nc_oc=AdruCsbMsR4U5ShQSNzHNYF5YXu5HsX7ABON_Khu2-R0mF576FO2T-EJVUpxxUPOaiguhUcd9LghLw7gI_8NxT6p&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=Udj4g4uPBWvitS1hVnszzQ&_nc_tpa=Q5bMBQF2gCKLCkNCFcnlcC6e879f0k-VlyKAT69dG1WmB4s6SzxrZCx89ZpuXXFsacg_U-yCu2JTJ-EULA&oh=00_AQGiWdi3YNzC--k890NzPQH1IAh_wtMJuZYpts4M_TXu0Q&oe=6A7BB9CE",
+      "stats": {
+        "views": 61439,
+        "reach": 45452,
+        "likes": 1023,
+        "comments": 35,
+        "saved": 63,
+        "shares": 39,
+        "total_interactions": 1160
+      },
+      "cena": {
+        "assuntos": [
+          "gírias cariocas",
+          "malandragem carioca",
+          "onomatopeias cariocas"
+        ],
+        "objetos": [
+          "microfone"
+        ],
+        "falas": [
+          "com todo o respeito, vai te tomar no c*, rapá!",
+          "a Hanna tá cariocando",
+          "minha gíria carioca favorita já é: já é, pô, tamo junto"
+        ],
+        "local": "Estabelecimento",
+        "enquadramentos": [
+          "Close no rosto",
+          "Plano médio",
+          "Câmera fixa"
+        ],
+        "esteticas": [
+          "Luz artificial",
+          "Caseiro",
+          "Corte rápido",
+          "Legenda na tela",
+          "Com música"
+        ],
+        "gancho": "Complete a frase: com todo o respeito...",
+        "tituloNaTela": "COMPLETE A FRASE"
+      },
+      "indices": {
+        "views": 0.3315185133224696,
+        "reach": 0.3908639045112911,
+        "shares": 0.009142053445850914,
+        "saved": 0.1293634496919918,
+        "engagementRate": 0.21087938279673984
+      }
+    },
+    {
+      "postId": "17864735256648727",
+      "postLink": "https://www.instagram.com/reel/DbqCSxyO1Hz/",
+      "postDate": "2026-08-05",
+      "type": "REEL",
+      "format": [
+        "reel"
+      ],
+      "proposal": [
+        "humor_scene"
+      ],
+      "context": [
+        "hobbies_and_interests"
+      ],
+      "tone": [
+        "humorous"
+      ],
+      "references": [
+        "pop_culture"
+      ],
+      "description": "Você é carioca RAIZ OU NUTELLA??? 🤣😂 Me conta nos comentários!!! HAHAHAAHAHA\n\n#carioca #cariocando #cariocas #cariocadagema #carioquissimo",
+      "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/763918605_18606174517016608_392270560747619787_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=103&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=ohYXWBUP7yUQ7kNvwEeboKb&_nc_oc=Ado26reveKXBgWhXzeJMD--8IL68dNTRf20VmQvi5Q2Me0KTEhGR-o1JhEmHRJe-VIWVhWnMzHy_GydpCFxN8-x2&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=q5CXbY79K4SWyCxx_KAyBg&_nc_tpa=Q5bMBQFuQ-av7OOPDBZyMVBlPIq1WE9Ayg65fbQh6GhZs958hL2fXxOr084h9jhe4KBlV6qRtPIlaEIu4w&oh=00_AQGzQv8upva-d-MxFjv_fz68p4r2jQpNnHhBsaETogaqHA&oe=6A7B9F02",
+      "stats": {
+        "views": 76343,
+        "reach": 43068,
+        "likes": 3859,
+        "comments": 254,
+        "saved": 161,
+        "shares": 1796,
+        "total_interactions": 6070
+      },
+      "cena": {
+        "assuntos": [
+          "comparar carioca raiz e nutella",
+          "carioca raiz fala palavrão",
+          "carioca nutella não fala palavrão"
+        ],
+        "objetos": [],
+        "falas": [
+          "Carioca raiz fala palavrão pra caralho",
+          "Eu sou carioca e não falo palavrão",
+          "Foda-se, porra!"
+        ],
+        "local": "Rua",
+        "enquadramentos": [
+          "Close no rosto",
+          "Plano médio",
+          "Selfie no braço",
+          "Câmera na mão"
+        ],
+        "esteticas": [
+          "Luz natural",
+          "Caseiro",
+          "Corte rápido",
+          "Legenda na tela",
+          "Com música"
+        ],
+        "gancho": "Carioca raiz, carioca se porra, meu irmão, é porra, fala palavrão pra caralho!",
+        "tituloNaTela": "CARIOCA RAÍZ X CARIOCA NUTELLA"
+      },
+      "indices": {
+        "views": 0.411938961613589,
+        "reach": 0.3703627263815077,
+        "shares": 0.42100328176277546,
+        "saved": 0.33059548254620125,
+        "engagementRate": 1.1645633473117478
+      }
+    },
+    {
+      "postId": "17968991106070108",
+      "postLink": "https://www.instagram.com/reel/DbtniuIs1v4/",
+      "postDate": "2026-08-06",
+      "type": "REEL",
+      "format": [
+        "reel"
+      ],
+      "proposal": [],
+      "context": [],
+      "tone": [
+        "promotional"
+      ],
+      "references": [],
+      "description": "A @drogpacheco está com 30% de desconto na compra de 2 unidades de Systane ™️ UL usando o meu cupom LIVIA pelo site, app ou na loja mais perto de você.\n\nE lembre-se: leia as instruções de uso e, se os sintomas persistirem, consulte seu médico. Promoção válida até 02/9/2026, ou até durarem os estoques. \n\n#publi #systane #alcon #drogariaspacheco",
+      "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/766074303_18606656398016608_3581384281084913630_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=103&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=eLpooadvBzUQ7kNvwH6a4m_&_nc_oc=Adq8h-zwFLmNxZ8ojsCoBbICQEiek8IgpR1xmFJNLTqW3f3T3n6oSIjNdr56-4th6D2m0jZ683Xqx2eyel5LMcw2&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=9lzu9_VxpUvlXkG0F-tx6A&_nc_tpa=Q5bMBQFgi9EuRizV5doJJYrRqQdBp3OybTTW_9TlPShSSIHh-pCYIkvZTI7nkkxCNc1sngLcGPSK4CmDkA&oh=00_AQGP3NCyfJVpKAZOj7_XN4VR5boOVz8AiC5FWJroEIaeFw&oe=6A7BC483",
+      "stats": {
+        "views": 17558,
+        "reach": 13205,
+        "likes": 509,
+        "comments": 63,
+        "saved": 28,
+        "shares": 65,
+        "total_interactions": 665
+      },
+      "cena": {
+        "assuntos": [
+          "problemas de visão",
+          "olhos secos",
+          "irritação nos olhos",
+          "promoção de colírio"
+        ],
+        "objetos": [
+          "colírio",
+          "celular",
+          "bolsa"
+        ],
+        "falas": [
+          "bora pô",
+          "não tem diferença nenhuma cara",
+          "você precisa decidir"
+        ],
+        "local": "Estabelecimento",
+        "enquadramentos": [
+          "Close no rosto",
+          "Plano médio",
+          "Plano aberto",
+          "Câmera fixa",
+          "Câmera na mão"
+        ],
+        "esteticas": [
+          "Luz natural",
+          "Caseiro",
+          "Corte rápido",
+          "Legenda na tela",
+          "Com música"
+        ],
+        "gancho": "Vamos lá, vamos ver qual o seu grau?",
+        "tituloNaTela": "CARIOCA NO OFTALMOLOGISTA:"
+      },
+      "indices": {
+        "views": 0.09474115882283111,
+        "reach": 0.1135562320485699,
+        "shares": 0.015236755743084857,
+        "saved": 0.057494866529774126,
+        "engagementRate": 0.4161140408592281
+      }
+    }
+  ],
+  "padroes": {
+    "periodo": {
+      "de": "2026-05-09",
+      "ate": "2026-08-07"
+    },
+    "nPosts": 45,
+    "nComCena": 38,
+    "medianas": {
+      "shares": 3809,
+      "saved": 350,
+      "views": 166736
+    },
+    "dimensoes": [
+      {
+        "chave": "cenario",
+        "titulo": "Cenário",
+        "subtitulo": "onde você gravou",
+        "linhas": [
+          {
+            "id": "sala",
+            "label": "Sala",
+            "nPosts": 5,
+            "indexShares": 3.5082698871094777,
+            "indexSaved": 3.9885714285714284,
+            "indexViews": 2.0450712503598503,
+            "evidence": "sinal",
+            "semana": null
+          },
+          {
+            "id": "rua_local",
+            "label": "Rua",
+            "nPosts": 5,
+            "indexShares": 0.022315568390653715,
+            "indexSaved": 0.05714285714285714,
+            "indexViews": 0.2868606659629594,
+            "evidence": "sinal",
+            "semana": {
+              "nPosts": 1,
+              "indexShares": 0.47151483328957733
+            }
+          },
+          {
+            "id": "natureza_local",
+            "label": "Natureza",
+            "nPosts": 6,
+            "indexShares": 0.1542399579942242,
+            "indexSaved": 0.25285714285714284,
+            "indexViews": 0.494299371461472,
+            "evidence": "sinal",
+            "semana": null
+          },
+          {
+            "id": "estabelecimento_local",
+            "label": "Estabelecimento",
+            "nPosts": 4,
+            "indexShares": 0.32003150433184563,
+            "indexSaved": 0.38285714285714284,
+            "indexViews": 0.5644761779099895,
+            "evidence": "sinal",
+            "semana": {
+              "nPosts": 2,
+              "indexShares": 0.013651877133105802
+            }
+          },
+          {
+            "id": "escritorio_casa",
+            "label": "Escritório em casa",
+            "nPosts": 1,
+            "indexShares": 2.524547125229719,
+            "indexSaved": 1.437142857142857,
+            "indexViews": 1.5768640245657806,
+            "evidence": "indicio",
+            "semana": null
+          },
+          {
+            "id": "trabalho_local",
+            "label": "Local de trabalho",
+            "nPosts": 3,
+            "indexShares": 0.37227618797584666,
+            "indexSaved": 0.29428571428571426,
+            "indexViews": 0.5516145283562038,
+            "evidence": "sinal",
+            "semana": null
+          },
+          {
+            "id": "varanda_quintal",
+            "label": "Varanda ou quintal",
+            "nPosts": 1,
+            "indexShares": 1.6342872144919927,
+            "indexSaved": 1,
+            "indexViews": 1.387714710680357,
+            "evidence": "indicio",
+            "semana": null
+          },
+          {
+            "id": "quarto",
+            "label": "Quarto",
+            "nPosts": 2,
+            "indexShares": 0.9305592018902599,
+            "indexSaved": 1.2114285714285715,
+            "indexViews": 1.1787016601093945,
+            "evidence": "indicio",
+            "semana": null
+          }
+        ]
+      },
+      {
+        "chave": "elenco",
+        "titulo": "Quem e o que aparece",
+        "subtitulo": "as pessoas e coisas em cena",
+        "linhas": [
+          {
+            "id": "casa",
+            "label": "Casa",
+            "nPosts": 5,
+            "indexShares": 3.5082698871094777,
+            "indexSaved": 3.9885714285714284,
+            "indexViews": 2.0450712503598503,
+            "evidence": "sinal",
+            "semana": null
+          },
+          {
+            "id": "trabalho",
+            "label": "Trabalho",
+            "nPosts": 1,
+            "indexShares": 2.524547125229719,
+            "indexSaved": 1.437142857142857,
+            "indexViews": 1.5768640245657806,
+            "evidence": "indicio",
+            "semana": null
+          },
+          {
+            "id": "equipamento_em_cena",
+            "label": "Equipamento em cena",
+            "nPosts": 22,
+            "indexShares": 0.8714885796797059,
+            "indexSaved": 0.7928571428571428,
+            "indexViews": 0.817948733326936,
+            "evidence": "tendencia",
+            "semana": {
+              "nPosts": 2,
+              "indexShares": 0.013651877133105802
+            }
+          },
+          {
+            "id": "roupa_em_cena",
+            "label": "Look montado",
+            "nPosts": 1,
+            "indexShares": 0.37227618797584666,
+            "indexSaved": 0.7257142857142858,
+            "indexViews": 1.4316884176182707,
+            "evidence": "indicio",
+            "semana": null
+          }
+        ]
+      },
+      {
+        "chave": "objeto",
+        "titulo": "Objeto em cena",
+        "subtitulo": "as coisas que aparecem no vídeo, quando repetem",
+        "linhas": [
+          {
+            "id": "caneta",
+            "label": "Caneta",
+            "nPosts": 3,
+            "indexShares": 3.5082698871094777,
+            "indexSaved": 3.9885714285714284,
+            "indexViews": 2.0450712503598503,
+            "evidence": "sinal",
+            "semana": null
+          },
+          {
+            "id": "quadro branco",
+            "label": "Quadro branco",
+            "nPosts": 4,
+            "indexShares": 2.5182462588605934,
+            "indexSaved": 3.0542857142857143,
+            "indexViews": 1.877069139238077,
+            "evidence": "sinal",
+            "semana": null
+          },
+          {
+            "id": "microfone",
+            "label": "Microfone",
+            "nPosts": 9,
+            "indexShares": 0.02179049619322657,
+            "indexSaved": 0.06571428571428571,
+            "indexViews": 0.2868606659629594,
+            "evidence": "tendencia",
+            "semana": {
+              "nPosts": 1,
+              "indexShares": 0.010238907849829351
+            }
+          },
+          {
+            "id": "celular",
+            "label": "Celular",
+            "nPosts": 3,
+            "indexShares": 0.09136256235232344,
+            "indexSaved": 0.5028571428571429,
+            "indexViews": 0.3663036176950389,
+            "evidence": "sinal",
+            "semana": {
+              "nPosts": 1,
+              "indexShares": 0.017064846416382253
+            }
+          },
+          {
+            "id": "notebook",
+            "label": "Notebook",
+            "nPosts": 3,
+            "indexShares": 0.37227618797584666,
+            "indexSaved": 0.29428571428571426,
+            "indexViews": 0.5516145283562038,
+            "evidence": "sinal",
+            "semana": null
+          },
+          {
+            "id": "violão",
+            "label": "Violão",
+            "nPosts": 2,
+            "indexShares": 0.6475452874770281,
+            "indexSaved": 0.6442857142857142,
+            "indexViews": 0.7537814269263986,
+            "evidence": "indicio",
+            "semana": null
+          },
+          {
+            "id": "bola de futebol",
+            "label": "Bola de futebol",
+            "nPosts": 2,
+            "indexShares": 1.111315305854555,
+            "indexSaved": 0.7257142857142858,
+            "indexViews": 1.029315804625276,
+            "evidence": "indicio",
+            "semana": null
+          }
+        ]
+      },
+      {
+        "chave": "tom",
+        "titulo": "Tom",
+        "subtitulo": "o jeito de falar do vídeo",
+        "linhas": [
+          {
+            "id": "humor",
+            "label": "Humor",
+            "nPosts": 37,
+            "indexShares": 0.622998162247309,
+            "indexSaved": 0.5885714285714285,
+            "indexViews": 0.8754258228576912,
+            "evidence": "tendencia",
+            "semana": {
+              "nPosts": 3,
+              "indexShares": 0.017064846416382253
+            }
+          }
+        ]
+      },
+      {
+        "chave": "enquadramento",
+        "titulo": "Enquadramento",
+        "subtitulo": "como a câmera te mostra",
+        "linhas": [
+          {
+            "id": "plano_medio",
+            "label": "Plano médio",
+            "nPosts": 22,
+            "indexShares": 0.25242845891310056,
+            "indexSaved": 0.29,
+            "indexViews": 0.4913006189425199,
+            "evidence": "tendencia",
+            "semana": {
+              "nPosts": 3,
+              "indexShares": 0.017064846416382253
+            }
+          },
+          {
+            "id": "camera_fixa",
+            "label": "Câmera fixa",
+            "nPosts": 27,
+            "indexShares": 0.3328957731688107,
+            "indexSaved": 0.3028571428571429,
+            "indexViews": 0.632137030995106,
+            "evidence": "tendencia",
+            "semana": {
+              "nPosts": 2,
+              "indexShares": 0.013651877133105802
+            }
+          },
+          {
+            "id": "gravado_por_outro",
+            "label": "Gravado por outra pessoa",
+            "nPosts": 6,
+            "indexShares": 0.0156208978734576,
+            "indexSaved": 0.05285714285714286,
+            "indexViews": 0.2665831014298052,
+            "evidence": "sinal",
+            "semana": null
+          },
+          {
+            "id": "close",
+            "label": "Close no rosto",
+            "nPosts": 15,
+            "indexShares": 0.37227618797584666,
+            "indexSaved": 0.29428571428571426,
+            "indexViews": 0.45786752710872275,
+            "evidence": "tendencia",
+            "semana": {
+              "nPosts": 3,
+              "indexShares": 0.017064846416382253
+            }
+          },
+          {
+            "id": "selfie_no_braco",
+            "label": "Selfie no braço",
+            "nPosts": 3,
+            "indexShares": 0.009451299553688633,
+            "indexSaved": 0.15714285714285714,
+            "indexViews": 0.3147670569043278,
+            "evidence": "sinal",
+            "semana": {
+              "nPosts": 1,
+              "indexShares": 0.47151483328957733
+            }
+          },
+          {
+            "id": "plano_aberto",
+            "label": "Plano aberto",
+            "nPosts": 3,
+            "indexShares": 0.017064846416382253,
+            "indexSaved": 0.08,
+            "indexViews": 0.26964782650417424,
+            "evidence": "sinal",
+            "semana": {
+              "nPosts": 1,
+              "indexShares": 0.017064846416382253
+            }
+          },
+          {
+            "id": "camera_na_mao",
+            "label": "Câmera na mão",
+            "nPosts": 3,
+            "indexShares": 0.017064846416382253,
+            "indexSaved": 0.15714285714285714,
+            "indexViews": 0.3147670569043278,
+            "evidence": "sinal",
+            "semana": {
+              "nPosts": 2,
+              "indexShares": 0.24428983985297978
+            }
+          }
+        ]
+      },
+      {
+        "chave": "dia",
+        "titulo": "Dia da semana",
+        "subtitulo": "quando você publica",
+        "linhas": [
+          {
+            "id": "d1",
+            "label": "Seg",
+            "nPosts": 4,
+            "indexShares": 3.7671304804410606,
+            "indexSaved": 5.258571428571429,
+            "indexViews": 2.289136719124844,
+            "evidence": "sinal",
+            "semana": null
+          },
+          {
+            "id": "d6",
+            "label": "Sáb",
+            "nPosts": 6,
+            "indexShares": 0.02402205303229194,
+            "indexSaved": 0.11142857142857143,
+            "indexViews": 0.29220744170425106,
+            "evidence": "sinal",
+            "semana": null
+          },
+          {
+            "id": "d4",
+            "label": "Qui",
+            "nPosts": 7,
+            "indexShares": 0.37227618797584666,
+            "indexSaved": 0.29428571428571426,
+            "indexViews": 0.632137030995106,
+            "evidence": "sinal",
+            "semana": {
+              "nPosts": 1,
+              "indexShares": 0.017064846416382253
+            }
+          },
+          {
+            "id": "d0",
+            "label": "Dom",
+            "nPosts": 6,
+            "indexShares": 1.5812549225518508,
+            "indexSaved": 1.56,
+            "indexViews": 1.5483908693983304,
+            "evidence": "sinal",
+            "semana": null
+          },
+          {
+            "id": "d5",
+            "label": "Sex",
+            "nPosts": 8,
+            "indexShares": 1.5006563402467838,
+            "indexSaved": 2.2785714285714285,
+            "indexViews": 1.2653865991747433,
+            "evidence": "tendencia",
+            "semana": null
+          },
+          {
+            "id": "d3",
+            "label": "Qua",
+            "nPosts": 3,
+            "indexShares": 0.47151483328957733,
+            "indexSaved": 0.46,
+            "indexViews": 0.45786752710872275,
+            "evidence": "sinal",
+            "semana": {
+              "nPosts": 1,
+              "indexShares": 0.47151483328957733
+            }
+          },
+          {
+            "id": "d2",
+            "label": "Ter",
+            "nPosts": 11,
+            "indexShares": 1,
+            "indexSaved": 0.8228571428571428,
+            "indexViews": 1.1114936186546396,
+            "evidence": "tendencia",
+            "semana": {
+              "nPosts": 1,
+              "indexShares": 0.010238907849829351
+            }
+          }
+        ]
+      },
+      {
+        "chave": "horario",
+        "titulo": "Horário",
+        "subtitulo": "a faixa do dia em que o post sai",
+        "linhas": [
+          {
+            "id": "s1",
+            "label": "4–8h",
+            "nPosts": 2,
+            "indexShares": 3.6726174849041744,
+            "indexSaved": 3.4714285714285715,
+            "indexViews": 2.075574560982631,
+            "evidence": "indicio",
+            "semana": null
+          },
+          {
+            "id": "s4",
+            "label": "16–20h",
+            "nPosts": 2,
+            "indexShares": 2.997637175111578,
+            "indexSaved": 1.7028571428571428,
+            "indexViews": 1.9105861961424047,
+            "evidence": "indicio",
+            "semana": {
+              "nPosts": 1,
+              "indexShares": 0.017064846416382253
+            }
+          },
+          {
+            "id": "s5",
+            "label": "20–24h",
+            "nPosts": 3,
+            "indexShares": 0.02179049619322657,
+            "indexSaved": 0.18,
+            "indexViews": 0.3684807120237981,
+            "evidence": "sinal",
+            "semana": {
+              "nPosts": 1,
+              "indexShares": 0.010238907849829351
+            }
+          },
+          {
+            "id": "s3",
+            "label": "12–16h",
+            "nPosts": 10,
+            "indexShares": 0.6590968758204253,
+            "indexSaved": 0.7514285714285714,
+            "indexViews": 0.9495639813837443,
+            "evidence": "tendencia",
+            "semana": null
+          },
+          {
+            "id": "s2",
+            "label": "8–12h",
+            "nPosts": 28,
+            "indexShares": 1.20425308479916,
+            "indexSaved": 1.677142857142857,
+            "indexViews": 1.1562140149697726,
+            "evidence": "tendencia",
+            "semana": {
+              "nPosts": 1,
+              "indexShares": 0.47151483328957733
+            }
+          }
+        ]
+      }
+    ],
+    "ganchos": {
+      "melhores": [
+        {
+          "texto": "Três maneiras de acalmar seu chefe numa discussão.",
+          "data": "2026-06-01",
+          "indexShares": 42.567077973221316
+        },
+        {
+          "texto": "O carioca não fala: tá muito calor!",
+          "data": "2026-05-14",
+          "indexShares": 5.5581517458650564
+        },
+        {
+          "texto": "Palavrões que me relaxam mais que meditação:",
+          "data": "2026-05-28",
+          "indexShares": 3.5082698871094777
+        },
+        {
+          "texto": "Oi, bom dia!",
+          "data": "2026-06-09",
+          "indexShares": 2.524547125229719
+        },
+        {
+          "texto": "Que juiz arrombado, mané, toma no cu!",
+          "data": "2026-06-24",
+          "indexShares": 2.200315043318456
+        },
+        {
+          "texto": "5 coisas que todo carioca faz no frio:",
+          "data": "2026-06-21",
+          "indexShares": 1.6342872144919927
+        }
+      ],
+      "piores": [
+        {
+          "texto": "Agora vai ser festa, acabou a palhaçada.",
+          "data": "2026-07-04",
+          "indexShares": 0.0018377526909950119
+        },
+        {
+          "texto": "Tu tá com a galera jogando uma bola",
+          "data": "2026-05-27",
+          "indexShares": 0.005775794171698608
+        },
+        {
+          "texto": "Somos meio milhão de pessoas.",
+          "data": "2026-07-18",
+          "indexShares": 0.009451299553688633
+        },
+        {
+          "texto": "Complete a frase: com todo o respeito...",
+          "data": "2026-08-04",
+          "indexShares": 0.010238907849829351
+        },
+        {
+          "texto": "Vamos lá, vamos ver qual o seu grau?",
+          "data": "2026-08-06",
+          "indexShares": 0.017064846416382253
+        },
+        {
+          "texto": "Hoje tem jogo do Brasil, quem que você acha que vai ganhar?",
+          "data": "2026-06-19",
+          "indexShares": 0.02179049619322657
+        }
+      ]
+    },
+    "assuntos": {
+      "melhores": [
+        {
+          "texto": "maneiras de acalmar o chefe · proatividade na resolução de problemas · sorriso muda o dia",
+          "data": "2026-06-01",
+          "indexShares": 42.567077973221316
+        },
+        {
+          "texto": "diferenças de vocabulário carioca · expressões com a palavra caralho",
+          "data": "2026-05-14",
+          "indexShares": 5.5581517458650564
+        },
+        {
+          "texto": "palavrões que relaxam mais que meditação · palavrões que resolvem qualquer situação · palavrões como vírgula",
+          "data": "2026-05-28",
+          "indexShares": 3.5082698871094777
+        },
+        {
+          "texto": "carioca indo trabalhar no frio · roupa de carioca no frio · comparar carioca com paulista no frio",
+          "data": "2026-06-09",
+          "indexShares": 2.524547125229719
+        },
+        {
+          "texto": "comparar torcedores de futebol · estereótipos de carioca · estereótipos de paulista · estereótipos de mineiro",
+          "data": "2026-06-24",
+          "indexShares": 2.200315043318456
+        },
+        {
+          "texto": "o que carioca faz no frio · carioca com rinite no frio · carioca brigando por causa do frio · carioca tirando casaco do armário",
+          "data": "2026-06-21",
+          "indexShares": 1.6342872144919927
+        }
+      ],
+      "piores": [
+        {
+          "texto": "entrevistas sobre a copa do mundo · opiniões sobre jogadores da seleção · brincadeiras com a internet do home office · substituições de jogadores por celebridades",
+          "data": "2026-07-04",
+          "indexShares": 0.0018377526909950119
+        },
+        {
+          "texto": "entrevistas sobre futebol na praia · opiniões sobre a copa do mundo · o que é impedimento no futebol · torcer para a argentina",
+          "data": "2026-05-27",
+          "indexShares": 0.005775794171698608
+        },
+        {
+          "texto": "agradecimento aos seguidores · diferentes personagens que a criadora já fez · momentos de humor da criadora · comunidade de seguidores",
+          "data": "2026-07-18",
+          "indexShares": 0.009451299553688633
+        },
+        {
+          "texto": "gírias cariocas · malandragem carioca · onomatopeias cariocas",
+          "data": "2026-08-04",
+          "indexShares": 0.010238907849829351
+        },
+        {
+          "texto": "problemas de visão · olhos secos · irritação nos olhos · promoção de colírio",
+          "data": "2026-08-06",
+          "indexShares": 0.017064846416382253
+        },
+        {
+          "texto": "expectativas para o jogo do brasil · quem vai trazer o hexa para o brasil · críticas ao técnico ancelotti · escalação de jogadores na seleção",
+          "data": "2026-06-19",
+          "indexShares": 0.02179049619322657
+        }
+      ]
+    }
+  },
+  "anterior": null
+}

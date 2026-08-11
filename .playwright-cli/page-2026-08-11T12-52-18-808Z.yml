@@ -1,0 +1,32 @@
+- generic [ref=f2e3]:
+  - link "Pular para o conteúdo" [ref=f2e4] [cursor=pointer]:
+    - /url: "#dashboard-main"
+  - main [ref=f2e6]:
+    - generic [ref=f2e10]:
+      - link "Voltar ao perfil" [ref=f2e11] [cursor=pointer]:
+        - /url: /dashboard/boards/mobile-strategic-profile
+      - generic [ref=f2e14]:
+        - generic [ref=f2e15]:
+          - paragraph [ref=f2e16]: Arquivo dos assinantes
+          - heading "Reuniões gravadas" [level=1] [ref=f2e19]
+          - paragraph [ref=f2e20]: Reveja análises, referências e direcionamentos das reuniões semanais.
+        - generic [ref=f2e21]: Acesso D2C Pro
+      - generic [ref=f2e22]:
+        - generic [ref=f2e23]:
+          - heading "Não foi possível carregar as gravações" [level=2] [ref=f2e28]
+          - paragraph [ref=f2e29]: Tente novamente em alguns minutos.
+        - complementary "Recursos da biblioteca" [ref=f2e30]:
+          - paragraph [ref=f2e31]: Nesta biblioteca
+          - list [ref=f2e32]:
+            - listitem [ref=f2e33]:
+              - generic [ref=f2e38]:
+                - paragraph [ref=f2e39]: Gravação completa
+                - paragraph [ref=f2e40]: Assista às reuniões semanais no seu ritmo.
+            - listitem [ref=f2e41]:
+              - generic [ref=f2e45]:
+                - paragraph [ref=f2e46]: Arquivo por data
+                - paragraph [ref=f2e47]: Encontre rapidamente a semana que deseja rever.
+            - listitem [ref=f2e48]:
+              - generic [ref=f2e53]:
+                - paragraph [ref=f2e54]: Busca no acervo
+                - paragraph [ref=f2e55]: Pesquise reuniões por título ou assunto.

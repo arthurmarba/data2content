@@ -1,0 +1,167 @@
+- generic [active] [ref=f4e1]:
+  - generic [ref=f4e3]:
+    - link "Pular para o conteúdo" [ref=f4e4] [cursor=pointer]:
+      - /url: "#dashboard-main"
+    - main [ref=f4e6]:
+      - main [ref=f4e9]:
+        - generic [ref=f4e10]:
+          - generic [ref=f4e11]:
+            - paragraph [ref=f4e12]: Preview interno — Perfil Estratégico
+            - heading "Perfil Estratégico mobile" [level=1] [ref=f4e13]
+            - paragraph [ref=f4e14]: Seu Perfil Estratégico mostra sua leitura atual, seus próximos passos e seu potencial comercial.
+            - navigation "Estados do Perfil Estratégico" [ref=f4e16]:
+              - link "anonymous view profile" [ref=f4e17] [cursor=pointer]:
+                - /url: /dashboard/boards/mobile-strategic-profile-preview?state=anonymous_view_profile
+              - link "anonymous analyze video" [ref=f4e18] [cursor=pointer]:
+                - /url: /dashboard/boards/mobile-strategic-profile-preview?state=anonymous_analyze_video
+              - link "account only" [ref=f4e19] [cursor=pointer]:
+                - /url: /dashboard/boards/mobile-strategic-profile-preview?state=account_only
+              - link "first reading free" [ref=f4e20] [cursor=pointer]:
+                - /url: /dashboard/boards/mobile-strategic-profile-preview?state=first_reading_free
+              - link "premium without instagram" [ref=f4e21] [cursor=pointer]:
+                - /url: /dashboard/boards/mobile-strategic-profile-preview?state=premium_without_instagram
+              - link "instagram optimized" [ref=f4e22] [cursor=pointer]:
+                - /url: /dashboard/boards/mobile-strategic-profile-preview?state=instagram_optimized
+              - link "media kit available" [ref=f4e23] [cursor=pointer]:
+                - /url: /dashboard/boards/mobile-strategic-profile-preview?state=media_kit_available
+            - region "MM91 smoke harness" [ref=f4e24]:
+              - generic [ref=f4e25]:
+                - generic [ref=f4e26]:
+                  - paragraph [ref=f4e27]: MM91 smoke harness
+                  - heading "Beta fechado" [level=2] [ref=f4e28]
+                - paragraph [ref=f4e29]: Preview interno admin/dev, sem upload real automático.
+              - generic [ref=f4e30]:
+                - link "Free sem leitura Perfil em construção" [ref=f4e31] [cursor=pointer]:
+                  - /url: /dashboard/boards/mobile-strategic-profile-preview?state=account_only
+                  - generic [ref=f4e32]: Free sem leitura
+                  - generic [ref=f4e33]: Perfil em construção
+                - link "Free com leitura usada Leitura grátis usada" [ref=f4e34] [cursor=pointer]:
+                  - /url: /dashboard/boards/mobile-strategic-profile-preview?state=first_reading_free
+                  - generic [ref=f4e35]: Free com leitura usada
+                  - generic [ref=f4e36]: Leitura grátis usada
+                - link "Pro sem Instagram Conectar Instagram e Nova leitura secundaria" [ref=f4e37] [cursor=pointer]:
+                  - /url: /dashboard/boards/mobile-strategic-profile-preview?state=premium_without_instagram
+                  - generic [ref=f4e38]: Pro sem Instagram
+                  - generic [ref=f4e39]: Conectar Instagram e Nova leitura secundaria
+                - link "Pro com Instagram Nova leitura" [ref=f4e40] [cursor=pointer]:
+                  - /url: /dashboard/boards/mobile-strategic-profile-preview?state=instagram_optimized
+                  - generic [ref=f4e41]: Pro com Instagram
+                  - generic [ref=f4e42]: Nova leitura
+                - link "Pro 10/10 leituras 10/10 usadas" [ref=f4e43] [cursor=pointer]:
+                  - /url: /dashboard/boards/mobile-strategic-profile-preview?state=instagram_optimized&smoke=pro_quota_reached
+                  - generic [ref=f4e44]: Pro 10/10 leituras
+                  - generic [ref=f4e45]: 10/10 usadas
+                - link "Pagamento pendente Continuar pagamento" [ref=f4e46] [cursor=pointer]:
+                  - /url: /dashboard/boards/mobile-strategic-profile-preview?state=account_only&smoke=payment_pending
+                  - generic [ref=f4e47]: Pagamento pendente
+                  - generic [ref=f4e48]: Continuar pagamento
+                - link "Ação de pagamento Atualizar pagamento" [ref=f4e49] [cursor=pointer]:
+                  - /url: /dashboard/boards/mobile-strategic-profile-preview?state=account_only&smoke=payment_action_needed
+                  - generic [ref=f4e50]: Ação de pagamento
+                  - generic [ref=f4e51]: Atualizar pagamento
+                - link "Comunidade Free Consultoria em grupo" [ref=f4e52] [cursor=pointer]:
+                  - /url: /planning/discover?smoke=community_free_banner
+                  - generic [ref=f4e53]: Comunidade Free
+                  - generic [ref=f4e54]: Consultoria em grupo
+                - link "Comunidade Pro Grupo VIP liberado" [ref=f4e55] [cursor=pointer]:
+                  - /url: /planning/discover?smoke=community_pro_banner
+                  - generic [ref=f4e56]: Comunidade Pro
+                  - generic [ref=f4e57]: Grupo VIP liberado
+                - link "Mídia Kit disponível Copiar link, Ver como marca, Abrir Mídia Kit" [ref=f4e58] [cursor=pointer]:
+                  - /url: /dashboard/boards/mobile-strategic-profile-preview?state=media_kit_available
+                  - generic [ref=f4e59]: Mídia Kit disponível
+                  - generic [ref=f4e60]: Copiar link, Ver como marca, Abrir Mídia Kit
+                - link "Mídia Kit pede Instagram Conectar Instagram" [ref=f4e61] [cursor=pointer]:
+                  - /url: /dashboard/boards/mobile-strategic-profile-preview?state=premium_without_instagram
+                  - generic [ref=f4e62]: Mídia Kit pede Instagram
+                  - generic [ref=f4e63]: Conectar Instagram
+                - link "Endpoint real bloqueado 403 para usuário comum fora da allowlist" [ref=f4e64] [cursor=pointer]:
+                  - /url: /dashboard/boards/mobile-strategic-profile-preview?state=narrative_map_chapters&smoke=real_endpoint_blocked_for_common_user
+                  - generic [ref=f4e65]: Endpoint real bloqueado
+                  - generic [ref=f4e66]: 403 para usuário comum fora da allowlist
+                - link "Endpoint real allowlist allowlist/admin-dev necessário antes do endpoint real" [ref=f4e67] [cursor=pointer]:
+                  - /url: /dashboard/boards/mobile-strategic-profile-preview?state=narrative_map_chapters&smoke=real_endpoint_allowlist_success
+                  - generic [ref=f4e68]: Endpoint real allowlist
+                  - generic [ref=f4e69]: allowlist/admin-dev necessário antes do endpoint real
+                - link "Pós-checkout Instagram Conectar Instagram" [ref=f4e70] [cursor=pointer]:
+                  - /url: /dashboard/boards/mobile-strategic-profile-preview?state=premium_without_instagram&postCheckoutIntent=connect_instagram
+                  - generic [ref=f4e71]: Pós-checkout Instagram
+                  - generic [ref=f4e72]: Conectar Instagram
+                - link "Pós-checkout Comunidade Entrar" [ref=f4e73] [cursor=pointer]:
+                  - /url: /planning/discover?postCheckoutIntent=join_community
+                  - generic [ref=f4e74]: Pós-checkout Comunidade
+                  - generic [ref=f4e75]: Entrar
+          - generic [ref=f4e77]:
+            - generic [ref=f4e78]:
+              - generic [ref=f4e79]:
+                - generic [ref=f4e80]:
+                  - paragraph [ref=f4e81]: "@ana.creator"
+                  - paragraph [ref=f4e82]: Diagnóstico vivo do creator
+                - generic [ref=f4e83]: D2C
+              - generic [ref=f4e84]:
+                - generic [ref=f4e85]:
+                  - generic [ref=f4e86]: AC
+                  - generic [ref=f4e87]:
+                    - heading "Ana Creator" [level=2] [ref=f4e88]
+                    - paragraph [ref=f4e89]: "@ana.creator"
+                    - paragraph [ref=f4e90]: Diagnóstico vivo em evolução para posicionamento, narrativa e próximo passo.
+                - region "Status do Perfil" [ref=f4e91]:
+                  - paragraph [ref=f4e92]: Perfil em construção
+                  - paragraph [ref=f4e93]: Comece com uma leitura gratuita para a D2C entender sua narrativa.
+                  - button "Analisar meu primeiro vídeo" [ref=f4e95] [cursor=pointer]
+              - generic [ref=f4e96]: Perfil em construção
+            - tablist "Abas internas do Perfil" [ref=f4e98]:
+              - tab "Mapa" [selected] [ref=f4e99] [cursor=pointer]
+              - tab "Oportunidades" [ref=f4e100] [cursor=pointer]
+            - generic [ref=f4e101]:
+              - generic [ref=f4e102]:
+                - heading "Teste sua primeira leitura narrativa" [level=3] [ref=f4e103]
+                - paragraph [ref=f4e104]: Envie um vídeo e veja como a D2C entende sua fala, cena, intenção e próximo ajuste.
+                - button "Analisar meu primeiro vídeo" [ref=f4e105] [cursor=pointer]
+              - region "Diagnóstico" [ref=f4e106]:
+                - generic [ref=f4e107]:
+                  - generic [ref=f4e108]:
+                    - heading "Diagnóstico" [level=3] [ref=f4e109]
+                    - paragraph [ref=f4e110]: Seu Perfil Estratégico mostra o que a D2C já entendeu sobre sua narrativa.
+                  - generic [ref=f4e111]: Em construção
+                - article [ref=f4e113]:
+                  - heading "Teste sua primeira leitura narrativa" [level=4] [ref=f4e115]
+                  - paragraph [ref=f4e116]: Envie um vídeo e veja como a D2C entende sua fala, cena, intenção e próximo ajuste.
+              - generic [ref=f4e117]:
+                - generic [ref=f4e118]:
+                  - generic [ref=f4e119]:
+                    - heading "Mídia Kit" [level=3] [ref=f4e120]
+                    - paragraph [ref=f4e121]: Conecte o Instagram para liberar seu perfil comercial.
+                  - generic [ref=f4e122]: Instagram
+                - button "Conectar Instagram" [ref=f4e123] [cursor=pointer]
+            - navigation "Navegação mobile principal" [ref=f4e124]:
+              - link "Perfil" [ref=f4e125] [cursor=pointer]:
+                - /url: /dashboard/profile
+              - link "Comunidade" [ref=f4e126] [cursor=pointer]:
+                - /url: /planning/discover
+            - dialog [ref=f4e162]:
+              - generic [ref=f4e145]:
+                - heading "Escaneando seu vídeo" [level=2] [ref=f4e163]
+                - button "Fechar fluxo de análise" [disabled] [ref=f4e149]
+              - generic [ref=f4e164]:
+                - figure "Conteúdo em análise Vídeo temporário" [ref=f4e165]:
+                  - img "Capa do vídeo em análise" [ref=f4e166]
+                  - generic [ref=f4e173]:
+                    - generic [ref=f4e174]: Conteúdo em análise
+                    - generic [ref=f4e175]: Vídeo temporário
+                - generic [ref=f4e176]:
+                  - generic [ref=f4e177]:
+                    - paragraph [ref=f4e178]: 9%
+                    - paragraph [ref=f4e179]: Pode levar até 30 segundos
+                  - progressbar "Progresso da análise do vídeo" [ref=f4e180]
+                  - generic [ref=f4e183]:
+                    - paragraph [ref=f4e184]: Preparando o vídeo
+                    - paragraph [ref=f4e185]: Organizando os sinais visuais e sonoros.
+              - button "Continuar" [disabled] [ref=f4e161]
+  - generic [ref=f4e127]:
+    - generic [ref=f4e128]: Usamos cookies de analytics para melhorar a experiência. Aceita?
+    - generic [ref=f4e129]:
+      - button "Recusar" [ref=f4e130] [cursor=pointer]
+      - button "Aceitar" [ref=f4e131] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=f4e137] [cursor=pointer]
+  - alert [ref=f4e141]

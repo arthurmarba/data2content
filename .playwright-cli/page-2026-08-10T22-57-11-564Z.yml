@@ -1,0 +1,100 @@
+- generic [active] [ref=f4e1]:
+  - generic [ref=f4e3]:
+    - link "Pular para o conteúdo" [ref=f4e4] [cursor=pointer]:
+      - /url: "#dashboard-main"
+    - main [ref=f4e6]:
+      - generic [ref=f4e9]:
+        - main [ref=f4e11]:
+          - generic [ref=f4e12]:
+            - region [ref=f4e13]:
+              - generic [ref=f4e14]:
+                - generic [ref=f4e15]: E
+                - generic [ref=f4e16]:
+                  - heading "E2E Test User" [level=1] [ref=f4e17]
+                  - paragraph [ref=f4e18]: Semana de 3 a 9 de agosto
+                - button "Configurações da conta" [ref=f4e19] [cursor=pointer]
+              - text: Seu mapa
+              - paragraph [ref=f4e24]: Sua história ainda está ganhando forma. Responda o Seu Norte para escrevê-la.
+              - generic [ref=f4e25]:
+                - text: Assuntos
+                - generic [ref=f4e26]:
+                  - generic [ref=f4e27]: bastidor, processo e pauta
+                  - generic [ref=f4e28]: humor cotidiano com identificacao rapida
+                  - generic [ref=f4e29]: produtividade leve
+                  - generic [ref=f4e30]: rotina de trabalho
+                  - generic [ref=f4e31]: Territorio de marca possivel
+                - paragraph [ref=f4e32]: Isso é o que você escreveu ao criar a conta. Nenhum vídeo publicado confirmou esses assuntos ainda.
+                - button "Ajustar mapa" [ref=f4e33] [cursor=pointer]
+            - region [ref=f4e38]:
+              - generic [ref=f4e39]: Seu relatório
+              - heading "A semana por dentro" [level=2] [ref=f4e41]
+              - paragraph [ref=f4e42]: Você não publicou na semana encerrada. Seus padrões de 90 dias continuam disponíveis.
+              - paragraph [ref=f4e43]: Tudo comparado com a sua mediana dos últimos 90 dias.
+              - generic [ref=f4e44]:
+                - generic [ref=f4e45]:
+                  - generic [ref=f4e46]: "0"
+                  - generic [ref=f4e47]: posts
+                - generic [ref=f4e48]:
+                  - generic [ref=f4e49]: "0"
+                  - generic [ref=f4e50]: salvamentos
+                - generic [ref=f4e51]:
+                  - generic [ref=f4e52]: "0"
+                  - generic [ref=f4e53]: compartilhamentos
+              - generic [ref=f4e54]:
+                - text: Vídeo da semana
+                - heading "Nenhum post na semana encerrada." [level=3] [ref=f4e55]
+                - paragraph [ref=f4e56]: Os rankings de 90 dias continuam disponíveis abaixo.
+              - generic [ref=f4e57]:
+                - button "Dia e horário Qui chegou a 1,0× do seu normal." [ref=f4e58] [cursor=pointer]:
+                  - generic [ref=f4e59]:
+                    - generic [ref=f4e60]: Dia e horário
+                    - generic [ref=f4e61]: Qui chegou a 1,0× do seu normal.
+                - button "Cena, tom e câmera A leitura visual ainda não tem cobertura suficiente." [ref=f4e65] [cursor=pointer]:
+                  - generic [ref=f4e66]:
+                    - generic [ref=f4e67]: Cena, tom e câmera
+                    - generic [ref=f4e68]: A leitura visual ainda não tem cobertura suficiente.
+                - button "Assuntos Ainda não há assuntos classificados o bastante para comparar." [ref=f4e72] [cursor=pointer]:
+                  - generic [ref=f4e73]:
+                    - generic [ref=f4e74]: Assuntos
+                    - generic [ref=f4e75]: Ainda não há assuntos classificados o bastante para comparar.
+                - button "Frases de abertura Ainda não há aberturas classificadas para comparar." [ref=f4e79] [cursor=pointer]:
+                  - generic [ref=f4e80]:
+                    - generic [ref=f4e81]: Frases de abertura
+                    - generic [ref=f4e82]: Ainda não há aberturas classificadas para comparar.
+              - paragraph [ref=f4e86]: 0 de 2 posts têm leitura visual. Rankings sem cobertura ficam honestamente vazios.
+            - generic [ref=f4e87]:
+              - generic [ref=f4e88]: Marca que combina com você
+              - heading "iFood" [level=2] [ref=f4e90]
+              - paragraph [ref=f4e91]: A marca combina com essa pauta porque a narrativa cruza leve. A inserção pode acontecer como parte natural da história, sem transformar a pauta em promessa de ação comercial.
+              - paragraph [ref=f4e92]: Marca sugerida por possível match narrativo. Isso não indica relação comercial, ação em andamento ou registro formal da marca na Data2Content.
+            - generic [ref=f4e93]:
+              - text: Reunião da comunidade
+              - heading "Quinta-feira, 13 de agosto às 19:00" [level=2] [ref=f4e94]
+              - paragraph [ref=f4e95]: Os criadores abrem os relatórios e dizem o que fariam diferente. É onde você descobre o que ninguém percebe sozinho.
+              - link "Entrar no grupo" [ref=f4e97] [cursor=pointer]:
+                - /url: https://chat.whatsapp.com/CKTT84ZHEouKyXoDxIJI4c
+            - region [ref=f4e98]:
+              - heading "Ferramentas" [level=2] [ref=f4e99]
+              - generic [ref=f4e100]:
+                - button "Mídia Kit Sua página para marcas" [ref=f4e101] [cursor=pointer]:
+                  - generic [ref=f4e107]:
+                    - generic [ref=f4e108]: Mídia Kit
+                    - generic [ref=f4e109]: Sua página para marcas
+                - button "Quanto vale sua publi Calcule seu preço justo" [ref=f4e113] [cursor=pointer]:
+                  - generic [ref=f4e117]:
+                    - generic [ref=f4e118]: Quanto vale sua publi
+                    - generic [ref=f4e119]: Calcule seu preço justo
+            - paragraph [ref=f4e123]: Segunda o relatório chega. Quinta a gente conversa sobre ele.
+        - navigation [ref=f4e124]:
+          - button "Perfil" [ref=f4e125] [cursor=pointer]
+          - button "Analisar conteúdo" [ref=f4e131] [cursor=pointer]
+          - button "Collabs" [ref=f4e134] [cursor=pointer]
+        - dialog [ref=f4e143]:
+          - generic [ref=f4e145]:
+            - generic [ref=f4e146]:
+              - paragraph [ref=f4e147]: Etapa 1 de 2
+              - heading "Raio X do conteúdo" [level=2] [ref=f4e148]
+            - button "Fechar fluxo de análise" [ref=f4e149] [cursor=pointer]
+          - generic "Trocar vídeo" [ref=f4e173] [cursor=pointer]: Preparando capa...
+          - button "Analisar conteúdo" [ref=f4e167] [cursor=pointer]
+  - alert [ref=f4e141]

@@ -3,8 +3,8 @@
   "handle": "@rafacustodio",
   "periodo": {
     "de": "2026-04-22",
-    "ate": "2026-07-28",
-    "semanas": 14
+    "ate": "2026-08-04",
+    "semanas": 15
   },
   "semanas": [
     {
@@ -14,15 +14,15 @@
       "seguidoresGanho": null,
       "seguidoresPerda": null,
       "composicao": {
-        "curtidas": 4240,
-        "comentarios": 381,
-        "salvos": 215,
-        "compartilhamentos": 695
+        "curtidas": 4265,
+        "comentarios": 382,
+        "salvos": 217,
+        "compartilhamentos": 697
       },
-      "interacoes": 5531,
-      "alcance": 93094,
-      "taxaParticipacao": 0.05941306636303092,
-      "viewsMedioPorPost": 24149.166666666668,
+      "interacoes": 5561,
+      "alcance": 94031,
+      "taxaParticipacao": 0.059140070827705754,
+      "viewsMedioPorPost": 24364.166666666668,
       "posts": 6
     },
     {
@@ -32,15 +32,15 @@
       "seguidoresGanho": null,
       "seguidoresPerda": null,
       "composicao": {
-        "curtidas": 7239,
-        "comentarios": 289,
-        "salvos": 747,
-        "compartilhamentos": 8992
+        "curtidas": 7257,
+        "comentarios": 290,
+        "salvos": 746,
+        "compartilhamentos": 8993
       },
-      "interacoes": 17267,
-      "alcance": 162863,
-      "taxaParticipacao": 0.1060216255380289,
-      "viewsMedioPorPost": 42317,
+      "interacoes": 17286,
+      "alcance": 163119,
+      "taxaParticipacao": 0.10597171390212054,
+      "viewsMedioPorPost": 42416.833333333336,
       "posts": 6
     },
     {
@@ -50,15 +50,15 @@
       "seguidoresGanho": null,
       "seguidoresPerda": null,
       "composicao": {
-        "curtidas": 1484,
+        "curtidas": 1488,
         "comentarios": 87,
         "salvos": 41,
-        "compartilhamentos": 124
+        "compartilhamentos": 125
       },
-      "interacoes": 1736,
-      "alcance": 36186,
-      "taxaParticipacao": 0.04797435472282098,
-      "viewsMedioPorPost": 14785.5,
+      "interacoes": 1741,
+      "alcance": 36364,
+      "taxaParticipacao": 0.0478770212297877,
+      "viewsMedioPorPost": 14837.75,
       "posts": 4
     },
     {
@@ -74,9 +74,9 @@
         "compartilhamentos": 113
       },
       "interacoes": 1915,
-      "alcance": 50492,
-      "taxaParticipacao": 0.03792680028519369,
-      "viewsMedioPorPost": 23296.25,
+      "alcance": 50543,
+      "taxaParticipacao": 0.037888530558138615,
+      "viewsMedioPorPost": 23339.25,
       "posts": 4
     },
     {
@@ -86,15 +86,15 @@
       "seguidoresGanho": null,
       "seguidoresPerda": null,
       "composicao": {
-        "curtidas": 7081,
-        "comentarios": 359,
-        "salvos": 242,
-        "compartilhamentos": 2146
+        "curtidas": 7362,
+        "comentarios": 364,
+        "salvos": 251,
+        "compartilhamentos": 2234
       },
-      "interacoes": 9828,
-      "alcance": 145025,
-      "taxaParticipacao": 0.06776762627133252,
-      "viewsMedioPorPost": 35203.666666666664,
+      "interacoes": 10211,
+      "alcance": 150433,
+      "taxaParticipacao": 0.06787739392287596,
+      "viewsMedioPorPost": 36355.333333333336,
       "posts": 6
     },
     {
@@ -104,15 +104,15 @@
       "seguidoresGanho": 845,
       "seguidoresPerda": 0,
       "composicao": {
-        "curtidas": 1161,
+        "curtidas": 1163,
         "comentarios": 141,
         "salvos": 42,
         "compartilhamentos": 135
       },
-      "interacoes": 1479,
-      "alcance": 38792,
-      "taxaParticipacao": 0.03812641781810683,
-      "viewsMedioPorPost": 12573.6,
+      "interacoes": 1481,
+      "alcance": 38875,
+      "taxaParticipacao": 0.03809646302250804,
+      "viewsMedioPorPost": 12608.4,
       "posts": 5
     },
     {
@@ -125,12 +125,12 @@
         "curtidas": 1391,
         "comentarios": 108,
         "salvos": 50,
-        "compartilhamentos": 136
+        "compartilhamentos": 138
       },
-      "interacoes": 1685,
-      "alcance": 49036,
-      "taxaParticipacao": 0.03436250917693123,
-      "viewsMedioPorPost": 8479,
+      "interacoes": 1687,
+      "alcance": 49575,
+      "taxaParticipacao": 0.034029248613212305,
+      "viewsMedioPorPost": 8528.888888888889,
       "posts": 9
     },
     {
@@ -140,15 +140,15 @@
       "seguidoresGanho": 107,
       "seguidoresPerda": 3,
       "composicao": {
-        "curtidas": 3226,
+        "curtidas": 3251,
         "comentarios": 221,
-        "salvos": 244,
-        "compartilhamentos": 1203
+        "salvos": 245,
+        "compartilhamentos": 1210
       },
-      "interacoes": 4894,
-      "alcance": 129269,
-      "taxaParticipacao": 0.03785903812979136,
-      "viewsMedioPorPost": 28495.14285714286,
+      "interacoes": 4927,
+      "alcance": 130293,
+      "taxaParticipacao": 0.03781477132309487,
+      "viewsMedioPorPost": 28669,
       "posts": 7
     },
     {
@@ -158,15 +158,15 @@
       "seguidoresGanho": 47,
       "seguidoresPerda": 25,
       "composicao": {
-        "curtidas": 2264,
+        "curtidas": 2272,
         "comentarios": 193,
         "salvos": 62,
-        "compartilhamentos": 273
+        "compartilhamentos": 275
       },
-      "interacoes": 2792,
-      "alcance": 83725,
-      "taxaParticipacao": 0.03334726784114661,
-      "viewsMedioPorPost": 18722.428571428572,
+      "interacoes": 2802,
+      "alcance": 84197,
+      "taxaParticipacao": 0.03327909545470741,
+      "viewsMedioPorPost": 18812.85714285714,
       "posts": 7
     },
     {
@@ -176,15 +176,15 @@
       "seguidoresGanho": 153,
       "seguidoresPerda": 1,
       "composicao": {
-        "curtidas": 3848,
-        "comentarios": 296,
+        "curtidas": 3895,
+        "comentarios": 300,
         "salvos": 173,
-        "compartilhamentos": 1030
+        "compartilhamentos": 1045
       },
-      "interacoes": 5347,
-      "alcance": 113556,
-      "taxaParticipacao": 0.04708689985557787,
-      "viewsMedioPorPost": 29330.571428571428,
+      "interacoes": 5413,
+      "alcance": 114282,
+      "taxaParticipacao": 0.04736528937190459,
+      "viewsMedioPorPost": 29537.571428571428,
       "posts": 7
     },
     {
@@ -194,15 +194,15 @@
       "seguidoresGanho": 101,
       "seguidoresPerda": 13,
       "composicao": {
-        "curtidas": 5812,
-        "comentarios": 661,
-        "salvos": 187,
-        "compartilhamentos": 1127
+        "curtidas": 5853,
+        "comentarios": 662,
+        "salvos": 191,
+        "compartilhamentos": 1139
       },
-      "interacoes": 7787,
-      "alcance": 177444,
-      "taxaParticipacao": 0.043884267712630466,
-      "viewsMedioPorPost": 30506.777777777777,
+      "interacoes": 7845,
+      "alcance": 178815,
+      "taxaParticipacao": 0.04387215837597517,
+      "viewsMedioPorPost": 30730,
       "posts": 9
     },
     {
@@ -212,15 +212,15 @@
       "seguidoresGanho": 80,
       "seguidoresPerda": 3,
       "composicao": {
-        "curtidas": 4494,
-        "comentarios": 241,
-        "salvos": 300,
-        "compartilhamentos": 1977
+        "curtidas": 4642,
+        "comentarios": 244,
+        "salvos": 304,
+        "compartilhamentos": 1982
       },
-      "interacoes": 7012,
-      "alcance": 146675,
-      "taxaParticipacao": 0.04780637463780467,
-      "viewsMedioPorPost": 32326.571428571428,
+      "interacoes": 7172,
+      "alcance": 150544,
+      "taxaParticipacao": 0.04764055691359337,
+      "viewsMedioPorPost": 33016.71428571428,
       "posts": 7
     },
     {
@@ -230,15 +230,15 @@
       "seguidoresGanho": 77,
       "seguidoresPerda": 1,
       "composicao": {
-        "curtidas": 2724,
-        "comentarios": 1038,
-        "salvos": 253,
-        "compartilhamentos": 1167
+        "curtidas": 2995,
+        "comentarios": 1223,
+        "salvos": 291,
+        "compartilhamentos": 1284
       },
-      "interacoes": 5182,
-      "alcance": 91265,
-      "taxaParticipacao": 0.05677970744535145,
-      "viewsMedioPorPost": 32927.8,
+      "interacoes": 5793,
+      "alcance": 99845,
+      "taxaParticipacao": 0.05801993089288397,
+      "viewsMedioPorPost": 36570.4,
       "posts": 5
     },
     {
@@ -248,16 +248,34 @@
       "seguidoresGanho": 72,
       "seguidoresPerda": 1,
       "composicao": {
-        "curtidas": 1088,
-        "comentarios": 211,
-        "salvos": 63,
-        "compartilhamentos": 123
+        "curtidas": 3250,
+        "comentarios": 364,
+        "salvos": 149,
+        "compartilhamentos": 348
       },
-      "interacoes": 1485,
-      "alcance": 57773,
-      "taxaParticipacao": 0.02570404860401918,
-      "viewsMedioPorPost": 17410.8,
-      "posts": 5
+      "interacoes": 4111,
+      "alcance": 148770,
+      "taxaParticipacao": 0.027633259393694966,
+      "viewsMedioPorPost": 27221.25,
+      "posts": 8
+    },
+    {
+      "semanaFim": "2026-08-04",
+      "seguidores": 46955,
+      "seguidoresDelta": 0,
+      "seguidoresGanho": null,
+      "seguidoresPerda": null,
+      "composicao": {
+        "curtidas": 2425,
+        "comentarios": 217,
+        "salvos": 156,
+        "compartilhamentos": 412
+      },
+      "interacoes": 3210,
+      "alcance": 87390,
+      "taxaParticipacao": 0.036731891520768965,
+      "viewsMedioPorPost": 20053,
+      "posts": 7
     }
   ]
 }

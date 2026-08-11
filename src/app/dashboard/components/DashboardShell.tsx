@@ -19,10 +19,18 @@ import {
 
 const MOBILE_STRATEGIC_PROFILE_PREVIEW_ROUTE = "/dashboard/boards/mobile-strategic-profile-preview";
 const MOBILE_DASHBOARD_ENTRY_PATHS = new Set(["/dashboard", "/dashboard/home"]);
-// A reunião é servida fora do shell do board (rota própria, não a SPA do
-// Perfil), mas já pertence ao mesmo app novo — precisa da mesma chrome
-// legada suprimida (tab bar antiga + widget de ativação), não só o board.
 const WEEKLY_MEETING_ROUTE = "/reuniao";
+const RECORDED_MEETINGS_ROUTE = "/reunioes-gravadas";
+// Destinos próprios acessados a partir do Perfil. Eles têm navegação de volta
+// no conteúdo e não devem herdar tab bar ou widget de ativação do dashboard.
+const LEGACY_CHROME_FREE_ROUTES = new Set([
+  WEEKLY_MEETING_ROUTE,
+  RECORDED_MEETINGS_ROUTE,
+]);
+
+export function shouldSuppressDashboardLegacyChrome(pathname?: string | null) {
+  return LEGACY_CHROME_FREE_ROUTES.has(pathname || "");
+}
 
 export function isMobileStrategicProfileRoute(pathname?: string | null) {
   if (!pathname) return false;
@@ -48,7 +56,7 @@ export function shouldRenderDashboardMobileBottomNav({
   pathname?: string | null;
 }) {
   if (isPrintMode || isGuidedFlow || !isMobile) return false;
-  if (pathname === WEEKLY_MEETING_ROUTE) return false;
+  if (shouldSuppressDashboardLegacyChrome(pathname)) return false;
   if (isMobileStrategicProfileAppEnabled && isMobileStrategicProfileRoute(pathname)) return false;
   return true;
 }
@@ -149,7 +157,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const isOpen = !isCollapsed;
   const hasPageOverride = isMediaKitPage || isPlannerPage || isDiscover;
   const isMobileStrategicProfileSurface = isMobileStrategicProfileRoute(pathname);
-  const isWeeklyMeetingRoute = pathname === WEEKLY_MEETING_ROUTE;
+  const shouldSuppressLegacyChrome = shouldSuppressDashboardLegacyChrome(pathname);
   const isMobileStrategicProfileMediaKitReturn =
     isMediaKitPage && searchParams?.get("from") === "mobile-strategic-profile";
   const shouldRedirectMobileDashboardEntryPath =
@@ -300,7 +308,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const shellClassName = "flex flex-col w-full min-h-0";
   const shellStyle = isPrintMode ? undefined : { height: "100dvh", minHeight: "100dvh" };
   const contentBottomPaddingClass =
-    shouldUseMobileStrategicProfileShell || isMobileStrategicProfileMediaKitReturn
+    shouldUseMobileStrategicProfileShell || isMobileStrategicProfileMediaKitReturn || shouldSuppressLegacyChrome
       ? "pb-0"
       : isDiscover && isMobile
       ? "pb-[calc(env(safe-area-inset-bottom,0px)+4.75rem)]"
@@ -361,7 +369,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         !isMobileStrategicProfileMediaKitReturn &&
         !isBillingPage &&
         !isGuidedFlow &&
-        !isWeeklyMeetingRoute ? (
+        !shouldSuppressLegacyChrome ? (
           <ActivationPendingWidget />
         ) : null}
         {shouldShowMobileBottomNav ? <MobileBottomNav /> : null}

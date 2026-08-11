@@ -1,0 +1,110 @@
+{
+  "data": "2026-08-07",
+  "periodo": { "de": "2026-08-01", "ate": "2026-08-07" },
+  "criador": {
+    "userId": "68bb8b11a199b11d5c99a184",
+    "nome": "Lívia Linhares",
+    "handle": "@livialinharess",
+    "profilePictureUrl": "https://scontent-iad3-1.xx.fbcdn.net/v/t51.2885-15/271170549_247370077529690_2331136891572023111_n.jpg?_nc_cat=104&ccb=1-7&_nc_sid=7d201b&_nc_ohc=-kKWg8w7kGEQ7kNvwEwH7wb&_nc_oc=Adp2kRZcPYj3VrFhBCO-CApeZUXCIHnM-VrXz3bFOWE3x_GSliGc3du3Pc7anyTKeFY&_nc_zt=23&_nc_ht=scontent-iad3-1.xx&edm=AL-3X8kEAAAA&oh=00_AQFFvgmJHwWY2TR65QpdJ9Yv1niq1982Klb9NonVR6NSGQ&oe=6A7B95BC",
+    "narrativaCentral": "um carioca que usa o humor para motivar e conectar",
+    "territorios": ["Comédia", "Cultura carioca", "Motivação", "Bem-estar", "Identidade regional", "Mineiro x Paulista x Carioca"],
+    "tom": "Bem-humorado e descontraído, Linguagem coloquial, Interativo"
+  },
+  "resumoSemana": "Primeiro relatório seu — então esta é a linha de base. Três reels essa semana, e o padrão de 90 dias ajuda a explicar por quê: dois deles caem entre os ganchos mais fracos do seu trimestre inteiro, e isso não é acaso — é um formato que já vinha rendendo pouco há tempo. O terceiro, em compensação, mostra exatamente o que funciona quando você afirma um ponto de vista.",
+  "avaliacoes": [
+    {
+      "postId": "18086006459195152",
+      "postLink": "https://www.instagram.com/reel/DboyRLruMDc/",
+      "postDate": "2026-08-04",
+      "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/762691243_18606054691016608_3531583902417736140_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=110&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=bNaC7cKSBSQQ7kNvwHM62Xx&_nc_oc=AdruCsbMsR4U5ShQSNzHNYF5YXu5HsX7ABON_Khu2-R0mF576FO2T-EJVUpxxUPOaiguhUcd9LghLw7gI_8NxT6p&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=Udj4g4uPBWvitS1hVnszzQ&_nc_tpa=Q5bMBQF2gCKLCkNCFcnlcC6e879f0k-VlyKAT69dG1WmB4s6SzxrZCx89ZpuXXFsacg_U-yCu2JTJ-EULA&oh=00_AQGiWdi3YNzC--k890NzPQH1IAh_wtMJuZYpts4M_TXu0Q&oe=6A7BB9CE",
+      "oQueEra": "cultura carioca · vox-pop com microfone · evento (lançamento de novela)",
+      "narrativa": "verde",
+      "audiencia": "vermelho",
+      "marca": "amarelo",
+      "stat": { "valor": "0,0×", "label": "quase nenhum compartilhamento perto da sua mediana" },
+      "funcionou": "É o seu formato mais reconhecível — microfone na rua, pedindo gíria carioca pros outros completarem.",
+      "enfraqueceu": "É exatamente esse formato (vox-pop com microfone) que aparece como o mais fraco dos seus últimos 90 dias com amostra grande — reconhecível não é o mesmo que forte. O gancho também pede participação ('complete a frase') sem afirmar nada seu.",
+      "veredito": "ajustar"
+    },
+    {
+      "postId": "17864735256648727",
+      "postLink": "https://www.instagram.com/reel/DbqCSxyO1Hz/",
+      "postDate": "2026-08-05",
+      "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/763918605_18606174517016608_392270560747619787_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=103&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=ohYXWBUP7yUQ7kNvwEeboKb&_nc_oc=Ado26reveKXBgWhXzeJMD--8IL68dNTRf20VmQvi5Q2Me0KTEhGR-o1JhEmHRJe-VIWVhWnMzHy_GydpCFxN8-x2&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=q5CXbY79K4SWyCxx_KAyBg&_nc_tpa=Q5bMBQFuQ-av7OOPDBZyMVBlPIq1WE9Ayg65fbQh6GhZs958hL2fXxOr084h9jhe4KBlV6qRtPIlaEIu4w&oh=00_AQGzQv8upva-d-MxFjv_fz68p4r2jQpNnHhBsaETogaqHA&oe=6A7B9F02",
+      "oQueEra": "identidade regional · comparação (carioca raiz x nutella) · afirmação",
+      "narrativa": "verde",
+      "audiencia": "verde",
+      "marca": "amarelo",
+      "stat": { "valor": "1,2×", "label": "engajamento acima da sua mediana — o melhor da semana" },
+      "funcionou": "Afirma um lado ('carioca raiz fala palavrão pra caralho') em vez de só descrever — é comparação de identidade com ponto de vista, seu formato mais forte historicamente.",
+      "enfraqueceu": "Nada a apontar como fraqueza real — é o post que mais se aproxima do seu padrão de sucesso nos 90 dias.",
+      "veredito": "repetir"
+    },
+    {
+      "postId": "17968991106070108",
+      "postLink": "https://www.instagram.com/reel/DbtniuIs1v4/",
+      "postDate": "2026-08-06",
+      "thumbnailUrl": "https://scontent.cdninstagram.com/v/t51.82787-15/766074303_18606656398016608_3581384281084913630_n.jpg?stp=dst-jpg_e35_tt6&_nc_cat=103&ccb=7-5&_nc_sid=18de74&efg=eyJlZmdfdGFnIjoiQ0xJUFMuYmVzdF9pbWFnZV91cmxnZW4uQzMifQ%3D%3D&_nc_ohc=eLpooadvBzUQ7kNvwH6a4m_&_nc_oc=Adq8h-zwFLmNxZ8ojsCoBbICQEiek8IgpR1xmFJNLTqW3f3T3n6oSIjNdr56-4th6D2m0jZ683Xqx2eyel5LMcw2&_nc_zt=23&_nc_ht=scontent.cdninstagram.com&edm=AIZKd-4EAAAA&_nc_gid=9lzu9_VxpUvlXkG0F-tx6A&_nc_tpa=Q5bMBQFgi9EuRizV5doJJYrRqQdBp3OybTTW_9TlPShSSIHh-pCYIkvZTI7nkkxCNc1sngLcGPSK4CmDkA&oh=00_AQGP3NCyfJVpKAZOj7_XN4VR5boOVz8AiC5FWJroEIaeFw&oe=6A7BC483",
+      "oQueEra": "publi (Systane) · sketch de consultório · promocional",
+      "narrativa": "amarelo",
+      "audiencia": "vermelho",
+      "marca": "verde",
+      "stat": { "valor": "0,0×", "label": "quase nenhum compartilhamento perto da sua mediana — o mais baixo da semana" },
+      "funcionou": "Tentou fugir do anúncio puro montando um sketch ('carioca no oftalmologista') em vez de só ler o cupom.",
+      "enfraqueceu": "O sketch fica raso — o gancho ('vamos ver qual o seu grau') não afirma nada, e a legenda vira bula de remédio antes de terminar. Cai no mesmo ponto fraco de convite vago que o outro post desta semana.",
+      "veredito": "ajustar"
+    }
+  ],
+  "padroesLeitura": {
+    "assuntos": "As pontas fortes são conteúdo utilitário (dica prática, tipo lista) ou comparação de identidade regional bem carregada. As fracas se dividem em dois grupos: futebol/copa genérico — saturado, qualquer perfil fala disso — e, esta semana, dois assuntos que caíram exatamente nesse chão: gírias cariocas sem contexto e a publi do colírio. Não é o território errado, é a falta de um ângulo específico.",
+    "cenario": "Ambientes de casa (sala, escritório, quintal) puxam bem acima da mediana; ambientes públicos — rua, estabelecimento, natureza — ficam consistentemente abaixo, mesmo quando um post específico ali vira exceção, como o desta semana. O hábito, não a exceção, diz que voltar pra casa rende mais.",
+    "elenco": "'Casa' como cenário mais amplo confirma o padrão acima. 'Equipamento em cena' — sua marca registrada de vox-pop com microfone — é a categoria mais usada e fica levemente abaixo da mediana: é reconhecível, mas não é, sozinho, o que garante o resultado.",
+    "objeto": "Quadro branco e caneta — seu registro mais didático, de ensinar ou listar — saem na frente com folga. O microfone, seu objeto mais recorrente (9 posts, amostra grande), é também o mais fraco de todos: é tendência, não coincidência. O formato vox-pop de rua é estruturalmente seu ponto mais fraco, mesmo sendo um dos assets centrais do seu mapa.",
+    "tom": "Humor sozinho, presente em quase todos os seus posts recentes, fica abaixo da própria mediana — o que não desmente o humor, mas mostra que ele não é, isolado, o que separa um post forte de um fraco. O que muda o resultado vem em cima do humor: o gancho específico, o assunto, o formato.",
+    "enquadramento": "Nenhum enquadramento sozinho supera sua mediana — sinal de que o que faz um post seu decolar não está em como a câmera te mostra, está no que você diz. Vale parar de otimizar ângulo e focar no gancho.",
+    "dia": "Segunda-feira dispara muito acima de qualquer outro dia; sexta também sustenta resultado com amostra real. Sábado é o oposto — o pior dia, com folga, apesar de ser um dos que você mais publica.",
+    "horario": "8h-12h é seu horário mais usado e o único forte com amostra grande — é hábito real. Já 20h-24h é a faixa mais fraca da sua rotina.",
+    "ganchos": "Os ganchos que mais renderam são diretos e específicos — uma lista prática ('três maneiras de...') ou uma provocação de identidade certeira. Os que menos renderam, incluindo os dois desta semana, são convites vagos ('complete a frase', 'vamos ver qual o seu grau') que pedem participação sem entregar um ponto de vista atrás. O gancho fraco pede; o gancho forte afirma."
+  },
+  "audiencia": {
+    "resumo": "Sua audiência pede comédia de identidade regional com um ponto de vista afirmado — não convites de participação vagos, não vox-pop de rua, não aparição institucional sem um ângulo de comédia carregado.",
+    "itens": [
+      { "dimensao": "Identidade regional com afirmação forte (raiz x nutella)", "sinal": "alto", "nota": "maior engajamento real da semana, e alguns dos maiores índices dos últimos 90 dias vêm exatamente desse formato" },
+      { "dimensao": "dica prática em formato de lista (quadro branco, caneta)", "sinal": "alto", "nota": "seu gancho mais forte do trimestre inteiro é desse formato — ensinar rende mais que só fazer graça" },
+      { "dimensao": "vox-pop de rua com microfone", "sinal": "baixo", "nota": "é o objeto mais recorrente do seu conteúdo e, com amostra grande, o mais fraco — vale repensar o formato, não só o tema" },
+      { "dimensao": "aparição institucional ou publi sem sketch carregado", "sinal": "baixo", "nota": "os dois posts mais fracos da semana vêm daqui — presença em marca/evento sem um ângulo de comédia afirmado" }
+    ]
+  },
+  "facaMais": [
+    "Comparação de identidade regional com um lado escolhido — 'raiz x nutella' é o modelo: afirma um ponto de vista, não só descreve.",
+    "Formato de lista/ensino, com quadro branco e caneta — é o gancho mais forte que você tem no trimestre inteiro.",
+    "Publicar as pautas fortes na segunda-feira ou sexta — os dois dias com resultado real e consistente."
+  ],
+  "facaMenos": [
+    "Vox-pop de rua com microfone perguntando pra estranhos — é o formato mais recorrente do seu conteúdo e, com amostra grande, o mais fraco. Trocar o microfone pelo quadro branco muda o jogo.",
+    "Convite vago sem afirmação ('complete a frase', pergunta aberta sem seu ponto de vista) — os ganchos mais fracos dos últimos 90 dias são desse tipo, incluindo dois desta semana.",
+    "Publi sem um sketch carregado por trás — a promoção do colírio tentou um formato (consulta no oftalmologista) mas ficou raso; se vai ter publi, o sketch precisa ser tão forte quanto o orgânico."
+  ],
+  "plano": [
+    {
+      "titulo": "Carioca raiz ou paulista nutella: o round 2, respondendo quem discordou de você nos comentários",
+      "porque": "sequência direta do post mais forte da semana — identidade regional afirmada —, aproveitando os 254 comentários que já gerou.",
+      "mira": "narrativa+audiencia"
+    },
+    {
+      "titulo": "Três coisas que só um carioca de segunda-feira entende",
+      "porque": "cruza dois padrões reais: o formato de lista (seu gancho mais forte do trimestre) e o dia da semana que mais performa (segunda).",
+      "mira": "centro"
+    },
+    {
+      "titulo": "O dia que troquei o microfone pelo quadro branco pra ensinar o dicionário carioca",
+      "porque": "puxa deliberadamente pro objeto que mais rende (quadro e caneta) e afasta do vox-pop, que é estruturalmente fraco — mantém o território, já que 'dicionário carioca' já é um assunto forte confirmado nos 90 dias.",
+      "mira": "narrativa+audiencia"
+    },
+    {
+      "titulo": "Um sketch onde o carioca vira personagem em algum lugar do dia a dia — mas com um lado afirmado, não uma pergunta solta",
+      "porque": "reaproveita o esqueleto da publi do colírio (sketch de consultório), só que com um gancho que afirma algo em vez de convidar vagamente — testa se marca e identidade regional afirmada conseguem coexistir.",
+      "mira": "narrativa+marca"
+    }
+  ]
+}

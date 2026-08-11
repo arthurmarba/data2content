@@ -1,0 +1,14 @@
+- generic [active] [ref=f1e1]:
+  - generic [ref=f1e4]:
+    - heading "404" [level=1] [ref=f1e5]
+    - heading "This page could not be found." [level=2] [ref=f1e7]
+  - generic [ref=f1e8]:
+    - generic [ref=f1e9]:
+      - text: Utilizamos cookies essenciais para o funcionamento da plataforma e, com a sua autorização, cookies de analytics para melhorar a sua experiência.
+      - link "Saiba mais" [ref=f1e10] [cursor=pointer]:
+        - /url: /politica-de-privacidade
+      - text: .
+    - generic [ref=f1e11]:
+      - button "Recusar não-essenciais" [ref=f1e12] [cursor=pointer]
+      - button "Aceitar" [ref=f1e13] [cursor=pointer]
+  - alert [ref=f1e14]

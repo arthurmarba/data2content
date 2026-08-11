@@ -1,0 +1,182 @@
+- generic [active] [ref=f2e1]:
+  - generic [ref=f2e3]:
+    - link "Pular para o conteúdo" [ref=f2e4] [cursor=pointer]:
+      - /url: "#dashboard-main"
+    - main [ref=f2e6]:
+      - main [ref=f2e44]:
+        - generic [ref=f2e46]:
+          - link "Voltar" [ref=f2e47] [cursor=pointer]:
+            - /url: /dashboard/boards/mobile-strategic-profile/settings/analyses
+          - heading "Análise de conteúdo" [level=1] [ref=f2e50]
+        - article [ref=f2e52]:
+          - figure "Conteúdo analisado" [ref=f2e53]:
+            - img "Capa do conteúdo analisado" [ref=f2e54]
+          - generic [ref=f2e56]:
+            - generic [ref=f2e57]:
+              - paragraph [ref=f2e58]: Potencial de engajamento
+              - time [ref=f2e59]: 10 ago. de 2026
+            - heading "Tem potencial de engajar." [level=2] [ref=f2e60]
+            - paragraph [ref=f2e61]: O vídeo reúne sinais que costumam sustentar interação no seu perfil.
+            - paragraph [ref=f2e62]: Confiança baixa · Comparação com 1 conteúdo publicado.
+          - region [ref=f2e63]:
+            - heading "Em resumo" [level=3] [ref=f2e64]
+            - generic [ref=f2e65]:
+              - generic [ref=f2e68]:
+                - paragraph [ref=f2e69]:
+                  - text: Gancho e abertura
+                  - generic [ref=f2e70]: · Forte
+                - paragraph [ref=f2e71]: Texto e layout deixam claro o foco em direção estratégica de conteúdo.
+              - generic [ref=f2e74]:
+                - paragraph [ref=f2e75]:
+                  - text: Cenas e progressão
+                  - generic [ref=f2e76]: · Forte
+                - paragraph [ref=f2e77]: Tela estática com texto e dados visuais mantém atenção pela clareza e organização.
+              - generic [ref=f2e80]:
+                - paragraph [ref=f2e81]:
+                  - text: Vontade de compartilhar
+                  - generic [ref=f2e82]: · Atenção
+                - paragraph [ref=f2e83]: Conteúdo informativo e institucional tem baixo apelo emocional ou surpresa para compartilhamento.
+              - generic [ref=f2e86]:
+                - paragraph [ref=f2e87]:
+                  - text: Entrega da promessa
+                  - generic [ref=f2e88]: · Forte
+                - paragraph [ref=f2e89]: O vídeo entrega a mensagem de foco em estratégia e posicionamento para oportunidades.
+              - generic [ref=f2e92]:
+                - paragraph [ref=f2e93]:
+                  - text: Assunto e narrativa
+                  - generic [ref=f2e94]: · Forte
+                - paragraph [ref=f2e95]: Confirma o padrão de narrativa focada em processo e estratégia do creator.
+          - region [ref=f2e96]:
+            - heading "Este vídeo × seu histórico" [level=3] [ref=f2e97]
+            - paragraph [ref=f2e98]: O que aparece agora e o que tende a acompanhar seus conteúdos de maior interação.
+            - generic [ref=f2e99]:
+              - article [ref=f2e100]:
+                - generic [ref=f2e101]:
+                  - heading "Gancho" [level=3] [ref=f2e102]
+                  - generic [ref=f2e103]: Alinhado
+                - generic [ref=f2e104]:
+                  - generic [ref=f2e105]:
+                    - term [ref=f2e106]: Neste vídeo
+                    - definition [ref=f2e107]: Texto e layout deixam claro o foco em direção estratégica de conteúdo.
+                  - generic [ref=f2e108]:
+                    - term [ref=f2e109]: No seu histórico
+                    - definition [ref=f2e110]: Seu padrão de abertura ainda não tem amostra suficiente.
+                - paragraph [ref=f2e111]: A abertura foi comparada com a estrutura dos seus conteúdos publicados.
+              - article [ref=f2e112]:
+                - generic [ref=f2e113]:
+                  - heading "Enquadramento" [level=3] [ref=f2e114]
+                  - generic [ref=f2e115]: Sem base
+                - generic [ref=f2e116]:
+                  - generic [ref=f2e117]:
+                    - term [ref=f2e118]: Neste vídeo
+                    - definition [ref=f2e119]: vertical raw
+                  - generic [ref=f2e120]:
+                    - term [ref=f2e121]: No seu histórico
+                    - definition [ref=f2e122]: Ainda não há enquadramento recorrente suficiente no seu histórico.
+                - paragraph [ref=f2e123]: Tela estática com texto e dados visuais mantém atenção pela clareza e organização.
+              - article [ref=f2e124]:
+                - generic [ref=f2e125]:
+                  - heading "Assunto" [level=3] [ref=f2e126]
+                  - generic [ref=f2e127]: Sem base
+                - generic [ref=f2e128]:
+                  - generic [ref=f2e129]:
+                    - term [ref=f2e130]: Neste vídeo
+                    - definition [ref=f2e131]: Direção estratégica de conteúdo
+                  - generic [ref=f2e132]:
+                    - term [ref=f2e133]: No seu histórico
+                    - definition [ref=f2e134]: Seu histórico ainda não revela um assunto dominante.
+                - paragraph [ref=f2e135]: Confirma o padrão de narrativa focada em processo e estratégia do creator.
+              - article [ref=f2e136]:
+                - generic [ref=f2e137]:
+                  - heading "Tom" [level=3] [ref=f2e138]
+                  - generic [ref=f2e139]: Sem base
+                - generic [ref=f2e140]:
+                  - generic [ref=f2e141]:
+                    - term [ref=f2e142]: Neste vídeo
+                    - definition [ref=f2e143]: profissional e informativo
+                  - generic [ref=f2e144]:
+                    - term [ref=f2e145]: No seu histórico
+                    - definition [ref=f2e146]: Seu histórico ainda não revela um tom dominante.
+                - paragraph [ref=f2e147]: O vídeo reforça o padrão de foco em processo e estratégia, alinhado à narrativa já identificada.
+              - article [ref=f2e148]:
+                - generic [ref=f2e149]:
+                  - heading "Ritmo" [level=3] [ref=f2e150]
+                  - generic [ref=f2e151]: Alinhado
+                - generic [ref=f2e152]:
+                  - generic [ref=f2e153]:
+                    - term [ref=f2e154]: Neste vídeo
+                    - definition [ref=f2e155]: Tela estática com texto e dados visuais mantém atenção pela clareza e organização.
+                  - generic [ref=f2e156]:
+                    - term [ref=f2e157]: No seu histórico
+                    - definition [ref=f2e158]: Ainda não há padrão visual suficiente para comparar ritmo.
+                - paragraph [ref=f2e159]: O ritmo foi lido pela progressão dos primeiros segundos.
+              - article [ref=f2e160]:
+                - generic [ref=f2e161]:
+                  - heading "Entrega" [level=3] [ref=f2e162]
+                  - generic [ref=f2e163]: Alinhado
+                - generic [ref=f2e164]:
+                  - generic [ref=f2e165]:
+                    - term [ref=f2e166]: Neste vídeo
+                    - definition [ref=f2e167]: O vídeo entrega a mensagem de foco em estratégia e posicionamento para oportunidades.
+                  - generic [ref=f2e168]:
+                    - term [ref=f2e169]: No seu histórico
+                    - definition [ref=f2e170]: A entrega é comparada com a clareza estrutural dos seus conteúdos publicados.
+                - paragraph [ref=f2e171]: A promessa e o fechamento estão coerentes.
+          - region [ref=f2e172]:
+            - heading "Como o vídeo se desenvolve" [level=3] [ref=f2e173]
+            - generic [ref=f2e174]:
+              - generic [ref=f2e179]:
+                - paragraph [ref=f2e180]: Abertura
+                - paragraph [ref=f2e181]: Tela inicial com o texto 'Direção estratégica de conteúdo' em destaque.
+                - paragraph [ref=f2e182]: Estabelece imediatamente o tema central e o foco do vídeo.
+              - generic [ref=f2e187]:
+                - paragraph [ref=f2e188]: Desenvolvimento
+                - paragraph [ref=f2e189]: Exibição de dados e informações sobre reuniões e banco de talentos.
+                - paragraph [ref=f2e190]: Reforça o aspecto de processo e organização na estratégia de conteúdo.
+              - generic [ref=f2e194]:
+                - paragraph [ref=f2e195]: Fechamento
+                - paragraph [ref=f2e196]: Botão 'Acessar consultoria' em destaque, reforçando o convite à ação.
+                - paragraph [ref=f2e197]: Consolida a mensagem de posicionamento estratégico e oferta de serviço.
+          - region [ref=f2e198]:
+            - heading "Análise completa" [level=3] [ref=f2e199]
+            - generic [ref=f2e200]:
+              - group [ref=f2e201]:
+                - generic "Gancho e abertura Forte ›" [ref=f2e202] [cursor=pointer]:
+                  - generic [ref=f2e203]: Gancho e abertura
+                  - generic [ref=f2e204]:
+                    - text: Forte
+                    - generic [ref=f2e205]: ›
+              - group [ref=f2e206]:
+                - generic "Cenas e progressão Forte ›" [ref=f2e207] [cursor=pointer]:
+                  - generic [ref=f2e208]: Cenas e progressão
+                  - generic [ref=f2e209]:
+                    - text: Forte
+                    - generic [ref=f2e210]: ›
+              - group [ref=f2e211]:
+                - generic "Vontade de compartilhar Atenção ›" [ref=f2e212] [cursor=pointer]:
+                  - generic [ref=f2e213]: Vontade de compartilhar
+                  - generic [ref=f2e214]:
+                    - text: Atenção
+                    - generic [ref=f2e215]: ›
+              - group [ref=f2e216]:
+                - generic "Entrega da promessa Forte ›" [ref=f2e217] [cursor=pointer]:
+                  - generic [ref=f2e218]: Entrega da promessa
+                  - generic [ref=f2e219]:
+                    - text: Forte
+                    - generic [ref=f2e220]: ›
+              - group [ref=f2e221]:
+                - generic "Assunto e narrativa Forte ›" [ref=f2e222] [cursor=pointer]:
+                  - generic [ref=f2e223]: Assunto e narrativa
+                  - generic [ref=f2e224]:
+                    - text: Forte
+                    - generic [ref=f2e225]: ›
+          - region [ref=f2e226]:
+            - paragraph [ref=f2e227]: Ajuste de maior impacto
+            - heading "Esclarecer público-alvo no vídeo" [level=3] [ref=f2e228]
+            - paragraph [ref=f2e229]: Incluir texto ou elemento visual que indique para quem a direção estratégica é destinada, como creators iniciantes ou marcas.
+            - blockquote [ref=f2e230]: "“Texto na tela: 'Para criadores que buscam crescer com estratégia'.”"
+          - group [ref=f2e231]:
+            - generic "Sobre esta leitura" [ref=f2e232] [cursor=pointer]:
+              - text: Sobre esta leitura
+              - generic [ref=f2e233]: ›
+  - alert [ref=f2e22]: Data2Content — Entenda o que seu conteúdo diz sobre você

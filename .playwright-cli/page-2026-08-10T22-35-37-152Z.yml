@@ -1,0 +1,136 @@
+- main [ref=f2e3]:
+  - article [ref=f2e5]:
+    - figure "Conteúdo analisado" [ref=f2e6]:
+      - img "Capa do conteúdo analisado" [ref=f2e7]
+    - generic [ref=f2e9]:
+      - generic [ref=f2e10]:
+        - paragraph [ref=f2e11]: Potencial de engajamento
+        - time [ref=f2e12]: Hoje, 18:42
+      - heading "Pode engajar após um ajuste." [level=2] [ref=f2e13]
+      - paragraph [ref=f2e14]: O assunto conversa com o que já engaja no seu perfil. Antecipar o contraste central nos primeiros segundos tende a aproximar este vídeo dos seus melhores resultados.
+      - paragraph [ref=f2e15]: Confiança alta · Comparação com 24 conteúdos publicados.
+    - region [ref=f2e16]:
+      - heading "Em resumo" [level=3] [ref=f2e17]
+      - generic [ref=f2e18]:
+        - generic [ref=f2e21]:
+          - paragraph [ref=f2e22]:
+            - text: Gancho e abertura
+            - generic [ref=f2e23]: · Parcial
+          - paragraph [ref=f2e24]: A primeira frase apresenta o tema, mas a consequência só fica clara depois do terceiro corte.
+        - generic [ref=f2e27]:
+          - paragraph [ref=f2e28]:
+            - text: Cenas e progressão
+            - generic [ref=f2e29]: · Forte
+          - paragraph [ref=f2e30]: Os cortes alternam detalhe e plano médio, criando uma progressão visual fácil de acompanhar.
+        - generic [ref=f2e33]:
+          - paragraph [ref=f2e34]:
+            - text: Vontade de compartilhar
+            - generic [ref=f2e35]: · Parcial
+          - paragraph [ref=f2e36]: A experiência é reconhecível, mas falta uma frase curta que a audiência queira enviar para alguém.
+        - generic [ref=f2e39]:
+          - paragraph [ref=f2e40]:
+            - text: Entrega da promessa
+            - generic [ref=f2e41]: · Forte
+          - paragraph [ref=f2e42]: O fechamento responde à tensão criada e mostra a consequência prática da escolha.
+        - generic [ref=f2e45]:
+          - paragraph [ref=f2e46]:
+            - text: Assunto e narrativa
+            - generic [ref=f2e47]: · Forte
+          - paragraph [ref=f2e48]: O assunto e o tom íntimo aparecem com frequência entre os conteúdos de maior interação do perfil.
+    - region [ref=f2e49]:
+      - heading "Este vídeo × seu histórico" [level=3] [ref=f2e50]
+      - paragraph [ref=f2e51]: O que aparece agora e o que tende a acompanhar seus conteúdos de maior interação.
+      - generic [ref=f2e52]:
+        - article [ref=f2e53]:
+          - generic [ref=f2e54]:
+            - heading "Gancho" [level=3] [ref=f2e55]
+            - generic [ref=f2e56]: Pode limitar
+          - generic [ref=f2e57]:
+            - generic [ref=f2e58]:
+              - term [ref=f2e59]: Neste vídeo
+              - definition [ref=f2e60]: Contexto antes da transformação
+            - generic [ref=f2e61]:
+              - term [ref=f2e62]: No seu histórico
+              - definition [ref=f2e63]: Contraste ou consequência já na primeira frase
+          - paragraph [ref=f2e64]: A diferença pode reduzir a retenção inicial mesmo com um assunto alinhado.
+        - article [ref=f2e65]:
+          - generic [ref=f2e66]:
+            - heading "Enquadramento" [level=3] [ref=f2e67]
+            - generic [ref=f2e68]: Alinhado
+          - generic [ref=f2e69]:
+            - generic [ref=f2e70]:
+              - term [ref=f2e71]: Neste vídeo
+              - definition [ref=f2e72]: Plano médio com cortes de detalhe
+            - generic [ref=f2e73]:
+              - term [ref=f2e74]: No seu histórico
+              - definition [ref=f2e75]: Plano médio, proximidade e poucos elementos no fundo
+          - paragraph [ref=f2e76]: A execução visual preserva a sensação de proximidade dos seus melhores vídeos.
+        - article [ref=f2e77]:
+          - generic [ref=f2e78]:
+            - heading "Assunto" [level=3] [ref=f2e79]
+            - generic [ref=f2e80]: Alinhado
+          - generic [ref=f2e81]:
+            - generic [ref=f2e82]:
+              - term [ref=f2e83]: Neste vídeo
+              - definition [ref=f2e84]: Uma escolha cotidiana que muda a rotina
+            - generic [ref=f2e85]:
+              - term [ref=f2e86]: No seu histórico
+              - definition [ref=f2e87]: Mudanças práticas contadas por experiência pessoal
+          - paragraph [ref=f2e88]: O território narrativo está bem conectado ao interesse demonstrado pela audiência.
+    - region [ref=f2e89]:
+      - heading "Como o vídeo se desenvolve" [level=3] [ref=f2e90]
+      - generic [ref=f2e91]:
+        - generic [ref=f2e96]:
+          - paragraph [ref=f2e97]: Abertura
+          - paragraph [ref=f2e98]: A câmera aproxima, mas a fala ainda prepara o contexto.
+          - paragraph [ref=f2e99]: Há movimento visual; a promessa editorial aparece tarde.
+        - generic [ref=f2e104]:
+          - paragraph [ref=f2e105]: Desenvolvimento
+          - paragraph [ref=f2e106]: O contraste surge junto de uma mudança de plano.
+          - paragraph [ref=f2e107]: Esse é o ponto em que a história ganha direção e curiosidade.
+        - generic [ref=f2e111]:
+          - paragraph [ref=f2e112]: Fechamento
+          - paragraph [ref=f2e113]: A conclusão mostra a mudança na prática.
+          - paragraph [ref=f2e114]: Entrega coerente e memorável, com espaço para uma frase mais compartilhável.
+    - region [ref=f2e115]:
+      - heading "Análise completa" [level=3] [ref=f2e116]
+      - generic [ref=f2e117]:
+        - group [ref=f2e118]:
+          - generic "Gancho e abertura Parcial ›" [ref=f2e119] [cursor=pointer]:
+            - generic [ref=f2e120]: Gancho e abertura
+            - generic [ref=f2e121]:
+              - text: Parcial
+              - generic [ref=f2e122]: ›
+        - group [ref=f2e123]:
+          - generic "Cenas e progressão Forte ›" [ref=f2e124] [cursor=pointer]:
+            - generic [ref=f2e125]: Cenas e progressão
+            - generic [ref=f2e126]:
+              - text: Forte
+              - generic [ref=f2e127]: ›
+        - group [ref=f2e128]:
+          - generic "Vontade de compartilhar Parcial ›" [ref=f2e129] [cursor=pointer]:
+            - generic [ref=f2e130]: Vontade de compartilhar
+            - generic [ref=f2e131]:
+              - text: Parcial
+              - generic [ref=f2e132]: ›
+        - group [ref=f2e133]:
+          - generic "Entrega da promessa Forte ›" [ref=f2e134] [cursor=pointer]:
+            - generic [ref=f2e135]: Entrega da promessa
+            - generic [ref=f2e136]:
+              - text: Forte
+              - generic [ref=f2e137]: ›
+        - group [ref=f2e138]:
+          - generic "Assunto e narrativa Forte ›" [ref=f2e139] [cursor=pointer]:
+            - generic [ref=f2e140]: Assunto e narrativa
+            - generic [ref=f2e141]:
+              - text: Forte
+              - generic [ref=f2e142]: ›
+    - region [ref=f2e143]:
+      - paragraph [ref=f2e144]: Ajuste de maior impacto
+      - heading "Leve a transformação para a primeira frase" [level=3] [ref=f2e145]
+      - paragraph [ref=f2e146]: Comece pelo resultado da escolha e use o contexto apenas depois que a audiência entender o que está em jogo.
+      - blockquote [ref=f2e147]: “Eu achava que precisava de mais tempo — até mudar esta única decisão.”
+    - group [ref=f2e148]:
+      - generic "Sobre esta leitura" [ref=f2e149] [cursor=pointer]:
+        - text: Sobre esta leitura
+        - generic [ref=f2e150]: ›
