@@ -3,6 +3,10 @@ import path from "path";
 import { render, screen } from "@testing-library/react";
 import MobileStrategicProfilePreviewPage from "./page";
 
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ push: jest.fn(), refresh: jest.fn() }),
+}));
+
 const originalFlag = process.env.NEXT_PUBLIC_MOBILE_STRATEGIC_PROFILE_PREVIEW_ENABLED;
 const adminViewer = { role: "admin" };
 const commonViewer = { role: "user" };
@@ -74,8 +78,8 @@ describe("MobileStrategicProfilePreviewPage", () => {
     );
 
     expect(screen.getByText("Preview interno — Mapa narrativo")).toBeInTheDocument();
-    expect(screen.getByText("Seu mapa narrativo")).toBeInTheDocument();
-    expect(screen.getByText("Ler diagnóstico completo")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Leituras em capítulos" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Estados do mapa narrativo" })).toBeInTheDocument();
   });
 
   it("does not import forbidden integrations or real UI surfaces", () => {

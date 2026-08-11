@@ -87,6 +87,9 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     // O antigo passo "O que você quer ler neste vídeo?" não existe mais.
     expect(screen.queryByText("O que você quer ler neste vídeo?")).not.toBeInTheDocument();
     expect(screen.getByRole("dialog", { name: "Escaneando seu vídeo" })).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "Progresso da análise do vídeo" })).toHaveAttribute("aria-valuemax", "100");
+    expect(screen.getByText("Preparando o vídeo")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Continuar" })).not.toBeInTheDocument();
   });
 
   it("abre o resultado no topo mesmo quando o upload estava rolado", async () => {
@@ -126,7 +129,9 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     });
 
     expect(screen.getByText("Pode engajar após um ajuste.")).toBeInTheDocument();
-    expect(screen.getByText("Em resumo")).toBeInTheDocument();
+    expect(screen.getByText("Leitura rápida")).toBeInTheDocument();
+    expect(screen.getByText("O que sustenta")).toBeInTheDocument();
+    expect(screen.getByText("O que pode limitar")).toBeInTheDocument();
     expect(screen.getByText("Como o vídeo se desenvolve")).toBeInTheDocument();
     expect(screen.getByText("Abertura")).toBeInTheDocument();
     expect(screen.getByText("Você apresenta a dúvida principal na fala, mas ela não aparece em texto.")).toBeInTheDocument();
@@ -242,7 +247,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     continueFlow(); // upload -> processing
 
     await waitFor(() => {
-      expect(screen.getByText("Erro na análise")).toBeInTheDocument();
+      expect(screen.getByText("Análise interrompida")).toBeInTheDocument();
       expect(screen.getByText("Erro de conexão simulado.")).toBeInTheDocument();
     });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import type {
   MobileStrategicProfile,
   MobileStrategicProfileAction,
@@ -73,6 +73,10 @@ type MobileStrategicProfilePreviewProps = {
     diagnosisId: string;
     answer: { questionId: string; questionText: string; answerId: string; answerValue: string };
   }) => Promise<void>;
+  /** Resultado serializável do harness interno; nunca é usado no shell real. */
+  analysisPreviewResult?: MobileStrategicProfileAnalyzeResult | null;
+  analysisPreviewDelayMs?: number;
+  analysisPreviewThumbnailSrc?: string | null;
 };
 
 const CARD_TONE: Record<MobileStrategicProfileSectionCard["tone"], string> = {
@@ -456,6 +460,9 @@ export function MobileStrategicProfilePreview({
   readingQuota,
   onCleanupTemporaryUpload,
   onSubmitConfirmationAnswer,
+  analysisPreviewResult = null,
+  analysisPreviewDelayMs = 6500,
+  analysisPreviewThumbnailSrc = null,
 }: MobileStrategicProfilePreviewProps) {
   const [mediaKitModalOpen, setMediaKitModalOpen] = useState(false);
   const [analyzeFlowOpen, setAnalyzeFlowOpen] = useState(false);
@@ -464,6 +471,13 @@ export function MobileStrategicProfilePreview({
   const [accessMessage, setAccessMessage] = useState<string | null>(null);
   const accessState = accessStateProp ?? inferAccessStateFromProfile(profile);
   const normalizedQuota = normalizeNarrativeMapReadingQuotaSnapshot(readingQuota);
+
+  const submitPreviewAnalysis = useCallback(async () => {
+    await new Promise((resolve) => window.setTimeout(resolve, analysisPreviewDelayMs));
+    return analysisPreviewResult ?? undefined;
+  }, [analysisPreviewDelayMs, analysisPreviewResult]);
+  const resolvedSubmitAnalysis = onSubmitAnalysis
+    ?? (analysisPreviewResult ? submitPreviewAnalysis : undefined);
 
   if (profile.authGate.visible) return <AuthGate profile={profile} isRealShell={isRealShell} />;
 
@@ -622,12 +636,13 @@ export function MobileStrategicProfilePreview({
               open={analyzeFlowOpen}
               onClose={() => setAnalyzeFlowOpen(false)}
               onComplete={handleAnalyzeComplete}
-              onSubmitAnalysis={onSubmitAnalysis}
+              onSubmitAnalysis={resolvedSubmitAnalysis}
               onCreateUploadSession={onCreateUploadSession}
               onUploadToTemporarySignedUrl={onUploadToTemporarySignedUrl}
               enableRealAnalysis={enableRealAnalysis}
               onCleanupTemporaryUpload={onCleanupTemporaryUpload}
               onSubmitConfirmationAnswer={onSubmitConfirmationAnswer}
+              initialThumbnailSrc={analysisPreviewThumbnailSrc}
             />
           </div>
         </div>
