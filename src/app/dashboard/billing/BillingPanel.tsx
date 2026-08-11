@@ -148,10 +148,10 @@ export default function BillingPanel() {
   };
 
   const cancelWithReason = async ({
-    reasons,
+    reasonCodes,
     comment,
   }: {
-    reasons: string[];
+    reasonCodes: string[];
     comment: string;
   }): Promise<void> => {
     setDoing('cancel');
@@ -159,7 +159,7 @@ export default function BillingPanel() {
       const res = await fetch('/api/billing/cancel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reasons, comment }),
+        body: JSON.stringify({ reasonCodes, comment }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok) {
