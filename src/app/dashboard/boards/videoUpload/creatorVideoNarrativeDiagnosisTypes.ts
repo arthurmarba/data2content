@@ -237,6 +237,10 @@ export interface CreatorVideoNarrativeDiagnosisInput {
   narrativeCoherence?: VideoNarrativeCoherence;
   /** Safe structured Raio X result persisted without raw media. */
   contentPotentialScan?: VideoNarrativeContentPotentialScan;
+  analysisVersion?: "v1" | "v2";
+  learningStatus?: "analysis_only" | "published_matched";
+  historyVisibility?: "visible" | "hidden";
+  thumbnailStatus?: "pending" | "available" | "failed";
   schemaVersion?: "creator_video_narrative_diagnosis_v1";
 }
 

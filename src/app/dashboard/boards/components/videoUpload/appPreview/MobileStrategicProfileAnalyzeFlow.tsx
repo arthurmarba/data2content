@@ -8,12 +8,8 @@ import type {
   MobileStrategicProfileDirectUploadInput,
   MobileStrategicProfileDirectUploadResult,
 } from "./mobileStrategicProfileDirectUploadClient";
-import {
-  buildContentPotentialDecision,
-  buildContentPotentialStrengthsAndRisks,
-  compareContentPotentialScans,
-} from "@/app/dashboard/boards/videoUpload/videoNarrativeContentPotentialPresentation";
 import type { VideoNarrativeContentPotentialScan } from "@/app/dashboard/boards/videoUpload/videoNarrativeContentPotentialScan";
+import { ContentAnalysisReport } from "./ContentAnalysisReport";
 
 const STEPS = [
   "upload",
@@ -22,8 +18,8 @@ const STEPS = [
 ] as const;
 
 // Steps visíveis ao criador no contador — processing é automático, não conta.
-// A pergunta-lente deixou de ser um passo: o modal tem função única ("vale postar?"),
-// então o contexto do criador virou um campo opcional dentro do próprio upload.
+// O relatório tem uma única lente editorial: estimar o potencial de engajamento
+// deste vídeo em relação à estrutura observada e ao histórico do próprio criador.
 const VISIBLE_STEPS = ["upload", "confirmation"] as const;
 
 type AnalyzeFlowStep = (typeof STEPS)[number];
@@ -52,7 +48,7 @@ export type NarrativeCoherenceVerdict =
   | "first_reading"
   | "unknown";
 
-/** Verdict for the non-narrative axes (audiência, marca) of the "vale postar?" screen. */
+/** Verdict legado dos eixos não narrativos, mantido apenas por compatibilidade de leitura. */
 export type AxisVerdict = "aligned" | "tension" | "off" | "unknown";
 
 export type AxisCoherence = {
@@ -88,14 +84,6 @@ export type MobileStrategicProfileAnalyzeFlowCompleteResult = {
   thumbnailDataUrl?: string;
   /** The saved diagnosis ID — matches the reading in the refreshed server view. */
   savedDiagnosisId?: string | null;
-  /** Creator's declared publication intent for this video. */
-  publishIntent?: "yes" | "no" | null;
-};
-
-export type ContentPotentialFeedback = {
-  target: "overall" | "evidence" | "direction";
-  value: "helpful" | "not_in_video" | "wrong_intent";
-  moment?: "opening" | "development" | "closing";
 };
 
 type MobileStrategicProfileAnalyzeFlowProps = {
@@ -133,19 +121,9 @@ type MobileStrategicProfileAnalyzeFlowProps = {
     diagnosisId: string;
     answer: { questionId: string; questionText: string; answerId: string; answerValue: string };
   }) => Promise<void>;
-  /**
-   * Called when the creator declares their publication intent for this video.
-   * Fire-and-forget from the component — errors are non-fatal.
-   */
-  onPublishIntentSubmit?: (diagnosisId: string, intent: "yes" | "no") => Promise<void>;
-  /** Persiste uma correção estruturada sem enviar texto ou mídia novamente. */
-  onContentPotentialFeedbackSubmit?: (
-    diagnosisId: string,
-    feedback: ContentPotentialFeedback,
-  ) => Promise<void>;
   /** Telemetria sem conteúdo: somente a ação realizada no relatório. */
   onReportInteraction?: (
-    event: "copy_suggestion" | "adjustment_marked" | "rescan_started" | "feedback_submitted" | "publish_decision",
+    event: "copy_suggestion",
     actionType?: string,
   ) => void;
   /**
@@ -167,10 +145,6 @@ function nextStep(current: AnalyzeFlowStep): AnalyzeFlowStep {
   return STEPS[Math.min(index + 1, STEPS.length - 1)] ?? "confirmation";
 }
 
-function stepIndex(step: AnalyzeFlowStep): number {
-  return STEPS.indexOf(step);
-}
-
 async function extractVideoThumbnail(file: File): Promise<string | null> {
   return new Promise((resolve) => {
     if (typeof URL.createObjectURL !== "function" || typeof URL.revokeObjectURL !== "function") {
@@ -189,13 +163,26 @@ async function extractVideoThumbnail(file: File): Promise<string | null> {
     video.addEventListener("seeked", () => {
       try {
         const canvas = document.createElement("canvas");
-        const maxW = 480;
-        const scale = Math.min(1, maxW / (video.videoWidth || 480));
+        // A capa é o único derivado visual persistido. Mantemos uma versão pequena
+        // (sem áudio ou frames adicionais) para caber no limite privado de 120 KB.
+        const maxW = 320;
+        const maxH = 480;
+        const scale = Math.min(
+          1,
+          maxW / (video.videoWidth || maxW),
+          maxH / (video.videoHeight || maxH),
+        );
         canvas.width = Math.round((video.videoWidth || 480) * scale);
         canvas.height = Math.round((video.videoHeight || 270) * scale);
         canvas.getContext("2d")?.drawImage(video, 0, 0, canvas.width, canvas.height);
         URL.revokeObjectURL(url);
-        resolve(canvas.toDataURL("image/jpeg", 0.72));
+        const qualities = [0.68, 0.56, 0.44];
+        let thumbnail = canvas.toDataURL("image/jpeg", qualities[0]);
+        for (const quality of qualities.slice(1)) {
+          if (thumbnail.length <= 150_000) break;
+          thumbnail = canvas.toDataURL("image/jpeg", quality);
+        }
+        resolve(thumbnail);
       } catch {
         URL.revokeObjectURL(url);
         resolve(null);
@@ -274,143 +261,6 @@ function getUploadSessionErrorMessage(response?: UploadSessionResponse) {
   return response?.message || "Não foi possível validar o vídeo agora.";
 }
 
-// Ordem em gradiente: do mais íntimo (narrativa/ponto de vista) ao mais externo
-// (território/formato). O default (authority) permanece em primeiro.
-const goalOptions = [
-  {
-    label: "Entender minha narrativa",
-    value: "authority" as const,
-    defaultQuestion: "O que esse vídeo revela sobre minha narrativa?",
-  },
-  {
-    label: "Fortalecer meu ponto de vista",
-    value: "authority_build" as const,
-    defaultQuestion: "Como esse vídeo reforça o meu ponto de vista?",
-  },
-  {
-    label: "Checar coerência com o meu mapa",
-    value: "retention" as const,
-    defaultQuestion: "Esse vídeo é coerente com o que venho construindo?",
-  },
-  {
-    label: "Explorar um território novo",
-    value: "sponsored_content" as const,
-    defaultQuestion: "Que território de conteúdo esse vídeo abre para mim?",
-  },
-  {
-    label: "Testar um formato diferente",
-    value: "format_test" as const,
-    defaultQuestion: "Esse formato vale repetir no meu Perfil?",
-  },
-];
-
-
-// Friendly, calm reading of the coherence verdict — shown right before the publish
-// decision so it becomes an informed choice, not a blind data-collection checkbox.
-const COHERENCE_VERDICT_LABEL: Record<NarrativeCoherenceVerdict, string | null> = {
-  confirms_top_pattern: "Esse vídeo confirma seu padrão principal.",
-  experiment: "Esse vídeo é um experimento dentro da sua identidade.",
-  deviation: "Esse vídeo desvia do seu padrão atual.",
-  first_reading: "Primeira leitura — seu padrão ainda está se formando.",
-  unknown: null,
-};
-
-// Cor do marcador do veredito — informa o tipo de coerência sem precisar de caixa.
-const COHERENCE_VERDICT_DOT: Record<NarrativeCoherenceVerdict, string> = {
-  confirms_top_pattern: "bg-emerald-500",
-  experiment: "bg-sky-500",
-  deviation: "bg-amber-500",
-  first_reading: "bg-zinc-400",
-  unknown: "bg-zinc-300",
-};
-
-// ─── Veredito de 3 eixos ("vale postar?") ────────────────────────────────────
-// Eixos não-narrativos (audiência, marca). "off" é observação calma — um sinal, não
-// reprovação — por isso rose-400 (suave), nunca vermelho de erro.
-const AXIS_DOT: Record<AxisVerdict, string> = {
-  aligned: "bg-emerald-500",
-  tension: "bg-amber-500",
-  off: "bg-rose-400",
-  unknown: "bg-zinc-300",
-};
-
-// Leitura de fallback quando a IA não devolve uma frase para o eixo.
-const AXIS_VERDICT_FALLBACK: Record<AxisVerdict, string> = {
-  aligned: "Conversa com este eixo.",
-  tension: "Conversa em parte, com uma ressalva.",
-  off: "Ainda não conversa com este eixo.",
-  unknown: "Sem base suficiente para avaliar ainda.",
-};
-
-// Mapeia o veredito narrativo (enum próprio, mais rico) para a cor de marcador do
-// eixo narrativa, reaproveitando as cores do padrão de coerência já existente.
-const NARRATIVE_AXIS_DOT: Record<NarrativeCoherenceVerdict, string> = COHERENCE_VERDICT_DOT;
-
-type VerdictAxis = { key: string; label: string; dot: string; status: string; reading: string };
-
-// Monta as 3 linhas do veredito a partir do confirmationData. Sempre retorna as 3
-// (audiência/marca degradam para "unknown" quando a IA não avaliou), para o criador
-// ler as três lentes que pesam antes de postar: narrativa, audiência e marca.
-function buildVerdictAxes(data: MobileStrategicProfileAnalyzeConfirmationData | null): VerdictAxis[] {
-  const axes: VerdictAxis[] = [];
-
-  const nv = data?.coherenceVerdict ?? null;
-  const narrativeReading =
-    (data?.coherenceReasoning?.trim() || (nv ? COHERENCE_VERDICT_LABEL[nv] : null)) ??
-    "Sem base suficiente para avaliar ainda.";
-  axes.push({
-    key: "narrativa",
-    label: "Narrativa",
-    dot: nv ? NARRATIVE_AXIS_DOT[nv] : "bg-zinc-300",
-    status: nv === "confirms_top_pattern"
-      ? "Alinhada"
-      : nv === "experiment"
-        ? "Experimento coerente"
-        : nv === "deviation"
-          ? "Fora do padrão atual"
-          : "Em formação",
-    reading: narrativeReading,
-  });
-
-  const audience = data?.audienceCoherence ?? null;
-  axes.push({
-    key: "audiencia",
-    label: "Audiência",
-    dot: AXIS_DOT[audience?.verdict ?? "unknown"],
-    status: audience?.verdict === "aligned"
-      ? "Alinhada"
-      : audience?.verdict === "tension"
-        ? "Com ressalva"
-        : audience?.verdict === "off"
-          ? "Pouco alinhada"
-          : "Sem base",
-    reading: audience?.reading?.trim() || AXIS_VERDICT_FALLBACK[audience?.verdict ?? "unknown"],
-  });
-
-  const brand = data?.brandCoherence ?? null;
-  axes.push({
-    key: "marca",
-    label: "Marca",
-    dot: AXIS_DOT[brand?.verdict ?? "unknown"],
-    status: brand?.verdict === "aligned"
-      ? "Alinhada"
-      : brand?.verdict === "tension"
-        ? "Com ressalva"
-        : brand?.verdict === "off"
-          ? "Pouco alinhada"
-          : "Sem base",
-    reading: brand?.reading?.trim() || AXIS_VERDICT_FALLBACK[brand?.verdict ?? "unknown"],
-  });
-
-  return axes;
-}
-
-const WATCHED_MOMENT_LABELS = {
-  opening: "Na abertura",
-  development: "No desenvolvimento",
-  closing: "No fechamento",
-} as const;
-
 export function MobileStrategicProfileAnalyzeFlow({
   open,
   onClose,
@@ -420,19 +270,12 @@ export function MobileStrategicProfileAnalyzeFlow({
   onUploadToTemporarySignedUrl,
   enableRealAnalysis = false,
   onCleanupTemporaryUpload,
-  onPublishIntentSubmit,
-  onContentPotentialFeedbackSubmit,
   onReportInteraction,
   completionSecondaryAction = "another_video",
   onCompletionUpgrade,
 }: MobileStrategicProfileAnalyzeFlowProps) {
   const sheetRef = useRef<HTMLElement | null>(null);
   const [step, setStep] = useState<AnalyzeFlowStep>("upload");
-  const [publishIntent, setPublishIntent] = useState<"yes" | "no" | null>(null);
-  // Lente fixa do modal: "checar coerência com o meu mapa" (retention). O criador não
-  // escolhe mais a lente — a pergunta é sempre "vale postar?".
-  const [selectedOption, setSelectedOption] = useState<"authority" | "authority_build" | "retention" | "format_test" | "sponsored_content">("retention");
-  const [creatorGoal, setCreatorGoal] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   // When the backend marks a failure as non-retryable (provider access/config),
@@ -441,11 +284,6 @@ export function MobileStrategicProfileAnalyzeFlow({
   const [submitAttempt, setSubmitAttempt] = useState(0);
   const [savedDiagnosisId, setSavedDiagnosisId] = useState<string | null>(null);
   const [confirmationData, setConfirmationData] = useState<MobileStrategicProfileAnalyzeConfirmationData | null>(null);
-  const [previousScan, setPreviousScan] = useState<VideoNarrativeContentPotentialScan | null>(null);
-  const [copiedSuggestion, setCopiedSuggestion] = useState(false);
-  const [adjustmentMarked, setAdjustmentMarked] = useState(false);
-  const [decisionAction, setDecisionAction] = useState<"review" | "publish" | "discard" | null>(null);
-  const [submittedFeedback, setSubmittedFeedback] = useState<ContentPotentialFeedback["value"] | null>(null);
   // Animated scan stage: 0..3, aligned with the work the server performs.
   const [processingStage, setProcessingStage] = useState(0);
 
@@ -493,16 +331,8 @@ export function MobileStrategicProfileAnalyzeFlow({
       setUploadSessionValidated(false);
       setTemporaryUploadForCleanup(null);
       setTemporaryUploadForAnalysis(null);
-      setCreatorGoal("");
-      setSelectedOption("retention");
       setProcessingStage(0);
       setConfirmationData(null);
-      setPreviousScan(null);
-      setCopiedSuggestion(false);
-      setAdjustmentMarked(false);
-      setDecisionAction(null);
-      setSubmittedFeedback(null);
-      setPublishIntent(null);
     }
   }, [open]);
 
@@ -537,8 +367,8 @@ export function MobileStrategicProfileAnalyzeFlow({
         setErrorMsg(null);
         try {
           const result = await onSubmitAnalysis({
-            creatorGoal: creatorGoal.trim() || goalOptions.find((option) => option.value === selectedOption)?.defaultQuestion || "O que este vídeo revela sobre minha narrativa?",
-            selectedGoalOption: selectedOption,
+            creatorGoal: "Este conteúdo tem potencial de engajar com base no meu histórico?",
+            selectedGoalOption: "retention",
             consentTextVersion: "mobile_strategic_profile_temporary_video_v1",
             temporaryUpload: enableRealAnalysis ? temporaryUploadForAnalysis ?? undefined : undefined,
           });
@@ -573,13 +403,17 @@ export function MobileStrategicProfileAnalyzeFlow({
                 reason: "analysis_failed",
               });
             } catch {
-              console.warn("Cleanup temporário não foi confirmado após falha da análise mock.");
+              console.warn("Cleanup temporário não foi confirmado após falha da análise.");
             }
           }
           if (active) {
             setIsSubmitting(false);
             setErrorRetryable(err?.retryable !== false);
             setErrorMsg(err.message || "Ocorreu um erro no processamento do diagnóstico.");
+            setTemporaryUploadForCleanup(null);
+            setTemporaryUploadForAnalysis(null);
+            setUploadSessionValidated(false);
+            setValidationStatus("idle");
           }
         }
       } else {
@@ -601,8 +435,6 @@ export function MobileStrategicProfileAnalyzeFlow({
     };
   }, [
     step,
-    creatorGoal,
-    selectedOption,
     onSubmitAnalysis,
     submitAttempt,
     temporaryUploadForCleanup,
@@ -721,18 +553,10 @@ export function MobileStrategicProfileAnalyzeFlow({
     setUploadSessionValidated(false);
     setTemporaryUploadForCleanup(null);
     setTemporaryUploadForAnalysis(null);
-    setCreatorGoal("");
-    setSelectedOption("retention");
     setThumbnailDataUrl(null);
     setSavedDiagnosisId(null);
     setConfirmationData(null);
     setProcessingStage(0);
-    setPublishIntent(null);
-    setPreviousScan(null);
-    setCopiedSuggestion(false);
-    setAdjustmentMarked(false);
-    setDecisionAction(null);
-    setSubmittedFeedback(null);
   };
 
   const close = () => {
@@ -744,7 +568,7 @@ export function MobileStrategicProfileAnalyzeFlow({
     const thumb = thumbnailDataUrl;
     const diagId = savedDiagnosisId;
     return thumb || diagId
-      ? { thumbnailDataUrl: thumb ?? undefined, savedDiagnosisId: diagId, publishIntent }
+      ? { thumbnailDataUrl: thumb ?? undefined, savedDiagnosisId: diagId }
       : undefined;
   };
 
@@ -771,15 +595,8 @@ export function MobileStrategicProfileAnalyzeFlow({
     setUploadSessionValidated(false);
     setTemporaryUploadForCleanup(null);
     setTemporaryUploadForAnalysis(null);
-    setCreatorGoal("");
-    setSelectedOption("retention");
     setSavedDiagnosisId(null);
     setConfirmationData(null);
-    setPublishIntent(null);
-    setCopiedSuggestion(false);
-    setAdjustmentMarked(false);
-    setDecisionAction(null);
-    setSubmittedFeedback(null);
   };
 
   const copyPracticalSuggestion = async (scan: VideoNarrativeContentPotentialScan) => {
@@ -792,60 +609,8 @@ export function MobileStrategicProfileAnalyzeFlow({
     } catch {
       // A ação continua útil como confirmação visual mesmo quando o WebView bloqueia clipboard.
     }
-    setCopiedSuggestion(true);
     onReportInteraction?.("copy_suggestion", "practical_direction");
   };
-
-  const markAdjustmentAsDone = () => {
-    setAdjustmentMarked(true);
-    setDecisionAction("review");
-    onReportInteraction?.("adjustment_marked", "highest_impact_adjustment");
-  };
-
-  const startAdjustedVersionScan = (scan: VideoNarrativeContentPotentialScan) => {
-    setPreviousScan(scan);
-    setStep("upload");
-    setSelectedFile(null);
-    setVideoDurationSeconds(null);
-    setValidationStatus("idle");
-    setFileValidationError(null);
-    setUploadSessionValidated(false);
-    setTemporaryUploadForCleanup(null);
-    setTemporaryUploadForAnalysis(null);
-    setCreatorGoal("");
-    setSavedDiagnosisId(null);
-    setConfirmationData(null);
-    setPublishIntent(null);
-    setCopiedSuggestion(false);
-    setAdjustmentMarked(false);
-    setDecisionAction(null);
-    setSubmittedFeedback(null);
-    onReportInteraction?.("rescan_started", "adjusted_version");
-  };
-
-  const submitReportFeedback = (feedback: ContentPotentialFeedback) => {
-    setSubmittedFeedback(feedback.value);
-    onReportInteraction?.("feedback_submitted", feedback.value);
-    if (savedDiagnosisId && onContentPotentialFeedbackSubmit) {
-      onContentPotentialFeedbackSubmit(savedDiagnosisId, feedback).catch(() => {});
-    }
-  };
-
-  const choosePublishDecision = (action: "review" | "publish" | "discard") => {
-    setDecisionAction(action);
-    onReportInteraction?.("publish_decision", action);
-    if (action === "review") {
-      setPublishIntent(null);
-      return;
-    }
-    const intent = action === "publish" ? "yes" : "no";
-    setPublishIntent(intent);
-    if (savedDiagnosisId && onPublishIntentSubmit) {
-      onPublishIntentSubmit(savedDiagnosisId, intent).catch(() => {});
-    }
-  };
-
-  const currentStepIndex = stepIndex(step);
 
   // Regra de disabled para o botão Continuar
   const isContinueDisabled =
@@ -1027,7 +792,7 @@ export function MobileStrategicProfileAnalyzeFlow({
             <div className="rounded-[1.5rem] border border-dashed border-zinc-300 bg-[var(--ds-color-neutral)] p-4">
               <p className="text-sm font-semibold text-zinc-950">Vídeo acolhido e pronto</p>
               <p className="mt-2 text-sm leading-6 text-zinc-600">
-                Prossiga para a leitura e descubra se vale postar.
+                Prossiga para comparar a estrutura deste vídeo com o seu histórico.
               </p>
             </div>
           )
@@ -1051,10 +816,10 @@ export function MobileStrategicProfileAnalyzeFlow({
                 <div className="grid gap-3">
                   {(
                     [
-                      { label: "Lendo os 3 primeiros segundos", threshold: 0 },
-                      { label: "Mapeando ritmo e viradas", threshold: 1 },
-                      { label: "Procurando motivos para compartilhar", threshold: 2 },
-                      { label: "Comparando com o seu mapa", threshold: 3 },
+                      { label: "Lendo cenas, fala e enquadramento", threshold: 0 },
+                      { label: "Mapeando gancho, ritmo e entrega", threshold: 1 },
+                      { label: "Consultando seus conteúdos publicados", threshold: 2 },
+                      { label: "Estimando o potencial de engajamento", threshold: 3 },
                     ] as const
                   ).map((stage, idx) => {
                     const isDone = processingStage > stage.threshold;
@@ -1086,265 +851,13 @@ export function MobileStrategicProfileAnalyzeFlow({
         ) : null}
 
         {step === "confirmation" ? (
-          <div className="ds-analysis-editorial">
-            {thumbnailDataUrl ? (
-              <figure className="ds-analysis-cover -mx-5 -mt-1 mb-5">
-                <img src={thumbnailDataUrl} alt="" className="h-full w-full object-cover" aria-hidden="true" />
-                <figcaption>Vídeo analisado</figcaption>
-              </figure>
-            ) : null}
-            {/* Leitura plana: seções separadas por hairline + hierarquia de fonte,
-                sem card-dentro-de-card. O único elemento "contido" é o botão. */}
-
-            {confirmationData?.contentPotentialScan ? (() => {
-              const scan = confirmationData.contentPotentialScan;
-              const decision = buildContentPotentialDecision(scan, confirmationData.directAnswer);
-              const { strengths, risks } = buildContentPotentialStrengthsAndRisks(scan);
-              const comparison = previousScan ? compareContentPotentialScans(previousScan, scan) : null;
-              const watchedCount = scan.watchedMoments?.length ?? 0;
-              return (
-                <section className="ds-scan-result ds-scan-result--editorial">
-                  <header className="ds-scan-editorial-hero">
-                    <p className="ds-eyebrow">{decision.eyebrow}</p>
-                    <h3 className="mt-2 font-display text-[1.95rem] font-bold leading-[0.98] tracking-[-0.055em] text-zinc-950">
-                      {decision.title}
-                    </h3>
-                    <p className="mt-3 max-w-[34ch] text-[0.94rem] leading-6 text-zinc-600">{decision.reason}</p>
-                    <p className="mt-3 flex items-center gap-2 text-[11px] font-semibold text-zinc-500">
-                      <span className="ds-scan-watched-mark" aria-hidden="true">✓</span>
-                      {watchedCount > 0
-                        ? `Leitura baseada em ${watchedCount} momentos do vídeo`
-                        : "Leitura baseada no vídeo enviado"}
-                    </p>
-                  </header>
-
-                  {comparison ? (
-                    <div className="ds-scan-comparison mt-4" aria-label="Comparação com a versão anterior">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">O que mudou nesta versão</p>
-                      {comparison.improvements.length ? (
-                        <p className="mt-1.5 text-sm font-semibold leading-5 text-emerald-800">
-                          Melhorou: {comparison.improvements.map((item) => item.label).join(", ")}.
-                        </p>
-                      ) : (
-                        <p className="mt-1.5 text-sm leading-5 text-zinc-700">Ainda não apareceu uma melhora estrutural clara.</p>
-                      )}
-                      {comparison.regressions.length ? (
-                        <p className="mt-1 text-xs leading-5 text-amber-800">
-                          Atenção: {comparison.regressions.map((item) => item.label).join(", ")} perdeu força.
-                        </p>
-                      ) : null}
-                      {comparison.unchangedStrong.length ? (
-                        <p className="mt-1 text-xs leading-5 text-zinc-500">
-                          Continua forte: {comparison.unchangedStrong.map((item) => item.label).join(", ")}.
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-
-                  <div className="ds-practical-direction mt-5">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--ds-color-brand-strong)]">Ajuste de maior impacto</p>
-                    <p className="mt-2 font-display text-[1.3rem] font-bold leading-[1.08] tracking-[-0.035em] text-zinc-950">
-                      {scan.practicalDirection?.title ?? scan.highestImpactAdjustment}
-                    </p>
-                    {scan.practicalDirection?.action ? (
-                      <p className="mt-2 text-sm leading-5 text-zinc-700">{scan.practicalDirection.action}</p>
-                    ) : null}
-                    {scan.practicalDirection?.example ? (
-                      <div className="ds-practical-direction__example">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-[var(--ds-color-brand-strong)]">Um jeito de aplicar</p>
-                        <p className="mt-1.5 text-sm font-semibold leading-5 text-zinc-900">“{scan.practicalDirection.example}”</p>
-                      </div>
-                    ) : null}
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        className="ds-inline-action"
-                        onClick={() => copyPracticalSuggestion(scan)}
-                      >
-                        {copiedSuggestion ? "Texto copiado" : "Copiar sugestão"}
-                      </button>
-                      <button
-                        type="button"
-                        className={adjustmentMarked ? "ds-inline-action ds-inline-action--done" : "ds-inline-action"}
-                        onClick={markAdjustmentAsDone}
-                        aria-pressed={adjustmentMarked}
-                      >
-                        {adjustmentMarked ? "Ajuste feito ✓" : "Marcar como ajustado"}
-                      </button>
-                    </div>
-                    {adjustmentMarked ? (
-                      <button
-                        type="button"
-                        className="ds-button ds-button--primary ds-button--block mt-3"
-                        onClick={() => startAdjustedVersionScan(scan)}
-                      >
-                        Escanear versão ajustada
-                      </button>
-                    ) : null}
-                  </div>
-
-                  <section className="ds-scan-proof mt-6 border-t border-[var(--ds-color-line)] pt-5">
-                    <div className="mb-5">
-                      <p className="ds-eyebrow">O que sustenta esta leitura</p>
-                      <p className="mt-1.5 text-sm leading-5 text-zinc-500">Os sinais mais importantes encontrados na estrutura do vídeo.</p>
-                    </div>
-
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400">O que já funciona</p>
-                      <div className="ds-report-signal-list mt-2">
-                        {strengths.length ? strengths.map((item) => (
-                          <div key={item.key} className="ds-report-signal ds-report-signal--positive">
-                            <span className="ds-report-signal__mark" aria-hidden="true" />
-                            <div>
-                              <p className="text-sm font-semibold text-zinc-950">{item.label}</p>
-                              <p className="mt-1 text-sm leading-5 text-zinc-600">{item.evidence}</p>
-                            </div>
-                          </div>
-                        )) : (
-                          <p className="text-sm leading-5 text-zinc-500">Ainda não apareceu um sinal forte o bastante para destacar.</p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="mt-5">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400">O que pode limitar</p>
-                      <div className="ds-report-signal-list mt-2">
-                        {risks.length ? risks.map((item) => (
-                          <div key={item.key} className="ds-report-signal ds-report-signal--risk">
-                            <span className="ds-report-signal__mark" aria-hidden="true" />
-                            <div>
-                              <p className="text-sm font-semibold text-zinc-950">{item.label}</p>
-                              <p className="mt-1 text-sm leading-5 text-zinc-600">{item.evidence}</p>
-                              {item.adjustment ? <p className="mt-1.5 text-xs font-semibold leading-5 text-zinc-800">Como melhorar: {item.adjustment}</p> : null}
-                            </div>
-                          </div>
-                        )) : (
-                          <p className="text-sm leading-5 text-zinc-500">Nenhum risco principal apareceu nesta leitura.</p>
-                        )}
-                      </div>
-                    </div>
-                  </section>
-
-                  {scan.watchedMoments?.length ? (
-                    <details className="ds-report-details mt-6">
-                      <summary>Onde identifiquei isso no vídeo</summary>
-                      <div className="mt-3">
-                        {scan.watchedMoments.map((moment, index) => (
-                          <div key={`${moment.moment}-${index}`} className="ds-watched-moment">
-                            <span className="ds-watched-moment__dot" aria-hidden="true" />
-                            <div>
-                              <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-zinc-400">{WATCHED_MOMENT_LABELS[moment.moment]}</p>
-                              <p className="mt-1 text-sm font-semibold leading-5 text-zinc-900">{moment.observation}</p>
-                              <p className="mt-1 text-sm leading-5 text-zinc-500">{moment.impact}</p>
-                              <button
-                                type="button"
-                                className="mt-1.5 text-xs font-semibold text-[var(--ds-color-brand-strong)]"
-                                onClick={() => submitReportFeedback({ target: "evidence", value: "not_in_video", moment: moment.moment })}
-                              >
-                                Isso não aparece no vídeo
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </details>
-                  ) : null}
-
-                  <details className="ds-report-details mt-3">
-                    <summary>Como cheguei a esta leitura</summary>
-                    <p className="mt-3 text-xs leading-5 text-zinc-500">
-                      {scan.basis === "creator_history"
-                        ? `Comparei o vídeo com ${scan.historyPostsAnalyzed} posts do seu perfil.`
-                        : "Usei a estrutura deste vídeo; seu histórico ainda está se formando."}
-                      {` A confiança desta leitura é ${scan.confidence === "high" ? "alta" : scan.confidence === "medium" ? "média" : "baixa"}.`}
-                    </p>
-                    <p className="mt-2 text-[11px] leading-4 text-zinc-400">{scan.disclaimer}</p>
-                  </details>
-
-                  <div className="mt-6 border-t border-[var(--ds-color-line)] pt-5">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-400">Esta leitura foi útil?</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <button type="button" className={submittedFeedback === "helpful" ? "ds-chip ds-chip--active" : "ds-chip"} onClick={() => submitReportFeedback({ target: "overall", value: "helpful" })}>Sim</button>
-                      <button type="button" className={submittedFeedback === "wrong_intent" ? "ds-chip ds-chip--active" : "ds-chip"} onClick={() => submitReportFeedback({ target: "overall", value: "wrong_intent" })}>Não entendeu a intenção</button>
-                      <button type="button" className={submittedFeedback === "not_in_video" ? "ds-chip ds-chip--active" : "ds-chip"} onClick={() => submitReportFeedback({ target: "overall", value: "not_in_video" })}>Viu algo que não existe</button>
-                    </div>
-                    {submittedFeedback ? <p className="mt-2 text-xs text-emerald-700">Obrigado. Sua correção foi registrada.</p> : null}
-                  </div>
-                </section>
-              );
-            })() : null}
-
-            {/* Hero — a resposta à pergunta do criador, o maior peso visual da tela. */}
-            {confirmationData?.directAnswer && !confirmationData.contentPotentialScan ? (
-              <div>
-                <p className="text-xs leading-snug text-zinc-400">
-                  {creatorGoal.trim() || "Sua pergunta"}
-                </p>
-                <p className="mt-1.5 font-display text-[1.45rem] font-bold leading-[1.08] tracking-[-0.035em] text-zinc-900">
-                  {confirmationData.directAnswer}
-                </p>
-              </div>
-            ) : null}
-
-            {/* Veredito de coerência — as 3 lentes que pesam antes de postar.
-                Linhas com marcador, sem caixa, sem nota. "off" é observação, não reprovação. */}
-            <div className={confirmationData?.directAnswer ? "mt-5 border-t border-zinc-100 pt-5" : ""}>
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Coerência com o seu mapa</p>
-              <div className="mt-3 flex flex-col gap-3">
-                {buildVerdictAxes(confirmationData ?? null).map((axis) => (
-                  <div key={axis.key} className="flex items-start gap-2.5">
-                    <span className={`mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full ${axis.dot}`} />
-                    <div>
-                      <p className="text-sm font-semibold text-zinc-900">
-                        {axis.label} <span className="font-medium text-zinc-400">· {axis.status}</span>
-                      </p>
-                      <p className="mt-0.5 text-sm leading-6 text-zinc-600">{axis.reading}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {confirmationData?.diagnosisSummary ? (
-                <p className="mt-3.5 text-xs leading-5 text-zinc-400">{confirmationData.diagnosisSummary}</p>
-              ) : null}
-            </div>
-
-            {/* A decisão — o fecho natural do veredito. A leitura é da IA; a escolha é do criador. */}
-            <div className="mt-5 border-t border-zinc-100 pt-5">
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-400">Você decide</p>
-              <p className="mt-0.5 text-xs text-zinc-400">A leitura é minha; a decisão é sua. Só o que você publica entra no seu mapa.</p>
-              <div className="mt-3 grid gap-2">
-                {(
-                  [
-                    { action: "review", label: "Vou ajustar antes", helper: "Use a sugestão e escaneie a nova versão." },
-                    { action: "publish", label: "Vou postar assim", helper: "O vídeo entra no aprendizado do seu mapa." },
-                    { action: "discard", label: "Não vou postar", helper: "Esta leitura fica fora do seu padrão publicado." },
-                  ] as const
-                ).map(({ action, label, helper }) => (
-                  <button
-                    key={action}
-                    type="button"
-                    className={decisionAction === action ? "ds-decision-row ds-decision-row--active" : "ds-decision-row"}
-                    onClick={() => choosePublishDecision(action)}
-                    aria-pressed={decisionAction === action}
-                  >
-                    <span>
-                      <span className="block text-sm font-semibold">{label}</span>
-                      <span className="mt-0.5 block text-xs font-normal opacity-70">{helper}</span>
-                    </span>
-                    <span aria-hidden="true">{decisionAction === action ? "✓" : "→"}</span>
-                  </button>
-                ))}
-              </div>
-              {decisionAction === "review" ? (
-                <p className="mt-2.5 text-xs leading-5 text-[var(--ds-color-brand-strong)]">Ótimo. Marque o ajuste acima quando terminar para comparar a nova versão.</p>
-              ) : publishIntent === "yes" ? (
-                <p className="mt-2.5 text-xs leading-5 text-emerald-700">Boa — seu mapa vai aprender com esse vídeo.</p>
-              ) : publishIntent === "no" ? (
-                <p className="mt-2.5 text-xs leading-5 text-zinc-500">Fechado. Esse fica só entre nós — não entra no mapa.</p>
-              ) : null}
-            </div>
-          </div>
+          <ContentAnalysisReport
+            data={confirmationData}
+            thumbnailSrc={thumbnailDataUrl}
+            onCopySuggestion={copyPracticalSuggestion}
+          />
         ) : null}
+
         </div>
 
         <div className="mt-5 flex gap-2">
@@ -1355,7 +868,7 @@ export function MobileStrategicProfileAnalyzeFlow({
               className="ds-button ds-button--primary ds-button--block"
               onClick={complete}
             >
-              Ver sua leitura completa
+              Concluir
             </button>
             {completionSecondaryAction === "upgrade" ? (
               <button
@@ -1365,7 +878,15 @@ export function MobileStrategicProfileAnalyzeFlow({
               >
                 Continuar com Pro
               </button>
-            ) : null}
+            ) : (
+              <button
+                type="button"
+                className="ds-button ds-button--quiet ds-button--block"
+                onClick={handleConfirmationSecondaryAction}
+              >
+                Analisar outro conteúdo
+              </button>
+            )}
           </div>
         ) : step === "processing" && errorMsg ? (
           errorRetryable ? (
@@ -1383,8 +904,12 @@ export function MobileStrategicProfileAnalyzeFlow({
                 onClick={() => {
                   setErrorMsg(null);
                   setErrorRetryable(true);
-                  setSubmitAttempt((prev) => prev + 1);
-                  setStep("processing");
+                  if (enableRealAnalysis) {
+                    setStep("upload");
+                  } else {
+                    setSubmitAttempt((prev) => prev + 1);
+                    setStep("processing");
+                  }
                 }}
               >
                 Tentar novamente
@@ -1409,7 +934,7 @@ export function MobileStrategicProfileAnalyzeFlow({
             {step === "upload" && onCreateUploadSession
               ? validationStatus === "validating" || validationStatus === "uploading"
                 ? "Enviando..."
-                : "Próximo"
+                : "Analisar conteúdo"
               : "Continuar"}
           </button>
         )}

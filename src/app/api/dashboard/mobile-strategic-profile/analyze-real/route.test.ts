@@ -122,6 +122,7 @@ describe("POST /api/dashboard/mobile-strategic-profile/analyze-real", () => {
       quota: { monthKey: "2026-05", usedTotal: 0, usedThisMonth: 0, freeTotalLimit: 1, proMonthlyLimit: 10 },
       message: "Leitura disponível.",
     });
+    deleteLocalUpload.mockResolvedValue(true);
     runOrchestrator.mockResolvedValue({
       ok: true,
       realAnalysis: true,
@@ -262,7 +263,7 @@ describe("POST /api/dashboard/mobile-strategic-profile/analyze-real", () => {
     expect(body.ok).toBe(true);
     expect(body.source).toBeUndefined();
     expect(body.snapshot).toEqual({
-      diagnosisSummary: "Primeira análise registrada. Seu Perfil estratégico começou a se formar.",
+      diagnosisSummary: "Análise concluída e salva nas suas últimas análises.",
       unlockedSignals: [],
       opportunities: [],
       directAnswer: "Esse formato vale repetir: o gancho funciona melhor quando você fala direto pra câmera.",
@@ -342,7 +343,7 @@ describe("POST /api/dashboard/mobile-strategic-profile/analyze-real", () => {
     expect(body.code).toBe("reading_not_saved");
   });
 
-  it("não retorna sucesso quando a síntese do Perfil não foi escrita", async () => {
+  it("não bloqueia a análise pré-publicação quando nenhuma síntese do Perfil é escrita", async () => {
     runOrchestrator.mockResolvedValueOnce({
       ok: true,
       realAnalysis: true,
@@ -358,10 +359,10 @@ describe("POST /api/dashboard/mobile-strategic-profile/analyze-real", () => {
 
     const res = await POST(createRequest(validPayload));
 
-    expect(res.status).toBe(502);
+    expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.ok).toBe(false);
-    expect(body.code).toBe("profile_synthesis_not_written");
+    expect(body.ok).toBe(true);
+    expect(body.code).toBeUndefined();
   });
 
   it("repassa planStatus active revalidado do DB para o orquestrador", async () => {
@@ -435,14 +436,14 @@ describe("POST /api/dashboard/mobile-strategic-profile/analyze-real", () => {
       objectKey: localPayload.temporaryUpload.objectKey,
       reason: "analysis_failed",
     });
-    expect(deleteLocalUpload).not.toHaveBeenCalled();
+    expect(deleteLocalUpload).toHaveBeenCalledWith({ sessionId: localPayload.uploadSessionId });
 
     await cleanupTemporaryUpload({
       uploadSessionId: localPayload.uploadSessionId,
       objectKey: localPayload.temporaryUpload.objectKey,
       reason: "analysis_completed",
     });
-    expect(deleteLocalUpload).toHaveBeenCalledWith({ sessionId: localPayload.uploadSessionId });
+    expect(deleteLocalUpload).toHaveBeenCalledTimes(2);
 
     delete process.env.VIDEO_NARRATIVE_LOCAL_DISCARD_UPLOAD_ENABLED;
   });

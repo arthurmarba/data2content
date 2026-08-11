@@ -133,7 +133,7 @@ export type VideoNarrativeAiAnalysis = {
 
 export type VideoNarrativeAiProviderResult = {
   ok: boolean;
-  provider: "gemini";
+  provider: "gemini" | "openai";
   mode: "disabled" | "ready" | "fixture" | "failed";
   promptVersion: string;
   analysis?: VideoNarrativeAiAnalysis;

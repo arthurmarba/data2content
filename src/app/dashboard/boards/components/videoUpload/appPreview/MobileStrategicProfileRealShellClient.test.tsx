@@ -402,7 +402,8 @@ describe("MobileStrategicProfileRealShellClient", () => {
           creatorGoal: "test",
           selectedGoalOption: "authority",
           persistReading: true,
-          persistSynthesisSnapshot: true,
+          persistSynthesisSnapshot: false,
+          analysisMode: "engagement_scan_v2",
         }),
       })
     );
@@ -476,7 +477,8 @@ describe("MobileStrategicProfileRealShellClient", () => {
     const body = String(realCall?.[1]?.body);
     expect(body).toContain("video-temp-upload-session-abc_123");
     expect(body).toContain("\"persistReading\":true");
-    expect(body).toContain("\"persistSynthesisSnapshot\":true");
+    expect(body).toContain("\"persistSynthesisSnapshot\":false");
+    expect(body).toContain("\"analysisMode\":\"engagement_scan_v2\"");
     expect(body).not.toContain("uploadUrl");
     expect(body).not.toContain("signedUrl");
     expect(body).not.toContain("base64");
@@ -516,7 +518,8 @@ describe("MobileStrategicProfileRealShellClient", () => {
     expect(realCall).toBeTruthy();
     const body = String(realCall?.[1]?.body);
     expect(body).toContain("\"persistReading\":true");
-    expect(body).toContain("\"persistSynthesisSnapshot\":true");
+    expect(body).toContain("\"persistSynthesisSnapshot\":false");
+    expect(body).toContain("\"analysisMode\":\"engagement_scan_v2\"");
     expect(body).toContain("video-temp-upload-session-abc_123");
     expect(body).not.toContain("uploadUrl");
     expect(body).not.toContain("signedUrl");

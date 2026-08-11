@@ -47,6 +47,7 @@ import {
   runControlledVideoReadingSynthesisSnapshotWrite,
   type ControlledVideoReadingSynthesisSnapshotWriteResult,
 } from "./creatorVideoNarrativeMockSynthesisSnapshotWriteOrchestrator";
+import { enrichContentPotentialWithCreatorHistory } from "./creatorEngagementPotentialEngine";
 
 type EnvLike = NodeJS.ProcessEnv | Record<string, string | undefined>;
 
@@ -72,6 +73,8 @@ export type VideoNarrativeRealAnalysisOrchestratorResult =
       ok: true;
       realAnalysis: true;
       source: "gemini_real_allowlist";
+      /** Provider that actually completed the multimodal analysis. Server-side observability only. */
+      analysisProvider: VideoNarrativeAiProviderResult["provider"];
       videoReadingPersistence: VideoNarrativeReadingPersistenceSummary;
       synthesisSnapshotWrite: VideoNarrativeSynthesisSnapshotWriteSummary;
       evidenceAnchorsUsed: boolean;
@@ -123,6 +126,7 @@ export type VideoNarrativeRealAnalysisOrchestratorDeps = {
   /** Real audience composition (demographics), used to anchor the audiência axis of the verdict. */
   audienceContext?: import("./videoNarrativeAiProviderTypes").VideoNarrativeAudienceContextSummary | null;
   contentPotentialHistory?: import("./contentPotentialHistoryService").ContentPotentialCalibrationHistory | null;
+  engagementBaseline?: import("./creatorEngagementBaselineService").CreatorEngagementBaseline | null;
   geminiConfig?: VideoNarrativeGeminiProviderConfig;
   geminiClient?: VideoNarrativeGeminiClientAdapter | null;
   runProvider?: (params: {
@@ -131,6 +135,14 @@ export type VideoNarrativeRealAnalysisOrchestratorDeps = {
     env?: EnvLike;
     config?: VideoNarrativeGeminiProviderConfig;
     client?: VideoNarrativeGeminiClientAdapter | null;
+    videoInput?: {
+      mimeType: string;
+      bytes?: Uint8Array | Buffer;
+      uri?: string;
+      filePath?: string;
+      durationSeconds?: number;
+      source: "temporary_storage";
+    };
     skipAllowlist?: boolean;
   }) => Promise<VideoNarrativeAiProviderResult>;
   evaluateAllowlist?: typeof evaluateVideoNarrativeGeminiAllowlist;
@@ -466,6 +478,11 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
             ).createVideoNarrativeGeminiClientAdapter({
               apiKey: configResult.config.apiKey,
               model: configResult.config.model ?? undefined,
+              openAiFallbackApiKey: env.OPENAI_API_KEY?.trim() || undefined,
+              openAiFallbackModel: env.VIDEO_NARRATIVE_OPENAI_FALLBACK_MODEL?.trim() || undefined,
+              openAiFallbackEnabled:
+                env.VIDEO_NARRATIVE_OPENAI_FALLBACK_ENABLED !== "false" &&
+                Boolean(env.OPENAI_API_KEY?.trim()),
             }).client
         : null;
   const providerResult = await runProvider({
@@ -500,7 +517,10 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     env,
     config: configResult.config,
     client: geminiClient,
-    videoInput: storageInputResult.geminiInput,
+    videoInput: {
+      ...storageInputResult.geminiInput,
+      durationSeconds: mediaProbe.metadata.durationSeconds,
+    },
     skipAllowlist: true,
   });
 
@@ -516,12 +536,21 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
       "invalid_required_array",
       "gemini_timeout",
       "gemini_invalid_response",
+      "gemini_quota_exhausted",
       "gemini_permission_denied",
       "gemini_file_upload_failed",
       "gemini_file_permission_denied",
       "gemini_file_processing_failed",
       "gemini_file_processing_timeout",
       "gemini_file_uri_missing",
+      "openai_fallback_failed",
+      "openai_fallback_api_key_missing",
+      "openai_fallback_video_missing",
+      "openai_fallback_media_unavailable",
+      "openai_fallback_media_processing_failed",
+      "openai_fallback_media_timeout",
+      "openai_fallback_frames_missing",
+      "openai_fallback_aborted",
       "provider_invalid_response",
     ].includes(providerIssueCode)
       ? providerIssueCode
@@ -606,12 +635,19 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     postsAnalyzed: deps.instagramMetrics?.postsAnalyzed ?? 0,
     historyCalibration: deps.contentPotentialHistory,
   });
-  const contentPotentialScan = contextualizeVideoNarrativeContentPotentialScan({
+  const contextualizedContentPotentialScan = contextualizeVideoNarrativeContentPotentialScan({
     scan: calibratedContentPotentialScan,
     evidenceAnchors: providerResult.analysis.evidenceAnchors,
     suggestedHook: providerResult.analysis.suggestedHook,
     nextActions: providerResult.analysis.nextActions,
   });
+  const contentPotentialScan = deps.engagementBaseline
+    ? enrichContentPotentialWithCreatorHistory({
+        scan: contextualizedContentPotentialScan,
+        analysis: providerResult.analysis,
+        baseline: deps.engagementBaseline,
+      })
+    : contextualizedContentPotentialScan;
   providerResult.analysis.contentPotentialScan = contentPotentialScan;
 
   const accessLevel = params.user.planStatus === "active" ? "premium" : "free";
@@ -657,6 +693,16 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
       seed: artifacts.seed,
       analyzedAt: now,
       createdAt: now,
+      ...(params.payload.persistSynthesisSnapshot !== true
+        ? {
+            analysisLifecycle: {
+              analysisVersion: "v2" as const,
+              learningStatus: "analysis_only" as const,
+              historyVisibility: "visible" as const,
+              thumbnailStatus: "pending" as const,
+            },
+          }
+        : {}),
     });
     videoReadingPersistence = mapSaveResult(saveResult);
 
@@ -733,6 +779,7 @@ export async function runVideoNarrativeRealAnalysisOrchestrator(params: {
     ok: true,
     realAnalysis: true,
     source: "gemini_real_allowlist",
+    analysisProvider: providerResult.provider,
     videoReadingPersistence,
     synthesisSnapshotWrite,
     evidenceAnchorsUsed,

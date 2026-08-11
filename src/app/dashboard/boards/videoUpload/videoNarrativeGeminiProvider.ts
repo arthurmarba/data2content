@@ -24,10 +24,11 @@ export type VideoNarrativeGeminiClientAdapter = {
       bytes?: Uint8Array | Buffer;
       uri?: string;
       filePath?: string;
+      durationSeconds?: number;
       source: "temporary_storage";
     };
     signal?: AbortSignal;
-  }): Promise<{ text: string | null }>;
+  }): Promise<{ text: string | null; provider?: "gemini" | "openai" }>;
 };
 
 type EnvLike = NodeJS.ProcessEnv | Record<string, string | undefined>;
@@ -86,7 +87,13 @@ function getExternalErrorMessage(error: unknown): string {
 function isPermissionDeniedProviderError(error: unknown): boolean {
   const status = getExternalErrorStatus(error);
   const message = getExternalErrorMessage(error);
-  return status === 401 || status === 403 || /PERMISSION_DENIED|dunning|billing/i.test(message);
+  return status === 401 || status === 403 || /PERMISSION_DENIED|dunning/i.test(message);
+}
+
+export function isQuotaExhaustedProviderError(error: unknown): boolean {
+  const status = getExternalErrorStatus(error);
+  const message = getExternalErrorMessage(error);
+  return status === 429 || /RESOURCE_EXHAUSTED|quota|credits? (?:are )?depleted|prepayment/i.test(message);
 }
 
 export async function runVideoNarrativeGeminiProvider(params: {
@@ -100,6 +107,7 @@ export async function runVideoNarrativeGeminiProvider(params: {
     bytes?: Uint8Array | Buffer;
     uri?: string;
     filePath?: string;
+    durationSeconds?: number;
     source: "temporary_storage";
   };
   skipAllowlist?: boolean;
@@ -179,19 +187,25 @@ export async function runVideoNarrativeGeminiProvider(params: {
 
     return {
       ok: true,
-      provider: "gemini",
+      provider: response.provider ?? "gemini",
       mode: "ready",
       promptVersion,
       analysis: parsed.analysis,
       issues: parsed.issues,
-      safeDebugSummary: "gemini_analysis_parsed",
+      safeDebugSummary: response.provider === "openai"
+        ? "openai_fallback_analysis_parsed"
+        : "gemini_analysis_parsed",
       timingMs: Date.now() - startedAt,
     };
   } catch (error) {
     const code = error instanceof Error && error.message === "provider_timeout"
       ? "gemini_timeout"
+      : error instanceof Error && error.message.startsWith("openai_fallback_")
+        ? error.message
       : error instanceof Error && error.message.startsWith("gemini_file_")
         ? error.message
+        : isQuotaExhaustedProviderError(error)
+          ? "gemini_quota_exhausted"
         : isPermissionDeniedProviderError(error)
           ? "gemini_permission_denied"
           : "gemini_external_error";

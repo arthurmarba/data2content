@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Compass,
   FileText,
+  ScanSearch,
   Handshake,
   Instagram,
   LifeBuoy,
@@ -37,6 +38,8 @@ interface Props {
   onOpenSurvey?: () => void;
   /** Abre "Seu norte" para editar o propósito e revisar o mapa do criador. */
   onOpenNorte?: () => void;
+  /** Abre o histórico privado dos relatórios de conteúdo enviados pelo botão +. */
+  onOpenAnalyses?: () => void;
   /** Fase 4 — indica se o propósito ainda não foi declarado (ponto laranja). */
   hasPurpose?: boolean;
   /** Reabre diretamente a área de afiliados após o retorno do Stripe Connect. */
@@ -57,6 +60,7 @@ export function DiagnosticoAccountMenuSheet({
   onSignOut,
   onOpenSurvey,
   onOpenNorte,
+  onOpenAnalyses,
   hasPurpose = false,
   initialView = "menu",
 }: Props) {
@@ -149,6 +153,13 @@ export function DiagnosticoAccountMenuSheet({
               onClick={() => { onClose(); onOpenNorte(); }}
               icon={<Compass className="h-4 w-4" strokeWidth={1.9} />}
               statusDot={hasPurpose ? undefined : "orange"}
+            />
+          )}
+          {onOpenAnalyses && (
+            <AccountMenuAction
+              label="Últimas análises"
+              onClick={() => { onClose(); onOpenAnalyses(); }}
+              icon={<ScanSearch className="h-4 w-4" strokeWidth={1.9} />}
             />
           )}
           <AccountMenuAction label="Mídia Kit" onClick={onOpenMediaKit} icon={<MediaKitIcon />} />

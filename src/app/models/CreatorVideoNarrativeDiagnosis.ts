@@ -36,6 +36,12 @@ export interface ICreatorVideoNarrativeDiagnosis extends Document {
   /** Coherence verdict against the creator's confirmed top-performing narrative pattern. */
   narrativeCoherence?: VideoNarrativeCoherence;
   contentPotentialScan?: VideoNarrativeContentPotentialScan;
+  /** Versioned pre-publication analysis surface. */
+  analysisVersion?: "v1" | "v2";
+  /** V2 analyses stay out of the narrative map until matched to a published post. */
+  learningStatus?: "analysis_only" | "published_matched";
+  historyVisibility?: "visible" | "hidden";
+  thumbnailStatus?: "pending" | "available" | "failed";
   contentPotentialFeedback?: Array<{
     target: "overall" | "evidence" | "direction";
     value: "helpful" | "not_in_video" | "wrong_intent";
@@ -305,6 +311,25 @@ const CreatorVideoNarrativeDiagnosisSchema = new Schema<ICreatorVideoNarrativeDi
     contentContext: { type: Schema.Types.Mixed, required: false, default: undefined },
     narrativeCoherence: { type: Schema.Types.Mixed, required: false, default: undefined },
     contentPotentialScan: { type: Schema.Types.Mixed, required: false, default: undefined },
+    analysisVersion: { type: String, enum: ["v1", "v2"], required: false, default: "v1" },
+    learningStatus: {
+      type: String,
+      enum: ["analysis_only", "published_matched"],
+      required: false,
+      default: undefined,
+    },
+    historyVisibility: {
+      type: String,
+      enum: ["visible", "hidden"],
+      required: false,
+      default: "visible",
+    },
+    thumbnailStatus: {
+      type: String,
+      enum: ["pending", "available", "failed"],
+      required: false,
+      default: undefined,
+    },
     contentPotentialFeedback: { type: [Schema.Types.Mixed], required: false, default: undefined },
     confirmationQuizAnswers: { type: [Schema.Types.Mixed], required: false, default: undefined },
     publishIntent: {
@@ -336,6 +361,7 @@ CreatorVideoNarrativeDiagnosisSchema.index(
   { unique: true, name: "creator_video_narrative_diagnosis_user_diagnosis_unique" },
 );
 CreatorVideoNarrativeDiagnosisSchema.index({ userId: 1, createdAt: -1 });
+CreatorVideoNarrativeDiagnosisSchema.index({ userId: 1, historyVisibility: 1, createdAt: -1 });
 
 const CreatorVideoNarrativeDiagnosis =
   (mongoose.models.CreatorVideoNarrativeDiagnosis as mongoose.Model<ICreatorVideoNarrativeDiagnosis>) ||

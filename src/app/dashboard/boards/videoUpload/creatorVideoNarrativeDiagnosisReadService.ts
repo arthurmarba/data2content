@@ -33,6 +33,10 @@ export interface CreatorVideoNarrativeDiagnosisSafeReading {
   /** Coherence verdict against the creator's confirmed top-performing pattern. */
   narrativeCoherence?: VideoNarrativeCoherence;
   contentPotentialScan?: VideoNarrativeContentPotentialScan;
+  analysisVersion?: "v1" | "v2";
+  learningStatus?: "analysis_only" | "published_matched";
+  historyVisibility?: "visible" | "hidden";
+  thumbnailStatus?: "pending" | "available" | "failed";
   /**
    * Creator's declared publication intent. Binary: "yes" or "no".
    * Null = legacy reading (pre-feature), treated as full weight.
@@ -69,8 +73,9 @@ export interface ListCreatorVideoNarrativeDiagnosesForUserParams {
  * still shows every analysis the creator ran, regardless of publish intent.
  */
 export function readingFeedsNarrativeMap(
-  reading: Pick<CreatorVideoNarrativeDiagnosisSafeReading, "publishIntent">,
+  reading: Pick<CreatorVideoNarrativeDiagnosisSafeReading, "publishIntent" | "learningStatus">,
 ): boolean {
+  if (reading.learningStatus === "analysis_only") return false;
   return reading.publishIntent !== "no";
 }
 
@@ -80,7 +85,7 @@ export interface GetCreatorVideoNarrativeDiagnosisForUserParams {
 }
 
 const DEFAULT_RECENT_LIMIT = 6;
-const MAX_RECENT_LIMIT = 12;
+const MAX_RECENT_LIMIT = 50;
 
 function assertValidUserId(userId: string): void {
   if (!userId || !Types.ObjectId.isValid(userId)) {
@@ -119,6 +124,10 @@ export function mapCreatorVideoNarrativeDiagnosisToSafeReading(
     contentContext: (doc as unknown as { contentContext?: VideoNarrativeContentContext }).contentContext,
     narrativeCoherence: (doc as unknown as { narrativeCoherence?: VideoNarrativeCoherence }).narrativeCoherence,
     contentPotentialScan: (doc as unknown as { contentPotentialScan?: VideoNarrativeContentPotentialScan }).contentPotentialScan,
+    analysisVersion: (doc as unknown as { analysisVersion?: "v1" | "v2" }).analysisVersion,
+    learningStatus: (doc as unknown as { learningStatus?: "analysis_only" | "published_matched" }).learningStatus,
+    historyVisibility: (doc as unknown as { historyVisibility?: "visible" | "hidden" }).historyVisibility,
+    thumbnailStatus: (doc as unknown as { thumbnailStatus?: "pending" | "available" | "failed" }).thumbnailStatus,
     publishIntent: (doc as unknown as { publishIntent?: "yes" | "no" | null }).publishIntent ?? null,
     confirmationQuizAnswers: (doc as unknown as { confirmationQuizAnswers?: CreatorVideoNarrativeDiagnosisSafeReading["confirmationQuizAnswers"] }).confirmationQuizAnswers,
     safetyFlags: doc.safetyFlags,
@@ -143,6 +152,10 @@ function queryProjection() {
     contentContext: 1,
     narrativeCoherence: 1,
     contentPotentialScan: 1,
+    analysisVersion: 1,
+    learningStatus: 1,
+    historyVisibility: 1,
+    thumbnailStatus: 1,
     publishIntent: 1,
     confirmationQuizAnswers: 1,
     safetyFlags: 1,
@@ -160,6 +173,7 @@ export async function listCreatorVideoNarrativeDiagnosesForUser(
 
   const docs = await CreatorVideoNarrativeDiagnosis.find({
     userId: new Types.ObjectId(params.userId),
+    historyVisibility: { $ne: "hidden" },
   })
     .select(queryProjection())
     .sort({ "videoMetadata.analyzedAt": -1, createdAt: -1 })

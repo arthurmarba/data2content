@@ -97,7 +97,10 @@ describe("creatorVideoNarrativeDiagnosisReadService", () => {
     const result = await listRecentCreatorVideoNarrativeDiagnosesForUser({ userId, limit: 2 });
 
     expect(mockConnect).toHaveBeenCalled();
-    expect(mockFind).toHaveBeenCalledWith({ userId: new Types.ObjectId(userId) });
+    expect(mockFind).toHaveBeenCalledWith({
+      userId: new Types.ObjectId(userId),
+      historyVisibility: { $ne: "hidden" },
+    });
     expect(chain.sort).toHaveBeenCalledWith({ "videoMetadata.analyzedAt": -1, createdAt: -1 });
     expect(chain.limit).toHaveBeenCalledWith(2);
     expect(result.map((reading) => reading.diagnosisId)).toEqual(["newer", "older"]);
@@ -146,7 +149,7 @@ describe("creatorVideoNarrativeDiagnosisReadService", () => {
 
     await listRecentCreatorVideoNarrativeDiagnosesForUser({ userId, limit: 99 });
 
-    expect(chain.limit).toHaveBeenCalledWith(12);
+    expect(chain.limit).toHaveBeenCalledWith(50);
   });
 
   describe("readingFeedsNarrativeMap (contrato binário do publishIntent)", () => {
@@ -161,6 +164,10 @@ describe("creatorVideoNarrativeDiagnosisReadService", () => {
     it("inclui leituras legadas (null/undefined) com peso pleno", () => {
       expect(readingFeedsNarrativeMap({ publishIntent: null })).toBe(true);
       expect(readingFeedsNarrativeMap({})).toBe(true);
+    });
+
+    it("não deixa uma análise pré-publicação alimentar o mapa", () => {
+      expect(readingFeedsNarrativeMap({ learningStatus: "analysis_only" })).toBe(false);
     });
   });
 });

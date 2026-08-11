@@ -5,7 +5,7 @@ import { isMobileStrategicProfileEnabled } from "@/app/dashboard/boards/videoUpl
 import { getCreatorVideoNarrativeDiagnosisForUser } from "@/app/dashboard/boards/videoUpload/creatorVideoNarrativeDiagnosisReadService";
 import { appendConfirmationQuizAnswer } from "@/app/dashboard/boards/videoUpload/creatorVideoNarrativeDiagnosisService";
 
-type RouteContext = { params: { diagnosisId: string } };
+type RouteContext = { params: Promise<{ diagnosisId: string }> };
 
 export async function PATCH(
   req: Request,
@@ -21,7 +21,7 @@ export async function PATCH(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const { diagnosisId } = params;
+  const { diagnosisId } = await params;
   if (!diagnosisId?.trim()) {
     return NextResponse.json({ error: "invalid_diagnosis_id" }, { status: 400 });
   }
@@ -81,7 +81,7 @@ export async function GET(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const { diagnosisId } = params;
+  const { diagnosisId } = await params;
   if (!diagnosisId?.trim()) {
     return NextResponse.json({ error: "invalid_diagnosis_id" }, { status: 400 });
   }
@@ -108,6 +108,10 @@ export async function GET(
       profileContribution: reading.profileContribution,
       evidenceAnchors: reading.evidenceAnchors ?? null,
       narrativeCoherence: reading.narrativeCoherence ?? null,
+      contentPotentialScan: reading.contentPotentialScan ?? null,
+      analysisVersion: reading.analysisVersion ?? "v1",
+      learningStatus: reading.learningStatus ?? null,
+      thumbnailStatus: reading.thumbnailStatus ?? null,
     });
   } catch (err) {
     console.error("[reading-detail] erro ao buscar leitura:", err);

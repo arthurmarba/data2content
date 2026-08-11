@@ -343,6 +343,7 @@ export async function POST(request: Request) {
         scenario: mockScenario,
       },
     });
+    const isEngagementScanV2 = body.analysisMode === "engagement_scan_v2";
 
     // 10. Mapear para Snapshot
     const snapshotPayload = mapAnalysisToSnapshotPayload(analysis);
@@ -372,14 +373,16 @@ export async function POST(request: Request) {
     });
 
     // 11. Salvar no banco Mongoose com a fonte mock_analysis
-    const upserted = await upsertStrategicProfileSnapshot({
-      userId: session.user.id,
-      status: "active",
-      accessLevel,
-      snapshot: snapshotPayload,
-      source: "mock_analysis",
-      lastAnalyzedAt: new Date(),
-    });
+    const upserted = isEngagementScanV2
+      ? null
+      : await upsertStrategicProfileSnapshot({
+          userId: session.user.id,
+          status: "active",
+          accessLevel,
+          snapshot: snapshotPayload,
+          source: "mock_analysis",
+          lastAnalyzedAt: new Date(),
+        });
     const videoReadingPersistence = await persistMockReading({
       body,
       userId: session.user.id,
@@ -395,12 +398,24 @@ export async function POST(request: Request) {
       userId: session.user.id,
       readingPersistence: videoReadingPersistence,
     });
+    if (isEngagementScanV2 && videoReadingPersistence.diagnosisId) {
+      const { default: CreatorVideoNarrativeDiagnosis } = await import("@/app/models/CreatorVideoNarrativeDiagnosis");
+      await CreatorVideoNarrativeDiagnosis.updateOne(
+        { userId: session.user.id, diagnosisId: videoReadingPersistence.diagnosisId },
+        { $set: {
+          analysisVersion: "v2",
+          learningStatus: "analysis_only",
+          historyVisibility: "visible",
+          thumbnailStatus: "pending",
+        } },
+      );
+    }
 
     return NextResponse.json({
       ok: true,
-      snapshotUpdated: true,
+      snapshotUpdated: !isEngagementScanV2,
       snapshot: {
-        ...upserted.snapshot,
+        ...(upserted?.snapshot ?? snapshotPayload),
         // Scan is attached to the response for immediate UI feedback. The
         // durable learning record lives in CreatorVideoNarrativeDiagnosis.
         contentPotentialScan: analysis.contentPotentialScan ?? null,

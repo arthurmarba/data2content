@@ -246,7 +246,6 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     data.accessState !== "payment_pending" &&
     data.accessState !== "payment_action_needed";
   const [accessMessage, setAccessMessage] = useState<string | null>(null);
-  const [localThumbnails, setLocalThumbnails] = useState<Record<string, string>>({});
   const [showInstagramConnectedNotice, setShowInstagramConnectedNotice] = useState(false);
 
   useEffect(() => {
@@ -268,7 +267,6 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("instagramLinked") === "true",
   );
   const [openCategory, setOpenCategory] = useState<CategoryId | null>(null);
-  const pendingPublishIntentRef = useRef<Promise<void> | null>(null);
   const [diagnosisOverviewOpen, setDiagnosisOverviewOpen] = useState(false);
   const affiliateReturn = searchParams?.get("affiliate") === "1";
   const [accountMenuOpen, setAccountMenuOpen] = useState(affiliateReturn);
@@ -1309,20 +1307,6 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     }
   }, [searchParams, router]);
 
-  // Restore thumbnails from localStorage
-  useEffect(() => {
-    const map: Record<string, string> = {};
-    try {
-      for (const reading of data.readings) {
-        const stored = localStorage.getItem(`d2c_thumb_${reading.diagnosisId}`);
-        if (stored) map[reading.diagnosisId] = stored;
-      }
-    } catch {
-      // localStorage unavailable — non-fatal
-    }
-    if (Object.keys(map).length > 0) setLocalThumbnails(map);
-  }, [data.readings]);
-
   const collabSuggestionsRequest = useMemo(() => {
     if (!isMapReadyForExpansion) return { key: "blocked", payload: null };
     // Fase C: narrative-map matching does NOT require Instagram — removed instagramConnected guard.
@@ -1552,7 +1536,8 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
               payload.consentTextVersion ||
               "mobile_strategic_profile_temporary_video_v1",
             persistReading: true,
-            persistSynthesisSnapshot: true,
+            persistSynthesisSnapshot: false,
+            analysisMode: "engagement_scan_v2",
           }
         : {
             creatorGoal: payload.creatorGoal,
@@ -1560,7 +1545,8 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
             quickAnswers: payload.quickAnswers,
             mockScenario: payload.mockScenario,
             persistReading: true,
-            persistSynthesisSnapshot: true,
+            persistSynthesisSnapshot: false,
+            analysisMode: "engagement_scan_v2",
           };
 
       const { response, data: responseData } = await postMobileStrategicProfileAnalysisJson({
@@ -1623,70 +1609,27 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       setAnalyzeFlowOpen(false);
       if (result?.thumbnailDataUrl && result.savedDiagnosisId) {
         try {
-          localStorage.setItem(`d2c_thumb_${result.savedDiagnosisId}`, result.thumbnailDataUrl);
-          setLocalThumbnails((prev) => ({
-            ...prev,
-            [result.savedDiagnosisId!]: result.thumbnailDataUrl!,
-          }));
+          const thumbnailResponse = await fetch(result.thumbnailDataUrl);
+          const thumbnail = await thumbnailResponse.blob();
+          await fetch(
+            `/api/dashboard/mobile-strategic-profile/analyses/${encodeURIComponent(result.savedDiagnosisId)}/thumbnail`,
+            {
+              method: "POST",
+              headers: { "Content-Type": thumbnail.type || "image/jpeg" },
+              body: thumbnail,
+            },
+          );
         } catch {
-          // localStorage unavailable — non-fatal
+          // A leitura continua disponível quando a capa privada falha.
         }
-      }
-      // Await any in-flight publishIntent PATCH before refreshing. The PATCH now
-      // runs map enrichment synchronously (~2-5s), so waiting here ensures
-      // router.refresh() loads the updated MapaSeed rather than the stale one.
-      if (pendingPublishIntentRef.current) {
-        await pendingPublishIntentRef.current.catch(() => {});
-        pendingPublishIntentRef.current = null;
       }
       router.refresh();
     },
     [router],
   );
 
-  const handlePublishIntentSubmit = useCallback(
-    async (diagnosisId: string, intent: "yes" | "no") => {
-      const promise = fetch(
-        `/api/dashboard/mobile-strategic-profile/diagnosis/${encodeURIComponent(diagnosisId)}/publish-intent`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ publishIntent: intent }),
-        },
-      ).then(() => {}).catch(() => {});
-      pendingPublishIntentRef.current = promise;
-      return promise;
-    },
-    [],
-  );
-
-  const handleContentPotentialFeedbackSubmit = useCallback(
-    async (diagnosisId: string, feedback: {
-      target: "overall" | "evidence" | "direction";
-      value: "helpful" | "not_in_video" | "wrong_intent";
-      moment?: "opening" | "development" | "closing";
-    }) => {
-      await fetch(
-        `/api/dashboard/mobile-strategic-profile/diagnosis/${encodeURIComponent(diagnosisId)}/content-potential-feedback`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(feedback),
-        },
-      ).then(() => {}).catch(() => {});
-    },
-    [],
-  );
-
-  const handleScanReportInteraction = useCallback((event: "copy_suggestion" | "adjustment_marked" | "rescan_started" | "feedback_submitted" | "publish_decision", actionType?: string) => {
-    const eventNames: Record<typeof event, MobileNarrativeTelemetryEventName> = {
-      copy_suggestion: "mobile_scan_suggestion_copied",
-      adjustment_marked: "mobile_scan_adjustment_marked",
-      rescan_started: "mobile_scan_rescan_started",
-      feedback_submitted: "mobile_scan_feedback_submitted",
-      publish_decision: "mobile_scan_publish_decision",
-    };
-    trackMobileNarrativeEvent(eventNames[event], { route: MOBILE_PROFILE_ROUTE, actionType });
+  const handleScanReportInteraction = useCallback((_event: "copy_suggestion", actionType?: string) => {
+    trackMobileNarrativeEvent("mobile_scan_suggestion_copied", { route: MOBILE_PROFILE_ROUTE, actionType });
   }, []);
 
   const handleCompletionUpgrade = useCallback(() => {
@@ -1862,14 +1805,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
   // O shell concentra muitos overlays e fluxos locais. Sem memoização, qualquer
   // abertura de sheet refazia as listas e trocava a referência de `data`, forçando
   // toda a árvore pesada do perfil a renderizar novamente.
-  const hydratedReadings = useMemo(
-    () => data.readings.map((reading) =>
-      localThumbnails[reading.diagnosisId]
-        ? { ...reading, thumbnailUrl: localThumbnails[reading.diagnosisId] }
-        : reading,
-    ),
-    [data.readings, localThumbnails],
-  );
+  const hydratedReadings = data.readings;
 
   const leadingNarrative = useMemo(
     () => resolveDiagnosticoLeadingNarrativeSignal(data.synthesis),
@@ -2161,6 +2097,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
           onSignOut={handleAccountSignOut}
           onOpenSurvey={() => setSurveyOpen(true)}
           onOpenNorte={() => setNorteOpen(true)}
+          onOpenAnalyses={() => router.push("/dashboard/boards/mobile-strategic-profile/settings/analyses")}
           hasPurpose={Boolean(localPurpose)}
           initialView={affiliateReturn ? "affiliates" : "menu"}
         />
@@ -2344,8 +2281,6 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
         onUploadToTemporarySignedUrl={uploadVideoToTemporarySignedUrl}
         enableRealAnalysis={REAL_ANALYSIS_ENABLED}
         onCleanupTemporaryUpload={handleCleanupUpload}
-        onPublishIntentSubmit={handlePublishIntentSubmit}
-        onContentPotentialFeedbackSubmit={handleContentPotentialFeedbackSubmit}
         onReportInteraction={handleScanReportInteraction}
         completionSecondaryAction={data.accessState === "free_unused" ? "upgrade" : "another_video"}
         onCompletionUpgrade={handleCompletionUpgrade}

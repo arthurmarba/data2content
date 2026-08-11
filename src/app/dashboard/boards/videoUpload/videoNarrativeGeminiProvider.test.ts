@@ -153,6 +153,40 @@ describe("videoNarrativeGeminiProvider", () => {
     expect(JSON.stringify(result)).not.toContain("dunning");
   });
 
+  it("distingue falta de créditos de erro de permissão", async () => {
+    const quotaError = Object.assign(
+      new Error("RESOURCE_EXHAUSTED: prepayment credits are depleted"),
+      { status: 429 },
+    );
+    const result = await runVideoNarrativeGeminiProvider({
+      input: input(),
+      user: { id: "usr_123", role: "admin" },
+      env: enabledEnv,
+      client: { generateContent: jest.fn().mockRejectedValue(quotaError) },
+    });
+    expect(result.ok).toBe(false);
+    expect(result.issues?.[0].code).toBe("gemini_quota_exhausted");
+    expect(JSON.stringify(result)).not.toContain("credits");
+  });
+
+  it("registra o provider efetivo quando o fallback retorna uma análise válida", async () => {
+    const client: VideoNarrativeGeminiClientAdapter = {
+      generateContent: jest.fn().mockResolvedValue({
+        text: geminiVideoNarrativeRawJsonFixture,
+        provider: "openai",
+      }),
+    };
+    const result = await runVideoNarrativeGeminiProvider({
+      input: input(),
+      user: { id: "usr_123", role: "admin" },
+      env: enabledEnv,
+      client,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.provider).toBe("openai");
+    expect(result.safeDebugSummary).toBe("openai_fallback_analysis_parsed");
+  });
+
   it("resposta inválida vira erro seguro", async () => {
     const result = await runVideoNarrativeGeminiProvider({
       input: input(),

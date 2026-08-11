@@ -13,12 +13,17 @@ import {
   createGeminiVideoNarrativeClient,
   createVideoNarrativeGeminiClientAdapter,
 } from "./geminiVideoNarrativeClientFactory";
+import { runVideoNarrativeOpenAiFallback } from "./videoNarrativeOpenAiFallback";
 
 jest.mock("@google/genai", () => ({
   GoogleGenAI: jest.fn(),
   createUserContent: jest.fn((parts) => ({ role: "user", parts })),
   createPartFromUri: jest.fn((uri, mimeType) => ({ fileData: { fileUri: uri, mimeType } })),
   createPartFromBase64: jest.fn((data, mimeType) => ({ inlineData: { data, mimeType } })),
+}));
+
+jest.mock("./videoNarrativeOpenAiFallback", () => ({
+  runVideoNarrativeOpenAiFallback: jest.fn(),
 }));
 
 const generateContent = jest.fn();
@@ -29,6 +34,7 @@ const mockedGoogleGenAI = GoogleGenAI as jest.MockedClass<typeof GoogleGenAI>;
 const mockedCreateUserContent = createUserContent as jest.MockedFunction<typeof createUserContent>;
 const mockedCreatePartFromUri = createPartFromUri as jest.MockedFunction<typeof createPartFromUri>;
 const mockedCreatePartFromBase64 = createPartFromBase64 as jest.MockedFunction<typeof createPartFromBase64>;
+const mockedOpenAiFallback = runVideoNarrativeOpenAiFallback as jest.MockedFunction<typeof runVideoNarrativeOpenAiFallback>;
 
 const forbiddenTerms = [
   "erro",
@@ -70,6 +76,7 @@ beforeEach(() => {
     state: "ACTIVE",
   });
   deleteFile.mockResolvedValue({});
+  mockedOpenAiFallback.mockResolvedValue({ text: "fallback-json", provider: "openai" });
   mockedGoogleGenAI.mockImplementation(
     () =>
       ({
@@ -247,6 +254,40 @@ describe("geminiVideoNarrativeClientFactory", () => {
       }),
     );
     expect(generateContent.mock.calls[0][0].config).not.toHaveProperty("responseJsonSchema");
+  });
+
+  it("usa fallback OpenAI quando o Gemini fica sem créditos", async () => {
+    generateContent.mockRejectedValueOnce(Object.assign(
+      new Error("RESOURCE_EXHAUSTED: prepayment credits are depleted"),
+      { status: 429 },
+    ));
+    const client = createVideoNarrativeGeminiClientAdapter({
+      apiKey: "gemini-key",
+      openAiFallbackApiKey: "openai-key",
+      openAiFallbackEnabled: true,
+    }).client!;
+
+    const result = await client.generateContent({
+      systemInstruction: "sistema",
+      userInstruction: "usuário",
+      responseSchemaInstruction: "json",
+      model: "gemini-2.5-flash",
+      maxOutputTokens: 3000,
+      videoInput: {
+        mimeType: "video/mp4",
+        bytes: Buffer.from("fake-video"),
+        durationSeconds: 12,
+        source: "temporary_storage",
+      },
+    });
+
+    expect(mockedOpenAiFallback).toHaveBeenCalledWith(expect.objectContaining({
+      apiKey: "openai-key",
+      input: expect.objectContaining({
+        videoInput: expect.objectContaining({ durationSeconds: 12 }),
+      }),
+    }));
+    expect(result).toEqual({ text: "fallback-json", provider: "openai" });
   });
 
   it("adapter server-side usa File API para vídeo grande em vez de inline base64", async () => {

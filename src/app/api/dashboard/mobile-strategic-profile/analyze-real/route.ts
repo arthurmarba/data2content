@@ -17,6 +17,7 @@ import { runVideoNarrativeRealAnalysisOrchestrator } from "@/app/dashboard/board
 import { validateVideoNarrativeTemporaryUploadCleanupPayload } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryUploadCleanupTypes";
 import { buildInstagramMetricsSummary } from "@/app/dashboard/boards/videoUpload/instagramMetricsSummaryService";
 import { buildContentPotentialCalibrationHistory } from "@/app/dashboard/boards/videoUpload/contentPotentialHistoryService";
+import { buildCreatorEngagementBaseline } from "@/app/dashboard/boards/videoUpload/creatorEngagementBaselineService";
 import { buildAudienceContextSummary } from "@/app/dashboard/boards/videoUpload/audienceContextSummaryService";
 import { listRecentCreatorVideoNarrativeDiagnosesForUser } from "@/app/dashboard/boards/videoUpload/creatorVideoNarrativeDiagnosisReadService";
 import type { VideoNarrativeInstagramMetricsSummary } from "@/app/dashboard/boards/videoUpload/videoNarrativeAiProviderTypes";
@@ -25,6 +26,7 @@ import {
   isLocalVideoNarrativeTemporaryUploadEnabled,
   isLocalVideoNarrativeUploadSessionId,
 } from "@/app/dashboard/boards/videoUpload/videoNarrativeLocalTemporaryUploadStore";
+import { deleteVideoNarrativeTemporaryStorageObject } from "@/app/dashboard/boards/videoUpload/videoNarrativeTemporaryStorageRuntimeAdapter";
 import { ensurePlannerAccess } from "@/app/lib/planGuard";
 import {
   hasNarrativeMapInstagramConnection,
@@ -72,7 +74,9 @@ const NON_RETRYABLE_ANALYSIS_CODES = new Set([
   "gemini_api_key_missing",
   "gemini_model_missing",
   "gemini_permission_denied",
+  "gemini_quota_exhausted",
   "gemini_file_permission_denied",
+  "openai_fallback_api_key_missing",
   "provider_not_configured",
   "missing_credentials",
   "unsupported_provider",
@@ -359,11 +363,12 @@ export async function POST(request: Request) {
 
     // Fetch Instagram metrics + recent readings in parallel to enrich the Gemini prompt.
     // Both are non-blocking: failures degrade gracefully (null / empty array).
-    const [rawInstagramMetrics, recentReadings, audienceContext, contentPotentialHistory] = await Promise.all([
+    const [rawInstagramMetrics, recentReadings, audienceContext, contentPotentialHistory, engagementBaseline] = await Promise.all([
       buildInstagramMetricsSummary(session.user.id).catch(() => null),
       listRecentCreatorVideoNarrativeDiagnosesForUser({ userId: session.user.id, limit: 4 }).catch(() => []),
       buildAudienceContextSummary(session.user.id).catch(() => null),
       buildContentPotentialCalibrationHistory(session.user.id).catch(() => ({ outcomesLinked: 0, bandOutcomes: {} })),
+      buildCreatorEngagementBaseline(session.user.id).catch(() => null),
     ]);
 
     // Map the rich InstagramMetricsSummary to the provider-facing type, including
@@ -468,7 +473,9 @@ export async function POST(request: Request) {
     const realAnalysisPayload = {
       ...validation.payload,
       persistReading: true,
-      persistSynthesisSnapshot: true,
+      // A pre-publication analysis belongs to history, not to the creator's map.
+      // It only becomes learning evidence after an exact published-post match.
+      persistSynthesisSnapshot: false,
     };
 
     const result = await runVideoNarrativeRealAnalysisOrchestrator({
@@ -490,6 +497,7 @@ export async function POST(request: Request) {
         pastCreatorAnswers: pastCreatorAnswers.length > 0 ? pastCreatorAnswers : null,
         audienceContext,
         contentPotentialHistory,
+        engagementBaseline,
         evaluateAllowlist: () => ({ ok: true, reason: "narrative_map_entitlement" }),
         assertCanRunRealAnalysis: localRealAnalysisEnabled
           ? async () => ({
@@ -519,8 +527,14 @@ export async function POST(request: Request) {
           if (!cleanupValidation.ok) {
             throw new Error("cleanup_payload_rejected");
           }
-          if (localRealAnalysisEnabled && reason !== "analysis_failed") {
-            await deleteLocalVideoNarrativeTemporaryUpload({ sessionId: uploadSessionId });
+          if (localRealAnalysisEnabled) {
+            const deleted = await deleteLocalVideoNarrativeTemporaryUpload({ sessionId: uploadSessionId });
+            if (!deleted) throw new Error("temporary_video_delete_not_confirmed");
+            return;
+          }
+          if (objectKey) {
+            const deleted = await deleteVideoNarrativeTemporaryStorageObject({ objectKey });
+            if (!deleted) throw new Error("temporary_video_delete_not_confirmed");
           }
         },
       },
@@ -694,8 +708,8 @@ export async function POST(request: Request) {
         ? {
             diagnosisSummary:
               readingCount === 1
-                ? "Primeira análise registrada. Seu Perfil estratégico começou a se formar."
-                : `${readingCount}ª análise registrada. ${synthStatusLabel[synthStatus] ?? "Perfil em construção"}.`,
+                ? "Análise concluída e salva nas suas últimas análises."
+                : "Análise concluída e salva nas suas últimas análises.",
             unlockedSignals: [],
             opportunities: [],
             // Direct answer to the creator's question + coherence verdict, surfaced on
@@ -716,6 +730,7 @@ export async function POST(request: Request) {
       userId: session.user.id,
       meta: {
         diagnosisId: result.videoReadingPersistence?.diagnosisId,
+        analysisProvider: result.analysisProvider,
         synthesisStatus: synthStatus,
         analyzedReadingsCount: readingCount,
       },

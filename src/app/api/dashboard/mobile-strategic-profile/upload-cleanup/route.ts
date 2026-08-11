@@ -96,14 +96,6 @@ export async function POST(request: Request) {
       }
     }
 
-    if (validation.payload.reason === "analysis_failed") {
-      return NextResponse.json({
-        ok: true,
-        status: "cleanup_deferred",
-        message: "Cleanup temporário adiado para permitir nova tentativa da análise.",
-      });
-    }
-
     if (validation.payload.objectKey) {
       const deleted = await deleteVideoNarrativeTemporaryStorageObject({
         objectKey: validation.payload.objectKey,
@@ -118,11 +110,14 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({
-      ok: true,
-      status: "cleanup_not_configured",
-      message: "Cleanup temporário registrado em contrato seguro; delete real ainda não configurado.",
-    });
+    return NextResponse.json(
+      {
+        ok: false,
+        status: "cleanup_not_confirmed",
+        message: "Não foi possível confirmar a exclusão do arquivo temporário.",
+      },
+      { status: 502 },
+    );
   } catch {
     return NextResponse.json(
       { message: "Ocorreu um erro interno ao preparar o cleanup temporário." },

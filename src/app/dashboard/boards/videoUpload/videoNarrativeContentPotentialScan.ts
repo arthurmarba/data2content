@@ -8,6 +8,32 @@ export type VideoNarrativePotentialConfidence = "low" | "medium" | "high";
 export type VideoNarrativePotentialBasis = "video_only" | "creator_history";
 export type VideoNarrativePotentialDimensionStatus = "strong" | "mixed" | "weak" | "unknown";
 
+export type VideoNarrativeEngagementPotentialVerdict =
+  | "strong"
+  | "promising"
+  | "promising_with_adjustment"
+  | "uncertain"
+  | "limited";
+
+export type VideoNarrativeEngagementPotential = {
+  verdict: VideoNarrativeEngagementPotentialVerdict;
+  confidence: VideoNarrativePotentialConfidence;
+  basis: "creator_history" | "partial_history" | "video_structure";
+  summary: string;
+  postsCompared: number;
+  historicalWindowDays: number;
+};
+
+export type VideoNarrativePersonalComparison = {
+  dimension: "hook" | "framing" | "subject" | "tone" | "rhythm" | "delivery";
+  label: string;
+  current: string;
+  historical: string;
+  impact: "positive" | "limiting" | "experimental" | "neutral" | "unknown";
+  reading: string;
+  evidenceCount: number;
+};
+
 export type VideoNarrativePotentialDimension = {
   status: VideoNarrativePotentialDimensionStatus;
   evidence: string;
@@ -42,6 +68,10 @@ export type VideoNarrativeContentPotentialScan = {
   };
   watchedMoments?: VideoNarrativeWatchedMoment[];
   practicalDirection?: VideoNarrativePracticalDirection;
+  /** Server-calibrated opinion based on published Instagram history. */
+  engagementPotential?: VideoNarrativeEngagementPotential;
+  /** Safe, human-readable current-video versus personal-history comparisons. */
+  personalComparisons?: VideoNarrativePersonalComparison[];
   highestImpactAdjustment: string;
   disclaimer: string;
 };
@@ -95,6 +125,60 @@ function cleanPracticalDirection(value: unknown): VideoNarrativePracticalDirecti
   const action = cleanText(raw.action, 320);
   if (!title || !action) return undefined;
   return { title, action, example: cleanText(raw.example, 220) || null };
+}
+
+function cleanEngagementPotential(value: unknown): VideoNarrativeEngagementPotential | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const raw = value as Partial<VideoNarrativeEngagementPotential>;
+  if (![
+    "strong",
+    "promising",
+    "promising_with_adjustment",
+    "uncertain",
+    "limited",
+  ].includes(String(raw.verdict))) return undefined;
+  const summary = cleanText(raw.summary, 320);
+  if (!summary) return undefined;
+  return {
+    verdict: raw.verdict as VideoNarrativeEngagementPotentialVerdict,
+    confidence: ["low", "medium", "high"].includes(String(raw.confidence))
+      ? raw.confidence as VideoNarrativePotentialConfidence
+      : "low",
+    basis: ["creator_history", "partial_history", "video_structure"].includes(String(raw.basis))
+      ? raw.basis as VideoNarrativeEngagementPotential["basis"]
+      : "video_structure",
+    summary,
+    postsCompared: Math.max(0, Math.trunc(Number(raw.postsCompared) || 0)),
+    historicalWindowDays: Math.max(0, Math.min(365, Math.trunc(Number(raw.historicalWindowDays) || 0))),
+  };
+}
+
+function cleanPersonalComparisons(value: unknown): VideoNarrativePersonalComparison[] {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 6).map((item): VideoNarrativePersonalComparison | null => {
+    if (!item || typeof item !== "object") return null;
+    const raw = item as Partial<VideoNarrativePersonalComparison>;
+    const dimension = String(raw.dimension);
+    const impact = String(raw.impact);
+    const label = cleanText(raw.label, 80);
+    const current = cleanText(raw.current, 160);
+    const historical = cleanText(raw.historical, 180);
+    const reading = cleanText(raw.reading, 240);
+    if (
+      !["hook", "framing", "subject", "tone", "rhythm", "delivery"].includes(dimension) ||
+      !["positive", "limiting", "experimental", "neutral", "unknown"].includes(impact) ||
+      !label || !current || !historical || !reading
+    ) return null;
+    return {
+      dimension: dimension as VideoNarrativePersonalComparison["dimension"],
+      label,
+      current,
+      historical,
+      impact: impact as VideoNarrativePersonalComparison["impact"],
+      reading,
+      evidenceCount: Math.max(0, Math.trunc(Number(raw.evidenceCount) || 0)),
+    };
+  }).filter((item): item is VideoNarrativePersonalComparison => Boolean(item));
 }
 
 export function contextualizeVideoNarrativeContentPotentialScan(params: {
@@ -233,6 +317,8 @@ export function sanitizeVideoNarrativeContentPotentialScan(
 
   const watchedMoments = cleanWatchedMoments(scan.watchedMoments);
   const practicalDirection = cleanPracticalDirection(scan.practicalDirection);
+  const engagementPotential = cleanEngagementPotential(scan.engagementPotential);
+  const personalComparisons = cleanPersonalComparisons(scan.personalComparisons);
   return {
     band: ["strong", "promising_with_adjustment", "uncertain", "weak_signals"].includes(scan.band)
       ? scan.band
@@ -252,6 +338,8 @@ export function sanitizeVideoNarrativeContentPotentialScan(
     },
     ...(watchedMoments.length > 0 ? { watchedMoments } : {}),
     ...(practicalDirection ? { practicalDirection } : {}),
+    ...(engagementPotential ? { engagementPotential } : {}),
+    ...(personalComparisons.length > 0 ? { personalComparisons } : {}),
     highestImpactAdjustment: cleanText(scan.highestImpactAdjustment),
     disclaimer: cleanText(scan.disclaimer),
   };

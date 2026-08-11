@@ -33,6 +33,10 @@ export type SaveCreatorVideoNarrativeDiagnosisFromStructuredAnalysisParams = {
   seed?: PostCreationVideoSeed | null;
   analyzedAt?: string | Date | null;
   createdAt?: string | Date | null;
+  analysisLifecycle?: Pick<
+    CreatorVideoNarrativeDiagnosisInput,
+    "analysisVersion" | "learningStatus" | "historyVisibility" | "thumbnailStatus"
+  >;
 };
 
 export type SaveCreatorVideoNarrativeDiagnosisResult =
@@ -118,6 +122,9 @@ export async function saveCreatorVideoNarrativeDiagnosisFromStructuredAnalysis(
   let mappedInput: CreatorVideoNarrativeDiagnosisInput;
   try {
     mappedInput = mapToDiagnosisInput(buildMapperParams(params));
+    if (params.analysisLifecycle) {
+      mappedInput = { ...mappedInput, ...params.analysisLifecycle };
+    }
     mappedInput = sanitizeCreatorVideoNarrativeDiagnosisInput(mappedInput);
   } catch (error) {
     return safeFailure(classifyMappingError(error));

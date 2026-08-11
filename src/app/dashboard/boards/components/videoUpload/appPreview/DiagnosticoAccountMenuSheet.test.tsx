@@ -15,6 +15,7 @@ jest.mock("lucide-react", () => {
     Instagram: Icon,
     LifeBuoy: Icon,
     LogOut: Icon,
+    ScanSearch: Icon,
     Shield: Icon,
     UsersRound: Icon,
     X: Icon,
@@ -98,6 +99,14 @@ describe("DiagnosticoAccountMenuSheet — U5 menu contextual", () => {
     const props = setup();
     fireEvent.click(screen.getByText("Comunidade"));
     expect(props.onOpenCommunity).toHaveBeenCalledTimes(1);
+  });
+
+  it("abre o arquivo de últimas análises", () => {
+    const onOpenAnalyses = jest.fn();
+    const props = setup({ onOpenAnalyses });
+    fireEvent.click(screen.getByText("Últimas análises"));
+    expect(props.onClose).toHaveBeenCalledTimes(1);
+    expect(onOpenAnalyses).toHaveBeenCalledTimes(1);
   });
 
   it("abre Afiliados dentro do mesmo sheet e permite voltar ao menu", () => {

@@ -171,19 +171,16 @@ export function MobileStrategicProfileRealShellClient({
   const [localThumbnailsByDiagnosisId, setLocalThumbnailsByDiagnosisId] = useState<Record<string, string>>({});
   const hasNarrativeMapShell = Boolean(initialNarrativeMapViewModel && initialNarrativeMapPresentation);
 
-  // Load persisted thumbnails from localStorage on mount
+  // Migração de privacidade: remove capas Base64 deixadas por versões antigas.
+  // As novas capas vivem somente no storage privado autenticado.
   useEffect(() => {
     try {
-      const map: Record<string, string> = {};
-      for (let i = 0; i < localStorage.length; i++) {
+      for (let i = localStorage.length - 1; i >= 0; i -= 1) {
         const key = localStorage.key(i);
         if (key?.startsWith("d2c_thumb_")) {
-          const diagnosisId = key.slice("d2c_thumb_".length);
-          const value = localStorage.getItem(key);
-          if (diagnosisId && value) map[diagnosisId] = value;
+          localStorage.removeItem(key);
         }
       }
-      if (Object.keys(map).length > 0) setLocalThumbnailsByDiagnosisId(map);
     } catch {
       // localStorage unavailable (SSR, private mode, etc.)
     }
@@ -365,7 +362,8 @@ export function MobileStrategicProfileRealShellClient({
           quickAnswers: payload.quickAnswers,
           consentTextVersion: payload.consentTextVersion || "mobile_strategic_profile_temporary_video_v1",
           persistReading: true,
-          persistSynthesisSnapshot: true,
+          persistSynthesisSnapshot: false,
+          analysisMode: "engagement_scan_v2",
         }
       : {
           creatorGoal: payload.creatorGoal,
@@ -373,7 +371,8 @@ export function MobileStrategicProfileRealShellClient({
           quickAnswers: payload.quickAnswers,
           mockScenario: payload.mockScenario,
           persistReading: true,
-          persistSynthesisSnapshot: true,
+          persistSynthesisSnapshot: false,
+          analysisMode: "engagement_scan_v2",
         };
 
     trackMobileNarrativeEvent("mobile_analysis_submitted", {
@@ -711,56 +710,37 @@ export function MobileStrategicProfileRealShellClient({
     return response;
   }, [telemetryContext]);
 
-  const handleMapAnalyzeComplete = useCallback((result?: MobileStrategicProfileAnalyzeFlowCompleteResult) => {
+  const handleMapAnalyzeComplete = useCallback(async (result?: MobileStrategicProfileAnalyzeFlowCompleteResult) => {
     setMapAnalyzeFlowOpen(false);
     setMapProfileUpdated(true);
     if (result?.thumbnailDataUrl) {
       setLatestReadingThumbnail(result.thumbnailDataUrl);
-      // Persist thumbnail to localStorage so it survives page refreshes
       if (result.savedDiagnosisId) {
         try {
-          localStorage.setItem(`d2c_thumb_${result.savedDiagnosisId}`, result.thumbnailDataUrl);
+          const thumbnailResponse = await fetch(result.thumbnailDataUrl);
+          const thumbnail = await thumbnailResponse.blob();
+          await fetch(
+            `/api/dashboard/mobile-strategic-profile/analyses/${encodeURIComponent(result.savedDiagnosisId)}/thumbnail`,
+            {
+              method: "POST",
+              headers: { "Content-Type": thumbnail.type || "image/jpeg" },
+              body: thumbnail,
+            },
+          );
           setLocalThumbnailsByDiagnosisId((prev) => ({
             ...prev,
             [result.savedDiagnosisId!]: result.thumbnailDataUrl!,
           }));
         } catch {
-          // localStorage may be unavailable or full — non-fatal
+          // A leitura persiste mesmo quando a capa privada falha.
         }
       }
     }
     router.refresh();
   }, [router]);
 
-  const handlePublishIntentSubmit = useCallback(async (diagnosisId: string, intent: "yes" | "no") => {
-    await fetch(`/api/dashboard/mobile-strategic-profile/diagnosis/${encodeURIComponent(diagnosisId)}/publish-intent`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ publishIntent: intent }),
-    }).then(() => {}).catch(() => {});
-  }, []);
-
-  const handleContentPotentialFeedbackSubmit = useCallback(async (diagnosisId: string, feedback: {
-    target: "overall" | "evidence" | "direction";
-    value: "helpful" | "not_in_video" | "wrong_intent";
-    moment?: "opening" | "development" | "closing";
-  }) => {
-    await fetch(`/api/dashboard/mobile-strategic-profile/diagnosis/${encodeURIComponent(diagnosisId)}/content-potential-feedback`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(feedback),
-    }).then(() => {}).catch(() => {});
-  }, []);
-
-  const handleScanReportInteraction = useCallback((event: "copy_suggestion" | "adjustment_marked" | "rescan_started" | "feedback_submitted" | "publish_decision", actionType?: string) => {
-    const eventNames = {
-      copy_suggestion: "mobile_scan_suggestion_copied",
-      adjustment_marked: "mobile_scan_adjustment_marked",
-      rescan_started: "mobile_scan_rescan_started",
-      feedback_submitted: "mobile_scan_feedback_submitted",
-      publish_decision: "mobile_scan_publish_decision",
-    } as const;
-    trackMobileNarrativeEvent(eventNames[event], { ...telemetryContext, actionType });
+  const handleScanReportInteraction = useCallback((_event: "copy_suggestion", actionType?: string) => {
+    trackMobileNarrativeEvent("mobile_scan_suggestion_copied", { ...telemetryContext, actionType });
   }, [telemetryContext]);
 
   return (
@@ -828,8 +808,6 @@ export function MobileStrategicProfileRealShellClient({
             enableRealAnalysis={realAnalysisEnabled}
             onCleanupTemporaryUpload={handleCleanupTemporaryUpload}
             onSubmitConfirmationAnswer={handleConfirmationAnswer}
-            onPublishIntentSubmit={handlePublishIntentSubmit}
-            onContentPotentialFeedbackSubmit={handleContentPotentialFeedbackSubmit}
             onReportInteraction={handleScanReportInteraction}
             readingsSummary={
               accessState === "admin"

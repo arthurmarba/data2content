@@ -464,6 +464,18 @@ export function sanitizeCreatorVideoNarrativeDiagnosisInput(
     ...(input.contentPotentialScan
       ? { contentPotentialScan: sanitizeVideoNarrativeContentPotentialScan(input.contentPotentialScan) }
       : {}),
+    ...(input.analysisVersion === "v1" || input.analysisVersion === "v2"
+      ? { analysisVersion: input.analysisVersion }
+      : {}),
+    ...(input.learningStatus === "analysis_only" || input.learningStatus === "published_matched"
+      ? { learningStatus: input.learningStatus }
+      : {}),
+    ...(input.historyVisibility === "visible" || input.historyVisibility === "hidden"
+      ? { historyVisibility: input.historyVisibility }
+      : {}),
+    ...(input.thumbnailStatus === "pending" || input.thumbnailStatus === "available" || input.thumbnailStatus === "failed"
+      ? { thumbnailStatus: input.thumbnailStatus }
+      : {}),
     safetyFlags: createSafetyFlags(sanitized),
     schemaVersion: "creator_video_narrative_diagnosis_v1",
   };

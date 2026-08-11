@@ -72,6 +72,7 @@ describe("POST /api/dashboard/mobile-strategic-profile/upload-cleanup", () => {
     (isTemporaryUploadSessionEnabled as jest.Mock).mockReturnValue(true);
     (isRealUploadEnabled as jest.Mock).mockReturnValue(false);
     (getServerSession as jest.Mock).mockResolvedValue({ user: { id: "usr_123", role: "creator" } });
+    deleteTemporaryStorageObject.mockResolvedValue(true);
   });
 
   afterAll(() => {
@@ -101,15 +102,15 @@ describe("POST /api/dashboard/mobile-strategic-profile/upload-cleanup", () => {
     }
   });
 
-  it("aceita uploadSessionId/objectKey seguro em modo contract-first", async () => {
+  it("exclui uploadSessionId/objectKey seguro e confirma o cleanup", async () => {
     const res = await POST(createRequest(validPayload));
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.ok).toBe(true);
-    expect(["cleanup_queued", "cleanup_not_configured"]).toContain(body.status);
+    expect(body.status).toBe("cleanup_accepted");
   });
 
-  it("adia cleanup em analysis_failed para permitir retry com o mesmo upload", async () => {
+  it("também exclui em analysis_failed para não reter o vídeo", async () => {
     const res = await POST(createRequest({ ...validPayload, reason: "analysis_failed" }));
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -117,10 +118,12 @@ describe("POST /api/dashboard/mobile-strategic-profile/upload-cleanup", () => {
     expect(body).toEqual(
       expect.objectContaining({
         ok: true,
-        status: "cleanup_deferred",
+        status: "cleanup_accepted",
       }),
     );
-    expect(deleteTemporaryStorageObject).not.toHaveBeenCalled();
+    expect(deleteTemporaryStorageObject).toHaveBeenCalledWith({
+      objectKey: validPayload.objectKey,
+    });
   });
 
   it("não retorna secrets nem URL assinada", async () => {

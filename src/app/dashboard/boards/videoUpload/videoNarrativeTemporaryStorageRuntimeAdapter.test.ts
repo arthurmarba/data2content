@@ -243,7 +243,12 @@ describe("videoNarrativeTemporaryStorageRuntimeAdapter", () => {
   describe("deleteVideoNarrativeTemporaryStorageObject", () => {
     it("deleta corretamente via S3Client", async () => {
       const fakeS3Client = {
-        send: jest.fn().mockResolvedValue({}),
+        send: jest.fn()
+          .mockResolvedValueOnce({})
+          .mockRejectedValueOnce(Object.assign(new Error("Not found"), {
+            name: "NotFound",
+            $metadata: { httpStatusCode: 404 },
+          })),
       } as unknown as S3Client;
 
       const res = await deleteVideoNarrativeTemporaryStorageObject({
@@ -253,7 +258,7 @@ describe("videoNarrativeTemporaryStorageRuntimeAdapter", () => {
       });
 
       expect(res).toBe(true);
-      expect(fakeS3Client.send).toHaveBeenCalled();
+      expect(fakeS3Client.send).toHaveBeenCalledTimes(2);
     });
 
     it("retorna false quando s3 lanca erro, silenciosamente", async () => {

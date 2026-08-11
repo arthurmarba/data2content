@@ -59,7 +59,8 @@ function continueFlow() {
     screen.queryByRole("button", { name: "Continuar" }) ||
     screen.queryByRole("button", { name: "Começar" }) ||
     screen.queryByRole("button", { name: "Gerar leitura" }) ||
-    screen.queryByRole("button", { name: "Ver sua leitura completa" });
+    screen.queryByRole("button", { name: "Analisar conteúdo" }) ||
+    screen.queryByRole("button", { name: "Concluir" });
   if (!button) throw new Error("Flow continuation button not found");
   fireEvent.click(button);
 }
@@ -76,7 +77,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
 
     expect(screen.getByRole("dialog", { name: "Raio X do conteúdo" })).toBeInTheDocument();
     expect(screen.getByText("Vídeo acolhido e pronto")).toBeInTheDocument();
-    expect(screen.getByText("Prossiga para a leitura e descubra se vale postar.")).toBeInTheDocument();
+    expect(screen.getByText("Prossiga para comparar a estrutura deste vídeo com o seu histórico.")).toBeInTheDocument();
   });
 
   it("vai direto do upload para a leitura, sem passo de lente", () => {
@@ -104,7 +105,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     });
   });
 
-  it("mostra o veredito de 3 eixos (narrativa, audiência, marca) na leitura pronta", async () => {
+  it("mostra o relatório editorial focado em potencial de engajamento", async () => {
     const onSubmit = jest.fn().mockResolvedValue({
       confirmationData: {
         diagnosisSummary: "Primeira análise registrada.",
@@ -124,16 +125,10 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       expect(screen.getByRole("dialog", { name: "Seu Raio X" })).toBeInTheDocument();
     });
 
-    expect(screen.getByText("Coerência com o seu mapa")).toBeInTheDocument();
-    expect(screen.getByText("Narrativa")).toBeInTheDocument();
-    expect(screen.getByText("Audiência")).toBeInTheDocument();
-    expect(screen.getByText("Marca")).toBeInTheDocument();
-    expect(screen.getByText("Confirma seu padrão de bastidores.")).toBeInTheDocument();
-    expect(screen.getByText("Fala com quem já te acompanha.")).toBeInTheDocument();
-    expect(screen.getByText("Abre um território ainda difuso.")).toBeInTheDocument();
-    expect(screen.getByText("Vale postar depois de um ajuste.")).toBeInTheDocument();
-    expect(screen.getByText("Leitura baseada em 2 momentos do vídeo")).toBeInTheDocument();
-    expect(screen.getByText("Na abertura")).toBeInTheDocument();
+    expect(screen.getByText("Pode engajar após um ajuste.")).toBeInTheDocument();
+    expect(screen.getByText("Em resumo")).toBeInTheDocument();
+    expect(screen.getByText("Como o vídeo se desenvolve")).toBeInTheDocument();
+    expect(screen.getByText("Abertura")).toBeInTheDocument();
     expect(screen.getByText("Você apresenta a dúvida principal na fala, mas ela não aparece em texto.")).toBeInTheDocument();
     expect(screen.getByText("Ajuste de maior impacto")).toBeInTheDocument();
     expect(screen.getByText("Leve a dúvida para o primeiro frame")).toBeInTheDocument();
@@ -145,8 +140,8 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     );
   });
 
-  it("registra a intenção de publicação e mostra o retorno calmo", async () => {
-    const onPublishIntentSubmit = jest.fn().mockResolvedValue(undefined);
+  it("conclui sem pedir decisão de publicação", async () => {
+    const onComplete = jest.fn();
     const onSubmit = jest.fn().mockResolvedValue({
       savedDiagnosisId: "diag-1",
       confirmationData: { directAnswer: "Leitura pronta." },
@@ -155,9 +150,8 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       <MobileStrategicProfileAnalyzeFlow
         open
         onClose={jest.fn()}
-        onComplete={jest.fn()}
+        onComplete={onComplete}
         onSubmitAnalysis={onSubmit}
-        onPublishIntentSubmit={onPublishIntentSubmit}
       />
     );
     continueFlow();
@@ -166,18 +160,14 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       expect(screen.getByRole("dialog", { name: "Seu Raio X" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Vou postar assim/ }));
-    expect(onPublishIntentSubmit).toHaveBeenCalledWith("diag-1", "yes");
-    expect(screen.getByText("Boa — seu mapa vai aprender com esse vídeo.")).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /Não vou postar/ }));
-    expect(onPublishIntentSubmit).toHaveBeenCalledWith("diag-1", "no");
-    expect(screen.getByText("Fechado. Esse fica só entre nós — não entra no mapa.")).toBeInTheDocument();
+    expect(screen.queryByText("Você decide")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Vou postar/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Concluir" }));
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ savedDiagnosisId: "diag-1" }));
   });
 
-  it("transforma a recomendação em uma ação copiável e registra a correção do usuário", async () => {
+  it("transforma a recomendação em uma ação copiável", async () => {
     const onReportInteraction = jest.fn();
-    const onFeedback = jest.fn().mockResolvedValue(undefined);
     const onSubmit = jest.fn().mockResolvedValue({
       savedDiagnosisId: "diag-2",
       confirmationData: { directAnswer: "A ideia funciona com um ajuste.", contentPotentialScan: potentialScanFixture },
@@ -189,22 +179,13 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
         onComplete={jest.fn()}
         onSubmitAnalysis={onSubmit}
         onReportInteraction={onReportInteraction}
-        onContentPotentialFeedbackSubmit={onFeedback}
       />
     );
     continueFlow();
     await screen.findByRole("dialog", { name: "Seu Raio X" });
 
     fireEvent.click(screen.getByRole("button", { name: "Copiar sugestão" }));
-    await waitFor(() => expect(screen.getByRole("button", { name: "Texto copiado" })).toBeInTheDocument());
-    expect(onReportInteraction).toHaveBeenCalledWith("copy_suggestion", "practical_direction");
-
-    fireEvent.click(screen.getByRole("button", { name: "Marcar como ajustado" }));
-    expect(screen.getByRole("button", { name: "Escanear versão ajustada" })).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: "Não entendeu a intenção" }));
-    expect(onFeedback).toHaveBeenCalledWith("diag-2", { target: "overall", value: "wrong_intent" });
-    expect(screen.getByText("Obrigado. Sua correção foi registrada.")).toBeInTheDocument();
+    await waitFor(() => expect(onReportInteraction).toHaveBeenCalledWith("copy_suggestion", "practical_direction"));
   });
 
   it("vai direto para a leitura com a lente fixa 'retention'", async () => {
@@ -272,7 +253,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
     await waitFor(() => {
       expect(screen.getByRole("dialog", { name: "Seu Raio X" })).toBeInTheDocument();
     });
-    const completeBtn = screen.getByRole("button", { name: "Ver sua leitura completa" });
+    const completeBtn = screen.getByRole("button", { name: "Concluir" });
     fireEvent.click(completeBtn);
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
@@ -387,7 +368,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
       expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
 
-      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
+      fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {
         expect(onCreateSession).toHaveBeenCalledWith({
@@ -422,7 +403,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
-      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
+      fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {
         expect(onSubmit).toHaveBeenCalledWith(
@@ -450,7 +431,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       const fileInput = container.querySelector('input[type="file"]') as HTMLInputElement;
       fireEvent.change(fileInput, { target: { files: [fileMock] } });
 
-      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
+      fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {
         expect(screen.getByText(/O tamanho do vídeo excede o limite/i)).toBeInTheDocument();
@@ -475,7 +456,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
-      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
+      fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {
         expect(onSubmit).toHaveBeenCalledWith(
@@ -520,7 +501,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
-      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
+      fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {
         expect(screen.getByText("Conectando ao seu mapa...")).toBeInTheDocument();
@@ -558,7 +539,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
-      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
+      fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {
         expect(screen.getByRole("dialog", { name: "Escaneando seu vídeo" })).toBeInTheDocument();
@@ -584,7 +565,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
-      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
+      fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {
         expect(screen.getByText("Não conseguimos preparar o vídeo para leitura real agora.")).toBeInTheDocument();
@@ -628,7 +609,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
-      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
+      fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {
         expect(screen.getByText("Não foi possível enviar o vídeo agora.")).toBeInTheDocument();
@@ -672,7 +653,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
-      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
+      fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {
         expect(screen.getByRole("dialog", { name: "Seu Raio X" })).toBeInTheDocument();
@@ -728,7 +709,7 @@ describe("MobileStrategicProfileAnalyzeFlow", () => {
       );
 
       fireEvent.change(container.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [fileMock] } });
-      fireEvent.click(screen.getByRole("button", { name: "Próximo" }));
+      fireEvent.click(screen.getByRole("button", { name: "Analisar conteúdo" }));
 
       await waitFor(() => {
         expect(screen.getByRole("dialog", { name: "Seu Raio X" })).toBeInTheDocument();

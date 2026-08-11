@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BriefcaseBusiness, Calculator } from "lucide-react";
+import Link from "next/link";
 import { COMMUNITY_WHATSAPP_URL } from "@/app/lib/communityLinks";
+import { RECORDED_MEETINGS_ROUTE } from "@/constants/routes";
 import type { DiagnosticoPageData } from "@/app/dashboard/boards/videoUpload/diagnosticoPageData";
 import { CREATOR_WEEKLY_REPORT_DEMO } from "@/app/lib/creatorWeeklyReport/demoReport";
 import type {
@@ -463,20 +465,33 @@ function MeetingCard({
       <h2 className="mt-2 text-[1.4rem] font-bold leading-tight text-[var(--ds-color-ink)]">
         {cancelled ? "Esta edição foi cancelada" : meeting ? formatMeetingDate(meeting) : "Toda quinta, 19h"}
       </h2>
-      <p className="ds-body mt-2">Os criadores abrem os relatórios e dizem o que fariam diferente. É onde você descobre o que ninguém percebe sozinho.</p>
-      {/* Um destino só: o grupo. Quem assina entra direto; quem não assina cai
-          no paywall. A página /reuniao continua existindo para gravações e
-          calendário, mas deixou de ser passagem obrigatória do Perfil. */}
-      <div className="mt-4">
+      {/* A segunda frase existe para explicar o botão: é no grupo que se
+          confirma presença, e quem confirma é analisado. Sem ela, "entrar no
+          grupo" é só um grupo. */}
+      <p className="ds-body mt-2">
+        Toda semana a D2C comenta o relatório de quem confirmou presença e responde dúvidas sobre estratégia de conteúdo.
+        A confirmação é feita dentro do grupo do WhatsApp.{" "}
+        {isPro && !isDemo
+          ? "Se não der para assistir ao vivo, fica gravado."
+          : "Assinantes entram no grupo, participam ao vivo e reveem as gravações."}
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
         {isPro && !isDemo ? (
-          <a
-            href={COMMUNITY_WHATSAPP_URL}
-            target="_blank"
-            rel="noreferrer"
-            className="ds-button ds-button--secondary ds-button--small no-underline"
-          >
-            Entrar no grupo
-          </a>
+          <>
+            <a
+              href={COMMUNITY_WHATSAPP_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="ds-button ds-button--secondary ds-button--small no-underline"
+            >
+              Entrar no grupo
+            </a>
+            {/* Secundário de propósito: entrar no grupo é semanal, rever gravação
+                é eventual. */}
+            <Link href={RECORDED_MEETINGS_ROUTE} className="ds-button ds-button--quiet ds-button--small no-underline">
+              Ver gravações
+            </Link>
+          </>
         ) : (
           <button type="button" className="ds-button ds-button--quiet ds-button--small" onClick={() => onUpgrade("mentoria")}>
             Ser membro e entrar no grupo

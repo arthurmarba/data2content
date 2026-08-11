@@ -1,4 +1,4 @@
-import { S3Client, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { createWriteStream } from "node:fs";
 import { stat, unlink } from "node:fs/promises";
 import os from "node:os";
@@ -342,19 +342,31 @@ export async function deleteVideoNarrativeTemporaryStorageObject(params: {
     return false;
   }
 
-  try {
-    const s3 =
-      params.s3Client ??
-      getCachedS3Client({ endpoint, region, accessKeyId, secretAccessKey });
+  const s3 =
+    params.s3Client ??
+    getCachedS3Client({ endpoint, region, accessKeyId, secretAccessKey });
+  const isMissing = (error: unknown) => {
+    const status = (error as { $metadata?: { httpStatusCode?: unknown } } | null)?.$metadata?.httpStatusCode;
+    const name = (error as { name?: unknown } | null)?.name;
+    return status === 404 || name === "NotFound" || name === "NoSuchKey";
+  };
 
-    const command = new DeleteObjectCommand({
-      Bucket: bucket,
-      Key: params.objectKey,
-    });
-
-    await s3.send(command);
-    return true;
-  } catch (err) {
-    return false;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: params.objectKey }));
+      try {
+        await s3.send(new HeadObjectCommand({ Bucket: bucket, Key: params.objectKey }));
+      } catch (error) {
+        if (isMissing(error)) return true;
+        throw error;
+      }
+    } catch (error) {
+      if (isMissing(error)) return true;
+      if (attempt === 2) return false;
+    }
+    if (attempt < 2) {
+      await new Promise((resolve) => setTimeout(resolve, 100 * (attempt + 1)));
+    }
   }
+  return false;
 }

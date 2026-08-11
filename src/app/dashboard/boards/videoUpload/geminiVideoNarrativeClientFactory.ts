@@ -14,11 +14,15 @@ import path from "node:path";
 import { GeminiVideoNarrativeClient } from "./geminiVideoNarrativeProvider";
 import type { VideoNarrativeGeminiClientAdapter } from "./videoNarrativeGeminiProvider";
 import { GEMINI_INLINE_VIDEO_BYTES_LIMIT } from "./videoNarrativeGeminiInlineLimit";
+import { runVideoNarrativeOpenAiFallback } from "./videoNarrativeOpenAiFallback";
 import { logGeminiUsage } from "@/app/lib/llm/geminiUsageLog";
 
 export type GeminiVideoNarrativeClientFactoryOptions = {
   apiKey: string;
   model?: string;
+  openAiFallbackApiKey?: string;
+  openAiFallbackModel?: string;
+  openAiFallbackEnabled?: boolean;
 };
 
 export type GeminiVideoNarrativeClientFactoryResult = {
@@ -64,6 +68,17 @@ function isPermissionDeniedProviderError(error: unknown): boolean {
   const status = getExternalErrorStatus(error);
   const message = getExternalErrorMessage(error);
   return status === 401 || status === 403 || /PERMISSION_DENIED|dunning|billing/i.test(message);
+}
+
+function shouldUseOpenAiFallback(error: unknown): boolean {
+  const status = getExternalErrorStatus(error);
+  const message = getExternalErrorMessage(error);
+  return (
+    status === 401 ||
+    status === 403 ||
+    status === 429 ||
+    /PERMISSION_DENIED|RESOURCE_EXHAUSTED|quota|credits? (?:are )?depleted|prepayment|gemini_file_(?:permission_denied|upload_failed)/i.test(message)
+  );
 }
 
 async function waitForGeminiFileReady(
@@ -518,7 +533,27 @@ export function createVideoNarrativeGeminiClientAdapter(
 
           logGeminiUsage("video", selectedModel, response);
 
-          return { text: response.text ?? null };
+          return { text: response.text ?? null, provider: "gemini" as const };
+        } catch (error) {
+          if (
+            params.openAiFallbackEnabled &&
+            params.openAiFallbackApiKey &&
+            shouldUseOpenAiFallback(error)
+          ) {
+            return runVideoNarrativeOpenAiFallback({
+              apiKey: params.openAiFallbackApiKey,
+              model: params.openAiFallbackModel,
+              input: {
+                systemInstruction,
+                userInstruction,
+                responseSchemaInstruction,
+                maxOutputTokens,
+                videoInput,
+                signal,
+              },
+            });
+          }
+          throw error;
         } finally {
           // Temp file owned by the storage adapter — clean it up once uploaded.
           if (videoInput?.filePath) {
