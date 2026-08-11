@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { motion, useReducedMotion } from "framer-motion";
 import type { MobileStrategicProfileAnalyzeConfirmationData } from "./MobileStrategicProfileAnalyzeFlow";
 import type {
   VideoNarrativeContentPotentialScan,
@@ -59,31 +60,22 @@ function basisText(scan: VideoNarrativeContentPotentialScan): string {
   return `Comparação com ${count} ${count === 1 ? "conteúdo publicado" : "conteúdos publicados"}.`;
 }
 
-function Signal({
-  label,
-  status,
-  evidence,
+function Comparison({
+  item,
+  index,
+  reduceMotion,
 }: {
-  label: string;
-  status: VideoNarrativePotentialDimensionStatus;
-  evidence: string;
+  item: VideoNarrativePersonalComparison;
+  index: number;
+  reduceMotion: boolean;
 }) {
   return (
-    <div className="flex items-start gap-3 py-3">
-      <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${STATUS_DOT[status]}`} aria-hidden="true" />
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-zinc-950">
-          {label} <span className="font-medium text-zinc-400">· {STATUS_LABEL[status]}</span>
-        </p>
-        <p className="mt-1 text-sm leading-5 text-zinc-600">{evidence}</p>
-      </div>
-    </div>
-  );
-}
-
-function Comparison({ item }: { item: VideoNarrativePersonalComparison }) {
-  return (
-    <article className="rounded-2xl bg-zinc-50 px-4 py-4">
+    <motion.article
+      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: reduceMotion ? 0 : 0.28, delay: reduceMotion ? 0 : index * 0.045 }}
+      className="rounded-2xl bg-zinc-50 px-4 py-4"
+    >
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-sm font-bold text-zinc-950">{item.label}</h3>
         <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-zinc-400">
@@ -101,7 +93,7 @@ function Comparison({ item }: { item: VideoNarrativePersonalComparison }) {
         </div>
       </dl>
       <p className="mt-3 text-xs leading-5 text-zinc-500">{item.reading}</p>
-    </article>
+    </motion.article>
   );
 }
 
@@ -116,6 +108,7 @@ export function ContentAnalysisReport({
   analyzedAt?: string | null;
   onCopySuggestion?: (scan: VideoNarrativeContentPotentialScan) => void;
 }) {
+  const reduceMotion = Boolean(useReducedMotion());
   const scan = data?.contentPotentialScan ?? null;
 
   if (!scan) {
@@ -137,17 +130,27 @@ export function ContentAnalysisReport({
   const confidence = potential?.confidence ?? scan.confidence;
   const comparisons = scan.personalComparisons ?? [];
   const signalDimensions = [
-    ["Gancho e abertura", scan.dimensions.openingClarity],
-    ["Cenas e progressão", scan.dimensions.attentionArchitecture],
-    ["Vontade de compartilhar", scan.dimensions.shareImpulse],
-    ["Entrega da promessa", scan.dimensions.promiseDelivery],
-    ["Assunto e narrativa", scan.dimensions.narrativeFit],
+    { key: "opening", label: "Gancho e abertura", dimension: scan.dimensions.openingClarity },
+    { key: "scenes", label: "Cenas e progressão", dimension: scan.dimensions.attentionArchitecture },
+    { key: "sharing", label: "Vontade de compartilhar", dimension: scan.dimensions.shareImpulse },
+    { key: "promise", label: "Entrega da promessa", dimension: scan.dimensions.promiseDelivery },
+    { key: "narrative", label: "Assunto e narrativa", dimension: scan.dimensions.narrativeFit },
   ] as const;
+  const strongestSignal = signalDimensions.find(({ dimension }) => dimension.status === "strong")
+    ?? signalDimensions.find(({ dimension }) => dimension.status === "mixed")
+    ?? signalDimensions[0];
+  const limitingSignal = signalDimensions.find(({ dimension }) => dimension.status === "weak")
+    ?? signalDimensions.find(({ dimension, key }) => dimension.status === "mixed" && key !== strongestSignal.key)
+    ?? null;
 
   return (
     <article className="ds-analysis-editorial pb-2">
       {thumbnailSrc ? (
-        <figure className="relative -mx-5 -mt-1 mb-6 aspect-[16/10] overflow-hidden bg-zinc-100">
+        <motion.figure
+          layoutId="content-analysis-thumbnail"
+          transition={{ duration: reduceMotion ? 0 : 0.45, ease: [0.22, 1, 0.36, 1] }}
+          className="relative -mx-5 -mt-1 mb-6 aspect-[4/3] overflow-hidden bg-zinc-100"
+        >
           <Image
             src={thumbnailSrc}
             alt="Capa do conteúdo analisado"
@@ -160,10 +163,14 @@ export function ContentAnalysisReport({
           <figcaption className="absolute bottom-3 left-3 rounded-full bg-black/65 px-3 py-1.5 text-[10px] font-semibold text-white backdrop-blur-sm">
             Conteúdo analisado
           </figcaption>
-        </figure>
+        </motion.figure>
       ) : null}
 
-      <header className="ds-enter-sheet">
+      <motion.header
+        initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: reduceMotion ? 0 : 0.3, delay: reduceMotion ? 0 : 0.08 }}
+      >
         <div className="flex items-center justify-between gap-3">
           <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-zinc-500">
             Potencial de engajamento
@@ -179,16 +186,39 @@ export function ContentAnalysisReport({
         <p className="mt-3 text-[11px] font-semibold text-zinc-500">
           Confiança {confidence === "high" ? "alta" : confidence === "medium" ? "média" : "baixa"} · {basisText(scan)}
         </p>
-      </header>
+      </motion.header>
 
       <section className="mt-7" aria-labelledby="analysis-summary-title">
         <h3 id="analysis-summary-title" className="text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400">
-          Em resumo
+          Leitura rápida
         </h3>
-        <div className="mt-2 space-y-1">
-          {signalDimensions.map(([label, dimension]) => (
-            <Signal key={label} label={label} status={dimension.status} evidence={dimension.evidence} />
-          ))}
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <motion.article
+            initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.28, delay: reduceMotion ? 0 : 0.12 }}
+            className="rounded-2xl bg-zinc-950 p-4 text-white"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-[0.11em] text-white/45">O que sustenta</p>
+            <p className="mt-3 text-sm font-bold leading-5">{strongestSignal.label}</p>
+            <p className="mt-1.5 text-xs leading-5 text-white/65">{strongestSignal.dimension.evidence}</p>
+          </motion.article>
+          <motion.article
+            initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: reduceMotion ? 0 : 0.28, delay: reduceMotion ? 0 : 0.17 }}
+            className="rounded-2xl bg-zinc-100 p-4 text-zinc-950"
+          >
+            <p className="text-[10px] font-bold uppercase tracking-[0.11em] text-zinc-400">
+              {limitingSignal ? "O que pode limitar" : "Próximo ganho"}
+            </p>
+            <p className="mt-3 text-sm font-bold leading-5">
+              {limitingSignal?.label ?? "Ajuste de maior impacto"}
+            </p>
+            <p className="mt-1.5 text-xs leading-5 text-zinc-600">
+              {limitingSignal?.dimension.evidence ?? scan.highestImpactAdjustment}
+            </p>
+          </motion.article>
         </div>
       </section>
 
@@ -201,7 +231,9 @@ export function ContentAnalysisReport({
             O que aparece agora e o que tende a acompanhar seus conteúdos de maior interação.
           </p>
           <div className="mt-4 space-y-3">
-            {comparisons.map((item) => <Comparison key={item.dimension} item={item} />)}
+            {comparisons.map((item, index) => (
+              <Comparison key={item.dimension} item={item} index={index} reduceMotion={reduceMotion} />
+            ))}
           </div>
         </section>
       ) : null}
@@ -211,33 +243,39 @@ export function ContentAnalysisReport({
           <h3 id="moments-title" className="font-display text-[1.3rem] font-bold tracking-[-0.035em] text-zinc-950">
             Como o vídeo se desenvolve
           </h3>
-          <div className="mt-4">
+          <div className="-mx-5 mt-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {scan.watchedMoments.map((moment, index) => (
-              <div key={`${moment.moment}-${index}`} className="grid grid-cols-[12px_1fr] gap-3">
-                <div className="flex flex-col items-center">
-                  <span className="mt-1.5 h-2 w-2 rounded-full bg-zinc-950" />
-                  {index < scan.watchedMoments!.length - 1 ? <span className="my-1 w-px flex-1 bg-zinc-200" /> : null}
-                </div>
-                <div className="pb-5">
+              <motion.article
+                key={`${moment.moment}-${index}`}
+                initial={reduceMotion ? false : { opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: reduceMotion ? 0 : 0.28, delay: reduceMotion ? 0 : index * 0.05 }}
+                className="min-w-[82%] snap-center rounded-2xl bg-zinc-50 p-4"
+              >
+                <div className="flex items-center justify-between gap-3">
                   <p className="text-[10px] font-bold uppercase tracking-[0.11em] text-zinc-400">{MOMENT_LABEL[moment.moment]}</p>
-                  <p className="mt-1 text-sm font-semibold leading-5 text-zinc-900">{moment.observation}</p>
-                  <p className="mt-1 text-sm leading-5 text-zinc-500">{moment.impact}</p>
+                  <span className="font-display text-lg font-bold text-zinc-300">{String(index + 1).padStart(2, "0")}</span>
                 </div>
-              </div>
+                <p className="mt-4 text-sm font-semibold leading-5 text-zinc-900">{moment.observation}</p>
+                <p className="mt-2 text-sm leading-5 text-zinc-500">{moment.impact}</p>
+              </motion.article>
             ))}
           </div>
         </section>
       ) : null}
 
-      <section className="mt-3" aria-labelledby="full-analysis-title">
+      <section className="mt-7" aria-labelledby="full-analysis-title">
         <h3 id="full-analysis-title" className="font-display text-[1.3rem] font-bold tracking-[-0.035em] text-zinc-950">
-          Análise completa
+          Análise por dimensão
         </h3>
         <div className="mt-3 space-y-2">
-          {signalDimensions.map(([label, dimension]) => (
-            <details key={label} className="group rounded-xl bg-zinc-50 px-4 py-1">
+          {signalDimensions.map(({ key, label, dimension }) => (
+            <details key={key} className="group rounded-xl bg-zinc-50 px-4 py-1">
               <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-zinc-900">
-                <span>{label}</span>
+                <span className="flex items-center gap-2.5">
+                  <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[dimension.status]}`} aria-hidden="true" />
+                  {label}
+                </span>
                 <span className="flex items-center gap-2 text-xs font-medium text-zinc-400">
                   {STATUS_LABEL[dimension.status]}
                   <span className="transition-transform group-open:rotate-90">›</span>
@@ -254,14 +292,20 @@ export function ContentAnalysisReport({
         </div>
       </section>
 
-      <section className="mt-7 rounded-[1.4rem] bg-zinc-950 p-5 text-white" aria-labelledby="impact-adjustment-title">
+      <motion.section
+        initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: reduceMotion ? 0 : 0.3 }}
+        className="mt-7 rounded-[1.4rem] bg-zinc-950 p-5 text-white"
+        aria-labelledby="impact-adjustment-title"
+      >
         <p className="text-[10px] font-bold uppercase tracking-[0.13em] text-white/50">Ajuste de maior impacto</p>
         <h3 id="impact-adjustment-title" className="mt-2 font-display text-[1.35rem] font-bold leading-[1.05] tracking-[-0.035em]">
           {scan.practicalDirection?.title ?? scan.highestImpactAdjustment}
         </h3>
         {scan.practicalDirection?.action ? <p className="mt-2 text-sm leading-5 text-white/70">{scan.practicalDirection.action}</p> : null}
         {scan.practicalDirection?.example ? (
-          <blockquote className="mt-4 rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold leading-5">
+          <blockquote className="mt-4 border-l border-white/30 pl-4 text-sm font-semibold leading-5 text-white/90">
             “{scan.practicalDirection.example}”
           </blockquote>
         ) : null}
@@ -270,9 +314,9 @@ export function ContentAnalysisReport({
             Copiar sugestão
           </button>
         ) : null}
-      </section>
+      </motion.section>
 
-      <details className="mt-5 rounded-xl bg-zinc-50 px-4 py-1 text-xs text-zinc-500">
+      <details className="mt-5 border-t border-zinc-100 py-1 text-xs text-zinc-500">
         <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between font-semibold text-zinc-700">
           Sobre esta leitura <span aria-hidden="true">›</span>
         </summary>

@@ -1,6 +1,7 @@
 import { MobileStrategicProfilePreview } from "../components/videoUpload/appPreview/MobileStrategicProfilePreview";
 import { buildMobileStrategicProfilePreviewFixture } from "../components/videoUpload/appPreview/buildMobileStrategicProfilePreviewFixture";
 import { NarrativeMapReadingPreview } from "../components/videoUpload/appPreview/NarrativeMapReadingPreview";
+import { buildContentAnalysisPreviewResult } from "../components/videoUpload/appPreview/buildContentAnalysisPreviewResult";
 import {
   buildNarrativeMapReadingPreviewFixture,
   isNarrativeMapReadingPreviewState,
@@ -15,7 +16,9 @@ import { isMobileStrategicProfilePreviewEnabled } from "../videoUpload/mobileStr
 type MobileStrategicProfilePreviewPageProps = {
   searchParams?: {
     state?: string | string[];
-  };
+  } | Promise<{
+    state?: string | string[];
+  }>;
   viewer?: InternalPreviewUser | null;
 };
 
@@ -48,11 +51,22 @@ export default async function MobileStrategicProfilePreviewPage({
     return <BlockedInternalPreview reason="permission" />;
   }
 
-  if (isNarrativeMapReadingPreviewState(searchParams?.state)) {
-    const fixture = buildNarrativeMapReadingPreviewFixture({ state: searchParams?.state });
+  const resolvedSearchParams = await searchParams;
+
+  if (isNarrativeMapReadingPreviewState(resolvedSearchParams?.state)) {
+    const fixture = buildNarrativeMapReadingPreviewFixture({ state: resolvedSearchParams?.state });
     return <NarrativeMapReadingPreview fixture={fixture} />;
   }
 
-  const fixture = buildMobileStrategicProfilePreviewFixture({ state: searchParams?.state });
-  return <MobileStrategicProfilePreview profile={fixture.profile} activeState={fixture.id} showSmokeHarness />;
+  const fixture = buildMobileStrategicProfilePreviewFixture({ state: resolvedSearchParams?.state });
+  return (
+    <MobileStrategicProfilePreview
+      profile={fixture.profile}
+      activeState={fixture.id}
+      showSmokeHarness
+      analysisPreviewResult={buildContentAnalysisPreviewResult()}
+      analysisPreviewDelayMs={6500}
+      analysisPreviewThumbnailSrc="/images/mulher_se_maquiando.png"
+    />
+  );
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { LayoutGroup } from "framer-motion";
 import {
   buildUploadSessionPayloadFromFile,
   type UploadSessionPayload,
@@ -10,6 +11,7 @@ import type {
 } from "./mobileStrategicProfileDirectUploadClient";
 import type { VideoNarrativeContentPotentialScan } from "@/app/dashboard/boards/videoUpload/videoNarrativeContentPotentialScan";
 import { ContentAnalysisReport } from "./ContentAnalysisReport";
+import { AnalysisProcessingExperience } from "./AnalysisProcessingExperience";
 
 const STEPS = [
   "upload",
@@ -138,6 +140,8 @@ type MobileStrategicProfileAnalyzeFlowProps = {
     /** Limite do plano (free: 1; pro: 10). */
     limit: number;
   } | null;
+  /** Capa controlada usada apenas por previews internos sem upload real. */
+  initialThumbnailSrc?: string | null;
 };
 
 function nextStep(current: AnalyzeFlowStep): AnalyzeFlowStep {
@@ -273,6 +277,7 @@ export function MobileStrategicProfileAnalyzeFlow({
   onReportInteraction,
   completionSecondaryAction = "another_video",
   onCompletionUpgrade,
+  initialThumbnailSrc = null,
 }: MobileStrategicProfileAnalyzeFlowProps) {
   const sheetRef = useRef<HTMLElement | null>(null);
   const [step, setStep] = useState<AnalyzeFlowStep>("upload");
@@ -284,12 +289,11 @@ export function MobileStrategicProfileAnalyzeFlow({
   const [submitAttempt, setSubmitAttempt] = useState(0);
   const [savedDiagnosisId, setSavedDiagnosisId] = useState<string | null>(null);
   const [confirmationData, setConfirmationData] = useState<MobileStrategicProfileAnalyzeConfirmationData | null>(null);
-  // Animated scan stage: 0..3, aligned with the work the server performs.
-  const [processingStage, setProcessingStage] = useState(0);
+  const [processingComplete, setProcessingComplete] = useState(false);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [videoDurationSeconds, setVideoDurationSeconds] = useState<number | null>(null);
-  const [thumbnailDataUrl, setThumbnailDataUrl] = useState<string | null>(null);
+  const [thumbnailDataUrl, setThumbnailDataUrl] = useState<string | null>(initialThumbnailSrc);
   const [validationStatus, setValidationStatus] = useState<"idle" | "validating" | "uploading" | "validated" | "uploaded" | "error">("idle");
   const [fileValidationError, setFileValidationError] = useState<string | null>(null);
   const [uploadSessionValidated, setUploadSessionValidated] = useState(false);
@@ -325,30 +329,24 @@ export function MobileStrategicProfileAnalyzeFlow({
       setIsSubmitting(false);
       setSelectedFile(null);
       setVideoDurationSeconds(null);
-      setThumbnailDataUrl(null);
+      setThumbnailDataUrl(initialThumbnailSrc);
       setValidationStatus("idle");
       setFileValidationError(null);
       setUploadSessionValidated(false);
       setTemporaryUploadForCleanup(null);
       setTemporaryUploadForAnalysis(null);
-      setProcessingStage(0);
+      setProcessingComplete(false);
       setConfirmationData(null);
     }
-  }, [open]);
+  }, [initialThumbnailSrc, open]);
 
   useEffect(() => {
     if (open && sheetRef.current) sheetRef.current.scrollTop = 0;
   }, [open, step]);
 
-  // Animate processing stage labels progressively while waiting for server
   useEffect(() => {
-    if (step !== "processing" || errorMsg) return;
-    setProcessingStage(0);
-    const t1 = setTimeout(() => setProcessingStage(1), 3000);
-    const t2 = setTimeout(() => setProcessingStage(2), 7000);
-    const t3 = setTimeout(() => setProcessingStage(3), 11000);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, [step, errorMsg, submitAttempt]);
+    if (step === "processing" && !errorMsg) setProcessingComplete(false);
+  }, [step, submitAttempt, errorMsg]);
 
   useEffect(() => {
     if (step !== "processing") return;
@@ -392,6 +390,9 @@ export function MobileStrategicProfileAnalyzeFlow({
             if (result?.confirmationData) {
               setConfirmationData(result.confirmationData);
             }
+            setProcessingComplete(true);
+            await new Promise((resolve) => setTimeout(resolve, 560));
+            if (!active) return;
             setIsSubmitting(false);
             setStep("confirmation");
           }
@@ -407,6 +408,7 @@ export function MobileStrategicProfileAnalyzeFlow({
             }
           }
           if (active) {
+            setProcessingComplete(false);
             setIsSubmitting(false);
             setErrorRetryable(err?.retryable !== false);
             setErrorMsg(err.message || "Ocorreu um erro no processamento do diagnóstico.");
@@ -419,7 +421,10 @@ export function MobileStrategicProfileAnalyzeFlow({
       } else {
         fallbackTimer = setTimeout(() => {
           if (active) {
-            setStep("confirmation");
+            setProcessingComplete(true);
+            fallbackTimer = setTimeout(() => {
+              if (active) setStep("confirmation");
+            }, 560);
           }
         }, 1000);
       }
@@ -553,10 +558,10 @@ export function MobileStrategicProfileAnalyzeFlow({
     setUploadSessionValidated(false);
     setTemporaryUploadForCleanup(null);
     setTemporaryUploadForAnalysis(null);
-    setThumbnailDataUrl(null);
+    setThumbnailDataUrl(initialThumbnailSrc);
     setSavedDiagnosisId(null);
     setConfirmationData(null);
-    setProcessingStage(0);
+    setProcessingComplete(false);
   };
 
   const close = () => {
@@ -597,6 +602,7 @@ export function MobileStrategicProfileAnalyzeFlow({
     setTemporaryUploadForAnalysis(null);
     setSavedDiagnosisId(null);
     setConfirmationData(null);
+    setProcessingComplete(false);
   };
 
   const copyPracticalSuggestion = async (scan: VideoNarrativeContentPotentialScan) => {
@@ -662,18 +668,17 @@ export function MobileStrategicProfileAnalyzeFlow({
         </button>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-1" aria-hidden="true">
+        {step !== "processing" ? <div className="mt-4 grid grid-cols-2 gap-1" aria-hidden="true">
           {VISIBLE_STEPS.map((item, index) => {
             const vIdx = visibleStepIndex(step);
-            // Durante o processing (entre os dois passos visíveis), mantém só o
-            // primeiro preenchido; na confirmação, ambos.
-            const filled = step === "processing" ? index === 0 : index <= vIdx;
+            const filled = index <= vIdx;
             return (
-              <span key={item} className={filled ? "h-1.5 rounded-full bg-[var(--ds-color-brand)]" : "h-1.5 rounded-full bg-zinc-200"} />
+              <span key={item} className={filled ? "h-1.5 rounded-full bg-zinc-950" : "h-1.5 rounded-full bg-zinc-200"} />
             );
           })}
-        </div>
+        </div> : null}
 
+        <LayoutGroup id="content-analysis-flow">
         <div className="mt-4">
 
         {step === "upload" ? (
@@ -692,7 +697,7 @@ export function MobileStrategicProfileAnalyzeFlow({
                     setUploadSessionValidated(false);
                     setTemporaryUploadForCleanup(null);
                     setTemporaryUploadForAnalysis(null);
-                    setThumbnailDataUrl(null);
+    setThumbnailDataUrl(initialThumbnailSrc);
                     setVideoDurationSeconds(null);
                     if (file.size > MAX_VIDEO_FILE_SIZE_BYTES) {
                       setValidationStatus("error");
@@ -717,9 +722,9 @@ export function MobileStrategicProfileAnalyzeFlow({
               />
 
               {!selectedFile ? (
-                <label htmlFor="video-file-picker" className="ds-upload-dropzone">
+                <label htmlFor="video-file-picker" className="ds-upload-dropzone hover:!border-zinc-950 hover:!bg-zinc-50">
                   <span>
-                    <span className="ds-upload-dropzone__icon" aria-hidden="true">
+                    <span className="ds-upload-dropzone__icon !bg-zinc-950 !shadow-none" aria-hidden="true">
                       <svg width="25" height="25" viewBox="0 0 24 24" fill="none">
                         <path d="M8 4H5a1 1 0 0 0-1 1v3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M7 12h10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                         <circle cx="12" cy="12" r="2.25" stroke="currentColor" strokeWidth="1.5" />
@@ -799,55 +804,13 @@ export function MobileStrategicProfileAnalyzeFlow({
         ) : null}
 
         {step === "processing" ? (
-            <div className="rounded-[1.5rem] bg-zinc-950 p-5 text-white transition-all">
-            {errorMsg ? (
-              <div>
-                <p className="text-sm font-semibold text-red-400">Erro na análise</p>
-                <p className="mt-2 text-sm leading-6 text-red-300">{errorMsg}</p>
-              </div>
-            ) : (
-              <div>
-                {thumbnailDataUrl ? (
-                  <div className="ds-scan-frame mb-5 h-28">
-                    <img src={thumbnailDataUrl} alt="" className="h-full w-full object-cover opacity-55" aria-hidden="true" />
-                    <span className="ds-scan-beam" aria-hidden="true" />
-                  </div>
-                ) : null}
-                <div className="grid gap-3">
-                  {(
-                    [
-                      { label: "Lendo cenas, fala e enquadramento", threshold: 0 },
-                      { label: "Mapeando gancho, ritmo e entrega", threshold: 1 },
-                      { label: "Consultando seus conteúdos publicados", threshold: 2 },
-                      { label: "Estimando o potencial de engajamento", threshold: 3 },
-                    ] as const
-                  ).map((stage, idx) => {
-                    const isDone = processingStage > stage.threshold;
-                    const isActive = processingStage === stage.threshold;
-                    return (
-                      <div key={stage.label} className="flex items-center gap-3">
-                        {isDone ? (
-                          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500">
-                            <svg width="10" height="10" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-                              <path d="M3 7.5l3 3 5-6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                            </svg>
-                          </span>
-                        ) : isActive ? (
-                          <span className="mx-1.5 h-2 w-2 shrink-0 animate-pulse rounded-full bg-white" />
-                        ) : (
-                          <span className="mx-1.5 h-2 w-2 shrink-0 rounded-full bg-white/25" />
-                        )}
-                        <span className={`text-sm transition-opacity ${!isDone && !isActive ? "text-white/40" : "text-white"}`}>
-                          {stage.label}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-                <p className="mt-4 text-[11px] text-white/30">Isso pode levar até 30 segundos</p>
-              </div>
-            )}
-          </div>
+          <AnalysisProcessingExperience
+            thumbnailSrc={thumbnailDataUrl}
+            active={step === "processing" && !errorMsg}
+            complete={processingComplete}
+            resetKey={submitAttempt}
+            errorMessage={errorMsg}
+          />
         ) : null}
 
         {step === "confirmation" ? (
@@ -859,13 +822,14 @@ export function MobileStrategicProfileAnalyzeFlow({
         ) : null}
 
         </div>
+        </LayoutGroup>
 
         <div className="mt-5 flex gap-2">
         {step === "confirmation" ? (
           <div className="flex w-full flex-col gap-2">
             <button
               type="button"
-              className="ds-button ds-button--primary ds-button--block"
+              className="ds-button ds-button--primary ds-button--block !bg-zinc-950 !text-white !shadow-none hover:!bg-zinc-800"
               onClick={complete}
             >
               Concluir
@@ -900,7 +864,7 @@ export function MobileStrategicProfileAnalyzeFlow({
               </button>
               <button
                 type="button"
-                className="ds-button ds-button--primary w-1/2"
+                className="ds-button ds-button--primary w-1/2 !bg-zinc-950 !text-white !shadow-none hover:!bg-zinc-800"
                 onClick={() => {
                   setErrorMsg(null);
                   setErrorRetryable(true);
@@ -918,16 +882,16 @@ export function MobileStrategicProfileAnalyzeFlow({
           ) : (
             <button
               type="button"
-              className="ds-button ds-button--primary ds-button--block"
+              className="ds-button ds-button--primary ds-button--block !bg-zinc-950 !text-white !shadow-none hover:!bg-zinc-800"
               onClick={close}
             >
               Fechar
             </button>
           )
-        ) : (
+        ) : step === "processing" ? null : (
           <button
             type="button"
-            className="ds-button ds-button--primary ds-button--block"
+            className="ds-button ds-button--primary ds-button--block !bg-zinc-950 !text-white !shadow-none hover:!bg-zinc-800"
             onClick={handleContinue}
             disabled={isContinueDisabled}
           >
