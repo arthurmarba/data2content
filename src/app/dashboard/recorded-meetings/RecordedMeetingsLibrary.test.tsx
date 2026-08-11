@@ -30,17 +30,35 @@ const meetings: RecordedMeeting[] = [
   },
 ];
 
+/** Lista longa o bastante para a busca aparecer. */
+function manyMeetings(): RecordedMeeting[] {
+  return Array.from({ length: 8 }, (_, index) => ({
+    ...(meetings[index % meetings.length] as RecordedMeeting),
+    id: `meeting-${index}`,
+    youtubeVideoId: `video-${index}`,
+  }));
+}
+
 describe("RecordedMeetingsLibrary", () => {
   it("apresenta destaque e catálogo com capas 16:9 em alta resolução", () => {
     render(<RecordedMeetingsLibrary meetings={meetings} />);
 
     expect(screen.getByRole("heading", { name: "Raio X de Conteúdo" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Todos os episódios" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Todas as reuniões" })).toBeInTheDocument();
     expect(screen.getAllByAltText("Capa da reunião Raio X de Conteúdo")[0]).toHaveAttribute(
       "src",
       "https://img.youtube.com/vi/video-1/maxresdefault.jpg",
     );
-    expect(screen.getByText("2 episódios")).toBeInTheDocument();
+    expect(screen.getByText("2 reuniões")).toBeInTheDocument();
+  });
+
+  it("só mostra a busca quando a lista deixa de caber na rolagem", () => {
+    const { unmount } = render(<RecordedMeetingsLibrary meetings={meetings} />);
+    expect(screen.queryByRole("searchbox", { name: "Buscar reunião" })).not.toBeInTheDocument();
+    unmount();
+
+    render(<RecordedMeetingsLibrary meetings={manyMeetings()} />);
+    expect(screen.getByRole("searchbox", { name: "Buscar reunião" })).toBeInTheDocument();
   });
 
   it("abre e fecha o player sem sair da biblioteca", () => {
@@ -59,13 +77,14 @@ describe("RecordedMeetingsLibrary", () => {
   });
 
   it("filtra o catálogo por título", () => {
-    render(<RecordedMeetingsLibrary meetings={meetings} />);
+    render(<RecordedMeetingsLibrary meetings={manyMeetings()} />);
 
     fireEvent.change(screen.getByRole("searchbox", { name: "Buscar reunião" }), {
       target: { value: "narrativas" },
     });
 
-    expect(screen.getByRole("button", { name: "Assistir Narrativas que vendem" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Assistir Narrativas que vendem" }).length).toBeGreaterThan(0);
+    // Sobra só o destaque, que fica fora do filtro.
     expect(screen.getAllByRole("button", { name: "Assistir Raio X de Conteúdo" })).toHaveLength(1);
   });
 });

@@ -19,16 +19,25 @@ import RecordedMeetingPlayerDialog from "@/app/dashboard/recorded-meetings/Recor
 import RecordedMeetingThumbnail from "@/app/dashboard/recorded-meetings/RecordedMeetingThumbnail";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
-  day: "2-digit",
+  day: "numeric",
+  month: "long",
+  timeZone: "America/Sao_Paulo",
+});
+
+const DATE_FORMATTER_WITH_YEAR = new Intl.DateTimeFormat("pt-BR", {
+  day: "numeric",
   month: "long",
   year: "numeric",
   timeZone: "America/Sao_Paulo",
 });
 
+/** "6 de agosto" no ano corrente; o ano só entra quando muda de fato o sentido. */
 function formatMeetingDate(value: string) {
   if (!value) return "Data não informada";
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? "Data não informada" : DATE_FORMATTER.format(date);
+  if (Number.isNaN(date.getTime())) return "Data não informada";
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  return (sameYear ? DATE_FORMATTER : DATE_FORMATTER_WITH_YEAR).format(date);
 }
 
 function getMeetingSummary(description: string) {
@@ -72,26 +81,25 @@ export default function RecordedMeetingsLibrary({
   if (!featuredMeeting) {
     const unavailable = status === "unavailable" || status === "unconfigured";
     return (
-      <section className="grid min-h-[430px] overflow-hidden rounded-[28px] border border-zinc-200/80 bg-white shadow-[0_18px_50px_rgba(24,24,27,0.045)] lg:grid-cols-[minmax(0,1fr)_22rem]">
-        <div className="flex flex-col items-center justify-center px-8 py-14 text-center">
-          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-violet-50 text-violet-700 ring-1 ring-violet-100">
+      // Vazio não precisa de vitrine: a lista lateral com três "recursos da
+      // biblioteca" virava uma coluna de texto que ninguém lê no celular.
+      <section className="overflow-hidden rounded-[24px] border border-[#e7e1d8] bg-white lg:grid lg:min-h-[430px] lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div className="flex flex-col items-center justify-center px-6 py-12 text-center sm:px-8 sm:py-14">
+          <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#fdecf1] text-[#c70a42]">
             <Video className="h-6 w-6" aria-hidden="true" />
           </span>
-          <p className="mt-6 text-[10px] font-bold uppercase tracking-[0.18em] text-violet-700">
-            {unavailable ? "Biblioteca indisponível" : "Nenhuma gravação publicada"}
-          </p>
-          <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-zinc-950">
-            {unavailable ? "Não foi possível carregar as gravações" : "A biblioteca está sendo preparada"}
+          <h2 className="mt-5 text-[1.4rem] font-semibold leading-tight tracking-[-0.03em] text-[#17140f] sm:text-2xl">
+            {unavailable ? "Não foi possível carregar as gravações" : "A primeira gravação ainda não saiu"}
           </h2>
-          <p className="mt-3 max-w-md text-sm leading-6 text-zinc-500">
+          <p className="mt-3 max-w-md text-sm leading-6 text-[#423b33]">
             {unavailable
-              ? "Estamos ajustando o acesso ao acervo. Tente novamente em alguns minutos."
-              : "Assim que a primeira reunião for publicada, ela aparecerá aqui pronta para assistir."}
+              ? "Tente novamente em alguns minutos."
+              : "Assim que uma reunião for publicada, ela aparece aqui."}
           </p>
         </div>
 
-        <aside className="border-t border-zinc-200/80 bg-zinc-50/70 px-7 py-9 lg:border-l lg:border-t-0" aria-label="Recursos da biblioteca">
-          <p className="text-[10px] font-bold uppercase tracking-[0.17em] text-zinc-400">
+        <aside className="hidden border-zinc-200/80 bg-[#f7f3ed] px-7 py-9 lg:block lg:border-l" aria-label="Recursos da biblioteca">
+          <p className="text-[10px] font-bold uppercase tracking-[0.17em] text-[#6b6157]">
             Nesta biblioteca
           </p>
           <ul className="mt-6 space-y-6">
@@ -116,9 +124,15 @@ export default function RecordedMeetingsLibrary({
     );
   }
 
+  // A busca só ganha espaço quando a lista deixa de caber na rolagem.
+  const showSearch = meetings.length >= 8;
+
   return (
     <div className="min-w-0">
-      <section className="grid overflow-hidden rounded-[28px] bg-zinc-950 text-white shadow-[0_24px_70px_rgba(24,24,27,0.18)] lg:grid-cols-[minmax(20rem,0.85fr)_minmax(0,1.4fr)]">
+      {/* O destaque repetia a reunião mais recente, que aparece logo abaixo como
+          primeiro item com o selo "mais recente" — 590px da primeira dobra do
+          celular gastos duas vezes com a mesma coisa. No desktop ele cabe. */}
+      <section className="hidden overflow-hidden rounded-[28px] bg-zinc-950 text-white shadow-[0_24px_70px_rgba(24,24,27,0.18)] lg:grid lg:grid-cols-[minmax(20rem,0.85fr)_minmax(0,1.4fr)]">
         <div className="flex flex-col justify-center px-6 py-8 sm:px-9 sm:py-10 lg:px-12">
           <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-violet-300">
             <Sparkles className="h-3.5 w-3.5" aria-hidden="true" /> Última reunião
@@ -134,7 +148,7 @@ export default function RecordedMeetingsLibrary({
               <CalendarDays className="h-3.5 w-3.5" aria-hidden="true" />
               {formatMeetingDate(featuredMeeting.publishedAt)}
             </span>
-            <span>{meetings.length} {meetings.length === 1 ? "episódio" : "episódios"}</span>
+            <span>{meetings.length} {meetings.length === 1 ? "reunião" : "reuniões"}</span>
           </div>
           <button
             type="button"
@@ -167,27 +181,33 @@ export default function RecordedMeetingsLibrary({
         </button>
       </section>
 
-      <section className="mt-10" aria-labelledby="recorded-meetings-catalog-title">
-        <div className="flex flex-col justify-between gap-4 border-b border-zinc-200 pb-5 sm:flex-row sm:items-end">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-700">
+      <section className="lg:mt-10" aria-labelledby="recorded-meetings-catalog-title">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end lg:border-b lg:border-[#e7e1d8] lg:pb-5">
+          {/* Sem o destaque acima, este par de títulos repetia o cabeçalho da
+              página: "Reuniões gravadas" seguido de "Todas as reuniões". No
+              desktop ele separa o destaque da lista e continua fazendo sentido. */}
+          <div className="hidden lg:block">
+            <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#c70a42]">
               Catálogo
             </p>
-            <h2 id="recorded-meetings-catalog-title" className="mt-1 text-2xl font-bold tracking-[-0.03em] text-zinc-950">
-              Todos os episódios
+            <h2 id="recorded-meetings-catalog-title" className="mt-1 text-2xl font-bold tracking-[-0.03em] text-[#17140f]">
+              {/* "Episódios" virava podcast; o produto inteiro chama de reunião. */}
+              Todas as reuniões
             </h2>
           </div>
-          <label className="flex min-h-11 w-full items-center gap-2 rounded-full border border-zinc-200 bg-white px-4 text-zinc-500 transition focus-within:border-violet-300 focus-within:ring-2 focus-within:ring-violet-100 sm:w-72">
-            <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
-            <span className="sr-only">Buscar reunião</span>
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Buscar reunião"
-              className="w-full border-0 bg-transparent p-0 text-sm text-zinc-900 outline-none ring-0 placeholder:text-zinc-400 focus:ring-0"
-            />
-          </label>
+          {showSearch ? (
+            <label className="flex min-h-11 w-full items-center gap-2 rounded-full border border-[#e7e1d8] bg-white px-4 text-[#6b6157] transition focus-within:border-[#c70a42] focus-within:ring-2 focus-within:ring-[#fdecf1] sm:w-72">
+              <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
+              <span className="sr-only">Buscar reunião</span>
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Buscar reunião"
+                className="w-full border-0 bg-transparent p-0 text-sm text-[#17140f] outline-none ring-0 placeholder:text-[#6b6157] focus:ring-0"
+              />
+            </label>
+          ) : null}
         </div>
 
         {filteredMeetings.length > 0 ? (
@@ -197,11 +217,13 @@ export default function RecordedMeetingsLibrary({
                 key={meeting.id}
                 type="button"
                 onClick={() => setPlayingMeeting(meeting)}
-                className="group min-w-0 text-left focus-visible:outline-none"
+                // active: existia só no mouse — no celular o toque não devolvia
+                // sinal nenhum e a pessoa tocava duas vezes.
+                className="group min-w-0 text-left transition duration-150 active:scale-[0.985] active:opacity-90 focus-visible:outline-none"
                 aria-label={`Assistir ${meeting.title}`}
               >
                 <span
-                  className="relative block w-full overflow-hidden rounded-2xl bg-zinc-900 shadow-[0_12px_32px_rgba(24,24,27,0.1)] ring-1 ring-black/5 transition duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_18px_42px_rgba(24,24,27,0.18)] group-focus-visible:ring-2 group-focus-visible:ring-violet-500"
+                  className="relative block w-full overflow-hidden rounded-2xl bg-zinc-900 shadow-[0_12px_32px_rgba(24,24,27,0.1)] ring-1 ring-black/5 transition duration-300 group-hover:-translate-y-1 group-hover:shadow-[0_18px_42px_rgba(24,24,27,0.18)] group-focus-visible:ring-2 group-focus-visible:ring-[#c70a42]"
                   style={{ aspectRatio: "16 / 9" }}
                 >
                   <RecordedMeetingThumbnail
@@ -209,38 +231,40 @@ export default function RecordedMeetingsLibrary({
                     sizes="(max-width: 640px) 100vw, (max-width: 1280px) 50vw, 33vw"
                     className="transition duration-500 group-hover:scale-[1.035]"
                   />
-                  <span className="absolute inset-0 bg-gradient-to-t from-black/65 via-black/5 to-transparent" />
+                  {/* O gradiente escurecia a capa sem ter texto para contrastar. */}
                   <span className="absolute bottom-4 left-4 flex h-11 w-11 items-center justify-center rounded-full bg-white text-zinc-950 shadow-lg transition group-hover:scale-110">
                     <Play className="ml-0.5 h-4 w-4 fill-current" aria-hidden="true" />
                   </span>
                   {index === 0 ? (
-                    <span className="absolute right-3 top-3 rounded-full bg-zinc-950/80 px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-white backdrop-blur">
+                    <span className="absolute right-3 top-3 rounded-full bg-zinc-950/80 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.1em] text-white backdrop-blur">
                       Mais recente
                     </span>
                   ) : null}
                 </span>
-                <span className="mt-4 flex items-start justify-between gap-4">
+                <span className="mt-3 flex items-start justify-between gap-3">
                   <span className="min-w-0">
-                    <span className="line-clamp-2 text-base font-semibold leading-5 text-zinc-900 transition group-hover:text-violet-800">
+                    {/* Três linhas: o título é a única pista do assunto — cortá-lo
+                        em duas deixava só a data. */}
+                    <span className="line-clamp-3 text-[15px] font-semibold leading-[1.35] text-[#17140f] transition group-hover:text-[#c70a42]">
                       {meeting.title}
                     </span>
-                    <span className="mt-2 block text-xs font-medium text-zinc-500">
+                    <span className="mt-1.5 block text-xs font-medium text-[#6b6157]">
                       {formatMeetingDate(meeting.publishedAt)}
                     </span>
                   </span>
-                  <ChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-zinc-300 transition group-hover:translate-x-0.5 group-hover:text-violet-700" aria-hidden="true" />
+                  <ChevronRight className="mt-0.5 h-5 w-5 shrink-0 text-[#d6cec2] transition group-hover:translate-x-0.5 group-hover:text-[#c70a42]" aria-hidden="true" />
                 </span>
               </button>
             ))}
           </div>
         ) : (
           <div className="py-16 text-center">
-            <Search className="mx-auto h-6 w-6 text-zinc-300" aria-hidden="true" />
-            <p className="mt-3 text-sm font-medium text-zinc-600">Nenhuma reunião encontrada.</p>
+            <Search className="mx-auto h-6 w-6 text-[#d6cec2]" aria-hidden="true" />
+            <p className="mt-3 text-sm font-medium text-[#423b33]">Nenhuma reunião encontrada.</p>
             <button
               type="button"
               onClick={() => setQuery("")}
-              className="mt-3 text-sm font-bold text-violet-800"
+              className="mt-3 min-h-11 px-3 text-sm font-bold text-[#c70a42] transition active:opacity-70"
             >
               Limpar busca
             </button>
