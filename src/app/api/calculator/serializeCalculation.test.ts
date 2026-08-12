@@ -162,4 +162,49 @@ describe('serializeCalculation', () => {
     expect(payload.calibration.lowConfidenceRangeExpanded).toBe(true);
     expect(payload.calibration.linkQuality).toBe('mixed');
   });
+
+  it('preserves V2 components, shadow comparison, feedback and format reach', () => {
+    const payload = serializeCalculation({
+      _id: 'calc-v2',
+      result: { estrategico: 350, justo: 620, premium: 780 },
+      cpmApplied: 30,
+      params: {
+        format: 'reels',
+        exclusivity: 'nenhuma',
+        usageRights: 'organico',
+        complexity: 'simples',
+        authority: 'padrao',
+      },
+      metrics: {
+        reach: 12_000,
+        pricingNiche: 'beleza',
+        reachMethod: 'hybrid_robust',
+        reachConfidence: 'alta',
+        reachByFormat: { reels: 15_000, post: 8_000, stories: 12_000 },
+        reachSampleSizeByFormat: { reels: 5, post: 3, stories: 0 },
+      },
+      pricing: {
+        version: 'v2.0.0',
+        protectedFloor: 350,
+        modelIdeal: 780,
+        recommendedNow: 620,
+        potentialIdeal: 780,
+        components: { production: 350, distribution: 430, usageRights: 0, exclusivity: 0, logistics: 0 },
+        history: { eligible: true, applied: true, direction: 'below', transitionProgress: 0.35 },
+        shadow: { version: 'v1', result: { estrategico: 200, justo: 260, premium: 364 }, deltaJustoPercent: 138.46 },
+      },
+      pricingFeedback: { perception: 'fair', intendedAsk: 650, submittedAt: new Date('2026-08-11T12:00:00.000Z') },
+    });
+
+    expect(payload.pricing).toMatchObject({
+      version: 'v2.0.0',
+      protectedFloor: 350,
+      recommendedNow: 620,
+      history: { direction: 'below', transitionProgress: 0.35 },
+      shadow: { deltaJustoPercent: 138.46 },
+    });
+    expect(payload.metrics.reachByFormat.reels).toBe(15_000);
+    expect(payload.metrics.pricingNiche).toBe('beleza');
+    expect(payload.pricingFeedback).toMatchObject({ perception: 'fair', intendedAsk: 650 });
+  });
 });

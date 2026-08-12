@@ -17,12 +17,12 @@ const cache: CacheState = {
 };
 
 const calibrationCache: CacheState = {
-  value: true,
+  value: false,
   expiresAt: 0,
 };
 
 const personalReferenceCache: CacheState = {
-  value: true,
+  value: false,
   expiresAt: 0,
 };
 
@@ -82,14 +82,14 @@ export async function isPricingCalibrationV1Enabled(): Promise<boolean> {
     await connectToDatabase();
     const env = resolveEnvironment();
     const dbValue = await (FeatureFlag as any).getValue(CALIBRATION_FLAG_KEY, env);
-    const enabled = typeof dbValue === 'boolean' ? dbValue : true;
+    const enabled = typeof dbValue === 'boolean' ? dbValue : false;
     calibrationCache.value = enabled;
     calibrationCache.expiresAt = now + CACHE_TTL_MS;
     return enabled;
   } catch {
-    calibrationCache.value = true;
+    calibrationCache.value = false;
     calibrationCache.expiresAt = now + CACHE_TTL_MS;
-    return true;
+    return false;
   }
 }
 
@@ -104,22 +104,22 @@ export async function isPricingPersonalReferenceV1Enabled(): Promise<boolean> {
     await connectToDatabase();
     const env = resolveEnvironment();
     const dbValue = await (FeatureFlag as any).getValue(PERSONAL_REFERENCE_FLAG_KEY, env);
-    const enabled = typeof dbValue === 'boolean' ? dbValue : true;
+    const enabled = typeof dbValue === 'boolean' ? dbValue : false;
     personalReferenceCache.value = enabled;
     personalReferenceCache.expiresAt = now + CACHE_TTL_MS;
     return enabled;
   } catch {
-    personalReferenceCache.value = true;
+    personalReferenceCache.value = false;
     personalReferenceCache.expiresAt = now + CACHE_TTL_MS;
-    return true;
+    return false;
   }
 }
 
 export function clearPricingBrandRiskFlagCache() {
   cache.value = false;
   cache.expiresAt = 0;
-  calibrationCache.value = true;
+  calibrationCache.value = false;
   calibrationCache.expiresAt = 0;
-  personalReferenceCache.value = true;
+  personalReferenceCache.value = false;
   personalReferenceCache.expiresAt = 0;
 }

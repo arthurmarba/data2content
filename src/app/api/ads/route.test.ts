@@ -72,7 +72,7 @@ it('grava vínculo manual quando sourceCalculationId é informado', async () => 
   const manualCalc = {
     _id: '507f191e810c19729de860eb',
     result: { justo: 1500 },
-    metrics: { reach: 120000, profileSegment: 'luxo' },
+    metrics: { reach: 120000, profileSegment: 'Novo Usuário', pricingNiche: 'beleza' },
   };
   const manualChain = buildFindOneChain(manualCalc, false);
   mockedPubliCalculation.findOne.mockReturnValueOnce(manualChain);
@@ -102,7 +102,7 @@ it('grava vínculo manual quando sourceCalculationId é informado', async () => 
       pricingLinkConfidence: 1,
       linkedCalculationJusto: 1500,
       linkedCalculationReach: 120000,
-      linkedCalculationSegment: 'luxo',
+      linkedCalculationSegment: 'beleza',
     })
   );
   expect(json.pricingLinkMethod).toBe('manual');

@@ -137,6 +137,9 @@ const AdDealSchema = new Schema<IAdDeal>(
   }
 );
 
+AdDealSchema.index({ userId: 1, dealDate: -1 });
+AdDealSchema.index({ linkedCalculationSegment: 1, dealDate: -1 });
+
 // Evita recompilar o modelo se ele já existir (comum em Next.js)
 const AdDeal = (models.AdDeal || model<IAdDeal>('AdDeal', AdDealSchema)) as mongoose.Model<IAdDeal>;
 

@@ -60,10 +60,10 @@ function buildPricingLinkFromCalculation(
       typeof calculation?.metrics?.reach === 'number' && Number.isFinite(calculation.metrics.reach)
         ? calculation.metrics.reach
         : undefined,
-    linkedCalculationSegment:
-      typeof calculation?.metrics?.profileSegment === 'string' && calculation.metrics.profileSegment.trim()
-        ? calculation.metrics.profileSegment.trim().toLowerCase()
-        : undefined,
+    linkedCalculationSegment: (() => {
+      const segment = calculation?.metrics?.pricingNiche || calculation?.metrics?.profileSegment;
+      return typeof segment === 'string' && segment.trim() ? segment.trim().toLowerCase() : undefined;
+    })(),
   };
 }
 

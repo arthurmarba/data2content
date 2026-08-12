@@ -5,7 +5,6 @@ import * as Sentry from '@sentry/nextjs';
 
 import { connectToDatabase } from '@/app/lib/mongoose';
 import { logger } from '@/app/lib/logger';
-import PubliCalculation from '@/app/models/PubliCalculation';
 import AdDeal from '@/app/models/AdDeal';
 import { INITIAL_CPM_SEED } from '@/app/lib/ai/initialCpmSeed';
 
@@ -24,92 +23,38 @@ export interface DynamicCpmMap {
 
 const DEFAULT_CPM: number = INITIAL_CPM_SEED.default ?? 25;
 
-const WEIGHT_CALCULATION = 0.6;
-const WEIGHT_DEALS = 0.4;
+const WEIGHT_SEED = 0.7;
+const WEIGHT_DEALS = 0.3;
+const MIN_DEALS_PER_NICHE = 10;
 
 let dynamicReadyLogged = false;
 let seedLoggingEnabled = true;
 
 /**
- * Aggregates CPM data from PubliCalculation documents.
- */
-async function aggregateCalculationCpm(sinceDate: Date): Promise<Record<SegmentKey, number>> {
-  const rows = await PubliCalculation.aggregate<{ _id: SegmentKey | null; avgCpm: number | null }>([
-    {
-      $match: {
-        createdAt: { $gte: sinceDate },
-        cpmApplied: { $gt: 0 },
-        'metrics.profileSegment': { $exists: true, $ne: null },
-      },
-    },
-    {
-      $project: {
-        segment: {
-          $toLower: {
-            $trim: { input: '$metrics.profileSegment' },
-          },
-        },
-        cpmApplied: 1,
-      },
-    },
-    {
-      $match: {
-        segment: { $ne: '' },
-      },
-    },
-    {
-      $group: {
-        _id: '$segment',
-        avgCpm: { $avg: '$cpmApplied' },
-      },
-    },
-  ]).catch((error) => {
-    logger.error('[CPM_DYNAMIC] Failed to aggregate calculation CPM', error);
-    Sentry.captureException(error);
-    return [];
-  });
-
-  const result: Record<SegmentKey, number> = {};
-  for (const row of rows) {
-    if (!row?._id || typeof row.avgCpm !== 'number' || Number.isNaN(row.avgCpm)) continue;
-    result[row._id] = Math.round(row.avgCpm * 100) / 100;
-  }
-  return result;
-}
-
-/**
  * Aggregates CPM data derived from real AdDeals.
  */
 async function aggregateDealCpm(sinceDate: Date): Promise<Record<SegmentKey, number>> {
-  const rows = await AdDeal.aggregate<{ _id: SegmentKey | null; avgCpm: number | null }>([
+  const rows = await AdDeal.aggregate<{ _id: SegmentKey | null; avgCpm: number | null; sampleSize: number }>([
     {
       $match: {
-        createdAt: { $gte: sinceDate },
+        dealDate: { $gte: sinceDate },
         compensationType: 'Valor Fixo',
         compensationCurrency: 'BRL',
         compensationValue: { $gt: 0 },
-        brandSegment: { $exists: true, $ne: null },
-        relatedPostId: { $exists: true, $ne: null },
+        linkedCalculationSegment: { $exists: true, $ne: null },
+        linkedCalculationReach: { $gt: 0 },
+        sourceCalculationId: { $exists: true, $ne: null },
       },
     },
-    {
-      $lookup: {
-        from: 'metrics',
-        localField: 'relatedPostId',
-        foreignField: '_id',
-        as: 'metric',
-      },
-    },
-    { $unwind: '$metric' },
     {
       $project: {
         segment: {
           $toLower: {
-            $trim: { input: '$brandSegment' },
+            $trim: { input: '$linkedCalculationSegment' },
           },
         },
         compensationValue: 1,
-        reach: { $ifNull: ['$metric.stats.reach', '$metric.stats.impressions'] },
+        reach: '$linkedCalculationReach',
       },
     },
     {
@@ -144,8 +89,10 @@ async function aggregateDealCpm(sinceDate: Date): Promise<Record<SegmentKey, num
       $group: {
         _id: '$segment',
         avgCpm: { $avg: '$cpm' },
+        sampleSize: { $sum: 1 },
       },
     },
+    { $match: { sampleSize: { $gte: MIN_DEALS_PER_NICHE } } },
   ]).catch((error) => {
     logger.error('[CPM_DYNAMIC] Failed to aggregate deal CPM', error);
     Sentry.captureException(error);
@@ -174,12 +121,8 @@ function buildSeedMap(): DynamicCpmMap {
  */
 async function computeDynamicCpmMap(): Promise<DynamicCpmMap> {
   await connectToDatabase();
-  const [calcCount, dealCount] = await Promise.all([
-    PubliCalculation.countDocuments(),
-    AdDeal.countDocuments(),
-  ]);
-
-  const totalRecords = calcCount + dealCount;
+  const dealCount = await AdDeal.countDocuments();
+  const totalRecords = dealCount;
 
   if (totalRecords > 50 && !dynamicReadyLogged) {
     dynamicReadyLogged = true;
@@ -189,7 +132,7 @@ async function computeDynamicCpmMap(): Promise<DynamicCpmMap> {
     Sentry.captureMessage(readyMessage, 'info');
   }
 
-  if (calcCount === 0 && dealCount === 0) {
+  if (dealCount === 0) {
     if (seedLoggingEnabled) {
       const message = '[CPM_SEED] Loaded initial benchmark for dynamic CPM service.';
       logger.info(message);
@@ -200,34 +143,21 @@ async function computeDynamicCpmMap(): Promise<DynamicCpmMap> {
 
   const sinceDate = subDays(new Date(), 90);
 
-  const [calcCpm, dealCpm] = await Promise.all([
-    aggregateCalculationCpm(sinceDate),
-    aggregateDealCpm(sinceDate),
-  ]);
-
-  const segments = new Set<SegmentKey>([
-    ...Object.keys(calcCpm),
-    ...Object.keys(dealCpm),
-  ]);
-
-  const combined: DynamicCpmMap = {};
+  const dealCpm = await aggregateDealCpm(sinceDate);
+  const combined: DynamicCpmMap = buildSeedMap();
+  const segments = new Set<SegmentKey>(Object.keys(dealCpm));
 
   for (const segment of segments) {
-    const calcValue = calcCpm[segment];
     const dealValue = dealCpm[segment];
-
-    if (typeof calcValue === 'number' && typeof dealValue === 'number') {
-      const weighted = calcValue * WEIGHT_CALCULATION + dealValue * WEIGHT_DEALS;
-      combined[segment] = { value: Math.round(weighted * 100) / 100, source: 'dynamic' };
-    } else if (typeof calcValue === 'number') {
-      combined[segment] = { value: calcValue, source: 'dynamic' };
-    } else if (typeof dealValue === 'number') {
-      combined[segment] = { value: dealValue, source: 'dynamic' };
-    }
+    if (typeof dealValue !== 'number') continue;
+    const seedValue = INITIAL_CPM_SEED[segment] ?? DEFAULT_CPM;
+    const weighted = seedValue * WEIGHT_SEED + dealValue * WEIGHT_DEALS;
+    const guarded = Math.min(seedValue * 1.35, Math.max(seedValue * 0.75, weighted));
+    combined[segment] = { value: Math.round(guarded * 100) / 100, source: 'dynamic' };
   }
 
   if (!combined.default) {
-    combined.default = { value: DEFAULT_CPM, source: 'dynamic' };
+    combined.default = { value: DEFAULT_CPM, source: 'seed' };
   }
 
   return combined;

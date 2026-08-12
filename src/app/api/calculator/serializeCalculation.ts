@@ -17,6 +17,12 @@ const sanitizeFormatQuantities = (value: any, fallback: FormatQuantities): Forma
   stories: clampToRange(value?.stories ?? fallback.stories, 0, 20),
 });
 
+const sanitizeNumberTriple = (value: any, fallback: FormatQuantities): FormatQuantities => ({
+  reels: serializeNumber(value?.reels) ?? fallback.reels,
+  post: serializeNumber(value?.post) ?? fallback.post,
+  stories: serializeNumber(value?.stories) ?? fallback.stories,
+});
+
 const mapLegacyFormatToQuantities = (format?: string | null): FormatQuantities => {
   switch (format) {
     case 'reels':
@@ -82,7 +88,11 @@ const sanitizeBreakdown = (value: any): PubliCalculatorBreakdown => ({
   travelCost: serializeNumber(value?.travelCost) ?? 0,
   hotelCost: serializeNumber(value?.hotelCost) ?? 0,
   logisticsSuggested: serializeNumber(value?.logisticsSuggested) ?? 0,
-  logisticsIncludedInCache: false,
+  logisticsIncludedInCache: typeof value?.logisticsIncludedInCache === 'boolean' ? value.logisticsIncludedInCache : false,
+  production: serializeNumber(value?.production) ?? 0,
+  distribution: serializeNumber(value?.distribution) ?? 0,
+  usageRights: serializeNumber(value?.usageRights) ?? 0,
+  exclusivity: serializeNumber(value?.exclusivity) ?? 0,
 });
 
 const VALID_PAID_MEDIA_DURATION_VALUES = new Set(['7d', '15d', '30d', '90d', '180d', '365d']);
@@ -150,7 +160,9 @@ const sanitizePersonalReferenceReason = (value: unknown) =>
   value === 'not_configured' ||
   value === 'expired' ||
   value === 'creator_calibrated' ||
+  value === 'creator_opted_out' ||
   value === 'feature_disabled' ||
+  value === 'not_applicable' ||
   value === 'applied'
     ? value
     : 'not_configured';
@@ -167,6 +179,56 @@ const sanitizePersonalReference = (value: any) => ({
   weightApplied: serializeNumber(value?.weightApplied) ?? 0,
   baseJusto: serializeNumber(value?.baseJusto) ?? 0,
   adjustedJusto: serializeNumber(value?.adjustedJusto) ?? 0,
+  direction:
+    value?.direction === 'below' || value?.direction === 'above' || value?.direction === 'aligned'
+      ? value.direction
+      : 'none',
+  campaignEquivalent: serializeNumber(value?.campaignEquivalent),
+  transitionProgress: serializeNumber(value?.transitionProgress) ?? 0,
+});
+
+const sanitizePricing = (value: any, result: any) => ({
+  version: typeof value?.version === 'string' ? value.version : 'v1',
+  protectedFloor: serializeNumber(value?.protectedFloor) ?? serializeNumber(result?.estrategico) ?? 0,
+  modelIdeal: serializeNumber(value?.modelIdeal) ?? serializeNumber(result?.justo) ?? 0,
+  recommendedNow: serializeNumber(value?.recommendedNow) ?? serializeNumber(result?.justo) ?? 0,
+  potentialIdeal: serializeNumber(value?.potentialIdeal) ?? serializeNumber(result?.premium) ?? 0,
+  components: {
+    production: serializeNumber(value?.components?.production) ?? 0,
+    distribution: serializeNumber(value?.components?.distribution) ?? 0,
+    usageRights: serializeNumber(value?.components?.usageRights) ?? 0,
+    exclusivity: serializeNumber(value?.components?.exclusivity) ?? 0,
+    logistics: serializeNumber(value?.components?.logistics) ?? 0,
+  },
+  history: {
+    eligible: Boolean(value?.history?.eligible),
+    applied: Boolean(value?.history?.applied),
+    direction:
+      value?.history?.direction === 'below' || value?.history?.direction === 'above' || value?.history?.direction === 'aligned'
+        ? value.history.direction
+        : 'none',
+    referenceValue: serializeNumber(value?.history?.referenceValue),
+    canonicalModelIdeal: serializeNumber(value?.history?.canonicalModelIdeal) ?? 0,
+    campaignEquivalent: serializeNumber(value?.history?.campaignEquivalent),
+    transitionProgress: serializeNumber(value?.history?.transitionProgress) ?? 0,
+  },
+  shadow: {
+    version: typeof value?.shadow?.version === 'string' ? value.shadow.version : 'v1',
+    result: {
+      estrategico: serializeNumber(value?.shadow?.result?.estrategico) ?? 0,
+      justo: serializeNumber(value?.shadow?.result?.justo) ?? 0,
+      premium: serializeNumber(value?.shadow?.result?.premium) ?? 0,
+    },
+    deltaJustoPercent: serializeNumber(value?.shadow?.deltaJustoPercent) ?? 0,
+  },
+});
+
+const sanitizePricingFeedback = (value: any) => ({
+  perception: value?.perception === 'low' || value?.perception === 'fair' || value?.perception === 'high'
+    ? value.perception
+    : null,
+  intendedAsk: serializeNumber(value?.intendedAsk),
+  submittedAt: value?.submittedAt ? new Date(value.submittedAt).toISOString() : null,
 });
 
 export function serializeCalculation(calculation: any) {
@@ -194,6 +256,8 @@ export function serializeCalculation(calculation: any) {
     cpmSource: calculation?.cpmSource ?? 'dynamic',
     calibration: sanitizeCalibration(calculation?.calibration),
     personalReference: sanitizePersonalReference(calculation?.personalReference),
+    pricing: sanitizePricing(calculation?.pricing, calculation?.result),
+    pricingFeedback: sanitizePricingFeedback(calculation?.pricingFeedback),
     params: {
       format,
       deliveryType,
@@ -225,10 +289,24 @@ export function serializeCalculation(calculation: any) {
       reach: serializeNumber(calculation?.metrics?.reach) ?? 0,
       engagement: serializeNumber(calculation?.metrics?.engagement) ?? 0,
       profileSegment: calculation?.metrics?.profileSegment ?? 'default',
+      pricingNiche: calculation?.metrics?.pricingNiche ?? 'default',
       reachSampleSize: serializeNumber(calculation?.metrics?.reachSampleSize) ?? 0,
-      reachMethod: calculation?.metrics?.reachMethod === 'trimmed_mean' ? 'trimmed_mean' : 'median',
-      reachConfidence: calculation?.metrics?.reachConfidence === 'alta' ? 'alta' : 'baixa',
+      reachMethod: calculation?.metrics?.reachMethod ?? 'median',
+      reachConfidence:
+        calculation?.metrics?.reachConfidence === 'alta' || calculation?.metrics?.reachConfidence === 'media'
+          ? calculation.metrics.reachConfidence
+          : 'baixa',
       reachFollowerAlert: typeof calculation?.metrics?.reachFollowerAlert === 'boolean' ? calculation.metrics.reachFollowerAlert : false,
+      reachByFormat: sanitizeNumberTriple(calculation?.metrics?.reachByFormat, {
+        reels: serializeNumber(calculation?.metrics?.reach) ?? 0,
+        post: serializeNumber(calculation?.metrics?.reach) ?? 0,
+        stories: serializeNumber(calculation?.metrics?.reach) ?? 0,
+      }),
+      reachSampleSizeByFormat: sanitizeNumberTriple(calculation?.metrics?.reachSampleSizeByFormat, {
+        reels: 0,
+        post: 0,
+        stories: 0,
+      }),
     },
     avgTicket: serializeNumber(calculation?.avgTicket),
     totalDeals: typeof calculation?.totalDeals === 'number' ? calculation.totalDeals : 0,

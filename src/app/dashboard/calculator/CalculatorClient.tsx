@@ -56,6 +56,7 @@ type CalculatorParams = {
   imageRisk: "baixo" | "medio" | "alto";
   strategicGain: "baixo" | "medio" | "alto";
   contentModel: "publicidade_perfil" | "ugc_whitelabel";
+  usePersonalReference: boolean;
   allowStrategicWaiver: boolean;
   complexity: "simples" | "roteiro" | "profissional";
   authority: "padrao" | "ascensao" | "autoridade" | "celebridade";
@@ -71,7 +72,11 @@ type CalculationBreakdown = {
   travelCost: number;
   hotelCost: number;
   logisticsSuggested: number;
-  logisticsIncludedInCache: false;
+  logisticsIncludedInCache: boolean;
+  production: number;
+  distribution: number;
+  usageRights: number;
+  exclusivity: number;
 };
 
 type CalculationCalibration = {
@@ -100,7 +105,7 @@ type PersonalPricingReference = {
 type CalculationPersonalReference = {
   enabled: boolean;
   applied: boolean;
-  reason: "not_configured" | "expired" | "creator_calibrated" | "creator_opted_out" | "feature_disabled" | "applied";
+  reason: "not_configured" | "expired" | "creator_calibrated" | "creator_opted_out" | "feature_disabled" | "not_applicable" | "applied";
   referenceValueBRL: number | null;
   referenceAgeDays: number | null;
   canonicalJusto: number | null;
@@ -109,6 +114,33 @@ type CalculationPersonalReference = {
   weightApplied: number;
   baseJusto: number;
   adjustedJusto: number;
+  direction: "below" | "above" | "aligned" | "none";
+  campaignEquivalent: number | null;
+  transitionProgress: number;
+};
+
+type CalculationPricing = {
+  version: string;
+  protectedFloor: number;
+  modelIdeal: number;
+  recommendedNow: number;
+  potentialIdeal: number;
+  components: {
+    production: number;
+    distribution: number;
+    usageRights: number;
+    exclusivity: number;
+    logistics: number;
+  };
+  history: {
+    eligible: boolean;
+    applied: boolean;
+    direction: "below" | "above" | "aligned" | "none";
+    referenceValue: number | null;
+    canonicalModelIdeal: number;
+    campaignEquivalent: number | null;
+    transitionProgress: number;
+  };
 };
 
 type CalculationResult = {
@@ -119,14 +151,16 @@ type CalculationResult = {
   breakdown: CalculationBreakdown;
   calibration: CalculationCalibration;
   personalReference: CalculationPersonalReference;
+  pricing: CalculationPricing;
   params: CalculatorParams;
   metrics: {
     reach: number;
     engagement: number;
     profileSegment: string;
+    pricingNiche: string;
     reachSampleSize: number;
-    reachMethod: "trimmed_mean" | "median";
-    reachConfidence: "alta" | "baixa";
+    reachMethod: "hybrid_robust" | "median_mean" | "follower_fallback" | "trimmed_mean" | "median";
+    reachConfidence: "alta" | "media" | "baixa";
     reachFollowerAlert: boolean;
   };
   avgTicket: number | null;
@@ -217,7 +251,7 @@ const STRATEGIC_GAIN_OPTIONS = [
 ];
 const CONTENT_MODEL_OPTIONS = [
   { value: "publicidade_perfil", label: "Publicidade no perfil", icon: Instagram, helper: "Publicado no perfil do creator" },
-  { value: "ugc_whitelabel", label: "UGC (whitelabel)", icon: Video, helper: "Conteúdo de uso da marca, mais barato" },
+  { value: "ugc_whitelabel", label: "UGC (whitelabel)", icon: Video, helper: "Produção para uso da marca, sem distribuição no seu perfil" },
 ];
 
 const COMPLEXITY_OPTIONS = [
@@ -307,6 +341,19 @@ const percentFormatter = new Intl.NumberFormat("pt-BR", {
   minimumFractionDigits: 0,
   maximumFractionDigits: 2,
 });
+
+const parseCurrencyInput = (value: string) => {
+  const sanitized = value.replace(/[^\d,.]/g, "");
+  let normalized = sanitized;
+  if (sanitized.includes(",")) {
+    normalized = sanitized.replace(/\./g, "").replace(",", ".");
+  } else if (sanitized.includes(".")) {
+    const groups = sanitized.split(".");
+    const looksLikeThousands = groups.length > 2 || (groups.length === 2 && groups[1]?.length === 3);
+    normalized = looksLikeThousands ? groups.join("") : sanitized;
+  }
+  return Number(normalized);
+};
 
 type CalculatorTone = "neutral" | "sky" | "amber" | "rose" | "emerald";
 
@@ -554,6 +601,7 @@ export default function CalculatorClient({
     imageRisk: "medio",
     strategicGain: "baixo",
     contentModel: "publicidade_perfil",
+    usePersonalReference: true,
     allowStrategicWaiver: false,
     complexity: "simples",
     authority: "padrao",
@@ -564,14 +612,18 @@ export default function CalculatorClient({
   const [personalPricingReference, setPersonalPricingReference] = useState<PersonalPricingReference | null>(null);
   const [personalPricingReferenceValue, setPersonalPricingReferenceValue] = useState("");
   const [isSavingPersonalPricingReference, setIsSavingPersonalPricingReference] = useState(false);
+  const [pricingFeedback, setPricingFeedback] = useState<"low" | "fair" | "high" | null>(null);
+  const [pendingPricingFeedback, setPendingPricingFeedback] = useState<"low" | "high" | null>(null);
+  const [pricingFeedbackValue, setPricingFeedbackValue] = useState("");
+  const [isSavingPricingFeedback, setIsSavingPricingFeedback] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const resultsSectionRef = useRef<HTMLDivElement | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<Record<CollapsibleSectionKey, boolean>>(() => ({
-    delivery: compactView ? false : true,
-    rights: true,
-    brand: true,
+    delivery: false,
+    rights: compactView,
+    brand: compactView,
     packages: true,
-    insights: true,
+    insights: false,
   }));
 
   // Package Management State
@@ -618,6 +670,9 @@ export default function CalculatorClient({
 
   useEffect(() => {
     setCalculation(null);
+    setPricingFeedback(null);
+    setPendingPricingFeedback(null);
+    setPricingFeedbackValue("");
     setError(null);
   }, [targetUserId]);
 
@@ -642,6 +697,23 @@ export default function CalculatorClient({
       return;
     }
     setPackages([]);
+  }, [canAccessFeatures, isActingOnBehalf]);
+
+  useEffect(() => {
+    if (!canAccessFeatures || isActingOnBehalf) return;
+    let cancelled = false;
+    Promise.resolve()
+      .then(() => fetch('/api/calculator/personal-reference', { cache: 'no-store' }))
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload) => {
+        if (cancelled || typeof payload?.reference?.valueBRL !== 'number') return;
+        setPersonalPricingReference(payload.reference as PersonalPricingReference);
+        setPersonalPricingReferenceValue(String(payload.reference.valueBRL));
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
   }, [canAccessFeatures, isActingOnBehalf]);
 
   useEffect(() => {
@@ -946,6 +1018,8 @@ export default function CalculatorClient({
       contentModel: CONTENT_MODEL_VALUES.includes(raw?.contentModel as CalculatorParams["contentModel"])
         ? (raw?.contentModel as CalculatorParams["contentModel"])
         : fallback.contentModel,
+      usePersonalReference:
+        typeof raw?.usePersonalReference === "boolean" ? raw.usePersonalReference : fallback.usePersonalReference,
       allowStrategicWaiver:
         typeof raw?.allowStrategicWaiver === "boolean"
           ? raw.allowStrategicWaiver
@@ -1073,6 +1147,44 @@ export default function CalculatorClient({
     }
   };
 
+  const submitPricingFeedback = async (
+    perception: "low" | "fair" | "high",
+    intendedAsk?: number,
+  ) => {
+    if (!calculation?.calculationId || pricingFeedback || isSavingPricingFeedback) return;
+    if (perception !== "fair" && (intendedAsk === undefined || !Number.isFinite(intendedAsk) || intendedAsk <= 0)) {
+      toast({ variant: 'error', title: 'Informe o valor', description: 'Digite quanto você cobraria por esta proposta.' });
+      return;
+    }
+    setIsSavingPricingFeedback(true);
+    try {
+      const response = await fetch(`/api/calculator/${calculation.calculationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ perception, intendedAsk: intendedAsk ?? null }),
+      });
+      if (!response.ok) throw new Error('Não foi possível salvar sua avaliação.');
+      setPricingFeedback(perception);
+      setPendingPricingFeedback(null);
+      setPricingFeedbackValue("");
+      track('calculator_price_perception_submitted', {
+        perception,
+        pricingVersion: calculation.pricing.version,
+        amount: calculation.justo,
+        intendedAsk: intendedAsk ?? null,
+      });
+      toast({ variant: 'success', title: 'Avaliação salva', description: 'Isso ajuda a melhorar as próximas recomendações.' });
+    } catch (feedbackError) {
+      toast({
+        variant: 'error',
+        title: 'Não foi possível salvar',
+        description: feedbackError instanceof Error ? feedbackError.message : 'Tente novamente.',
+      });
+    } finally {
+      setIsSavingPricingFeedback(false);
+    }
+  };
+
   const callCalculator = async () => {
     setIsCalculating(true);
     setError(null);
@@ -1166,7 +1278,11 @@ export default function CalculatorClient({
           travelCost: typeof (parsed as any)?.breakdown?.travelCost === "number" ? (parsed as any).breakdown.travelCost : 0,
           hotelCost: typeof (parsed as any)?.breakdown?.hotelCost === "number" ? (parsed as any).breakdown.hotelCost : 0,
           logisticsSuggested: typeof (parsed as any)?.breakdown?.logisticsSuggested === "number" ? (parsed as any).breakdown.logisticsSuggested : 0,
-          logisticsIncludedInCache: false,
+          logisticsIncludedInCache: Boolean((parsed as any)?.breakdown?.logisticsIncludedInCache),
+          production: typeof (parsed as any)?.breakdown?.production === "number" ? (parsed as any).breakdown.production : 0,
+          distribution: typeof (parsed as any)?.breakdown?.distribution === "number" ? (parsed as any).breakdown.distribution : 0,
+          usageRights: typeof (parsed as any)?.breakdown?.usageRights === "number" ? (parsed as any).breakdown.usageRights : 0,
+          exclusivity: typeof (parsed as any)?.breakdown?.exclusivity === "number" ? (parsed as any).breakdown.exclusivity : 0,
         },
         cpm: typeof parsed.cpm === "number" ? parsed.cpm : 0,
         calibration: {
@@ -1222,7 +1338,7 @@ export default function CalculatorClient({
           enabled: typeof (parsed as any)?.personalReference?.enabled === "boolean" ? (parsed as any).personalReference.enabled : false,
           applied: typeof (parsed as any)?.personalReference?.applied === "boolean" ? (parsed as any).personalReference.applied : false,
           reason:
-            ["not_configured", "expired", "creator_calibrated", "creator_opted_out", "feature_disabled", "applied"].includes((parsed as any)?.personalReference?.reason)
+            ["not_configured", "expired", "creator_calibrated", "creator_opted_out", "feature_disabled", "not_applicable", "applied"].includes((parsed as any)?.personalReference?.reason)
               ? (parsed as any).personalReference.reason
               : "not_configured",
           referenceValueBRL: typeof (parsed as any)?.personalReference?.referenceValueBRL === "number" ? (parsed as any).personalReference.referenceValueBRL : null,
@@ -1233,15 +1349,52 @@ export default function CalculatorClient({
           weightApplied: typeof (parsed as any)?.personalReference?.weightApplied === "number" ? (parsed as any).personalReference.weightApplied : 0,
           baseJusto: typeof (parsed as any)?.personalReference?.baseJusto === "number" ? (parsed as any).personalReference.baseJusto : parsed.justo,
           adjustedJusto: typeof (parsed as any)?.personalReference?.adjustedJusto === "number" ? (parsed as any).personalReference.adjustedJusto : parsed.justo,
+          direction:
+            ["below", "above", "aligned"].includes((parsed as any)?.personalReference?.direction)
+              ? (parsed as any).personalReference.direction
+              : "none",
+          campaignEquivalent: typeof (parsed as any)?.personalReference?.campaignEquivalent === "number" ? (parsed as any).personalReference.campaignEquivalent : null,
+          transitionProgress: typeof (parsed as any)?.personalReference?.transitionProgress === "number" ? (parsed as any).personalReference.transitionProgress : 0,
+        },
+        pricing: {
+          version: typeof (parsed as any)?.pricing?.version === "string" ? (parsed as any).pricing.version : "v1",
+          protectedFloor: typeof (parsed as any)?.pricing?.protectedFloor === "number" ? (parsed as any).pricing.protectedFloor : parsed.estrategico,
+          modelIdeal: typeof (parsed as any)?.pricing?.modelIdeal === "number" ? (parsed as any).pricing.modelIdeal : parsed.justo,
+          recommendedNow: typeof (parsed as any)?.pricing?.recommendedNow === "number" ? (parsed as any).pricing.recommendedNow : parsed.justo,
+          potentialIdeal: typeof (parsed as any)?.pricing?.potentialIdeal === "number" ? (parsed as any).pricing.potentialIdeal : parsed.premium,
+          components: {
+            production: typeof (parsed as any)?.pricing?.components?.production === "number" ? (parsed as any).pricing.components.production : 0,
+            distribution: typeof (parsed as any)?.pricing?.components?.distribution === "number" ? (parsed as any).pricing.components.distribution : 0,
+            usageRights: typeof (parsed as any)?.pricing?.components?.usageRights === "number" ? (parsed as any).pricing.components.usageRights : 0,
+            exclusivity: typeof (parsed as any)?.pricing?.components?.exclusivity === "number" ? (parsed as any).pricing.components.exclusivity : 0,
+            logistics: typeof (parsed as any)?.pricing?.components?.logistics === "number" ? (parsed as any).pricing.components.logistics : 0,
+          },
+          history: {
+            eligible: Boolean((parsed as any)?.pricing?.history?.eligible),
+            applied: Boolean((parsed as any)?.pricing?.history?.applied),
+            direction: ["below", "above", "aligned"].includes((parsed as any)?.pricing?.history?.direction)
+              ? (parsed as any).pricing.history.direction
+              : "none",
+            referenceValue: typeof (parsed as any)?.pricing?.history?.referenceValue === "number" ? (parsed as any).pricing.history.referenceValue : null,
+            canonicalModelIdeal: typeof (parsed as any)?.pricing?.history?.canonicalModelIdeal === "number" ? (parsed as any).pricing.history.canonicalModelIdeal : 0,
+            campaignEquivalent: typeof (parsed as any)?.pricing?.history?.campaignEquivalent === "number" ? (parsed as any).pricing.history.campaignEquivalent : null,
+            transitionProgress: typeof (parsed as any)?.pricing?.history?.transitionProgress === "number" ? (parsed as any).pricing.history.transitionProgress : 0,
+          },
         },
         params: sanitizedParams,
         metrics: {
           reach: parsed.metrics?.reach ?? 0,
           engagement: parsed.metrics?.engagement ?? 0,
           profileSegment: parsed.metrics?.profileSegment ?? "default",
+          pricingNiche: (parsed.metrics as any)?.pricingNiche ?? "default",
           reachSampleSize: typeof parsed.metrics?.reachSampleSize === "number" ? parsed.metrics.reachSampleSize : 0,
-          reachMethod: parsed.metrics?.reachMethod === "trimmed_mean" ? "trimmed_mean" : "median",
-          reachConfidence: parsed.metrics?.reachConfidence === "alta" ? "alta" : "baixa",
+          reachMethod: ["hybrid_robust", "median_mean", "follower_fallback", "trimmed_mean", "median"].includes(String(parsed.metrics?.reachMethod))
+            ? parsed.metrics!.reachMethod
+            : "median",
+          reachConfidence:
+            parsed.metrics?.reachConfidence === "alta" || parsed.metrics?.reachConfidence === "media"
+              ? parsed.metrics.reachConfidence
+              : "baixa",
           reachFollowerAlert: Boolean(parsed.metrics?.reachFollowerAlert),
         },
         avgTicket: typeof parsed.avgTicket === "number" ? parsed.avgTicket : null,
@@ -1252,6 +1405,9 @@ export default function CalculatorClient({
       };
       setCalcParams(sanitizedParams);
       setCalculation(sanitized);
+      setPricingFeedback(null);
+      setPendingPricingFeedback(null);
+      setPricingFeedbackValue("");
       if (sanitized.calibration.enabled) {
         track("calculator_calibration_applied", {
           ...buildCalculatorTelemetry(sanitizedParams, "form_submit"),
@@ -1434,54 +1590,60 @@ export default function CalculatorClient({
     ? (compactView
       ? [
         {
-          label: "Valor Justo",
+          label: "Recomendado agora",
           amount: calculation.justo,
           value: formatCurrency(calculation.justo),
           cpm: formatCurrency(calculateEffectiveCpm(calculation.justo, calculation.metrics.reach)),
-          description: "Referência principal para negociar.",
+          description: "Valor indicado para enviar nesta proposta.",
           tone: "emerald" as const,
+          isPrimary: true,
         },
         {
-          label: "Estratégico",
+          label: "Piso protegido",
           amount: calculation.estrategico,
           value: formatCurrency(calculation.estrategico),
           cpm: formatCurrency(calculateEffectiveCpm(calculation.estrategico, calculation.metrics.reach)),
-          description: "Piso para abrir a conversa.",
+          description: "Abaixo disso, trabalho e direitos ficam descobertos.",
           tone: "amber" as const,
+          isPrimary: false,
         },
         {
-          label: "Premium",
+          label: "Potencial ideal",
           amount: calculation.premium,
           value: formatCurrency(calculation.premium),
           cpm: formatCurrency(calculateEffectiveCpm(calculation.premium, calculation.metrics.reach)),
-          description: "Faixa alta para demanda maior.",
+          description: "Valor que suas métricas e o escopo sustentam.",
           tone: "sky" as const,
+          isPrimary: false,
         },
       ]
       : [
         {
-          label: "Estratégico (Mínimo)",
-          amount: calculation.estrategico,
-          value: formatCurrency(calculation.estrategico),
-          cpm: formatCurrency(calculateEffectiveCpm(calculation.estrategico, calculation.metrics.reach)),
-          description: "Para abrir portas e fechar pacotes.",
-          tone: "amber" as const,
-        },
-        {
-          label: "Valor Justo (Sugerido)",
+          label: "Recomendado agora",
           amount: calculation.justo,
           value: formatCurrency(calculation.justo),
           cpm: formatCurrency(calculateEffectiveCpm(calculation.justo, calculation.metrics.reach)),
-          description: "Equilíbrio ideal entre esforço e retorno.",
+          description: "Valor principal para enviar nesta proposta.",
           tone: "emerald" as const,
+          isPrimary: true,
         },
         {
-          label: "Premium (Alto Valor)",
+          label: "Piso protegido",
+          amount: calculation.estrategico,
+          value: formatCurrency(calculation.estrategico),
+          cpm: formatCurrency(calculateEffectiveCpm(calculation.estrategico, calculation.metrics.reach)),
+          description: "Limite mínimo para não deixar trabalho e direitos descobertos.",
+          tone: "amber" as const,
+          isPrimary: false,
+        },
+        {
+          label: "Potencial ideal",
           amount: calculation.premium,
           value: formatCurrency(calculation.premium),
           cpm: formatCurrency(calculateEffectiveCpm(calculation.premium, calculation.metrics.reach)),
-          description: "Para alta demanda e entregas complexas.",
+          description: "Valor que o modelo sustenta sem a âncora de um histórico baixo.",
           tone: "sky" as const,
+          isPrimary: false,
         },
       ])
     : null;
@@ -1533,6 +1695,14 @@ export default function CalculatorClient({
     creator_calibrated: "substituída por negócios reais suficientes",
     creator_opted_out: "não usada nesta proposta",
     feature_disabled: "temporariamente desativada",
+    not_applicable: "não se aplica a UGC ou presença em evento",
+  };
+  const reachMethodLabel: Record<CalculationResult["metrics"]["reachMethod"], string> = {
+    hybrid_robust: "mediana + média protegida",
+    median_mean: "mediana + média",
+    follower_fallback: "estimativa conservadora",
+    trimmed_mean: "média aparada",
+    median: "mediana",
   };
   const compactFormatOptions = compactView
     ? FORMAT_OPTIONS.map((option) => ({
@@ -1541,8 +1711,6 @@ export default function CalculatorClient({
       }))
     : FORMAT_OPTIONS;
   const compactBoardShell = "rounded-[1.2rem] border border-zinc-100/90 bg-zinc-50/68";
-  const compactPanelShell = `${compactBoardShell} overflow-hidden`;
-  const compactSubtleShell = "rounded-[1rem] border border-zinc-100/90 bg-white/80";
   const compactDetailsShell = compactView ? "border-t border-zinc-100/75 pt-3.5" : "border-t border-zinc-100/90 pt-3";
   const calculatorHeaderTextClassName = compactView ? "space-y-1" : "space-y-1";
   const calculatorTitleClassName = compactView ? "dashboard-type-section-title text-zinc-950" : "text-[15px] font-semibold tracking-[-0.01em] text-zinc-950";
@@ -1893,7 +2061,7 @@ export default function CalculatorClient({
     setError(null);
   };
 
-  const toggleFlag = (field: "repostTikTok" | "instagramCollab" | "allowStrategicWaiver") => {
+  const toggleFlag = (field: "repostTikTok" | "instagramCollab" | "allowStrategicWaiver" | "usePersonalReference") => {
     setCalcParams((prev) => ({ ...prev, [field]: !prev[field] }));
     setError(null);
   };
@@ -2519,7 +2687,7 @@ export default function CalculatorClient({
                       className={`mt-2 w-full text-left transition ${disableInputs ? "opacity-70" : ""}`}
                     >
                       <div className={compactToggleLineClassName}>
-                        <span className="text-[0.94rem] font-medium leading-[1.4] tracking-[-0.015em] text-zinc-700">Permitir R$ 0 no estratégico</span>
+                        <span className="text-[0.94rem] font-medium leading-[1.4] tracking-[-0.015em] text-zinc-700">Flexibilidade estratégica</span>
                         <span className={`inline-flex items-center gap-2 text-[11px] font-medium ${calcParams.allowStrategicWaiver ? "text-rose-700" : "text-zinc-400"}`}>
                           <span>{calcParams.allowStrategicWaiver ? "Ligada" : "Desligada"}</span>
                           <span className={`h-1.5 w-1.5 rounded-full ${calcParams.allowStrategicWaiver ? "bg-rose-500" : "bg-zinc-300"}`} />
@@ -2529,13 +2697,13 @@ export default function CalculatorClient({
                   </div>
                 ) : (
                   <div className="space-y-2.5">
-                    <label className="text-sm font-semibold text-zinc-900">Exceção estratégica</label>
+                    <label className="text-sm font-semibold text-zinc-900">Flexibilidade estratégica</label>
                     <div className="rounded-[1.15rem] border border-zinc-200 bg-white p-3">
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-sm font-semibold text-zinc-900">Permitir R$ 0 no preço estratégico</p>
+                          <p className="text-sm font-semibold text-zinc-900">Sinalizar oportunidade estratégica</p>
                           <p className="mt-1 text-xs text-zinc-500">
-                            Use somente em parcerias de alto ganho estratégico e baixo risco.
+                            A sinalização ajuda na negociação, mas nunca derruba o preço abaixo do piso protegido.
                           </p>
                         </div>
                         <button
@@ -2553,8 +2721,8 @@ export default function CalculatorClient({
                       </div>
                       <p className="mt-2.5 text-xs text-slate-600">
                         {calcParams.allowStrategicWaiver
-                          ? "Com a opção ligada, o estratégico pode ir para R$ 0 quando todos os critérios forem atendidos."
-                          : "Com a opção desligada, o estratégico sempre segue o cálculo normal."}
+                          ? "A oportunidade será indicada no cálculo, mantendo produção e direitos protegidos."
+                          : "O cálculo seguirá sem sinalização de flexibilidade estratégica."}
                       </p>
                     </div>
                   </div>
@@ -2563,20 +2731,21 @@ export default function CalculatorClient({
             )}
           </div>
 
-          {!isActingOnBehalf ? (
+          {!isActingOnBehalf && calcParams.deliveryType === "conteudo" && calcParams.contentModel === "publicidade_perfil" ? (
             <section className={compactView ? "border-t border-zinc-100/75 pt-4" : "rounded-[1.2rem] border border-zinc-200 bg-zinc-50/70 p-4"} aria-labelledby="personal-pricing-reference-title">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 id="personal-pricing-reference-title" className="text-sm font-semibold text-zinc-900">Sua referência de mercado</h2>
                   <p className="mt-1 text-xs leading-relaxed text-zinc-600">
-                    Quanto você normalmente fecha por um Reel orgânico padrão? É opcional e ajusta a sugestão com peso limitado.
+                    Quanto você normalmente fecha por um Reel orgânico padrão? Ela aproxima a recomendação da sua realidade, mas nunca reduz o piso de trabalho.
                   </p>
                 </div>
-                {personalPricingReference ? (
-                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${personalReferenceReviewDue ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>
-                    {personalReferenceReviewDue ? "Revisão necessária" : "Ativa"}
-                  </span>
-                ) : (
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  {personalPricingReference ? (
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${personalReferenceReviewDue ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>
+                      {personalReferenceReviewDue ? "Revisão necessária" : "Salva"}
+                    </span>
+                  ) : (
                   <button
                     type="button"
                     onClick={loadPersonalPricingReference}
@@ -2585,7 +2754,20 @@ export default function CalculatorClient({
                   >
                     Ver referência salva
                   </button>
-                )}
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => toggleFlag("usePersonalReference")}
+                    disabled={disableInputs}
+                    aria-pressed={calcParams.usePersonalReference}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${calcParams.usePersonalReference
+                      ? "border-zinc-900 bg-zinc-900 text-white"
+                      : "border-zinc-200 bg-white text-zinc-600"
+                    }`}
+                  >
+                    {calcParams.usePersonalReference ? "Usar no cálculo" : "Não usar no cálculo"}
+                  </button>
+                </div>
               </div>
               <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-end">
                 <label className="flex-1 text-xs font-semibold text-zinc-700" htmlFor="personal-pricing-reference-value">
@@ -2688,22 +2870,20 @@ export default function CalculatorClient({
                         <div className="mt-3 h-1.5 rounded-full bg-zinc-100">
                           <div className={`h-full rounded-full ${RESULT_CARD_TONE_CLASSES[card.tone].accent}`} style={{ width: `${maxAmount > 0 ? Math.max(18, (card.amount / maxAmount) * 100) : 18}%` }} />
                         </div>
-                        <button
-                          onClick={() => {
-                            const labelText = typeof card?.label === "string" ? card.label : "";
-                            const baseLabel = (labelText.split("(")[0] ?? "").trim() || "Pacote";
-                            handleAddPackage({
-                              name: baseLabel || "Pacote",
+                        {card.isPrimary ? (
+                          <button
+                            onClick={() => handleAddPackage({
+                              name: "Recomendado agora",
                               price: card.amount,
-                              description: card?.description ?? "",
-                            }, "suggested_card");
-                          }}
-                          disabled={isActingOnBehalf}
-                          className={`mt-3 inline-flex items-center gap-1 text-[12px] font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${RESULT_CARD_TONE_CLASSES[card.tone].cpm}`}
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          Criar pacote
-                        </button>
+                              description: card.description,
+                            }, "suggested_card")}
+                            disabled={isActingOnBehalf}
+                            className="mt-3 inline-flex min-h-11 items-center gap-1 rounded-full bg-zinc-950 px-4 text-[12px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            Criar pacote recomendado
+                          </button>
+                        ) : null}
                       </div>
                     ))}
                   </div>
@@ -2711,46 +2891,132 @@ export default function CalculatorClient({
                   })()}
                 </div>
               ) : (
-                <div className="grid gap-3 md:grid-cols-3">
+                <div className="grid gap-3 md:grid-cols-2">
                   {statsCards.map((card) => (
                     <div
                       key={card.label}
-                      className="dashboard-panel group flex flex-col overflow-hidden text-left transition-all"
+                      className={card.isPrimary
+                        ? "group flex flex-col overflow-hidden rounded-[1.2rem] bg-zinc-950 text-left text-white shadow-[0_18px_45px_rgba(24,24,27,0.16)] transition-all md:col-span-2"
+                        : "dashboard-panel group flex flex-col overflow-hidden text-left transition-all"}
                     >
-                      <div className="flex items-center justify-between gap-2 border-b border-zinc-100 bg-slate-50 px-4 py-2.5">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-500">
+                      <div className={card.isPrimary
+                        ? "flex items-center justify-between gap-2 border-b border-white/10 px-5 py-3"
+                        : "flex items-center justify-between gap-2 border-b border-zinc-100 bg-slate-50 px-4 py-2.5"}>
+                        <span className={card.isPrimary ? "text-[10px] font-bold uppercase tracking-[0.16em] text-white/60" : "text-[10px] font-bold uppercase tracking-wider text-zinc-500"}>
                           {card.label}
                         </span>
-                        <span className="text-[10px] font-semibold text-zinc-400">
+                        <span className={card.isPrimary ? "text-[10px] font-semibold text-white/45" : "text-[10px] font-semibold text-zinc-400"}>
                           CPM {card.cpm}
                         </span>
                       </div>
-                      <div className="flex flex-1 flex-col bg-white/40 p-4">
+                      <div className={card.isPrimary ? "flex flex-1 flex-col gap-5 p-5 sm:flex-row sm:items-end sm:justify-between" : "flex flex-1 flex-col bg-white/40 p-4"}>
                         <div className="space-y-1">
-                          <p className="text-2xl font-bold text-zinc-900">{card.value}</p>
+                          <p className={card.isPrimary ? "text-4xl font-bold tracking-[-0.04em] text-white" : "text-2xl font-bold text-zinc-900"}>{card.value}</p>
+                          <p className={card.isPrimary ? "mt-2 max-w-xl text-sm leading-relaxed text-white/65" : "mt-2 line-clamp-3 text-xs leading-relaxed text-zinc-500"}>{card.description}</p>
                         </div>
-                        <p className="mt-2 line-clamp-3 text-xs leading-relaxed text-zinc-500">{card.description}</p>
-                        <button
-                          onClick={() => {
-                            const labelText = typeof card?.label === "string" ? card.label : "";
-                            const baseLabel = (labelText.split("(")[0] ?? "").trim() || "Pacote";
-                            handleAddPackage({
-                              name: baseLabel || "Pacote",
+                        {card.isPrimary ? (
+                          <button
+                            onClick={() => handleAddPackage({
+                              name: "Recomendado agora",
                               price: card.amount,
-                              description: card?.description ?? "",
-                            }, "suggested_card");
-                          }}
-                          disabled={isActingOnBehalf}
-                          className="dashboard-secondary-button mt-4 flex w-full items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-zinc-700 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          <Plus className="h-3.5 w-3.5" />
-                          Criar pacote
-                        </button>
+                              description: card.description,
+                            }, "suggested_card")}
+                            disabled={isActingOnBehalf}
+                            className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-semibold text-zinc-950 transition hover:bg-zinc-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <Plus className="h-4 w-4" />
+                            Criar pacote recomendado
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
+
+              <div className={`rounded-[1.2rem] border border-emerald-100 bg-emerald-50/60 ${compactView ? "p-3" : "p-4"}`}>
+                <p className="text-sm font-semibold text-emerald-950">
+                  {calculation.pricing.history.direction === "below"
+                    ? "Seu histórico foi usado como ponte, não como teto"
+                    : calculation.pricing.history.direction === "above"
+                      ? "Seu histórico mais alto foi preservado"
+                      : "Recomendação protegida por trabalho e escopo"}
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-emerald-800">
+                  {calculation.pricing.history.direction === "below"
+                    ? `A recomendação avança 35% do seu valor habitual em direção ao ideal de ${formatCurrency(calculation.pricing.modelIdeal)}, sem cair abaixo do piso.`
+                    : `O valor nunca fica abaixo do piso protegido de ${formatCurrency(calculation.pricing.protectedFloor)}.`}
+                </p>
+                {!isActingOnBehalf ? (
+                  <div className="mt-3" aria-label="Avalie a recomendação de preço">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="mr-1 text-xs font-medium text-emerald-950">Como esse valor parece?</span>
+                      {([
+                        ["low", "Barato"],
+                        ["fair", "Adequado"],
+                        ["high", "Caro"],
+                      ] as const).map(([value, label]) => {
+                        const isSelected = pricingFeedback === value || pendingPricingFeedback === value;
+                        return (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => {
+                              if (value === "fair") {
+                                void submitPricingFeedback(value);
+                                return;
+                              }
+                              setPendingPricingFeedback(value);
+                              setPricingFeedbackValue("");
+                            }}
+                            disabled={Boolean(pricingFeedback) || isSavingPricingFeedback}
+                            aria-pressed={isSelected}
+                            className={`min-h-11 rounded-full border px-3 text-xs font-semibold transition disabled:cursor-default ${isSelected
+                              ? "border-emerald-700 bg-emerald-700 text-white"
+                              : "border-emerald-200 bg-white text-emerald-800 hover:border-emerald-400"
+                            }`}
+                          >
+                            {label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    {pendingPricingFeedback ? (
+                      <div className="mt-3 max-w-md rounded-xl border border-emerald-200 bg-white/80 p-3">
+                        <label htmlFor="calculator-feedback-intended-ask" className="text-xs font-semibold text-emerald-950">
+                          Quanto você cobraria por esta proposta?
+                        </label>
+                        <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                          <div className="flex min-h-11 flex-1 items-center rounded-lg border border-emerald-200 bg-white px-3 focus-within:border-emerald-600 focus-within:ring-2 focus-within:ring-emerald-100">
+                            <span className="mr-1 text-sm font-semibold text-emerald-800">R$</span>
+                            <input
+                              id="calculator-feedback-intended-ask"
+                              inputMode="decimal"
+                              value={pricingFeedbackValue}
+                              onChange={(event) => setPricingFeedbackValue(event.target.value)}
+                              placeholder="Ex.: 1.500"
+                              className="min-w-0 flex-1 bg-transparent text-sm font-semibold text-zinc-900 outline-none placeholder:font-normal placeholder:text-zinc-400"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void submitPricingFeedback(pendingPricingFeedback, parseCurrencyInput(pricingFeedbackValue))}
+                            disabled={isSavingPricingFeedback || !pricingFeedbackValue.trim()}
+                            className="min-h-11 rounded-lg bg-emerald-800 px-4 text-xs font-semibold text-white transition hover:bg-emerald-900 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            {isSavingPricingFeedback ? "Enviando..." : "Enviar avaliação"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                    {pricingFeedback ? (
+                      <p className="mt-2 text-xs font-medium text-emerald-900" role="status" aria-live="polite">
+                        Obrigado — avaliação salva.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
 
               <div className={compactView ? compactCanvasSectionClassName : "dashboard-panel overflow-hidden"}>
                 <div className={`flex items-center justify-between gap-3 ${compactView ? "px-0 py-3.5" : "px-4 py-3"}`}>
@@ -2960,7 +3226,7 @@ export default function CalculatorClient({
                         </ul>
                       </div>
                       <p className={`${compactView ? "mt-2 dashboard-type-meta" : "mt-2 text-xs"} text-zinc-500`}>
-                        Alcance calculado por {calculation.metrics.reachMethod === "trimmed_mean" ? "média aparada" : "mediana"} de {calculation.metrics.reachSampleSize} conteúdos recentes.
+                        Alcance calculado por {reachMethodLabel[calculation.metrics.reachMethod]} de {calculation.metrics.reachSampleSize} conteúdos recentes.
                       </p>
                       {calculation.metrics.reachFollowerAlert ? (
                         <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-2 text-xs text-amber-800">
@@ -3031,6 +3297,28 @@ export default function CalculatorClient({
                       <summary className="cursor-pointer text-sm font-semibold text-zinc-900">{compactView ? "Detalhes" : "Fatores de impacto"}</summary>
                       <ul className="mt-2.5 space-y-1.5 text-sm text-zinc-600">
                         <li className="flex justify-between">
+                          <span>Produção</span>
+                          <span className="font-medium text-zinc-900">{formatCurrency(calculation.pricing.components.production)}</span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Valor da audiência</span>
+                          <span className="font-medium text-zinc-900">{formatCurrency(calculation.pricing.components.distribution)}</span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Direitos de uso</span>
+                          <span className="font-medium text-zinc-900">{formatCurrency(calculation.pricing.components.usageRights)}</span>
+                        </li>
+                        <li className="flex justify-between">
+                          <span>Exclusividade</span>
+                          <span className="font-medium text-zinc-900">{formatCurrency(calculation.pricing.components.exclusivity)}</span>
+                        </li>
+                        {calculation.pricing.components.logistics > 0 ? (
+                          <li className="flex justify-between">
+                            <span>Logística</span>
+                            <span className="font-medium text-zinc-900">{formatCurrency(calculation.pricing.components.logistics)}</span>
+                          </li>
+                        ) : null}
+                        <li className="flex justify-between">
                           <span>Modo</span>
                           <span className="font-medium text-zinc-900">
                             {calculation.params.deliveryType === "evento"
@@ -3096,8 +3384,8 @@ export default function CalculatorClient({
                               <span className="font-medium text-zinc-900">{CONTENT_MODEL_LABELS[calculation.params.contentModel]}</span>
                             </li>
                             <li className="flex justify-between">
-                              <span>Exceção estratégica</span>
-                              <span className="font-medium text-zinc-900">{calculation.params.allowStrategicWaiver ? "Permitida" : "Desligada"}</span>
+                              <span>Flexibilidade estratégica</span>
+                              <span className="font-medium text-zinc-900">{calculation.params.allowStrategicWaiver ? "Sinalizada" : "Desligada"}</span>
                             </li>
                           </>
                         ) : null}
@@ -3126,7 +3414,7 @@ export default function CalculatorClient({
                               </li>
                             ) : null}
                             <li className="flex justify-between">
-                              <span>Logística sugerida (extra)</span>
+                              <span>Logística incluída</span>
                               <span className="font-medium text-zinc-900">
                                 {formatCurrency(calculation.breakdown.logisticsSuggested)}
                               </span>
@@ -3139,14 +3427,8 @@ export default function CalculatorClient({
                         </li>
                       </ul>
                       <div className={`border-t border-zinc-200 text-xs text-zinc-500 ${compactView ? "mt-2 pt-2" : "mt-2.5 pt-2.5"}`}>
-                        {calculation.params.deliveryType === "conteudo" ? (
-                          <p>Fórmula: (Alcance / 1.000) x CPM x multiplicadores (direitos, risco/estratégia, complexidade etc.) x unidades de conteúdo.</p>
-                        ) : hasContentInResult ? (
-                          <p>Fórmula: conteúdo + presença em evento + cobertura opcional, aplicando os mesmos multiplicadores.</p>
-                        ) : (
-                          <p>Fórmula: presença em evento + cobertura opcional, aplicando os mesmos multiplicadores (logística exibida separadamente).</p>
-                        )}
-                        <p className="mt-1">Logística é sugerida como extra e não entra no valor em cache da calculadora.</p>
+                        <p>Fórmula: produção + valor da audiência + direitos de uso + exclusividade + logística.</p>
+                        <p className="mt-1">O piso protegido cobre a produção e os direitos mínimos mesmo quando alcance ou histórico estão baixos.</p>
                       </div>
                     </details>
                     {calculation.explanation ? (

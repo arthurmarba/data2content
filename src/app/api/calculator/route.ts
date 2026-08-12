@@ -26,7 +26,7 @@ import {
 } from '@/app/lib/pricing/publiCalculator';
 import { ensurePlannerAccess } from '@/app/lib/planGuard';
 import { logger } from '@/app/lib/logger';
-import { isPricingCalibrationV1Enabled, isPricingPersonalReferenceV1Enabled } from '@/app/lib/pricing/featureFlag';
+import { isPricingCalibrationV1Enabled } from '@/app/lib/pricing/featureFlag';
 import { serializeCalculation } from '@/app/api/calculator/serializeCalculation';
 import { hasAdminRole, resolveTargetCalculatorUser } from '@/app/api/calculator/access';
 import { logUsageEvent } from '@/app/lib/dataService/usageEventService';
@@ -277,10 +277,7 @@ export async function POST(request: NextRequest) {
 
   try {
     await connectToDatabase();
-    const [calibrationV1Enabled, personalReferenceV1Enabled] = await Promise.all([
-      isPricingCalibrationV1Enabled(),
-      isPricingPersonalReferenceV1Enabled(),
-    ]);
+    const calibrationV1Enabled = await isPricingCalibrationV1Enabled();
 
     const effectiveUserId = effectiveUserResolution.userId;
     const user = (await UserModel.findById(effectiveUserId).lean()) as IUser | null;
@@ -295,7 +292,8 @@ export async function POST(request: NextRequest) {
       explanationPrefix: payload.explanation,
       brandRiskEnabled: brandRiskV1Enabled,
       calibrationEnabled: calibrationV1Enabled,
-      personalReferenceEnabled: personalReferenceV1Enabled,
+      // Na V2, o histórico é protegido por piso e pode ser desligado por proposta.
+      personalReferenceEnabled: true,
       personalReferenceOptedOut: usePersonalReference === false,
     });
 
@@ -307,6 +305,7 @@ export async function POST(request: NextRequest) {
       breakdown: calculationPayload.breakdown,
       calibration: calculationPayload.calibration,
       personalReference: calculationPayload.personalReference,
+      pricing: calculationPayload.pricing,
       cpmApplied: calculationPayload.cpmApplied,
       cpmSource: calculationPayload.cpmSource,
       explanation: calculationPayload.explanation || undefined,
@@ -316,6 +315,10 @@ export async function POST(request: NextRequest) {
 
     logUsageEvent(effectiveUserId, 'publi_calculated', 'publi', {
       platform: payload.source === 'mobile_board' ? 'mobile' : 'desktop',
+      pricingVersion: calculationPayload.pricing.version,
+      shadowDeltaJustoPercent: calculationPayload.pricing.shadow.deltaJustoPercent,
+      historyDirection: calculationPayload.pricing.history.direction,
+      calibrationApplied: calculationPayload.calibration.enabled,
     });
 
     return NextResponse.json(
@@ -328,6 +331,7 @@ export async function POST(request: NextRequest) {
         cpmSource: calculationPayload.cpmSource,
         calibration: calculationPayload.calibration,
         personalReference: calculationPayload.personalReference,
+        pricing: calculationPayload.pricing,
         params: {
           format: calculation.params?.format,
           deliveryType: calculation.params?.deliveryType,
@@ -353,10 +357,13 @@ export async function POST(request: NextRequest) {
           reach: calculationPayload.metrics.reach,
           engagement: calculationPayload.metrics.engagement,
           profileSegment: calculationPayload.metrics.profileSegment,
+          pricingNiche: calculationPayload.metrics.pricingNiche,
           reachSampleSize: calculationPayload.metrics.reachSampleSize,
           reachMethod: calculationPayload.metrics.reachMethod,
           reachConfidence: calculationPayload.metrics.reachConfidence,
           reachFollowerAlert: calculationPayload.metrics.reachFollowerAlert,
+          reachByFormat: calculationPayload.metrics.reachByFormat,
+          reachSampleSizeByFormat: calculationPayload.metrics.reachSampleSizeByFormat,
         },
         avgTicket: calculationPayload.avgTicket,
         totalDeals: calculationPayload.totalDeals,

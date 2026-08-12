@@ -1,6 +1,6 @@
 /** @jest-environment node */
 
-import { runPubliCalculator } from '@/app/lib/pricing/publiCalculator';
+import { runPubliCalculator, type CalculatorParamsInput } from '@/app/lib/pricing/publiCalculator';
 
 jest.mock('date-fns/subDays', () => ({
   __esModule: true,
@@ -12,53 +12,44 @@ jest.mock('@/app/lib/dataService', () => ({
   getAdDealInsights: jest.fn(),
 }));
 
-jest.mock('@/app/lib/cpmBySegment', () => ({
-  resolveSegmentCpm: jest.fn(),
-}));
-
-jest.mock('@/app/lib/pricing/calibrationService', () => ({
-  resolvePricingCalibrationForUser: jest.fn(),
-}));
-
-jest.mock('@/app/lib/pricing/pricingMetrics', () => ({
-  resolvePricingMetrics: jest.fn(),
-}));
+jest.mock('@/app/lib/cpmBySegment', () => ({ resolveSegmentCpm: jest.fn() }));
+jest.mock('@/app/lib/pricing/calibrationService', () => ({ resolvePricingCalibrationForUser: jest.fn() }));
+jest.mock('@/app/lib/pricing/pricingMetrics', () => ({ resolvePricingMetrics: jest.fn() }));
 
 const { fetchAndPrepareReportData, getAdDealInsights } = jest.requireMock('@/app/lib/dataService') as {
   fetchAndPrepareReportData: jest.Mock;
   getAdDealInsights: jest.Mock;
 };
-
-const { resolveSegmentCpm } = jest.requireMock('@/app/lib/cpmBySegment') as {
-  resolveSegmentCpm: jest.Mock;
-};
-
+const { resolveSegmentCpm } = jest.requireMock('@/app/lib/cpmBySegment') as { resolveSegmentCpm: jest.Mock };
 const { resolvePricingCalibrationForUser } = jest.requireMock('@/app/lib/pricing/calibrationService') as {
   resolvePricingCalibrationForUser: jest.Mock;
 };
-
 const { resolvePricingMetrics } = jest.requireMock('@/app/lib/pricing/pricingMetrics') as {
   resolvePricingMetrics: jest.Mock;
 };
 
-describe('runPubliCalculator', () => {
-  const user = { _id: 'user-1', id: 'user-1' } as any;
+const baseParams: CalculatorParamsInput = {
+  format: 'reels',
+  exclusivity: 'nenhuma',
+  usageRights: 'organico',
+  complexity: 'simples',
+  authority: 'padrao',
+  seasonality: 'normal',
+};
+
+describe('runPubliCalculator V2', () => {
+  const user = { _id: 'user-1', id: 'user-1', creatorProfileExtended: { niches: ['Beleza'] } } as any;
 
   beforeEach(() => {
+    jest.clearAllMocks();
     fetchAndPrepareReportData.mockResolvedValue({
-      enrichedReport: {
-        profileSegment: 'default',
-        overallStats: {
-          avgReach: 10000,
-          avgEngagementRate: 0,
-        },
-      },
+      enrichedReport: { profileSegment: 'Novo Usuário', overallStats: { avgEngagementRate: 0.05 } },
     });
-    getAdDealInsights.mockResolvedValue(null);
-    resolveSegmentCpm.mockResolvedValue({ value: 10, source: 'dynamic' });
+    getAdDealInsights.mockResolvedValue({ averageDealValueBRL: 500, totalDeals: 2 });
+    resolveSegmentCpm.mockResolvedValue({ value: 30, source: 'seed' });
     resolvePricingCalibrationForUser.mockResolvedValue({
       factorRaw: 1,
-      confidence: 0.2,
+      confidence: 0,
       confidenceBand: 'baixa',
       segmentSampleSize: 0,
       creatorSampleSize: 0,
@@ -69,625 +60,151 @@ describe('runPubliCalculator', () => {
       windowDaysCreator: 365,
     });
     resolvePricingMetrics.mockResolvedValue({
-      reach: 10000,
-      sampleSize: 6,
-      method: 'trimmed_mean',
+      reach: 10_000,
+      legacyReach: 8_000,
+      sampleSize: 8,
+      method: 'hybrid_robust',
       confidence: 'alta',
       reachFollowerAlert: false,
+      reachByFormat: { reels: 12_000, post: 8_000, stories: 10_000 },
+      sampleSizeByFormat: { reels: 5, post: 3, stories: 0 },
     });
   });
 
-  it('keeps legacy single format behavior for reels', async () => {
+  it('separates lifecycle segment from commercial niche and persists V2 components', async () => {
+    const result = await runPubliCalculator({ user, params: baseParams });
+
+    expect(resolveSegmentCpm).toHaveBeenCalledWith('beleza');
+    expect(result.metrics).toMatchObject({ profileSegment: 'Novo Usuário', pricingNiche: 'beleza' });
+    expect(result.pricing.version).toBe('v2.0.0');
+    expect(result.pricing.components.production).toBe(350);
+    expect(result.pricing.components.distribution).toBeGreaterThan(0);
+  });
+
+  it('never recommends less than the protected production floor', async () => {
+    resolvePricingMetrics.mockResolvedValueOnce({
+      reach: 100,
+      legacyReach: 100,
+      sampleSize: 1,
+      method: 'follower_fallback',
+      confidence: 'baixa',
+      reachFollowerAlert: false,
+      reachByFormat: { reels: 100, post: 100, stories: 100 },
+      sampleSizeByFormat: { reels: 1, post: 0, stories: 0 },
+    });
+    const result = await runPubliCalculator({ user, params: baseParams });
+
+    expect(result.result.estrategico).toBe(350);
+    expect(result.result.justo).toBeGreaterThanOrEqual(result.result.estrategico);
+  });
+
+  it('uses a low personal history as a bridge without lowering the ideal', async () => {
+    const userWithHistory = {
+      ...user,
+      creatorProfileExtended: {
+        niches: ['Beleza'],
+        pricingReference: { valueBRL: 200, scope: 'reel_organico_padrao', confirmedAt: new Date(), updatedAt: new Date() },
+      },
+    } as any;
+    const result = await runPubliCalculator({ user: userWithHistory, params: baseParams });
+
+    expect(result.personalReference).toMatchObject({ applied: true, direction: 'below', weightApplied: 0.35 });
+    expect(result.result.justo).toBeGreaterThanOrEqual(result.result.estrategico);
+    expect(result.result.justo).toBeLessThan(result.pricing.modelIdeal);
+    expect(result.result.premium).toBe(result.pricing.modelIdeal);
+  });
+
+  it('lets the creator opt out of personal history for a proposal', async () => {
+    const userWithHistory = {
+      ...user,
+      creatorProfileExtended: {
+        niches: ['Beleza'],
+        pricingReference: { valueBRL: 200, scope: 'reel_organico_padrao', confirmedAt: new Date(), updatedAt: new Date() },
+      },
+    } as any;
     const result = await runPubliCalculator({
-      user,
-      brandRiskEnabled: false,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    expect(result.params.deliveryType).toBe('conteudo');
-    expect(result.params.format).toBe('reels');
-    expect(result.params.formatQuantities).toEqual({ reels: 1, post: 0, stories: 0 });
-    expect(result.result.justo).toBe(140);
-  });
-
-  it('calculates weighted multi-delivery content', async () => {
-    const result = await runPubliCalculator({
-      user,
-      brandRiskEnabled: false,
-      params: {
-        deliveryType: 'conteudo',
-        formatQuantities: { reels: 1, post: 0, stories: 3 },
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    expect(result.params.format).toBe('pacote');
-    expect(result.breakdown.contentUnits).toBe(3.8);
-    expect(result.result.justo).toBe(380);
-  });
-
-  it('calculates event presence by duration multiplier', async () => {
-    const result = await runPubliCalculator({
-      user,
-      brandRiskEnabled: false,
-      params: {
-        deliveryType: 'evento',
-        eventDetails: { durationHours: 8, travelTier: 'local', hotelNights: 0 },
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    expect(result.params.format).toBe('evento');
-    expect(result.breakdown.eventPresenceJusto).toBe(320);
-    expect(result.result.justo).toBe(320);
-  });
-
-  it('adds optional event coverage and keeps logistics outside cache', async () => {
-    const result = await runPubliCalculator({
-      user,
-      brandRiskEnabled: false,
-      params: {
-        deliveryType: 'evento',
-        eventDetails: { durationHours: 4, travelTier: 'nacional', hotelNights: 2 },
-        eventCoverageQuantities: { reels: 1, post: 0, stories: 0 },
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    expect(result.breakdown.eventPresenceJusto).toBe(240);
-    expect(result.breakdown.coverageJusto).toBe(126);
-    expect(result.result.justo).toBe(366);
-    expect(result.breakdown.logisticsSuggested).toBe(2100);
-    expect(result.breakdown.logisticsIncludedInCache).toBe(false);
-  });
-
-  it('clamps negative engagement to zero before pricing', async () => {
-    fetchAndPrepareReportData.mockResolvedValueOnce({
-      enrichedReport: {
-        profileSegment: 'default',
-        overallStats: {
-          avgReach: 10000,
-          avgEngagementRate: -0.4,
-        },
-      },
-    });
-
-    const result = await runPubliCalculator({
-      user,
-      brandRiskEnabled: false,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    expect(result.metrics.engagement).toBe(0);
-    expect(result.result.justo).toBe(140);
-  });
-
-  it('clamps very high engagement to the conservative cap', async () => {
-    fetchAndPrepareReportData.mockResolvedValueOnce({
-      enrichedReport: {
-        profileSegment: 'default',
-        overallStats: {
-          avgReach: 10000,
-          avgEngagementRate: 300,
-        },
-      },
-    });
-
-    const result = await runPubliCalculator({
-      user,
-      brandRiskEnabled: false,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    expect(result.metrics.engagement).toBe(25);
-    expect(result.result.justo).toBe(175);
-  });
-
-  it('supports exclusivity up to 365d', async () => {
-    const result = await runPubliCalculator({
-      user,
-      brandRiskEnabled: false,
-      params: {
-        format: 'reels',
-        exclusivity: '365d',
-        usageRights: 'organico',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    expect(result.params.exclusivity).toBe('365d');
-    expect(result.result.justo).toBe(252);
-  });
-
-  it('requires paid media duration only for paid/global usage and defaults legacy calls to 30d', async () => {
-    const result = await runPubliCalculator({
-      user,
-      brandRiskEnabled: false,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'midiapaga',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    expect(result.params.paidMediaDuration).toBe('30d');
-    expect(result.result.justo).toBe(168);
-  });
-
-  it('applies repost tiktok multiplier and keeps instagram collab informational only', async () => {
-    const base = await runPubliCalculator({
-      user,
-      brandRiskEnabled: false,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'midiapaga',
-        paidMediaDuration: '30d',
-        repostTikTok: false,
-        instagramCollab: false,
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    const withRepost = await runPubliCalculator({
-      user,
-      brandRiskEnabled: false,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'midiapaga',
-        paidMediaDuration: '30d',
-        repostTikTok: true,
-        instagramCollab: true,
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    expect(base.result.justo).toBe(168);
-    expect(withRepost.result.justo).toBe(184.8);
-    expect(withRepost.params.instagramCollab).toBe(true);
-  });
-
-  it('applies UGC whitelabel discount of 35%', async () => {
-    const perfil = await runPubliCalculator({
-      user,
-      brandRiskEnabled: true,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        brandSize: 'media',
-        imageRisk: 'baixo',
-        strategicGain: 'baixo',
-        contentModel: 'publicidade_perfil',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    const ugc = await runPubliCalculator({
-      user,
-      brandRiskEnabled: true,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        brandSize: 'media',
-        imageRisk: 'baixo',
-        strategicGain: 'baixo',
-        contentModel: 'ugc_whitelabel',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    expect(ugc.result.justo).toBeCloseTo(perfil.result.justo * 0.65, 2);
-  });
-
-  it('enforces risk floor for high image risk even with large strategic brand', async () => {
-    const highRisk = await runPubliCalculator({
-      user,
-      brandRiskEnabled: true,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        brandSize: 'grande',
-        imageRisk: 'alto',
-        strategicGain: 'alto',
-        contentModel: 'publicidade_perfil',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    const lowRisk = await runPubliCalculator({
-      user,
-      brandRiskEnabled: true,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        brandSize: 'grande',
-        imageRisk: 'baixo',
-        strategicGain: 'alto',
-        contentModel: 'publicidade_perfil',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    expect(highRisk.result.justo).toBeGreaterThan(lowRisk.result.justo);
-    expect(highRisk.explanation).toContain('Piso de risco aplicado');
-  });
-
-  it('increases price for small brand with high risk vs neutral baseline', async () => {
-    const baseline = await runPubliCalculator({
-      user,
-      brandRiskEnabled: true,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        brandSize: 'media',
-        imageRisk: 'baixo',
-        strategicGain: 'baixo',
-        contentModel: 'publicidade_perfil',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    const riskySmallBrand = await runPubliCalculator({
-      user,
-      brandRiskEnabled: true,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        brandSize: 'pequena',
-        imageRisk: 'alto',
-        strategicGain: 'baixo',
-        contentModel: 'publicidade_perfil',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    expect(riskySmallBrand.result.justo).toBeGreaterThan(baseline.result.justo);
-  });
-
-  it('applies strategic waiver to zero only in guarded Ferrari-like scenario', async () => {
-    const waiverApplied = await runPubliCalculator({
-      user,
-      brandRiskEnabled: true,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        allowStrategicWaiver: true,
-        brandSize: 'grande',
-        imageRisk: 'baixo',
-        strategicGain: 'alto',
-        contentModel: 'publicidade_perfil',
-        complexity: 'simples',
-        authority: 'ascensao',
-        seasonality: 'normal',
-      },
-    });
-
-    const waiverDisabled = await runPubliCalculator({
-      user,
-      brandRiskEnabled: true,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        allowStrategicWaiver: false,
-        brandSize: 'grande',
-        imageRisk: 'baixo',
-        strategicGain: 'alto',
-        contentModel: 'publicidade_perfil',
-        complexity: 'simples',
-        authority: 'ascensao',
-        seasonality: 'normal',
-      },
-    });
-
-    expect(waiverApplied.result.estrategico).toBe(0);
-    expect(waiverApplied.result.justo).toBeGreaterThan(0);
-    expect(waiverApplied.result.premium).toBeGreaterThan(0);
-    expect(waiverApplied.explanation).toContain('Excecao estrategica aplicada');
-    expect(waiverDisabled.result.estrategico).toBeGreaterThan(0);
-  });
-
-  it('uses neutral calibration when sample is insufficient and expands range on low confidence', async () => {
-    resolvePricingCalibrationForUser.mockResolvedValueOnce({
-      factorRaw: 1,
-      confidence: 0.18,
-      confidenceBand: 'baixa',
-      segmentSampleSize: 4,
-      creatorSampleSize: 1,
-      manualLinkRate: 0,
-      linkQuality: 'low',
-      mad: 0.2,
-      windowDaysSegment: 180,
-      windowDaysCreator: 365,
-    });
-
-    const result = await runPubliCalculator({
-      user,
-      brandRiskEnabled: false,
-      calibrationEnabled: true,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    expect(result.calibration.factorApplied).toBe(1);
-    expect(result.calibration.confidenceBand).toBe('baixa');
-    expect(result.calibration.lowConfidenceRangeExpanded).toBe(true);
-    expect(result.result.estrategico).toBeCloseTo(result.result.justo * 0.65, 2);
-    expect(result.result.premium).toBeCloseTo(result.result.justo * 1.6, 2);
-  });
-
-  it('applies guardrail when calibration factor exceeds +25%', async () => {
-    resolvePricingCalibrationForUser.mockResolvedValueOnce({
-      factorRaw: 1.82,
-      confidence: 0.81,
-      confidenceBand: 'alta',
-      segmentSampleSize: 50,
-      creatorSampleSize: 20,
-      manualLinkRate: 0.9,
-      linkQuality: 'high',
-      mad: 0.05,
-      windowDaysSegment: 180,
-      windowDaysCreator: 365,
-    });
-
-    const result = await runPubliCalculator({
-      user,
-      brandRiskEnabled: false,
-      calibrationEnabled: true,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    expect(result.calibration.factorRaw).toBe(1.82);
-    expect(result.calibration.factorApplied).toBe(1.25);
-    expect(result.calibration.guardrailApplied).toBe(true);
-    expect(result.result.justo).toBe(175);
-  });
-
-  it('keeps strategic waiver at zero even when calibration is enabled', async () => {
-    resolvePricingCalibrationForUser.mockResolvedValueOnce({
-      factorRaw: 1.2,
-      confidence: 0.32,
-      confidenceBand: 'baixa',
-      segmentSampleSize: 12,
-      creatorSampleSize: 6,
-      manualLinkRate: 0.1,
-      linkQuality: 'low',
-      mad: 0.18,
-      windowDaysSegment: 180,
-      windowDaysCreator: 365,
-    });
-
-    const result = await runPubliCalculator({
-      user,
-      brandRiskEnabled: true,
-      calibrationEnabled: true,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        allowStrategicWaiver: true,
-        brandSize: 'grande',
-        imageRisk: 'baixo',
-        strategicGain: 'alto',
-        contentModel: 'publicidade_perfil',
-        complexity: 'simples',
-        authority: 'ascensao',
-        seasonality: 'normal',
-      },
-    });
-
-    expect(result.result.estrategico).toBe(0);
-    expect(result.result.justo).toBeGreaterThan(0);
-    expect(result.result.premium).toBeGreaterThan(0);
-  });
-
-  it('blends a current personal Reel reference with a capped factor', async () => {
-    const result = await runPubliCalculator({
-      user: {
-        ...user,
-        creatorProfileExtended: {
-          pricingReference: {
-            valueBRL: 280,
-            scope: 'reel_organico_padrao',
-            confirmedAt: new Date(),
-            updatedAt: new Date(),
-          },
-        },
-      } as any,
-      brandRiskEnabled: false,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    expect(result.personalReference).toMatchObject({
-      applied: true,
-      reason: 'applied',
-      factorRaw: 2,
-      factorApplied: 1.8,
-      weightApplied: 0.3,
-      baseJusto: 140,
-      adjustedJusto: 173.6,
-    });
-    expect(result.result.justo).toBe(173.6);
-  });
-
-  it('does not apply an expired personal reference', async () => {
-    const result = await runPubliCalculator({
-      user: {
-        ...user,
-        creatorProfileExtended: {
-          pricingReference: {
-            valueBRL: 280,
-            scope: 'reel_organico_padrao',
-            confirmedAt: new Date(Date.now() - 91 * 86_400_000),
-            updatedAt: new Date(Date.now() - 91 * 86_400_000),
-          },
-        },
-      } as any,
-      brandRiskEnabled: false,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
-
-    expect(result.personalReference.applied).toBe(false);
-    expect(result.personalReference.reason).toBe('expired');
-    expect(result.result.justo).toBe(140);
-  });
-
-  it('does not apply the personal reference when the creator opts out for a proposal', async () => {
-    const result = await runPubliCalculator({
-      user: {
-        ...user,
-        creatorProfileExtended: {
-          pricingReference: {
-            valueBRL: 280,
-            scope: 'reel_organico_padrao',
-            confirmedAt: new Date(),
-            updatedAt: new Date(),
-          },
-        },
-      } as any,
-      brandRiskEnabled: false,
+      user: userWithHistory,
+      params: { ...baseParams, usePersonalReference: false },
       personalReferenceOptedOut: true,
+    });
+
+    expect(result.personalReference).toMatchObject({ applied: false, reason: 'creator_opted_out' });
+    expect(result.result.justo).toBe(result.pricing.modelIdeal);
+  });
+
+  it('prices UGC from production instead of discounting profile reach', async () => {
+    const result = await runPubliCalculator({
+      user,
+      params: { ...baseParams, contentModel: 'ugc_whitelabel' },
+    });
+
+    expect(result.pricing.components).toMatchObject({ production: 450, distribution: 0 });
+    expect(result.result.justo).toBe(450);
+    expect(result.personalReference.reason).toBe('not_configured');
+  });
+
+  it('treats one Stories unit as a sequence of three', async () => {
+    const result = await runPubliCalculator({
+      user,
       params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
+        ...baseParams,
+        format: 'stories',
+        formatQuantities: { reels: 0, post: 0, stories: 1 },
       },
     });
 
-    expect(result.personalReference).toMatchObject({ applied: false, reason: 'creator_opted_out', referenceValueBRL: 280 });
-    expect(result.result.justo).toBe(140);
+    expect(result.breakdown.contentUnits).toBe(2.4);
+    expect(result.pricing.components.production).toBe(180);
   });
 
-  it('gives linked real deals precedence over the personal reference', async () => {
+  it('charges paid usage and exclusivity as visible additive components', async () => {
+    const result = await runPubliCalculator({
+      user,
+      params: {
+        ...baseParams,
+        usageRights: 'midiapaga',
+        paidMediaDuration: '30d',
+        exclusivity: '30d',
+      },
+    });
+
+    expect(result.pricing.components.usageRights).toBeGreaterThan(0);
+    expect(result.pricing.components.exclusivity).toBeGreaterThan(0);
+    expect(result.result.estrategico).toBeGreaterThan(350);
+  });
+
+  it('prices event presence from a fixed floor and includes logistics', async () => {
+    const result = await runPubliCalculator({
+      user,
+      params: {
+        ...baseParams,
+        format: 'evento',
+        deliveryType: 'evento',
+        eventDetails: { durationHours: 4, travelTier: 'nacional', hotelNights: 1 },
+      },
+    });
+
+    expect(result.breakdown.eventPresenceJusto).toBeGreaterThanOrEqual(900);
+    expect(result.breakdown.logisticsSuggested).toBe(1650);
+    expect(result.breakdown.logisticsIncludedInCache).toBe(true);
+    expect(result.result.justo).toBeGreaterThanOrEqual(2550);
+  });
+
+  it('only enables calibration after the minimum sample and guards it to 15%', async () => {
     resolvePricingCalibrationForUser.mockResolvedValueOnce({
-      factorRaw: 1.1,
-      confidence: 0.82,
+      factorRaw: 1.8,
+      confidence: 0.8,
       confidenceBand: 'alta',
-      segmentSampleSize: 30,
-      creatorSampleSize: 10,
-      manualLinkRate: 0.8,
+      segmentSampleSize: 35,
+      creatorSampleSize: 0,
+      manualLinkRate: 1,
       linkQuality: 'high',
-      mad: 0.03,
+      mad: 0.1,
       windowDaysSegment: 180,
       windowDaysCreator: 365,
     });
-    const result = await runPubliCalculator({
-      user: {
-        ...user,
-        creatorProfileExtended: {
-          pricingReference: {
-            valueBRL: 280,
-            scope: 'reel_organico_padrao',
-            confirmedAt: new Date(),
-            updatedAt: new Date(),
-          },
-        },
-      } as any,
-      brandRiskEnabled: false,
-      calibrationEnabled: true,
-      params: {
-        format: 'reels',
-        exclusivity: 'nenhuma',
-        usageRights: 'organico',
-        complexity: 'simples',
-        authority: 'padrao',
-        seasonality: 'normal',
-      },
-    });
+    const result = await runPubliCalculator({ user, params: baseParams, calibrationEnabled: true });
 
-    expect(result.personalReference).toMatchObject({ applied: false, reason: 'creator_calibrated', baseJusto: 154 });
-    expect(result.result.justo).toBe(154);
+    expect(result.calibration).toMatchObject({ enabled: true, factorRaw: 1.8, factorApplied: 1.15, guardrailApplied: true });
   });
 });

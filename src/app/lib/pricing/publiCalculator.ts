@@ -6,6 +6,9 @@ import { resolveSegmentCpm } from '@/app/lib/cpmBySegment';
 import { logger } from '@/app/lib/logger';
 import { resolvePricingCalibrationForUser, type CalibrationConfidenceBand, type CalibrationLinkQuality } from '@/app/lib/pricing/calibrationService';
 import { resolvePricingMetrics, type PricingReachConfidence, type PricingReachMethod } from '@/app/lib/pricing/pricingMetrics';
+import { calculatePricingV2 } from '@/app/lib/pricing/pricingEngineV2';
+import { PRICING_V2_CONFIG, PRICING_V2_VERSION } from '@/app/lib/pricing/pricingV2.config';
+import { resolvePricingNiche } from '@/app/lib/pricing/pricingNiche';
 import {
   isPersonalPricingReferenceExpired,
   personalPricingReferenceAgeDays,
@@ -98,7 +101,11 @@ export type PubliCalculatorBreakdown = {
   travelCost: number;
   hotelCost: number;
   logisticsSuggested: number;
-  logisticsIncludedInCache: false;
+  logisticsIncludedInCache: boolean;
+  production: number;
+  distribution: number;
+  usageRights: number;
+  exclusivity: number;
 };
 
 export type PubliCalculatorResult = {
@@ -106,10 +113,21 @@ export type PubliCalculatorResult = {
     reach: number;
     engagement: number;
     profileSegment: string;
+    pricingNiche: string;
     reachSampleSize: number;
     reachMethod: PricingReachMethod;
     reachConfidence: PricingReachConfidence;
     reachFollowerAlert: boolean;
+    reachByFormat: {
+      reels: number;
+      post: number;
+      stories: number;
+    };
+    reachSampleSizeByFormat: {
+      reels: number;
+      post: number;
+      stories: number;
+    };
   };
   params: CalculatorParams;
   result: {
@@ -138,7 +156,7 @@ export type PubliCalculatorResult = {
   personalReference: {
     enabled: boolean;
     applied: boolean;
-    reason: 'not_configured' | 'expired' | 'creator_calibrated' | 'creator_opted_out' | 'feature_disabled' | 'applied';
+    reason: 'not_configured' | 'expired' | 'creator_calibrated' | 'creator_opted_out' | 'feature_disabled' | 'not_applicable' | 'applied';
     referenceValueBRL: number | null;
     referenceAgeDays: number | null;
     canonicalJusto: number | null;
@@ -147,6 +165,37 @@ export type PubliCalculatorResult = {
     weightApplied: number;
     baseJusto: number;
     adjustedJusto: number;
+    direction: 'below' | 'above' | 'aligned' | 'none';
+    campaignEquivalent: number | null;
+    transitionProgress: number;
+  };
+  pricing: {
+    version: typeof PRICING_V2_VERSION;
+    protectedFloor: number;
+    modelIdeal: number;
+    recommendedNow: number;
+    potentialIdeal: number;
+    components: {
+      production: number;
+      distribution: number;
+      usageRights: number;
+      exclusivity: number;
+      logistics: number;
+    };
+    history: {
+      eligible: boolean;
+      applied: boolean;
+      direction: 'below' | 'above' | 'aligned' | 'none';
+      referenceValue: number | null;
+      canonicalModelIdeal: number;
+      campaignEquivalent: number | null;
+      transitionProgress: number;
+    };
+    shadow: {
+      version: 'v1';
+      result: { estrategico: number; justo: number; premium: number };
+      deltaJustoPercent: number;
+    };
   };
   avgTicket: number | null;
   totalDeals: number;
@@ -494,7 +543,7 @@ type PubliCalculatorInput = {
   personalReferenceOptedOut?: boolean;
 };
 
-export async function runPubliCalculator(input: PubliCalculatorInput): Promise<PubliCalculatorResult> {
+export async function runPubliCalculatorV1Legacy(input: PubliCalculatorInput): Promise<any> {
   const params = normalizeCalculatorParams(input.params);
   const brandRiskEnabled = input.brandRiskEnabled ?? true;
   const calibrationEnabled = input.calibrationEnabled ?? false;
@@ -817,6 +866,301 @@ export async function runPubliCalculator(input: PubliCalculatorInput): Promise<P
       adjustedJusto: valorJusto,
     },
     avgTicket: avgTicketValue,
+    totalDeals,
+    explanation,
+  };
+}
+
+function calculateLegacyV1Shadow(input: {
+  params: CalculatorParams & { legacyPackageMode?: boolean };
+  reach: number;
+  engagementPercent: number;
+  cpm: number;
+  referenceValue?: number | null;
+  referenceEligible: boolean;
+}) {
+  const engagementFactor = 1 + Math.min(25, Math.max(0, input.engagementPercent)) / 100;
+  const brandRiskStrategyRawMultiplier =
+    multiplicadores.brandSize[input.params.brandSize] *
+    multiplicadores.imageRisk[input.params.imageRisk] *
+    multiplicadores.strategicGain[input.params.strategicGain] *
+    multiplicadores.contentModel[input.params.contentModel];
+  const brandRiskFloor = BRAND_RISK_MIN_BY_IMAGE_RISK[input.params.imageRisk];
+  const brandRiskStrategyMultiplier = typeof brandRiskFloor === 'number'
+    ? Math.max(brandRiskStrategyRawMultiplier, brandRiskFloor)
+    : brandRiskStrategyRawMultiplier;
+  const commonMultiplier =
+    multiplicadores.exclusividade[input.params.exclusivity] *
+    multiplicadores.usoImagem[input.params.usageRights] *
+    multiplicadores.duracaoMidiaPaga[input.params.paidMediaDuration ?? 'nenhum'] *
+    multiplicadores.repostTikTok[input.params.repostTikTok ? 'sim' : 'nao'] *
+    brandRiskStrategyMultiplier *
+    multiplicadores.complexidade[input.params.complexity] *
+    multiplicadores.autoridade[input.params.authority] *
+    multiplicadores.sazonalidade[input.params.seasonality] *
+    engagementFactor;
+  const base = (input.reach / 1000) * input.cpm;
+  const contentUnits = input.params.legacyPackageMode
+    ? multiplicadores.formato.pacote
+    : computeWeightedUnits(input.params.formatQuantities);
+  const content = input.params.deliveryType === 'conteudo' ? base * commonMultiplier * contentUnits : 0;
+  const event = input.params.deliveryType === 'evento'
+    ? base * commonMultiplier * multiplicadores.eventoDuracao[input.params.eventDetails.durationHours]
+    : 0;
+  const coverage = input.params.deliveryType === 'evento'
+    ? base * commonMultiplier * computeWeightedUnits(input.params.eventCoverageQuantities) * COVERAGE_FACTOR
+    : 0;
+  const algorithmic = content + event + coverage;
+  const canonical = base *
+    multiplicadores.brandSize.media *
+    multiplicadores.imageRisk.medio *
+    multiplicadores.complexidade.simples *
+    multiplicadores.autoridade[input.params.authority] *
+    engagementFactor *
+    multiplicadores.formato.reels;
+  const factor = input.referenceEligible && input.referenceValue && canonical > 0
+    ? Math.min(1.8, Math.max(0.6, input.referenceValue / canonical))
+    : 1;
+  const justo = roundCurrency(algorithmic * (input.referenceEligible ? 0.7 + factor * 0.3 : 1));
+  return {
+    estrategico: roundCurrency(justo * 0.75),
+    justo,
+    premium: roundCurrency(justo * 1.4),
+  };
+}
+
+export async function runPubliCalculator(input: PubliCalculatorInput): Promise<PubliCalculatorResult> {
+  const params = normalizeCalculatorParams(input.params);
+  const calibrationRequested = input.calibrationEnabled ?? false;
+  const personalReferenceEnabled = input.personalReferenceEnabled ?? true;
+  const personalReferenceOptedOut = input.personalReferenceOptedOut ?? false;
+  const periodDays = Number.isFinite(input.periodDays) && (input.periodDays as number) > 0
+    ? Math.min(input.periodDays as number, 365)
+    : 90;
+  const now = new Date();
+  const userId = String((input.user as any)?._id || (input.user as any)?.id || 'unknown');
+
+  const [{ enrichedReport }, adDealInsights, pricingMetrics] = await Promise.all([
+    fetchAndPrepareReportData({ user: input.user, analysisSinceDate: subDays(now, periodDays) }),
+    getAdDealInsights(userId, periodDays <= 30 ? 'last30d' : periodDays <= 90 ? 'last90d' : 'all').catch((error) => {
+      logger.error('[publiCalculator:v2] Falha ao buscar insights de AdDeals', error);
+      return null;
+    }),
+    resolvePricingMetrics({
+      userId,
+      sinceDate: subDays(now, 90),
+      followers: typeof (input.user as any)?.followers_count === 'number'
+        ? (input.user as any).followers_count
+        : null,
+    }),
+  ]);
+
+  const profileSegment = enrichedReport.profileSegment || 'default';
+  const pricingNiche = resolvePricingNiche((input.user as any)?.creatorProfileExtended?.niches);
+  const overallStats = (enrichedReport.overallStats ?? {}) as Record<string, unknown>;
+  const engagementRaw = typeof overallStats.avgEngagementRate === 'number'
+    ? overallStats.avgEngagementRate
+    : typeof overallStats.avgEngagement === 'number'
+      ? overallStats.avgEngagement
+      : 0;
+  const engagementPercent = Math.min(25, Math.max(0, engagementRaw > 1 ? engagementRaw : engagementRaw * 100));
+  const { value: cpmValue, source: cpmSource } = await resolveSegmentCpm(pricingNiche);
+
+  const calibrationSnapshot = calibrationRequested
+    ? await resolvePricingCalibrationForUser({ userId, profileSegment: pricingNiche })
+    : null;
+  const calibrationUsable = Boolean(
+    calibrationRequested && calibrationSnapshot &&
+    (calibrationSnapshot.creatorSampleSize >= 10 || calibrationSnapshot.segmentSampleSize >= 30)
+  );
+  const calibrationFactorRaw = calibrationUsable ? calibrationSnapshot?.factorRaw ?? 1 : 1;
+  const calibrationFactorApplied = Math.min(
+    PRICING_V2_CONFIG.calibrationFactorMax,
+    Math.max(PRICING_V2_CONFIG.calibrationFactorMin, calibrationFactorRaw)
+  );
+
+  const personalReference = sanitizePersonalPricingReference((input.user as any)?.creatorProfileExtended?.pricingReference);
+  const referenceAgeDays = personalReference ? personalPricingReferenceAgeDays(personalReference) : null;
+  const creatorCalibrationAvailable = calibrationUsable && (calibrationSnapshot?.creatorSampleSize ?? 0) >= 10;
+  const referenceApplicable =
+    personalReferenceEnabled &&
+    !personalReferenceOptedOut &&
+    params.usePersonalReference &&
+    personalReference !== null &&
+    !isPersonalPricingReferenceExpired(personalReference) &&
+    !creatorCalibrationAvailable &&
+    params.deliveryType === 'conteudo' &&
+    params.contentModel === 'publicidade_perfil';
+
+  const pricing = calculatePricingV2({
+    params,
+    reach: pricingMetrics.reach,
+    reachByFormat: pricingMetrics.reachByFormat,
+    engagementPercent,
+    cpm: cpmValue,
+    calibrationFactor: calibrationFactorApplied,
+    personalReferenceValue: personalReference?.valueBRL ?? null,
+    personalReferenceEligible: referenceApplicable,
+  });
+
+  let personalReferenceReason: PubliCalculatorResult['personalReference']['reason'] = 'not_configured';
+  if (personalReferenceOptedOut || !params.usePersonalReference) personalReferenceReason = 'creator_opted_out';
+  else if (!personalReferenceEnabled) personalReferenceReason = 'feature_disabled';
+  else if (!personalReference) personalReferenceReason = 'not_configured';
+  else if (isPersonalPricingReferenceExpired(personalReference)) personalReferenceReason = 'expired';
+  else if (creatorCalibrationAvailable) personalReferenceReason = 'creator_calibrated';
+  else if (params.deliveryType !== 'conteudo' || params.contentModel !== 'publicidade_perfil') personalReferenceReason = 'not_applicable';
+  else personalReferenceReason = 'applied';
+
+  const legacyResult = calculateLegacyV1Shadow({
+    params,
+    reach: pricingMetrics.legacyReach,
+    engagementPercent,
+    cpm: cpmValue,
+    referenceValue: personalReference?.valueBRL,
+    referenceEligible: referenceApplicable,
+  });
+  const deltaJustoPercent = legacyResult.justo > 0
+    ? roundCurrency(((pricing.recommendedNow - legacyResult.justo) / legacyResult.justo) * 100)
+    : 0;
+  const averageDealRaw = adDealInsights?.averageDealValueBRL;
+  const avgTicket = typeof averageDealRaw === 'number' && Number.isFinite(averageDealRaw)
+    ? roundCurrency(averageDealRaw)
+    : null;
+  const totalDeals = adDealInsights?.totalDeals ?? 0;
+
+  const reachMethodLabel: Record<PricingReachMethod, string> = {
+    hybrid_robust: 'mediana combinada com média protegida',
+    median_mean: 'mediana combinada com média',
+    follower_fallback: 'estimativa conservadora com apoio da base de seguidores',
+    trimmed_mean: 'média aparada',
+    median: 'mediana',
+  };
+  const explanationParts = [
+    `Versão de preço ${PRICING_V2_VERSION}.`,
+    `Alcance típico: ${pricingMetrics.reach.toLocaleString('pt-BR')} pessoas (${reachMethodLabel[pricingMetrics.method]}, ${pricingMetrics.sampleSize} conteúdos).`,
+    `Nicho comercial: ${pricingNiche}; CPM aplicado: R$ ${cpmValue.toFixed(2)}.`,
+    `Produção: R$ ${pricing.components.production.toFixed(2)}; distribuição: R$ ${pricing.components.distribution.toFixed(2)}.`,
+    `Direitos de uso: R$ ${pricing.components.usageRights.toFixed(2)}; exclusividade: R$ ${pricing.components.exclusivity.toFixed(2)}.`,
+    pricing.components.logistics > 0 ? `Despesas de logística incluídas: R$ ${pricing.components.logistics.toFixed(2)}.` : null,
+    `Piso protegido: R$ ${pricing.protectedFloor.toFixed(2)}; valor ideal do modelo: R$ ${pricing.modelIdeal.toFixed(2)}.`,
+    pricing.history.direction === 'below'
+      ? `O histórico abaixo do ideal foi usado como ponto de partida; 35% da distância até o ideal foi recuperada sem romper o piso.`
+      : pricing.history.direction === 'above'
+        ? 'O histórico acima do modelo foi preservado, com proteção contra aumentos atípicos.'
+        : pricing.history.direction === 'aligned'
+          ? 'O histórico está alinhado ao valor ideal.'
+          : 'O histórico pessoal não alterou este cálculo.',
+    calibrationUsable
+      ? `Calibração por negócios fechados aplicada em ${calibrationFactorApplied.toFixed(2)}x.`
+      : 'Calibração de mercado não aplicada por falta de amostra mínima confiável.',
+    pricingMetrics.reachFollowerAlert
+      ? 'Atenção: o alcance típico supera quatro vezes a base de seguidores; confirme se esse desempenho é recorrente.'
+      : null,
+    params.allowStrategicWaiver
+      ? 'A exceção estratégica não reduz mais o preço abaixo do custo protegido.'
+      : null,
+    avgTicket ? `Ticket médio recente: R$ ${avgTicket.toFixed(2)}.` : null,
+    totalDeals > 0 ? `${totalDeals} negócio(s) analisado(s).` : null,
+  ].filter(Boolean);
+  const explanationPrefix = input.explanationPrefix?.trim();
+  const explanation = [explanationPrefix, ...explanationParts].filter(Boolean).join(' ');
+
+  return {
+    metrics: {
+      reach: pricingMetrics.reach,
+      engagement: roundCurrency(engagementPercent),
+      profileSegment,
+      pricingNiche,
+      reachSampleSize: pricingMetrics.sampleSize,
+      reachMethod: pricingMetrics.method,
+      reachConfidence: pricingMetrics.confidence,
+      reachFollowerAlert: pricingMetrics.reachFollowerAlert,
+      reachByFormat: pricingMetrics.reachByFormat,
+      reachSampleSizeByFormat: pricingMetrics.sampleSizeByFormat,
+    },
+    params: {
+      ...params,
+      format: deriveLegacyFormat({
+        deliveryType: params.deliveryType,
+        formatQuantities: params.formatQuantities,
+        legacyPackageMode: params.legacyPackageMode,
+      }),
+    },
+    result: {
+      estrategico: pricing.protectedFloor,
+      justo: pricing.recommendedNow,
+      premium: pricing.potentialIdeal,
+    },
+    breakdown: {
+      contentUnits: pricing.contentUnits,
+      contentJusto: pricing.contentSubtotal,
+      eventPresenceJusto: pricing.eventPresenceSubtotal,
+      coverageUnits: pricing.coverageUnits,
+      coverageJusto: pricing.coverageSubtotal,
+      travelCost: params.deliveryType === 'evento' ? PRICING_V2_CONFIG.travelCosts[params.eventDetails.travelTier] : 0,
+      hotelCost: params.deliveryType === 'evento'
+        ? roundCurrency(params.eventDetails.hotelNights * PRICING_V2_CONFIG.hotelCostPerNight)
+        : 0,
+      logisticsSuggested: pricing.components.logistics,
+      logisticsIncludedInCache: true,
+      production: pricing.components.production,
+      distribution: pricing.components.distribution,
+      usageRights: pricing.components.usageRights,
+      exclusivity: pricing.components.exclusivity,
+    },
+    cpmApplied: cpmValue,
+    cpmSource,
+    calibration: {
+      enabled: calibrationUsable,
+      baseJusto: pricing.modelIdeal,
+      factorRaw: roundCurrency(calibrationFactorRaw),
+      factorApplied: roundCurrency(calibrationFactorApplied),
+      guardrailApplied: Math.abs(calibrationFactorApplied - calibrationFactorRaw) > 0.0001,
+      confidence: calibrationSnapshot?.confidence ?? 0,
+      confidenceBand: calibrationSnapshot?.confidenceBand ?? 'baixa',
+      segmentSampleSize: calibrationSnapshot?.segmentSampleSize ?? 0,
+      creatorSampleSize: calibrationSnapshot?.creatorSampleSize ?? 0,
+      windowDaysSegment: calibrationSnapshot?.windowDaysSegment ?? 180,
+      windowDaysCreator: calibrationSnapshot?.windowDaysCreator ?? 365,
+      lowConfidenceRangeExpanded: false,
+      linkQuality: calibrationSnapshot?.linkQuality ?? 'low',
+    },
+    personalReference: {
+      enabled: personalReferenceEnabled,
+      applied: pricing.history.applied,
+      reason: personalReferenceReason,
+      referenceValueBRL: personalReference?.valueBRL ?? null,
+      referenceAgeDays,
+      canonicalJusto: personalReference ? pricing.history.canonicalModelIdeal : null,
+      factorRaw: personalReference && pricing.history.canonicalModelIdeal > 0
+        ? roundCurrency(personalReference.valueBRL / pricing.history.canonicalModelIdeal)
+        : null,
+      factorApplied: pricing.history.campaignEquivalent && pricing.modelIdeal > 0
+        ? roundCurrency(pricing.history.campaignEquivalent / pricing.modelIdeal)
+        : null,
+      weightApplied: pricing.history.direction === 'below' ? PRICING_V2_CONFIG.historyBridgeProgress : pricing.history.applied ? 1 : 0,
+      baseJusto: pricing.modelIdeal,
+      adjustedJusto: pricing.recommendedNow,
+      direction: pricing.history.direction,
+      campaignEquivalent: pricing.history.campaignEquivalent,
+      transitionProgress: pricing.history.transitionProgress,
+    },
+    pricing: {
+      version: pricing.version,
+      protectedFloor: pricing.protectedFloor,
+      modelIdeal: pricing.modelIdeal,
+      recommendedNow: pricing.recommendedNow,
+      potentialIdeal: pricing.potentialIdeal,
+      components: pricing.components,
+      history: pricing.history,
+      shadow: {
+        version: 'v1',
+        result: legacyResult,
+        deltaJustoPercent,
+      },
+    },
+    avgTicket,
     totalDeals,
     explanation,
   };

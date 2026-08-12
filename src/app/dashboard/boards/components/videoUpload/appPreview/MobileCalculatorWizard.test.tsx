@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
 import { MobileCalculatorWizard, type MobileCalculatorResult } from "./MobileCalculatorWizard";
 
@@ -27,7 +27,12 @@ describe("MobileCalculatorWizard", () => {
           estrategico: 1200,
           justo: 1600,
           premium: 2100,
+          calculationId: "calc-mobile-1",
           metrics: { reach: 12400, reachSampleSize: 5, reachMethod: "trimmed_mean", reachConfidence: "alta" },
+          pricing: {
+            version: "v2.0.0",
+            components: { production: 700, distribution: 500, usageRights: 250, exclusivity: 150, logistics: 0 },
+          },
           personalReference: {
             applied: true,
             reason: "applied",
@@ -51,7 +56,7 @@ describe("MobileCalculatorWizard", () => {
 
     expect(screen.getByText("Entrega")).toBeInTheDocument();
     expect(screen.getByText("Reels").parentElement).toHaveTextContent("1");
-    expect(screen.getByText("Stories").parentElement).toHaveTextContent("0");
+    expect(screen.getByText("Sequência de 3 Stories").parentElement).toHaveTextContent("0");
 
     fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
     expect(screen.getByText("Uso e proteção")).toBeInTheDocument();
@@ -78,7 +83,7 @@ describe("MobileCalculatorWizard", () => {
     advanceToHistory();
 
     fireEvent.click(screen.getByRole("button", { name: /^Adicionar valor habitual/ }));
-    fireEvent.change(screen.getByLabelText("Valor habitual por Reel orgânico"), { target: { value: "1500" } });
+    fireEvent.change(screen.getByLabelText("Valor habitual por Reel orgânico"), { target: { value: "1.500" } });
     fireEvent.click(screen.getByRole("button", { name: "Adicionar" }));
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
@@ -89,9 +94,11 @@ describe("MobileCalculatorWizard", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Ver meu valor" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Ver meu valor" }));
 
-    expect(await screen.findByText("Mínimo")).toBeInTheDocument();
-    expect(screen.getByText("Justo")).toBeInTheDocument();
-    expect(screen.getByText("Máximo")).toBeInTheDocument();
+    expect(await screen.findByText("Piso protegido")).toBeInTheDocument();
+    expect(screen.getByText("Recomendado agora")).toBeInTheDocument();
+    expect(screen.getByText("Potencial ideal")).toBeInTheDocument();
+    expect(screen.getByText("Como o valor foi formado")).toBeInTheDocument();
+    expect(screen.getByText("Produção")).toBeInTheDocument();
     expect(screen.getByText("Como seu histórico entrou nesta sugestão")).toBeInTheDocument();
     expect(screen.getByText(/Você costuma fechar/i)).toBeInTheDocument();
     expect(screen.getByText("Etapa 5 de 5")).toBeInTheDocument();
@@ -109,12 +116,60 @@ describe("MobileCalculatorWizard", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Prefiro só a sugestão/ }));
     fireEvent.click(screen.getByRole("button", { name: "Ver meu valor" }));
 
-    expect(await screen.findByText("Mínimo")).toBeInTheDocument();
+    expect(await screen.findByText("Piso protegido")).toBeInTheDocument();
     expect(screen.getByText("Etapa 5 de 5")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Concluir" })).toBeInTheDocument();
     expect(screen.queryByText("Seu histórico de preço")).not.toBeInTheDocument();
     expect(global.fetch).toHaveBeenCalledWith("/api/calculator", expect.objectContaining({
       body: expect.stringContaining('"usePersonalReference":false'),
     }));
+  });
+
+  it("pula a etapa de histórico para UGC e volta ao contexto a partir do resultado", async () => {
+    renderWizard();
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+
+    const ugcRow = screen.getByText("UGC para perfil da marca").parentElement;
+    expect(ugcRow).not.toBeNull();
+    fireEvent.click(within(ugcRow!).getByRole("button", { name: "Sim" }));
+
+    expect(screen.getByText("Etapa 3 de 4")).toBeInTheDocument();
+    expect(screen.queryByText("Seu histórico de preço")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Ver meu valor" }));
+
+    expect(await screen.findByText("Etapa 4 de 4")).toBeInTheDocument();
+    await screen.findByText("Recomendado agora");
+    expect(global.fetch).toHaveBeenCalledWith("/api/calculator", expect.objectContaining({
+      body: expect.stringContaining('"usePersonalReference":false'),
+    }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Voltar para a etapa anterior" }));
+    expect(screen.getByText("Contexto da parceria")).toBeInTheDocument();
+  });
+
+  it("coleta o valor pretendido quando a recomendação parece barata", async () => {
+    renderWizard();
+    advanceToHistory();
+    fireEvent.click(screen.getByRole("button", { name: /^Prefiro só a sugestão/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver meu valor" }));
+
+    await screen.findByText("Recomendado agora");
+    fireEvent.click(screen.getByRole("button", { name: "Barato" }));
+    fireEvent.change(screen.getByLabelText("Quanto você cobraria?"), { target: { value: "2.500" } });
+    fireEvent.click(screen.getByRole("button", { name: "Enviar" }));
+
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(
+      "/api/calculator/calc-mobile-1",
+      expect.objectContaining({ method: "PATCH", body: JSON.stringify({ perception: "low", intendedAsk: 2500 }) }),
+    ));
+    expect(await screen.findByText("Obrigado — avaliação salva.")).toBeInTheDocument();
+  });
+
+  it("fecha com Escape e mantém o diálogo identificado", () => {
+    renderWizard();
+    expect(screen.getByRole("dialog", { name: "Entrega" })).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

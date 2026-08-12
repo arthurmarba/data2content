@@ -27,7 +27,8 @@ type EligibleDealRow = {
   linkedCalculationReach?: number;
   linkedCalculationSegment?: string;
   pricingLinkMethod?: 'manual' | 'auto' | 'none' | string;
-  createdAt?: Date;
+  userId?: mongoose.Types.ObjectId;
+  dealDate?: Date;
 };
 
 const WINDOW_DAYS_SEGMENT = 180;
@@ -96,14 +97,18 @@ export async function resolvePricingCalibrationForUser(input: {
     const segmentSince = subDays(now, WINDOW_DAYS_SEGMENT);
     const normalizedSegment = normalizeSegment(input.profileSegment);
 
+    const creatorObjectId = new mongoose.Types.ObjectId(input.userId);
     const rows = (await AdDeal.find({
-      userId: new mongoose.Types.ObjectId(input.userId),
       dealDate: { $gte: creatorSince },
       compensationType: 'Valor Fixo',
       compensationCurrency: 'BRL',
       compensationValue: { $gt: 0 },
       sourceCalculationId: { $exists: true, $ne: null },
       linkedCalculationJusto: { $gt: 0 },
+      $or: [
+        { userId: creatorObjectId },
+        { linkedCalculationSegment: normalizedSegment, dealDate: { $gte: segmentSince } },
+      ],
     })
       .select({
         compensationValue: 1,
@@ -111,7 +116,8 @@ export async function resolvePricingCalibrationForUser(input: {
         linkedCalculationReach: 1,
         linkedCalculationSegment: 1,
         pricingLinkMethod: 1,
-        createdAt: 1,
+        userId: 1,
+        dealDate: 1,
       })
       .lean()
       .exec()) as EligibleDealRow[];
@@ -127,7 +133,7 @@ export async function resolvePricingCalibrationForUser(input: {
 
     if (!eligibleRows.length) return fallback;
 
-    const creatorRecords = eligibleRows.map((row) => {
+    const records = eligibleRows.map((row) => {
       const value = Number(row.compensationValue || 0);
       const justo = Number(row.linkedCalculationJusto || 0);
       const rawRatio = justo > 0 ? value / justo : 1;
@@ -135,12 +141,16 @@ export async function resolvePricingCalibrationForUser(input: {
         ratio: clamp(rawRatio, MIN_RATIO, MAX_RATIO),
         segment: normalizeSegment(row.linkedCalculationSegment),
         method: row.pricingLinkMethod === 'manual' ? 'manual' : row.pricingLinkMethod === 'auto' ? 'auto' : 'none',
-        createdAt: row.createdAt ? new Date(row.createdAt) : now,
+        userId: row.userId?.toString() ?? '',
+        dealDate: row.dealDate ? new Date(row.dealDate) : now,
       };
     });
 
-    const segmentRecords = creatorRecords.filter(
-      (record) => record.createdAt >= segmentSince && record.segment === normalizedSegment
+    const creatorRecords = records.filter(
+      (record) => record.userId === input.userId && record.dealDate >= creatorSince
+    );
+    const segmentRecords = records.filter(
+      (record) => record.dealDate >= segmentSince && record.segment === normalizedSegment
     );
 
     const creatorRatios = creatorRecords.map((record) => record.ratio);

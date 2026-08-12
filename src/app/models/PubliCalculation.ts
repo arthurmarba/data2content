@@ -6,10 +6,13 @@ export interface IPubliCalculationMetrics {
   reach?: number;
   engagement?: number;
   profileSegment?: string;
+  pricingNiche?: string;
   reachSampleSize?: number;
   reachMethod?: 'trimmed_mean' | 'median' | string;
-  reachConfidence?: 'alta' | 'baixa' | string;
+  reachConfidence?: 'alta' | 'media' | 'baixa' | string;
   reachFollowerAlert?: boolean;
+  reachByFormat?: IPubliCalculationFormatQuantities;
+  reachSampleSizeByFormat?: IPubliCalculationFormatQuantities;
 }
 
 export interface IPubliCalculationFormatQuantities {
@@ -62,6 +65,10 @@ export interface IPubliCalculationBreakdown {
   hotelCost?: number;
   logisticsSuggested?: number;
   logisticsIncludedInCache?: boolean;
+  production?: number;
+  distribution?: number;
+  usageRights?: number;
+  exclusivity?: number;
 }
 
 export interface IPubliCalculationCalibration {
@@ -92,6 +99,44 @@ export interface IPubliCalculationPersonalReference {
   weightApplied?: number;
   baseJusto?: number;
   adjustedJusto?: number;
+  direction?: 'below' | 'above' | 'aligned' | 'none' | string;
+  campaignEquivalent?: number | null;
+  transitionProgress?: number;
+}
+
+export interface IPubliCalculationPricing {
+  version?: string;
+  protectedFloor?: number;
+  modelIdeal?: number;
+  recommendedNow?: number;
+  potentialIdeal?: number;
+  components?: {
+    production?: number;
+    distribution?: number;
+    usageRights?: number;
+    exclusivity?: number;
+    logistics?: number;
+  };
+  history?: {
+    eligible?: boolean;
+    applied?: boolean;
+    direction?: string;
+    referenceValue?: number | null;
+    canonicalModelIdeal?: number;
+    campaignEquivalent?: number | null;
+    transitionProgress?: number;
+  };
+  shadow?: {
+    version?: string;
+    result?: IPubliCalculationResult;
+    deltaJustoPercent?: number;
+  };
+}
+
+export interface IPubliCalculationFeedback {
+  perception?: 'low' | 'fair' | 'high' | string;
+  intendedAsk?: number | null;
+  submittedAt?: Date;
 }
 
 export interface IPubliCalculation extends Document {
@@ -103,6 +148,8 @@ export interface IPubliCalculation extends Document {
   breakdown?: IPubliCalculationBreakdown;
   calibration?: IPubliCalculationCalibration;
   personalReference?: IPubliCalculationPersonalReference;
+  pricing?: IPubliCalculationPricing;
+  pricingFeedback?: IPubliCalculationFeedback;
   cpmApplied: number;
   cpmSource?: 'seed' | 'dynamic';
   explanation?: string;
@@ -139,6 +186,10 @@ const breakdownSchema = new Schema<IPubliCalculationBreakdown>(
     hotelCost: { type: Number },
     logisticsSuggested: { type: Number },
     logisticsIncludedInCache: { type: Boolean },
+    production: { type: Number },
+    distribution: { type: Number },
+    usageRights: { type: Number },
+    exclusivity: { type: Number },
   },
   { _id: false }
 );
@@ -175,6 +226,64 @@ const personalReferenceSchema = new Schema<IPubliCalculationPersonalReference>(
     weightApplied: { type: Number, default: 0 },
     baseJusto: { type: Number },
     adjustedJusto: { type: Number },
+    direction: { type: String, trim: true },
+    campaignEquivalent: { type: Number, default: null },
+    transitionProgress: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
+const pricingComponentsSchema = new Schema(
+  {
+    production: { type: Number },
+    distribution: { type: Number },
+    usageRights: { type: Number },
+    exclusivity: { type: Number },
+    logistics: { type: Number },
+  },
+  { _id: false }
+);
+
+const pricingHistorySchema = new Schema(
+  {
+    eligible: { type: Boolean, default: false },
+    applied: { type: Boolean, default: false },
+    direction: { type: String, trim: true },
+    referenceValue: { type: Number, default: null },
+    canonicalModelIdeal: { type: Number },
+    campaignEquivalent: { type: Number, default: null },
+    transitionProgress: { type: Number, default: 0 },
+  },
+  { _id: false }
+);
+
+const pricingSchema = new Schema(
+  {
+    version: { type: String, trim: true },
+    protectedFloor: { type: Number },
+    modelIdeal: { type: Number },
+    recommendedNow: { type: Number },
+    potentialIdeal: { type: Number },
+    components: { type: pricingComponentsSchema },
+    history: { type: pricingHistorySchema },
+    shadow: {
+      version: { type: String, trim: true },
+      result: {
+        estrategico: { type: Number },
+        justo: { type: Number },
+        premium: { type: Number },
+      },
+      deltaJustoPercent: { type: Number },
+    },
+  },
+  { _id: false }
+);
+
+const pricingFeedbackSchema = new Schema(
+  {
+    perception: { type: String, enum: ['low', 'fair', 'high'] },
+    intendedAsk: { type: Number, default: null },
+    submittedAt: { type: Date },
   },
   { _id: false }
 );
@@ -191,10 +300,13 @@ const PubliCalculationSchema = new Schema<IPubliCalculation>(
       reach: { type: Number },
       engagement: { type: Number },
       profileSegment: { type: String, trim: true },
+      pricingNiche: { type: String, trim: true },
       reachSampleSize: { type: Number },
       reachMethod: { type: String, trim: true },
       reachConfidence: { type: String, trim: true },
       reachFollowerAlert: { type: Boolean, default: false },
+      reachByFormat: { type: quantitySchema },
+      reachSampleSizeByFormat: { type: quantitySchema },
     },
     params: {
       format: { type: String, required: true, trim: true },
@@ -230,6 +342,12 @@ const PubliCalculationSchema = new Schema<IPubliCalculation>(
     },
     personalReference: {
       type: personalReferenceSchema,
+    },
+    pricing: {
+      type: pricingSchema,
+    },
+    pricingFeedback: {
+      type: pricingFeedbackSchema,
     },
     cpmApplied: {
       type: Number,

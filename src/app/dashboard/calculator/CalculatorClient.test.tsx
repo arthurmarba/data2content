@@ -148,6 +148,8 @@ const setupProUser = () => {
   mockUseBillingStatus.mockReturnValue({
     hasPremiumAccess: true,
     isLoading: false,
+    hasResolvedOnce: true,
+    instagram: { connected: true },
   });
 };
 
@@ -220,9 +222,9 @@ test('pro user can submit calculator and view results', async () => {
     )
   );
 
-  expect(await screen.findByText('Estratégico (Mínimo)')).toBeInTheDocument();
-  expect(screen.getByText('Valor Justo (Sugerido)')).toBeInTheDocument();
-  expect(screen.getByText('Premium (Alto Valor)')).toBeInTheDocument();
+  expect(await screen.findByText('Piso protegido')).toBeInTheDocument();
+  expect(screen.getByText('Recomendado agora')).toBeInTheDocument();
+  expect(screen.getByText('Potencial ideal')).toBeInTheDocument();
   expect(track).toHaveBeenCalledWith(
     'calculator_submit_started',
     expect.objectContaining({ source: 'form_submit', deliveryType: 'conteudo', format: 'reels', hasCoverage: false })
@@ -509,6 +511,8 @@ test('switching to UGC auto-adjusts complexity to simples, with manual override 
   fireEvent.click(screen.getByRole('button', { name: /Pro Edição avançada/i }));
   fireEvent.click(screen.getByRole('button', { name: /UGC \(whitelabel\)/i }));
 
+  expect(screen.queryByText('Sua referência de mercado')).not.toBeInTheDocument();
+
   expect(toastMock).toHaveBeenCalledWith(
     expect.objectContaining({
       title: 'Complexidade ajustada para UGC',
@@ -566,7 +570,7 @@ test('blocks submit when content mode has no selected deliverables', async () =>
 test('uses numeric card value for package and saves media kit with loading state', async () => {
   setupProUser();
 
-  let resolveSaveRequest: ((value: Response) => void) | null = null;
+  let resolveSaveRequest!: (value: Response) => void;
   const savePromise = new Promise<Response>((resolve) => {
     resolveSaveRequest = resolve;
   });
@@ -602,10 +606,12 @@ test('uses numeric card value for package and saves media kit with loading state
   render(<CalculatorClient />);
 
   fireEvent.click(screen.getByRole('button', { name: /Calcular Valor da Publi/i }));
-  await screen.findByText('Valor Justo (Sugerido)');
+  await screen.findByText('Recomendado agora');
 
-  const addButtons = screen.getAllByRole('button', { name: /Usar como pacote/i });
-  fireEvent.click(addButtons[1]);
+  const addButtons = screen.getAllByRole('button', { name: /Criar pacote recomendado/i });
+  expect(addButtons).toHaveLength(1);
+  fireEvent.click(addButtons[0]!);
+  fireEvent.click(screen.getByRole('button', { name: /Ver pacotes/i }));
 
   const priceInput = screen.getByDisplayValue('1234.56');
   expect(priceInput).toBeInTheDocument();
@@ -625,7 +631,7 @@ test('uses numeric card value for package and saves media kit with loading state
     expect(body.packages[0].price).toBe(0);
   });
 
-  resolveSaveRequest?.(jsonResponse({ success: true, count: 1 }));
+  resolveSaveRequest(jsonResponse({ success: true, count: 1 }));
 
   await waitFor(() => {
     expect(pushMock).toHaveBeenCalledWith('/media-kit?fromCalc=calc-1');
@@ -639,4 +645,33 @@ test('uses numeric card value for package and saves media kit with loading state
     'calculator_mediakit_save_succeeded',
     expect.objectContaining({ source: 'result_cta' })
   );
+});
+
+test('asks the intended price when feedback is cheap and confirms the submission', async () => {
+  setupProUser();
+
+  const fetchMock = jest.fn().mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    const method = (init?.method || 'GET').toUpperCase();
+    if (url === '/api/mediakit/self/packages' && method === 'GET') return Promise.resolve(jsonResponse({ packages: [] }));
+    if (url === '/api/calculator' && method === 'POST') return Promise.resolve(jsonResponse(buildCalculationResponse()));
+    if (url === '/api/calculator/calc-1' && method === 'PATCH') return Promise.resolve(jsonResponse({ pricingFeedback: { perception: 'low', intendedAsk: 1500 } }));
+    throw new Error(`Unexpected fetch call: ${method} ${url}`);
+  });
+
+  global.fetch = fetchMock as any;
+  render(<CalculatorClient />);
+
+  fireEvent.click(screen.getByRole('button', { name: /Calcular Valor da Publi/i }));
+  await screen.findByText('Recomendado agora');
+  fireEvent.click(screen.getByRole('button', { name: 'Barato' }));
+  fireEvent.change(screen.getByLabelText('Quanto você cobraria por esta proposta?'), { target: { value: '1.500' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Enviar avaliação' }));
+
+  await waitFor(() => {
+    const patchCall = fetchMock.mock.calls.find((call) => call[0] === '/api/calculator/calc-1');
+    expect(patchCall).toBeTruthy();
+    expect(JSON.parse((patchCall?.[1] as RequestInit).body as string)).toEqual({ perception: 'low', intendedAsk: 1500 });
+  });
+  expect(await screen.findByText('Obrigado — avaliação salva.')).toBeInTheDocument();
 });
