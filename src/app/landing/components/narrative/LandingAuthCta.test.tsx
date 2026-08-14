@@ -31,7 +31,7 @@ describe("LandingAuthCta", () => {
     fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
 
     expect(submitGoogleSignInFallbackMock).toHaveBeenCalledWith(
-      "/dashboard/boards/mobile-strategic-profile",
+      "/dashboard/profile",
     );
   });
 
@@ -55,7 +55,7 @@ describe("LandingAuthCta", () => {
 
     expect(screen.getByRole("link", { name: "Acessar" })).toHaveAttribute(
       "href",
-      "/dashboard/boards/mobile-strategic-profile",
+      "/dashboard/profile",
     );
   });
 

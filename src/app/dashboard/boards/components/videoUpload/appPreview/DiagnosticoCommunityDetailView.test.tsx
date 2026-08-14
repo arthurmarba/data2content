@@ -50,8 +50,8 @@ describe("DiagnosticoCommunityDetailView", () => {
     // O diretório agrupa por nicho — o grupo "Lifestyle" prova que o criador
     // foi renderizado mesmo para usuário FREE (prova social no topo do funil).
     expect(screen.getByText("Lifestyle")).toBeInTheDocument();
-    // Card âncora: o título conecta o card à lista abaixo
-    expect(screen.getByText("Os criadores que você vê aqui se falam.")).toBeInTheDocument();
+    // Card âncora: explica onde a conversa diária acontece.
+    expect(screen.getByText("Comunidade D2C no WhatsApp")).toBeInTheDocument();
   });
 
   it("FREE: oferece assinar (sem link de WhatsApp) e dispara onUpgrade", () => {
@@ -65,7 +65,7 @@ describe("DiagnosticoCommunityDetailView", () => {
       />,
     );
 
-    const cta = screen.getByText("Assinar para entrar");
+    const cta = screen.getByText("Assinar o Pro para entrar");
     // É um botão (não um link) — free não acessa o grupo diretamente.
     expect(cta.closest("a")).toBeNull();
 
@@ -73,7 +73,7 @@ describe("DiagnosticoCommunityDetailView", () => {
     expect(onUpgrade).toHaveBeenCalledTimes(1);
   });
 
-  it("PRO: entra na comunidade via link do WhatsApp, sem upsell", () => {
+  it("PRO: entra na comunidade pela rota autenticada, sem expor o convite", () => {
     const onUpgrade = jest.fn();
     render(
       <DiagnosticoCommunityDetailView
@@ -84,10 +84,10 @@ describe("DiagnosticoCommunityDetailView", () => {
       />,
     );
 
-    const cta = screen.getByText("Entrar na comunidade");
+    const cta = screen.getByText("Entrar na Comunidade D2C");
     const anchor = cta.closest("a");
     expect(anchor).not.toBeNull();
-    expect(anchor).toHaveAttribute("href", expect.stringContaining("chat.whatsapp.com"));
+    expect(anchor).toHaveAttribute("href", "/api/dashboard/community/pro-join");
 
     fireEvent.click(cta);
     expect(onUpgrade).not.toHaveBeenCalled();

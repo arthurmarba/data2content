@@ -15,8 +15,9 @@ import type {
   ConfirmationResponse,
   AssetConfirmationResponse,
 } from "@/app/dashboard/boards/components/videoUpload/appPreview/diagnosticoConfirmationTypes";
+import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
 
-const FULL_MAP_ROUTE = "/dashboard/boards/mobile-strategic-profile";
+const FULL_MAP_ROUTE = CREATOR_PROFILE_ROUTE;
 const FULL_API = "/api/dashboard/strategic-map/full";
 const MAP_SEED_API = "/api/dashboard/mobile-strategic-profile/map-seed";
 const CONFIRM_API = "/api/dashboard/mobile-strategic-profile/confirm-map-dimension";

@@ -1,7 +1,7 @@
 // src/app/billing/success/ProWelcome.tsx
 "use client";
 
-import { COMMUNITY_WHATSAPP_URL } from "@/app/lib/communityLinks";
+import { COMMUNITY_PRO_JOIN_ROUTE } from "@/app/lib/communityLinks";
 import { buildNextChargeNotice } from "@/app/lib/billing/firstCharge";
 
 export const PRO_WELCOME_INSTAGRAM_HREF = "/dashboard/instagram/connect?next=narrative-map";
@@ -17,23 +17,10 @@ interface ProWelcomeProps {
   onStep?: (step: "community" | "instagram" | "continue") => void;
 }
 
-function StepBadge({ children }: { children: React.ReactNode }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-[12px] font-semibold text-zinc-500"
-    >
-      {children}
-    </span>
-  );
-}
-
 /**
  * Boas-vindas Pro (Fase 5).
  *
- * A ordem é deliberada: o grupo vem primeiro porque é lá que o assinante
- * confirma presença e entra na análise da semana. A conexão do Instagram é o
- * segundo passo e só existe depois do pagamento aprovado.
+ * As ações são independentes: o assinante escolhe por onde continuar.
  */
 export function ProWelcome({
   instagramConnected,
@@ -64,49 +51,42 @@ export function ProWelcome({
         Bem-vindo ao D2C Pro
       </h1>
       <p className="mt-2 text-[14px] leading-relaxed text-zinc-500">
-        Sua assinatura está ativa. Faltam dois passos para você aproveitar a próxima reunião.
+        Sua assinatura está ativa. Entre na comunidade ou continue configurando seu perfil no seu ritmo.
       </p>
 
-      <ol className="mt-8 space-y-6">
-        <li className="flex gap-3">
-          <StepBadge>1</StepBadge>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-[15px] font-semibold text-zinc-900">Entre no grupo de assinantes</h2>
-            <p className="mt-1 text-[13px] leading-relaxed text-zinc-500">
-              A confirmação de presença acontece lá. Quem confirma é analisado na reunião daquela
-              semana. Mudanças e cancelamentos também são avisados primeiro no grupo.
-            </p>
-            <a
-              href={COMMUNITY_WHATSAPP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => onStep?.("community")}
-              className="mt-3 inline-flex items-center justify-center rounded-full bg-zinc-950 px-6 py-3 text-[14px] font-semibold text-white transition-colors active:bg-zinc-800"
-            >
-              Entrar no grupo de assinantes
-            </a>
-          </div>
-        </li>
+      <div className="mt-8 space-y-7">
+        <section>
+          <h2 className="text-[15px] font-semibold text-zinc-900">Comunidade D2C no WhatsApp</h2>
+          <p className="mt-1 text-[13px] leading-relaxed text-zinc-500">
+            Networking, conversa diária e avisos das reuniões semanais.
+          </p>
+          <a
+            href={COMMUNITY_PRO_JOIN_ROUTE}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => onStep?.("community")}
+            className="mt-3 inline-flex items-center justify-center rounded-full bg-zinc-950 px-6 py-3 text-[14px] font-semibold text-white transition-colors active:bg-zinc-800"
+          >
+            Entrar na Comunidade D2C
+          </a>
+        </section>
 
         {!instagramConnected ? (
-          <li className="flex gap-3">
-            <StepBadge>2</StepBadge>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-[15px] font-semibold text-zinc-900">Conecte seu Instagram</h2>
-              <p className="mt-1 text-[13px] leading-relaxed text-zinc-500">
-                É o que deixa o seu Mapa, as pautas e os matches de collab com a sua cara.
-              </p>
-              <a
-                href={PRO_WELCOME_INSTAGRAM_HREF}
-                onClick={() => onStep?.("instagram")}
-                className="mt-3 inline-flex items-center justify-center rounded-full border border-zinc-300 px-6 py-3 text-[14px] font-semibold text-zinc-900 transition-colors active:bg-zinc-50"
-              >
-                Conectar meu Instagram
-              </a>
-            </div>
-          </li>
+          <section>
+            <h2 className="text-[15px] font-semibold text-zinc-900">Conecte seu Instagram</h2>
+            <p className="mt-1 text-[13px] leading-relaxed text-zinc-500">
+              Ative seu relatório semanal e aprofunde o mapa com dados reais.
+            </p>
+            <a
+              href={PRO_WELCOME_INSTAGRAM_HREF}
+              onClick={() => onStep?.("instagram")}
+              className="mt-3 inline-flex items-center justify-center rounded-full border border-zinc-300 px-6 py-3 text-[14px] font-semibold text-zinc-900 transition-colors active:bg-zinc-50"
+            >
+              Conectar meu Instagram
+            </a>
+          </section>
         ) : null}
-      </ol>
+      </div>
 
       {chargeNotice ? (
         <p className="mt-10 text-[12px] leading-relaxed text-zinc-400">

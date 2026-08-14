@@ -87,16 +87,18 @@ if (process.env.NODE_ENV === "production") {
   }
 }
 
-type MobileStrategicProfilePageProps = {
+export type MobileStrategicProfilePageProps = {
   searchParams?: Promise<{
     state?: string | string[];
     affiliate?: string | string[];
   }>;
 };
 
-export default async function MobileStrategicProfilePage({
+export type CreatorProfileSurface = "mobile" | "responsive";
+
+export async function renderCreatorProfilePage({
   searchParams,
-}: MobileStrategicProfilePageProps) {
+}: MobileStrategicProfilePageProps, surface: CreatorProfileSurface = "mobile") {
   const requestStartedAt = serverNow();
   const serverTimings: ServerTimingMeasurements = {};
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
@@ -112,7 +114,11 @@ export default async function MobileStrategicProfilePage({
     () => getServerSession(authOptions),
   );
   if (!session?.user) {
-    const callbackUrl = encodeURIComponent("/dashboard/boards/mobile-strategic-profile");
+    const callbackUrl = encodeURIComponent(
+      surface === "responsive"
+        ? "/dashboard/profile"
+        : "/dashboard/boards/mobile-strategic-profile",
+    );
     redirect(`/login?callbackUrl=${callbackUrl}&intent=strategic_profile`);
     return null;
   }
@@ -156,7 +162,7 @@ export default async function MobileStrategicProfilePage({
           await connectToDatabase();
           const { default: UserModelImport } = await import("@/app/models/User");
           const userDoc = await UserModelImport.findById(userId)
-            .select("planStatus role cancelAtPeriodEnd mediaKitSlug isInstagramConnected instagramAccountId instagramAccessToken instagramUsername image name email lastMapVisitAt isNewUserForOnboarding onboardingCompletedAt onboardingAnswers weeklyMapSummary whatsappPhone whatsappVerified")
+            .select("planStatus role cancelAtPeriodEnd mediaKitSlug isInstagramConnected instagramAccountId instagramAccessToken instagramUsername image name email lastMapVisitAt isNewUserForOnboarding onboardingCompletedAt onboardingAnswers weeklyMapSummary whatsappPhone whatsappVerified whatsappGroupLinkOpenedAt")
             .lean();
           if (userDoc) {
             mediaKitSlug = (userDoc as any).mediaKitSlug ?? null;
@@ -180,6 +186,7 @@ export default async function MobileStrategicProfilePage({
               onboardingCompletedAt: (userDoc as any).onboardingCompletedAt ?? null,
               onboardingAnswers: (userDoc as any).onboardingAnswers ?? null,
               weeklyMapSummary: (userDoc as any).weeklyMapSummary ?? null,
+              whatsappGroupLinkOpenedAt: (userDoc as any).whatsappGroupLinkOpenedAt ?? null,
             };
           }
         } catch (err) {
@@ -443,6 +450,7 @@ export default async function MobileStrategicProfilePage({
               plan: hasPremiumAccess ? "Pro" : "Free",
               mediaKitSlug,
               whatsappLinked: !!(effectiveUserForAccess as any).whatsappPhone && !!(effectiveUserForAccess as any).whatsappVerified,
+              whatsappGroupLinkOpened: !!(effectiveUserForAccess as any).whatsappGroupLinkOpenedAt,
               mapProfileIncomplete,
               pricingProfileIncomplete,
             };
@@ -499,12 +507,17 @@ export default async function MobileStrategicProfilePage({
 
   if (DIAGNOSTICO_V2_ENABLED && diagnosticoPageData) {
     return (
-      <Suspense fallback={<div className="fixed inset-0 bg-zinc-50" />}>
-        <DesktopRedirectGuard />
+      <Suspense
+        fallback={
+          <div className={surface === "responsive" ? "h-full min-h-0 bg-zinc-50" : "fixed inset-0 bg-zinc-50"} />
+        }
+      >
+        {surface === "mobile" ? <DesktopRedirectGuard /> : null}
         <DiagnosticoRealShellClient
           data={diagnosticoPageData}
           onAnalyzeAction={null}
           weeklyMeeting={weeklyMeeting}
+          surface={surface}
         />
       </Suspense>
     );
@@ -512,7 +525,7 @@ export default async function MobileStrategicProfilePage({
 
   return (
     <>
-      <DesktopRedirectGuard />
+      {surface === "mobile" ? <DesktopRedirectGuard /> : null}
       <MobileStrategicProfileRealShellClient
         session={session}
         stateQuery={stateQuery}
@@ -524,4 +537,10 @@ export default async function MobileStrategicProfilePage({
       />
     </>
   );
+}
+
+export default async function MobileStrategicProfilePage(
+  props: MobileStrategicProfilePageProps,
+) {
+  return renderCreatorProfilePage(props, "mobile");
 }

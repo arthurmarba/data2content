@@ -39,7 +39,7 @@ describe("Instagram connecting return target", () => {
 
   it("usa o Perfil Narrativo como fallback canônico para next=narrative-map", () => {
     expect(buildNextUrl("narrative-map")).toBe(
-      "/dashboard/boards/mobile-strategic-profile?instagramLinked=true",
+      "/dashboard/profile?instagramLinked=true",
     );
   });
 });

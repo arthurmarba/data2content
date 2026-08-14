@@ -29,10 +29,10 @@ export function DiagnosticoWhatsAppSheet({ onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between gap-3 px-5 pb-4 pt-2">
           <div className="min-w-0 flex-1">
-            <p className="font-display text-[1.25rem] font-bold tracking-[-0.03em] text-zinc-950">
+            <p className="font-display text-[1.25rem] font-bold tracking-[-0.03em] text-[var(--ds-color-ink)]">
               Receber pautas no WhatsApp
             </p>
-            <p className="mt-0.5 text-[12px] text-zinc-400">
+            <p className="mt-0.5 text-[12px] text-[var(--ds-color-text-muted)]">
               Vincule seu número para receber suas pautas semanais.
             </p>
           </div>

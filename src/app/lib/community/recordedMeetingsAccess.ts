@@ -7,7 +7,7 @@ export type RecordedMeetingsViewer = {
   role?: string | null;
 };
 
-export async function canAccessRecordedMeetings(
+export async function canAccessPremiumContent(
   viewer: RecordedMeetingsViewer | null | undefined,
 ): Promise<boolean> {
   if (viewer?.role?.trim().toLowerCase() === "admin") return true;
@@ -27,4 +27,10 @@ export async function canAccessRecordedMeetings(
 
   if (user?.role?.trim().toLowerCase() === "admin") return true;
   return getPlanAccessMeta(user?.planStatus, user?.cancelAtPeriodEnd).hasPremiumAccess;
+}
+
+export async function canAccessRecordedMeetings(
+  viewer: RecordedMeetingsViewer | null | undefined,
+): Promise<boolean> {
+  return canAccessPremiumContent(viewer);
 }

@@ -12,6 +12,7 @@ import {
   startInstagramReconnect,
   type InstagramReconnectNextTarget,
 } from "@/app/lib/instagram/client/startInstagramReconnect";
+import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
 
 type QuickItem = {
   title: string;
@@ -42,7 +43,7 @@ export default function InstagramPreConnectPage() {
   const backTarget = isPostCreationFlow
     ? "/calendar"
     : nextTarget === "narrative-map"
-      ? "/dashboard/boards/mobile-strategic-profile"
+      ? CREATOR_PROFILE_ROUTE
       : "/dashboard?intent=instagram";
   const connectLabel = isPostCreationFlow
     ? "Autorizar e voltar ao board"

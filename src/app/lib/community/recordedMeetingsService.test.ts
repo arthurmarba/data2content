@@ -2,6 +2,7 @@ import {
   getRecordedMeetings,
   getRecordedMeetingsState,
   mapYouTubePlaylistItems,
+  toRecordedMeetingCatalogItem,
 } from "./recordedMeetingsService";
 
 describe("recordedMeetingsService", () => {
@@ -59,6 +60,22 @@ describe("recordedMeetingsService", () => {
         title: "Reunião 01",
       }),
     ]);
+  });
+
+  it("remove identificador e URL do YouTube do catálogo navegável", () => {
+    const catalogItem = toRecordedMeetingCatalogItem({
+      id: "playlist-item-1",
+      youtubeVideoId: "youtube-secret-id",
+      title: "Reunião",
+      description: "Descrição",
+      publishedAt: "2026-08-01T12:00:00.000Z",
+      thumbnailUrl: "https://img.youtube.com/vi/youtube-secret-id/hqdefault.jpg",
+    });
+
+    expect(catalogItem.thumbnailUrl).toBe(
+      "/api/dashboard/recorded-meetings/playlist-item-1/thumbnail",
+    );
+    expect(JSON.stringify(catalogItem)).not.toContain("youtube-secret-id");
   });
 
   it("não consulta o YouTube enquanto a playlist não estiver configurada", async () => {

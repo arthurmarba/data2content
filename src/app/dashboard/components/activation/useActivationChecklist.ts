@@ -7,6 +7,7 @@ import { fetchHomeSummaryCached } from "@/app/dashboard/home/homeSummaryClient";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
 import { ACTIVATION_JOURNEY_STORAGE_KEY } from "@/types/paywall";
 import { isPlanActiveLike } from "@/utils/planStatus";
+import { COMMUNITY_PRO_JOIN_ROUTE } from "@/app/lib/communityLinks";
 
 type ActivationIntent = {
   context?: string | null;
@@ -227,9 +228,7 @@ export function useActivationChecklist(): UseActivationChecklistResult {
   );
   const communityHref =
     summary?.community?.vip?.inviteUrl ??
-    process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ??
-    process.env.NEXT_PUBLIC_COMMUNITY_URL ??
-    null;
+    COMMUNITY_PRO_JOIN_ROUTE;
   const communityCtaVisible = hasPremiumAccess && typeof communityHref === "string" && communityHref.length > 0;
 
   const flowConfig = resolveFlowConfig(intent);

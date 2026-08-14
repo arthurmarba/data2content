@@ -453,6 +453,8 @@ export interface IUser extends Document {
   communityInspirationOptIn?: boolean;
   communityInspirationOptInDate?: Date | null;
   communityInspirationTermsVersion?: string | null;
+  /** O convite foi aberto; não significa que a entrada no grupo foi concluída. */
+  whatsappGroupLinkOpenedAt?: Date | null;
   lastCommunityInspirationShown_Daily?: ILastCommunityInspirationShown | null;
   communityInspirationHistory?: ICommunityInspirationHistoryEntry[];
   isNewUserForOnboarding?: boolean;
@@ -801,6 +803,7 @@ const userSchema = new Schema<IUser>(
     communityInspirationOptIn: { type: Boolean, default: false },
     communityInspirationOptInDate: { type: Date, default: null },
     communityInspirationTermsVersion: { type: String, default: null },
+    whatsappGroupLinkOpenedAt: { type: Date, default: null },
     lastCommunityInspirationShown_Daily: { type: lastCommunityInspirationShownSchema, default: null },
     communityInspirationHistory: { type: [communityInspirationHistoryEntrySchema], default: [] },
     isNewUserForOnboarding: { type: Boolean, default: true },

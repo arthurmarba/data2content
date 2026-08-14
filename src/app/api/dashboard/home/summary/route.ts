@@ -35,6 +35,7 @@ import {
   dashboardCache,
   SHORT_DASHBOARD_TTL_MS,
 } from "@/app/lib/cache/dashboardCache";
+import { COMMUNITY_PRO_JOIN_ROUTE } from "@/app/lib/communityLinks";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -401,9 +402,7 @@ async function computeDashboardProposalsSummary(
 }
 
 const FREE_COMMUNITY_JOIN_URL = "/api/dashboard/community/free-join";
-const VIP_COMMUNITY_URL =
-  process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ||
-  "https://chat.whatsapp.com/CKTT84ZHEouKyXoDxIJI4c";
+const VIP_COMMUNITY_URL = COMMUNITY_PRO_JOIN_ROUTE;
 const WHATSAPP_TRIAL_URL =
   process.env.NEXT_PUBLIC_WHATSAPP_TRIAL_URL || "/planning/whatsapp";
 const WHATSAPP_TRIAL_ENABLED = isWhatsappTrialEnabled();

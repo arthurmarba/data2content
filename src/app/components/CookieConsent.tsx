@@ -31,7 +31,8 @@ const CookieConsent: React.FC = () => {
   const isLandingPage = pathname === "/" || pathname === "/landing";
   const isMobileStrategicProfileApp =
     process.env.NEXT_PUBLIC_MOBILE_STRATEGIC_PROFILE_ENABLED === "1" &&
-    (pathname?.startsWith("/dashboard/boards/mobile-strategic-profile") ||
+    (pathname?.startsWith("/dashboard/profile") ||
+      pathname?.startsWith("/dashboard/boards/mobile-strategic-profile") ||
       pathname?.startsWith("/planning/discover") ||
       pathname?.startsWith("/dashboard/discover"));
 

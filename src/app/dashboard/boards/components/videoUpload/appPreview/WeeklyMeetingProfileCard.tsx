@@ -1,14 +1,10 @@
 "use client";
 
-import { COMMUNITY_WHATSAPP_URL } from "@/app/lib/communityLinks";
+import { COMMUNITY_PRO_JOIN_ROUTE } from "@/app/lib/communityLinks";
 import Link from "next/link";
 import { openPaywallModal } from "@/utils/paywallModal";
 import { MOBILE_PROFILE_ROUTE } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
-import {
-  CS_FONT_DISPLAY,
-  CS_INK_HEX,
-  CS_PAPER_HEX,
-} from "./diagnosticoTokens";
+import { trackMobileNarrativeEvent } from "@/app/dashboard/boards/videoUpload/mobileNarrativeTelemetry";
 
 export type WeeklyMeetingProfileData = {
   startAt: string;
@@ -68,74 +64,48 @@ export function WeeklyMeetingProfileCard({
       context: "mentoria",
       source: "profile_weekly_meeting_card",
       returnTo: MOBILE_PROFILE_ROUTE,
-      // Depois do pagamento, o grupo vem antes de qualquer outra coisa.
-      postCheckoutIntent: "join_community",
+      // A ativação começa no app: Instagram primeiro, grupo depois.
+      postCheckoutIntent: "connect_instagram",
     });
   };
 
   return (
     <section
       aria-labelledby="weekly-meeting-profile-title"
-      style={{ padding: "0 18px 0" }}
+      className="ds-notebook-section"
+      style={{ margin: "14px 18px 0" }}
     >
-      <style>{`
-        .d2c-meeting-action {
-          transition: transform 160ms ease, background-color 160ms ease, border-color 160ms ease;
-        }
-        .d2c-meeting-action:hover { transform: translateY(-1px); }
-        .d2c-meeting-action:active { transform: translateY(0) scale(.985); }
-        .d2c-meeting-action:focus-visible { outline: 3px solid rgba(196, 181, 253, .72); outline-offset: 3px; }
-        @media (prefers-reduced-motion: reduce) {
-          .d2c-meeting-action { transition: none; }
-        }
-        @media (max-width: 350px) {
-          .d2c-meeting-actions { grid-template-columns: 1fr !important; }
-        }
-      `}</style>
-      <div
-        style={{
-          overflow: "hidden",
-          borderRadius: 22,
-          background: CS_INK_HEX,
-          color: CS_PAPER_HEX,
-          padding: "19px 18px 18px",
-          boxShadow: "0 12px 32px rgba(28,28,30,0.14)",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 7, color: "#c4b5fd", fontSize: 11, fontWeight: 800, letterSpacing: 0.7, textTransform: "uppercase" }}>
+      <div className="flex items-center justify-between gap-3">
+          <span className="ds-notebook-label inline-flex items-center gap-2">
             <CalendarGlyph /> Reunião semanal
           </span>
-          <span style={{ borderRadius: 999, background: cancelled ? "#3f3f46" : "rgba(255,255,255,0.1)", padding: "5px 9px", color: cancelled ? "#fca5a5" : "#e4e4e7", fontSize: 10, fontWeight: 750, whiteSpace: "nowrap" }}>
+          <span className={`ds-badge shrink-0 ${cancelled ? "ds-badge--danger" : "ds-badge--neutral"}`}>
             {cancelled ? "Cancelada" : "Horário previsto"}
           </span>
-        </div>
+      </div>
 
-        <h2
-          id="weekly-meeting-profile-title"
-          style={{
-            margin: "17px 0 0",
-            fontFamily: CS_FONT_DISPLAY,
-            fontSize: 23,
-            fontWeight: 700,
-            letterSpacing: "-0.035em",
-            lineHeight: 1.08,
-          }}
-        >
-          {cancelled ? "Esta edição foi cancelada" : formatMeetingDate(meeting.startAt)}
-        </h2>
-        <p style={{ margin: "8px 0 0", color: "#d4d4d8", fontSize: 13, lineHeight: 1.48 }}>
-          {supportingCopy}
-        </p>
+      <h2
+        id="weekly-meeting-profile-title"
+        className="mt-4 font-display text-[1.45rem] font-bold leading-[1.08] tracking-[-0.035em] text-[var(--ds-color-ink)]"
+      >
+        {cancelled ? "Esta edição foi cancelada" : formatMeetingDate(meeting.startAt)}
+      </h2>
+      <p className="ds-body mt-2">
+        {supportingCopy}
+      </p>
 
-        <div className="d2c-meeting-actions" style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, .82fr)", gap: 9, marginTop: 17 }}>
+      <div className="mt-4 flex flex-wrap gap-2">
           {isPro ? (
             <a
-              href={COMMUNITY_WHATSAPP_URL}
+              href={COMMUNITY_PRO_JOIN_ROUTE}
               target="_blank"
               rel="noreferrer"
-              className="d2c-meeting-action"
-              style={{ minHeight: 46, borderRadius: 999, background: "#25D366", color: "#101713", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "10px 12px", textDecoration: "none", fontSize: 12.5, fontWeight: 800, textAlign: "center" }}
+              onClick={() => trackMobileNarrativeEvent("mobile_whatsapp_group_link_opened", {
+                route: MOBILE_PROFILE_ROUTE,
+                isPro: true,
+                actionType: "weekly_meeting_card",
+              })}
+              className="ds-button ds-button--primary ds-button--small min-w-[8rem] flex-1 no-underline"
             >
               <WhatsAppGlyph /> Abrir grupo Pro
             </a>
@@ -143,21 +113,17 @@ export function WeeklyMeetingProfileCard({
             <button
               type="button"
               onClick={openCommunityPaywall}
-              className="d2c-meeting-action"
-              style={{ minHeight: 46, border: 0, borderRadius: 999, background: "#25D366", color: "#101713", display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "10px 12px", fontSize: 12.5, fontWeight: 800, textAlign: "center", cursor: "pointer" }}
+              className="ds-button ds-button--quiet ds-button--small min-w-[8rem] flex-1"
             >
               <WhatsAppGlyph /> Abrir grupo Pro
             </button>
           )}
           <Link
             href="/reuniao"
-            className="d2c-meeting-action"
-            style={{ minHeight: 46, borderRadius: 999, border: "1px solid #52525b", color: CS_PAPER_HEX, display: "inline-flex", alignItems: "center", justifyContent: "center", padding: "10px 12px", textDecoration: "none", fontSize: 12.5, fontWeight: 750, textAlign: "center" }}
+            className="ds-button ds-button--ghost ds-button--small min-w-[8rem] flex-1 no-underline"
           >
             Ver reunião
           </Link>
-        </div>
-
       </div>
     </section>
   );

@@ -14,6 +14,7 @@ import {
 import { UserAvatar } from "@/app/components/UserAvatar";
 import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
 import {
+  CREATOR_PROFILE_ROUTE,
   MOBILE_MEDIA_KIT_ROUTE,
   MOBILE_PROFILE_ROUTE,
 } from "../boards/videoUpload/mobileStrategicProfileRoutes";
@@ -32,8 +33,9 @@ const mobileStrategicProfileNavItems: MobileBottomNavItem[] = [
     key: "diagnostico",
     label: "Diagnóstico",
     icon: Activity,
-    href: MOBILE_PROFILE_ROUTE,
+    href: CREATOR_PROFILE_ROUTE,
     match: (p: string) =>
+      p.startsWith(CREATOR_PROFILE_ROUTE) ||
       p.startsWith(MOBILE_PROFILE_ROUTE) ||
       p.startsWith("/dashboard/boards/mobile-strategic-profile-preview"),
   },

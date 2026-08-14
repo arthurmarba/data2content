@@ -41,6 +41,7 @@ import type {
 } from "./diagnosticoConfirmationTypes";
 import type { AssetConfirmationResponse } from "./diagnosticoConfirmationTypes";
 import type { PaywallContext } from "@/types/paywall";
+import { trackMobileNarrativeEvent } from "@/app/dashboard/boards/videoUpload/mobileNarrativeTelemetry";
 import {
   WeeklyMeetingProfileCard,
   type WeeklyMeetingProfileData,
@@ -1873,6 +1874,8 @@ function PautasCard({
   onConnectInstagram?: () => void;
   instagramConnected?: boolean;
   instagramEnrichmentPending?: boolean;
+  /** Highlights the first map as the onboarding canvas gives way to the app. */
+  starterMapJustCreated?: boolean;
   onOpenIdea?: (ideaId: string) => void;
   whatsappLinked?: boolean;
   onConnectWhatsApp?: () => void;
@@ -2769,6 +2772,7 @@ export const DiagnosticoPage = memo(function DiagnosticoPage({
   onOpenSurvey,
   onOpenNorte,
   instagramEnrichmentPending = false,
+  starterMapJustCreated = false,
 }: Props) {
   const {
     synthesis: s,
@@ -2848,6 +2852,10 @@ export const DiagnosticoPage = memo(function DiagnosticoPage({
   const isNewUser = !hasReadings && !hasSynthesis;
   const showFreeConversion = accessState === "free_preview_used" && !isNewUser;
   const isPro = userInfo.plan === "Pro";
+  const showStarterMapConversion = !isPro
+    && Boolean(data.onboardingAnswers?.creatorPurpose)
+    && Boolean(mapaSeedLocal?.narrativa_central)
+    && !hasReadings;
   const readingCount = s.analyzedReadingsCount;
   const quotaLimit = readingQuota?.proMonthlyLimit ?? 10;
   const leadingNarrative = resolveDiagnosticoLeadingNarrativeSignal(s);
@@ -3023,26 +3031,12 @@ export const DiagnosticoPage = memo(function DiagnosticoPage({
       {/* ── SCROLLABLE CONTENT ───────────────────────────────────────────── */}
       <div>
 
-        {/* ── Quick actions: Consultoria + Mídia Kit (compact bar) ──────────── */}
-        <QuickActionsBar
-          isPro={isPro}
-          instagramConnected={instagramConnected}
-          onOpenMediaKit={onOpenMediaKit}
-          onUpgrade={onUpgrade}
-          userImageUrl={userInfo.imageUrl ?? null}
-          userInitials={getInitials(userInfo.name ?? null)}
-          latestCalculation={latestCalculation}
-          onOpenCalculator={onOpenCalculator}
-        />
-
-        {/* A reunião fica no caminho principal do Perfil: abaixo das ferramentas
-            comerciais e antes do mapa que sustenta o valor entre as semanas. */}
-        {weeklyMeeting ? (
-          <WeeklyMeetingProfileCard isPro={isPro} meeting={weeklyMeeting} />
-        ) : null}
-
         {/* ── Seu Mapa card ─────────────────────────────────────────────────── */}
-        <div id="diagnostico-mapa" style={{ padding: "14px 18px 0", scrollMarginTop: 14 }}>
+        <div
+          id="diagnostico-mapa"
+          className={`transition-shadow duration-700 ${starterMapJustCreated ? "ring-2 ring-[var(--ds-color-brand)] ring-offset-4 ring-offset-[var(--ds-color-paper)]" : ""}`}
+          style={{ margin: "14px 18px 0", scrollMarginTop: 14, borderRadius: CARD_RADIUS }}
+        >
           <MapaCard
             synthesis={s}
             leadingNarrative={leadingNarrative}
@@ -3068,6 +3062,54 @@ export const DiagnosticoPage = memo(function DiagnosticoPage({
             onOpenNorte={onOpenNorte}
           />
         </div>
+
+        {showStarterMapConversion && onUpgrade ? (
+          <section
+            className="ds-notebook-section"
+            style={{ margin: "14px 18px 0" }}
+            aria-labelledby="starter-map-conversion-title"
+          >
+            <span className="ds-notebook-label">Seu mapa começou</span>
+            <h2 id="starter-map-conversion-title" className="mt-2 text-[1.375rem] font-bold leading-[1.12] text-[var(--ds-color-ink)]">
+              Agora ele pode evoluir com você.
+            </h2>
+            <p className="ds-body mt-3">
+              No Pro, a D2C cruza seu Norte, seus conteúdos e o Instagram para transformar o mapa em relatório, pautas e direção prática toda semana.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                trackMobileNarrativeEvent("mobile_starter_map_upgrade_clicked", {
+                  route: "/dashboard/boards/mobile-strategic-profile",
+                  accessState,
+                  isPro: false,
+                  instagramConnected,
+                  actionType: "legacy_profile_map",
+                });
+                onUpgrade("narrative_map");
+              }}
+              className="ds-button ds-button--primary mt-4"
+            >
+              Aprofundar meu mapa com o Pro
+            </button>
+            <p className="ds-caption mt-3">Você pode continuar explorando gratuitamente.</p>
+          </section>
+        ) : null}
+
+        <QuickActionsBar
+          isPro={isPro}
+          instagramConnected={instagramConnected}
+          onOpenMediaKit={onOpenMediaKit}
+          onUpgrade={onUpgrade}
+          userImageUrl={userInfo.imageUrl ?? null}
+          userInitials={getInitials(userInfo.name ?? null)}
+          latestCalculation={latestCalculation}
+          onOpenCalculator={onOpenCalculator}
+        />
+
+        {weeklyMeeting ? (
+          <WeeklyMeetingProfileCard isPro={isPro} meeting={weeklyMeeting} />
+        ) : null}
 
         <DeferredProfileSectionsGate
           audienceInsights={data.audienceInsights}

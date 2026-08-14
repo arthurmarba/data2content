@@ -17,8 +17,24 @@ describe("sidebar product navigation", () => {
     expect(home).toEqual(expect.objectContaining({ href: MAIN_DASHBOARD_ROUTE }));
   });
 
+  it("expõe o Perfil canônico antes das ferramentas do desktop", () => {
+    const sections = filterDesktopSidebarSections(buildSidebarSections({
+      hasPremiumAccess: false,
+      planningLocked: false,
+      dashboardMinimal: false,
+      isMobile: false,
+    }));
+    const items = sections.flatMap((section) => section.items);
+
+    expect(items[0]).toEqual(expect.objectContaining({
+      key: "profile",
+      label: "Perfil",
+      href: "/dashboard/profile",
+    }));
+  });
+
   it.each([false, true])(
-    "oculta Comunidade, Análise de Perfil e Criação de Post (isMobile=%s)",
+    "mantém as ferramentas disponíveis e oculta as rotas antigas de planejamento (isMobile=%s)",
     (isMobile) => {
       const sections = buildSidebarSections({
         hasPremiumAccess: true,
@@ -31,7 +47,15 @@ describe("sidebar product navigation", () => {
       expect(itemKeys).not.toContain("calendar.hub");
       expect(itemKeys).not.toContain("planning.charts");
       expect(itemKeys).not.toContain("planning.discover");
-      expect(sections.find((section) => section.key === "planning")).toBeUndefined();
+      expect(sections.find((section) => section.key === "planning")).toEqual(
+        expect.objectContaining({
+          title: "Ferramentas",
+          items: expect.arrayContaining([
+            expect.objectContaining({ key: "collabs" }),
+            expect.objectContaining({ key: "media-kit" }),
+          ]),
+        }),
+      );
     },
   );
 
@@ -46,6 +70,7 @@ describe("sidebar product navigation", () => {
     const itemKeys = desktopSections.flatMap((section) => section.items.map((item) => item.key));
 
     expect(itemKeys).toEqual([
+      "profile",
       "dashboard",
       "recorded-meetings",
       "strategic-map",
@@ -76,7 +101,7 @@ describe("sidebar product navigation", () => {
     );
   });
 
-  it("expõe Reuniões gravadas e protege o acesso de não assinantes", () => {
+  it("abre o catálogo de Reuniões gravadas para free e Pro", () => {
     const freeSections = buildSidebarSections({
       hasPremiumAccess: false,
       planningLocked: false,
@@ -98,7 +123,7 @@ describe("sidebar product navigation", () => {
       expect.objectContaining({
         href: "/reunioes-gravadas",
         label: "Reuniões gravadas",
-        paywallContext: "mentoria",
+        paywallContext: undefined,
       }),
     );
     expect(findRecordedMeetings(proSections)).toEqual(

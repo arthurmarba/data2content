@@ -43,7 +43,7 @@ function TabButton({
       type="button"
       onClick={onClick}
       aria-current={active ? "page" : undefined}
-      className={`relative flex min-h-[3.25rem] min-w-[64px] flex-1 flex-col items-center justify-start gap-1.5 rounded-md border-0 bg-transparent pt-0.5 transition-transform active:scale-[0.97] ${active ? "text-[var(--ds-color-brand-strong)]" : "text-[var(--ds-color-text-muted)]"}`}
+      className={`relative flex min-h-[3.25rem] min-w-[64px] flex-1 flex-col items-center justify-start gap-1.5 rounded-md border-0 bg-transparent pt-0.5 transition-transform active:scale-[0.97] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-color-brand-strong)] ${active ? "text-[var(--ds-color-brand-strong)]" : "text-[var(--ds-color-text-muted)]"}`}
     >
       {children}
       <span className={`text-[11px] tracking-[-0.1px] ${active ? "font-semibold" : "font-medium"}`}>
@@ -68,10 +68,8 @@ export function DiagnosticoTabBar({
   return (
     <nav
       data-diagnostico-tab-bar="true"
-      className="fixed bottom-0 left-0 right-0 z-40 flex h-[var(--ds-tab-bar-height)] items-start justify-center border-t border-[var(--ds-color-line)] bg-white px-5 pb-[var(--ds-safe-bottom)] pt-2.5 lg:hidden"
-      style={{
-        background: "var(--ds-color-paper)",
-      }}
+      aria-label="Navegação do Perfil"
+      className="fixed bottom-0 left-0 right-0 z-40 flex h-[var(--ds-tab-bar-height)] items-start justify-center border-t border-[var(--ds-color-line)] bg-[var(--ds-color-paper)] px-5 pb-[var(--ds-safe-bottom)] pt-2.5 lg:hidden"
     >
       <TabButton label="Perfil" active={activeTab === "perfil"} onClick={onSelectPerfil}>
         <PerfilIcon />
@@ -83,12 +81,7 @@ export function DiagnosticoTabBar({
           type="button"
           onClick={onPressPlus}
           aria-label="Analisar conteúdo"
-          className="grid place-items-center rounded-full border-2 border-white bg-[var(--ds-color-brand)] text-white transition-transform active:scale-[0.95] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-color-brand-strong)]"
-          style={{
-            marginTop: -18,
-            width: 52,
-            height: 52,
-          }}
+          className="-mt-[18px] grid h-[52px] w-[52px] place-items-center rounded-full border-2 border-[var(--ds-color-surface)] bg-[var(--ds-color-brand)] text-[var(--ds-color-on-brand)] transition-transform active:scale-[0.95] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--ds-color-brand-strong)]"
         >
           <svg width="27" height="27" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />

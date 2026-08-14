@@ -7,8 +7,8 @@
 //   2. Com propósito → o prompt é centrado SOMENTE no propósito (não injeta
 //      whyYouCreate/desiredFeeling, que são valores fixos herdados).
 //   3. IA retorna mapa válido → { label, territorios, temas, assets }.
-//   4. IA retorna mapa incompleto → null.
-//   5. IA lança erro → null (best-effort, não propaga).
+//   4. IA retorna mapa incompleto → usa o Norte como fallback declarativo.
+//   5. IA lança erro → usa o mesmo fallback (não propaga).
 
 import { generateOnboardingSeedSignal } from "./generateOnboardingSeedSignal";
 
@@ -83,15 +83,25 @@ describe("generateOnboardingSeedSignal", () => {
     });
   });
 
-  it("mapa incompleto (sem label) → null", async () => {
+  it("mapa incompleto (sem label) → preserva o Norte como narrativa inicial", async () => {
     mockCallClaude.mockResolvedValue({ territorios: ["x"] });
     const result = await generateOnboardingSeedSignal(BASE);
-    expect(result).toBeNull();
+    expect(result).toEqual({
+      label: BASE.creatorPurpose,
+      territorios: [],
+      temas: [],
+      assets: [],
+    });
   });
 
-  it("IA lança erro → null (não propaga)", async () => {
+  it("IA lança erro → preserva o Norte e não propaga", async () => {
     mockCallClaude.mockRejectedValue(new Error("IA indisponível"));
     const result = await generateOnboardingSeedSignal(BASE);
-    expect(result).toBeNull();
+    expect(result).toEqual({
+      label: BASE.creatorPurpose,
+      territorios: [],
+      temas: [],
+      assets: [],
+    });
   });
 });

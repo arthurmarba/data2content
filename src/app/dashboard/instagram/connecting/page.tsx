@@ -13,6 +13,7 @@ import {
 } from "@/app/lib/instagram/reconnectErrors";
 import { track } from "@/lib/track";
 import { PAYWALL_RETURN_STORAGE_KEY } from "@/types/paywall";
+import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
 
 type NextTarget =
   | "calculator"
@@ -265,7 +266,7 @@ export function buildNextUrl(nextTargetRaw: string | null): string {
       } catch {
         return nextTarget === "post-creation"
           ? "/calendar?instagramLinked=true&postCreationConnected=1"
-          : "/dashboard/boards/mobile-strategic-profile?instagramLinked=true";
+          : `${CREATOR_PROFILE_ROUTE}?instagramLinked=true`;
       }
     }
     return storedReturnTo;
@@ -285,7 +286,7 @@ export function buildNextUrl(nextTargetRaw: string | null): string {
     case "instagram-connection":
       return "/dashboard/instagram-connection?instagramLinked=true";
     case "narrative-map":
-      return "/dashboard/boards/mobile-strategic-profile?instagramLinked=true";
+      return `${CREATOR_PROFILE_ROUTE}?instagramLinked=true`;
     case "chat":
     default:
       return "/dashboard/chat?instagramLinked=true";

@@ -198,7 +198,7 @@ export default function DeleteAccountSection({ onManageSubscription, hideHeading
   return (
     <section id="delete-account" className="space-y-4">
       {!hideHeading && (
-        <h3 className="flex items-center gap-2 text-[15px] font-semibold text-[#A72B3C]">
+        <h3 className="flex items-center gap-2 text-[15px] font-semibold text-[var(--ds-color-danger)]">
           <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
           Excluir conta
         </h3>
@@ -206,7 +206,7 @@ export default function DeleteAccountSection({ onManageSubscription, hideHeading
 
       {/* Informação quando a renovação já está agendada */}
       {isScheduledForCancellation && (
-        <p className="rounded-[10px] bg-[#E9F8EF] p-3 text-[13px] leading-relaxed text-[#2F6B3F]">
+        <p className="ds-status-panel ds-status-panel--success text-[13px] leading-relaxed">
           Sua assinatura está com <b>cancelamento agendado</b>
           {expiresAtLabel ? (
             <>
@@ -222,14 +222,15 @@ export default function DeleteAccountSection({ onManageSubscription, hideHeading
 
       {/* Bloqueio quando ainda está ativa e não agendada para encerrar */}
       {isDeletionBlocked && (
-        <p className="rounded-[10px] bg-[#FFF7E6] p-3 text-[13px] leading-relaxed text-[#9A5B0D]">
+        <p className="ds-status-panel ds-status-panel--warning text-[13px] leading-relaxed">
           Você possui uma assinatura ativa. Para excluir sua conta, primeiro cancele a renovação
           automática na seção de gerenciamento de planos.
         </p>
       )}
 
       <button
-        className="inline-flex w-full items-center justify-center gap-2 rounded-[8px] border border-[#D62E5E] bg-white px-4 py-2.5 text-[14px] font-semibold text-[#D62E5E] transition hover:bg-[#FFE7EE] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D62E5E]"
+        type="button"
+        className="ds-button ds-button--danger ds-button--block"
         onClick={handleClick}
       >
         <Trash2 className="h-4 w-4" strokeWidth={2} aria-hidden="true" />
@@ -240,33 +241,39 @@ export default function DeleteAccountSection({ onManageSubscription, hideHeading
       <AnimatePresence>
         {showBlocked && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4"
+            className="ds-scrim fixed inset-0 z-50 flex items-center justify-center p-4"
+            role="presentation"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowBlocked(false)}
           >
             <motion.div
-              className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl"
+              className="w-full max-w-md rounded-[var(--ds-radius-lg)] bg-[var(--ds-color-surface)] p-6 shadow-[var(--ds-shadow-overlay)]"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-account-blocked-title"
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="mb-2 text-[16px] font-semibold text-[#1E1E1E]">Ação necessária</h3>
-              <p className="mb-4 text-[14px] leading-relaxed text-[#555]">
+              <h3 id="delete-account-blocked-title" className="mb-2 text-[16px] font-semibold text-[var(--ds-color-ink)]">Ação necessária</h3>
+              <p className="mb-4 text-[14px] leading-relaxed text-[var(--ds-color-text-secondary)]">
                 Para excluir sua conta, primeiro cancele sua assinatura na seção de gerenciamento de
                 planos.
               </p>
               <div className="flex justify-end gap-2">
                 <button
-                  className="rounded-[6px] px-3 py-1.5 text-[13px] font-medium text-[#555]"
+                  type="button"
+                  className="ds-button ds-button--ghost ds-button--small"
                   onClick={() => setShowBlocked(false)}
                 >
                   Entendi
                 </button>
                 <button
-                  className="rounded-[6px] bg-gradient-to-r from-[#D62E5E] to-[#9326A6] px-3 py-1.5 text-[13px] font-semibold text-white shadow-sm transition hover:opacity-95"
+                  type="button"
+                  className="ds-button ds-button--primary ds-button--small"
                   onClick={scrollToManage}
                 >
                   Gerenciar assinatura
@@ -281,24 +288,28 @@ export default function DeleteAccountSection({ onManageSubscription, hideHeading
       <AnimatePresence>
         {showConfirm && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4"
+            className="ds-scrim fixed inset-0 z-50 flex items-center justify-center p-4"
+            role="presentation"
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             onClick={() => setShowConfirm(false)}
           >
             <motion.div
-              className="w-full max-w-md rounded-xl bg-white p-6 shadow-2xl"
+              className="w-full max-w-md rounded-[var(--ds-radius-lg)] bg-[var(--ds-color-surface)] p-6 shadow-[var(--ds-shadow-overlay)]"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="delete-account-confirm-title"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="mb-2 text-[16px] font-semibold text-[#1E1E1E]">Tem certeza?</h3>
-              <p className="mb-4 text-[14px] leading-relaxed text-[#555]">
+              <h3 id="delete-account-confirm-title" className="mb-2 text-[16px] font-semibold text-[var(--ds-color-ink)]">Tem certeza?</h3>
+              <p className="mb-4 text-[14px] leading-relaxed text-[var(--ds-color-text-secondary)]">
                 Esta ação é permanente e não pode ser desfeita. Para confirmar, digite{" "}
                 <strong>EXCLUIR</strong> no campo abaixo.
               </p>
 
               {Object.keys(affiliateBalances).length > 0 && (
-                <div className="mb-4 rounded-[8px] bg-[#FFF7E6] p-2 text-[13px] leading-relaxed text-[#9A5B0D]">
+                <div className="ds-status-panel ds-status-panel--warning mb-4 text-[13px] leading-relaxed">
                   {Object.entries(affiliateBalances).map(([cur, val]) => (
                     <div key={cur}>
                       Aviso: Você tem um saldo de afiliado de {val} em {cur}. Considere resgatá-lo
@@ -312,17 +323,19 @@ export default function DeleteAccountSection({ onManageSubscription, hideHeading
                 value={confirmText}
                 onChange={(e) => setConfirmText(e.target.value)}
                 placeholder='Digite "EXCLUIR"'
-                className="mb-4 w-full rounded-[8px] border border-[#E6E6EB] bg-white px-3 py-2 text-[14px] text-[#1E1E1E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D62E5E]"
+                className="ds-field mb-4"
               />
               <div className="flex justify-end gap-2">
                 <button
-                  className="rounded-[6px] px-3 py-1.5 text-[13px] font-medium text-[#555]"
+                  type="button"
+                  className="ds-button ds-button--ghost ds-button--small"
                   onClick={() => setShowConfirm(false)}
                 >
                   Cancelar
                 </button>
                 <button
-                  className="rounded-[6px] border border-[#D62E5E] bg-[#D62E5E] px-3 py-1.5 text-[13px] font-semibold text-white shadow-sm transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+                  type="button"
+                  className="ds-button ds-button--danger ds-button--small"
                   disabled={confirmText !== "EXCLUIR" || isDeleting}
                   onClick={handleDelete}
                 >

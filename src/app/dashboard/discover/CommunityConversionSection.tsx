@@ -11,11 +11,7 @@ import type { HomeSummaryResponse, MentorshipCardData } from "@/app/dashboard/ho
 import { fetchHomeSummaryCached } from "@/app/dashboard/home/homeSummaryClient";
 import { MOBILE_COMMUNITY_ROUTE } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
 import { trackMobileNarrativeEvent } from "@/app/dashboard/boards/videoUpload/mobileNarrativeTelemetry";
-
-const COMMUNITY_VIP_URL =
-  process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ||
-  process.env.NEXT_PUBLIC_COMMUNITY_URL ||
-  "https://chat.whatsapp.com/CKTT84ZHEouKyXoDxIJI4c";
+import { COMMUNITY_PRO_JOIN_ROUTE } from "@/app/lib/communityLinks";
 
 function openMentoriaPaywall() {
   try {
@@ -130,13 +126,13 @@ export default function CommunityConversionSection(_props: {
         vip: {
           hasAccess: true,
           isMember: prev?.vip?.isMember ?? false,
-          inviteUrl: prev?.vip?.inviteUrl ?? COMMUNITY_VIP_URL,
+          inviteUrl: prev?.vip?.inviteUrl ?? COMMUNITY_PRO_JOIN_ROUTE,
           joinedAt: prev?.vip?.joinedAt ?? null,
           needsJoinReminder: prev?.vip?.needsJoinReminder ?? true,
         },
       }));
 
-      window.open(vipInviteUrl ?? COMMUNITY_VIP_URL, "_blank", "noopener,noreferrer");
+      window.open(vipInviteUrl ?? COMMUNITY_PRO_JOIN_ROUTE, "_blank", "noopener,noreferrer");
     } finally {
       setResolvingVipAccess(false);
     }

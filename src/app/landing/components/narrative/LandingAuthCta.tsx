@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { useState, type ReactNode } from "react";
 
-import { MOBILE_PROFILE_ROUTE } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
+import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
 import { submitGoogleSignInFallback } from "@/lib/auth/googleLogin";
 import { track } from "@/lib/track";
 
@@ -42,7 +42,7 @@ export function LandingAuthCta({
     // responde à narrativa e começa a conhecer a plataforma. O `destination`
     // vale apenas para quem já tem conta e passou por essa etapa.
     const callbackUrl =
-      searchParams.get("callbackUrl")?.trim() || guestDestination || MOBILE_PROFILE_ROUTE;
+      searchParams.get("callbackUrl")?.trim() || guestDestination || CREATOR_PROFILE_ROUTE;
     track("landing_creator_cta_click", trackingLocation ? { location: trackingLocation } : undefined);
     onNavigate?.();
     setIsLoading(true);
@@ -75,7 +75,7 @@ export function LandingAuthCta({
   // conteúdo e para os recursos liberados conforme o plano.
   return (
     <Link
-      href={destination || MOBILE_PROFILE_ROUTE}
+      href={destination || CREATOR_PROFILE_ROUTE}
       data-analytics-name={`landing_creator_cta_${trackingLocation ?? "unknown"}`}
       data-analytics-section={trackingLocation ?? "landing"}
       className={className}

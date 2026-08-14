@@ -8,7 +8,10 @@ import InstagramReconnectBanner from "./InstagramReconnectBanner";
 import TrialBanner from "./TrialBanner";
 import ChunkLoadRecovery from "./ChunkLoadRecovery";
 import { SidebarProvider, useSidebar } from "../context/SidebarContext";
-import { MOBILE_PROFILE_ROUTE } from "../boards/videoUpload/mobileStrategicProfileRoutes";
+import {
+  CREATOR_PROFILE_ROUTE,
+  MOBILE_PROFILE_ROUTE,
+} from "../boards/videoUpload/mobileStrategicProfileRoutes";
 import {
   HeaderProvider,
   useHeaderConfig,
@@ -35,6 +38,8 @@ export function shouldSuppressDashboardLegacyChrome(pathname?: string | null) {
 export function isMobileStrategicProfileRoute(pathname?: string | null) {
   if (!pathname) return false;
   return (
+    pathname === CREATOR_PROFILE_ROUTE ||
+    pathname.startsWith(`${CREATOR_PROFILE_ROUTE}/`) ||
     pathname === MOBILE_PROFILE_ROUTE ||
     pathname.startsWith(`${MOBILE_PROFILE_ROUTE}/`) ||
     pathname === MOBILE_STRATEGIC_PROFILE_PREVIEW_ROUTE ||
@@ -183,6 +188,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     !isChatPage &&
     !isPrintMode &&
     !isCalendarHub &&
+    !isMobileStrategicProfileSurface &&
     !shouldUseMobileStrategicProfileShell &&
     !isMobileStrategicProfileMediaKitReturn &&
     !isBillingPage &&
@@ -198,7 +204,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     if (typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches) {
       return;
     }
-    router.replace(MOBILE_PROFILE_ROUTE);
+    router.replace(CREATOR_PROFILE_ROUTE);
   }, [router, shouldRedirectMobileDashboardEntryClient]);
 
   React.useEffect(() => {
@@ -365,6 +371,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
         </main>
         {!isPrintMode &&
         activationWidgetReady &&
+        !isMobileStrategicProfileSurface &&
         !shouldUseMobileStrategicProfileShell &&
         !isMobileStrategicProfileMediaKitReturn &&
         !isBillingPage &&

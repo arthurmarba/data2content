@@ -2,21 +2,19 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { MAIN_DASHBOARD_ROUTE } from "@/constants/routes";
+import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
 
 /**
- * O shell estratégico é mobile-only por design (`fixed inset-0`, tab bar
- * `lg:hidden`). No desktop ele renderiza quebrado (sidebar sobre o conteúdo, sem
- * navegação por abas). Como o equivalente desktop do mapa agora vive nos boards
- * pinados da central, mandamos o usuário de desktop para a Home autenticada em vez de
- * deixá-lo preso nesta tela. Mobile (<1024px) não é afetado.
+ * Compatibilidade para links antigos do Perfil mobile. No desktop, mantém o
+ * contexto da ação (checkout, Instagram ou comunidade) e abre a superfície
+ * responsiva canônica em vez de descartar o usuário na Home.
  */
 export default function DesktopRedirectGuard() {
   const router = useRouter();
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (window.matchMedia("(min-width: 1024px)").matches) {
-      router.replace(MAIN_DASHBOARD_ROUTE);
+      router.replace(`${CREATOR_PROFILE_ROUTE}${window.location.search}${window.location.hash}`);
     }
   }, [router]);
   return null;

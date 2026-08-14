@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import PlanningLockedView from "../PlanningLockedView";
 import { hasPlannerAccess } from "../utils";
-import WhatsAppUpsellPage from "@/app/dashboard/whatsapp/WhatsAppUpsellPage";
+import { COMMUNITY_PRO_JOIN_ROUTE } from "@/app/lib/communityLinks";
 
 export const dynamic = "force-dynamic";
 
@@ -15,12 +15,6 @@ export default async function PlanningWhatsAppPage() {
     return <PlanningLockedView variant="whatsapp" returnTo="/planning/whatsapp" />;
   }
 
-  // Se o usuário tem acesso, redireciona para o grupo VIP ou exibe o upsell se não houver URL
-  const vipUrl = process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL;
-  if (vipUrl) {
-    redirect(vipUrl);
-  }
-
-  // Fallback: se não tiver URL configurada, mostra a página de upsell (ou poderia ser uma página de "Em breve")
-  return <WhatsAppUpsellPage />;
+  // A rota autenticada resolve o convite sem enviá-lo ao bundle do navegador.
+  redirect(COMMUNITY_PRO_JOIN_ROUTE);
 }

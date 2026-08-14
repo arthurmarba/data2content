@@ -124,13 +124,14 @@ describe("DiagnosticoRealShellClient", () => {
     );
 
     expect(screen.getByRole("heading", { name: "Ana Criadora" })).toBeInTheDocument();
-    expect(screen.getByText("Faltam 2 passos")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Conectar Instagram" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Entrar na Comunidade D2C" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Analisar conteúdo" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Collabs" })).toBeInTheDocument();
     expect(mockDiagnosticoPageRender).not.toHaveBeenCalled();
   });
 
-  it("abre Seu norte diretamente pelo card do mapa", async () => {
+  it("abre o mapa completo diretamente pelo card do mapa", () => {
     render(
       <DiagnosticoRealShellClient
         data={buildDiagnosticoPageDataFixture({
@@ -151,11 +152,9 @@ describe("DiagnosticoRealShellClient", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Ajustar mapa" }));
+    fireEvent.click(screen.getByRole("button", { name: "Ver mapa completo" }));
 
-    expect(await screen.findByText("Seu norte")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Criatividade que cabe na rotina/ })).toBeInTheDocument();
-    expect(screen.queryByRole("dialog", { name: "Conta e preferências" })).not.toBeInTheDocument();
+    expect(mockRouterPush).toHaveBeenCalledWith("/dashboard/strategic-map");
   });
 
   it("lets an admin with a Free billing label use premium mobile actions", async () => {
@@ -192,25 +191,38 @@ describe("DiagnosticoRealShellClient", () => {
     fetchSpy.mockRestore();
   });
 
-  it("chains Instagram after upgrade only when the account is not connected", () => {
+  it("não impõe conexão com Instagram depois da assinatura iniciada pelo mapa", () => {
     const base = buildDiagnosticoPageDataFixture();
+    const starterMap = {
+      narrativa_central: "Humor com identificação",
+      territorios: ["Rotina", "Bastidores"],
+      temas: [],
+      narrativas_adjacentes: [],
+      assets: [],
+      tom: "",
+      formatos: [],
+      maturidade: "seed",
+      fonte: ["onboarding_declarativo"],
+    };
     const { unmount } = render(
       <DiagnosticoRealShellClient
         data={buildDiagnosticoPageDataFixture({
           accessState: "free_unused",
           creatorWeeklyProfileExperienceEnabled: true,
           instagramConnected: false,
+          mapaSeed: starterMap,
           userInfo: { ...base.userInfo, plan: "Free" },
         })}
         onAnalyzeAction={null}
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Assinar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Assinar o Pro" }));
     expect(openPaywallModal).toHaveBeenLastCalledWith(
       expect.objectContaining({
         returnTo: "/dashboard/boards/mobile-strategic-profile",
-        postCheckoutIntent: "connect_instagram",
+        context: "narrative_map",
+        postCheckoutIntent: undefined,
       }),
     );
 
@@ -223,19 +235,58 @@ describe("DiagnosticoRealShellClient", () => {
           accessState: "free_unused",
           creatorWeeklyProfileExperienceEnabled: true,
           instagramConnected: true,
+          mapaSeed: starterMap,
           userInfo: { ...base.userInfo, plan: "Free" },
         })}
         onAnalyzeAction={null}
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Assinar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Assinar o Pro" }));
     expect(openPaywallModal).toHaveBeenLastCalledWith(
       expect.objectContaining({
         returnTo: "/dashboard/boards/mobile-strategic-profile",
         postCheckoutIntent: undefined,
       }),
     );
+  });
+
+  it("abre o modal real com o contexto da ação escolhida no Perfil", () => {
+    const base = buildDiagnosticoPageDataFixture();
+    render(
+      <DiagnosticoRealShellClient
+        data={buildDiagnosticoPageDataFixture({
+          accessState: "free_unused",
+          creatorWeeklyProfileExperienceEnabled: true,
+          instagramConnected: false,
+          mapaSeed: {
+            narrativa_central: "Humor com identificação",
+            territorios: ["Rotina", "Bastidores"],
+            temas: [],
+            narrativas_adjacentes: [],
+            assets: [],
+            tom: "",
+            formatos: [],
+            maturidade: "seed",
+            fonte: ["onboarding_declarativo"],
+          },
+          userInfo: { ...base.userInfo, plan: "Free" },
+        })}
+        onAnalyzeAction={null}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Conectar Instagram" }));
+    expect(openPaywallModal).toHaveBeenLastCalledWith(expect.objectContaining({
+      context: "instagram_report",
+      postCheckoutIntent: "connect_instagram",
+    }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Entrar no WhatsApp" }));
+    expect(openPaywallModal).toHaveBeenLastCalledWith(expect.objectContaining({
+      context: "community",
+      postCheckoutIntent: "join_community",
+    }));
   });
 
   it("does not render an internal floating tab bar", () => {
@@ -407,6 +458,30 @@ describe("DiagnosticoRealShellClient", () => {
     expect(openPaywallModal).toHaveBeenCalledWith(
       expect.objectContaining({ context: "calculator", source: "mobile_profile_calculator" }),
     );
+  });
+
+  it("usa o Perfil canônico e o shell responsivo no desktop", () => {
+    const { container } = render(
+      <DiagnosticoRealShellClient
+        data={buildDiagnosticoPageDataFixture({
+          accessState: "free_unused",
+          userInfo: {
+            ...buildDiagnosticoPageDataFixture().userInfo,
+            plan: "Free",
+          },
+        })}
+        onAnalyzeAction={null}
+        surface="responsive"
+      />,
+    );
+
+    expect(container.firstElementChild).toHaveClass("lg:relative", "lg:h-full");
+    fireEvent.click(screen.getByTestId("trigger-calculator"));
+    expect(openPaywallModal).toHaveBeenCalledWith(expect.objectContaining({
+      context: "calculator",
+      source: "creator_profile_calculator",
+      returnTo: "/dashboard/profile",
+    }));
   });
 
   it("opens the calculator wizard for Pro users", async () => {

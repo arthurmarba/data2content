@@ -5,7 +5,7 @@ import { DiagnosticoCategoryDetailView } from "./DiagnosticoCategoryDetailView";
 import { CreatorDirectorySection } from "./DiagnosticoCollabsDetailView";
 import { CATEGORY_META } from "./DiagnosticoCategoryMeta";
 
-import { COMMUNITY_WHATSAPP_URL as WHATSAPP_COMMUNITY_URL } from "@/app/lib/communityLinks";
+import { COMMUNITY_PRO_JOIN_ROUTE } from "@/app/lib/communityLinks";
 
 const EMPTY_DIRECTORY: DiagnosticoCreatorDirectoryState = {
   status: "idle",
@@ -56,12 +56,12 @@ export function DiagnosticoCommunityDetailView({
 /* ── Join card — gated by plan ───────────────────────────────────────────── */
 
 function CommunityJoinCard({ isPro, onUpgrade }: { isPro: boolean; onUpgrade?: () => void }) {
-  const titleText = "Você não está criando sozinho.";
+  const titleText = "Comunidade D2C no WhatsApp";
   const descText = isPro
-    ? "Toda semana a comunidade se reúne ao vivo pra ler conteúdo junto e ajustar a estratégia de imagem de cada um. Você está dentro."
-    : "Toda semana a comunidade se reúne ao vivo pra ler conteúdo junto e ajustar a estratégia de imagem de cada um. Assine o Pro pra participar.";
+    ? "Networking e comunicação diária com outros criadores, além dos avisos das reuniões semanais."
+    : "Networking e comunicação diária com outros criadores, além dos avisos das reuniões semanais. A entrada no grupo é exclusiva para assinantes Pro.";
 
-  const ctaLabel = isPro ? "Acessar comunidade" : "Assinar para participar";
+  const ctaLabel = isPro ? "Entrar na Comunidade D2C" : "Assinar o Pro para entrar";
 
   const cardClass =
     "flex flex-col gap-3 rounded-2xl border border-zinc-100 bg-white p-4 shadow-[0_8px_24px_rgba(15,23,42,0.06)]";
@@ -80,7 +80,7 @@ function CommunityJoinCard({ isPro, onUpgrade }: { isPro: boolean; onUpgrade?: (
         <div className="min-w-0">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.08em] text-teal-700">
             <span className="h-1.5 w-1.5 rounded-full bg-teal-500" aria-hidden="true" />
-            Reunião semanal · ao vivo
+            Networking · avisos · dia a dia
           </span>
           <p className="mt-1.5 text-[15px] font-bold tracking-tight text-zinc-950">{titleText}</p>
           <p className="mt-0.5 text-[12.5px] leading-snug text-zinc-500">{descText}</p>
@@ -89,7 +89,7 @@ function CommunityJoinCard({ isPro, onUpgrade }: { isPro: boolean; onUpgrade?: (
 
       {isPro ? (
         <a
-          href={WHATSAPP_COMMUNITY_URL}
+          href={COMMUNITY_PRO_JOIN_ROUTE}
           target="_blank"
           rel="noreferrer"
           className="inline-flex w-full items-center justify-center rounded-full bg-zinc-950 px-4 py-2.5 text-[13px] font-semibold text-white transition-transform duration-150 active:scale-[0.98]"

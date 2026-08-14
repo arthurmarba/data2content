@@ -12,11 +12,14 @@ import {
 } from "lucide-react";
 
 import type {
-  RecordedMeeting,
+  RecordedMeetingCatalogItem,
+  RecordedMeetingPlayback,
   RecordedMeetingsStatus,
 } from "@/app/lib/community/recordedMeetingsService";
 import RecordedMeetingPlayerDialog from "@/app/dashboard/recorded-meetings/RecordedMeetingPlayerDialog";
 import RecordedMeetingThumbnail from "@/app/dashboard/recorded-meetings/RecordedMeetingThumbnail";
+import { RECORDED_MEETINGS_ROUTE } from "@/constants/routes";
+import { openPaywallModal } from "@/utils/paywallModal";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   day: "numeric",
@@ -58,12 +61,19 @@ function getMeetingSummary(description: string) {
 export default function RecordedMeetingsLibrary({
   meetings,
   status = meetings.length > 0 ? "ready" : "empty",
+  hasPlaybackAccess,
+  initialMeetingId = null,
 }: {
-  meetings: RecordedMeeting[];
+  meetings: RecordedMeetingCatalogItem[];
   status?: RecordedMeetingsStatus;
+  hasPlaybackAccess: boolean;
+  initialMeetingId?: string | null;
 }) {
   const [query, setQuery] = React.useState("");
-  const [playingMeeting, setPlayingMeeting] = React.useState<RecordedMeeting | null>(null);
+  const [playingMeeting, setPlayingMeeting] = React.useState<RecordedMeetingPlayback | null>(null);
+  const [loadingMeetingId, setLoadingMeetingId] = React.useState<string | null>(null);
+  const [playbackError, setPlaybackError] = React.useState<string | null>(null);
+  const restoredMeetingRef = React.useRef(false);
   const featuredMeeting = meetings[0] ?? null;
   const normalizedQuery = query.trim().toLocaleLowerCase("pt-BR");
   const filteredMeetings = React.useMemo(
@@ -77,6 +87,56 @@ export default function RecordedMeetingsLibrary({
         : meetings,
     [meetings, normalizedQuery],
   );
+
+  const openMeeting = React.useCallback(async (
+    meeting: RecordedMeetingCatalogItem,
+    source: string,
+  ) => {
+    setPlaybackError(null);
+    if (!hasPlaybackAccess) {
+      openPaywallModal({
+        context: "recorded_meetings",
+        source,
+        returnTo: `${RECORDED_MEETINGS_ROUTE}?meeting=${encodeURIComponent(meeting.id)}`,
+        postCheckoutIntent: "watch_recorded_meeting",
+      });
+      return;
+    }
+
+    setLoadingMeetingId(meeting.id);
+    try {
+      const response = await fetch(
+        `/api/dashboard/recorded-meetings/${encodeURIComponent(meeting.id)}/playback`,
+        { cache: "no-store", credentials: "include" },
+      );
+      const payload = await response.json().catch(() => null);
+      if (response.status === 403) {
+        openPaywallModal({
+          context: "recorded_meetings",
+          source,
+          returnTo: `${RECORDED_MEETINGS_ROUTE}?meeting=${encodeURIComponent(meeting.id)}`,
+          postCheckoutIntent: "watch_recorded_meeting",
+        });
+        return;
+      }
+      if (!response.ok || !payload?.ok || !payload?.meeting?.youtubeVideoId) {
+        throw new Error("recorded_meeting_playback_unavailable");
+      }
+      setPlayingMeeting(payload.meeting as RecordedMeetingPlayback);
+    } catch {
+      setPlaybackError("Não foi possível abrir esta gravação agora. Tente novamente em instantes.");
+    } finally {
+      setLoadingMeetingId(null);
+    }
+  }, [hasPlaybackAccess]);
+
+  React.useEffect(() => {
+    if (restoredMeetingRef.current || !hasPlaybackAccess || !initialMeetingId) return;
+    const meeting = meetings.find((candidate) => candidate.id === initialMeetingId);
+    if (!meeting) return;
+    restoredMeetingRef.current = true;
+    void openMeeting(meeting, "recorded_meetings_checkout_return");
+  }, [hasPlaybackAccess, initialMeetingId, meetings, openMeeting]);
 
   if (!featuredMeeting) {
     const unavailable = status === "unavailable" || status === "unconfigured";
@@ -152,16 +212,19 @@ export default function RecordedMeetingsLibrary({
           </div>
           <button
             type="button"
-            onClick={() => setPlayingMeeting(featuredMeeting)}
+            onClick={() => void openMeeting(featuredMeeting, "recorded_meetings_featured")}
+            disabled={loadingMeetingId === featuredMeeting.id}
             className="mt-7 inline-flex min-h-12 w-fit items-center gap-2 rounded-full bg-white px-6 text-sm font-bold text-zinc-950 transition duration-200 hover:scale-[1.02] hover:bg-violet-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950"
           >
-            <Play className="h-4 w-4 fill-current" aria-hidden="true" /> Assistir agora
+            <Play className="h-4 w-4 fill-current" aria-hidden="true" />
+            {loadingMeetingId === featuredMeeting.id ? "Abrindo…" : "Assistir agora"}
           </button>
         </div>
 
         <button
           type="button"
-          onClick={() => setPlayingMeeting(featuredMeeting)}
+          onClick={() => void openMeeting(featuredMeeting, "recorded_meetings_featured_cover")}
+          disabled={loadingMeetingId === featuredMeeting.id}
           className="group relative block min-h-0 w-full overflow-hidden bg-zinc-900 text-left"
           style={{ aspectRatio: "16 / 9" }}
           aria-label={`Assistir ${featuredMeeting.title}`}
@@ -210,13 +273,20 @@ export default function RecordedMeetingsLibrary({
           ) : null}
         </div>
 
+        {playbackError ? (
+          <p role="status" className="mt-4 text-sm font-medium text-[#a61b43]">
+            {playbackError}
+          </p>
+        ) : null}
+
         {filteredMeetings.length > 0 ? (
           <div className="mt-6 grid gap-x-5 gap-y-8 sm:grid-cols-2 xl:grid-cols-3">
             {filteredMeetings.map((meeting, index) => (
               <button
                 key={meeting.id}
                 type="button"
-                onClick={() => setPlayingMeeting(meeting)}
+                onClick={() => void openMeeting(meeting, "recorded_meetings_catalog")}
+                disabled={loadingMeetingId === meeting.id}
                 // active: existia só no mouse — no celular o toque não devolvia
                 // sinal nenhum e a pessoa tocava duas vezes.
                 className="group min-w-0 text-left transition duration-150 active:scale-[0.985] active:opacity-90 focus-visible:outline-none"

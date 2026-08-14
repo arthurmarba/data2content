@@ -25,13 +25,15 @@ export function CreatorWeeklyReportDetail({
   detail,
   isDemo,
   onBack,
+  surface = "mobile",
 }: {
   detail: ReportDetail;
   isDemo: boolean;
   onBack: () => void;
+  surface?: "mobile" | "responsive";
 }) {
   return (
-    <main className="ds-notebook-page ds-analysis-editorial">
+    <main className={`ds-notebook-page ds-analysis-editorial ${surface === "responsive" ? "ds-notebook-page--responsive ds-notebook-detail--responsive" : ""}`}>
       <button
         type="button"
         onClick={onBack}
@@ -43,7 +45,7 @@ export function CreatorWeeklyReportDetail({
       <header>
         <div className="flex items-center gap-2">
           <span className="ds-eyebrow">Seu relatório</span>
-          {isDemo ? <span className="ds-badge ds-badge--neutral">Exemplo</span> : null}
+          {isDemo ? <span className="ds-badge ds-badge--neutral">Dados de exemplo</span> : null}
         </div>
         <h1 className="mt-2 text-[2rem] font-bold leading-[1.02] text-[var(--ds-color-ink)]">
           {detail.title}
@@ -51,7 +53,7 @@ export function CreatorWeeklyReportDetail({
         <p className="ds-body mt-2">{detail.subtitle}</p>
       </header>
 
-      <details className="group mt-5 rounded-xl bg-white px-4 py-2 text-[13px]">
+      <details className="group mt-5 rounded-[var(--ds-radius-md)] bg-[var(--ds-color-surface)] px-4 py-2 text-[13px]">
         <summary className="flex min-h-10 cursor-pointer list-none items-center justify-between font-semibold text-[var(--ds-color-ink)]">
           Quanto dá para confiar
           <span className="text-[var(--ds-color-text-muted)] transition-transform group-open:rotate-90" aria-hidden="true">›</span>

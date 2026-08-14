@@ -19,6 +19,8 @@ describe("DiagnosticoNorteView", () => {
     expect(screen.getByRole("heading", { name: /Rotina criativa sem perfeccionismo/ })).toBeInTheDocument();
     expect(screen.getByText("Bastidores")).toBeInTheDocument();
     expect(screen.getByText("Produtividade leve")).toBeInTheDocument();
+    expect(container.firstElementChild).toHaveClass("ds-screen");
+    expect(screen.getByRole("button", { name: "Salvar" })).toHaveClass("ds-button", "ds-button--secondary");
     expect(container.querySelectorAll(".ds-editorial-panel")).toHaveLength(0);
     expect(container.querySelectorAll(".ds-notebook-section .ds-notebook-section")).toHaveLength(0);
 

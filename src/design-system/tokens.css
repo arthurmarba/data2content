@@ -211,6 +211,70 @@
   padding: calc(env(safe-area-inset-top, 0px) + 1rem) 1.25rem 2rem;
 }
 
+/* Em telas de 320 px, avatar + botão de conta não devem roubar o nome do
+   criador. A identidade continua com o mesmo desenho, apenas mais compacta. */
+@media (max-width: 21.25rem) {
+  .ds-profile-identity { gap: 0.5rem; }
+  .ds-profile-avatar { width: 3.75rem; height: 3.75rem; font-size: 1.25rem; }
+  .ds-profile-title { font-size: 1.125rem; }
+}
+
+/* O Perfil canônico usa o mobile como fonte visual única. No desktop só mudam
+   o enquadramento do canvas e a distribuição dos mesmos blocos; tipografia,
+   cartões, ritmo vertical e estados continuam exatamente iguais. */
+@media (min-width: 64rem) {
+  .d2c-mobile-app.ds-profile-responsive-shell {
+    min-height: 0;
+  }
+
+  .ds-notebook-page--responsive {
+    max-width: 44rem;
+    padding: 1rem 2rem 2rem;
+  }
+
+  .ds-notebook-detail--responsive {
+    max-width: 32rem;
+  }
+}
+
+@media (min-width: 75rem) {
+  .ds-notebook-page--responsive {
+    max-width: 80rem;
+  }
+
+  .ds-notebook-page--responsive.ds-notebook-detail--responsive {
+    max-width: 32rem;
+  }
+
+  .ds-profile-layout {
+    display: grid;
+    grid-template-areas:
+      "map map"
+      "report community"
+      "report recordings"
+      "report activation"
+      "brand activation"
+      "footer footer";
+    grid-template-columns: minmax(0, 1fr) minmax(20rem, 22rem);
+    align-items: start;
+    gap: 0.75rem;
+  }
+
+  .ds-profile-area { min-width: 0; }
+  .ds-profile-area > .ds-notebook-section { margin-bottom: 0; }
+  .ds-profile-area--map { grid-area: map; }
+  .ds-profile-area--map :where(#creator-map-title, .ds-profile-map-body) {
+    max-width: 48rem;
+  }
+  .ds-profile-area--activation { grid-area: activation; }
+  .ds-profile-area--community { grid-area: community; }
+  .ds-profile-area--recordings { grid-area: recordings; }
+  .ds-profile-area--report { grid-area: report; }
+  .ds-profile-area--brand { grid-area: brand; }
+  .ds-profile-area--tools { grid-area: tools; }
+  .ds-profile-area--footer { grid-area: footer; }
+}
+
 /* Dois níveis de separação, sem ambiguidade: o cartão separa assuntos
    diferentes; a linha fina (.ds-notebook-divided) separa irmãos dentro do
    mesmo assunto. Antes os dois usavam a mesma linha e o leitor não conseguia
@@ -467,6 +531,7 @@
 
 .ds-field::placeholder { color: var(--ds-color-text-muted); }
 .ds-field:focus { border-color: var(--ds-color-brand); box-shadow: 0 0 0 3px rgba(250, 22, 91, 0.13); }
+.ds-field[aria-invalid="true"] { border-color: var(--ds-color-danger); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ds-color-danger) 14%, transparent); }
 
 .ds-badge {
   display: inline-flex;
@@ -485,6 +550,22 @@
 .ds-badge--success { background: var(--ds-color-success-soft); color: var(--ds-color-success); }
 .ds-badge--warning { background: var(--ds-color-warning-soft); color: var(--ds-color-warning); }
 .ds-badge--danger { background: var(--ds-color-danger-soft); color: var(--ds-color-danger); }
+
+.ds-danger-panel {
+  border: 1px solid color-mix(in srgb, var(--ds-color-danger) 22%, transparent);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-color-danger-soft);
+  color: var(--ds-color-text);
+}
+
+.ds-status-panel {
+  border-radius: var(--ds-radius-sm);
+  padding: 0.75rem;
+}
+
+.ds-status-panel--success { background: var(--ds-color-success-soft); color: var(--ds-color-success); }
+.ds-status-panel--warning { background: var(--ds-color-warning-soft); color: var(--ds-color-warning); }
+.ds-status-panel--danger { background: var(--ds-color-danger-soft); color: var(--ds-color-danger); }
 
 .ds-scrim { background: var(--ds-color-scrim); backdrop-filter: blur(4px); }
 

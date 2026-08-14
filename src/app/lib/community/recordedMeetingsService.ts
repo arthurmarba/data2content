@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 export type RecordedMeeting = {
   id: string;
   youtubeVideoId: string;
@@ -5,6 +7,21 @@ export type RecordedMeeting = {
   description: string;
   publishedAt: string;
   thumbnailUrl: string;
+};
+
+/** Dados que podem ser serializados para qualquer usuário autenticado. */
+export type RecordedMeetingCatalogItem = {
+  id: string;
+  title: string;
+  description: string;
+  publishedAt: string;
+  /** A capa passa pela aplicação e não revela o identificador do vídeo. */
+  thumbnailUrl: string;
+};
+
+/** Entregue somente depois da autorização Pro no endpoint de reprodução. */
+export type RecordedMeetingPlayback = RecordedMeetingCatalogItem & {
+  youtubeVideoId: string;
 };
 
 export type RecordedMeetingsStatus =
@@ -18,6 +35,27 @@ export type RecordedMeetingsResult = {
   meetings: RecordedMeeting[];
   missingConfiguration?: Array<"YOUTUBE_API_KEY" | "YOUTUBE_RECORDED_MEETINGS_PLAYLIST_ID">;
 };
+
+export function toRecordedMeetingCatalogItem(
+  meeting: RecordedMeeting,
+): RecordedMeetingCatalogItem {
+  return {
+    id: meeting.id,
+    title: meeting.title,
+    description: meeting.description,
+    publishedAt: meeting.publishedAt,
+    thumbnailUrl: `/api/dashboard/recorded-meetings/${encodeURIComponent(meeting.id)}/thumbnail`,
+  };
+}
+
+export function toRecordedMeetingPlayback(
+  meeting: RecordedMeeting,
+): RecordedMeetingPlayback {
+  return {
+    ...toRecordedMeetingCatalogItem(meeting),
+    youtubeVideoId: meeting.youtubeVideoId,
+  };
+}
 
 type YouTubePlaylistItem = {
   id?: string;
@@ -40,6 +78,12 @@ type YouTubePlaylistResponse = {
   nextPageToken?: string;
 };
 
+function resolveCatalogId(itemId: string | undefined, youtubeVideoId: string) {
+  const playlistItemId = itemId?.trim();
+  if (playlistItemId) return playlistItemId;
+  return `legacy-${createHash("sha256").update(youtubeVideoId).digest("hex").slice(0, 24)}`;
+}
+
 const YOUTUBE_PLAYLIST_ITEMS_ENDPOINT =
   "https://www.googleapis.com/youtube/v3/playlistItems";
 
@@ -58,7 +102,7 @@ export function mapYouTubePlaylistItems(
       }
 
       return {
-        id: item.id?.trim() || youtubeVideoId,
+        id: resolveCatalogId(item.id, youtubeVideoId),
         youtubeVideoId,
         title,
         description: item.snippet?.description?.trim() || "",

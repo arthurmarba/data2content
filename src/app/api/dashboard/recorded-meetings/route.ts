@@ -1,21 +1,18 @@
 import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
 
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { canAccessRecordedMeetings } from "@/app/lib/community/recordedMeetingsAccess";
-import { getRecordedMeetingsState } from "@/app/lib/community/recordedMeetingsService";
+import { resolveAuthOptions } from "@/app/api/auth/resolveAuthOptions";
+import {
+  getRecordedMeetingsState,
+  toRecordedMeetingCatalogItem,
+} from "@/app/lib/community/recordedMeetingsService";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession(await resolveAuthOptions());
   if (!session?.user) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
-  }
-
-  const viewer = session.user as { id?: string | null; role?: string | null };
-  if (!(await canAccessRecordedMeetings(viewer))) {
-    return NextResponse.json({ ok: false, error: "premium_required" }, { status: 403 });
   }
 
   try {
@@ -36,7 +33,11 @@ export async function GET() {
         { status: 503 },
       );
     }
-    return NextResponse.json({ ok: true, status: result.status, meetings: result.meetings });
+    return NextResponse.json({
+      ok: true,
+      status: result.status,
+      meetings: result.meetings.map(toRecordedMeetingCatalogItem),
+    });
   } catch (error) {
     console.error("[recorded-meetings] Falha ao carregar playlist:", error);
     return NextResponse.json(

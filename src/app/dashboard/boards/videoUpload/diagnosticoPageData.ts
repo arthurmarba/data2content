@@ -23,6 +23,8 @@ export interface DiagnosticoUserInfo {
   mediaKitSlug?: string | null;
   /** True when the user has a verified WhatsApp number linked — enables alert CTA in PautasCard. */
   whatsappLinked?: boolean;
+  /** True after the creator opened the Pro group invite; membership itself is not observable. */
+  whatsappGroupLinkOpened?: boolean;
   /**
    * Fase 2 — true quando o perfil do mapa seed está incompleto (campos-chave do
    * creatorProfileExtended ainda não preenchidos). Aciona badge na engrenagem.

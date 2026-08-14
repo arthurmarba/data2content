@@ -6,7 +6,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { track } from "@/lib/track";
 import { trackMobileNarrativeEvent } from "@/app/dashboard/boards/videoUpload/mobileNarrativeTelemetry";
-import { PAYWALL_RETURN_STORAGE_KEY } from "@/types/paywall";
+import { PAYWALL_RETURN_STORAGE_KEY, type PostCheckoutIntent } from "@/types/paywall";
+import { CREATOR_PROFILE_ROUTE, RECORDED_MEETINGS_ROUTE } from "@/constants/routes";
 import { ProWelcome } from "./ProWelcome";
 
 type PlanSnapshot = {
@@ -67,8 +68,23 @@ export function sanitizeBillingSuccessReturnTo(value: unknown): string | null {
   return null;
 }
 
-export function normalizeBillingSuccessPostCheckoutIntent(value: unknown): "connect_instagram" | "join_community" | null {
-  return value === "connect_instagram" || value === "join_community" ? value : null;
+export function normalizeBillingSuccessPostCheckoutIntent(value: unknown): PostCheckoutIntent | null {
+  return value === "connect_instagram"
+    || value === "join_community"
+    || value === "watch_recorded_meeting"
+    ? value
+    : null;
+}
+
+export function buildProfileActivationHref(
+  returnTo: string | null,
+  activation: "instagram" | "whatsapp",
+): string {
+  const safeReturnTo = sanitizeBillingSuccessReturnTo(returnTo)
+    ?? CREATOR_PROFILE_ROUTE;
+  const url = new URL(safeReturnTo, "https://d2c.local");
+  url.searchParams.set("activation", activation);
+  return `${url.pathname}${url.search}${url.hash}`;
 }
 
 export function resolveBillingSuccessAttemptId(
@@ -87,7 +103,7 @@ export default function BillingSuccessPage() {
   // de fato PERMANECE aqui (sem redirect). Evita o flash de conteúdo desktop
   // (/calendar, post-analysis) antes do redirect — especialmente no fluxo mobile,
   // onde quase todo mundo é encaminhado para conectar Instagram ou voltar ao mapa.
-  // "pro_welcome" é o passo de boas-vindas do funil da reunião (grupo → Instagram);
+  // "pro_welcome" é o fallback genérico com ações independentes;
   // "payment_pending" cobre o caso em que a Stripe ainda não confirmou o pagamento,
   // e nesse estado nenhuma tela de conexão do Instagram pode ser oferecida.
   const [phase, setPhase] = useState<"activating" | "settled" | "pro_welcome" | "payment_pending">(
@@ -99,7 +115,7 @@ export default function BillingSuccessPage() {
     nextChargeAt: Date | null;
   }>({
     instagramConnected: false,
-    continueHref: "/dashboard/boards/mobile-strategic-profile",
+    continueHref: CREATOR_PROFILE_ROUTE,
     nextChargeAt: null,
   });
   // Guarda o trabalho async dentro desta instância (cobre o double-invoke do
@@ -140,7 +156,6 @@ export default function BillingSuccessPage() {
         let resolvedContext: string | null = null;
         let redirectHref: string | null = null;
         let keepPaywallReturnState = false;
-        let proWelcomeHref: string | null = null;
         let resolvedReturnTo: string | null = null;
         const stored = sessionStorage.getItem(PAYWALL_RETURN_STORAGE_KEY);
         if (stored) {
@@ -164,27 +179,29 @@ export default function BillingSuccessPage() {
                 actionType: "billing_success_seen",
               });
             }
-            if (postCheckoutIntent === "join_community") {
-              // Funil da reunião: em vez de cair direto no app, o assinante passa
-              // pelas boas-vindas Pro — grupo primeiro, Instagram depois.
-              proWelcomeHref = returnTo ?? "/dashboard/boards/mobile-strategic-profile";
+            if (postCheckoutIntent === "join_community" && !paymentUnconfirmed) {
+              redirectHref = buildProfileActivationHref(returnTo, "whatsapp");
               keepPaywallReturnState = false;
-            } else if (
-              postCheckoutIntent === "connect_instagram" &&
-              !instagramConnected &&
-              !paymentUnconfirmed
-            ) {
-              redirectHref = "/dashboard/instagram/connect?next=narrative-map";
-              keepPaywallReturnState = true;
+            } else if (postCheckoutIntent === "connect_instagram" && !paymentUnconfirmed) {
+              // O pagamento volta primeiro ao app. O Perfil explica a próxima
+              // ação em contexto, sem jogar o novo assinante direto em outro fluxo.
+              redirectHref = buildProfileActivationHref(
+                returnTo,
+                "instagram",
+              );
+              keepPaywallReturnState = false;
+            } else if (postCheckoutIntent === "watch_recorded_meeting" && !paymentUnconfirmed) {
+              redirectHref = returnTo ?? RECORDED_MEETINGS_ROUTE;
+              keepPaywallReturnState = false;
             }
             const instagramNextTarget =
-              !redirectHref && !proWelcomeHref && !instagramConnected && !paymentUnconfirmed
+              !redirectHref && !instagramConnected && !paymentUnconfirmed
                 ? resolveInstagramNextTarget(resolvedContext, source)
                 : null;
             if (instagramNextTarget) {
               redirectHref = `/dashboard/instagram/connect?next=${encodeURIComponent(instagramNextTarget)}`;
               keepPaywallReturnState = true;
-            } else if (returnTo && !proWelcomeHref && !paymentUnconfirmed) {
+            } else if (!redirectHref && returnTo && !paymentUnconfirmed) {
               const current = `${window.location.pathname}${window.location.search || ""}`;
               if (current !== returnTo) {
                 redirectHref = returnTo;
@@ -234,17 +251,14 @@ export default function BillingSuccessPage() {
           // não revela a confirmação desktop por baixo do redirect.
           return;
         }
-        const continueHref =
-          proWelcomeHref ?? resolvedReturnTo ?? "/dashboard/boards/mobile-strategic-profile";
+        const continueHref = resolvedReturnTo ?? CREATOR_PROFILE_ROUTE;
         if (paymentUnconfirmed) {
           setWelcome({ instagramConnected, continueHref, nextChargeAt: snapshot.nextChargeAt });
           setPhase("payment_pending");
           return;
         }
         // Chegar aqui significa que nenhum destino específico da feature reivindicou
-        // o usuário. Nesse caso as boas-vindas Pro são o destino padrão — o grupo é
-        // onde a presença é confirmada, então ele precisa vir antes de qualquer outra
-        // coisa, independentemente de onde a assinatura começou.
+        // o usuário. A tela genérica oferece comunidade e Instagram sem impor ordem.
         setWelcome({ instagramConnected, continueHref, nextChargeAt: snapshot.nextChargeAt });
         setPhase("pro_welcome");
       } catch {
@@ -286,7 +300,7 @@ export default function BillingSuccessPage() {
         </h1>
         <p className="mt-2 max-w-xs text-[14px] leading-relaxed text-zinc-500">
           Assim que a Stripe confirmar, o Pro é liberado automaticamente. Você pode continuar no app
-          enquanto isso — as reuniões seguem abertas para assistir.
+          enquanto isso — o catálogo continua visível e a reprodução será liberada com o Pro.
         </p>
         <a
           href={welcome.continueHref}
@@ -330,7 +344,7 @@ export default function BillingSuccessPage() {
       </p>
 
       <a
-        href="/dashboard/boards/mobile-strategic-profile"
+        href={CREATOR_PROFILE_ROUTE}
         className="mt-8 inline-flex items-center justify-center rounded-full bg-zinc-950 px-7 py-3.5 text-[15px] font-semibold text-white transition-colors active:bg-zinc-800"
       >
         Ir para o meu mapa

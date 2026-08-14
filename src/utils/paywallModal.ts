@@ -1,13 +1,13 @@
 "use client";
 
-import type { PaywallContext, PaywallEventDetail } from "@/types/paywall";
+import type { PaywallContext, PaywallEventDetail, PostCheckoutIntent } from "@/types/paywall";
 
 export type OpenPaywallModalOptions = {
   context?: PaywallContext | null;
   source?: string | null;
   returnTo?: string | null;
   proposalId?: string | null;
-  postCheckoutIntent?: "connect_instagram" | "join_community" | null;
+  postCheckoutIntent?: PostCheckoutIntent | null;
 };
 
 export function openPaywallModal(options?: OpenPaywallModalOptions) {

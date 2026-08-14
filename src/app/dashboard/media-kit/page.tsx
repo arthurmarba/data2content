@@ -24,7 +24,7 @@ import { startInstagramReconnect } from '@/app/lib/instagram/client/startInstagr
 import { canonicalizeCategoryValues } from '@/app/lib/classification';
 import { canonicalizeV2CategoryValues } from '@/app/lib/classificationV2';
 import { canonicalizeV25CategoryValues } from '@/app/lib/classificationV2_5';
-import { MOBILE_PROFILE_ROUTE } from '../boards/videoUpload/mobileStrategicProfileRoutes';
+import { CREATOR_PROFILE_ROUTE } from '@/constants/routes';
 
 type Summary = any;
 type VideoListItem = any;
@@ -834,7 +834,7 @@ export default function MediaKitSelfServePage() {
   const shouldUseProfileReturnChrome =
     isBoardMobileViewport && sp.get("from") === "mobile-strategic-profile";
   const handleCloseToProfile = useCallback(() => {
-    router.replace(MOBILE_PROFILE_ROUTE);
+    router.replace(CREATOR_PROFILE_ROUTE);
   }, [router]);
 
   const billingStatus = useBillingStatus();

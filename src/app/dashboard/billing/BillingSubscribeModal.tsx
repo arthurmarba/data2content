@@ -50,7 +50,7 @@ type APIRawPrice = {
 // cache simples em escopo de módulo para reabrir o modal sem re-buscar sempre
 let pricesCache: PricesShape | null = null;
 
-const PRO_BENEFITS = [
+const DEFAULT_PRO_BENEFITS = [
   "Tendências e referências novas toda semana",
   "Reunião ao vivo com análise e direção",
   "Mapa, pautas, collabs e ferramentas comerciais",
@@ -60,6 +60,7 @@ type PaywallCopy = {
   title: string;
   subtitle: string;
   ctaLabel: string;
+  benefits?: readonly string[];
 };
 
 const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
@@ -118,6 +119,36 @@ const PAYWALL_COPY: Record<PaywallContext | "default", PaywallCopy> = {
     subtitle: "O Pro reúne tendências, análise ao vivo e ferramentas para você decidir o próximo movimento do seu conteúdo.",
     ctaLabel: "Assinar o Pro",
   },
+  instagram_report: {
+    title: "Conecte seu Instagram com o Pro",
+    subtitle: "A assinatura transforma seus posts em um relatório semanal e aprofunda seu mapa com dados reais.",
+    ctaLabel: "Assinar o Pro e conectar",
+    benefits: [
+      "Relatório semanal com dados do Instagram",
+      "Possibilidade de análise individual nas reuniões",
+      "Mapa, pautas e ferramentas com dados reais",
+    ],
+  },
+  community: {
+    title: "Entre na Comunidade D2C",
+    subtitle: "Participe do networking e da conversa diária entre criadores, além de receber os avisos das reuniões semanais.",
+    ctaLabel: "Assinar o Pro e entrar",
+    benefits: [
+      "Networking e conversa diária no WhatsApp",
+      "Avisos e confirmações das reuniões semanais",
+      "Reuniões ao vivo com análises e direção",
+    ],
+  },
+  recorded_meetings: {
+    title: "Assista às reuniões completas com o Pro",
+    subtitle: "Reveja análises, referências e direcionamentos das reuniões semanais no seu ritmo.",
+    ctaLabel: "Assinar o Pro e assistir",
+    benefits: [
+      "Acesso às gravações completas",
+      "Arquivo organizado por data e assunto",
+      "Reuniões novas adicionadas toda semana",
+    ],
+  },
 };
 
 export default function BillingSubscribeModal({
@@ -161,6 +192,7 @@ export default function BillingSubscribeModal({
   // O modal responde ao motivo que o abriu; o stack completo não compete com a decisão.
   const contextCopy = PAYWALL_COPY[effectiveContext] ?? PAYWALL_COPY.default;
   const paywallCopy = contextCopy;
+  const proBenefits = contextCopy.benefits ?? DEFAULT_PRO_BENEFITS;
   const primaryCtaLabel = contextCopy.ctaLabel || "Assinar e continuar";
   const shouldBlockSubscribe =
     !billingStatusError && (hasPremiumAccess || needsPaymentAction);
@@ -821,7 +853,7 @@ export default function BillingSubscribeModal({
               )}
 
               <ul className="grid gap-3">
-                {PRO_BENEFITS.map((benefit) => (
+                {proBenefits.map((benefit) => (
                   <li key={benefit} className="flex items-start gap-2.5">
                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--ds-color-brand-strong)]" strokeWidth={2.5} />
                     <span className="text-[13px] font-semibold leading-[1.4] text-zinc-800">{benefit}</span>

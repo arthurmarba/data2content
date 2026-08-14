@@ -9,14 +9,22 @@ export type PaywallContext =
   | "publis"
   | "planning"
   | "whatsapp"
+  | "instagram_report"
+  | "community"
+  | "recorded_meetings"
   | "onboarding";
+
+export type PostCheckoutIntent =
+  | "connect_instagram"
+  | "join_community"
+  | "watch_recorded_meeting";
 
 export type PaywallEventDetail = {
   context?: PaywallContext | null;
   source?: string | null;
   returnTo?: string | null;
   proposalId?: string | null;
-  postCheckoutIntent?: "connect_instagram" | "join_community" | null;
+  postCheckoutIntent?: PostCheckoutIntent | null;
 };
 
 export const PAYWALL_RETURN_STORAGE_KEY = "d2c.paywall.return";

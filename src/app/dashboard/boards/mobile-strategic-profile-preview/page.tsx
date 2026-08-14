@@ -12,6 +12,7 @@ import {
   type InternalPreviewUser,
 } from "../internalPreviewAccess";
 import { isMobileStrategicProfilePreviewEnabled } from "../videoUpload/mobileStrategicProfilePreviewFeatureFlag";
+import { MobileOnboardingPreviewHarness } from "../components/videoUpload/appPreview/MobileOnboardingPreviewHarness";
 
 type MobileStrategicProfilePreviewPageProps = {
   searchParams?: {
@@ -52,6 +53,10 @@ export default async function MobileStrategicProfilePreviewPage({
   }
 
   const resolvedSearchParams = await searchParams;
+
+  if (resolvedSearchParams?.state === "north_onboarding") {
+    return <MobileOnboardingPreviewHarness />;
+  }
 
   if (isNarrativeMapReadingPreviewState(resolvedSearchParams?.state)) {
     const fixture = buildNarrativeMapReadingPreviewFixture({ state: resolvedSearchParams?.state });

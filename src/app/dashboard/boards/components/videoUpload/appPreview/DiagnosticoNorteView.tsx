@@ -102,10 +102,10 @@ export function DiagnosticoNorteView({
         <div className="mx-auto max-w-lg px-5 pb-16 pt-6">
           <section className="ds-notebook-section" aria-labelledby="norte-purpose-title">
             <p className="ds-notebook-label mb-1">Propósito</p>
-            <h2 id="norte-purpose-title" className="mb-2 font-display text-[1.75rem] font-bold leading-[1.05] tracking-[-0.035em] text-zinc-950">
+            <h2 id="norte-purpose-title" className="mb-2 font-display text-[1.75rem] font-bold leading-[1.05] tracking-[-0.035em] text-[var(--ds-color-ink)]">
               Para quem você cria?
             </h2>
-            <p className="mb-5 text-[13px] leading-relaxed text-zinc-500">
+            <p className="mb-5 text-[13px] leading-relaxed text-[var(--ds-color-text-secondary)]">
               Em uma frase: para quem cria e o que quer que eles sintam ou façam.
               Seu mapa usa este propósito para interpretar seus conteúdos e gerar pautas.
             </p>
@@ -123,7 +123,7 @@ export function DiagnosticoNorteView({
                 className="min-h-[8rem] w-full resize-none border-0 bg-transparent px-0 py-3 text-[15px] leading-relaxed text-[var(--ds-color-ink)] outline-none placeholder:text-[var(--ds-color-text-muted)] focus:ring-0"
               />
               {value.length >= 300 && (
-                <span className="absolute bottom-3 right-4 text-[11px] text-zinc-300">
+                <span className="absolute bottom-3 right-4 text-[11px] text-[var(--ds-color-text-muted)]">
                   {value.length}/{MAX_CHARS}
                 </span>
               )}
@@ -133,14 +133,14 @@ export function DiagnosticoNorteView({
               <button
                 type="button"
                 onClick={handleClear}
-                className="mt-3 text-[12px] font-medium text-zinc-400 underline-offset-2 hover:underline"
+                className="mt-3 min-h-11 text-[12px] font-medium text-[var(--ds-color-text-muted)] underline-offset-2 hover:underline"
               >
                 Limpar
               </button>
             )}
 
             {status === "error" && (
-              <p className="mt-4 text-[13px] font-medium text-red-500">
+              <p className="mt-4 text-[13px] font-medium text-[var(--ds-color-danger)]">
                 Não conseguimos salvar agora. Tente de novo.
               </p>
             )}
@@ -174,7 +174,7 @@ export function DiagnosticoNorteView({
             </div>
           </section>
 
-          <details className="group rounded-xl bg-white px-4 py-2">
+          <details className="group rounded-[var(--ds-radius-md)] bg-[var(--ds-color-surface)] px-4 py-2">
             <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-[13px] font-semibold text-[var(--ds-color-ink)]">
               Como é usado
               <span className="text-[var(--ds-color-text-muted)] transition-transform group-open:rotate-90" aria-hidden="true">›</span>
@@ -187,7 +187,7 @@ export function DiagnosticoNorteView({
 
           {/* Empty state — convite quando não há propósito */}
           {isEmpty && (
-            <p className="mt-6 text-center text-[13px] leading-relaxed text-zinc-400">
+            <p className="mt-6 text-center text-[13px] leading-relaxed text-[var(--ds-color-text-muted)]">
               Sem propósito declarado, o mapa usa só os sinais dos seus vídeos.
               Uma frase já faz diferença.
             </p>
@@ -211,7 +211,7 @@ function SaveButton({
 }) {
   if (status === "saved") {
     return (
-      <span className="flex items-center gap-1 text-[13px] font-semibold text-emerald-600">
+      <span className="flex items-center gap-1 text-[13px] font-semibold text-[var(--ds-color-success)]">
         <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
           <path d="M2.5 7l3 3 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -225,7 +225,7 @@ function SaveButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="min-h-11 rounded-md bg-[var(--ds-color-ink)] px-3 text-[13px] font-semibold text-white transition-colors disabled:bg-transparent disabled:text-[var(--ds-color-text-muted)] active:bg-[#37352f]"
+      className="ds-button ds-button--secondary ds-button--small min-h-11 disabled:bg-transparent disabled:text-[var(--ds-color-text-muted)]"
     >
       {status === "saving" ? "Salvando…" : "Salvar"}
     </button>

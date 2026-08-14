@@ -59,14 +59,17 @@ function setup(overrides: Partial<React.ComponentProps<typeof DiagnosticoAccount
     onSignOut: jest.fn(),
     ...overrides,
   };
-  render(<DiagnosticoAccountMenuSheet {...props} />);
-  return props;
+  const view = render(<DiagnosticoAccountMenuSheet {...props} />);
+  return { ...props, ...view };
 }
 
 describe("DiagnosticoAccountMenuSheet — U5 menu contextual", () => {
   it("FREE: mostra 'Assinar Pro' e dispara onUpgrade (sem 'Minha assinatura')", () => {
     const props = setup({ isPro: false });
     const cta = screen.getByText("Assinar Pro");
+    expect(screen.getByRole("dialog", { name: "Conta e preferências" })).toHaveClass("ds-sheet");
+    expect(screen.getByText("Free")).toHaveClass("ds-badge", "ds-badge--neutral");
+    expect(screen.getByRole("button", { name: "Fechar conta e preferências" })).toHaveClass("ds-icon-button");
     expect(screen.queryByText("Minha assinatura")).not.toBeInTheDocument();
     fireEvent.click(cta);
     expect(props.onUpgrade).toHaveBeenCalledTimes(1);

@@ -10,7 +10,10 @@ export type NarrativeMapAccessState =
   | "payment_action_needed"
   | "admin";
 
-export type NarrativeMapPostCheckoutIntent = "connect_instagram" | "join_community";
+export type NarrativeMapPostCheckoutIntent =
+  | "connect_instagram"
+  | "join_community"
+  | "watch_recorded_meeting";
 
 export interface NarrativeMapReadingQuotaSnapshot {
   userId?: string | null;

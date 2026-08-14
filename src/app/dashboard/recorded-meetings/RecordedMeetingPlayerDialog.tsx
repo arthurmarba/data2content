@@ -4,7 +4,7 @@ import React from "react";
 import { createPortal } from "react-dom";
 import { CalendarDays, X } from "lucide-react";
 
-import type { RecordedMeeting } from "@/app/lib/community/recordedMeetingsService";
+import type { RecordedMeetingPlayback } from "@/app/lib/community/recordedMeetingsService";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat("pt-BR", {
   day: "numeric",
@@ -23,7 +23,7 @@ export default function RecordedMeetingPlayerDialog({
   meeting,
   onClose,
 }: {
-  meeting: RecordedMeeting | null;
+  meeting: RecordedMeetingPlayback | null;
   onClose: () => void;
 }) {
   const dialogRef = React.useRef<HTMLElement | null>(null);

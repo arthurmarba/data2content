@@ -32,7 +32,8 @@ describe("WhatsAppConnectInline", () => {
     expect(
       await screen.findByText(/Conectado ao WhatsApp/),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Abrir WhatsApp para acessar o Chat AI" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Abrir WhatsApp para acessar o Chat AI" })).toHaveClass("ds-button", "ds-button--primary");
+    expect(screen.getByRole("button", { name: "Desvincular" })).toHaveClass("ds-button", "ds-button--danger");
 
     fireEvent.click(screen.getByRole("button", { name: "Desvincular" }));
 

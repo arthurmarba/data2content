@@ -1,7 +1,7 @@
 import { GET } from "./route";
 import { getServerSession } from "next-auth";
 import UserModel from "@/app/models/User";
-import { COMMUNITY_FREE_WHATSAPP_URL, COMMUNITY_WHATSAPP_URL } from "@/app/lib/communityLinks";
+import { COMMUNITY_FREE_WHATSAPP_URL } from "@/app/lib/communityLinks";
 
 jest.mock("next-auth", () => ({ getServerSession: jest.fn() }));
 jest.mock("@/app/api/auth/[...nextauth]/route", () => ({ authOptions: {} }), { virtual: true });
@@ -37,7 +37,7 @@ describe("GET /api/dashboard/community/free-join", () => {
 
   it("nunca manda o visitante para o grupo de assinantes", async () => {
     const res = await GET();
-    expect(res.headers.get("location")).not.toBe(COMMUNITY_WHATSAPP_URL);
+    expect(res.headers.get("location")).not.toContain("CKTT84ZHEouKyXoDxIJI4c");
   });
 
   it("manda para o login preservando o retorno quando não há sessão", async () => {

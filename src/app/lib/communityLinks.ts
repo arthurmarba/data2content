@@ -1,11 +1,3 @@
-// ─── Link canônico do grupo da comunidade no WhatsApp ─────────────────────────
-// Fonte única do convite — o mesmo grupo que o e-mail de boas-vindas Pro, o
-// resumo da home e a tela Comunidade apontam. Sobrescrevível por env pra trocar
-// de grupo sem deploy de código.
-export const COMMUNITY_WHATSAPP_URL =
-  process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ||
-  "https://chat.whatsapp.com/CKTT84ZHEouKyXoDxIJI4c";
-
 // ─── Canal gratuito de avisos da reunião ──────────────────────────────────────
 // Separado do grupo Pro: é só transmissão operacional (link da sala, mudanças e
 // cancelamentos) para quem assiste de graça. Visitantes nunca caem no grupo de
@@ -16,3 +8,6 @@ export const COMMUNITY_FREE_WHATSAPP_URL =
 
 /** Rota rastreável que registra o opt-in antes de mandar o visitante ao canal. */
 export const COMMUNITY_FREE_JOIN_ROUTE = "/api/dashboard/community/free-join";
+
+/** Rota autenticada que registra a abertura do convite do grupo Pro. */
+export const COMMUNITY_PRO_JOIN_ROUTE = "/api/dashboard/community/pro-join";

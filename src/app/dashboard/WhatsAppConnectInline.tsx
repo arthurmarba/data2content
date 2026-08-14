@@ -157,12 +157,12 @@ export default function WhatsAppConnectInline() {
 
   // estilos do container: mostra erro/expirado com tom de alerta
   const containerBase =
-    "flex items-center justify-between rounded-lg px-3 py-2 border";
+    "flex items-center justify-between rounded-[var(--ds-radius-md)] border px-3 py-3 text-[13px]";
   const containerClass = error
-    ? `${containerBase} border-red-200 bg-red-50 text-red-800`
+    ? `${containerBase} border-[var(--ds-color-danger)] bg-[var(--ds-color-danger-soft)] text-[var(--ds-color-danger)]`
     : isExpired
-      ? `${containerBase} border-amber-200 bg-amber-50 text-amber-900`
-      : `${containerBase} border-green-200 bg-green-50 text-green-900`;
+      ? `${containerBase} border-[var(--ds-color-warning)] bg-[var(--ds-color-warning-soft)] text-[var(--ds-color-warning)]`
+      : `${containerBase} border-[var(--ds-color-line)] bg-[var(--ds-color-success-soft)] text-[var(--ds-color-text)]`;
 
   return (
     <div className="w-full mb-2">
@@ -176,17 +176,17 @@ export default function WhatsAppConnectInline() {
         >
           {loading ? (
             <>
-              <FaSpinner className="animate-spin text-green-600 flex-shrink-0" aria-hidden />
+              <FaSpinner className="flex-shrink-0 animate-spin text-[var(--ds-color-success)]" aria-hidden />
               <span>Preparando vínculo do WhatsApp…</span>
             </>
           ) : error ? (
             <>
-              <FaExclamationTriangle className="text-red-600 flex-shrink-0" aria-hidden />
+              <FaExclamationTriangle className="flex-shrink-0 text-[var(--ds-color-danger)]" aria-hidden />
               <span>{error}</span>
             </>
           ) : linkedPhone ? (
             <>
-              <FaCheckCircle className="text-green-600 flex-shrink-0" aria-hidden />
+              <FaCheckCircle className="flex-shrink-0 text-[var(--ds-color-success)]" aria-hidden />
               <span>
                 Conectado ao WhatsApp <span className="opacity-80">({linkedPhone})</span>
               </span>
@@ -194,7 +194,7 @@ export default function WhatsAppConnectInline() {
           ) : code ? (
             isExpired ? (
               <>
-                <FaExclamationTriangle className="text-amber-600 flex-shrink-0" aria-hidden />
+                <FaExclamationTriangle className="flex-shrink-0 text-[var(--ds-color-warning)]" aria-hidden />
                 <span>
                   Código expirado. Gere um novo para concluir a verificação.
                 </span>
@@ -202,13 +202,13 @@ export default function WhatsAppConnectInline() {
             ) : (
               <div className="flex flex-col gap-1 w-full">
                 <div className="flex items-center gap-2">
-                  <FaWhatsapp className="text-green-600 flex-shrink-0" aria-hidden />
+                  <FaWhatsapp className="flex-shrink-0 text-[var(--ds-color-success)]" aria-hidden />
                   <span>Seu código de verificação:</span>
                 </div>
-                <div className="flex items-center justify-between bg-white/50 rounded px-2 py-1 w-full">
+                <div className="flex w-full items-center justify-between rounded-[var(--ds-radius-sm)] border border-[var(--ds-color-line)] bg-[var(--ds-color-surface)] px-3 py-2">
                   <strong className="tracking-widest text-lg">{code}</strong>
                   {timeLeft && (
-                    <span className="text-xs text-green-700">
+                    <span className="text-xs text-[var(--ds-color-text-muted)]">
                       (expira em {timeLeft})
                     </span>
                   )}
@@ -217,18 +217,19 @@ export default function WhatsAppConnectInline() {
             )
           ) : (
             <>
-              <FaWhatsapp className="text-green-600 flex-shrink-0" aria-hidden />
+              <FaWhatsapp className="flex-shrink-0 text-[var(--ds-color-success)]" aria-hidden />
               <span>Gere seu código para vincular o WhatsApp.</span>
             </>
           )}
         </div>
 
         {/* Ações */}
-        <div className="flex items-center gap-2 w-full justify-end border-t border-black/5 pt-2 mt-1">
+        <div className="mt-1 flex w-full flex-wrap items-center justify-end gap-2 border-t border-[var(--ds-color-line)] pt-3">
           {!loading && code && !isExpired && (
             <button
+              type="button"
               onClick={copy}
-              className="text-xs px-3 py-2 rounded-lg bg-white text-green-800 border border-green-200 hover:bg-green-50 flex items-center gap-1.5 transition-colors"
+              className="ds-button ds-button--quiet ds-button--small"
               aria-label="Copiar código de verificação"
               title="Copiar código"
             >
@@ -242,8 +243,9 @@ export default function WhatsAppConnectInline() {
 
           {!loading && (
             <button
+              type="button"
               onClick={openWhatsApp}
-              className="text-xs px-3 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 flex items-center gap-1.5 transition-colors shadow-sm"
+              className="ds-button ds-button--primary ds-button--small"
               aria-label={linkedPhone ? "Abrir WhatsApp para acessar o Chat AI" : "Abrir WhatsApp para enviar o código"}
             >
               <FaWhatsapp className="text-sm" />
@@ -253,9 +255,10 @@ export default function WhatsAppConnectInline() {
 
           {!loading && linkedPhone && (
             <button
+              type="button"
               onClick={disconnect}
               disabled={disconnecting}
-              className="text-xs px-3 py-2 rounded-lg bg-white text-red-700 border border-red-200 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60 transition-colors"
+              className="ds-button ds-button--danger ds-button--small"
             >
               {disconnecting ? "Desvinculando..." : "Desvincular"}
             </button>
@@ -263,8 +266,9 @@ export default function WhatsAppConnectInline() {
 
           {!loading && (error || isExpired || (!linkedPhone && !code)) && (
             <button
+              type="button"
               onClick={refresh}
-              className="text-xs px-3 py-2 rounded-lg bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 flex items-center gap-1.5 transition-colors"
+              className="ds-button ds-button--quiet ds-button--small"
               aria-label="Gerar novo código de verificação"
               title="Gerar novo código"
             >

@@ -23,13 +23,12 @@ export async function DELETE() {
 /**
  * POST /api/dashboard/mobile-strategic-profile/onboarding
  *
- * Saves creator's onboarding answers and marks onboarding as complete.
- * Answers are stored in User.onboardingAnswers and also converted to
- * pastCreatorAnswers format so the Gemini prompt is calibrated from the
- * first analysis.
+ * Saves the creator's declared North and marks the one-screen onboarding as
+ * complete. A creator may explicitly skip; in that case the app opens with an
+ * empty map and keeps "Meu Norte" available in Profile.
  *
  * Body:
- *   { whyYouCreate: string; desiredFeeling: string; contentLimit?: string; creatorPurpose?: string }
+ *   { creatorPurpose: string } | { skip: true }
  */
 export async function POST(request: Request) {
   if (!isMobileStrategicProfileEnabled()) {
@@ -51,7 +50,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Body inválido." }, { status: 400 });
   }
 
-  const parsed = parseBody(body);
+  const parsed = parseMobileOnboardingBody(body);
   if (!parsed.ok) {
     return NextResponse.json({ message: parsed.error }, { status: 400 });
   }
@@ -63,9 +62,9 @@ export async function POST(request: Request) {
     await UserModel.findByIdAndUpdate(userId, {
       $set: {
         onboardingAnswers: {
-          whyYouCreate: parsed.whyYouCreate,
-          desiredFeeling: parsed.desiredFeeling,
-          contentLimit: parsed.contentLimit ?? null,
+          whyYouCreate: null,
+          desiredFeeling: null,
+          contentLimit: null,
           creatorPurpose: parsed.creatorPurpose ?? null,
         },
         onboardingCompletedAt: new Date(),
@@ -78,10 +77,12 @@ export async function POST(request: Request) {
     // (Instagram/vídeo). Mesma lógica reutilizada por "Meu Norte"/propósito inline.
     // Best-effort: a persistência acima já sucedeu — uma falha aqui NÃO bloqueia o
     // onboarding. Só cria se ainda não houver mapa (não sobrescreve um enriquecido).
-    const { seedMapaSeedFromPurpose } = await import("@/app/lib/mapaSeed/seedMapaSeedFromPurpose");
-    const seedSignal = await seedMapaSeedFromPurpose(userId, parsed.creatorPurpose ?? null);
+    const seedSignal = parsed.skipped
+      ? null
+      : await import("@/app/lib/mapaSeed/seedMapaSeedFromPurpose")
+          .then(({ seedMapaSeedFromPurpose }) => seedMapaSeedFromPurpose(userId, parsed.creatorPurpose));
 
-    return NextResponse.json({ ok: true, seedSignal });
+    return NextResponse.json({ ok: true, skipped: parsed.skipped, seedSignal });
   } catch (err) {
     console.error("[onboarding] Erro ao salvar respostas:", err);
     return NextResponse.json({ message: "Não foi possível salvar as respostas." }, { status: 500 });
@@ -90,71 +91,28 @@ export async function POST(request: Request) {
 
 // ─── Input validation ─────────────────────────────────────────────────────────
 
-const WHY_OPTIONS = [
-  // Valores atuais — identidade narrativa
-  "ensino_conhecimento",
-  "conto_historias",
-  "entretenimento",
-  "inspiro_acao",
-  // Legacy — mantidos para compatibilidade com sessões antigas
-  "compartilho_aprendizado",
-  "ensino_habilidade",
-  "expressao_pessoal",
-  "construir_audiencia",
-  "gerar_renda",
-  "construir_autoridade",
-  "explorar_criatividade",
-] as const;
-
-const FEELING_OPTIONS = [
-  "inspirado",
-  "informado",
-  "entendido",
-  "entretido",
-  "motivado",
-] as const;
-
 type ParseResult =
-  | { ok: true; whyYouCreate: string; desiredFeeling: string; contentLimit?: string; creatorPurpose?: string }
+  | { ok: true; skipped: true; creatorPurpose?: undefined }
+  | { ok: true; skipped: false; creatorPurpose: string }
   | { ok: false; error: string };
 
-function parseBody(body: unknown): ParseResult {
+export function parseMobileOnboardingBody(body: unknown): ParseResult {
   if (!body || typeof body !== "object") {
     return { ok: false, error: "Body deve ser um objeto JSON." };
   }
 
   const b = body as Record<string, unknown>;
 
-  if (typeof b.whyYouCreate !== "string" || !b.whyYouCreate.trim()) {
-    return { ok: false, error: "whyYouCreate é obrigatório." };
-  }
-  if (!WHY_OPTIONS.includes(b.whyYouCreate as any)) {
-    return { ok: false, error: `whyYouCreate inválido. Opções: ${WHY_OPTIONS.join(", ")}.` };
-  }
+  if (b.skip === true) return { ok: true, skipped: true };
 
-  if (typeof b.desiredFeeling !== "string" || !b.desiredFeeling.trim()) {
-    return { ok: false, error: "desiredFeeling é obrigatório." };
-  }
-  if (!FEELING_OPTIONS.includes(b.desiredFeeling as any)) {
-    return { ok: false, error: `desiredFeeling inválido. Opções: ${FEELING_OPTIONS.join(", ")}.` };
+  if (typeof b.creatorPurpose !== "string") {
+    return { ok: false, error: "creatorPurpose é obrigatório, a menos que o onboarding seja pulado." };
   }
 
-  const contentLimit =
-    typeof b.contentLimit === "string" && b.contentLimit.trim()
-      ? b.contentLimit.trim().slice(0, 300)
-      : undefined;
+  const creatorPurpose = b.creatorPurpose.trim().slice(0, 400);
+  if (creatorPurpose.length < 15) {
+    return { ok: false, error: "creatorPurpose deve ter pelo menos 15 caracteres." };
+  }
 
-  // Declaração de propósito — opcional, máx 400 chars (campo livre do criador).
-  const creatorPurpose =
-    typeof b.creatorPurpose === "string" && b.creatorPurpose.trim()
-      ? b.creatorPurpose.trim().slice(0, 400)
-      : undefined;
-
-  return {
-    ok: true,
-    whyYouCreate: b.whyYouCreate,
-    desiredFeeling: b.desiredFeeling,
-    contentLimit,
-    creatorPurpose,
-  };
+  return { ok: true, skipped: false, creatorPurpose };
 }

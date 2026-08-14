@@ -9,32 +9,39 @@ import RecordedMeetingsLibrary from "@/app/dashboard/recorded-meetings/RecordedM
 import { canAccessRecordedMeetings } from "@/app/lib/community/recordedMeetingsAccess";
 import {
   getRecordedMeetingsState,
+  toRecordedMeetingCatalogItem,
   type RecordedMeetingsResult,
 } from "@/app/lib/community/recordedMeetingsService";
 import { RECORDED_MEETINGS_ROUTE } from "@/constants/routes";
-import { MOBILE_PROFILE_ROUTE } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
+import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Reuniões gravadas | Data2Content",
-  description: "Biblioteca das reuniões gravadas para assinantes Data2Content.",
+  description: "Assista às reuniões gravadas da comunidade Data2Content.",
 };
 
-export default async function RecordedMeetingsPage() {
+export default async function RecordedMeetingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ meeting?: string }>;
+}) {
   const session = await getServerSession(authOptions);
   if (!session?.user) {
     redirect(`/login?callbackUrl=${encodeURIComponent(RECORDED_MEETINGS_ROUTE)}`);
   }
 
   const viewer = session.user as { id?: string | null; role?: string | null };
-  if (!(await canAccessRecordedMeetings(viewer))) {
-    redirect(`/pro?source=recorded_meetings&returnTo=${encodeURIComponent(RECORDED_MEETINGS_ROUTE)}`);
-  }
+  const requestedMeetingId = (await searchParams).meeting?.trim() || null;
 
   let library: RecordedMeetingsResult = { status: "unavailable", meetings: [] };
+  let hasPlaybackAccess = false;
   try {
-    library = await getRecordedMeetingsState();
+    [library, hasPlaybackAccess] = await Promise.all([
+      getRecordedMeetingsState(),
+      canAccessRecordedMeetings(viewer),
+    ]);
     if (library.status === "unconfigured") {
       console.error(
         "[recorded-meetings-page] Configuração ausente:",
@@ -56,7 +63,7 @@ export default async function RecordedMeetingsPage() {
         {/* Esta rota vive fora da casca do app mobile, que tem barra de abas.
             Sem este link, quem chega do Perfil fica sem caminho de volta. */}
         <Link
-          href={MOBILE_PROFILE_ROUTE}
+          href={CREATOR_PROFILE_ROUTE}
           className="-ml-1 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-1 text-sm font-semibold text-[#6b6157] transition active:bg-black/5 hover:text-[#17140f]"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden="true" /> Voltar ao perfil
@@ -65,7 +72,7 @@ export default async function RecordedMeetingsPage() {
         <header className="mb-6 mt-3 flex flex-col justify-between gap-4 border-b border-[#e7e1d8] pb-5 sm:mb-8 sm:flex-row sm:items-end sm:pb-7">
           <div>
             <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#c70a42]">
-              <Film className="h-3.5 w-3.5" /> Arquivo dos assinantes
+              <Film className="h-3.5 w-3.5" /> Comunidade D2C
             </p>
             <h1 className="mt-2 text-[2rem] font-bold tracking-[-0.04em] sm:mt-3 sm:text-5xl">
               Reuniões gravadas
@@ -73,15 +80,20 @@ export default async function RecordedMeetingsPage() {
             {/* O subtítulo explicativo custava 170px no celular para dizer o que
                 a pessoa acabou de ler no botão. Some no telefone. */}
             <p className="mt-3 hidden max-w-2xl text-sm leading-6 text-[#423b33] sm:block sm:text-base">
-              Reveja análises, referências e direcionamentos das reuniões semanais.
+              Assista às reuniões gravadas e reveja análises, referências e direcionamentos.
             </p>
           </div>
           <span className="hidden w-fit rounded-full border border-[#e7e1d8] bg-white px-3 py-1.5 text-xs font-semibold text-[#423b33] sm:inline-flex">
-            Acesso D2C Pro
+            {hasPlaybackAccess ? "D2C Pro ativo" : "Gravações completas no Pro"}
           </span>
         </header>
 
-        <RecordedMeetingsLibrary meetings={library.meetings} status={library.status} />
+        <RecordedMeetingsLibrary
+          meetings={library.meetings.map(toRecordedMeetingCatalogItem)}
+          status={library.status}
+          hasPlaybackAccess={hasPlaybackAccess}
+          initialMeetingId={requestedMeetingId}
+        />
       </div>
     </div>
   );

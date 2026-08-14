@@ -13,11 +13,13 @@ import { resolveDiagnosticoLeadingNarrativeSignal } from "@/app/dashboard/boards
 import { d2cFontVariables } from "@/app/fonts/d2cFonts";
 import { openPaywallModal } from "@/utils/paywallModal";
 import type { PaywallContext } from "@/types/paywall";
+import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
 import { startInstagramReconnect } from "@/app/lib/instagram/client/startInstagramReconnect";
 import {
   MOBILE_INSTAGRAM_CONNECT_ROUTE,
   MOBILE_MEDIA_KIT_ROUTE,
   MOBILE_PROFILE_ROUTE,
+  MOBILE_STRATEGIC_MAP_ROUTE,
 } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
 import { requestUploadSession } from "./mobileStrategicProfileUploadSessionClient";
 import { uploadVideoToTemporarySignedUrl } from "./mobileStrategicProfileDirectUploadClient";
@@ -42,7 +44,6 @@ import type { CollabStackDecision } from "./DiagnosticoCollabStack";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
 import { useReadingDetail } from "./useReadingDetail";
 import type { CategoryId } from "./DiagnosticoCategoryMeta";
-import type { OnboardingStep } from "./MobileOnboardingFlow";
 import type {
   ConfirmationState,
   ConfirmationResponse,
@@ -153,6 +154,7 @@ interface Props {
   data: DiagnosticoPageData;
   onAnalyzeAction: null;
   weeklyMeeting?: WeeklyMeetingProfileData | null;
+  surface?: "mobile" | "responsive";
 }
 
 type MobileCollabSuggestionsPayload = {
@@ -229,14 +231,22 @@ function buildMobileCollabSuggestionsPayload(data: DiagnosticoPageData): MobileC
   };
 }
 
-export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props) {
+export function DiagnosticoRealShellClient({
+  data,
+  weeklyMeeting = null,
+  surface = "mobile",
+}: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const profileRoute = surface === "responsive" ? CREATOR_PROFILE_ROUTE : MOBILE_PROFILE_ROUTE;
+  const requestedTab = searchParams.get("tab");
   const tabScrollContainerRef = useRef<HTMLDivElement>(null);
   const [analyzeFlowOpen, setAnalyzeFlowOpen] = useState(false);
   // Aba ativa da tab bar mobile (Perfil/Collabs). "+" não é aba — abre o upload.
   // Default "perfil": usuário novo/sem mapa cai no Perfil.
-  const [activeTab, setActiveTab] = useState<DiagnosticoTab>("perfil");
+  const [activeTab, setActiveTab] = useState<DiagnosticoTab>(
+    requestedTab === "collabs" ? "collabs" : "perfil",
+  );
   const [weeklyReportDemo, setWeeklyReportDemo] = useState(false);
   const weeklyProfileExperienceEnabled = data.creatorWeeklyProfileExperienceEnabled === true;
   const hasProAccess = data.userInfo.plan === "Pro" || data.accessState === "admin";
@@ -276,12 +286,17 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
   const [localPurpose, setLocalPurpose] = useState<string | null>(
     data.onboardingAnswers?.creatorPurpose ?? null,
   );
+  const [localMapaSeed, setLocalMapaSeed] = useState<DiagnosticoPageData["mapaSeed"]>(data.mapaSeed ?? null);
+  const [starterMapJustCreated, setStarterMapJustCreated] = useState(false);
   // Sincroniza o state quando o servidor retorna dados novos (ex.: router.refresh()
   // pós-onboarding). useState não reinicializa em re-renders, então o propósito
   // salvo no Q3 do onboarding só aparecia depois de recarregar a página.
   useEffect(() => {
     setLocalPurpose(data.onboardingAnswers?.creatorPurpose ?? null);
   }, [data.onboardingAnswers?.creatorPurpose]);
+  useEffect(() => {
+    setLocalMapaSeed(data.mapaSeed ?? null);
+  }, [data.mapaSeed]);
   const [whatsAppSheetOpen, setWhatsAppSheetOpen] = useState(false);
   const [calculatorWizardOpen, setCalculatorWizardOpen] = useState(false);
   const [latestCalculation, setLatestCalculation] = useState<MobileCalculatorResult | null>(null);
@@ -324,8 +339,6 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
 
   const [openIdeaId, setOpenIdeaId] = useState<string | null>(null);
   const [onboardingOpen, setOnboardingOpen] = useState(data.needsOnboarding);
-  // O3: step de retomada após conectar Instagram durante o onboarding.
-  const [onboardingInitialStep, setOnboardingInitialStep] = useState<OnboardingStep | null>(null);
   const [collabSuggestions, setCollabSuggestions] = useState<DiagnosticoCollabSuggestionsState>({
     status: "idle",
     items: [],
@@ -724,24 +737,25 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
   }, [findCurrentPauta, pautaCollabs]);
 
   const handleConnectInstagram = useCallback(() => {
-    if (!hasProAccess) {
+    const billingBlocked = data.accessState === "payment_pending" || data.accessState === "payment_action_needed";
+    if (!hasProAccess || billingBlocked) {
       openPaywallModal({
-        context: "narrative_map",
-        source: "mobile_profile_instagram_connect",
-        returnTo: MOBILE_PROFILE_ROUTE,
+        context: "instagram_report",
+        source: surface === "responsive" ? "creator_profile_instagram_connect" : "mobile_profile_instagram_connect",
+        returnTo: profileRoute,
         postCheckoutIntent: "connect_instagram",
       });
       return;
     }
     router.push(MOBILE_INSTAGRAM_CONNECT_ROUTE);
-  }, [hasProAccess, router]);
+  }, [data.accessState, hasProAccess, profileRoute, router, surface]);
 
   const handleOpenMediaKit = useCallback(() => {
     if (!hasProAccess) {
       openPaywallModal({
         context: "media_kit",
-        source: "mobile_profile_media_kit",
-        returnTo: MOBILE_PROFILE_ROUTE,
+        source: surface === "responsive" ? "creator_profile_media_kit" : "mobile_profile_media_kit",
+        returnTo: profileRoute,
       });
       return;
     }
@@ -755,7 +769,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     } else {
       router.push(MOBILE_MEDIA_KIT_ROUTE);
     }
-  }, [hasProAccess, data.instagramConnected, data.userInfo.mediaKitSlug, router]);
+  }, [hasProAccess, data.instagramConnected, data.userInfo.mediaKitSlug, profileRoute, router, surface]);
 
   const handleOpenCreatorMediaKit = useCallback((slug: string) => {
     setMediaKitSheetSlug(slug);
@@ -771,15 +785,15 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     if (!hasProAccess) {
       openPaywallModal({
         context: "calculator",
-        source: "mobile_profile_calculator",
-        returnTo: MOBILE_PROFILE_ROUTE,
+        source: surface === "responsive" ? "creator_profile_calculator" : "mobile_profile_calculator",
+        returnTo: profileRoute,
         postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
       });
       return;
     }
     void loadLatestCalculation();
     setCalculatorWizardOpen(true);
-  }, [data.instagramConnected, hasProAccess, loadLatestCalculation]);
+  }, [data.instagramConnected, hasProAccess, loadLatestCalculation, profileRoute, surface]);
 
   // Abrir a pauta (roteiro completo + por que o criador é ideal pra collab) é Pro.
   // Free vê o card (título + direcional) como teaser; o tap abre o paywall.
@@ -788,7 +802,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       openPaywallModal({
         context: "planning",
         source: "mobile_idea_open",
-        returnTo: MOBILE_PROFILE_ROUTE,
+        returnTo: profileRoute,
         postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
       });
       return;
@@ -813,7 +827,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       openPaywallModal({
         context: "planning",
         source: "mobile_idea_save",
-        returnTo: MOBILE_PROFILE_ROUTE,
+        returnTo: profileRoute,
         postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
       });
       return;
@@ -907,7 +921,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       openPaywallModal({
         context: "narrative_map",
         source: "mobile_collabs_accept",
-        returnTo: MOBILE_PROFILE_ROUTE,
+        returnTo: profileRoute,
         postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
       });
       return;
@@ -987,24 +1001,6 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     handleConnectInstagram();
   }, [handleConnectInstagram]);
 
-  // O3: conectar Instagram durante o onboarding — vai direto ao OAuth,
-  // sem passar pela página de pré-conexão (redundante com a InstagramScreen).
-  // Fallback para a rota de pré-conexão caso o OAuth falhe ao iniciar.
-  const handleOnboardingConnectInstagram = useCallback(async () => {
-    try {
-      sessionStorage.setItem("d2c_onboarding_resume_step", "question_1");
-    } catch {
-      // sessionStorage indisponível — fallback gracioso.
-    }
-    try {
-      await startInstagramReconnect({
-        nextTarget: "narrative-map",
-        source: "onboarding_instagram_screen",
-      });
-    } catch {
-      router.push(MOBILE_INSTAGRAM_CONNECT_ROUTE);
-    }
-  }, [router]);
   const handleOpenAccountBilling = useCallback(() => {
     setAccountMenuOpen(false);
     router.push("/dashboard/billing");
@@ -1014,7 +1010,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     openPaywallModal({
       context: "narrative_map",
       source: "account_menu_upgrade",
-      returnTo: MOBILE_PROFILE_ROUTE,
+      returnTo: profileRoute,
       // Se ainda não conectou o Instagram, encadeia a conexão após o checkout.
       postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
     });
@@ -1258,9 +1254,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     data.contentIdeas.length === 0 &&
     igPollTick < MAX_IG_POLL_ATTEMPTS;
 
-  // Detect ?instagramLinked=true → show a map-focused return notice (fires at most once per mount)
-  // O3: também lê d2c_onboarding_resume_step para retomar o onboarding no
-  // step correto quando o criador voltou de conectar Instagram durante o flow.
+  // Detect ?instagramLinked=true → show a map-focused return notice (fires at most once per mount).
   useEffect(() => {
     if (!handledInstagramLinked.current && searchParams.get("instagramLinked") === "true") {
       handledInstagramLinked.current = true;
@@ -1274,17 +1268,6 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       fetch("/api/onboarding/instagram-enrich", { method: "POST" })
         .then(() => router.refresh())
         .catch(() => {});
-
-      // O3: se o criador veio do onboarding, retoma no step salvo.
-      try {
-        const savedStep = sessionStorage.getItem("d2c_onboarding_resume_step") as OnboardingStep | null;
-        if (savedStep) {
-          setOnboardingInitialStep(savedStep);
-          sessionStorage.removeItem("d2c_onboarding_resume_step");
-        }
-      } catch {
-        // sessionStorage indisponível — onboarding reinicia do welcome sem problema.
-      }
 
       // Remove the param from the URL without triggering a navigation
       const next = new URL(window.location.href);
@@ -1306,6 +1289,37 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       router.replace(next.pathname + (next.search || ""), { scroll: false });
     }
   }, [searchParams, router]);
+
+  // Checkout sempre devolve o assinante ao app. Aqui o Perfil destaca a ação
+  // seguinte (Instagram ou grupo), preservando o contexto do mapa que motivou a compra.
+  const handledActivation = useRef(false);
+  useEffect(() => {
+    const activation = searchParams.get("activation");
+    if (handledActivation.current || (activation !== "instagram" && activation !== "whatsapp")) return;
+    handledActivation.current = true;
+    setActiveTab("perfil");
+    setWeeklyReportDemo(false);
+
+    window.setTimeout(() => {
+      const target = document.getElementById(
+        activation === "instagram" ? "weekly-report" : "community-d2c",
+      ) ?? document.getElementById("pro-activation")
+        ?? document.getElementById("creator-weekly-map")
+        ?? document.getElementById("diagnostico-mapa");
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      trackMobileNarrativeEvent("mobile_pro_activation_viewed", {
+        route: profileRoute,
+        accessState: data.accessState,
+        isPro: hasProAccess,
+        instagramConnected: data.instagramConnected,
+        actionType: activation,
+      });
+    }, 220);
+
+    const next = new URL(window.location.href);
+    next.searchParams.delete("activation");
+    router.replace(next.pathname + (next.search || ""), { scroll: false });
+  }, [data.accessState, data.instagramConnected, hasProAccess, router, searchParams]);
 
   const collabSuggestionsRequest = useMemo(() => {
     if (!isMapReadyForExpansion) return { key: "blocked", payload: null };
@@ -1460,7 +1474,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       openPaywallModal({
         context: "narrative_map",
         source: "mobile_profile_free_used",
-        returnTo: MOBILE_PROFILE_ROUTE,
+        returnTo: profileRoute,
         postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
       });
       return;
@@ -1473,7 +1487,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       openPaywallModal({
         context: "narrative_map",
         source: "mobile_profile",
-        returnTo: MOBILE_PROFILE_ROUTE,
+        returnTo: profileRoute,
         postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
       });
       return;
@@ -1482,7 +1496,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     openPaywallModal({
       context: "narrative_map",
       source: "mobile_profile",
-      returnTo: MOBILE_PROFILE_ROUTE,
+      returnTo: profileRoute,
       postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
     });
   }, [data.accessState, data.instagramConnected]);
@@ -1629,7 +1643,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
   );
 
   const handleScanReportInteraction = useCallback((_event: "copy_suggestion", actionType?: string) => {
-    trackMobileNarrativeEvent("mobile_scan_suggestion_copied", { route: MOBILE_PROFILE_ROUTE, actionType });
+    trackMobileNarrativeEvent("mobile_scan_suggestion_copied", { route: profileRoute, actionType });
   }, []);
 
   const handleCompletionUpgrade = useCallback(() => {
@@ -1637,7 +1651,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     openPaywallModal({
       context: "narrative_map",
       source: "mobile_profile_free_completion",
-      returnTo: MOBILE_PROFILE_ROUTE,
+      returnTo: profileRoute,
       postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
     });
   }, [data.instagramConnected]);
@@ -1821,6 +1835,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
 
   const hydratedData = useMemo<DiagnosticoPageData>(() => ({
     ...data,
+    mapaSeed: localMapaSeed,
     readings: hydratedReadings,
     contentIdeas: effectiveContentIdeas,
     mainNarrativeLabel: data.mainNarrativeLabel ?? leadingNarrative?.label ?? null,
@@ -1841,22 +1856,29 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
     isMapReadyForExpansion,
     leadingNarrative?.label,
     localMapConfirmations,
+    localMapaSeed,
     localPurpose,
   ]);
 
   const handleProfileUpgrade = useCallback((context?: PaywallContext) => {
+    const normalizedContext = typeof context === "string" ? context : "narrative_map";
+    const postCheckoutIntent = normalizedContext === "community"
+      ? "join_community"
+      : normalizedContext === "instagram_report" || normalizedContext === "planning"
+        ? "connect_instagram"
+        : undefined;
     openPaywallModal({
-      // Cada superfície do card passa seu próprio contexto (ex.: "whatsapp",
-      // "planning") para condicionar a copy do modal.
-      context: typeof context === "string" ? context : "narrative_map",
-      source: typeof context === "string" ? `mobile_profile_${context}` : "mobile_profile_empty_state",
-      returnTo: MOBILE_PROFILE_ROUTE,
-      postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
+      context: normalizedContext,
+      source: typeof context === "string"
+        ? `${surface === "responsive" ? "creator" : "mobile"}_profile_${context}`
+        : `${surface === "responsive" ? "creator" : "mobile"}_profile_empty_state`,
+      returnTo: profileRoute,
+      postCheckoutIntent,
     });
-  }, [data.instagramConnected]);
+  }, [profileRoute, surface]);
   const handleSelectProfileTab = useCallback(() => {
     trackMobileNarrativeEvent("mobile_profile_tab_selected", {
-      route: MOBILE_PROFILE_ROUTE,
+      route: profileRoute,
       accessState: data.accessState,
       isPro: data.userInfo.plan === "Pro" || data.accessState === "admin",
       instagramConnected: data.instagramConnected,
@@ -1866,7 +1888,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
   }, [data.accessState, data.instagramConnected, data.userInfo.plan]);
   const handleSelectCollabsTab = useCallback(() => {
     trackMobileNarrativeEvent("mobile_profile_tab_selected", {
-      route: MOBILE_PROFILE_ROUTE,
+      route: profileRoute,
       accessState: data.accessState,
       isPro: data.userInfo.plan === "Pro" || data.accessState === "admin",
       instagramConnected: data.instagramConnected,
@@ -1877,6 +1899,16 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
   const handleOpenAccountMenu = useCallback(() => setAccountMenuOpen(true), []);
   const handleOpenSurvey = useCallback(() => setSurveyOpen(true), []);
   const handleOpenNorte = useCallback(() => setNorteOpen(true), []);
+  const handleOpenFullMap = useCallback(() => {
+    trackMobileNarrativeEvent("mobile_status_action_clicked", {
+      route: profileRoute,
+      accessState: data.accessState,
+      isPro: hasProAccess,
+      instagramConnected: data.instagramConnected,
+      actionType: "open_full_map",
+    });
+    router.push(MOBILE_STRATEGIC_MAP_ROUTE);
+  }, [data.accessState, data.instagramConnected, hasProAccess, router]);
   const handleConnectWhatsApp = useCallback(() => setWhatsAppSheetOpen(true), []);
   const handleGeneratePautasForTerritory = useCallback((territoryLabel: string) => {
     // Ponte leitura → criação: semeia a geração pelo território e leva o
@@ -1887,7 +1919,11 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
 
   return (
     <div
-      className={`d2c-mobile-app ds-notebook fixed inset-0 flex flex-col overflow-hidden ${d2cFontVariables}`}
+      className={`d2c-mobile-app ds-notebook flex flex-col overflow-hidden ${
+        surface === "responsive"
+          ? "ds-profile-responsive-shell fixed inset-0 lg:relative lg:inset-auto lg:h-full lg:min-h-0"
+          : "fixed inset-0"
+      } ${d2cFontVariables}`}
       style={{
         background: "var(--ds-color-neutral)",
       }}
@@ -1895,9 +1931,10 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       <div
         ref={tabScrollContainerRef}
         data-mobile-profile-scroll-container="true"
-        className="flex-1 overflow-y-auto overscroll-contain"
+        className={`flex-1 overflow-y-auto overscroll-contain pb-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] ${
+          surface === "responsive" ? "lg:pb-8" : ""
+        }`}
         style={{
-          paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 5.5rem)",
           // Fundo branco explícito: essa faixa reservada (paddingBottom, ~1rem
           // maior que a altura real da DiagnosticoTabBar de propósito — é
           // respiro visual antes da tab bar) hoje mostra branco só porque o
@@ -1944,7 +1981,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
             onUpgrade={(ctx) => openPaywallModal({
               context: typeof ctx === "string" ? ctx : "narrative_map",
               source: typeof ctx === "string" ? `mobile_collabs_${ctx}` : "mobile_collabs",
-              returnTo: MOBILE_PROFILE_ROUTE,
+              returnTo: profileRoute,
               postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
             })}
             onGenerate={triggerGenerateIdeas}
@@ -1957,14 +1994,15 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
             data={hydratedData}
             weeklyMeeting={weeklyMeeting}
             calculatorPrice={weeklyProfileCalculatorPrice}
-            isDemo={weeklyReportDemo}
-            onDemoChange={setWeeklyReportDemo}
             onOpenAccountMenu={handleOpenAccountMenu}
             onOpenNorte={handleOpenNorte}
+            onOpenFullMap={handleOpenFullMap}
             onOpenMediaKit={handleOpenMediaKit}
             onOpenCalculator={handleOpenCalculator}
             onUpgrade={handleProfileUpgrade}
             onConnectInstagram={handleConnectInstagram}
+            starterMapJustCreated={starterMapJustCreated}
+            surface={surface}
           />
         ) : (
         <DiagnosticoPage
@@ -1982,6 +2020,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
           onOpenAccountMenu={handleOpenAccountMenu}
           onOpenSurvey={handleOpenSurvey}
           onOpenNorte={handleOpenNorte}
+          starterMapJustCreated={starterMapJustCreated}
           onOpenDiagnosis={handleOpenDiagnosisOverview}
           narrativeConfirmationState={narrativeConfirmationState}
           onConfirmNarrative={handleConfirmNarrative}
@@ -2045,7 +2084,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
             onUpgrade={() => openPaywallModal({
               context: "narrative_map",
               source: "mobile_idea_collab",
-              returnTo: MOBILE_PROFILE_ROUTE,
+              returnTo: profileRoute,
               postCheckoutIntent: data.instagramConnected ? undefined : "connect_instagram",
             })}
             onClose={() => setOpenIdeaId(null)}
@@ -2224,7 +2263,7 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
           onUpgrade={() => openPaywallModal({
             context: "narrative_map",
             source: "collabs_upgrade_teaser",
-            returnTo: MOBILE_PROFILE_ROUTE,
+            returnTo: profileRoute,
           })}
           onOpenCommunity={handleOpenAccountCommunity}
           onOpenCreatorMediaKit={handleOpenCreatorMediaKit}
@@ -2420,33 +2459,42 @@ export function DiagnosticoRealShellClient({ data, weeklyMeeting = null }: Props
       {onboardingOpen ? (
       <MobileOnboardingFlow
         open
-        instagramConnected={hydratedData.instagramConnected}
-        accessState={hydratedData.accessState}
-        firstSignal={(() => {
-          const leading = resolveDiagnosticoLeadingNarrativeSignal(hydratedData.synthesis);
-          return leading ? { label: leading.label, summary: leading.summary } : null;
-        })()}
-        // O3: retomada após conectar Instagram — pula a tela de boas-vindas.
-        initialStep={onboardingInitialStep ?? undefined}
-        onConnectInstagram={handleOnboardingConnectInstagram}
-        onUpgrade={() => openPaywallModal({
-          context: "onboarding",
-          source: "mobile_onboarding_meeting_analysis",
-          returnTo: MOBILE_PROFILE_ROUTE,
-          postCheckoutIntent: "join_community",
-        })}
-        onRequestUpload={() => setAnalyzeFlowOpen(true)}
-        onComplete={(answers) => {
+        telemetryRoute={profileRoute}
+        onComplete={({ answers, seedSignal, skipped }) => {
           setOnboardingOpen(false);
-          setOnboardingInitialStep(null);
-          // Atualiza localPurpose imediatamente com o valor do onboarding —
-          // sem depender do router.refresh() completar antes do usuário
-          // abrir "Meu Norte". O useEffect de sync serve de fallback para
-          // sessões futuras (fresh load após onboarding em outra sessão).
           if (answers?.creatorPurpose !== undefined) {
             setLocalPurpose(answers.creatorPurpose || null);
           }
-          router.refresh();
+          if (seedSignal) {
+            setLocalMapaSeed({
+              narrativa_central: seedSignal.label,
+              territorios: seedSignal.territorios,
+              temas: seedSignal.temas,
+              narrativas_adjacentes: [],
+              assets: seedSignal.assets,
+              tom: "",
+              formatos: [],
+              maturidade: "seed",
+              fonte: ["onboarding_declarativo"],
+            } as NonNullable<DiagnosticoPageData["mapaSeed"]>);
+          }
+          if (!skipped) {
+            setStarterMapJustCreated(true);
+            window.setTimeout(() => {
+              const map = document.getElementById("diagnostico-mapa")
+                ?? document.getElementById("creator-weekly-map");
+              map?.scrollIntoView({ behavior: "smooth", block: "start" });
+              trackMobileNarrativeEvent("mobile_starter_map_viewed", {
+                route: profileRoute,
+                accessState: hydratedData.accessState,
+                isPro: hasProAccess,
+                instagramConnected: hydratedData.instagramConnected,
+                actionType: seedSignal ? "optimistic_seed" : "server_refresh",
+              });
+            }, 180);
+            window.setTimeout(() => setStarterMapJustCreated(false), 5200);
+          }
+          startTransition(() => router.refresh());
         }}
       />
       ) : null}

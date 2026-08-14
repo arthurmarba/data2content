@@ -18,10 +18,10 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { getWeeklyMeetingExperience } from "@/app/lib/community/weeklyMeetingService";
 import { formatWeeklyMeetingDate } from "@/app/lib/community/weeklyMeeting";
 import { connectToDatabase } from "@/app/lib/mongoose";
-import { COMMUNITY_FREE_JOIN_ROUTE, COMMUNITY_WHATSAPP_URL } from "@/app/lib/communityLinks";
+import { COMMUNITY_FREE_JOIN_ROUTE, COMMUNITY_PRO_JOIN_ROUTE } from "@/app/lib/communityLinks";
 import UserModel from "@/app/models/User";
 import { getPlanAccessMeta } from "@/utils/planStatus";
-import { MOBILE_PROFILE_ROUTE } from "@/app/dashboard/boards/videoUpload/mobileStrategicProfileRoutes";
+import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
 
 export const dynamic = "force-dynamic";
 
@@ -53,7 +53,7 @@ export default async function WeeklyMeetingPage() {
   const meeting = await getWeeklyMeetingExperience();
   const meetingCancelled = meeting.status === "cancelled";
   const whatsappUrl = hasPremiumAccess
-    ? COMMUNITY_WHATSAPP_URL
+    ? COMMUNITY_PRO_JOIN_ROUTE
     : COMMUNITY_FREE_JOIN_ROUTE;
   const whatsappLabel = hasPremiumAccess
     ? "Ver avisos no grupo Pro"
@@ -65,7 +65,7 @@ export default async function WeeklyMeetingPage() {
         {/* A tab bar antiga fica oculta nesta rota (chrome legada suprimida em
             DashboardShell) — este link é a única navegação de volta ao Perfil. */}
         <Link
-          href={MOBILE_PROFILE_ROUTE}
+          href={CREATOR_PROFILE_ROUTE}
           className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-500 transition hover:text-zinc-900"
         >
           <ArrowLeft className="h-4 w-4" /> Voltar ao perfil
@@ -166,7 +166,7 @@ export default async function WeeklyMeetingPage() {
             <h2 className="mt-3 text-xl font-bold">Análise, grupo e plataforma completa.</h2>
             <p className="mt-3 text-sm leading-6 text-zinc-600">Confirme presença no grupo para ser analisado e use seu Mapa, pautas, collabs e ferramentas entre as reuniões.</p>
             {hasPremiumAccess ? (
-              <a href={COMMUNITY_WHATSAPP_URL} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-violet-800">
+              <a href={COMMUNITY_PRO_JOIN_ROUTE} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-violet-800">
                 Confirmar no grupo de assinantes <ArrowUpRight className="h-4 w-4" />
               </a>
             ) : (

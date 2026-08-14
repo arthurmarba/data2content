@@ -24,8 +24,9 @@ import {
 } from "@/app/dashboard/boards/videoUpload/contentIdeaLocalDecisions";
 import type { NarrativeCollabMatch } from "@/app/dashboard/boards/videoUpload/narrativeCollabMatchingService";
 import type { PaywallContext } from "@/types/paywall";
+import { CREATOR_PROFILE_ROUTE } from "@/constants/routes";
 
-const FULL_MAP_ROUTE = "/dashboard/boards/mobile-strategic-profile";
+const FULL_MAP_ROUTE = `${CREATOR_PROFILE_ROUTE}?tab=collabs`;
 const WHATSAPP_ROUTE = "/dashboard/whatsapp";
 const PRO_ROUTE = "/pro";
 

@@ -2,14 +2,18 @@
 
 import { useRouter } from "next/navigation";
 import React from "react";
-import { ArrowRight, CalendarDays, Film, LockKeyhole, Play } from "lucide-react";
+import { ArrowRight, CalendarDays, Film, Play } from "lucide-react";
 
 import Board from "@/app/dashboard/components/Board";
 import RecordedMeetingPlayerDialog from "@/app/dashboard/recorded-meetings/RecordedMeetingPlayerDialog";
 import RecordedMeetingThumbnail from "@/app/dashboard/recorded-meetings/RecordedMeetingThumbnail";
 import useBillingStatus from "@/app/hooks/useBillingStatus";
-import type { RecordedMeeting } from "@/app/lib/community/recordedMeetingsService";
+import type {
+  RecordedMeetingCatalogItem,
+  RecordedMeetingPlayback,
+} from "@/app/lib/community/recordedMeetingsService";
 import { RECORDED_MEETINGS_ROUTE } from "@/constants/routes";
+import { openPaywallModal } from "@/utils/paywallModal";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
@@ -43,11 +47,11 @@ export default function RecordedMeetingsPinnedBoard({
   const billing = useBillingStatus();
   const hasPremiumAccess = Boolean(billing.hasPremiumAccess);
   const [loadState, setLoadState] = React.useState<LoadState>("idle");
-  const [meetings, setMeetings] = React.useState<RecordedMeeting[]>([]);
-  const [playingMeeting, setPlayingMeeting] = React.useState<RecordedMeeting | null>(null);
+  const [meetings, setMeetings] = React.useState<RecordedMeetingCatalogItem[]>([]);
+  const [playingMeeting, setPlayingMeeting] = React.useState<RecordedMeetingPlayback | null>(null);
 
   React.useEffect(() => {
-    if (!billing.hasResolvedOnce || !hasPremiumAccess) return;
+    if (!billing.hasResolvedOnce) return;
     const controller = new AbortController();
     setLoadState("loading");
 
@@ -68,9 +72,34 @@ export default function RecordedMeetingsPinnedBoard({
       });
 
     return () => controller.abort();
-  }, [billing.hasResolvedOnce, hasPremiumAccess]);
+  }, [billing.hasResolvedOnce]);
 
   const latestMeeting = meetings[0] ?? null;
+  const openMeeting = React.useCallback(async (meeting: RecordedMeetingCatalogItem) => {
+    if (!hasPremiumAccess) {
+      openPaywallModal({
+        context: "recorded_meetings",
+        source: "recorded_meetings_board",
+        returnTo: `${RECORDED_MEETINGS_ROUTE}?meeting=${encodeURIComponent(meeting.id)}`,
+        postCheckoutIntent: "watch_recorded_meeting",
+      });
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/dashboard/recorded-meetings/${encodeURIComponent(meeting.id)}/playback`,
+        { cache: "no-store", credentials: "include" },
+      );
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok || !payload?.meeting?.youtubeVideoId) {
+        throw new Error("recorded_meeting_playback_unavailable");
+      }
+      setPlayingMeeting(payload.meeting as RecordedMeetingPlayback);
+    } catch {
+      router.push(`${RECORDED_MEETINGS_ROUTE}?meeting=${encodeURIComponent(meeting.id)}`);
+    }
+  }, [hasPremiumAccess, router]);
 
   return (
     <>
@@ -86,30 +115,6 @@ export default function RecordedMeetingsPinnedBoard({
       >
         {!billing.hasResolvedOnce ? (
           <BoardSkeleton />
-        ) : !hasPremiumAccess ? (
-          <div className="flex h-full min-h-[420px] flex-col justify-between bg-[linear-gradient(155deg,#18181b,#27272a_60%,#312e81)] p-6 text-white">
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10">
-              <LockKeyhole className="h-5 w-5" />
-            </span>
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-violet-300">
-                Exclusivo para assinantes
-              </p>
-              <h3 className="mt-3 text-2xl font-bold tracking-[-0.025em]">
-                Reveja cada análise no seu tempo.
-              </h3>
-              <p className="mt-3 text-sm leading-6 text-zinc-300">
-                As reuniões ficam organizadas em uma biblioteca privada para assinantes D2C Pro.
-              </p>
-              <button
-                type="button"
-                onClick={() => router.push("/pro")}
-                className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-full bg-white px-5 text-sm font-bold text-zinc-950 transition hover:bg-violet-100"
-              >
-                Conhecer o Pro <ArrowRight className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
         ) : loadState === "loading" || loadState === "idle" ? (
           <BoardSkeleton />
         ) : loadState === "error" ? (
@@ -121,7 +126,7 @@ export default function RecordedMeetingsPinnedBoard({
         ) : latestMeeting ? (
           <RecordedMeetingCardContent
             meeting={latestMeeting}
-            onPlay={() => setPlayingMeeting(latestMeeting)}
+            onPlay={() => void openMeeting(latestMeeting)}
             onOpenLibrary={() => router.push(RECORDED_MEETINGS_ROUTE)}
           />
         ) : (
@@ -145,7 +150,7 @@ export function RecordedMeetingCardContent({
   onPlay,
   onOpenLibrary,
 }: {
-  meeting: RecordedMeeting;
+  meeting: RecordedMeetingCatalogItem;
   onPlay: () => void;
   onOpenLibrary: () => void;
 }) {

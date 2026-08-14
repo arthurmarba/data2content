@@ -14,8 +14,8 @@
 // escolhas do criador. Por isso a IA interpreta SOMENTE o propósito: injetar aqueles
 // códigos como se fossem declarados enviesava o mapa (puxava tudo para "ensino").
 //
-// Best-effort: retorna null em qualquer falha (sem propósito, IA indisponível, JSON
-// inválido) para nunca bloquear o onboarding.
+// Sem propósito retorna null. Quando a IA está indisponível, preserva a própria
+// declaração como narrativa inicial para nunca prometer um mapa e abrir o app vazio.
 // Modelo: gpt-4o (claudeService · intensity medium).
 
 import { callClaudeJSON } from "@/app/lib/claudeService";
@@ -88,11 +88,23 @@ Formato esperado:
 }`;
 }
 
+function buildDeclarativeFallback(purpose: string): OnboardingSeedSignal {
+  const normalized = purpose.replace(/\s+/g, " ").trim();
+  const firstSentence = normalized.split(/(?<=[.!?])\s+/)[0] || normalized;
+  return {
+    label: firstSentence.slice(0, 180),
+    territorios: [],
+    temas: [],
+    assets: [],
+  };
+}
+
 // ─── Função principal ─────────────────────────────────────────────────────────
 
 /**
  * Gera o mapa seed do onboarding via IA a partir da declaração de propósito.
- * Best-effort: retorna null em qualquer falha para que o onboarding nunca trave.
+ * Se a interpretação falhar, retorna um seed declarativo mínimo com o texto do
+ * próprio criador. Assim o onboarding nunca trava nem revela um mapa vazio.
  *
  * Só deve ser chamado quando há um propósito declarado. Sem propósito, não há o
  * que interpretar e o MapaSeed não é semeado nesta etapa.
@@ -118,7 +130,7 @@ export async function generateOnboardingSeedSignal(
 
     if (!label) {
       logger.warn(`${TAG} IA retornou sinal incompleto:`, raw);
-      return null;
+      return buildDeclarativeFallback(purpose);
     }
 
     const territorios = Array.isArray(raw.territorios)
@@ -134,7 +146,7 @@ export async function generateOnboardingSeedSignal(
     logger.info(`${TAG} Mapa seed gerado: "${label}" (${territorios.length} territórios, ${temas.length} temas, ${assets.length} assets)`);
     return { label, territorios, temas, assets };
   } catch (err) {
-    logger.warn(`${TAG} Falha ao gerar mapa seed (não-fatal):`, err);
-    return null;
+    logger.warn(`${TAG} Falha ao interpretar mapa seed; usando Norte declarativo:`, err);
+    return buildDeclarativeFallback(purpose);
   }
 }

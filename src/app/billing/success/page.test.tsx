@@ -1,10 +1,11 @@
 import {
   default as BillingSuccessPage,
+  buildProfileActivationHref,
   normalizeBillingSuccessPostCheckoutIntent,
   resolveBillingSuccessAttemptId,
   sanitizeBillingSuccessReturnTo,
 } from "./page";
-import { act, render } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { trackMobileNarrativeEvent } from "@/app/dashboard/boards/videoUpload/mobileNarrativeTelemetry";
@@ -48,7 +49,7 @@ describe("billing success postCheckoutIntent helpers", () => {
     window.sessionStorage.clear();
   });
 
-  it("aceita returnTo interno para connect_instagram e join_community", () => {
+  it("aceita returnTo interno para intenções de ativação", () => {
     expect(sanitizeBillingSuccessReturnTo("/dashboard/boards/mobile-strategic-profile")).toBe(
       "/dashboard/boards/mobile-strategic-profile",
     );
@@ -66,7 +67,17 @@ describe("billing success postCheckoutIntent helpers", () => {
   it("normaliza apenas intents conhecidos", () => {
     expect(normalizeBillingSuccessPostCheckoutIntent("connect_instagram")).toBe("connect_instagram");
     expect(normalizeBillingSuccessPostCheckoutIntent("join_community")).toBe("join_community");
+    expect(normalizeBillingSuccessPostCheckoutIntent("watch_recorded_meeting")).toBe("watch_recorded_meeting");
     expect(normalizeBillingSuccessPostCheckoutIntent("external_redirect")).toBeNull();
+  });
+
+  it("preserva a rota interna e adiciona o estado de ativação do Perfil", () => {
+    expect(buildProfileActivationHref("/dashboard/boards/mobile-strategic-profile?from=checkout", "instagram")).toBe(
+      "/dashboard/boards/mobile-strategic-profile?from=checkout&activation=instagram",
+    );
+    expect(buildProfileActivationHref("https://evil.example", "whatsapp")).toBe(
+      "/dashboard/profile?activation=whatsapp",
+    );
   });
 
   it("identifica tanto o Checkout hospedado quanto a assinatura do Payment Element", () => {
@@ -108,14 +119,14 @@ describe("billing success postCheckoutIntent helpers", () => {
       "mobile_post_checkout_intent_consumed",
       expect.objectContaining({
         postCheckoutIntent: "connect_instagram",
-        route: "/dashboard/instagram/connect?next=narrative-map",
+        route: "/dashboard/profile?activation=instagram",
       }),
     );
-    expect(push).toHaveBeenCalledWith("/dashboard/instagram/connect?next=narrative-map");
+    expect(push).toHaveBeenCalledWith("/dashboard/profile?activation=instagram");
     expect(JSON.stringify((trackMobileNarrativeEvent as jest.Mock).mock.calls)).not.toContain("//evil.example");
   });
 
-  it("mostra as boas-vindas Pro (grupo antes do Instagram) no funil da reunião", async () => {
+  it("volta ao cartão da comunidade sem exigir Instagram primeiro", async () => {
     const push = jest.fn();
     (useRouter as jest.Mock).mockReturnValue({ push });
     window.sessionStorage.setItem(
@@ -127,13 +138,30 @@ describe("billing success postCheckoutIntent helpers", () => {
       }),
     );
 
-    const { findByRole, getByRole } = render(<BillingSuccessPage />);
+    render(<BillingSuccessPage />);
 
-    await findByRole("heading", { name: /Bem-vindo ao D2C Pro/i });
-    expect(getByRole("link", { name: /Entrar no grupo de assinantes/i })).toBeTruthy();
-    expect(getByRole("link", { name: /Conectar meu Instagram/i })).toBeTruthy();
-    // Não pode haver redirect automático: o assinante precisa ver o grupo primeiro.
-    expect(push).not.toHaveBeenCalled();
+    await waitFor(() => expect(push).toHaveBeenCalledWith(
+      "/dashboard/boards/mobile-strategic-profile?activation=whatsapp",
+    ));
+  });
+
+  it("retorna à gravação escolhida depois da assinatura", async () => {
+    const push = jest.fn();
+    (useRouter as jest.Mock).mockReturnValue({ push });
+    window.sessionStorage.setItem(
+      "d2c.paywall.return",
+      JSON.stringify({
+        context: "recorded_meetings",
+        returnTo: "/reunioes-gravadas?meeting=meeting-1",
+        postCheckoutIntent: "watch_recorded_meeting",
+      }),
+    );
+
+    render(<BillingSuccessPage />);
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith(
+      "/reunioes-gravadas?meeting=meeting-1",
+    ));
   });
 
   it("não oferece conexão do Instagram enquanto o pagamento não for confirmado", async () => {

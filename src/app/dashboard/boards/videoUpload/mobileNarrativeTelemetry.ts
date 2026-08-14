@@ -2,6 +2,17 @@ import { track } from "@/lib/track";
 import type { NarrativeMapAccessState, NarrativeMapPostCheckoutIntent } from "./narrativeMapAccessState";
 
 export type MobileNarrativeTelemetryEventName =
+  | "mobile_north_screen_viewed"
+  | "mobile_north_example_selected"
+  | "mobile_north_typing_started"
+  | "mobile_north_submitted"
+  | "mobile_north_save_failed"
+  | "mobile_north_skipped"
+  | "mobile_starter_map_created"
+  | "mobile_starter_map_viewed"
+  | "mobile_starter_map_upgrade_clicked"
+  | "mobile_pro_activation_viewed"
+  | "mobile_whatsapp_group_link_opened"
   | "mobile_profile_viewed"
   | "mobile_status_action_clicked"
   | "mobile_new_reading_started"
@@ -122,7 +133,11 @@ function safeGoalOption(value: unknown): MobileNarrativeTelemetryPayload["select
 }
 
 function safePostCheckoutIntent(value: unknown): NarrativeMapPostCheckoutIntent | undefined {
-  return value === "connect_instagram" || value === "join_community" ? value : undefined;
+  return value === "connect_instagram"
+    || value === "join_community"
+    || value === "watch_recorded_meeting"
+    ? value
+    : undefined;
 }
 
 export function sanitizeMobileNarrativeTelemetryPayload(

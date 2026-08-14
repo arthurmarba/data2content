@@ -1,3 +1,5 @@
+import { getCommunityWhatsAppUrl } from "@/app/lib/community/communityInvite.server";
+
 export function proWelcomeEmail({
   name,
   planInterval,
@@ -12,9 +14,7 @@ export function proWelcomeEmail({
   const plannerUrl = `${baseUrl}/planning/planner`;
   const billingUrl = `${baseUrl}/dashboard/billing`;
   const communityUrl = `${baseUrl}/planning/discover`;
-  const whatsappGroupUrl =
-    process.env.NEXT_PUBLIC_COMMUNITY_VIP_URL ||
-    "https://chat.whatsapp.com/CKTT84ZHEouKyXoDxIJI4c";
+  const whatsappGroupUrl = getCommunityWhatsAppUrl();
 
   const intervalLabel =
     planInterval === "year"

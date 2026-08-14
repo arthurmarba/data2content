@@ -18,6 +18,7 @@ import {
   CreditCardIcon as CreditCardIconOutline,
   ClipboardDocumentCheckIcon as ClipboardDocumentCheckIconOutline,
   PencilSquareIcon as PencilSquareIconOutline,
+  UserCircleIcon as UserCircleIconOutline,
 } from "@heroicons/react/24/outline";
 import {
   HomeIcon as HomeIconSolid,
@@ -39,6 +40,7 @@ import {
   CreditCardIcon as CreditCardIconSolid,
   ClipboardDocumentCheckIcon as ClipboardDocumentCheckIconSolid,
   PencilSquareIcon as PencilSquareIconSolid,
+  UserCircleIcon as UserCircleIconSolid,
 } from "@heroicons/react/24/solid";
 import { navigationLabels } from "@/constants/navigationLabels";
 import { MAIN_DASHBOARD_ROUTE, RECORDED_MEETINGS_ROUTE } from "@/constants/routes";
@@ -70,6 +72,7 @@ const iconSet = (outline: SidebarIconComponent, solid: SidebarIconComponent): Si
 });
 
 const ICONS = {
+  profile: iconSet(UserCircleIconOutline, UserCircleIconSolid),
   dashboard: iconSet(HomeIconOutline, HomeIconSolid),
   meeting: iconSet(CalendarDaysIconOutline, CalendarDaysIconSolid),
   recordedMeetings: iconSet(FilmIconOutline, FilmIconSolid),
@@ -101,13 +104,21 @@ type SidebarSectionDefinition = {
 const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
   {
     key: "core",
-    title: "Saguão Principal",
-    description: "Sua portaria e vitrine pública",
+    title: "Principal",
+    description: "Seu perfil e visão geral",
     items: [
       {
         type: "item",
+        key: "profile",
+        label: "Perfil",
+        tooltip: "Seu mapa, relatório e acesso à Comunidade D2C",
+        href: "/dashboard/profile",
+        icon: ICONS.profile,
+      },
+      {
+        type: "item",
         key: "dashboard",
-        label: "Painel",
+        label: "Visão geral",
         href: MAIN_DASHBOARD_ROUTE,
         icon: ICONS.dashboard,
         exact: true,
@@ -127,24 +138,14 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         tooltip: "Assista novamente às reuniões exclusivas para assinantes",
         href: RECORDED_MEETINGS_ROUTE,
         icon: ICONS.recordedMeetings,
-        paywallResolver: ({ hasPremiumAccess }) =>
-          hasPremiumAccess ? undefined : "mentoria",
       },
       {
         type: "item",
         key: "strategic-map",
-        label: "Seu Mapa",
+        label: "Mapa completo",
         tooltip: "Sua narrativa, territórios e assets — o coração do seu conteúdo",
         href: "/dashboard/strategic-map",
         icon: ICONS.strategicMap,
-      },
-      {
-        type: "item",
-        key: "collabs",
-        label: "Collabs",
-        tooltip: "Pautas do seu mapa com criadores compatíveis pra postar junto",
-        href: "/dashboard/collabs",
-        icon: ICONS.collabs,
       },
       {
         type: "item",
@@ -153,14 +154,6 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
         tooltip: "Benefícios, preços e fluxos do Plano Pro",
         href: "/pro",
         icon: ICONS.pro,
-      },
-      {
-        type: "item",
-        key: "media-kit",
-        label: navigationLabels.mediaKit.menu,
-        tooltip: navigationLabels.mediaKit.tooltip,
-        href: "/media-kit",
-        icon: ICONS.mediaKit,
       },
       {
         type: "item",
@@ -174,9 +167,25 @@ const SECTION_DEFINITIONS: SidebarSectionDefinition[] = [
   },
   {
     key: "planning",
-    title: navigationLabels.planning.menu,
-    description: navigationLabels.planning.tooltip,
+    title: "Ferramentas",
+    description: "Recursos avançados do desktop",
     items: [
+      {
+        type: "item",
+        key: "collabs",
+        label: "Collabs",
+        tooltip: "Pautas do seu mapa com criadores compatíveis pra postar junto",
+        href: "/dashboard/collabs",
+        icon: ICONS.collabs,
+      },
+      {
+        type: "item",
+        key: "media-kit",
+        label: navigationLabels.mediaKit.menu,
+        tooltip: navigationLabels.mediaKit.tooltip,
+        href: "/media-kit",
+        icon: ICONS.mediaKit,
+      },
       {
         type: "item",
         key: "calendar.hub",

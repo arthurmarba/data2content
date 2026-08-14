@@ -32,6 +32,9 @@ const ALLOWED_CONTEXTS: PaywallContext[] = [
   "publis",
   "planning",
   "whatsapp",
+  "instagram_report",
+  "community",
+  "recorded_meetings",
   "onboarding",
 ];
 
@@ -66,7 +69,9 @@ export default function PaywallModalProvider() {
           ? detail.proposalId.trim()
           : null;
       const postCheckoutIntent =
-        detail?.postCheckoutIntent === "connect_instagram" || detail?.postCheckoutIntent === "join_community"
+        detail?.postCheckoutIntent === "connect_instagram"
+        || detail?.postCheckoutIntent === "join_community"
+        || detail?.postCheckoutIntent === "watch_recorded_meeting"
           ? detail.postCheckoutIntent
           : null;
 

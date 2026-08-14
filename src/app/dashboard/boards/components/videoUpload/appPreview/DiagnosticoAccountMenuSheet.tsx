@@ -114,17 +114,17 @@ export function DiagnosticoAccountMenuSheet({
 
         <div className="flex items-center justify-between gap-3 px-5 pb-4 pt-2">
           <div className="min-w-0 flex-1">
-            <p className="truncate font-display text-[1.25rem] font-bold tracking-[-0.03em] text-zinc-950">
+            <p className="truncate font-display text-[1.25rem] font-bold tracking-[-0.03em] text-[var(--ds-color-ink)]">
               {userInfo.name ?? "Sua conta"}
             </p>
             {userInfo.email ? (
-              <p className="mt-0.5 truncate text-[12px] text-zinc-400">{userInfo.email}</p>
+              <p className="mt-0.5 truncate text-[12px] text-[var(--ds-color-text-muted)]">{userInfo.email}</p>
             ) : userInfo.handle ? (
-              <p className="mt-0.5 truncate text-[12px] text-zinc-400">@{userInfo.handle.replace(/^@/, "")}</p>
+              <p className="mt-0.5 truncate text-[12px] text-[var(--ds-color-text-muted)]">@{userInfo.handle.replace(/^@/, "")}</p>
             ) : null}
           </div>
           <span
-            className="shrink-0 rounded-[4px] bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-600"
+            className="ds-badge ds-badge--neutral shrink-0"
           >
             {plan}
           </span>
@@ -132,7 +132,7 @@ export function DiagnosticoAccountMenuSheet({
             type="button"
             onClick={onClose}
             aria-label="Fechar conta e preferências"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500 transition active:scale-95 hover:bg-zinc-200 hover:text-zinc-800"
+            className="ds-icon-button shrink-0"
           >
             <X className="h-4 w-4" strokeWidth={2} />
           </button>
@@ -204,14 +204,14 @@ export function DiagnosticoAccountMenuSheet({
           />
         </AccountMenuSection>
 
-        <div className="mx-5 border-t border-zinc-100" />
+        <div className="mx-5 border-t border-[var(--ds-color-line)]" />
         <div className="px-2 py-2">
           <AccountMenuAction label="Sair da conta" onClick={onSignOut} icon={<LogOut className="h-4 w-4" strokeWidth={1.9} />} />
         </div>
 
-        <div className="mx-5 border-t border-zinc-100" />
+        <div className="mx-5 border-t border-[var(--ds-color-line)]" />
         <div className="px-5 py-4">
-          <div className="rounded-2xl border border-red-100 bg-red-50/70 p-4">
+          <div className="ds-danger-panel p-4">
             <DeleteAccountSection onManageSubscription={onOpenBilling} />
           </div>
         </div>
@@ -229,9 +229,9 @@ function AccountMenuSection({
 }) {
   return (
     <>
-      <div className="mx-5 border-t border-zinc-100" />
+      <div className="mx-5 border-t border-[var(--ds-color-line)]" />
       <div className="px-2 py-2">
-        <p className="px-3 pb-1 pt-1 text-[10.5px] font-bold uppercase tracking-[0.12em] text-zinc-400">
+        <p className="ds-notebook-label px-3 pb-1 pt-1">
           {title}
         </p>
         {children}
@@ -257,7 +257,7 @@ function AccountMenuAction({
 }) {
   const iconClass = emphasis
     ? "flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--ds-color-brand-soft)] text-[var(--ds-color-brand-strong)]"
-    : "flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-100 text-zinc-600";
+    : "flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--ds-color-neutral)] text-[var(--ds-color-text-secondary)]";
   const labelClass = emphasis
     ? "min-w-0 flex-1 truncate text-[var(--ds-color-brand-strong)]"
     : "min-w-0 flex-1 truncate";
@@ -266,17 +266,17 @@ function AccountMenuAction({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left text-[14px] font-semibold text-zinc-800 hover:bg-zinc-50"
+      className="flex min-h-11 w-full items-center gap-3 rounded-[var(--ds-radius-md)] px-3 py-2 text-left text-[14px] font-semibold text-[var(--ds-color-ink)] transition-colors active:bg-[var(--ds-color-neutral)]"
     >
       <span className={iconClass}>{icon}</span>
       <span className={labelClass}>{label}</span>
       {statusDot ? (
         <span
-          className={`h-2 w-2 shrink-0 rounded-full ${statusDot === "green" ? "bg-emerald-500" : "bg-amber-500"}`}
+          className={`h-2 w-2 shrink-0 rounded-full ${statusDot === "green" ? "bg-[var(--ds-color-success)]" : "bg-[var(--ds-color-map)]"}`}
           aria-hidden="true"
         />
       ) : null}
-      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-zinc-300" strokeWidth={2} aria-hidden="true" />
+      <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--ds-color-text-muted)]" strokeWidth={2} aria-hidden="true" />
     </button>
   );
 }
