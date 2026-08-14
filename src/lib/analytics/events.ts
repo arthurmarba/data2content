@@ -250,6 +250,9 @@ export const analyticsEventCatalog = {
         | 'mentoria'
         | 'media_kit'
         | 'publis'
+        | 'community'
+        | 'instagram_report'
+        | 'recorded_meetings'
         | 'other'
         | null
         | undefined
