@@ -1874,8 +1874,6 @@ function PautasCard({
   onConnectInstagram?: () => void;
   instagramConnected?: boolean;
   instagramEnrichmentPending?: boolean;
-  /** Highlights the first map as the onboarding canvas gives way to the app. */
-  starterMapJustCreated?: boolean;
   onOpenIdea?: (ideaId: string) => void;
   whatsappLinked?: boolean;
   onConnectWhatsApp?: () => void;
@@ -2734,6 +2732,8 @@ interface Props {
    *  do polling pós-conexão; quando true, o card de pautas mostra "processando" em vez de
    *  pedir um vídeo. */
   instagramEnrichmentPending?: boolean;
+  /** Highlights the first map as the onboarding canvas gives way to the app. */
+  starterMapJustCreated?: boolean;
 }
 
 // ─── Main component ───────────────────────────────────────────────────────────
