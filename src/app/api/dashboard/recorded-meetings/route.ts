@@ -10,7 +10,9 @@ import {
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const session = await getServerSession(await resolveAuthOptions());
+  const session = await getServerSession(await resolveAuthOptions()) as {
+    user?: { id?: string | null };
+  } | null;
   if (!session?.user) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }

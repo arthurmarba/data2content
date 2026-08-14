@@ -14,12 +14,14 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const session = await getServerSession(await resolveAuthOptions());
+  const session = await getServerSession(await resolveAuthOptions()) as {
+    user?: { id?: string | null; role?: string | null };
+  } | null;
   if (!session?.user) {
     return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 });
   }
 
-  const viewer = session.user as { id?: string | null; role?: string | null };
+  const viewer = session.user;
   if (!(await canAccessRecordedMeetings(viewer))) {
     return NextResponse.json({ ok: false, error: "premium_required" }, { status: 403 });
   }
