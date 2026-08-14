@@ -830,7 +830,7 @@ export function criadorSlideA(c: CriadorSlide, idx: number, total: number): stri
       <div class="cr-id">
         ${avatar(c.nome, c.profilePictureUrl)}
         <div class="cr-name">${esc(c.nome)}</div>
-        ${handleRedundante ? "" : `<div class="cr-handle">${esc(c.handle)}</div>`}
+        ${handleRedundante ? "" : `<div class="cr-handle">${esc(c.handle ?? "")}</div>`}
         ${narr}
         <div class="cr-terr">${c.territorios.slice(0, 3).map(tituleCase).map(esc).join(" · ")}</div>
         ${numerosStrip(c)}
@@ -848,7 +848,7 @@ export function criadorSlideA(c: CriadorSlide, idx: number, total: number): stri
       <div class="beatA-main">
         <div class="beatA-id">
           ${avatar(c.nome, c.profilePictureUrl)}
-          <div><div class="cr-name">${esc(c.nome)}</div>${handleRedundante ? "" : `<div class="cr-handle">${esc(c.handle)}</div>`}</div>
+          <div><div class="cr-name">${esc(c.nome)}</div>${handleRedundante ? "" : `<div class="cr-handle">${esc(c.handle ?? "")}</div>`}</div>
         </div>
         <div class="beatA-narr">${c.narrativaCentral ? `“${esc(c.narrativaCentral)}”` : "Mapa ainda sem narrativa central definida."}</div>
         <div class="beatA-terr">${c.territorios.slice(0, 3).map(tituleCase).map(esc).join(" · ")}</div>
